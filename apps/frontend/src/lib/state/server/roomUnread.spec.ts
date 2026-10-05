@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { RoomViewerState, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { GetViewerResponse, ServerViewerState } from '@chatto/api-types/api/v1/viewer_pb';
-import { ServerProjectionStore } from './projection.svelte';
-import { RoomUnreadStore } from './roomUnread.svelte';
+import { ServerProjectionStore } from '@chatto/client/server/projection';
+import { RoomUnreadStore } from './roomUnread';
 
 describe('RoomUnreadStore', () => {
   it('reads authoritative room and aggregate unread state directly from the projection', () => {

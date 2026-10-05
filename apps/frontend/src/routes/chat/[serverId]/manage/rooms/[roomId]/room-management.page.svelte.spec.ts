@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
+import { RealtimeProjectionUpdate } from '@chatto/client/realtime/eventBus';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { ListRoomsResponse, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
-import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
+import { RealtimeResourceUpdate } from '@chatto/client/api/realtimeResources';
 import { RoomDeletedEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { loadLocaleMessages } from '$lib/i18n/messages';
@@ -12,7 +12,7 @@ import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { queryClient } from '$lib/query/client';
 import { adminQueryKeys } from '$lib/query/admin';
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
-import type { AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
+import type { AdminManagedRoom } from '$lib/api/adminRoomLayout';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -27,6 +27,22 @@ const mocks = vi.hoisted(() => ({
 }));
 
 // Page titles are tested separately from this page's partial route/server fixtures.
+// The store mock also carries the frontend UI state of its server.
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
+
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    isOriginServer: () => false,
+    getServer: (serverId: string) => ({ id: serverId, url: `https://${serverId}.example.test` }),
+    tryGetStore: () => server.scope.store,
+    getStore: () => ({})
+  }
+}));
+
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 
 vi.mock('$app/state', () => ({
@@ -55,15 +71,6 @@ vi.mock('$lib/hooks', () => ({
   }
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    isOriginServer: () => false,
-    getServer: (serverId: string) => ({ id: serverId, url: `https://${serverId}.example.test` }),
-    tryGetStore: () => server.scope.store,
-    getStore: () => ({})
-  }
-}));
-
 vi.mock(
   '$lib/state/server/scope.svelte',
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
@@ -83,14 +90,14 @@ function renderSections(...sections: Section[]) {
   return render(RoomManagementTestHarness, { props: { sections } });
 }
 
-vi.mock('$lib/api-client/adminRoomLayout', () => ({
+vi.mock('$lib/api/adminRoomLayout', () => ({
   createAdminRoomLayoutAPI: ({ serverId }: { serverId: string }) => ({
     getRoom: (roomId: string, options?: { signal?: AbortSignal }) =>
       mocks.getRoom(serverId, roomId, options)
   })
 }));
 
-vi.mock('$lib/api-client/memberDirectory', () => ({
+vi.mock('@chatto/client/api/memberDirectory', () => ({
   createMemberDirectoryAPI: () => ({
     listRoomMembers: mocks.listRoomMembers,
     listUsers: () => Promise.resolve({ members: [], totalCount: 0, hasMore: false }),
@@ -98,7 +105,7 @@ vi.mock('$lib/api-client/memberDirectory', () => ({
   })
 }));
 
-vi.mock('$lib/api-client/rooms', () => ({
+vi.mock('@chatto/client/api/rooms', () => ({
   createRoomCommandAPI: () => ({
     updateRoom: mocks.updateRoom,
     addMember: vi.fn(),
@@ -115,7 +122,7 @@ vi.mock('$lib/ui/toast', () => ({
 }));
 
 import RoomManagementTestHarness from './RoomManagementTestHarness.svelte';
-import { RoomThreadingMode } from '$lib/roomThreading';
+import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 
 function managedRoom(
   name: string,

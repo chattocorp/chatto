@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AdminMember } from '$lib/api-client/adminUsers';
+import type { AdminMember } from '$lib/api/adminUsers';
 import { adminMemberRowKey, createAdminMemberLoader, type AdminMemberBatch } from './adminMembers';
 import {
   queryClient,
@@ -7,7 +7,7 @@ import {
   removeAdminUserQueries,
   removeServerQueries,
   refreshRoleQueries
-} from './client';
+} from './queryClient';
 
 function member(id: string): AdminMember {
   return {

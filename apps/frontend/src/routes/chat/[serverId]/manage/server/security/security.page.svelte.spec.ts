@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import type { OAuthClient } from '$lib/api-client/oauthClients';
+import type { OAuthClient } from '$lib/api/oauthClients';
 import { adminQueryKeys } from '$lib/query/admin';
 import { queryClient } from '$lib/query/client';
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
@@ -23,9 +23,9 @@ vi.mock(
 
 let server: TestServerScope;
 
-vi.mock('$lib/api-client/serverState', async () => {
-  const actual = await vi.importActual<typeof import('$lib/api-client/serverState')>(
-    '$lib/api-client/serverState'
+vi.mock('@chatto/client/api/serverState', async () => {
+  const actual = await vi.importActual<typeof import('@chatto/client/api/serverState')>(
+    '@chatto/client/api/serverState'
   );
   return {
     ...actual,

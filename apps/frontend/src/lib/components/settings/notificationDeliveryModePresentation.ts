@@ -1,4 +1,4 @@
-import { NotificationDeliveryMode } from '$lib/api-client/notifications';
+import { NotificationDeliveryMode } from '@chatto/client/api/notifications';
 import type { MatrixCellTone } from '$lib/ui/matrix';
 import { m } from '$lib/i18n/messages';
 

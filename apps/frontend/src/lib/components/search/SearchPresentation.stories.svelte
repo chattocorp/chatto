@@ -8,9 +8,9 @@
 </script>
 
 <script lang="ts">
-  import type { MessageSearchResult } from '$lib/api-client/messageSearch';
-  import { MessageSearchState } from '$lib/api-client/messageSearch';
-  import { RoomKind } from '$lib/api-client/roomDirectory';
+  import type { MessageSearchResult } from '@chatto/client/api/messageSearch';
+  import { MessageSearchState } from '@chatto/client/api/messageSearch';
+  import { RoomKind } from '@chatto/client/api/roomDirectory';
   import { Panel } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import ClampedMessagePreview from '../../../routes/chat/[serverId]/[roomId]/ClampedMessagePreview.svelte';

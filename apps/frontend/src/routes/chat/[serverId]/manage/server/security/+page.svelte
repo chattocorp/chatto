@@ -6,8 +6,8 @@
     createOAuthClientAPI,
     type OAuthClient,
     type EditableOAuthClientPolicyName
-  } from '$lib/api-client/oauthClients';
-  import { getServerSecurityConfig, updateBlockedUsernames } from '$lib/api-client/serverState';
+  } from '$lib/api/oauthClients';
+  import { getServerSecurityConfig, updateBlockedUsernames } from '@chatto/client/api/serverState';
   import { PaneHeader, PageTitle, DataTable, Panel, Hint, PaneContent, LoadingFog } from '$lib/ui';
   import { TextArea, Button, Select } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';

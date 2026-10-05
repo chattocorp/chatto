@@ -26,7 +26,7 @@ const permissionMocks = vi.hoisted(() => ({
   batchGetRoomMembers: vi.fn()
 }));
 
-vi.mock('$lib/api-client/permissions', () => ({
+vi.mock('@chatto/client/api/permissions', () => ({
   createPermissionAPI: () => permissionMocks
 }));
 

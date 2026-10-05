@@ -1,6 +1,6 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import type { AdminMember } from '$lib/api-client/adminUsers';
+  import type { AdminMember } from '$lib/api/adminUsers';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';

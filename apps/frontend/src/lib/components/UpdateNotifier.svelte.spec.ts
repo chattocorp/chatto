@@ -9,6 +9,15 @@ const mocks = vi.hoisted(() => ({
   onNavigate: vi.fn()
 }));
 
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverConnectionManager: {
+    originClient: {
+      forceReconnect: mocks.forceReconnect
+    }
+  }
+}));
+
 vi.mock('$app/state', () => ({
   updated: mocks.updated
 }));
@@ -19,14 +28,6 @@ vi.mock('$app/navigation', () => ({
 
 vi.mock('$lib/i18n/messages', () => ({
   m: (key: string) => key
-}));
-
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
-  serverConnectionManager: {
-    originClient: {
-      forceReconnect: mocks.forceReconnect
-    }
-  }
 }));
 
 vi.mock('$lib/ui/toast', () => ({

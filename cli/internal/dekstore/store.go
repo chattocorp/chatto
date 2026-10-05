@@ -16,6 +16,7 @@ import (
 	"hmans.de/chatto/internal/jetstreamutil"
 	"hmans.de/chatto/internal/kms"
 	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 const (
@@ -30,11 +31,11 @@ type Reader interface {
 }
 
 type Store struct {
-	kv     jetstream.KeyValue
+	kv     *events.KeyValue
 	logger *log.Logger
 }
 
-func New(kv jetstream.KeyValue, logger *log.Logger) *Store {
+func New(kv *events.KeyValue, logger *log.Logger) *Store {
 	if logger == nil {
 		logger = log.WithPrefix("dekstore")
 	}
@@ -114,7 +115,12 @@ func (s *Store) Get(ctx context.Context, ref string) (*runtimestatev1.UserDataEn
 	if err := ValidateRef(ref); err != nil {
 		return nil, err
 	}
-	entry, err := s.kv.Get(ctx, ref)
+	// Content keys never change after Create, so any replica may answer. A
+	// miss is decided again through the stream leader.
+	entry, err := s.kv.GetAnyReplica(ctx, ref)
+	if errors.Is(err, jetstream.ErrKeyNotFound) {
+		entry, err = s.kv.Get(ctx, ref)
+	}
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, encryption.ErrKeyNotFound

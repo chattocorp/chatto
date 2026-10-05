@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { AdminAssetCleanupStatus } from '$lib/api-client/adminDiagnostics';
+import type { AdminAssetCleanupStatus } from '$lib/api/adminDiagnostics';
 import AssetCleanupPanel from './AssetCleanupPanel.svelte';
 
 function status(overrides: Partial<AdminAssetCleanupStatus> = {}): AdminAssetCleanupStatus {

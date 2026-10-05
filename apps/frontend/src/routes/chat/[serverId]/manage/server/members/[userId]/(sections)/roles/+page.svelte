@@ -5,7 +5,7 @@ Roles section of a human member: the server role assignments.
 -->
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
-  import type { AdminRoleMutationResult } from '$lib/api-client/adminUsers';
+  import type { AdminRoleMutationResult } from '$lib/api/adminUsers';
   import { m } from '$lib/i18n/messages';
   import { adminQueryKeys } from '$lib/query/admin';
   import { createMutation, queryClient } from '$lib/query/client';

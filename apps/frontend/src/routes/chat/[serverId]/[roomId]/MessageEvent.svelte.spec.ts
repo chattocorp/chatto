@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, tick } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
-import type { MessageAttachmentView } from '$lib/render/messageAttachments';
+import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
+import type { MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
 import { q } from '$lib/test-utils';
-import { RoomThreadingMode } from '$lib/roomThreading';
+import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 import MessageEventTestHarness from './MessageEventTestHarness.svelte';
+import { messageEvent } from './messageEventFixture';
+import { MessageActionOverlayState } from './messageActionOverlayState.svelte';
 
 const mocks = vi.hoisted(() => ({
   copyImageToClipboard: vi.fn(),
@@ -56,62 +57,6 @@ vi.mock('$app/paths', () => ({
       .replace('[messageId]', params?.messageId ?? '')
 }));
 
-type MessageOverrides = Partial<{
-  id: string;
-  actorId: string;
-  body: string;
-  attachments: MessageAttachmentView[];
-  threadRootEventId: string | null;
-  echoOfEventId: string | null;
-  echoFromThreadRootEventId: string | null;
-  channelEchoEventId: string | null;
-  threadExists: boolean;
-  replyCount: number;
-}>;
-
-function messageEvent(overrides: MessageOverrides = {}): TimelineEventView {
-  const actorId = overrides.actorId ?? 'viewer';
-  return {
-    id: overrides.id ?? 'regular-message',
-    actorId,
-    actor: {
-      id: actorId,
-      login: actorId,
-      displayName: actorId,
-      deleted: false,
-      avatarUrl: null,
-      presenceStatus: PresenceStatus.OFFLINE
-    },
-    createdAt: new Date().toISOString(),
-    event: {
-      kind: TimelineEventKind.MessagePosted,
-      roomId: 'room-1',
-      body: overrides.body ?? 'Hello from this message',
-      attachments: overrides.attachments ?? [],
-      linkPreview: null,
-      reactions: [
-        {
-          emoji: 'thumbsup',
-          count: 1,
-          hasReacted: true,
-          users: [{ id: 'viewer', displayName: 'viewer' }]
-        }
-      ],
-      updatedAt: null,
-      inReplyTo: null,
-      threadRootEventId: overrides.threadRootEventId ?? null,
-      echoOfEventId: overrides.echoOfEventId ?? null,
-      echoFromThreadRootEventId: overrides.echoFromThreadRootEventId ?? null,
-      channelEchoEventId: overrides.channelEchoEventId ?? null,
-      replyCount: overrides.replyCount ?? 0,
-      lastReplyAt: null,
-      threadParticipants: [],
-      threadExists: overrides.threadExists ?? false,
-      viewerIsFollowingThread: false
-    }
-  } as TimelineEventView;
-}
-
 function menuButton(container: HTMLElement, label: string): HTMLButtonElement | undefined {
   return Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(
     (button) => button.textContent?.trim() === label
@@ -156,6 +101,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  // A long press under fake timers leaves its opening-click guard; a new press clears it.
+  window.dispatchEvent(new Event('pointerdown'));
   vi.restoreAllMocks();
   window.getSelection()?.removeAllRanges();
 });
@@ -193,6 +140,111 @@ describe('MessageEvent action model integration', () => {
 
     expect(rendered.container.querySelector('[data-testid="message-row"]')).toBeNull();
     expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Target User');
+  });
+
+  it('keeps the emoji picker open when its row unmounts', async () => {
+    const event = messageEvent();
+    const rendered = render(MessageEventTestHarness, { props: { event } });
+
+    (q(rendered.container, 'button[aria-label="Add reaction"]') as HTMLButtonElement).click();
+    await vi.waitFor(() =>
+      expect(q(rendered.container, 'input[placeholder="Search emojis..."]')).toBeTruthy()
+    );
+
+    // The virtualizer unmounts the row, for example when the keyboard shrinks the timeline.
+    await rendered.rerender({ event, showMessage: false });
+    expect(rendered.container.querySelector('[data-testid="message-row"]')).toBeNull();
+
+    await selectPickerEmoji(rendered.container, 'check', 'white_check_mark');
+    await vi.waitFor(() =>
+      expect(mocks.actions.toggleReaction).toHaveBeenLastCalledWith(
+        expect.objectContaining({ messageEventId: 'regular-message' }),
+        '✅',
+        false
+      )
+    );
+  });
+
+  it('opens reaction details from the message menu', async () => {
+    const rendered = render(MessageEventTestHarness, { props: { event: messageEvent() } });
+
+    await openContextMenu(rendered.container);
+    menuButton(rendered.container, 'Reactions')!.click();
+
+    await vi.waitFor(() =>
+      expect(document.querySelector('dialog[open]')?.querySelector('[role="tablist"]')).toBeTruthy()
+    );
+    expect(menuButton(rendered.container, 'Copy message link')).toBeUndefined();
+  });
+
+  it('quotes the selection captured at open after the row unmounts', async () => {
+    const onOpenThread = vi.fn();
+    const event = messageEvent({ body: 'Quote this selection' });
+    const rendered = render(MessageEventTestHarness, { props: { event, onOpenThread } });
+    const range = document.createRange();
+    range.selectNodeContents(q(rendered.container, '[data-testid="message-body"]')!);
+    window.getSelection()!.addRange(range);
+
+    q(rendered.container, '[data-testid="message-row"]')!.dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 2 })
+    );
+    await openContextMenu(rendered.container);
+    await rendered.rerender({ event, onOpenThread, showMessage: false });
+    menuButton(rendered.container, 'Reply in thread')!.click();
+
+    expect(onOpenThread).toHaveBeenCalledWith(
+      event.id,
+      expect.objectContaining({ quoteText: 'Quote this selection' })
+    );
+  });
+
+  it('clears the selected text when the message menu closes', async () => {
+    const rendered = render(MessageEventTestHarness, { props: { event: messageEvent() } });
+    const range = document.createRange();
+    range.selectNodeContents(q(rendered.container, '[data-testid="message-body"]')!);
+    window.getSelection()!.addRange(range);
+
+    await openContextMenu(rendered.container);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+
+    await vi.waitFor(() =>
+      expect(menuButton(rendered.container, 'Copy message link')).toBeUndefined()
+    );
+    expect(window.getSelection()!.isCollapsed).toBe(true);
+  });
+
+  it('ignores the context menu event of a touch long press', async () => {
+    const { container } = render(MessageEventTestHarness, { props: { event: messageEvent() } });
+    const row = q(container, '[data-testid="message-row"]')!;
+
+    vi.useFakeTimers();
+    row.dispatchEvent(new Event('touchstart', { bubbles: true, cancelable: true }));
+    vi.advanceTimersByTime(500);
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    flushSync();
+    vi.useRealTimers();
+
+    await vi.waitFor(() => expect(actionSheetButton(container, 'Copy message link')).toBeTruthy());
+    expect(container.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it('closes the touch sheet when it is dismissed natively', async () => {
+    const actionOverlays = new MessageActionOverlayState();
+    const { container } = render(MessageEventTestHarness, {
+      props: { event: messageEvent(), actionOverlays }
+    });
+
+    vi.useFakeTimers();
+    q(container, '[data-testid="message-row"]')!.dispatchEvent(
+      new Event('touchstart', { bubbles: true, cancelable: true })
+    );
+    vi.advanceTimersByTime(500);
+    flushSync();
+    vi.useRealTimers();
+    await vi.waitFor(() => expect(actionSheetButton(container, 'Copy message link')).toBeTruthy());
+
+    container.querySelector<HTMLDialogElement>('dialog[open]')!.close();
+    await vi.waitFor(() => expect(actionOverlays.current).toBeNull());
   });
 
   it('keeps the message menu for a mention without a current member', async () => {
@@ -291,7 +343,7 @@ describe('MessageEvent action model integration', () => {
     expect(link.href).toBe(new URL('/linked/path', window.location.href).href);
   });
 
-  it('drops a clicked link when a virtualized row changes message', async () => {
+  it('closes a menu when its message leaves and does not carry its link to another message', async () => {
     const firstMessage = messageEvent();
     const rendered = render(MessageEventTestHarness, { props: { event: firstMessage } });
     const body = q(rendered.container, '[data-testid="message-body"]')!;
@@ -302,12 +354,17 @@ describe('MessageEvent action model integration', () => {
     await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy link')).toBeTruthy());
 
     await rendered.rerender({ event: messageEvent({ id: 'next-message' }) });
+    await vi.waitFor(() =>
+      expect(menuButton(rendered.container, 'Copy message link')).toBeUndefined()
+    );
 
-    await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy link')).toBeUndefined());
-    expect(menuButton(rendered.container, 'Copy message link')).toBeTruthy();
+    await openContextMenu(rendered.container);
+    expect(menuButton(rendered.container, 'Copy link')).toBeUndefined();
 
     await rendered.rerender({ event: firstMessage });
-    expect(menuButton(rendered.container, 'Copy link')).toBeUndefined();
+    await vi.waitFor(() =>
+      expect(menuButton(rendered.container, 'Copy message link')).toBeUndefined()
+    );
   });
 
   it('shows an Echo link only for an echoed reply in the thread pane', async () => {
@@ -434,16 +491,51 @@ describe('MessageEvent action model integration', () => {
     }
   );
 
-  it('starts an attributed thread reply from the hover toolbar', () => {
+  it('keeps the full reply excerpt for CSS truncation in the room composer', async () => {
+    const body = 'A reply preview should use all available space. '.repeat(5);
+    const { container } = render(MessageEventTestHarness, {
+      props: { event: messageEvent({ body }) }
+    });
+
+    (q(container, 'button[aria-label="Reply"]') as HTMLButtonElement).click();
+
+    await expect
+      .element(q(container, '[data-testid="active-reply-excerpt"]'))
+      .toHaveTextContent(body.trim());
+  });
+
+  it('keeps the full reply excerpt for CSS truncation when replying to an echo', async () => {
+    const body = 'A reply preview should use all available space. '.repeat(5);
     const onOpenThread = vi.fn();
-    const event = messageEvent({ id: 'toolbar-target' });
+    const { container } = render(MessageEventTestHarness, {
+      props: {
+        event: messageEvent({ body, echoOfEventId: 'reply', echoFromThreadRootEventId: 'root' }),
+        onOpenThread
+      }
+    });
+
+    await openContextMenu(container);
+    menuButton(container, 'Reply in thread')!.click();
+
+    expect(onOpenThread).toHaveBeenCalledWith(
+      'root',
+      expect.objectContaining({ reply: expect.objectContaining({ excerpt: body }) })
+    );
+  });
+
+  it('starts an attributed thread reply with the full excerpt from the hover toolbar', () => {
+    const onOpenThread = vi.fn();
+    const body = 'A reply preview should use all available space. '.repeat(5);
+    const event = messageEvent({ id: 'toolbar-target', body });
     const { container } = render(MessageEventTestHarness, { props: { event, onOpenThread } });
 
     (q(container, 'button[aria-label="Reply in thread"]') as HTMLButtonElement).click();
 
     expect(onOpenThread).toHaveBeenCalledWith(
       event.id,
-      expect.objectContaining({ reply: expect.objectContaining({ eventId: event.id }) })
+      expect.objectContaining({
+        reply: expect.objectContaining({ eventId: event.id, excerpt: body })
+      })
     );
   });
 
@@ -556,6 +648,46 @@ describe('MessageEvent action model integration', () => {
     expect(!!q(container, 'button[aria-label="Reply"]')).toBe(allowed);
   });
 
+  it('permits moderators to remove existing echoes without permitting additions', async () => {
+    const event = messageEvent({
+      id: 'bot-reply',
+      actorId: 'bot',
+      threadRootEventId: 'thread-root',
+      channelEchoEventId: 'echo'
+    });
+    const rendered = render(MessageEventTestHarness, {
+      props: {
+        event,
+        canManageOthersMessage: true,
+        canPostMessage: false,
+        threadingMode: RoomThreadingMode.DISABLED
+      }
+    });
+    (q(rendered.container, 'button[aria-label="Edit message"]') as HTMLButtonElement).click();
+    expect(mocks.actions.startEdit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        eventId: 'bot-reply',
+        canAddChannelEcho: false,
+        canRemoveChannelEcho: true
+      })
+    );
+
+    await rendered.rerender({ event, canManageOthersMessage: false });
+    expect(q(rendered.container, 'button[aria-label="Edit message"]')).toBeNull();
+
+    await rendered.rerender({
+      event: messageEvent({ actorId: 'bot', threadRootEventId: 'thread-root' }),
+      canManageOthersMessage: true
+    });
+    (q(rendered.container, 'button[aria-label="Edit message"]') as HTMLButtonElement).click();
+    expect(mocks.actions.startEdit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        canAddChannelEcho: false,
+        canRemoveChannelEcho: false
+      })
+    );
+  });
+
   it('rebinds every action surface when a virtualized row changes message shape', async () => {
     const regular = messageEvent();
     const rendered = render(MessageEventTestHarness, { props: { event: regular } });
@@ -642,7 +774,8 @@ describe('MessageEvent action model integration', () => {
         deleteEventId: 'echo-wrapper',
         threadRootEventId: 'thread-root',
         channelEchoEventId: 'echo-wrapper',
-        canAddChannelEcho: true
+        canAddChannelEcho: false,
+        canRemoveChannelEcho: true
       })
     );
 

@@ -1,5 +1,5 @@
-import type { EffectivePermission } from '$lib/api-client/effectivePermissions';
-import type { MatrixData, MatrixScope } from '$lib/api-client/permissions';
+import type { EffectivePermission } from '@chatto/client/api/effectivePermissions';
+import type { MatrixData, MatrixScope } from '@chatto/client/api/permissions';
 import { m } from '$lib/i18n/messages';
 import {
   getIncludingPermissions,
@@ -184,6 +184,8 @@ function botPermissionAction(permission: string): string {
       return m('chat.profile.permissions.read');
     case 'message.read-interactions':
       return m('chat.profile.permissions.interactions');
+    case 'message.post-in-interactions':
+      return m('chat.profile.permissions.reply_interactions');
     case 'message.post-in-thread':
       return m('chat.profile.permissions.reply');
     case 'message.manage':

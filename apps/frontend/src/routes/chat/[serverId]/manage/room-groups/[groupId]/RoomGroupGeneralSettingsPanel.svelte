@@ -1,6 +1,6 @@
 <script lang="ts">
   import { DraftField } from '$lib/components/settings/DraftField.svelte';
-  import type { AdminRoomGroup } from '$lib/api-client/adminRoomLayout';
+  import type { AdminRoomGroup } from '$lib/api/adminRoomLayout';
   import { Panel } from '$lib/ui';
   import { Button, TextArea, TextInput } from '$lib/ui/form';
   import { buildRoomGroupSettingsUpdate } from './roomGroupSettings';

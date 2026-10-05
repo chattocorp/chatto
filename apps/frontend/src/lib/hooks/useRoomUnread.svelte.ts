@@ -1,4 +1,5 @@
-import { createReadStateAPI, type MarkRoomAsReadResult } from '$lib/api-client/readState';
+import { createReadStateAPI, type MarkRoomAsReadResult } from '@chatto/client/api/readState';
+import { serverUi } from '$lib/state/server/serverUi';
 import { useServerScope } from '$lib/state/server/scope.svelte';
 import { useUnreadMarker, type UnreadMarkerEvent } from './useUnreadMarker.svelte';
 
@@ -14,10 +15,14 @@ export function useRoomUnread(
     roomId: string;
     events: readonly UnreadMarkerEvent[];
     canReadMessages?: boolean;
+    /** See the `useUnreadMarker` option of the same name. */
+    getLifecycleUpToEventId?: () => string | undefined | null;
+    /** See the `useUnreadMarker` option of the same name. */
+    onLifecycleRead?: (upToEventId: string | undefined) => void;
   }
 ) {
   const serverScope = useServerScope();
-  const roomUnreadStore = serverScope.store.roomUnread;
+  const roomUnreadStore = serverUi(serverScope.store).roomUnread;
 
   const unread = useUnreadMarker(() => getProps().roomId, {
     markAsRead: async (
@@ -25,16 +30,19 @@ export function useRoomUnread(
       upToEventId: string | undefined,
       signal: AbortSignal
     ) => {
-      const optimisticRead = roomUnreadStore.beginOptimisticRead(targetRoomId);
+      // Only a read through the latest message is known to clear the room.
+      // The live read state reconciles a partial read.
+      const optimisticRead =
+        upToEventId === undefined ? roomUnreadStore.beginOptimisticRead(targetRoomId) : null;
 
       try {
         const result = await serverScope.connection
           .getAPI(createReadStateAPI)
           .markRoomAsRead({ roomId: targetRoomId, upToEventId }, { signal });
-        optimisticRead.commit();
+        optimisticRead?.commit();
         return result;
       } catch (err) {
-        optimisticRead.rollback();
+        optimisticRead?.rollback();
         throw err;
       }
     },
@@ -49,7 +57,12 @@ export function useRoomUnread(
     getMarkerEvents: () => getProps().events,
     getMarkerSkipActorId: () => serverScope.store.viewerId,
     canMarkAsRead: () => serverScope.store.isAuthenticated && getProps().canReadMessages !== false,
-    onMarkAsReadError: (error) => console.error('Failed to mark room as read:', error)
+    onMarkAsReadError: (error) => console.error('Failed to mark room as read:', error),
+    getLifecycleUpToEventId: () => {
+      const getter = getProps().getLifecycleUpToEventId;
+      return getter ? getter() : undefined;
+    },
+    onLifecycleRead: (upToEventId) => getProps().onLifecycleRead?.(upToEventId)
   });
 
   return {

@@ -1,12 +1,13 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { PageTitle, LoadingFog } from '$lib/ui';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import type { RoomsListItem } from '$lib/state/server/rooms.svelte';
+  import type { RoomsListItem } from '$lib/state/server/navigation';
 
   let {
     room,
@@ -22,7 +23,8 @@
   const title = $derived(`#${room.name}`);
   let joining = $state(false);
   const groupName = $derived(
-    stores.navigation.roomGroups.find((group) => group.roomIds.includes(room.id))?.name ?? null
+    serverUi(stores).navigation.roomGroups.find((group) => group.roomIds.includes(room.id))?.name ??
+      null
   );
   const description = $derived(room.description?.trim() || null);
 
@@ -31,7 +33,7 @@
 
     joining = true;
     try {
-      const result = await stores.roomDirectory.joinRoom(room.id);
+      const result = await serverUi(stores).roomDirectory.joinRoom(room.id);
       if (!serverScope.isCurrent()) return;
 
       if (!result.ok) {
@@ -76,7 +78,7 @@
         <p class="mt-4 text-base leading-7 text-pretty text-text">{description}</p>
       {/if}
 
-      {#await stores.roomDirectory.loadJoinPreview(room.id)}
+      {#await serverUi(stores).roomDirectory.loadJoinPreview(room.id)}
         <LoadingFog class="mt-6 h-20 w-full" label={m('room.join.member_preview_label')} />
       {:then preview}
         {#if preview}

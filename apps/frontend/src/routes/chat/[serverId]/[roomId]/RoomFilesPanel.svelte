@@ -5,16 +5,16 @@ Room-scoped file list for the room sidebar.
 -->
 <script lang="ts">
   import { pushState } from '$app/navigation';
-  import { VideoProcessingStatus } from '$lib/render/messageAttachments';
+  import { VideoProcessingStatus } from '@chatto/client/timeline/messageAttachments';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import type { RoomFileItem, RoomFilesStore } from '$lib/state/room';
-  import { assetUrlForServer } from '$lib/assets/assetUrls';
+  import { assetUrlForServer } from '@chatto/client/util/assetUrls';
   import { useExpiringAssetUrlRefresh } from '$lib/attachments/useExpiringAssetUrlRefresh.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { fileDateGroup, formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { m } from '$lib/i18n/messages';
-  import { serverStorageKey } from '$lib/storage/serverStorage';
+  import { serverStorageKey } from '@chatto/client/storage/serverStorage';
   import VirtualGroupedList from '$lib/components/chat/VirtualGroupedList.svelte';
   import type { VirtualListGroup } from '$lib/components/chat/groupedListItems';
   import { EmptyState, LoadingFog } from '$lib/ui';

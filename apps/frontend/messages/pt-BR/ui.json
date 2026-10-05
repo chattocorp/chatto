@@ -16,7 +16,6 @@
       "remote_title": "{server} precisa de login",
       "remote_message": "Este servidor rejeitou o login armazenado. Reconecte-o para retomar atualizações e ações ao vivo.",
       "remote_action": "Reconectar",
-      "remote_failed": "Falha ao iniciar a reconexão",
       "sidebar_reauth": "{server} precisa de login"
     },
     "access_denied": {

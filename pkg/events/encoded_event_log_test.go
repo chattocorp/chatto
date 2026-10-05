@@ -3,6 +3,7 @@ package events_test
 import (
 	"bytes"
 	"errors"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -160,8 +161,15 @@ func TestSubjectRecordsAfterPageBoundsRecordsAndBytes(t *testing.T) {
 		t.Fatalf("third page = %+v, want final record", third)
 	}
 
-	if _, err := eventLog.SubjectRecordsAfterPage(ctx, subject, 0, 2, 5); !errors.Is(err, ErrInvalidSubjectReadLimit) {
-		t.Fatalf("byte-bounded page error = %v, want ErrInvalidSubjectReadLimit", err)
+	shortPage, err := eventLog.SubjectRecordsAfterPage(ctx, subject, 0, 2, 5)
+	if err != nil {
+		t.Fatalf("byte-bounded page: %v", err)
+	}
+	if len(shortPage.Records) != 1 || !shortPage.More || shortPage.LastSequence != first.Records[0].Sequence {
+		t.Fatalf("byte-bounded page = %+v, want first record only and more", shortPage)
+	}
+	if _, err := eventLog.SubjectRecordsAfterPage(ctx, subject, 0, 2, 3); !errors.Is(err, ErrInvalidSubjectReadLimit) {
+		t.Fatalf("oversized record error = %v, want ErrInvalidSubjectReadLimit", err)
 	}
 	bytePage, err := eventLog.SubjectRecordsAfterPage(ctx, subject, 0, 1, 4)
 	if err != nil {
@@ -169,6 +177,85 @@ func TestSubjectRecordsAfterPageBoundsRecordsAndBytes(t *testing.T) {
 	}
 	if len(bytePage.Records) != 1 || !bytePage.More {
 		t.Fatalf("byte page = %+v, want one record and more", bytePage)
+	}
+}
+
+func TestSubjectRecordsAfterPageSplitsHistoryAtByteBudget(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := "evt.compatibility.page.bytes"
+	payload := bytes.Repeat([]byte("x"), 100)
+	var want []uint64
+	for i := 0; i < 10; i++ {
+		sequence, err := eventLog.AppendEventually(ctx, subject, EncodedRecord{
+			ID:   "bytes-" + strconv.Itoa(i),
+			Data: payload,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		want = append(want, sequence)
+	}
+
+	for _, maxBytes := range []int{100, 350, 1 << 20} {
+		t.Run(strconv.Itoa(maxBytes), func(t *testing.T) {
+			var got []uint64
+			var afterSeq uint64
+			for pages := 0; ; pages++ {
+				if pages > len(want) {
+					t.Fatalf("read %d pages without reaching the end; got %v", pages, got)
+				}
+				page, err := eventLog.SubjectRecordsAfterPage(ctx, subject, afterSeq, 500, maxBytes)
+				if err != nil {
+					t.Fatalf("page after %d: %v", afterSeq, err)
+				}
+				if len(page.Records) == 0 {
+					t.Fatalf("page after %d is empty; more = %v", afterSeq, page.More)
+				}
+				pageBytes := 0
+				for _, record := range page.Records {
+					pageBytes += len(record.Data)
+					got = append(got, record.Sequence)
+				}
+				if pageBytes > maxBytes {
+					t.Fatalf("page holds %d payload bytes, want at most %d", pageBytes, maxBytes)
+				}
+				if !page.More {
+					break
+				}
+				afterSeq = page.LastSequence
+			}
+			if !slices.Equal(got, want) {
+				t.Fatalf("sequences = %v, want %v without gaps", got, want)
+			}
+		})
+	}
+}
+
+func TestSubjectRecordsAfterPageEndsBeforeOversizedRecord(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := "evt.compatibility.page.oversized"
+	var sequences []uint64
+	for i, data := range [][]byte{[]byte("small"), []byte("small"), bytes.Repeat([]byte("x"), 100)} {
+		sequence, err := eventLog.AppendEventually(ctx, subject, EncodedRecord{ID: "oversized-" + strconv.Itoa(i), Data: data})
+		if err != nil {
+			t.Fatal(err)
+		}
+		sequences = append(sequences, sequence)
+	}
+
+	page, err := eventLog.SubjectRecordsAfterPage(ctx, subject, 0, 500, 50)
+	if err != nil {
+		t.Fatalf("page before oversized record: %v", err)
+	}
+	if len(page.Records) != 2 || !page.More || page.LastSequence != sequences[1] {
+		t.Fatalf("page = %+v, want both small records and more", page)
+	}
+	if _, err := eventLog.SubjectRecordsAfterPage(ctx, subject, page.LastSequence, 500, 50); !errors.Is(err, ErrInvalidSubjectReadLimit) {
+		t.Fatalf("oversized first record error = %v, want ErrInvalidSubjectReadLimit", err)
 	}
 }
 

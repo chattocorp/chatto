@@ -3,7 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
 import { queryClient } from '$lib/query/client';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
-import type { EffectivePermission } from '$lib/api-client/effectivePermissions';
+import type { EffectivePermission } from '@chatto/client/api/effectivePermissions';
 import {
   compactEffectivePermissions,
   groupBotPermissions,

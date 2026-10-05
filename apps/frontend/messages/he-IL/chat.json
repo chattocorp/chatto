@@ -27,9 +27,7 @@
         "followed_thread": "נוספה תשובה מאת {actor} בשרשור שבמעקב שלך.",
         "new_message": "נוספה הודעה חדשה מאת {actor}.",
         "activity": "קיבלת התראה מאת {actor}."
-      },
-      "load_failed": "טעינת ההתראות נכשלה",
-      "room_load_failed": "טעינת התראות החדר נכשלה"
+      }
     },
     "sign_out": {
       "title": "צא",
@@ -76,6 +74,21 @@
         "other": "{count} התראות"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "נדרש שדרוג של השרת",
+      "too_old_body": "בשרת הזה פועלת גרסת Chatto שהאפליקציה כבר לא תומכת בה. בקש ממנהל השרת לשדרג את Chatto.",
+      "unknown_title": "גרסת שרת לא ידועה",
+      "unknown_body": "האפליקציה לא יכולה לזהות את גרסת Chatto של השרת הזה ולכן לא יכולה להתחבר.",
+      "unreachable_body": "האפליקציה לא יכולה להתחבר לשרת הזה. בדוק את חיבור הרשת או נסה שוב מאוחר יותר.",
+      "server_version": "גרסת השרת",
+      "required_version": "גרסה נדרשת",
+      "required_version_value": "{version} ומעלה",
+      "check_again": "בדוק שוב"
+    },
+    "server_signed_out": {
+      "title": "אינך מחובר לשרת הזה",
+      "body": "התחבר כדי לקרוא ולשלוח הודעות בשרת הזה."
+    },
     "threads": {
       "title": "השרשורים שלי",
       "subtitle": "שרשורים שאתה עוקב אחריהם",
@@ -91,7 +104,12 @@
       "message_missing": "ההודעה אינה זמינה עוד",
       "in_room": "in",
       "in_room_capitalized": "In",
-      "load_failed": "טעינת השרשורים נכשלה"
+      "load_failed": "טעינת השרשורים נכשלה",
+      "notifications_count": {
+        "one": "{count} התראה",
+        "two": "{count} התראות",
+        "other": "{count} התראות"
+      }
     },
     "profile": {
       "title": "פרופיל",
@@ -107,6 +125,7 @@
         "inactive_note": "ההרשאות האלה שמורות, אך ההרשאות הנוכחיות של הבעלים אינן מאפשרות אותן.",
         "read": "לקרוא את כל ההודעות",
         "interactions": "לקרוא שרשורים שיצר או שבהם הוזכר ישירות",
+        "reply_interactions": "להשיב בשרשורים שפתח, שבהם הוזכר ישירות או שבהם קיבל הודעה פרטית",
         "post": "לפרסם הודעות חדשות",
         "room": "#{name}",
         "group": "קבוצה: {name}",

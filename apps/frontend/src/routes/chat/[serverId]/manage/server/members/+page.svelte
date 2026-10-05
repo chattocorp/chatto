@@ -3,7 +3,7 @@
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { createAdminUserManagementAPI, type AdminRoleSummary } from '$lib/api-client/adminUsers';
+  import { createAdminUserManagementAPI, type AdminRoleSummary } from '$lib/api/adminUsers';
   import { Panel, DataTable, Hint, PaneContent, Pill, PaneHeader, PageTitle } from '$lib/ui';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';

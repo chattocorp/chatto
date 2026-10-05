@@ -12,7 +12,7 @@ intensity.
     NotificationDeliveryMode,
     type NotificationPolicyField,
     type NotificationPolicyScope
-  } from '$lib/api-client/notifications';
+  } from '@chatto/client/api/notifications';
   import { m } from '$lib/i18n/messages';
   import {
     notificationDeliveryModeLabel,

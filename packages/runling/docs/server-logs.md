@@ -1,18 +1,36 @@
 # Server logs
 
 Both the development server (`mise x -- pnpm --dir packages/runling dev`
-from the monorepo root) and `runling serve` print colored, single-line activity
-logs to the terminal. Structured JSON records go to `.runling/logs/server.jsonl`,
-relative to the directory that contains the Runling config file. `NO_COLOR`
-disables terminal colors.
+from the monorepo root) and `runling serve` print colored logs to the terminal.
+Structured JSON records go to `.runling/logs/server.jsonl`, relative to the
+directory that contains the Runling config file. `NO_COLOR` disables terminal
+colors.
+
+By default, the terminal shows each run's detailed log, the same lines as
+`runling run`: agent reasoning, tool use, agent messages, task updates, and
+the errors of failed tasks.
 
 ```text
 10:32:01 [bright-waves-1234] ● Started conversation
+10:32:02 [bright-waves-1234 / worker:task-2] ● [ripe-apes-1855] Agent started (model: provider/model)
+10:32:05 [bright-waves-1234 / worker:task-2] ● [ripe-apes-1855] Thinking **Finding the composer**
+10:32:06 [bright-waves-1234 / worker:task-2] ● [ripe-apes-1855] Reading src/composer.ts
+10:32:40 [bright-waves-1234 / worker:task-2] ● Validating change
+```
+
+This output can contain user messages and model text, including personal data.
+It is not written to the log file. Where the terminal output is kept, for
+example by Docker or journald, start the server with `--quiet-log`. The terminal
+then shows only the safe activity summaries that the log file also holds:
+
+```text
 10:32:01 [bright-waves-1234 / task-1] ● Task started
 10:32:02 [bright-waves-1234 / worker:task-2] ● Agent started · provider/model
 10:32:32 [bright-waves-1234 / worker:task-2] ● Activity · 12 read, 8 search
-10:32:40 [bright-waves-1234 / worker:task-2] ● Validating change
 ```
+
+With detailed output, routine summaries go only to the log file. Warnings and
+errors go to both.
 
 Prefixes identify the workflow run and task number, with the agent's optional
 static `label`. Task numbers follow first observation and
@@ -42,7 +60,9 @@ private to the server user and ignored by Git.
 
 Activity records omit prompts, task labels, command text, tool arguments, message
 contents, and results. They describe activity, not its content. Full execution
-details remain in the run journal. An observed task can explicitly publish a
+details remain in the run journal. A failed task appears as `Task failed`; its
+error message is only in the journal, the console's Log view, and the detailed
+terminal output. An observed task can explicitly publish a
 public operational message with `ctx.emit({ type: "state", value, activity })`.
 Agent labels and these messages must be static, host-owned text, never user data
 or model output. State values are not copied into operational logs.

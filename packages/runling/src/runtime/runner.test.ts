@@ -7,14 +7,17 @@ import {
   formatDuration,
   formatWorkflowDetails,
   normalizeWorkflowResult,
-  runWorkflow,
-  shouldUseTui
+  runWorkflow
 } from './runner.ts';
 import type { RunlingEvent } from './events.ts';
 import type { InputRequest } from './input.ts';
 import { input as askInput } from './input.ts';
 import { Type } from 'typebox';
 import { task } from './workflow.ts';
+import { createRunJournal, newRun } from './run-journal.ts';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const initialExitCode = process.exitCode;
 
@@ -382,38 +385,115 @@ describe('formatWorkflowDetails', () => {
   });
 });
 
-describe('shouldUseTui', () => {
-  const interactive = { stdinIsTTY: true, stdoutIsTTY: true };
+describe('root workflow updates', () => {
+  const captureLog = async (work: () => Promise<unknown>) => {
+    const lines: string[] = [];
+    const originalLog = console.log;
+    console.log = (message: string) => lines.push(stripVTControlCharacters(message));
+    try {
+      await work();
+    } finally {
+      console.log = originalLog;
+    }
+    return lines;
+  };
 
-  test('uses the TUI for an interactive terminal', () => {
-    expect(shouldUseTui({ json: false, log: false, verbose: false }, interactive)).toBe(true);
+  test('are logged: findings, replies, and each new state activity once', async () => {
+    const lines = await captureLog(() =>
+      executeWorkflow(async (ctx) => {
+        await ctx.emit('Plain progress');
+        await ctx.emit({ type: 'finding', text: 'Validation passed' });
+        await ctx.emit({ type: 'state', value: {}, activity: 'Waiting for checks' });
+        await ctx.emit({ type: 'state', value: { polls: 2 }, activity: 'Waiting for checks' });
+        await ctx.emit({ type: 'state', value: {} });
+        await ctx.emit({
+          type: 'state',
+          value: {},
+          activity: 'Checks passed',
+          activityLevel: 'success'
+        });
+        await ctx.emit({ type: 'output', text: 'Repeated agent text' });
+        await ctx.emit({ type: 'tool', operation: 'read', phase: 'started' });
+        await ctx.emit({ type: 'reply', text: 'Answer', replyTo: 'q' });
+        return 'done';
+      })
+    );
+    const updates = lines.filter((line) => !/Runling starting|done|Finished in/.test(line));
+    expect(updates).toEqual([
+      '  ● Plain progress',
+      '  ● Validation passed',
+      '  ● Waiting for checks',
+      '  ✓ Checks passed',
+      '  ● Answer'
+    ]);
   });
 
-  test('uses logs for redirected input or output', () => {
-    expect(
-      shouldUseTui(
-        { json: false, log: false, verbose: false },
-        {
-          stdinIsTTY: false,
-          stdoutIsTTY: true
-        }
-      )
-    ).toBe(false);
-    expect(
-      shouldUseTui(
-        { json: false, log: false, verbose: false },
-        {
-          stdinIsTTY: true,
-          stdoutIsTTY: false
-        }
-      )
-    ).toBe(false);
+  test('multi-line messages keep their indentation', async () => {
+    const lines = await captureLog(() =>
+      executeWorkflow(async (ctx) => {
+        await ctx.emit('First line\nSecond line');
+        return 'done';
+      })
+    );
+    expect(lines).toContain('  ● First line\n    Second line');
   });
+});
 
-  test('allows log, verbose, and JSON modes to override an interactive terminal', () => {
-    expect(shouldUseTui({ json: false, log: true, verbose: false }, interactive)).toBe(false);
-    expect(shouldUseTui({ json: false, log: false, verbose: true }, interactive)).toBe(false);
-    expect(shouldUseTui({ json: true, log: false, verbose: false }, interactive)).toBe(false);
+describe('run journals', () => {
+  test('record the start, every event, and the result of a command-line run', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'runling-journal-'));
+    const originalLog = console.log;
+    const lines: string[] = [];
+    console.log = (message: string) => lines.push(stripVTControlCharacters(message));
+    try {
+      const run = newRun({
+        webhook: 'cli',
+        workflow: 'workflows/demo.ts',
+        source: 'cli',
+        input: { request: 'Fix' }
+      });
+      const writer = await createRunJournal(directory, run);
+      await executeWorkflow(
+        async (ctx) => {
+          await ctx.emit({ type: 'finding', text: 'Opened the pull request' });
+          return 'done';
+        },
+        { journal: { run, writer } }
+      );
+      const records = (await readFile(writer.path, 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      expect(writer.path).toBe(join(directory, `${run.id}.jsonl`));
+      expect(records[0]).toMatchObject({
+        type: 'started',
+        run: {
+          id: run.id,
+          reference: run.reference,
+          workflow: 'workflows/demo.ts',
+          source: 'cli',
+          pid: process.pid,
+          input: { request: 'Fix' },
+          status: 'running'
+        }
+      });
+      expect(records).toContainEqual(
+        expect.objectContaining({
+          type: 'event',
+          event: expect.objectContaining({ type: 'log', message: 'Opened the pull request' })
+        })
+      );
+      expect(records.at(-1)).toMatchObject({
+        type: 'finished',
+        status: 'completed',
+        output: 'done'
+      });
+      expect(lines[0]).toContain(`run ${run.reference}`);
+      expect(lines.at(-1)).toContain(`${run.id}.jsonl`);
+    } finally {
+      console.log = originalLog;
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });
 
@@ -736,4 +816,14 @@ test('does not start a workflow when the host signal is already aborted', async 
   );
   expect(called).toBe(false);
   expect(execution).toMatchObject({ ok: false, error: 'Cancelled by host' });
+});
+
+test('ctx.run identifies the run in the workflow and its spawned tasks', async () => {
+  const run = { id: 'run-id', reference: 'funky-comics-8426' };
+  const execution = await runWorkflow(
+    async (ctx) => [ctx.run, await ctx.spawn((child) => child.run).result],
+    { input: undefined, run }
+  );
+  expect(execution.output).toEqual([run, run]);
+  expect(createWorkflowContext().run).toBeUndefined();
 });

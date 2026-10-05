@@ -4,11 +4,11 @@
   import { onDestroy } from 'svelte';
   import { openProviderSignIn, verifyProviderSignIn } from '$lib/auth/providerSignIn';
   import type { OAuthPopup } from '$lib/oauth/popup';
-  import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
+  import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
-  import type { PublicAuthProvider } from '$lib/api-client/server';
+  import type { PublicAuthProvider } from '@chatto/client/api/server';
   import { Divider, Hint, PageTitle } from '$lib/ui';
   import { TextInput, Button, Form } from '$lib/ui/form';
 

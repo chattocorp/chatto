@@ -5,7 +5,7 @@ Visibility of a room: whether it is a Universal room. The checkbox saves
 immediately and shows the requested value while the save is in progress.
 -->
 <script lang="ts">
-  import type { AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
+  import type { AdminManagedRoom } from '$lib/api/adminRoomLayout';
   import { Hint, Panel } from '$lib/ui';
   import { Checkbox } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';

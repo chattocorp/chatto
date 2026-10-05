@@ -1,5 +1,6 @@
 import type { WorkflowContext } from 'runling';
-import { withTyping, type ChattoTyping } from '@chatto/client';
+import { withTyping } from '@chatto/client';
+import type { ChattoTyping } from './routing.ts';
 import {
   messageSignal,
   type ChattoInbox,
@@ -24,11 +25,14 @@ export async function runConversationTask<Result>(
     typing,
     acknowledge,
     delivery,
-    onMessage
+    onMessage,
+    isResponding
   }: {
     destination: Destination;
     post: ChattoPost;
     typing?: ChattoTyping;
+    /** True after this turn commits to a text response, rather than a reaction. */
+    isResponding?: () => boolean;
     acknowledge: (delivery: Delivery, signal: AbortSignal) => Promise<void>;
     delivery: Delivery;
     /** Associate incoming text with its source message before passing it to the task. */
@@ -40,10 +44,10 @@ export async function runConversationTask<Result>(
     busy = value;
   };
 
-  // Keep the refresh timer alive while idle, but only send typing while busy.
+  // Model activity alone does not mean the bot will send text.
   const refreshTyping: ChattoTyping | undefined = typing
     ? async (target, signal) => {
-        if (busy) {
+        if (busy && isResponding?.()) {
           await typing(target, signal);
         }
       }

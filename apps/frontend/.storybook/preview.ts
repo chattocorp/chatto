@@ -1,5 +1,6 @@
 import type { Preview, Decorator } from '@storybook/sveltekit';
 import { themes } from 'storybook/theming';
+import '@chatto/client/svelte';
 import '../src/app.css';
 import './storybook.css';
 

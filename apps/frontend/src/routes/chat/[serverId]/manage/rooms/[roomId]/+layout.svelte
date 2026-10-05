@@ -13,7 +13,7 @@ through `roomManagementContext`.
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
+  import { createAdminRoomLayoutAPI } from '$lib/api/adminRoomLayout';
   import { useProjectionEvent } from '$lib/hooks';
   import { Button } from '$lib/ui/form';
   import {

@@ -14,10 +14,12 @@ export type AgentTaskData =
 export interface AgentTaskOutput {
   sequence: number;
   at: number;
-  kind: 'output' | 'finding' | 'reply';
+  kind: 'output' | 'finding' | 'reply' | 'notice';
   text: string;
   /** Correlation ID supplied by the application for a direct reply. */
   replyTo?: string;
+  /** Structured facts of a notice. */
+  data?: { [key: string]: AgentTaskData };
   /** True when the retained text is only a prefix of the published message. */
   truncated?: boolean;
 }
@@ -47,6 +49,16 @@ export type AgentTaskUpdate =
        * The application must validate this text; Runling does not verify evidence. */
       type: 'finding';
       text: string;
+    }
+  | {
+      /** A message for the owner, such as progress or a milestone that the owner can pass on to
+       * its own owner or user. Retain it and wake the owner immediately. The notification carries
+       * the text and data. Notices are not coalesced: each one reaches the owner, in order. */
+      type: 'notice';
+      text: string;
+      /** Structured facts for the owner, such as a URL that it must pass on exactly. JSON, at
+       * most 16,000 serialized characters. */
+      data?: { [key: string]: AgentTaskData };
     }
   | {
       /** Answer to an owner question. Retain it and wake the owner immediately. */
@@ -129,9 +141,14 @@ export function observeAgentTasks(
     finding?: boolean;
   };
   const tasks = new Map<string, Entry>();
-  // At most one pending notification per task. Completion replaces stale progress.
-  const notices = new Map<string, { entry: Entry; type: string; text?: string }>();
+  // At most one pending notification per task, except notices, which queue in order.
+  // Completion replaces stale progress.
+  const notices = new Map<
+    string,
+    { entry: Entry; type: string; text?: string; data?: { [key: string]: AgentTaskData } }
+  >();
   let wake: (() => void) | undefined;
+  let noticeSequence = 0;
   let closed = false;
   let claimed = false;
   let closing: Promise<void> | undefined;
@@ -156,7 +173,12 @@ export function observeAgentTasks(
       : {}),
     ...(entry.state.lastToolFailure ? { lastToolFailure: { ...entry.state.lastToolFailure } } : {})
   });
-  const notify = (entry: Entry, type: string, text?: string) => {
+  const notify = (
+    entry: Entry,
+    type: string,
+    text?: string,
+    data?: { [key: string]: AgentTaskData }
+  ) => {
     if (closed) return;
     // A solicited answer must survive later progress or tool activity until the
     // owner reads it. A terminal result still takes precedence.
@@ -165,7 +187,9 @@ export function observeAgentTasks(
       !['task.completed', 'task.failed', 'task.cancelled'].includes(type)
     )
       return;
-    notices.set(entry.state.id, { entry, type, text });
+    const key =
+      type === 'task.notice' ? `${entry.state.id}#notice#${++noticeSequence}` : entry.state.id;
+    notices.set(key, { entry, type, text, ...(data ? { data } : {}) });
     if (type === 'task.progress') entry.progress = undefined;
     wake?.();
   };
@@ -211,11 +235,16 @@ export function observeAgentTasks(
             const first = notices.entries().next();
             if (closed || first.done) return { done: true, value: undefined };
             notices.delete(first.value[0]);
-            const { entry, type, text } = first.value[1];
+            const { entry, type, text, data } = first.value[1];
             const { output: _output, ...task } = snapshot(entry);
             return {
               done: false,
-              value: JSON.stringify({ type, task, ...(text ? { progress: text } : {}) })
+              value: JSON.stringify({
+                type,
+                task,
+                ...(text ? (type === 'task.notice' ? { text } : { progress: text }) : {}),
+                ...(data ? { data } : {})
+              })
             };
           },
           async return(): Promise<IteratorResult<string>> {
@@ -261,8 +290,19 @@ export function observeAgentTasks(
       );
     },
     /** Adopt a run and consume its output. Do not also iterate run.output.
-     * Rejected adoption leaves ownership with the caller. */
-    observe<Result>(name: string, handle: Run<string, AgentTaskUpdate, Result>): AgentTaskState {
+     * Rejected adoption leaves ownership with the caller.
+     * `onUpdate` lets the owner's host code act on each child update, in order, inside the owner
+     * task: for example, to report verified facts. It runs before the update changes the
+     * snapshot. A failing hook does not stop the child. */
+    observe<Result>(
+      name: string,
+      handle: Run<string, AgentTaskUpdate, Result>,
+      {
+        onUpdate
+      }: {
+        onUpdate?: (update: AgentTaskUpdate, task: AgentTaskState) => void | Promise<void>;
+      } = {}
+    ): AgentTaskState {
       ctx.signal.throwIfAborted();
       if (closed) throw new Error('Agent tasks are closed');
       if (tasks.has(handle.id)) return snapshot(lookup(handle.id));
@@ -276,14 +316,20 @@ export function observeAgentTasks(
       };
       const entry: Entry = { state, handle, settled: Promise.resolve() };
       tasks.set(state.id, entry);
-      const remember = (kind: AgentTaskOutput['kind'], text: string, replyTo?: string) => {
+      const remember = (
+        kind: AgentTaskOutput['kind'],
+        text: string,
+        replyTo?: string,
+        data?: { [key: string]: AgentTaskData }
+      ) => {
         state.output.push({
           sequence: state.droppedOutput + state.output.length + 1,
           at: Date.now(),
           kind,
           text: text.slice(0, 4_000),
           ...(text.length > 4_000 ? { truncated: true } : {}),
-          ...(replyTo ? { replyTo } : {})
+          ...(replyTo ? { replyTo } : {}),
+          ...(data ? { data } : {})
         });
         if (state.output.length > 16) {
           state.output.shift();
@@ -294,6 +340,11 @@ export function observeAgentTasks(
         try {
           for await (const text of handle.output) {
             if (state.status === 'failed' || state.status === 'cancelled') continue;
+            try {
+              await onUpdate?.(text, snapshot(entry));
+            } catch {
+              // The owner's hook is its own concern; the child keeps running.
+            }
             if (typeof text !== 'string' && text.type === 'output') {
               remember('output', text.text);
               continue;
@@ -301,6 +352,18 @@ export function observeAgentTasks(
             if (typeof text !== 'string' && text.type === 'reply') {
               remember('reply', text.text, text.replyTo);
               notify(entry, 'task.reply');
+              continue;
+            }
+            if (typeof text !== 'string' && text.type === 'notice') {
+              let data: { [key: string]: AgentTaskData } | undefined;
+              if (text.data !== undefined) {
+                const encoded = JSON.stringify(text.data);
+                if (!encoded || encoded.length > 16_000)
+                  throw new Error('Task notice data exceeds the JSON size limit');
+                data = JSON.parse(encoded);
+              }
+              remember('notice', text.text, undefined, data);
+              notify(entry, 'task.notice', text.text.slice(0, 4_000), data);
               continue;
             }
             if (typeof text !== 'string' && text.type === 'state') {

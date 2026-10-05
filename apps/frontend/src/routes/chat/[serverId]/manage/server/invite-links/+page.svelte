@@ -1,6 +1,6 @@
 <script lang="ts">
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
-  import { createInviteLinkAPI, type InviteLink } from '$lib/api-client/invitations';
+  import { createInviteLinkAPI, type InviteLink } from '$lib/api/invitations';
   import {
     Panel,
     DataTable,

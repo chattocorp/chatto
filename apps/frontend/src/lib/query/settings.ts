@@ -1,4 +1,4 @@
-import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
 import { serverSessionQueryRoot } from './keys';
 
 type SettingsQueryConnection = Pick<ServerConnection, 'queryScope'>;

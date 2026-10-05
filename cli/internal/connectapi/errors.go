@@ -71,7 +71,6 @@ var connectErrorCodes = []struct {
 		core.ErrUsernameBlocked,
 		core.ErrDisplayNameTooLong,
 		core.ErrDisplayNameInvalidCharacter,
-		core.ErrDisplayNameInvalidStart,
 		core.ErrPasswordTooShort,
 		core.ErrPasswordTooLong,
 		core.ErrImplicitRole,

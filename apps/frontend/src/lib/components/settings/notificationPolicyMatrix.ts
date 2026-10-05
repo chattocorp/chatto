@@ -1,10 +1,10 @@
-import { RoomKind } from '$lib/api-client/roomDirectory';
+import { RoomKind } from '@chatto/client/api/roomDirectory';
 import {
   notificationPolicyScopeKey,
   type NotificationPolicyField,
   type NotificationPolicyScope
-} from '$lib/api-client/notifications';
-import type { RoomsListGroup, RoomsListItem } from '$lib/state/server/rooms.svelte';
+} from '@chatto/client/api/notifications';
+import type { RoomsListGroup, RoomsListItem } from '$lib/state/server/navigation';
 
 export type NotificationPolicyColumn = {
   key: string;

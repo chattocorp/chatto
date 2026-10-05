@@ -226,8 +226,6 @@
       "in_video_call": "In een videogesprek",
       "remove_failed": "Gebruiker kon niet uit de kamer worden verwijderd",
       "remove_success": "{name} is uit de kamer verwijderd",
-      "members_load_failed": "Kan kamerleden niet laden",
-      "members_refresh_failed": "Kan kamerleden niet vernieuwen",
       "search": "Zoeken"
     },
     "pins": {

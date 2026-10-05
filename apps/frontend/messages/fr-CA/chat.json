@@ -27,9 +27,7 @@
         "followed_thread": "{actor} a répondu dans un fil que vous suivez.",
         "new_message": "{actor} a publié un nouveau message.",
         "activity": "{actor} vous a envoyé une notification."
-      },
-      "load_failed": "Échec du chargement des notifications",
-      "room_load_failed": "Échec du chargement des notifications du salon"
+      }
     },
     "sign_out": {
       "title": "Se déconnecter",
@@ -74,6 +72,21 @@
         "other": "{count} notifications"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "Mise à niveau du serveur requise",
+      "too_old_body": "Ce serveur utilise une version de Chatto que cette application ne prend plus en charge. Demandez à l’administrateur du serveur de mettre Chatto à niveau.",
+      "unknown_title": "Version du serveur inconnue",
+      "unknown_body": "Cette application ne peut pas identifier la version de Chatto de ce serveur et ne peut donc pas s’y connecter.",
+      "unreachable_body": "Cette application ne peut pas se connecter à ce serveur. Vérifiez votre connexion réseau ou réessayez plus tard.",
+      "server_version": "Version du serveur",
+      "required_version": "Version requise",
+      "required_version_value": "{version} ou plus récente",
+      "check_again": "Vérifiez à nouveau"
+    },
+    "server_signed_out": {
+      "title": "Vous êtes déconnecté de ce serveur",
+      "body": "Connectez-vous pour lire et envoyer des messages sur ce serveur."
+    },
     "threads": {
       "title": "Mes discussions",
       "subtitle": "Les sujets que vous suivez",
@@ -89,7 +102,11 @@
       "message_missing": "Le message n'est plus disponible",
       "in_room": "dans",
       "in_room_capitalized": "Dans",
-      "load_failed": "Échec du chargement des discussions"
+      "load_failed": "Échec du chargement des discussions",
+      "notifications_count": {
+        "one": "{count} notification",
+        "other": "{count} notifications"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -105,6 +122,7 @@
         "inactive_note": "Ces autorisations sont enregistrées, mais les droits actuels du propriétaire ne les permettent pas.",
         "read": "Lire tous les messages",
         "interactions": "Lire les fils qu’il a créés ou dans lesquels il a été mentionné directement",
+        "reply_interactions": "Répondre dans les fils qu’il a créés, dans lesquels il a été mentionné directement ou dans lesquels il a reçu un message privé",
         "post": "Publier de nouveaux messages",
         "room": "#{name}",
         "group": "Groupe : {name}",

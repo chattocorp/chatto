@@ -4,14 +4,14 @@
   import { resolve } from '$app/paths';
   import { Code, ConnectError } from '@connectrpc/connect';
   import { onDestroy } from 'svelte';
-  import { createAccountAPI } from '$lib/api-client/account';
+  import { createAccountAPI } from '@chatto/client/api/account';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { queryClient } from '$lib/query/client';
   import { adminQueryKeys } from '$lib/query/admin';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+  import type { ServerConnection } from '@chatto/client/server/serverConnection';
   import { Panel, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { Button, FormError, VerificationCodeInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';

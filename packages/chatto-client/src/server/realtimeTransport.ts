@@ -1,0 +1,831 @@
+/**
+ * Owns the session-long event bus for every authenticated server of one
+ * client and assigns its transport one of three modes: live, polling, or
+ * dormant. Live servers keep a persistent WebSocket: every server of a bot
+ * client, or the selected server of an application, and the servers of its
+ * connections (see {@link EventBusManager.keepLive}). Other projections catch
+ * up through serialized, short-lived connections to the same event stream.
+ */
+
+import { batch, ReactiveMap } from '../reactivity/index.js';
+import {
+  EventBus,
+  RealtimeProjectionUpdate,
+  type ProjectionHandler
+} from '../realtime/eventBus.js';
+import {
+  RealtimeInitialState,
+  RealtimeCloseCode,
+  RealtimeServerFrame,
+  RealtimeSubscribe,
+  type RealtimeEvent
+} from '@chatto/api-types/realtime/v1/realtime_pb';
+import { RealtimeResourceUpdate } from '../api/realtimeResources.js';
+import {
+  ListRoomGroupsResponse,
+  ListRoomsResponse
+} from '@chatto/api-types/api/v1/room_directory_pb';
+import { ListActiveCallsResponse } from '@chatto/api-types/api/v1/voice_calls_pb';
+import type { ConnectionStatus, ServerConnection } from './serverConnection.js';
+import { RealtimeProjectionSyncState } from './realtimeSync.js';
+import { debugLog } from '../util/debugLog.js';
+
+const DEFAULT_HEARTBEAT_STALL_MS = 75_000;
+const HEARTBEAT_WATCHDOG_MS = 15_000;
+const RECONNECT_WAIT_MS = 5_000;
+const INACTIVE_POLL_INTERVAL_MS = 60_000;
+const INACTIVE_POLL_JITTER_MS = 10_000;
+const INACTIVE_POLL_TIMEOUT_MS = 30_000;
+const FATAL_REALTIME_CLOSE_CODE = 4000;
+const REALTIME_PROTOCOL_VERSION = 4;
+
+function durationMilliseconds(value: { seconds: bigint; nanos: number } | undefined): number {
+  if (!value) return 0;
+  return Number(value.seconds) * 1000 + Math.floor(value.nanos / 1_000_000);
+}
+
+type RealtimeMessageEvent = { data: ArrayBuffer | Blob | Uint8Array };
+type RealtimeCloseEvent = { code?: number; reason?: string };
+type RealtimeSocket = {
+  binaryType: BinaryType;
+  readyState: number;
+  onopen: (() => void) | null;
+  onmessage: ((event: RealtimeMessageEvent) => void) | null;
+  onerror: ((event: Event) => void) | null;
+  onclose: ((event: RealtimeCloseEvent) => void) | null;
+  send(data: Uint8Array): void;
+  close(code?: number, reason?: string): void;
+};
+type RealtimeSocketFactory = (url: string) => RealtimeSocket;
+type TransportMode = 'dormant' | 'polling' | 'live';
+
+export type RealtimeServerRegistration = {
+  serverId: string;
+  connection: ServerConnection;
+  projectionSupported: boolean;
+  sync: RealtimeProjectionSyncState;
+  /** Canonical store reducer that must be present before transport startup. */
+  projectionHandler: ProjectionHandler;
+  /** Refresh auxiliary state once at the subscription's caught-up boundary. */
+  completeProjectionCatchUp?: (cursor: string) => Promise<void>;
+  /** Wait for event-triggered reads without fetching unrelated resources. */
+  waitForProjectionReconciliation?: () => Promise<void>;
+};
+
+type TransportController = {
+  readonly sync: RealtimeProjectionSyncState;
+  readonly projectionSupported: boolean;
+  update(projectionSupported: boolean): void;
+  setMode(mode: 'dormant' | 'live'): void;
+  pollOnce(): Promise<boolean>;
+  cleanup(): void;
+};
+
+let realtimeSocketFactory: RealtimeSocketFactory = (url) => new WebSocket(url) as RealtimeSocket;
+let pollRandom = Math.random;
+
+export function setRealtimeSocketFactoryForTests(factory: RealtimeSocketFactory | null): void {
+  realtimeSocketFactory = factory ?? ((url) => new WebSocket(url) as RealtimeSocket);
+}
+
+export function setRealtimePollRandomForTests(random: (() => number) | null): void {
+  pollRandom = random ?? Math.random;
+}
+
+async function messageDataToBytes(data: RealtimeMessageEvent['data']): Promise<Uint8Array> {
+  if (data instanceof Uint8Array) return data;
+  if (data instanceof ArrayBuffer) return new Uint8Array(data);
+  return new Uint8Array(await data.arrayBuffer());
+}
+
+function subscribeFrame(token: string | null, resumeCursor: string | null): Uint8Array {
+  return new RealtimeSubscribe({
+    protocolVersion: REALTIME_PROTOCOL_VERSION,
+    bearerToken: token ?? undefined,
+    resumeCursor: resumeCursor ?? undefined,
+    initialState: RealtimeInitialState.SNAPSHOT
+  }).toBinary();
+}
+
+/**
+ * Which authenticated servers keep a persistent WebSocket: only the server
+ * that the application selects (`'selected'`), or all of them (`'all'`, for
+ * hosts such as bots that need every server's events). The other servers
+ * catch up by polling.
+ */
+export type LiveServers = 'selected' | 'all';
+
+/** Owns the event buses and realtime transports of one client's servers. */
+export class EventBusManager {
+  readonly #liveServers: LiveServers;
+  /** Servers that stay live in every mode; see {@link keepLive}. */
+  readonly #keptLive = new Set<string>();
+
+  constructor(options: { liveServers: LiveServers }) {
+    this.#liveServers = options.liveServers;
+  }
+
+  /**
+   * Keep a server's transport live in every mode, for example for a
+   * connection that handles events. Pass `false` to end this.
+   */
+  keepLive(serverId: string, live = true): void {
+    if (live) this.#keptLive.add(serverId);
+    else this.#keptLive.delete(serverId);
+    if (!this.#managedServerIds.has(serverId)) return;
+    this.#controllers.get(serverId)?.setMode(this.#isLive(serverId) ? 'live' : 'dormant');
+    this.#scheduleNextPoll();
+  }
+
+  // Reactive so context consumers can attach after a server becomes authenticated.
+  #buses = new ReactiveMap<string, EventBus>();
+  #controllers = new Map<string, TransportController>();
+  #managedServerIds = new Set<string>();
+  #activeServerId: string | null = null;
+  #pollCycleRunning = false;
+  /** An unready catch-up request arrived while another poll cycle was running. */
+  #unreadyPollCycleRequested = false;
+  /** A full catch-up request arrived while another poll cycle was running. */
+  #fullPollCycleRequested = false;
+  #pollTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Register the stable bus/reducer surface without necessarily opening a socket. */
+  ensureBus(registration: RealtimeServerRegistration): TransportController {
+    const {
+      serverId,
+      connection: serverConnection,
+      projectionSupported: realtimeProjectionSupported,
+      sync,
+      projectionHandler,
+      completeProjectionCatchUp,
+      waitForProjectionReconciliation
+    } = registration;
+    const existing = this.#controllers.get(serverId);
+    if (existing) {
+      this.#buses.get(serverId)?.setReducer(projectionHandler);
+      existing.update(realtimeProjectionSupported);
+      return existing;
+    }
+
+    const bus = new EventBus(serverId);
+    bus.setReducer(projectionHandler);
+    let projectionSupported = realtimeProjectionSupported;
+    let mode: TransportMode = 'dormant';
+    let lastEventAt = Date.now();
+    const heartbeatStallMs = DEFAULT_HEARTBEAT_STALL_MS;
+    let heartbeatCount = 0;
+    let dispatchedEventCount = 0;
+    let reconnectCount = 0;
+    let reconnectAttempts = 0;
+    let generation = 0;
+    let socket: RealtimeSocket | null = null;
+    let socketSubscribed = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let pollResolution: ((caughtUp: boolean) => void) | null = null;
+    let pollTimeout: ReturnType<typeof setTimeout> | null = null;
+    let stopped = false;
+
+    const debugState = () => ({
+      mode,
+      generation,
+      handlers: bus.listenerCount,
+      events: dispatchedEventCount,
+      heartbeats: heartbeatCount,
+      reconnects: reconnectCount,
+      heartbeatStallMs,
+      lastEventAgeMs: Date.now() - lastEventAt
+    });
+
+    const clearReconnectTimer = () => {
+      if (!reconnectTimer) return;
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    };
+
+    const resolvePoll = (caughtUp: boolean) => {
+      if (pollTimeout) {
+        clearTimeout(pollTimeout);
+        pollTimeout = null;
+      }
+      const resolve = pollResolution;
+      pollResolution = null;
+      resolve?.(caughtUp);
+    };
+
+    const detachSocket = (close = true, reason = 'replaced') => {
+      const current = socket;
+      socket = null;
+      socketSubscribed = false;
+      if (!current) return;
+      current.onopen = null;
+      current.onmessage = null;
+      current.onerror = null;
+      current.onclose = null;
+      if (close) current.close(1000, reason);
+    };
+
+    const becomeDormant = (markStale: boolean, status: ConnectionStatus = 'dormant') => {
+      const wasPolling = mode === 'polling';
+      mode = 'dormant';
+      clearReconnectTimer();
+      detachSocket(true, 'dormant');
+      if (markStale) sync.markStale();
+      if (wasPolling) resolvePoll(false);
+      // Going dormant is not an outcome. Keep a reported failure until an
+      // attempt succeeds; a forced reconnect clears it before it gets here.
+      serverConnection.setRealtimeConnectionStatus(
+        serverConnection.showConnectionLostIcon ? 'disconnected' : status
+      );
+    };
+
+    /** Stop after a credential renewal that failed or needs a new sign-in. */
+    const stopAfterFailedRenewal = () => {
+      mode = 'dormant';
+      resolvePoll(false);
+      serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
+    };
+
+    const recoverFromAuthenticationRequired = async (current: RealtimeSocket, reason: string) => {
+      console.warn(`[eventBus:${serverId}] realtime authentication required`, {
+        reason,
+        ...debugState()
+      });
+      current.onclose = null;
+      if (socket === current) socket = null;
+      socketSubscribed = false;
+      sync.markStale();
+      // Renewal is part of reconnecting; only a failed renewal is a failure.
+      serverConnection.setRealtimeConnectionStatus('connecting', reconnectAttempts);
+      current.close(1000, 'authentication_required');
+      try {
+        const renewed = await serverConnection.handleAuthenticationRequired();
+        if (stopped) return;
+        if (!renewed) {
+          stopAfterFailedRenewal();
+          return;
+        }
+        reconnectAttempts = 0;
+        if (mode === 'live') scheduleReconnect('access token renewed', 0);
+        else if (mode === 'polling') connect('access token renewed');
+      } catch (error) {
+        console.warn(`[eventBus:${serverId}] authentication recovery temporarily failed`, error);
+        if (stopped) return;
+        if (mode === 'live')
+          scheduleReconnect('authentication recovery temporarily failed', RECONNECT_WAIT_MS);
+        else stopAfterFailedRenewal();
+      }
+    };
+
+    const renewBrowserSession = async (current: RealtimeSocket) => {
+      current.onclose = null;
+      if (socket === current) socket = null;
+      socketSubscribed = false;
+      sync.markStale();
+      serverConnection.setRealtimeConnectionStatus('connecting', reconnectAttempts);
+      current.close(1000, 'session_renewal_required');
+      try {
+        const renewed = await serverConnection.renewBrowserSession();
+        if (stopped) return;
+        if (!renewed) {
+          stopAfterFailedRenewal();
+          return;
+        }
+        reconnectAttempts = 0;
+        if (mode === 'live') scheduleReconnect('browser session renewed', 0);
+        else if (mode === 'polling') connect('browser session renewed');
+      } catch (error) {
+        console.warn(`[eventBus:${serverId}] browser session renewal failed`, error);
+        if (stopped) return;
+        if (mode === 'live') scheduleReconnect('browser session renewal retry', RECONNECT_WAIT_MS);
+        else stopAfterFailedRenewal();
+      }
+    };
+
+    const stopForUnsupportedProtocol = (current: RealtimeSocket) => {
+      console.warn(`[eventBus:${serverId}] realtime protocol is unsupported`, {
+        ...debugState()
+      });
+      projectionSupported = false;
+      mode = 'dormant';
+      current.onclose = null;
+      if (socket === current) socket = null;
+      batch(() => {
+        serverConnection.markRealtimeUnsupported();
+        serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
+      });
+      current.close(1000, 'unsupported_protocol');
+      resolvePoll(false);
+    };
+
+    const dispatchRealtimeEvent = (event: RealtimeEvent) => {
+      dispatchedEventCount++;
+      debugLog(`[eventBus:${serverId}] event dispatched`, event.event.case ?? '<unknown>', {
+        eventId: event.id,
+        total: dispatchedEventCount,
+        ...debugState()
+      });
+      bus.publish(
+        new RealtimeProjectionUpdate({
+          event,
+          cursor: event.cursor ?? null
+        })
+      );
+    };
+
+    const connect = (reason: string) => {
+      if (stopped || !projectionSupported || mode === 'dormant' || socket) return;
+      clearReconnectTimer();
+      generation++;
+      const socketGeneration = generation;
+      lastEventAt = Date.now();
+      sync.beginCatchUp();
+      if (mode === 'live') {
+        serverConnection.setRealtimeConnectionStatus('connecting', reconnectAttempts);
+      }
+      debugLog(`[eventBus:${serverId}] opening realtime socket`, {
+        reason,
+        url: serverConnection.realtimeUrl,
+        ...debugState()
+      });
+
+      const nextSocket = realtimeSocketFactory(serverConnection.realtimeUrl);
+      const authorizationRefreshGeneration = sync.pendingAuthorizationRefreshGeneration;
+      let frameProcessing = Promise.resolve();
+      let cursorReconciliation = Promise.resolve();
+      let reconciliationFailed = false;
+      let snapshotReceived = false;
+      let catchUpComplete = false;
+      socketSubscribed = false;
+      nextSocket.binaryType = 'arraybuffer';
+      socket = nextSocket;
+
+      const failReconciliation = (error: unknown) => {
+        if (reconciliationFailed || stopped || socket !== nextSocket) return;
+        reconciliationFailed = true;
+        // Disable persistence immediately; WebSocket close delivery is asynchronous.
+        sync.markStale();
+        console.error(`[eventBus:${serverId}] resource reconciliation failed`, error);
+        nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'resource reconciliation failed');
+      };
+
+      const commitEventCursor = (cursor: string | undefined) => {
+        if (!cursor) return;
+        if (!waitForProjectionReconciliation) {
+          if (!snapshotReceived || catchUpComplete) sync.acceptProjectionEvent(cursor, false);
+          return;
+        }
+        cursorReconciliation = cursorReconciliation.then(async () => {
+          if (stopped || socket !== nextSocket) return;
+          await waitForProjectionReconciliation();
+          // A snapshot is not resumable until its auxiliary reads and timelines
+          // are hydrated at caught_up, even if intervening event reads succeed.
+          if (stopped || socket !== nextSocket || (snapshotReceived && !catchUpComplete)) return;
+          sync.acceptProjectionEvent(cursor, false);
+        });
+        void cursorReconciliation.catch(failReconciliation);
+      };
+
+      nextSocket.onopen = () => {
+        if (stopped || socket !== nextSocket) return;
+        nextSocket.send(subscribeFrame(serverConnection.bearerToken, sync.resumeCursor));
+      };
+
+      nextSocket.onmessage = (message) => {
+        frameProcessing = frameProcessing
+          .then(async () => {
+            if (stopped || socket !== nextSocket) return;
+            let frame: RealtimeServerFrame;
+            try {
+              frame = RealtimeServerFrame.fromBinary(await messageDataToBytes(message.data));
+            } catch (error) {
+              console.error(`[eventBus:${serverId}] failed to decode realtime frame`, error);
+              // Never continue past a frame we could not understand: a later
+              // caught_up boundary would otherwise make the missing mutation
+              // permanent in the retained projection.
+              nextSocket.close(1003, 'invalid realtime frame');
+              return;
+            }
+
+            lastEventAt = Date.now();
+            if (!socketSubscribed) {
+              socketSubscribed = true;
+              reconnectAttempts = 0;
+              debugLog(`[eventBus:${serverId}] realtime stream subscribed`, {
+                generation: socketGeneration,
+                mode
+              });
+            }
+            switch (frame.frame.case) {
+              case 'heartbeat':
+                heartbeatCount++;
+                commitEventCursor(frame.frame.value.cursor);
+                return;
+              case 'snapshot': {
+                const snapshot = frame.frame.value;
+                const server = snapshot.server;
+                if (snapshotReceived || !server) {
+                  nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'invalid snapshot frame');
+                  return;
+                }
+                snapshotReceived = true;
+                try {
+                  // Effects run once, after the reset and every resource applied.
+                  batch(() => {
+                    const retainView = sync.hasDisplayableView;
+                    sync.acceptProjectionEvent(undefined, true);
+                    bus.publish(
+                      new RealtimeProjectionUpdate({
+                        reset: true,
+                        privacyReset: !retainView,
+                        retainView
+                      })
+                    );
+                    const resources = [
+                      { case: 'server' as const, value: server },
+                      {
+                        case: 'rooms' as const,
+                        value: new ListRoomsResponse({ rooms: snapshot.rooms })
+                      },
+                      {
+                        case: 'roomGroups' as const,
+                        value: new ListRoomGroupsResponse({ groups: snapshot.roomGroups })
+                      },
+                      { case: 'users' as const, value: { users: snapshot.users } },
+                      {
+                        case: 'activeCalls' as const,
+                        value: new ListActiveCallsResponse({ calls: snapshot.activeCalls })
+                      }
+                    ];
+                    for (const resource of resources) {
+                      bus.publish(
+                        new RealtimeProjectionUpdate({
+                          resource: new RealtimeResourceUpdate({ resource, replace: true })
+                        })
+                      );
+                    }
+                  });
+                } catch (error) {
+                  console.error(`[eventBus:${serverId}] snapshot reducer failed`, error);
+                  nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'snapshot reducer failed');
+                }
+                return;
+              }
+              case 'event': {
+                const resetGeneration = sync.resetGeneration;
+                try {
+                  dispatchRealtimeEvent(frame.frame.value);
+                } catch (error) {
+                  console.error(`[eventBus:${serverId}] projection reducer failed`, error);
+                  sync.markStale();
+                  nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'projection reducer failed');
+                  return;
+                }
+                if (sync.resetGeneration !== resetGeneration) {
+                  // The client chose to reload after a permission event. Do not
+                  // advance the discarded cursor or process queued old frames.
+                  detachSocket();
+                  if (mode === 'live') scheduleReconnect('viewer permissions changed', 0);
+                  else {
+                    resolvePoll(false);
+                    mode = 'dormant';
+                  }
+                  return;
+                }
+                commitEventCursor(frame.frame.value.cursor);
+                return;
+              }
+              case 'caughtUp': {
+                try {
+                  await cursorReconciliation;
+                  await completeProjectionCatchUp?.(frame.frame.value.cursor);
+                } catch (error) {
+                  failReconciliation(error);
+                  return;
+                }
+                if (stopped || socket !== nextSocket) return;
+                catchUpComplete = true;
+                sync.markCaughtUp(frame.frame.value.cursor, authorizationRefreshGeneration);
+                resolvePoll(true);
+                if (mode === 'polling') {
+                  mode = 'dormant';
+                  detachSocket(true, 'caught_up');
+                  // The projection is usable, but the closed transport means
+                  // absence stops being authoritative immediately.
+                  sync.markStale();
+                  serverConnection.setRealtimeConnectionStatus('dormant');
+                } else if (mode === 'live') {
+                  serverConnection.setRealtimeConnectionStatus('connected');
+                }
+                return;
+              }
+              case 'close':
+                if (frame.frame.value.code === RealtimeCloseCode.RESYNC_REQUIRED) {
+                  sync.reset();
+                  bus.publish(new RealtimeProjectionUpdate({ reset: true, privacyReset: true }));
+                }
+                if (frame.frame.value.code === RealtimeCloseCode.PRIVILEGED_MODE_EXPIRED) {
+                  sync.invalidateAuthorization();
+                }
+                if (frame.frame.value.code === RealtimeCloseCode.SESSION_TERMINATED) {
+                  bus.terminateSession(frame.frame.value.message);
+                  becomeDormant(true, 'disconnected');
+                  resolvePoll(false);
+                  return;
+                }
+                if (frame.frame.value.code === RealtimeCloseCode.AUTHENTICATION_REQUIRED) {
+                  void recoverFromAuthenticationRequired(nextSocket, 'close frame');
+                  return;
+                }
+                if (frame.frame.value.code === RealtimeCloseCode.SESSION_RENEWAL_REQUIRED) {
+                  void renewBrowserSession(nextSocket);
+                  return;
+                }
+                if (frame.frame.value.code === RealtimeCloseCode.UNSUPPORTED_PROTOCOL) {
+                  stopForUnsupportedProtocol(nextSocket);
+                  return;
+                }
+                nextSocket.onclose = null;
+                if (socket === nextSocket) socket = null;
+                // The close frame bypasses the socket's normal onclose handler.
+                // Release socket-scoped hydration state before reconnecting so a
+                // request whose response was lost can be sent on the replacement.
+                socketSubscribed = false;
+                nextSocket.close(
+                  1000,
+                  frame.frame.value.message || RealtimeCloseCode[frame.frame.value.code]
+                );
+                if (mode === 'live' && frame.frame.value.reconnect) {
+                  scheduleReconnect(
+                    'server requested close',
+                    durationMilliseconds(frame.frame.value.retryAfter)
+                  );
+                } else {
+                  resolvePoll(false);
+                  if (mode === 'polling') {
+                    mode = 'dormant';
+                    serverConnection.setRealtimeConnectionStatus('disconnected');
+                  }
+                }
+                return;
+              case undefined:
+                console.error(`[eventBus:${serverId}] unsupported realtime server frame`);
+                nextSocket.close(1003, 'unsupported realtime frame');
+                return;
+            }
+          })
+          .catch((error) => {
+            console.error(`[eventBus:${serverId}] realtime frame processing failed`, error);
+            nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'frame processing failed');
+          });
+      };
+
+      nextSocket.onerror = (event) => {
+        console.error(`[eventBus:${serverId}] realtime socket error`, event);
+      };
+
+      nextSocket.onclose = (event) => {
+        if (stopped || socket !== nextSocket) return;
+        socket = null;
+        socketSubscribed = false;
+        console.warn(`[eventBus:${serverId}] realtime socket closed`, {
+          code: event.code,
+          reason: event.reason,
+          ...debugState()
+        });
+        if (mode === 'live') {
+          scheduleReconnect('socket closed');
+        } else {
+          mode = 'dormant';
+          resolvePoll(false);
+          serverConnection.setRealtimeConnectionStatus('disconnected');
+        }
+      };
+    };
+
+    function scheduleReconnect(reason: string, delayMs?: number): void {
+      if (stopped || mode !== 'live' || !projectionSupported) return;
+      clearReconnectTimer();
+      reconnectCount++;
+      reconnectAttempts++;
+      sync.markStale();
+      const wait = delayMs ?? (reconnectAttempts <= 1 ? 0 : RECONNECT_WAIT_MS);
+      // An immediate retry is still part of reconnecting. Report a lost
+      // connection only when the client has to wait before the next attempt.
+      serverConnection.setRealtimeConnectionStatus(
+        wait === 0 ? 'connecting' : 'disconnected',
+        reconnectAttempts
+      );
+      reconnectTimer = setTimeout(() => connect(reason), wait);
+    }
+
+    const reconnectNow = (reason: string) => {
+      if (stopped || mode !== 'live' || !projectionSupported) return;
+      detachSocket(true);
+      reconnectAttempts = 0;
+      scheduleReconnect(reason, 0);
+    };
+
+    // For an inactive server, a forced reconnect (tab wake, network recovery)
+    // drops any catch-up that started before it, clears a failure reported
+    // before it, and catches up again at once.
+    const unregisterReconnect = serverConnection.registerRealtimeReconnect((reason) => {
+      if (mode === 'live') {
+        reconnectNow(reason);
+        return;
+      }
+      if (stopped || !projectionSupported) return;
+      becomeDormant(true);
+      this.#requestFullPollCycle();
+    });
+
+    const heartbeatWatchdog = setInterval(() => {
+      if (stopped || mode !== 'live' || !projectionSupported) return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      const ageMs = Date.now() - lastEventAt;
+      if (ageMs >= heartbeatStallMs) reconnectNow('heartbeat stalled');
+    }, HEARTBEAT_WATCHDOG_MS);
+
+    const controller: TransportController = {
+      sync,
+      get projectionSupported() {
+        return projectionSupported;
+      },
+      update(supported) {
+        projectionSupported = supported;
+        if (supported && mode === 'live') connect('projection capability confirmed');
+        if (!supported && mode !== 'dormant') becomeDormant(false);
+      },
+      setMode(nextMode) {
+        if (stopped) return;
+        if (nextMode === 'dormant') {
+          // A normal reconciliation keeps an already-running background
+          // catch-up alive until it reaches caught_up or its timeout.
+          if (mode === 'polling') return;
+          becomeDormant(true);
+          return;
+        }
+        if (mode === 'live') return;
+        // Promotion transfers the existing socket to live ownership. Settle
+        // the old polling promise and cancel its timeout so it cannot later
+        // demote this active controller or close a replacement socket.
+        resolvePoll(false);
+        mode = 'live';
+        serverConnection.setRealtimeConnectionStatus(
+          socketSubscribed && sync.phase === 'ready' ? 'connected' : 'connecting'
+        );
+        connect('server became active');
+      },
+      pollOnce() {
+        if (stopped || !projectionSupported || mode === 'live') {
+          return Promise.resolve(false);
+        }
+        if (pollResolution) return Promise.resolve(false);
+        mode = 'polling';
+        return new Promise<boolean>((resolve) => {
+          pollResolution = resolve;
+          pollTimeout = setTimeout(
+            () => becomeDormant(true, 'disconnected'),
+            INACTIVE_POLL_TIMEOUT_MS
+          );
+          connect('inactive server catch-up');
+        });
+      },
+      cleanup() {
+        stopped = true;
+        mode = 'dormant';
+        clearReconnectTimer();
+        clearInterval(heartbeatWatchdog);
+        unregisterReconnect();
+        detachSocket(true, 'stopped');
+        resolvePoll(false);
+        serverConnection.setRealtimeConnectionStatus('dormant');
+      }
+    };
+
+    this.#buses.set(serverId, bus);
+    this.#controllers.set(serverId, controller);
+    return controller;
+  }
+
+  /** Materialise one room timeline on the server's existing projection stream. */
+  /**
+   * Reconcile all authenticated projections against the URL-active server.
+   * This is the only application-level transport ownership entry point.
+   */
+  synchronizeAuthenticatedServers(
+    registrations: RealtimeServerRegistration[],
+    activeServerId: string | null
+  ): void {
+    const nextIds = new Set(registrations.map((registration) => registration.serverId));
+    for (const serverId of this.#managedServerIds) {
+      if (!nextIds.has(serverId)) this.stopBus(serverId);
+    }
+    this.#managedServerIds = nextIds;
+    this.#activeServerId = nextIds.has(activeServerId ?? '') ? activeServerId : null;
+
+    for (const registration of registrations) {
+      this.ensureBus(registration);
+    }
+    // Close the previous live transport before opening the next one so a
+    // route change never leaves two persistent sockets, even momentarily.
+    for (const registration of registrations) {
+      if (!this.#isLive(registration.serverId)) {
+        this.#controllers.get(registration.serverId)?.setMode('dormant');
+      }
+    }
+    for (const serverId of nextIds) {
+      if (this.#isLive(serverId)) this.#controllers.get(serverId)?.setMode('live');
+    }
+
+    void this.#runPollCycle(true);
+    this.#scheduleNextPoll();
+  }
+
+  /** Stop and remove the event bus and its projection session transport. */
+  stopBus(serverId: string): void {
+    this.#controllers.get(serverId)?.cleanup();
+    this.#controllers.delete(serverId);
+    this.#buses.delete(serverId);
+    this.#managedServerIds.delete(serverId);
+    if (this.#activeServerId === serverId) this.#activeServerId = null;
+    // Without servers, no poll is due; a pending timer would keep a Node host alive.
+    if (this.#controllers.size === 0) this.#clearPollTimer();
+  }
+
+  getBus(serverId: string): EventBus | undefined {
+    return this.#buses.get(serverId);
+  }
+
+  stopAll(): void {
+    this.#clearPollTimer();
+    for (const serverId of [...this.#controllers.keys()]) this.stopBus(serverId);
+  }
+
+  /**
+   * Serially catch up inactive projections. With `onlyUnready`, poll only
+   * projections without usable data: new ones, and ones whose live transport
+   * became dormant before its first catch-up completed. Those would otherwise
+   * stay unreadable until the next periodic cycle.
+   */
+  async #runPollCycle(onlyUnready: boolean): Promise<void> {
+    if (this.#pollCycleRunning) {
+      // The running cycle can already have passed a server that just became
+      // dormant mid-hydration. Run another unready pass after it finishes.
+      if (onlyUnready) this.#unreadyPollCycleRequested = true;
+      return;
+    }
+    this.#pollCycleRunning = true;
+    try {
+      for (const serverId of this.#managedServerIds) {
+        if (this.#isLive(serverId)) continue;
+        const controller = this.#controllers.get(serverId);
+        if (!controller?.projectionSupported) continue;
+        if (onlyUnready && controller.sync.hasUsableProjection) continue;
+        await controller.pollOnce();
+      }
+    } finally {
+      this.#pollCycleRunning = false;
+    }
+    if (this.#fullPollCycleRequested || this.#unreadyPollCycleRequested) {
+      const onlyUnready = !this.#fullPollCycleRequested;
+      this.#fullPollCycleRequested = false;
+      this.#unreadyPollCycleRequested = false;
+      await this.#runPollCycle(onlyUnready);
+    }
+  }
+
+  /**
+   * Catch up all inactive servers now. When a cycle is running, it can already
+   * have passed the server that asked, so run one full pass after it finishes.
+   */
+  #requestFullPollCycle(): void {
+    if (this.#pollCycleRunning) this.#fullPollCycleRequested = true;
+    else void this.#runPollCycle(false);
+  }
+
+  #scheduleNextPoll(): void {
+    this.#clearPollTimer();
+    // Without a server that polls, no poll is due; a timer would keep a Node host alive.
+    if (![...this.#managedServerIds].some((serverId) => !this.#isLive(serverId))) return;
+    const jitter = (pollRandom() * 2 - 1) * INACTIVE_POLL_JITTER_MS;
+    this.#pollTimer = setTimeout(() => {
+      this.#pollTimer = null;
+      void this.#runPollCycle(false).finally(() => this.#scheduleNextPoll());
+    }, INACTIVE_POLL_INTERVAL_MS + jitter);
+  }
+
+  /** Whether the server keeps a persistent WebSocket; see {@link LiveServers}. */
+  #isLive(serverId: string): boolean {
+    return (
+      this.#liveServers === 'all' ||
+      this.#keptLive.has(serverId) ||
+      serverId === this.#activeServerId
+    );
+  }
+
+  #clearPollTimer(): void {
+    if (!this.#pollTimer) return;
+    clearTimeout(this.#pollTimer);
+    this.#pollTimer = null;
+  }
+}

@@ -3,14 +3,14 @@ import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { goto } from '$app/navigation';
 import { q } from '$lib/test-utils';
-import type { AdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
-import type { RoomCommandAPI } from '$lib/api-client/rooms';
-import { RoomThreadingMode } from '$lib/roomThreading';
+import type { AdminRoomLayoutAPI } from '$lib/api/adminRoomLayout';
+import type { RoomCommandAPI } from '@chatto/client/api/rooms';
+import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 import {
   AdminRoomLayoutStore,
   type AdminRoomGroup,
   type AdminRoomInfo
-} from '$lib/state/server/adminRoomLayout.svelte';
+} from '$lib/state/server/adminRoomLayout';
 import AdminRoomLayoutEditor from './AdminRoomLayoutEditor.svelte';
 
 const { roomCreationMocks } = vi.hoisted(() => ({
@@ -29,7 +29,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   })
 }));
 
-vi.mock('$lib/api-client/rooms', () => ({
+vi.mock('@chatto/client/api/rooms', () => ({
   createRoomCommandAPI: () => ({
     createRoom: roomCreationMocks.createRoom,
     joinRoom: roomCreationMocks.joinRoom
@@ -161,7 +161,7 @@ describe('AdminRoomLayoutEditor', () => {
     expect(q(loadingRender.container, '[data-loading-fog][aria-busy="true"]')).not.toBeNull();
 
     const error = makeLayout();
-    error.error = 'Server not found';
+    error.error = new Error('Server not found');
     const errorRender = renderEditor(error);
     expect(errorRender.container.textContent).toContain('Server not found');
 

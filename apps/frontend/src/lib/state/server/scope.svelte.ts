@@ -1,6 +1,6 @@
 import { createContext } from 'svelte';
-import type { ServerConnection } from './serverConnection.svelte';
-import type { ServerStateStore } from './store.svelte';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
+import type { ServerStateStore } from '@chatto/client/server/store';
 
 /**
  * The URL-selected server resources owned by a `/chat/[serverId]` route subtree.

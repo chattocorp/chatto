@@ -1,10 +1,10 @@
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { untrack } from 'svelte';
-  import type { UserAvatarUserView } from '$lib/render/users';
+  import type { UserAvatarUserView } from '@chatto/client/timeline/users';
   import { m } from '$lib/i18n/messages';
   import { getLiveAvatarUrl, getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
-  import { getAvatarInitials } from '$lib/utils/initials';
+  import { getAvatarLabel } from '$lib/utils/initials';
   import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
 
   type AvatarUser = Omit<UserAvatarUserView, 'deleted'> & { deleted?: boolean };
@@ -88,7 +88,9 @@
   // Guard all derived computations against null user — during tab resume/reconnect,
   // fragment data can be transiently null. An unguarded crash here poisons Svelte 5's
   // reactive graph and deadlocks the entire UI.
-  const initials = $derived(user ? getAvatarInitials(user.displayName, user.login) : '');
+  const label = $derived(
+    user ? getAvatarLabel(user.displayName, user.login) : { kind: 'icon' as const }
+  );
 
   const avatarUrl = $derived(
     user && !user.deleted
@@ -166,7 +168,11 @@
       </div>
     {:else}
       <div class={placeholderClass} role="img" aria-label={user.login}>
-        {initials}
+        {#if label.kind === 'icon'}
+          <span class="icon-[uil--user]" aria-hidden="true"></span>
+        {:else}
+          <bdi>{label.text}</bdi>
+        {/if}
       </div>
     {/if}
     {#if showCustomStatusBadge}

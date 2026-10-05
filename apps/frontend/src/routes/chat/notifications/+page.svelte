@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { accountNameToken } from '$lib/render/accountName';
+  import { accountNameToken } from '@chatto/client/timeline/accountName';
+  import { serverUi } from '$lib/state/server/serverUi';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -24,10 +25,10 @@
     type NotificationActor,
     type NotificationGroupItem,
     type NotificationOccurrenceItem
-  } from '$lib/api-client/notifications';
+  } from '@chatto/client/api/notifications';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { serverRegistry } from '$lib/client';
   import { serverIdToSegment } from '$lib/navigation';
   import UserAvatarStack from '$lib/components/UserAvatarStack.svelte';
   import DaySeparator from '$lib/components/DaySeparator.svelte';
@@ -40,12 +41,6 @@
   import { getLocale } from '$lib/i18n/runtime';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { getEmojiByName } from '$lib/emoji';
-  import {
-    enablePushOnAllServers,
-    getPermission,
-    getPushCapability,
-    getPushRegistrationTargets
-  } from '$lib/notifications/pushNotifications';
 
   type ServerGroup = {
     serverId: string;
@@ -75,8 +70,6 @@
   let loadingMore = $state(false);
   let loadMoreError = $state(false);
   let dismissingRead = $state(false);
-  let pushPermission = $state<NotificationPermission | null>(getPermission());
-  let enablingPush = $state(false);
   const pendingMutationKeys = new SvelteSet<string>();
   const hasPendingMutation = $derived(pendingMutationKeys.size > 0);
   const hasMore = $derived(pagination.some((source) => source.hasMore));
@@ -115,11 +108,6 @@
     )
   );
   const readOccurrenceBatches = $derived.by(readOccurrencesByServer);
-  const showEnablePush = $derived(
-    getPushCapability() === 'supported' &&
-      pushPermission === 'default' &&
-      getPushRegistrationTargets().length > 0
-  );
 
   // Realtime normally hydrates this retained store before the route is opened.
   // Fetch only genuinely missing projections as a transport fallback.
@@ -394,7 +382,7 @@
       const roomId = occurrence.room?.id ?? null;
       prepareUiForNotificationTarget(appUi, item.serverId, { roomId });
       if (roomId && occurrence.eventId) {
-        stores.pendingHighlights.set(
+        serverUi(stores).pendingHighlights.set(
           roomId,
           occurrence.threadRootId,
           occurrence.eventId,
@@ -480,30 +468,6 @@
     }
     dismissingRead = false;
   }
-
-  async function enablePushNotifications() {
-    if (enablingPush) return;
-    enablingPush = true;
-    try {
-      const result = await enablePushOnAllServers();
-      pushPermission = result.permission;
-      if (result.permission === 'denied') {
-        toast.error(m('settings.notifications.push_prompt.blocked'));
-      } else if (
-        result.permission === 'granted' &&
-        result.registrations.length > 0 &&
-        result.registrations.every((registration) => registration.registered)
-      ) {
-        toast.success(m('settings.notifications.push_prompt.enabled'));
-      } else if (result.permission === 'granted') {
-        toast.error(m('settings.notifications.push_prompt.enable_failed'));
-      }
-    } catch {
-      toast.error(m('settings.notifications.push_prompt.enable_failed'));
-    } finally {
-      enablingPush = false;
-    }
-  }
 </script>
 
 <PageTitle title={m('chat.notifications.title')} />
@@ -514,19 +478,6 @@
   <PaneContent fillHeight>
     <Panel title={m('chat.notifications.list_title')} noPadding fillHeight>
       {#snippet actions()}
-        {#if showEnablePush}
-          <Button
-            size="sm"
-            disabled={enablingPush}
-            loading={enablingPush}
-            loadingText={m('settings.notifications.push_prompt.enabling')}
-            label={m('settings.notifications.push_prompt.title')}
-            onclick={enablePushNotifications}
-          >
-            <span class="iconify icon-[uil--bell] text-base" aria-hidden="true"></span>
-            <span>{m('settings.notifications.push_prompt.title')}</span>
-          </Button>
-        {/if}
         {#if readOccurrenceBatches.length > 0 || hasMore || dismissingRead}
           <Button
             variant="danger-secondary"

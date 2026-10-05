@@ -1,7 +1,7 @@
 <script lang="ts">
   import { trackScrollEdges, type ScrollEdges } from '$lib/ui/scrollEdges';
   import { LoadingFog, LoadRetry } from '$lib/ui';
-  import { type MessageAttachmentView } from '$lib/render/messageAttachments';
+  import { type MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
 
   type RawAttachment = MessageAttachmentView;
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -17,9 +17,9 @@
     withAssetUrlRetryParam,
     type ExpiringAssetUrl,
     type RefreshedAttachmentUrls
-  } from '$lib/attachments/attachmentUrls';
-  import { createAttachmentAPI } from '$lib/api-client/attachments';
-  import { assetUrlForServer } from '$lib/assets/assetUrls';
+  } from '@chatto/client/attachments/attachmentUrls';
+  import { createAttachmentAPI } from '@chatto/client/api/attachments';
+  import { assetUrlForServer } from '@chatto/client/util/assetUrls';
   import { useExpiringAssetUrlRefresh } from '$lib/attachments/useExpiringAssetUrlRefresh.svelte';
 
   let videoPlayerModule: Promise<typeof import('$lib/components/chat/VideoPlayer.svelte')> | null =

@@ -8,7 +8,7 @@ component uses cached user data while it refreshes and updates shared profile
 fields as realtime changes arrive.
 -->
 <script lang="ts">
-  import { createUserAPI } from '$lib/api-client/users';
+  import { createUserAPI } from '@chatto/client/api/users';
   import BotOwnerRow from '$lib/components/bots/BotOwnerRow.svelte';
   import BotPermissionSummary from '$lib/components/bots/BotPermissionSummary.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -16,14 +16,14 @@ fields as realtime changes arrive.
   import UserMenu from '$lib/components/users/UserMenu.svelte';
   import { UserMenuState } from '$lib/components/users/UserMenuState.svelte';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
-  import { serverStorageKey } from '$lib/storage/serverStorage';
+  import { serverStorageKey } from '@chatto/client/storage/serverStorage';
   import UserBio from '$lib/components/users/UserBio.svelte';
   import { m } from '$lib/i18n/messages';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import { createQuery } from '$lib/query/client';
   import { serverSessionQueryRoot } from '$lib/query/keys';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { mapOptionalUserSummary, mapUserPresenceView } from '$lib/api-client/userSummary';
+  import { mapOptionalUserSummary, mapUserPresenceView } from '@chatto/client/api/userSummary';
   import {
     getLiveBio,
     getLiveCustomStatus,
@@ -31,7 +31,7 @@ fields as realtime changes arrive.
     getLiveLogin,
     getLiveTimezone
   } from '$lib/state/userProfiles.svelte';
-  import { formatAccountName } from '$lib/render/accountName';
+  import { formatAccountName } from '@chatto/client/timeline/accountName';
   import { Hint, LoadingFog, UserCard } from '$lib/ui';
   import { formatMessageTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
 

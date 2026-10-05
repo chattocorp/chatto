@@ -27,9 +27,7 @@
         "followed_thread": "{actor} atbildēja pavedienā, kuram sekojat.",
         "new_message": "{actor} publicēja jaunu ziņu.",
         "activity": "{actor} nosūtīja jums paziņojumu."
-      },
-      "load_failed": "Neizdevās ielādēt paziņojumus",
-      "room_load_failed": "Neizdevās ielādēt telpas paziņojumus"
+      }
     },
     "sign_out": {
       "title": "Izrakstīties",
@@ -76,6 +74,21 @@
         "other": "{count} paziņojumi"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "Nepieciešams servera jauninājums",
+      "too_old_body": "Šajā serverī darbojas Chatto versija, ko šī lietotne vairs neatbalsta. Lūdziet servera administratoram jaunināt Chatto.",
+      "unknown_title": "Nezināma servera versija",
+      "unknown_body": "Lietotne nevar noteikt šī servera Chatto versiju, tāpēc nevar izveidot savienojumu.",
+      "unreachable_body": "Lietotne nevar izveidot savienojumu ar šo serveri. Pārbaudiet tīkla savienojumu vai mēģiniet vēlreiz vēlāk.",
+      "server_version": "Servera versija",
+      "required_version": "Nepieciešamā versija",
+      "required_version_value": "{version} vai jaunāka",
+      "check_again": "Pārbaudīt vēlreiz"
+    },
+    "server_signed_out": {
+      "title": "Jūs esat izrakstījies no šī servera",
+      "body": "Piesakieties, lai šajā serverī lasītu un sūtītu ziņojumus."
+    },
     "threads": {
       "title": "Mani pavedieni",
       "subtitle": "Pavedieni, kuriem sekojat",
@@ -91,7 +104,12 @@
       "message_missing": "Ziņa vairs nav pieejama",
       "in_room": "iekšā",
       "in_room_capitalized": "In",
-      "load_failed": "Neizdevās ielādēt pavedienus"
+      "load_failed": "Neizdevās ielādēt pavedienus",
+      "notifications_count": {
+        "zero": "{count} paziņojumu",
+        "one": "{count} paziņojums",
+        "other": "{count} paziņojumi"
+      }
     },
     "profile": {
       "title": "Profils",
@@ -107,6 +125,7 @@
         "inactive_note": "Šīs atļaujas ir saglabātas, bet īpašnieka pašreizējās atļaujas tās nepieļauj.",
         "read": "Lasīt visus ziņojumus",
         "interactions": "Lasīt pavedienus, kurus tas izveidojis vai kuros tas tieši pieminēts",
+        "reply_interactions": "Atbildēt pavedienos, kurus tas sācis, kuros tas tieši pieminēts vai kuros tas saņēmis privātu ziņojumu",
         "post": "Sūtīt jaunus ziņojumus",
         "room": "#{name}",
         "group": "Grupa: {name}",

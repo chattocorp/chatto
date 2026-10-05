@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { Code, ConnectError } from '@connectrpc/connect';
-import { RoomUnreadStore } from '$lib/state/server/roomUnread.svelte';
+import { RoomUnreadStore } from '$lib/state/server/roomUnread';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import Harness from './UseRoomUnreadHarness.svelte';
 
 const mocks = vi.hoisted(() => ({ markRoomAsRead: vi.fn() }));
 
-vi.mock('$lib/api-client/readState', () => ({
+vi.mock('@chatto/client/api/readState', () => ({
   createReadStateAPI: () => ({ markRoomAsRead: mocks.markRoomAsRead })
 }));
 
@@ -70,6 +70,30 @@ describe('useRoomUnread', () => {
 
     request.reject(new Error('network down'));
     await vi.waitFor(() => expect(roomUnread.roomIsUnread('room-1')).toBe(true));
+    rendered.unmount();
+  });
+
+  it('keeps the unread state until the server confirms a partial read', async () => {
+    const request = deferred<{ lastReadAt: string; previousLastReadAt: string }>();
+    mocks.markRoomAsRead.mockReturnValue(request.promise);
+    roomUnread.setRoomUnread('room-1', true);
+
+    const rendered = render(Harness, {
+      props: { roomId: 'room-1', lifecycleUpToEventId: 'event-3', onReady: () => {} }
+    });
+    flushSync();
+
+    await vi.waitFor(() =>
+      expect(mocks.markRoomAsRead).toHaveBeenCalledWith(
+        { roomId: 'room-1', upToEventId: 'event-3' },
+        expect.anything()
+      )
+    );
+    expect(roomUnread.roomIsUnread('room-1')).toBe(true);
+
+    request.resolve({ lastReadAt: '', previousLastReadAt: '' });
+    await request.promise;
+    expect(roomUnread.roomIsUnread('room-1')).toBe(true);
     rendered.unmount();
   });
 

@@ -27,9 +27,7 @@
         "followed_thread": "{actor} svarade i en tråd som du följer.",
         "new_message": "{actor} publicerade ett nytt meddelande.",
         "activity": "{actor} skickade en avisering till dig."
-      },
-      "load_failed": "Det gick inte att läsa in aviseringar",
-      "room_load_failed": "Det gick inte att läsa in rumsaviseringar"
+      }
     },
     "sign_out": {
       "title": "Logga ut",
@@ -74,6 +72,21 @@
         "other": "{count} aviseringar"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "Servern behöver uppgraderas",
+      "too_old_body": "Den här servern kör en Chatto-version som appen inte längre stöder. Be serverns administratör att uppgradera Chatto.",
+      "unknown_title": "Okänd serverversion",
+      "unknown_body": "Appen kan inte identifiera serverns Chatto-version och kan därför inte ansluta.",
+      "unreachable_body": "Appen kan inte ansluta till den här servern. Kontrollera din nätverksanslutning eller försök igen senare.",
+      "server_version": "Serverversion",
+      "required_version": "Version som krävs",
+      "required_version_value": "{version} eller senare",
+      "check_again": "Kontrollera igen"
+    },
+    "server_signed_out": {
+      "title": "Du är utloggad från den här servern",
+      "body": "Logga in för att läsa och skicka meddelanden på den här servern."
+    },
     "threads": {
       "title": "Mina trådar",
       "subtitle": "Trådar du följer",
@@ -89,7 +102,11 @@
       "message_missing": "Meddelandet är inte längre tillgängligt",
       "in_room": "in",
       "in_room_capitalized": "In",
-      "load_failed": "Det gick inte att läsa in trådar"
+      "load_failed": "Det gick inte att läsa in trådar",
+      "notifications_count": {
+        "one": "{count} avisering",
+        "other": "{count} aviseringar"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -105,6 +122,7 @@
         "inactive_note": "Dessa behörigheter är sparade, men ägarens aktuella behörigheter tillåter dem inte.",
         "read": "Läsa alla meddelanden",
         "interactions": "Läsa trådar som den har skapat eller där den har nämnts direkt",
+        "reply_interactions": "Svara i trådar som den har startat, där den har nämnts direkt eller där den har fått ett direktmeddelande",
         "post": "Skicka nya meddelanden",
         "room": "#{name}",
         "group": "Grupp: {name}",

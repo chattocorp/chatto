@@ -1,5 +1,7 @@
 {
   "voice": {
+    "picture_in_picture": "画中画",
+    "picture_in_picture_failed": "无法更改画中画模式。",
     "connection_lost": "连接已断开",
     "connecting": "正在连接...",
     "joining": "正在加入...",

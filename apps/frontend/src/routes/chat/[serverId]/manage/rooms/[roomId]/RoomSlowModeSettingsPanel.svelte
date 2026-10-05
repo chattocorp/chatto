@@ -5,7 +5,7 @@ Slow Mode of a room. The interval saves immediately; the select keeps the
 saved interval visible until the room accepts the change.
 -->
 <script lang="ts">
-  import type { AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
+  import type { AdminManagedRoom } from '$lib/api/adminRoomLayout';
   import { Hint, Panel } from '$lib/ui';
   import { Select } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';

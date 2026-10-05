@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import type { RoleDetails, RoleMemberPage, ServerRole } from '$lib/api-client/roles';
+import type { RoleDetails, RoleMemberPage, ServerRole } from '@chatto/client/api/roles';
 import { adminQueryKeys } from '$lib/query/admin';
 import { queryClient } from '$lib/query/client';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
@@ -39,7 +39,7 @@ vi.mock(
   '$lib/state/server/scope.svelte',
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
 );
-vi.mock('$lib/api-client/roles', () => ({ createRoleAPI: vi.fn() }));
+vi.mock('@chatto/client/api/roles', () => ({ createRoleAPI: vi.fn() }));
 vi.mock('$lib/components/admin', async () => ({
   UserList: (await import('./RolePageUserListMock.svelte')).default
 }));

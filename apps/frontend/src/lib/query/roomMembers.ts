@@ -3,10 +3,10 @@ import type {
   DirectoryMember,
   MemberDirectoryAPI,
   MemberDirectoryPage
-} from '$lib/api-client/memberDirectory';
-import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+} from '@chatto/client/api/memberDirectory';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
 import { queryCaches } from './cacheRegistry';
-import { queryClient } from './client';
+import { queryClient } from './queryClient';
 import { directoryQueryKeys } from './directory';
 
 type RoomMemberQueryConnection = Pick<ServerConnection, 'queryScope'>;

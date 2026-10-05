@@ -174,11 +174,15 @@ func initializeCoreProjections(
 	roomDirectory := NewRoomDirectoryProjection()
 	serverConfig := NewConfigProjection()
 	roomGroupLayout := NewRoomGroupLayoutProjection()
-	roomTimeline := NewRoomTimelineProjection()
+	// The room timeline, thread, and reaction components and the Notification
+	// Decisions projection index the same message IDs. One shared table holds
+	// each ID once for all of them.
+	eventIDs := newEventIDTable()
+	roomTimeline := newRoomTimelineProjection(eventIDs)
 	callState := NewCallStateProjection()
 	assets := NewAssetProjection()
-	threads := NewThreadProjection()
-	reactions := NewReactionProjection()
+	threads := newThreadProjection(eventIDs)
+	reactions := newReactionProjection(eventIDs)
 	users := newUserProjectionWithDEKResolver(infra.dekResolver)
 	userAuth := users.AuthProjection()
 	contentKeys := NewContentKeyProjection()
@@ -206,7 +210,7 @@ func initializeCoreProjections(
 		registrar, contentView, projectionsnapshot.ProjectionServerContentViewKey,
 		"Server Content View",
 		func() (int64, int64, []ProjectionAdminMetric) {
-			return contentView.adminProjectionEstimate(contentComponents...)
+			return contentView.adminProjectionEstimate(eventIDs, contentComponents...)
 		},
 		sharedSnapshots,
 	)
@@ -253,7 +257,9 @@ func initializeCoreProjections(
 		return nil, err
 	}
 
-	notificationDecisions := NewNotificationDecisionProjection()
+	// Notification Decisions indexes the same message IDs as the content view,
+	// so it interns them in the same process-wide table.
+	notificationDecisions := newNotificationDecisionProjection(eventIDs)
 	projections.notificationDecisions, err = registerProjection(
 		registrar, notificationDecisions, projectionsnapshot.ProjectionNotificationDecisionsKey,
 		"Notification Decisions", notificationDecisions.adminProjectionEstimate, sharedSnapshots,

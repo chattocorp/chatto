@@ -1,17 +1,17 @@
 import { tick, untrack } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
-import type { TimelineEventView } from '$lib/render/timelineEvents';
+import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
 import type {
   ComposerContext,
   QuoteInsertionContent,
   RoomMember,
   RoomMembersStore
 } from '$lib/state/room';
-import type { MentionRolesStore } from '$lib/state/server/mentionRoles.svelte';
-import type { RoomUnreadStore } from '$lib/state/server/roomUnread.svelte';
-import type { ServerInfoState } from '$lib/state/server/state.svelte';
-import type { createMessageAPI, UpdateMessageInput } from '$lib/api-client/messages';
-import type { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
+import type { MentionRolesStore } from '@chatto/client/server/mentionRoles';
+import type { RoomUnreadStore } from '$lib/state/server/roomUnread';
+import type { ServerInfoState } from '@chatto/client/server/state';
+import type { createMessageAPI, UpdateMessageInput } from '@chatto/client/api/messages';
+import type { createLinkPreviewAPI } from '@chatto/client/api/linkPreviews';
 import { hasVisibleContent } from '$lib/validation';
 import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
 import { prefersTouchActions } from '$lib/utils/inputCapabilities';
@@ -230,7 +230,9 @@ export class MessageComposerState {
     return (
       this.isEditing &&
       this.editState.threadRootEventId !== null &&
-      (this.editState.channelEchoEventId !== null || this.editState.canAddChannelEcho)
+      (this.editState.channelEchoEventId !== null
+        ? this.editState.canRemoveChannelEcho
+        : this.editState.canAddChannelEcho)
     );
   }
 
@@ -252,13 +254,6 @@ export class MessageComposerState {
       (hasVisibleContent(this.message) || this.hasSendableAttachments || this.isEditing)
     );
   }
-
-  observeResize = (node: HTMLDivElement) => {
-    const scrollState = this.#dependencies.context.scrollState;
-    const observer = new ResizeObserver(() => scrollState.scrollToBottomIfSticky());
-    observer.observe(node);
-    return () => observer.disconnect();
-  };
 
   handleFileSelect(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -647,7 +642,8 @@ export class MessageComposerState {
       eventId
     };
     if (body) input.body = body;
-    if (this.showEditEchoToggle) input.alsoSendToChannel = this.alsoSendToChannel;
+    // Omit unchanged placement so text edits do not request echo authority.
+    if (echoStateChanged) input.alsoSendToChannel = this.alsoSendToChannel;
     await this.submission.editMessage(input);
   }
 
@@ -702,7 +698,8 @@ export class MessageComposerState {
     this.editState.startEdit(message.eventId, message.body, {
       threadRootEventId: message.threadRootEventId,
       channelEchoEventId: message.channelEchoEventId,
-      canAddChannelEcho: message.canAddChannelEcho
+      canAddChannelEcho: message.canAddChannelEcho,
+      canRemoveChannelEcho: message.canRemoveChannelEcho
     });
     return true;
   }

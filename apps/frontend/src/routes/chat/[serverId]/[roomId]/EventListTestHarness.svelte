@@ -1,7 +1,13 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
+  import { setTimelineViewport } from '$lib/state/room/timelineViewport';
+  import type { MessagesStore } from '@chatto/client/room/messages/MessagesStore';
   import { onMount } from 'svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
+  import {
+    TimelineEventKind,
+    type TimelineEventView
+  } from '@chatto/client/timeline/timelineEvents';
   import {
     createComposerContext,
     createRoomMembers,
@@ -10,6 +16,8 @@
     type ComposerContext
   } from '$lib/state/room';
   import EventList from './EventList.svelte';
+  import type { TimelineReadPosition } from './readThroughTracker';
+  import type { PendingHighlight } from '$lib/state/server/pendingHighlight';
 
   let {
     eventIds,
@@ -21,12 +29,15 @@
     isLoading = false,
     isJumpedMode = false,
     onJumpToPresent,
+    onPresentRequested,
     pendingHighlightId = null,
+    highlightRequest = null,
     hasReachedStart = false,
     recoveryViewport = null,
     unreadAfterEventId = null,
     onComposerReady,
-    onStoreRead
+    onStoreRead,
+    onReadPosition
   }: {
     eventIds: string[];
     roomId?: string;
@@ -37,12 +48,15 @@
     isLoading?: boolean;
     isJumpedMode?: boolean;
     onJumpToPresent?: () => Promise<boolean>;
+    onPresentRequested?: () => void;
     pendingHighlightId?: string | null;
+    highlightRequest?: PendingHighlight | null;
     hasReachedStart?: boolean;
     recoveryViewport?: { eventId: string; offset: number; hasNewer?: boolean } | null;
     unreadAfterEventId?: string | null;
     onComposerReady?: (context: ComposerContext) => void;
     onStoreRead?: () => void;
+    onReadPosition?: (position: TimelineReadPosition) => void;
   } = $props();
 
   const composerContext = createComposerContext();
@@ -115,25 +129,34 @@
       return hasReachedStart;
     },
     loadMore: async () => {},
-    loadNewer: async () => {},
-    jumpToPresent: async () => (await onJumpToPresent?.()) ?? false,
-    get recoveryViewport() {
+    canLoadNewer: false,
+    loadNewer: async () => ({ status: 'declined' }),
+    jumpToLatest: async () => (await onJumpToPresent?.()) ?? false,
+    get recoveryAnchor() {
       onStoreRead?.();
-      return recoveryViewport;
+      return recoveryViewport
+        ? { eventId: recoveryViewport.eventId, hasNewer: recoveryViewport.hasNewer }
+        : null;
     },
-    set recoveryViewport(value) {
-      recoveryViewport = value;
-    },
-    clearViewport: () => {
+    completeRecovery: () => {
       recoveryViewport = null;
     },
-    setViewport: () => {},
+    clearAnchor: () => {
+      recoveryViewport = null;
+    },
+    setAnchor: () => true,
     refreshCurrentWindow: async () => ({
       hasOlder: false,
       hasNewer: false,
       refreshed: false,
       changed: false
     })
+  });
+  // Keep the recovery offset where the room view keeps it.
+  untrack(() => {
+    if (recoveryViewport) {
+      setTimelineViewport(messageStore as unknown as MessagesStore, recoveryViewport);
+    }
   });
 </script>
 
@@ -145,6 +168,9 @@
   messageStore={messageStore as never}
   {events}
   {pendingHighlightId}
+  {highlightRequest}
   {unreadAfterEventId}
   onScrollToEventComplete={onComplete}
+  onJumpToPresent={onPresentRequested}
+  {onReadPosition}
 />

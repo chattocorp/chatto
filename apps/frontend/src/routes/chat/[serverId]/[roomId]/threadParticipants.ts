@@ -1,4 +1,7 @@
-import { isMessagePostedEvent, type TimelineEventView } from '$lib/render/timelineEvents';
+import {
+  isMessagePostedEvent,
+  type TimelineEventView
+} from '@chatto/client/timeline/timelineEvents';
 
 /**
  * Collect the IDs of the other users who take part in a thread.

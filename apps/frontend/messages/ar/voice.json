@@ -1,5 +1,7 @@
 {
   "voice": {
+    "picture_in_picture": "صورة داخل صورة",
+    "picture_in_picture_failed": "تعذّر تغيير وضع الصورة داخل صورة.",
     "connection_lost": "فُقد الاتصال",
     "connecting": "جارٍ الاتصال...",
     "joining": "الانضمام...",

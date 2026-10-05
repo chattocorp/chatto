@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
+import { TimelineEventKind, type TimelineEventView } from '@chatto/client/timeline/timelineEvents';
 import type { RoomPermissions } from '$lib/state/room';
 import { findLastEditableMessage } from './lastEditableMessage';
 
@@ -149,7 +149,19 @@ describe('findLastEditableMessage', () => {
       body: 'echoed reply',
       threadRootEventId: 'evt_thread_root',
       channelEchoEventId: 'evt_echo',
-      canAddChannelEcho: true
+      canAddChannelEcho: true,
+      canRemoveChannelEcho: true
     });
+  });
+
+  it('permits removal of an own echo after echo creation permission is lost', () => {
+    const result = findLastEditableMessage({
+      events: [makeMessageEvent({ threadRootEventId: 'root', channelEchoEventId: 'echo' })],
+      currentUserId: 'user_self',
+      roomPermissions: { ...canEchoRoomPermissions, canEchoMessage: false, canPostMessage: false },
+      messageEditWindowSeconds: editWindowSeconds,
+      nowMs
+    });
+    expect(result).toMatchObject({ canAddChannelEcho: false, canRemoveChannelEcho: true });
   });
 });

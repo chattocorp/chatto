@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
+import { RealtimeProjectionUpdate } from '@chatto/client/realtime/eventBus';
 import { render } from 'vitest-browser-svelte';
 import NotificationSync from './NotificationSync.svelte';
-import type { ProjectionHandler } from '$lib/eventBus.svelte';
+import type { ProjectionHandler } from '@chatto/client/realtime/eventBus';
 import { NotificationOccurrencesChangedEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { NotificationAttentionLevel } from '$lib/api-client/notifications';
+import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
 
 const { mocks } = vi.hoisted(() => {
   const createBus = () => {
@@ -23,38 +23,53 @@ const { mocks } = vi.hoisted(() => {
     origin: createBus(),
     remote: createBus()
   };
-  const createStore = () => ({
-    isAuthenticated: true,
-    currentUser: { user: { id: 'viewer' } },
-    get viewerId(): string | null {
-      return this.currentUser.user.id;
-    },
-    get accountId(): string | null {
-      return this.currentUser.user.id;
-    },
-    waitForRealtimeResourceRefresh: vi.fn(async () => true),
-    notifications: {
-      occurrences: [] as Array<{
-        id?: string;
-        unread: boolean;
-        attentionLevel: NotificationAttentionLevel;
-      }>,
-      count: 0,
-      unreadNotificationCount: 0,
-      importantUnreadNotificationCount: 0,
-      get attention() {
-        return {
-          unreadNotificationCount: this.unreadNotificationCount,
-          importantUnreadNotificationCount: this.importantUnreadNotificationCount
-        };
+  const createStore = () =>
+    withAttention({
+      isAuthenticated: true,
+      currentUser: { user: { id: 'viewer' } },
+      get viewerId(): string | null {
+        return this.currentUser.user.id;
       },
-      needsAttention: vi.fn((row: { unread: boolean }) => row.unread),
-      hasLoaded: true,
-      nextExpiryAt: null as string | null,
-      fetch: vi.fn(async () => {}),
-      reconcile: vi.fn(async () => {})
-    }
-  });
+      get accountId(): string | null {
+        return this.currentUser.user.id;
+      },
+      waitForRealtimeResourceRefresh: vi.fn(async () => true),
+      notifications: {
+        occurrences: [] as Array<{
+          id?: string;
+          unread: boolean;
+          attentionLevel: NotificationAttentionLevel;
+        }>,
+        count: 0,
+        unreadNotificationCount: 0,
+        importantUnreadNotificationCount: 0,
+        hasLoaded: true,
+        nextExpiryAt: null as string | null,
+        fetch: vi.fn(async () => {}),
+        reconcile: vi.fn(async () => {})
+      },
+      /** Notification attention over the notification mock. */
+      attention: {
+        notifications: null as unknown as {
+          unreadNotificationCount: number;
+          importantUnreadNotificationCount: number;
+        },
+        get counts() {
+          return {
+            unreadNotificationCount: this.notifications.unreadNotificationCount,
+            importantUnreadNotificationCount: this.notifications.importantUnreadNotificationCount
+          };
+        },
+        needsAttention: vi.fn((row: { unread: boolean }) => row.unread)
+      }
+    });
+  function withAttention<
+    T extends { notifications: object; attention: { notifications: unknown } }
+  >(store: T): T {
+    // Read the current notification mock; a test can replace it.
+    Object.defineProperty(store.attention, 'notifications', { get: () => store.notifications });
+    return store;
+  }
   const stores = {
     origin: createStore(),
     remote: createStore()
@@ -98,16 +113,20 @@ const { mocks } = vi.hoisted(() => {
   };
 });
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+// The store mock also carries the frontend UI state of its server.
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
+
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
     get servers() {
       return mocks.servers;
     },
     getStore: vi.fn((serverId: 'origin' | 'remote') => mocks.stores[serverId])
-  }
-}));
-
-vi.mock('$lib/state/server/realtimeTransport.svelte', () => ({
+  },
   eventBusManager: {
     getBus: vi.fn((serverId: 'origin' | 'remote') => mocks.buses[serverId])
   }
@@ -125,7 +144,7 @@ vi.mock('$lib/audio/notificationSounds', () => ({
 // Push cleanup has separate coverage; these tests exercise in-app sound and badges.
 vi.mock('./PushNotificationSync.svelte', () => ({ default: () => {} }));
 
-vi.mock('$lib/state/server/presencePreference.svelte', () => ({
+vi.mock('$lib/state/server/presencePreference', () => ({
   presencePreferences: {
     get: ({ serverId }: { serverId: string }) =>
       serverId === 'remote' ? mocks.remotePresencePreference : mocks.presencePreference
@@ -203,7 +222,7 @@ describe('NotificationSync', () => {
       store.notifications.nextExpiryAt = null;
       store.notifications.fetch.mockClear();
       store.notifications.reconcile.mockClear();
-      store.notifications.needsAttention.mockReset().mockImplementation((row) => row.unread);
+      store.attention.needsAttention.mockReset().mockImplementation((row) => row.unread);
     }
   });
 
@@ -216,12 +235,10 @@ describe('NotificationSync', () => {
   });
 
   it('keeps a viewed thread silent even while its server occurrence is unread', async () => {
-    mocks.stores.origin.notifications.needsAttention.mockReturnValue(false);
+    mocks.stores.origin.attention.needsAttention.mockReturnValue(false);
     await renderAndWaitForSubscription();
     dispatch(true);
-    await vi.waitFor(() =>
-      expect(mocks.stores.origin.notifications.needsAttention).toHaveBeenCalled()
-    );
+    await vi.waitFor(() => expect(mocks.stores.origin.attention.needsAttention).toHaveBeenCalled());
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
     expect(mocks.stores.origin.notifications.occurrences[0].unread).toBe(true);
   });

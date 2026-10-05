@@ -8,7 +8,8 @@
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverIdToSegment } from '$lib/navigation';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { serverRegistry } from '$lib/client';
+  import { firstAuthenticatedServerId } from '$lib/serverCatalogue';
   import { m } from '$lib/i18n/messages';
 
   let { children }: { children?: Snippet } = $props();
@@ -34,7 +35,7 @@
   const authenticatedServerId = $derived.by(() => {
     const activeServerId = getActiveServer();
     if (activeServerId && serverRegistry.isAuthenticated(activeServerId)) return activeServerId;
-    return serverRegistry.firstAuthenticatedServerId();
+    return firstAuthenticatedServerId();
   });
 
   const canonicalPreferencePath = $derived.by(() => {

@@ -22,7 +22,7 @@
 </script>
 
 <script lang="ts">
-  import { NotificationDeliveryMode } from '$lib/api-client/notifications';
+  import { NotificationDeliveryMode } from '@chatto/client/api/notifications';
 </script>
 
 <Story

@@ -16,7 +16,6 @@
       "remote_title": "{server} 需要登录",
       "remote_message": "此服务器拒绝了已保存的登录信息。请重新连接，以恢复实时更新和操作。",
       "remote_action": "重新连接",
-      "remote_failed": "无法开始重新连接",
       "sidebar_reauth": "{server} 需要登录"
     },
     "access_denied": {

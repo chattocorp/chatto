@@ -1,8 +1,9 @@
 <script lang="ts">
   import { pushState } from '$app/navigation';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { resolve } from '$app/paths';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
+  import { serverRegistry, serverConnectionManager } from '$lib/client';
+  import { firstAuthenticatedServerId } from '$lib/serverCatalogue';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { version } from '$app/environment';
@@ -17,22 +18,24 @@
   const motd = $derived(serverRegistry.tryGetStore(getActiveServer())?.serverInfo.motd);
   const originStore = $derived(serverRegistry.tryGetStore(serverRegistry.originServer?.id ?? ''));
 
+  /** A server's notification counts without viewed ones; zero without a store. */
+  function attentionCounts(serverId: string) {
+    const store = serverRegistry.tryGetStore(serverId);
+    return store
+      ? serverUi(store).attention.counts
+      : { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 };
+  }
+
   // Aggregate exact notification counts across all servers.
   const totalNotificationCount = $derived(
     serverRegistry.servers.reduce(
-      (sum, instance) =>
-        sum +
-        (serverRegistry.tryGetStore(instance.id)?.notifications.attention.unreadNotificationCount ??
-          0),
+      (sum, instance) => sum + attentionCounts(instance.id).unreadNotificationCount,
       0
     )
   );
   const totalImportantNotificationCount = $derived(
     serverRegistry.servers.reduce(
-      (sum, instance) =>
-        sum +
-        (serverRegistry.tryGetStore(instance.id)?.notifications.attention
-          .importantUnreadNotificationCount ?? 0),
+      (sum, instance) => sum + attentionCounts(instance.id).importantUnreadNotificationCount,
       0
     )
   );
@@ -42,7 +45,7 @@
   const preferencesServerId = $derived.by(() => {
     const activeServerId = getActiveServer();
     if (activeServerId && serverRegistry.isAuthenticated(activeServerId)) return activeServerId;
-    return serverRegistry.firstAuthenticatedServerId();
+    return firstAuthenticatedServerId();
   });
   function handleSignOut() {
     pushState('', { modal: { type: 'logout' } });
@@ -59,7 +62,7 @@
 >
   <!-- Leading: global navigation, notifications, and client-wide actions -->
   <div class="flex items-center gap-3">
-    <!-- Hamburger - 44px tap target for mobile accessibility -->
+    <!-- Sidebar toggle - 44px tap target for mobile accessibility -->
     <button
       type="button"
       class="app-header-icon"
@@ -68,7 +71,13 @@
       aria-expanded={sidebarNav.isOpen}
       title={m('ui.toggle_sidebar')}
     >
-      <span aria-hidden="true" class="iconify icon-[uil--bars] text-xl"></span>
+      <span
+        aria-hidden="true"
+        class={[
+          'iconify text-xl rtl:-scale-x-100',
+          sidebarNav.isOpen ? 'icon-[lucide--panel-left-close]' : 'icon-[lucide--panel-left-open]'
+        ]}
+      ></span>
     </button>
 
     {#if hasInstances}

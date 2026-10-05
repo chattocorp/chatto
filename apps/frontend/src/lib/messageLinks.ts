@@ -8,7 +8,7 @@
  */
 
 import { resolve } from '$app/paths';
-import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { serverRegistry } from '$lib/client';
 import { serverIdToSegment, segmentToServerId } from '$lib/navigation';
 import { toast } from '$lib/ui/toast';
 import { m } from '$lib/i18n/messages';

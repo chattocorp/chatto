@@ -4,7 +4,7 @@ import {
   TimelineEventKind,
   type TimelineEventKind as TimelineEventKindValue,
   type TimelineEventView
-} from '$lib/render/timelineEvents';
+} from '@chatto/client/timeline/timelineEvents';
 import type { TimeFormatSettings } from '$lib/utils/formatTime';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';

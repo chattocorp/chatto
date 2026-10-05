@@ -8,7 +8,7 @@
   import { renderMarkdown as renderMd } from '$lib/markdown';
   import { MarkdownHtml, ContextMenu } from '$lib/ui';
   import { classifyMessageBodyChatLink } from '$lib/messageLinks';
-  import { wrapValidMentions, type RoomMember } from '$lib/mentions';
+  import { resolveRenderedMentions, type RoomMember } from '$lib/mentions';
   import { formatRelativeMessageTimestamp, wrapMessageTimestamps } from '$lib/messageTimestamps';
   import { parseTrustedMarkdownHtml } from '$lib/security/trustedHtml';
   import { getLocale } from '$lib/i18n/runtime';
@@ -122,7 +122,7 @@
     return root.innerHTML;
   }
 
-  // Render markdown then wrap valid mentions
+  // Render markdown, then resolve the mention candidates that it marked
   async function render(
     body: string,
     members: RoomMember[],
@@ -133,8 +133,8 @@
     timestampSettings: TimeFormatSettings,
     timestampLocale: string | undefined
   ): Promise<string> {
-    const html = await renderMd(body);
-    const wrapped = wrapValidMentions(html, members, viewerLogin, roleHandles);
+    const html = await renderMd(body, { mentions: true });
+    const wrapped = resolveRenderedMentions(html, members, viewerLogin, roleHandles);
     const withTimestamps = wrapMessageTimestamps(
       wrapped,
       timestampSettings,

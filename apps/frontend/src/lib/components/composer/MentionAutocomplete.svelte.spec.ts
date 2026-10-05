@@ -85,7 +85,9 @@ describe('MentionAutocomplete', () => {
         members: [member('alice', 'Alice Wonderland'), member('bob', 'Bob Smith')]
       });
       expect(visibleLogins(container)).toEqual(['alice']);
-      expect(container.querySelector('bdi:not([dir])')?.textContent).toBe('Alice Wonderland');
+      expect(container.querySelector('span > bdi:not([dir])')?.textContent).toBe(
+        'Alice Wonderland'
+      );
     });
 
     it('marks bot mention targets beside their names', () => {

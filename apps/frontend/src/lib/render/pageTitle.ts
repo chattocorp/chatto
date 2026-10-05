@@ -2,7 +2,8 @@
  * Composes page, route identity, and important unread notifications for PageTitle.
  */
 
-import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { serverRegistry } from '$lib/client';
+import { serverUi } from '$lib/state/server/serverUi';
 import { segmentToServerId } from '$lib/navigation';
 import { page } from '$app/state';
 
@@ -20,7 +21,7 @@ export function formatPageTitle(title = '', scope: 'route' | 'app' = 'route'): s
   const totalCount = serverRegistry.servers.reduce((sum, instance) => {
     const store = serverRegistry.tryGetStore(instance.id);
     if (!store?.isAuthenticated) return sum;
-    return sum + store.notifications.attention.importantUnreadNotificationCount;
+    return sum + serverUi(store).attention.counts.importantUnreadNotificationCount;
   }, 0);
 
   return totalCount > 0 ? `(${totalCount}) ${base}` : base;

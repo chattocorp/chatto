@@ -25,7 +25,10 @@ message PushSubscription {
   // Authentication secret for message encryption (base64url-encoded)
   string auth = 3;
 
-  // When this subscription was created
+  // Time of the most recent save. Every save overwrites this value, so it is
+  // the refresh time rather than the first registration time. The record
+  // expires PushSubscriptionLifetime after this time; a record without this
+  // value is expired.
   google.protobuf.Timestamp created_at = 4;
 
   // User agent string (for debugging/device identification)

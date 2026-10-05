@@ -1,9 +1,9 @@
 import type { InfiniteData } from '@tanstack/svelte-query';
 import type { QueryKey } from '@tanstack/svelte-query';
-import type { FollowedThread, FollowedThreadsPage } from '$lib/api-client/threads';
-import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import type { FollowedThread, FollowedThreadsPage } from '@chatto/client/api/threads';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
 import { serverSessionQueryRoot } from './keys';
-import { queryClient } from './client';
+import { queryClient } from './queryClient';
 import { queryCaches } from './cacheRegistry';
 
 type ThreadQueryConnection = Pick<ServerConnection, 'queryScope'>;

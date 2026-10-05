@@ -36,6 +36,11 @@ const (
 	// MaxPushSubscriptionsPerUser is the maximum number of active browser
 	// subscriptions that one account can fan push delivery out to.
 	MaxPushSubscriptionsPerUser = pushendpoint.MaxSubscriptionsPerUser
+
+	// PushSubscriptionLifetime is how long a subscription stays deliverable
+	// after its most recent save. Clients save their subscriptions again while
+	// the device is in use, so only devices that stop using Chatto expire.
+	PushSubscriptionLifetime = 180 * 24 * time.Hour
 )
 
 var (
@@ -148,7 +153,7 @@ func (c *ChattoCore) savePushSubscriptionForClient(
 		Endpoint:     endpoint,
 		P256Dh:       p256dh,
 		Auth:         auth,
-		CreatedAt:    timestamppb.New(time.Now()),
+		CreatedAt:    timestamppb.New(c.pushNow()),
 		UserAgent:    userAgent,
 		ClientHost:   clientHost,
 		CleanupToken: cleanupToken,
@@ -221,6 +226,26 @@ func (c *ChattoCore) AdmitPushTestNotification(ctx context.Context, userID strin
 		return fmt.Errorf("failed to reserve push test notification window: %w", err)
 	}
 	return nil
+}
+
+// pushSubscriptionExpired reports whether a subscription's most recent save is
+// older than PushSubscriptionLifetime. Every save, on every server version,
+// overwrites created_at with the save time, so readers can enforce expiry
+// without a separate field. A record without a save time counts as expired.
+func pushSubscriptionExpired(subscription *runtimestatev1.PushSubscription, now time.Time) bool {
+	savedAt := subscription.GetCreatedAt()
+	if savedAt == nil {
+		return true
+	}
+	return !now.Before(savedAt.AsTime().Add(PushSubscriptionLifetime))
+}
+
+// pushNow returns the clock used for push-subscription save times and expiry.
+func (c *ChattoCore) pushNow() time.Time {
+	if c.pushClock != nil {
+		return c.pushClock()
+	}
+	return time.Now()
 }
 
 func isPushRuntimeStateKeyAbsent(err error) bool {
@@ -367,7 +392,7 @@ func (c *ChattoCore) PushSubscriptionCurrentForUser(ctx context.Context, userID 
 	if err := proto.Unmarshal(entry.Value(), &current); err != nil {
 		return false, fmt.Errorf("failed to unmarshal push subscription: %w", err)
 	}
-	if !proto.Equal(&current, subscription) {
+	if !proto.Equal(&current, subscription) || pushSubscriptionExpired(&current, c.pushNow()) {
 		return false, nil
 	}
 	return c.pushSubscriptionRevisionOwnedByUser(ctx, userID, endpoint, entry.Revision())
@@ -571,7 +596,10 @@ func (c *ChattoCore) DeletePushSubscriptionByCapability(ctx context.Context, end
 	return nil
 }
 
-// GetUserPushSubscriptions returns all push subscriptions for a user.
+// GetUserPushSubscriptions returns the user's current push subscriptions:
+// records that are not expired and that own their endpoint at their exact
+// revision. It also removes every expired record it finds, so push delivery
+// and registration prune subscriptions of devices that stopped using Chatto.
 // Authorization: Caller must verify userID matches authenticated user.
 func (c *ChattoCore) GetUserPushSubscriptions(ctx context.Context, userID string) ([]*runtimestatev1.PushSubscription, error) {
 	keys, err := listPushRuntimeStateKeys(ctx, c.storage.runtimeStateKV, pushSubscriptionKeyFilter(userID))
@@ -579,9 +607,13 @@ func (c *ChattoCore) GetUserPushSubscriptions(ctx context.Context, userID string
 		return nil, fmt.Errorf("failed to list push subscription keys: %w", err)
 	}
 
+	now := c.pushNow()
 	var subscriptions []*runtimestatev1.PushSubscription
 	for _, key := range keys {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		if isPushRuntimeStateKeyAbsent(err) {
+			continue
+		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to get push subscription %s: %w", key, err)
 		}
@@ -589,6 +621,17 @@ func (c *ChattoCore) GetUserPushSubscriptions(ctx context.Context, userID string
 		var sub runtimestatev1.PushSubscription
 		if err := proto.Unmarshal(entry.Value(), &sub); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal push subscription %s: %w", key, err)
+		}
+		if pushSubscriptionExpired(&sub, now) {
+			// Never deliver an expired record, even when its removal fails. A
+			// later read retries the removal.
+			if err := c.deleteExpiredPushSubscription(ctx, userID, key, sub.GetEndpoint(), entry.Revision()); err != nil {
+				c.logger.Warn("Failed to remove expired push subscription",
+					"user_id", userID,
+					"endpoint_hash", hashEndpoint(sub.GetEndpoint()),
+					"error", err)
+			}
+			continue
 		}
 		owned, err := c.pushSubscriptionRevisionOwnedByUser(ctx, userID, sub.GetEndpoint(), entry.Revision())
 		if err != nil {
@@ -601,6 +644,21 @@ func (c *ChattoCore) GetUserPushSubscriptions(ctx context.Context, userID string
 	}
 
 	return subscriptions, nil
+}
+
+// deleteExpiredPushSubscription removes one expired record at the revision
+// that the caller read. It releases the endpoint owner claim first, in the same
+// order as DeletePushSubscription. A revision conflict means that the browser
+// saved the subscription again in the meantime, so the newer record stays.
+func (c *ChattoCore) deleteExpiredPushSubscription(ctx context.Context, userID, key, endpoint string, revision uint64) error {
+	if err := c.releasePushEndpointOwnership(ctx, userID, endpoint, revision); err != nil {
+		return err
+	}
+	err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(revision))
+	if err != nil && !isPushRuntimeStateKeyAbsent(err) && !jetstreamutil.IsSequenceConflict(err) {
+		return fmt.Errorf("failed to delete expired push subscription: %w", err)
+	}
+	return nil
 }
 
 // DeleteAllUserPushSubscriptions removes all push subscriptions for a user.
@@ -663,59 +721,6 @@ func (c *ChattoCore) DeleteAllUserPushSubscriptions(ctx context.Context, userID 
 		"count", deleted)
 
 	return deleted, errors.Join(cleanupErrors...)
-}
-
-// GetAllPushSubscriptions returns all push subscriptions in the system.
-// Authorization: Internal use only.
-//
-// NOTE: Currently unused. Reserved for future admin dashboard feature to list
-// all push subscriptions for monitoring/debugging purposes.
-func (c *ChattoCore) GetAllPushSubscriptions(ctx context.Context) ([]*PushSubscriptionWithUser, error) {
-	keys, err := listPushRuntimeStateKeys(ctx, c.storage.runtimeStateKV, "push_subscription.>")
-	if err != nil {
-		return nil, fmt.Errorf("failed to list push subscription keys: %w", err)
-	}
-
-	var subscriptions []*PushSubscriptionWithUser
-	for _, key := range keys {
-		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-		if err != nil {
-			c.logger.Warn("Failed to get push subscription", "key", key, "error", err)
-			continue
-		}
-
-		var sub runtimestatev1.PushSubscription
-		if err := proto.Unmarshal(entry.Value(), &sub); err != nil {
-			c.logger.Warn("Failed to unmarshal push subscription", "key", key, "error", err)
-			continue
-		}
-
-		// Extract userID from key: push_subscription.{userId}.{hash}
-		userID := extractUserIDFromPushKey(key)
-		if userID == "" {
-			continue
-		}
-		owned, err := c.pushSubscriptionRevisionOwnedByUser(ctx, userID, sub.GetEndpoint(), entry.Revision())
-		if err != nil {
-			return nil, err
-		}
-		if !owned {
-			continue
-		}
-
-		subscriptions = append(subscriptions, &PushSubscriptionWithUser{
-			UserID:       userID,
-			Subscription: &sub,
-		})
-	}
-
-	return subscriptions, nil
-}
-
-// PushSubscriptionWithUser pairs a subscription with its owner's user ID.
-type PushSubscriptionWithUser struct {
-	UserID       string
-	Subscription *runtimestatev1.PushSubscription
 }
 
 // extractUserIDFromPushKey extracts the user ID from a push subscription key.

@@ -1,5 +1,5 @@
 import { expect, test, vi } from 'vitest';
-import { createWorkflowContext } from 'runling';
+import { createWorkflowContext, emptyTokenUsage } from 'runling';
 import type { AgentExtensionAPI, AgentOptions } from 'runling/agents';
 
 const { interact } = vi.hoisted(() => ({ interact: vi.fn() }));
@@ -23,6 +23,7 @@ vi.mock('./investigate.ts', async (importOriginal) => ({
       } as never)
 }));
 import { conversation } from './chat.ts';
+import { completionTool } from '../evaluations/scripted-supervisor.ts';
 
 test.each(['accepted', 'refused'])(
   '%s delegation posts one host-owned reply and permits later replies',
@@ -36,7 +37,7 @@ test.each(['accepted', 'refused'])(
         const factory = typeof extension === 'function' ? extension : extension.factory;
         await factory({
           on(name: string, handler: (event: unknown) => Promise<unknown>) {
-            if (name === 'tool_call') gate = handler;
+            if (name === 'tool_call') gate ??= handler; // The maintainer gate comes first.
           },
           registerTool(tool: { name: string }) {
             tools.set(tool.name, tool as never);
@@ -94,11 +95,13 @@ test.each(['accepted', 'refused'])(
           thread_root_id: 'root',
           message: { id: 'message', author_id: 'human', body: 'Assess this' }
         },
-        readThread: async () => [],
+        readThread: async () => ({ messages: [], olderOmitted: false }),
         maintainers: ['human'],
         onBusy() {},
         setReplyContext() {},
         requester: () => 'human',
+        currentMessageId: () => undefined,
+        isAddressed: () => true,
         announce: async (text) => {
           replies.push(text);
         }
@@ -108,3 +111,71 @@ test.each(['accepted', 'refused'])(
     expect(replies[1]).toBe('Here is the answer to your next question.');
   }
 );
+
+test('a reaction does not suppress the next background result', async () => {
+  const replies: string[] = [];
+  const reactions: string[] = [];
+  interact.mockImplementationOnce(async (ctx, bot, _prompt, options) => {
+    const user = await options.prepareMessage('Thanks', 'user');
+    options.onBusy(true);
+    await bot.runOutcome(ctx, user, { onText: (text: string) => ctx.emit(text) });
+    options.onBusy(false);
+    expect(replies).toEqual([]);
+    const notification = await options.prepareMessage('Background result', 'notification');
+    options.onBusy(true);
+    await bot.runOutcome(ctx, notification, { onText: (text: string) => ctx.emit(text) });
+    options.onBusy(false);
+    return '';
+  });
+  await conversation(
+    {
+      ...createWorkflowContext(),
+      emit: async (text) => {
+        replies.push(text);
+      }
+    },
+    'Thanks',
+    {
+      createAgent: async (options) => {
+        const finish = await completionTool(options);
+        return {
+          steer: async () => false,
+          dispose() {},
+          async runOutcome(_ctx, prompt) {
+            if (JSON.parse(prompt).notification) {
+              await expect(finish({ kind: 'react', emoji: 'heart' })).rejects.toThrow(
+                'current user message'
+              );
+              await finish({ kind: 'reply', text: 'The task finished.' });
+            } else await finish({ kind: 'react', emoji: 'heart' });
+            return { outcome: 'completed', summary: '', usage: emptyTokenUsage() };
+          }
+        };
+      },
+      model: 'test/model',
+      react: async (_target, emoji) => {
+        reactions.push(emoji);
+      },
+      delivery: {
+        version: 1,
+        id: 'delivery',
+        type: 'message.created',
+        triggers: ['mention'],
+        occurred_at: 'now',
+        bot_id: 'bot',
+        room_id: 'room',
+        thread_root_id: 'root',
+        message: { id: 'message', author_id: 'human', body: 'Thanks' }
+      },
+      readThread: async () => ({ messages: [], olderOmitted: false }),
+      onBusy() {},
+      setReplyContext() {},
+      requester: () => 'human',
+      currentMessageId: () => 'message',
+      isAddressed: () => true,
+      announce: async () => {}
+    }
+  );
+  expect(reactions).toEqual(['heart']);
+  expect(replies).toEqual(['The task finished.']);
+});

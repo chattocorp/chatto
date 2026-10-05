@@ -226,8 +226,6 @@
       "in_video_call": "I ett videosamtal",
       "remove_failed": "Det gick inte att ta bort användaren från rummet",
       "remove_success": "{name} togs bort från rummet",
-      "members_load_failed": "Det gick inte att läsa in rumsmedlemmar",
-      "members_refresh_failed": "Det gick inte att uppdatera rumsmedlemmar",
       "search": "Sök"
     },
     "pins": {

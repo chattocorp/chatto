@@ -1,8 +1,10 @@
 import { parseTrustedMarkdownHtml } from '$lib/security/trustedHtml';
 import { formatDateTime, type TimeFormatSettings } from '$lib/utils/formatTime';
+import {
+  messageTimestampTokenPattern,
+  parseMessageTimestampToken
+} from '@chatto/client/messaging/timestampTokens';
 
-const TOKEN_REGEX = /<t:(\d{1,12}):F>/g;
-const MAX_UNIX_SECONDS = Math.floor(8.64e15 / 1000);
 const EXCLUDED_ELEMENTS = ['PRE', 'CODE', 'BLOCKQUOTE', 'A', 'BUTTON'];
 const RELATIVE_UNITS = [
   ['year', 365 * 24 * 60 * 60],
@@ -13,11 +15,6 @@ const RELATIVE_UNITS = [
   ['minute', 60],
   ['second', 1]
 ] as const;
-
-export type MessageTimestampToken = {
-  epochSeconds: number;
-  format: 'F';
-};
 
 type DateTimeParts = {
   year: number;
@@ -35,10 +32,6 @@ function isInsideExcludedElement(node: Node): boolean {
     current = current.parentNode;
   }
   return false;
-}
-
-function timestampTokenText(epochSeconds: number): string {
-  return `<t:${epochSeconds}:F>`;
 }
 
 function parseTimestampParts(localValue: string): DateTimeParts | null {
@@ -122,23 +115,6 @@ function pad(value: number): string {
   return String(value).padStart(2, '0');
 }
 
-export function parseMessageTimestampToken(value: string): MessageTimestampToken | null {
-  const match = value.match(/^<t:(\d{1,12}):F>$/);
-  if (!match) return null;
-  const epochSeconds = Number(match[1]);
-  if (!Number.isSafeInteger(epochSeconds) || epochSeconds < 0 || epochSeconds > MAX_UNIX_SECONDS) {
-    return null;
-  }
-  return { epochSeconds, format: 'F' };
-}
-
-export function createMessageTimestampToken(epochSeconds: number): string {
-  if (!Number.isSafeInteger(epochSeconds) || epochSeconds < 0 || epochSeconds > MAX_UNIX_SECONDS) {
-    throw new RangeError('Timestamp is outside the supported Unix seconds range');
-  }
-  return timestampTokenText(epochSeconds);
-}
-
 export function dateToDatetimeLocalValue(date: Date, timeZone: string): string {
   const parts = dateTimePartsInZone(date, timeZone);
   return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}T${pad(parts.hour)}:${pad(parts.minute)}`;
@@ -203,10 +179,7 @@ export function wrapMessageTimestamps(
 
     const fragments: (string | Element)[] = [];
     let lastIndex = 0;
-    let match: RegExpExecArray | null;
-    TOKEN_REGEX.lastIndex = 0;
-
-    while ((match = TOKEN_REGEX.exec(text)) !== null) {
+    for (const match of text.matchAll(messageTimestampTokenPattern())) {
       const token = parseMessageTimestampToken(match[0]);
       if (!token) continue;
 

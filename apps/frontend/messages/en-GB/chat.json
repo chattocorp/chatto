@@ -27,9 +27,7 @@
         "followed_thread": "{actor} replied in a thread you follow.",
         "new_message": "{actor} posted a new message.",
         "activity": "{actor} sent you a notification."
-      },
-      "load_failed": "Failed to load notifications",
-      "room_load_failed": "Failed to load room notifications"
+      }
     },
     "sign_out": {
       "title": "Sign Out",
@@ -74,6 +72,21 @@
         "other": "{count} notifications"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "Server upgrade required",
+      "too_old_body": "This server runs a Chatto version that this app no longer supports. Ask the server administrator to upgrade Chatto.",
+      "unknown_title": "Unknown server version",
+      "unknown_body": "This app cannot identify the Chatto version of this server, so it cannot connect.",
+      "unreachable_body": "This app cannot connect to this server. Check your network connection or try again later.",
+      "server_version": "Server version",
+      "required_version": "Required version",
+      "required_version_value": "{version} or newer",
+      "check_again": "Check Again"
+    },
+    "server_signed_out": {
+      "title": "You are signed out of this server",
+      "body": "Log in to read and send messages on this server."
+    },
     "threads": {
       "title": "My Threads",
       "subtitle": "Threads you're following",
@@ -89,7 +102,11 @@
       "message_missing": "Message no longer available",
       "in_room": "in",
       "in_room_capitalized": "In",
-      "load_failed": "Failed to load threads"
+      "load_failed": "Failed to load threads",
+      "notifications_count": {
+        "one": "{count} notification",
+        "other": "{count} notifications"
+      }
     },
     "profile": {
       "title": "Profile",
@@ -105,6 +122,7 @@
         "inactive_note": "These grants are saved, but the owner’s current permissions do not allow them.",
         "read": "Read all messages",
         "interactions": "Read threads it authored or where it was directly mentioned",
+        "reply_interactions": "Reply in threads it started, where it was directly mentioned, or where it received a DM",
         "post": "Post new messages",
         "room": "#{name}",
         "group": "Group: {name}",

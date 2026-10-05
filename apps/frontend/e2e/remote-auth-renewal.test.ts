@@ -67,7 +67,7 @@ test.describe('Remote bearer renewal', () => {
     await expect.poll(() => Date.now(), { timeout: 20_000 }).toBeGreaterThan(initialExpiry + 1_000);
     await secondPage.bringToFront();
     await secondPage.reload();
-    await expect(icon).not.toHaveAttribute('title', /Sign in to reconnect/, { timeout: 20_000 });
+    await expect(icon).not.toHaveAttribute('title', /needs sign-in/, { timeout: 20_000 });
     await expect
       .poll(
         async () =>
@@ -121,7 +121,7 @@ test.describe('Remote bearer renewal', () => {
 
     await page.reload();
     const icon = page.locator('[data-testid="server-icon"][href*="127.0.0.1"]').first();
-    await expect(icon).not.toHaveAttribute('title', /Sign in to reconnect/, { timeout: 20_000 });
+    await expect(icon).not.toHaveAttribute('title', /needs sign-in/, { timeout: 20_000 });
     await expect
       .poll(
         async () =>
@@ -176,7 +176,7 @@ test.describe('Remote bearer renewal', () => {
     await expect.poll(() => recovered, { timeout: 20_000 }).toBeGreaterThan(0);
     const icon = page.locator('[data-testid="server-icon"][href*="127.0.0.1"]').first();
     await expect(icon).toBeVisible();
-    await expect(icon).not.toHaveAttribute('title', /Sign in to reconnect/);
+    await expect(icon).not.toHaveAttribute('title', /needs sign-in/);
     const reauthRequired = await page.evaluate(() => {
       const server = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]').find(
         (entry: { url: string }) => new URL(entry.url).hostname === '127.0.0.1'
@@ -210,6 +210,16 @@ test.describe('Remote bearer renewal', () => {
     expect(revoked.ok()).toBe(true);
     await page.reload();
     const icon = page.locator('[data-testid="server-icon"][href*="127.0.0.1"]').first();
-    await expect(icon).toHaveAttribute('title', /Sign in to reconnect/, { timeout: 20_000 });
+    await expect(icon).toHaveAttribute('title', /needs sign-in/, { timeout: 20_000 });
+
+    // No chat data is loaded after the reload, so selecting the server shows
+    // the signed-out view instead of empty server chrome and a notice.
+    await icon.click();
+    const signedOutView = page.getByTestId('server-signed-out');
+    await expect(signedOutView).toBeVisible();
+    await expect(
+      signedOutView.getByRole('button', { name: 'Log in to this server' })
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Reconnect', exact: true })).toHaveCount(0);
   });
 });

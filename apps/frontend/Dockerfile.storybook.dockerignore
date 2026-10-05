@@ -8,6 +8,7 @@
 !pnpm-workspace.yaml
 !LICENSES/
 !LICENSES/Apache-2.0.txt
+!LICENSES/MIT.txt
 !NOTICE
 !apps/
 !apps/frontend/
@@ -17,6 +18,8 @@
 !packages/api-types/**
 !packages/lingua/
 !packages/lingua/**
+!packages/chatto-client/
+!packages/chatto-client/**
 
 # Keep local and generated state out of the build context.
 apps/frontend/node_modules
@@ -31,3 +34,5 @@ packages/api-types/dist
 packages/api-types/node_modules
 packages/lingua/dist
 packages/lingua/node_modules
+packages/chatto-client/dist
+packages/chatto-client/node_modules

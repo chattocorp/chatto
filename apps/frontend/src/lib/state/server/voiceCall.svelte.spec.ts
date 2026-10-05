@@ -1,6 +1,9 @@
 import { CallPreferencesState } from './callPreferences.svelte';
+import * as callPictureInPicture from '../callPictureInPicture';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
+import type { VoiceCallAPI } from '@chatto/client/api/voiceCalls';
+
+vi.mock('../callPictureInPicture', { spy: true });
 
 const { gameCaptureMocks, soundMocks, toastMocks } = vi.hoisted(() => ({
   gameCaptureMocks: {
@@ -365,6 +368,45 @@ describe('VoiceCallState', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it('releases media at once when its store is disposed', async () => {
+    const api = createVoiceCallClient();
+    const state = new VoiceCallState(api, () => ({
+      start: true,
+      join: true,
+      voice: false,
+      camera: false,
+      screenshare: false
+    }));
+    await state.join('wss://livekit.example.test', 'R1');
+    const room = lastRoom!;
+    state.dispose();
+    expect(room.disconnect).toHaveBeenCalled();
+    expect(state.connected).toBe(false);
+    // The server records the leave from LiveKit; the store is gone.
+    expect(api.leaveCall).not.toHaveBeenCalled();
+  });
+
+  it('stops a join in flight when its store is disposed', async () => {
+    const token = deferredVoid();
+    const state = new VoiceCallState(
+      createVoiceCallClient({
+        createCallToken: vi.fn(async () => {
+          await token.promise;
+          return { token: 'livekit-token', e2eeKey: 'shared-e2ee-key', callId: 'call-1' };
+        })
+      }),
+      () => ({ start: true, join: true, voice: true, camera: false, screenshare: false })
+    );
+    lastRoom = null;
+    const joining = state.join('wss://livekit.example.test', 'R1');
+    await vi.waitFor(() => expect(state.roomId).toBe('R1'));
+    state.dispose();
+    token.resolve();
+    await joining.catch(() => {});
+    expect(lastRoom).toBeNull();
+    expect(state.connected).toBe(false);
   });
 
   it('denies a join when permission data is absent', async () => {
@@ -1600,29 +1642,37 @@ describe('VoiceCallState', () => {
   });
 
   it('clears screen-share state on leave', async () => {
+    const endVideo = vi.mocked(callPictureInPicture.endCallVideo).mockClear();
     const client = createVoiceCallClient();
     const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     await state.toggleScreenShare();
 
+    const track = state.participants[0].screenShareTrack;
+
     await state.leave();
 
     expect(state.isScreenShareEnabled).toBe(false);
     expect(state.participants).toEqual([]);
+    expect(endVideo).toHaveBeenCalledWith(track);
   });
 
   it('updates screen-share state when LiveKit reports local unpublish', async () => {
+    const endVideo = vi.mocked(callPictureInPicture.endCallVideo).mockClear();
     const client = createVoiceCallClient();
     const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     await state.toggleScreenShare();
     expect(state.isScreenShareEnabled).toBe(true);
 
+    const track = state.participants[0].screenShareTrack;
+
     localTrackPublications = [];
     roomEventHandlers.get('LocalTrackUnpublished')?.();
 
     expect(state.isScreenShareEnabled).toBe(false);
     expect(state.participants[0].screenShareTrack).toBeNull();
+    expect(endVideo).toHaveBeenCalledWith(track);
   });
 
   it('attaches and detaches subscribed screen-share audio', async () => {

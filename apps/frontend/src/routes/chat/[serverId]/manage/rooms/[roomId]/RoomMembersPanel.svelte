@@ -1,13 +1,17 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
-  import { BOT_ACCOUNT_LABEL, accountNameToken, isBotAccount } from '$lib/render/accountName';
+  import {
+    BOT_ACCOUNT_LABEL,
+    accountNameToken,
+    isBotAccount
+  } from '@chatto/client/timeline/accountName';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import BotBadge from '$lib/components/users/BotBadge.svelte';
   import { onDestroy } from 'svelte';
-  import type { DirectoryMember } from '$lib/api-client/memberDirectory';
-  import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
-  import { createRoomCommandAPI } from '$lib/api-client/rooms';
+  import type { DirectoryMember } from '@chatto/client/api/memberDirectory';
+  import { createMemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
+  import { createRoomCommandAPI } from '@chatto/client/api/rooms';
   import { DataTable, LoadingFog, Panel, ConfirmDialog, Hint } from '$lib/ui';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { Button, Combobox } from '$lib/ui/form';

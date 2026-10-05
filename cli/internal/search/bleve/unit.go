@@ -42,13 +42,21 @@ func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 	if err != nil {
 		return fmt.Errorf("open EVT stream: %w", err)
 	}
-	encryptionKeys, err := env.JS.KeyValue(ctx, "ENCRYPTION_KEYS")
+	encryptionBucket, err := env.JS.KeyValue(ctx, "ENCRYPTION_KEYS")
 	if err != nil {
 		return fmt.Errorf("open ENCRYPTION_KEYS bucket: %w", err)
 	}
-	runtimeState, err := env.JS.KeyValue(ctx, "RUNTIME_STATE")
+	runtimeStateBucket, err := env.JS.KeyValue(ctx, "RUNTIME_STATE")
 	if err != nil {
 		return fmt.Errorf("open RUNTIME_STATE bucket: %w", err)
+	}
+	encryptionKeys, err := events.NewKeyValue(env.JS, encryptionBucket)
+	if err != nil {
+		return err
+	}
+	runtimeState, err := events.NewKeyValue(env.JS, runtimeStateBucket)
+	if err != nil {
+		return err
 	}
 	keyStore := kms.NewBuiltin(encryptionKeys, env.Logger)
 	projection, err := NewProjection(

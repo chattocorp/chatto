@@ -16,7 +16,6 @@
       "remote_title": "{server} bezonas ensaluti",
       "remote_message": "Ĉi tiu servilo malakceptis la konservitan ensaluto. Rekonektu ĝin por rekomenci vivajn ĝisdatigojn kaj agojn.",
       "remote_action": "Rekonekti",
-      "remote_failed": "Malsukcesis komenci rekonekti",
       "sidebar_reauth": "{server} bezonas ensaluti"
     },
     "access_denied": {

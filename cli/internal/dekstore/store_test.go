@@ -13,21 +13,30 @@ import (
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/events"
 )
 
 func setupStore(t *testing.T) (*Store, context.Context) {
+	t.Helper()
+	store, _, ctx := setupStoreWithJetStream(t)
+	return store, ctx
+}
+
+func setupStoreWithJetStream(t *testing.T) (*Store, jetstream.JetStream, context.Context) {
 	t.Helper()
 	_, nc := testutil.StartNATS(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 	js, err := jetstream.New(nc)
 	require.NoError(t, err)
-	kv, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+	bucket, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
 		Bucket:  "TEST_RUNTIME_STATE",
 		History: 1,
 	})
 	require.NoError(t, err)
-	return New(kv, nil), ctx
+	kv, err := events.NewKeyValue(js, bucket)
+	require.NoError(t, err)
+	return New(kv, nil), js, ctx
 }
 
 func TestStoreCreateGetAndShred(t *testing.T) {
@@ -50,6 +59,34 @@ func TestStoreCreateGetAndShred(t *testing.T) {
 	require.NoError(t, store.Shred(ctx, ref))
 	_, err = store.Get(ctx, ref)
 	require.ErrorIs(t, err, encryption.ErrKeyNotFound)
+}
+
+// missingReplicaKV answers every direct read with a miss, as a follower that
+// has not applied a Create does.
+type missingReplicaKV struct {
+	jetstream.KeyValue
+}
+
+func (missingReplicaKV) Get(context.Context, string) (jetstream.KeyValueEntry, error) {
+	return nil, jetstream.ErrKeyNotFound
+}
+
+func TestStoreGetConfirmsReplicaMissThroughLeader(t *testing.T) {
+	store, js, ctx := setupStoreWithJetStream(t)
+	stored := &runtimestatev1.UserDataEncryptionKey{
+		EncryptedContentKey: []byte("wrapped"),
+		ContentKeyNonce:     []byte("nonce"),
+		WrappingAlgorithm:   kms.AlgorithmBuiltinXChaCha20Poly1305V1,
+		WrappingKeyRef:      "kek.test",
+	}
+	ref, err := store.Create(ctx, stored)
+	require.NoError(t, err)
+	store.kv, err = events.NewKeyValue(js, missingReplicaKV{KeyValue: store.kv.KeyValue})
+	require.NoError(t, err)
+
+	loaded, err := store.Get(ctx, ref)
+	require.NoError(t, err)
+	require.True(t, proto.Equal(stored, loaded))
 }
 
 func TestStoreRejectsWrongPrefixRefs(t *testing.T) {

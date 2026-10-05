@@ -11,8 +11,8 @@ const { mocks } = vi.hoisted(() => ({
     activeStore: undefined as
       | {
           serverInfo: { motd: string };
-          notifications: {
-            attention: {
+          attention: {
+            counts: {
               unreadNotificationCount: number;
               importantUnreadNotificationCount: number;
             };
@@ -27,6 +27,43 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
+// The store mock also carries the frontend UI state of its server.
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
+
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    get servers() {
+      return mocks.servers;
+    },
+    get originServer() {
+      return undefined;
+    },
+    isAuthenticated: (id: string) => mocks.authenticated[id] === true,
+    isOriginServer: () => false,
+    getServer: (id: string) =>
+      mocks.servers.find((server) => server.id === id)
+        ? { id, url: `https://${id}.example.com` }
+        : undefined,
+    getStore: mocks.getStore,
+    tryGetStore: (id: string) => (id === mocks.activeServer ? mocks.activeStore : undefined)
+  },
+  serverConnectionManager: {
+    originClient: {
+      showConnectionLostIcon: false,
+      showConnectionLostBanner: false
+    }
+  }
+}));
+
+vi.mock('$lib/serverCatalogue', () => ({
+  firstAuthenticatedServerId: () =>
+    mocks.servers.find((server) => mocks.authenticated[server.id])?.id
+}));
+
 vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
 vi.mock('$app/paths', () => ({
   base: '',
@@ -37,34 +74,6 @@ vi.mock('$app/paths', () => ({
 vi.mock('$app/environment', () => ({ version: '0.5.0-dev+f7b4e515c998' }));
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => mocks.activeServer
-}));
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    get servers() {
-      return mocks.servers;
-    },
-    get originServer() {
-      return undefined;
-    },
-    isAuthenticated: (id: string) => mocks.authenticated[id] === true,
-    firstAuthenticatedServerId: () =>
-      mocks.servers.find((server) => mocks.authenticated[server.id])?.id,
-    isOriginServer: () => false,
-    getServer: (id: string) =>
-      mocks.servers.find((server) => server.id === id)
-        ? { id, url: `https://${id}.example.com` }
-        : undefined,
-    getStore: mocks.getStore,
-    tryGetStore: (id: string) => (id === mocks.activeServer ? mocks.activeStore : undefined)
-  }
-}));
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
-  serverConnectionManager: {
-    originClient: {
-      showConnectionLostIcon: false,
-      showConnectionLostBanner: false
-    }
-  }
 }));
 vi.mock('$lib/state/globals.svelte', () => ({
   sidebarNav: {
@@ -118,7 +127,7 @@ describe('AppHeader', () => {
   it('shows notifications when a server is registered', () => {
     mocks.servers = [{ id: 'remote' }];
     mocks.getStore.mockReturnValue({
-      notifications: { attention: { unreadNotificationCount: 0 } }
+      attention: { counts: { unreadNotificationCount: 0 } }
     });
 
     const { container } = render(AppHeader);
@@ -141,7 +150,7 @@ describe('AppHeader', () => {
     mocks.activeServer = 'remote';
     mocks.authenticated = { remote: true };
     mocks.getStore.mockReturnValue({
-      notifications: { attention: { unreadNotificationCount: 0 } }
+      attention: { counts: { unreadNotificationCount: 0 } }
     });
 
     const { container } = render(AppHeader);
@@ -187,8 +196,8 @@ describe('AppHeader', () => {
         await empty.unmount();
         mocks.activeStore = {
           serverInfo: { motd },
-          notifications: {
-            attention: { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 }
+          attention: {
+            counts: { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 }
           }
         };
         const { container, getByRole } = render(AppHeader);

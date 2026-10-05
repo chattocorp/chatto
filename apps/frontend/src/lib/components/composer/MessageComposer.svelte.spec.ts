@@ -13,11 +13,11 @@ import type { QuoteInsertionContent, RoomMember } from '$lib/state/room';
 import { EditState, ReplyState } from '$lib/state/room/composerContext.svelte';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
-import { TimelineEventKind } from '$lib/render/timelineEvents';
+import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
 import { renderMarkdown } from '$lib/markdown';
-import type { CreateMessageInput } from '$lib/api-client/messages';
-import { MentionRolesStore } from '$lib/state/server/mentionRoles.svelte';
-import { Code, ConnectError } from '$lib/api-client/connect';
+import type { CreateMessageInput } from '@chatto/client/api/messages';
+import { MentionRolesStore } from '@chatto/client/server/mentionRoles';
+import { Code, ConnectError } from '@chatto/client/api/connect';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 
 async function expectAccentColour(button: HTMLElement) {
@@ -76,6 +76,7 @@ const roomStateMock = vi.hoisted(() => ({
     threadRootEventId: null as string | null,
     channelEchoEventId: null as string | null,
     canAddChannelEcho: false,
+    canRemoveChannelEcho: false,
     startEdit: vi.fn(),
     cancelEdit: vi.fn()
   },
@@ -92,10 +93,7 @@ const roomStateMock = vi.hoisted(() => ({
   },
   scrollState: {
     scrollRequestCounter: 0,
-    requestScrollToBottom: vi.fn(),
-    setContainer: vi.fn(),
-    setShouldScroll: vi.fn(),
-    scrollToBottomIfSticky: vi.fn()
+    requestScrollToBottom: vi.fn()
   }
 }));
 
@@ -111,20 +109,20 @@ vi.mock(
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
 );
 
-vi.mock('$lib/api-client/messages', () => ({
+vi.mock('@chatto/client/api/messages', () => ({
   createMessageAPI: () => ({
     createMessage: createMessageConnectMock,
     updateMessage: updateMessageConnectMock
   })
 }));
 
-vi.mock('$lib/api-client/linkPreviews', () => ({
+vi.mock('@chatto/client/api/linkPreviews', () => ({
   createLinkPreviewAPI: () => ({
     fetchLinkPreview: fetchLinkPreviewConnectMock
   })
 }));
 
-vi.mock('$lib/api-client/roles', () => ({
+vi.mock('@chatto/client/api/roles', () => ({
   createRoleAPI: () => ({
     listRoles: listRolesConnectMock
   })
@@ -402,6 +400,7 @@ describe('MessageComposer', () => {
     roomStateMock.editState.threadRootEventId = null;
     roomStateMock.editState.channelEchoEventId = null;
     roomStateMock.editState.canAddChannelEcho = false;
+    roomStateMock.editState.canRemoveChannelEcho = false;
     roomStateMock.editState.startEdit.mockClear();
     roomStateMock.editState.cancelEdit.mockClear();
     roomStateMock.reactiveEditState = null;
@@ -411,7 +410,6 @@ describe('MessageComposer', () => {
     roomStateMock.lastEditableMessage.getLastEditableMessage.mockReturnValue(null);
     roomStateMock.lastEditableMessage.setFinder.mockClear();
     roomStateMock.scrollState.requestScrollToBottom.mockClear();
-    roomStateMock.scrollState.scrollToBottomIfSticky.mockClear();
     toast.clear();
     Object.defineProperty(URL, 'createObjectURL', {
       value: vi.fn(() => 'blob:test'),
@@ -703,10 +701,10 @@ describe('MessageComposer', () => {
           for (const width of [200, 320, 390, 559, 560, 800, 320]) {
             // The outer composer adds 8 px padding on each side of its query box.
             container.style.width = `${width + 16}px`;
-            expect(getComputedStyle(document.body).fontSize).toBe(touch ? '17px' : '16px');
+            expect(getComputedStyle(document.body).fontSize).toBe('16px');
             const stacked = width < 560 || draft !== '';
             await expect
-              .poll(() => getComputedStyle(surface).display)
+              .poll(() => getComputedStyle(row.parentElement!).display)
               .toBe(stacked ? 'grid' : 'flex');
             const formattingToggle = surface.querySelector('button[aria-controls]')!;
             if (stacked) {
@@ -785,33 +783,33 @@ describe('MessageComposer', () => {
         });
         container.style.width = '616px';
         const editor = await findEditor(container);
-        const surface = q(container, '[data-testid="composer-input-surface"]')!;
         const row = q(container, '[data-testid="composer-editor-row"]')!;
-        await expect.poll(() => getComputedStyle(surface).display).toBe('flex');
+        const inputRow = row.parentElement!;
+        await expect.poll(() => getComputedStyle(inputRow).display).toBe('flex');
 
         // This text wraps beside the actions, but fits one line with the full width.
         await typeInEditor(editor, 'W'.repeat(32));
-        await expect.poll(() => getComputedStyle(surface).display).toBe('grid');
+        await expect.poll(() => getComputedStyle(inputRow).display).toBe('grid');
         await expect.poll(() => row.getBoundingClientRect().height).toBeLessThan(50);
         const selection = window.getSelection();
         const anchor = selection?.anchorNode;
         const offset = selection?.anchorOffset;
         for (let frame = 0; frame < 3; frame++) {
           await new Promise(requestAnimationFrame);
-          expect(getComputedStyle(surface).display).toBe('grid');
+          expect(getComputedStyle(inputRow).display).toBe('grid');
         }
         expect(await findEditor(container)).toBe(editor);
         expect(selection?.anchorNode).toBe(anchor);
         expect(selection?.anchorOffset).toBe(offset);
 
         await typeInEditor(editor, '');
-        await expect.poll(() => getComputedStyle(surface).display).toBe('flex');
+        await expect.poll(() => getComputedStyle(inputRow).display).toBe('flex');
         await typeInEditor(editor, 'Short draft');
-        expect(getComputedStyle(surface).display).toBe('flex');
+        expect(getComputedStyle(inputRow).display).toBe('flex');
         await typeInEditor(editor, 'W'.repeat(32));
-        await expect.poll(() => getComputedStyle(surface).display).toBe('grid');
+        await expect.poll(() => getComputedStyle(inputRow).display).toBe('grid');
         await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
-        await expect.poll(() => getComputedStyle(surface).display).toBe('flex');
+        await expect.poll(() => getComputedStyle(inputRow).display).toBe('flex');
         expect(editor.textContent).not.toContain('W'.repeat(32));
       }
     );
@@ -2218,6 +2216,7 @@ describe('MessageComposer', () => {
       roomStateMock.editState.eventId = 'evt_image_reply';
       roomStateMock.editState.threadRootEventId = 'evt_root';
       roomStateMock.editState.channelEchoEventId = 'evt_echo';
+      roomStateMock.editState.canRemoveChannelEcho = true;
       const { container } = renderMessageComposer({ roomId: 'room_456', inThread: 'evt_root' });
       const toggle = q(container, 'button[aria-label="Also send to channel"]')!;
 
@@ -2231,6 +2230,64 @@ describe('MessageComposer', () => {
         roomId: expect.any(String),
         eventId: 'evt_image_reply',
         alsoSendToChannel: false
+      });
+    });
+
+    it.each([true, false])(
+      'omits unchanged echo state during a text edit (echoed: %s)',
+      async (echoed) => {
+        roomStateMock.editState.eventId = 'evt_reply';
+        roomStateMock.editState.originalBody = 'original reply';
+        roomStateMock.editState.threadRootEventId = 'evt_root';
+        roomStateMock.editState.channelEchoEventId = echoed ? 'evt_echo' : null;
+        roomStateMock.editState.canAddChannelEcho = !echoed;
+        roomStateMock.editState.canRemoveChannelEcho = echoed;
+        const { container } = renderMessageComposer({ roomId: 'room_456', inThread: 'evt_root' });
+        const editor = await findEditor(container, 'thread-reply-input');
+
+        await typeInEditor(editor, 'edited reply');
+        await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+
+        await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+        expect(updateMessageConnectMock).toHaveBeenCalledWith({
+          roomId: expect.any(String),
+          eventId: 'evt_reply',
+          body: 'edited reply'
+        });
+      }
+    );
+
+    it('hides the echo toggle when an existing echo cannot be removed', async () => {
+      roomStateMock.editState.eventId = 'evt_reply';
+      roomStateMock.editState.originalBody = 'original reply';
+      roomStateMock.editState.threadRootEventId = 'evt_root';
+      roomStateMock.editState.channelEchoEventId = 'evt_echo';
+      const { container } = renderMessageComposer({ roomId: 'room_456', inThread: 'evt_root' });
+      await findEditor(container, 'thread-reply-input');
+
+      expect(q(container, 'button[aria-label="Also send to channel"]')).toBeNull();
+    });
+
+    it('omits echo state after a moderator clears and restores the checkbox', async () => {
+      roomStateMock.editState.eventId = 'evt_reply';
+      roomStateMock.editState.originalBody = 'original reply';
+      roomStateMock.editState.threadRootEventId = 'evt_root';
+      roomStateMock.editState.channelEchoEventId = 'evt_echo';
+      roomStateMock.editState.canRemoveChannelEcho = true;
+      const { container } = renderMessageComposer({ roomId: 'room_456', inThread: 'evt_root' });
+      const editor = await findEditor(container, 'thread-reply-input');
+      const toggle = q(container, 'button[aria-label="Also send to channel"]')!;
+
+      await userEvent.click(toggle);
+      await userEvent.click(toggle);
+      await typeInEditor(editor, 'edited reply');
+      await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId: expect.any(String),
+        eventId: 'evt_reply',
+        body: 'edited reply'
       });
     });
 
@@ -2323,6 +2380,40 @@ describe('MessageComposer', () => {
       expect(onEscape).toHaveBeenCalledOnce();
     });
 
+    it('cancels a reply from its context strip without clearing the draft', async () => {
+      roomStateMock.replyState!.startReply('evt_reply', 'Reply target', 'excerpt');
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+      await typeInEditor(editor, 'Keep this draft');
+      const indicator = q(container, '[data-testid="reply-indicator"]')!;
+      expect(q(container, '[data-testid="composer-input-surface"]')?.contains(indicator)).toBe(
+        true
+      );
+      await userEvent.click(indicator.querySelector('button[aria-label="Cancel"]')!);
+
+      expect(roomStateMock.replyState!.messageEventId).toBeNull();
+      await expect.element(editor).toHaveTextContent('Keep this draft');
+      expect(mutationMock).not.toHaveBeenCalled();
+    });
+
+    it('cancels an edit from its context strip without saving changes', async () => {
+      const editState = new EditState();
+      roomStateMock.reactiveEditState = editState;
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+      editState.startEdit('evt_edit', 'Original message');
+      await expect.element(editor).toHaveTextContent('Original message');
+      const indicator = q(container, '[data-testid="edit-indicator"]')!;
+      expect(q(container, '[data-testid="composer-input-surface"]')?.contains(indicator)).toBe(
+        true
+      );
+      await userEvent.click(indicator.querySelector('button[aria-label="Cancel"]')!);
+
+      await expect.element(editor).toHaveTextContent('');
+      expect(editState.eventId).toBeNull();
+      expect(updateMessageConnectMock).not.toHaveBeenCalled();
+    });
+
     it('cancels an edit and restores the next room draft when the room changes', async () => {
       const editState = new EditState();
       roomStateMock.reactiveEditState = editState;
@@ -2398,9 +2489,7 @@ describe('MessageComposer', () => {
         expect(container.querySelector('[data-testid="mention-autocomplete"]')).toBeTruthy()
       );
 
-      const cancelButton = Array.from(container.querySelectorAll('button')).find(
-        (button) => button.textContent?.trim() === 'Cancel'
-      ) as HTMLButtonElement | undefined;
+      const cancelButton = q(container, 'button[aria-label="Cancel"]');
       expect(cancelButton).toBeTruthy();
       cancelButton!.click();
 

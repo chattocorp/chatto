@@ -27,7 +27,7 @@ import {
   parseMacOSGameCaptureSources,
   supportsMacOSGameCapture
 } from './game_capture.mjs';
-import { hasAppOrigin, isDesktopPermissionAllowed } from './security.mjs';
+import { hasAppOrigin, isAuthorizationLaunchUrl, isDesktopPermissionAllowed } from './security.mjs';
 
 const desktopRoot = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = app.isPackaged
@@ -633,7 +633,7 @@ function protectNavigation(window) {
   });
 
   window.webContents.setWindowOpenHandler(({ url }) => {
-    if (url !== 'about:blank') {
+    if (!isAuthorizationLaunchUrl(url)) {
       if (isWebUrl(url)) void shell.openExternal(url);
       return { action: 'deny' };
     }

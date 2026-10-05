@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
-import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
+import { TimelineEventKind, type TimelineEventView } from '@chatto/client/timeline/timelineEvents';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import SystemEvent from './SystemEvent.svelte';
-import { RoomThreadingMode } from '$lib/roomThreading';
+import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveBotOwnerUserId: (_userId: string, fallback: string | null) => fallback,

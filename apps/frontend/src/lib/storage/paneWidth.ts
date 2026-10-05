@@ -9,7 +9,7 @@
  * instead of being trusted.
  */
 
-import { Codecs, globalSlot } from './slot';
+import { Codecs, globalSlot } from '@chatto/client/storage/slot';
 
 /** Persisted width slot with explicit visual bounds. */
 export interface PaneWidthSlot {

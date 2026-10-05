@@ -1,9 +1,10 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { fly } from 'svelte/transition';
   import { fromInlineEndOffset } from '$lib/i18n/direction';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { isMessagePostedEvent } from '$lib/render/timelineEvents';
+  import { isMessagePostedEvent } from '@chatto/client/timeline/timelineEvents';
   import { m } from '$lib/i18n/messages';
   import type { ThreadPanePresentation } from '$lib/state/userPreferences.svelte';
   import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
@@ -14,7 +15,7 @@
   import ConversationPane from './ConversationPane.svelte';
   import type { PendingComposerInput, PendingHighlight } from './roomNavigationState.svelte';
   import { ThreadFollowState } from './threadFollowState.svelte';
-  import { RoomThreadingMode } from '$lib/roomThreading';
+  import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 
   let {
     roomId,
@@ -62,7 +63,7 @@
 
   $effect(() => {
     if (!stores.currentUser.user) return;
-    return stores.readViews.register({ roomId, threadRootId: threadRootEventId });
+    return serverUi(stores).readViews.register({ roomId, threadRootId: threadRootEventId });
   });
 
   const store = $derived(stores.rooms.thread(roomId, threadRootEventId));

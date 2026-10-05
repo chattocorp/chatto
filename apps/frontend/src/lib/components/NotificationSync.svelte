@@ -12,11 +12,11 @@ and installed-app badge updates.
 Include this component once in the application root so signed-out pages also clear stale badges.
 -->
 <script lang="ts">
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { eventBusManager } from '$lib/state/server/realtimeTransport.svelte';
+  import { serverRegistry, eventBusManager } from '$lib/client';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { getServerNotificationPreferences } from '$lib/state/serverNotificationPreferences.svelte';
   import { playNotificationSound } from '$lib/audio/notificationSounds';
-  import { NotificationAttentionLevel } from '$lib/api-client/notifications';
+  import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
   import {
     listenForAppBadgeRefresh,
     updateAppBadge,
@@ -25,8 +25,8 @@ Include this component once in the application root so signed-out pages also cle
   import Deadline from '$lib/lifecycle/Deadline.svelte';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import PushNotificationSync from './PushNotificationSync.svelte';
-  import type { ProjectionHandler } from '$lib/eventBus.svelte';
-  import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
+  import type { ProjectionHandler } from '@chatto/client/realtime/eventBus';
+  import { presencePreferences } from '$lib/state/server/presencePreference';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
   const reconciliationIntervalMs = 60_000;
@@ -72,7 +72,7 @@ Include this component once in the application root so signed-out pages also cle
         const hasAudibleCreation = stores.notifications.occurrences.some(
           (row) =>
             pendingCreations.includes(row.id) &&
-            stores.notifications.needsAttention(row) &&
+            serverUi(stores).attention.needsAttention(row) &&
             row.attentionLevel === NotificationAttentionLevel.IMPORTANT
         );
         pendingCreations.length = 0;
@@ -127,7 +127,7 @@ Include this component once in the application root so signed-out pages also cle
       const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) continue;
       if (!stores.notifications.hasLoaded) return null;
-      importantUnreadCount += stores.notifications.attention.importantUnreadNotificationCount;
+      importantUnreadCount += serverUi(stores).attention.counts.importantUnreadNotificationCount;
     }
 
     if (importantUnreadCount > 0) return { kind: 'flag' };

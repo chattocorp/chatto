@@ -5,9 +5,9 @@ import type {
   CreateMessageInput,
   CreateMessageResult,
   UpdateMessageInput
-} from '$lib/api-client/messages';
-import type { TimelineEventView } from '$lib/render/timelineEvents';
-import type { MentionRolesStatus } from '$lib/state/server/mentionRoles.svelte';
+} from '@chatto/client/api/messages';
+import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
+import type { MentionRolesStatus } from '@chatto/client/server/mentionRoles';
 import { extractMentions, hasRoleOrVirtualMention } from '$lib/mentions';
 import { toast } from '$lib/ui/toast';
 import { m } from '$lib/i18n/messages';

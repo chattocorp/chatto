@@ -1,6 +1,6 @@
 import { expect, test, vi } from 'vitest';
 import { createWorkflowContext, emptyTokenUsage } from 'runling';
-import { createChattoBot } from '../workflows/chat.ts';
+import { scriptedChattoBot as createChattoBot } from '../evaluations/scripted-supervisor.ts';
 import { deliveryConversationKey, type Delivery, type ChattoPost } from './routing.ts';
 import { chattoConversation } from './chat-conversation.ts';
 
@@ -253,11 +253,11 @@ test('DM thread follow-ups share a conversation but separate roots start new run
     },
     post,
     typing: async () => {},
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     timeout: 0.2,
     createAgent: async () => ({
       async runOutcome(_ctx, prompt, options) {
-        prompts.push(JSON.parse(prompt).currentMessage);
+        prompts.push(JSON.parse(prompt).message.text);
         options?.onText?.('Reply');
         return { outcome: 'completed', summary: 'Reply', usage: emptyTokenUsage() };
       },
@@ -338,11 +338,11 @@ test('different people in one thread share its conversation', async () => {
     acknowledge: async () => {},
     post,
     typing: async () => {},
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     timeout: 0.2,
     createAgent: async () => ({
       async runOutcome(_ctx, prompt, options) {
-        prompts.push(JSON.parse(prompt).currentMessage);
+        prompts.push(JSON.parse(prompt).message.text);
         options?.onText?.('Reply');
         return { outcome: 'completed', summary: 'Reply', usage: emptyTokenUsage() };
       },
@@ -360,4 +360,112 @@ test('different people in one thread share its conversation', async () => {
   await running;
   expect(start).not.toHaveBeenCalled();
   expect(prompts).toEqual(['Hi', 'Me too']);
+});
+
+test('an arrival during research cannot retarget the answer or change its requester', async () => {
+  const release = Promise.withResolvers<void>();
+  const started = Promise.withResolvers<void>();
+  const post = vi.fn<ChattoPost>(async () => {});
+  const prompts: boolean[] = [];
+  const steer = vi.fn(async () => true);
+  const bot = createChattoBot({
+    acknowledge: async () => {},
+    post,
+    typing: async () => {},
+    timeout: 0.05,
+    maintainers: ['maintainer'],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
+    createAgent: async () => ({
+      async runOutcome(_ctx, prompt, options) {
+        const message = JSON.parse(prompt).message;
+        prompts.push(message.fromMaintainer);
+        if (message.text === 'Research') {
+          started.resolve();
+          await release.promise;
+        }
+        options?.onText?.(`Answer to ${message.text}`);
+        return { outcome: 'completed' as const, summary: '', usage: emptyTokenUsage() };
+      },
+      steer,
+      dispose() {}
+    })
+  });
+  const first: Delivery = {
+    version: 1,
+    id: 'first',
+    type: 'message.created',
+    triggers: ['mention'],
+    occurred_at: 'now',
+    bot_id: 'bot',
+    room_id: 'room',
+    thread_root_id: 'root',
+    message: { id: 'first', author_id: 'maintainer', body: 'Research' }
+  };
+  const running = bot(createWorkflowContext(), first);
+  await started.promise;
+  await bot.route(
+    {
+      start: async () => {
+        throw new Error('Unexpected new run');
+      }
+    },
+    {
+      ...first,
+      id: 'second',
+      message: { id: 'second', author_id: 'visitor', body: 'Another question' }
+    }
+  );
+  release.resolve();
+  await running;
+  expect(steer).not.toHaveBeenCalled();
+  expect(prompts).toEqual([true, false]);
+  expect(post.mock.calls.map(([target, text]) => [target.inReplyTo, text])).toEqual([
+    ['first', 'Answer to Research'],
+    ['second', 'Answer to Another question']
+  ]);
+});
+
+test('typing requires a posted work announcement and resets before a reaction-only turn', async () => {
+  vi.useFakeTimers();
+  const typing = vi.fn(async () => {});
+  const bot = chattoConversation({
+    name: 'Typing intent',
+    settings: {},
+    acknowledge: async () => {},
+    typing,
+    post: async () => {},
+    async task(ctx, _prompt, options) {
+      options.onBusy(true);
+      // Even a slow reaction decision must not show a typing indicator.
+      await vi.advanceTimersByTimeAsync(9000);
+      expect(typing).not.toHaveBeenCalled();
+      await options.announce("I'll investigate.", ctx.signal);
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(typing).toHaveBeenCalledOnce();
+      options.onBusy(false);
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(typing).toHaveBeenCalledOnce();
+      options.onBusy(true);
+      await vi.advanceTimersByTimeAsync(9000);
+      expect(typing).toHaveBeenCalledOnce();
+      return '';
+    }
+  });
+  try {
+    await bot(createWorkflowContext(), {
+      version: 1,
+      id: 'reply',
+      type: 'message.created',
+      triggers: ['direct_message'],
+      occurred_at: 'now',
+      bot_id: 'bot',
+      room_id: 'dm',
+      thread_root_id: 'root',
+      message: { id: 'reply', author_id: 'human', body: 'Thanks' }
+    });
+    await vi.advanceTimersByTimeAsync(9000);
+    expect(typing).toHaveBeenCalledOnce();
+  } finally {
+    vi.useRealTimers();
+  }
 });

@@ -1,5 +1,7 @@
 {
   "voice": {
+    "picture_in_picture": "Bilde-i-bilde",
+    "picture_in_picture_failed": "Kunne ikke endre bilde-i-bilde-modus.",
     "connection_lost": "Tilkoblingen er brutt",
     "connecting": "Kobler til...",
     "joining": "Blir med...",

@@ -1,12 +1,12 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
+import { RealtimeProjectionUpdate } from '@chatto/client/realtime/eventBus';
 import {
   ListRoomsResponse,
   RoomViewerState,
   RoomWithViewerState
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
-import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
+import { RealtimeResourceUpdate } from '@chatto/client/api/realtimeResources';
 import { UserAccountDeletedEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
@@ -17,12 +17,12 @@ import type {
   DirectoryMember,
   MemberDirectoryAPI,
   MemberDirectoryPage
-} from '$lib/api-client/memberDirectory';
+} from '@chatto/client/api/memberDirectory';
 
-import type { RoomCommandAPI } from '$lib/api-client/rooms';
+import type { RoomCommandAPI } from '@chatto/client/api/rooms';
 import { queryClient } from '$lib/query/client';
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
-import { accountNameToken } from '$lib/render/accountName';
+import { accountNameToken } from '@chatto/client/timeline/accountName';
 import RoomMembersPanel from './RoomMembersPanel.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -59,13 +59,13 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   })
 }));
 
-vi.mock('$lib/api-client/memberDirectory', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('$lib/api-client/memberDirectory')>();
+vi.mock('@chatto/client/api/memberDirectory', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@chatto/client/api/memberDirectory')>();
   return { ...actual, createMemberDirectoryAPI: () => mocks.directoryAPI };
 });
 
-vi.mock('$lib/api-client/rooms', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('$lib/api-client/rooms')>();
+vi.mock('@chatto/client/api/rooms', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@chatto/client/api/rooms')>();
   return { ...actual, createRoomCommandAPI: () => mocks.commandAPI };
 });
 

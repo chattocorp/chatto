@@ -1,5 +1,8 @@
 import type { DMData, RoomData } from '$lib/hooks/useRoomData.svelte';
-import { buildDirectMessagePresentation, type DirectMessageLabels } from '$lib/render/users';
+import {
+  buildDirectMessagePresentation,
+  type DirectMessageLabels
+} from '@chatto/client/timeline/users';
 
 export type RoomPresentation = {
   title: string;

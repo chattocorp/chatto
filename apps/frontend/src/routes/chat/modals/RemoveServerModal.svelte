@@ -4,7 +4,7 @@
   import type { RemoveServerModalState } from '$lib/modal';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { serverRegistry } from '$lib/client';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { m } from '$lib/i18n/messages';
   import { unsubscribeBeforeLeaving as unsubscribePushBeforeLeaving } from '$lib/notifications/pushNotifications';

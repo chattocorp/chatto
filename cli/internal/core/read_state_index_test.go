@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -290,7 +289,7 @@ func TestReadStateWritesAreImmediatelyVisibleAndInitializationDoesNotOverwrite(t
 }
 
 func TestRoomReadMarkerReadsDoNotHitKVPerRoom(t *testing.T) {
-	core, _ := setupTestCore(t)
+	core, nc := setupTestCore(t)
 	ctx := testContext(t)
 
 	const (
@@ -311,8 +310,8 @@ func TestRoomReadMarkerReadsDoNotHitKVPerRoom(t *testing.T) {
 		keys = append(keys, roomID)
 	}
 
-	countingKV := &countingGetKV{KeyValue: core.storage.runtimeStateKV}
-	core.storage.runtimeStateKV = countingKV
+	leaderReads, directReads := countKeyValueReads(t, nc, "RUNTIME_STATE", userID)
+	kvReads := func() int64 { return leaderReads() + directReads() }
 	for _, roomID := range keys {
 		got, exists, err := core.PeekLastReadEventID(ctx, userID, roomID)
 		if err != nil {
@@ -322,8 +321,22 @@ func TestRoomReadMarkerReadsDoNotHitKVPerRoom(t *testing.T) {
 			t.Fatalf("indexed marker %q = (%q, %v), want (Eindexed, true)", roomID, got, exists)
 		}
 	}
-	if calls := countingKV.getCalls.Load(); calls != 0 {
-		t.Fatalf("room marker reads made %d KV Get calls, want 0", calls)
+	if reads := kvReads(); reads != 0 {
+		t.Fatalf("room marker reads made %d KV reads, want 0", reads)
+	}
+	// The counter sees leader-routed reads and direct gets.
+	if _, err := core.storage.runtimeStateKV.Get(ctx, roomReadEventKey(userID, keys[0])); err != nil {
+		t.Fatalf("leader read: %v", err)
+	}
+	if _, err := core.storage.runtimeStateKV.KeyValue.Get(ctx, roomReadEventKey(userID, keys[0])); err != nil {
+		t.Fatalf("direct read: %v", err)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for kvReads() < 2 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if reads := kvReads(); reads != 2 {
+		t.Fatalf("read counter saw %d reads, want 2", reads)
 	}
 }
 
@@ -376,11 +389,6 @@ type initialSyncGatedKV struct {
 	releaseBoundary chan struct{}
 }
 
-type countingGetKV struct {
-	jetstream.KeyValue
-	getCalls atomic.Int64
-}
-
 type benchmarkKVEntry struct {
 	key      string
 	value    []byte
@@ -394,11 +402,6 @@ func (entry benchmarkKVEntry) Revision() uint64                { return entry.re
 func (entry benchmarkKVEntry) Created() time.Time              { return time.Time{} }
 func (entry benchmarkKVEntry) Delta() uint64                   { return 0 }
 func (entry benchmarkKVEntry) Operation() jetstream.KeyValueOp { return jetstream.KeyValuePut }
-
-func (kv *countingGetKV) Get(ctx context.Context, key string) (jetstream.KeyValueEntry, error) {
-	kv.getCalls.Add(1)
-	return kv.KeyValue.Get(ctx, key)
-}
 
 func (kv *initialSyncGatedKV) WatchFiltered(ctx context.Context, keys []string, opts ...jetstream.WatchOpt) (jetstream.KeyWatcher, error) {
 	watcher, err := kv.KeyValue.WatchFiltered(ctx, keys, opts...)

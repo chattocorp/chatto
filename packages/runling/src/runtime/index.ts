@@ -4,6 +4,7 @@ export { TimeoutError, validateTimeout } from './timeout.ts';
 export {
   createWorkflowContext,
   WorkflowAbortError,
+  type RunIdentity,
   type TextHandler,
   type WorkflowContext
 } from './context.ts';

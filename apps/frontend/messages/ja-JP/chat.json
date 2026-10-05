@@ -27,9 +27,7 @@
         "followed_thread": "{actor}さんがフォロー中のスレッドに返信しました。",
         "new_message": "{actor}さんが新しいメッセージを投稿しました。",
         "activity": "{actor}さんから通知が届きました。"
-      },
-      "load_failed": "通知の読み込みに失敗しました",
-      "room_load_failed": "ルームの通知の読み込みに失敗しました"
+      }
     },
     "sign_out": {
       "title": "サインアウト",
@@ -74,6 +72,21 @@
         "other": "{count} 件の通知"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "サーバーのアップグレードが必要です",
+      "too_old_body": "このサーバーでは、このアプリがサポートしなくなった Chatto のバージョンが動作しています。サーバー管理者に Chatto のアップグレードを依頼してください。",
+      "unknown_title": "不明なサーバーバージョン",
+      "unknown_body": "このアプリはこのサーバーの Chatto のバージョンを特定できないため、接続できません。",
+      "unreachable_body": "このアプリはこのサーバーに接続できません。ネットワーク接続を確認するか、しばらくしてからもう一度お試しください。",
+      "server_version": "サーバーのバージョン",
+      "required_version": "必要なバージョン",
+      "required_version_value": "{version} 以降",
+      "check_again": "もう一度確認"
+    },
+    "server_signed_out": {
+      "title": "このサーバーからログアウトしています",
+      "body": "このサーバーでメッセージを読んだり送信したりするには、ログインしてください。"
+    },
     "threads": {
       "title": "私のスレッド",
       "subtitle": "あなたがフォローしているスレッド",
@@ -89,7 +102,11 @@
       "message_missing": "メッセージは利用できなくなりました",
       "in_room": "で",
       "in_room_capitalized": "で",
-      "load_failed": "スレッドの読み込みに失敗しました"
+      "load_failed": "スレッドの読み込みに失敗しました",
+      "notifications_count": {
+        "one": "{count} 件の通知",
+        "other": "{count} 件の通知"
+      }
     },
     "profile": {
       "title": "プロフィール",
@@ -105,6 +122,7 @@
         "inactive_note": "これらの権限は保存されていますが、所有者の現在の権限では許可されていません。",
         "read": "すべてのメッセージを読む",
         "interactions": "自分が作成したスレッドや直接メンションされたスレッドを読む",
+        "reply_interactions": "ボットが開始したスレッド、ボットが直接メンションされたスレッド、またはボットがDMを受信したスレッドで返信する",
         "post": "新しいメッセージを投稿する",
         "room": "#{name}",
         "group": "グループ：{name}",

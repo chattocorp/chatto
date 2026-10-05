@@ -27,9 +27,7 @@
         "followed_thread": "Osoba {actor} odpowiedziała w obserwowanym przez Ciebie wątku.",
         "new_message": "Osoba {actor} opublikowała nową wiadomość.",
         "activity": "Masz nowe powiadomienie od {actor}."
-      },
-      "load_failed": "Nie udało się wczytać powiadomień",
-      "room_load_failed": "Nie udało się wczytać powiadomień pokoju"
+      }
     },
     "sign_out": {
       "title": "Wyloguj się",
@@ -78,6 +76,21 @@
         "other": "{count} powiadomienia"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "Wymagana aktualizacja serwera",
+      "too_old_body": "Ten serwer używa wersji Chatto, której ta aplikacja już nie obsługuje. Poproś administratora serwera o aktualizację Chatto.",
+      "unknown_title": "Nieznana wersja serwera",
+      "unknown_body": "Ta aplikacja nie może rozpoznać wersji Chatto na tym serwerze, więc nie może się z nim połączyć.",
+      "unreachable_body": "Ta aplikacja nie może połączyć się z tym serwerem. Sprawdź połączenie sieciowe lub spróbuj ponownie później.",
+      "server_version": "Wersja serwera",
+      "required_version": "Wymagana wersja",
+      "required_version_value": "{version} lub nowsza",
+      "check_again": "Sprawdź ponownie"
+    },
+    "server_signed_out": {
+      "title": "Wylogowano Cię z tego serwera",
+      "body": "Zaloguj się, aby czytać i wysyłać wiadomości na tym serwerze."
+    },
     "threads": {
       "title": "Moje wątki",
       "subtitle": "Wątki, które obserwujesz",
@@ -93,7 +106,13 @@
       "message_missing": "Wiadomość nie jest już dostępna",
       "in_room": "w",
       "in_room_capitalized": "W",
-      "load_failed": "Nie udało się wczytać wątków"
+      "load_failed": "Nie udało się wczytać wątków",
+      "notifications_count": {
+        "one": "{count} powiadomienie",
+        "few": "{count} powiadomienia",
+        "many": "{count} powiadomień",
+        "other": "{count} powiadomienia"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -109,6 +128,7 @@
         "inactive_note": "Te uprawnienia są zapisane, ale obecne uprawnienia właściciela na nie nie pozwalają.",
         "read": "Czytać wszystkie wiadomości",
         "interactions": "Czytać wątki, które utworzył lub w których został bezpośrednio wspomniany",
+        "reply_interactions": "Odpowiadać w wątkach, które rozpoczął, w których został bezpośrednio wspomniany lub w których otrzymał wiadomość prywatną",
         "post": "Wysyłać nowe wiadomości",
         "room": "#{name}",
         "group": "Grupa: {name}",

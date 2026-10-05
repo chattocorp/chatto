@@ -1,24 +1,52 @@
 import { SvelteMap } from 'svelte/reactivity';
 
 // Title composition has separate coverage; these fixtures model route access only.
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    originServer: { id: 'origin' },
+    tryGetStore: () => mocks.store,
+    getStore: () => mocks.store,
+    isOriginServer: (serverId: string) => serverId === 'origin',
+    getServer: (serverId: string) => mocks.servers?.get(serverId),
+    recoverServer: mocks.recoverServer
+  },
+  serverConnectionManager: {
+    getClient: () => ({
+      queryScope: 'layout-test',
+      get status() {
+        return mocks.servers?.get('origin')?.connectionStatus ?? 'connected';
+      }
+    })
+  }
+}));
+
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page, userEvent } from 'vitest/browser';
 import { testSnippet } from '$lib/test-utils';
-import { RealtimeProjectionSyncState } from '$lib/state/server/realtimeSync.svelte';
+import { RealtimeProjectionSyncState } from '@chatto/client/server/realtimeSync';
+import type { ServerCompatibilityProblem } from '@chatto/client/server/compatibility';
 
 type RegisteredState = {
   reauthRequiredAt: number | null;
+  token?: string | null;
+  name?: string;
+  url?: string;
+  iconUrl?: string | null;
   checkingPermissions?: boolean;
   userId?: string;
   connectionStatus?: 'connected' | 'disconnected';
+  compatibilityProblem?: ServerCompatibilityProblem;
 };
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     goto: vi.fn(),
+    recoverServer: vi.fn(),
+    activeServerId: 'origin',
     routeId: '/chat/[serverId]/[roomId]',
     servers: null as SvelteMap<string, RegisteredState> | null,
     store: {
@@ -26,6 +54,14 @@ const { mocks } = vi.hoisted(() => ({
         return mocks.servers?.get('origin')?.checkingPermissions ?? false;
       },
       realtimeSync: null as RealtimeProjectionSyncState | null,
+      serverInfo: {
+        name: 'Old Server',
+        version: '0.5.0-beta.7',
+        iconUrl: null,
+        get compatibilityProblem(): ServerCompatibilityProblem | null {
+          return mocks.servers?.get('origin')?.compatibilityProblem ?? null;
+        }
+      },
       currentUser: {
         loading: false,
         user: { id: 'viewer-1' }
@@ -58,38 +94,21 @@ vi.mock('$app/state', () => ({
   }
 }));
 
+vi.mock('$lib/auth/reauth', () => ({
+  startRemoteReauthentication: vi.fn()
+}));
+
 vi.mock('$lib/auth/returnNavigation', () => ({
   saveReturnUrl: vi.fn()
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => 'origin'
-}));
-
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    originProbed: true,
-    originServer: { id: 'origin' },
-    tryGetStore: () => mocks.store,
-    getStore: () => mocks.store,
-    isOriginServer: (serverId: string) => serverId === 'origin',
-    getServer: (serverId: string) => mocks.servers?.get(serverId)
-  }
-}));
-
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
-  serverConnectionManager: {
-    getClient: () => ({
-      queryScope: 'layout-test',
-      get status() {
-        return mocks.servers?.get('origin')?.connectionStatus ?? 'connected';
-      }
-    })
-  }
+  getActiveServer: () => mocks.activeServerId
 }));
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
-  provideServerScope: vi.fn()
+  provideServerScope: vi.fn(),
+  useServerScope: () => ({ serverId: 'origin', store: mocks.store })
 }));
 
 vi.mock('$lib/components/chat/Chrome.svelte', async () => {
@@ -107,6 +126,7 @@ import Layout from './+layout.svelte';
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.routeId = '/chat/[serverId]/[roomId]';
+  mocks.activeServerId = 'origin';
   mocks.servers = new SvelteMap([['origin', { reauthRequiredAt: null, userId: 'viewer-1' }]]);
   mocks.store.realtimeSync = new RealtimeProjectionSyncState();
   mocks.store.realtimeSync.markCaughtUp('ready');
@@ -224,5 +244,104 @@ describe('server route authentication privacy', () => {
 
     expect(container.querySelector('[data-testid="server-chrome"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="private-route"]')).not.toBeNull();
+  });
+
+  it('explains an unusable server instead of rendering its chrome and routes', async () => {
+    mocks.servers!.set('origin', {
+      reauthRequiredAt: null,
+      userId: 'viewer-1',
+      compatibilityProblem: 'server-too-old'
+    });
+    mocks.store.realtimeSync = new RealtimeProjectionSyncState();
+    const { container } = render(Layout, {
+      props: { children: testSnippet('<main data-testid="private-route">Rooms</main>') }
+    });
+
+    await expect.element(page.getByTestId('server-unavailable')).toBeVisible();
+    // The origin belongs to the deployment and cannot be removed.
+    await expect
+      .element(page.getByRole('button', { name: 'Remove server' }))
+      .not.toBeInTheDocument();
+    expect(container.querySelector('[data-testid="server-chrome"]')).toBeNull();
+    expect(container.querySelector('[data-testid="private-route"]')).toBeNull();
+
+    await page.getByRole('button', { name: 'Check Again' }).click();
+    expect(mocks.recoverServer).toHaveBeenCalledWith('origin');
+
+    // A supported result after the retry shows the normal server chrome.
+    mocks.servers!.set('origin', { reauthRequiredAt: null, userId: 'viewer-1' });
+    await expect.element(page.getByTestId('server-chrome')).toBeInTheDocument();
+    expect(container.querySelector('[data-testid="server-unavailable"]')).toBeNull();
+  });
+
+  it('offers to remove an unusable remote server', async () => {
+    mocks.activeServerId = 'remote';
+    mocks.servers!.set('remote', { reauthRequiredAt: null, token: 'remote-token' });
+    // The fixture's store reads its compatibility problem from the origin entry.
+    mocks.servers!.set('origin', {
+      reauthRequiredAt: null,
+      compatibilityProblem: 'server-too-old'
+    });
+    render(Layout, {
+      props: { children: testSnippet('<main data-testid="private-route">Rooms</main>') }
+    });
+
+    await expect.element(page.getByTestId('server-unavailable')).toBeVisible();
+    await expect.element(page.getByRole('button', { name: 'Remove server' })).toBeVisible();
+  });
+
+  it('explains a signed-out remote server instead of rendering its chrome and routes', async () => {
+    mocks.activeServerId = 'remote';
+    mocks.servers!.set('remote', {
+      reauthRequiredAt: null,
+      token: null,
+      name: 'Remote Server',
+      url: 'https://remote.example.test',
+      iconUrl: null
+    });
+    const { container } = render(Layout, {
+      props: { children: testSnippet('<main data-testid="private-route">Rooms</main>') }
+    });
+
+    await expect.element(page.getByTestId('server-signed-out')).toBeVisible();
+    await expect.element(page.getByRole('button', { name: 'Log in to this server' })).toBeVisible();
+    await expect.element(page.getByRole('button', { name: 'Remove server' })).toBeVisible();
+    expect(container.querySelector('[data-testid="server-chrome"]')).toBeNull();
+    expect(container.querySelector('[data-testid="private-route"]')).toBeNull();
+  });
+
+  it('keeps the chrome for a remote server that needs reauthentication over loaded data', async () => {
+    mocks.activeServerId = 'remote';
+    mocks.servers!.set('remote', {
+      reauthRequiredAt: Date.now(),
+      token: 'expired-token',
+      name: 'Remote Server',
+      url: 'https://remote.example.test',
+      iconUrl: null
+    });
+    const { container } = render(Layout, {
+      props: { children: testSnippet('<main data-testid="private-route">Rooms</main>') }
+    });
+
+    await expect.element(page.getByTestId('server-chrome')).toBeInTheDocument();
+    expect(container.querySelector('[data-testid="server-signed-out"]')).toBeNull();
+  });
+
+  it('explains a remote server that needs reauthentication before any data loads', async () => {
+    mocks.activeServerId = 'remote';
+    mocks.servers!.set('remote', {
+      reauthRequiredAt: Date.now(),
+      token: 'rejected-token',
+      name: 'Remote Server',
+      url: 'https://remote.example.test',
+      iconUrl: null
+    });
+    mocks.store.realtimeSync = new RealtimeProjectionSyncState();
+    const { container } = render(Layout, {
+      props: { children: testSnippet('<main data-testid="private-route">Rooms</main>') }
+    });
+
+    await expect.element(page.getByTestId('server-signed-out')).toBeVisible();
+    expect(container.querySelector('[data-testid="server-chrome"]')).toBeNull();
   });
 });

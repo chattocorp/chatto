@@ -1,7 +1,9 @@
 import { expect, test, vi } from 'vitest';
-import { createChattoClient } from '@chatto/client';
+import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
+import type { AddReactionRequest } from '@chatto/api-types/api/v1/reactions_pb';
+import { fakeChatto } from './chatto/fake-chatto.ts';
 import { createEyesReaction } from './reaction.ts';
-import { createChattoBot } from './workflows/chat.ts';
+import { scriptedChattoBot as createChattoBot } from './evaluations/scripted-supervisor.ts';
 import { createWorkflowContext, emptyTokenUsage } from 'runling';
 import type { WebhookContext } from 'runling/web';
 import type { Delivery } from './chatto/routing.ts';
@@ -19,19 +21,22 @@ const delivery: Delivery = {
 };
 
 test('reacts to the pinging message, not the thread root', async () => {
-  const request = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ added: true }));
-  await createEyesReaction(
-    createChattoClient({ serverUrl: 'https://chat.example', apiKey: 'key', fetch: request })
-  )(delivery);
-
-  expect(String(request.mock.calls[0]![0])).toBe(
-    'https://chat.example/api/connect/chatto.api.v1.MessageService/AddReaction'
-  );
-  expect(JSON.parse(request.mock.calls[0]![1]!.body as string)).toEqual({
-    roomId: 'room',
-    messageEventId: 'ping',
-    emoji: 'eyes'
+  const requests: AddReactionRequest[] = [];
+  const { createApi } = fakeChatto({
+    viewerId: 'bot',
+    routes: (router) =>
+      router.service(MessageService, {
+        addReaction(request) {
+          requests.push(request);
+          return { added: true };
+        }
+      })
   });
+  const api = createApi({ serverUrl: 'https://chat.example', apiKey: 'key' });
+  await createEyesReaction(api)(delivery);
+
+  expect(requests).toHaveLength(1);
+  expect(requests[0]).toMatchObject({ roomId: 'room', messageEventId: 'ping', emoji: 'eyes' });
 });
 
 test('registers the run before acknowledgement and still replies if reactions fail', async () => {
@@ -47,7 +52,7 @@ test('registers the run before acknowledgement and still replies if reactions fa
   const bot = createChattoBot({
     acknowledge,
     createAgent,
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     post: async () => {},
     typing: async () => {},
     timeout: 0
@@ -78,7 +83,7 @@ test('cancellation during the initial reaction prevents queued messages reaching
       reactionSignal = signal;
       await pending.promise;
     },
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     post: async () => {},
     typing: async () => {},
     createAgent: async () => ({

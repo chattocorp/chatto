@@ -43,23 +43,31 @@ describe('RoomSidebarToggle', () => {
     expect(button?.getAttribute('title')).toBe('Members');
   });
 
-  it('shows the labels only when the pane header has room', async () => {
-    const { container } = render(RoomSidebarToggle, {
-      props: { activePanel: null, mode: 'always', onToggle: vi.fn() }
-    });
-    const header = document.createElement('div');
-    header.className = '@container/pane-header';
-    container.parentElement!.insertBefore(header, container);
-    header.append(container);
-    const label = [...container.querySelectorAll('[aria-label="Members"] span')].at(-1)!;
+  it.each(['en-GB', 'de-DE'] as const)(
+    'shows the labels only when the pane header has room in %s',
+    async (locale) => {
+      await loadLocaleMessages(locale);
+      setReactiveLocale(locale);
+      const { container } = render(RoomSidebarToggle, {
+        props: { activePanel: null, mode: 'always', onToggle: vi.fn() }
+      });
+      const header = document.createElement('div');
+      header.className = '@container/pane-header';
+      container.parentElement!.insertBefore(header, container);
+      header.append(container);
+      const labels = [...container.querySelectorAll('button > span:last-child')];
 
-    header.style.width = '40rem';
-    await tick();
-    expect(getComputedStyle(label).display).toBe('none');
+      header.style.width = '79.99rem';
+      await expect
+        .poll(() => labels.every((label) => getComputedStyle(label).display === 'none'))
+        .toBe(true);
 
-    header.style.width = '64rem';
-    await expect.poll(() => getComputedStyle(label).display).not.toBe('none');
-  });
+      header.style.width = '80rem';
+      await expect
+        .poll(() => labels.every((label) => getComputedStyle(label).display !== 'none'))
+        .toBe(true);
+    }
+  );
 
   it('switches to the files panel', async () => {
     const onToggle = vi.fn();

@@ -167,3 +167,42 @@ test('rejects an invalid timeout before starting the agent', async () => {
   );
   expect(f.agent.runOutcome).not.toHaveBeenCalled();
 });
+
+test('queued inputs do not change the active reply context and retain their origins', async () => {
+  const f = fixture();
+  const notices = createChannel<string>();
+  const release = Promise.withResolvers<void>();
+  const prepared: string[] = [];
+  let current = '';
+  f.agent.runOutcome.mockImplementation(async (_ctx, prompt, options) => {
+    if (prompt === 'First') await release.promise;
+    options?.onText?.(`${prompt}:${current}`);
+    return result();
+  });
+  const running = runAgentConversation(f.ctx, f.agent, 'First', {
+    timeout: 0.05,
+    steer: false,
+    notifications: notices,
+    prepareMessage(text, origin) {
+      current = text;
+      prepared.push(`${origin}:${text}`);
+      return text;
+    }
+  });
+  await vi.waitFor(() => expect(f.agent.runOutcome).toHaveBeenCalledOnce());
+  await f.inbox.send('Second');
+  await notices.send('Notice');
+  await f.inbox.send('Third');
+  expect(prepared).toEqual(['user:First']);
+  release.resolve();
+  await running;
+  expect(f.agent.steer).not.toHaveBeenCalled();
+  expect(f.emit.mock.calls[0]).toEqual(['First:First']);
+  expect(new Set(prepared)).toEqual(
+    new Set(['user:First', 'user:Second', 'user:Third', 'notification:Notice'])
+  );
+  for (const [text] of f.emit.mock.calls) {
+    const [prompt, context] = text.split(':');
+    expect(context).toBe(prompt);
+  }
+});

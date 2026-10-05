@@ -6,8 +6,8 @@ import '../../../app.css';
 import AccountName from './AccountName.svelte';
 import DirectMessageName from './DirectMessageName.svelte';
 import UserIdentity from './UserIdentity.svelte';
-import { formatAccountName } from '$lib/render/accountName';
-import { buildDirectMessagePresentation } from '$lib/render/users';
+import { formatAccountName } from '@chatto/client/timeline/accountName';
+import { buildDirectMessagePresentation } from '@chatto/client/timeline/users';
 
 describe('account names', () => {
   it.each([undefined, {}, { isBot: false }, { isBot: true, deleted: true }])(

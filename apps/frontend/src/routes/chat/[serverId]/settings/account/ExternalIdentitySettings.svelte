@@ -3,22 +3,22 @@
   import { Code, ConnectError } from '@connectrpc/connect';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import {
-    browserAuthorizationWindow,
+    openAuthorizationWindow,
     authorizationWindowFeatures,
     type AuthorizationWindow
   } from '$lib/oauth/authorizationWindow';
   import IdentityLinkContinuation from './IdentityLinkContinuation.svelte';
-  import type { CurrentUserState } from '$lib/auth/currentUser.svelte';
+  import type { CurrentUserState } from '@chatto/client/auth/currentUser';
   import {
     createExternalIdentityAPI,
     type ExternalIdentityProviderInfo,
     type LinkedExternalIdentityInfo
-  } from '$lib/api-client/externalIdentities';
+  } from '$lib/api/externalIdentities';
   import { Panel, LoadingFog, ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { createQuery } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { serverRegistry } from '$lib/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { Button, TextInput } from '$lib/ui/form';
@@ -141,12 +141,14 @@
     const url = new URL('/chat/-/settings/account', serverScope.connection.connectBaseUrl);
     url.searchParams.set('link_provider', provider.id);
     url.searchParams.set('link_user', userId);
-    const popup = window.open('about:blank', '_blank', authorizationWindowFeatures(window));
-    if (!popup) {
+    const authorizationWindow = openAuthorizationWindow(
+      '_blank',
+      authorizationWindowFeatures(window)
+    );
+    if (!authorizationWindow) {
       actionError = m('settings.account.sso.popup_blocked');
       return;
     }
-    const authorizationWindow = browserAuthorizationWindow(popup);
     authorizationWindow.detachOpener();
     const pending = {
       window: authorizationWindow,

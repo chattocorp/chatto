@@ -1,7 +1,7 @@
 # FDR-044: My Threads
 
 **Status:** Active
-**Last reviewed:** 2026-09-25
+**Last reviewed:** 2026-10-02
 
 ## Overview
 
@@ -97,12 +97,19 @@ each search page counts distinct threads.
 
 ### 4. The navigation indicator covers followed threads
 
-**Decision:** The My Threads navigation indicator summarizes unread replies
-and loaded unread notifications only for followed threads. Important
-notification attention takes visual priority over the neutral indicator.
-**Why:** The indicator must lead to a row that the user can find in My Threads.
+**Decision:** The My Threads navigation indicator counts loaded unread
+notifications for followed threads. The badge uses notification orange when
+one notification has Important attention, and the neutral badge color when all
+have Ambient attention. Unread replies without an unread notification do not
+show a navigation indicator.
+**Why:** One notification source keeps the navigation badge and thread-row
+notification markers consistent. The navigation indicator does not depend on
+unread flags in cached room timelines.
 **Tradeoff:** A notification for an unfollowed thread can still appear in
-Notifications without lighting the My Threads indicator.
+Notifications without lighting the My Threads indicator. The badge counts only
+the notifications that the client has loaded. Unread replies without a
+notification, including Badge and Off activity, remain available through the
+Unread filter.
 
 ### 5. Chatto 0.5 uses the explicit viewer-state contract
 

@@ -16,7 +16,6 @@
       "remote_title": "{server} 需要登入",
       "remote_message": "此伺服器拒絕已儲存的登入資訊。請重新連線，以恢復即時更新及操作。",
       "remote_action": "重新連線",
-      "remote_failed": "無法開始重新連線",
       "sidebar_reauth": "{server} 需要登入"
     },
     "access_denied": {

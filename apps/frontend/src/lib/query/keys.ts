@@ -1,4 +1,4 @@
-import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
 
 /**
  * Root of every cached query that belongs to one server.

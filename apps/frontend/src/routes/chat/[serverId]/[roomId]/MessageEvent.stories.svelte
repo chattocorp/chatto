@@ -11,8 +11,11 @@
 
 <script lang="ts">
   import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-  import { UserStore } from '$lib/state/server/users.svelte';
-  import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
+  import { UserStore } from '@chatto/client/server/users';
+  import {
+    TimelineEventKind,
+    type TimelineEventView
+  } from '@chatto/client/timeline/timelineEvents';
   import MessageRowStoryFrame from './MessageRowStoryFrame.svelte';
   import MessageEventTestHarness from './MessageEventTestHarness.svelte';
 

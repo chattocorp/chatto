@@ -1,7 +1,7 @@
 import { flushSync } from 'svelte';
-import type { ThreadFollowResult } from '$lib/api-client/threads';
+import type { ThreadFollowResult } from '@chatto/client/api/threads';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
-import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
 import { ThreadFollowState, type ThreadFollowSnapshot } from './threadFollowState.svelte';
 
 type Deferred<T> = {

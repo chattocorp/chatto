@@ -20,8 +20,10 @@ test.describe('Message hover toolbar', () => {
 
     await message.locator.hover();
     await expect(message.hoverToolbar).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
-    await expect(message.hoverToolbar.getByLabel('React with 👍')).toBeVisible();
-    await expect(message.hoverToolbar.getByLabel('React with ❤️')).toBeVisible();
+    await expect(message.hoverToolbar.locator('[aria-label^="React with "]')).toHaveCount(4);
+    for (const emoji of ['👍', '👋', '🤣', '🙏']) {
+      await expect(message.hoverToolbar.getByLabel(`React with ${emoji}`)).toBeVisible();
+    }
     await expect(message.hoverToolbar.getByLabel('More actions')).toBeVisible();
   });
 

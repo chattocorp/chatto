@@ -5,7 +5,7 @@
     createRoomCommandAPI,
     type RoomSuspensionSummary,
     type RoomCommandAPI
-  } from '$lib/api-client/rooms';
+  } from '@chatto/client/api/rooms';
   import { Panel, DataTable, Hint, PaneContent, PaneHeader, PageTitle } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import UserAvatar from '$lib/components/UserAvatar.svelte';

@@ -16,6 +16,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
     MenuItem,
     MenuSection
   } from '$lib/ui';
+  import { serverUi } from '$lib/state/server/serverUi';
   import ConnectionQualityHint from './voice/ConnectionQualityHint.svelte';
   import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -23,13 +24,13 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   import { goto } from '$app/navigation';
   import { serverIdToSegment } from '$lib/navigation';
   import { m } from '$lib/i18n/messages';
-  import { deleteCustomStatus } from '$lib/api-client/userStatus';
+  import { deleteCustomStatus } from '@chatto/client/api/userStatus';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { getLiveCustomStatus, getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import type { CustomUserStatus } from '$lib/api-client/userSummary';
-  import { setPresenceStatus } from '$lib/presenceTracking';
-  import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
-  import { buildDirectMessagePresentation } from '$lib/render/users';
+  import type { CustomUserStatus } from '@chatto/client/api/userSummary';
+  import { setPresenceStatus } from '$lib/state/server/presenceTracking';
+  import { presencePreferences } from '$lib/state/server/presencePreference';
+  import { buildDirectMessagePresentation } from '@chatto/client/timeline/users';
   import { directMessageLabels } from '$lib/render/directMessageLabels';
 
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
@@ -74,8 +75,8 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   const presencePreference = $derived(
     presenceScope ? presencePreferences.get(presenceScope) : null
   );
-  const voiceCallState = $derived(activeStore.voiceCall);
-  const navigation = $derived(activeStore.navigation);
+  const voiceCallState = $derived(serverUi(activeStore).voiceCall);
+  const navigation = $derived(serverUi(activeStore).navigation);
 
   const displayName = $derived(
     activeServerUser
@@ -227,7 +228,6 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
       store.currentUser.update(userId, () => ({ customStatus }));
       if (activeServerId === serverId && activeServerUser?.id === userId) {
         if (statusMenuAnchor === menuAnchor) statusMenuAnchor = null;
-        toast.success(m('settings.profile.status.cleared'));
       }
     } catch {
       if (activeServerId === serverId && activeServerUser?.id === userId) {

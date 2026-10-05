@@ -233,8 +233,6 @@
       "in_video_call": "Podczas rozmowy wideo",
       "remove_failed": "Nie udało się usunąć użytkownika z pokoju",
       "remove_success": "Usunięto {name} z pokoju",
-      "members_load_failed": "Nie udało się wczytać członków pokoju",
-      "members_refresh_failed": "Nie udało się odświeżyć członków pokoju",
       "search": "Szukaj"
     },
     "pins": {

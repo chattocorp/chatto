@@ -109,7 +109,7 @@ write.
 
 **Decision:** `user.invite` belongs to the default administrator role on new
 servers. An upgraded 0.4 server allows it for `admin` once, together with the
-other 0.5 upgrade grants (ADR-110). Custom roles are not changed. Effective
+other 0.5 upgrade grants (ADR-113). Custom roles are not changed. Effective
 owners retain their normal override and may grant it.
 **Why:** Administrators managed invitations before 0.5. The one-time grant
 keeps that capability without later startup reconciliation. This matches
@@ -124,5 +124,5 @@ receives no grant.
 
 ## Related
 
-- **ADRs:** ADR-033, ADR-036, ADR-040, ADR-045, ADR-068, ADR-070, ADR-110
+- **ADRs:** ADR-033, ADR-036, ADR-040, ADR-045, ADR-068, ADR-070, ADR-113
 - **FDRs:** FDR-001, FDR-018, FDR-020, FDR-023, FDR-028, FDR-031

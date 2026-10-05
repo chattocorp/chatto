@@ -1,9 +1,5 @@
 import { createContext } from 'svelte';
-import type {
-  AdminMember,
-  AdminMemberDetails,
-  AdminUserManagementAPI
-} from '$lib/api-client/adminUsers';
+import type { AdminMember, AdminMemberDetails, AdminUserManagementAPI } from '$lib/api/adminUsers';
 import type { adminQueryKeys } from '$lib/query/admin';
 import type { SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
 

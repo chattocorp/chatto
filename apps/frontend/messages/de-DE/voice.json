@@ -1,5 +1,7 @@
 {
   "voice": {
+    "picture_in_picture": "Bild-in-Bild",
+    "picture_in_picture_failed": "Der Bild-in-Bild-Modus konnte nicht geändert werden.",
     "connection_lost": "Verbindung verloren",
     "connecting": "Verbindung wird hergestellt...",
     "joining": "Beitritt läuft...",

@@ -1,6 +1,7 @@
 import { toastError } from '$lib/utils/errorMessage';
+import { serverUi } from '$lib/state/server/serverUi';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
-import { accountNameToken } from '$lib/render/accountName';
+import { accountNameToken } from '@chatto/client/timeline/accountName';
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { onDestroy, untrack } from 'svelte';
@@ -9,19 +10,21 @@ import {
   createMessageSearchAPI,
   MessageSearchOrder,
   type MessageSearchResult
-} from '$lib/api-client/messageSearch';
+} from '@chatto/client/api/messageSearch';
 import { useDebounce } from '$lib/hooks/useDebounce.svelte';
 import { startDMWith } from '$lib/dm/startDM';
 import { m } from '$lib/i18n/messages';
 import { buildMessageLinkPath } from '$lib/messageLinks';
 import { serverIdToSegment } from '$lib/navigation';
-import { buildDirectMessagePresentation, type UserAvatarUserView } from '$lib/render/users';
+import {
+  buildDirectMessagePresentation,
+  type UserAvatarUserView
+} from '@chatto/client/timeline/users';
 import { directMessageLabels } from '$lib/render/directMessageLabels';
 import { quickSwitcher } from '$lib/state/globals.svelte';
 import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
-import { serverRegistry } from '$lib/state/server/registry.svelte';
-import { isNavigationVisibleRoom } from '$lib/state/server/rooms.svelte';
-import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
+import { serverRegistry, serverConnectionManager } from '$lib/client';
+import { isNavigationVisibleRoom } from '$lib/state/server/navigation';
 import { scoreItem } from './quickSwitcherSearch';
 
 export type QuickSwitcherAvatarUser = Pick<
@@ -273,8 +276,8 @@ export class QuickSwitcherModel {
       void store?.realtimeSync.hasUsableProjection;
       void store?.permissions.canStartDMs;
       if (store) for (const member of store.projection.users.values()) void member;
-      void store?.navigation.rooms;
-      void store?.navigation.isInitialLoading;
+      void (store && serverUi(store).navigation.rooms);
+      void (store && serverUi(store).navigation.isInitialLoading);
     }
     untrack(() => this.#loadCatalog());
   }
@@ -295,7 +298,7 @@ export class QuickSwitcherModel {
       }
       this.#messageSearchServerKey = serverKey;
       const unsubscribes = stores.map(({ serverId, store }) =>
-        store.messageSearch.subscribePrivacyInvalidation((matches, force) => {
+        serverUi(store).messageSearch.subscribePrivacyInvalidation((matches, force) => {
           if (!quickSwitcher.visible) return;
           const affected = this.#messageSearch.items.some(
             (item) => item.serverId === serverId && item.message && matches(item.message)
@@ -327,7 +330,7 @@ export class QuickSwitcherModel {
     const items: QuickSwitcherItem[] = [];
     this.#catalogLoading = instances.some((instance) => {
       const store = serverRegistry.tryGetStore(instance.id);
-      return store?.isAuthenticated && store.navigation.isInitialLoading;
+      return store?.isAuthenticated && serverUi(store).navigation.isInitialLoading;
     });
 
     for (const instance of instances) {
@@ -350,7 +353,7 @@ export class QuickSwitcherModel {
         score: 0
       });
 
-      for (const room of store?.navigation.rooms ?? []) {
+      for (const room of store ? serverUi(store).navigation.rooms : []) {
         if (room.type === RoomKind.DM) {
           if (!isNavigationVisibleRoom(room)) continue;
           const participants = room.members;
@@ -477,8 +480,8 @@ export class QuickSwitcherModel {
     const searches = instances.map(async (instance): Promise<QuickSwitcherItem[]> => {
       const store = serverRegistry.tryGetStore(instance.id);
       if (!store?.serverInfo.isSupportedVersion) return [];
-      await store.messageSearch.ensureStatus();
-      if (!store.messageSearch.available) return [];
+      await serverUi(store).messageSearch.ensureStatus();
+      if (!serverUi(store).messageSearch.available) return [];
 
       const serverName = store.serverInfo.name || instance.name || getHostname(instance.url);
       try {

@@ -3,8 +3,8 @@
   import { resolve } from '$app/paths';
   import type { LeaveRoomModalState } from '$lib/modal';
   import { serverIdToSegment } from '$lib/navigation';
-  import { createRoomCommandAPI } from '$lib/api-client/rooms';
-  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
+  import { createRoomCommandAPI } from '@chatto/client/api/rooms';
+  import { serverConnectionManager } from '$lib/client';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';

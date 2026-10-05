@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RoomKind } from '$lib/api-client/roomDirectory';
+import { RoomKind } from '@chatto/client/api/roomDirectory';
 import {
   notificationPolicyCellApplicable,
   notificationPolicyColumns

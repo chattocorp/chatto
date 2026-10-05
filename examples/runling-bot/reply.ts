@@ -1,4 +1,5 @@
-import { createChattoClient } from '@chatto/client';
+import { createApi } from '@chatto/client';
+import { UserService } from '@chatto/client/types';
 import { readFile } from 'node:fs/promises';
 import { Type, task, step } from 'runling';
 import { generateReply } from './agent.ts';
@@ -44,6 +45,9 @@ async function readEnvironment(): Promise<BotConfig> {
   return { serverUrl, apiKey };
 }
 
+/** Timeout of one Chatto request, like the bot client's own requests. */
+const REQUEST_TIMEOUT_MS = 10_000;
+
 /** Build the reply workflow. Injectable I/O allows tests without a live server. */
 export function createReplyWorkflow(
   loadConfig: () => Promise<BotConfig> = readEnvironment,
@@ -62,27 +66,37 @@ export function createReplyWorkflow(
     },
     async (r, input) => {
       const { serverUrl, apiKey } = await loadConfig();
-      const client = createChattoClient({ serverUrl, apiKey, fetch: request });
-      const rpc = client.rpc;
-
-      // Confirm the configured credentials belong to the intended bot.
-      const viewer = await step('Check bot identity', () =>
-        rpc<{ user?: { profile?: { id?: string } } }>('ViewerService/GetViewer', {})
-      );
+      // Confirm the configured credentials belong to the intended bot. Step
+      // results keep the JSON shape of earlier versions, so resumed runs can
+      // replay journaled results.
+      const viewer = await step('Check bot identity', async () => {
+        const identity = createApi({ serverUrl, apiKey, fetch: request });
+        const { viewerId: id } = await identity.ready({ signal: r.signal });
+        return { user: { profile: { id } } };
+      });
       if (viewer.user?.profile?.id !== input.bot_id) {
         throw new Error('The webhook bot does not match the API key');
       }
+      // The viewer is known now: requests need no further viewer reads, also
+      // when a resumed run replays the identity check from the journal.
+      const api = createApi({ serverUrl, apiKey, fetch: request, viewerId: input.bot_id });
 
       // Ignore bot authors to prevent automatic reply loops.
       if (input.message.author_id === input.bot_id) {
         return { deliveryId: input.id, status: 'skipped' as const };
       }
 
-      const author = await step('Check message author', () =>
-        rpc<{ user?: { user?: { bot?: { ownerUserId: string } } } }>('UserService/GetUser', {
-          userId: input.message.author_id
-        })
-      );
+      const author = await step('Check message author', async () => {
+        const response = await api
+          .service(UserService)
+          .getUser(
+            { target: { case: 'userId', value: input.message.author_id } },
+            { signal: r.signal, timeoutMs: REQUEST_TIMEOUT_MS }
+          );
+        const user = response.user?.user;
+        const bot = user?.bot ? { ownerUserId: user.bot.ownerUserId } : undefined;
+        return { user: user ? { user: { bot } } : undefined };
+      });
       if (!author.user?.user) {
         throw new Error('The message author is unavailable');
       }
@@ -94,27 +108,27 @@ export function createReplyWorkflow(
       // The agent needs conversation text, not server event or author IDs.
       const readThread = async () =>
         (
-          await client.readThread(
+          await api.readThread(
             {
               roomId: input.room_id,
               threadRootId: input.thread_root_id ?? input.message.id
             },
-            r.signal
+            { signal: r.signal }
           )
-        ).map(({ authorId, body }) => ({
-          role: authorId === input.bot_id ? ('bot' as const) : ('human' as const),
+        ).messages.map(({ fromViewer, body }) => ({
+          role: fromViewer ? ('bot' as const) : ('human' as const),
           body
         }));
 
       // Start typing before loading context, and keep it active during composition.
       const stopTyping = await step('Start typing', () =>
         startTyping(() =>
-          client.refreshTyping(
+          api.refreshTyping(
             {
               roomId: input.room_id,
               threadRootId: input.thread_root_id ?? input.message.id
             },
-            r.signal
+            { signal: r.signal }
           )
         )
       );
@@ -122,25 +136,20 @@ export function createReplyWorkflow(
       // Each run owns one final-answer or error-notification attempt.
       const sender = createReplySender((text, stepName) =>
         step(stepName, async () => {
-          const result = await client.createMessage(
+          const { id } = await api.createMessage(
             {
               roomId: input.room_id,
               threadRootId: input.thread_root_id ?? input.message.id
             },
             text,
-            r.signal,
-            input.message.id
+            { signal: r.signal, inReplyTo: input.message.id }
           );
-
-          const id = result.message?.id;
-          if (!id) throw new Error('Chatto did not return a reply ID');
-
           return id;
         })
       );
 
       try {
-        const thread = await step('Load complete thread', readThread);
+        const thread = await step('Load thread', readThread);
 
         await step('Compose reply', () =>
           answer(r, {

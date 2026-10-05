@@ -24,6 +24,7 @@ keep the compact menu without a navigation action.
 -->
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { resolve } from '$app/paths';
 
@@ -44,7 +45,7 @@ keep the compact menu without a navigation action.
     getLiveBotOwnerUserId,
     getLiveTimezone
   } from '$lib/state/userProfiles.svelte';
-  import type { CustomUserStatus } from '$lib/api-client/userSummary';
+  import type { CustomUserStatus } from '@chatto/client/api/userSummary';
   import { m } from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
   import {
@@ -98,7 +99,7 @@ keep the compact menu without a navigation action.
   } = $props();
 
   const serverScope = useServerScope();
-  const voiceCall = $derived(serverScope.store.voiceCall);
+  const voiceCall = $derived(serverUi(serverScope.store).voiceCall);
   // Only the active call's remote participants have listener-local volume controls.
   const audioParticipant = $derived(
     voiceCall?.connected

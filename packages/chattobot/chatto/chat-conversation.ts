@@ -1,9 +1,11 @@
 /** Route one Chatto thread and serialize all assistant and host-owned posts. */
 import { Type, type WorkflowContext } from 'runling';
 import { runConversationTask, type ConversationActivityHandler } from './conversation-task.ts';
-import type { ChattoTyping } from '@chatto/client';
+import type { ChattoTyping } from './routing.ts';
 import {
   createChattoRouter,
+  createConversationState,
+  wasAddressed,
   type ChattoPost,
   type Delivery,
   type ConversationState
@@ -22,6 +24,12 @@ export type ConversationOptions<Settings> = Settings & {
   /** Author ID of the latest human message prepared for the agent. Notifications do not change
    * it. Several people can write in one conversation, so check permissions per request. */
   requester: () => string;
+  /** ID of the latest human message prepared for the agent, or undefined when the router could
+   * not match it. Notifications do not change it. */
+  currentMessageId: () => string | undefined;
+  /** True when a thread message was addressed to the bot (see `wasAddressed`). Only such
+   * messages count as messages to the bot; the rest of the thread is context. */
+  isAddressed: (messageId: string) => boolean;
 };
 
 /** Connect a string-in/string-out task to a Chatto thread. */
@@ -46,15 +54,17 @@ export function chattoConversation<Settings>({
   typing: ChattoTyping;
   state?: ConversationState;
 }) {
+  const conversations = state ?? createConversationState();
   return createChattoRouter({
     name,
     output: Type.Object({ reply: Type.String() }),
     post,
-    state,
+    state: conversations,
     async run(ctx, delivery, destination, inbox) {
       const messages = [delivery];
       let inReplyTo: string | undefined = delivery.message.id;
       let requester = delivery.message.author_id;
+      let currentMessageId: string | undefined = delivery.message.id;
       const setReplyContext = (text: string, origin: 'user' | 'notification') => {
         inReplyTo = undefined;
         if (origin !== 'user') return;
@@ -62,10 +72,12 @@ export function chattoConversation<Settings>({
         // An unmatched message has no known author; fail closed for permission checks.
         if (index === -1) {
           requester = '';
+          currentMessageId = undefined;
           return;
         }
         const [prompting] = messages.splice(index, 1);
         inReplyTo = prompting!.message.id;
+        currentMessageId = prompting!.message.id;
         requester = prompting!.message.author_id;
       };
       // Assistant text and tool announcements can arrive concurrently. Serialize
@@ -73,6 +85,7 @@ export function chattoConversation<Settings>({
       // work, so a tool does not need to announce it again in different words.
       let pending = Promise.resolve();
       let turn = 0;
+      let responding = false;
       let assistantTurn = -1;
       let last: { text: string; origin: 'assistant' | 'announcement'; at: number } | undefined;
       const send = (
@@ -93,6 +106,8 @@ export function chattoConversation<Settings>({
           await post(target, text, signal);
           if (origin === 'assistant') assistantTurn = sentTurn;
           last = { text: normalized, origin, at: Date.now() };
+          // A posted announcement commits this turn to a later text response.
+          if (origin === 'announcement' && turn === sentTurn) responding = true;
         });
         pending = next.catch(() => {});
         return next;
@@ -105,11 +120,14 @@ export function chattoConversation<Settings>({
             ...settings,
             onBusy: (busy) => {
               if (busy) turn++;
+              responding = false;
               onBusy(busy);
             },
             delivery,
             setReplyContext,
             requester: () => requester,
+            currentMessageId: () => currentMessageId,
+            isAddressed: (messageId) => wasAddressed(conversations, delivery.bot_id, messageId),
             announce: (text, signal) =>
               send(
                 text,
@@ -129,6 +147,7 @@ export function chattoConversation<Settings>({
           destination,
           post: (_destination, text, signal) => send(text, signal, 'assistant'),
           typing,
+          isResponding: () => responding,
           acknowledge,
           delivery,
           onMessage: (message) => messages.push(message)

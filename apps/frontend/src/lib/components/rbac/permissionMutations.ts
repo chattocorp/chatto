@@ -1,5 +1,5 @@
 import { errorMessage } from '$lib/utils/errorMessage';
-import type { PermissionAPI, PermissionState } from '$lib/api-client/permissions';
+import type { PermissionAPI, PermissionState } from '@chatto/client/api/permissions';
 
 export type { PermissionState };
 

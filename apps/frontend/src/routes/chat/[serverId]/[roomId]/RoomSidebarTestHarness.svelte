@@ -11,7 +11,7 @@ can exercise pagination wiring without mounting the full chat room.
   import type { RoomData } from '$lib/hooks/useRoomData.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { RoomFilesStore, RoomMembersStore, setRoomMembersStore } from '$lib/state/room';
-  import { MessageSearchState, MessageSearchStore } from '$lib/state/server/messageSearch.svelte';
+  import { MessageSearchState, MessageSearchStore } from '$lib/state/server/messageSearch';
   import RoomSidebar, { type RoomSidebarPanel } from './RoomSidebar.svelte';
 
   let {

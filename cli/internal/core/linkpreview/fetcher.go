@@ -251,22 +251,32 @@ type blueskyExternal struct {
 	Thumb       string `json:"thumb"`
 }
 
-type blueskyImage struct {
-	Fullsize    string `json:"fullsize"`
-	Alt         string `json:"alt"`
-	AspectRatio *struct {
-		Width  uint32 `json:"width"`
-		Height uint32 `json:"height"`
-	} `json:"aspectRatio"`
+// blueskyAspectRatio holds the source dimensions from a Bluesky image or video
+// view. Chatto uses them only as the aspect ratio.
+type blueskyAspectRatio struct {
+	Width  uint32 `json:"width"`
+	Height uint32 `json:"height"`
 }
 
-// blueskyEmbed covers the view unions returned for images, external cards,
-// quoted records, and record-with-media combinations.
+type blueskyImage struct {
+	Fullsize    string              `json:"fullsize"`
+	Alt         string              `json:"alt"`
+	AspectRatio *blueskyAspectRatio `json:"aspectRatio"`
+}
+
+// blueskyEmbed covers the view unions returned for images, videos, external
+// cards, quoted records, and record-with-media combinations.
 type blueskyEmbed struct {
 	External *blueskyExternal   `json:"external"`
 	Images   []blueskyImage     `json:"images"`
 	Record   *blueskyRecordView `json:"record"`
 	Media    *blueskyEmbed      `json:"media"`
+
+	// Thumbnail, Alt, and AspectRatio come from a video view. Chatto stores
+	// only the static thumbnail, never the video stream.
+	Thumbnail   string              `json:"thumbnail"`
+	Alt         string              `json:"alt"`
+	AspectRatio *blueskyAspectRatio `json:"aspectRatio"`
 }
 
 type blueskyRecordView struct {
@@ -390,6 +400,16 @@ func (f *Fetcher) applyBlueskyEmbed(ctx context.Context, snapshot *evtv1.SocialP
 			out.Height = image.AspectRatio.Height
 		}
 		snapshot.Images = append(snapshot.Images, out)
+	}
+	if embed.Thumbnail != "" && len(snapshot.Images) < 4 {
+		if asset := f.downloadSocialPostImage(ctx, embed.Thumbnail, budget); asset != nil {
+			out := &evtv1.SocialPostImage{Asset: asset, Alt: truncateUTF8Bytes(embed.Alt, 1000)}
+			if embed.AspectRatio != nil {
+				out.Width = embed.AspectRatio.Width
+				out.Height = embed.AspectRatio.Height
+			}
+			snapshot.Images = append(snapshot.Images, out)
+		}
 	}
 	if external := embed.External; external != nil {
 		externalURL := safeExternalURL(truncateUTF8Bytes(external.URI, 2048))

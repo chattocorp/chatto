@@ -1,171 +1,117 @@
-export const NOTIFICATION_CLICK_ACK_TIMEOUT_MS = 750;
 export const NOTIFICATION_CLICK_MESSAGE_TYPE = 'notification-click';
+/**
+ * Reply type that workers from earlier releases wait for. Current workers do
+ * not wait for a reply; pages still send it so that an earlier worker does
+ * not also open a new window.
+ */
 export const NOTIFICATION_CLICK_ACK_MESSAGE_TYPE = 'notification-click-ack';
 const NOTIFICATION_CLICK_FALLBACK_PATH = '/chat';
 
-interface NotificationClickPort {
-  onmessage: ((event: MessageEvent) => void) | null;
-  close?: () => void;
-}
-
-interface NotificationClickMessageChannel {
-  port1: NotificationClickPort;
-  port2: unknown;
-}
-
+/** The `WindowClient` members that click routing uses. */
 export interface NotificationClickClient {
-  focus?: () => Promise<NotificationClickClient | null>;
-  navigate?: (url: string) => Promise<NotificationClickClient | null>;
-  postMessage?: (message: unknown, transfer?: unknown[]) => void;
+  url: string;
+  focused: boolean;
+  visibilityState: DocumentVisibilityState;
+  focus(): Promise<unknown>;
+  postMessage(message: unknown): void;
 }
 
+/** The `Clients` members that click routing uses. */
 export interface NotificationClickClients {
   matchAll(options: {
     type: 'window';
     includeUncontrolled: true;
   }): Promise<readonly NotificationClickClient[]>;
-  openWindow(url: string): Promise<NotificationClickClient | null>;
+  openWindow(url: string): Promise<unknown>;
 }
 
-interface NotificationClickLogger {
-  warn: (...args: unknown[]) => void;
+function isChatPath(pathname: string): boolean {
+  return pathname === '/chat' || pathname.startsWith('/chat/');
 }
 
-export type NotificationClickRouteResult = 'client' | 'navigate' | 'open';
-
-export interface NotificationClickRouteOptions {
-  ackTimeoutMs?: number;
-  createMessageChannel?: () => NotificationClickMessageChannel;
-  logger?: NotificationClickLogger;
-}
-
-function sameOriginURLForPath(origin: string, pathname: string, search = '', hash = ''): string {
-  return new URL(`${pathname}${search}${hash}`, origin).href;
-}
-
-function normalizeSameOriginUrl(value: string | undefined, origin: string): string | null {
-  try {
-    const url = new URL(value ?? NOTIFICATION_CLICK_FALLBACK_PATH, origin);
-    return url.origin === origin ? url.href : null;
-  } catch {
-    return null;
-  }
-}
-
+/**
+ * Normalize a notification target to a URL on `origin`. A same-origin URL
+ * stays as it is. A cross-origin chat URL keeps its path, query, and hash on
+ * `origin`. Any other target becomes `/chat`.
+ */
 export function normalizeNotificationClickUrl(rawUrl: string | undefined, origin: string): string {
-  const sameOriginUrl = normalizeSameOriginUrl(rawUrl, origin);
-  if (sameOriginUrl) return sameOriginUrl;
-
-  if (typeof rawUrl === 'string') {
-    try {
-      const parsed = new URL(rawUrl);
-      if (parsed.pathname === '/chat' || parsed.pathname.startsWith('/chat/')) {
-        return sameOriginURLForPath(origin, parsed.pathname, parsed.search, parsed.hash);
-      }
-    } catch {
-      // Fall back to the safe same-origin chat entry point below.
-    }
+  const fallback = new URL(NOTIFICATION_CLICK_FALLBACK_PATH, origin).href;
+  let url: URL;
+  try {
+    url = new URL(rawUrl ?? NOTIFICATION_CLICK_FALLBACK_PATH, origin);
+  } catch {
+    return fallback;
   }
-
-  return sameOriginURLForPath(origin, NOTIFICATION_CLICK_FALLBACK_PATH);
+  if (url.origin === origin) return url.href;
+  if (isChatPath(url.pathname)) return new URL(url.pathname + url.search + url.hash, origin).href;
+  return fallback;
 }
 
-function createDefaultMessageChannel(): NotificationClickMessageChannel {
-  return new MessageChannel();
-}
+/**
+ * Path prefixes that the server never serves to the app, for example opened
+ * attachments under `/assets`. Keep in sync with `isReservedNonFrontendPath`
+ * in `cli/internal/http_server/frontend.go`.
+ */
+const NON_APP_PATH_PREFIXES = ['/api', '/auth', '/assets', '/.well-known'];
 
-function isNotificationClickAck(message: unknown): boolean {
-  return (
-    typeof message === 'object' &&
-    message !== null &&
-    'type' in message &&
-    message.type === NOTIFICATION_CLICK_ACK_MESSAGE_TYPE
+/**
+ * Whether `client` runs the app and so can route a click. `Client.url` is the
+ * URL that loaded the document; client-side navigation does not change it. A
+ * window that the app loaded at `/` or `/login` is therefore an app window.
+ */
+function isAppWindow(client: NotificationClickClient): boolean {
+  const { pathname } = new URL(client.url);
+  return !NON_APP_PATH_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
 }
 
-function notifyClientAndWaitForAck(
-  client: NotificationClickClient,
-  url: string,
-  options: Required<Pick<NotificationClickRouteOptions, 'ackTimeoutMs' | 'createMessageChannel'>>
-): Promise<boolean> {
-  if (typeof client.postMessage !== 'function') return Promise.resolve(false);
-  const postMessage = client.postMessage;
-
-  return new Promise((resolve) => {
-    const channel = options.createMessageChannel();
-    let settled = false;
-    const timeout = setTimeout(() => finish(false), options.ackTimeoutMs);
-
-    function finish(acknowledged: boolean) {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      channel.port1.onmessage = null;
-      channel.port1.close?.();
-      resolve(acknowledged);
-    }
-
-    channel.port1.onmessage = (event) => {
-      if (isNotificationClickAck(event.data)) finish(true);
-    };
-
-    try {
-      postMessage.call(client, { type: NOTIFICATION_CLICK_MESSAGE_TYPE, url }, [channel.port2]);
-    } catch {
-      finish(false);
-    }
-  });
-}
-
-async function focusClient(
-  client: NotificationClickClient,
-  logger?: NotificationClickLogger
-): Promise<NotificationClickClient | null> {
-  if (typeof client.focus !== 'function') return null;
+async function focusWindow(client: NotificationClickClient): Promise<boolean> {
   try {
-    return await client.focus();
+    await client.focus();
+    return true;
   } catch (err) {
-    logger?.warn('[SW] Failed to focus existing window:', err);
-    return null;
+    console.warn('[SW] Failed to focus existing window:', err);
+    return false;
   }
 }
 
+/**
+ * Route a notification click to `rawUrl` after normalizing it to this origin.
+ *
+ * The worker focuses the best open app window and sends it the target URL,
+ * and the page routes in place. It prefers a focused window, then a visible
+ * one, then any other. When no app window is open, or focus fails, the
+ * worker opens the target in a new window.
+ *
+ * The worker that shows push notifications has a narrow `/__chatto/push/…/`
+ * scope. It never controls the app windows, so `WindowClient.navigate()`
+ * always fails there. Chromium allows one window action (`focus()` or
+ * `openWindow()`) per click, so the worker focuses before it sends the message
+ * and does not wait for a reply.
+ */
 export async function routeNotificationClick(
   rawUrl: string | undefined,
   origin: string,
-  clients: NotificationClickClients,
-  options: NotificationClickRouteOptions = {}
-): Promise<NotificationClickRouteResult> {
+  clients: NotificationClickClients
+): Promise<void> {
   const url = normalizeNotificationClickUrl(rawUrl, origin);
+  const windows = (await clients.matchAll({ type: 'window', includeUncontrolled: true })).filter(
+    isAppWindow
+  );
+  const target =
+    windows.find((client) => client.focused) ??
+    windows.find((client) => client.visibilityState === 'visible') ??
+    windows[0];
 
-  const ackOptions = {
-    ackTimeoutMs: options.ackTimeoutMs ?? NOTIFICATION_CLICK_ACK_TIMEOUT_MS,
-    createMessageChannel: options.createMessageChannel ?? createDefaultMessageChannel
-  };
-  const clientList = await clients.matchAll({
-    type: 'window',
-    includeUncontrolled: true
-  });
-
-  for (const client of clientList) {
-    const initiallyFocusedClient = await focusClient(client, options.logger);
-    const focusedClient = initiallyFocusedClient ?? client;
-    const acknowledged = await notifyClientAndWaitForAck(focusedClient, url, ackOptions);
-    if (acknowledged) {
-      return 'client';
-    }
-
+  if (target && (await focusWindow(target))) {
     try {
-      const navigatedClient = await focusedClient.navigate?.(url);
-      if (navigatedClient) {
-        if (!initiallyFocusedClient) await focusClient(navigatedClient, options.logger);
-        return 'navigate';
-      }
+      target.postMessage({ type: NOTIFICATION_CLICK_MESSAGE_TYPE, url });
     } catch (err) {
-      options.logger?.warn('[SW] Failed to navigate existing window:', err);
+      console.warn('[SW] Failed to send notification click to focused window:', err);
     }
+    return;
   }
 
   await clients.openWindow(url);
-  return 'open';
 }

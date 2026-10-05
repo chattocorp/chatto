@@ -3,12 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { page as browserPage } from 'vitest/browser';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import type { CurrentUserState } from '$lib/auth/currentUser.svelte';
+import type { CurrentUserState } from '@chatto/client/auth/currentUser';
 import {
   removeRegisteredAdminQueries,
   removeRegisteredServerQueries
 } from '$lib/query/cacheRegistry';
 import { queryClient } from '$lib/query/client';
+import { authorizationLaunchTarget } from '$lib/test-utils';
 import { settingsQueryKeys } from '$lib/query/settings';
 import ExternalIdentitySettings from './ExternalIdentitySettings.svelte';
 
@@ -41,6 +42,14 @@ const connection = {
   })
 };
 
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    isOriginServer: (serverId: string) => serverId === 'origin',
+    clearServerAuthentication: mocks.clearServerAuthentication
+  }
+}));
+
 vi.mock('$app/state', () => ({
   page: {
     get url() {
@@ -69,20 +78,17 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   })
 }));
 
-vi.mock('$lib/auth/signOut', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('$lib/auth/signOut')>()),
+vi.mock('@chatto/client/auth/signOut', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@chatto/client/auth/signOut')>()),
   beginExplicitSignOutRedirect: mocks.beginExplicitSignOutRedirect,
-  cancelExplicitSignOutRedirect: mocks.cancelExplicitSignOutRedirect,
+  cancelExplicitSignOutRedirect: mocks.cancelExplicitSignOutRedirect
+}));
+
+vi.mock('$lib/auth/signOutRedirect', () => ({
   hardRedirectAfterSignOut: mocks.hardRedirectAfterSignOut
 }));
 
 vi.mock('$lib/auth/sessionChannel', () => ({ notifyLogout: mocks.notifyLogout }));
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    isOriginServer: (serverId: string) => serverId === 'origin',
-    clearServerAuthentication: mocks.clearServerAuthentication
-  }
-}));
 
 const currentUser = {
   user: { id: 'user-alice', hasPassword: true }
@@ -340,7 +346,7 @@ describe('identity link popup and continuation', () => {
   function remote() {
     mocks.serverId = 'remote';
     connection.serverId = 'remote';
-    const popup = { closed: false, opener: {}, location: { href: '' }, close: vi.fn() };
+    const popup = { closed: false, opener: {}, close: vi.fn() };
     const open = vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
     return { popup, open };
   }
@@ -356,7 +362,7 @@ describe('identity link popup and continuation', () => {
     await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
     expect(open).toHaveBeenCalledOnce();
     expect(popup.opener).toBeNull();
-    const url = new URL(popup.location.href);
+    const url = new URL(authorizationLaunchTarget(open)!);
     expect(url.origin).toBe('https://remote.example.test');
     expect(url.pathname).toBe('/chat/-/settings/account');
     expect([...url.searchParams]).toEqual([
@@ -374,7 +380,9 @@ describe('identity link popup and continuation', () => {
     await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
     expect(open).toHaveBeenCalledOnce();
     expect(popup.opener).toBeNull();
-    expect(new URL(popup.location.href).searchParams.get('link_provider')).toBe('github-main');
+    expect(new URL(authorizationLaunchTarget(open)!).searchParams.get('link_provider')).toBe(
+      'github-main'
+    );
     expect(mocks.startLink).not.toHaveBeenCalled();
   });
 

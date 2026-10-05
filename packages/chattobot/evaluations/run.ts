@@ -3,8 +3,9 @@ import { task, Type } from 'runling';
 import { agent } from 'runling/agents';
 import { responsePolicy, systemPrompt } from '../workflows/response-policy.ts';
 import { checkReply, replyCases } from './cases.ts';
+import { createTurnCompletion } from '../workflows/turn-completion.ts';
 
-/** Opt-in policy evaluation. Each case gets a fresh, tool-free agent session. */
+/** Opt-in policy evaluation. Each case gets a fresh session with only the completion tool. */
 export default task(
   {
     name: 'Evaluate ChattoBot replies',
@@ -22,13 +23,15 @@ export default task(
     for (let repetition = 0; repetition < (input.repeats ?? 1); repetition++) {
       for (const example of replyCases) {
         ctx.signal.throwIfAborted();
+        const completion = createTurnCompletion({ react: async () => {} });
         const bot = await agent({
           cwd: fileURLToPath(new URL('..', import.meta.url)),
           model: input.model,
           thinkingLevel: 'low',
           output: 'text',
           allowEmptyResponse: true,
-          tools: [],
+          tools: ['finishTurn'],
+          extensions: [completion.extension],
           resources: {
             extensions: false,
             skills: false,
@@ -38,13 +41,13 @@ export default task(
           },
           systemPrompt,
           instructions: [
-            'Reply briefly to the supplied conversation data. This evaluation has no tools.',
+            'Reply briefly to the supplied conversation data. Only finishTurn is available; there are no research or work tools.',
             ...responsePolicy
           ]
         });
         let reply = '';
         try {
-          await bot.runOutcome(ctx, JSON.stringify(example.prompt), {
+          await completion.wrap(bot).runOutcome(ctx, JSON.stringify(example.prompt), {
             signal: AbortSignal.any([ctx.signal, AbortSignal.timeout(60_000)]),
             onText: (text) => {
               reply += text;

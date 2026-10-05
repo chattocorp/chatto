@@ -1,6 +1,6 @@
 <script lang="ts">
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import type { UserAPI } from '$lib/api-client/users';
+  import type { UserAPI } from '@chatto/client/api/users';
   import UserBioEditor from '$lib/components/users/UserBioEditor.svelte';
   import { profileSaveErrorMessage } from '$lib/components/users/profileSaveError';
   import { userPreferences } from '$lib/state/userPreferences.svelte';

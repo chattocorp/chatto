@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
+import { RealtimeProjectionUpdate } from '@chatto/client/realtime/eventBus';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { ListRoomGroupsResponse, RoomGroup } from '@chatto/api-types/api/v1/room_directory_pb';
-import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
+import { RealtimeResourceUpdate } from '@chatto/client/api/realtimeResources';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { queryClient } from '$lib/query/client';
@@ -19,6 +19,12 @@ const mocks = vi.hoisted(() => ({
 }));
 
 // Page titles are tested separately from this page's partial route/server fixtures.
+// The store mock also carries the frontend UI state of its server.
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
+
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 
 vi.mock('$app/state', () => ({
@@ -40,7 +46,7 @@ vi.mock(
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
 );
 
-vi.mock('$lib/api-client/adminRoomLayout', () => ({
+vi.mock('$lib/api/adminRoomLayout', () => ({
   createAdminRoomLayoutAPI: ({ serverId }: { serverId: string }) => ({
     getRoomGroup: (groupId: string, options?: { signal?: AbortSignal }) =>
       mocks.getRoomGroup(serverId, groupId, options),

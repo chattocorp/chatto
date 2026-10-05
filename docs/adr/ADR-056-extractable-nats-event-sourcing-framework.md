@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-30
 
-**Updated:** 2026-09-03
+**Updated:** 2026-10-04
 
 ADR-088 extends the shared framework with prepared reducers, coordinated
 components, one apply barrier, and projection snapshot cohorts. The framework
@@ -45,6 +45,8 @@ Framework-owned responsibilities are:
   TTL;
 - exact-sequence stream-message reads with bounded concurrency and an optional
   process-local cache with sliding idle expiry;
+- key-value reads through the stream leader, an explicit fast read from any
+  replica, and revision-checked TTL updates;
 - stream positions and projection readiness barriers;
 - ordered consumer, replay, startup batching, and failure lifecycles;
 - bounded durable pull-worker execution over application-configured consumers,
@@ -109,6 +111,23 @@ functions; applications keep their envelope codecs, subjects, semantic
 validation, aggregate command methods, and composition. This extraction
 follows the two-consumer rule above rather than a desire to shorten one
 application's wiring.
+
+`KeyValue` is the consistent-read boundary for key-value buckets. It wraps a
+bucket handle and keeps its interface. JetStream serves the bucket's `Get`
+through a direct get when the bucket allows it. Any replica can then answer,
+and a replica that lags behind a committed write returns an older revision or
+no entry. Chatto observed this failure: a refresh grant read its session again
+right after a committed rotation and rejected the valid credential.
+`KeyValue.Get` and `GetRevision` therefore read through the stream leader.
+`Latest` reads the newest entry for a filter through the leader, including
+removal markers. `GetAnyReplica` is the bucket's own read, for hot paths that
+accept a result quickly and decide a negative result again with `Get`.
+`UpdateWithTTL` adds the revision-checked TTL update that the bucket API does
+not have. Chatto binds all of its buckets through this type. Authling still
+uses plain `jetstream.KeyValue.Get` on buckets that allow direct gets, so the
+same lag can affect it. Authling is the expected second consumer. Applications keep
+bucket names, configuration, value codecs, and the choice of which hot reads
+accept an older revision.
 
 The framework is configured with a concrete JetStream stream; it does not
 assume that an application has only one event log or that the log is named

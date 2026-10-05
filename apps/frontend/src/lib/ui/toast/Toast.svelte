@@ -1,7 +1,7 @@
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
-  import type { AccountNameIdentity } from '$lib/render/accountName';
+  import type { AccountNameIdentity } from '@chatto/client/timeline/accountName';
   import type { ToastAction, ToastTone } from './toastState.svelte';
 
   let {

@@ -1,4 +1,7 @@
-import { isMessagePostedEvent, type TimelineEventView } from '$lib/render/timelineEvents';
+import {
+  isMessagePostedEvent,
+  type TimelineEventView
+} from '@chatto/client/timeline/timelineEvents';
 
 /**
  * Return whether a confirmed tombstone has no visible context and should be

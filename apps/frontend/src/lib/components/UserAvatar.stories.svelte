@@ -1,7 +1,7 @@
 <script module lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { defineMeta } from '@storybook/addon-svelte-csf';
-  import type { UserAvatarUserView } from '$lib/render/users';
+  import type { UserAvatarUserView } from '@chatto/client/timeline/users';
   import imageAvatar from '$lib/assets/chatto-icon-maskable.png';
   import AccountName from './users/AccountName.svelte';
   import UserAvatar from './UserAvatar.svelte';
@@ -40,6 +40,16 @@
   const awayUser = user('away', 'Away User', PresenceStatus.AWAY);
   const dndUser = user('dnd', 'DND User', PresenceStatus.DO_NOT_DISTURB);
   const offlineUser = user('offline', 'Offline User', PresenceStatus.OFFLINE);
+  const fallbackNames = [
+    'ChattoBot [DEV]',
+    '[DEV] ChattoBot',
+    '🕹️ Alice Smith',
+    '王小明',
+    'e\u0301mile',
+    '👩‍💻',
+    '🇺🇸',
+    '!!!'
+  ];
 </script>
 
 <script lang="ts">
@@ -77,6 +87,33 @@
     <UserAvatar user={onlineUser} size="xs" />
     <UserAvatar user={awayUser} size="sm" />
     <UserAvatar user={dndUser} size="md" />
+  </div>
+</Story>
+
+<Story name="Unicode fallback avatars" asChild>
+  <div class="flex flex-wrap gap-6 rounded-md bg-surface p-6">
+    {#each fallbackNames as name, index (name)}
+      <div class="flex flex-col items-center gap-3">
+        <UserAvatar
+          user={user('fallback-' + index, name, PresenceStatus.OFFLINE)}
+          size="xl"
+          useLiveProfile={false}
+        />
+        <bdi>{name}</bdi>
+      </div>
+    {/each}
+  </div>
+</Story>
+
+<Story name="Emoji fallback sizes" asChild>
+  <div class="flex items-center gap-5 rounded-md bg-surface p-6">
+    {#each ['xs', 'sm', 'md', 'message', 'lg', 'xl'] as const as size (size)}
+      <UserAvatar
+        user={user('emoji-sizes', '👩‍💻', PresenceStatus.OFFLINE)}
+        {size}
+        useLiveProfile={false}
+      />
+    {/each}
   </div>
 </Story>
 

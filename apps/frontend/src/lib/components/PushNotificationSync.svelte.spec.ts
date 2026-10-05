@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import PushNotificationSync from './PushNotificationSync.svelte';
-import { NotificationStore } from '$lib/state/server/notifications.svelte';
-import type { NotificationAPI, NotificationOccurrencePage } from '$lib/api-client/notifications';
+import { NotificationStore } from '@chatto/client/server/notifications';
+import type { NotificationAPI, NotificationOccurrencePage } from '@chatto/client/api/notifications';
 
 const { refreshHandlers } = vi.hoisted(() => ({ refreshHandlers: new Set<() => void>() }));
 vi.mock('$lib/notifications/appBadge', () => ({

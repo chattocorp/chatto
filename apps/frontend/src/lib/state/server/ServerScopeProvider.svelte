@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onDestroy, untrack, type Snippet } from 'svelte';
-  import type { ServerConnection } from './serverConnection.svelte';
+  import type { ServerConnection } from '@chatto/client/server/serverConnection';
   import { provideServerScope } from './scope.svelte';
-  import type { ServerStateStore } from './store.svelte';
+  import type { ServerStateStore } from '@chatto/client/server/store';
   import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
 
   let {

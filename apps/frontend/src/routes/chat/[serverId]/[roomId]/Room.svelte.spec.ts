@@ -1,25 +1,28 @@
-import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
+import type { MemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
-import { RoomThreadingMode } from '$lib/roomThreading';
-import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
+import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
+import { RealtimeProjectionUpdate } from '@chatto/client/realtime/eventBus';
 import { MessagePostedEvent, UserJoinedRoomEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
-import type { RoomTimelineAPI } from '$lib/api-client/roomTimeline';
-import { TimelineEventKind } from '$lib/render/timelineEvents';
+import type { RoomTimelineAPI } from '@chatto/client/api/roomTimeline';
+import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
 import { MessagesStore, RoomMembersStore } from '$lib/state/room';
-import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
+import { MessageSearchState } from '$lib/state/server/messageSearch';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 import { getToasts, toast } from '$lib/ui/toast';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
+import { PendingHighlightStore } from '$lib/state/server/pendingHighlight';
+import { signal } from '@chatto/client/reactivity';
 
 const mocks = vi.hoisted(() => ({
   goto: vi.fn(),
   pushState: vi.fn(),
   replaceState: vi.fn(),
+  beforeNavigate: vi.fn(),
   pageUrl: new URL('https://chat.example.test/chat/-/room-1'),
   pageState: {} as App.PageState,
   markRoomAsRead: vi.fn(),
@@ -50,12 +53,6 @@ const mocks = vi.hoisted(() => ({
   joinedCallRoomIds: new Set<string>(),
   threadPaneModuleLoaded: vi.fn(),
   roomSidebarModuleLoaded: vi.fn(),
-  pendingHighlightConsume: vi.fn(
-    (
-      _roomId: string,
-      _threadRootId: string | null
-    ): { eventId: string; notificationId: string | null } | null => null
-  ),
   markOccurrenceRead: vi.fn().mockResolvedValue(undefined),
   roomMessages: vi.fn(),
   roomMembers: vi.fn(),
@@ -63,6 +60,21 @@ const mocks = vi.hoisted(() => ({
   mentionRoles: {
     roles: [],
     refresh: vi.fn().mockResolvedValue(true)
+  }
+}));
+
+// The store mock also carries the frontend UI state of its server.
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
+
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    getStore: () => server.scope.store,
+    originServer: { id: 'server-1', url: 'https://chat.example.test' },
+    getServer: () => ({ id: 'server-1', url: 'https://chat.example.test' })
   }
 }));
 
@@ -79,7 +91,7 @@ vi.mock('$app/state', () => ({
 }));
 
 vi.mock('$app/navigation', () => ({
-  beforeNavigate: vi.fn(),
+  beforeNavigate: mocks.beforeNavigate,
   goto: mocks.goto,
   pushState: mocks.pushState,
   replaceState: mocks.replaceState
@@ -172,22 +184,16 @@ vi.mock(
 );
 
 let server: TestServerScope;
+let highlights: PendingHighlightStore;
+let recoveringSnapshot = signal(false);
 
-vi.mock('$lib/api-client/roomTimeline', async (importActual) => {
-  const actual = await importActual<typeof import('$lib/api-client/roomTimeline')>();
+vi.mock('@chatto/client/api/roomTimeline', async (importActual) => {
+  const actual = await importActual<typeof import('@chatto/client/api/roomTimeline')>();
   return {
     ...actual,
     createRoomTimelineAPI: () => mocks.timeline
   };
 });
-
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    getStore: () => server.scope.store,
-    originServer: { id: 'server-1', url: 'https://chat.example.test' },
-    getServer: () => ({ id: 'server-1', url: 'https://chat.example.test' })
-  }
-}));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'wrong-server'
@@ -397,6 +403,8 @@ beforeEach(() => {
       ))
   );
   mocks.livekitUrl = null;
+  highlights = new PendingHighlightStore();
+  recoveringSnapshot = signal(false);
   server = createTestServerScope({
     viewer: { id: 'test-user', login: 'testuser' },
     serverInfo: {
@@ -408,7 +416,11 @@ beforeEach(() => {
       maxVideoUploadSize: 25 * 1024 * 1024
     },
     store: {
-      realtimeSync: { isRecoveringSnapshot: false },
+      realtimeSync: {
+        get isRecoveringSnapshot() {
+          return recoveringSnapshot.get();
+        }
+      },
       messageSearch: {
         statusLoading: false,
         statusError: false,
@@ -416,9 +428,7 @@ beforeEach(() => {
         status: { state: MessageSearchState.READY },
         ensureStatus: vi.fn()
       },
-      pendingHighlights: {
-        consume: mocks.pendingHighlightConsume
-      },
+      pendingHighlights: highlights,
       notifications: {
         markOccurrenceRead: mocks.markOccurrenceRead
       },
@@ -433,9 +443,9 @@ beforeEach(() => {
         messages: mocks.roomMessages,
         members: mocks.roomMembers,
         files: () => ({ retain: mocks.roomFilesRetain }),
-        pins: () => ({ retain: () => () => {}, markSeen: () => {}, hasUnseen: false }),
-        search: () => ({})
+        pins: () => ({ retain: () => () => {}, markSeen: () => {}, hasUnseen: false })
       },
+      roomSearch: () => ({}),
       restoreProjectedRoomWindow: mocks.restoreProjectedRoomWindow
     }
   });
@@ -461,8 +471,6 @@ beforeEach(() => {
   mocks.markArrivalWhileAway.mockClear();
   mocks.appState.isPresent = true;
   toast.clear();
-  mocks.pendingHighlightConsume.mockReset();
-  mocks.pendingHighlightConsume.mockReturnValue(null);
   mocks.markOccurrenceRead.mockReset();
   mocks.markOccurrenceRead.mockResolvedValue(undefined);
   appUi = new AppUiState();
@@ -509,7 +517,8 @@ describe('Room interaction bundles', () => {
 
       render(Room, { props: { roomId: 'room-1' } });
       await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledOnce());
-      if (state === 'failed') await vi.waitFor(() => expect(store.loadError).toBe('offline'));
+      if (state === 'failed')
+        await vi.waitFor(() => expect(store.loadError).toMatchObject({ message: 'offline' }));
 
       store.resetProjectionState();
       await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledTimes(2));
@@ -906,6 +915,29 @@ describe('Room local message echo', () => {
     expect(mocks.markRoomAsRead).toHaveBeenCalledWith('room-1', 'message-event-id');
   });
 
+  it('leaves a message unread when it arrives while the viewer reads older history', async () => {
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+    (q(container, '[data-testid="report-history-position"]') as HTMLButtonElement).click();
+    await tick();
+
+    mocks.projectionEventHandler?.(
+      new RealtimeProjectionUpdate({
+        event: new PublicRealtimeEvent({
+          id: 'newer-event-id',
+          actorId: 'user-1',
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'room-1' })
+          }
+        })
+      })
+    );
+
+    expect(mocks.markRoomAsRead).not.toHaveBeenCalled();
+    expect(mocks.markArrivalWhileAway).not.toHaveBeenCalled();
+  });
+
   it('places the unread separator for a message that arrives while the viewer is away', async () => {
     mocks.appState.isPresent = false;
     render(Room, { props: { roomId: 'room-1' } });
@@ -1007,7 +1039,29 @@ describe('Room local message echo', () => {
     expect(
       (await waitForElement(container, '[data-testid="thread-pane-highlight-id"]')).textContent
     ).toBe('thread-message');
-    expect(mocks.pendingHighlightConsume).not.toHaveBeenCalled();
+    expect(highlights.peek('room-1', 'thread-root')?.eventId).toBe('thread-message');
+  });
+
+  it('activates a new nested thread target without repeating a completed route', async () => {
+    const rendered = render(Room, {
+      props: {
+        roomId: 'room-1',
+        threadId: 'thread-root',
+        routeMessageId: 'thread-message-1'
+      }
+    });
+    const output = await waitForElement<HTMLElement>(
+      rendered.container,
+      '[data-testid="thread-pane-highlight-id"]'
+    );
+    await expect.element(output).toHaveTextContent('thread-message-1');
+    highlights.complete(highlights.current!);
+    await expect.element(output).toHaveTextContent(/^$/);
+
+    await rendered.rerender({ routeMessageId: 'thread-message-2' });
+
+    await expect.element(output).toHaveTextContent('thread-message-2');
+    expect(highlights.current?.eventId).toBe('thread-message-2');
   });
 
   describe('?highlight= permalinks', () => {
@@ -1061,10 +1115,7 @@ describe('Room local message echo', () => {
   });
 
   it('keeps root message-link highlights pending until the jump completes', async () => {
-    mocks.pendingHighlightConsume.mockReturnValueOnce({
-      eventId: 'msg-linked',
-      notificationId: 'notification-linked'
-    });
+    highlights.set('room-1', null, 'msg-linked', 'notification-linked');
     mocks.timeline.getRoomEventsAround.mockResolvedValue({
       events: [roomMessageEvent('msg-before'), roomMessageEvent('msg-linked')],
       startCursor: 'tl:before',
@@ -1088,6 +1139,7 @@ describe('Room local message echo', () => {
     await expect
       .element(q(container, '[data-testid="room-event-ids"]'))
       .toHaveTextContent('msg-before,msg-linked');
+    expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
 
     (q(container, '[data-testid="complete-highlight"]') as HTMLButtonElement).click();
 
@@ -1099,13 +1151,92 @@ describe('Room local message echo', () => {
     });
   });
 
+  it('lets a reply quote replace a pending notification highlight without reading it', async () => {
+    highlights.set('room-1', null, 'msg-linked', 'notification-linked');
+    mocks.timeline.getRoomEventsAround.mockResolvedValue({
+      events: [roomMessageEvent('msg-linked'), roomMessageEvent('msg-quoted')],
+      startCursor: 'tl:linked',
+      endCursor: 'tl:quoted',
+      hasOlder: true,
+      hasNewer: true
+    });
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await expect.element(q(container, '[data-testid="complete-highlight"]')).toBeEnabled();
+
+    (q(container, '[data-testid="reply-quote-jump"]') as HTMLButtonElement).click();
+
+    await expect
+      .element(q(container, '[data-testid="pending-highlight-id"]'))
+      .toHaveTextContent(/^$/);
+    await expect
+      .element(q(container, '[data-testid="scroll-target-id"]'))
+      .toHaveTextContent('msg-quoted');
+    expect(highlights.current).toBeNull();
+    expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
+
+    (q(container, '[data-testid="complete-scroll"]') as HTMLButtonElement).click();
+    await expect.element(q(container, '[data-testid="scroll-target-id"]')).toHaveTextContent(/^$/);
+    expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
+    expect(getToasts()).toHaveLength(0);
+  });
+
+  it('lets jump to present cancel a pending notification highlight without reading it', async () => {
+    highlights.set('room-1', null, 'msg-linked', 'notification-linked');
+    mocks.timeline.getRoomEventsAround.mockResolvedValue({
+      events: [roomMessageEvent('msg-linked')],
+      startCursor: 'tl:linked',
+      endCursor: 'tl:linked',
+      hasOlder: true,
+      hasNewer: true
+    });
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await expect.element(q(container, '[data-testid="complete-highlight"]')).toBeEnabled();
+
+    (q(container, '[data-testid="request-present"]') as HTMLButtonElement).click();
+
+    await expect
+      .element(q(container, '[data-testid="pending-highlight-id"]'))
+      .toHaveTextContent(/^$/);
+    expect(highlights.current).toBeNull();
+    expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
+    expect(getToasts()).toHaveLength(0);
+  });
+
+  it('retries an interrupted root notification jump after the room remounts', async () => {
+    highlights.set('room-1', null, 'msg-linked', 'notification-linked');
+    mocks.timeline.getRoomEventsAround.mockResolvedValue({
+      events: [roomMessageEvent('msg-linked')],
+      startCursor: 'tl:linked',
+      endCursor: 'tl:linked',
+      hasOlder: true,
+      hasNewer: true
+    });
+
+    const first = render(Room, { props: { roomId: 'room-1' } });
+    await expect
+      .element(q(first.container, '[data-testid="room-event-ids"]'))
+      .toHaveTextContent('msg-linked');
+    first.unmount();
+    const second = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect
+      .element(q(second.container, '[data-testid="pending-highlight-id"]'))
+      .toHaveTextContent('msg-linked');
+    expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
+    expect(mocks.restoreProjectedRoomWindow).not.toHaveBeenCalled();
+
+    await expect.element(q(second.container, '[data-testid="complete-highlight"]')).toBeEnabled();
+    (q(second.container, '[data-testid="complete-highlight"]') as HTMLButtonElement).click();
+    await vi.waitFor(() =>
+      expect(mocks.markOccurrenceRead).toHaveBeenCalledExactlyOnceWith('notification-linked')
+    );
+    expect(highlights.has('room-1', null)).toBe(false);
+  });
+
   it('clears an unresolved root highlight after switching rooms', async () => {
     type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
     let resolveAround: ((page: AroundPage) => void) | undefined;
-    mocks.pendingHighlightConsume.mockReturnValueOnce({
-      eventId: 'msg-linked',
-      notificationId: 'notification-linked'
-    });
+    highlights.set('room-1', null, 'msg-linked', 'notification-linked');
     mocks.timeline.getRoomEventsAround.mockReturnValue(
       new Promise((resolve) => {
         resolveAround = resolve;
@@ -1134,11 +1265,156 @@ describe('Room local message echo', () => {
       .toHaveTextContent('');
   });
 
-  it('clears root message-link highlights when the jump target cannot be loaded', async () => {
-    mocks.pendingHighlightConsume.mockReturnValueOnce({
-      eventId: 'msg-missing-from-window',
-      notificationId: 'notification-missing'
+  it('retains a root notification jump while hydration interrupts its load', async () => {
+    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
+    let resolveFirst!: (page: AroundPage) => void;
+    const page: AroundPage = {
+      events: [roomMessageEvent('msg-linked')],
+      startCursor: 'tl:linked',
+      endCursor: 'tl:linked',
+      hasOlder: true,
+      hasNewer: true
+    };
+    mocks.timeline.getRoomEventsAround
+      .mockReturnValueOnce(new Promise<AroundPage>((resolve) => (resolveFirst = resolve)))
+      .mockResolvedValue(page);
+    highlights.set('room-1', null, 'msg-linked', 'notification-linked');
+    const request = highlights.current;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await vi.waitFor(() => expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledOnce());
+
+    recoveringSnapshot.set(true);
+    await tick();
+    expect(highlights.current).toBe(request);
+    expect(mocks.restoreProjectedRoomWindow).not.toHaveBeenCalled();
+    recoveringSnapshot.set(false);
+    await vi.waitFor(() => expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledTimes(2));
+    resolveFirst(page);
+    await expect.element(q(container, '[data-testid="complete-highlight"]')).toBeEnabled();
+    expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
+    (q(container, '[data-testid="complete-highlight"]') as HTMLButtonElement).click();
+    await vi.waitFor(() =>
+      expect(mocks.markOccurrenceRead).toHaveBeenCalledExactlyOnceWith('notification-linked')
+    );
+  });
+
+  it('ignores a late root jump response after a newer notification click', async () => {
+    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
+    let resolveFirst!: (page: AroundPage) => void;
+    mocks.timeline.getRoomEventsAround
+      .mockReturnValueOnce(new Promise<AroundPage>((resolve) => (resolveFirst = resolve)))
+      .mockResolvedValue({
+        events: [roomMessageEvent('msg-new')],
+        startCursor: 'tl:new',
+        endCursor: 'tl:new',
+        hasOlder: true,
+        hasNewer: true
+      });
+    highlights.set('room-1', null, 'msg-old', 'notification-old');
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await vi.waitFor(() => expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledOnce());
+    highlights.set('room-1', null, 'msg-new', 'notification-new');
+    await vi.waitFor(() => expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledTimes(2));
+    resolveFirst({
+      events: [roomMessageEvent('msg-old')],
+      startCursor: 'tl:old',
+      endCursor: 'tl:old',
+      hasOlder: true,
+      hasNewer: true
     });
+
+    await expect.element(q(container, '[data-testid="complete-highlight"]')).toBeEnabled();
+    expect(highlights.current?.eventId).toBe('msg-new');
+    expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
+    (q(container, '[data-testid="complete-highlight"]') as HTMLButtonElement).click();
+    await vi.waitFor(() =>
+      expect(mocks.markOccurrenceRead).toHaveBeenCalledExactlyOnceWith('notification-new')
+    );
+  });
+
+  it('cancels a root notification request when navigation leaves its destination', async () => {
+    mocks.timeline.getRoomEventsAround.mockReturnValue(new Promise(() => {}));
+    highlights.set('room-1', null, 'msg-linked', 'notification-linked');
+    render(Room, { props: { roomId: 'room-1' } });
+    await vi.waitFor(() => expect(mocks.beforeNavigate).toHaveBeenCalled());
+
+    const beforeNavigate = mocks.beforeNavigate.mock.calls.at(-1)![0];
+    beforeNavigate({ to: { params: { serverId: '-', roomId: 'room-2' } } });
+
+    expect(highlights.current).toBeNull();
+    expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [undefined, 'thread-root'],
+    ['thread-root', 'thread-other'],
+    ['thread-root', undefined]
+  ])('retains a pending root jump when the thread changes from %s to %s', async (from, to) => {
+    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
+    let resolveAround!: (page: AroundPage) => void;
+    mocks.timeline.getRoomEventsAround.mockReturnValue(
+      new Promise<AroundPage>((resolve) => (resolveAround = resolve))
+    );
+    highlights.set('room-1', null, 'msg-linked', 'notification-linked');
+    const request = highlights.current;
+    const rendered = render(Room, { props: { roomId: 'room-1', threadId: from } });
+    await vi.waitFor(() => expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledOnce());
+
+    const beforeNavigate = mocks.beforeNavigate.mock.calls.at(-1)![0];
+    beforeNavigate({ to: { params: { serverId: '-', roomId: 'room-1', threadId: to } } });
+    await rendered.rerender({ threadId: to });
+
+    expect(highlights.current).toBe(request);
+    expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
+    resolveAround({
+      events: [roomMessageEvent('msg-linked')],
+      startCursor: 'tl:linked',
+      endCursor: 'tl:linked',
+      hasOlder: true,
+      hasNewer: true
+    });
+    const complete = q(
+      rendered.container,
+      '[data-testid="complete-highlight"]'
+    ) as HTMLButtonElement;
+    await expect.element(complete).toBeEnabled();
+    expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
+    complete.click();
+    await vi.waitFor(() =>
+      expect(mocks.markOccurrenceRead).toHaveBeenCalledExactlyOnceWith('notification-linked')
+    );
+    expect(highlights.current).toBeNull();
+  });
+
+  it.each([undefined, 'thread-other'])(
+    'cancels a thread notification request when its destination thread changes to %s',
+    async (threadId) => {
+      highlights.set('room-1', 'thread-root', 'thread-message', 'notification-thread');
+      render(Room, { props: { roomId: 'room-1', threadId: 'thread-root' } });
+      await vi.waitFor(() => expect(mocks.beforeNavigate).toHaveBeenCalled());
+
+      const beforeNavigate = mocks.beforeNavigate.mock.calls.at(-1)![0];
+      beforeNavigate({ to: { params: { serverId: '-', roomId: 'room-1', threadId } } });
+
+      expect(highlights.current).toBeNull();
+      expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
+    }
+  );
+
+  it('keeps a request queued for the next room when navigation leaves the current room', async () => {
+    render(Room, { props: { roomId: 'room-1' } });
+    await vi.waitFor(() => expect(mocks.beforeNavigate).toHaveBeenCalled());
+    highlights.set('room-2', null, 'msg-next', 'notification-next');
+    const next = highlights.current;
+
+    const beforeNavigate = mocks.beforeNavigate.mock.calls.at(-1)![0];
+    beforeNavigate({ to: { params: { serverId: '-', roomId: 'room-2' } } });
+
+    expect(highlights.current).toBe(next);
+  });
+
+  it('clears root message-link highlights when the jump target cannot be loaded', async () => {
+    highlights.set('room-1', null, 'msg-missing-from-window', 'notification-missing');
     mocks.timeline.getRoomEventsAround.mockResolvedValue({
       events: [roomMessageEvent('msg-other')],
       startCursor: 'tl:other',
@@ -1245,10 +1521,7 @@ describe('Room local message echo', () => {
   });
 
   it('shows an error when a room highlight cannot land on its message', async () => {
-    mocks.pendingHighlightConsume.mockReturnValueOnce({
-      eventId: 'msg-linked',
-      notificationId: null
-    });
+    highlights.set('room-1', null, 'msg-linked', 'notification-linked');
     mocks.timeline.getRoomEventsAround.mockResolvedValue({
       events: [roomMessageEvent('msg-linked')],
       startCursor: 'tl:linked',
@@ -1262,12 +1535,14 @@ describe('Room local message echo', () => {
       .toHaveTextContent('msg-linked');
     expect(getToasts()).toHaveLength(0);
 
+    await expect.element(q(container, '[data-testid="fail-highlight"]')).toBeEnabled();
     (q(container, '[data-testid="fail-highlight"]') as HTMLButtonElement).click();
 
     await expect
       .element(q(container, '[data-testid="pending-highlight-id"]'))
       .toHaveTextContent('');
     expect(getToasts().some((toast) => toast.tone === 'error')).toBe(true);
+    expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
   });
 
   it('highlights a file message from the room sidebar in the room timeline', async () => {

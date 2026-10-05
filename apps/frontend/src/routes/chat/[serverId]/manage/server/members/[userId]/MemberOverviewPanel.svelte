@@ -1,6 +1,6 @@
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
-  import type { AdminMember, AdminRoleDetails } from '$lib/api-client/adminUsers';
+  import type { AdminMember, AdminRoleDetails } from '$lib/api/adminUsers';
   import { CopyId, Panel, Pill } from '$lib/ui';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { m } from '$lib/i18n/messages';

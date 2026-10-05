@@ -1,7 +1,7 @@
 # FDR-006: @Mentions
 
 **Status:** Active
-**Last reviewed:** 2026-09-24
+**Last reviewed:** 2026-09-30
 
 ## Overview
 
@@ -29,6 +29,8 @@ the message body.
 - Valid user, role, and virtual mentions render with highlight styling in the posted message. User mentions show the current display name, with `@` before it; role and virtual mentions keep their handles. Self-mentions get additional styling.
 - Clicking or right-clicking a user mention opens that user's menu.
 - Mentions inside code spans, code blocks, pre-formatted text, and blockquotes do not resolve, notify, or receive mention styling.
+- Mentions inside links and URLs do not resolve, notify, or receive mention styling. This includes link labels, link destinations, and URLs that the renderer converts to links, with or without a scheme. For example, `https://social.example.com/@alice/123` keeps its literal text.
+- An `@` directly after a letter or digit, as in `user@example.com`, does not start a mention. Other characters before `@` do not block a mention, so `@alice/@bob` mentions both users.
 - Mentioning yourself does not produce a notification.
 - Mentioning a user who isn't a room member leaves the `@name` as plain text — the mention is not delivered.
 - The bundled composer asks for confirmation before sending a message that
@@ -132,6 +134,30 @@ remain distinct causes.
 expose role or room-wide mention sending, while the bundled client keeps the
 safeguard without adding a token round-trip to the integration API.
 
+### 10. Mentions come from the parsed message tree
+
+**Decision:** The server and the bundled frontend find mentions in the parsed
+Markdown tree, not in the raw text or in the rendered HTML. Only plain text
+outside code, blockquotes, and links can contain a mention. URLs become links
+before mention recognition, so a handle in a URL stays URL text. The frontend
+marks each mention candidate while it renders the message. A later step only
+resolves those marked candidates against room members, roles, and virtual
+handles. The server skips the same URLs by applying the frontend's URL rules
+to the message source. A shared set of cases in
+`testdata/mentions/extraction.json` runs against both implementations.
+**Why:** A mention must notify exactly the handles that the message shows as
+mentions. A text pass after rendering cannot tell a URL or link label from
+prose. A rule based only on the character before `@` cannot tell
+`example.social/@alice` from `@alice/@bob`.
+**Tradeoff:** The server and the frontend use different Markdown and URL
+libraries, so their agreement depends on the shared cases. A URL form that the
+shared cases do not cover can still be interpreted differently. Known
+differences are rare URL forms: URLs that contain Markdown syntax, an entity,
+a quote, `|`, `^`, `?@`, or `#@`; a scheme directly after a letter; `_` in a
+host name; IPv6 or punycode hosts; email-like text such as `cc:@alice.dev`; a
+backslash escape inside a link destination or title; and inline code that
+crosses a table cell boundary. Add a case when a difference is found.
+
 ## Permissions
 
 No dedicated mention permission. Anyone who can post in a room can mention any user, role, or virtual handle that resolves inside that room.
@@ -139,4 +165,4 @@ No dedicated mention permission. Anyone who can post in a room can mention any u
 ## Related
 
 - **ADRs:** ADR-026 (event identity via NanoID), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions)
-- **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-012 (Notifications), FDR-013 (Web Push Notifications), FDR-039 (Message Access & Interactions)
+- **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-012 (Notifications), FDR-013 (Web Push Notifications), FDR-032 (Message Formatting), FDR-039 (Message Access & Interactions)

@@ -8,7 +8,8 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverConnectionManager: { getClient: mocks.getClient }
 }));
 

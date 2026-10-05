@@ -2,7 +2,7 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import {
   createExternalIdentityFlowAPI,
   type PendingExternalIdentityInfo
-} from '$lib/api-client/externalIdentities';
+} from '$lib/api/externalIdentities';
 import type { PageLoad } from './$types';
 
 /** Settled result of loading an external-identity confirmation flow. */

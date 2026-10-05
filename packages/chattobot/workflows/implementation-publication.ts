@@ -27,6 +27,15 @@ export interface PublicationContext {
   save: () => Promise<void>;
 }
 
+/** Close the resolved issue on merge. An issue in another repository needs its full name. */
+function closingReference(metadata: ImplementationMetadata, repository: string): string[] {
+  const issue = metadata.input?.issue;
+  if (!issue) return [];
+  const prefix =
+    issue.repository.toLowerCase() === repository.toLowerCase() ? '' : issue.repository;
+  return ['', `Closes ${prefix}#${issue.number}.`];
+}
+
 /** Publish a validated change. Returns `unknown` when GitHub cannot confirm the expected open PR;
  * a branch or PR may exist then, so callers must not retry automatically. */
 export async function publishPullRequest({
@@ -52,13 +61,17 @@ export async function publishPullRequest({
     `- ${proposal.summary.replace(/\n/g, '\n  ')}`,
     '',
     '## Verification',
-    ...[...checks.values()].map((check) => `- Passed: ${check.command.replace(/\r?\n/g, ' ')}`),
+    ...[...checks.values()].map(
+      (check) => `- Passed locally: ${check.command.replace(/\r?\n/g, ' ')}`
+    ),
+    '- Tests run in CI on this pull request.',
     '',
     '## Notes',
     ...(proposal.notes.length
       ? proposal.notes.map((note) => `- ${note}`)
       : ['- No additional limitations reported by the implementation agent.']),
-    '- Created by ChattoBot. Review the diff and CI results before merging.'
+    '- Created by ChattoBot. Review the diff and CI results before merging.',
+    ...closingReference(metadata, repository)
   ].join('\n');
   const bodyFile = resolve(folder, 'pull-request.md');
   await writeFile(bodyFile, body, { mode: 0o600 });
@@ -72,7 +85,7 @@ export async function publishPullRequest({
   await save();
   await ctx.emit({
     type: 'finding',
-    text: 'The implementation and local checks are complete. Publishing the branch and pull request.'
+    text: 'The implementation, typecheck, and lint are complete. Publishing the branch and pull request.'
   });
   try {
     await git(worktree, ['push', 'origin', `HEAD:refs/heads/${branch}`]);
@@ -129,6 +142,7 @@ export async function publishPullRequest({
       throw new Error('PR verification failed');
     metadata.prUrl = published.url;
     metadata.stage = 'published';
+    await ctx.emit({ type: 'finding', text: `Opened the pull request: ${published.url}` });
     await ctx.emit({
       type: 'state',
       value: {

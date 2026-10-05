@@ -3,9 +3,9 @@ import { page } from '$app/state';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q, testSnippet } from '$lib/test-utils';
-import type { PublicServerInfo } from '$lib/api-client/server';
+import type { PublicServerInfo } from '@chatto/client/api/server';
 import { sidebarNav } from '$lib/state/globals.svelte';
-import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { serverRegistry } from '$lib/client';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -25,6 +25,27 @@ const { mocks } = vi.hoisted(() => ({
     },
     updateAppBadge: vi.fn(async () => {})
   }
+}));
+
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    servers: [],
+    originServer: { id: 'origin' },
+    getStore: vi.fn(),
+    getServer: vi.fn(() => ({ userId: 'U1' })),
+    tryGetStore: vi.fn(() => null),
+    isAuthenticated: vi.fn(() => false)
+  },
+  serverConnectionManager: {
+    originClient: mocks.originClient,
+    getClient: vi.fn(() => mocks.originClient)
+  }
+}));
+
+vi.mock('$lib/serverCatalogue', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$lib/serverCatalogue')>()),
+  firstAuthenticatedServerId: vi.fn(() => undefined)
 }));
 
 vi.mock('$app/navigation', () => ({
@@ -80,9 +101,12 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
   getPermission: vi.fn(() => null),
   getPushCapability: vi.fn(() => 'unsupported'),
   getPushRegistrationTargets: vi.fn(() => []),
-  onNotificationClick: vi.fn(() => vi.fn()),
   refreshPushSubscriptions: vi.fn(),
   unsubscribeBeforeLeaving: vi.fn().mockResolvedValue(undefined)
+}));
+
+vi.mock('$lib/notifications/notificationClick', () => ({
+  onNotificationClick: vi.fn(() => vi.fn())
 }));
 
 vi.mock('$lib/notifications/notificationNavigationUi', () => ({
@@ -110,26 +134,6 @@ vi.mock('$lib/state/server/useServerRegistry.svelte', () => ({
 
 vi.mock('$lib/state/server/ServerRuntimeCoordinator.svelte', async () => ({
   default: (await import('./chat/ChatRootTestStub.svelte')).default
-}));
-
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  generateServerId: vi.fn(() => 'server-id'),
-  serverRegistry: {
-    servers: [],
-    originServer: { id: 'origin' },
-    getStore: vi.fn(),
-    getServer: vi.fn(() => ({ userId: 'U1' })),
-    tryGetStore: vi.fn(() => null),
-    isAuthenticated: vi.fn(() => false),
-    firstAuthenticatedServerId: vi.fn(() => undefined)
-  }
-}));
-
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
-  serverConnectionManager: {
-    originClient: mocks.originClient,
-    getClient: vi.fn(() => mocks.originClient)
-  }
 }));
 
 import Layout from './+layout.svelte';

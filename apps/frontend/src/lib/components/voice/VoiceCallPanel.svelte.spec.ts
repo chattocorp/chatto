@@ -2,7 +2,8 @@ import '../../../app.css';
 import { afterEach, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
-import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { serverRegistry } from '$lib/client';
+import { serverUi } from '$lib/state/server/serverUi';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import VoiceCallPanelStoryHarness from './VoiceCallPanelStoryHarness.svelte';
 import { serverIdToSegment } from '$lib/navigation';
@@ -19,7 +20,7 @@ it('updates network warnings independently of microphone activity and clears the
   const screen = render(VoiceCallPanelStoryHarness, {
     props: { layout: 'sidebar', scenario: 'voice' }
   });
-  const call = serverRegistry.getStore(serverRegistry.originServer!.id).voiceCall;
+  const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
   await expect
     .element(screen.getByRole('button', { name: 'Poor connection', exact: true }))
     .toBeInTheDocument();
@@ -59,9 +60,12 @@ it('removes voice activity and participant controls when a call becomes observed
   });
   await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
   const store = serverRegistry.getStore(serverRegistry.originServer!.id);
-  vi.spyOn(store.voiceCall, 'getAudioLevel').mockReturnValue({ isSpeaking: true, audioLevel: 0.5 });
-  vi.spyOn(store.activeCallRooms, 'has').mockReturnValue(true);
-  vi.spyOn(store.activeCallRooms, 'getParticipants').mockReturnValue([
+  vi.spyOn(serverUi(store).voiceCall, 'getAudioLevel').mockReturnValue({
+    isSpeaking: true,
+    audioLevel: 0.5
+  });
+  vi.spyOn(serverUi(store).activeCallRooms, 'has').mockReturnValue(true);
+  vi.spyOn(serverUi(store).activeCallRooms, 'getParticipants').mockReturnValue([
     { userId: 'bob', login: 'bob', displayName: 'Bob', avatarUrl: null, isBot: false }
   ]);
   const bob = screen.container.querySelector<HTMLElement>('[title="Bob"]')!;
@@ -70,8 +74,8 @@ it('removes voice activity and participant controls when a call becomes observed
     .toBe('true');
 
   flushSync(() => {
-    store.voiceCall.connected = false;
-    store.voiceCall.roomId = null;
+    serverUi(store).voiceCall.connected = false;
+    serverUi(store).voiceCall.roomId = null;
   });
 
   await expect.element(screen.getByTestId('call-observer-panel')).toBeInTheDocument();
@@ -86,7 +90,7 @@ it('settles voice activity when the participant mutes their microphone', async (
     props: { layout: 'sidebar', scenario: 'voice' }
   });
   await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
-  const call = serverRegistry.getStore(serverRegistry.originServer!.id).voiceCall;
+  const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
   vi.spyOn(call, 'getAudioLevel').mockReturnValue({ isSpeaking: true, audioLevel: 0.5 });
   const canvas = screen.container.querySelector<HTMLCanvasElement>(
     '[title="Bob"] [data-testid="voice-activity"]'
@@ -104,10 +108,10 @@ it('gates entry and media controls from the current room permissions', async () 
   });
   await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
   const store = serverRegistry.getStore(serverRegistry.originServer!.id);
-  const roomId = store.voiceCall.roomId!;
+  const roomId = serverUi(store).voiceCall.roomId!;
   const room = store.projection.rooms.get(roomId)!;
   flushSync(() => {
-    store.voiceCall.isMuted = true;
+    serverUi(store).voiceCall.isMuted = true;
     store.projection.rooms.set(
       roomId,
       new RoomWithViewerState({
@@ -127,9 +131,9 @@ it('gates entry and media controls from the current room permissions', async () 
   expect(selfCard.querySelector('[data-testid="call-feed-local-mute-button"]')).toBeNull();
   expect(selfCard.querySelector('[data-testid="call-muted-indicator"]')).not.toBeNull();
   flushSync(() => {
-    store.voiceCall.connected = false;
+    serverUi(store).voiceCall.connected = false;
   });
-  vi.spyOn(store.activeCallRooms, 'has').mockReturnValue(false);
+  vi.spyOn(serverUi(store).activeCallRooms, 'has').mockReturnValue(false);
   await expect.element(screen.getByTestId('call-join-button')).toBeDisabled();
 });
 
@@ -139,7 +143,7 @@ it('includes volume controls in the remote user context menu', async () => {
   });
   await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
   const store = serverRegistry.getStore(serverRegistry.originServer!.id);
-  const change = vi.spyOn(store.voiceCall, 'setParticipantVolume');
+  const change = vi.spyOn(serverUi(store).voiceCall, 'setParticipantVolume');
   const bob = screen.container.querySelector<HTMLElement>('[title="Bob"]')!;
   expect(bob.querySelector('input[type="range"]')).toBeNull();
   bob.querySelector<HTMLButtonElement>('[data-testid="call-participant-menu-button"]')!.click();
@@ -155,7 +159,7 @@ it('includes volume controls in the remote user context menu', async () => {
     screen.container.querySelector('[title="Alice"] [data-testid="call-participant-menu-button"]')
   ).not.toBeNull();
   flushSync(() => {
-    store.voiceCall.connected = false;
+    serverUi(store).voiceCall.connected = false;
   });
   expect(document.querySelector('input[type="range"]')).toBeNull();
 });
@@ -176,7 +180,7 @@ it('opens the user menu and volume controls by right-clicking a media card', asy
   expect(event.defaultPrevented).toBe(true);
   await expect.poll(() => document.querySelector('[data-testid="copy-user-id"]')).not.toBeNull();
   expect(document.querySelectorAll('input[type="range"]')).toHaveLength(1);
-  const call = serverRegistry.getStore(serverRegistry.originServer!.id).voiceCall;
+  const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
   const change = vi.spyOn(call, 'setParticipantVolume');
   const input = document.querySelector<HTMLInputElement>('input[type="range"]')!;
   input.value = '60';
@@ -191,7 +195,7 @@ it.each(['sidebar', 'stage'] as const)(
       props: { layout, scenario: 'screen' }
     });
     await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
-    const call = serverRegistry.getStore(serverRegistry.originServer!.id).voiceCall;
+    const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
     const mic = vi
       .spyOn(call, 'getAudioLevel')
       .mockReturnValue({ isSpeaking: true, audioLevel: 0.5 });
@@ -242,8 +246,8 @@ it('keeps voice cards equal in height with compact direct mute controls', async 
   });
   await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
   const store = serverRegistry.getStore(serverRegistry.originServer!.id);
-  const muteRemote = vi.spyOn(store.voiceCall, 'toggleParticipantLocalMute');
-  const muteSelf = vi.spyOn(store.voiceCall, 'toggleMute').mockResolvedValue();
+  const muteRemote = vi.spyOn(serverUi(store).voiceCall, 'toggleParticipantLocalMute');
+  const muteSelf = vi.spyOn(serverUi(store).voiceCall, 'toggleMute').mockResolvedValue();
   const cards = [
     ...screen.container.querySelectorAll<HTMLElement>('[data-testid="call-participant-card"]')
   ];
@@ -272,11 +276,13 @@ it('keeps voice cards equal in height with compact direct mute controls', async 
   selfMuteButton.click();
   expect(muteSelf).toHaveBeenCalledOnce();
   flushSync(() => {
-    store.voiceCall.isMuted = true;
-    store.voiceCall.participants = store.voiceCall.participants.map((participant) => ({
-      ...participant,
-      isMuted: true
-    }));
+    serverUi(store).voiceCall.isMuted = true;
+    serverUi(store).voiceCall.participants = serverUi(store).voiceCall.participants.map(
+      (participant) => ({
+        ...participant,
+        isMuted: true
+      })
+    );
   });
   // The name stays stable; aria-pressed announces the muted state.
   expect(selfMuteButton.getAttribute('aria-label')).toBe('Mute');

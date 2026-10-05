@@ -1,5 +1,7 @@
 {
   "voice": {
+    "picture_in_picture": "Зображення в зображенні",
+    "picture_in_picture_failed": "Не вдалося змінити режим зображення в зображенні.",
     "connection_lost": "З’єднання втрачено",
     "connecting": "Підключення...",
     "joining": "Приєднання...",

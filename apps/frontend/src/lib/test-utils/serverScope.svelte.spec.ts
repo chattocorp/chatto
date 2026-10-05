@@ -58,7 +58,7 @@ describe('createTestServerScope', () => {
     let rooms = ['R1'];
     const { scope } = createTestServerScope({
       store: {
-        navigation: {
+        roomList: {
           get rooms() {
             return rooms;
           }
@@ -67,7 +67,7 @@ describe('createTestServerScope', () => {
     });
     rooms = ['R2'];
 
-    expect((scope.store.navigation as unknown as { rooms: string[] }).rooms).toEqual(['R2']);
+    expect((scope.store.roomList as unknown as { rooms: string[] }).rooms).toEqual(['R2']);
   });
 
   it('adds server info members and keeps the version check on the fixture', () => {

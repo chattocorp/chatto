@@ -1,26 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createMessageTimestampToken,
   dateToDatetimeLocalValue,
   formatRelativeMessageTimestamp,
-  localDatetimeToEpochSeconds,
-  parseMessageTimestampToken
+  localDatetimeToEpochSeconds
 } from './messageTimestamps';
 
-describe('message timestamp tokens', () => {
-  it('creates and parses exact timestamp tokens', () => {
-    expect(createMessageTimestampToken(1745764200)).toBe('<t:1745764200:F>');
-    expect(parseMessageTimestampToken('<t:1745764200:F>')).toEqual({
-      epochSeconds: 1745764200,
-      format: 'F'
-    });
-  });
-
-  it('rejects unsupported token formats', () => {
-    expect(parseMessageTimestampToken('<t:1745764200:R>')).toBeNull();
-    expect(parseMessageTimestampToken('<t:abc:F>')).toBeNull();
-  });
-
+describe('message timestamp formatting', () => {
   it('converts a zoned local date-time to Unix seconds', () => {
     expect(localDatetimeToEpochSeconds('2025-04-27T14:30', 'UTC')).toBe(1745764200);
     expect(localDatetimeToEpochSeconds('2025-04-27T16:30', 'Europe/Berlin')).toBe(1745764200);

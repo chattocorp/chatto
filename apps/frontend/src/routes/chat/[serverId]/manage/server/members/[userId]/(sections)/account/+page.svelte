@@ -5,12 +5,12 @@ Account section of a member: identity and password settings for account
 managers, and the danger zone for viewers who may delete the account.
 -->
 <script lang="ts">
-  import type { AdminMember } from '$lib/api-client/adminUsers';
+  import type { AdminMember } from '$lib/api/adminUsers';
   import {
     createUserAPI,
     type UpdateUserProfileInput,
     type UserSummary
-  } from '$lib/api-client/users';
+  } from '@chatto/client/api/users';
   import { m } from '$lib/i18n/messages';
   import { createMutation } from '$lib/query/client';
   import { Hint } from '$lib/ui';

@@ -16,7 +16,6 @@
       "remote_title": "{server} vajab sisselogimist",
       "remote_message": "See server lükkas salvestatud sisselogimise tagasi. Reaalajas värskenduste ja toimingute jätkamiseks ühendage see uuesti.",
       "remote_action": "Ühendage uuesti",
-      "remote_failed": "Ühenduse taastamine ebaõnnestus",
       "sidebar_reauth": "{server} vajab sisselogimist"
     },
     "access_denied": {

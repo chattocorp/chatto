@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { RoomKind } from '$lib/api-client/roomDirectory';
+import { RoomKind } from '@chatto/client/api/roomDirectory';
 import type { DMData, RoomData } from '$lib/hooks/useRoomData.svelte';
-import { RoomThreadingMode } from '$lib/roomThreading';
+import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 import { buildRoomPresentation } from './roomPresentation';
-import { deletedDirectMessageParticipant } from '$lib/render/users';
+import { deletedDirectMessageParticipant } from '@chatto/client/timeline/users';
 
 function roomData(overrides: Partial<RoomData> = {}): RoomData {
   return {

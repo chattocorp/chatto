@@ -9,8 +9,8 @@ import {
   removeRegisteredServerQueries,
   registerQueryCacheRemovalListener,
   registerServerQueryCacheRemovalListener
-} from './cacheRegistry';
-import { queryClient } from './client';
+} from '$lib/query/cacheRegistry';
+import { queryClient } from './queryClient';
 import { onlineManager, QueryObserver } from '@tanstack/svelte-query';
 
 describe('server query cache', () => {

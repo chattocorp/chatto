@@ -9,13 +9,13 @@ Permissions pages through `botDetailContext`.
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { onDestroy, type Snippet } from 'svelte';
-  import { createBotAPI, type Bot } from '$lib/api-client/bots';
+  import { createBotAPI, type Bot } from '@chatto/client/api/bots';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { createQuery, queryClient } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
-  import { formatAccountName } from '$lib/render/accountName';
+  import { formatAccountName } from '@chatto/client/timeline/accountName';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Hint, PageTitle, PaneContent, PaneHeader, TabNav, type TabNavItem } from '$lib/ui';
   import { errorMessage } from '$lib/utils/errorMessage';

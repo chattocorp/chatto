@@ -2,7 +2,10 @@
 
 **Date:** 2026-07-31
 
-**Updated:** 2026-09-23
+**Updated:** 2026-09-29. [ADR-111](ADR-111-move-client-state-into-chatto-client.md)
+keeps the query cache in the frontend (`$lib/query`), outside the
+`@chatto/client` package. `connectQueryCaches` purges and refreshes it at the
+boundary events of each server store, instead of calls from the store.
 
 ## Status
 
@@ -34,7 +37,7 @@ The cache has the following boundaries:
 - Every private key starts with the server ID and an opaque scope owned by the
   current `ServerConnection`. Replacing credentials or transport creates a new
   scope even when the server and user IDs are unchanged. Use
-  `serverSessionQueryRoot` from `$lib/query/keys` to make this prefix. A key
+  `serverSessionQueryRoot` from `@chatto/client/query/keys` to make this prefix. A key
   outside the prefix is not purged.
 - The query cache is memory-only. Disposing a server store removes every query
   under that server's key prefix during logout, credential replacement, and

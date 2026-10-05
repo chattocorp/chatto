@@ -114,6 +114,7 @@ test.describe('Notification policy', () => {
     await expect(unreadDot).toBeVisible({ timeout: 10_000 });
     await expect(unreadDot).toHaveClass(/bg-neutral-action/);
     await expect(roomLink.getByTestId('room-notification-badge')).not.toBeVisible();
+    await expect(roomLink.getByTestId('room-ambient-notification-badge')).not.toBeVisible();
     await notificationsPage.expectBellIndicatorNotVisible();
     await notificationsPage.goto();
     await notificationsPage.expectEmptyState();

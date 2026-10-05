@@ -5,9 +5,10 @@
   import type { Track } from 'livekit-client';
   import type { CallParticipantInfo } from '$lib/state/server/voiceCall.svelte';
   import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
-  import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
+  import { serverRegistry, serverConnectionManager } from '$lib/client';
+  import { type RegisteredServer } from '@chatto/client/server/registry';
   import { provideServerScope } from '$lib/state/server/scope.svelte';
-  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
+  import { serverUi } from '$lib/state/server/serverUi';
 
   type VoiceCallPanelProps = {
     roomId: string;
@@ -19,12 +20,15 @@
     layout = 'stage',
     scenario = 'screen',
     animateVoice = false,
-    initiallyMuted = false
+    initiallyMuted = false,
+    playableMedia = false
   }: {
     layout?: 'sidebar' | 'stage';
     scenario?: 'screen' | 'screen-voice' | 'screen-single-secondary' | 'camera' | 'voice' | 'idle';
     animateVoice?: boolean;
     initiallyMuted?: boolean;
+    /** Use a local canvas stream to exercise native media controls without a call server. */
+    playableMedia?: boolean;
   } = $props();
 
   const roomId = 'storybook-call-room';
@@ -44,15 +48,44 @@
     isCurrent: () => true
   });
   let Panel = $state<Component<VoiceCallPanelProps> | null>(null);
+  let panelVisible = $state(true);
 
   function posterTrack(svg: string): Track {
     const poster = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    const cleanups = new WeakMap<HTMLVideoElement, () => void>();
     return {
       attach(element: HTMLVideoElement) {
         element.poster = poster;
+        if (playableMedia) {
+          const canvas = document.createElement('canvas');
+          canvas.width = 640;
+          canvas.height = 360;
+          const context = canvas.getContext('2d')!;
+          let frame = 0;
+          const draw = () => {
+            context.fillStyle = '#293f50';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.fillStyle = '#ffbe2e';
+            context.fillRect((frame++ * 4) % canvas.width, 250, 80, 24);
+            context.fillStyle = '#ffffff';
+            context.font = '28px sans-serif';
+            context.fillText('Picture-in-picture preview', 40, 100);
+          };
+          draw();
+          const stream = canvas.captureStream(10);
+          element.srcObject = stream;
+          const timer = window.setInterval(draw, 100);
+          cleanups.set(element, () => {
+            window.clearInterval(timer);
+            for (const track of stream.getTracks()) track.stop();
+            element.srcObject = null;
+          });
+        }
         return element;
       },
       detach(element: HTMLVideoElement) {
+        cleanups.get(element)?.();
+        cleanups.delete(element);
         element.removeAttribute('poster');
         return element;
       }
@@ -218,14 +251,15 @@
         }
       })
     );
-    store.voiceCall.roomId = scenario === 'idle' ? null : roomId;
-    store.voiceCall.connected = scenario !== 'idle';
-    store.voiceCall.audioBoostAvailable = true;
-    store.voiceCall.connecting = false;
-    store.voiceCall.isMuted = initiallyMuted;
-    store.voiceCall.isCameraEnabled = scenario !== 'voice' && scenario !== 'screen-voice';
-    store.voiceCall.isScreenShareEnabled = scenario === 'screen';
-    store.voiceCall.participants = scenario === 'idle' ? [] : participantsForScenario();
+    const voiceCall = serverUi(store).voiceCall;
+    voiceCall.roomId = scenario === 'idle' ? null : roomId;
+    voiceCall.connected = scenario !== 'idle';
+    voiceCall.audioBoostAvailable = true;
+    voiceCall.connecting = false;
+    voiceCall.isMuted = initiallyMuted;
+    voiceCall.isCameraEnabled = scenario !== 'voice' && scenario !== 'screen-voice';
+    voiceCall.isScreenShareEnabled = scenario === 'screen';
+    voiceCall.participants = scenario === 'idle' ? [] : participantsForScenario();
   }
 
   onMount(async () => {
@@ -235,7 +269,7 @@
 
   onMount(() => {
     if (!animateVoice) return;
-    const call = serverRegistry.getStore(getScopedServerId()).voiceCall;
+    const call = serverUi(serverRegistry.getStore(getScopedServerId())).voiceCall;
     const original = call.getAudioLevel;
     const originalScreen = call.getScreenShareAudioLevel;
     call.getAudioLevel = (identity) => {
@@ -255,6 +289,20 @@
   });
 </script>
 
-{#if Panel}
+{#if playableMedia}
+  <button type="button" onclick={() => (panelVisible = !panelVisible)}>
+    {panelVisible ? 'Hide call panel' : 'Show call panel'}
+  </button>
+  <button
+    type="button"
+    onclick={() =>
+      serverUi(serverRegistry.getStore(getScopedServerId())).voiceCall.handleRoomAccessRevoked(
+        roomId
+      )}
+  >
+    End call
+  </button>
+{/if}
+{#if Panel && panelVisible}
   <Panel {roomId} livekitUrl="wss://livekit.invalid" {layout} />
 {/if}

@@ -1,7 +1,7 @@
 # FDR-003: Thread Reply Echo
 
 **Status:** Active
-**Last reviewed:** 2026-09-18
+**Last reviewed:** 2026-10-02
 
 ## Overview
 
@@ -40,6 +40,11 @@ conversation**.
   echo from the room timeline and keeps the thread reply readable. A Disabled
   room cannot gain a new echo from a historical reply, but an existing echo can
   still be removed.
+- A user with effective `message.manage` can clear the echo checkbox on
+  another author's reply, including a bot's reply. This removes only the echo.
+  Adding an echo remains author-only and requires `message.echo` and
+  `message.post`. The edit composer shows the checkbox only when the user can
+  change the existing placement. It omits unchanged echo state from the update.
 
 ## Design Decisions
 
@@ -78,15 +83,16 @@ conversation**.
 **Decision:** `alsoSendToChannel` is only valid when posting inside a thread. Sending a plain room message with the flag is rejected.
 **Why:** The feature exists to bridge thread visibility back to the room. The reverse (a room message that also shows in some thread) doesn't have a well-defined target.
 
-### 7. Echo state follows author edit permission
+### 7. Echo removal follows message management permission
 
 **Decision:** The ConnectRPC `MessageService.UpdateMessage` API can optionally
-reconcile a thread reply's channel echo state when the author can edit the
-message through the shared core message model. Effective `message.manage`
-bypasses the normal author edit window. Omitting the field preserves current
-echo state for clients that do not intend to change it and for edits by other
-users.
+reconcile a thread reply's channel echo state. The author can add or remove an
+echo while they can edit the reply. Effective `message.manage` bypasses the
+normal author edit window and permits removal of another author's echo. It does
+not permit adding another author's echo. Clients omit unchanged echo state.
 **Why:** Users often realize shortly after posting in a thread that the reply should have been visible in the room. Treating the checkbox as edit-time message state keeps the interaction aligned with the composer.
+Moderators can already delete the echo artifact without deleting the reply.
+Removing it through the checkbox must use the same management authority.
 **Tradeoff:** Echo reconciliation is not a new persisted event type; adding an echo appends the existing echo-shaped `MessagePostedEvent`, and removing one appends a normal `MessageRetractedEvent` for the echo artifact.
 
 ### 5. Reply and requested echo commit together

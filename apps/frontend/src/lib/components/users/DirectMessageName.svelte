@@ -1,7 +1,10 @@
 <!-- @component Renders each DM participant with its own account identity. -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import { buildDirectMessagePresentation, type UserAvatarUserView } from '$lib/render/users';
+  import {
+    buildDirectMessagePresentation,
+    type UserAvatarUserView
+  } from '@chatto/client/timeline/users';
   import { directMessageLabels } from '$lib/render/directMessageLabels';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
   import AccountName from './AccountName.svelte';

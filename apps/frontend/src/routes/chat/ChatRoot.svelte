@@ -1,24 +1,26 @@
 <script lang="ts">
   import { onDestroy, untrack, type Snippet } from 'svelte';
   import { resolve } from '$app/paths';
-  import { createPresenceAPI } from '$lib/api-client/presence';
-  import { createAccountAPI } from '$lib/api-client/account';
+  import { createPresenceAPI } from '@chatto/client/api/presence';
+  import { createAccountAPI } from '@chatto/client/api/account';
   import { beginOriginReauthentication } from '$lib/auth/reauth';
   import { resumeReturnNavigation } from '$lib/auth/returnNavigation';
-  import { hardRedirectAfterSignOut, isExplicitSignOutRedirectInProgress } from '$lib/auth/signOut';
+  import { isExplicitSignOutRedirectInProgress } from '@chatto/client/auth/signOut';
+  import { hardRedirectAfterSignOut } from '$lib/auth/signOutRedirect';
   import { initSessionChannel } from '$lib/auth/sessionChannel';
   import AuthStatusNotice from '$lib/components/AuthStatusNotice.svelte';
-  import PushNotificationSetup from '$lib/components/PushNotificationSetup.svelte';
   import ScreenWakeLock from '$lib/components/ScreenWakeLock.svelte';
   import WelcomeBanner from '$lib/components/WelcomeBanner.svelte';
-  import { eventBusManager } from '$lib/state/server/realtimeTransport.svelte';
-  import { initPresenceTracking } from '$lib/presenceTracking';
+  import { eventBusManager, serverRegistry, serverConnectionManager } from '$lib/client';
+  import { firstAuthenticatedServerId } from '$lib/serverCatalogue';
+  import {
+    initPresenceTracking,
+    refreshPresencePreference
+  } from '$lib/state/server/presenceTracking';
   import { serverIdToSegment } from '$lib/navigation';
   import { createDeviceTimezoneReportTracker, deviceTimezone } from '$lib/utils/deviceTimezone';
   import { idleState } from '$lib/state/idle.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
-  import { scheduleCustomStatusExpiry } from '$lib/utils/customStatusExpiry';
+  import { scheduleCustomStatusExpiry } from '@chatto/client/util/customStatusExpiry';
 
   let {
     children
@@ -60,7 +62,7 @@
       const store = serverRegistry.tryGetStore(serverId);
       if (store?.accountId !== userId || store.currentUser.verifiedUserId !== userId) return;
       serverRegistry.clearServerAuthentication(serverId);
-      const remainingServerId = serverRegistry.firstAuthenticatedServerId(serverId);
+      const remainingServerId = firstAuthenticatedServerId(serverId);
       hardRedirectAfterSignOut(
         remainingServerId
           ? resolve('/chat/[serverId]', { serverId: serverIdToSegment(remainingServerId) })
@@ -111,6 +113,17 @@
 
   const presenceTracking = initPresenceTracking(presenceReporters);
   onDestroy(() => presenceTracking.stop());
+  // Another device changed the viewer's presence choice on a server: read it again.
+  onDestroy(
+    serverRegistry.watchStores((store) =>
+      store.onUpdate((update) => {
+        if (update.event?.event.case !== 'viewerPresencePreferenceChanged') return;
+        if (store.accountId) {
+          refreshPresencePreference({ serverId: store.serverId, userId: store.accountId });
+        }
+      })
+    )
+  );
 
   $effect(() => presenceTracking.sync());
 
@@ -151,13 +164,19 @@
         });
     }
   });
+
+  // Web Push registration is not needed for the first paint. Loading it on
+  // demand keeps it out of every chat route's initial bundle.
+  const pushNotificationSetup = import('$lib/components/PushNotificationSetup.svelte');
 </script>
 
 <AuthStatusNotice />
 {#if idleState.isInAnyCall}
   <ScreenWakeLock />
 {/if}
-<PushNotificationSetup />
+{#await pushNotificationSetup then { default: PushNotificationSetup }}
+  <PushNotificationSetup />
+{/await}
 {#if verifiedOriginUserId}
   <WelcomeBanner />
 {/if}

@@ -15,7 +15,8 @@ export {
   defineAgentExtension,
   type RunlingAgent,
   runAgent,
-  type RunAgentOptions
+  type RunAgentOptions,
+  type ThinkingLevel
 } from '../agent.ts';
 export { connectAgent, type AgentConnection, type AgentConnectionOptions } from './connection.ts';
 export { taskTool } from './task-tool.ts';
@@ -31,3 +32,21 @@ export {
 } from './tasks.ts';
 
 export { runAgentConversation } from './conversation.ts';
+export {
+  createApprovalQueue,
+  approvalDecisionExtension,
+  toolApprovalGate,
+  type ApprovalAction,
+  type ApprovalRequest,
+  type ApprovalDecision,
+  type ApprovalQueue
+} from './approvals.ts';
+export {
+  authorizationGate,
+  createAuthorizationClassifier,
+  type AuthorizationClassifier,
+  type AuthorizationClassifierOptions,
+  type AuthorizationDecision,
+  type AuthorizationGateOptions,
+  type AuthorizationRequest
+} from './authorization.ts';

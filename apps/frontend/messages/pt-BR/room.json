@@ -226,8 +226,6 @@
       "in_video_call": "Em uma videochamada",
       "remove_failed": "Não foi possível remover o usuário da sala",
       "remove_success": "{name} foi removido da sala",
-      "members_load_failed": "Falha ao carregar membros da sala",
-      "members_refresh_failed": "Falha ao atualizar membros da sala",
       "search": "Pesquisar"
     },
     "pins": {

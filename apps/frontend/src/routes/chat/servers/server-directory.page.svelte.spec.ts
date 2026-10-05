@@ -1,38 +1,51 @@
 import { flushSync } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { NeighborhoodServerProfile, PublicServerInfo } from '$lib/api-client/server';
+import type { NeighborhoodServerProfile, PublicServerInfo } from '@chatto/client/api/server';
 import type { ServerDirectoryEntry } from '$lib/serverDirectory';
 
+type MockServer = {
+  id: string;
+  url: string;
+  name: string;
+  iconUrl: string | null;
+  addedAt: number;
+};
+
 const mocks = vi.hoisted(() => ({
-  servers: [] as Array<{
-    id: string;
-    url: string;
-    name: string;
-    iconUrl: string | null;
-    addedAt: number;
-  }>,
+  servers: [] as MockServer[],
+  /** Servers that the directory added. A reactive map, so the directory updates. */
+  added: null as Map<string, MockServer> | null,
   authenticated: new Set<string>(),
   loadServerDirectory: vi.fn(),
   getPublicServerInfo: vi.fn(),
-  startServerOAuthFlow: vi.fn(),
-  startServerOAuthFlowWhenReady: vi.fn(),
-  startRemoteReauthentication: vi.fn(),
+  addSignedOutServer: vi.fn(),
   toastError: vi.fn(),
-  goto: vi.fn(),
-  pageState: {} as App.PageState
+  goto: vi.fn()
 }));
 
 // Page titles are tested separately from this page's partial route/server fixtures.
-vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
-
-vi.mock('$app/state', () => ({
-  page: {
-    get state() {
-      return mocks.pageState;
+vi.mock('$lib/client', async () => {
+  const { SvelteMap } = await import('svelte/reactivity');
+  mocks.added = new SvelteMap<string, MockServer>();
+  return {
+    ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+    serverRegistry: {
+      get servers() {
+        return [...mocks.servers, ...mocks.added!.values()];
+      },
+      isAuthenticated: (serverId: string) => mocks.authenticated.has(serverId)
     }
-  }
+  };
+});
+
+// The real catalogue finds servers in the mocked registry; joining is mocked.
+vi.mock('$lib/serverCatalogue', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$lib/serverCatalogue')>()),
+  addSignedOutServer: mocks.addSignedOutServer
 }));
+
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 
 vi.mock('$lib/ui/toast', () => ({ toast: { error: mocks.toastError } }));
 
@@ -45,28 +58,14 @@ vi.mock('$lib/navigation', async (importOriginal) => {
   const actual = await importOriginal<typeof import('$lib/navigation')>();
   return { ...actual, serverIdToSegment: (serverId: string) => serverId };
 });
-vi.mock('$lib/api-client/server', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('$lib/api-client/server')>();
+vi.mock('@chatto/client/api/server', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@chatto/client/api/server')>();
   return { ...actual, getPublicServerInfo: mocks.getPublicServerInfo };
 });
 vi.mock('$lib/serverDirectory', async (importOriginal) => {
   const actual = await importOriginal<typeof import('$lib/serverDirectory')>();
   return { ...actual, loadServerDirectory: mocks.loadServerDirectory };
 });
-vi.mock('$lib/auth/reauth', () => ({
-  startServerOAuthFlow: mocks.startServerOAuthFlow,
-  startServerOAuthFlowWhenReady: mocks.startServerOAuthFlowWhenReady,
-  startRemoteReauthentication: mocks.startRemoteReauthentication
-}));
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    get servers() {
-      return mocks.servers;
-    },
-    isAuthenticated: (serverId: string) => mocks.authenticated.has(serverId)
-  }
-}));
-
 import ServerDirectory from '$lib/components/ServerDirectory.svelte';
 import Page from './+page.svelte';
 
@@ -157,18 +156,15 @@ describe('Server Directory page', () => {
     mocks.loadServerDirectory.mockReset();
     mocks.getPublicServerInfo.mockReset();
     mocks.toastError.mockReset();
-    mocks.startServerOAuthFlow.mockReset();
-    mocks.startServerOAuthFlow.mockResolvedValue(undefined);
-    mocks.pageState = {};
-    mocks.startServerOAuthFlowWhenReady.mockReset();
-    // Like the real flow, the window opens first and then waits for the profile.
-    mocks.startServerOAuthFlowWhenReady.mockImplementation(
-      async (_origin: string, serverInfo: Promise<unknown>) => {
-        await serverInfo;
+    mocks.addSignedOutServer.mockReset();
+    mocks.added?.clear();
+    mocks.addSignedOutServer.mockImplementation(
+      (url: string, { name, iconUrl }: { name: string; iconUrl: string | null }) => {
+        const id = new URL(url).hostname;
+        mocks.added!.set(id, { id, url, name, iconUrl, addedAt: Date.now() });
+        return id;
       }
     );
-    mocks.startRemoteReauthentication.mockReset();
-    mocks.startRemoteReauthentication.mockResolvedValue(undefined);
     mocks.goto.mockReset();
     mocks.goto.mockResolvedValue(undefined);
   });
@@ -316,12 +312,9 @@ describe('Server Directory page', () => {
     expect(container.textContent).toContain('Remote description');
   });
 
-  it('opens sign-in from the click and then loads current sign-in data', async () => {
+  it('adds a recommended server with its current profile and stays in the directory', async () => {
     const remoteProfile = profile('Remote');
-    let resolveProfile: (value: PublicServerInfo) => void = () => {};
-    mocks.getPublicServerInfo.mockReturnValue(
-      new Promise<PublicServerInfo>((resolveValue) => (resolveProfile = resolveValue))
-    );
+    mocks.getPublicServerInfo.mockResolvedValue(remoteProfile);
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [entry('https://remote.example', cached('Remote'))],
       failedSourceCount: 0,
@@ -341,22 +334,19 @@ describe('Server Directory page', () => {
     expect(iconAction.querySelector('.shimmer-hover.rounded-xl')).toBeTruthy();
     iconAction.click();
 
-    // The flow starts synchronously, before the current profile loads.
-    expect(mocks.startServerOAuthFlowWhenReady).toHaveBeenCalledWith(
-      'https://remote.example',
-      expect.any(Promise),
-      { replaceHistory: expect.any(Function) }
-    );
-    // The full page never replaces its own history entry.
-    expect(mocks.startServerOAuthFlowWhenReady.mock.calls[0]?.[2].replaceHistory()).toBe(false);
+    // The entry changes to the joined state, so the user cannot join it again.
+    await vi.waitFor(() => expect(button(container, 'Open')).toBeDefined());
+    expect(button(container, 'Join')).toBeUndefined();
+    expect(container.textContent).toContain('Joined');
+    expect(mocks.goto).not.toHaveBeenCalled();
     expect(mocks.getPublicServerInfo).toHaveBeenCalledWith(
       'https://remote.example',
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
-    resolveProfile(remoteProfile);
-    await expect(mocks.startServerOAuthFlowWhenReady.mock.calls[0]?.[1]).resolves.toBe(
-      remoteProfile
-    );
+    expect(mocks.addSignedOutServer).toHaveBeenCalledExactlyOnceWith('https://remote.example', {
+      name: 'Remote',
+      iconUrl: remoteProfile.iconUrl
+    });
     expect(mocks.toastError).not.toHaveBeenCalled();
   });
 
@@ -374,6 +364,7 @@ describe('Server Directory page', () => {
 
     await vi.waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith('Sign-in unavailable'));
     await vi.waitFor(() => expect(link(container, 'Open in new tab')).toBeDefined());
+    expect(mocks.addSignedOutServer).not.toHaveBeenCalled();
   });
 
   it('stops a join when the server no longer supports sign-in', async () => {
@@ -390,16 +381,16 @@ describe('Server Directory page', () => {
 
     await vi.waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith('Sign-in unavailable'));
     await vi.waitFor(() => expect(button(container, 'Sign-in unavailable')?.disabled).toBe(true));
+    expect(mocks.addSignedOutServer).not.toHaveBeenCalled();
   });
 
-  it('shows OAuth failures as a toast instead of a directory panel error', async () => {
+  it('shows a failed join as a toast instead of a directory panel error', async () => {
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [entry('https://remote.example', cached('Remote'), ['https://source.example'])],
       failedSourceCount: 0,
       sourceCount: 1
     });
-    mocks.getPublicServerInfo.mockResolvedValue(profile('Remote'));
-    mocks.startServerOAuthFlowWhenReady.mockRejectedValueOnce(new Error('Sign-in window closed'));
+    mocks.getPublicServerInfo.mockRejectedValue(new TypeError('Failed to fetch'));
     const { container } = render(Page);
     await vi.waitFor(() =>
       expect(
@@ -409,15 +400,36 @@ describe('Server Directory page', () => {
     container
       .querySelector<HTMLButtonElement>('[data-testid="server-directory-entry-icon-action"]')!
       .click();
-    await vi.waitFor(() =>
-      expect(mocks.toastError).toHaveBeenCalledWith('Failed to start sign-in.')
-    );
-    expect(container.textContent).not.toContain('Failed to start sign-in.');
+    const message = 'Could not connect. Check the URL and try again.';
+    await vi.waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith(message));
+    expect(container.textContent).not.toContain(message);
+    expect(mocks.addSignedOutServer).not.toHaveBeenCalled();
+    expect(mocks.goto).not.toHaveBeenCalled();
     expect(
       container.querySelector<HTMLButtonElement>(
         '[data-testid="server-directory-entry-icon-action"]'
       )!.disabled
     ).toBe(false);
+  });
+
+  it('shows a generic error when the server cannot be registered', async () => {
+    mocks.getPublicServerInfo.mockResolvedValue(profile('Remote'));
+    mocks.addSignedOutServer.mockImplementation(() => {
+      throw new Error('The server could not be registered.');
+    });
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [entry('https://remote.example', cached('Remote'))],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(button(container, 'Join')).toBeDefined());
+    button(container, 'Join')?.click();
+
+    await vi.waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
+    expect(mocks.toastError).toHaveBeenCalledWith('Something went wrong');
+    expect(button(container, 'Join')).toBeDefined();
   });
 
   it('hands an incompatible advertised server off to its own client', async () => {
@@ -448,8 +460,7 @@ describe('Server Directory page', () => {
     expect(iconAction.target).toBe('_blank');
     expect(iconAction.rel).toBe('noopener noreferrer');
     expect(iconAction.getAttribute('aria-label')).toBe('Open in new tab: Old server');
-    expect(mocks.startServerOAuthFlowWhenReady).not.toHaveBeenCalled();
-    expect(mocks.startServerOAuthFlow).not.toHaveBeenCalled();
+    expect(mocks.addSignedOutServer).not.toHaveBeenCalled();
   });
 
   it('opens an advertised server that is already joined', async () => {
@@ -488,7 +499,7 @@ describe('Server Directory page', () => {
     });
   });
 
-  it('keeps sign-in for an incompatible joined server without a session', async () => {
+  it('opens an incompatible joined server without a session instead of signing in', async () => {
     mocks.authenticated.clear();
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [
@@ -501,55 +512,39 @@ describe('Server Directory page', () => {
     });
 
     const { container } = render(Page);
-    await vi.waitFor(() => expect(button(container, 'Sign in')).toBeDefined());
+    await vi.waitFor(() => expect(button(container, 'Open')).toBeDefined());
     expect(link(container, 'Open in new tab')).toBeUndefined();
-    button(container, 'Sign in')?.click();
+    button(container, 'Open')?.click();
 
     await vi.waitFor(() => {
-      expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'joined' }),
-        { replaceHistory: expect.any(Function) }
-      );
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/joined', { replaceState: false });
     });
+    expect(mocks.addSignedOutServer).not.toHaveBeenCalled();
   });
 
-  it('replaces the dialog history entry when it joins or signs in to a server', async () => {
-    mocks.authenticated.clear();
+  it('keeps the dialog open after a join and replaces its history entry on open', async () => {
     mocks.getPublicServerInfo.mockResolvedValue(profile('Remote'));
     mocks.loadServerDirectory.mockResolvedValue({
-      entries: [
-        entry('https://remote.example', cached('Remote')),
-        entry('https://a.example', cached('Alpha'))
-      ],
+      entries: [entry('https://remote.example', cached('Remote'))],
       failedSourceCount: 0,
       sourceCount: 2
     });
 
-    mocks.pageState = { modal: { type: 'addServer' } };
-
     const { container } = render(ServerDirectory, { inDialog: true });
     await vi.waitFor(() => expect(button(container, 'Join')).toBeDefined());
     button(container, 'Join')?.click();
-    await vi.waitFor(() => expect(mocks.startServerOAuthFlowWhenReady).toHaveBeenCalled());
-    button(container, 'Sign in')?.click();
-    await vi.waitFor(() => expect(mocks.startRemoteReauthentication).toHaveBeenCalled());
+    await vi.waitFor(() => expect(button(container, 'Open')).toBeDefined());
+    expect(mocks.goto).not.toHaveBeenCalled();
 
-    const joinOptions = mocks.startServerOAuthFlowWhenReady.mock.calls[0]?.[2];
-    const signInOptions = mocks.startRemoteReauthentication.mock.calls[0]?.[1];
-    expect(joinOptions.replaceHistory()).toBe(true);
-    expect(signInOptions.replaceHistory()).toBe(true);
-
-    // Sign-in can finish after the user closed the dialog. The chat entry
-    // that is current then must stay in history.
-    mocks.pageState = {};
-    expect(joinOptions.replaceHistory()).toBe(false);
-    expect(signInOptions.replaceHistory()).toBe(false);
+    button(container, 'Open')?.click();
+    await vi.waitFor(() => {
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/remote.example', { replaceState: true });
+    });
   });
 
-  it('starts sign-in for a server found by address from the click', async () => {
+  it('adds a server found by address without another profile request', async () => {
     const customProfile = profile('Custom');
     mocks.getPublicServerInfo.mockResolvedValue(customProfile);
-    mocks.pageState = { modal: { type: 'addServer' } };
 
     const { container } = render(ServerDirectory, { inDialog: true });
     await enterServerAddress(container, 'custom.example');
@@ -558,14 +553,13 @@ describe('Server Directory page', () => {
 
     button(container, 'Join')?.click();
 
-    // The loaded profile is current, so the window opens without another request.
-    expect(mocks.startServerOAuthFlow).toHaveBeenCalledWith(
-      'https://custom.example',
-      customProfile,
-      { replaceHistory: expect.any(Function) }
-    );
+    await vi.waitFor(() => expect(button(container, 'Open')).toBeDefined());
+    expect(mocks.goto).not.toHaveBeenCalled();
+    expect(mocks.addSignedOutServer).toHaveBeenCalledExactlyOnceWith('https://custom.example', {
+      name: 'Custom',
+      iconUrl: customProfile.iconUrl
+    });
     expect(mocks.getPublicServerInfo).not.toHaveBeenCalled();
-    expect(mocks.startServerOAuthFlow.mock.calls[0]?.[2].replaceHistory()).toBe(true);
   });
 
   it('probes a custom address and shows the same profile card', async () => {
@@ -606,8 +600,7 @@ describe('Server Directory page', () => {
     expect(externalAction.href).toBe('https://custom.example/');
     expect(externalAction.target).toBe('_blank');
     expect(externalAction.rel).toBe('noopener noreferrer');
-    expect(mocks.startServerOAuthFlowWhenReady).not.toHaveBeenCalled();
-    expect(mocks.startServerOAuthFlow).not.toHaveBeenCalled();
+    expect(mocks.addSignedOutServer).not.toHaveBeenCalled();
   });
 
   it('shows compact recommendation provenance with the full accessible source list', async () => {

@@ -23,7 +23,7 @@ vi.mock(
   '$lib/state/server/scope.svelte',
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
 );
-vi.mock('$lib/api-client/roles', () => ({ createRoleAPI: vi.fn() }));
+vi.mock('@chatto/client/api/roles', () => ({ createRoleAPI: vi.fn() }));
 vi.mock('$lib/ui/Panel.svelte', async () => ({
   default: (await import('../[name]/RolePageSnippetMock.svelte')).default
 }));

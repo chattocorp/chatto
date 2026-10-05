@@ -10,20 +10,22 @@ const mocks = vi.hoisted(() => ({
 }));
 
 // Page titles are tested separately from this page's partial route/server fixtures.
-vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
-
-vi.mock('$lib/api-client/server', () => ({ getPublicServerInfo: mocks.getPublicServerInfo }));
-
-vi.mock('$lib/auth/reauth', () => ({
-  startRemoteReauthentication: mocks.startRemoteReauthentication
-}));
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
     isAuthenticated: (id: string) => mocks.authenticatedIds.has(id),
     get servers() {
       return mocks.servers;
     }
   }
+}));
+
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+
+vi.mock('@chatto/client/api/server', () => ({ getPublicServerInfo: mocks.getPublicServerInfo }));
+
+vi.mock('$lib/auth/reauth', () => ({
+  startRemoteReauthentication: mocks.startRemoteReauthentication
 }));
 
 const standaloneData = {

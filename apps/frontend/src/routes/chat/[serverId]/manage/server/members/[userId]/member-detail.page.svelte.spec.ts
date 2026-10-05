@@ -1,12 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import type { UserSummary } from '$lib/api-client/users';
-import type {
-  AdminMember,
-  AdminMemberDetails,
-  AdminRoleMutationResult
-} from '$lib/api-client/adminUsers';
+import type { UserSummary } from '@chatto/client/api/users';
+import type { AdminMember, AdminMemberDetails, AdminRoleMutationResult } from '$lib/api/adminUsers';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { adminQueryKeys } from '$lib/query/admin';
@@ -482,9 +478,7 @@ describe('server member detail queries', () => {
     const rendered = renderSection('permissions');
     await settle();
 
-    expect(
-      rendered.container.querySelector('[data-testid="user-permissions"]')
-    ).not.toBeNull();
+    expect(rendered.container.querySelector('[data-testid="user-permissions"]')).not.toBeNull();
   });
 
   it('denies a section that the viewer cannot use', async () => {

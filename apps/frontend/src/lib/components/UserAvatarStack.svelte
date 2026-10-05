@@ -1,6 +1,6 @@
 <!-- @component A compact stack of one or more user avatars for activity rows. -->
 <script lang="ts">
-  import type { UserAvatarUserView } from '$lib/render/users';
+  import type { UserAvatarUserView } from '@chatto/client/timeline/users';
   import UserAvatar from './UserAvatar.svelte';
 
   let {

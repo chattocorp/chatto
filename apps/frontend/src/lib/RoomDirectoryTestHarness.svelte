@@ -5,9 +5,9 @@ Test-only wrapper around `RoomDirectory`. Constructs a real command store over
 a fixture navigation view so component tests do not need a realtime transport.
 -->
 <script lang="ts">
-  import { RoomKind } from '$lib/api-client/roomDirectory';
-  import type { RoomsListItem, RoomsListGroup } from '$lib/state/server/rooms.svelte';
-  import { RoomDirectoryStore, type DirectoryRoom } from '$lib/state/server/roomDirectory.svelte';
+  import { RoomKind } from '@chatto/client/api/roomDirectory';
+  import type { RoomsListItem, RoomsListGroup } from '$lib/state/server/navigation';
+  import { RoomDirectoryStore, type DirectoryRoom } from '$lib/state/server/roomDirectory';
   import RoomDirectory from './RoomDirectory.svelte';
 
   let {

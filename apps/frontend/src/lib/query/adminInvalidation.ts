@@ -1,6 +1,6 @@
-import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
 import { adminQueryKeys } from './admin';
-import { queryClient } from './client';
+import { queryClient } from './queryClient';
 
 type AdminQueryConnection = Pick<ServerConnection, 'queryScope'>;
 

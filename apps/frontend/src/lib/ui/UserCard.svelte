@@ -8,7 +8,7 @@ Actions are siblings of that button, so controls never nest inside a button.
 -->
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
-  import { formatAccountName, type AccountNameIdentity } from '$lib/render/accountName';
+  import { formatAccountName, type AccountNameIdentity } from '@chatto/client/timeline/accountName';
   import type { Snippet } from 'svelte';
   import type { ClassValue, HTMLButtonAttributes, HTMLAttributes } from 'svelte/elements';
   import CompactActionButton from './CompactActionButton.svelte';

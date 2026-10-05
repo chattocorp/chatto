@@ -4,8 +4,11 @@ import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import MessageAttachments from './MessageAttachments.svelte';
-import { VideoProcessingStatus, type MessageAttachmentView } from '$lib/render/messageAttachments';
-import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
+import {
+  VideoProcessingStatus,
+  type MessageAttachmentView
+} from '@chatto/client/timeline/messageAttachments';
+import type { RefreshedAttachmentUrls } from '@chatto/client/attachments/attachmentUrls';
 
 const attachmentMocks = vi.hoisted(() => ({
   pushState: vi.fn(),
@@ -19,8 +22,8 @@ vi.mock('$app/navigation', () => ({
   replaceState: vi.fn()
 }));
 
-vi.mock('$lib/api-client/attachments', async (importActual) => ({
-  ...(await importActual<typeof import('$lib/api-client/attachments')>()),
+vi.mock('@chatto/client/api/attachments', async (importActual) => ({
+  ...(await importActual<typeof import('@chatto/client/api/attachments')>()),
   createAttachmentAPI: vi.fn(() => ({
     refreshAssetUrls: attachmentMocks.refreshAssetUrls
   }))

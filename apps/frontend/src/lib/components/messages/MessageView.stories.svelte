@@ -34,6 +34,21 @@
 <Story name="Deleted author" />
 <Story name="Loaded author" args={{ actor, displayName: actor.displayName }} />
 <Story
+  name="Author with custom status"
+  args={{
+    actor: { ...actor, customStatus: { emoji: '🍜', text: 'chatto:status:out_for_lunch' } },
+    displayName: actor.displayName
+  }}
+/>
+<Story
+  name="Clickable author with custom status"
+  args={{
+    actor: { ...actor, customStatus: { emoji: '🌴', text: 'On holiday' } },
+    displayName: actor.displayName,
+    onActorClick: () => {}
+  }}
+/>
+<Story
   name="Descender author"
   args={{ actor: { ...actor, displayName: 'gg' }, displayName: 'gg', body: 'Congs' }}
 />

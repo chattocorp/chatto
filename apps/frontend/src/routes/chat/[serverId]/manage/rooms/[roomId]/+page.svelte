@@ -8,10 +8,11 @@ change the settings goes to the Members section instead.
 -->
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import type { AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
-  import { createRoomCommandAPI } from '$lib/api-client/rooms';
+  import type { AdminManagedRoom } from '$lib/api/adminRoomLayout';
+  import { createRoomCommandAPI } from '@chatto/client/api/rooms';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { adminQueryKeys } from '$lib/query/admin';
@@ -81,7 +82,7 @@ change the settings goes to the Members section instead.
         }
       }
       invalidateAdminRoomLayoutQueries(variables.serverId, variables.connection, variables.roomId);
-      void serverScope.store.adminRoomLayout.refresh();
+      void serverUi(serverScope.store).adminRoomLayout.refresh();
       toast.success(m('admin.rooms_admin.room_updated'));
     },
     onError: (error, variables) => {

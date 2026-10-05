@@ -2,7 +2,7 @@
   import AccountName from '$lib/components/users/AccountName.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
-  import type { CallPresenceKind } from '$lib/state/server/activeCallRooms.svelte';
+  import type { CallPresenceKind } from '$lib/state/server/activeCallRooms';
   import { m } from '$lib/i18n/messages';
   import type { MessageReplyPreview } from './messageEventModel';
 

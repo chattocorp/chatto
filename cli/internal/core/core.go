@@ -92,6 +92,10 @@ type ChattoCore struct {
 	// OnPushTestRequested sends a test notification to a user's push subscriptions.
 	OnPushTestRequested func(ctx context.Context, userID string) error
 
+	// pushClock overrides the clock for push-subscription save times and
+	// expiry in tests. Nil means time.Now.
+	pushClock func() time.Time
+
 	// PresenceHub is the compatibility handle for PresenceModel's per-process
 	// fanout hub. Started by (*ChattoCore).Run through PresenceModel.
 	PresenceHub *PresenceHub

@@ -18,10 +18,11 @@ function fakeResearchAgent(
     for (const extension of options.extensions ?? []) {
       const factory = typeof extension === 'function' ? extension : extension.factory;
       await factory({
-        registerTool(tool) {
+        on() {},
+        registerTool(tool: { name: string }) {
           tools.set(tool.name, tool as never);
         }
-      } as AgentExtensionAPI);
+      } as unknown as AgentExtensionAPI);
     }
     return {
       async runOutcome(_ctx: unknown, prompt: string) {
@@ -76,6 +77,7 @@ test('the research agent sees only the question and has only web tools', async (
   expect(fake.prompts).toEqual([question]);
   const [options] = fake.created;
   expect(options).toMatchObject({
+    codemode: true,
     label: 'research',
     model: 'test/model',
     tools: ['webSearch', 'browsePage'],

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { AdminDurableWorkerStatus } from '$lib/api-client/adminDiagnostics';
+  import type { AdminDurableWorkerStatus } from '$lib/api/adminDiagnostics';
   import { DataTable, Panel, Pill } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
 

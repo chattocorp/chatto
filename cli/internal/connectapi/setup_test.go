@@ -86,7 +86,7 @@ func TestSetupErrorFields(t *testing.T) {
 	}{
 		{core.ErrUsernameBlocked, "login"},
 		{core.ErrLoginAlreadyTaken, "login"},
-		{core.ErrDisplayNameInvalidStart, "display_name"},
+		{core.ErrDisplayNameInvalidCharacter, "display_name"},
 		{core.ErrPasswordTooLong, "password"},
 		{core.ErrSetupUnavailable, ""},
 	} {

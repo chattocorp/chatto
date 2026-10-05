@@ -1,5 +1,6 @@
 <script lang="ts">
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { untrack } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
   import { MediaQuery } from 'svelte/reactivity';
@@ -20,7 +21,7 @@
     type RoomSidebarPresentation
   } from '$lib/state/appUi.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
+  import { MessageSearchState } from '$lib/state/server/messageSearch';
   import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
   import { userPreferences, type ThreadPanePresentation } from '$lib/state/userPreferences.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
@@ -31,6 +32,8 @@
   import { LoadingFog, PageTitle, PaneHeader, HeaderIconButton, LoadRetry } from '$lib/ui';
   import { tick } from 'svelte';
   import ConversationPane from './ConversationPane.svelte';
+  import RoomWindowLifecycle from './RoomWindowLifecycle.svelte';
+  import RoomRouteHighlight from './RoomRouteHighlight.svelte';
   import RoomSidebarPane from './RoomSidebarPane.svelte';
   import RoomSidebarToggle from './RoomSidebarToggle.svelte';
   import {
@@ -42,7 +45,7 @@
   import { RoomNavigationState } from './roomNavigationState.svelte';
   import { buildRoomPresentation } from './roomPresentation';
   import type { ThreadOpenOptions } from './threadOpenOptions';
-  import { RoomThreadingMode } from '$lib/roomThreading';
+  import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
   import { recentThreadRootCandidate } from './recentThreadRoot';
 
   let threadPaneModule: Promise<typeof import('./ThreadPane.svelte')> | null = null;
@@ -69,7 +72,7 @@
   const serverSegment = $derived(serverIdToSegment(activeServerId));
   const stores = serverScope.store;
   const roomFilesStore = $derived(stores.rooms.files(roomId));
-  const roomMessageSearchStore = $derived(stores.rooms.search(roomId));
+  const roomMessageSearchStore = $derived(serverUi(stores).roomSearch(roomId));
   const serverInfo = $derived(stores.serverInfo);
   const appUi = getAppUiState();
   const desktopRoomLayout = new MediaQuery('(min-width: 1024px)', false);
@@ -109,7 +112,7 @@
     };
   };
 
-  const navigation = new RoomNavigationState();
+  const navigation = new RoomNavigationState(serverUi(stores).pendingHighlights);
 
   function openThread(threadRootEventId: string, options: ThreadOpenOptions = {}) {
     navigation.prepareThreadOpen(roomId, threadRootEventId, options);
@@ -135,20 +138,6 @@
   const shouldHydrateRoom = $derived(
     stores.realtimeSync.isRecoveringSnapshot || (Boolean(room.roomData) && canReadMessages)
   );
-
-  $effect(() => {
-    const mountedStores = stores;
-    const selectedRoomId = roomId;
-    const hydrateRoom = shouldHydrateRoom;
-    if (hydrateRoom) untrack(() => mountedStores.restoreProjectedRoomWindow(selectedRoomId));
-    return () => {
-      // Invalidate any historical-window request before this room becomes
-      // inactive. Its late response must not replace the retained latest
-      // projection while another room is being rendered.
-      navigation.clearMainHighlight();
-      if (hydrateRoom) untrack(() => mountedStores.restoreProjectedRoomWindow(selectedRoomId));
-    };
-  });
 
   // --- Extracted hooks ---
   const roomPinsStore = $derived(
@@ -234,46 +223,10 @@
     }
   });
 
-  // Resolve the pending highlight once room data has loaded for the
-  // current roomId. Three sources, in priority order:
-  //   1. A nested thread message route (/room/thread/m/message).
-  //   2. PendingHighlightStore — set by in-app navigations (notification
-  //      clicks, message-link redirects). One-shot, consumed-on-success.
-  //   3. ?highlight= URL param — for shareable permalinks. Stripped after
-  //      consumption so a refresh doesn't re-fire it.
-  // The ConversationPane that shows the target timeline performs the jump.
-  $effect(() => {
-    if (!room.roomData) return;
-    // Room.svelte lives in +layout and is reused across roomId changes; bail
-    // until the new room's data has actually loaded.
-    if (room.roomData.room.id !== roomId) return;
-
-    const threadMessageTarget = navigation.consumeThreadMessageRoute(
-      roomId,
-      threadId,
-      routeMessageId
-    );
-    if (threadMessageTarget !== undefined) {
-      if (threadMessageTarget) applyHighlight(threadMessageTarget);
-      return;
-    }
-
-    const pending = stores.pendingHighlights.consume(roomId, threadId ?? null);
-    if (pending) {
-      applyHighlight(pending.eventId, pending.notificationId);
-      return;
-    }
-
-    const fromUrl = navigation.consumeHighlightParam(
-      roomId,
-      threadId,
-      page.url.searchParams.get('highlight')
-    );
-    if (!fromUrl) return;
-
-    applyHighlight(fromUrl);
-    void removeHighlightParam(roomId, threadId, fromUrl);
-  });
+  const highlightParam = $derived(page.url.searchParams.get('highlight'));
+  const routeHighlightKey = $derived(
+    JSON.stringify([roomId, threadId ?? null, routeMessageId ?? null, highlightParam])
+  );
 
   /**
    * Remove a consumed `?highlight=` parameter so a refresh does not repeat the
@@ -309,20 +262,15 @@
     }
   }
 
-  /** Ask the pane that shows the target timeline to jump to the message. */
-  function applyHighlight(eventId: string, notificationId: string | null = null): void {
-    navigation.beginHighlight(roomId, threadId ?? null, eventId, notificationId);
-  }
-
   // Header action visibility — flat derivations keep the template clean
   let showVoiceCall = $derived(!!room.roomData && !!serverInfo.livekitUrl);
   const messageSearchAvailable = $derived(
-    stores.messageSearch.statusError ||
-      (stores.messageSearch.statusLoaded &&
-        stores.messageSearch.status.state !== MessageSearchState.DISABLED)
+    serverUi(stores).messageSearch.statusError ||
+      (serverUi(stores).messageSearch.statusLoaded &&
+        serverUi(stores).messageSearch.status.state !== MessageSearchState.DISABLED)
   );
   $effect(() => {
-    if (stores.isAuthenticated) void stores.messageSearch.ensureStatus();
+    if (stores.isAuthenticated) void serverUi(stores).messageSearch.ensureStatus();
   });
   // Channel rooms can be left unless membership is granted by Universal policy.
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM && !room.roomData.room.isUniversal);
@@ -393,7 +341,7 @@
     roomSidebarPanelsForRoom(room.isDM, showVoiceCall, messageSearchAvailable)
   );
   const hasActiveRoomCall = $derived(
-    stores.activeCallRooms.has(roomId) || stores.voiceCall.isInCall(roomId)
+    serverUi(stores).activeCallRooms.has(roomId) || serverUi(stores).voiceCall.isInCall(roomId)
   );
   const isDesktopCallMaximized = $derived(
     activeRoomSidebarPanel === 'call' &&
@@ -454,8 +402,21 @@
   // Only an explicit open requests focus. Saved panels have no pending request.
   let focusSearchOnOpen = $state<RoomSidebarPresentation | null>(null);
 
-  beforeNavigate(() => {
+  beforeNavigate(({ to }) => {
     focusSearchOnOpen = null;
+    const highlight = navigation.highlight;
+    // A click can queue the next room's request before navigation starts.
+    // Cancel only a request for the room that this view currently owns.
+    // The main timeline stays mounted when a same-room thread opens or changes.
+    if (
+      highlight?.roomId === roomId &&
+      (to?.params?.serverId !== serverSegment ||
+        to?.params?.roomId !== highlight.roomId ||
+        (highlight.threadRootEventId !== null &&
+          (to?.params?.threadId ?? null) !== highlight.threadRootEventId))
+    ) {
+      navigation.clearHighlight(highlight);
+    }
   });
 
   function searchFocused(presentation: RoomSidebarPresentation): void {
@@ -611,6 +572,31 @@
 -->
 <PageTitle title={presentation.pageTitle} />
 
+{#if room.roomData?.room.id === roomId}
+  {#key routeHighlightKey}
+    <RoomRouteHighlight
+      {roomId}
+      {threadId}
+      messageId={routeMessageId}
+      {highlightParam}
+      {navigation}
+      onQueryConsumed={(targetRoomId, targetThreadId, eventId) =>
+        void removeHighlightParam(targetRoomId, targetThreadId, eventId)}
+    />
+  {/key}
+{/if}
+
+{#key roomId}
+  {#if shouldHydrateRoom}
+    <RoomWindowLifecycle
+      {roomId}
+      store={stores}
+      {navigation}
+      isActive={(selectedRoomId) => selectedRoomId === roomId}
+    />
+  {/if}
+{/key}
+
 {#if room.roomData !== null}
   <div
     class="flex min-h-0 min-w-0 flex-1"
@@ -660,7 +646,7 @@
           onThreadMessageSent: (threadRootEventId, event) =>
             openThread(threadRootEventId, { highlightEventId: event?.id })
         }}
-        highlight={navigation.highlightFor(roomId, null)}
+        highlight={room.roomData?.room.id === roomId ? navigation.highlightFor(roomId, null) : null}
         onHighlightComplete={(highlight) => navigation.clearHighlight(highlight)}
         onOpenThread={openThread}
         onOpenCall={openRoomCall}
@@ -772,7 +758,9 @@
             slowModeNextPostAt={room.roomData?.slowModeNextPostAt ?? null}
             slowModeBypassed={!!room.roomData?.canManageRoom ||
               !!room.roomData?.canManageOthersMessage}
-            highlight={navigation.highlightFor(roomId, threadId)}
+            highlight={room.roomData?.room.id === roomId
+              ? navigation.highlightFor(roomId, threadId)
+              : null}
             composerInput={navigation.composerInputFor(roomId, threadId)}
             presentation={threadPanePresentation}
             {threadingMode}

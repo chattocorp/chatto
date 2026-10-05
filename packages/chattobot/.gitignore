@@ -1,4 +1,5 @@
 node_modules/
+gh_app.pem
 .env
 .env.*
 !.env.example

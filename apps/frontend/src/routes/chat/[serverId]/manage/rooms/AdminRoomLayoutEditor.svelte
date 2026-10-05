@@ -10,7 +10,7 @@
     AdminSidebarLinkInfo,
     GroupReorderResult,
     RoomMoveFlushResult
-  } from '$lib/state/server/adminRoomLayout.svelte';
+  } from '$lib/state/server/adminRoomLayout';
   import {
     ConfirmDialog,
     EmptyState,
@@ -26,6 +26,7 @@
   import { flip } from 'svelte/animate';
   import { dragHandle, dragHandleZone, dndzone, type DndEvent } from 'svelte-dnd-action';
   import { m } from '$lib/i18n/messages';
+  import { errorMessage } from '$lib/utils/errorMessage';
 
   let {
     layout,
@@ -65,7 +66,9 @@
 
     const result = await layout.createGroup(name);
     if (!result.ok) {
-      toast.error(m('admin.rooms_admin.create_group_failed', { error: result.error }));
+      toast.error(
+        m('admin.rooms_admin.create_group_failed', { error: errorMessage(result.error) })
+      );
       return;
     }
     newGroupName = '';
@@ -88,7 +91,9 @@
     deleteGroupConfirmDialogVisible = false;
     deleteGroupConfirm = null;
     if (!result.ok) {
-      toast.error(m('admin.rooms_admin.delete_group_failed', { error: result.error }));
+      toast.error(
+        m('admin.rooms_admin.delete_group_failed', { error: errorMessage(result.error) })
+      );
       return;
     }
     toast.success(m('admin.rooms_admin.group_deleted'));
@@ -102,7 +107,16 @@
   function handleRoomMoveResult(result: RoomMoveFlushResult | null) {
     if (!result) return;
     if (!result.ok) {
-      for (const error of result.errors) toast.error(error);
+      for (const failure of result.failures) {
+        const error = errorMessage(failure.error);
+        toast.error(
+          failure.step === 'moveRoom'
+            ? m('admin.rooms_admin.move_room_failed', { error })
+            : failure.step === 'moveLink'
+              ? m('admin.rooms_admin.move_link_failed', { error })
+              : m('admin.rooms_admin.reorder_rooms_failed', { error })
+        );
+      }
       return;
     }
     if (result.movedCount > 0) {
@@ -116,7 +130,9 @@
 
   function handleGroupReorderResult(result: GroupReorderResult) {
     if (!result.ok) {
-      toast.error(m('admin.rooms_admin.reorder_groups_failed', { error: result.error }));
+      toast.error(
+        m('admin.rooms_admin.reorder_groups_failed', { error: errorMessage(result.error) })
+      );
     }
   }
 
@@ -168,7 +184,9 @@
     const result = await layout.unarchiveRoom(roomId);
 
     if (!result.ok) {
-      toast.error(m('admin.rooms_admin.unarchive_room_failed', { error: result.error }));
+      toast.error(
+        m('admin.rooms_admin.unarchive_room_failed', { error: errorMessage(result.error) })
+      );
     } else {
       toast.success(m('admin.rooms_admin.room_unarchived'));
     }
@@ -195,7 +213,9 @@
     const result = await layout.archiveRoom(roomId);
 
     if (!result.ok) {
-      toast.error(m('admin.rooms_admin.archive_room_failed', { error: result.error }));
+      toast.error(
+        m('admin.rooms_admin.archive_room_failed', { error: errorMessage(result.error) })
+      );
     } else {
       toast.success(m('admin.rooms_admin.room_archived'));
     }
@@ -286,10 +306,10 @@
       ? await layout.updateSidebarLink(editingLinkId, label, url)
       : linkGroupId
         ? await layout.createSidebarLink(linkGroupId, label, url)
-        : { ok: false as const, error: 'No group selected' };
+        : { ok: false as const, error: new Error('No group selected') };
 
     if (!result.ok) {
-      toast.error(m('admin.rooms_admin.save_link_failed', { error: result.error }));
+      toast.error(m('admin.rooms_admin.save_link_failed', { error: errorMessage(result.error) }));
       return;
     }
 
@@ -313,7 +333,7 @@
     deleteLinkConfirmDialogVisible = false;
     deleteLinkConfirm = null;
     if (!result.ok) {
-      toast.error(m('admin.rooms_admin.delete_link_failed', { error: result.error }));
+      toast.error(m('admin.rooms_admin.delete_link_failed', { error: errorMessage(result.error) }));
       return;
     }
     toast.success(m('admin.rooms_admin.link_deleted'));
@@ -389,7 +409,7 @@
     {#if layout.loading}
       <LoadingFog class="h-48 w-full" label={m('admin.rooms_admin.loading')} />
     {:else if layout.error}
-      <Hint tone="danger">{layout.error}</Hint>
+      <Hint tone="danger">{errorMessage(layout.error)}</Hint>
     {:else}
       {#if renderGroups.length === 0}
         <EmptyState icon="icon-[uil--layer-group]" title={m('admin.rooms_admin.empty_groups')}>

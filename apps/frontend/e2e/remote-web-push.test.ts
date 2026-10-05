@@ -208,9 +208,10 @@ function waitForRegistrationId(devtools: CDPSession, expectedScopeURL: string): 
 
 async function registerScopedWorker(page: Page, scopePath: string): Promise<string> {
   return page.evaluate(async (scope) => {
+    // Production registers the built worker as a classic script.
     const registration = await navigator.serviceWorker.register('/service-worker.js', {
       scope,
-      type: 'module'
+      type: 'classic'
     });
     if (registration.active) return registration.scope;
 

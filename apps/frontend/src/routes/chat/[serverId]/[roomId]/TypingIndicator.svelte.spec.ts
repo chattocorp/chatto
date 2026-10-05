@@ -7,7 +7,7 @@ import TypingIndicator from './TypingIndicator.svelte';
 import type { RoomMember } from '$lib/state/room';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import { UserStore } from '$lib/state/server/users.svelte';
+import { UserStore } from '@chatto/client/server/users';
 
 function member(id: string, displayName: string): RoomMember {
   return {

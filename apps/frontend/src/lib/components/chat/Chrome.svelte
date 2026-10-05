@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -12,8 +13,8 @@
   import ServerSubscriptionMarker from './ServerSubscriptionMarker.svelte';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
-  import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
-  import { serverStorageKey } from '$lib/storage/serverStorage';
+  import { MessageSearchState } from '$lib/state/server/messageSearch';
+  import { serverStorageKey } from '@chatto/client/storage/serverStorage';
   import { getAdminNavItems } from './adminNav';
   import { m } from '$lib/i18n/messages';
   import {
@@ -99,14 +100,14 @@
   const serverSupported = $derived(activeStore.serverInfo.isSupportedVersion);
   const messageSearchAvailable = $derived(
     serverSupported &&
-      (activeStore.messageSearch.statusError ||
-        (activeStore.messageSearch.statusLoaded &&
-          activeStore.messageSearch.status.state !== MessageSearchState.DISABLED))
+      (serverUi(activeStore).messageSearch.statusError ||
+        (serverUi(activeStore).messageSearch.statusLoaded &&
+          serverUi(activeStore).messageSearch.status.state !== MessageSearchState.DISABLED))
   );
 
   $effect(() => {
     if (serverSupported && activeStore.isAuthenticated)
-      void activeStore.messageSearch.ensureStatus();
+      void serverUi(activeStore).messageSearch.ensureStatus();
   });
 
   // Detect if we're on the My Threads page
@@ -134,13 +135,15 @@
   );
   const managedRoom = $derived(
     page.params.roomId
-      ? (activeStore.navigation.rooms.find((room) => room.id === page.params.roomId) ?? null)
+      ? (serverUi(activeStore).navigation.rooms.find((room) => room.id === page.params.roomId) ??
+          null)
       : null
   );
   const managedGroup = $derived(
     page.params.groupId
-      ? (activeStore.navigation.roomGroups.find((group) => group.id === page.params.groupId) ??
-          null)
+      ? (serverUi(activeStore).navigation.roomGroups.find(
+          (group) => group.id === page.params.groupId
+        ) ?? null)
       : null
   );
   const managementNavItems = $derived(

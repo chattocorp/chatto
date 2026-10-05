@@ -3,11 +3,13 @@ import { createAndLoginTestUser } from './fixtures/testUser';
 import { TIMEOUTS } from './constants';
 
 test.describe('Recent reactions', () => {
-  test('reacting with an emoji moves it to the front of the quick reactions', async ({
+  test('reaction-picker choices update immediately across rooms and reloads', async ({
     page,
     chatPage,
     roomPage
   }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
@@ -16,24 +18,30 @@ test.describe('Recent reactions', () => {
     await roomPage.sendMessage('Message 1');
     const message2 = await roomPage.sendMessage('Message 2');
 
-    // Check default quick reactions on the toolbar:
-    // first 4 slots are pinned, last 2 are fallback defaults
     const defaultReactions = await message2.getToolbarQuickReactions();
-    expect(defaultReactions).toEqual(['👍', '👋', '🤣', '🙏', '❤️', '😂']);
+    expect(defaultReactions).toEqual(['👍', '👋', '🤣', '🙏']);
 
     // React with a non-default emoji via the emoji picker
     const message1 = roomPage.getMessage('Message 1');
     await message1.reactViaEmojiPicker('check', 'white_check_mark');
     await message1.expectReaction('✅', 1);
 
-    // Now hover message2 — the checkmark should be at the first non-pinned slot (4).
-    // Pinned slots 0-3 are unchanged.
-    const updatedReactions = await message2.getToolbarQuickReactions();
-    expect(updatedReactions.slice(0, 4)).toEqual(['👍', '👋', '🤣', '🙏']);
-    expect(updatedReactions[4]).toBe('✅');
-    expect(updatedReactions).toHaveLength(6);
-    // The last fallback emoji should have been pushed off
-    expect(updatedReactions).not.toContain('😂');
+    expect(await message2.getToolbarQuickReactions()).toEqual(['👍', '👋', '🤣', '🙏', '✅']);
+    await message1.reactViaEmojiPicker('fire', 'fire');
+    await message1.expectReaction('🔥', 1);
+    expect(await message2.getToolbarQuickReactions()).toEqual(['👍', '👋', '🤣', '🙏', '🔥', '✅']);
+
+    // Destroy the first room's message consumers, then select another reaction.
+    await chatPage.enterRoom('announcements');
+    await chatPage.enterRoom('general');
+    expect(await message2.getToolbarQuickReactions()).toEqual(['👍', '👋', '🤣', '🙏', '🔥', '✅']);
+    await message1.reactViaEmojiPicker('rocket', 'rocket');
+    await message1.expectReaction('🚀', 1);
+    expect(await message2.getToolbarQuickReactions()).toEqual(['👍', '👋', '🤣', '🙏', '🚀', '🔥']);
+    await page.reload();
+    await expect(page.getByText('Message 2', { exact: true })).toBeVisible();
+    expect(await message2.getToolbarQuickReactions()).toEqual(['👍', '👋', '🤣', '🙏', '🚀', '🔥']);
+    expect(pageErrors).toEqual([]);
   });
 
   test('recent reactions persist across page reload', async ({ page, chatPage, roomPage }) => {
@@ -69,11 +77,11 @@ test.describe('Recent reactions', () => {
 
     // React with a quick reaction via the toolbar (not the emoji picker)
     const message1 = roomPage.getMessage('First message');
-    await message1.reactViaToolbar('❤️');
-    await message1.expectReaction('❤️', 1);
+    await message1.reactViaToolbar('👍');
+    await message1.expectReaction('👍', 1);
 
     // Order should remain unchanged — quick reactions don't update recency
     const reactions = await message2.getToolbarQuickReactions();
-    expect(reactions).toEqual(['👍', '👋', '🤣', '🙏', '❤️', '😂']);
+    expect(reactions).toEqual(['👍', '👋', '🤣', '🙏']);
   });
 });

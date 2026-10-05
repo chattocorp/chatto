@@ -1,4 +1,4 @@
-import type { RoomsListItem } from '$lib/state/server/rooms.svelte';
+import type { RoomsListItem } from '$lib/state/server/navigation';
 
 export type RoomRouteAccess =
   | {

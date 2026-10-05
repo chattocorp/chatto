@@ -484,6 +484,11 @@ test.describe('Notification Page Display', () => {
       browser,
       serverURL
     }) => {
+      const browserErrors: string[] = [];
+      page.on('pageerror', (error) => browserErrors.push(error.message));
+      page.on('console', (message) => {
+        if (message.type() === 'error') browserErrors.push(message.text());
+      });
       await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.enterRoom('general');
@@ -513,12 +518,22 @@ test.describe('Notification Page Display', () => {
       const secondActor = await withServerUser(
         browser!,
         serverURL,
-        async ({ user, chatPage: actorChat, roomPage: actorRoom }) => {
+        async ({ user, page: actorPage, chatPage: actorChat, roomPage: actorRoom }) => {
           await actorChat.enterRoom('general');
           if (targetKind === 'thread') await actorRoom.getMessage(rootText).openThread();
           const message = actorRoom.getMessage(messageText);
           await message.react('❤️');
           await message.expectReaction('❤️', 1);
+          if (targetKind === 'older') {
+            const roomId = await getRoomIdByNameViaConnect(actorPage, 'general');
+            // Another user adds history so the recipient's own posts do not read
+            // the reaction before its neutral badge can be clicked.
+            await postMessagesViaConnect(
+              actorPage,
+              roomId,
+              Array.from({ length: 80 }, (_, i) => `Later message ${i}`)
+            );
+          }
           return user;
         }
       );
@@ -538,16 +553,24 @@ test.describe('Notification Page Display', () => {
       await expect(notification.getByRole('img', { name: secondActor.login })).toBeVisible();
       await expect(serverNotificationBadge(page)).toHaveClass(/bg-text/);
       await expect(notificationsPage.bellIndicator).toHaveClass(/bg-text/);
-      if (targetKind === 'older') {
-        const roomId = await getRoomIdByNameViaConnect(page, 'general');
-        await postMessagesViaConnect(
-          page,
-          roomId,
-          Array.from({ length: 80 }, (_, i) => `Later message ${i}`)
-        );
-      }
       await page.reload();
       await expect(notification).toBeVisible();
+      if (targetKind !== 'thread') {
+        // Exercise the neutral room badge while Room.svelte changes rooms in place.
+        const announcementsId = await getRoomIdByNameViaConnect(page, 'announcements');
+        await page.goto(routes.room(announcementsId));
+        const badge = chatPage.roomList
+          .locator('a', { hasText: '# general' })
+          .getByTestId('room-ambient-notification-badge');
+        await expect(badge).toBeVisible();
+        await expect(badge).toHaveClass(/bg-text/);
+        await badge.click();
+        const target = roomPage.getMessage(messageText).locator;
+        await expect(target).toBeInViewport();
+        await expect(target).toHaveClass(/highlight-flash/);
+        await expect(badge).not.toBeVisible();
+        await notificationsPage.goto();
+      }
       // A grouped reaction must land on its message, including on a second visit.
       for (let visit = 0; visit < 2; visit++) {
         await notificationsPage.clickNotification(notification);
@@ -556,6 +579,7 @@ test.describe('Notification Page Display', () => {
         await expect(target).toHaveClass(/highlight-flash/);
         if (visit === 0) await notificationsPage.goto();
       }
+      expect(browserErrors).toEqual([]);
     });
   }
 });
@@ -1233,6 +1257,7 @@ test.describe('Clickable Notification Badges', () => {
   test('clicking notification badge on room name navigates to message and marks it read', async ({
     page,
     chatPage,
+    roomPage,
     browser,
     serverURL
   }) => {
@@ -1242,7 +1267,8 @@ test.describe('Clickable Notification Badges', () => {
     await chatPage.enterRoom('announcements');
 
     // User B: Mention User A in general
-    await postMentionFromServerUser(browser!, serverURL, userA, `clickable dot test ${Date.now()}`);
+    const messageText = `clickable dot test ${Date.now()}`;
+    await postMentionFromServerUser(browser!, serverURL, userA, messageText);
 
     // User A: Navigate to the server (not in general room)
     await page.goto(routes.chat);
@@ -1262,6 +1288,9 @@ test.describe('Clickable Notification Badges', () => {
     // PendingHighlightStore now (not ?highlight= URL param), so the URL is clean.
     await page.waitForURL(routes.patterns.anyRoom);
     await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
+    const target = roomPage.getMessage(messageText).locator;
+    await expect(target).toBeInViewport();
+    await expect(target).toHaveClass(/highlight-flash/);
 
     // Verify notification badge is gone (notification was marked read).
     await expect(roomNotificationBadge).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });

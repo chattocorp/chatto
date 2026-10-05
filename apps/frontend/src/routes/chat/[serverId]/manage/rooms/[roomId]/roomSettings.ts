@@ -1,5 +1,5 @@
-import type { RoomCommandAPI } from '$lib/api-client/rooms';
-import { normalizeRoomName } from '$lib/utils/roomName';
+import type { RoomCommandAPI } from '@chatto/client/api/rooms';
+import { normalizeRoomName } from '@chatto/client/util/roomName';
 
 type RoomUpdateInput = Parameters<RoomCommandAPI['updateRoom']>[0];
 

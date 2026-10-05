@@ -32,7 +32,7 @@ It shows one chronological list:
 - Read notifications stay in the same chronological list with muted styling and no unread indicator.
 - Delete permanently removes a notification from the list.
 
-Related activity is grouped by DM, room, thread, or reacted-to message. Opening a group goes to its newest unread event, or its newest event when everything in the group is read. Reading a room or thread marks covered notifications read. All notifications expire 90 days after their source activity.
+Related activity is grouped by DM, room, thread, or reacted-to message. Opening a group goes to its newest unread event, or its newest event when everything in the group is read. Reading a room or thread marks covered notifications read. Chatto reads only up to the newest message that you can see. If you open an older message, newer notifications stay unread until you scroll to them. All notifications expire 90 days after their source activity.
 
 ## Notification Policy
 
@@ -48,7 +48,7 @@ Members use a matrix to control each notification cause at server, room-group, a
 
 Direct messages, direct mentions, replies, role mentions, `@here`, and `@all` use Push notification by default. Root messages in channel rooms use Badge. Followed threads and reactions use Notification. A message that matches several causes creates one exact output per cause, so each keeps its own policy and triage identity. The client can still consolidate related activity for display.
 
-Ambient notifications, such as reactions, use a neutral badge and do not play an in-app sound. Important notifications use orange indicators and can play your selected sound.
+Ambient notifications, such as reactions, use a neutral badge and do not play an in-app sound. In the room list, a room shows its Important and Ambient notifications as two separate counts. Each count opens its newest notification. Important notifications use orange indicators and can play your selected sound.
 
 The installed app icon shows an unnumbered badge for Important unread notifications. The window title shows their total count across signed-in servers. Ambient notifications do not contribute to either indicator, even when you enable pushes for them. An Important background push can set the app icon badge when the browser runs the app's notification handler and the server includes the attention level; otherwise, the badge stays unchanged until the app can update it.
 
@@ -116,11 +116,15 @@ Use a `mailto:` or HTTPS contact URI for `vapid_subject`. Keep the private key s
 
 ## Device Behavior
 
-When at least one registered server supports push, the Notifications pane shows an action to enable push while browser permission is unset. The browser or operating system presents the choice. If the user dismisses the prompt, the action remains available. If the user denies permission, Chatto hides the action. The user can change the choice in browser or operating-system settings.
+When a signed-in server supports push and browser permission is unset, Chatto shows an invitation to enable push notifications. **Enable** opens the browser or operating-system permission prompt. **Not now**, or a dismissed prompt, hides the invitation on this device for 14 days. If the user blocks notifications, Chatto does not ask again; the user can change the choice in browser or operating-system settings.
 
-When the user grants permission, Chatto creates a separate subscription for each registered server that supports push, including remote servers. Chatto also registers servers that become eligible later. Users can review the current state, send a test notification, or find recovery guidance in notification settings. A user can have up to 16 active subscriptions on a server, and Chatto attempts every current endpoint for each push. Once any endpoint accepts a notification, Chatto does not retry the complete device set merely because another endpoint failed; this avoids repeatedly alerting healthy devices.
+Push is on for every registered server or for none of them. Each server's notification settings have one checkbox, **Push notifications on this device**. Unchecking it stops push from every server on this device; checking it turns push on again for all servers and asks the browser for permission if necessary.
 
-When a user reopens Chatto, the app refreshes the server's stored subscription for that browser. Expired subscriptions are cleaned up automatically when push providers report them as gone.
+While push is on, use **Send test notification** in a server's notification settings to check delivery to your devices.
+
+When the user grants permission, Chatto creates a separate subscription for each registered server that supports push, including remote servers. While permission is granted, Chatto also registers servers that the user adds or signs in to later, without asking again. A user can have up to 16 active subscriptions on a server, and Chatto attempts every current endpoint for each push. Once any endpoint accepts a notification, Chatto does not retry the complete device set merely because another endpoint failed; this avoids repeatedly alerting healthy devices.
+
+A server keeps a device's subscription for 180 days after the device last saved it. While the device uses Chatto, the app saves its subscriptions again when it starts, about once a day after that, and when the browser replaces a subscription. A device that does not open Chatto for 180 days stops receiving pushes until it opens Chatto again. Chatto also removes subscriptions when push providers report them as gone.
 
 Chatto sends regular notifications in a declarative-compatible Web Push format, with browser-managed display and app-badge updates where supported. User-visible pushes request high-urgency delivery so mobile push services can wake sleeping devices promptly. Its service worker preserves notification display and click compatibility for browsers that do not handle the declarative payload directly.
 
@@ -133,7 +137,7 @@ For security, Chatto connects directly only to absolute HTTPS push endpoints wit
 On iOS and iPadOS, Web Push works only for supported Home Screen web apps. Safari tabs that are not installed as an app may not receive native push.
 
 <Aside type="note">
-  In multi-server use, each remote server registers its own browser subscription under the installed app's origin and continues to use its own VAPID keys. Push traffic travels directly from that server to the browser push service; the server hosting the app does not relay it. This requires a 0.5 client and server.
+  In multi-server use, each server, including the server that hosts the app, registers its own browser subscription under the installed app's origin and continues to use its own VAPID keys. Push traffic travels directly from that server to the browser push service; the server hosting the app does not relay it. This requires a 0.5 client and server.
 </Aside>
 
 ## Operator Checklist
@@ -143,7 +147,7 @@ On iOS and iPadOS, Web Push works only for supported Home Screen web apps. Safar
 3. Keep the service worker path reachable through your proxy.
 4. Test from a normal member account, not only an owner account.
 5. Test one desktop browser and one mobile installed PWA if mobile push matters.
-6. Explain to members that push is per device and opt-in.
+6. Explain to members that push is per device and that they enable it once per device.
 
 ## Related Guides
 

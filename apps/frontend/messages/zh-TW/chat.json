@@ -27,9 +27,7 @@
         "followed_thread": "{actor} 回覆了你追蹤的討論串。",
         "new_message": "{actor} 發布了一則新訊息。",
         "activity": "{actor} 傳送了一則通知給你。"
-      },
-      "load_failed": "無法載入通知",
-      "room_load_failed": "無法載入聊天室通知"
+      }
     },
     "sign_out": {
       "title": "登出",
@@ -74,6 +72,21 @@
         "other": "{count} 則通知"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "需要升級伺服器",
+      "too_old_body": "此伺服器執行的 Chatto 版本已不再受此應用程式支援。請讓伺服器管理員升級 Chatto。",
+      "unknown_title": "未知的伺服器版本",
+      "unknown_body": "此應用程式無法辨識此伺服器的 Chatto 版本，因此無法連線。",
+      "unreachable_body": "此應用程式無法連線到此伺服器。請檢查你的網路連線，或稍後再試。",
+      "server_version": "伺服器版本",
+      "required_version": "所需版本",
+      "required_version_value": "{version} 或更新版本",
+      "check_again": "重新檢查"
+    },
+    "server_signed_out": {
+      "title": "你已登出此伺服器",
+      "body": "登入後即可在此伺服器上閱讀和傳送訊息。"
+    },
     "threads": {
       "title": "我的討論串",
       "subtitle": "你追蹤的討論串",
@@ -89,7 +102,11 @@
       "message_missing": "訊息已無法使用",
       "in_room": "位於",
       "in_room_capitalized": "位於",
-      "load_failed": "無法載入討論串"
+      "load_failed": "無法載入討論串",
+      "notifications_count": {
+        "one": "{count} 則通知",
+        "other": "{count} 則通知"
+      }
     },
     "profile": {
       "title": "個人資料",
@@ -105,6 +122,7 @@
         "inactive_note": "這些授權已儲存，但擁有者目前的權限不允許使用。",
         "read": "讀取所有訊息",
         "interactions": "讀取它建立的或被直接提及的討論串",
+        "reply_interactions": "在它發起的、被直接提及的或收到私訊的討論串中回覆",
         "post": "發布新訊息",
         "room": "#{name}",
         "group": "群組：{name}",

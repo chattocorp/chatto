@@ -1,6 +1,9 @@
 package core
 
 import (
+	"encoding/json"
+	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -10,231 +13,70 @@ import (
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 )
 
+// sharedMentionCases are the mention extraction cases that the server and the
+// bundled frontend (apps/frontend/src/lib/markdownMentions.test.ts) both run,
+// so that a message notifies exactly the handles that it shows as mentions.
+const sharedMentionCases = "../../../testdata/mentions/extraction.json"
+
 func TestExtractMentionUsernames(t *testing.T) {
-	tests := []struct {
-		name     string
-		body     string
-		expected []string
-	}{
-		{
-			name:     "no mentions",
-			body:     "Hello world!",
-			expected: nil,
-		},
-		{
-			name:     "single mention",
-			body:     "Hey @alice, how are you?",
-			expected: []string{"alice"},
-		},
-		{
-			name:     "multiple mentions",
-			body:     "@alice and @bob should check this out",
-			expected: []string{"alice", "bob"},
-		},
-		{
-			name:     "duplicate mentions deduplicated",
-			body:     "@alice said hi to @bob, and @alice replied",
-			expected: []string{"alice", "bob"},
-		},
-		{
-			name:     "mention at start",
-			body:     "@admin please help",
-			expected: []string{"admin"},
-		},
-		{
-			name:     "mention at end",
-			body:     "Thanks @helper",
-			expected: []string{"helper"},
-		},
-		{
-			name:     "mention with underscore",
-			body:     "Hey @user_name!",
-			expected: []string{"user_name"},
-		},
-		{
-			name:     "mention with hyphen",
-			body:     "Check with @first-last",
-			expected: []string{"first-last"},
-		},
-		{
-			name:     "mention with dot in username",
-			body:     "Hey @hendrik.mans check this",
-			expected: []string{"hendrik.mans"},
-		},
-		{
-			name:     "mention with dot followed by punctuation",
-			body:     "Thanks @hendrik.mans.",
-			expected: []string{"hendrik.mans"},
-		},
-		{
-			name:     "multiple dots in username",
-			body:     "@first.middle.last hello",
-			expected: []string{"first.middle.last"},
-		},
-		{
-			name:     "dot at end not captured",
-			body:     "Thanks @alice.",
-			expected: []string{"alice"},
-		},
-		{
-			name:     "mention with numbers",
-			body:     "Ask @user123 about it",
-			expected: []string{"user123"},
-		},
-		{
-			name:     "mixed case mentions",
-			body:     "@Alice and @ALICE are different extractions",
-			expected: []string{"Alice", "ALICE"},
-		},
-		{
-			name:     "email address not a mention",
-			body:     "Email me at user@example.com",
-			expected: nil, // @ preceded by alphanumeric is not a mention
-		},
-		{
-			name:     "mention followed by punctuation",
-			body:     "@alice, @bob! @charlie?",
-			expected: []string{"alice", "bob", "charlie"},
-		},
-		{
-			name:     "empty body",
-			body:     "",
-			expected: nil,
-		},
-		{
-			name:     "just at sign",
-			body:     "@ nothing here",
-			expected: nil,
-		},
-		// Additional edge cases for email false positive prevention
-		{
-			name:     "email with subdomain not a mention",
-			body:     "Contact support@mail.company.org",
-			expected: nil,
-		},
-		{
-			name:     "mention after newline",
-			body:     "Hello\n@alice check this",
-			expected: []string{"alice"},
-		},
-		{
-			name:     "mention in parentheses",
-			body:     "Ask (@bob) about it",
-			expected: []string{"bob"},
-		},
-		{
-			name:     "mention after colon",
-			body:     "CC: @charlie",
-			expected: []string{"charlie"},
-		},
-		{
-			name:     "multiple emails no mentions",
-			body:     "Email john@example.com or jane@company.org",
-			expected: nil,
-		},
-		{
-			name:     "mix of email and mention",
-			body:     "Email john@example.com or ping @alice",
-			expected: []string{"alice"},
-		},
-		{
-			name:     "mention at start of line after newline",
-			body:     "Line one\n@alice line two",
-			expected: []string{"alice"},
-		},
-		{
-			name:     "mention does not cross emphasis boundary",
-			body:     "@al*ice*",
-			expected: []string{"al"},
-		},
-		{
-			name:     "mention does not start across emphasis boundary",
-			body:     "@*alice*",
-			expected: nil,
-		},
-		{
-			name:     "underscore in mention handle survives adjacent text nodes",
-			body:     "@user_name",
-			expected: []string{"user_name"},
-		},
-		{
-			name:     "inline code mention ignored",
-			body:     "`@alice` @bob",
-			expected: []string{"bob"},
-		},
-		{
-			name:     "escaped backticks still form inline code",
-			body:     "\\`@alice\\` @bob",
-			expected: []string{"bob"},
-		},
-		{
-			name:     "mention immediately after inline code at start",
-			body:     "`cmd`@alice",
-			expected: []string{"alice"},
-		},
-		{
-			name:     "mention immediately after escaped-backtick inline code",
-			body:     "\\`cmd\\`@alice",
-			expected: []string{"alice"},
-		},
-		{
-			name:     "mention immediately after inline code after prior text",
-			body:     "see`cmd`@alice",
-			expected: []string{"alice"},
-		},
-		{
-			name:     "mention immediately after inline code after prior whitespace",
-			body:     "see `cmd`@alice",
-			expected: []string{"alice"},
-		},
-		{
-			name:     "fenced code mention ignored",
-			body:     "```\n@all\n```\n@bob",
-			expected: []string{"bob"},
-		},
-		{
-			name:     "indented code mention ignored",
-			body:     "    @alice\n@bob",
-			expected: []string{"bob"},
-		},
-		{
-			name:     "blockquote mention ignored",
-			body:     "> @alice said hi\n\n@bob replied",
-			expected: []string{"bob"},
-		},
-		{
-			name:     "outside mentions around excluded regions preserve order",
-			body:     "@alice `@bob` @charlie\n> @dora\n```\n@erin\n```\n@frank",
-			expected: []string{"alice", "charlie", "frank"},
-		},
-		{
-			name:     "unmatched backtick does not suppress mention",
-			body:     "` @alice",
-			expected: []string{"alice"},
-		},
-		{
-			name:     "literal html code tag is plain markdown text",
-			body:     "<code>@alice</code>",
-			expected: []string{"alice"},
-		},
-		{
-			name:     "backslash before mention remains mention boundary",
-			body:     "\\@alice",
-			expected: []string{"alice"},
-		},
+	data, err := os.ReadFile(sharedMentionCases)
+	if err != nil {
+		t.Fatalf("read shared mention cases: %v", err)
+	}
+	var fixture struct {
+		Cases []struct {
+			Name     string   `json:"name"`
+			Body     string   `json:"body"`
+			Mentions []string `json:"mentions"`
+		} `json:"cases"`
+	}
+	if err := json.Unmarshal(data, &fixture); err != nil {
+		t.Fatalf("decode shared mention cases: %v", err)
+	}
+	if len(fixture.Cases) == 0 {
+		t.Fatal("shared mention cases are empty")
 	}
 
+	for _, tc := range fixture.Cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			got := ExtractMentionUsernames(tc.Body)
+			if len(got) != len(tc.Mentions) || (len(got) > 0 && !slices.Equal(got, tc.Mentions)) {
+				t.Errorf("ExtractMentionUsernames(%q) = %q, want %q", tc.Body, got, tc.Mentions)
+			}
+		})
+	}
+}
+
+func TestLinkifiedURLRanges(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		want   []string
+	}{
+		{"scheme URL", "see https://example.social/@alice/1 now", []string{"https://example.social/@alice/1"}},
+		{"www URL", "www.example.com/@alice.", []string{"www.example.com/@alice"}},
+		{"bare domain with IANA TLD", "see social.5f9.de/@alice", []string{"social.5f9.de/@alice"}},
+		{"bare domain with pseudo TLD", "see social.example/@alice", nil},
+		{"unsupported scheme", "ssh://example.com/@alice", nil},
+		{"bare domain after at sign", "@alice.dev/@bob", nil},
+		{"bare domain after slash", "either/example.com", nil},
+		{"email address", "user@example.com", []string{"user@example.com"}},
+		{"bare domain with port", "example.com:8443/@alice", []string{"example.com:8443/@alice"}},
+		{"uppercase scheme", "HTTPS://example.com/@alice", []string{"HTTPS://example.com/@alice"}},
+		{"mailto", "mailto:alice@example.com", []string{"mailto:alice@example.com"}},
+		{"protocol-relative URL", "(//localhost/@alice)", []string{"//localhost/@alice)"}},
+		{"protocol-relative URL after letter", "a//example.com/@alice", nil},
+		{"protocol-relative URL with single-label host", "a //x/@alice", nil},
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ExtractMentionUsernames(tt.body)
-			if len(result) != len(tt.expected) {
-				t.Errorf("ExtractMentionUsernames(%q) = %v, want %v", tt.body, result, tt.expected)
-				return
+			source := []byte(tt.source)
+			var got []string
+			for _, r := range linkifiedURLRanges(source, 0, len(source)) {
+				got = append(got, string(source[r.start:r.end]))
 			}
-			for i := range result {
-				if result[i] != tt.expected[i] {
-					t.Errorf("ExtractMentionUsernames(%q)[%d] = %q, want %q", tt.body, i, result[i], tt.expected[i])
-				}
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("linkifiedURLRanges(%q) = %q, want %q", tt.source, got, tt.want)
 			}
 		})
 	}

@@ -1,18 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { RoomTimelineAPI } from '$lib/api-client/roomTimeline';
+import type { RoomTimelineAPI } from '@chatto/client/api/roomTimeline';
 import {
   TimelineEventKind,
   type MessagePostedPayload,
   type TimelineEventView
-} from '$lib/render/timelineEvents';
-import { PendingHighlightStore } from '$lib/state/server/pendingHighlight.svelte';
+} from '@chatto/client/timeline/timelineEvents';
+import { PendingHighlightStore } from '$lib/state/server/pendingHighlight';
 import { resolveAndRedirect } from './+page.svelte';
 
 const { goto } = vi.hoisted(() => ({ goto: vi.fn() }));
+// The store mock also carries the frontend UI state of its server.
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
+
 vi.mock('$app/navigation', () => ({ goto }));
 vi.mock('$app/state', () => ({ page: {} }));
 vi.mock('$lib/state/server/scope.svelte', () => ({ useServerScope: vi.fn() }));
-vi.mock('$lib/api-client/roomTimeline', () => ({ createRoomTimelineAPI: vi.fn() }));
+vi.mock('@chatto/client/api/roomTimeline', () => ({ createRoomTimelineAPI: vi.fn() }));
 vi.mock('$app/paths', () => ({
   resolve: (path: string, params: Record<string, string>) =>
     path.replace(/\[(\w+)\]/g, (_, key: string) => params[key])
@@ -73,25 +79,27 @@ describe('message link resolver', () => {
       `/chat/remote.example/room-1${threadId ? `/${threadId}` : ''}`,
       { replaceState: true }
     );
-    expect(highlights.consume('room-1', threadId)).toEqual({
+    expect(highlights.peek('room-1', threadId)).toEqual({
+      roomId: 'room-1',
+      threadRootEventId: threadId,
       eventId: 'message-1',
       notificationId: null
     });
-    expect(highlights.consume('room-1', threadId)).toBeNull();
+    expect(highlights.has('room-1', threadId)).toBe(true);
   });
 
   it('keeps the room highlight fallback for a missing target', async () => {
     getMessage.mockResolvedValue(null);
     await resolveAndRedirect({ getMessage }, highlights, '-', 'room-1', 'message-1');
     expect(goto).toHaveBeenCalledWith('/chat/-/room-1', { replaceState: true });
-    expect(highlights.consume('room-1', null)?.eventId).toBe('message-1');
+    expect(highlights.peek('room-1', null)?.eventId).toBe('message-1');
   });
 
   it('returns to the room without a highlight when the request fails', async () => {
     getMessage.mockRejectedValue(new Error('Request failed'));
     await resolveAndRedirect({ getMessage }, highlights, '-', 'room-1', 'message-1');
     expect(goto).toHaveBeenCalledWith('/chat/-/room-1', { replaceState: true });
-    expect(highlights.consume('room-1', null)).toBeNull();
+    expect(highlights.peek('room-1', null)).toBeNull();
   });
 
   it.each([false, true])('ignores a stale request (failure: %s)', async (fails) => {
@@ -103,7 +111,7 @@ describe('message link resolver', () => {
     });
     await resolveAndRedirect({ getMessage }, highlights, '-', 'room-1', 'message-1', () => current);
     expect(goto).not.toHaveBeenCalled();
-    expect(highlights.consume('room-1', 'message-1')).toBeNull();
-    expect(highlights.consume('room-1', null)).toBeNull();
+    expect(highlights.peek('room-1', 'message-1')).toBeNull();
+    expect(highlights.peek('room-1', null)).toBeNull();
   });
 });

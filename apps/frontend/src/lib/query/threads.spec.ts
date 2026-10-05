@@ -1,8 +1,8 @@
 import { InfiniteQueryObserver } from '@tanstack/svelte-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { FollowedThread, FollowedThreadsPage } from '$lib/api-client/threads';
+import type { FollowedThread, FollowedThreadsPage } from '@chatto/client/api/threads';
 import { queryCaches } from './cacheRegistry';
-import { queryClient } from './client';
+import { queryClient } from './queryClient';
 import {
   flattenFollowedThreads,
   nextUnreadFollowedThreadOffset,

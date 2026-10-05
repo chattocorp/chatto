@@ -161,7 +161,7 @@ For public API packages:
 - Generated public documentation and TypeScript bindings are part of the API.
   When you add a public RPC, regenerate `@chatto/api-types` and the
   documentation in the same change. Do not create a handwritten API-client
-  package. Put bundled frontend adapters in `apps/frontend/src/lib/api-client`.
+  package. Put client adapters in `packages/chatto-client/src/api`.
 
 ## Code Generation
 

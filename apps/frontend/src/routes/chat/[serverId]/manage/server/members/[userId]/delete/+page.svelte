@@ -1,11 +1,11 @@
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
-  import { formatAccountName } from '$lib/render/accountName';
+  import { formatAccountName } from '@chatto/client/timeline/accountName';
   import { onDestroy } from 'svelte';
   import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
-  import { createAdminUserManagementAPI } from '$lib/api-client/adminUsers';
+  import { createAdminUserManagementAPI } from '$lib/api/adminUsers';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { adminQueryKeys } from '$lib/query/admin';

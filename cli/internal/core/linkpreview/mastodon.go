@@ -50,11 +50,31 @@ type mastodonMediaAttachment struct {
 	PreviewURL  string `json:"preview_url"`
 	Description string `json:"description"`
 	Meta        struct {
+		// Original carries the source dimensions. Chatto uses them only as the
+		// aspect ratio, which a video thumbnail shares with its video.
 		Original struct {
 			Width  uint32 `json:"width"`
 			Height uint32 `json:"height"`
 		} `json:"original"`
 	} `json:"meta"`
+}
+
+// mastodonAttachmentImageURL returns the still image that represents a media
+// attachment in a social-post snapshot. Images use their original file. Video
+// and gifv attachments use their static preview thumbnail, so Chatto never
+// downloads the video itself. Other types, such as audio, return "".
+func mastodonAttachmentImageURL(media mastodonMediaAttachment) string {
+	switch media.Type {
+	case "image":
+		if imageURL := safeExternalURL(media.URL); imageURL != "" {
+			return imageURL
+		}
+		return safeExternalURL(media.PreviewURL)
+	case "video", "gifv":
+		return safeExternalURL(media.PreviewURL)
+	default:
+		return ""
+	}
 }
 
 type mastodonPreviewCard struct {
@@ -292,12 +312,9 @@ func (f *Fetcher) mastodonStatusSnapshot(ctx context.Context, status *mastodonSt
 	}
 
 	for _, media := range status.MediaAttachments[:min(len(status.MediaAttachments), 4)] {
-		if media.Type != "image" {
-			continue
-		}
-		imageURL := safeExternalURL(media.URL)
+		imageURL := mastodonAttachmentImageURL(media)
 		if imageURL == "" {
-			imageURL = safeExternalURL(media.PreviewURL)
+			continue
 		}
 		asset := f.downloadSocialPostImage(ctx, imageURL, budget)
 		if asset == nil {

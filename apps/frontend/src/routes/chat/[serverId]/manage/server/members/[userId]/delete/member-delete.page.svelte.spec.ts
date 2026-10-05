@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import type { AdminMember, AdminMemberDetails } from '$lib/api-client/adminUsers';
+import type { AdminMember, AdminMemberDetails } from '$lib/api/adminUsers';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { adminQueryKeys } from '$lib/query/admin';

@@ -1,117 +1,28 @@
 import { describe, expect, it } from 'vitest';
+import { PERMISSION_DEFINITIONS } from '@chatto/client/util/permissionCatalog';
 import {
-  getIncludedByPermission,
-  getIncludingPermissions,
-  getPermissionCategory,
   getPermissionCategoryLabel,
+  getPermissionDescription,
   PERMISSION_METADATA
 } from './permissions';
 
 describe('PERMISSION_METADATA', () => {
-  it('covers every current backend permission', () => {
-    expect(Object.keys(PERMISSION_METADATA).sort()).toEqual([
-      'admin.view-audit',
-      'admin.view-users',
-      'bot.create',
-      'bot.manage',
-      'call.camera',
-      'call.join',
-      'call.screenshare',
-      'call.start',
-      'call.voice',
-      'message.attach',
-      'message.echo',
-      'message.manage',
-      'message.post',
-      'message.post-in-interactions',
-      'message.post-in-thread',
-      'message.react',
-      'message.read',
-      'message.read-interactions',
-      'role.assign',
-      'role.manage',
-      'room.create',
-      'room.join',
-      'room.list',
-      'room.manage',
-      'room.remove-member',
-      'server.manage',
-      'server.manage-neighbors',
-      'user.delete-any',
-      'user.delete-self',
-      'user.invite',
-      'user.manage-accounts',
-      'user.manage-permissions'
-    ]);
-  });
-
-  it('mirrors the backend privileged-mode requirements', () => {
-    expect(
-      Object.entries(PERMISSION_METADATA)
-        .filter(([, metadata]) => metadata.privileged)
-        .map(([permission]) => permission)
-        .sort()
-    ).toEqual([
-      'admin.view-audit',
-      'admin.view-users',
-      'bot.manage',
-      'message.manage',
-      'role.assign',
-      'role.manage',
-      'room.create',
-      'room.manage',
-      'room.remove-member',
-      'server.manage',
-      'server.manage-neighbors',
-      'user.delete-any',
-      'user.invite',
-      'user.manage-accounts',
-      'user.manage-permissions'
-    ]);
-  });
-
-  it('gives every permission help text and at least one scope', () => {
+  it('gives every catalogue permission localized text', () => {
+    expect(Object.keys(PERMISSION_METADATA).sort()).toEqual(
+      Object.keys(PERMISSION_DEFINITIONS).sort()
+    );
     for (const [permission, metadata] of Object.entries(PERMISSION_METADATA)) {
+      expect(metadata.description(), permission).not.toMatch(/^rbac\./);
       expect(metadata.help(), permission).not.toMatch(/^rbac\./);
-      expect(metadata.scopes.length, permission).toBeGreaterThan(0);
+      expect(metadata.scopes, permission).toBe(PERMISSION_DEFINITIONS[permission].scopes);
     }
   });
 
-  it('does not list retired message edit/delete permissions', () => {
-    expect(PERMISSION_METADATA).not.toHaveProperty('message.edit-own');
-    expect(PERMISSION_METADATA).not.toHaveProperty('message.edit-any');
-    expect(PERMISSION_METADATA).not.toHaveProperty('message.delete-own');
-    expect(PERMISSION_METADATA).not.toHaveProperty('message.delete-any');
+  it('falls back to the ID for unknown permissions', () => {
+    expect(getPermissionDescription('future.permission')).toBe('future.permission');
   });
 
-  it('uses explicit inclusion metadata', () => {
-    const permissions = ['message.read', 'message.read-interactions', 'message.post-in-thread'];
-    expect(getIncludedByPermission(permissions, 'message.read-interactions')).toBe('message.read');
-    expect(getIncludedByPermission(permissions, 'message.read')).toBeNull();
-    expect(getIncludedByPermission(permissions, 'message.post-in-thread')).toBeNull();
-    for (const permission of ['message.post-in-thread', 'message.post-in-interactions']) {
-      expect(getIncludedByPermission(['message.post', permission], permission)).toBe(
-        'message.post'
-      );
-    }
-    expect(
-      getIncludedByPermission(
-        ['server.manage', 'server.manage-neighbors'],
-        'server.manage-neighbors'
-      )
-    ).toBe('server.manage');
-  });
-
-  it('does not derive inclusion from identifier punctuation', () => {
-    const permissions = ['server.manage', 'server.manage.neighbors'];
-    expect(getIncludingPermissions(permissions, 'server.manage.neighbors')).toEqual([]);
-    expect(getIncludingPermissions(['server.manage'], 'server.manage.neighbors')).toEqual([]);
-  });
-
-  it('uses explicit categories with a presentation-only fallback for newer IDs', () => {
-    expect(getPermissionCategory('server.manage')).toBe('server');
-    expect(getPermissionCategory('room.future-capability')).toBe('room');
-    expect(getPermissionCategory('future.permission')).toBe('other');
+  it('labels permission categories', () => {
     expect(getPermissionCategoryLabel('server')).toBe('Server');
     expect(getPermissionCategoryLabel('other')).toBe('Other');
   });

@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { testSnippet } from '$lib/test-utils';
-import { CurrentUserState, type CurrentUser } from '$lib/auth/currentUser.svelte';
+import { CurrentUserState, type CurrentUser } from '@chatto/client/auth/currentUser';
 
 const mocks = vi.hoisted(() => ({ currentUser: null as unknown as CurrentUserState }));
 vi.mock('$lib/state/server/scope.svelte', () => ({

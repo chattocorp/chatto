@@ -5,8 +5,8 @@ import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { queryClient, removeServerQueries } from '$lib/query/client';
 import { q } from '$lib/test-utils';
-import { getUserStore, resetUserStoresForTests } from '$lib/state/server/users.svelte';
-import { userProfileFixture } from '$lib/test-utils/userProfile';
+import { getUserStore, resetUserStoresForTests } from '@chatto/client/server/users';
+import { userProfileFixture } from '@chatto/client/testing/userProfile';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import RoomSidebarProfile from './RoomSidebarProfile.svelte';
 
@@ -15,7 +15,13 @@ let server: TestServerScope;
 /** The shared profile store of the fixture's server session. */
 const userStore = () => getUserStore('origin', server.scope.connection.queryScope);
 
-vi.mock('$lib/api-client/users', () => ({ createUserAPI: vi.fn() }));
+// The store mock also carries the frontend UI state of its server.
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
+
+vi.mock('@chatto/client/api/users', () => ({ createUserAPI: vi.fn() }));
 vi.mock(
   '$lib/state/server/scope.svelte',
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule

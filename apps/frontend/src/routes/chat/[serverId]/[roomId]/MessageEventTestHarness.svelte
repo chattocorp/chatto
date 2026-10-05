@@ -1,11 +1,12 @@
 <script lang="ts">
+  import { setServerUiForTests } from '$lib/state/server/serverUi';
   import { untrack } from 'svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+  import type { ServerConnection } from '@chatto/client/server/serverConnection';
   import { provideServerScope } from '$lib/state/server/scope.svelte';
-  import type { ServerStateStore } from '$lib/state/server/store.svelte';
-  import { UserStore } from '$lib/state/server/users.svelte';
-  import type { TimelineEventView } from '$lib/render/timelineEvents';
+  import type { ServerStateStore } from '@chatto/client/server/store';
+  import { UserStore } from '@chatto/client/server/users';
+  import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
   import {
     createComposerContext,
     createMentionRoles,
@@ -18,7 +19,9 @@
   import MessageUserOverlays from './MessageUserOverlays.svelte';
   import { MessageUserInteractionState } from './messageUserInteractions.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
-  import { RoomThreadingMode } from '$lib/roomThreading';
+  import MessageActionOverlays from './MessageActionOverlays.svelte';
+  import { MessageActionOverlayState } from './messageActionOverlayState.svelte';
+  import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 
   let {
     event,
@@ -35,7 +38,8 @@
     pinStatus = null,
     showMessage = true,
     threadingMode = RoomThreadingMode.ENABLED,
-    onOpenThread
+    onOpenThread,
+    actionOverlays = new MessageActionOverlayState()
   }: {
     event: TimelineEventView;
     userStore?: UserStore;
@@ -52,6 +56,8 @@
     showMessage?: boolean;
     threadingMode?: RoomThreadingMode;
     onOpenThread?: OpenThreadHandler;
+    /** The timeline's message action overlays, as `EventList` provides them. */
+    actionOverlays?: MessageActionOverlayState;
   } = $props();
 
   const connection = {} as ServerConnection;
@@ -61,7 +67,6 @@
     notifications: { hasThreadNotification: () => false },
     readViews: { covers: () => false },
     serverInfo: { messageEditWindowSeconds: 31_536_000 },
-    activeCallRooms: { getParticipantCallPresence: () => null },
     viewerUser: { id: 'viewer', login: 'viewer', settings: undefined },
     viewerId: 'viewer',
     permissions: { canStartDMs: false },
@@ -73,6 +78,7 @@
       })
     }
   } as unknown as ServerStateStore;
+  setServerUiForTests(store, { activeCallRooms: { getParticipantCallPresence: () => null } });
 
   provideServerScope({
     get serverId() {
@@ -106,6 +112,14 @@
   }));
   provideUserProfiles(() => users);
 
+  // Like EventList, the host's event resolves to null as soon as the overlay closes.
+  const overlayEvent = $derived(actionOverlays.current?.eventId === event.id ? event : null);
+  // Like EventList: an overlay closes when its message leaves the timeline.
+  $effect(() => {
+    if (actionOverlays.current && actionOverlays.current.eventId !== event.id)
+      untrack(() => actionOverlays.close());
+  });
+
   const messageStore = {
     ensureEvent: () => undefined,
     getEventById: () => undefined,
@@ -120,10 +134,26 @@
     {roomId}
     {permalinkThreadRootEventId}
     messageStore={messageStore as never}
+    {actionOverlays}
     {threadingMode}
     {onOpenThread}
     onOpenUser={(user, anchorRect) => userInteractions.showUser(user, anchorRect)}
   />
+{/if}
+
+<!-- Like EventList: the overlay host stays while the message is in the timeline. -->
+{#if overlayEvent}
+  {#key overlayEvent.id}
+    <MessageActionOverlays
+      overlays={actionOverlays}
+      event={overlayEvent}
+      {roomId}
+      {permalinkThreadRootEventId}
+      messageStore={messageStore as never}
+      {onOpenThread}
+      {threadingMode}
+    />
+  {/key}
 {/if}
 
 <MessageUserOverlays
@@ -139,3 +169,4 @@
 <output data-testid="active-reply-target">
   {composerContext.replyState.messageEventId ?? ''}
 </output>
+<output data-testid="active-reply-excerpt">{composerContext.replyState.excerpt}</output>

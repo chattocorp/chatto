@@ -366,8 +366,20 @@ func accessTokenPresentationForSession(session RenewableSession) AuthTokenPresen
 	return AuthTokenPresentationBearer
 }
 
+// loadRenewableSession reads the session authority through the stream leader.
+// Rotation, revocation, and every read-modify-write of the record need the
+// latest committed revision; a lagging replica would make a valid refresh
+// look unknown or reused.
 func (c *ChattoCore) loadRenewableSession(ctx context.Context, sessionID string) (RenewableSession, jetstream.KeyValueEntry, error) {
-	entry, err := c.storage.runtimeStateKV.Get(ctx, c.renewableSessionKey(sessionID))
+	return c.loadRenewableSessionWith(ctx, sessionID, authoritativeCredentialRead)
+}
+
+// loadRenewableSessionWith reads and decodes the session authority. A fast
+// read can return an older revision and removes nothing; do not use its entry
+// for an update.
+func (c *ChattoCore) loadRenewableSessionWith(ctx context.Context, sessionID string, read credentialRead) (RenewableSession, jetstream.KeyValueEntry, error) {
+	key := c.renewableSessionKey(sessionID)
+	entry, err := read.get(ctx, c.storage.runtimeStateKV, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return RenewableSession{}, nil, ErrRefreshTokenNotFound
@@ -376,35 +388,44 @@ func (c *ChattoCore) loadRenewableSession(ctx context.Context, sessionID string)
 	}
 	var session RenewableSession
 	if err := json.Unmarshal(entry.Value(), &session); err != nil || session.UserID == "" || session.ExpiresAt.IsZero() {
-		_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(sessionID))
+		read.discard(ctx, c.storage.runtimeStateKV, entry)
 		return RenewableSession{}, nil, ErrRefreshTokenNotFound
 	}
 	return session, entry, nil
 }
 
+// validateRenewableSession loads the latest session authority through the
+// stream leader and checks that it is still usable.
 func (c *ChattoCore) validateRenewableSession(ctx context.Context, sessionID string, now time.Time) (RenewableSession, jetstream.KeyValueEntry, error) {
-	session, entry, err := c.loadRenewableSession(ctx, sessionID)
+	return c.validateRenewableSessionWith(ctx, sessionID, now, authoritativeCredentialRead)
+}
+
+// validateRenewableSessionWith applies expiry, OAuth client policy, and auth
+// generation to the session that read returns.
+func (c *ChattoCore) validateRenewableSessionWith(ctx context.Context, sessionID string, now time.Time, read credentialRead) (RenewableSession, jetstream.KeyValueEntry, error) {
+	session, entry, err := c.loadRenewableSessionWith(ctx, sessionID, read)
 	if err != nil {
 		return RenewableSession{}, nil, err
 	}
+	reject := func() (RenewableSession, jetstream.KeyValueEntry, error) {
+		read.discard(ctx, c.storage.runtimeStateKV, entry)
+		return RenewableSession{}, nil, ErrRefreshTokenNotFound
+	}
 	session = clampLoopbackSessionWindow(session)
 	if !now.Before(session.ExpiresAt) {
-		_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
-		return RenewableSession{}, nil, ErrRefreshTokenNotFound
+		return reject()
 	}
 	if session.Kind == AuthTokenKindOAuthAccessToken {
 		if err := c.RequireOAuthClientAllowed(ctx, session.ClientID); err != nil {
 			if errors.Is(err, ErrOAuthClientBlocked) {
-				_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
-				return RenewableSession{}, nil, ErrRefreshTokenNotFound
+				return reject()
 			}
 			return RenewableSession{}, nil, err
 		}
 	}
 	if err := c.RequireAuthenticationAllowed(ctx, session.UserID, session.AuthGeneration); err != nil {
 		if errors.Is(err, ErrAuthenticationRevoked) {
-			_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
-			return RenewableSession{}, nil, ErrRefreshTokenNotFound
+			return reject()
 		}
 		return RenewableSession{}, nil, err
 	}

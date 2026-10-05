@@ -175,7 +175,7 @@ User-triggered RBAC events are audit facts as well as state facts, so their even
 ### 9. Defaults are one-time initialization, not startup policy
 
 **Decision:** Apply the current server default set only when the durable RBAC stream is empty. New groups and ordinary rooms store no default decisions. Commit a channel room and any exceptional default decisions in one atomic EVT batch: fresh announcements rooms deny `message.post` to `everyone` and allow it for `admin`. Do not reset existing permission state during startup. A new permission that
-gates an existing capability gets a one-time upgrade grant (ADR-110):
+gates an existing capability gets a one-time upgrade grant (ADR-113):
 
 - Initialize each missing server-level `everyone` call permission once. Any
   historical grant, deny, or clear of that decision prevents it.
@@ -245,5 +245,5 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 
 ## Related
 
-- **ADRs:** ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override and explicit catalog inclusion), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (request-time authorization with aggregate OCC), ADR-096 (session-scoped privileged mode), ADR-105 (privileged mode gates the owner override), ADR-110 (one-time upgrade grants for new permissions)
+- **ADRs:** ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override and explicit catalog inclusion), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (request-time authorization with aggregate OCC), ADR-096 (session-scoped privileged mode), ADR-105 (privileged mode gates the owner override), ADR-113 (one-time upgrade grants for new permissions)
 - **FDRs:** Every FDR that mentions a permission depends on this one; see also FDR-012 (Notifications), FDR-038 (Bot Accounts), FDR-039 (Message Access & Interactions), and FDR-046 (Privileged Mode).

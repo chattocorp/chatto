@@ -30,7 +30,8 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "clean": "rm -rf dist src/chatto"
+    "clean": "rm -rf dist src/chatto",
+    "check": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@bufbuild/protobuf": "1.10.1"

@@ -10,6 +10,7 @@
     "sourceMap": true,
     "strict": true,
     "moduleResolution": "bundler",
+    "customConditions": ["@chatto/source"],
     "types": ["vidstack/global/player"]
   }
   // Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias

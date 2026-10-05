@@ -75,6 +75,12 @@ class MockIntersectionObserver implements IntersectionObserver {
 }
 
 // Page titles are tested separately from this page's partial route/server fixtures.
+// The store mock also carries the frontend UI state of its server.
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
+
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 
 vi.mock('$app/state', () => ({
@@ -118,10 +124,9 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   })
 }));
 
-vi.mock('$lib/api-client/adminEventLog', async () => {
-  const actual = await vi.importActual<typeof import('$lib/api-client/adminEventLog')>(
-    '$lib/api-client/adminEventLog'
-  );
+vi.mock('$lib/api/adminEventLog', async () => {
+  const actual =
+    await vi.importActual<typeof import('$lib/api/adminEventLog')>('$lib/api/adminEventLog');
   return {
     ...actual,
     createAdminEventLogAPI: () => ({
@@ -283,9 +288,10 @@ describe('server admin event log filters', () => {
     );
 
     const { container } = render(EventLogPage);
-    await settle();
-
-    expect(container.textContent?.match(/Friday, January 2/g)).toHaveLength(1);
+    // Wait for the rows: the page resolves the query over several microtasks.
+    await vi.waitFor(() =>
+      expect(container.textContent?.match(/Friday, January 2/g)).toHaveLength(1)
+    );
     expect(container.textContent?.match(/Thursday, January 1/g)).toHaveLength(1);
   });
 });

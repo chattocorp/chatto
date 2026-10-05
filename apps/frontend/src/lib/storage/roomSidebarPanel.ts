@@ -1,5 +1,5 @@
-import type { Codec } from './slot';
-import { serverStorageKey } from './serverStorage';
+import type { Codec } from '@chatto/client/storage/slot';
+import { serverStorageKey } from '@chatto/client/storage/serverStorage';
 
 export const ROOM_SIDEBAR_PANELS = ['members', 'search', 'files', 'pins', 'call'] as const;
 

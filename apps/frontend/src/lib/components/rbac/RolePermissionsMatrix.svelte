@@ -13,7 +13,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   import { Hint } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard } from '$lib/state/server/sessionGuard.svelte';
-  import { createPermissionAPI } from '$lib/api-client/permissions';
+  import { createPermissionAPI } from '@chatto/client/api/permissions';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
   import {
@@ -31,7 +31,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   import { invalidateRolePermissionDependents } from '$lib/query/adminInvalidation';
 
   import { mergePermissionPages } from './permissionPages';
-  import type { PermissionScopePage } from '$lib/api-client/permissions';
+  import type { PermissionScopePage } from '@chatto/client/api/permissions';
 
   type Matrix = MatrixData & { page: PermissionScopePage; roleName: string };
 

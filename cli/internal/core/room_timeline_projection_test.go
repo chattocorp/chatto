@@ -601,7 +601,7 @@ func TestRoomTimeline_MessageBodyLifecycleRejectsLegacyLateBody(t *testing.T) {
 	if got := p.AllObsoleteBodyEventSeqs(); !slices.Equal(got, []uint64{1, 3, 5}) {
 		t.Fatalf("AllObsoleteBodyEventSeqs after late body = %v, want [1 3 5]", got)
 	}
-	if got := bodyStateForTest(p, "ENV-M1").active; got {
+	if got := bodyStateForTest(p, "ENV-M1").active(); got {
 		t.Fatal("late body reference remained active after retraction")
 	}
 	if got := p.CurrentRoomAttachmentMessages("R1"); len(got) != 0 {
@@ -640,7 +640,7 @@ func TestRoomTimeline_SnapshotPreservesBodyLifecycle(t *testing.T) {
 	if body, retracted, ok := restored.LatestBodyReference("ENV-M1"); body.StreamSeq != 0 || !retracted || !ok {
 		t.Fatalf("LatestBody after restore = (%v, %v, %v), want retracted", body, retracted, ok)
 	}
-	if got := bodyStateForTest(restored, "ENV-M1").active; got {
+	if got := bodyStateForTest(restored, "ENV-M1").active(); got {
 		t.Fatal("restored snapshot retained an active late body reference after retraction")
 	}
 	if got := restored.CurrentRoomAttachmentMessages("R1"); len(got) != 0 {
@@ -1220,8 +1220,8 @@ func TestRoomTimeline_IgnoredRoomEventsDoNotRetainIdempotencyIDs(t *testing.T) {
 	if got := p.RoomEventCount("R1"); got != 0 {
 		t.Fatalf("RoomEventCount after ignored events = %d, want 0", got)
 	}
-	if got := len(p.byEventID); got != 0 {
-		t.Fatalf("byEventID after ignored events = %d, want 0", got)
+	if got := p.eventIDs.len(); got != 0 {
+		t.Fatalf("event IDs after ignored events = %d, want 0", got)
 	}
 }
 

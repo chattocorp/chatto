@@ -105,10 +105,8 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveCustomStatus: () => null
 }));
 
-vi.mock('$lib/api-client/adminUsers', async () => {
-  const actual = await vi.importActual<typeof import('$lib/api-client/adminUsers')>(
-    '$lib/api-client/adminUsers'
-  );
+vi.mock('$lib/api/adminUsers', async () => {
+  const actual = await vi.importActual<typeof import('$lib/api/adminUsers')>('$lib/api/adminUsers');
   return {
     ...actual,
     createAdminUserManagementAPI: () => ({

@@ -6,32 +6,27 @@
  * still treated as a notification trigger rather than authoritative app state.
  */
 
-import { createPushNotificationAPI } from '$lib/api-client/pushNotifications';
-import type { PushNotificationAPI } from '$lib/api-client/pushNotifications';
-import { isBackendCapableOrigin } from '$lib/runtimeOrigin';
-import {
-  NOTIFICATION_CLICK_ACK_MESSAGE_TYPE,
-  NOTIFICATION_CLICK_MESSAGE_TYPE
-} from '$lib/pwa/notificationClick.worker';
-import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
-import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { createPushNotificationAPI } from '$lib/api/pushNotifications';
+import type { PushNotificationAPI } from '$lib/api/pushNotifications';
+import { isBackendCapableOrigin } from '@chatto/client/util/runtimeOrigin';
+import { serverConnectionManager, serverRegistry } from '$lib/client';
+import { SvelteMap } from 'svelte/reactivity';
 import {
   completePushRegistrationRefresh,
+  disablePushRegistrationOnDevice,
+  enablePushRegistrationOnDevice,
   enqueuePushRegistration,
   hasDurablePushCoordinationStorage,
   isPushRegistrationSuspended,
   onPushRegistrationRefresh,
   pendingPushRegistrationRefresh,
   requestPushRegistrationRefresh,
-  resumePushRegistration,
   shouldInvalidateCancelledPushRegistration,
-  suspendPushRegistration,
-  suspendPushRegistrationBeforeLeaving
+  suspendPushRegistrationBeforeLeaving,
+  takeLegacyDisabledPushRegistration
 } from './pushRegistrationCoordinator';
-
-type EnsureRegisteredOptions = {
-  prompt: boolean;
-};
+import { notificationPermission } from './pushPermission.svelte';
+import { pushDeviceOptOut } from './pushDeviceOptOut.svelte';
 
 export type PushRegistrationTarget = {
   serverId: string;
@@ -55,7 +50,53 @@ type StandaloneNavigator = Navigator & {
 };
 
 const serviceWorkerScriptPath = '/service-worker.js';
-const remotePushScopePrefix = '/__chatto/push/';
+const pushScopePrefix = '/__chatto/push/';
+
+/**
+ * The production worker is one classic script, which also runs in browsers
+ * without module service workers. The development server serves the worker
+ * as an ES module.
+ */
+const serviceWorkerType: WorkerType = import.meta.env.DEV ? 'module' : 'classic';
+
+/**
+ * How long a successful save stays current before this page saves the
+ * subscription again. The server expires a subscription 180 days after its
+ * most recent save, so daily refreshes keep every device in use active.
+ */
+export const PUSH_REGISTRATION_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+type SavedRegistration = {
+  userId: string;
+  vapidPublicKey: string;
+  /** Browser push endpoint that the save stored on the server. */
+  endpoint: string;
+  savedAt: number;
+};
+
+/** Why a refresh saves a server's subscription. Logged for debugging. */
+type RefreshReason =
+  | 'requested-by-another-tab'
+  | 'first-save-in-page'
+  | 'account-changed'
+  | 'vapid-key-changed'
+  | 'refresh-interval-elapsed'
+  | 'browser-subscription-changed';
+
+/**
+ * The most recent successful save for each server in this page. Reactive, so
+ * settings can show when a server stores this device's subscription.
+ */
+const savedRegistrations = new SvelteMap<string, SavedRegistration>();
+/**
+ * Technical reason of the latest failed save for each server in this page,
+ * recorded only while permission is granted. The browser's push service or
+ * the server can reject a subscription. Reactive, so settings can explain the
+ * failure.
+ */
+const failedRegistrations = new SvelteMap<string, string>();
+/** Servers that a refresh in this page is saving now. */
+const refreshesInFlight = new Set<string>();
 let enableAllInFlight: Promise<EnablePushOnAllServersResult> | null = null;
 
 function isIosBrowserContext(): boolean {
@@ -114,9 +155,9 @@ export function isBrowserWebPushRuntime(): boolean {
 
 /**
  * Get the service worker registration that owns a server's push subscription.
- * The origin server retains the historical root registration. Remote servers
- * use stable narrow scopes so each can bind a subscription to its own VAPID
- * key without changing which worker controls the application page.
+ * Every server, including the origin server, uses a stable narrow scope. Each
+ * scope binds a subscription to that server's own VAPID key, and push does not
+ * depend on the root registration that owns the offline application shell.
  */
 async function getServiceWorkerRegistration(
   serverId: string,
@@ -137,16 +178,11 @@ async function lookupServiceWorkerRegistration(
     return null;
   }
 
-  if (serverRegistry.isOriginServer(serverId)) {
-    if (options.create) return await navigator.serviceWorker.ready;
-    return await findExactServiceWorkerRegistration(window.location.origin + '/');
-  }
-
   const server = serverRegistry.getServer(serverId);
   if (!server) return null;
 
   const scopeKey = await stableScopeKey(new URL(server.url).origin);
-  const scope = `${remotePushScopePrefix}${scopeKey}/`;
+  const scope = `${pushScopePrefix}${scopeKey}/`;
   if (!options.create) {
     return await findExactServiceWorkerRegistration(
       new URL(scope, window.location.origin).toString()
@@ -154,10 +190,21 @@ async function lookupServiceWorkerRegistration(
   }
   const registration = await navigator.serviceWorker.register(serviceWorkerScriptPath, {
     scope,
-    type: 'module'
+    type: serviceWorkerType
   });
   await waitForActiveWorker(registration);
   return registration;
+}
+
+/**
+ * Earlier versions stored the origin server's subscription on the root
+ * registration. Returns that registration so its subscription can be retired.
+ */
+async function findLegacyOriginRegistration(
+  serverId: string
+): Promise<ServiceWorkerRegistration | null> {
+  if (!('serviceWorker' in navigator) || !serverRegistry.isOriginServer(serverId)) return null;
+  return findExactServiceWorkerRegistration(window.location.origin + '/');
 }
 
 async function findExactServiceWorkerRegistration(
@@ -202,52 +249,74 @@ async function waitForActiveWorker(registration: ServiceWorkerRegistration): Pro
   });
 }
 
-/**
- * Get the current push subscription, if any.
- */
-export async function getSubscription(serverId: string): Promise<PushSubscription | null> {
-  const registration = await getServiceWorkerRegistration(serverId, { create: false });
-  if (!registration) {
-    return null;
+/** Looks up a server's subscriptions for a privacy boundary and preserves browser errors. */
+async function getSubscriptionsForCleanup(serverId: string): Promise<PushSubscription[]> {
+  const registrations = [
+    await lookupServiceWorkerRegistration(serverId, { create: false }),
+    await findLegacyOriginRegistration(serverId)
+  ];
+  const subscriptions: PushSubscription[] = [];
+  for (const registration of registrations) {
+    const subscription = await registration?.pushManager.getSubscription();
+    if (subscription) subscriptions.push(subscription);
   }
-
-  try {
-    return await registration.pushManager.getSubscription();
-  } catch {
-    return null;
-  }
-}
-
-/** Looks up a subscription for a privacy boundary and preserves browser errors. */
-async function getSubscriptionForCleanup(serverId: string): Promise<PushSubscription | null> {
-  const registration = await lookupServiceWorkerRegistration(serverId, { create: false });
-  if (!registration) return null;
-  return registration.pushManager.getSubscription();
+  return subscriptions;
 }
 
 /**
- * Check if push notifications are currently subscribed.
+ * Whether this page saved the current browser subscription for the account on
+ * a server. Reactive.
  */
-export async function isSubscribed(serverId: string): Promise<boolean> {
-  const subscription = await getSubscription(serverId);
-  return subscription !== null;
+export function hasSavedPushRegistration(serverId: string, userId: string | null): boolean {
+  const saved = savedRegistrations.get(serverId);
+  return saved !== undefined && saved.userId === userId;
 }
 
-/** Sends a real Web Push notification to this browser's current subscription. */
-export async function sendTestNotification(serverId: string): Promise<boolean> {
+/**
+ * The technical reason why the latest save of this page for a server failed,
+ * or null. Reactive. The reason comes from the browser or the server and is
+ * not translated.
+ */
+export function pushRegistrationFailure(serverId: string): string | null {
+  return failedRegistrations.get(serverId) ?? null;
+}
+
+/** Formats a browser or transport error for a technical failure reason. */
+function technicalReason(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const name = 'name' in error ? String(error.name) : 'Error';
+    return `${name}: ${String(error.message)}`;
+  }
+  return String(error);
+}
+
+/**
+ * Asks a server to send a test notification to the account's registered
+ * devices. Rejects with the server's error, for example when the account
+ * sends tests too often.
+ */
+export function sendTestNotification(serverId: string): Promise<boolean> {
   return pushAPI(serverId).sendTestNotification();
 }
 
+/**
+ * The browser's notification permission, or null when this browser cannot
+ * use Web Push. The value is reactive and follows changes made outside this
+ * page.
+ */
 export function getPermission(): NotificationPermission | null {
   if (!isSupported()) {
     return null;
   }
-  return Notification.permission;
+  return notificationPermission.current;
 }
 
-/** Return authenticated servers that can accept this client's Web Push route. */
+/**
+ * Return authenticated servers that can accept this client's Web Push route,
+ * or none while the user turned push off on this device. Reactive.
+ */
 export function getPushRegistrationTargets(): PushRegistrationTarget[] {
-  if (!isBrowserWebPushRuntime()) return [];
+  if (!isBrowserWebPushRuntime() || pushDeviceOptOut.current) return [];
 
   return serverRegistry.servers.flatMap((server) => {
     const store = serverRegistry.tryGetStore(server.id);
@@ -266,8 +335,11 @@ export function getPushRegistrationTargets(): PushRegistrationTarget[] {
 }
 
 /**
- * Ask for notification permission directly from a user interaction, then
- * register every eligible server.
+ * Turn push on for this device: clear the device-wide opt-out, ask for
+ * notification permission, then register every eligible server. This is the
+ * only place where Chatto asks the browser for notification permission. Call
+ * it from the click handler of an explicit Enable action: browsers accept the
+ * request only during a user interaction.
  *
  * The permission request must happen before registration enters its async
  * coordination queue. Some browsers require the call itself to retain the
@@ -288,6 +360,10 @@ export function enablePushOnAllServers(): Promise<EnablePushOnAllServersResult> 
 }
 
 async function enablePushOnAllServersOnce(): Promise<EnablePushOnAllServersResult> {
+  if (pushDeviceOptOut.current) {
+    enablePushRegistrationOnDevice();
+    pushDeviceOptOut.changed();
+  }
   if (getPushRegistrationTargets().length === 0) {
     return { permission: getPermission(), registrations: [] };
   }
@@ -295,11 +371,11 @@ async function enablePushOnAllServersOnce(): Promise<EnablePushOnAllServersResul
   let permission = getPermission();
   if (permission === 'default') {
     try {
-      permission = await Notification.requestPermission();
+      await Notification.requestPermission();
     } catch (error) {
       console.error('Failed to request notification permission:', error);
-      permission = getPermission();
     }
+    permission = notificationPermission.refresh();
   }
 
   // The server list can change while the browser or operating system displays
@@ -315,42 +391,104 @@ async function enablePushOnAllServersOnce(): Promise<EnablePushOnAllServersResul
   const registrations = await Promise.all(
     targets.map(async (target): Promise<PushRegistrationResult> => {
       try {
-        return {
-          ...target,
-          registered: await ensureRegistered(target.serverId, target.vapidPublicKey, {
-            prompt: true
-          })
-        };
+        // An explicit Enable may create a browser subscription even after an
+        // automatic attempt failed in this page.
+        return { ...target, registered: await ensureRegistered(target, { manual: true }) };
       } catch (error) {
         console.error('Failed to enable push notifications:', error);
-        return {
-          ...target,
-          registered: false
-        };
+        return { ...target, registered: false };
       }
     })
   );
   return { permission, registrations };
 }
 
-/** Refresh every configured server after permission or worker lifecycle changes. */
-export async function refreshPushSubscriptions(targets?: PushRegistrationTarget[]): Promise<void> {
-  if (enableAllInFlight) {
-    await enableAllInFlight;
-    // Eligibility can change while explicit activation is in progress. Read
-    // the registry again so the change is not lost behind the shared request.
-    targets = getPushRegistrationTargets();
+/**
+ * Returns why a server's subscription must be saved now, or null when the
+ * save from this page is still current.
+ */
+async function refreshReason(
+  target: PushRegistrationTarget,
+  requestId: string | null,
+  now: number
+): Promise<RefreshReason | null> {
+  // A failed save leaves the reason below in place, so the next check tries
+  // again. After a failed browser subscribe, `subscribeInBrowser` creates no
+  // new browser subscriptions automatically; retries only save again.
+  if (requestId) return 'requested-by-another-tab';
+  const saved = savedRegistrations.get(target.serverId);
+  if (!saved) return 'first-save-in-page';
+  if (saved.userId !== target.userId) return 'account-changed';
+  if (saved.vapidPublicKey !== target.vapidPublicKey) return 'vapid-key-changed';
+  if (now - saved.savedAt >= PUSH_REGISTRATION_REFRESH_INTERVAL_MS) {
+    return 'refresh-interval-elapsed';
   }
+  // The browser can drop or replace a subscription, for example when the
+  // user revokes and grants permission again. A local lookup finds this
+  // without a server request.
+  if ((await currentBrowserEndpoint(target.serverId)) !== saved.endpoint) {
+    return 'browser-subscription-changed';
+  }
+  return null;
+}
+
+async function currentBrowserEndpoint(serverId: string): Promise<string | null> {
+  const registration = await getServiceWorkerRegistration(serverId, { create: false });
+  try {
+    return (await registration?.pushManager.getSubscription())?.endpoint ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Saves one server's subscription again at once, also after a recent failure.
+ * For an explicit user retry; automatic refreshes back off after failures.
+ */
+export async function retryPushRegistration(serverId: string): Promise<boolean> {
+  if (getPermission() !== 'granted') return false;
+  const target = getPushRegistrationTargets().find((candidate) => candidate.serverId === serverId);
+  return target ? ensureRegistered(target, { manual: true }) : false;
+}
+
+/**
+ * Saves the subscription of every eligible server whose save from this page
+ * is missing or out of date. It never asks for permission: it does nothing
+ * until the browser has granted notification permission. A server that
+ * becomes eligible later, for example after it is added, is saved on the
+ * next call.
+ */
+export async function refreshPushSubscriptions(): Promise<void> {
+  if (enableAllInFlight) await enableAllInFlight;
   if (getPermission() !== 'granted') return;
 
+  const now = Date.now();
   await Promise.all(
-    (targets ?? getPushRegistrationTargets()).map(async ({ serverId, vapidPublicKey }) => {
+    getPushRegistrationTargets().map(async (target) => {
+      const requestId = pendingPushRegistrationRefresh(target.serverId);
+      // Startup, focus, and reactive updates often arrive together. One save
+      // per server at a time is enough.
+      if (refreshesInFlight.has(target.serverId)) return;
+      refreshesInFlight.add(target.serverId);
       try {
-        const requestId = pendingPushRegistrationRefresh(serverId);
-        const registered = await ensureRegistered(serverId, vapidPublicKey, { prompt: false });
-        if (registered && requestId) completePushRegistrationRefresh(serverId, requestId);
+        const reason = await refreshReason(target, requestId, now);
+        if (!reason) return;
+
+        console.debug('[push] Refreshing push subscription', {
+          serverId: target.serverId,
+          reason
+        });
+        const registered = await ensureRegistered(target);
+        console.debug('[push] Push subscription refresh finished', {
+          serverId: target.serverId,
+          reason,
+          registered
+        });
+        if (registered && requestId) completePushRegistrationRefresh(target.serverId, requestId);
       } catch (error) {
         console.error('Failed to refresh push notifications:', error);
+      } finally {
+        refreshesInFlight.delete(target.serverId);
       }
     })
   );
@@ -359,11 +497,9 @@ export async function refreshPushSubscriptions(targets?: PushRegistrationTarget[
 onPushRegistrationRefresh((serverId, requestId) => {
   const target = getPushRegistrationTargets().find((candidate) => candidate.serverId === serverId);
   if (!target) return;
-  void ensureRegistered(target.serverId, target.vapidPublicKey, { prompt: false }).then(
-    (registered) => {
-      if (registered) completePushRegistrationRefresh(serverId, requestId);
-    }
-  );
+  void ensureRegistered(target).then((registered) => {
+    if (registered) completePushRegistrationRefresh(serverId, requestId);
+  });
 });
 
 /** Creates a 128-bit capability that identifies one server save generation. */
@@ -390,58 +526,132 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
 }
 
 /**
- * Ensure the current browser push subscription is stored on the server.
- * Browser/OS permission is the user-facing source of truth. When permission is
- * already granted, this refreshes the server-side delivery cache without
- * prompting the user.
+ * The latest failed browser subscribe in this page session, or null. Chrome
+ * keeps a push service registration for every failed attempt and refuses new
+ * ones once a profile holds about 1,000; it then reports "push service error".
+ * After any failure, automatic saves create no new browser subscriptions for
+ * any server until a manual retry creates one or the page reloads. Saves of
+ * an existing browser subscription continue, because they create no
+ * registration.
  */
-export function ensureRegistered(
+let browserSubscribeFailure: unknown = null;
+/** Serializes browser subscribe calls so that one failure stops the others. */
+let browserSubscribeTail: Promise<unknown> = Promise.resolve();
+
+/** Creates a browser subscription, one at a time across all servers. */
+function subscribeInBrowser(
   serverId: string,
-  vapidPublicKey: string,
-  options: EnsureRegisteredOptions
+  signal: AbortSignal,
+  registration: ServiceWorkerRegistration,
+  applicationServerKey: Uint8Array<ArrayBuffer>,
+  manual: boolean
+): Promise<PushSubscription | null> {
+  const operation = browserSubscribeTail.then(async () => {
+    // Work cancelled while it waited for its turn creates no subscription.
+    if (isPushRegistrationSuspended(serverId, signal)) return null;
+    if (browserSubscribeFailure && !manual) throw browserSubscribeFailure;
+    try {
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey
+      });
+      browserSubscribeFailure = null;
+      return subscription;
+    } catch (error) {
+      browserSubscribeFailure = error;
+      throw error;
+    }
+  });
+  browserSubscribeTail = operation.catch(() => undefined);
+  return operation;
+}
+
+/**
+ * Ensure the current browser push subscription is stored on the server.
+ * Browser/OS permission is the user-facing source of truth. This never asks
+ * for permission; without a granted permission it returns false. Saves for
+ * one server run one after another.
+ *
+ * @param options.manual - An explicit user retry. It may create a browser
+ *   subscription even after the browser's push service failed in this page.
+ */
+export async function ensureRegistered(
+  target: PushRegistrationTarget,
+  options: { manual?: boolean } = {}
 ): Promise<boolean> {
-  if (options.prompt) resumePushRegistration(serverId);
-  return enqueuePushRegistration(serverId, (signal) =>
-    ensureRegisteredOnce(serverId, vapidPublicKey, options, signal)
-  );
+  const saved = { endpoint: null as string | null, failure: 'Unknown failure' };
+  let registered = false;
+  try {
+    registered = await enqueuePushRegistration(target.serverId, (signal) =>
+      ensureRegisteredOnce(
+        target.serverId,
+        target.vapidPublicKey,
+        signal,
+        options.manual === true,
+        {
+          saved: (endpoint) => {
+            saved.endpoint = endpoint;
+          },
+          failed: (reason) => {
+            saved.failure = reason;
+          }
+        }
+      )
+    );
+  } catch (error) {
+    saved.failure = technicalReason(error);
+    throw error;
+  } finally {
+    if (registered && saved.endpoint) {
+      savedRegistrations.set(target.serverId, {
+        userId: target.userId,
+        vapidPublicKey: target.vapidPublicKey,
+        endpoint: saved.endpoint,
+        savedAt: Date.now()
+      });
+      failedRegistrations.delete(target.serverId);
+    } else if (!isPushRegistrationSuspended(target.serverId) && getPermission() === 'granted') {
+      // Leaving the server and missing permission are not failures.
+      failedRegistrations.set(target.serverId, saved.failure);
+    }
+  }
+  return registered;
 }
 
 async function ensureRegisteredOnce(
   serverId: string,
   vapidPublicKey: string,
-  options: EnsureRegisteredOptions,
-  signal: AbortSignal
+  signal: AbortSignal,
+  manual: boolean,
+  report: { saved: (endpoint: string) => void; failed: (reason: string) => void }
 ): Promise<boolean> {
   if (!isSupported()) {
     console.warn('Push notifications not supported');
     return false;
   }
 
-  let permission = Notification.permission;
-  if (permission === 'default') {
-    if (!options.prompt) {
-      return false;
-    }
-    permission = await Notification.requestPermission();
-    if (isPushRegistrationSuspended(serverId, signal)) return false;
-  }
-
-  if (permission !== 'granted') {
-    console.warn('Notification permission denied');
+  if (Notification.permission !== 'granted') {
     return false;
   }
 
-  const registration = await getServiceWorkerRegistration(serverId, { create: true });
+  let registration: ServiceWorkerRegistration | null;
+  try {
+    registration = await lookupServiceWorkerRegistration(serverId, { create: true });
+  } catch (error) {
+    console.error('Failed to register the push service worker:', error);
+    report.failed(technicalReason(error));
+    return false;
+  }
   if (isPushRegistrationSuspended(serverId, signal)) return false;
   if (!registration) {
     console.error('No service worker registration');
+    report.failed('No service worker registration');
     return false;
   }
 
   let subscription: PushSubscription | null = null;
   let subscriptionAuth: string | null = null;
   let cleanupToken: string | null = null;
-  let createdSubscription = false;
   let api: PushNotificationAPI | null = null;
 
   try {
@@ -467,11 +677,14 @@ async function ensureRegisteredOnce(
     }
 
     if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey
-      });
-      createdSubscription = true;
+      subscription = await subscribeInBrowser(
+        serverId,
+        signal,
+        registration,
+        applicationServerKey,
+        manual
+      );
+      if (!subscription) return false;
       if (isPushRegistrationSuspended(serverId, signal)) {
         if (shouldInvalidateCancelledPushRegistration(serverId)) {
           await invalidateSubscription(serverId, subscription);
@@ -484,6 +697,7 @@ async function ensureRegisteredOnce(
     const json = subscription.toJSON();
     if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
       console.error('Invalid push subscription');
+      report.failed('Invalid push subscription');
       return false;
     }
     subscriptionAuth = json.keys.auth;
@@ -522,20 +736,25 @@ async function ensureRegisteredOnce(
     }
 
     if (!saved.subscribed) {
+      // Keep the browser subscription: the next check saves it again without
+      // creating another push service registration.
       console.error('Failed to save push subscription');
-      if (createdSubscription) {
-        await invalidateSubscription(serverId, subscription);
-      }
+      report.failed('The server did not save the subscription');
       return false;
     }
 
+    report.saved(subscription.endpoint);
+    await retireLegacyOriginSubscription(serverId, subscription.endpoint);
     return true;
   } catch (error) {
     console.error('Failed to subscribe to push:', error);
+    report.failed(technicalReason(error));
+    // A failed save keeps the browser subscription, so the next check saves it
+    // again without creating another push service registration. Cancelled
+    // work still removes what it may have stored.
     const cancelled = isPushRegistrationSuspended(serverId, signal);
-    const activeSuspension = shouldInvalidateCancelledPushRegistration(serverId);
     if (subscription) {
-      if (activeSuspension || (!cancelled && createdSubscription)) {
+      if (shouldInvalidateCancelledPushRegistration(serverId)) {
         await invalidateSubscription(serverId, subscription);
       } else if (cancelled && api) {
         if (subscriptionAuth && cleanupToken) {
@@ -594,34 +813,58 @@ async function invalidateSubscription(
 }
 
 /**
- * Subscribe to push notifications after an explicit user action.
- *
- * @param vapidPublicKey - The server's VAPID public key
- * @returns true if subscription was successful
+ * Removes the origin server's subscription from the root registration that
+ * earlier versions used, after the scoped subscription is saved. Best-effort:
+ * the push service also reports the retired endpoint as gone, and the server
+ * then removes it.
  */
-export async function subscribe(serverId: string, vapidPublicKey: string): Promise<boolean> {
-  return ensureRegistered(serverId, vapidPublicKey, { prompt: true });
+async function retireLegacyOriginSubscription(
+  serverId: string,
+  currentEndpoint: string
+): Promise<void> {
+  try {
+    const registration = await findLegacyOriginRegistration(serverId);
+    const legacy = await registration?.pushManager.getSubscription();
+    if (!legacy || legacy.endpoint === currentEndpoint) return;
+    await invalidateSubscription(serverId, legacy);
+  } catch {
+    // A later save tries again.
+  }
+}
+
+/** Whether the user turned push notifications off on this device. Reactive. */
+export function isPushDisabledOnThisDevice(): boolean {
+  return pushDeviceOptOut.current;
 }
 
 /**
- * Unsubscribe from push notifications.
- * This will:
- * 1. Unsubscribe from the browser's push service
- * 2. Remove the subscription from the server
- *
- * @returns true if unsubscription was successful
+ * Turn push off on this device for every server. Registration stops in every
+ * tab at once; then each server's browser subscription and server record are
+ * removed. Rejects when the opt-out cannot be stored or a server's delivery
+ * to this device could not be stopped.
  */
-export async function unsubscribe(serverId: string): Promise<boolean> {
-  let result = false;
-  await suspendPushRegistration(serverId, async () => {
-    const cleanup = await beginUnsubscribe(serverId);
-    result = cleanup.removedFromBrowser && (await cleanup.removeFromServer);
-  });
-  return result;
+export async function disablePushOnAllServers(): Promise<void> {
+  savedRegistrations.clear();
+  failedRegistrations.clear();
+  try {
+    await disablePushRegistrationOnDevice(
+      serverRegistry.servers.map((server) => server.id),
+      async (serverId) => {
+        const cleanup = await beginUnsubscribe(serverId);
+        if (!cleanup.removedFromBrowser && !(await cleanup.removeFromServer)) {
+          throw new Error('Push delivery could not be stopped for a server');
+        }
+      }
+    );
+  } finally {
+    pushDeviceOptOut.changed();
+  }
 }
 
 /** Establishes a local or server-side delivery fence before navigation. */
 export function unsubscribeBeforeLeaving(serverId: string): Promise<void> {
+  savedRegistrations.delete(serverId);
+  failedRegistrations.delete(serverId);
   return suspendPushRegistrationBeforeLeaving(serverId, async () => {
     const cleanup = await beginUnsubscribe(serverId);
     if (cleanup.removedFromBrowser) {
@@ -639,35 +882,42 @@ async function beginUnsubscribe(serverId: string): Promise<{
   removeFromServer: Promise<boolean>;
 }> {
   const api = pushAPI(serverId);
-  const subscription = await getSubscriptionForCleanup(serverId);
-  if (!subscription) {
+  const subscriptions = await getSubscriptionsForCleanup(serverId);
+  if (subscriptions.length === 0) {
     return { removedFromBrowser: true, removeFromServer: Promise.resolve(true) };
   }
   if (!shouldInvalidateCancelledPushRegistration(serverId)) {
     return { removedFromBrowser: true, removeFromServer: Promise.resolve(true) };
   }
 
-  let removedFromBrowser = false;
-  try {
-    removedFromBrowser = await subscription.unsubscribe();
-  } catch (error) {
-    console.error('Failed to unsubscribe from browser push:', error);
+  let removedFromBrowser = true;
+  for (const subscription of subscriptions) {
+    try {
+      removedFromBrowser = (await subscription.unsubscribe()) && removedFromBrowser;
+    } catch (error) {
+      console.error('Failed to unsubscribe from browser push:', error);
+      removedFromBrowser = false;
+    }
   }
 
   if (!shouldInvalidateCancelledPushRegistration(serverId)) {
     return { removedFromBrowser, removeFromServer: Promise.resolve(true) };
   }
 
-  const removeFromServer = api.unsubscribe(subscription.endpoint).then(
-    (removed) => {
-      if (!removed) console.error('Failed to remove push subscription from server');
-      return removed;
-    },
-    (error) => {
-      console.error('Failed to remove push subscription from server:', error);
-      return false;
-    }
-  );
+  const removeFromServer = Promise.all(
+    subscriptions.map((subscription) =>
+      api.unsubscribe(subscription.endpoint).then(
+        (removed) => {
+          if (!removed) console.error('Failed to remove push subscription from server');
+          return removed;
+        },
+        (error) => {
+          console.error('Failed to remove push subscription from server:', error);
+          return false;
+        }
+      )
+    )
+  ).then((results) => results.every(Boolean));
   return { removedFromBrowser, removeFromServer };
 }
 
@@ -681,34 +931,10 @@ function pushAPI(serverId: string) {
   return serverConnectionManager.getClient(serverId).getAPI(createPushNotificationAPI);
 }
 
-/**
- * Listen for notification-click messages from the service worker.
- * The SW posts these instead of calling `WindowClient.navigate()` so the
- * SPA can route via `goto()` (client-side navigation, no full reload).
- */
-export function onNotificationClick(callback: (url: string) => void | Promise<void>): () => void {
-  if (!('serviceWorker' in navigator)) {
-    return () => {};
-  }
-
-  const handler = (event: MessageEvent) => {
-    if (
-      event.data?.type === NOTIFICATION_CLICK_MESSAGE_TYPE &&
-      typeof event.data.url === 'string'
-    ) {
-      const responsePort = event.ports[0];
-      void (async () => {
-        try {
-          await callback(event.data.url);
-          responsePort?.postMessage({ type: NOTIFICATION_CLICK_ACK_MESSAGE_TYPE });
-        } catch {
-          // Leave the service worker unacknowledged so it can fall back to
-          // WindowClient.navigate() after its timeout.
-        }
-      })();
-    }
-  };
-
-  navigator.serviceWorker.addEventListener('message', handler);
-  return () => navigator.serviceWorker.removeEventListener('message', handler);
+// Earlier versions turned push off for single servers. Push is now on for all
+// servers or none, so an earlier opt-out turns push off on the whole device.
+if (takeLegacyDisabledPushRegistration()) {
+  void disablePushOnAllServers().catch((error: unknown) => {
+    console.error('Failed to turn push off after an earlier opt-out:', error);
+  });
 }

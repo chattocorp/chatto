@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
+  import {
+    TimelineEventKind,
+    type TimelineEventView
+  } from '@chatto/client/timeline/timelineEvents';
   import { getComposerContext } from '$lib/state/room';
 
   let {

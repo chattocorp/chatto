@@ -8,10 +8,7 @@
 
 import { APP_BADGE_REFRESH_MESSAGE_TYPE, updateAppBadge } from '$lib/notifications/appBadge';
 import { build, version } from '$service-worker';
-import {
-  routeNotificationClick,
-  type NotificationClickClients
-} from '$lib/pwa/notificationClick.worker';
+import { routeNotificationClick } from '$lib/pwa/notificationClick.worker';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -270,19 +267,20 @@ async function refreshVisibleAppBadges(): Promise<void> {
  */
 self.addEventListener('push', (event) => {
   const declarativeNotification = (event as PushEventWithDeclarativeNotification).notification;
-  let payload: DeclarativePushPayload;
+  // Subscriptions promise to show a notification for every push. An unreadable
+  // push still shows a generic notification instead of the browser's own
+  // "updated in the background" fallback.
+  let payload: DeclarativePushPayload = {};
   if (event.data) {
     try {
       payload = event.data.json() as DeclarativePushPayload;
     } catch {
       console.error('Failed to parse push payload');
-      return;
     }
   } else if (declarativeNotification) {
     payload = declarativePayloadFromEventNotification(declarativeNotification);
   } else {
     console.warn('Push event received with no data or declarative notification');
-    return;
   }
 
   const notification = normalizePushNotification(payload);
@@ -300,9 +298,9 @@ self.addEventListener('push', (event) => {
 
 /**
  * Handle notification clicks.
- * Prefer postMessage to an already-open client so the SPA can route via
- * `goto()` (no full reload). Fall back to `WindowClient.navigate()` or
- * `openWindow()` when no client is open or messaging fails.
+ * Send the click to an already-open client so the SPA can route via `goto()`
+ * (no full reload). See `routeNotificationClick` for the window order and the
+ * fallback to a new window.
  */
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
@@ -310,12 +308,7 @@ self.addEventListener('notificationclick', (event) => {
   const rawUrl =
     typeof event.notification.data?.url === 'string' ? event.notification.data.url : undefined;
   event.waitUntil(
-    routeNotificationClick(
-      rawUrl,
-      self.location.origin,
-      self.clients as unknown as NotificationClickClients,
-      { logger: console }
-    ).catch((err) => {
+    routeNotificationClick(rawUrl, self.location.origin, self.clients).catch((err) => {
       console.error('[SW] Error handling notification click:', err);
     })
   );

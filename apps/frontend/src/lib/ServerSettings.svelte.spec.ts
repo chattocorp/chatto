@@ -29,7 +29,7 @@ vi.mock(
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
 );
 
-vi.mock('$lib/api-client/serverState', () => mocks);
+vi.mock('@chatto/client/api/serverState', () => mocks);
 
 let server: TestServerScope;
 

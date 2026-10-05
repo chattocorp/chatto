@@ -8,7 +8,7 @@ Include this component once at the root layout level.
 -->
 <script lang="ts">
   import { updated } from '$app/state';
-  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
+  import { serverConnectionManager } from '$lib/client';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
 

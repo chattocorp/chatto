@@ -15,7 +15,7 @@ export async function completeOriginAuthentication(): Promise<boolean> {
     typeof window === 'undefined'
       ? null
       : window.location.pathname + window.location.search + window.location.hash;
-  const { serverRegistry } = await import('$lib/state/server/registry.svelte');
+  const { serverRegistry } = await import('$lib/client');
   const origin = serverRegistry.originServer;
   if (origin) serverRegistry.getStore(origin.id).currentUser.reset();
   await invalidateAll();

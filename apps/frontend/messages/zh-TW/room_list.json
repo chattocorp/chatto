@@ -8,6 +8,8 @@
     "call_participants": "通話中有 {count} 位參與者",
     "go_to_notifications": "前往 {count} 則通知",
     "notifications": "{count} 則通知",
+    "go_to_other_notifications": "前往其他 {count} 則通知",
+    "other_notifications": "其他 {count} 則通知",
     "unread_messages": "未讀訊息",
     "go_to_dm_notifications": "前往 {count} 則私人訊息通知",
     "new_direct_messages": "{count} 則新私人訊息",

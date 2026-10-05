@@ -100,9 +100,11 @@
           <span
             >{run.source === 'web'
               ? 'Started from web'
-              : run.source === 'source'
-                ? `Source ${run.sourceName ?? run.webhook}`
-                : `Webhook /${run.webhook}`}</span
+              : run.source === 'cli'
+                ? 'Started with runling run'
+                : run.source === 'source'
+                  ? `Source ${run.sourceName ?? run.webhook}`
+                  : `Webhook /${run.webhook}`}</span
           >
           <time datetime={new Date(run.startedAt).toISOString()}
             >{new Date(run.startedAt).toLocaleString()}</time

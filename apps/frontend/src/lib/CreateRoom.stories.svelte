@@ -10,11 +10,11 @@
 </script>
 
 <script lang="ts">
-  import type { RoomCommandAPI } from '$lib/api-client/rooms';
-  import { RoomThreadingMode } from '$lib/roomThreading';
+  import type { RoomCommandAPI } from '@chatto/client/api/rooms';
+  import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
   import { provideServerScope } from '$lib/state/server/scope.svelte';
-  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-  import type { ServerStateStore } from '$lib/state/server/store.svelte';
+  import type { ServerConnection } from '@chatto/client/server/serverConnection';
+  import type { ServerStateStore } from '@chatto/client/server/store';
   import { Button } from '$lib/ui/form';
 
   let visible = $state(false);

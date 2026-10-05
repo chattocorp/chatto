@@ -226,8 +226,6 @@
       "in_video_call": "正在视频通话",
       "remove_failed": "无法将用户移出聊天室",
       "remove_success": "已将 {name} 移出聊天室",
-      "members_load_failed": "加载聊天室成员失败",
-      "members_refresh_failed": "刷新聊天室成员失败",
       "search": "搜索"
     },
     "pins": {

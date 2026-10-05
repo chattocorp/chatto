@@ -7,17 +7,17 @@ owner reassignment and deletion actions.
 <script lang="ts">
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
   import AccountName from '$lib/components/users/AccountName.svelte';
-  import { accountNameToken } from '$lib/render/accountName';
+  import { accountNameToken } from '@chatto/client/timeline/accountName';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { createBotAPI } from '$lib/api-client/bots';
+  import { createBotAPI } from '@chatto/client/api/bots';
   import {
     createUserAPI,
     type UpdateUserProfileInput,
     type UserSummary
-  } from '$lib/api-client/users';
+  } from '@chatto/client/api/users';
   import { CopyId, Panel, ConfirmDialog, FormDialog, Hint, LoadingFog } from '$lib/ui';
   import BotProfileSection from '$lib/components/bots/BotProfileSection.svelte';
   import AvatarEditor from '$lib/components/users/AvatarEditor.svelte';

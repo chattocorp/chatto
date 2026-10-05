@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { toast, getToasts } from './toastState.svelte';
-import { accountNameToken } from '$lib/render/accountName';
+import { accountNameToken } from '@chatto/client/timeline/accountName';
 
 describe('toast', () => {
   beforeEach(() => {

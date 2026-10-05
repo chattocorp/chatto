@@ -1,5 +1,6 @@
 <script lang="ts">
   import { useServerScope } from '$lib/state/server/scope.svelte';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { serverIdToSegment } from '$lib/navigation';
   import { m } from '$lib/i18n/messages';
   import RoomDirectory from '$lib/RoomDirectory.svelte';
@@ -10,7 +11,7 @@
   const serverScope = useServerScope();
 
   const stores = serverScope.store;
-  const directory = $derived(stores.roomDirectory);
+  const directory = $derived(serverUi(stores).roomDirectory);
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
 </script>
 

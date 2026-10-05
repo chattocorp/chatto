@@ -45,6 +45,50 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    getServer: vi.fn((id: string) => mocks.servers.find((server) => server.id === id)),
+    isOriginServer: vi.fn((id: string) => mocks.originServer?.id === id),
+    isAuthenticated: vi.fn((id: string) => mocks.authenticated[id] === true),
+    clearServerAuthentication: mocks.clearServerAuthentication,
+    tryGetStore: mocks.tryGetStore,
+    removeServer: mocks.removeServer,
+    removeAll: mocks.removeAll,
+    resetToOrigin: mocks.resetToOrigin,
+    get servers() {
+      return mocks.servers;
+    },
+    get originServer() {
+      return mocks.originServer;
+    }
+  },
+  serverConnectionManager: {
+    getClient: (serverId: string) => {
+      mocks.getClient(serverId);
+      return {
+        serverId,
+        connectBaseUrl: `https://${serverId}.example.test/api/connect`,
+        bearerToken: null,
+        getAPI: (factory: (config: never) => unknown) => factory({} as never),
+        client: {
+          mutation: mocks.mutation
+        }
+      };
+    }
+  }
+}));
+
+vi.mock('$lib/serverCatalogue', () => ({
+  firstAuthenticatedServerId: vi.fn((excludedId: string) => {
+    const originId = mocks.originServer?.id;
+    if (originId && originId !== excludedId && mocks.authenticated[originId]) return originId;
+    return mocks.servers.find(
+      (server) => server.id !== excludedId && mocks.authenticated[server.id]
+    )?.id;
+  })
+}));
+
 vi.mock('$app/state', async () => {
   const { createSubscriber } = await import('svelte/reactivity');
   let notify: () => void = () => {};
@@ -92,49 +136,6 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => mocks.activeServer
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    getServer: vi.fn((id: string) => mocks.servers.find((server) => server.id === id)),
-    isOriginServer: vi.fn((id: string) => mocks.originServer?.id === id),
-    isAuthenticated: vi.fn((id: string) => mocks.authenticated[id] === true),
-    firstAuthenticatedServerId: vi.fn((excludedId: string) => {
-      const originId = mocks.originServer?.id;
-      if (originId && originId !== excludedId && mocks.authenticated[originId]) return originId;
-      return mocks.servers.find(
-        (server) => server.id !== excludedId && mocks.authenticated[server.id]
-      )?.id;
-    }),
-    clearServerAuthentication: mocks.clearServerAuthentication,
-    tryGetStore: mocks.tryGetStore,
-    removeServer: mocks.removeServer,
-    removeAll: mocks.removeAll,
-    resetToOrigin: mocks.resetToOrigin,
-    get servers() {
-      return mocks.servers;
-    },
-    get originServer() {
-      return mocks.originServer;
-    }
-  }
-}));
-
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
-  serverConnectionManager: {
-    getClient: (serverId: string) => {
-      mocks.getClient(serverId);
-      return {
-        serverId,
-        connectBaseUrl: `https://${serverId}.example.test/api/connect`,
-        bearerToken: null,
-        getAPI: (factory: (config: never) => unknown) => factory({} as never),
-        client: {
-          mutation: mocks.mutation
-        }
-      };
-    }
-  }
-}));
-
 vi.mock('$lib/ui/toast', () => ({
   toast: {
     success: mocks.toastSuccess,
@@ -150,10 +151,13 @@ vi.mock('$lib/auth/sessionChannel', () => ({
   notifyLogout: mocks.notifyLogout
 }));
 
-vi.mock('$lib/auth/signOut', () => ({
+vi.mock('@chatto/client/auth/signOut', () => ({
   beginExplicitSignOutRedirect: mocks.beginExplicitSignOutRedirect,
   signOutServer: mocks.signOutServer,
-  signOutServers: mocks.signOutServers,
+  signOutServers: mocks.signOutServers
+}));
+
+vi.mock('$lib/auth/signOutRedirect', () => ({
   hardRedirectAfterSignOut: mocks.hardRedirectAfterSignOut
 }));
 
@@ -173,7 +177,7 @@ vi.mock('$lib/state/clientAccount', () => ({
   }
 }));
 
-vi.mock('$lib/api-client/messages', () => ({
+vi.mock('@chatto/client/api/messages', () => ({
   createMessageAPI: () => ({
     deleteMessage: mocks.deleteMessage,
     deleteAttachment: mocks.deleteAttachment,
@@ -181,7 +185,7 @@ vi.mock('$lib/api-client/messages', () => ({
   })
 }));
 
-vi.mock('$lib/api-client/rooms', () => ({
+vi.mock('@chatto/client/api/rooms', () => ({
   createRoomCommandAPI: () => ({
     leaveRoom: mocks.leaveRoom
   })

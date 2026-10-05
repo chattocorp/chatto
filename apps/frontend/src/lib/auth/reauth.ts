@@ -1,6 +1,6 @@
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
-import { getPublicServerInfo, type PublicServerInfo } from '$lib/api-client/server';
+import { getPublicServerInfo, type PublicServerInfo } from '@chatto/client/api/server';
 import {
   generateCodeChallenge,
   generateCodeVerifier,
@@ -14,21 +14,20 @@ import {
   type OAuthPopupResponse
 } from '$lib/oauth/popup';
 import {
-  browserAuthorizationWindow,
   authorizationWindowFeatures,
+  openAuthorizationWindow,
   type AuthorizationWindow
 } from '$lib/oauth/authorizationWindow';
-import {
-  generateServerId,
-  serverRegistry,
-  type RegisteredServer
-} from '$lib/state/server/registry.svelte';
+import { serverRegistry } from '$lib/client';
+import { findServerByUrl } from '$lib/serverCatalogue';
+import { getActiveServer } from '$lib/state/activeServer.svelte';
+import type { RegisteredServer } from '@chatto/client/server/registry';
 import { serverIdToSegment } from '$lib/navigation';
-import { isLoopbackHostname } from '$lib/runtimeOrigin';
-import { LOOPBACK_OAUTH_CLIENT_ID } from './loopbackClient';
+import { isLoopbackHostname } from '@chatto/client/util/runtimeOrigin';
+import { LOOPBACK_OAUTH_CLIENT_ID } from '$lib/auth/loopbackClient';
 import { resumePushRegistrationAfterAuthentication } from '$lib/notifications/pushRegistrationCoordinator';
 import { saveReturnUrl } from './returnNavigation';
-import { oauthBearerSession, persistedBearerSession } from './bearerSession';
+import { oauthBearerSession, persistedBearerSession } from '@chatto/client/auth/bearerSession';
 import {
   authorizeNatively,
   hasNativeAuthorization,
@@ -44,74 +43,29 @@ const FRONTEND_CIMD_PATH = '/oauth/frontend-client-metadata.json';
 
 class OAuthPopupError extends Error {}
 
-/** How a completed sign-in navigates to the server. */
-export type ServerOAuthFlowOptions = {
-  /**
-   * Called when sign-in completes, just before navigation. Return `true` to
-   * replace the current history entry instead of adding one. A history-backed
-   * dialog uses this so that Back does not reopen it, and checks at that time
-   * that the dialog is still open.
-   */
-  replaceHistory?: () => boolean;
-};
-
-/** Start sign-in with public server data that the caller already loaded. */
-export function startServerOAuthFlow(
-  serverUrl: string,
-  serverInfo: Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>,
-  {
-    beforeNavigate,
-    providerId,
-    ...options
-  }: ServerOAuthFlowOptions & {
-    /** Called after sign-in completes and before navigation. */
-    beforeNavigate?: () => void;
-    /** Server-configured login provider that the authorization page starts. */
-    providerId?: string | null;
-  } = {}
-): Promise<void> {
-  return runServerOAuthFlow(
-    serverUrl,
-    Promise.resolve({ serverInfo, providerId: providerId ?? null }),
-    beforeNavigate,
-    options
-  );
+/** Sign-in completed for a server that is no longer registered. */
+class ServerNotRegisteredError extends Error {
+  constructor() {
+    super('The server is no longer registered.');
+  }
 }
 
 /**
- * Start sign-in while the server's current public data still loads. Call this
+ * Sign in to the registered server at `serverUrl` and open it. Call this
  * synchronously from the user's action: the browser opens the sign-in window
  * before `serverInfo` settles. A rejected `serverInfo` closes the window and
  * rejects the returned promise with the same error. If the browser blocks the
  * window, the returned promise rejects with that error instead.
  */
-export function startServerOAuthFlowWhenReady(
-  serverUrl: string,
-  serverInfo: Promise<Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>>,
-  options: ServerOAuthFlowOptions = {}
-): Promise<void> {
-  return runServerOAuthFlow(
-    serverUrl,
-    serverInfo.then((info) => ({ serverInfo: info, providerId: null })),
-    undefined,
-    options
-  );
-}
-
 async function runServerOAuthFlow(
   serverUrl: string,
-  details: Promise<{
-    serverInfo: Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>;
-    providerId: string | null;
-  }>,
-  beforeNavigate?: () => void,
-  options: ServerOAuthFlowOptions = {}
+  serverInfo: Promise<Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>>
 ): Promise<void> {
   const verifier = generateCodeVerifier();
   const state = generateState();
   if (hasNativeAuthorization()) {
-    const { serverInfo, providerId } = await details;
-    if (!serverInfo.authorizeUrl) throw new Error('This server does not support OAuth sign-in.');
+    const info = await serverInfo;
+    if (!info.authorizeUrl) throw new Error('This server does not support OAuth sign-in.');
     const challenge = await generateCodeChallenge(verifier);
     const params = new URLSearchParams({
       response_type: 'code',
@@ -121,11 +75,7 @@ async function runServerOAuthFlow(
       code_challenge_method: 'S256',
       state
     });
-    if (providerId) params.set('provider_id', providerId);
-    const response = await authorizeNatively(
-      `${serverUrl}${serverInfo.authorizeUrl}?${params}`,
-      state
-    );
+    const response = await authorizeNatively(`${serverUrl}${info.authorizeUrl}?${params}`, state);
     if (response.error || !response.code) {
       throw new OAuthPopupError(
         response.errorDescription || response.error || 'Missing authorization code.'
@@ -138,16 +88,13 @@ async function runServerOAuthFlow(
         verifier,
         clientId: MOBILE_CLIENT_ID,
         remoteUrl: serverUrl,
-        serverName: serverInfo.name,
-        serverIconUrl: serverInfo.iconUrl ?? null
+        serverName: info.name,
+        serverIconUrl: info.iconUrl ?? null
       },
       response.code,
       MOBILE_CALLBACK
     );
-    beforeNavigate?.();
-    await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }), {
-      replaceState: options.replaceHistory?.() ?? false
-    });
+    await openSignedInServer(serverId);
     return;
   }
   const redirectUri = `${window.location.origin}/servers/callback?mode=popup`;
@@ -155,18 +102,16 @@ async function runServerOAuthFlow(
 
   // Open synchronously from the user's click before hashing the PKCE verifier;
   // otherwise browsers may treat the secondary window as an unsolicited popup.
-  const popup = window.open(
-    'about:blank',
+  const authorizationWindow: AuthorizationWindow | null = openAuthorizationWindow(
     `chatto-oauth-${state.slice(0, 12)}`,
     authorizationWindowFeatures(window)
   );
-  if (!popup) {
+  if (!authorizationWindow) {
     loadAndClearFlowState();
     // The blocked window replaces any later server-data error.
-    details.catch(() => {});
+    serverInfo.catch(() => {});
     throw new OAuthPopupError('The sign-in window could not be opened.');
   }
-  const authorizationWindow: AuthorizationWindow = browserAuthorizationWindow(popup);
 
   const responseChannel = createResponseChannel(state);
   if (responseChannel) {
@@ -181,8 +126,8 @@ async function runServerOAuthFlow(
   responseWait.promise.catch(() => {});
 
   try {
-    const { serverInfo, providerId } = await details;
-    if (!serverInfo.authorizeUrl) {
+    const info = await serverInfo;
+    if (!info.authorizeUrl) {
       throw new Error('This server does not support OAuth sign-in.');
     }
     const flow = {
@@ -190,8 +135,8 @@ async function runServerOAuthFlow(
       state,
       remoteUrl: serverUrl,
       clientId,
-      serverName: serverInfo.name,
-      serverIconUrl: serverInfo.iconUrl ?? null
+      serverName: info.name,
+      serverIconUrl: info.iconUrl ?? null
     };
     saveFlowState(flow);
     const challenge = await generateCodeChallenge(verifier);
@@ -203,9 +148,8 @@ async function runServerOAuthFlow(
       code_challenge_method: 'S256',
       state
     });
-    if (providerId) params.set('provider_id', providerId);
 
-    await authorizationWindow.navigate(`${serverUrl}${serverInfo.authorizeUrl}?${params}`);
+    await authorizationWindow.navigate(`${serverUrl}${info.authorizeUrl}?${params}`);
 
     const response = await responseWait.promise;
     if (response.error) {
@@ -217,16 +161,23 @@ async function runServerOAuthFlow(
 
     const serverId = await completeServerOAuthFlow(flow, response.code, redirectUri);
     loadAndClearFlowState();
-    beforeNavigate?.();
-    await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }), {
-      replaceState: options.replaceHistory?.() ?? false
-    });
+    await openSignedInServer(serverId);
   } catch (err) {
     responseWait.cancel();
     loadAndClearFlowState();
     await closeAuthorizationWindow(authorizationWindow);
     throw err;
   }
+}
+
+/**
+ * Open a server after sign-in completes. When the current route already shows
+ * the server, stay on it: the server layout replaces the signed-out view with
+ * the server chrome, and the route keeps its deep link, for example a room.
+ */
+async function openSignedInServer(serverId: string): Promise<void> {
+  if (getActiveServer() === serverId) return;
+  await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }));
 }
 
 function createResponseChannel(state: string): BroadcastChannel | null {
@@ -318,6 +269,14 @@ async function closeAuthorizationWindow(authorizationWindow: AuthorizationWindow
   }
 }
 
+/**
+ * Exchange an authorization code for a bearer session and store the session
+ * for the registered server at `flow.remoteUrl`. Returns the server's ID.
+ * Sign-in starts only for a registered server, so this never registers one.
+ *
+ * @throws Error when no registered server matches `flow.remoteUrl`, for
+ *   example because the user removed it while sign-in was open.
+ */
 export async function completeServerOAuthFlow(
   flow: {
     remoteUrl: string;
@@ -329,6 +288,10 @@ export async function completeServerOAuthFlow(
   code: string,
   redirectUri: string
 ): Promise<string> {
+  // Check before the exchange, so that no session is created for a server
+  // that this client no longer knows.
+  if (!findServerByUrl(flow.remoteUrl)) throw new ServerNotRegisteredError();
+
   const response = await fetch(`${flow.remoteUrl}/oauth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -355,55 +318,27 @@ export async function completeServerOAuthFlow(
 
   const persistedCredentials = persistedBearerSession(credentials);
 
-  const existing = serverRegistry.servers.find(
-    (server) => server.url.toLowerCase() === flow.remoteUrl.toLowerCase()
-  );
-  if (existing) {
-    serverRegistry.updateRegistration(existing.id, {
-      name: flow.serverName || existing.name,
-      iconUrl: flow.serverIconUrl ?? existing.iconUrl
-    });
-    serverRegistry.replaceServerAuthentication(existing.id, {
-      ...persistedCredentials,
-      userId: result.user?.id ?? null,
-      userLogin: result.user?.login ?? null,
-      userDisplayName: result.user?.displayName ?? null,
-      userAvatarUrl: result.user?.avatarUrl ?? null,
-      reauthRequiredAt: null
-    });
-    resumePushRegistrationAfterAuthentication(existing.id);
-    await serverRegistry.getStore(existing.id).serverInfo.init();
-    return existing.id;
-  }
-
-  const id = generateServerId(
-    flow.remoteUrl,
-    serverRegistry.servers.map((server) => server.id)
-  );
-  serverRegistry.addServer(
-    {
-      id,
-      url: flow.remoteUrl,
-      name: flow.serverName || 'Chatto',
-      iconUrl: flow.serverIconUrl,
-      addedAt: Date.now()
-    },
-    {
-      ...persistedCredentials,
-      userId: result.user?.id ?? null,
-      userLogin: result.user?.login ?? null,
-      userDisplayName: result.user?.displayName ?? null,
-      userAvatarUrl: result.user?.avatarUrl ?? null,
-      reauthRequiredAt: null
-    }
-  );
-  resumePushRegistrationAfterAuthentication(id);
-  // Registration creates the retained store immediately, but discovery is
-  // otherwise fire-and-forget. Complete server discovery before routing to the
-  // new server so the transport coordinator can deterministically include its
-  // required projection stream on the first route transition.
-  await serverRegistry.getStore(id).serverInfo.init();
-  return id;
+  // The user can remove the server while the exchange runs.
+  const server = findServerByUrl(flow.remoteUrl);
+  if (!server) throw new ServerNotRegisteredError();
+  serverRegistry.updateRegistration(server.id, {
+    name: flow.serverName || server.name,
+    iconUrl: flow.serverIconUrl ?? server.iconUrl
+  });
+  serverRegistry.replaceServerAuthentication(server.id, {
+    ...persistedCredentials,
+    userId: result.user?.id ?? null,
+    userLogin: result.user?.login ?? null,
+    userDisplayName: result.user?.displayName ?? null,
+    userAvatarUrl: result.user?.avatarUrl ?? null,
+    reauthRequiredAt: null
+  });
+  resumePushRegistrationAfterAuthentication(server.id);
+  // Complete discovery before routing to the server so the transport
+  // coordinator can include its projection stream on the first route
+  // transition.
+  await serverRegistry.getStore(server.id).serverInfo.init();
+  return server.id;
 }
 
 function isLoopbackServerUrl(serverUrl: string): boolean {
@@ -437,21 +372,20 @@ export function oauthClientIdForLocation(
   return `${location.origin}${FRONTEND_CIMD_PATH}`;
 }
 
-export function startRemoteReauthentication(
-  server: RegisteredServer,
-  options: ServerOAuthFlowOptions = {}
-): Promise<void> {
-  const details = getPublicServerInfo(server.url, { signal: AbortSignal.timeout(10000) }).then(
+/**
+ * Sign in to a registered remote server in a separate window and open the
+ * server when sign-in completes. Call this synchronously from the user's
+ * action, so the browser allows the window.
+ */
+export function startRemoteReauthentication(server: RegisteredServer): Promise<void> {
+  const serverInfo = getPublicServerInfo(server.url, { signal: AbortSignal.timeout(10000) }).then(
     (info) => ({
-      serverInfo: {
-        name: info.name || server.name,
-        authorizeUrl: info.authorizeUrl,
-        iconUrl: info.iconUrl ?? server.iconUrl
-      },
-      providerId: null
+      name: info.name || server.name,
+      authorizeUrl: info.authorizeUrl,
+      iconUrl: info.iconUrl ?? server.iconUrl
     })
   );
-  return runServerOAuthFlow(server.url, details, undefined, options);
+  return runServerOAuthFlow(server.url, serverInfo);
 }
 
 export function beginOriginReauthentication(returnPath?: string): void {

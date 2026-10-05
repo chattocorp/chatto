@@ -7,10 +7,12 @@
  * - `fakeServer(routes)` — API config backed by an in-memory fake Connect server
  * - `mockService(Service)` — typed `vi.fn` handlers for every method of a service
  * - `receivedRequest(handler)` / `receivedContext(handler)` — what a mock handler received
+ * - `authorizationLaunchTarget(open)` — target URL given to an opened authorization window
  *
  * See `apps/frontend/AGENTS.md` for the full convention.
  */
 export { q } from './q';
+export { authorizationLaunchTarget } from './authorizationWindow';
 export { testSnippet } from './snippet';
 export {
   fakeServer,
@@ -19,4 +21,4 @@ export {
   receivedRequest,
   type FakeServerRoutes,
   type MockService
-} from './fakeServer';
+} from '@chatto/client/testing/fakeServer';

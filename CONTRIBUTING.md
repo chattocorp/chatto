@@ -25,8 +25,10 @@ configuration for those.
 ## Local Development Stack
 
 The root pnpm workspace contains the JavaScript apps, examples, and libraries.
-[`@chatto/client`](packages/chatto-client/README.md) provides shared request,
-message, thread, reaction, and typing helpers for bot integrations.
+[`@chatto/client`](packages/chatto-client/README.md) is the Chatto client:
+connections, the realtime projection, the server and room stores, and the
+request helpers and message loop for bots. The bundled frontend and ChattoBot
+use it.
 The independent [Runling](packages/runling/README.md) workflow and agent
 orchestrator lives in `packages/runling/` and is published to npm as `runling`.
 It keeps its own version and MIT license. The Chatto bot uses this local package.
@@ -62,9 +64,10 @@ does not build anything. Run it alone to prepare a checkout without starting
 the stack. Both tasks trust the repository's `mise.toml` files automatically.
 They need mise 2026.8.9 or later.
 
-All services use plain HTTP. In Conductor, `<workspace>` is the workspace name
-and the base port is `$CONDUCTOR_PORT`. Outside Conductor, `<workspace>` is
-`local` and the base port is `4000`:
+All services use plain HTTP. In Conductor, the base port is `$CONDUCTOR_PORT`
+and `<workspace>` is `ws` followed by this port, for example `ws55060`. Outside
+Conductor, `<workspace>` is `local` and the base port is `4000`. Set
+`CHATTO_DEV_WORKSPACE` to use a different `<workspace>`:
 
 | Service  | URL                                                |
 | -------- | -------------------------------------------------- |
@@ -103,13 +106,18 @@ TestBot’s outbound webhook. Existing servers keep their saved configuration.
 
 Chatto uses Authling as its development OIDC provider. Chatto stores embedded
 NATS data in `cli/data/nats/` and search data in `cli/data/search/`. Authling
-identity data is in `.context/dev/<workspace>/authling/`.
+identity data is in `.context/dev/<workspace>/authling/port-<port>/`.
 
-These credentials and accounts are for local development only. Stop `mise dev`
-to stop the services. With the stack stopped, remove `cli/data/` to reset
-Chatto, or remove the Authling identity directory to reset Authling. A new
-Conductor workspace name also creates a new Authling issuer and state
-directory.
+These credentials and accounts are for local development only. Stop `mise dev`,
+or run `mise stop` from another terminal, to stop the services. `mise reset`
+stops the stack of the workspace and removes the Chatto data and the Authling
+data of all ports. To reset only one of them, run `mise stop`, then remove
+`cli/data/` or the Authling identity directory. The
+Authling issuer URL includes `<workspace>` and the port, and Authling cannot
+change its issuer. Thus, a new `<workspace>` or port starts an empty
+Authling in a new state directory. Chatto users that you linked to the previous
+Authling accounts cannot sign in through the new Authling. If the previous port
+returns, Authling uses its previous state again.
 
 If a worktree has NATS data in the former `cli/data/jetstream/` location, use
 the migration steps in [Local Chatto Data](#local-chatto-data).
@@ -170,10 +178,9 @@ show their URLs in the terminal.
 
 This configuration does not allocate ports or hostnames for each worktree.
 The development stack uses base port `4000` and workspace name `local` outside
-Conductor. Run one such stack at a time, or set distinct `CONDUCTOR_PORT` and
-`CONDUCTOR_WORKSPACE_NAME` values for each workspace before starting its
-actions. These variables are the existing `mise` inputs for port and hostname
-isolation. Conductor's preview URL list, `.worktreeinclude` handling, Git
+Conductor. Run one such stack at a time, or set a distinct `CONDUCTOR_PORT`
+value for each workspace before starting its actions. `mise` uses this value
+for the ports and for the `ws<port>` workspace label of the hostnames. Conductor's preview URL list, `.worktreeinclude` handling, Git
 settings, and PR prompt are not part of the Codex environment configuration.
 
 ## Developing Outside of Conductor

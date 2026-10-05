@@ -1,4 +1,7 @@
-import { isMessagePostedEvent, type TimelineEventView } from '$lib/render/timelineEvents';
+import {
+  isMessagePostedEvent,
+  type TimelineEventView
+} from '@chatto/client/timeline/timelineEvents';
 import { isSameDay, formatDayLabel, type TimeFormatSettings } from '$lib/utils/formatTime';
 
 const TEN_MINUTES_MS = 10 * 60 * 1000;

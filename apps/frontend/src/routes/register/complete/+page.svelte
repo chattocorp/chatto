@@ -2,7 +2,7 @@
   import { errorMessage } from '$lib/utils/errorMessage';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
+  import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';

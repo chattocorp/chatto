@@ -1,8 +1,8 @@
 import { flushSync } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { NeighborhoodServer } from '$lib/api-client/server';
-import type { Neighbor } from '$lib/api-client/neighbors';
+import type { NeighborhoodServer } from '@chatto/client/api/server';
+import type { Neighbor } from '$lib/api/neighbors';
 import { queryClient } from '$lib/query/client';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 
@@ -22,8 +22,8 @@ vi.mock(
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
 );
 
-vi.mock('$lib/api-client/server', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('$lib/api-client/server')>();
+vi.mock('@chatto/client/api/server', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@chatto/client/api/server')>();
   return { ...actual, listNeighborhoodServers: mocks.listNeighborhoodServers };
 });
 

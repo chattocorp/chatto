@@ -18,7 +18,27 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('$lib/auth/signOut', () => ({
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    get servers() {
+      return mocks.servers;
+    },
+    getServer: (id: string) => mocks.servers.find((server) => server.id === id),
+    isOriginServer: (id: string) => id === mocks.originId,
+    clearServerAuthentication: mocks.clearServerAuthentication,
+    removeServer: mocks.removeServer,
+    resetToOrigin: mocks.resetToOrigin
+  }
+}));
+
+vi.mock('$lib/serverCatalogue', () => ({
+  firstAuthenticatedServerId: (excludedId?: string) =>
+    mocks.servers.find((server) => server.id !== excludedId && mocks.authenticated.has(server.id))
+      ?.id
+}));
+
+vi.mock('@chatto/client/auth/signOut', () => ({
   beginExplicitSignOutRedirect: mocks.beginExplicitSignOutRedirect,
   cancelExplicitSignOutRedirect: mocks.cancelExplicitSignOutRedirect,
   ServerLogoutRejectedError: class ServerLogoutRejectedError extends Error {},
@@ -30,21 +50,6 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
   unsubscribeBeforeLeaving: mocks.unsubscribePushBeforeLeaving
 }));
 vi.mock('$lib/storage/lastRoom', () => ({ clearLastRoom: mocks.clearLastRoom }));
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    get servers() {
-      return mocks.servers;
-    },
-    getServer: (id: string) => mocks.servers.find((server) => server.id === id),
-    isOriginServer: (id: string) => id === mocks.originId,
-    firstAuthenticatedServerId: (excludedId?: string) =>
-      mocks.servers.find((server) => server.id !== excludedId && mocks.authenticated.has(server.id))
-        ?.id,
-    clearServerAuthentication: mocks.clearServerAuthentication,
-    removeServer: mocks.removeServer,
-    resetToOrigin: mocks.resetToOrigin
-  }
-}));
 
 import { clientAccount } from './clientAccount';
 
@@ -109,7 +114,7 @@ describe('ClientAccountCoordinator', () => {
   });
 
   it('preserves authentication when the server rejects logout', async () => {
-    const { ServerLogoutRejectedError } = await import('$lib/auth/signOut');
+    const { ServerLogoutRejectedError } = await import('@chatto/client/auth/signOut');
     mocks.signOutServer.mockRejectedValueOnce(new ServerLogoutRejectedError(503));
 
     await expect(clientAccount.signOutCurrentServer('origin')).rejects.toBeInstanceOf(

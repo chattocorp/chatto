@@ -125,6 +125,8 @@ another address does not change the selection. See
 
 **Notification Delivery Mode** — Per-cause notification preference with one of four effective values: Off, Badge, Notification, or Push notification. Badge adds only a neutral unread dot. Notification creates an in-app item and can play the configured local sound. Push notification also permits push delivery. See [FDR-012](fdr/FDR-012-notifications.md).
 
+**Push Subscription** — One browser's Web Push registration for one account on one server, stored by that server. Each server has its own subscription in each browser. A subscription expires 180 days after its most recent save; the client saves it again while the device uses Chatto. See [FDR-013](fdr/FDR-013-web-push-notifications.md).
+
 **Message Read Cursor** — Per-user position of the last root message read in a room. It places the New messages separator. It does not create a room dot; notification policy controls room attention separately. See [FDR-012](fdr/FDR-012-notifications.md).
 
 **Asset** — An uploaded or generated file stored by Chatto; it may exist before or independently of a message. See [FDR-008](fdr/FDR-008-file-attachments-and-video.md).
@@ -275,6 +277,29 @@ explicit reads, commands, pagination, and history. See
 [ADR-091](adr/ADR-091-semantic-realtime-events-with-bounded-resume.md) and
 [ADR-093](adr/ADR-093-use-a-public-realtime-event-union.md) and
 [ADR-094](adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
+
+**Chatto client** — The framework-neutral client package `@chatto/client`
+(`packages/chatto-client/`), and an instance that `createClient()` creates.
+An instance is isolated: it owns its servers, sessions, Client Projections,
+and Client runtime. Each server of an instance is one `Server` object with
+its reactive data, its Store boundary events, and its requests; a bot and the
+bundled frontend use the same type. The client keeps server data only; a
+host keeps its UI state. The bundled frontend has one instance; a bot creates
+its own. `@chatto/client/svelte` adapts the package to Svelte. See
+[ADR-111](adr/ADR-111-move-client-state-into-chatto-client.md).
+
+**Store boundary event** — An event of one server of a Chatto client that
+reports a privacy or authorization boundary, such as a projection reset, a
+lost room, a deleted account, a changed authority, or an ended session. A host
+that copies server data clears the copy at these events. See
+[ADR-111](adr/ADR-111-move-client-state-into-chatto-client.md).
+
+**Client runtime** — Background work of one Chatto client instance: recovery
+of discovery and saved sessions, realtime ownership, and remote session
+termination. It keeps the realtime transports of the client's live servers
+open: every server of a bot client, or the active server of an application.
+See
+[ADR-111](adr/ADR-111-move-client-state-into-chatto-client.md).
 
 **Realtime Resource Boundary** — Exact EVT boundary `E` for one authorized
 realtime snapshot. The server sends later authorized public events only after

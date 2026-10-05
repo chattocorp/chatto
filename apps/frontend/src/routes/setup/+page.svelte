@@ -2,8 +2,8 @@
   import { Code, ConnectError } from '@connectrpc/connect';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { completeServerSetup } from '$lib/api-client/setup';
-  import { getPublicServerInfo } from '$lib/api-client/server';
+  import { completeServerSetup } from '$lib/api/setup';
+  import { getPublicServerInfo } from '@chatto/client/api/server';
   import { m } from '$lib/i18n/messages';
   import chattoIcon from '$lib/assets/chatto-icon.png';
   import { PageTitle, Hint, PaneHeader, PaneContent, Panel, FormSection } from '$lib/ui';

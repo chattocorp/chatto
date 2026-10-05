@@ -1,14 +1,14 @@
 <!-- @component Public bot permissions. The query refreshes every 30 seconds
 while mounted and discards cached data when the profile closes. -->
 <script lang="ts">
-  import { createPermissionAPI, type MatrixData } from '$lib/api-client/permissions';
-  import { createEffectivePermissionAPI } from '$lib/api-client/effectivePermissions';
+  import { createPermissionAPI, type MatrixData } from '@chatto/client/api/permissions';
+  import { createEffectivePermissionAPI } from '@chatto/client/api/effectivePermissions';
   import { m } from '$lib/i18n/messages';
   import { createQuery } from '$lib/query/client';
   import { serverSessionQueryRoot } from '$lib/query/keys';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
-  import { serverStorageKey } from '$lib/storage/serverStorage';
+  import { serverStorageKey } from '@chatto/client/storage/serverStorage';
   import { Button } from '$lib/ui/form';
   import { LoadingFog } from '$lib/ui';
   import {

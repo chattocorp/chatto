@@ -1,7 +1,7 @@
 # FDR-027: PWA & Service Worker
 
 **Status:** Active
-**Last reviewed:** 2026-09-26
+**Last reviewed:** 2026-10-04
 
 ## Overview
 
@@ -11,7 +11,7 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 
 ## Behavior
 
-- The foreground app registers the root service worker shortly after startup in production builds. Web Push setup registers the same script under stable narrow scopes when an installed app needs independent subscriptions for remote servers.
+- The foreground app registers the root service worker shortly after startup in production builds. Web Push setup registers the same script under a stable narrow scope for each server, including the serving server. Production registers these push workers as classic scripts.
 - The root worker caches the current version of the application shell. App navigations load the document from the network first. The worker serves the cached shell document when the network request fails or the server returns a server error. Narrow push-worker registrations do not manage the shell.
 - The installed app opens the origin chat route. That route opens the last room that the device remembers, or the overview.
 - API, authentication, live, webhook, and uploaded-asset requests use the network.
@@ -42,9 +42,9 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 
 ### 3. Foreground app owns the root registration
 
-**Decision:** The foreground app registers the root worker after a short startup delay. Push setup reuses that registration for the serving server and registers the same worker script under stable, server-specific narrow scopes for remote-server subscriptions.
-**Why:** Preloading the complete shell during the first navigation delays the page. A Push API subscription is bound to one service-worker registration and one application-server key, so independent scopes let remote servers retain their own VAPID keys without changing which worker controls the application page.
-**Tradeoff:** The offline shell becomes available only after the startup delay and cache installation finish. Production users get the root worker even when they do not enable Web Push, and multi-server users can have additional dormant registrations after a remote subscription is removed. Only the root worker handles shell requests.
+**Decision:** The foreground app registers the root worker after a short startup delay. The root registration serves only the offline shell. Push setup registers the same worker script under a stable, server-specific narrow scope for every server, including the serving server (see FDR-013 Decision 8).
+**Why:** Preloading the complete shell during the first navigation delays the page. A Push API subscription is bound to one service-worker registration and one application-server key, so independent scopes let each server retain its own VAPID key without changing which worker controls the application page. Push registration does not wait for the delayed root registration or depend on a successful shell installation.
+**Tradeoff:** The offline shell becomes available only after the startup delay and cache installation finish. Production users get the root worker even when they do not enable Web Push, and users can have additional dormant push registrations after a subscription is removed. Only the root worker handles shell requests.
 
 ### 4. Protected assets bypass the worker
 
@@ -57,6 +57,12 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 **Decision:** The HTTP frontend server generates the web manifest from the bundled manifest, uses the current server name for the installed app name, and swaps in transformed server-logo URLs for install icons when a logo is configured. Stable favicon and Apple touch icon endpoints redirect to purpose-sized transforms of the current server logo, or to the bundled Chatto icons when no logo is configured.
 **Why:** Self-hosted servers should install with their own visible identity without requiring a custom frontend build.
 **Tradeoff:** Browsers decide when to refresh installed PWA metadata and may cache it aggressively, so existing installs or tabs may keep the previous name or icon until the browser revalidates the metadata or the user reinstalls the app.
+
+### 6. Notification clicks focus an open window and send it the target
+
+**Decision:** A notification click focuses one open application window and then sends it the target URL. The page routes in place with client-side navigation. The worker prefers a focused window, then a visible window, then a hidden window. It ignores same-origin windows that do not run the application, such as an opened attachment under `/assets`. When no application window is open, or focus fails, the worker opens the target in a new window. The worker does not wait for a reply from the page, and it does not use `WindowClient.navigate()`.
+**Why:** This is the usual pattern for notification clicks. The push worker has a narrow scope, so it never controls an application window, and browsers reject `navigate()` from a worker that does not control the window. Browsers allow window actions only briefly after a click, and Chromium allows only one action: `focus()` or `openWindow()`. An earlier design focused each window and then waited up to 750 ms for a reply before it used `navigate()` or `openWindow()`. In Chromium, the first focus used the click, so the fallback could not open a window. In Firefox, the fallback ran near the one-second click limit, and a late reply opened a second window. A frozen background page on a mobile device cannot reply, but it receives the message when focus resumes it.
+**Tradeoff:** A window that has not yet registered its click listener, such as a page that is still loading, gets focus but does not route. `Client.url` gives the URL that loaded a window, not its current route. For this reason, the worker cannot identify OAuth windows, and a focused OAuth window can receive the click. Pages still reply when the message has a reply port, because workers from earlier releases wait for the reply.
 
 ## Related
 

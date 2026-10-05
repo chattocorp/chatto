@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
 import { createWorkflowContext, emptyTokenUsage } from 'runling';
 import type { AgentExtensionAPI, AgentOptions, AgentRunOptions } from 'runling/agents';
-import { createAgentTasks } from 'runling/agents';
+import { createAgentTasks, createApprovalQueue } from 'runling/agents';
 import {
   createImplementation,
   implementationCommandEnvKeys,
@@ -17,7 +17,11 @@ import {
   workerStopReason
 } from './implement.ts';
 import { ConfigurationError } from '../settings.ts';
+import { taskContext, userFacingTaskNotifications } from './task-context.ts';
+import { listResumableArtifacts } from './implementation-artifacts.ts';
+import { failedHunkLines } from './implementation-tools.ts';
 import {
+  HostCommandError,
   implementationProcess,
   ImplementationCommandError,
   type ImplementationProcess
@@ -59,7 +63,14 @@ async function fixture() {
   const execute: ImplementationProcess = async (command, args, options) => {
     calls.push({ command, args });
     if (command === 'mise') {
-      if (args.includes('install')) return '';
+      // Setup and formatting are host preparation, not checks.
+      if (
+        args.includes('install') ||
+        args.includes('turbo') ||
+        args.includes('prettier') ||
+        args.includes('gofmt')
+      )
+        return '';
       return implementationProcess('bash', ['-c', check], options);
     }
     if (command === 'git' && args.includes('get-url')) return 'git@github.com:example/chatto.git\n';
@@ -104,16 +115,41 @@ type Tool = {
   ) => Promise<{ isError?: boolean; content: { text?: string }[] }>;
 };
 async function workerTools(options: AgentOptions) {
+  const hooks: ((event: {
+    type: 'tool_call';
+    toolName: string;
+    input: object;
+  }) => Promise<{ block?: boolean; reason?: string } | undefined>)[] = [];
+  const tools = await registeredTools(options, hooks);
+  return async (name: string, input: object) => {
+    for (const hook of hooks) {
+      const decision = await hook({ type: 'tool_call', toolName: name, input });
+      if (decision?.block) throw new Error(decision.reason);
+    }
+    return tools.get(name)!.execute('call', input as never);
+  };
+}
+async function registeredTools(
+  options: AgentOptions,
+  hooks: ((event: {
+    type: 'tool_call';
+    toolName: string;
+    input: object;
+  }) => Promise<{ block?: boolean; reason?: string } | undefined>)[] = []
+) {
   const tools = new Map<string, Tool>();
   for (const extension of options.extensions ?? []) {
     const factory = typeof extension === 'function' ? extension : extension.factory;
     await factory({
+      on(name: string, handler: (typeof hooks)[number]) {
+        if (name === 'tool_call') hooks.push(handler);
+      },
       registerTool(tool: Tool) {
         tools.set(tool.name, tool);
       }
     } as unknown as AgentExtensionAPI);
   }
-  return async (name: string, input: object) => tools.get(name)!.execute('call', input as never);
+  return tools;
 }
 const patch =
   'diff --git a/example.txt b/example.txt\n--- a/example.txt\n+++ b/example.txt\n@@ -1 +1 @@\n-original\n+fixed\n';
@@ -123,6 +159,61 @@ const proposal = {
   summary: 'Correct the value to fix the reported behavior.',
   notes: ['Browser behavior was not checked.']
 };
+
+test.each(['allow', 'deny', 'changed'] as const)(
+  'publication waits for its owner: %s',
+  async (outcome) => {
+    const f = await fixture();
+    const root = createWorkflowContext();
+    const queue = createApprovalQueue({ signal: root.signal });
+    let worktree = '';
+    const implement = createImplementation(f.settings, {
+      execute: f.execute,
+      requestApproval: (ctx, action) => queue.request(action, { signal: ctx.signal, notify() {} }),
+      createAgent: worker(async (options, call) => {
+        worktree = options.cwd;
+        await call('apply_patch', { patch });
+        await call('preparePullRequest', proposal);
+      })
+    });
+    const running = implement(root, { request: 'Fix the value' });
+    await vi.waitFor(() => expect(queue.list()[0]?.action).toBe('prepare_pull_request'));
+    const [prepare] = queue.list();
+    queue.decide(prepare!.id, { decision: 'allow', reason: 'The proposal matches the request.' });
+    await vi.waitFor(() => expect(queue.list()[0]?.action).toBe('publish_pull_request'));
+    expect(f.calls.some(({ args }) => args.includes('push') || args.includes('create'))).toBe(
+      false
+    );
+    const [publication] = queue.list();
+    expect(publication!.details).toMatchObject({
+      repository: 'example/chatto',
+      proposal,
+      tree: expect.any(String)
+    });
+    if (outcome === 'changed')
+      await writeFile(join(worktree, 'example.txt'), 'changed while waiting\n');
+    queue.decide(publication!.id, {
+      decision: outcome === 'deny' ? 'deny' : 'allow',
+      reason: 'Owner decision.'
+    });
+    const result = await running;
+    expect(result.outcome).toBe(outcome === 'allow' ? 'completed' : 'blocked');
+    expect(f.calls.some(({ args }) => args.includes('push'))).toBe(outcome === 'allow');
+    queue.dispose();
+  }
+);
+/** A root context that collects the progress notices a task sends to its parent. Milestone
+ * notices, which carry `data`, are left out. */
+function noticeContext(notices: string[]) {
+  return {
+    ...createWorkflowContext(),
+    emit: async (value: unknown) => {
+      const update = value as { type?: unknown; text?: unknown; data?: unknown };
+      if (update?.type === 'notice' && update.data === undefined) notices.push(String(update.text));
+    }
+  };
+}
+
 function worker(
   action: (options: AgentOptions, call: Awaited<ReturnType<typeof workerTools>>) => Promise<void>,
   outcome: 'completed' | 'blocked' = 'completed'
@@ -150,6 +241,7 @@ test('implements in an isolated worktree, records final checks, pushes and verif
     execute: f.execute,
     createAgent: worker(async (options, call) => {
       expect(options.tools).toContain('apply_patch');
+      expect(options.codemode).toEqual({ timeoutMs: 1_200_000 });
       expect(options.tools).not.toContain('write');
       expect(options.tools).not.toContain('bash');
       expect(options.tools).toContain('runCheck');
@@ -182,11 +274,13 @@ test('implements in an isolated worktree, records final checks, pushes and verif
     notes: proposal.notes,
     checks: [
       { command: 'mise x -- pnpm run check', passed: true },
-      { command: 'mise x -- pnpm run test', passed: true }
-    ]
+      { command: 'mise x -- pnpm run lint', passed: true }
+    ],
+    ci: { status: 'passed', passed: 1, repairs: 0 }
   });
   expect(f.body).toContain('## Verification');
-  expect(f.body).toContain('mise x -- pnpm run test');
+  expect(f.body).toContain('Passed locally: mise x -- pnpm run lint');
+  expect(f.body).toContain('Tests run in CI');
   expect(f.calls.find((call) => call.args[1] === 'create')?.args).not.toContain('--draft');
   expect(await f.git('branch', '--show-current')).toBe(originalBranch);
   expect(await readFile(join(f.settings.directory, 'example.txt'), 'utf8')).toBe(
@@ -201,12 +295,13 @@ test('implements in an isolated worktree, records final checks, pushes and verif
   expect(updates).toContainEqual({ type: 'output', text: 'Worker commentary for the supervisor' });
   expect(updates).toContainEqual({
     type: 'state',
-    activity: 'Validating · mise x -- pnpm run test',
+    activity: 'Validating · mise x -- pnpm run lint',
     value: {
       phase: 'validating',
-      currentCheck: 'mise x -- pnpm run test',
+      currentCheck: 'mise x -- pnpm run lint',
       completedChecks: ['mise x -- pnpm run check'],
-      pendingChecks: ['mise x -- pnpm run test']
+      pendingChecks: ['mise x -- pnpm run lint'],
+      artifactId: result.artifactId
     }
   });
   expect(updates).toContainEqual({
@@ -214,8 +309,9 @@ test('implements in an isolated worktree, records final checks, pushes and verif
     value: {
       phase: 'published',
       prUrl: result.prUrl,
-      completedChecks: ['mise x -- pnpm run check', 'mise x -- pnpm run test'],
-      pendingChecks: []
+      completedChecks: ['mise x -- pnpm run check', 'mise x -- pnpm run lint'],
+      pendingChecks: [],
+      artifactId: result.artifactId
     }
   });
   const [folder] = await readdir(f.settings.artifactsDirectory);
@@ -249,18 +345,31 @@ test('worker can review new changes and run an approved check before host valida
   ).toHaveLength(2);
 });
 
-test('worker can inspect one changed file and run selected frontend tests', async () => {
+test('worker can inspect one changed file and run selected frontend and Go tests', async () => {
   const f = await fixture();
-  const spec = 'src/lib/example.test.ts';
-  await mkdir(join(f.settings.directory, 'apps/frontend/src/lib'), { recursive: true });
+  const lintGate = Promise.withResolvers<void>();
+  // SvelteKit route folders contain brackets.
+  const spec = 'src/routes/[serverId]/example.test.ts';
+  await mkdir(join(f.settings.directory, 'apps/frontend/src/routes/[serverId]'), {
+    recursive: true
+  });
+  await mkdir(join(f.settings.directory, 'cli/internal/core'), { recursive: true });
+  await writeFile(join(f.settings.directory, 'cli/internal/core/core.go'), 'package core\n');
   await writeFile(join(f.settings.directory, 'apps/frontend', spec), 'test fixture\n');
   await f.git('add', '.');
   await f.git('-c', 'commit.gpgsign=false', 'commit', '-m', 'Add test fixture');
   await f.git('push', 'origin', 'main');
   const result = await createImplementation(f.settings, {
-    execute: f.execute,
-    createAgent: worker(async (_options, call) => {
+    // lint-cli waits until the test releases it, so another check can start meanwhile.
+    execute: async (command, args, options) => {
+      if (args.at(-1) === 'lint-cli') await lintGate.promise;
+      return f.execute(command, args, options);
+    },
+    createAgent: worker(async (options, call) => {
       await call('apply_patch', { patch });
+      // A failed patch shows the current lines around its hunk.
+      const stale = await call('apply_patch', { patch });
+      expect(stale.content[0]?.text).toContain('Current lines 1-2 of example.txt:\n1: fixed');
       await call('apply_patch', {
         patch: '--- /dev/null\n+++ b/other.txt\n@@ -0,0 +1 @@\n+other\n'
       });
@@ -278,6 +387,37 @@ test('worker can inspect one changed file and run selected frontend tests', asyn
       expect(f.calls).toHaveLength(before);
       const focused = await call('runFocusedTests', { project: 'server', files: [spec] });
       expect(focused.content[0]?.text).toContain('Passed: mise x -- pnpm --dir apps/frontend');
+      for (const packages of [['./...'], ['../cli'], ['./internal/missing'], ['-exec=sh']])
+        expect((await call('runGoTests', { packages })).content[0]?.text).toContain(
+          'Select existing Go package directories'
+        );
+      expect(f.calls).toHaveLength(before + 1);
+      // A Go test does not copy files while another check runs.
+      const lint = call('runCheck', { check: 'lint-cli' });
+      expect(
+        (await call('runGoTests', { packages: ['./internal/core'] })).content[0]?.text
+      ).toContain('already running');
+      expect(f.calls).toHaveLength(before + 1);
+      lintGate.resolve();
+      await lint;
+      expect(
+        (await call('runGoTests', { packages: ['./internal/core/...'], run: 'TestCore' }))
+          .content[0]?.text
+      ).toContain('Passed: mise x -- go -C cli test');
+      // `cmd` embeds legal files that the sync copies first.
+      expect(f.calls.at(-2)).toEqual({ command: 'mise', args: ['run', 'sync-cli-legal'] });
+      // Complete test suites run in CI, not in the worker.
+      const runCheck = (await registeredTools(options)).get('runCheck') as unknown as {
+        parameters: { properties: { check: { anyOf: { const: string }[] } } };
+      };
+      expect(runCheck.parameters.properties.check.anyOf.map((option) => option.const)).toEqual([
+        'check',
+        'lint',
+        'check:frontend',
+        'lint:frontend',
+        'build:frontend',
+        'lint-cli'
+      ]);
       expect((await call('runCheck', { check: 'lint:frontend' })).content[0]?.text).toContain(
         'Passed: mise x -- pnpm run lint:frontend'
       );
@@ -291,6 +431,12 @@ test('worker can inspect one changed file and run selected frontend tests', asyn
   expect(result.workerChecks).toEqual([
     {
       command: `mise x -- pnpm --dir apps/frontend exec vitest run --project=server ${spec}`,
+      passed: true
+    },
+    { command: 'mise run lint-cli', passed: true },
+    {
+      command:
+        'mise x -- go -C cli test -trimpath -p 4 -tags test_endpoints -run=TestCore ./internal/core/...',
       passed: true
     },
     { command: 'mise x -- pnpm run lint:frontend', passed: true },
@@ -340,7 +486,7 @@ test('an actionable checkpoint continues in the same worker before host validati
   expect(updates).toContainEqual(
     expect.objectContaining({
       type: 'state',
-      value: { phase: 'editing_checkpoint', idleCheckpoints: 0 }
+      value: { phase: 'editing_checkpoint', idleCheckpoints: 0, artifactId: result.artifactId }
     })
   );
   expect(result.checks.every((check) => check.passed)).toBe(true);
@@ -394,43 +540,14 @@ test('worker check failures return bounded repair diagnostics and leave final va
       const check = await call('runCheck', { check: 'check' });
       expect(check.isError).toBeUndefined();
       expect(check.content[0]?.text).toContain('Assertion failed');
-      expect(check.content[0]?.text).toContain('also failed on the base commit');
       expect(check.content[0]?.text).not.toContain('test@example.invalid');
       expect(check.content[0]?.text).not.toContain('https://example.invalid');
       await call('preparePullRequest', proposal);
     })
   })(createWorkflowContext(), { request: 'Fix' });
   expect(result.outcome).toBe('completed');
-  expect(result.workerChecks).toEqual([
-    { command: 'mise x -- pnpm run check', passed: false, baseline: 'failed' }
-  ]);
+  expect(result.workerChecks).toEqual([{ command: 'mise x -- pnpm run check', passed: false }]);
   expect(result.checks.every((check) => check.passed)).toBe(true);
-});
-
-test('a worker check failure that passes on base is marked for worktree repair', async () => {
-  const f = await fixture();
-  let workerCheck = true;
-  const result = await createImplementation(f.settings, {
-    execute: async (command, args, options) => {
-      if (command === 'mise' && args.at(-1) === 'check' && workerCheck) {
-        workerCheck = false;
-        throw new ImplementationCommandError('Check failed', 'Changed test failed');
-      }
-      if (command === 'mise' && args.at(-1) === 'check' && options.cwd.endsWith('/baseline'))
-        return '';
-      return f.execute(command, args, options);
-    },
-    createAgent: worker(async (_options, call) => {
-      await call('apply_patch', { patch });
-      const check = await call('runCheck', { check: 'check' });
-      expect(check.content[0]?.text).toContain('passed on the base commit');
-      await call('preparePullRequest', proposal);
-    })
-  })(createWorkflowContext(), { request: 'Fix' });
-  expect(result.outcome).toBe('completed');
-  expect(result.workerChecks).toEqual([
-    { command: 'mise x -- pnpm run check', passed: false, baseline: 'passed' }
-  ]);
 });
 
 test('worker answer tool emits a correlated reply without treating commentary as an answer', async () => {
@@ -575,8 +692,6 @@ test('host validation returns diagnostics to the same worker and checks the repa
     execute: async (command, args, options) => {
       if (command === 'mise' && args.at(-1) === 'check' && ++validations === 1)
         throw new ImplementationCommandError('Check failed', 'Expected regression coverage');
-      if (command === 'mise' && args.at(-1) === 'check' && options.cwd.endsWith('/baseline'))
-        return '';
       return f.execute(command, args, options);
     }
   })(createWorkflowContext(), { request: 'Fix' });
@@ -584,6 +699,71 @@ test('host validation returns diagnostics to the same worker and checks the repa
   expect(createAgent).toHaveBeenCalledOnce();
   expect(turns).toBe(2);
   expect(result.checks.every((check) => check.passed)).toBe(true);
+});
+
+test('worker progress updates reach the user, redacted and at most once per interval', async () => {
+  const f = await fixture();
+  const updates: string[] = [];
+  const results: (string | undefined)[] = [];
+  const result = await createImplementation(f.settings, {
+    execute: f.execute,
+    progressTiming: { minIntervalMs: 0, quietMs: 60_000 },
+    createAgent: worker(async (_options, call) => {
+      results.push(
+        (
+          await call('reportProgress', {
+            message: 'Adding the command; see https://example.invalid'
+          })
+        ).content[0]?.text
+      );
+      await call('apply_patch', { patch });
+      await call('preparePullRequest', proposal);
+    })
+  })(noticeContext(updates), { request: 'Fix' });
+  expect(result.outcome).toBe('completed');
+  expect(results).toEqual(['Sent.']);
+  // The task sends notices only to its parent, which decides what reaches the user.
+  expect(updates).toEqual(['Adding the command; see [url]']);
+
+  const held: string[] = [];
+  const texts: (string | undefined)[] = [];
+  await createImplementation(f.settings, {
+    execute: f.execute,
+    progressTiming: { minIntervalMs: 2_000, quietMs: 60_000 },
+    createAgent: worker(async (_options, call) => {
+      // Both arrive before the interval ends; only the newer one is posted, once it ends.
+      texts.push(
+        (await call('reportProgress', { message: 'Reading the composer' })).content[0]?.text
+      );
+      await call('reportProgress', { message: 'Adding the command' });
+      expect(held).toEqual([]);
+      await vi.waitFor(() => expect(held).toEqual(['Adding the command']), { timeout: 4_000 });
+      await call('apply_patch', { patch });
+      await call('preparePullRequest', proposal);
+    })
+  })(noticeContext(held), { request: 'Fix' });
+  expect(texts[0]).toMatch(/^Queued: the host posts it in about/);
+  expect(held).toEqual(['Adding the command']);
+});
+
+test('after a quiet period the host posts what it knows about the worker progress', async () => {
+  const f = await fixture();
+  const updates: string[] = [];
+  const result = await createImplementation(f.settings, {
+    execute: f.execute,
+    progressTiming: { quietMs: 20, checkMs: 5 },
+    createAgent: worker(async (_options, call) => {
+      await vi.waitFor(() =>
+        expect(updates[0]).toBe('Still reading the code. No files have changed yet.')
+      );
+      await call('apply_patch', { patch });
+      await vi.waitFor(() =>
+        expect(updates.at(-1)).toBe('Still working on the change: 1 changed file so far.')
+      );
+      await call('preparePullRequest', proposal);
+    })
+  })(noticeContext(updates), { request: 'Fix' });
+  expect(result.outcome).toBe('completed');
 });
 
 test('a failed worker report stops immediately and preserves the worktree for user direction', async () => {
@@ -611,9 +791,12 @@ test('a failed worker report stops immediately and preserves the worktree for us
   });
   expect(result.notes).toContain('Host final validation did not run. No PR was created.');
   expect(await readFile(join(result.worktree, 'example.txt'), 'utf8')).toBe('fixed\n');
-  expect(f.calls.some((call) => call.command === 'mise' && !call.args.includes('install'))).toBe(
-    false
-  );
+  expect(
+    f.calls.some(
+      (call) =>
+        call.command === 'mise' && !call.args.includes('install') && !call.args.includes('turbo')
+    )
+  ).toBe(false);
   expect(f.calls.some((call) => call.args.includes('push') || call.args[1] === 'create')).toBe(
     false
   );
@@ -635,6 +818,10 @@ test('a new human request can continue the same unfinished worktree and rerun fi
     }, 'blocked')
   })(createWorkflowContext(), { request: 'Fix the value' });
   expect(first.outcome).toBe('blocked');
+  // Applied patches are transient; only the retained diff remains.
+  expect(
+    (await readdir(join(first.worktree, '..'))).filter((name) => name.startsWith('edit-'))
+  ).toEqual([]);
   const resumed = await createImplementation(f.settings, {
     execute: f.execute,
     ownerKey,
@@ -644,13 +831,21 @@ test('a new human request can continue the same unfinished worktree and rerun fi
         expect(JSON.parse(prompt).handoff).toMatchObject({
           nextSteps: ['Review the diff and prepare the PR']
         });
+        expect(JSON.parse(prompt)).toMatchObject({
+          request: 'Fix the value',
+          followUps: [{ request: 'Continue', context: 'An unreviewed draft is fine.' }]
+        });
         expect(await readFile(join(options.cwd, 'example.txt'), 'utf8')).toBe('fixed\n');
         const call = await workerTools(options);
         await call('preparePullRequest', proposal);
         return { outcome: 'completed' as const, summary: 'Ready', usage: emptyTokenUsage() };
       }
     })
-  })(createWorkflowContext(), { request: 'Continue', resumeArtifactId: first.artifactId });
+  })(createWorkflowContext(), {
+    request: 'Continue',
+    context: 'An unreviewed draft is fine.',
+    resumeArtifactId: first.artifactId
+  });
   expect(resumed).toMatchObject({
     outcome: 'completed',
     branch: first.branch,
@@ -662,8 +857,156 @@ test('a new human request can continue the same unfinished worktree and rerun fi
   expect(metadata).toMatchObject({
     stage: 'published',
     ownerKey,
-    input: { request: 'Fix the value' }
+    input: { request: 'Fix the value' },
+    followUps: [{ request: 'Continue', context: 'An unreviewed draft is fine.' }]
   });
+});
+
+test('a continued implementation reopens the worker conversation and lists as resumable', async () => {
+  const f = await fixture();
+  const ownerKey = 'conversation-owner';
+  const sessionFiles: (string | undefined)[] = [];
+  const first = await createImplementation(f.settings, {
+    execute: f.execute,
+    ownerKey,
+    createAgent: async (options) => {
+      sessionFiles.push(options.sessionFile);
+      return {
+        dispose() {},
+        async runOutcome() {
+          await (
+            await workerTools(options)
+          )('apply_patch', { patch });
+          // Stand in for Pi, which writes the conversation after the first model reply.
+          await writeFile(options.sessionFile!, '{"type":"session"}\n');
+          return { outcome: 'blocked' as const, summary: 'Stopped', usage: emptyTokenUsage() };
+        }
+      };
+    }
+  })(createWorkflowContext(), { request: 'Fix the value' });
+  expect(sessionFiles).toEqual([join(first.worktree, '..', 'worker-session.jsonl')]);
+  const expected = { ownerKey, repository: 'example/chatto', baseBranch: 'main' };
+  expect(await listResumableArtifacts(f.settings.artifactsDirectory, expected)).toEqual([
+    {
+      artifactId: first.artifactId,
+      request: 'Fix the value',
+      stage: 'blocked',
+      updatedAt: expect.any(Number),
+      sessionSaved: true
+    }
+  ]);
+  expect(
+    await listResumableArtifacts(f.settings.artifactsDirectory, { ...expected, ownerKey: 'other' })
+  ).toEqual([]);
+
+  let prompt: Record<string, unknown> | undefined;
+  const resumed = await createImplementation(f.settings, {
+    execute: f.execute,
+    ownerKey,
+    createAgent: async (options) => ({
+      dispose() {},
+      async runOutcome(_ctx: unknown, text: string) {
+        prompt = JSON.parse(text);
+        await (
+          await workerTools(options)
+        )('preparePullRequest', proposal);
+        return { outcome: 'completed' as const, summary: 'Ready', usage: emptyTokenUsage() };
+      }
+    })
+  })(createWorkflowContext(), {
+    request: 'Continue',
+    resumeArtifactId: first.artifactId
+  });
+  expect(resumed.outcome).toBe('completed');
+  // The saved conversation already holds the request; the prompt only resumes it.
+  expect(prompt).toEqual({
+    resumeArtifactId: first.artifactId,
+    followUps: [{ request: 'Continue' }],
+    continuation: expect.stringContaining('Your conversation so far is above.')
+  });
+  expect(await listResumableArtifacts(f.settings.artifactsDirectory, expected)).toEqual([]);
+});
+
+test('git retries while another process holds the index lock, and a host failure names its command', async () => {
+  const f = await fixture();
+  const locked = (message: string) => {
+    const error = new HostCommandError(message);
+    error.lockHeld = true;
+    return error;
+  };
+  let addAttempts = 0;
+  const retried = await createImplementation(f.settings, {
+    execute: async (command, args, options) => {
+      if (command === 'git' && args.includes('add') && ++addAttempts <= 2)
+        throw locked('git add failed (exit 128)');
+      return f.execute(command, args, options);
+    },
+    createAgent: worker(async (_options, call) => {
+      await call('apply_patch', { patch });
+      await call('preparePullRequest', proposal);
+    })
+  })(createWorkflowContext(), { request: 'Fix' });
+  expect(retried.outcome).toBe('completed');
+  expect(addAttempts).toBeGreaterThan(2);
+
+  const failed = await createImplementation(f.settings, {
+    execute: async (command, args, options) => {
+      if (command === 'git' && args.includes('write-tree'))
+        throw new HostCommandError('git write-tree failed (exit 128)');
+      return f.execute(command, args, options);
+    },
+    createAgent: worker(async () => {})
+  })(createWorkflowContext(), { request: 'Fix' });
+  expect(failed).toMatchObject({
+    outcome: 'blocked',
+    summary:
+      'The implementation stopped during setup because git write-tree failed (exit 128). The work so far is kept.'
+  });
+});
+
+test('a cancelled implementation keeps its artifact ID in the supervisor snapshot', async () => {
+  const f = await fixture();
+  const ctx = createWorkflowContext();
+  const tasks = createAgentTasks(ctx, { notifyActivity: false });
+  const editing = Promise.withResolvers<void>();
+  const extension = implementationExtension(ctx, f.settings, async () => {}, tasks, {
+    execute: f.execute,
+    ownerKey: 'owner',
+    createAgent: async () => ({
+      dispose() {},
+      async runOutcome(workerCtx: { signal: AbortSignal }) {
+        editing.resolve();
+        await new Promise((_resolve, reject) =>
+          workerCtx.signal.addEventListener('abort', () => reject(workerCtx.signal.reason), {
+            once: true
+          })
+        );
+        throw new Error('unreachable');
+      }
+    })
+  });
+  const call = await workerTools({
+    cwd: f.settings.directory,
+    model: 'm',
+    extensions: [extension]
+  });
+  try {
+    const handle = JSON.parse(
+      (await call('implementChatto', { request: 'Fix', announcement: 'Starting' })).content[0]!
+        .text!
+    );
+    await editing.promise;
+    tasks.cancel(handle.id);
+    await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe('cancelled'));
+    const [snapshot] = taskContext(tasks.list());
+    expect(snapshot).toMatchObject({
+      status: 'cancelled',
+      state: { artifactId: expect.stringMatching(/^implementation-/) }
+    });
+    expect(Object.keys(snapshot!.state!)).toEqual(['artifactId']);
+  } finally {
+    await tasks.dispose();
+  }
 });
 
 test('an unfinished worktree cannot be resumed by a different conversation', async () => {
@@ -734,7 +1077,8 @@ test('setup, worker checks, and final validation use the isolated command enviro
     })
   })(createWorkflowContext(), { request: 'Fix' });
   expect(result.outcome).toBe('completed');
-  expect(checkEnvironments).toHaveLength(4);
+  // Setup, the dependency build, the worker check, formatting, and two final checks.
+  expect(checkEnvironments).toHaveLength(6);
   expect(checkEnvironments.every((keys) => keys?.includes('CHATTO_ALLOWED_USER_ID'))).toBe(true);
 });
 
@@ -757,14 +1101,33 @@ test('patch errors give the worker Git diagnostics and incorrect hunk counts can
 });
 
 test.each([
-  { path: 'apps/frontend/example.txt', scripts: ['check:frontend', 'test:frontend'] },
-  { path: 'cli/example.go', scripts: ['check', 'test', 'test-cli'] }
-])('host selects validation for $path', async ({ path, scripts }) => {
+  {
+    path: 'apps/frontend/example.txt',
+    scripts: ['check:frontend', 'lint:frontend'],
+    formatters: ['prettier']
+  },
+  {
+    path: 'cli/example.go',
+    scripts: ['check', 'lint', 'lint-cli'],
+    formatters: ['prettier', 'gofmt']
+  },
+  {
+    path: 'proto/chatto/example.proto',
+    scripts: ['codegen-proto', 'check', 'lint', 'lint-proto'],
+    formatters: ['prettier']
+  }
+])('host prepares and validates $path', async ({ path, scripts, formatters }) => {
   const f = await fixture();
   const validation: string[] = [];
+  const formatted: string[] = [];
   const result = await createImplementation(f.settings, {
     execute: async (command, args, options) => {
-      if (command === 'mise' && !args.includes('install')) {
+      if (command === 'mise' && (args.includes('prettier') || args.includes('gofmt'))) {
+        expect(args.at(-1)).toBe(path);
+        formatted.push(args.includes('prettier') ? 'prettier' : 'gofmt');
+        return '';
+      }
+      if (command === 'mise' && !args.includes('install') && !args.includes('turbo')) {
         validation.push(args.at(-1)!);
         return '';
       }
@@ -779,6 +1142,7 @@ test.each([
   })(createWorkflowContext(), { request: 'Fix' });
   expect(result.outcome).toBe('completed');
   expect(validation).toEqual(scripts);
+  expect(formatted).toEqual(formatters);
 });
 
 test.each(['failed-check', 'source-changing-check'])(
@@ -805,13 +1169,12 @@ test.each(['failed-check', 'source-changing-check'])(
       }
     })(createWorkflowContext(), { request: 'Fix' });
     expect(result).toMatchObject({ outcome: 'blocked' });
-    if (mode === 'failed-check') expect(result.summary).toContain('also failed on the base commit');
-    else expect(result.summary).toContain('three attempts');
+    expect(result.summary).toContain('three attempts');
     if (mode === 'failed-check')
       expect(result.checks).toEqual([
         { command: 'mise x -- pnpm run check', passed: false, diagnostic: 'Assertion failed' }
       ]);
-    expect(turns).toBe(mode === 'failed-check' ? 1 : 3);
+    expect(turns).toBe(3);
     expect(createAgent).toHaveBeenCalledOnce();
     expect(f.calls.some((call) => call.args.includes('push'))).toBe(false);
   }
@@ -905,56 +1268,12 @@ test('one request gets one implementation attempt; a new human request can retry
   }
 });
 
-test.each(['sent', 'failed'])(
-  'a stopped implementation records notice delivery: %s',
-  async (mode) => {
-    const f = await fixture();
-    const ctx = createWorkflowContext();
-    const tasks = createAgentTasks(ctx, { notifyActivity: false });
-    const onStopped = vi.fn(async (_message: string) => {
-      if (mode === 'failed') throw new Error('Post failed');
-    });
-    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const extension = implementationExtension(ctx, f.settings, async () => {}, tasks, {
-      execute: f.execute,
-      createAgent: worker(async () => {}, 'blocked'),
-      onStopped
-    });
-    const call = await workerTools({
-      cwd: f.settings.directory,
-      model: 'test/model',
-      extensions: [extension]
-    });
-    try {
-      const handle = JSON.parse(
-        (await call('implementChatto', { request: 'Fix', announcement: 'Starting' })).content[0]!
-          .text!
-      );
-      await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe('completed'));
-      expect(onStopped).toHaveBeenCalledExactlyOnceWith(
-        expect.stringContaining('The implementation stopped:')
-      );
-      expect(onStopped.mock.calls[0]![0]).toContain('worktree was kept for review');
-      expect(onStopped.mock.calls[0]![0]).toContain('Please tell me how you want to proceed');
-      expect(JSON.parse(tasks.get(handle.id).result!)).toMatchObject({
-        outcome: 'blocked',
-        noticeDelivered: mode === 'sent'
-      });
-    } finally {
-      warning.mockRestore();
-      await tasks.dispose();
-    }
-  }
-);
-
 test('a blocked worker reason and its check count reach the owner without claiming final validation', async () => {
   const f = await fixture();
   const ctx = createWorkflowContext();
   const tasks = createAgentTasks(ctx, { notifyActivity: false });
-  const onStopped = vi.fn(async (_message: string) => {});
   const extension = implementationExtension(ctx, f.settings, async () => {}, tasks, {
     execute: f.execute,
-    onStopped,
     createAgent: async (options) => ({
       dispose() {},
       async runOutcome() {
@@ -985,19 +1304,15 @@ test('a blocked worker reason and its check count reach the owner without claimi
         .text!
     );
     await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe('completed'));
-    expect(onStopped).toHaveBeenCalledOnce();
-    const message = onStopped.mock.calls[0]![0];
-    expect(message).toContain('18 catalog sections remain');
-    expect(message).toContain('worker ran 1 check');
-    expect(message).toContain('not final host checks');
-    expect(message).toContain('implementation-');
     const result = JSON.parse(tasks.get(handle.id).result!);
     expect(result).toMatchObject({
       outcome: 'blocked',
       checks: [],
-      workerChecks: [{ command: 'mise x -- pnpm run check', passed: true }],
-      noticeDelivered: true
+      workerChecks: [{ command: 'mise x -- pnpm run check', passed: true }]
     });
+    // The supervisor reports the result in its own words from these facts.
+    expect(result.summary).toContain('18 catalog sections remain');
+    expect(result.artifactId).toMatch(/^implementation-/);
     expect(
       f.calls.filter((entry) => entry.command === 'mise' && entry.args.at(-1) === 'check')
     ).toHaveLength(1);
@@ -1006,102 +1321,361 @@ test('a blocked worker reason and its check count reach the owner without claimi
   }
 });
 
-test('host posts the verified PR before a separate CI result and suppresses duplicate notices', async () => {
+const passedChecks = {
+  status: 'passed' as const,
+  passed: 3,
+  failed: 0,
+  pending: 0,
+  skipped: 0,
+  failures: []
+};
+const failedChecks = {
+  status: 'failed' as const,
+  passed: 1,
+  failed: 1,
+  pending: 1,
+  skipped: 0,
+  failures: [
+    { name: 'test-frontend-unit', link: 'https://github.com/example/chatto/actions/runs/12/job/34' }
+  ]
+};
+const regressionPatch = '--- /dev/null\n+++ b/regression.txt\n@@ -0,0 +1 @@\n+covered\n';
+const remoteSubjects = async (f: Awaited<ReturnType<typeof fixture>>, branch: string) =>
+  (await exec('git', ['--git-dir', f.remote, 'log', '--format=%s', branch])).stdout
+    .trim()
+    .split('\n');
+
+test('the supervisor hears each milestone; a CI failure and its job log go to the same worker, which pushes a fix', async () => {
   const f = await fixture();
+  const approvedActions: string[] = [];
   const ctx = createWorkflowContext();
   const tasks = createAgentTasks(ctx, { notifyActivity: false });
-  const messages: string[] = [];
-  const observeChecks = vi.fn(async () => {
-    expect(messages).toHaveLength(1);
-    expect(messages[0]).toContain('https://github.com/example/chatto/pull/7');
-    return { status: 'failed' as const, passed: 1, failed: 1, pending: 0, skipped: 0 };
+  const observed: { headCommit: string; stopOnFailure?: boolean }[] = [];
+  const observeChecks = vi.fn(async (options: { headCommit: string; stopOnFailure?: boolean }) => {
+    observed.push({ headCommit: options.headCommit, stopOnFailure: options.stopOnFailure });
+    return observed.length === 1 ? failedChecks : passedChecks;
   });
-  const extension = implementationExtension(ctx, f.settings, async () => {}, tasks, {
-    execute: f.execute,
-    createAgent: worker(async (_options, call) => {
-      await call('apply_patch', { patch });
-      await call('preparePullRequest', proposal);
-    }),
-    observeChecks,
-    onPublished: async (message) => {
-      messages.push(message);
-    },
-    onCiResult: async (message) => {
-      messages.push(message);
+  const prompts: string[] = [];
+  const createAgent = vi.fn(async (options: AgentOptions) => ({
+    dispose: vi.fn(),
+    async runOutcome(_ctx: unknown, prompt: string) {
+      prompts.push(prompt);
+      const call = await workerTools(options);
+      if (prompts.length === 1) {
+        await call('apply_patch', { patch });
+        await call('preparePullRequest', proposal);
+      } else await call('apply_patch', { patch: regressionPatch });
+      return { outcome: 'completed' as const, summary: 'Ready', usage: emptyTokenUsage() };
     }
+  }));
+  const extension = implementationExtension(ctx, f.settings, async () => {}, tasks, {
+    requestApproval: async (_ctx, action) => {
+      approvedActions.push(action.action);
+      return { decision: 'allow', reason: 'Within the delegated fix.' };
+    },
+    execute: async (command, args, options) =>
+      command === 'gh' && args[0] === 'api'
+        ? '2026-01-01T00:00:00.0Z FAIL src/a.spec.ts\n2026-01-01T00:00:00.1Z ##[error]Process completed with exit code 1.'
+        : f.execute(command, args, options),
+    createAgent,
+    observeChecks
   });
   const call = await workerTools({
     cwd: f.settings.directory,
     model: 'test/model',
     extensions: [extension]
   });
+  // Read notifications like the supervisor conversation does.
+  const woken: { type: string; data?: Record<string, unknown> }[] = [];
+  const relaying = (async () => {
+    for await (const notice of userFacingTaskNotifications(tasks.notifications))
+      woken.push(JSON.parse(notice));
+  })();
   try {
     const handle = JSON.parse(
       (await call('implementChatto', { request: 'Fix', announcement: 'Starting' })).content[0]!
         .text!
     );
-    await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe('completed'));
-    expect(messages).toHaveLength(2);
-    expect(messages[1]).toContain('CI failed');
-    expect(JSON.parse(tasks.get(handle.id).result!)).toMatchObject({
-      outcome: 'completed',
-      ci: { status: 'failed', failed: 1 },
-      noticeDelivered: true
+    await vi.waitFor(() => expect(woken.at(-1)?.type).toBe('task.completed'), { timeout: 10_000 });
+    // Each stage reaches the supervisor as facts; it tells the user in its own words.
+    expect(woken.map((notice) => notice.data?.milestone ?? notice.type)).toEqual([
+      'validating',
+      'published',
+      'ci_failed',
+      'ci_fix_pushed',
+      'task.completed'
+    ]);
+    expect(woken[1]!.data).toEqual({
+      milestone: 'published',
+      prUrl: 'https://github.com/example/chatto/pull/7'
     });
+    expect(woken[2]!.data).toMatchObject({
+      attempt: 1,
+      maxAttempts: 3,
+      failedChecks: ['test-frontend-unit']
+    });
+    expect(createAgent).toHaveBeenCalledOnce();
+    expect(prompts[1]).toContain('test-frontend-unit');
+    expect(prompts[1]).toContain('FAIL src/a.spec.ts');
+    const result = JSON.parse(tasks.get(handle.id).result!);
+    expect(result).toMatchObject({ outcome: 'completed', ci: { status: 'passed', repairs: 1 } });
+    expect(observed).toEqual([
+      { headCommit: expect.any(String), stopOnFailure: true },
+      { headCommit: result.commit, stopOnFailure: true }
+    ]);
+    expect(observed[0]!.headCommit).not.toBe(result.commit);
+    expect(await remoteSubjects(f, result.branch)).toEqual([
+      'fix: address CI failures',
+      proposal.title,
+      'fixture'
+    ]);
+    expect(approvedActions).toEqual([
+      'prepare_pull_request',
+      'publish_pull_request',
+      'publish_pull_request_update'
+    ]);
   } finally {
     await tasks.dispose();
+    await relaying;
   }
 });
 
-test('a failed PR notice stays available in the terminal task result', async () => {
+test('unrelated CI failures are rerun when their runs finish, and new failures reach the worker first', async () => {
   const f = await fixture();
-  const ctx = createWorkflowContext();
-  const tasks = createAgentTasks(ctx, { notifyActivity: false });
-  const onCiResult = vi.fn(async () => {});
-  const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
-  const extension = implementationExtension(ctx, f.settings, async () => {}, tasks, {
-    execute: f.execute,
-    createAgent: worker(async (_options, call) => {
-      await call('apply_patch', { patch });
-      await call('preparePullRequest', proposal);
-    }),
-    onPublished: async () => {
-      throw new Error('Chat post failed');
+  const approvedActions: string[] = [];
+  const job = (id: number, name: string) => ({
+    name,
+    link: `https://github.com/example/chatto/actions/runs/12/job/${id}`
+  });
+  const license = job(1, 'license-check');
+  const e2e = job(2, 'test-e2e');
+  const sequence = [
+    { ...failedChecks, failures: [license] },
+    { ...failedChecks, failed: 2, failures: [license, e2e] },
+    { ...failedChecks, failed: 2, pending: 0, failures: [license, e2e] },
+    passedChecks
+  ];
+  const observed: { known: string[]; initialDelayMs?: number }[] = [];
+  const observeChecks = vi.fn(
+    async (options: { knownFailures?: ReadonlySet<string>; initialDelayMs?: number }) => {
+      observed.push({
+        known: [...(options.knownFailures ?? [])],
+        initialDelayMs: options.initialDelayMs
+      });
+      return sequence[observed.length - 1]!;
+    }
+  );
+  const execute = vi.fn<ImplementationProcess>(async (command, args, options) =>
+    command === 'gh' && (args[0] === 'api' || args[1] === 'rerun')
+      ? 'flaky'
+      : f.execute(command, args, options)
+  );
+  const prompts: string[] = [];
+  const result = await createImplementation(f.settings, {
+    execute,
+    requestApproval: async (_ctx, action) => {
+      approvedActions.push(action.action);
+      return { decision: 'allow', reason: 'Within the delegated CI work.' };
     },
-    onCiResult
-  });
-  const call = await workerTools({
-    cwd: f.settings.directory,
-    model: 'test/model',
-    extensions: [extension]
-  });
-  try {
-    const handle = JSON.parse(
-      (await call('implementChatto', { request: 'Fix', announcement: 'Starting' })).content[0]!
-        .text!
+    observeChecks,
+    rerunDelayMs: 5,
+    createAgent: async (options: AgentOptions) => ({
+      dispose: vi.fn(),
+      async runOutcome(_ctx: unknown, prompt: string) {
+        prompts.push(prompt);
+        const call = await workerTools(options);
+        const rerun = await call('rerunFailedChecks', {});
+        if (prompts.length === 1) {
+          expect(rerun.content[0]?.text).toContain('No CI failure');
+          await call('apply_patch', { patch });
+          await call('preparePullRequest', proposal);
+        } else expect(rerun.content[0]?.text).toContain('Rerun requested');
+        return { outcome: 'completed' as const, summary: 'Ready', usage: emptyTokenUsage() };
+      }
+    })
+  })(createWorkflowContext(), { request: 'Fix' });
+  expect(result).toMatchObject({ outcome: 'completed', ci: { status: 'passed', repairs: 2 } });
+  // The second failure reaches the worker while the first one waits for its run to finish.
+  expect(JSON.parse(prompts[1]!.split('\n')[1]!).failedChecks).toEqual(['license-check']);
+  expect(JSON.parse(prompts[2]!.split('\n')[1]!).failedChecks).toEqual(['test-e2e']);
+  expect(observed).toEqual([
+    { known: [], initialDelayMs: 0 },
+    { known: [license.link], initialDelayMs: 0 },
+    { known: [license.link, e2e.link], initialDelayMs: 0 },
+    { known: [], initialDelayMs: 5 }
+  ]);
+  expect(
+    execute.mock.calls.filter(([command, args]) => command === 'gh' && args[1] === 'rerun')
+  ).toEqual([
+    ['gh', ['run', 'rerun', '12', '--failed', '--repo', 'example/chatto'], expect.anything()]
+  ]);
+  expect(await remoteSubjects(f, result.branch)).toEqual([proposal.title, 'fixture']);
+  expect(approvedActions).toEqual([
+    'prepare_pull_request',
+    'publish_pull_request',
+    'rerun_failed_checks'
+  ]);
+});
+
+test.each(['publish_pull_request_update', 'rerun_failed_checks'] as const)(
+  'owner denial prevents the CI effect: %s',
+  async (deniedAction) => {
+    const f = await fixture();
+    let turn = 0;
+    const actions: string[] = [];
+    const execute = vi.fn<ImplementationProcess>(async (command, args, options) =>
+      command === 'gh' && args[0] === 'api'
+        ? 'Reference failure log.'
+        : f.execute(command, args, options)
     );
-    await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe('completed'));
-    expect(onCiResult).toHaveBeenCalledOnce();
-    expect(JSON.parse(tasks.get(handle.id).result!)).toMatchObject({
-      outcome: 'completed',
-      publicationNoticeDelivered: false,
-      ciNoticeDelivered: true,
-      noticeDelivered: false
-    });
-  } finally {
-    warning.mockRestore();
-    await tasks.dispose();
+    const result = await createImplementation(f.settings, {
+      execute,
+      observeChecks: async () => ({ ...failedChecks, pending: 0 }),
+      requestApproval: async (_ctx, action) => {
+        actions.push(action.action);
+        return {
+          decision: action.action === deniedAction ? 'deny' : 'allow',
+          reason: 'Owner reviewed the action.'
+        };
+      },
+      createAgent: worker(async (_options, call) => {
+        if (++turn === 1) {
+          await call('apply_patch', { patch });
+          await call('preparePullRequest', proposal);
+        } else if (deniedAction === 'publish_pull_request_update')
+          await call('apply_patch', { patch: regressionPatch });
+        else await call('rerunFailedChecks', {});
+      })
+    })(createWorkflowContext(), { request: 'Fix the value' });
+    expect(result).toMatchObject({ outcome: 'completed', ci: { status: 'unfixed' } });
+    expect(actions).toContain(deniedAction);
+    expect(
+      execute.mock.calls.filter(([command, args]) => command === 'git' && args.includes('push'))
+    ).toHaveLength(1);
+    expect(
+      execute.mock.calls.some(([command, args]) => command === 'gh' && args[1] === 'rerun')
+    ).toBe(false);
+    expect(await remoteSubjects(f, result.branch)).toEqual([proposal.title, 'fixture']);
   }
+);
+
+test.each(['limit', 'stopped'])(
+  'CI repair ends with the PR kept when the %s is reached',
+  async (mode) => {
+    const f = await fixture();
+    let turns = 0;
+    let jobs = 0;
+    const result = await createImplementation(f.settings, {
+      execute: async (command, args, options) =>
+        command === 'gh' && (args[0] === 'api' || args[1] === 'rerun')
+          ? ''
+          : f.execute(command, args, options),
+      // Each observation reports a new failed job, so every one goes to the worker.
+      observeChecks: async () => ({
+        ...failedChecks,
+        failures: [
+          { name: 'e2e', link: `https://github.com/example/chatto/actions/runs/12/job/${++jobs}` }
+        ]
+      }),
+      rerunDelayMs: 0,
+      createAgent: async (options: AgentOptions) => ({
+        dispose: vi.fn(),
+        async runOutcome() {
+          const call = await workerTools(options);
+          if (++turns === 1) {
+            await call('apply_patch', { patch });
+            await call('preparePullRequest', proposal);
+          } else if (mode === 'limit') await call('rerunFailedChecks', {});
+          else
+            return {
+              outcome: 'blocked' as const,
+              summary: 'The failure needs a product decision',
+              usage: emptyTokenUsage()
+            };
+          return { outcome: 'completed' as const, summary: 'Ready', usage: emptyTokenUsage() };
+        }
+      })
+    })(createWorkflowContext(), { request: 'Fix' });
+    expect(result.outcome).toBe('completed');
+    expect(result.prUrl).toBe('https://github.com/example/chatto/pull/7');
+    if (mode === 'limit') {
+      expect(result).toMatchObject({ ci: { status: 'failed', repairs: 3 } });
+      expect(turns).toBe(4);
+    } else
+      expect(result).toMatchObject({
+        ci: {
+          status: 'unfixed',
+          repairs: 1,
+          reason: expect.stringContaining('needs a product decision')
+        }
+      });
+  }
+);
+
+test('a message that arrives while CI runs reaches the same worker, and its edits are pushed', async () => {
+  const f = await fixture();
+  const observing = Promise.withResolvers<void>();
+  let observations = 0;
+  const observeChecks = vi.fn(async (options: { signal: AbortSignal }) => {
+    if (++observations === 1) {
+      observing.resolve();
+      await new Promise((_resolve, reject) =>
+        options.signal.addEventListener('abort', () => reject(options.signal.reason), {
+          once: true
+        })
+      );
+    }
+    return passedChecks;
+  });
+  const prompts: string[] = [];
+  const emitted: unknown[] = [];
+  const result = await createImplementation(f.settings, {
+    execute: f.execute,
+    observeChecks,
+    createAgent: async (options: AgentOptions) => ({
+      dispose: vi.fn(),
+      async runOutcome(_ctx: unknown, prompt: string) {
+        prompts.push(prompt);
+        const call = await workerTools(options);
+        if (prompts.length === 1) {
+          await call('apply_patch', { patch });
+          await call('preparePullRequest', proposal);
+        } else await call('apply_patch', { patch: regressionPatch });
+        return { outcome: 'completed' as const, summary: 'Ready', usage: emptyTokenUsage() };
+      }
+    })
+  })(
+    {
+      ...createWorkflowContext(),
+      emit: async (update: unknown) => void emitted.push(update),
+      inbox: (async function* () {
+        await observing.promise;
+        yield 'Also add the regression file';
+      })()
+    },
+    { request: 'Fix' }
+  );
+  expect(prompts[1]).toContain('Also add the regression file');
+  expect(result).toMatchObject({ outcome: 'completed', ci: { status: 'passed', repairs: 0 } });
+  expect(await remoteSubjects(f, result.branch)).toEqual([
+    'chore: apply follow-up changes',
+    proposal.title,
+    'fixture'
+  ]);
+  // The worker's answer to the message reaches the parent, which tells the user.
+  expect(emitted).toContainEqual({
+    type: 'notice',
+    text: 'The worker handled the forwarded messages and answered: Ready',
+    data: { milestone: 'messages_handled' }
+  });
 });
 
 test('an unexpected worker error produces one safe stopped result for the owner', async () => {
   const f = await fixture();
   const ctx = createWorkflowContext();
   const tasks = createAgentTasks(ctx, { notifyActivity: false });
-  const onStopped = vi.fn(async () => {});
   const extension = implementationExtension(ctx, f.settings, async () => {}, tasks, {
     execute: f.execute,
-    onStopped,
     createAgent: async () => ({
       dispose() {},
       async runOutcome() {
@@ -1120,11 +1694,11 @@ test('an unexpected worker error produces one safe stopped result for the owner'
         .text!
     );
     await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe('completed'));
-    expect(onStopped).toHaveBeenCalledOnce();
     expect(JSON.stringify(tasks.get(handle.id))).not.toContain('private provider detail');
     expect(JSON.parse(tasks.get(handle.id).result!)).toMatchObject({
       outcome: 'blocked',
-      noticeDelivered: true
+      summary:
+        'The implementation stopped during editing because of an unexpected error. The work so far is kept.'
     });
   } finally {
     await tasks.dispose();
@@ -1369,6 +1943,8 @@ test('the tool waits for its announcement, returns a handle, accepts steering, a
     dispose: () => {},
     async runOutcome(_ctx: unknown, prompt: string) {
       expect(JSON.parse(prompt).plan).toEqual(plan);
+      // The host passes the issue that it read to the worker.
+      expect(JSON.parse(prompt).issue).toMatchObject({ number: 12, title: 'Wrong value' });
       started.resolve();
       await finish.promise;
       const call = await workerTools(options);
@@ -1380,7 +1956,14 @@ test('the tool waits for its announcement, returns a handle, accepts steering, a
   const extension = implementationExtension(ctx, f.settings, announce, tasks, {
     execute: f.execute,
     createAgent,
-    plans: new Map([['investigation', plan]])
+    plans: new Map([['investigation', plan]]),
+    fetchIssue: async (number) => ({
+      repository: 'example/chatto',
+      number,
+      title: 'Wrong value',
+      body: 'The value is wrong.',
+      url: `https://github.com/example/chatto/issues/${number}`
+    })
   });
   const call = await workerTools({
     cwd: f.settings.directory,
@@ -1399,6 +1982,7 @@ test('the tool waits for its announcement, returns a handle, accepts steering, a
     const pending = call('implementChatto', {
       request: 'Fix the value',
       investigationId: 'investigation',
+      issueNumber: 12,
       announcement: "I'll implement the fix and run its checks."
     });
     await vi.waitFor(() => expect(announce).toHaveBeenCalledOnce());
@@ -1411,16 +1995,61 @@ test('the tool waits for its announcement, returns a handle, accepts steering, a
     await tasks.send(handle.id, 'Keep the public API unchanged');
     await vi.waitFor(() => expect(steer).toHaveBeenCalledWith('Keep the public API unchanged'));
     finish.resolve();
-    const notification = JSON.parse((await notices.next()).value!);
+    // Milestone notices come first; completion is last.
+    let notification = JSON.parse((await notices.next()).value!);
+    while (notification.type === 'task.notice')
+      notification = JSON.parse((await notices.next()).value!);
     expect(notification.type).toBe('task.completed');
     expect(JSON.parse(notification.task.result)).toMatchObject({
       outcome: 'completed',
       prUrl: 'https://github.com/example/chatto/pull/7'
     });
+    expect(f.body).toMatch(/\n\nCloses #12\.$/);
     expect(announce).toHaveBeenCalledOnce();
   } finally {
     delivered.resolve();
     finish.resolve();
+    await tasks.dispose();
+  }
+});
+
+test('a parallel call is refused while the first reads its issue; a failed read frees the attempt', async () => {
+  const f = await fixture();
+  const ctx = createWorkflowContext();
+  const tasks = createAgentTasks(ctx);
+  const read = Promise.withResolvers<never>();
+  const fetchIssue = vi.fn(() => read.promise);
+  const onBlocked = vi.fn(async () => {});
+  let version = 1;
+  const call = await workerTools({
+    cwd: f.settings.directory,
+    model: 'test/model',
+    extensions: [
+      implementationExtension(ctx, f.settings, async () => {}, tasks, {
+        execute: f.execute,
+        onBlocked,
+        fetchIssue,
+        requestVersion: () => version
+      })
+    ]
+  });
+  const input = { request: 'Fix', issueNumber: 12, announcement: 'Starting' };
+  try {
+    const first = call('implementChatto', input);
+    const second = JSON.parse((await call('implementChatto', input)).content[0]!.text!);
+    expect(second).toMatchObject({ outcome: 'blocked' });
+    // A newer request does not start a second implementation while the first one starts.
+    version = 2;
+    const third = JSON.parse((await call('implementChatto', input)).content[0]!.text!);
+    expect(third).toMatchObject({ outcome: 'blocked' });
+    expect(onBlocked).toHaveBeenCalledTimes(2);
+    version = 1;
+    read.reject(new Error('Issue not found'));
+    await expect(first).rejects.toThrow('Issue not found');
+    // The failed read did not start work, so the same request can try again.
+    await expect(call('implementChatto', input)).rejects.toThrow('Issue not found');
+    expect(fetchIssue).toHaveBeenCalledTimes(2);
+  } finally {
     await tasks.dispose();
   }
 });
@@ -1461,7 +2090,11 @@ test.skipIf(!process.env.CHATTO_EVAL_MODEL)(
       JSON.stringify({
         name: 'implementation-fixture',
         private: true,
-        scripts: { check: 'node --check regression.cjs', test: 'node --test regression.cjs' }
+        scripts: {
+          check: 'node --check regression.cjs',
+          lint: 'node --check regression.cjs',
+          test: 'node --test regression.cjs'
+        }
       })
     );
     await writeFile(
@@ -1503,3 +2136,18 @@ test.skipIf(!process.env.CHATTO_EVAL_MODEL)(
   },
   160_000
 );
+
+test('failed patch context stays inside the worktree', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'chattobot-hunk-'));
+  folders.push(root);
+  await mkdir(join(root, 'worktree'));
+  await writeFile(join(root, 'outside.txt'), 'secret\n');
+  await writeFile(join(root, 'worktree', 'inside.txt'), 'a\nb\n');
+  const worktree = join(root, 'worktree');
+  expect(await failedHunkLines(worktree, 'error: patch failed: ../outside.txt:1')).toBe('');
+  expect(await failedHunkLines(worktree, 'error: patch failed: missing.txt:1')).toBe('');
+  expect(await failedHunkLines(worktree, 'error: no hunk')).toBe('');
+  expect(await failedHunkLines(worktree, 'error: patch failed: inside.txt:2')).toContain(
+    'Current lines 1-3 of inside.txt:\n1: a\n2: b'
+  );
+});

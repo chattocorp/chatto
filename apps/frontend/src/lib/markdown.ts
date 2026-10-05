@@ -5,6 +5,7 @@ import type StateBlock from 'markdown-it/lib/rules_block/state_block.mjs';
 import type Token from 'markdown-it/lib/token.mjs';
 import tlds from 'tlds';
 import { classifyMessageBodyChatLink } from '$lib/messageLinks';
+import { collectMentionHandles, MENTIONS_ENV_KEY, mentionPlugin } from '$lib/markdownMentions';
 import { m } from '$lib/i18n/messages';
 
 type CodeHighlightingModule = typeof import('$lib/codeHighlighting');
@@ -469,6 +470,9 @@ function initialize(): void {
   // `&nbsp;` runs cannot create giant blank message rows without corrupting
   // code samples that intentionally contain the entity source.
   md.core.ruler.after('inline', 'normalize_non_breaking_spaces', normalizeInlineNonBreakingSpaces);
+  // Recognize @mentions in the token tree after linkify, so URLs, links,
+  // code, and blockquotes keep their text. See `$lib/markdownMentions`.
+  md.use(mentionPlugin);
   md.renderer.rules.softbreak = renderChatLineBreak;
   md.renderer.rules.hardbreak = renderChatLineBreak;
   md.renderer.rules.table_open = () => '<div class="table-scroll" tabindex="0"><table>\n';
@@ -520,6 +524,7 @@ function initialize(): void {
 
 /**
  * Renders inline formatting and safe links on one line, without block markup.
+ * `@handle` stays plain text.
  */
 export function renderInlineMarkdown(body: string): string {
   initialize();
@@ -527,14 +532,39 @@ export function renderInlineMarkdown(body: string): string {
 }
 
 /**
+ * Returns the `@handle` mentions of a message body, deduplicated, in order of
+ * appearance. The renderer parses the body with the same rules, so these are
+ * exactly the mention candidates that `renderMarkdown` emits with
+ * `{ mentions: true }`.
+ */
+export function extractMarkdownMentions(body: string): string[] {
+  if (!body.includes('@')) return [];
+  initialize();
+  return collectMentionHandles(md!.parse(body, { [MENTIONS_ENV_KEY]: true }));
+}
+
+/** Options for {@link renderMarkdown}. */
+export type RenderMarkdownOptions = {
+  /**
+   * Marks `@handle` mentions as unresolved candidates for
+   * `resolveRenderedMentions` in `$lib/mentions`. Only message bodies have
+   * mentions; the default leaves `@handle` as plain text.
+   */
+  mentions?: boolean;
+};
+
+/**
  * Renders markdown to HTML.
  */
-export async function renderMarkdown(body: string): Promise<string> {
+export async function renderMarkdown(
+  body: string,
+  { mentions = false }: RenderMarkdownOptions = {}
+): Promise<string> {
   try {
     await ensureFenceLanguagesLoaded(extractFenceLanguages(body));
     initialize();
 
-    return md!.render(body);
+    return md!.render(body, { [MENTIONS_ENV_KEY]: mentions });
   } catch (err) {
     console.error('[Markdown] renderMarkdown failed:', err, { bodyLength: body.length });
     throw err;

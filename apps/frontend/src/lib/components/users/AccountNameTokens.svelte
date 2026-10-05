@@ -1,6 +1,6 @@
 <!-- @component Renders account badges inside a localized plain-text sentence. -->
 <script lang="ts">
-  import type { AccountNameIdentity } from '$lib/render/accountName';
+  import type { AccountNameIdentity } from '@chatto/client/timeline/accountName';
   import AccountName from './AccountName.svelte';
 
   let {

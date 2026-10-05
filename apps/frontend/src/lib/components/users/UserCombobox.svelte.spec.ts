@@ -21,7 +21,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   })
 }));
 
-vi.mock('$lib/api-client/memberDirectory', () => ({
+vi.mock('@chatto/client/api/memberDirectory', () => ({
   mapDirectoryMember: vi.fn(),
   createMemberDirectoryAPI: () => ({
     listUsers: mocks.listUsers

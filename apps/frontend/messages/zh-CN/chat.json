@@ -27,9 +27,7 @@
         "followed_thread": "{actor} 回复了你关注的主题。",
         "new_message": "{actor} 发布了一条新消息。",
         "activity": "{actor} 向你发送了一条通知。"
-      },
-      "load_failed": "加载通知失败",
-      "room_load_failed": "加载聊天室通知失败"
+      }
     },
     "sign_out": {
       "title": "退出登录",
@@ -74,6 +72,21 @@
         "other": "{count} 条通知"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "需要升级服务器",
+      "too_old_body": "此服务器运行的 Chatto 版本已不再受此应用支持。请让服务器管理员升级 Chatto。",
+      "unknown_title": "未知的服务器版本",
+      "unknown_body": "此应用无法识别此服务器的 Chatto 版本，因此无法连接。",
+      "unreachable_body": "此应用无法连接到此服务器。请检查你的网络连接，或稍后重试。",
+      "server_version": "服务器版本",
+      "required_version": "所需版本",
+      "required_version_value": "{version} 或更高版本",
+      "check_again": "重新检查"
+    },
+    "server_signed_out": {
+      "title": "你已退出此服务器",
+      "body": "登录后即可在此服务器上阅读和发送消息。"
+    },
     "threads": {
       "title": "我的话题串",
       "subtitle": "你关注的话题串",
@@ -89,7 +102,11 @@
       "message_missing": "消息已不可用",
       "in_room": "位于",
       "in_room_capitalized": "位于",
-      "load_failed": "加载话题串失败"
+      "load_failed": "加载话题串失败",
+      "notifications_count": {
+        "one": "{count} 条通知",
+        "other": "{count} 条通知"
+      }
     },
     "profile": {
       "title": "个人资料",
@@ -105,6 +122,7 @@
         "inactive_note": "这些授权已保存，但所有者当前的权限不允许使用。",
         "read": "读取所有消息",
         "interactions": "读取它创建的或被直接提及的主题",
+        "reply_interactions": "在它发起的、被直接提及的或收到私信的主题中回复",
         "post": "发布新消息",
         "room": "#{name}",
         "group": "分组：{name}",

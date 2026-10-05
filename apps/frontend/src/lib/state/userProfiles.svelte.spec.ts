@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { scheduleCustomStatusExpiry } from '$lib/utils/customStatusExpiry';
+import { scheduleCustomStatusExpiry } from '@chatto/client/util/customStatusExpiry';
 
 describe('custom status expiry scheduling', () => {
   afterEach(() => {

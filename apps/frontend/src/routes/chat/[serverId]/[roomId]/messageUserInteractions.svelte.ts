@@ -1,4 +1,4 @@
-import type { UserAvatarUserView } from '$lib/render/users';
+import type { UserAvatarUserView } from '@chatto/client/timeline/users';
 import type { RoomMember } from '$lib/state/room';
 
 export class MessageUserInteractionState {

@@ -4,8 +4,8 @@ import type {
   DirectoryMember,
   MemberDirectoryAPI,
   MemberDirectoryPage
-} from '$lib/api-client/memberDirectory';
-import { queryClient } from './client';
+} from '@chatto/client/api/memberDirectory';
+import { queryClient } from './queryClient';
 import { queryCaches } from './cacheRegistry';
 import { directoryQueryKeys } from './directory';
 import {

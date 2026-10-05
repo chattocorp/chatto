@@ -13,7 +13,8 @@ preview on screen.
 - `showDismiss` — Whether to show the dismiss button (default: true).
 -->
 <script lang="ts">
-  import { formatAccountName } from '$lib/render/accountName';
+  import { formatAccountName } from '@chatto/client/timeline/accountName';
+  import { serverUi } from '$lib/state/server/serverUi';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
   import { skipToken } from '@tanstack/svelte-query';
@@ -31,16 +32,15 @@ preview on screen.
     type MessagePreview,
     type MessagePreviewAttachment
   } from '$lib/query/messagePreview';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
+  import { serverRegistry, serverConnectionManager } from '$lib/client';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import { createAttachmentAPI } from '$lib/api-client/attachments';
+  import { createAttachmentAPI } from '@chatto/client/api/attachments';
   import {
     assetUrlNeedsRefresh,
     earliestAssetUrlRefreshAt,
     refreshAttachmentUrlsForAssets,
     withAssetUrlRetryParam
-  } from '$lib/attachments/attachmentUrls';
+  } from '@chatto/client/attachments/attachmentUrls';
   import { useExpiringAssetUrlRefresh } from '$lib/attachments/useExpiringAssetUrlRefresh.svelte';
   import { ScrollFader } from '$lib/ui';
   import MessageContent from './MessageContent.svelte';
@@ -105,7 +105,8 @@ preview on screen.
     link.serverId ? (serverRegistry.getServer(link.serverId)?.name ?? null) : null
   );
   const roomName = $derived(
-    store?.navigation.rooms.find((room) => room.id === link.roomId)?.name ?? null
+    (store ? serverUi(store).navigation.rooms : []).find((room) => room.id === link.roomId)?.name ??
+      null
   );
 
   function previewThumbnailUrl(attachment: MessagePreviewAttachment): string | null {

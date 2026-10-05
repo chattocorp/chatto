@@ -10,7 +10,7 @@ username field while the cooldown runs.
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
-  import type { UpdateUserProfileInput, UserSummary } from '$lib/api-client/users';
+  import type { UpdateUserProfileInput, UserSummary } from '@chatto/client/api/users';
   import UserBioEditor from '$lib/components/users/UserBioEditor.svelte';
   import { profileSaveErrorMessage } from '$lib/components/users/profileSaveError';
   import { m } from '$lib/i18n/messages';

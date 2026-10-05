@@ -1,6 +1,28 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { RegisteredServer } from '@chatto/client/server/registry';
+import { authorizationLaunchTarget } from '$lib/test-utils/authorizationWindow';
 
 const native = vi.hoisted(() => ({ available: false, authorize: vi.fn() }));
+const activeServer = vi.hoisted(() => ({ id: 'origin' }));
+vi.mock('$lib/state/activeServer.svelte', () => ({ getActiveServer: () => activeServer.id }));
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    get servers() {
+      return registered.servers;
+    },
+    getStore: vi.fn(() => ({ serverInfo: { init: initServerInfoMock } })),
+    updateRegistration: updateRegistrationMock,
+    replaceServerAuthentication: replaceServerAuthenticationMock,
+    clearOriginAuthentication: clearOriginAuthenticationMock
+  }
+}));
+
+vi.mock('$lib/serverCatalogue', () => ({
+  findServerByUrl: (url: string) =>
+    registered.servers.find((server) => new URL(server.url).origin === new URL(url).origin)
+}));
+
 vi.mock('$lib/desktop/nativeAuthorization', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$lib/desktop/nativeAuthorization')>()),
   hasNativeAuthorization: () => native.available,
@@ -8,43 +30,30 @@ vi.mock('$lib/desktop/nativeAuthorization', async (importOriginal) => ({
 }));
 
 const {
-  addServerMock,
   clearOriginAuthenticationMock,
-  generateServerIdMock,
   getPublicServerInfoMock,
   initServerInfoMock,
   gotoMock,
+  registered,
   replaceServerAuthenticationMock,
-  updateServerMock
+  updateRegistrationMock
 } = vi.hoisted(() => ({
-  addServerMock: vi.fn(),
   clearOriginAuthenticationMock: vi.fn(),
-  generateServerIdMock: vi.fn(() => 'remote-example'),
   getPublicServerInfoMock: vi.fn(),
   initServerInfoMock: vi.fn(() => Promise.resolve()),
   gotoMock: vi.fn(() => Promise.resolve()),
-  replaceServerAuthenticationMock: vi.fn(),
-  updateServerMock: vi.fn()
+  registered: { servers: [] as RegisteredServer[] },
+  replaceServerAuthenticationMock: vi.fn(() => true),
+  updateRegistrationMock: vi.fn()
 }));
 
 vi.mock('$app/navigation', () => ({ goto: gotoMock }));
 vi.mock('$app/paths', () => ({
-  resolve: (_route: string, params?: { serverId?: string }) =>
-    params?.serverId ? `/chat/${params.serverId}` : '/login'
+  resolve: (route: string, params?: { serverId?: string }) =>
+    params?.serverId ? `/chat/${params.serverId}` : route
 }));
-vi.mock('$lib/api-client/server', () => ({ getPublicServerInfo: getPublicServerInfoMock }));
+vi.mock('@chatto/client/api/server', () => ({ getPublicServerInfo: getPublicServerInfoMock }));
 vi.mock('$lib/navigation', () => ({ serverIdToSegment: (serverId: string) => serverId }));
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  generateServerId: generateServerIdMock,
-  serverRegistry: {
-    servers: [],
-    addServer: addServerMock,
-    getStore: vi.fn(() => ({ serverInfo: { init: initServerInfoMock } })),
-    updateServer: updateServerMock,
-    replaceServerAuthentication: replaceServerAuthenticationMock,
-    clearOriginAuthentication: clearOriginAuthenticationMock
-  }
-}));
 
 class FakeBroadcastChannel {
   static instances: FakeBroadcastChannel[] = [];
@@ -106,6 +115,45 @@ function browserHarness(openResult: Window | null) {
   return { owner, open };
 }
 
+/** A sign-in window that records when the flow closes it. */
+function fakePopup(): Window {
+  return {
+    closed: false,
+    opener: {} as Window,
+    close: vi.fn(function (this: { closed: boolean }) {
+      this.closed = true;
+    })
+  } as unknown as Window;
+}
+
+const remote: RegisteredServer = {
+  id: 'remote',
+  url: 'https://remote.example',
+  name: 'Saved Remote',
+  iconUrl: null,
+  token: null,
+  userId: null,
+  userLogin: null,
+  userDisplayName: null,
+  userAvatarUrl: null,
+  reauthRequiredAt: null,
+  addedAt: 0
+};
+
+/** A token response with a renewable bearer session. */
+function tokenResponse(extra: Record<string, unknown> = {}): Response {
+  return new Response(
+    JSON.stringify({
+      access_token: 'cht_ATtoken',
+      refresh_token: 'cht_RT_token',
+      expires_in: 900,
+      refresh_token_expires_in: 7_776_000,
+      ...extra
+    }),
+    { headers: { 'Content-Type': 'application/json' } }
+  );
+}
+
 describe('remote server OAuth popup', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -113,7 +161,15 @@ describe('remote server OAuth popup', () => {
     FakeBroadcastChannel.instances = [];
     vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel);
     vi.stubGlobal('sessionStorage', memoryStorage());
+    vi.stubGlobal('localStorage', memoryStorage());
+    registered.servers = [remote];
+    activeServer.id = 'origin';
     getPublicServerInfoMock.mockReset();
+    getPublicServerInfoMock.mockResolvedValue({
+      name: 'Remote',
+      authorizeUrl: '/oauth/authorize',
+      iconUrl: null
+    });
     native.available = false;
     native.authorize.mockReset();
   });
@@ -137,25 +193,12 @@ describe('remote server OAuth popup', () => {
     });
     const open = vi.fn();
     vi.stubGlobal('window', { open });
-    const exchange = vi.fn(
-      async (_input: RequestInfo | URL, _init?: RequestInit) =>
-        new Response(
-          JSON.stringify({
-            access_token: 'cht_ATtoken',
-            refresh_token: 'cht_RT_token',
-            expires_in: 900,
-            refresh_token_expires_in: 7_776_000
-          }),
-          { headers: { 'Content-Type': 'application/json' } }
-        )
+    const exchange = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      tokenResponse()
     );
     vi.stubGlobal('fetch', exchange);
-    const { startServerOAuthFlow } = await import('./reauth');
-    await startServerOAuthFlow('https://remote.example', {
-      name: 'Remote',
-      authorizeUrl: '/oauth/authorize',
-      iconUrl: null
-    });
+    const { startRemoteReauthentication } = await import('./reauth');
+    await startRemoteReauthentication(remote);
     expect(open).not.toHaveBeenCalled();
     expect(FakeBroadcastChannel.instances).toHaveLength(0);
     expect(JSON.parse(exchange.mock.calls[0]?.[1]?.body as string)).toMatchObject({
@@ -163,11 +206,14 @@ describe('remote server OAuth popup', () => {
       client_id: 'eu.chattocorp.chatto.mobile',
       redirect_uri: 'eu.chattocorp.chatto.mobile:/oauth/callback'
     });
-    expect(addServerMock).toHaveBeenCalledOnce();
-    expect(gotoMock).toHaveBeenCalledWith('/chat/remote-example', { replaceState: false });
+    expect(replaceServerAuthenticationMock).toHaveBeenCalledWith(
+      'remote',
+      expect.objectContaining({ token: 'cht_ATtoken' })
+    );
+    expect(gotoMock).toHaveBeenCalledWith('/chat/remote');
   });
 
-  it('replaces the current history entry when the caller asks for it', async () => {
+  it('stays on the route of the server that the user signs in to', async () => {
     native.available = true;
     native.authorize.mockImplementation(async (_raw: string, state: string) => ({
       state,
@@ -176,45 +222,26 @@ describe('remote server OAuth popup', () => {
     vi.stubGlobal('window', { open: vi.fn() });
     vi.stubGlobal(
       'fetch',
-      vi.fn(
-        async () =>
-          new Response(
-            JSON.stringify({
-              access_token: 'cht_ATtoken',
-              refresh_token: 'cht_RT_token',
-              expires_in: 900,
-              refresh_token_expires_in: 7_776_000
-            }),
-            { headers: { 'Content-Type': 'application/json' } }
-          )
-      )
+      vi.fn(async () => tokenResponse())
     );
-    const { startServerOAuthFlowWhenReady } = await import('./reauth');
+    activeServer.id = 'remote';
+    const { startRemoteReauthentication } = await import('./reauth');
 
-    await startServerOAuthFlowWhenReady(
-      'https://remote.example',
-      Promise.resolve({ name: 'Remote', authorizeUrl: '/oauth/authorize', iconUrl: null }),
-      { replaceHistory: () => true }
-    );
+    await startRemoteReauthentication(remote);
 
-    expect(gotoMock).toHaveBeenCalledWith('/chat/remote-example', { replaceState: true });
+    expect(replaceServerAuthenticationMock).toHaveBeenCalledOnce();
+    expect(gotoMock).not.toHaveBeenCalled();
   });
 
-  it('does not exchange credentials or register a server after native cancellation', async () => {
+  it('does not exchange credentials or store a session after native cancellation', async () => {
     native.available = true;
     native.authorize.mockRejectedValue(new Error('Sign-in cancelled'));
     const exchange = vi.fn();
     vi.stubGlobal('fetch', exchange);
-    const { startServerOAuthFlow } = await import('./reauth');
-    await expect(
-      startServerOAuthFlow('https://remote.example', {
-        name: 'Remote',
-        authorizeUrl: '/oauth/authorize',
-        iconUrl: null
-      })
-    ).rejects.toThrow('Sign-in cancelled');
+    const { startRemoteReauthentication } = await import('./reauth');
+    await expect(startRemoteReauthentication(remote)).rejects.toThrow('Sign-in cancelled');
     expect(exchange).not.toHaveBeenCalled();
-    expect(addServerMock).not.toHaveBeenCalled();
+    expect(replaceServerAuthenticationMock).not.toHaveBeenCalled();
   });
 
   it('uses the built-in OAuth client identity for Chatto Desktop', async () => {
@@ -270,57 +297,31 @@ describe('remote server OAuth popup', () => {
   });
 
   it('keeps the main client mounted while completing PKCE through a popup', async () => {
-    const popup = {
-      closed: false,
-      opener: {} as Window,
-      location: { href: '' },
-      close: vi.fn(function (this: { closed: boolean }) {
-        this.closed = true;
-      })
-    } as unknown as Window;
+    const popup = fakePopup();
     const { owner, open } = browserHarness(popup);
     vi.stubGlobal('window', owner);
     vi.stubGlobal(
       'fetch',
-      vi.fn(
-        async () =>
-          new Response(
-            JSON.stringify({
-              access_token: 'cht_ATtoken',
-              refresh_token: 'cht_RT_token',
-              expires_in: 900,
-              refresh_token_expires_in: 7_776_000,
-              user: { id: 'user-1', login: 'alice', displayName: 'Alice' }
-            }),
-            { headers: { 'Content-Type': 'application/json' } }
-          )
+      vi.fn(async () =>
+        tokenResponse({ user: { id: 'user-1', login: 'alice', displayName: 'Alice' } })
       )
     );
 
-    const { startServerOAuthFlow } = await import('./reauth');
-    const beforeNavigate = vi.fn();
-    const completion = startServerOAuthFlow(
-      'https://remote.example',
-      {
-        name: 'Remote',
-        authorizeUrl: '/oauth/authorize',
-        iconUrl: null
-      },
-      { beforeNavigate, providerId: 'authling' }
-    );
+    const { startRemoteReauthentication } = await import('./reauth');
+    const completion = startRemoteReauthentication(remote);
 
     // window.open happens before the first asynchronous PKCE operation, so it
     // remains associated with the user's click and avoids popup blocking.
     expect(open).toHaveBeenCalledOnce();
     expect(open).toHaveBeenCalledWith(
-      'about:blank',
+      expect.stringMatching(/^https:\/\/app\.example\/servers\/authorize#.+/),
       expect.stringMatching(/^chatto-oauth-/),
       expect.stringContaining('width=560,height=760')
     );
-    await vi.waitFor(() => expect(popup.location.href).toContain('/oauth/authorize?'));
+    await vi.waitFor(() => expect(authorizationLaunchTarget(open)).toContain('/oauth/authorize?'));
     expect(popup.opener).toBeNull();
 
-    const authorizeURL = new URL(popup.location.href);
+    const authorizeURL = new URL(authorizationLaunchTarget(open)!);
     const state = authorizeURL.searchParams.get('state');
     expect(state).toBeTruthy();
     expect(authorizeURL.searchParams.get('redirect_uri')).toBe(
@@ -329,7 +330,7 @@ describe('remote server OAuth popup', () => {
     expect(authorizeURL.searchParams.get('client_id')).toBe(
       'https://app.example/oauth/frontend-client-metadata.json'
     );
-    expect(authorizeURL.searchParams.get('provider_id')).toBe('authling');
+    expect(authorizeURL.searchParams.has('provider_id')).toBe(false);
 
     const responseChannel = FakeBroadcastChannel.instances.find(
       (channel) => channel.name === `chatto:oauth-popup:${state}`
@@ -355,49 +356,27 @@ describe('remote server OAuth popup', () => {
     expect(JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string)).toMatchObject({
       client_id: 'https://app.example/oauth/frontend-client-metadata.json'
     });
-    expect(addServerMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 'remote-example',
-        url: 'https://remote.example'
-      }),
-      expect.objectContaining({ token: 'cht_ATtoken', userId: 'user-1' })
+    expect(updateRegistrationMock).toHaveBeenCalledWith('remote', {
+      name: 'Remote',
+      iconUrl: null
+    });
+    expect(replaceServerAuthenticationMock).toHaveBeenCalledWith(
+      'remote',
+      expect.objectContaining({ token: 'cht_ATtoken', userId: 'user-1', reauthRequiredAt: null })
     );
     expect(initServerInfoMock).toHaveBeenCalledOnce();
-    expect(beforeNavigate).toHaveBeenCalledOnce();
-    expect(beforeNavigate.mock.invocationCallOrder[0]).toBeLessThan(
-      gotoMock.mock.invocationCallOrder[0]!
-    );
-    expect(gotoMock).toHaveBeenCalledWith('/chat/remote-example', { replaceState: false });
+    expect(gotoMock).toHaveBeenCalledWith('/chat/remote');
     expect(popup.close).toHaveBeenCalledOnce();
+    expect(localStorage.length).toBe(0);
   });
 
-  it('opens before server discovery completes without selecting a login provider', async () => {
-    const popup = {
-      closed: false,
-      opener: {} as Window,
-      location: { href: '' },
-      close: vi.fn(function (this: { closed: boolean }) {
-        this.closed = true;
-      })
-    } as unknown as Window;
+  it('opens before server discovery completes', async () => {
+    const popup = fakePopup();
     const { owner, open } = browserHarness(popup);
     vi.stubGlobal('window', owner);
     vi.stubGlobal(
       'fetch',
-      vi.fn(
-        async () =>
-          new Response(
-            JSON.stringify({
-              access_token: 'cht_ATtoken',
-              refresh_token: 'cht_RT_token',
-              expires_in: 900,
-              refresh_token_expires_in: 7_776_000
-            }),
-            {
-              headers: { 'Content-Type': 'application/json' }
-            }
-          )
-      )
+      vi.fn(async () => tokenResponse())
     );
 
     let finishDiscovery: ((info: Record<string, unknown>) => void) | undefined;
@@ -408,104 +387,39 @@ describe('remote server OAuth popup', () => {
         })
     );
     const { startRemoteReauthentication } = await import('./reauth');
-    const completion = startRemoteReauthentication({
-      id: 'remote',
-      url: 'https://remote.example',
-      name: 'Saved Remote',
-      iconUrl: null,
-      token: null,
-      userId: null,
-      userLogin: null,
-      userDisplayName: null,
-      userAvatarUrl: null,
-      reauthRequiredAt: null,
-      addedAt: 0
-    });
+    const completion = startRemoteReauthentication(remote);
 
     expect(open).toHaveBeenCalledOnce();
-    expect(popup.location.href).toBe('');
+    expect(authorizationLaunchTarget(open)).toBeNull();
 
     finishDiscovery?.({
       name: 'Discovered Remote',
       authorizeUrl: '/oauth/authorize',
-      iconUrl: null,
-      authProviders: [{ id: 'authling' }]
+      iconUrl: null
     });
 
-    await vi.waitFor(() => expect(popup.location.href).toContain('/oauth/authorize?'));
-    const authorizeURL = new URL(popup.location.href);
-    expect(authorizeURL.searchParams.has('provider_id')).toBe(false);
-
-    const state = authorizeURL.searchParams.get('state');
+    await vi.waitFor(() => expect(authorizationLaunchTarget(open)).toContain('/oauth/authorize?'));
+    const state = new URL(authorizationLaunchTarget(open)!).searchParams.get('state');
     FakeBroadcastChannel.instances
       .find((channel) => channel.name === `chatto:oauth-popup:${state}`)
       ?.emit({ type: 'chatto:oauth-popup-response', state, code: 'cht_ACcode' });
 
     await completion;
-    expect(addServerMock).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Discovered Remote' }),
-      expect.objectContaining({ token: 'cht_ATtoken' })
+    expect(updateRegistrationMock).toHaveBeenCalledWith(
+      'remote',
+      expect.objectContaining({ name: 'Discovered Remote' })
     );
   });
 
-  it('closes the blank popup when server discovery fails', async () => {
-    const popup = {
-      closed: false,
-      opener: {} as Window,
-      location: { href: '' },
-      close: vi.fn(function (this: { closed: boolean }) {
-        this.closed = true;
-      })
-    } as unknown as Window;
+  it('closes the popup when server discovery fails', async () => {
+    const popup = fakePopup();
     const { owner } = browserHarness(popup);
     vi.stubGlobal('window', owner);
     getPublicServerInfoMock.mockRejectedValueOnce(new Error('discovery failed'));
 
     const { startRemoteReauthentication } = await import('./reauth');
-    await expect(
-      startRemoteReauthentication({
-        id: 'remote',
-        url: 'https://remote.example',
-        name: 'Remote',
-        iconUrl: null,
-        token: null,
-        userId: null,
-        userLogin: null,
-        userDisplayName: null,
-        userAvatarUrl: null,
-        reauthRequiredAt: null,
-        addedAt: 0
-      })
-    ).rejects.toThrow('discovery failed');
+    await expect(startRemoteReauthentication(remote)).rejects.toThrow('discovery failed');
 
-    expect(popup.close).toHaveBeenCalledOnce();
-    expect(sessionStorage.getItem('chatto:oauth:flow')).toBeNull();
-  });
-
-  it('opens a join window before pending server data settles and closes it on rejection', async () => {
-    const popup = {
-      closed: false,
-      opener: {} as Window,
-      location: { href: '' },
-      close: vi.fn(function (this: { closed: boolean }) {
-        this.closed = true;
-      })
-    } as unknown as Window;
-    const { owner, open } = browserHarness(popup);
-    vi.stubGlobal('window', owner);
-
-    let rejectServerInfo: ((error: Error) => void) | undefined;
-    const serverInfo = new Promise<never>((_resolve, reject) => {
-      rejectServerInfo = reject;
-    });
-    const { startServerOAuthFlowWhenReady } = await import('./reauth');
-    const completion = startServerOAuthFlowWhenReady('https://remote.example', serverInfo);
-
-    expect(open).toHaveBeenCalledOnce();
-    expect(popup.location.href).toBe('');
-
-    rejectServerInfo?.(new Error('join unavailable'));
-    await expect(completion).rejects.toThrow('join unavailable');
     expect(popup.close).toHaveBeenCalledOnce();
     expect(sessionStorage.getItem('chatto:oauth:flow')).toBeNull();
   });
@@ -514,67 +428,101 @@ describe('remote server OAuth popup', () => {
     const { owner } = browserHarness(null);
     vi.stubGlobal('window', owner);
 
-    const { startServerOAuthFlow } = await import('./reauth');
-    await expect(
-      startServerOAuthFlow('https://remote.example', {
-        name: 'Remote',
-        authorizeUrl: '/oauth/authorize',
-        iconUrl: null
-      })
-    ).rejects.toThrow('could not be opened');
+    const { startRemoteReauthentication } = await import('./reauth');
+    await expect(startRemoteReauthentication(remote)).rejects.toThrow('could not be opened');
 
     expect(gotoMock).not.toHaveBeenCalled();
     expect(sessionStorage.getItem('chatto:oauth:flow')).toBeNull();
   });
 
-  it('handles a join window that closes while server data still loads', async () => {
-    const popup = {
-      closed: false,
-      opener: {} as Window,
-      location: { href: '' },
-      close: vi.fn(function (this: { closed: boolean }) {
-        this.closed = true;
-      })
-    } as unknown as Window;
+  it('handles a sign-in window that closes while server data still loads', async () => {
+    const popup = fakePopup();
     const { owner } = browserHarness(popup);
     vi.stubGlobal('window', owner);
     const unhandled = vi.fn();
     process.on('unhandledRejection', unhandled);
 
     let rejectServerInfo: ((error: Error) => void) | undefined;
-    const serverInfo = new Promise<never>((_resolve, reject) => {
-      rejectServerInfo = reject;
-    });
-    const { startServerOAuthFlowWhenReady } = await import('./reauth');
-    const completion = startServerOAuthFlowWhenReady('https://remote.example', serverInfo);
+    getPublicServerInfoMock.mockImplementationOnce(
+      () =>
+        new Promise<never>((_resolve, reject) => {
+          rejectServerInfo = reject;
+        })
+    );
+    const { startRemoteReauthentication } = await import('./reauth');
+    const completion = startRemoteReauthentication(remote);
 
     (popup as unknown as { closed: boolean }).closed = true;
     await new Promise((resolve) => setTimeout(resolve, 400));
-    rejectServerInfo?.(new Error('join unavailable'));
-    await expect(completion).rejects.toThrow('join unavailable');
+    rejectServerInfo?.(new Error('discovery failed'));
+    await expect(completion).rejects.toThrow('discovery failed');
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     process.off('unhandledRejection', unhandled);
     expect(unhandled).not.toHaveBeenCalled();
   });
 
-  it('reports a blocked join window without an unhandled server-data rejection', async () => {
+  it('reports a blocked sign-in window without an unhandled server-data rejection', async () => {
     const { owner } = browserHarness(null);
     vi.stubGlobal('window', owner);
     const unhandled = vi.fn();
     process.on('unhandledRejection', unhandled);
+    getPublicServerInfoMock.mockRejectedValueOnce(new Error('discovery failed'));
 
-    const { startServerOAuthFlowWhenReady } = await import('./reauth');
-    await expect(
-      startServerOAuthFlowWhenReady(
-        'https://remote.example',
-        Promise.reject(new Error('join unavailable'))
-      )
-    ).rejects.toThrow('could not be opened');
+    const { startRemoteReauthentication } = await import('./reauth');
+    await expect(startRemoteReauthentication(remote)).rejects.toThrow('could not be opened');
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     process.off('unhandledRejection', unhandled);
     expect(unhandled).not.toHaveBeenCalled();
+  });
+});
+
+describe('completeServerOAuthFlow', () => {
+  const flow = {
+    remoteUrl: 'https://remote.example',
+    serverName: 'Remote',
+    serverIconUrl: null,
+    verifier: 'verifier',
+    clientId: 'client'
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+    registered.servers = [remote];
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('does not exchange the code for a server that is not registered', async () => {
+    registered.servers = [];
+    const exchange = vi.fn();
+    vi.stubGlobal('fetch', exchange);
+    const { completeServerOAuthFlow } = await import('./reauth');
+
+    await expect(completeServerOAuthFlow(flow, 'code', 'https://app.example/cb')).rejects.toThrow(
+      'no longer registered'
+    );
+    expect(exchange).not.toHaveBeenCalled();
+  });
+
+  it('stores no session when the server is removed during the exchange', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        registered.servers = [];
+        return tokenResponse();
+      })
+    );
+    const { completeServerOAuthFlow } = await import('./reauth');
+
+    await expect(completeServerOAuthFlow(flow, 'code', 'https://app.example/cb')).rejects.toThrow(
+      'no longer registered'
+    );
+    expect(replaceServerAuthenticationMock).not.toHaveBeenCalled();
   });
 });
 

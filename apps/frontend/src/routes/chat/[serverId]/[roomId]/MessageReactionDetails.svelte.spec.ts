@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { Code, ConnectError } from '@connectrpc/connect';
-import type { ReactionSummaryView } from '$lib/render/reactions';
+import type { ReactionSummaryView } from '@chatto/client/timeline/reactions';
 import { queryClient } from '$lib/query/client';
 import { serverSessionQueryRoot } from '$lib/query/keys';
 import { q } from '$lib/test-utils';
@@ -13,11 +13,11 @@ const mocks = vi.hoisted(() => ({
   deletedIds: new Set<string>()
 }));
 
-vi.mock('$lib/api-client/reactions', () => ({
+vi.mock('@chatto/client/api/reactions', () => ({
   createReactionAPI: () => ({ listReactionUsers: mocks.listReactionUsers })
 }));
 
-vi.mock('$lib/api-client/users', () => ({
+vi.mock('@chatto/client/api/users', () => ({
   createUserAPI: () => ({ batchGetUsers: mocks.batchGetUsers })
 }));
 

@@ -1,13 +1,13 @@
 <!-- @component Public bot owner identity, outside the collapsible permission section. -->
 <script lang="ts">
   import type { ViewerTimeSettings } from '$lib/utils/formatTime';
-  import { createUserAPI } from '$lib/api-client/users';
+  import { createUserAPI } from '@chatto/client/api/users';
   import UserIdentity from '$lib/components/users/UserIdentity.svelte';
   import { m } from '$lib/i18n/messages';
   import { createQuery } from '$lib/query/client';
   import { serverSessionQueryRoot } from '$lib/query/keys';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { mapOptionalUserSummary } from '$lib/api-client/userSummary';
+  import { mapOptionalUserSummary } from '@chatto/client/api/userSummary';
   import { getLiveDisplayName, getLiveAvatarUrl } from '$lib/state/userProfiles.svelte';
   import { LoadingFog } from '$lib/ui';
 

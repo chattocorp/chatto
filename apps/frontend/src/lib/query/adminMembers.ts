@@ -1,6 +1,6 @@
-import type { AdminMember, AdminRoleSummary } from '$lib/api-client/adminUsers';
+import type { AdminMember, AdminRoleSummary } from '$lib/api/adminUsers';
 import { adminQueryKeys } from './admin';
-import { queryClient } from './client';
+import { queryClient } from './queryClient';
 
 export type AdminMemberBatch = { users: AdminMember[]; roles: AdminRoleSummary[] };
 

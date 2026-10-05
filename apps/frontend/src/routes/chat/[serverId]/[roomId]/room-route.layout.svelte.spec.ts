@@ -1,6 +1,50 @@
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 
 // Title composition has separate coverage; these fixtures model route access only.
+// The store mock also carries the frontend UI state of its server.
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
+
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    getStore: () => ({
+      realtimeSync: mocks.realtimeSync,
+      navigation: {
+        get rooms() {
+          return mocks.roomsStore.rooms;
+        },
+        get isInitialLoading() {
+          return mocks.roomsStore.isInitialLoading;
+        },
+        get roomGroups() {
+          return mocks.roomsStore.roomGroups;
+        },
+        get currentUserId() {
+          return mocks.roomsStore.currentUserId;
+        }
+      },
+      currentUser: {
+        get user() {
+          return { id: mocks.currentUserId };
+        }
+      },
+      get viewerId() {
+        return mocks.currentUserId;
+      },
+      get projectionViewerId() {
+        return mocks.roomsStore.currentUserId;
+      },
+      roomDirectory: {
+        joinRoom: mocks.joinRoom,
+        loadJoinPreview: mocks.loadJoinPreview
+      }
+    })
+  }
+}));
+
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { tick } from 'svelte';
@@ -8,8 +52,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q, testSnippet } from '$lib/test-utils';
 
-import type { RoomsListItem } from '$lib/state/server/rooms.svelte';
-import { RealtimeProjectionSyncState } from '$lib/state/server/realtimeSync.svelte';
+import type { RoomsListItem } from '$lib/state/server/navigation';
+import { RealtimeProjectionSyncState } from '@chatto/client/server/realtimeSync';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -65,45 +109,8 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    getStore: () => ({
-      realtimeSync: mocks.realtimeSync,
-      navigation: {
-        get rooms() {
-          return mocks.roomsStore.rooms;
-        },
-        get isInitialLoading() {
-          return mocks.roomsStore.isInitialLoading;
-        },
-        get roomGroups() {
-          return mocks.roomsStore.roomGroups;
-        },
-        get currentUserId() {
-          return mocks.roomsStore.currentUserId;
-        }
-      },
-      currentUser: {
-        get user() {
-          return { id: mocks.currentUserId };
-        }
-      },
-      get viewerId() {
-        return mocks.currentUserId;
-      },
-      get projectionViewerId() {
-        return mocks.roomsStore.currentUserId;
-      },
-      roomDirectory: {
-        joinRoom: mocks.joinRoom,
-        loadJoinPreview: mocks.loadJoinPreview
-      }
-    })
-  }
-}));
-
 vi.mock('$lib/state/server/scope.svelte', async () => {
-  const { serverRegistry } = await import('$lib/state/server/registry.svelte');
+  const { serverRegistry } = await import('$lib/client');
   return {
     useServerScope: () => ({
       serverId: 'origin',

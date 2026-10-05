@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { Panel, ChoiceRow, FormSection, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
+  import { Panel, ChoiceRow, FormSection, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button, RangeField } from '$lib/ui/form';
   import NotificationPolicySettings from '$lib/components/settings/NotificationPolicySettings.svelte';
+  import PushDeviceSettings from '$lib/components/settings/PushDeviceSettings.svelte';
   import { getServerNotificationPreferences } from '$lib/state/serverNotificationPreferences.svelte';
   import {
     notificationSounds,
@@ -12,20 +13,11 @@
     type NotificationSoundId,
     type SoundCategory
   } from '$lib/audio/notificationSounds';
-  import {
-    enablePushOnAllServers,
-    isBrowserWebPushRuntime,
-    getPushCapability,
-    getPermission,
-    isSubscribed as checkPushSubscription,
-    sendTestNotification
-  } from '$lib/notifications/pushNotifications';
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
   const serverId = serverScope.serverId;
   const notificationPreferences = getServerNotificationPreferences(serverId);
-  const serverInfo = serverScope.store.serverInfo;
 
   function selectSound(soundId: NotificationSoundId) {
     notificationPreferences.notificationSound = soundId;
@@ -162,76 +154,6 @@
         return m('settings.notifications.sound.name.circus');
     }
   }
-
-  // Push notifications state
-  let pushEnabled = $derived(serverInfo.pushNotificationsEnabled);
-  let showPushControls = $derived(isBrowserWebPushRuntime() && pushEnabled);
-  const pushCapability = getPushCapability();
-  const pushSupported = pushCapability === 'supported';
-  const needsIosHomeScreen = pushCapability === 'ios_home_screen_required';
-  let pushPermission = $state<NotificationPermission | null>(getPermission());
-  let pushSubscribed = $state(false);
-  let pushLoading = $state(false);
-  let pushError = $state<string | null>(null);
-  let pushTestLoading = $state(false);
-  let pushTestStatus = $state<'sent' | 'failed' | null>(null);
-
-  // Check the push subscription while the push controls are visible.
-  $effect(() => {
-    if (!showPushControls || !pushSupported) return;
-    pushPermission = getPermission();
-    let active = true;
-    void checkPushSubscription(serverId).then((subscribed) => {
-      if (active) pushSubscribed = subscribed;
-    });
-    return () => {
-      active = false;
-    };
-  });
-
-  async function handleEnablePush() {
-    if (!serverInfo.vapidPublicKey) {
-      pushError = m('settings.notifications.push.not_configured');
-      return;
-    }
-
-    pushLoading = true;
-    pushError = null;
-
-    try {
-      const result = await enablePushOnAllServers();
-      pushPermission = getPermission();
-      const activeRegistration = result.registrations.find(
-        (registration) => registration.serverId === serverId
-      );
-      pushSubscribed = activeRegistration?.registered ?? false;
-      const success =
-        result.registrations.length > 0 &&
-        result.registrations.every((registration) => registration.registered);
-      if (!success) {
-        pushError =
-          pushPermission === 'denied'
-            ? m('settings.notifications.push.blocked_error')
-            : m('settings.notifications.push.enable_failed');
-      }
-    } catch {
-      pushError = m('settings.notifications.push.enable_error');
-    } finally {
-      pushLoading = false;
-    }
-  }
-
-  async function handleTestPush() {
-    pushTestLoading = true;
-    pushTestStatus = null;
-    try {
-      pushTestStatus = (await sendTestNotification(serverId)) ? 'sent' : 'failed';
-    } catch {
-      pushTestStatus = 'failed';
-    } finally {
-      pushTestLoading = false;
-    }
-  }
 </script>
 
 <PageTitle title={m('settings.notifications.title')} />
@@ -244,94 +166,7 @@
 
   <PaneContent>
     <div class="flex flex-col gap-6">
-      <!-- Push Notifications Section (only show if enabled on server) -->
-      {#if showPushControls}
-        <section data-testid="push-notification-settings">
-          <Hint
-            tone={pushError
-              ? 'danger'
-              : pushPermission === 'denied'
-                ? 'warning'
-                : pushSubscribed
-                  ? 'success'
-                  : 'info'}
-            icon="icon-[uil--bell]"
-          >
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div class="max-w-2xl min-w-0">
-                <h2 class="font-semibold text-text-top">
-                  {m('settings.notifications.push.title')}
-                </h2>
-                {#if pushError}
-                  <p class="mt-1">{pushError}</p>
-                {:else if needsIosHomeScreen}
-                  <p class="mt-1 font-medium">
-                    {m('settings.notifications.push.ios_home_screen_title')}
-                  </p>
-                  <p class="mt-1 text-sm text-muted">
-                    {m('settings.notifications.push.ios_home_screen_description')}
-                  </p>
-                {:else if !pushSupported}
-                  <p class="mt-1">{m('settings.notifications.push.not_supported')}</p>
-                {:else if pushPermission === 'denied'}
-                  <p class="mt-1 font-medium">
-                    {m('settings.notifications.push.blocked_title')}
-                  </p>
-                  <p class="mt-1 text-sm text-muted">
-                    {m('settings.notifications.push.blocked_description')}
-                  </p>
-                {:else if pushSubscribed}
-                  <p class="mt-1 font-medium">
-                    {m('settings.notifications.push.enabled_title')}
-                  </p>
-                  <p class="mt-1 text-sm text-muted">
-                    {m('settings.notifications.push.enabled_description')}
-                  </p>
-                {:else}
-                  <p class="mt-1 text-sm text-muted">
-                    {m('settings.notifications.push.enable_description')}
-                  </p>
-                {/if}
-
-                {#if pushTestStatus === 'sent'}
-                  <p class="mt-2 text-success" role="status">
-                    {m('settings.notifications.push.test_sent')}
-                  </p>
-                {:else if pushTestStatus === 'failed'}
-                  <p class="mt-2 text-danger" role="alert">
-                    {m('settings.notifications.push.test_failed')}
-                  </p>
-                {/if}
-              </div>
-
-              {#if pushSupported && pushPermission !== 'denied'}
-                {#if pushSubscribed}
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onclick={handleTestPush}
-                    disabled={pushTestLoading}
-                    loading={pushTestLoading}
-                    loadingText={m('settings.notifications.push.testing')}
-                  >
-                    {m('settings.notifications.push.test_button')}
-                  </Button>
-                {:else}
-                  <Button
-                    size="sm"
-                    onclick={handleEnablePush}
-                    disabled={pushLoading}
-                    loading={pushLoading}
-                    loadingText={m('settings.notifications.push.enabling')}
-                  >
-                    {m('settings.notifications.push.enable_button')}
-                  </Button>
-                {/if}
-              {/if}
-            </div>
-          </Hint>
-        </section>
-      {/if}
+      <PushDeviceSettings />
 
       <NotificationPolicySettings />
 

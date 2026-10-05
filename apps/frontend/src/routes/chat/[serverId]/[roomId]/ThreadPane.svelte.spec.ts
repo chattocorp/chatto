@@ -2,16 +2,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
-import { TimelineEventKind } from '$lib/render/timelineEvents';
+import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
 import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
 import { THREAD_PANE_MAX_WIDTH } from '$lib/storage/threadPaneWidth';
 import { getToasts, toast } from '$lib/ui/toast';
 import ThreadPane from './ThreadPane.svelte';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { ThreadPaneTestStore } from './ThreadPaneTestStore.svelte';
-import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
+import { RealtimeProjectionUpdate } from '@chatto/client/realtime/eventBus';
 import { MessagePostedEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { signal } from '@chatto/client/reactivity';
 
 const { mocks } = vi.hoisted(() => {
   return {
@@ -28,6 +29,7 @@ const { mocks } = vi.hoisted(() => {
       ingestEvent: vi.fn(),
       refreshCurrentWindow: vi.fn(),
       restoreLatestWindow: vi.fn(),
+      clearAnchor: vi.fn(),
       setThreadRootFollowState: vi.fn(),
       loadMore: vi.fn(),
       removeTypingUser: vi.fn(),
@@ -62,13 +64,18 @@ const { mocks } = vi.hoisted(() => {
 
 let server: TestServerScope;
 
-vi.mock('$lib/api-client/readState', () => ({
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: { getStore: () => server.scope.store }
+}));
+
+vi.mock('@chatto/client/api/readState', () => ({
   createReadStateAPI: () => ({
     markThreadAsRead: mocks.markThreadAsRead
   })
 }));
 
-vi.mock('$lib/api-client/threads', () => ({
+vi.mock('@chatto/client/api/threads', () => ({
   createThreadAPI: () => ({
     followThread: mocks.followThread,
     unfollowThread: mocks.unfollowThread
@@ -114,10 +121,6 @@ vi.mock(
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
 );
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: { getStore: () => server.scope.store }
-}));
-
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'server-1'
 }));
@@ -130,6 +133,7 @@ vi.mock('$lib/state/globals.svelte', () => ({
 
 vi.mock('$lib/state/room', () => ({
   getRoomMembers: () => [],
+  getComposerContext: () => ({ jumpState: mocks.jumpState }),
   createComposerContext: () => ({
     editState: {
       get eventId() {
@@ -150,14 +154,30 @@ vi.mock('$lib/state/room', () => ({
     jumpState: (() => {
       // Route jumps through the pane's registered handler, as the real state does.
       let handler: ((eventId: string) => Promise<boolean>) | null = null;
+      const scrollTarget = signal<string | null>(null);
       const jumpState = {
-        scrollToEventId: null as string | null,
+        get scrollToEventId() {
+          return scrollTarget.get();
+        },
+        set scrollToEventId(eventId: string | null) {
+          scrollTarget.set(eventId);
+        },
         setJumpHandler: (fn: (eventId: string) => Promise<boolean>) => {
           handler = fn;
         },
         jumpToMessage: (eventId: string) => {
           mocks.jumpToMessage(eventId);
           return handler ? handler(eventId) : Promise.resolve(false);
+        },
+        // Scroll to a message that the store shows, as the real state does.
+        show: async (
+          store: { jumpToMessage: (eventId: string) => Promise<{ status: string } | undefined> },
+          eventId: string
+        ) => {
+          const result = await store.jumpToMessage(eventId);
+          const shown = result?.status === 'shown' || result?.status === 'loaded';
+          jumpState.scrollToEventId = shown ? eventId : null;
+          return shown;
         },
         reset: mocks.resetJumpState
       };
@@ -217,16 +237,15 @@ describe('ThreadPane', () => {
     threadPaneWidth.reset();
     mocks.threadStore = new ThreadPaneTestStore();
     // Like the real store, scroll only to a message that the thread window contains.
-    mocks.storeJumpToMessage.mockImplementation(
-      async (eventId: string, jumpState: { scrollToEventId: string | null }) => {
-        if (!mocks.threadStore!.threadEvents.some((event) => event.id === eventId)) return false;
-        jumpState.scrollToEventId = eventId;
-        return true;
-      }
+    mocks.storeJumpToMessage.mockImplementation(async (eventId: string) =>
+      mocks.threadStore!.threadEvents.some((event) => event.id === eventId)
+        ? { status: 'shown' }
+        : { status: 'missing' }
     );
     server = createTestServerScope({
       viewer: { id: 'test-user', login: 'testuser' },
       store: {
+        realtimeSync: { isRecoveringSnapshot: false },
         readViews: { register: mocks.registerReadView },
         notifications: { markOccurrenceRead: mocks.markOccurrenceRead },
         reconcileThreadRead: mocks.reconcileThreadRead,
@@ -243,6 +262,7 @@ describe('ThreadPane', () => {
               refreshCurrentWindow: mocks.refreshCurrentWindow,
               jumpToMessage: mocks.storeJumpToMessage,
               restoreLatestWindow: mocks.restoreLatestWindow,
+              clearAnchor: mocks.clearAnchor,
               setThreadRootFollowState: mocks.setThreadRootFollowState,
               loadMore: mocks.loadMore
             })
@@ -689,16 +709,21 @@ describe('ThreadPane', () => {
 
     await expect(mocks.jumpState!.jumpToMessage('older-reply')).resolves.toBe(false);
 
-    expect(mocks.storeJumpToMessage).toHaveBeenCalledWith('older-reply', mocks.jumpState);
+    expect(mocks.storeJumpToMessage).toHaveBeenCalledWith('older-reply');
+    expect(mocks.clearAnchor).toHaveBeenCalledOnce();
   });
 
-  it('marks a highlighted notification read after the thread jump', async () => {
+  it('marks a highlighted notification read only after the thread scroll completes', async () => {
     mocks.threadStore!.threadEvents = [threadMessage('reply-1')];
-    render(ThreadPane, {
+    const { container } = render(ThreadPane, {
       props: { ...threadProps, highlight: highlight('reply-1', 'notification-1') }
     });
 
     await vi.waitFor(() => expect(mocks.jumpToMessage).toHaveBeenCalledWith('reply-1'));
+    expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
+    const complete = q(container, '[data-testid="complete-highlight"]') as HTMLButtonElement;
+    await expect.element(complete).toBeEnabled();
+    complete.click();
     await vi.waitFor(() => expect(mocks.markOccurrenceRead).toHaveBeenCalledWith('notification-1'));
   });
 

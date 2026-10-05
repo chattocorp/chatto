@@ -1,5 +1,5 @@
 import { createContext } from 'svelte';
-import type { AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
+import type { AdminManagedRoom } from '$lib/api/adminRoomLayout';
 import type { SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
 
 /** The session, room, and room snapshot that one room mutation targets. */

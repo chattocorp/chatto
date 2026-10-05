@@ -1,12 +1,22 @@
 type RegistrationOperation = (signal: AbortSignal) => Promise<boolean>;
 type CleanupOperation = () => Promise<void>;
-type CrossTabSuspension = 'disabled' | 'leaving';
+/**
+ * Sign-out or server removal in progress. Earlier versions also stored a
+ * per-server `disabled` value; `takeLegacyDisabledPushRegistration` turns it
+ * into the device-wide opt-out.
+ */
+type CrossTabSuspension = 'leaving';
 type CrossTabSuspensionState = {
   available: boolean;
   suspension: CrossTabSuspension | null;
 };
 
 const crossTabSuspensionKeyPrefix = 'chatto.push-registration.suspended.';
+/**
+ * Device-wide push opt-out. While it is set, no tab registers any server.
+ * Push is on for every registered server or for none of them.
+ */
+export const pushDisabledOnDeviceKey = 'chatto.push-registration.disabled';
 const crossTabRefreshKeyPrefix = 'chatto.push-registration.refresh.';
 const crossTabStorageProbeKeyPrefix = 'chatto.push-registration.storage-probe.';
 const crossTabLockNamePrefix = 'chatto.push-registration.';
@@ -56,7 +66,7 @@ function crossTabSuspensionState(serverId: string): CrossTabSuspensionState {
     const value = storage.getItem(crossTabSuspensionKey(serverId));
     return {
       available: true,
-      suspension: value === 'disabled' || value === 'leaving' ? value : null
+      suspension: value === 'leaving' ? value : null
     };
   } catch {
     return { available: false, suspension: null };
@@ -82,7 +92,80 @@ function setCrossTabSuspension(serverId: string, suspension: CrossTabSuspension 
 }
 
 function isSuspended(serverId: string): boolean {
-  return suspendedServers.has(serverId) || crossTabSuspension(serverId) !== null;
+  return (
+    isPushDisabledOnDevice() ||
+    suspendedServers.has(serverId) ||
+    crossTabSuspension(serverId) !== null
+  );
+}
+
+/** Whether the user turned push notifications off on this device. */
+export function isPushDisabledOnDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage?.getItem(pushDisabledOnDeviceKey) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function abortActiveRegistrations(): void {
+  for (const controller of activeRegistrations.values()) controller.abort();
+}
+
+/**
+ * Turns push off on this device for every server. The opt-out is stored
+ * before any cleanup starts, so every tab stops registering at its next
+ * check; storage events abort registrations that other tabs run now.
+ * `cleanup` then runs for each server after its active registration.
+ * Rejects when the opt-out cannot be stored.
+ */
+export function disablePushRegistrationOnDevice(
+  serverIds: string[],
+  cleanup: (serverId: string) => Promise<void>
+): Promise<void> {
+  ensureCrossTabCoordination();
+  try {
+    window.localStorage.setItem(pushDisabledOnDeviceKey, '1');
+  } catch (error) {
+    return Promise.reject(error);
+  }
+  abortActiveRegistrations();
+  return Promise.all(serverIds.map((serverId) => enqueue(serverId, () => cleanup(serverId)))).then(
+    () => undefined
+  );
+}
+
+/** Turns push on again on this device. Registration starts separately. */
+export function enablePushRegistrationOnDevice(): void {
+  try {
+    window.localStorage.removeItem(pushDisabledOnDeviceKey);
+  } catch {
+    // Registration checks read the opt-out and stay off until storage works.
+  }
+}
+
+/**
+ * Removes the per-server `disabled` values of earlier versions and reports
+ * whether one existed. Push is now on for all servers or for none, so the
+ * caller turns push off on the device to keep the user's earlier opt-out.
+ */
+export function takeLegacyDisabledPushRegistration(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const storage = window.localStorage;
+    const keys: string[] = [];
+    for (let index = 0; index < storage.length; index++) {
+      const key = storage.key(index);
+      if (key?.startsWith(crossTabSuspensionKeyPrefix) && storage.getItem(key) === 'disabled') {
+        keys.push(key);
+      }
+    }
+    for (const key of keys) storage.removeItem(key);
+    return keys.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 function suspendLocally(serverId: string, crossTabPersisted: boolean): void {
@@ -96,8 +179,10 @@ function ensureCrossTabCoordination(): void {
 
   if (!storageListenerInstalled && typeof window.addEventListener === 'function') {
     window.addEventListener('storage', (event) => {
-      if (event.key?.startsWith(crossTabSuspensionKeyPrefix)) {
-        if (event.newValue !== 'disabled' && event.newValue !== 'leaving') return;
+      if (event.key === pushDisabledOnDeviceKey) {
+        if (event.newValue === '1') abortActiveRegistrations();
+      } else if (event.key?.startsWith(crossTabSuspensionKeyPrefix)) {
+        if (event.newValue !== 'leaving') return;
         const serverId = event.key.slice(crossTabSuspensionKeyPrefix.length);
         if (serverId) suspendLocally(serverId, true);
       } else if (event.key?.startsWith(crossTabRefreshKeyPrefix) && event.newValue) {
@@ -230,17 +315,6 @@ export function enqueuePushRegistration(
   });
 }
 
-/** Cancels queued registration and runs cleanup after any active registration. */
-export function suspendPushRegistration(
-  serverId: string,
-  cleanup: CleanupOperation
-): Promise<void> {
-  const crossTabPersisted = setCrossTabSuspension(serverId, 'disabled');
-  suspendLocally(serverId, crossTabPersisted);
-  broadcastSuspension(serverId, crossTabPersisted);
-  return enqueue(serverId, cleanup);
-}
-
 /** Persists suspension across same-origin tabs before sign-out or removal. */
 export function suspendPushRegistrationBeforeLeaving(
   serverId: string,
@@ -259,23 +333,16 @@ export function isPushRegistrationSuspended(serverId: string, signal?: AbortSign
 
 /** Whether stale work still owns cleanup after another realm may have resumed. */
 export function shouldInvalidateCancelledPushRegistration(serverId: string): boolean {
+  if (isPushDisabledOnDevice()) return true;
   const shared = crossTabSuspensionState(serverId);
   if (shared.suspension !== null) return true;
   const local = suspendedServers.get(serverId);
   return local !== undefined && (!local.crossTabPersisted || !shared.available);
 }
 
-/** Allows registration again after a new authenticated session is installed. */
-export function resumePushRegistration(serverId: string): void {
-  if (crossTabSuspension(serverId) === 'disabled') {
-    setCrossTabSuspension(serverId, null);
-  }
-  suspendedServers.delete(serverId);
-  registrationEpochs.set(serverId, epoch(serverId) + 1);
-}
-
 /** Clears cross-tab sign-out suspension once new authentication is installed. */
 export function resumePushRegistrationAfterAuthentication(serverId: string): void {
   setCrossTabSuspension(serverId, null);
-  resumePushRegistration(serverId);
+  suspendedServers.delete(serverId);
+  registrationEpochs.set(serverId, epoch(serverId) + 1);
 }

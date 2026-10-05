@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
+import { TimelineEventKind, type TimelineEventView } from '@chatto/client/timeline/timelineEvents';
 import { roomReplyTargetEventId } from './messageReplyTarget';
 
 function messageEvent(id: string, echoOfEventId: string | null = null): TimelineEventView {

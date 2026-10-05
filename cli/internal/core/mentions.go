@@ -62,61 +62,35 @@ func (c *ChattoCore) requireRoleMentionHandleAvailable(roleName string) error {
 	return ErrRoleAlreadyExists
 }
 
-var mentionNodeKind = ast.NewNodeKind("Mention")
-
-type mentionNode struct {
-	ast.BaseInline
-	Username string
-}
-
-func (n *mentionNode) Kind() ast.NodeKind {
-	return mentionNodeKind
-}
-
-func (n *mentionNode) Dump(source []byte, level int) {
-	ast.DumpHelper(n, source, level, map[string]string{
-		"Username": n.Username,
-	}, nil)
-}
-
-type mentionInlineParser struct{}
-
-func (p mentionInlineParser) Trigger() []byte {
-	return []byte{'@'}
-}
-
-func (p mentionInlineParser) Parse(parent ast.Node, block text.Reader, pc parser.Context) ast.Node {
-	line, segment := block.PeekLine()
-	if len(line) < 2 || line[0] != '@' {
-		return nil
-	}
-
-	source := block.Source()
-	if segment.Start > 0 && isMentionAlphanumeric(source[segment.Start-1]) {
-		return nil
-	}
-
-	stop := 1
-	for stop < len(line) && isMentionHandleChar(line[stop]) {
-		stop++
-	}
-	if stop == 1 {
-		return nil
-	}
-	for stop < len(line) && line[stop] == '.' {
-		next := stop + 1
-		if next >= len(line) || !isMentionHandleChar(line[next]) {
-			break
+// scanMentions finds the @handle mentions in the text run source[start:stop]
+// and calls add with each handle and the offset of its '@'. An '@' directly
+// after a letter or digit, as in user@example.com, does not start a mention.
+// A handle contains letters, digits, '_', and '-'; a '.' is allowed only
+// between two handle characters. A handle ends at the end of the run, so
+// Markdown syntax such as a closing emphasis delimiter is never part of it.
+func scanMentions(source []byte, start, stop int, add func(handle string, offset int)) {
+	for at := start; at < stop; at++ {
+		if source[at] != '@' || (at > 0 && isMentionAlphanumeric(source[at-1])) {
+			continue
 		}
-		stop = next + 1
-		for stop < len(line) && isMentionHandleChar(line[stop]) {
-			stop++
-		}
-	}
 
-	username := string(line[1:stop])
-	block.Advance(stop)
-	return &mentionNode{Username: username}
+		end := at + 1
+		for end < stop && isMentionHandleChar(source[end]) {
+			end++
+		}
+		if end == at+1 {
+			continue
+		}
+		for end+1 < stop && source[end] == '.' && isMentionHandleChar(source[end+1]) {
+			end += 2
+			for end < stop && isMentionHandleChar(source[end]) {
+				end++
+			}
+		}
+
+		add(string(source[at+1:end]), at)
+		at = end - 1
+	}
 }
 
 func isMentionAlphanumeric(c byte) bool {
@@ -129,9 +103,10 @@ func isMentionHandleChar(c byte) bool {
 
 var mentionMarkdown = goldmark.New(
 	goldmark.WithParser(parser.NewParser(
+		// Only the block syntax that the frontend renders: it disables
+		// setext headings and thematic breaks, so a "---" line cannot end
+		// a blockquote there.
 		parser.WithBlockParsers(
-			util.Prioritized(parser.NewSetextHeadingParser(), 100),
-			util.Prioritized(parser.NewThematicBreakParser(), 200),
 			util.Prioritized(parser.NewListParser(), 300),
 			util.Prioritized(parser.NewListItemParser(), 400),
 			util.Prioritized(parser.NewCodeBlockParser(), 500),
@@ -144,26 +119,32 @@ var mentionMarkdown = goldmark.New(
 			util.Prioritized(parser.NewCodeSpanParser(), 100),
 			util.Prioritized(parser.NewLinkParser(), 200),
 			util.Prioritized(parser.NewAutoLinkParser(), 300),
-			util.Prioritized(mentionInlineParser{}, 400),
 			util.Prioritized(parser.NewEmphasisParser(), 500),
 		),
-		parser.WithParagraphTransformers(parser.DefaultParagraphTransformers()...),
+		// No paragraph transformers: the frontend disables link reference
+		// definitions, so [@alice]: url stays text with a mention there.
 	)),
 )
 
 func mentionMarkdownSource(body string) string {
-	// Chatto's message renderer disables Markdown backslash escapes, so
-	// \` still participates in code-span parsing and \@alice still contains
-	// a visible mention boundary. Goldmark's inline loop hardcodes backslash
-	// escaping, so normalize just those cases for mention extraction.
-	body = strings.ReplaceAll(body, "\\`", "`")
-	return strings.ReplaceAll(body, "\\@", "\\\\@")
+	// Chatto's message renderer disables Markdown backslash escapes in text,
+	// so a backslash does not change emphasis, links, or code spans there.
+	// Goldmark's inline loop hardcodes backslash escaping; doubling every
+	// backslash makes goldmark read each original backslash as a literal
+	// character. markdown-it still honors escapes inside link destinations
+	// and titles; FDR-006 decision 10 accepts that rare difference.
+	return strings.ReplaceAll(body, "\\", "\\\\")
 }
 
 // ExtractMentionUsernames extracts all unique @username mentions from a message body.
 // Returns a slice of usernames (without the @ prefix) in the order they appear.
 // Duplicate mentions are deduplicated. Mentions inside Markdown code spans,
-// code blocks, and blockquotes are ignored.
+// code blocks, blockquotes, links, and URLs are ignored.
+//
+// The bundled frontend renders mentions with the same rules (see
+// apps/frontend/src/lib/markdownMentions.ts), so a message notifies exactly
+// the handles that it shows as mentions. The shared cases in
+// testdata/mentions/extraction.json test both implementations.
 func ExtractMentionUsernames(body string) []string {
 	if !strings.Contains(body, "@") {
 		return nil
@@ -185,21 +166,48 @@ func ExtractMentionUsernames(body string) []string {
 	}
 
 	source := []byte(mentionMarkdownSource(body))
+	urls := newMentionURLIndex(source)
 	root := mentionMarkdown.Parser().Parse(text.NewReader(source))
+
+	// Mentions are found after inline parsing, in runs of adjacent text
+	// nodes, like the frontend's markdown-it rule. Goldmark splits text at
+	// unmatched delimiters such as '_', so adjacent text segments are joined
+	// before scanning. Every other node ends the current run.
+	runStart, runStop := -1, -1
+	flush := func() {
+		if runStart >= 0 {
+			scanMentions(source, runStart, runStop, func(handle string, offset int) {
+				if !urls.contains(offset) {
+					add(handle)
+				}
+			})
+		}
+		runStart, runStop = -1, -1
+	}
 	_ = ast.Walk(root, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering {
+		switch node.Kind() {
+		case ast.KindText:
+			if entering {
+				segment := node.(*ast.Text).Segment
+				if segment.Start != runStop {
+					flush()
+					runStart = segment.Start
+				}
+				runStop = segment.Stop
+			}
+			return ast.WalkContinue, nil
+		// The frontend disables images, so ![label](url) renders as "!"
+		// and a link: the label is link text there too.
+		case ast.KindCodeBlock, ast.KindFencedCodeBlock, ast.KindBlockquote, ast.KindCodeSpan,
+			ast.KindLink, ast.KindAutoLink, ast.KindImage:
+			flush()
+			return ast.WalkSkipChildren, nil
+		default:
+			flush()
 			return ast.WalkContinue, nil
 		}
-
-		switch node.Kind() {
-		case ast.KindCodeBlock, ast.KindFencedCodeBlock, ast.KindBlockquote:
-			return ast.WalkSkipChildren, nil
-		case mentionNodeKind:
-			add(node.(*mentionNode).Username)
-		}
-
-		return ast.WalkContinue, nil
 	})
+	flush()
 
 	return usernames
 }

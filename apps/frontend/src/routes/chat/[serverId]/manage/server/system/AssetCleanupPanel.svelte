@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { AdminAssetCleanupStatus } from '$lib/api-client/adminDiagnostics';
+  import type { AdminAssetCleanupStatus } from '$lib/api/adminDiagnostics';
   import { Panel, Pill } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
 

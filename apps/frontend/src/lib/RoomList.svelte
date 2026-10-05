@@ -6,6 +6,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 -->
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
+  import { serverUi } from '$lib/state/server/serverUi';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -19,7 +20,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     sidebarLinkAnchorAttributes,
     sidebarLinkTarget
   } from '$lib/navigation/sidebarLinkTarget';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { serverRegistry } from '$lib/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
   import CreateRoomGroupControl from '$lib/components/chat/CreateRoomGroupControl.svelte';
@@ -33,11 +34,15 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     contextMenuTrigger,
     type ContextMenuTriggerDetails
   } from '$lib/ui';
-  import { serverStorageKey } from '$lib/storage/serverStorage';
-  import { buildDirectMessagePresentation, type UserAvatarUserView } from '$lib/render/users';
+  import { serverStorageKey } from '@chatto/client/storage/serverStorage';
+  import {
+    buildDirectMessagePresentation,
+    type UserAvatarUserView
+  } from '@chatto/client/timeline/users';
   import { directMessageLabels } from '$lib/render/directMessageLabels';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import { notificationTarget } from '$lib/state/server/notifications.svelte';
+  import { notificationTarget } from '@chatto/client/server/notifications';
+  import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
@@ -47,16 +52,17 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     type RoomsListItem,
     type RoomsListGroup,
     type RoomsListGroupItem
-  } from '$lib/state/server/rooms.svelte';
-  import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms.svelte';
+  } from '$lib/state/server/navigation';
+  import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms';
   import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
   import { markNavigationRoomAsRead } from '$lib/navigation/readActions';
   import { toast } from '$lib/ui/toast';
-  import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
-  import { createRoomCommandAPI } from '$lib/api-client/rooms';
+  import { createAdminRoomLayoutAPI } from '$lib/api/adminRoomLayout';
+  import { createRoomCommandAPI } from '@chatto/client/api/rooms';
   import { fromAction, type Attachment } from 'svelte/attachments';
   import { MediaQuery, SvelteMap } from 'svelte/reactivity';
   import { TOUCH_ONLY_QUERY } from '$lib/utils/inputMediaQueries';
+  import { notificationPath } from '$lib/notificationPath';
   import {
     dragHandle,
     dragHandleZone,
@@ -64,7 +70,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     SHADOW_PLACEHOLDER_ITEM_ID,
     type DndEvent
   } from 'svelte-dnd-action';
-  import type { AdminRoomLayoutItemMutationInput } from '$lib/api-client/adminRoomLayout';
+  import type { AdminRoomLayoutItemMutationInput } from '$lib/api/adminRoomLayout';
 
   let { canReorderGroups = false }: { canReorderGroups?: boolean } = $props();
 
@@ -80,8 +86,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const activeServer = $derived(serverRegistry.getServer(activeServerId));
   const activeServerBaseURL = $derived(activeServer?.url ?? null);
   const stores = serverScope.store;
-  const notificationStore = $derived(stores.notifications);
-  const activeCallRooms = $derived(stores.activeCallRooms);
+  const activeCallRooms = $derived(serverUi(stores).activeCallRooms);
   const appUi = getAppUiState();
   const roomLayoutAPI = serverScope.connection.getAPI(createAdminRoomLayoutAPI);
   const roomCommandAPI = serverScope.connection.getAPI(createRoomCommandAPI);
@@ -98,8 +103,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   /** Whether the viewer can reorder whole room groups by drag and drop. */
   const groupDragEnabled = $derived(sidebarDragEnabled && canReorderGroups);
 
-  const navigation = $derived(stores.navigation);
-  const roomUnreadStore = $derived(stores.roomUnread);
+  const navigation = $derived(serverUi(stores).navigation);
+  const roomUnreadStore = $derived(serverUi(stores).roomUnread);
 
   let activeRoomId = $derived(page.params.roomId);
   let roomContextMenu = $state<(ContextMenuTriggerDetails & { room: RoomsListItem }) | null>(null);
@@ -523,7 +528,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   async function handleJoinRoom(room: RoomsListItem): Promise<void> {
     roomContextMenu = null;
-    const result = await stores.roomDirectory.joinRoom(room.id);
+    const result = await serverUi(stores).roomDirectory.joinRoom(room.id);
     if (!serverScope.isCurrent()) return;
     if (result.ok) {
       toast.success(m('room.join.success', { room: room.name }));
@@ -769,11 +774,24 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     void openRoomCallPanel(room.id);
   }
 
-  async function handleNotificationBadgeClick(event: MouseEvent, roomId: string, isDM: boolean) {
+  /**
+   * Open the newest unread notification that a room badge counts. Each badge
+   * opens its own attention level, so the viewer sees the activity that the
+   * clicked badge announced.
+   */
+  async function handleNotificationBadgeClick(
+    event: MouseEvent,
+    roomId: string,
+    isDM: boolean,
+    attentionLevel: NotificationAttentionLevel
+  ) {
     event.preventDefault();
     event.stopPropagation();
 
-    const lookup = await notificationStore.resolveRoomNotification(roomId, { isDM });
+    const lookup = await serverUi(stores).attention.resolveRoomNotification(roomId, {
+      isDM,
+      attentionLevel
+    });
     if (!serverScope.isCurrent()) return;
     const notification = lookup.notification;
 
@@ -787,7 +805,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     const target = notificationTarget(notification);
     prepareUiForNotificationTarget(appUi, activeServerId, target);
     if (target.eventId && target.roomId) {
-      stores.pendingHighlights.set(
+      serverUi(stores).pendingHighlights.set(
         target.roomId,
         target.threadRootId,
         target.eventId,
@@ -795,11 +813,47 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       );
     }
 
-    const path = notificationStore.getCleanPath(activeServerId, notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- getCleanPath returns a resolved app path.
+    const path = notificationPath(activeServerId, notification);
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- notificationPath returns a resolved app path.
     await goto(path);
   }
 </script>
+
+<!--
+  One room notification badge. Important attention uses notification orange.
+  All other unread notifications use the neutral badge before it.
+-->
+{#snippet notificationBadge(
+  roomId: string,
+  isDM: boolean,
+  attentionLevel: NotificationAttentionLevel,
+  count: number
+)}
+  {@const important = attentionLevel === NotificationAttentionLevel.IMPORTANT}
+  <button
+    type="button"
+    onclick={(e) => handleNotificationBadgeClick(e, roomId, isDM, attentionLevel)}
+    class="flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
+    aria-label={!important
+      ? m('room_list.go_to_other_notifications', { count })
+      : isDM
+        ? m('room_list.go_to_dm_notifications', { count })
+        : m('room_list.go_to_notifications', { count })}
+  >
+    <NotificationBadge
+      {count}
+      color={important ? 'warning' : 'ambient'}
+      testid={`${isDM ? 'dm' : 'room'}-${important ? '' : 'ambient-'}notification-badge`}
+    />
+  </button>
+  <span class="sr-only">
+    {!important
+      ? m('room_list.other_notifications', { count })
+      : isDM
+        ? m('room_list.new_direct_messages', { count })
+        : m('room_list.notifications', { count })}
+  </span>
+{/snippet}
 
 {#snippet activeCallIcon()}
   <span
@@ -957,25 +1011,27 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         {/if}
 
         {#if (isDM || isJoined) && room.viewerNotificationCount > 0}
-          <button
-            type="button"
-            onclick={(e) => handleNotificationBadgeClick(e, room.id, isDM)}
-            class="flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
-            aria-label={isDM
-              ? m('room_list.go_to_dm_notifications', { count: room.viewerNotificationCount })
-              : m('room_list.go_to_notifications', { count: room.viewerNotificationCount })}
-          >
-            <NotificationBadge
-              count={room.viewerNotificationCount}
-              color={room.viewerImportantNotificationCount > 0 ? 'warning' : 'ambient'}
-              testid={isDM ? 'dm-notification-badge' : 'room-notification-badge'}
-            />
-          </button>
-          <span class="sr-only">
-            {isDM
-              ? m('room_list.new_direct_messages', { count: room.viewerNotificationCount })
-              : m('room_list.notifications', { count: room.viewerNotificationCount })}
-          </span>
+          {@const importantCount = room.viewerImportantNotificationCount}
+          {@const otherCount = Math.max(0, room.viewerNotificationCount - importantCount)}
+          <!-- The Important count stays at the row edge, where a single badge sits. -->
+          <div class="flex items-center gap-1">
+            {#if otherCount > 0}
+              {@render notificationBadge(
+                room.id,
+                isDM,
+                NotificationAttentionLevel.AMBIENT,
+                otherCount
+              )}
+            {/if}
+            {#if importantCount > 0}
+              {@render notificationBadge(
+                room.id,
+                isDM,
+                NotificationAttentionLevel.IMPORTANT,
+                importantCount
+              )}
+            {/if}
+          </div>
         {:else if showUnread}
           <UnreadDot color="neutral" testid={isDM ? 'dm-unread-dot' : 'room-unread-dot'} />
           <span class="sr-only">{m('room_list.unread_messages')}</span>

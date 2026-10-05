@@ -68,14 +68,14 @@ export const { getStaticPaths, GET } = await OGImageRoute({
       title: {
         color: [255, 255, 255],
         size: 72,
-        weight: 600,
+        weight: 'SemiBold',
         lineHeight: 1.05,
         families: ['IBM Plex Sans']
       },
       description: {
         color: [196, 201, 210],
         size: 34,
-        weight: 400,
+        weight: 'Normal',
         lineHeight: 1.3,
         families: ['IBM Plex Sans']
       }

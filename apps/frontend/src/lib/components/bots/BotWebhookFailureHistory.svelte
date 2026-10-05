@@ -1,6 +1,6 @@
 <!-- @component Retained webhook failures. Mounted on demand; the query owns paging. -->
 <script lang="ts">
-  import { createBotAPI } from '$lib/api-client/bots';
+  import { createBotAPI } from '@chatto/client/api/bots';
   import { m } from '$lib/i18n/messages';
   import { createInfiniteQuery } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';

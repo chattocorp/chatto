@@ -9,14 +9,15 @@ polls the cache briefly after a change. See FDR-042.
 <script lang="ts">
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
   import { onDestroy } from 'svelte';
-  import { createNeighborAPI, type Neighbor } from '$lib/api-client/neighbors';
-  import { listNeighborhoodServers, type NeighborhoodServer } from '$lib/api-client/server';
+  import { createNeighborAPI, type Neighbor } from '$lib/api/neighbors';
+  import { listNeighborhoodServers, type NeighborhoodServer } from '@chatto/client/api/server';
   import ServerProfileCard from '$lib/components/ServerProfileCard.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
   import { createMutation, createQuery, queryClient } from '$lib/query/client';
-  import { canonicalServerOrigin, serverOriginFromInput } from '$lib/serverDirectory';
+  import { serverOriginFromInput } from '$lib/serverDirectory';
+  import { canonicalServerOrigin } from '$lib/serverUrl';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+  import type { ServerConnection } from '@chatto/client/server/serverConnection';
   import { m } from '$lib/i18n/messages';
   import {
     ConfirmDialog,

@@ -11,6 +11,14 @@ export interface AgentConnectionOptions {
   onText?: (text: string) => void | Promise<void>;
   /** True means the agent consumed the message, not merely that it was queued. */
   onDelivery?: (text: string, consumed: boolean) => void | Promise<void>;
+  /** Input delivery with trusted origin, for hosts that retain queued inputs. */
+  onInputDelivery?: (
+    text: string,
+    consumed: boolean,
+    origin: 'user' | 'notification'
+  ) => void | Promise<void>;
+  /** Set false to queue inputs without steering or preparing them during an active turn. */
+  steer?: boolean;
   /** Prepare trusted source metadata before steering; never infer origin from message text. */
   prepareMessage?: (text: string, origin: 'user' | 'notification') => string | Promise<string>;
 }
@@ -76,14 +84,15 @@ export function connectAgent(
     while (!disposed && !signal.aborted) {
       const message = await interruptible(Promise.resolve(inbox.next()));
       if (message.done || disposed || signal.aborted) return;
-      const text = options.prepareMessage
-        ? await interruptible(Promise.resolve(options.prepareMessage(message.value, origin)))
-        : message.value;
+      const text =
+        options.steer !== false && options.prepareMessage
+          ? await interruptible(Promise.resolve(options.prepareMessage(message.value, origin)))
+          : message.value;
 
       // Queue steering immediately. A receipt may wait for the next agent turn;
       // it must not prevent later user messages from reaching that same turn.
       const consumed =
-        active && agent.steer
+        options.steer !== false && active && agent.steer
           ? Promise.resolve()
               .then(() => agent.steer!(text))
               .catch(() => false)
@@ -95,6 +104,7 @@ export function connectAgent(
         signal.throwIfAborted();
         reportMessageReceipt(message, delivered);
         await options.onDelivery?.(text, delivered);
+        await options.onInputDelivery?.(text, delivered, origin);
       });
       void delivery.catch((reason) => controller.abort(reason));
     }

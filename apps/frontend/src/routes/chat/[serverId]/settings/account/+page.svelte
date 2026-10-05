@@ -1,7 +1,7 @@
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { resolve } from '$app/paths';
-  import { createAccountAPI } from '$lib/api-client/account';
+  import { createAccountAPI } from '@chatto/client/api/account';
   import { Panel, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';

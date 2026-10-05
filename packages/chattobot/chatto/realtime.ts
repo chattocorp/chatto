@@ -1,8 +1,9 @@
-import { createChattoClient, type RealtimeCheckpoint } from '@chatto/client';
-import { createBotClient, type AddressedMessage } from '@chatto/bot-client';
-import { createThreadReader } from '../thread.ts';
+import { createApi, createClient, type AddressedMessage, type Server } from '@chatto/client';
+import { parseServerUrl } from '@chatto/client/util/serverUrl';
+import { createAttachmentReader, createThreadReader } from '../thread.ts';
+import { usePrivateTempDirectory } from '../private-temp.ts';
 import { createEyesReaction } from '../reaction.ts';
-import { ConfigurationError, setting } from '../settings.ts';
+import { ConfigurationError, setting, thinkingSetting } from '../settings.ts';
 import { webSettings } from '../web.ts';
 import type { EventSource } from 'runling/web';
 import { log } from 'runling';
@@ -10,6 +11,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { createChattoBot } from '../workflows/chat.ts';
 import { investigationSettings } from '../workflows/investigate.ts';
 import { implementationSettings } from '../workflows/implement.ts';
+import { createTokenSource, githubSettings } from '../github/app.ts';
 import {
   createConversationState,
   RegistrationError,
@@ -19,8 +21,6 @@ import {
 
 interface Session {
   identity: string;
-  apiKey: string;
-  checkpoint: RealtimeCheckpoint;
   conversations: ConversationState;
 }
 
@@ -39,11 +39,14 @@ export function messageDelivery(message: AddressedMessage, botId: string): Deliv
   };
 }
 
-/** Match the client's server URL rules without including the value in an error message. */
+/** Apply the client's server URL rules; the error never includes the value. */
 function isServerUrl(value: string): boolean {
-  if (!URL.canParse(value)) return false;
-  const url = new URL(value);
-  return (url.protocol === 'http:' || url.protocol === 'https:') && !url.username && !url.password;
+  try {
+    parseServerUrl(value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Parse maintainer Chatto user IDs, separated by commas or spaces. They are matched against
@@ -69,10 +72,11 @@ function sourceSettings() {
       throw new ConfigurationError('CHATTO_URL must be an HTTP or HTTPS URL without credentials');
     const implementation = implementationSettings();
     const investigation = investigationSettings(implementation);
+    const github = githubSettings(implementation?.repository);
     const maintainers = maintainerIds();
-    if ((investigation || implementation) && !maintainers.length)
+    if ((investigation || implementation || github) && !maintainers.length)
       throw new ConfigurationError(
-        'Source investigation and implementation require CHATTO_MAINTAINER_USER_IDS'
+        'Source investigation, implementation, and GitHub access require CHATTO_MAINTAINER_USER_IDS'
       );
     return {
       serverUrl,
@@ -80,9 +84,14 @@ function sourceSettings() {
       // Match the server-authenticated actor ID, never a display name or user-supplied message field.
       allowedUserId: setting('CHATTO_ALLOWED_USER_ID'),
       model: setting('CHATTO_AGENT_MODEL'),
+      thinkingLevel: thinkingSetting('CHATTO_AGENT_THINKING', 'medium'),
       investigation,
       implementation,
       maintainers,
+      // One token source per generation, so conversations share cached installation tokens.
+      github: github && { settings: github, tokens: createTokenSource(github) },
+      classifierModel: setting('CHATTO_CLASSIFIER_MODEL'),
+      classifierThinkingLevel: thinkingSetting('CHATTO_CLASSIFIER_THINKING', 'low'),
       web: webSettings()
     };
   } catch (error) {
@@ -95,30 +104,55 @@ function sourceSettings() {
 /** Outbound-only bot source. Conversation state survives reloads for the same bot identity. */
 export const chattoSource: EventSource = async (ctx) => {
   const { serverUrl, apiKey, allowedUserId, ...settings } = sourceSettings();
-  const client = createChattoClient({ serverUrl, apiKey });
-  const botClient = await createBotClient(client, { signal: ctx.signal });
-  const botId = botClient.viewerId;
+  // Before any agent runs: codemode output can contain thread messages.
+  await usePrivateTempDirectory();
+  // Each source generation owns its connection and closes it when it ends.
+  // A new generation starts from a fresh realtime snapshot. Closing fails the
+  // connection's requests in flight, so runs, which can outlive their
+  // generation, send requests through a stateless API client instead.
+  const client = createClient();
+  try {
+    const chatto = client.connect({ serverUrl, apiKey });
+    await consume(ctx, chatto, apiKey, allowedUserId, settings, serverUrl);
+  } finally {
+    client.close();
+  }
+};
+
+async function consume(
+  ctx: Parameters<EventSource>[0],
+  chatto: Server,
+  apiKey: string,
+  allowedUserId: string | undefined,
+  settings: Omit<ReturnType<typeof sourceSettings>, 'serverUrl' | 'apiKey' | 'allowedUserId'>,
+  serverUrl: string
+): Promise<void> {
+  const { viewerId: botId } = await chatto.ready({ signal: ctx.signal });
+  const api = createApi({ serverUrl, apiKey, viewerId: botId });
   const identity = JSON.stringify([new URL(serverUrl).origin, botId]);
   let session = ctx.state.get('chatto') as Session | undefined;
   if (!session || session.identity !== identity) {
-    session = { identity, apiKey, checkpoint: {}, conversations: createConversationState() };
+    session = { identity, conversations: createConversationState() };
     ctx.state.set('chatto', session);
-  } else if (session.apiKey !== apiKey) {
-    session.apiKey = apiKey;
-    session.checkpoint = {};
+  } else {
+    // Each generation starts from a new snapshot; the previous one is closed.
+    console.warn('ChattoBot reloaded: messages sent during the reload are not replayed.');
   }
-  // Active runs keep this generation's client even if a reload changes credentials.
+  // Active runs keep this generation's credentials even if a reload changes them.
   const bot = createChattoBot({
     ...settings,
     state: session.conversations,
-    post: client.postMessage,
-    typing: client.refreshTyping,
-    readThread: createThreadReader(client, botId),
-    acknowledge: createEyesReaction(client)
+    post: async (destination, body, signal) => {
+      await api.postMessage(destination, body, { signal });
+    },
+    typing: (destination, signal) => api.refreshTyping(destination, { signal }),
+    react: (target, emoji, signal) => api.addReaction(target, emoji, { signal }),
+    readThread: createThreadReader(api),
+    readAttachment: createAttachmentReader(api),
+    acknowledge: createEyesReaction(api)
   });
-  await client.consumeRealtime({
+  await chatto.consumeEvents({
     signal: ctx.signal,
-    checkpoint: session.checkpoint,
     onStatus(status) {
       // Only fixed local status fields are logged, never connection details or payloads.
       if (status.state === 'ready' && status.gap)
@@ -130,7 +164,7 @@ export const chattoSource: EventSource = async (ctx) => {
       // Ignore before routing: disallowed senders cannot start, steer, cancel,
       // or trigger acknowledgements for an existing conversation.
       if (allowedUserId && event.actorId !== allowedUserId) return;
-      const message = await botClient.addressedMessage(event, { signal: ctx.signal }).catch(() => {
+      const message = await chatto.addressedMessage(event, { signal: ctx.signal }).catch(() => {
         ctx.signal.throwIfAborted();
         // Missing reply targets do not stop this bot's realtime source.
         console.warn(
@@ -155,4 +189,4 @@ export const chattoSource: EventSource = async (ctx) => {
       }
     }
   });
-};
+}

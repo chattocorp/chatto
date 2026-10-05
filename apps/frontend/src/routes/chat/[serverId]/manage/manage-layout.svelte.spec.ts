@@ -2,7 +2,7 @@ import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { testSnippet } from '$lib/test-utils';
-import { RealtimeProjectionSyncState } from '$lib/state/server/realtimeSync.svelte';
+import { RealtimeProjectionSyncState } from '@chatto/client/server/realtimeSync';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 vi.mock('$app/state', () => ({

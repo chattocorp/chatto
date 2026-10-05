@@ -1,7 +1,7 @@
 <!-- @component Closes handled OS notifications for one authenticated account. -->
 <script lang="ts">
   import { untrack } from 'svelte';
-  import type { NotificationStore } from '$lib/state/server/notifications.svelte';
+  import type { NotificationStore } from '@chatto/client/server/notifications';
   import { cleanupPushNotifications } from '$lib/notifications/pushNotificationCleanup';
   import { listenForAppBadgeRefresh } from '$lib/notifications/appBadge';
 

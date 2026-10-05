@@ -3,6 +3,7 @@ package linkpreview
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/png"
@@ -140,6 +141,89 @@ func TestApplyBlueskyEmbedIncludesQuotedPostMedia(t *testing.T) {
 	require.Len(t, snapshot.QuotedPost.Images, 1)
 	assert.Equal(t, "A quoted attachment", snapshot.QuotedPost.Images[0].Alt)
 	assert.Equal(t, "asset-1", snapshot.QuotedPost.Images[0].GetAsset().GetId())
+}
+
+func TestApplyBlueskyEmbedUsesVideoThumbnail(t *testing.T) {
+	tests := []struct {
+		name      string
+		embed     string
+		wantImage bool
+	}{
+		{
+			name:      "video view",
+			wantImage: true,
+			embed: `{
+				"$type":"app.bsky.embed.video#view",
+				"playlist":"https://video.example/playlist.m3u8",
+				"thumbnail":"https://video.example/thumbnail.jpg",
+				"alt":"A cat video",
+				"aspectRatio":{"width":720,"height":1280}
+			}`,
+		},
+		{
+			name:      "record with video media",
+			wantImage: true,
+			embed: `{
+				"$type":"app.bsky.embed.recordWithMedia#view",
+				"media":{
+					"$type":"app.bsky.embed.video#view",
+					"playlist":"https://video.example/playlist.m3u8",
+					"thumbnail":"https://video.example/thumbnail.jpg",
+					"alt":"A cat video",
+					"aspectRatio":{"width":720,"height":1280}
+				}
+			}`,
+		},
+		{
+			name: "video view without thumbnail",
+			embed: `{
+				"$type":"app.bsky.embed.video#view",
+				"playlist":"https://video.example/playlist.m3u8",
+				"alt":"A cat video"
+			}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var pngData bytes.Buffer
+			require.NoError(t, png.Encode(&pngData, image.NewRGBA(image.Rect(0, 0, 1, 1))))
+			assetsConfig := assets.DefaultConfig()
+			var fetchedURLs []string
+			fetcher := &Fetcher{
+				logger:       log.New(io.Discard),
+				assetsConfig: &assetsConfig,
+				newAssetID:   func() string { return "asset-1" },
+				imageClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					fetchedURLs = append(fetchedURLs, req.URL.String())
+					return response(http.StatusOK, "image/png", pngData.String()), nil
+				})},
+				storeImage: func(_ context.Context, assetID string, _ []byte, _ string) (*evtv1.AssetRecord, error) {
+					return &evtv1.AssetRecord{
+						Id:      assetID,
+						Storage: &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: assetID}},
+					}, nil
+				},
+			}
+			var embed blueskyEmbed
+			require.NoError(t, json.Unmarshal([]byte(tt.embed), &embed))
+			snapshot := &evtv1.SocialPostPreview{Provider: "bluesky"}
+			budget := socialPostImageBudget{bytesRemaining: MaxSocialPostImageBytes, fetchesRemaining: MaxSocialPostImageFetches}
+
+			fetcher.applyBlueskyEmbed(context.Background(), snapshot, &embed, &budget, true)
+
+			if !tt.wantImage {
+				assert.Empty(t, fetchedURLs)
+				assert.Empty(t, snapshot.Images)
+				return
+			}
+			assert.Equal(t, []string{"https://video.example/thumbnail.jpg"}, fetchedURLs)
+			require.Len(t, snapshot.Images, 1)
+			assert.Equal(t, "A cat video", snapshot.Images[0].Alt)
+			assert.Equal(t, uint32(720), snapshot.Images[0].Width)
+			assert.Equal(t, uint32(1280), snapshot.Images[0].Height)
+			assert.Equal(t, "asset-1", snapshot.Images[0].GetAsset().GetId())
+		})
+	}
 }
 
 func TestApplyBlueskyRecordWithMediaIncludesDirectMediaAndQuote(t *testing.T) {

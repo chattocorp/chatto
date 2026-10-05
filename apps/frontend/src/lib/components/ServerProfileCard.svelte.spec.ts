@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { PublicServerInfo } from '$lib/api-client/server';
+import type { PublicServerInfo } from '@chatto/client/api/server';
 import ServerProfileCard from './ServerProfileCard.svelte';
 
 function profile(overrides: Partial<PublicServerInfo> = {}): PublicServerInfo {

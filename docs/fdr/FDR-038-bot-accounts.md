@@ -311,7 +311,7 @@ access to revoke keys or delete an existing bot just because their ability to
 create more bots is revoked.
 **Tradeoff:** Servers that want bot creation to be restricted must change the
 fresh default. Upgraded 0.4 servers receive the same two grants once
-(ADR-110). Startup does not reconcile later default changes.
+(ADR-113). Startup does not reconcile later default changes.
 Bot-management authorization also has an ownership path alongside the
 permission path used by global managers.
 
@@ -555,7 +555,7 @@ editor only when the server version is 0.5.0-beta.9 or later.
 
 ## Related
 
-- **ADRs:** ADR-110 (one-time upgrade grants for new permissions), ADR-100 (shared integration client), ADR-098 (retained operational log), ADR-097 (best-effort outbound bot webhooks), ADR-007 (per-user encryption and crypto-shredding), ADR-033
+- **ADRs:** ADR-113 (one-time upgrade grants for new permissions), ADR-100 (shared integration client), ADR-111 (client state layer in `@chatto/client`), ADR-098 (retained operational log), ADR-097 (best-effort outbound bot webhooks), ADR-007 (per-user encryption and crypto-shredding), ADR-033
   (event-sourced state), ADR-036 (runtime state), ADR-040 (permission-only RBAC
   with owner override), ADR-045 (public API stability tiers), ADR-046 (typed
   runtime credentials), ADR-052

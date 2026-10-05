@@ -1,5 +1,7 @@
 {
   "voice": {
+    "picture_in_picture": "Pilt pildis",
+    "picture_in_picture_failed": "Pilt pildis režiimi ei saanud muuta.",
     "connection_lost": "Ühendus katkes",
     "connecting": "Ühendamine...",
     "joining": "Liitumine...",

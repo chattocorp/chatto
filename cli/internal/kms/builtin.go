@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/log"
 	gonanoid "github.com/matoous/go-nanoid/v2"
@@ -17,6 +16,7 @@ import (
 
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/jetstreamutil"
+	"hmans.de/chatto/pkg/events"
 )
 
 const (
@@ -71,7 +71,7 @@ type LegacyKeyProvider interface {
 
 // Builtin is Chatto's default in-process KMS.
 type Builtin struct {
-	kv     jetstream.KeyValue
+	kv     *events.KeyValue
 	logger *log.Logger
 }
 
@@ -80,7 +80,7 @@ var _ LegacyKeyProvider = (*Builtin)(nil)
 var _ CallKeyStore = (*Builtin)(nil)
 
 // NewBuiltin creates a KV-backed KMS. The KV bucket should be ENCRYPTION_KEYS.
-func NewBuiltin(kv jetstream.KeyValue, logger *log.Logger) *Builtin {
+func NewBuiltin(kv *events.KeyValue, logger *log.Logger) *Builtin {
 	if logger == nil {
 		logger = log.WithPrefix("kms.Builtin")
 	}
@@ -188,27 +188,16 @@ func decodeCallKeyRecord(keyRef string, data []byte) ([]byte, error) {
 	return append([]byte(nil), stored.GetKey()...), nil
 }
 
-// getEntry retries missing keys to tolerate brief KV follower lag. Reads remain
-// eventually consistent: a successful result can still precede a deletion.
-// The three retries add at most 85 ms of waiting, plus KV request time.
+// getEntry reads a KEK from any replica. KEKs never change after Create, so
+// an older revision is the same key. A miss is decided again through the
+// stream leader, so a key created through another replica is never reported
+// missing. A successful read can still precede a shred.
 func (b *Builtin) getEntry(ctx context.Context, keyRef string) (jetstream.KeyValueEntry, error) {
-	delays := [...]time.Duration{10 * time.Millisecond, 25 * time.Millisecond, 50 * time.Millisecond}
-	for attempt := 0; ; attempt++ {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		entry, err := b.kv.Get(ctx, keyPath(keyRef))
-		if !errors.Is(err, jetstream.ErrKeyNotFound) || attempt == len(delays) {
-			return entry, err
-		}
-		timer := time.NewTimer(delays[attempt])
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return nil, ctx.Err()
-		case <-timer.C:
-		}
+	entry, err := b.kv.GetAnyReplica(ctx, keyPath(keyRef))
+	if errors.Is(err, jetstream.ErrKeyNotFound) {
+		return b.kv.Get(ctx, keyPath(keyRef))
 	}
+	return entry, err
 }
 
 func (b *Builtin) getKey(ctx context.Context, keyRef string) ([]byte, error) {

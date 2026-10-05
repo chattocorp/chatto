@@ -1,3 +1,5 @@
+// Make @chatto/client state reactive in Svelte before any component reads a store.
+import '@chatto/client/svelte';
 import type { ClientInit } from '@sveltejs/kit';
 import { startLoadingGradients } from '$lib/ui/loadingGradients';
 

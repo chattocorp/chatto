@@ -1,11 +1,12 @@
-import type { ConnectAPIConfig } from '$lib/api-client/connect';
-import { fakeServer, type FakeServerRoutes } from './fakeServer';
-import type { CurrentUser } from '$lib/api-client/viewer';
-import { CurrentUserState } from '$lib/auth/currentUser.svelte';
-import { NO_SERVER_PERMISSIONS, type ServerPermissions } from '$lib/state/server/permissions';
+import type { ConnectAPIConfig } from '@chatto/client/api/connect';
+import { fakeServer, type FakeServerRoutes } from '@chatto/client/testing/fakeServer';
+import type { CurrentUser } from '@chatto/client/api/viewer';
+import { CurrentUserState } from '@chatto/client/auth/currentUser';
+import { NO_SERVER_PERMISSIONS, type ServerPermissions } from '@chatto/client/server/permissions';
 import type { ServerScope } from '$lib/state/server/scope.svelte';
-import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-import type { ServerStateStore } from '$lib/state/server/store.svelte';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
+import type { ServerStateStore } from '@chatto/client/server/store';
+import { setServerUiForTests } from '$lib/state/server/serverUi';
 
 /** Options for {@link createTestServerScope}. Every option has a working default. */
 export type TestServerScopeOptions = {
@@ -41,6 +42,12 @@ export type TestServerScopeOptions = {
   serverInfo?: object;
   /** Extra store members, such as `navigation` or `projection`. Getters are kept. */
   store?: object;
+  /**
+   * Members of the store's frontend UI state, such as a fake `voiceCall`.
+   * `serverUi(store)` returns the fake store with these members added, so a
+   * spec can also set UI members, such as `navigation`, with `store`.
+   */
+  ui?: object;
   /** Extra connection members. Getters are kept. */
   connection?: object;
 };
@@ -90,7 +97,6 @@ export class TestServerScope {
 
 /** Build the typed scope objects whose getters read the fixture's current state. */
 function buildScope(t: TestServerScope, options: TestServerScopeOptions): ServerScope {
-  const store = buildStore(t, options.serverInfo, options.store);
   const connection = withMembers(
     {
       get serverId() {
@@ -121,12 +127,14 @@ function buildScope(t: TestServerScope, options: TestServerScopeOptions): Server
       forceReconnect() {}
     },
     options.connection
-  );
+  ) as unknown as ServerConnection;
+  const store = buildStore(t, connection, options.serverInfo, options.store);
+  setServerUiForTests(store, withMembers(Object.create(store), options.ui));
   return {
     get serverId() {
       return t.serverId;
     },
-    connection: connection as unknown as ServerConnection,
+    connection,
     store,
     isCurrent: () => t.current
   };
@@ -135,12 +143,25 @@ function buildScope(t: TestServerScope, options: TestServerScopeOptions): Server
 /** Build the scope's store. Its getters read the fixture's current state. */
 function buildStore(
   t: TestServerScope,
+  connection: ServerConnection,
   serverInfo: object | undefined,
   extra: object | undefined
 ): ServerStateStore {
+  const subscribe = () => () => {};
   const store = withMembers(
     {
       serverId: t.serverId,
+      connection,
+      projection: { rooms: new Map(), activeCalls: [] },
+      // A fake store reports no boundary events.
+      onUpdate: subscribe,
+      onReset: subscribe,
+      onRoomAccessLost: subscribe,
+      onRoomAccessRestored: subscribe,
+      onUserDeleted: subscribe,
+      onAuthorityChanged: subscribe,
+      onPermissionsChanged: subscribe,
+      onDispose: subscribe,
       currentUser: t.currentUser,
       get accountId() {
         return t.currentUser.user?.id ?? null;

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { BotOutboundWebhook } from '@chatto/api-types/api/v1/bots_pb';
-  import { createBotAPI } from '$lib/api-client/bots';
+  import { createBotAPI } from '@chatto/client/api/bots';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';

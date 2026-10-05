@@ -98,13 +98,19 @@ export class MessageComponent {
   }
 
   /**
-   * Add a reaction to the message via the context menu.
+   * Add a reaction through the context menu, using its picker when the emoji
+   * is not in the quick-reaction history.
    */
   async react(emoji: string): Promise<void> {
     await this.openContextMenu();
-    await this.contextMenu
-      .getByLabel(`React with ${emoji}`)
-      .click({ timeout: TIMEOUTS.REALTIME_EVENT });
+    const quickReaction = this.contextMenu.getByLabel(`React with ${emoji}`, { exact: true });
+    if (await quickReaction.count()) {
+      await quickReaction.click({ timeout: TIMEOUTS.REALTIME_EVENT });
+      return;
+    }
+    await this.contextMenu.getByLabel('More reactions').click({ timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(this.page.getByPlaceholder('Search emojis...')).toBeVisible();
+    await this.page.getByRole('button', { name: emoji, exact: true }).first().click();
   }
 
   /**

@@ -11,7 +11,9 @@ which replaces the origin allow-list client-registration requirement, and
 [ADR-074](ADR-074-keep-server-catalogue-device-local.md), which makes the
 server catalogue device-local. [ADR-079](ADR-079-renewable-bearer-sessions.md)
 replaces the sliding bearer-token lifetime. The multi-server client
-architecture remains current.
+architecture remains current. [ADR-111](ADR-111-move-client-state-into-chatto-client.md)
+moves the registry, sessions, and stores into `@chatto/client`; the frontend
+keeps URL routing and the Svelte route scope.
 
 ## Context
 

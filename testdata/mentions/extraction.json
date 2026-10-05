@@ -1,0 +1,578 @@
+{
+  "$comment": "Mention extraction cases shared by the server (cli/internal/core/mentions_test.go) and the frontend (apps/frontend/src/lib/markdownMentions.test.ts). Each body must yield exactly the listed handles, in order.",
+  "cases": [
+    {
+      "name": "single mention",
+      "body": "Hey @alice, how are you?",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "multiple mentions",
+      "body": "@alice and @bob should check this out",
+      "mentions": [
+        "alice",
+        "bob"
+      ]
+    },
+    {
+      "name": "duplicates are removed",
+      "body": "@alice said hi to @bob, and @alice replied",
+      "mentions": [
+        "alice",
+        "bob"
+      ]
+    },
+    {
+      "name": "case is preserved",
+      "body": "@Alice and @ALICE",
+      "mentions": [
+        "Alice",
+        "ALICE"
+      ]
+    },
+    {
+      "name": "underscore and hyphen",
+      "body": "@user_name and @first-last",
+      "mentions": [
+        "user_name",
+        "first-last"
+      ]
+    },
+    {
+      "name": "digits",
+      "body": "Ask @user123 about it",
+      "mentions": [
+        "user123"
+      ]
+    },
+    {
+      "name": "dots between handle characters",
+      "body": "Hey @hendrik.mans and @first.middle.last",
+      "mentions": [
+        "hendrik.mans",
+        "first.middle.last"
+      ]
+    },
+    {
+      "name": "trailing dot is not part of the handle",
+      "body": "Thanks @alice.",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "punctuation around mentions",
+      "body": "(@alice), @bob! @charlie? CC: @dora",
+      "mentions": [
+        "alice",
+        "bob",
+        "charlie",
+        "dora"
+      ]
+    },
+    {
+      "name": "mention after newline",
+      "body": "Hello\n@alice check this",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "at sign without handle",
+      "body": "@ nothing here",
+      "mentions": []
+    },
+    {
+      "name": "empty body",
+      "body": "",
+      "mentions": []
+    },
+    {
+      "name": "mentions separated by a slash",
+      "body": "@alice/@bob",
+      "mentions": [
+        "alice",
+        "bob"
+      ]
+    },
+    {
+      "name": "slash list with spaces",
+      "body": "@alice / @bob / @carol",
+      "mentions": [
+        "alice",
+        "bob",
+        "carol"
+      ]
+    },
+    {
+      "name": "mention after a slash in prose",
+      "body": "either/@alice",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "email address is not a mention",
+      "body": "Email me at user@example.com",
+      "mentions": []
+    },
+    {
+      "name": "email address with subdomains",
+      "body": "Contact support@mail.company.org",
+      "mentions": []
+    },
+    {
+      "name": "email and mention",
+      "body": "Email john@example.com or ping @alice",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "at sign directly after a mention",
+      "body": "@alice@bob",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "handle in URL path",
+      "body": "Zum Thema https://social.5f9.de/@jollyorc/117331230238178837",
+      "mentions": []
+    },
+    {
+      "name": "handle in URL path at line start",
+      "body": "https://social.5f9.de/@alice/1\n@bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "handle in URL followed by mention",
+      "body": "https://social.5f9.de/@alice?x=1 @bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "handle in www URL",
+      "body": "www.example.com/@alice.",
+      "mentions": []
+    },
+    {
+      "name": "handle in bare-domain URL",
+      "body": "see social.5f9.de/@jollyorc/1",
+      "mentions": []
+    },
+    {
+      "name": "handle in bare-domain URL with path",
+      "body": "mastodon.social/@alice and @bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "handle in URL inside parentheses",
+      "body": "(https://example.com/@alice) @bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "handle in URL with underscores",
+      "body": "https://example.com/foo_bar/@alice_x_ and @bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "handle in bold URL",
+      "body": "**https://example.com/@alice** @bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "handle in URL query",
+      "body": "https://example.com/?user=@alice @bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "handle in bare-domain URL with port",
+      "body": "example.com:8443/@alice @bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "handle in URL with port",
+      "body": "https://example.com:8443/@alice",
+      "mentions": []
+    },
+    {
+      "name": "handle in URL with uppercase scheme",
+      "body": "HTTPS://example.com/@alice",
+      "mentions": []
+    },
+    {
+      "name": "handle in ftp URL",
+      "body": "ftp://example.com/@alice",
+      "mentions": []
+    },
+    {
+      "name": "handle after an unsupported scheme",
+      "body": "ssh://example.com/@alice",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "handle in protocol-relative URL",
+      "body": "//example.com/@alice and (//localhost/@carol) @bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "protocol-relative URL needs a boundary",
+      "body": "a//example.com/@alice",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "protocol-relative URL needs a dotted host",
+      "body": "a //x/@alice",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "protocol-relative URL with a pseudo top-level domain",
+      "body": "//foo.local/@alice",
+      "mentions": []
+    },
+    {
+      "name": "handle in emphasized bare-domain URL",
+      "body": "*example.com/@alice*",
+      "mentions": []
+    },
+    {
+      "name": "handle after a local host name",
+      "body": "foo.local/@alice",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "handle after an IP address",
+      "body": "127.0.0.1/@alice",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "handles on several lines with URLs",
+      "body": "@alice https://example.com/@bob\nsocial.5f9.de/@carol @dora\n\n@erin",
+      "mentions": [
+        "alice",
+        "dora",
+        "erin"
+      ]
+    },
+    {
+      "name": "mention after a bare domain",
+      "body": "example.com@alice",
+      "mentions": []
+    },
+    {
+      "name": "handle that looks like a domain",
+      "body": "hi @john.io",
+      "mentions": [
+        "john.io"
+      ]
+    },
+    {
+      "name": "domain-like handle followed by slash mention",
+      "body": "@alice.dev/@bob",
+      "mentions": [
+        "alice.dev",
+        "bob"
+      ]
+    },
+    {
+      "name": "handle with a pseudo top-level domain",
+      "body": "see social.example/@alice",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "mention in link label",
+      "body": "[@alice](https://example.com) and @bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "handle in link destination",
+      "body": "[profile](https://social.5f9.de/@alice) @bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "mention directly after a link",
+      "body": "[profile](https://example.com)@bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "handle in autolink",
+      "body": "<https://social.5f9.de/@alice> and @bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "mention in image syntax label",
+      "body": "![@alice](https://example.com/a.png) @bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "link reference definition is plain text",
+      "body": "[@alice]: https://example.com",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "reference-style link is plain text",
+      "body": "[@alice][r]\n\n[r]: https://example.com",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "inline code",
+      "body": "`@alice` @bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "escaped backticks still form inline code",
+      "body": "\\`@alice\\` @bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "mention directly after inline code",
+      "body": "`cmd`@alice",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "mention directly after inline code after text",
+      "body": "see`cmd`@alice",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "fenced code block",
+      "body": "```\n@all\n```\n@bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "indented code block",
+      "body": "    @alice\n@bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "unmatched backtick",
+      "body": "` @alice",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "literal html code tag is plain text",
+      "body": "<code>@alice</code>",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "blockquote",
+      "body": "> @alice said hi\n\n@bob replied",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "order around excluded regions",
+      "body": "@alice `@bob` @charlie\n> @dora\n```\n@erin\n```\n@frank",
+      "mentions": [
+        "alice",
+        "charlie",
+        "frank"
+      ]
+    },
+    {
+      "name": "dash line continues a blockquote",
+      "body": "> quote\n---\n@alice",
+      "mentions": []
+    },
+    {
+      "name": "star line continues a blockquote",
+      "body": "> quote\n***\n@alice",
+      "mentions": []
+    },
+    {
+      "name": "dash line after a paragraph",
+      "body": "Title\n---\n@alice",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "mention inside emphasis",
+      "body": "*@alice* and **@bob**",
+      "mentions": [
+        "alice",
+        "bob"
+      ]
+    },
+    {
+      "name": "handle ends at emphasis",
+      "body": "@al*ice*",
+      "mentions": [
+        "al"
+      ]
+    },
+    {
+      "name": "handle cannot start across emphasis",
+      "body": "@*alice*",
+      "mentions": []
+    },
+    {
+      "name": "mention after underscore",
+      "body": "foo_@bar",
+      "mentions": [
+        "bar"
+      ]
+    },
+    {
+      "name": "mention at the end of underscore emphasis",
+      "body": "_thanks @alice_",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "mention at the end of strong underscore emphasis",
+      "body": "__thanks @alice__",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "mentions in underscore emphasis",
+      "body": "- _@alice_\n\nhey _@bob_ and _@carol_",
+      "mentions": [
+        "alice",
+        "bob",
+        "carol"
+      ]
+    },
+    {
+      "name": "mention at the end of star emphasis",
+      "body": "*thanks @alice*",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "trailing underscore in a handle",
+      "body": "@alice_ hi",
+      "mentions": [
+        "alice_"
+      ]
+    },
+    {
+      "name": "underscores inside a handle",
+      "body": "ping @user_name_x",
+      "mentions": [
+        "user_name_x"
+      ]
+    },
+    {
+      "name": "backslash before mention",
+      "body": "\\@alice",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "backslash before link syntax",
+      "body": "\\[@alice](https://example.com)",
+      "mentions": []
+    },
+    {
+      "name": "backslash before emphasis",
+      "body": "\\_thanks @alice_",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "backslash at line end",
+      "body": "@alice\\\n@bob",
+      "mentions": [
+        "alice",
+        "bob"
+      ]
+    },
+    {
+      "name": "entity for at sign",
+      "body": "&#64;alice",
+      "mentions": []
+    },
+    {
+      "name": "mention after entity",
+      "body": "&amp;@bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "list items",
+      "body": "- @alice\n- @bob",
+      "mentions": [
+        "alice",
+        "bob"
+      ]
+    },
+    {
+      "name": "heading",
+      "body": "# Hi @alice",
+      "mentions": [
+        "alice"
+      ]
+    }
+  ]
+}

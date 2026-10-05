@@ -107,7 +107,9 @@ behavior.
 **Why:** Electron implements browser popup windows, so the desktop host no
 longer needs the privileged CEF bridge introduced by the Deno prototype.
 **Tradeoff:** Some providers still require a system-browser flow, and the host
-must tightly constrain popup and navigation behavior.
+must tightly constrain popup and navigation behavior. The host opens a new
+window only on the frontend's `/servers/authorize` launch page and sends all
+other window requests to the system browser.
 
 ### 5. Release the desktop shell independently
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { RoleUser } from '$lib/api-client/roles';
+  import type { RoleUser } from '@chatto/client/api/roles';
 
   let {
     users,

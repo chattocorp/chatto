@@ -1,8 +1,8 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
-  import { accountNameToken } from '$lib/render/accountName';
+  import { accountNameToken } from '@chatto/client/timeline/accountName';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
-  import type { AdminMember } from '$lib/api-client/adminUsers';
+  import type { AdminMember } from '$lib/api/adminUsers';
   import { m } from '$lib/i18n/messages';
   import { Hint, Panel } from '$lib/ui';
   import { Button, FormError, TextInput } from '$lib/ui/form';

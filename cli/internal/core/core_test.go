@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/events"
 )
 
 // ============================================================================
@@ -28,6 +30,44 @@ func testContext(t *testing.T) context.Context {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 	return ctx
+}
+
+// bindTestKeyValue binds leader-routed reads to a test bucket or bucket double.
+func bindTestKeyValue(t *testing.T, js jetstream.JetStream, bucket jetstream.KeyValue) *events.KeyValue {
+	t.Helper()
+	kv, err := events.NewKeyValue(js, bucket)
+	if err != nil {
+		t.Fatalf("NewKeyValue: %v", err)
+	}
+	return kv
+}
+
+// countKeyValueReads counts read requests for bucket keys that contain match,
+// from any client. leader counts reads through the stream leader; direct
+// counts DirectGet reads.
+func countKeyValueReads(t *testing.T, nc *nats.Conn, bucket, match string) (leader, direct func() int64) {
+	t.Helper()
+	var leaderReads, directReads atomic.Int64
+	subscribe := func(subject string, reads *atomic.Int64) {
+		t.Helper()
+		subscription, err := nc.Subscribe(subject, func(message *nats.Msg) {
+			// DirectGet puts the key in the subject; a leader read puts it in the body.
+			if strings.Contains(message.Subject, match) || strings.Contains(string(message.Data), match) {
+				reads.Add(1)
+			}
+		})
+		if err != nil {
+			t.Fatalf("subscribe to %s: %v", subject, err)
+		}
+		t.Cleanup(func() { _ = subscription.Unsubscribe() })
+	}
+	subscribe("$JS.API.STREAM.MSG.GET.KV_"+bucket, &leaderReads)
+	subscribe("$JS.API.DIRECT.GET.KV_"+bucket, &directReads)
+	subscribe("$JS.API.DIRECT.GET.KV_"+bucket+".>", &directReads)
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("flush read counter: %v", err)
+	}
+	return leaderReads.Load, directReads.Load
 }
 
 // setupTestCore is a shared test helper that creates a ChattoCore instance

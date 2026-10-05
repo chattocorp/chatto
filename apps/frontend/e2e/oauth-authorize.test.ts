@@ -2,10 +2,12 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import {
-  startSecondServer,
-  stopSecondServer,
   createUserOnRemote,
-  getViewerOnRemote
+  getViewerOnRemote,
+  expectSignedOutViewGone,
+  joinServerAndStartSignIn,
+  startSecondServer,
+  stopSecondServer
 } from './fixtures/multiServer';
 import type { ServerInfo } from './fixtures/server';
 import { TIMEOUTS } from './constants';
@@ -56,9 +58,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
-    const popupPromise = page.waitForEvent('popup');
-    await page.getByRole('button', { name: 'Join', exact: true }).click();
-    let remoteAuthPage = await popupPromise;
+    let remoteAuthPage = await joinServerAndStartSignIn(page);
 
     // 4. The popup should land on the remote instance's OAuth login page.
     // The flow: redirect to remote's /oauth/authorize → /login?redirect=/oauth/authorize
@@ -88,9 +88,12 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     const cancelledPopupClosed = remoteAuthPage.waitForEvent('close');
     await remoteAuthPage.getByRole('button', { name: 'Cancel', exact: true }).click();
     await cancelledPopupClosed;
-    await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeEnabled();
+    const logIn = page
+      .getByTestId('server-signed-out')
+      .getByRole('button', { name: 'Log in to this server' });
+    await expect(logIn).toBeEnabled();
     const retryPopupPromise = page.waitForEvent('popup');
-    await page.getByRole('button', { name: 'Join', exact: true }).click();
+    await logIn.click();
     remoteAuthPage = await retryPopupPromise;
     await expect(remoteAuthPage.getByRole('button', { name: 'Allow Access' })).toBeVisible();
     await expect(remoteAuthPage.getByTestId('app-frame')).toHaveCount(0);
@@ -98,9 +101,10 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     const popupClosed = remoteAuthPage.waitForEvent('close');
     await remoteAuthPage.getByRole('button', { name: 'Allow Access' }).click();
     await popupClosed;
+    await expectSignedOutViewGone(page);
 
-    // 7. Wait for the callback page to redirect into the newly-added
-    // remote server's chat tree. Its URL segment is its hostname.
+    // 7. The signed-out view is gone, so sign-in finished. The route of the
+    // server stays open; its URL segment is its hostname.
     await expect(page).toHaveURL(/\/chat\/127\.0\.0\.1(\/|$)/, {
       timeout: TIMEOUTS.COMPLEX_OPERATION
     });
@@ -136,9 +140,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
-    const secondPopupPromise = page.waitForEvent('popup');
-    await page.getByRole('button', { name: 'Join', exact: true }).click();
-    const secondRemoteAuthPage = await secondPopupPromise;
+    const secondRemoteAuthPage = await joinServerAndStartSignIn(page);
     await expect(secondRemoteAuthPage).toHaveURL(/127\.0\.0\.1.*\/oauth\/consent/, {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
@@ -146,6 +148,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     const secondPopupClosed = secondRemoteAuthPage.waitForEvent('close');
     await secondRemoteAuthPage.getByRole('button', { name: 'Allow Access' }).click();
     await secondPopupClosed;
+    await expectSignedOutViewGone(page);
     await expect(page).toHaveURL(/\/chat\/127\.0\.0\.1(\/|$)/, {
       timeout: TIMEOUTS.COMPLEX_OPERATION
     });
@@ -202,9 +205,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
-    const popupPromise = page.waitForEvent('popup');
-    await page.getByRole('button', { name: 'Join', exact: true }).click();
-    const remoteAuthPage = await popupPromise;
+    const remoteAuthPage = await joinServerAndStartSignIn(page);
     await expect(remoteAuthPage.locator('input[autocomplete="username"]')).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
@@ -217,6 +218,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     const popupClosed = remoteAuthPage.waitForEvent('close');
     await remoteAuthPage.getByRole('button', { name: 'Allow Access' }).click();
     await popupClosed;
+    await expectSignedOutViewGone(page);
     await expect(page).toHaveURL(/\/chat\/127\.0\.0\.1(\/|$)/, {
       timeout: TIMEOUTS.COMPLEX_OPERATION
     });
@@ -296,9 +298,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
-    const blockedPopupPromise = page.waitForEvent('popup');
-    await page.getByRole('button', { name: 'Join', exact: true }).click();
-    const blockedPopup = await blockedPopupPromise;
+    const blockedPopup = await joinServerAndStartSignIn(page);
     await expect(blockedPopup.locator('body')).toContainText('invalid_client', {
       timeout: TIMEOUTS.REALTIME_EVENT
     });

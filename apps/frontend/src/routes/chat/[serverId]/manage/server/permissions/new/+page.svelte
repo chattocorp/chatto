@@ -5,7 +5,7 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { createRoleAPI, type CreateRoleInput } from '$lib/api-client/roles';
+  import { createRoleAPI, type CreateRoleInput } from '@chatto/client/api/roles';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { Panel, Hint, PaneContent, LoadingFog, PaneHeader, PageTitle } from '$lib/ui';
   import { FormError } from '$lib/ui/form';

@@ -71,6 +71,7 @@ require (
 	hmans.de/chatto/pkg/datacrypto v0.0.0
 	hmans.de/chatto/pkg/events v0.0.0
 	hmans.de/chatto/pkg/natsruntime v0.0.0
+	mvdan.cc/xurls/v2 v2.6.0
 )
 
 require (

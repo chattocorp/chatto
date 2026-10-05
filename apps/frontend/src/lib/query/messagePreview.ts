@@ -1,11 +1,14 @@
-import { createRoomTimelineAPI } from '$lib/api-client/roomTimeline';
-import { assetUrlForServer } from '$lib/assets/assetUrls';
-import type { ExpiringAssetUrl, RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
-import type { MessageAttachmentView } from '$lib/render/messageAttachments';
-import { isMessagePostedEvent } from '$lib/render/timelineEvents';
-import type { UserAvatarUserView } from '$lib/render/users';
-import { unmask } from '$lib/state/room/messages/helpers';
-import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import { createRoomTimelineAPI } from '@chatto/client/api/roomTimeline';
+import { assetUrlForServer } from '@chatto/client/util/assetUrls';
+import type {
+  ExpiringAssetUrl,
+  RefreshedAttachmentUrls
+} from '@chatto/client/attachments/attachmentUrls';
+import type { MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
+import { isMessagePostedEvent } from '@chatto/client/timeline/timelineEvents';
+import type { UserAvatarUserView } from '@chatto/client/timeline/users';
+import { unmask } from '@chatto/client/room/messages/helpers';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
 import { serverSessionQueryRoot } from './keys';
 
 type MessagePreviewConnection = Pick<ServerConnection, 'queryScope' | 'getAPI'>;

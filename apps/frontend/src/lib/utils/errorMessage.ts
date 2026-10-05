@@ -1,5 +1,5 @@
 import { Code, ConnectError } from '@connectrpc/connect';
-import { StaleResponseError } from '$lib/api-client/connect';
+import { StaleResponseError } from '@chatto/client/api/connect';
 import { m } from '$lib/i18n/messages';
 import { toast } from '$lib/ui/toast';
 

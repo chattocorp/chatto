@@ -20,6 +20,16 @@ const mocks = vi.hoisted(() => ({
   pushState: vi.fn()
 }));
 
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    get servers() {
+      return mocks.servers;
+    },
+    tryGetStore: (serverId: string) => mocks.stores.get(serverId)
+  }
+}));
+
 vi.mock('$app/state', () => ({
   page: {
     get route() {
@@ -32,15 +42,6 @@ vi.mock('$app/state', () => ({
 }));
 
 vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
-
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    get servers() {
-      return mocks.servers;
-    },
-    tryGetStore: (serverId: string) => mocks.stores.get(serverId)
-  }
-}));
 
 vi.mock('./ServerSidebarEntry.svelte', async () => ({
   default: (await import('./ServerGutterEntryMock.svelte')).default

@@ -1,5 +1,5 @@
 import { createContext } from 'svelte';
-import type { AccountNameIdentity } from '$lib/render/accountName';
+import type { AccountNameIdentity } from '@chatto/client/timeline/accountName';
 
 // ---------------------------------------------------------------------------
 // EditState — tracks which message is being edited
@@ -11,6 +11,8 @@ export class EditState {
   threadRootEventId = $state<string | null>(null);
   channelEchoEventId = $state<string | null>(null);
   canAddChannelEcho = $state(false);
+  /** Whether this edit may remove the reply's existing channel echo. */
+  canRemoveChannelEcho = $state(false);
 
   startEdit(eventId: string, body: string, options: EditMessageOptions = {}) {
     this.eventId = eventId;
@@ -18,6 +20,7 @@ export class EditState {
     this.threadRootEventId = options.threadRootEventId ?? null;
     this.channelEchoEventId = options.channelEchoEventId ?? null;
     this.canAddChannelEcho = options.canAddChannelEcho ?? false;
+    this.canRemoveChannelEcho = options.canRemoveChannelEcho ?? false;
   }
 
   cancelEdit() {
@@ -26,6 +29,7 @@ export class EditState {
     this.threadRootEventId = null;
     this.channelEchoEventId = null;
     this.canAddChannelEcho = false;
+    this.canRemoveChannelEcho = false;
   }
 }
 
@@ -104,6 +108,8 @@ export type EditMessageOptions = {
   threadRootEventId?: string | null;
   channelEchoEventId?: string | null;
   canAddChannelEcho?: boolean;
+  /** Removal authority is separate from author-only echo creation. */
+  canRemoveChannelEcho?: boolean;
 };
 export type EditableMessage = { eventId: string; body: string } & EditMessageOptions;
 export type FindLastEditableMessage = () => EditableMessage | null;
@@ -126,25 +132,9 @@ export class LastEditableMessageContext {
 
 export class ScrollState {
   scrollRequestCounter = $state(0);
-  private container: HTMLDivElement | null = null;
-  private shouldScroll = true;
 
   requestScrollToBottom() {
     this.scrollRequestCounter++;
-  }
-
-  setContainer(el: HTMLDivElement | null) {
-    this.container = el;
-  }
-
-  setShouldScroll(value: boolean) {
-    this.shouldScroll = value;
-  }
-
-  scrollToBottomIfSticky() {
-    if (this.shouldScroll && this.container) {
-      this.container.scrollTop = this.container.scrollHeight;
-    }
   }
 }
 
@@ -152,34 +142,8 @@ export class ScrollState {
 // JumpToMessageState — jump to a specific message in the event list
 // ---------------------------------------------------------------------------
 
-export class JumpToMessageState {
-  isJumpedMode = $state(false);
-  scrollToEventId = $state<string | null>(null);
-  hasReachedEnd = $state(false);
-  hasOlderMessages = $state(false);
-  isLoadingNewer = $state(false);
-
-  private _jumpFn: ((eventId: string) => Promise<boolean>) | null = null;
-
-  setJumpHandler(fn: (eventId: string) => Promise<boolean>) {
-    this._jumpFn = fn;
-  }
-
-  async jumpToMessage(eventId: string): Promise<boolean> {
-    if (this._jumpFn) {
-      return this._jumpFn(eventId);
-    }
-    return false;
-  }
-
-  reset(): void {
-    this.isJumpedMode = false;
-    this.scrollToEventId = null;
-    this.hasReachedEnd = false;
-    this.hasOlderMessages = false;
-    this.isLoadingNewer = false;
-  }
-}
+import { JumpToMessageState } from './jumpState';
+export { JumpToMessageState };
 
 // ---------------------------------------------------------------------------
 // ComposerContext — bundles per-pane state (one per ConversationPane)

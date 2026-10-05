@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createUserAPI } from '$lib/api-client/users';
+  import { createUserAPI } from '@chatto/client/api/users';
   import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { PageTitle, PaneContent, PaneHeader } from '$lib/ui';

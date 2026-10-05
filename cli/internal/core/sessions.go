@@ -133,6 +133,7 @@ func (c *ChattoCore) LoadCookieSessionValue(ctx context.Context, sessionID strin
 		return CookieSessionStoreEntry{}, ErrCookieSessionNotFound
 	}
 	key := c.authTokenKey(sessionID)
+	// The returned revision fences later saves and deletes, so read the latest.
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {

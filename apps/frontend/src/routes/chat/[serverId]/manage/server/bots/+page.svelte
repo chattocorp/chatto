@@ -3,8 +3,8 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { createBotAPI } from '$lib/api-client/bots';
-  import { createUserAPI } from '$lib/api-client/users';
+  import { createBotAPI } from '@chatto/client/api/bots';
+  import { createUserAPI } from '@chatto/client/api/users';
   import {
     DataTable,
     Panel,

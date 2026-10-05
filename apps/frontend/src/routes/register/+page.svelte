@@ -5,8 +5,8 @@
   import { onDestroy } from 'svelte';
   import { openProviderSignIn, verifyProviderSignIn } from '$lib/auth/providerSignIn';
   import type { OAuthPopup } from '$lib/oauth/popup';
-  import type { PublicAuthProvider } from '$lib/api-client/server';
-  import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
+  import type { PublicAuthProvider } from '@chatto/client/api/server';
+  import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';

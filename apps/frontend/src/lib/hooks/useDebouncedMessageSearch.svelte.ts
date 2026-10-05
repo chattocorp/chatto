@@ -1,5 +1,5 @@
-import type { MessageSearchInput } from '$lib/api-client/messageSearch';
-import type { MessageSearchStore } from '$lib/state/server/messageSearch.svelte';
+import type { MessageSearchInput } from '@chatto/client/api/messageSearch';
+import type { MessageSearchStore } from '$lib/state/server/messageSearch';
 import { useDebounce } from './useDebounce.svelte';
 
 type SearchInput = Omit<MessageSearchInput, 'cursor'>;

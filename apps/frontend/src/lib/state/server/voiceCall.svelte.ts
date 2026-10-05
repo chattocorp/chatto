@@ -2,6 +2,7 @@ import type { MicrophoneProcessor } from '$lib/audio/microphoneProcessor';
 import { microphoneMeter } from '$lib/audio/noiseGate';
 import { TrackAudioLevels } from '$lib/audio/trackAudioLevels';
 import { participantVolumeGain } from '$lib/audio/participantVolume';
+import { endCallVideo } from '$lib/state/callPictureInPicture';
 /**
  * Voice call state — manages LiveKit connection for voice/video calls.
  *
@@ -29,25 +30,17 @@ import type {
 import { toast } from '$lib/ui/toast';
 import { playCallSound } from '$lib/audio/callSounds';
 import { m } from '$lib/i18n/messages';
-import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
+import type { VoiceCallAPI } from '@chatto/client/api/voiceCalls';
 import type { NativeScreenSharePublisherSession } from '$lib/desktop/nativeScreenSharePublisher';
 
-/** Resolved room actions. Missing permission data always denies access. */
-export type CallPermissions = {
-  start: boolean;
-  join: boolean;
-  voice: boolean;
-  camera: boolean;
-  screenshare: boolean;
-};
+import {
+  NO_CALL_PERMISSIONS,
+  type CallConnection,
+  type CallParticipantTransition,
+  type CallPermissions
+} from './callTypes';
 
-export const NO_CALL_PERMISSIONS: CallPermissions = {
-  start: false,
-  join: false,
-  voice: false,
-  camera: false,
-  screenshare: false
-};
+export { NO_CALL_PERMISSIONS, type CallPermissions };
 
 export type CallParticipantInfo = {
   identity: string;
@@ -204,7 +197,7 @@ export function getVoiceCallMediaDeviceErrorMessage(
   return m('voice.media_device_failed');
 }
 
-export class VoiceCallState {
+export class VoiceCallState implements CallConnection {
   #api: VoiceCallAPI;
 
   // Current call context
@@ -443,6 +436,17 @@ export class VoiceCallState {
     this.playedTransitionSoundEventIds = [];
   }
 
+  /** Play the transition sound, and leave when the server removed this viewer. */
+  handleParticipantTransition(transition: CallParticipantTransition): void {
+    const { eventId, kind, roomId, callId, actorId, viewerId } = transition;
+    this.playTransitionSound(eventId, kind, roomId, callId, actorId, viewerId);
+    if (kind === 'leave') this.handleParticipantLeftEvent(roomId, callId, actorId, viewerId);
+  }
+
+  handleProjectionReset(): void {
+    this.forgetTransitionSounds();
+  }
+
   /**
    * Whether the user is currently in any call.
    */
@@ -629,6 +633,12 @@ export class VoiceCallState {
       }
       if (!this.outputSelectionAvailable) outputDevice = '';
 
+      // A store disposed during the join must not connect or capture media.
+      if (this.#disposed) {
+        this.cleanup();
+        return;
+      }
+
       // Create and connect LiveKit room
       this.room = new Room({
         webAudioMix: playbackContext ? { audioContext: playbackContext } : false,
@@ -732,6 +742,19 @@ export class VoiceCallState {
     }
   }
 
+  /** Set by {@link dispose}: a join in flight then stops before it connects. */
+  #disposed = false;
+
+  /**
+   * The store was disposed: release the call's media at once, and stop a join
+   * in flight. The store and its call UI are gone, so nothing waits for the
+   * server; it records the leave from LiveKit.
+   */
+  dispose(): void {
+    this.#disposed = true;
+    this.disconnectNow();
+  }
+
   /**
    * Leave the current voice call.
    */
@@ -784,6 +807,11 @@ export class VoiceCallState {
   /** Disconnect local media immediately when this viewer loses room access. */
   handleRoomAccessRevoked(roomId: string): void {
     if (this.roomId !== roomId) return;
+    this.disconnectNow();
+  }
+
+  /** Disconnect the room without a toast and release all call state. */
+  private disconnectNow(): void {
     const room = this.room;
     if (room) {
       this.suppressDisconnectToast = true;
@@ -796,14 +824,7 @@ export class VoiceCallState {
   private disconnectFromServerEvent(roomId: string, callId: string | null): void {
     if (this.roomId !== roomId) return;
     if (!callId || this.activeCallId !== callId) return;
-
-    const room = this.room;
-    if (room) {
-      this.suppressDisconnectToast = true;
-      room.disconnect();
-    }
-    this.cleanup();
-    this.suppressDisconnectToast = false;
+    this.disconnectNow();
   }
 
   private async recordLeaveIntent(roomId: string): Promise<void> {
@@ -1390,7 +1411,14 @@ export class VoiceCallState {
   }
 
   private updateParticipants(): void {
+    const previousTracks = this.participants.flatMap((participant) => [
+      participant.videoTrack,
+      participant.screenShareTrack
+    ]);
     if (!this.room) {
+      for (const track of previousTracks) {
+        if (track) endCallVideo(track);
+      }
       this.participants = [];
       this.screenAudioLevels.clear();
       this.remoteMicrophoneAudioLevels.clear();
@@ -1457,6 +1485,13 @@ export class VoiceCallState {
     });
     this.remoteMicrophoneAudioLevels.sync(this.playbackContext, microphoneAudioTracks);
     this.screenAudioLevels.sync(this.playbackContext, screenAudioTracks);
+    const currentTracks = this.participants.flatMap((participant) => [
+      participant.videoTrack,
+      participant.screenShareTrack
+    ]);
+    for (const track of previousTracks) {
+      if (track && !currentTracks.includes(track)) endCallVideo(track);
+    }
   }
 
   private applyAllParticipantAudioVolumes(): void {
@@ -1592,6 +1627,10 @@ export class VoiceCallState {
   }
 
   private cleanup(): void {
+    for (const participant of this.participants) {
+      if (participant.videoTrack) endCallVideo(participant.videoTrack);
+      if (participant.screenShareTrack) endCallVideo(participant.screenShareTrack);
+    }
     this.microphoneProcessor?.dispose();
     this.microphoneProcessor = null;
     this.microphoneLevel = 0;

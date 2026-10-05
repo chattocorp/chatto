@@ -1,4 +1,4 @@
-import type { MatrixData } from '$lib/api-client/permissions';
+import type { MatrixData } from '@chatto/client/api/permissions';
 
 /** Join live scope pages. Later copies replace earlier ones after layout changes. */
 export function mergePermissionPages<T extends MatrixData>(pages: T[]): T | null {

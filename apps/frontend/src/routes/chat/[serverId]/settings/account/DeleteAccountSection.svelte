@@ -1,12 +1,12 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
-  import type { AccountAPI } from '$lib/api-client/account';
-  import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
-  import { csrfFetch } from '$lib/auth/csrf';
+  import type { AccountAPI } from '@chatto/client/api/account';
+  import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
+  import { csrfFetch } from '@chatto/client/auth/csrf';
   import { notifyLogout } from '$lib/auth/sessionChannel';
   import { Panel, FormDialog, Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { serverRegistry } from '$lib/client';
   import { Button, TextInput } from '$lib/ui/form';
 
   let {

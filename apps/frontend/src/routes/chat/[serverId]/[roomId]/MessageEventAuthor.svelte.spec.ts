@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import { UserStore } from '$lib/state/server/users.svelte';
-import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
+import { UserStore } from '@chatto/client/server/users';
+import { TimelineEventKind, type TimelineEventView } from '@chatto/client/timeline/timelineEvents';
 import MessageEventTestHarness from './MessageEventTestHarness.svelte';
 
 function pendingEvent(): TimelineEventView {

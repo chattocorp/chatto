@@ -10,6 +10,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // ============================================================================
@@ -178,59 +179,96 @@ func (c *ChattoCore) authTokenKey(token string) string {
 // resource-bound bearer, and same-origin cookie auth use session.{hmac}
 // records. The presentation check prevents a handle minted for one channel or
 // grant class from being replayed through another.
+//
+// Validation runs on every request, so it first reads from any replica. That
+// read can accept a credential but never rejects one: a lagging replica can
+// miss a just-issued record, show an older session generation, or show an
+// expiry that a renewal already moved. A rejection is decided again through the
+// stream leader, and only that pass removes invalid records.
 func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, handle string, presentation AuthTokenPresentation) (ValidatedRuntimeCredential, error) {
+	credential, err := c.validateRuntimeCredential(ctx, handle, presentation, fastCredentialRead)
+	if !errors.Is(err, ErrAuthTokenNotFound) || handle == "" {
+		return credential, err
+	}
+	return c.validateRuntimeCredential(ctx, handle, presentation, authoritativeCredentialRead)
+}
+
+// credentialRead selects how credential validation reads RUNTIME_STATE.
+type credentialRead bool
+
+const (
+	// fastCredentialRead reads from any replica and has no side effects.
+	fastCredentialRead credentialRead = false
+	// authoritativeCredentialRead reads through the stream leader and removes
+	// records that it finds invalid.
+	authoritativeCredentialRead credentialRead = true
+)
+
+func (r credentialRead) get(ctx context.Context, kv *events.KeyValue, key string) (jetstream.KeyValueEntry, error) {
+	if r == authoritativeCredentialRead {
+		return kv.Get(ctx, key)
+	}
+	return kv.GetAnyReplica(ctx, key)
+}
+
+// discard removes an invalid record after an authoritative read, and only the
+// revision that the read observed. A fast read removes nothing.
+func (r credentialRead) discard(ctx context.Context, kv *events.KeyValue, entry jetstream.KeyValueEntry) {
+	if r == authoritativeCredentialRead {
+		_ = kv.Delete(ctx, entry.Key(), jetstream.LastRevision(entry.Revision()))
+	}
+}
+
+func (c *ChattoCore) validateRuntimeCredential(ctx context.Context, handle string, presentation AuthTokenPresentation, read credentialRead) (ValidatedRuntimeCredential, error) {
 	if handle == "" {
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 	}
 
 	key := c.authTokenKey(handle)
-	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+	entry, err := read.get(ctx, c.storage.runtimeStateKV, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 		}
 		return ValidatedRuntimeCredential{}, fmt.Errorf("failed to get runtime credential: %w", err)
 	}
+	reject := func() (ValidatedRuntimeCredential, error) {
+		read.discard(ctx, c.storage.runtimeStateKV, entry)
+		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+	}
 
 	var tokenData AuthTokenData
 	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
-		_ = c.deleteRuntimeStateKey(ctx, key)
-		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+		return reject()
 	}
 	if tokenData.presentationOrDefault() != presentation {
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 	}
 	if tokenData.UserID == "" {
-		_ = c.deleteRuntimeStateKey(ctx, key)
-		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+		return reject()
 	}
 	if presentation == AuthTokenPresentationCookie && tokenData.kindOrDefault() != AuthTokenKindFirstPartySession {
-		_ = c.deleteRuntimeStateKey(ctx, key)
-		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+		return reject()
 	}
 	if presentation == AuthTokenPresentationCookie {
 		if tokenData.CreatedAt.IsZero() || tokenData.ExpiresAt.IsZero() || !time.Now().Before(tokenData.ExpiresAt) {
-			_ = c.deleteRuntimeStateKey(ctx, key)
-			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+			return reject()
 		}
 	}
 	if isBearerPresentation(presentation) {
 		now := time.Now()
 		if tokenData.RenewableSessionID == "" || tokenData.ExpiresAt.IsZero() || !now.Before(tokenData.ExpiresAt) {
-			_ = c.storage.runtimeStateKV.Delete(ctx, key)
-			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+			return reject()
 		}
-		session, _, err := c.validateRenewableSession(ctx, tokenData.RenewableSessionID, now)
+		session, _, err := c.validateRenewableSessionWith(ctx, tokenData.RenewableSessionID, now, read)
 		if err != nil {
 			if errors.Is(err, ErrRefreshTokenNotFound) {
-				_ = c.storage.runtimeStateKV.Delete(ctx, key)
-				return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+				return reject()
 			}
 			return ValidatedRuntimeCredential{}, err
 		}
 		if session.UserID != tokenData.UserID || session.ClientID != tokenData.ClientID || session.Resource != tokenData.Resource || !slices.Equal(session.Scopes, tokenData.Scopes) || session.Kind != tokenData.kindOrDefault() || session.AuthGeneration != tokenData.AuthGeneration || tokenData.AccessGeneration > session.CurrentGeneration {
-			_ = c.storage.runtimeStateKV.Delete(ctx, key)
-			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+			return reject()
 		}
 		// Fresh authentication belongs to the renewable session so a rotation
 		// racing a password re-verification cannot strand the newly issued access
@@ -246,8 +284,7 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 			if !errors.Is(err, ErrOAuthClientBlocked) {
 				return ValidatedRuntimeCredential{}, err
 			}
-			_ = c.storage.runtimeStateKV.Delete(ctx, key)
-			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+			return reject()
 		}
 	}
 
@@ -255,8 +292,7 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return ValidatedRuntimeCredential{}, err
 		}
-		_ = c.deleteRuntimeStateKey(ctx, key)
-		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+		return reject()
 	}
 
 	return validatedRuntimeCredentialFromAuthToken(handle, tokenData), nil

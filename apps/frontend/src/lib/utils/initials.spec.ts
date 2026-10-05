@@ -1,74 +1,55 @@
 import { describe, it, expect } from 'vitest';
-import { getAvatarInitials } from './initials';
+import { getAvatarLabel } from './initials';
 
-describe('getAvatarInitials', () => {
-  describe('with display name', () => {
-    it('returns two initials for two-word names', () => {
-      expect(getAvatarInitials('John Doe', 'johnd')).toBe('JD');
-    });
-
-    it('returns two initials for names with more than two words', () => {
-      expect(getAvatarInitials('John Robert Doe', 'johnd')).toBe('JR');
-    });
-
-    it('returns single initial for single-word names', () => {
-      expect(getAvatarInitials('Alice', 'alice')).toBe('A');
-    });
-
-    it('handles lowercase names', () => {
-      expect(getAvatarInitials('john doe', 'johnd')).toBe('JD');
-    });
-
-    it('handles mixed case names', () => {
-      expect(getAvatarInitials('jOhN dOe', 'johnd')).toBe('JD');
-    });
-
-    it('handles extra whitespace between words', () => {
-      expect(getAvatarInitials('John    Doe', 'johnd')).toBe('JD');
-    });
-
-    it('handles leading and trailing whitespace', () => {
-      expect(getAvatarInitials('  John Doe  ', 'johnd')).toBe('JD');
-    });
+describe('getAvatarLabel', () => {
+  it('skips invisible letter fillers when finding an initial', () => {
+    expect(getAvatarLabel('\u3164Alice', 'login')).toEqual({ kind: 'text', text: 'A' });
+    expect(getAvatarLabel('\u115F', 'alice')).toEqual({ kind: 'text', text: 'A' });
+  });
+  it('uses up to two initials and skips punctuation or emoji words', () => {
+    expect(getAvatarLabel('John Robert Doe', 'login')).toEqual({ kind: 'text', text: 'JR' });
+    expect(getAvatarLabel('[DEV] ChattoBot', 'login')).toEqual({ kind: 'text', text: 'DC' });
+    expect(getAvatarLabel('ChattoBot [DEV]', 'login')).toEqual({ kind: 'text', text: 'CD' });
+    expect(getAvatarLabel('🕹️ !!! Alice Smith', 'login')).toEqual({ kind: 'text', text: 'AS' });
+    expect(getAvatarLabel('  alice   smith  ', 'login')).toEqual({ kind: 'text', text: 'AS' });
   });
 
-  describe('without display name', () => {
-    it('falls back to first character of login', () => {
-      expect(getAvatarInitials(null, 'johndoe')).toBe('J');
+  it('preserves graphemes in combining scripts and supplementary letters', () => {
+    expect(getAvatarLabel('e\u0301mile 王小明', 'login')).toEqual({
+      kind: 'text',
+      text: 'E\u0301王'
     });
-
-    it('falls back to login when display name is undefined', () => {
-      expect(getAvatarInitials(undefined, 'alice')).toBe('A');
-    });
-
-    it('falls back to login when display name is empty string', () => {
-      expect(getAvatarInitials('', 'bob')).toBe('B');
-    });
-
-    it('falls back to login when display name is whitespace only', () => {
-      expect(getAvatarInitials('   ', 'charlie')).toBe('C');
-    });
-
-    it('handles lowercase login', () => {
-      expect(getAvatarInitials(null, 'david')).toBe('D');
-    });
+    expect(getAvatarLabel('𐐨', 'login')).toEqual({ kind: 'text', text: '𐐀' });
+    expect(getAvatarLabel('क्\u200Dष', 'login')).toEqual({ kind: 'text', text: 'क्\u200Dष' });
   });
 
-  describe('edge cases', () => {
-    it('returns ? when both display name and login are null', () => {
-      expect(getAvatarInitials(null, null)).toBe('?');
-    });
+  it('uses the first complete emoji when there are no letters or numbers', () => {
+    for (const emoji of [
+      '🕹️',
+      '👩‍💻',
+      '👨‍👩‍👧‍👦',
+      '🇺🇸',
+      '#️⃣',
+      '🏴\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}'
+    ]) {
+      expect(getAvatarLabel('[' + emoji + '] 🌟', 'login')).toEqual({ kind: 'emoji', text: emoji });
+    }
+  });
 
-    it('returns ? when both display name and login are undefined', () => {
-      expect(getAvatarInitials(undefined, undefined)).toBe('?');
-    });
+  it('keeps numeric keycap graphemes intact as initials', () => {
+    expect(getAvatarLabel('1️⃣', 'login')).toEqual({ kind: 'text', text: '1️⃣' });
+  });
 
-    it('returns ? when both are empty strings', () => {
-      expect(getAvatarInitials('', '')).toBe('?');
-    });
+  it('falls back to the login for absent or punctuation-only names', () => {
+    for (const name of [null, undefined, '', '   ', '!!!']) {
+      expect(getAvatarLabel(name, 'alice')).toEqual({ kind: 'text', text: 'A' });
+    }
+    expect(getAvatarLabel('!!!', 'e\u0301mile')).toEqual({ kind: 'text', text: 'E\u0301' });
+  });
 
-    it('returns ? when login is whitespace only and no display name', () => {
-      expect(getAvatarInitials(null, '   ')).toBe('?');
-    });
+  it('requests an icon when neither name nor login supplies a label', () => {
+    expect(getAvatarLabel(null, null)).toEqual({ kind: 'icon' });
+    expect(getAvatarLabel(undefined, undefined)).toEqual({ kind: 'icon' });
+    expect(getAvatarLabel('!!!', '   ')).toEqual({ kind: 'icon' });
   });
 });

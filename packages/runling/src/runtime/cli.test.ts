@@ -92,7 +92,8 @@ describe('CLI commands', () => {
       host: 'localhost',
       port: 5173,
       open: false,
-      watch: false
+      watch: false,
+      quietLog: false
     });
     expect(h.run).not.toHaveBeenCalled();
   });
@@ -107,14 +108,16 @@ describe('CLI commands', () => {
       '--config',
       'custom.ts',
       '--open',
-      '--watch'
+      '--watch',
+      '--quiet-log'
     ]);
     expect(h.serve).toHaveBeenCalledWith({
       config: 'custom.ts',
       host: '::1',
       port: 3000,
       open: true,
-      watch: true
+      watch: true,
+      quietLog: true
     });
   });
 

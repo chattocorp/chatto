@@ -457,14 +457,54 @@ export async function setMotdOnRemote(
 }
 
 /**
- * Drives the real Server Directory → OAuth popup → /servers/callback
+ * Joins the server that the Server Directory shows, opens it, then starts
+ * sign-in from the server's signed-out view and returns the sign-in popup.
+ * Joining only adds the server to the gutter: the directory stays open, and
+ * the entry changes to the joined state with an Open action. `join` can also
+ * be the Open action of a server that is already registered.
+ */
+export async function joinServerAndStartSignIn(
+  page: Page,
+  join = page.getByRole('button', { name: 'Join', exact: true })
+): Promise<Page> {
+  let popupsFromJoin = 0;
+  const countPopup = () => popupsFromJoin++;
+  page.on('popup', countPopup);
+  const label = (await join.textContent())?.trim();
+  await join.click();
+  if (label !== 'Open') {
+    const open = page.getByRole('button', { name: 'Open', exact: true });
+    await expect(open).toBeVisible({ timeout: 30_000 });
+    await open.click();
+  }
+  const logIn = page
+    .getByTestId('server-signed-out')
+    .getByRole('button', { name: 'Log in to this server' });
+  await expect(logIn).toBeVisible({ timeout: 30_000 });
+  page.off('popup', countPopup);
+  expect(popupsFromJoin).toBe(0);
+  const popupPromise = page.waitForEvent('popup');
+  await logIn.click();
+  return popupPromise;
+}
+
+/**
+ * Waits until sign-in from the signed-out view completes. The joined server's
+ * route is already open, so its URL does not show the end of the sign-in.
+ */
+export async function expectSignedOutViewGone(page: Page): Promise<void> {
+  await expect(page.getByTestId('server-signed-out')).toHaveCount(0, { timeout: 30_000 });
+}
+
+/**
+ * Drives the real Server Directory → signed-out view → OAuth popup → /servers/callback
  * flow to add `remoteServer` as a connected instance, while bypassing the
  * human OAuth login form. The remote's `/oauth/authorize` request is
  * intercepted via Playwright's browser-context routing; we POST the PKCE params to the
  * test-only `/auth/test/oauth-authorize` endpoint to mint a real authorization
  * code, then fulfill the navigation with a 302 to the callback URL. From
  * there the origin's callback page runs unchanged: PKCE verifier exchange via
- * `/oauth/token`, real bearer token, real `serverRegistry.addServer()`.
+ * `/oauth/token`, real bearer token, real session for the joined server.
  *
  * The user identified by `userId` must already exist on the remote (use
  * `createUserOnRemote` to create one).
@@ -513,32 +553,30 @@ export async function connectRemoteInstance(
     });
   });
 
-  // Drive the real UI: open the directory from the sidebar → URL → card → popup
-  // /oauth/authorize (intercepted) → /servers/callback → token exchange →
-  // addServer. Attach the close listener as soon as Playwright observes the
-  // popup so the fast intercepted callback cannot race the test.
+  // Drive the real UI: open the directory from the sidebar → URL → card →
+  // signed-out view → popup /oauth/authorize (intercepted) →
+  // /servers/callback → token exchange → session. Attach the close listener
+  // as soon as Playwright observes the popup so the fast intercepted callback
+  // cannot race the test.
   if (!/\/chat\//.test(page.url())) {
     await page.goto('/chat/-');
   }
   await page.getByTitle('Add Server').click();
   await page.getByLabel('Server URL').fill(hostname);
   await page.getByRole('button', { name: 'Find server' }).click();
-  const joinButton = page.getByRole('button', { name: /^(Join|Sign in)$/ });
+  const joinButton = page.getByRole('button', { name: /^(Join|Open)$/ });
   await expect(joinButton).toBeVisible({ timeout: 30_000 });
-  const popupPromise = page.waitForEvent('popup');
-  const popupClosedPromise = popupPromise.then((popup) => popup.waitForEvent('close'));
-  await joinButton.click();
-  await popupClosedPromise;
+  const popup = await joinServerAndStartSignIn(page, joinButton);
+  await popup.waitForEvent('close');
+  await expectSignedOutViewGone(page);
 
-  // The main client redirects into the newly-added remote server's chat tree
-  // after the popup reports success. The hostname is the server URL segment.
+  // Open already showed the server's route before sign-in, and sign-in stays
+  // on it. The hostname is the server URL segment.
   const hostnameOnly = hostname.split(':')[0]!.replace(/\./g, '\\.');
   await page.waitForURL(new RegExp(`/chat/${hostnameOnly}(/|$)`));
 
-  // URL mutation happens before SvelteKit's navigation promise and the new
-  // server projection have necessarily settled. Wait for projected private
-  // sidebar state so callers can safely initiate another client navigation
-  // without cancelling the OAuth route transition mid-hydration.
+  // Wait until the signed-in server connects, so callers start from a server
+  // with loaded private data.
   const serverIcon = page
     .locator(`a[data-testid="server-icon"][href*="/chat/${hostname.split(':')[0]}"]`)
     .first();

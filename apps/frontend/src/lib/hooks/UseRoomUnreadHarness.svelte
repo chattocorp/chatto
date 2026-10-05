@@ -6,15 +6,23 @@
     roomId,
     events = [],
     canReadMessages = true,
+    lifecycleUpToEventId,
     onReady
   }: {
     roomId: string;
     events?: UnreadMarkerEvent[];
     canReadMessages?: boolean;
+    /** Limits the entry read to this event when set. */
+    lifecycleUpToEventId?: string;
     onReady: (api: ReturnType<typeof useRoomUnread>) => void;
   } = $props();
 
-  const unread = useRoomUnread(() => ({ roomId, events, canReadMessages }));
+  const unread = useRoomUnread(() => ({
+    roomId,
+    events,
+    canReadMessages,
+    getLifecycleUpToEventId: () => lifecycleUpToEventId
+  }));
 
   $effect(() => {
     onReady(unread);

@@ -6,7 +6,7 @@ The compact form expands in place and submits with Enter.
 -->
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
-  import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
+  import { createAdminRoomLayoutAPI } from '$lib/api/adminRoomLayout';
   import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { TextInput } from '$lib/ui/form';

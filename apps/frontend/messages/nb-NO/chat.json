@@ -27,9 +27,7 @@
         "followed_thread": "{actor} svarte i en tråd du følger.",
         "new_message": "{actor} la ut en ny melding.",
         "activity": "{actor} sendte deg et varsel."
-      },
-      "load_failed": "Kunne ikke laste inn varsler",
-      "room_load_failed": "Kunne ikke laste inn romvarsler"
+      }
     },
     "sign_out": {
       "title": "Logg av",
@@ -74,6 +72,21 @@
         "other": "{count} varsler"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "Serveren må oppgraderes",
+      "too_old_body": "Denne serveren kjører en Chatto-versjon som appen ikke lenger støtter. Be serveradministratoren om å oppgradere Chatto.",
+      "unknown_title": "Ukjent serverversjon",
+      "unknown_body": "Appen kan ikke identifisere Chatto-versjonen til denne serveren og kan derfor ikke koble til.",
+      "unreachable_body": "Appen kan ikke koble til denne serveren. Sjekk nettverkstilkoblingen din eller prøv igjen senere.",
+      "server_version": "Serverversjon",
+      "required_version": "Påkrevd versjon",
+      "required_version_value": "{version} eller nyere",
+      "check_again": "Sjekk igjen"
+    },
+    "server_signed_out": {
+      "title": "Du er logget ut av denne serveren",
+      "body": "Logg inn for å lese og sende meldinger på denne serveren."
+    },
     "threads": {
       "title": "Mine tråder",
       "subtitle": "Tråder du følger",
@@ -89,7 +102,11 @@
       "message_missing": "Meldingen er ikke lenger tilgjengelig",
       "in_room": "in",
       "in_room_capitalized": "Inn",
-      "load_failed": "Kunne ikke laste inn tråder"
+      "load_failed": "Kunne ikke laste inn tråder",
+      "notifications_count": {
+        "one": "{count} varsel",
+        "other": "{count} varsler"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -105,6 +122,7 @@
         "inactive_note": "Disse tillatelsene er lagret, men eierens gjeldende tillatelser tillater dem ikke.",
         "read": "Lese alle meldinger",
         "interactions": "Lese tråder den har opprettet eller der den er nevnt direkte",
+        "reply_interactions": "Svare i tråder den har startet, der den er nevnt direkte eller der den har mottatt en direktemelding",
         "post": "Sende nye meldinger",
         "room": "#{name}",
         "group": "Gruppe: {name}",

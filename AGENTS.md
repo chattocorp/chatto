@@ -27,6 +27,19 @@ needed to extract and validate the shared framework. Move Authling to its own
 repository when the shared boundary is stable. Do not describe this repository
 as its permanent home. Do not add coupling that makes this move more difficult.
 
+### Chatto Client And Bundled Frontend
+
+Chatto has one client: `@chatto/client` in `packages/chatto-client/`. The
+bundled frontend in `apps/frontend/`, ChattoBot, and third-party bots and
+frontends use it. See ADR-111.
+
+- Ask: does a bot or a different frontend need this behavior to use Chatto
+  correctly? If yes, put it in `@chatto/client`, also when only the bundled
+  frontend uses it now. If no, put it in the frontend.
+- The frontend uses the client. The client never calls into the frontend.
+- Use the `chatto-client-placement` skill before you add code to either, or
+  move code between them.
+
 ## Prime Directives
 
 - Use ASD-STE100 Simplified Technical English for all new or changed documentation (repository and public documentation!) Find the canonical vocabulary in [`docs/GLOSSARY.md`](docs/GLOSSARY.md).
@@ -56,6 +69,11 @@ as its permanent home. Do not add coupling that makes this move more difficult.
   development commands, and release setup.
 - [packages/runling/docs/README.md](packages/runling/docs/README.md) — Runling-owned
   ADRs, FDRs, and API guides. Runling records have their own numbering.
+- [packages/chatto-client/AGENTS.md](packages/chatto-client/AGENTS.md) — the
+  framework-neutral Chatto client: what belongs in it, stores, realtime
+  projection, sessions, reactivity, and its Svelte adapter.
+- [packages/chattobot/AGENTS.md](packages/chattobot/AGENTS.md) — ChattoBot rules:
+  only the supervisor talks to users, with no hardcoded user-facing text.
 - [authling/AGENTS.md](authling/AGENTS.md) — mandatory Authling product,
   architecture, documentation, security, and testing rules.
 - [authling/docs/README.md](authling/docs/README.md) — Authling-owned ADR, FDR,
@@ -96,6 +114,13 @@ the Authling toolchain and workflow.
 
 For an ad-hoc tool command, use `mise x -- ...`. Do not assume that `go`,
 `pnpm`, `node`, or related binaries are on `PATH`.
+
+Turborepo runs the pnpm workspace tasks. Every workspace package must define a
+`check` script that type-checks all of its source, tests, and examples, so
+`mise check-workspace` (`pnpm run check`) checks the complete workspace. Turbo
+caches `check` results and checks again only the packages that a change
+affects. Use `pnpm turbo run check --filter=<package>...` for one package and
+its dependents.
 
 `mise codegen-proto` removes and rebuilds generated TypeScript API files. Do
 not run it at the same time as `mise test-cli`, a frontend build, or another
@@ -155,7 +180,8 @@ Never leave a dev stack running in a detached or yielded terminal session.
   when adding files or changing license boundaries.
 - Files are AGPL-3.0-or-later by default unless `REUSE.toml`, an SPDX header,
   or an adjacent `.license` file says otherwise.
-- Runling under `packages/runling/` keeps its MIT license.
+- Runling under `packages/runling/` keeps its MIT license. `@chatto/client`
+  under `packages/` also uses MIT.
 - Apache-2.0 applies to the independently versioned shared framework modules
   under `pkg/events/`, `pkg/natsruntime/`, `pkg/datacrypto/`, and
   `pkg/appconfig/`, the framework-neutral `packages/lingua` runtime, plus

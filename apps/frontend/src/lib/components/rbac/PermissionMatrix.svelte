@@ -31,7 +31,7 @@ focusing a cell highlights its permission row and role column.
   import { MatrixColumnHeading, MatrixTable } from '$lib/ui/matrix';
   import { ShortcutTextInput } from '$lib/ui/form';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { createPermissionAPI } from '$lib/api-client/permissions';
+  import { createPermissionAPI } from '@chatto/client/api/permissions';
   import { toast } from '$lib/ui/toast';
   import {
     getIncludingPermissions,

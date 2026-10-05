@@ -27,9 +27,7 @@
         "followed_thread": "{actor} respondeu em uma conversa que você segue.",
         "new_message": "{actor} publicou uma nova mensagem.",
         "activity": "{actor} enviou uma notificação para você."
-      },
-      "load_failed": "Falha ao carregar notificações",
-      "room_load_failed": "Falha ao carregar notificações da sala"
+      }
     },
     "sign_out": {
       "title": "Sair",
@@ -74,6 +72,21 @@
         "other": "{count} notificações"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "Atualização do servidor necessária",
+      "too_old_body": "Este servidor usa uma versão do Chatto que este app não suporta mais. Peça ao administrador do servidor para atualizar o Chatto.",
+      "unknown_title": "Versão do servidor desconhecida",
+      "unknown_body": "Este app não consegue identificar a versão do Chatto deste servidor e, por isso, não pode se conectar.",
+      "unreachable_body": "Este app não consegue se conectar a este servidor. Verifique sua conexão de rede ou tente novamente mais tarde.",
+      "server_version": "Versão do servidor",
+      "required_version": "Versão necessária",
+      "required_version_value": "{version} ou mais recente",
+      "check_again": "Verificar novamente"
+    },
+    "server_signed_out": {
+      "title": "Você saiu deste servidor",
+      "body": "Entre para ler e enviar mensagens neste servidor."
+    },
     "threads": {
       "title": "Meus tópicos",
       "subtitle": "Tópicos que você está seguindo",
@@ -89,7 +102,11 @@
       "message_missing": "Mensagem não está mais disponível",
       "in_room": "em",
       "in_room_capitalized": "Em",
-      "load_failed": "Falha ao carregar tópicos"
+      "load_failed": "Falha ao carregar tópicos",
+      "notifications_count": {
+        "one": "{count} notificação",
+        "other": "{count} notificações"
+      }
     },
     "profile": {
       "title": "Perfil",
@@ -105,6 +122,7 @@
         "inactive_note": "Estas permissões estão salvas, mas as permissões atuais do proprietário não as permitem.",
         "read": "Ler todas as mensagens",
         "interactions": "Ler tópicos que criou ou onde foi mencionado diretamente",
+        "reply_interactions": "Responder em tópicos que iniciou, onde foi mencionado diretamente ou onde recebeu uma mensagem direta",
         "post": "Publicar novas mensagens",
         "room": "#{name}",
         "group": "Grupo: {name}",

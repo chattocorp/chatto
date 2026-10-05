@@ -27,9 +27,7 @@
         "followed_thread": "Uživatel {actor} odpověděl ve vlákně, které sledujete.",
         "new_message": "Uživatel {actor} zveřejnil novou zprávu.",
         "activity": "Uživatel {actor} vám poslal oznámení."
-      },
-      "load_failed": "Nepodařilo se načíst oznámení",
-      "room_load_failed": "Nepodařilo se načíst oznámení místnosti"
+      }
     },
     "sign_out": {
       "title": "Odhlásit se",
@@ -74,6 +72,21 @@
         "other": "{count} oznámení"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "Je nutná aktualizace serveru",
+      "too_old_body": "Tento server používá verzi Chatto, kterou tato aplikace již nepodporuje. Požádejte správce serveru o aktualizaci Chatto.",
+      "unknown_title": "Neznámá verze serveru",
+      "unknown_body": "Tato aplikace nedokáže zjistit verzi Chatto na tomto serveru, a proto se nemůže připojit.",
+      "unreachable_body": "Tato aplikace se nemůže připojit k tomuto serveru. Zkontrolujte síťové připojení nebo to zkuste později.",
+      "server_version": "Verze serveru",
+      "required_version": "Požadovaná verze",
+      "required_version_value": "{version} nebo novější",
+      "check_again": "Zkontrolovat znovu"
+    },
+    "server_signed_out": {
+      "title": "Jste odhlášeni z tohoto serveru",
+      "body": "Přihlaste se, abyste mohli na tomto serveru číst a posílat zprávy."
+    },
     "threads": {
       "title": "Moje vlákna",
       "subtitle": "Vlákna, která sledujete",
@@ -89,7 +102,11 @@
       "message_missing": "Zpráva již není dostupná",
       "in_room": "v",
       "in_room_capitalized": "In",
-      "load_failed": "Nepodařilo se načíst vlákna"
+      "load_failed": "Nepodařilo se načíst vlákna",
+      "notifications_count": {
+        "one": "{count} oznámení",
+        "other": "{count} oznámení"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -105,6 +122,7 @@
         "inactive_note": "Tato oprávnění jsou uložená, ale aktuální oprávnění vlastníka je neumožňují.",
         "read": "Číst všechny zprávy",
         "interactions": "Číst vlákna, která vytvořil nebo ve kterých byl přímo zmíněn",
+        "reply_interactions": "Odpovídat ve vláknech, která zahájil, ve kterých byl přímo zmíněn nebo ve kterých obdržel přímou zprávu",
         "post": "Posílat nové zprávy",
         "room": "#{name}",
         "group": "Skupina: {name}",

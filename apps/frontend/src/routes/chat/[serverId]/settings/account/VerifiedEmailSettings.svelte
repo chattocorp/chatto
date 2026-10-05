@@ -4,15 +4,15 @@
   import { resolve } from '$app/paths';
   import { Code, ConnectError } from '@connectrpc/connect';
   import { onDestroy } from 'svelte';
-  import type { VerifiedEmail } from '$lib/api-client/account';
-  import { createAccountAPI } from '$lib/api-client/account';
+  import type { VerifiedEmail } from '@chatto/client/api/account';
+  import { createAccountAPI } from '@chatto/client/api/account';
   import { m } from '$lib/i18n/messages';
   import { createQuery, queryClient } from '$lib/query/client';
   import { adminQueryKeys } from '$lib/query/admin';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+  import type { ServerConnection } from '@chatto/client/server/serverConnection';
   import { DataTable, FormDialog, Hint, Panel, Pill } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';

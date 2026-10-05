@@ -5,7 +5,7 @@ Room-scoped message search for the room sidebar. Its store is retained per room
 so switching rooms cannot leak a query or plaintext results into another room.
 -->
 <script lang="ts">
-  import { formatAccountName } from '$lib/render/accountName';
+  import { formatAccountName } from '@chatto/client/timeline/accountName';
   import SearchResult from '$lib/components/search/SearchResult.svelte';
   import SearchAvailability from '$lib/components/search/SearchAvailability.svelte';
   import { m } from '$lib/i18n/messages';
@@ -14,7 +14,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
     MessageSearchOrder,
     MessageSearchState,
     type MessageSearchStore
-  } from '$lib/state/server/messageSearch.svelte';
+  } from '$lib/state/server/messageSearch';
   import { useDebouncedMessageSearch } from '$lib/hooks/useDebouncedMessageSearch.svelte';
   import SearchResults from '$lib/components/search/SearchResults.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';

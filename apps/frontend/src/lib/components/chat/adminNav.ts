@@ -1,6 +1,6 @@
 import { resolve } from '$app/paths';
 import { m } from '$lib/i18n/messages';
-import type { ServerPermissions } from '$lib/state/server/permissions';
+import type { ServerPermissions } from '@chatto/client/server/permissions';
 
 /** The server permissions that decide which management pages the navigation lists. */
 export type AdminNavPermissions = Pick<

@@ -1,5 +1,7 @@
 {
   "voice": {
+    "picture_in_picture": "Bild-i-bild",
+    "picture_in_picture_failed": "Det gick inte att ändra bild-i-bild-läget.",
     "connection_lost": "Anslutningen bröts",
     "connecting": "Ansluter...",
     "joining": "Går med...",

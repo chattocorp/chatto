@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
-import { RoomThreadingMode } from '$lib/roomThreading';
+import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -27,7 +27,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   })
 }));
 
-vi.mock('$lib/api-client/rooms', () => ({
+vi.mock('@chatto/client/api/rooms', () => ({
   createRoomCommandAPI: () => ({
     createRoom: mocks.createRoom,
     joinRoom: mocks.joinRoom

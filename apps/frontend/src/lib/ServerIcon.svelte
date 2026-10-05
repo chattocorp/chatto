@@ -3,7 +3,7 @@
   import { resolve } from '$app/paths';
   import ServerLogo from './components/ServerLogo.svelte';
   import { NotificationBadge, UnreadDot } from '$lib/ui';
-  import type { ServerIndicator } from './state/server/store.svelte';
+  import type { ServerIndicator } from '$lib/state/server/serverUi';
   import type { Attachment } from 'svelte/attachments';
   import { m } from '$lib/i18n/messages';
 

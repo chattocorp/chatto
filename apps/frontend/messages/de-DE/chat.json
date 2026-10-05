@@ -27,9 +27,7 @@
         "followed_thread": "{actor} hat in einem Thread geantwortet, dem du folgst.",
         "new_message": "{actor} hat eine neue Nachricht gepostet.",
         "activity": "{actor} hat dir eine Benachrichtigung gesendet."
-      },
-      "load_failed": "Benachrichtigungen konnten nicht geladen werden",
-      "room_load_failed": "Raumbenachrichtigungen konnten nicht geladen werden"
+      }
     },
     "sign_out": {
       "title": "Abmelden",
@@ -74,6 +72,21 @@
         "other": "{count} Benachrichtigungen"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "Server-Upgrade erforderlich",
+      "too_old_body": "Dieser Server nutzt eine Chatto-Version, die diese App nicht mehr unterstützt. Bitte den Serveradmin, Chatto zu aktualisieren.",
+      "unknown_title": "Unbekannte Serverversion",
+      "unknown_body": "Diese App kann die Chatto-Version dieses Servers nicht erkennen und sich deshalb nicht verbinden.",
+      "unreachable_body": "Diese App kann keine Verbindung zu diesem Server herstellen. Prüfe deine Netzwerkverbindung oder versuche es später erneut.",
+      "server_version": "Serverversion",
+      "required_version": "Erforderliche Version",
+      "required_version_value": "{version} oder neuer",
+      "check_again": "Erneut prüfen"
+    },
+    "server_signed_out": {
+      "title": "Du bist von diesem Server abgemeldet",
+      "body": "Melde dich an, um auf diesem Server Nachrichten zu lesen und zu senden."
+    },
     "threads": {
       "title": "Meine Threads",
       "subtitle": "Threads, denen du folgst",
@@ -89,7 +102,11 @@
       "message_missing": "Nachricht nicht mehr verfügbar",
       "in_room": "in",
       "in_room_capitalized": "In",
-      "load_failed": "Threads konnten nicht geladen werden"
+      "load_failed": "Threads konnten nicht geladen werden",
+      "notifications_count": {
+        "one": "{count} Benachrichtigung",
+        "other": "{count} Benachrichtigungen"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -105,6 +122,7 @@
         "inactive_note": "Diese Freigaben sind gespeichert, aber die aktuellen Berechtigungen des Besitzers lassen sie nicht zu.",
         "read": "Alle Nachrichten lesen",
         "interactions": "Threads lesen, die er erstellt hat oder in denen er direkt erwähnt wurde",
+        "reply_interactions": "In Threads antworten, die er gestartet hat, in denen er direkt erwähnt wurde oder eine DM erhalten hat",
         "post": "Neue Nachrichten posten",
         "room": "#{name}",
         "group": "Gruppe: {name}",

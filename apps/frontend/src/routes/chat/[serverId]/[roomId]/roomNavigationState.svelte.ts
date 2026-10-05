@@ -1,15 +1,8 @@
 import type { QuoteInsertionContent } from '$lib/state/room';
 import type { PendingThreadReply, ThreadOpenOptions } from './threadOpenOptions';
+import { PendingHighlightStore, type PendingHighlight } from '$lib/state/server/pendingHighlight';
 
-/** A message that a conversation pane must jump to and highlight once. */
-export type PendingHighlight = {
-  roomId: string;
-  /** The thread timeline that shows the message, or null for the room timeline. */
-  threadRootEventId: string | null;
-  eventId: string;
-  /** A notification that becomes read after a successful jump. */
-  notificationId: string | null;
-};
+export type { PendingHighlight } from '$lib/state/server/pendingHighlight';
 
 /** Composer input that waits until the target thread pane has a composer. */
 export type PendingComposerInput = {
@@ -27,8 +20,17 @@ export type PendingComposerInput = {
  * request, so a late completion cannot clear a newer request.
  */
 export class RoomNavigationState {
-  highlight = $state.raw<PendingHighlight | null>(null);
   composerInput = $state.raw<PendingComposerInput | null>(null);
+  private readonly highlights: PendingHighlightStore;
+
+  /** Use the server's store to retain jumps across room hydration and remounts. */
+  constructor(highlights = new PendingHighlightStore()) {
+    this.highlights = highlights;
+  }
+
+  get highlight(): PendingHighlight | null {
+    return this.highlights.current;
+  }
 
   #appliedThreadMessageRoute: string | null = null;
   #appliedHighlightParam: string | null = null;
@@ -41,7 +43,7 @@ export class RoomNavigationState {
     if (options.highlightEventId) {
       this.beginHighlight(roomId, threadRootEventId, options.highlightEventId);
     } else if (this.highlight?.threadRootEventId) {
-      this.highlight = null;
+      this.highlights.complete(this.highlight);
     }
     this.composerInput =
       options.quoteText || options.reply
@@ -67,8 +69,8 @@ export class RoomNavigationState {
 
   /**
    * Return a `?highlight=` permalink target once per room, thread, and target.
-   * The effect that reads the parameter can run again before the URL update
-   * that removes it. A missing parameter resets the guard.
+   * Route activation can repeat during hydration or before the URL update
+   * removes the parameter. A missing parameter resets the guard.
    */
   consumeHighlightParam(
     roomId: string,
@@ -92,14 +94,11 @@ export class RoomNavigationState {
     eventId: string,
     notificationId: string | null = null
   ): void {
-    this.highlight = { roomId, threadRootEventId, eventId, notificationId };
+    this.highlights.set(roomId, threadRootEventId, eventId, notificationId);
   }
 
   highlightFor(roomId: string, threadRootEventId: string | null): PendingHighlight | null {
-    const highlight = this.highlight;
-    return highlight?.roomId === roomId && highlight.threadRootEventId === threadRootEventId
-      ? highlight
-      : null;
+    return this.highlights.peek(roomId, threadRootEventId);
   }
 
   composerInputFor(roomId: string, threadRootEventId: string): PendingComposerInput | null {
@@ -108,12 +107,13 @@ export class RoomNavigationState {
   }
 
   clearHighlight(highlight: PendingHighlight): void {
-    if (this.highlight === highlight) this.highlight = null;
+    this.highlights.complete(highlight);
   }
 
   /** Drop a room-timeline highlight when its room stops being active. */
-  clearMainHighlight(): void {
-    if (this.highlight?.threadRootEventId === null) this.highlight = null;
+  clearMainHighlight(roomId: string): void {
+    const highlight = this.highlights.peek(roomId, null);
+    if (highlight) this.highlights.complete(highlight);
   }
 
   clearComposerInput(input: PendingComposerInput): void {

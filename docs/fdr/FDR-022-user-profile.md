@@ -1,7 +1,7 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-09-27
+**Last reviewed:** 2026-10-03
 
 ## Overview
 
@@ -45,11 +45,13 @@ at append returns to the caller instead of replaying the batch.
 `SetCustomStatus` replaces the complete status. Emoji and text are required;
 omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 
-- **Display name** — freely editable by a human or bot account. Shown in messages, member lists, mention autocomplete, etc.
+- **Display name** — freely editable by a human or bot account. Shown in messages, member lists, and mention autocomplete. A name accepts visible, single-line Unicode text, including punctuation and emoji at the start. Surrounding whitespace is trimmed; internal spaces are preserved. The limit is 32 Unicode code points. Controls, line breaks, directional controls, and unsupported invisible formatting are rejected. Script joiners, variation selectors, and emoji tags are allowed. Whitespace, combining marks, and formatting alone do not make a valid name. Username rules do not change.
+- **Fallback avatar** — when an avatar is absent or cannot load, the client uses the first letter or number from up to two words that contain one. It keeps complete Unicode characters and their combining marks. If the name has no letters or numbers, it uses the first complete emoji, then the login initial, then a user icon. All accounts use the same neutral surface background and muted foreground, which follow the selected surface tone and theme. These avatars are generated locally and need no external service.
 - **Login (username)** — editable by a human or bot account with a 30-day cooldown between changes. A user with `user.manage-accounts` bypasses the cooldown for their own login. Human and bot logins use the same rules: they start with a letter or number and cannot end with a period; periods remain valid within a login. Each successful change that does not use the bypass records a timestamp; subsequent changes within the window are rejected with a clear error message. A change by a bot owner or bot manager follows the same rule as a change by the bot. A change by an account manager does not check or start the cooldown.
 - **Case-only changes** (for example, `alice` → `Alice`) do not check or start the cooldown.
-- **Avatar** — human and bot users can upload an image. The server resizes it to 256×256 maximum and stores it as lossless WebP. The old avatar is deleted after the new avatar is committed. Users can also delete their avatar and use the initial-letter placeholder. A human with `user.manage-accounts` can manage another human's avatar. A bot owner, a human with `bot.manage`, or a human with `user.manage-accounts` can manage a bot's avatar.
+- **Avatar** — human and bot users can upload an image. The server resizes it to 256×256 maximum and stores it as lossless WebP. The old avatar is deleted after the new avatar is committed. Users can also delete their avatar and use the fallback avatar. A human with `user.manage-accounts` can manage another human's avatar. A bot owner, a human with `bot.manage`, or a human with `user.manage-accounts` can manage a bot's avatar.
 - **Custom status** — human users can set an emoji plus short text. The emoji is shown next to their name; the text is shown alongside it where space allows and as hover/accessible text in compact places.
+- **Custom status feedback** — setting, changing, or clearing a status updates the badge and closes the editor or status menu without a success toast. Failed requests still show an error.
 - **Custom status across clients** — setting, changing, or clearing a status updates the current-user badge and status menu in other connected clients of the same account. Opening the editor uses the latest status. No page reload is required.
 - **Custom status templates** — the web client offers preset statuses for lunch, holiday/vacation, and sick leave plus a custom mode. Presets store reserved text tokens in the same free-form status text field so each client can render the label in its active locale. Custom mode stores the user's literal text.
 - **Custom status expiry** — users can optionally choose an expiry date and time. After that instant, projected reads and the web client hide the status automatically. Users can also clear it manually.
@@ -209,6 +211,12 @@ The startup screen in `app.html` paints before the stylesheet loads, so it canno
 **Decision:** `UserService.UpdateUserProfile` changes the login, display name, and bio of a target user. It replaces `MyAccountService.UpdateProfile` and `AdminUserService.UpdateUser`. It uses the authorization in decision 7, which the avatar methods also use. A self-edit keeps the self-service login cooldown. An edit of another account records the caller as the actor of the facts. The login cooldown follows decision 3. Custom status, presence, and personal settings stay self-only in `MyAccountService`.
 **Why:** Bot owners must be able to maintain the public identity of their bots without the API key of the bot. One command path gives humans, bots, owners, and account managers the same validation, events, and realtime updates. Custom status and presence describe the current activity of a person, so only that person sets them.
 **Tradeoff:** This is an intentional pre-1.0 API break. Clients must move to `UserService` and send the target user ID, also for their own profile. An older bundled client cannot edit profiles on a newer server, and a newer bundled client cannot edit profiles on an older server. The bot profile editor appears only when the server supports this method.
+
+### 18. Display names do not determine avatar support
+
+**Decision:** Display names accept visible, single-line Unicode text. Fallback avatars select initials, emoji, a login initial, or a user icon independently of name validation. All accounts use the same neutral styling.
+**Why:** A display name is presentation text. Users need natural names, script joiners, and complete emoji. An avatar must work with these names without imposing username rules.
+**Tradeoff:** A fallback avatar cannot uniquely identify an account. The client continues to show the name and login where account identity matters.
 
 ## Permissions
 

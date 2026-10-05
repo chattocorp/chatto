@@ -1,6 +1,15 @@
-import type { ChattoPost, Destination } from '@chatto/client';
-import { createDeliveryTracker } from '@chatto/bot-client';
-export type { ChattoPost, Destination } from '@chatto/client';
+import { createDeliveryTracker, type Destination } from '@chatto/client';
+export type { Destination } from '@chatto/client';
+
+/** Send ordered thread messages; workflow adapters supply their cancellation signal. */
+export type ChattoPost = (
+  destination: Destination,
+  body: string,
+  signal: AbortSignal
+) => Promise<void>;
+
+/** Refresh a thread's typing indicator once. */
+export type ChattoTyping = (destination: Destination, signal: AbortSignal) => Promise<void>;
 import type { WebhookRouter } from 'runling/web';
 import { task, Type, type WorkflowContext, type TSchema, type Static } from 'runling';
 
@@ -53,6 +62,17 @@ export function deliveryConversationKey(delivery: Delivery): string {
   ]);
 }
 
+/** The delivery tracker's key for one message to one bot. */
+export const deliveryKeyFor = (botId: string, messageId: string) =>
+  JSON.stringify([botId, messageId]);
+
+/** True when the bot accepted this message as addressed to it: a direct message, a mention, or a
+ * verified reply to one of its messages, from an allowed user. Accepted deliveries are kept for
+ * 24 hours in process memory, so a restart forgets older ones. */
+export function wasAddressed(state: ConversationState, botId: string, messageId: string) {
+  return state.seen.has(deliveryKeyFor(botId, messageId));
+}
+
 /** Registration failed before acceptance; the source may retry this delivery. */
 export class RegistrationError extends Error {
   constructor(cause: unknown) {
@@ -81,8 +101,7 @@ export function createChattoRouter<Output extends TSchema>({
 }) {
   const { conversations, seen, reserved } = state;
   const deliveries = createDeliveryTracker({ accepted: seen });
-  const deliveryKey = (delivery: Delivery) =>
-    JSON.stringify([delivery.bot_id, delivery.message.id]);
+  const deliveryKey = (delivery: Delivery) => deliveryKeyFor(delivery.bot_id, delivery.message.id);
   const routeDelivery = (
     delivery: Delivery
   ): 'start' | 'ignored' | 'duplicate' | 'queued' | 'cancelled' => {

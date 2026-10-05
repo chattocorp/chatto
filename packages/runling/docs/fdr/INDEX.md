@@ -12,3 +12,6 @@ belongs in open questions. See the [documentation index](../README.md).
 | FDR-004 | [Event source lifecycle](FDR-004-event-sources.md)                          | Experimental | 2026-09-22    |
 | FDR-005 | [Task state in the run inspector](FDR-005-task-state-inspector.md)          | Experimental | 2026-09-24    |
 | FDR-006 | [Tool blocking after untrusted content](FDR-006-untrusted-tool-blocking.md) | Experimental | 2026-09-27    |
+| FDR-007 | [Authorization classifier](FDR-007-authorization-classifier.md)             | Experimental | 2026-09-30    |
+| FDR-008 | [Codemode](FDR-008-codemode.md)                                             | Experimental | 2026-10-03    |
+| FDR-009 | [Parent-owned approvals](FDR-009-parent-owned-approvals.md)                 | Experimental | 2026-10-03    |

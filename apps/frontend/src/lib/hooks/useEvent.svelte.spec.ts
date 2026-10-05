@@ -2,7 +2,11 @@ import { flushSync } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { PresenceChangedEvent, UserTypingEvent } from '@chatto/api-types/realtime/v1/events_pb';
-import { EventBus, RealtimeProjectionUpdate, type ProjectionHandler } from '$lib/eventBus.svelte';
+import {
+  EventBus,
+  RealtimeProjectionUpdate,
+  type ProjectionHandler
+} from '@chatto/client/realtime/eventBus';
 
 const serverScope = $state({ serverId: 'origin' });
 
@@ -13,7 +17,8 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('$lib/state/server/realtimeTransport.svelte', () => ({
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   eventBusManager: { getBus: mocks.getBus }
 }));
 

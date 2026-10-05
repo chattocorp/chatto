@@ -20,6 +20,8 @@ handling around the shared positioning primitive.
 
 In floating mode, exactly one of `position` or `anchor` must be provided. In sheet mode, both are
 ignored (the BottomSheet handles its own positioning).
+In sheet mode, the content wrapper has `data-menu-presentation="sheet"`. Content such as the emoji
+picker uses it to fill the sheet width.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -80,11 +82,16 @@ ignored (the BottomSheet handles its own positioning).
 {#if useSheet}
   <BottomSheet bind:visible={sheetVisible} {ariaLabel} {onclose}>
     {#if role === 'menu'}
-      <div class="flex flex-col gap-1" role="menu" aria-label={ariaLabel}>
+      <div
+        class="flex flex-col gap-1"
+        data-menu-presentation="sheet"
+        role="menu"
+        aria-label={ariaLabel}
+      >
         {@render children()}
       </div>
     {:else}
-      <div class="flex flex-col gap-1">
+      <div class="flex flex-col gap-1" data-menu-presentation="sheet">
         {@render children()}
       </div>
     {/if}

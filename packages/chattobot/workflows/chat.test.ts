@@ -4,7 +4,8 @@ import type { AgentRunOptions } from 'runling/agents';
 import type { WebhookContext } from 'runling/web';
 import type { Delivery } from '../chatto/routing.ts';
 import config from '../runling.config.ts';
-import { createChattoBot } from './chat.ts';
+import { scriptedChattoBot as createChattoBot } from '../evaluations/scripted-supervisor.ts';
+import type { AgentExtensionAPI } from 'runling/agents';
 
 const delivery: Delivery = {
   version: 1,
@@ -18,6 +19,62 @@ const delivery: Delivery = {
   message: { id: 'root', author_id: 'alice', body: 'Hello!' }
 };
 
+test.each([null, 'existing-thread'])(
+  'acknowledges a request in %s before continuing with the answer',
+  async (threadRootId) => {
+    const post = vi.fn(async () => {});
+    let acknowledge:
+      | ((id: string, input: { acknowledgement: string }, signal: AbortSignal) => Promise<unknown>)
+      | undefined;
+    const bot = createChattoBot({
+      acknowledge: async () => {},
+      post,
+      typing: async () => {},
+      timeout: 0,
+      readThread: async () => ({ messages: [], olderOmitted: false }),
+      createAgent: async (options) => {
+        for (const extension of options.extensions ?? []) {
+          const factory = typeof extension === 'function' ? extension : extension.factory;
+          await factory({
+            on() {},
+            registerTool(definition: { name: string; execute: NonNullable<typeof acknowledge> }) {
+              if (definition.name === 'acknowledgeRequest') acknowledge = definition.execute;
+            }
+          } as unknown as AgentExtensionAPI);
+        }
+        return {
+          async runOutcome(_ctx, _prompt, runOptions) {
+            const signal = new AbortController().signal;
+            await acknowledge!('ack', { acknowledgement: 'I’ll check that.' }, signal);
+            expect(post).toHaveBeenCalledOnce();
+            await expect(
+              acknowledge!('again', { acknowledgement: 'Checking.' }, signal)
+            ).rejects.toThrow('already acknowledged');
+            runOptions?.onText?.('Here is the answer.');
+            return { outcome: 'completed' as const, summary: '', usage: emptyTokenUsage() };
+          },
+          steer: async () => false,
+          dispose() {}
+        };
+      }
+    });
+    await bot(createWorkflowContext(), { ...delivery, thread_root_id: threadRootId });
+    expect(post).toHaveBeenCalledTimes(2);
+    expect(post).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Object),
+      'Here is the answer.',
+      expect.any(AbortSignal)
+    );
+    expect(post).toHaveBeenNthCalledWith(
+      1,
+      { roomId: 'dm', threadRootId: threadRootId ?? 'root', inReplyTo: 'root' },
+      'I’ll check that.',
+      expect.any(AbortSignal)
+    );
+  }
+);
+
 test.each([
   { trigger: 'direct_message', thread: null },
   { trigger: 'direct_message', thread: 'existing-thread' },
@@ -29,12 +86,12 @@ test.each([
   const post = vi.fn(async () => {});
   const createAgent = vi.fn(async () => ({
     async runOutcome(_ctx: unknown, prompt: string, options?: AgentRunOptions) {
+      // The message to answer is apart from the thread, which is background.
       expect(JSON.parse(prompt)).toEqual({
-        thread: [{ id: 'earlier', role: 'human', body: 'eins, zwei, drei' }],
-        currentMessage: 'Hello!',
-        origin: 'user',
-        recentUserMessages: ['Hello!'],
-        requesterIsMaintainer: false,
+        // Another person's message is not in the prompt; readThread returns it on request.
+        unreadThreadMessages: 1,
+        message: { from: 'someone', fromMaintainer: false, text: 'Hello!' },
+        recentMessagesToYou: ['Hello!'],
         backgroundTasks: [],
         savedImplementationPlans: []
       });
@@ -58,7 +115,10 @@ test.each([
     model: 'test/model',
     investigation: thread ? { directory: '/configured/chatto' } : undefined,
     timeout: 0,
-    readThread: async () => [{ id: 'earlier', role: 'human', body: 'eins, zwei, drei' }]
+    readThread: async () => ({
+      messages: [{ id: 'earlier', role: 'human' as const, body: 'eins, zwei, drei' }],
+      olderOmitted: false
+    })
   });
   let running: Promise<unknown> | undefined;
   let starts = 0;
@@ -90,11 +150,18 @@ test.each([
       output: 'text',
       allowEmptyResponse: true,
       tools: thread
-        ? ['fetchPage', 'investigateChatto', 'task_send', 'task_cancel']
-        : ['fetchPage'],
-      extensions: thread
-        ? [expect.any(Function), expect.any(Function), expect.any(Function), expect.any(Function)]
-        : [expect.any(Function)],
+        ? [
+            'readThread',
+            'acknowledgeRequest',
+            'finishTurn',
+            'fetchPage',
+            'investigateChatto',
+            'task_send',
+            'task_cancel'
+          ]
+        : ['readThread', 'acknowledgeRequest', 'finishTurn', 'fetchPage'],
+      // The prompt hygiene extension comes first, then the gates and tools.
+      extensions: Array(thread ? 7 : 5).fill(expect.any(Function)),
       resources: {
         extensions: false,
         skills: false,
@@ -119,21 +186,23 @@ test('implementation is a separate opt-in tool with host-result reporting instru
     typing: async () => {},
     post: async () => {},
     timeout: 0,
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     implementation: { directory: '/configured/chatto', repository: 'example/chatto' },
     createAgent: async (options) => {
       expect(options.tools).toEqual([
+        'readThread',
+        'acknowledgeRequest',
+        'finishTurn',
         'fetchPage',
         'implementChatto',
         'askImplementation',
+        'decideApproval',
         'task_send',
         'task_cancel'
       ]);
-      expect(options.systemPrompt).toContain('conversational assistant');
-      expect(options.instructions?.join('\n')).toContain(
-        'use only the host-provided prUrl as a Markdown link'
-      );
-      expect(options.instructions?.join('\n')).not.toContain('Implementation is disabled.');
+      expect(options.systemPrompt).toContain('You are ChattoBot');
+      expect(options.instructions?.join('\n')).toContain('implementChatto starts a worker');
+      expect(options.instructions?.join('\n')).not.toContain('Implementation is not available.');
       return {
         dispose: () => {},
         steer: async () => false,
@@ -153,7 +222,7 @@ test('does not post malformed model channel output or its possible reasoning', a
     typing: async () => {},
     post,
     timeout: 0,
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     createAgent: async () => ({
       dispose() {},
       steer: async () => false,
@@ -178,19 +247,21 @@ test('language context uses human input even when the thread contains a wrong-la
     typing: async () => {},
     post: async () => {},
     timeout: 0,
-    readThread: async () => [{ id: 'prior', role: 'bot', body: '我正在调查' }],
+    readThread: async () => ({
+      messages: [{ id: 'prior', role: 'bot' as const, body: '我正在调查' }],
+      olderOmitted: false
+    }),
     createAgent: async (options) => {
-      expect(options.instructions?.join('\n')).toContain(
-        'Never adopt a language from your own earlier replies'
-      );
+      expect(options.instructions?.join('\n')).toContain('Nothing else chooses the language.');
       return {
         dispose: () => {},
         steer: async () => false,
         async runOutcome(_ctx, prompt) {
+          // The bot's own earlier reply is marked as its own and does not set the language.
           expect(JSON.parse(prompt)).toMatchObject({
-            origin: 'user',
-            currentMessage: 'Hello!',
-            recentUserMessages: ['Hello!']
+            message: { text: 'Hello!' },
+            recentMessagesToYou: ['Hello!'],
+            earlierThreadMessages: [{ from: 'you', text: '我正在调查' }]
           });
           return { outcome: 'completed', summary: '', usage: emptyTokenUsage() };
         }
@@ -207,7 +278,7 @@ test('an owner can finish a turn silently without posting its internal no-update
     typing: async () => {},
     post,
     timeout: 0,
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     createAgent: async () => ({
       dispose: () => {},
       steer: async () => false,
@@ -232,7 +303,7 @@ test.each([
     typing: async () => {},
     post,
     timeout: 0,
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     createAgent: async () => ({
       dispose: () => {},
       steer: async () => false,
@@ -248,7 +319,7 @@ test.each([
   expect(JSON.stringify(post.mock.calls)).toContain("couldn't format");
 });
 
-test('rapid follow-ups wait for initial context then steer the same turn in order without waiting for receipts', async () => {
+test('rapid follow-ups wait for initial context and the active answer before starting ordered turns', async () => {
   let releaseHistory!: () => void;
   const history = new Promise<void>((resolve) => {
     releaseHistory = resolve;
@@ -257,7 +328,6 @@ test('rapid follow-ups wait for initial context then steer the same turn in orde
   const finished = new Promise<void>((resolve) => {
     finish = resolve;
   });
-  const receipts: Array<() => void> = [];
   const messages: string[] = [];
   let firstRead = true;
   const readThread = vi.fn(async () => {
@@ -265,18 +335,14 @@ test('rapid follow-ups wait for initial context then steer the same turn in orde
       firstRead = false;
       await history;
     }
-    return [];
+    return { messages: [], olderOmitted: false };
   });
   const runOutcome = vi.fn(async (_ctx, prompt: string) => {
-    messages.push(JSON.parse(prompt).currentMessage);
+    messages.push(JSON.parse(prompt).message.text);
     await finished;
     return { outcome: 'completed' as const, summary: 'Done', usage: emptyTokenUsage() };
   });
-  const steer = vi.fn(async (prompt: string) => {
-    expect(runOutcome).toHaveBeenCalledOnce();
-    messages.push(JSON.parse(prompt).currentMessage);
-    return new Promise<boolean>((resolve) => receipts.push(() => resolve(true)));
-  });
+  const steer = vi.fn(async () => true);
   const bot = createChattoBot({
     acknowledge: async () => {},
     post: async () => {},
@@ -311,25 +377,41 @@ test('rapid follow-ups wait for initial context then steer the same turn in orde
     expect(readThread).toHaveBeenCalledOnce();
     expect(steer).not.toHaveBeenCalled();
     releaseHistory();
-    await vi.waitFor(() => expect(steer).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(runOutcome).toHaveBeenCalledOnce());
+    expect(messages).toEqual(['Hello!']);
+    expect(readThread).toHaveBeenCalledOnce();
+    expect(steer).not.toHaveBeenCalled();
+    finish();
+    await vi.waitFor(() => expect(runOutcome).toHaveBeenCalledTimes(3));
     expect(messages).toEqual(['Hello!', 'Use a short answer', 'And include links']);
     expect(readThread).toHaveBeenCalledTimes(3);
   } finally {
     releaseHistory();
-    receipts.forEach((resolve) => resolve());
     finish();
     await running;
   }
-  expect(runOutcome).toHaveBeenCalledOnce();
+  expect(runOutcome).toHaveBeenCalledTimes(3);
 });
 
-test('refreshes history for a later mention in the same conversation', async () => {
+test('a later turn gets only new thread messages, read after the saved cursor', async () => {
   const prompts: string[] = [];
   const acknowledged: string[] = [];
   const readThread = vi
     .fn()
-    .mockResolvedValueOnce([{ id: 'root', role: 'human', body: 'Hey' }])
-    .mockResolvedValue([{ id: 'count', role: 'human', body: 'eins, zwei, drei' }]);
+    .mockResolvedValueOnce({
+      messages: [{ id: 'root', role: 'human', body: 'Hey' }],
+      cursor: 'c1',
+      olderOmitted: true
+    })
+    .mockResolvedValue({
+      messages: [
+        { id: 'reply', role: 'bot', body: 'Reply' },
+        { id: 'count', role: 'human', authorName: 'Bob', body: 'eins, zwei, drei' },
+        { id: 'follow-up', role: 'human', authorName: 'Alice', body: "What's next?" }
+      ],
+      cursor: 'c2',
+      olderOmitted: false
+    });
   const post = vi.fn(async () => {
     if (post.mock.calls.length === 1) {
       await bot.route(
@@ -358,7 +440,81 @@ test('refreshes history for a later mention in the same conversation', async () 
     timeout: 0.05,
     createAgent: async () => ({
       async runOutcome(_ctx, prompt, options) {
-        expect(acknowledged).toEqual(['root']);
+        expect(acknowledged).toEqual(['first']);
+        prompts.push(prompt);
+        options?.onText?.('Reply');
+        return { outcome: 'completed', summary: 'Reply', usage: emptyTokenUsage() };
+      },
+      steer: async () => false,
+      dispose: () => {}
+    })
+  });
+
+  await bot(
+    { ...createWorkflowContext(), run: { id: 'run', reference: 'funky-comics-8426' } },
+    {
+      ...delivery,
+      triggers: ['mention'],
+      thread_root_id: 'root',
+      message: { ...delivery.message, id: 'first' }
+    }
+  );
+  expect(prompts).toHaveLength(2);
+  expect(acknowledged).toEqual(['first']);
+  // The prompt does not name the run.
+  expect(JSON.parse(prompts[0]!)).not.toHaveProperty('runName');
+  expect(JSON.parse(prompts[0]!)).toMatchObject({
+    earlierThreadMessages: [{ from: 'someone', text: 'Hey' }],
+    olderThreadMessagesOmitted: true
+  });
+  // The second turn reads after the cursor and gets only what the supervisor has not seen:
+  // not its own reply, and not the message that woke it.
+  expect(readThread.mock.calls[1]![2]).toBe('c1');
+  expect(JSON.parse(prompts[1]!)).toEqual({
+    // Bob wrote to someone else: counted, and available through readThread.
+    unreadThreadMessages: 1,
+    message: { from: 'Alice', fromMaintainer: false, text: "What's next?" },
+    savedImplementationPlans: [],
+    recentMessagesToYou: ['Hello!', "What's next?"],
+    backgroundTasks: []
+  });
+});
+
+test('a queued message read in an earlier turn keeps its author', async () => {
+  const prompts: string[] = [];
+  const readThread = vi
+    .fn()
+    .mockResolvedValueOnce({
+      messages: [
+        { id: 'root', role: 'human', authorName: 'Carol', body: 'Hey' },
+        { id: 'queued', role: 'human', authorName: 'Dana', body: 'Und jetzt?' }
+      ],
+      cursor: 'c1',
+      olderOmitted: false
+    })
+    .mockResolvedValue({ messages: [], cursor: 'c1', olderOmitted: false });
+  const post = vi.fn(async () => {
+    if (post.mock.calls.length === 1) {
+      await bot.route(
+        { start: async () => Promise.reject(new Error('Unexpected run')) },
+        {
+          ...delivery,
+          id: 'queued',
+          triggers: ['mention'],
+          thread_root_id: 'root',
+          message: { ...delivery.message, id: 'queued', body: 'Und jetzt?' }
+        }
+      );
+    }
+  });
+  const bot = createChattoBot({
+    acknowledge: async () => {},
+    readThread,
+    post,
+    typing: async () => {},
+    timeout: 0.05,
+    createAgent: async () => ({
+      async runOutcome(_ctx, prompt, options) {
         prompts.push(prompt);
         options?.onText?.('Reply');
         return { outcome: 'completed', summary: 'Reply', usage: emptyTokenUsage() };
@@ -370,16 +526,9 @@ test('refreshes history for a later mention in the same conversation', async () 
 
   await bot(createWorkflowContext(), { ...delivery, triggers: ['mention'] });
   expect(prompts).toHaveLength(2);
-  expect(acknowledged).toEqual(['root']);
-  expect(JSON.parse(prompts[1]!)).toEqual({
-    thread: [{ id: 'count', role: 'human', body: 'eins, zwei, drei' }],
-    currentMessage: "What's next?",
-    savedImplementationPlans: [],
-    origin: 'user',
-    recentUserMessages: ['Hello!', "What's next?"],
-    requesterIsMaintainer: false,
-    backgroundTasks: []
-  });
+  const second = JSON.parse(prompts[1]!);
+  expect(second).toMatchObject({ message: { text: 'Und jetzt?', from: 'Dana' } });
+  expect(second).not.toHaveProperty('newThreadMessages');
 });
 
 test('web research runs in a separate agent and blocks delegation in the supervisor', async () => {
@@ -403,7 +552,7 @@ test('web research runs in a separate agent and blocks delegation in the supervi
     acknowledge: async () => {},
     post,
     typing: async () => {},
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     timeout: 0,
     createAgent,
     implementation: { directory: '/unused', repository: 'example/chatto' },
@@ -416,7 +565,7 @@ test('web research runs in a separate agent and blocks delegation in the supervi
   expect(supervisor!.tools).not.toContain('browsePage');
   expect(supervisor!.trust).toMatchObject({
     untrusted: ['researchWeb'],
-    blockAfterUntrusted: ['implementChatto', 'askImplementation', 'task_send']
+    blockAfterUntrusted: ['implementChatto', 'askImplementation', 'task_send', 'decideApproval']
   });
   // The host posts the refusal once per turn, and the rest of the reply still posts.
   expect(post.mock.calls.map(([, text]) => text)).toEqual([
@@ -429,7 +578,7 @@ test('web research runs in a separate agent and blocks delegation in the supervi
     acknowledge: async () => {},
     post: async () => {},
     typing: async () => {},
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     timeout: 0,
     createAgent
   })(createWorkflowContext(), {
@@ -463,7 +612,7 @@ test('maintainer tools follow the author of the latest human message', async () 
   });
   const bot = createChattoBot({
     acknowledge: async () => {},
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     post,
     typing: async () => {},
     timeout: 0.05,
@@ -474,7 +623,7 @@ test('maintainer tools follow the author of the latest human message', async () 
         const factory = typeof extension === 'function' ? extension : extension.factory;
         await factory({
           on: (name: string, handler: (event: unknown) => Promise<unknown>) => {
-            if (name === 'tool_call') gate = handler;
+            if (name === 'tool_call') gate ??= handler; // The maintainer gate comes first.
           },
           registerTool() {}
         } as unknown as import('runling/agents').AgentExtensionAPI);
@@ -482,7 +631,7 @@ test('maintainer tools follow the author of the latest human message', async () 
       return {
         async runOutcome(_ctx: unknown, prompt: string) {
           decisions.push({
-            flag: JSON.parse(prompt).requesterIsMaintainer,
+            flag: JSON.parse(prompt).message.fromMaintainer,
             gate: await gate!({ type: 'tool_call', toolName: 'investigateChatto', input: {} }),
             open: await gate!({ type: 'tool_call', toolName: 'fetchPage', input: {} })
           });
@@ -503,11 +652,74 @@ test('maintainer tools follow the author of the latest human message', async () 
     {
       flag: false,
       gate: { block: true, reason: expect.stringContaining('only when a maintainer asks') },
-      open: undefined
+      open: { block: true, reason: expect.stringContaining('acknowledgeRequest') }
     },
-    { flag: true, gate: undefined, open: undefined }
+    {
+      flag: true,
+      gate: undefined,
+      open: { block: true, reason: expect.stringContaining('acknowledgeRequest') }
+    }
   ]);
   expect(post.mock.calls.filter(([, text]) => text.startsWith('Only a maintainer'))).toHaveLength(
     1
   );
 });
+
+test.each([false, true])(
+  'general web research requires a maintainer and a posted acknowledgement (%s)',
+  async (maintainer) => {
+    let gate:
+      | ((event: {
+          toolName: string;
+          input: unknown;
+          parentToolCallId?: string;
+        }) => Promise<unknown>)
+      | undefined;
+    let ack:
+      | ((id: string, input: { acknowledgement: string }, signal: AbortSignal) => Promise<unknown>)
+      | undefined;
+    const bot = createChattoBot({
+      acknowledge: async () => {},
+      post: async () => {},
+      typing: async () => {},
+      timeout: 0,
+      maintainers: maintainer ? ['alice'] : [],
+      web: { tavilyApiKey: 'unused' },
+      readThread: async () => ({ messages: [], olderOmitted: false }),
+      createAgent: async (options) => {
+        for (const extension of options.extensions ?? []) {
+          await (typeof extension === 'function' ? extension : extension.factory)({
+            on(name: string, handler: NonNullable<typeof gate>) {
+              if (name === 'tool_call') gate ??= handler;
+            },
+            registerTool(tool: { name: string; execute: NonNullable<typeof ack> }) {
+              if (tool.name === 'acknowledgeRequest') ack = tool.execute;
+            }
+          } as unknown as AgentExtensionAPI);
+        }
+        expect(options.trust?.blockAfterUntrusted).not.toContain('finishTurn');
+        return {
+          async runOutcome() {
+            const call = { toolName: 'researchWeb', input: { question: 'HN today' } };
+            expect(await gate!(call)).toMatchObject({ block: true });
+            await ack!('ack', { acknowledgement: 'I’ll check.' }, new AbortController().signal);
+            expect(await gate!({ toolName: 'fetchPage', input: {} })).toBeUndefined();
+            if (maintainer) expect(await gate!(call)).toBeUndefined();
+            else
+              expect(await gate!(call)).toMatchObject({
+                block: true,
+                reason: expect.stringContaining('maintainer')
+              });
+            expect(await gate!({ ...call, parentToolCallId: 'script' })).toMatchObject({
+              block: true
+            });
+            return { outcome: 'completed' as const, summary: '', usage: emptyTokenUsage() };
+          },
+          steer: async () => false,
+          dispose() {}
+        };
+      }
+    });
+    await bot(createWorkflowContext(), delivery);
+  }
+);

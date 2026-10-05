@@ -17,6 +17,76 @@ function computedBackgroundColor(color: string): string {
 }
 
 describe('UserAvatar', () => {
+  it('updates Unicode labels', async () => {
+    const user = {
+      id: 'user-1',
+      login: 'alice',
+      displayName: '[DEV] Alice',
+      avatarUrl: null,
+      presenceStatus: PresenceStatus.OFFLINE
+    };
+    const view = render(UserAvatar, { props: { user, useLiveProfile: false } });
+    const avatar = q(view.container, '[aria-label="alice"]')!;
+    expect(avatar.textContent?.trim()).toBe('DA');
+    await view.rerender({ user: { ...user, displayName: '👩‍💻' } });
+    await expect.element(view.getByRole('img', { name: 'alice' })).toHaveTextContent('👩‍💻');
+    await view.rerender({ user: { ...user, displayName: '!!!' } });
+    await expect.element(view.getByRole('img', { name: 'alice' })).toHaveTextContent('A');
+  });
+
+  it('uses a generic icon when there is no label and keeps deleted users neutral', async () => {
+    const user = {
+      id: 'missing-name',
+      login: '',
+      displayName: '!!!',
+      avatarUrl: null,
+      presenceStatus: PresenceStatus.OFFLINE,
+      deleted: false
+    };
+    const view = render(UserAvatar, { props: { user, useLiveProfile: false } });
+    expect(
+      q(view.container, 'span[aria-hidden="true"]')?.classList.contains('icon-[uil--user]')
+    ).toBe(true);
+    await view.rerender({ user: { ...user, deleted: true } });
+    expect(q(view.container, '.bg-surface-emphasized')).toBeTruthy();
+    expect(
+      q(view.container, 'span[aria-hidden="true"]')?.classList.contains('icon-[uil--user-times]')
+    ).toBe(true);
+  });
+
+  it('uses the same neutral surface and muted label for different accounts in both themes', async () => {
+    const root = document.documentElement;
+    const previousTheme = root.getAttribute('data-theme');
+    const user = {
+      id: 'a',
+      login: 'avatar',
+      displayName: 'Avatar',
+      avatarUrl: null,
+      presenceStatus: PresenceStatus.OFFLINE
+    };
+    const view = render(UserAvatar, { props: { user, useLiveProfile: false } });
+    try {
+      for (const theme of ['light', 'dark']) {
+        root.setAttribute('data-theme', theme);
+        for (const id of ['a', 'b']) {
+          await view.rerender({ user: { ...user, id } });
+          const avatar = q(view.container, '[aria-label="avatar"]')!;
+          const style = getComputedStyle(avatar);
+          const tokens = getComputedStyle(root);
+          expect(style.backgroundColor).toBe(
+            computedBackgroundColor(tokens.getPropertyValue('--color-surface-emphasized'))
+          );
+          expect(style.color).toBe(
+            computedBackgroundColor(tokens.getPropertyValue('--color-muted'))
+          );
+        }
+      }
+    } finally {
+      if (previousTheme === null) root.removeAttribute('data-theme');
+      else root.setAttribute('data-theme', previousTheme);
+    }
+  });
+
   it('renders medium placeholder avatars with a subtle inset ring', () => {
     const { container } = render(UserAvatarTestHarness, { size: 'md' });
     const avatar = q(container, '[aria-label="alice"]')!;
@@ -186,13 +256,13 @@ describe('UserAvatar', () => {
     expect(q(container, '[data-testid="bot-badge"]')).toBeFalsy();
   });
 
-  it('uses initials when an avatar image fails', async () => {
+  it('uses a complete emoji when an avatar image fails', async () => {
     const view = render(UserAvatar, {
       props: {
         user: {
           id: 'user-1',
           login: 'alice',
-          displayName: 'Alice',
+          displayName: '👩‍💻',
           avatarUrl: '/missing-avatar.png',
           presenceStatus: PresenceStatus.OFFLINE
         },
@@ -201,8 +271,10 @@ describe('UserAvatar', () => {
     });
 
     const image = q(view.container, 'img[alt="alice"]');
+    expect(q(view.container, '.bg-surface-emphasized')).toBeNull();
     expect(view.container.querySelector('.skeleton')).toBeNull();
     image?.dispatchEvent(new Event('error'));
-    await expect.element(view.getByRole('img', { name: 'alice' })).toHaveTextContent('A');
+    await expect.element(view.getByRole('img', { name: 'alice' })).toHaveTextContent('👩‍💻');
+    expect(q(view.container, '.bg-surface-emphasized.text-muted')).toBeTruthy();
   });
 });

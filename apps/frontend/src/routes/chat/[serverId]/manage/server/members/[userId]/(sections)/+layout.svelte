@@ -8,7 +8,7 @@ deletion page is outside this route group and has its own frame.
 -->
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
-  import { formatAccountName } from '$lib/render/accountName';
+  import { formatAccountName } from '@chatto/client/timeline/accountName';
   import { onDestroy, type Snippet } from 'svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
@@ -16,7 +16,7 @@ deletion page is outside this route group and has its own frame.
     createAdminUserManagementAPI,
     type AdminMember,
     type AdminMemberDetails
-  } from '$lib/api-client/adminUsers';
+  } from '$lib/api/adminUsers';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { adminQueryKeys } from '$lib/query/admin';

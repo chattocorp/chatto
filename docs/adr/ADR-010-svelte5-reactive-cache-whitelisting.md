@@ -2,6 +2,11 @@
 
 **Date:** 2026-03-01
 
+**Updated:** 2026-09-28. [ADR-111](ADR-111-move-client-state-into-chatto-client.md)
+moves the event caches into `@chatto/client`, which uses its own signals
+instead of runes. The signals also compare by reference, so this decision
+still applies to `signal`, `ReactiveMap`, and `ReactiveSet`.
+
 ## Context
 
 Chatto's frontend uses Svelte 5 runes (`$state`, `$derived`) for reactive state management. The room event stores receive realtime events and projected timeline refreshes, then cache renderable events for child components to consume.

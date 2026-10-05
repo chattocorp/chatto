@@ -14,16 +14,14 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('$lib/api-client/readState', () => ({
-  createReadStateAPI: () => ({ markRoomAsRead: mocks.markRoomAsRead })
-}));
+// The store mock also carries the frontend UI state of its server.
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
 
-vi.mock('$lib/api-client/roomDirectory', () => ({
-  RoomDirectoryScope: { ALL: 1 },
-  createRoomDirectoryAPI: () => ({ listRooms: mocks.listRooms })
-}));
-
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
     getStore: () => ({
       roomUnread: {
@@ -34,10 +32,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
         roomIsUnread: mocks.roomIsUnread
       }
     })
-  }
-}));
-
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+  },
   serverConnectionManager: {
     getClient: () => ({
       serverId: 'remote',
@@ -46,6 +41,15 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
       getAPI: (factory: (config: unknown) => unknown) => factory({})
     })
   }
+}));
+
+vi.mock('@chatto/client/api/readState', () => ({
+  createReadStateAPI: () => ({ markRoomAsRead: mocks.markRoomAsRead })
+}));
+
+vi.mock('@chatto/client/api/roomDirectory', () => ({
+  RoomDirectoryScope: { ALL: 1 },
+  createRoomDirectoryAPI: () => ({ listRooms: mocks.listRooms })
 }));
 
 import { markNavigationRoomAsRead, markNavigationServerAsRead } from './readActions';

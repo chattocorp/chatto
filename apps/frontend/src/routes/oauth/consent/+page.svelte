@@ -2,7 +2,7 @@
   import { errorMessage } from '$lib/utils/errorMessage';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { csrfFetch } from '$lib/auth/csrf';
+  import { csrfFetch } from '@chatto/client/auth/csrf';
   import { LOOPBACK_OAUTH_CLIENT_ID } from '$lib/auth/loopbackClient';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';

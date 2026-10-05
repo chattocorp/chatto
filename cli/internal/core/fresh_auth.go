@@ -45,105 +45,46 @@ func isFreshAuthAt(at time.Time, now time.Time) bool {
 	return !at.IsZero() && now.Sub(at) >= 0 && now.Sub(at) <= FreshAuthWindow
 }
 
+// RequireFreshAuthForBearerToken reports ErrFreshAuthRequired unless the
+// bearer token's session re-verified within FreshAuthWindow.
 func (c *ChattoCore) RequireFreshAuthForBearerToken(ctx context.Context, token string) error {
-	data, _, err := c.authTokenData(ctx, token)
-	if err != nil {
-		return err
-	}
-	if !data.canSatisfyFreshAuth() {
-		return ErrFreshAuthRequired
-	}
-	if isFreshAuthAt(data.FreshAuthAt, time.Now()) {
-		return nil
-	}
-	return ErrFreshAuthRequired
+	return c.requireFreshCredential(ctx, token, AuthTokenPresentationBearer, ErrAuthTokenNotFound)
 }
 
-func (c *ChattoCore) MarkBearerTokenFresh(ctx context.Context, token, method, source string) error {
-	data, _, err := c.authTokenData(ctx, token)
+// RequireFreshAuthForCookieSession reports ErrFreshAuthRequired unless the
+// cookie session re-verified within FreshAuthWindow.
+func (c *ChattoCore) RequireFreshAuthForCookieSession(ctx context.Context, sessionID string) error {
+	return c.requireFreshCredential(ctx, sessionID, AuthTokenPresentationCookie, ErrCookieSessionNotFound)
+}
+
+// requireFreshCredential validates a credential through the stream leader, so
+// a re-verification on another replica is always visible. notFound is the
+// caller's error for an unknown credential.
+func (c *ChattoCore) requireFreshCredential(ctx context.Context, handle string, presentation AuthTokenPresentation, notFound error) error {
+	credential, err := c.validateRuntimeCredential(ctx, handle, presentation, authoritativeCredentialRead)
+	if errors.Is(err, ErrAuthTokenNotFound) {
+		return notFound
+	}
 	if err != nil {
 		return err
 	}
-	if data.Kind != AuthTokenKindFirstPartySession {
+	if credential.Kind != AuthTokenKindFirstPartySession || !isFreshAuthAt(credential.FreshAuthAt, time.Now()) {
 		return ErrFreshAuthRequired
-	}
-	now := time.Now()
-	if err := c.markRenewableSessionFresh(ctx, data.RenewableSessionID, method, source, now); err != nil {
-		return err
 	}
 	return nil
 }
 
-func (d AuthTokenData) canSatisfyFreshAuth() bool {
-	if d.Kind != "" {
-		return d.Kind == AuthTokenKindFirstPartySession
-	}
-	return d.FreshAuthSource != "" && d.FreshAuthSource != "oauth_code_exchange"
-}
-
-func (c *ChattoCore) authTokenData(ctx context.Context, token string) (AuthTokenData, jetstream.KeyValueEntry, error) {
-	if token == "" {
-		return AuthTokenData{}, nil, ErrAuthTokenNotFound
-	}
-	key := c.authTokenKey(token)
-	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return AuthTokenData{}, nil, ErrAuthTokenNotFound
-		}
-		return AuthTokenData{}, nil, fmt.Errorf("failed to get auth token: %w", err)
-	}
-
-	var tokenData AuthTokenData
-	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return AuthTokenData{}, nil, ErrAuthTokenNotFound
-	}
-	if tokenData.presentationOrDefault() != AuthTokenPresentationBearer {
-		return AuthTokenData{}, nil, ErrAuthTokenNotFound
-	}
-	if tokenData.UserID == "" {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return AuthTokenData{}, nil, ErrAuthTokenNotFound
-	}
-	if tokenData.RenewableSessionID == "" || tokenData.ExpiresAt.IsZero() || !time.Now().Before(tokenData.ExpiresAt) {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return AuthTokenData{}, nil, ErrAuthTokenNotFound
-	}
-	session, _, err := c.validateRenewableSession(ctx, tokenData.RenewableSessionID, time.Now())
-	if err != nil {
-		if errors.Is(err, ErrRefreshTokenNotFound) {
-			_ = c.storage.runtimeStateKV.Delete(ctx, key)
-			return AuthTokenData{}, nil, ErrAuthTokenNotFound
-		}
-		return AuthTokenData{}, nil, err
-	}
-	if session.UserID != tokenData.UserID || session.ClientID != tokenData.ClientID || session.Kind != tokenData.kindOrDefault() || session.AuthGeneration != tokenData.AuthGeneration || tokenData.AccessGeneration > session.CurrentGeneration {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return AuthTokenData{}, nil, ErrAuthTokenNotFound
-	}
-	tokenData.FreshAuthAt = session.FreshAuthAt
-	tokenData.FreshAuthMethod = session.FreshAuthMethod
-	tokenData.FreshAuthSource = session.FreshAuthSource
-	if err := c.RequireAuthenticationAllowed(ctx, tokenData.UserID, tokenData.AuthGeneration); err != nil {
-		if errors.Is(err, ErrAuthenticationRevoked) {
-			_ = c.storage.runtimeStateKV.Delete(ctx, key)
-			return AuthTokenData{}, nil, ErrAuthTokenNotFound
-		}
-		return AuthTokenData{}, nil, err
-	}
-	return tokenData, entry, nil
-}
-
-func (c *ChattoCore) RequireFreshAuthForCookieSession(ctx context.Context, sessionID string) error {
-	record, err := c.ValidateCookieCredential(ctx, sessionID)
+// MarkBearerTokenFresh records a re-verification on the bearer token's
+// session. It validates the token through the stream leader.
+func (c *ChattoCore) MarkBearerTokenFresh(ctx context.Context, token, method, source string) error {
+	credential, err := c.validateRuntimeCredential(ctx, token, AuthTokenPresentationBearer, authoritativeCredentialRead)
 	if err != nil {
 		return err
 	}
-	if record.GetFreshAuthAt() != nil && isFreshAuthAt(record.GetFreshAuthAt().AsTime(), time.Now()) {
-		return nil
+	if credential.Kind != AuthTokenKindFirstPartySession {
+		return ErrFreshAuthRequired
 	}
-	return ErrFreshAuthRequired
+	return c.markRenewableSessionFresh(ctx, credential.RenewableSessionID, method, source, time.Now())
 }
 
 func (c *ChattoCore) MarkCookieSessionFresh(ctx context.Context, sessionID, method, source string) error {

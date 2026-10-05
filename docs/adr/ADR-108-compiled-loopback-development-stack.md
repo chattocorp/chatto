@@ -40,8 +40,11 @@ developer restarts `mise dev`.
 All services use plain HTTP on the Conductor port block, with base `4000`
 outside Conductor. Chatto uses the base port, and Authling uses `+2`. The
 browser-facing hostnames are `chatto.<workspace>.localhost` and
-`authling.<workspace>.localhost`, where `<workspace>` is the Conductor
-workspace name or `local`. Each workspace therefore has its own cookie scope.
+`authling.<workspace>.localhost`. In Conductor, `<workspace>` is `ws`
+followed by the Conductor port, for example `ws55060`. Outside Conductor, it is
+`local`. Conductor preview URLs can expand the port, but not the workspace name
+or ID. The port is different for each concurrent workspace and does not change
+when a workspace is renamed. Each workspace therefore has its own cookie scope.
 Mailpit, LiveKit, and the Runling console use `localhost`, because they do not
 keep browser sessions for this stack. The comment above the `dev` task in
 `mise.toml` records the complete port layout.
@@ -51,8 +54,11 @@ client `chatto-dev`. The `dev-stack-authling` task copies Authling's development
 configuration into the workspace state directory and adds this client with the
 exact Chatto callback URL. Authling treats names beneath `.localhost` as
 loopback hosts for its plain-HTTP public URL and redirect URI rules. Authling
-state is in `.context/dev/<workspace>/authling/`. A new directory is necessary
-because the issuer URL changed.
+state is in `.context/dev/<workspace>/authling/port-<port>/`. Authling cannot
+change its issuer URL, and Conductor can give a workspace a different port.
+Thus, each issuer port has its own state directory. The task does not use the
+earlier `authling/nats/` directory: its issuer port is unknown, and a different
+port stops Authling at startup.
 
 `mise dev-frontend` runs Vite at base port `+1`. Vite proxies API, realtime,
 authentication, and OAuth requests to `CHATTO_BACKEND_URL`. The default value is

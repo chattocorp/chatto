@@ -16,7 +16,7 @@ import {
   notificationPolicyScopeKey,
   type NotificationPolicyScope,
   type ScopedNotificationPolicy
-} from '$lib/api-client/notifications';
+} from '@chatto/client/api/notifications';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 vi.mock(

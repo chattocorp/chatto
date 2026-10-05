@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tick, onMount } from 'svelte';
-  import type { VideoProcessingStatus } from '$lib/render/messageAttachments';
+  import type { VideoProcessingStatus } from '@chatto/client/timeline/messageAttachments';
   import { fullscreenVideo } from '$lib/state/globals.svelte';
   import VideoProcessingPlaceholder from './VideoProcessingPlaceholder.svelte';
   import {

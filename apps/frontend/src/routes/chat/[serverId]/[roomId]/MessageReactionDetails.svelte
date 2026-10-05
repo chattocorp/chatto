@@ -7,9 +7,9 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { SvelteSet } from 'svelte/reactivity';
-  import { Code, ConnectError } from '$lib/api-client/connect';
-  import { createReactionAPI } from '$lib/api-client/reactions';
-  import { createUserAPI, type UserSummary } from '$lib/api-client/users';
+  import { Code, ConnectError } from '@chatto/client/api/connect';
+  import { createReactionAPI } from '@chatto/client/api/reactions';
+  import { createUserAPI, type UserSummary } from '@chatto/client/api/users';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { getEmojiByName, getEmojiDisplayName } from '$lib/emoji';
@@ -17,7 +17,7 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
   import { m } from '$lib/i18n/messages';
   import { createInfiniteQuery } from '$lib/query/client';
   import { serverSessionQueryRoot } from '$lib/query/keys';
-  import type { ReactionSummaryView } from '$lib/render/reactions';
+  import type { ReactionSummaryView } from '@chatto/client/timeline/reactions';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { Dialog, LoadingFog } from '$lib/ui';

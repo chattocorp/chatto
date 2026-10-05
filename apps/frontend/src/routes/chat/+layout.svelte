@@ -2,7 +2,7 @@
   import { fullscreenVideo } from '$lib/state/globals.svelte';
   import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
   import ChatRoot from './ChatRoot.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { serverRegistry } from '$lib/client';
 
   let { children } = $props();
   let fullscreenVideoOverlayModule: Promise<

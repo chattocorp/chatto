@@ -8,7 +8,7 @@ import {
   purgeAdminRoomQuery,
   removeDeletedRoleQueries
 } from './adminInvalidation';
-import { queryClient } from './client';
+import { queryClient } from './queryClient';
 
 const connection = { queryScope: 'admin-invalidation-test' };
 const serverId = 'server-1';

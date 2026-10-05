@@ -71,6 +71,7 @@ test('parallel investigations use detached worktrees and expose only read-only t
       'recordFinding',
       'prepareImplementationPlan'
     ]);
+    expect(options.codemode).toBe(true);
     expect(options.resources).toMatchObject({
       extensions: false,
       skills: false,
@@ -324,10 +325,91 @@ test.each([true, false])(
       expect(result.outcome).toBe(withPlan ? 'completed' : 'blocked');
       if (withPlan) {
         expect(plans.get(handle.id)).toEqual({ ...plan, baseCommit: result.baseCommit });
-        expect(result.findings[0].evidence[0].quote).toBe('original');
+        // The result carries claims and locations; the host checked the excerpt when recording.
+        expect(result.findings[0].evidence[0]).toEqual({
+          path: 'example.txt',
+          startLine: 1,
+          endLine: 1
+        });
       } else expect(plans.size).toBe(0);
     } finally {
       await tasks.dispose();
+    }
+  }
+);
+
+test.each([true, false])(
+  'feasibility investigations require a verdict and accept an optional plan: %s',
+  async (withVerdict) => {
+    const settings = await fixture();
+    const verdict = {
+      verdict: 'feasible_with_caveats',
+      summary: 'The fixture can change, but a reader depends on its value.',
+      size: 'small',
+      affectedAreas: ['Chatto backend'],
+      compatibilityRisks: [],
+      risks: ['A reader expects the original value'],
+      openDecisions: ['Choose the new value']
+    };
+    const prompts: string[] = [];
+    let toolNames: readonly string[] = [];
+    const investigate = createInvestigation(settings, async (options) => {
+      toolNames = options.tools ?? [];
+      const tools = new Map<string, (id: string, input: unknown) => Promise<unknown>>();
+      for (const extension of options.extensions ?? []) {
+        const factory = typeof extension === 'function' ? extension : extension.factory;
+        await factory({
+          registerTool(tool: {
+            name: string;
+            execute: (id: string, input: unknown) => Promise<unknown>;
+          }) {
+            tools.set(tool.name, tool.execute);
+          }
+        } as unknown as AgentExtensionAPI);
+      }
+      expect(options.instructions?.join('\n')).toContain(
+        'Your deliverables are recordFinding and reportFeasibility tool calls.'
+      );
+      await expect(tools.get('reportFeasibility')!('early', verdict)).rejects.toThrow(
+        'Record source evidence'
+      );
+      return {
+        dispose: () => {},
+        async runOutcome(_ctx: unknown, prompt: string) {
+          prompts.push(prompt);
+          await tools.get('recordFinding')!('finding', {
+            claim: 'Contains original',
+            kind: 'observation',
+            evidence: [{ path: 'example.txt', startLine: 1, endLine: 1 }]
+          });
+          if (withVerdict) await tools.get('reportFeasibility')!('verdict', verdict);
+          return { outcome: 'completed', summary: 'Done', usage: emptyTokenUsage() };
+        }
+      };
+    });
+    const result = await investigate(createWorkflowContext(), {
+      question: 'Can the fixture change?',
+      purpose: 'feasibility'
+    });
+    expect(toolNames).toEqual([
+      'read',
+      'grep',
+      'find',
+      'ls',
+      'recordFinding',
+      'reportFeasibility',
+      'prepareImplementationPlan'
+    ]);
+    expect(result.plan).toBeUndefined();
+    if (withVerdict) {
+      expect(result).toMatchObject({ outcome: 'completed', feasibility: verdict });
+      expect(prompts).toHaveLength(1);
+    } else {
+      expect(result).toMatchObject({ outcome: 'blocked', failureReason: 'missing_feasibility' });
+      expect(result.feasibility).toBeUndefined();
+      // One repair turn in the same session asks for the missing verdict.
+      expect(prompts).toHaveLength(2);
+      expect(prompts[1]).toContain('Call reportFeasibility using your checked findings.');
     }
   }
 );
@@ -503,8 +585,7 @@ test.skipIf(!process.env.CHATTO_EVAL_MODEL)(
       await owner.runOutcome(
         ctx,
         JSON.stringify({
-          origin: 'notification',
-          recentUserMessages: ['What does example.txt contain?'],
+          recentMessagesToYou: ['What does example.txt contain?'],
           backgroundTasks: [{ status: 'completed', result }],
           notification: { type: 'task.completed' }
         }),
@@ -688,3 +769,64 @@ test('the registered tool runs a child workflow and returns its evidence', async
   expect(mocks.agent).toHaveBeenCalledOnce();
   await tasks.dispose();
 });
+
+test('an unavailable source checkout produces a safe diagnosis before an agent starts', async () => {
+  const settings = await fixture();
+  const createAgent = vi.fn();
+  const investigate = createInvestigation(
+    { ...settings, directory: join(settings.directory, 'missing') },
+    createAgent
+  );
+  await expect(
+    investigate(createWorkflowContext(), { question: 'Check this finding' })
+  ).rejects.toThrow(
+    'The configured source checkout is unavailable. Check CHATTO_SOURCE_DIRECTORY.'
+  );
+  expect(createAgent).not.toHaveBeenCalled();
+});
+
+test.each(['checkout', 'command', 'unknown'] as const)(
+  'a failed investigation retains a safe diagnosis: %s',
+  async (failure) => {
+    const settings = await fixture();
+    if (failure === 'unknown') mocks.agent.mockRejectedValueOnce(new Error('private diagnostic'));
+    const expected =
+      failure === 'checkout'
+        ? 'The configured source checkout is unavailable. Check CHATTO_SOURCE_DIRECTORY.'
+        : failure === 'command'
+          ? 'git rev-parse failed (exit 128)'
+          : 'The source investigation failed unexpectedly before returning findings.';
+    const ctx = createWorkflowContext();
+    const tasks = createAgentTasks(ctx, { notifyActivity: false });
+    let call!: (id: string, input: unknown) => Promise<{ content: { text: string }[] }>;
+    const extension = investigationExtension(
+      ctx,
+      {
+        ...settings,
+        ...(failure === 'checkout' ? { directory: join(settings.directory, 'missing') } : {}),
+        ...(failure === 'command' ? { baseRef: 'nonexistent-test-ref' } : {})
+      },
+      async () => {},
+      tasks
+    );
+    await (typeof extension === 'function' ? extension : extension.factory)({
+      registerTool(tool: { execute: typeof call }) {
+        call = tool.execute;
+      }
+    } as unknown as AgentExtensionAPI);
+    try {
+      const handle = JSON.parse(
+        (await call('call', { question: 'Check the code', announcement: 'I’ll check the source.' }))
+          .content[0]!.text
+      );
+      await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe('failed'));
+      const { taskSummaries } = await import('./task-context.ts');
+      const [summary] = taskSummaries(tasks.list());
+      expect(summary?.failureSummary).toBe(expected);
+      expect(summary?.failureSummary).not.toContain('private diagnostic');
+      expect(summary?.failureSummary).not.toContain(settings.directory);
+    } finally {
+      await tasks.dispose();
+    }
+  }
+);

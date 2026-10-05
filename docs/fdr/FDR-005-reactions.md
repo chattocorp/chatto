@@ -1,7 +1,7 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-09-25
+**Last reviewed:** 2026-10-02
 
 ## Overview
 
@@ -29,8 +29,18 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
   reacted-to message into one row, while unread badges continue to count the
   exact underlying occurrences.
 - A user can add up to 20 distinct emoji reactions to one message. Reaching the limit rolls back the attempted reaction and shows a specific explanation; removing a reaction frees a slot.
-- On desktop, hovering a message reveals a quick-reaction bar with the user's most recently used emojis (falling back to a default set if none have been used yet).
-- Recent emoji selections persist in localStorage so the quick-bar stays personal across sessions.
+- The quick-reaction bar, desktop menu, and touch action sheet start with
+  thumbs up, wave, laugh, and pray, in that order. They also show up to two
+  distinct non-pinned emojis selected through message reaction pickers,
+  with the most recent choice first. Empty recent slots have no fallback.
+- Reaction-picker choices update quick reactions immediately, including after
+  a room change. Profile-status choices, quick-reaction buttons, and reaction
+  pills do not change this history. A picker choice remains in the history
+  even if its reaction request fails.
+- Reaction history is local to the browser and server and persists across
+  reloads. It starts empty and does not import the general emoji history.
+  The full emoji picker's Recently Used section keeps its separate history,
+  which includes profile-status choices.
 
 ## Design Decisions
 

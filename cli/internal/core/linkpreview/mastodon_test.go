@@ -113,6 +113,72 @@ func TestFetchMastodonStatusUsesProviderNeutralSnapshot(t *testing.T) {
 	assert.True(t, proto.Equal(result.SocialPost, result.ToProto(postURL).GetSocialPost()))
 }
 
+func TestFetchMastodonStatusUsesVideoThumbnails(t *testing.T) {
+	const postURL = "https://social.example/@alice/123"
+	var pngData bytes.Buffer
+	require.NoError(t, png.Encode(&pngData, image.NewRGBA(image.Rect(0, 0, 1, 1))))
+	assetNumber := 0
+	assetsConfig := assets.DefaultConfig()
+	var fetchedURLs []string
+	fetcher := &Fetcher{
+		logger:       log.New(io.Discard),
+		assetsConfig: &assetsConfig,
+		newAssetID: func() string {
+			assetNumber++
+			return fmt.Sprintf("asset-%d", assetNumber)
+		},
+		httpClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			switch req.URL.Path {
+			case "/api/oembed":
+				return response(http.StatusOK, "application/json", `{"type":"rich","provider_url":"https://social.example/","html":"<iframe class=\"mastodon-embed\" src=\"https://social.example/@alice/123/embed\"></iframe>"}`), nil
+			case "/api/v1/statuses/123":
+				return response(http.StatusOK, "application/json", `{
+					"id":"123",
+					"url":"`+postURL+`",
+					"visibility":"public",
+					"content":"<p>Attached: 1 video</p>",
+					"account":{"display_name":"Alice","acct":"alice"},
+					"media_attachments":[
+						{"type":"video","url":"https://cdn.example/clip.mp4","preview_url":"https://cdn.example/clip.png","description":"A cat video",
+							"meta":{"original":{"width":360,"height":640}}},
+						{"type":"gifv","url":"https://cdn.example/loop.mp4","preview_url":"https://cdn.example/loop.png",
+							"meta":{"original":{"width":400,"height":300}}},
+						{"type":"audio","url":"https://cdn.example/sound.mp3","preview_url":"https://cdn.example/sound.png"}
+					],
+					"card":null
+				}`), nil
+			default:
+				t.Fatalf("unexpected metadata request %q", req.URL.String())
+				return nil, nil
+			}
+		})},
+		imageClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			fetchedURLs = append(fetchedURLs, req.URL.String())
+			return response(http.StatusOK, "image/png", pngData.String()), nil
+		})},
+		storeImage: func(_ context.Context, assetID string, _ []byte, _ string) (*evtv1.AssetRecord, error) {
+			return &evtv1.AssetRecord{
+				Id:      assetID,
+				Storage: &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: assetID}},
+			}, nil
+		},
+	}
+
+	result, err := fetcher.Fetch(context.Background(), postURL)
+	require.NoError(t, err)
+	require.NotNil(t, result.SocialPost)
+	// Only the static thumbnails are fetched, never the video, gifv, or audio
+	// files. The account has no avatar, so no further image requests happen.
+	assert.Equal(t, []string{"https://cdn.example/clip.png", "https://cdn.example/loop.png"}, fetchedURLs)
+	require.Len(t, result.SocialPost.Images, 2)
+	assert.Equal(t, "A cat video", result.SocialPost.Images[0].Alt)
+	assert.Equal(t, uint32(360), result.SocialPost.Images[0].Width)
+	assert.Equal(t, uint32(640), result.SocialPost.Images[0].Height)
+	assert.Equal(t, uint32(400), result.SocialPost.Images[1].Width)
+	assert.Equal(t, uint32(300), result.SocialPost.Images[1].Height)
+	assert.Equal(t, "asset-1", result.ImageAsset.GetId())
+}
+
 func TestFetchMastodonBoostRendersOriginalStatus(t *testing.T) {
 	const postURL = "https://social.example/@alice/123"
 	fetcher := &Fetcher{

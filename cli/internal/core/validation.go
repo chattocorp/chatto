@@ -28,76 +28,40 @@ func validateStringMaxLength(field, value string, max int) error {
 	return nil
 }
 
-// ValidateDisplayName validates a display name for allowed characters.
-// Allowed: letters (any script), digits, marks (diacritics), emoji/symbols,
-// space, hyphen, apostrophe, period, underscore.
-// Disallowed: control characters, zero-width characters, consecutive spaces.
-//
-// This function does NOT check length - callers should check len(name) <= MaxDisplayNameLength separately.
-// The name should be trimmed before calling this function.
+// ValidateDisplayName accepts single-line Unicode presentation text. A name must
+// contain a letter, number, punctuation mark, or symbol, not just combining marks
+// or whitespace. Joiners and emoji tags are the only permitted format characters.
+// Callers trim the name and check its length in Unicode code points separately.
+// An empty name is permitted here for creation paths that default to the login;
+// profile update paths reject empty names before they call this function.
 func ValidateDisplayName(name string) error {
 	if name == "" {
 		return nil // Empty check is handled elsewhere
 	}
 
-	prevWasSpace := false
-	for i, r := range name {
-		if i == 0 && !unicode.IsLetter(r) && !unicode.IsDigit(r) {
-			return ErrDisplayNameInvalidStart
-		}
-		// Check for consecutive spaces
-		if r == ' ' {
-			if prevWasSpace {
-				return ErrDisplayNameInvalidCharacter
-			}
-			prevWasSpace = true
-			continue
-		}
-		prevWasSpace = false
-
-		// Check for zero-width characters
-		if isZeroWidthChar(r) {
+	visible := false
+	for _, r := range name {
+		if unicode.IsControl(r) || unicode.Is(unicode.Zl, r) || unicode.Is(unicode.Zp, r) {
 			return ErrDisplayNameInvalidCharacter
 		}
-
-		// Check for control characters
-		if unicode.IsControl(r) {
+		if unicode.Is(unicode.Cf, r) && !isDisplayNameFormatChar(r) {
 			return ErrDisplayNameInvalidCharacter
 		}
-
-		// Whitelist: letters, digits, marks (diacritics), symbols (includes emoji),
-		// and common name punctuation
-		if unicode.IsLetter(r) ||
-			unicode.IsDigit(r) ||
-			unicode.IsMark(r) ||
-			unicode.IsSymbol(r) ||
-			r == '-' || r == '\'' || r == '.' || r == '_' {
-			continue
-		}
-
+		// Hangul fillers are letters and Braille blank is a symbol, but neither
+		// supplies visible content. Joiners and variation selectors do not either.
+		base := unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsPunct(r) || unicode.IsSymbol(r)
+		visible = visible || (base && r != '\u2800' && !unicode.Is(unicode.Other_Default_Ignorable_Code_Point, r))
+	}
+	if !visible {
 		return ErrDisplayNameInvalidCharacter
 	}
 	return nil
 }
 
-// isZeroWidthChar returns true for zero-width and invisible formatting characters
-// that could cause display confusion.
-func isZeroWidthChar(r rune) bool {
-	switch r {
-	case '\u200B', // Zero Width Space
-		'\u200C', // Zero Width Non-Joiner
-		'\u200D', // Zero Width Joiner
-		'\u200E', // Left-to-Right Mark
-		'\u200F', // Right-to-Left Mark
-		'\u2060', // Word Joiner
-		'\u2061', // Function Application
-		'\u2062', // Invisible Times
-		'\u2063', // Invisible Separator
-		'\u2064', // Invisible Plus
-		'\uFEFF': // Byte Order Mark / Zero Width No-Break Space
-		return true
-	}
-	return false
+// isDisplayNameFormatChar permits script joiners and the emoji tag alphabet,
+// including CANCEL TAG. Other format characters can conceal or reorder names.
+func isDisplayNameFormatChar(r rune) bool {
+	return r == '\u200C' || r == '\u200D' || (r >= '\U000E0020' && r <= '\U000E007F')
 }
 
 // NormalizeDisplayName trims whitespace and normalizes the display name.

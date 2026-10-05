@@ -6,8 +6,8 @@ import { tick } from 'svelte';
 import MessagePreviewCard from './MessagePreviewCard.svelte';
 import type { MessageLink } from '$lib/messageLinks';
 
-import { TimelineEventKind } from '$lib/render/timelineEvents';
-import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
+import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
+import type { RefreshedAttachmentUrls } from '@chatto/client/attachments/attachmentUrls';
 
 const { getRoomEventsAroundMock, timelineResults, refreshAssetUrlsMock, registryState } =
   vi.hoisted(() => ({
@@ -36,20 +36,27 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-vi.mock('$lib/api-client/roomTimeline', () => ({
+// The store mock also carries the frontend UI state of its server.
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
+
+vi.mock('@chatto/client/api/roomTimeline', () => ({
   createRoomTimelineAPI: vi.fn(() => ({
     getRoomEventsAround: getRoomEventsAroundMock
   }))
 }));
 
-vi.mock('$lib/api-client/attachments', async (importActual) => ({
-  ...(await importActual<typeof import('$lib/api-client/attachments')>()),
+vi.mock('@chatto/client/api/attachments', async (importActual) => ({
+  ...(await importActual<typeof import('@chatto/client/api/attachments')>()),
   createAttachmentAPI: vi.fn(() => ({
     refreshAssetUrls: refreshAssetUrlsMock
   }))
 }));
 
-vi.mock('$lib/state/server/registry.svelte', async () => {
+vi.mock('$lib/client', async () => {
+  const original = (await import('$lib/test-utils/clientMock')).clientMockDefaults;
   const { SvelteMap } = await import('svelte/reactivity');
   registryState.servers = new SvelteMap([
     ['server_1', { id: 'server_1', url: window.location.origin, name: 'Test Server', token: null }]
@@ -57,6 +64,7 @@ vi.mock('$lib/state/server/registry.svelte', async () => {
   registryState.stores = new SvelteMap();
   registryState.connections = new Map();
   return {
+    ...original,
     serverRegistry: {
       tryGetStore: (id: string) => registryState.stores.get(id),
       getServer: (id: string) => registryState.servers.get(id),
@@ -65,18 +73,15 @@ vi.mock('$lib/state/server/registry.svelte', async () => {
         return { id: 'server_1', url: window.location.origin, name: 'Test Server', token: null };
       },
       servers: [{ id: 'server_1', url: window.location.origin, name: 'Test Server', token: null }]
+    },
+    serverConnectionManager: {
+      getClient: (id: string) => registryState.connections.get(id)
     }
   };
 });
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'server_1'
-}));
-
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
-  serverConnectionManager: {
-    getClient: (id: string) => registryState.connections.get(id)
-  }
 }));
 
 function link(): MessageLink {

@@ -6,10 +6,11 @@
 -->
 <script lang="ts" module>
   import { goto } from '$app/navigation';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { resolve } from '$app/paths';
-  import { TimelineEventKind } from '$lib/render/timelineEvents';
-  import { createRoomTimelineAPI, type RoomTimelineAPI } from '$lib/api-client/roomTimeline';
-  import type { PendingHighlightStore } from '$lib/state/server/pendingHighlight.svelte';
+  import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
+  import { createRoomTimelineAPI, type RoomTimelineAPI } from '@chatto/client/api/roomTimeline';
+  import type { PendingHighlightStore } from '$lib/state/server/pendingHighlight';
 
   /**
    * Fetch a message by ID and redirect to the appropriate room or thread URL.
@@ -75,7 +76,7 @@
   // Wait for the active server projection to settle before redirecting,
   // so a deep-link to a DM doesn't briefly resolve as a missing channel
   // room and trigger the not-found redirect.
-  const navigation = $derived(stores.navigation);
+  const navigation = $derived(serverUi(stores).navigation);
 
   $effect(() => {
     if (navigation.isInitialLoading) return;
@@ -84,7 +85,7 @@
     const messageId = page.params.messageId!;
     resolveAndRedirect(
       serverScope.connection.getAPI(createRoomTimelineAPI),
-      stores.pendingHighlights,
+      serverUi(stores).pendingHighlights,
       serverSegment,
       roomId,
       messageId,

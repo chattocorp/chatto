@@ -4,7 +4,7 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { createAdminEventLogAPI } from '$lib/api-client/adminEventLog';
+  import { createAdminEventLogAPI } from '$lib/api/adminEventLog';
   import { Panel, Hint, PaneContent, Pill, LoadingFog, PaneHeader, PageTitle } from '$lib/ui';
   import { JsonCode } from '$lib/ui/code';
   import {

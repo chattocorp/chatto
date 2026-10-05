@@ -1,6 +1,7 @@
 /** Host-owned implementation settings and repository policy. Chat messages cannot select these values. */
 import { resolve } from 'node:path';
-import { ConfigurationError, setting } from '../settings.ts';
+import type { ThinkingLevel } from 'runling/agents';
+import { ConfigurationError, setting, thinkingSetting } from '../settings.ts';
 
 /** Publication is opt-in. These host-owned values cannot be selected by a chat message. */
 export interface ImplementationSettings {
@@ -8,6 +9,8 @@ export interface ImplementationSettings {
   repository: string;
   baseBranch?: string;
   model?: string;
+  /** Reasoning effort of the implementation worker. Defaults to `medium`. */
+  thinkingLevel?: ThinkingLevel;
   artifactsDirectory?: string;
 }
 
@@ -25,7 +28,8 @@ export function implementationSettings(): ImplementationSettings | undefined {
     directory: resolve(directory),
     repository,
     baseBranch: setting('CHATTO_SOURCE_REF'),
-    model: setting('CHATTO_IMPLEMENTATION_MODEL') ?? 'openai-codex/gpt-5.6-sol'
+    model: setting('CHATTO_IMPLEMENTATION_MODEL') ?? 'openai-codex/gpt-5.6-sol',
+    thinkingLevel: thinkingSetting('CHATTO_IMPLEMENTATION_THINKING', 'medium')
   });
 }
 

@@ -7,8 +7,8 @@ const mocks = vi.hoisted(() => ({ complete: vi.fn(), discovery: vi.fn(), goto: v
 // Page titles are tested separately from this page's partial route/server fixtures.
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 
-vi.mock('$lib/api-client/setup', () => ({ completeServerSetup: mocks.complete }));
-vi.mock('$lib/api-client/server', () => ({ getPublicServerInfo: mocks.discovery }));
+vi.mock('$lib/api/setup', () => ({ completeServerSetup: mocks.complete }));
+vi.mock('@chatto/client/api/server', () => ({ getPublicServerInfo: mocks.discovery }));
 vi.mock('$app/navigation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$app/navigation')>()),
   goto: mocks.goto

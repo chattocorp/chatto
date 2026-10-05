@@ -1,25 +1,28 @@
-import { ServerProjectionStore } from '$lib/state/server/projection.svelte';
-import { NavigationStore } from '$lib/state/server/rooms.svelte';
+import { ServerProjectionStore } from '@chatto/client/server/projection';
+import { NavigationStore } from '$lib/state/server/navigation';
+import { RoomListView } from '@chatto/client/server/rooms';
 import { RoomGroup, RoomGroupViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { userEvent } from 'vitest/browser';
 import { SvelteMap } from 'svelte/reactivity';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
-import { deletedDirectMessageParticipant } from '$lib/render/users';
+import { deletedDirectMessageParticipant } from '@chatto/client/timeline/users';
 import { sidebarNav } from '$lib/state/globals.svelte';
 import '../app.css';
 
-import { NotificationSignalKind } from '$lib/api-client/notifications';
-import type { RoomsListGroup } from '$lib/state/server/rooms.svelte';
+import { NotificationSignalKind } from '@chatto/client/api/notifications';
+import type { RoomsListGroup } from '$lib/state/server/navigation';
 import { getToasts, toast } from '$lib/ui/toast';
 import { TOUCH_ONLY_QUERY } from '$lib/utils/inputMediaQueries';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
+    notificationPath: vi.fn().mockReturnValue('/chat/-/room'),
     activeRoomId: undefined as string | undefined,
     activeCallRoomIds: new Set<string>(),
     projectedCallParticipants: new Map<string, unknown[]>(),
@@ -64,8 +67,11 @@ const { mocks } = vi.hoisted(() => ({
           totalCount: 0,
           notification: null
         }),
-        markRead: vi.fn(),
-        getCleanPath: vi.fn().mockReturnValue('/chat/-/room')
+        markRead: vi.fn()
+      },
+      /** Notification attention; the notification mock also serves it. */
+      get attention() {
+        return this.notifications;
       },
       roomUnread: {
         roomIsUnread: vi.fn((roomId: string) => mocks.unreadRoomIds.has(roomId)),
@@ -110,6 +116,24 @@ const { mocks } = vi.hoisted(() => ({
 
 const activeRoomRoute = new SvelteMap<string, string>();
 
+// The store mock also carries the frontend UI state of its server.
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
+
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    isOriginServer: vi.fn(() => true),
+    getServer: vi.fn(() => ({ id: 'origin', url: 'https://chat.example.test' })),
+    originServer: { id: 'origin' },
+    servers: [{ id: 'origin', url: 'https://chat.example.test' }]
+  }
+}));
+
+vi.mock('$lib/notificationPath', () => ({ notificationPath: mocks.notificationPath }));
+
 vi.mock('$app/state', () => ({
   page: {
     params: {
@@ -150,15 +174,6 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     },
     isCurrent: () => true
   })
-}));
-
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    isOriginServer: vi.fn(() => true),
-    getServer: vi.fn(() => ({ id: 'origin', url: 'https://chat.example.test' })),
-    originServer: { id: 'origin' },
-    servers: [{ id: 'origin', url: 'https://chat.example.test' }]
-  }
 }));
 
 vi.mock('$lib/state/appUi.svelte', () => ({
@@ -319,7 +334,7 @@ beforeEach(() => {
     totalCount: 0,
     notification: null
   });
-  mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/room');
+  mocks.notificationPath.mockReturnValue('/chat/-/room');
   mocks.store.roomDirectory.joinRoom.mockResolvedValue({ ok: true });
   mocks.markNavigationRoomAsRead.mockResolvedValue(true);
 });
@@ -1400,12 +1415,13 @@ describe('RoomList', () => {
       ];
     };
     mocks.store.navigation = new NavigationStore(
-      projection,
-      { hasUsableProjection: true },
-      {
+      new RoomListView(projection, { hasUsableProjection: true }),
+      () => ({
+        unreadNotificationCount: 0,
+        importantUnreadNotificationCount: 0,
         roomUnreadCounts: {},
         roomImportantUnreadCounts: {}
-      }
+      })
     ) as unknown as typeof originalNavigation;
     try {
       setPermissions(false, false);
@@ -2202,7 +2218,7 @@ describe('RoomList', () => {
       totalCount: 1,
       notification: roomNotification
     });
-    mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/channel-1/thread-1');
+    mocks.notificationPath.mockReturnValue('/chat/-/channel-1/thread-1');
     mocks.store.notifications.markRead.mockResolvedValue(true);
 
     const { container } = render(RoomList);
@@ -2213,7 +2229,8 @@ describe('RoomList', () => {
 
     await vi.waitFor(() => {
       expect(mocks.store.notifications.resolveRoomNotification).toHaveBeenCalledWith('channel-1', {
-        isDM: false
+        isDM: false,
+        attentionLevel: NotificationAttentionLevel.IMPORTANT
       });
       expect(mocks.store.pendingHighlights.set).toHaveBeenCalledWith(
         'channel-1',
@@ -2226,10 +2243,7 @@ describe('RoomList', () => {
         mocks.goto.mock.invocationCallOrder[0]
       );
       expect(mocks.store.notifications.markRead).not.toHaveBeenCalled();
-      expect(mocks.store.notifications.getCleanPath).toHaveBeenCalledWith(
-        'origin',
-        roomNotification
-      );
+      expect(mocks.notificationPath).toHaveBeenCalledWith('origin', roomNotification);
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1/thread-1');
     });
   });
@@ -2239,9 +2253,61 @@ describe('RoomList', () => {
 
     const { container } = render(RoomList);
 
-    const badge = q(container, '[data-testid="room-notification-badge"]');
+    const badge = q(container, '[data-testid="room-ambient-notification-badge"]');
     await expect.element(badge).toHaveClass('bg-text');
-    await expect.element(badge).not.toHaveClass('bg-attention');
+    await expect.element(badge).toHaveTextContent('2');
+    expect(q(container, '[data-testid="room-notification-badge"]')).toBeNull();
+  });
+
+  it('shows only the orange room badge when every notification is important', async () => {
+    setRoomNotificationCount('channel-1', 3);
+
+    const { container } = render(RoomList);
+
+    const badge = q(container, '[data-testid="room-notification-badge"]');
+    await expect.element(badge).toHaveClass('bg-attention');
+    await expect.element(badge).toHaveTextContent('3');
+    expect(q(container, '[data-testid="room-ambient-notification-badge"]')).toBeNull();
+  });
+
+  it('shows important and ambient counts side by side', async () => {
+    setRoomNotificationCount('channel-1', 5, 2);
+
+    const { container } = render(RoomList);
+
+    const important = q(container, '[data-testid="room-notification-badge"]');
+    const ambient = q(container, '[data-testid="room-ambient-notification-badge"]');
+    await expect.element(important).toHaveClass('bg-attention');
+    await expect.element(important).toHaveTextContent('2');
+    await expect.element(ambient).toHaveClass('bg-text');
+    await expect.element(ambient).toHaveTextContent('3');
+    expect(
+      ambient!.compareDocumentPosition(important!) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it('opens an ambient notification from the neutral badge', async () => {
+    setRoomNotificationCount('channel-1', 5, 2);
+    mocks.store.notifications.resolveRoomNotification.mockResolvedValue({
+      ok: true,
+      totalCount: 3,
+      notification: notification('reaction-1', 'channel-1')
+    });
+    mocks.notificationPath.mockReturnValue('/chat/-/channel-1');
+
+    const { container } = render(RoomList);
+
+    const badge = q(container, '[data-testid="room-ambient-notification-badge"]');
+    await expect.element(badge).toBeInTheDocument();
+    (badge?.closest('button') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => {
+      expect(mocks.store.notifications.resolveRoomNotification).toHaveBeenCalledWith('channel-1', {
+        isDM: false,
+        attentionLevel: NotificationAttentionLevel.AMBIENT
+      });
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1');
+    });
   });
 
   it('resolves a stale DM badge through the room-scoped notification query', async () => {
@@ -2252,7 +2318,7 @@ describe('RoomList', () => {
       totalCount: 1,
       notification: dmNotification
     });
-    mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/dm-with-participants');
+    mocks.notificationPath.mockReturnValue('/chat/-/dm-with-participants');
     mocks.store.notifications.markRead.mockResolvedValue(true);
 
     const { container } = render(RoomList);
@@ -2264,7 +2330,7 @@ describe('RoomList', () => {
     await vi.waitFor(() => {
       expect(mocks.store.notifications.resolveRoomNotification).toHaveBeenCalledWith(
         'dm-with-participants',
-        { isDM: true }
+        { isDM: true, attentionLevel: NotificationAttentionLevel.IMPORTANT }
       );
       expect(mocks.appUi.disableRoomCallWideFor).toHaveBeenCalledWith(
         'origin',
@@ -2300,7 +2366,8 @@ describe('RoomList', () => {
 
     await vi.waitFor(() => {
       expect(mocks.store.notifications.resolveRoomNotification).toHaveBeenCalledWith('channel-1', {
-        isDM: false
+        isDM: false,
+        attentionLevel: NotificationAttentionLevel.IMPORTANT
       });
       expect(mocks.goto).not.toHaveBeenCalled();
       expect(mocks.store.notifications.markRead).not.toHaveBeenCalled();

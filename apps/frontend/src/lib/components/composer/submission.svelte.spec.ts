@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getToasts, toast } from '$lib/ui/toast';
 import { ComposerSubmissionState, type PreparedPost, uploadPercentage } from './submission.svelte';
-import type { MentionRolesStatus } from '$lib/state/server/mentionRoles.svelte';
+import type { MentionRolesStatus } from '@chatto/client/server/mentionRoles';
 
 function preparedPost(overrides: Partial<PreparedPost> = {}): PreparedPost {
   return {

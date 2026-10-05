@@ -1,7 +1,7 @@
 import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { AttachmentAPI } from '$lib/api-client/attachments';
+import type { AttachmentAPI } from '@chatto/client/api/attachments';
 import {
   ASSET_URL_REFRESH_LEAD_MS,
   assetUrlExpiresAtMs,
@@ -13,7 +13,7 @@ import {
   refreshAttachmentUrlsForAssets,
   withAssetUrlRetryParam,
   type RefreshedAttachmentUrls
-} from './attachmentUrls';
+} from '@chatto/client/attachments/attachmentUrls';
 
 function apiWithRefresh(
   refreshAssetUrls: AttachmentAPI['refreshAssetUrls']

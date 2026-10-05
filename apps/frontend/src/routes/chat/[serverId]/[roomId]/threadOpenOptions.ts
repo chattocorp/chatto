@@ -1,5 +1,5 @@
 import type { QuoteInsertionContent } from '$lib/state/room';
-import type { AccountNameIdentity } from '$lib/render/accountName';
+import type { AccountNameIdentity } from '@chatto/client/timeline/accountName';
 
 export type PendingThreadReply = {
   eventId: string;

@@ -1,5 +1,7 @@
 {
   "voice": {
+    "picture_in_picture": "Beeld-in-beeld",
+    "picture_in_picture_failed": "De beeld-in-beeldmodus kon niet worden gewijzigd.",
     "connection_lost": "Verbinding verbroken",
     "connecting": "Verbinden...",
     "joining": "Deelnemen...",

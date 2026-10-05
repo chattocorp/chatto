@@ -8,10 +8,10 @@ import '../../app.css';
 import { q } from '$lib/test-utils';
 import { toast } from '$lib/ui/toast';
 
-import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
-import { ServerPresence } from '$lib/state/server/presence.svelte';
-import { setPresenceStatus } from '$lib/presenceTracking';
-import { deleteCustomStatus, setCustomStatus } from '$lib/api-client/userStatus';
+import { presencePreferences } from '$lib/state/server/presencePreference';
+import { ServerPresence } from '@chatto/client/server/presence';
+import { setPresenceStatus } from '$lib/state/server/presenceTracking';
+import { deleteCustomStatus, setCustomStatus } from '@chatto/client/api/userStatus';
 import type { AppUiState } from '$lib/state/appUi.svelte';
 import { getRoomSidebarPanelState } from '$lib/storage/roomSidebarPanel';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
@@ -20,13 +20,13 @@ import CurrentUserBarTestHarness from './CurrentUserBarTestHarness.svelte';
 let presencePreference: ReturnType<typeof presencePreferences.get>;
 let presence: ServerPresence;
 
-vi.mock('$lib/api-client/userStatus', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('$lib/api-client/userStatus')>()),
+vi.mock('@chatto/client/api/userStatus', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@chatto/client/api/userStatus')>()),
   deleteCustomStatus: vi.fn(async () => null),
   setCustomStatus: vi.fn(async (_config, status) => ({ ...status }))
 }));
 
-vi.mock('$lib/presenceTracking', () => ({
+vi.mock('$lib/state/server/presenceTracking', () => ({
   refreshPresencePreference: vi.fn(),
   setPresenceStatus: vi.fn(async (scope, mode) => {
     presencePreferences.get(scope).accept(mode, 'saved');
@@ -178,8 +178,8 @@ describe('CurrentUserBar', () => {
         hasVerifiedEmail: true
       },
       permissions: { loaded: false },
+      ui: { voiceCall: voiceCallState },
       store: {
-        voiceCall: voiceCallState,
         navigation: roomsState,
         projection: projectionState,
         presence,
@@ -535,7 +535,7 @@ describe('CurrentUserBar', () => {
       pending.resolve(null);
       await vi.waitFor(() => expect(server.currentUser.user!.customStatus).toBeNull());
       await expect.element(clear).not.toBeInTheDocument();
-      expect(notify).toHaveBeenCalledWith('Status cleared');
+      expect(notify).not.toHaveBeenCalled();
       expect(setPresenceStatus).not.toHaveBeenCalled();
       expect(customStatusEditorModuleLoaded).not.toHaveBeenCalled();
       await screen.getByTestId('current-user-presence-menu').click();
@@ -690,29 +690,34 @@ describe('CurrentUserBar', () => {
     );
   }
 
-  it('saves a custom status from the dialog and closes it', async () => {
-    const notify = vi.spyOn(toast, 'success');
-    vi.mocked(setCustomStatus).mockClear();
-    const { container } = render(CurrentUserBarTestHarness);
-    try {
-      const dialog = await openStatusDialog(container);
-      const text = dialog.querySelector<HTMLInputElement>(
-        '[data-testid="settings-custom-status-text"]'
-      )!;
-      await userEvent.fill(text, 'Deep work');
-      footerButton(dialog, 'Save status')!.click();
+  it.each([null, { emoji: '🍜', text: 'Lunch', expiresAt: null }])(
+    'saves a custom status from the dialog and closes it without a success toast (previous: %j)',
+    async (status) => {
+      server.currentUser.user!.customStatus = status;
+      const notify = vi.spyOn(toast, 'success');
+      vi.mocked(setCustomStatus).mockClear();
+      const { container } = render(CurrentUserBarTestHarness);
+      try {
+        const dialog = await openStatusDialog(container);
+        const text = dialog.querySelector<HTMLInputElement>(
+          '[data-testid="settings-custom-status-text"]'
+        )!;
+        await userEvent.fill(text, 'Deep work');
+        footerButton(dialog, 'Save status')!.click();
 
-      await vi.waitFor(() => {
-        expect(setCustomStatus).toHaveBeenCalledOnce();
-        expect(q(container, '[data-testid="custom-status-editor"]')).toBeFalsy();
-      });
-      expect(vi.mocked(setCustomStatus).mock.calls[0][1]).toMatchObject({ text: 'Deep work' });
-      expect(notify).toHaveBeenCalledWith('Status updated');
-    } finally {
-      notify.mockRestore();
-      toast.clear();
+        await vi.waitFor(() => {
+          expect(setCustomStatus).toHaveBeenCalledOnce();
+          expect(q(container, '[data-testid="custom-status-editor"]')).toBeFalsy();
+        });
+        expect(vi.mocked(setCustomStatus).mock.calls[0][1]).toMatchObject({ text: 'Deep work' });
+        expect(server.currentUser.user!.customStatus?.text).toBe('Deep work');
+        expect(notify).not.toHaveBeenCalled();
+      } finally {
+        notify.mockRestore();
+        toast.clear();
+      }
     }
-  });
+  );
 
   it('closes the status dialog with Cancel without saving', async () => {
     vi.mocked(setCustomStatus).mockClear();
@@ -728,16 +733,24 @@ describe('CurrentUserBar', () => {
   });
 
   it('clears an active status from the status dialog footer', async () => {
+    const notify = vi.spyOn(toast, 'success');
     server.currentUser.user!.customStatus = { emoji: '🍜', text: 'Lunch', expiresAt: null };
     const { container } = render(CurrentUserBarTestHarness);
-    const dialog = await openStatusDialog(container);
+    try {
+      const dialog = await openStatusDialog(container);
 
-    footerButton(dialog, 'Clear status')!.click();
+      footerButton(dialog, 'Clear status')!.click();
 
-    await vi.waitFor(() => {
-      expect(deleteCustomStatus).toHaveBeenCalledOnce();
-      expect(q(container, '[data-testid="custom-status-editor"]')).toBeFalsy();
-    });
+      await vi.waitFor(() => {
+        expect(deleteCustomStatus).toHaveBeenCalledOnce();
+        expect(q(container, '[data-testid="custom-status-editor"]')).toBeFalsy();
+      });
+      expect(server.currentUser.user!.customStatus).toBeNull();
+      expect(notify).not.toHaveBeenCalled();
+    } finally {
+      notify.mockRestore();
+      toast.clear();
+    }
   });
 
   it('picks an emoji inside the status dialog without submitting it', async () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import Toast from './Toast.svelte';
-import { accountNameToken } from '$lib/render/accountName';
+import { accountNameToken } from '@chatto/client/timeline/accountName';
 import type { ToastTone } from './toastState.svelte';
 
 function toastShell(container: Element): HTMLElement {

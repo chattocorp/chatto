@@ -11,8 +11,7 @@ const mocks = {
     threadRootId: string | null;
     attentionLevel: number;
   }>,
-  threadFollowStates: new Map<string, boolean>(),
-  hasUnreadFollowedThread: false
+  threadFollowStates: new Map<string, boolean>()
 };
 
 vi.mock('$app/paths', () => ({
@@ -32,86 +31,78 @@ describe('MyThreadsNavItem', () => {
   beforeEach(async () => {
     mocks.unreadOccurrences = [];
     mocks.threadFollowStates.clear();
-    mocks.hasUnreadFollowedThread = false;
     createTestServerScope({
       store: {
-        notifications: {
-          get attentionOccurrences() {
+        loadedThreadFollowState: (roomId: string, threadRootEventId: string) =>
+          mocks.threadFollowStates.get(`${roomId}\u0000${threadRootEventId}`) ?? null
+      },
+      ui: {
+        attention: {
+          get occurrences() {
             return mocks.unreadOccurrences;
           }
-        },
-        loadedThreadFollowState: (roomId: string, threadRootEventId: string) =>
-          mocks.threadFollowStates.get(`${roomId}\u0000${threadRootEventId}`) ?? null,
-        hasUnreadFollowedThreadInLoadedRooms: () => mocks.hasUnreadFollowedThread
+        }
       }
     });
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
   });
 
-  it('uses a neutral dot for unread replies', async () => {
-    mocks.hasUnreadFollowedThread = true;
+  it('shows an Important count badge for a followed-thread notification', async () => {
+    mocks.threadFollowStates.set('room-1\u0000root-1', true);
+    mocks.unreadOccurrences = [occurrence('reply-1', 'root-1', 2)];
 
     const { container } = render(MyThreadsNavItem, { props: { active: false } });
 
-    const dot = await waitForDot(container);
-    expect(dot?.classList).toContain('bg-neutral-action');
+    const badge = await waitForTestId(container, 'my-threads-notification-badge');
+    expect(badge.textContent).toBe('1');
+    expect(badge.classList).toContain('bg-attention');
+    expect(container.querySelector('a')?.textContent).toContain('1 notification');
+    expect(container.querySelector('a')?.textContent).not.toContain('1 notifications');
   });
 
-  it('uses notification orange when a notification occurrence also exists', async () => {
+  it('shows an ambient count badge for an Ambient notification occurrence', async () => {
     mocks.threadFollowStates.set('room-1\u0000root-1', true);
+    mocks.unreadOccurrences = [occurrence('reply-1', 'root-1', 1)];
+
+    const { container } = render(MyThreadsNavItem, { props: { active: false } });
+
+    const badge = await waitForTestId(container, 'my-threads-notification-badge');
+    expect(badge.classList).toContain('bg-text');
+  });
+
+  it('counts notification occurrences across followed threads only', async () => {
+    mocks.threadFollowStates.set('room-1\u0000root-1', true);
+    mocks.threadFollowStates.set('room-1\u0000root-2', true);
+    mocks.threadFollowStates.set('room-1\u0000root-3', false);
     mocks.unreadOccurrences = [
-      {
-        room: { id: 'room-1' },
-        eventId: 'reply-1',
-        threadRootId: 'root-1',
-        attentionLevel: 2
-      }
+      occurrence('reply-1', 'root-1', 1),
+      occurrence('reply-2', 'root-1', 1),
+      occurrence('reply-3', 'root-2', 2),
+      occurrence('reply-4', 'root-3', 2)
     ];
 
     const { container } = render(MyThreadsNavItem, { props: { active: false } });
 
-    const dot = await waitForDot(container);
-    expect(dot?.classList).toContain('bg-attention');
-  });
-
-  it('uses a neutral dot for an Ambient notification occurrence', async () => {
-    mocks.threadFollowStates.set('room-1\u0000root-1', true);
-    mocks.unreadOccurrences = [
-      {
-        room: { id: 'room-1' },
-        eventId: 'reply-1',
-        threadRootId: 'root-1',
-        attentionLevel: 1
-      }
-    ];
-
-    const { container } = render(MyThreadsNavItem, { props: { active: false } });
-
-    const dot = await waitForDot(container);
-    expect(dot?.classList).toContain('bg-neutral-action');
+    const badge = await waitForTestId(container, 'my-threads-notification-badge');
+    expect(badge.textContent).toBe('3');
+    expect(badge.classList).toContain('bg-attention');
+    expect(container.querySelector('a')?.textContent).toContain('3 notifications');
   });
 
   it('ignores notification attention for a thread that is not followed', async () => {
     mocks.threadFollowStates.set('room-1\u0000root-1', false);
-    mocks.unreadOccurrences = [
-      {
-        room: { id: 'room-1' },
-        eventId: 'reply-1',
-        threadRootId: 'root-1',
-        attentionLevel: 2
-      }
-    ];
+    mocks.unreadOccurrences = [occurrence('reply-1', 'root-1', 2)];
 
     const { container } = render(MyThreadsNavItem, { props: { active: false } });
 
-    expect(container.querySelector('[data-testid="my-threads-unread-dot"]')).toBeNull();
+    expect(container.querySelector('[data-testid="my-threads-notification-badge"]')).toBeNull();
   });
 
-  it('does not show unread reply state when no thread is followed', async () => {
+  it('does not show a badge without unread notifications', async () => {
     const { container } = render(MyThreadsNavItem, { props: { active: false } });
 
-    expect(container.querySelector('[data-testid="my-threads-unread-dot"]')).toBeNull();
+    expect(container.querySelector('[data-testid="my-threads-notification-badge"]')).toBeNull();
   });
 
   it('marks the active route semantically for the shared sidebar item treatment', async () => {
@@ -124,11 +115,15 @@ describe('MyThreadsNavItem', () => {
   });
 });
 
-async function waitForDot(container: HTMLElement): Promise<Element> {
-  let dot: Element | null = null;
+function occurrence(eventId: string, threadRootId: string, attentionLevel: number) {
+  return { room: { id: 'room-1' }, eventId, threadRootId, attentionLevel };
+}
+
+async function waitForTestId(container: HTMLElement, testid: string): Promise<Element> {
+  let element: Element | null = null;
   await vi.waitFor(() => {
-    dot = container.querySelector('[data-testid="my-threads-unread-dot"]');
-    expect(dot).not.toBeNull();
+    element = container.querySelector(`[data-testid="${testid}"]`);
+    expect(element).not.toBeNull();
   });
-  return dot!;
+  return element!;
 }

@@ -458,6 +458,36 @@ describe('service worker notifications', () => {
     );
   });
 
+  it('shows a generic notification for an unreadable push payload', async () => {
+    const worker = await importServiceWorker();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      await worker.dispatch('push', {
+        data: {
+          json: () => {
+            throw new SyntaxError('Unexpected token');
+          }
+        }
+      });
+    } finally {
+      consoleError.mockRestore();
+    }
+
+    expect(worker.registration.showNotification).toHaveBeenCalledWith('New notification', {
+      body: undefined,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      tag: undefined,
+      data: {
+        notificationId: undefined,
+        serverOrigin: undefined,
+        recipientId: undefined,
+        url: undefined
+      }
+    });
+  });
+
   it('uses declarative navigate as the fallback notification click URL', async () => {
     const worker = await importServiceWorker();
     const targetUrl = 'https://chatto.example/chat/-/room-2?highlight=event-2';

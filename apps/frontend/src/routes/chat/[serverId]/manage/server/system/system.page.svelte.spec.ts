@@ -20,9 +20,9 @@ vi.mock(
 
 let server: TestServerScope;
 
-vi.mock('$lib/api-client/adminDiagnostics', async () => {
-  const actual = await vi.importActual<typeof import('$lib/api-client/adminDiagnostics')>(
-    '$lib/api-client/adminDiagnostics'
+vi.mock('$lib/api/adminDiagnostics', async () => {
+  const actual = await vi.importActual<typeof import('$lib/api/adminDiagnostics')>(
+    '$lib/api/adminDiagnostics'
   );
   return {
     ...actual,

@@ -1,23 +1,15 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { RealtimeEvent, RoomKind, type ConsumeRealtimeOptions } from '@chatto/client';
+import { RealtimeEvent, RoomKind } from '@chatto/client';
 import { dispatchRoute } from '../../runling/src/runtime/routing.ts';
 import { chattoSource } from './realtime.ts';
+import { fakeChatto, settle } from './fake-chatto.ts';
 
-const mocks = vi.hoisted(() => ({ consume: vi.fn() }));
-vi.mock('@chatto/client', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@chatto/client')>();
-  return {
-    ...actual,
-    createChattoClient: () => ({
-      ...actual.createChattoClient({
-        serverUrl: 'https://chat.example',
-        apiKey: 'key',
-        fetch: async () => Response.json({ user: { profile: { id: 'bot' } } })
-      }),
-      consumeRealtime: mocks.consume
-    })
-  };
-});
+const chatto = fakeChatto({ viewerId: 'bot', routes: () => {} });
+vi.mock('@chatto/client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@chatto/client')>()),
+  createClient: () => chatto.createClient(),
+  createApi: (options: Parameters<typeof chatto.createApi>[0]) => chatto.createApi(options)
+}));
 afterEach(() => vi.unstubAllEnvs());
 
 test('source retries failed registration through Runling dispatch and ignores accepted replay', async () => {
@@ -35,15 +27,18 @@ test('source retries failed registration through Runling dispatch and ignores ac
       value: { roomId: 'room', roomKind: RoomKind.DM, bodyPlaintext: 'hello' }
     }
   });
-  mocks.consume.mockImplementation(async (options: ConsumeRealtimeOptions) => {
-    await options.onEvent(event);
-    expect(start).toHaveBeenCalledTimes(2);
-    await options.onEvent(event);
-    expect(start).toHaveBeenCalledTimes(2);
-  });
-  await chattoSource({
-    signal: new AbortController().signal,
+  const controller = new AbortController();
+  const running = chattoSource({
+    signal: controller.signal,
     state: new Map(),
     dispatch: (route, input) => dispatchRoute(route, input, start)
   });
+  await vi.waitFor(() => expect(chatto.connections.at(-1)?.listening).toBe(true));
+  chatto.connections.at(-1)!.emit(event);
+  await vi.waitFor(() => expect(start).toHaveBeenCalledTimes(2));
+  chatto.connections.at(-1)!.emit(event);
+  await settle();
+  expect(start).toHaveBeenCalledTimes(2);
+  controller.abort();
+  await running;
 });

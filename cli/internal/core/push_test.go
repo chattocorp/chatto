@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestPushSubscriptionKey(t *testing.T) {
@@ -388,33 +389,6 @@ func TestAdmitPushTestNotificationRateLimitsAcrossCalls(t *testing.T) {
 	}
 }
 
-func TestGetAllPushSubscriptions(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := context.Background()
-
-	_, err := core.SavePushSubscription(ctx, "push-user-all-a", "https://push.example.com/all-a", "key", "auth", "browser-a")
-	if err != nil {
-		t.Fatalf("SavePushSubscription user A error: %v", err)
-	}
-	_, err = core.SavePushSubscription(ctx, "push-user-all-b", "https://push.example.com/all-b", "key", "auth", "browser-b")
-	if err != nil {
-		t.Fatalf("SavePushSubscription user B error: %v", err)
-	}
-
-	subs, err := core.GetAllPushSubscriptions(ctx)
-	if err != nil {
-		t.Fatalf("GetAllPushSubscriptions error: %v", err)
-	}
-
-	seen := map[string]bool{}
-	for _, sub := range subs {
-		seen[sub.UserID] = true
-	}
-	if !seen["push-user-all-a"] || !seen["push-user-all-b"] {
-		t.Fatalf("GetAllPushSubscriptions missing users; got %#v", seen)
-	}
-}
-
 func TestGetUserPushSubscriptions(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
@@ -644,7 +618,14 @@ func TestGetUserPushSubscriptionsSkipsUnclaimedLegacyRecord(t *testing.T) {
 	ctx := context.Background()
 	userID := "push-legacy-user"
 	endpoint := "https://push.example.com/legacy-unclaimed"
-	data, err := proto.Marshal(&runtimestatev1.PushSubscription{Endpoint: endpoint, P256Dh: "key", Auth: "auth"})
+	// Every version has written created_at, so a legacy record is unexpired and
+	// only its missing owner claim keeps it inactive.
+	data, err := proto.Marshal(&runtimestatev1.PushSubscription{
+		Endpoint:  endpoint,
+		P256Dh:    "key",
+		Auth:      "auth",
+		CreatedAt: timestamppb.Now(),
+	})
 	if err != nil {
 		t.Fatalf("marshal legacy subscription: %v", err)
 	}
@@ -659,6 +640,8 @@ func TestGetUserPushSubscriptionsSkipsUnclaimedLegacyRecord(t *testing.T) {
 	if len(subscriptions) != 0 {
 		t.Fatalf("unclaimed legacy subscription should be inactive, got %d", len(subscriptions))
 	}
+	// Inactive is not expired: the record stays until the browser registers again.
+	requirePushKeyPresence(t, core, pushSubscriptionKey(userID, endpoint), true)
 }
 
 func TestConcurrentPushEndpointOwnershipClaimsHaveOneWinner(t *testing.T) {

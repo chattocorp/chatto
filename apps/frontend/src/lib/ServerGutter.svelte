@@ -9,7 +9,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
   import { pushState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { serverRegistry } from '$lib/client';
   import { m } from '$lib/i18n/messages';
   import { ScrollFader } from '$lib/ui';
   import ServerSidebarEntry from './ServerSidebarEntry.svelte';

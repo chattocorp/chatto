@@ -1,5 +1,7 @@
 {
   "voice": {
+    "picture_in_picture": "Resim içinde resim",
+    "picture_in_picture_failed": "Resim içinde resim modu değiştirilemedi.",
     "connection_lost": "Bağlantı kesildi",
     "connecting": "Bağlanıyor...",
     "joining": "Katılıyor...",

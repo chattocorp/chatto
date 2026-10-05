@@ -1,7 +1,7 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 /**
  * Unit tests for mention parsing utilities (pure functions).
- * Tests for wrapValidMentions are in mentions.svelte.test.ts (requires browser APIs).
+ * Tests for resolveRenderedMentions are in mentions.svelte.test.ts (requires browser APIs).
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -23,109 +23,24 @@ function member(login: string, displayName?: string): RoomMember {
   };
 }
 
+// The shared cases in testdata/mentions/extraction.json cover the parsing
+// rules in detail (see markdownMentions.test.ts).
 describe('extractMentions', () => {
-  it('extracts single mention', () => {
-    expect(extractMentions('Hello @alice')).toEqual(['alice']);
+  it('returns deduplicated handles in order of appearance', () => {
+    expect(extractMentions('@bob and @alice and @bob')).toEqual(['bob', 'alice']);
   });
 
-  it('extracts multiple mentions', () => {
-    expect(extractMentions('Hey @alice and @bob')).toEqual(['alice', 'bob']);
+  it('ignores handles in URLs, code, blockquotes, and links', () => {
+    expect(
+      extractMentions(
+        'https://social.5f9.de/@carol/1 `@dora` [@erin](https://example.com)\n> @frank\n\n@alice/@bob'
+      )
+    ).toEqual(['alice', 'bob']);
   });
 
-  it('deduplicates mentions', () => {
-    expect(extractMentions('@alice @bob @alice')).toEqual(['alice', 'bob']);
-  });
-
-  it('handles mention at start of string', () => {
-    expect(extractMentions('@alice hello')).toEqual(['alice']);
-  });
-
-  it('handles mention with punctuation before', () => {
-    expect(extractMentions('Hi, @alice!')).toEqual(['alice']);
-  });
-
-  it('handles usernames with dots', () => {
-    expect(extractMentions('@john.doe')).toEqual(['john.doe']);
-  });
-
-  it('handles usernames with hyphens and underscores', () => {
-    expect(extractMentions('@user_name and @user-name')).toEqual(['user_name', 'user-name']);
-  });
-
-  it('does not match email addresses', () => {
-    expect(extractMentions('email user@example.com')).toEqual([]);
-  });
-
-  it('returns empty array for text without mentions', () => {
-    expect(extractMentions('Hello world')).toEqual([]);
-  });
-
-  it('returns empty array for empty string', () => {
+  it('returns an empty array without mentions', () => {
     expect(extractMentions('')).toEqual([]);
-  });
-
-  it('handles @ symbol without valid username', () => {
-    expect(extractMentions('@ alone')).toEqual([]);
-  });
-
-  it('does not include trailing dot in username', () => {
-    // The regex doesn't allow trailing dots
-    expect(extractMentions('@alice.')).toEqual(['alice']);
-  });
-
-  it('does not extract mentions across emphasis boundaries', () => {
-    expect(extractMentions('@al*ice*')).toEqual(['al']);
-    expect(extractMentions('@*alice*')).toEqual([]);
-  });
-
-  it('ignores mentions inside inline code', () => {
-    expect(extractMentions('`@alice` @bob')).toEqual(['bob']);
-  });
-
-  it('ignores mentions inside escaped-backtick inline code', () => {
-    expect(extractMentions('\\`@alice\\` @bob')).toEqual(['bob']);
-  });
-
-  it('extracts mentions immediately after inline code', () => {
-    expect(extractMentions('`cmd`@alice')).toEqual(['alice']);
-    expect(extractMentions('see`cmd`@alice')).toEqual(['alice']);
-    expect(extractMentions('see `cmd`@alice')).toEqual(['alice']);
-  });
-
-  it('extracts mentions immediately after escaped-backtick inline code', () => {
-    expect(extractMentions('\\`cmd\\`@alice')).toEqual(['alice']);
-  });
-
-  it('ignores mentions inside fenced code blocks', () => {
-    expect(extractMentions('```\n@all\n```\n@bob')).toEqual(['bob']);
-  });
-
-  it('ignores mentions inside indented code blocks', () => {
-    expect(extractMentions('    @alice\n@bob')).toEqual(['bob']);
-  });
-
-  it('ignores mentions inside blockquotes', () => {
-    expect(extractMentions('> @alice said hi\n\n@bob replied')).toEqual(['bob']);
-  });
-
-  it('preserves mention order around excluded markdown regions', () => {
-    expect(extractMentions('@alice `@bob` @charlie\n> @dora\n```\n@erin\n```\n@frank')).toEqual([
-      'alice',
-      'charlie',
-      'frank'
-    ]);
-  });
-
-  it('does not treat unmatched backticks as code spans', () => {
-    expect(extractMentions('` @alice')).toEqual(['alice']);
-  });
-
-  it('treats literal html code tags as plain markdown text', () => {
-    expect(extractMentions('<code>@alice</code>')).toEqual(['alice']);
-  });
-
-  it('keeps a backslash before a mention as a mention boundary', () => {
-    expect(extractMentions('\\@alice')).toEqual(['alice']);
+    expect(extractMentions('user@example.com')).toEqual([]);
   });
 });
 
@@ -153,6 +68,12 @@ describe('findMemberByMention', () => {
 
 describe('isUserMentioned', () => {
   const members = [member('alice', 'Alice Smith'), member('bob', 'Bob Jones')];
+
+  it('returns false when the user handle only appears in a URL', () => {
+    expect(isUserMentioned('https://social.5f9.de/@alice/1', 'alice', [member('alice')])).toBe(
+      false
+    );
+  });
 
   it('returns true when user is mentioned by login', () => {
     expect(isUserMentioned('Hello @alice!', 'alice', members)).toBe(true);
@@ -208,6 +129,11 @@ describe('isUserMentioned', () => {
 });
 
 describe('hasRoleOrVirtualMention', () => {
+  it('ignores role and virtual handles in URLs', () => {
+    expect(hasRoleOrVirtualMention('https://social.5f9.de/@all/1', ['moderator'])).toBe(false);
+    expect(hasRoleOrVirtualMention('www.example.com/@moderator', ['moderator'])).toBe(false);
+  });
+
   it('returns true for virtual room mentions', () => {
     expect(hasRoleOrVirtualMention('@all please read', [])).toBe(true);
     expect(hasRoleOrVirtualMention('@HERE please read', [])).toBe(true);

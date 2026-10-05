@@ -1,0 +1,267 @@
+import { updateMask } from '@chatto/client/api/updateMask';
+import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/connect';
+import { AdminRoomLayoutService } from '@chatto/api-types/admin/v1/room_layout_connect';
+import {
+  type AdminRoomLayoutGroup as APIAdminRoomLayoutGroup,
+  type AdminRoomLayoutItem as APIAdminRoomLayoutItem
+} from '@chatto/api-types/admin/v1/room_layout_pb';
+import type { DirectorySidebarLink } from '@chatto/client/api/roomDirectory';
+import { RoomKind, type Room } from '@chatto/api-types/api/v1/rooms_pb';
+import {
+  normalizeRoomThreadingMode,
+  type RoomThreadingMode
+} from '@chatto/client/util/roomThreading';
+
+export type AdminRoomInfo = {
+  id: string;
+  name: string;
+  description?: string | null;
+  archived: boolean;
+  isUniversal: boolean;
+  slowModeSeconds: number;
+  threadingMode: RoomThreadingMode;
+};
+
+export type AdminManagedRoom = AdminRoomInfo & {
+  canManageRoom: boolean;
+  canManagePermissions: boolean;
+};
+
+export type AdminSidebarLinkInfo = {
+  id: string;
+  label: string;
+  url: string;
+};
+
+export type AdminSidebarItem =
+  | {
+      id: string;
+      kind: 'room';
+      room: AdminRoomInfo;
+    }
+  | {
+      id: string;
+      kind: 'link';
+      link: AdminSidebarLinkInfo;
+    };
+
+export type AdminRoomGroup = {
+  id: string;
+  name: string;
+  description?: string | null;
+  canCreateRoom: boolean;
+  rooms: AdminRoomInfo[];
+  items: AdminSidebarItem[];
+};
+
+export type AdminManagedRoomGroup = {
+  group: AdminRoomGroup;
+  canManageGroup: boolean;
+  canManagePermissions: boolean;
+};
+
+export type AdminRoomLayoutItemMutationInput = {
+  kind: AdminSidebarItem['kind'];
+  id: string;
+};
+
+export function createAdminRoomLayoutAPI(config: ConnectAPIConfig) {
+  const layout = createChattoClient(AdminRoomLayoutService, config);
+  return {
+    async getRoom(
+      roomId: string,
+      options: { signal?: AbortSignal } = {}
+    ): Promise<AdminManagedRoom | null> {
+      const response = await layout.getRoom({ roomId }, { signal: options.signal });
+      return response.room
+        ? {
+            ...mapAdminRoom(response.room),
+            canManageRoom: response.viewerCanManageRoom,
+            canManagePermissions: response.viewerCanManagePermissions
+          }
+        : null;
+    },
+
+    async getRoomGroup(
+      groupId: string,
+      options: { signal?: AbortSignal } = {}
+    ): Promise<AdminManagedRoomGroup | null> {
+      const response = await layout.getRoomGroup({ groupId }, { signal: options.signal });
+      return response.group
+        ? {
+            group: mapAdminRoomLayoutGroup(response.group),
+            canManageGroup: response.viewerCanManageGroup,
+            canManagePermissions: response.viewerCanManagePermissions
+          }
+        : null;
+    },
+
+    async listRoomGroups(): Promise<AdminRoomGroup[]> {
+      const response = await layout.listRoomGroups({});
+      return response.groups.map(mapAdminRoomLayoutGroup);
+    },
+
+    async createRoomGroup(input: {
+      name: string;
+      description?: string | null;
+    }): Promise<AdminRoomGroup | null> {
+      const response = await layout.createRoomGroup({
+        name: input.name,
+        description: input.description ?? ''
+      });
+      return response.group ? mapAdminRoomLayoutGroup(response.group) : null;
+    },
+
+    async updateRoomGroup(input: {
+      groupId: string;
+      name?: string;
+      description?: string | null;
+    }): Promise<AdminRoomGroup | null> {
+      const response = await layout.updateRoomGroup({
+        groupId: input.groupId,
+        name: input.name,
+        description: input.description === null ? '' : input.description,
+        updateMask: updateMask(input, ['name', 'description'])
+      });
+      return response.group ? mapAdminRoomLayoutGroup(response.group) : null;
+    },
+
+    async deleteRoomGroup(groupId: string): Promise<boolean> {
+      await layout.deleteRoomGroup({ groupId });
+      return true;
+    },
+
+    async reorderRoomGroups(orderedGroupIds: string[]): Promise<AdminRoomGroup[]> {
+      const response = await layout.reorderRoomGroups({ orderedGroupIds });
+      return response.groups.map(mapAdminRoomLayoutGroup);
+    },
+
+    async moveRoomGroup(input: {
+      groupId: string;
+      beforeGroupId?: string;
+    }): Promise<AdminRoomGroup[]> {
+      const response = await layout.moveRoomGroup({
+        groupId: input.groupId,
+        beforeGroupId: input.beforeGroupId
+      });
+      return response.groups.map(mapAdminRoomLayoutGroup);
+    },
+
+    async moveRoomToGroup(input: { roomId: string; groupId: string }): Promise<void> {
+      await layout.moveRoomToGroup(input);
+    },
+
+    async reorderSidebarItemsInGroup(input: {
+      groupId: string;
+      items: AdminRoomLayoutItemMutationInput[];
+    }): Promise<AdminRoomGroup | null> {
+      const response = await layout.reorderSidebarItemsInGroup({
+        groupId: input.groupId,
+        items: input.items.map(adminRoomLayoutItemInput)
+      });
+      return response.group ? mapAdminRoomLayoutGroup(response.group) : null;
+    },
+
+    async moveSidebarItem(input: {
+      item: AdminRoomLayoutItemMutationInput;
+      groupId: string;
+      before?: AdminRoomLayoutItemMutationInput;
+    }): Promise<AdminRoomGroup | null> {
+      const response = await layout.moveSidebarItem({
+        item: adminRoomLayoutItemInput(input.item),
+        groupId: input.groupId,
+        before: input.before ? adminRoomLayoutItemInput(input.before) : undefined
+      });
+      return response.group ? mapAdminRoomLayoutGroup(response.group) : null;
+    },
+
+    async createSidebarLink(input: {
+      groupId: string;
+      label: string;
+      url: string;
+    }): Promise<AdminSidebarLinkInfo | null> {
+      const response = await layout.createSidebarLink(input);
+      return response.sidebarLink ? mapSidebarLink(response.sidebarLink) : null;
+    },
+
+    async updateSidebarLink(input: {
+      linkId: string;
+      label: string;
+      url: string;
+    }): Promise<AdminSidebarLinkInfo | null> {
+      const response = await layout.updateSidebarLink({
+        ...input,
+        updateMask: updateMask(input, ['label', 'url'])
+      });
+      return response.sidebarLink ? mapSidebarLink(response.sidebarLink) : null;
+    },
+
+    async deleteSidebarLink(linkId: string): Promise<boolean> {
+      await layout.deleteSidebarLink({ linkId });
+      return true;
+    },
+
+    async moveSidebarLinkToGroup(input: { linkId: string; groupId: string }): Promise<void> {
+      await layout.moveSidebarLinkToGroup(input);
+    }
+  };
+}
+
+export type AdminRoomLayoutAPI = ReturnType<typeof createAdminRoomLayoutAPI>;
+
+function mapAdminRoomLayoutGroup(group: APIAdminRoomLayoutGroup): AdminRoomGroup {
+  const items = (group.items ?? []).flatMap((item) => mapAdminRoomLayoutItem(item) ?? []);
+  return {
+    id: group.id,
+    name: group.name,
+    description: group.description || null,
+    canCreateRoom: group.canCreateRoom ?? false,
+    rooms: roomsFromSidebarItems(items),
+    items
+  };
+}
+
+function adminRoomLayoutItemInput(item: AdminRoomLayoutItemMutationInput) {
+  return {
+    item:
+      item.kind === 'room'
+        ? { case: 'roomId' as const, value: item.id }
+        : { case: 'sidebarLinkId' as const, value: item.id }
+  };
+}
+
+function mapAdminRoomLayoutItem(item: APIAdminRoomLayoutItem): AdminSidebarItem | null {
+  if (item.item.case === 'room') {
+    const room = mapAdminRoom(item.item.value);
+    return { id: `room:${room.id}`, kind: 'room', room };
+  }
+  if (item.item.case === 'sidebarLink') {
+    const link = mapSidebarLink(item.item.value);
+    return { id: `link:${link.id}`, kind: 'link', link };
+  }
+  return null;
+}
+
+function mapAdminRoom(room: Room): AdminRoomInfo {
+  return {
+    id: room.id,
+    name: room.name,
+    description: room.description || null,
+    archived: room.archived ?? false,
+    isUniversal: room.universal ?? false,
+    slowModeSeconds: room.slowModeSeconds ?? 0,
+    threadingMode: normalizeRoomThreadingMode(RoomKind.CHANNEL, room.threadingMode)
+  };
+}
+
+function roomsFromSidebarItems(items: AdminSidebarItem[]): AdminRoomInfo[] {
+  return items.flatMap((item) => (item.kind === 'room' ? [item.room] : []));
+}
+
+function mapSidebarLink(link: DirectorySidebarLink): AdminSidebarLinkInfo {
+  return {
+    id: link.id,
+    label: link.label,
+    url: link.url
+  };
+}

@@ -13,14 +13,33 @@ const mocks = vi.hoisted(() => ({
     {
       isAuthenticated: boolean;
       serverInfo: { name: string };
-      notifications: {
-        attention: {
+      attention: {
+        counts: {
           unreadNotificationCount: number;
           importantUnreadNotificationCount: number;
         };
       };
     }
   >()
+}));
+
+// The store mock also carries the frontend UI state of its server.
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
+
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    get originServer() {
+      return mocks.originServer;
+    },
+    get servers() {
+      return mocks.servers;
+    },
+    tryGetStore: (id: string) => mocks.stores.get(id)
+  }
 }));
 
 vi.mock('$app/state', () => ({
@@ -34,24 +53,12 @@ vi.mock('$app/state', () => ({
   }
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    get originServer() {
-      return mocks.originServer;
-    },
-    get servers() {
-      return mocks.servers;
-    },
-    tryGetStore: (id: string) => mocks.stores.get(id)
-  }
-}));
-
 function store(name: string, importantUnreadNotificationCount = 0, isAuthenticated = true) {
   const result = $state({
     isAuthenticated,
     serverInfo: { name },
-    notifications: {
-      attention: {
+    attention: {
+      counts: {
         unreadNotificationCount: importantUnreadNotificationCount + 4,
         importantUnreadNotificationCount
       }
@@ -159,7 +166,7 @@ describe('formatPageTitle', () => {
     const { getTitle, cleanup } = createTitleGetter();
     expect(getTitle()).toBe('(1) Chatto Test');
 
-    mocks.stores.get('origin')!.notifications.attention.importantUnreadNotificationCount = 0;
+    mocks.stores.get('origin')!.attention.counts.importantUnreadNotificationCount = 0;
     flushSync();
 
     expect(getTitle()).toBe('Chatto Test');

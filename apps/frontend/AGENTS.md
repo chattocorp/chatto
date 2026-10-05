@@ -16,12 +16,30 @@ Do not generate playground links for code written into this repository.
 
 - Prefer store classes and small components. Stores own the data lifecycle.
   Components render state and call named store methods.
-- Server-scoped state belongs in `ServerStateStore` or related per-server
-  stores under `src/lib/state/server/`.
+- Server data lives in `@chatto/client` (`packages/chatto-client/`). Use the
+  `chatto-client-placement` skill to decide whether code goes there or into
+  `$lib`. Follow [its instructions](../../packages/chatto-client/AGENTS.md)
+  when you change it. Import its modules as `@chatto/client/<path>`.
+  `$lib/client` creates the frontend's one client and exports it with its
+  parts: `serverRegistry`, `serverConnectionManager`, and `eventBusManager`.
+  Import them from there. The frontend's server catalogue policy, such as
+  origin discovery, the Server Directory join, and the choice of a server to
+  show, lives in `$lib/serverCatalogue` on top of the registry (ADR-112).
+  Each client read in a `$derived`, `$effect`, or template creates a small
+  Svelte render effect; read a store value once before a loop.
+- Per-server UI state, such as navigation, notification attention, search
+  sessions, and the voice call, lives in `serverUi(store)`
+  (`$lib/state/server/serverUi`).
+  Derive it from the store where you can. A copy of server data is the
+  frontend's to clear: subscribe it to the store's boundary events
+  (`onReset`, `onRoomAccessLost`, `onUserDeleted`, and the others in
+  `@chatto/client/server/storeEvents`). Client stores keep error objects;
+  format them with `errorMessage()` where you show them.
 - Component-local `$state` is fine for UI-only state such as open/closed, hover,
   focus, draft text, and drag position.
-- Component render DTOs live in focused modules under `$lib/render`; keep them
-  narrow and normalize generated protobuf data at API boundaries.
+- Component render DTOs live in focused modules under `$lib/render`, or under
+  `@chatto/client/timeline` when client stores produce them; keep them narrow
+  and normalize generated protobuf data at API boundaries.
 - The URL is the source of truth for the active server. Pass explicit `serverId`
   values through helpers rather than relying on a global current server.
 - Descendants of a `[serverId]` route should obtain that server's store and
@@ -101,14 +119,14 @@ Do not generate playground links for code written into this repository.
 
 ## ConnectRPC And Generated Types
 
-- Use the per-server compatibility state under `src/lib/state/server/` for
+- Use the per-server compatibility state in `@chatto/client/server/compatibility` for
   version-skew warnings and the supported-version check. The client has one
   `MINIMUM_SUPPORTED_SERVER_VERSION` and does not gate individual features by
   server version. When the client needs a newer server feature, raise the
   minimum instead of adding a per-feature gate (FDR-031). Do not conflate
   version support with enabled server features or viewer permissions.
 - Use the app's connection surface from
-  `$lib/state/server/serverConnection.svelte.ts` for Connect base URLs,
+  `@chatto/client/server/serverConnection` for Connect base URLs,
   `/api/realtime` URLs, bearer tokens, auth-required handling, and
   reconnect/status UI state.
 - Keep the known-server catalogue and per-server sessions device-local and as
@@ -128,7 +146,7 @@ Do not generate playground links for code written into this repository.
   normal and warning. Only a failed attempt (transport, auth, protocol, or
   compatibility) shows the warning, and only a successful attempt removes it.
   Connection attempts in progress do not change the state (FDR-031).
-- `$lib/render/timelineEvents` contains the hand-owned timeline presentation
+- `@chatto/client/timeline/timelineEvents` contains the hand-owned timeline presentation
   model. Realtime handlers consume the generated public `RealtimeEvent`
   catalogue directly. Do not add a second frontend event taxonomy or calls for
   the retired legacy API.
@@ -316,11 +334,13 @@ Do not generate playground links for code written into this repository.
 - Use automatic "load more" pagination when a scroll/container edge is reached.
 - Use TanStack Query for snapshot-style ConnectRPC reads. Import
   `createQuery`, `createInfiniteQuery`, and `createMutation` from
-  `$lib/query/client`, which binds them to the shared client. Scope private query
-  keys by server and connection session, keep the cache memory-only, and purge
-  it at authentication and privacy boundaries. Keep realtime projections,
-  timelines, notifications, presence, calls, and message search in their
-  owning per-server stores; see ADR-062.
+  `$lib/query/client`, which binds them to the shared client in
+  `$lib/query/queryClient`. Scope private query
+  keys by server and connection session, and keep the cache memory-only.
+  `connectQueryCaches` in `$lib/query/cacheRegistry` purges it at the
+  store's authentication and privacy boundaries. Keep realtime projections,
+  timelines, notifications, and presence in the client's per-server stores,
+  and calls and message search in `serverUi`; see ADR-062.
 - Use event-driven updates from the per-server event bus and explicit projected
   refetches rather than assuming a normalized client cache.
 - When a snapshot query also reconciles a realtime-owned store, do not replay a
@@ -414,14 +434,25 @@ Do not generate playground links for code written into this repository.
   Assert on `receivedRequest(handler)` and `receivedContext(handler)` (headers,
   timeout). Test cancellation with `AbortSignal.abort()` and expect
   `Code.Canceled`. Throw a `ConnectError` from a handler to test an error.
+- To replace parts of the frontend client in a spec, mock `$lib/client` and
+  spread `clientMockDefaults` from `$lib/test-utils/clientMock` first, so the
+  mocked module keeps every export. Do not import the original module in the
+  mock factory: in browser specs, that import can hang.
 - Mock the `/chat/[serverId]` scope with `createTestServerScope` from
   `$lib/test-utils/serverScope.svelte`. Replace the scope module with the
   `serverScopeModule` of that file, call `createTestServerScope` in
   `beforeEach`, and change the fixture's state in tests. Do not write a new
-  `useServerScope` mock by hand.
-- `vitest-setup-client.ts` imports `$lib/query/client` before each browser
-  spec. Because of this, `vi.mock` of `$lib/query/client` or
-  `@tanstack/svelte-query` in a browser spec has no effect. Test against the
+  `useServerScope` mock by hand. The fixture's store also serves as its
+  `serverUi` state; add fake UI members, such as `voiceCall`, with the `ui`
+  option. A spec with a hand-written store mock replaces
+  `$lib/state/server/serverUi` with `serverUiIsStore` from
+  `$lib/test-utils/serverUiMock`.
+- `vitest-setup-client.ts` imports `@chatto/client/svelte` and
+  `$lib/query/client` before each browser spec. Because of this, `vi.mock` of
+  `$lib/query/client`, `$lib/query/queryClient`, or
+  `@tanstack/svelte-query` in a browser spec has no effect. Keep the setup
+  imports small: a module that the setup file imports cannot be mocked by a
+  spec. Test against the
   real `queryClient`: control the reads through the mocked API, and let the
   setup file clear the cache after each test.
 - Use `expect.element(...)` for DOM assertions and flush after Svelte state

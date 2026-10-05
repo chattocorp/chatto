@@ -8,6 +8,8 @@
     "call_participants": "{count}-deelnemers in gesprek",
     "go_to_notifications": "Ga naar {count}-meldingen",
     "notifications": "{count}-meldingen",
+    "go_to_other_notifications": "Ga naar {count} andere meldingen",
+    "other_notifications": "{count} andere meldingen",
     "unread_messages": "ongelezen berichten",
     "go_to_dm_notifications": "Ga naar {count} directe berichtmeldingen",
     "new_direct_messages": "{count} nieuwe privéchats",

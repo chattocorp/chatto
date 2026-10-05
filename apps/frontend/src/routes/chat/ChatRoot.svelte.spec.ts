@@ -3,8 +3,8 @@ import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { createRawSnippet } from 'svelte';
-import type { CurrentUser } from '$lib/api-client/viewer';
-import { CurrentUserState } from '$lib/auth/currentUser.svelte';
+import type { CurrentUser } from '@chatto/client/api/viewer';
+import { CurrentUserState } from '@chatto/client/auth/currentUser';
 
 const mocks = vi.hoisted(() => {
   const originCurrentUser = {
@@ -50,12 +50,15 @@ const mocks = vi.hoisted(() => {
     resumeReturnNavigation: vi.fn(async () => false),
     initPresenceTracking: vi.fn(),
     stopPresenceTracking: vi.fn(),
+    refreshPresencePreference: vi.fn(),
+    watchStores: vi.fn(),
+    stopWatchingStores: vi.fn(),
     initSessionChannel: vi.fn(),
     stopSessionChannel: vi.fn(),
     onSessionTerminated: vi.fn(),
     stopSessionTermination: vi.fn(),
-    firstAuthenticatedServerId: vi.fn(() => 'remote'),
     clearServerAuthentication: vi.fn(),
+    firstAuthenticatedServerId: vi.fn(() => 'remote'),
     hardRedirectAfterSignOut: vi.fn(),
     originSignInRequired: false,
     beginOriginReauthentication: vi.fn(),
@@ -68,7 +71,14 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+// The store mock also carries the frontend UI state of its server.
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
+
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
     originServer: { id: 'origin' },
     get servers() {
@@ -80,19 +90,15 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       if (serverId === 'remote') return mocks.remoteStore;
       return undefined;
     },
-    firstAuthenticatedServerId: mocks.firstAuthenticatedServerId,
     clearServerAuthentication: mocks.clearServerAuthentication,
+    watchStores: (setup: (store: unknown) => void) => {
+      mocks.watchStores(setup);
+      return mocks.stopWatchingStores;
+    },
     get originSignInRequired() {
       return mocks.originSignInRequired;
     }
-  }
-}));
-
-vi.mock('$lib/auth/reauth', () => ({
-  beginOriginReauthentication: mocks.beginOriginReauthentication
-}));
-
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+  },
   serverConnectionManager: {
     getClient: (serverId: string) => ({
       serverId,
@@ -102,10 +108,7 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
           updateSettings: mocks.updateSettings
         }) as unknown
     })
-  }
-}));
-
-vi.mock('$lib/state/server/realtimeTransport.svelte', () => ({
+  },
   eventBusManager: {
     synchronizeAuthenticatedServers: (registrations: unknown[], activeServerId: string | null) => {
       mocks.lifecycle.push('synchronize');
@@ -121,6 +124,14 @@ vi.mock('$lib/state/server/realtimeTransport.svelte', () => ({
   }
 }));
 
+vi.mock('$lib/serverCatalogue', () => ({
+  firstAuthenticatedServerId: mocks.firstAuthenticatedServerId
+}));
+
+vi.mock('$lib/auth/reauth', () => ({
+  beginOriginReauthentication: mocks.beginOriginReauthentication
+}));
+
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'remote'
 }));
@@ -134,11 +145,12 @@ vi.mock('$lib/navigation', () => ({
   serverIdToSegment: (serverId: string) => `${serverId}.example.test`
 }));
 
-vi.mock('$lib/presenceTracking', () => ({
+vi.mock('$lib/state/server/presenceTracking', () => ({
   initPresenceTracking: (...args: unknown[]) => {
     mocks.initPresenceTracking(...args);
     return { sync: () => (args[0] as () => unknown[])(), stop: mocks.stopPresenceTracking };
-  }
+  },
+  refreshPresencePreference: mocks.refreshPresencePreference
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
@@ -152,9 +164,12 @@ vi.mock('$lib/auth/returnNavigation', () => ({
   resumeReturnNavigation: mocks.resumeReturnNavigation
 }));
 
-vi.mock('$lib/auth/signOut', () => ({
-  hardRedirectAfterSignOut: mocks.hardRedirectAfterSignOut,
+vi.mock('@chatto/client/auth/signOut', () => ({
   isExplicitSignOutRedirectInProgress: () => false
+}));
+
+vi.mock('$lib/auth/signOutRedirect', () => ({
+  hardRedirectAfterSignOut: mocks.hardRedirectAfterSignOut
 }));
 
 vi.mock('$lib/auth/sessionChannel', () => ({
@@ -164,7 +179,7 @@ vi.mock('$lib/auth/sessionChannel', () => ({
   }
 }));
 
-vi.mock('$lib/api-client/memberDirectory', () => ({
+vi.mock('@chatto/client/api/memberDirectory', () => ({
   mapDirectoryMember: vi.fn()
 }));
 
@@ -183,11 +198,11 @@ vi.mock('$lib/utils/deviceTimezone', () => ({
   }
 }));
 
-vi.mock('$lib/api-client/presence', () => ({
+vi.mock('@chatto/client/api/presence', () => ({
   createPresenceAPI: vi.fn()
 }));
 
-vi.mock('$lib/api-client/viewer', () => ({
+vi.mock('@chatto/client/api/viewer', () => ({
   viewerResponseToState: vi.fn(),
   getCurrentUserViaConnect: vi.fn()
 }));
@@ -265,7 +280,7 @@ describe('ChatRoot', () => {
     unmount();
   });
 
-  it('uses the origin viewer and bus installed by the application-root coordinator', () => {
+  it('uses the origin viewer and bus installed by the application-root coordinator', async () => {
     mocks.originCurrentUser.user = originUser;
     mocks.originCurrentUser.loading = false;
     mocks.originCurrentUser.verifiedUserId = originUser.id;
@@ -282,7 +297,10 @@ describe('ChatRoot', () => {
       getPresenceAPIs().map((api) => ({ serverId: (api as { serverId: string }).serverId }))
     ).toEqual([{ serverId: 'origin' }, { serverId: 'remote' }]);
     expect(container.querySelector('[data-testid="chat-root-child"]')).not.toBeNull();
-    expect(container.querySelectorAll('[data-testid="chat-root-component-stub"]')).toHaveLength(3);
+    // Push setup loads on demand, after the first render.
+    await vi.waitFor(() =>
+      expect(container.querySelectorAll('[data-testid="chat-root-component-stub"]')).toHaveLength(3)
+    );
 
     const [[handleCrossTabLogout]] = mocks.initSessionChannel.mock.calls as [[() => void]];
     handleCrossTabLogout();
@@ -324,7 +342,7 @@ describe('ChatRoot', () => {
     expect(mocks.stopSessionChannel).toHaveBeenCalledOnce();
   });
 
-  it('keeps remote realtime and presence active without installing origin-only behavior', () => {
+  it('keeps remote realtime and presence active without installing origin-only behavior', async () => {
     const { container, unmount } = render(ChatRoot, {
       props: { children }
     });
@@ -343,12 +361,38 @@ describe('ChatRoot', () => {
     ).toEqual([{ serverId: 'remote' }]);
 
     expect(container.querySelector('[data-testid="chat-root-child"]')).not.toBeNull();
-    expect(container.querySelectorAll('[data-testid="chat-root-component-stub"]')).toHaveLength(2);
+    // Push setup loads on demand, after the first render.
+    await vi.waitFor(() =>
+      expect(container.querySelectorAll('[data-testid="chat-root-component-stub"]')).toHaveLength(2)
+    );
 
     unmount();
 
     expect(mocks.stopPresenceTracking).toHaveBeenCalledOnce();
     expect(mocks.stopSessionChannel).not.toHaveBeenCalled();
+  });
+
+  it("reads the viewer's presence choice again when another device changed it", () => {
+    const { unmount } = render(ChatRoot, { props: { children } });
+    const [[setup]] = mocks.watchStores.mock.calls as [[(store: unknown) => void]];
+    let listener!: (update: unknown) => void;
+    setup({
+      serverId: 'remote',
+      accountId: 'remote-user',
+      onUpdate: (next: (update: unknown) => void) => {
+        listener = next;
+        return () => {};
+      }
+    });
+    listener({ event: { event: { case: 'messagePosted' } } });
+    expect(mocks.refreshPresencePreference).not.toHaveBeenCalled();
+    listener({ event: { event: { case: 'viewerPresencePreferenceChanged' } } });
+    expect(mocks.refreshPresencePreference).toHaveBeenCalledWith({
+      serverId: 'remote',
+      userId: 'remote-user'
+    });
+    unmount();
+    expect(mocks.stopWatchingStores).toHaveBeenCalledOnce();
   });
 
   it('reports the device time zone once for a viewer without an explicit zone', async () => {

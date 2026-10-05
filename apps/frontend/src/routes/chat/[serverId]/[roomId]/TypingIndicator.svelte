@@ -24,14 +24,14 @@ message list layout, and it announces changes politely to screen readers via a
 </script>
 
 <script lang="ts">
-  import { accountNameToken } from '$lib/render/accountName';
+  import { accountNameToken } from '@chatto/client/timeline/accountName';
   import { scale } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { prefersReducedMotion } from 'svelte/motion';
   import { type RoomMember } from '$lib/state/room';
   import { m } from '$lib/i18n/messages';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import type { UserStore } from '$lib/state/server/users.svelte';
+  import type { UserStore } from '@chatto/client/server/users';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
 
   let {

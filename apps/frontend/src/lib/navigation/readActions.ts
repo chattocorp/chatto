@@ -1,11 +1,11 @@
-import { createReadStateAPI } from '$lib/api-client/readState';
-import { createRoomDirectoryAPI, RoomDirectoryScope } from '$lib/api-client/roomDirectory';
-import { serverRegistry } from '$lib/state/server/registry.svelte';
-import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
+import { createReadStateAPI } from '@chatto/client/api/readState';
+import { serverUi } from '$lib/state/server/serverUi';
+import { createRoomDirectoryAPI, RoomDirectoryScope } from '@chatto/client/api/roomDirectory';
+import { serverRegistry, serverConnectionManager } from '$lib/client';
 
 /** Mark one room read while keeping the local unread indicator optimistic and race-safe. */
 export async function markNavigationRoomAsRead(serverId: string, roomId: string): Promise<boolean> {
-  const unread = serverRegistry.getStore(serverId).roomUnread;
+  const unread = serverUi(serverRegistry.getStore(serverId)).roomUnread;
   const optimisticRead = unread.beginOptimisticRead(roomId);
 
   try {
@@ -24,7 +24,7 @@ export async function markNavigationRoomAsRead(serverId: string, roomId: string)
 
 /** Resolve the server's room snapshot, then mark every unread joined room as read. */
 export async function markNavigationServerAsRead(serverId: string): Promise<boolean> {
-  const unread = serverRegistry.getStore(serverId).roomUnread;
+  const unread = serverUi(serverRegistry.getStore(serverId)).roomUnread;
   const snapshotRevision = unread.captureSnapshotRevision();
 
   try {
