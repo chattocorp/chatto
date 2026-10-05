@@ -166,8 +166,8 @@ messages value, the Server setting applies.
 
 ### Read-only room
 
-In the room's permissions, deny `message.post` for `everyone`. Allow it for
-each role that can post, in the same room. To also stop replies, deny
+In the room's permissions, allow `message.post` for each role that can post.
+Then deny it for `everyone` in the same room. To also stop replies, deny
 `message.post-in-thread` and `message.post-in-interactions` for `everyone`. To
 stop uploads, deny `message.attach`. Remove the denies to go back to the server
 defaults.
@@ -177,13 +177,18 @@ defaults.
 <Steps>
 
 1. Create a role, such as `engineering`, and assign it.
-2. In the room's permissions, deny `room.list` and `room.join` for `everyone`.
-3. In the same room, allow `room.list` and `room.join` for `engineering`.
+2. In the room's permissions, allow `room.list` and `room.join` for
+   `engineering`.
+3. In the same room, deny `room.list` and `room.join` for `everyone`.
 4. Turn on **Universal** to add each member of the role to the room
    automatically.
 5. Remove the current room members who must not have access.
 
 </Steps>
+
+Add the allows before the denies. You can change a permission setting only
+if you have that permission, unless you are an owner. If the deny removes your
+own access first, you cannot add the allows after it.
 
 Other roles need their own allow in the room. A server or room-group allow does
 not override the room-level `everyone` deny. Owners can access the room only in
