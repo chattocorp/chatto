@@ -457,8 +457,73 @@ func (c *ChattoCore) CreateBot(ctx context.Context, actorID, login, displayName 
 	return c.CreateBotWithAPIKeyName(ctx, actorID, login, displayName, defaultBotAPIKeyName)
 }
 
-// CreateBotWithAPIKeyName creates a bot and names its initial show-once API key.
+// botPermissionGrant is one direct allow on a bot at server or DM scope.
+type botPermissionGrant struct {
+	scope PermissionScope
+	perm  Permission
+}
+
+// defaultBotPermissions are the direct allows that CreateBotWithAPIKeyName
+// gives a new bot. In rooms it joins, the bot can read and reply in threads
+// that it started or where someone directly mentioned it. In DMs that a human
+// starts with it, it can read and post. It cannot read whole rooms, post new
+// root messages in rooms, or find and join rooms. See FDR-038.
+var defaultBotPermissions = []botPermissionGrant{
+	{ScopeServer, PermMessageReadInteractions},
+	{ScopeServer, PermMessagePostInInteractions},
+	{ScopeDM, PermMessageRead},
+	{ScopeDM, PermMessagePost},
+}
+
+// CreateBotWithAPIKeyName creates a bot, names its initial show-once API key,
+// and gives it the default bot permissions. The defaults are ordinary direct
+// allows that the owner can clear later. They commit in the same EVT batch as
+// the account. A default that the owner is not entitled to is left out, as
+// the owner could not grant it manually either.
 func (c *ChattoCore) CreateBotWithAPIKeyName(ctx context.Context, actorID, login, displayName, apiKeyName string) (*Bot, error) {
+	return c.createBot(ctx, actorID, login, displayName, apiKeyName, true)
+}
+
+// CreateBotWithExplicitPermissions creates a bot without any permissions and
+// names its initial show-once API key. Server bootstrap uses it because its
+// configuration lists every permission of the bot.
+func (c *ChattoCore) CreateBotWithExplicitPermissions(ctx context.Context, actorID, login, displayName, apiKeyName string) (*Bot, error) {
+	return c.createBot(ctx, actorID, login, displayName, apiKeyName, false)
+}
+
+// ownerEntitledBotDefaults returns the default bot permissions that ownerID is
+// entitled to. Resolution enforces the owner ceiling again on every check, so
+// a decision that changes before the batch commits only leaves a dormant
+// grant, the same as a later loss of the owner's permission.
+func (c *ChattoCore) ownerEntitledBotDefaults(ctx context.Context, ownerID string) ([]botPermissionGrant, error) {
+	// Read the RBAC tail first, so a grant to the owner on another replica is
+	// not missed.
+	filter := evtstream.RBACSubjectFilter()
+	seq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("read RBAC tail: %w", err)
+	}
+	if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(filter, seq)); err != nil {
+		return nil, fmt.Errorf("wait for RBAC projection: %w", err)
+	}
+	grants := make([]botPermissionGrant, 0, len(defaultBotPermissions))
+	for _, grant := range defaultBotPermissions {
+		kind := KindChannel
+		if grant.scope == ScopeDM {
+			kind = KindDM
+		}
+		decision, err := c.PermResolver().resolveEntitlement(ctx, ownerID, kind, "", "", grant.perm)
+		if err != nil {
+			return nil, err
+		}
+		if decision == DecisionAllow {
+			grants = append(grants, grant)
+		}
+	}
+	return grants, nil
+}
+
+func (c *ChattoCore) createBot(ctx context.Context, actorID, login, displayName, apiKeyName string, withDefaults bool) (*Bot, error) {
 	if apiKeyName != "" && strings.TrimSpace(apiKeyName) == "" {
 		return nil, invalidArgument("bot API key name must contain 1 to 64 characters")
 	}
@@ -482,12 +547,20 @@ func (c *ChattoCore) CreateBotWithAPIKeyName(ctx context.Context, actorID, login
 	if err := check(); err != nil {
 		return nil, err
 	}
+	var grants []botPermissionGrant
+	if withDefaults {
+		var err error
+		if grants, err = c.ownerEntitledBotDefaults(ctx, actorID); err != nil {
+			return nil, err
+		}
+	}
 	var apiKey string
 	user, err := c.createUserWithOptions(ctx, actorID, login, displayName, "", userCreationOptions{
 		isBot:         true,
 		botOwnerID:    actorID,
 		botAPIKeyOut:  &apiKey,
 		botAPIKeyName: apiKeyName,
+		botGrants:     grants,
 		authorize:     check,
 	})
 	if err != nil {

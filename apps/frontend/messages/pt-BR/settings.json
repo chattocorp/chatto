@@ -555,6 +555,7 @@
       "deleted": "Bot excluído",
       "delete_failed": "Falha ao excluir o bot",
       "permissions": {
+        "defaults": "Bots novos já podem responder a menções e conversar por mensagem direta. Para que seu bot publique avisos, leia todas as mensagens ou entre em salas sozinho, ative mais permissões abaixo. Adicione-o a salas na linha “Inscreveu-se”.",
         "owner_ceiling": "Escolha o que este bot pode fazer. Você só pode conceder a ele permissões que também possui. Se você perder uma permissão, o bot também não poderá mais usá-la.",
         "save_failed": "Falha ao atualizar a permissão do bot"
       },

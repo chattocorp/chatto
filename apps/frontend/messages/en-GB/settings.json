@@ -555,6 +555,7 @@
       "deleted": "Bot deleted",
       "delete_failed": "Failed to delete bot",
       "permissions": {
+        "defaults": "New bots can answer mentions and chat in DMs right away. To let your bot post announcements, read every message, or join rooms on its own, turn on more permissions below. Add it to rooms in the Joined row.",
         "owner_ceiling": "Choose what your bot can do. You can only give it permissions you have yourself. If you lose a permission, your bot loses it too.",
         "save_failed": "Failed to update bot permission"
       },

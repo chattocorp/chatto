@@ -555,6 +555,7 @@
       "deleted": "Bot eliminato",
       "delete_failed": "Impossibile eliminare il bot",
       "permissions": {
+        "defaults": "I nuovi bot possono subito rispondere alle menzioni e chattare nei messaggi diretti. Per far pubblicare annunci al tuo bot, fargli leggere ogni messaggio o farlo entrare da solo nelle stanze, attiva altre autorizzazioni qui sotto. Aggiungilo alle stanze nella riga «Iscritto».",
         "owner_ceiling": "Scegli cosa può fare questo bot. Puoi assegnargli solo le autorizzazioni che possiedi. Se perdi un'autorizzazione, anche il bot non potrà più usarla.",
         "save_failed": "Impossibile aggiornare l'autorizzazione del bot"
       },

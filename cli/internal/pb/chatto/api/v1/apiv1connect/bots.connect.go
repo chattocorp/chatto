@@ -104,6 +104,11 @@ type BotServiceClient interface {
 	// Gets several visible bots. Missing and inaccessible bots are omitted.
 	BatchGetBots(context.Context, *connect.Request[v1.BatchGetBotsRequest]) (*connect.Response[v1.BatchGetBotsResponse], error)
 	// Creates a bot owned by the authenticated human caller. Requires bot.create.
+	// The bot gets default direct allows: message.read-interactions and
+	// message.post-in-interactions at server scope, and message.read and
+	// message.post at direct-message scope. A default that the caller does not
+	// hold is left out. Change the defaults with
+	// AdminPermissionService.SetUserPermission.
 	CreateBot(context.Context, *connect.Request[v1.CreateBotRequest]) (*connect.Response[v1.CreateBotResponse], error)
 	// Deletes a bot and invalidates all of its API keys.
 	DeleteBot(context.Context, *connect.Request[v1.DeleteBotRequest]) (*connect.Response[v1.DeleteBotResponse], error)
@@ -363,6 +368,11 @@ type BotServiceHandler interface {
 	// Gets several visible bots. Missing and inaccessible bots are omitted.
 	BatchGetBots(context.Context, *connect.Request[v1.BatchGetBotsRequest]) (*connect.Response[v1.BatchGetBotsResponse], error)
 	// Creates a bot owned by the authenticated human caller. Requires bot.create.
+	// The bot gets default direct allows: message.read-interactions and
+	// message.post-in-interactions at server scope, and message.read and
+	// message.post at direct-message scope. A default that the caller does not
+	// hold is left out. Change the defaults with
+	// AdminPermissionService.SetUserPermission.
 	CreateBot(context.Context, *connect.Request[v1.CreateBotRequest]) (*connect.Response[v1.CreateBotResponse], error)
 	// Deletes a bot and invalidates all of its API keys.
 	DeleteBot(context.Context, *connect.Request[v1.DeleteBotRequest]) (*connect.Response[v1.DeleteBotResponse], error)

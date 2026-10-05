@@ -555,6 +555,7 @@
       "deleted": "Bot forigita",
       "delete_failed": "Malsukcesis forigi bot",
       "permissions": {
+        "defaults": "Novaj robotoj tuj povas respondi al mencioj kaj babili en rektaj mesaĝoj. Por ke via roboto afiŝu anoncojn, legu ĉiujn mesaĝojn aŭ mem aliĝu al ĉambroj, ŝaltu pliajn permesojn sube. Aldonu ĝin al ĉambroj en la vico „Aliĝis“.",
         "owner_ceiling": "Elektu, kion ĉi tiu roboto rajtas fari. Vi povas doni al ĝi nur permesojn, kiujn vi mem havas. Se vi perdas permeson, ankaŭ la roboto ne plu povos uzi ĝin.",
         "save_failed": "Malsukcesis ĝisdatigi bot-permeson"
       },

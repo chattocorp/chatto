@@ -164,6 +164,18 @@ exercise more authority than its human owner currently possesses.
   durable mention fact.
 - Bots do not inherit the implicit `everyone` role, named-role permissions, or
   any other baseline grants. An absent bot permission is denied.
+- `BotService.CreateBot` gives a new bot four default direct allows:
+  `message.read-interactions` and `message.post-in-interactions` at server
+  scope, and `message.read` and `message.post` at DM scope. With these, the
+  bot can answer direct mentions and threads in rooms that it is a member of,
+  and chat in DMs that a human starts with it. It cannot read whole rooms,
+  post new root messages in rooms, or find and join rooms. The defaults commit
+  in the same EVT batch as the account. A default that the owner is not
+  entitled to is left out. The defaults are ordinary grants: the matrix shows
+  them, and the owner can clear them. Bots that server bootstrap creates get
+  only the permissions in their configuration. Existing bots do not change.
+- The Permissions tab of a bot explains the defaults above the matrix and
+  tells the owner how to give the bot more access.
 - The account permission matrix has a **Joined** row above the permission rows.
   Owners and human bot managers can add and remove the bot in each visible
   channel room that is not archived. A confirmation dialog explains that the
@@ -280,11 +292,11 @@ baseline or named-role grants, and absence means deny.
 **Why:** API keys are long-lived automation credentials and should start with
 no ambient authority. Owners should be able to explain a bot's access from one
 explicit matrix rather than by combining roles and server defaults.
-**Tradeoff:** Owners must grant even ordinary member capabilities before a new
-bot can do useful work, and newly introduced permissions do not automatically
-become available to existing bots. Owners cannot carve out a denied narrower
-scope beneath a broader bot grant; they must clear the broader grant and add
-only the narrower grants the bot should retain.
+**Tradeoff:** Owners must grant ordinary member capabilities beyond the
+creation defaults (decision 13) explicitly, and newly introduced permissions do
+not automatically become available to existing bots. Owners cannot carve out a
+denied narrower scope beneath a broader bot grant; they must clear the broader
+grant and add only the narrower grants the bot should retain.
 
 ### 4. The owner's current authority is a dynamic ceiling
 
@@ -454,6 +466,27 @@ does not clear an earlier failure. An empty history does not prove successful
 delivery. Access is checked before sending. The message body is
 the currently readable version, so it can change between attempts after an
 edit. Retracted or inaccessible messages are not sent.
+
+### 13. Interaction-only defaults at creation
+
+**Decision:** `CreateBot` writes a small set of default direct allows on the
+new bot: interaction read and reply at server scope, and read and post at DM
+scope. They commit atomically with the account and are capped by the owner's
+entitlement at creation. Bootstrap-created bots keep only their configured
+permissions.
+**Why:** A bot with no permissions cannot do anything, so every owner had to
+learn the permission matrix first. Most bots answer people who address them.
+The defaults make that work at once, but they never expose a whole room: the
+bot sees only threads it is part of and DMs that people start with it.
+Explicit grants keep the allowlist model of decision 3: the matrix still
+explains all access. The bundled frontend briefly offered combinable
+capability tiles in the creation dialog instead. That added much UI for a
+choice that most owners make the same way, and it only helped the bundled
+frontend.
+**Tradeoff:** A new bot can answer mentions and DMs before its owner reviews
+its permissions. Owners who want a silent bot must clear the defaults. The
+defaults are a creation-time policy, so changing them later does not change
+existing bots.
 
 ## Permissions
 

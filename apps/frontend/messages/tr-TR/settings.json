@@ -555,6 +555,7 @@
       "deleted": "Bot silindi",
       "delete_failed": "Bot silinemedi",
       "permissions": {
+        "defaults": "Yeni botlar hemen bahsetmelere yanıt verebilir ve doğrudan mesajlarda sohbet edebilir. Botunuzun duyuru göndermesi, tüm mesajları okuması veya odalara kendisi katılması için aşağıdan daha fazla izin açın. Botu odalara “Katıldı” satırından ekleyin.",
         "owner_ceiling": "Bu botun neler yapabileceğini seçin. Yalnızca sizin de sahip olduğunuz izinleri verebilirsiniz. Bir izni kaybederseniz bot da artık o izni kullanamaz.",
         "save_failed": "Bot izni güncellenemedi"
       },

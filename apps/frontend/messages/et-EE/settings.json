@@ -555,6 +555,7 @@
       "deleted": "Bot kustutatud",
       "delete_failed": "Boti kustutamine ebaõnnestus",
       "permissions": {
+        "defaults": "Uued botid saavad kohe mainimistele vastata ja otsesõnumites vestelda. Kui soovite, et teie bot postitaks teadaandeid, loeks kõiki sõnumeid või liituks ise ruumidega, lülitage allpool sisse rohkem lube. Lisage ta ruumidesse real „Liitunud“.",
         "owner_ceiling": "Vali, mida see bot teha tohib. Saad anda talle ainult õigusi, mis sul endal on. Kui kaotad mõne õiguse, ei saa ka bot seda enam kasutada.",
         "save_failed": "Boti loa värskendamine ebaõnnestus"
       },

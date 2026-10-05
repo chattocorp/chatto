@@ -555,6 +555,7 @@
       "deleted": "Bobot byl smazán",
       "delete_failed": "Smazání robota se nezdařilo",
       "permissions": {
+        "defaults": "Noví boti mohou hned odpovídat na zmínky a chatovat v přímých zprávách. Pokud má váš bot posílat oznámení, číst každou zprávu nebo se sám připojovat k místnostem, zapněte níže další oprávnění. Do místností ho přidáte v řádku „Připojeno“.",
         "owner_ceiling": "Vyberte, co tento bot smí dělat. Můžete mu udělit jen oprávnění, která sami máte. Pokud o některé oprávnění přijdete, nebude ho moci používat ani bot.",
         "save_failed": "Nepodařilo se aktualizovat oprávnění robota"
       },

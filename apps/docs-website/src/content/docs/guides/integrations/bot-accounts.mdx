@@ -21,8 +21,9 @@ permissions and cannot sign in through the login forms.
 1. Open **Server Admin → Bots** and select **Create Bot**.
 2. Enter a username and a display name.
 3. Copy the API key before you close the dialog. Chatto cannot show it again.
-4. Open the detail page of the bot and select **Permissions**. Enable the
-   server, room-group, or room permissions that the integration needs.
+4. Open the detail page of the bot and select **Permissions**. Check the
+   default permissions, and enable the server, room-group, or room
+   permissions that the integration also needs.
 5. Enable `room.join` for the rooms that the bot needs. In the **Joined** row
    at the top of the matrix, select each room to add the bot, and confirm.
    Clear a room to remove the bot.
@@ -40,6 +41,28 @@ When you delete the owner account, Chatto also deletes all bots that the
 account owns. Reassign long-lived bots first.
 
 ## Grant permissions
+
+A new bot starts with these permissions, so it can answer people who address
+it:
+
+| Permission | Scope | Effect |
+| --- | --- | --- |
+| `message.read-interactions` | Server | Reads threads where someone mentions the bot, and threads it started. |
+| `message.post-in-interactions` | Server | Replies in those threads. |
+| `message.read` | Direct messages | Reads DMs that people start with the bot. |
+| `message.post` | Direct messages | Posts in those DMs. |
+
+Chatto leaves out a default that you do not have yourself. To make a silent
+bot, clear the defaults. For other kinds of bots, add permissions:
+
+| Bot | Add |
+| --- | --- |
+| Announcements or alerts | `message.post` at server or room scope |
+| Reads every message, for example a logger | `message.read` at server or room scope |
+| Finds and joins rooms itself | `room.list` and `room.join` |
+
+Bots that the `[bootstrap]` configuration creates get only the permissions
+that the configuration lists.
 
 Bots do not inherit `everyone`, named roles, or the roles of their owner. The
 bot matrix is an allowlist. A permission is effective only while the owner also

@@ -122,6 +122,11 @@ export const BotService = {
     },
     /**
      * Creates a bot owned by the authenticated human caller. Requires bot.create.
+     * The bot gets default direct allows: message.read-interactions and
+     * message.post-in-interactions at server scope, and message.read and
+     * message.post at direct-message scope. A default that the caller does not
+     * hold is left out. Change the defaults with
+     * AdminPermissionService.SetUserPermission.
      *
      * @generated from rpc chatto.api.v1.BotService.CreateBot
      */

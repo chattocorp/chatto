@@ -737,6 +737,9 @@ describe('Bot detail page', () => {
     await settle();
 
     expect(container.querySelector('[data-testid="bot-permissions-matrix"]')).not.toBeNull();
+    expect(container.textContent).toContain(
+      'New bots can answer mentions and chat in DMs right away.'
+    );
   });
 
   it('denies the permissions section to a viewer who cannot operate the bot', async () => {
@@ -746,6 +749,7 @@ describe('Bot detail page', () => {
 
     expect(container.querySelector('[data-testid="bot-permissions-matrix"]')).toBeNull();
     expect(container.textContent).toContain('You do not have permission to access this page.');
+    expect(container.textContent).not.toContain('New bots can answer mentions');
   });
 
   it('reassigns the bot to a selected human owner', async () => {

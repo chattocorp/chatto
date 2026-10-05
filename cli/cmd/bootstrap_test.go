@@ -216,6 +216,13 @@ func TestApplyBootstrap_CreatesConfiguredBotAndCredential(t *testing.T) {
 	if authenticated.GetId() != bot.GetId() {
 		t.Fatalf("authenticated user = %q, want %q", authenticated.GetId(), bot.GetId())
 	}
+	// Bootstrap grants only the configured permissions, not the CreateBot defaults.
+	if decision, err := c.GetUserExplicitServerOverride(ctx, bot.GetId(), core.PermMessagePostInInteractions); err != nil || decision != core.DecisionNone {
+		t.Fatalf("bootstrap bot message.post-in-interactions = %s, %v; want none", decision, err)
+	}
+	if decision, err := c.GetUserExplicitDMOverride(ctx, bot.GetId(), core.PermMessagePost); err != nil || decision != core.DecisionNone {
+		t.Fatalf("bootstrap bot DM message.post = %s, %v; want none", decision, err)
+	}
 
 	webhooks, err := c.ListBotOutboundWebhooks(ctx, owner.GetId(), bot.GetId())
 	if err != nil {

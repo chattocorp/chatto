@@ -555,6 +555,7 @@
       "deleted": "Bot usunięty",
       "delete_failed": "Nie udało się usunąć bota",
       "permissions": {
+        "defaults": "Nowe boty od razu mogą odpowiadać na wzmianki i rozmawiać w wiadomościach prywatnych. Aby twój bot publikował ogłoszenia, czytał każdą wiadomość lub sam dołączał do pokojów, włącz poniżej więcej uprawnień. Dodaj go do pokojów w wierszu „Dołączył”.",
         "owner_ceiling": "Wybierz, co ten bot może robić. Możesz nadać mu tylko uprawnienia, które masz samodzielnie. Jeśli utracisz uprawnienie, bot również nie będzie mógł go używać.",
         "save_failed": "Nie udało się zaktualizować uprawnień bota"
       },

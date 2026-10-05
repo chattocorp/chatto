@@ -2,7 +2,8 @@
 @component
 
 Permissions section of a bot: its direct grants, capped by the owner's
-authority. Only the owner and bot managers can open it.
+authority, with help about the grants that a new bot gets by default. Only
+the owner and bot managers can open it.
 -->
 <script lang="ts">
   import { UserPermissionsMatrix } from '$lib/components/rbac';
@@ -15,6 +16,7 @@ authority. Only the owner and bot managers can open it.
 
 <!-- Keep the matrix owner while the bot read is pending. -->
 {#if detail.isPending || detail.canOperateBot}
+  <Hint tone="info">{m('settings.bots.permissions.defaults')}</Hint>
   <UserPermissionsMatrix
     userId={detail.botId}
     subjectKind={m('settings.bots.singular')}

@@ -555,6 +555,7 @@
       "deleted": "Bots ir izdzēsts",
       "delete_failed": "Neizdevās izdzēst robotu",
       "permissions": {
+        "defaults": "Jauni boti uzreiz var atbildēt uz pieminējumiem un tērzēt tiešajās ziņās. Lai jūsu bots publicētu paziņojumus, lasītu visas ziņas vai pats pievienotos istabām, ieslēdziet vairāk atļauju zemāk. Pievienojiet to istabām rindā “Pievienojās”.",
         "owner_ceiling": "Izvēlieties, ko šis bots drīkst darīt. Varat tam piešķirt tikai tās atļaujas, kas ir jums pašam. Ja zaudēsiet kādu atļauju, arī bots to vairs nevarēs izmantot.",
         "save_failed": "Neizdevās atjaunināt robota atļauju"
       },

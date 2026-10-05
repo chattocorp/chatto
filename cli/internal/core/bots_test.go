@@ -746,7 +746,7 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	bot, err := c.CreateBot(ctx, owner.GetId(), "permission_bot", "Permission Bot")
+	bot, err := c.CreateBotWithExplicitPermissions(ctx, owner.GetId(), "permission_bot", "Permission Bot", defaultBotAPIKeyName)
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
 	}
@@ -1537,5 +1537,98 @@ func TestBotOwnerUpdatesBotProfile(t *testing.T) {
 	}
 	if _, err := c.UpdateManagedUserProfile(ctx, owner.GetId(), botID, nil, nil, nil); !errors.Is(err, ErrInvalidArgument) {
 		t.Fatalf("empty update err = %v, want ErrInvalidArgument", err)
+	}
+}
+
+func TestCreateBotGrantsOwnerEntitledDefaultPermissions(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "defaults-owner", "Defaults Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	bot, err := c.CreateBot(ctx, owner.GetId(), "default_bot", "Default Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	botID := bot.User.GetId()
+	for _, tc := range []struct {
+		scope PermissionScope
+		perm  Permission
+		want  DecisionKind
+	}{
+		{ScopeServer, PermMessageReadInteractions, DecisionAllow},
+		{ScopeServer, PermMessagePostInInteractions, DecisionAllow},
+		{ScopeDM, PermMessageRead, DecisionAllow},
+		{ScopeDM, PermMessagePost, DecisionAllow},
+		{ScopeServer, PermMessageRead, DecisionNone},
+		{ScopeServer, PermMessagePost, DecisionNone},
+		{ScopeServer, PermRoomList, DecisionNone},
+		{ScopeServer, PermRoomJoin, DecisionNone},
+	} {
+		if got := c.rbacModel.decision(tc.scope, "", botID, tc.perm); got != tc.want {
+			t.Errorf("stored %s at %s = %s, want %s", tc.perm, tc.scope, got, tc.want)
+		}
+	}
+	for _, tc := range []struct {
+		kind RoomKind
+		perm Permission
+		want DecisionKind
+	}{
+		{KindChannel, PermMessageReadInteractions, DecisionAllow},
+		{KindChannel, PermMessagePostInInteractions, DecisionAllow},
+		{KindChannel, PermMessageRead, DecisionDeny},
+		{KindChannel, PermMessagePost, DecisionDeny},
+		{KindChannel, PermRoomJoin, DecisionDeny},
+		{KindDM, PermMessageRead, DecisionAllow},
+		{KindDM, PermMessagePost, DecisionAllow},
+	} {
+		if got, err := c.PermResolver().Resolve(ctx, botID, tc.kind, "", tc.perm); err != nil || got != tc.want {
+			t.Errorf("effective %s in %s = %s, %v; want %s", tc.perm, tc.kind, got, err, tc.want)
+		}
+	}
+
+	// A default is an ordinary grant that the owner can clear.
+	if err := c.SetUserPermissionState(ctx, owner.GetId(), botID, PermissionTargetScope{Kind: MatrixScopeDM}, PermMessagePost, PermissionStateNone); err != nil {
+		t.Fatalf("clear default grant: %v", err)
+	}
+	if got, err := c.PermResolver().Resolve(ctx, botID, KindDM, "", PermMessagePost); err != nil || got != DecisionDeny {
+		t.Fatalf("cleared DM message.post = %s, %v; want deny", got, err)
+	}
+
+	// A default that the owner is not entitled to is left out. Without
+	// message.post, which includes message.post-in-interactions, the owner
+	// holds neither post default.
+	if err := c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost); err != nil {
+		t.Fatalf("deny owner permission: %v", err)
+	}
+	capped, err := c.CreateBot(ctx, owner.GetId(), "capped_bot", "Capped Bot")
+	if err != nil {
+		t.Fatalf("CreateBot capped: %v", err)
+	}
+	for _, tc := range []struct {
+		scope PermissionScope
+		perm  Permission
+		want  DecisionKind
+	}{
+		{ScopeServer, PermMessageReadInteractions, DecisionAllow},
+		{ScopeServer, PermMessagePostInInteractions, DecisionNone},
+		{ScopeDM, PermMessageRead, DecisionAllow},
+		{ScopeDM, PermMessagePost, DecisionNone},
+	} {
+		if got := c.rbacModel.decision(tc.scope, "", capped.User.GetId(), tc.perm); got != tc.want {
+			t.Errorf("capped bot %s at %s = %s, want %s", tc.perm, tc.scope, got, tc.want)
+		}
+	}
+
+	explicit, err := c.CreateBotWithExplicitPermissions(ctx, owner.GetId(), "explicit_bot", "Explicit Bot", defaultBotAPIKeyName)
+	if err != nil {
+		t.Fatalf("CreateBotWithExplicitPermissions: %v", err)
+	}
+	for _, grant := range defaultBotPermissions {
+		if got := c.rbacModel.decision(grant.scope, "", explicit.User.GetId(), grant.perm); got != DecisionNone {
+			t.Errorf("explicit bot %s at %s = %s, want none", grant.perm, grant.scope, got)
+		}
 	}
 }

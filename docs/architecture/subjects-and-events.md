@@ -408,6 +408,15 @@ and affected asset views. Automatic follows and read markers remain separate
 post-commit work. See [FDR-003](../fdr/FDR-003-thread-reply-echo.md) and
 [`messages.go`](../../cli/internal/core/messages.go).
 
+`BotService.CreateBot` commits the bot's `UserAccountCreatedEvent`, its
+default `RbacPermissionGrantedEvent` facts on `evt.rbac.server` and
+`evt.rbac.dm`, and its `BotApiKeyCreatedEvent` in one batch that guards
+`evt.>`. Before the batch, it waits for the RBAC projection and leaves out
+each default that the owner is not entitled to. Success waits for the user,
+mentionable, user-auth, and RBAC projections. Server bootstrap creates bots
+without the defaults. See [FDR-038](../fdr/FDR-038-bot-accounts.md) and
+[`bots.go`](../../cli/internal/core/bots.go).
+
 These compound-command batches use existing payloads and subjects. Historical
 replay and projection snapshots need no migration. Readers that understand the
 existing facts can read the batches. During a deployment with older writers,

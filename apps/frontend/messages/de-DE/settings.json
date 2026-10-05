@@ -555,6 +555,7 @@
       "deleted": "Bot gelöscht",
       "delete_failed": "Bot konnte nicht gelöscht werden",
       "permissions": {
+        "defaults": "Neue Bots können sofort auf Erwähnungen antworten und in DMs chatten. Damit dein Bot Ankündigungen sendet, jede Nachricht liest oder selbst Räumen beitritt, schalte unten weitere Berechtigungen ein. Füge ihn in der Zeile „Beigetreten“ zu Räumen hinzu.",
         "owner_ceiling": "Wähle aus, was dein Bot tun darf. Du kannst ihm nur Berechtigungen geben, die du selbst hast. Wenn du eine Berechtigung verlierst, gilt das auch für deinen Bot.",
         "save_failed": "Bot-Berechtigung konnte nicht aktualisiert werden"
       },

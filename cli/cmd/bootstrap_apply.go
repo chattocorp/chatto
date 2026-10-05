@@ -145,7 +145,7 @@ func applyBootstrapBot(ctx context.Context, logger *log.Logger, c *core.ChattoCo
 	if displayName == "" {
 		displayName = spec.Login
 	}
-	bot, err := c.CreateBotWithAPIKeyName(ctx, owner.GetId(), spec.Login, displayName, spec.APIKeyName)
+	bot, err := c.CreateBotWithExplicitPermissions(ctx, owner.GetId(), spec.Login, displayName, spec.APIKeyName)
 	if err != nil {
 		logger.Error("Failed to create [bootstrap] bot", "error", err)
 		return false

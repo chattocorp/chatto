@@ -555,6 +555,7 @@
       "deleted": "Botten raderad",
       "delete_failed": "Det gick inte att ta bort bot",
       "permissions": {
+        "defaults": "Nya bottar kan direkt svara på omnämnanden och chatta i direktmeddelanden. Om din bot ska skicka utskick, läsa alla meddelanden eller gå med i rum på egen hand slår du på fler behörigheter nedan. Lägg till den i rum på raden ”Gick med”.",
         "owner_ceiling": "Välj vad den här boten får göra. Du kan bara ge den behörigheter som du själv har. Om du förlorar en behörighet kan boten inte heller använda den längre.",
         "save_failed": "Det gick inte att uppdatera botbehörighet"
       },
