@@ -9,11 +9,11 @@ import (
 )
 
 func TestMapPreservesOrderAndLimit(t *testing.T) {
-	var inFlight int32
+	var inFlight atomic.Int32
 	var maxInFlight int32
 
 	got, err := Map(context.Background(), 2, []int{1, 2, 3, 4}, func(ctx context.Context, _ int, n int) (int, error) {
-		current := atomic.AddInt32(&inFlight, 1)
+		current := inFlight.Add(1)
 		for {
 			previous := atomic.LoadInt32(&maxInFlight)
 			if current <= previous || atomic.CompareAndSwapInt32(&maxInFlight, previous, current) {
@@ -21,7 +21,7 @@ func TestMapPreservesOrderAndLimit(t *testing.T) {
 			}
 		}
 		time.Sleep(time.Millisecond)
-		atomic.AddInt32(&inFlight, -1)
+		inFlight.Add(-1)
 		return n * 10, nil
 	})
 	if err != nil {

@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	"hmans.de/chatto/internal/authctx"
@@ -344,12 +345,7 @@ func (r *PermissionResolver) HasRoomPermission(ctx context.Context, userID strin
 
 // permissionMetadataHasScope checks if a permission applies at the given scope.
 func permissionMetadataHasScope(meta PermissionMetadata, scope PermissionScope) bool {
-	for _, s := range meta.Scopes {
-		if s == scope {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(meta.Scopes, scope)
 }
 
 // ============================================================================

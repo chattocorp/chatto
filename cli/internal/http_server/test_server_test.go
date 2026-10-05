@@ -21,8 +21,8 @@ import (
 func bannerImageBytes(t *testing.T) io.Reader {
 	t.Helper()
 	img := image.NewRGBA(image.Rect(0, 0, 1200, 630))
-	for y := 0; y < 630; y++ {
-		for x := 0; x < 1200; x++ {
+	for y := range 630 {
+		for x := range 1200 {
 			img.Set(x, y, color.RGBA{R: 255, G: 0, B: 0, A: 255})
 		}
 	}

@@ -6,8 +6,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
 	"strings"
+
+	keymaterialv1 "hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
 
 	"github.com/charmbracelet/log"
 	gonanoid "github.com/matoous/go-nanoid/v2"
@@ -237,7 +238,7 @@ func (b *Builtin) CreateKey(ctx context.Context, owner string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	for attempt := 0; attempt < 5; attempt++ {
+	for range 5 {
 		keyRef, err := newKeyRef()
 		if err != nil {
 			return "", err

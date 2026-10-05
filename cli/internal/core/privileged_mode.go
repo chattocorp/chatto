@@ -29,7 +29,7 @@ func (c *ChattoCore) SetBearerPrivilegedMode(ctx context.Context, token string, 
 }
 
 func (c *ChattoCore) setRenewableSessionPrivilegedMode(ctx context.Context, sessionID string, active bool, now time.Time) (time.Time, error) {
-	for attempt := 0; attempt < 8; attempt++ {
+	for range 8 {
 		session, entry, err := c.validateRenewableSession(ctx, sessionID, now)
 		if err != nil {
 			if errors.Is(err, ErrRefreshTokenNotFound) {
@@ -80,7 +80,7 @@ func (c *ChattoCore) SetCookiePrivilegedMode(ctx context.Context, sessionID stri
 		return time.Time{}, ErrCookieSessionNotFound
 	}
 	key := c.authTokenKey(sessionID)
-	for attempt := 0; attempt < 8; attempt++ {
+	for range 8 {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {

@@ -3,11 +3,12 @@ package core
 import (
 	"context"
 	"errors"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -178,10 +179,8 @@ func TestReactionModel_AddReactionConcurrentDuplicate(t *testing.T) {
 
 	var addedCount atomic.Int32
 	var wg sync.WaitGroup
-	for i := 0; i < 8; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 8 {
+		wg.Go(func() {
 			added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
 			if err != nil {
 				t.Errorf("AddReaction failed: %v", err)
@@ -190,7 +189,7 @@ func TestReactionModel_AddReactionConcurrentDuplicate(t *testing.T) {
 			if added {
 				addedCount.Add(1)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 
@@ -254,12 +253,10 @@ func TestReactionModel_AddReactionConcurrentFinalSlot(t *testing.T) {
 	results := make(chan result, 2)
 	var wg sync.WaitGroup
 	for _, emoji := range reactionLimitTestEmoji[MaxReactionsPerUserPerMessage-1 : MaxReactionsPerUserPerMessage+1] {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, emoji, user.Id)
 			results <- result{added: added, err: err}
-		}()
+		})
 	}
 	wg.Wait()
 	close(results)

@@ -65,7 +65,6 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 
 	t.Run("instance scope", func(t *testing.T) {
 		for _, s := range subjects {
-			s := s
 			t.Run(s.name, func(t *testing.T) {
 				for _, meta := range PermissionsForScope(ScopeServer) {
 					assertAgreement(t, ctx, core, s.id, "", "", meta.Permission, ScopeServer)
@@ -76,7 +75,6 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 
 	t.Run("room scope", func(t *testing.T) {
 		for _, s := range subjects {
-			s := s
 			t.Run(s.name, func(t *testing.T) {
 				for _, meta := range PermissionsForScope(ScopeRoom) {
 					assertAgreement(t, ctx, core, s.id, LegacyServerSpaceID, room.Id, meta.Permission, ScopeRoom)
@@ -87,7 +85,6 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 
 	t.Run("ExplainAllPermissions matches scope", func(t *testing.T) {
 		for _, s := range subjects {
-			s := s
 			t.Run(s.name+"/instance", func(t *testing.T) {
 				exps, err := core.permissionResolver.ExplainAllPermissions(ctx, s.id, "", "")
 				if err != nil {

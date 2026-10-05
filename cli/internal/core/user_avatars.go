@@ -10,7 +10,6 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/evtstream"
@@ -131,7 +130,7 @@ func (c *ChattoCore) requireCanManageUserIdentity(ctx context.Context, actorID, 
 func (c *ChattoCore) appendManagedAvatarEvent(ctx context.Context, actorID, targetUserID string, event *evtv1.Event, skipIfMissing bool) (*evtv1.AssetRecord, bool, error) {
 	filter := evtstream.UserAggregate(targetUserID).AllEventsFilter()
 	subject := evtstream.UserAggregate(targetUserID).SubjectFor(event)
-	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
+	for attempt := range maxUserMutationRetries {
 		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return nil, false, fmt.Errorf("read user OCC filter seq: %w", err)
@@ -234,7 +233,7 @@ func (c *ChattoCore) storeUserAvatarAsset(ctx context.Context, userID string, re
 		asset.Storage = &evtv1.AssetRecord_S3{
 			S3: &evtv1.S3Asset{
 				Key:    assetID,
-				Bucket: proto.String(c.s3Client.Bucket()),
+				Bucket: new(c.s3Client.Bucket()),
 			},
 		}
 		c.logger.Info("Uploaded avatar to S3", "user_id", userID, "asset_id", assetID, "size", len(webpData))

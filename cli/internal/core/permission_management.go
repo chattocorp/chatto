@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -1139,15 +1140,11 @@ func mergeInheritedPermissionDecisions(overrideAllow, overrideDeny, parentAllow,
 }
 
 func matrixDecisionFromLists(perm Permission, grants, denials []Permission) MatrixDecision {
-	for _, grant := range grants {
-		if grant == perm {
-			return MatrixDecisionAllow
-		}
+	if slices.Contains(grants, perm) {
+		return MatrixDecisionAllow
 	}
-	for _, denial := range denials {
-		if denial == perm {
-			return MatrixDecisionDeny
-		}
+	if slices.Contains(denials, perm) {
+		return MatrixDecisionDeny
 	}
 	return MatrixDecisionNone
 }

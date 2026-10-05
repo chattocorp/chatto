@@ -1,8 +1,9 @@
 package core
 
 import (
-	"hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
 	"testing"
+
+	cachestatev1 "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 )
@@ -434,7 +435,7 @@ func TestChattoCore_MultipleUsersPresence(t *testing.T) {
 
 	// Create multiple users
 	users := make([]string, 5)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		user, err := core.CreateUser(ctx, "system",
 			"multiuser"+string(rune('0'+i)),
 			"Multi User "+string(rune('0'+i)),

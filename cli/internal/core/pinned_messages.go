@@ -58,7 +58,7 @@ func (s *RoomTimelineReadModel) ListPinnedMessages(ctx context.Context, input Pi
 	if err != nil {
 		return nil, err
 	}
-	for attempt := 0; attempt < maxTimelineHydrationAttempts; attempt++ {
+	for range maxTimelineHydrationAttempts {
 		projectedPins, projectedLatestPinEventID := s.core.roomModel.pinnedMessagesWithLatest(room.GetId())
 		pins := make([]PinnedMessageState, 0, len(projectedPins))
 		for _, pin := range projectedPins {
@@ -140,7 +140,7 @@ func (s *RoomCommandModel) mutatePinnedMessage(ctx context.Context, input Pinned
 		event = newEvent(input.ActorID, &evtv1.Event{Event: &evtv1.Event_MessageUnpinned{MessageUnpinned: &evtv1.MessageUnpinnedEvent{RoomId: input.RoomID, MessageEventId: input.MessageEventID}}})
 	}
 
-	for attempt := 0; attempt < maxPinnedMessageMutationAttempts; attempt++ {
+	for range maxPinnedMessageMutationAttempts {
 		var kind RoomKind
 		prepared, err := s.core.prepareMessageAppendAttempt(ctx, aggregate, func(ctx context.Context) error {
 			room, memberKind, memberErr := s.core.requireRoomMember(ctx, input.ActorID, input.RoomID)

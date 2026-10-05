@@ -131,8 +131,7 @@ func (m *botWebhookModel) runDelivery(ctx context.Context, delivery *botWebhookD
 			return
 		}
 		reason, status := "internal_error", 0
-		var failure *botWebhookAttemptFailure
-		if errors.As(err, &failure) {
+		if failure, ok := errors.AsType[*botWebhookAttemptFailure](err); ok {
 			reason, status = failure.reason, failure.status
 		}
 		expired := !m.now().Before(delivery.ExpiresAt)

@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 )
@@ -219,11 +220,8 @@ func TestPermissionResolver_HasServerPermission_CustomDenyRole(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetUserServerPermissions() error = %v", err)
 	}
-	for _, p := range perms {
-		if p == PermMessagePost {
-			t.Error("Expected message.post to NOT be in GetUserServerPermissions result")
-			break
-		}
+	if slices.Contains(perms, PermMessagePost) {
+		t.Error("Expected message.post to NOT be in GetUserServerPermissions result")
 	}
 }
 

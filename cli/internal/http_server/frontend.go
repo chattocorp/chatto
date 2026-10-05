@@ -80,7 +80,7 @@ func serviceWorkerETag(content []byte) string {
 }
 
 func etagMatches(ifNoneMatch string, etag string) bool {
-	for _, part := range strings.Split(ifNoneMatch, ",") {
+	for part := range strings.SplitSeq(ifNoneMatch, ",") {
 		if strings.TrimSpace(part) == etag {
 			return true
 		}
@@ -224,7 +224,7 @@ func dynamicPWAManifest(staticManifest []byte, serverName string, icons *pwaServ
 func clientAcceptsEncoding(acceptEncoding, encoding string) bool {
 	encoding = strings.ToLower(encoding)
 	wildcardQuality := -1.0
-	for _, part := range strings.Split(acceptEncoding, ",") {
+	for part := range strings.SplitSeq(acceptEncoding, ",") {
 		fields := strings.Split(part, ";")
 		name := strings.ToLower(strings.TrimSpace(fields[0]))
 		quality := 1.0

@@ -33,7 +33,7 @@ func limitCompoundBatch(t *testing.T, ctx context.Context, core *ChattoCore, slo
 }
 
 func TestCompoundRoomUpdateRejectsEveryPartialBatch(t *testing.T) {
-	for slots := 0; slots < 4; slots++ {
+	for slots := range 4 {
 		t.Run(fmt.Sprint(slots), func(t *testing.T) {
 			core, _ := setupTestCore(t)
 			ctx := testContext(t)
@@ -48,8 +48,8 @@ func TestCompoundRoomUpdateRejectsEveryPartialBatch(t *testing.T) {
 			beforeSeq, err := core.EventPublisher.LastSubjectSeq(ctx, filter)
 			require.NoError(t, err)
 			_, err = core.RoomCommands().updateRoom(ctx, RoomUpdateInput{
-				ActorID: actor.Id, RoomID: room.Id, Name: proto.String("after"), Description: proto.String("after"),
-				Universal: proto.Bool(true), SlowModeSeconds: proto.Uint32(30),
+				ActorID: actor.Id, RoomID: room.Id, Name: new("after"), Description: new("after"),
+				Universal: new(true), SlowModeSeconds: proto.Uint32(30),
 				ThreadingMode: evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED.Enum(),
 			}, func(ctx context.Context) error {
 				limitCompoundBatch(t, ctx, core, slots)
@@ -80,11 +80,11 @@ func TestCompoundRoomUpdateRetriesAcrossReplicas(t *testing.T) {
 			second, err := NewChattoCore(ctx, nc, first.config)
 			require.NoError(t, err)
 			startCoreServices(t, second)
-			input := RoomUpdateInput{ActorID: actor.Id, RoomID: room.Id, Description: proto.String("after"),
-				Universal: proto.Bool(true), SlowModeSeconds: proto.Uint32(30),
+			input := RoomUpdateInput{ActorID: actor.Id, RoomID: room.Id, Description: new("after"),
+				Universal: new(true), SlowModeSeconds: proto.Uint32(30),
 				ThreadingMode: evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED.Enum()}
 			if scenario == "name-collision" {
-				input.Name = proto.String("claimed")
+				input.Name = new("claimed")
 			}
 			attempts := 0
 			updated, updateErr := first.RoomCommands().updateRoom(ctx, input, func(ctx context.Context) error {
@@ -102,7 +102,7 @@ func TestCompoundRoomUpdateRetriesAcrossReplicas(t *testing.T) {
 					}
 				}
 				_, err := second.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
-					ActorID: concurrentManagerID, RoomID: room.Id, Name: proto.String("concurrent"),
+					ActorID: concurrentManagerID, RoomID: room.Id, Name: new("concurrent"),
 				})
 				return err
 			})

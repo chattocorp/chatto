@@ -163,7 +163,7 @@ func findCurrentMessage(t *testing.T, name protoreflect.FullName) protoreflect.M
 func relocatedName(oldName protoreflect.FullName) protoreflect.FullName {
 	const oldPrefix = "chatto.core.v1."
 	suffix := strings.TrimPrefix(string(oldName), oldPrefix)
-	topLevelName := strings.SplitN(suffix, ".", 2)[0]
+	topLevelName, _, _ := strings.Cut(suffix, ".")
 	newPackage := packageExceptions[topLevelName]
 	if newPackage == "" {
 		newPackage = "chatto.core.evt.v1"

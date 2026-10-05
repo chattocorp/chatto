@@ -10,6 +10,7 @@ package evtstream
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -47,10 +48,8 @@ func (c EffectConsumerConfig) validate() error {
 	if len(c.FilterSubjects) == 0 {
 		return fmt.Errorf("effect consumer %s needs at least one filter subject", c.Name)
 	}
-	for _, subject := range c.FilterSubjects {
-		if subject == "" {
-			return fmt.Errorf("effect consumer %s has an empty filter subject", c.Name)
-		}
+	if slices.Contains(c.FilterSubjects, "") {
+		return fmt.Errorf("effect consumer %s has an empty filter subject", c.Name)
 	}
 	if c.AckWait <= 0 {
 		return fmt.Errorf("effect consumer %s ack wait must be positive", c.Name)

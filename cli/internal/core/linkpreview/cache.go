@@ -6,8 +6,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"time"
+
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
@@ -141,7 +142,7 @@ func (c *Cache) SetFailure(ctx context.Context, url string, reason string) error
 
 func (c *Cache) setWithTTL(ctx context.Context, key string, data []byte, ttl time.Duration) error {
 	var lastErr error
-	for attempt := 0; attempt < 3; attempt++ {
+	for range 3 {
 		if _, err := c.kv.Create(ctx, key, data, jetstream.KeyTTL(ttl)); err == nil {
 			return nil
 		} else if !jetstreamutil.IsSequenceConflict(err) {

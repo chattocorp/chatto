@@ -34,7 +34,7 @@ func TestDebugSessionStoreSuppressesSecureCookieDecodeErrors(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
 		Name: cookieName,
-		Value: expiredSecureCookieValue(t, authKey, cookieName, map[interface{}]interface{}{
+		Value: expiredSecureCookieValue(t, authKey, cookieName, map[any]any{
 			retiredSessionKeyUserID: "user_123",
 		}),
 	})
@@ -88,7 +88,7 @@ func TestDebugSessionStoreReturnsNonDecodeErrors(t *testing.T) {
 }
 
 func TestDebugSessionStoreReturnsSecureCookieUsageErrors(t *testing.T) {
-	var values map[interface{}]interface{}
+	var values map[any]any
 	expectedErr := securecookie.New(nil, nil).Decode("chatto_session", "invalid", &values)
 	if expectedErr == nil {
 		t.Fatal("expected securecookie usage error")
@@ -119,7 +119,7 @@ func (s *failingSessionStore) Get(_ *http.Request, name string) (*gsessions.Sess
 	return gsessions.NewSession(s, name), s.err
 }
 
-func expiredSecureCookieValue(t *testing.T, authKey []byte, name string, values map[interface{}]interface{}) string {
+func expiredSecureCookieValue(t *testing.T, authKey []byte, name string, values map[any]any) string {
 	t.Helper()
 
 	encoded, err := securecookie.New(authKey, nil).Encode(name, values)

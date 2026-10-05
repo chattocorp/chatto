@@ -536,3 +536,67 @@ func mustCurrentAuthGeneration(t *testing.T, core *ChattoCore, userID string) ui
 	}
 	return authGeneration
 }
+
+// Optional runtime-state timestamps are omitted when unset. Older replicas
+// wrote them as the zero time, and both forms must decode to the zero time.
+func TestRuntimeAuthRecordsOmitZeroOptionalTimes(t *testing.T) {
+	tests := []struct {
+		name   string
+		value  any
+		keys   []string
+		legacy string
+		decode func(t *testing.T, data []byte) []time.Time
+	}{
+		{
+			name:   "auth token",
+			value:  AuthTokenData{UserID: "user", CreatedAt: time.Unix(1, 0).UTC()},
+			keys:   []string{"expires_at", "fresh_auth_at", "privileged_mode_expires_at"},
+			legacy: `{"user_id":"user","created_at":"1970-01-01T00:00:01Z","expires_at":"0001-01-01T00:00:00Z","fresh_auth_at":"0001-01-01T00:00:00Z","privileged_mode_expires_at":"0001-01-01T00:00:00Z"}`,
+			decode: func(t *testing.T, data []byte) []time.Time {
+				var record AuthTokenData
+				if err := json.Unmarshal(data, &record); err != nil {
+					t.Fatalf("unmarshal: %v", err)
+				}
+				return []time.Time{record.ExpiresAt, record.FreshAuthAt, record.PrivilegedModeExpiresAt}
+			},
+		},
+		{
+			name:   "renewable session",
+			value:  RenewableSession{UserID: "user", CreatedAt: time.Unix(1, 0).UTC(), ExpiresAt: time.Unix(2, 0).UTC()},
+			keys:   []string{"last_rotated_at", "fresh_auth_at", "privileged_mode_expires_at"},
+			legacy: `{"user_id":"user","kind":"","created_at":"1970-01-01T00:00:01Z","expires_at":"1970-01-01T00:00:02Z","auth_generation":0,"current_generation":0,"last_rotated_at":"0001-01-01T00:00:00Z","fresh_auth_at":"0001-01-01T00:00:00Z","privileged_mode_expires_at":"0001-01-01T00:00:00Z"}`,
+			decode: func(t *testing.T, data []byte) []time.Time {
+				var record RenewableSession
+				if err := json.Unmarshal(data, &record); err != nil {
+					t.Fatalf("unmarshal: %v", err)
+				}
+				return []time.Time{record.LastRotatedAt, record.FreshAuthAt, record.PrivilegedModeExpiresAt}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := json.Marshal(tt.value)
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			var fields map[string]json.RawMessage
+			if err := json.Unmarshal(data, &fields); err != nil {
+				t.Fatalf("unmarshal fields: %v", err)
+			}
+			for _, key := range tt.keys {
+				if _, ok := fields[key]; ok {
+					t.Errorf("encoded %s contains zero %q: %s", tt.name, key, data)
+				}
+			}
+			for _, encoded := range [][]byte{data, []byte(tt.legacy)} {
+				for i, value := range tt.decode(t, encoded) {
+					if !value.IsZero() {
+						t.Errorf("decoded %q = %v, want zero time", tt.keys[i], value)
+					}
+				}
+			}
+		})
+	}
+}

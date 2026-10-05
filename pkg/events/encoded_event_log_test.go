@@ -130,7 +130,7 @@ func TestSubjectRecordsAfterPageBoundsRecordsAndBytes(t *testing.T) {
 	eventLog := NewEncodedEventLog(js, stream, testLogger())
 	ctx := testContext(t)
 	subject := "evt.compatibility.page.created"
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		if _, err := eventLog.AppendEventually(ctx, subject, EncodedRecord{
 			ID:   "page-" + strconv.Itoa(i),
 			Data: []byte("data"),
@@ -187,7 +187,7 @@ func TestSubjectRecordsAfterPageSplitsHistoryAtByteBudget(t *testing.T) {
 	subject := "evt.compatibility.page.bytes"
 	payload := bytes.Repeat([]byte("x"), 100)
 	var want []uint64
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		sequence, err := eventLog.AppendEventually(ctx, subject, EncodedRecord{
 			ID:   "bytes-" + strconv.Itoa(i),
 			Data: payload,

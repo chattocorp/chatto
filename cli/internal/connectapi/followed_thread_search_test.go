@@ -298,8 +298,8 @@ func TestSearchFollowedThreadsScopesDeduplicatesAndPagesByActivity(t *testing.T)
 			for _, mutate := range []func(*apiv1.SearchMessagesRequest){
 				func(r *apiv1.SearchMessagesRequest) { r.Query = "changed" },
 				func(r *apiv1.SearchMessagesRequest) { r.PageSize = 2 },
-				func(r *apiv1.SearchMessagesRequest) { r.RoomId = proto.String(room.Id) },
-				func(r *apiv1.SearchMessagesRequest) { r.AuthorId = proto.String(env.viewer.Id) },
+				func(r *apiv1.SearchMessagesRequest) { r.RoomId = new(room.Id) },
+				func(r *apiv1.SearchMessagesRequest) { r.AuthorId = new(env.viewer.Id) },
 				func(r *apiv1.SearchMessagesRequest) { r.HasAttachments = true },
 				func(r *apiv1.SearchMessagesRequest) { r.Scope = 0; r.GroupBy = 0 },
 			} {
@@ -336,7 +336,7 @@ func TestThreadSearchUsesSharedStructuredFiltersAndValidation(t *testing.T) {
 		Scope:   apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS,
 		GroupBy: apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_THREAD,
 		Order:   apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY,
-		RoomId:  proto.String(room.Id), AuthorId: proto.String(env.viewer.Id),
+		RoomId:  new(room.Id), AuthorId: new(env.viewer.Id),
 		CreatedAfter: after, CreatedBefore: before, HasAttachments: true,
 	}
 	service := &messageSearchService{api: env.api}

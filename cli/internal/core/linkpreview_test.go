@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -101,9 +102,7 @@ func TestGetLinkPreviewDoesNotPromotePrivateCachedNATSImage(t *testing.T) {
 			assetID := NewAssetID()
 			url := "https://private-preview.example/" + assetID
 			headers := map[string][]string{"Content-Type": {"image/webp"}}
-			for name, values := range test.headers {
-				headers[name] = values
-			}
+			maps.Copy(headers, test.headers)
 
 			_, err := core.storage.serverAssets.Put(ctx, jetstream.ObjectMeta{
 				Name:    assetID,

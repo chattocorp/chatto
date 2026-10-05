@@ -16,7 +16,7 @@ func TestChattoCoreServerStateManagementRequiresServerManage(t *testing.T) {
 		t.Fatalf("CreateUser actor: %v", err)
 	}
 
-	if _, err := core.UpdateServerConfig(ctx, actor.Id, ServerConfigUpdateInput{ServerName: stringPtrForCoreTest("Nope")}); !errors.Is(err, ErrPermissionDenied) {
+	if _, err := core.UpdateServerConfig(ctx, actor.Id, ServerConfigUpdateInput{ServerName: new("Nope")}); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("UpdateServerConfig without server.manage error = %v, want ErrPermissionDenied", err)
 	}
 	if _, err := core.GetManagedServerConfig(ctx, actor.Id); !errors.Is(err, ErrPermissionDenied) {
@@ -40,10 +40,10 @@ func TestChattoCoreServerStateManagementRequiresServerManage(t *testing.T) {
 	}
 
 	cfg, err := core.UpdateServerConfig(ctx, actor.Id, ServerConfigUpdateInput{
-		ServerName:     stringPtrForCoreTest("Core Managed Server"),
-		Description:    stringPtrForCoreTest("Core-managed description"),
-		MOTD:           stringPtrForCoreTest("Core-managed MOTD"),
-		WelcomeMessage: stringPtrForCoreTest("Core-managed welcome"),
+		ServerName:     new("Core Managed Server"),
+		Description:    new("Core-managed description"),
+		MOTD:           new("Core-managed MOTD"),
+		WelcomeMessage: new("Core-managed welcome"),
 	})
 	if err != nil {
 		t.Fatalf("UpdateServerConfig with server.manage: %v", err)
@@ -112,8 +112,4 @@ func TestChattoCoreServerStateManagementRequiresServerManage(t *testing.T) {
 	if storedLogo != nil {
 		t.Fatalf("stored logo after delete = %+v, want nil", storedLogo)
 	}
-}
-
-func stringPtrForCoreTest(value string) *string {
-	return &value
 }

@@ -739,12 +739,12 @@ func (s *notificationDecisionSnapshot) hasBadgeAttention(q badgeQuery) bool {
 	// newestMessage reports whether a message list has a qualifying message
 	// above the floor.
 	newestMessage := func(list []uint32, floor uint64) bool {
-		for i := len(list) - 1; i >= 0; i-- {
-			message := b.messageRecord(list[i])
+		for _, messageIndex := range slices.Backward(list) {
+			message := b.messageRecord(messageIndex)
 			if message.seq <= floor || message.createdAt <= expired {
 				return false
 			}
-			if !excluded(message.seq) && (!message.retracted || list[i] == q.unretracted) && message.actor != user {
+			if !excluded(message.seq) && (!message.retracted || messageIndex == q.unretracted) && message.actor != user {
 				return true
 			}
 		}
@@ -777,8 +777,7 @@ func (s *notificationDecisionSnapshot) hasBadgeAttention(q badgeQuery) bool {
 		if hasBoundary {
 			stop = max(stop, boundary.targetSequence)
 		}
-		for i := len(targeted) - 1; i >= 0; i-- {
-			source := targeted[i]
+		for _, source := range slices.Backward(targeted) {
 			if source.seq <= stop || source.createdAt <= expired {
 				break
 			}

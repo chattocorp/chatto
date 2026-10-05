@@ -135,8 +135,7 @@ func connectError(err error) error {
 	if err == nil {
 		return nil
 	}
-	var existing *connect.Error
-	if errors.As(err, &existing) {
+	if _, ok := errors.AsType[*connect.Error](err); ok {
 		return err
 	}
 	for _, row := range connectErrorCodes {

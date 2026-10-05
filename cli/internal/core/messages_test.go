@@ -5,11 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"strings"
 	"testing"
 	"time"
 	"unicode/utf8"
+
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
@@ -1078,7 +1079,7 @@ func TestChattoCore_PostMessage_ConcurrentOCC(t *testing.T) {
 	errChan := make(chan error, numMessages)
 	idChan := make(chan string, numMessages)
 
-	for i := 0; i < numMessages; i++ {
+	for i := range numMessages {
 		go func(msgNum int) {
 			body := fmt.Sprintf("Concurrent message %d", msgNum)
 			roomEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, body, nil, "", "", nil, false)
@@ -1093,7 +1094,7 @@ func TestChattoCore_PostMessage_ConcurrentOCC(t *testing.T) {
 	// Collect results
 	var errs []error
 	eventIDs := make(map[string]bool)
-	for i := 0; i < numMessages; i++ {
+	for range numMessages {
 		select {
 		case err := <-errChan:
 			errs = append(errs, err)

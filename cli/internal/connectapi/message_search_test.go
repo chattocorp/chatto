@@ -179,7 +179,7 @@ func TestMessageSearchAuthorizesHydratesAndSealsProviderCursor(t *testing.T) {
 	service := &messageSearchService{api: env.api}
 	request := &apiv1.SearchMessagesRequest{
 		Query:  `current AND "searchable body" in:search-api-room from:timeline-viewer after:2025-01-01 has:attachment`,
-		RoomId: proto.String(visible.Id), AuthorId: proto.String(env.viewer.Id),
+		RoomId: new(visible.Id), AuthorId: new(env.viewer.Id),
 		Order: apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_NEWEST, PageSize: 5,
 	}
 

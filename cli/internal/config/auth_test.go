@@ -71,7 +71,7 @@ func TestEmailOTPConfig_Defaults(t *testing.T) {
 	}
 
 	c = &EmailOTPConfig{
-		ThrottlingEnabled: boolPtr(false),
+		ThrottlingEnabled: new(false),
 		TTL:               Duration(45 * time.Minute),
 		MaxDeliveredCodes: 3,
 		MaxWrongAttempts:  2,

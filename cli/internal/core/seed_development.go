@@ -223,7 +223,7 @@ func seedNameCandidate(base string, attempt int) string {
 }
 
 func (c *ChattoCore) createSeedUser(ctx context.Context, base, displayName string) (*evtv1.User, error) {
-	for attempt := 0; attempt < 10000; attempt++ {
+	for attempt := range 10000 {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
@@ -236,7 +236,7 @@ func (c *ChattoCore) createSeedUser(ctx context.Context, base, displayName strin
 }
 
 func (c *ChattoCore) createSeedRoom(ctx context.Context, base, description string) (*evtv1.Room, error) {
-	for attempt := 0; attempt < 10000; attempt++ {
+	for attempt := range 10000 {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}

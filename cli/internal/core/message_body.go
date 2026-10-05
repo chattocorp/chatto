@@ -258,7 +258,7 @@ func (c *ChattoCore) hydrateMessagePosts(ctx context.Context, events []*evtv1.Ev
 }
 
 func (c *ChattoCore) currentMessageBody(ctx context.Context, eventID string) (*evtv1.MessageBody, error) {
-	for attempt := 0; attempt < maxTimelineHydrationAttempts; attempt++ {
+	for range maxTimelineHydrationAttempts {
 		reference, retracted, known := c.roomModel.latestBodyReference(eventID)
 		if !known || retracted || reference.StreamSeq == 0 {
 			return nil, nil

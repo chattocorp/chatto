@@ -196,7 +196,7 @@ func TestNonceUniqueness(t *testing.T) {
 
 	nonces := make(map[string]bool)
 
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		encrypted, err := Encrypt(key, []byte("test"))
 		require.NoError(t, err)
 

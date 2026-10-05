@@ -545,13 +545,11 @@ func TestChattoCore_DisconnectExternalIdentityConcurrentDuplicate(t *testing.T) 
 	start := make(chan struct{})
 	errs := make(chan error, 2)
 	var wg sync.WaitGroup
-	for i := 0; i < 2; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 2 {
+		wg.Go(func() {
 			<-start
 			errs <- core.DisconnectExternalIdentity(ctx, user.Id, identities[0].SubjectHash)
-		}()
+		})
 	}
 	close(start)
 	wg.Wait()

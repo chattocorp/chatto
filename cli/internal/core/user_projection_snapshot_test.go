@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"testing"
 	"time"
+
+	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -32,7 +33,7 @@ func TestUserProjectionSnapshotRoundTripExcludesAuthenticationState(t *testing.T
 		{Id: "E2", Event: &evtv1.Event_UserPasswordHashChanged{UserPasswordHashChanged: &evtv1.UserPasswordHashChangedEvent{UserId: "U1", PasswordHash: []byte("password-hash-secret")}}},
 		{Id: "E3", Event: &evtv1.Event_UserExternalIdentityLinked{UserExternalIdentityLinked: &evtv1.UserExternalIdentityLinkedEvent{UserId: "U1", Issuer: "https://private-issuer.example", Subject: "private-provider-subject", ProviderId: "private-provider"}}},
 		{Id: "E4", Event: &evtv1.Event_OauthConsentGranted{OauthConsentGranted: &evtv1.OAuthConsentGrantedEvent{UserId: "U1", RedirectOrigin: "https://private-client.example"}}},
-		userEvent("E5", createdAt.Add(time.Minute), &evtv1.Event{Event: &evtv1.Event_UserServerPreferencesChanged{UserServerPreferencesChanged: &evtv1.UserServerPreferencesChangedEvent{UserId: "U1", Preferences: &evtv1.ServerUserPreferences{Timezone: proto.String("Europe/Berlin")}}}}),
+		userEvent("E5", createdAt.Add(time.Minute), &evtv1.Event{Event: &evtv1.Event_UserServerPreferencesChanged{UserServerPreferencesChanged: &evtv1.UserServerPreferencesChangedEvent{UserId: "U1", Preferences: &evtv1.ServerUserPreferences{Timezone: new("Europe/Berlin")}}}}),
 	}
 	for i, event := range eventsToApply {
 		require.NoError(t, original.Apply(event, uint64(i+1)))

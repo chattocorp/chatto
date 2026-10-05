@@ -6,12 +6,13 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"slices"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
@@ -595,7 +596,7 @@ func (m *NotificationOccurrenceModel) reconcileOccurrenceReadBoundaries(ctx cont
 	for _, occurrence := range covered {
 		occurrence.Read = true
 		if occurrence.GetAlertExpiresAt() != nil && occurrence.AlertDelivered == nil {
-			occurrence.AlertDelivered = proto.Bool(false)
+			occurrence.AlertDelivered = new(false)
 		}
 	}
 	return nil

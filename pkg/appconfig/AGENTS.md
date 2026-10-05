@@ -28,6 +28,7 @@ module. Also follow
 Run:
 
 ```sh
+mise lint-appconfig
 mise test-appconfig
 (cd authling && mise test)
 mise test-cli

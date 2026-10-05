@@ -410,7 +410,7 @@ func TestPlanRealtimeReplayReportsRetentionResetGap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("initial PlanRealtimeReplay: %v", err)
 	}
-	for index := 0; index < 2; index++ {
+	for index := range 2 {
 		if _, err := chatto.CreateUser(ctx, SystemActorID, fmt.Sprintf("cursor-retention-%d", index), "Cursor Retention", "password123"); err != nil {
 			t.Fatalf("CreateUser %d: %v", index, err)
 		}

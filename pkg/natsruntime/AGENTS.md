@@ -28,6 +28,7 @@ module. Also follow
 Run:
 
 ```sh
+mise lint-natsruntime
 mise test-natsruntime
 (cd authling && mise test)
 mise test-cli

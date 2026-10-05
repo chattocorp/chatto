@@ -1,6 +1,7 @@
 package core
 
 import (
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -75,7 +76,7 @@ func (p *OAuthClientProjection) Apply(event *evtv1.Event, sequence uint64) error
 		state.ClientOrigin = payload.GetClientUri()
 		state.Source = payload.GetSource()
 		state.LastAuthorizationAt = authorizedAt
-		if origin := payload.GetRedirectOrigin(); origin != "" && !containsString(state.RedirectOrigins, origin) {
+		if origin := payload.GetRedirectOrigin(); origin != "" && !slices.Contains(state.RedirectOrigins, origin) {
 			state.RedirectOrigins = append(state.RedirectOrigins, origin)
 			sort.Strings(state.RedirectOrigins)
 		}
@@ -168,15 +169,6 @@ func cloneOAuthClientState(state *OAuthClientState) OAuthClientState {
 	clone.RedirectOrigins = append([]string(nil), state.RedirectOrigins...)
 	clone.authorizedUsers = nil
 	return clone
-}
-
-func containsString(values []string, candidate string) bool {
-	for _, value := range values {
-		if value == candidate {
-			return true
-		}
-	}
-	return false
 }
 
 func (p *OAuthClientProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {

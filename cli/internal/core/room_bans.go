@@ -69,7 +69,7 @@ func (c *ChattoCore) banMember(ctx context.Context, actorID string, kind RoomKin
 
 	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
-	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+	for attempt := range maxJoinRoomRetries {
 		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return nil, fmt.Errorf("read room ban OCC tail: %w", err)
@@ -141,7 +141,7 @@ func (c *ChattoCore) removeUserWithoutSuspension(ctx context.Context, actorID st
 	})
 	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
-	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+	for attempt := range maxJoinRoomRetries {
 		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return fmt.Errorf("read room removal OCC tail: %w", err)

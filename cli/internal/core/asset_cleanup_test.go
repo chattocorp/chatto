@@ -377,7 +377,7 @@ func TestAssetCleanupRejectsS3PointerToAnotherAsset(t *testing.T) {
 		Id: "A-attacker",
 		Storage: &evtv1.AssetRecord_S3{S3: &evtv1.S3Asset{
 			Key:    victimKey,
-			Bucket: proto.String(s3Client.Bucket()),
+			Bucket: new(s3Client.Bucket()),
 		}},
 	})
 	appendAssetDeletionTestEvent(t, ctx, core, &evtv1.AssetDeletedEvent{AssetId: "A-attacker"})

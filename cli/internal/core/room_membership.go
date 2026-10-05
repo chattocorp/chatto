@@ -97,7 +97,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 
 	joinSubject := evtstream.RoomAggregate(room_id).SubjectFor(event)
 	var seq uint64
-	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+	for attempt := range maxJoinRoomRetries {
 		if c.roomModel.hasExplicitRoomMembership(room_id, user_id) {
 			return membership, nil
 		}
@@ -183,7 +183,7 @@ func (c *ChattoCore) addMember(ctx context.Context, actorID string, kind RoomKin
 
 	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
-	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+	for attempt := range maxJoinRoomRetries {
 		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return nil, fmt.Errorf("read room membership add OCC tail: %w", err)
@@ -277,7 +277,7 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKin
 
 	agg := evtstream.RoomAggregate(room_id)
 	filter := agg.AllEventsFilter()
-	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+	for attempt := range maxJoinRoomRetries {
 		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return fmt.Errorf("read room leave OCC tail: %w", err)
@@ -337,7 +337,7 @@ func (c *ChattoCore) removeMember(ctx context.Context, actorID string, kind Room
 	}
 	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
-	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+	for attempt := range maxJoinRoomRetries {
 		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return false, fmt.Errorf("read room membership remove OCC tail: %w", err)
@@ -603,7 +603,7 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 		agg := evtstream.RoomAggregate(entry.roomID)
 		filter := agg.AllEventsFilter()
 		published := false
-		for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+		for attempt := range maxJoinRoomRetries {
 			expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 			if err != nil {
 				c.logger.Warn("Failed to read room leave OCC tail during user cleanup", "room_id", entry.roomID, "error", err)

@@ -281,7 +281,7 @@ func TestDeleteRoomGroup_RejectsNonEmpty(t *testing.T) {
 }
 
 func TestCreateRoomAndDeleteRoomGroupDoNotBothWin(t *testing.T) {
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 		group, _ := core.CreateRoomGroup(ctx, "actor", "Race", "")
@@ -318,7 +318,7 @@ func TestCreateRoomAndDeleteRoomGroupDoNotBothWin(t *testing.T) {
 }
 
 func TestMoveRoomAndDeleteRoomCannotLeaveStaleGroupMembership(t *testing.T) {
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 		target, _ := core.CreateRoomGroup(ctx, "actor", "Target", "")
@@ -640,7 +640,7 @@ func TestMoveRoomToSet_ConcurrentMovesLeaveSingleAssignment(t *testing.T) {
 	setB, _ := core.CreateRoomGroup(ctx, "actor", "B", "")
 	room, _ := core.CreateRoom(ctx, "actor", KindChannel, "", "general", "")
 
-	for i := 0; i < 25; i++ {
+	for i := range 25 {
 		if err := core.MoveRoomToGroup(ctx, "actor", room.Id, setA.Id); err != nil {
 			t.Fatalf("reset move to A failed: %v", err)
 		}
@@ -860,7 +860,7 @@ func TestMoveSidebarLinkToGroup(t *testing.T) {
 }
 
 func TestSidebarLinkCreateAndGroupDeleteDoNotBothWin(t *testing.T) {
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 		group, _ := core.CreateRoomGroup(ctx, "actor", "Race", "")

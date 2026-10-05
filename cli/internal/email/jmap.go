@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/mail"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -565,10 +566,8 @@ func (r jmapResponse) requireDestroyedEmail(callID, emailID string) error {
 	if err := json.Unmarshal(response[1], &payload); err != nil {
 		return fmt.Errorf("decode JMAP cleanup response: %w", err)
 	}
-	for _, destroyedID := range payload.Destroyed {
-		if destroyedID == emailID {
-			return nil
-		}
+	if slices.Contains(payload.Destroyed, emailID) {
+		return nil
 	}
 	if failure, ok := payload.NotDestroyed[emailID]; ok && failure.Type != "" {
 		return fmt.Errorf("JMAP draft cleanup failed: %s", failure.Type)

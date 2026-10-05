@@ -19,7 +19,7 @@ func TestLimitsConfig_Defaults(t *testing.T) {
 		t.Errorf("MaxUsersOrDefault() with explicit 0 = %d, want 0", got)
 	}
 
-	c = &LimitsConfig{MaxUsers: intPtr(100)}
+	c = &LimitsConfig{MaxUsers: new(100)}
 	if got := c.MaxUsersOrDefault(); got != 100 {
 		t.Errorf("MaxUsersOrDefault() with 100 = %d, want 100", got)
 	}
@@ -93,7 +93,7 @@ func TestChattoConfig_Validate_Limits(t *testing.T) {
 
 	t.Run("rejects max_users below -1", func(t *testing.T) {
 		c := base()
-		c.Limits.MaxUsers = intPtr(-5)
+		c.Limits.MaxUsers = new(-5)
 		if err := c.Validate(); err == nil || !strings.Contains(err.Error(), "limits.max_users") {
 			t.Errorf("expected limits.max_users validation error, got %v", err)
 		}
@@ -102,7 +102,7 @@ func TestChattoConfig_Validate_Limits(t *testing.T) {
 	t.Run("accepts -1, 0, positive", func(t *testing.T) {
 		for _, v := range []int{-1, 0, 1, 100} {
 			c := base()
-			c.Limits.MaxUsers = intPtr(v)
+			c.Limits.MaxUsers = new(v)
 			if err := c.Validate(); err != nil {
 				t.Errorf("validate failed for %d: %v", v, err)
 			}

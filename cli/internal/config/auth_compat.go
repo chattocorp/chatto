@@ -137,8 +137,8 @@ func applyAuthProviderEnvField(provider *AuthProviderConfig, name, field, value 
 		provider.AutoProvision = &autoProvision
 	default:
 		const providerOptionsPrefix = "PROVIDER_OPTIONS_"
-		if strings.HasPrefix(field, providerOptionsPrefix) {
-			optionName := strings.ToLower(strings.TrimPrefix(field, providerOptionsPrefix))
+		if after, ok := strings.CutPrefix(field, providerOptionsPrefix); ok {
+			optionName := strings.ToLower(after)
 			if optionName == "" {
 				return fmt.Errorf("%s must include a provider option name", name)
 			}

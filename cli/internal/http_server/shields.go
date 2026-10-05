@@ -141,7 +141,7 @@ func shieldETag(metric string, count int) string {
 }
 
 func requestETagMatches(header, etag string) bool {
-	for _, candidate := range strings.Split(header, ",") {
+	for candidate := range strings.SplitSeq(header, ",") {
 		candidate = strings.TrimSpace(candidate)
 		if candidate == etag || candidate == "W/"+etag {
 			return true

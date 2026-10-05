@@ -24,7 +24,7 @@ func TestEVTReadCacheConfigLogsEffectiveDefaults(t *testing.T) {
 		t.Fatalf("cache maximum bytes = %d, want 256 MiB", readerConfig.CacheMaxBytes)
 	}
 
-	var entry map[string]interface{}
+	var entry map[string]any
 	if err := json.Unmarshal(output.Bytes(), &entry); err != nil {
 		t.Fatalf("decode startup log: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestEVTReadCacheConfigMapsUnlimitedBytesToFrameworkZero(t *testing.T) {
 	if readerConfig.CacheMaxBytes != 0 {
 		t.Fatalf("framework cache maximum bytes = %d, want 0", readerConfig.CacheMaxBytes)
 	}
-	var entry map[string]interface{}
+	var entry map[string]any
 	if err := json.Unmarshal(output.Bytes(), &entry); err != nil {
 		t.Fatalf("decode startup log: %v", err)
 	}

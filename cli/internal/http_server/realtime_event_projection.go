@@ -21,7 +21,7 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 	}
 	target := &realtimev1.RealtimeEvent{Id: source.GetId(), CreatedAt: source.GetCreatedAt()}
 	if source.GetActorId() != "" {
-		target.ActorId = proto.String(source.GetActorId())
+		target.ActorId = new(source.GetActorId())
 	}
 	switch e := source.GetEvent().(type) {
 	case *evtv1.Event_RbacRoleCreated:
@@ -229,7 +229,7 @@ func projectRealtimePubSubEvent(source *pubsubv1.PubSubEvent) *realtimev1.Realti
 	}
 	target := &realtimev1.RealtimeEvent{Id: source.GetId(), CreatedAt: source.GetCreatedAt()}
 	if source.GetActorId() != "" {
-		target.ActorId = proto.String(source.GetActorId())
+		target.ActorId = new(source.GetActorId())
 	}
 	switch e := source.GetEvent().(type) {
 	case *pubsubv1.PubSubEvent_ThreadViewerStateChanged:

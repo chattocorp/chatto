@@ -59,7 +59,7 @@ func TestRealtimeCatchUpAdmissionRateLimitsReplayAndBootstrapAttempts(t *testing
 	now := time.Date(2026, time.July, 17, 12, 0, 0, 0, time.UTC)
 	admission := newRealtimeCatchUpAdmissionWithLimits(2, 2, time.Minute, func() time.Time { return now })
 
-	for attempt := 0; attempt < 2; attempt++ {
+	for attempt := range 2 {
 		release, err := admission.acquire("user-1", true)
 		if err != nil {
 			t.Fatalf("acquire attempt %d: %v", attempt+1, err)
@@ -149,7 +149,7 @@ func TestRealtimeCatchUpAdmissionRateLimitsSequentialGeneralCatchUps(t *testing.
 	now := time.Date(2026, time.July, 17, 12, 0, 0, 0, time.UTC)
 	admission := newRealtimeCatchUpAdmissionWithLimits(1, 1, time.Hour, func() time.Time { return now })
 
-	for attempt := 0; attempt < realtimeCatchUpGeneralRateBurst; attempt++ {
+	for attempt := range realtimeCatchUpGeneralRateBurst {
 		release, err := admission.acquire("user-1", false)
 		if err != nil {
 			t.Fatalf("general catch-up %d: %v", attempt+1, err)

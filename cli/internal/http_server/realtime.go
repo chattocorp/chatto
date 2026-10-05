@@ -915,7 +915,7 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 		}
 		projected.GetMessagePosted().RoomKind = realtimeRoomKind(core.ProtoKindForRoomKind(kind))
 		if body != nil {
-			projected.GetMessagePosted().BodyPlaintext = proto.String(body.Body)
+			projected.GetMessagePosted().BodyPlaintext = new(body.Body)
 		}
 	}
 	if sequence := event.DeliverySeq(); sequence > 0 {
@@ -953,7 +953,7 @@ func (s *HTTPServer) projectViewerRealtimeEvent(ctx context.Context, viewerID st
 	base := func() *realtimev1.RealtimeEvent {
 		result := &realtimev1.RealtimeEvent{Id: event.GetId(), CreatedAt: event.GetCreatedAt()}
 		if event.GetActorId() != "" {
-			result.ActorId = proto.String(event.GetActorId())
+			result.ActorId = new(event.GetActorId())
 		}
 		return result
 	}
@@ -1030,7 +1030,7 @@ func (s *HTTPServer) projectViewerRealtimeEvent(ctx context.Context, viewerID st
 			return nil, nil
 		}
 		result := base()
-		result.ActorId = proto.String(userID)
+		result.ActorId = new(userID)
 		result.Event = &realtimev1.RealtimeEvent_UserJoinedRoom{UserJoinedRoom: &realtimev1.UserJoinedRoomEvent{RoomId: roomID}}
 		return result, nil
 	case *evtv1.Event_ThreadFollowed:

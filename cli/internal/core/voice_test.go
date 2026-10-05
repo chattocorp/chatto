@@ -120,7 +120,7 @@ func (s *hookedCallKeyStore) ShredCallKey(_ context.Context, keyRef string) erro
 
 type recordingCallLogger struct {
 	warnMessage string
-	warnKeyvals []interface{}
+	warnKeyvals []any
 }
 
 type fakeLiveKitRoomService struct {
@@ -158,16 +158,16 @@ func (f *fakeLiveKitRoomService) RemoveParticipant(_ context.Context, _ *livekit
 	return &livekit.RemoveParticipantResponse{}, nil
 }
 
-func (l *recordingCallLogger) Debug(interface{}, ...interface{}) {}
-func (l *recordingCallLogger) Info(interface{}, ...interface{})  {}
-func (l *recordingCallLogger) Error(interface{}, ...interface{}) {}
+func (l *recordingCallLogger) Debug(any, ...any) {}
+func (l *recordingCallLogger) Info(any, ...any)  {}
+func (l *recordingCallLogger) Error(any, ...any) {}
 
-func (l *recordingCallLogger) Warn(msg interface{}, keyvals ...interface{}) {
+func (l *recordingCallLogger) Warn(msg any, keyvals ...any) {
 	l.warnMessage = msg.(string)
-	l.warnKeyvals = append([]interface{}(nil), keyvals...)
+	l.warnKeyvals = append([]any(nil), keyvals...)
 }
 
-func loggedValue(keyvals []interface{}, key string) interface{} {
+func loggedValue(keyvals []any, key string) any {
 	for i := 0; i+1 < len(keyvals); i += 2 {
 		if keyvals[i] == key {
 			return keyvals[i+1]
@@ -468,7 +468,7 @@ func TestGenerateVoiceCallToken(t *testing.T) {
 	}
 
 	// Check video grant
-	video, ok := claims["video"].(map[string]interface{})
+	video, ok := claims["video"].(map[string]any)
 	if !ok {
 		t.Fatal("Token missing video grant")
 	}
@@ -555,14 +555,14 @@ func TestGenerateCallMediaPublisherToken(t *testing.T) {
 	if !IsCallMediaPublisher(metadata) {
 		t.Fatal("IsCallMediaPublisher() = false")
 	}
-	video, ok := claims["video"].(map[string]interface{})
+	video, ok := claims["video"].(map[string]any)
 	if !ok {
 		t.Fatal("Token missing video grant")
 	}
 	if video["canSubscribe"] != false || video["canPublishData"] != false {
 		t.Fatalf("Token video grant = %+v, want subscribe/data disabled", video)
 	}
-	sources, _ := video["canPublishSources"].([]interface{})
+	sources, _ := video["canPublishSources"].([]any)
 	if fmt.Sprint(sources) != "[screen_share microphone]" {
 		t.Fatalf("Token publish sources = %v", sources)
 	}
@@ -1148,7 +1148,7 @@ func TestCallState_RejoinAfterLeaveRecordsNewTransitions(t *testing.T) {
 	ctx := testContext(t)
 	roomID := "room1"
 
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		if err := core.HandleCallParticipantJoined(ctx, roomID, "user1"); err != nil {
 			t.Fatalf("HandleCallParticipantJoined(%d) error = %v", i, err)
 		}

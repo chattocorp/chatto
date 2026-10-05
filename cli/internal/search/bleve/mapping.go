@@ -110,7 +110,7 @@ func resolveLanguageAnalyzers(codes []string) ([]languageAnalyzer, error) {
 func newIndexMapping(languages []languageAnalyzer) mapping.IndexMapping {
 	indexMapping := blevesearch.NewIndexMapping()
 	indexMapping.ScoringModel = bleveindex.BM25Scoring
-	if err := indexMapping.AddCustomAnalyzer(bodyExactAnalyzer, map[string]interface{}{
+	if err := indexMapping.AddCustomAnalyzer(bodyExactAnalyzer, map[string]any{
 		"type": custom.Name, "tokenizer": unicode.Name,
 		"token_filters": []string{lowercase.Name},
 	}); err != nil {

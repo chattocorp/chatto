@@ -46,6 +46,18 @@ func (c *S3Config) UseSSLOrDefault() bool {
 	return *c.UseSSL
 }
 
+// EndpointURL returns the endpoint as an absolute URL for the AWS SDK. An
+// endpoint without a scheme gets https:// or http:// from UseSSLOrDefault.
+func (c *S3Config) EndpointURL() string {
+	if strings.HasPrefix(c.Endpoint, "http://") || strings.HasPrefix(c.Endpoint, "https://") {
+		return c.Endpoint
+	}
+	if c.UseSSLOrDefault() {
+		return "https://" + c.Endpoint
+	}
+	return "http://" + c.Endpoint
+}
+
 // PathStyleOrDefault returns whether to use path-style URLs, defaulting to false.
 func (c *S3Config) PathStyleOrDefault() bool {
 	if c.PathStyle == nil {

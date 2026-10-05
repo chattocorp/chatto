@@ -39,7 +39,7 @@ func (s *serverService) GetMotd(ctx context.Context, _ *connect.Request[apiv1.Ge
 	resp := &apiv1.GetMotdResponse{}
 	motd := serverMOTD(s.api)
 	if motd != "" {
-		resp.Motd = stringPtr(motd)
+		resp.Motd = new(motd)
 	}
 	return connect.NewResponse(resp), nil
 }
@@ -66,10 +66,10 @@ func serverRuntimeConfig(api *API) *apiv1.ServerRuntimeConfig {
 		MessageEditWindowSeconds: int32(core.MessageEditWindow / time.Second),
 	}
 	if api.config.Push.IsConfigured() {
-		runtime.VapidPublicKey = stringPtr(api.config.Push.VAPIDPublicKey)
+		runtime.VapidPublicKey = new(api.config.Push.VAPIDPublicKey)
 	}
 	if api.config.LiveKit.IsConfigured() {
-		runtime.LivekitUrl = stringPtr(api.config.LiveKit.URL)
+		runtime.LivekitUrl = new(api.config.LiveKit.URL)
 	}
 	return runtime
 }

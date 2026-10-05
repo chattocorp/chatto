@@ -47,8 +47,7 @@ func TestConnectToNATSRecoversAfterTemporaryAuthenticationFailure(t *testing.T) 
 	const token = "correct-token"
 	ns := startRuntimeUnitTestNATS(t, -1, token)
 	port := ns.Addr().(*net.TCPAddr).Port
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	cfg := config.ChattoConfig{}
 	cfg.NATS.Client.URL = fmt.Sprintf("nats://127.0.0.1:%d", port)
 	cfg.NATS.Client.AuthMethod = natsauth.AuthToken

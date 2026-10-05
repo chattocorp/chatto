@@ -251,7 +251,7 @@ func validateOAuthClientIdentifierURL(raw string, allowLoopback bool) (*url.URL,
 	if err != nil || !validScheme || parsed.Host == "" || parsed.User != nil || parsed.Path == "" || parsed.Path == "/" || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return nil, fmt.Errorf("invalid CIMD client identifier URL")
 	}
-	for _, segment := range strings.Split(strings.TrimPrefix(parsed.EscapedPath(), "/"), "/") {
+	for segment := range strings.SplitSeq(strings.TrimPrefix(parsed.EscapedPath(), "/"), "/") {
 		decoded, decodeErr := url.PathUnescape(segment)
 		if decodeErr != nil || segment == "" || decoded == "." || decoded == ".." || strings.ContainsAny(decoded, `/\`) {
 			return nil, fmt.Errorf("invalid CIMD client identifier path")
@@ -349,7 +349,7 @@ func validOAuthClientRedirectURI(redirect *url.URL, applicationType string, allo
 
 func oauthClientCacheAge(header string) (time.Duration, bool) {
 	age := defaultOAuthClientCacheAge
-	for _, directive := range strings.Split(header, ",") {
+	for directive := range strings.SplitSeq(header, ",") {
 		directive = strings.TrimSpace(directive)
 		if strings.EqualFold(directive, "no-store") || strings.EqualFold(directive, "no-cache") {
 			return 0, false

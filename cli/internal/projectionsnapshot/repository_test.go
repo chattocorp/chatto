@@ -42,27 +42,27 @@ type memoryBlobStore struct {
 type capturedLog struct {
 	level   string
 	message string
-	fields  map[string]interface{}
+	fields  map[string]any
 }
 type captureLogger struct{ logs []capturedLog }
 
-func (l *captureLogger) add(level string, message interface{}, keyvals ...interface{}) {
-	fields := make(map[string]interface{})
+func (l *captureLogger) add(level string, message any, keyvals ...any) {
+	fields := make(map[string]any)
 	for i := 0; i+1 < len(keyvals); i += 2 {
 		fields[keyvals[i].(string)] = keyvals[i+1]
 	}
 	l.logs = append(l.logs, capturedLog{level: level, message: message.(string), fields: fields})
 }
-func (l *captureLogger) Debug(message interface{}, keyvals ...interface{}) {
+func (l *captureLogger) Debug(message any, keyvals ...any) {
 	l.add("debug", message, keyvals...)
 }
-func (l *captureLogger) Info(message interface{}, keyvals ...interface{}) {
+func (l *captureLogger) Info(message any, keyvals ...any) {
 	l.add("info", message, keyvals...)
 }
-func (l *captureLogger) Warn(message interface{}, keyvals ...interface{}) {
+func (l *captureLogger) Warn(message any, keyvals ...any) {
 	l.add("warn", message, keyvals...)
 }
-func (l *captureLogger) Error(message interface{}, keyvals ...interface{}) {
+func (l *captureLogger) Error(message any, keyvals ...any) {
 	l.add("error", message, keyvals...)
 }
 

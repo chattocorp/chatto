@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"time"
 
@@ -201,17 +202,11 @@ func (c *ChattoCore) GetThreadReplyEventsAround(ctx context.Context, kind RoomKi
 		}
 	} else {
 		beforeCount := (limit - 1) / 2
-		start = targetIndex - beforeCount
-		if start < 0 {
-			start = 0
-		}
+		start = max(targetIndex-beforeCount, 0)
 		end = start + limit
 		if end > len(replies) {
 			end = len(replies)
-			start = end - limit
-			if start < 0 {
-				start = 0
-			}
+			start = max(end-limit, 0)
 		}
 	}
 
@@ -326,7 +321,7 @@ func (c *ChattoCore) advanceThreadLastReadEventID(ctx context.Context, kind Room
 		return nil, err
 	}
 
-	for attempt := 0; attempt < maxReadMarkerUpdateRetries; attempt++ {
+	for range maxReadMarkerUpdateRetries {
 		var previousTime time.Time
 		entry, exists, err := c.readStateModel.index.threadMarker(ctx, userID, roomID, threadRootEventID)
 		if err != nil {
@@ -391,7 +386,7 @@ func (c *ChattoCore) SetThreadLastOpenedAt(ctx context.Context, kind RoomKind, u
 	bucket := c.storage.runtimeStateKV
 	key := threadLastOpenedKey(userID, roomID, threadRootEventID)
 
-	for attempt := 0; attempt < maxReadMarkerUpdateRetries; attempt++ {
+	for range maxReadMarkerUpdateRetries {
 		var previousTime time.Time
 		entry, exists, err := c.readStateModel.index.threadMarker(ctx, userID, roomID, threadRootEventID)
 		if err != nil {
@@ -476,8 +471,7 @@ func (c *ChattoCore) threadReadMarkerTime(ctx context.Context, kind RoomKind, ro
 
 func (c *ChattoCore) latestThreadMessageEventID(threadRootEventID string) string {
 	entries := c.roomModel.threadEvents(threadRootEventID)
-	for i := len(entries) - 1; i >= 0; i-- {
-		entry := entries[i]
+	for _, entry := range slices.Backward(entries) {
 		if entry == nil || !entry.IsMessagePost() {
 			continue
 		}
@@ -739,10 +733,7 @@ func (c *ChattoCore) ListFollowedThreadsPage(ctx context.Context, userID string,
 	if offset >= totalCount {
 		pageThreads = nil
 	} else if limit > 0 {
-		end := offset + limit
-		if end > totalCount {
-			end = totalCount
-		}
+		end := min(offset+limit, totalCount)
 		pageThreads = allThreads[offset:end]
 	} else if offset > 0 {
 		pageThreads = allThreads[offset:]

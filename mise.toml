@@ -754,10 +754,10 @@ depends = ["setup-frontend"]
 run = ["pnpm run check:frontend", "pnpm run lint:frontend"]
 
 [tasks.lint-cli]
-description = "Vet the Chatto CLI module and check it for unused code"
+description = "Vet the Chatto CLI module and check it for unused code and outdated idioms"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
-tools = { "go:honnef.co/go/tools/cmd/staticcheck" = "0.8.1" }
+tools = { "go:honnef.co/go/tools/cmd/staticcheck" = "0.8.1", "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
 # The build matrix makes staticcheck report a symbol as unused only when no
 # build tag set uses it.
 run = [
@@ -770,31 +770,37 @@ test_endpoints: -tags test_endpoints
 integration: -tags integration
 EOF
 ''',
+    # The default build covers negated tags; the combined set covers the rest.
+    '../tools/go-modernize-check.sh "" "bootstrap,test_endpoints,integration"',
 ]
 
 [tasks.lint-appconfig]
 description = "Vet application configuration standalone and in the workspace"
 depends = ["setup-appconfig"]
 dir = "pkg/appconfig"
-run = ["GOWORK=off go vet ./...", "go vet ./..."]
+tools = { "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
+run = ["GOWORK=off go vet ./...", "go vet ./...", "../../tools/go-modernize-check.sh"]
 
 [tasks.lint-datacrypto]
 description = "Vet data cryptography standalone and in the workspace"
 depends = ["setup-datacrypto"]
 dir = "pkg/datacrypto"
-run = ["GOWORK=off go vet ./...", "go vet ./..."]
+tools = { "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
+run = ["GOWORK=off go vet ./...", "go vet ./...", "../../tools/go-modernize-check.sh"]
 
 [tasks.lint-events]
 description = "Vet the event framework standalone and in the workspace"
 depends = ["setup-events"]
 dir = "pkg/events"
-run = ["GOWORK=off go vet ./...", "go vet ./..."]
+tools = { "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
+run = ["GOWORK=off go vet ./...", "go vet ./...", "../../tools/go-modernize-check.sh"]
 
 [tasks.lint-natsruntime]
 description = "Vet the embedded NATS runtime standalone and in the workspace"
 depends = ["setup-natsruntime"]
 dir = "pkg/natsruntime"
-run = ["GOWORK=off go vet ./...", "go vet ./..."]
+tools = { "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
+run = ["GOWORK=off go vet ./...", "go vet ./...", "../../tools/go-modernize-check.sh"]
 
 [tasks.lint-lingua]
 description = "Type-check the JSON internationalisation runtime package"

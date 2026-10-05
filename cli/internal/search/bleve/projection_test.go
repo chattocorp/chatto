@@ -6,11 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 
 	blevesearch "github.com/blevesearch/bleve/v2"
 	"github.com/charmbracelet/log"
@@ -282,7 +283,7 @@ func TestProjectionStartupReplayKeepsBoltMetadataBounded(t *testing.T) {
 	createdAt := time.Unix(100, 0)
 	sequence := uint64(0)
 	batch := make([]evtstream.SequencedEvent, 0, startupReplayBatchSize)
-	for i := uint32(0); i < 4096; i++ {
+	for i := range uint32(4096) {
 		// Multiplicative hashing prevents this fixture from accidentally testing
 		// only bbolt's cheapest monotonically increasing key pattern.
 		messageID := fmt.Sprintf("M%08x", i*2654435761)

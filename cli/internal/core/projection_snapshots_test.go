@@ -2,11 +2,12 @@ package core
 
 import (
 	"bytes"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"strings"
 	"testing"
 	"time"
+
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 
 	"github.com/stretchr/testify/require"
 
@@ -113,28 +114,28 @@ func TestProjectionSnapshotSchemaFingerprintIncludesReferencedType(t *testing.T)
 		messageType := descriptorpb.FieldDescriptorProto_TYPE_MESSAGE
 		field := func(name string, number int32, typeName string) *descriptorpb.FieldDescriptorProto {
 			return &descriptorpb.FieldDescriptorProto{
-				Name:     proto.String(name),
-				Number:   proto.Int32(number),
+				Name:     new(name),
+				Number:   new(number),
 				Label:    &optional,
 				Type:     &messageType,
-				TypeName: proto.String(typeName),
+				TypeName: new(typeName),
 			}
 		}
 		file, err := protodesc.NewFile(&descriptorpb.FileDescriptorProto{
-			Name:    proto.String("snapshot_fingerprint_test.proto"),
-			Package: proto.String("snapshot_fingerprint_test"),
-			Syntax:  proto.String("proto3"),
+			Name:    new("snapshot_fingerprint_test.proto"),
+			Package: new("snapshot_fingerprint_test"),
+			Syntax:  new("proto3"),
 			MessageType: []*descriptorpb.DescriptorProto{
-				{Name: proto.String("A"), Field: []*descriptorpb.FieldDescriptorProto{{
-					Name: proto.String("value"), Number: proto.Int32(1), Label: &optional,
+				{Name: new("A"), Field: []*descriptorpb.FieldDescriptorProto{{
+					Name: new("value"), Number: proto.Int32(1), Label: &optional,
 					Type: descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum(),
 				}}},
-				{Name: proto.String("B"), Field: []*descriptorpb.FieldDescriptorProto{{
-					Name: proto.String("value"), Number: proto.Int32(1), Label: &optional,
+				{Name: new("B"), Field: []*descriptorpb.FieldDescriptorProto{{
+					Name: new("value"), Number: proto.Int32(1), Label: &optional,
 					Type: descriptorpb.FieldDescriptorProto_TYPE_INT64.Enum(),
 				}}},
 				{
-					Name: proto.String("Root"),
+					Name: new("Root"),
 					Field: []*descriptorpb.FieldDescriptorProto{
 						field("a", 1, ".snapshot_fingerprint_test.A"),
 						field("b", 2, ".snapshot_fingerprint_test.B"),

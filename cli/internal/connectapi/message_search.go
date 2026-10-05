@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 	"time"
@@ -245,7 +246,7 @@ func (s *messageSearchService) searchThreadGroups(ctx context.Context, viewerID 
 		byMessage[match.Message.Id] = match
 	}
 	response := &apiv1.SearchMessagesResponse{
-		Includes: rows.Includes, ThreadTotalCount: proto.Uint64(uint64(page.TotalCount)),
+		Includes: rows.Includes, ThreadTotalCount: new(uint64(page.TotalCount)),
 	}
 	for _, row := range rows.Threads {
 		result := byRoot[row.Thread.ThreadRootEventId]
@@ -322,9 +323,7 @@ func (a *API) hydrateMessageSearchResults(ctx context.Context, viewerID string, 
 			if includes.Users == nil {
 				includes.Users = make(map[string]*apiv1.User)
 			}
-			for id, user := range users {
-				includes.Users[id] = user
-			}
+			maps.Copy(includes.Users, users)
 		}
 		for _, event := range apiEvents {
 			if message := messageFromTimelineEvent(event); message != nil {

@@ -124,7 +124,7 @@ func rbacAggregateForPermissionScope(scope *evtv1.RbacPermissionScope) evtstream
 func (c *ChattoCore) appendRBACEvent(ctx context.Context, event *evtv1.Event, check func() error) (uint64, error) {
 	filter := evtstream.RBACSubjectFilter()
 
-	for attempt := 0; attempt < maxRBACMutationRetries; attempt++ {
+	for attempt := range maxRBACMutationRetries {
 		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return 0, fmt.Errorf("read RBAC OCC filter seq: %w", err)
@@ -171,7 +171,7 @@ func (c *ChattoCore) appendRBACEvent(ctx context.Context, event *evtv1.Event, ch
 func (c *ChattoCore) appendRoleAssignmentEvent(ctx context.Context, userID string, requireExistingUser bool, event *evtv1.Event, check func() error) (uint64, error) {
 	filter := evtstream.RBACSubjectFilter()
 
-	for attempt := 0; attempt < maxRBACMutationRetries; attempt++ {
+	for attempt := range maxRBACMutationRetries {
 		rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return 0, fmt.Errorf("read RBAC OCC filter seq: %w", err)
@@ -226,7 +226,7 @@ func (c *ChattoCore) appendRoleAssignmentEvent(ctx context.Context, userID strin
 func (c *ChattoCore) appendRBACEventWithMentionableCheck(ctx context.Context, event *evtv1.Event, check func() error) (uint64, error) {
 	filter := evtstream.EventSubjectFilter()
 
-	for attempt := 0; attempt < maxRBACMutationRetries; attempt++ {
+	for attempt := range maxRBACMutationRetries {
 		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return 0, fmt.Errorf("read mentionable OCC filter seq: %w", err)
@@ -285,7 +285,7 @@ func (c *ChattoCore) appendRBACBatch(ctx context.Context, entries []evtstream.Ba
 	}
 	filter := evtstream.RBACSubjectFilter()
 
-	for attempt := 0; attempt < maxRBACMutationRetries; attempt++ {
+	for attempt := range maxRBACMutationRetries {
 		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return 0, fmt.Errorf("read RBAC OCC filter seq: %w", err)

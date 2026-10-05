@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"time"
+
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -165,7 +166,7 @@ func (c *ChattoCore) MigrateLegacyCookieSession(ctx context.Context, sessionID s
 	}
 
 	key := c.authTokenKey(sessionID)
-	for attempt := 0; attempt < 8; attempt++ {
+	for range 8 {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
@@ -310,7 +311,7 @@ func (c *ChattoCore) RenewCookieSession(ctx context.Context, sessionID string, n
 	}
 
 	key := c.authTokenKey(sessionID)
-	for attempt := 0; attempt < 8; attempt++ {
+	for range 8 {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {

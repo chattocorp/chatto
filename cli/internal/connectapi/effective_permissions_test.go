@@ -21,7 +21,7 @@ func TestEffectivePermissionServiceBoundaryAndCompleteResult(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, env.core.GrantUserPermission(env.ctx, env.viewer.Id, bot.User.Id, core.PermMessageRead))
 	// Exceed the former maximum page size to catch silent truncation.
-	for i := 0; i < 55; i++ {
+	for i := range 55 {
 		_, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", fmt.Sprintf("effective-%d", i), "")
 		require.NoError(t, err)
 	}
