@@ -126,7 +126,7 @@ Scopes: **S** Server, **G** Room group, **R** Room, **DM** Direct messages.
 | `call.voice` | All | | Send microphone audio. |
 | `call.camera` | All | | Send camera video. |
 | `call.screenshare` | All | | Share a screen, window, tab, or application, with its audio. |
-| `role.manage` | S | Yes | Create, change, and delete roles and their permission settings. A non-owner can change only the settings of permissions that they have at that scope, and can delete only roles whose allows and denies they have. |
+| `role.manage` | S | Yes | Create, change, and delete roles and their permission settings. A non-owner can change only the settings of permissions that they have at that scope. To delete a role, a non-owner must have every permission that the role allows or denies. |
 | `role.assign` | S | Yes | Assign and remove roles. A non-owner can assign only roles whose allows they have. Only owners can assign `owner`. |
 | `admin.view-users` | S | Yes | See the member list in Server Administration. |
 | `admin.view-audit` | S | Yes | See the event log. |
@@ -260,7 +260,9 @@ Make these changes on an upgraded server:
   a more specific scope now overrides them.
 - **Check delegated permission editors.** A user who is not an owner can now
   change only the permission settings of permissions that they have at that
-  scope. Give these users the permissions that they must manage.
+  scope. To delete a role, this user must have every permission that the role
+  allows or denies. This user also cannot change their own permission
+  settings. Give these users the permissions that they must manage.
 
 <Aside type="caution">
   Administrators, moderators, and owners must now enable

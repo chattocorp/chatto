@@ -73,7 +73,9 @@ type AdminRoleServiceClient interface {
 	CreateRole(context.Context, *connect.Request[v1.CreateRoleRequest]) (*connect.Response[v1.CreateRoleResponse], error)
 	// Updates role metadata. Requires role.manage.
 	UpdateRole(context.Context, *connect.Request[v1.UpdateRoleRequest]) (*connect.Response[v1.UpdateRoleResponse], error)
-	// Deletes a custom role. Requires role.manage.
+	// Deletes a custom role. Requires role.manage. A caller who is not an owner
+	// must also have every permission that the role allows or denies, at the
+	// same scope; otherwise the call returns PERMISSION_DENIED.
 	DeleteRole(context.Context, *connect.Request[v1.DeleteRoleRequest]) (*connect.Response[v1.DeleteRoleResponse], error)
 	// Replaces the custom role order. Requires role.manage.
 	ReorderRoles(context.Context, *connect.Request[v1.ReorderRolesRequest]) (*connect.Response[v1.ReorderRolesResponse], error)
@@ -198,7 +200,9 @@ type AdminRoleServiceHandler interface {
 	CreateRole(context.Context, *connect.Request[v1.CreateRoleRequest]) (*connect.Response[v1.CreateRoleResponse], error)
 	// Updates role metadata. Requires role.manage.
 	UpdateRole(context.Context, *connect.Request[v1.UpdateRoleRequest]) (*connect.Response[v1.UpdateRoleResponse], error)
-	// Deletes a custom role. Requires role.manage.
+	// Deletes a custom role. Requires role.manage. A caller who is not an owner
+	// must also have every permission that the role allows or denies, at the
+	// same scope; otherwise the call returns PERMISSION_DENIED.
 	DeleteRole(context.Context, *connect.Request[v1.DeleteRoleRequest]) (*connect.Response[v1.DeleteRoleResponse], error)
 	// Replaces the custom role order. Requires role.manage.
 	ReorderRoles(context.Context, *connect.Request[v1.ReorderRolesRequest]) (*connect.Response[v1.ReorderRolesResponse], error)

@@ -483,7 +483,9 @@ Result of updating a role.
 
 ### DeleteRole
 
-Deletes a custom role. Requires role.manage.
+Deletes a custom role. Requires role.manage. A caller who is not an owner
+must also have every permission that the role allows or denies, at the
+same scope; otherwise the call returns PERMISSION_DENIED.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/DeleteRole
@@ -1166,6 +1168,8 @@ Permission explanations for all permissions applicable at the requested scope.
 
 Sets one role permission decision. Server scope requires role.manage;
 group and room scopes also accept effective room.manage at that resource.
+A caller who is not an owner must also have the permission at the target
+scope; otherwise the call returns PERMISSION_DENIED.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/SetRolePermission
@@ -1201,8 +1205,11 @@ Result of setting one role permission state.
 ### SetUserPermission
 
 Sets one user permission decision. Human targets require
-user.manage-permissions; bot targets require ownership or bot.manage and
-accept only allow or clear within the bot owner's current authority.
+user.manage-permissions. A caller who is not an owner must also have the
+permission at the target scope and cannot change their own decisions;
+otherwise the call returns PERMISSION_DENIED. Bot targets require
+ownership or bot.manage and accept only allow or clear within the bot
+owner's current authority.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/SetUserPermission

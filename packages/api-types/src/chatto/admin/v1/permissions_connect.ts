@@ -97,6 +97,8 @@ export const AdminPermissionService = {
     /**
      * Sets one role permission decision. Server scope requires role.manage;
      * group and room scopes also accept effective room.manage at that resource.
+     * A caller who is not an owner must also have the permission at the target
+     * scope; otherwise the call returns PERMISSION_DENIED.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.SetRolePermission
      */
@@ -108,8 +110,11 @@ export const AdminPermissionService = {
     },
     /**
      * Sets one user permission decision. Human targets require
-     * user.manage-permissions; bot targets require ownership or bot.manage and
-     * accept only allow or clear within the bot owner's current authority.
+     * user.manage-permissions. A caller who is not an owner must also have the
+     * permission at the target scope and cannot change their own decisions;
+     * otherwise the call returns PERMISSION_DENIED. Bot targets require
+     * ownership or bot.manage and accept only allow or clear within the bot
+     * owner's current authority.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.SetUserPermission
      */

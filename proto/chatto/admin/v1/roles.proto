@@ -155,7 +155,9 @@ service AdminRoleService {
   rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);
   // Updates role metadata. Requires role.manage.
   rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
-  // Deletes a custom role. Requires role.manage.
+  // Deletes a custom role. Requires role.manage. A caller who is not an owner
+  // must also have every permission that the role allows or denies, at the
+  // same scope; otherwise the call returns PERMISSION_DENIED.
   rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
   // Replaces the custom role order. Requires role.manage.
   rpc ReorderRoles(ReorderRolesRequest) returns (ReorderRolesResponse);

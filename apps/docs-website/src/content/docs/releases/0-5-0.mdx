@@ -321,8 +321,9 @@ Do these steps on every upgraded server:
   overrides an `everyone` deny at the same or a narrower scope.
 - **Check delegated permission editors.** A user who is not an owner can now
   change only the permission settings of permissions that they have at that
-  scope. They also cannot change their own permission settings. Give these
-  users the permissions that they must manage.
+  scope. To delete a role, this user must have every permission that the role
+  allows or denies. This user also cannot change their own permission
+  settings. Give these users the permissions that they must manage.
 
 Administrators, moderators, and the owner must now enable privileged mode before
 they use their administrative permissions. This also applies to custom

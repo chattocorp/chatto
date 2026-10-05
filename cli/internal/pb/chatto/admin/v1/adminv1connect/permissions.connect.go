@@ -83,10 +83,15 @@ type AdminPermissionServiceClient interface {
 	ExplainPermissions(context.Context, *connect.Request[v1.ExplainPermissionsRequest]) (*connect.Response[v1.ExplainPermissionsResponse], error)
 	// Sets one role permission decision. Server scope requires role.manage;
 	// group and room scopes also accept effective room.manage at that resource.
+	// A caller who is not an owner must also have the permission at the target
+	// scope; otherwise the call returns PERMISSION_DENIED.
 	SetRolePermission(context.Context, *connect.Request[v1.SetRolePermissionRequest]) (*connect.Response[v1.SetRolePermissionResponse], error)
 	// Sets one user permission decision. Human targets require
-	// user.manage-permissions; bot targets require ownership or bot.manage and
-	// accept only allow or clear within the bot owner's current authority.
+	// user.manage-permissions. A caller who is not an owner must also have the
+	// permission at the target scope and cannot change their own decisions;
+	// otherwise the call returns PERMISSION_DENIED. Bot targets require
+	// ownership or bot.manage and accept only allow or clear within the bot
+	// owner's current authority.
 	SetUserPermission(context.Context, *connect.Request[v1.SetUserPermissionRequest]) (*connect.Response[v1.SetUserPermissionResponse], error)
 }
 
@@ -232,10 +237,15 @@ type AdminPermissionServiceHandler interface {
 	ExplainPermissions(context.Context, *connect.Request[v1.ExplainPermissionsRequest]) (*connect.Response[v1.ExplainPermissionsResponse], error)
 	// Sets one role permission decision. Server scope requires role.manage;
 	// group and room scopes also accept effective room.manage at that resource.
+	// A caller who is not an owner must also have the permission at the target
+	// scope; otherwise the call returns PERMISSION_DENIED.
 	SetRolePermission(context.Context, *connect.Request[v1.SetRolePermissionRequest]) (*connect.Response[v1.SetRolePermissionResponse], error)
 	// Sets one user permission decision. Human targets require
-	// user.manage-permissions; bot targets require ownership or bot.manage and
-	// accept only allow or clear within the bot owner's current authority.
+	// user.manage-permissions. A caller who is not an owner must also have the
+	// permission at the target scope and cannot change their own decisions;
+	// otherwise the call returns PERMISSION_DENIED. Bot targets require
+	// ownership or bot.manage and accept only allow or clear within the bot
+	// owner's current authority.
 	SetUserPermission(context.Context, *connect.Request[v1.SetUserPermissionRequest]) (*connect.Response[v1.SetUserPermissionResponse], error)
 }
 
