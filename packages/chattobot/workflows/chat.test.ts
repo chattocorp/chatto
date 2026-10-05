@@ -157,11 +157,12 @@ test.each([
             'fetchPage',
             'investigateChatto',
             'task_send',
+            'forwardClarification',
             'task_cancel'
           ]
         : ['readThread', 'acknowledgeRequest', 'finishTurn', 'fetchPage'],
       // The prompt hygiene extension comes first, then the gates and tools.
-      extensions: Array(thread ? 7 : 5).fill(expect.any(Function)),
+      extensions: Array(thread ? 8 : 5).fill(expect.any(Function)),
       resources: {
         extensions: false,
         skills: false,
@@ -198,6 +199,7 @@ test('implementation is a separate opt-in tool with host-result reporting instru
         'askImplementation',
         'decideApproval',
         'task_send',
+        'forwardClarification',
         'task_cancel'
       ]);
       expect(options.systemPrompt).toContain('You are ChattoBot');

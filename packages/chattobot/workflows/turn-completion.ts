@@ -28,6 +28,7 @@ export function createTurnCompletion(options: {
       name: 'finishTurn',
       label: 'Finish conversation turn',
       exposure: 'model-only',
+      executionMode: 'sequential',
       description:
         'Finish this turn with one action: reply with your complete text, react to a simple acknowledgement, or stay silent. Questions and task results need a reply. After success, stop; further text is not delivered. If a reaction fails, finish with a brief text reply instead.',
       parameters: turnCompletionSchema,
@@ -43,7 +44,8 @@ export function createTurnCompletion(options: {
           selected = completion;
           return {
             content: [{ type: 'text' as const, text: 'Final action accepted. End this turn now.' }],
-            details: { kind: completion.kind }
+            details: { kind: completion.kind },
+            terminate: true
           };
         } finally {
           selecting = false;

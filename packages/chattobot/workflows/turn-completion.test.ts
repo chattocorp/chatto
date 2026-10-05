@@ -206,3 +206,28 @@ test('successive feedback and question turns each deliver only their selected ac
   expect(post.mock.calls).toHaveLength(3);
   expect(post.mock.calls.map((call) => call[1])).toEqual(['Answer 2', 'Answer 3', 'Answer 4']);
 });
+
+test('completion requires sequential execution and returns a terminal result', async () => {
+  const completion = createTurnCompletion({ react: async () => {} });
+  let definition: { executionMode?: string } | undefined;
+  const extension = completion.extension;
+  await (typeof extension === 'function' ? extension : extension.factory)({
+    registerTool(tool: { executionMode?: string }) {
+      definition = tool;
+    }
+  } as unknown as import('runling/agents').AgentExtensionAPI);
+  expect(definition?.executionMode).toBe('sequential');
+  const finish = await completionTool({ extensions: [completion.extension] });
+  const onText = vi.fn();
+  await completion
+    .wrap({
+      steer: async () => false,
+      runOutcome: async () => {
+        expect(await finish({ kind: 'reply', text: 'Done.' })).toMatchObject({ terminate: true });
+        // Runling's terminal-tool success can have no ordinary assistant response.
+        return result();
+      }
+    })
+    .runOutcome(createWorkflowContext(), 'Finish', { onText });
+  expect(onText).toHaveBeenCalledExactlyOnceWith('Done.');
+});

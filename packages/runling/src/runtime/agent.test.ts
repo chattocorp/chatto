@@ -2014,3 +2014,49 @@ test('a silent delegation turn keeps its child alive and reports its eventual co
     await running.catch(() => {});
   }
 });
+
+test.each([
+  { isError: false, parentToolCallId: undefined, stops: true },
+  { isError: true, parentToolCallId: undefined, stops: false },
+  { isError: false, parentToolCallId: 'script', stops: false }
+])(
+  'terminal tools stop a mixed batch only on direct success: %j',
+  async ({ isError, parentToolCallId, stops }) => {
+    const instance = await agent({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5',
+      output: 'text',
+      terminalTools: ['finish']
+    });
+    promptImplementation = async () => {
+      // A nonterminal read followed by a terminal tool: Pi's all-results hint alone
+      // would continue this batch. Exercise the actual finishTurn hook Runling installs.
+      for (const toolName of ['read', 'finish'])
+        eventHandler?.({
+          type: 'tool_execution_end',
+          toolCallId: toolName,
+          toolName,
+          isError: toolName === 'finish' && isError,
+          parentToolCallId,
+          result: { content: [], details: {} }
+        });
+      expect(await createdSessions.at(-1).agent.finishTurn({}, undefined)).toEqual(
+        stops ? { action: 'end' } : undefined
+      );
+    };
+    try {
+      const result = await instance.runOutcome(createWorkflowContext(), 'Select a final result');
+      expect(result.outcome).toBe(stops ? 'completed' : 'failed');
+      expect(result.summary).toBe(stops ? '' : 'Agent finished without a text response');
+      // Completion is interaction-local; it must not stop the next user turn.
+      promptImplementation = async () => {
+        expect(await createdSessions.at(-1).agent.finishTurn({}, undefined)).toBeUndefined();
+      };
+      expect((await instance.runOutcome(createWorkflowContext(), 'Next turn')).outcome).toBe(
+        'failed'
+      );
+    } finally {
+      instance.dispose();
+    }
+  }
+);
