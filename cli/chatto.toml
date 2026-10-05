@@ -1,8 +1,8 @@
 # Chatto configuration for local development. `mise dev`, `mise dev-full`, and
 # `mise chatto` use this file from the `cli/` directory. The `chatto` task in
 # the root `mise.toml` sets the values that depend on the workspace: ports,
-# URLs, and data paths. `mise dev-full` also enables email and LiveKit and adds
-# the Authling login provider and TestBot.
+# URLs, data paths, and TestBot. `mise dev-full` also enables email and LiveKit
+# and adds the Authling login provider.
 
 [general]
 log_level = 'debug'

@@ -430,8 +430,8 @@ run = ['echo "Chatto: $CHATTO_DEV_CHATTO_URL"', { task = "chatto run" }]
 description = "Build and run Chatto with Authling, Runling, Mailpit, and LiveKit"
 depends = ["check-dev-ports full", "setup", "build-dev-cli", "build-runling-bot"]
 # These settings reach the `chatto run` task. They enable email and LiveKit and
-# add the Authling login provider and TestBot. Environment values replace the
-# complete provider and bot lists of `cli/chatto.toml`.
+# add the Authling login provider. Environment values replace the complete
+# provider list of `cli/chatto.toml`.
 env = {
   CHATTO_SMTP_ENABLED = "true",
   CHATTO_LIVEKIT_ENABLED = "true",
@@ -443,15 +443,6 @@ env = {
   CHATTO_AUTH_PROVIDERS_0_CLIENT_SECRET = "{{env.CHATTO_DEV_AUTHLING_CLIENT_SECRET}}",
   CHATTO_AUTH_PROVIDERS_0_REQUEST_EMAIL = "false",
   CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION = "true",
-  CHATTO_BOOTSTRAP_BOTS_0_LOGIN = "test_bot",
-  CHATTO_BOOTSTRAP_BOTS_0_DISPLAY_NAME = "TestBot",
-  CHATTO_BOOTSTRAP_BOTS_0_BIO = "I'm **TestBot**, Chatto's development assistant. Mention `@test_bot` in a channel or send me a direct message.",
-  CHATTO_BOOTSTRAP_BOTS_0_OWNER_LOGIN = "alice",
-  CHATTO_BOOTSTRAP_BOTS_0_API_KEY_NAME = "Local development",
-  CHATTO_BOOTSTRAP_BOTS_0_OUTBOUND_WEBHOOK_URL = "http://localhost:{{env.CHATTO_DEV_RUNLING_PORT}}/api/runs/start/chatto",
-  CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE = "{{env.CHATTO_DEV_DATA_ROOT | default(value='./data')}}/bootstrap/test_bot.key",
-  CHATTO_BOOTSTRAP_BOTS_0_PERMISSIONS = "room.join,room.list,message.read,message.post-in-thread",
-  CHATTO_BOOTSTRAP_BOTS_0_ROOMS = "general",
 }
 # mise runs each service in its own process group. On SIGHUP, SIGINT, or
 # SIGTERM, it signals all of these groups, and when one service fails, it stops
@@ -568,8 +559,11 @@ run = "exec pnpm astro dev --host 127.0.0.1"
 # Uses `cli/chatto.toml` with the ports of the workspace. `mise dev` runs
 # `chatto run`, and `mise dev-full` runs it with more settings. The email and
 # LiveKit values take effect only when `mise dev-full` enables these features.
-# CHATTO_DEV_DATA_ROOT selects a different data directory, for example in
-# `tools/dev-seed-smoke.mjs`.
+# TestBot is set here, because bootstrap runs only on the first start of an
+# empty server, and either command can do that start. Its webhook needs the
+# Runling bot of `mise dev-full`. Environment values replace the complete bot
+# list of `cli/chatto.toml`. CHATTO_DEV_DATA_ROOT selects a different data
+# directory, for example in `tools/dev-seed-smoke.mjs`.
 [tasks.chatto]
 description = "Build and run the bundled Chatto CLI command with the development stack's ports"
 depends = ["build-dev-cli"]
@@ -585,6 +579,15 @@ env = {
   CHATTO_SMTP_PORT = "{{env.CHATTO_DEV_SMTP_PORT}}",
   CHATTO_LIVEKIT_URL = "ws://localhost:{{env.CHATTO_DEV_LIVEKIT_PORT}}",
   CHATTO_LIVEKIT_WEBHOOK_URL = "http://127.0.0.1:{{env.CHATTO_DEV_CHATTO_PORT}}/webhooks/livekit",
+  CHATTO_BOOTSTRAP_BOTS_0_LOGIN = "test_bot",
+  CHATTO_BOOTSTRAP_BOTS_0_DISPLAY_NAME = "TestBot",
+  CHATTO_BOOTSTRAP_BOTS_0_BIO = "I'm **TestBot**, Chatto's development assistant. Mention `@test_bot` in a channel or send me a direct message.",
+  CHATTO_BOOTSTRAP_BOTS_0_OWNER_LOGIN = "alice",
+  CHATTO_BOOTSTRAP_BOTS_0_API_KEY_NAME = "Local development",
+  CHATTO_BOOTSTRAP_BOTS_0_OUTBOUND_WEBHOOK_URL = "http://localhost:{{env.CHATTO_DEV_RUNLING_PORT}}/api/runs/start/chatto",
+  CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE = "{{env.CHATTO_DEV_DATA_ROOT | default(value='./data')}}/bootstrap/test_bot.key",
+  CHATTO_BOOTSTRAP_BOTS_0_PERMISSIONS = "room.join,room.list,message.read,message.post-in-thread",
+  CHATTO_BOOTSTRAP_BOTS_0_ROOMS = "general",
 }
 run = "exec bin/chatto"
 

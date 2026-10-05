@@ -66,7 +66,7 @@ mise dev-full
 ```
 
 Use `mise dev-full` for features that need email, voice calls, the Authling
-login, or TestBot. It first runs `mise setup`, then runs the services as
+login, or replies from TestBot. It first runs `mise setup`, then runs the services as
 parallel mise tasks. Restart it to see a change in Chatto, its frontend, or
 Authling. Both commands use the same Chatto configuration and data.
 
@@ -258,9 +258,9 @@ Pass explicit CLI arguments after the task name, for example
 ### Local Chatto Data
 
 `cli/chatto.toml` is the development configuration of `mise dev`,
-`mise dev-full`, and `mise chatto`. The `chatto` task sets only the values that
-depend on the workspace: ports, URLs, and data paths. `mise dev-full` also
-enables email and LiveKit and adds the Authling login provider and TestBot.
+`mise dev-full`, and `mise chatto`. The `chatto` task sets the values that
+depend on the workspace: ports, URLs, data paths, and TestBot. `mise dev-full`
+also enables email and LiveKit and adds the Authling login provider.
 The file keeps embedded NATS data in `cli/data/nats/` and the
 search index in `cli/data/search/`.
 

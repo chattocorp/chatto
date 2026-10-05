@@ -18,9 +18,10 @@ Accepted. Supersedes [ADR-078](ADR-078-portless-native-development-stack.md).
 > **Amended 2026-10-05:** `mise dev` runs only Chatto. `mise dev-full` runs the
 > complete stack that this record describes. `cli/chatto.toml` is the shared
 > development configuration, with email and LiveKit disabled. The `chatto`
-> task adds the values that depend on the workspace. `mise dev-full` enables
-> email and LiveKit and adds the Authling login provider and TestBot through
-> environment values. Most work needs only Chatto, so the default command
+> task adds the values that depend on the workspace and TestBot, because
+> either command can do the first start that bootstraps the server.
+> `mise dev-full` enables email and LiveKit and adds the Authling login
+> provider through environment values. Most work needs only Chatto, so the default command
 > builds and starts less.
 
 ## Context
