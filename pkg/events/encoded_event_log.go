@@ -148,6 +148,10 @@ func (l *EncodedEventLog) LastStreamSeq(ctx context.Context) (uint64, error) {
 
 const maxAppendRetries = 5
 
+// maxByteBoundedPageFetch caps the records that one fetch of a byte-bounded
+// SubjectRecordsAfterPage call transfers.
+const maxByteBoundedPageFetch = 64
+
 // Append publishes a record using the current tail of subject as its OCC
 // token. Conflicts are returned so state-replacement callers can re-read and
 // re-compose before retrying.
@@ -562,13 +566,15 @@ func (l *EncodedEventLog) SubjectRecordsAfterPage(
 		remaining := int(target - uint64(len(page.Records)))
 		batchSize := remaining
 		if maxBytes > 0 {
-			// Size each fetch from the largest payload seen so far, and at
-			// most double it per fetch, so that larger later records cannot
-			// make one fetch transfer far more than the remaining budget.
-			// The first fetch reads one record because no size is known yet.
+			// Size each fetch from the largest payload seen so far. The
+			// first fetch reads one record because no size is known yet.
+			// Later fetches at most double and never exceed
+			// maxByteBoundedPageFetch records, so records larger than the
+			// ones seen so far can make one fetch transfer at most
+			// maxByteBoundedPageFetch payloads beyond the remaining budget.
 			batchSize = 1
 			if largest > 0 {
-				batchSize = min(max((maxBytes-bytesRead)/largest, 1), 2*previousBatch, remaining)
+				batchSize = min(max((maxBytes-bytesRead)/largest, 1), 2*previousBatch, maxByteBoundedPageFetch, remaining)
 			}
 			previousBatch = batchSize
 		}
@@ -593,8 +599,8 @@ func (l *EncodedEventLog) SubjectRecordsAfterPage(
 // the page is full. The consumer has already delivered every fetched message,
 // so the page must end at the first record that it cannot hold; the next page
 // reads that record again. A payload larger than maxBytes is an error when it
-// is the first record of the page, because no page can contain it. largest tracks the largest payload size seen,
-// counting an empty payload as one byte.
+// is the first record of the page, because no page can contain it. largest
+// tracks the largest payload size seen, counting an empty payload as one byte.
 func appendPageRecords(page *SubjectRecordPage, msgs jetstream.MessageBatch, maxBytes int, bytesRead, largest *int) (int, bool, error) {
 	fetched := 0
 	full := false
