@@ -11,7 +11,7 @@ import (
 	"hmans.de/chatto/pkg/natsauth"
 )
 
-func TestLocalDevelopmentConfigUsesSeparateDataDirectories(t *testing.T) {
+func TestLocalDevelopmentConfig(t *testing.T) {
 	cfg, err := ReadConfig(filepath.Join("..", "..", "chatto.toml"))
 	if err != nil {
 		t.Fatalf("ReadConfig() failed for local development config: %v", err)

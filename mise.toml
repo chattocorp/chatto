@@ -425,8 +425,8 @@ run = "tools/check-dev-ports.sh"
 
 [tasks.dev]
 description = "Build and run Chatto"
-# The build tasks install missing tools and Chatto dependencies, so a fresh
-# checkout needs only `mise dev`. The port check fails the start early and does
+# mise installs missing tools, and the build tasks install the Chatto
+# dependencies, so a fresh checkout needs only `mise dev`. The port check fails the start early and does
 # not stop other processes.
 depends = ["check-dev-ports", "build-dev-cli"]
 run = ['echo "Chatto: $CHATTO_DEV_CHATTO_URL"', { task = "chatto run" }]

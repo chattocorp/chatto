@@ -249,9 +249,10 @@ Pass explicit CLI arguments after the task name, for example
 `cli/chatto.toml` is the development configuration of `mise dev`,
 `mise dev-full`, and `mise chatto`. The `chatto` task sets the values that
 depend on the workspace: ports, URLs, data paths, and TestBot. `mise dev-full`
-also enables email and LiveKit and adds the Authling login provider.
-The file keeps embedded NATS data in `cli/data/nats/` and the
-search index in `cli/data/search/`.
+also enables email and LiveKit and adds the Authling login provider. The
+development stack keeps embedded NATS data in `cli/data/nats/` and the search
+index in `cli/data/search/`. Set `CHATTO_DEV_DATA_ROOT` to an absolute path to
+use a different data directory.
 
 Older worktrees can have embedded NATS data in `cli/data/jetstream/`. Stop all
 Chatto processes before you migrate this data. If
@@ -270,7 +271,9 @@ contains the data that you need.
 
 ## Local Bootstrap Users
 
-Local development instances are bootstrapped from `cli/chatto.toml` when the server is otherwise empty.
+On the first start of an empty server, `mise dev` and `mise dev-full` create
+these users from `cli/chatto.toml`. They also create TestBot, which replies
+only while the Runling bot of `mise dev-full` runs.
 
 | Login   | Email               | Password    | Role  |
 | ------- | ------------------- | ----------- | ----- |

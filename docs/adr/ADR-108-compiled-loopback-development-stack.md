@@ -99,5 +99,5 @@ from ADR-078.
   are not available.
 - Storybook and the documentation website do not have fixed preview URLs. Their
   terminal output shows the selected port.
-- Mailpit and LiveKit still run once for each workspace. A later decision can
-  replace them with shared machine-wide services.
+- With `mise dev-full`, Mailpit and LiveKit still run once for each workspace.
+  A later decision can replace them with shared machine-wide services.
