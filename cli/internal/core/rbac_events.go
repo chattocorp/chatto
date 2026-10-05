@@ -121,46 +121,11 @@ func rbacAggregateForPermissionScope(scope *evtv1.RbacPermissionScope) evtstream
 	return evtstream.RBACScopedAggregate(scope.GetId())
 }
 
+// appendRBACEvent authorizes and appends one RBAC event with OCC on the whole
+// RBAC subject filter. check runs on every attempt against stable
+// authorization inputs.
 func (c *ChattoCore) appendRBACEvent(ctx context.Context, event *evtv1.Event, check func() error) (uint64, error) {
-	filter := evtstream.RBACSubjectFilter()
-
-	for attempt := range maxRBACMutationRetries {
-		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
-		if err != nil {
-			return 0, fmt.Errorf("read RBAC OCC filter seq: %w", err)
-		}
-		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
-			return 0, fmt.Errorf("wait for RBAC projection: %w", err)
-		}
-		if err := c.authorizeAtStableInputs(ctx, check); err != nil {
-			return 0, err
-		}
-		subject := rbacSubjectForEvent(event)
-		entries := []evtstream.BatchEntry{{
-			Subject: subject,
-			Event:   event,
-			Expect:  events.ExpectFilterSeq(filter, filterSeq),
-		}}
-
-		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
-		if err == nil {
-			seq := seqs[0]
-			if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(subject, seq)); err != nil {
-				return 0, fmt.Errorf("wait for RBAC projection: %w", err)
-			}
-			return seq, nil
-		}
-		if !errors.Is(err, events.ErrConflict) {
-			return 0, err
-		}
-
-		select {
-		case <-ctx.Done():
-			return 0, ctx.Err()
-		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
-		}
-	}
-	return 0, fmt.Errorf("RBAC OCC retry exhausted after %d attempts: %w", maxRBACMutationRetries, events.ErrConflict)
+	return c.appendRBACEventAuthorized(ctx, event, c.authorizeAtStableInputs, check)
 }
 
 // appendRoleAssignmentEvent waits for every projection used by role-assignment
@@ -184,25 +149,28 @@ func (c *ChattoCore) appendRoleAssignmentEvent(ctx context.Context, userID strin
 // inspects permission scopes in more than one room, such as the complete
 // decision set of a role. It also stabilizes the room catalog.
 func (c *ChattoCore) appendRBACEventAtStableRoomInputs(ctx context.Context, event *evtv1.Event, check func() error) (uint64, error) {
+	return c.appendRBACEventAuthorized(ctx, event, c.authorizeAtStableRoomInputs, check)
+}
+
+func (c *ChattoCore) appendRBACEventAuthorized(ctx context.Context, event *evtv1.Event, authorize func(context.Context, func() error) error, check func() error) (uint64, error) {
 	filter := evtstream.RBACSubjectFilter()
 
 	for attempt := range maxRBACMutationRetries {
-		rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return 0, fmt.Errorf("read RBAC OCC filter seq: %w", err)
 		}
-		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(filter, rbacSeq)); err != nil {
+		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
 			return 0, fmt.Errorf("wait for RBAC projection: %w", err)
 		}
-
-		if err := c.authorizeAtStableRoomInputs(ctx, check); err != nil {
+		if err := authorize(ctx, check); err != nil {
 			return 0, err
 		}
 		subject := rbacSubjectForEvent(event)
 		entries := []evtstream.BatchEntry{{
 			Subject: subject,
 			Event:   event,
-			Expect:  events.ExpectFilterSeq(filter, rbacSeq),
+			Expect:  events.ExpectFilterSeq(filter, filterSeq),
 		}}
 
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
