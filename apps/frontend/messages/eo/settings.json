@@ -510,35 +510,35 @@
       "capabilities": {
         "legend": "Komencaj permesoj",
         "hint": "Vi povas ŝanĝi ilin poste.",
-        "unavailable": "Vi ne havas ĉi tiun permeson.",
-        "apply_failed": "Kelkaj permesoj ne povis esti donitaj al la roboto. Kontrolu ilin en la langeto Permesoj.",
+        "unavailable": "Vi mem ne havas ĉi tiun permeson, do vi ne povas doni ĝin al via roboto.",
+        "apply_failed": "Via roboto pretas, sed kelkaj permesoj ne sukcesis. Rigardu la langeton Permesoj.",
         "interactions": {
-          "title": "Respondi al mencioj kaj fadenoj",
-          "description": "Legi fadenojn, kie iu mencias la roboton, kaj respondi en ili."
+          "title": "Respondi al mencioj",
+          "description": "Respondas rekte en la fadeno, kiam iu @mencias ĝin."
         },
         "direct_messages": {
           "title": "Babili en rektaj mesaĝoj",
-          "description": "Legi kaj skribi en rektaj mesaĝoj, kiujn iu komencas kun la roboto."
+          "description": "Parolas duope, kiam iu sendas al ĝi rektan mesaĝon."
         },
         "post": {
           "title": "Afiŝi mesaĝojn",
-          "description": "Afiŝi novajn mesaĝojn en ĉambroj kaj rektaj mesaĝoj."
+          "description": "Afiŝas novajn mesaĝojn, ekzemple anoncojn aŭ avertojn."
         },
         "read_all": {
-          "title": "Legi ĉiujn mesaĝojn",
-          "description": "Legi ĉiun mesaĝon, ne nur siajn fadenojn."
+          "title": "Legi ĉion",
+          "description": "Vidas ĉiun mesaĝon en siaj ĉambroj, ne nur tiujn por ĝi."
         },
         "react": {
-          "title": "Reagi al mesaĝoj",
-          "description": "Aldoni emoĝiajn reagojn al mesaĝoj."
+          "title": "Reagi per emoĝioj",
+          "description": "Aldonas emoĝiajn reagojn al mesaĝoj."
         },
         "attach": {
-          "title": "Kunsendi dosierojn",
-          "description": "Kunsendi dosierojn al siaj mesaĝoj."
+          "title": "Kunhavigi dosierojn",
+          "description": "Kunsendas dosierojn al la mesaĝoj, kiujn ĝi sendas."
         },
         "join_rooms": {
           "title": "Trovi ĉambrojn kaj aliĝi",
-          "description": "Vidi la ĉambroliston kaj aliĝi al ĉambroj sen helpo."
+          "description": "Foliumas la ĉambroliston kaj mem aliĝas al ĉambroj."
         }
       },
       "username": "Uzantnomo",

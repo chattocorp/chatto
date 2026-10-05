@@ -25,12 +25,12 @@ permissions and cannot sign in through the login forms.
 
    | Capability | Grants |
    | --- | --- |
-   | Answer mentions and threads | `message.read-interactions` and `message.post-in-interactions` at server scope |
-   | Chat in direct messages | `message.read` and `message.post` at Direct messages scope |
+   | Answer mentions | `message.read-interactions` and `message.post-in-interactions` at server scope |
+   | Chat in DMs | `message.read` and `message.post` at Direct messages scope |
    | Post messages | `message.post` and `message.echo` at server scope |
-   | Read all messages | `message.read` at server scope |
-   | React to messages | `message.react` at server scope |
-   | Attach files | `message.attach` at server scope |
+   | Read everything | `message.read` at server scope |
+   | React with emoji | `message.react` at server scope |
+   | Share files | `message.attach` at server scope |
    | Find and join rooms | `room.list` and `room.join` at server scope |
 
    A server-scope grant also applies in the DMs of the bot. You can only

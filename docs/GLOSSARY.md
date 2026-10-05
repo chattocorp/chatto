@@ -76,7 +76,7 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Bot account** — Passwordless user identity for an integration, explicitly owned by a human and marked as a bot. It receives only directly configured permissions, capped by the owner's current authority. See [FDR-038](fdr/FDR-038-bot-accounts.md).
 
-**Bot capability** — A preset of bot permission allows that the Create Bot dialog of the bundled frontend offers as a tile, such as _Answer mentions and threads_. The creator can combine capabilities. Chatto stores only the resulting allows, not the capability. It is not an RBAC concept. See [FDR-038](fdr/FDR-038-bot-accounts.md).
+**Bot capability** — A preset of bot permission allows that the Create Bot dialog of the bundled frontend offers as a tile, such as _Answer mentions_. The creator can combine capabilities. Chatto stores only the resulting allows, not the capability. It is not an RBAC concept. See [FDR-038](fdr/FDR-038-bot-accounts.md).
 
 **Bot API key** — One of a bot account's named, non-expiring bearer credentials. Chatto shows the raw key only when it creates the key and stores only its durable verifier. Each key can be revoked independently. See [FDR-038](fdr/FDR-038-bot-accounts.md).
 

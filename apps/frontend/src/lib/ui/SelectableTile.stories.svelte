@@ -28,21 +28,21 @@
     <SelectableTile
       bind:checked={mentions}
       icon="icon-[uil--at]"
-      title="Answer mentions and threads"
-      description="Read and reply in threads where someone mentions the bot."
+      title="Answer mentions"
+      description="Replies when someone @mentions it, right there in the thread."
     />
     <SelectableTile
       bind:checked={directMessages}
       icon="icon-[uil--envelope]"
-      title="Chat in direct messages"
-      description="Read and post in DMs that people start with the bot."
+      title="Chat in DMs"
+      description="Talks one-on-one when someone sends it a direct message."
     />
     <SelectableTile
       disabled
       icon="icon-[uil--eye]"
-      title="Read all messages"
-      description="Read every message in rooms the bot is in."
-      disabledReason="You don't have this permission."
+      title="Read everything"
+      description="Sees every message in its rooms, not just the ones meant for it."
+      disabledReason="You don't have this permission yourself, so you can't give it to your bot."
     />
   </fieldset>
 </Story>

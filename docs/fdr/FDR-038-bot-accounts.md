@@ -168,18 +168,18 @@ exercise more authority than its human owner currently possesses.
   as tiles. The creator can select any combination. Each capability is a fixed
   set of allows at server scope or Direct messages scope:
 
-  | Capability                  | Allows                                                              |
-  | --------------------------- | ------------------------------------------------------------------- |
-  | Answer mentions and threads | Server: `message.read-interactions`, `message.post-in-interactions` |
-  | Chat in direct messages     | Direct messages: `message.read`, `message.post`                     |
-  | Post messages               | Server: `message.post`, `message.echo`                              |
-  | Read all messages           | Server: `message.read`                                              |
-  | React to messages           | Server: `message.react`                                             |
-  | Attach files                | Server: `message.attach`                                            |
-  | Find and join rooms         | Server: `room.list`, `room.join`                                    |
+  | Capability          | Allows                                                              |
+  | ------------------- | ------------------------------------------------------------------- |
+  | Answer mentions     | Server: `message.read-interactions`, `message.post-in-interactions` |
+  | Chat in DMs         | Direct messages: `message.read`, `message.post`                     |
+  | Post messages       | Server: `message.post`, `message.echo`                              |
+  | Read everything     | Server: `message.read`                                              |
+  | React with emoji    | Server: `message.react`                                             |
+  | Share files         | Server: `message.attach`                                            |
+  | Find and join rooms | Server: `room.list`, `room.join`                                    |
 
   In a DM, every message creates an interaction for each participant. So
-  _Answer mentions and threads_ lets the bot read and reply in every DM
+  _Answer mentions_ lets the bot read and reply in every DM
   thread that it is in, not only where someone mentions it.
 
   After `CreateBot` succeeds, the frontend shows the API key and writes each
@@ -493,7 +493,7 @@ creation. `CreateBot` does not change.
 **Why:** A new bot has no permissions, so a blank matrix is the hardest step of
 bot setup. Fixed templates do not fit many integrations, and each new use case
 would need a new template. Small capabilities combine into the common cases:
-a help bot is _Answer mentions and threads_ plus _Chat in direct messages_,
+a help bot is _Answer mentions_ plus _Chat in DMs_,
 and an announcement bot is _Post messages_. A capability names a reader task,
 so creators do not need to know the permission catalogue.
 **Tradeoff:** The grants are not atomic with bot creation. A failed grant

@@ -510,35 +510,35 @@
       "capabilities": {
         "legend": "Başlangıç izinleri",
         "hint": "Bunları daha sonra değiştirebilirsiniz.",
-        "unavailable": "Bu izne sahip değilsiniz.",
-        "apply_failed": "Bazı izinler bota verilemedi. Bunları İzinler sekmesinde kontrol edin.",
+        "unavailable": "Bu izne kendiniz sahip değilsiniz, bu yüzden botunuza veremezsiniz.",
+        "apply_failed": "Botunuz hazır, ancak bazı izinler verilemedi. İzinler sekmesine göz atın.",
         "interactions": {
-          "title": "Bahsetmelere ve ileti dizilerine yanıt verme",
-          "description": "Birinin bottan bahsettiği ileti dizilerini okuma ve yanıtlama."
+          "title": "Bahsetmelere yanıt verme",
+          "description": "Biri onu @andığında doğrudan ileti dizisinde yanıt verir."
         },
         "direct_messages": {
-          "title": "Doğrudan mesajlarda sohbet etme",
-          "description": "Birinin botla başlattığı doğrudan mesajları okuma ve yazma."
+          "title": "Doğrudan mesajda sohbet",
+          "description": "Biri ona doğrudan mesaj gönderdiğinde birebir konuşur."
         },
         "post": {
           "title": "Mesaj gönderme",
-          "description": "Odalarda ve doğrudan mesajlarda yeni mesaj gönderme."
+          "description": "Duyuru veya uyarı gibi yeni mesajlar gönderir."
         },
         "read_all": {
-          "title": "Tüm mesajları okuma",
-          "description": "Yalnızca kendi ileti dizilerini değil, her mesajı okuma."
+          "title": "Her şeyi okuma",
+          "description": "Odalarındaki tüm mesajları görür, yalnızca ona yönelik olanları değil."
         },
         "react": {
-          "title": "Mesajlara tepki verme",
-          "description": "Mesajlara emoji tepkileri ekleme."
+          "title": "Emoji ile tepki verme",
+          "description": "Mesajlara emoji tepkileri ekler."
         },
         "attach": {
-          "title": "Dosya ekleme",
-          "description": "Kendi mesajlarına dosya ekleme."
+          "title": "Dosya paylaşma",
+          "description": "Gönderdiği mesajlara dosya ekler."
         },
         "join_rooms": {
           "title": "Oda bulma ve katılma",
-          "description": "Oda listesini görme ve odalara yardım almadan katılma."
+          "description": "Oda listesine göz atar ve odalara kendi başına katılır."
         }
       },
       "username": "Kullanıcı adı",

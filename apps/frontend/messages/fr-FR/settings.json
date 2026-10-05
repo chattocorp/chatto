@@ -510,35 +510,35 @@
       "capabilities": {
         "legend": "Autorisations de départ",
         "hint": "Vous pourrez les modifier plus tard.",
-        "unavailable": "Vous n’avez pas cette autorisation.",
-        "apply_failed": "Certaines autorisations n’ont pas pu être accordées au bot. Vérifiez-les dans l’onglet Autorisations.",
+        "unavailable": "Vous n’avez pas vous-même cette autorisation, vous ne pouvez donc pas la donner à votre bot.",
+        "apply_failed": "Votre bot est prêt, mais quelques autorisations n’ont pas pu être appliquées. Jetez un œil à son onglet Autorisations.",
         "interactions": {
-          "title": "Répondre aux mentions et aux fils",
-          "description": "Lire les fils où quelqu’un mentionne le bot et y répondre."
+          "title": "Répondre aux mentions",
+          "description": "Répond directement dans le fil quand quelqu’un le @mentionne."
         },
         "direct_messages": {
           "title": "Discuter en messages privés",
-          "description": "Lire et écrire dans les messages privés que des personnes ouvrent avec le bot."
+          "description": "Discute en tête-à-tête quand quelqu’un lui envoie un message privé."
         },
         "post": {
           "title": "Publier des messages",
-          "description": "Publier de nouveaux messages dans les salons et les messages privés."
+          "description": "Publie de nouveaux messages, comme des annonces ou des alertes."
         },
         "read_all": {
-          "title": "Lire tous les messages",
-          "description": "Lire chaque message, pas seulement ses propres fils."
+          "title": "Tout lire",
+          "description": "Voit tous les messages de ses salons, pas seulement ceux qui lui sont destinés."
         },
         "react": {
-          "title": "Réagir aux messages",
-          "description": "Ajouter des réactions emoji aux messages."
+          "title": "Réagir avec des emoji",
+          "description": "Ajoute des réactions emoji aux messages."
         },
         "attach": {
-          "title": "Joindre des fichiers",
-          "description": "Joindre des fichiers à ses messages."
+          "title": "Partager des fichiers",
+          "description": "Joint des fichiers aux messages qu’il envoie."
         },
         "join_rooms": {
           "title": "Trouver et rejoindre des salons",
-          "description": "Voir la liste des salons et les rejoindre sans aide."
+          "description": "Parcourt la liste des salons et les rejoint de lui-même."
         }
       },
       "username": "Nom d'utilisateur",

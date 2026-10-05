@@ -510,35 +510,35 @@
       "capabilities": {
         "legend": "Algsed load",
         "hint": "Saate neid hiljem muuta.",
-        "unavailable": "Teil ei ole seda luba.",
-        "apply_failed": "Mõnda luba ei õnnestunud botile anda. Kontrollige neid vahekaardil Load.",
+        "unavailable": "Teil endal ei ole seda luba, seega ei saa te seda oma botile anda.",
+        "apply_failed": "Teie bot on valmis, kuid mõnda luba ei õnnestunud anda. Vaadake vahekaarti Load.",
         "interactions": {
-          "title": "Mainimistele ja lõimedes vastamine",
-          "description": "Lõimede lugemine, kus keegi botit mainib, ja neis vastamine."
+          "title": "Mainimistele vastamine",
+          "description": "Vastab otse lõimes, kui keegi teda @mainib."
         },
         "direct_messages": {
           "title": "Otsesõnumites vestlemine",
-          "description": "Otsesõnumite lugemine ja kirjutamine, mida keegi botiga alustab."
+          "description": "Vestleb nelja silma all, kui keegi saadab talle otsesõnumi."
         },
         "post": {
           "title": "Sõnumite postitamine",
-          "description": "Uute sõnumite postitamine ruumides ja otsesõnumites."
+          "description": "Postitab uusi sõnumeid, näiteks teadaandeid või hoiatusi."
         },
         "read_all": {
-          "title": "Kõigi sõnumite lugemine",
-          "description": "Iga sõnumi lugemine, mitte ainult oma lõimede."
+          "title": "Kõige lugemine",
+          "description": "Näeb kõiki oma ruumide sõnumeid, mitte ainult talle mõeldud."
         },
         "react": {
-          "title": "Sõnumitele reageerimine",
-          "description": "Sõnumitele emoji-reaktsioonide lisamine."
+          "title": "Emojiga reageerimine",
+          "description": "Lisab sõnumitele emoji-reaktsioone."
         },
         "attach": {
-          "title": "Failide manustamine",
-          "description": "Failide manustamine oma sõnumitele."
+          "title": "Failide jagamine",
+          "description": "Manustab faile saadetavatele sõnumitele."
         },
         "join_rooms": {
           "title": "Ruumide leidmine ja nendega liitumine",
-          "description": "Ruumide loendi nägemine ja ruumidega liitumine ilma abita."
+          "description": "Sirvib ruumide loendit ja liitub ruumidega ise."
         }
       },
       "username": "Kasutajanimi",

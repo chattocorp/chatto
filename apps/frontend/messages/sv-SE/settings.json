@@ -510,35 +510,35 @@
       "capabilities": {
         "legend": "Startbehörigheter",
         "hint": "Du kan ändra dem senare.",
-        "unavailable": "Du har inte den här behörigheten.",
-        "apply_failed": "Vissa behörigheter kunde inte ges till boten. Kontrollera dem på fliken Behörigheter.",
+        "unavailable": "Du har inte den här behörigheten själv, så du kan inte ge den till din bot.",
+        "apply_failed": "Din bot är klar, men några behörigheter gick inte igenom. Ta en titt på fliken Behörigheter.",
         "interactions": {
-          "title": "Svara på omnämnanden och trådar",
-          "description": "Läsa och svara i trådar där någon nämner boten."
+          "title": "Svara på omnämnanden",
+          "description": "Svarar direkt i tråden när någon @nämner den."
         },
         "direct_messages": {
           "title": "Chatta i direktmeddelanden",
-          "description": "Läsa och skriva i direktmeddelanden som någon startar med boten."
+          "description": "Pratar på tu man hand när någon skickar ett direktmeddelande."
         },
         "post": {
           "title": "Skicka meddelanden",
-          "description": "Skicka nya meddelanden i rum och direktmeddelanden."
+          "description": "Skickar nya meddelanden, som meddelanden till alla eller larm."
         },
         "read_all": {
-          "title": "Läsa alla meddelanden",
-          "description": "Läsa varje meddelande, inte bara sina egna trådar."
+          "title": "Läsa allt",
+          "description": "Ser varje meddelande i sina rum, inte bara de som riktas till den."
         },
         "react": {
-          "title": "Reagera på meddelanden",
-          "description": "Lägga till emojireaktioner på meddelanden."
+          "title": "Reagera med emoji",
+          "description": "Lägger till emojireaktioner på meddelanden."
         },
         "attach": {
-          "title": "Bifoga filer",
-          "description": "Bifoga filer till sina meddelanden."
+          "title": "Dela filer",
+          "description": "Bifogar filer till meddelandena den skickar."
         },
         "join_rooms": {
           "title": "Hitta och gå med i rum",
-          "description": "Se rumslistan och gå med i rum utan hjälp."
+          "description": "Bläddrar i rumslistan och går med i rum på egen hand."
         }
       },
       "username": "Användarnamn",

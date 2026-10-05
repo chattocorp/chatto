@@ -157,11 +157,13 @@ describe('Bot administration page', () => {
     await userEvent.click(createButton(container)!);
 
     await expect
-      .element(page.getByRole('checkbox', { name: 'Read all messages' }))
+      .element(page.getByRole('checkbox', { name: 'Read everything' }))
       .not.toHaveAttribute('aria-disabled', 'true');
     const joinRooms = page.getByRole('checkbox', { name: 'Find and join rooms' });
     await expect.element(joinRooms).toHaveAttribute('aria-disabled', 'true');
-    await expect.element(joinRooms).toHaveAccessibleDescription(/You do not have this permission/);
+    await expect
+      .element(joinRooms)
+      .toHaveAccessibleDescription(/You don't have this permission yourself/);
     // Playwright does not click an aria-disabled control, so click its label directly.
     (page.getByText('Find and join rooms').element() as HTMLElement).click();
     await expect.element(joinRooms).not.toBeChecked();
@@ -173,7 +175,7 @@ describe('Bot administration page', () => {
     allowEveryGrant();
     const { container } = render(BotsPage);
 
-    await createHelperBot(container, [/Answer mentions and threads/, /Chat in direct messages/]);
+    await createHelperBot(container, [/Answer mentions/, /Chat in DMs/]);
 
     await expect.element(page.getByText('Save This API Key')).toBeInTheDocument();
     await vi.waitFor(() => expect(permissions.setUserPermission).toHaveBeenCalledTimes(4));
@@ -203,7 +205,7 @@ describe('Bot administration page', () => {
     allowEveryGrant();
     const { container } = render(BotsPage);
 
-    await createHelperBot(container, [/Answer mentions and threads/, /Read all messages/], () => {
+    await createHelperBot(container, [/Answer mentions/, /Read everything/], () => {
       server.permissions.serverScope = { ...HELPER_PERMISSIONS, 'message.read': false };
     });
 
@@ -230,7 +232,7 @@ describe('Bot administration page', () => {
     });
     const { container } = render(BotsPage);
 
-    await createHelperBot(container, [/React to messages/]);
+    await createHelperBot(container, [/React with emoji/]);
     await userEvent.click(page.getByRole('button', { name: 'Got it' }));
     await vi.waitFor(() => expect(permissions.setUserPermission).toHaveBeenCalledTimes(1));
     expect(navigation.goto).not.toHaveBeenCalled();
@@ -249,11 +251,11 @@ describe('Bot administration page', () => {
     });
     const { container } = render(BotsPage);
 
-    await createHelperBot(container, [/Chat in direct messages/]);
+    await createHelperBot(container, [/Chat in DMs/]);
 
     await vi.waitFor(() =>
       expect(getToasts().map((item) => item.message)).toContain(
-        'Some permissions could not be given to the bot. Check them on the Permissions tab.'
+        "Your bot is ready, but a few permissions didn't stick. Take a look on its Permissions tab."
       )
     );
     await userEvent.click(page.getByRole('button', { name: 'Got it' }));

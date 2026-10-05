@@ -510,35 +510,35 @@
       "capabilities": {
         "legend": "Starttillatelser",
         "hint": "Du kan endre dem senere.",
-        "unavailable": "Du har ikke denne tillatelsen.",
-        "apply_failed": "Noen tillatelser kunne ikke gis til boten. Kontroller dem i fanen Tillatelser.",
+        "unavailable": "Du har ikke denne tillatelsen selv, så du kan ikke gi den til boten din.",
+        "apply_failed": "Boten din er klar, men noen tillatelser gikk ikke gjennom. Ta en titt i fanen Tillatelser.",
         "interactions": {
-          "title": "Svare på omtaler og tråder",
-          "description": "Lese og svare i tråder der noen nevner boten."
+          "title": "Svare på omtaler",
+          "description": "Svarer rett i tråden når noen @nevner den."
         },
         "direct_messages": {
           "title": "Chatte i direktemeldinger",
-          "description": "Lese og skrive i direktemeldinger som noen starter med boten."
+          "description": "Prater på tomannshånd når noen sender den en direktemelding."
         },
         "post": {
           "title": "Sende meldinger",
-          "description": "Sende nye meldinger i rom og direktemeldinger."
+          "description": "Sender nye meldinger, som kunngjøringer eller varsler."
         },
         "read_all": {
-          "title": "Lese alle meldinger",
-          "description": "Lese hver melding, ikke bare egne tråder."
+          "title": "Lese alt",
+          "description": "Ser hver melding i rommene sine, ikke bare de som er rettet til den."
         },
         "react": {
-          "title": "Reagere på meldinger",
-          "description": "Legge til emojireaksjoner på meldinger."
+          "title": "Reagere med emoji",
+          "description": "Legger til emojireaksjoner på meldinger."
         },
         "attach": {
-          "title": "Legge ved filer",
-          "description": "Legge ved filer i egne meldinger."
+          "title": "Dele filer",
+          "description": "Legger ved filer i meldingene den sender."
         },
         "join_rooms": {
           "title": "Finne og bli med i rom",
-          "description": "Se romlisten og bli med i rom uten hjelp."
+          "description": "Blar gjennom romlisten og blir med i rom på egen hånd."
         }
       },
       "username": "Brukernavn",

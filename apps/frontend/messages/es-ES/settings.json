@@ -510,35 +510,35 @@
       "capabilities": {
         "legend": "Permisos iniciales",
         "hint": "Puedes cambiarlos más tarde.",
-        "unavailable": "No tienes este permiso.",
-        "apply_failed": "No se pudieron dar algunos permisos al bot. Revísalos en la pestaña Permisos.",
+        "unavailable": "Tú no tienes este permiso, así que no puedes dárselo a tu bot.",
+        "apply_failed": "Tu bot está listo, pero algunos permisos no se aplicaron. Échales un vistazo en su pestaña Permisos.",
         "interactions": {
-          "title": "Responder a menciones e hilos",
-          "description": "Leer y responder en hilos donde alguien menciona al bot."
+          "title": "Responder a menciones",
+          "description": "Responde en el mismo hilo cuando alguien lo @menciona."
         },
         "direct_messages": {
-          "title": "Chatear en mensajes directos",
-          "description": "Leer y escribir en los mensajes directos que alguien inicia con el bot."
+          "title": "Chatear por mensaje directo",
+          "description": "Habla en privado cuando alguien le envía un mensaje directo."
         },
         "post": {
           "title": "Publicar mensajes",
-          "description": "Publicar mensajes nuevos en salas y mensajes directos."
+          "description": "Publica mensajes nuevos, como anuncios o alertas."
         },
         "read_all": {
-          "title": "Leer todos los mensajes",
-          "description": "Leer todos los mensajes, no solo sus propios hilos."
+          "title": "Leerlo todo",
+          "description": "Ve todos los mensajes de sus salas, no solo los dirigidos a él."
         },
         "react": {
-          "title": "Reaccionar a mensajes",
-          "description": "Añadir reacciones con emoji a los mensajes."
+          "title": "Reaccionar con emoji",
+          "description": "Añade reacciones con emoji a los mensajes."
         },
         "attach": {
-          "title": "Adjuntar archivos",
-          "description": "Adjuntar archivos a sus mensajes."
+          "title": "Compartir archivos",
+          "description": "Adjunta archivos a los mensajes que envía."
         },
         "join_rooms": {
           "title": "Buscar salas y unirse",
-          "description": "Ver la lista de salas y unirse a ellas sin ayuda."
+          "description": "Explora la lista de salas y se une a ellas por su cuenta."
         }
       },
       "username": "Nombre de usuario",

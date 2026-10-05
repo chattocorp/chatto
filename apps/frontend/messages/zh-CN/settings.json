@@ -510,35 +510,35 @@
       "capabilities": {
         "legend": "初始权限",
         "hint": "你之后可以更改。",
-        "unavailable": "你没有此权限。",
-        "apply_failed": "部分权限未能授予机器人。请在“权限”选项卡中检查。",
+        "unavailable": "你自己没有此权限，因此无法授予你的机器人。",
+        "apply_failed": "机器人已就绪，但部分权限未能授予。请到它的“权限”选项卡查看。",
         "interactions": {
-          "title": "回复提及和话题",
-          "description": "阅读有人提及机器人的话题并在其中回复。"
+          "title": "回复提及",
+          "description": "有人@提及它时，直接在话题中回复。"
         },
         "direct_messages": {
-          "title": "在私信中聊天",
-          "description": "阅读并回复他人与机器人发起的私信。"
+          "title": "私信聊天",
+          "description": "有人给它发私信时，进行一对一交流。"
         },
         "post": {
           "title": "发送消息",
-          "description": "在聊天室和私信中发送新消息。"
+          "description": "发送新消息，例如公告或提醒。"
         },
         "read_all": {
-          "title": "阅读所有消息",
-          "description": "阅读每条消息，而不仅是自己的话题。"
+          "title": "阅读全部",
+          "description": "看到所在聊天室的每条消息，而不仅是发给它的。"
         },
         "react": {
-          "title": "回应消息",
+          "title": "表情回应",
           "description": "为消息添加表情回应。"
         },
         "attach": {
-          "title": "附加文件",
-          "description": "在自己的消息中附加文件。"
+          "title": "分享文件",
+          "description": "在发送的消息中附加文件。"
         },
         "join_rooms": {
           "title": "查找并加入聊天室",
-          "description": "查看聊天室列表并自行加入聊天室。"
+          "description": "浏览聊天室列表并自行加入。"
         }
       },
       "username": "用户名",

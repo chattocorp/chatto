@@ -510,35 +510,35 @@
       "capabilities": {
         "legend": "Sākotnējās atļaujas",
         "hint": "Jūs varat tās mainīt vēlāk.",
-        "unavailable": "Jums nav šīs atļaujas.",
-        "apply_failed": "Dažas atļaujas botam neizdevās piešķirt. Pārbaudiet tās cilnē Atļaujas.",
+        "unavailable": "Jums pašam nav šīs atļaujas, tāpēc jūs nevarat to piešķirt savam botam.",
+        "apply_failed": "Jūsu bots ir gatavs, bet dažas atļaujas neizdevās piešķirt. Ieskatieties cilnē Atļaujas.",
         "interactions": {
-          "title": "Atbildēt uz pieminējumiem un pavedienos",
-          "description": "Lasīt pavedienus, kuros kāds piemin botu, un atbildēt tajos."
+          "title": "Atbildēt uz pieminējumiem",
+          "description": "Atbild turpat pavedienā, kad kāds viņu @piemin."
         },
         "direct_messages": {
           "title": "Tērzēt tiešajās ziņās",
-          "description": "Lasīt un rakstīt tiešajās ziņās, ko kāds sāk ar botu."
+          "description": "Sarunājas divatā, kad kāds viņam nosūta tiešo ziņu."
         },
         "post": {
           "title": "Publicēt ziņas",
-          "description": "Publicēt jaunas ziņas istabās un tiešajās ziņās."
+          "description": "Publicē jaunas ziņas, piemēram, paziņojumus vai brīdinājumus."
         },
         "read_all": {
-          "title": "Lasīt visas ziņas",
-          "description": "Lasīt katru ziņu, ne tikai savus pavedienus."
+          "title": "Lasīt visu",
+          "description": "Redz katru ziņu savās istabās, ne tikai viņam adresētās."
         },
         "react": {
-          "title": "Reaģēt uz ziņām",
-          "description": "Pievienot ziņām emocijzīmju reakcijas."
+          "title": "Reaģēt ar emocijzīmēm",
+          "description": "Pievieno ziņām emocijzīmju reakcijas."
         },
         "attach": {
-          "title": "Pievienot failus",
-          "description": "Pievienot failus savām ziņām."
+          "title": "Kopīgot failus",
+          "description": "Pievieno failus nosūtītajām ziņām."
         },
         "join_rooms": {
           "title": "Atrast istabas un pievienoties",
-          "description": "Redzēt istabu sarakstu un pievienoties istabām bez palīdzības."
+          "description": "Pārlūko istabu sarakstu un pats pievienojas istabām."
         }
       },
       "username": "Lietotājvārds",

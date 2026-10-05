@@ -510,35 +510,35 @@
       "capabilities": {
         "legend": "Uprawnienia początkowe",
         "hint": "Możesz je później zmienić.",
-        "unavailable": "Nie masz tego uprawnienia.",
-        "apply_failed": "Nie udało się nadać botowi niektórych uprawnień. Sprawdź je na karcie Uprawnienia.",
+        "unavailable": "Sam nie masz tego uprawnienia, więc nie możesz go nadać swojemu botowi.",
+        "apply_failed": "Twój bot jest gotowy, ale kilku uprawnień nie udało się nadać. Zajrzyj na jego kartę Uprawnienia.",
         "interactions": {
-          "title": "Odpowiadanie na wzmianki i w wątkach",
-          "description": "Czytanie wątków, w których ktoś wspomina bota, i odpowiadanie w nich."
+          "title": "Odpowiadanie na wzmianki",
+          "description": "Odpowiada od razu w wątku, gdy ktoś go @wspomni."
         },
         "direct_messages": {
           "title": "Czat w wiadomościach prywatnych",
-          "description": "Czytanie i pisanie w wiadomościach prywatnych, które ktoś rozpoczyna z botem."
+          "description": "Rozmawia w cztery oczy, gdy ktoś napisze do niego wiadomość prywatną."
         },
         "post": {
           "title": "Publikowanie wiadomości",
-          "description": "Publikowanie nowych wiadomości w pokojach i wiadomościach prywatnych."
+          "description": "Publikuje nowe wiadomości, np. ogłoszenia lub alerty."
         },
         "read_all": {
-          "title": "Czytanie wszystkich wiadomości",
-          "description": "Czytanie każdej wiadomości, nie tylko własnych wątków."
+          "title": "Czytanie wszystkiego",
+          "description": "Widzi każdą wiadomość w swoich pokojach, nie tylko te do niego."
         },
         "react": {
-          "title": "Reagowanie na wiadomości",
-          "description": "Dodawanie reakcji emoji do wiadomości."
+          "title": "Reakcje emoji",
+          "description": "Dodaje reakcje emoji do wiadomości."
         },
         "attach": {
-          "title": "Załączanie plików",
-          "description": "Załączanie plików do własnych wiadomości."
+          "title": "Udostępnianie plików",
+          "description": "Załącza pliki do wysyłanych wiadomości."
         },
         "join_rooms": {
           "title": "Znajdowanie pokojów i dołączanie",
-          "description": "Wyświetlanie listy pokojów i dołączanie do nich bez pomocy."
+          "description": "Przegląda listę pokojów i sam do nich dołącza."
         }
       },
       "username": "Nazwa użytkownika",

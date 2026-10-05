@@ -510,35 +510,35 @@
       "capabilities": {
         "legend": "Permissões iniciais",
         "hint": "Pode alterá-las mais tarde.",
-        "unavailable": "Não tem esta permissão.",
-        "apply_failed": "Não foi possível dar algumas permissões ao bot. Verifique-as no separador Permissões.",
+        "unavailable": "Não tem esta permissão, por isso não a pode dar ao seu bot.",
+        "apply_failed": "O seu bot está pronto, mas algumas permissões não foram aplicadas. Veja o separador Permissões.",
         "interactions": {
-          "title": "Responder a menções e tópicos",
-          "description": "Ler e responder em tópicos onde alguém menciona o bot."
+          "title": "Responder a menções",
+          "description": "Responde no próprio tópico quando alguém o @menciona."
         },
         "direct_messages": {
-          "title": "Conversar em mensagens diretas",
-          "description": "Ler e escrever nas mensagens diretas que alguém inicia com o bot."
+          "title": "Conversar por mensagem direta",
+          "description": "Conversa a sós quando alguém lhe envia uma mensagem direta."
         },
         "post": {
           "title": "Publicar mensagens",
-          "description": "Publicar novas mensagens em salas e mensagens diretas."
+          "description": "Publica novas mensagens, como anúncios ou alertas."
         },
         "read_all": {
-          "title": "Ler todas as mensagens",
-          "description": "Ler todas as mensagens, não apenas os próprios tópicos."
+          "title": "Ler tudo",
+          "description": "Vê todas as mensagens das suas salas, não apenas as que lhe são dirigidas."
         },
         "react": {
-          "title": "Reagir a mensagens",
-          "description": "Adicionar reações com emoji às mensagens."
+          "title": "Reagir com emoji",
+          "description": "Adiciona reações com emoji às mensagens."
         },
         "attach": {
-          "title": "Anexar ficheiros",
-          "description": "Anexar ficheiros às próprias mensagens."
+          "title": "Partilhar ficheiros",
+          "description": "Anexa ficheiros às mensagens que envia."
         },
         "join_rooms": {
           "title": "Encontrar salas e entrar",
-          "description": "Ver a lista de salas e entrar nelas sem ajuda."
+          "description": "Percorre a lista de salas e entra nelas sozinho."
         }
       },
       "username": "Nome de utilizador",

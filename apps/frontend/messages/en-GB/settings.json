@@ -510,35 +510,35 @@
       "capabilities": {
         "legend": "Starting permissions",
         "hint": "You can change these later.",
-        "unavailable": "You do not have this permission.",
-        "apply_failed": "Some permissions could not be given to the bot. Check them on the Permissions tab.",
+        "unavailable": "You don't have this permission yourself, so you can't give it to your bot.",
+        "apply_failed": "Your bot is ready, but a few permissions didn't stick. Take a look on its Permissions tab.",
         "interactions": {
-          "title": "Answer mentions and threads",
-          "description": "Read and reply in threads where someone mentions the bot."
+          "title": "Answer mentions",
+          "description": "Replies when someone @mentions it, right there in the thread."
         },
         "direct_messages": {
-          "title": "Chat in direct messages",
-          "description": "Read and post in DMs that people start with the bot."
+          "title": "Chat in DMs",
+          "description": "Talks one-on-one when someone sends it a direct message."
         },
         "post": {
           "title": "Post messages",
-          "description": "Post new messages in rooms and DMs."
+          "description": "Posts new messages, like announcements or alerts."
         },
         "read_all": {
-          "title": "Read all messages",
-          "description": "Read every message, not only its own threads."
+          "title": "Read everything",
+          "description": "Sees every message in its rooms, not just the ones meant for it."
         },
         "react": {
-          "title": "React to messages",
-          "description": "Add emoji reactions to messages."
+          "title": "React with emoji",
+          "description": "Adds emoji reactions to messages."
         },
         "attach": {
-          "title": "Attach files",
-          "description": "Attach files to its messages."
+          "title": "Share files",
+          "description": "Attaches files to the messages it sends."
         },
         "join_rooms": {
           "title": "Find and join rooms",
-          "description": "See the room list and join rooms without help."
+          "description": "Browses the room list and joins rooms on its own."
         }
       },
       "username": "Username",

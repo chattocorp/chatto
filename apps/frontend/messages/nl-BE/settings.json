@@ -510,35 +510,35 @@
       "capabilities": {
         "legend": "Beginrechten",
         "hint": "Je kunt ze later wijzigen.",
-        "unavailable": "Je hebt dit recht niet.",
-        "apply_failed": "Sommige rechten konden niet aan de bot worden gegeven. Controleer ze op het tabblad Rechten.",
+        "unavailable": "Je hebt dit recht zelf niet, dus je kunt het niet aan je bot geven.",
+        "apply_failed": "Je bot is klaar, maar een paar rechten zijn niet gelukt. Kijk even op het tabblad Rechten.",
         "interactions": {
-          "title": "Reageren op vermeldingen en threads",
-          "description": "Threads lezen waarin iemand de bot vermeldt en daarin antwoorden."
+          "title": "Reageren op vermeldingen",
+          "description": "Antwoordt meteen in de thread als iemand hem @vermeldt."
         },
         "direct_messages": {
-          "title": "Chatten in privéberichten",
-          "description": "Lezen en schrijven in privéberichten die iemand met de bot begint."
+          "title": "Chatten via privéberichten",
+          "description": "Praat één-op-één als iemand hem een privébericht stuurt."
         },
         "post": {
           "title": "Berichten plaatsen",
-          "description": "Nieuwe berichten plaatsen in kamers en privéberichten."
+          "description": "Plaatst nieuwe berichten, zoals aankondigingen of meldingen."
         },
         "read_all": {
-          "title": "Alle berichten lezen",
-          "description": "Elk bericht lezen, niet alleen de eigen threads."
+          "title": "Alles lezen",
+          "description": "Ziet elk bericht in zijn kamers, niet alleen de berichten voor hem."
         },
         "react": {
-          "title": "Reageren op berichten",
-          "description": "Emoji-reacties aan berichten toevoegen."
+          "title": "Reageren met emoji",
+          "description": "Voegt emoji-reacties aan berichten toe."
         },
         "attach": {
-          "title": "Bestanden bijvoegen",
-          "description": "Bestanden aan de eigen berichten toevoegen."
+          "title": "Bestanden delen",
+          "description": "Voegt bestanden toe aan de berichten die hij stuurt."
         },
         "join_rooms": {
-          "title": "Kamers vinden en eraan deelnemen",
-          "description": "De kamerlijst zien en zonder hulp aan kamers deelnemen."
+          "title": "Kamers vinden en deelnemen",
+          "description": "Bekijkt de kamerlijst en neemt zelf deel aan kamers."
         }
       },
       "username": "Gebruikersnaam",

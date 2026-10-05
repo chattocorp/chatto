@@ -510,35 +510,35 @@
       "capabilities": {
         "legend": "Anfangsberechtigungen",
         "hint": "Du kannst sie später ändern.",
-        "unavailable": "Du hast diese Berechtigung nicht.",
-        "apply_failed": "Einige Berechtigungen konnten dem Bot nicht gegeben werden. Prüfe sie im Tab „Berechtigungen“.",
+        "unavailable": "Du hast diese Berechtigung selbst nicht, darum kannst du sie deinem Bot nicht geben.",
+        "apply_failed": "Dein Bot ist bereit, aber ein paar Berechtigungen hat es nicht geklappt. Schau im Tab „Berechtigungen“ nach.",
         "interactions": {
-          "title": "Auf Erwähnungen und Threads antworten",
-          "description": "Threads lesen und darin antworten, in denen jemand den Bot erwähnt."
+          "title": "Auf Erwähnungen antworten",
+          "description": "Antwortet direkt im Thread, wenn jemand ihn @erwähnt."
         },
         "direct_messages": {
-          "title": "In Direktnachrichten chatten",
-          "description": "DMs lesen und darin schreiben, die jemand mit dem Bot beginnt."
+          "title": "In DMs chatten",
+          "description": "Unterhält sich unter vier Augen, wenn jemand ihm eine Direktnachricht schreibt."
         },
         "post": {
           "title": "Nachrichten senden",
-          "description": "Neue Nachrichten in Räumen und DMs senden."
+          "description": "Sendet neue Nachrichten, etwa Ankündigungen oder Warnungen."
         },
         "read_all": {
-          "title": "Alle Nachrichten lesen",
-          "description": "Jede Nachricht lesen, nicht nur die eigenen Threads."
+          "title": "Alles lesen",
+          "description": "Sieht jede Nachricht in seinen Räumen, nicht nur die an ihn gerichteten."
         },
         "react": {
-          "title": "Auf Nachrichten reagieren",
-          "description": "Emoji-Reaktionen zu Nachrichten hinzufügen."
+          "title": "Mit Emoji reagieren",
+          "description": "Reagiert mit Emoji auf Nachrichten."
         },
         "attach": {
-          "title": "Dateien anhängen",
-          "description": "Dateien an die eigenen Nachrichten anhängen."
+          "title": "Dateien teilen",
+          "description": "Hängt Dateien an seine Nachrichten an."
         },
         "join_rooms": {
           "title": "Räume finden und beitreten",
-          "description": "Die Raumliste sehen und Räumen ohne Hilfe beitreten."
+          "description": "Durchsucht die Raumliste und tritt Räumen selbst bei."
         }
       },
       "username": "Benutzername",

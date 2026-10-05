@@ -510,35 +510,35 @@
       "capabilities": {
         "legend": "Autorizzazioni iniziali",
         "hint": "Puoi modificarle in seguito.",
-        "unavailable": "Non hai questa autorizzazione.",
-        "apply_failed": "Non è stato possibile dare alcune autorizzazioni al bot. Controllale nella scheda Autorizzazioni.",
+        "unavailable": "Non hai tu stesso questa autorizzazione, quindi non puoi darla al tuo bot.",
+        "apply_failed": "Il tuo bot è pronto, ma alcune autorizzazioni non sono state applicate. Dai un’occhiata alla sua scheda Autorizzazioni.",
         "interactions": {
-          "title": "Rispondere a menzioni e thread",
-          "description": "Leggere e rispondere nei thread in cui qualcuno menziona il bot."
+          "title": "Rispondere alle menzioni",
+          "description": "Risponde direttamente nel thread quando qualcuno lo @menziona."
         },
         "direct_messages": {
           "title": "Chattare nei messaggi diretti",
-          "description": "Leggere e scrivere nei messaggi diretti che qualcuno avvia con il bot."
+          "description": "Parla a tu per tu quando qualcuno gli invia un messaggio diretto."
         },
         "post": {
           "title": "Pubblicare messaggi",
-          "description": "Pubblicare nuovi messaggi nelle stanze e nei messaggi diretti."
+          "description": "Pubblica nuovi messaggi, come annunci o avvisi."
         },
         "read_all": {
-          "title": "Leggere tutti i messaggi",
-          "description": "Leggere ogni messaggio, non solo i propri thread."
+          "title": "Leggere tutto",
+          "description": "Vede ogni messaggio nelle sue stanze, non solo quelli rivolti a lui."
         },
         "react": {
-          "title": "Reagire ai messaggi",
-          "description": "Aggiungere reazioni emoji ai messaggi."
+          "title": "Reagire con emoji",
+          "description": "Aggiunge reazioni emoji ai messaggi."
         },
         "attach": {
-          "title": "Allegare file",
-          "description": "Allegare file ai propri messaggi."
+          "title": "Condividere file",
+          "description": "Allega file ai messaggi che invia."
         },
         "join_rooms": {
           "title": "Trovare stanze ed entrarvi",
-          "description": "Vedere l’elenco delle stanze ed entrarvi senza aiuto."
+          "description": "Sfoglia l’elenco delle stanze ed entra da solo."
         }
       },
       "username": "Nome utente",

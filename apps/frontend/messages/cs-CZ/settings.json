@@ -510,35 +510,35 @@
       "capabilities": {
         "legend": "Počáteční oprávnění",
         "hint": "Později je můžete změnit.",
-        "unavailable": "Nemáte toto oprávnění.",
-        "apply_failed": "Některá oprávnění se botovi nepodařilo udělit. Zkontrolujte je na kartě Oprávnění.",
+        "unavailable": "Toto oprávnění sami nemáte, proto ho nemůžete dát svému botovi.",
+        "apply_failed": "Váš bot je připraven, ale několik oprávnění se nepodařilo udělit. Podívejte se na jeho kartu Oprávnění.",
         "interactions": {
-          "title": "Odpovídat na zmínky a ve vláknech",
-          "description": "Číst vlákna, ve kterých někdo zmíní bota, a odpovídat v nich."
+          "title": "Odpovídat na zmínky",
+          "description": "Odpoví přímo ve vlákně, když ho někdo @zmíní."
         },
         "direct_messages": {
           "title": "Chatovat v přímých zprávách",
-          "description": "Číst a psát v přímých zprávách, které s botem někdo zahájí."
+          "description": "Mluví mezi čtyřma očima, když mu někdo pošle přímou zprávu."
         },
         "post": {
           "title": "Odesílat zprávy",
-          "description": "Odesílat nové zprávy v místnostech a přímých zprávách."
+          "description": "Odesílá nové zprávy, například oznámení nebo upozornění."
         },
         "read_all": {
-          "title": "Číst všechny zprávy",
-          "description": "Číst každou zprávu, nejen vlastní vlákna."
+          "title": "Číst všechno",
+          "description": "Vidí každou zprávu ve svých místnostech, nejen ty určené jemu."
         },
         "react": {
-          "title": "Reagovat na zprávy",
-          "description": "Přidávat ke zprávám reakce emoji."
+          "title": "Reagovat emoji",
+          "description": "Přidává ke zprávám reakce emoji."
         },
         "attach": {
-          "title": "Přikládat soubory",
-          "description": "Přikládat soubory k vlastním zprávám."
+          "title": "Sdílet soubory",
+          "description": "Přikládá soubory ke zprávám, které posílá."
         },
         "join_rooms": {
           "title": "Hledat místnosti a připojovat se",
-          "description": "Zobrazit seznam místností a připojit se k nim bez pomoci."
+          "description": "Prochází seznam místností a sám se k nim připojuje."
         }
       },
       "username": "Uživatelské jméno",
