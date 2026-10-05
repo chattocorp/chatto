@@ -508,8 +508,8 @@ type SubjectRecordPage struct {
 // SubjectRecordsAfterPage returns at most maxRecords matching opaque records
 // after afterSeq. When maxBytes is positive, the returned payload bytes are
 // also bounded by maxBytes: the page ends before the first record that does
-// not fit, and More reports the rest. A single record whose payload exceeds
-// maxBytes returns ErrInvalidSubjectReadLimit.
+// not fit, and More reports the rest. When the first record of a page has a
+// payload larger than maxBytes, the call returns ErrInvalidSubjectReadLimit.
 // More indicates that the page's point-in-time result had additional records.
 // Callers can pass LastSequence to the next request without exposing
 // JetStream consumer coordinates.
@@ -554,19 +554,23 @@ func (l *EncodedEventLog) SubjectRecordsAfterPage(
 	}
 	target := min(uint64(maxRecords), info.NumPending)
 	page := SubjectRecordPage{Records: make([]EncodedSubjectRecord, 0, target)}
-	var bytesRead, largest int
+	var bytesRead, largest, previousBatch int
 	for uint64(len(page.Records)) < target && (maxBytes == 0 || bytesRead < maxBytes) {
-		// A fetch never asks for more records than are pending, so it does
-		// not wait for new messages.
-		batchSize := int(target - uint64(len(page.Records)))
+		// A fetch asks for no more records than were pending when the page
+		// started, so it normally returns at once. Records deleted since then
+		// make it wait for FetchMaxWait.
+		remaining := int(target - uint64(len(page.Records)))
+		batchSize := remaining
 		if maxBytes > 0 {
-			// Size each fetch from the largest payload seen so far, so that a
-			// fetch rarely transfers much more than the remaining byte budget.
+			// Size each fetch from the largest payload seen so far, and at
+			// most double it per fetch, so that larger later records cannot
+			// make one fetch transfer far more than the remaining budget.
 			// The first fetch reads one record because no size is known yet.
 			batchSize = 1
 			if largest > 0 {
-				batchSize = min(max((maxBytes-bytesRead)/largest, 1), int(target-uint64(len(page.Records))))
+				batchSize = min(max((maxBytes-bytesRead)/largest, 1), 2*previousBatch, remaining)
 			}
+			previousBatch = batchSize
 		}
 		msgs, err := consumer.Fetch(batchSize, jetstream.FetchMaxWait(10*time.Second))
 		if err != nil {
@@ -588,8 +592,8 @@ func (l *EncodedEventLog) SubjectRecordsAfterPage(
 // would exceed maxBytes. It returns the number of fetched messages and whether
 // the page is full. The consumer has already delivered every fetched message,
 // so the page must end at the first record that it cannot hold; the next page
-// reads that record again. A single payload larger than maxBytes is an error
-// because no page can contain it. largest tracks the largest payload size seen,
+// reads that record again. A payload larger than maxBytes is an error when it
+// is the first record of the page, because no page can contain it. largest tracks the largest payload size seen,
 // counting an empty payload as one byte.
 func appendPageRecords(page *SubjectRecordPage, msgs jetstream.MessageBatch, maxBytes int, bytesRead, largest *int) (int, bool, error) {
 	fetched := 0
@@ -601,7 +605,7 @@ func appendPageRecords(page *SubjectRecordPage, msgs jetstream.MessageBatch, max
 			continue
 		}
 		data := msg.Data()
-		if maxBytes > 0 && len(data) > maxBytes {
+		if maxBytes > 0 && len(data) > maxBytes && len(page.Records) == 0 {
 			return fetched, true, fmt.Errorf("%w: record payload of %d bytes exceeds %d", ErrInvalidSubjectReadLimit, len(data), maxBytes)
 		}
 		*largest = max(*largest, len(data), 1)

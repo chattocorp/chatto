@@ -233,6 +233,32 @@ func TestSubjectRecordsAfterPageSplitsHistoryAtByteBudget(t *testing.T) {
 	}
 }
 
+func TestSubjectRecordsAfterPageEndsBeforeOversizedRecord(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := "evt.compatibility.page.oversized"
+	var sequences []uint64
+	for i, data := range [][]byte{[]byte("small"), []byte("small"), bytes.Repeat([]byte("x"), 100)} {
+		sequence, err := eventLog.AppendEventually(ctx, subject, EncodedRecord{ID: "oversized-" + strconv.Itoa(i), Data: data})
+		if err != nil {
+			t.Fatal(err)
+		}
+		sequences = append(sequences, sequence)
+	}
+
+	page, err := eventLog.SubjectRecordsAfterPage(ctx, subject, 0, 500, 50)
+	if err != nil {
+		t.Fatalf("page before oversized record: %v", err)
+	}
+	if len(page.Records) != 2 || !page.More || page.LastSequence != sequences[1] {
+		t.Fatalf("page = %+v, want both small records and more", page)
+	}
+	if _, err := eventLog.SubjectRecordsAfterPage(ctx, subject, page.LastSequence, 500, 50); !errors.Is(err, ErrInvalidSubjectReadLimit) {
+		t.Fatalf("oversized first record error = %v, want ErrInvalidSubjectReadLimit", err)
+	}
+}
+
 func TestSubjectRecordsAfterPageRejectsUnboundedLimits(t *testing.T) {
 	js, stream := setupTestStream(t)
 	eventLog := NewEncodedEventLog(js, stream, testLogger())
