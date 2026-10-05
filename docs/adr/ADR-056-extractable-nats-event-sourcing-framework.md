@@ -8,6 +8,13 @@ ADR-088 extends the shared framework with prepared reducers, coordinated
 components, one apply barrier, and projection snapshot cohorts. The framework
 remains application-neutral and independently versioned.
 
+The framework has one projection snapshot shape. Every snapshot contains
+components, and each component contains parts. A single-payload projection is
+one component with one part. The projector therefore has one configuration,
+one capture, and one restore path. An application can store single-payload
+snapshots in a different format. Chatto keeps its single-generation format for
+these projections and its cohort format for `ServerContentView`.
+
 ## Context
 
 [ADR-033](ADR-033-event-sourced-state-with-projections.md) deliberately chose a

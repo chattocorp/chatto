@@ -205,26 +205,27 @@ stable component generation and its exact applied sequence.
 ## Snapshots and checkpoints
 
 Snapshots are disposable replay accelerators, not authoritative event data.
-Configure `ConfigureSnapshots`, `ConfigureSnapshotCohorts`, or
-`ConfigureCheckpoint` before `Run`. Select only one restore mechanism.
+Call `ConfigureSnapshots` or `ConfigureCheckpoint` before `Run`. Select only
+one restore mechanism.
+
+A `ProjectionSnapshot` contains one or more components, and each component
+contains one or more parts. A projection that implements `SnapshotProjection`
+has one component with one part. Its key is `SnapshotStatePartKey`. A
+`ComponentizedProjection` has one component for each registered model.
+
 Snapshot sources must return the requested contract ID, stream name, stream
-incarnation, and a cutoff no newer than the startup target. The projector
-validates those bindings again and cold-replays retained events when a snapshot
-is unavailable or invalid. Stream identity changes during restore fail the run
-rather than applying state across stream incarnations.
+incarnation, components, and a cutoff no newer than the startup target. The
+load request lists the exact component contracts. The projector validates the
+bindings again. It restores all components as one transaction, or it resets all
+components and replays the retained events. Stream identity changes during
+restore fail the run rather than applying state across stream incarnations.
 
-`CaptureSnapshot` takes an apply barrier and includes the applied cutoff and
-stream identity. Publication remains application-owned and must use its own
-cross-replica OCC. Checkpoint implementations must atomically commit their
-derived state and cutoff, and must implement reset/rebuild behavior for an
-invalid checkpoint.
-
-`CaptureSnapshotCohort` takes the same barrier but captures each registered
-component as a separate payload. A projection snapshot source must return one
-complete cohort with the requested componentized-projection and component
-contracts. The projector restores the cohort as one transaction or resets all
-components and cold-replays. Storage, encryption, manifests, size limits,
-publication OCC, and cleanup remain application-owned.
+`CaptureSnapshot` takes an apply barrier and captures every component with the
+applied cutoff and stream identity. Storage, encryption, manifests, size
+limits, publication OCC, and cleanup remain application-owned. An application
+can keep a different storage format for single-payload projections. Checkpoint
+implementations must atomically commit their derived state and cutoff, and
+must implement reset/rebuild behavior for an invalid checkpoint.
 
 ## Read in bounded pages
 
