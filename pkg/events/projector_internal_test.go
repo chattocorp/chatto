@@ -134,3 +134,45 @@ func TestProjectorWaitForStartupIncludesCompletionHook(t *testing.T) {
 		t.Fatalf("wait after completion hook: %v", err)
 	}
 }
+
+// An event applied after startup ends must see a completed replay hook.
+// Completion therefore must mark startup ended and run the hook in one apply
+// barrier, so a concurrent apply cannot observe one without the other.
+func TestProjectorCompletesStartupInsideApplyBarrier(t *testing.T) {
+	projection := &startupCompletionProjection{}
+	projector := NewDecodedProjector(
+		nil,
+		nil,
+		projection,
+		func([]byte) (DecodedEvent[struct{}], error) {
+			return DecodedEvent[struct{}]{Event: struct{}{}, ID: "test"}, nil
+		},
+		discardLogger{},
+	)
+	projector.started = true
+
+	// Hold the barrier as an in-progress apply does.
+	projector.applyMu.Lock()
+	completed := make(chan struct{})
+	go func() {
+		projector.maybeCompleteStartup(time.Now())
+		close(completed)
+	}()
+	deadline := time.Now().Add(50 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if projector.Status().StartupComplete {
+			projector.applyMu.Unlock()
+			t.Fatal("startup completed outside the apply barrier, before the replay hook ran")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	projector.applyMu.Unlock()
+	<-completed
+
+	if projection.completions != 1 {
+		t.Fatalf("startup replay completions = %d, want 1", projection.completions)
+	}
+	if !projector.Status().StartupComplete {
+		t.Fatal("startup is not complete")
+	}
+}

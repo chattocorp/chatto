@@ -367,7 +367,6 @@ type Projector struct {
 	startupEndedAt   time.Time
 	startupCompleted bool
 	startupMessages  uint64
-	startupLogged    bool
 	startupBatchSize int
 	startupBatch     []sequencedDecodedEvent
 	// startupReconcileInterval sets how often Run checks whether the retained
@@ -1432,13 +1431,18 @@ func (p *Projector) reconcileStartup(ctx context.Context, previousHandledSeq uin
 	}
 	lastSeq := p.lastSeq
 	p.mu.Unlock()
+	// Complete before the barrier opens: an event that the consumer applies
+	// next is already past the lowered target.
+	summary, completed := p.completeStartupLocked(time.Now())
 	p.applyMu.Unlock()
 
 	p.logger.Info("Projection startup target is no longer retained; completing startup at last applied event",
 		"original_target_seq", originalTarget,
 		"last_seq", lastSeq,
 		"subjects", p.subjects)
-	p.maybeCompleteStartup(time.Now())
+	if completed {
+		p.logStartupComplete(summary)
+	}
 	return handledSeq
 }
 
@@ -1634,56 +1638,74 @@ func (p *Projector) countStartupMessages(count uint64) {
 	}
 }
 
+// maybeCompleteStartup completes startup when every event through the startup
+// target has been applied. The caller must not hold applyMu.
 func (p *Projector) maybeCompleteStartup(now time.Time) {
-	p.mu.Lock()
-	shouldLog := false
-	shouldCompleteReplay := false
-	var duration time.Duration
-	var targetSeq, lastSeq, messages uint64
-	var projectionKey string
-	if p.started && p.startupEndedAt.IsZero() && p.lastSeq >= p.startupTargetSeq {
-		p.startupEndedAt = now
-		p.startupCompleted = true
-		shouldCompleteReplay = true
+	select {
+	case <-p.startupCh:
+		return // Already complete; handleMessage calls this for every event.
+	default:
 	}
-	if p.started && p.startupCompleted && !p.startupLogged {
-		p.startupLogged = true
-		shouldLog = true
-		duration = p.startupEndedAt.Sub(p.startupStartedAt)
-		targetSeq = p.startupTargetSeq
-		lastSeq = p.lastSeq
-		messages = p.startupMessages
-		projectionKey = p.checkpointKey
-		if projectionKey == "" {
-			projectionKey = p.snapshotKey
-		}
+	p.applyMu.Lock()
+	summary, completed := p.completeStartupLocked(now)
+	p.applyMu.Unlock()
+	if completed {
+		p.logStartupComplete(summary)
+	}
+}
+
+// startupSummary holds the values that the startup-complete log reports.
+type startupSummary struct {
+	duration                     time.Duration
+	targetSeq, lastSeq, messages uint64
+	projectionKey                string
+}
+
+// completeStartupLocked marks startup complete, runs the projection's
+// StartupReplayCompleter hook, and releases WaitForStartup callers. The caller
+// must hold applyMu: no event can be applied between the end of startup and
+// the hook, so the projection never applies a live event in replay mode.
+func (p *Projector) completeStartupLocked(now time.Time) (startupSummary, bool) {
+	p.mu.Lock()
+	if !p.started || !p.startupEndedAt.IsZero() || p.lastSeq < p.startupTargetSeq {
+		p.mu.Unlock()
+		return startupSummary{}, false
+	}
+	p.startupEndedAt = now
+	p.startupCompleted = true
+	summary := startupSummary{
+		duration:      now.Sub(p.startupStartedAt),
+		targetSeq:     p.startupTargetSeq,
+		lastSeq:       p.lastSeq,
+		messages:      p.startupMessages,
+		projectionKey: p.checkpointKey,
+	}
+	if summary.projectionKey == "" {
+		summary.projectionKey = p.snapshotKey
 	}
 	p.mu.Unlock()
 
-	if shouldCompleteReplay {
-		p.applyMu.Lock()
-		if projection, ok := p.proj.(StartupReplayCompleter); ok {
-			projection.CompleteStartupReplay()
-		}
-		p.applyMu.Unlock()
-		close(p.startupCh)
+	if projection, ok := p.proj.(StartupReplayCompleter); ok {
+		projection.CompleteStartupReplay()
 	}
+	close(p.startupCh)
+	return summary, true
+}
 
-	if shouldLog {
-		var rate float64
-		if seconds := duration.Seconds(); seconds > 0 {
-			rate = float64(messages) / seconds
-		}
-		p.logger.Info("Projection startup complete",
-			"projection", projectionKey,
-			"duration", duration,
-			"messages", messages,
-			"messages_per_second", rate,
-			"last_seq", lastSeq,
-			"target_seq", targetSeq,
-			"subjects", p.subjects,
-		)
+func (p *Projector) logStartupComplete(summary startupSummary) {
+	var rate float64
+	if seconds := summary.duration.Seconds(); seconds > 0 {
+		rate = float64(summary.messages) / seconds
 	}
+	p.logger.Info("Projection startup complete",
+		"projection", summary.projectionKey,
+		"duration", summary.duration,
+		"messages", summary.messages,
+		"messages_per_second", rate,
+		"last_seq", summary.lastSeq,
+		"target_seq", summary.targetSeq,
+		"subjects", p.subjects,
+	)
 }
 
 // handleConsumeErr is invoked by the SDK when the OrderedConsumer's
