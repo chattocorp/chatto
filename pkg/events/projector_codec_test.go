@@ -520,3 +520,80 @@ func TestSinglePayloadSnapshotRejectsComponentMismatch(t *testing.T) {
 		})
 	}
 }
+
+type subjectPreparedProjection struct {
+	mu       sync.Mutex
+	subjects []string
+	prepares int
+}
+
+func (*subjectPreparedProjection) Subjects() []string { return []string{"evt.codec.prepared.>"} }
+
+func (p *subjectPreparedProjection) Prepare(codecTestEvent, uint64) (PreparedMutation, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.prepares++
+	return nil, nil
+}
+
+func (p *subjectPreparedProjection) PrepareSubject(_ codecTestEvent, subject string, _ uint64) (PreparedMutation, error) {
+	return PreparedMutationFunc(func() {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		p.subjects = append(p.subjects, subject)
+	}), nil
+}
+
+// A prepared projection that implements SubjectEventReducer receives each
+// delivered record's subject, and the projector never calls Prepare.
+func TestPreparedProjectorUsesSubjectEventReducer(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	ctx := testContext(t)
+	for _, subject := range []string{"evt.codec.prepared.first", "evt.codec.prepared.second"} {
+		if _, err := eventLog.Append(ctx, subject, EncodedRecord{ID: subject, Data: []byte("id:" + subject)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	projection := &subjectPreparedProjection{}
+	projector := NewDecodedPreparedProjector(js, stream, projection, decodeCodecTestEvent, testLogger())
+	runCtx, cancel := context.WithCancel(ctx)
+	t.Cleanup(cancel)
+	go func() { _ = projector.Run(runCtx) }()
+	if err := projector.WaitForStartup(ctx); err != nil {
+		t.Fatal(err)
+	}
+	projection.mu.Lock()
+	defer projection.mu.Unlock()
+	if !slices.Equal(projection.subjects, []string{"evt.codec.prepared.first", "evt.codec.prepared.second"}) || projection.prepares != 0 {
+		t.Fatalf("PrepareSubject subjects = %v, Prepare calls = %d", projection.subjects, projection.prepares)
+	}
+}
+
+type resetRecordingProjection struct {
+	codecTestProjection
+	restores [][]byte
+}
+
+func (p *resetRecordingProjection) Restore(snapshot []byte) error {
+	p.restores = append(p.restores, snapshot)
+	return p.codecTestProjection.Restore(snapshot)
+}
+
+// A projection with snapshot state starts a cold replay from its canonical
+// empty state, also when snapshots are not configured.
+func TestProjectorResetsSnapshotStateBeforeColdReplay(t *testing.T) {
+	js, stream := setupTestStream(t)
+	ctx := testContext(t)
+	projection := &resetRecordingProjection{codecTestProjection: codecTestProjection{subject: "evt.codec.reset.created"}}
+	projector := NewDecodedProjector(js, stream, projection, decodeCodecTestEvent, testLogger())
+	runCtx, cancel := context.WithCancel(ctx)
+	t.Cleanup(cancel)
+	go func() { _ = projector.Run(runCtx) }()
+	if err := projector.WaitForStartup(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if len(projection.restores) != 1 || projection.restores[0] != nil {
+		t.Fatalf("Restore calls = %q, want one Restore(nil)", projection.restores)
+	}
+}
