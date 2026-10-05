@@ -6,6 +6,14 @@
 
 Accepted. Supersedes [ADR-078](ADR-078-portless-native-development-stack.md).
 
+> **Amended 2026-10-05:** mise runs each service in its own process group and
+> signals all groups on `SIGHUP`, `SIGINT`, or `SIGTERM`. `mise dev` therefore
+> runs the services directly as parallel tasks, and the
+> `tools/dev-supervisor.sh` wrapper is removed. The stack does not stop
+> processes that it did not start: `mise stop`, the stop step before startup,
+> and the archive cleanup are removed. If a port is in use, the service fails
+> and mise stops the stack.
+
 ## Context
 
 ADR-078 ran the Chatto backend and a Vite development server as separate
@@ -33,7 +41,7 @@ names beneath `.localhost` to loopback without DNS or `/etc/hosts` changes.
 
 `mise dev` builds the embedded frontend and the bootstrap-enabled Chatto binary
 when their sources change. Then it runs this binary, Authling, the Runling bot,
-Mailpit, and LiveKit in the `tools/dev-supervisor.sh` process group. There is
+Mailpit, and LiveKit as parallel tasks of one mise process. There is
 no Vite process and no Portless route in the default stack. To see a change, the
 developer restarts `mise dev`.
 
@@ -65,8 +73,8 @@ authentication, and OAuth requests to `CHATTO_BACKEND_URL`. The default value is
 the Chatto server that `mise dev` runs in the same workspace. Storybook and the
 documentation website use their own default ports and select the next free port.
 
-This decision keeps the native processes, the Conductor port allocation, and
-the archive cleanup from ADR-078.
+This decision keeps the native processes and the Conductor port allocation
+from ADR-078.
 
 ## Consequences
 

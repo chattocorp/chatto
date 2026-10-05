@@ -56,7 +56,7 @@ mise dev
 
 `mise dev` first runs `mise setup`, which installs missing tools and
 dependencies. Then it builds the frontend and a Chatto binary that includes it,
-and runs the services in one supervised process group. Turbo restores unchanged
+and runs the services as parallel mise tasks. Turbo restores unchanged
 frontend builds from a cache that all worktrees share. Restart `mise dev` to
 see a change in Chatto, its frontend, or Authling. `mise setup` installs
 the tools, the Chatto and Authling dependencies, and the LiveKit server. It
@@ -108,11 +108,12 @@ Chatto uses Authling as its development OIDC provider. Chatto stores embedded
 NATS data in `cli/data/nats/` and search data in `cli/data/search/`. Authling
 identity data is in `.context/dev/<workspace>/authling/port-<port>/`.
 
-These credentials and accounts are for local development only. Stop `mise dev`,
-or run `mise stop` from another terminal, to stop the services. `mise reset`
-stops the stack of the workspace and removes the Chatto data and the Authling
-data of all ports. To reset only one of them, run `mise stop`, then remove
-`cli/data/` or the Authling identity directory. The
+These credentials and accounts are for local development only. Stop `mise dev`
+to stop the services. If a port of the stack is in use, `mise dev` stops with
+an error and does not stop the other process. Stop `mise dev`, then run
+`mise reset` to remove the Chatto data and the Authling data of all ports. To
+reset only one of them, remove `cli/data/` or the Authling identity directory.
+The
 Authling issuer URL includes `<workspace>` and the port, and Authling cannot
 change its issuer. Thus, a new `<workspace>` or port starts an empty
 Authling in a new state directory. Chatto users that you linked to the previous
@@ -168,8 +169,7 @@ The Codex desktop environment is in `.codex/environments/environment.toml`.
 Select **Chatto** in the app's local environment settings. New worktrees use
 the same setup commands as Conductor. The **Dev stack**, **Storybook**, and
 **Docs website** actions run the corresponding `mise` tasks in the integrated
-terminal. The cleanup script stops workspace processes before Codex deletes
-the worktree.
+terminal.
 
 Start an action, then open its URL in the app's browser. With the default
 local settings, Chatto uses `http://chatto.local.localhost:4000` and Authling
