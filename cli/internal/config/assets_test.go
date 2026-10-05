@@ -425,6 +425,43 @@ func TestS3Config_UsePathStyleForEndpoint(t *testing.T) {
 	}
 }
 
+func TestS3Config_EndpointURL(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  S3Config
+		want string
+	}{
+		{
+			name: "adds https by default",
+			cfg:  S3Config{Endpoint: "s3.amazonaws.com"},
+			want: "https://s3.amazonaws.com",
+		},
+		{
+			name: "adds http when SSL is disabled",
+			cfg:  S3Config{Endpoint: "localhost:9000", UseSSL: new(false)},
+			want: "http://localhost:9000",
+		},
+		{
+			name: "keeps an explicit http scheme",
+			cfg:  S3Config{Endpoint: "http://minio:9000"},
+			want: "http://minio:9000",
+		},
+		{
+			name: "keeps an explicit https scheme when SSL is disabled",
+			cfg:  S3Config{Endpoint: "https://minio.example.com", UseSSL: new(false)},
+			want: "https://minio.example.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.cfg.EndpointURL(); got != tt.want {
+				t.Errorf("EndpointURL() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestSkipSetupWizardConfiguration(t *testing.T) {
 	t.Setenv("CHATTO_CORE_SECRET_KEY", strings.Repeat("b", 64))
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", strings.Repeat("c", 64))

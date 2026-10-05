@@ -45,7 +45,7 @@ func NewS3Client(cfg config.S3Config) (*S3Client, error) {
 	if region == "" {
 		region = "us-east-1"
 	}
-	endpoint := s3EndpointURL(cfg)
+	endpoint := cfg.EndpointURL()
 
 	client := s3.New(s3.Options{
 		Credentials:                credentials.NewStaticCredentialsProvider(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
@@ -62,16 +62,6 @@ func NewS3Client(cfg config.S3Config) (*S3Client, error) {
 		pathPrefix:  cfg.PathPrefix,
 		awsEndpoint: cfg.IsAWSEndpoint(),
 	}, nil
-}
-
-func s3EndpointURL(cfg config.S3Config) string {
-	if strings.HasPrefix(cfg.Endpoint, "http://") || strings.HasPrefix(cfg.Endpoint, "https://") {
-		return cfg.Endpoint
-	}
-	if cfg.UseSSLOrDefault() {
-		return "https://" + cfg.Endpoint
-	}
-	return "http://" + cfg.Endpoint
 }
 
 // Bucket returns the configured bucket name.

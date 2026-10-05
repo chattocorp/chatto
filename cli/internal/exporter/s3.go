@@ -57,7 +57,7 @@ func newS3Scanner(assets config.AssetsConfig, timeout time.Duration) (*s3Scanner
 	client := s3.New(s3.Options{
 		Credentials:                credentials.NewStaticCredentialsProvider(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
 		Region:                     region,
-		BaseEndpoint:               aws.String(s3EndpointURL(cfg)),
+		BaseEndpoint:               aws.String(cfg.EndpointURL()),
 		UsePathStyle:               cfg.UsePathStyleForEndpoint(),
 		RequestChecksumCalculation: aws.RequestChecksumCalculationWhenRequired,
 	})
@@ -68,16 +68,6 @@ func newS3Scanner(assets config.AssetsConfig, timeout time.Duration) (*s3Scanner
 		timeout:    timeout,
 		stats:      s3Stats{Configured: true},
 	}, nil
-}
-
-func s3EndpointURL(cfg config.S3Config) string {
-	if strings.HasPrefix(cfg.Endpoint, "http://") || strings.HasPrefix(cfg.Endpoint, "https://") {
-		return cfg.Endpoint
-	}
-	if cfg.UseSSLOrDefault() {
-		return "https://" + cfg.Endpoint
-	}
-	return "http://" + cfg.Endpoint
 }
 
 func listPrefix(pathPrefix string) string {
