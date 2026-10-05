@@ -294,9 +294,9 @@ no ambient authority. Owners should be able to explain a bot's access from one
 explicit matrix rather than by combining roles and server defaults.
 **Tradeoff:** Owners must grant ordinary member capabilities beyond the
 creation defaults (decision 13) explicitly, and newly introduced permissions do
-not automatically become available to existing bots. Owners cannot carve out a denied narrower
-scope beneath a broader bot grant; they must clear the broader grant and add
-only the narrower grants the bot should retain.
+not automatically become available to existing bots. Owners cannot carve out a
+denied narrower scope beneath a broader bot grant; they must clear the broader
+grant and add only the narrower grants the bot should retain.
 
 ### 4. The owner's current authority is a dynamic ceiling
 
