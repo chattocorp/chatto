@@ -72,15 +72,17 @@ func registerProjectionHandle[P events.SubjectProjection](
 	if err := handle.Projector().ConfigureConsumerIdentity(key, name); err != nil {
 		return events.ProjectionHandle[P]{}, fmt.Errorf("configure %s consumer identity: %w", key, err)
 	}
+	_, componentSnapshots := any(projection).(events.ComponentSnapshotProjection)
 	r.registrations = append(r.registrations, projectionRegistration{
-		key:              key,
-		name:             name,
-		projector:        handle.Projector(),
-		subjects:         slices.Clone(projection.Subjects()),
-		snapshotPolicy:   snapshotPolicy,
-		streamName:       streamName,
-		identityResolver: identityResolver,
-		estimate:         estimate,
+		key:                key,
+		name:               name,
+		projector:          handle.Projector(),
+		subjects:           slices.Clone(projection.Subjects()),
+		snapshotPolicy:     snapshotPolicy,
+		componentSnapshots: componentSnapshots,
+		streamName:         streamName,
+		identityResolver:   identityResolver,
+		estimate:           estimate,
 	})
 	return handle, nil
 }
@@ -345,9 +347,10 @@ func configureProjectionSnapshots(
 		if registration.snapshotPolicy == coldReplayOnly {
 			continue
 		}
-		// ServerContentView keeps its components in cohort storage. Every other
-		// projection keeps its single payload in single-generation storage.
-		componentized := registration.key == projectionsnapshot.ProjectionServerContentViewKey
+		// A componentized projection, such as ServerContentView, keeps its
+		// components in cohort storage. A single-payload projection keeps its
+		// payload in single-generation storage.
+		componentized := registration.componentSnapshots
 		var source events.ProjectionSnapshotSource = projectionSnapshotSource{repository: infra.snapshotRepository}
 		if componentized {
 			source = projectionSnapshotCohortSource{repository: infra.snapshotRepository}

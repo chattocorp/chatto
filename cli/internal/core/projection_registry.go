@@ -15,7 +15,10 @@ type projectionRegistration struct {
 	subjects         []string
 	snapshotPolicy   projectionSnapshotPolicy
 	snapshotEnabled  bool
-	streamName       string
+	// componentSnapshots is true when the projection snapshots as several
+	// components. Its snapshots then use cohort storage.
+	componentSnapshots bool
+	streamName         string
 	identityResolver events.StreamIdentityResolver
 	estimate         func() (entries int64, estimatedBytes int64, metrics []ProjectionAdminMetric)
 }
