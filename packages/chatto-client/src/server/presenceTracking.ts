@@ -17,7 +17,9 @@ export type PresenceTracker = {
   sync(): void;
   /**
    * Save a deliberate selection on one server. Resolves only after the server
-   * acknowledges it; rejects while the account's choice is not loaded.
+   * acknowledges it. Rejects while the account's choice is not loaded, while
+   * another selection for the account is in progress, and when a newer request
+   * or an authentication change discards the acknowledgement.
    */
   select(scope: PresenceScope, status: PresenceStatus): Promise<void>;
   /**
@@ -25,7 +27,11 @@ export type PresenceTracker = {
    * Event payloads are invalidations, not choices.
    */
   refresh(scope: PresenceScope): void;
-  /** Stop the heartbeat and release the runtime preferences. Saved choices remain. */
+  /**
+   * Stop the heartbeat and clear the `PresencePreferences` instance that the
+   * tracker received, including entries of other trackers that share it.
+   * Saved choices remain in device storage and on the server.
+   */
   stop(): void;
 };
 
