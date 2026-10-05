@@ -23,21 +23,17 @@ func TestLocalDevelopmentConfigUsesSeparateDataDirectories(t *testing.T) {
 	if got := cfg.SearchProvider.DirectoryOrDefault(); got != "./data/search" {
 		t.Errorf("search provider directory = %q, want %q", got, "./data/search")
 	}
-	if len(cfg.Bootstrap.Bots) != 1 {
-		t.Fatalf("bootstrap bots = %#v, want one development bot", cfg.Bootstrap.Bots)
+	// The development users come from the file. TestBot and the Authling
+	// provider depend on workspace ports, so the mise tasks add them.
+	if len(cfg.Bootstrap.Users) != 2 || cfg.Bootstrap.Users[0].Login != "alice" || cfg.Bootstrap.Users[0].ServerRole != "owner" || cfg.Bootstrap.Users[1].Login != "bob" {
+		t.Fatalf("bootstrap users = %#v, want alice (owner) and bob", cfg.Bootstrap.Users)
 	}
-	bot := cfg.Bootstrap.Bots[0]
-	if bot.Bio != "I'm **TestBot**, Chatto's development assistant. Mention `@test_bot` in a channel or send me a direct message." {
-		t.Fatal("development bot bio was not loaded")
+	if len(cfg.Bootstrap.Bots) != 0 || len(cfg.Auth.Providers) != 0 {
+		t.Fatalf("bootstrap bots = %#v, auth providers = %#v; want none in the file", cfg.Bootstrap.Bots, cfg.Auth.Providers)
 	}
-	if bot.Login != "test_bot" || bot.DisplayName != "TestBot" || bot.OwnerLogin != "alice" {
-		t.Fatalf("development bot identity = %#v", bot)
-	}
-	if bot.CredentialFile != "./data/bootstrap/test_bot.key" {
-		t.Fatalf("development bot credential file = %q", bot.CredentialFile)
-	}
-	if !slices.Equal(bot.Permissions, []string{"room.join", "room.list", "message.read", "message.post-in-thread"}) || !slices.Equal(bot.Rooms, []string{"general"}) {
-		t.Fatalf("development bot access = %#v", bot)
+	// `mise dev` runs without Mailpit and LiveKit; `mise dev-full` enables both.
+	if cfg.SMTP.Enabled || cfg.LiveKit.Enabled {
+		t.Fatalf("smtp enabled = %v, livekit enabled = %v; want both disabled", cfg.SMTP.Enabled, cfg.LiveKit.Enabled)
 	}
 }
 
