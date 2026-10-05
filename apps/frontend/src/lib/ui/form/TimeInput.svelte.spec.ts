@@ -34,7 +34,9 @@ describe('TimeInput', () => {
   });
 
   it('shows midnight and noon as 12 on a 12-hour clock', () => {
-    expect(renderTime({ value: '00:15', hour12: true }).hour.value).toBe('12');
+    const midnight = renderTime({ value: '00:15', hour12: true });
+    expect(midnight.hour.value).toBe('12');
+    expect(midnight.period()?.value).toBe('am');
     expect(renderTime({ value: '12:15', hour12: true }).period()?.value).toBe('pm');
   });
 
@@ -62,6 +64,59 @@ describe('TimeInput', () => {
     await userEvent.clear(field.hour);
     await userEvent.type(field.hour, '12');
     expect(field.bound()).toBe('12:00');
+  });
+
+  it('stores 12 AM as hour 00', async () => {
+    const field = renderTime({ value: '09:00', hour12: true });
+
+    await userEvent.clear(field.hour);
+    await userEvent.type(field.hour, '12');
+
+    expect(field.bound()).toBe('00:00');
+  });
+
+  it('keeps the newest digits when the caret is at the end of a filled segment', async () => {
+    const field = renderTime({ value: '10:30', hour12: false });
+    field.minute.focus();
+    field.minute.setSelectionRange(2, 2);
+
+    await userEvent.keyboard('4');
+
+    expect(field.minute.value).toBe('04');
+    expect(field.bound()).toBe('10:04');
+  });
+
+  it('moves to the minute only after a complete hour', async () => {
+    const field = renderTime({ hour12: false });
+
+    await userEvent.type(field.hour, '2');
+    expect(document.activeElement).toBe(field.hour);
+    await userEvent.clear(field.hour);
+    await userEvent.type(field.hour, '7');
+    expect(document.activeElement).toBe(field.minute);
+  });
+
+  it.each([
+    { name: 'hour 24 on a 24-hour clock', value: '24', segment: 'hour' as const, hour12: false },
+    { name: 'hour 0 on a 12-hour clock', value: '00', segment: 'hour' as const, hour12: true },
+    { name: 'minute 60', value: '60', segment: 'minute' as const, hour12: false }
+  ])('binds an empty value for $name', async ({ value, segment, hour12 }) => {
+    const field = renderTime({ value: '10:30', hour12 });
+
+    await userEvent.clear(field[segment]);
+    await userEvent.type(field[segment], value);
+
+    expect(field.bound()).toBe('');
+  });
+
+  it('exposes segments as spin buttons with their ranges', () => {
+    const field = renderTime({ value: '14:30', hour12: true });
+
+    expect(field.hour.getAttribute('role')).toBe('spinbutton');
+    expect(field.hour.getAttribute('aria-valuemin')).toBe('1');
+    expect(field.hour.getAttribute('aria-valuemax')).toBe('12');
+    expect(field.hour.getAttribute('aria-valuenow')).toBe('2');
+    expect(field.minute.getAttribute('aria-valuemax')).toBe('59');
   });
 
   it('binds an empty value for an hour outside the clock', async () => {
@@ -101,6 +156,18 @@ describe('TimeInput', () => {
     await userEvent.click(field.hour);
     await userEvent.keyboard('{ArrowUp}');
     expect(field.bound()).toBe('00:00');
+
+    await userEvent.keyboard('{ArrowDown}');
+    expect(field.bound()).toBe('23:00');
+  });
+
+  it('starts stepping an empty segment from zero', async () => {
+    const field = renderTime({ hour12: false });
+
+    await userEvent.click(field.minute);
+    await userEvent.keyboard('{ArrowDown}');
+
+    expect(field.minute.value).toBe('59');
   });
 
   it('wraps 12-hour clock hours between 12 and 1', async () => {

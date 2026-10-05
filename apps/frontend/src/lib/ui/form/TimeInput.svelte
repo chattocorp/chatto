@@ -7,7 +7,11 @@
   time format preference must apply.
 
   The bound value is a 24-hour `HH:mm` string, like the value of a native time
-  input. It is empty while the entry is incomplete or not valid.
+  input. It is empty while the entry is incomplete or not valid. When the caller
+  sets the value to empty, a partial entry that the user typed stays visible.
+
+  Each segment has its own accessible name. Label the complete field with a
+  `FormField` that has `group` set.
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
@@ -23,7 +27,7 @@
     hour12,
     disabled = false
   }: {
-    /** Set on the hour segment, so a label or focus target can point to the field. */
+    /** Set on the hour segment, so callers can focus the field. */
     id?: string;
     value?: string;
     /** Show hours 1–12 with a day period instead of hours 0–23. */
@@ -32,6 +36,7 @@
   } = $props();
 
   const periods = $derived(dayPeriodLabels());
+  const hourRange = $derived(hour12 ? [1, 12] : [0, 23]);
   let minuteInput = $state<HTMLInputElement>();
   let draft = $state<Draft | null>(null);
   // Keep the segment text while it describes the bound value. This keeps partial
@@ -79,11 +84,19 @@
     segment: 'hour' | 'minute'
   ) {
     const input = event.currentTarget;
-    const digits = input.value.replace(/\D/g, '').slice(0, 2);
+    // Keep the newest digits, so typing into a filled segment replaces its value.
+    const digits = input.value.replace(/\D/g, '').slice(-2);
     // Svelte does not write the DOM when the cleaned text equals the current state.
     input.value = digits;
     update({ [segment]: digits });
-    if (segment === 'hour' && digits.length === 2) minuteInput?.focus();
+    if (segment === 'hour' && hourComplete(digits)) minuteInput?.focus();
+  }
+
+  /** True when the hour is valid and no further digit can follow it. */
+  function hourComplete(digits: string): boolean {
+    const hour = Number(digits);
+    const [min, max] = hourRange;
+    return digits !== '' && hour >= min && hour <= max && (digits.length === 2 || hour * 10 > max);
   }
 
   /** Step a segment with the arrow keys, wrapping like a native time input. */
@@ -116,7 +129,11 @@
     inputmode="numeric"
     autocomplete="off"
     placeholder="--"
+    role="spinbutton"
     aria-label={m('ui.form.time.hour')}
+    aria-valuemin={hourRange[0]}
+    aria-valuemax={hourRange[1]}
+    aria-valuenow={shown.hour === '' ? undefined : Number(shown.hour)}
     value={shown.hour}
     {disabled}
     oninput={(event) => inputDigits(event, 'hour')}
@@ -131,7 +148,11 @@
     inputmode="numeric"
     autocomplete="off"
     placeholder="--"
+    role="spinbutton"
     aria-label={m('ui.form.time.minute')}
+    aria-valuemin={0}
+    aria-valuemax={59}
+    aria-valuenow={shown.minute === '' ? undefined : Number(shown.minute)}
     value={shown.minute}
     {disabled}
     oninput={(event) => inputDigits(event, 'minute')}

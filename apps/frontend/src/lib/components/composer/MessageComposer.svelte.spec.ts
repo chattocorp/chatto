@@ -2766,6 +2766,23 @@ describe('MessageComposer', () => {
       });
     });
 
+    it('inserts the same instant through the 12-hour clock', async () => {
+      useViewerTimeFormat(TimeFormat.TIME_FORMAT_12_HOUR);
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await userEvent.click(q(container, 'button[aria-label="Insert timestamp"]')!);
+      await vi.waitFor(() => expect(document.querySelector('input[type="date"]')).toBeTruthy());
+      await changeInputValue(document.querySelector('input[type="date"]')!, '2025-04-27');
+      await changeInputValue(document.querySelector('input[aria-label="Hour"]')!, '02');
+      await changeInputValue(document.querySelector('input[aria-label="Minute"]')!, '30');
+      await userEvent.selectOptions(document.querySelector('select[aria-label="AM or PM"]')!, 'pm');
+      await changeInputValue(document.querySelector(`input[list^="timestamp-timezones-"]`)!, 'UTC');
+      await userEvent.click(document.querySelector('button[type="submit"]')!);
+
+      await vi.waitFor(() => expect(editor.textContent).toContain('<t:1745764200:F>'));
+    });
+
     it.each([
       { clock: '24-hour', timeFormat: TimeFormat.TIME_FORMAT_24_HOUR, hour12: false },
       { clock: '12-hour', timeFormat: TimeFormat.TIME_FORMAT_12_HOUR, hour12: true }
