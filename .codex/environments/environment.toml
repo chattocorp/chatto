@@ -4,9 +4,6 @@ name = "Chatto"
 [setup]
 script = "mise setup"
 
-[cleanup]
-script = "exec tools/stop-workspace-dev.sh"
-
 [[actions]]
 name = "Dev stack"
 icon = "run"

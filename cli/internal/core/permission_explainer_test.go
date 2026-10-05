@@ -208,6 +208,7 @@ func TestPermissionExplainer_AgreesWithBotReadInclusion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, core, owner.GetId())
 	bot, err := core.CreateBot(ctx, owner.GetId(), "explanation_reader_bot", "Explanation Reader Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)

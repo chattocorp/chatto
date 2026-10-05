@@ -23,6 +23,7 @@ func TestDisplayNamesAcrossAccountAPIs(t *testing.T) {
 			}))
 			require.NoError(t, err)
 			require.Equal(t, name, human.Msg.GetMember().GetUser().GetDisplayName())
+			allowBotCreation(t, env.ctx, env.core, env.viewer.Id)
 			bot, err := bots.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{
 				Login: fmt.Sprintf("display-bot-%d", i), DisplayName: "  " + name + "  ",
 			}))

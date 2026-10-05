@@ -408,20 +408,25 @@ run = "pnpm dev"
 #   +8  Mailpit SMTP
 #   +9  Mailpit web UI
 
-[tasks.stop]
-description = "Stop the development stack of this workspace"
-run = 'CONDUCTOR_WORKSPACE_PATH="$PWD" tools/stop-workspace-dev.sh "$CHATTO_DEV_PORT_BASE"'
+[tasks.check-dev-ports]
+description = "Check that the ports of the development stack are free"
+run = 'tools/check-dev-ports.sh "$CHATTO_DEV_PORT_BASE"'
 
 [tasks.dev]
 description = "Build and run Chatto, Authling, Runling, Mailpit, and LiveKit"
 # Setup is fast when nothing changed, so a fresh checkout needs only `mise dev`.
-# A stack that still runs in this workspace stops first and frees its ports.
-depends = ["stop", "setup", "build-dev-cli", "build-runling-bot"]
-run = '''
-exec "$PWD/tools/dev-supervisor.sh" mise run --jobs 5 --output prefix \
-  dev-stack-mailpit ::: dev-stack-livekit ::: dev-stack-authling ::: \
-  dev-stack-backend ::: dev-stack-runling-bot
-'''
+# The port check fails the start early and does not stop other processes.
+depends = ["check-dev-ports", "setup", "build-dev-cli", "build-runling-bot"]
+# mise runs each service in its own process group. On SIGHUP, SIGINT, or
+# SIGTERM, it signals all of these groups, and when one service fails, it stops
+# the others. The services need five parallel jobs; the mise default is eight.
+run = { tasks = [
+  "dev-stack-mailpit",
+  "dev-stack-livekit",
+  "dev-stack-authling",
+  "dev-stack-backend",
+  "dev-stack-runling-bot",
+] }
 
 [tasks.dev-frontend]
 description = "Run the Vite frontend development server against a Chatto server"
@@ -686,7 +691,6 @@ description = "Run CLI tests"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
 run = [
-    "../tools/dev-supervisor_test.sh",
     "node ../tools/dev-seed-smoke.mjs",
     "go test -trimpath -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./...",
 ]
@@ -913,9 +917,8 @@ run = [{ task = "reset-data" }]
 [tasks.reset-data]
 description = "Reset the development data of Chatto and Authling"
 confirm = "Are you sure you want to reset the development environment? This will delete all Chatto and Authling data of this workspace."
-# Stop this workspace's stack first, so that no service writes during the removal.
+# Stop `mise dev` first, so that no service writes during the removal.
 # Remove the data of every Authling issuer port: Chatto users link to its accounts.
-depends = ["stop"]
 run = [
   "rm -rf cli/data",
   'rm -rf ".context/dev/${CHATTO_DEV_WORKSPACE:?}/authling"',

@@ -354,7 +354,8 @@ export function investigationExtension(
   settings: InvestigationSettings,
   announce: (text: string, signal: AbortSignal) => Promise<void>,
   tasks: AgentTasks,
-  plans: InvestigationPlans = new Map()
+  plans: InvestigationPlans = new Map(),
+  onStarted?: (id: string) => void
 ) {
   const investigate = createInvestigation(settings);
   return defineAgentExtension((pi) => {
@@ -407,7 +408,9 @@ export function investigationExtension(
             return result;
           });
           try {
-            return JSON.stringify(tasks.observe('Chatto source investigation', run));
+            const state = tasks.observe('Chatto source investigation', run);
+            onStarted?.(run.id);
+            return JSON.stringify(state);
           } catch (error) {
             await run[Symbol.asyncDispose]();
             throw error;

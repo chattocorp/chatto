@@ -16,6 +16,7 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	service := &botService{api: env.api}
 	ctx := withCaller(env.ctx, env.viewer)
 
+	allowBotCreation(t, env.ctx, env.core, env.viewer.Id)
 	created, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "connect-helper", DisplayName: "Connect Bot"}))
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -220,6 +221,7 @@ func TestBotServiceRejectsInvalidLoginAndOwnerCeiling(t *testing.T) {
 	service := &botService{api: env.api}
 	ctx := withCaller(env.ctx, env.viewer)
 
+	allowBotCreation(t, env.ctx, env.core, env.viewer.Id)
 	if _, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "invalid!", DisplayName: "Invalid"})); errorCode(err) != connect.CodeInvalidArgument {
 		t.Fatalf("CreateBot invalid login code = %v", errorCode(err))
 	}
@@ -240,6 +242,7 @@ func TestBotServiceRejectsInvalidLoginAndOwnerCeiling(t *testing.T) {
 func TestBotOwnerMembershipThroughRoomAPI(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
+	allowBotCreation(t, env.ctx, env.core, env.viewer.Id)
 	bot, err := env.core.CreateBot(env.ctx, env.viewer.Id, "room_api_bot", "Room API Bot")
 	require.NoError(t, err)
 	room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", "bot-room-api", "")
@@ -282,6 +285,7 @@ func TestBotServiceOutboundWebhookPatchPresence(t *testing.T) {
 	_, err = service.UpdateBotOutboundWebhook(ctx, connect.NewRequest(request))
 	requireConnectCode(t, err, connect.CodeInvalidArgument)
 
+	allowBotCreation(t, env.ctx, env.core, env.viewer.Id)
 	bot, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "patch_bot", DisplayName: "Patch Bot"}))
 	require.NoError(t, err)
 	created, err := service.CreateBotOutboundWebhook(ctx, connect.NewRequest(&apiv1.CreateBotOutboundWebhookRequest{

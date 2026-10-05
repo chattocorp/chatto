@@ -985,6 +985,7 @@ func TestBearerPresentedCredentialAuthenticatesBotAPIKeys(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, s.core, owner.GetId())
 	bot, err := s.core.CreateBot(ctx, owner.GetId(), "http_bot", "HTTP Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -1034,6 +1035,7 @@ func TestConnectBotAPIKeyAuthenticatesPublicAPIRequests(t *testing.T) {
 		DisplayName: "API Request Bot",
 	})
 	createReq.Header().Set("Authorization", "Bearer "+ownerToken)
+	allowBotCreation(t, ctx, s.core, owner.GetId())
 	created, err := botClient.CreateBot(ctx, createReq)
 	if err != nil {
 		t.Fatalf("CreateBot over Connect: %v", err)

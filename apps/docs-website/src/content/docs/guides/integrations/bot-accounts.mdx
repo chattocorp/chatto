@@ -29,9 +29,9 @@ permissions and cannot sign in through the login forms.
 
 </Steps>
 
-On a new server, every human member has `bot.create`. Administrators can
-remove this default in the permission matrix. The creator of a bot can always
-manage it. Accounts with `bot.manage` can manage all bots and can select
+On a new server, only the `admin` role has `bot.create`. To let members create
+bots, allow `bot.create` for `everyone` or for a role. The creator of a bot can
+always manage it. Accounts with `bot.manage` can manage all bots and can select
 **Reassign owner** to give a bot to another active human account. Reassignment
 keeps the permissions and API keys of the bot. If the previous owner must lose
 access, create a new key and revoke the old one.

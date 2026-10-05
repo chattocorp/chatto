@@ -127,3 +127,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-110](ADR-110-share-process-local-event-id-interning.md)             | Share Process-Local Event ID Interning Across Projections        | Accepted             | 2026-09-29 |
 | [ADR-111](ADR-111-move-client-state-into-chatto-client.md)               | Move the Client State Layer into `@chatto/client`                | Partially superseded | 2026-09-28 |
 | [ADR-112](ADR-112-keep-the-server-catalogue-in-the-frontend.md)          | Keep the Server Catalogue in the Frontend                        | Accepted             | 2026-10-02 |
+| [ADR-113](ADR-113-grant-new-permissions-once-on-upgrade.md)              | Grant New Permissions Once on Upgrade                            | Accepted             | 2026-09-28 |

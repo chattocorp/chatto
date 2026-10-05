@@ -889,6 +889,7 @@ func TestRealtimeWebSocketClosesOnlyForRevokedBotAPIKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, env.ctx, env.core, owner.GetId())
 	bot, err := env.core.CreateBot(env.ctx, owner.GetId(), "rt_multi_key_bot", "RT Multi-key Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)

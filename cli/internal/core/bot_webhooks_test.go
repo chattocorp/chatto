@@ -30,6 +30,7 @@ func webhookTestBot(t *testing.T, c *ChattoCore) (string, string, string) {
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "webhook-owner", "Owner", "password123")
 	require.NoError(t, err)
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "outbound_bot", "Outbound")
 	require.NoError(t, err)
 	require.NoError(t, c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeDM}, PermMessageRead, PermissionStateAllow))
@@ -379,6 +380,7 @@ func TestBotOutboundWebhookFanoutAcrossReplicas(t *testing.T) {
 	startCoreServices(t, replica)
 	owner, first, _ := webhookTestBot(t, c)
 	ctx := testContext(t)
+	allowBotCreation(t, ctx, c, owner)
 	second, err := c.CreateBot(ctx, owner, "second_bot", "Second")
 	require.NoError(t, err)
 	require.NoError(t, c.SetUserPermissionState(ctx, owner, second.User.GetId(), PermissionTargetScope{Kind: MatrixScopeDM}, PermMessageRead, PermissionStateAllow))
@@ -810,6 +812,7 @@ func TestBotOutboundWebhookLifecycleManagerBoundary(t *testing.T) {
 		require.Error(t, err)
 		require.Error(t, c.RevokeBotOutboundWebhook(ctx, actor, bot, endpoint.ID))
 	}
+	allowBotCreation(t, ctx, c, owner)
 	otherBot, err := c.CreateBot(ctx, owner, "other_bot", "Other bot")
 	require.NoError(t, err)
 	_, err = c.UpdateBotOutboundWebhook(ctx, owner, otherBot.User.GetId(), endpoint.ID, BotOutboundWebhookPatch{Enabled: &enabled})

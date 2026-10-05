@@ -29,6 +29,7 @@ func TestIncomingWebhookPostsThroughBotPermissionsAndSupportsExistingDMs(t *test
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, s.core, owner.GetId())
 	bot, err := s.core.CreateBot(ctx, owner.GetId(), "incoming_bot", "Incoming Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -187,6 +188,7 @@ func TestIncomingWebhookRecordsUseAfterAuthenticationBeforePayloadValidation(t *
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, s.core, owner.GetId())
 	bot, err := s.core.CreateBot(ctx, owner.GetId(), "usage_http_bot", "Usage HTTP Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)

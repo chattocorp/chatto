@@ -1,7 +1,7 @@
 # FDR-001: Agent interactions and steering
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-24
+**Last reviewed:** 2026-10-05
 
 ## Overview
 
@@ -12,6 +12,11 @@ outcomes. Connections deliver live input and ordered assistant output.
 
 - Text mode delivers completed assistant messages through text callbacks. The
   returned summary is not a second message to send when the callback sent it.
+- Text agents can name terminal tools. A successful direct call ends the current
+  tool batch without another provider request, even when the batch includes
+  other tools. Failed calls and calls from scripts do not end the interaction.
+  The application delivers the structured result; Runling returns usage with an
+  empty completed summary. Later interactions start with no terminal state.
 - Report mode requires a structured outcome and permits one format-repair attempt.
   Provider failure and a missing report are host failures, distinct from a model
   reporting that it is blocked.

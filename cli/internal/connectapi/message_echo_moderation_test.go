@@ -33,6 +33,7 @@ func TestMessageServiceModeratorEchoRemoval(t *testing.T) {
 			if tc.manage {
 				require.NoError(t, env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessageManage))
 			}
+			allowBotCreation(t, env.ctx, env.core, env.viewer.Id)
 			bot, err := env.core.CreateBot(env.ctx, env.viewer.Id, "echo_bot", "Echo Bot")
 			require.NoError(t, err)
 			_, err = env.core.AddMember(env.ctx, core.SystemActorID, core.KindChannel, room.Id, bot.User.Id)

@@ -14,6 +14,7 @@ import (
 func TestEffectivePermissionServiceBoundaryAndCompleteResult(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	service := &effectivePermissionService{api: env.api}
+	allowBotCreation(t, env.ctx, env.core, env.viewer.Id)
 	bot, err := env.core.CreateBot(env.ctx, env.viewer.Id, "public_bot", "Bot")
 	require.NoError(t, err)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "reader", "Reader", "password123")

@@ -31,6 +31,7 @@ export default task(
           output: 'text',
           allowEmptyResponse: true,
           tools: ['finishTurn'],
+          terminalTools: ['finishTurn'],
           extensions: [completion.extension],
           resources: {
             extensions: false,

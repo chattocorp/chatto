@@ -188,8 +188,8 @@ test.describe('Server Admin Page', () => {
     await logoutUser(page);
     await loginUser(page, nonAdmin.login, nonAdmin.password);
 
-    // A regular member still has the Bots management surface because fresh
-    // servers grant bot.create to everyone.
+    // A regular member still has the Bots management surface, because bot
+    // owners can manage their bots without bot.create.
     await gotoServer(page);
 
     // Wait for the page to load (server name should be visible)

@@ -99,6 +99,7 @@ func TestPermissionResolver_BotCredentialDoesNotRequirePrivilegedMode(t *testing
 	if err := chatto.AssignOwnerRole(ctx, owner.Id); err != nil {
 		t.Fatalf("AssignOwnerRole: %v", err)
 	}
+	allowBotCreation(t, ctx, chatto, owner.Id)
 	bot, err := chatto.CreateBot(ctx, owner.Id, "privileged_bot", "Privileged Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -254,6 +255,7 @@ func TestBotPermissionsIndependentOfInspectorPrivilegedMode(t *testing.T) {
 			}
 			for _, scope := range scopes {
 				t.Run(scope.name, func(t *testing.T) {
+					allowBotCreation(t, ctx, c, owner.Id)
 					bot, err := c.CreateBot(ctx, owner.Id, scope.name+"_bot", "Bot")
 					if err != nil {
 						t.Fatal(err)
@@ -352,6 +354,7 @@ func TestBotElevatedGrantRequiresActiveActorAuthority(t *testing.T) {
 	if err := c.GrantUserPermission(ctx, SystemActorID, manager.Id, PermBotManage); err != nil {
 		t.Fatal(err)
 	}
+	allowBotCreation(t, ctx, c, owner.Id)
 	bot, err := c.CreateBot(ctx, owner.Id, "grant_bot", "Bot")
 	if err != nil {
 		t.Fatal(err)
@@ -417,6 +420,7 @@ func TestPermissionResolver_PrivilegedModeGatesOwnerOverride(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FindOrCreateDM: %v", err)
 	}
+	allowBotCreation(t, ctx, c, other.Id)
 	bot, err := c.CreateBot(ctx, other.Id, "gated_checker", "Gated Checker")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
