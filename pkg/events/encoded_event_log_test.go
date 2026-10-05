@@ -37,12 +37,13 @@ func TestEncodedEventLogPreservesOpaqueRecord(t *testing.T) {
 		t.Fatalf("Nats-Msg-Id = %q, want opaque-1", got)
 	}
 
-	records, lastSeq, err := eventLog.SubjectRecordsAfter(ctx, subject, 0)
+	page, err := eventLog.SubjectRecordsAfterPage(ctx, subject, 0, 10, 0)
 	if err != nil {
-		t.Fatalf("SubjectRecordsAfter: %v", err)
+		t.Fatalf("SubjectRecordsAfterPage: %v", err)
 	}
-	if len(records) != 1 || lastSeq != seq {
-		t.Fatalf("records=%d lastSeq=%d, want 1 and %d", len(records), lastSeq, seq)
+	records := page.Records
+	if len(records) != 1 || page.LastSequence != seq || page.More {
+		t.Fatalf("records=%d lastSeq=%d more=%v, want 1, %d, and false", len(records), page.LastSequence, page.More, seq)
 	}
 	if records[0].Subject != subject || records[0].Sequence != seq || records[0].ID != "opaque-1" || !bytes.Equal(records[0].Data, data) {
 		t.Fatalf("record = %+v, want subject=%q sequence=%d data=%x", records[0], subject, seq, data)

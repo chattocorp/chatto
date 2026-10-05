@@ -248,10 +248,6 @@ for {
 }
 ```
 
-`SubjectRecordsAfter` remains as a compatibility convenience for callers that
-explicitly need one materialized result. New code should use pages or process
-each page before requesting the next one.
-
 ## Run durable work
 
 `DurableWorker` runs an already configured JetStream pull consumer with bounded

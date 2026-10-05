@@ -122,17 +122,6 @@ func NewEncodedEventLog(js jetstream.JetStream, stream jetstream.Stream, logger 
 	return &EncodedEventLog{js: js, stream: stream, logger: normalizeLogger(logger)}
 }
 
-// StreamUsage returns the current message and byte totals for the bound stream.
-func (l *EncodedEventLog) StreamUsage(ctx context.Context) (messages, bytes uint64, err error) {
-	l.streamMu.Lock()
-	defer l.streamMu.Unlock()
-	info, err := l.stream.Info(ctx)
-	if err != nil {
-		return 0, 0, err
-	}
-	return info.State.Msgs, info.State.Bytes, nil
-}
-
 // LastStreamSeq returns the current last sequence of the bound stream. Unlike
 // the message count, this remains a valid OCC token when messages have been
 // deleted or expired.
@@ -352,7 +341,7 @@ func (l *EncodedEventLog) publishBatchEntry(
 	if err != nil {
 		return 0, fmt.Errorf("publish: %w", err)
 	}
-	return decodeBatchAckWithExpectation(resp, conflict)
+	return decodeBatchAck(resp, conflict)
 }
 
 type conflictExpectation struct {
@@ -406,11 +395,7 @@ type pubAckEnvelope struct {
 	Duplicate bool   `json:"duplicate,omitempty"`
 }
 
-func decodeBatchAck(resp *nats.Msg, entry EncodedBatchEntry) (uint64, error) {
-	return decodeBatchAckWithExpectation(resp, conflictExpectationForEntry(entry))
-}
-
-func decodeBatchAckWithExpectation(resp *nats.Msg, conflict conflictExpectation) (uint64, error) {
+func decodeBatchAck(resp *nats.Msg, conflict conflictExpectation) (uint64, error) {
 	if len(resp.Data) == 0 {
 		return 0, nil
 	}
@@ -637,33 +622,6 @@ func appendPageRecords(page *SubjectRecordPage, msgs jetstream.MessageBatch, max
 		return fetched, true, err
 	}
 	return fetched, full, nil
-}
-
-// SubjectRecordsAfter returns all opaque records matching subject with stream
-// sequence greater than afterSeq, plus the last matching sequence. New callers
-// that need a bounded allocation should use SubjectRecordsAfterPage instead.
-func (l *EncodedEventLog) SubjectRecordsAfter(
-	ctx context.Context,
-	subject string,
-	afterSeq uint64,
-) ([]EncodedSubjectRecord, uint64, error) {
-	var records []EncodedSubjectRecord
-	var lastSeq uint64
-	for {
-		page, err := l.SubjectRecordsAfterPage(ctx, subject, afterSeq, 500, 0)
-		if err != nil {
-			return nil, 0, err
-		}
-		records = append(records, page.Records...)
-		if page.LastSequence > 0 {
-			lastSeq = page.LastSequence
-		}
-		if !page.More || len(page.Records) == 0 {
-			break
-		}
-		afterSeq = page.LastSequence
-	}
-	return records, lastSeq, nil
 }
 
 func (l *EncodedEventLog) lastSubjectSeq(ctx context.Context, subject string) (uint64, error) {
