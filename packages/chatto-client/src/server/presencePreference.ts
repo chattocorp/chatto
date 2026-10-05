@@ -96,7 +96,7 @@ export class PresencePreference {
   }
   /** Device copy of the choice. Use it only to migrate; the server choice is authoritative. */
   readonly slot: StorageSlot<PresenceStatus | null>;
-  /** True after this device saved its choice on the server once. */
+  /** True after this device accepted a server choice once. Then the device copy no longer migrates. */
   readonly migrated: StorageSlot<boolean>;
 
   constructor(scope: PresenceScope) {
