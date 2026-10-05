@@ -20,6 +20,17 @@ type largeBatchProjection struct {
 
 func (*largeBatchProjection) StartupBatchSize() int { return 10 }
 
+// failingBatchProjection rejects every startup batch.
+type failingBatchProjection struct {
+	largeBatchProjection
+}
+
+var errStartupBatchRejected = errors.New("startup batch rejected")
+
+func (*failingBatchProjection) ApplyStartupBatch([]SequencedEventOf[codecTestEvent]) error {
+	return errStartupBatchRejected
+}
+
 // startupGate is a snapshot source that blocks until the test releases it and
 // then reports no snapshot. The projector loads snapshots after it captures
 // its startup target and before it creates the consumer, so the test can
@@ -201,5 +212,24 @@ func TestProjectorAppliesPendingStartupBatchBeforeLaterEvent(t *testing.T) {
 	wantSequences := append(slices.Clone(fixture.sequences[:2]), laterSeq)
 	if !slices.Equal(sequences, wantSequences) {
 		t.Fatalf("sequences = %v, want %v", sequences, wantSequences)
+	}
+}
+
+func TestProjectorFailsWhenStartupBatchFlushFailsAfterTargetDeletion(t *testing.T) {
+	fixture, js := newStartupTargetFixture(t, "evt.startup.deleted.failing")
+	projection := &failingBatchProjection{}
+	projection.subject = fixture.subject
+	gate := newStartupGate()
+	projector := gate.newProjector(t, js, fixture.stream, projection)
+	projector.SetStartupReconcileIntervalForTest(10 * time.Millisecond)
+
+	fixture.runWithDeletedTarget(t, projector, gate, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := projector.WaitForStartup(ctx); !errors.Is(err, ErrProjectionFailed) || !errors.Is(err, errStartupBatchRejected) {
+		t.Fatalf("WaitForStartup error = %v, want failed startup batch", err)
+	}
+	if status := projector.Status(); status.FailedSeq != fixture.sequences[0] || status.LastSeq != 0 || status.StartupComplete {
+		t.Fatalf("status = %+v, want failure at first batched event", status)
 	}
 }

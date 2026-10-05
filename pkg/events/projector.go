@@ -1372,6 +1372,7 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 	reconcile := time.NewTicker(interval)
 	defer reconcile.Stop()
 	startupDone := p.startupCh
+	handledSeq := ^uint64(0)
 	for {
 		select {
 		case <-ctx.Done():
@@ -1385,7 +1386,7 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 			reconcile.Stop()
 			startupDone = nil
 		case <-reconcile.C:
-			p.reconcileStartup(ctx)
+			handledSeq = p.reconcileStartup(ctx, handledSeq)
 		}
 	}
 }
@@ -1394,36 +1395,38 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 // startup target has been handled, but the target itself was deleted or
 // expired after Run captured it. Publication only appends after the target,
 // so when the newest matching event is already handled, no retained startup
-// event remains.
-func (p *Projector) reconcileStartup(ctx context.Context) {
+// event remains. It returns the handled sequence for the next check and reads
+// the stream only after replay stopped advancing since the previous check.
+func (p *Projector) reconcileStartup(ctx context.Context, previousHandledSeq uint64) uint64 {
+	p.applyMu.Lock()
+	handledSeq, pending := p.startupProgress()
+	p.applyMu.Unlock()
+	if !pending || handledSeq != previousHandledSeq {
+		return handledSeq
+	}
 	current, err := p.currentTarget(ctx)
 	if err != nil {
 		if ctx.Err() == nil {
 			p.logger.Debug("Projection startup check failed", "error", err)
 		}
-		return
+		return handledSeq
 	}
 
 	p.applyMu.Lock()
-	p.mu.Lock()
-	pending := p.startupEndedAt.IsZero() && p.failedErr == nil
-	handledSeq := p.lastSeq
-	originalTarget := p.startupTargetSeq
-	p.mu.Unlock()
-	if n := len(p.startupBatch); n > 0 {
-		handledSeq = p.startupBatch[n-1].sequence
-	}
+	handledSeq, pending = p.startupProgress()
 	if !pending || current.seq > handledSeq {
 		p.applyMu.Unlock()
-		return
+		return handledSeq
 	}
 	if failureSeq, err := p.flushStartupBatch(); err != nil {
-		p.applyMu.Unlock()
 		p.logger.Error("Projection startup batch failed", "seq", failureSeq, "error", err)
+		// Fail before the barrier opens so that no later event is applied.
 		p.fail(failureSeq, err)
-		return
+		p.applyMu.Unlock()
+		return handledSeq
 	}
 	p.mu.Lock()
+	originalTarget := p.startupTargetSeq
 	if p.startupTargetSeq > p.lastSeq {
 		p.startupTargetSeq = p.lastSeq
 	}
@@ -1436,6 +1439,21 @@ func (p *Projector) reconcileStartup(ctx context.Context) {
 		"last_seq", lastSeq,
 		"subjects", p.subjects)
 	p.maybeCompleteStartup(time.Now())
+	return handledSeq
+}
+
+// startupProgress returns the highest sequence that is applied or waits in
+// the startup batch, and whether startup is still incomplete without failure.
+// The caller must hold applyMu.
+func (p *Projector) startupProgress() (uint64, bool) {
+	p.mu.Lock()
+	handledSeq := p.lastSeq
+	pending := p.startupEndedAt.IsZero() && p.failedErr == nil
+	p.mu.Unlock()
+	if n := len(p.startupBatch); n > 0 {
+		handledSeq = p.startupBatch[n-1].sequence
+	}
+	return handledSeq, pending
 }
 
 // deleteProjectionConsumer reads the current name after Stop: the SDK can
@@ -1454,8 +1472,10 @@ func (p *Projector) deleteProjectionConsumer(consumer jetstream.Consumer) {
 }
 
 // handleMessage is the per-event callback wired into the OrderedConsumer's
-// Consume handler. It is invoked from a single goroutine the SDK owns, in
-// stream order — matching the Projection.Apply concurrency contract.
+// Consume handler. The SDK invokes it in stream order. Projection callbacks
+// run under applyMu, so they never run concurrently and always see stream
+// order, including when reconcileStartup flushes a startup batch from the Run
+// goroutine.
 //
 // Errors from the projection's Apply mark the projector as failed. Waiters
 // for the failed sequence (or later) return ErrProjectionFailed instead of
@@ -1511,7 +1531,9 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 func (p *Projector) applyEvent(event decodedEvent, subject string, seq uint64) (uint64, error) {
 	p.applyMu.Lock()
 	defer p.applyMu.Unlock()
-	if p.shouldSkipRestored(seq) {
+	if p.hasFailed() || p.shouldSkipRestored(seq) {
+		// A failure recorded while this event waited for the barrier stops
+		// application, as the check in handleMessage does.
 		return 0, nil
 	}
 	if p.prepare != nil {
@@ -1590,6 +1612,12 @@ func (p *Projector) pendingStartupBatchFirstSequence(fallback uint64) uint64 {
 		return p.startupBatch[0].sequence
 	}
 	return fallback
+}
+
+func (p *Projector) hasFailed() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.failedErr != nil
 }
 
 func (p *Projector) shouldSkipRestored(seq uint64) bool {
