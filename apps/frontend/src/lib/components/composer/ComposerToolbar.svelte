@@ -18,6 +18,7 @@ Formatting commands live in `ComposerFormattingToolbar`.
     canSubmit,
     fileInputElement,
     effectiveTimezone,
+    effectiveHour12,
     showCreateThread = false,
     createThread = false,
     createThreadRequired = false,
@@ -35,6 +36,7 @@ Formatting commands live in `ComposerFormattingToolbar`.
     canSubmit: boolean;
     fileInputElement?: HTMLInputElement;
     effectiveTimezone?: string;
+    effectiveHour12?: boolean;
     showCreateThread?: boolean;
     createThread?: boolean;
     createThreadRequired?: boolean;
@@ -65,7 +67,12 @@ Formatting commands live in `ComposerFormattingToolbar`.
       </CompactActionButton>
     {/if}
 
-    <ComposerTimestampPicker disabled={inputDisabled} {editorApi} {effectiveTimezone} />
+    <ComposerTimestampPicker
+      disabled={inputDisabled}
+      {editorApi}
+      {effectiveTimezone}
+      {effectiveHour12}
+    />
   </div>
 
   <div

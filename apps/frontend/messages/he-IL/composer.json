@@ -61,6 +61,7 @@
       "title": "הכנס חותמת זמן",
       "insert_label": "הכנס חותמת זמן",
       "date_time": "תאריך ושעה",
+      "date": "תאריך",
       "timezone": "אזור זמן",
       "insert": "הוספה",
       "error_required": "בחר תאריך ושעה.",

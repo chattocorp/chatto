@@ -61,6 +61,7 @@
       "title": "Inserir carimbo de data/hora",
       "insert_label": "Inserir carimbo de data/hora",
       "date_time": "Data e hora",
+      "date": "Data",
       "timezone": "Fuso horário",
       "insert": "Inserir",
       "error_required": "Escolha uma data e hora.",

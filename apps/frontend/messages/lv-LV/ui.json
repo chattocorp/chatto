@@ -94,7 +94,12 @@
     },
     "form": {
       "required": "Obligāti",
-      "max_bytes": "Maksimums {max} baiti; dažas rakstzīmes izmanto vairāk nekā vienu baitu."
+      "max_bytes": "Maksimums {max} baiti; dažas rakstzīmes izmanto vairāk nekā vienu baitu.",
+      "time": {
+        "hour": "Stunda",
+        "minute": "Minūte",
+        "period": "Priekšpusdiena vai pēcpusdiena"
+      }
     },
     "dates": {
       "today": "Šodien",

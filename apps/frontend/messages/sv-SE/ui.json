@@ -94,7 +94,12 @@
     },
     "form": {
       "required": "Krävs",
-      "max_bytes": "Högst {max} byte; vissa tecken använder mer än en byte."
+      "max_bytes": "Högst {max} byte; vissa tecken använder mer än en byte.",
+      "time": {
+        "hour": "Timme",
+        "minute": "Minut",
+        "period": "Förmiddag eller eftermiddag"
+      }
     },
     "dates": {
       "today": "Idag",

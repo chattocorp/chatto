@@ -61,6 +61,7 @@
       "title": "Infoga tidsstämpel",
       "insert_label": "Infoga tidsstämpel",
       "date_time": "Datum och tid",
+      "date": "Datum",
       "timezone": "Tidszon",
       "insert": "Infoga",
       "error_required": "Välj datum och tid.",

@@ -61,6 +61,7 @@
       "title": "Zeitstempel einfügen",
       "insert_label": "Zeitstempel einfügen",
       "date_time": "Datum und Uhrzeit",
+      "date": "Datum",
       "timezone": "Zeitzone",
       "insert": "Einfügen",
       "error_required": "Wähle ein Datum und eine Uhrzeit.",

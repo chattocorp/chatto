@@ -61,6 +61,7 @@
       "title": "Inserisci il timestamp",
       "insert_label": "Inserisci il timestamp",
       "date_time": "Data e ora",
+      "date": "Data",
       "timezone": "Fuso orario",
       "insert": "Inserisci",
       "error_required": "Scegli una data e un'ora.",

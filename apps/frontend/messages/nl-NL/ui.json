@@ -94,7 +94,12 @@
     },
     "form": {
       "required": "Vereist",
-      "max_bytes": "Maximaal {max} bytes; sommige tekens gebruiken meer dan één byte."
+      "max_bytes": "Maximaal {max} bytes; sommige tekens gebruiken meer dan één byte.",
+      "time": {
+        "hour": "Uur",
+        "minute": "Minuut",
+        "period": "Ochtend of middag"
+      }
     },
     "dates": {
       "today": "Vandaag",

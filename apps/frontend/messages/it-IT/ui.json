@@ -94,7 +94,12 @@
     },
     "form": {
       "required": "Obbligatorio",
-      "max_bytes": "Numero massimo di {max} byte; alcuni caratteri utilizzano più di un byte."
+      "max_bytes": "Numero massimo di {max} byte; alcuni caratteri utilizzano più di un byte.",
+      "time": {
+        "hour": "Ora",
+        "minute": "Minuto",
+        "period": "Mattina o pomeriggio"
+      }
     },
     "dates": {
       "today": "Oggi",

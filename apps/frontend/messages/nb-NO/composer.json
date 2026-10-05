@@ -61,6 +61,7 @@
       "title": "Sett inn tidsstempel",
       "insert_label": "Sett inn tidsstempel",
       "date_time": "Dato og klokkeslett",
+      "date": "Dato",
       "timezone": "Tidssone",
       "insert": "Sett inn",
       "error_required": "Velg dato og klokkeslett.",

@@ -94,7 +94,12 @@
     },
     "form": {
       "required": "必填",
-      "max_bytes": "最多 {max} 字节；部分字符会占用多个字节。"
+      "max_bytes": "最多 {max} 字节；部分字符会占用多个字节。",
+      "time": {
+        "hour": "小时",
+        "minute": "分钟",
+        "period": "上午或下午"
+      }
     },
     "dates": {
       "today": "今天",

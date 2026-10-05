@@ -61,6 +61,7 @@
       "title": "Ievietojiet laikspiedolu",
       "insert_label": "Ievietojiet laikspiedolu",
       "date_time": "Datums un laiks",
+      "date": "Datums",
       "timezone": "Laika josla",
       "insert": "Ievietot",
       "error_required": "Izvēlieties datumu un laiku.",

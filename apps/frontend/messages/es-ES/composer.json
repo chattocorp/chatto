@@ -61,6 +61,7 @@
       "title": "Insertar marca de tiempo",
       "insert_label": "Insertar marca de tiempo",
       "date_time": "Fecha y hora",
+      "date": "Fecha",
       "timezone": "Zona horaria",
       "insert": "Insertar",
       "error_required": "Elige una fecha y una hora.",

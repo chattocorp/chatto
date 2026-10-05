@@ -61,6 +61,7 @@
       "title": "Zaman damgası ekle",
       "insert_label": "Zaman damgası ekle",
       "date_time": "Tarih ve saat",
+      "date": "Tarih",
       "timezone": "Saat dilimi",
       "insert": "Ekle",
       "error_required": "Bir tarih ve saat seçin.",

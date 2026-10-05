@@ -94,7 +94,12 @@
     },
     "form": {
       "required": "Povinné",
-      "max_bytes": "Maximum {max} bajtů; některé znaky používají více než jeden bajt."
+      "max_bytes": "Maximum {max} bajtů; některé znaky používají více než jeden bajt.",
+      "time": {
+        "hour": "Hodina",
+        "minute": "Minuta",
+        "period": "Dopoledne nebo odpoledne"
+      }
     },
     "dates": {
       "today": "dnes",

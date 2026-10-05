@@ -94,7 +94,12 @@
     },
     "form": {
       "required": "Wymagane",
-      "max_bytes": "Maksymalnie {max} bajtów; niektóre znaki zajmują więcej niż jeden bajt."
+      "max_bytes": "Maksymalnie {max} bajtów; niektóre znaki zajmują więcej niż jeden bajt.",
+      "time": {
+        "hour": "Godzina",
+        "minute": "Minuta",
+        "period": "Przed południem lub po południu"
+      }
     },
     "dates": {
       "today": "Dzisiaj",

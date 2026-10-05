@@ -382,6 +382,7 @@
         canSubmit={composer.canSubmit}
         fileInputElement={composer.fileInputElement}
         effectiveTimezone={userSettings.effectiveTimezone}
+        effectiveHour12={userSettings.effectiveHour12}
         showCreateThread={showCreateThread && !composer.isEditing && !inThread}
         createThread={createThreadRequired || composer.createThread}
         {createThreadRequired}

@@ -94,7 +94,12 @@
     },
     "form": {
       "required": "Bezonata",
-      "max_bytes": "Maksimume {max} bajtoj; iuj signoj uzas pli ol unu bajton."
+      "max_bytes": "Maksimume {max} bajtoj; iuj signoj uzas pli ol unu bajton.",
+      "time": {
+        "hour": "Horo",
+        "minute": "Minuto",
+        "period": "Antaŭ aŭ post tagmezo"
+      }
     },
     "dates": {
       "today": "Hodiaŭ",

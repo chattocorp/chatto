@@ -10,6 +10,8 @@ import {
   formatDayLabel,
   groupByActivityDate,
   isSameDay,
+  dayPeriodLabels,
+  resolveHour12,
   type TimeFormatSettings
 } from './formatTime';
 import { loadLocaleMessages } from '$lib/i18n/messages';
@@ -60,6 +62,27 @@ describe('formatMessageTime', () => {
 
   it('accepts a Date object', () => {
     expect(formatMessageTime(new Date('2025-04-27T14:30:00Z'), utc12)).toBe('14:30');
+  });
+});
+
+describe('resolveHour12', () => {
+  it('uses an explicit preference', () => {
+    expect(resolveHour12(false, 'en-US')).toBe(false);
+    expect(resolveHour12(true, 'en-GB')).toBe(true);
+  });
+
+  it('follows the clock that formatted message times use when automatic', () => {
+    expect(resolveHour12(undefined, 'en-GB')).toBe(false);
+    expect(resolveHour12(undefined, 'en-US')).toBe(true);
+    setBrowserLocale('en-US');
+    expect(resolveHour12(undefined, 'de')).toBe(true);
+  });
+});
+
+describe('dayPeriodLabels', () => {
+  it('localizes the 12-hour clock periods', () => {
+    expect(dayPeriodLabels('en-US')).toEqual({ am: 'AM', pm: 'PM' });
+    expect(dayPeriodLabels('ja-JP')).toEqual({ am: '午前', pm: '午後' });
   });
 });
 

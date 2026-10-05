@@ -81,7 +81,7 @@ function formatVisibleDateTime(
   const regionalFormatter = getFormatter(regionalLocale(locale), sharedOptions);
   const localizedOptions =
     options.hour !== undefined && options.hour12 === undefined
-      ? { ...sharedOptions, hour12: regionalFormatter.resolvedOptions().hour12 }
+      ? { ...sharedOptions, hour12: resolveHour12(undefined, locale) }
       : sharedOptions;
   const localizedParts = getFormatter(locale, localizedOptions).formatToParts(date);
   const localizedValues = new Map(
@@ -99,6 +99,31 @@ function formatVisibleDateTime(
 
 function activeLocale(): string {
   return getLocale();
+}
+
+/**
+ * Resolve whether times use a 12-hour clock. An explicit preference wins.
+ * Otherwise use the regional default that formatted message times use.
+ */
+export function resolveHour12(
+  hour12: boolean | undefined,
+  locale: string = activeLocale()
+): boolean {
+  return (
+    hour12 ??
+    getFormatter(regionalLocale(locale), { hour: 'numeric' }).resolvedOptions().hour12 ??
+    false
+  );
+}
+
+/** Localized labels for the two 12-hour clock periods, such as "am" and "pm". */
+export function dayPeriodLabels(locale: string = activeLocale()): { am: string; pm: string } {
+  const formatter = getFormatter(locale, { hour: 'numeric', hour12: true, timeZone: 'UTC' });
+  const label = (hour: number) =>
+    formatter
+      .formatToParts(new Date(Date.UTC(2000, 0, 1, hour)))
+      .find((part) => part.type === 'dayPeriod')?.value;
+  return { am: label(1) ?? 'AM', pm: label(13) ?? 'PM' };
 }
 
 type DateParts = {

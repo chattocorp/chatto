@@ -61,6 +61,7 @@
       "title": "Insérer un horodatage",
       "insert_label": "Insérer un horodatage",
       "date_time": "Date et heure",
+      "date": "Date",
       "timezone": "Fuseau horaire",
       "insert": "Insérer",
       "error_required": "Choisissez une date et une heure.",

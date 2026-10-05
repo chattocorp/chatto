@@ -1,31 +1,39 @@
 <script lang="ts">
   import { CompactActionButton, ContextMenu } from '$lib/ui';
   import { tick } from 'svelte';
-  import { Button, FormField, TextInput } from '$lib/ui/form';
+  import { Button, FormField, TimeInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
   import { createMessageTimestampToken } from '@chatto/client/messaging/timestampTokens';
   import { dateToDatetimeLocalValue, localDatetimeToEpochSeconds } from '$lib/messageTimestamps';
+  import { resolveHour12 } from '$lib/utils/formatTime';
   import type { ComposerEditorApi } from './editorTypes';
 
   let {
     disabled,
     editorApi,
-    effectiveTimezone
+    effectiveTimezone,
+    effectiveHour12
   }: {
     disabled: boolean;
     editorApi: ComposerEditorApi | null;
     effectiveTimezone?: string;
+    /** The viewer's clock preference; undefined follows the locale default. */
+    effectiveHour12?: boolean;
   } = $props();
 
   const timezoneListId = `timestamp-timezones-${Math.random().toString(36).slice(2)}`;
   const dateTimeInputId = $props.id();
+  const dateInputId = `${dateTimeInputId}-date`;
   const timezoneInputId = `${dateTimeInputId}-timezone`;
   const timezoneOptions = Intl.supportedValuesOf?.('timeZone') ?? [];
   let triggerElement = $state<HTMLButtonElement>();
-  let dateTimeInput = $state<HTMLInputElement>();
+  let dateInput = $state<HTMLInputElement>();
   let pickerOpen = $state(false);
   let pickerAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
-  let localValue = $state('');
+  let dateValue = $state('');
+  let timeValue = $state('');
+  const hour12 = $derived(resolveHour12(effectiveHour12));
+  const localValue = $derived(dateValue && timeValue ? `${dateValue}T${timeValue}` : '');
   let timezoneSearch = $state('');
   const timezoneSuggestions = $derived(
     timezoneOptions
@@ -70,13 +78,15 @@
     const timezone = preferredTimeZone();
     triggerElement = button;
     timezoneSearch = timezone;
-    localValue = dateToDatetimeLocalValue(new Date(Date.now() + 60 * 60_000), timezone);
+    [dateValue, timeValue] = dateToDatetimeLocalValue(
+      new Date(Date.now() + 60 * 60_000),
+      timezone
+    ).split('T');
     pickerAnchor = { top: rect.top, bottom: rect.bottom, left: rect.left };
     pickerOpen = true;
     tick().then(() => {
       if (!pickerOpen) return;
-      dateTimeInput?.focus();
-      dateTimeInput?.select();
+      dateInput?.focus();
     });
   }
 
@@ -126,15 +136,23 @@
       </header>
 
       <section class="flex flex-col gap-3 menu-section px-3 py-2">
-        <TextInput
-          id={dateTimeInputId}
-          type="datetime-local"
-          name="timestamp-date-time"
-          label={m('composer.timestamp.date_time')}
-          bind:element={dateTimeInput}
-          bind:value={localValue}
-          required
-        />
+        <!-- Native time inputs ignore the viewer's 12/24-hour preference, so only
+             the date uses a native control. -->
+        <FormField id={dateTimeInputId} label={m('composer.timestamp.date_time')} group required>
+          <div class="flex gap-2">
+            <input
+              id={dateInputId}
+              class="input min-w-0 flex-1"
+              type="date"
+              name="timestamp-date"
+              aria-label={m('composer.timestamp.date')}
+              bind:this={dateInput}
+              bind:value={dateValue}
+              required
+            />
+            <TimeInput id={`${dateTimeInputId}-time`} bind:value={timeValue} {hour12} />
+          </div>
+        </FormField>
 
         <!-- A native datalist keeps the time zone suggestions inside this popover.
              Combobox would open a second floating layer above the context menu. -->

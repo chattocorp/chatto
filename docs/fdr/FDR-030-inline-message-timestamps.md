@@ -1,7 +1,7 @@
 # FDR-030: Inline Message Timestamps
 
 **Status:** Active
-**Last reviewed:** 2026-07-12
+**Last reviewed:** 2026-10-05
 
 ## Overview
 
@@ -12,8 +12,10 @@ events or reminders.
 
 ## Behavior
 
-- The bundled composer includes a timestamp picker with a date/time field and
-  IANA timezone field.
+- The bundled composer includes a timestamp picker with a date field, a time
+  field, and an IANA timezone field.
+- The picker time field uses the viewer's 12/24-hour preference. When the
+  preference is automatic, it uses the same clock as rendered message times.
 - Inserting a timestamp writes a stable text token into the message body:
   `<t:UNIX_SECONDS:F>`.
 - Rendered messages replace valid timestamp tokens with localized date-time
@@ -47,6 +49,16 @@ localized date and time.
 announcements. Exact date-time rendering avoids ambiguity in old threads.
 **Tradeoff:** Compact and relative timestamp styles can be added later, but are
 not part of the first supported syntax.
+
+### 3. The picker time field is a custom control
+
+**Decision:** The picker uses a native date input and a custom time field with
+hour and minute segments, plus a day-period selector for the 12-hour clock.
+**Why:** Native time inputs use the clock of the browser or operating system
+locale. Pages cannot change this clock (whatwg/html#6698), so a native time
+input ignores the viewer's 12/24-hour preference.
+**Tradeoff:** The time field does not have the native time picker. Replace it
+with a native input when browsers let pages set the clock.
 
 ## Permissions
 

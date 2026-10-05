@@ -61,6 +61,7 @@
       "title": "Sisestage ajatempel",
       "insert_label": "Sisestage ajatempel",
       "date_time": "Kuupäev ja kellaaeg",
+      "date": "Kuupäev",
       "timezone": "Ajavöönd",
       "insert": "Sisesta",
       "error_required": "Valige kuupäev ja kellaaeg.",

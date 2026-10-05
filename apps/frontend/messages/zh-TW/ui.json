@@ -94,7 +94,12 @@
     },
     "form": {
       "required": "必填",
-      "max_bytes": "上限為 {max} 位元組；部分字元會使用超過一個位元組。"
+      "max_bytes": "上限為 {max} 位元組；部分字元會使用超過一個位元組。",
+      "time": {
+        "hour": "小時",
+        "minute": "分鐘",
+        "period": "上午或下午"
+      }
     },
     "dates": {
       "today": "今天",

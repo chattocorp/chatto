@@ -61,6 +61,7 @@
       "title": "插入时间戳",
       "insert_label": "插入时间戳",
       "date_time": "日期和时间",
+      "date": "日期",
       "timezone": "时区",
       "insert": "插入",
       "error_required": "请选择日期和时间。",

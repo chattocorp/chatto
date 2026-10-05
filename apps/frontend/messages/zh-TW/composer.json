@@ -61,6 +61,7 @@
       "title": "插入時間戳記",
       "insert_label": "插入時間戳記",
       "date_time": "日期與時間",
+      "date": "日期",
       "timezone": "時區",
       "insert": "插入",
       "error_required": "請選擇日期與時間。",

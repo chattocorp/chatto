@@ -94,7 +94,12 @@
     },
     "form": {
       "required": "Obligatoire",
-      "max_bytes": "Maximum de {max} octets ; certains caractères utilisent plus d'un octet."
+      "max_bytes": "Maximum de {max} octets ; certains caractères utilisent plus d'un octet.",
+      "time": {
+        "hour": "Heure",
+        "minute": "Minute",
+        "period": "Avant ou après midi"
+      }
     },
     "dates": {
       "today": "Aujourd'hui",

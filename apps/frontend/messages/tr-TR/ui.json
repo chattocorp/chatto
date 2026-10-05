@@ -94,7 +94,12 @@
     },
     "form": {
       "required": "Gerekli",
-      "max_bytes": "Maksimum {max} bayt; bazı karakterler birden fazla bayt kullanır."
+      "max_bytes": "Maksimum {max} bayt; bazı karakterler birden fazla bayt kullanır.",
+      "time": {
+        "hour": "Saat",
+        "minute": "Dakika",
+        "period": "Öğleden önce veya sonra"
+      }
     },
     "dates": {
       "today": "Bugün",

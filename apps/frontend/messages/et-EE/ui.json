@@ -94,7 +94,12 @@
     },
     "form": {
       "required": "Nõutav",
-      "max_bytes": "Maksimaalselt {max} baiti; mõned märgid kasutavad rohkem kui ühte baiti."
+      "max_bytes": "Maksimaalselt {max} baiti; mõned märgid kasutavad rohkem kui ühte baiti.",
+      "time": {
+        "hour": "Tund",
+        "minute": "Minut",
+        "period": "Enne või pärast lõunat"
+      }
     },
     "dates": {
       "today": "Täna",

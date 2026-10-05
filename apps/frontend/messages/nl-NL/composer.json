@@ -61,6 +61,7 @@
       "title": "Tijdstempel invoegen",
       "insert_label": "Tijdstempel invoegen",
       "date_time": "Datum en tijd",
+      "date": "Datum",
       "timezone": "Tijdzone",
       "insert": "Invoegen",
       "error_required": "Kies een datum en tijd.",

@@ -61,6 +61,7 @@
       "title": "タイムスタンプを挿入",
       "insert_label": "タイムスタンプを挿入",
       "date_time": "日付と時刻",
+      "date": "日付",
       "timezone": "タイムゾーン",
       "insert": "挿入",
       "error_required": "日付と時刻を選択してください。",

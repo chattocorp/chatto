@@ -2,6 +2,7 @@ import '../../../app.css';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { cdp, page, userEvent } from 'vitest/browser';
 import type {} from '@vitest/browser-playwright';
+import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { render } from 'vitest-browser-svelte';
 import { tick, type ComponentProps } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
@@ -355,6 +356,11 @@ async function openFormattingShelf(container: HTMLElement) {
   await vi.waitFor(() =>
     expect(q(container, '[data-testid="composer-formatting-shelf"]')).toBeTruthy()
   );
+}
+
+/** Set the viewer's clock preference before a test renders the composer. */
+function useViewerTimeFormat(timeFormat: TimeFormat) {
+  server.scope.store.currentUser.user!.settings = { timezone: 'UTC', timeFormat };
 }
 
 /** The fixture's plain server info, whose runtime settings the tests change. */
@@ -2729,22 +2735,25 @@ describe('MessageComposer', () => {
 
   describe('submit behavior', () => {
     it('inserts a raw timestamp token from the picker before sending', async () => {
+      useViewerTimeFormat(TimeFormat.TIME_FORMAT_24_HOUR);
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeInEditor(editor, 'Call');
       await userEvent.click(q(container, 'button[aria-label="Insert timestamp"]')!);
-      const dateTimeInput = document.querySelector(
-        'input[type="datetime-local"]'
-      ) as HTMLInputElement;
+      const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+      const hourInput = document.querySelector('input[aria-label="Hour"]') as HTMLInputElement;
+      const minuteInput = document.querySelector('input[aria-label="Minute"]') as HTMLInputElement;
       const timezoneInput = document.querySelector(
         `input[list^="timestamp-timezones-"]`
       ) as HTMLInputElement;
-      expect(dateTimeInput).toBeTruthy();
+      expect(dateInput).toBeTruthy();
       expect(timezoneInput).toBeTruthy();
-      await vi.waitFor(() => expect(document.activeElement).toBe(dateTimeInput));
+      await vi.waitFor(() => expect(document.activeElement).toBe(dateInput));
 
-      await changeInputValue(dateTimeInput, '2025-04-27T14:30');
+      await changeInputValue(dateInput, '2025-04-27');
+      await changeInputValue(hourInput, '14');
+      await changeInputValue(minuteInput, '30');
       await changeInputValue(timezoneInput, 'UTC');
       await userEvent.click(document.querySelector('button[type="submit"]')!);
 
@@ -2755,6 +2764,21 @@ describe('MessageComposer', () => {
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         body: 'Call <t:1745764200:F>'
       });
+    });
+
+    it.each([
+      { clock: '24-hour', timeFormat: TimeFormat.TIME_FORMAT_24_HOUR, hour12: false },
+      { clock: '12-hour', timeFormat: TimeFormat.TIME_FORMAT_12_HOUR, hour12: true }
+    ])('shows the viewer $clock clock in the timestamp picker', async ({ timeFormat, hour12 }) => {
+      useViewerTimeFormat(timeFormat);
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      await findEditor(container);
+
+      await userEvent.click(q(container, 'button[aria-label="Insert timestamp"]')!);
+
+      await vi.waitFor(() => expect(document.querySelector('input[type="date"]')).toBeTruthy());
+      expect(!!document.querySelector('select[aria-label="AM or PM"]')).toBe(hour12);
+      expect(document.querySelector('input[type="datetime-local"]')).toBeNull();
     });
 
     it('uses Enter to complete an active mention before Ctrl+Enter can send', async () => {

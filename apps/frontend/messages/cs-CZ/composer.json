@@ -61,6 +61,7 @@
       "title": "Vložte časové razítko",
       "insert_label": "Vložte časové razítko",
       "date_time": "Datum a čas",
+      "date": "Datum",
       "timezone": "Časové pásmo",
       "insert": "Vložit",
       "error_required": "Vyberte datum a čas.",
