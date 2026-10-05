@@ -72,9 +72,15 @@ Use these features as examples:
 ## Allowed Frontend API Modules
 
 The frontend calls ConnectRPC services directly only for its own screens:
-admin tools, first-run setup, Web Push (`$lib/api`), and the cross-tab
-session channel (`$lib/auth/sessionChannel.ts`). Do not add other requests
-there.
+
+- Admin tools, first-run setup, and Web Push (`$lib/api`).
+- Browser sign-in and account-linking flows, such as external identities
+  (`$lib/api/externalIdentities.ts`). These flows use page redirects and the
+  origin's cookie session. Bots do not use them, and a different frontend
+  makes its own flows.
+- The cross-tab session channel (`$lib/auth/sessionChannel.ts`).
+
+Do not add other requests there.
 
 ## Protocol Facts With Display Parts
 
