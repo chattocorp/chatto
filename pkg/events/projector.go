@@ -45,6 +45,10 @@ const (
 	// slow disk-backed commits so NATS cannot delete a live projector consumer.
 	projectionConsumerInactiveThreshold = 5 * time.Minute
 	projectionConsumerCleanupTimeout    = 2 * time.Second
+	// While startup is incomplete, Run checks this often whether a deleted or
+	// expired startup target prevents completion. Each check reads the last
+	// message of every projection subject.
+	projectionStartupReconcileInterval = 5 * time.Second
 )
 
 // MemoryProjection is an embeddable base for projections whose state lives
@@ -366,6 +370,10 @@ type Projector struct {
 	startupLogged    bool
 	startupBatchSize int
 	startupBatch     []sequencedDecodedEvent
+	// startupReconcileInterval sets how often Run checks whether the retained
+	// startup history is complete. Zero uses
+	// projectionStartupReconcileInterval.
+	startupReconcileInterval time.Duration
 
 	snapshotKey               string
 	snapshotContractID        string
@@ -396,6 +404,10 @@ type ProjectorStatus struct {
 	Started bool
 	LastSeq uint64
 
+	// StartupTargetSeq is the last matching sequence captured when Run
+	// started. If that event is deleted or expires before the projector
+	// applies it, startup completes at the last applied sequence and this
+	// value is lowered to that sequence.
 	StartupTargetSeq     uint64
 	StartupComplete      bool
 	StartupDuration      time.Duration
@@ -1350,15 +1362,80 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 	defer cc.Stop()
 	p.maybeCompleteStartup(time.Now())
 
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-p.failedCh:
-		if err := p.Err(); err != nil {
-			return err
-		}
-		return ErrProjectionFailed
+	// Startup normally completes when the target event is applied. If the
+	// target is deleted or expires before delivery, no event can complete
+	// startup, so check the retained history while startup is incomplete.
+	interval := p.startupReconcileInterval
+	if interval <= 0 {
+		interval = projectionStartupReconcileInterval
 	}
+	reconcile := time.NewTicker(interval)
+	defer reconcile.Stop()
+	startupDone := p.startupCh
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-p.failedCh:
+			if err := p.Err(); err != nil {
+				return err
+			}
+			return ErrProjectionFailed
+		case <-startupDone:
+			reconcile.Stop()
+			startupDone = nil
+		case <-reconcile.C:
+			p.reconcileStartup(ctx)
+		}
+	}
+}
+
+// reconcileStartup completes startup when every retained event through the
+// startup target has been handled, but the target itself was deleted or
+// expired after Run captured it. Publication only appends after the target,
+// so when the newest matching event is already handled, no retained startup
+// event remains.
+func (p *Projector) reconcileStartup(ctx context.Context) {
+	current, err := p.currentTarget(ctx)
+	if err != nil {
+		if ctx.Err() == nil {
+			p.logger.Debug("Projection startup check failed", "error", err)
+		}
+		return
+	}
+
+	p.applyMu.Lock()
+	p.mu.Lock()
+	pending := p.startupEndedAt.IsZero() && p.failedErr == nil
+	handledSeq := p.lastSeq
+	originalTarget := p.startupTargetSeq
+	p.mu.Unlock()
+	if n := len(p.startupBatch); n > 0 {
+		handledSeq = p.startupBatch[n-1].sequence
+	}
+	if !pending || current.seq > handledSeq {
+		p.applyMu.Unlock()
+		return
+	}
+	if failureSeq, err := p.flushStartupBatch(); err != nil {
+		p.applyMu.Unlock()
+		p.logger.Error("Projection startup batch failed", "seq", failureSeq, "error", err)
+		p.fail(failureSeq, err)
+		return
+	}
+	p.mu.Lock()
+	if p.startupTargetSeq > p.lastSeq {
+		p.startupTargetSeq = p.lastSeq
+	}
+	lastSeq := p.lastSeq
+	p.mu.Unlock()
+	p.applyMu.Unlock()
+
+	p.logger.Info("Projection startup target is no longer retained; completing startup at last applied event",
+		"original_target_seq", originalTarget,
+		"last_seq", lastSeq,
+		"subjects", p.subjects)
+	p.maybeCompleteStartup(time.Now())
 }
 
 // deleteProjectionConsumer reads the current name after Stop: the SDK can
@@ -1449,27 +1526,45 @@ func (p *Projector) applyEvent(event decodedEvent, subject string, seq uint64) (
 		p.advance(seq)
 		return 0, nil
 	}
-	if p.applyStartupBatch != nil && p.shouldBatchStartup(seq) {
-		p.startupBatch = append(p.startupBatch, sequencedDecodedEvent{event: event, sequence: seq})
-		if len(p.startupBatch) < p.startupBatchSize && seq < p.startupTargetSequence() {
-			return 0, nil
+	if p.applyStartupBatch != nil {
+		if p.shouldBatchStartup(seq) {
+			p.startupBatch = append(p.startupBatch, sequencedDecodedEvent{event: event, sequence: seq})
+			if len(p.startupBatch) < p.startupBatchSize && seq < p.startupTargetSequence() {
+				return 0, nil
+			}
+			return p.flushStartupBatch()
 		}
-		firstSeq := p.startupBatch[0].sequence
-		lastSeq := p.startupBatch[len(p.startupBatch)-1].sequence
-		messageCount := uint64(len(p.startupBatch))
-		if err := p.applyStartupBatch(p.startupBatch); err != nil {
-			return firstSeq, err
+		// A deleted or expired startup target never arrives to flush the
+		// batch. Apply the pending events before any later event so stream
+		// order holds.
+		if failureSeq, err := p.flushStartupBatch(); err != nil {
+			return failureSeq, err
 		}
-		p.startupBatch = p.startupBatch[:0]
-		p.countStartupMessages(messageCount)
-		p.advance(lastSeq)
-		return 0, nil
 	}
 	if err := p.apply(event, seq); err != nil {
 		return seq, err
 	}
 	p.countStartupMessages(1)
 	p.advance(seq)
+	return 0, nil
+}
+
+// flushStartupBatch applies the pending startup batch. On failure it returns
+// the first batched sequence because no event in the batch was applied. The
+// caller must hold applyMu.
+func (p *Projector) flushStartupBatch() (uint64, error) {
+	if len(p.startupBatch) == 0 {
+		return 0, nil
+	}
+	firstSeq := p.startupBatch[0].sequence
+	lastSeq := p.startupBatch[len(p.startupBatch)-1].sequence
+	messageCount := uint64(len(p.startupBatch))
+	if err := p.applyStartupBatch(p.startupBatch); err != nil {
+		return firstSeq, err
+	}
+	p.startupBatch = p.startupBatch[:0]
+	p.countStartupMessages(messageCount)
+	p.advance(lastSeq)
 	return 0, nil
 }
 
