@@ -1,5 +1,5 @@
-import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/connect';
-import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
+import { createChattoClient, type ConnectAPIConfig } from './connect.js';
+import { browserCookieAuthenticationHeaders } from '../auth/authenticationMode.js';
 import { ExternalIdentityAuthService } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_connect';
 import {
   ExternalIdentityFlowKind,
@@ -68,6 +68,10 @@ function externalIdentityStartURL(value: string): string {
   return url.href;
 }
 
+/**
+ * Requests of the external identity sign-in flow (SSO confirmation). The flow
+ * runs before a session exists.
+ */
 export function createExternalIdentityFlowAPI(config: ExternalIdentityFlowAPIConfig = {}) {
   const client = createChattoClient(ExternalIdentityAuthService, {
     baseUrl: config.baseUrl ?? '/api/connect',
@@ -105,6 +109,7 @@ export function createExternalIdentityFlowAPI(config: ExternalIdentityFlowAPICon
   };
 }
 
+/** The viewer's linked external identities and the providers they can link. */
 export function createExternalIdentityAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(MyAccountService, config);
 

@@ -32,10 +32,10 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text-summary'],
       thresholds: {
-        branches: 84,
+        branches: 85,
         functions: 95,
         lines: 95,
-        statements: 92
+        statements: 93
       }
     }
   }

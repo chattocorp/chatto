@@ -1,37 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import {
-  customStatusTemplateText,
-  formatCustomStatusText,
-  getCustomStatusTemplate
-} from './customStatusTemplates';
+import { CUSTOM_STATUS_TEMPLATES, formatCustomStatusText } from './customStatusTemplates';
 
-describe('custom status templates', () => {
-  it('uses reserved text tokens for templates', () => {
-    expect(customStatusTemplateText('out_for_lunch')).toBe('chatto:status:out_for_lunch');
-    expect(customStatusTemplateText('vacation')).toBe('chatto:status:vacation');
-    expect(customStatusTemplateText('sick')).toBe('chatto:status:sick');
-  });
-
-  it('recognizes a template only when emoji and token match', () => {
-    expect(
-      getCustomStatusTemplate({
-        emoji: '🍽️',
-        text: 'chatto:status:out_for_lunch',
-        expiresAt: null
-      })?.id
-    ).toBe('out_for_lunch');
-
-    expect(
-      getCustomStatusTemplate({
-        emoji: '🌴',
-        text: 'chatto:status:out_for_lunch',
-        expiresAt: null
-      })
-    ).toBeUndefined();
-  });
-
+describe('custom status template labels', () => {
   it('formats template tokens and leaves custom text untouched', () => {
     expect(formatCustomStatusText('chatto:status:vacation')).toBe('Holiday');
     expect(formatCustomStatusText('In focus mode')).toBe('In focus mode');
+  });
+
+  it('labels every client template', () => {
+    expect(CUSTOM_STATUS_TEMPLATES.map((template) => template.label())).toEqual([
+      'Out for lunch',
+      'Holiday',
+      'Sick'
+    ]);
   });
 });

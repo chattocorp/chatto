@@ -13,7 +13,7 @@
     createExternalIdentityAPI,
     type ExternalIdentityProviderInfo,
     type LinkedExternalIdentityInfo
-  } from '$lib/api/externalIdentities';
+  } from '@chatto/client/api/externalIdentities';
   import { Panel, LoadingFog, ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { createQuery } from '$lib/query/client';

@@ -180,13 +180,14 @@ read-your-writes. Clients refresh through `MyAccountService.RefreshPresence`.
 The private saved choice overrides legacy live status. Invisible liveness never
 appears in public snapshots, counts, or transition events.
 
-The frontend reads the current account choice before reporting. Owner-only
+The client's presence tracker reads the current account choice before
+reporting. Interactive hosts, such as the frontend, run it. Owner-only
 events reconcile other devices; heartbeat responses recover missed updates.
 After the initial read and migration, each refresh needs only the heartbeat RPC.
 Local choices remain migration fallbacks. DND applies across devices, including
 push suppression while disconnected. See
-[`presencePreference.ts`](../../apps/frontend/src/lib/state/server/presencePreference.ts)
-and [`presenceTracking.ts`](../../apps/frontend/src/lib/state/server/presenceTracking.ts).
+[`presencePreference.ts`](../../packages/chatto-client/src/server/presencePreference.ts)
+and [`presenceTracking.ts`](../../packages/chatto-client/src/server/presenceTracking.ts).
 
 Ephemeral `lease.{name}` records coordinate singleton background work and
 periodic cooldowns across replicas without adding durable state. Active voice

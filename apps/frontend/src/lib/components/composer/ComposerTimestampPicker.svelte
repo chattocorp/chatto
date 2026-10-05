@@ -3,11 +3,8 @@
   import { tick } from 'svelte';
   import { Button, FormField, TextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
-  import {
-    createMessageTimestampToken,
-    dateToDatetimeLocalValue,
-    localDatetimeToEpochSeconds
-  } from '$lib/messageTimestamps';
+  import { createMessageTimestampToken } from '@chatto/client/messaging/timestampTokens';
+  import { dateToDatetimeLocalValue, localDatetimeToEpochSeconds } from '$lib/messageTimestamps';
   import type { ComposerEditorApi } from './editorTypes';
 
   let {

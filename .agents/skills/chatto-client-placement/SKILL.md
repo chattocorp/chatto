@@ -76,25 +76,34 @@ admin tools, first-run setup, Web Push (`$lib/api`), and the cross-tab
 session channel (`$lib/auth/sessionChannel.ts`). Do not add other requests
 there.
 
-## Known Misplacements
+## Protocol Facts With Display Parts
 
-These frontend modules contain protocol facts that belong in the client. Do
-not use them as patterns. When you change one, move its protocol part into
-the client and keep the display part in the frontend.
+Some features have a protocol part in the client and a display part in the
+frontend. Use them as patterns:
 
-- `$lib/messageTimestamps.ts`: the `<t:EPOCH:F>` token format.
-- `$lib/customStatusTemplates.ts`: the `chatto:status:<id>` format.
-- `$lib/mentions.ts`: mention detection that agrees with the server.
-- `$lib/permissions.ts`: the permission structure (scopes, `privileged`,
-  `includes`) that mirrors `cli/internal/core/permission.go`. The translated
-  descriptions stay in the frontend.
-- `$lib/state/server/presenceTracking.ts`: the presence refresh loop and the
-  request sequence. The stored presence choice stays a device preference.
-- `$lib/api/externalIdentities.ts`: account requests. They are not on the
-  allowed list.
+- Message timestamp tokens: the client's `messaging/timestampTokens.ts` has
+  the `<t:EPOCH:F>` format. `$lib/messageTimestamps.ts` renders tokens.
+- Custom status templates: the client's `util/customStatusTemplates.ts` has
+  the `chatto:status:<id>` tokens. `$lib/customStatusTemplates.ts` adds the
+  translated labels.
+- Permissions: the client's `util/permissionCatalog.ts` mirrors
+  `cli/internal/core/permission.go`. `$lib/permissions.ts` adds the
+  translated descriptions and help.
+- Presence: the client's `server/presenceTracking.ts` loads the choice and
+  sends heartbeats. `$lib/state/server/presenceTracking.ts` connects one
+  tracker to the chat root.
+
+## Frontend Modules That Look Like Client Code
+
+These modules stay in the frontend. Do not move them without a new reason:
+
+- `$lib/mentions.ts`: mention detection uses the frontend's Markdown
+  renderer. The server resolves mentions and tells bots why a message
+  addresses them.
 - `$lib/state/server/roomUnread.ts` and `roomDirectory.ts`: optimistic
-  membership and read-state overlays. These are a gray zone. Another
-  frontend must make them again.
+  read-state and membership changes, so the UI responds before the server
+  confirms. Store events confirm them. Each host decides about its own
+  optimistic UI.
 
 ## Common Mistakes
 

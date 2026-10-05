@@ -10,13 +10,12 @@
   } from '@chatto/client/api/userStatus';
   import type { CustomUserStatus } from '@chatto/client/api/userSummary';
   import {
-    CUSTOM_STATUS_TEMPLATES,
     customStatusTemplateText,
     defaultTemplateExpiry,
-    formatCustomStatusText,
     getCustomStatusTemplate,
     type CustomStatusTemplateId
-  } from '$lib/customStatusTemplates';
+  } from '@chatto/client/util/customStatusTemplates';
+  import { CUSTOM_STATUS_TEMPLATES, formatCustomStatusText } from '$lib/customStatusTemplates';
   import { m } from '$lib/i18n/messages';
 
   type Mode = CustomStatusTemplateId | 'custom';

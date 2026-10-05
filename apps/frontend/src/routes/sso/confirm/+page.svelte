@@ -7,7 +7,7 @@
   import {
     createExternalIdentityFlowAPI,
     ExternalIdentityFlowKind
-  } from '$lib/api/externalIdentities';
+  } from '@chatto/client/api/externalIdentities';
   import { m } from '$lib/i18n/messages';
   import { validateDisplayName } from '$lib/validation/displayName';
   import { Hint, PageTitle } from '$lib/ui';

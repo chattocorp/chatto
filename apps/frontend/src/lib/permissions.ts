@@ -1,30 +1,33 @@
 /**
- * Permission metadata for the frontend.
- * This module provides localized descriptions, help text, scopes, and
- * privileged-mode requirements for the permission explanation surfaces.
+ * Permission text for the frontend: localized descriptions, help text, and
+ * category headings. The permission structure (scopes, privileged mode, and
+ * inclusion) comes from the client's permission catalogue.
  */
 
+import {
+  PERMISSION_DEFINITIONS,
+  type PermissionCategory,
+  type PermissionDefinition
+} from '@chatto/client/util/permissionCatalog';
 import { m } from '$lib/i18n/messages';
 
-/** A level where a permission can be configured. Mirrors `PermissionScope` in the backend. */
-export type PermissionScope = 'server' | 'group' | 'room' | 'dm';
+export {
+  getIncludedByPermission,
+  getIncludingPermissions,
+  getPermissionCategory,
+  type PermissionCategory,
+  type PermissionScope
+} from '@chatto/client/util/permissionCatalog';
 
-export type PermissionMetadata = {
-  category: PermissionCategory;
+type PermissionText = {
   /** One-line summary for filters and compact labels. */
   description: () => string;
   /** Detailed explanation for the permission help dialog. */
   help: () => string;
-  /** Levels where the permission can be configured, broadest first. */
-  scopes: readonly PermissionScope[];
-  /** A human session must enable privileged mode to use this permission. */
-  privileged?: boolean;
-  /** Permissions that an allow for this permission also grants. */
-  includes?: readonly string[];
 };
 
-export type PermissionCategory =
-  'admin' | 'bot' | 'call' | 'message' | 'role' | 'room' | 'server' | 'user' | 'other';
+/** A catalogue definition with its localized text. */
+export type PermissionMetadata = PermissionDefinition & PermissionText;
 
 const PERMISSION_CATEGORY_LABELS: Record<PermissionCategory, () => string> = {
   call: () => m('rbac.permission_categories.call'),
@@ -38,264 +41,145 @@ const PERMISSION_CATEGORY_LABELS: Record<PermissionCategory, () => string> = {
   other: () => m('rbac.permission_categories.other')
 };
 
-/**
- * Map of permission IDs to their metadata.
- * Keep in sync with cli/internal/core/permission.go
- *
- * Permission IDs are stable opaque keys. Inclusion relationships are explicit
- * metadata and do not follow punctuation in an ID.
- */
-export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
-  // Server permissions
+/** Localized text for each permission in the client's catalogue. */
+const PERMISSION_TEXT: Record<string, PermissionText> = {
   'server.manage': {
-    category: 'server',
     description: () => m('rbac.permission_descriptions.server_manage'),
-    help: () => m('rbac.permission_help.server_manage'),
-    scopes: ['server'],
-    privileged: true,
-    includes: ['server.manage-neighbors']
+    help: () => m('rbac.permission_help.server_manage')
   },
   'server.manage-neighbors': {
-    category: 'server',
     description: () => m('rbac.permission_descriptions.server_manage_neighbors'),
-    help: () => m('rbac.permission_help.server_manage_neighbors'),
-    scopes: ['server'],
-    privileged: true
+    help: () => m('rbac.permission_help.server_manage_neighbors')
   },
-
-  // Room permissions
   'room.create': {
-    category: 'room',
     description: () => m('rbac.permission_descriptions.room_create'),
-    help: () => m('rbac.permission_help.room_create'),
-    scopes: ['server', 'group'],
-    privileged: true
+    help: () => m('rbac.permission_help.room_create')
   },
   'room.join': {
-    category: 'room',
     description: () => m('rbac.permission_descriptions.room_join'),
-    help: () => m('rbac.permission_help.room_join'),
-    scopes: ['server', 'group', 'room']
+    help: () => m('rbac.permission_help.room_join')
   },
   'room.list': {
-    category: 'room',
     description: () => m('rbac.permission_descriptions.room_list'),
-    help: () => m('rbac.permission_help.room_list'),
-    scopes: ['server', 'group', 'room']
+    help: () => m('rbac.permission_help.room_list')
   },
   'room.manage': {
-    category: 'room',
     description: () => m('rbac.permission_descriptions.room_manage'),
-    help: () => m('rbac.permission_help.room_manage'),
-    scopes: ['server', 'group', 'room'],
-    privileged: true
+    help: () => m('rbac.permission_help.room_manage')
   },
   'room.remove-member': {
-    category: 'room',
     description: () => m('rbac.permission_descriptions.room_remove_member'),
-    help: () => m('rbac.permission_help.room_remove_member'),
-    scopes: ['server', 'group', 'room'],
-    privileged: true
+    help: () => m('rbac.permission_help.room_remove_member')
   },
-
-  // Call permissions
   'call.start': {
-    category: 'call',
     description: () => m('rbac.permission_descriptions.call_start'),
-    help: () => m('rbac.permission_help.call_start'),
-    scopes: ['server', 'group', 'room', 'dm']
+    help: () => m('rbac.permission_help.call_start')
   },
   'call.join': {
-    category: 'call',
     description: () => m('rbac.permission_descriptions.call_join'),
-    help: () => m('rbac.permission_help.call_join'),
-    scopes: ['server', 'group', 'room', 'dm']
+    help: () => m('rbac.permission_help.call_join')
   },
   'call.voice': {
-    category: 'call',
     description: () => m('rbac.permission_descriptions.call_voice'),
-    help: () => m('rbac.permission_help.call_voice'),
-    scopes: ['server', 'group', 'room', 'dm']
+    help: () => m('rbac.permission_help.call_voice')
   },
   'call.camera': {
-    category: 'call',
     description: () => m('rbac.permission_descriptions.call_camera'),
-    help: () => m('rbac.permission_help.call_camera'),
-    scopes: ['server', 'group', 'room', 'dm']
+    help: () => m('rbac.permission_help.call_camera')
   },
   'call.screenshare': {
-    category: 'call',
     description: () => m('rbac.permission_descriptions.call_screenshare'),
-    help: () => m('rbac.permission_help.call_screenshare'),
-    scopes: ['server', 'group', 'room', 'dm']
+    help: () => m('rbac.permission_help.call_screenshare')
   },
-
-  // Message permissions
   'message.read': {
-    category: 'message',
     description: () => m('rbac.permission_descriptions.message_read'),
-    help: () => m('rbac.permission_help.message_read'),
-    scopes: ['server', 'group', 'room', 'dm'],
-    includes: ['message.read-interactions']
+    help: () => m('rbac.permission_help.message_read')
   },
   'message.read-interactions': {
-    category: 'message',
     description: () => m('rbac.permission_descriptions.message_read_interactions'),
-    help: () => m('rbac.permission_help.message_read_interactions'),
-    scopes: ['server', 'group', 'room', 'dm']
+    help: () => m('rbac.permission_help.message_read_interactions')
   },
   'message.post': {
-    category: 'message',
     description: () => m('rbac.permission_descriptions.message_post'),
-    help: () => m('rbac.permission_help.message_post'),
-    scopes: ['server', 'group', 'room', 'dm'],
-    includes: ['message.post-in-thread', 'message.post-in-interactions']
+    help: () => m('rbac.permission_help.message_post')
   },
   'message.post-in-thread': {
-    category: 'message',
     description: () => m('rbac.permission_descriptions.message_post_in_thread'),
-    help: () => m('rbac.permission_help.message_post_in_thread'),
-    scopes: ['server', 'group', 'room', 'dm']
+    help: () => m('rbac.permission_help.message_post_in_thread')
   },
   'message.post-in-interactions': {
-    category: 'message',
     description: () => m('rbac.permission_descriptions.message_post_interactions'),
-    help: () => m('rbac.permission_help.message_post_interactions'),
-    scopes: ['server', 'group', 'room', 'dm']
+    help: () => m('rbac.permission_help.message_post_interactions')
   },
   'message.attach': {
-    category: 'message',
     description: () => m('rbac.permission_descriptions.message_attach'),
-    help: () => m('rbac.permission_help.message_attach'),
-    scopes: ['server', 'group', 'room', 'dm']
+    help: () => m('rbac.permission_help.message_attach')
   },
   'message.echo': {
-    category: 'message',
     description: () => m('rbac.permission_descriptions.message_echo'),
-    help: () => m('rbac.permission_help.message_echo'),
-    scopes: ['server', 'group', 'room', 'dm']
+    help: () => m('rbac.permission_help.message_echo')
   },
   'message.manage': {
-    category: 'message',
     description: () => m('rbac.permission_descriptions.message_manage'),
-    help: () => m('rbac.permission_help.message_manage'),
-    scopes: ['server', 'group', 'room', 'dm'],
-    privileged: true
+    help: () => m('rbac.permission_help.message_manage')
   },
   'message.react': {
-    category: 'message',
     description: () => m('rbac.permission_descriptions.message_react'),
-    help: () => m('rbac.permission_help.message_react'),
-    scopes: ['server', 'group', 'room', 'dm']
+    help: () => m('rbac.permission_help.message_react')
   },
-
-  // Role management
   'role.manage': {
-    category: 'role',
     description: () => m('rbac.permission_descriptions.role_manage'),
-    help: () => m('rbac.permission_help.role_manage'),
-    scopes: ['server'],
-    privileged: true
+    help: () => m('rbac.permission_help.role_manage')
   },
   'role.assign': {
-    category: 'role',
     description: () => m('rbac.permission_descriptions.role_assign'),
-    help: () => m('rbac.permission_help.role_assign'),
-    scopes: ['server'],
-    privileged: true
+    help: () => m('rbac.permission_help.role_assign')
   },
-
-  // Admin panel
   'admin.view-users': {
-    category: 'admin',
     description: () => m('rbac.permission_descriptions.admin_view_users'),
-    help: () => m('rbac.permission_help.admin_view_users'),
-    scopes: ['server'],
-    privileged: true
+    help: () => m('rbac.permission_help.admin_view_users')
   },
   'admin.view-audit': {
-    category: 'admin',
     description: () => m('rbac.permission_descriptions.admin_view_audit'),
-    help: () => m('rbac.permission_help.admin_view_audit'),
-    scopes: ['server'],
-    privileged: true
+    help: () => m('rbac.permission_help.admin_view_audit')
   },
-
-  // User management
   'user.delete-any': {
-    category: 'user',
     description: () => m('rbac.permission_descriptions.user_delete_any'),
-    help: () => m('rbac.permission_help.user_delete_any'),
-    scopes: ['server'],
-    privileged: true
+    help: () => m('rbac.permission_help.user_delete_any')
   },
   'user.delete-self': {
-    category: 'user',
     description: () => m('rbac.permission_descriptions.user_delete_self'),
-    help: () => m('rbac.permission_help.user_delete_self'),
-    scopes: ['server']
+    help: () => m('rbac.permission_help.user_delete_self')
   },
   'user.invite': {
-    category: 'user',
     description: () => m('rbac.permission_descriptions.user_invite'),
-    help: () => m('rbac.permission_help.user_invite'),
-    scopes: ['server'],
-    privileged: true
+    help: () => m('rbac.permission_help.user_invite')
   },
   'user.manage-accounts': {
-    category: 'user',
     description: () => m('rbac.permission_descriptions.user_manage_accounts'),
-    help: () => m('rbac.permission_help.user_manage_accounts'),
-    scopes: ['server'],
-    privileged: true
+    help: () => m('rbac.permission_help.user_manage_accounts')
   },
   'user.manage-permissions': {
-    category: 'user',
     description: () => m('rbac.permission_descriptions.user_manage_permissions'),
-    help: () => m('rbac.permission_help.user_manage_permissions'),
-    scopes: ['server'],
-    privileged: true
+    help: () => m('rbac.permission_help.user_manage_permissions')
   },
-
-  // Bot accounts
   'bot.create': {
-    category: 'bot',
     description: () => m('rbac.permission_descriptions.bot_create'),
-    help: () => m('rbac.permission_help.bot_create'),
-    scopes: ['server']
+    help: () => m('rbac.permission_help.bot_create')
   },
   'bot.manage': {
-    category: 'bot',
     description: () => m('rbac.permission_descriptions.bot_manage'),
-    help: () => m('rbac.permission_help.bot_manage'),
-    scopes: ['server'],
-    privileged: true
+    help: () => m('rbac.permission_help.bot_manage')
   }
 };
 
-/** Return the first registered permission that explicitly includes this ID. */
-export function getIncludedByPermission(permissions: readonly string[], id: string): string | null {
-  return getIncludingPermissions(permissions, id)[0] ?? null;
-}
-
-/** Return permissions that directly and explicitly include this ID. */
-export function getIncludingPermissions(permissions: readonly string[], id: string): string[] {
-  const registered = new Set(permissions);
-  if (!registered.has(id)) return [];
-  return permissions.filter((candidate) => PERMISSION_METADATA[candidate]?.includes?.includes(id));
-}
-
-/**
- * Return the presentation category for a permission.
- * Known permissions use explicit metadata. A recognized prefix is only a
- * display fallback for IDs from newer servers; it never defines authority.
- */
-export function getPermissionCategory(id: string): PermissionCategory {
-  const known = PERMISSION_METADATA[id]?.category;
-  if (known) return known;
-  const prefix = id.split('.', 1)[0] as PermissionCategory;
-  return prefix in PERMISSION_CATEGORY_LABELS && prefix !== 'other' ? prefix : 'other';
-}
+/** Map of known permission IDs to their definition and localized text. */
+export const PERMISSION_METADATA: Record<string, PermissionMetadata> = Object.fromEntries(
+  Object.entries(PERMISSION_DEFINITIONS).flatMap(([id, definition]) => {
+    const text = PERMISSION_TEXT[id];
+    return text ? [[id, { ...definition, ...text }]] : [];
+  })
+);
 
 /** Return the localized heading for a permission presentation category. */
 export function getPermissionCategoryLabel(category: PermissionCategory): string {
