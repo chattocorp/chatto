@@ -77,8 +77,9 @@ export class PresencePreference {
   }
   readonly #readySignal = signal(false);
   /**
-   * True after the server acknowledges a choice. The presence tracker owns this
-   * flag; hosts read it and do not set it.
+   * True while the tracker has an acknowledged server choice. The tracker sets
+   * it to false when it starts to track the account or loses the choice.
+   * Hosts read it and do not set it.
    */
   get ready() {
     return this.#readySignal.get();
@@ -96,7 +97,10 @@ export class PresencePreference {
   }
   /** Device copy of the choice. Use it only to migrate; the server choice is authoritative. */
   readonly slot: StorageSlot<PresenceStatus | null>;
-  /** True after this device accepted a server choice once. Then the device copy no longer migrates. */
+  /**
+   * True after this device accepted a server choice once. Then an Offline
+   * choice on this device no longer replaces a different server choice.
+   */
   readonly migrated: StorageSlot<boolean>;
 
   constructor(scope: PresenceScope) {
