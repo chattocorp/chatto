@@ -14,9 +14,9 @@ occurrences use a small lifecycle: Unread, Read, or explicitly Deleted. Badge
 attention uses a latest-value marker that becomes inactive through read,
 visibility, and expiry boundaries.
 
-The server records occurrences individually. The bundled frontend may
-consolidate them for presentation without changing occurrence identity, jump
-targets, unread counts, read state, or deletion semantics.
+The server records at most one notification occurrence for each recipient and
+source activity. The bundled frontend can group separate activities for display.
+Grouping does not change unread counts, read state, or deletion.
 
 ## Behavior
 
@@ -94,19 +94,25 @@ targets, unread counts, read state, or deletion semantics.
 
 ## Design Decisions
 
-### 1. Exact occurrences, client-side grouping
+### 1. One occurrence per source activity, client-side grouping
 
-**Decision:** The server exposes one occurrence for each recipient, source
-activity, and notification cause. List and notification totals count exact unread
-occurrences, independently of pagination and presentation grouping. The bundled
-frontend groups DMs by conversation, root room messages by room, reactions by
-reacted-to target, and followed activity by thread. It leaves mentions and
-replies separate because they have distinct jump targets.
+**Decision:** The server selects one cause for each recipient and source event.
+It selects the highest delivery mode first: Push notification, Notification,
+then Badge. For equal modes, it selects a direct mention, reply, direct message,
+role mention, `@here`, `@all`, followed-thread activity, room message, or
+reaction, in that order. The selected notification keeps the exact message and
+thread target. A Badge decision does not create an occurrence. A separate
+reaction event remains separate from the message that received the reaction.
+List and notification totals count exact unread occurrences, independently of
+pagination and display grouping. The bundled frontend groups DMs by conversation,
+root room messages by room, reactions by reacted-to target, and followed activity
+by thread.
 
-**Why:** Exact server resources preserve identity, triage, navigation, and
-integration semantics. Client-side grouping can evolve without a migration or
-loss of information. Two unread DMs may appear as one row while still
-contributing two to the badge.
+**Why:** One event must not send two notifications to the same recipient. The
+selection keeps the strongest delivery mode and a useful cause. A notification
+is selected before the server creates occurrences or sends push. Separate events
+still have separate identity, read state, and navigation. Two unread DMs can
+appear as one row while still contributing two to the count.
 
 **Tradeoff:** Clients must maintain presentation groups and their exact member
 IDs. A group opens its newest unread occurrence, or its newest occurrence when
@@ -222,11 +228,9 @@ the durable materializer processes them. Membership, preference, room-group,
 authorization, and thread-follow changes that are already visible can affect
 the decision.
 A user's own activity does not notify them. One source activity produces at
-most one delivery decision per recipient and cause. For example, a root
-message that contains `@all` and a direct mention can produce room-message,
-`@all`, and direct-mention decisions for one recipient. If these decisions use
-a notification mode, they create separate occurrences. Badge decisions
-coalesce into one latest-value marker for the applicable room or thread.
+most one selected delivery decision per recipient. For example, a root message
+with `@all` and a direct mention gives one selected decision to a recipient
+who meets both causes. Badge attention uses current room and thread state.
 Channel-room recipients must currently have `message.read`.
 A direct mention also permits its recipient when `message.read-interactions`
 applies, because the same message fact creates the interaction relationship.
