@@ -140,7 +140,7 @@ func TestFetchMastodonStatusUsesVideoThumbnails(t *testing.T) {
 					"account":{"display_name":"Alice","acct":"alice"},
 					"media_attachments":[
 						{"type":"video","url":"https://cdn.example/clip.mp4","preview_url":"https://cdn.example/clip.png","description":"A cat video",
-							"meta":{"original":{"width":720,"height":1280},"small":{"width":360,"height":640}}},
+							"meta":{"original":{"width":360,"height":640}}},
 						{"type":"gifv","url":"https://cdn.example/loop.mp4","preview_url":"https://cdn.example/loop.png",
 							"meta":{"original":{"width":400,"height":300}}},
 						{"type":"audio","url":"https://cdn.example/sound.mp3","preview_url":"https://cdn.example/sound.png"}
@@ -174,7 +174,6 @@ func TestFetchMastodonStatusUsesVideoThumbnails(t *testing.T) {
 	assert.Equal(t, "A cat video", result.SocialPost.Images[0].Alt)
 	assert.Equal(t, uint32(360), result.SocialPost.Images[0].Width)
 	assert.Equal(t, uint32(640), result.SocialPost.Images[0].Height)
-	// Without small dimensions, the original dimensions apply.
 	assert.Equal(t, uint32(400), result.SocialPost.Images[1].Width)
 	assert.Equal(t, uint32(300), result.SocialPost.Images[1].Height)
 	assert.Equal(t, "asset-1", result.ImageAsset.GetId())

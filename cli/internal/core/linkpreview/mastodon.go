@@ -50,39 +50,30 @@ type mastodonMediaAttachment struct {
 	PreviewURL  string `json:"preview_url"`
 	Description string `json:"description"`
 	Meta        struct {
-		Original mastodonMediaDimensions `json:"original"`
-		// Small describes the preview_url rendition. For video and gifv
-		// attachments, this is the static thumbnail.
-		Small mastodonMediaDimensions `json:"small"`
+		// Original carries the source dimensions. Chatto uses them only as the
+		// aspect ratio, which a video thumbnail shares with its video.
+		Original struct {
+			Width  uint32 `json:"width"`
+			Height uint32 `json:"height"`
+		} `json:"original"`
 	} `json:"meta"`
 }
 
-type mastodonMediaDimensions struct {
-	Width  uint32 `json:"width"`
-	Height uint32 `json:"height"`
-}
-
-// mastodonAttachmentImage selects the still image that represents a media
+// mastodonAttachmentImageURL returns the still image that represents a media
 // attachment in a social-post snapshot. Images use their original file. Video
 // and gifv attachments use their static preview thumbnail, so Chatto never
-// downloads the video itself. Other types, such as audio, have no image.
-func mastodonAttachmentImage(media mastodonMediaAttachment) (imageURL string, dimensions mastodonMediaDimensions, ok bool) {
+// downloads the video itself. Other types, such as audio, return "".
+func mastodonAttachmentImageURL(media mastodonMediaAttachment) string {
 	switch media.Type {
 	case "image":
-		imageURL = safeExternalURL(media.URL)
-		if imageURL == "" {
-			imageURL = safeExternalURL(media.PreviewURL)
+		if imageURL := safeExternalURL(media.URL); imageURL != "" {
+			return imageURL
 		}
-		return imageURL, media.Meta.Original, imageURL != ""
+		return safeExternalURL(media.PreviewURL)
 	case "video", "gifv":
-		dimensions = media.Meta.Small
-		if dimensions.Width == 0 || dimensions.Height == 0 {
-			dimensions = media.Meta.Original
-		}
-		imageURL = safeExternalURL(media.PreviewURL)
-		return imageURL, dimensions, imageURL != ""
+		return safeExternalURL(media.PreviewURL)
 	default:
-		return "", mastodonMediaDimensions{}, false
+		return ""
 	}
 }
 
@@ -321,8 +312,8 @@ func (f *Fetcher) mastodonStatusSnapshot(ctx context.Context, status *mastodonSt
 	}
 
 	for _, media := range status.MediaAttachments[:min(len(status.MediaAttachments), 4)] {
-		imageURL, dimensions, ok := mastodonAttachmentImage(media)
-		if !ok {
+		imageURL := mastodonAttachmentImageURL(media)
+		if imageURL == "" {
 			continue
 		}
 		asset := f.downloadSocialPostImage(ctx, imageURL, budget)
@@ -332,8 +323,8 @@ func (f *Fetcher) mastodonStatusSnapshot(ctx context.Context, status *mastodonSt
 		snapshot.Images = append(snapshot.Images, &evtv1.SocialPostImage{
 			Asset:  asset,
 			Alt:    truncateUTF8Bytes(media.Description, 1000),
-			Width:  dimensions.Width,
-			Height: dimensions.Height,
+			Width:  media.Meta.Original.Width,
+			Height: media.Meta.Original.Height,
 		})
 	}
 	if card := status.Card; card != nil {
