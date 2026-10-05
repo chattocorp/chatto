@@ -8,8 +8,10 @@
 # script checks the default build only.
 #
 # modernize ignores its own -tags flag, so the script sets build tags through
-# GOFLAGS. Generated protobuf files (*.pb.go) are skipped: protoc-gen-go owns
-# them. To fix findings, run the command that the script prints.
+# GOFLAGS. The script skips generated protobuf files (*.pb.go) because
+# protoc-gen-go owns them. To fix findings, run the command that the script
+# prints in the same directory, through mise x with the modernize version that
+# the lint task pins.
 
 set -euo pipefail
 
