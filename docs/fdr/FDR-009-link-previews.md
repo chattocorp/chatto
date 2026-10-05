@@ -1,7 +1,7 @@
 # FDR-009: Link Previews
 
 **Status:** Active
-**Last reviewed:** 2026-08-27
+**Last reviewed:** 2026-10-05
 
 ## Overview
 
@@ -15,6 +15,7 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 - An HTTP or HTTPS link that starts with an angle bracket, such as `<https://example.com>`, stays clickable and does not trigger a link preview. The closing angle bracket is optional. This behavior works in both message editors. A later eligible URL can get the preview instead.
 - YouTube URLs get a specialized embed-ready card without scraping the page.
 - Supported public social-post URLs use a native Chatto card populated from provider data. The card can include the provider, author, post text, attached images, an embedded website card, and one quoted post with its own common media. Bluesky and Mastodon are supported providers. Mastodon content warnings and accepted quote posts use the same common fields; warned text and media stay concealed until the reader reveals them, and boosts show the original post without boost attribution. If structured post data is unavailable, the post falls back to a normal link preview.
+- For video and animated-GIF attachments on a social post, the card shows the static thumbnail from the provider as an image. Chatto does not download or play the video. Attachments without a thumbnail image, such as audio, do not show in the card.
 - A preview shows up in the composer with a dismiss button. Dismissing the preview prevents it from being attached to the sent message, and the dismissal is remembered for that URL during the composition session.
 - When the server returns a preview to the composer, it also returns a short-lived opaque preview token.
 - When the message is sent, the client sends only the preview token. The server resolves the token to cached, server-fetched metadata and stores that metadata as part of the message body.
