@@ -89,7 +89,6 @@ enabled = true
 [livekit]
 enabled = false
 url = 'ws://localhost:4005'
-webhook_url = 'http://127.0.0.1:4000/webhooks/livekit'
 api_key = 'devkey'
 api_secret = 'compose-only-livekit-secret-change-me'
 

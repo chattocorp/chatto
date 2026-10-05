@@ -580,7 +580,6 @@ env = {
   CHATTO_OPERATOR_API_SOCKET_PATH = "{{env.CHATTO_DEV_DATA_ROOT}}/operator/operator.sock",
   CHATTO_SMTP_PORT = "{{env.CHATTO_DEV_SMTP_PORT}}",
   CHATTO_LIVEKIT_URL = "ws://localhost:{{env.CHATTO_DEV_LIVEKIT_PORT}}",
-  CHATTO_LIVEKIT_WEBHOOK_URL = "http://127.0.0.1:{{env.CHATTO_DEV_CHATTO_PORT}}/webhooks/livekit",
   CHATTO_BOOTSTRAP_BOTS_0_LOGIN = "test_bot",
   CHATTO_BOOTSTRAP_BOTS_0_DISPLAY_NAME = "TestBot",
   CHATTO_BOOTSTRAP_BOTS_0_BIO = "I'm **TestBot**, Chatto's development assistant. Mention `@test_bot` in a channel or send me a direct message.",
