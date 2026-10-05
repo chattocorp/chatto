@@ -740,9 +740,33 @@ type gatedSnapshotSource struct {
 	snapshot ProjectionSnapshot
 }
 
+// stateSnapshotComponents returns the one state component of a single-payload
+// test snapshot. completeTestSnapshot binds it to the requested component.
+func stateSnapshotComponents(payload string) []ProjectionSnapshotComponent {
+	return []ProjectionSnapshotComponent{{
+		Parts: []ProjectionSnapshotPart{{Key: SnapshotStatePartKey, Payload: []byte(payload)}},
+	}}
+}
+
+// capturedStatePayload returns the payload of a captured single-payload
+// snapshot.
+func capturedStatePayload(snapshot ProjectionSnapshot) string {
+	if len(snapshot.Components) != 1 || len(snapshot.Components[0].Parts) != 1 {
+		return ""
+	}
+	return string(snapshot.Components[0].Parts[0].Payload)
+}
+
 func completeTestSnapshot(snapshot ProjectionSnapshot, request ProjectionSnapshotLoadRequest) ProjectionSnapshot {
 	if snapshot.ContractID == "" {
 		snapshot.ContractID = request.ContractID
+	}
+	snapshot.Components = slices.Clone(snapshot.Components)
+	for i := range snapshot.Components {
+		if snapshot.Components[i].Key == "" && i < len(request.Components) {
+			snapshot.Components[i].Key = request.Components[i].Key
+			snapshot.Components[i].ContractID = request.Components[i].ContractID
+		}
 	}
 	if snapshot.StreamName == "" {
 		snapshot.StreamName = request.StreamName
@@ -1259,7 +1283,7 @@ func TestProjectorResolvesSnapshotIdentityFromRecreatedStream(t *testing.T) {
 		snapshot: ProjectionSnapshot{
 			GenerationID:   "old-generation",
 			CutoffSequence: 1,
-			Payload:        []byte("old-state"),
+			Components:     stateSnapshotComponents("old-state"),
 		},
 	}
 	projector := NewProjector(js, originalStream, projection, testLogger())
@@ -1465,7 +1489,7 @@ func TestProjectorsRestoreAndReplayIndependently(t *testing.T) {
 	restoredProjector := NewProjector(js, stream, restoredProjection, testLogger())
 	coldProjector := NewProjector(js, stream, coldProjection, testLogger())
 	createdAt := time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)
-	source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seqs[1], CreatedAt: createdAt, Payload: []byte("restored")}}
+	source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seqs[1], CreatedAt: createdAt, Components: stateSnapshotComponents("restored")}}
 	if err := restoredProjector.ConfigureSnapshots("tracking", source, fixedStreamIdentity(testStreamIdentity(t, stream))); err != nil {
 		t.Fatal(err)
 	}
@@ -1520,7 +1544,7 @@ func TestProjectorsStartAfterTheirOwnSnapshotCutoffs(t *testing.T) {
 	first := NewProjector(js, stream, firstProjection, testLogger())
 	second := NewProjector(js, stream, secondProjection, testLogger())
 	for projector, cutoff := range map[*Projector]uint64{first: malformedSeq, second: lastSeq} {
-		source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: cutoff, Payload: []byte("restored")}}
+		source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: cutoff, Components: stateSnapshotComponents("restored")}}
 		if err := projector.ConfigureSnapshots("tracking", source, fixedStreamIdentity(testStreamIdentity(t, stream))); err != nil {
 			t.Fatal(err)
 		}
@@ -1563,7 +1587,7 @@ func TestProjectorConfiguresRestoredConsumerAfterItsCutoff(t *testing.T) {
 	source := &staticSnapshotSource{snapshot: ProjectionSnapshot{
 		GenerationID:   "generation",
 		CutoffSequence: seqs[1],
-		Payload:        []byte("restored"),
+		Components:     stateSnapshotComponents("restored"),
 	}}
 	if err := projector.ConfigureSnapshots("tracking", source, fixedStreamIdentity(testStreamIdentity(t, stream))); err != nil {
 		t.Fatal(err)
@@ -1600,7 +1624,7 @@ func TestProjectorRestoreReleasesWaiterRegisteredInFlight(t *testing.T) {
 	}
 	projection := newSnapshotTrackingProjection(RoomSubjectFilter())
 	projector := NewProjector(js, stream, projection, testLogger())
-	source := &gatedSnapshotSource{started: make(chan struct{}), release: make(chan struct{}), snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seq, Payload: []byte("restored")}}
+	source := &gatedSnapshotSource{started: make(chan struct{}), release: make(chan struct{}), snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seq, Components: stateSnapshotComponents("restored")}}
 	if err := projector.ConfigureSnapshots("tracking", source, fixedStreamIdentity(testStreamIdentity(t, stream))); err != nil {
 		t.Fatal(err)
 	}
@@ -1682,7 +1706,7 @@ func TestProjectorRejectsFutureSnapshotAndFallsBackAfterRestoreFailure(t *testin
 			projection := newSnapshotTrackingProjection(RoomSubjectFilter())
 			projection.restoreErr = test.restoreErr
 			projector := NewProjector(js, stream, projection, testLogger())
-			source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seq + test.cutoffDelta, Payload: []byte("bad")}}
+			source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seq + test.cutoffDelta, Components: stateSnapshotComponents("bad")}}
 			if err := projector.ConfigureSnapshots("tracking", source, fixedStreamIdentity(testStreamIdentity(t, stream))); err != nil {
 				t.Fatal(err)
 			}
@@ -1728,7 +1752,7 @@ func TestProjectorCaptureWaitsForApplyBarrier(t *testing.T) {
 	close(base.release)
 	select {
 	case captured := <-capturedCh:
-		if captured.CutoffSequence != seq || string(captured.Payload) != "captured" {
+		if captured.CutoffSequence != seq || capturedStatePayload(captured) != "captured" {
 			t.Fatalf("captured = %#v", captured)
 		}
 	case <-ctx.Done():

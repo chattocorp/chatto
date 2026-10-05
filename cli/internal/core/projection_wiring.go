@@ -345,37 +345,25 @@ func configureProjectionSnapshots(
 		if registration.snapshotPolicy == coldReplayOnly {
 			continue
 		}
+		// ServerContentView keeps its components in cohort storage. Every other
+		// projection keeps its single payload in single-generation storage.
 		componentized := registration.key == projectionsnapshot.ProjectionServerContentViewKey
+		var source events.ProjectionSnapshotSource = projectionSnapshotSource{repository: infra.snapshotRepository}
 		if componentized {
-			source := projectionSnapshotCohortSource{repository: infra.snapshotRepository}
-			if err := registration.projector.ConfigureSnapshotCohorts(
-				registration.key, source, registration.identityResolver,
-			); err != nil {
-				return fmt.Errorf("configure %s projection snapshots: %w", registration.key, err)
-			}
-			projections.snapshotJobs = append(projections.snapshotJobs, projectionSnapshotJob{
-				projector: registration.projector, repository: infra.snapshotRepository,
-				projectionKey: registration.key, streamName: registration.streamName,
-				componentized: true,
-			})
-			registration.snapshotEnabled = true
-			continue
+			source = projectionSnapshotCohortSource{repository: infra.snapshotRepository}
 		}
-		source := events.ProjectionSnapshotSource(projectionSnapshotSource{repository: infra.snapshotRepository})
 		if err := registration.projector.ConfigureSnapshots(
-			registration.key,
-			source,
-			registration.identityResolver,
+			registration.key, source, registration.identityResolver,
 		); err != nil {
 			return fmt.Errorf("configure %s projection snapshots: %w", registration.key, err)
 		}
-		job := projectionSnapshotJob{
+		projections.snapshotJobs = append(projections.snapshotJobs, projectionSnapshotJob{
 			projector:     registration.projector,
 			repository:    infra.snapshotRepository,
 			projectionKey: registration.key,
 			streamName:    registration.streamName,
-		}
-		projections.snapshotJobs = append(projections.snapshotJobs, job)
+			componentized: componentized,
+		})
 		registration.snapshotEnabled = true
 	}
 	return nil

@@ -89,7 +89,10 @@ func (mismatchedCodecSnapshotSource) LoadProjectionSnapshot(context.Context, Pro
 		ContractID:     "wrong-contract",
 		StreamName:     "WRONG_STREAM",
 		StreamIdentity: "wrong-stream",
-		Payload:        []byte("must-not-restore"),
+		Components: []ProjectionSnapshotComponent{{
+			Key: SnapshotStatePartKey, ContractID: "codec-test-v1",
+			Parts: []ProjectionSnapshotPart{{Key: SnapshotStatePartKey, Payload: []byte("must-not-restore")}},
+		}},
 	}, nil
 }
 
@@ -314,7 +317,8 @@ func TestDecodedProjectorReplaysApplicationCodecInOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("capture decoded projection snapshot: %v", err)
 	}
-	if snapshot.CutoffSequence != wantSequences[len(wantSequences)-1] || string(snapshot.Payload) != "alpha,beta,gamma" {
+	if snapshot.CutoffSequence != wantSequences[len(wantSequences)-1] || len(snapshot.Components) != 1 ||
+		len(snapshot.Components[0].Parts) != 1 || string(snapshot.Components[0].Parts[0].Payload) != "alpha,beta,gamma" {
 		t.Fatalf("snapshot = %+v, want codec-neutral state through final sequence", snapshot)
 	}
 }
@@ -393,5 +397,126 @@ func TestDecodedProjectorReportsApplicationDecodeFailure(t *testing.T) {
 	}
 	if status := projector.Status(); status.FailedSeq != sequence || status.LastSeq >= sequence {
 		t.Fatalf("decode failure status = %+v, want failure at %d before advancement", status, sequence)
+	}
+}
+
+type capturedSnapshotSource struct {
+	snapshot ProjectionSnapshot
+	requests []ProjectionSnapshotLoadRequest
+}
+
+func (s *capturedSnapshotSource) LoadProjectionSnapshot(_ context.Context, request ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
+	s.requests = append(s.requests, request)
+	return s.snapshot, nil
+}
+
+// A single-payload projection is stored as one component with one part, and
+// a captured snapshot restores into a new projector without replaying the
+// events through its cutoff.
+func TestSinglePayloadSnapshotRoundTrip(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	ctx := testContext(t)
+	const subject = "evt.codec.roundtrip.created"
+	for _, record := range []EncodedRecord{{ID: "one", Data: []byte("one:alpha")}, {ID: "two", Data: []byte("two:beta")}} {
+		if _, err := eventLog.AppendEventually(ctx, subject, record); err != nil {
+			t.Fatal(err)
+		}
+	}
+	resolveIdentity := func(*jetstream.StreamInfo) (string, error) { return "codec-stream", nil }
+
+	first := &codecTestProjection{subject: subject}
+	firstProjector := NewDecodedProjector(js, stream, first, decodeCodecTestEvent, testLogger())
+	if err := firstProjector.ConfigureSnapshots("codec", &capturedSnapshotSource{}, resolveIdentity); err != nil {
+		t.Fatal(err)
+	}
+	runCtx, cancel := context.WithCancel(ctx)
+	t.Cleanup(cancel)
+	go func() { _ = firstProjector.Run(runCtx) }()
+	if err := firstProjector.WaitForStartup(ctx); err != nil {
+		t.Fatal(err)
+	}
+	captured, err := firstProjector.CaptureSnapshot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if captured.ContractID != "codec-test-v1" || captured.StreamIdentity != "codec-stream" || len(captured.Components) != 1 {
+		t.Fatalf("captured snapshot = %+v", captured)
+	}
+	component := captured.Components[0]
+	if component.Key != SnapshotStatePartKey || component.ContractID != "codec-test-v1" ||
+		len(component.Parts) != 1 || component.Parts[0].Key != SnapshotStatePartKey {
+		t.Fatalf("captured component = %+v, want one state part", component)
+	}
+
+	source := &capturedSnapshotSource{snapshot: captured}
+	second := &codecTestProjection{subject: subject}
+	secondProjector := NewDecodedProjector(js, stream, second, decodeCodecTestEvent, testLogger())
+	if err := secondProjector.ConfigureSnapshots("codec", source, resolveIdentity); err != nil {
+		t.Fatal(err)
+	}
+	go func() { _ = secondProjector.Run(runCtx) }()
+	if err := secondProjector.WaitForStartup(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if status := secondProjector.Status(); !status.SnapshotRestored || status.SnapshotCutoffSeq != captured.CutoffSequence {
+		t.Fatalf("status = %+v, want snapshot restored at %d", status, captured.CutoffSequence)
+	}
+	if events, sequences := second.applied(); !slices.Equal(events, []string{"alpha", "beta"}) || len(sequences) != 0 {
+		t.Fatalf("restored events = %v, applied sequences = %v; want restored state without replay", events, sequences)
+	}
+	if len(source.requests) != 1 || !slices.Equal(source.requests[0].Components, []ProjectionSnapshotComponentContract{{
+		Key: SnapshotStatePartKey, ContractID: "codec-test-v1", MaxParts: 1,
+	}}) {
+		t.Fatalf("load requests = %+v, want one state component contract", source.requests)
+	}
+}
+
+// A snapshot whose components do not match a single-payload projection is
+// rejected, and the projector replays the event log instead.
+func TestSinglePayloadSnapshotRejectsComponentMismatch(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	ctx := testContext(t)
+	const subject = "evt.codec.mismatch.created"
+	seq, err := eventLog.Append(ctx, subject, EncodedRecord{ID: "one", Data: []byte("one:alpha")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	statePart := []ProjectionSnapshotPart{{Key: SnapshotStatePartKey, Payload: []byte("must-not-restore")}}
+	for name, components := range map[string][]ProjectionSnapshotComponent{
+		"two components": {
+			{Key: SnapshotStatePartKey, ContractID: "codec-test-v1", Parts: statePart},
+			{Key: "other", ContractID: "codec-test-v1", Parts: statePart},
+		},
+		"wrong component contract": {{Key: SnapshotStatePartKey, ContractID: "other-v1", Parts: statePart}},
+		"two parts": {{Key: SnapshotStatePartKey, ContractID: "codec-test-v1", Parts: append(slices.Clone(statePart), ProjectionSnapshotPart{Key: "extra"})}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			projection := &codecTestProjection{subject: subject}
+			projector := NewDecodedProjector(js, stream, projection, decodeCodecTestEvent, testLogger())
+			source := &capturedSnapshotSource{}
+			if err := projector.ConfigureSnapshots("codec", source, func(info *jetstream.StreamInfo) (string, error) {
+				return "codec-stream", nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			source.snapshot = ProjectionSnapshot{
+				ContractID: "codec-test-v1", StreamName: stream.CachedInfo().Config.Name,
+				StreamIdentity: "codec-stream", CutoffSequence: seq, Components: components,
+			}
+			runCtx, cancel := context.WithCancel(ctx)
+			t.Cleanup(cancel)
+			go func() { _ = projector.Run(runCtx) }()
+			if err := projector.WaitForStartup(ctx); err != nil {
+				t.Fatal(err)
+			}
+			if projector.Status().SnapshotRestored {
+				t.Fatal("mismatched snapshot reported as restored")
+			}
+			if events, _ := projection.applied(); !slices.Equal(events, []string{"alpha"}) {
+				t.Fatalf("events = %v, want cold replay", events)
+			}
+		})
 	}
 }

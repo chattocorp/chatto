@@ -56,9 +56,7 @@ type PreparedEventProjection[E any] interface {
 // componentized projection.
 type SnapshotComponentModel interface {
 	SubjectProjection
-	Snapshot() ([]byte, error)
-	Restore([]byte) error
-	SnapshotContractID() string
+	SnapshotProjection
 }
 
 // ProjectionComponent binds one focused reducer/model to its stable snapshot
@@ -183,8 +181,8 @@ func (p *ComponentizedProjection[E]) OwnsProjection(model SubjectProjection) boo
 	return false
 }
 
-// SnapshotCohortContractID returns the contract for the component set.
-func (p *ComponentizedProjection[E]) SnapshotCohortContractID() string {
+// SnapshotContractID returns the contract for the component set.
+func (p *ComponentizedProjection[E]) SnapshotContractID() string {
 	return p.contractID
 }
 
@@ -211,7 +209,7 @@ func (p *ComponentizedProjection[E]) SnapshotComponents() ([]ProjectionSnapshotC
 		components = append(components, ProjectionSnapshotComponent{
 			Key:        component.key,
 			ContractID: component.model.SnapshotContractID(),
-			Parts:      []ProjectionSnapshotPart{{Key: "state", Payload: payload}},
+			Parts:      []ProjectionSnapshotPart{{Key: SnapshotStatePartKey, Payload: payload}},
 		})
 	}
 	return components, nil
@@ -237,11 +235,8 @@ func (p *ComponentizedProjection[E]) RestoreComponents(stored []ProjectionSnapsh
 		if !ok {
 			return fmt.Errorf("projection component %q is missing", component.key)
 		}
-		if storedComponent.ContractID != component.model.SnapshotContractID() {
-			return fmt.Errorf("projection component %q contract does not match", component.key)
-		}
-		if len(storedComponent.Parts) != 1 || storedComponent.Parts[0].Key != "state" {
-			return fmt.Errorf("projection component %q has %d parts, want 1", component.key, len(storedComponent.Parts))
+		if _, err := statePartPayload(storedComponent, component.key, component.model.SnapshotContractID()); err != nil {
+			return err
 		}
 		payload, err := component.model.Snapshot()
 		if err != nil {
@@ -273,7 +268,7 @@ func (p *ComponentizedProjection[E]) ResetComponents() error {
 	for _, component := range p.components {
 		stored = append(stored, ProjectionSnapshotComponent{
 			Key: component.key, ContractID: component.model.SnapshotContractID(),
-			Parts: []ProjectionSnapshotPart{{Key: "state"}},
+			Parts: []ProjectionSnapshotPart{{Key: SnapshotStatePartKey}},
 		})
 	}
 	return p.RestoreComponents(stored)

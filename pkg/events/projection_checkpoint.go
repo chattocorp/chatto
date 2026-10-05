@@ -72,7 +72,7 @@ func (p *Projector) ConfigureCheckpoint(key string, resolveStreamIdentity Stream
 	if p.started {
 		return fmt.Errorf("configure projection checkpoint after projector start")
 	}
-	if p.snapshotSource != nil || p.snapshotCohortSource != nil {
+	if p.snapshots.source != nil {
 		return fmt.Errorf("projection %q already uses snapshot restore", key)
 	}
 	if p.checkpointKey != "" {

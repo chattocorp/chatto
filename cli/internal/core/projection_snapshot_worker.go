@@ -213,9 +213,6 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 			"refresh_age", projectionSnapshotRefreshAge)
 		return nil
 	}
-	if job.componentized {
-		return w.generateComponentJob(ctx, job, started)
-	}
 	captured, err := job.projector.CaptureSnapshot(ctx)
 	if err != nil {
 		return fmt.Errorf("capture projection snapshot: %w", err)
@@ -230,23 +227,14 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 	if err := w.lease.CheckOwnership(ctx); err != nil {
 		return fmt.Errorf("recheck snapshot lease before publish: %w", err)
 	}
-	loaded, err := job.repository.Save(ctx, projectionsnapshot.SaveInput{
-		ProjectionKey:  job.projectionKey,
-		ContractID:     job.projector.SnapshotContractID(),
-		StreamName:     job.streamName,
-		StreamIdentity: captured.StreamIdentity,
-		CutoffSequence: captured.CutoffSequence,
-		Payload:        captured.Payload,
-		RefreshAge:     projectionSnapshotRefreshAge,
-		ClockSkew:      projectionSnapshotClockSkewTolerance,
-	})
+	published, err := saveProjectionSnapshot(ctx, job, captured)
 	if errors.Is(err, projectionsnapshot.ErrSnapshotFresh) {
-		job.projector.RecordSnapshotPublication(loaded.CutoffSequence, loaded.CreatedAt)
+		job.projector.RecordSnapshotPublication(published.cutoffSequence, published.createdAt)
 		w.logger.Debug("Projection snapshot generation skipped after a fresh publication",
 			"projection", job.projectionKey,
 			"backend", job.repository.Backend(),
 			"stage", "generate_skip",
-			"cutoff_seq", loaded.CutoffSequence)
+			"cutoff_seq", published.cutoffSequence)
 		return nil
 	}
 	if errors.Is(err, projectionsnapshot.ErrSnapshotRegressed) {
@@ -260,67 +248,75 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 	if err != nil {
 		return err
 	}
-	job.projector.RecordSnapshotPublication(loaded.CutoffSequence, loaded.CreatedAt)
+	job.projector.RecordSnapshotPublication(published.cutoffSequence, published.createdAt)
 	w.logger.Info("Projection snapshot generation complete",
 		"projection", job.projectionKey,
 		"backend", job.repository.Backend(),
 		"stage", "generate",
-		"generation_id", loaded.GenerationID,
-		"cutoff_seq", loaded.CutoffSequence,
-		"payload_bytes", len(loaded.Payload),
+		"generation_id", published.generationID,
+		"cutoff_seq", published.cutoffSequence,
+		"components", len(captured.Components),
+		"payload_bytes", projectionSnapshotPayloadBytes(captured),
 		"duration", now().Sub(started))
 	return nil
 }
 
-func (w *projectionSnapshotWorker) generateComponentJob(ctx context.Context, job projectionSnapshotJob, started time.Time) error {
-	now := w.now
-	if now == nil {
-		now = time.Now
-	}
-	captured, err := job.projector.CaptureSnapshotCohort(ctx)
-	if err != nil {
-		return fmt.Errorf("capture projection snapshot cohort: %w", err)
-	}
-	if job.allowPublication != nil && !job.allowPublication(captured.CutoffSequence) {
-		w.logger.Debug("Projection snapshot generation deferred behind a durable worker boundary",
-			"projection", job.projectionKey, "stage", "generate_skip", "cutoff_seq", captured.CutoffSequence)
-		return nil
-	}
-	if err := w.lease.CheckOwnership(ctx); err != nil {
-		return fmt.Errorf("recheck snapshot lease before publish: %w", err)
-	}
-	components := make([]projectionsnapshot.CohortComponent, 0, len(captured.Components))
-	for _, component := range captured.Components {
-		parts := make([]projectionsnapshot.CohortPart, 0, len(component.Parts))
-		for _, part := range component.Parts {
-			parts = append(parts, projectionsnapshot.CohortPart{Key: part.Key, Payload: part.Payload})
+// projectionSnapshotPublication is the stored generation that a save
+// published, or the fresh generation that made the save unnecessary.
+type projectionSnapshotPublication struct {
+	generationID   string
+	cutoffSequence uint64
+	createdAt      time.Time
+}
+
+// saveProjectionSnapshot stores a captured snapshot in the projection's
+// storage format: cohort storage for a componentized projection, and
+// single-generation storage for a single-payload projection. On
+// ErrSnapshotFresh it returns the fresh generation.
+func saveProjectionSnapshot(ctx context.Context, job projectionSnapshotJob, captured events.ProjectionSnapshot) (projectionSnapshotPublication, error) {
+	if job.componentized {
+		components := make([]projectionsnapshot.CohortComponent, 0, len(captured.Components))
+		for _, component := range captured.Components {
+			parts := make([]projectionsnapshot.CohortPart, 0, len(component.Parts))
+			for _, part := range component.Parts {
+				parts = append(parts, projectionsnapshot.CohortPart{Key: part.Key, Payload: part.Payload})
+			}
+			components = append(components, projectionsnapshot.CohortComponent{
+				Key: component.Key, ContractID: component.ContractID, Parts: parts,
+			})
 		}
-		components = append(components, projectionsnapshot.CohortComponent{
-			Key: component.Key, ContractID: component.ContractID, Parts: parts,
+		loaded, err := job.repository.SaveCohort(ctx, projectionsnapshot.SaveCohortInput{
+			ProjectionKey: job.projectionKey, ContractID: captured.ContractID,
+			StreamName: job.streamName, StreamIdentity: captured.StreamIdentity,
+			CutoffSequence: captured.CutoffSequence, Components: components,
+			RefreshAge: projectionSnapshotRefreshAge, ClockSkew: projectionSnapshotClockSkewTolerance,
 		})
+		return projectionSnapshotPublication{loaded.GenerationID, loaded.CutoffSequence, loaded.CreatedAt}, err
 	}
-	loaded, err := job.repository.SaveCohort(ctx, projectionsnapshot.SaveCohortInput{
-		ProjectionKey: job.projectionKey, ContractID: job.projector.SnapshotContractID(),
-		StreamName: job.streamName, StreamIdentity: captured.StreamIdentity,
-		CutoffSequence: captured.CutoffSequence, Components: components,
-		RefreshAge: projectionSnapshotRefreshAge, ClockSkew: projectionSnapshotClockSkewTolerance,
+	if len(captured.Components) != 1 || len(captured.Components[0].Parts) != 1 {
+		return projectionSnapshotPublication{}, fmt.Errorf("single-payload projection snapshot has an unexpected component shape")
+	}
+	loaded, err := job.repository.Save(ctx, projectionsnapshot.SaveInput{
+		ProjectionKey:  job.projectionKey,
+		ContractID:     captured.ContractID,
+		StreamName:     job.streamName,
+		StreamIdentity: captured.StreamIdentity,
+		CutoffSequence: captured.CutoffSequence,
+		Payload:        captured.Components[0].Parts[0].Payload,
+		RefreshAge:     projectionSnapshotRefreshAge,
+		ClockSkew:      projectionSnapshotClockSkewTolerance,
 	})
-	if errors.Is(err, projectionsnapshot.ErrSnapshotFresh) {
-		job.projector.RecordSnapshotPublication(loaded.CutoffSequence, loaded.CreatedAt)
-		return nil
+	return projectionSnapshotPublication{loaded.GenerationID, loaded.CutoffSequence, loaded.CreatedAt}, err
+}
+
+func projectionSnapshotPayloadBytes(snapshot events.ProjectionSnapshot) int {
+	total := 0
+	for _, component := range snapshot.Components {
+		for _, part := range component.Parts {
+			total += len(part.Payload)
+		}
 	}
-	if errors.Is(err, projectionsnapshot.ErrSnapshotRegressed) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	job.projector.RecordSnapshotPublication(loaded.CutoffSequence, loaded.CreatedAt)
-	w.logger.Info("Projection snapshot cohort generation complete",
-		"projection", job.projectionKey, "backend", job.repository.Backend(), "stage", "generate",
-		"generation_id", loaded.GenerationID, "cutoff_seq", loaded.CutoffSequence,
-		"components", len(loaded.Components), "duration", now().Sub(started))
-	return nil
+	return total
 }
 
 func projectionSnapshotRefreshDue(status events.ProjectorStatus, now time.Time, publishReplayDelta bool) bool {

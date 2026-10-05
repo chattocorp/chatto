@@ -16,15 +16,20 @@ import (
 	"hmans.de/chatto/pkg/events"
 )
 
+// projectionSnapshotSource loads a single-payload projection snapshot from the
+// repository's single-generation storage and presents it as the one component
+// that the framework requests.
 type projectionSnapshotSource struct {
 	repository *projectionsnapshot.Repository
 }
 
+// projectionSnapshotCohortSource loads a componentized projection snapshot
+// from the repository's cohort storage.
 type projectionSnapshotCohortSource struct {
 	repository *projectionsnapshot.Repository
 }
 
-func (s projectionSnapshotCohortSource) LoadProjectionSnapshotCohort(ctx context.Context, request events.ProjectionSnapshotCohortLoadRequest) (events.ProjectionSnapshotCohort, error) {
+func (s projectionSnapshotCohortSource) LoadProjectionSnapshot(ctx context.Context, request events.ProjectionSnapshotLoadRequest) (events.ProjectionSnapshot, error) {
 	contracts := make([]projectionsnapshot.CohortComponentContract, 0, len(request.Components))
 	for _, component := range request.Components {
 		contracts = append(contracts, projectionsnapshot.CohortComponentContract{
@@ -36,7 +41,7 @@ func (s projectionSnapshotCohortSource) LoadProjectionSnapshotCohort(ctx context
 		request.StreamIdentity, request.MaxCutoff, contracts,
 	)
 	if err != nil {
-		return events.ProjectionSnapshotCohort{}, err
+		return events.ProjectionSnapshot{}, err
 	}
 	components := make([]events.ProjectionSnapshotComponent, 0, len(loaded.Components))
 	for _, component := range loaded.Components {
@@ -48,7 +53,7 @@ func (s projectionSnapshotCohortSource) LoadProjectionSnapshotCohort(ctx context
 			Key: component.Key, ContractID: component.ContractID, Parts: parts,
 		})
 	}
-	return events.ProjectionSnapshotCohort{
+	return events.ProjectionSnapshot{
 		GenerationID: loaded.GenerationID, ContractID: request.ContractID,
 		StreamName: request.StreamName, CutoffSequence: loaded.CutoffSequence,
 		StreamIdentity: loaded.StreamIdentity, CreatedAt: loaded.CreatedAt,
@@ -94,10 +99,14 @@ func (n natsSnapshotPointerStore) UpdatePointer(ctx context.Context, key string,
 }
 
 func (s projectionSnapshotSource) LoadProjectionSnapshot(ctx context.Context, request events.ProjectionSnapshotLoadRequest) (events.ProjectionSnapshot, error) {
+	if len(request.Components) != 1 {
+		return events.ProjectionSnapshot{}, fmt.Errorf("single-payload snapshot request has %d components, want 1", len(request.Components))
+	}
 	loaded, err := s.repository.Load(ctx, request.ProjectionKey, request.ContractID, request.StreamName, request.StreamIdentity, request.MaxCutoff)
 	if err != nil {
 		return events.ProjectionSnapshot{}, err
 	}
+	component := request.Components[0]
 	return events.ProjectionSnapshot{
 		GenerationID:   loaded.GenerationID,
 		ContractID:     request.ContractID,
@@ -105,7 +114,11 @@ func (s projectionSnapshotSource) LoadProjectionSnapshot(ctx context.Context, re
 		CutoffSequence: loaded.CutoffSequence,
 		StreamIdentity: loaded.StreamIdentity,
 		CreatedAt:      loaded.CreatedAt,
-		Payload:        loaded.Payload,
+		Components: []events.ProjectionSnapshotComponent{{
+			Key:        component.Key,
+			ContractID: component.ContractID,
+			Parts:      []events.ProjectionSnapshotPart{{Key: events.SnapshotStatePartKey, Payload: loaded.Payload}},
+		}},
 	}, nil
 }
 

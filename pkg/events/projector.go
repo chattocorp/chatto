@@ -117,20 +117,12 @@ type Projector struct {
 	// projectionStartupReconcileInterval.
 	startupReconcileInterval time.Duration
 
-	snapshotKey               string
-	snapshotContractID        string
-	snapshotSource            ProjectionSnapshotSource
-	snapshotIdentityResolver  StreamIdentityResolver
-	snapshotConfiguredID      string
-	snapshotRunStreamIdentity string
-	snapshotLoadTimeout       time.Duration
-	snapshotCohortSource      ProjectionSnapshotCohortSource
-	snapshotCohortContractID  string
-	restoredSeq               uint64
-	restoredGenerationID      string
-	snapshotRestored          bool
-	latestSnapshotSeq         uint64
-	latestSnapshotAt          time.Time
+	snapshots            projectorSnapshots
+	restoredSeq          uint64
+	restoredGenerationID string
+	snapshotRestored     bool
+	latestSnapshotSeq    uint64
+	latestSnapshotAt     time.Time
 
 	checkpointKey              string
 	checkpointContractID       string
@@ -1074,7 +1066,7 @@ func (p *Projector) completeStartupLocked(now time.Time) (startupSummary, bool) 
 		projectionKey: p.checkpointKey,
 	}
 	if summary.projectionKey == "" {
-		summary.projectionKey = p.snapshotKey
+		summary.projectionKey = p.snapshots.key
 	}
 	p.mu.Unlock()
 
