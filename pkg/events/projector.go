@@ -72,14 +72,17 @@ type sequencedDecodedEvent struct {
 // Projector runs the consumer + apply loop for one projection. A Projector is
 // single-run: create a new instance when the consumer lifecycle must restart.
 type Projector struct {
-	js                jetstream.JetStream
-	stream            jetstream.Stream
-	proj              SubjectProjection
-	logger            Logger
-	applyMu           sync.Mutex
-	decode            func([]byte) (decodedEvent, error)
-	apply             func(decodedEvent, uint64) error
-	prepare           func(decodedEvent, string, uint64) (PreparedMutation, error)
+	js      jetstream.JetStream
+	stream  jetstream.Stream
+	proj    SubjectProjection
+	logger  Logger
+	applyMu sync.Mutex
+	decode  func([]byte) (decodedEvent, error)
+	// prepare prepares one event under applyMu. A nil mutation means that
+	// preparation already applied the event.
+	prepare func(decodedEvent, string, uint64) (PreparedMutation, error)
+	// applyStartupBatch applies batched startup events. It is nil unless the
+	// projection implements StartupBatchEventProjection.
 	applyStartupBatch func([]sequencedDecodedEvent) error
 
 	subjects        []string
@@ -178,25 +181,15 @@ func NewDecodedProjector[E any](
 	decoder EventDecoder[E],
 	logger Logger,
 ) *Projector {
-	if isNilProjection(proj) {
-		panic("events: projector requires a non-nil projection")
-	}
-	if reflect.ValueOf(proj).Kind() != reflect.Pointer {
-		panic("events: projector requires a pointer projection")
-	}
-	if decoder == nil {
-		panic("events: projector requires a non-nil event decoder")
-	}
-	logger = normalizeLogger(logger)
-
-	subjects := append([]string(nil), proj.Subjects()...)
-	replaySubjects := append([]string(nil), projectionReplaySubjects(proj, subjects)...)
-	startupBatchSize := 0
-	var applyStartupBatch func([]sequencedDecodedEvent) error
+	// Apply changes state during preparation. Both run under the apply
+	// barrier, so the result equals a prepared mutation with no commit step.
+	p := newProjector(js, stream, proj, decoder, logger, func(event E, _ string, seq uint64) (PreparedMutation, error) {
+		return nil, proj.Apply(event, seq)
+	})
 	if projection, ok := proj.(StartupBatchEventProjection[E]); ok {
 		if size := projection.StartupBatchSize(); size > 1 {
-			startupBatchSize = size
-			applyStartupBatch = func(items []sequencedDecodedEvent) error {
+			p.startupBatchSize = size
+			p.applyStartupBatch = func(items []sequencedDecodedEvent) error {
 				typed := make([]SequencedEventOf[E], len(items))
 				for i, item := range items {
 					typed[i] = SequencedEventOf[E]{
@@ -208,41 +201,39 @@ func NewDecodedProjector[E any](
 			}
 		}
 	}
-	return &Projector{
-		js:     js,
-		stream: stream,
-		proj:   proj,
-		logger: logger,
-		decode: func(data []byte) (decodedEvent, error) {
-			event, err := decoder(data)
-			if err != nil {
-				return nil, err
-			}
-			return typedDecodedEvent[E]{event: event.Event, id: event.ID}, nil
-		},
-		apply: func(event decodedEvent, seq uint64) error {
-			return proj.Apply(event.(typedDecodedEvent[E]).event, seq)
-		},
-		applyStartupBatch: applyStartupBatch,
-		subjects:          subjects,
-		replaySubjects:    replaySubjects,
-		subjectMatchers:   compileSubjectFilters(subjects),
-		failedCh:          make(chan struct{}),
-		startupCh:         make(chan struct{}),
-		startupBatchSize:  startupBatchSize,
-	}
+	return p
 }
 
 // NewDecodedPreparedProjector binds a prepared projection and decoder to one
 // ordered projector lifecycle. The projector prepares the event while it holds
 // the apply barrier, commits only after preparation succeeds, and then advances
-// the applied sequence before it releases the barrier.
+// the applied sequence before it releases the barrier. A projection that
+// implements SubjectEventReducer prepares with the delivered subject.
 func NewDecodedPreparedProjector[E any](
 	js jetstream.JetStream,
 	stream jetstream.Stream,
 	proj PreparedEventProjection[E],
 	decoder EventDecoder[E],
 	logger Logger,
+) *Projector {
+	prepare := func(event E, _ string, seq uint64) (PreparedMutation, error) {
+		return proj.Prepare(event, seq)
+	}
+	if projection, ok := proj.(SubjectEventReducer[E]); ok {
+		prepare = projection.PrepareSubject
+	}
+	return newProjector(js, stream, proj, decoder, logger, prepare)
+}
+
+// newProjector validates a projection and decoder and builds the Projector
+// that prepares every decoded event with prepare.
+func newProjector[E any](
+	js jetstream.JetStream,
+	stream jetstream.Stream,
+	proj SubjectProjection,
+	decoder EventDecoder[E],
+	logger Logger,
+	prepare func(event E, subject string, seq uint64) (PreparedMutation, error),
 ) *Projector {
 	if isNilProjection(proj) {
 		panic("events: projector requires a non-nil projection")
@@ -253,14 +244,12 @@ func NewDecodedPreparedProjector[E any](
 	if decoder == nil {
 		panic("events: projector requires a non-nil event decoder")
 	}
-	logger = normalizeLogger(logger)
-	subjects := append([]string(nil), proj.Subjects()...)
-	replaySubjects := append([]string(nil), projectionReplaySubjects(proj, subjects)...)
+	subjects := slices.Clone(proj.Subjects())
 	return &Projector{
 		js:     js,
 		stream: stream,
 		proj:   proj,
-		logger: logger,
+		logger: normalizeLogger(logger),
 		decode: func(data []byte) (decodedEvent, error) {
 			event, err := decoder(data)
 			if err != nil {
@@ -269,16 +258,10 @@ func NewDecodedPreparedProjector[E any](
 			return typedDecodedEvent[E]{event: event.Event, id: event.ID}, nil
 		},
 		prepare: func(event decodedEvent, subject string, seq uint64) (PreparedMutation, error) {
-			typedEvent := event.(typedDecodedEvent[E]).event
-			if projection, ok := proj.(interface {
-				PrepareSubject(E, string, uint64) (PreparedMutation, error)
-			}); ok {
-				return projection.PrepareSubject(typedEvent, subject, seq)
-			}
-			return proj.Prepare(typedEvent, seq)
+			return prepare(event.(typedDecodedEvent[E]).event, subject, seq)
 		},
 		subjects:        subjects,
-		replaySubjects:  replaySubjects,
+		replaySubjects:  slices.Clone(projectionReplaySubjects(proj, subjects)),
 		subjectMatchers: compileSubjectFilters(subjects),
 		failedCh:        make(chan struct{}),
 		startupCh:       make(chan struct{}),
@@ -362,9 +345,7 @@ func (p *Projector) ownsProjection(projection SubjectProjection) bool {
 	if sameProjection(p.proj, projection) {
 		return true
 	}
-	owner, ok := p.proj.(interface {
-		OwnsProjection(SubjectProjection) bool
-	})
+	owner, ok := p.proj.(ProjectionOwner)
 	return ok && owner.OwnsProjection(projection)
 }
 
@@ -497,10 +478,8 @@ func (p *Projector) waitForSeq(ctx context.Context, seq uint64) error {
 }
 
 func (p *Projector) validateConsumesSubject(subject string) error {
-	for i := range p.subjectMatchers {
-		if p.subjectMatchers[i].matches(subject) {
-			return nil
-		}
+	if p.consumesSubject(subject) {
+		return nil
 	}
 	return fmt.Errorf("%w: subject %q not matched by filters %v",
 		ErrProjectionSubjectNotConsumed, subject, p.subjects)
@@ -591,12 +570,7 @@ func projectionReplaySubjects(proj SubjectProjection, subjects []string) []strin
 }
 
 func (p *Projector) consumesSubject(subject string) bool {
-	for i := range p.subjectMatchers {
-		if p.subjectMatchers[i].matches(subject) {
-			return true
-		}
-	}
-	return false
+	return matchesAnySubject(p.subjectMatchers, subject)
 }
 
 // advance updates lastSeq and releases any waiters that have now been
@@ -926,18 +900,6 @@ func (p *Projector) applyEvent(event decodedEvent, subject string, seq uint64) (
 		// application, as the check in handleMessage does.
 		return 0, nil
 	}
-	if p.prepare != nil {
-		mutation, err := p.prepare(event, subject, seq)
-		if err != nil {
-			return seq, err
-		}
-		if mutation != nil {
-			mutation.Commit()
-		}
-		p.countStartupMessages(1)
-		p.advance(seq)
-		return 0, nil
-	}
 	if p.applyStartupBatch != nil {
 		if p.shouldBatchStartup(seq) {
 			p.startupBatch = append(p.startupBatch, sequencedDecodedEvent{event: event, sequence: seq})
@@ -953,8 +915,12 @@ func (p *Projector) applyEvent(event decodedEvent, subject string, seq uint64) (
 			return failureSeq, err
 		}
 	}
-	if err := p.apply(event, seq); err != nil {
+	mutation, err := p.prepare(event, subject, seq)
+	if err != nil {
 		return seq, err
+	}
+	if mutation != nil {
+		mutation.Commit()
 	}
 	p.countStartupMessages(1)
 	p.advance(seq)

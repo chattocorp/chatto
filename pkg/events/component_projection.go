@@ -50,6 +50,20 @@ type PreparedEventProjection[E any] interface {
 	EventReducer[E]
 }
 
+// SubjectEventReducer can be implemented by a PreparedEventProjection that
+// needs the delivered record's subject. The Projector then calls
+// PrepareSubject instead of Prepare.
+type SubjectEventReducer[E any] interface {
+	PrepareSubject(event E, subject string, sequence uint64) (PreparedMutation, error)
+}
+
+// ProjectionOwner can be implemented by a projection that owns other
+// projection models, such as ComponentizedProjection. BindDecodedProjectionHandle
+// accepts an owned model for the owner's Projector.
+type ProjectionOwner interface {
+	OwnsProjection(SubjectProjection) bool
+}
+
 // SnapshotComponentModel is a focused projection model with an independent
 // snapshot contract. Its Subjects declaration remains available to focused
 // application diagnostics even when one Projector owns replay for the
