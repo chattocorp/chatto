@@ -97,6 +97,16 @@ func (c *ChattoCore) requireRoleDeletionWithinAuthority(ctx context.Context, act
 	return c.requireRoleDecisionsWithinAuthority(ctx, actorID, roleName, true)
 }
 
+// requireNotOwnDirectDecisions prevents a non-owner from editing their own
+// direct decisions. Direct decisions survive role changes, so a self-edit
+// could copy role authority into a decision that outlasts the role.
+func (c *ChattoCore) requireNotOwnDirectDecisions(actorID, targetUserID string) error {
+	if actorID == targetUserID && !c.isServerOwner(actorID) {
+		return ErrPermissionDenied
+	}
+	return nil
+}
+
 // requireRoleDecisionsWithinAuthority requires the actor to effectively hold
 // every permission that the role explicitly allows at the same scope. With
 // includeDenials, it also requires every permission that the role denies,
@@ -104,6 +114,11 @@ func (c *ChattoCore) requireRoleDeletionWithinAuthority(ctx context.Context, act
 func (c *ChattoCore) requireRoleDecisionsWithinAuthority(ctx context.Context, actorID, roleName string, includeDenials bool) error {
 	for _, decision := range c.rbacModel.rolePermissionDecisions(roleName) {
 		if decision.Decision != DecisionAllow && (!includeDenials || decision.Decision != DecisionDeny) {
+			continue
+		}
+		// Retired permissions, such as room.ban-member from 0.4, stay in the
+		// log but confer no authority, so they cannot exceed the actor's.
+		if _, known := GetPermissionMetadata(decision.Permission); !known {
 			continue
 		}
 		if err := c.requirePermissionDecisionWithinAuthority(ctx, actorID, decision.Scope, decision.ScopeID, decision.Permission); err != nil {

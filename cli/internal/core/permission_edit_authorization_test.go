@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/authctx"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func createPermissionEditUser(t *testing.T, core *ChattoCore, ctx context.Context, login string) string {
@@ -255,6 +256,45 @@ func TestDelegatedRoleDeletionStaysWithinAuthority(t *testing.T) {
 			}
 			if !core.rbacModel.roleExists(role.name) {
 				t.Fatal("role was deleted despite denial")
+			}
+		})
+	}
+}
+
+func TestRoleDeletionIgnoresRetiredPermissionDecisions(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roleManager := createPermissionEditUser(t, core, ctx, "retired-role-deleter")
+	owner := createPermissionEditUser(t, core, ctx, "retired-role-owner")
+	if err := core.GrantUserPermission(ctx, SystemActorID, roleManager, PermRoleManage); err != nil {
+		t.Fatalf("GrantUserPermission role.manage: %v", err)
+	}
+	if err := core.AssignOwnerRole(ctx, owner); err != nil {
+		t.Fatalf("AssignOwnerRole: %v", err)
+	}
+	roomID := createPermissionEditRoom(t, core, ctx, "retired-permission-room")
+	const retired = Permission("room.ban-member")
+
+	for _, actor := range []struct{ name, id string }{{"role-manager", roleManager}, {"owner", owner}} {
+		t.Run(actor.name, func(t *testing.T) {
+			roleName := "retired-" + actor.name
+			if _, err := core.CreateServerRole(ctx, SystemActorID, roleName, roleName, "", false); err != nil {
+				t.Fatalf("CreateServerRole: %v", err)
+			}
+			for _, event := range []*evtv1.Event{
+				newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{
+					RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", roleName, retired),
+				}}),
+				newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{
+					RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeRoom, roomID, roleName, retired),
+				}}),
+			} {
+				if _, err := core.appendRBACEvent(ctx, event, nil); err != nil {
+					t.Fatalf("append retired decision: %v", err)
+				}
+			}
+			if err := core.AdminDeleteServerRole(ctx, actor.id, roleName); err != nil {
+				t.Fatalf("AdminDeleteServerRole error = %v, want nil", err)
 			}
 		})
 	}

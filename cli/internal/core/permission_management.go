@@ -354,11 +354,15 @@ func (c *ChattoCore) SetUserPermissionState(ctx context.Context, actorID, userID
 		if err := c.requireCanManageUserPermissionTarget(ctx, actorID); err != nil {
 			return err
 		}
-		// Direct decisions survive role changes. A non-owner who could edit
-		// their own decisions could copy role authority into them and keep it
-		// after the role is revoked.
-		if actorID == userID && !c.isServerOwner(actorID) {
-			return ErrPermissionDenied
+		if coreScope == ScopeRoom {
+			// Room-to-group placement is covered by the stable authorization
+			// inputs; the room itself must also be current on this replica.
+			if err := c.roomModel.waitForDirectoryCurrent(ctx, c.EventPublisher); err != nil {
+				return fmt.Errorf("wait for room directory projection: %w", err)
+			}
+		}
+		if err := c.requireNotOwnDirectDecisions(actorID, userID); err != nil {
+			return err
 		}
 		if err := validatePermissionDecisionScope(coreScope, perm); err != nil {
 			return err
