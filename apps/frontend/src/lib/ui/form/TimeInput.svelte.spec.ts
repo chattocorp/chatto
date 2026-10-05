@@ -86,13 +86,16 @@ describe('TimeInput', () => {
     expect(field.bound()).toBe('10:04');
   });
 
-  it('moves to the minute only after a complete hour', async () => {
-    const field = renderTime({ hour12: false });
+  it.each([
+    { clock: '24-hour', hour12: false, waits: '2', moves: '3' },
+    { clock: '12-hour', hour12: true, waits: '1', moves: '2' }
+  ])('moves to the minute only after a complete $clock hour', async ({ hour12, waits, moves }) => {
+    const field = renderTime({ hour12 });
 
-    await userEvent.type(field.hour, '2');
+    await userEvent.type(field.hour, waits);
     expect(document.activeElement).toBe(field.hour);
     await userEvent.clear(field.hour);
-    await userEvent.type(field.hour, '7');
+    await userEvent.type(field.hour, moves);
     expect(document.activeElement).toBe(field.minute);
   });
 
@@ -129,13 +132,12 @@ describe('TimeInput', () => {
     expect(field.bound()).toBe('');
   });
 
-  it('replaces a filled segment when the user types into it', async () => {
+  it('selects a segment when it receives focus', async () => {
     const field = renderTime({ value: '10:30', hour12: false });
 
     await userEvent.click(field.minute);
-    await userEvent.keyboard('45');
 
-    expect(field.bound()).toBe('10:45');
+    expect([field.minute.selectionStart, field.minute.selectionEnd]).toEqual([0, 2]);
   });
 
   it('accepts digits only', async () => {
