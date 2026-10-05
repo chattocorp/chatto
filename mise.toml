@@ -635,7 +635,7 @@ run = [
     "node ../tools/dev-seed-smoke.mjs",
     "go test -trimpath -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./...",
 ]
-sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE", "../mise.toml", "../tools/dev-seed-smoke.mjs"]
+sources = ["**/*.go", "chatto.toml", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE", "../mise.toml", "../tools/dev-seed-smoke.mjs"]
 
 [tasks.test-appconfig]
 description = "Run application configuration tests standalone and in the repository workspace"
