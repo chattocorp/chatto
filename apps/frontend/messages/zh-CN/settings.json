@@ -508,8 +508,8 @@
       "create_failed": "创建机器人失败",
       "created": "机器人已创建",
       "capabilities": {
-        "legend": "这个机器人可以做什么？",
-        "hint": "你可以任意组合。机器人只在它所在的聊天室和私信中执行操作。你之后可以在“权限”选项卡中更改。",
+        "legend": "初始权限",
+        "hint": "你之后可以更改。",
         "unavailable": "你没有此权限。",
         "apply_failed": "部分权限未能授予机器人。请在“权限”选项卡中检查。",
         "interactions": {

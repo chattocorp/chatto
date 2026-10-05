@@ -508,8 +508,8 @@
       "create_failed": "Nepodařilo se vytvořit robota",
       "created": "Robot vytvořen",
       "capabilities": {
-        "legend": "Co může tento bot dělat?",
-        "hint": "Vyberte libovolnou kombinaci. Bot jedná jen v místnostech a přímých zprávách, jejichž je členem. Později to můžete změnit na kartě Oprávnění.",
+        "legend": "Počáteční oprávnění",
+        "hint": "Později je můžete změnit.",
         "unavailable": "Nemáte toto oprávnění.",
         "apply_failed": "Některá oprávnění se botovi nepodařilo udělit. Zkontrolujte je na kartě Oprávnění.",
         "interactions": {

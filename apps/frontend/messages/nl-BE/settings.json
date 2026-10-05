@@ -508,8 +508,8 @@
       "create_failed": "Kan geen bot maken",
       "created": "Bot gemaakt",
       "capabilities": {
-        "legend": "Wat kan deze bot doen?",
-        "hint": "Kies een willekeurige combinatie. De bot werkt alleen in kamers en privéberichten waarvan hij lid is. Je kunt dit later wijzigen op het tabblad Rechten.",
+        "legend": "Beginrechten",
+        "hint": "Je kunt ze later wijzigen.",
         "unavailable": "Je hebt dit recht niet.",
         "apply_failed": "Sommige rechten konden niet aan de bot worden gegeven. Controleer ze op het tabblad Rechten.",
         "interactions": {

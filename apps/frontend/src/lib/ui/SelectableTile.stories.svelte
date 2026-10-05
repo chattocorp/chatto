@@ -24,7 +24,7 @@
 
 <Story name="Group" asChild>
   <fieldset class="grid max-w-2xl gap-3 sm:grid-cols-2">
-    <legend class="mb-2 font-medium">What can this bot do?</legend>
+    <legend class="mb-2 font-medium">Starting permissions</legend>
     <SelectableTile
       bind:checked={mentions}
       icon="icon-[uil--at]"

@@ -508,8 +508,8 @@
       "create_failed": "創建機器人失敗",
       "created": "機器人已建立",
       "capabilities": {
-        "legend": "這個機器人可以做什麼？",
-        "hint": "你可以任意組合。機器人只在它所在的聊天室和私訊中執行操作。你之後可以在「權限」分頁中變更。",
+        "legend": "初始權限",
+        "hint": "你之後可以變更。",
         "unavailable": "你沒有此權限。",
         "apply_failed": "部分權限未能授予機器人。請在「權限」分頁中檢查。",
         "interactions": {

@@ -508,8 +508,8 @@
       "create_failed": "Det gick inte att skapa bot",
       "created": "Botten skapad",
       "capabilities": {
-        "legend": "Vad kan den här boten göra?",
-        "hint": "Välj valfri kombination. Boten agerar bara i rum och direktmeddelanden som den är medlem i. Du kan ändra detta senare på fliken Behörigheter.",
+        "legend": "Startbehörigheter",
+        "hint": "Du kan ändra dem senare.",
         "unavailable": "Du har inte den här behörigheten.",
         "apply_failed": "Vissa behörigheter kunde inte ges till boten. Kontrollera dem på fliken Behörigheter.",
         "interactions": {

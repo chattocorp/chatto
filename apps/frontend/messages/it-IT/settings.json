@@ -508,8 +508,8 @@
       "create_failed": "Impossibile creare il bot",
       "created": "Bot creato",
       "capabilities": {
-        "legend": "Cosa può fare questo bot?",
-        "hint": "Seleziona qualsiasi combinazione. Il bot agisce solo nelle stanze e nei messaggi diretti di cui è membro. Puoi cambiarlo più tardi nella scheda Autorizzazioni.",
+        "legend": "Autorizzazioni iniziali",
+        "hint": "Puoi modificarle in seguito.",
         "unavailable": "Non hai questa autorizzazione.",
         "apply_failed": "Non è stato possibile dare alcune autorizzazioni al bot. Controllale nella scheda Autorizzazioni.",
         "interactions": {

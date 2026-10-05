@@ -508,8 +508,8 @@
       "create_failed": "Neizdevās izveidot robotu",
       "created": "Bots izveidots",
       "capabilities": {
-        "legend": "Ko šis bots var darīt?",
-        "hint": "Izvēlieties jebkuru kombināciju. Bots darbojas tikai istabās un tiešajās ziņās, kuru dalībnieks tas ir. Jūs varat to vēlāk mainīt cilnē Atļaujas.",
+        "legend": "Sākotnējās atļaujas",
+        "hint": "Jūs varat tās mainīt vēlāk.",
         "unavailable": "Jums nav šīs atļaujas.",
         "apply_failed": "Dažas atļaujas botam neizdevās piešķirt. Pārbaudiet tās cilnē Atļaujas.",
         "interactions": {

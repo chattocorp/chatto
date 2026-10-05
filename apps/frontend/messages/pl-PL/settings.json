@@ -508,8 +508,8 @@
       "create_failed": "Nie udało się utworzyć bota",
       "created": "Bot został utworzony",
       "capabilities": {
-        "legend": "Co może robić ten bot?",
-        "hint": "Wybierz dowolne połączenie. Bot działa tylko w pokojach i wiadomościach prywatnych, których jest członkiem. Możesz to później zmienić na karcie Uprawnienia.",
+        "legend": "Uprawnienia początkowe",
+        "hint": "Możesz je później zmienić.",
         "unavailable": "Nie masz tego uprawnienia.",
         "apply_failed": "Nie udało się nadać botowi niektórych uprawnień. Sprawdź je na karcie Uprawnienia.",
         "interactions": {

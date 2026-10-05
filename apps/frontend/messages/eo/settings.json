@@ -508,8 +508,8 @@
       "create_failed": "Malsukcesis krei bot",
       "created": "Bot kreita",
       "capabilities": {
-        "legend": "Kion ĉi tiu roboto povas fari?",
-        "hint": "Elektu ajnan kombinon. La roboto agas nur en ĉambroj kaj rektaj mesaĝoj, kies membro ĝi estas. Vi povas ŝanĝi tion poste en la langeto Permesoj.",
+        "legend": "Komencaj permesoj",
+        "hint": "Vi povas ŝanĝi ilin poste.",
         "unavailable": "Vi ne havas ĉi tiun permeson.",
         "apply_failed": "Kelkaj permesoj ne povis esti donitaj al la roboto. Kontrolu ilin en la langeto Permesoj.",
         "interactions": {

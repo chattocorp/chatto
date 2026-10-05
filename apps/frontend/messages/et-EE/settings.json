@@ -508,8 +508,8 @@
       "create_failed": "Boti loomine ebaõnnestus",
       "created": "Bot loodud",
       "capabilities": {
-        "legend": "Mida see bot teha saab?",
-        "hint": "Valige mis tahes kombinatsioon. Bot tegutseb ainult ruumides ja otsesõnumites, mille liige ta on. Saate seda hiljem muuta vahekaardil Load.",
+        "legend": "Algsed load",
+        "hint": "Saate neid hiljem muuta.",
         "unavailable": "Teil ei ole seda luba.",
         "apply_failed": "Mõnda luba ei õnnestunud botile anda. Kontrollige neid vahekaardil Load.",
         "interactions": {

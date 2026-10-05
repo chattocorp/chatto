@@ -508,8 +508,8 @@
       "create_failed": "Error al crear el bot",
       "created": "Bot creado",
       "capabilities": {
-        "legend": "¿Qué puede hacer este bot?",
-        "hint": "Selecciona cualquier combinación. El bot solo actúa en las salas y los mensajes directos de los que es miembro. Puedes cambiarlo más tarde en la pestaña Permisos.",
+        "legend": "Permisos iniciales",
+        "hint": "Puedes cambiarlos más tarde.",
         "unavailable": "No tienes este permiso.",
         "apply_failed": "No se pudieron dar algunos permisos al bot. Revísalos en la pestaña Permisos.",
         "interactions": {

@@ -508,8 +508,8 @@
       "create_failed": "Failed to create bot",
       "created": "Bot created",
       "capabilities": {
-        "legend": "What can this bot do?",
-        "hint": "Select any combination. The bot only acts in rooms and DMs that it is a member of. You can change this later on the Permissions tab.",
+        "legend": "Starting permissions",
+        "hint": "You can change these later.",
         "unavailable": "You do not have this permission.",
         "apply_failed": "Some permissions could not be given to the bot. Check them on the Permissions tab.",
         "interactions": {

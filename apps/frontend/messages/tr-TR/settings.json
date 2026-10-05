@@ -508,8 +508,8 @@
       "create_failed": "Bot oluşturulamadı",
       "created": "Bot oluşturuldu",
       "capabilities": {
-        "legend": "Bu bot neler yapabilir?",
-        "hint": "Herhangi bir kombinasyon seçin. Bot yalnızca üyesi olduğu odalarda ve doğrudan mesajlarda işlem yapar. Bunu daha sonra İzinler sekmesinde değiştirebilirsiniz.",
+        "legend": "Başlangıç izinleri",
+        "hint": "Bunları daha sonra değiştirebilirsiniz.",
         "unavailable": "Bu izne sahip değilsiniz.",
         "apply_failed": "Bazı izinler bota verilemedi. Bunları İzinler sekmesinde kontrol edin.",
         "interactions": {

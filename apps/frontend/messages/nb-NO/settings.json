@@ -508,8 +508,8 @@
       "create_failed": "Kunne ikke opprette bot",
       "created": "Bote opprettet",
       "capabilities": {
-        "legend": "Hva kan denne boten gjøre?",
-        "hint": "Velg en hvilken som helst kombinasjon. Boten handler bare i rom og direktemeldinger den er medlem av. Du kan endre dette senere i fanen Tillatelser.",
+        "legend": "Starttillatelser",
+        "hint": "Du kan endre dem senere.",
         "unavailable": "Du har ikke denne tillatelsen.",
         "apply_failed": "Noen tillatelser kunne ikke gis til boten. Kontroller dem i fanen Tillatelser.",
         "interactions": {

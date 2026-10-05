@@ -508,8 +508,8 @@
       "create_failed": "Bot konnte nicht erstellt werden",
       "created": "Bot erstellt",
       "capabilities": {
-        "legend": "Was kann dieser Bot?",
-        "hint": "Wähle eine beliebige Kombination. Der Bot handelt nur in Räumen und DMs, in denen er Mitglied ist. Du kannst das später im Tab „Berechtigungen“ ändern.",
+        "legend": "Anfangsberechtigungen",
+        "hint": "Du kannst sie später ändern.",
         "unavailable": "Du hast diese Berechtigung nicht.",
         "apply_failed": "Einige Berechtigungen konnten dem Bot nicht gegeben werden. Prüfe sie im Tab „Berechtigungen“.",
         "interactions": {

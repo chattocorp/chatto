@@ -508,8 +508,8 @@
       "create_failed": "Échec de la création du bot",
       "created": "Bot créé",
       "capabilities": {
-        "legend": "Que peut faire ce bot ?",
-        "hint": "Sélectionnez n’importe quelle combinaison. Le bot agit uniquement dans les salons et messages privés dont il est membre. Vous pourrez modifier cela plus tard dans l’onglet Autorisations.",
+        "legend": "Autorisations de départ",
+        "hint": "Vous pourrez les modifier plus tard.",
         "unavailable": "Vous n’avez pas cette autorisation.",
         "apply_failed": "Certaines autorisations n’ont pas pu être accordées au bot. Vérifiez-les dans l’onglet Autorisations.",
         "interactions": {
