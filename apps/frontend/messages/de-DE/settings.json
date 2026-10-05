@@ -511,14 +511,14 @@
         "legend": "Anfangsberechtigungen",
         "hint": "Du kannst sie später ändern.",
         "unavailable": "Du hast diese Berechtigung selbst nicht, darum kannst du sie deinem Bot nicht geben.",
-        "apply_failed": "Dein Bot ist bereit, aber ein paar Berechtigungen hat es nicht geklappt. Schau im Tab „Berechtigungen“ nach.",
+        "apply_failed": "Dein Bot ist bereit, aber bei ein paar Berechtigungen hat es nicht geklappt. Schau im Tab „Berechtigungen“ nach.",
         "interactions": {
           "title": "Auf Erwähnungen antworten",
           "description": "Antwortet direkt im Thread, wenn jemand ihn @erwähnt."
         },
         "direct_messages": {
           "title": "In DMs chatten",
-          "description": "Unterhält sich unter vier Augen, wenn jemand ihm eine Direktnachricht schreibt."
+          "description": "Unterhält sich unter vier Augen, wenn ihm jemand eine Direktnachricht schreibt."
         },
         "post": {
           "title": "Nachrichten senden",

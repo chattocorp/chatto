@@ -511,7 +511,7 @@
         "legend": "Starting permissions",
         "hint": "You can change these later.",
         "unavailable": "You don't have this permission yourself, so you can't give it to your bot.",
-        "apply_failed": "Your bot is ready, but a few permissions didn't stick. Take a look on its Permissions tab.",
+        "apply_failed": "Your bot is ready, but a few permissions didn't stick. Have a look at its Permissions tab.",
         "interactions": {
           "title": "Answer mentions",
           "description": "Replies when someone @mentions it, right there in the thread."

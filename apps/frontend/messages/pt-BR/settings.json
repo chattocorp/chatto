@@ -518,7 +518,7 @@
         },
         "direct_messages": {
           "title": "Conversar por mensagem direta",
-          "description": "Conversa a sós quando alguém envia uma mensagem direta."
+          "description": "Conversa a sós quando alguém lhe envia uma mensagem direta."
         },
         "post": {
           "title": "Publicar mensagens",

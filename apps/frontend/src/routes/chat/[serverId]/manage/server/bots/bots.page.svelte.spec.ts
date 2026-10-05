@@ -255,7 +255,7 @@ describe('Bot administration page', () => {
 
     await vi.waitFor(() =>
       expect(getToasts().map((item) => item.message)).toContain(
-        "Your bot is ready, but a few permissions didn't stick. Take a look on its Permissions tab."
+        "Your bot is ready, but a few permissions didn't stick. Have a look at its Permissions tab."
       )
     );
     await userEvent.click(page.getByRole('button', { name: 'Got it' }));

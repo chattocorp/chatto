@@ -518,11 +518,11 @@
         },
         "direct_messages": {
           "title": "Chatta i direktmeddelanden",
-          "description": "Pratar på tu man hand när någon skickar ett direktmeddelande."
+          "description": "Pratar på tu man hand när någon skickar ett direktmeddelande till den."
         },
         "post": {
           "title": "Skicka meddelanden",
-          "description": "Skickar nya meddelanden, som meddelanden till alla eller larm."
+          "description": "Skickar nya meddelanden, som utskick eller larm."
         },
         "read_all": {
           "title": "Läsa allt",
