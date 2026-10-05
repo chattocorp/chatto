@@ -405,7 +405,6 @@ func DefaultEveryonePermissions() []Permission {
 		PermMessageAttach,
 		PermMessageReact,
 		PermMessageEcho,
-		PermBotCreate,
 		PermCallStart,
 		PermCallJoin,
 		PermCallVoice,
@@ -446,6 +445,7 @@ func DefaultAdminPermissions() []Permission {
 		PermUserDeleteSelf,
 		PermUserManageAccounts,
 		PermUserManagePermissions,
+		PermBotCreate,
 		PermBotManage,
 	}
 }

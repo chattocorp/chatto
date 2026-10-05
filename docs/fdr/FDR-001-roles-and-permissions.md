@@ -179,10 +179,11 @@ gates an existing capability gets a one-time upgrade grant (ADR-113):
 
 - Initialize each missing server-level `everyone` call permission once. Any
   historical grant, deny, or clear of that decision prevents it.
-- Upgrade a 0.4 log once as a set. Allow `message.read` and `bot.create` for
-  `everyone`, allow `user.invite` and `bot.manage` for `admin`, and copy each
-  current `room.ban-member` decision to `room.remove-member`. Any historical
-  decision for a permission introduced in 0.5 prevents the whole set.
+- Upgrade a 0.4 log once as a set. Allow `message.read` for `everyone`, and
+  copy each current `room.ban-member` decision to `room.remove-member`. Any
+  historical decision for a permission introduced in 0.5 prevents the whole
+  set. Capabilities that are new in 0.5, such as bots and invite links, get
+  no upgrade grant.
 
 These grants preserve existing capabilities without undoing an operator's
 later decision.

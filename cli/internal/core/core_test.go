@@ -899,3 +899,12 @@ func TestFilterPubSubEventDeliversDMTypingWithoutMessageRead(t *testing.T) {
 		t.Fatalf("DM typing event = %+v, delivered=%v; want delivered", event, ok)
 	}
 }
+
+// allowBotCreation grants bot.create to one human account. Fresh servers grant
+// it only to admin, so tests that create bots as ordinary members call this.
+func allowBotCreation(t testing.TB, ctx context.Context, c *ChattoCore, userID string) {
+	t.Helper()
+	if err := c.GrantUserPermission(ctx, SystemActorID, userID, PermBotCreate); err != nil {
+		t.Fatalf("grant bot.create: %v", err)
+	}
+}

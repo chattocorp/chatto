@@ -147,3 +147,12 @@ func mustParseURL(rawURL string) *url.URL {
 	}
 	return u
 }
+
+// allowBotCreation grants bot.create to one human account. Fresh servers grant
+// it only to admin, so tests that create bots as ordinary members call this.
+func allowBotCreation(t testing.TB, ctx context.Context, c *core.ChattoCore, userID string) {
+	t.Helper()
+	if err := c.GrantUserPermission(ctx, core.SystemActorID, userID, core.PermBotCreate); err != nil {
+		t.Fatalf("grant bot.create: %v", err)
+	}
+}

@@ -70,6 +70,7 @@ func TestConnectJSONIntegrationSmoke(t *testing.T) {
 	current := call(token, viewer, "{}", 200)
 	require.Equal(t, owner.GetId(), object(object(current["user"])["profile"])["id"])
 
+	allowBotCreation(t, ctx, s.core, owner.GetId())
 	// Create out of sort order; authenticate with a credential returned in JSON.
 	for _, login := range []string{"smoke_c_bot", "smoke_a_bot", "smoke_b_bot"} {
 		created := call(token, bots+"CreateBot", `{"login":"`+login+`","displayName":"Smoke Bot"}`, 200)

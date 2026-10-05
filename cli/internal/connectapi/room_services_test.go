@@ -641,6 +641,7 @@ func TestRoomServiceStartDM(t *testing.T) {
 		t.Fatalf("StartDM new DM for denied user code = %v, want permission denied", errorCode(err))
 	}
 
+	allowBotCreation(t, env.ctx, env.core, env.viewer.GetId())
 	bot, err := env.core.CreateBot(env.ctx, env.viewer.GetId(), "connect_dm_start_bot", "Connect DM Start Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)

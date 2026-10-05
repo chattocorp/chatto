@@ -207,6 +207,7 @@ func TestBotCredentialUsageHydrationReportsUnavailableWithoutFailing(t *testing.
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "usage_bot", "Usage Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -239,6 +240,7 @@ func TestBotAPIKeyAuthenticationRecordsAndRevocationForgetsUsage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "api_key_usage_bot", "API-key Usage Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -289,6 +291,7 @@ func TestBotConstructionAndCredentialIssuanceSkipUsageTelemetryReads(t *testing.
 	usageKV := &countingCredentialUsageKV{KeyValue: c.storage.runtimeStateKV}
 	c.credentialUsage.kv = usageKV
 
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "deferred_usage_bot", "Deferred Usage Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)

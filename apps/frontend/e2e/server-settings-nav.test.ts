@@ -111,8 +111,9 @@ test.describe('Server Admin Navigation Permissions', () => {
       await page.goto(routes.chat);
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
-      // Fresh servers grant bot.create to everyone, so Bots is this member's
-      // only Server Configuration page. Settings still starts at Appearance.
+      // Bots stays available to every signed-in human for owned bots, so it is
+      // this member's only Server Configuration page. Settings still starts at
+      // Appearance.
       await serverAdminPage.expectSettingsLinkVisible();
       await serverAdminPage.settingsLink.click();
       await page.waitForURL(routes.settingsAppearance);

@@ -137,6 +137,7 @@ func TestViewerServicePrivilegedModeRejectsIneligibleCallers(t *testing.T) {
 		t.Fatalf("unentitled activation wrote deadline %v", validated.PrivilegedModeExpiresAt)
 	}
 
+	allowBotCreation(t, env.ctx, env.core, env.viewer.Id)
 	bot, err := env.core.CreateBot(env.ctx, env.viewer.Id, "privileged_mode_bot", "Privileged Mode Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)

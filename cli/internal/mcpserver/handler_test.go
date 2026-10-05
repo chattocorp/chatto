@@ -297,6 +297,7 @@ func TestMCPHandlerServesProtocol20260728OverRawHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, chattoCore, owner.GetId())
 	bot, err := chattoCore.CreateBot(ctx, owner.GetId(), "raw_mcp_bot", "Raw MCP Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -584,6 +585,7 @@ func TestMCPTokenVerifierAcceptsCurrentBotAPIKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, chattoCore, owner.GetId())
 	bot, err := chattoCore.CreateBot(ctx, owner.GetId(), "mcp_bot", "MCP Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -775,5 +777,14 @@ func decodeMCPResponse(t *testing.T, response *httptest.ResponseRecorder, target
 	t.Helper()
 	if err := json.Unmarshal(response.Body.Bytes(), target); err != nil {
 		t.Fatalf("decode MCP response: %v: %s", err, response.Body.String())
+	}
+}
+
+// allowBotCreation grants bot.create to one human account. Fresh servers grant
+// it only to admin, so tests that create bots as ordinary members call this.
+func allowBotCreation(t testing.TB, ctx context.Context, c *core.ChattoCore, userID string) {
+	t.Helper()
+	if err := c.GrantUserPermission(ctx, core.SystemActorID, userID, core.PermBotCreate); err != nil {
+		t.Fatalf("grant bot.create: %v", err)
 	}
 }

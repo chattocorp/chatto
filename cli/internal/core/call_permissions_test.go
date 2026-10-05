@@ -235,6 +235,7 @@ func TestCallPermissionsDMScopeAndBotDelegation(t *testing.T) {
 	permissions, err := c.AuthorizeCall(ctx, owner.Id, dm.Id, false)
 	require.NoError(t, err)
 	require.False(t, permissions.Voice)
+	allowBotCreation(t, ctx, c, owner.Id)
 	bot, err := c.CreateBot(ctx, owner.Id, "call_bot", "Call Bot")
 	require.NoError(t, err)
 	room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "call-bot-room", "")

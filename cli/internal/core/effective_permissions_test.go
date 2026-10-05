@@ -13,6 +13,7 @@ func TestEffectivePermissionsAuthorizationAndScopeCoverage(t *testing.T) {
 	require.NoError(t, err)
 	viewer, err := c.CreateUser(ctx, SystemActorID, "effective-viewer", "Viewer", "password123")
 	require.NoError(t, err)
+	allowBotCreation(t, ctx, c, owner.Id)
 	bot, err := c.CreateBot(ctx, owner.Id, "effective_bot", "Bot")
 	require.NoError(t, err)
 	_, err = c.ListEffectivePermissions(ctx, "", bot.User.Id)

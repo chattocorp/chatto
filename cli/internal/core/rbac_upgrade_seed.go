@@ -38,9 +38,10 @@ func v05UpgradePermissions() []Permission {
 //   - Each call permission is initialized for everyone at server scope unless
 //     that server/everyone decision was ever granted, denied, or cleared.
 //   - The 0.5 grants apply as one set, only while no v05UpgradePermissions
-//     decision exists anywhere in the log. They keep 0.4 behavior: everyone
-//     reads messages and creates bots, admins invite users and manage bots,
-//     and room.remove-member copies each current room.ban-member decision.
+//     decision exists anywhere in the log. They keep only capabilities that
+//     0.4 servers had: everyone reads messages, and room.remove-member copies
+//     each current room.ban-member decision. Capabilities that are new in 0.5,
+//     such as bots and invite links, stay off until an operator grants them.
 //
 // Retries and restarts can never undo an operator's later clear or deny. The
 // complete RBAC tail guards concurrent initializers.
@@ -93,12 +94,7 @@ func (s rbacUpgradeState) upgradeDecisions() []rbacSeedDecision {
 	if !s.v05Pending {
 		return decisions
 	}
-	decisions = append(decisions,
-		allow(RoleEveryone, PermMessageRead),
-		allow(RoleEveryone, PermBotCreate),
-		allow(RoleAdmin, PermUserInvite),
-		allow(RoleAdmin, PermBotManage),
-	)
+	decisions = append(decisions, allow(RoleEveryone, PermMessageRead))
 	for _, decision := range s.replay.Decisions() {
 		if decision.permission != permRoomMemberBanLegacy || !PermissionAppliesAtScope(PermRoomMemberRemove, decision.scope) {
 			continue

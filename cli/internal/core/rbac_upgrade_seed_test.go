@@ -88,10 +88,7 @@ func TestUpgradePermissionsRestoreV04Behavior(t *testing.T) {
 		kind    DecisionKind
 	}{
 		{ScopeServer, "", RoleEveryone, PermMessageRead, DecisionAllow},
-		{ScopeServer, "", RoleEveryone, PermBotCreate, DecisionAllow},
 		{ScopeServer, "", RoleEveryone, PermCallStart, DecisionAllow},
-		{ScopeServer, "", RoleAdmin, PermUserInvite, DecisionAllow},
-		{ScopeServer, "", RoleAdmin, PermBotManage, DecisionAllow},
 		{ScopeServer, "", RoleAdmin, PermRoomMemberRemove, DecisionAllow},
 		{ScopeServer, "", RoleModerator, PermRoomMemberRemove, DecisionAllow},
 		{ScopeRoom, "Rhelp", custom.Name, PermRoomMemberRemove, DecisionAllow},
@@ -100,7 +97,11 @@ func TestUpgradePermissionsRestoreV04Behavior(t *testing.T) {
 		// A cleared ban decision and a deleted role's decision are not copied.
 		{ScopeServer, "", custom.Name, PermRoomMemberRemove, DecisionNone},
 		{ScopeServer, "", gone.Name, PermRoomMemberRemove, DecisionNone},
-		// Fresh-only defaults outside the upgrade set stay absent.
+		// Capabilities that are new in 0.5 stay off until an operator grants them.
+		{ScopeServer, "", RoleEveryone, PermBotCreate, DecisionNone},
+		{ScopeServer, "", RoleAdmin, PermBotCreate, DecisionNone},
+		{ScopeServer, "", RoleAdmin, PermBotManage, DecisionNone},
+		{ScopeServer, "", RoleAdmin, PermUserInvite, DecisionNone},
 		{ScopeServer, "", RoleAdmin, PermServerManageNeighbors, DecisionNone},
 	} {
 		require.Equal(t, want.kind, rbac.GetDecision(want.scope, want.scopeID, want.subject, want.perm), "%s %s %s %s", want.scope, want.scopeID, want.subject, want.perm)
@@ -130,8 +131,6 @@ func TestUpgradePermissionsSkipReviewedV05State(t *testing.T) {
 			perm    Permission
 		}{
 			{RoleEveryone, PermMessageRead},
-			{RoleEveryone, PermBotCreate},
-			{RoleAdmin, PermUserInvite},
 			{RoleModerator, PermRoomMemberRemove},
 		} {
 			require.Equal(t, DecisionNone, rbac.GetDecision(ScopeServer, "", check.subject, check.perm), "%s %s", check.subject, check.perm)
@@ -176,7 +175,7 @@ func TestUpgradePermissionsConcurrentReplicas(t *testing.T) {
 			grants[granted.GetSubject().GetId()+" "+granted.GetPermission()]++
 		}
 	}
-	for _, key := range []string{"everyone message.read", "admin bot.manage", "moderator room.remove-member", "everyone call.start"} {
+	for _, key := range []string{"everyone message.read", "moderator room.remove-member", "everyone call.start"} {
 		require.Equal(t, 1, grants[key], key)
 	}
 }

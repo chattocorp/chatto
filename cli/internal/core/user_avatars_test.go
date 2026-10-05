@@ -35,6 +35,7 @@ func TestRequireCanManageUserIdentityAuthorizationMatrix(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser bot manager: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "avatar_helper_bot", "Avatar Helper Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -92,6 +93,7 @@ func TestManagedBotAvatarUsesCanonicalProjectionAndIdempotentClear(t *testing.T)
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "managed_avatar_bot", "Managed Avatar Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)

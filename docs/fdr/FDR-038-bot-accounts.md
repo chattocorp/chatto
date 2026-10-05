@@ -84,8 +84,9 @@ exercise more authority than its human owner currently possesses.
   with `bot.manage`, and to a human with `user.manage-accounts`. The item
   opens the detail page of the bot. The client finds the owner from the public
   `User.bot` reference.
-- On a fresh RBAC bootstrap, `everyone` receives `bot.create`, while `admin`
-  and `owner` have `bot.manage`. The owner grant follows Chatto's normal
+- On a fresh RBAC bootstrap, `admin` receives `bot.create` and `bot.manage`.
+  `owner` has both through the effective-owner override. Other members need an
+  explicit `bot.create` grant. The owner grant follows Chatto's normal
   effective-owner override rather than being stored as an editable permission
   row.
 - Bot status and ownership are explicit, durable account properties. Human and
@@ -298,20 +299,20 @@ revocation meaningful.
 grant may appear configured but temporarily ineffective, so management UIs
 must show the owner's ceiling and explain unavailable cells.
 
-### 5. Bot creation is broadly available; global management is administrative
+### 5. Bot creation is administrative by default
 
 **Decision:** `bot.create` lets a human create bots, ownership lets them manage
 their existing bots, and `bot.manage` lets a human manage any bot. Fresh RBAC
-state grants `bot.create` to `everyone` and `bot.manage` to `admin`; effective
-owners receive `bot.manage` through the normal virtual owner override. Bots do
-not inherit `everyone` and cannot exercise either capability themselves.
-**Why:** Every human member can create automation for their own use, while
-global recovery and moderation remain administrative. Creators must not lose
-access to revoke keys or delete an existing bot just because their ability to
-create more bots is revoked.
-**Tradeoff:** Servers that want bot creation to be restricted must change the
-fresh default. Upgraded 0.4 servers receive the same two grants once
-(ADR-113). Startup does not reconcile later default changes.
+state grants `bot.create` and `bot.manage` to `admin`. Effective owners receive
+both through the normal virtual owner override. Bots do not inherit `everyone`
+and cannot exercise either capability themselves. Upgraded 0.4 servers receive
+neither grant (ADR-113).
+**Why:** A bot holds API credentials and acts for its owner. Operators decide
+which members may create one. Creators must not lose access to revoke keys or
+delete an existing bot just because their ability to create more bots is
+revoked.
+**Tradeoff:** Servers that want members to create bots must grant `bot.create`
+to `everyone` or to a role. Startup does not reconcile later default changes.
 Bot-management authorization also has an ownership path alongside the
 permission path used by global managers.
 
@@ -486,9 +487,9 @@ Notification delivery modes are user preferences, not permissions. A bot can
 change its own notification policy through the normal notification policy API
 when it has access to the selected scope.
 
-Fresh RBAC bootstrap grants `bot.create` to `everyone` and `bot.manage` to
-`admin`. Effective owners have `bot.manage` through the virtual owner override,
-so no editable owner permission row is seeded.
+Fresh RBAC bootstrap grants `bot.create` and `bot.manage` to `admin`. Effective
+owners have both through the virtual owner override, so no editable owner
+permission row is seeded.
 
 Bot ownership authorizes management of the owner's existing bots without a
 separate permission. Effective owners retain their normal all-permissions
