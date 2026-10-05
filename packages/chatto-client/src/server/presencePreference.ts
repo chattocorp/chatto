@@ -68,6 +68,7 @@ function readStatus(key: string, legacy = false): PresenceStatus | null {
 /** Private server choice with a device-local fallback used only for migration. */
 export class PresencePreference {
   readonly #revisionSignal = signal('');
+  /** Server revision of the choice. Empty until the server acknowledges a choice. */
   get revision() {
     return this.#revisionSignal.get();
   }
@@ -75,6 +76,10 @@ export class PresencePreference {
     this.#revisionSignal.set(value);
   }
   readonly #readySignal = signal(false);
+  /**
+   * True after the server acknowledges a choice. The presence tracker owns this
+   * flag; hosts read it and do not set it.
+   */
   get ready() {
     return this.#readySignal.get();
   }
@@ -89,7 +94,9 @@ export class PresencePreference {
   set status(value: PresenceStatus) {
     this.#statusSignal.set(value);
   }
+  /** Device copy of the choice. Use it only to migrate; the server choice is authoritative. */
   readonly slot: StorageSlot<PresenceStatus | null>;
+  /** True after this device saved its choice on the server once. */
   readonly migrated: StorageSlot<boolean>;
 
   constructor(scope: PresenceScope) {

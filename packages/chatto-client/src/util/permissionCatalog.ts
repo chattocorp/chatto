@@ -25,9 +25,12 @@ export const PERMISSION_CATEGORIES = [
   'other'
 ] as const;
 
+/** A category that hosts use to group permissions. */
 export type PermissionCategory = (typeof PERMISSION_CATEGORIES)[number];
 
+/** The structure of one permission. */
 export type PermissionDefinition = {
+  /** Category for grouping. */
   category: PermissionCategory;
   /** Levels where the permission can be configured, broadest first. */
   scopes: readonly PermissionScope[];
