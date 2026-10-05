@@ -18,6 +18,8 @@ Ask these questions in sequence. Stop at the first "yes".
 2. **Does it talk to a server or keep server data?** Requests, sessions and
    tokens, realtime delivery, server and room data, the operations on this
    data, or a privacy or authorization boundary: put it in the client.
+   Exception: requests that only the frontend's own screens use stay in the
+   frontend. See [Allowed Frontend API Modules](#allowed-frontend-api-modules).
 3. **Does it encode a protocol fact?** A token format in a message body,
    mention rules, the permission structure, or validation that mirrors the
    server: put it in the client, also when only the frontend uses it now. The
@@ -75,9 +77,10 @@ The frontend calls ConnectRPC services directly only for its own screens:
 
 - Admin tools, first-run setup, and Web Push (`$lib/api`).
 - Browser sign-in and account-linking flows, such as external identities
-  (`$lib/api/externalIdentities.ts`). These flows use page redirects and the
-  origin's cookie session. Bots do not use them, and a different frontend
-  makes its own flows.
+  (`$lib/api/externalIdentities.ts`). The sign-in flow uses page redirects
+  and the origin's cookie session. Account linking starts a browser redirect.
+  Only the frontend's sign-in and account settings screens use these flows.
+  Bots do not use them, and a different frontend makes its own flows.
 - The cross-tab session channel (`$lib/auth/sessionChannel.ts`).
 
 Do not add other requests there.
