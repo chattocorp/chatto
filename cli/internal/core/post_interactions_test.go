@@ -27,6 +27,7 @@ func TestMessagePostInteractions(t *testing.T) {
 				actor, err := c.CreateUser(ctx, SystemActorID, "post-reader", "Reader", "password123")
 				require.NoError(t, err)
 				if botAccount {
+					allowBotCreation(t, ctx, c, author.Id)
 					bot, err := c.CreateBot(ctx, author.Id, "post_bot", "Bot")
 					require.NoError(t, err)
 					actor = bot.User

@@ -421,6 +421,7 @@ func TestBotOwnerRoomMembership(t *testing.T) {
 	require.NoError(t, err)
 	other, err := c.CreateUser(ctx, SystemActorID, "membership-other", "Other", "password")
 	require.NoError(t, err)
+	allowBotCreation(t, ctx, c, owner.Id)
 	bot, err := c.CreateBot(ctx, owner.Id, "membership_bot", "Membership Bot")
 	require.NoError(t, err)
 	room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "bot-membership", "")
@@ -558,6 +559,7 @@ func TestBotManagerMembershipAndAuthorizationRetry(t *testing.T) {
 	manager, err := c.CreateUser(ctx, SystemActorID, "retry-manager", "Manager", "password")
 	require.NoError(t, err)
 	require.NoError(t, c.GrantUserPermission(ctx, SystemActorID, manager.Id, PermBotManage))
+	allowBotCreation(t, ctx, c, owner.Id)
 	bot, err := c.CreateBot(ctx, owner.Id, "retry_bot", "Retry Bot")
 	require.NoError(t, err)
 	room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "bot-retry", "")
@@ -636,6 +638,7 @@ func TestAccountMembershipManagerOverridesJoinPermission(t *testing.T) {
 				require.NoError(t, err)
 				target := owner
 				if botTarget {
+					allowBotCreation(t, ctx, c, owner.Id)
 					bot, err := c.CreateBot(ctx, owner.Id, "managed_account_bot", "Bot")
 					require.NoError(t, err)
 					target = bot.User

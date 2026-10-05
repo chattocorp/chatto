@@ -4,6 +4,9 @@
 
 > **Partially superseded 2026-09-04:** ADR-091 extends explicit message-read
 > permissions to DMs. DM membership remains an additional requirement.
+>
+> **Amended 2026-09-28:** ADR-113 grants `message.read` to `everyone` once
+> when a 0.4 server upgrades. The upgrade decisions below are replaced.
 
 ## Context
 
@@ -53,13 +56,11 @@ effective only while the bot's owner has `message.read` at the same applicable
 scope. A bot in a DM reads it through membership, not through a delegated
 permission.
 
-Grant `message.read` to `everyone` at server scope only when Chatto bootstraps
-an empty RBAC stream. Do not add a migration or startup reconciliation for an
-existing server. Existing RBAC state belongs to the operator, including an
-absent decision.
+Grant `message.read` to `everyone` at server scope when Chatto bootstraps an
+empty RBAC stream. ADR-113 adds the same grant once when a 0.4 server
+upgrades. Startup does not reconcile it after that.
 
-Operators must grant `message.read` to the accounts or roles that need it when
-they upgrade an existing server. They must replace all old replicas before
+Operators must replace all old replicas before
 they rely on a deny or absent decision as a security boundary. Old replicas
 continue to use membership-only reads.
 
@@ -74,7 +75,7 @@ permission.
 - DM membership remains a sufficient read boundary for human and bot
   participants.
 - Fresh servers preserve current human behavior through the `everyone` grant.
-- Existing servers receive no automatic RBAC changes.
+- Upgraded 0.4 servers receive the `everyone` grant once (ADR-113).
 - Operators can configure read-only and write-only channel-room accounts.
 - Bots remain deny-by-default. The bot allowlist and the owner's effective
   authority are each evaluated with explicit permission-catalog inclusion.

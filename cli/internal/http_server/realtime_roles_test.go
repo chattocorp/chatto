@@ -50,6 +50,7 @@ func TestRealtimeBotReceivesOwnerPermissionBoundaryWithoutPrivateDetails(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
+	allowBotCreation(t, env.ctx, env.core, owner.Id)
 	bot, err := env.core.CreateBot(env.ctx, owner.Id, "event_bot", "Event Bot")
 	if err != nil {
 		t.Fatal(err)

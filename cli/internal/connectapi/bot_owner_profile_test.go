@@ -11,6 +11,7 @@ import (
 
 func TestPublicBotOwnerProfile(t *testing.T) {
 	env := newConnectAPITestEnv(t)
+	allowBotCreation(t, env.ctx, env.core, env.viewer.Id)
 	bot, err := env.core.CreateBot(env.ctx, env.viewer.Id, "owned_bot", "Owned Bot")
 	require.NoError(t, err)
 	reader, err := env.core.CreateUser(env.ctx, core.SystemActorID, "owner_reader", "Reader", "password123")

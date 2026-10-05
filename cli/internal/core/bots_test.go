@@ -115,6 +115,7 @@ func TestBotAccountLifecycleAndAuthentication(t *testing.T) {
 		t.Fatalf("CreateUser: %v", err)
 	}
 
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "helper_bot", "Helper Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -186,6 +187,7 @@ func TestBotAPIKeysAreNamedAndIndependentlyRevocable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBotWithAPIKeyName(ctx, owner.GetId(), "multi_key_bot", "Multi-key Bot", "Primary")
 	if err != nil {
 		t.Fatalf("CreateBotWithAPIKeyName: %v", err)
@@ -284,6 +286,7 @@ func TestBotAPIKeyLimitAndNameValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "key_limit_bot", "Key-limit Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -308,6 +311,7 @@ func TestConcurrentBotAPIKeyCreationCannotExceedActiveLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "api_key_create_race_bot", "API-key Create Race Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -357,6 +361,7 @@ func TestBotIncomingWebhookCredentialsAreIndependentFromEachOtherAndAPIKey(t *te
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "webhook_bot", "Webhook Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -420,6 +425,7 @@ func TestBotIncomingWebhookActiveLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "webhook_limit_bot", "Webhook Limit Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -441,6 +447,7 @@ func TestConcurrentBotIncomingWebhookCreationCannotExceedActiveLimit(t *testing.
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "webhook_create_race_bot", "Webhook Create Race Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -498,6 +505,7 @@ func TestReassignBotOwnerRequiresGlobalManagementAndPreservesBotState(t *testing
 	if err != nil {
 		t.Fatalf("CreateUser manager: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "reassign_bot", "Reassign Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -590,6 +598,7 @@ func TestConcurrentBotOwnerReassignmentsConvergeWithoutStaleIndexes(t *testing.T
 	if err := c.GrantUserPermission(ctx, SystemActorID, manager.GetId(), PermBotManage); err != nil {
 		t.Fatalf("grant manager bot.manage: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "concurrent_bot", "Concurrent Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -660,6 +669,7 @@ func TestReassignBotOwnerIsRaceSafeWithOwnerDeletion(t *testing.T) {
 			if err := c.GrantUserPermission(ctx, SystemActorID, manager.GetId(), PermBotManage); err != nil {
 				t.Fatalf("grant manager bot.manage: %v", err)
 			}
+			allowBotCreation(t, ctx, c, owner.GetId())
 			bot, err := c.CreateBot(ctx, owner.GetId(), "race_bot", "Race Bot")
 			if err != nil {
 				t.Fatalf("CreateBot: %v", err)
@@ -715,6 +725,7 @@ func TestGenericAdminMutationsRejectBotAccounts(t *testing.T) {
 	if err := c.AssignAdminRole(ctx, admin.GetId()); err != nil {
 		t.Fatalf("AssignAdminRole: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "admin_boundary_bot", "Admin Boundary Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -746,6 +757,7 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "permission_bot", "Permission Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -849,6 +861,7 @@ func TestBotMessageReadInclusionIntersectsBotAndOwnerAuthority(t *testing.T) {
 			if err != nil {
 				t.Fatalf("CreateUser: %v", err)
 			}
+			allowBotCreation(t, ctx, core, owner.GetId())
 			bot, err := core.CreateBot(ctx, owner.GetId(), test.slug+"_bot", "Permission Bot")
 			if err != nil {
 				t.Fatalf("CreateBot: %v", err)
@@ -886,6 +899,7 @@ func TestBotPermissionCeilingResolvesExplicitInclusion(t *testing.T) {
 	if err := core.GrantUserPermission(ctx, SystemActorID, owner.GetId(), broad); err != nil {
 		t.Fatalf("grant owner broad permission: %v", err)
 	}
+	allowBotCreation(t, ctx, core, owner.GetId())
 	bot, err := core.CreateBot(ctx, owner.GetId(), "included_permission_bot", "Included Permission Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -912,6 +926,7 @@ func TestBotDMGrantIsScopedAndUsesDynamicOwnerCeiling(t *testing.T) {
 	if err := c.AssignAdminRole(ctx, admin.GetId()); err != nil {
 		t.Fatalf("AssignAdminRole: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "dm_reader_bot", "DM Reader Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -971,6 +986,7 @@ func TestBotDirectMentionActivatesInteractionThread(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser owner: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "activation_bot", "Activation Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -1035,6 +1051,7 @@ func TestBotReplyToAuthoredMessageActivatesBot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser owner: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "reply_activation_bot", "Reply Activation Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -1073,6 +1090,7 @@ func TestBotDisabledDirectMentionDoesNotActivateOrFollow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser owner: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "muted_activation_bot", "Muted Activation Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -1113,6 +1131,7 @@ func TestBotCannotStartDMButCanParticipateInHumanStartedDM(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser owner: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "dm_start_bot", "DM Start Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -1194,6 +1213,7 @@ func TestCanonicalUserPermissionManagementUsesBotAuthorization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser manager: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "canonical_bot", "Canonical Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -1240,6 +1260,7 @@ func TestCanonicalUserPermissionMatrixForBotFiltersHiddenRoomsAndKeepsDirectoryG
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "matrix_bot", "Matrix Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -1320,6 +1341,7 @@ func TestSetUserPermissionRejectsNonexistentBotScopesWithoutPersisting(t *testin
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "scope_bot", "Scope Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -1357,6 +1379,7 @@ func TestSetUserPermissionUsesCurrentRoomGroupForBotOwnerCeiling(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "moving_room_bot", "Moving Room Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -1396,6 +1419,7 @@ func TestDeletingOwnerCascadesOwnedBots(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	first, err := c.CreateBot(ctx, owner.GetId(), "first_bot", "First Bot")
 	if err != nil {
 		t.Fatalf("CreateBot first: %v", err)
@@ -1430,6 +1454,7 @@ func TestHumanAndBotUsernamesShareValidation(t *testing.T) {
 	if err != nil || updatedHuman.GetIsBot() {
 		t.Fatalf("human rename to _bot = %+v, %v", updatedHuman, err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "helper", "Helper")
 	if err != nil || !bot.User.GetIsBot() {
 		t.Fatalf("bot without suffix = %+v, %v", bot, err)
@@ -1457,6 +1482,7 @@ func TestBotOwnerUpdatesBotProfile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser stranger: %v", err)
 	}
+	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "profile_bot", "Profile Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
@@ -1537,5 +1563,34 @@ func TestBotOwnerUpdatesBotProfile(t *testing.T) {
 	}
 	if _, err := c.UpdateManagedUserProfile(ctx, owner.GetId(), botID, nil, nil, nil); !errors.Is(err, ErrInvalidArgument) {
 		t.Fatalf("empty update err = %v, want ErrInvalidArgument", err)
+	}
+}
+
+// Fresh servers grant bot.create to admin only. Ordinary members need an
+// explicit grant before they can create bots.
+func TestBotCreationDefaultsToAdmins(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	member, err := c.CreateUser(ctx, SystemActorID, "plain-member", "Member", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser member: %v", err)
+	}
+	admin, err := c.CreateUser(ctx, SystemActorID, "bot-admin", "Admin", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser admin: %v", err)
+	}
+	if err := c.AssignServerRole(ctx, SystemActorID, admin.GetId(), RoleAdmin); err != nil {
+		t.Fatalf("AssignServerRole: %v", err)
+	}
+
+	if _, err := c.CreateBot(ctx, member.GetId(), "member_bot", "Member Bot"); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("member CreateBot err = %v, want ErrPermissionDenied", err)
+	}
+	if _, err := c.CreateBot(ctx, admin.GetId(), "admin_bot", "Admin Bot"); err != nil {
+		t.Fatalf("admin CreateBot: %v", err)
+	}
+	allowBotCreation(t, ctx, c, member.GetId())
+	if _, err := c.CreateBot(ctx, member.GetId(), "member_bot", "Member Bot"); err != nil {
+		t.Fatalf("member CreateBot after grant: %v", err)
 	}
 }

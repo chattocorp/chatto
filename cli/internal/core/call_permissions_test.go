@@ -127,7 +127,7 @@ func TestCallPermissionDefaultsDoNotReturnAfterClear(t *testing.T) {
 	require.NoError(t, c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermCallCamera))
 	before, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.RBACSubjectFilter())
 	require.NoError(t, err)
-	require.NoError(t, c.seedCallPermissions(ctx))
+	require.NoError(t, c.seedUpgradePermissions(ctx))
 	after, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.RBACSubjectFilter())
 	require.NoError(t, err)
 	require.Equal(t, before, after)
@@ -235,6 +235,7 @@ func TestCallPermissionsDMScopeAndBotDelegation(t *testing.T) {
 	permissions, err := c.AuthorizeCall(ctx, owner.Id, dm.Id, false)
 	require.NoError(t, err)
 	require.False(t, permissions.Voice)
+	allowBotCreation(t, ctx, c, owner.Id)
 	bot, err := c.CreateBot(ctx, owner.Id, "call_bot", "Call Bot")
 	require.NoError(t, err)
 	room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "call-bot-room", "")
@@ -278,7 +279,7 @@ func TestCallPermissionUpgradeConcurrentAndRestart(t *testing.T) {
 	results := make(chan error, 2)
 	for _, replica := range []*ChattoCore{first, second} {
 		group.Add(1)
-		go func() { defer group.Done(); results <- replica.seedCallPermissions(ctx) }()
+		go func() { defer group.Done(); results <- replica.seedUpgradePermissions(ctx) }()
 	}
 	group.Wait()
 	close(results)
@@ -294,7 +295,7 @@ func TestCallPermissionUpgradeConcurrentAndRestart(t *testing.T) {
 		}
 	}
 	require.Equal(t, 5, count)
-	require.NoError(t, second.seedCallPermissions(ctx))
+	require.NoError(t, second.seedUpgradePermissions(ctx))
 	_, after, err := h.publisher.SubjectEvents(ctx, evtstream.RBACSubjectFilter())
 	require.NoError(t, err)
 	require.Equal(t, seq, after)

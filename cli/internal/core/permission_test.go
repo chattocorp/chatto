@@ -321,7 +321,6 @@ func TestDefaultEveryonePermissions(t *testing.T) {
 		PermMessageAttach,
 		PermMessageReact,
 		PermMessageEcho,
-		PermBotCreate,
 		PermCallStart, PermCallJoin, PermCallVoice, PermCallCamera, PermCallScreenShare,
 	}
 	if !slices.Equal(DefaultEveryonePermissions(), want) {
@@ -501,6 +500,7 @@ func TestPermissionConsistency(t *testing.T) {
 			PermUserDeleteSelf,
 			PermUserManageAccounts,
 			PermUserManagePermissions,
+			PermBotCreate,
 			PermBotManage,
 		}
 		if !slices.Equal(DefaultAdminPermissions(), want) {
