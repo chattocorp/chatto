@@ -120,4 +120,4 @@ email = 'bob@example.com'
 password = 'foobar123'
 
 [bootstrap.server]
-name = 'Chatto + Authling'
+name = 'Local Development'
