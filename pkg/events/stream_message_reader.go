@@ -401,6 +401,8 @@ func cloneEncodedSubjectRecordForCache(record EncodedSubjectRecord) EncodedSubje
 	return record
 }
 
+// cloneBytes copies data with cap equal to len. bytes.Clone can report a
+// larger cap.
 func cloneBytes(data []byte) []byte {
 	if data == nil {
 		return nil

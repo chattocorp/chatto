@@ -1,12 +1,13 @@
 package events
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"errors"
 	"fmt"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -304,6 +305,12 @@ type ReplaySubjectProjection interface {
 // Projector calls CompleteStartupReplay exactly once after every event through
 // the captured startup target has been applied. It is also called for an empty
 // or already-current projection.
+//
+// The hook runs inside the Projector's apply barrier, so no event is applied
+// concurrently with it. It must not call Projector methods that take the
+// barrier or wait for startup, such as WithReadBarrier, CaptureSnapshot, or
+// WaitForStartup. Status reports StartupComplete and WaitForStartup returns
+// only after the hook has returned.
 type StartupReplayCompleter interface {
 	CompleteStartupReplay()
 }
@@ -367,7 +374,6 @@ type Projector struct {
 	startupEndedAt   time.Time
 	startupCompleted bool
 	startupMessages  uint64
-	startupLogged    bool
 	startupBatchSize int
 	startupBatch     []sequencedDecodedEvent
 	// startupReconcileInterval sets how often Run checks whether the retained
@@ -995,12 +1001,12 @@ func (p *Projector) waitForSeq(ctx context.Context, seq uint64) error {
 		return nil
 	}
 	ch := make(chan struct{})
-	p.waiters = append(p.waiters, seqWaiter{seq: seq, ch: ch})
 	// Keep waiters sorted ascending by seq so advance() can release them
 	// in order and stop scanning at the first unmet seq.
-	sort.Slice(p.waiters, func(i, j int) bool {
-		return p.waiters[i].seq < p.waiters[j].seq
+	i, _ := slices.BinarySearchFunc(p.waiters, seq, func(w seqWaiter, target uint64) int {
+		return cmp.Compare(w.seq, target)
 	})
+	p.waiters = slices.Insert(p.waiters, i, seqWaiter{seq: seq, ch: ch})
 	p.mu.Unlock()
 
 	select {
@@ -1018,12 +1024,7 @@ func (p *Projector) waitForSeq(ctx context.Context, seq uint64) error {
 		// already-closed channels (it doesn't close twice), and a small
 		// scan here is fine — waiters lists are short.
 		p.mu.Lock()
-		for i, w := range p.waiters {
-			if w.ch == ch {
-				p.waiters = append(p.waiters[:i], p.waiters[i+1:]...)
-				break
-			}
-		}
+		p.waiters = slices.DeleteFunc(p.waiters, func(w seqWaiter) bool { return w.ch == ch })
 		p.mu.Unlock()
 		return ctx.Err()
 	}
@@ -1432,13 +1433,18 @@ func (p *Projector) reconcileStartup(ctx context.Context, previousHandledSeq uin
 	}
 	lastSeq := p.lastSeq
 	p.mu.Unlock()
+	// Complete before the barrier opens: an event that the consumer applies
+	// next is already past the lowered target.
+	summary, completed := p.completeStartupLocked(time.Now())
 	p.applyMu.Unlock()
 
 	p.logger.Info("Projection startup target is no longer retained; completing startup at last applied event",
 		"original_target_seq", originalTarget,
 		"last_seq", lastSeq,
 		"subjects", p.subjects)
-	p.maybeCompleteStartup(time.Now())
+	if completed {
+		p.logStartupComplete(summary)
+	}
 	return handledSeq
 }
 
@@ -1634,56 +1640,76 @@ func (p *Projector) countStartupMessages(count uint64) {
 	}
 }
 
+// maybeCompleteStartup completes startup when every event through the startup
+// target has been applied. The caller must not hold applyMu.
 func (p *Projector) maybeCompleteStartup(now time.Time) {
-	p.mu.Lock()
-	shouldLog := false
-	shouldCompleteReplay := false
-	var duration time.Duration
-	var targetSeq, lastSeq, messages uint64
-	var projectionKey string
-	if p.started && p.startupEndedAt.IsZero() && p.lastSeq >= p.startupTargetSeq {
-		p.startupEndedAt = now
-		p.startupCompleted = true
-		shouldCompleteReplay = true
+	select {
+	case <-p.startupCh:
+		return // Already complete; handleMessage calls this for every event.
+	default:
 	}
-	if p.started && p.startupCompleted && !p.startupLogged {
-		p.startupLogged = true
-		shouldLog = true
-		duration = p.startupEndedAt.Sub(p.startupStartedAt)
-		targetSeq = p.startupTargetSeq
-		lastSeq = p.lastSeq
-		messages = p.startupMessages
-		projectionKey = p.checkpointKey
-		if projectionKey == "" {
-			projectionKey = p.snapshotKey
-		}
+	p.applyMu.Lock()
+	summary, completed := p.completeStartupLocked(now)
+	p.applyMu.Unlock()
+	if completed {
+		p.logStartupComplete(summary)
+	}
+}
+
+// startupSummary holds the values that the startup-complete log reports.
+type startupSummary struct {
+	duration                     time.Duration
+	targetSeq, lastSeq, messages uint64
+	projectionKey                string
+}
+
+// completeStartupLocked ends startup, runs the projection's
+// StartupReplayCompleter hook, and then reports startup complete and releases
+// WaitForStartup callers. The caller must hold applyMu, so no event is applied
+// between the end of startup and the hook.
+func (p *Projector) completeStartupLocked(now time.Time) (startupSummary, bool) {
+	p.mu.Lock()
+	if !p.started || !p.startupEndedAt.IsZero() || p.lastSeq < p.startupTargetSeq {
+		p.mu.Unlock()
+		return startupSummary{}, false
+	}
+	p.startupEndedAt = now
+	summary := startupSummary{
+		duration:      now.Sub(p.startupStartedAt),
+		targetSeq:     p.startupTargetSeq,
+		lastSeq:       p.lastSeq,
+		messages:      p.startupMessages,
+		projectionKey: p.checkpointKey,
+	}
+	if summary.projectionKey == "" {
+		summary.projectionKey = p.snapshotKey
 	}
 	p.mu.Unlock()
 
-	if shouldCompleteReplay {
-		p.applyMu.Lock()
-		if projection, ok := p.proj.(StartupReplayCompleter); ok {
-			projection.CompleteStartupReplay()
-		}
-		p.applyMu.Unlock()
-		close(p.startupCh)
+	if projection, ok := p.proj.(StartupReplayCompleter); ok {
+		projection.CompleteStartupReplay()
 	}
+	p.mu.Lock()
+	p.startupCompleted = true
+	p.mu.Unlock()
+	close(p.startupCh)
+	return summary, true
+}
 
-	if shouldLog {
-		var rate float64
-		if seconds := duration.Seconds(); seconds > 0 {
-			rate = float64(messages) / seconds
-		}
-		p.logger.Info("Projection startup complete",
-			"projection", projectionKey,
-			"duration", duration,
-			"messages", messages,
-			"messages_per_second", rate,
-			"last_seq", lastSeq,
-			"target_seq", targetSeq,
-			"subjects", p.subjects,
-		)
+func (p *Projector) logStartupComplete(summary startupSummary) {
+	var rate float64
+	if seconds := summary.duration.Seconds(); seconds > 0 {
+		rate = float64(summary.messages) / seconds
 	}
+	p.logger.Info("Projection startup complete",
+		"projection", summary.projectionKey,
+		"duration", summary.duration,
+		"messages", summary.messages,
+		"messages_per_second", rate,
+		"last_seq", summary.lastSeq,
+		"target_seq", summary.targetSeq,
+		"subjects", p.subjects,
+	)
 }
 
 // handleConsumeErr is invoked by the SDK when the OrderedConsumer's
@@ -1829,7 +1855,7 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	p.latestSnapshotSeq = snapshot.CutoffSequence
 	p.latestSnapshotAt = snapshot.CreatedAt
 	p.mu.Unlock()
-	// Restore runs after markStarted, so boot-time callers may already be
+	// Restore runs after Run marks the projector started, so boot-time callers may already be
 	// waiting for this sequence. Advance through the normal waiter path instead
 	// of assigning lastSeq directly.
 	p.advance(snapshot.CutoffSequence)

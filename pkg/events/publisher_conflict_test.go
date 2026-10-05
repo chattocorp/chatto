@@ -80,14 +80,14 @@ func TestDecodeBatchAckTranslatesWrongLastSequenceVariants(t *testing.T) {
 		jetstream.JSErrCodeStreamWrongLastSequenceConstant,
 	} {
 		t.Run(fmt.Sprintf("error code %d", code), func(t *testing.T) {
-			msg := &nats.Msg{Data: []byte(fmt.Sprintf(
+			msg := &nats.Msg{Data: fmt.Appendf(nil,
 				`{"error":{"code":400,"err_code":%d,"description":"wrong last sequence"}}`,
 				code,
-			))}
-			_, err := decodeBatchAck(msg, EncodedBatchEntry{
+			)}
+			_, err := decodeBatchAck(msg, conflictExpectationForEntry(EncodedBatchEntry{
 				Subject:     "evt.room.R1.message_sent",
 				ExpectedSeq: 42,
-			})
+			}))
 			if !errors.Is(err, ErrConflict) {
 				t.Fatalf("decodeBatchAck error = %v, want ErrConflict", err)
 			}
@@ -96,14 +96,14 @@ func TestDecodeBatchAckTranslatesWrongLastSequenceVariants(t *testing.T) {
 }
 
 func TestDecodeBatchAckPreservesUnrelatedServerErrors(t *testing.T) {
-	msg := &nats.Msg{Data: []byte(fmt.Sprintf(
+	msg := &nats.Msg{Data: fmt.Appendf(nil,
 		`{"error":{"code":503,"err_code":%d,"description":"JetStream unavailable"}}`,
 		jetstream.JSErrCodeJetStreamNotEnabled,
-	))}
-	_, err := decodeBatchAck(msg, EncodedBatchEntry{
+	)}
+	_, err := decodeBatchAck(msg, conflictExpectationForEntry(EncodedBatchEntry{
 		Subject:     "evt.room.R1.message_sent",
 		ExpectedSeq: 42,
-	})
+	}))
 	if err == nil {
 		t.Fatal("decodeBatchAck error = nil, want server error")
 	}
@@ -114,11 +114,11 @@ func TestDecodeBatchAckPreservesUnrelatedServerErrors(t *testing.T) {
 
 func TestDecodeBatchAckReportsStreamTailExpectation(t *testing.T) {
 	msg := &nats.Msg{Data: []byte(`{"error":{"code":400,"err_code":10071,"description":"wrong last sequence"}}`)}
-	_, err := decodeBatchAck(msg, EncodedBatchEntry{
+	_, err := decodeBatchAck(msg, conflictExpectationForEntry(EncodedBatchEntry{
 		Subject:           "evt.room.R1.reaction_added",
 		ExpectedStreamSeq: 42,
 		HasStreamOCC:      true,
-	})
+	}))
 	if !errors.Is(err, ErrConflict) {
 		t.Fatalf("decodeBatchAck error = %v, want ErrConflict", err)
 	}
@@ -138,7 +138,7 @@ func TestDecodeBatchAckReportsAmbiguousDualGuardExpectation(t *testing.T) {
 		HasStreamOCC:      true,
 	}
 
-	_, err := decodeBatchAck(msg, entry)
+	_, err := decodeBatchAck(msg, conflictExpectationForEntry(entry))
 	if !errors.Is(err, ErrConflict) {
 		t.Fatalf("decodeBatchAck error = %v, want ErrConflict", err)
 	}
@@ -146,7 +146,7 @@ func TestDecodeBatchAckReportsAmbiguousDualGuardExpectation(t *testing.T) {
 		t.Fatalf("decodeBatchAck error = %q, want ambiguous entry guard context", err)
 	}
 
-	_, err = decodeBatchAckWithExpectation(msg, batchConflictExpectation([]EncodedBatchEntry{entry}))
+	_, err = decodeBatchAck(msg, batchConflictExpectation([]EncodedBatchEntry{entry}))
 	if !errors.Is(err, ErrConflict) {
 		t.Fatalf("batch conflict error = %v, want ErrConflict", err)
 	}

@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	mrand "math/rand"
+	mrand "math/rand/v2"
 	"strconv"
 	"sync"
 	"time"
@@ -122,17 +122,6 @@ func NewEncodedEventLog(js jetstream.JetStream, stream jetstream.Stream, logger 
 	return &EncodedEventLog{js: js, stream: stream, logger: normalizeLogger(logger)}
 }
 
-// StreamUsage returns the current message and byte totals for the bound stream.
-func (l *EncodedEventLog) StreamUsage(ctx context.Context) (messages, bytes uint64, err error) {
-	l.streamMu.Lock()
-	defer l.streamMu.Unlock()
-	info, err := l.stream.Info(ctx)
-	if err != nil {
-		return 0, 0, err
-	}
-	return info.State.Msgs, info.State.Bytes, nil
-}
-
 // LastStreamSeq returns the current last sequence of the bound stream. Unlike
 // the message count, this remains a valid OCC token when messages have been
 // deleted or expired.
@@ -188,24 +177,34 @@ func (l *EncodedEventLog) AppendEventually(ctx context.Context, subject string, 
 			return 0, err
 		}
 
-		if l.logger != nil {
-			l.logger.Debug("OCC conflict, retrying",
-				"subject", subject,
-				"expected_seq", expectedSeq,
-				"attempt", attempt,
-				"max_attempts", maxAppendRetries)
-		}
 		lastErr = err
-
-		baseDelay := time.Duration(1<<(attempt-1)) * time.Millisecond
-		jitter := time.Duration(mrand.Int63n(int64(5 * time.Millisecond)))
-		select {
-		case <-ctx.Done():
-			return 0, ctx.Err()
-		case <-time.After(baseDelay + jitter):
+		if attempt == maxAppendRetries {
+			break
+		}
+		l.logger.Debug("OCC conflict, retrying",
+			"subject", subject,
+			"expected_seq", expectedSeq,
+			"attempt", attempt,
+			"max_attempts", maxAppendRetries)
+		if err := waitBeforeConflictRetry(ctx, attempt); err != nil {
+			return 0, err
 		}
 	}
 	return 0, fmt.Errorf("append after %d attempts: %w", maxAppendRetries, lastErr)
+}
+
+// waitBeforeConflictRetry waits before OCC conflict retry attempt+1. The delay
+// doubles from 1ms per attempt, plus up to 5ms of jitter so that contending
+// writers do not retry in lockstep.
+func waitBeforeConflictRetry(ctx context.Context, attempt int) error {
+	timer := time.NewTimer(time.Duration(1<<(attempt-1))*time.Millisecond + mrand.N(5*time.Millisecond))
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 // AppendAt publishes a record with a caller-supplied expected last sequence
@@ -352,7 +351,7 @@ func (l *EncodedEventLog) publishBatchEntry(
 	if err != nil {
 		return 0, fmt.Errorf("publish: %w", err)
 	}
-	return decodeBatchAckWithExpectation(resp, conflict)
+	return decodeBatchAck(resp, conflict)
 }
 
 type conflictExpectation struct {
@@ -406,11 +405,7 @@ type pubAckEnvelope struct {
 	Duplicate bool   `json:"duplicate,omitempty"`
 }
 
-func decodeBatchAck(resp *nats.Msg, entry EncodedBatchEntry) (uint64, error) {
-	return decodeBatchAckWithExpectation(resp, conflictExpectationForEntry(entry))
-}
-
-func decodeBatchAckWithExpectation(resp *nats.Msg, conflict conflictExpectation) (uint64, error) {
+func decodeBatchAck(resp *nats.Msg, conflict conflictExpectation) (uint64, error) {
 	if len(resp.Data) == 0 {
 		return 0, nil
 	}
@@ -637,33 +632,6 @@ func appendPageRecords(page *SubjectRecordPage, msgs jetstream.MessageBatch, max
 		return fetched, true, err
 	}
 	return fetched, full, nil
-}
-
-// SubjectRecordsAfter returns all opaque records matching subject with stream
-// sequence greater than afterSeq, plus the last matching sequence. New callers
-// that need a bounded allocation should use SubjectRecordsAfterPage instead.
-func (l *EncodedEventLog) SubjectRecordsAfter(
-	ctx context.Context,
-	subject string,
-	afterSeq uint64,
-) ([]EncodedSubjectRecord, uint64, error) {
-	var records []EncodedSubjectRecord
-	var lastSeq uint64
-	for {
-		page, err := l.SubjectRecordsAfterPage(ctx, subject, afterSeq, 500, 0)
-		if err != nil {
-			return nil, 0, err
-		}
-		records = append(records, page.Records...)
-		if page.LastSequence > 0 {
-			lastSeq = page.LastSequence
-		}
-		if !page.More || len(page.Records) == 0 {
-			break
-		}
-		afterSeq = page.LastSequence
-	}
-	return records, lastSeq, nil
 }
 
 func (l *EncodedEventLog) lastSubjectSeq(ctx context.Context, subject string) (uint64, error) {

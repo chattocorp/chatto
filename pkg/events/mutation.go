@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	mrand "math/rand"
 	"strings"
-	"time"
 )
 
 // ErrInvalidMutationBoundary marks a missing or malformed mutation boundary.
@@ -134,23 +132,16 @@ func (l *EncodedEventLog) ExecuteMutation(
 
 		result.Conflicts++
 		lastErr = err
-		if l.logger != nil {
-			l.logger.Debug("mutation OCC conflict, re-evaluating",
-				"boundary", boundary.description(),
-				"expected_seq", expectedSeq,
-				"attempt", attempt,
-				"max_attempts", maxMutationAttempts)
-		}
 		if attempt == maxMutationAttempts {
 			break
 		}
-
-		baseDelay := time.Duration(1<<(attempt-1)) * time.Millisecond
-		jitter := time.Duration(mrand.Int63n(int64(5 * time.Millisecond)))
-		select {
-		case <-ctx.Done():
-			return result, ctx.Err()
-		case <-time.After(baseDelay + jitter):
+		l.logger.Debug("mutation OCC conflict, re-evaluating",
+			"boundary", boundary.description(),
+			"expected_seq", expectedSeq,
+			"attempt", attempt,
+			"max_attempts", maxMutationAttempts)
+		if err := waitBeforeConflictRetry(ctx, attempt); err != nil {
+			return result, err
 		}
 	}
 	return result, fmt.Errorf("execute mutation after %d attempts: %w", maxMutationAttempts, lastErr)

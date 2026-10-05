@@ -199,7 +199,7 @@ func (w *DurableWorker) Run(ctx context.Context) error {
 			if errors.Is(err, jetstream.ErrConsumerDeleted) || errors.Is(err, jetstream.ErrConsumerNotFound) {
 				return fmt.Errorf("durable worker consumer is unavailable: %w", err)
 			}
-			w.logWarn("Durable work fetch failed; retrying", "error", err)
+			w.opts.Logger.Warn("Durable work fetch failed; retrying", "error", err)
 			if !waitForDurableWorkerRetry(ctx, w.opts.FetchRetryDelay) {
 				return nil
 			}
@@ -207,7 +207,7 @@ func (w *DurableWorker) Run(ctx context.Context) error {
 		}
 		if ctx.Err() != nil {
 			if err := msg.Nak(); err != nil {
-				w.logWarn("Durable delivery handoff failed", "subject", msg.Subject(), "error", err)
+				w.opts.Logger.Warn("Durable delivery handoff failed", "subject", msg.Subject(), "error", err)
 			}
 			<-active
 			return nil
@@ -236,7 +236,7 @@ func waitForDurableWorkerRetry(ctx context.Context, delay time.Duration) bool {
 func (w *DurableWorker) process(ctx context.Context, msg jetstream.Msg) {
 	metadata, err := msg.Metadata()
 	if err != nil {
-		w.logError("Durable delivery metadata unavailable", "error", err)
+		w.opts.Logger.Error("Durable delivery metadata unavailable", "error", err)
 		w.retry(msg, w.opts.RetryDelay)
 		return
 	}
@@ -271,7 +271,7 @@ func (w *DurableWorker) process(ctx context.Context, msg jetstream.Msg) {
 			return
 		case <-heartbeat.C:
 			if err := msg.InProgress(); err != nil {
-				w.logWarn("Durable delivery heartbeat failed", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "error", err)
+				w.opts.Logger.Warn("Durable delivery heartbeat failed", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "error", err)
 			}
 		}
 	}
@@ -284,7 +284,7 @@ func (w *DurableWorker) handoff(msg jetstream.Msg, delivery DurableDelivery) {
 	// maximum pull lifetime so an orphaned request from this stopping worker
 	// cannot reclaim the handoff.
 	if err := msg.NakWithDelay(delay); err != nil {
-		w.logWarn("Durable delivery handoff failed", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "retry_delay", delay, "error", err)
+		w.opts.Logger.Warn("Durable delivery handoff failed", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "retry_delay", delay, "error", err)
 	}
 }
 
@@ -296,9 +296,9 @@ func durableWorkerHandoffDelay(fetchMaxWait time.Duration) time.Duration {
 func (w *DurableWorker) finish(ctx context.Context, msg jetstream.Msg, delivery DurableDelivery, err error) {
 	if terminateErr, ok := errors.AsType[*terminateDeliveryError](err); ok {
 		if termErr := msg.TermWithReason(terminateErr.reason); termErr != nil {
-			w.logWarn("Durable delivery termination failed", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "error", termErr)
+			w.opts.Logger.Warn("Durable delivery termination failed", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "error", termErr)
 		} else {
-			w.logError("Durable delivery terminated", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "delivery_attempt", delivery.NumDelivered, "reason", terminateErr.reason, "error", terminateErr.err)
+			w.opts.Logger.Error("Durable delivery terminated", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "delivery_attempt", delivery.NumDelivered, "reason", terminateErr.reason, "error", terminateErr.err)
 		}
 		return
 	}
@@ -309,7 +309,7 @@ func (w *DurableWorker) finish(ctx context.Context, msg jetstream.Msg, delivery 
 			delay = retryErr.delay
 		}
 		if shouldLogDurableDeliveryAttempt(delivery.NumDelivered) {
-			w.logWarn("Durable delivery failed; retrying", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "delivery_attempt", delivery.NumDelivered, "retry_delay", delay, "error", err)
+			w.opts.Logger.Warn("Durable delivery failed; retrying", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "delivery_attempt", delivery.NumDelivered, "retry_delay", delay, "error", err)
 		}
 		w.retry(msg, delay)
 		return
@@ -318,7 +318,7 @@ func (w *DurableWorker) finish(ctx context.Context, msg jetstream.Msg, delivery 
 	ackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), w.opts.AckTimeout)
 	defer cancel()
 	if err := msg.DoubleAck(ackCtx); err != nil {
-		w.logWarn("Durable delivery acknowledgement was not confirmed", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "error", err)
+		w.opts.Logger.Warn("Durable delivery acknowledgement was not confirmed", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "error", err)
 	}
 }
 
@@ -337,18 +337,6 @@ func (w *DurableWorker) retry(msg jetstream.Msg, delay time.Duration) {
 		err = msg.Nak()
 	}
 	if err != nil {
-		w.logWarn("Durable delivery retry request failed", "subject", msg.Subject(), "error", err)
-	}
-}
-
-func (w *DurableWorker) logWarn(message any, keyvals ...any) {
-	if w.opts.Logger != nil {
-		w.opts.Logger.Warn(message, keyvals...)
-	}
-}
-
-func (w *DurableWorker) logError(message any, keyvals ...any) {
-	if w.opts.Logger != nil {
-		w.opts.Logger.Error(message, keyvals...)
+		w.opts.Logger.Warn("Durable delivery retry request failed", "subject", msg.Subject(), "error", err)
 	}
 }
