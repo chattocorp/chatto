@@ -46,7 +46,7 @@ func v05UpgradePermissions() []Permission {
 // Retries and restarts can never undo an operator's later clear or deny. The
 // complete RBAC tail guards concurrent initializers.
 func (c *ChattoCore) seedUpgradePermissions(ctx context.Context) error {
-	for attempt := 0; attempt < maxRBACMutationRetries; attempt++ {
+	for range maxRBACMutationRetries {
 		state, err := c.scanRBACUpgradeState(ctx)
 		if err != nil {
 			return err
