@@ -507,40 +507,6 @@
       "create_title": "Utwórz konto bota",
       "create_failed": "Nie udało się utworzyć bota",
       "created": "Bot został utworzony",
-      "capabilities": {
-        "legend": "Uprawnienia początkowe",
-        "hint": "Możesz je później zmienić.",
-        "unavailable": "Sam nie masz tego uprawnienia, więc nie możesz go nadać swojemu botowi.",
-        "apply_failed": "Twój bot jest gotowy, ale kilku uprawnień nie udało się nadać. Zajrzyj na jego kartę Uprawnienia.",
-        "interactions": {
-          "title": "Odpowiadanie na wzmianki",
-          "description": "Odpowiada od razu w wątku, gdy ktoś go @wspomni."
-        },
-        "direct_messages": {
-          "title": "Czat w wiadomościach prywatnych",
-          "description": "Rozmawia w cztery oczy, gdy ktoś napisze do niego wiadomość prywatną."
-        },
-        "post": {
-          "title": "Publikowanie wiadomości",
-          "description": "Publikuje nowe wiadomości, np. ogłoszenia lub alerty."
-        },
-        "read_all": {
-          "title": "Czytanie wszystkiego",
-          "description": "Widzi każdą wiadomość w swoich pokojach, nie tylko te do niego."
-        },
-        "react": {
-          "title": "Reakcje emoji",
-          "description": "Dodaje reakcje emoji do wiadomości."
-        },
-        "attach": {
-          "title": "Udostępnianie plików",
-          "description": "Załącza pliki do wysyłanych wiadomości."
-        },
-        "join_rooms": {
-          "title": "Znajdowanie pokojów i dołączanie",
-          "description": "Przegląda listę pokojów i sam do nich dołącza."
-        }
-      },
       "username": "Nazwa użytkownika",
       "display_name": "Nazwa wyświetlana",
       "profile_title": "Profil",
@@ -589,6 +555,7 @@
       "deleted": "Bot usunięty",
       "delete_failed": "Nie udało się usunąć bota",
       "permissions": {
+        "defaults": "Nowe boty od razu mogą odpowiadać na wzmianki i rozmawiać w wiadomościach prywatnych. Aby twój bot publikował ogłoszenia, czytał każdą wiadomość lub sam dołączał do pokojów, włącz poniżej więcej uprawnień. Dodaj go do pokojów w wierszu „Dołączył”.",
         "owner_ceiling": "Wybierz, co ten bot może robić. Możesz nadać mu tylko uprawnienia, które masz samodzielnie. Jeśli utracisz uprawnienie, bot również nie będzie mógł go używać.",
         "save_failed": "Nie udało się zaktualizować uprawnień bota"
       },

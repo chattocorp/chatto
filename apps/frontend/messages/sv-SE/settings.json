@@ -507,40 +507,6 @@
       "create_title": "Skapa botkonto",
       "create_failed": "Det gick inte att skapa bot",
       "created": "Botten skapad",
-      "capabilities": {
-        "legend": "Startbehörigheter",
-        "hint": "Du kan ändra dem senare.",
-        "unavailable": "Du har inte den här behörigheten själv, så du kan inte ge den till din bot.",
-        "apply_failed": "Din bot är klar, men några behörigheter gick inte igenom. Ta en titt på fliken Behörigheter.",
-        "interactions": {
-          "title": "Svara på omnämnanden",
-          "description": "Svarar direkt i tråden när någon @nämner den."
-        },
-        "direct_messages": {
-          "title": "Chatta i direktmeddelanden",
-          "description": "Pratar på tu man hand när någon skickar ett direktmeddelande till den."
-        },
-        "post": {
-          "title": "Skicka meddelanden",
-          "description": "Skickar nya meddelanden, som utskick eller larm."
-        },
-        "read_all": {
-          "title": "Läsa allt",
-          "description": "Ser varje meddelande i sina rum, inte bara de som riktas till den."
-        },
-        "react": {
-          "title": "Reagera med emoji",
-          "description": "Lägger till emojireaktioner på meddelanden."
-        },
-        "attach": {
-          "title": "Dela filer",
-          "description": "Bifogar filer till meddelandena den skickar."
-        },
-        "join_rooms": {
-          "title": "Hitta och gå med i rum",
-          "description": "Bläddrar i rumslistan och går med i rum på egen hand."
-        }
-      },
       "username": "Användarnamn",
       "display_name": "Visningsnamn",
       "profile_title": "Profil",
@@ -589,6 +555,7 @@
       "deleted": "Botten raderad",
       "delete_failed": "Det gick inte att ta bort bot",
       "permissions": {
+        "defaults": "Nya bottar kan direkt svara på omnämnanden och chatta i direktmeddelanden. Om din bot ska skicka utskick, läsa alla meddelanden eller gå med i rum på egen hand slår du på fler behörigheter nedan. Lägg till den i rum på raden ”Gick med”.",
         "owner_ceiling": "Välj vad den här boten får göra. Du kan bara ge den behörigheter som du själv har. Om du förlorar en behörighet kan boten inte heller använda den längre.",
         "save_failed": "Det gick inte att uppdatera botbehörighet"
       },

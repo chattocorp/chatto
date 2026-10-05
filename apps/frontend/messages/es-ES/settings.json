@@ -507,40 +507,6 @@
       "create_title": "Crear cuenta de bot",
       "create_failed": "Error al crear el bot",
       "created": "Bot creado",
-      "capabilities": {
-        "legend": "Permisos iniciales",
-        "hint": "Puedes cambiarlos más tarde.",
-        "unavailable": "Tú no tienes este permiso, así que no puedes dárselo a tu bot.",
-        "apply_failed": "Tu bot está listo, pero algunos permisos no se aplicaron. Échales un vistazo en su pestaña Permisos.",
-        "interactions": {
-          "title": "Responder a menciones",
-          "description": "Responde en el mismo hilo cuando alguien lo @menciona."
-        },
-        "direct_messages": {
-          "title": "Chatear por mensaje directo",
-          "description": "Habla en privado cuando alguien le envía un mensaje directo."
-        },
-        "post": {
-          "title": "Publicar mensajes",
-          "description": "Publica mensajes nuevos, como anuncios o alertas."
-        },
-        "read_all": {
-          "title": "Leerlo todo",
-          "description": "Ve todos los mensajes de sus salas, no solo los dirigidos a él."
-        },
-        "react": {
-          "title": "Reaccionar con emoji",
-          "description": "Añade reacciones con emoji a los mensajes."
-        },
-        "attach": {
-          "title": "Compartir archivos",
-          "description": "Adjunta archivos a los mensajes que envía."
-        },
-        "join_rooms": {
-          "title": "Buscar salas y unirse",
-          "description": "Explora la lista de salas y se une a ellas por su cuenta."
-        }
-      },
       "username": "Nombre de usuario",
       "display_name": "Nombre para mostrar",
       "profile_title": "Perfil",
@@ -589,6 +555,7 @@
       "deleted": "Bot eliminado",
       "delete_failed": "Error al eliminar el bot",
       "permissions": {
+        "defaults": "Los bots nuevos pueden responder a menciones y chatear por mensaje directo desde el principio. Para que tu bot publique anuncios, lea todos los mensajes o se una a salas por su cuenta, activa más permisos abajo. Añádelo a salas en la fila «Se unió».",
         "owner_ceiling": "Elige qué puede hacer este bot. Solo puedes concederle permisos que tú también tengas. Si pierdes un permiso, el bot tampoco podrá usarlo.",
         "save_failed": "Error al actualizar el permiso del bot"
       },

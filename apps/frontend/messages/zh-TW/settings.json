@@ -507,40 +507,6 @@
       "create_title": "建立機器人帳號",
       "create_failed": "創建機器人失敗",
       "created": "機器人已建立",
-      "capabilities": {
-        "legend": "初始權限",
-        "hint": "你之後可以變更。",
-        "unavailable": "你自己沒有此權限，因此無法授予你的機器人。",
-        "apply_failed": "機器人已準備就緒，但部分權限未能授予。請到它的「權限」分頁查看。",
-        "interactions": {
-          "title": "回覆提及",
-          "description": "有人@提及它時，直接在討論串中回覆。"
-        },
-        "direct_messages": {
-          "title": "私訊聊天",
-          "description": "有人傳私訊給它時，進行一對一交流。"
-        },
-        "post": {
-          "title": "傳送訊息",
-          "description": "傳送新訊息，例如公告或提醒。"
-        },
-        "read_all": {
-          "title": "閱讀全部",
-          "description": "看到所在聊天室的每則訊息，而不只是給它的。"
-        },
-        "react": {
-          "title": "表情回應",
-          "description": "為訊息新增表情回應。"
-        },
-        "attach": {
-          "title": "分享檔案",
-          "description": "在傳送的訊息中附加檔案。"
-        },
-        "join_rooms": {
-          "title": "尋找並加入聊天室",
-          "description": "瀏覽聊天室清單並自行加入。"
-        }
-      },
       "username": "使用者名稱",
       "display_name": "顯示名稱",
       "profile_title": "個人檔案",
@@ -589,6 +555,7 @@
       "deleted": "機器人已刪除",
       "delete_failed": "刪除機器人失敗",
       "permissions": {
+        "defaults": "新機器人一開始就能回覆提及並在私訊中聊天。要讓你的機器人發布公告、閱讀所有訊息或自行加入聊天室，請在下方開啟更多權限。在「已加入」一列中將它加入聊天室。",
         "owner_ceiling": "選擇這個機器人可以執行的操作。你只能授予自己擁有的權限。如果你失去某項權限，機器人也將無法再使用該權限。",
         "save_failed": "無法更新機器人權限"
       },

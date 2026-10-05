@@ -4,7 +4,6 @@
   import { resolve } from '$app/paths';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { createBotAPI } from '@chatto/client/api/bots';
-  import { createPermissionAPI } from '@chatto/client/api/permissions';
   import { createUserAPI } from '@chatto/client/api/users';
   import {
     DataTable,
@@ -16,13 +15,7 @@
     PaneContent,
     PaneHeader
   } from '$lib/ui';
-  import BotCapabilityPicker from '$lib/components/bots/BotCapabilityPicker.svelte';
   import ShowOnceCredentialDialog from '$lib/components/bots/ShowOnceCredentialDialog.svelte';
-  import {
-    applyBotCapabilities,
-    botCapabilityAvailable,
-    type BotCapabilityId
-  } from '$lib/components/bots/botCapabilities';
   import UserIdentity from '$lib/components/users/UserIdentity.svelte';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { m } from '$lib/i18n/messages';
@@ -105,18 +98,11 @@
   let createVisible = $state(false);
   let createLogin = $state('');
   let createDisplayName = $state('');
-  let createCapabilities = $state<BotCapabilityId[]>([]);
   let createLoading = $state(false);
   let createError = $state<string | null>(null);
   let apiKeyVisible = $state(false);
   let apiKey = $state('');
   let createdBotId = $state<string | null>(null);
-  /**
-   * Resolves when the capability grants of the new bot are done. The value is
-   * true when the Permissions tab must open after the API key dialog closes:
-   * no capability was selected, or a grant failed.
-   */
-  let createdBotGrants: Promise<boolean> = Promise.resolve(false);
 
   const botLoginSchema = z
     .string()
@@ -144,11 +130,9 @@
   }
 
   function openCreate() {
-    // Wait until the grants of the previous bot are done.
-    if (!canCreateBots || createLoading) return;
+    if (!canCreateBots) return;
     createLogin = '';
     createDisplayName = '';
-    createCapabilities = [];
     createError = null;
     createVisible = true;
   }
@@ -157,12 +141,6 @@
     if (!canCreateBots || !normalizedCreateLogin || createLoginError) return;
     const serverId = serverScope.serverId;
     const connection = serverScope.connection;
-    // Permissions can change while the dialog is open. Do not send a grant
-    // that the owner ceiling would reject.
-    const serverPermissions = serverScope.store.permissions.serverScope;
-    const capabilities = createCapabilities.filter((id) =>
-      botCapabilityAvailable(id, serverPermissions)
-    );
     createLoading = true;
     createError = null;
     try {
@@ -171,8 +149,6 @@
         displayName: createDisplayName.trim()
       });
       if (!componentActive || !serverScope.isCurrent()) return;
-      // Show the one-time key before the grants, so that it is not lost if
-      // the page closes while the grants are sent.
       createdBotId = created.bot.id;
       createVisible = false;
       apiKey = created.apiKey;
@@ -181,23 +157,6 @@
       void queryClient.invalidateQueries({
         queryKey: settingsQueryKeys.botsRoot(serverId, connection)
       });
-      createdBotGrants =
-        capabilities.length === 0
-          ? Promise.resolve(true)
-          : applyBotCapabilities(
-              connection.getAPI(createPermissionAPI),
-              created.bot.id,
-              capabilities
-            )
-              .then(({ failed }) => failed.length > 0)
-              .catch(() => true)
-              .then((failed) => {
-                if (failed && componentActive) {
-                  toast.warning(m('settings.bots.capabilities.apply_failed'));
-                }
-                return failed;
-              });
-      await createdBotGrants;
     } catch (error) {
       if (!componentActive) return;
       createError = errorMessage(error, m('settings.bots.create_failed'));
@@ -206,22 +165,19 @@
     }
   }
 
-  async function closeAPIKey() {
+  function closeAPIKey() {
     const botId = createdBotId;
     apiKeyVisible = false;
     apiKey = '';
     createdBotId = null;
-    if (!botId) return;
-    // createBot clears createLoading before this continues, so the key
-    // dialog no longer blocks the navigation.
-    const openPermissions = await createdBotGrants;
-    if (!componentActive) return;
-    const params = { serverId: serverIdToSegment(serverScope.serverId), botId };
-    void goto(
-      openPermissions
-        ? resolve('/chat/[serverId]/manage/server/bots/[botId]/permissions', params)
-        : resolve('/chat/[serverId]/manage/server/bots/[botId]', params)
-    );
+    if (botId) {
+      void goto(
+        resolve('/chat/[serverId]/manage/server/bots/[botId]', {
+          serverId: serverIdToSegment(serverScope.serverId),
+          botId
+        })
+      );
+    }
   }
 </script>
 
@@ -253,7 +209,7 @@
             />
           </div>
           {#if canCreateBots}
-            <Button size="sm" loading={createLoading} onclick={openCreate}>
+            <Button size="sm" onclick={openCreate}>
               <span class="iconify icon-[uil--plus]" aria-hidden="true"></span>
               {m('settings.bots.create')}
             </Button>
@@ -322,7 +278,6 @@
 <FormDialog
   bind:visible={createVisible}
   title={m('settings.bots.create_title')}
-  size="lg"
   submitLabel={m('settings.bots.create')}
   submitIcon="iconify icon-[uil--robot]"
   loading={createLoading}
@@ -346,11 +301,6 @@
     maxlength={32}
     required
     bind:value={createDisplayName}
-  />
-  <BotCapabilityPicker
-    bind:selected={createCapabilities}
-    disabled={createLoading}
-    serverScope={serverScope.store.permissions.serverScope}
   />
 </FormDialog>
 

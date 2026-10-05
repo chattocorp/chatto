@@ -507,40 +507,6 @@
       "create_title": "创建机器人帐户",
       "create_failed": "创建机器人失败",
       "created": "机器人已创建",
-      "capabilities": {
-        "legend": "初始权限",
-        "hint": "你之后可以更改。",
-        "unavailable": "你自己没有此权限，因此无法授予你的机器人。",
-        "apply_failed": "机器人已就绪，但部分权限未能授予。请到它的“权限”选项卡查看。",
-        "interactions": {
-          "title": "回复提及",
-          "description": "有人@提及它时，直接在话题中回复。"
-        },
-        "direct_messages": {
-          "title": "私信聊天",
-          "description": "有人给它发私信时，进行一对一交流。"
-        },
-        "post": {
-          "title": "发送消息",
-          "description": "发送新消息，例如公告或提醒。"
-        },
-        "read_all": {
-          "title": "阅读全部",
-          "description": "看到所在聊天室的每条消息，而不仅是发给它的。"
-        },
-        "react": {
-          "title": "表情回应",
-          "description": "为消息添加表情回应。"
-        },
-        "attach": {
-          "title": "分享文件",
-          "description": "在发送的消息中附加文件。"
-        },
-        "join_rooms": {
-          "title": "查找并加入聊天室",
-          "description": "浏览聊天室列表并自行加入。"
-        }
-      },
       "username": "用户名",
       "display_name": "显示名称",
       "profile_title": "个人资料",
@@ -589,6 +555,7 @@
       "deleted": "机器人已删除",
       "delete_failed": "删除机器人失败",
       "permissions": {
+        "defaults": "新机器人一开始就能回复提及并在私信中聊天。要让你的机器人发布公告、阅读所有消息或自行加入聊天室，请在下方开启更多权限。在“已加入”一行中将它添加到聊天室。",
         "owner_ceiling": "选择这个机器人可以执行的操作。你只能授予自己拥有的权限。如果你失去某项权限，机器人也将无法再使用该权限。",
         "save_failed": "无法更新机器人权限"
       },

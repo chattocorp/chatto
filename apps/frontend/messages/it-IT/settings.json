@@ -507,40 +507,6 @@
       "create_title": "Crea un account Bot",
       "create_failed": "Impossibile creare il bot",
       "created": "Bot creato",
-      "capabilities": {
-        "legend": "Autorizzazioni iniziali",
-        "hint": "Puoi modificarle in seguito.",
-        "unavailable": "Non hai tu stesso questa autorizzazione, quindi non puoi darla al tuo bot.",
-        "apply_failed": "Il tuo bot è pronto, ma alcune autorizzazioni non sono state applicate. Dai un’occhiata alla sua scheda Autorizzazioni.",
-        "interactions": {
-          "title": "Rispondere alle menzioni",
-          "description": "Risponde direttamente nel thread quando qualcuno lo @menziona."
-        },
-        "direct_messages": {
-          "title": "Chattare nei messaggi diretti",
-          "description": "Parla a tu per tu quando qualcuno gli invia un messaggio diretto."
-        },
-        "post": {
-          "title": "Pubblicare messaggi",
-          "description": "Pubblica nuovi messaggi, come annunci o avvisi."
-        },
-        "read_all": {
-          "title": "Leggere tutto",
-          "description": "Vede ogni messaggio nelle sue stanze, non solo quelli rivolti a lui."
-        },
-        "react": {
-          "title": "Reagire con emoji",
-          "description": "Aggiunge reazioni emoji ai messaggi."
-        },
-        "attach": {
-          "title": "Condividere file",
-          "description": "Allega file ai messaggi che invia."
-        },
-        "join_rooms": {
-          "title": "Trovare stanze ed entrarvi",
-          "description": "Sfoglia l’elenco delle stanze ed entra da solo."
-        }
-      },
       "username": "Nome utente",
       "display_name": "Nome visualizzato",
       "profile_title": "Profilo",
@@ -589,6 +555,7 @@
       "deleted": "Bot eliminato",
       "delete_failed": "Impossibile eliminare il bot",
       "permissions": {
+        "defaults": "I nuovi bot possono subito rispondere alle menzioni e chattare nei messaggi diretti. Per far pubblicare annunci al tuo bot, fargli leggere ogni messaggio o farlo entrare da solo nelle stanze, attiva altre autorizzazioni qui sotto. Aggiungilo alle stanze nella riga «Iscritto».",
         "owner_ceiling": "Scegli cosa può fare questo bot. Puoi assegnargli solo le autorizzazioni che possiedi. Se perdi un'autorizzazione, anche il bot non potrà più usarla.",
         "save_failed": "Impossibile aggiornare l'autorizzazione del bot"
       },

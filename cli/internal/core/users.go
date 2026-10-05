@@ -46,7 +46,9 @@ type userCreationOptions struct {
 	botOwnerID    string
 	botAPIKeyOut  *string
 	botAPIKeyName string
-	authorize     func() error
+	// botGrants are direct allows that commit with the bot account.
+	botGrants []botPermissionGrant
+	authorize func() error
 }
 
 func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, login, displayName, password string, options userCreationOptions) (*evtv1.User, error) {
@@ -213,6 +215,15 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 			},
 		}})
 		keyCreated.CreatedAt = now
+		// Keep the grants before the user fact that ends the batch. The
+		// append helper waits for the projections of the last entry.
+		for _, grant := range options.botGrants {
+			granted := newEvent(eventActorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{
+				RbacPermissionGranted: rbacUserPermissionGrantedEvent(grant.scope, "", userID, grant.perm),
+			}})
+			granted.CreatedAt = now
+			entries = append(entries, evtstream.BatchEntry{Subject: rbacSubjectForEvent(granted), Event: granted})
+		}
 		entries = append(entries, evtstream.BatchEntry{
 			Subject: agg.Subject(evtstream.EventBotAPIKeyCreated),
 			Event:   keyCreated,
@@ -359,6 +370,11 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 	}
 	if options.invitationID != "" {
 		if err := c.invitationModel.projection.Projector().WaitForCurrent(ctx); err != nil {
+			return nil, err
+		}
+	}
+	if len(options.botGrants) > 0 {
+		if err := c.rbacModel.rbac.Projector().WaitForCurrent(ctx); err != nil {
 			return nil, err
 		}
 	}

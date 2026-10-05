@@ -507,40 +507,6 @@
       "create_title": "Izveidojiet robotprogrammatūras kontu",
       "create_failed": "Neizdevās izveidot robotu",
       "created": "Bots izveidots",
-      "capabilities": {
-        "legend": "Sākotnējās atļaujas",
-        "hint": "Jūs varat tās mainīt vēlāk.",
-        "unavailable": "Jums pašam nav šīs atļaujas, tāpēc jūs nevarat to piešķirt savam botam.",
-        "apply_failed": "Jūsu bots ir gatavs, bet dažas atļaujas neizdevās piešķirt. Ieskatieties cilnē Atļaujas.",
-        "interactions": {
-          "title": "Atbildēt uz pieminējumiem",
-          "description": "Atbild turpat pavedienā, kad kāds viņu @piemin."
-        },
-        "direct_messages": {
-          "title": "Tērzēt tiešajās ziņās",
-          "description": "Sarunājas divatā, kad kāds viņam nosūta tiešo ziņu."
-        },
-        "post": {
-          "title": "Publicēt ziņas",
-          "description": "Publicē jaunas ziņas, piemēram, paziņojumus vai brīdinājumus."
-        },
-        "read_all": {
-          "title": "Lasīt visu",
-          "description": "Redz katru ziņu savās istabās, ne tikai viņam adresētās."
-        },
-        "react": {
-          "title": "Reaģēt ar emocijzīmēm",
-          "description": "Pievieno ziņām emocijzīmju reakcijas."
-        },
-        "attach": {
-          "title": "Kopīgot failus",
-          "description": "Pievieno failus nosūtītajām ziņām."
-        },
-        "join_rooms": {
-          "title": "Atrast istabas un pievienoties",
-          "description": "Pārlūko istabu sarakstu un pats pievienojas istabām."
-        }
-      },
       "username": "Lietotājvārds",
       "display_name": "Parādītais nosaukums",
       "profile_title": "Profils",
@@ -589,6 +555,7 @@
       "deleted": "Bots ir izdzēsts",
       "delete_failed": "Neizdevās izdzēst robotu",
       "permissions": {
+        "defaults": "Jauni boti uzreiz var atbildēt uz pieminējumiem un tērzēt tiešajās ziņās. Lai jūsu bots publicētu paziņojumus, lasītu visas ziņas vai pats pievienotos istabām, ieslēdziet vairāk atļauju zemāk. Pievienojiet to istabām rindā “Pievienojās”.",
         "owner_ceiling": "Izvēlieties, ko šis bots drīkst darīt. Varat tam piešķirt tikai tās atļaujas, kas ir jums pašam. Ja zaudēsiet kādu atļauju, arī bots to vairs nevarēs izmantot.",
         "save_failed": "Neizdevās atjaunināt robota atļauju"
       },

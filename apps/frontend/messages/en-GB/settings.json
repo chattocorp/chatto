@@ -507,40 +507,6 @@
       "create_title": "Create Bot Account",
       "create_failed": "Failed to create bot",
       "created": "Bot created",
-      "capabilities": {
-        "legend": "Starting permissions",
-        "hint": "You can change these later.",
-        "unavailable": "You don't have this permission yourself, so you can't give it to your bot.",
-        "apply_failed": "Your bot is ready, but a few permissions didn't stick. Have a look at its Permissions tab.",
-        "interactions": {
-          "title": "Answer mentions",
-          "description": "Replies when someone @mentions it, right there in the thread."
-        },
-        "direct_messages": {
-          "title": "Chat in DMs",
-          "description": "Talks one-on-one when someone sends it a direct message."
-        },
-        "post": {
-          "title": "Post messages",
-          "description": "Posts new messages, like announcements or alerts."
-        },
-        "read_all": {
-          "title": "Read everything",
-          "description": "Sees every message in its rooms, not just the ones meant for it."
-        },
-        "react": {
-          "title": "React with emoji",
-          "description": "Adds emoji reactions to messages."
-        },
-        "attach": {
-          "title": "Share files",
-          "description": "Attaches files to the messages it sends."
-        },
-        "join_rooms": {
-          "title": "Find and join rooms",
-          "description": "Browses the room list and joins rooms on its own."
-        }
-      },
       "username": "Username",
       "display_name": "Display Name",
       "profile_title": "Profile",
@@ -589,6 +555,7 @@
       "deleted": "Bot deleted",
       "delete_failed": "Failed to delete bot",
       "permissions": {
+        "defaults": "New bots can answer mentions and chat in DMs right away. To let your bot post announcements, read every message, or join rooms on its own, turn on more permissions below. Add it to rooms in the Joined row.",
         "owner_ceiling": "Choose what your bot can do. You can only give it permissions you have yourself. If you lose a permission, your bot loses it too.",
         "save_failed": "Failed to update bot permission"
       },

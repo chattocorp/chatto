@@ -35,7 +35,6 @@ export { default as Pill } from './Pill.svelte';
 export { default as ScrollFader } from './ScrollFader.svelte';
 export { default as ScrollArea } from './ScrollArea.svelte';
 export { default as SegmentedControl } from './SegmentedControl.svelte';
-export { default as SelectableTile } from './SelectableTile.svelte';
 export { default as TabNav, type TabNavItem } from './TabNav.svelte';
 export { default as StatCard } from './StatCard.svelte';
 export { default as ToggleChip } from './ToggleChip.svelte';

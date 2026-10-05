@@ -20,12 +20,6 @@ export type ServerPermissions = ViewerCapabilities & {
   canCreateBots: boolean;
   /** Effective server-wide `bot.manage`. */
   canManageBots: boolean;
-  /**
-   * Every effective server-scope permission decision of the viewer, keyed by
-   * permission name. A missing key means not allowed. Use it for checks that
-   * have no dedicated flag above.
-   */
-  serverScope: Readonly<Record<string, boolean>>;
 };
 
 /** Permissions before the viewer projection loads, or after it is cleared. */
@@ -47,8 +41,7 @@ export const NO_SERVER_PERMISSIONS: ServerPermissions = Object.freeze({
   canManageRooms: false,
   canModerateRooms: false,
   canCreateBots: false,
-  canManageBots: false,
-  serverScope: Object.freeze({})
+  canManageBots: false
 });
 
 /** Map a loaded viewer projection to the permissions that the UI checks. */
@@ -72,7 +65,6 @@ export function serverPermissionsFromViewer(viewer: ViewerState): ServerPermissi
     canManageRooms: can('room.manage'),
     canModerateRooms: can('room.remove-member'),
     canCreateBots: can('bot.create'),
-    canManageBots: can('bot.manage'),
-    serverScope: Object.freeze({ ...viewer.viewerPermissions })
+    canManageBots: can('bot.manage')
   };
 }

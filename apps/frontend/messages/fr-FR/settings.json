@@ -507,40 +507,6 @@
       "create_title": "Créer un compte de robot",
       "create_failed": "Échec de la création du bot",
       "created": "Bot créé",
-      "capabilities": {
-        "legend": "Autorisations de départ",
-        "hint": "Vous pourrez les modifier plus tard.",
-        "unavailable": "Vous n’avez pas vous-même cette autorisation, vous ne pouvez donc pas la donner à votre bot.",
-        "apply_failed": "Votre bot est prêt, mais quelques autorisations n’ont pas pu être appliquées. Jetez un œil à son onglet Autorisations.",
-        "interactions": {
-          "title": "Répondre aux mentions",
-          "description": "Répond directement dans le fil quand quelqu’un le @mentionne."
-        },
-        "direct_messages": {
-          "title": "Discuter en messages privés",
-          "description": "Discute en tête-à-tête quand quelqu’un lui envoie un message privé."
-        },
-        "post": {
-          "title": "Publier des messages",
-          "description": "Publie de nouveaux messages, comme des annonces ou des alertes."
-        },
-        "read_all": {
-          "title": "Tout lire",
-          "description": "Voit tous les messages de ses salons, pas seulement ceux qui lui sont destinés."
-        },
-        "react": {
-          "title": "Réagir avec des emoji",
-          "description": "Ajoute des réactions emoji aux messages."
-        },
-        "attach": {
-          "title": "Partager des fichiers",
-          "description": "Joint des fichiers aux messages qu’il envoie."
-        },
-        "join_rooms": {
-          "title": "Trouver et rejoindre des salons",
-          "description": "Parcourt la liste des salons et les rejoint de lui-même."
-        }
-      },
       "username": "Nom d'utilisateur",
       "display_name": "Nom d'affichage",
       "profile_title": "Profil",
@@ -589,6 +555,7 @@
       "deleted": "Bot supprimé",
       "delete_failed": "Échec de la suppression du bot",
       "permissions": {
+        "defaults": "Les nouveaux bots peuvent tout de suite répondre aux mentions et discuter en messages privés. Pour que votre bot publie des annonces, lise tous les messages ou rejoigne des salons de lui-même, activez d’autres autorisations ci-dessous. Ajoutez-le à des salons dans la ligne « Rejoint ».",
         "owner_ceiling": "Choisissez ce que ce bot peut faire. Vous ne pouvez lui accorder que les autorisations dont vous disposez vous-même. Si vous perdez une autorisation, le bot ne pourra plus l’utiliser non plus.",
         "save_failed": "Échec de la mise à jour de l'autorisation du bot"
       },

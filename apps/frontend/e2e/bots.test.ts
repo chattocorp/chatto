@@ -281,8 +281,7 @@ test.describe('Bot account lifecycle', () => {
     await createDialog.getByRole('button', { name: 'Create bot', exact: true }).click();
 
     const originalKey = await captureShowOnceBotKey(page);
-    // A bot created without capabilities opens on its Permissions tab.
-    await page.waitForURL(routes.patterns.anyAdminBotPermissions);
+    await page.waitForURL(routes.patterns.anyAdminBot);
     await expect(
       page.getByRole('heading', { name: `${botDisplayName} BOT`, exact: true, level: 1 })
     ).toBeVisible();

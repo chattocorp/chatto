@@ -507,40 +507,6 @@
       "create_title": "Opprett bot-konto",
       "create_failed": "Kunne ikke opprette bot",
       "created": "Bote opprettet",
-      "capabilities": {
-        "legend": "Starttillatelser",
-        "hint": "Du kan endre dem senere.",
-        "unavailable": "Du har ikke denne tillatelsen selv, så du kan ikke gi den til boten din.",
-        "apply_failed": "Boten din er klar, men noen tillatelser gikk ikke gjennom. Ta en titt i fanen Tillatelser.",
-        "interactions": {
-          "title": "Svare på omtaler",
-          "description": "Svarer rett i tråden når noen @nevner den."
-        },
-        "direct_messages": {
-          "title": "Chatte i direktemeldinger",
-          "description": "Prater på tomannshånd når noen sender den en direktemelding."
-        },
-        "post": {
-          "title": "Sende meldinger",
-          "description": "Sender nye meldinger, som kunngjøringer eller varsler."
-        },
-        "read_all": {
-          "title": "Lese alt",
-          "description": "Ser hver melding i rommene sine, ikke bare de som er rettet til den."
-        },
-        "react": {
-          "title": "Reagere med emoji",
-          "description": "Legger til emojireaksjoner på meldinger."
-        },
-        "attach": {
-          "title": "Dele filer",
-          "description": "Legger ved filer i meldingene den sender."
-        },
-        "join_rooms": {
-          "title": "Finne og bli med i rom",
-          "description": "Blar gjennom romlisten og blir med i rom på egen hånd."
-        }
-      },
       "username": "Brukernavn",
       "display_name": "Visningsnavn",
       "profile_title": "Profil",
@@ -589,6 +555,7 @@
       "deleted": "Bote slettet",
       "delete_failed": "Kunne ikke slette bot",
       "permissions": {
+        "defaults": "Nye boter kan med en gang svare på omtaler og chatte i direktemeldinger. Hvis boten din skal sende kunngjøringer, lese alle meldinger eller bli med i rom på egen hånd, slår du på flere tillatelser nedenfor. Legg den til i rom i raden «Ble med».",
         "owner_ceiling": "Velg hva denne boten kan gjøre. Du kan bare gi den tillatelser du selv har. Hvis du mister en tillatelse, kan boten heller ikke bruke den lenger.",
         "save_failed": "Kunne ikke oppdatere bottillatelsen"
       },

@@ -507,40 +507,6 @@
       "create_title": "Bot-account maken",
       "create_failed": "Kan geen bot maken",
       "created": "Bot gemaakt",
-      "capabilities": {
-        "legend": "Beginrechten",
-        "hint": "Je kunt ze later wijzigen.",
-        "unavailable": "Je hebt dit recht zelf niet, dus je kunt het niet aan je bot geven.",
-        "apply_failed": "Je bot is klaar, maar een paar rechten zijn niet gelukt. Kijk even op het tabblad Rechten.",
-        "interactions": {
-          "title": "Reageren op vermeldingen",
-          "description": "Antwoordt meteen in de thread als iemand hem @vermeldt."
-        },
-        "direct_messages": {
-          "title": "Chatten via privéberichten",
-          "description": "Praat één-op-één als iemand hem een privébericht stuurt."
-        },
-        "post": {
-          "title": "Berichten plaatsen",
-          "description": "Plaatst nieuwe berichten, zoals aankondigingen of meldingen."
-        },
-        "read_all": {
-          "title": "Alles lezen",
-          "description": "Ziet elk bericht in zijn kamers, niet alleen de berichten voor hem."
-        },
-        "react": {
-          "title": "Reageren met emoji",
-          "description": "Voegt emoji-reacties aan berichten toe."
-        },
-        "attach": {
-          "title": "Bestanden delen",
-          "description": "Voegt bestanden toe aan de berichten die hij stuurt."
-        },
-        "join_rooms": {
-          "title": "Kamers vinden en deelnemen",
-          "description": "Bekijkt de kamerlijst en neemt zelf deel aan kamers."
-        }
-      },
       "username": "Gebruikersnaam",
       "display_name": "Weergavenaam",
       "profile_title": "Profiel",
@@ -589,6 +555,7 @@
       "deleted": "Bot verwijderd",
       "delete_failed": "Kan bot niet verwijderen",
       "permissions": {
+        "defaults": "Nieuwe bots kunnen meteen reageren op vermeldingen en chatten via privéberichten. Wil je dat je bot aankondigingen plaatst, elk bericht leest of zelf kamers binnengaat? Zet hieronder meer rechten aan. Voeg hem toe aan kamers in de rij ‘Lid geworden’.",
         "owner_ceiling": "Kies wat deze bot mag doen. Je kunt alleen rechten geven die je zelf hebt. Als je een recht verliest, kan de bot het ook niet meer gebruiken.",
         "save_failed": "Kan de botrechten niet bijwerken"
       },

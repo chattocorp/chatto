@@ -30,7 +30,7 @@ func webhookTestBot(t *testing.T, c *ChattoCore) (string, string, string) {
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "webhook-owner", "Owner", "password123")
 	require.NoError(t, err)
-	bot, err := c.CreateBot(ctx, owner.GetId(), "outbound_bot", "Outbound")
+	bot, err := c.CreateBotWithExplicitPermissions(ctx, owner.GetId(), "outbound_bot", "Outbound", defaultBotAPIKeyName)
 	require.NoError(t, err)
 	require.NoError(t, c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeDM}, PermMessageRead, PermissionStateAllow))
 	room, _, err := c.FindOrCreateDM(ctx, owner.GetId(), []string{bot.User.GetId()})

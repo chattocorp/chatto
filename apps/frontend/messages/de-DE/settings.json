@@ -507,40 +507,6 @@
       "create_title": "Bot-Konto erstellen",
       "create_failed": "Bot konnte nicht erstellt werden",
       "created": "Bot erstellt",
-      "capabilities": {
-        "legend": "Anfangsberechtigungen",
-        "hint": "Du kannst sie später ändern.",
-        "unavailable": "Du hast diese Berechtigung selbst nicht, darum kannst du sie deinem Bot nicht geben.",
-        "apply_failed": "Dein Bot ist bereit, aber bei ein paar Berechtigungen hat es nicht geklappt. Schau im Tab „Berechtigungen“ nach.",
-        "interactions": {
-          "title": "Auf Erwähnungen antworten",
-          "description": "Antwortet direkt im Thread, wenn jemand ihn @erwähnt."
-        },
-        "direct_messages": {
-          "title": "In DMs chatten",
-          "description": "Unterhält sich unter vier Augen, wenn ihm jemand eine Direktnachricht schreibt."
-        },
-        "post": {
-          "title": "Nachrichten senden",
-          "description": "Sendet neue Nachrichten, etwa Ankündigungen oder Warnungen."
-        },
-        "read_all": {
-          "title": "Alles lesen",
-          "description": "Sieht jede Nachricht in seinen Räumen, nicht nur die an ihn gerichteten."
-        },
-        "react": {
-          "title": "Mit Emoji reagieren",
-          "description": "Reagiert mit Emoji auf Nachrichten."
-        },
-        "attach": {
-          "title": "Dateien teilen",
-          "description": "Hängt Dateien an seine Nachrichten an."
-        },
-        "join_rooms": {
-          "title": "Räume finden und beitreten",
-          "description": "Durchsucht die Raumliste und tritt Räumen selbst bei."
-        }
-      },
       "username": "Benutzername",
       "display_name": "Anzeigename",
       "profile_title": "Profil",
@@ -589,6 +555,7 @@
       "deleted": "Bot gelöscht",
       "delete_failed": "Bot konnte nicht gelöscht werden",
       "permissions": {
+        "defaults": "Neue Bots können sofort auf Erwähnungen antworten und in DMs chatten. Damit dein Bot Ankündigungen sendet, jede Nachricht liest oder selbst Räumen beitritt, schalte unten weitere Berechtigungen ein. Füge ihn in der Zeile „Beigetreten“ zu Räumen hinzu.",
         "owner_ceiling": "Wähle aus, was dein Bot tun darf. Du kannst ihm nur Berechtigungen geben, die du selbst hast. Wenn du eine Berechtigung verlierst, gilt das auch für deinen Bot.",
         "save_failed": "Bot-Berechtigung konnte nicht aktualisiert werden"
       },

@@ -507,40 +507,6 @@
       "create_title": "Bot Hesabı Oluştur",
       "create_failed": "Bot oluşturulamadı",
       "created": "Bot oluşturuldu",
-      "capabilities": {
-        "legend": "Başlangıç izinleri",
-        "hint": "Bunları daha sonra değiştirebilirsiniz.",
-        "unavailable": "Bu izne kendiniz sahip değilsiniz, bu yüzden botunuza veremezsiniz.",
-        "apply_failed": "Botunuz hazır, ancak bazı izinler verilemedi. İzinler sekmesine göz atın.",
-        "interactions": {
-          "title": "Bahsetmelere yanıt verme",
-          "description": "Biri onu @andığında doğrudan ileti dizisinde yanıt verir."
-        },
-        "direct_messages": {
-          "title": "Doğrudan mesajda sohbet",
-          "description": "Biri ona doğrudan mesaj gönderdiğinde birebir konuşur."
-        },
-        "post": {
-          "title": "Mesaj gönderme",
-          "description": "Duyuru veya uyarı gibi yeni mesajlar gönderir."
-        },
-        "read_all": {
-          "title": "Her şeyi okuma",
-          "description": "Odalarındaki tüm mesajları görür, yalnızca ona yönelik olanları değil."
-        },
-        "react": {
-          "title": "Emoji ile tepki verme",
-          "description": "Mesajlara emoji tepkileri ekler."
-        },
-        "attach": {
-          "title": "Dosya paylaşma",
-          "description": "Gönderdiği mesajlara dosya ekler."
-        },
-        "join_rooms": {
-          "title": "Oda bulma ve katılma",
-          "description": "Oda listesine göz atar ve odalara kendi başına katılır."
-        }
-      },
       "username": "Kullanıcı adı",
       "display_name": "Görünen Ad",
       "profile_title": "Profil",
@@ -589,6 +555,7 @@
       "deleted": "Bot silindi",
       "delete_failed": "Bot silinemedi",
       "permissions": {
+        "defaults": "Yeni botlar hemen bahsetmelere yanıt verebilir ve doğrudan mesajlarda sohbet edebilir. Botunuzun duyuru göndermesi, tüm mesajları okuması veya odalara kendisi katılması için aşağıdan daha fazla izin açın. Botu odalara “Katıldı” satırından ekleyin.",
         "owner_ceiling": "Bu botun neler yapabileceğini seçin. Yalnızca sizin de sahip olduğunuz izinleri verebilirsiniz. Bir izni kaybederseniz bot da artık o izni kullanamaz.",
         "save_failed": "Bot izni güncellenemedi"
       },

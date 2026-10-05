@@ -507,40 +507,6 @@
       "create_title": "Looge roboti konto",
       "create_failed": "Boti loomine ebaõnnestus",
       "created": "Bot loodud",
-      "capabilities": {
-        "legend": "Algsed load",
-        "hint": "Saate neid hiljem muuta.",
-        "unavailable": "Teil endal ei ole seda luba, seega ei saa te seda oma botile anda.",
-        "apply_failed": "Teie bot on valmis, kuid mõnda luba ei õnnestunud anda. Vaadake vahekaarti Load.",
-        "interactions": {
-          "title": "Mainimistele vastamine",
-          "description": "Vastab otse lõimes, kui keegi teda @mainib."
-        },
-        "direct_messages": {
-          "title": "Otsesõnumites vestlemine",
-          "description": "Vestleb nelja silma all, kui keegi saadab talle otsesõnumi."
-        },
-        "post": {
-          "title": "Sõnumite postitamine",
-          "description": "Postitab uusi sõnumeid, näiteks teadaandeid või hoiatusi."
-        },
-        "read_all": {
-          "title": "Kõige lugemine",
-          "description": "Näeb kõiki oma ruumide sõnumeid, mitte ainult talle mõeldud."
-        },
-        "react": {
-          "title": "Emojiga reageerimine",
-          "description": "Lisab sõnumitele emoji-reaktsioone."
-        },
-        "attach": {
-          "title": "Failide jagamine",
-          "description": "Manustab faile saadetavatele sõnumitele."
-        },
-        "join_rooms": {
-          "title": "Ruumide leidmine ja nendega liitumine",
-          "description": "Sirvib ruumide loendit ja liitub ruumidega ise."
-        }
-      },
       "username": "Kasutajanimi",
       "display_name": "Kuvatav nimi",
       "profile_title": "Profiil",
@@ -589,6 +555,7 @@
       "deleted": "Bot kustutatud",
       "delete_failed": "Boti kustutamine ebaõnnestus",
       "permissions": {
+        "defaults": "Uued botid saavad kohe mainimistele vastata ja otsesõnumites vestelda. Kui soovite, et teie bot postitaks teadaandeid, loeks kõiki sõnumeid või liituks ise ruumidega, lülitage allpool sisse rohkem lube. Lisage ta ruumidesse real „Liitunud“.",
         "owner_ceiling": "Vali, mida see bot teha tohib. Saad anda talle ainult õigusi, mis sul endal on. Kui kaotad mõne õiguse, ei saa ka bot seda enam kasutada.",
         "save_failed": "Boti loa värskendamine ebaõnnestus"
       },

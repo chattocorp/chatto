@@ -507,40 +507,6 @@
       "create_title": "Vytvořit účet robota",
       "create_failed": "Nepodařilo se vytvořit robota",
       "created": "Robot vytvořen",
-      "capabilities": {
-        "legend": "Počáteční oprávnění",
-        "hint": "Později je můžete změnit.",
-        "unavailable": "Toto oprávnění sami nemáte, proto ho nemůžete dát svému botovi.",
-        "apply_failed": "Váš bot je připraven, ale několik oprávnění se nepodařilo udělit. Podívejte se na jeho kartu Oprávnění.",
-        "interactions": {
-          "title": "Odpovídat na zmínky",
-          "description": "Odpoví přímo ve vlákně, když ho někdo @zmíní."
-        },
-        "direct_messages": {
-          "title": "Chatovat v přímých zprávách",
-          "description": "Mluví mezi čtyřma očima, když mu někdo pošle přímou zprávu."
-        },
-        "post": {
-          "title": "Odesílat zprávy",
-          "description": "Odesílá nové zprávy, například oznámení nebo upozornění."
-        },
-        "read_all": {
-          "title": "Číst všechno",
-          "description": "Vidí každou zprávu ve svých místnostech, nejen ty určené jemu."
-        },
-        "react": {
-          "title": "Reagovat emoji",
-          "description": "Přidává ke zprávám reakce emoji."
-        },
-        "attach": {
-          "title": "Sdílet soubory",
-          "description": "Přikládá soubory ke zprávám, které posílá."
-        },
-        "join_rooms": {
-          "title": "Hledat místnosti a připojovat se",
-          "description": "Prochází seznam místností a sám se k nim připojuje."
-        }
-      },
       "username": "Uživatelské jméno",
       "display_name": "Zobrazovaný název",
       "profile_title": "Profil",
@@ -589,6 +555,7 @@
       "deleted": "Bobot byl smazán",
       "delete_failed": "Smazání robota se nezdařilo",
       "permissions": {
+        "defaults": "Noví boti mohou hned odpovídat na zmínky a chatovat v přímých zprávách. Pokud má váš bot posílat oznámení, číst každou zprávu nebo se sám připojovat k místnostem, zapněte níže další oprávnění. Do místností ho přidáte v řádku „Připojeno“.",
         "owner_ceiling": "Vyberte, co tento bot smí dělat. Můžete mu udělit jen oprávnění, která sami máte. Pokud o některé oprávnění přijdete, nebude ho moci používat ani bot.",
         "save_failed": "Nepodařilo se aktualizovat oprávnění robota"
       },

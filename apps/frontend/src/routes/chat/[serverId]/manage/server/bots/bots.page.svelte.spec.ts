@@ -1,30 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { page, userEvent } from 'vitest/browser';
+import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { queryClient } from '$lib/query/client';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
-import { getToasts } from '$lib/ui/toast';
-import { Code, ConnectError } from '@connectrpc/connect';
 import { mockService } from '$lib/test-utils';
 import { BotService } from '@chatto/api-types/api/v1/bots_connect';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
-import { AdminPermissionService } from '@chatto/api-types/admin/v1/permissions_connect';
-import {
-  PermissionDecision,
-  PermissionScopeKind,
-  type SetUserPermissionRequest
-} from '@chatto/api-types/admin/v1/permissions_pb';
 
 vi.mock(
   '$lib/state/server/scope.svelte',
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
 );
-
-const navigation = vi.hoisted(() => ({ goto: vi.fn() }));
-vi.mock('$app/navigation', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('$app/navigation')>()),
-  goto: navigation.goto
-}));
 
 // Page titles are tested separately from this page's partial route/server fixtures.
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
@@ -32,51 +18,9 @@ vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 // Server handlers: the page runs the real bot and user API clients against them.
 const bots = mockService(BotService);
 const users = mockService(UserService);
-const permissions = mockService(AdminPermissionService);
 let server: TestServerScope;
 
 import BotsPage from './+page.svelte';
-
-const HELPER_PERMISSIONS = {
-  'message.react': true,
-  'message.read': true,
-  'message.post': true,
-  'message.read-interactions': true,
-  'message.post-in-interactions': true
-};
-
-/** Opens the dialog, fills it, selects the capabilities, and submits it. */
-async function createHelperBot(
-  container: Element,
-  capabilities: RegExp[],
-  beforeSubmit?: () => void
-) {
-  bots.createBot.mockReturnValue({
-    bot: {
-      user: { id: 'B1', login: 'helper', displayName: 'Helper', bot: { ownerUserId: 'viewer-1' } },
-      ownerUserId: 'viewer-1'
-    },
-    apiKey: 'secret-key'
-  });
-  await userEvent.click(createButton(container)!);
-  await userEvent.fill(document.querySelector<HTMLInputElement>('#bot-login')!, 'helper');
-  await userEvent.fill(document.querySelector<HTMLInputElement>('#bot-display-name')!, 'Helper');
-  for (const name of capabilities) {
-    await userEvent.click(page.getByRole('checkbox', { name }));
-  }
-  beforeSubmit?.();
-  await userEvent.click(page.getByRole('button', { name: 'Create bot', exact: true }).last());
-}
-
-function allowEveryGrant() {
-  permissions.setUserPermission.mockImplementation((request: SetUserPermissionRequest) => ({
-    decision: {
-      permission: request.permission,
-      scope: request.scope,
-      decision: PermissionDecision.ALLOW
-    }
-  }));
-}
 
 function createButton(container: Element): HTMLButtonElement | undefined {
   return Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) =>
@@ -89,11 +33,7 @@ describe('Bot administration page', () => {
     queryClient.clear();
     vi.clearAllMocks();
     server = createTestServerScope({
-      routes: (router) =>
-        router
-          .service(BotService, bots)
-          .service(UserService, users)
-          .service(AdminPermissionService, permissions)
+      routes: (router) => router.service(BotService, bots).service(UserService, users)
     });
     bots.listBots.mockReturnValue({ bots: [], page: { totalCount: 0n, hasMore: false } });
     users.batchGetUsers.mockReturnValue({ users: [] });
@@ -147,134 +87,6 @@ describe('Bot administration page', () => {
       (button) => button.textContent?.trim() === 'Create bot'
     );
     expect(submit?.disabled).toBe(false);
-  });
-
-  it('locks capabilities that the creator does not hold', async () => {
-    server.permissions.canCreateBots = true;
-    server.permissions.serverScope = { 'message.read': true, 'room.list': true };
-    const { container } = render(BotsPage);
-
-    await userEvent.click(createButton(container)!);
-
-    await expect
-      .element(page.getByRole('checkbox', { name: 'Read everything' }))
-      .not.toHaveAttribute('aria-disabled', 'true');
-    const joinRooms = page.getByRole('checkbox', { name: 'Find and join rooms' });
-    await expect.element(joinRooms).toHaveAttribute('aria-disabled', 'true');
-    await expect
-      .element(joinRooms)
-      .toHaveAccessibleDescription(/You don't have this permission yourself/);
-    // Playwright does not click an aria-disabled control, so click its label directly.
-    (page.getByText('Find and join rooms').element() as HTMLElement).click();
-    await expect.element(joinRooms).not.toBeChecked();
-  });
-
-  it('grants the selected capabilities after it creates the bot', async () => {
-    server.permissions.canCreateBots = true;
-    server.permissions.serverScope = HELPER_PERMISSIONS;
-    allowEveryGrant();
-    const { container } = render(BotsPage);
-
-    await createHelperBot(container, [/Answer mentions/, /Chat in DMs/]);
-
-    await expect.element(page.getByText('Save This API Key')).toBeInTheDocument();
-    await vi.waitFor(() => expect(permissions.setUserPermission).toHaveBeenCalledTimes(4));
-    expect(
-      permissions.setUserPermission.mock.calls.map(([request]) => [
-        request.userId,
-        request.scope?.kind,
-        request.permission,
-        request.decision
-      ])
-    ).toEqual([
-      ['B1', PermissionScopeKind.SERVER, 'message.read-interactions', PermissionDecision.ALLOW],
-      ['B1', PermissionScopeKind.SERVER, 'message.post-in-interactions', PermissionDecision.ALLOW],
-      ['B1', PermissionScopeKind.DM, 'message.read', PermissionDecision.ALLOW],
-      ['B1', PermissionScopeKind.DM, 'message.post', PermissionDecision.ALLOW]
-    ]);
-
-    await userEvent.click(page.getByRole('button', { name: 'Got it' }));
-    await vi.waitFor(() =>
-      expect(navigation.goto).toHaveBeenCalledWith('/chat/-/manage/server/bots/B1')
-    );
-  });
-
-  it('skips a capability that became unavailable while the dialog was open', async () => {
-    server.permissions.canCreateBots = true;
-    server.permissions.serverScope = HELPER_PERMISSIONS;
-    allowEveryGrant();
-    const { container } = render(BotsPage);
-
-    await createHelperBot(container, [/Answer mentions/, /Read everything/], () => {
-      server.permissions.serverScope = { ...HELPER_PERMISSIONS, 'message.read': false };
-    });
-
-    await vi.waitFor(() => expect(permissions.setUserPermission).toHaveBeenCalledTimes(2));
-    expect(permissions.setUserPermission.mock.calls.map(([request]) => request.permission)).toEqual(
-      ['message.read-interactions', 'message.post-in-interactions']
-    );
-  });
-
-  it('navigates only after the grants finish when the key dialog closes early', async () => {
-    server.permissions.canCreateBots = true;
-    server.permissions.serverScope = HELPER_PERMISSIONS;
-    let release!: () => void;
-    const released = new Promise<void>((resolve) => (release = resolve));
-    permissions.setUserPermission.mockImplementation(async (request: SetUserPermissionRequest) => {
-      await released;
-      return {
-        decision: {
-          permission: request.permission,
-          scope: request.scope,
-          decision: PermissionDecision.ALLOW
-        }
-      };
-    });
-    const { container } = render(BotsPage);
-
-    await createHelperBot(container, [/React with emoji/]);
-    await userEvent.click(page.getByRole('button', { name: 'Got it' }));
-    await vi.waitFor(() => expect(permissions.setUserPermission).toHaveBeenCalledTimes(1));
-    expect(navigation.goto).not.toHaveBeenCalled();
-
-    release();
-    await vi.waitFor(() =>
-      expect(navigation.goto).toHaveBeenCalledWith('/chat/-/manage/server/bots/B1')
-    );
-  });
-
-  it('warns and opens the Permissions tab when a grant fails', async () => {
-    server.permissions.canCreateBots = true;
-    server.permissions.serverScope = HELPER_PERMISSIONS;
-    permissions.setUserPermission.mockImplementation(() => {
-      throw new ConnectError('owner ceiling', Code.PermissionDenied);
-    });
-    const { container } = render(BotsPage);
-
-    await createHelperBot(container, [/Chat in DMs/]);
-
-    await vi.waitFor(() =>
-      expect(getToasts().map((item) => item.message)).toContain(
-        "Your bot is ready, but a few permissions didn't stick. Have a look at its Permissions tab."
-      )
-    );
-    await userEvent.click(page.getByRole('button', { name: 'Got it' }));
-    await vi.waitFor(() =>
-      expect(navigation.goto).toHaveBeenCalledWith('/chat/-/manage/server/bots/B1/permissions')
-    );
-  });
-
-  it('opens the Permissions tab when no capability is selected', async () => {
-    server.permissions.canCreateBots = true;
-    const { container } = render(BotsPage);
-
-    await createHelperBot(container, []);
-
-    await userEvent.click(page.getByRole('button', { name: 'Got it' }));
-    await vi.waitFor(() =>
-      expect(navigation.goto).toHaveBeenCalledWith('/chat/-/manage/server/bots/B1/permissions')
-    );
-    expect(permissions.setUserPermission).not.toHaveBeenCalled();
   });
 
   it('renders bot and owner identities with avatars and display names', async () => {

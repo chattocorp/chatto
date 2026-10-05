@@ -507,40 +507,6 @@
       "create_title": "Krei Bot-Konton",
       "create_failed": "Malsukcesis krei bot",
       "created": "Bot kreita",
-      "capabilities": {
-        "legend": "Komencaj permesoj",
-        "hint": "Vi povas ŝanĝi ilin poste.",
-        "unavailable": "Vi mem ne havas ĉi tiun permeson, do vi ne povas doni ĝin al via roboto.",
-        "apply_failed": "Via roboto pretas, sed kelkaj permesoj ne sukcesis. Rigardu la langeton Permesoj.",
-        "interactions": {
-          "title": "Respondi al mencioj",
-          "description": "Respondas rekte en la fadeno, kiam iu @mencias ĝin."
-        },
-        "direct_messages": {
-          "title": "Babili en rektaj mesaĝoj",
-          "description": "Parolas duope, kiam iu sendas al ĝi rektan mesaĝon."
-        },
-        "post": {
-          "title": "Afiŝi mesaĝojn",
-          "description": "Afiŝas novajn mesaĝojn, ekzemple anoncojn aŭ avertojn."
-        },
-        "read_all": {
-          "title": "Legi ĉion",
-          "description": "Vidas ĉiun mesaĝon en siaj ĉambroj, ne nur tiujn por ĝi."
-        },
-        "react": {
-          "title": "Reagi per emoĝioj",
-          "description": "Aldonas emoĝiajn reagojn al mesaĝoj."
-        },
-        "attach": {
-          "title": "Kunhavigi dosierojn",
-          "description": "Kunsendas dosierojn al la mesaĝoj, kiujn ĝi sendas."
-        },
-        "join_rooms": {
-          "title": "Trovi ĉambrojn kaj aliĝi",
-          "description": "Foliumas la ĉambroliston kaj mem aliĝas al ĉambroj."
-        }
-      },
       "username": "Uzantnomo",
       "display_name": "Montra nomo",
       "profile_title": "Profilo",
@@ -589,6 +555,7 @@
       "deleted": "Bot forigita",
       "delete_failed": "Malsukcesis forigi bot",
       "permissions": {
+        "defaults": "Novaj robotoj tuj povas respondi al mencioj kaj babili en rektaj mesaĝoj. Por ke via roboto afiŝu anoncojn, legu ĉiujn mesaĝojn aŭ mem aliĝu al ĉambroj, ŝaltu pliajn permesojn sube. Aldonu ĝin al ĉambroj en la vico „Aliĝis“.",
         "owner_ceiling": "Elektu, kion ĉi tiu roboto rajtas fari. Vi povas doni al ĝi nur permesojn, kiujn vi mem havas. Se vi perdas permeson, ankaŭ la roboto ne plu povos uzi ĝin.",
         "save_failed": "Malsukcesis ĝisdatigi bot-permeson"
       },
