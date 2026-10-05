@@ -51,6 +51,10 @@ CHATTO_DEV_LIVEKIT_SERVER = "go:github.com/livekit/livekit-server/cmd/server@v1.
 CHATTO_DEV_WORKSPACE = "{% if env.CONDUCTOR_PORT is defined and env.CONDUCTOR_PORT != '' %}{% set default_workspace = 'ws' ~ env.CONDUCTOR_PORT %}{% else %}{% set default_workspace = 'local' %}{% endif %}{{env.CHATTO_DEV_WORKSPACE | default(value=default_workspace) | slugify}}"
 CHATTO_DEV_CHATTO_URL = "http://chatto.{{env.CHATTO_DEV_WORKSPACE}}.localhost:{{env.CHATTO_DEV_CHATTO_PORT}}"
 CHATTO_DEV_AUTHLING_URL = "http://authling.{{env.CHATTO_DEV_WORKSPACE}}.localhost:{{env.CHATTO_DEV_AUTHLING_PORT}}"
+# Chatto data of the development stack, and the TestBot API key that the
+# Runling bot reads. Set CHATTO_DEV_DATA_ROOT to an absolute path to use a
+# different directory. An empty value selects the default.
+CHATTO_DEV_DATA_ROOT = "{% if env.CHATTO_DEV_DATA_ROOT | default(value='') == '' %}{{config_root}}/cli/data{% else %}{{env.CHATTO_DEV_DATA_ROOT}}{% endif %}"
 CHATTO_DEV_AUTHLING_CLIENT_ID = "chatto-dev"
 CHATTO_DEV_AUTHLING_CLIENT_SECRET = "development-only-chatto-authling-client-secret"
 
@@ -359,7 +363,7 @@ description = "Add reproducible synthetic data to the running development server
 depends = ["build-dev-cli"]
 dir = "cli"
 run = '''
-exec ./bin/chatto operator seed --operator-socket "${CHATTO_DEV_DATA_ROOT:-./data}/operator/operator.sock" "$@"
+exec ./bin/chatto operator seed --operator-socket "$CHATTO_DEV_DATA_ROOT/operator/operator.sock" "$@"
 '''
 
 [tasks.build-e2e-server]
@@ -541,8 +545,7 @@ env = {
 run = '''
 set -eu
 project_dir=$(pwd -P)
-data_root=${CHATTO_DEV_DATA_ROOT:-$project_dir/cli/data}
-export CHATTO_RUNLING_API_KEY_FILE="$data_root/bootstrap/test_bot.key"
+export CHATTO_RUNLING_API_KEY_FILE="$CHATTO_DEV_DATA_ROOT/bootstrap/test_bot.key"
 cd examples/runling-bot
 echo "Runling: http://localhost:$CHATTO_RUNLING_PORT"
 exec node "$project_dir/packages/runling/bin/runling.js" serve --host 127.0.0.1 --port "$CHATTO_RUNLING_PORT"
@@ -562,8 +565,7 @@ run = "exec pnpm astro dev --host 127.0.0.1"
 # TestBot is set here, because bootstrap runs only on the first start of an
 # empty server, and either command can do that start. Its webhook needs the
 # Runling bot of `mise dev-full`. Environment values replace the complete bot
-# list of `cli/chatto.toml`. CHATTO_DEV_DATA_ROOT selects a different data
-# directory, for example in `tools/dev-seed-smoke.mjs`.
+# list of `cli/chatto.toml`. The data paths come from CHATTO_DEV_DATA_ROOT.
 [tasks.chatto]
 description = "Build and run the bundled Chatto CLI command with the development stack's ports"
 depends = ["build-dev-cli"]
@@ -573,9 +575,9 @@ env = {
   CHATTO_WEBSERVER_URL = "{{env.CHATTO_DEV_CHATTO_URL}}",
   CHATTO_NATS_EMBEDDED_PORT = "{{env.CHATTO_DEV_NATS_PORT}}",
   CHATTO_NATS_CLIENT_URL = "nats://localhost:{{env.CHATTO_DEV_NATS_PORT}}",
-  CHATTO_NATS_EMBEDDED_DATA_DIR = "{{env.CHATTO_DEV_DATA_ROOT | default(value='./data')}}/nats",
-  CHATTO_SEARCH_PROVIDER_DIRECTORY = "{{env.CHATTO_DEV_DATA_ROOT | default(value='./data')}}/search",
-  CHATTO_OPERATOR_API_SOCKET_PATH = "{{env.CHATTO_DEV_DATA_ROOT | default(value='./data')}}/operator/operator.sock",
+  CHATTO_NATS_EMBEDDED_DATA_DIR = "{{env.CHATTO_DEV_DATA_ROOT}}/nats",
+  CHATTO_SEARCH_PROVIDER_DIRECTORY = "{{env.CHATTO_DEV_DATA_ROOT}}/search",
+  CHATTO_OPERATOR_API_SOCKET_PATH = "{{env.CHATTO_DEV_DATA_ROOT}}/operator/operator.sock",
   CHATTO_SMTP_PORT = "{{env.CHATTO_DEV_SMTP_PORT}}",
   CHATTO_LIVEKIT_URL = "ws://localhost:{{env.CHATTO_DEV_LIVEKIT_PORT}}",
   CHATTO_LIVEKIT_WEBHOOK_URL = "http://127.0.0.1:{{env.CHATTO_DEV_CHATTO_PORT}}/webhooks/livekit",
@@ -585,7 +587,7 @@ env = {
   CHATTO_BOOTSTRAP_BOTS_0_OWNER_LOGIN = "alice",
   CHATTO_BOOTSTRAP_BOTS_0_API_KEY_NAME = "Local development",
   CHATTO_BOOTSTRAP_BOTS_0_OUTBOUND_WEBHOOK_URL = "http://localhost:{{env.CHATTO_DEV_RUNLING_PORT}}/api/runs/start/chatto",
-  CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE = "{{env.CHATTO_DEV_DATA_ROOT | default(value='./data')}}/bootstrap/test_bot.key",
+  CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE = "{{env.CHATTO_DEV_DATA_ROOT}}/bootstrap/test_bot.key",
   CHATTO_BOOTSTRAP_BOTS_0_PERMISSIONS = "room.join,room.list,message.read,message.post-in-thread",
   CHATTO_BOOTSTRAP_BOTS_0_ROOMS = "general",
 }

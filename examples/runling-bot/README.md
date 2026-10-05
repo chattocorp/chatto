@@ -21,8 +21,8 @@ Run the commands below from that root unless a command changes the directory.
    Run `mise dev-full` from the repository root. It starts Chatto and Runling together.
    Runling uses the workspace port plus three (`4003` without Conductor).
    The task sets the backend URL and absolute bootstrap API key path. No manual
-   Chatto environment variables are required. `CHATTO_DEV_DATA_ROOT` selects the same
-   data directory for the server and bot.
+   Chatto environment variables are required. Set `CHATTO_DEV_DATA_ROOT` to an
+   absolute path to select the same data directory for the server and bot.
 
 2. On an empty server, the stack creates TestBot, writes its API key to
    `cli/data/bootstrap/test_bot.key`, and creates an enabled **Local development**
