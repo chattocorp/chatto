@@ -139,11 +139,11 @@ configured without maintainers.
 
 Several people can write in one conversation, so the bot checks permission for
 each request, not for the conversation. When the agent calls `investigateChatto`,
-`implementChatto`, `askImplementation`, `task_send`, or `ghWrite`, the host checks the author
+`implementChatto`, `askImplementation`, `task_send`, `forwardClarification`, or `ghWrite`, the host checks the author
 of the latest human message that the bot received in the conversation. If that
 author is not a maintainer, or the turn started from a task notification, the tool
 does not run. In a user turn, the bot then posts one fixed message that a
-maintainer must ask. There is one exception: after a saved implementation
+maintainer must ask. After a saved implementation
 plan's completion notification, the supervisor can call `implementChatto` with
 that plan's `investigationId` once on a notification turn. This requires that a
 maintainer was the latest person who wrote to the bot when the notification
@@ -152,6 +152,17 @@ can start investigations, and the authorization check, which receives the
 plan's goal, must find a maintainer's request to implement. A maintainer who
 asks for a pull request therefore does not have to ask again after the plan. Other users can still ask questions, and the
 bot can answer from the documentation and web research.
+
+A completed source investigation can also file one issue on a notification turn.
+The host retains the original maintainer request and later maintainer messages,
+including corrections and withdrawals. The GitHub authorization check must still
+approve the exact command, including its milestone. Notification text supplies no
+permission. This path permits only `ghWrite issue create`, with one dispatch
+attempt per investigation. A timeout can mean that GitHub applied the change, so
+the bot must check GitHub before a retry. Automatic continuation stops if the
+host retains more than 20 messages or one message has more than 4,000 characters.
+These limits prevent the authorization classifier from cutting off request text.
+State lasts only for this conversation; it does not survive a process restart.
 
 This gives a simple approval flow: a user reports a problem in a thread, and a
 maintainer replies in the same thread to ask the bot to investigate or implement.
@@ -176,9 +187,10 @@ reactions. A failed reaction logs a warning and the reply continues.
 
 The supervisor ends each turn with `finishTurn`: a reply, a reaction, or silence.
 The host delivers only that choice. Ordinary assistant text is not posted.
-After a choice succeeds, further tools are blocked and extra model text is
-ignored. The choice applies only to that turn; later user messages and task
-results can receive new replies. Runling provides the existing agent lifecycle
+The completion tool runs in sequence with other tools. After a choice succeeds,
+further tools are blocked. Runling ends the current tool batch without another
+model request. Extra model text is ignored. The choice applies only to that turn;
+later user messages and task results can receive new replies. Runling provides the existing agent lifecycle
 and validated custom tools. The completion policy belongs to ChattoBot.
 
 For a simple thanks or acknowledgement, the supervisor can select a reaction
@@ -324,7 +336,11 @@ result can carry such instructions to the chat agent. After a research result
 enters a conversation, Runling blocks `implementChatto`, `askImplementation`,
 `task_send` and `decideApproval` for the rest of that conversation. The bot then posts a fixed message
 that asks the user to start a new thread. Read-only investigation and
-`task_cancel` remain available.
+`task_cancel` remain available. `forwardClarification` can send the current
+maintainer message to a running task after these reads. The host copies the
+message exactly; the model selects only the owned task ID. This direct-call tool
+cannot run from a script or notification. It reserves one send per message and
+task, before it waits for delivery. It does not accept model-written instructions.
 
 The supervisor can cancel a task with `task_cancel` only in a turn that a
 person's message started. Task notifications do not authorize cancellation, in

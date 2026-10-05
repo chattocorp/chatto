@@ -30,6 +30,9 @@ export interface GitHubDependencies {
   authorize: (command: string, context: string[]) => Promise<AuthorizationDecision>;
   /** Receive the URLs from the output of a change, which must reach the thread exactly. */
   onUrls?: (urls: string[]) => void;
+  /** Reserve an authorized write immediately before dispatch. A throw prevents the write.
+   * Keep reservations after transport failure: GitHub may already have applied the change. */
+  beforeWrite?: (args: readonly string[]) => void;
   run?: GhRunner;
 }
 
@@ -193,6 +196,8 @@ export function githubExtension(settings: GitHubSettings, dependencies: GitHubDe
             details: {}
           };
         }
+        signal.throwIfAborted();
+        dependencies.beforeWrite?.(args);
         const result = await runChange(settings, dependencies, action, signal);
         if (!result.ok)
           throw new Error(

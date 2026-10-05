@@ -29,6 +29,16 @@ assistant messages from `onText`. Intermediate text remains in agent logs.
 This lets tools announce accepted work without first sending the model's promise
 to do it. The default, `"all"`, preserves delivery of intermediate assistant text.
 
+Text agents can set `terminalTools: ["complete"]` for a custom completion tool.
+A successful direct call ends the interaction after the current tool batch,
+without another provider request. Failed calls and calls from scripts do not
+end it. The result is completed with an empty summary and the recorded usage;
+the application owns delivery of its structured tool result. Cancellation still
+cancels the interaction. Completion state resets before the next interaction.
+Set `executionMode: "sequential"` on the completion tool if later calls in the
+same batch must see its state. This option does not cancel tools already in the
+batch. Application gates must reject work after completion when required.
+
 The default, `output: "report"`, retains structured outcome reporting for coding
 and specialist tasks. Both modes support steering, cancellation, and connections.
 `runOutcome()` results can include a host-owned `failureReason`: `provider_error`

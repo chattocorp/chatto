@@ -188,6 +188,11 @@ export interface RunAgentOptions {
   /** Deliver only normally stopped assistant messages, excluding tool-call preambles.
    * Defaults to all completed assistant messages. Logs retain intermediate text. */
   textDelivery?: 'all' | 'final';
+  /** Text mode only: end the interaction after a successful direct call to one of these tools, without another
+   * provider request. The current tool batch finishes first. Text agents accept an empty result;
+   * applications can deliver structured tool results themselves. Use sequential execution on a
+   * terminal tool when later calls in the same batch must observe application completion gates. */
+  terminalTools?: readonly string[];
   /** Text mode only: accept a normally stopped assistant turn with no text. Provider errors still fail. */
   allowEmptyResponse?: boolean;
   /** Built-in and extension tools to expose. `report_outcome` is added in report mode. */
@@ -347,6 +352,8 @@ async function createRunlingAgent(
   history: Parameters<typeof convertToLlm>[0] = [],
   inheritedUntrusted = false
 ): Promise<RunlingAgent> {
+  if (options.terminalTools?.length && options.output !== 'text')
+    throw new Error('terminalTools requires text output mode');
   const inheritedMessages = convertToLlm(structuredClone(history));
   const agentId = randomId();
   const color = takeAgentColor();
@@ -381,6 +388,8 @@ async function createRunlingAgent(
     info: (message: string) => writeAgentLog('info', message),
     success: (message: string) => writeAgentLog('success', message)
   };
+  let terminalToolCompleted = false;
+  const terminalTools = new Set(options.terminalTools ?? []);
   let activeReport: AgentReport | undefined;
   let reports: AgentReport[] = [];
 
@@ -542,6 +551,15 @@ async function createRunlingAgent(
     for (const file of codemodeFiles) void rm(file, { force: true }).catch(() => {});
   };
 
+  // Pi's tool-result terminate hint applies only when every result in a batch is terminal.
+  // An application completion tool must also end a mixed batch, after all results are recorded.
+  const finishBatch = session.agent.finishTurn;
+  session.agent.finishTurn = async (turn, signal) => {
+    const decision = await finishBatch?.(turn, signal);
+    if (terminalToolCompleted) return { action: 'end' };
+    return decision ?? undefined;
+  };
+
   const runOutcome: RunlingAgent['runOutcome'] = async (
     ctx,
     prompt,
@@ -560,6 +578,7 @@ async function createRunlingAgent(
     interactionSignal = signal;
     acceptingSteering = true;
     activeReport = undefined;
+    terminalToolCompleted = false;
     reports = [];
     let finalText: string | undefined;
     let finalTextError: string | undefined;
@@ -609,6 +628,13 @@ async function createRunlingAgent(
           preparingReport = false;
           delivered(true);
         }
+        if (
+          event.type === 'tool_execution_end' &&
+          !event.isError &&
+          !event.parentToolCallId &&
+          terminalTools.has(event.toolName)
+        )
+          terminalToolCompleted = true;
         options.onEvent?.(event);
 
         if (event.type === 'message_update') {
@@ -805,6 +831,8 @@ async function createRunlingAgent(
             usage
           };
         }
+        if (textOutput && terminalToolCompleted)
+          return { outcome: 'completed', summary: '', usage };
         if (textOutput) {
           // Text delivery happens through onText. The result is for the caller,
           // not a second message to send to the user.
