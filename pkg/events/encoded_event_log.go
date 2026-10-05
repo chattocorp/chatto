@@ -507,9 +507,12 @@ type SubjectRecordPage struct {
 
 // SubjectRecordsAfterPage returns at most maxRecords matching opaque records
 // after afterSeq. When maxBytes is positive, the returned payload bytes are
-// also bounded by maxBytes. More indicates that the page's point-in-time
-// result had additional records. Callers can pass LastSequence to the next
-// request without exposing JetStream consumer coordinates.
+// also bounded by maxBytes: the page ends before the first record that does
+// not fit, and More reports the rest. A single record whose payload exceeds
+// maxBytes returns ErrInvalidSubjectReadLimit.
+// More indicates that the page's point-in-time result had additional records.
+// Callers can pass LastSequence to the next request without exposing
+// JetStream consumer coordinates.
 func (l *EncodedEventLog) SubjectRecordsAfterPage(
 	ctx context.Context,
 	subject string,
@@ -551,50 +554,79 @@ func (l *EncodedEventLog) SubjectRecordsAfterPage(
 	}
 	target := min(uint64(maxRecords), info.NumPending)
 	page := SubjectRecordPage{Records: make([]EncodedSubjectRecord, 0, target)}
-	var bytesRead int
-	for uint64(len(page.Records)) < target {
+	var bytesRead, largest int
+	for uint64(len(page.Records)) < target && (maxBytes == 0 || bytesRead < maxBytes) {
+		// A fetch never asks for more records than are pending, so it does
+		// not wait for new messages.
 		batchSize := int(target - uint64(len(page.Records)))
 		if maxBytes > 0 {
-			// Fetch one message at a time so a message that would exceed the
-			// byte window causes an explicit error instead of being silently
-			// omitted from a page.
+			// Size each fetch from the largest payload seen so far, so that a
+			// fetch rarely transfers much more than the remaining byte budget.
+			// The first fetch reads one record because no size is known yet.
 			batchSize = 1
+			if largest > 0 {
+				batchSize = min(max((maxBytes-bytesRead)/largest, 1), int(target-uint64(len(page.Records))))
+			}
 		}
 		msgs, err := consumer.Fetch(batchSize, jetstream.FetchMaxWait(10*time.Second))
 		if err != nil {
-			if errors.Is(err, jetstream.ErrNoMessages) {
-				break
-			}
 			return SubjectRecordPage{}, err
 		}
-
-		fetched := 0
-		for msg := range msgs.Messages() {
-			fetched++
-			data := msg.Data()
-			if maxBytes > 0 && (len(data) > maxBytes || bytesRead+len(data) > maxBytes) {
-				return SubjectRecordPage{}, fmt.Errorf("%w: page payload exceeds %d bytes", ErrInvalidSubjectReadLimit, maxBytes)
-			}
-			meta, err := msg.Metadata()
-			if err != nil {
-				return SubjectRecordPage{}, fmt.Errorf("message metadata: %w", err)
-			}
-			sequence := meta.Sequence.Stream
-			page.LastSequence = sequence
-			page.Records = append(page.Records, EncodedSubjectRecord{
-				Subject:  msg.Subject(),
-				Sequence: sequence,
-				ID:       msg.Headers().Get(jetstream.MsgIDHeader),
-				Data:     bytes.Clone(data),
-			})
-			bytesRead += len(data)
+		fetched, full, err := appendPageRecords(&page, msgs, maxBytes, &bytesRead, &largest)
+		if err != nil {
+			return SubjectRecordPage{}, err
 		}
-		if fetched == 0 {
+		if full || fetched == 0 {
 			break
 		}
 	}
 	page.More = info.NumPending > uint64(len(page.Records))
 	return page, nil
+}
+
+// appendPageRecords appends fetched records to page until the next payload
+// would exceed maxBytes. It returns the number of fetched messages and whether
+// the page is full. The consumer has already delivered every fetched message,
+// so the page must end at the first record that it cannot hold; the next page
+// reads that record again. A single payload larger than maxBytes is an error
+// because no page can contain it. largest tracks the largest payload size seen,
+// counting an empty payload as one byte.
+func appendPageRecords(page *SubjectRecordPage, msgs jetstream.MessageBatch, maxBytes int, bytesRead, largest *int) (int, bool, error) {
+	fetched := 0
+	full := false
+	for msg := range msgs.Messages() {
+		fetched++
+		if full {
+			// Drain the batch so that its subscription ends.
+			continue
+		}
+		data := msg.Data()
+		if maxBytes > 0 && len(data) > maxBytes {
+			return fetched, true, fmt.Errorf("%w: record payload of %d bytes exceeds %d", ErrInvalidSubjectReadLimit, len(data), maxBytes)
+		}
+		*largest = max(*largest, len(data), 1)
+		if maxBytes > 0 && *bytesRead+len(data) > maxBytes {
+			full = true
+			continue
+		}
+		meta, err := msg.Metadata()
+		if err != nil {
+			return fetched, true, fmt.Errorf("message metadata: %w", err)
+		}
+		sequence := meta.Sequence.Stream
+		page.LastSequence = sequence
+		page.Records = append(page.Records, EncodedSubjectRecord{
+			Subject:  msg.Subject(),
+			Sequence: sequence,
+			ID:       msg.Headers().Get(jetstream.MsgIDHeader),
+			Data:     bytes.Clone(data),
+		})
+		*bytesRead += len(data)
+	}
+	if err := msgs.Error(); err != nil && !errors.Is(err, jetstream.ErrNoMessages) {
+		return fetched, true, err
+	}
+	return fetched, full, nil
 }
 
 // SubjectRecordsAfter returns all opaque records matching subject with stream
