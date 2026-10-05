@@ -127,11 +127,17 @@ func TestProjectorWaitForStartupIncludesCompletionHook(t *testing.T) {
 	if err := projector.WaitForStartup(waitContext); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("wait during completion hook error = %v, want deadline exceeded", err)
 	}
+	if projector.Status().StartupComplete {
+		t.Fatal("status reports startup complete while the completion hook runs")
+	}
 
 	close(projection.release)
 	<-startupFinished
 	if err := projector.WaitForStartup(t.Context()); err != nil {
 		t.Fatalf("wait after completion hook: %v", err)
+	}
+	if !projector.Status().StartupComplete {
+		t.Fatal("status does not report startup complete after the completion hook")
 	}
 }
 

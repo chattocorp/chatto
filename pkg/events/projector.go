@@ -305,6 +305,12 @@ type ReplaySubjectProjection interface {
 // Projector calls CompleteStartupReplay exactly once after every event through
 // the captured startup target has been applied. It is also called for an empty
 // or already-current projection.
+//
+// The hook runs inside the Projector's apply barrier, so no event is applied
+// concurrently with it. It must not call Projector methods that take the
+// barrier or wait for startup, such as WithReadBarrier, CaptureSnapshot, or
+// WaitForStartup. Status reports StartupComplete and WaitForStartup returns
+// only after the hook has returned.
 type StartupReplayCompleter interface {
 	CompleteStartupReplay()
 }
@@ -997,8 +1003,8 @@ func (p *Projector) waitForSeq(ctx context.Context, seq uint64) error {
 	ch := make(chan struct{})
 	// Keep waiters sorted ascending by seq so advance() can release them
 	// in order and stop scanning at the first unmet seq.
-	i, _ := slices.BinarySearchFunc(p.waiters, seq, func(w seqWaiter, seq uint64) int {
-		return cmp.Compare(w.seq, seq)
+	i, _ := slices.BinarySearchFunc(p.waiters, seq, func(w seqWaiter, target uint64) int {
+		return cmp.Compare(w.seq, target)
 	})
 	p.waiters = slices.Insert(p.waiters, i, seqWaiter{seq: seq, ch: ch})
 	p.mu.Unlock()
@@ -1657,10 +1663,10 @@ type startupSummary struct {
 	projectionKey                string
 }
 
-// completeStartupLocked marks startup complete, runs the projection's
-// StartupReplayCompleter hook, and releases WaitForStartup callers. The caller
-// must hold applyMu: no event can be applied between the end of startup and
-// the hook, so the projection never applies a live event in replay mode.
+// completeStartupLocked ends startup, runs the projection's
+// StartupReplayCompleter hook, and then reports startup complete and releases
+// WaitForStartup callers. The caller must hold applyMu, so no event is applied
+// between the end of startup and the hook.
 func (p *Projector) completeStartupLocked(now time.Time) (startupSummary, bool) {
 	p.mu.Lock()
 	if !p.started || !p.startupEndedAt.IsZero() || p.lastSeq < p.startupTargetSeq {
@@ -1668,7 +1674,6 @@ func (p *Projector) completeStartupLocked(now time.Time) (startupSummary, bool) 
 		return startupSummary{}, false
 	}
 	p.startupEndedAt = now
-	p.startupCompleted = true
 	summary := startupSummary{
 		duration:      now.Sub(p.startupStartedAt),
 		targetSeq:     p.startupTargetSeq,
@@ -1684,6 +1689,9 @@ func (p *Projector) completeStartupLocked(now time.Time) (startupSummary, bool) 
 	if projection, ok := p.proj.(StartupReplayCompleter); ok {
 		projection.CompleteStartupReplay()
 	}
+	p.mu.Lock()
+	p.startupCompleted = true
+	p.mu.Unlock()
 	close(p.startupCh)
 	return summary, true
 }
