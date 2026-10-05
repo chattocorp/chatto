@@ -6,6 +6,10 @@
     "dev": {
       "type": "service",
       "command": "mise dev"
+    },
+    "dev-full": {
+      "type": "service",
+      "command": "mise dev-full"
     }
   }
 }

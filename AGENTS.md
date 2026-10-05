@@ -131,9 +131,10 @@ in the gitignored `.context/` directory of the worktree. Do not use fixed paths
 in `/tmp`. Parallel agent sessions share `/tmp` and can overwrite each other's
 files. Use `mktemp` when a file must be outside the worktree.
 
-When an agent needs the long-running development stack, launch `mise dev`.
-mise runs each service in its own process group and stops all of them when it
-gets a signal. Stop the stack before handing control back to the user.
+When an agent needs a running Chatto server, launch `mise dev`. Launch
+`mise dev-full` when the task also needs email, LiveKit, Authling, or the
+Runling bot. mise runs each service in its own process group and stops all of
+them when it gets a signal. Stop the stack before handing control back to the user.
 Never leave a dev stack running in a detached or yielded terminal session.
 
 ## Runling Documentation Updates

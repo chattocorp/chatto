@@ -17,7 +17,26 @@ uv = "0.11.30"
 [env]
 _.file = '.env'
 CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev"
+# The development stack uses the workspace port block. The base is
+# `CONDUCTOR_PORT`, or 4000 outside Conductor. Conductor gives each workspace
+# ten ports. Tasks and scripts use these names, not offsets.
 CHATTO_DEV_PORT_BASE = "{{env.CONDUCTOR_PORT | default(value='4000')}}"
+# Chatto with its embedded frontend (`mise dev`).
+CHATTO_DEV_CHATTO_PORT = "{{env.CHATTO_DEV_PORT_BASE}}"
+# Vite frontend development server (`mise dev-frontend`).
+CHATTO_DEV_VITE_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 1}}"
+CHATTO_DEV_AUTHLING_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 2}}"
+# Runling bot console.
+CHATTO_DEV_RUNLING_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 3}}"
+# Chatto embedded NATS.
+CHATTO_DEV_NATS_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 4}}"
+# LiveKit HTTP and WebSocket signaling, then RTC over TCP and UDP.
+CHATTO_DEV_LIVEKIT_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 5}}"
+CHATTO_DEV_LIVEKIT_RTC_TCP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 6}}"
+CHATTO_DEV_LIVEKIT_RTC_UDP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 7}}"
+# Mailpit SMTP and web UI.
+CHATTO_DEV_SMTP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 8}}"
+CHATTO_DEV_MAILPIT_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 9}}"
 # The development stack runs this pinned LiveKit server through `mise x`.
 CHATTO_DEV_LIVEKIT_SERVER = "go:github.com/livekit/livekit-server/cmd/server@v1.13.5"
 # Browser-facing development services use `<service>.<workspace>.localhost`.
@@ -30,7 +49,8 @@ CHATTO_DEV_LIVEKIT_SERVER = "go:github.com/livekit/livekit-server/cmd/server@v1.
 # label is `local`. The label must be a valid DNS label, and it keys the
 # Authling state directory. Set CHATTO_DEV_WORKSPACE to override it.
 CHATTO_DEV_WORKSPACE = "{% if env.CONDUCTOR_PORT is defined and env.CONDUCTOR_PORT != '' %}{% set default_workspace = 'ws' ~ env.CONDUCTOR_PORT %}{% else %}{% set default_workspace = 'local' %}{% endif %}{{env.CHATTO_DEV_WORKSPACE | default(value=default_workspace) | slugify}}"
-CHATTO_DEV_AUTHLING_URL = "http://authling.{{env.CHATTO_DEV_WORKSPACE}}.localhost:{{env.CHATTO_DEV_PORT_BASE | int + 2}}"
+CHATTO_DEV_CHATTO_URL = "http://chatto.{{env.CHATTO_DEV_WORKSPACE}}.localhost:{{env.CHATTO_DEV_CHATTO_PORT}}"
+CHATTO_DEV_AUTHLING_URL = "http://authling.{{env.CHATTO_DEV_WORKSPACE}}.localhost:{{env.CHATTO_DEV_AUTHLING_PORT}}"
 CHATTO_DEV_AUTHLING_CLIENT_ID = "chatto-dev"
 CHATTO_DEV_AUTHLING_CLIENT_SECRET = "development-only-chatto-authling-client-secret"
 
@@ -394,76 +414,85 @@ depends = ["build-frontend"]
 dir = "apps/desktop"
 run = "pnpm dev"
 
-# The development stack uses the workspace port block as follows. The base is
-# `CONDUCTOR_PORT`, or 4000 outside Conductor.
-#
-#   +0  Chatto with its embedded frontend (`mise dev`)
-#   +1  Vite frontend development server (`mise dev-frontend`)
-#   +2  Authling
-#   +3  Runling bot console
-#   +4  Chatto embedded NATS
-#   +5  LiveKit HTTP and WebSocket signaling
-#   +6  LiveKit RTC over TCP
-#   +7  LiveKit RTC over UDP
-#   +8  Mailpit SMTP
-#   +9  Mailpit web UI
-
 [tasks.check-dev-ports]
 description = "Check that the ports of the development stack are free"
-run = 'tools/check-dev-ports.sh "$CHATTO_DEV_PORT_BASE"'
+# Pass `full` to also check the ports of the `mise dev-full` services.
+run = "tools/check-dev-ports.sh"
 
 [tasks.dev]
-description = "Build and run Chatto, Authling, Runling, Mailpit, and LiveKit"
+description = "Build and run Chatto"
 # Setup is fast when nothing changed, so a fresh checkout needs only `mise dev`.
 # The port check fails the start early and does not stop other processes.
-depends = ["check-dev-ports", "setup", "build-dev-cli", "build-runling-bot"]
+depends = ["check-dev-ports", "build-dev-cli"]
+run = ['echo "Chatto: $CHATTO_DEV_CHATTO_URL"', { task = "chatto run" }]
+
+[tasks.dev-full]
+description = "Build and run Chatto with Authling, Runling, Mailpit, and LiveKit"
+depends = ["check-dev-ports full", "setup", "build-dev-cli", "build-runling-bot"]
+# These settings reach the `chatto run` task. They enable email and LiveKit and
+# add the Authling login provider and TestBot. Environment values replace the
+# complete provider and bot lists of `cli/chatto.toml`.
+env = {
+  CHATTO_SMTP_ENABLED = "true",
+  CHATTO_LIVEKIT_ENABLED = "true",
+  CHATTO_AUTH_PROVIDERS_0_ID = "authling",
+  CHATTO_AUTH_PROVIDERS_0_TYPE = "oidc",
+  CHATTO_AUTH_PROVIDERS_0_LABEL = "Authling",
+  CHATTO_AUTH_PROVIDERS_0_ISSUER_URL = "{{env.CHATTO_DEV_AUTHLING_URL}}",
+  CHATTO_AUTH_PROVIDERS_0_CLIENT_ID = "{{env.CHATTO_DEV_AUTHLING_CLIENT_ID}}",
+  CHATTO_AUTH_PROVIDERS_0_CLIENT_SECRET = "{{env.CHATTO_DEV_AUTHLING_CLIENT_SECRET}}",
+  CHATTO_AUTH_PROVIDERS_0_REQUEST_EMAIL = "false",
+  CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION = "true",
+  CHATTO_BOOTSTRAP_BOTS_0_LOGIN = "test_bot",
+  CHATTO_BOOTSTRAP_BOTS_0_DISPLAY_NAME = "TestBot",
+  CHATTO_BOOTSTRAP_BOTS_0_BIO = "I'm **TestBot**, Chatto's development assistant. Mention `@test_bot` in a channel or send me a direct message.",
+  CHATTO_BOOTSTRAP_BOTS_0_OWNER_LOGIN = "alice",
+  CHATTO_BOOTSTRAP_BOTS_0_API_KEY_NAME = "Local development",
+  CHATTO_BOOTSTRAP_BOTS_0_OUTBOUND_WEBHOOK_URL = "http://localhost:{{env.CHATTO_DEV_RUNLING_PORT}}/api/runs/start/chatto",
+  CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE = "{{env.CHATTO_DEV_DATA_ROOT | default(value='./data')}}/bootstrap/test_bot.key",
+  CHATTO_BOOTSTRAP_BOTS_0_PERMISSIONS = "room.join,room.list,message.read,message.post-in-thread",
+  CHATTO_BOOTSTRAP_BOTS_0_ROOMS = "general",
+}
 # mise runs each service in its own process group. On SIGHUP, SIGINT, or
 # SIGTERM, it signals all of these groups, and when one service fails, it stops
 # the others. The services need five parallel jobs; the mise default is eight.
-run = { tasks = [
-  "dev-stack-mailpit",
-  "dev-stack-livekit",
-  "dev-stack-authling",
-  "dev-stack-backend",
-  "dev-stack-runling-bot",
-] }
+run = [
+  'echo "Chatto: $CHATTO_DEV_CHATTO_URL"',
+  { tasks = [
+    "dev-stack-mailpit",
+    "dev-stack-livekit",
+    "dev-stack-authling",
+    "chatto run",
+    "dev-stack-runling-bot",
+  ] },
+]
 
 [tasks.dev-frontend]
 description = "Run the Vite frontend development server against a Chatto server"
 depends = ["setup-frontend", "build-api-types", "build-lingua"]
 dir = "apps/frontend"
-env = { VITE_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 1}}" }
+env = { VITE_PORT = "{{env.CHATTO_DEV_VITE_PORT}}" }
 # CHATTO_BACKEND_URL selects the proxied Chatto server. The default is the
 # server that `mise dev` runs in the same workspace.
 run = '''
-export CHATTO_BACKEND_URL="${CHATTO_BACKEND_URL:-http://127.0.0.1:$CHATTO_DEV_PORT_BASE}"
+export CHATTO_BACKEND_URL="${CHATTO_BACKEND_URL:-http://127.0.0.1:$CHATTO_DEV_CHATTO_PORT}"
 echo "Vite: http://chatto.$CHATTO_DEV_WORKSPACE.localhost:$VITE_PORT (Chatto server: $CHATTO_BACKEND_URL)"
 exec ./node_modules/.bin/vite dev --host 127.0.0.1
 '''
 
 [tasks.dev-stack-mailpit]
 hide = true
-env = {
-  CHATTO_DEV_MAILPIT_SMTP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 8}}",
-  CHATTO_DEV_MAILPIT_UI_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 9}}",
-}
 run = '''
-echo "Mailpit: http://localhost:$CHATTO_DEV_MAILPIT_UI_PORT"
-exec mailpit --smtp "127.0.0.1:$CHATTO_DEV_MAILPIT_SMTP_PORT" \
-  --listen "127.0.0.1:$CHATTO_DEV_MAILPIT_UI_PORT"
+echo "Mailpit: http://localhost:$CHATTO_DEV_MAILPIT_PORT"
+exec mailpit --smtp "127.0.0.1:$CHATTO_DEV_SMTP_PORT" \
+  --listen "127.0.0.1:$CHATTO_DEV_MAILPIT_PORT"
 '''
 
 [tasks.dev-stack-livekit]
 hide = true
-env = {
-  CHATTO_DEV_BACKEND_PORT = "{{env.CHATTO_DEV_PORT_BASE}}",
-  CHATTO_DEV_LIVEKIT_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 5}}",
-  CHATTO_DEV_LIVEKIT_RTC_TCP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 6}}",
-  CHATTO_DEV_LIVEKIT_UDP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 7}}",
-}
 run = '''
 set -eu
-livekit_config=$(printf 'port: %s\nrtc:\n  tcp_port: %s\n  udp_port: %s\n  use_external_ip: false\n  enable_loopback_candidate: true\nkeys:\n  devkey: compose-only-livekit-secret-change-me\nwebhook:\n  urls:\n    - http://127.0.0.1:%s/webhooks/livekit\n  api_key: devkey\nlogging:\n  level: info\n' "$CHATTO_DEV_LIVEKIT_PORT" "$CHATTO_DEV_LIVEKIT_RTC_TCP_PORT" "$CHATTO_DEV_LIVEKIT_UDP_PORT" "$CHATTO_DEV_BACKEND_PORT")
+livekit_config=$(printf 'port: %s\nrtc:\n  tcp_port: %s\n  udp_port: %s\n  use_external_ip: false\n  enable_loopback_candidate: true\nkeys:\n  devkey: compose-only-livekit-secret-change-me\nwebhook:\n  urls:\n    - http://127.0.0.1:%s/webhooks/livekit\n  api_key: devkey\nlogging:\n  level: info\n' "$CHATTO_DEV_LIVEKIT_PORT" "$CHATTO_DEV_LIVEKIT_RTC_TCP_PORT" "$CHATTO_DEV_LIVEKIT_RTC_UDP_PORT" "$CHATTO_DEV_CHATTO_PORT")
 exec mise x "$CHATTO_DEV_LIVEKIT_SERVER" -- \
   server --bind 127.0.0.1 --node-ip 127.0.0.1 --config-body "$livekit_config"
 '''
@@ -471,13 +500,13 @@ exec mise x "$CHATTO_DEV_LIVEKIT_SERVER" -- \
 [tasks.dev-stack-authling]
 hide = true
 env = {
-  AUTHLING_HTTP_BIND_ADDRESS = "127.0.0.1:{{env.CHATTO_DEV_PORT_BASE | int + 2}}",
+  AUTHLING_HTTP_BIND_ADDRESS = "127.0.0.1:{{env.CHATTO_DEV_AUTHLING_PORT}}",
   AUTHLING_AUTHENTICATION_PASSWORD_MINIMUM_LENGTH = "10",
   AUTHLING_NATS_REPLICAS = "1",
   AUTHLING_NATS_EMBEDDED_ENABLED = "true",
   AUTHLING_SMTP_ENABLED = "true",
   AUTHLING_SMTP_HOST = "127.0.0.1",
-  AUTHLING_SMTP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 8}}",
+  AUTHLING_SMTP_PORT = "{{env.CHATTO_DEV_SMTP_PORT}}",
   AUTHLING_SMTP_TLS = "opportunistic",
   AUTHLING_SMTP_FROM = "authling@authling.local",
 }
@@ -487,14 +516,13 @@ env = {
 run = '''
 set -eu
 project_dir=$(pwd -P)
-chatto_url="http://chatto.$CHATTO_DEV_WORKSPACE.localhost:$CHATTO_DEV_PORT_BASE"
 data_root="$project_dir/.context/dev/$CHATTO_DEV_WORKSPACE/authling"
 config_path="$data_root/authling.toml"
 # The issuer URL includes the port, and Authling cannot change its issuer after
 # the first start. Conductor can give a workspace a different port, so keep one
 # state directory for each issuer port. State from before this layout stays in
 # "$data_root/nats". Its port is unknown, so the stack does not use it.
-state_dir="$data_root/port-$((CHATTO_DEV_PORT_BASE + 2))"
+state_dir="$data_root/port-$CHATTO_DEV_AUTHLING_PORT"
 mkdir -p "$state_dir/nats"
 cd authling
 mise build
@@ -505,7 +533,7 @@ cat >>"$config_path" <<TOML
 id = '$CHATTO_DEV_AUTHLING_CLIENT_ID'
 name = 'Chatto'
 secret = '$CHATTO_DEV_AUTHLING_CLIENT_SECRET'
-redirect_uris = ['$chatto_url/auth/providers/authling/callback']
+redirect_uris = ['$CHATTO_DEV_CHATTO_URL/auth/providers/authling/callback']
 TOML
 export AUTHLING_HTTP_PUBLIC_URL="$CHATTO_DEV_AUTHLING_URL"
 export AUTHLING_NATS_EMBEDDED_DATA_DIR="$state_dir/nats"
@@ -513,97 +541,11 @@ echo "Authling: $AUTHLING_HTTP_PUBLIC_URL"
 exec bin/authling run --config "$config_path"
 '''
 
-[tasks.dev-stack-backend]
-hide = true
-depends = ["build-dev-cli"]
-shell = "bash -c"
-env = {
-  CHATTO_WEBSERVER_PORT = "{{env.CHATTO_DEV_PORT_BASE}}",
-  CHATTO_WEBSERVER_URL = "http://chatto.{{env.CHATTO_DEV_WORKSPACE}}.localhost:{{env.CHATTO_DEV_PORT_BASE}}",
-  CHATTO_NATS_EMBEDDED_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 4}}",
-  CHATTO_SMTP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 8}}",
-  CHATTO_LOG_LEVEL = "debug",
-  CHATTO_LOG_FORMAT = "text",
-  CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET = "871a846584490a6153305533cce100b8e6f39d4184c2fb499d2ed198a9ed37a3",
-  CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET = "a3955a342ba4cb4ffb457a1177295779fbbb73f8e22cd4f68ecb9fb584afcf66",
-  CHATTO_METRICS_ENABLED = "false",
-  CHATTO_EXPORTER_ENABLED = "false",
-  CHATTO_OPERATOR_API_ENABLED = "true",
-  CHATTO_MCP_ENABLED = "true",
-  CHATTO_SEARCH_ENABLED = "true",
-  CHATTO_SEARCH_PROVIDER_ENABLED = "true",
-  CHATTO_SEARCH_PROVIDER_LANGUAGES = "de,en",
-  CHATTO_CORE_SECRET_KEY = "2ff88b0e8ceb09c399193d1b9339577e6b0fac883777176231e84f92aa78f794",
-  CHATTO_CORE_PROJECTION_SNAPSHOTS = "true",
-  CHATTO_CORE_ASSETS_SIGNING_SECRET = "2e5cac66f8ea81759952186886d233410c1e6e18e3048bc680792935206240e0",
-  CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE = "25MB",
-  CHATTO_CORE_ASSETS_CACHE_ENABLED = "true",
-  CHATTO_CORE_ASSETS_CACHE_TTL = "7d",
-  CHATTO_AUTH_ACCOUNT_CREATION_POLICY = "open",
-  CHATTO_AUTH_PROVIDERS_0_ID = "authling",
-  CHATTO_AUTH_PROVIDERS_0_TYPE = "oidc",
-  CHATTO_AUTH_PROVIDERS_0_LABEL = "Authling",
-  CHATTO_AUTH_PROVIDERS_0_ISSUER_URL = "{{env.CHATTO_DEV_AUTHLING_URL}}",
-  CHATTO_AUTH_PROVIDERS_0_CLIENT_ID = "{{env.CHATTO_DEV_AUTHLING_CLIENT_ID}}",
-  CHATTO_AUTH_PROVIDERS_0_CLIENT_SECRET = "{{env.CHATTO_DEV_AUTHLING_CLIENT_SECRET}}",
-  CHATTO_AUTH_PROVIDERS_0_REQUEST_EMAIL = "false",
-  CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION = "true",
-  CHATTO_SMTP_ENABLED = "true",
-  CHATTO_SMTP_HOST = "127.0.0.1",
-  CHATTO_SMTP_TLS = "opportunistic",
-  CHATTO_SMTP_FROM = "chatto@chatto.local",
-  CHATTO_VIDEO_ENABLED = "true",
-  CHATTO_ASSET_PROCESSING_ENABLED = "true",
-  CHATTO_LIVEKIT_ENABLED = "true",
-  # Development-only Web Push keys, the same pair as cli/chatto.toml.
-  CHATTO_PUSH_ENABLED = "true",
-  CHATTO_PUSH_VAPID_PUBLIC_KEY = "BKBVYBi1oSQ0rOjiS86KCNa2VfxnH03kON54RUqm3X7Q2JQMBkspTHlgBo27OV3wfcX36cxVyJ2h2I_Zd4Yz_DI",
-  CHATTO_PUSH_VAPID_PRIVATE_KEY = "rOYtIsUZwE3_91odhvbJX7W6sEFjxCAPeC1FO3CtPEc",
-  CHATTO_PUSH_VAPID_SUBJECT = "mailto:dev@chatto.run",
-  CHATTO_LIVEKIT_URL = "ws://localhost:{{env.CHATTO_DEV_PORT_BASE | int + 5}}",
-  CHATTO_LIVEKIT_WEBHOOK_URL = "http://127.0.0.1:{{env.CHATTO_DEV_PORT_BASE}}/webhooks/livekit",
-  CHATTO_LIVEKIT_API_KEY = "devkey",
-  CHATTO_LIVEKIT_API_SECRET = "compose-only-livekit-secret-change-me",
-  CHATTO_NATS_EMBEDDED_ENABLED = "true",
-  CHATTO_NATS_EMBEDDED_AUTH_TOKEN = "a4a3102bf032b2d8ec14cf4c23fe54cb6a2054e1ad5e24aa4ada78768340e263",
-  CHATTO_BOOTSTRAP_USERS_0_LOGIN = "alice",
-  CHATTO_BOOTSTRAP_USERS_0_DISPLAY_NAME = "Alice",
-  CHATTO_BOOTSTRAP_USERS_0_EMAIL = "alice@example.com",
-  CHATTO_BOOTSTRAP_USERS_0_PASSWORD = "foobar123",
-  CHATTO_BOOTSTRAP_USERS_0_SERVER_ROLE = "owner",
-  CHATTO_BOOTSTRAP_USERS_1_LOGIN = "bob",
-  CHATTO_BOOTSTRAP_USERS_1_DISPLAY_NAME = "Bob",
-  CHATTO_BOOTSTRAP_USERS_1_EMAIL = "bob@example.com",
-  CHATTO_BOOTSTRAP_USERS_1_PASSWORD = "foobar123",
-  CHATTO_BOOTSTRAP_BOTS_0_LOGIN = "test_bot",
-  CHATTO_BOOTSTRAP_BOTS_0_DISPLAY_NAME = "TestBot",
-  CHATTO_BOOTSTRAP_BOTS_0_BIO = "I'm **TestBot**, Chatto's development assistant. Mention `@test_bot` in a channel or send me a direct message.",
-  CHATTO_BOOTSTRAP_BOTS_0_OWNER_LOGIN = "alice",
-  CHATTO_BOOTSTRAP_BOTS_0_API_KEY_NAME = "Local development",
-  CHATTO_BOOTSTRAP_BOTS_0_OUTBOUND_WEBHOOK_URL = "http://localhost:{{env.CHATTO_DEV_PORT_BASE | int + 3}}/api/runs/start/chatto",
-  CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE = "./data/bootstrap/test_bot.key",
-  CHATTO_BOOTSTRAP_BOTS_0_PERMISSIONS = "room.join,room.list,message.read,message.post-in-thread",
-  CHATTO_BOOTSTRAP_BOTS_0_ROOMS = "general",
-  CHATTO_BOOTSTRAP_SERVER_NAME = "Chatto + Authling",
-}
-run = '''
-set -eu
-project_dir=$(pwd -P)
-data_root=${CHATTO_DEV_DATA_ROOT:-$project_dir/cli/data}
-mkdir -p "$data_root/bootstrap" "$data_root/nats" "$data_root/search"
-export CHATTO_OPERATOR_API_SOCKET_PATH="$data_root/operator/operator.sock"
-export CHATTO_NATS_EMBEDDED_DATA_DIR="$data_root/nats"
-export CHATTO_SEARCH_PROVIDER_DIRECTORY="$data_root/search"
-export CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE="$data_root/bootstrap/test_bot.key"
-echo "Chatto: $CHATTO_WEBSERVER_URL"
-exec cli/bin/chatto start
-'''
-
 [tasks.dev-stack-runling-bot]
 hide = true
 env = {
-  CHATTO_RUNLING_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 3}}",
-  CHATTO_RUNLING_SERVER_URL = "http://127.0.0.1:{{env.CHATTO_DEV_PORT_BASE}}",
+  CHATTO_RUNLING_PORT = "{{env.CHATTO_DEV_RUNLING_PORT}}",
+  CHATTO_RUNLING_SERVER_URL = "http://127.0.0.1:{{env.CHATTO_DEV_CHATTO_PORT}}",
 }
 run = '''
 set -eu
@@ -623,31 +565,26 @@ dir = "apps/docs-website"
 # workspace already uses it.
 run = "exec pnpm astro dev --host 127.0.0.1"
 
+# Uses `cli/chatto.toml` with the ports of the workspace. `mise dev` runs
+# `chatto run`, and `mise dev-full` runs it with more settings. The email and
+# LiveKit values take effect only when `mise dev-full` enables these features.
+# CHATTO_DEV_DATA_ROOT selects a different data directory, for example in
+# `tools/dev-seed-smoke.mjs`.
 [tasks.chatto]
 description = "Build and run the bundled Chatto CLI command with the development stack's ports"
 depends = ["build-dev-cli"]
 dir = "cli"
 env = {
-  CHATTO_WEBSERVER_PORT = "{{env.CHATTO_DEV_PORT_BASE}}",
-  CHATTO_WEBSERVER_URL = "http://chatto.{{env.CHATTO_DEV_WORKSPACE}}.localhost:{{env.CHATTO_DEV_PORT_BASE}}",
-  CHATTO_NATS_EMBEDDED_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 4}}",
-  CHATTO_NATS_CLIENT_URL = "nats://localhost:{{env.CHATTO_DEV_PORT_BASE | int + 4}}",
-  CHATTO_MCP_ENABLED = "true",
-  CHATTO_LIVEKIT_ENABLED = "true",
-  # Development-only Web Push keys, the same pair as cli/chatto.toml.
-  CHATTO_PUSH_ENABLED = "true",
-  CHATTO_PUSH_VAPID_PUBLIC_KEY = "BKBVYBi1oSQ0rOjiS86KCNa2VfxnH03kON54RUqm3X7Q2JQMBkspTHlgBo27OV3wfcX36cxVyJ2h2I_Zd4Yz_DI",
-  CHATTO_PUSH_VAPID_PRIVATE_KEY = "rOYtIsUZwE3_91odhvbJX7W6sEFjxCAPeC1FO3CtPEc",
-  CHATTO_PUSH_VAPID_SUBJECT = "mailto:dev@chatto.run",
-  CHATTO_LIVEKIT_URL = "ws://localhost:{{env.CHATTO_DEV_PORT_BASE | int + 5}}",
-  CHATTO_LIVEKIT_API_KEY = "devkey",
-  CHATTO_LIVEKIT_API_SECRET = "compose-only-livekit-secret-change-me",
-  CHATTO_LIVEKIT_WEBHOOK_URL = "http://127.0.0.1:{{env.CHATTO_DEV_PORT_BASE}}/webhooks/livekit",
-  CHATTO_SMTP_ENABLED = "true",
-  CHATTO_SMTP_HOST = "127.0.0.1",
-  CHATTO_SMTP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 8}}",
-  CHATTO_SMTP_TLS = "opportunistic",
-  CHATTO_SMTP_FROM = "chatto-dev@chatto.localhost",
+  CHATTO_WEBSERVER_PORT = "{{env.CHATTO_DEV_CHATTO_PORT}}",
+  CHATTO_WEBSERVER_URL = "{{env.CHATTO_DEV_CHATTO_URL}}",
+  CHATTO_NATS_EMBEDDED_PORT = "{{env.CHATTO_DEV_NATS_PORT}}",
+  CHATTO_NATS_CLIENT_URL = "nats://localhost:{{env.CHATTO_DEV_NATS_PORT}}",
+  CHATTO_NATS_EMBEDDED_DATA_DIR = "{{env.CHATTO_DEV_DATA_ROOT | default(value='./data')}}/nats",
+  CHATTO_SEARCH_PROVIDER_DIRECTORY = "{{env.CHATTO_DEV_DATA_ROOT | default(value='./data')}}/search",
+  CHATTO_OPERATOR_API_SOCKET_PATH = "{{env.CHATTO_DEV_DATA_ROOT | default(value='./data')}}/operator/operator.sock",
+  CHATTO_SMTP_PORT = "{{env.CHATTO_DEV_SMTP_PORT}}",
+  CHATTO_LIVEKIT_URL = "ws://localhost:{{env.CHATTO_DEV_LIVEKIT_PORT}}",
+  CHATTO_LIVEKIT_WEBHOOK_URL = "http://127.0.0.1:{{env.CHATTO_DEV_CHATTO_PORT}}/webhooks/livekit",
 }
 run = "exec bin/chatto"
 
@@ -880,12 +817,6 @@ run = [
 # Utility
 # =============================================================================
 
-[tasks.run]
-description = "Compile and run the project"
-depends = ["build"]
-dir = "cli"
-run = "bin/chatto run"
-
 [tasks.clean]
 description = "Clean all build artifacts"
 run = [
@@ -897,18 +828,7 @@ run = [
     "rm -rf packages/lingua/dist",
 ]
 
-[tasks.reset-config]
-description = "Delete and reinitialize chatto.toml"
-confirm = "Are you sure you want to re-initialize chatto.toml? This will delete your current configuration."
-depends = ["setup-cli"]
-dir = "cli"
-run = ["rm chatto.toml", "go run . init"]
-
 [tasks.reset]
-description = "Reset the local development environment"
-run = [{ task = "reset-data" }]
-
-[tasks.reset-data]
 description = "Reset the development data of Chatto and Authling"
 confirm = "Are you sure you want to reset the development environment? This will delete all Chatto and Authling data of this workspace."
 # Stop `mise dev` first, so that no service writes during the removal.
@@ -917,15 +837,6 @@ run = [
   "rm -rf cli/data",
   'rm -rf ".context/dev/${CHATTO_DEV_WORKSPACE:?}/authling"',
 ]
-
-[tasks.docs]
-description = "Start pkgsite documentation server for the CLI"
-dir = "cli"
-run = """
-echo "Starting pkgsite documentation server..."
-echo "Browse to: http://localhost:6060/hmans.de/chatto"
-pkgsite -http=localhost:6060 .
-"""
 
 [tasks.verify-docker]
 description = "Validate Docker, GoReleaser, and image workflow wiring"

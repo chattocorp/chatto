@@ -2,27 +2,29 @@
 # SPDX-FileCopyrightText: 2026 ChattoCorp GmbH
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-# Checks that the ports of `mise dev` are free before the stack starts. It
-# lists each process that listens on one of them and exits 1. It never stops
-# a process. The comment above the `dev` task in `mise.toml` lists the ports.
+# Checks that the development ports are free before the stack starts. It lists
+# each process that listens on one of them and exits 1. It never stops a
+# process. The `[env]` section of `mise.toml` defines the ports.
 #
-# Usage: check-dev-ports.sh PORT_BASE
+# Usage: mise check-dev-ports [full]
+#   Without arguments, it checks the ports of `mise dev`: Chatto and its NATS.
+#   With `full`, it also checks the services of `mise dev-full`.
 
 set -euo pipefail
 
-port_base="${1:-}"
-if [[ ! "$port_base" =~ ^[0-9]+$ ]] || (( port_base < 1 || port_base > 65526 )); then
-	echo "usage: $0 PORT_BASE (an integer from 1 through 65526)" >&2
-	exit 2
-fi
 if ! command -v lsof >/dev/null 2>&1; then
 	echo "warning: lsof is not installed, so the development ports are not checked" >&2
 	exit 0
 fi
 
 blocked=false
-report() {
-	local protocol="$1" port="$2" pids="$3" pid
+check() {
+	local protocol="$1" port="$2" pids pid
+	if [[ "$protocol" == TCP ]]; then
+		pids="$(lsof -nP -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | sort -u || true)"
+	else
+		pids="$(lsof -nP -t -iUDP:"$port" 2>/dev/null | sort -u || true)"
+	fi
 	for pid in $pids; do
 		blocked=true
 		printf '  %s port %s: PID %s (%s)\n' "$protocol" "$port" "$pid" \
@@ -30,13 +32,17 @@ report() {
 	done
 }
 
-# Offset 1 belongs to `mise dev-frontend`, which may run beside `mise dev`.
-for port_offset in 0 2 3 4 5 6 8 9; do
-	port=$((port_base + port_offset))
-	report TCP "$port" "$(lsof -nP -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | sort -u || true)"
-done
-port=$((port_base + 7))
-report UDP "$port" "$(lsof -nP -t -iUDP:"$port" 2>/dev/null | sort -u || true)"
+# The Vite port is not checked: `mise dev-frontend` may run beside the stack.
+check TCP "${CHATTO_DEV_CHATTO_PORT:?run this script through mise check-dev-ports}"
+check TCP "$CHATTO_DEV_NATS_PORT"
+if [[ "${1:-}" == full ]]; then
+	for port in "$CHATTO_DEV_AUTHLING_PORT" "$CHATTO_DEV_RUNLING_PORT" \
+		"$CHATTO_DEV_LIVEKIT_PORT" "$CHATTO_DEV_LIVEKIT_RTC_TCP_PORT" \
+		"$CHATTO_DEV_SMTP_PORT" "$CHATTO_DEV_MAILPIT_PORT"; do
+		check TCP "$port"
+	done
+	check UDP "$CHATTO_DEV_LIVEKIT_RTC_UDP_PORT"
+fi
 
 if [[ "$blocked" == true ]]; then
 	echo "error: other processes use the development ports listed above." >&2

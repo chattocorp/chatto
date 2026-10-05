@@ -115,7 +115,7 @@ try {
     CHATTO_DEV_DATA_ROOT: data,
     CHATTO_DEV_WORKSPACE: `seed-smoke-${process.pid}`
   };
-  const backend = start(['run', 'dev-stack-backend'], env);
+  const backend = start(['run', 'chatto', 'run'], env);
   const deadline = Date.now() + 180_000;
   const socket = join(data, 'operator/operator.sock');
   while (true) {

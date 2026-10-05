@@ -9,7 +9,7 @@
  *
  * Camera/video tests require an actual LiveKit connection (participant mode)
  * which is not available in CI. Camera toggle, video thumbnails, and device
- * menu camera section can only be tested manually with `mise dev`.
+ * menu camera section can only be tested manually with `mise dev-full`.
  */
 
 import type { Page } from '@playwright/test';

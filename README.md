@@ -29,7 +29,7 @@ Chatto is built with the help of coding agents. Read [Chatto is Robots](https://
 mise dev
 ```
 
-This installs all tools and dependencies, then starts the development stack. Open `http://chatto.local.localhost:4000` and sign in as `alice` with the password `foobar123`. See [CONTRIBUTING.md](CONTRIBUTING.md) for the complete development guide.
+This installs all tools and dependencies, then starts Chatto. `mise dev-full` also starts Authling, Runling, Mailpit, and LiveKit. Open `http://chatto.local.localhost:4000` and sign in as `alice` with the password `foobar123`. See [CONTRIBUTING.md](CONTRIBUTING.md) for the complete development guide.
 
 ## License
 

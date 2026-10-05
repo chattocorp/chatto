@@ -206,7 +206,7 @@ uses a bounded publish attempt; reads use the shared JetStream stream.
 
 ## Development integration bot
 
-[`mise dev`](../../mise.toml) starts the
+[`mise dev-full`](../../mise.toml) starts the
 [Runling workflow](../../examples/runling-bot/reply.ts) as a supervised Node
 process on loopback at the workspace port plus three. The same port serves its
 console at `http://localhost:<port>`. The task supplies the

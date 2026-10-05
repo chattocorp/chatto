@@ -378,8 +378,9 @@ Do not generate playground links for code written into this repository.
 
 - Review visible frontend changes in a browser using Chrome DevTools MCP.
 - `mise dev` creates development bootstrap users. Sign in as `alice` (server
-  owner) or `bob` with the password `foobar123`. The `dev-stack-backend` task
-  in the root `mise.toml` defines these users.
+  owner) or `bob` with the password `foobar123`. `cli/chatto.toml` defines
+  these users. Use `mise dev-full` for features that need email, LiveKit,
+  Authling, or TestBot.
 - Format every frontend file that you change with Prettier. Claude Code and
   Codex hooks format each file after an edit. If you change files in a different
   way, run `mise x -- pnpm exec prettier --write <paths>` from the repository
