@@ -2,7 +2,7 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { signal } from '../reactivity/index.js';
 import { Codecs, type StorageSlot, serverSlot } from '../storage/slot.js';
 
-/**
+/*
  * The viewer's presence choice on each server (FDR-011). The server
  * keeps the shared choice with a revision. Device storage keeps a copy only to
  * migrate choices from clients that stored one global preference.

@@ -1,6 +1,6 @@
 import type { CustomUserStatus } from '../api/userSummary.js';
 
-/**
+/*
  * Custom status templates. A template status stores a reserved token, such as
  * `chatto:status:vacation`, as its status text, together with the template's
  * emoji. Each host shows the token as translated text, so every reader sees
@@ -36,6 +36,7 @@ export const CUSTOM_STATUS_TEMPLATES: readonly CustomStatusTemplate[] = [
   { id: 'sick', emoji: '🤒', token: `${CUSTOM_STATUS_TEMPLATE_PREFIX}sick` }
 ];
 
+/** Returns the template with this ID. */
 export function getCustomStatusTemplateById(
   id: CustomStatusTemplateId
 ): CustomStatusTemplate | undefined {

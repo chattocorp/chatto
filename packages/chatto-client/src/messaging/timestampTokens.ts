@@ -1,4 +1,4 @@
-/**
+/*
  * Timestamp tokens in message bodies. A token such as `<t:1745764200:F>`
  * marks an instant that each reader sees in their own time zone. Message
  * bodies keep the literal token; hosts render it.
