@@ -276,12 +276,3 @@ func firstN(values []string, n int) []string {
 	}
 	return append([]string(nil), values[:n]...)
 }
-
-func containsString(values []string, needle string) bool {
-	for _, value := range values {
-		if value == needle {
-			return true
-		}
-	}
-	return false
-}

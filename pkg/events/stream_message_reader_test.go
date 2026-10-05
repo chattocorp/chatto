@@ -15,7 +15,7 @@ import (
 
 type recordedStreamMessageLog struct {
 	message string
-	fields  map[string]interface{}
+	fields  map[string]any
 }
 
 type recordingStreamMessageLogger struct {
@@ -28,8 +28,8 @@ func newRecordingStreamMessageLogger() *recordingStreamMessageLogger {
 	return &recordingStreamMessageLogger{logged: make(chan recordedStreamMessageLog, 16)}
 }
 
-func (l *recordingStreamMessageLogger) Debug(message interface{}, keyvals ...interface{}) {
-	fields := make(map[string]interface{}, len(keyvals)/2)
+func (l *recordingStreamMessageLogger) Debug(message any, keyvals ...any) {
+	fields := make(map[string]any, len(keyvals)/2)
 	for i := 0; i+1 < len(keyvals); i += 2 {
 		fields[fmt.Sprint(keyvals[i])] = keyvals[i+1]
 	}
@@ -40,9 +40,9 @@ func (l *recordingStreamMessageLogger) Debug(message interface{}, keyvals ...int
 	l.logged <- entry
 }
 
-func (*recordingStreamMessageLogger) Info(interface{}, ...interface{})  {}
-func (*recordingStreamMessageLogger) Warn(interface{}, ...interface{})  {}
-func (*recordingStreamMessageLogger) Error(interface{}, ...interface{}) {}
+func (*recordingStreamMessageLogger) Info(any, ...any)  {}
+func (*recordingStreamMessageLogger) Warn(any, ...any)  {}
+func (*recordingStreamMessageLogger) Error(any, ...any) {}
 
 func (l *recordingStreamMessageLogger) matching(message string) []recordedStreamMessageLog {
 	l.mu.Lock()
@@ -364,7 +364,7 @@ func TestStreamMessageReaderLogsBatchCacheResults(t *testing.T) {
 	if len(logs) != 2 {
 		t.Fatalf("batch read logs = %d, want 2", len(logs))
 	}
-	for key, want := range map[string]interface{}{
+	for key, want := range map[string]any{
 		"requested":     3,
 		"unique":        2,
 		"hits":          0,

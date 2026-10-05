@@ -21,7 +21,7 @@ import (
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 )
 
 func TestAPIRoomThreadingModeChangeValueFailsClosed(t *testing.T) {
@@ -85,8 +85,8 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 
 	updateResp, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
 		RoomId:      room.GetId(),
-		Name:        stringPtr("Connect / renamed!"),
-		Description: stringPtr("updated through ConnectRPC"),
+		Name:        new("Connect / renamed!"),
+		Description: new("updated through ConnectRPC"),
 	}))
 	if err != nil {
 		t.Fatalf("UpdateRoom: %v", err)
@@ -112,7 +112,7 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 	}
 	if _, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
 		RoomId: room.GetId(),
-		Name:   stringPtr("Invalid\u2028name"),
+		Name:   new("Invalid\u2028name"),
 	})); errorCode(err) != connect.CodeInvalidArgument {
 		t.Fatalf("invalid UpdateRoom name code = %v, want invalid argument", errorCode(err))
 	}
@@ -131,7 +131,7 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 	}
 	if _, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
 		RoomId: room.GetId(),
-		Name:   stringPtr("ＳＴＲＡＳＳＥ"),
+		Name:   new("ＳＴＲＡＳＳＥ"),
 	})); errorCode(err) != connect.CodeAlreadyExists {
 		t.Fatalf("compatibility-equivalent UpdateRoom code = %v, want already exists", errorCode(err))
 	}
@@ -148,7 +148,7 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 	}
 	partialUpdateResp, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
 		RoomId:      room.GetId(),
-		Description: stringPtr("description-only patch"),
+		Description: new("description-only patch"),
 	}))
 	if err != nil {
 		t.Fatalf("partial UpdateRoom: %v", err)
@@ -180,7 +180,7 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 
 	universalResp, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
 		RoomId:    room.GetId(),
-		Universal: boolPtr(false),
+		Universal: new(false),
 	}))
 	if err != nil {
 		t.Fatalf("UpdateRoom universal: %v", err)
@@ -530,7 +530,7 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 		time.Sleep(25 * time.Millisecond)
 	}
 	env.updateRoom(t, core.RoomUpdateInput{
-		ActorID: env.newRoomManager(t, "suspension-room-manager", room.Id), RoomID: room.Id, Universal: boolPtr(true),
+		ActorID: env.newRoomManager(t, "suspension-room-manager", room.Id), RoomID: room.Id, Universal: new(true),
 	})
 	if _, err := env.rooms.RemoveUser(ctx, connect.NewRequest(&apiv1.RemoveUserRequest{
 		RoomId: room.Id,
@@ -713,8 +713,8 @@ func TestRoomServiceRejectsDMRooms(t *testing.T) {
 	}
 	if _, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
 		RoomId:      dm.Id,
-		Name:        stringPtr("dm-renamed"),
-		Description: stringPtr("should not change"),
+		Name:        new("dm-renamed"),
+		Description: new("should not change"),
 	})); errorCode(err) != connect.CodeInvalidArgument {
 		t.Fatalf("UpdateRoom for DM code = %v, want invalid argument", errorCode(err))
 	}
@@ -730,7 +730,7 @@ func TestRoomServiceRejectsDMRooms(t *testing.T) {
 	}
 	if _, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
 		RoomId:    dm.Id,
-		Universal: boolPtr(true),
+		Universal: new(true),
 	})); errorCode(err) != connect.CodeInvalidArgument {
 		t.Fatalf("UpdateRoom universal for DM code = %v, want invalid argument", errorCode(err))
 	}
@@ -2050,7 +2050,7 @@ func TestNotificationServiceDeleteRejectsOccurrenceAfterAccessLoss(t *testing.T)
 		t.Fatalf("CreateRoom: %v", err)
 	}
 	env.grantRoomManage(t, room.Id, actor.Id)
-	env.updateRoom(t, core.RoomUpdateInput{ActorID: actor.Id, RoomID: room.Id, Universal: boolPtr(true)})
+	env.updateRoom(t, core.RoomUpdateInput{ActorID: actor.Id, RoomID: room.Id, Universal: new(true)})
 	posted, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, actor.Id, "access loss target", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
@@ -2098,7 +2098,7 @@ func TestNotificationServiceVisibilityFilteringFillsOffsetPages(t *testing.T) {
 	}
 	baseTime := time.Now().UTC().Add(-time.Minute)
 	created := make([]*notificationv1.NotificationOccurrence, 0, 3)
-	for index := 0; index < 3; index++ {
+	for index := range 3 {
 		room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", fmt.Sprintf("notification-page-filter-%d", index), "")
 		if err != nil {
 			t.Fatalf("CreateRoom %d: %v", index, err)
@@ -2198,10 +2198,10 @@ func TestNotificationServiceSummaryExcludesImplicitMembershipLossOutsidePage(t *
 		t.Fatalf("CreateRoom implicit: %v", err)
 	}
 	env.grantRoomManage(t, implicitRoom.Id, actor.Id)
-	env.updateRoom(t, core.RoomUpdateInput{ActorID: actor.Id, RoomID: implicitRoom.Id, Universal: boolPtr(true)})
+	env.updateRoom(t, core.RoomUpdateInput{ActorID: actor.Id, RoomID: implicitRoom.Id, Universal: new(true)})
 	stale := createOccurrence(implicitRoom, "implicit-old-source", baseTime)
 
-	for index := 0; index < 3; index++ {
+	for index := range 3 {
 		room, err := env.core.CreateRoom(env.ctx, actor.Id, core.KindChannel, "", fmt.Sprintf("notification-explicit-new-%d", index), "")
 		if err != nil {
 			t.Fatalf("CreateRoom explicit %d: %v", index, err)
@@ -2211,7 +2211,7 @@ func TestNotificationServiceSummaryExcludesImplicitMembershipLossOutsidePage(t *
 		}
 		createOccurrence(room, fmt.Sprintf("explicit-new-source-%d", index), baseTime.Add(time.Duration(index+1)*time.Second))
 	}
-	env.updateRoom(t, core.RoomUpdateInput{ActorID: actor.Id, RoomID: implicitRoom.Id, Universal: boolPtr(false)})
+	env.updateRoom(t, core.RoomUpdateInput{ActorID: actor.Id, RoomID: implicitRoom.Id, Universal: new(false)})
 
 	response, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{
 		Page: &apiv1.PageRequest{Limit: 1},
@@ -2239,7 +2239,7 @@ func TestNotificationServiceBoundsOccurrencePage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FindOrCreateDM: %v", err)
 	}
-	for index := 0; index < defaultNotificationLimit+5; index++ {
+	for index := range defaultNotificationLimit + 5 {
 		if _, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, actor.Id, fmt.Sprintf("message %d", index), nil, "", "", nil, false); err != nil {
 			t.Fatalf("PostMessage %d: %v", index, err)
 		}
@@ -2389,7 +2389,7 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 		Endpoint:     "https://push.example.test/sub",
 		P256Dh:       "p256dh-key",
 		Auth:         "auth-secret",
-		UserAgent:    stringPtr("test-agent"),
+		UserAgent:    new("test-agent"),
 		ClientHost:   "app.example.test",
 		CleanupToken: "0123456789abcdef0123456789abcdef",
 	}))

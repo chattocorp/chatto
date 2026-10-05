@@ -16,7 +16,7 @@ import (
 // permission initialized. Retries and restarts can never undo an operator's
 // later clear or deny. The complete RBAC tail guards concurrent initializers.
 func (c *ChattoCore) seedCallPermissions(ctx context.Context) error {
-	for attempt := 0; attempt < maxRBACMutationRetries; attempt++ {
+	for range maxRBACMutationRetries {
 		seen, seq, err := c.initializedCallPermissions(ctx)
 		if err != nil {
 			return err

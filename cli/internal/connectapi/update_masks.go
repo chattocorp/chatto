@@ -2,6 +2,7 @@ package connectapi
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"buf.build/go/protovalidate"
@@ -81,13 +82,7 @@ func applyUpdateMask(request proto.Message) error {
 		}
 	} else {
 		for _, path := range mask.Paths {
-			valid := false
-			for _, name := range allowed {
-				if path == name {
-					valid = true
-					break
-				}
-			}
+			valid := slices.Contains(allowed, path)
 			if !valid {
 				return invalidArgument("update_mask contains an unsupported field")
 			}

@@ -56,10 +56,7 @@ func (s *userService) ListUsers(ctx context.Context, req *connect.Request[apiv1.
 		out = append(out, apiMember)
 	}
 
-	visibleTotalCount := totalCount - skipped
-	if visibleTotalCount < len(out) {
-		visibleTotalCount = len(out)
-	}
+	visibleTotalCount := max(totalCount-skipped, len(out))
 	return connect.NewResponse(&apiv1.ListUsersResponse{
 		Users: out,
 		Page:  apiPageInfo(visibleTotalCount, offset+len(out) < visibleTotalCount),

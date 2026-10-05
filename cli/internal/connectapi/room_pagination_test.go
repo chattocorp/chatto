@@ -13,7 +13,7 @@ import (
 func TestRoomDirectoryPagination(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
-	for i := 0; i < 103; i++ {
+	for i := range 103 {
 		env.createJoinedRoom(fmt.Sprintf("paged-room-%03d", i))
 	}
 	request := func(limit, offset int32) *apiv1.ListRoomsResponse {

@@ -184,7 +184,7 @@ func (m *botWebhookModel) mutate(ctx context.Context, actorID, botID, webhookID 
 			return nil, err
 		}
 	}
-	for attempt := 0; attempt < 10; attempt++ {
+	for range 10 {
 		filter := evtstream.UserAggregate(botID).AllEventsFilter()
 		seq, err := m.core.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {

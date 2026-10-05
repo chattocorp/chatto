@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -510,8 +511,8 @@ func TestOperatorUserServiceLifecycle(t *testing.T) {
 
 	updateResp, err := operator.UpdateUser(env.ctx, connect.NewRequest(&operatorv1.UpdateUserRequest{
 		UserId:      user.GetId(),
-		Login:       stringPtr("operator-api-renamed"),
-		DisplayName: stringPtr("Operator API Renamed"),
+		Login:       new("operator-api-renamed"),
+		DisplayName: new("Operator API Renamed"),
 	}))
 	if err != nil {
 		t.Fatalf("UpdateUser: %v", err)
@@ -637,8 +638,8 @@ func TestOperatorUserServiceUpdateUserValidatesAllFieldsBeforeWriting(t *testing
 
 	_, err = operator.UpdateUser(env.ctx, connect.NewRequest(&operatorv1.UpdateUserRequest{
 		UserId:      user.GetId(),
-		DisplayName: stringPtr("Changed Display"),
-		Login:       stringPtr("bad login"),
+		DisplayName: new("Changed Display"),
+		Login:       new("bad login"),
 	}))
 	if errorCode(err) != connect.CodeInvalidArgument {
 		t.Fatalf("UpdateUser error = %v, want invalid argument", err)
@@ -667,8 +668,8 @@ func TestOperatorUserServiceUpdateUserEventsUseSystemActor(t *testing.T) {
 
 	if _, err := operator.UpdateUser(env.ctx, connect.NewRequest(&operatorv1.UpdateUserRequest{
 		UserId:      user.GetId(),
-		Login:       stringPtr("operator-api-actor-renamed"),
-		DisplayName: stringPtr("Operator Actor Renamed"),
+		Login:       new("operator-api-actor-renamed"),
+		DisplayName: new("Operator Actor Renamed"),
 	})); err != nil {
 		t.Fatalf("UpdateUser: %v", err)
 	}
@@ -1026,8 +1027,8 @@ func TestAdminRoleServiceManagesRoles(t *testing.T) {
 	pingable := false
 	updateResp, err := env.roles.UpdateRole(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.UpdateRoleRequest{
 		Name:        "helpdesk",
-		DisplayName: stringPtr("Support"),
-		Description: stringPtr("Support team"),
+		DisplayName: new("Support"),
+		Description: new("Support team"),
 		Pingable:    &pingable,
 	}))
 	if err != nil {
@@ -1038,7 +1039,7 @@ func TestAdminRoleServiceManagesRoles(t *testing.T) {
 	}
 	partialRoleResp, err := env.roles.UpdateRole(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.UpdateRoleRequest{
 		Name:        "helpdesk",
-		Description: stringPtr("Escalation queue"),
+		Description: new("Escalation queue"),
 	}))
 	if err != nil {
 		t.Fatalf("partial UpdateRole: %v", err)
@@ -1325,7 +1326,7 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 		t.Fatalf("GetRolePermissionTierMatrix room manager: %v", err)
 	}
 	everyone := findAPITierRole(roomTierResp.Msg.GetMatrix().GetRoles(), core.RoleEveryone)
-	if everyone == nil || !stringSliceContains(everyone.GetOverride().GetPermissionDenials(), string(core.PermMessageReact)) {
+	if everyone == nil || !slices.Contains(everyone.GetOverride().GetPermissionDenials(), string(core.PermMessageReact)) {
 		t.Fatalf("everyone room override = %+v, want message.react denial", everyone)
 	}
 	groupManager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "permission-group-manager", "Permission Group Manager", "password")
@@ -1585,7 +1586,7 @@ func TestAdminEventLogServiceListsFiltersAndReadsEntries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListEventTypes: %v", err)
 	}
-	if !stringSliceContains(typesResp.Msg.GetEventTypes(), "UserJoinedRoomEvent") || !stringSliceContains(typesResp.Msg.GetEventTypes(), "decode-error") {
+	if !slices.Contains(typesResp.Msg.GetEventTypes(), "UserJoinedRoomEvent") || !slices.Contains(typesResp.Msg.GetEventTypes(), "decode-error") {
 		t.Fatalf("event types = %v, want joined-room and decode-error", typesResp.Msg.GetEventTypes())
 	}
 
@@ -1684,7 +1685,7 @@ func TestAdminRoomLayoutServiceCreateRoomGroupRequiresRoomManage(t *testing.T) {
 	}
 	partialResp, err := env.adminLayout.UpdateRoomGroup(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.UpdateRoomGroupRequest{
 		GroupId:     resp.Msg.GetGroup().GetId(),
-		Description: stringPtr("Updated operations description"),
+		Description: new("Updated operations description"),
 	}))
 	if err != nil {
 		t.Fatalf("partial UpdateRoomGroup: %v", err)
@@ -1778,7 +1779,7 @@ func TestAdminRoomLayoutServiceCreateSidebarLinkRequiresRoomManage(t *testing.T)
 	}
 	partialResp, err := env.adminLayout.UpdateSidebarLink(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.UpdateSidebarLinkRequest{
 		LinkId: resp.Msg.GetSidebarLink().GetId(),
-		Url:    stringPtr("/health"),
+		Url:    new("/health"),
 	}))
 	if err != nil {
 		t.Fatalf("partial UpdateSidebarLink: %v", err)

@@ -14,10 +14,10 @@ import (
 // nopLogger satisfies events.Logger for worker-construction tests.
 type nopLogger struct{}
 
-func (nopLogger) Debug(interface{}, ...interface{}) {}
-func (nopLogger) Info(interface{}, ...interface{})  {}
-func (nopLogger) Warn(interface{}, ...interface{})  {}
-func (nopLogger) Error(interface{}, ...interface{}) {}
+func (nopLogger) Debug(any, ...any) {}
+func (nopLogger) Info(any, ...any)  {}
+func (nopLogger) Warn(any, ...any)  {}
+func (nopLogger) Error(any, ...any) {}
 
 func newEffectTestStream(t *testing.T) (context.Context, jetstream.Stream) {
 	t.Helper()
@@ -133,7 +133,7 @@ func TestCreateEffectConsumerUpdatePathStable(t *testing.T) {
 	if _, err := CreateEffectConsumer(ctx, stream, singular); err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		consumer, err := stream.Consumer(ctx, "update-singular")
 		if err != nil {
 			t.Fatal(err)
@@ -161,7 +161,7 @@ func TestCreateEffectConsumerUpdatePathStable(t *testing.T) {
 	if _, err := CreateEffectConsumer(ctx, stream, plural); err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		consumer, err := stream.Consumer(ctx, "update-plural")
 		if err != nil {
 			t.Fatal(err)

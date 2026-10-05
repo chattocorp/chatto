@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"slices"
 	"testing"
 )
 
@@ -456,11 +457,8 @@ func TestDefaultRBACSeed(t *testing.T) {
 		for role, allowed := range defaults {
 			for _, metadata := range PermissionsForScope(ScopeServer) {
 				want := DecisionNone
-				for _, permission := range allowed {
-					if permission == metadata.Permission {
-						want = DecisionAllow
-						break
-					}
+				if slices.Contains(allowed, metadata.Permission) {
+					want = DecisionAllow
 				}
 				if got := core.rbacModel.decision(ScopeServer, "", role, metadata.Permission); got != want {
 					t.Errorf("%s decision for %s = %s, want %s", role, metadata.Permission, got, want)

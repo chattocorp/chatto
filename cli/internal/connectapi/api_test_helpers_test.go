@@ -57,19 +57,6 @@ func withArmedBearerCredential(ctx context.Context, user *evtv1.User, token stri
 	})
 }
 
-func boolPtr(value bool) *bool {
-	return &value
-}
-
-func stringSliceContains(values []string, needle string) bool {
-	for _, value := range values {
-		if value == needle {
-			return true
-		}
-	}
-	return false
-}
-
 func findAPIPermissionCell(cells []*adminv1.PermissionMatrixCell, scopeID, permission string) *adminv1.PermissionMatrixCell {
 	for _, cell := range cells {
 		if cell.GetScopeId() == scopeID && cell.GetPermission() == permission {
@@ -100,8 +87,8 @@ func findAPITierRole(roles []*adminv1.TierRole, roleName string) *adminv1.TierRo
 
 func connectAPITestPNG() []byte {
 	img := image.NewRGBA(image.Rect(0, 0, 2, 2))
-	for y := 0; y < 2; y++ {
-		for x := 0; x < 2; x++ {
+	for y := range 2 {
+		for x := range 2 {
 			img.Set(x, y, color.RGBA{R: 180, G: 60, B: 90, A: 255})
 		}
 	}

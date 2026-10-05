@@ -11,7 +11,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/dynamicpb"
@@ -42,7 +41,7 @@ func TestResourceUpdateMaskCoverage(t *testing.T) {
 				if spec.container != "" {
 					values = desc.Fields().ByName(spec.container).Message()
 				}
-				for _, name := range strings.Fields(spec.fields) {
+				for name := range strings.FieldsSeq(spec.fields) {
 					require.NotNil(t, values.Fields().ByName(protoreflect.Name(name)), "%s.%s", desc.FullName(), name)
 				}
 				// Every endpoint supports wildcard expansion and rejects an explicit empty mask.
@@ -62,7 +61,7 @@ func TestResourceUpdateMaskCoverage(t *testing.T) {
 }
 
 func TestUpdateMaskSelectionAndIsolation(t *testing.T) {
-	request := &apiv1.UpdateSettingsRequest{Timezone: stringPtr("Europe/Berlin"), ShareTimezone: proto.Bool(true), UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"share_timezone", "share_timezone"}}}
+	request := &apiv1.UpdateSettingsRequest{Timezone: new("Europe/Berlin"), ShareTimezone: new(true), UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"share_timezone", "share_timezone"}}}
 	masked, err := normalizeUpdateMask(request)
 	require.NoError(t, err)
 	require.Nil(t, masked.Timezone)
@@ -154,7 +153,7 @@ func TestMyAccountProfileMaskBatch(t *testing.T) {
 	require.NoError(t, err)
 	_, err = env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId:      env.viewer.Id,
-		DisplayName: stringPtr("Changed name"), Login: stringPtr("taken-login"), Bio: stringPtr("New bio"),
+		DisplayName: new("Changed name"), Login: new("taken-login"), Bio: new("New bio"),
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"display_name", "login", "bio"}},
 	}))
 	require.Error(t, err)
@@ -167,7 +166,7 @@ func TestMyAccountProfileMaskBatch(t *testing.T) {
 	require.True(t, lastChange.IsZero())
 	_, err = env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId:      env.viewer.Id,
-		DisplayName: stringPtr("Changed name"), Login: stringPtr("new-login"), Bio: stringPtr("New bio"),
+		DisplayName: new("Changed name"), Login: new("new-login"), Bio: new("New bio"),
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"display_name", "login", "bio"}},
 	}))
 	require.NoError(t, err)
@@ -176,7 +175,7 @@ func TestMyAccountProfileMaskBatch(t *testing.T) {
 	require.False(t, lastChange.IsZero())
 	_, err = env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId:      env.viewer.Id,
-		DisplayName: stringPtr("Should not change"), Login: stringPtr("another-login"),
+		DisplayName: new("Should not change"), Login: new("another-login"),
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"display_name", "login"}},
 	}))
 	require.Error(t, err)
@@ -186,13 +185,13 @@ func TestMyAccountProfileMaskBatch(t *testing.T) {
 	require.Equal(t, "new-login", after.GetLogin())
 	_, err = env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId: env.viewer.Id,
-		Login:  stringPtr("NEW-LOGIN"), UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"login"}},
+		Login:  new("NEW-LOGIN"), UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"login"}},
 	}))
 	require.NoError(t, err, "case-only changes bypass the cooldown")
 	require.NoError(t, env.core.GrantServerPermission(ctx, core.SystemActorID, core.RoleEveryone, core.PermUserManageAccounts))
 	_, err = env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId: env.viewer.Id,
-		Login:  stringPtr("admin-bypass"), UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"login"}},
+		Login:  new("admin-bypass"), UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"login"}},
 	}))
 	require.NoError(t, err, "account managers bypass the cooldown")
 	afterBypass, err := env.core.GetLastLoginChange(ctx, env.viewer.Id)
@@ -216,7 +215,7 @@ func TestMyAccountProfileConcurrentMasks(t *testing.T) {
 			<-start
 			_, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 				UserId: env.viewer.Id,
-				Login:  stringPtr(login), DisplayName: stringPtr(login), Bio: stringPtr(login),
+				Login:  new(login), DisplayName: new(login), Bio: new(login),
 				UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"login", "display_name", "bio"}},
 			}))
 			results <- result{login, err}

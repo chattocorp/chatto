@@ -87,14 +87,14 @@ func TestVerifiedEmailFromGothUser(t *testing.T) {
 		runtime := &authProviderRuntime{config: config.AuthProviderConfig{Type: config.AuthProviderTypeDiscord}}
 		unverified := runtime.verifiedEmailFromGothUser(t.Context(), goth.User{
 			Email:   "User@Example.com",
-			RawData: map[string]interface{}{"verified": false},
+			RawData: map[string]any{"verified": false},
 		})
 		if unverified != "" {
 			t.Fatalf("unverified discord email = %q, want empty", unverified)
 		}
 		verified := runtime.verifiedEmailFromGothUser(t.Context(), goth.User{
 			Email:   "User@Example.com",
-			RawData: map[string]interface{}{"verified": true},
+			RawData: map[string]any{"verified": true},
 		})
 		if verified != "user@example.com" {
 			t.Fatalf("verified discord email = %q, want normalized email", verified)
@@ -105,14 +105,14 @@ func TestVerifiedEmailFromGothUser(t *testing.T) {
 		runtime := &authProviderRuntime{config: config.AuthProviderConfig{Type: config.AuthProviderTypeGoogle}}
 		unverified := runtime.verifiedEmailFromGothUser(t.Context(), goth.User{
 			Email:   "User@Example.com",
-			RawData: map[string]interface{}{"verified_email": false},
+			RawData: map[string]any{"verified_email": false},
 		})
 		if unverified != "" {
 			t.Fatalf("unverified google email = %q, want empty", unverified)
 		}
 		verified := runtime.verifiedEmailFromGothUser(t.Context(), goth.User{
 			Email:   "User@Example.com",
-			RawData: map[string]interface{}{"verified_email": true},
+			RawData: map[string]any{"verified_email": true},
 		})
 		if verified != "user@example.com" {
 			t.Fatalf("verified google email = %q, want normalized email", verified)
@@ -177,7 +177,7 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 			ClientID:      "client-id",
 			ClientSecret:  "client-secret",
 			RequestEmail:  &requestEmail,
-			AutoProvision: boolPtr(true),
+			AutoProvision: new(true),
 		}}
 		s.setupOIDCRoutes()
 		s.setupOAuthRoutes()
@@ -435,7 +435,7 @@ func TestOIDCAutoProvisionRequiresAndRedeemsInvitation(t *testing.T) {
 			ClientID:      "client-id",
 			ClientSecret:  "client-secret",
 			RequestEmail:  &requestEmail,
-			AutoProvision: boolPtr(true),
+			AutoProvision: new(true),
 		}}
 		s.setupOIDCRoutes()
 	})
@@ -504,7 +504,7 @@ func TestOIDCProviderWithoutEmailIgnoresUserInfoFailure(t *testing.T) {
 			ClientID:      "client-id",
 			ClientSecret:  "client-secret",
 			RequestEmail:  &requestEmail,
-			AutoProvision: boolPtr(true),
+			AutoProvision: new(true),
 		}}
 		s.setupOIDCRoutes()
 	})
@@ -839,8 +839,4 @@ func (i *noEmailOIDCIssuer) idToken(_ context.Context) string {
 		panic(err)
 	}
 	return raw
-}
-
-func boolPtr(value bool) *bool {
-	return &value
 }

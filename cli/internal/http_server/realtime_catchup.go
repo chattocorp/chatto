@@ -104,10 +104,7 @@ func (a *realtimeCatchUpAdmission) acquire(userID string, metered bool) (func(),
 		retryInterval = a.refillInterval
 	}
 	if availableTokens < 1 {
-		retryAfter := time.Duration((1 - availableTokens) * float64(retryInterval))
-		if retryAfter < time.Second {
-			retryAfter = time.Second
-		}
+		retryAfter := max(time.Duration((1-availableTokens)*float64(retryInterval)), time.Second)
 		return nil, &realtimeCatchUpAdmissionError{code: "catch_up_rate_limited", retryAfter: retryAfter}
 	}
 
@@ -151,10 +148,7 @@ func (a *realtimeCatchUpAdmission) consumeReplayToken(userID string) *realtimeCa
 	a.refill(state, now)
 	state.lastSeen = now
 	if state.tokens < 1 {
-		retryAfter := time.Duration((1 - state.tokens) * float64(a.refillInterval))
-		if retryAfter < time.Second {
-			retryAfter = time.Second
-		}
+		retryAfter := max(time.Duration((1-state.tokens)*float64(a.refillInterval)), time.Second)
 		return &realtimeCatchUpAdmissionError{code: "catch_up_rate_limited", retryAfter: retryAfter}
 	}
 	state.tokens--

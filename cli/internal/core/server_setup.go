@@ -35,7 +35,7 @@ type ServerSetupInput struct {
 // are permanently closed. Empty histories use whole-EVT OCC; existing histories
 // use setup-only OCC so normal chat traffic cannot prevent an upgrade.
 func (c *ChattoCore) initializeServerSetup(ctx context.Context) error {
-	for attempt := 0; attempt < 10; attempt++ {
+	for range 10 {
 		seq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.SetupAggregate().AllEventsFilter())
 		if err != nil {
 			return err

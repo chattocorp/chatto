@@ -94,7 +94,7 @@ func (s *Store) Create(ctx context.Context, dek *runtimestatev1.UserDataEncrypti
 	if err != nil {
 		return "", fmt.Errorf("failed to encode content key: %w", err)
 	}
-	for attempt := 0; attempt < 5; attempt++ {
+	for range 5 {
 		ref, err := newRef()
 		if err != nil {
 			return "", err

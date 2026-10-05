@@ -21,7 +21,6 @@ func Map[T any, R any](ctx context.Context, limit int, items []T, fn func(contex
 	g.SetLimit(limit)
 
 	for i, item := range items {
-		i, item := i, item
 		g.Go(func() error {
 			result, err := fn(ctx, i, item)
 			if err != nil {

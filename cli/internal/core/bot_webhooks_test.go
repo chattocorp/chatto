@@ -143,7 +143,7 @@ func TestBotOutboundWebhookRetriesAndAcknowledgement(t *testing.T) {
 	require.Equal(t, int32(3), calls.Load())
 	var previous time.Time
 	id := botWebhookDeliveryID(bot, metadata.ID, source.GetId())
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		request := <-received
 		var payload botWebhookPayload
 		require.NoError(t, json.Unmarshal(request.body, &payload))
@@ -527,14 +527,14 @@ func TestBotOutboundWebhookConcurrentCreationReturnsOwnSecret(t *testing.T) {
 		err     error
 	}
 	responses := make(chan response, 8)
-	for i := 0; i < 8; i++ {
+	for range 8 {
 		go func() {
 			w, s, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Test endpoint", "https://example.com/hook", "", false)
 			responses <- response{w, s, err}
 		}()
 	}
 	var succeeded []response
-	for i := 0; i < 8; i++ {
+	for range 8 {
 		r := <-responses
 		if errors.Is(r.err, events.ErrConflict) {
 			continue

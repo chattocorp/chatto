@@ -179,7 +179,7 @@ func (c *MediaModel) storeAttachmentBinary(
 			Asset: &evtv1.DeprecatedAsset_S3{
 				S3: &evtv1.S3Asset{
 					Key:    s3Key,
-					Bucket: proto.String(c.s3Client.Bucket()),
+					Bucket: new(c.s3Client.Bucket()),
 				},
 			},
 		}

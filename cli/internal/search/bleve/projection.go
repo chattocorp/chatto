@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -90,9 +91,7 @@ func (b *projectionBatch) makeDEKsMutable() {
 		return
 	}
 	deks := make(map[string]*evtv1.UserDEKGeneratedEvent, len(b.deks))
-	for key, dek := range b.deks {
-		deks[key] = dek
-	}
+	maps.Copy(deks, b.deks)
 	b.deks = deks
 	b.deksMutable = true
 }

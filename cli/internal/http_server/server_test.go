@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -705,7 +706,7 @@ func TestAuthRoutes_Login_Success(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", resp.StatusCode)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -714,7 +715,7 @@ func TestAuthRoutes_Login_Success(t *testing.T) {
 		t.Error("Expected success: true in response")
 	}
 
-	user, ok := result["user"].(map[string]interface{})
+	user, ok := result["user"].(map[string]any)
 	if !ok {
 		t.Fatal("Expected user object in response")
 	}
@@ -1392,8 +1393,8 @@ func TestAuthRoutes_ConcurrentRenewalSlotsConverge(t *testing.T) {
 		}
 		delayedCookies = append(delayedCookies, response.Cookies())
 	}
-	for index := len(delayedCookies) - 1; index >= 0; index-- {
-		client.Jar.SetCookies(requestURL, delayedCookies[index])
+	for _, delayedCookie := range slices.Backward(delayedCookies) {
+		client.Jar.SetCookies(requestURL, delayedCookie)
 	}
 	authCookies := 0
 	for _, cookie := range client.Jar.Cookies(requestURL) {
@@ -1681,7 +1682,7 @@ func TestAuthRoutes_Login_WithIdentifier(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", resp.StatusCode)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -1690,7 +1691,7 @@ func TestAuthRoutes_Login_WithIdentifier(t *testing.T) {
 		t.Error("Expected success: true in response")
 	}
 
-	user, ok := result["user"].(map[string]interface{})
+	user, ok := result["user"].(map[string]any)
 	if !ok {
 		t.Fatal("Expected user object in response")
 	}
@@ -1849,7 +1850,7 @@ func TestAuthRoutes_Logout(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", logoutResp.StatusCode)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(logoutResp.Body).Decode(&result); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -2150,7 +2151,7 @@ func TestAuthRoutes_Register_SendsRegistrationEmail(t *testing.T) {
 		t.Errorf("Expected status 200, got %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -2238,7 +2239,7 @@ func TestAuthRoutes_Register_SendFailureDoesNotConsumeThrottle(t *testing.T) {
 	mockMailer.SendError = errors.New("smtp unavailable")
 
 	body, _ := json.Marshal(map[string]string{"email": "delivery-debug@example.com"})
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		resp, err := client.Post(ts.URL+"/auth/register", "application/json", bytes.NewReader(body))
 		if err != nil {
 			t.Fatalf("Failed to send register request %d: %v", i+1, err)
@@ -2354,7 +2355,7 @@ func TestAuthRoutes_RegisterVerifyCode_ExhaustedAttempts(t *testing.T) {
 	}
 
 	verifyBody, _ := json.Marshal(map[string]string{"email": "bruteforce@example.com", "code": wrongCode})
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		verifyResp, err := client.Post(ts.URL+"/auth/register/verify-code", "application/json", bytes.NewReader(verifyBody))
 		if err != nil {
 			t.Fatalf("Failed to verify registration code attempt %d: %v", i+1, err)
@@ -2407,7 +2408,7 @@ func TestAuthRoutes_RegisterComplete_Success(t *testing.T) {
 		t.Fatalf("Expected status 200, got %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -2421,7 +2422,7 @@ func TestAuthRoutes_RegisterComplete_Success(t *testing.T) {
 		}
 	}
 
-	user, ok := result["user"].(map[string]interface{})
+	user, ok := result["user"].(map[string]any)
 	if !ok {
 		t.Fatal("Expected user object in response")
 	}
@@ -2979,7 +2980,7 @@ func TestAuthRoutes_EmailVerification_RequestCodeLimit(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(map[string]string{"email": "limit@example.com"})
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		resp, err := client.Post(ts.URL+"/auth/verify-email/request-code", "application/json", bytes.NewReader(body))
 		if err != nil {
 			t.Fatalf("Failed to request verification code %d: %v", i+1, err)
@@ -3028,7 +3029,7 @@ func TestAuthRoutes_EmailVerification_SendFailureDoesNotConsumeThrottle(t *testi
 
 	mockMailer.SendError = errors.New("smtp unavailable")
 	body, _ := json.Marshal(map[string]string{"email": "verify-delivery-debug@example.com"})
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		resp, err := client.Post(ts.URL+"/auth/verify-email/request-code", "application/json", bytes.NewReader(body))
 		if err != nil {
 			t.Fatalf("Failed to request verification code %d: %v", i+1, err)
@@ -3163,7 +3164,7 @@ func TestAuthRoutes_RegisterComplete_ThenLogin(t *testing.T) {
 		t.Fatalf("Login failed with status %d: %s", loginResp.StatusCode, string(respBody))
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(loginResp.Body).Decode(&result); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -3172,7 +3173,7 @@ func TestAuthRoutes_RegisterComplete_ThenLogin(t *testing.T) {
 		t.Error("Expected success: true")
 	}
 
-	user, ok := result["user"].(map[string]interface{})
+	user, ok := result["user"].(map[string]any)
 	if !ok {
 		t.Fatal("Expected user object")
 	}
@@ -3211,7 +3212,7 @@ func TestAuthRoutes_Login_WithIdentifierField(t *testing.T) {
 		t.Fatalf("Login with identifier field failed with status %d: %s", loginResp.StatusCode, string(respBody))
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(loginResp.Body).Decode(&result); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -3220,7 +3221,7 @@ func TestAuthRoutes_Login_WithIdentifierField(t *testing.T) {
 		t.Error("Expected success: true")
 	}
 
-	user, ok := result["user"].(map[string]interface{})
+	user, ok := result["user"].(map[string]any)
 	if !ok {
 		t.Fatal("Expected user object")
 	}
@@ -3471,7 +3472,7 @@ func TestAuthRoutes_ForgotPassword_SendsEmail(t *testing.T) {
 		t.Fatalf("Expected status 200, got %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -3520,7 +3521,7 @@ func TestAuthRoutes_ForgotPassword_ThrottlesRepeatedDelivery(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(map[string]string{"email": "forgot-throttle@example.com"})
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		resp, err := client.Post(ts.URL+"/auth/forgot-password", "application/json", bytes.NewReader(body))
 		if err != nil {
 			t.Fatalf("forgot-password request %d: %v", i+1, err)
@@ -3594,7 +3595,7 @@ func TestAuthRoutes_ForgotPassword_NoEnumeration(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", resp.StatusCode)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -3682,7 +3683,7 @@ func TestAuthRoutes_ResetPassword_Success(t *testing.T) {
 		t.Fatalf("Expected status 200, got %d: %s", resetResp.StatusCode, string(respBody))
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(resetResp.Body).Decode(&result); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -3723,7 +3724,7 @@ func TestAuthRoutes_ResetPassword_InvalidToken(t *testing.T) {
 		t.Errorf("Expected status 400, got %d", resp.StatusCode)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}

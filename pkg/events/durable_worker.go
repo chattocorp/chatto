@@ -289,19 +289,12 @@ func (w *DurableWorker) handoff(msg jetstream.Msg, delivery DurableDelivery) {
 }
 
 func durableWorkerHandoffDelay(fetchMaxWait time.Duration) time.Duration {
-	margin := fetchMaxWait / 10
-	if margin < time.Millisecond {
-		margin = time.Millisecond
-	}
-	if margin > 100*time.Millisecond {
-		margin = 100 * time.Millisecond
-	}
+	margin := min(max(fetchMaxWait/10, time.Millisecond), 100*time.Millisecond)
 	return fetchMaxWait + margin
 }
 
 func (w *DurableWorker) finish(ctx context.Context, msg jetstream.Msg, delivery DurableDelivery, err error) {
-	var terminateErr *terminateDeliveryError
-	if errors.As(err, &terminateErr) {
+	if terminateErr, ok := errors.AsType[*terminateDeliveryError](err); ok {
 		if termErr := msg.TermWithReason(terminateErr.reason); termErr != nil {
 			w.logWarn("Durable delivery termination failed", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "error", termErr)
 		} else {
@@ -312,8 +305,7 @@ func (w *DurableWorker) finish(ctx context.Context, msg jetstream.Msg, delivery 
 
 	if err != nil {
 		delay := w.opts.RetryDelay
-		var retryErr *retryDeliveryError
-		if errors.As(err, &retryErr) {
+		if retryErr, ok := errors.AsType[*retryDeliveryError](err); ok {
 			delay = retryErr.delay
 		}
 		if shouldLogDurableDeliveryAttempt(delivery.NumDelivered) {
@@ -349,13 +341,13 @@ func (w *DurableWorker) retry(msg jetstream.Msg, delay time.Duration) {
 	}
 }
 
-func (w *DurableWorker) logWarn(message interface{}, keyvals ...interface{}) {
+func (w *DurableWorker) logWarn(message any, keyvals ...any) {
 	if w.opts.Logger != nil {
 		w.opts.Logger.Warn(message, keyvals...)
 	}
 }
 
-func (w *DurableWorker) logError(message interface{}, keyvals ...interface{}) {
+func (w *DurableWorker) logError(message any, keyvals ...any) {
 	if w.opts.Logger != nil {
 		w.opts.Logger.Error(message, keyvals...)
 	}

@@ -94,7 +94,7 @@ func (c *ChattoCore) CreateNeighbor(ctx context.Context, actorID, rawOrigin stri
 	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_ServerNeighborCreated{
 		ServerNeighborCreated: &evtv1.ServerNeighborCreatedEvent{NeighborId: neighborID, Origin: origin},
 	}})
-	for attempt := 0; attempt < maxNeighborMutationRetries; attempt++ {
+	for attempt := range maxNeighborMutationRetries {
 		prepared, err := c.prepareNeighborMutation(ctx, actorID)
 		if err != nil {
 			return Neighbor{}, err
@@ -127,7 +127,7 @@ func (c *ChattoCore) UpdateNeighbor(ctx context.Context, actorID, neighborID, ra
 	if err != nil {
 		return Neighbor{}, err
 	}
-	for attempt := 0; attempt < maxNeighborMutationRetries; attempt++ {
+	for attempt := range maxNeighborMutationRetries {
 		prepared, err := c.prepareNeighborMutation(ctx, actorID)
 		if err != nil {
 			return Neighbor{}, err
@@ -173,7 +173,7 @@ func (c *ChattoCore) DeleteNeighbor(ctx context.Context, actorID, neighborID, re
 	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_ServerNeighborDeleted{
 		ServerNeighborDeleted: &evtv1.ServerNeighborDeletedEvent{NeighborId: neighborID},
 	}})
-	for attempt := 0; attempt < maxNeighborMutationRetries; attempt++ {
+	for attempt := range maxNeighborMutationRetries {
 		prepared, err := c.prepareNeighborMutation(ctx, actorID)
 		if err != nil {
 			return err

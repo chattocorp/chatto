@@ -21,7 +21,7 @@ func TestIntegrationRelationshipReads(t *testing.T) {
 	root := env.post(room.Id, env.viewer.Id, "root", "")
 	ctx := withCaller(env.ctx, env.viewer)
 	var ids []string
-	for i := 0; i < 7; i++ {
+	for i := range 7 {
 		user, err := env.core.CreateUser(env.ctx, core.SystemActorID, fmt.Sprintf("relationship-reader-%d", i), "Reader", "password")
 		require.NoError(t, err)
 		_, err = env.core.JoinRoom(env.ctx, user.Id, core.KindChannel, user.Id, room.Id)

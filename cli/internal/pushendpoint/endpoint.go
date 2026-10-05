@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"slices"
 	"time"
 )
 
@@ -77,10 +78,8 @@ func safeDialContext(resolver ipResolver, dial dialContextFunc) dialContextFunc 
 		if err != nil || len(addresses) == 0 {
 			return nil, errors.New("push endpoint could not be resolved")
 		}
-		for _, resolved := range addresses {
-			if blockedAddress(resolved) {
-				return nil, errors.New("push endpoint resolves to a blocked network address")
-			}
+		if slices.ContainsFunc(addresses, blockedAddress) {
+			return nil, errors.New("push endpoint resolves to a blocked network address")
 		}
 
 		var dialErrors []error

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -237,9 +238,7 @@ func prepareNotificationStreamMetadata(ctx context.Context, js jetstream.JetStre
 		if infoErr != nil {
 			return nil, fmt.Errorf("read existing NOTIFICATIONS stream info: %w", infoErr)
 		}
-		for key, value := range info.Config.Metadata {
-			metadata[key] = value
-		}
+		maps.Copy(metadata, info.Config.Metadata)
 	case errors.Is(err, jetstream.ErrStreamNotFound):
 	case err != nil:
 		return nil, fmt.Errorf("open existing NOTIFICATIONS stream: %w", err)
@@ -302,9 +301,7 @@ func prepareEVTStreamMetadata(ctx context.Context, js jetstream.JetStream) (map[
 		if infoErr != nil {
 			return nil, fmt.Errorf("read existing EVT stream info: %w", infoErr)
 		}
-		for key, value := range info.Config.Metadata {
-			metadata[key] = value
-		}
+		maps.Copy(metadata, info.Config.Metadata)
 	case errors.Is(err, jetstream.ErrStreamNotFound):
 	case err != nil:
 		return nil, fmt.Errorf("open existing EVT stream: %w", err)

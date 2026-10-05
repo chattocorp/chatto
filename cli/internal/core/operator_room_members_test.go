@@ -28,16 +28,14 @@ func TestOperatorRoomMemberAddAcrossReplicasAndReplay(t *testing.T) {
 	results := make([]result, 2)
 	var wg sync.WaitGroup
 	for i, c := range []*ChattoCore{first, second} {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			membership, addErr := c.AddMember(ctx, SystemActorID, KindChannel, room.GetId(), user.GetId())
 			results[i].err = addErr
 			if membership != nil {
 				results[i].roomID = membership.GetRoomId()
 				results[i].userID = membership.GetUserId()
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	for _, result := range results {

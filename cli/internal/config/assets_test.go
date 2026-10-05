@@ -374,8 +374,6 @@ func TestS3Config_Defaults(t *testing.T) {
 }
 
 func TestS3Config_UsePathStyleForEndpoint(t *testing.T) {
-	boolPtr := func(v bool) *bool { return &v }
-
 	tests := []struct {
 		name string
 		cfg  S3Config
@@ -408,12 +406,12 @@ func TestS3Config_UsePathStyleForEndpoint(t *testing.T) {
 		},
 		{
 			name: "explicit false overrides custom endpoint default",
-			cfg:  S3Config{Endpoint: "localhost:9000", PathStyle: boolPtr(false)},
+			cfg:  S3Config{Endpoint: "localhost:9000", PathStyle: new(false)},
 			want: false,
 		},
 		{
 			name: "explicit true overrides AWS endpoint default",
-			cfg:  S3Config{Endpoint: "s3.amazonaws.com", PathStyle: boolPtr(true)},
+			cfg:  S3Config{Endpoint: "s3.amazonaws.com", PathStyle: new(true)},
 			want: true,
 		},
 	}

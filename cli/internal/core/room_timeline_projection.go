@@ -899,8 +899,8 @@ func (p *RoomTimelineProjection) LastRoomMessageEntry(roomID string) (*TimelineE
 	p.RLock()
 	defer p.RUnlock()
 	entryIndexes := p.messagePostsByRoom[roomID]
-	for i := len(entryIndexes) - 1; i >= 0; i-- {
-		e := p.entryAtLocked(int(entryIndexes[i]))
+	for _, entryIndex := range slices.Backward(entryIndexes) {
+		e := p.entryAtLocked(int(entryIndex))
 		if e == nil {
 			continue
 		}
@@ -1017,8 +1017,7 @@ func (p *RoomTimelineProjection) CurrentRoomAttachmentMessages(roomID string) []
 	}
 
 	out := make([]projectedRoomAttachmentMessage, 0, len(ids))
-	for i := len(ids) - 1; i >= 0; i-- {
-		eventID := ids[i]
+	for _, eventID := range slices.Backward(ids) {
 		entry, _ := p.entryByEventIDLocked(eventID)
 		if entry == nil || p.isHiddenEchoEntryLocked(entry) {
 			continue
@@ -1350,10 +1349,8 @@ func (p *RoomTimelineProjection) messageTombstonedAtLocked(eventID string) (time
 }
 
 func appendIfMissing(values []string, value string) []string {
-	for _, existing := range values {
-		if existing == value {
-			return values
-		}
+	if slices.Contains(values, value) {
+		return values
 	}
 	return append(values, value)
 }
@@ -1414,8 +1411,8 @@ func (p *RoomTimelineProjection) LastVisibleRoomEntry(
 	p.RLock()
 	defer p.RUnlock()
 	entryIndexes := p.byRoom[roomID]
-	for i := len(entryIndexes) - 1; i >= 0; i-- {
-		e := p.entryAtLocked(int(entryIndexes[i]))
+	for _, entryIndex := range slices.Backward(entryIndexes) {
+		e := p.entryAtLocked(int(entryIndex))
 		if e == nil {
 			continue
 		}
@@ -1551,17 +1548,11 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAround(
 		return nil, 0, false, false, false
 	}
 
-	start := targetVisibleIndex - (limit-1)/2
-	if start < 0 {
-		start = 0
-	}
+	start := max(targetVisibleIndex-(limit-1)/2, 0)
 	end := start + limit
 	if end > visibleCount {
 		end = visibleCount
-		start = end - limit
-		if start < 0 {
-			start = 0
-		}
+		start = max(end-limit, 0)
 	}
 
 	out := make([]*TimelineEntry, 0, end-start)

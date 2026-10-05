@@ -165,13 +165,11 @@ func TestChattoCore_VerifyEmailCode(t *testing.T) {
 
 		var wg sync.WaitGroup
 		errs := make(chan error, 5)
-		for i := 0; i < 5; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+		for range 5 {
+			wg.Go(func() {
 				_, err := core.VerifyEmailCode(ctx, user.Id, "parallel-email@example.com", code)
 				errs <- err
-			}()
+			})
 		}
 		wg.Wait()
 		close(errs)
@@ -402,12 +400,9 @@ func TestConfiguredOwnerVerificationFencesServingReplicaRBAC(t *testing.T) {
 	projectorCtx, cancelProjectors := context.WithCancel(context.Background())
 	var projectorWG sync.WaitGroup
 	for _, registration := range serving.projections {
-		registration := registration
-		projectorWG.Add(1)
-		go func() {
-			defer projectorWG.Done()
+		projectorWG.Go(func() {
 			_ = registration.projector.Run(projectorCtx)
-		}()
+		})
 	}
 	t.Cleanup(func() {
 		cancelProjectors()

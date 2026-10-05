@@ -1,6 +1,7 @@
 package core
 
 import (
+	"maps"
 	"slices"
 	"testing"
 )
@@ -28,12 +29,8 @@ func installTestPermissionInclusion(t testing.TB) (Permission, Permission) {
 	}
 	previous := permissionIndex
 	permissionIndex = make(map[Permission]PermissionMetadata, len(previous)+len(validated))
-	for permission, metadata := range previous {
-		permissionIndex[permission] = metadata
-	}
-	for permission, metadata := range validated {
-		permissionIndex[permission] = metadata
-	}
+	maps.Copy(permissionIndex, previous)
+	maps.Copy(permissionIndex, validated)
 	t.Cleanup(func() {
 		permissionIndex = previous
 	})

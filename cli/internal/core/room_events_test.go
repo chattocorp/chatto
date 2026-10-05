@@ -147,8 +147,8 @@ func TestChattoCore_GetRoomEvents_RoomLifecycleCommandsAreImmediatelyVisible(t *
 	if _, err := core.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
 		ActorID:     managerID,
 		RoomID:      room.Id,
-		Name:        stringPtrForCoreTest("renamed-lifecycle-room"),
-		Description: stringPtrForCoreTest("Updated description"),
+		Name:        new("renamed-lifecycle-room"),
+		Description: new("Updated description"),
 	}); err != nil {
 		t.Fatalf("Failed to update room: %v", err)
 	}

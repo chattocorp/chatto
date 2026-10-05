@@ -50,7 +50,7 @@ func TestOIDCConformance(t *testing.T) {
 		s.config.Auth.Providers = []config.AuthProviderConfig{{
 			ID: "conformance", Type: config.AuthProviderTypeOpenIDConnect,
 			IssuerURL: issuer, ClientID: "chatto-conformance",
-			ClientSecret: os.Getenv("CHATTO_CONFORMANCE_SECRET"), AutoProvision: boolPtr(true),
+			ClientSecret: os.Getenv("CHATTO_CONFORMANCE_SECRET"), AutoProvision: new(true),
 			TokenEndpointAuthMethod: os.Getenv("CHATTO_CONFORMANCE_AUTH_METHOD"),
 		}}
 		s.setupOIDCRoutes()

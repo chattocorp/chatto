@@ -424,7 +424,7 @@ func TestBotIncomingWebhookActiveLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
 	}
-	for i := 0; i < maxBotIncomingWebhooks; i++ {
+	for i := range maxBotIncomingWebhooks {
 		if _, err := c.CreateBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId(), "Webhook"); err != nil {
 			t.Fatalf("CreateBotIncomingWebhook %d: %v", i, err)
 		}
@@ -445,7 +445,7 @@ func TestConcurrentBotIncomingWebhookCreationCannotExceedActiveLimit(t *testing.
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
 	}
-	for i := 0; i < maxBotIncomingWebhooks-1; i++ {
+	for i := range maxBotIncomingWebhooks - 1 {
 		if _, err := c.CreateBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId(), "Existing"); err != nil {
 			t.Fatalf("CreateBotIncomingWebhook %d: %v", i, err)
 		}

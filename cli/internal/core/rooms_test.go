@@ -281,14 +281,14 @@ func TestValidateRoomName(t *testing.T) {
 	for i, tt := range tests {
 		if tt.name == "valid 30 chars" {
 			validName := ""
-			for j := 0; j < 30; j++ {
+			for range 30 {
 				validName += "a"
 			}
 			tests[i].input = validName
 		}
 		if tt.name == "too long 31 chars" {
 			longName := ""
-			for j := 0; j < 31; j++ {
+			for range 31 {
 				longName += "a"
 			}
 			tests[i].input = longName
@@ -403,14 +403,14 @@ func TestValidateRoomDescription(t *testing.T) {
 	for i, tt := range tests {
 		if tt.name == "valid 500 chars" {
 			validDesc := ""
-			for j := 0; j < 500; j++ {
+			for range 500 {
 				validDesc += "a"
 			}
 			tests[i].input = validDesc
 		}
 		if tt.name == "too long 501 chars" {
 			longDesc := ""
-			for j := 0; j < 501; j++ {
+			for range 501 {
 				longDesc += "a"
 			}
 			tests[i].input = longDesc
@@ -475,10 +475,8 @@ func TestChattoCore_CreateRoom_ConcurrentDuplicateName(t *testing.T) {
 	errs := make(chan error, 8)
 	successes := make(chan *evtv1.Room, 8)
 
-	for i := 0; i < 8; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 8 {
+		wg.Go(func() {
 			<-start
 			room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "concurrent-name", "")
 			if err != nil {
@@ -486,7 +484,7 @@ func TestChattoCore_CreateRoom_ConcurrentDuplicateName(t *testing.T) {
 				return
 			}
 			successes <- room
-		}()
+		})
 	}
 	close(start)
 	wg.Wait()
@@ -685,7 +683,7 @@ func TestChattoCore_UpdateRoom_DuplicateName(t *testing.T) {
 	managerID := newRoomManagerForTest(t, ctx, core, "duplicate-name-manager", roomB.Id)
 	rename := func(name string) error {
 		_, err := core.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
-			ActorID: managerID, RoomID: roomB.Id, Name: stringPtrForCoreTest(name), Description: stringPtrForCoreTest("Updated description"),
+			ActorID: managerID, RoomID: roomB.Id, Name: new(name), Description: new("Updated description"),
 		})
 		return err
 	}
@@ -716,7 +714,7 @@ func TestChattoCore_UpdateRoom_SameName_DifferentCase(t *testing.T) {
 	// Update room to same name with different casing - should succeed
 	managerID := newRoomManagerForTest(t, ctx, core, "same-name-manager", room.Id)
 	updated, err := core.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
-		ActorID: managerID, RoomID: room.Id, Name: stringPtrForCoreTest("GENERAL"), Description: stringPtrForCoreTest("Updated description"),
+		ActorID: managerID, RoomID: room.Id, Name: new("GENERAL"), Description: new("Updated description"),
 	})
 	if err != nil {
 		t.Fatalf("Expected success when updating to same name with different case, got: %v", err)
@@ -738,7 +736,7 @@ func TestChattoCore_UpdateRoom_PreservesArchived(t *testing.T) {
 
 	managerID := newRoomManagerForTest(t, ctx, core, "archived-room-manager", room.Id)
 	updated, err := core.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
-		ActorID: managerID, RoomID: room.Id, Name: stringPtrForCoreTest("new-name"), Description: stringPtrForCoreTest("New description"),
+		ActorID: managerID, RoomID: room.Id, Name: new("new-name"), Description: new("New description"),
 	})
 	if err != nil {
 		t.Fatalf("Failed to update room: %v", err)
@@ -874,7 +872,7 @@ func TestChattoCore_RoomName_ReuseAfterRename(t *testing.T) {
 
 	managerID := newRoomManagerForTest(t, ctx, core, "rename-room-manager", room.Id)
 	if _, err := core.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
-		ActorID: managerID, RoomID: room.Id, Name: stringPtrForCoreTest("new-name"),
+		ActorID: managerID, RoomID: room.Id, Name: new("new-name"),
 	}); err != nil {
 		t.Fatalf("UpdateRoom rename: %v", err)
 	}

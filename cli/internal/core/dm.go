@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -251,10 +252,8 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 
 // ensureInList ensures the given ID is in the list, adding it if not present.
 func ensureInList(list []string, id string) []string {
-	for _, item := range list {
-		if item == id {
-			return list
-		}
+	if slices.Contains(list, id) {
+		return list
 	}
 	return append(list, id)
 }

@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -622,13 +623,7 @@ func TestChattoCore_EveryoneFallback_AdminGrantWins(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetUserServerPermissions error: %v", err)
 		}
-		found := false
-		for _, p := range perms {
-			if p == PermAdminUsersView {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(perms, PermAdminUsersView)
 		if !found {
 			t.Error("Expected GetUserServerPermissions to include admin.view-users from the admin role")
 		}
@@ -908,13 +903,7 @@ func TestChattoCore_AssignServerRole(t *testing.T) {
 
 		// Verify via GetUserServerRoles
 		roles, _ := core.GetUserRoles(ctx, userID)
-		found := false
-		for _, r := range roles {
-			if r == "tester" {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(roles, "tester")
 		if !found {
 			t.Error("Expected instance-tester role in user's roles")
 		}
@@ -1714,13 +1703,7 @@ func TestChattoCore_DeleteRole_CleansUpPermissionsAndAssignments(t *testing.T) {
 	}
 
 	roles, _ := core.GetUserRoles(ctx, "test-user")
-	found := false
-	for _, r := range roles {
-		if r == "testmod" {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(roles, "testmod")
 	if !found {
 		t.Fatal("User should have testmod role before deletion")
 	}
@@ -2018,13 +2001,7 @@ func TestChattoCore_RevokeRole_CanDemotePeerWhenAPIGatePermits(t *testing.T) {
 
 	// Verify Admin B no longer has owner role.
 	roles, _ := core.GetUserRoles(ctx, adminB)
-	hasAdmin := false
-	for _, r := range roles {
-		if r == RoleOwner {
-			hasAdmin = true
-			break
-		}
-	}
+	hasAdmin := slices.Contains(roles, RoleOwner)
 	if hasAdmin {
 		t.Error("Admin B should no longer have owner role")
 	}
@@ -2652,13 +2629,7 @@ func TestChattoCore_RevokeRole_CannotDemoteSelf(t *testing.T) {
 
 	// Verify they still have the role
 	roles, _ := core.GetUserRoles(ctx, owner)
-	hasOwner := false
-	for _, r := range roles {
-		if r == RoleOwner {
-			hasOwner = true
-			break
-		}
-	}
+	hasOwner := slices.Contains(roles, RoleOwner)
 	if !hasOwner {
 		t.Error("Owner should still have owner role after failed self-revoke")
 	}
@@ -2697,12 +2668,7 @@ func TestChattoCore_RevokeRole_RemovingRoleAlsoRemovesAssignmentAuthority(t *tes
 	rolesB, _ := core.GetUserRoles(ctx, modB)
 
 	hasMod := func(roles []string) bool {
-		for _, r := range roles {
-			if r == RoleModerator {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(roles, RoleModerator)
 	}
 
 	if !hasMod(rolesA) {
@@ -2752,8 +2718,8 @@ func TestChattoCore_AdminRoleManagementAuthorization(t *testing.T) {
 	pingable = false
 	updated, err := core.AdminUpdateServerRole(ctx, admin.Id, AdminRoleUpdateInput{
 		Name:        "helpdesk",
-		DisplayName: stringPtrForCoreTest("Support"),
-		Description: stringPtrForCoreTest("Support queue"),
+		DisplayName: new("Support"),
+		Description: new("Support queue"),
 		Pingable:    &pingable,
 	})
 	if err != nil {

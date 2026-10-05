@@ -275,16 +275,13 @@ func IsNoSuchKeyError(err error) bool {
 	if err == nil {
 		return false
 	}
-	var noSuchKey *types.NoSuchKey
-	if errors.As(err, &noSuchKey) {
+	if _, ok := errors.AsType[*types.NoSuchKey](err); ok {
 		return true
 	}
-	var notFound *types.NotFound
-	if errors.As(err, &notFound) {
+	if _, ok := errors.AsType[*types.NotFound](err); ok {
 		return true
 	}
-	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[smithy.APIError](err); ok {
 		switch apiErr.ErrorCode() {
 		case "NoSuchKey", "NotFound", "404":
 			return true
@@ -311,12 +308,10 @@ func (s *S3Client) PresignedGetURL(ctx context.Context, key string, expiry time.
 }
 
 func isNoSuchBucketError(err error) bool {
-	var noSuchBucket *types.NoSuchBucket
-	if errors.As(err, &noSuchBucket) {
+	if _, ok := errors.AsType[*types.NoSuchBucket](err); ok {
 		return true
 	}
-	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[smithy.APIError](err); ok {
 		switch apiErr.ErrorCode() {
 		case "NoSuchBucket", "NotFound", "404":
 			return true

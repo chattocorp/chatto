@@ -106,9 +106,9 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	}
 	updated, err := env.users.UpdateUserProfile(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId:      botCore.GetId(),
-		Login:       stringPtr("updated-connect-helper"),
-		DisplayName: stringPtr("Updated Connect Bot"),
-		Bio:         stringPtr("**Build helper**"),
+		Login:       new("updated-connect-helper"),
+		DisplayName: new("Updated Connect Bot"),
+		Bio:         new("**Build helper**"),
 	}))
 	if err != nil {
 		t.Fatalf("bot UpdateUserProfile: %v", err)
@@ -118,7 +118,7 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	}
 	ownerUpdated, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId: bot.GetUser().GetId(),
-		Bio:    stringPtr("Maintained by its owner."),
+		Bio:    new("Maintained by its owner."),
 	}))
 	if err != nil {
 		t.Fatalf("owner UpdateUserProfile bot: %v", err)
@@ -130,7 +130,7 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	// applies to the owner, and bot reads expose it.
 	if _, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId: bot.GetUser().GetId(),
-		Login:  stringPtr("owner-renamed-helper"),
+		Login:  new("owner-renamed-helper"),
 	})); errorCode(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("owner rename during bot cooldown code = %v, want failed precondition", errorCode(err))
 	}
@@ -144,7 +144,7 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	}
 	if _, err := env.users.UpdateUserProfile(withCaller(env.ctx, recipient), connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId: bot.GetUser().GetId(),
-		Bio:    stringPtr("Not my bot."),
+		Bio:    new("Not my bot."),
 	})); errorCode(err) != connect.CodePermissionDenied {
 		t.Fatalf("stranger UpdateUserProfile bot code = %v, want permission denied", errorCode(err))
 	}

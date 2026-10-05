@@ -7,18 +7,18 @@ package events
 // identities, and handler errors as diagnostic fields; callers must keep those
 // values opaque and free of personal data, credentials, tokens, and secrets.
 type Logger interface {
-	Debug(msg interface{}, keyvals ...interface{})
-	Info(msg interface{}, keyvals ...interface{})
-	Warn(msg interface{}, keyvals ...interface{})
-	Error(msg interface{}, keyvals ...interface{})
+	Debug(msg any, keyvals ...any)
+	Info(msg any, keyvals ...any)
+	Warn(msg any, keyvals ...any)
+	Error(msg any, keyvals ...any)
 }
 
 type noopLogger struct{}
 
-func (noopLogger) Debug(interface{}, ...interface{}) {}
-func (noopLogger) Info(interface{}, ...interface{})  {}
-func (noopLogger) Warn(interface{}, ...interface{})  {}
-func (noopLogger) Error(interface{}, ...interface{}) {}
+func (noopLogger) Debug(any, ...any) {}
+func (noopLogger) Info(any, ...any)  {}
+func (noopLogger) Warn(any, ...any)  {}
+func (noopLogger) Error(any, ...any) {}
 
 func normalizeLogger(logger Logger) Logger {
 	if logger == nil {

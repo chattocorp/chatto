@@ -29,9 +29,6 @@ func apiSlicePage[T any](items []T, limit, offset int) ([]T, int, bool) {
 	if offset >= total {
 		return []T{}, total, false
 	}
-	end := offset + limit
-	if end > total {
-		end = total
-	}
+	end := min(offset+limit, total)
 	return items[offset:end], total, end < total
 }

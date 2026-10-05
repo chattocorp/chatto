@@ -9,9 +9,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"io"
 	"time"
+
+	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -64,10 +65,10 @@ var (
 )
 
 type Logger interface {
-	Debug(msg interface{}, keyvals ...interface{})
-	Info(msg interface{}, keyvals ...interface{})
-	Warn(msg interface{}, keyvals ...interface{})
-	Error(msg interface{}, keyvals ...interface{})
+	Debug(msg any, keyvals ...any)
+	Info(msg any, keyvals ...any)
+	Warn(msg any, keyvals ...any)
+	Error(msg any, keyvals ...any)
 }
 
 // BlobStore is the private binary-storage boundary used by snapshots. Keys are
@@ -553,23 +554,23 @@ func decompress(compressed []byte) ([]byte, error) {
 	return plain, nil
 }
 
-func (r *Repository) logDebug(message, projection, stage string, err error, extra ...interface{}) {
+func (r *Repository) logDebug(message, projection, stage string, err error, extra ...any) {
 	if r.logger == nil {
 		return
 	}
-	r.logger.Debug(message, append([]interface{}{"projection", projection, "backend", r.Backend(), "stage", stage, "error", err}, extra...)...)
+	r.logger.Debug(message, append([]any{"projection", projection, "backend", r.Backend(), "stage", stage, "error", err}, extra...)...)
 }
 
-func (r *Repository) logInfo(message, projection, stage string, err error, extra ...interface{}) {
+func (r *Repository) logInfo(message, projection, stage string, err error, extra ...any) {
 	if r.logger == nil {
 		return
 	}
-	r.logger.Info(message, append([]interface{}{"projection", projection, "backend", r.Backend(), "stage", stage, "error", err}, extra...)...)
+	r.logger.Info(message, append([]any{"projection", projection, "backend", r.Backend(), "stage", stage, "error", err}, extra...)...)
 }
 
-func (r *Repository) logWarn(message, projection, stage string, err error, extra ...interface{}) {
+func (r *Repository) logWarn(message, projection, stage string, err error, extra ...any) {
 	if r.logger == nil {
 		return
 	}
-	r.logger.Warn(message, append([]interface{}{"projection", projection, "backend", r.Backend(), "stage", stage, "error", err}, extra...)...)
+	r.logger.Warn(message, append([]any{"projection", projection, "backend", r.Backend(), "stage", stage, "error", err}, extra...)...)
 }

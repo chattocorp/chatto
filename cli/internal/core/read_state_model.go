@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 )
@@ -149,9 +150,9 @@ func (s *ReadStateModel) MarkThreadAsRead(ctx context.Context, actorID, roomID, 
 		if err != nil {
 			return nil, err
 		}
-		for i := len(events) - 1; i >= 0; i-- {
-			if events[i] != nil && events[i].GetMessagePosted() != nil {
-				markerEventID = events[i].Id
+		for _, event := range slices.Backward(events) {
+			if event != nil && event.GetMessagePosted() != nil {
+				markerEventID = event.Id
 				break
 			}
 		}

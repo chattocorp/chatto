@@ -19,16 +19,14 @@ func TestCredentialUsageRecorderKeepsMaximumTimestampAcrossConcurrentWriters(t *
 	base := time.Date(2026, 8, 27, 12, 0, 0, 0, time.UTC)
 
 	var wg sync.WaitGroup
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		usedAt := base.Add(time.Duration(i) * time.Second)
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			recorder := newCredentialUsageRecorder(c.storage.runtimeStateKV, nil, nil)
 			if err := recorder.writeMax(ctx, botID, credentialKey, usedAt); err != nil {
 				t.Errorf("writeMax(%s): %v", usedAt, err)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 

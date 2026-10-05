@@ -1,6 +1,7 @@
 package core
 
 import (
+	"slices"
 	"sort"
 
 	"google.golang.org/protobuf/encoding/protowire"
@@ -600,5 +601,5 @@ func (p *RBACProjection) NextAvailablePosition() int32 {
 }
 
 func sortPermissions(perms []Permission) {
-	sort.Slice(perms, func(i, j int) bool { return perms[i] < perms[j] })
+	slices.Sort(perms)
 }

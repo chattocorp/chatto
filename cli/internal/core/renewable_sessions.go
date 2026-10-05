@@ -72,11 +72,11 @@ type RenewableSession struct {
 	// LastRefreshRequestVerifier is a purpose-separated HMAC of the show-once
 	// recovery nonce. The raw nonce must not enter runtime state or backups.
 	LastRefreshRequestVerifier string    `json:"last_refresh_request_verifier,omitempty"`
-	LastRotatedAt              time.Time `json:"last_rotated_at,omitempty"`
-	FreshAuthAt                time.Time `json:"fresh_auth_at,omitempty"`
+	LastRotatedAt              time.Time `json:"last_rotated_at"`
+	FreshAuthAt                time.Time `json:"fresh_auth_at"`
 	FreshAuthMethod            string    `json:"fresh_auth_method,omitempty"`
 	FreshAuthSource            string    `json:"fresh_auth_source,omitempty"`
-	PrivilegedModeExpiresAt    time.Time `json:"privileged_mode_expires_at,omitempty"`
+	PrivilegedModeExpiresAt    time.Time `json:"privileged_mode_expires_at"`
 }
 
 func (c *ChattoCore) bearerAccessTokenTTL() time.Duration {
@@ -450,7 +450,7 @@ func (c *ChattoCore) refreshBearerSessionAt(ctx context.Context, refreshToken, r
 	}
 	requestVerifier := c.refreshRequestVerifier(requestID)
 
-	for attempt := 0; attempt < 8; attempt++ {
+	for range 8 {
 		session, entry, err := c.validateRenewableSession(ctx, sessionID, now)
 		if err != nil {
 			return BearerSessionCredentials{}, err
@@ -592,7 +592,7 @@ func (c *ChattoCore) markRenewableSessionFresh(ctx context.Context, sessionID, m
 	if sessionID == "" {
 		return ErrAuthTokenNotFound
 	}
-	for attempt := 0; attempt < 8; attempt++ {
+	for range 8 {
 		session, entry, err := c.validateRenewableSession(ctx, sessionID, now)
 		if err != nil {
 			if errors.Is(err, ErrRefreshTokenNotFound) {

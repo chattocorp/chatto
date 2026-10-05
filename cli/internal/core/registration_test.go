@@ -152,13 +152,11 @@ func TestChattoCore_VerifyRegistrationCodeConcurrentValidCodeConsumesOnce(t *tes
 
 	var wg sync.WaitGroup
 	errs := make(chan error, 5)
-	for i := 0; i < 5; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 5 {
+		wg.Go(func() {
 			_, err := core.VerifyRegistrationCode(ctx, "parallel-valid@example.com", code)
 			errs <- err
-		}()
+		})
 	}
 	wg.Wait()
 	close(errs)
@@ -259,7 +257,7 @@ func TestChattoCore_RegistrationCodeCanDisableOTPThrottle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRegistrationCode: %v", err)
 	}
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if _, err := core.CreateRegistrationCode(ctx, "disabled-throttle@example.com"); err != nil {
 			t.Fatalf("extra CreateRegistrationCode %d with throttle disabled: %v", i+1, err)
 		}
@@ -269,7 +267,7 @@ func TestChattoCore_RegistrationCodeCanDisableOTPThrottle(t *testing.T) {
 	if code == wrongCode {
 		wrongCode = "111111"
 	}
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if _, err := core.VerifyRegistrationCode(ctx, "disabled-throttle@example.com", wrongCode); !errors.Is(err, ErrRegistrationCodeInvalid) {
 			t.Fatalf("wrong-code attempt %d error = %v, want ErrRegistrationCodeInvalid", i+1, err)
 		}

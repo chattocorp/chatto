@@ -396,7 +396,7 @@ func TestFindOrCreateDM(t *testing.T) {
 	t.Run("rejects more than MaxDMParticipants", func(t *testing.T) {
 		// Create a list of 11 participants (including creator = 11 total, exceeds limit of 10)
 		participants := make([]string, MaxDMParticipants)
-		for i := 0; i < MaxDMParticipants; i++ {
+		for i := range MaxDMParticipants {
 			participants[i] = fmt.Sprintf("participant%d", i)
 		}
 		// user1 + 10 participants = 11 total
@@ -409,7 +409,7 @@ func TestFindOrCreateDM(t *testing.T) {
 	t.Run("allows exactly MaxDMParticipants", func(t *testing.T) {
 		// Create a list of 9 participants (including creator = 10 total, at limit)
 		participants := make([]string, MaxDMParticipants-1)
-		for i := 0; i < MaxDMParticipants-1; i++ {
+		for i := range MaxDMParticipants - 1 {
 			participants[i] = fmt.Sprintf("max-participant%d", i)
 		}
 		// user1 + 9 participants = 10 total

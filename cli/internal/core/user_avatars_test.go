@@ -129,8 +129,8 @@ func TestManagedBotAvatarUsesCanonicalProjectionAndIdempotentClear(t *testing.T)
 // createTestImage creates a test PNG image with the specified dimensions.
 func createTestImage(width, height int) io.Reader {
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
+	for y := range height {
+		for x := range width {
 			img.Set(x, y, color.RGBA{R: uint8(x), G: uint8(y), B: 128, A: 255})
 		}
 	}

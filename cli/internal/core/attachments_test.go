@@ -23,8 +23,8 @@ import (
 func createTestPNG(width, height int) []byte {
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 	// Fill with a solid color
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
+	for y := range height {
+		for x := range width {
 			img.Set(x, y, image.White)
 		}
 	}
@@ -724,7 +724,7 @@ func TestAttachment_MultipleInSpace(t *testing.T) {
 	attachmentCount := 5
 	attachments := make([]string, attachmentCount)
 
-	for i := 0; i < attachmentCount; i++ {
+	for i := range attachmentCount {
 		content := []byte("Attachment content " + string(rune('A'+i)))
 		att, err := core.UploadAttachment(
 			ctx,

@@ -58,7 +58,7 @@ func TestIDUniqueness(t *testing.T) {
 	generated := make(map[string]bool)
 	count := 1000
 
-	for i := 0; i < count; i++ {
+	for range count {
 		id := NewUserID()
 		if generated[id] {
 			t.Errorf("Duplicate ID generated: %s", id)

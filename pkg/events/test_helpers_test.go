@@ -14,10 +14,10 @@ import (
 
 type discardLogger struct{}
 
-func (discardLogger) Debug(interface{}, ...interface{}) {}
-func (discardLogger) Info(interface{}, ...interface{})  {}
-func (discardLogger) Warn(interface{}, ...interface{})  {}
-func (discardLogger) Error(interface{}, ...interface{}) {}
+func (discardLogger) Debug(any, ...any) {}
+func (discardLogger) Info(any, ...any)  {}
+func (discardLogger) Warn(any, ...any)  {}
+func (discardLogger) Error(any, ...any) {}
 
 func testContext(t *testing.T) context.Context {
 	t.Helper()

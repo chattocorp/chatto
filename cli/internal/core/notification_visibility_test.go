@@ -138,7 +138,7 @@ func setupNotificationVisibilityFixture(tb testing.TB, chattoCore *ChattoCore, c
 
 	const roomCount = 10
 	rooms := make([]string, 0, roomCount)
-	for i := 0; i < roomCount; i++ {
+	for i := range roomCount {
 		room, err := chattoCore.CreateRoom(ctx, poster.Id, KindChannel, "", fmt.Sprintf("visibility-%d", i), "")
 		require.NoError(tb, err)
 		for _, userID := range []string{poster.Id, reader.Id} {
@@ -149,7 +149,7 @@ func setupNotificationVisibilityFixture(tb testing.TB, chattoCore *ChattoCore, c
 	}
 
 	inputs := make([]CreateNotificationOccurrenceInput, 0, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		roomID := rooms[i%len(rooms)]
 		posted, err := chattoCore.PostMessage(ctx, KindChannel, roomID, poster.Id, fmt.Sprintf("message %d", i), nil, "", "", nil, false)
 		require.NoError(tb, err)

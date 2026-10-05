@@ -182,7 +182,7 @@ func (c *ChattoCore) SetLastReadEventID(ctx context.Context, kind RoomKind, user
 	bucket := c.storage.runtimeStateKV
 	key := roomReadEventKey(userID, roomID)
 
-	for attempt := 0; attempt < maxReadMarkerUpdateRetries; attempt++ {
+	for range maxReadMarkerUpdateRetries {
 		entry, exists, err := c.readStateModel.index.roomMarker(ctx, userID, roomID)
 		if err != nil {
 			return fmt.Errorf("read room marker index: %w", err)
@@ -249,7 +249,7 @@ func (c *ChattoCore) AdvanceLastReadEventID(ctx context.Context, kind RoomKind, 
 	bucket := c.storage.runtimeStateKV
 	key := roomReadEventKey(userID, roomID)
 
-	for attempt := 0; attempt < maxReadMarkerUpdateRetries; attempt++ {
+	for range maxReadMarkerUpdateRetries {
 		entry, exists, err := c.readStateModel.index.roomMarker(ctx, userID, roomID)
 		if err != nil {
 			return nil, fmt.Errorf("read room marker index: %w", err)

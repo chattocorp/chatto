@@ -124,7 +124,7 @@ func TestPermissionScopePagesAndInheritance(t *testing.T) {
 	ctx := withCaller(env.ctx, env.viewer)
 	groupID := env.defaultRoomGroupID(t)
 	var roomID string
-	for i := 0; i < 24; i++ {
+	for i := range 24 {
 		room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, groupID, fmt.Sprintf("scope-page-%d", i), "Scope page")
 		if err != nil {
 			t.Fatal(err)

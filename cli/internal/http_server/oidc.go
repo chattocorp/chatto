@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 
@@ -101,9 +102,9 @@ func selectOIDCTokenAuth(override, secret string, advertised json.RawMessage) (s
 			if err := json.Unmarshal(advertised, &methods); err != nil {
 				return "", 0, errors.New("invalid token authentication metadata")
 			}
-			if hasScope(methods, "client_secret_basic") {
+			if slices.Contains(methods, "client_secret_basic") {
 				method = "client_secret_basic"
-			} else if hasScope(methods, "client_secret_post") {
+			} else if slices.Contains(methods, "client_secret_post") {
 				method = "client_secret_post"
 			}
 		}
@@ -445,7 +446,7 @@ func newAuthProviderRuntime(providerConfig config.AuthProviderConfig, callbackUR
 func providerScopes(providerConfig config.AuthProviderConfig) []string {
 	if len(providerConfig.Scopes) > 0 {
 		scopes := append([]string(nil), providerConfig.Scopes...)
-		if providerConfig.Type == config.AuthProviderTypeOpenIDConnect && !hasScope(scopes, oidc.ScopeOpenID) {
+		if providerConfig.Type == config.AuthProviderTypeOpenIDConnect && !slices.Contains(scopes, oidc.ScopeOpenID) {
 			scopes = append([]string{oidc.ScopeOpenID}, scopes...)
 		}
 		return scopes
@@ -475,15 +476,6 @@ func providerScopes(providerConfig config.AuthProviderConfig) []string {
 	default:
 		return nil
 	}
-}
-
-func hasScope(scopes []string, target string) bool {
-	for _, scope := range scopes {
-		if scope == target {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *HTTPServer) providerCallbackURL(providerID string) string {
@@ -530,8 +522,7 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 	)
 	if err != nil {
 		status, code := 0, "unknown"
-		var responseError *oauth2.RetrieveError
-		if errors.As(err, &responseError) {
+		if responseError, ok := errors.AsType[*oauth2.RetrieveError](err); ok {
 			if responseError.Response != nil {
 				status = responseError.Response.StatusCode
 			}
@@ -568,7 +559,7 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 	log.Info("OIDC token verified", "provider_id", r.config.ID, "issuer", idToken.Issuer)
 
 	// UserInfo can supply names even when the ID token already has email.
-	if claims.PreferredUser == "" || claims.Name == "" || (claims.Email == "" && hasScope(r.oidc.oauth2Config.Scopes, "email")) {
+	if claims.PreferredUser == "" || claims.Name == "" || (claims.Email == "" && slices.Contains(r.oidc.oauth2Config.Scopes, "email")) {
 		userInfo, err := r.oidc.provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
 		if err != nil {
 			log.Warn("OIDC userinfo fallback failed", "provider_id", r.config.ID)
@@ -659,7 +650,7 @@ func (r *authProviderRuntime) verifiedEmailFromGothUser(ctx context.Context, got
 	return ""
 }
 
-func rawBool(raw map[string]interface{}, key string) bool {
+func rawBool(raw map[string]any, key string) bool {
 	if raw == nil {
 		return false
 	}

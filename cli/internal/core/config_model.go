@@ -78,7 +78,7 @@ func (s *ConfigModel) updateSubject(
 	subject string,
 	build func(agg evtstream.Aggregate, filter string, expectedSeq uint64) ([]*evtv1.Event, error),
 ) error {
-	for attempt := 0; attempt < maxConfigUpdateRetries; attempt++ {
+	for attempt := range maxConfigUpdateRetries {
 		agg, filter, expectedSeq, err := s.prepareSubject(ctx, subject)
 		if err != nil {
 			return err

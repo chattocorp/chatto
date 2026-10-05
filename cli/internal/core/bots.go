@@ -822,7 +822,7 @@ func (c *ChattoCore) ReassignBotOwner(ctx context.Context, actorID, botID, owner
 
 	userFilter := evtstream.UserSubjectFilter()
 
-	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
+	for attempt := range maxUserMutationRetries {
 		userSeq, err := c.EventPublisher.LastSubjectSeq(ctx, userFilter)
 		if err != nil {
 			return nil, fmt.Errorf("read user-family OCC filter seq: %w", err)

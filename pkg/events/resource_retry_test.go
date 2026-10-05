@@ -177,8 +177,7 @@ func TestCreateJetStreamResourceWithRetryClientTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	attempts := 0
 	stream, err := events.CreateJetStreamResourceWithRetry(ctx, events.JetStreamResourceRetryPolicy{MaxAttempts: 3}, func(ctx context.Context) (jetstream.Stream, error) {
 		attempts++

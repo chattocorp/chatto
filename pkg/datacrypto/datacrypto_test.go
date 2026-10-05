@@ -14,7 +14,6 @@ func TestSealAndOpen(t *testing.T) {
 	key := mustGenerateKey(t)
 
 	for _, plaintext := range [][]byte{nil, {}, []byte("protected data"), bytes.Repeat([]byte{0xa5}, 1<<20)} {
-		plaintext := plaintext
 		t.Run(testName(len(plaintext)), func(t *testing.T) {
 			associatedData := []byte("application-owned context")
 			sealed, err := datacrypto.Seal(key, plaintext, associatedData)

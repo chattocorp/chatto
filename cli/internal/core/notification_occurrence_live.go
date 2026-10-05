@@ -3,9 +3,7 @@ package core
 import (
 	"context"
 
-	"google.golang.org/protobuf/proto"
-
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
@@ -23,7 +21,7 @@ func (c *ChattoCore) publishNotificationOccurrenceInvalidations(ctx context.Cont
 		}
 		var createdID *string
 		if created {
-			createdID = proto.String(occurrence.GetId())
+			createdID = new(occurrence.GetId())
 		}
 		publications = append(publications, userPubSubEventPublication(
 			occurrence.GetRecipientId(),

@@ -31,10 +31,7 @@ func (s *adminInviteLinkService) ListInviteLinks(ctx context.Context, req *conne
 	if offset > total {
 		offset = total
 	}
-	end := offset + limit
-	if end > total {
-		end = total
-	}
+	end := min(offset+limit, total)
 	result := make([]*adminv1.InviteLink, 0, end-offset)
 	for _, state := range states[offset:end] {
 		result = append(result, s.apiInviteLink(ctx, state))

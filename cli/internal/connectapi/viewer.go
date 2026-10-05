@@ -376,7 +376,3 @@ func coreTimeFormatToAPI(format evtv1.TimeFormat) apiv1.TimeFormat {
 		return apiv1.TimeFormat_TIME_FORMAT_AUTO
 	}
 }
-
-func stringPtr(value string) *string {
-	return &value
-}

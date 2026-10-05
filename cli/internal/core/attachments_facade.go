@@ -2,9 +2,11 @@ package core
 
 import (
 	"context"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"io"
+	"slices"
 	"time"
+
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
@@ -172,10 +174,8 @@ func (c *ChattoCore) AssetMessageTarget(assetID string) (roomID, messageEventID 
 				return owner.RoomID, owner.MessageEventID, true
 			}
 		}
-		for _, hlsAssetID := range hlsDerivativeAssetIDs(video.GetHls()) {
-			if hlsAssetID == assetID {
-				return owner.RoomID, owner.MessageEventID, true
-			}
+		if slices.Contains(hlsDerivativeAssetIDs(video.GetHls()), assetID) {
+			return owner.RoomID, owner.MessageEventID, true
 		}
 	}
 	return "", "", false

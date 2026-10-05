@@ -48,7 +48,7 @@ func (c *ChattoCore) authorizeAtStableInputsWithRoomCatalog(ctx context.Context,
 		return nil
 	}
 
-	for attempt := 0; attempt < maxStableAuthorizationAttempts; attempt++ {
+	for attempt := range maxStableAuthorizationAttempts {
 		before, err := c.authorizationInputPositions(ctx, includeRooms)
 		if err != nil {
 			return err

@@ -134,11 +134,11 @@ func ParseLiveKitRoomIdentity(lkRoomName string) (legacySpaceID, roomID, callID 
 // ParseLiveKitRoomServerID extracts just the server ID prefix from a LiveKit room
 // name. Returns empty string if no prefix is present (unprefixed format).
 func ParseLiveKitRoomServerID(lkRoomName string) string {
-	idx := strings.IndexByte(lkRoomName, '.')
-	if idx < 0 {
+	before, _, ok := strings.Cut(lkRoomName, ".")
+	if !ok {
 		return ""
 	}
-	return lkRoomName[:idx]
+	return before
 }
 
 // GenerateVoiceCallToken creates a LiveKit join token for a user.

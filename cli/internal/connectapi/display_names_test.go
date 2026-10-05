@@ -32,7 +32,7 @@ func TestDisplayNamesAcrossAccountAPIs(t *testing.T) {
 				account, err := env.core.GetUser(env.ctx, id)
 				require.NoError(t, err)
 				updated, err := env.users.UpdateUserProfile(withCaller(env.ctx, account), connect.NewRequest(&apiv1.UpdateUserProfileRequest{
-					UserId: id, DisplayName: stringPtr(name + "!"),
+					UserId: id, DisplayName: new(name + "!"),
 				}))
 				require.NoError(t, err)
 				require.Equal(t, name+"!", updated.Msg.GetUser().GetDisplayName())
@@ -50,7 +50,7 @@ func TestDisplayNamesAcrossAccountAPIs(t *testing.T) {
 			}))
 			requireConnectCode(t, err, connect.CodeInvalidArgument)
 			_, err = env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
-				UserId: env.viewer.Id, DisplayName: stringPtr(name),
+				UserId: env.viewer.Id, DisplayName: new(name),
 			}))
 			requireConnectCode(t, err, connect.CodeInvalidArgument)
 		})

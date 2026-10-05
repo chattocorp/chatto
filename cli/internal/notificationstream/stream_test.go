@@ -5,10 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"sync"
 	"testing"
 	"time"
+
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
@@ -125,9 +126,7 @@ func TestPublisherSurvivesSharedSubjectContention(t *testing.T) {
 	errs := make(chan error, writers)
 	var wg sync.WaitGroup
 	for i := range writers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
 			id := fmt.Sprintf("NE-%d", i)
 			_, err := publisher.AppendEventually(ctx, &notificationv1.NotificationEvent{
@@ -135,7 +134,7 @@ func TestPublisherSurvivesSharedSubjectContention(t *testing.T) {
 				Event: &notificationv1.NotificationEvent_Read{Read: &notificationv1.NotificationRead{}},
 			})
 			errs <- err
-		}()
+		})
 	}
 	close(start)
 	wg.Wait()

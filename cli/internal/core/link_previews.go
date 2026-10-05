@@ -185,7 +185,7 @@ func (c *ChattoCore) storeLinkPreviewImage(ctx context.Context, assetID string, 
 		}
 		asset.Storage = &evtv1.AssetRecord_S3{S3: &evtv1.S3Asset{
 			Key:    assetID,
-			Bucket: proto.String(c.s3Client.Bucket()),
+			Bucket: new(c.s3Client.Bucket()),
 		}}
 		c.logger.Debug("Stored link preview image in S3", "asset_id", assetID, "size", len(data))
 		return asset, nil

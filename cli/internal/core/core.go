@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"sync/atomic"
 	"time"
+
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go"
@@ -141,7 +142,6 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	}
 
 	for _, projection := range c.projections {
-		projection := projection
 		g.Go(func() error {
 			if err := projection.projector.Run(gctx); err != nil {
 				if errors.Is(err, context.Canceled) {

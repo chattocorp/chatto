@@ -310,8 +310,8 @@ func exportAllKeys(ctx context.Context, kv jetstream.KeyValue) ([]ExportedKey, e
 			KeyRef: key,
 			Key:    entry.Value(),
 		}
-		if strings.HasPrefix(key, "user.") {
-			exportedKey.UserID = strings.TrimPrefix(key, "user.")
+		if after, ok := strings.CutPrefix(key, "user."); ok {
+			exportedKey.UserID = after
 		}
 		exported = append(exported, exportedKey)
 	}

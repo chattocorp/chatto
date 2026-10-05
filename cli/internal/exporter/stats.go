@@ -1,6 +1,7 @@
 package exporter
 
 import (
+	"maps"
 	"sort"
 	"sync"
 
@@ -179,9 +180,7 @@ func (s *evtStats) snapshot(presence map[string]int) statsSnapshot {
 	}
 
 	presenceCopy := make(map[string]int, len(presence))
-	for status, count := range presence {
-		presenceCopy[status] = count
-	}
+	maps.Copy(presenceCopy, presence)
 
 	return statsSnapshot{
 		Users:          users,

@@ -291,7 +291,7 @@ func TestPublisher_AppendEventually_ConcurrentWrites(t *testing.T) {
 
 	var wg sync.WaitGroup
 	errCh := make(chan error, writers)
-	for i := 0; i < writers; i++ {
+	for i := range writers {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
@@ -348,7 +348,7 @@ func TestPublisher_AppendAt_DeterministicSequence(t *testing.T) {
 	const count = 5
 
 	var expectedSeq uint64 // 0 = no prior message
-	for i := 0; i < count; i++ {
+	for i := range count {
 		seq, err := pub.AppendAt(ctx, subject, makeEvent("R1", "U"+itoa(i)), expectedSeq)
 		if err != nil {
 			t.Fatalf("AppendAt[%d]: %v", i, err)
@@ -807,7 +807,7 @@ func TestProjector_AppliesEventsInOrder(t *testing.T) {
 
 	// Seed three events before the projector starts.
 	ctx := testContext(t)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if _, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U"+itoa(i))); err != nil {
 			t.Fatalf("seed Append: %v", err)
 		}
@@ -1452,7 +1452,7 @@ func TestProjectorsRestoreAndReplayIndependently(t *testing.T) {
 	pub := NewPublisher(js, stream, testLogger())
 	ctx := testContext(t)
 	var seqs []uint64
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U"+itoa(i)))
 		if err != nil {
 			t.Fatal(err)
@@ -1550,7 +1550,7 @@ func TestProjectorConfiguresRestoredConsumerAfterItsCutoff(t *testing.T) {
 	pub := NewPublisher(js, stream, testLogger())
 	ctx := testContext(t)
 	var seqs []uint64
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U"+itoa(i)))
 		if err != nil {
 			t.Fatal(err)
@@ -1767,7 +1767,7 @@ func TestProjectorsConsumeTheSameEventsIndependently(t *testing.T) {
 	pub := NewPublisher(js, stream, testLogger())
 
 	ctx := testContext(t)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if _, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U"+itoa(i))); err != nil {
 			t.Fatalf("seed Append: %v", err)
 		}

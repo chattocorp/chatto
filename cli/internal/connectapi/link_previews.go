@@ -57,25 +57,25 @@ func apiLinkPreview(ctx context.Context, api *API, preview *evtv1.LinkPreview) *
 		Url: preview.GetUrl(),
 	}
 	if title := preview.GetTitle(); title != "" {
-		out.Title = stringPtr(title)
+		out.Title = new(title)
 	}
 	if description := preview.GetDescription(); description != "" {
-		out.Description = stringPtr(description)
+		out.Description = new(description)
 	}
 	if imageURL != "" {
-		out.ImageUrl = stringPtr(imageURL)
+		out.ImageUrl = new(imageURL)
 	}
 	if imageAssetID != "" {
-		out.ImageAssetId = stringPtr(imageAssetID)
+		out.ImageAssetId = new(imageAssetID)
 	}
 	if siteName := preview.GetSiteName(); siteName != "" {
-		out.SiteName = stringPtr(siteName)
+		out.SiteName = new(siteName)
 	}
 	if embedType := preview.GetEmbedType(); embedType != "" {
-		out.EmbedType = stringPtr(embedType)
+		out.EmbedType = new(embedType)
 	}
 	if embedID := preview.GetEmbedId(); embedID != "" {
-		out.EmbedId = stringPtr(embedID)
+		out.EmbedId = new(embedID)
 	}
 	if socialPost := preview.GetSocialPost(); socialPost != nil {
 		out.SocialPost = apiSocialPostPreview(ctx, api, socialPost, 0)
