@@ -46,6 +46,7 @@ compatible change.
 Run:
 
 ```sh
+mise lint-events
 mise test-events
 mise license-check
 ```

@@ -27,6 +27,7 @@ module. Also follow
 Run:
 
 ```sh
+mise lint-datacrypto
 mise test-datacrypto
 (cd authling && mise test)
 mise test-cli

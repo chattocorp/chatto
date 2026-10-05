@@ -398,6 +398,9 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
 - Run `mise lint-cli` before you push backend changes. CI runs it. It runs
   `go vet` and a staticcheck U1000 check over every build tag set. Delete
   unused code; do not silence the check.
+- `mise lint-cli` also runs the Go `modernize` analyzer. When it reports
+  findings, apply them with the `-fix` command that it prints. Do not add
+  pointer helpers such as `stringPtr`; use `new(value)`.
 - Do not keep production code that only tests call. The U1000 check counts
   test usage, so it does not find this code.
 - Use table-driven tests where practical.
