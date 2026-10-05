@@ -1,12 +1,13 @@
 package events
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"errors"
 	"fmt"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -994,12 +995,12 @@ func (p *Projector) waitForSeq(ctx context.Context, seq uint64) error {
 		return nil
 	}
 	ch := make(chan struct{})
-	p.waiters = append(p.waiters, seqWaiter{seq: seq, ch: ch})
 	// Keep waiters sorted ascending by seq so advance() can release them
 	// in order and stop scanning at the first unmet seq.
-	sort.Slice(p.waiters, func(i, j int) bool {
-		return p.waiters[i].seq < p.waiters[j].seq
+	i, _ := slices.BinarySearchFunc(p.waiters, seq, func(w seqWaiter, seq uint64) int {
+		return cmp.Compare(w.seq, seq)
 	})
+	p.waiters = slices.Insert(p.waiters, i, seqWaiter{seq: seq, ch: ch})
 	p.mu.Unlock()
 
 	select {
@@ -1017,12 +1018,7 @@ func (p *Projector) waitForSeq(ctx context.Context, seq uint64) error {
 		// already-closed channels (it doesn't close twice), and a small
 		// scan here is fine — waiters lists are short.
 		p.mu.Lock()
-		for i, w := range p.waiters {
-			if w.ch == ch {
-				p.waiters = append(p.waiters[:i], p.waiters[i+1:]...)
-				break
-			}
-		}
+		p.waiters = slices.DeleteFunc(p.waiters, func(w seqWaiter) bool { return w.ch == ch })
 		p.mu.Unlock()
 		return ctx.Err()
 	}
@@ -1851,7 +1847,7 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	p.latestSnapshotSeq = snapshot.CutoffSequence
 	p.latestSnapshotAt = snapshot.CreatedAt
 	p.mu.Unlock()
-	// Restore runs after markStarted, so boot-time callers may already be
+	// Restore runs after Run marks the projector started, so boot-time callers may already be
 	// waiting for this sequence. Advance through the normal waiter path instead
 	// of assigning lastSeq directly.
 	p.advance(snapshot.CutoffSequence)

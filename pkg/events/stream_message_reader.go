@@ -401,6 +401,8 @@ func cloneEncodedSubjectRecordForCache(record EncodedSubjectRecord) EncodedSubje
 	return record
 }
 
+// cloneBytes copies data with an exact capacity. bytes.Clone can round the
+// capacity up, which the cache's length-based byte budget would not count.
 func cloneBytes(data []byte) []byte {
 	if data == nil {
 		return nil

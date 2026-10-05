@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	mrand "math/rand"
 	"strconv"
 	"sync"
 	"time"
@@ -177,21 +176,17 @@ func (l *EncodedEventLog) AppendEventually(ctx context.Context, subject string, 
 			return 0, err
 		}
 
-		if l.logger != nil {
-			l.logger.Debug("OCC conflict, retrying",
-				"subject", subject,
-				"expected_seq", expectedSeq,
-				"attempt", attempt,
-				"max_attempts", maxAppendRetries)
-		}
+		l.logger.Debug("OCC conflict, retrying",
+			"subject", subject,
+			"expected_seq", expectedSeq,
+			"attempt", attempt,
+			"max_attempts", maxAppendRetries)
 		lastErr = err
-
-		baseDelay := time.Duration(1<<(attempt-1)) * time.Millisecond
-		jitter := time.Duration(mrand.Int63n(int64(5 * time.Millisecond)))
-		select {
-		case <-ctx.Done():
-			return 0, ctx.Err()
-		case <-time.After(baseDelay + jitter):
+		if attempt == maxAppendRetries {
+			break
+		}
+		if err := waitBeforeConflictRetry(ctx, attempt); err != nil {
+			return 0, err
 		}
 	}
 	return 0, fmt.Errorf("append after %d attempts: %w", maxAppendRetries, lastErr)

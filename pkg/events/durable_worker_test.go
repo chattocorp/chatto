@@ -20,14 +20,14 @@ type recordingDurableWorkerLogger struct {
 	errors   []string
 }
 
-func (*recordingDurableWorkerLogger) Debug(interface{}, ...interface{}) {}
-func (*recordingDurableWorkerLogger) Info(interface{}, ...interface{})  {}
-func (l *recordingDurableWorkerLogger) Warn(message interface{}, _ ...interface{}) {
+func (*recordingDurableWorkerLogger) Debug(any, ...any) {}
+func (*recordingDurableWorkerLogger) Info(any, ...any)  {}
+func (l *recordingDurableWorkerLogger) Warn(message any, _ ...any) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.warnings = append(l.warnings, fmt.Sprint(message))
 }
-func (l *recordingDurableWorkerLogger) Error(message interface{}, _ ...interface{}) {
+func (l *recordingDurableWorkerLogger) Error(message any, _ ...any) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.errors = append(l.errors, fmt.Sprint(message))
