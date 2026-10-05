@@ -210,8 +210,10 @@ one restore mechanism.
 
 A `ProjectionSnapshot` contains one or more components, and each component
 contains one or more parts. A projection that implements `SnapshotProjection`
-has one component with one part. Its key is `SnapshotStatePartKey`. A
-`ComponentizedProjection` has one component for each registered model.
+has one component with exactly one part. The component key and the part key
+are both `SnapshotStatePartKey`. A `ComponentizedProjection` has one component
+for each registered model, and each component has exactly one
+`SnapshotStatePartKey` part.
 
 Snapshot sources must return the requested contract ID, stream name, stream
 incarnation, components, and a cutoff no newer than the startup target. The

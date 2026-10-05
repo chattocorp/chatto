@@ -243,15 +243,18 @@ func (p *ComponentizedProjection[E]) RestoreComponents(stored []ProjectionSnapsh
 		byKey[component.Key] = component
 	}
 
+	payloads := make([][]byte, len(p.components))
 	previous := make([][]byte, len(p.components))
 	for i, component := range p.components {
 		storedComponent, ok := byKey[component.key]
 		if !ok {
 			return fmt.Errorf("projection component %q is missing", component.key)
 		}
-		if _, err := statePartPayload(storedComponent, component.key, component.model.SnapshotContractID()); err != nil {
+		stored, err := statePartPayload(storedComponent, component.key, component.model.SnapshotContractID())
+		if err != nil {
 			return err
 		}
+		payloads[i] = stored
 		payload, err := component.model.Snapshot()
 		if err != nil {
 			return fmt.Errorf("capture projection component %q before restore: %w", component.key, err)
@@ -260,7 +263,7 @@ func (p *ComponentizedProjection[E]) RestoreComponents(stored []ProjectionSnapsh
 	}
 
 	for i, component := range p.components {
-		if err := component.model.Restore(byKey[component.key].Parts[0].Payload); err != nil {
+		if err := component.model.Restore(payloads[i]); err != nil {
 			restoreErr := fmt.Errorf("restore projection component %q: %w", component.key, err)
 			var rollbackErrs []error
 			for rollbackIndex := 0; rollbackIndex <= i; rollbackIndex++ {

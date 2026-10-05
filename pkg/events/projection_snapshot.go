@@ -10,8 +10,9 @@ import (
 )
 
 // SnapshotStatePartKey is the part key of a component whose complete state is
-// one payload. Single-payload projections and ComponentizedProjection
-// components use it.
+// one payload. ComponentizedProjection components and single-payload
+// projections use it. A single-payload projection also uses it as its
+// component key.
 const SnapshotStatePartKey = "state"
 
 // SnapshotProjection is a projection whose complete state serializes to one
@@ -105,7 +106,7 @@ type ProjectionSnapshotLoadRequest struct {
 	StreamIdentity string
 	MaxCutoff      uint64
 	// Components is the exact component set of the projection. A
-	// SnapshotProjection has one component with at most one part.
+	// SnapshotProjection has one component with exactly one part.
 	Components []ProjectionSnapshotComponentContract
 }
 
