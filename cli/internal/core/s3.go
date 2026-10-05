@@ -277,8 +277,8 @@ func IsNoSuchKeyError(err error) bool {
 			return true
 		}
 	}
-	var respErr *smithyhttp.ResponseError
-	return errors.As(err, &respErr) && respErr.HTTPStatusCode() == 404
+	respErr, ok := errors.AsType[*smithyhttp.ResponseError](err)
+	return ok && respErr.HTTPStatusCode() == 404
 }
 
 // PresignedGetURL generates a presigned GET URL for an S3 object.
@@ -307,8 +307,8 @@ func isNoSuchBucketError(err error) bool {
 			return true
 		}
 	}
-	var respErr *smithyhttp.ResponseError
-	return errors.As(err, &respErr) && respErr.HTTPStatusCode() == 404
+	respErr, ok := errors.AsType[*smithyhttp.ResponseError](err)
+	return ok && respErr.HTTPStatusCode() == 404
 }
 
 // S3 key helpers for organizing assets in S3.

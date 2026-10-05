@@ -1393,8 +1393,8 @@ func TestAuthRoutes_ConcurrentRenewalSlotsConverge(t *testing.T) {
 		}
 		delayedCookies = append(delayedCookies, response.Cookies())
 	}
-	for _, delayedCookie := range slices.Backward(delayedCookies) {
-		client.Jar.SetCookies(requestURL, delayedCookie)
+	for _, responseCookies := range slices.Backward(delayedCookies) {
+		client.Jar.SetCookies(requestURL, responseCookies)
 	}
 	authCookies := 0
 	for _, cookie := range client.Jar.Cookies(requestURL) {
