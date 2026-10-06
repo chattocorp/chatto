@@ -43,6 +43,9 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         with:
           predicate-quantifier: some-with-excludes
+          # Release-please writes changelogs and the release manifest. Only
+          # release tooling reads them, so they do not select product jobs.
+          # Version files in release pull requests still select their product.
           filters: |
             chatto:
               # Authling changes must also verify login and profile transfer into Chatto.
@@ -53,25 +56,30 @@ jobs:
               - 'packages/**'
               - 'proto/**'
               - 'docker/**'
+              - '!**/CHANGELOG.md'
             authling:
               # Go workspace dependency selection can change across product modules.
               - 'cli/go.{mod,sum}'
               - 'authling/**'
               - 'pkg/**'
+              - '!**/CHANGELOG.md'
             runling:
               - 'packages/runling/**'
               # The Runling bot example uses the Chatto client.
               - 'packages/chatto-client/**'
               - 'packages/api-types/**'
               - 'examples/runling-bot/**'
+              - '!**/CHANGELOG.md'
             chattobot:
               - 'packages/chattobot/**'
               - 'packages/runling/**'
               - 'packages/chatto-client/**'
               - 'packages/api-types/**'
               - 'proto/**'
+              - '!**/CHANGELOG.md'
             docs:
               - 'apps/docs-website/**'
+              - '!**/CHANGELOG.md'
             desktop:
               - 'apps/desktop/**'
               - 'apps/frontend/**'
@@ -79,6 +87,7 @@ jobs:
               - '!packages/runling/**'
               - 'proto/**'
               - 'tools/test-desktop-*'
+              - '!**/CHANGELOG.md'
             # Files outside product roots and repository documentation run all products.
             common:
               - '**'
@@ -87,6 +96,7 @@ jobs:
               - '!tools/test-desktop-*'
               - '!{docs,.agents,.claude,.conductor}/**'
               - '!*.md'
+              - '!.release-please-manifest.json'
 
   test-runling:
     needs: changes
@@ -409,13 +419,26 @@ jobs:
       - name: Build Storybook design-system catalog
         run: pnpm run build:storybook
 
-  test-workspace:
+  test-workspace-packages:
     needs: changes
     if: ${{ needs.changes.outputs.chatto == 'true' }}
-    # Keep this job name stable because it can be a required branch check.
+    # The frontend suite is the longest, so it runs on its own runner. The other
+    # entry excludes only the frontend, so new workspace tests run without a
+    # matrix change.
+    name: test-workspace (${{ matrix.name }})
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: frontend
+            filter: chatto-frontend
+            playwright: true
+          - name: packages
+            filter: '!chatto-frontend'
+            playwright: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -426,13 +449,27 @@ jobs:
           install-cli-deps: 'false'
 
       - name: Setup Playwright
+        if: matrix.playwright
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
         with:
           save-cache: 'true'
 
       - name: Run workspace unit tests
-        run: pnpm test
+        env:
+          TURBO_FILTER: ${{ matrix.filter }}
+        run: pnpm turbo run test --concurrency=1 "--filter=$TURBO_FILTER"
+
+  test-workspace:
+    needs: [changes, test-workspace-packages]
+    if: ${{ always() && needs.changes.outputs.chatto == 'true' }}
+    # Keep this job name stable because it can be a required branch check.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify workspace test jobs
+        env:
+          PACKAGES_RESULT: ${{ needs.test-workspace-packages.result }}
+        run: test "$PACKAGES_RESULT" = success
 
   test-cli-shared:
     needs: changes
@@ -495,14 +532,48 @@ jobs:
       - name: Build frontend
         run: mise build-frontend
 
-      - name: Vet and check Go code for unused code and outdated idioms
-        run: mise lint-cli
-
       - name: Verify development data seeding
         run: mise x -- node tools/dev-seed-smoke.mjs
 
       - name: Run Go tests
         run: cd cli && go test -trimpath -p 1 -tags test_endpoints ./...
+
+  lint-cli:
+    needs: changes
+    if: ${{ needs.changes.outputs.chatto == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          go-build-cache-scope: lint-cli
+          # PR caches are isolated from main and cannot accelerate a merge run.
+          save-go-build-cache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+      # staticcheck keeps its analysis results outside the Go build cache.
+      - name: Restore staticcheck cache
+        id: staticcheck-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ~/.cache/staticcheck
+          key: staticcheck-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'cli/go.sum') }}-${{ github.sha }}
+          restore-keys: |
+            staticcheck-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'cli/go.sum') }}-
+            staticcheck-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Vet and check Go code for unused code and outdated idioms
+        run: mise lint-cli
+
+      - name: Save staticcheck cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/staticcheck
+          key: ${{ steps.staticcheck-cache.outputs.cache-primary-key }}
 
   test-oidc-conformance:
     needs: changes
@@ -531,19 +602,21 @@ jobs:
           retention-days: 14
 
   test-cli:
-    needs: [changes, test-cli-shared, test-cli-chatto]
+    needs: [changes, test-cli-shared, test-cli-chatto, lint-cli]
     if: ${{ always() && (needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true') }}
     runs-on: ubuntu-latest
     steps:
-      - name: Verify CLI test jobs
+      - name: Verify CLI test and lint jobs
         env:
           CHATTO_CHANGED: ${{ needs.changes.outputs.chatto }}
           SHARED_RESULT: ${{ needs.test-cli-shared.result }}
           CHATTO_RESULT: ${{ needs.test-cli-chatto.result }}
+          LINT_RESULT: ${{ needs.lint-cli.result }}
         run: |
           test "$SHARED_RESULT" = success
           if [[ "$CHATTO_CHANGED" == true ]]; then
             test "$CHATTO_RESULT" = success
+            test "$LINT_RESULT" = success
           fi
 
   test-authling-e2e:
