@@ -136,12 +136,28 @@ func (kv *KeyValue) UpdateWithTTL(ctx context.Context, key string, value []byte,
 	}
 	message := nats.NewMsg(kv.subject + key)
 	message.Data = value
-	ack, err := kv.js.PublishMsg(ctx, message,
-		jetstream.WithExpectLastSequencePerSubject(revision),
-		jetstream.WithMsgTTL(ttl),
-	)
+	return kv.publishAt(ctx, message, revision, jetstream.WithMsgTTL(ttl))
+}
+
+// DeleteAt deletes key if its latest revision is revision, and returns the
+// revision of the delete marker. jetstream.KeyValue.Delete does not return it,
+// but a caller needs it to wait until a watcher observes the deletion. It
+// returns an error that matches jetstream.ErrKeyRevisionMismatch on a revision
+// conflict.
+func (kv *KeyValue) DeleteAt(ctx context.Context, key string, revision uint64) (uint64, error) {
+	if !keyValueKeyValid(key, validKeyValueKey) {
+		return 0, jetstream.ErrInvalidKey
+	}
+	message := nats.NewMsg(kv.subject + key)
+	message.Header.Set("KV-Operation", "DEL")
+	return kv.publishAt(ctx, message, revision)
+}
+
+// publishAt publishes message if the key's latest revision is revision, and
+// reports a revision conflict as jetstream.KeyValue.Update does.
+func (kv *KeyValue) publishAt(ctx context.Context, message *nats.Msg, revision uint64, opts ...jetstream.PublishOpt) (uint64, error) {
+	ack, err := kv.js.PublishMsg(ctx, message, append(opts, jetstream.WithExpectLastSequencePerSubject(revision))...)
 	if err != nil {
-		// Report a revision conflict as jetstream.KeyValue.Update does.
 		if isWrongLastSequence(err) {
 			return 0, fmt.Errorf("%w: %w", err, jetstream.ErrKeyRevisionMismatch)
 		}

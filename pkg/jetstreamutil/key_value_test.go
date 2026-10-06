@@ -284,6 +284,46 @@ func TestKeyValueUpdateWithTTLChecksRevision(t *testing.T) {
 	}
 }
 
+func TestKeyValueDeleteAtChecksRevision(t *testing.T) {
+	ctx := testContext(t)
+	js, bucket := setupTestKeyValue(t)
+	kv := newTestKeyValue(t, js, bucket)
+	created, err := kv.Create(ctx, "record", []byte("one"))
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	watcher, err := kv.Watch(ctx, "record", jetstream.UpdatesOnly())
+	if err != nil {
+		t.Fatalf("Watch: %v", err)
+	}
+	t.Cleanup(func() { _ = watcher.Stop() })
+
+	if _, err := kv.DeleteAt(ctx, "record", created+1); !errors.Is(err, jetstream.ErrKeyRevisionMismatch) {
+		t.Fatalf("DeleteAt with a stale revision = %v, want ErrKeyRevisionMismatch", err)
+	}
+	deleted, err := kv.DeleteAt(ctx, "record", created)
+	if err != nil {
+		t.Fatalf("DeleteAt: %v", err)
+	}
+	if deleted <= created {
+		t.Fatalf("DeleteAt revision = %d, want after %d", deleted, created)
+	}
+	if _, err := kv.Get(ctx, "record"); !errors.Is(err, jetstream.ErrKeyNotFound) {
+		t.Fatalf("Get after DeleteAt = %v, want ErrKeyNotFound", err)
+	}
+	select {
+	case entry := <-watcher.Updates():
+		if entry == nil || entry.Operation() != jetstream.KeyValueDelete || entry.Revision() != deleted {
+			t.Fatalf("watcher saw %v, want a delete at revision %d", entry, deleted)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("watcher did not observe the deletion")
+	}
+	if _, err := kv.DeleteAt(ctx, "bad..key", deleted); !errors.Is(err, jetstream.ErrInvalidKey) {
+		t.Fatalf("DeleteAt with an invalid key = %v, want ErrInvalidKey", err)
+	}
+}
+
 func TestKeyValueGetTreatsExpiryMarkersAsMissing(t *testing.T) {
 	ctx := testContext(t)
 	js, bucket := setupTestKeyValue(t)
