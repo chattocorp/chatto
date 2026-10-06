@@ -165,7 +165,7 @@ func TestPublisher_Append_HappyPath(t *testing.T) {
 
 	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
 
-	seq1, err := pub.Append(ctx, subject, makeEvent("R1", "U1"))
+	seq1, err := pub.AppendEventually(ctx, subject, makeEvent("R1", "U1"))
 	if err != nil {
 		t.Fatalf("first Append: %v", err)
 	}
@@ -173,7 +173,7 @@ func TestPublisher_Append_HappyPath(t *testing.T) {
 		t.Errorf("expected non-zero seq, got 0")
 	}
 
-	seq2, err := pub.Append(ctx, subject, makeEvent("R1", "U2"))
+	seq2, err := pub.AppendEventually(ctx, subject, makeEvent("R1", "U2"))
 	if err != nil {
 		t.Fatalf("second Append: %v", err)
 	}
@@ -193,7 +193,7 @@ func TestReader_EventAtReadsNewlyAppendedEvent(t *testing.T) {
 	event := makeEvent("R1", "U1")
 	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
 
-	sequence, err := publisher.Append(ctx, subject, event)
+	sequence, err := publisher.AppendEventually(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
@@ -212,7 +212,7 @@ func TestPublisher_Append_SetsNATSMsgID(t *testing.T) {
 	ctx := testContext(t)
 
 	event := makeEvent("R1", "U1")
-	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), event)
+	seq, err := pub.AppendEventually(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), event)
 	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
@@ -234,12 +234,12 @@ func TestPublisher_Append_DuplicateEventIDSuppressesSecondAppend(t *testing.T) {
 	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
 	event := makeEvent("R1", "U1")
 
-	seq1, err := pub.Append(ctx, subject, event)
+	seq1, err := pub.AppendEventually(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("first Append: %v", err)
 	}
 
-	seq2, err := pub.Append(ctx, subject, event)
+	seq2, err := pub.AppendEventually(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("duplicate Append: %v", err)
 	}
@@ -270,7 +270,7 @@ func TestPublisher_Append_RejectsInvalidEvent(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), tc.event)
+			_, err := pub.AppendEventually(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), tc.event)
 			if !errors.Is(err, ErrInvalidEvent) {
 				t.Errorf("want ErrInvalidEvent, got %v", err)
 			}
@@ -326,7 +326,7 @@ func TestPublisher_AppendAt_ConflictReturnsTypedError(t *testing.T) {
 	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
 
 	// Place one event so the subject's current last seq is non-zero.
-	if _, err := pub.Append(ctx, subject, makeEvent("R1", "U1")); err != nil {
+	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R1", "U1")); err != nil {
 		t.Fatalf("seed Append: %v", err)
 	}
 
@@ -382,7 +382,7 @@ func TestPublisher_AppendBatch_LandsContiguouslyAtomic(t *testing.T) {
 	ctx := testContext(t)
 
 	// Seed an unrelated subject so the batch lands at a non-trivial offset.
-	if _, err := pub.Append(ctx, RoomAggregate("WARMUP").Subject(EventUserJoinedRoom), makeEvent("WARMUP", "U")); err != nil {
+	if _, err := pub.AppendEventually(ctx, RoomAggregate("WARMUP").Subject(EventUserJoinedRoom), makeEvent("WARMUP", "U")); err != nil {
 		t.Fatalf("warmup: %v", err)
 	}
 
@@ -462,7 +462,7 @@ func TestPublisher_AppendBatch_OCCFailureRejectsEntireBatch(t *testing.T) {
 	ctx := testContext(t)
 
 	// Make subject GA non-empty so an "expect seq 0" OCC must fail.
-	seqA, err := pub.Append(ctx, GroupAggregate("GA").Subject(EventUserJoinedRoom), makeEvent("RA", "Useed"))
+	seqA, err := pub.AppendEventually(ctx, GroupAggregate("GA").Subject(EventUserJoinedRoom), makeEvent("RA", "Useed"))
 	if err != nil {
 		t.Fatalf("seed GA: %v", err)
 	}
@@ -832,7 +832,7 @@ func TestProjector_AppliesEventsInOrder(t *testing.T) {
 	// Seed three events before the projector starts.
 	ctx := testContext(t)
 	for i := range 3 {
-		if _, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U"+itoa(i))); err != nil {
+		if _, err := pub.AppendEventually(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U"+itoa(i))); err != nil {
 			t.Fatalf("seed Append: %v", err)
 		}
 	}
@@ -867,7 +867,7 @@ func TestProjectorSkipsBroadReplaySubjectsBeforeDecoding(t *testing.T) {
 		t.Fatalf("publish malformed unrelated event: %v", err)
 	}
 	pub := NewPublisher(js, stream, testLogger())
-	if _, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1")); err != nil {
+	if _, err := pub.AppendEventually(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1")); err != nil {
 		t.Fatalf("publish logical event: %v", err)
 	}
 
@@ -1376,7 +1376,7 @@ func TestProjectorSnapshotIdentityLookupDoesNotHoldApplyBarrier(t *testing.T) {
 		t.Fatal("snapshot identity lookup did not start")
 	}
 
-	sequence, err := publisher.Append(
+	sequence, err := publisher.AppendEventually(
 		ctx,
 		RoomAggregate("R1").Subject(EventUserJoinedRoom),
 		makeEvent("R1", "U2"),
@@ -1439,7 +1439,7 @@ func TestProjectorsRestoreAndReplayIndependently(t *testing.T) {
 	ctx := testContext(t)
 	var seqs []uint64
 	for i := range 3 {
-		seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U"+itoa(i)))
+		seq, err := pub.AppendEventually(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U"+itoa(i)))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1493,7 +1493,7 @@ func TestProjectorsStartAfterTheirOwnSnapshotCutoffs(t *testing.T) {
 	}
 	malformedSeq := malformedAck.Sequence
 	pub := NewPublisher(js, stream, testLogger())
-	lastSeq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "tail"))
+	lastSeq, err := pub.AppendEventually(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "tail"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1534,7 +1534,7 @@ func TestProjectorConfiguresRestoredConsumerAfterItsCutoff(t *testing.T) {
 	ctx := testContext(t)
 	var seqs []uint64
 	for i := range 3 {
-		seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U"+itoa(i)))
+		seq, err := pub.AppendEventually(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U"+itoa(i)))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1574,7 +1574,7 @@ func TestProjectorRestoreReleasesWaiterRegisteredInFlight(t *testing.T) {
 	js, stream := setupTestStream(t)
 	ctx := context.Background()
 	pub := NewPublisher(js, stream, testLogger())
-	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "joined"))
+	seq, err := pub.AppendEventually(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "joined"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1607,12 +1607,12 @@ func TestProjectorSnapshotCutoffTracksItsLogicalEvents(t *testing.T) {
 	ctx := context.Background()
 	pub := NewPublisher(js, stream, testLogger())
 	joined := makeEvent("R1", "joined")
-	joinedSeq, err := pub.Append(ctx, RoomAggregate("R1").SubjectFor(joined), joined)
+	joinedSeq, err := pub.AppendEventually(ctx, RoomAggregate("R1").SubjectFor(joined), joined)
 	if err != nil {
 		t.Fatal(err)
 	}
 	posted := makeMessagePostedEvent("R1", "poster")
-	if _, err := pub.Append(ctx, RoomAggregate("R1").SubjectFor(posted), posted); err != nil {
+	if _, err := pub.AppendEventually(ctx, RoomAggregate("R1").SubjectFor(posted), posted); err != nil {
 		t.Fatal(err)
 	}
 	projection := &snapshotReplayTrackingProjection{
@@ -1652,7 +1652,7 @@ func TestProjectorRejectsFutureSnapshotAndFallsBackAfterRestoreFailure(t *testin
 			js, stream := setupTestStream(t)
 			pub := NewPublisher(js, stream, testLogger())
 			ctx := testContext(t)
-			seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
+			seq, err := pub.AppendEventually(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1678,7 +1678,7 @@ func TestProjectorCaptureWaitsForApplyBarrier(t *testing.T) {
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())
 	ctx := testContext(t)
-	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
+	seq, err := pub.AppendEventually(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1742,7 +1742,7 @@ func TestProjectorsConsumeTheSameEventsIndependently(t *testing.T) {
 
 	ctx := testContext(t)
 	for i := range 3 {
-		if _, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U"+itoa(i))); err != nil {
+		if _, err := pub.AppendEventually(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U"+itoa(i))); err != nil {
 			t.Fatalf("seed Append: %v", err)
 		}
 	}
@@ -1783,12 +1783,12 @@ func TestProjectorBroadReplayFilterSkipsNonLogicalSubjects(t *testing.T) {
 
 	ctx := testContext(t)
 	joined := makeEvent("R1", "U1")
-	joinedSeq, err := pub.Append(ctx, RoomAggregate("R1").SubjectFor(joined), joined)
+	joinedSeq, err := pub.AppendEventually(ctx, RoomAggregate("R1").SubjectFor(joined), joined)
 	if err != nil {
 		t.Fatalf("Append joined: %v", err)
 	}
 	posted := makeMessagePostedEvent("R1", "U2")
-	postedSeq, err := pub.Append(ctx, RoomAggregate("R1").SubjectFor(posted), posted)
+	postedSeq, err := pub.AppendEventually(ctx, RoomAggregate("R1").SubjectFor(posted), posted)
 	if err != nil {
 		t.Fatalf("Append posted: %v", err)
 	}
@@ -1831,7 +1831,7 @@ func TestProjector_StatusReportsStartupDuration(t *testing.T) {
 	ctx := testContext(t)
 
 	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
-	seq, err := pub.Append(ctx, subject, makeEvent("R1", "U1"))
+	seq, err := pub.AppendEventually(ctx, subject, makeEvent("R1", "U1"))
 	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
@@ -1886,7 +1886,7 @@ func TestProjector_WaitFor_AlreadyReached(t *testing.T) {
 	ctx := testContext(t)
 
 	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
-	seq, err := pub.Append(ctx, subject, makeEvent("R1", "U1"))
+	seq, err := pub.AppendEventually(ctx, subject, makeEvent("R1", "U1"))
 	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
@@ -1922,7 +1922,7 @@ func TestProjector_WaitFor_UnblocksOnApply(t *testing.T) {
 	// Publish, capture subject + seq, then WaitFor must return without timing out.
 	ctx := testContext(t)
 	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
-	seq, err := pub.Append(ctx, subject, makeEvent("R1", "U1"))
+	seq, err := pub.AppendEventually(ctx, subject, makeEvent("R1", "U1"))
 	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
@@ -1951,7 +1951,7 @@ func TestProjector_WaitFor_HonoursContextCancel(t *testing.T) {
 
 	ctx := testContext(t)
 	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
-	seq, err := pub.Append(ctx, subject, makeEvent("R1", "U1"))
+	seq, err := pub.AppendEventually(ctx, subject, makeEvent("R1", "U1"))
 	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
@@ -1982,12 +1982,12 @@ func TestProjector_WaitForRejectsUnconsumedSubject(t *testing.T) {
 	go func() { _ = projector.Run(runCtx) }()
 
 	userSubject := UserAggregate("U1").Subject(EventUserAccountCreated)
-	userSeq, err := pub.Append(ctx, userSubject, makeEvent("R1", "U1"))
+	userSeq, err := pub.AppendEventually(ctx, userSubject, makeEvent("R1", "U1"))
 	if err != nil {
 		t.Fatalf("user Append: %v", err)
 	}
 	roomSubject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
-	roomSeq, err := pub.Append(ctx, roomSubject, makeEvent("R1", "U2"))
+	roomSeq, err := pub.AppendEventually(ctx, roomSubject, makeEvent("R1", "U2"))
 	if err != nil {
 		t.Fatalf("room Append: %v", err)
 	}
@@ -2017,7 +2017,7 @@ func TestProjector_WaitForRejectsSequenceSubjectMismatch(t *testing.T) {
 	go func() { _ = projector.Run(runCtx) }()
 
 	userSubject := UserAggregate("U1").Subject(EventUserAccountCreated)
-	userSeq, err := pub.Append(ctx, userSubject, makeEvent("R1", "U1"))
+	userSeq, err := pub.AppendEventually(ctx, userSubject, makeEvent("R1", "U1"))
 	if err != nil {
 		t.Fatalf("user Append: %v", err)
 	}
@@ -2042,7 +2042,7 @@ func TestProjector_WaitForAcceptsSubjectFilter(t *testing.T) {
 	go func() { _ = projector.Run(runCtx) }()
 
 	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
-	seq, err := pub.Append(ctx, subject, makeEvent("R1", "U1"))
+	seq, err := pub.AppendEventually(ctx, subject, makeEvent("R1", "U1"))
 	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
@@ -2077,7 +2077,7 @@ func TestProjector_WaitFor_ReturnsProjectionError(t *testing.T) {
 	waitForProjectorStarted(t, projector)
 
 	ctx := testContext(t)
-	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
+	seq, err := pub.AppendEventually(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
 	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
@@ -2122,7 +2122,7 @@ func TestProjector_RunReturnsProjectionError(t *testing.T) {
 	waitForProjectorStarted(t, projector)
 
 	ctx := testContext(t)
-	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
+	seq, err := pub.AppendEventually(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
 	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
@@ -2684,7 +2684,7 @@ func TestHistoricalAuthorizationFenceEventRemainsReadable(t *testing.T) {
 	if subject != "evt.authorization.server.fence_advanced" {
 		t.Fatalf("historical authorization fence subject = %q", subject)
 	}
-	if _, err := publisher.Append(ctx, subject, event); err != nil {
+	if _, err := publisher.AppendEventually(ctx, subject, event); err != nil {
 		t.Fatalf("append historical authorization fence: %v", err)
 	}
 	stored, _, err := publisher.SubjectEvents(ctx, subject)

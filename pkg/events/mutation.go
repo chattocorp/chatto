@@ -19,6 +19,7 @@ const (
 	mutationBoundaryInvalid mutationBoundaryKind = iota
 	mutationBoundarySubject
 	mutationBoundaryStream
+	mutationBoundaryUnguarded
 )
 
 // MutationBoundary selects the durable state that must remain unchanged
@@ -39,6 +40,16 @@ func AtSubject(subjectOrFilter string) MutationBoundary {
 		kind:          mutationBoundarySubject,
 		subjectFilter: subjectOrFilter,
 	}
+}
+
+// Unguarded commits a mutation without an OCC guard. ExecuteMutation runs the
+// decision once and cannot conflict. Use it only when neither the records nor
+// the permission to write them depend on state that a concurrent write can
+// change, for example a fact that the caller prepared completely before the
+// call. Stable record IDs still make retries idempotent within the stream's
+// de-duplication window.
+func Unguarded() MutationBoundary {
+	return MutationBoundary{kind: mutationBoundaryUnguarded}
 }
 
 // AtStreamTail fences a mutation against the whole stream. Any intervening
@@ -81,7 +92,8 @@ const maxMutationAttempts = 5
 // ExecuteMutation repeatedly captures boundary, invokes decide, and
 // atomically commits the returned entries with OCC against that same boundary.
 // A conflict reruns decide; other errors return immediately. Returning no
-// entries represents a successful no-op.
+// entries represents a successful no-op. With the Unguarded boundary, decide
+// runs once and the commit cannot conflict.
 //
 // Event identifiers must describe the logical operation and remain stable
 // across callback invocations. Applications remain responsible for waiting
@@ -170,14 +182,18 @@ func (l *EncodedEventLog) publishMutation(
 		batch[i] = EncodedBatchEntry{Subject: entry.Subject, Record: entry.Record}
 	}
 	batch[0].Expect = expect
-	sequences, err := l.AppendBatch(ctx, batch)
+	sequences, err := l.appendBatch(ctx, batch, boundary.kind != mutationBoundaryUnguarded)
 	return sequences, err == nil, err
 }
 
-// expectation returns the OCC guard for the boundary at seq.
+// expectation returns the OCC guard for the boundary at seq. An unguarded
+// boundary has no guard.
 func (b MutationBoundary) expectation(seq uint64) Expectation {
-	if b.kind == mutationBoundaryStream {
+	switch b.kind {
+	case mutationBoundaryStream:
 		return ExpectStreamSeq(seq)
+	case mutationBoundaryUnguarded:
+		return Expectation{}
 	}
 	return ExpectFilterSeq(b.subjectFilter, seq)
 }
@@ -188,6 +204,8 @@ func (l *EncodedEventLog) mutationBoundarySeq(ctx context.Context, boundary Muta
 		return l.LastSubjectSeq(ctx, boundary.subjectFilter)
 	case mutationBoundaryStream:
 		return l.LastStreamSeq(ctx)
+	case mutationBoundaryUnguarded:
+		return 0, nil
 	default:
 		return 0, ErrInvalidMutationBoundary
 	}
@@ -200,16 +218,19 @@ func validateMutationBoundary(boundary MutationBoundary) error {
 			return fmt.Errorf("%w: subject or filter is empty", ErrInvalidMutationBoundary)
 		}
 		return nil
-	case mutationBoundaryStream:
+	case mutationBoundaryStream, mutationBoundaryUnguarded:
 		return nil
 	default:
-		return fmt.Errorf("%w: use AtSubject or AtStreamTail", ErrInvalidMutationBoundary)
+		return fmt.Errorf("%w: use AtSubject, AtStreamTail, or Unguarded", ErrInvalidMutationBoundary)
 	}
 }
 
 func (b MutationBoundary) description() string {
-	if b.kind == mutationBoundaryStream {
+	switch b.kind {
+	case mutationBoundaryStream:
 		return "stream"
+	case mutationBoundaryUnguarded:
+		return "unguarded"
 	}
 	return "subject " + b.subjectFilter
 }

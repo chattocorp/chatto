@@ -345,7 +345,7 @@ func TestStreamMyEvents_ClosesWhenLiveEVTProjectionReadinessFails(t *testing.T) 
 		},
 	}
 	subject := evtstream.RoomAggregate(roomID).SubjectFor(event)
-	seq, err := harness.publisher.Append(ctx, subject, event)
+	seq, err := harness.publisher.AppendEventually(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
@@ -396,7 +396,7 @@ func TestStreamMyEvents_ClosesWhenCallProjectionReadinessFails(t *testing.T) {
 		},
 	}
 	subject := evtstream.RoomAggregate(roomID).SubjectFor(event)
-	seq, err := harness.publisher.Append(ctx, subject, event)
+	seq, err := harness.publisher.AppendEventually(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
@@ -760,7 +760,7 @@ func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 			},
 		},
 	})
-	if _, err := core.roomModel.appendTimelineEventually(ctx, core.EventPublisher, evtstream.RoomAggregate(room.Id), event); err != nil {
+	if _, err := appendEventuallyAndWait(ctx, core.EventPublisher, core.roomModel.timeline.Projector(), evtstream.RoomAggregate(room.Id), event); err != nil {
 		t.Fatalf("append raw EVT event: %v", err)
 	}
 

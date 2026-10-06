@@ -77,9 +77,7 @@ func TestGetLinkPreviewDoesNotPromotePrivateCachedNATSImage(t *testing.T) {
 					Asset: &evtv1.AssetRecord{Id: assetID},
 				}},
 			})
-			_, err := core.EventPublisher.AppendEventuallyAndWait(
-				testContext(t), core.assetModel.assets.Projector(), evtstream.AssetAggregate(assetID), event,
-			)
+			_, err := appendEventuallyAndWait(testContext(t), core.EventPublisher, core.assetModel.assets.Projector(), evtstream.AssetAggregate(assetID), event)
 			require.NoError(t, err)
 		}},
 		{name: "durable tombstone", declare: func(t *testing.T, core *ChattoCore, assetID string) {
@@ -88,9 +86,7 @@ func TestGetLinkPreviewDoesNotPromotePrivateCachedNATSImage(t *testing.T) {
 					AssetId: assetID,
 				}},
 			})
-			_, err := core.EventPublisher.AppendEventuallyAndWait(
-				testContext(t), core.assetModel.assets.Projector(), evtstream.AssetAggregate(assetID), event,
-			)
+			_, err := appendEventuallyAndWait(testContext(t), core.EventPublisher, core.assetModel.assets.Projector(), evtstream.AssetAggregate(assetID), event)
 			require.NoError(t, err)
 		}},
 	}

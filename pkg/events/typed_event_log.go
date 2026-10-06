@@ -70,18 +70,9 @@ func NewTypedEventLog[E any](log *EncodedEventLog, encode TypedEventEncoder[E], 
 	return &TypedEventLog[E]{EncodedEventLog: log, encode: encode, decode: decode}
 }
 
-// Append validates, encodes, and publishes an event using the subject's
-// current tail as its OCC token.
-func (t *TypedEventLog[E]) Append(ctx context.Context, subject string, event E) (uint64, error) {
-	record, err := t.encode(event)
-	if err != nil {
-		return 0, err
-	}
-	return t.EncodedEventLog.Append(ctx, subject, record)
-}
-
-// AppendEventually retries OCC conflicts with the exact same encoded event.
-// Use it only when the event's semantics are safe after an intervening write.
+// AppendEventually encodes and publishes an event without an OCC guard. Use it
+// only when neither the event nor the permission to write it depend on state
+// that a concurrent write can change.
 func (t *TypedEventLog[E]) AppendEventually(ctx context.Context, subject string, event E) (uint64, error) {
 	record, err := t.encode(event)
 	if err != nil {

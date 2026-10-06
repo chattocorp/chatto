@@ -234,7 +234,7 @@ func TestServerSetupUpgradeDoesNotContendWithChatTraffic(t *testing.T) {
 	}
 	c.storage.serverEvtStream = setupTrafficStream{Stream: c.storage.serverEvtStream, afterInfo: func() error {
 		event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_ServerNameChanged{ServerNameChanged: &evtv1.ServerNameChangedEvent{Name: "Traffic"}}})
-		_, err := c.EventPublisher.Append(ctx, evtstream.ConfigSubjectAggregate(ConfigSubjectServer).SubjectFor(event), event)
+		_, err := c.EventPublisher.AppendEventually(ctx, evtstream.ConfigSubjectAggregate(ConfigSubjectServer).SubjectFor(event), event)
 		return err
 	}}
 	if err := c.initializeServerSetup(ctx); err != nil {

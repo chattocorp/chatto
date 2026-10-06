@@ -863,7 +863,7 @@ func TestWaitForRoomLeaveTail_PropagatesCallProjectionReadinessFailure(t *testin
 		},
 	})
 	subject := evtstream.RoomAggregate(roomID).SubjectFor(event)
-	seq, err := harness.publisher.Append(ctx, subject, event)
+	seq, err := harness.publisher.AppendEventually(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
@@ -1032,7 +1032,7 @@ func TestCallState_SnapshotTracksRoomAggregateSeq(t *testing.T) {
 			RoomUpdated: &evtv1.RoomUpdatedEvent{RoomId: roomID, Name: "Room One"},
 		},
 	})
-	seq, err := core.EventPublisher.AppendEventuallyAndWait(ctx, core.callModel.callState.Projector(), evtstream.RoomAggregate(roomID), roomEvent)
+	seq, err := appendEventuallyAndWait(ctx, core.EventPublisher, core.callModel.callState.Projector(), evtstream.RoomAggregate(roomID), roomEvent)
 	if err != nil {
 		t.Fatalf("append room event() error = %v", err)
 	}
@@ -1057,7 +1057,7 @@ func TestCallState_SnapshotIgnoresAssetAggregateLifecycleSeq(t *testing.T) {
 			RoomUpdated: &evtv1.RoomUpdatedEvent{RoomId: roomID, Name: "Room One"},
 		},
 	})
-	roomSeq, err := core.EventPublisher.AppendEventuallyAndWait(ctx, core.callModel.callState.Projector(), evtstream.RoomAggregate(roomID), roomEvent)
+	roomSeq, err := appendEventuallyAndWait(ctx, core.EventPublisher, core.callModel.callState.Projector(), evtstream.RoomAggregate(roomID), roomEvent)
 	if err != nil {
 		t.Fatalf("append room event() error = %v", err)
 	}
