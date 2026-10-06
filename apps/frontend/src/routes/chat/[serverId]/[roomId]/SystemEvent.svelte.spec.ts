@@ -165,6 +165,48 @@ describe('SystemEvent', () => {
     expect(container.textContent).toContain('[deleted user] archived the room');
   });
 
+  it('opens the user menu from the actor name on click and right-click', async () => {
+    const onOpenUser = vi.fn();
+    const event = systemEvent(TimelineEventKind.UserJoinedRoom, 'Alice');
+    render(SystemEvent, { props: { event, onOpenUser } });
+
+    const name = page.getByRole('button', { name: 'Alice', exact: true });
+    await name.click();
+    expect(onOpenUser).toHaveBeenCalledExactlyOnceWith(event.actor, expect.any(DOMRect));
+
+    const contextMenu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    name.element().dispatchEvent(contextMenu);
+    expect(contextMenu.defaultPrevented).toBe(true);
+    expect(onOpenUser).toHaveBeenCalledTimes(2);
+    expect(onOpenUser).toHaveBeenLastCalledWith(event.actor, expect.any(DOMRect));
+  });
+
+  it('opens the user menu from the actor avatar', async () => {
+    const onOpenUser = vi.fn();
+    const event = systemEvent(TimelineEventKind.CallStarted, 'Alice');
+    render(SystemEvent, { props: { event, onOpenUser } });
+
+    await page.getByRole('button', { name: 'alice', exact: true }).click();
+    expect(onOpenUser).toHaveBeenCalledExactlyOnceWith(event.actor, expect.any(DOMRect));
+  });
+
+  it('keeps the actor name and avatar static without a user menu handler', () => {
+    const { container } = render(SystemEvent, {
+      props: { event: systemEvent(TimelineEventKind.UserJoinedRoom, 'Alice') }
+    });
+
+    expect(container.querySelector('button')).toBeNull();
+  });
+
+  it('keeps the deleted-user placeholder static', () => {
+    const event = systemEvent(TimelineEventKind.RoomArchived);
+    if (event.actor) event.actor.deleted = true;
+
+    const { container } = render(SystemEvent, { props: { event, onOpenUser: vi.fn() } });
+
+    expect(container.querySelector('button')).toBeNull();
+  });
+
   it('localizes event copy in German', async () => {
     await loadLocaleMessages('de-DE');
     setReactiveLocale('de-DE');

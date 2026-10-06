@@ -1,5 +1,6 @@
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
+  import SystemEventUserTrigger from './SystemEventUserTrigger.svelte';
   import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
   import type { UserAvatarUserView } from '@chatto/client/timeline/users';
   import type { SystemGroupKind } from './virtualItems';
@@ -11,12 +12,15 @@
     events,
     kind,
     expanded,
-    onExpandedChange
+    onExpandedChange,
+    onOpenUser
   }: {
     events: TimelineEventView[];
     kind: SystemGroupKind;
     expanded: boolean;
     onExpandedChange: (expanded: boolean) => void;
+    /** Opens the user context menu for an actor; names stay static when unset. */
+    onOpenUser?: (user: UserAvatarUserView, anchorRect: DOMRect) => void;
   } = $props();
 
   const actionKind = $derived.by(() => {
@@ -75,7 +79,13 @@
 </script>
 
 {#snippet actorName(actor: Actor)}
-  <AccountName name={actor.name} identity={actor.user} />
+  <SystemEventUserTrigger
+    user={actor.user}
+    {onOpenUser}
+    class="max-w-full hover:text-text hover:underline"
+  >
+    <AccountName name={actor.name} identity={actor.user} />
+  </SystemEventUserTrigger>
 {/snippet}
 
 {#snippet actorNames(items: Actor[])}
@@ -97,7 +107,9 @@
     data-event-id={events[0].id}
     data-testid="system-event-group"
   >
-    <!-- Avatar column (w-11 matches MessageEvent avatar width) -->
+    <!-- Avatar column (w-11 matches MessageEvent avatar width). The stacked
+         avatars overlap, so they stay static: separate targets would be too small
+         for pointer use (WCAG 2.5.8). The names open the user context menu. -->
     <div class="flex w-11 shrink-0 items-center justify-center">
       <div class="flex -space-x-1.5">
         {#each visibleAvatars as actor (actor.id)}
