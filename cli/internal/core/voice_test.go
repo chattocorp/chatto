@@ -2623,6 +2623,8 @@ func TestVoiceCallE2EEKey_PerCallAndShreddedOnEnd(t *testing.T) {
 // Replicas that reconcile the same unmatched LiveKit call at the same time
 // record exactly one ended fact for it.
 func TestEnsureUnmatchedCallEndedFactIsUniqueAcrossConcurrentReconcilers(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	snapshot := liveKitParticipantSnapshot{RoomID: "room-concurrent-end", CallID: "call-concurrent-end"}
