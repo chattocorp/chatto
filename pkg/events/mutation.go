@@ -25,8 +25,9 @@ const (
 // MutationBoundary selects the durable state that must remain unchanged
 // between a mutation decision and its atomic commit.
 //
-// Construct boundaries with AtSubject or AtStreamTail. The zero value is
-// invalid so callers cannot accidentally publish without choosing a scope.
+// Construct boundaries with AtSubject, AtStreamTail, or Unguarded. The zero
+// value is invalid so callers cannot accidentally publish without choosing a
+// scope.
 type MutationBoundary struct {
 	kind          mutationBoundaryKind
 	subjectFilter string
@@ -62,7 +63,8 @@ func AtStreamTail() MutationBoundary {
 
 // MutationAttempt describes one invocation of a mutation decision callback.
 // ExpectedSequence is the subject/filter tail or stream tail captured before
-// the callback began.
+// the callback began. It is always 0 for the Unguarded boundary, which reads
+// no tail; it does not mean that the stream is empty.
 type MutationAttempt struct {
 	Number           int
 	ExpectedSequence uint64
@@ -99,7 +101,8 @@ const maxMutationAttempts = 5
 // across callback invocations. Applications remain responsible for waiting
 // until their projections cover the captured facts before making a decision.
 // Decisions containing multiple records require AllowAtomicPublish on the
-// bound JetStream stream; single-record decisions use an ordinary OCC publish.
+// bound JetStream stream; single-record decisions use an ordinary publish with
+// the boundary's guard.
 func (l *EncodedEventLog) ExecuteMutation(
 	ctx context.Context,
 	boundary MutationBoundary,

@@ -1,7 +1,8 @@
 // Package events provides envelope-neutral event-sourcing mechanics backed by
 // NATS JetStream.
 //
-// It owns opaque OCC publication, selectable subject or whole-stream mutation
+// It owns opaque publication with OCC guards, an explicit unguarded path for
+// state-independent facts, selectable subject or whole-stream mutation
 // boundaries, ordered projection replay, readiness barriers, projection
 // handles, optional snapshot/checkpoint lifecycles, exact stream-message reads
 // with optional process-local caching, key-value reads through the stream

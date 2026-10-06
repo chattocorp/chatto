@@ -158,7 +158,7 @@ func makeMessagePostedEvent(roomID, userID string) *evtv1.Event {
 // Publisher
 // ============================================================================
 
-func TestPublisher_Append_HappyPath(t *testing.T) {
+func TestPublisher_AppendEventually_HappyPath(t *testing.T) {
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())
 	ctx := testContext(t)
@@ -206,7 +206,7 @@ func TestReader_EventAtReadsNewlyAppendedEvent(t *testing.T) {
 	}
 }
 
-func TestPublisher_Append_SetsNATSMsgID(t *testing.T) {
+func TestPublisher_AppendEventually_SetsNATSMsgID(t *testing.T) {
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())
 	ctx := testContext(t)
@@ -226,7 +226,7 @@ func TestPublisher_Append_SetsNATSMsgID(t *testing.T) {
 	}
 }
 
-func TestPublisher_Append_DuplicateEventIDSuppressesSecondAppend(t *testing.T) {
+func TestPublisher_AppendEventually_DuplicateEventIDSuppressesSecondAppend(t *testing.T) {
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())
 	ctx := testContext(t)
@@ -256,7 +256,7 @@ func TestPublisher_Append_DuplicateEventIDSuppressesSecondAppend(t *testing.T) {
 	}
 }
 
-func TestPublisher_Append_RejectsInvalidEvent(t *testing.T) {
+func TestPublisher_AppendEventually_RejectsInvalidEvent(t *testing.T) {
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())
 	ctx := testContext(t)
@@ -280,7 +280,7 @@ func TestPublisher_Append_RejectsInvalidEvent(t *testing.T) {
 
 func TestPublisher_AppendEventually_ConcurrentWrites(t *testing.T) {
 	// Multiple goroutines append to the same subject. Each should succeed
-	// (AppendEventually retries on OCC conflict); the final per-subject
+	// (AppendEventually publishes without a guard); the final per-subject
 	// seq should equal the number of writes.
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())

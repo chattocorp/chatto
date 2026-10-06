@@ -125,9 +125,11 @@ return `jetstream.ErrKeyExists` for a key that a lagging replica still shows.
 Mutation callbacks choose their consistency boundary explicitly:
 
 - `AtSubject(filter)` reruns a decision when that subject or aggregate filter
-  changes; and
+  changes;
 - `AtStreamTail()` reruns a decision after any intervening stream event, for
-  invariants that span the complete stream.
+  invariants that span the complete stream; and
+- `Unguarded()` runs the decision once and commits without a guard, for facts
+  that do not depend on state.
 
 `ExecuteMutation` invokes the application decision, atomically commits opaque
 records with OCC, and reruns the complete decision after conflicts. Logical

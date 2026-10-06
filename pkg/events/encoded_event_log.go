@@ -271,7 +271,7 @@ func entryConflict(entry EncodedBatchEntry) error {
 	if entry.Expect.isZero() {
 		return errBatchGuardsConflict()
 	}
-	return entry.Expect.conflict(entry.Subject)
+	return entry.Expect.forSubject(entry.Subject).conflict(entry.Subject)
 }
 
 // errBatchGuardsConflict is the conflict error when JetStream does not tell
@@ -287,7 +287,7 @@ func batchConflict(entries []EncodedBatchEntry, guards int) error {
 	if guards == 1 {
 		for _, entry := range entries {
 			if !entry.Expect.isZero() {
-				return entry.Expect.conflict(entry.Subject)
+				return entry.Expect.forSubject(entry.Subject).conflict(entry.Subject)
 			}
 		}
 	}
