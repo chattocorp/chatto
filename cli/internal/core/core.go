@@ -133,6 +133,9 @@ type ChattoCore struct {
 // New projectors should be registered during NewChattoCore; they are then
 // started automatically here without any additional wiring.
 func (c *ChattoCore) Run(ctx context.Context) error {
+	// Decide the call model's background work before boot starts. Boot closes
+	// bootDone, so this read happens before any change after boot.
+	runCallModel := c.callModel.runner()
 	g, gctx := errgroup.WithContext(ctx)
 	natsStatus := c.nc.StatusChanged(nats.DISCONNECTED, nats.RECONNECTING, nats.CONNECTED, nats.CLOSED)
 	defer c.nc.RemoveStatusListener(natsStatus)
@@ -211,7 +214,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error { return c.pushSubscriptionCleanup.Run(gctx) })
 	g.Go(func() error { return c.presenceModel.Run(gctx) })
 	g.Go(func() error { return c.myEventsModel.Run(gctx) })
-	g.Go(func() error { return c.callModel.Run(gctx) })
+	g.Go(func() error { return runCallModel(gctx) })
 	g.Go(func() error { return c.assetModel.Run(gctx) })
 	g.Go(func() error { return c.assetUploadModel.RunCleanup(gctx) })
 	g.Go(func() error { return c.keyShredding.Run(gctx) })
