@@ -19,6 +19,7 @@ require (
 	hmans.de/chatto/pkg/appconfig v0.0.0
 	hmans.de/chatto/pkg/datacrypto v0.0.0
 	hmans.de/chatto/pkg/events v0.0.0
+	hmans.de/chatto/pkg/jetstreamutil v0.0.0
 	hmans.de/chatto/pkg/natsruntime v0.0.0
 )
 
@@ -66,6 +67,8 @@ require (
 )
 
 replace hmans.de/chatto/pkg/events => ../pkg/events
+
+replace hmans.de/chatto/pkg/jetstreamutil => ../pkg/jetstreamutil
 
 replace hmans.de/chatto/pkg/appconfig => ../pkg/appconfig
 

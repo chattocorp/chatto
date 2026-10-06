@@ -107,6 +107,15 @@ storage-path, logging, and deployment policy.
 commands. The key bucket is a separate, exceptionally sensitive backup and
 restore boundary.
 
+Both KV buckets allow direct gets, so any replica can answer a plain `Get`. A
+follower can lag behind a committed write and return an older revision or no
+entry. `storage.OpenStores` binds both buckets through
+`hmans.de/chatto/pkg/jetstreamutil`, so `Get` reads through the stream leader
+and observes every committed write. Watchers and key listings still read from
+any replica. Startup retries stream and bucket provisioning three times when
+JetStream reports a transient error, for example while a cluster elects a
+leader.
+
 Credential provisioning writes an opaque operation record before creating its
 user and data keys, then removes the marker after the referencing event
 is acknowledged. Failures before publication and definite OCC rejections permit

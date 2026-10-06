@@ -91,9 +91,8 @@ recognizes both.
 
 ## Status
 
-This module is an incubation surface for Chatto and Authling. Chatto uses it
-today; Authling is the expected second user. Its API is not yet covered by a
-stability promise, and releases remain pre-1.0.
+This module is an incubation surface shared by Chatto and Authling. Its API is
+not yet covered by a stability promise, and releases remain pre-1.0.
 
 ## Development
 
