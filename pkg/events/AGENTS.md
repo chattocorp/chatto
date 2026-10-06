@@ -29,7 +29,7 @@ durable worker resource ownership.
   embedded web assets first (`mise build-frontend`, and `mise build-web` in
   `authling/`). `go vet` compiles the tests, so it also finds users that a
   text search can miss.
-- Constructors panic when a required argument is nil or has the wrong kind.
+- Constructors panic when a required argument is missing or malformed.
   They return an error when options are invalid or a construction-time check
   fails. Keep new constructors consistent with this rule.
 - `DurableWorker` executes an already configured consumer; it must not infer

@@ -176,9 +176,10 @@ if err := projector.WaitForStartup(ctx); err != nil {
 `Run` is single-use. After cancellation or failure, construct a new projector.
 `ProjectorOptions` configures the projector at construction. Invalid options
 make the constructor return an error. The optional consumer identity gives
-each consumer a readable name and description metadata. Use static labels without personal data or secrets.
-The framework adds a random suffix to separate replicas and the SDK adds a
-generation number for recovery. Labels do not change snapshot contracts.
+each consumer a readable name and description metadata. Use static labels
+without personal data or secrets. The framework adds a random suffix to
+separate replicas and the SDK adds a generation number for recovery. Labels do
+not change snapshot contracts.
 On exit, `Run` stops consumption and attempts to delete its current ephemeral
 consumer with an independent two-second request timeout. Deletion failure does
 not replace the run error. Five-minute inactivity expiry remains the fallback
@@ -280,17 +281,16 @@ return worker.Run(ctx)
 The framework logs through a `*slog.Logger`. A nil logger discards all
 records. An application with a different logger can wrap it in a
 `slog.Handler`. When a logger is supplied, the framework may emit
-caller-provided subjects,
-projection keys, event IDs, stream identities, and handler errors as
-diagnostic fields. Callers must ensure those values are opaque operational
+caller-provided subjects, projection keys, event IDs, stream identities, and
+handler errors as diagnostic fields. Callers must ensure those values are opaque operational
 identifiers and contain no personal data, credentials, tokens, raw request
 values, or secrets. The framework does not redact caller-provided metadata.
 
 ## Constructors
 
-Constructors panic when a required argument is nil or has the wrong kind,
-for example a nil stream or a projection that is not a pointer. These are
-wiring errors. Constructors return an error when options are invalid or when a
+Constructors panic when a required argument is missing or malformed, for
+example a nil stream, a projection that is not a pointer, or an empty
+component key. These are wiring errors. Constructors return an error when options are invalid or when a
 check at construction fails, for example when a snapshot stream identity
 cannot be resolved.
 
