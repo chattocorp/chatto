@@ -36,11 +36,11 @@ var ErrMissingOCC = errors.New("missing optimistic concurrency guard")
 // window. Callers can safely fall back to idempotent single-record publishes.
 var ErrDuplicateBatchMessageID = errors.New("atomic batch contains duplicate message id")
 
-// ErrInvalidBatchOCC is returned for a guard that JetStream cannot evaluate:
+// ErrInvalidOCC is returned for a guard that JetStream cannot evaluate:
 // a filter guard without a filter, or a stream guard on a batch entry other
 // than the first. A stream guard belongs on the first batch entry because it
 // fences the committed stream state that precedes the complete batch.
-var ErrInvalidBatchOCC = errors.New("invalid optimistic concurrency guard placement")
+var ErrInvalidOCC = errors.New("invalid optimistic concurrency guard")
 
 // NATS does not currently expose the atomic-batch duplicate-ID server code.
 const jetStreamDuplicateBatchMessageIDErrorCode = 10201
@@ -247,14 +247,14 @@ func (l *EncodedEventLog) AppendBatch(ctx context.Context, entries []EncodedBatc
 		if err := validateEncodedRecord(entry.Record); err != nil {
 			return nil, fmt.Errorf("batch entry %d: %w", i, err)
 		}
-		if entry.Expect.IsZero() {
+		if entry.Expect.isZero() {
 			continue
 		}
 		if err := entry.Expect.validate(); err != nil {
 			return nil, fmt.Errorf("batch entry %d: %w", i, err)
 		}
 		if entry.Expect.stream && i != 0 {
-			return nil, fmt.Errorf("batch entry %d: %w: stream-tail guard must be on first entry", i, ErrInvalidBatchOCC)
+			return nil, fmt.Errorf("batch entry %d: %w: stream-tail guard must be on first entry", i, ErrInvalidOCC)
 		}
 		guards += entry.Expect.guards()
 	}
@@ -303,10 +303,16 @@ func (l *EncodedEventLog) publishBatchEntry(
 // entryConflict is the error for a conflict that JetStream reports for one
 // staged entry. An entry without a guard can still fail on the batch.
 func entryConflict(entry EncodedBatchEntry) error {
-	if entry.Expect.IsZero() {
-		return fmt.Errorf("atomic batch OCC guards: %w", ErrConflict)
+	if entry.Expect.isZero() {
+		return errBatchGuardsConflict()
 	}
 	return entry.Expect.conflict(entry.Subject)
+}
+
+// errBatchGuardsConflict is the conflict error when JetStream does not tell
+// which guard of the batch failed.
+func errBatchGuardsConflict() error {
+	return fmt.Errorf("atomic batch OCC guards: %w", ErrConflict)
 }
 
 // batchConflict is the error for a conflict that JetStream reports at commit.
@@ -315,12 +321,12 @@ func entryConflict(entry EncodedBatchEntry) error {
 func batchConflict(entries []EncodedBatchEntry, guards int) error {
 	if guards == 1 {
 		for _, entry := range entries {
-			if !entry.Expect.IsZero() {
+			if !entry.Expect.isZero() {
 				return entry.Expect.conflict(entry.Subject)
 			}
 		}
 	}
-	return fmt.Errorf("atomic batch OCC guards: %w", ErrConflict)
+	return errBatchGuardsConflict()
 }
 
 type pubAckEnvelope struct {

@@ -40,7 +40,8 @@ func ExpectSubjectSeq(seq uint64) Expectation {
 
 // ExpectFilterSeq guards a write with the last sequence of all messages that
 // match filter, an exact subject or a wildcard subject filter. Use an
-// aggregate's all-events filter to serialize writes with that aggregate.
+// aggregate's all-events filter to serialize writes with that aggregate. A
+// write with an empty filter fails with ErrInvalidOCC.
 func ExpectFilterSeq(filter string, seq uint64) Expectation {
 	return Expectation{subject: filterGuard, filter: filter, seq: seq}
 }
@@ -59,18 +60,18 @@ func (e Expectation) AndStreamSeq(seq uint64) Expectation {
 	return e
 }
 
-// IsZero reports whether the Expectation is no guard.
-func (e Expectation) IsZero() bool {
+// isZero reports whether the Expectation is no guard.
+func (e Expectation) isZero() bool {
 	return e.subject == noSubjectGuard && !e.stream
 }
 
 // validate rejects a zero guard and a filter guard without a filter.
 func (e Expectation) validate() error {
-	if e.IsZero() {
+	if e.isZero() {
 		return ErrMissingOCC
 	}
 	if e.subject == filterGuard && e.filter == "" {
-		return fmt.Errorf("%w: filter is empty", ErrInvalidBatchOCC)
+		return fmt.Errorf("%w: filter is empty", ErrInvalidOCC)
 	}
 	return nil
 }
@@ -111,7 +112,7 @@ func (e Expectation) setHeaders(hdr nats.Header) {
 func (e Expectation) conflict(subject string) error {
 	switch {
 	case e.subject != noSubjectGuard && e.stream:
-		return fmt.Errorf("batch entry OCC guards: %w", ErrConflict)
+		return fmt.Errorf("subject and stream OCC guards: %w", ErrConflict)
 	case e.stream:
 		return fmt.Errorf("stream at expected seq %d: %w", e.streamSeq, ErrConflict)
 	case e.subject == filterGuard:
