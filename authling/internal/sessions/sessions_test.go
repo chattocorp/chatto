@@ -189,7 +189,7 @@ func TestGenerationBoundSessionRemovesRecordWhenVersionChangesAfterStore(t *test
 }
 
 func TestSessionInventoryListsAndRevokesOnlyAuthorizedOtherSession(t *testing.T) {
-	service, _, _, _, cleanup := testInventoryService(t)
+	service, _, _, cleanup := testInventoryService(t)
 	defer cleanup()
 	stopInventory := startTestInventory(t, service)
 	defer stopInventory()
@@ -246,7 +246,7 @@ func TestSessionInventoryListsAndRevokesOnlyAuthorizedOtherSession(t *testing.T)
 }
 
 func TestSessionInventoryRevokesAllOthersAndRebuildsAfterRestart(t *testing.T) {
-	first, stores, js, key, cleanup := testInventoryService(t)
+	first, stores, key, cleanup := testInventoryService(t)
 	defer cleanup()
 	stopFirst := startTestInventory(t, first)
 
@@ -267,7 +267,7 @@ func TestSessionInventoryRevokesAllOthersAndRebuildsAfterRestart(t *testing.T) {
 	}
 	stopFirst()
 
-	restarted := New(stores.RuntimeState, js, key, nil)
+	restarted := New(stores.RuntimeState, key, nil)
 	stopRestarted := startTestInventory(t, restarted)
 	defer stopRestarted()
 	afterRestart, err := restarted.List(t.Context(), "acc_restart", currentToken)
@@ -298,7 +298,7 @@ func TestSessionInventoryRevokesAllOthersAndRebuildsAfterRestart(t *testing.T) {
 }
 
 func TestSessionInventoryOmitsMalformedAndStaleAuthenticationVersions(t *testing.T) {
-	service, stores, _, _, cleanup := testInventoryService(t)
+	service, stores, _, cleanup := testInventoryService(t)
 	defer cleanup()
 	version := uint64(1)
 	service.authenticationVersion = func(ctx context.Context, accountID string) (uint64, bool, error) {
@@ -329,7 +329,7 @@ func TestSessionInventoryOmitsMalformedAndStaleAuthenticationVersions(t *testing
 }
 
 func TestSessionInventoryRemovesRuntimeTTLExpirations(t *testing.T) {
-	service, stores, _, _, cleanup := testInventoryService(t)
+	service, stores, _, cleanup := testInventoryService(t)
 	defer cleanup()
 	stopInventory := startTestInventory(t, service)
 	defer stopInventory()
@@ -371,11 +371,11 @@ func TestSessionInventoryRemovesRuntimeTTLExpirations(t *testing.T) {
 }
 
 func TestSessionInventoryReflectsWritesFromAnotherService(t *testing.T) {
-	indexed, stores, js, key, cleanup := testInventoryService(t)
+	indexed, stores, key, cleanup := testInventoryService(t)
 	defer cleanup()
 	stopInventory := startTestInventory(t, indexed)
 	defer stopInventory()
-	writer := New(stores.RuntimeState, js, key, nil)
+	writer := New(stores.RuntimeState, key, nil)
 
 	currentToken, _, err := writer.Create(t.Context(), "acc_replicated")
 	if err != nil {
@@ -410,7 +410,7 @@ func TestSessionInventoryReflectsWritesFromAnotherService(t *testing.T) {
 	}
 }
 
-func testInventoryService(t *testing.T) (*Service, storage.Stores, jetstream.JetStream, []byte, func()) {
+func testInventoryService(t *testing.T) (*Service, storage.Stores, []byte, func()) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	connection, err := natsruntime.Open(ctx, config.NATSConfig{Embedded: config.EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}})
@@ -436,8 +436,8 @@ func testInventoryService(t *testing.T) (*Service, storage.Stores, jetstream.Jet
 		connection.Close()
 		t.Fatal(err)
 	}
-	service := New(stores.RuntimeState, js, key, nil)
-	return service, stores, js, key, func() {
+	service := New(stores.RuntimeState, key, nil)
+	return service, stores, key, func() {
 		clear(key)
 		cancel()
 		if err := connection.Close(); err != nil {
@@ -502,7 +502,7 @@ func testService(t *testing.T) (*Service, storage.Stores, func()) {
 		connection.Close()
 		t.Fatal(err)
 	}
-	service := New(stores.RuntimeState, js, key, nil)
+	service := New(stores.RuntimeState, key, nil)
 	clear(key)
 	return service, stores, func() {
 		cancel()

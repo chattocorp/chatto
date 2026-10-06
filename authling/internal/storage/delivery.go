@@ -30,14 +30,13 @@ type DeliveryPolicy struct {
 // A lost write acknowledgement fails closed and can leave an allowance consumed
 // until expiry. No uncertain write is retried or automatically refunded.
 type DeliveryBudget struct {
-	kv     jetstream.KeyValue
-	js     jetstream.JetStream
+	kv     KeyValue
 	policy DeliveryPolicy
 }
 
 // NewDeliveryBudget constructs a budget over Authling's runtime-state bucket.
-func NewDeliveryBudget(kv jetstream.KeyValue, js jetstream.JetStream, policy DeliveryPolicy) *DeliveryBudget {
-	return &DeliveryBudget{kv: kv, js: js, policy: policy}
+func NewDeliveryBudget(kv KeyValue, policy DeliveryPolicy) *DeliveryBudget {
+	return &DeliveryBudget{kv: kv, policy: policy}
 }
 
 type deliveryCounter struct {
@@ -86,7 +85,7 @@ func (b *DeliveryBudget) reserveCounter(ctx context.Context, key string, limit i
 			}
 			counter.Count++
 			data, _ := json.Marshal(counter)
-			_, err = UpdateKeyWithTTL(ctx, b.js, RuntimeStateBucket, key, data, entry.Revision(), b.policy.Window)
+			_, err = b.kv.UpdateWithTTL(ctx, key, data, entry.Revision(), b.policy.Window)
 		}
 		if err == nil {
 			return nil
@@ -116,7 +115,7 @@ func (b *DeliveryBudget) rollbackCounter(ctx context.Context, key string) error 
 		} else {
 			counter.Count--
 			data, _ := json.Marshal(counter)
-			_, err = UpdateKeyWithTTL(ctx, b.js, RuntimeStateBucket, key, data, entry.Revision(), b.policy.Window)
+			_, err = b.kv.UpdateWithTTL(ctx, key, data, entry.Revision(), b.policy.Window)
 		}
 		if err == nil {
 			return nil

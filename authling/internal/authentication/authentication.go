@@ -45,18 +45,16 @@ type limitState struct {
 
 // Service applies distributed attempt limits around local credentials.
 type Service struct {
-	kv       jetstream.KeyValue
-	js       jetstream.JetStream
+	kv       storage.KeyValue
 	key      []byte
 	accounts accountAuthenticator
 	slots    chan struct{}
 }
 
 // New constructs the local authentication boundary.
-func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, accountService accountAuthenticator) *Service {
+func New(kv storage.KeyValue, key []byte, accountService accountAuthenticator) *Service {
 	return &Service{
 		kv:       kv,
-		js:       js,
 		key:      append([]byte(nil), key...),
 		accounts: accountService,
 		slots:    make(chan struct{}, maxConcurrentPassword),
@@ -226,7 +224,7 @@ func (s *Service) recordFailure(ctx context.Context, key string) error {
 		}
 		counter.Count++
 		data, _ := json.Marshal(counter)
-		_, updateErr := storage.UpdateKeyWithTTL(ctx, s.js, storage.RuntimeStateBucket, key, data, entry.Revision(), attemptWindow)
+		_, updateErr := s.kv.UpdateWithTTL(ctx, key, data, entry.Revision(), attemptWindow)
 		if updateErr == nil {
 			return nil
 		}

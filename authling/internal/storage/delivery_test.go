@@ -9,13 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/authling/internal/config"
 	"hmans.de/authling/internal/natsruntime"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
-func openDeliveryStore(t *testing.T, cfg config.NATSConfig) (*natsruntime.Connection, jetstream.JetStream, jetstream.KeyValue) {
+func openDeliveryStore(t *testing.T, cfg config.NATSConfig) (*natsruntime.Connection, jetstream.JetStream, *jetstreamutil.KeyValue) {
 	t.Helper()
 	connection, err := natsruntime.Open(t.Context(), cfg)
 	if err != nil {
@@ -31,6 +31,21 @@ func openDeliveryStore(t *testing.T, cfg config.NATSConfig) (*natsruntime.Connec
 		t.Fatal(err)
 	}
 	return connection, js, stores.RuntimeState
+}
+
+// otherReplicaKeyValue binds a separate handle to the runtime-state bucket. The
+// handles share only server state, as on independent replicas.
+func otherReplicaKeyValue(t *testing.T, js jetstream.JetStream) KeyValue {
+	t.Helper()
+	bucket, err := js.KeyValue(t.Context(), RuntimeStateBucket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kv, err := jetstreamutil.NewKeyValue(js, bucket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return kv
 }
 
 func deliveryCount(t *testing.T, kv jetstream.KeyValue, key string) int {
@@ -52,12 +67,9 @@ func deliveryCount(t *testing.T, kv jetstream.KeyValue, key string) int {
 func TestDeliveryBudgetConcurrentReservationsAndRefunds(t *testing.T) {
 	cfg := config.NATSConfig{Embedded: config.EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}}
 	connection, js, kv := openDeliveryStore(t, cfg)
-	other, err := js.KeyValue(t.Context(), RuntimeStateBucket)
-	if err != nil {
-		t.Fatal(err)
-	}
+	other := otherReplicaKeyValue(t, js)
 	policy := DeliveryPolicy{GlobalKey: "delivery.global", GlobalLimit: 100, RecipientLimit: 7, Window: time.Minute}
-	budgets := []*DeliveryBudget{NewDeliveryBudget(kv, js, policy), NewDeliveryBudget(other, js, policy)}
+	budgets := []*DeliveryBudget{NewDeliveryBudget(kv, policy), NewDeliveryBudget(other, policy)}
 	var accepted atomic.Int32
 	var wg sync.WaitGroup
 	for i := range 14 {
@@ -97,7 +109,7 @@ func TestDeliveryBudgetConcurrentReservationsAndRefunds(t *testing.T) {
 		t.Fatal("restart lost delivery allowances")
 	}
 	policy.GlobalLimit = 1
-	if err := NewDeliveryBudget(kv, js, policy).Reserve(t.Context(), "delivery.other"); !errors.Is(err, ErrDeliveryLimited) {
+	if err := NewDeliveryBudget(kv, policy).Reserve(t.Context(), "delivery.other"); !errors.Is(err, ErrDeliveryLimited) {
 		t.Fatalf("global cap: %v", err)
 	}
 	if deliveryCount(t, kv, "delivery.other") != 0 {
@@ -106,8 +118,8 @@ func TestDeliveryBudgetConcurrentReservationsAndRefunds(t *testing.T) {
 }
 
 func TestDeliveryBudgetExpiry(t *testing.T) {
-	_, js, kv := openDeliveryStore(t, config.NATSConfig{Embedded: config.EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}})
-	budget := NewDeliveryBudget(kv, js, DeliveryPolicy{GlobalKey: "expiry.global", GlobalLimit: 1, RecipientLimit: 1, Window: time.Second})
+	_, _, kv := openDeliveryStore(t, config.NATSConfig{Embedded: config.EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}})
+	budget := NewDeliveryBudget(kv, DeliveryPolicy{GlobalKey: "expiry.global", GlobalLimit: 1, RecipientLimit: 1, Window: time.Second})
 	if err := budget.Reserve(t.Context(), "expiry.recipient"); err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +141,7 @@ func TestDeliveryBudgetExpiry(t *testing.T) {
 // afterRead forces a real concurrent write between reading a revision and the
 // following mutation, or cancels a request after its global reservation.
 type deliveryReadHook struct {
-	jetstream.KeyValue
+	KeyValue
 	afterRead func(string)
 }
 
@@ -142,7 +154,7 @@ func (kv *deliveryReadHook) Get(ctx context.Context, key string) (jetstream.KeyV
 func TestDeliveryRollbackRetriesConfirmedConflicts(t *testing.T) {
 	for _, initial := range []string{`{"count":1}`, `{"count":2}`} {
 		t.Run(initial, func(t *testing.T) {
-			_, js, kv := openDeliveryStore(t, config.NATSConfig{Embedded: config.EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}})
+			_, _, kv := openDeliveryStore(t, config.NATSConfig{Embedded: config.EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}})
 			if _, err := kv.Put(t.Context(), "conflict", []byte(initial)); err != nil {
 				t.Fatal(err)
 			}
@@ -154,7 +166,7 @@ func TestDeliveryRollbackRetriesConfirmedConflicts(t *testing.T) {
 					}
 				})
 			}}
-			budget := NewDeliveryBudget(hooked, js, DeliveryPolicy{Window: time.Minute})
+			budget := NewDeliveryBudget(hooked, DeliveryPolicy{Window: time.Minute})
 			if err := budget.rollbackCounter(t.Context(), "conflict"); err != nil {
 				t.Fatal(err)
 			}
@@ -167,7 +179,7 @@ func TestDeliveryRollbackRetriesConfirmedConflicts(t *testing.T) {
 
 var errDeliveryAckLost = errors.New("injected delivery acknowledgement loss")
 
-type deliveryLostAckKV struct{ jetstream.KeyValue }
+type deliveryLostAckKV struct{ KeyValue }
 
 func (kv deliveryLostAckKV) Create(ctx context.Context, key string, value []byte, opts ...jetstream.KVCreateOpt) (uint64, error) {
 	if _, err := kv.KeyValue.Create(ctx, key, value, opts...); err != nil {
@@ -183,13 +195,11 @@ func (kv deliveryLostAckKV) Delete(ctx context.Context, key string, opts ...jets
 	return errDeliveryAckLost
 }
 
-type deliveryLostAckJS struct{ jetstream.JetStream }
-
-func (js deliveryLostAckJS) PublishMsg(ctx context.Context, msg *nats.Msg, opts ...jetstream.PublishOpt) (*jetstream.PubAck, error) {
-	if _, err := js.JetStream.PublishMsg(ctx, msg, opts...); err != nil {
-		return nil, err
+func (kv deliveryLostAckKV) UpdateWithTTL(ctx context.Context, key string, value []byte, revision uint64, ttl time.Duration) (uint64, error) {
+	if _, err := kv.KeyValue.UpdateWithTTL(ctx, key, value, revision, ttl); err != nil {
+		return 0, err
 	}
-	return nil, errDeliveryAckLost
+	return 0, errDeliveryAckLost
 }
 
 func TestDeliveryBudgetDoesNotRetryUnknownWrites(t *testing.T) {
@@ -204,14 +214,14 @@ func TestDeliveryBudgetDoesNotRetryUnknownWrites(t *testing.T) {
 		{"delete", 1, 0, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, js, kv := openDeliveryStore(t, config.NATSConfig{Embedded: config.EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}})
+			_, _, kv := openDeliveryStore(t, config.NATSConfig{Embedded: config.EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}})
 			if tc.initial > 0 {
 				data, _ := json.Marshal(deliveryCounter{Count: tc.initial})
 				if _, err := kv.Put(t.Context(), "unknown", data); err != nil {
 					t.Fatal(err)
 				}
 			}
-			budget := NewDeliveryBudget(deliveryLostAckKV{kv}, deliveryLostAckJS{js}, DeliveryPolicy{Window: time.Minute})
+			budget := NewDeliveryBudget(deliveryLostAckKV{kv}, DeliveryPolicy{Window: time.Minute})
 			var err error
 			if tc.refund {
 				err = budget.rollbackCounter(t.Context(), "unknown")
@@ -229,9 +239,9 @@ func TestDeliveryBudgetDoesNotRetryUnknownWrites(t *testing.T) {
 }
 
 func TestDeliveryBudgetPartialFailureCleanup(t *testing.T) {
-	_, js, kv := openDeliveryStore(t, config.NATSConfig{Embedded: config.EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}})
+	_, _, kv := openDeliveryStore(t, config.NATSConfig{Embedded: config.EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}})
 	policy := DeliveryPolicy{GlobalKey: "partial.global", GlobalLimit: 10, RecipientLimit: 1, Window: time.Minute}
-	budget := NewDeliveryBudget(kv, js, policy)
+	budget := NewDeliveryBudget(kv, policy)
 	for _, malformed := range []string{`{"count":0}`, `{"count":-1}`, `invalid`} {
 		if _, err := kv.Put(t.Context(), "partial.recipient", []byte(malformed)); err != nil {
 			t.Fatal(err)
@@ -259,7 +269,7 @@ func TestDeliveryBudgetPartialFailureCleanup(t *testing.T) {
 			cancel()
 		}
 	}}
-	if err := NewDeliveryBudget(hooked, js, policy).Reserve(ctx, "partial.cancel"); err == nil {
+	if err := NewDeliveryBudget(hooked, policy).Reserve(ctx, "partial.cancel"); err == nil {
 		t.Fatal("cancelled reservation succeeded")
 	}
 	if deliveryCount(t, kv, policy.GlobalKey) != 0 {
@@ -268,13 +278,13 @@ func TestDeliveryBudgetPartialFailureCleanup(t *testing.T) {
 }
 
 func TestDeliveryGlobalBudgetAcrossRecipients(t *testing.T) {
-	_, js, kv := openDeliveryStore(t, config.NATSConfig{Embedded: config.EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}})
+	_, _, kv := openDeliveryStore(t, config.NATSConfig{Embedded: config.EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}})
 	policy := DeliveryPolicy{GlobalKey: "global-cap.global", GlobalLimit: 7, RecipientLimit: 10, Window: time.Minute}
 	var accepted atomic.Int32
 	var wg sync.WaitGroup
 	for i := range 14 {
 		wg.Go(func() {
-			budget := NewDeliveryBudget(kv, js, policy)
+			budget := NewDeliveryBudget(kv, policy)
 			err := budget.Reserve(t.Context(), "global-cap."+string(rune('a'+i)))
 			if err == nil {
 				accepted.Add(1)

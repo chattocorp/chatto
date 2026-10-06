@@ -129,6 +129,13 @@ repository skills as non-product infrastructure.
   Authling's exact subjects or resources from Chatto.
 - Use least privilege by default. Fail closed when identity, key, issuer, or
   authorization state is unavailable.
+- Read and write runtime state only through the bound handles from
+  `storage.OpenStores`. Their `Get` reads through the stream leader. Use
+  `UpdateWithTTL` and `DeleteAt` for revision-checked writes; do not publish
+  raw `$KV` messages. Classify an OCC conflict with
+  `jetstreamutil.IsSequenceConflict`: a replicated stream reports a conflict
+  with a write in progress with a code that matches `jetstream.ErrKeyExists`
+  only for `Create`.
 
 ## Identity Events And Recovery
 

@@ -19,7 +19,7 @@ var ErrAdmissionLimited = errors.New("request admission limit reached")
 // Each admission resets the quiet window. OCC bounds admissions across replicas;
 // an OCC conflict reads the counter again. Storage failures and unknown
 // acknowledgements fail closed without refunds.
-func AdmitRequest(ctx context.Context, kv jetstream.KeyValue, js jetstream.JetStream, key string, limit int, window time.Duration) error {
+func AdmitRequest(ctx context.Context, kv KeyValue, key string, limit int, window time.Duration) error {
 	if limit < 1 || window <= 0 {
 		return fmt.Errorf("invalid request admission policy")
 	}
@@ -44,7 +44,7 @@ func AdmitRequest(ctx context.Context, kv jetstream.KeyValue, js jetstream.JetSt
 			}
 			counter.Count++
 			data, _ := json.Marshal(counter)
-			_, err = UpdateKeyWithTTL(ctx, js, RuntimeStateBucket, key, data, entry.Revision(), window)
+			_, err = kv.UpdateWithTTL(ctx, key, data, entry.Revision(), window)
 			if err == nil {
 				return nil
 			}

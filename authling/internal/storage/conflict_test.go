@@ -9,6 +9,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/authling/internal/config"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // replicatedConflictJS rejects its first publish with the conflict code that a
@@ -35,17 +36,17 @@ func TestCountersRetryReplicatedStreamConflicts(t *testing.T) {
 	policy := DeliveryPolicy{GlobalKey: "conflict.global", GlobalLimit: 10, RecipientLimit: 10, Window: time.Minute}
 	tests := []struct {
 		name      string
-		operation func(context.Context, jetstream.KeyValue, jetstream.JetStream) error
+		operation func(context.Context, KeyValue) error
 		want      int
 	}{
-		{"admission", func(ctx context.Context, kv jetstream.KeyValue, js jetstream.JetStream) error {
-			return AdmitRequest(ctx, kv, js, key, 10, time.Minute)
+		{"admission", func(ctx context.Context, kv KeyValue) error {
+			return AdmitRequest(ctx, kv, key, 10, time.Minute)
 		}, 3},
-		{"delivery reservation", func(ctx context.Context, kv jetstream.KeyValue, js jetstream.JetStream) error {
-			return NewDeliveryBudget(kv, js, policy).reserveCounter(ctx, key, 10)
+		{"delivery reservation", func(ctx context.Context, kv KeyValue) error {
+			return NewDeliveryBudget(kv, policy).reserveCounter(ctx, key, 10)
 		}, 3},
-		{"delivery rollback", func(ctx context.Context, kv jetstream.KeyValue, js jetstream.JetStream) error {
-			return NewDeliveryBudget(kv, js, policy).rollbackCounter(ctx, key)
+		{"delivery rollback", func(ctx context.Context, kv KeyValue) error {
+			return NewDeliveryBudget(kv, policy).rollbackCounter(ctx, key)
 		}, 1},
 	}
 	for _, test := range tests {
@@ -56,7 +57,11 @@ func TestCountersRetryReplicatedStreamConflicts(t *testing.T) {
 				t.Fatal(err)
 			}
 			conflicting := &replicatedConflictJS{JetStream: js}
-			if err := test.operation(t.Context(), kv, conflicting); err != nil {
+			bound, err := jetstreamutil.NewKeyValue(conflicting, kv.KeyValue)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := test.operation(t.Context(), bound); err != nil {
 				t.Fatalf("operation failed after a replicated conflict: %v", err)
 			}
 			if !conflicting.rejected.Load() {

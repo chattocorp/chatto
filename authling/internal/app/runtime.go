@@ -136,7 +136,7 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger *slog.
 	if err != nil {
 		return closeOnError(fmt.Errorf("open account service: %w", err))
 	}
-	sessionService := sessions.New(stores.RuntimeState, js, workflowKey, accountService.AuthenticationVersion)
+	sessionService := sessions.New(stores.RuntimeState, workflowKey, accountService.AuthenticationVersion)
 	issuerProjection := issuer.NewProjection()
 	issuerHandle, err := events.NewDecodedProjectionHandle(js, stream, issuerProjection, evtstream.Decode, projectorOptions)
 	if err != nil {
@@ -177,12 +177,12 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger *slog.
 		}
 	}
 	clients := oidcprovider.NewResolver(cfg, cimd)
-	oidcStorage := oidcprovider.NewStorage(stores.RuntimeState, js, workflowKey, clients, issuerService, func(ctx context.Context, accountID string) (string, string, error) {
+	oidcStorage := oidcprovider.NewStorage(stores.RuntimeState, workflowKey, clients, issuerService, func(ctx context.Context, accountID string) (string, string, error) {
 		profile, err := accountService.Profile(ctx, accountID)
 		return profile.PreferredUsername, profile.FullName, err
 	}, accountService.RequireActive, accountService.EmailAddress)
 	oidcService := oidcprovider.New(cfg, issuerService, oidcStorage, authorizationService, vault)
-	authenticationService := authentication.New(stores.RuntimeState, js, workflowKey, accountService)
+	authenticationService := authentication.New(stores.RuntimeState, workflowKey, accountService)
 	return &Runtime{
 		connection:       connection,
 		erasureProjector: erasureHandle.Projector(),
@@ -190,9 +190,9 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger *slog.
 		projectors:       []*events.Projector{handle.Projector(), issuerHandle.Projector(), authorizationHandle.Projector()},
 		issuer:           issuerService,
 		Accounts:         accountService,
-		Registration:     registration.New(stores.RuntimeState, js, workflowKey, sender, accountService, cfg.Site.Resolve(cfg.HTTP.PublicURLOrDefault()).Name),
-		PasswordReset:    passwordreset.New(stores.RuntimeState, js, workflowKey, sender, accountService, cfg.Site.Resolve(cfg.HTTP.PublicURLOrDefault()).Name),
-		EmailChange:      emailchange.New(stores.RuntimeState, js, workflowKey, sender, accountService, authenticationService, cfg.Site.Resolve(cfg.HTTP.PublicURLOrDefault()).Name, emailChangeOptions...),
+		Registration:     registration.New(stores.RuntimeState, workflowKey, sender, accountService, cfg.Site.Resolve(cfg.HTTP.PublicURLOrDefault()).Name),
+		PasswordReset:    passwordreset.New(stores.RuntimeState, workflowKey, sender, accountService, cfg.Site.Resolve(cfg.HTTP.PublicURLOrDefault()).Name),
+		EmailChange:      emailchange.New(stores.RuntimeState, workflowKey, sender, accountService, authenticationService, cfg.Site.Resolve(cfg.HTTP.PublicURLOrDefault()).Name, emailChangeOptions...),
 		Authentication:   authenticationService,
 		Sessions:         sessionService,
 		Authorizations:   authorizationService,

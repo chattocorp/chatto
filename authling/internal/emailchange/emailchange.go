@@ -63,8 +63,7 @@ type Completion struct {
 // Service coordinates reauthentication, expiring mailbox verification state,
 // durable address replacement, and the old-address security notification.
 type Service struct {
-	kv              jetstream.KeyValue
-	js              jetstream.JetStream
+	kv              storage.KeyValue
 	key             []byte
 	sender          email.Sender
 	siteName        string // Public service name used only in email copy.
@@ -90,16 +89,15 @@ func WithClock(now func() time.Time) Option {
 }
 
 // New constructs the verified email-change workflow.
-func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, sender email.Sender, accountService *accounts.Service, authenticationService *authentication.Service, siteName string, options ...Option) *Service {
+func New(kv storage.KeyValue, key []byte, sender email.Sender, accountService *accounts.Service, authenticationService *authentication.Service, siteName string, options ...Option) *Service {
 	service := &Service{
 		kv:             kv,
-		js:             js,
 		key:            append([]byte(nil), key...),
 		sender:         sender,
 		siteName:       siteName,
 		accounts:       accountService,
 		authentication: authenticationService,
-		deliveryBudget: storage.NewDeliveryBudget(kv, js, storage.DeliveryPolicy{
+		deliveryBudget: storage.NewDeliveryBudget(kv, storage.DeliveryPolicy{
 			GlobalKey:      "email-change-limit.global",
 			GlobalLimit:    maxGlobalDeliveredCodes,
 			RecipientLimit: maxDeliveredCodes,
@@ -294,7 +292,7 @@ func (s *Service) update(ctx context.Context, key string, revision uint64, state
 	if remaining <= 0 {
 		return 0, ErrInvalidFlow
 	}
-	updated, err := storage.UpdateKeyWithTTL(ctx, s.js, storage.RuntimeStateBucket, key, data, revision, remaining)
+	updated, err := s.kv.UpdateWithTTL(ctx, key, data, revision, remaining)
 	if err != nil {
 		return 0, ErrInvalidFlow
 	}

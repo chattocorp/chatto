@@ -2342,7 +2342,7 @@ func TestServeReturnsInventoryStartupFailure(t *testing.T) {
 				t.Fatal(err)
 			}
 			if missingTier {
-				runtime.Sessions = sessions.New(failingInventoryKV{}, js, make([]byte, 32), runtime.Accounts.AuthenticationVersion)
+				runtime.Sessions = sessions.New(failingInventoryKV{}, make([]byte, 32), runtime.Accounts.AuthenticationVersion)
 			}
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -2377,7 +2377,7 @@ func TestServeReturnsInventoryStartupFailure(t *testing.T) {
 
 // Missing R1 tiers on an R3 deployment produce this server API error. Inject
 // only Watch's failure; run the real inventory and projection lifecycles.
-type failingInventoryKV struct{ jetstream.KeyValue }
+type failingInventoryKV struct{ storage.KeyValue }
 
 func (failingInventoryKV) Watch(context.Context, string, ...jetstream.WatchOpt) (jetstream.KeyWatcher, error) {
 	return nil, &nats.APIError{Code: 400, ErrorCode: 10120, Description: "no JetStream default or applicable tiered limit present"}

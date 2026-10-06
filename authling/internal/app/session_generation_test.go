@@ -78,7 +78,7 @@ func TestBrowserAuthenticationCannotUpgradeStaleGeneration(t *testing.T) {
 			changed := false
 			// The first generation lookup is the session constructor's boundary,
 			// after the HTTP handler has obtained its authentication result.
-			sessionService := sessions.New(stores.RuntimeState, js, key, func(ctx context.Context, accountID string) (uint64, bool, error) {
+			sessionService := sessions.New(stores.RuntimeState, key, func(ctx context.Context, accountID string) (uint64, bool, error) {
 				if !changed {
 					changed = true
 					target, err := runtime.Accounts.PreparePasswordChange(ctx, accountID, proofPassword, laterPassword)
