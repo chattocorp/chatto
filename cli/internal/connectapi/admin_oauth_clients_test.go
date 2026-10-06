@@ -13,6 +13,7 @@ import (
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 func TestAdminOAuthClientServiceLifecycleAndAuthorization(t *testing.T) {
@@ -92,13 +93,7 @@ func TestAdminOAuthClientServicePreservesFutureEnumValues(t *testing.T) {
 			},
 		},
 	}
-	if _, err := env.core.EventPublisher.AppendAtFilter(
-		env.ctx,
-		aggregate.SubjectFor(sourceEvent),
-		sourceEvent,
-		aggregate.AllEventsFilter(),
-		sequence,
-	); err != nil {
+	if _, err := env.core.EventPublisher.AppendAt(env.ctx, aggregate.SubjectFor(sourceEvent), sourceEvent, events.ExpectFilterSeq(aggregate.AllEventsFilter(), sequence)); err != nil {
 		t.Fatalf("append future OAuth source: %v", err)
 	}
 	sequence, err = env.core.EventPublisher.LastSubjectSeq(env.ctx, aggregate.AllEventsFilter())
@@ -119,13 +114,7 @@ func TestAdminOAuthClientServicePreservesFutureEnumValues(t *testing.T) {
 			},
 		},
 	}
-	if _, err := env.core.EventPublisher.AppendAtFilter(
-		env.ctx,
-		aggregate.SubjectFor(event),
-		event,
-		aggregate.AllEventsFilter(),
-		sequence,
-	); err != nil {
+	if _, err := env.core.EventPublisher.AppendAt(env.ctx, aggregate.SubjectFor(event), event, events.ExpectFilterSeq(aggregate.AllEventsFilter(), sequence)); err != nil {
 		t.Fatalf("append future OAuth policy: %v", err)
 	}
 

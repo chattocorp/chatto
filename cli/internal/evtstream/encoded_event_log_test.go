@@ -21,12 +21,7 @@ func TestPublisherStoresCanonicalCoreEventBytes(t *testing.T) {
 		t.Fatalf("proto.Marshal: %v", err)
 	}
 
-	seq, err := publisher.AppendAt(
-		ctx,
-		RoomAggregate("R-compatible").Subject(EventUserJoinedRoom),
-		event,
-		0,
-	)
+	seq, err := publisher.AppendAt(ctx, RoomAggregate("R-compatible").Subject(EventUserJoinedRoom), event, ExpectSubjectSeq(0))
 	if err != nil {
 		t.Fatalf("AppendAt: %v", err)
 	}
@@ -87,7 +82,7 @@ func TestEncodedEventLogWriteRemainsReadableByChattoPublisher(t *testing.T) {
 		t.Fatalf("proto.Marshal: %v", err)
 	}
 
-	seq, err := eventLog.AppendAt(ctx, subject, EncodedRecord{ID: event.GetId(), Data: data}, 0)
+	seq, err := eventLog.AppendAt(ctx, subject, EncodedRecord{ID: event.GetId(), Data: data}, ExpectSubjectSeq(0))
 	if err != nil {
 		t.Fatalf("AppendAt: %v", err)
 	}

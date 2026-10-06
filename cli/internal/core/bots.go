@@ -594,7 +594,9 @@ func (c *ChattoCore) CreateBotAPIKey(ctx context.Context, actorID, botID, name s
 	}})
 	subject := evtstream.UserAggregate(botID).SubjectFor(event)
 	seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
-		Subject: subject, Event: event, HasOCC: true, ExpectedSeq: filterSeq, FilterSubject: filter,
+		Subject: subject,
+		Event:   event,
+		Expect:  events.ExpectFilterSeq(filter, filterSeq),
 	}})
 	if err != nil {
 		return nil, err
@@ -671,7 +673,9 @@ func (c *ChattoCore) RevokeBotAPIKey(ctx context.Context, actorID, botID, keyID 
 	}
 	subject := evtstream.UserAggregate(botID).SubjectFor(event)
 	seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
-		Subject: subject, Event: event, HasOCC: true, ExpectedSeq: filterSeq, FilterSubject: filter,
+		Subject: subject,
+		Event:   event,
+		Expect:  events.ExpectFilterSeq(filter, filterSeq),
 	}})
 	if err != nil {
 		return nil, err
@@ -770,7 +774,9 @@ func (c *ChattoCore) mutateBotIncomingWebhook(ctx context.Context, actorID, botI
 	}
 	subject := evtstream.UserAggregate(botID).SubjectFor(event)
 	seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
-		Subject: subject, Event: event, HasOCC: true, ExpectedSeq: filterSeq, FilterSubject: filter,
+		Subject: subject,
+		Event:   event,
+		Expect:  events.ExpectFilterSeq(filter, filterSeq),
 	}})
 	if err != nil {
 		return nil, err
@@ -868,7 +874,9 @@ func (c *ChattoCore) ReassignBotOwner(ctx context.Context, actorID, botID, owner
 		}})
 		subject := evtstream.UserAggregate(botID).SubjectFor(event)
 		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
-			Subject: subject, Event: event, HasOCC: true, ExpectedSeq: userSeq, FilterSubject: userFilter,
+			Subject: subject,
+			Event:   event,
+			Expect:  events.ExpectFilterSeq(userFilter, userSeq),
 		}})
 		if err == nil {
 			position := events.SubjectPosition(subject, seqs[0])

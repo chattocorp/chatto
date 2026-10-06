@@ -183,9 +183,7 @@ func (s *RoomCommandModel) updateRoom(ctx context.Context, input RoomUpdateInput
 		if len(entries) == 0 {
 			return room, nil
 		}
-		entries[0].HasOCC = true
-		entries[0].FilterSubject = filter
-		entries[0].ExpectedSeq = position.Seq
+		entries[0].Expect = events.ExpectFilterSeq(filter, position.Seq)
 		if attemptPrepared != nil {
 			if err := attemptPrepared(ctx); err != nil {
 				return nil, err

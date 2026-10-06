@@ -550,7 +550,7 @@ func EventTypeOf(e *evtv1.Event) string {
 // at the (aggregate, event-type) granularity. Cross-event-type invariants
 // use wildcard OCC against AllEventsFilter() via the
 // `Nats-Expected-Last-Subject-Sequence-Subject` header (see
-// Publisher.AppendAtFilter).
+// events.ExpectFilterSeq).
 type Aggregate struct {
 	Type string
 	ID   string

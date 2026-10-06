@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"google.golang.org/protobuf/proto"
-	"hmans.de/authling/internal/pb/authling/core/v1"
+	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -79,8 +79,8 @@ func (p *Publisher) AppendRegisteredAccount(ctx context.Context, accountEvent, c
 		return events.StreamPosition{}, err
 	}
 	sequences, err := p.AppendBatch(ctx, []events.TypedBatchEntry[*corev1.Event]{
-		{Subject: accountSubject, Event: accountEvent, ExpectedSeq: 0, HasOCC: true},
-		{Subject: accountRegistrySubject, Event: claimEvent, ExpectedSeq: expectedRegistry, HasOCC: true},
+		{Subject: accountSubject, Event: accountEvent, Expect: events.ExpectSubjectSeq(0)},
+		{Subject: accountRegistrySubject, Event: claimEvent, Expect: events.ExpectSubjectSeq(expectedRegistry)},
 	})
 	if err != nil {
 		return events.StreamPosition{}, err
@@ -91,7 +91,7 @@ func (p *Publisher) AppendRegisteredAccount(ctx context.Context, accountEvent, c
 // appendAtPosition publishes one event at an explicitly observed aggregate
 // tail and reports its position on that aggregate.
 func (p *Publisher) appendAtPosition(ctx context.Context, subject string, event *corev1.Event, expectedTail uint64) (events.StreamPosition, error) {
-	sequence, err := p.AppendAt(ctx, subject, event, expectedTail)
+	sequence, err := p.AppendAt(ctx, subject, event, events.ExpectSubjectSeq(expectedTail))
 	if err != nil {
 		return events.StreamPosition{}, err
 	}
@@ -205,8 +205,8 @@ func (p *Publisher) AppendEmailChanged(
 		return events.StreamPosition{}, err
 	}
 	sequences, err := p.AppendBatch(ctx, []events.TypedBatchEntry[*corev1.Event]{
-		{Subject: accountSubject, Event: changeEvent, ExpectedSeq: expectedAccount, HasOCC: true},
-		{Subject: accountRegistrySubject, Event: claimEvent, ExpectedSeq: expectedRegistry, HasOCC: true},
+		{Subject: accountSubject, Event: changeEvent, Expect: events.ExpectSubjectSeq(expectedAccount)},
+		{Subject: accountRegistrySubject, Event: claimEvent, Expect: events.ExpectSubjectSeq(expectedRegistry)},
 	})
 	if err != nil {
 		return events.StreamPosition{}, err
@@ -523,8 +523,8 @@ func (p *Publisher) AppendAccountErasure(ctx context.Context, request, release *
 		return events.StreamPosition{}, err
 	}
 	seqs, err := p.AppendBatch(ctx, []events.TypedBatchEntry[*corev1.Event]{
-		{Subject: subject, Event: request, ExpectedSeq: accountTail, HasOCC: true},
-		{Subject: accountRegistrySubject, Event: release, ExpectedSeq: registryTail, HasOCC: true},
+		{Subject: subject, Event: request, Expect: events.ExpectSubjectSeq(accountTail)},
+		{Subject: accountRegistrySubject, Event: release, Expect: events.ExpectSubjectSeq(registryTail)},
 	})
 	if err != nil {
 		return events.StreamPosition{}, err

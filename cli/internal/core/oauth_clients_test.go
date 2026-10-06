@@ -332,7 +332,7 @@ func TestOAuthClientBlockEventInvalidatesTokenOnAnotherReplicaBeforeCleanup(t *t
 			Policy:   evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED,
 		},
 	}})
-	if _, err := first.EventPublisher.AppendAtFilter(ctx, aggregate.SubjectFor(event), event, aggregate.AllEventsFilter(), sequence); err != nil {
+	if _, err := first.EventPublisher.AppendAt(ctx, aggregate.SubjectFor(event), event, events.ExpectFilterSeq(aggregate.AllEventsFilter(), sequence)); err != nil {
 		t.Fatalf("publish block event: %v", err)
 	}
 	if _, err := first.storage.runtimeStateKV.Get(ctx, first.authTokenKey(token)); err != nil {

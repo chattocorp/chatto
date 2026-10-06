@@ -584,11 +584,9 @@ func (s *CallModel) callTransitionBatch(ctx context.Context, aggregate evtstream
 			joinedEvent := newCallParticipantEvent(roomID, userID, callID, true, source)
 			return []evtstream.BatchEntry{
 				{
-					Subject:       aggregate.SubjectFor(started),
-					Event:         started,
-					ExpectedSeq:   snapshot.Seq,
-					FilterSubject: aggregate.AllEventsFilter(),
-					HasOCC:        true,
+					Subject: aggregate.SubjectFor(started),
+					Event:   started,
+					Expect:  events.ExpectFilterSeq(aggregate.AllEventsFilter(), snapshot.Seq),
 				},
 				{
 					Subject: aggregate.SubjectFor(joinedEvent),
@@ -599,11 +597,9 @@ func (s *CallModel) callTransitionBatch(ctx context.Context, aggregate evtstream
 
 		joinedEvent := newCallParticipantEvent(roomID, userID, callID, true, source)
 		return []evtstream.BatchEntry{{
-			Subject:       aggregate.SubjectFor(joinedEvent),
-			Event:         joinedEvent,
-			ExpectedSeq:   snapshot.Seq,
-			FilterSubject: aggregate.AllEventsFilter(),
-			HasOCC:        true,
+			Subject: aggregate.SubjectFor(joinedEvent),
+			Event:   joinedEvent,
+			Expect:  events.ExpectFilterSeq(aggregate.AllEventsFilter(), snapshot.Seq),
 		}}, "", "", nil
 	}
 
@@ -617,11 +613,9 @@ func (s *CallModel) callTransitionBatch(ctx context.Context, aggregate evtstream
 	}
 	leftEvent := newCallParticipantEvent(roomID, userID, callID, false, source)
 	entries := []evtstream.BatchEntry{{
-		Subject:       aggregate.SubjectFor(leftEvent),
-		Event:         leftEvent,
-		ExpectedSeq:   snapshot.Seq,
-		FilterSubject: aggregate.AllEventsFilter(),
-		HasOCC:        true,
+		Subject: aggregate.SubjectFor(leftEvent),
+		Event:   leftEvent,
+		Expect:  events.ExpectFilterSeq(aggregate.AllEventsFilter(), snapshot.Seq),
 	}}
 	var endedKeyRef string
 	if len(snapshot.Participants) == 1 && snapshot.Call.CallID == callID {

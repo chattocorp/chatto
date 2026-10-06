@@ -37,7 +37,7 @@ func (c *ChattoCore) appendUserEvent(ctx context.Context, userID string, event *
 			}
 		}
 
-		seq, err := c.EventPublisher.AppendAtFilter(ctx, subject, event, filter, filterSeq)
+		seq, err := c.EventPublisher.AppendAt(ctx, subject, event, events.ExpectFilterSeq(filter, filterSeq))
 		if err == nil {
 			if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(subject, seq)); err != nil {
 				return 0, fmt.Errorf("wait for user projection: %w", err)
@@ -98,9 +98,7 @@ func (c *ChattoCore) appendUserBatchAttempts(ctx context.Context, userID string,
 		}
 
 		chunk := append([]evtstream.BatchEntry(nil), entries...)
-		chunk[0].HasOCC = true
-		chunk[0].ExpectedSeq = filterSeq
-		chunk[0].FilterSubject = filter
+		chunk[0].Expect = events.ExpectFilterSeq(filter, filterSeq)
 
 		seqs, err := c.EventPublisher.AppendBatch(ctx, chunk)
 		if err == nil {
@@ -201,9 +199,7 @@ func (c *ChattoCore) appendUserBatchWithMentionableCheckAttempts(ctx context.Con
 		}
 
 		chunk := append([]evtstream.BatchEntry(nil), entries...)
-		chunk[0].HasOCC = true
-		chunk[0].ExpectedSeq = filterSeq
-		chunk[0].FilterSubject = filter
+		chunk[0].Expect = events.ExpectFilterSeq(filter, filterSeq)
 
 		seqs, err := c.EventPublisher.AppendBatch(ctx, chunk)
 		if err == nil {

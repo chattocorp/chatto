@@ -165,8 +165,8 @@ func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, parti
 // as one unit. No rollback path is needed: either all events land
 // or none do.
 //
-// Concurrency safety: the first batch entry carries HasOCC with
-// ExpectedSeq=0, so a race where another replica already created
+// Concurrency safety: the first batch entry carries an OCC guard with
+// expected sequence 0, so a race where another replica already created
 // this DM (same hashed roomID) is rejected with events.ErrConflict
 // — the caller (FindOrCreateDM) re-fetches.
 //
@@ -202,10 +202,9 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	// shape.
 	entries := []evtstream.BatchEntry{
 		{
-			Subject:       agg.SubjectFor(createdEvent),
-			Event:         createdEvent,
-			HasOCC:        true,
-			FilterSubject: agg.AllEventsFilter(),
+			Subject: agg.SubjectFor(createdEvent),
+			Event:   createdEvent,
+			Expect:  events.ExpectFilterSeq(agg.AllEventsFilter(), 0),
 		},
 	}
 	for _, pid := range participantIDs {

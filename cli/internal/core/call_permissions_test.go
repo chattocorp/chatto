@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 func TestCallPermissionsAdmissionAndSources(t *testing.T) {
@@ -269,8 +270,7 @@ func TestCallPermissionUpgradeConcurrentAndRestart(t *testing.T) {
 		}
 	}
 	entries := rbacSeedEntries(defaultRBACRoles(), nil, oldDefaults)
-	entries[0].HasOCC = true
-	entries[0].FilterSubject = evtstream.RBACSubjectFilter()
+	entries[0].Expect = events.ExpectFilterSeq(evtstream.RBACSubjectFilter(), 0)
 	_, err := h.publisher.AppendBatch(ctx, entries)
 	require.NoError(t, err)
 	first := &ChattoCore{EventPublisher: h.publisher}

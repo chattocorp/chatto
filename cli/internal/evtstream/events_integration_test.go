@@ -331,7 +331,7 @@ func TestPublisher_AppendAt_ConflictReturnsTypedError(t *testing.T) {
 	}
 
 	// AppendAt with expectedSeq=0 must fail with ErrConflict.
-	_, err := pub.AppendAt(ctx, subject, makeEvent("R1", "U2"), 0)
+	_, err := pub.AppendAt(ctx, subject, makeEvent("R1", "U2"), ExpectSubjectSeq(0))
 	if !errors.Is(err, ErrConflict) {
 		t.Fatalf("want ErrConflict, got %v", err)
 	}
@@ -349,7 +349,7 @@ func TestPublisher_AppendAt_DeterministicSequence(t *testing.T) {
 
 	var expectedSeq uint64 // 0 = no prior message
 	for i := range count {
-		seq, err := pub.AppendAt(ctx, subject, makeEvent("R1", "U"+itoa(i)), expectedSeq)
+		seq, err := pub.AppendAt(ctx, subject, makeEvent("R1", "U"+itoa(i)), ExpectSubjectSeq(expectedSeq))
 		if err != nil {
 			t.Fatalf("AppendAt[%d]: %v", i, err)
 		}
@@ -362,7 +362,7 @@ func TestPublisher_AppendAt_DeterministicSequence(t *testing.T) {
 	// A second run starting at expectedSeq=0 must conflict on the first
 	// call (migration replayability: re-running no-ops on already-emitted
 	// subjects).
-	_, err := pub.AppendAt(ctx, subject, makeEvent("R1", "Ureplay"), 0)
+	_, err := pub.AppendAt(ctx, subject, makeEvent("R1", "Ureplay"), ExpectSubjectSeq(0))
 	if !errors.Is(err, ErrConflict) {
 		t.Errorf("want ErrConflict on replay, got %v", err)
 	}
@@ -387,7 +387,7 @@ func TestPublisher_AppendBatch_LandsContiguouslyAtomic(t *testing.T) {
 	}
 
 	entries := []BatchEntry{
-		{Subject: GroupAggregate("GA").Subject(EventUserJoinedRoom), Event: makeEvent("RA", "U1"), HasOCC: true, ExpectedSeq: 0},
+		{Subject: GroupAggregate("GA").Subject(EventUserJoinedRoom), Event: makeEvent("RA", "U1"), Expect: ExpectSubjectSeq(0)},
 		{Subject: GroupAggregate("GB").Subject(EventUserJoinedRoom), Event: makeEvent("RB", "U2")},
 		{Subject: GroupAggregate("GC").Subject(EventUserJoinedRoom), Event: makeEvent("RC", "U3")},
 	}
@@ -411,8 +411,8 @@ func TestPublisher_AppendBatch_LandsContiguouslyAtomic(t *testing.T) {
 			t.Errorf("batch msg %d Nats-Msg-Id = %q, want %q", i, got, entries[i].Event.GetId())
 		}
 		wantExpectedSeq := ""
-		if entries[i].HasOCC {
-			wantExpectedSeq = fmt.Sprintf("%d", entries[i].ExpectedSeq)
+		if i == 0 {
+			wantExpectedSeq = "0" // only the first entry carries ExpectSubjectSeq(0)
 		}
 		if got := msg.Header.Get(jetstream.ExpectedLastSubjSeqHeader); got != wantExpectedSeq {
 			t.Errorf("batch msg %d expected-last-subject-sequence = %q, want %q", i, got, wantExpectedSeq)
@@ -469,9 +469,9 @@ func TestPublisher_AppendBatch_OCCFailureRejectsEntireBatch(t *testing.T) {
 
 	entries := []BatchEntry{
 		// GB has no events yet — expect seq 0 passes.
-		{Subject: GroupAggregate("GB").Subject(EventUserJoinedRoom), Event: makeEvent("RB", "U"), HasOCC: true, ExpectedSeq: 0},
+		{Subject: GroupAggregate("GB").Subject(EventUserJoinedRoom), Event: makeEvent("RB", "U"), Expect: ExpectSubjectSeq(0)},
 		// GA already has seqA — expecting 0 must fail.
-		{Subject: GroupAggregate("GA").Subject(EventUserJoinedRoom), Event: makeEvent("RA", "U"), HasOCC: true, ExpectedSeq: 0},
+		{Subject: GroupAggregate("GA").Subject(EventUserJoinedRoom), Event: makeEvent("RA", "U"), Expect: ExpectSubjectSeq(0)},
 	}
 
 	_, err = pub.AppendBatch(ctx, entries)

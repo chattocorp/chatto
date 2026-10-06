@@ -32,12 +32,7 @@ func (a ledgerAdapter) appendAt(
 	if err != nil {
 		return events.StreamPosition{}, err
 	}
-	sequence, err := a.log.AppendAt(
-		ctx,
-		ledgerSubject,
-		events.EncodedRecord{ID: entry.ID, Data: data},
-		expectedSequence,
-	)
+	sequence, err := a.log.AppendAt(ctx, ledgerSubject, events.EncodedRecord{ID: entry.ID, Data: data}, events.ExpectSubjectSeq(expectedSequence))
 	if err != nil {
 		return events.StreamPosition{}, err
 	}

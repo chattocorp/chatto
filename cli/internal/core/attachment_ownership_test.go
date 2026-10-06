@@ -227,8 +227,9 @@ func appendLegacyAttachmentMessage(t *testing.T, chatto *ChattoCore, ctx context
 	messageSubject := aggregate.SubjectFor(messageEvent)
 	sequences, err := chatto.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{
 		{
-			Subject: bodySubject, Event: bodyEvent, HasOCC: true,
-			ExpectedSeq: roomSeq, FilterSubject: roomFilter,
+			Subject: bodySubject,
+			Event:   bodyEvent,
+			Expect:  events.ExpectFilterSeq(roomFilter, roomSeq),
 		},
 		{Subject: messageSubject, Event: messageEvent},
 	})

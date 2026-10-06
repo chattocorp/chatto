@@ -40,7 +40,7 @@ func TestTypedEventLogEncodesAndDecodesThroughEncodedLog(t *testing.T) {
 		},
 	)
 
-	seq, err := typed.AppendAt(ctx, subject, typedTestEvent{ID: "typed-1", Payload: []byte{0x01, 0x02}}, 0)
+	seq, err := typed.AppendAt(ctx, subject, typedTestEvent{ID: "typed-1", Payload: []byte{0x01, 0x02}}, ExpectSubjectSeq(0))
 	if err != nil {
 		t.Fatalf("AppendAt: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestTypedEventLogWrapsBatchEntryEncodeErrors(t *testing.T) {
 	typed := NewTypedEventLog(NewEncodedEventLog(js, stream, testLogger()), rejectingEncoder, decodeTypedTestEvent)
 
 	_, err := typed.AppendBatch(ctx, []TypedBatchEntry[typedTestEvent]{
-		{Subject: "evt.typed.batch.first", Event: typedTestEvent{ID: "first", Payload: []byte{0x00}}, HasOCC: true},
+		{Subject: "evt.typed.batch.first", Event: typedTestEvent{ID: "first", Payload: []byte{0x00}}, Expect: ExpectSubjectSeq(0)},
 		{Subject: "evt.typed.batch.second", Event: typedTestEvent{ID: "second"}},
 	})
 	if !errors.Is(err, errBadTypedEvent) {

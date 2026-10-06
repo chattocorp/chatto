@@ -50,7 +50,7 @@ func TestExecuteMutationSubjectBoundaryIgnoresUnrelatedEvents(t *testing.T) {
 		if attempt.Number != 1 || attempt.ExpectedSequence != 0 {
 			t.Fatalf("attempt = %+v, want first attempt at sequence 0", attempt)
 		}
-		if _, err := eventLog.AppendAt(ctx, "evt.account.B.changed", EncodedRecord{ID: "unrelated", Data: []byte("unrelated")}, 0); err != nil {
+		if _, err := eventLog.AppendAt(ctx, "evt.account.B.changed", EncodedRecord{ID: "unrelated", Data: []byte("unrelated")}, ExpectSubjectSeq(0)); err != nil {
 			t.Fatalf("append unrelated event: %v", err)
 		}
 		return []EncodedMutationEntry{{
@@ -77,7 +77,7 @@ func TestExecuteMutationSubjectBoundaryReevaluatesAfterMatchingEvent(t *testing.
 
 	result, err := eventLog.ExecuteMutation(ctx, AtSubject(filter), func(_ context.Context, attempt MutationAttempt) ([]EncodedMutationEntry, error) {
 		if attempt.Number == 1 {
-			if _, err := eventLog.AppendAtFilter(ctx, "evt.account.A.changed", EncodedRecord{ID: "competing", Data: []byte("competing")}, filter, 0); err != nil {
+			if _, err := eventLog.AppendAt(ctx, "evt.account.A.changed", EncodedRecord{ID: "competing", Data: []byte("competing")}, ExpectFilterSeq(filter, 0)); err != nil {
 				t.Fatalf("append competing event: %v", err)
 			}
 		}
@@ -104,7 +104,7 @@ func TestExecuteMutationStreamBoundaryReevaluatesAfterAnyEvent(t *testing.T) {
 			if attempt.ExpectedSequence != 0 {
 				t.Fatalf("first expected sequence = %d, want 0", attempt.ExpectedSequence)
 			}
-			if _, err := eventLog.AppendAt(ctx, "evt.authorization.changed", EncodedRecord{ID: "revocation", Data: []byte("revoked")}, 0); err != nil {
+			if _, err := eventLog.AppendAt(ctx, "evt.authorization.changed", EncodedRecord{ID: "revocation", Data: []byte("revoked")}, ExpectSubjectSeq(0)); err != nil {
 				t.Fatalf("append intervening event: %v", err)
 			}
 		} else if attempt.Number == 2 && attempt.ExpectedSequence != 1 {
@@ -138,7 +138,7 @@ func TestExecuteMutationStreamBoundaryRerunsAuthorizationDecision(t *testing.T) 
 			return nil, errDenied
 		}
 		if attempt.Number == 1 {
-			if _, err := eventLog.AppendAt(ctx, "evt.authorization.changed", EncodedRecord{ID: "deny", Data: []byte("deny")}, 0); err != nil {
+			if _, err := eventLog.AppendAt(ctx, "evt.authorization.changed", EncodedRecord{ID: "deny", Data: []byte("deny")}, ExpectSubjectSeq(0)); err != nil {
 				t.Fatalf("append authorization change: %v", err)
 			}
 			authorized = false

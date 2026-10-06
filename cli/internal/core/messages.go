@@ -254,11 +254,9 @@ func (c *ChattoCore) prepareMessageAssetBatchEntries(
 			return nil, err
 		}
 		entries = append(entries, evtstream.BatchEntry{
-			Subject:       agg.SubjectFor(attachedEvent),
-			Event:         attachedEvent,
-			ExpectedSeq:   tail.Seq,
-			FilterSubject: filter,
-			HasOCC:        true,
+			Subject: agg.SubjectFor(attachedEvent),
+			Event:   attachedEvent,
+			Expect:  events.ExpectFilterSeq(filter, tail.Seq),
 		})
 		if processingEvent := processingByAssetID[assetID]; processingEvent != nil {
 			if c.assetModel.shouldAppendAssetProcessingEvent(assetID, processingEvent) {
@@ -381,11 +379,9 @@ func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstr
 
 		entries := []evtstream.BatchEntry{
 			{
-				Subject:       bodySubject,
-				Event:         bodyEvent,
-				ExpectedSeq:   guard.roomSeq,
-				FilterSubject: guard.roomFilter,
-				HasOCC:        true,
+				Subject: bodySubject,
+				Event:   bodyEvent,
+				Expect:  events.ExpectFilterSeq(guard.roomFilter, guard.roomSeq),
 			},
 			{
 				Subject: messageSubject,
@@ -501,9 +497,7 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 		}
 		bodyIndex := len(entries)
 		entries = append(entries, evtstream.BatchEntry{Subject: bodySubject, Event: bodyEvent})
-		entries[0].HasOCC = true
-		entries[0].ExpectedSeq = guard.roomSeq
-		entries[0].FilterSubject = guard.roomFilter
+		entries[0].Expect = events.ExpectFilterSeq(guard.roomFilter, guard.roomSeq)
 		messageIndex := len(entries)
 		entries = append(entries, evtstream.BatchEntry{Subject: messageSubject, Event: messageEvent})
 		if alsoSendToChannel {
@@ -1431,11 +1425,9 @@ func (c *ChattoCore) publishMessageRetract(
 		}
 
 		entries := []evtstream.BatchEntry{{
-			Subject:       retractSubject,
-			Event:         event,
-			FilterSubject: roomFilter,
-			ExpectedSeq:   roomSeq,
-			HasOCC:        true,
+			Subject: retractSubject,
+			Event:   event,
+			Expect:  events.ExpectFilterSeq(roomFilter, roomSeq),
 		}}
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
@@ -1582,11 +1574,9 @@ func (c *ChattoCore) publishMessageEditWithAuthorization(
 		// command and does not cancel it.
 		entries := []evtstream.BatchEntry{
 			{
-				Subject:       bodySubject,
-				Event:         bodyEvent,
-				FilterSubject: guard.roomFilter,
-				ExpectedSeq:   guard.roomSeq,
-				HasOCC:        true,
+				Subject: bodySubject,
+				Event:   bodyEvent,
+				Expect:  events.ExpectFilterSeq(guard.roomFilter, guard.roomSeq),
 			},
 			{
 				Subject: editSubject,

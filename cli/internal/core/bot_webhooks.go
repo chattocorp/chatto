@@ -253,7 +253,7 @@ func (m *botWebhookModel) mutate(ctx context.Context, actorID, botID, webhookID 
 
 		}
 		subject := evtstream.UserAggregate(botID).SubjectFor(event)
-		seqs, err := m.core.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{Subject: subject, Event: event, HasOCC: true, ExpectedSeq: seq, FilterSubject: filter}})
+		seqs, err := m.core.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{Subject: subject, Event: event, Expect: events.ExpectFilterSeq(filter, seq)}})
 		if errors.Is(err, events.ErrConflict) {
 			continue
 		}

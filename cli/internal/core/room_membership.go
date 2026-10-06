@@ -115,7 +115,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 			}
 		}
 
-		seq, err = c.EventPublisher.AppendAt(ctx, joinSubject, event, expectedSeq)
+		seq, err = c.EventPublisher.AppendAt(ctx, joinSubject, event, events.ExpectSubjectSeq(expectedSeq))
 		if err == nil {
 			if err := c.roomModel.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(joinSubject, seq)); err != nil {
 				return nil, err
@@ -446,9 +446,7 @@ func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, ro
 			Event:   event,
 		}
 		if i == 0 {
-			entry.ExpectedSeq = expectedSeq
-			entry.FilterSubject = filter
-			entry.HasOCC = true
+			entry.Expect = events.ExpectFilterSeq(filter, expectedSeq)
 		}
 		entries = append(entries, entry)
 	}
@@ -506,11 +504,9 @@ func (c *ChattoCore) appendRoomMembershipAuditBatch(ctx context.Context, roomID 
 
 	entries := []evtstream.BatchEntry{
 		{
-			Subject:       agg.SubjectFor(auditEvent),
-			Event:         auditEvent,
-			ExpectedSeq:   expectedSeq,
-			FilterSubject: filter,
-			HasOCC:        true,
+			Subject: agg.SubjectFor(auditEvent),
+			Event:   auditEvent,
+			Expect:  events.ExpectFilterSeq(filter, expectedSeq),
 		},
 		{
 			Subject: agg.SubjectFor(membershipEvent),

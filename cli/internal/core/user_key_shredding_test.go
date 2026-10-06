@@ -15,6 +15,7 @@ import (
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/events"
 )
 
 func TestUserKeyShreddingRequestIsTheFailClosedBoundary(t *testing.T) {
@@ -117,12 +118,7 @@ func TestUserKeyShreddingDiscoversCoordinatesAfterAggregateConflict(t *testing.T
 			_, wrapped, wrapErr := chatto.newWrappedUserDEK(ctx, user.GetId(), competingWrappingRef, 2, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 			require.NoError(t, wrapErr)
 			competingContentRef = wrapped.GetContentKeyRef()
-			_, appendErr := chatto.EventPublisher.AppendAtFilter(ctx,
-				aggregate.Subject(evtstream.EventUserDEKGenerated),
-				newEvent(user.GetId(), &evtv1.Event{Event: &evtv1.Event_UserDekGenerated{UserDekGenerated: wrapped}}),
-				filter,
-				expectedSeq,
-			)
+			_, appendErr := chatto.EventPublisher.AppendAt(ctx, aggregate.Subject(evtstream.EventUserDEKGenerated), newEvent(user.GetId(), &evtv1.Event{Event: &evtv1.Event_UserDekGenerated{UserDekGenerated: wrapped}}), events.ExpectFilterSeq(filter, expectedSeq))
 			require.NoError(t, appendErr)
 		}
 		return originalRequestAppend(ctx, subject, event, filter, expectedSeq)

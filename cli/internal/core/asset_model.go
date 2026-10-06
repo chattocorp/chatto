@@ -559,7 +559,7 @@ func (s *AssetModel) RecordAssetDeleted(ctx context.Context, actorID string, roo
 		if s.AssetDeleted(assetID) {
 			return nil
 		}
-		seq, err := s.EventPublisher.AppendAtFilter(ctx, agg.SubjectFor(event), event, filter, tail.Seq)
+		seq, err := s.EventPublisher.AppendAt(ctx, agg.SubjectFor(event), event, events.ExpectFilterSeq(filter, tail.Seq))
 		if err == nil {
 			if err := s.waitForAssets(ctx, events.SubjectPosition(agg.SubjectFor(event), seq)); err != nil {
 				return errors.Join(errAssetEventCommitted, err)
@@ -646,7 +646,7 @@ func (s *AssetModel) RecordMessageAssetDeleted(ctx context.Context, actorID, roo
 		if s.AssetDeleted(assetID) {
 			return true, nil
 		}
-		seq, err := s.EventPublisher.AppendAtFilter(ctx, agg.SubjectFor(event), event, filter, tail.Seq)
+		seq, err := s.EventPublisher.AppendAt(ctx, agg.SubjectFor(event), event, events.ExpectFilterSeq(filter, tail.Seq))
 		if err == nil {
 			if err := s.waitForAssets(ctx, events.SubjectPosition(agg.SubjectFor(event), seq)); err != nil {
 				return true, errors.Join(errAssetEventCommitted, err)
@@ -687,7 +687,7 @@ func (s *AssetModel) RecordExpiredPendingAssetDeleted(ctx context.Context, roomI
 		if state.Deleted || state.Creation == nil || state.Creation.GetRoomId() != roomID || attached || expiresAt == nil || expiresAt.AsTime().After(now) {
 			return false, nil
 		}
-		seq, err := s.EventPublisher.AppendAtFilter(ctx, agg.SubjectFor(event), event, filter, tail.Seq)
+		seq, err := s.EventPublisher.AppendAt(ctx, agg.SubjectFor(event), event, events.ExpectFilterSeq(filter, tail.Seq))
 		if err == nil {
 			if err := s.waitForAssets(ctx, events.SubjectPosition(agg.SubjectFor(event), seq)); err != nil {
 				return true, errors.Join(errAssetEventCommitted, err)
@@ -737,7 +737,7 @@ func (s *AssetModel) appendAssetProcessingEvent(ctx context.Context, assetID str
 			return ErrAssetLifecycleSkipped
 		}
 		subject := agg.SubjectFor(event)
-		seq, err := s.EventPublisher.AppendAtFilter(ctx, subject, event, filter, tail.Seq)
+		seq, err := s.EventPublisher.AppendAt(ctx, subject, event, events.ExpectFilterSeq(filter, tail.Seq))
 		if err == nil {
 			if err := s.waitForAssets(ctx, events.SubjectPosition(subject, seq)); err != nil {
 				return errors.Join(errAssetEventCommitted, err)

@@ -239,7 +239,9 @@ func (c *ChattoCore) appendNeighborMutation(ctx context.Context, event *evtv1.Ev
 	aggregate := evtstream.ConfigSubjectAggregate(ConfigSubjectServer)
 	subject := aggregate.SubjectFor(event)
 	seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
-		Subject: subject, Event: event, HasOCC: true, ExpectedSeq: prepared.configPosition.Seq, FilterSubject: aggregate.AllEventsFilter(),
+		Subject: subject,
+		Event:   event,
+		Expect:  events.ExpectFilterSeq(aggregate.AllEventsFilter(), prepared.configPosition.Seq),
 	}})
 	if err != nil {
 		return err

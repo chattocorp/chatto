@@ -165,7 +165,7 @@ func (c *ChattoCore) appendOAuthClientAuthorization(ctx context.Context, actorID
 				RedirectOrigin: origin, Source: source,
 			},
 		}})
-		published, err := c.EventPublisher.AppendAtFilter(ctx, agg.SubjectFor(event), event, agg.AllEventsFilter(), seq)
+		published, err := c.EventPublisher.AppendAt(ctx, agg.SubjectFor(event), event, events.ExpectFilterSeq(agg.AllEventsFilter(), seq))
 		if errors.Is(err, events.ErrConflict) {
 			continue
 		}
@@ -231,7 +231,7 @@ func (c *ChattoCore) UpdateOAuthClientPolicy(ctx context.Context, actorID, clien
 		event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_OauthClientPolicyChanged{
 			OauthClientPolicyChanged: &evtv1.OAuthClientPolicyChangedEvent{ClientId: clientID, Policy: policy},
 		}})
-		published, err := c.EventPublisher.AppendAtFilter(ctx, agg.SubjectFor(event), event, agg.AllEventsFilter(), seq)
+		published, err := c.EventPublisher.AppendAt(ctx, agg.SubjectFor(event), event, events.ExpectFilterSeq(agg.AllEventsFilter(), seq))
 		if errors.Is(err, events.ErrConflict) {
 			continue
 		}

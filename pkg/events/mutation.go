@@ -153,21 +153,12 @@ func (l *EncodedEventLog) publishMutation(
 	expectedSeq uint64,
 	entries []EncodedMutationEntry,
 ) ([]uint64, bool, error) {
+	expect := boundary.expectation(expectedSeq)
 	if len(entries) == 1 {
 		if err := validateEncodedRecord(entries[0].Record); err != nil {
 			return nil, false, err
 		}
-		var (
-			seq       uint64
-			duplicate bool
-			err       error
-		)
-		switch boundary.kind {
-		case mutationBoundarySubject:
-			seq, duplicate, err = l.publishAt(ctx, entries[0].Subject, entries[0].Record, expectedSeq, boundary.subjectFilter)
-		case mutationBoundaryStream:
-			seq, duplicate, err = l.publishAtStreamTail(ctx, entries[0].Subject, entries[0].Record, expectedSeq)
-		}
+		seq, duplicate, err := l.publish(ctx, entries[0].Subject, entries[0].Record, expect)
 		if err != nil {
 			return nil, false, err
 		}
@@ -178,17 +169,17 @@ func (l *EncodedEventLog) publishMutation(
 	for i, entry := range entries {
 		batch[i] = EncodedBatchEntry{Subject: entry.Subject, Record: entry.Record}
 	}
-	switch boundary.kind {
-	case mutationBoundarySubject:
-		batch[0].HasOCC = true
-		batch[0].ExpectedSeq = expectedSeq
-		batch[0].FilterSubject = boundary.subjectFilter
-	case mutationBoundaryStream:
-		batch[0].HasStreamOCC = true
-		batch[0].ExpectedStreamSeq = expectedSeq
-	}
+	batch[0].Expect = expect
 	sequences, err := l.AppendBatch(ctx, batch)
 	return sequences, err == nil, err
+}
+
+// expectation returns the OCC guard for the boundary at seq.
+func (b MutationBoundary) expectation(seq uint64) Expectation {
+	if b.kind == mutationBoundaryStream {
+		return ExpectStreamSeq(seq)
+	}
+	return ExpectFilterSeq(b.subjectFilter, seq)
 }
 
 func (l *EncodedEventLog) mutationBoundarySeq(ctx context.Context, boundary MutationBoundary) (uint64, error) {

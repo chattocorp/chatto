@@ -181,7 +181,7 @@ func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, 
 			UserDekGenerated: wrapped,
 		}})
 
-		seq, err := c.EventPublisher.AppendAtFilter(ctx, subject, event, filter, filterSeq)
+		seq, err := c.EventPublisher.AppendAt(ctx, subject, event, events.ExpectFilterSeq(filter, filterSeq))
 		if err == nil {
 			if err := c.userModel.waitForContentKeys(ctx, events.SubjectPosition(subject, seq)); err != nil {
 				return nil, fmt.Errorf("wait for DEK projection: %w", err)

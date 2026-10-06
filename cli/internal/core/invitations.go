@@ -181,7 +181,7 @@ func (c *ChattoCore) CreateInvitation(ctx context.Context, actorID string, maxUs
 	}
 	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_InvitationCreated{InvitationCreated: payload}})
 	agg := evtstream.InvitationAggregate(id)
-	seq, err := c.EventPublisher.AppendAtFilter(ctx, agg.SubjectFor(event), event, agg.AllEventsFilter(), 0)
+	seq, err := c.EventPublisher.AppendAt(ctx, agg.SubjectFor(event), event, events.ExpectFilterSeq(agg.AllEventsFilter(), 0))
 	if err != nil {
 		return InvitationState{}, err
 	}
@@ -216,7 +216,7 @@ func (c *ChattoCore) RevokeInvitation(ctx context.Context, actorID, id string) (
 			return state, nil
 		}
 		event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_InvitationRevoked{InvitationRevoked: &evtv1.InvitationRevokedEvent{InvitationId: id}}})
-		published, err := c.EventPublisher.AppendAtFilter(ctx, agg.SubjectFor(event), event, agg.AllEventsFilter(), seq)
+		published, err := c.EventPublisher.AppendAt(ctx, agg.SubjectFor(event), event, events.ExpectFilterSeq(agg.AllEventsFilter(), seq))
 		if errors.Is(err, events.ErrConflict) {
 			continue
 		}
