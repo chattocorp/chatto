@@ -989,19 +989,34 @@ func (s *CallModel) endActiveCallsAfterLiveKitFailure(ctx context.Context) liveK
 }
 
 func (s *CallModel) Run(ctx context.Context) error {
+	return s.runner()(ctx)
+}
+
+// runner decides from the current LiveKit configuration whether the model
+// reconciles calls with LiveKit, and returns the function that runs the model.
+// ChattoCore.Run calls it before it starts any background work, so the
+// decision happens before boot completes and does not race with later
+// configuration changes.
+func (s *CallModel) runner() func(context.Context) error {
 	if s == nil || s.keyCleanupWorker == nil {
-		return fmt.Errorf("call-key cleanup worker is not configured")
-	}
-	g, gctx := errgroup.WithContext(ctx)
-	g.Go(func() error { return s.keyCleanupWorker.Run(gctx) })
-	if s.livekit != nil {
-		if s.reconcileLease != nil {
-			g.Go(func() error { return s.reconcileLease.Run(gctx, s.runReconciliationLoop) })
-		} else {
-			g.Go(func() error { return s.runReconciliationLoop(gctx) })
+		return func(context.Context) error {
+			return fmt.Errorf("call-key cleanup worker is not configured")
 		}
 	}
-	return g.Wait()
+	reconcile := s.livekit != nil
+	reconcileLease := s.reconcileLease
+	return func(ctx context.Context) error {
+		g, gctx := errgroup.WithContext(ctx)
+		g.Go(func() error { return s.keyCleanupWorker.Run(gctx) })
+		if reconcile {
+			if reconcileLease != nil {
+				g.Go(func() error { return reconcileLease.Run(gctx, s.runReconciliationLoop) })
+			} else {
+				g.Go(func() error { return s.runReconciliationLoop(gctx) })
+			}
+		}
+		return g.Wait()
+	}
 }
 
 func (s *CallModel) runReconciliationLoop(ctx context.Context) error {
