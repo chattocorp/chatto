@@ -74,6 +74,8 @@ func roomsReorderedEvent(groupID string, roomIDs []string) *evtv1.Event {
 }
 
 func TestRoomGroupProjection_FreshState(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomGroupProjection()
 	require.False(t, p.Exists("G1"))
 	require.Equal(t, 0, p.Count())
@@ -82,6 +84,8 @@ func TestRoomGroupProjection_FreshState(t *testing.T) {
 }
 
 func TestRoomGroupProjection_CreateUpdateDelete(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomGroupProjection()
 
 	require.NoError(t, p.Apply(groupCreatedEvent("G1", "Lobby", "default group"), 1))
@@ -104,6 +108,8 @@ func TestRoomGroupProjection_CreateUpdateDelete(t *testing.T) {
 }
 
 func TestRoomGroupProjection_RoomMembership(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomGroupProjection()
 	require.NoError(t, p.Apply(groupCreatedEvent("G1", "Lobby", ""), 1))
 
@@ -132,6 +138,8 @@ func TestRoomGroupProjection_RoomMembership(t *testing.T) {
 }
 
 func TestRoomGroupProjection_Idempotency(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomGroupProjection()
 	require.NoError(t, p.Apply(groupCreatedEvent("G1", "Lobby", ""), 1))
 
@@ -155,6 +163,8 @@ func TestRoomGroupProjection_Idempotency(t *testing.T) {
 }
 
 func TestRoomGroupProjection_CrossGroupMove(t *testing.T) {
+	t.Parallel()
+
 	// The move-room operation is two events: removed-from-source +
 	// added-to-target. Projection should reflect that R1 is no longer
 	// in G1 and is now in G2.
@@ -179,6 +189,8 @@ func TestRoomGroupProjection_CrossGroupMove(t *testing.T) {
 }
 
 func TestRoomGroupProjection_GetReturnsClone(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomGroupProjection()
 	require.NoError(t, p.Apply(groupCreatedEvent("G1", "Lobby", ""), 1))
 	require.NoError(t, p.Apply(roomAddedToGroupEvent("G1", "R1"), 2))
@@ -194,6 +206,8 @@ func TestRoomGroupProjection_GetReturnsClone(t *testing.T) {
 }
 
 func TestRoomGroupProjection_UnrelatedEventsIgnored(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomGroupProjection()
 
 	// A non-group event under no particular filter — projection
@@ -208,6 +222,8 @@ func TestRoomGroupProjection_UnrelatedEventsIgnored(t *testing.T) {
 }
 
 func TestRoomGroupProjection_MoveSnapshotTracksIgnoredGroupSeq(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomGroupProjection()
 	require.NoError(t, p.Apply(groupCreatedEvent("G1", "Target", ""), 10))
 
@@ -220,6 +236,8 @@ func TestRoomGroupProjection_MoveSnapshotTracksIgnoredGroupSeq(t *testing.T) {
 }
 
 func TestRoomGroupProjection_MoveSnapshotTracksGroupSeq(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomGroupProjection()
 	require.NoError(t, p.Apply(groupCreatedEvent("G1", "Source", ""), 10))
 	require.NoError(t, p.Apply(groupCreatedEvent("G2", "Target", ""), 11))

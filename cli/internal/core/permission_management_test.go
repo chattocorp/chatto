@@ -3,6 +3,8 @@ package core
 import "testing"
 
 func TestRolePermissionMatrixAppliesMessageReadInclusion(t *testing.T) {
+	t.Parallel()
+
 	scope := PermissionMatrixScope{ID: "server", Kind: MatrixScopeServer}
 
 	t.Run("broad allow wins over narrow deny", func(t *testing.T) {
@@ -40,6 +42,8 @@ func TestRolePermissionMatrixAppliesMessageReadInclusion(t *testing.T) {
 	})
 }
 
+// This test does not call t.Parallel: installTestPermissionInclusion changes
+// the package-wide permission catalog.
 func TestRolePermissionMatrixAppliesExplicitInclusion(t *testing.T) {
 	broad, narrow := installTestPermissionInclusion(t)
 	cell, ok := buildRolePermissionCell(

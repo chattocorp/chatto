@@ -23,6 +23,8 @@ import (
 )
 
 func TestTimelineIncludesDistinguishMissingAndDeletedUsers(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "timeline-includes", "Timeline Includes", "password")
 	if err != nil {
@@ -60,6 +62,8 @@ func TestTimelineIncludesDistinguishMissingAndDeletedUsers(t *testing.T) {
 }
 
 func TestRoomTimelineKeepsDMReadableWhenMessageBodyCannotHydrate(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	testCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -132,6 +136,8 @@ func TestRoomTimelineKeepsDMReadableWhenMessageBodyCannotHydrate(t *testing.T) {
 }
 
 func TestRoomTimelineBodyHydrationPropagatesRequestErrors(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 
 	room := env.createJoinedRoom("timeline-body-canceled")
@@ -190,6 +196,8 @@ func corruptMessageBody(t *testing.T, ctx context.Context, env *connectAPITestEn
 }
 
 func TestRoomAndThreadTimelineGetThreadEventsIncludesRootAndPaginatesReplies(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-thread")
 
@@ -240,6 +248,8 @@ func TestRoomAndThreadTimelineGetThreadEventsIncludesRootAndPaginatesReplies(t *
 }
 
 func TestRoomAndThreadTimelineGetThreadEventsAroundRootAndReply(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-thread-around")
 
@@ -300,6 +310,8 @@ func TestRoomAndThreadTimelineGetThreadEventsAroundRootAndReply(t *testing.T) {
 }
 
 func TestRoomAndThreadTimelineGetMessageForPermalinks(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-message-link")
 
@@ -359,6 +371,8 @@ func TestRoomAndThreadTimelineGetMessageForPermalinks(t *testing.T) {
 }
 
 func TestRoomAndThreadTimelineGetThreadEventsRequiresMembership(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-thread-authz")
 	root := env.post(room.Id, env.viewer.Id, "root", "")
@@ -381,6 +395,8 @@ func TestRoomAndThreadTimelineGetThreadEventsRequiresMembership(t *testing.T) {
 }
 
 func TestTimelineAndAssetServicesHydrateProcessedVideoAttachments(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-video")
 
@@ -478,6 +494,8 @@ func TestTimelineAndAssetServicesHydrateProcessedVideoAttachments(t *testing.T) 
 }
 
 func TestRoomTimelineHydratorRejectsUnsupportedEvents(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	h := &timelineHydrator{
 		api:      env.api,
@@ -500,6 +518,8 @@ func TestRoomTimelineHydratorRejectsUnsupportedEvents(t *testing.T) {
 }
 
 func TestRoomTimelineHydratorSupportsVisibleCoreEvents(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-visible-events")
 	posted := env.post(room.Id, env.viewer.Id, "visible root", "")
@@ -644,6 +664,8 @@ func TestRoomTimelineHydratorSupportsVisibleCoreEvents(t *testing.T) {
 }
 
 func TestRoomAndThreadServicesRequiresAuthAndMembership(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("read-state-authz")
 
@@ -662,6 +684,8 @@ func TestRoomAndThreadServicesRequiresAuthAndMembership(t *testing.T) {
 }
 
 func TestRoomAndThreadServicesMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("read-state-room")
 
@@ -755,6 +779,8 @@ func TestRoomAndThreadServicesMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.
 }
 
 func TestRoomAndThreadServicesMarkRoomAsReadRejectsMissingAnchorWithoutLazyMarker(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, "", "read-state-universal", "", core.WithUniversalRoom(true))
 	if err != nil {
@@ -804,6 +830,8 @@ func TestRoomAndThreadServicesMarkRoomAsReadRejectsMissingAnchorWithoutLazyMarke
 }
 
 func TestRoomAndThreadServicesMarkThreadAsReadAnchorsAndDoesNotRegress(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("read-state-thread")
 
@@ -970,6 +998,8 @@ func assertAPINotificationStates(t *testing.T, env *connectAPITestEnv, ctx conte
 }
 
 func TestThreadServiceRequiresMembershipAndTogglesFollowState(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("thread-follow")
 	root := env.post(room.Id, env.viewer.Id, "root", "")
@@ -1040,6 +1070,8 @@ func TestThreadServiceRequiresMembershipAndTogglesFollowState(t *testing.T) {
 }
 
 func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("followed-thread-list")
 	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "thread-list-participant", "Thread List Participant", "password")
@@ -1104,6 +1136,8 @@ func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 }
 
 func TestThreadServiceListFollowedThreadsUnreadOnly(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("followed-unread-only")
 	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "thread-unread-participant", "Thread Unread Participant", "password")
@@ -1161,6 +1195,8 @@ func TestThreadServiceListFollowedThreadsUnreadOnly(t *testing.T) {
 }
 
 func TestThreadServiceListFollowedThreadsFiltersMembershipLoss(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("followed-loss")
 	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "thread-loss-participant", "Thread Loss Participant", "password")
@@ -1199,6 +1235,8 @@ func TestThreadServiceListFollowedThreadsFiltersMembershipLoss(t *testing.T) {
 }
 
 func TestThreadServiceListFollowedThreadsRequiresDMOptIn(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "thread-dm-participant", "Thread DM Participant", "password")
 	if err != nil {
@@ -1249,6 +1287,8 @@ func TestThreadServiceListFollowedThreadsRequiresDMOptIn(t *testing.T) {
 }
 
 func TestThreadServiceListFollowedThreadsLabelsDeletedDMParticipant(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "thread-dm-deleted", "Thread DM Deleted", "password")
 	if err != nil {
@@ -1290,6 +1330,8 @@ func TestThreadServiceListFollowedThreadsLabelsDeletedDMParticipant(t *testing.T
 }
 
 func TestFollowedThreadsResponseOmitsUnavailableRooms(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	page := &core.FollowedThreadsPage{
 		Threads: []*core.FollowedThread{{
@@ -1310,6 +1352,8 @@ func TestFollowedThreadsResponseOmitsUnavailableRooms(t *testing.T) {
 }
 
 func TestRoomTimelineEchoUsesUnavailableOriginalWithoutStaleContent(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	room := env.createJoinedRoom("echo-unavailable")
@@ -1338,6 +1382,8 @@ func TestRoomTimelineEchoUsesUnavailableOriginalWithoutStaleContent(t *testing.T
 }
 
 func TestMessageBatchHydratesEchoAndOriginalAfterAuthorizedAliasEdit(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	room := env.createJoinedRoom("echo-batch")

@@ -12,6 +12,8 @@ import (
 )
 
 func TestOperatorAssetUploadOwnershipAndPublicIsolation(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := chatto.CreateUser(ctx, SystemActorID, "operator-asset-author", "Asset Author", "password")
@@ -112,6 +114,8 @@ func TestOperatorAssetUploadOwnershipAndPublicIsolation(t *testing.T) {
 }
 
 func TestOperatorAssetUploadTargetsAndCancellation(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := chatto.CreateUser(ctx, SystemActorID, "operator-asset-target", "Asset Target", "password")

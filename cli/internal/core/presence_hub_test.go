@@ -9,6 +9,8 @@ import (
 )
 
 func TestPresenceHubGetUserPresencesReturnsDetachedSnapshot(t *testing.T) {
+	t.Parallel()
+
 	hub := NewPresenceHub(nil, nil, nil)
 	hub.snapshot["online-user"] = PresenceStatusOnline
 	hub.snapshot["away-user"] = PresenceStatusAway
@@ -46,6 +48,8 @@ func TestPresenceHubGetUserPresencesReturnsDetachedSnapshot(t *testing.T) {
 }
 
 func TestPresenceHubGetUserPresencesHonorsContextWhileWaitingForInitialSync(t *testing.T) {
+	t.Parallel()
+
 	hub := NewPresenceHub(nil, nil, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -57,6 +61,8 @@ func TestPresenceHubGetUserPresencesHonorsContextWhileWaitingForInitialSync(t *t
 }
 
 func TestPresenceHub_BasicFanOut(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -88,6 +94,8 @@ func TestPresenceHub_BasicFanOut(t *testing.T) {
 }
 
 func TestPresenceHub_SubscribeReceivesOnlyFutureTransitions(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -129,6 +137,8 @@ func TestPresenceHub_SubscribeReceivesOnlyFutureTransitions(t *testing.T) {
 }
 
 func TestPresenceHub_MultipleSubscribers(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -168,6 +178,8 @@ func TestPresenceHub_MultipleSubscribers(t *testing.T) {
 }
 
 func TestPresenceHub_OfflineOnDelete(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -208,6 +220,8 @@ func TestPresenceHub_OfflineOnDelete(t *testing.T) {
 }
 
 func TestPresenceHub_UserLevelStatusOverwrites(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

@@ -12,6 +12,8 @@ import (
 )
 
 func TestHandlerOptionsEstablishDEKRequestCache(t *testing.T) {
+	t.Parallel()
+
 	const procedure = "/chatto.test.v1.CacheService/Get"
 	handler := connect.NewUnaryHandler(
 		procedure,
@@ -33,6 +35,8 @@ func TestHandlerOptionsEstablishDEKRequestCache(t *testing.T) {
 }
 
 func TestDEKRequestCacheInterceptorPreservesExistingCache(t *testing.T) {
+	t.Parallel()
+
 	ctx := core.WithDEKRequestCache(context.Background())
 	wrapped := dekRequestCacheInterceptor().WrapUnary(func(got context.Context, _ connect.AnyRequest) (connect.AnyResponse, error) {
 		if got != ctx {

@@ -14,6 +14,8 @@ import (
 // resolver's winning decision. The trace may include an ignored everyone
 // baseline after a direct-user or named-role decision.
 func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -114,6 +116,8 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 }
 
 func TestPermissionExplainer_NamedSubjectsAndEveryoneBaseline(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -156,6 +160,8 @@ func TestPermissionExplainer_NamedSubjectsAndEveryoneBaseline(t *testing.T) {
 }
 
 func TestPermissionExplainer_ReportsIncludedPermission(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "included-explanation", "Included Explanation", "password123")
@@ -178,6 +184,8 @@ func TestPermissionExplainer_ReportsIncludedPermission(t *testing.T) {
 	}
 }
 
+// This test does not call t.Parallel: installTestPermissionInclusion changes
+// the package-wide permission catalog.
 func TestPermissionExplainer_ReportsExplicitIncludedPermission(t *testing.T) {
 	broad, narrow := installTestPermissionInclusion(t)
 	core, _ := setupTestCore(t)
@@ -202,6 +210,8 @@ func TestPermissionExplainer_ReportsExplicitIncludedPermission(t *testing.T) {
 }
 
 func TestPermissionExplainer_AgreesWithBotReadInclusion(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := core.CreateUser(ctx, SystemActorID, "explanation_bot_owner", "Explanation Owner", "password123")
@@ -235,6 +245,8 @@ func TestPermissionExplainer_AgreesWithBotReadInclusion(t *testing.T) {
 }
 
 func TestPermissionExplainer_NearerEveryoneDenyBeatsNamedAllow(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -264,6 +276,8 @@ func TestPermissionExplainer_NearerEveryoneDenyBeatsNamedAllow(t *testing.T) {
 }
 
 func TestPermissionExplainer_NearerEveryoneAllowIsAttributedAsWinner(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -373,6 +387,8 @@ func assertAgreement(
 // = userID). Without this, the inspector UI would silently miss user-level
 // overrides applied via grantUserPermission / denyUserPermission.
 func TestPermissionExplainer_UserLevelTrace(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

@@ -15,6 +15,10 @@ func permissionMetadata(permission Permission, category PermissionCategory, scop
 	}
 }
 
+// installTestPermissionInclusion adds a test permission chain to the
+// package-wide permission catalog until the test ends. Callers must not call
+// t.Parallel: Go runs parallel tests only after all serial tests finish, so the
+// replaced catalog is not visible to other tests.
 func installTestPermissionInclusion(t testing.TB) (Permission, Permission) {
 	t.Helper()
 	broad := Permission("test.manage")
@@ -42,6 +46,8 @@ func installTestPermissionInclusion(t testing.TB) (Permission, Permission) {
 // ============================================================================
 
 func TestGetPermissionMetadata(t *testing.T) {
+	t.Parallel()
+
 	t.Run("returns correct metadata for known permission", func(t *testing.T) {
 		meta, ok := GetPermissionMetadata(PermAdminUsersView)
 		if !ok {
@@ -80,6 +86,8 @@ func TestGetPermissionMetadata(t *testing.T) {
 }
 
 func TestPermissionMetadata_PrivilegedModeClassification(t *testing.T) {
+	t.Parallel()
+
 	elevated := map[Permission]bool{
 		PermServerManage:          true,
 		PermServerManageNeighbors: true,
@@ -109,6 +117,8 @@ func TestPermissionMetadata_PrivilegedModeClassification(t *testing.T) {
 // ============================================================================
 
 func TestValidatePermission(t *testing.T) {
+	t.Parallel()
+
 	t.Run("accepts valid permissions", func(t *testing.T) {
 		validPerms := []Permission{
 			PermMessagePost,
@@ -140,6 +150,8 @@ func TestValidatePermission(t *testing.T) {
 }
 
 func TestValidatePermissionString(t *testing.T) {
+	t.Parallel()
+
 	t.Run("accepts valid permission string", func(t *testing.T) {
 		if err := ValidatePermissionString("message.post"); err != nil {
 			t.Errorf("ValidatePermissionString returned error: %v", err)
@@ -158,6 +170,8 @@ func TestValidatePermissionString(t *testing.T) {
 // ============================================================================
 
 func TestPermissionAppliesAtScope(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name       string
 		permission Permission
@@ -209,6 +223,8 @@ func TestPermissionAppliesAtScope(t *testing.T) {
 // ============================================================================
 
 func TestPermissionsForScope(t *testing.T) {
+	t.Parallel()
+
 	t.Run("server scope returns every defined permission", func(t *testing.T) {
 		perms := PermissionsForScope(ScopeServer)
 		if len(perms) != len(AllPermissions()) {
@@ -251,6 +267,8 @@ func TestPermissionsForScope(t *testing.T) {
 // ============================================================================
 
 func TestPermissionsForCategory(t *testing.T) {
+	t.Parallel()
+
 	t.Run("returns server category permissions", func(t *testing.T) {
 		perms := PermissionsForCategory(CategoryServer)
 		if len(perms) == 0 {
@@ -308,6 +326,8 @@ func TestPermissionsForCategory(t *testing.T) {
 // ============================================================================
 
 func TestDefaultEveryonePermissions(t *testing.T) {
+	t.Parallel()
+
 	want := []Permission{
 		PermUserDeleteSelf,
 		PermRoomList,
@@ -326,6 +346,8 @@ func TestDefaultEveryonePermissions(t *testing.T) {
 }
 
 func TestPermissionCatalogDefinesInclusion(t *testing.T) {
+	t.Parallel()
+
 	if got := includingPermissions(PermMessageReadInteractions); !slices.Equal(got, []Permission{PermMessageRead}) {
 		t.Fatalf("including permissions = %v, want [%s]", got, PermMessageRead)
 	}
@@ -338,6 +360,8 @@ func TestPermissionCatalogDefinesInclusion(t *testing.T) {
 }
 
 func TestValidatePermissionCatalog(t *testing.T) {
+	t.Parallel()
+
 	scopes := []PermissionScope{ScopeServer}
 	valid := []PermissionMetadata{
 		permissionMetadata("catalog.manage", CategoryServer, scopes, "catalog.manage-items"),
@@ -414,6 +438,8 @@ func TestValidatePermissionCatalog(t *testing.T) {
 }
 
 func TestDefaultModeratorPermissions(t *testing.T) {
+	t.Parallel()
+
 	want := []Permission{
 		PermMessageManage,
 		PermRoomMemberRemove,
@@ -428,6 +454,8 @@ func TestDefaultModeratorPermissions(t *testing.T) {
 // ============================================================================
 
 func TestAllPermissions(t *testing.T) {
+	t.Parallel()
+
 	perms := AllPermissions()
 
 	if len(perms) == 0 {
@@ -455,6 +483,8 @@ func TestAllPermissions(t *testing.T) {
 // ============================================================================
 
 func TestPermissionConsistency(t *testing.T) {
+	t.Parallel()
+
 	t.Run("everyone defaults are valid", func(t *testing.T) {
 		for _, perm := range DefaultEveryonePermissions() {
 			if err := ValidatePermission(perm); err != nil {

@@ -93,6 +93,8 @@ func badgeUnread(t *testing.T, p *NotificationDecisionProjection, query badgeQue
 var badgeMode = evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE.Enum()
 
 func TestBadgeRootMessageAttentionFollowsCurrentState(t *testing.T) {
+	t.Parallel()
+
 	f := newBadgeTestFixture(t)
 	if f.unread("U1", "") {
 		t.Fatal("empty room has Badge attention")
@@ -126,6 +128,8 @@ func TestBadgeRootMessageAttentionFollowsCurrentState(t *testing.T) {
 }
 
 func TestBadgeIgnoresSourcesBeforeMembershipStarts(t *testing.T) {
+	t.Parallel()
+
 	f := newBadgeTestFixture(t)
 	f.post("BEFORE", "U2", "")
 	f.apply(&evtv1.Event{Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: "U3"}}})
@@ -140,6 +144,8 @@ func TestBadgeIgnoresSourcesBeforeMembershipStarts(t *testing.T) {
 }
 
 func TestBadgeUniversalMembershipStartsWithTheAccount(t *testing.T) {
+	t.Parallel()
+
 	f := newBadgeTestFixture(t)
 	f.apply(&evtv1.Event{Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: "R2", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL, Universal: true}}})
 	f.apply(&evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermRoomJoin)}})
@@ -156,6 +162,8 @@ func TestBadgeUniversalMembershipStartsWithTheAccount(t *testing.T) {
 }
 
 func TestBadgeFollowedThreadCountsRepliesAfterTheFollow(t *testing.T) {
+	t.Parallel()
+
 	f := newBadgeTestFixture(t)
 	f.setMode("U1", &evtv1.NotificationDeliveryModes{RoomMessages: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum(), FollowedThreads: badgeMode})
 	f.post("ROOT", "U2", "")
@@ -180,6 +188,8 @@ func TestBadgeFollowedThreadCountsRepliesAfterTheFollow(t *testing.T) {
 }
 
 func TestBadgeFirstReplyAddressesTheRootAuthor(t *testing.T) {
+	t.Parallel()
+
 	f := newBadgeTestFixture(t)
 	f.setMode("U1", &evtv1.NotificationDeliveryModes{FollowedThreads: badgeMode})
 	f.post("ROOT", "U1", "")
@@ -196,6 +206,8 @@ func TestBadgeFirstReplyAddressesTheRootAuthor(t *testing.T) {
 }
 
 func TestBadgeReactionAttentionEndsWithTheReaction(t *testing.T) {
+	t.Parallel()
+
 	f := newBadgeTestFixture(t)
 	f.setMode("U1", &evtv1.NotificationDeliveryModes{Reactions: badgeMode})
 	f.post("MINE", "U1", "")
@@ -217,6 +229,8 @@ func TestBadgeReactionAttentionEndsWithTheReaction(t *testing.T) {
 }
 
 func TestBadgeBeforeBoundExcludesLaterSources(t *testing.T) {
+	t.Parallel()
+
 	f := newBadgeTestFixture(t)
 	source := f.post("SOURCE", "U2", "")
 	query := badgeQuery{userID: "U1", roomID: "R1", now: time.Now(), before: source}
@@ -230,6 +244,8 @@ func TestBadgeBeforeBoundExcludesLaterSources(t *testing.T) {
 }
 
 func TestBadgeSourcesSurviveSnapshotRestore(t *testing.T) {
+	t.Parallel()
+
 	f := newBadgeTestFixture(t)
 	f.setMode("U1", &evtv1.NotificationDeliveryModes{FollowedThreads: badgeMode, Reactions: badgeMode, DirectMentions: badgeMode})
 	f.post("ROOT", "U1", "")
@@ -306,6 +322,8 @@ func BenchmarkBadgeAttentionFromStore(b *testing.B) {
 }
 
 func TestBadgeRepeatedJoinKeepsTheMembershipStart(t *testing.T) {
+	t.Parallel()
+
 	f := newBadgeTestFixture(t)
 	f.post("AFTER-JOIN", "U2", "")
 	f.apply(&evtv1.Event{ActorId: "U1", Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: "R1"}}})
@@ -315,6 +333,8 @@ func TestBadgeRepeatedJoinKeepsTheMembershipStart(t *testing.T) {
 }
 
 func TestBadgeIgnoresSourcesWithoutCreationTime(t *testing.T) {
+	t.Parallel()
+
 	f := newBadgeTestFixture(t)
 	f.seq++
 	if err := f.p.Apply(&evtv1.Event{Id: "UNDATED", ActorId: "U2", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1", AuthorId: "U2"}}}, f.seq); err != nil {
@@ -326,6 +346,8 @@ func TestBadgeIgnoresSourcesWithoutCreationTime(t *testing.T) {
 }
 
 func TestBadgeListsDropExpiredSources(t *testing.T) {
+	t.Parallel()
+
 	f := newBadgeTestFixture(t)
 	f.setMode("U1", &evtv1.NotificationDeliveryModes{Reactions: badgeMode})
 	old := timestamppb.New(time.Now().Add(-notificationTTL - time.Hour))
@@ -349,6 +371,8 @@ func TestBadgeListsDropExpiredSources(t *testing.T) {
 }
 
 func TestBadgeSweepDropsExpiredSourcesOfQuietThreads(t *testing.T) {
+	t.Parallel()
+
 	f := newBadgeTestFixture(t)
 	old := timestamppb.New(time.Now().Add(-notificationTTL - time.Hour))
 	f.apply(&evtv1.Event{Id: "ROOT", ActorId: "U1", CreatedAt: old, Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1", AuthorId: "U1"}}})
@@ -374,6 +398,8 @@ func TestBadgeSweepDropsExpiredSourcesOfQuietThreads(t *testing.T) {
 }
 
 func TestBadgeUnretractedQueryCountsTheRetractedMessage(t *testing.T) {
+	t.Parallel()
+
 	f := newBadgeTestFixture(t)
 	f.setMode("U1", &evtv1.NotificationDeliveryModes{Reactions: badgeMode})
 	f.post("MINE", "U1", "")
@@ -430,6 +456,8 @@ func threadState(t *testing.T, p *NotificationDecisionProjection, userID string)
 }
 
 func TestNotificationThreadFollowStateTransitions(t *testing.T) {
+	t.Parallel()
+
 	f := newBadgeTestFixture(t)
 	f.post("ROOT", "U1", "")
 	f.post("REPLY-1", "U2", "ROOT")
@@ -464,6 +492,8 @@ func TestNotificationThreadFollowStateTransitions(t *testing.T) {
 // decision projection adds no event IDs that the content view already holds
 // and keeps sharing the table after a snapshot restore.
 func TestNotificationDecisionsShareEventIDsAcrossRestore(t *testing.T) {
+	t.Parallel()
+
 	eventIDs := newEventIDTable()
 	timeline := newRoomTimelineProjection(eventIDs)
 	f := newBadgeTestFixtureFor(t, newNotificationDecisionProjection(eventIDs))
@@ -516,6 +546,8 @@ func TestNotificationDecisionsShareEventIDsAcrossRestore(t *testing.T) {
 }
 
 func TestBadgeRoomDeletionClearsMessageRecords(t *testing.T) {
+	t.Parallel()
+
 	f := newBadgeTestFixture(t)
 	f.post("ROOT", "U1", "")
 	f.apply(&evtv1.Event{Id: "REACT", ActorId: "U2", Event: &evtv1.Event_ReactionAdded{ReactionAdded: &evtv1.ReactionAddedEvent{RoomId: "R1", MessageEventId: "ROOT", Emoji: "tada"}}})
@@ -538,6 +570,8 @@ func TestBadgeRoomDeletionClearsMessageRecords(t *testing.T) {
 }
 
 func TestBadgeAccountDeletionForgetsTheAccountsSources(t *testing.T) {
+	t.Parallel()
+
 	f := newBadgeTestFixture(t)
 	f.post("ROOT", "U1", "")
 	f.apply(&evtv1.Event{Id: "REACT", ActorId: "U2", Event: &evtv1.Event_ReactionAdded{ReactionAdded: &evtv1.ReactionAddedEvent{RoomId: "R1", MessageEventId: "ROOT", Emoji: "tada"}}})
@@ -582,6 +616,8 @@ func TestBadgeAccountDeletionForgetsTheAccountsSources(t *testing.T) {
 }
 
 func TestBadgeAudienceIgnoresExpiredTargetedSources(t *testing.T) {
+	t.Parallel()
+
 	f := newBadgeTestFixture(t)
 	mentionU2 := []*evtv1.MessageMention{{UserId: "U2", Cause: &evtv1.MessageMention_Direct{Direct: &evtv1.DirectUserMention{}}}}
 	f.apply(&evtv1.Event{Id: "ROOT", ActorId: "U1", CreatedAt: timestamppb.New(time.Now().Add(-notificationTTL - 2*time.Hour)), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{

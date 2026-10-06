@@ -21,6 +21,8 @@ var reactionLimitTestEmoji = []string{
 }
 
 func TestTimelineFacadesHandleUnavailableRoomTimeline(t *testing.T) {
+	t.Parallel()
+
 	for name, core := range map[string]*ChattoCore{
 		"nil core":          nil,
 		"nil room model":    {},
@@ -44,6 +46,8 @@ func TestTimelineFacadesHandleUnavailableRoomTimeline(t *testing.T) {
 }
 
 func TestReactionModel_AddReactionWrite(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -123,6 +127,8 @@ func TestReactionModel_AddReactionWrite(t *testing.T) {
 }
 
 func TestReactionNotificationOccurrenceLifecycle(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := chattoCore.CreateUser(ctx, SystemActorID, "reaction-notification-author", "Reaction Author", "password123")
@@ -172,6 +178,8 @@ func TestReactionNotificationOccurrenceLifecycle(t *testing.T) {
 }
 
 func TestReactionModel_AddReactionConcurrentDuplicate(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -206,6 +214,8 @@ func TestReactionModel_AddReactionConcurrentDuplicate(t *testing.T) {
 }
 
 func TestReactionModel_AddReactionEnforcesPerUserMessageLimit(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, room, eventID := setupReactionTest(t, core, ctx)
@@ -236,6 +246,8 @@ func TestReactionModel_AddReactionEnforcesPerUserMessageLimit(t *testing.T) {
 }
 
 func TestReactionModel_AddReactionConcurrentFinalSlot(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, room, eventID := setupReactionTest(t, core, ctx)
@@ -277,6 +289,8 @@ func TestReactionModel_AddReactionConcurrentFinalSlot(t *testing.T) {
 }
 
 func TestReactionModel_PreservesHistoricalReactionsAboveLimit(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, room, eventID := setupReactionTest(t, core, ctx)
@@ -319,6 +333,8 @@ func TestReactionModel_PreservesHistoricalReactionsAboveLimit(t *testing.T) {
 }
 
 func TestReactionModel_AddReactionRefreshesStaleNoopSnapshot(t *testing.T) {
+	t.Parallel()
+
 	harness := newTestEventHarness(t)
 	ctx := testContext(t)
 
@@ -388,6 +404,8 @@ func TestReactionModel_AddReactionRefreshesStaleNoopSnapshot(t *testing.T) {
 }
 
 func TestReactionModel_AddReactionRefreshesStaleLimitSnapshot(t *testing.T) {
+	t.Parallel()
+
 	harness := newTestEventHarness(t)
 	ctx := testContext(t)
 
@@ -442,6 +460,8 @@ func TestReactionModel_AddReactionRefreshesStaleLimitSnapshot(t *testing.T) {
 }
 
 func TestReactionModel_RemoveReactionWrite(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -509,6 +529,8 @@ func TestReactionModel_RemoveReactionWrite(t *testing.T) {
 }
 
 func TestChattoCore_GetReactions(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -599,6 +621,8 @@ func TestChattoCore_GetReactions(t *testing.T) {
 }
 
 func TestChattoCore_GetReactionsBatch(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -689,6 +713,8 @@ func TestChattoCore_GetReactionsBatch(t *testing.T) {
 }
 
 func TestReactionModel_EchoReactionsCanonicalizeToOriginal(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -786,6 +812,8 @@ func TestReactionModel_EchoReactionsCanonicalizeToOriginal(t *testing.T) {
 }
 
 func TestReactionKey(t *testing.T) {
+	t.Parallel()
+
 	t.Run("reactionKey format", func(t *testing.T) {
 		key := reactionKey("E1a2b3c4d5e6f7g", "thumbsup", "user1")
 		// Key should be: E1a2b3c4d5e6f7g.thumbsup.user1
@@ -826,6 +854,8 @@ func TestReactionKey(t *testing.T) {
 }
 
 func TestEmoji(t *testing.T) {
+	t.Parallel()
+
 	t.Run("IsValidUnicodeEmoji accepts one complete emoji", func(t *testing.T) {
 		valid := []string{"🌿", "👍", "🇩🇪", "👨‍👩‍👧‍👦"}
 		for _, emoji := range valid {

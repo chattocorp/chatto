@@ -12,6 +12,8 @@ import (
 )
 
 func TestPermissionMatricesExcludeArchivedChannels(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	for _, permission := range []core.Permission{core.PermRoleManage, core.PermUserManagePermissions} {
@@ -116,6 +118,8 @@ func TestPermissionMatricesExcludeArchivedChannels(t *testing.T) {
 }
 
 func TestPermissionScopePagesAndInheritance(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	for _, perm := range []core.Permission{core.PermRoleManage, core.PermUserManagePermissions} {
 		if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, perm); err != nil {

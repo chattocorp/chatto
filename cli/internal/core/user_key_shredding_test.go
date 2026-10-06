@@ -19,6 +19,8 @@ import (
 )
 
 func TestUserKeyShreddingRequestIsTheFailClosedBoundary(t *testing.T) {
+	t.Parallel()
+
 	chatto := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "shred-boundary", "Shred Boundary", "password123")
@@ -102,6 +104,8 @@ func TestUserKeyShreddingRequestIsTheFailClosedBoundary(t *testing.T) {
 }
 
 func TestUserKeyShreddingDiscoversCoordinatesAfterAggregateConflict(t *testing.T) {
+	t.Parallel()
+
 	chatto := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "shred-occ", "Shred OCC", "password123")
@@ -137,6 +141,8 @@ func TestUserKeyShreddingDiscoversCoordinatesAfterAggregateConflict(t *testing.T
 }
 
 func TestDeleteUserRequiresDurableKeyShreddingRequest(t *testing.T) {
+	t.Parallel()
+
 	chatto := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "shred-delete", "Shred Delete", "password123")
@@ -155,6 +161,8 @@ func TestDeleteUserRequiresDurableKeyShreddingRequest(t *testing.T) {
 }
 
 func TestUserKeyShreddingRetryRecordsCompletionAfterPhysicalSuccess(t *testing.T) {
+	t.Parallel()
+
 	chatto := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "shred-completion", "Shred Completion", "password123")
@@ -193,6 +201,8 @@ func TestUserKeyShreddingRetryRecordsCompletionAfterPhysicalSuccess(t *testing.T
 }
 
 func TestUserKeyShreddingKeepsDEKsDiscoverableUntilWrappingKeysAreShredded(t *testing.T) {
+	t.Parallel()
+
 	chatto := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "shred-order", "Shred Order", "password123")
@@ -201,9 +211,17 @@ func TestUserKeyShreddingKeepsDEKsDiscoverableUntilWrappingKeysAreShredded(t *te
 	require.NoError(t, err)
 	require.NotEmpty(t, contentRefs)
 
+	// The shredding worker can process the stored request in the background,
+	// so the test switches the failure off with a flag instead of replacing
+	// the function again.
+	var failWrappingShred atomic.Bool
+	failWrappingShred.Store(true)
 	originalShredWrapping := chatto.keyShredding.shredWrappingKeyFn
-	chatto.keyShredding.shredWrappingKeyFn = func(context.Context, string) error {
-		return errors.New("injected wrapping-key shred failure")
+	chatto.keyShredding.shredWrappingKeyFn = func(ctx context.Context, ref string) error {
+		if failWrappingShred.Load() {
+			return errors.New("injected wrapping-key shred failure")
+		}
+		return originalShredWrapping(ctx, ref)
 	}
 	err = chatto.DeleteUserEncryptionKeyAs(ctx, user.GetId(), user.GetId())
 	require.ErrorContains(t, err, "injected wrapping-key shred failure")
@@ -212,7 +230,7 @@ func TestUserKeyShreddingKeepsDEKsDiscoverableUntilWrappingKeysAreShredded(t *te
 		require.NoError(t, err, "DEK %s must remain discoverable while KEK shredding is incomplete", ref)
 	}
 
-	chatto.keyShredding.shredWrappingKeyFn = originalShredWrapping
+	failWrappingShred.Store(false)
 	require.NoError(t, chatto.DeleteUserEncryptionKeyAs(ctx, user.GetId(), user.GetId()))
 	for _, ref := range contentRefs {
 		_, err := chatto.encryption.contentKeys.Get(ctx, ref)
@@ -221,6 +239,8 @@ func TestUserKeyShreddingKeepsDEKsDiscoverableUntilWrappingKeysAreShredded(t *te
 }
 
 func TestUserKeyShreddingWorkerHandsOffInterruptedRequestToAnotherReplica(t *testing.T) {
+	t.Parallel()
+
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{

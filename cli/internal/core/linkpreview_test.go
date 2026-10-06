@@ -17,6 +17,8 @@ import (
 )
 
 func TestGetLinkPreviewPromotesCachedLegacyNATSImage(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	core, _ := setupTestCore(t)
 	assetID := NewAssetID()
@@ -64,6 +66,8 @@ func TestGetLinkPreviewPromotesCachedLegacyNATSImage(t *testing.T) {
 }
 
 func TestGetLinkPreviewDoesNotPromotePrivateCachedNATSImage(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		headers map[string][]string
@@ -128,6 +132,8 @@ func TestGetLinkPreviewDoesNotPromotePrivateCachedNATSImage(t *testing.T) {
 	}
 }
 
+// This test does not call t.Parallel: linkpreview.AllowLocalhostForTesting
+// changes package state in linkpreview.
 func TestLinkPreviewImageStorageAndRetrieval(t *testing.T) {
 	ctx := context.Background()
 	core, _ := setupTestCore(t)
@@ -232,6 +238,8 @@ func TestLinkPreviewImageStorageAndRetrieval(t *testing.T) {
 	require.Equal(t, "WEBP", string(data[8:12]), "Should have WEBP magic number")
 }
 
+// This test does not call t.Parallel: linkpreview.AllowLocalhostForTesting
+// changes package state in linkpreview.
 func TestLinkPreviewImageUsesS3WhenConfigured(t *testing.T) {
 	ctx := context.Background()
 	core, _, s3Client, rawS3Client, _ := setupTestCoreWithS3PathPrefix(t, "tenant-a/chatto")

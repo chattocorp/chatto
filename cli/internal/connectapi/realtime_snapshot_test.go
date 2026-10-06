@@ -16,6 +16,8 @@ import (
 )
 
 func TestBuildRealtimeSnapshotLimitsUsersAndOmitsRuntimePresence(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	peer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "snapshot-peer", "Snapshot Peer", "password")
 	if err != nil {
@@ -75,6 +77,8 @@ func TestBuildRealtimeSnapshotLimitsUsersAndOmitsRuntimePresence(t *testing.T) {
 }
 
 func TestBuildRealtimeSnapshotHidesDMHistoryWithoutReadPermission(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	admin, err := env.core.CreateUser(env.ctx, core.SystemActorID, "snapshot-dm-admin", "Snapshot DM Admin", "password")
 	if err != nil {
@@ -118,6 +122,8 @@ func TestBuildRealtimeSnapshotHidesDMHistoryWithoutReadPermission(t *testing.T) 
 }
 
 func TestDMWithDeletedParticipantKeepsTheParticipant(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	peer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "deleted-dm-peer", "Deleted DM Peer", "password")
 	if err != nil {

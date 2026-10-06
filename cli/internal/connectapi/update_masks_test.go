@@ -20,6 +20,8 @@ import (
 )
 
 func TestResourceUpdateMaskCoverage(t *testing.T) {
+	t.Parallel()
+
 	seen := map[protoreflect.FullName]bool{}
 	protoregistry.GlobalFiles.RangeFiles(func(file protoreflect.FileDescriptor) bool {
 		if file.Package() != "chatto.api.v1" && file.Package() != "chatto.admin.v1" {
@@ -61,6 +63,8 @@ func TestResourceUpdateMaskCoverage(t *testing.T) {
 }
 
 func TestUpdateMaskSelectionAndIsolation(t *testing.T) {
+	t.Parallel()
+
 	request := &apiv1.UpdateSettingsRequest{Timezone: new("Europe/Berlin"), ShareTimezone: new(true), UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"share_timezone", "share_timezone"}}}
 	masked, err := normalizeUpdateMask(request)
 	require.NoError(t, err)
@@ -81,6 +85,8 @@ func TestUpdateMaskSelectionAndIsolation(t *testing.T) {
 // mask must survive to distinguish a reset from an untouched field. Invalid
 // unselected values must be removed before protobuf and domain validation.
 func TestResourceUpdatesThroughJSON(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	mux := http.NewServeMux()
 	for _, handler := range env.api.Handlers() {
@@ -145,6 +151,8 @@ func TestResourceUpdatesThroughJSON(t *testing.T) {
 }
 
 func TestMyAccountProfileMaskBatch(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	_, err := env.core.CreateUser(env.ctx, core.SystemActorID, "taken-login", "Other", "password")
@@ -202,6 +210,8 @@ func TestMyAccountProfileMaskBatch(t *testing.T) {
 // Two simultaneous self-service renames must not both spend the same cooldown
 // allowance, and the losing request must not leave its other fields behind.
 func TestMyAccountProfileConcurrentMasks(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	start := make(chan struct{})

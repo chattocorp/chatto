@@ -13,6 +13,8 @@ import (
 )
 
 func TestAdminRoleMembersPaginationAndAuthorization(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnvWithTimeout(t, 2*time.Minute)
 	request := connect.NewRequest(&adminv1.AdminRoleServiceListMembersRequest{Name: "missing"})
 	if _, err := env.roles.ListMembers(env.ctx, request); errorCode(err) != connect.CodeUnauthenticated {

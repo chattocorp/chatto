@@ -63,6 +63,8 @@ func expectNoRoomReadPubSubEvent(t *testing.T, sub *nats.Subscription) {
 }
 
 func TestReadStateModel_MarkRoomAsReadSkipsPubSubEventWhenCursorUnchanged(t *testing.T) {
+	t.Parallel()
+
 	core, nc := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -99,6 +101,8 @@ func TestReadStateModel_MarkRoomAsReadSkipsPubSubEventWhenCursorUnchanged(t *tes
 }
 
 func TestReadStateModel_MarkRoomAsReadPublishesPubSubEventWhenCursorAdvances(t *testing.T) {
+	t.Parallel()
+
 	core, nc := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -132,6 +136,8 @@ func TestReadStateModel_MarkRoomAsReadPublishesPubSubEventWhenCursorAdvances(t *
 }
 
 func TestReadStateModel_MarkRoomAsReadPublishesPubSubEventWhenOccurrencesBecomeRead(t *testing.T) {
+	t.Parallel()
+
 	core, nc := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -193,6 +199,8 @@ func TestReadStateModel_MarkRoomAsReadPublishesPubSubEventWhenOccurrencesBecomeR
 }
 
 func TestNotificationReadBoundaryReconciliationRepairsInterruptedHandshake(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	room, _ := chattoCore.CreateRoom(ctx, "test-user", KindChannel, "", "Read repair", "")
@@ -247,6 +255,8 @@ func TestNotificationReadBoundaryReconciliationRepairsInterruptedHandshake(t *te
 }
 
 func TestReadStateModel_MarkRoomAsReadCoversReactionToReadMessage(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := chattoCore.CreateUser(ctx, SystemActorID, "reaction-read-author", "Reaction Read Author", "password")
@@ -296,6 +306,8 @@ func TestReadStateModel_MarkRoomAsReadCoversReactionToReadMessage(t *testing.T) 
 }
 
 func TestReadStateModel_MarkRoomAsReadDoesNotRewriteUnchangedRoomState(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	reader, err := c.CreateUser(ctx, SystemActorID, "unchanged-reader", "Unchanged Reader", "password123")

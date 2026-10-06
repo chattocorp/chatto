@@ -21,6 +21,8 @@ import (
 )
 
 func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
+	t.Parallel()
+
 	core := &ChattoCore{}
 	ctx := testContext(t)
 
@@ -33,6 +35,8 @@ func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
 }
 
 func TestPubSubPublicationScopeRejectsMismatches(t *testing.T) {
+	t.Parallel()
+
 	typing := newPubSubEvent("actor-id", &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_UserTyping{
 		UserTyping: &realtimev1.UserTypingEvent{RoomId: "room-id"},
 	}})
@@ -50,6 +54,8 @@ func TestPubSubPublicationScopeRejectsMismatches(t *testing.T) {
 }
 
 func TestPubSubEventWireDoesNotUseTheEVTEnvelope(t *testing.T) {
+	t.Parallel()
+
 	event := newPubSubEvent("actor-id", &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_UserTyping{
 		UserTyping: &realtimev1.UserTypingEvent{RoomId: "room-id"},
 	}})
@@ -74,6 +80,8 @@ func TestPubSubEventWireDoesNotUseTheEVTEnvelope(t *testing.T) {
 }
 
 func TestEveryPubSubEventVariantPassesValidation(t *testing.T) {
+	t.Parallel()
+
 	descriptor := (&pubsubv1.PubSubEvent{}).ProtoReflect().Descriptor()
 	oneof := descriptor.Oneofs().ByName("event")
 	if oneof == nil {
@@ -101,6 +109,8 @@ func TestEveryPubSubEventVariantPassesValidation(t *testing.T) {
 }
 
 func TestRoomMutationsDoNotWriteServerEvents(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -153,6 +163,8 @@ func TestRoomMutationsDoNotWriteServerEvents(t *testing.T) {
 // This test catches that regression by subscribing as a real space member and
 // asserting the event flows through end-to-end.
 func TestStreamMyEvents_DeliversMessageRetracted(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -223,6 +235,8 @@ func TestStreamMyEvents_DeliversMessageRetracted(t *testing.T) {
 }
 
 func TestStreamMyEvents_DeliversRBACChangeWithoutClosingLegacyStream(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -276,6 +290,8 @@ func TestStreamMyEvents_DeliversRBACChangeWithoutClosingLegacyStream(t *testing.
 }
 
 func TestStreamMyEvents_DoesNotDeliverMessageBodyEvent(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -333,6 +349,8 @@ func TestStreamMyEvents_DoesNotDeliverMessageBodyEvent(t *testing.T) {
 }
 
 func TestStreamMyEvents_ClosesWhenLiveEVTProjectionReadinessFails(t *testing.T) {
+	t.Parallel()
+
 	harness := newTestEventHarness(t)
 	ctx := testContext(t)
 	roomID := "R-projection-fail"
@@ -381,6 +399,8 @@ func TestStreamMyEvents_ClosesWhenLiveEVTProjectionReadinessFails(t *testing.T) 
 }
 
 func TestStreamMyEvents_ClosesWhenCallProjectionReadinessFails(t *testing.T) {
+	t.Parallel()
+
 	harness := newTestEventHarness(t)
 	ctx := testContext(t)
 	roomID := "R-call-projection-fail"
@@ -436,6 +456,8 @@ func TestStreamMyEvents_ClosesWhenCallProjectionReadinessFails(t *testing.T) {
 }
 
 func TestMyEventsFilter_DeliversUniversalDisableToPriorEffectiveMember(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -504,6 +526,8 @@ func TestMyEventsFilter_DeliversUniversalDisableToPriorEffectiveMember(t *testin
 }
 
 func TestMyEventsFilter_DropsMessageAndAssetFactsWithoutMessageRead(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	viewer, room, messageID := setupReactionTest(t, chatto, ctx)
@@ -537,6 +561,8 @@ func TestMyEventsFilter_DropsMessageAndAssetFactsWithoutMessageRead(t *testing.T
 }
 
 func TestMyEventsFilter_DeliversDMFactsDespiteMessageReadDenial(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	viewer, err := chatto.CreateUser(ctx, SystemActorID, "live-dm-viewer", "Live DM Viewer", "password123")
@@ -576,6 +602,8 @@ func TestMyEventsFilter_DeliversDMFactsDespiteMessageReadDenial(t *testing.T) {
 }
 
 func TestStreamMyEvents_DeleteEchoDeliversOnlyEchoRetract(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -660,6 +688,8 @@ func TestStreamMyEvents_DeleteEchoDeliversOnlyEchoRetract(t *testing.T) {
 }
 
 func TestStreamMyEvents_DeliversDMEventsWhenMessagePostDenied(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -718,6 +748,8 @@ func TestStreamMyEvents_DeliversDMEventsWhenMessagePostDenied(t *testing.T) {
 }
 
 func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

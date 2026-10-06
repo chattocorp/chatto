@@ -12,6 +12,8 @@ import (
 )
 
 func TestCredentialUsageRecorderKeepsMaximumTimestampAcrossConcurrentWriters(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	botID := NewUserID()
@@ -38,6 +40,8 @@ func TestCredentialUsageRecorderKeepsMaximumTimestampAcrossConcurrentWriters(t *
 }
 
 func TestCredentialUsageRecorderCoalescesWritesButKeepsLocalObservation(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	recorder := newCredentialUsageRecorder(c.storage.runtimeStateKV, nil, nil)
@@ -87,6 +91,8 @@ func TestCredentialUsageRecorderCoalescesWritesButKeepsLocalObservation(t *testi
 }
 
 func TestCredentialUsageRecorderKeepsObservationDuringPersistedHandoff(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	kv := &staleFirstGetCredentialUsageKV{
@@ -123,6 +129,8 @@ func TestCredentialUsageRecorderKeepsObservationDuringPersistedHandoff(t *testin
 }
 
 func TestCredentialUsageRecorderRemovesWriteThatFinishesAfterForget(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	kv := &blockingCreateCredentialUsageKV{
@@ -157,6 +165,8 @@ func TestCredentialUsageRecorderRemovesWriteThatFinishesAfterForget(t *testing.T
 }
 
 func TestCredentialUsageRecorderRejectsInactiveObservation(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	recorder := newCredentialUsageRecorder(c.storage.runtimeStateKV, nil, nil)
 	recorder.recordIfActive(NewUserID(), incomingWebhookUsageKey(NewBotIncomingWebhookID()), time.Now(), func() bool {
@@ -171,6 +181,8 @@ func TestCredentialUsageRecorderRejectsInactiveObservation(t *testing.T) {
 }
 
 func TestCredentialUsageRecorderSweepsCredentialRevokedOnAnotherReplica(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	active := true
@@ -199,6 +211,8 @@ func TestCredentialUsageRecorderSweepsCredentialRevokedOnAnotherReplica(t *testi
 }
 
 func TestBotCredentialUsageHydrationReportsUnavailableWithoutFailing(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "usage-owner", "Usage Owner", "password123")
@@ -232,6 +246,8 @@ func TestBotCredentialUsageHydrationReportsUnavailableWithoutFailing(t *testing.
 }
 
 func TestBotAPIKeyAuthenticationRecordsAndRevocationForgetsUsage(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "api-key-usage-owner", "API-key Usage Owner", "password123")
@@ -280,6 +296,8 @@ func TestBotAPIKeyAuthenticationRecordsAndRevocationForgetsUsage(t *testing.T) {
 }
 
 func TestBotConstructionAndCredentialIssuanceSkipUsageTelemetryReads(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "deferred-usage-owner", "Deferred Usage Owner", "password123")

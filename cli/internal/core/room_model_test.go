@@ -9,6 +9,8 @@ import (
 )
 
 func TestNewRoomModelWiresDependencies(t *testing.T) {
+	t.Parallel()
+
 	directory := NewRoomDirectoryProjection()
 	groupLayout := NewRoomGroupLayoutProjection()
 	timeline := NewRoomTimelineProjection()
@@ -61,6 +63,8 @@ func TestNewRoomModelWiresDependencies(t *testing.T) {
 }
 
 func TestRoomModelAppendDirectoryEventuallyPublishesAndWaits(t *testing.T) {
+	t.Parallel()
+
 	harness := newTestEventHarness(t)
 	directory := NewRoomDirectoryProjection()
 	directoryProjector := harness.projector(directory)
@@ -87,6 +91,8 @@ func TestRoomModelAppendDirectoryEventuallyPublishesAndWaits(t *testing.T) {
 }
 
 func TestRoomModelWaitForDirectoryAndTimeline(t *testing.T) {
+	t.Parallel()
+
 	harness := newTestEventHarness(t)
 	directory := NewRoomDirectoryProjection()
 	directoryProjector := harness.projector(directory)
@@ -116,6 +122,8 @@ func TestRoomModelWaitForDirectoryAndTimeline(t *testing.T) {
 }
 
 func TestRoomModelWaitForTimelineAndThreads(t *testing.T) {
+	t.Parallel()
+
 	harness := newTestEventHarness(t)
 	timeline := NewRoomTimelineProjection()
 	timelineProjector := harness.projector(timeline)
@@ -149,6 +157,8 @@ func TestRoomModelWaitForTimelineAndThreads(t *testing.T) {
 }
 
 func TestRoomModelWaitForLiveEVTEventSkipsThreadsForReaction(t *testing.T) {
+	t.Parallel()
+
 	harness := newTestEventHarness(t)
 	timeline := NewRoomTimelineProjection()
 	timelineProjector := harness.projector(timeline)
@@ -182,6 +192,8 @@ func TestRoomModelWaitForLiveEVTEventSkipsThreadsForReaction(t *testing.T) {
 }
 
 func TestRoomModelWaitForLiveEVTEventSkipsThreadsForCall(t *testing.T) {
+	t.Parallel()
+
 	harness := newTestEventHarness(t)
 	timeline := NewRoomTimelineProjection()
 	timelineProjector := harness.projector(timeline)
@@ -209,6 +221,8 @@ func TestRoomModelWaitForLiveEVTEventSkipsThreadsForCall(t *testing.T) {
 }
 
 func TestRoomModelWaitForThreads(t *testing.T) {
+	t.Parallel()
+
 	harness := newTestEventHarness(t)
 	threads := NewThreadProjection()
 	threadsProjector := harness.projector(threads)
@@ -236,6 +250,8 @@ func TestRoomModelWaitForThreads(t *testing.T) {
 }
 
 func TestRoomModelWaitForReactionsCurrent(t *testing.T) {
+	t.Parallel()
+
 	harness := newTestEventHarness(t)
 	reactions := NewReactionProjection()
 	reactionsProjector := harness.projector(reactions)
@@ -261,6 +277,8 @@ func TestRoomModelWaitForReactionsCurrent(t *testing.T) {
 }
 
 func TestRoomModelWaitForReactions(t *testing.T) {
+	t.Parallel()
+
 	harness := newTestEventHarness(t)
 	reactions := NewReactionProjection()
 	reactionsProjector := harness.projector(reactions)

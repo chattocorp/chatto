@@ -23,6 +23,8 @@ const streamSequenceReadSentinelSubject = "$JS.API.STREAM.MSG.GET.CHATTO_TEST_SE
 // Long notification lists made ListNotificationOccurrences latency grow with
 // one stream round trip per retained occurrence.
 func TestNotificationVisibleOccurrencesReadsStreamOncePerBatch(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, nc := setupTestCore(t)
 	reader, _, occurrences := setupNotificationVisibilityFixture(t, chattoCore, 20)
 
@@ -78,6 +80,8 @@ func TestNotificationVisibleOccurrencesReadsStreamOncePerBatch(t *testing.T) {
 // that spans more than one content-view barrier chunk. It must omit targets in
 // a room that the reader left and deleted targets, and keep the input order.
 func TestNotificationVisibleOccurrencesFiltersMixedBatchInOrder(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	reader, poster, occurrences := setupNotificationVisibilityFixture(t, chattoCore, notificationVisibilityChunkSize+44)

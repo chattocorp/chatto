@@ -56,6 +56,8 @@ func replayRBACLog(t *testing.T, h *testEventHarness) (*RBACProjection, uint64) 
 }
 
 func TestUpgradePermissionsRestoreV04Behavior(t *testing.T) {
+	t.Parallel()
+
 	h := newTestEventHarness(t)
 	ctx := testContext(t)
 	custom := &evtv1.Role{Name: "helper", DisplayName: "Helper", Position: PositionCustomFirst}
@@ -115,6 +117,8 @@ func TestUpgradePermissionsRestoreV04Behavior(t *testing.T) {
 // Any 0.5 decision, including a clear, shows that an operator or fresh
 // bootstrap already owns the 0.5 permission state.
 func TestUpgradePermissionsSkipReviewedV05State(t *testing.T) {
+	t.Parallel()
+
 	for _, event := range []*evtv1.Event{
 		newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionCleared{RbacPermissionCleared: rbacPermissionClearedEvent(ScopeServer, "", evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, RoleEveryone, PermMessageRead)}}),
 		newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{RbacPermissionDenied: rbacPermissionDeniedEvent(ScopeRoom, "Rone", evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER, "Ubob", PermMessagePostInInteractions)}}),
@@ -138,6 +142,8 @@ func TestUpgradePermissionsSkipReviewedV05State(t *testing.T) {
 }
 
 func TestUpgradePermissionsLeaveFreshServerUnchanged(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	before, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.RBACSubjectFilter())
@@ -149,6 +155,8 @@ func TestUpgradePermissionsLeaveFreshServerUnchanged(t *testing.T) {
 }
 
 func TestUpgradePermissionsConcurrentReplicas(t *testing.T) {
+	t.Parallel()
+
 	h := newTestEventHarness(t)
 	ctx := testContext(t)
 	appendV04RBACLog(t, h, map[string]*evtv1.Role{}, nil)

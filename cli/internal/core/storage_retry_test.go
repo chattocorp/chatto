@@ -34,6 +34,8 @@ func (js *timeoutAfterStreamCommit) CreateOrUpdateStream(ctx context.Context, cf
 }
 
 func TestStorageRetryPreservesStreamMetadata(t *testing.T) {
+	t.Parallel()
+
 	for _, existing := range []bool{false, true} {
 		name := "fresh"
 		if existing {

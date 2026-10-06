@@ -15,6 +15,8 @@ import (
 )
 
 func TestNotificationStreamAndAlertConsumerConfiguration(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	info, err := chattoCore.storage.notificationStream.Info(ctx)
@@ -36,6 +38,8 @@ func TestNotificationStreamAndAlertConsumerConfiguration(t *testing.T) {
 }
 
 func TestNotificationAlertEligibleRejectsUnsupportedFutureSignal(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	eligible, err := chattoCore.NotificationAlertEligible(testContext(t), &notificationv1.NotificationOccurrence{Signal: testUnsupportedNotificationSignal()})
 	if eligible || !errors.Is(err, ErrUnsupportedNotificationSignal) {
@@ -44,6 +48,8 @@ func TestNotificationAlertEligibleRejectsUnsupportedFutureSignal(t *testing.T) {
 }
 
 func TestNotificationSoundEligibleAllowsInAppNotificationWithoutPush(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := newTestCore(t)
 	startCoreServices(t, chattoCore)
 	ctx := testContext(t)
@@ -101,6 +107,8 @@ func TestNotificationSoundEligibleAllowsInAppNotificationWithoutPush(t *testing.
 }
 
 func TestNotificationAlertWorkerConsumesSignalledEvent(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := newTestCore(t)
 	delivered := make(chan *notificationv1.NotificationOccurrence, 1)
 	chattoCore.SetNotificationAlertHandler(func(_ context.Context, occurrence *notificationv1.NotificationOccurrence) error {
@@ -146,6 +154,8 @@ func TestNotificationAlertWorkerConsumesSignalledEvent(t *testing.T) {
 }
 
 func TestNotificationAlertWorkerUsesRoomGroupPolicy(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := newTestCore(t)
 	delivered := make(chan *notificationv1.NotificationOccurrence, 1)
 	chattoCore.SetNotificationAlertHandler(func(_ context.Context, occurrence *notificationv1.NotificationOccurrence) error {
@@ -205,6 +215,8 @@ func TestNotificationAlertWorkerUsesRoomGroupPolicy(t *testing.T) {
 // Alert revalidation is not bound to a session, so an owner's alert follows
 // ordinary read access instead of the owner override.
 func TestNotificationSoundEligibleDoesNotApplyOwnerOverride(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := newTestCore(t)
 	startCoreServices(t, chattoCore)
 	ctx := testContext(t)

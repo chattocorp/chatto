@@ -16,6 +16,8 @@ import (
 // ============================================================================
 
 func TestListActiveRoomMemberIDsDoesNotReadProfiles(t *testing.T) {
+	t.Parallel()
+
 	for _, universal := range []bool{false, true} {
 		t.Run(fmt.Sprintf("universal=%v", universal), func(t *testing.T) {
 			c, _ := setupTestCore(t)
@@ -53,6 +55,8 @@ func TestListActiveRoomMemberIDsDoesNotReadProfiles(t *testing.T) {
 }
 
 func TestRoomMemberships_CreateOrUpdate(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -96,6 +100,8 @@ func TestRoomMemberships_CreateOrUpdate(t *testing.T) {
 }
 
 func TestRoomMemberships_CreateOrUpdate_Idempotent(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -122,6 +128,8 @@ func TestRoomMemberships_CreateOrUpdate_Idempotent(t *testing.T) {
 }
 
 func TestRoomMemberships_ConcurrentJoinPublishesSingleEvent(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -169,6 +177,8 @@ func TestRoomMemberships_ConcurrentJoinPublishesSingleEvent(t *testing.T) {
 }
 
 func TestRoomMemberships_Get_NotFound(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -181,6 +191,8 @@ func TestRoomMemberships_Get_NotFound(t *testing.T) {
 }
 
 func TestRoomMemberships_Exists(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -214,6 +226,8 @@ func TestRoomMemberships_Exists(t *testing.T) {
 }
 
 func TestRoomMemberships_Delete(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -253,6 +267,8 @@ func TestRoomMemberships_Delete(t *testing.T) {
 }
 
 func TestRoomMemberships_Delete_Idempotent(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -266,6 +282,8 @@ func TestRoomMemberships_Delete_Idempotent(t *testing.T) {
 }
 
 func TestRoomMemberships_GetForUser(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -324,6 +342,8 @@ func TestRoomMemberships_GetForUser(t *testing.T) {
 }
 
 func TestRoomMemberships_GetForUser_NoRooms(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -343,6 +363,8 @@ func TestRoomMemberships_GetForUser_NoRooms(t *testing.T) {
 }
 
 func TestRoomMemberships_GetForRoom(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -403,6 +425,8 @@ func TestRoomMemberships_GetForRoom(t *testing.T) {
 }
 
 func TestRoomMemberships_GetForRoom_NoMembers(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -422,6 +446,8 @@ func TestRoomMemberships_GetForRoom_NoMembers(t *testing.T) {
 }
 
 func TestUniversalRoomsGrantEffectiveMembershipWithoutChangingExplicitMemberships(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -485,6 +511,8 @@ func TestUniversalRoomsGrantEffectiveMembershipWithoutChangingExplicitMembership
 }
 
 func TestRoomMemberships_DeleteAfterRecreate(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -521,6 +549,8 @@ func TestRoomMemberships_DeleteAfterRecreate(t *testing.T) {
 }
 
 func TestRoomMemberships_Integration_CompleteLifecycle(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -597,6 +627,8 @@ func TestRoomMemberships_Integration_CompleteLifecycle(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_JoinRoom_ArchivedRoom(t *testing.T) {
+	t.Parallel()
+
 	t.Run("cannot join archived room", func(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)

@@ -27,6 +27,8 @@ func leaveEvent(roomID, userID string) *evtv1.Event {
 }
 
 func TestRoomMembershipProjection_JoinLeaveQuery(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomMembershipProjection()
 
 	mustApply(t, p, joinEvent("R1", "U1"))
@@ -60,6 +62,8 @@ func TestRoomMembershipProjection_JoinLeaveQuery(t *testing.T) {
 }
 
 func TestRoomMembershipProjection_Idempotency(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomMembershipProjection()
 
 	// Same join applied twice: state must be identical to applying it once.
@@ -78,6 +82,8 @@ func TestRoomMembershipProjection_Idempotency(t *testing.T) {
 }
 
 func TestRoomMembershipProjection_BanRemovesTarget(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomMembershipProjection()
 
 	mustApply(t, p, joinEvent("R1", "target"))
@@ -101,6 +107,8 @@ func TestRoomMembershipProjection_BanRemovesTarget(t *testing.T) {
 }
 
 func TestRoomDirectoryProjectionPrepareRejectsMalformedEventBeforeCommit(t *testing.T) {
+	t.Parallel()
+
 	directory := NewRoomDirectoryProjection()
 	event := &evtv1.Event{
 		ActorId: "moderator",
@@ -124,6 +132,8 @@ func TestRoomDirectoryProjectionPrepareRejectsMalformedEventBeforeCommit(t *test
 }
 
 func TestRoomDirectoryProjectionKeepsDMMembersOnLeave(t *testing.T) {
+	t.Parallel()
+
 	directory := NewRoomDirectoryProjection()
 	for _, event := range []*evtv1.Event{
 		roomCreatedEvent("DM", "", "", evtv1.RoomKind_ROOM_KIND_DM),
@@ -151,6 +161,8 @@ func TestRoomDirectoryProjectionKeepsDMMembersOnLeave(t *testing.T) {
 }
 
 func TestRoomMembershipProjection_EmptyRoomDropped(t *testing.T) {
+	t.Parallel()
+
 	// Room should be removed from the index entirely once it has no
 	// members, so Members/Rooms don't return stale entries.
 	p := NewRoomMembershipProjection()
@@ -172,6 +184,8 @@ func TestRoomMembershipProjection_EmptyRoomDropped(t *testing.T) {
 }
 
 func TestRoomMembershipProjection_RoomDeletedDropsAllMembers(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomMembershipProjection()
 
 	mustApply(t, p, joinEvent("R1", "U1"))
@@ -205,6 +219,8 @@ func TestRoomMembershipProjection_RoomDeletedDropsAllMembers(t *testing.T) {
 }
 
 func TestRoomMembershipProjection_MalformedEventsRejected(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomMembershipProjection()
 
 	// Missing room_id.

@@ -10,6 +10,8 @@ import (
 )
 
 func TestRBACProjection_RoleMetadataAndReorder(t *testing.T) {
+	t.Parallel()
+
 	p := NewRBACProjection()
 
 	applyRBACProjectionEvent(t, p, &evtv1.Event{Event: &evtv1.Event_RbacRoleCreated{
@@ -80,6 +82,8 @@ func TestRBACProjection_RoleMetadataAndReorder(t *testing.T) {
 }
 
 func TestRBACProjection_AssignRevokeAndDeleteRole(t *testing.T) {
+	t.Parallel()
+
 	p := NewRBACProjection()
 
 	applyRBACProjectionEvent(t, p, &evtv1.Event{Event: &evtv1.Event_RbacRoleCreated{
@@ -122,6 +126,8 @@ func TestRBACProjection_AssignRevokeAndDeleteRole(t *testing.T) {
 }
 
 func TestRBACProjection_PermissionLocations(t *testing.T) {
+	t.Parallel()
+
 	p := NewRBACProjection()
 
 	applyRBACProjectionEvent(t, p, &evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{
@@ -162,6 +168,8 @@ func TestRBACProjection_PermissionLocations(t *testing.T) {
 }
 
 func TestRBACProjection_OldRoomBanGrantDoesNotAuthorizeRemoval(t *testing.T) {
+	t.Parallel()
+
 	p := NewRBACProjection()
 	applyRBACProjectionEvent(t, p, &evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{
 		RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", "moderator", Permission("room.ban-member")),
@@ -178,6 +186,8 @@ func TestRBACProjection_OldRoomBanGrantDoesNotAuthorizeRemoval(t *testing.T) {
 }
 
 func TestRBACProjection_LegacyPermissionDecisionUnknownFields(t *testing.T) {
+	t.Parallel()
+
 	p := NewRBACProjection()
 
 	granted := &evtv1.RbacPermissionGrantedEvent{Permission: string(PermMessagePost)}
@@ -209,6 +219,8 @@ func TestRBACProjection_LegacyPermissionDecisionUnknownFields(t *testing.T) {
 }
 
 func TestRBACProjection_LegacyPermissionDecisionWireBytes(t *testing.T) {
+	t.Parallel()
+
 	p := NewRBACProjection()
 
 	granted := unmarshalLegacyRBACPermissionEvent(t, 810, "server", "admin", string(PermMessagePost))
@@ -231,6 +243,8 @@ func TestRBACProjection_LegacyPermissionDecisionWireBytes(t *testing.T) {
 }
 
 func TestRBACProjection_IgnoresDuplicateEventID(t *testing.T) {
+	t.Parallel()
+
 	p := NewRBACProjection()
 
 	applyRBACProjectionEvent(t, p, &evtv1.Event{Id: "evt-1", Event: &evtv1.Event_RbacRoleCreated{

@@ -8,6 +8,8 @@ import "testing"
 // in that group). A group-scope deny on a role overrides a server-scope allow
 // on the same role.
 func TestCanCreateRoom_GroupTier(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -154,6 +156,8 @@ func TestCanCreateRoom_GroupTier(t *testing.T) {
 // rooms when no group/room override exists. A group-scope decision still wins
 // over a server-scope decision (same role).
 func TestServerTierCascadeIntoChannelRooms(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

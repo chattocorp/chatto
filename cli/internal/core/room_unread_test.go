@@ -7,6 +7,8 @@ import (
 )
 
 func TestChattoCore_GetRoomLastEvent(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -58,6 +60,8 @@ func TestChattoCore_GetRoomLastEvent(t *testing.T) {
 }
 
 func TestChattoCore_LastReadEventID(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -101,6 +105,8 @@ func TestChattoCore_LastReadEventID(t *testing.T) {
 }
 
 func TestChattoCore_AdvanceLastReadEventIDDoesNotRegress(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -159,6 +165,8 @@ func TestChattoCore_AdvanceLastReadEventIDDoesNotRegress(t *testing.T) {
 // for the first time post-deploy) is lazy-initialized as caught up to the
 // room's current last root event, so they don't see a wall of unreads.
 func TestChattoCore_LastReadEventID_LazyInitCaughtUp(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -197,6 +205,8 @@ func TestChattoCore_LastReadEventID_LazyInitCaughtUp(t *testing.T) {
 // TestChattoCore_LastReadEventID_LazyInitEmptyRoom verifies that lazy init
 // against an empty room returns "" without writing a marker.
 func TestChattoCore_LastReadEventID_LazyInitEmptyRoom(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -213,6 +223,8 @@ func TestChattoCore_LastReadEventID_LazyInitEmptyRoom(t *testing.T) {
 }
 
 func TestChattoCore_HasUnread_NoMessages(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -232,6 +244,8 @@ func TestChattoCore_HasUnread_NoMessages(t *testing.T) {
 }
 
 func TestChattoCore_HasUnread_NewMessages(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -269,6 +283,8 @@ func TestChattoCore_HasUnread_NewMessages(t *testing.T) {
 }
 
 func TestChattoCore_PostMessageClearsExistingRoomBadge(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -316,6 +332,8 @@ func TestChattoCore_PostMessageClearsExistingRoomBadge(t *testing.T) {
 }
 
 func TestChattoCore_HasUnread_RoomMessageOffKeepsCursorWithoutBadge(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -358,6 +376,8 @@ func TestChattoCore_HasUnread_RoomMessageOffKeepsCursorWithoutBadge(t *testing.T
 }
 
 func TestChattoCore_ReadStateUsesLatestReadableInteractionRoot(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := chatto.CreateUser(ctx, SystemActorID, "interaction-unread-author", "Interaction Unread Author", "password123")
@@ -436,6 +456,8 @@ func TestChattoCore_ReadStateUsesLatestReadableInteractionRoot(t *testing.T) {
 }
 
 func TestChattoCore_HasUnread_AfterMarkingRead(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -504,6 +526,8 @@ func TestChattoCore_HasUnread_AfterMarkingRead(t *testing.T) {
 }
 
 func TestChattoCore_HasUnread_NonMember(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -532,6 +556,8 @@ func TestChattoCore_HasUnread_NonMember(t *testing.T) {
 }
 
 func TestChattoCore_HasUnread_MultipleRooms(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -587,6 +613,8 @@ func TestChattoCore_HasUnread_MultipleRooms(t *testing.T) {
 }
 
 func TestChattoCore_HasUnread_JoiningRoomWithExistingMessages(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -641,6 +669,8 @@ func TestChattoCore_HasUnread_JoiningRoomWithExistingMessages(t *testing.T) {
 // does not create Badge attention. The cursor remains available to the room
 // timeline and is corrected by the next mark-read operation.
 func TestChattoCore_HasUnread_StaleMarker(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -675,6 +705,8 @@ func TestChattoCore_HasUnread_StaleMarker(t *testing.T) {
 // "if a marker exists, GetLastReadEventID returns *that* value, never
 // lazy-init's value."
 func TestChattoCore_LastReadEventID_LazyInitRespectsExistingMarker(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -710,6 +742,8 @@ func TestChattoCore_LastReadEventID_LazyInitRespectsExistingMarker(t *testing.T)
 }
 
 func TestChattoCore_HasUnread_ThreadReplyDoesNotCauseUnread(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

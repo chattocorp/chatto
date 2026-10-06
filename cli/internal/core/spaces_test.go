@@ -11,6 +11,8 @@ import (
 )
 
 func TestServerMemberUserPage(t *testing.T) {
+	t.Parallel()
+
 	oldest := timestamppb.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	newest := timestamppb.New(time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC))
 	users := []*evtv1.User{
@@ -84,6 +86,8 @@ func TestServerMemberUserPage(t *testing.T) {
 }
 
 func TestServerMemberUserPageTieOrder(t *testing.T) {
+	t.Parallel()
+
 	created := timestamppb.New(time.Unix(1, 0))
 	users := []*evtv1.User{
 		{Id: "b", CreatedAt: created},
@@ -102,6 +106,8 @@ func TestServerMemberUserPageTieOrder(t *testing.T) {
 }
 
 func TestSeedDefaultRooms(t *testing.T) {
+	t.Parallel()
+
 	t.Run("creates announcements and general in the seed Lobby group", func(t *testing.T) {
 		c, _ := setupTestCore(t)
 		ctx := testContext(t)

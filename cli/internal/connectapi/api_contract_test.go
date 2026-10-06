@@ -29,6 +29,8 @@ import (
 )
 
 func TestAPIHandlers(t *testing.T) {
+	t.Parallel()
+
 	api := New(nil, config.ChattoConfig{}, "test")
 	handlers := api.Handlers()
 
@@ -83,6 +85,8 @@ func TestAPIHandlers(t *testing.T) {
 }
 
 func TestNotificationServiceDoesNotMountPolicyMethods(t *testing.T) {
+	t.Parallel()
+
 	api := New(nil, config.ChattoConfig{}, "test")
 	mux := http.NewServeMux()
 	for _, handler := range api.Handlers() {
@@ -102,6 +106,8 @@ func TestNotificationServiceDoesNotMountPolicyMethods(t *testing.T) {
 }
 
 func TestAPIHandlerAuthPolicies(t *testing.T) {
+	t.Parallel()
+
 	api := New(nil, config.ChattoConfig{}, "test")
 	got := make(map[string]AuthPolicy)
 	for _, handler := range api.Handlers() {
@@ -157,6 +163,8 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 }
 
 func TestPublicReflectionResolver(t *testing.T) {
+	t.Parallel()
+
 	resolver, err := publicReflectionResolver(publicReflectionServiceNames)
 	if err != nil {
 		t.Fatalf("publicReflectionResolver: %v", err)
@@ -192,6 +200,8 @@ func TestPublicReflectionResolver(t *testing.T) {
 }
 
 func TestRequireCaller(t *testing.T) {
+	t.Parallel()
+
 	t.Run("rejects missing authn info", func(t *testing.T) {
 		_, err := requireCaller(context.Background())
 		requireConnectCode(t, err, connect.CodeUnauthenticated)
@@ -219,6 +229,8 @@ func TestRequireCaller(t *testing.T) {
 }
 
 func TestUserSummaryTreatsInvalidPresenceKeyAsOffline(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 
 	user, err := userSummary(env.ctx, env.api, core.DeletedUserReference("bad>"), nil)
@@ -231,6 +243,8 @@ func TestUserSummaryTreatsInvalidPresenceKeyAsOffline(t *testing.T) {
 }
 
 func TestPrivateHandlersRequireAuth(t *testing.T) {
+	t.Parallel()
+
 	api := New(nil, config.ChattoConfig{}, "test")
 	mux := http.NewServeMux()
 	for _, handler := range api.Handlers() {
@@ -248,6 +262,8 @@ func TestPrivateHandlersRequireAuth(t *testing.T) {
 }
 
 func TestUserServiceUploadAvatarRequestLimit(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	mux := http.NewServeMux()
 	for _, handler := range env.api.Handlers() {
@@ -285,6 +301,8 @@ func TestUserServiceUploadAvatarRequestLimit(t *testing.T) {
 }
 
 func TestCreateMessageAttachmentAssetIDsValidateThroughConnectHandler(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	mux := http.NewServeMux()
 	path, handler := apiv1connect.NewMessageServiceHandler(env.messages, HandlerOptions()...)
@@ -325,6 +343,8 @@ func TestCreateMessageAttachmentAssetIDsValidateThroughConnectHandler(t *testing
 }
 
 func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	mux := http.NewServeMux()
 	rolePath, roleHandler := apiv1connect.NewRoleServiceHandler(env.publicRoles, HandlerOptions()...)
@@ -514,6 +534,8 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 }
 
 func TestConnectErrorMapping(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		err  error
@@ -560,6 +582,8 @@ func TestConnectErrorMapping(t *testing.T) {
 }
 
 func TestSafeInternalErrorForLogRedactsSensitiveSubstrings(t *testing.T) {
+	t.Parallel()
+
 	err := errors.New("failed for email=person@example.test token=cht_ATabcdef123456 redirect=https://chat.example.test/callback?code=secret&state=s url=https://chat.example.test/path?code=secret&state=s and raw other@example.test with https://chat.example.test/invite/1Iabc123def4567abcdefghijklmnop")
 
 	got := safeInternalErrorForLog(err)
@@ -583,6 +607,8 @@ func TestSafeInternalErrorForLogRedactsSensitiveSubstrings(t *testing.T) {
 }
 
 func TestAPIPermissionExplanationMarksWinningTraceFirst(t *testing.T) {
+	t.Parallel()
+
 	got := apiPermissionExplanation(core.PermissionExplanation{
 		Permission:    core.PermMessageReadInteractions,
 		IncludedBy:    core.PermMessageRead,

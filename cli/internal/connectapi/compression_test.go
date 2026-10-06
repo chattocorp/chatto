@@ -17,6 +17,8 @@ import (
 )
 
 func TestHandlerOptionsForWebserver_ResponseCompression(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name                string
 		compression         bool

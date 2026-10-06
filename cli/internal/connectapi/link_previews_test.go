@@ -14,6 +14,8 @@ import (
 )
 
 func TestAPILinkPreviewMapsProviderNeutralSocialPost(t *testing.T) {
+	t.Parallel()
+
 	publishedAt := timestamppb.New(time.Date(2026, time.July, 15, 12, 0, 0, 0, time.UTC))
 	preview := apiLinkPreview(context.Background(), &API{}, &evtv1.LinkPreview{
 		Url:         "https://bsky.app/profile/bsky.app/post/example",
@@ -59,6 +61,8 @@ func TestAPILinkPreviewMapsProviderNeutralSocialPost(t *testing.T) {
 }
 
 func TestAPILinkPreviewImageURLsUseRequestOrigin(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	image := &evtv1.AssetRecord{Id: "Apreviewimage01", Storage: &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: "Apreviewimage01"}}}
 	preview := &evtv1.LinkPreview{

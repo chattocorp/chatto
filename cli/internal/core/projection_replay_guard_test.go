@@ -19,6 +19,8 @@ var (
 )
 
 func TestProjectionReplayGuardReleasesCleanHistory(t *testing.T) {
+	t.Parallel()
+
 	guard := newProjectionReplayGuard()
 	first := &evtv1.Event{Id: "E1"}
 	second := &evtv1.Event{Id: "E2"}
@@ -56,6 +58,8 @@ func TestProjectionReplayGuardReleasesCleanHistory(t *testing.T) {
 }
 
 func TestProjectionReplayGuardSteadyStateMemoryIsConstant(t *testing.T) {
+	t.Parallel()
+
 	guard := newProjectionReplayGuard()
 	guard.completeReplay()
 
@@ -73,6 +77,8 @@ func TestProjectionReplayGuardSteadyStateMemoryIsConstant(t *testing.T) {
 }
 
 func TestProjectionReplayGuardRetainsDuplicateHistoryCompatibility(t *testing.T) {
+	t.Parallel()
+
 	guard := newProjectionReplayGuard()
 	first := &evtv1.Event{Id: "E1"}
 
@@ -103,6 +109,8 @@ func TestProjectionReplayGuardRetainsDuplicateHistoryCompatibility(t *testing.T)
 }
 
 func TestProjectionReplayGuardCompletesEmptyReplay(t *testing.T) {
+	t.Parallel()
+
 	guard := newProjectionReplayGuard()
 	guard.completeReplay()
 	guard.completeReplay()
@@ -116,6 +124,8 @@ func TestProjectionReplayGuardCompletesEmptyReplay(t *testing.T) {
 }
 
 func TestProjectionReplayGuardAdminEstimateReportsRetainedCompatibilityOnly(t *testing.T) {
+	t.Parallel()
+
 	message := func() *evtv1.Event {
 		return &evtv1.Event{
 			Id: "E1",

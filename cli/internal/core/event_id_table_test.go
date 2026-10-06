@@ -15,6 +15,8 @@ import (
 )
 
 func TestEventIDTable_InternsDenseHandles(t *testing.T) {
+	t.Parallel()
+
 	table := newEventIDTable()
 	if got := table.intern(""); got != 0 {
 		t.Fatalf("intern empty = %d, want 0", got)
@@ -45,6 +47,8 @@ func TestEventIDTable_InternsDenseHandles(t *testing.T) {
 }
 
 func TestEventIDTable_ResolvesHashCollisions(t *testing.T) {
+	t.Parallel()
+
 	table := newEventIDTable()
 	first := table.intern("E1")
 	// Point the hash of E2 at E1 to simulate a 64-bit hash collision.
@@ -74,6 +78,8 @@ func TestEventIDTable_ResolvesHashCollisions(t *testing.T) {
 }
 
 func TestEventIDTable_KeepsIDsAcrossArenaChunks(t *testing.T) {
+	t.Parallel()
+
 	table := newEventIDTable()
 	long := strings.Repeat("L", idArenaMaxChunkBytes/4+1)
 	ids := make([]string, 0, 20_002)
@@ -109,6 +115,8 @@ func TestEventIDTable_KeepsIDsAcrossArenaChunks(t *testing.T) {
 }
 
 func TestEventIDTable_ConcurrentInternAndRead(t *testing.T) {
+	t.Parallel()
+
 	table := newEventIDTable()
 	var wg sync.WaitGroup
 	for writer := range 4 {
@@ -139,6 +147,8 @@ func TestEventIDTable_ConcurrentInternAndRead(t *testing.T) {
 // ServerContentView components hold each message ID once and keep sharing the
 // table after a snapshot restore.
 func TestSharedEventIDTable_ComponentsShareHandlesAcrossRestore(t *testing.T) {
+	t.Parallel()
+
 	eventIDs := newEventIDTable()
 	timeline := newRoomTimelineProjection(eventIDs)
 	threads := newThreadProjection(eventIDs)
@@ -191,6 +201,8 @@ func TestSharedEventIDTable_ComponentsShareHandlesAcrossRestore(t *testing.T) {
 }
 
 func TestEventIDTable_ConcurrentInternOfSameIDsAgreesOnHandles(t *testing.T) {
+	t.Parallel()
+
 	table := newEventIDTable()
 	const workers, ids = 8, 2_000
 	results := make([][]uint32, workers)
@@ -226,6 +238,8 @@ func TestEventIDTable_ConcurrentInternOfSameIDsAgreesOnHandles(t *testing.T) {
 // goroutines published while writers add location pages and arena chunks. It
 // models components that apply and read under different locks.
 func TestEventIDTable_ReadsPublishedHandlesDuringGrowth(t *testing.T) {
+	t.Parallel()
+
 	table := newEventIDTable()
 	const writers, perWriter = 4, 3 * idLocationPageSize
 	var published sync.Map

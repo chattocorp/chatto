@@ -58,6 +58,8 @@ func consumeAssetCleanupForTest(ctx context.Context, model *AssetModel) error {
 }
 
 func TestAssetCleanupDeliveryWaitsForProjectionBoundary(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	model := restartAssetModel(t, core)
 	boundaryErr := errors.New("projection still replaying")
@@ -88,6 +90,8 @@ func TestAssetCleanupDeliveryWaitsForProjectionBoundary(t *testing.T) {
 }
 
 func TestAssetCleanupReplaysDeletionAndIsIdempotent(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCoreWithCache(t)
 	ctx := testContext(t)
 	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "asset-cleanup-replay", "Asset cleanup replay")
@@ -124,6 +128,8 @@ func TestAssetCleanupReplaysDeletionAndIsIdempotent(t *testing.T) {
 }
 
 func TestAssetCleanupReconcilesHLSChildrenMissedByOlderReplica(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "asset-cleanup-hls-version-skew", "HLS version skew")
@@ -202,6 +208,8 @@ func TestAssetCleanupReconcilesHLSChildrenMissedByOlderReplica(t *testing.T) {
 }
 
 func TestAssetCleanupSkipsDeletionWithoutCanonicalCreationFact(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	appendAssetDeletionTestEvent(t, ctx, core, &evtv1.AssetDeletedEvent{AssetId: "A-historical"})
@@ -213,6 +221,8 @@ func TestAssetCleanupSkipsDeletionWithoutCanonicalCreationFact(t *testing.T) {
 }
 
 func TestAssetCleanupFailureDoesNotBlockLaterDeletion(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	badAsset := &evtv1.AssetRecord{
@@ -244,6 +254,8 @@ func TestAssetCleanupFailureDoesNotBlockLaterDeletion(t *testing.T) {
 }
 
 func TestAssetCleanupDoesNotDeleteUnrelatedAssetOrCache(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCoreWithCache(t)
 	ctx := testContext(t)
 	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "asset-cleanup-isolation", "Asset cleanup isolation")
@@ -288,6 +300,8 @@ func TestAssetCleanupDoesNotDeleteUnrelatedAssetOrCache(t *testing.T) {
 }
 
 func TestAssetCleanupRejectsMismatchedCreationPayload(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	store, err := core.mediaModel.GetAttachmentsStore(ctx)
@@ -312,6 +326,8 @@ func TestAssetCleanupRejectsMismatchedCreationPayload(t *testing.T) {
 }
 
 func TestAssetCleanupRejectsMismatchedDeletionSubject(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	store, err := core.mediaModel.GetAttachmentsStore(ctx)
@@ -336,6 +352,8 @@ func TestAssetCleanupRejectsMismatchedDeletionSubject(t *testing.T) {
 }
 
 func TestAssetCleanupRejectsNATSPointerToAnotherAsset(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCoreWithCache(t)
 	ctx := testContext(t)
 	store, err := core.mediaModel.GetAttachmentsStore(ctx)
@@ -367,6 +385,8 @@ func TestAssetCleanupRejectsNATSPointerToAnotherAsset(t *testing.T) {
 }
 
 func TestAssetCleanupRejectsS3PointerToAnotherAsset(t *testing.T) {
+	t.Parallel()
+
 	core, _, s3Client := setupTestCoreWithS3(t)
 	ctx := testContext(t)
 	victimKey := S3KeyAttachment("A-victim")
@@ -391,6 +411,8 @@ func TestAssetCleanupRejectsS3PointerToAnotherAsset(t *testing.T) {
 }
 
 func TestAssetCleanupDeletesS3ObjectFromDurableFacts(t *testing.T) {
+	t.Parallel()
+
 	core, _, s3Client := setupTestCoreWithS3(t)
 	ctx := testContext(t)
 	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "asset-cleanup-s3", "Asset cleanup S3")
@@ -418,6 +440,8 @@ func TestAssetCleanupDeletesS3ObjectFromDurableFacts(t *testing.T) {
 }
 
 func TestAssetCleanupDurableConsumerProcessesAcrossReplicas(t *testing.T) {
+	t.Parallel()
+
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{

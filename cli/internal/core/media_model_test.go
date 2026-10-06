@@ -18,6 +18,8 @@ import (
 )
 
 func TestNewMediaModelWiresCore(t *testing.T) {
+	t.Parallel()
+
 	core := &ChattoCore{}
 
 	service := NewMediaModel(core)
@@ -28,6 +30,8 @@ func TestNewMediaModelWiresCore(t *testing.T) {
 }
 
 func TestMediaModelUploadAttachmentStoresAndProjectsAsset(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	service := core.mediaModel
 	ctx := testContext(t)
@@ -80,6 +84,8 @@ func TestMediaModelUploadAttachmentStoresAndProjectsAsset(t *testing.T) {
 }
 
 func TestMediaModelUploadAttachmentRequiresActor(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -93,6 +99,8 @@ func TestMediaModelUploadAttachmentRequiresActor(t *testing.T) {
 }
 
 func TestMediaModelUploadDerivativeAttachmentProjectsParentage(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	service := core.mediaModel
 	ctx := testContext(t)
@@ -130,6 +138,8 @@ func TestMediaModelUploadDerivativeAttachmentProjectsParentage(t *testing.T) {
 }
 
 func TestMediaModelUploadDerivativeAttachmentWithDimensionsProjectsAssetDimensions(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	service := core.mediaModel
 	ctx := testContext(t)
@@ -163,6 +173,8 @@ func TestMediaModelUploadDerivativeAttachmentWithDimensionsProjectsAssetDimensio
 }
 
 func TestMediaModelGeneratedVideoBypassesUserUploadLimits(t *testing.T) {
+	t.Parallel()
+
 	for _, backend := range []struct {
 		name  string
 		setup func(*testing.T) *ChattoCore
@@ -236,6 +248,8 @@ func TestMediaModelGeneratedVideoBypassesUserUploadLimits(t *testing.T) {
 }
 
 func TestMediaModelCacheOperations(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCoreWithCache(t)
 	service := core.mediaModel
 	ctx := testContext(t)
@@ -271,6 +285,8 @@ func TestMediaModelCacheOperations(t *testing.T) {
 }
 
 func TestMediaModelDeleteAttachmentFromStorageDeletesBinaryAndCache(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCoreWithCache(t)
 	service := core.mediaModel
 	ctx := testContext(t)
@@ -303,6 +319,8 @@ func TestMediaModelDeleteAttachmentFromStorageDeletesBinaryAndCache(t *testing.T
 }
 
 func TestMediaModelStableAttachmentURLs(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	service := core.mediaModel
 
@@ -363,6 +381,8 @@ func TestMediaModelStableAttachmentURLs(t *testing.T) {
 }
 
 func TestMediaModelStableAttachmentURLIssuanceBuckets(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	service := core.mediaModel
 	now := time.Date(2026, time.July, 19, 10, 15, 0, 0, time.FixedZone("test", 2*60*60))
@@ -441,6 +461,8 @@ func assertStableAssetURLTicket(t *testing.T, core *ChattoCore, stable StableAss
 }
 
 func TestMediaModelAttachmentNeedsVideoProcessing(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		attachment  *evtv1.Attachment
@@ -463,6 +485,8 @@ func TestMediaModelAttachmentNeedsVideoProcessing(t *testing.T) {
 }
 
 func TestAssetModelVideoProcessingLifecycle(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	media := core.mediaModel
 	service := core.assetModel
@@ -532,6 +556,8 @@ func TestAssetModelVideoProcessingLifecycle(t *testing.T) {
 }
 
 func TestAssetModelProcessedCommitSurvivesProjectionWaitFailure(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	service := core.assetModel
 	ctx := testContext(t)
@@ -594,6 +620,8 @@ func TestAssetModelProcessedCommitSurvivesProjectionWaitFailure(t *testing.T) {
 }
 
 func TestDerivativeCreationCommitSurvivesProjectionWaitFailure(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "derivative-ambiguous", "Derivative ambiguous")
@@ -634,6 +662,8 @@ func TestDerivativeCreationCommitSurvivesProjectionWaitFailure(t *testing.T) {
 }
 
 func TestLosingVideoGenerationCleansDerivativesPromptly(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "video-losing-generation", "Video losing generation")
@@ -668,6 +698,8 @@ func TestLosingVideoGenerationCleansDerivativesPromptly(t *testing.T) {
 }
 
 func TestAssetModelRecordAssetDeletedRequiresActor(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	service := core.assetModel
 	ctx := testContext(t)
@@ -682,6 +714,8 @@ func TestAssetModelRecordAssetDeletedRequiresActor(t *testing.T) {
 }
 
 func TestAssetModelProcessingDoesNotAppendAfterAssetDeleted(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	media := core.mediaModel
 	service := core.assetModel
@@ -715,6 +749,8 @@ func TestAssetModelProcessingDoesNotAppendAfterAssetDeleted(t *testing.T) {
 }
 
 func TestAssetModelSkippedVideoManifestCleansUpDerivativeOutputs(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	media := core.mediaModel
 	service := core.assetModel
@@ -772,6 +808,8 @@ func TestAssetModelSkippedVideoManifestCleansUpDerivativeOutputs(t *testing.T) {
 }
 
 func TestAssetModelPublishAssetProcessingRejectsRoomMismatch(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	media := core.mediaModel
 	service := core.assetModel
@@ -807,6 +845,8 @@ func TestAssetModelPublishAssetProcessingRejectsRoomMismatch(t *testing.T) {
 }
 
 func TestAssetModelDeleteVideoDerivativesUsesInheritedAssetRoom(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	media := core.mediaModel
 	service := core.assetModel
@@ -864,6 +904,8 @@ func TestAssetModelDeleteVideoDerivativesUsesInheritedAssetRoom(t *testing.T) {
 }
 
 func TestMediaModelMessageBodyAttachmentLookups(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	service := core.mediaModel
 	ctx := testContext(t)

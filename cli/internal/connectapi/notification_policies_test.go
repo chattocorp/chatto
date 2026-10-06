@@ -14,6 +14,8 @@ import (
 )
 
 func TestNotificationDeliveryModeAliasesPreserveProtoJSONCompatibility(t *testing.T) {
+	t.Parallel()
+
 	encoded, err := protojson.Marshal(&apiv1.NotificationDeliveryModes{
 		DirectMessages: apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum(),
 		DirectMentions: apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum(),
@@ -52,6 +54,8 @@ func roomNotificationPolicyScope(roomID string) *apiv1.NotificationPolicyScope {
 }
 
 func TestNotificationPolicyServiceScopesAndBatch(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	group, err := env.core.CreateRoomGroup(ctx, core.SystemActorID, "Policy Group", "")
@@ -125,6 +129,8 @@ func TestNotificationPolicyServiceScopesAndBatch(t *testing.T) {
 }
 
 func TestNotificationPolicyServiceAuthenticationLimitsAndValidation(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	_, err := env.notificationPolicies.GetNotificationPolicy(env.ctx, connect.NewRequest(&apiv1.NotificationPolicyServiceGetNotificationPolicyRequest{
 		Scope: serverNotificationPolicyScope(),

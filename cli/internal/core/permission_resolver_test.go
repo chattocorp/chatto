@@ -13,6 +13,8 @@ import (
 // ============================================================================
 
 func TestPermissionResolver_HasServerPermission(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -53,6 +55,8 @@ func TestPermissionResolver_HasServerPermission(t *testing.T) {
 }
 
 func TestPermissionResolver_MessageReadInclusionTruthTable(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "read-inclusion", "Read Inclusion", "password123")
@@ -115,6 +119,8 @@ func TestPermissionResolver_MessageReadInclusionTruthTable(t *testing.T) {
 	}
 }
 
+// This test does not call t.Parallel: installTestPermissionInclusion changes
+// the package-wide permission catalog.
 func TestPermissionResolver_ResolvesExplicitInclusion(t *testing.T) {
 	broad, narrow := installTestPermissionInclusion(t)
 	core, _ := setupTestCore(t)
@@ -135,6 +141,8 @@ func TestPermissionResolver_ResolvesExplicitInclusion(t *testing.T) {
 }
 
 func TestPermissionResolver_HasServerPermission_MultiRoleDenyWins(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -168,6 +176,8 @@ func TestPermissionResolver_HasServerPermission_MultiRoleDenyWins(t *testing.T) 
 }
 
 func TestPermissionResolver_HasServerPermission_CustomDenyRole(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -226,6 +236,8 @@ func TestPermissionResolver_HasServerPermission_CustomDenyRole(t *testing.T) {
 }
 
 func TestPermissionResolver_HasServerPermission_EveryoneFallbackAndNamedRoleDenies(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -315,6 +327,8 @@ func TestPermissionResolver_HasServerPermission_EveryoneFallbackAndNamedRoleDeni
 // ============================================================================
 
 func TestPermissionResolver_HasSpacePermission(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -355,6 +369,8 @@ func TestPermissionResolver_HasSpacePermission(t *testing.T) {
 }
 
 func TestPermissionResolver_HasSpacePermission_ServerFallback(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -403,6 +419,8 @@ func TestPermissionResolver_HasSpacePermission_ServerFallback(t *testing.T) {
 }
 
 func TestPermissionResolver_ExplicitDenyOnHighestRole(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -433,6 +451,8 @@ func TestPermissionResolver_ExplicitDenyOnHighestRole(t *testing.T) {
 }
 
 func TestPermissionResolver_HasSpacePermission_ServerRoleOverride(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -458,6 +478,8 @@ func TestPermissionResolver_HasSpacePermission_ServerRoleOverride(t *testing.T) 
 }
 
 func TestPermissionResolver_HasSpacePermission_DMKind(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -500,6 +522,8 @@ func TestPermissionResolver_HasSpacePermission_DMKind(t *testing.T) {
 // ============================================================================
 
 func TestPermissionResolver_HasRoomPermission(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -545,6 +569,8 @@ func TestPermissionResolver_HasRoomPermission(t *testing.T) {
 }
 
 func TestPermissionResolver_HasRoomPermission_AdminRoleDenials(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -574,6 +600,8 @@ func TestPermissionResolver_HasRoomPermission_AdminRoleDenials(t *testing.T) {
 }
 
 func TestPermissionResolver_HasRoomPermission_DenyWins(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -622,6 +650,8 @@ func TestPermissionResolver_HasRoomPermission_DenyWins(t *testing.T) {
 // ============================================================================
 
 func TestPermissionResolver_HasRoomPermission_RoomGrantOverridesAbsentSetGrant(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -670,6 +700,8 @@ func TestPermissionResolver_HasRoomPermission_RoomGrantOverridesAbsentSetGrant(t
 }
 
 func TestPermissionResolver_HasRoomPermission_RoomDenialOverridesSpaceGrant(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -693,6 +725,8 @@ func TestPermissionResolver_HasRoomPermission_RoomDenialOverridesSpaceGrant(t *t
 }
 
 func TestPermissionResolver_HasRoomPermission_NearestDecisionForSameRole(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -713,6 +747,8 @@ func TestPermissionResolver_HasRoomPermission_NearestDecisionForSameRole(t *test
 }
 
 func TestPermissionResolver_HasRoomPermission_ConflictingRoles(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -745,6 +781,8 @@ func TestPermissionResolver_HasRoomPermission_ConflictingRoles(t *testing.T) {
 }
 
 func TestPermissionResolver_HasRoomPermission_EveryoneDenyBlocksLessSpecificNamedAllow(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -785,6 +823,8 @@ func TestPermissionResolver_HasRoomPermission_EveryoneDenyBlocksLessSpecificName
 }
 
 func TestPermissionResolver_HasRoomPermission_IsolationBetweenRooms(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -819,6 +859,8 @@ func TestPermissionResolver_HasRoomPermission_IsolationBetweenRooms(t *testing.T
 }
 
 func TestPermissionResolver_HasRoomPermission_ServerRoleRoomDenial(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -842,6 +884,8 @@ func TestPermissionResolver_HasRoomPermission_ServerRoleRoomDenial(t *testing.T)
 }
 
 func TestPermissionResolver_HasRoomPermission_ServerRoleRoomGrant(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -865,6 +909,8 @@ func TestPermissionResolver_HasRoomPermission_ServerRoleRoomGrant(t *testing.T) 
 }
 
 func TestPermissionResolver_HasRoomPermission_ClearFallsBackToSpace(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -898,6 +944,8 @@ func TestPermissionResolver_HasRoomPermission_ClearFallsBackToSpace(t *testing.T
 }
 
 func TestPermissionResolver_HasRoomPermission_MultiplePermissionsPerRoom(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -931,6 +979,8 @@ func TestPermissionResolver_HasRoomPermission_MultiplePermissionsPerRoom(t *test
 // ============================================================================
 
 func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1117,6 +1167,8 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 // ============================================================================
 
 func TestPermissionResolver_DMContract(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1178,6 +1230,8 @@ func TestPermissionResolver_DMContract(t *testing.T) {
 }
 
 func TestPermissionResolver_DMAttachInheritsAndOverridesServer(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1228,6 +1282,8 @@ func TestPermissionResolver_DMAttachInheritsAndOverridesServer(t *testing.T) {
 // ============================================================================
 
 func TestPermissionResolver_RoomOverridesServerForSameRole(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1299,6 +1355,8 @@ func TestPermissionResolver_RoomOverridesServerForSameRole(t *testing.T) {
 // ============================================================================
 
 func TestPermissionResolver_ServerAuthority(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1324,6 +1382,8 @@ func TestPermissionResolver_ServerAuthority(t *testing.T) {
 }
 
 func TestContentAuthorizationReadsOneServerContentViewGeneration(t *testing.T) {
+	t.Parallel()
+
 	tests := map[string]func(context.Context, *ChattoCore) error{
 		"permission resolution": func(ctx context.Context, core *ChattoCore) error {
 			_, err := core.PermResolver().Resolve(ctx, SystemActorID, KindChannel, "", PermMessagePost)

@@ -12,6 +12,8 @@ import (
 )
 
 func TestSeedDataCreatesReadableReproducibleState(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	options := SeedOptions{Seed: 42, Users: 3, Rooms: 2, Messages: 12, ThreadReplies: 5}
@@ -102,6 +104,8 @@ func TestSeedDataCreatesReadableReproducibleState(t *testing.T) {
 }
 
 func TestSeedDataConcurrentRunsAllocateDistinctNames(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	options := SeedOptions{Users: 2, Rooms: 1, Messages: 2}
@@ -129,6 +133,8 @@ func TestSeedDataConcurrentRunsAllocateDistinctNames(t *testing.T) {
 }
 
 func TestSeedDataRejectsInvalidOptionsBeforeWriting(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	for _, options := range []SeedOptions{
 		{Users: 0, Rooms: 1},
@@ -146,6 +152,8 @@ func TestSeedDataRejectsInvalidOptionsBeforeWriting(t *testing.T) {
 }
 
 func TestSeedDataAcceptsEmptyHistoryAndCancellation(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	options := SeedOptions{Users: 1, Rooms: 1}
 	result, err := c.SeedData(testContext(t), options)
@@ -159,6 +167,8 @@ func TestSeedDataAcceptsEmptyHistoryAndCancellation(t *testing.T) {
 
 // Read persisted history to check membership at posting time and final state.
 func TestSeedDataInterleavesMembershipChanges(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	scene, err := c.SeedData(ctx, SeedOptions{Seed: 42, Users: 20, Rooms: 5, Messages: 40})
