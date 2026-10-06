@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/log"
 )
@@ -30,5 +31,18 @@ func TestSlogWritesThroughCharmLogger(t *testing.T) {
 func TestSlogKeepsNil(t *testing.T) {
 	if Slog(nil) != nil {
 		t.Fatal("Slog(nil) is not nil")
+	}
+}
+
+// Chatto's JSON logs write durations as strings such as "1.5s". Records from
+// the framework must keep that format.
+func TestSlogKeepsDurationStringsInJSON(t *testing.T) {
+	var output bytes.Buffer
+	logger := log.NewWithOptions(&output, log.Options{Formatter: log.JSONFormatter})
+
+	Slog(logger).Info("Projection startup complete", "duration", 1500*time.Millisecond)
+
+	if got := output.String(); !strings.Contains(got, `"duration":"1.5s"`) {
+		t.Fatalf("output %q does not contain the duration as a string", got)
 	}
 }
