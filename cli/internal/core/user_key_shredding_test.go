@@ -211,9 +211,9 @@ func TestUserKeyShreddingKeepsDEKsDiscoverableUntilWrappingKeysAreShredded(t *te
 	require.NoError(t, err)
 	require.NotEmpty(t, contentRefs)
 
-	// The shredding worker can retry the failed request in the background, so
-	// the test switches the failure off with a flag instead of replacing the
-	// function again.
+	// The shredding worker can process the stored request in the background,
+	// so the test switches the failure off with a flag instead of replacing
+	// the function again.
 	var failWrappingShred atomic.Bool
 	failWrappingShred.Store(true)
 	originalShredWrapping := chatto.keyShredding.shredWrappingKeyFn

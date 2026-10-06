@@ -417,14 +417,15 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
   `newConnectAPITestEnv` get their own embedded NATS server. Leave a test
   serial, with a comment that gives the reason, when it changes package state,
   measures the whole process (for example `testing.AllocsPerRun`), or must
-  finish heavy work within a fixed deadline. A test changes package state when it assigns a package
-  variable in any package, directly or through a function such as
-  `log.SetDefault` or `linkpreview.AllowLocalhostForTesting`, even if it
-  restores the value in `t.Cleanup`. A clean `-race` run of the whole package
-  does not prove that tests are safe; run the affected tests together with
-  `-race -count=N`. Add `-parallel 4` to `-race` runs. The race detector makes
-  tests much slower, and with more concurrent tests, tests that wait for
-  background work can miss their deadlines.
+  finish heavy work within a fixed deadline. A test changes package state
+  when it assigns a package variable in any package, directly or through a
+  function such as `log.SetDefault` or
+  `linkpreview.AllowLocalhostForTesting`, even if it restores the value in
+  `t.Cleanup`. A clean `-race` run of the whole package does not prove that
+  tests are safe; run the affected tests together with `-race -count=N`. Add
+  `-parallel 4` to `-race` runs. The race detector makes tests much slower,
+  and with more concurrent tests, tests that wait for background work can
+  miss their deadlines.
 - Treat fixture and setup errors as fatal before using returned values. Never
   discard an error from helpers such as `CreateRoom` or `CreateUser` and then
   dereference the result; fail the test at the setup call instead.
