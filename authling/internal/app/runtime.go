@@ -251,8 +251,7 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger) (serveEr
 	if logger == nil {
 		return fmt.Errorf("logger is required")
 	}
-	eventLogger := logger
-	runtime, err := New(ctx, cfg, eventLogger)
+	runtime, err := New(ctx, cfg, logger)
 	if err != nil {
 		return err
 	}
