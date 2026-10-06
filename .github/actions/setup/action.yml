@@ -105,15 +105,16 @@ runs:
       run: mise setup-frontend
 
     # The action runs a local Turbo remote cache server. It stores one GitHub
-    # Actions cache entry for each task hash, so all jobs share build and
-    # check results, and GitHub removes entries that are not used. See ADR-102.
+    # Actions cache entry for each task hash, so jobs on the same operating
+    # system share build and check results, and GitHub removes entries that
+    # are not used. See ADR-102.
     - name: Start Turbo remote cache
       if: inputs.install-frontend-deps == 'true' && inputs.turbo-remote-cache == 'true'
       uses: rharkor/caching-for-turbo@2238fae6eb9a9936f92356f54cb3660200d105e7 # v2.5.1
 
     # Only main writes entries. Other runs read them. Pull request entries
-    # cannot help a merge run or other pull requests, and they would push
-    # main's entries out of the size-limited Actions cache.
+    # cannot help a merge run or other pull requests, and GitHub would remove
+    # main's entries to make space for them in the size-limited Actions cache.
     - name: Select Turbo cache sources
       if: inputs.install-frontend-deps == 'true' && inputs.turbo-remote-cache == 'true'
       shell: bash

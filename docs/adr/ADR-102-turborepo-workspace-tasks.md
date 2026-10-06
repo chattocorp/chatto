@@ -54,11 +54,12 @@ script.
 CI uses the GitHub Actions cache as the Turbo remote cache. The shared setup
 action starts `rharkor/caching-for-turbo`, pinned to a commit. The action runs
 a local cache server that stores one Actions cache entry for each task hash.
-All jobs share build and check results, and GitHub removes entries that are
-not used. Build output stays in the repository's Actions cache, with the Go and
+Jobs on the same operating system share build and check results, and GitHub
+removes entries that are not used. Build output stays in the repository's Actions cache, with the Go and
 pnpm caches. Pushes to `main` write entries. Other runs only read them:
 pull request entries cannot help a merge run or other pull requests, and
-they would push `main`'s entries out of the size-limited Actions cache. Jobs
+GitHub would remove `main`'s entries to make space for them in the
+size-limited Actions cache. Jobs
 that publish images or releases turn the remote cache off, so published
 artifacts build from source.
 
@@ -76,6 +77,12 @@ build takes approximately one second. A warm `mise dev` restart takes a few
 seconds longer than with mise source checks, because it always replays the
 cached Turbo tasks and copies the embedded frontend. Root checks and tests keep one-task concurrency to bound memory use;
 do not run separate SvelteKit tasks concurrently in one checkout.
+
+CI jobs that install frontend dependencies run a third-party action, pinned to
+a commit. If its cache server does not start, the job fails. CI check and
+build results are only as correct as the Turbo task inputs: a task that reads
+a file or environment variable outside its declared inputs can restore a
+stale result.
 
 Use `mise x -- pnpm turbo run check --filter=runling --dry=json` to inspect the
 task graph. Use `--force` on a Turbo run to bypass cached results.
