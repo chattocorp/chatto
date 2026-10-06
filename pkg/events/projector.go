@@ -285,7 +285,7 @@ func newProjector[E any](
 	if js == nil || stream == nil {
 		panic("events: projector requires a JetStream context and a stream")
 	}
-	if err := validateConsumerName(opts.ConsumerName); err != nil {
+	if err := validateConsumerIdentity(opts.ConsumerName, opts.ConsumerDescription); err != nil {
 		return nil, err
 	}
 	if opts.Snapshots != nil && opts.Checkpoint != nil {
@@ -672,9 +672,14 @@ func (p *Projector) fail(seq uint64, err error) {
 	p.waiters = nil
 }
 
-func validateConsumerName(name string) error {
+// validateConsumerIdentity checks the optional consumer labels. An empty name
+// uses the SDK's name, so a description needs a name.
+func validateConsumerIdentity(name, description string) error {
+	if name == "" && description != "" {
+		return fmt.Errorf("projection consumer description requires a consumer name")
+	}
 	if len(name) > 64 {
-		return fmt.Errorf("projection consumer name must contain 1 to 64 ASCII letters, digits, hyphens, or underscores")
+		return fmt.Errorf("projection consumer name must contain at most 64 ASCII letters, digits, hyphens, or underscores")
 	}
 	for _, c := range name {
 		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '_') {

@@ -198,9 +198,12 @@ func TestProjectorConsumerIdentityValidation(t *testing.T) {
 			t.Fatalf("accepted invalid name %q", name)
 		}
 	}
-	for _, name := range []string{"", "content_v2-TEST"} {
-		if _, err := newLifecycleProjector(js, stream, nil, ProjectorOptions{ConsumerName: name, ConsumerDescription: "Read model"}); err != nil {
-			t.Fatalf("rejected valid name %q: %v", name, err)
+	if _, err := newLifecycleProjector(js, stream, nil, ProjectorOptions{ConsumerDescription: "Read model"}); err == nil {
+		t.Fatal("accepted a consumer description without a consumer name")
+	}
+	for _, opts := range []ProjectorOptions{{}, {ConsumerName: "content_v2-TEST", ConsumerDescription: "Read model"}} {
+		if _, err := newLifecycleProjector(js, stream, nil, opts); err != nil {
+			t.Fatalf("rejected valid consumer identity %+v: %v", opts, err)
 		}
 	}
 }
