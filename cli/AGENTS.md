@@ -113,6 +113,10 @@ authorization, live events, backup and restore, and backend tests.
   remain valid after intervening writes. Sparse patches avoid overwriting
   untouched fields, but detecting a stale edit to the same field requires a
   client-supplied revision.
+- Publish a fact without an OCC guard only when its records and the
+  permission to write them do not depend on state that a concurrent write can
+  change. Use `AppendEventually` or `events.Unguarded()` for such facts. Every
+  decision that reads state keeps its guard (ADR-033).
 - Defaults required for a newly created aggregate must commit with its creation
   facts in the same atomic EVT batch. Do not reconstruct creation-time defaults
   later by scanning projections during startup.

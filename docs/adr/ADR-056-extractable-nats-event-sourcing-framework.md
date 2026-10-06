@@ -47,8 +47,8 @@ NATS framework that may later move to a standalone repository.
 
 Framework-owned responsibilities are:
 
-- opaque-byte event-log reads, OCC-only publishing, and atomic append
-  mechanics, including duplicate-aware results and optional per-record broker
+- opaque-byte event-log reads, OCC-guarded publishing with an explicit
+  unguarded path for state-independent facts, and atomic append mechanics, including duplicate-aware results and optional per-record broker
   TTL;
 - exact-sequence stream-message reads with bounded concurrency and an optional
   process-local cache with sliding idle expiry;
