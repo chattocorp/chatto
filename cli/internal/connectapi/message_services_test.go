@@ -76,9 +76,9 @@ func TestMessageServiceInteractionPostingCapability(t *testing.T) {
 	check(false, true)
 }
 
+// This test does not call t.Parallel: linkpreview.AllowLocalhostForTesting
+// changes package state in linkpreview.
 func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 
 	if _, err := env.messages.FetchLinkPreview(env.ctx, connect.NewRequest(&apiv1.FetchLinkPreviewRequest{Url: "https://example.test"})); errorCode(err) != connect.CodeUnauthenticated {

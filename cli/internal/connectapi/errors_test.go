@@ -15,9 +15,9 @@ import (
 	"hmans.de/chatto/internal/core"
 )
 
+// This test does not call t.Parallel: it replaces the process-wide default
+// logger, and cores that other tests start would write into its buffer.
 func TestHandlerOptionsLogUnmappedErrorsWithoutExposingCause(t *testing.T) {
-	t.Parallel()
-
 	var logs bytes.Buffer
 	previousLogger := log.Default()
 	log.SetDefault(log.New(&logs))
