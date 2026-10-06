@@ -150,6 +150,9 @@ func TestBatchGuardHeaders(t *testing.T) {
 			"Nats-Expected-Last-Subject-Sequence-Subject": "evt.room.R1.>",
 		}},
 		"stream": {ExpectStreamSeq(7), map[string]string{"Nats-Expected-Last-Sequence": "7"}},
+		"filter on own subject": {ExpectFilterSeq("evt.room.R1.created", 7), map[string]string{
+			"Nats-Expected-Last-Subject-Sequence": "7",
+		}},
 		"filter and stream": {ExpectFilterSeq("evt.room.R1.>", 7).AndStreamSeq(9), map[string]string{
 			"Nats-Expected-Last-Subject-Sequence":         "7",
 			"Nats-Expected-Last-Subject-Sequence-Subject": "evt.room.R1.>",

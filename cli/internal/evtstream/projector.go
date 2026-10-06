@@ -1,8 +1,6 @@
 package evtstream
 
 import (
-	"context"
-
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
@@ -88,24 +86,4 @@ func decodeEvent(data []byte) (events.DecodedEvent[*evtv1.Event], error) {
 		return events.DecodedEvent[*evtv1.Event]{}, err
 	}
 	return events.DecodedEvent[*evtv1.Event]{Event: &event, ID: event.GetId()}, nil
-}
-
-// AppendEventuallyAndWait publishes an append-only fact on its aggregate
-// subject and waits until projector has applied it. Use it only for facts whose
-// exact encoded payload remains safe after an intervening write.
-func (p *Publisher) AppendEventuallyAndWait(
-	ctx context.Context,
-	projector *events.Projector,
-	aggregate Aggregate,
-	event *evtv1.Event,
-) (uint64, error) {
-	subject := aggregate.SubjectFor(event)
-	sequence, err := p.AppendEventually(ctx, subject, event)
-	if err != nil {
-		return 0, err
-	}
-	if err := projector.WaitFor(ctx, events.SubjectPosition(subject, sequence)); err != nil {
-		return sequence, err
-	}
-	return sequence, nil
 }

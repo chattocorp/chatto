@@ -368,45 +368,6 @@ func (m *RoomModel) appendDirectoryEventually(ctx context.Context, pub *evtstrea
 	return pos, nil
 }
 
-func (m *RoomModel) appendGroupLayout(ctx context.Context, pub *evtstream.Publisher, agg evtstream.Aggregate, event *evtv1.Event) (events.StreamPosition, error) {
-	subject := agg.SubjectFor(event)
-	seq, err := pub.Append(ctx, subject, event)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	pos := events.SubjectPosition(subject, seq)
-	if err := m.waitForGroupLayout(ctx, pos); err != nil {
-		return pos, err
-	}
-	return pos, nil
-}
-
-func (m *RoomModel) appendGroupLayoutEventually(ctx context.Context, pub *evtstream.Publisher, agg evtstream.Aggregate, event *evtv1.Event) (events.StreamPosition, error) {
-	subject := agg.SubjectFor(event)
-	seq, err := pub.AppendEventually(ctx, subject, event)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	pos := events.SubjectPosition(subject, seq)
-	if err := m.waitForGroupLayout(ctx, pos); err != nil {
-		return pos, err
-	}
-	return pos, nil
-}
-
-func (m *RoomModel) appendTimelineEventually(ctx context.Context, pub *evtstream.Publisher, agg evtstream.Aggregate, event *evtv1.Event) (events.StreamPosition, error) {
-	subject := agg.SubjectFor(event)
-	seq, err := pub.AppendEventually(ctx, subject, event)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	pos := events.SubjectPosition(subject, seq)
-	if err := m.waitForTimeline(ctx, pos); err != nil {
-		return pos, err
-	}
-	return pos, nil
-}
-
 // threadParticipantIDs waits for current thread state before reading the full set.
 func (m *RoomModel) threadParticipantIDs(ctx context.Context, rootID string) ([]string, error) {
 	if err := m.threads.Projector().WaitForCurrent(ctx); err != nil {

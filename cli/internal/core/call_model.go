@@ -873,20 +873,26 @@ func (s *CallModel) cleanupUnmatchedLiveKitSnapshot(ctx context.Context, snapsho
 	return nil
 }
 
+// ensureUnmatchedCallEndedFact records one ended fact for a call that LiveKit
+// still reports. The check and the write share the call-ended subject guard,
+// so replicas that reconcile the same call at the same time record it once.
 func (s *CallModel) ensureUnmatchedCallEndedFact(ctx context.Context, snapshot liveKitParticipantSnapshot) error {
 	agg := evtstream.RoomAggregate(snapshot.RoomID)
 	subject := agg.Subject(evtstream.EventCallEnded)
-	endedEvents, _, err := s.publisher.SubjectEvents(ctx, subject)
-	if err != nil {
-		return fmt.Errorf("read unmatched LiveKit call endings: %w", err)
-	}
-	for _, event := range endedEvents {
-		if event.GetVoiceCallEnded().GetCallId() == snapshot.CallID {
-			return nil
-		}
-	}
 	ended := newCallEndedEvent(snapshot.RoomID, SystemActorID, snapshot.CallID, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION)
-	if _, err := s.publisher.AppendEventually(ctx, subject, ended); err != nil {
+	_, err := s.publisher.ExecuteMutation(ctx, events.AtSubject(subject), func(ctx context.Context, _ events.MutationAttempt) ([]evtstream.MutationEntry, error) {
+		endedEvents, _, err := s.publisher.SubjectEvents(ctx, subject)
+		if err != nil {
+			return nil, fmt.Errorf("read unmatched LiveKit call endings: %w", err)
+		}
+		for _, event := range endedEvents {
+			if event.GetVoiceCallEnded().GetCallId() == snapshot.CallID {
+				return nil, nil
+			}
+		}
+		return []evtstream.MutationEntry{{Subject: subject, Event: ended}}, nil
+	})
+	if err != nil {
 		return fmt.Errorf("record unmatched LiveKit call end: %w", err)
 	}
 	return nil

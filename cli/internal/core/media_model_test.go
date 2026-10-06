@@ -838,7 +838,7 @@ func TestAssetModelDeleteVideoDerivativesUsesInheritedAssetRoom(t *testing.T) {
 		},
 	}
 	inheritedSubject := evtstream.AssetAggregate(thumbnail.GetId()).SubjectFor(inheritedCreated)
-	inheritedSeq, err := core.EventPublisher.Append(ctx, inheritedSubject, inheritedCreated)
+	inheritedSeq, err := core.EventPublisher.AppendEventually(ctx, inheritedSubject, inheritedCreated)
 	if err != nil {
 		t.Fatalf("Append inherited thumbnail creation: %v", err)
 	}

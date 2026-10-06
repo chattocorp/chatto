@@ -29,6 +29,11 @@ durable worker resource ownership.
   embedded web assets first (`mise build-frontend`, and `mise build-web` in
   `authling/`). `go vet` compiles the tests, so it also finds users that a
   text search can miss.
+- Guard a write only when its records or the permission to write them depend
+  on state that a concurrent write can change. Publish other facts with
+  `AppendEventually` or the `Unguarded` mutation boundary. NATS stores the
+  guard headers with every message. Keep `AppendBatch` rejecting a batch
+  without a guard, so that an unguarded batch is always an explicit choice.
 - Constructors panic when a required argument is missing or malformed.
   They return an error when options are invalid or a construction-time check
   fails. Keep new constructors consistent with this rule.

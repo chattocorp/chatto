@@ -60,35 +60,6 @@ func TestNewRoomModelWiresDependencies(t *testing.T) {
 	}
 }
 
-func TestRoomModelAppendTimelineEventuallyPublishesAndWaits(t *testing.T) {
-	harness := newTestEventHarness(t)
-	timeline := NewRoomTimelineProjection()
-	timelineProjector := harness.projector(timeline)
-	startTestProjector(t, timelineProjector)
-	service := newTestRoomModel(t, nil, nil, nil, nil, timeline, timelineProjector, nil, nil, nil, nil)
-	ctx := testContext(t)
-
-	event := newEvent(SystemActorID, roomCreatedEvent("R-service", "service-room", "", evtv1.RoomKind_ROOM_KIND_CHANNEL))
-	pos, err := service.appendTimelineEventually(ctx, harness.publisher, evtstream.RoomAggregate("R-service"), event)
-	if err != nil {
-		t.Fatalf("appendTimelineEventually returned error: %v", err)
-	}
-
-	if pos.Seq == 0 {
-		t.Fatal("appendTimelineEventually returned zero stream sequence")
-	}
-	if got := timeline.RoomEventCount("R-service"); got != 1 {
-		t.Fatalf("RoomEventCount = %d, want 1", got)
-	}
-	entry, ok := timeline.Get(event.GetId())
-	if !ok {
-		t.Fatal("timeline did not project appended event")
-	}
-	if entry.StreamSeq != pos.Seq {
-		t.Fatalf("projected stream seq = %d, want %d", entry.StreamSeq, pos.Seq)
-	}
-}
-
 func TestRoomModelAppendDirectoryEventuallyPublishesAndWaits(t *testing.T) {
 	harness := newTestEventHarness(t)
 	directory := NewRoomDirectoryProjection()
@@ -112,44 +83,6 @@ func TestRoomModelAppendDirectoryEventuallyPublishesAndWaits(t *testing.T) {
 	}
 	if room.GetName() != "directory-room" {
 		t.Fatalf("room name = %q, want %q", room.GetName(), "directory-room")
-	}
-}
-
-func TestRoomModelAppendGroupLayoutPublishesAndWaits(t *testing.T) {
-	harness := newTestEventHarness(t)
-	groupLayout := NewRoomGroupLayoutProjection()
-	groupLayoutProjector := harness.projector(groupLayout)
-	startTestProjector(t, groupLayoutProjector)
-	service := newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
-	ctx := testContext(t)
-
-	created := newEvent(SystemActorID, &evtv1.Event{
-		Event: &evtv1.Event_RoomGroupCreated{
-			RoomGroupCreated: &evtv1.RoomGroupCreatedEvent{GroupId: "G-service", Name: "Service Group"},
-		},
-	})
-	if _, err := service.appendGroupLayoutEventually(ctx, harness.publisher, evtstream.GroupAggregate("G-service"), created); err != nil {
-		t.Fatalf("appendGroupLayoutEventually returned error: %v", err)
-	}
-	group, ok := groupLayout.Groups.Get("G-service")
-	if !ok {
-		t.Fatal("room group projection did not project appended group")
-	}
-	if group.GetName() != "Service Group" {
-		t.Fatalf("group name = %q, want %q", group.GetName(), "Service Group")
-	}
-
-	reordered := newEvent(SystemActorID, &evtv1.Event{
-		Event: &evtv1.Event_RoomGroupsReordered{
-			RoomGroupsReordered: &evtv1.RoomGroupsReorderedEvent{GroupIds: []string{"G-service", "G-other"}},
-		},
-	})
-	if _, err := service.appendGroupLayout(ctx, harness.publisher, evtstream.LayoutAggregate(), reordered); err != nil {
-		t.Fatalf("appendGroupLayout returned error: %v", err)
-	}
-	gotOrder := groupLayout.Layout.Order()
-	if len(gotOrder) != 2 || gotOrder[0] != "G-service" || gotOrder[1] != "G-other" {
-		t.Fatalf("layout order = %#v, want [G-service G-other]", gotOrder)
 	}
 }
 

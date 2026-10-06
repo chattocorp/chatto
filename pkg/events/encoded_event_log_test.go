@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"maps"
 	"slices"
 	"strconv"
@@ -488,8 +489,9 @@ func TestAppendAtStoresGuardHeaders(t *testing.T) {
 	}
 }
 
-// A subject mutation boundary sends the filter header also for an exact
-// subject, for a single record and for the guarded first batch record.
+// A subject mutation boundary on the records' own subject sends the shorter
+// own-subject header, for a single record and for the guarded first batch
+// record. A wildcard boundary keeps the filter header.
 func TestExecuteMutationStoresSubjectBoundaryHeaders(t *testing.T) {
 	js, stream := setupTestStream(t)
 	eventLog := NewEncodedEventLog(js, stream, testLogger())
@@ -507,10 +509,7 @@ func TestExecuteMutationStoresSubjectBoundaryHeaders(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ExecuteMutation %v: %v", records, err)
 		}
-		want := map[string]string{
-			"Nats-Expected-Last-Subject-Sequence":         strconv.FormatUint(subjectTail, 10),
-			"Nats-Expected-Last-Subject-Sequence-Subject": subject,
-		}
+		want := map[string]string{"Nats-Expected-Last-Subject-Sequence": strconv.FormatUint(subjectTail, 10)}
 		if got := storedGuardHeaders(t, stream, result.Sequences[0]); !maps.Equal(got, want) {
 			t.Fatalf("records %v: stored guard headers = %v, want %v", records, got, want)
 		}
@@ -520,6 +519,109 @@ func TestExecuteMutationStoresSubjectBoundaryHeaders(t *testing.T) {
 			}
 		}
 		subjectTail = result.Sequences[len(result.Sequences)-1]
+	}
+
+	result, err := eventLog.ExecuteMutation(ctx, AtSubject("evt.guards.mutation.>"), func(context.Context, MutationAttempt) ([]EncodedMutationEntry, error) {
+		return []EncodedMutationEntry{{Subject: subject, Record: EncodedRecord{ID: "wildcard", Data: []byte("w")}}}, nil
+	})
+	if err != nil {
+		t.Fatalf("ExecuteMutation wildcard: %v", err)
+	}
+	want := map[string]string{
+		"Nats-Expected-Last-Subject-Sequence":         strconv.FormatUint(subjectTail, 10),
+		"Nats-Expected-Last-Subject-Sequence-Subject": "evt.guards.mutation.>",
+	}
+	if got := storedGuardHeaders(t, stream, result.Sequences[0]); !maps.Equal(got, want) {
+		t.Fatalf("wildcard boundary stored guard headers = %v, want %v", got, want)
+	}
+}
+
+// AppendEventually publishes without a guard: concurrent writers on one
+// subject never conflict, the stored record has no guard headers, and a retry
+// with the same ID returns the stored sequence.
+func TestAppendEventuallyPublishesWithoutGuard(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	ctx := testContext(t)
+	const subject = "evt.unguarded.single.created"
+
+	const writers = 20
+	errs := make(chan error, writers)
+	var wg sync.WaitGroup
+	for i := range writers {
+		wg.Go(func() {
+			_, err := eventLog.AppendEventually(ctx, subject, EncodedRecord{ID: fmt.Sprintf("unguarded-%d", i), Data: []byte("x")})
+			errs <- err
+		})
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent AppendEventually: %v", err)
+		}
+	}
+
+	seq, err := eventLog.AppendEventually(ctx, subject, EncodedRecord{ID: "unguarded-retry", Data: []byte("x")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := storedGuardHeaders(t, stream, seq); len(got) != 0 {
+		t.Fatalf("unguarded record stored guard headers %v", got)
+	}
+	retried, err := eventLog.AppendEventually(ctx, subject, EncodedRecord{ID: "unguarded-retry", Data: []byte("x")})
+	if err != nil || retried != seq {
+		t.Fatalf("retry = %d, %v; want stored sequence %d", retried, err, seq)
+	}
+}
+
+// An unguarded mutation runs its decision once and commits without guard
+// headers. A single record reports a duplicate ID as not committed; several
+// records commit as one atomic batch. AppendBatch still rejects an unguarded
+// batch.
+func TestExecuteMutationUnguarded(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	ctx := testContext(t)
+	const subject = "evt.unguarded.mutation.created"
+	mutate := func(ids ...string) (MutationResult, error) {
+		decisions := 0
+		result, err := eventLog.ExecuteMutation(ctx, Unguarded(), func(context.Context, MutationAttempt) ([]EncodedMutationEntry, error) {
+			decisions++
+			entries := make([]EncodedMutationEntry, len(ids))
+			for i, id := range ids {
+				entries[i] = EncodedMutationEntry{Subject: subject, Record: EncodedRecord{ID: id, Data: []byte(id)}}
+			}
+			return entries, nil
+		})
+		if decisions != 1 {
+			t.Fatalf("decision ran %d times, want 1", decisions)
+		}
+		return result, err
+	}
+
+	single, err := mutate("single")
+	if err != nil || !single.Committed || len(single.Sequences) != 1 {
+		t.Fatalf("single = %+v, %v; want one committed record", single, err)
+	}
+	duplicate, err := mutate("single")
+	if err != nil || duplicate.Committed || duplicate.Sequences[0] != single.Sequences[0] {
+		t.Fatalf("duplicate = %+v, %v; want the stored sequence, not committed", duplicate, err)
+	}
+	batch, err := mutate("batch-first", "batch-second")
+	if err != nil || !batch.Committed || len(batch.Sequences) != 2 || batch.Sequences[1] != batch.Sequences[0]+1 {
+		t.Fatalf("batch = %+v, %v; want two adjacent committed records", batch, err)
+	}
+	for _, seq := range append(single.Sequences, batch.Sequences...) {
+		if got := storedGuardHeaders(t, stream, seq); len(got) != 0 {
+			t.Fatalf("unguarded mutation seq %d stored guard headers %v", seq, got)
+		}
+	}
+	if _, err := eventLog.AppendBatch(ctx, []EncodedBatchEntry{
+		{Subject: subject, Record: EncodedRecord{ID: "direct-first"}},
+		{Subject: subject, Record: EncodedRecord{ID: "direct-second"}},
+	}); !errors.Is(err, ErrMissingOCC) {
+		t.Fatalf("AppendBatch without a guard = %v, want ErrMissingOCC", err)
 	}
 }
 
@@ -546,5 +648,21 @@ func TestAppendAtRejectsMissingGuard(t *testing.T) {
 	}
 	if _, err := eventLog.AppendAt(testContext(t), "evt.guards.none", EncodedRecord{ID: "none"}, ExpectFilterSeq("", 0)); !errors.Is(err, ErrInvalidOCC) {
 		t.Fatalf("AppendAt with an empty filter = %v, want ErrInvalidOCC", err)
+	}
+}
+
+// A filter guard on the record's own subject becomes the own-subject header
+// and still rejects a stale sequence.
+func TestExactSubjectFilterGuardStillConflicts(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	ctx := testContext(t)
+	const subject = "evt.guards.exact.created"
+	if _, err := eventLog.AppendAt(ctx, subject, EncodedRecord{ID: "exact-first", Data: []byte("1")}, ExpectFilterSeq(subject, 0)); err != nil {
+		t.Fatal(err)
+	}
+	_, err := eventLog.AppendAt(ctx, subject, EncodedRecord{ID: "exact-stale", Data: []byte("2")}, ExpectFilterSeq(subject, 0))
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("stale exact-subject filter guard = %v, want ErrConflict", err)
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -863,7 +864,7 @@ func TestWaitForRoomLeaveTail_PropagatesCallProjectionReadinessFailure(t *testin
 		},
 	})
 	subject := evtstream.RoomAggregate(roomID).SubjectFor(event)
-	seq, err := harness.publisher.Append(ctx, subject, event)
+	seq, err := harness.publisher.AppendEventually(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
@@ -1032,7 +1033,7 @@ func TestCallState_SnapshotTracksRoomAggregateSeq(t *testing.T) {
 			RoomUpdated: &evtv1.RoomUpdatedEvent{RoomId: roomID, Name: "Room One"},
 		},
 	})
-	seq, err := core.EventPublisher.AppendEventuallyAndWait(ctx, core.callModel.callState.Projector(), evtstream.RoomAggregate(roomID), roomEvent)
+	seq, err := appendEventuallyAndWait(ctx, core.EventPublisher, core.callModel.callState.Projector(), evtstream.RoomAggregate(roomID), roomEvent)
 	if err != nil {
 		t.Fatalf("append room event() error = %v", err)
 	}
@@ -1057,7 +1058,7 @@ func TestCallState_SnapshotIgnoresAssetAggregateLifecycleSeq(t *testing.T) {
 			RoomUpdated: &evtv1.RoomUpdatedEvent{RoomId: roomID, Name: "Room One"},
 		},
 	})
-	roomSeq, err := core.EventPublisher.AppendEventuallyAndWait(ctx, core.callModel.callState.Projector(), evtstream.RoomAggregate(roomID), roomEvent)
+	roomSeq, err := appendEventuallyAndWait(ctx, core.EventPublisher, core.callModel.callState.Projector(), evtstream.RoomAggregate(roomID), roomEvent)
 	if err != nil {
 		t.Fatalf("append room event() error = %v", err)
 	}
@@ -2510,5 +2511,47 @@ func TestVoiceCallE2EEKey_PerCallAndShreddedOnEnd(t *testing.T) {
 	}
 	if key3 == "" || key3 == key1 {
 		t.Fatalf("New call should get a fresh E2EE key")
+	}
+}
+
+// Replicas that reconcile the same unmatched LiveKit call at the same time
+// record exactly one ended fact for it.
+func TestEnsureUnmatchedCallEndedFactIsUniqueAcrossConcurrentReconcilers(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	snapshot := liveKitParticipantSnapshot{RoomID: "room-concurrent-end", CallID: "call-concurrent-end"}
+
+	const reconcilers = 8
+	start := make(chan struct{})
+	errs := make(chan error, reconcilers)
+	var wg sync.WaitGroup
+	for range reconcilers {
+		wg.Go(func() {
+			<-start
+			errs <- core.callModel.ensureUnmatchedCallEndedFact(ctx, snapshot)
+		})
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("ensureUnmatchedCallEndedFact: %v", err)
+		}
+	}
+
+	subject := evtstream.RoomAggregate(snapshot.RoomID).Subject(evtstream.EventCallEnded)
+	endedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, subject)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ended := 0
+	for _, event := range endedEvents {
+		if event.GetVoiceCallEnded().GetCallId() == snapshot.CallID {
+			ended++
+		}
+	}
+	if ended != 1 {
+		t.Fatalf("ended facts for the call = %d, want 1", ended)
 	}
 }

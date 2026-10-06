@@ -1171,7 +1171,7 @@ func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *
 		},
 	}
 	inheritedSubject := evtstream.AssetAggregate(inheritedRoomDerivativeID).SubjectFor(inheritedCreated)
-	inheritedSeq, err := core.EventPublisher.Append(ctx, inheritedSubject, inheritedCreated)
+	inheritedSeq, err := core.EventPublisher.AppendEventually(ctx, inheritedSubject, inheritedCreated)
 	if err != nil {
 		t.Fatalf("Failed to append inherited-room derivative: %v", err)
 	}

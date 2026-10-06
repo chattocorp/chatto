@@ -134,62 +134,21 @@ func (l *EncodedEventLog) LastStreamSeq(ctx context.Context) (uint64, error) {
 	return info.State.LastSeq, nil
 }
 
-const maxAppendRetries = 5
-
 // maxByteBoundedPageFetch caps the records that one fetch of a byte-bounded
 // SubjectRecordsAfterPage call transfers.
 const maxByteBoundedPageFetch = 64
 
-// Append publishes a record using the current tail of subject as its OCC
-// token. Conflicts are returned so state-replacement callers can re-read and
-// re-compose before retrying.
-func (l *EncodedEventLog) Append(ctx context.Context, subject string, record EncodedRecord) (uint64, error) {
-	if err := validateEncodedRecord(record); err != nil {
-		return 0, err
-	}
-	expectedSeq, err := l.lastSubjectSeq(ctx, subject)
-	if err != nil {
-		return 0, err
-	}
-	sequence, _, err := l.publish(ctx, subject, record, ExpectSubjectSeq(expectedSeq))
-	return sequence, err
-}
-
-// AppendEventually retries OCC conflicts with the exact same opaque record.
-// Application adapters decide which event semantics make that retry safe.
+// AppendEventually publishes a record without an OCC guard. Use it only when
+// neither the record nor the permission to write it depend on state that a
+// concurrent write can change; decisions that read state need AppendAt,
+// AppendBatch, or ExecuteMutation with a guard. A retry with the same record ID
+// within the stream's de-duplication window returns the stored sequence.
 func (l *EncodedEventLog) AppendEventually(ctx context.Context, subject string, record EncodedRecord) (uint64, error) {
 	if err := validateEncodedRecord(record); err != nil {
 		return 0, err
 	}
-
-	var lastErr error
-	for attempt := 1; attempt <= maxAppendRetries; attempt++ {
-		expectedSeq, err := l.lastSubjectSeq(ctx, subject)
-		if err != nil {
-			return 0, err
-		}
-		seq, _, err := l.publish(ctx, subject, record, ExpectSubjectSeq(expectedSeq))
-		if err == nil {
-			return seq, nil
-		}
-		if !errors.Is(err, ErrConflict) {
-			return 0, err
-		}
-
-		lastErr = err
-		if attempt == maxAppendRetries {
-			break
-		}
-		l.logger.Debug("OCC conflict, retrying",
-			"subject", subject,
-			"expected_seq", expectedSeq,
-			"attempt", attempt,
-			"max_attempts", maxAppendRetries)
-		if err := waitBeforeConflictRetry(ctx, attempt); err != nil {
-			return 0, err
-		}
-	}
-	return 0, fmt.Errorf("append after %d attempts: %w", maxAppendRetries, lastErr)
+	sequence, _, err := l.publish(ctx, subject, record, Expectation{})
+	return sequence, err
 }
 
 // waitBeforeConflictRetry waits before OCC conflict retry attempt+1. The delay
@@ -222,6 +181,7 @@ func (l *EncodedEventLog) AppendAt(ctx context.Context, subject string, record E
 // publish writes one record with its guard. It also reports whether JetStream
 // acknowledged the record ID as a duplicate.
 func (l *EncodedEventLog) publish(ctx context.Context, subject string, record EncodedRecord, expect Expectation) (uint64, bool, error) {
+	expect = expect.forSubject(subject)
 	publishOpts := append(expect.publishOpts(), jetstream.WithMsgID(record.ID))
 	if record.TTL > 0 {
 		publishOpts = append(publishOpts, jetstream.WithMsgTTL(record.TTL))
@@ -237,8 +197,13 @@ func (l *EncodedEventLog) publish(ctx context.Context, subject string, record En
 }
 
 // AppendBatch atomically publishes encoded records. Either all records land
-// adjacently in stream order or none do.
+// adjacently in stream order or none do. At least one entry must carry a
+// guard; ExecuteMutation with Unguarded commits a batch without a guard.
 func (l *EncodedEventLog) AppendBatch(ctx context.Context, entries []EncodedBatchEntry) ([]uint64, error) {
+	return l.appendBatch(ctx, entries, true)
+}
+
+func (l *EncodedEventLog) appendBatch(ctx context.Context, entries []EncodedBatchEntry, requireGuard bool) ([]uint64, error) {
 	if len(entries) == 0 {
 		return nil, nil
 	}
@@ -258,7 +223,7 @@ func (l *EncodedEventLog) AppendBatch(ctx context.Context, entries []EncodedBatc
 		}
 		guards += entry.Expect.guards()
 	}
-	if guards == 0 {
+	if guards == 0 && requireGuard {
 		return nil, ErrMissingOCC
 	}
 
@@ -306,7 +271,7 @@ func entryConflict(entry EncodedBatchEntry) error {
 	if entry.Expect.isZero() {
 		return errBatchGuardsConflict()
 	}
-	return entry.Expect.conflict(entry.Subject)
+	return entry.Expect.forSubject(entry.Subject).conflict(entry.Subject)
 }
 
 // errBatchGuardsConflict is the conflict error when JetStream does not tell
@@ -322,7 +287,7 @@ func batchConflict(entries []EncodedBatchEntry, guards int) error {
 	if guards == 1 {
 		for _, entry := range entries {
 			if !entry.Expect.isZero() {
-				return entry.Expect.conflict(entry.Subject)
+				return entry.Expect.forSubject(entry.Subject).conflict(entry.Subject)
 			}
 		}
 	}
@@ -379,7 +344,7 @@ func buildEncodedBatchMsg(
 	if commit {
 		hdr.Set("Nats-Batch-Commit", "1")
 	}
-	entry.Expect.setHeaders(hdr)
+	entry.Expect.forSubject(entry.Subject).setHeaders(hdr)
 	hdr.Set(jetstream.MsgIDHeader, entry.Record.ID)
 	if entry.Record.TTL > 0 {
 		hdr.Set("Nats-TTL", entry.Record.TTL.String())

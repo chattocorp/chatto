@@ -222,7 +222,7 @@ func TestProjectorRejectsMismatchedSnapshotBinding(t *testing.T) {
 	js, stream := setupTestStream(t)
 	eventLog := NewEncodedEventLog(js, stream, testLogger())
 	ctx := testContext(t)
-	if _, err := eventLog.Append(ctx, "evt.codec.binding.created", EncodedRecord{ID: "one", Data: []byte("one:alpha")}); err != nil {
+	if _, err := eventLog.AppendEventually(ctx, "evt.codec.binding.created", EncodedRecord{ID: "one", Data: []byte("one:alpha")}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -360,7 +360,7 @@ func TestDecodedProjectorReportsApplicationDecodeFailure(t *testing.T) {
 	eventLog := NewEncodedEventLog(js, stream, testLogger())
 	ctx := testContext(t)
 	subject := "evt.codec.C.created"
-	sequence, err := eventLog.Append(ctx, subject, EncodedRecord{ID: "bad", Data: []byte("invalid")})
+	sequence, err := eventLog.AppendEventually(ctx, subject, EncodedRecord{ID: "bad", Data: []byte("invalid")})
 	if err != nil {
 		t.Fatalf("append invalid application record: %v", err)
 	}
@@ -467,7 +467,7 @@ func TestSinglePayloadSnapshotRejectsComponentMismatch(t *testing.T) {
 	eventLog := NewEncodedEventLog(js, stream, testLogger())
 	ctx := testContext(t)
 	const subject = "evt.codec.mismatch.created"
-	seq, err := eventLog.Append(ctx, subject, EncodedRecord{ID: "one", Data: []byte("one:alpha")})
+	seq, err := eventLog.AppendEventually(ctx, subject, EncodedRecord{ID: "one", Data: []byte("one:alpha")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -536,7 +536,7 @@ func TestPreparedProjectorUsesSubjectEventReducer(t *testing.T) {
 	eventLog := NewEncodedEventLog(js, stream, testLogger())
 	ctx := testContext(t)
 	for _, subject := range []string{"evt.codec.prepared.first", "evt.codec.prepared.second"} {
-		if _, err := eventLog.Append(ctx, subject, EncodedRecord{ID: subject, Data: []byte("id:" + subject)}); err != nil {
+		if _, err := eventLog.AppendEventually(ctx, subject, EncodedRecord{ID: subject, Data: []byte("id:" + subject)}); err != nil {
 			t.Fatal(err)
 		}
 	}

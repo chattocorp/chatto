@@ -11,6 +11,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/evtstream"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/pkg/events"
 )
@@ -185,4 +186,15 @@ func startTestProjector(t *testing.T, projector *events.Projector) {
 
 func testCoreLogger() *log.Logger {
 	return log.New(io.Discard)
+}
+
+// appendEventuallyAndWait publishes event on its aggregate subject and waits
+// until projector applies it.
+func appendEventuallyAndWait(ctx context.Context, pub *evtstream.Publisher, projector *events.Projector, aggregate evtstream.Aggregate, event *evtv1.Event) (uint64, error) {
+	subject := aggregate.SubjectFor(event)
+	sequence, err := pub.AppendEventually(ctx, subject, event)
+	if err != nil {
+		return 0, err
+	}
+	return sequence, projector.WaitFor(ctx, events.SubjectPosition(subject, sequence))
 }

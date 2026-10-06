@@ -9,18 +9,18 @@ import (
 )
 
 type projectionRegistration struct {
-	key              string
-	name             string
-	projector        *events.Projector
-	subjects         []string
-	snapshotPolicy   projectionSnapshotPolicy
-	snapshotEnabled  bool
+	key             string
+	name            string
+	projector       *events.Projector
+	subjects        []string
+	snapshotPolicy  projectionSnapshotPolicy
+	snapshotEnabled bool
 	// componentSnapshots is true when the projection snapshots as several
 	// components. Its snapshots then use cohort storage.
 	componentSnapshots bool
 	streamName         string
-	identityResolver events.StreamIdentityResolver
-	estimate         func() (entries int64, estimatedBytes int64, metrics []ProjectionAdminMetric)
+	identityResolver   events.StreamIdentityResolver
+	estimate           func() (entries int64, estimatedBytes int64, metrics []ProjectionAdminMetric)
 }
 
 type projectionWaitTarget struct {

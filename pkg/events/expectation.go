@@ -41,7 +41,9 @@ func ExpectSubjectSeq(seq uint64) Expectation {
 // ExpectFilterSeq guards a write with the last sequence of all messages that
 // match filter, an exact subject or a wildcard subject filter. Use an
 // aggregate's all-events filter to serialize writes with that aggregate. A
-// write with an empty filter fails with ErrInvalidOCC.
+// write with an empty filter fails with ErrInvalidOCC. When filter equals the
+// record's subject, the write sends the shorter own-subject guard, which
+// checks the same sequence.
 func ExpectFilterSeq(filter string, seq uint64) Expectation {
 	return Expectation{subject: filterGuard, filter: filter, seq: seq}
 }
@@ -63,6 +65,17 @@ func (e Expectation) AndStreamSeq(seq uint64) Expectation {
 // isZero reports whether the Expectation is no guard.
 func (e Expectation) isZero() bool {
 	return e.subject == noSubjectGuard && !e.stream
+}
+
+// forSubject returns e for a record on subject. A filter guard on exactly the
+// record's subject becomes the equivalent own-subject guard. NATS stores the
+// guard headers with the message, so this saves the filter header.
+func (e Expectation) forSubject(subject string) Expectation {
+	if e.subject == filterGuard && e.filter == subject {
+		e.subject = ownSubjectGuard
+		e.filter = ""
+	}
+	return e
 }
 
 // validate rejects a zero guard and a filter guard without a filter.

@@ -91,7 +91,7 @@ before returning.
 Authling will consume the application-neutral `hmans.de/chatto/pkg/events`
 incubation module. The shared module owns:
 
-- opaque event-log reads, OCC-only writes, and atomic append mechanics;
+- opaque event-log reads, OCC-guarded writes, and atomic append mechanics;
 - ordered projection replay, readiness, failure, and shutdown lifecycles;
 - projection handles and stream-position barriers; and
 - application-neutral snapshot and checkpoint hooks.

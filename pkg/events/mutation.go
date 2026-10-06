@@ -19,13 +19,15 @@ const (
 	mutationBoundaryInvalid mutationBoundaryKind = iota
 	mutationBoundarySubject
 	mutationBoundaryStream
+	mutationBoundaryUnguarded
 )
 
 // MutationBoundary selects the durable state that must remain unchanged
 // between a mutation decision and its atomic commit.
 //
-// Construct boundaries with AtSubject or AtStreamTail. The zero value is
-// invalid so callers cannot accidentally publish without choosing a scope.
+// Construct boundaries with AtSubject, AtStreamTail, or Unguarded. The zero
+// value is invalid so callers cannot accidentally publish without choosing a
+// scope.
 type MutationBoundary struct {
 	kind          mutationBoundaryKind
 	subjectFilter string
@@ -41,6 +43,16 @@ func AtSubject(subjectOrFilter string) MutationBoundary {
 	}
 }
 
+// Unguarded commits a mutation without an OCC guard. ExecuteMutation runs the
+// decision once and cannot conflict. Use it only when neither the records nor
+// the permission to write them depend on state that a concurrent write can
+// change, for example a fact that the caller prepared completely before the
+// call. Stable record IDs still make retries idempotent within the stream's
+// de-duplication window.
+func Unguarded() MutationBoundary {
+	return MutationBoundary{kind: mutationBoundaryUnguarded}
+}
+
 // AtStreamTail fences a mutation against the whole stream. Any intervening
 // event conflicts, causing the decision callback to run again against a fresh
 // stream tail. Use it only when the mutation's invariant genuinely spans the
@@ -51,7 +63,8 @@ func AtStreamTail() MutationBoundary {
 
 // MutationAttempt describes one invocation of a mutation decision callback.
 // ExpectedSequence is the subject/filter tail or stream tail captured before
-// the callback began.
+// the callback began. It is always 0 for the Unguarded boundary, which reads
+// no tail; it does not mean that the stream is empty.
 type MutationAttempt struct {
 	Number           int
 	ExpectedSequence uint64
@@ -81,13 +94,15 @@ const maxMutationAttempts = 5
 // ExecuteMutation repeatedly captures boundary, invokes decide, and
 // atomically commits the returned entries with OCC against that same boundary.
 // A conflict reruns decide; other errors return immediately. Returning no
-// entries represents a successful no-op.
+// entries represents a successful no-op. With the Unguarded boundary, decide
+// runs once and the commit cannot conflict.
 //
 // Event identifiers must describe the logical operation and remain stable
 // across callback invocations. Applications remain responsible for waiting
 // until their projections cover the captured facts before making a decision.
 // Decisions containing multiple records require AllowAtomicPublish on the
-// bound JetStream stream; single-record decisions use an ordinary OCC publish.
+// bound JetStream stream; single-record decisions use an ordinary publish with
+// the boundary's guard.
 func (l *EncodedEventLog) ExecuteMutation(
 	ctx context.Context,
 	boundary MutationBoundary,
@@ -170,14 +185,18 @@ func (l *EncodedEventLog) publishMutation(
 		batch[i] = EncodedBatchEntry{Subject: entry.Subject, Record: entry.Record}
 	}
 	batch[0].Expect = expect
-	sequences, err := l.AppendBatch(ctx, batch)
+	sequences, err := l.appendBatch(ctx, batch, boundary.kind != mutationBoundaryUnguarded)
 	return sequences, err == nil, err
 }
 
-// expectation returns the OCC guard for the boundary at seq.
+// expectation returns the OCC guard for the boundary at seq. An unguarded
+// boundary has no guard.
 func (b MutationBoundary) expectation(seq uint64) Expectation {
-	if b.kind == mutationBoundaryStream {
+	switch b.kind {
+	case mutationBoundaryStream:
 		return ExpectStreamSeq(seq)
+	case mutationBoundaryUnguarded:
+		return Expectation{}
 	}
 	return ExpectFilterSeq(b.subjectFilter, seq)
 }
@@ -188,6 +207,8 @@ func (l *EncodedEventLog) mutationBoundarySeq(ctx context.Context, boundary Muta
 		return l.LastSubjectSeq(ctx, boundary.subjectFilter)
 	case mutationBoundaryStream:
 		return l.LastStreamSeq(ctx)
+	case mutationBoundaryUnguarded:
+		return 0, nil
 	default:
 		return 0, ErrInvalidMutationBoundary
 	}
@@ -200,16 +221,19 @@ func validateMutationBoundary(boundary MutationBoundary) error {
 			return fmt.Errorf("%w: subject or filter is empty", ErrInvalidMutationBoundary)
 		}
 		return nil
-	case mutationBoundaryStream:
+	case mutationBoundaryStream, mutationBoundaryUnguarded:
 		return nil
 	default:
-		return fmt.Errorf("%w: use AtSubject or AtStreamTail", ErrInvalidMutationBoundary)
+		return fmt.Errorf("%w: use AtSubject, AtStreamTail, or Unguarded", ErrInvalidMutationBoundary)
 	}
 }
 
 func (b MutationBoundary) description() string {
-	if b.kind == mutationBoundaryStream {
+	switch b.kind {
+	case mutationBoundaryStream:
 		return "stream"
+	case mutationBoundaryUnguarded:
+		return "unguarded"
 	}
 	return "subject " + b.subjectFilter
 }
