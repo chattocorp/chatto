@@ -42,6 +42,8 @@ func TestRolePermissionMatrixAppliesMessageReadInclusion(t *testing.T) {
 	})
 }
 
+// This test does not call t.Parallel: installTestPermissionInclusion changes
+// the package-wide permission catalog.
 func TestRolePermissionMatrixAppliesExplicitInclusion(t *testing.T) {
 	broad, narrow := installTestPermissionInclusion(t)
 	cell, ok := buildRolePermissionCell(

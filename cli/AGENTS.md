@@ -417,8 +417,10 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
   test serial, with a comment that gives the reason, when it changes package
   state (for example `installTestPermissionInclusion`), measures the whole
   process (for example `testing.AllocsPerRun`), or must finish heavy work
-  within a fixed deadline. Use `-race` to find shared state that you did not
-  expect.
+  within a fixed deadline. A test changes package state when it assigns a
+  package variable, even if it restores the value in `t.Cleanup`. A clean
+  `-race` run of the whole package does not prove that tests are safe; run the
+  affected tests together with `-race -count=N`.
 - Treat fixture and setup errors as fatal before using returned values. Never
   discard an error from helpers such as `CreateRoom` or `CreateUser` and then
   dereference the result; fail the test at the setup call instead.

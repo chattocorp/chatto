@@ -922,6 +922,8 @@ func TestBotMessageReadInclusionIntersectsBotAndOwnerAuthority(t *testing.T) {
 	}
 }
 
+// This test does not call t.Parallel: installTestPermissionInclusion changes
+// the package-wide permission catalog.
 func TestBotPermissionCeilingResolvesExplicitInclusion(t *testing.T) {
 	broad, narrow := installTestPermissionInclusion(t)
 	core, _ := setupTestCore(t)

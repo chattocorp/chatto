@@ -184,6 +184,8 @@ func TestPermissionExplainer_ReportsIncludedPermission(t *testing.T) {
 	}
 }
 
+// This test does not call t.Parallel: installTestPermissionInclusion changes
+// the package-wide permission catalog.
 func TestPermissionExplainer_ReportsExplicitIncludedPermission(t *testing.T) {
 	broad, narrow := installTestPermissionInclusion(t)
 	core, _ := setupTestCore(t)

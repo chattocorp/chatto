@@ -13,9 +13,9 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
+// This test does not call t.Parallel: it replaces the package-wide
+// providerAvatarClient.
 func TestChattoCore_PendingExternalIdentityCreateFlow(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	avatarServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -219,9 +219,9 @@ func TestChattoCore_ConfirmPendingExternalIdentityLinkRejectsDeletedUser(t *test
 	}
 }
 
+// This test does not call t.Parallel: it replaces the package-wide
+// providerAvatarClient.
 func TestChattoCore_CreateUserForExternalIdentityIgnoresProviderAvatarFailure(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	avatarServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -269,9 +269,9 @@ func TestChattoCore_CreateUserForExternalIdentityIgnoresProviderAvatarFailure(t 
 	}
 }
 
+// This test does not call t.Parallel: it replaces the package-wide
+// providerAvatarClient.
 func TestChattoCore_ImportUserAvatarFromURLRejectsOversizedResponse(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	avatarServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
