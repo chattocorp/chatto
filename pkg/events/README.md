@@ -282,17 +282,17 @@ The framework logs through a `*slog.Logger`. A nil logger discards all
 records. An application with a different logger can wrap it in a
 `slog.Handler`. When a logger is supplied, the framework may emit
 caller-provided subjects, projection keys, event IDs, stream identities, and
-handler errors as diagnostic fields. Callers must ensure those values are opaque operational
-identifiers and contain no personal data, credentials, tokens, raw request
-values, or secrets. The framework does not redact caller-provided metadata.
+handler errors as diagnostic fields. Callers must ensure those values are
+opaque operational identifiers and contain no personal data, credentials,
+tokens, raw request values, or secrets. The framework does not redact caller-provided metadata.
 
 ## Constructors
 
 Constructors panic when a required argument is missing or malformed, for
 example a nil stream, a projection that is not a pointer, or an empty
-component key. These are wiring errors. Constructors return an error when options are invalid or when a
-check at construction fails, for example when a snapshot stream identity
-cannot be resolved.
+component key. These are wiring errors. Constructors return an error when
+options are invalid or when a check at construction fails, for example when a
+snapshot stream identity cannot be resolved.
 
 ## Status
 

@@ -87,7 +87,6 @@ sources = [
     "!**/*_test.go",
     "../pkg/**/*.go",
     "../pkg/**/go.mod",
-    "!../pkg/**/*_test.go",
 ]
 outputs = ["bin/authling"]
 

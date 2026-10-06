@@ -48,6 +48,8 @@ func (h durationStrings) WithGroup(name string) slog.Handler {
 	return durationStrings{Handler: h.Handler.WithGroup(name)}
 }
 
+// durationString converts one top-level attribute. It does not look into
+// groups or LogValuer results; the framework logs neither.
 func durationString(attr slog.Attr) slog.Attr {
 	if attr.Value.Kind() == slog.KindDuration {
 		return slog.String(attr.Key, attr.Value.Duration().String())
