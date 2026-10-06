@@ -70,7 +70,7 @@ func newSafetyFixture(t *testing.T, dataDir string, wrap func(jetstream.KeyValue
 	if err != nil {
 		t.Fatal(err)
 	}
-	keys := stores.Keys
+	var keys jetstream.KeyValue = stores.Keys
 	if wrap != nil {
 		keys = wrap(keys)
 	}

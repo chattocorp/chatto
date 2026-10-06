@@ -137,9 +137,8 @@ right after a committed rotation and rejected the valid credential.
 removal markers. `GetAnyReplica` is the bucket's own read, for hot paths that
 accept a result quickly and decide a negative result again with `Get`.
 `UpdateWithTTL` adds the revision-checked TTL update that the bucket API does
-not have. Chatto binds all of its buckets through this type. Authling still
-uses plain `jetstream.KeyValue.Get` on buckets that allow direct gets, so the
-same lag can affect it. Authling is the expected second consumer. Applications keep
+not have. Chatto and Authling bind all of their buckets through this type.
+Applications keep
 bucket names, configuration, value codecs, and the choice of which hot reads
 accept an older revision.
 

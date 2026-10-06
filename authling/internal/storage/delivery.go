@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // ErrDeliveryLimited means a delivery budget has no remaining allowance.
@@ -90,7 +91,7 @@ func (b *DeliveryBudget) reserveCounter(ctx context.Context, key string, limit i
 		if err == nil {
 			return nil
 		}
-		if !errors.Is(err, jetstream.ErrKeyExists) {
+		if !jetstreamutil.IsSequenceConflict(err) {
 			return fmt.Errorf("reserve email delivery: %w", err)
 		}
 	}
@@ -120,7 +121,7 @@ func (b *DeliveryBudget) rollbackCounter(ctx context.Context, key string) error 
 		if err == nil {
 			return nil
 		}
-		if !errors.Is(err, jetstream.ErrKeyExists) {
+		if !jetstreamutil.IsSequenceConflict(err) {
 			return fmt.Errorf("rollback email delivery: %w", err)
 		}
 	}
