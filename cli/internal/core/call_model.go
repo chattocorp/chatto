@@ -548,7 +548,7 @@ func (s *CallModel) appendParticipantTransitionAuthorized(ctx context.Context, r
 			return nil
 		}
 		if cleanupKeyRef != "" {
-			if cleanupErr := s.callKeys.ShredCallKey(context.WithoutCancel(ctx), cleanupKeyRef); cleanupErr != nil {
+			if cleanupErr := s.callKeys.ShredCallKey(context.WithoutCancel(ctx), cleanupKeyRef); cleanupErr != nil && s.logger != nil {
 				s.logger.Warn("failed to clean up unused call key after append conflict", "error", cleanupErr, "key_ref", cleanupKeyRef)
 			}
 		}
