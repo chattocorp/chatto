@@ -7,7 +7,7 @@ an existing thread receive a reply in that thread. Messages from bots are
 ignored.
 
 Runling is linked from `packages/runling/` as a root workspace dependency.
-`mise dev` builds the local package before it starts the bot.
+`mise dev-full` builds the local package before it starts the bot.
 Run the commands below from that root unless a command changes the directory.
 
 ## Run locally
@@ -18,16 +18,15 @@ Run the commands below from that root unless a command changes the directory.
    set -gx OPENROUTER_API_KEY 'your-openrouter-api-key'
    ```
 
-   Run `mise dev` from the repository root. It starts Chatto and Runling together.
+   Run `mise dev-full` from the repository root. It starts Chatto and Runling together.
    Runling uses the workspace port plus three (`4003` without Conductor).
    The task sets the backend URL and absolute bootstrap API key path. No manual
-   Chatto environment variables are required. `CHATTO_DEV_DATA_ROOT` selects the same
-   data directory for the server and bot.
+   Chatto environment variables are required. Set `CHATTO_DEV_DATA_ROOT` to an
+   absolute path to select the same data directory for the server and bot.
 
 2. On an empty server, the stack creates TestBot, writes its API key to
    `cli/data/bootstrap/test_bot.key`, and creates an enabled **Local development**
    outbound webhook at `http://localhost:<base-port-plus-three>/api/runs/start/chatto`.
-   `CHATTO_DEV_DATA_ROOT` changes the data directory for both services.
 
    Existing servers are not changed by bootstrap. If your server predates this
    setup, create the endpoint in **Settings → Server → Bots → TestBot**. For base
@@ -42,7 +41,7 @@ Run the commands below from that root unless a command changes the directory.
 Conductor also lists the Runling console in its **Open** menu. The same port
 receives webhooks.
 
-Stop `mise dev` to stop Runling and the other development services. Do not run
+Stop `mise dev-full` to stop Runling and the other development services. Do not run
 another Runling process on the same port. The bootstrap account remains named
 TestBot; the Runling workflow supplies its replies.
 

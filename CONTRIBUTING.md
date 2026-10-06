@@ -48,38 +48,49 @@ unchanged builds. Verification tasks run without Turbo caching. Remote caching
 and telemetry are disabled by the repository configuration and scripts. See [ADR-102](docs/adr/ADR-102-turborepo-workspace-tasks.md)
 for the task and cache boundaries.
 
-Run Chatto, Authling, Mailpit, LiveKit, and the Runling bot:
+Run Chatto:
 
 ```sh
 mise dev
 ```
 
-`mise dev` first runs `mise setup`, which installs missing tools and
-dependencies. Then it builds the frontend and a Chatto binary that includes it,
-and runs the services as parallel mise tasks. Turbo restores unchanged
-frontend builds from a cache that all worktrees share. Restart `mise dev` to
-see a change in Chatto, its frontend, or Authling. `mise setup` installs
-the tools, the Chatto and Authling dependencies, and the LiveKit server. It
-does not build anything. Run it alone to prepare a checkout without starting
-the stack. Both tasks trust the repository's `mise.toml` files automatically.
-They need mise 2026.8.9 or later.
+`mise dev` installs missing tools and the Chatto dependencies. Then it builds
+the frontend and a Chatto binary that includes it, and runs Chatto. Turbo
+restores unchanged frontend builds from a cache that all worktrees share.
+Restart `mise dev` to see a change in Chatto or its frontend.
+
+To also run Authling, the Runling bot, Mailpit, and LiveKit:
+
+```sh
+mise dev-full
+```
+
+Use `mise dev-full` for features that need email, voice calls, the Authling
+login, or replies from TestBot. It first runs `mise setup`, then runs the services as
+parallel mise tasks. Restart it to see a change in Chatto, its frontend, or
+Authling. Both commands use the same Chatto configuration and data.
+
+`mise setup` installs the tools, the Chatto and Authling dependencies, and the
+LiveKit server. It does not build anything. Run it alone to prepare a checkout
+without starting the stack. These tasks trust the repository's `mise.toml`
+files automatically. They need mise 2026.8.9 or later.
 
 All services use plain HTTP. In Conductor, the base port is `$CONDUCTOR_PORT`
 and `<workspace>` is `ws` followed by this port, for example `ws55060`. Outside
 Conductor, `<workspace>` is `local` and the base port is `4000`. Set
 `CHATTO_DEV_WORKSPACE` to use a different `<workspace>`:
 
-| Service  | URL                                                |
-| -------- | -------------------------------------------------- |
-| Chatto   | `http://chatto.<workspace>.localhost:<base>`       |
-| Authling | `http://authling.<workspace>.localhost:<base + 2>` |
-| Runling  | `http://localhost:<base + 3>`                      |
-| Mailpit  | `http://localhost:<base + 9>`                      |
+| Service                    | URL                                                |
+| -------------------------- | -------------------------------------------------- |
+| Chatto                     | `http://chatto.<workspace>.localhost:<base>`       |
+| Authling (`mise dev-full`) | `http://authling.<workspace>.localhost:<base + 2>` |
+| Runling (`mise dev-full`)  | `http://localhost:<base + 3>`                      |
+| Mailpit (`mise dev-full`)  | `http://localhost:<base + 9>`                      |
 
 Browsers resolve names beneath `.localhost` to your computer. You do not need
 to change DNS or `/etc/hosts`. Each workspace has its own hostnames, so the
-workspaces do not share browser cookies. The comment above the `dev` task in
-`mise.toml` lists all ports.
+workspaces do not share browser cookies. The `[env]` section of `mise.toml`
+lists all ports.
 
 For hot module replacement during frontend work, run this command in another
 terminal:
@@ -89,33 +100,33 @@ mise dev-frontend
 ```
 
 Vite then serves the frontend at `http://chatto.<workspace>.localhost:<base + 1>`
-and sends API requests to the Chatto server of `mise dev`. To use a different
-Chatto server, set `CHATTO_BACKEND_URL`, for example
+and sends API requests to the Chatto server of `mise dev` or `mise dev-full`.
+To use a different Chatto server, set `CHATTO_BACKEND_URL`, for example
 `CHATTO_BACKEND_URL=https://dev.chatto.run mise dev-frontend`.
 
-Create an Authling account, read its verification code in Mailpit, then choose
+Both commands create Chatto owner `alice` and member `bob`; both use the
+development-only password `foobar123`. With `mise dev-full`, you can also create
+an Authling account, read its verification code in Mailpit, then choose
 **Authling** on the Chatto login screen. Chatto asks for a username at first
-login. The stack also creates Chatto owner `alice` and member `bob`; both use
-the development-only password `foobar123`.
+login.
 
-The stack starts the [Runling bot example](examples/runling-bot/README.md)
+`mise dev-full` starts the [Runling bot example](examples/runling-bot/README.md)
 on loopback at the base port plus three (`http://localhost:4003` outside
 Conductor). It uses the bootstrap TestBot account and receives the backend URL
 and API key path automatically. On an empty server, bootstrap also creates
 TestBot’s outbound webhook. Existing servers keep their saved configuration.
 
-Chatto uses Authling as its development OIDC provider. Chatto stores embedded
-NATS data in `cli/data/nats/` and search data in `cli/data/search/`. Authling
-identity data is in `.context/dev/<workspace>/authling/port-<port>/`.
+In `mise dev-full`, Chatto uses Authling as its development OIDC provider.
+Chatto stores embedded NATS data in `cli/data/nats/` and search data in
+`cli/data/search/`. Authling identity data is in `.context/dev/<workspace>/authling/port-<port>/`.
 
-These credentials and accounts are for local development only. Stop `mise dev`
-to stop the services. Before it builds anything, `mise dev` checks that its
-ports are free. If a port is in use, it lists the process and stops with an
-error. It does not stop the other process. Stop `mise dev`, then run
-`mise reset` to remove the Chatto data and the Authling data of all ports. To
-reset only one of them, remove `cli/data/` or the Authling identity directory.
-The
-Authling issuer URL includes `<workspace>` and the port, and Authling cannot
+These credentials and accounts are for local development only. Stop
+`mise dev` or `mise dev-full` to stop the services. When they start, both
+commands check that their ports are free. If a port is in use, they list the
+process and stop with an error. They do not stop the other process. Stop the
+stack, then run `mise reset` to remove the Chatto data and the Authling data of
+all ports. To reset only one of them, remove `cli/data/` or the Authling
+identity directory. The Authling issuer URL includes `<workspace>` and the port, and Authling cannot
 change its issuer. Thus, a new `<workspace>` or port starts an empty
 Authling in a new state directory. Chatto users that you linked to the previous
 Authling accounts cannot sign in through the new Authling. If the previous port
@@ -144,11 +155,12 @@ Seeding is available only in development and test builds.
 
 ## Local Development with Conductor
 
-[Conductor](https://conductor.build) runs the regular root `mise dev` stack as
-native processes. Start the default **Dev stack** run mode to build and launch
-Chatto, Authling, the Runling bot, Mailpit, and LiveKit on the workspace's ten
-allocated ports. Chatto is at `http://chatto.<workspace>.localhost:<port>`.
-The Open button lists this URL and the other service URLs. The
+[Conductor](https://conductor.build) runs the root `mise` tasks as native
+processes. The default **dev** run mode runs `mise dev` and starts Chatto. The
+**dev_full** run mode runs `mise dev-full` and also starts Authling, the
+Runling bot, Mailpit, and LiveKit. Both use the workspace's ten allocated
+ports. Chatto is at `http://chatto.<workspace>.localhost:<port>`. The Open
+button lists this URL and the other service URLs. The
 [Local Development Stack](#local-development-stack) section describes
 the complete layout. Restart the stack after you change Chatto, its frontend,
 or Authling. For hot module replacement, also start the **Vite frontend** run
@@ -168,9 +180,9 @@ child processes.
 
 The Codex desktop environment is in `.codex/environments/environment.toml`.
 Select **Chatto** in the app's local environment settings. New worktrees use
-the same setup commands as Conductor. The **Dev stack**, **Storybook**, and
-**Docs website** actions run the corresponding `mise` tasks in the integrated
-terminal.
+the same setup commands as Conductor. The **Chatto**, **Full dev stack**,
+**Vite frontend**, **Storybook**, and **Docs website** actions run the
+corresponding `mise` tasks in the integrated terminal.
 
 Start an action, then open its URL in the app's browser. With the default
 local settings, Chatto uses `http://chatto.local.localhost:4000` and Authling
@@ -206,13 +218,6 @@ To run the docs website development server:
 mise dev-docs-website
 ```
 
-To run only the bundled Chatto executable, without Authling and the other
-services:
-
-```sh
-mise run chatto run
-```
-
 To check SPDX/REUSE license metadata:
 
 ```sh
@@ -231,19 +236,23 @@ Prettier uses the nearest configuration file. The frontend keeps its Svelte and
 Tailwind plugin settings in `apps/frontend/.prettierrc`. Authling uses its own
 pnpm workspace and toolchain.
 
-`mise dev` uses Conductor's allocated port block and falls back to base port
-`4000` outside Conductor. `mise dev-frontend` uses the base port plus one.
+`mise dev` and `mise dev-full` use Conductor's allocated port block and fall
+back to base port `4000` outside Conductor. `mise dev-frontend` uses the base port plus one.
 Storybook starts at port `6006` and the docs website at port `4321`. Both
-select the next free port when another workspace uses it. `mise run chatto run`
-uses the same Chatto, embedded NATS, LiveKit, and Mailpit ports as `mise dev`.
+select the next free port when another workspace uses it. `mise dev` runs
+`mise run chatto run`, which you can also run directly.
 Pass explicit CLI arguments after the task name, for example
 `mise chatto version`.
 
 ### Local Chatto Data
 
-The local `cli/chatto.toml` file is the source for local data paths. It keeps
-embedded NATS data in `cli/data/nats/` and the search index in
-`cli/data/search/`. The `mise dev` and `mise chatto` tasks use these paths.
+`cli/chatto.toml` is the development configuration of `mise dev`,
+`mise dev-full`, and `mise chatto`. The `chatto` task sets the values that
+depend on the workspace: ports, URLs, data paths, and TestBot. `mise dev-full`
+also enables email and LiveKit and adds the Authling login provider. The
+development stack keeps embedded NATS data in `cli/data/nats/` and the search
+index in `cli/data/search/`. Set `CHATTO_DEV_DATA_ROOT` to an absolute path to
+use a different data directory.
 
 Older worktrees can have embedded NATS data in `cli/data/jetstream/`. Stop all
 Chatto processes before you migrate this data. If
@@ -262,7 +271,9 @@ contains the data that you need.
 
 ## Local Bootstrap Users
 
-Local development instances are bootstrapped from `cli/chatto.toml` when the server is otherwise empty.
+On the first start of an empty server, `mise dev` and `mise dev-full` create
+these users from `cli/chatto.toml`. They also create TestBot, which replies
+only while the Runling bot of `mise dev-full` runs.
 
 | Login   | Email               | Password    | Role  |
 | ------- | ------------------- | ----------- | ----- |

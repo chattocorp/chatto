@@ -5,9 +5,14 @@ name = "Chatto"
 script = "mise setup"
 
 [[actions]]
-name = "Dev stack"
+name = "Chatto"
 icon = "run"
 command = "exec mise dev"
+
+[[actions]]
+name = "Full dev stack"
+icon = "run"
+command = "exec mise dev-full"
 
 [[actions]]
 name = "Vite frontend"

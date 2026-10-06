@@ -28,6 +28,11 @@ run_mode = "concurrent"
 command = "exec mise dev"
 available_in = [ "local" ]
 default = true
+icon = "play"
+
+[scripts.run.dev_full]
+command = "exec mise dev-full"
+available_in = [ "local" ]
 icon = "network"
 
 [scripts.run.frontend]

@@ -1,32 +1,33 @@
-# Chatto Config for local development
+# Chatto configuration for local development. `mise dev`, `mise dev-full`, and
+# `mise chatto` use this file from the `cli/` directory. The `chatto` task in
+# the root `mise.toml` sets the values that depend on the workspace: ports,
+# URLs, data paths, and TestBot. `mise dev-full` also enables email and LiveKit
+# and adds the Authling login provider.
 
 [general]
 log_level = 'debug'
 log_format = 'text'
 
 [webserver]
-url = 'http://localhost:5173'
+url = 'http://chatto.local.localhost:4000'
 port = 4000
-cookie_signing_secret = '3ad5f5f911b6865b1a729335f4544d102a99a2847a3d5076431ed43877dd6bd9'
-cookie_encryption_secret = 'f61dd5e478f0c494bd7cc1d6136d8fd9b1c9cde38677f5c3a04f2ae181fd8464'
-
-[webserver.shields]
-enabled = true
+cookie_signing_secret = '871a846584490a6153305533cce100b8e6f39d4184c2fb499d2ed198a9ed37a3'
+cookie_encryption_secret = 'a3955a342ba4cb4ffb457a1177295779fbbb73f8e22cd4f68ecb9fb584afcf66'
 
 [operator_api]
 enabled = true
 socket_path = './data/operator/operator.sock'
 
+# Metrics and the exporter use fixed ports, so concurrent workspaces would
+# collide. Enable them for one workspace when you need them.
 [metrics]
-enabled = true
+enabled = false
 bind_address = '127.0.0.1'
 port = 9090
 path = '/metrics'
 
-# Deployment-wide Prometheus exporter. `mise chatto` overrides this port with
-# the workspace base port + 3 so multiple workspaces can run side by side.
 [exporter]
-enabled = true
+enabled = false
 bind_address = '127.0.0.1'
 port = 9100
 path = '/metrics'
@@ -46,11 +47,11 @@ directory = './data/search'
 languages = ['de', 'en']
 
 [core]
-secret_key = '7f3e0d39031f4ee7e2078aafc785f1969b8f1d4a4ea178a4732cb2096fe7f3bb'
+secret_key = '2ff88b0e8ceb09c399193d1b9339577e6b0fac883777176231e84f92aa78f794'
 projection_snapshots = true
 
 [core.assets]
-signing_secret = 'd4fac8f5c710d419dbb05c00381ca1d0fbbeb007d8da4367d00cbfa212758fc1'
+signing_secret = '2e5cac66f8ea81759952186886d233410c1e6e18e3048bc680792935206240e0'
 max_upload_size = '25MB'
 
 # Image resize cache (optional). When enabled, resized images are cached in
@@ -59,29 +60,18 @@ max_upload_size = '25MB'
 enabled = true
 ttl = '7d'
 
-[[auth.providers]]
-id = 'chatto-hub'
-type = 'oidc'
-label = 'Chatto Hub'
-issuer_url = 'https://chatto.id/realms/chatto-hub'
-client_id = 'chatto-dev'
-# Optional OIDC override; otherwise select Basic or POST from discovery.
-# token_endpoint_auth_method = 'client_secret_basic'
-client_secret = 'iARXOaPkiIDxdNRX2N9uJmQf0aXIfwUE'
-# request_email defaults to false and keeps the OIDC flow email-less; Chatto
-# will still match accounts by issuer + subject. Set true to request email.
-# request_email = true
-# auto_provision allows unlinked provider identities to create passwordless
-# accounts after an explicit confirmation screen.
-auto_provision = false
+[auth]
+account_creation_policy = 'open'
 
+# `mise dev-full` enables email. Its Mailpit receives the mail.
 [smtp]
-enabled = true
+enabled = false
 host = '127.0.0.1'
-port = 1025
+port = 4008
 tls = 'opportunistic'
-from = 'chatto-dev@chatto.localhost'
+from = 'chatto@chatto.local'
 
+# Development-only Web Push keys.
 [push]
 enabled = true
 vapid_public_key = 'BKBVYBi1oSQ0rOjiS86KCNa2VfxnH03kON54RUqm3X7Q2JQMBkspTHlgBo27OV3wfcX36cxVyJ2h2I_Zd4Yz_DI'
@@ -94,22 +84,23 @@ enabled = true
 [asset_processing]
 enabled = true
 
-# LiveKit voice calls. For local development, run `mise dev-livekit`.
+# LiveKit voice calls. `mise dev-full` enables them and runs a LiveKit server
+# with these keys.
 [livekit]
-enabled = true
-url = 'ws://localhost:7880'
+enabled = false
+url = 'ws://localhost:4005'
 api_key = 'devkey'
-api_secret = 'devsecret'
+api_secret = 'compose-only-livekit-secret-change-me'
 
 [nats.embedded]
 enabled = true
-port = 4555
+port = 4004
 # http_port = 8555
 # Keep NATS data separate from the disposable search index in './data/search'.
 data_dir = './data/nats'
 # For a single NATS server, use 'always' to sync every JetStream write to disk.
 # sync_interval = 'always'
-auth_token = 'd5ed70d13c4682609dfd0a4f65bf7e59ef22f3be8502762b501d3b7cf0b73b43'
+auth_token = 'a4a3102bf032b2d8ec14cf4c23fe54cb6a2054e1ad5e24aa4ada78768340e263'
 
 # Dev-only bootstrap. Creates these users + the initial instance only when the
 # server is otherwise empty. Plaintext passwords are fine because release
@@ -126,18 +117,6 @@ login = 'bob'
 display_name = 'Bob'
 email = 'bob@example.com'
 password = 'foobar123'
-
-# The development bot uses only public APIs at runtime. The bootstrap-tagged
-# server writes its generated show-once API key to this gitignored file.
-[[bootstrap.bots]]
-login = 'test_bot'
-display_name = 'TestBot'
-bio = "I'm **TestBot**, Chatto's development assistant. Mention `@test_bot` in a channel or send me a direct message."
-owner_login = 'alice'
-api_key_name = 'Local development'
-credential_file = './data/bootstrap/test_bot.key'
-permissions = ['room.join', 'room.list', 'message.read', 'message.post-in-thread']
-rooms = ['general']
 
 [bootstrap.server]
 name = 'Local Development'

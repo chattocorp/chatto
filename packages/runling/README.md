@@ -191,7 +191,7 @@ events, and web assets. It contacts the npm registry to install dependencies.
 The test does not need agent-provider credentials.
 
 Use `mise build-runling` after source changes before running a workspace
-consumer. `mise dev` builds Runling before it starts the Chatto bot.
+consumer. `mise dev-full` builds Runling before it starts the Chatto bot.
 
 To run the bundled demos, run `mise x -- pnpm --dir packages/runling dev` from
 the monorepo root. Demos that use agents need model-provider credentials in Pi

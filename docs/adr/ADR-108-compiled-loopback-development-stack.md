@@ -15,6 +15,15 @@ Accepted. Supersedes [ADR-078](ADR-078-portless-native-development-stack.md).
 > `tools/check-dev-ports.sh`. If a port is in use, the check lists the process
 > and fails the start.
 
+> **Amended 2026-10-05:** `mise dev` runs only Chatto. `mise dev-full` runs the
+> complete stack that this record describes. `cli/chatto.toml` is the shared
+> development configuration, with email and LiveKit disabled. The `chatto`
+> task adds the values that depend on the workspace and TestBot, because
+> either command can do the first start that bootstraps the server.
+> `mise dev-full` enables email and LiveKit and adds the Authling login
+> provider through environment values. Most work needs only Chatto, so the default command
+> builds and starts less.
+
 ## Context
 
 ADR-078 ran the Chatto backend and a Vite development server as separate
@@ -41,10 +50,10 @@ names beneath `.localhost` to loopback without DNS or `/etc/hosts` changes.
 ## Decision
 
 `mise dev` builds the embedded frontend and the bootstrap-enabled Chatto binary
-when their sources change. Then it runs this binary, Authling, the Runling bot,
-Mailpit, and LiveKit as parallel tasks of one mise process. There is
-no Vite process and no Portless route in the default stack. To see a change, the
-developer restarts `mise dev`.
+when their sources change. Then it runs this binary. `mise dev-full` also runs
+Authling, the Runling bot, Mailpit, and LiveKit as parallel tasks of one mise
+process. There is no Vite process and no Portless route in either stack. To
+see a change, the developer restarts the stack.
 
 All services use plain HTTP on the Conductor port block, with base `4000`
 outside Conductor. Chatto uses the base port, and Authling uses `+2`. The
@@ -55,8 +64,8 @@ followed by the Conductor port, for example `ws55060`. Outside Conductor, it is
 or ID. The port is different for each concurrent workspace and does not change
 when a workspace is renamed. Each workspace therefore has its own cookie scope.
 Mailpit, LiveKit, and the Runling console use `localhost`, because they do not
-keep browser sessions for this stack. The comment above the `dev` task in
-`mise.toml` records the complete port layout.
+keep browser sessions for this stack. The `[env]` section of `mise.toml`
+names each port of the layout.
 
 The development Authling registers Chatto as the conventional confidential
 client `chatto-dev`. The `dev-stack-authling` task copies Authling's development
@@ -90,5 +99,5 @@ from ADR-078.
   are not available.
 - Storybook and the documentation website do not have fixed preview URLs. Their
   terminal output shows the selected port.
-- Mailpit and LiveKit still run once for each workspace. A later decision can
-  replace them with shared machine-wide services.
+- With `mise dev-full`, Mailpit and LiveKit still run once for each workspace.
+  A later decision can replace them with shared machine-wide services.
