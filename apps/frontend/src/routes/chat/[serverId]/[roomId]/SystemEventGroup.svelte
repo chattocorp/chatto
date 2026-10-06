@@ -107,13 +107,13 @@
     data-event-id={events[0].id}
     data-testid="system-event-group"
   >
-    <!-- Avatar column (w-11 matches MessageEvent avatar width) -->
+    <!-- Avatar column (w-11 matches MessageEvent avatar width). The stacked
+         avatars overlap, so they stay static: separate targets would be too small
+         for pointer use (WCAG 2.5.8). The names open the user context menu. -->
     <div class="flex w-11 shrink-0 items-center justify-center">
       <div class="flex -space-x-1.5">
         {#each visibleAvatars as actor (actor.id)}
-          <SystemEventUserTrigger user={actor.user} {onOpenUser} class="flex rounded-full">
-            <UserAvatar user={actor.user} size="xs" />
-          </SystemEventUserTrigger>
+          <UserAvatar user={actor.user} size="xs" />
         {/each}
       </div>
     </div>

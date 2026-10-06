@@ -169,15 +169,18 @@ describe('SystemEventGroup', () => {
     expect(onOpenUser).toHaveBeenCalledExactlyOnceWith(events[1].actor, expect.any(DOMRect));
   });
 
-  it('opens the user menu for the clicked actor avatar', async () => {
-    const onOpenUser = vi.fn();
-    const events = systemEvents(['Alice', 'Bob']);
+  it('keeps the overlapping actor avatars static', () => {
     render(SystemEventGroup, {
-      props: { events, kind: 'join', expanded: false, onExpandedChange: vi.fn(), onOpenUser }
+      props: {
+        events: systemEvents(['Alice', 'Bob']),
+        kind: 'join',
+        expanded: false,
+        onExpandedChange: vi.fn(),
+        onOpenUser: vi.fn()
+      }
     });
 
-    await page.getByRole('button', { name: 'bob', exact: true }).click();
-    expect(onOpenUser).toHaveBeenCalledExactlyOnceWith(events[1].actor, expect.any(DOMRect));
+    expect(page.getByRole('button', { name: 'bob', exact: true }).query()).toBeNull();
   });
 
   it('reports expansion changes through its controlled interface', async () => {
