@@ -60,3 +60,26 @@ func TestConstructorsReturnOptionErrors(t *testing.T) {
 		t.Fatal("NewStreamMessageReader accepted negative MaxConcurrentReads")
 	}
 }
+
+// A projector without a JetStream context or stream is a wiring error.
+func TestProjectorConstructorPanicsWithoutNATS(t *testing.T) {
+	js, stream := setupTestStream(t)
+	projection := &codecTestProjection{subject: "evt.codec.nats"}
+	for name, construct := range map[string]func(){
+		"without JetStream": func() {
+			_, _ = events.NewDecodedProjector(nil, stream, projection, decodeCodecTestEvent, events.ProjectorOptions{})
+		},
+		"without stream": func() {
+			_, _ = events.NewDecodedProjector(js, nil, projection, decodeCodecTestEvent, events.ProjectorOptions{})
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			defer func() {
+				if recover() == nil {
+					t.Fatal("NewDecodedProjector did not panic")
+				}
+			}()
+			construct()
+		})
+	}
+}
