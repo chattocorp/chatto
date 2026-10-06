@@ -315,7 +315,7 @@ retains its separate, fixed workload.
 
 ## E2E Shards
 
-CI runs the non-media e2e tests on four runners. Each runner uses four workers.
+CI runs the non-media e2e tests on eight runners. Each runner uses four workers.
 The shard script collects the current suite, sorts tests by file and source
 line, then assigns consecutive tests to different runners. This spreads large
 groups of slow tests across the runners without a stored timing database.
@@ -324,12 +324,12 @@ Tests must run independently; do not use this split for serial suites.
 To run the first CI shard locally, start in `apps/frontend/`:
 
 ```sh
-mise x -- node scripts/run-e2e-shard.mjs 1/4 --grep-invert @ffmpeg
+mise x -- node scripts/run-e2e-shard.mjs 1/8 --grep-invert @ffmpeg
 ```
 
 Add `--list` to inspect the selection without starting test servers. The media
 and performance suites keep their separate CI jobs. CI uploads an
-`e2e-timings-N-of-4` JSON artifact for each shard, including successful runs.
+`e2e-timings-N-of-8` JSON artifact for each shard, including successful runs.
 Compare the slowest test step and complete job across repeated runs; summed
 test durations alone do not measure CI wall time.
 
