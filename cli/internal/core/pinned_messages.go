@@ -202,8 +202,9 @@ func (s *RoomCommandModel) mutatePinnedMessage(ctx context.Context, input Pinned
 		}
 
 		sequences, err := s.core.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
-			Subject: aggregate.SubjectFor(event), Event: event, HasOCC: true,
-			ExpectedSeq: prepared.roomSeq, FilterSubject: filter,
+			Subject: aggregate.SubjectFor(event),
+			Event:   event,
+			Expect:  events.ExpectFilterSeq(filter, prepared.roomSeq),
 		}})
 		if errors.Is(err, events.ErrConflict) {
 			continue

@@ -31,9 +31,7 @@ func (c *ChattoCore) seedDefaultRBAC(ctx context.Context) error {
 	if len(entries) == 0 {
 		return nil
 	}
-	entries[0].HasOCC = true
-	entries[0].ExpectedSeq = 0
-	entries[0].FilterSubject = evtstream.RBACSubjectFilter()
+	entries[0].Expect = events.ExpectFilterSeq(evtstream.RBACSubjectFilter(), 0)
 
 	if _, err := c.EventPublisher.AppendBatch(ctx, entries); err != nil {
 		if errors.Is(err, events.ErrConflict) {

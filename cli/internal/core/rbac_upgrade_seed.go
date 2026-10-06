@@ -56,7 +56,7 @@ func (c *ChattoCore) seedUpgradePermissions(ctx context.Context) error {
 			return nil
 		}
 		entries := rbacSeedEntries(nil, nil, decisions)
-		entries[0].HasOCC, entries[0].ExpectedSeq, entries[0].FilterSubject = true, state.seq, evtstream.RBACSubjectFilter()
+		entries[0].Expect = events.ExpectFilterSeq(evtstream.RBACSubjectFilter(), state.seq)
 		if _, err := c.EventPublisher.AppendBatch(ctx, entries); err != nil {
 			if errors.Is(err, events.ErrConflict) {
 				continue

@@ -109,18 +109,14 @@ func (c *ChattoCore) createRoomGroup(ctx context.Context, actorID, name, descrip
 		})
 		entries := []evtstream.BatchEntry{
 			{
-				Subject:       evtstream.GroupAggregate(group.Id).SubjectFor(createdEvent),
-				Event:         createdEvent,
-				HasOCC:        true,
-				ExpectedSeq:   groupPosition.Seq,
-				FilterSubject: evtstream.GroupSubjectFilter(),
+				Subject: evtstream.GroupAggregate(group.Id).SubjectFor(createdEvent),
+				Event:   createdEvent,
+				Expect:  events.ExpectFilterSeq(evtstream.GroupSubjectFilter(), groupPosition.Seq),
 			},
 			{
-				Subject:       evtstream.LayoutAggregate().SubjectFor(orderedEvent),
-				Event:         orderedEvent,
-				HasOCC:        true,
-				ExpectedSeq:   layoutPosition.Seq,
-				FilterSubject: evtstream.LayoutSubjectFilter(),
+				Subject: evtstream.LayoutAggregate().SubjectFor(orderedEvent),
+				Event:   orderedEvent,
+				Expect:  events.ExpectFilterSeq(evtstream.LayoutSubjectFilter(), layoutPosition.Seq),
 			},
 		}
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
@@ -308,11 +304,9 @@ func (c *ChattoCore) appendGroupLayoutAtFilter(ctx context.Context, agg evtstrea
 		filter = evtstream.LayoutSubjectFilter()
 	}
 	entries := []evtstream.BatchEntry{{
-		Subject:       subject,
-		Event:         event,
-		HasOCC:        true,
-		ExpectedSeq:   expectedSeq,
-		FilterSubject: filter,
+		Subject: subject,
+		Event:   event,
+		Expect:  events.ExpectFilterSeq(filter, expectedSeq),
 	}}
 	seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 	if err != nil {
@@ -479,18 +473,14 @@ func (c *ChattoCore) deleteRoomGroup(ctx context.Context, actorID, groupID strin
 		})
 		entries := []evtstream.BatchEntry{
 			{
-				Subject:       evtstream.GroupAggregate(groupID).SubjectFor(deletedEvent),
-				Event:         deletedEvent,
-				HasOCC:        true,
-				ExpectedSeq:   groupPosition.Seq,
-				FilterSubject: evtstream.GroupSubjectFilter(),
+				Subject: evtstream.GroupAggregate(groupID).SubjectFor(deletedEvent),
+				Event:   deletedEvent,
+				Expect:  events.ExpectFilterSeq(evtstream.GroupSubjectFilter(), groupPosition.Seq),
 			},
 			{
-				Subject:       evtstream.LayoutAggregate().SubjectFor(orderedEvent),
-				Event:         orderedEvent,
-				HasOCC:        true,
-				ExpectedSeq:   layoutPosition.Seq,
-				FilterSubject: evtstream.LayoutSubjectFilter(),
+				Subject: evtstream.LayoutAggregate().SubjectFor(orderedEvent),
+				Event:   orderedEvent,
+				Expect:  events.ExpectFilterSeq(evtstream.LayoutSubjectFilter(), layoutPosition.Seq),
 			},
 		}
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
@@ -614,20 +604,16 @@ func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, autho
 			})
 			sourceAgg := evtstream.GroupAggregate(sourceGroupID)
 			entries = append(entries, evtstream.BatchEntry{
-				Subject:       sourceAgg.SubjectFor(removed),
-				Event:         removed,
-				HasOCC:        true,
-				ExpectedSeq:   snapshot.Seq,
-				FilterSubject: occFilter,
+				Subject: sourceAgg.SubjectFor(removed),
+				Event:   removed,
+				Expect:  events.ExpectFilterSeq(occFilter, snapshot.Seq),
 			})
 		}
 		targetAgg := evtstream.GroupAggregate(targetGroupID)
 		entries = append(entries, evtstream.BatchEntry{
-			Subject:       targetAgg.SubjectFor(added),
-			Event:         added,
-			HasOCC:        true,
-			ExpectedSeq:   roomDeletedPosition.Seq,
-			FilterSubject: roomDeletedSubject,
+			Subject: targetAgg.SubjectFor(added),
+			Event:   added,
+			Expect:  events.ExpectFilterSeq(roomDeletedSubject, roomDeletedPosition.Seq),
 		})
 		if sourceGroupID == "" {
 			// A legacy unassigned room has no removal event that can carry the
@@ -644,10 +630,7 @@ func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, autho
 			if !currentDeletedPosition.IsZero() {
 				return fmt.Errorf("room not found: %w", jetstream.ErrKeyNotFound)
 			}
-			entries[0].HasStreamOCC = true
-			entries[0].ExpectedStreamSeq = streamSeq
-			entries[0].ExpectedSeq = snapshot.Seq
-			entries[0].FilterSubject = occFilter
+			entries[0].Expect = events.ExpectFilterSeq(occFilter, snapshot.Seq).AndStreamSeq(streamSeq)
 		}
 
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
@@ -1060,11 +1043,9 @@ func (c *ChattoCore) moveSidebarLinkBetweenGroups(ctx context.Context, actorID, 
 		})
 		entries := []evtstream.BatchEntry{
 			{
-				Subject:       evtstream.GroupAggregate(snapshot.SourceGroupID).SubjectFor(removed),
-				Event:         removed,
-				HasOCC:        true,
-				ExpectedSeq:   snapshot.Seq,
-				FilterSubject: evtstream.GroupSubjectFilter(),
+				Subject: evtstream.GroupAggregate(snapshot.SourceGroupID).SubjectFor(removed),
+				Event:   removed,
+				Expect:  events.ExpectFilterSeq(evtstream.GroupSubjectFilter(), snapshot.Seq),
 			},
 			{
 				Subject: evtstream.GroupAggregate(targetGroupID).SubjectFor(added),
@@ -1168,9 +1149,7 @@ func (c *ChattoCore) placeSidebarItem(
 		if err != nil {
 			return err
 		}
-		entries[0].HasOCC = true
-		entries[0].ExpectedSeq = snapshot.Seq
-		entries[0].FilterSubject = evtstream.GroupSubjectFilter()
+		entries[0].Expect = events.ExpectFilterSeq(evtstream.GroupSubjectFilter(), snapshot.Seq)
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
 			last := len(entries) - 1

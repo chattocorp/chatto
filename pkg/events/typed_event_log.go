@@ -28,17 +28,13 @@ type TypedSubjectRecord[E any] struct {
 	Event    E
 }
 
-// TypedBatchEntry is one application event in an atomic publish batch. At
-// least one entry must carry a per-subject, wildcard-filter, or whole-stream
-// OCC guard; the underlying EncodedEventLog enforces that invariant.
+// TypedBatchEntry is one application event in an atomic publish batch.
+// Expect is the entry's optional OCC guard. At least one entry must carry a
+// guard; the underlying EncodedEventLog enforces that invariant.
 type TypedBatchEntry[E any] struct {
-	Subject           string
-	Event             E
-	ExpectedSeq       uint64
-	FilterSubject     string
-	HasOCC            bool
-	ExpectedStreamSeq uint64
-	HasStreamOCC      bool
+	Subject string
+	Event   E
+	Expect  Expectation
 }
 
 // TypedMutationEntry is one typed application event selected by a mutation
@@ -94,30 +90,14 @@ func (t *TypedEventLog[E]) AppendEventually(ctx context.Context, subject string,
 	return t.EncodedEventLog.AppendEventually(ctx, subject, record)
 }
 
-// AppendAt publishes an event with a caller-supplied expected last sequence
-// for subject.
-func (t *TypedEventLog[E]) AppendAt(ctx context.Context, subject string, event E, expectedSeq uint64) (uint64, error) {
+// AppendAt publishes an event to subject with the caller's OCC guard. A zero
+// Expectation returns ErrMissingOCC.
+func (t *TypedEventLog[E]) AppendAt(ctx context.Context, subject string, event E, expect Expectation) (uint64, error) {
 	record, err := t.encode(event)
 	if err != nil {
 		return 0, err
 	}
-	return t.EncodedEventLog.AppendAt(ctx, subject, record, expectedSeq)
-}
-
-// AppendAtFilter publishes to subject with OCC against a possibly wildcarded
-// subject filter.
-func (t *TypedEventLog[E]) AppendAtFilter(
-	ctx context.Context,
-	subject string,
-	event E,
-	filter string,
-	expectedFilterSeq uint64,
-) (uint64, error) {
-	record, err := t.encode(event)
-	if err != nil {
-		return 0, err
-	}
-	return t.EncodedEventLog.AppendAtFilter(ctx, subject, record, filter, expectedFilterSeq)
+	return t.EncodedEventLog.AppendAt(ctx, subject, record, expect)
 }
 
 // AppendBatch encodes every event before atomically publishing the resulting
@@ -132,15 +112,7 @@ func (t *TypedEventLog[E]) AppendBatch(ctx context.Context, entries []TypedBatch
 		if err != nil {
 			return nil, fmt.Errorf("batch entry %d: %w", i, err)
 		}
-		encoded[i] = EncodedBatchEntry{
-			Subject:           entry.Subject,
-			Record:            record,
-			ExpectedSeq:       entry.ExpectedSeq,
-			FilterSubject:     entry.FilterSubject,
-			HasOCC:            entry.HasOCC,
-			ExpectedStreamSeq: entry.ExpectedStreamSeq,
-			HasStreamOCC:      entry.HasStreamOCC,
-		}
+		encoded[i] = EncodedBatchEntry{Subject: entry.Subject, Record: record, Expect: entry.Expect}
 	}
 	return t.EncodedEventLog.AppendBatch(ctx, encoded)
 }

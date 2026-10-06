@@ -310,11 +310,9 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 				},
 			})
 			entries = append(entries, evtstream.BatchEntry{
-				Subject:       evtstream.GroupAggregate(groupID).SubjectFor(added),
-				Event:         added,
-				HasOCC:        true,
-				ExpectedSeq:   groupPosition.Seq,
-				FilterSubject: evtstream.GroupSubjectFilter(),
+				Subject: evtstream.GroupAggregate(groupID).SubjectFor(added),
+				Event:   added,
+				Expect:  events.ExpectFilterSeq(evtstream.GroupSubjectFilter(), groupPosition.Seq),
 			})
 		}
 		entries = append(entries, defaultPermissionEntries...)
@@ -424,16 +422,14 @@ func (c *ChattoCore) publishRoomEventWithNameOCCEntries(
 		var seqs []uint64
 		if len(additionalEntries) == 0 {
 			var seq uint64
-			seq, err = c.EventPublisher.AppendAtFilter(ctx, publishSubject, event, occFilter, snapshot.Seq)
+			seq, err = c.EventPublisher.AppendAt(ctx, publishSubject, event, events.ExpectFilterSeq(occFilter, snapshot.Seq))
 			seqs = []uint64{seq}
 		} else {
 			entries := make([]evtstream.BatchEntry, 1, len(additionalEntries)+1)
 			entries[0] = evtstream.BatchEntry{
-				Subject:       publishSubject,
-				Event:         event,
-				ExpectedSeq:   snapshot.Seq,
-				FilterSubject: occFilter,
-				HasOCC:        true,
+				Subject: publishSubject,
+				Event:   event,
+				Expect:  events.ExpectFilterSeq(occFilter, snapshot.Seq),
 			}
 			entries = append(entries, additionalEntries...)
 			seqs, err = c.EventPublisher.AppendBatch(ctx, entries)
@@ -509,7 +505,9 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 		})
 		deletedSubject = agg.SubjectFor(event)
 		entries := []evtstream.BatchEntry{{
-			Subject: deletedSubject, Event: event, HasOCC: true, ExpectedSeq: roomPosition.Seq, FilterSubject: filter,
+			Subject: deletedSubject,
+			Event:   event,
+			Expect:  events.ExpectFilterSeq(filter, roomPosition.Seq),
 		}}
 		groupRemovedSubject = ""
 		if kind == KindChannel && room.GetGroupId() != "" {
@@ -520,18 +518,15 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 			})
 			groupRemovedSubject = evtstream.GroupAggregate(room.GetGroupId()).SubjectFor(removed)
 			entries = append(entries, evtstream.BatchEntry{
-				Subject:       groupRemovedSubject,
-				Event:         removed,
-				HasOCC:        true,
-				ExpectedSeq:   groupPosition.Seq,
-				FilterSubject: evtstream.GroupSubjectFilter(),
+				Subject: groupRemovedSubject,
+				Event:   removed,
+				Expect:  events.ExpectFilterSeq(evtstream.GroupSubjectFilter(), groupPosition.Seq),
 			})
 		} else if kind == KindChannel {
 			// Legacy unassigned rooms have no group event that can carry the
 			// group OCC guard. The stream guard prevents a concurrent repair or
 			// move from adding the room to a group after this decision.
-			entries[0].HasStreamOCC = true
-			entries[0].ExpectedStreamSeq = streamSeq
+			entries[0].Expect = entries[0].Expect.AndStreamSeq(streamSeq)
 		}
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if errors.Is(err, events.ErrConflict) {

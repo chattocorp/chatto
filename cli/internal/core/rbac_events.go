@@ -137,11 +137,9 @@ func (c *ChattoCore) appendRBACEvent(ctx context.Context, event *evtv1.Event, ch
 		}
 		subject := rbacSubjectForEvent(event)
 		entries := []evtstream.BatchEntry{{
-			Subject:       subject,
-			Event:         event,
-			HasOCC:        true,
-			ExpectedSeq:   filterSeq,
-			FilterSubject: filter,
+			Subject: subject,
+			Event:   event,
+			Expect:  events.ExpectFilterSeq(filter, filterSeq),
 		}}
 
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
@@ -195,11 +193,9 @@ func (c *ChattoCore) appendRoleAssignmentEvent(ctx context.Context, userID strin
 		}
 		subject := rbacSubjectForEvent(event)
 		entries := []evtstream.BatchEntry{{
-			Subject:       subject,
-			Event:         event,
-			HasOCC:        true,
-			ExpectedSeq:   rbacSeq,
-			FilterSubject: filter,
+			Subject: subject,
+			Event:   event,
+			Expect:  events.ExpectFilterSeq(filter, rbacSeq),
 		}}
 
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
@@ -248,11 +244,9 @@ func (c *ChattoCore) appendRBACEventWithMentionableCheck(ctx context.Context, ev
 		}
 		subject := rbacSubjectForEvent(event)
 		entries := []evtstream.BatchEntry{{
-			Subject:       subject,
-			Event:         event,
-			HasOCC:        true,
-			ExpectedSeq:   filterSeq,
-			FilterSubject: filter,
+			Subject: subject,
+			Event:   event,
+			Expect:  events.ExpectFilterSeq(filter, filterSeq),
 		}}
 
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
@@ -298,9 +292,7 @@ func (c *ChattoCore) appendRBACBatch(ctx context.Context, entries []evtstream.Ba
 		}
 
 		chunk := append([]evtstream.BatchEntry(nil), entries...)
-		chunk[0].HasOCC = true
-		chunk[0].ExpectedSeq = filterSeq
-		chunk[0].FilterSubject = filter
+		chunk[0].Expect = events.ExpectFilterSeq(filter, filterSeq)
 
 		seqs, err := c.EventPublisher.AppendBatch(ctx, chunk)
 		if err == nil {

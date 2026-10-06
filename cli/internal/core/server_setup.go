@@ -66,7 +66,7 @@ func (c *ChattoCore) initializeServerSetup(ctx context.Context) error {
 		if fresh {
 			filter = evtstream.EventSubjectFilter()
 		}
-		_, err = c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{Subject: evtstream.SetupAggregate().SubjectFor(event), Event: event, HasOCC: true, ExpectedSeq: 0, FilterSubject: filter}})
+		_, err = c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{Subject: evtstream.SetupAggregate().SubjectFor(event), Event: event, Expect: events.ExpectFilterSeq(filter, 0)}})
 		if errors.Is(err, events.ErrConflict) {
 			continue
 		}
@@ -171,7 +171,7 @@ func (c *ChattoCore) CompleteBootstrappedSetup(ctx context.Context) error {
 		return nil
 	}
 	event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_ServerInitialized{ServerInitialized: &evtv1.ServerInitializedEvent{}}})
-	_, err = c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{Subject: evtstream.SetupAggregate().SubjectFor(event), Event: event, HasOCC: true, ExpectedSeq: seq, FilterSubject: evtstream.SetupAggregate().AllEventsFilter()}})
+	_, err = c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{Subject: evtstream.SetupAggregate().SubjectFor(event), Event: event, Expect: events.ExpectFilterSeq(evtstream.SetupAggregate().AllEventsFilter(), seq)}})
 	if errors.Is(err, events.ErrConflict) {
 		return nil
 	}

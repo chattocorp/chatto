@@ -54,9 +54,7 @@ func (s *ConfigModel) appendEventsAt(ctx context.Context, agg evtstream.Aggregat
 			Event:   event,
 		}
 		if i == 0 {
-			entry.ExpectedSeq = expectedSeq
-			entry.FilterSubject = filter
-			entry.HasOCC = true
+			entry.Expect = events.ExpectFilterSeq(filter, expectedSeq)
 		}
 		entries = append(entries, entry)
 	}

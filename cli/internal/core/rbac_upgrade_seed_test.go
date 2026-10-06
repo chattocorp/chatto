@@ -9,6 +9,7 @@ import (
 
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // v04DefaultDecisions returns the fresh-server defaults without permissions
@@ -30,14 +31,13 @@ func v04DefaultDecisions() []rbacSeedDecision {
 	return decisions
 }
 
-func appendV04RBACLog(t *testing.T, h *testEventHarness, roles map[string]*evtv1.Role, extra []rbacSeedDecision, events ...*evtv1.Event) {
+func appendV04RBACLog(t *testing.T, h *testEventHarness, roles map[string]*evtv1.Role, extra []rbacSeedDecision, extraEvents ...*evtv1.Event) {
 	t.Helper()
 	ctx := testContext(t)
 	maps.Copy(roles, defaultRBACRoles())
 	entries := rbacSeedEntries(roles, nil, append(v04DefaultDecisions(), extra...))
-	entries[0].HasOCC = true
-	entries[0].FilterSubject = evtstream.RBACSubjectFilter()
-	for _, event := range events {
+	entries[0].Expect = events.ExpectFilterSeq(evtstream.RBACSubjectFilter(), 0)
+	for _, event := range extraEvents {
 		entries = append(entries, evtstream.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
 	}
 	_, err := h.publisher.AppendBatch(ctx, entries)

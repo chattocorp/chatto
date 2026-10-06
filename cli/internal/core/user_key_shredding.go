@@ -56,8 +56,10 @@ func newUserKeyShreddingModel(ctx context.Context, core *ChattoCore, logger *log
 		return nil, fmt.Errorf("create user-key shredding consumer: %w", err)
 	}
 	m := &UserKeyShreddingModel{
-		core:               core,
-		appendRequestAtFn:  core.EventPublisher.AppendAtFilter,
+		core: core,
+		appendRequestAtFn: func(ctx context.Context, subject string, event *evtv1.Event, filter string, filterSeq uint64) (uint64, error) {
+			return core.EventPublisher.AppendAt(ctx, subject, event, events.ExpectFilterSeq(filter, filterSeq))
+		},
 		shredContentKeyFn:  core.encryption.contentKeys.Shred,
 		shredWrappingKeyFn: core.encryption.keyWrapper.ShredKey,
 	}

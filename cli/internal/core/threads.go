@@ -531,7 +531,7 @@ func (c *ChattoCore) appendThreadFollowStateEvent(ctx context.Context, kind Room
 			return false, fmt.Errorf("unsupported thread follow state %q", target)
 		}
 
-		seq, err := c.EventPublisher.AppendAtFilter(ctx, agg.SubjectFor(event), event, filter, pos.Seq)
+		seq, err := c.EventPublisher.AppendAt(ctx, agg.SubjectFor(event), event, events.ExpectFilterSeq(filter, pos.Seq))
 		if err == nil {
 			if err := c.roomModel.waitForThreads(ctx, events.SubjectPosition(agg.SubjectFor(event), seq)); err != nil {
 				return true, err

@@ -935,11 +935,9 @@ func TestMoveSidebarLinkToGroupPreservesConcurrentUpdate(t *testing.T) {
 	})
 	_, err = core.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{
 		{
-			Subject:       evtstream.GroupAggregate(staleSnapshot.SourceGroupID).SubjectFor(removed),
-			Event:         removed,
-			HasOCC:        true,
-			ExpectedSeq:   staleSnapshot.Seq,
-			FilterSubject: evtstream.GroupSubjectFilter(),
+			Subject: evtstream.GroupAggregate(staleSnapshot.SourceGroupID).SubjectFor(removed),
+			Event:   removed,
+			Expect:  events.ExpectFilterSeq(evtstream.GroupSubjectFilter(), staleSnapshot.Seq),
 		},
 		{
 			Subject: evtstream.GroupAggregate(target.Id).SubjectFor(added),

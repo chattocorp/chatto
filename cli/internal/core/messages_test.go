@@ -3098,7 +3098,7 @@ func TestHistoricalEchoBodyIsIgnoredAndDeletedWithoutErasingOriginal(t *testing.
 	filter := evtstream.RoomAggregate(room.Id).AllEventsFilter()
 	tail, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 	require.NoError(t, err)
-	seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{Subject: subject, Event: fact, HasOCC: true, ExpectedSeq: tail, FilterSubject: filter}})
+	seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{Subject: subject, Event: fact, Expect: events.ExpectFilterSeq(filter, tail)}})
 	require.NoError(t, err)
 	require.NoError(t, c.roomModel.waitForTimeline(ctx, events.SubjectPosition(subject, seqs[0])))
 	text, err := c.GetMessageBody(ctx, echoID)

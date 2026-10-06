@@ -3,6 +3,7 @@ package events
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	"testing"
 
@@ -10,7 +11,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
-func TestSequenceConflictErrorTranslatesWrongLastSequenceVariants(t *testing.T) {
+func TestIsSequenceConflictRecognizesWrongLastSequenceVariants(t *testing.T) {
 	tests := []struct {
 		name string
 		err  error
@@ -62,13 +63,8 @@ func TestSequenceConflictErrorTranslatesWrongLastSequenceVariants(t *testing.T) 
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := sequenceConflictError(
-				tt.err,
-				"evt.room.R1.message_sent",
-				42,
-			)
-			if got := errors.Is(err, ErrConflict); got != tt.want {
-				t.Fatalf("errors.Is(sequenceConflictError, ErrConflict) = %v, want %v (err=%v)", got, tt.want, err)
+			if got := isSequenceConflict(tt.err); got != tt.want {
+				t.Fatalf("isSequenceConflict(%v) = %v, want %v", tt.err, got, tt.want)
 			}
 		})
 	}
@@ -84,9 +80,9 @@ func TestDecodeBatchAckTranslatesWrongLastSequenceVariants(t *testing.T) {
 				`{"error":{"code":400,"err_code":%d,"description":"wrong last sequence"}}`,
 				code,
 			)}
-			_, err := decodeBatchAck(msg, conflictExpectationForEntry(EncodedBatchEntry{
-				Subject:     "evt.room.R1.message_sent",
-				ExpectedSeq: 42,
+			_, err := decodeBatchAck(msg, entryConflict(EncodedBatchEntry{
+				Subject: "evt.room.R1.message_sent",
+				Expect:  ExpectSubjectSeq(42),
 			}))
 			if !errors.Is(err, ErrConflict) {
 				t.Fatalf("decodeBatchAck error = %v, want ErrConflict", err)
@@ -100,9 +96,9 @@ func TestDecodeBatchAckPreservesUnrelatedServerErrors(t *testing.T) {
 		`{"error":{"code":503,"err_code":%d,"description":"JetStream unavailable"}}`,
 		jetstream.JSErrCodeJetStreamNotEnabled,
 	)}
-	_, err := decodeBatchAck(msg, conflictExpectationForEntry(EncodedBatchEntry{
-		Subject:     "evt.room.R1.message_sent",
-		ExpectedSeq: 42,
+	_, err := decodeBatchAck(msg, entryConflict(EncodedBatchEntry{
+		Subject: "evt.room.R1.message_sent",
+		Expect:  ExpectSubjectSeq(42),
 	}))
 	if err == nil {
 		t.Fatal("decodeBatchAck error = nil, want server error")
@@ -114,10 +110,9 @@ func TestDecodeBatchAckPreservesUnrelatedServerErrors(t *testing.T) {
 
 func TestDecodeBatchAckReportsStreamTailExpectation(t *testing.T) {
 	msg := &nats.Msg{Data: []byte(`{"error":{"code":400,"err_code":10071,"description":"wrong last sequence"}}`)}
-	_, err := decodeBatchAck(msg, conflictExpectationForEntry(EncodedBatchEntry{
-		Subject:           "evt.room.R1.reaction_added",
-		ExpectedStreamSeq: 42,
-		HasStreamOCC:      true,
+	_, err := decodeBatchAck(msg, entryConflict(EncodedBatchEntry{
+		Subject: "evt.room.R1.reaction_added",
+		Expect:  ExpectStreamSeq(42),
 	}))
 	if !errors.Is(err, ErrConflict) {
 		t.Fatalf("decodeBatchAck error = %v, want ErrConflict", err)
@@ -127,30 +122,53 @@ func TestDecodeBatchAckReportsStreamTailExpectation(t *testing.T) {
 	}
 }
 
-func TestDecodeBatchAckReportsAmbiguousDualGuardExpectation(t *testing.T) {
-	msg := &nats.Msg{Data: []byte(`{"error":{"code":400,"err_code":10071,"description":"wrong last sequence"}}`)}
-	entry := EncodedBatchEntry{
-		Subject:           "evt.room.R1.reaction_added",
-		ExpectedSeq:       17,
-		FilterSubject:     "evt.room.R1.>",
-		HasOCC:            true,
-		ExpectedStreamSeq: 42,
-		HasStreamOCC:      true,
-	}
+func TestBatchConflictNamesTheOnlyGuard(t *testing.T) {
+	guarded := EncodedBatchEntry{Subject: "evt.room.R1.reaction_added", Expect: ExpectFilterSeq("evt.room.R1.>", 17)}
+	unguarded := EncodedBatchEntry{Subject: "evt.room.R1.reaction_removed"}
 
-	_, err := decodeBatchAck(msg, conflictExpectationForEntry(entry))
-	if !errors.Is(err, ErrConflict) {
-		t.Fatalf("decodeBatchAck error = %v, want ErrConflict", err)
+	err := batchConflict([]EncodedBatchEntry{unguarded, guarded}, 1)
+	if !errors.Is(err, ErrConflict) || !strings.Contains(err.Error(), "filter evt.room.R1.> at expected seq 17") {
+		t.Fatalf("one-guard batch conflict = %v, want the filter guard", err)
 	}
-	if !strings.Contains(err.Error(), "batch entry OCC guards") {
-		t.Fatalf("decodeBatchAck error = %q, want ambiguous entry guard context", err)
+	err = batchConflict([]EncodedBatchEntry{guarded, guarded}, 2)
+	if !errors.Is(err, ErrConflict) || !strings.Contains(err.Error(), "atomic batch OCC guards") {
+		t.Fatalf("two-guard batch conflict = %v, want the batch guard context", err)
 	}
+}
 
-	_, err = decodeBatchAck(msg, batchConflictExpectation([]EncodedBatchEntry{entry}))
-	if !errors.Is(err, ErrConflict) {
-		t.Fatalf("batch conflict error = %v, want ErrConflict", err)
-	}
-	if !strings.Contains(err.Error(), "atomic batch OCC guards") {
-		t.Fatalf("batch conflict error = %q, want ambiguous batch guard context", err)
+// The batch headers of each guard are the headers that the single-record
+// publish options send. NATS stores them with the message.
+func TestBatchGuardHeaders(t *testing.T) {
+	for name, test := range map[string]struct {
+		expect Expectation
+		want   map[string]string
+	}{
+		"none":    {Expectation{}, map[string]string{}},
+		"subject": {ExpectSubjectSeq(7), map[string]string{"Nats-Expected-Last-Subject-Sequence": "7"}},
+		"filter": {ExpectFilterSeq("evt.room.R1.>", 7), map[string]string{
+			"Nats-Expected-Last-Subject-Sequence":         "7",
+			"Nats-Expected-Last-Subject-Sequence-Subject": "evt.room.R1.>",
+		}},
+		"stream": {ExpectStreamSeq(7), map[string]string{"Nats-Expected-Last-Sequence": "7"}},
+		"filter and stream": {ExpectFilterSeq("evt.room.R1.>", 7).AndStreamSeq(9), map[string]string{
+			"Nats-Expected-Last-Subject-Sequence":         "7",
+			"Nats-Expected-Last-Subject-Sequence-Subject": "evt.room.R1.>",
+			"Nats-Expected-Last-Sequence":                 "9",
+		}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			msg := buildEncodedBatchMsg(EncodedBatchEntry{
+				Subject: "evt.room.R1.created", Record: EncodedRecord{ID: "id"}, Expect: test.expect,
+			}, "batch", 1, false)
+			got := map[string]string{}
+			for key := range msg.Header {
+				if strings.HasPrefix(key, "Nats-Expected-") {
+					got[key] = msg.Header.Get(key)
+				}
+			}
+			if !maps.Equal(got, test.want) {
+				t.Fatalf("guard headers = %v, want %v", got, test.want)
+			}
+		})
 	}
 }

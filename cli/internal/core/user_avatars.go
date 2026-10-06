@@ -152,7 +152,9 @@ func (c *ChattoCore) appendManagedAvatarEvent(ctx context.Context, actorID, targ
 			return nil, false, nil
 		}
 		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
-			Subject: subject, Event: event, HasOCC: true, ExpectedSeq: filterSeq, FilterSubject: filter,
+			Subject: subject,
+			Event:   event,
+			Expect:  events.ExpectFilterSeq(filter, filterSeq),
 		}})
 		if err == nil {
 			if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(subject, seqs[0])); err != nil {
