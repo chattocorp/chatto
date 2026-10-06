@@ -44,7 +44,8 @@ jobs:
         with:
           predicate-quantifier: some-with-excludes
           # Release-please writes changelogs and the release manifest. Only
-          # release tooling reads them, so they do not select product jobs.
+          # release tooling reads the changelogs, so they do not select product
+          # jobs. Of the products, only a Runling test reads the manifest.
           # Version files in release pull requests still select their product.
           filters: |
             chatto:
@@ -69,6 +70,8 @@ jobs:
               - 'packages/chatto-client/**'
               - 'packages/api-types/**'
               - 'examples/runling-bot/**'
+              # A release test compares the manifest with the Runling version.
+              - '.release-please-manifest.json'
               - '!**/CHANGELOG.md'
             chattobot:
               - 'packages/chattobot/**'
