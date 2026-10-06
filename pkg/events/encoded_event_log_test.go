@@ -2,6 +2,7 @@ package events_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"maps"
 	"slices"
@@ -375,8 +376,8 @@ func TestEncodedEventLogRejectsMissingRecordIDAndUnguardedBatch(t *testing.T) {
 			Record:  EncodedRecord{ID: "second", Data: []byte("second")},
 			Expect:  ExpectStreamSeq(0),
 		},
-	}); !errors.Is(err, ErrInvalidBatchOCC) {
-		t.Fatalf("misplaced stream OCC error = %v, want ErrInvalidBatchOCC", err)
+	}); !errors.Is(err, ErrInvalidOCC) {
+		t.Fatalf("misplaced stream OCC error = %v, want ErrInvalidOCC", err)
 	}
 }
 
@@ -452,28 +453,25 @@ func TestAppendAtStoresGuardHeaders(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, test := range []struct {
-		name   string
-		expect func(streamSeq uint64) Expectation
-		want   map[string]string
+		name    string
+		subject string
+		expect  func(streamSeq uint64) Expectation
+		want    map[string]string
 	}{
-		{"subject", func(uint64) Expectation { return ExpectSubjectSeq(0) }, map[string]string{
+		{"subject", "evt.guards.subject.created", func(uint64) Expectation { return ExpectSubjectSeq(0) }, map[string]string{
 			"Nats-Expected-Last-Subject-Sequence": "0",
 		}},
-		{"filter", func(uint64) Expectation { return ExpectFilterSeq("evt.guards.filter.>", 0) }, map[string]string{
+		{"filter", "evt.guards.filter.created", func(uint64) Expectation { return ExpectFilterSeq("evt.guards.filter.>", 0) }, map[string]string{
 			"Nats-Expected-Last-Subject-Sequence":         "0",
 			"Nats-Expected-Last-Subject-Sequence-Subject": "evt.guards.filter.>",
 		}},
-		{"stream", ExpectStreamSeq, nil},
-		{"subject and stream", func(seq uint64) Expectation { return ExpectSubjectSeq(0).AndStreamSeq(seq) }, map[string]string{
+		{"stream", "evt.guards.stream.created", ExpectStreamSeq, nil},
+		{"subject and stream", "evt.guards.dual.created", func(seq uint64) Expectation { return ExpectSubjectSeq(0).AndStreamSeq(seq) }, map[string]string{
 			"Nats-Expected-Last-Subject-Sequence": "0",
 		}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			subject := "evt.guards." + strings.ReplaceAll(test.name, " ", "-") + ".created"
-			if test.name == "filter" {
-				subject = "evt.guards.filter.created"
-			}
-			seq, err := eventLog.AppendAt(ctx, subject, EncodedRecord{ID: "guard-" + test.name, Data: []byte("x")}, test.expect(streamSeq))
+			seq, err := eventLog.AppendAt(ctx, test.subject, EncodedRecord{ID: "guard-" + test.name, Data: []byte("x")}, test.expect(streamSeq))
 			if err != nil {
 				t.Fatalf("AppendAt: %v", err)
 			}
@@ -482,22 +480,62 @@ func TestAppendAtStoresGuardHeaders(t *testing.T) {
 			if strings.Contains(test.name, "stream") {
 				want["Nats-Expected-Last-Sequence"] = strconv.FormatUint(streamSeq, 10)
 			}
-			stored, err := stream.GetMsg(ctx, seq)
-			if err != nil {
-				t.Fatal(err)
-			}
-			got := map[string]string{}
-			for key := range stored.Header {
-				if strings.HasPrefix(key, "Nats-Expected-") {
-					got[key] = stored.Header.Get(key)
-				}
-			}
-			if !maps.Equal(got, want) {
+			if got := storedGuardHeaders(t, stream, seq); !maps.Equal(got, want) {
 				t.Fatalf("stored guard headers = %v, want %v", got, want)
 			}
 			streamSeq = seq
 		})
 	}
+}
+
+// A subject mutation boundary sends the filter header also for an exact
+// subject, for a single record and for the guarded first batch record.
+func TestExecuteMutationStoresSubjectBoundaryHeaders(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	ctx := testContext(t)
+	const subject = "evt.guards.mutation.created"
+	var subjectTail uint64
+	for _, records := range [][]string{{"single"}, {"batch-first", "batch-second"}} {
+		result, err := eventLog.ExecuteMutation(ctx, AtSubject(subject), func(_ context.Context, attempt MutationAttempt) ([]EncodedMutationEntry, error) {
+			entries := make([]EncodedMutationEntry, len(records))
+			for i, id := range records {
+				entries[i] = EncodedMutationEntry{Subject: subject, Record: EncodedRecord{ID: id, Data: []byte(id)}}
+			}
+			return entries, nil
+		})
+		if err != nil {
+			t.Fatalf("ExecuteMutation %v: %v", records, err)
+		}
+		want := map[string]string{
+			"Nats-Expected-Last-Subject-Sequence":         strconv.FormatUint(subjectTail, 10),
+			"Nats-Expected-Last-Subject-Sequence-Subject": subject,
+		}
+		if got := storedGuardHeaders(t, stream, result.Sequences[0]); !maps.Equal(got, want) {
+			t.Fatalf("records %v: stored guard headers = %v, want %v", records, got, want)
+		}
+		if len(records) > 1 {
+			if got := storedGuardHeaders(t, stream, result.Sequences[1]); len(got) != 0 {
+				t.Fatalf("unguarded batch record stored guard headers %v", got)
+			}
+		}
+		subjectTail = result.Sequences[len(result.Sequences)-1]
+	}
+}
+
+func storedGuardHeaders(t *testing.T, stream jetstream.Stream, seq uint64) map[string]string {
+	t.Helper()
+	stored, err := stream.GetMsg(testContext(t), seq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for key := range stored.Header {
+		if strings.HasPrefix(key, "Nats-Expected-") {
+			got[key] = stored.Header.Get(key)
+		}
+	}
+	return got
 }
 
 func TestAppendAtRejectsMissingGuard(t *testing.T) {
@@ -506,7 +544,7 @@ func TestAppendAtRejectsMissingGuard(t *testing.T) {
 	if _, err := eventLog.AppendAt(testContext(t), "evt.guards.none", EncodedRecord{ID: "none"}, Expectation{}); !errors.Is(err, ErrMissingOCC) {
 		t.Fatalf("AppendAt without a guard = %v, want ErrMissingOCC", err)
 	}
-	if _, err := eventLog.AppendAt(testContext(t), "evt.guards.none", EncodedRecord{ID: "none"}, ExpectFilterSeq("", 0)); !errors.Is(err, ErrInvalidBatchOCC) {
-		t.Fatalf("AppendAt with an empty filter = %v, want ErrInvalidBatchOCC", err)
+	if _, err := eventLog.AppendAt(testContext(t), "evt.guards.none", EncodedRecord{ID: "none"}, ExpectFilterSeq("", 0)); !errors.Is(err, ErrInvalidOCC) {
+		t.Fatalf("AppendAt with an empty filter = %v, want ErrInvalidOCC", err)
 	}
 }
