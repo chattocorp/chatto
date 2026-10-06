@@ -1,6 +1,6 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
-  "remoteCache": { "enabled": false },
+  "remoteCache": { "enabled": true },
   "envMode": "loose",
   "globalDependencies": ["mise.toml", ".npmrc"],
   "globalEnv": ["NODE_OPTIONS"],

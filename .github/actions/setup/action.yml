@@ -21,6 +21,10 @@ inputs:
     description: 'Cache scope for jobs that compile the same Go workload'
     required: false
     default: ''
+  turbo-remote-cache:
+    description: 'Use the GitHub Actions cache as the Turbo remote cache. Pushes to main write to it; other runs only read. Release workflows turn it off, so release artifacts build from source.'
+    required: false
+    default: 'true'
 runs:
   using: 'composite'
   steps:
@@ -99,3 +103,19 @@ runs:
       if: inputs.install-frontend-deps == 'true'
       shell: bash
       run: mise setup-frontend
+
+    # The action runs a local Turbo remote cache server. It stores one GitHub
+    # Actions cache entry for each task hash, so all jobs share build and
+    # check results, and GitHub removes entries that are not used. See ADR-102.
+    - name: Start Turbo remote cache
+      if: inputs.install-frontend-deps == 'true' && inputs.turbo-remote-cache == 'true'
+      uses: rharkor/caching-for-turbo@2238fae6eb9a9936f92356f54cb3660200d105e7 # v2.5.1
+
+    # Only main writes entries. Other runs read them: pull request caches are
+    # not visible to other branches, so their entries would only use storage.
+    - name: Select Turbo cache sources
+      if: inputs.install-frontend-deps == 'true' && inputs.turbo-remote-cache == 'true'
+      shell: bash
+      env:
+        REMOTE_ACCESS: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'rw' || 'r' }}
+      run: echo "TURBO_CACHE=local:rw,remote:$REMOTE_ACCESS" >> "$GITHUB_ENV"

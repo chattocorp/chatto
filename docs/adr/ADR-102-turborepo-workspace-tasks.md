@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-21
 
-**Updated:** 2026-09-26
+**Updated:** 2026-10-06
 
 **Status:** Accepted
 
@@ -41,13 +41,26 @@ build task. Mise does not keep separate source lists for these builds.
 
 Do not set `cacheDir`. Turbo then shares the local cache of the main checkout
 with every Git worktree, so a new worktree restores unchanged builds. The
-cached outputs contain no absolute worktree paths. Disable remote caching and
-disable telemetry in the root `pnpm turbo` script; no cache service receives
-source, build output, or logs.
+cached outputs contain no absolute worktree paths. Disable telemetry in the
+root `pnpm turbo` script.
 
-Verification tasks remain uncached. Use loose environment mode to retain
-existing release, test, and development settings. Keep publishing, signing,
-and installed-package tests outside Turbo.
+The root script also sets `TURBO_CACHE=local:rw` when the caller does not set
+it. Local runs therefore use only the local cache, and no cache service
+receives source, build output, or logs. `turbo.json` enables remote caching
+only so that CI can select it.
+
+CI uses the GitHub Actions cache as the Turbo remote cache. The shared setup
+action starts `rharkor/caching-for-turbo`, pinned to a commit. The action runs
+a local cache server that stores one Actions cache entry for each task hash.
+All jobs share build and check results, and GitHub removes entries that are
+not used. Build output stays in the repository's Actions cache, with the Go and
+pnpm caches. Pushes to `main` write entries. Other runs only read them,
+because pull request caches are not visible to other branches. Release
+workflows turn the remote cache off, so release artifacts build from source.
+
+Check tasks are cached. Lint and test tasks remain uncached. Use loose
+environment mode to retain existing release, test, and development settings.
+Keep publishing, signing, and installed-package tests outside Turbo.
 
 ## Consequences
 
