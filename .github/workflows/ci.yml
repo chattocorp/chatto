@@ -664,26 +664,24 @@ jobs:
             authling/test-results/
           retention-days: 14
 
-  test-e2e:
+  test-e2e-shards:
     needs: changes
-    # Expand the matrix even when no E2E work is needed. A skipped matrix job
-    # has no per-shard check names and would leave required checks pending.
-    if: ${{ !cancelled() }}
+    if: ${{ needs.changes.outputs.chatto == 'true' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    name: test-e2e (${{ matrix.shard }}/4)
+    # Each shard spends about two minutes on setup and builds, so more shards
+    # give less benefit. The test-e2e job reports the result of all shards.
+    name: test-e2e (${{ matrix.shard }}/${{ strategy.job-total }})
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - name: Checkout code
-        if: needs.changes.outputs.chatto == 'true'
         uses: actions/checkout@v6
 
       - name: Setup environment
-        if: needs.changes.outputs.chatto == 'true'
         uses: ./.github/actions/setup
         with:
           go-build-cache-scope: test-e2e
@@ -692,31 +690,28 @@ jobs:
           save-go-build-cache: ${{ matrix.shard == 1 && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
       - name: Setup Playwright
-        if: needs.changes.outputs.chatto == 'true'
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
 
       - name: Build E2E dependencies
-        if: needs.changes.outputs.chatto == 'true'
         run: |
           mise build-e2e-server
           mise build-runling-bot
 
       - name: Run E2E tests
-        if: needs.changes.outputs.chatto == 'true'
         env:
-          E2E_SHARD: ${{ matrix.shard }}
+          E2E_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
           PLAYWRIGHT_JSON_OUTPUT_FILE: e2e-results.json
         run: |
           cd apps/frontend
           node --test scripts/run-e2e-shard.test.mjs
-          node scripts/run-e2e-shard.mjs "$E2E_SHARD/4" --grep-invert @ffmpeg
+          node scripts/run-e2e-shard.mjs "$E2E_SHARD" --grep-invert @ffmpeg
 
       - name: Upload E2E timings
         uses: actions/upload-artifact@v7
-        if: ${{ !cancelled() && needs.changes.outputs.chatto == 'true' }}
+        if: ${{ !cancelled() }}
         with:
-          name: e2e-timings-${{ matrix.shard }}-of-4
+          name: e2e-timings-${{ matrix.shard }}-of-${{ strategy.job-total }}
           path: apps/frontend/e2e-results.json
           retention-days: 14
 
@@ -724,9 +719,20 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: playwright-report-${{ matrix.shard }}-of-4
+          name: playwright-report-${{ matrix.shard }}-of-${{ strategy.job-total }}
           path: apps/frontend/playwright-report/
           retention-days: 14
+
+  test-e2e:
+    needs: [changes, test-e2e-shards]
+    if: ${{ always() && needs.changes.outputs.chatto == 'true' }}
+    # Keep this job name stable because it can be a required branch check.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify E2E shards
+        env:
+          SHARDS_RESULT: ${{ needs.test-e2e-shards.result }}
+        run: test "$SHARDS_RESULT" = success
 
   test-e2e-media:
     needs: changes
