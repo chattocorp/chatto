@@ -85,6 +85,8 @@ sources = [
     "go.mod",
     "**/*.go",
     "!**/*_test.go",
+    "../pkg/**/*.go",
+    "../pkg/**/go.mod",
 ]
 outputs = ["bin/authling"]
 
@@ -95,7 +97,7 @@ run = [
     "GOWORK=off go test -trimpath ./...",
     "go test -trimpath ./...",
 ]
-sources = ["go.mod", "go.sum", "**/*.go"]
+sources = ["go.mod", "go.sum", "**/*.go", "../pkg/**/*.go", "../pkg/**/go.mod"]
 
 [tasks.lint]
 description = "Vet Authling standalone and in the repository workspace"

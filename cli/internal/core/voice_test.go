@@ -158,10 +158,6 @@ func (f *fakeLiveKitRoomService) RemoveParticipant(_ context.Context, _ *livekit
 	return &livekit.RemoveParticipantResponse{}, nil
 }
 
-func (l *recordingCallLogger) Debug(any, ...any) {}
-func (l *recordingCallLogger) Info(any, ...any)  {}
-func (l *recordingCallLogger) Error(any, ...any) {}
-
 func (l *recordingCallLogger) Warn(msg any, keyvals ...any) {
 	l.warnMessage = msg.(string)
 	l.warnKeyvals = append([]any(nil), keyvals...)

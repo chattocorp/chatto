@@ -45,9 +45,9 @@ func NewProjector(
 	js jetstream.JetStream,
 	stream jetstream.Stream,
 	projection Projection,
-	logger events.Logger,
-) *events.Projector {
-	return events.NewDecodedProjector(js, stream, projection, decodeEvent, logger)
+	opts events.ProjectorOptions,
+) (*events.Projector, error) {
+	return events.NewDecodedProjector(js, stream, projection, decodeEvent, opts)
 }
 
 // NewProjectionHandle constructs a typed Chatto projection handle and its
@@ -56,9 +56,9 @@ func NewProjectionHandle[T any, P ProjectionPointer[T]](
 	js jetstream.JetStream,
 	stream jetstream.Stream,
 	projection P,
-	logger events.Logger,
-) events.ProjectionHandle[P] {
-	return events.NewDecodedProjectionHandle(js, stream, projection, decodeEvent, logger)
+	opts events.ProjectorOptions,
+) (events.ProjectionHandle[P], error) {
+	return events.NewDecodedProjectionHandle(js, stream, projection, decodeEvent, opts)
 }
 
 // NewPreparedProjectionHandle constructs a typed prepared projection handle
@@ -67,17 +67,18 @@ func NewPreparedProjectionHandle[T any, P PreparedProjectionPointer[T]](
 	js jetstream.JetStream,
 	stream jetstream.Stream,
 	projection P,
-	logger events.Logger,
-) events.ProjectionHandle[P] {
-	return events.NewDecodedPreparedProjectionHandle(js, stream, projection, decodeEvent, logger)
+	opts events.ProjectorOptions,
+) (events.ProjectionHandle[P], error) {
+	return events.NewDecodedPreparedProjectionHandle(js, stream, projection, decodeEvent, opts)
 }
 
-// BindProjectionHandle joins a Chatto projection to an already-configured
-// projector while verifying that the projector owns the same projection.
+// BindProjectionHandle joins a Chatto projection to the projector that owns
+// it, such as the ServerContentView projector for one of its components. It
+// panics when the projector owns a different projection.
 func BindProjectionHandle[T any, P ProjectionPointer[T]](
 	projection P,
 	projector *events.Projector,
-) (events.ProjectionHandle[P], error) {
+) events.ProjectionHandle[P] {
 	return events.BindDecodedProjectionHandle[T, *evtv1.Event](projection, projector)
 }
 

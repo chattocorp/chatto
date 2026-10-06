@@ -50,7 +50,7 @@ type KeyValue struct {
 // context with a domain or a non-default API prefix.
 func NewKeyValue(js jetstream.JetStream, bucket jetstream.KeyValue) (*KeyValue, error) {
 	if js == nil || bucket == nil {
-		return nil, errors.New("key-value bucket and JetStream context are required")
+		panic("events: key-value binding requires a JetStream context and a bucket")
 	}
 	opts := js.Options()
 	if opts.Domain != "" || (opts.APIPrefix != "" && strings.TrimSuffix(opts.APIPrefix, ".")+"." != jetstream.DefaultAPIPrefix) {

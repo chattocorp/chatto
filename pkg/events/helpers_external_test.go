@@ -2,22 +2,14 @@ package events_test
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-
-	. "hmans.de/chatto/pkg/events"
 )
-
-type discardLogger struct{}
-
-func (discardLogger) Debug(any, ...any) {}
-func (discardLogger) Info(any, ...any)  {}
-func (discardLogger) Warn(any, ...any)  {}
-func (discardLogger) Error(any, ...any) {}
 
 func testContext(t *testing.T) context.Context {
 	t.Helper()
@@ -26,8 +18,8 @@ func testContext(t *testing.T) context.Context {
 	return ctx
 }
 
-func testLogger() Logger {
-	return discardLogger{}
+func testLogger() *slog.Logger {
+	return slog.New(slog.DiscardHandler)
 }
 
 func startTestNATS(t *testing.T) *nats.Conn {
@@ -87,4 +79,13 @@ func waitFor(t *testing.T, timeout time.Duration, condition func() bool) {
 		}
 		time.Sleep(time.Millisecond)
 	}
+}
+
+// must returns value or panics with err. Tests use it for constructors that
+// must succeed.
+func must[T any](value T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return value
 }

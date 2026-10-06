@@ -59,10 +59,13 @@ func (g *startupGate) LoadProjectionSnapshot(_ context.Context, request Projecti
 
 func (g *startupGate) newProjector(t *testing.T, js jetstream.JetStream, stream jetstream.Stream, projection EventProjection[codecTestEvent]) *Projector {
 	t.Helper()
-	projector := NewDecodedProjector(js, stream, projection, decodeCodecTestEvent, testLogger())
-	if err := projector.ConfigureSnapshots("startup-target", g, func(*jetstream.StreamInfo) (string, error) {
-		return "stream-identity", nil
-	}); err != nil {
+	projector, err := NewDecodedProjector(js, stream, projection, decodeCodecTestEvent, ProjectorOptions{
+		Logger: testLogger(),
+		Snapshots: &SnapshotOptions{Key: "startup-target", Source: g, ResolveStreamIdentity: func(*jetstream.StreamInfo) (string, error) {
+			return "stream-identity", nil
+		}},
+	})
+	if err != nil {
 		t.Fatalf("configure snapshot gate: %v", err)
 	}
 	return projector

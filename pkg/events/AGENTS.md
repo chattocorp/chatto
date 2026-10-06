@@ -24,6 +24,14 @@ durable worker resource ownership.
   borrow product-specific test helpers.
 - Base exported API changes on actual external-package users. Do not add a
   general API only to make one application setup shorter.
+- Before you remove or change exported API, run `mise x -- go vet ./...` in
+  `cli/` and `GOWORK=off mise x -- go vet ./...` in `authling/`. Build the
+  embedded web assets first (`mise build-frontend`, and `mise build-web` in
+  `authling/`). `go vet` compiles the tests, so it also finds users that a
+  text search can miss.
+- Constructors panic when a required argument is missing or malformed.
+  They return an error when options are invalid or a construction-time check
+  fails. Keep new constructors consistent with this rule.
 - `DurableWorker` executes an already configured consumer; it must not infer
   consumer ownership from process lifecycle or create, delete, retire, or
   garbage-collect application consumers. Persisted names, inactivity policy,

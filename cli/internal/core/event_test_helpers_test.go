@@ -52,18 +52,33 @@ func testEventPublisher(t *testing.T) *evtstream.Publisher {
 }
 
 func (h *testEventHarness) projector(proj evtstream.Projection) *events.Projector {
-	return evtstream.NewProjector(h.js, h.stream, proj, testCoreLogger())
+	return mustProjector(evtstream.NewProjector(h.js, h.stream, proj, events.ProjectorOptions{}))
 }
 
 func testProjectionHandle[T any, P evtstream.ProjectionPointer[T]](
 	h *testEventHarness,
 	projection P,
 ) events.ProjectionHandle[P] {
-	return evtstream.NewProjectionHandle(h.js, h.stream, projection, testCoreLogger())
+	return mustProjector(evtstream.NewProjectionHandle(h.js, h.stream, projection, events.ProjectorOptions{}))
 }
 
+// detachedJetStream and detachedStream satisfy projector construction for
+// handles whose projector never runs.
+type detachedJetStream struct{ jetstream.JetStream }
+
+type detachedStream struct{ jetstream.Stream }
+
 func detachedTestProjectionHandle[T any, P evtstream.ProjectionPointer[T]](projection P) events.ProjectionHandle[P] {
-	return evtstream.NewProjectionHandle(nil, nil, projection, testCoreLogger())
+	return mustProjector(evtstream.NewProjectionHandle(detachedJetStream{}, detachedStream{}, projection, events.ProjectorOptions{}))
+}
+
+// mustProjector returns value or panics with err. Tests use it for projector
+// constructors that must succeed.
+func mustProjector[T any](value T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return value
 }
 
 func optionalTestProjectionHandle[T any, P evtstream.ProjectionPointer[T]](
@@ -80,11 +95,7 @@ func optionalTestProjectionHandle[T any, P evtstream.ProjectionPointer[T]](
 	if projector == nil {
 		return detachedTestProjectionHandle(projection)
 	}
-	handle, err := evtstream.BindProjectionHandle(projection, projector)
-	if err != nil {
-		t.Fatalf("BindProjectionHandle: %v", err)
-	}
-	return handle
+	return evtstream.BindProjectionHandle(projection, projector)
 }
 
 func newTestRoomModel(

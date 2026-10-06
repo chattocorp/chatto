@@ -3,10 +3,17 @@ package evtstream_test
 import (
 	"testing"
 
+	"github.com/nats-io/nats.go/jetstream"
 	. "hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	. "hmans.de/chatto/pkg/events"
 )
+
+// stubJetStream and stubStream satisfy projector construction for projectors
+// that never run.
+type stubJetStream struct{ jetstream.JetStream }
+
+type stubStream struct{ jetstream.Stream }
 
 type projectionHandleTestProjection struct {
 	subject string
@@ -22,7 +29,7 @@ func (*projectionHandleTestProjection) Apply(*evtv1.Event, uint64) error {
 
 func TestProjectionHandleKeepsProjectionAndProjectorTogether(t *testing.T) {
 	projection := &projectionHandleTestProjection{subject: RoomSubjectFilter()}
-	handle := NewProjectionHandle(nil, nil, projection, testLogger())
+	handle := must(NewProjectionHandle(stubJetStream{}, stubStream{}, projection, ProjectorOptions{}))
 
 	if handle.Projection() != projection {
 		t.Fatal("Projection() did not return the constructed projection")
@@ -30,9 +37,7 @@ func TestProjectionHandleKeepsProjectionAndProjectorTogether(t *testing.T) {
 	if handle.Projector() == nil {
 		t.Fatal("Projector() returned nil")
 	}
-	if rebound, err := BindProjectionHandle(projection, handle.Projector()); err != nil {
-		t.Fatalf("BindProjectionHandle() error = %v", err)
-	} else if rebound.Projection() != projection || rebound.Projector() != handle.Projector() {
+	if rebound := BindProjectionHandle(projection, handle.Projector()); rebound.Projection() != projection || rebound.Projector() != handle.Projector() {
 		t.Fatal("BindProjectionHandle() did not preserve the projection runtime")
 	}
 }
@@ -40,11 +45,14 @@ func TestProjectionHandleKeepsProjectionAndProjectorTogether(t *testing.T) {
 func TestBindProjectionHandleRejectsAnotherProjection(t *testing.T) {
 	first := &projectionHandleTestProjection{subject: RoomSubjectFilter()}
 	second := &projectionHandleTestProjection{subject: UserSubjectFilter()}
-	projector := NewProjector(nil, nil, first, testLogger())
+	projector := must(NewProjector(stubJetStream{}, stubStream{}, first, ProjectorOptions{}))
 
-	if _, err := BindProjectionHandle(second, projector); err == nil {
-		t.Fatal("BindProjectionHandle() accepted a projector for another projection")
-	}
+	defer func() {
+		if recover() == nil {
+			t.Fatal("BindProjectionHandle() accepted a projector for another projection")
+		}
+	}()
+	BindProjectionHandle(second, projector)
 }
 
 func TestProjectionHandleRejectsNilProjection(t *testing.T) {
@@ -55,16 +63,19 @@ func TestProjectionHandleRejectsNilProjection(t *testing.T) {
 			t.Fatal("NewProjectionHandle() accepted a nil projection")
 		}
 	}()
-	NewProjectionHandle(nil, nil, projection, testLogger())
+	must(NewProjectionHandle(stubJetStream{}, stubStream{}, projection, ProjectorOptions{}))
 }
 
 func TestBindProjectionHandleRejectsNilProjection(t *testing.T) {
 	var projection *projectionHandleTestProjection
-	projector := NewProjector(nil, nil, &projectionHandleTestProjection{}, testLogger())
+	projector := must(NewProjector(stubJetStream{}, stubStream{}, &projectionHandleTestProjection{}, ProjectorOptions{}))
 
-	if _, err := BindProjectionHandle(projection, projector); err == nil {
-		t.Fatal("BindProjectionHandle() accepted a nil projection")
-	}
+	defer func() {
+		if recover() == nil {
+			t.Fatal("BindProjectionHandle() accepted a nil projection")
+		}
+	}()
+	BindProjectionHandle(projection, projector)
 }
 
 func TestProjectionHandleZeroValueIsEmpty(t *testing.T) {

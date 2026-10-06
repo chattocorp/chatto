@@ -56,7 +56,7 @@ counts, LRU evictions, and read durations. They do not include subjects or
 payloads.
 
 ```go
-reader, err := events.NewStreamMessageReader(stream, events.StreamMessageReaderConfig{
+reader, err := events.NewStreamMessageReader(stream, events.StreamMessageReaderOptions{
 	CacheIdleTTL:  15 * time.Minute,
 	CacheMaxBytes: 256 << 20,
 	Logger:        logger,
@@ -158,8 +158,12 @@ one mutable state object.
 
 ```go
 projection := &MyProjection{}
-projector := events.NewDecodedProjector(js, stream, projection, decodeEvent, logger)
-if err := projector.ConfigureConsumerIdentity("my_projection", "Application read model"); err != nil {
+projector, err := events.NewDecodedProjector(js, stream, projection, decodeEvent, events.ProjectorOptions{
+	Logger:              logger,
+	ConsumerName:        "my_projection",
+	ConsumerDescription: "Application read model",
+})
+if err != nil {
 	return err
 }
 
@@ -170,10 +174,12 @@ if err := projector.WaitForStartup(ctx); err != nil {
 ```
 
 `Run` is single-use. After cancellation or failure, construct a new projector.
-The optional consumer identity gives each consumer a readable name and
-description metadata. Use static labels without personal data or secrets.
-The framework adds a random suffix to separate replicas and the SDK adds a
-generation number for recovery. Labels do not change snapshot contracts.
+`ProjectorOptions` configures the projector at construction. Invalid options
+make the constructor return an error. The optional consumer identity gives
+each consumer a readable name and description metadata. Use static labels
+without personal data or secrets. The framework adds a random suffix to
+separate replicas and the SDK adds a generation number for recovery. Labels do
+not change snapshot contracts.
 On exit, `Run` stops consumption and attempts to delete its current ephemeral
 consumer with an independent two-second request timeout. Deletion failure does
 not replace the run error. Five-minute inactivity expiry remains the fallback
@@ -205,8 +211,8 @@ stable component generation and its exact applied sequence.
 ## Snapshots and checkpoints
 
 Snapshots are disposable replay accelerators, not authoritative event data.
-Call `ConfigureSnapshots` or `ConfigureCheckpoint` before `Run`. Select only
-one restore mechanism.
+Set `ProjectorOptions.Snapshots` or `ProjectorOptions.Checkpoint` to select
+one restore mechanism. The constructor rejects options that set both.
 
 A `ProjectionSnapshot` contains one or more components, and each component
 contains one or more parts. A projection that implements `SnapshotProjection`
@@ -272,12 +278,21 @@ return worker.Run(ctx)
 
 ## Logging and data safety
 
-The framework accepts a nil `Logger` and replaces it with a no-op logger. When
-a logger is supplied, the framework may emit caller-provided subjects,
-projection keys, event IDs, stream identities, and handler errors as
-diagnostic fields. Callers must ensure those values are opaque operational
-identifiers and contain no personal data, credentials, tokens, raw request
-values, or secrets. The framework does not redact caller-provided metadata.
+The framework logs through a `*slog.Logger`. A nil logger discards all
+records. An application with a different logger can wrap it in a
+`slog.Handler`. When a logger is supplied, the framework may emit
+caller-provided subjects, projection keys, event IDs, stream identities, and
+handler errors as diagnostic fields. Callers must ensure those values are
+opaque operational identifiers and contain no personal data, credentials,
+tokens, raw request values, or secrets. The framework does not redact caller-provided metadata.
+
+## Constructors
+
+Constructors panic when a required argument is missing or malformed, for
+example a nil stream, a projection that is not a pointer, or an empty
+component key. These are wiring errors. Constructors return an error when
+options are invalid or when a check at construction fails, for example when a
+snapshot stream identity cannot be resolved.
 
 ## Status
 

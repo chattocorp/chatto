@@ -16,7 +16,6 @@ import (
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/authorizations"
 	"hmans.de/authling/internal/config"
-	"hmans.de/authling/internal/logging"
 	"hmans.de/authling/internal/storage"
 	"hmans.de/authling/internal/web"
 )
@@ -231,7 +230,7 @@ func TestActiveAccountKeyLossStillFailsStartup(t *testing.T) {
 		t.Fatal(err)
 	}
 	stopTestRuntime(t, first, cancel, runErrors)
-	logger := logging.Events{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	second, err := New(t.Context(), cfg, logger)
 	if err != nil {
 		t.Fatal(err)

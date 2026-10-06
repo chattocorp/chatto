@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/log"
 	lkauth "github.com/livekit/protocol/auth"
 	"github.com/livekit/protocol/livekit"
 	"github.com/nats-io/nats.go/jetstream"
@@ -60,14 +61,22 @@ type liveKitParticipantRemover interface {
 	RemoveCallParticipant(ctx context.Context, legacySpaceID, roomID, callID, userID string) error
 }
 
+// callLogger is the logging surface that CallModel uses. *log.Logger
+// satisfies it, and tests replace it to record warnings.
+type callLogger interface {
+	Warn(msg any, keyvals ...any)
+}
+
 type CallModel struct {
-	publisher          *evtstream.Publisher
-	callState          events.ProjectionHandle[*CallStateProjection]
-	callKeys           kms.CallKeyStore
-	livekit            liveKitParticipantLister
-	reconcileLease     *lease.Lease
-	memoryCacheKV      jetstream.KeyValue
-	logger             events.Logger
+	publisher      *evtstream.Publisher
+	callState      events.ProjectionHandle[*CallStateProjection]
+	callKeys       kms.CallKeyStore
+	livekit        liveKitParticipantLister
+	reconcileLease *lease.Lease
+	memoryCacheKV  jetstream.KeyValue
+	logger         callLogger
+	// effectLogger receives the call-key cleanup worker's diagnostics.
+	effectLogger       *log.Logger
 	keyCleanupConsumer jetstream.Consumer
 	keyCleanupWorker   *events.DurableWorker
 }
@@ -122,7 +131,7 @@ func NewCallModel(
 	livekit liveKitParticipantLister,
 	reconcileLease *lease.Lease,
 	memoryCacheKV jetstream.KeyValue,
-	logger events.Logger,
+	logger *log.Logger,
 ) *CallModel {
 	model := &CallModel{
 		publisher:      publisher,
@@ -131,7 +140,12 @@ func NewCallModel(
 		livekit:        livekit,
 		reconcileLease: reconcileLease,
 		memoryCacheKV:  memoryCacheKV,
-		logger:         logger,
+		effectLogger:   logger,
+	}
+	// Assign only a non-nil logger: a nil *log.Logger in the interface field
+	// would pass the nil checks before each warning.
+	if logger != nil {
+		model.logger = logger
 	}
 	return model
 }
@@ -153,7 +167,7 @@ func (s *CallModel) configureKeyCleanup(ctx context.Context, stream jetstream.St
 		RetryDelay:        callKeyCleanupRetryDelay,
 		AckTimeout:        callKeyCleanupAckTimeout,
 		HeartbeatInterval: callKeyCleanupHeartbeat,
-		Logger:            s.logger,
+		Logger:            s.effectLogger,
 	})
 	if err != nil {
 		return fmt.Errorf("configure call-key cleanup worker: %w", err)
@@ -534,7 +548,7 @@ func (s *CallModel) appendParticipantTransitionAuthorized(ctx context.Context, r
 			return nil
 		}
 		if cleanupKeyRef != "" {
-			if cleanupErr := s.callKeys.ShredCallKey(context.WithoutCancel(ctx), cleanupKeyRef); cleanupErr != nil {
+			if cleanupErr := s.callKeys.ShredCallKey(context.WithoutCancel(ctx), cleanupKeyRef); cleanupErr != nil && s.logger != nil {
 				s.logger.Warn("failed to clean up unused call key after append conflict", "error", cleanupErr, "key_ref", cleanupKeyRef)
 			}
 		}

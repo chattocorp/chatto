@@ -13,7 +13,6 @@ import (
 	"hmans.de/authling/internal/config"
 	"hmans.de/authling/internal/evtstream"
 	"hmans.de/authling/internal/keyvault"
-	"hmans.de/authling/internal/logging"
 	"hmans.de/authling/internal/natsruntime"
 	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
 	"hmans.de/authling/internal/storage"
@@ -87,9 +86,12 @@ func newSafetyReplica(t *testing.T, js jetstream.JetStream, stream jetstream.Str
 		t.Fatal(err)
 	}
 	defer clear(key)
-	logger := logging.Events{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	publisher := evtstream.NewPublisher(events.NewEncodedEventLog(js, stream, logger))
-	handle := events.NewDecodedProjectionHandle(js, stream, NewProjection(vault, key), evtstream.Decode, logger)
+	handle, err := events.NewDecodedProjectionHandle(js, stream, NewProjection(vault, key), evtstream.Decode, events.ProjectorOptions{Logger: logger})
+	if err != nil {
+		t.Fatal(err)
+	}
 	service, err := NewService(ctx, publisher, handle, vault, 12)
 	if err != nil {
 		t.Fatal(err)

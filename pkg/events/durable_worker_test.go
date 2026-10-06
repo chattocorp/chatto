@@ -3,7 +3,7 @@ package events_test
 import (
 	"context"
 	"errors"
-	"fmt"
+	"log/slog"
 	"slices"
 	"sync"
 	"testing"
@@ -20,18 +20,22 @@ type recordingDurableWorkerLogger struct {
 	errors   []string
 }
 
-func (*recordingDurableWorkerLogger) Debug(any, ...any) {}
-func (*recordingDurableWorkerLogger) Info(any, ...any)  {}
-func (l *recordingDurableWorkerLogger) Warn(message any, _ ...any) {
+func (*recordingDurableWorkerLogger) Enabled(context.Context, slog.Level) bool { return true }
+
+func (l *recordingDurableWorkerLogger) Handle(_ context.Context, record slog.Record) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.warnings = append(l.warnings, fmt.Sprint(message))
+	switch record.Level {
+	case slog.LevelWarn:
+		l.warnings = append(l.warnings, record.Message)
+	case slog.LevelError:
+		l.errors = append(l.errors, record.Message)
+	}
+	return nil
 }
-func (l *recordingDurableWorkerLogger) Error(message any, _ ...any) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.errors = append(l.errors, fmt.Sprint(message))
-}
+
+func (l *recordingDurableWorkerLogger) WithAttrs([]slog.Attr) slog.Handler { return l }
+func (l *recordingDurableWorkerLogger) WithGroup(string) slog.Handler      { return l }
 
 func (l *recordingDurableWorkerLogger) containsWarning(message string) bool {
 	l.mu.Lock()
@@ -142,7 +146,7 @@ func TestDurableWorkerRetriesFailedDelivery(t *testing.T) {
 		}
 		close(completed)
 		return nil
-	}, events.DurableWorkerOptions{MaxConcurrent: 1, FetchMaxWait: 20 * time.Millisecond, Logger: logger})
+	}, events.DurableWorkerOptions{MaxConcurrent: 1, FetchMaxWait: 20 * time.Millisecond, Logger: slog.New(logger)})
 	if err != nil {
 		t.Fatalf("NewDurableWorker: %v", err)
 	}
@@ -191,7 +195,7 @@ func TestDurableWorkerTerminatesPoisonDeliveryAndContinues(t *testing.T) {
 			return events.TerminateDelivery("unsupported test payload", errors.New("poison input"))
 		}
 		return nil
-	}, events.DurableWorkerOptions{MaxConcurrent: 2, Logger: logger})
+	}, events.DurableWorkerOptions{MaxConcurrent: 2, Logger: slog.New(logger)})
 	if err != nil {
 		t.Fatalf("NewDurableWorker: %v", err)
 	}

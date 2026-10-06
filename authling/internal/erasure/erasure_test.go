@@ -14,7 +14,6 @@ import (
 	"hmans.de/authling/internal/config"
 	"hmans.de/authling/internal/evtstream"
 	"hmans.de/authling/internal/keyvault"
-	"hmans.de/authling/internal/logging"
 	"hmans.de/authling/internal/natsruntime"
 	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
 	"hmans.de/authling/internal/storage"
@@ -100,7 +99,7 @@ func TestDurableWorkerResumesPartialDestructionAndDuplicateDelivery(t *testing.T
 		t.Fatal(err)
 	}
 	clear(key)
-	logger := logging.Events{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	pub := evtstream.NewPublisher(events.NewEncodedEventLog(js, stream, logger))
 	// The index validates key ownership without decrypting protected fields.
 	creation := created("acc_test", user, data)
@@ -116,7 +115,10 @@ func TestDurableWorkerResumesPartialDestructionAndDuplicateDelivery(t *testing.T
 		t.Fatal(err)
 	}
 	projection := NewProjection()
-	handle := events.NewDecodedProjectionHandle(js, stream, projection, evtstream.Decode, logger)
+	handle, err := events.NewDecodedProjectionHandle(js, stream, projection, evtstream.Decode, events.ProjectorOptions{Logger: logger})
+	if err != nil {
+		t.Fatal(err)
+	}
 	runCtx, stop := context.WithCancel(ctx)
 	defer stop()
 	runErr := make(chan error, 1)

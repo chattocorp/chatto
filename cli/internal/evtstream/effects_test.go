@@ -11,14 +11,6 @@ import (
 	"hmans.de/chatto/pkg/events"
 )
 
-// nopLogger satisfies events.Logger for worker-construction tests.
-type nopLogger struct{}
-
-func (nopLogger) Debug(any, ...any) {}
-func (nopLogger) Info(any, ...any)  {}
-func (nopLogger) Warn(any, ...any)  {}
-func (nopLogger) Error(any, ...any) {}
-
 func newEffectTestStream(t *testing.T) (context.Context, jetstream.Stream) {
 	t.Helper()
 	_, nc := testutil.StartNATS(t)
@@ -236,7 +228,7 @@ func TestEffectWorkerOptionsPreserveDeliveryKnobs(t *testing.T) {
 		RetryDelay:        30 * time.Second,
 		AckTimeout:        5 * time.Second,
 		HeartbeatInterval: 30 * time.Second,
-		Logger:            nopLogger{},
+		Logger:            nil,
 	})
 	if err != nil {
 		t.Fatal(err)

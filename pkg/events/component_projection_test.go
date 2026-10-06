@@ -104,11 +104,11 @@ func TestComponentizedProjectionPreparationFailureIsAtomic(t *testing.T) {
 		NewProjectionComponent("first", first, componentIncrementReducer(first, -1)),
 		NewProjectionComponent("second", second, componentIncrementReducer(second, 2)),
 	)
-	projector := NewDecodedPreparedProjector(
-		nil, nil, projection,
+	projector := must(NewDecodedPreparedProjector(
+		stubJetStream{}, stubStream{}, projection,
 		func([]byte) (DecodedEvent[int], error) { return DecodedEvent[int]{}, nil },
-		discardLogger{},
-	)
+		ProjectorOptions{},
+	))
 
 	failureSeq, err := projector.applyEvent(typedDecodedEvent[int]{event: 2, id: "event"}, "evt.test.changed", 7)
 	if err == nil {
@@ -161,11 +161,11 @@ func TestComponentizedProjectionCommitAndReadShareBarrier(t *testing.T) {
 		})),
 		NewProjectionComponent("second", second, componentIncrementReducer(second, -1)),
 	)
-	projector := NewDecodedPreparedProjector(
-		nil, nil, projection,
+	projector := must(NewDecodedPreparedProjector(
+		stubJetStream{}, stubStream{}, projection,
 		func([]byte) (DecodedEvent[int], error) { return DecodedEvent[int]{}, nil },
-		discardLogger{},
-	)
+		ProjectorOptions{},
+	))
 
 	applied := make(chan error, 1)
 	go func() {
@@ -258,11 +258,6 @@ func TestComponentizedProjectionRestoreUsesReadBarrier(t *testing.T) {
 		[]string{"evt.>"}, "cohort-v1",
 		NewProjectionComponent("state", model, componentIncrementReducer(base, -1)),
 	)
-	projector := NewDecodedPreparedProjector(
-		js, stream, projection,
-		func([]byte) (DecodedEvent[int], error) { return DecodedEvent[int]{}, nil },
-		discardLogger{},
-	)
 	source := fixedSnapshotSource{snapshot: ProjectionSnapshot{
 		GenerationID: "generation", ContractID: "cohort-v1", StreamName: "COMPONENT_RESTORE_TEST",
 		StreamIdentity: "stream", Components: []ProjectionSnapshotComponent{{
@@ -270,11 +265,13 @@ func TestComponentizedProjectionRestoreUsesReadBarrier(t *testing.T) {
 			Parts: []ProjectionSnapshotPart{{Key: "state", Payload: []byte("9")}},
 		}},
 	}}
-	if err := projector.ConfigureSnapshots("component", source, func(*jetstream.StreamInfo) (string, error) {
-		return "stream", nil
-	}); err != nil {
-		t.Fatal(err)
-	}
+	projector := must(NewDecodedPreparedProjector(
+		js, stream, projection,
+		func([]byte) (DecodedEvent[int], error) { return DecodedEvent[int]{}, nil },
+		ProjectorOptions{Snapshots: &SnapshotOptions{Key: "component", Source: source, ResolveStreamIdentity: func(*jetstream.StreamInfo) (string, error) {
+			return "stream", nil
+		}}},
+	))
 	runContext, cancelRun := context.WithCancel(t.Context())
 	defer cancelRun()
 	runDone := make(chan error, 1)

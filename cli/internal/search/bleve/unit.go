@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
+	"hmans.de/chatto/internal/logbridge"
 	"hmans.de/chatto/internal/runtimeunit"
 	"hmans.de/chatto/internal/search"
 	"hmans.de/chatto/pkg/events"
@@ -75,14 +77,16 @@ func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 		"stage", "index_open",
 		"checkpoint_contract", projection.CheckpointContractID())
 
-	projectionHandle := evtstream.NewProjectionHandle(env.JS, evt, projection, env.Logger)
+	projectionHandle, err := evtstream.NewProjectionHandle(env.JS, evt, projection, events.ProjectorOptions{
+		Logger:              logbridge.Slog(env.Logger),
+		ConsumerName:        "message_search",
+		ConsumerDescription: "Message search index",
+		Checkpoint:          &events.CheckpointOptions{Key: "message_search", ResolveStreamIdentity: evtstream.IdentityFromInfo},
+	})
+	if err != nil {
+		return err
+	}
 	projector := projectionHandle.Projector()
-	if err := projector.ConfigureConsumerIdentity("message_search", "Message search index"); err != nil {
-		return err
-	}
-	if err := projector.ConfigureCheckpoint("message_search", evtstream.IdentityFromInfo); err != nil {
-		return err
-	}
 	provider := newProvider(projectionHandle)
 	service, err := search.AddStartupStatusService(ctx, env.NC, provider, search.ServiceOptions{ImplementationVersion: env.Version})
 	if err != nil {
@@ -163,7 +167,7 @@ func waitForSearchProjectionStartup(ctx context.Context, projector *events.Proje
 	}
 }
 
-func logSearchIndexingProgress(ctx context.Context, projector *events.Projector, logger events.Logger, interval time.Duration) {
+func logSearchIndexingProgress(ctx context.Context, projector *events.Projector, logger *log.Logger, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	var previousMessages uint64
@@ -187,7 +191,7 @@ func logSearchIndexingProgress(ctx context.Context, projector *events.Projector,
 	}
 }
 
-func logSearchIndexingStatus(logger events.Logger, status events.ProjectorStatus, previousMessages uint64, previousDuration time.Duration) {
+func logSearchIndexingStatus(logger *log.Logger, status events.ProjectorStatus, previousMessages uint64, previousDuration time.Duration) {
 	var averageRate float64
 	if seconds := status.StartupDuration.Seconds(); seconds > 0 {
 		averageRate = float64(status.StartupMessages) / seconds

@@ -13,8 +13,11 @@ import (
 	"slices"
 	"time"
 
+	"github.com/charmbracelet/log"
+
 	"github.com/nats-io/nats.go/jetstream"
 
+	"hmans.de/chatto/internal/logbridge"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -110,7 +113,7 @@ type EffectWorkerOptions struct {
 	// HeartbeatInterval bounds progress heartbeats to JetStream during pulls.
 	HeartbeatInterval time.Duration
 	// Logger receives delivery-failure diagnostics; errors must stay PII-free.
-	Logger events.Logger
+	Logger *log.Logger
 }
 
 // NewEffectWorker builds a durable worker over an application-owned effect
@@ -121,6 +124,6 @@ func NewEffectWorker(consumer jetstream.Consumer, handle events.DurableDeliveryH
 		RetryDelay:        options.RetryDelay,
 		AckTimeout:        options.AckTimeout,
 		HeartbeatInterval: options.HeartbeatInterval,
-		Logger:            options.Logger,
+		Logger:            logbridge.Slog(options.Logger),
 	})
 }
