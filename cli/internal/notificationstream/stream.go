@@ -134,48 +134,44 @@ func (p *Publisher) AppendBatchEventuallyResults(ctx context.Context, notificati
 			return nil, ErrExpiredEvent
 		}
 	}
-	for {
-		result, err := p.log.ExecuteMutation(ctx, events.AtSubject(subject), func(context.Context, events.MutationAttempt) ([]events.EncodedMutationEntry, error) {
-			now := p.now().UTC()
-			entries := make([]events.EncodedMutationEntry, 0, len(prepared))
-			for _, event := range prepared {
-				ttl := event.physicalExpiry.Sub(now)
-				if ttl <= 0 {
-					return nil, ErrExpiredEvent
-				}
-				entries = append(entries, events.EncodedMutationEntry{
-					Subject: subject,
-					Record:  events.EncodedRecord{ID: event.id, Data: event.data, TTL: ttl},
-				})
+	// Lifecycle facts are complete before the write, and their permission does
+	// not depend on stream state, so they need no OCC guard. A guard on the
+	// shared lifecycle subject would serialize every recipient's writes.
+	result, err := p.log.ExecuteMutation(ctx, events.Unguarded(), func(context.Context, events.MutationAttempt) ([]events.EncodedMutationEntry, error) {
+		now := p.now().UTC()
+		entries := make([]events.EncodedMutationEntry, 0, len(prepared))
+		for _, event := range prepared {
+			ttl := event.physicalExpiry.Sub(now)
+			if ttl <= 0 {
+				return nil, ErrExpiredEvent
 			}
-			return entries, nil
-		})
-		if err == nil {
-			results := make([]AppendResult, len(result.Sequences))
-			for i, sequence := range result.Sequences {
-				results[i] = AppendResult{
-					Position:  events.SubjectPosition(subject, sequence),
-					Committed: result.Committed,
-				}
-			}
-			return results, nil
-		}
-		if errors.Is(err, events.ErrDuplicateBatchMessageID) && len(notificationEvents) > 1 {
-			return appendNotificationEventsIndividually(notificationEvents, func(event *notificationv1.NotificationEvent) (AppendResult, error) {
-				single, appendErr := p.AppendBatchEventuallyResults(ctx, []*notificationv1.NotificationEvent{event})
-				if appendErr != nil {
-					return AppendResult{}, appendErr
-				}
-				return single[0], nil
+			entries = append(entries, events.EncodedMutationEntry{
+				Subject: subject,
+				Record:  events.EncodedRecord{ID: event.id, Data: event.data, TTL: ttl},
 			})
 		}
-		if !errors.Is(err, events.ErrConflict) {
-			return nil, err
-		}
-		if err := ctx.Err(); err != nil {
-			return nil, err
+		return entries, nil
+	})
+	if errors.Is(err, events.ErrDuplicateBatchMessageID) && len(notificationEvents) > 1 {
+		return appendNotificationEventsIndividually(notificationEvents, func(event *notificationv1.NotificationEvent) (AppendResult, error) {
+			single, appendErr := p.AppendBatchEventuallyResults(ctx, []*notificationv1.NotificationEvent{event})
+			if appendErr != nil {
+				return AppendResult{}, appendErr
+			}
+			return single[0], nil
+		})
+	}
+	if err != nil {
+		return nil, err
+	}
+	results := make([]AppendResult, len(result.Sequences))
+	for i, sequence := range result.Sequences {
+		results[i] = AppendResult{
+			Position:  events.SubjectPosition(subject, sequence),
+			Committed: result.Committed,
 		}
 	}
+	return results, nil
 }
 
 func appendNotificationEventsIndividually(
