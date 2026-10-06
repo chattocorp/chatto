@@ -16,8 +16,8 @@ snapshots in a different format. Chatto keeps its single-generation format for
 these projections and its cohort format for `ServerContentView`.
 
 `KeyValue` and the retried resource provisioning moved from `pkg/events` to
-the separate shared module `pkg/jetstreamutil`, together with Chatto's public
-OCC conflict classifier. They are JetStream client helpers, not event-sourcing
+the separate shared module `pkg/jetstreamutil`, together with the OCC conflict
+classifier from Chatto's `internal/jetstreamutil`. They are JetStream client helpers, not event-sourcing
 mechanics, and both applications can use them without the event framework.
 `pkg/events` keeps a private copy of the classifier so that it does not depend
 on another module. The sections below that describe `KeyValue` now describe
