@@ -1,4 +1,4 @@
-package events_test
+package jetstreamutil_test
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
-	. "hmans.de/chatto/pkg/events"
+	. "hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // laggingBucket answers Get as a DirectGet served by a follower that has not
@@ -339,5 +339,27 @@ func TestNewKeyValueAcceptsOnlyTheDefaultAPI(t *testing.T) {
 	}
 	if _, err := NewKeyValue(prefixed, bucket); err == nil {
 		t.Fatal("NewKeyValue accepted a non-default API prefix")
+	}
+}
+
+// A missing JetStream context or bucket is a wiring error.
+func TestNewKeyValuePanicsWithoutRequiredArguments(t *testing.T) {
+	js, err := jetstream.New(startTestNATS(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var bucket jetstream.KeyValue = struct{ jetstream.KeyValue }{}
+	for name, construct := range map[string]func(){
+		"without JetStream": func() { _, _ = NewKeyValue(nil, bucket) },
+		"without bucket":    func() { _, _ = NewKeyValue(js, nil) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			defer func() {
+				if recover() == nil {
+					t.Fatal("NewKeyValue did not panic")
+				}
+			}()
+			construct()
+		})
 	}
 }

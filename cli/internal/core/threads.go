@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/jetstreamutil"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"hmans.de/chatto/pkg/events"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // ThreadMetadata contains existence and display metadata for a thread.

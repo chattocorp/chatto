@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
 	"net"
 	"net/http"
 	"sync/atomic"
@@ -19,8 +18,9 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/config"
+	cachestatev1 "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 const readTimeout = 5 * time.Second
@@ -43,7 +43,7 @@ type Server struct {
 
 	js       jetstream.JetStream
 	evt      jetstream.Stream
-	memoryKV *events.KeyValue
+	memoryKV *jetstreamutil.KeyValue
 	stats    *evtStats
 	s3       *s3Scanner
 
@@ -146,7 +146,7 @@ func (s *Server) initResources(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("open MEMORY_CACHE KV bucket: %w", err)
 	}
-	memoryKV, err := events.NewKeyValue(js, memoryBucket)
+	memoryKV, err := jetstreamutil.NewKeyValue(js, memoryBucket)
 	if err != nil {
 		return err
 	}

@@ -2,6 +2,11 @@
 
 **Date:** 2026-07-31
 
+**Updated:** 2026-10-06
+
+`pkg/jetstreamutil`, split from `pkg/events` under ADR-056, begins under
+Apache-2.0 like the other shared modules.
+
 ## Context
 
 ADR-056, ADR-058, ADR-060, and ADR-061 establish `pkg/events`,
@@ -21,8 +26,8 @@ can be established before outside contributions make a later change harder.
 
 ## Decision
 
-License the complete `pkg/events`, `pkg/natsruntime`, `pkg/datacrypto`, and
-`pkg/appconfig` modules under the Apache License 2.0. This includes their
+License the complete `pkg/events`, `pkg/jetstreamutil`, `pkg/natsruntime`,
+`pkg/datacrypto`, and `pkg/appconfig` modules under the Apache License 2.0. This includes their
 source, tests, documentation, module metadata, and standalone license files.
 
 The modules remain independently versioned, pre-1.0 incubation surfaces with

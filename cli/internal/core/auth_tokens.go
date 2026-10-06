@@ -10,7 +10,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // ============================================================================
@@ -204,7 +204,7 @@ const (
 	authoritativeCredentialRead credentialRead = true
 )
 
-func (r credentialRead) get(ctx context.Context, kv *events.KeyValue, key string) (jetstream.KeyValueEntry, error) {
+func (r credentialRead) get(ctx context.Context, kv *jetstreamutil.KeyValue, key string) (jetstream.KeyValueEntry, error) {
 	if r == authoritativeCredentialRead {
 		return kv.Get(ctx, key)
 	}
@@ -213,7 +213,7 @@ func (r credentialRead) get(ctx context.Context, kv *events.KeyValue, key string
 
 // discard removes an invalid record after an authoritative read, and only the
 // revision that the read observed. A fast read removes nothing.
-func (r credentialRead) discard(ctx context.Context, kv *events.KeyValue, entry jetstream.KeyValueEntry) {
+func (r credentialRead) discard(ctx context.Context, kv *jetstreamutil.KeyValue, entry jetstream.KeyValueEntry) {
 	if r == authoritativeCredentialRead {
 		_ = kv.Delete(ctx, entry.Key(), jetstream.LastRevision(entry.Revision()))
 	}

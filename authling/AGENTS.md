@@ -56,7 +56,8 @@ shared boundary is stable for normal versioned use.
   boundaries, runtime-state keys, or diagnostic identities into Authling.
 - Reusable mechanics must move behind explicitly application-neutral shared
   package boundaries. The unstable `hmans.de/chatto/pkg/events` module owns
-  generic event-sourcing mechanics,
+  generic event-sourcing mechanics, `hmans.de/chatto/pkg/jetstreamutil` owns
+  JetStream client helpers such as key-value reads through the stream leader,
   `hmans.de/chatto/pkg/natsruntime` owns embedded NATS lifecycle mechanics, and
   `hmans.de/chatto/pkg/datacrypto` owns raw XChaCha20-Poly1305 and 256-bit key
   wrapping primitives. `hmans.de/chatto/pkg/appconfig` owns TOML and

@@ -16,10 +16,11 @@ under development:
   under `packages/runling/`. It includes a library, CLI, and web console. It
   uses the root pnpm workspace and has its own version, CI job, and npm release.
   Keep its public APIs and runtime independent of Chatto and Authling.
-- **Shared framework code** is application-neutral event-sourcing, embedded
-  NATS, data-cryptography, and configuration-loading machinery intended for
-  consumption by both products. The independently versioned but unstable
-  modules live under `pkg/events/`, `pkg/natsruntime/`, `pkg/datacrypto/`, and
+- **Shared framework code** is application-neutral event-sourcing, JetStream
+  client, embedded NATS, data-cryptography, and configuration-loading
+  machinery intended for consumption by both products. The independently
+  versioned but unstable modules live under `pkg/events/`,
+  `pkg/jetstreamutil/`, `pkg/natsruntime/`, `pkg/datacrypto/`, and
   `pkg/appconfig/`.
 
 Authling is in this repository temporarily. It provides the second application
@@ -80,6 +81,9 @@ frontends use it. See ADR-111.
   architecture, and glossary entry points.
 - [pkg/events/AGENTS.md](pkg/events/AGENTS.md) — shared event-framework module
   boundary, compatibility, and verification rules.
+- [pkg/jetstreamutil/AGENTS.md](pkg/jetstreamutil/AGENTS.md) — shared
+  JetStream client helpers: key-value leader reads, retried provisioning, and
+  conflict classification.
 - [pkg/natsruntime/AGENTS.md](pkg/natsruntime/AGENTS.md) — shared embedded-NATS
   lifecycle module boundary and verification rules.
 - [pkg/datacrypto/AGENTS.md](pkg/datacrypto/AGENTS.md) — shared authenticated
@@ -184,11 +188,12 @@ Never leave a dev stack running in a detached or yielded terminal session.
 - Runling under `packages/runling/` keeps its MIT license. `@chatto/client`
   under `packages/` also uses MIT.
 - Apache-2.0 applies to the independently versioned shared framework modules
-  under `pkg/events/`, `pkg/natsruntime/`, `pkg/datacrypto/`, and
-  `pkg/appconfig/`, the framework-neutral `packages/lingua` runtime, plus
-  explicit integration and documentation surfaces such as the standalone
-  frontend source and image, public protocol/API definitions, generated
-  TypeScript API clients, documentation, and examples.
+  under `pkg/events/`, `pkg/jetstreamutil/`, `pkg/natsruntime/`,
+  `pkg/datacrypto/`, and `pkg/appconfig/`, the framework-neutral
+  `packages/lingua` runtime, plus explicit integration and documentation
+  surfaces such as the standalone frontend source and image, public
+  protocol/API definitions, generated TypeScript API clients, documentation,
+  and examples.
 - The Chatto server, CLI, and bundled server release artifacts should stay
   AGPL-3.0-or-later unless the license boundary is deliberately changed.
 

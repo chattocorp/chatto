@@ -2,7 +2,6 @@ package dekstore
 
 import (
 	"context"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"testing"
 	"time"
 
@@ -12,8 +11,9 @@ import (
 
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/kms"
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"hmans.de/chatto/internal/testutil"
-	"hmans.de/chatto/pkg/events"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 func setupStore(t *testing.T) (*Store, context.Context) {
@@ -34,7 +34,7 @@ func setupStoreWithJetStream(t *testing.T) (*Store, jetstream.JetStream, context
 		History: 1,
 	})
 	require.NoError(t, err)
-	kv, err := events.NewKeyValue(js, bucket)
+	kv, err := jetstreamutil.NewKeyValue(js, bucket)
 	require.NoError(t, err)
 	return New(kv, nil), js, ctx
 }
@@ -81,7 +81,7 @@ func TestStoreGetConfirmsReplicaMissThroughLeader(t *testing.T) {
 	}
 	ref, err := store.Create(ctx, stored)
 	require.NoError(t, err)
-	store.kv, err = events.NewKeyValue(js, missingReplicaKV{KeyValue: store.kv.KeyValue})
+	store.kv, err = jetstreamutil.NewKeyValue(js, missingReplicaKV{KeyValue: store.kv.KeyValue})
 	require.NoError(t, err)
 
 	loaded, err := store.Get(ctx, ref)

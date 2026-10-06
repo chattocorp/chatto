@@ -1,4 +1,4 @@
-package events_test
+package jetstreamutil_test
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/pkg/events"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 func TestCreateJetStreamResourceWithRetryCluster(t *testing.T) {
@@ -97,7 +97,7 @@ func TestCreateJetStreamResourceWithRetryCluster(t *testing.T) {
 	for i, js := range clients {
 		go func() {
 			var r result
-			r.stream, r.err = events.CreateJetStreamResourceWithRetry(ctx, events.JetStreamResourceRetryPolicy{MaxAttempts: 3, RetryDelay: 25 * time.Millisecond}, func(ctx context.Context) (jetstream.Stream, error) {
+			r.stream, r.err = jetstreamutil.CreateJetStreamResourceWithRetry(ctx, jetstreamutil.JetStreamResourceRetryPolicy{MaxAttempts: 3, RetryDelay: 25 * time.Millisecond}, func(ctx context.Context) (jetstream.Stream, error) {
 				r.attempts++
 				// Order the initial create and attach to avoid relying on the
 				// upstream race. Both callers then retry concurrently.

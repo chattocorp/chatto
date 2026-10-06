@@ -1,4 +1,4 @@
-package events_test
+package jetstreamutil_test
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/pkg/events"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 func TestCreateJetStreamResourceWithRetryErrors(t *testing.T) {
@@ -35,7 +35,7 @@ func TestCreateJetStreamResourceWithRetryErrors(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				attempts := 0
 				start := time.Now()
-				got, err := events.CreateJetStreamResourceWithRetry(context.Background(), events.JetStreamResourceRetryPolicy{MaxAttempts: 3, RetryDelay: 25 * time.Millisecond}, func(context.Context) (string, error) {
+				got, err := jetstreamutil.CreateJetStreamResourceWithRetry(context.Background(), jetstreamutil.JetStreamResourceRetryPolicy{MaxAttempts: 3, RetryDelay: 25 * time.Millisecond}, func(context.Context) (string, error) {
 					attempts++
 					if attempts < 3 {
 						return "discard", tc.err
@@ -60,7 +60,7 @@ func TestCreateJetStreamResourceWithRetryErrors(t *testing.T) {
 func TestCreateJetStreamResourceWithRetryExhaustion(t *testing.T) {
 	attempts := 0
 	want := fmt.Errorf("last request: %w", context.DeadlineExceeded)
-	got, err := events.CreateJetStreamResourceWithRetry(context.Background(), events.JetStreamResourceRetryPolicy{MaxAttempts: 3}, func(context.Context) (string, error) {
+	got, err := jetstreamutil.CreateJetStreamResourceWithRetry(context.Background(), jetstreamutil.JetStreamResourceRetryPolicy{MaxAttempts: 3}, func(context.Context) (string, error) {
 		attempts++
 		if attempts == 3 {
 			return "discard", want
@@ -73,10 +73,10 @@ func TestCreateJetStreamResourceWithRetryExhaustion(t *testing.T) {
 }
 
 func TestCreateJetStreamResourceWithRetryInvalidPolicy(t *testing.T) {
-	for _, policy := range []events.JetStreamResourceRetryPolicy{
+	for _, policy := range []jetstreamutil.JetStreamResourceRetryPolicy{
 		{}, {MaxAttempts: -1}, {MaxAttempts: 1, RetryDelay: -1}, {MaxAttempts: 3, RetryDelay: time.Duration(1<<63 - 1)},
 	} {
-		_, err := events.CreateJetStreamResourceWithRetry(context.Background(), policy, func(context.Context) (int, error) {
+		_, err := jetstreamutil.CreateJetStreamResourceWithRetry(context.Background(), policy, func(context.Context) (int, error) {
 			t.Fatal("invalid policy called operation")
 			return 0, nil
 		})
@@ -117,7 +117,7 @@ func TestCreateJetStreamResourceWithRetryParentContext(t *testing.T) {
 						if phase == "last attempt" {
 							delay = 0
 						}
-						got, err := events.CreateJetStreamResourceWithRetry(ctx, events.JetStreamResourceRetryPolicy{MaxAttempts: 3, RetryDelay: delay}, func(context.Context) (string, error) {
+						got, err := jetstreamutil.CreateJetStreamResourceWithRetry(ctx, jetstreamutil.JetStreamResourceRetryPolicy{MaxAttempts: 3, RetryDelay: delay}, func(context.Context) (string, error) {
 							attempts++
 							if phase == "operation" || phase == "successful operation" || (phase == "last attempt" && attempts == 3) {
 								endParent()
@@ -179,7 +179,7 @@ func TestCreateJetStreamResourceWithRetryClientTimeout(t *testing.T) {
 	}
 	ctx := t.Context()
 	attempts := 0
-	stream, err := events.CreateJetStreamResourceWithRetry(ctx, events.JetStreamResourceRetryPolicy{MaxAttempts: 3}, func(ctx context.Context) (jetstream.Stream, error) {
+	stream, err := jetstreamutil.CreateJetStreamResourceWithRetry(ctx, jetstreamutil.JetStreamResourceRetryPolicy{MaxAttempts: 3}, func(ctx context.Context) (jetstream.Stream, error) {
 		attempts++
 		stream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{Name: "RESOURCE"})
 		if attempts == 1 && (!errors.Is(err, context.DeadlineExceeded) || ctx.Err() != nil) {

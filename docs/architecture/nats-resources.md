@@ -18,7 +18,7 @@ inventories.
 ## Startup provisioning
 
 Chatto provisions its core streams, KV buckets, and Object Stores through
-`events.CreateJetStreamResourceWithRetry`, including optional projection
+`jetstreamutil.CreateJetStreamResourceWithRetry`, including optional projection
 snapshot storage. Chatto owns resource configuration and identity metadata.
 The shared framework owns the bounded retry and cancellation mechanics.
 

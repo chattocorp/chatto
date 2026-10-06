@@ -13,10 +13,9 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/jetstreamutil"
 	"hmans.de/chatto/internal/kms"
 	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
-	"hmans.de/chatto/pkg/events"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 const (
@@ -31,11 +30,11 @@ type Reader interface {
 }
 
 type Store struct {
-	kv     *events.KeyValue
+	kv     *jetstreamutil.KeyValue
 	logger *log.Logger
 }
 
-func New(kv *events.KeyValue, logger *log.Logger) *Store {
+func New(kv *jetstreamutil.KeyValue, logger *log.Logger) *Store {
 	if logger == nil {
 		logger = log.WithPrefix("dekstore")
 	}

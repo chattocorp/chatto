@@ -14,6 +14,7 @@ import (
 	"hmans.de/chatto/internal/runtimeunit"
 	"hmans.de/chatto/internal/search"
 	"hmans.de/chatto/pkg/events"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 const (
@@ -52,11 +53,11 @@ func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 	if err != nil {
 		return fmt.Errorf("open RUNTIME_STATE bucket: %w", err)
 	}
-	encryptionKeys, err := events.NewKeyValue(env.JS, encryptionBucket)
+	encryptionKeys, err := jetstreamutil.NewKeyValue(env.JS, encryptionBucket)
 	if err != nil {
 		return err
 	}
-	runtimeState, err := events.NewKeyValue(env.JS, runtimeStateBucket)
+	runtimeState, err := jetstreamutil.NewKeyValue(env.JS, runtimeStateBucket)
 	if err != nil {
 		return err
 	}

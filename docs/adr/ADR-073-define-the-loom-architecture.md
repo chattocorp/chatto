@@ -160,7 +160,8 @@ the deployment-wide durable consumer.
 
 `pkg/events` is the core reusable implementation of Loom mechanics.
 `pkg/natsruntime` optionally supplies application-neutral embedded NATS process
-lifecycle. `pkg/datacrypto` and `pkg/appconfig` are supporting shared modules,
+lifecycle. `pkg/jetstreamutil`, `pkg/datacrypto`, and `pkg/appconfig` are
+supporting shared modules,
 not defining parts of the Loom Architecture. None of these packages may absorb
 Chatto or Authling domain policy merely to shorten application wiring.
 

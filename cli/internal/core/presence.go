@@ -12,7 +12,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/jetstreamutil"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // Presence status constants used by public API and storage mappings.
