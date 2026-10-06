@@ -1,5 +1,6 @@
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
+  import SystemEventUserTrigger from './SystemEventUserTrigger.svelte';
   import {
     TimelineEventKind,
     timelineEventKind,
@@ -15,11 +16,14 @@
   let {
     event,
     activeCallId = null,
-    onOpenCall
+    onOpenCall,
+    onOpenUser
   }: {
     event: TimelineEventView;
     activeCallId?: string | null;
     onOpenCall?: () => void;
+    /** Opens the user context menu for the actor; names stay static when unset. */
+    onOpenUser?: (user: UserAvatarUserView, anchorRect: DOMRect) => void;
   } = $props();
 
   type Subject = {
@@ -106,7 +110,9 @@
     <!-- Avatar column (w-11 matches MessageEvent avatar width) -->
     <div class="flex w-11 shrink-0 items-center justify-center">
       {#if subject.user}
-        <UserAvatar user={subject.user} size="xs" />
+        <SystemEventUserTrigger user={subject.user} {onOpenUser} class="flex rounded-full">
+          <UserAvatar user={subject.user} size="xs" />
+        </SystemEventUserTrigger>
       {:else}
         <!-- Deleted user placeholder -->
         <div
@@ -119,7 +125,13 @@
 
     <span class="text-sm text-muted">
       {#if subject.user}
-        <AccountName name={subject.name} identity={subject.user} badgeSize="md" />
+        <SystemEventUserTrigger
+          user={subject.user}
+          {onOpenUser}
+          class="max-w-full hover:text-text hover:underline"
+        >
+          <AccountName name={subject.name} identity={subject.user} badgeSize="md" />
+        </SystemEventUserTrigger>
       {:else}
         <DeletedUserLabel />
       {/if}

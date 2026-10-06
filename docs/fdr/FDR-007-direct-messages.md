@@ -14,7 +14,7 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
 
 ## Behavior
 
-- A DM is started from user context menus inside the chat UI (member list clicks, @mention clicks, message author clicks).
+- A DM is started from user context menus inside the chat UI (member list clicks, @mention clicks, message author clicks, and clicks on user names and avatars in system events such as joins, leaves, and call starts).
 - Starting a DM with another user navigates to the resulting two-person DM room. If that conversation already exists, the user lands in it rather than creating a duplicate.
 - Human users can start a DM with themselves. The product does not let users create group DMs, even though the underlying room model and public API can represent a larger fixed participant set.
 - A bot cannot call `RoomService.StartDM`. This rule applies to self-DMs, new

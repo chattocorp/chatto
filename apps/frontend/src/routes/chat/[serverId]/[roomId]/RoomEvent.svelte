@@ -51,5 +51,5 @@
     {threadingMode}
   />
 {:else}
-  <SystemEvent {event} {activeCallId} {onOpenCall} />
+  <SystemEvent {event} {activeCallId} {onOpenCall} {onOpenUser} />
 {/if}

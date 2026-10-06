@@ -157,6 +157,29 @@ describe('SystemEventGroup', () => {
     expect(renderedCopy(container)).toBe('Alice und Bob sind dem Raum beigetreten');
   });
 
+  it('opens the user menu for the clicked actor name', async () => {
+    const onOpenUser = vi.fn();
+    const events = systemEvents(['Alice', 'Bob']);
+    const { container } = render(SystemEventGroup, {
+      props: { events, kind: 'join', expanded: false, onExpandedChange: vi.fn(), onOpenUser }
+    });
+
+    expect(renderedCopy(container)).toBe('Alice and Bob joined the room');
+    await page.getByRole('button', { name: 'Bob', exact: true }).click();
+    expect(onOpenUser).toHaveBeenCalledExactlyOnceWith(events[1].actor, expect.any(DOMRect));
+  });
+
+  it('opens the user menu for the clicked actor avatar', async () => {
+    const onOpenUser = vi.fn();
+    const events = systemEvents(['Alice', 'Bob']);
+    render(SystemEventGroup, {
+      props: { events, kind: 'join', expanded: false, onExpandedChange: vi.fn(), onOpenUser }
+    });
+
+    await page.getByRole('button', { name: 'bob', exact: true }).click();
+    expect(onOpenUser).toHaveBeenCalledExactlyOnceWith(events[1].actor, expect.any(DOMRect));
+  });
+
   it('reports expansion changes through its controlled interface', async () => {
     const onExpandedChange = vi.fn();
     const events = systemEvents(['Alice', 'Bob', 'Charlie', 'Dora', 'Eve']);

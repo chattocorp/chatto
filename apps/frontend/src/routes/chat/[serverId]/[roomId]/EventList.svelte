@@ -993,6 +993,7 @@
                   kind={groupKind}
                   expanded={isSystemGroupExpanded(groupEvents)}
                   onExpandedChange={(expanded) => setSystemGroupExpanded(groupEvents, expanded)}
+                  onOpenUser={openUserMenu}
                 />
               {/if}
             {:else}
