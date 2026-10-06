@@ -11,7 +11,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
-func testContext(t *testing.T) context.Context {
+func testContext(t testing.TB) context.Context {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
@@ -22,7 +22,7 @@ func testLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
 }
 
-func startTestNATS(t *testing.T) *nats.Conn {
+func startTestNATS(t testing.TB) *nats.Conn {
 	t.Helper()
 	natsServer, err := server.NewServer(&server.Options{
 		JetStream:  true,
@@ -50,7 +50,7 @@ func startTestNATS(t *testing.T) *nats.Conn {
 	return connection
 }
 
-func setupTestStream(t *testing.T) (jetstream.JetStream, jetstream.Stream) {
+func setupTestStream(t testing.TB) (jetstream.JetStream, jetstream.Stream) {
 	t.Helper()
 	connection := startTestNATS(t)
 	js, err := jetstream.New(connection)

@@ -211,6 +211,12 @@ after a crash or a failed cleanup request. Durable workers keep their consumers.
 Use `WaitFor`, `WaitForCurrent`, or a subject-aware `StreamPosition` when a
 caller needs read-your-writes visibility.
 
+`WaitFor` confirms that the position's sequence belongs to a subject that the
+projector consumes. For a position on an exact subject that the projector
+already applied, it does this without a broker request. A wildcard filter,
+and every wait that must block, reads the message at the sequence first.
+Prefer the exact subject of a write in its `StreamPosition`.
+
 ### Build a componentized projection
 
 Use `ComponentizedProjection` when related read models consume one event log

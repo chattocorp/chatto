@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"reflect"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -475,9 +476,13 @@ func (p *Projector) ReplaySubjects() []string {
 // The stream sequence must belong to pos.SubjectFilter, and the sequence's
 // actual subject must match one of this projector's subject filters.
 //
-// After the stream position is validated, a call whose LastSeq() is already at
-// or beyond pos.Seq skips waiter registration. Otherwise it registers a waiter
-// and blocks.
+// An exact subject is checked against the projector's filters locally. When
+// the projector has already applied pos.Seq, WaitFor then returns without a
+// broker request; it trusts that the caller's sequence belongs to that
+// subject. A wildcard filter, and every wait that must block, first loads the
+// message at pos.Seq to confirm its subject, so a wait cannot block on a
+// sequence that the projector never consumes. A blocking call registers a
+// waiter.
 //
 // Precondition: the projector's Run loop is expected to be active before any
 // code reaches WaitFor. Applications must order projector startup before
@@ -489,11 +494,34 @@ func (p *Projector) WaitFor(ctx context.Context, pos StreamPosition) error {
 		return nil
 	}
 
+	// Most waits follow a write that the projector applied while the writer
+	// received the acknowledgement. For an exact subject, answer them without
+	// the broker read that confirms the sequence's subject.
+	if !strings.ContainsAny(pos.SubjectFilter, "*>") {
+		if err := p.validateConsumesSubject(pos.SubjectFilter); err != nil {
+			return err
+		}
+		if reached, err := p.reachedSeq(pos.Seq); reached {
+			return err
+		}
+	}
+
 	if err := p.validateSeqSubject(ctx, pos); err != nil {
 		return err
 	}
 
 	return p.waitForSeq(ctx, pos.Seq)
+}
+
+// reachedSeq reports whether the projector has applied seq or failed at or
+// before it. err is the projection failure in the second case.
+func (p *Projector) reachedSeq(seq uint64) (bool, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.failedErr != nil && seq >= p.failedSeq {
+		return true, p.failedErr
+	}
+	return p.lastSeq >= seq, nil
 }
 
 func (p *Projector) waitForSeq(ctx context.Context, seq uint64) error {
