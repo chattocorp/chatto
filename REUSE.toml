@@ -26,6 +26,7 @@ path = [
   "pkg/appconfig/**",
   "pkg/datacrypto/**",
   "pkg/events/**",
+  "pkg/jetstreamutil/**",
   "pkg/natsruntime/**",
   "README.md",
   "SECURITY.md",
@@ -68,6 +69,7 @@ path = [
   "pkg/events/LICENSE",
   "pkg/appconfig/LICENSE",
   "pkg/datacrypto/LICENSE",
+  "pkg/jetstreamutil/LICENSE",
   "pkg/natsruntime/LICENSE",
 ]
 SPDX-FileCopyrightText = "2004 Apache Software Foundation"

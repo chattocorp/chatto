@@ -8,6 +8,12 @@ ADR-088 extends the shared framework with prepared reducers, coordinated
 components, one apply barrier, and projection snapshot cohorts. The framework
 remains application-neutral and independently versioned.
 
+The key-value leader reads, retried resource provisioning, and OCC conflict
+classification moved to the separate shared module `pkg/jetstreamutil`. They
+are JetStream client helpers, not event-sourcing mechanics, and both
+applications can use them without the event framework. The sections below
+that describe `KeyValue` now describe `jetstreamutil.KeyValue`.
+
 The framework has one projection snapshot shape. Every snapshot contains
 components, and each component contains parts. A single-payload projection is
 one component with one part. The projector therefore has one configuration,
@@ -52,8 +58,6 @@ Framework-owned responsibilities are:
   including duplicate-aware results and optional per-record broker TTL;
 - exact-sequence stream-message reads with bounded concurrency and an optional
   process-local cache with sliding idle expiry;
-- key-value reads through the stream leader, an explicit fast read from any
-  replica, and revision-checked TTL updates;
 - stream positions and projection readiness barriers;
 - ordered consumer, replay, startup batching, and failure lifecycles;
 - bounded durable pull-worker execution over application-configured consumers,
@@ -119,7 +123,8 @@ validation, aggregate command methods, and composition. This extraction
 follows the two-consumer rule above rather than a desire to shorten one
 application's wiring.
 
-`KeyValue` is the consistent-read boundary for key-value buckets. It wraps a
+`jetstreamutil.KeyValue` (formerly `events.KeyValue`) is the consistent-read
+boundary for key-value buckets. It wraps a
 bucket handle and keeps its interface. JetStream serves the bucket's `Get`
 through a direct get when the bucket allows it. Any replica can then answer,
 and a replica that lags behind a committed write returns an older revision or

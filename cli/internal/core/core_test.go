@@ -16,7 +16,7 @@ import (
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"hmans.de/chatto/internal/testutil"
-	"hmans.de/chatto/pkg/events"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // ============================================================================
@@ -33,9 +33,9 @@ func testContext(t *testing.T) context.Context {
 }
 
 // bindTestKeyValue binds leader-routed reads to a test bucket or bucket double.
-func bindTestKeyValue(t *testing.T, js jetstream.JetStream, bucket jetstream.KeyValue) *events.KeyValue {
+func bindTestKeyValue(t *testing.T, js jetstream.JetStream, bucket jetstream.KeyValue) *jetstreamutil.KeyValue {
 	t.Helper()
-	kv, err := events.NewKeyValue(js, bucket)
+	kv, err := jetstreamutil.NewKeyValue(js, bucket)
 	if err != nil {
 		t.Fatalf("NewKeyValue: %v", err)
 	}

@@ -4,13 +4,13 @@ import (
 	"context"
 
 	"github.com/charmbracelet/log"
-	"hmans.de/chatto/pkg/events"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // PresenceModel owns live presence state and the per-process presence hub.
 type PresenceModel struct {
-	memoryCacheKV  *events.KeyValue
-	runtimeStateKV *events.KeyValue
+	memoryCacheKV  *jetstreamutil.KeyValue
+	runtimeStateKV *jetstreamutil.KeyValue
 	logger         *log.Logger
 	hub            *PresenceHub
 	putWithTTL     func(context.Context, string, []byte, uint64) (uint64, error)
@@ -19,7 +19,7 @@ type PresenceModel struct {
 // NewPresenceModel uses the existing shared buckets: liveness in MEMORY_CACHE
 // and one current private choice per user in RUNTIME_STATE. Run starts their
 // watchers; no presence projection or event-log writer is installed.
-func NewPresenceModel(memoryCacheKV, runtimeStateKV *events.KeyValue, logger *log.Logger) *PresenceModel {
+func NewPresenceModel(memoryCacheKV, runtimeStateKV *jetstreamutil.KeyValue, logger *log.Logger) *PresenceModel {
 	model := &PresenceModel{
 		memoryCacheKV:  memoryCacheKV,
 		runtimeStateKV: runtimeStateKV,

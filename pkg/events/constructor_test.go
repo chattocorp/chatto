@@ -17,7 +17,6 @@ func TestConstructorsPanicOnMissingRequiredArguments(t *testing.T) {
 	encode := func(string) (events.EncodedRecord, error) { return events.EncodedRecord{}, nil }
 	handle := func(context.Context, events.DurableDelivery) error { return nil }
 	var consumer jetstream.Consumer = struct{ jetstream.Consumer }{}
-	var bucket jetstream.KeyValue = struct{ jetstream.KeyValue }{}
 
 	for name, construct := range map[string]func(){
 		"encoded event log without JetStream": func() { events.NewEncodedEventLog(nil, stream, nil) },
@@ -33,8 +32,6 @@ func TestConstructorsPanicOnMissingRequiredArguments(t *testing.T) {
 		"stream message reader without stream": func() {
 			_, _ = events.NewStreamMessageReader(nil, events.StreamMessageReaderOptions{})
 		},
-		"key-value without JetStream": func() { _, _ = events.NewKeyValue(nil, bucket) },
-		"key-value without bucket":    func() { _, _ = events.NewKeyValue(js, nil) },
 	} {
 		t.Run(name, func(t *testing.T) {
 			defer func() {

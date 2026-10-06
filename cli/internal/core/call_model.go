@@ -20,11 +20,11 @@ import (
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/jetstreamutil"
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/lease"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 const (

@@ -2,7 +2,6 @@ package kms
 
 import (
 	"context"
-	"hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
 	"testing"
 	"time"
 
@@ -11,8 +10,9 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/encryption"
+	keymaterialv1 "hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
 	"hmans.de/chatto/internal/testutil"
-	"hmans.de/chatto/pkg/events"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // getOverrideKV injects read results while retaining real KV writes in lifecycle tests.
@@ -32,7 +32,7 @@ func TestBuiltinWrapAfterDelayedKeyVisibility(t *testing.T) {
 	calls := 0
 	// A follower that has not applied the Create answers every direct read
 	// with a miss; the miss is confirmed through the stream leader.
-	k.kv, err = events.NewKeyValue(js, getOverrideKV{KeyValue: k.kv.KeyValue, get: func(context.Context, string) (jetstream.KeyValueEntry, error) {
+	k.kv, err = jetstreamutil.NewKeyValue(js, getOverrideKV{KeyValue: k.kv.KeyValue, get: func(context.Context, string) (jetstream.KeyValueEntry, error) {
 		calls++
 		return nil, jetstream.ErrKeyNotFound
 	}})
@@ -65,7 +65,7 @@ func setupBuiltinKMSWithJetStream(t *testing.T) (*Builtin, jetstream.JetStream, 
 		History: 1,
 	})
 	require.NoError(t, err)
-	kv, err := events.NewKeyValue(js, bucket)
+	kv, err := jetstreamutil.NewKeyValue(js, bucket)
 	require.NoError(t, err)
 	return NewBuiltin(kv, nil), js, ctx
 }

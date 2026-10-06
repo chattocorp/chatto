@@ -24,6 +24,7 @@
         "pkg/appconfig",
         "pkg/datacrypto",
         "pkg/events",
+        "pkg/jetstreamutil",
         "pkg/natsruntime",
         ".agents/skills"
       ],
@@ -100,6 +101,16 @@
       "release-type": "go",
       "package-name": "datacrypto",
       "component": "pkg/datacrypto",
+      "changelog-path": "CHANGELOG.md",
+      "initial-version": "0.1.0-alpha.1",
+      "draft": false,
+      "include-component-in-tag": true,
+      "tag-separator": "/"
+    },
+    "pkg/jetstreamutil": {
+      "release-type": "go",
+      "package-name": "jetstreamutil",
+      "component": "pkg/jetstreamutil",
       "changelog-path": "CHANGELOG.md",
       "initial-version": "0.1.0-alpha.1",
       "draft": false,

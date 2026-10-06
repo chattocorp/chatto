@@ -31,7 +31,7 @@ Related decisions: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md) and
 | `MEMORY_CACHE`    | Memory  | No     | Volatile cache state: presence, the cached Neighborhood directory, worker leases and cooldowns, reconciliation counters, and worker health heartbeats                                                                   |
 | `ENCRYPTION_KEYS` | File    | **No** | KMS KEKs and LiveKit per-call E2EE keys (excluded for security); app-owned wrapped DEKs live in `RUNTIME_STATE`                                                                                                         |
 
-Chatto binds every bucket handle through `events.KeyValue`. The buckets allow
+Chatto binds every bucket handle through `jetstreamutil.KeyValue`. The buckets allow
 direct gets, and a lagging replica can then answer with an older revision or
 no entry. `Get` therefore reads through the stream leader. These hot paths
 read with `GetAnyReplica`:

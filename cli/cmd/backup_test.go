@@ -20,9 +20,9 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/jetstreamutil"
 	"hmans.de/chatto/internal/projectionsnapshot"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 const backupTestSnapshotSecret = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"

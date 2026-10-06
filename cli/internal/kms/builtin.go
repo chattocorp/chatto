@@ -16,8 +16,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/jetstreamutil"
-	"hmans.de/chatto/pkg/events"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 const (
@@ -72,7 +71,7 @@ type LegacyKeyProvider interface {
 
 // Builtin is Chatto's default in-process KMS.
 type Builtin struct {
-	kv     *events.KeyValue
+	kv     *jetstreamutil.KeyValue
 	logger *log.Logger
 }
 
@@ -81,7 +80,7 @@ var _ LegacyKeyProvider = (*Builtin)(nil)
 var _ CallKeyStore = (*Builtin)(nil)
 
 // NewBuiltin creates a KV-backed KMS. The KV bucket should be ENCRYPTION_KEYS.
-func NewBuiltin(kv *events.KeyValue, logger *log.Logger) *Builtin {
+func NewBuiltin(kv *jetstreamutil.KeyValue, logger *log.Logger) *Builtin {
 	if logger == nil {
 		logger = log.WithPrefix("kms.Builtin")
 	}

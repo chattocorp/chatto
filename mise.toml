@@ -71,6 +71,7 @@ run = [
     { task = "setup-cli" },
     { task = "setup-datacrypto" },
     { task = "setup-events" },
+    { task = "setup-jetstreamutil" },
     { task = "setup-natsruntime" },
     { task = "setup-frontend" },
     { task = "setup-livekit" },
@@ -96,6 +97,12 @@ sources = ["go.mod", "go.sum"]
 [tasks.deps-datacrypto]
 description = "Install data cryptography dependencies"
 dir = "pkg/datacrypto"
+run = "GOWORK=off go mod download"
+sources = ["go.mod", "go.sum"]
+
+[tasks.deps-jetstreamutil]
+description = "Install JetStream utilities dependencies"
+dir = "pkg/jetstreamutil"
 run = "GOWORK=off go mod download"
 sources = ["go.mod", "go.sum"]
 
@@ -135,6 +142,10 @@ depends = ["deps-appconfig"]
 [tasks.setup-datacrypto]
 description = "Set up the data cryptography module"
 depends = ["deps-datacrypto"]
+
+[tasks.setup-jetstreamutil]
+description = "Set up the JetStream utilities module"
+depends = ["deps-jetstreamutil"]
 
 [tasks.setup-events]
 description = "Set up the event framework module"
@@ -667,6 +678,16 @@ run = [
 ]
 sources = ["go.mod", "go.sum", "**/*.go"]
 
+[tasks.test-jetstreamutil]
+description = "Run JetStream utilities tests standalone and in the repository workspace"
+depends = ["setup-jetstreamutil"]
+dir = "pkg/jetstreamutil"
+run = [
+    "GOWORK=off go test -trimpath ./...",
+    "go test -trimpath ./...",
+]
+sources = ["go.mod", "go.sum", "**/*.go"]
+
 [tasks.test-natsruntime]
 description = "Run embedded NATS runtime tests standalone and in the repository workspace"
 depends = ["setup-natsruntime"]
@@ -726,6 +747,13 @@ run = ["GOWORK=off go vet ./...", "go vet ./...", "../../tools/go-modernize-chec
 description = "Vet data cryptography standalone and in the workspace"
 depends = ["setup-datacrypto"]
 dir = "pkg/datacrypto"
+tools = { "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
+run = ["GOWORK=off go vet ./...", "go vet ./...", "../../tools/go-modernize-check.sh"]
+
+[tasks.lint-jetstreamutil]
+description = "Vet JetStream utilities standalone and in the workspace"
+depends = ["setup-jetstreamutil"]
+dir = "pkg/jetstreamutil"
 tools = { "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
 run = ["GOWORK=off go vet ./...", "go vet ./...", "../../tools/go-modernize-check.sh"]
 
@@ -816,6 +844,7 @@ run = [
     { task = "test-appconfig" },
     { task = "test-datacrypto" },
     { task = "test-events" },
+    { task = "test-jetstreamutil" },
     { task = "test-natsruntime" },
     { task = "test-cli" },
     { task = "test-desktop" },

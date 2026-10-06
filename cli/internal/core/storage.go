@@ -12,7 +12,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/notificationstream"
-	"hmans.de/chatto/pkg/events"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 const projectionSnapshotObjectStoreName = "PROJECTION_SNAPSHOTS"
@@ -23,20 +23,20 @@ const projectionSnapshotObjectStoreName = "PROJECTION_SNAPSHOTS"
 
 // storage encapsulates JetStream resources used by Chatto Core.
 type storage struct {
-	// Key-value buckets are bound through events.NewKeyValue, so Get reads
+	// Key-value buckets are bound through jetstreamutil.NewKeyValue, so Get reads
 	// through the stream leader. Use GetAnyReplica only on hot paths that
 	// tolerate an older revision.
-	encryptionKV   *events.KeyValue // ENCRYPTION_KEYS - KMS KEKs (excluded from backups)
-	runtimeStateKV *events.KeyValue // RUNTIME_STATE  - persisted latest-value runtime/user state + wrapped app DEKs
+	encryptionKV   *jetstreamutil.KeyValue // ENCRYPTION_KEYS - KMS KEKs (excluded from backups)
+	runtimeStateKV *jetstreamutil.KeyValue // RUNTIME_STATE  - persisted latest-value runtime/user state + wrapped app DEKs
 
 	serverAssets       jetstream.ObjectStore // SERVER_ASSETS - all NATS-backed asset binaries
 	serverEvtStream    jetstream.Stream      // EVT - authoritative domain event log (ADR-033/034).
 	logStream          jetstream.Stream      // LOG - retained operational diagnostics; excluded from backups.
 	notificationStream jetstream.Stream      // NOTIFICATIONS - bounded notification lifecycle event log.
 
-	memoryCacheKV      *events.KeyValue      // MEMORY_CACHE - volatile, memory-backed runtime cache state
-	imageCacheStore    jetstream.ObjectStore // Optional: cached resized images (nil if disabled)
-	neighborhoodImages jetstream.ObjectStore // NEIGHBORHOOD_IMAGES - expiring copies of discovered server images
+	memoryCacheKV      *jetstreamutil.KeyValue // MEMORY_CACHE - volatile, memory-backed runtime cache state
+	imageCacheStore    jetstream.ObjectStore   // Optional: cached resized images (nil if disabled)
+	neighborhoodImages jetstream.ObjectStore   // NEIGHBORHOOD_IMAGES - expiring copies of discovered server images
 }
 
 // newStorage initializes current JetStream resources.
@@ -271,14 +271,14 @@ func neighborhoodImagesConfig(cfg config.CoreConfig) jetstream.ObjectStoreConfig
 }
 
 // createKeyValue creates or updates a bucket and binds leader-routed reads.
-func createKeyValue(ctx context.Context, js jetstream.JetStream, cfg jetstream.KeyValueConfig) (*events.KeyValue, error) {
+func createKeyValue(ctx context.Context, js jetstream.JetStream, cfg jetstream.KeyValueConfig) (*jetstreamutil.KeyValue, error) {
 	bucket, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.KeyValue, error) {
 		return js.CreateOrUpdateKeyValue(ctx, cfg)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create %s KV bucket: %w", cfg.Bucket, err)
 	}
-	return events.NewKeyValue(js, bucket)
+	return jetstreamutil.NewKeyValue(js, bucket)
 }
 
 func memoryCacheConfig(cfg config.CoreConfig) jetstream.KeyValueConfig {
@@ -326,7 +326,7 @@ func prepareEVTStreamMetadata(ctx context.Context, js jetstream.JetStream) (map[
 // createJetStreamResourceWithRetry applies Chatto's startup retry budget to the
 // shared provisioning mechanics. The callback retains ownership of configuration.
 func createJetStreamResourceWithRetry[T any](ctx context.Context, create func(context.Context) (T, error)) (T, error) {
-	return events.CreateJetStreamResourceWithRetry(ctx, events.JetStreamResourceRetryPolicy{
+	return jetstreamutil.CreateJetStreamResourceWithRetry(ctx, jetstreamutil.JetStreamResourceRetryPolicy{
 		MaxAttempts: 3,
 		RetryDelay:  25 * time.Millisecond,
 	}, create)

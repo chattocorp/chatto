@@ -6,34 +6,15 @@ It is an envelope-neutral event-sourcing framework for NATS JetStream,
 providing optimistic-concurrency-controlled publication, ordered projection
 replay, startup and read-your-writes barriers, optional snapshot or checkpoint
 restore, exact stream-message reads with optional process-local caching,
-consistent key-value reads, bounded subject reads, and bounded durable
-pull-worker execution.
+bounded subject reads, and bounded durable pull-worker execution. Key-value
+reads through the stream leader and retried resource provisioning are in
+[`pkg/jetstreamutil`](../jetstreamutil/README.md).
 
 The intended reader is an application integrator. This module owns ordering,
 OCC, replay, and delivery mechanics; the application owns event codecs,
 subjects, authorization, stream identity, consumer configuration, and domain
 completion rules. The package must not import an application's envelope or
 domain types.
-
-## Provision JetStream resources
-
-`CreateJetStreamResourceWithRetry` runs a repeatable resource callback with a
-bounded `JetStreamResourceRetryPolicy`. Applications choose `MaxAttempts`
-(including the first call) and `RetryDelay`. After failed attempt N, the helper
-waits for N times `RetryDelay`. The helper rejects invalid policy values.
-
-The helper retries request deadline errors only while the parent context is
-active. It also retries the specific JetStream store-creation and stream-name
-conflict errors used during concurrent provisioning. Parent cancellation or
-expiry stops the operation and takes precedence over the callback result.
-Other errors and retry exhaustion remain fatal to the caller.
-
-Callbacks must honor the context and be safe to repeat when the server has
-already committed an operation but its response was lost. Use this helper for
-streams, KV buckets, and Object Stores, not event writes. Applications retain
-resource names, configuration, identity metadata, and timeout policy. With
-nats.go, the default request timeout applies only when the supplied context
-has no deadline; an expired parent deadline cannot be retried.
 
 ## Read exact stream messages
 
@@ -71,54 +52,6 @@ records, err := reader.Messages(ctx, sequences)
 
 The cache is a disposable read accelerator. EVT or another application-owned
 stream remains the source of truth.
-
-## Read key-value buckets consistently
-
-JetStream serves `jetstream.KeyValue.Get` through DirectGet when a bucket
-allows it, and buckets that nats.go creates allow it. Any replica can then
-answer. A follower that lags behind a committed write returns an older
-revision or no entry. A read that must see a preceding write, or that decides
-an OCC update, a claim, or a revocation, then works from stale state.
-
-`KeyValue` wraps a bucket handle and keeps its complete
-`jetstream.KeyValue` interface. It supports only the default JetStream API:
-`NewKeyValue` rejects a context with a domain or a different API prefix. `Get` and `GetRevision` read through the
-stream leader and keep the semantics of the bucket's own methods. `Latest`
-returns the newest entry for a key or wildcard filter, including delete,
-purge, and expiry markers. `UpdateWithTTL` replaces a revision and sets a new
-per-message TTL, which the bucket API supports only on `Create`.
-
-`GetAnyReplica` is the bucket's own read, for hot paths. Any replica can
-answer, so the result can be an older revision, or a miss for an entry that
-the replica has not applied yet. Accept a result from `GetAnyReplica`, but
-decide a negative result again with `Get`: a missing entry, or an entry that
-causes a rejection. Skip that second read only where a wrong negative result
-is harmless. Use `GetAnyReplica` only where an older revision that the caller
-accepts cannot cause a wrong decision.
-
-```go
-bucket, err := js.CreateOrUpdateKeyValue(ctx, config)
-if err != nil {
-	return err
-}
-kv, err := events.NewKeyValue(js, bucket)
-if err != nil {
-	return err
-}
-
-entry, err := kv.Get(ctx, key) // sees every committed write
-
-cached, err := kv.GetAnyReplica(ctx, key) // hot path; can be an older revision
-if errors.Is(err, jetstream.ErrKeyNotFound) {
-	cached, err = kv.Get(ctx, key) // decide the miss through the leader
-}
-```
-
-Bind every bucket handle that the application reads through `NewKeyValue`, so
-that code that receives a `jetstream.KeyValue` also gets the leader-routed
-`Get`. Watchers, key listings, and history remain the bucket's own. The
-bucket's `Create` also reads a delete marker through a direct get. It can thus
-return `jetstream.ErrKeyExists` for a key that a lagging replica still shows.
 
 ## Publish opaque events
 

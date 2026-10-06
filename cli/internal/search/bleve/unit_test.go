@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"io"
 	"strings"
 	"sync"
@@ -24,11 +23,13 @@ import (
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
 	"hmans.de/chatto/internal/runtimeunit"
 	"hmans.de/chatto/internal/search"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/pkg/events"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 type synchronizedBuffer struct {
@@ -67,9 +68,9 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	require.NoError(t, err)
 	runtimeStateBucket, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: "RUNTIME_STATE", Storage: jetstream.MemoryStorage})
 	require.NoError(t, err)
-	encryptionKeys, err := events.NewKeyValue(js, encryptionBucket)
+	encryptionKeys, err := jetstreamutil.NewKeyValue(js, encryptionBucket)
 	require.NoError(t, err)
-	runtimeState, err := events.NewKeyValue(js, runtimeStateBucket)
+	runtimeState, err := jetstreamutil.NewKeyValue(js, runtimeStateBucket)
 	require.NoError(t, err)
 	keyStore := kms.NewBuiltin(encryptionKeys, log.New(io.Discard))
 	wrappingKeyRef, err := keyStore.CreateKey(ctx, "U1")
@@ -263,9 +264,9 @@ func TestUnitFailsClosedWhenCheckpointPrecedesRetainedEVT(t *testing.T) {
 	require.NoError(t, err)
 	runtimeStateBucket, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: "RUNTIME_STATE", Storage: jetstream.MemoryStorage})
 	require.NoError(t, err)
-	encryptionKeys, err := events.NewKeyValue(js, encryptionBucket)
+	encryptionKeys, err := jetstreamutil.NewKeyValue(js, encryptionBucket)
 	require.NoError(t, err)
-	runtimeState, err := events.NewKeyValue(js, runtimeStateBucket)
+	runtimeState, err := jetstreamutil.NewKeyValue(js, runtimeStateBucket)
 	require.NoError(t, err)
 	logger := log.New(io.Discard)
 	keyStore := kms.NewBuiltin(encryptionKeys, logger)
