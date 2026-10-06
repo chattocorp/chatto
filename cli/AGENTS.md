@@ -92,6 +92,13 @@ authorization, live events, backup and restore, and backend tests.
   through the stream leader. A hot path can read with `GetAnyReplica` to accept
   a result quickly. It must decide a miss or a rejection again with `Get`,
   unless a wrong negative result is harmless. Give the reason in a comment.
+- Classify an OCC conflict with `jetstreamutil.IsSequenceConflict`, not with
+  `errors.Is(err, jetstream.ErrKeyExists)`. A replicated stream reports a
+  conflict with a write in progress as code 10164. nats.go reports that code as
+  `ErrKeyExists` only from `Create`. Errors from `Update`, a revision-checked
+  `Delete`, and raw publishes do not match it. Exception: a create-once publish
+  that accepts a conflict as a stored duplicate must accept only
+  `ErrKeyExists`, because a write in progress can still fail.
 - Give each KV watcher on `RUNTIME_STATE` exactly one key filter. JetStream
   scans every message block for a watcher with more than one filter. The
   bucket gets many writes and has thousands of sparse blocks. Thus, a

@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -262,4 +263,27 @@ func TestPresencePreferenceKVDeletionClearsWatcherAndSurvivesResync(t *testing.T
 	choice, err := c.GetPresencePreference(ctx, "user")
 	require.NoError(t, err)
 	require.Nil(t, choice)
+}
+
+// replicatedConflictKV rejects Update as nats.go v1.54 does when a replicated
+// stream reports a conflict with a write in progress: code 10164, wrapped as
+// jetstream.ErrKeyRevisionMismatch. That error does not match ErrKeyExists.
+type replicatedConflictKV struct{ jetstream.KeyValue }
+
+func (replicatedConflictKV) Update(context.Context, string, []byte, uint64) (uint64, error) {
+	conflict := &jetstream.APIError{Code: 400, ErrorCode: jetstream.JSErrCodeStreamWrongLastSequenceConstant, Description: "wrong last sequence"}
+	return 0, fmt.Errorf("%w: %w", conflict, jetstream.ErrKeyRevisionMismatch)
+}
+
+func TestPresencePreferenceReportsReplicatedStreamConflicts(t *testing.T) {
+	t.Parallel()
+
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	initial, err := c.SetPresencePreference(ctx, "user", apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE, "")
+	require.NoError(t, err)
+	c.presenceModel.runtimeStateKV = bindTestKeyValue(t, c.js, replicatedConflictKV{c.storage.runtimeStateKV.KeyValue})
+
+	_, err = c.SetPresencePreference(ctx, "user", apiv1.PresenceStatus_PRESENCE_STATUS_AWAY, initial.Revision)
+	require.ErrorIs(t, err, events.ErrConflict)
 }

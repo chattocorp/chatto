@@ -12,6 +12,7 @@ import (
 	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"hmans.de/chatto/pkg/events"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // syncPreference reads only the latest RUNTIME_STATE choice before a privacy
@@ -111,7 +112,7 @@ func (c *ChattoCore) SetPresencePreference(ctx context.Context, userID string, s
 	} else {
 		saved, err = s.runtimeStateKV.Update(ctx, key, data, seq)
 	}
-	if errors.Is(err, jetstream.ErrKeyExists) {
+	if jetstreamutil.IsSequenceConflict(err) {
 		return nil, events.ErrConflict
 	}
 	if err != nil {
