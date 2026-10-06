@@ -20,6 +20,8 @@ import (
 )
 
 func TestPostThreadReplyWaitsForFollowProjectionBeforePlanningNotifications(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	alice, err := chattoCore.CreateUser(ctx, SystemActorID, "thread-fence-alice", "Thread Fence Alice", "password")
@@ -97,6 +99,8 @@ func TestPostThreadReplyWaitsForFollowProjectionBeforePlanningNotifications(t *t
 }
 
 func TestChattoCore_PostMessage_Threading(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -585,6 +589,8 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 }
 
 func TestChattoCore_ThreadLastOpened(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -639,6 +645,8 @@ func TestChattoCore_ThreadLastOpened(t *testing.T) {
 }
 
 func TestChattoCore_PostMessage_UpdatesThreadLastOpened(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -680,6 +688,8 @@ func TestChattoCore_PostMessage_UpdatesThreadLastOpened(t *testing.T) {
 }
 
 func TestChattoCore_ThreadFollow(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -776,6 +786,8 @@ func TestChattoCore_ThreadFollow(t *testing.T) {
 }
 
 func TestChattoCore_GetThreadFollowers(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -841,6 +853,8 @@ func TestChattoCore_GetThreadFollowers(t *testing.T) {
 }
 
 func TestChattoCore_ListFollowedThreads(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1101,6 +1115,8 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 }
 
 func TestChattoCore_ListFollowedThreadsUsesRootActivityForThreadsWithoutReplies(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1154,6 +1170,8 @@ func TestChattoCore_ListFollowedThreadsUsesRootActivityForThreadsWithoutReplies(
 }
 
 func TestChattoCore_PostMessage_AutoFollowsThread(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1192,6 +1210,8 @@ func TestChattoCore_PostMessage_AutoFollowsThread(t *testing.T) {
 }
 
 func TestChattoCore_PostMessage_ReFollowsAfterUnfollow(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1225,6 +1245,8 @@ func TestChattoCore_PostMessage_ReFollowsAfterUnfollow(t *testing.T) {
 }
 
 func TestChattoCore_PostMessage_RootAuthorUnfollowRespected(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1277,6 +1299,8 @@ func TestChattoCore_PostMessage_RootAuthorUnfollowRespected(t *testing.T) {
 }
 
 func TestChattoCore_PostMessage_DirectMentionAutoFollowsThread(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1311,6 +1335,8 @@ func TestChattoCore_PostMessage_DirectMentionAutoFollowsThread(t *testing.T) {
 }
 
 func TestChattoCore_PostMessage_DirectMentionRespectsExplicitUnfollow(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1360,6 +1386,8 @@ func TestChattoCore_PostMessage_DirectMentionRespectsExplicitUnfollow(t *testing
 }
 
 func TestChattoCore_PostMessage_BroadMentionsDoNotAutoFollowThread(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1392,6 +1420,8 @@ func TestChattoCore_PostMessage_BroadMentionsDoNotAutoFollowThread(t *testing.T)
 }
 
 func TestChattoCore_PostMessage_DisabledDirectMentionDoesNotAutoFollowThread(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1425,6 +1455,8 @@ func TestChattoCore_PostMessage_DisabledDirectMentionDoesNotAutoFollowThread(t *
 }
 
 func TestChattoCore_LegacyThreadFollowValueIsIgnored(t *testing.T) {
+	t.Parallel()
+
 	ctx := testContext(t)
 	_, nc := testutil.StartNATS(t)
 	cfg := config.CoreConfig{
@@ -1450,6 +1482,8 @@ func TestChattoCore_LegacyThreadFollowValueIsIgnored(t *testing.T) {
 }
 
 func TestChattoCore_NotifyThreadFollowers(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1494,6 +1528,8 @@ func TestChattoCore_NotifyThreadFollowers(t *testing.T) {
 }
 
 func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1674,6 +1710,8 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 }
 
 func TestChattoCore_PostMessage_EchoMentionNotification(t *testing.T) {
+	t.Parallel()
+
 	core, nc := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1745,6 +1783,8 @@ func TestChattoCore_PostMessage_EchoMentionNotification(t *testing.T) {
 }
 
 func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2001,6 +2041,8 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 }
 
 func TestChattoCore_SetThreadLastReadEventIDDoesNotRegress(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

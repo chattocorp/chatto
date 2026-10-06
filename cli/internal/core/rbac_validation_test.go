@@ -6,6 +6,8 @@ import (
 )
 
 func TestValidateRoleName(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		input   string

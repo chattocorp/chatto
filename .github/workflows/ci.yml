@@ -539,7 +539,7 @@ jobs:
         run: mise x -- node tools/dev-seed-smoke.mjs
 
       - name: Run Go tests
-        run: cd cli && go test -trimpath -p 1 -tags test_endpoints ./...
+        run: cd cli && go test -trimpath -tags test_endpoints ./...
 
   lint-cli:
     needs: changes

@@ -18,6 +18,8 @@ import (
 )
 
 func TestMyEventsHubPrefiltersMessageBodiesBeforeDecode(t *testing.T) {
+	t.Parallel()
+
 	core := &ChattoCore{logger: testCoreLogger()}
 	model := NewMyEventsModel(core)
 	msg := &nats.Msg{
@@ -37,6 +39,8 @@ func TestMyEventsHubPrefiltersMessageBodiesBeforeDecode(t *testing.T) {
 }
 
 func TestMyEventsHubResetsForUnknownFutureRoomEvent(t *testing.T) {
+	t.Parallel()
+
 	core := &ChattoCore{logger: testCoreLogger()}
 	hub := NewMyEventsModel(core).hub
 	data := protowire.AppendTag(nil, 19_999, protowire.BytesType)
@@ -56,6 +60,8 @@ func TestMyEventsHubResetsForUnknownFutureRoomEvent(t *testing.T) {
 }
 
 func TestMyEventsHubDiscardsKnownPrivateUserEventAfterValidation(t *testing.T) {
+	t.Parallel()
+
 	core := &ChattoCore{logger: testCoreLogger()}
 	hub := NewMyEventsModel(core).hub
 	event := &evtv1.Event{
@@ -82,6 +88,8 @@ func TestMyEventsHubDiscardsKnownPrivateUserEventAfterValidation(t *testing.T) {
 }
 
 func TestMyEventsHubResetsForUnknownAggregateNamespace(t *testing.T) {
+	t.Parallel()
+
 	core := &ChattoCore{logger: testCoreLogger()}
 	hub := NewMyEventsModel(core).hub
 	msg := &nats.Msg{Subject: evtstream.LiveSubjectRoot + "future.resource-1.changed"}
@@ -95,6 +103,8 @@ func TestMyEventsHubResetsForUnknownAggregateNamespace(t *testing.T) {
 }
 
 func TestMyEventsHubResetsForMismatchedUserSubject(t *testing.T) {
+	t.Parallel()
+
 	core := &ChattoCore{logger: testCoreLogger()}
 	hub := NewMyEventsModel(core).hub
 	event := &evtv1.Event{
@@ -118,6 +128,8 @@ func TestMyEventsHubResetsForMismatchedUserSubject(t *testing.T) {
 }
 
 func TestMyEventsHubResetsForUnprojectedServerConfigFacts(t *testing.T) {
+	t.Parallel()
+
 	core := &ChattoCore{logger: testCoreLogger()}
 	hub := NewMyEventsModel(core).hub
 	subject := evtstream.LiveSubjectRoot + evtstream.AggregateConfig + "." + evtstream.ConfigSingletonID + "." + evtstream.EventServerNameChanged
@@ -130,6 +142,8 @@ func TestMyEventsHubResetsForUnprojectedServerConfigFacts(t *testing.T) {
 }
 
 func TestMyEventsHubDeliversRoomGroupFactAfterProjection(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	viewer, err := core.CreateUser(ctx, SystemActorID, "group-viewer", "Group Viewer", "password123")
@@ -169,6 +183,8 @@ func TestMyEventsHubDeliversRoomGroupFactAfterProjection(t *testing.T) {
 }
 
 func TestMyEventsHubSharesDecodedEventAcrossUserSessions(t *testing.T) {
+	t.Parallel()
+
 	core, nc := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -231,6 +247,8 @@ func TestMyEventsHubSharesDecodedEventAcrossUserSessions(t *testing.T) {
 }
 
 func TestMyEventsHubDeliversServerMOTDChangedEvent(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	viewer, err := core.CreateUser(ctx, SystemActorID, "motd-viewer", "MOTD Viewer", "password123")
@@ -268,6 +286,8 @@ func TestMyEventsHubDeliversServerMOTDChangedEvent(t *testing.T) {
 }
 
 func TestRealtimeEVTRequiresSnapshotClassifiesServerConfig(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		eventType string
@@ -290,6 +310,8 @@ func TestRealtimeEVTRequiresSnapshotClassifiesServerConfig(t *testing.T) {
 }
 
 func TestRealtimeEVTRequiresSnapshotAcceptsRoomGroupFacts(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		subject   string
 		eventType string
@@ -311,6 +333,8 @@ func TestRealtimeEVTRequiresSnapshotAcceptsRoomGroupFacts(t *testing.T) {
 }
 
 func TestMyEventsHubRegistersAfterMembershipBacklog(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "barrier-author", "Barrier Author", "password123")
@@ -366,6 +390,8 @@ func TestMyEventsHubRegistersAfterMembershipBacklog(t *testing.T) {
 }
 
 func TestMyEventsHubVisibilityTailIgnoresOrdinaryRoomTraffic(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "tail-author", "Tail Author", "password123")
@@ -397,6 +423,8 @@ func TestMyEventsHubVisibilityTailIgnoresOrdinaryRoomTraffic(t *testing.T) {
 }
 
 func TestMyEventsHubIgnoresLateVisibilityFactsCoveredBySnapshot(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	viewer, err := core.CreateUser(ctx, SystemActorID, "snapshot-visibility-viewer", "Snapshot Visibility Viewer", "password123")
@@ -445,6 +473,8 @@ func TestMyEventsHubIgnoresLateVisibilityFactsCoveredBySnapshot(t *testing.T) {
 }
 
 func TestMyEventsHubRejectsSnapshotAcrossProcessedVisibilityChange(t *testing.T) {
+	t.Parallel()
+
 	core := &ChattoCore{logger: testCoreLogger()}
 	hub := NewMyEventsModel(core).hub
 	hub.accepting = true
@@ -473,6 +503,8 @@ func TestMyEventsHubRejectsSnapshotAcrossProcessedVisibilityChange(t *testing.T)
 }
 
 func TestMyEventsHubQuarantineBlocksAdmissionUntilNextGeneration(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	hub := core.myEventsModel.hub
@@ -504,6 +536,8 @@ func TestMyEventsHubQuarantineBlocksAdmissionUntilNextGeneration(t *testing.T) {
 }
 
 func TestMyEventsHubQuarantineInterruptsPendingRegistration(t *testing.T) {
+	t.Parallel()
+
 	core := &ChattoCore{logger: testCoreLogger()}
 	hub := NewMyEventsModel(core).hub
 	hub.beginGeneration()
@@ -535,6 +569,8 @@ func TestMyEventsHubQuarantineInterruptsPendingRegistration(t *testing.T) {
 }
 
 func TestMyEventsHubTerminationInterruptsBlockedForwarding(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "blocked-forwarder", "Blocked Forwarder", "password123")
@@ -575,6 +611,8 @@ func TestMyEventsHubTerminationInterruptsBlockedForwarding(t *testing.T) {
 }
 
 func TestMyEventsHubDisconnectsOnlySubscriberOverByteLimit(t *testing.T) {
+	t.Parallel()
+
 	core := &ChattoCore{logger: testCoreLogger()}
 	model := NewMyEventsModel(core)
 	hub := model.hub
@@ -609,6 +647,8 @@ func TestMyEventsHubDisconnectsOnlySubscriberOverByteLimit(t *testing.T) {
 }
 
 func TestMyEventsHubFansDirectoryInvalidationsOnlyToProjectionSessions(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	actor, err := core.CreateUser(ctx, SystemActorID, "directory-actor", "Directory Actor", "password123")
@@ -655,6 +695,8 @@ func TestMyEventsHubFansDirectoryInvalidationsOnlyToProjectionSessions(t *testin
 }
 
 func TestMyEventsHubSuppressesHiddenDirectoryInvalidations(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	actor, err := core.CreateUser(ctx, SystemActorID, "hidden-directory-actor", "Hidden Directory Actor", "password123")
@@ -698,6 +740,8 @@ func TestMyEventsHubSuppressesHiddenDirectoryInvalidations(t *testing.T) {
 }
 
 func TestMyEventsHubRemovesProjectionVisibilityAfterUniversalMembershipEnds(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	actor, err := core.CreateUser(ctx, SystemActorID, "visibility-loss-actor", "Visibility Loss Actor", "password123")
@@ -761,6 +805,8 @@ func TestMyEventsHubRemovesProjectionVisibilityAfterUniversalMembershipEnds(t *t
 }
 
 func TestMyEventsHubReconcilesVisibilityOnViewerLeave(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	actor, err := core.CreateUser(ctx, SystemActorID, "leave-visibility-actor", "Leave Visibility Actor", "password123")
@@ -828,6 +874,8 @@ func TestMyEventsHubReconcilesVisibilityOnViewerLeave(t *testing.T) {
 }
 
 func TestPresenceHubOverflowMarksSubscriptionLagged(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	sub, err := core.PresenceHub.Subscribe(ctx)
@@ -855,6 +903,8 @@ func TestPresenceHubOverflowMarksSubscriptionLagged(t *testing.T) {
 // An owner's sessions with and without privileged mode must not share room
 // visibility, because only the privileged session has the owner override.
 func TestMyEventsHubSeparatesOwnerSessionsByPrivilegedMode(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

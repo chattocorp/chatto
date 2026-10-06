@@ -36,6 +36,8 @@ func newTestPresenceModel(t *testing.T) (*PresenceModel, jetstream.KeyValue, *lo
 }
 
 func TestNewPresenceModelWiresDependencies(t *testing.T) {
+	t.Parallel()
+
 	service, memoryCacheKV, logger := newTestPresenceModel(t)
 
 	if service.memoryCacheKV == nil || service.memoryCacheKV.KeyValue != memoryCacheKV {
@@ -50,6 +52,8 @@ func TestNewPresenceModelWiresDependencies(t *testing.T) {
 }
 
 func TestPresenceModelSetAndGetPresence(t *testing.T) {
+	t.Parallel()
+
 	service, _, _ := newTestPresenceModel(t)
 	ctx := testContext(t)
 
@@ -77,6 +81,8 @@ func TestPresenceModelSetAndGetPresence(t *testing.T) {
 }
 
 func TestPresenceModelSetPresenceStatusMapping(t *testing.T) {
+	t.Parallel()
+
 	service, _, _ := newTestPresenceModel(t)
 	ctx := testContext(t)
 
@@ -109,6 +115,8 @@ func TestPresenceModelSetPresenceStatusMapping(t *testing.T) {
 }
 
 func TestPresenceModelGetUserPresenceTreatsDeletesAndCorruptValuesAsOffline(t *testing.T) {
+	t.Parallel()
+
 	service, kv, _ := newTestPresenceModel(t)
 	ctx := testContext(t)
 
@@ -131,6 +139,8 @@ func TestPresenceModelGetUserPresenceTreatsDeletesAndCorruptValuesAsOffline(t *t
 }
 
 func TestPresenceModelGetUserPresenceTreatsInvalidUserIDAsOffline(t *testing.T) {
+	t.Parallel()
+
 	service, _, _ := newTestPresenceModel(t)
 	ctx := testContext(t)
 
@@ -145,6 +155,8 @@ func TestPresenceModelGetUserPresenceTreatsInvalidUserIDAsOffline(t *testing.T) 
 }
 
 func TestPresenceModelRefreshMissingEntrySetsOnline(t *testing.T) {
+	t.Parallel()
+
 	service, _, _ := newTestPresenceModel(t)
 	ctx := testContext(t)
 
@@ -157,6 +169,8 @@ func TestPresenceModelRefreshMissingEntrySetsOnline(t *testing.T) {
 }
 
 func TestPresenceModelWriteRetriesSequenceConflictVariants(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		code jetstream.ErrorCode
@@ -197,6 +211,8 @@ func TestPresenceModelWriteRetriesSequenceConflictVariants(t *testing.T) {
 }
 
 func TestPresenceModelRefreshIgnoresSequenceConflictVariants(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		code jetstream.ErrorCode
@@ -224,6 +240,8 @@ func TestPresenceModelRefreshIgnoresSequenceConflictVariants(t *testing.T) {
 }
 
 func TestPresenceModelKeyHelpers(t *testing.T) {
+	t.Parallel()
+
 	if got := presenceKey("U-key"); got != "presence.U-key" {
 		t.Fatalf("presenceKey = %q, want %q", got, "presence.U-key")
 	}
@@ -251,6 +269,8 @@ func TestPresenceModelKeyHelpers(t *testing.T) {
 }
 
 func TestPresenceModelChattoCoreFacades(t *testing.T) {
+	t.Parallel()
+
 	service, _, _ := newTestPresenceModel(t)
 	core := &ChattoCore{presenceModel: service}
 	ctx := testContext(t)
@@ -270,6 +290,8 @@ func TestPresenceModelChattoCoreFacades(t *testing.T) {
 }
 
 func TestPresenceModelLivePresenceCount(t *testing.T) {
+	t.Parallel()
+
 	service, kv, _ := newTestPresenceModel(t)
 	ctx := testContext(t)
 	runCtx, cancel := context.WithCancel(ctx)
@@ -308,6 +330,8 @@ func TestPresenceModelLivePresenceCount(t *testing.T) {
 }
 
 func TestPresenceModelSubscribeAndUnsubscribe(t *testing.T) {
+	t.Parallel()
+
 	service, kv, _ := newTestPresenceModel(t)
 	ctx := testContext(t)
 	runCtx, cancel := context.WithCancel(ctx)

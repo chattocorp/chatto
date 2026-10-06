@@ -24,6 +24,8 @@ func invitationAdmin(t *testing.T, c *ChattoCore) string {
 }
 
 func TestInviteLinkTokensAreCompactDeterministicAndSecretBound(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)
@@ -62,6 +64,8 @@ func TestInviteLinkTokensAreCompactDeterministicAndSecretBound(t *testing.T) {
 }
 
 func TestInviteLinkTokenIndexRefreshesFromProjectedInvitations(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)
@@ -86,6 +90,8 @@ func TestInviteLinkTokenIndexRefreshesFromProjectedInvitations(t *testing.T) {
 }
 
 func TestInvitationManagementRequiresPermissionAndRetainsRevokedInvitation(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)
@@ -123,6 +129,8 @@ func TestInvitationManagementRequiresPermissionAndRetainsRevokedInvitation(t *te
 }
 
 func TestInvitationRedemptionIsAtomicAndLimitedAcrossConcurrentSignups(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)
@@ -181,6 +189,8 @@ func TestInvitationRedemptionIsAtomicAndLimitedAcrossConcurrentSignups(t *testin
 }
 
 func TestFailedSignupDoesNotConsumeInvitation(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)

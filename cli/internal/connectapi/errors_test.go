@@ -16,6 +16,8 @@ import (
 )
 
 func TestHandlerOptionsLogUnmappedErrorsWithoutExposingCause(t *testing.T) {
+	t.Parallel()
+
 	var logs bytes.Buffer
 	previousLogger := log.Default()
 	log.SetDefault(log.New(&logs))
@@ -61,6 +63,8 @@ func TestHandlerOptionsLogUnmappedErrorsWithoutExposingCause(t *testing.T) {
 }
 
 func TestConnectErrorMapsContextTermination(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		err  error
@@ -81,6 +85,8 @@ func TestConnectErrorMapsContextTermination(t *testing.T) {
 }
 
 func TestHandlerOptionsMapCoreErrors(t *testing.T) {
+	t.Parallel()
+
 	const procedure = "/chatto.test.v1.ErrorService/Fail"
 	tests := []struct {
 		name string
@@ -111,6 +117,8 @@ func TestHandlerOptionsMapCoreErrors(t *testing.T) {
 }
 
 func TestConnectErrorUsesFirstMatchingRow(t *testing.T) {
+	t.Parallel()
+
 	err := errors.Join(core.ErrNotFound, core.ErrPermissionDenied)
 	if got := errorCode(err); got != connect.CodePermissionDenied {
 		t.Fatalf("errorCode = %v, want permission denied from the earlier row", got)
@@ -118,6 +126,8 @@ func TestConnectErrorUsesFirstMatchingRow(t *testing.T) {
 }
 
 func TestConnectErrorCodesListEachErrorOnce(t *testing.T) {
+	t.Parallel()
+
 	seen := make(map[error]connect.Code)
 	for _, row := range connectErrorCodes {
 		for _, target := range row.errs {
@@ -133,6 +143,8 @@ func TestConnectErrorCodesListEachErrorOnce(t *testing.T) {
 }
 
 func TestConnectErrorKeepsNotModifiedErrors(t *testing.T) {
+	t.Parallel()
+
 	err := connectError(connect.NewNotModifiedError(nil))
 	if !connect.IsNotModifiedError(err) {
 		t.Fatalf("connectError(not modified) = %v, want a not-modified error", err)

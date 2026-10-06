@@ -12,6 +12,8 @@ import (
 )
 
 func TestOperatorImportMessageAppearsWithMappedAuthorInPublicRead(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("operator-message-public-read")
 	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "operator-message-author", "Imported Author", "password")

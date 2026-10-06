@@ -36,6 +36,8 @@ func (e *interceptingReactionMutationExecutor) ExecuteMutation(
 }
 
 func TestReactionModel_AddAndRemoveReaction(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, room, eventID := setupReactionTest(t, core, ctx)
@@ -95,6 +97,8 @@ func TestReactionModel_AddAndRemoveReaction(t *testing.T) {
 }
 
 func TestReactionModel_AuthorizationAndValidation(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, room, eventID := setupReactionTest(t, core, ctx)
@@ -193,6 +197,8 @@ func TestReactionModel_AuthorizationAndValidation(t *testing.T) {
 }
 
 func TestReactionModel_AllowsAuthorizedAttemptAcrossConcurrentPermissionChange(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, room, eventID := setupReactionTest(t, core, ctx)

@@ -12,6 +12,8 @@ import (
 )
 
 func TestDisplayNamesAcrossAccountAPIs(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	operator := &operatorUserService{api: env.api}
 	bots := &botService{api: env.api}

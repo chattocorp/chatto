@@ -9,6 +9,8 @@ import (
 )
 
 func TestPendingOAuthAuthorizeUsesOpaqueSingleUseRuntimeState(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	pending := PendingOAuthAuthorize{
@@ -56,6 +58,8 @@ func TestPendingOAuthAuthorizeUsesOpaqueSingleUseRuntimeState(t *testing.T) {
 }
 
 func TestPendingOAuthAuthorizeContinuesAcrossReplicas(t *testing.T) {
+	t.Parallel()
+
 	first, nc := setupTestCore(t)
 	ctx := testContext(t)
 	second, err := NewChattoCore(ctx, nc, config.CoreConfig{

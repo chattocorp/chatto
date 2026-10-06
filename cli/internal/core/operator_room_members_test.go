@@ -10,6 +10,8 @@ import (
 )
 
 func TestOperatorRoomMemberAddAcrossReplicasAndReplay(t *testing.T) {
+	t.Parallel()
+
 	first, nc := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := first.CreateUser(ctx, SystemActorID, "operator-replica-member", "Operator Replica Member", "password")
@@ -59,6 +61,8 @@ func TestOperatorRoomMemberAddAcrossReplicasAndReplay(t *testing.T) {
 }
 
 func TestAddMemberRechecksRoomAfterConcurrentArchive(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := c.CreateUser(ctx, SystemActorID, "operator-archive-member", "Operator Archive Member", "password")

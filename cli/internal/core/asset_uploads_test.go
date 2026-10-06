@@ -15,6 +15,8 @@ import (
 )
 
 func TestAssetUploadCleanupDeletesExpiredUnclaimedPendingAsset(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -55,6 +57,8 @@ func TestAssetUploadCleanupDeletesExpiredUnclaimedPendingAsset(t *testing.T) {
 }
 
 func TestAssetUploadStaleChunkUpdateDoesNotDeleteCommittedChunk(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -142,6 +146,8 @@ func TestAssetUploadStaleChunkUpdateDoesNotDeleteCommittedChunk(t *testing.T) {
 }
 
 func TestAssetUploadAnimatedGIFDoesNotRequestVideoProcessingWhenDisabled(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

@@ -15,6 +15,8 @@ import (
 )
 
 func TestPushSubscriptionKey(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		userID   string
@@ -65,6 +67,8 @@ func TestPushSubscriptionKey(t *testing.T) {
 }
 
 func TestPushEndpointOwnerKey(t *testing.T) {
+	t.Parallel()
+
 	endpoint := "https://push.example.com/owner"
 	key := pushEndpointOwnerKey(endpoint)
 	if !strings.HasPrefix(key, pushEndpointOwnerKeyPrefix) {
@@ -82,6 +86,8 @@ func TestPushEndpointOwnerKey(t *testing.T) {
 }
 
 func TestExtractUserIDFromPushKey(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		key      string
@@ -125,6 +131,8 @@ func TestExtractUserIDFromPushKey(t *testing.T) {
 }
 
 func TestSavePushSubscription(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 
@@ -183,6 +191,8 @@ func TestSavePushSubscription(t *testing.T) {
 }
 
 func TestSavePushSubscriptionForClient(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	clientHost := "app.example.com:8443"
@@ -208,6 +218,8 @@ func TestSavePushSubscriptionForClient(t *testing.T) {
 }
 
 func TestSavePushSubscriptionForClient_ValidatesClientHosts(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	maxClientHost := strings.Join([]string{
@@ -268,6 +280,8 @@ func TestSavePushSubscriptionForClient_ValidatesClientHosts(t *testing.T) {
 }
 
 func TestSavePushSubscription_StringLengthLimits(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	userID := "push-user-limits"
@@ -340,6 +354,8 @@ func TestSavePushSubscription_StringLengthLimits(t *testing.T) {
 }
 
 func TestSavePushSubscription_RejectsInvalidEndpointURLs(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 
@@ -359,6 +375,8 @@ func TestSavePushSubscription_RejectsInvalidEndpointURLs(t *testing.T) {
 }
 
 func TestSavePushSubscription_LimitsActiveEndpointsPerUser(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	userID := "push-user-endpoint-limit"
@@ -378,6 +396,8 @@ func TestSavePushSubscription_LimitsActiveEndpointsPerUser(t *testing.T) {
 }
 
 func TestAdmitPushTestNotificationRateLimitsAcrossCalls(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	userID := "push-test-rate-limit-user"
@@ -391,6 +411,8 @@ func TestAdmitPushTestNotificationRateLimitsAcrossCalls(t *testing.T) {
 }
 
 func TestGetUserPushSubscriptions(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 
@@ -432,6 +454,8 @@ func TestGetUserPushSubscriptions(t *testing.T) {
 }
 
 func TestGetUserPushSubscriptionsPropagatesCorruptRecord(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	userID := "U-corrupt-push-record"
@@ -445,6 +469,8 @@ func TestGetUserPushSubscriptionsPropagatesCorruptRecord(t *testing.T) {
 }
 
 func TestPushSubscriptionEndpointOwnershipTransfer(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	endpoint := "https://push.example.com/shared-browser"
@@ -502,6 +528,8 @@ func TestPushSubscriptionEndpointOwnershipTransfer(t *testing.T) {
 }
 
 func TestPushSubscriptionCurrentForUserRejectsRotatedCredentials(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	userID := "push-rotation-user"
@@ -537,6 +565,8 @@ func TestPushSubscriptionCurrentForUserRejectsRotatedCredentials(t *testing.T) {
 }
 
 func TestDeletePushSubscriptionByCapabilityPreservesReplacementOwner(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	endpoint := "https://push.example.com/capability-cleanup"
@@ -584,6 +614,8 @@ func TestDeletePushSubscriptionByCapabilityPreservesReplacementOwner(t *testing.
 }
 
 func TestStaleSubscriptionRevisionCannotReleaseRefreshedOwnership(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	userID := "push-refresh-race-user"
@@ -615,6 +647,8 @@ func TestStaleSubscriptionRevisionCannotReleaseRefreshedOwnership(t *testing.T) 
 }
 
 func TestGetUserPushSubscriptionsSkipsUnclaimedLegacyRecord(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	userID := "push-legacy-user"
@@ -646,6 +680,8 @@ func TestGetUserPushSubscriptionsSkipsUnclaimedLegacyRecord(t *testing.T) {
 }
 
 func TestConcurrentPushEndpointOwnershipClaimsHaveOneWinner(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	endpoint := "https://push.example.com/concurrent-owner"
@@ -692,6 +728,8 @@ func TestConcurrentPushEndpointOwnershipClaimsHaveOneWinner(t *testing.T) {
 }
 
 func TestConcurrentSameUserPushSavesKeepLatestRecordActive(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	userID := "push-concurrent-same-user"
@@ -730,6 +768,8 @@ func TestConcurrentSameUserPushSavesKeepLatestRecordActive(t *testing.T) {
 }
 
 func TestDeletePushSubscription(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 
@@ -776,6 +816,8 @@ func TestDeletePushSubscription(t *testing.T) {
 }
 
 func TestDeleteAllUserPushSubscriptions(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 
@@ -825,6 +867,8 @@ func TestDeleteAllUserPushSubscriptions(t *testing.T) {
 }
 
 func TestDeleteAllUserPushSubscriptionsRetainsRecoverableRecordWhenOwnerReleaseFails(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	userID := "push-user-owner-retry"
@@ -874,6 +918,8 @@ func TestDeleteAllUserPushSubscriptionsRetainsRecoverableRecordWhenOwnerReleaseF
 }
 
 func TestPushSubscriptionCleanupRepairsLegacyOrphanOwner(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	userID := "push-user-orphan-owner"
@@ -898,6 +944,8 @@ func TestPushSubscriptionCleanupRepairsLegacyOrphanOwner(t *testing.T) {
 }
 
 func TestPushSubscriptionIsolation(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 

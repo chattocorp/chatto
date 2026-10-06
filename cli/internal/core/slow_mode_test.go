@@ -23,6 +23,8 @@ func setRoomSlowModeForTest(t *testing.T, ctx context.Context, c *ChattoCore, ma
 }
 
 func TestRoomSlowModeConfiguration(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	manager, err := chatto.CreateUser(ctx, SystemActorID, "slow-mode-manager", "Slow Mode Manager", "password123")
@@ -69,6 +71,8 @@ func TestRoomSlowModeConfiguration(t *testing.T) {
 }
 
 func TestMessageSlowModeEnforcementAndImmediateChanges(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "slow-mode-poster", "Slow Mode Poster", "password123")
@@ -107,6 +111,8 @@ func TestMessageSlowModeEnforcementAndImmediateChanges(t *testing.T) {
 }
 
 func TestMessageSlowModeBypassAndPermissionLoss(t *testing.T) {
+	t.Parallel()
+
 	for _, testCase := range []struct {
 		name       string
 		permission Permission
@@ -137,6 +143,8 @@ func TestMessageSlowModeBypassAndPermissionLoss(t *testing.T) {
 }
 
 func TestMessageSlowModeCountsAttachmentOnlyPostsButNotAttachmentStaging(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "slow-mode-attachment", "Slow Mode Attachment", "password123")
@@ -162,6 +170,8 @@ func TestMessageSlowModeCountsAttachmentOnlyPostsButNotAttachmentStaging(t *test
 }
 
 func TestMessageSlowModeConcurrentPostsUseRoomOCC(t *testing.T) {
+	t.Parallel()
+
 	chatto, nc := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "slow-mode-race", "Slow Mode Race", "password123")

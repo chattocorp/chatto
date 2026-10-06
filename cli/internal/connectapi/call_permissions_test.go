@@ -13,6 +13,8 @@ import (
 )
 
 func TestCallPermissionsAcrossAPIEntryPoints(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	env.api.config.LiveKit = config.LiveKitConfig{Enabled: true, URL: "ws://livekit.test", APIKey: "key", APISecret: "secret"}
 	ctx := withCaller(env.ctx, env.viewer)
@@ -51,6 +53,8 @@ func TestCallPermissionsAcrossAPIEntryPoints(t *testing.T) {
 }
 
 func TestCallPermissionsTokenSourcesThroughAPI(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	env.api.config.LiveKit = config.LiveKitConfig{Enabled: true, URL: "ws://livekit.test", APIKey: "key", APISecret: "secret"}
 	ctx := withCaller(env.ctx, env.viewer)

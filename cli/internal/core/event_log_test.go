@@ -9,6 +9,8 @@ import (
 )
 
 func TestMarshalEventLogPayloadJSONRedactsPasswordHash(t *testing.T) {
+	t.Parallel()
+
 	hash := []byte("$2a$10$password-verifier")
 	event := &evtv1.Event{
 		Id:      "event-password-changed",
@@ -40,6 +42,8 @@ func TestMarshalEventLogPayloadJSONRedactsPasswordHash(t *testing.T) {
 }
 
 func TestMarshalEventLogPayloadJSONRedactsBotAPIKeyVerifier(t *testing.T) {
+	t.Parallel()
+
 	verifier := []byte("bot-api-key-verifier")
 	event := &evtv1.Event{Event: &evtv1.Event_BotApiKeyRotated{
 		BotApiKeyRotated: &evtv1.BotApiKeyRotatedEvent{UserId: "bot-user", Verifier: append([]byte(nil), verifier...)},
@@ -57,6 +61,8 @@ func TestMarshalEventLogPayloadJSONRedactsBotAPIKeyVerifier(t *testing.T) {
 }
 
 func TestMarshalEventLogPayloadJSONRedactsAddedBotAPIKeyVerifier(t *testing.T) {
+	t.Parallel()
+
 	verifier := []byte("named-bot-api-key-verifier")
 	event := &evtv1.Event{Event: &evtv1.Event_BotApiKeyAdded{
 		BotApiKeyAdded: &evtv1.BotApiKeyAddedEvent{
@@ -76,6 +82,8 @@ func TestMarshalEventLogPayloadJSONRedactsAddedBotAPIKeyVerifier(t *testing.T) {
 }
 
 func TestMarshalEventLogPayloadJSONRedactsBotIncomingWebhookVerifier(t *testing.T) {
+	t.Parallel()
+
 	verifier := []byte("bot-incoming-webhook-verifier")
 	event := &evtv1.Event{Event: &evtv1.Event_BotIncomingWebhookCreated{
 		BotIncomingWebhookCreated: &evtv1.BotIncomingWebhookCreatedEvent{UserId: "bot-user", WebhookId: "webhook", Verifier: append([]byte(nil), verifier...)},

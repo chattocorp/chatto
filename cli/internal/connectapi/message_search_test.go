@@ -49,6 +49,8 @@ func (p *fakeMessageSearchProvider) capturedQueries() []*searchv1.QueryRequest {
 }
 
 func TestMessageSearchStatusSeparatesConfigurationAndProviderReadiness(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	provider := &fakeMessageSearchProvider{status: &searchv1.GetStatusResponse{
@@ -81,6 +83,8 @@ func TestMessageSearchStatusSeparatesConfigurationAndProviderReadiness(t *testin
 }
 
 func TestPublicMessageSearchStatusPreservesProviderState(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		in   searchv1.ProviderState
@@ -102,6 +106,8 @@ func TestPublicMessageSearchStatusPreservesProviderState(t *testing.T) {
 }
 
 func TestProviderSearchRequestIncludesCompleteAuthorizedRoomScope(t *testing.T) {
+	t.Parallel()
+
 	roomIDs := make([]string, 1001)
 	for index := range roomIDs {
 		roomIDs[index] = fmt.Sprintf("room-%03d", index)
@@ -119,6 +125,8 @@ func TestProviderSearchRequestIncludesCompleteAuthorizedRoomScope(t *testing.T) 
 }
 
 func TestMessageSearchAcceptsAuthorFilterWithoutBodyTerms(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	env.api.config.Search.Enabled = true
 	ctx := withCaller(env.ctx, env.viewer)
@@ -146,6 +154,8 @@ func TestMessageSearchAcceptsAuthorFilterWithoutBodyTerms(t *testing.T) {
 }
 
 func TestMessageSearchAuthorizesHydratesAndSealsProviderCursor(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	env.api.config.Search.Enabled = true
 	ctx := withCaller(env.ctx, env.viewer)
@@ -241,6 +251,8 @@ func currentMessageBodyEventID(t *testing.T, env *connectAPITestEnv, roomID, mes
 }
 
 func TestMessageSearchMapsFeatureAndProviderFailures(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	service := &messageSearchService{api: env.api}

@@ -27,6 +27,8 @@ func appendTestLog(t *testing.T, c *ChattoCore, bot, webhook, id string) {
 }
 
 func TestLogPaginationScopeAndRetention(t *testing.T) {
+	t.Parallel()
+
 	c, nc := setupTestCore(t)
 	ctx := testContext(t)
 	owner, bot, _ := webhookTestBot(t, c)
@@ -97,6 +99,8 @@ func TestLogPaginationScopeAndRetention(t *testing.T) {
 }
 
 func TestLogConcurrentDuplicateAndUnavailableStorage(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	r := &botWebhookDelivery{DeliveryID: "same", BotUserID: "bot", WebhookID: "endpoint", SourceEventID: "source"}
@@ -121,6 +125,8 @@ func TestLogConcurrentDuplicateAndUnavailableStorage(t *testing.T) {
 }
 
 func TestLogUnavailableDoesNotBreakWebhookCommandsOrRepeatHTTP(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, bot, room := webhookTestBot(t, c)

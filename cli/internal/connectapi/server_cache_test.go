@@ -13,6 +13,8 @@ import (
 )
 
 func TestPublicRPCIdempotencyLevels(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		file    protoreflect.FileDescriptor
@@ -86,6 +88,8 @@ func TestPublicRPCIdempotencyLevels(t *testing.T) {
 }
 
 func TestOnlySideEffectFreeRPCsAcceptGET(t *testing.T) {
+	t.Parallel()
+
 	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(apiv1connect.UnimplementedServerServiceHandler{})
 	pushPath, pushHandler := apiv1connect.NewPushNotificationServiceHandler(apiv1connect.UnimplementedPushNotificationServiceHandler{})
 	tests := []struct {
@@ -113,6 +117,8 @@ func TestOnlySideEffectFreeRPCsAcceptGET(t *testing.T) {
 }
 
 func TestDiscoveryResponseETagChangesWithResponse(t *testing.T) {
+	t.Parallel()
+
 	first, err := discoveryResponseETag(&discoveryv1.GetServerResponse{
 		Profile: &apiv1.ServerPublicProfile{Name: "First"},
 	})
@@ -131,6 +137,8 @@ func TestDiscoveryResponseETagChangesWithResponse(t *testing.T) {
 }
 
 func TestIfNoneMatch(t *testing.T) {
+	t.Parallel()
+
 	const etag = `"current"`
 	tests := []struct {
 		name   string

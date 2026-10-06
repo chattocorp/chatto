@@ -10,6 +10,8 @@ import (
 )
 
 func TestChattoCore_OAuthConsentGrantIsProjectedAndIdempotent(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -66,6 +68,8 @@ func TestChattoCore_OAuthConsentGrantIsProjectedAndIdempotent(t *testing.T) {
 }
 
 func TestChattoCore_OAuthConsentDeniedIsAuditOnly(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -100,6 +104,8 @@ func TestChattoCore_OAuthConsentDeniedIsAuditOnly(t *testing.T) {
 }
 
 func TestChattoCore_OAuthConsentUsesClientIdentifier(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "client-consent-user", "Client Consent User", "password123")
@@ -133,6 +139,8 @@ func TestChattoCore_OAuthConsentUsesClientIdentifier(t *testing.T) {
 }
 
 func TestChattoCore_OAuthConsentBindsExactResourceAndScopes(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "scoped-consent-user", "Scoped Consent User", "password123")
@@ -173,6 +181,8 @@ func TestChattoCore_OAuthConsentBindsExactResourceAndScopes(t *testing.T) {
 }
 
 func TestChattoCore_OAuthConsentEventsStripClientURIPrivateData(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "private-client-uri", "Private Client URI", "password123")
@@ -212,6 +222,8 @@ func TestChattoCore_OAuthConsentEventsStripClientURIPrivateData(t *testing.T) {
 }
 
 func TestChattoCore_OAuthConsentClearedByAccountDeletion(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

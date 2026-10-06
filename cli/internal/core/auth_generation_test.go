@@ -32,6 +32,8 @@ func createGenerationZeroPasswordUser(t *testing.T, core *ChattoCore, login stri
 // a generation-0 cookie session after the password event. The new generation
 // must revoke that session, whatever its CreatedAt time.
 func TestChattoCore_PasswordChangeRevokesGenerationZeroSessionFromConcurrentLogin(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	userID := createGenerationZeroPasswordUser(t, core, "generation-zero-user")
@@ -64,6 +66,8 @@ func TestChattoCore_PasswordChangeRevokesGenerationZeroSessionFromConcurrentLogi
 // count as a live logout, because the handler then terminates every current
 // session of the user.
 func TestChattoCore_LogoutWithStaleCredentialAfterPasswordChangeIsNotLive(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

@@ -25,6 +25,8 @@ func setupFakeS3Server(t *testing.T) string {
 
 // TestS3Client_PutAndGetObject tests uploading and retrieving objects.
 func TestS3Client_PutAndGetObject(t *testing.T) {
+	t.Parallel()
+
 	endpointHost := setupFakeS3Server(t)
 
 	// Create S3 client with test config
@@ -76,6 +78,8 @@ func TestS3Client_PutAndGetObject(t *testing.T) {
 }
 
 func TestS3Client_DefaultsToPathStyleForCustomEndpoint(t *testing.T) {
+	t.Parallel()
+
 	endpointHost := setupFakeS3Server(t)
 	useSSL := false
 
@@ -109,6 +113,8 @@ func TestS3Client_DefaultsToPathStyleForCustomEndpoint(t *testing.T) {
 
 // TestS3Client_DeleteObject tests deleting objects.
 func TestS3Client_DeleteObject(t *testing.T) {
+	t.Parallel()
+
 	endpointHost := setupFakeS3Server(t)
 
 	cfg := config.S3Config{
@@ -149,6 +155,8 @@ func TestS3Client_DeleteObject(t *testing.T) {
 
 // TestS3Client_StatObject tests getting object metadata without downloading.
 func TestS3Client_StatObject(t *testing.T) {
+	t.Parallel()
+
 	endpointHost := setupFakeS3Server(t)
 
 	cfg := config.S3Config{
@@ -183,6 +191,8 @@ func TestS3Client_StatObject(t *testing.T) {
 }
 
 func TestS3Client_PathPrefixUsesPhysicalKeyAndReturnsLogicalKey(t *testing.T) {
+	t.Parallel()
+
 	endpointHost := setupFakeS3Server(t)
 	useSSL := false
 	pathStyle := true
@@ -243,6 +253,8 @@ func TestS3Client_PathPrefixUsesPhysicalKeyAndReturnsLogicalKey(t *testing.T) {
 
 // TestS3KeyHelpers tests the S3 key generation helpers.
 func TestS3KeyHelpers(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		function func() string
@@ -274,6 +286,8 @@ func TestS3KeyHelpers(t *testing.T) {
 
 // TestS3Client_NilWhenNotConfigured tests that NewS3Client returns nil when config is empty.
 func TestS3Client_NilWhenNotConfigured(t *testing.T) {
+	t.Parallel()
+
 	cfg := config.S3Config{} // Empty config
 	client, err := core.NewS3Client(cfg)
 	require.NoError(t, err)
@@ -281,6 +295,8 @@ func TestS3Client_NilWhenNotConfigured(t *testing.T) {
 }
 
 func TestS3Client_InvalidPathPrefix(t *testing.T) {
+	t.Parallel()
+
 	cfg := config.S3Config{
 		Endpoint:        "s3.amazonaws.com",
 		Bucket:          "test-bucket",
@@ -298,6 +314,8 @@ func TestS3Client_InvalidPathPrefix(t *testing.T) {
 // standard formats regardless of storage backend. The storage backend should be an
 // internal implementation detail that is not exposed in URLs.
 func TestStorageBackendEncapsulation_URLGeneration(t *testing.T) {
+	t.Parallel()
+
 	t.Run("S3 asset keys use consistent format for server assets", func(t *testing.T) {
 		// Instance assets should all use the same key format: instance/{assetId}
 		assetID := "abc123xyz"

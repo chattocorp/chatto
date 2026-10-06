@@ -9,6 +9,8 @@ import (
 )
 
 func TestPrivatePresencePreferenceAPI(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	s := &accountService{api: env.api}
 	ctx := withCaller(t.Context(), env.viewer)

@@ -13,6 +13,8 @@ import (
 )
 
 func TestNeighborConcurrentDuplicateAcrossReplicas(t *testing.T) {
+	t.Parallel()
+
 	first, nc := setupTestCore(t)
 	ctx := testContext(t)
 	second, err := NewChattoCore(ctx, nc, config.CoreConfig{
@@ -49,6 +51,8 @@ func TestNeighborConcurrentDuplicateAcrossReplicas(t *testing.T) {
 }
 
 func TestNeighborConcurrentUpdatesAcrossReplicas(t *testing.T) {
+	t.Parallel()
+
 	first, nc := setupTestCore(t)
 	ctx := testContext(t)
 	second, err := NewChattoCore(ctx, nc, config.CoreConfig{
@@ -111,6 +115,8 @@ func TestNeighborConcurrentUpdatesAcrossReplicas(t *testing.T) {
 }
 
 func TestNeighborCRUDAndPermission(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	actor, err := chatto.CreateUser(ctx, SystemActorID, "neighbor-manager", "Neighbor Manager", "password123")
@@ -150,6 +156,8 @@ func TestNeighborCRUDAndPermission(t *testing.T) {
 }
 
 func TestNeighborRejectsServerOrigins(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	actor, err := chatto.CreateUser(ctx, SystemActorID, "self-neighbor-manager", "Self Neighbor Manager", "password123")
@@ -185,6 +193,8 @@ func TestNeighborRejectsServerOrigins(t *testing.T) {
 }
 
 func TestServerManageIncludesNeighborManagement(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	actor, err := chatto.CreateUser(ctx, SystemActorID, "server-manager-neighbor", "Server Manager", "password123")
@@ -196,6 +206,8 @@ func TestServerManageIncludesNeighborManagement(t *testing.T) {
 }
 
 func TestCanonicalNeighborOrigin(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		raw  string
 		want string
@@ -222,6 +234,8 @@ func TestCanonicalNeighborOrigin(t *testing.T) {
 }
 
 func TestConfigProjectionIgnoresLegacyTestimonials(t *testing.T) {
+	t.Parallel()
+
 	projection := NewConfigProjection()
 	require.NoError(t, projection.Apply(newNeighborCreatedProjectionEvent("E-create", "N1", "https://one.example", "First testimonial"), 1))
 	require.Equal(t, []Neighbor{{ID: "N1", Origin: "https://one.example", Revision: "E-create"}}, NewConfigModel(nil, detachedTestProjectionHandle(projection)).ListNeighbors())

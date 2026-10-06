@@ -10,6 +10,8 @@ import (
 )
 
 func TestRoleReadsWaitForAnotherReplica(t *testing.T) {
+	t.Parallel()
+
 	primary, nc := setupTestCore(t)
 	ctx := testContext(t)
 	if _, err := primary.CreateServerRole(ctx, SystemActorID, "helper", "Fresh name", ""); err != nil {

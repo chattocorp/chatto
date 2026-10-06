@@ -18,6 +18,8 @@ import (
 )
 
 func TestRoomKindFromLegacySpaceID(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		spaceID string
 		want    RoomKind
@@ -41,6 +43,8 @@ func TestRoomKindFromLegacySpaceID(t *testing.T) {
 }
 
 func TestDMRoomID(t *testing.T) {
+	t.Parallel()
+
 	t.Run("two participants - order independent", func(t *testing.T) {
 		id1 := DMRoomID([]string{"user1", "user2"})
 		id2 := DMRoomID([]string{"user2", "user1"})
@@ -122,6 +126,8 @@ func TestDMRoomID(t *testing.T) {
 }
 
 func TestDMScopeAppliesOnlyToMessageAndCallPermissions(t *testing.T) {
+	t.Parallel()
+
 	for _, metadata := range AllPermissions() {
 		want := metadata.Category == CategoryMessage || metadata.Category == CategoryCall
 		if got := PermissionAppliesAtScope(metadata.Permission, ScopeDM); got != want {
@@ -131,6 +137,8 @@ func TestDMScopeAppliesOnlyToMessageAndCallPermissions(t *testing.T) {
 }
 
 func TestDMRoomPermissionDefaults(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 
@@ -181,6 +189,8 @@ func TestDMRoomPermissionDefaults(t *testing.T) {
 }
 
 func TestDMMessageReadRequiresMembershipAndPermission(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	reader, err := chatto.CreateUser(ctx, SystemActorID, "dm-message-reader", "DM Message Reader", "password123")
@@ -234,6 +244,8 @@ func TestDMMessageReadRequiresMembershipAndPermission(t *testing.T) {
 }
 
 func TestCanReadMessagesRejectsChannelWithDMKind(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	reader, err := chatto.CreateUser(ctx, SystemActorID, "kind-mismatch-reader", "Kind Mismatch Reader", "password123")
@@ -259,6 +271,8 @@ func TestCanReadMessagesRejectsChannelWithDMKind(t *testing.T) {
 }
 
 func TestFindOrCreateDM(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 
@@ -436,6 +450,8 @@ func listActiveDMRoomsForTest(t *testing.T, core *ChattoCore, ctx context.Contex
 }
 
 func TestListMemberRooms_DMConversationPolicy(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -523,6 +539,8 @@ func TestListMemberRooms_DMConversationPolicy(t *testing.T) {
 }
 
 func TestListMemberRooms_DMConversationPolicySortedByLastMessage(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -591,6 +609,8 @@ func TestListMemberRooms_DMConversationPolicySortedByLastMessage(t *testing.T) {
 }
 
 func TestDMRoomParticipants(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 
@@ -628,6 +648,8 @@ func TestDMRoomParticipants(t *testing.T) {
 }
 
 func TestEnsureInList(t *testing.T) {
+	t.Parallel()
+
 	t.Run("adds ID if not present", func(t *testing.T) {
 		list := []string{"a", "b"}
 		result := ensureInList(list, "c")
@@ -646,6 +668,8 @@ func TestEnsureInList(t *testing.T) {
 }
 
 func TestDMUnreadStatus(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -738,6 +762,8 @@ func TestDMUnreadStatus(t *testing.T) {
 }
 
 func TestDMRoomMembersCannotBeBannedAtCoreLayer(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -775,6 +801,8 @@ func TestDMRoomMembersCannotBeBannedAtCoreLayer(t *testing.T) {
 }
 
 func TestDMReactions(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -840,6 +868,8 @@ func TestDMReactions(t *testing.T) {
 }
 
 func TestDMNotifications(t *testing.T) {
+	t.Parallel()
+
 	core, nc := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -961,6 +991,8 @@ func TestDMNotifications(t *testing.T) {
 }
 
 func TestDMThreads(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

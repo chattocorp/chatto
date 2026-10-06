@@ -612,6 +612,8 @@ func (c *compactProjections) digest(t *testing.T, h *compactHistory) string {
 }
 
 func TestCompactProjectionsAgreeAcrossTablesSnapshotsAndRestores(t *testing.T) {
+	t.Parallel()
+
 	for seed := range uint64(6) {
 		t.Run(fmt.Sprintf("seed_%d", seed), func(t *testing.T) {
 			h := generateCompactHistory(seed, 300)
@@ -653,6 +655,8 @@ func TestCompactProjectionsAgreeAcrossTablesSnapshotsAndRestores(t *testing.T) {
 // equivalence after CompleteStartupReplay switches the replay guards from
 // event IDs to stream sequences.
 func TestCompactProjectionsSurviveRestoreAfterStartupReplay(t *testing.T) {
+	t.Parallel()
+
 	h := generateCompactHistory(42, 300)
 	cut := len(h.events) / 2
 	complete := func(c *compactProjections) {

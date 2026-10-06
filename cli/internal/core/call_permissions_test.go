@@ -19,6 +19,8 @@ import (
 )
 
 func TestCallPermissionsAdmissionAndSources(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := c.CreateUser(ctx, SystemActorID, "call-permissions-user", "User", "password")
@@ -52,6 +54,8 @@ func TestCallPermissionsAdmissionAndSources(t *testing.T) {
 }
 
 func TestCallJoinRetryCannotStartWithoutPermission(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := c.CreateUser(ctx, SystemActorID, "call-retry-user", "User", "password")
@@ -86,6 +90,8 @@ func TestCallJoinRetryCannotStartWithoutPermission(t *testing.T) {
 }
 
 func TestCallTokenPermissionCombinations(t *testing.T) {
+	t.Parallel()
+
 	// These are protocol expectations, independent of PublishSources.
 	expected := [][]string{
 		{},
@@ -122,6 +128,8 @@ func TestCallTokenPermissionCombinations(t *testing.T) {
 }
 
 func TestCallPermissionDefaultsDoNotReturnAfterClear(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	require.NoError(t, c.RevokeServerPermission(ctx, SystemActorID, RoleEveryone, PermCallVoice))
@@ -151,6 +159,8 @@ func (s *callPermissionRoomService) RemoveParticipant(_ context.Context, request
 }
 
 func TestCallPermissionReconciliation(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := c.CreateUser(ctx, SystemActorID, "call-reconcile-user", "User", "password")
@@ -222,6 +232,8 @@ func TestCallPermissionReconciliation(t *testing.T) {
 }
 
 func TestCallPermissionsDMScopeAndBotDelegation(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "call-owner", "Owner", "password")
@@ -259,6 +271,8 @@ func TestCallPermissionsDMScopeAndBotDelegation(t *testing.T) {
 }
 
 func TestCallPermissionUpgradeConcurrentAndRestart(t *testing.T) {
+	t.Parallel()
+
 	h := newTestEventHarness(t)
 	ctx := testContext(t)
 	// Seed a pre-call-permission server using the same historical RBAC events.
@@ -303,6 +317,8 @@ func TestCallPermissionUpgradeConcurrentAndRestart(t *testing.T) {
 // Each scoped decision must affect only its matching call capability. Clear
 // removes the last grant, so absence cannot pass through the default baseline.
 func TestCallPermissionsScopeMatrix(t *testing.T) {
+	t.Parallel()
+
 	for _, scopeKind := range []MatrixScopeKind{MatrixScopeServer, MatrixScopeGroup, MatrixScopeRoom, MatrixScopeDM} {
 		t.Run(string(scopeKind), func(t *testing.T) {
 			c, _ := setupTestCore(t)
@@ -374,6 +390,8 @@ func TestCallPermissionsScopeMatrix(t *testing.T) {
 // A call connection keeps the privileged-mode state of the session that
 // requested its token. The owner override ends with that deadline.
 func TestCallPermissionReconciliationGatesOwnerOverride(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "call-gated-owner", "Owner", "password")

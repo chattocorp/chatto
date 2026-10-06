@@ -7,6 +7,8 @@ import (
 )
 
 func TestPermissionScopePagination(t *testing.T) {
+	t.Parallel()
+
 	scopes := []PermissionMatrixScope{{ID: "server", Kind: MatrixScopeServer}, {ID: "dm", Kind: MatrixScopeDM}}
 	for i := 109; i >= 0; i-- {
 		scopes = append(scopes, PermissionMatrixScope{ID: fmt.Sprintf("room:%03d", i), Kind: MatrixScopeRoom})

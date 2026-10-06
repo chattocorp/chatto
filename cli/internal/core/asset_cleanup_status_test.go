@@ -11,6 +11,8 @@ import (
 )
 
 func TestAssetCleanupAdminStatusUsesSharedDurableConsumer(t *testing.T) {
+	t.Parallel()
+
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{SecretKey: "test-core-secret", Assets: config.AssetsConfig{SigningSecret: "test-signing-secret"}}
@@ -49,6 +51,8 @@ func TestAssetCleanupAdminStatusUsesSharedDurableConsumer(t *testing.T) {
 }
 
 func TestAssetCleanupAdminStatusUnavailableWithoutConsumer(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	core.assetModel.cleanupConsumer = nil
 	status, err := core.assetModel.AdminCleanupStatus(testContext(t))
@@ -58,6 +62,8 @@ func TestAssetCleanupAdminStatusUnavailableWithoutConsumer(t *testing.T) {
 }
 
 func TestAssetCleanupAdminStatusDoesNotInferWorkerLiveness(t *testing.T) {
+	t.Parallel()
+
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	core, err := NewChattoCore(ctx, nc, config.CoreConfig{

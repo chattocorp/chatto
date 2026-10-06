@@ -9,6 +9,8 @@ import (
 )
 
 func TestRoomDirectoryReadModelVisibilityAndJoinGroup(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	reads := core.RoomDirectoryReads()
@@ -108,6 +110,8 @@ func directoryRoomsContain(rooms []*DirectoryRoom, roomID string) bool {
 }
 
 func TestRoomDirectoryReadModelCanIncludeEmptyDMsForExhaustiveProjection(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	actor, err := chattoCore.CreateUser(ctx, SystemActorID, "directory-empty-dm-actor", "Directory Empty DM Actor", "password")
@@ -141,6 +145,8 @@ func TestRoomDirectoryReadModelCanIncludeEmptyDMsForExhaustiveProjection(t *test
 }
 
 func TestRoomDirectoryReadModelSortsMemberDMsByActivityDespiteMessageReadDenial(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	actor, err := chattoCore.CreateUser(ctx, SystemActorID, "directory-sort-actor", "Directory Sort Actor", "password")
@@ -188,6 +194,8 @@ func TestRoomDirectoryReadModelSortsMemberDMsByActivityDespiteMessageReadDenial(
 }
 
 func TestRoomDirectoryReadModelKeepsActiveDMsWhenMessageReadIsDenied(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	actor, err := chattoCore.CreateUser(ctx, SystemActorID, "directory-no-read-actor", "Directory No Read Actor", "password")

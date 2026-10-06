@@ -11,6 +11,8 @@ import (
 )
 
 func TestNewRBACModelWiresDependencies(t *testing.T) {
+	t.Parallel()
+
 	projection := NewRBACProjection()
 	rbac := detachedTestProjectionHandle(projection)
 
@@ -25,6 +27,8 @@ func TestNewRBACModelWiresDependencies(t *testing.T) {
 }
 
 func TestRBACModelWaitForRejectsUnconsumedSubject(t *testing.T) {
+	t.Parallel()
+
 	harness := newTestEventHarness(t)
 	projection := NewRBACProjection()
 	projector := harness.projector(projection)
@@ -46,6 +50,8 @@ func TestRBACModelWaitForRejectsUnconsumedSubject(t *testing.T) {
 }
 
 func TestRBACModelWaitForProjectsRoleCreation(t *testing.T) {
+	t.Parallel()
+
 	harness := newTestEventHarness(t)
 	projection := NewRBACProjection()
 	projector := harness.projector(projection)
@@ -82,6 +88,8 @@ func TestRBACModelWaitForProjectsRoleCreation(t *testing.T) {
 }
 
 func TestRBACModelOwnsProjectionReads(t *testing.T) {
+	t.Parallel()
+
 	projection := NewRBACProjection()
 	model := newTestRBACModel(t, projection, nil)
 

@@ -7,6 +7,8 @@ import (
 )
 
 func TestChattoCore_VerifyPassword(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -45,6 +47,8 @@ func TestChattoCore_VerifyPassword(t *testing.T) {
 }
 
 func TestChattoCore_VerifyPassword_WithEmail(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -105,6 +109,8 @@ func TestChattoCore_VerifyPassword_WithEmail(t *testing.T) {
 }
 
 func TestChattoCore_SetPasswordHash(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -138,6 +144,8 @@ func TestChattoCore_SetPasswordHash(t *testing.T) {
 }
 
 func TestChattoCore_SetPasswordHash_RechecksCurrentPasswordAfterOCCConflict(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -174,6 +182,8 @@ func TestChattoCore_SetPasswordHash_RechecksCurrentPasswordAfterOCCConflict(t *t
 }
 
 func TestChattoCore_SetPasswordHashRejectsMissingUser(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -184,6 +194,8 @@ func TestChattoCore_SetPasswordHashRejectsMissingUser(t *testing.T) {
 }
 
 func TestChattoCore_SetPasswordHash_RevokesBearerTokens(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -227,6 +239,8 @@ func TestChattoCore_SetPasswordHash_RevokesBearerTokens(t *testing.T) {
 }
 
 func TestChattoCore_SetInitialPasswordHash(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -269,6 +283,8 @@ func TestChattoCore_SetInitialPasswordHash(t *testing.T) {
 }
 
 func TestChattoCore_SetOwnPassword(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -321,6 +337,8 @@ func TestChattoCore_SetOwnPassword(t *testing.T) {
 }
 
 func TestChattoCore_FailedPasswordChangeKeepsOldPasswordUsable(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -355,6 +373,8 @@ func TestChattoCore_FailedPasswordChangeKeepsOldPasswordUsable(t *testing.T) {
 }
 
 func TestChattoCore_CreateUser_WithoutPassword(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -390,6 +410,8 @@ func TestChattoCore_CreateUser_WithoutPassword(t *testing.T) {
 }
 
 func TestChattoCore_AddPasswordToOAuthUser(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -423,6 +445,8 @@ func TestChattoCore_AddPasswordToOAuthUser(t *testing.T) {
 }
 
 func TestChattoCore_CreateUser_ShortPassword(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -434,6 +458,8 @@ func TestChattoCore_CreateUser_ShortPassword(t *testing.T) {
 }
 
 func TestChattoCore_CreateUser_TooLongPassword(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -447,6 +473,8 @@ func TestChattoCore_CreateUser_TooLongPassword(t *testing.T) {
 }
 
 func TestChattoCore_SetPasswordHash_TooLongPassword(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

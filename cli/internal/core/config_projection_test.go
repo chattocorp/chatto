@@ -29,6 +29,8 @@ func newConfigProjectionUnderModel() (*ConfigProjection, *ConfigModel) {
 }
 
 func TestConfigProjection_PreservesExplicitBrowserTimezoneThroughSnapshot(t *testing.T) {
+	t.Parallel()
+
 	p, model := newConfigProjectionUnderModel()
 	require.NoError(t, p.Apply(&evtv1.Event{Event: &evtv1.Event_UserTimezoneCleared{
 		UserTimezoneCleared: &evtv1.UserTimezoneClearedEvent{UserId: "viewer"},
@@ -48,6 +50,8 @@ func TestConfigProjection_PreservesExplicitBrowserTimezoneThroughSnapshot(t *tes
 }
 
 func TestConfigProjection_FreshState(t *testing.T) {
+	t.Parallel()
+
 	_, model := newConfigProjectionUnderModel()
 
 	cfg := model.GetServerConfig()
@@ -62,6 +66,8 @@ func TestConfigProjection_FreshState(t *testing.T) {
 }
 
 func TestConfigProjection_AppliesIndependentServerFields(t *testing.T) {
+	t.Parallel()
+
 	p, model := newConfigProjectionUnderModel()
 
 	require.NoError(t, p.Apply(newServerNameChangedEvent("First Server"), 1))
@@ -87,6 +93,8 @@ func TestConfigProjection_AppliesIndependentServerFields(t *testing.T) {
 }
 
 func TestConfigProjection_AppliesSemanticConfigEvents(t *testing.T) {
+	t.Parallel()
+
 	p, model := newConfigProjectionUnderModel()
 
 	require.NoError(t, p.Apply(&evtv1.Event{Event: &evtv1.Event_ServerNameChanged{
@@ -112,6 +120,8 @@ func TestConfigProjection_AppliesSemanticConfigEvents(t *testing.T) {
 }
 
 func TestConfigModel_GetServerConfigReturnsClone(t *testing.T) {
+	t.Parallel()
+
 	p, model := newConfigProjectionUnderModel()
 	require.NoError(t, p.Apply(newServerNameChangedEvent("Original"), 1))
 
@@ -127,6 +137,8 @@ func TestConfigModel_GetServerConfigReturnsClone(t *testing.T) {
 }
 
 func TestConfigProjection_UnknownEventTypesIgnored(t *testing.T) {
+	t.Parallel()
+
 	p, model := newConfigProjectionUnderModel()
 
 	// An unrelated event variant under the same subject namespace
@@ -143,6 +155,8 @@ func TestConfigProjection_UnknownEventTypesIgnored(t *testing.T) {
 }
 
 func TestConfigProjection_TimezoneSharingDefaultsPrivateForHistoricalPreferences(t *testing.T) {
+	t.Parallel()
+
 	p, model := newConfigProjectionUnderModel()
 	timezone := "Europe/Berlin"
 
@@ -171,6 +185,8 @@ func TestConfigProjection_TimezoneSharingDefaultsPrivateForHistoricalPreferences
 }
 
 func TestConfigProjection_GroupNotificationPolicyAccountCleanupAndEstimate(t *testing.T) {
+	t.Parallel()
+
 	p := NewConfigProjection()
 	require.NoError(t, p.Apply(&evtv1.Event{Event: &evtv1.Event_UserRoomGroupNotificationPolicyChanged{
 		UserRoomGroupNotificationPolicyChanged: &evtv1.UserRoomGroupNotificationPolicyChangedEvent{
@@ -205,6 +221,8 @@ func TestConfigProjection_GroupNotificationPolicyAccountCleanupAndEstimate(t *te
 }
 
 func TestConfigProjection_BrandingDoesNotCreateServerConfig(t *testing.T) {
+	t.Parallel()
+
 	p, model := newConfigProjectionUnderModel()
 
 	logo := &evtv1.AssetRecord{
@@ -226,6 +244,8 @@ func TestConfigProjection_BrandingDoesNotCreateServerConfig(t *testing.T) {
 }
 
 func TestConfigProjection_BlockedUsernames(t *testing.T) {
+	t.Parallel()
+
 	p, model := newConfigProjectionUnderModel()
 
 	// Before any config: defaults apply.

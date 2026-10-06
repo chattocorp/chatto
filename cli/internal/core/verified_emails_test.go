@@ -16,6 +16,8 @@ import (
 // ============================================================================
 
 func TestChattoCore_VerifyEmailCode(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -224,6 +226,8 @@ func TestChattoCore_VerifyEmailCode(t *testing.T) {
 }
 
 func TestChattoCore_PrimaryVerifiedEmail(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "primary-email-user", "Primary Email User", "password123")
@@ -266,6 +270,8 @@ func TestChattoCore_PrimaryVerifiedEmail(t *testing.T) {
 }
 
 func TestChattoCore_ListUsersWithVerifiedEmail(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -322,6 +328,8 @@ func TestChattoCore_ListUsersWithVerifiedEmail(t *testing.T) {
 }
 
 func TestChattoCore_ApplyConfigOwners(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -361,6 +369,8 @@ func TestChattoCore_ApplyConfigOwners(t *testing.T) {
 }
 
 func TestConfiguredOwnerVerificationWaitsForDurableRole(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	core.config.Owners = config.OwnersConfig{Emails: []string{"owner@example.com"}}
@@ -380,6 +390,8 @@ func TestConfiguredOwnerVerificationWaitsForDurableRole(t *testing.T) {
 }
 
 func TestConfiguredOwnerVerificationFencesServingReplicaRBAC(t *testing.T) {
+	t.Parallel()
+
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{
@@ -468,6 +480,8 @@ func TestConfiguredOwnerVerificationFencesServingReplicaRBAC(t *testing.T) {
 }
 
 func TestConfiguredOwnerRoleCannotDivergeFromEffectiveVisibility(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -511,6 +525,8 @@ func TestConfiguredOwnerRoleCannotDivergeFromEffectiveVisibility(t *testing.T) {
 }
 
 func TestChattoCore_AddVerifiedEmailDirect(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -608,6 +624,8 @@ func TestChattoCore_AddVerifiedEmailDirect(t *testing.T) {
 }
 
 func TestChattoCore_GetUserByVerifiedEmail(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

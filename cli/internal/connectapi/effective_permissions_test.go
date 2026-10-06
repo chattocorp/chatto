@@ -12,6 +12,8 @@ import (
 )
 
 func TestEffectivePermissionServiceBoundaryAndCompleteResult(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	service := &effectivePermissionService{api: env.api}
 	allowBotCreation(t, env.ctx, env.core, env.viewer.Id)

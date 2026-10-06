@@ -12,6 +12,8 @@ import (
 )
 
 func TestEVTReadCacheConfigLogsEffectiveDefaults(t *testing.T) {
+	t.Parallel()
+
 	var output bytes.Buffer
 	logger := log.New(&output)
 	logger.SetFormatter(log.JSONFormatter)
@@ -34,6 +36,8 @@ func TestEVTReadCacheConfigLogsEffectiveDefaults(t *testing.T) {
 }
 
 func TestEVTReadCacheConfigMapsUnlimitedBytesToFrameworkZero(t *testing.T) {
+	t.Parallel()
+
 	var output bytes.Buffer
 	logger := log.New(&output)
 	logger.SetFormatter(log.JSONFormatter)

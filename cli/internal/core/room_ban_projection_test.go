@@ -11,6 +11,8 @@ import (
 )
 
 func TestRoomBanProjectionStableOrder(t *testing.T) {
+	t.Parallel()
+
 	now := time.Date(2026, 9, 10, 12, 0, 0, 0, time.UTC)
 	for _, reverse := range []bool{false, true} {
 		t.Run(fmt.Sprintf("reverse_replay_%t", reverse), func(t *testing.T) {
@@ -50,6 +52,8 @@ func TestRoomBanProjectionStableOrder(t *testing.T) {
 }
 
 func TestRoomBanProjectionTimedSuspensionExpires(t *testing.T) {
+	t.Parallel()
+
 	now := time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
 	p := NewRoomBanProjection()
 	require.NoError(t, p.Apply(&evtv1.Event{

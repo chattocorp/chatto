@@ -183,6 +183,8 @@ func activeCallIDForTest(t *testing.T, c *ChattoCore, roomID string) string {
 }
 
 func TestLiveKitRoomName(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		serverID string
@@ -232,6 +234,8 @@ func TestLiveKitRoomName(t *testing.T) {
 }
 
 func TestParseLiveKitRoomIdentity(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		lkRoomName  string
@@ -309,6 +313,8 @@ func TestParseLiveKitRoomIdentity(t *testing.T) {
 }
 
 func TestParseLiveKitRoomServerID(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		lkRoomName string
@@ -347,6 +353,8 @@ func TestParseLiveKitRoomServerID(t *testing.T) {
 }
 
 func TestParseParticipantMetadata(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		metadata  string
@@ -393,6 +401,8 @@ func TestParseParticipantMetadata(t *testing.T) {
 }
 
 func TestGenerateVoiceCallToken(t *testing.T) {
+	t.Parallel()
+
 	apiKey := "devkey"
 	apiSecret := "secret"
 	roomName := "space123_room456"
@@ -490,6 +500,8 @@ func TestGenerateVoiceCallToken(t *testing.T) {
 }
 
 func TestGenerateVoiceCallToken_NoAvatar(t *testing.T) {
+	t.Parallel()
+
 	result, err := GenerateVoiceCallToken("key", "secret", "room", "user1", "User One", "userone", "", false, "e2ee-test-key", CallPermissions{Voice: true, Camera: true, ScreenShare: true}, time.Time{})
 	if err != nil {
 		t.Fatalf("GenerateVoiceCallToken() error = %v", err)
@@ -517,6 +529,8 @@ func TestGenerateVoiceCallToken_NoAvatar(t *testing.T) {
 }
 
 func TestGenerateCallMediaPublisherToken(t *testing.T) {
+	t.Parallel()
+
 	result, err := GenerateCallMediaPublisherToken(
 		"devkey",
 		"secret",
@@ -575,6 +589,8 @@ func TestGenerateCallMediaPublisherToken(t *testing.T) {
 // ============================================================================
 
 func TestCallModel_ReadBoundaryReturnsDetachedState(t *testing.T) {
+	t.Parallel()
+
 	projection := NewCallStateProjection()
 	roomID := "room-call-model"
 	callID := "call-call-model"
@@ -665,6 +681,8 @@ func TestCallModel_ReadBoundaryReturnsDetachedState(t *testing.T) {
 }
 
 func TestCallModel_GetAccessMaterialRejectsCallGenerationTransition(t *testing.T) {
+	t.Parallel()
+
 	projection := NewCallStateProjection()
 	roomID := "room-access-generation"
 	oldCallID := "call-old"
@@ -753,6 +771,8 @@ func TestCallModel_GetAccessMaterialRejectsCallGenerationTransition(t *testing.T
 }
 
 func TestCallModel_GetParticipantAccessMaterialRejectsCallGenerationTransition(t *testing.T) {
+	t.Parallel()
+
 	projection := NewCallStateProjection()
 	roomID := "room-publisher-access-generation"
 	userID := "user1"
@@ -837,6 +857,8 @@ func TestCallModel_GetParticipantAccessMaterialRejectsCallGenerationTransition(t
 }
 
 func TestCallModel_WaitForRejectsMissingProjector(t *testing.T) {
+	t.Parallel()
+
 	ctx := testContext(t)
 	pos := events.SubjectPosition(evtstream.RoomSubjectFilter(), 1)
 
@@ -852,6 +874,8 @@ func TestCallModel_WaitForRejectsMissingProjector(t *testing.T) {
 }
 
 func TestWaitForRoomLeaveTail_PropagatesCallProjectionReadinessFailure(t *testing.T) {
+	t.Parallel()
+
 	harness := newTestEventHarness(t)
 	ctx := testContext(t)
 	roomID := "room-call-readiness-failure"
@@ -894,6 +918,8 @@ func TestWaitForRoomLeaveTail_PropagatesCallProjectionReadinessFailure(t *testin
 }
 
 func TestChattoCore_CallReadsRejectMissingModel(t *testing.T) {
+	t.Parallel()
+
 	core := &ChattoCore{}
 
 	if _, err := core.GetCallParticipants("room1"); err == nil {
@@ -914,6 +940,8 @@ func TestChattoCore_CallReadsRejectMissingModel(t *testing.T) {
 }
 
 func TestCallState_JoinAndLeave(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -1002,6 +1030,8 @@ func TestCallState_JoinAndLeave(t *testing.T) {
 }
 
 func TestCallState_JoinIdempotent(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -1024,6 +1054,8 @@ func TestCallState_JoinIdempotent(t *testing.T) {
 }
 
 func TestCallState_SnapshotTracksRoomAggregateSeq(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -1048,6 +1080,8 @@ func TestCallState_SnapshotTracksRoomAggregateSeq(t *testing.T) {
 }
 
 func TestCallState_SnapshotIgnoresAssetAggregateLifecycleSeq(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -1088,6 +1122,8 @@ func TestCallState_SnapshotIgnoresAssetAggregateLifecycleSeq(t *testing.T) {
 }
 
 func TestCallState_LeaveNotInCall(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1107,6 +1143,8 @@ func TestCallState_LeaveNotInCall(t *testing.T) {
 }
 
 func TestCallState_UserAndLiveKitReportsDoNotDuplicateTransitions(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -1141,6 +1179,8 @@ func TestCallState_UserAndLiveKitReportsDoNotDuplicateTransitions(t *testing.T) 
 }
 
 func TestCallState_RejoinAfterLeaveRecordsNewTransitions(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -1179,6 +1219,8 @@ func TestCallState_RejoinAfterLeaveRecordsNewTransitions(t *testing.T) {
 }
 
 func TestCallState_MultipleParticipants(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -1203,6 +1245,8 @@ func TestCallState_MultipleParticipants(t *testing.T) {
 }
 
 func TestCallState_RoomFinished(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -1222,6 +1266,8 @@ func TestCallState_RoomFinished(t *testing.T) {
 }
 
 func TestCallState_StaleLiveKitEventsForOldCallAreIgnored(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -1262,6 +1308,8 @@ func TestCallState_StaleLiveKitEventsForOldCallAreIgnored(t *testing.T) {
 }
 
 func TestGetActiveCallRoomIDs(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1298,6 +1346,8 @@ func TestGetActiveCallRoomIDs(t *testing.T) {
 }
 
 func TestCallState_UserIntentFacts(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -1326,6 +1376,8 @@ func TestCallState_UserIntentFacts(t *testing.T) {
 }
 
 func TestCallState_UserLeftRoomEventRemovesParticipantOnReplay(t *testing.T) {
+	t.Parallel()
+
 	projection := NewCallStateProjection()
 	roomID := "room-replay-leave"
 	userID := "user-replay-leave"
@@ -1364,6 +1416,8 @@ func TestCallState_UserLeftRoomEventRemovesParticipantOnReplay(t *testing.T) {
 }
 
 func TestCallState_RoomLeaveRemovesFinalCallParticipant(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1431,6 +1485,8 @@ func TestCallState_RoomLeaveRemovesFinalCallParticipant(t *testing.T) {
 }
 
 func TestCallState_RemoveMemberRemovesOnlyTargetFromCall(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1484,6 +1540,8 @@ func TestCallState_RemoveMemberRemovesOnlyTargetFromCall(t *testing.T) {
 }
 
 func TestCallState_BanMemberRemovesTargetFromCall(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1525,6 +1583,8 @@ func TestCallState_BanMemberRemovesTargetFromCall(t *testing.T) {
 }
 
 func TestCallState_DeleteUserRemovesUserFromRoomCall(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1559,6 +1619,8 @@ func TestCallState_DeleteUserRemovesUserFromRoomCall(t *testing.T) {
 }
 
 func TestCallState_LiveKitRemovalFailureDoesNotFailRoomLeave(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1587,6 +1649,8 @@ func TestCallState_LiveKitRemovalFailureDoesNotFailRoomLeave(t *testing.T) {
 }
 
 func TestCallState_RoomLeaveQueuesCommittedKeyCleanupAfterImmediateFailure(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1636,6 +1700,8 @@ func TestCallState_RoomLeaveQueuesCommittedKeyCleanupAfterImmediateFailure(t *te
 }
 
 func TestCallState_DurableWorkerDiscoversLaterReplicaKeyCleanup(t *testing.T) {
+	t.Parallel()
+
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	core, err := NewChattoCore(ctx, nc, config.CoreConfig{
@@ -1679,6 +1745,8 @@ func TestCallState_DurableWorkerDiscoversLaterReplicaKeyCleanup(t *testing.T) {
 }
 
 func TestCallState_ReconciliationCleansHistoricalMembershipOnlyLeave(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1752,6 +1820,8 @@ func TestCallState_ReconciliationCleansHistoricalMembershipOnlyLeave(t *testing.
 }
 
 func TestCallState_ReconciliationCorrectsProjection(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -1777,6 +1847,8 @@ func TestCallState_ReconciliationCorrectsProjection(t *testing.T) {
 }
 
 func TestCallState_ReconcileWithLiveKitClosesRoomMissingFromLiveKit(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -1827,6 +1899,8 @@ func TestCallState_ReconcileWithLiveKitClosesRoomMissingFromLiveKit(t *testing.T
 }
 
 func TestCallState_ReconcileWithLiveKitClosesObservedEmptyRoom(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -1859,6 +1933,8 @@ func TestCallState_ReconcileWithLiveKitClosesObservedEmptyRoom(t *testing.T) {
 }
 
 func TestCallState_ReconcileWithLiveKitIgnoresRoomWithoutProjectedActiveCall(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -1880,6 +1956,8 @@ func TestCallState_ReconcileWithLiveKitIgnoresRoomWithoutProjectedActiveCall(t *
 }
 
 func TestLiveKitRoomClientListCallParticipantsTreatsRoomNotFoundAsEmpty(t *testing.T) {
+	t.Parallel()
+
 	room1 := LiveKitRoomName("", KindChannel, "room1", "C1")
 	room2 := LiveKitRoomName("", KindChannel, "room2", "C2")
 	client := &liveKitRoomClient{
@@ -1910,6 +1988,8 @@ func TestLiveKitRoomClientListCallParticipantsTreatsRoomNotFoundAsEmpty(t *testi
 }
 
 func TestLiveKitRoomClientExcludesCompanionPublishersFromCallMembership(t *testing.T) {
+	t.Parallel()
+
 	room := LiveKitRoomName("", KindChannel, "room1", "C1")
 	client := &liveKitRoomClient{
 		service: &fakeLiveKitRoomService{
@@ -1936,6 +2016,8 @@ func TestLiveKitRoomClientExcludesCompanionPublishersFromCallMembership(t *testi
 }
 
 func TestCallState_ReconcileWithLiveKitErrorDefersActiveCallCleanupBeforeThreshold(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -1978,6 +2060,8 @@ func TestCallState_ReconcileWithLiveKitErrorDefersActiveCallCleanupBeforeThresho
 }
 
 func TestCallState_ReconcileWithLiveKitErrorEndsActiveCallsAtThreshold(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -2032,6 +2116,8 @@ func TestCallState_ReconcileWithLiveKitErrorEndsActiveCallsAtThreshold(t *testin
 }
 
 func TestCallState_ReconcileWithLiveKitErrorEndsAllActiveRoomsAtThreshold(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	rooms := []struct {
@@ -2077,6 +2163,8 @@ func TestCallState_ReconcileWithLiveKitErrorEndsAllActiveRoomsAtThreshold(t *tes
 }
 
 func TestCallState_ReconcileWithLiveKitTimeoutUsesFreshCleanupContext(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -2121,6 +2209,8 @@ func TestCallState_ReconcileWithLiveKitTimeoutUsesFreshCleanupContext(t *testing
 }
 
 func TestCallState_ReconcileBestEffortLogsDeferredLiveKitFailure(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -2151,6 +2241,8 @@ func TestCallState_ReconcileBestEffortLogsDeferredLiveKitFailure(t *testing.T) {
 }
 
 func TestCallState_ReconcileBestEffortKeepsLeaseOnDeferredLiveKitFailure(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -2181,6 +2273,8 @@ func TestCallState_ReconcileBestEffortKeepsLeaseOnDeferredLiveKitFailure(t *test
 }
 
 func TestCallState_ReconcileBestEffortLogsLiveKitFailureCleanupSummaryAtThreshold(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	rooms := []struct {
@@ -2229,6 +2323,8 @@ func TestCallState_ReconcileBestEffortLogsLiveKitFailureCleanupSummaryAtThreshol
 }
 
 func TestCallState_ReconcileWithLiveKitErrorReportsCleanupFailure(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -2271,6 +2367,8 @@ func TestCallState_ReconcileWithLiveKitErrorReportsCleanupFailure(t *testing.T) 
 }
 
 func TestCallState_ReconcileWithLiveKitSuccessResetsListFailureCounter(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -2312,6 +2410,8 @@ func TestCallState_ReconcileWithLiveKitSuccessResetsListFailureCounter(t *testin
 }
 
 func TestCallState_ReconcileWithLiveKitSuccessOnAnotherReplicaResetsListFailureCounter(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -2363,6 +2463,8 @@ func TestCallState_ReconcileWithLiveKitSuccessOnAnotherReplicaResetsListFailureC
 }
 
 func TestCallState_CallEndedCommitsWhenKeyShredFails(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -2412,6 +2514,8 @@ func TestCallState_CallEndedCommitsWhenKeyShredFails(t *testing.T) {
 }
 
 func TestCallState_ReconciliationRechecksAfterConflict(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -2446,6 +2550,8 @@ func TestCallState_ReconciliationRechecksAfterConflict(t *testing.T) {
 }
 
 func TestVoiceCallE2EEKey_PerCallAndShreddedOnEnd(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
