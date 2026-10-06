@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -134,7 +135,7 @@ func (s *Service) IsRequested(ctx context.Context, id string) (bool, error) {
 
 // ConfigureWorker creates one shared durable consumer. Replicas may share it;
 // key purges are idempotent and completion uses account OCC.
-func (s *Service) ConfigureWorker(ctx context.Context, stream jetstream.Stream, logger events.Logger, wait func(context.Context, State) error) error {
+func (s *Service) ConfigureWorker(ctx context.Context, stream jetstream.Stream, logger *slog.Logger, wait func(context.Context, State) error) error {
 	if wait == nil {
 		return fmt.Errorf("erasure validation barrier is required")
 	}

@@ -24,7 +24,6 @@ import (
 	"hmans.de/authling/internal/evtstream"
 	"hmans.de/authling/internal/issuer"
 	"hmans.de/authling/internal/keyvault"
-	"hmans.de/authling/internal/logging"
 	"hmans.de/authling/internal/natsruntime"
 	"hmans.de/authling/internal/oidcprovider"
 	"hmans.de/authling/internal/passwordreset"
@@ -68,24 +67,24 @@ type Runtime struct {
 func New(
 	ctx context.Context,
 	cfg config.Config,
-	logger events.Logger,
+	logger *slog.Logger,
 ) (*Runtime, error) {
 	return newRuntime(ctx, cfg, logger, email.NewMailer(cfg.SMTP))
 }
 
-func newRuntime(ctx context.Context, cfg config.Config, logger events.Logger, sender email.Sender) (*Runtime, error) {
+func newRuntime(ctx context.Context, cfg config.Config, logger *slog.Logger, sender email.Sender) (*Runtime, error) {
 	return newRuntimeWithEmailChangeOptions(ctx, cfg, logger, sender)
 }
 
-func newRuntimeWithEmailChangeOptions(ctx context.Context, cfg config.Config, logger events.Logger, sender email.Sender, emailChangeOptions ...emailchange.Option) (*Runtime, error) {
+func newRuntimeWithEmailChangeOptions(ctx context.Context, cfg config.Config, logger *slog.Logger, sender email.Sender, emailChangeOptions ...emailchange.Option) (*Runtime, error) {
 	return newRuntimeWithOptions(ctx, cfg, logger, sender, emailChangeOptions, nil)
 }
 
-func newRuntimeWithIssuerOptions(ctx context.Context, cfg config.Config, logger events.Logger, sender email.Sender, issuerOptions ...issuer.Option) (*Runtime, error) {
+func newRuntimeWithIssuerOptions(ctx context.Context, cfg config.Config, logger *slog.Logger, sender email.Sender, issuerOptions ...issuer.Option) (*Runtime, error) {
 	return newRuntimeWithOptions(ctx, cfg, logger, sender, nil, issuerOptions)
 }
 
-func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger events.Logger, sender email.Sender, emailChangeOptions []emailchange.Option, issuerOptions []issuer.Option) (*Runtime, error) {
+func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger *slog.Logger, sender email.Sender, emailChangeOptions []emailchange.Option, issuerOptions []issuer.Option) (*Runtime, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -245,7 +244,7 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger) (serveEr
 	if logger == nil {
 		return fmt.Errorf("logger is required")
 	}
-	eventLogger := logging.Events{Logger: logger}
+	eventLogger := logger
 	runtime, err := New(ctx, cfg, eventLogger)
 	if err != nil {
 		return err

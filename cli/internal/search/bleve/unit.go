@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
@@ -163,7 +164,7 @@ func waitForSearchProjectionStartup(ctx context.Context, projector *events.Proje
 	}
 }
 
-func logSearchIndexingProgress(ctx context.Context, projector *events.Projector, logger events.Logger, interval time.Duration) {
+func logSearchIndexingProgress(ctx context.Context, projector *events.Projector, logger *log.Logger, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	var previousMessages uint64
@@ -187,7 +188,7 @@ func logSearchIndexingProgress(ctx context.Context, projector *events.Projector,
 	}
 }
 
-func logSearchIndexingStatus(logger events.Logger, status events.ProjectorStatus, previousMessages uint64, previousDuration time.Duration) {
+func logSearchIndexingStatus(logger *log.Logger, status events.ProjectorStatus, previousMessages uint64, previousDuration time.Duration) {
 	var averageRate float64
 	if seconds := status.StartupDuration.Seconds(); seconds > 0 {
 		averageRate = float64(status.StartupMessages) / seconds

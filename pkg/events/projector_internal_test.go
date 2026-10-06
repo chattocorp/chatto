@@ -50,7 +50,7 @@ func TestProjectorCompletesStartupReplayOnceAcrossReentry(t *testing.T) {
 		func([]byte) (DecodedEvent[struct{}], error) {
 			return DecodedEvent[struct{}]{Event: struct{}{}, ID: "test"}, nil
 		},
-		discardLogger{},
+		nil,
 	)
 	projector.started = true
 
@@ -73,7 +73,7 @@ func TestProjectorWaitForStartupHonorsContext(t *testing.T) {
 		func([]byte) (DecodedEvent[struct{}], error) {
 			return DecodedEvent[struct{}]{Event: struct{}{}, ID: "test"}, nil
 		},
-		discardLogger{},
+		nil,
 	)
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
@@ -91,7 +91,7 @@ func TestProjectorWaitForStartupReturnsProjectionFailure(t *testing.T) {
 		func([]byte) (DecodedEvent[struct{}], error) {
 			return DecodedEvent[struct{}]{Event: struct{}{}, ID: "test"}, nil
 		},
-		discardLogger{},
+		nil,
 	)
 	projector.fail(0, errors.New("decode failed"))
 
@@ -112,7 +112,7 @@ func TestProjectorWaitForStartupIncludesCompletionHook(t *testing.T) {
 		func([]byte) (DecodedEvent[struct{}], error) {
 			return DecodedEvent[struct{}]{Event: struct{}{}, ID: "test"}, nil
 		},
-		discardLogger{},
+		nil,
 	)
 	projector.started = true
 	startupFinished := make(chan struct{})
@@ -153,7 +153,7 @@ func TestProjectorCompletesStartupInsideApplyBarrier(t *testing.T) {
 		func([]byte) (DecodedEvent[struct{}], error) {
 			return DecodedEvent[struct{}]{Event: struct{}{}, ID: "test"}, nil
 		},
-		discardLogger{},
+		nil,
 	)
 	projector.started = true
 

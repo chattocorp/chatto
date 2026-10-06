@@ -8,13 +8,6 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-type discardLogger struct{}
-
-func (discardLogger) Debug(any, ...any) {}
-func (discardLogger) Info(any, ...any)  {}
-func (discardLogger) Warn(any, ...any)  {}
-func (discardLogger) Error(any, ...any) {}
-
 func startTestNATS(t *testing.T) *nats.Conn {
 	t.Helper()
 	natsServer, err := server.NewServer(&server.Options{

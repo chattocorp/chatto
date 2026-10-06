@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -52,7 +53,7 @@ type StreamMessageReaderConfig struct {
 	MaxConcurrentReads int
 	// Logger receives cache-miss, batch, LRU-eviction, expiry, and clearing
 	// diagnostics.
-	Logger Logger
+	Logger *slog.Logger
 }
 
 // StreamMessageReader loads opaque records at exact stream sequences. It can
@@ -69,7 +70,7 @@ type StreamMessageReader struct {
 	cacheIdleTTL  time.Duration
 	readSemaphore chan struct{}
 	cache         *ttlcache.Cache[uint64, EncodedSubjectRecord]
-	logger        Logger
+	logger        *slog.Logger
 
 	invalidationMu  sync.Mutex
 	cacheGeneration uint64

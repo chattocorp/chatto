@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"hmans.de/chatto/internal/projectionsnapshot"
 	"hmans.de/chatto/pkg/events"
 )
@@ -43,7 +44,7 @@ type projectionSnapshotWorker struct {
 	expiryLease   projectionSnapshotExpiryLease
 	expirer       projectionSnapshotExpirer
 	retention     time.Duration
-	logger        events.Logger
+	logger        *log.Logger
 	done          chan struct{}
 	doneOnce      sync.Once
 	wait          func(context.Context, time.Duration) error

@@ -13,6 +13,7 @@ import (
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
+	"hmans.de/chatto/internal/logbridge"
 	"hmans.de/chatto/internal/notificationstream"
 	"hmans.de/chatto/internal/projectionsnapshot"
 	"hmans.de/chatto/pkg/events"
@@ -104,7 +105,7 @@ func evtReadCacheConfig(cfg config.CoreConfig, logger *log.Logger) events.Stream
 	return events.StreamMessageReaderConfig{
 		CacheIdleTTL:  idleTTL,
 		CacheMaxBytes: frameworkMaxBytes,
-		Logger:        cacheLogger,
+		Logger:        logbridge.Slog(cacheLogger),
 	}
 }
 

@@ -20,9 +20,12 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/charmbracelet/log"
+
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
+	"hmans.de/chatto/internal/logbridge"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
@@ -48,10 +51,10 @@ type Publisher struct {
 }
 
 // NewPublisher constructs a Chatto event publisher bound to a stream.
-func NewPublisher(js jetstream.JetStream, stream jetstream.Stream, logger events.Logger) *Publisher {
-	log := events.NewEncodedEventLog(js, stream, logger)
+func NewPublisher(js jetstream.JetStream, stream jetstream.Stream, logger *log.Logger) *Publisher {
+	eventLog := events.NewEncodedEventLog(js, stream, logbridge.Slog(logger))
 	return &Publisher{
-		TypedEventLog: *events.NewTypedEventLog(log, encodeEvent, decodeEventData),
+		TypedEventLog: *events.NewTypedEventLog(eventLog, encodeEvent, decodeEventData),
 	}
 }
 

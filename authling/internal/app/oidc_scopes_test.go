@@ -13,7 +13,6 @@ import (
 	"hmans.de/authling/internal/config"
 	"hmans.de/authling/internal/evtstream"
 	"hmans.de/authling/internal/keyvault"
-	"hmans.de/authling/internal/logging"
 	"hmans.de/authling/internal/storage"
 	"hmans.de/authling/internal/web"
 	"hmans.de/chatto/pkg/datacrypto"
@@ -193,7 +192,7 @@ func TestOIDCLegacyGrantRequiresFreshConsentAfterRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	payload.MetadataNonce, payload.MetadataCiphertext = sealed.Nonce, sealed.Ciphertext
-	publisher := evtstream.NewPublisher(events.NewEncodedEventLog(js, stream, logging.Events{Logger: slog.Default()}))
+	publisher := evtstream.NewPublisher(events.NewEncodedEventLog(js, stream, slog.Default()))
 	tail, err := publisher.AccountTail(t.Context(), account.ID)
 	if err != nil {
 		t.Fatal(err)

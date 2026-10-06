@@ -490,7 +490,7 @@ func TestSinglePayloadSnapshotRejectsComponentMismatch(t *testing.T) {
 			{Key: "other", ContractID: "codec-test-v1", Parts: statePart},
 		},
 		"wrong component contract": {{Key: SnapshotStatePartKey, ContractID: "other-v1", Parts: statePart}},
-		"two parts": {{Key: SnapshotStatePartKey, ContractID: "codec-test-v1", Parts: append(slices.Clone(statePart), ProjectionSnapshotPart{Key: "extra"})}},
+		"two parts":                {{Key: SnapshotStatePartKey, ContractID: "codec-test-v1", Parts: append(slices.Clone(statePart), ProjectionSnapshotPart{Key: "extra"})}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			projection := &codecTestProjection{subject: subject}

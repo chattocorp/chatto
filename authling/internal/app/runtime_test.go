@@ -28,7 +28,6 @@ import (
 	"hmans.de/authling/internal/emailchange"
 	"hmans.de/authling/internal/evtstream"
 	"hmans.de/authling/internal/issuer"
-	"hmans.de/authling/internal/logging"
 	"hmans.de/authling/internal/passwordreset"
 	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
 	"hmans.de/authling/internal/registration"
@@ -117,7 +116,7 @@ func TestOIDCIssuerCannotDriftAfterInitialization(t *testing.T) {
 	}
 	stopTestRuntime(t, first, cancelFirst, firstErrors)
 
-	restarted, err := New(testContext(t), cfg, logging.Events{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	restarted, err := New(testContext(t), cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +138,7 @@ func TestOIDCIssuerCannotDriftAfterInitialization(t *testing.T) {
 
 	drifted := cfg
 	drifted.HTTP.PublicURL = "http://localhost:8081"
-	invalid, err := New(testContext(t), drifted, logging.Events{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	invalid, err := New(testContext(t), drifted, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2078,7 +2077,7 @@ func startTestRuntimeWithOptions(
 	emailChangeOptions []emailchange.Option,
 ) (*Runtime, context.CancelFunc, <-chan error) {
 	t.Helper()
-	logger := logging.Events{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	var runtime *Runtime
 	var err error
 	if sender == nil {
@@ -2105,7 +2104,7 @@ func startTestRuntimeWithOptions(
 
 func startTestRuntimeWithIssuerOptions(t *testing.T, cfg config.Config, issuerOptions ...issuer.Option) (*Runtime, context.CancelFunc, <-chan error) {
 	t.Helper()
-	logger := logging.Events{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	runtime, err := newRuntimeWithIssuerOptions(testContext(t), cfg, logger, &capturingSender{}, issuerOptions...)
 	if err != nil {
 		t.Fatalf("create runtime: %v", err)
@@ -2318,7 +2317,7 @@ func TestServeReturnsInventoryStartupFailure(t *testing.T) {
 			cfg := embeddedTestConfig(t)
 			cfg.HTTP = config.HTTPConfig{BindAddress: "127.0.0.1:0", PublicURL: "http://localhost:8080"}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			runtime, err := New(testContext(t), cfg, logging.Events{Logger: logger})
+			runtime, err := New(testContext(t), cfg, logger)
 			if err != nil {
 				t.Fatal(err)
 			}

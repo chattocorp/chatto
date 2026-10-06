@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"testing"
 	"time"
 
@@ -13,7 +12,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/evtstream"
+	"hmans.de/chatto/internal/logbridge"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -71,7 +72,7 @@ func TestPushSubscriptionCleanupDurableWorkerHandsOffInterruptedDelivery(t *test
 		RetryDelay:        10 * time.Millisecond,
 		AckTimeout:        time.Second,
 		HeartbeatInterval: time.Second,
-		Logger:            model.logger,
+		Logger:            logbridge.Slog(model.logger),
 	})
 	if err != nil {
 		t.Fatalf("configure first push cleanup worker: %v", err)
@@ -106,7 +107,7 @@ func TestPushSubscriptionCleanupDurableWorkerHandsOffInterruptedDelivery(t *test
 		RetryDelay:        10 * time.Millisecond,
 		AckTimeout:        time.Second,
 		HeartbeatInterval: time.Second,
-		Logger:            model.logger,
+		Logger:            logbridge.Slog(model.logger),
 	})
 	if err != nil {
 		t.Fatalf("configure second push cleanup worker: %v", err)

@@ -3,9 +3,12 @@ package evtstream
 import (
 	"context"
 
+	"github.com/charmbracelet/log"
+
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
+	"hmans.de/chatto/internal/logbridge"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
@@ -45,9 +48,9 @@ func NewProjector(
 	js jetstream.JetStream,
 	stream jetstream.Stream,
 	projection Projection,
-	logger events.Logger,
+	logger *log.Logger,
 ) *events.Projector {
-	return events.NewDecodedProjector(js, stream, projection, decodeEvent, logger)
+	return events.NewDecodedProjector(js, stream, projection, decodeEvent, logbridge.Slog(logger))
 }
 
 // NewProjectionHandle constructs a typed Chatto projection handle and its
@@ -56,9 +59,9 @@ func NewProjectionHandle[T any, P ProjectionPointer[T]](
 	js jetstream.JetStream,
 	stream jetstream.Stream,
 	projection P,
-	logger events.Logger,
+	logger *log.Logger,
 ) events.ProjectionHandle[P] {
-	return events.NewDecodedProjectionHandle(js, stream, projection, decodeEvent, logger)
+	return events.NewDecodedProjectionHandle(js, stream, projection, decodeEvent, logbridge.Slog(logger))
 }
 
 // NewPreparedProjectionHandle constructs a typed prepared projection handle
@@ -67,9 +70,9 @@ func NewPreparedProjectionHandle[T any, P PreparedProjectionPointer[T]](
 	js jetstream.JetStream,
 	stream jetstream.Stream,
 	projection P,
-	logger events.Logger,
+	logger *log.Logger,
 ) events.ProjectionHandle[P] {
-	return events.NewDecodedPreparedProjectionHandle(js, stream, projection, decodeEvent, logger)
+	return events.NewDecodedPreparedProjectionHandle(js, stream, projection, decodeEvent, logbridge.Slog(logger))
 }
 
 // BindProjectionHandle joins a Chatto projection to an already-configured

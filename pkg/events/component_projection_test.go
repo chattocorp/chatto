@@ -107,7 +107,7 @@ func TestComponentizedProjectionPreparationFailureIsAtomic(t *testing.T) {
 	projector := NewDecodedPreparedProjector(
 		nil, nil, projection,
 		func([]byte) (DecodedEvent[int], error) { return DecodedEvent[int]{}, nil },
-		discardLogger{},
+		nil,
 	)
 
 	failureSeq, err := projector.applyEvent(typedDecodedEvent[int]{event: 2, id: "event"}, "evt.test.changed", 7)
@@ -164,7 +164,7 @@ func TestComponentizedProjectionCommitAndReadShareBarrier(t *testing.T) {
 	projector := NewDecodedPreparedProjector(
 		nil, nil, projection,
 		func([]byte) (DecodedEvent[int], error) { return DecodedEvent[int]{}, nil },
-		discardLogger{},
+		nil,
 	)
 
 	applied := make(chan error, 1)
@@ -261,7 +261,7 @@ func TestComponentizedProjectionRestoreUsesReadBarrier(t *testing.T) {
 	projector := NewDecodedPreparedProjector(
 		js, stream, projection,
 		func([]byte) (DecodedEvent[int], error) { return DecodedEvent[int]{}, nil },
-		discardLogger{},
+		nil,
 	)
 	source := fixedSnapshotSource{snapshot: ProjectionSnapshot{
 		GenerationID: "generation", ContractID: "cohort-v1", StreamName: "COMPONENT_RESTORE_TEST",

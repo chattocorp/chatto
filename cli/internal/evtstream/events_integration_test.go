@@ -36,7 +36,7 @@ func testContext(t *testing.T) context.Context {
 	return ctx
 }
 
-func testLogger() Logger {
+func testLogger() *log.Logger {
 	return log.New(io.Discard)
 }
 

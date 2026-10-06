@@ -2,6 +2,7 @@ package events
 
 import (
 	"fmt"
+	"log/slog"
 	"reflect"
 	"sync"
 
@@ -52,7 +53,7 @@ func NewDecodedProjectionHandle[T, E any, P EventProjectionPointer[T, E]](
 	stream jetstream.Stream,
 	projection P,
 	decoder EventDecoder[E],
-	logger Logger,
+	logger *slog.Logger,
 ) ProjectionHandle[P] {
 	if projection == nil {
 		panic("events: decoded projection handle requires a non-nil projection")
@@ -70,7 +71,7 @@ func NewDecodedPreparedProjectionHandle[T, E any, P PreparedEventProjectionPoint
 	stream jetstream.Stream,
 	projection P,
 	decoder EventDecoder[E],
-	logger Logger,
+	logger *slog.Logger,
 ) ProjectionHandle[P] {
 	if projection == nil {
 		panic("events: decoded prepared projection handle requires a non-nil projection")

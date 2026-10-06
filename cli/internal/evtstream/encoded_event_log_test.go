@@ -77,7 +77,7 @@ func TestPublisherReadsExistingCoreEventBytes(t *testing.T) {
 
 func TestEncodedEventLogWriteRemainsReadableByChattoPublisher(t *testing.T) {
 	js, stream := setupTestStream(t)
-	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	eventLog := NewEncodedEventLog(js, stream, nil)
 	publisher := NewPublisher(js, stream, testLogger())
 	ctx := testContext(t)
 	subject := RoomAggregate("R-rollback").Subject(EventUserJoinedRoom)

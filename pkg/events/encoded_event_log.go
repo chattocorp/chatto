@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	mrand "math/rand/v2"
 	"strconv"
 	"sync"
@@ -114,11 +115,11 @@ type EncodedEventLog struct {
 	// streamMu prevents Stream.Info, which refreshes cached metadata in the
 	// nats.go stream handle, from racing with operations that read that cache.
 	streamMu sync.RWMutex
-	logger   Logger
+	logger   *slog.Logger
 }
 
 // NewEncodedEventLog binds opaque event-log mechanics to one JetStream stream.
-func NewEncodedEventLog(js jetstream.JetStream, stream jetstream.Stream, logger Logger) *EncodedEventLog {
+func NewEncodedEventLog(js jetstream.JetStream, stream jetstream.Stream, logger *slog.Logger) *EncodedEventLog {
 	return &EncodedEventLog{js: js, stream: stream, logger: normalizeLogger(logger)}
 }
 

@@ -50,7 +50,7 @@ func TestProjectorSnapshotLoadTimeoutFallsBackToColdReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	eventLog := NewEncodedEventLog(js, stream, discardLogger{})
+	eventLog := NewEncodedEventLog(js, stream, nil)
 	if _, err := eventLog.Append(ctx, "evt.timeout.aggregate.created", EncodedRecord{ID: "timeout-event", Data: []byte("event")}); err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestProjectorSnapshotLoadTimeoutFallsBackToColdReplay(t *testing.T) {
 		func(data []byte) (DecodedEvent[string], error) {
 			return DecodedEvent[string]{Event: string(data), ID: string(data)}, nil
 		},
-		discardLogger{},
+		nil,
 	)
 	source := &timeoutSnapshotSource{canceled: make(chan struct{})}
 	if err := projector.ConfigureSnapshots(

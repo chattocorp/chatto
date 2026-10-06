@@ -11,9 +11,8 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/authling/internal/config"
-	"hmans.de/authling/internal/logging"
 	"hmans.de/authling/internal/natsruntime"
-	"hmans.de/authling/internal/pb/authling/core/v1"
+	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
 	"hmans.de/authling/internal/storage"
 	"hmans.de/chatto/pkg/events"
 )
@@ -34,7 +33,7 @@ func TestAppendAccountCreatedUsesAggregateOCC(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open storage: %v", err)
 	}
-	logger := logging.Events{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	publisher := NewPublisher(events.NewEncodedEventLog(js, stream, logger))
 
 	if _, err := publisher.AppendAccountCreated(t.Context(), accountCreatedEvent("evt_first")); err != nil {
@@ -61,7 +60,7 @@ func TestAppendPasswordChangedUsesObservedAccountTail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open storage: %v", err)
 	}
-	logger := logging.Events{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	publisher := NewPublisher(events.NewEncodedEventLog(js, stream, logger))
 	if _, err := publisher.AppendAccountCreated(t.Context(), accountCreatedEvent("evt_created")); err != nil {
 		t.Fatalf("append account creation: %v", err)
@@ -104,7 +103,7 @@ func TestAppendEmailChangedUsesAccountAndRegistryOCC(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open storage: %v", err)
 	}
-	logger := logging.Events{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	publisher := NewPublisher(events.NewEncodedEventLog(js, stream, logger))
 	if _, err := publisher.AppendAccountCreated(t.Context(), accountCreatedEvent("evt_created")); err != nil {
 		t.Fatalf("append account creation: %v", err)

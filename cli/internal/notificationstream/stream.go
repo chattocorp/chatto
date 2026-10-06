@@ -6,8 +6,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"time"
+
+	"github.com/charmbracelet/log"
+
+	"hmans.de/chatto/internal/logbridge"
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
@@ -59,9 +63,9 @@ type Publisher struct {
 	now            func() time.Time
 }
 
-func NewPublisher(js jetstream.JetStream, stream jetstream.Stream, retentionGrace time.Duration, logger events.Logger) *Publisher {
+func NewPublisher(js jetstream.JetStream, stream jetstream.Stream, retentionGrace time.Duration, logger *log.Logger) *Publisher {
 	return &Publisher{
-		log:            events.NewEncodedEventLog(js, stream, logger),
+		log:            events.NewEncodedEventLog(js, stream, logbridge.Slog(logger)),
 		retentionGrace: retentionGrace,
 		now:            time.Now,
 	}
@@ -216,9 +220,9 @@ func NewProjectionHandle[T any, P ProjectionPointer[T]](
 	js jetstream.JetStream,
 	stream jetstream.Stream,
 	projection P,
-	logger events.Logger,
+	logger *log.Logger,
 ) events.ProjectionHandle[P] {
-	return events.NewDecodedProjectionHandle(js, stream, projection, decodeEvent, logger)
+	return events.NewDecodedProjectionHandle(js, stream, projection, decodeEvent, logbridge.Slog(logger))
 }
 
 func decodeEvent(data []byte) (events.DecodedEvent[*notificationv1.NotificationEvent], error) {

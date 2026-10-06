@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"slices"
 	"sync"
@@ -75,7 +76,7 @@ type Projector struct {
 	js      jetstream.JetStream
 	stream  jetstream.Stream
 	proj    SubjectProjection
-	logger  Logger
+	logger  *slog.Logger
 	applyMu sync.Mutex
 	decode  func([]byte) (decodedEvent, error)
 	// prepare prepares one event under applyMu. A nil mutation means that
@@ -179,7 +180,7 @@ func NewDecodedProjector[E any](
 	stream jetstream.Stream,
 	proj EventProjection[E],
 	decoder EventDecoder[E],
-	logger Logger,
+	logger *slog.Logger,
 ) *Projector {
 	// Apply changes state during preparation. Both run under the apply
 	// barrier, so the result equals a prepared mutation with no commit step.
@@ -214,7 +215,7 @@ func NewDecodedPreparedProjector[E any](
 	stream jetstream.Stream,
 	proj PreparedEventProjection[E],
 	decoder EventDecoder[E],
-	logger Logger,
+	logger *slog.Logger,
 ) *Projector {
 	prepare := func(event E, _ string, seq uint64) (PreparedMutation, error) {
 		return proj.Prepare(event, seq)
@@ -232,7 +233,7 @@ func newProjector[E any](
 	stream jetstream.Stream,
 	proj SubjectProjection,
 	decoder EventDecoder[E],
-	logger Logger,
+	logger *slog.Logger,
 	prepare func(event E, subject string, seq uint64) (PreparedMutation, error),
 ) *Projector {
 	if isNilProjection(proj) {

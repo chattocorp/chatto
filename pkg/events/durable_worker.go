@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -55,7 +56,7 @@ type DurableWorkerOptions struct {
 	RetryDelay        time.Duration
 	AckTimeout        time.Duration
 	HeartbeatInterval time.Duration
-	Logger            Logger
+	Logger            *slog.Logger
 }
 
 // DurableWorker runs bounded, at-least-once work from an application-owned

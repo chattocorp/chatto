@@ -3,7 +3,7 @@ package events
 import (
 	"context"
 	"errors"
-	"fmt"
+	"log/slog"
 	"sync"
 	"testing"
 	"time"
@@ -28,21 +28,35 @@ func newRecordingStreamMessageLogger() *recordingStreamMessageLogger {
 	return &recordingStreamMessageLogger{logged: make(chan recordedStreamMessageLog, 16)}
 }
 
-func (l *recordingStreamMessageLogger) Debug(message any, keyvals ...any) {
-	fields := make(map[string]any, len(keyvals)/2)
-	for i := 0; i+1 < len(keyvals); i += 2 {
-		fields[fmt.Sprint(keyvals[i])] = keyvals[i+1]
-	}
-	entry := recordedStreamMessageLog{message: fmt.Sprint(message), fields: fields}
+func (*recordingStreamMessageLogger) Enabled(_ context.Context, level slog.Level) bool {
+	return level == slog.LevelDebug
+}
+
+func (l *recordingStreamMessageLogger) Handle(_ context.Context, record slog.Record) error {
+	fields := make(map[string]any, record.NumAttrs())
+	record.Attrs(func(attr slog.Attr) bool {
+		// slog stores every int as int64. Keep the int type that the reader
+		// logs so the expectations compare the original field types.
+		if attr.Value.Kind() == slog.KindInt64 {
+			fields[attr.Key] = int(attr.Value.Int64())
+		} else {
+			fields[attr.Key] = attr.Value.Any()
+		}
+		return true
+	})
+	entry := recordedStreamMessageLog{message: record.Message, fields: fields}
 	l.mu.Lock()
 	l.logs = append(l.logs, entry)
 	l.mu.Unlock()
 	l.logged <- entry
+	return nil
 }
 
-func (*recordingStreamMessageLogger) Info(any, ...any)  {}
-func (*recordingStreamMessageLogger) Warn(any, ...any)  {}
-func (*recordingStreamMessageLogger) Error(any, ...any) {}
+func (l *recordingStreamMessageLogger) WithAttrs([]slog.Attr) slog.Handler { return l }
+func (l *recordingStreamMessageLogger) WithGroup(string) slog.Handler      { return l }
+
+// logger returns a slog.Logger that records Debug records.
+func (l *recordingStreamMessageLogger) logger() *slog.Logger { return slog.New(l) }
 
 func (l *recordingStreamMessageLogger) matching(message string) []recordedStreamMessageLog {
 	l.mu.Lock()
@@ -202,7 +216,7 @@ func TestStreamMessageReaderLogsDirectCacheMiss(t *testing.T) {
 	}
 	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{
 		CacheIdleTTL: time.Minute,
-		Logger:       logger,
+		Logger:       logger.logger(),
 	})
 	for range 2 {
 		if _, err := reader.Message(context.Background(), 7); err != nil {
@@ -353,7 +367,7 @@ func TestStreamMessageReaderLogsBatchCacheResults(t *testing.T) {
 	}
 	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{
 		CacheIdleTTL: time.Minute,
-		Logger:       logger,
+		Logger:       logger.logger(),
 	})
 	for range 2 {
 		if _, err := reader.Messages(context.Background(), []uint64{1, 2, 1}); err != nil {
@@ -397,7 +411,7 @@ func TestStreamMessageReaderLogsBatchLRUEvictions(t *testing.T) {
 	}
 	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{
 		CacheMaxBytes: streamMessageCacheEntryOverhead + uint64(len("evt.one")),
-		Logger:        logger,
+		Logger:        logger.logger(),
 	})
 	if _, err := reader.Messages(context.Background(), []uint64{1, 2}); err != nil {
 		t.Fatalf("Messages: %v", err)
@@ -520,7 +534,7 @@ func TestStreamMessageReaderRunRemovesExpiredEntriesAndClearsOnShutdown(t *testi
 	}
 	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{
 		CacheIdleTTL: 20 * time.Millisecond,
-		Logger:       logger,
+		Logger:       logger.logger(),
 	})
 	expired := make(chan uint64, 2)
 	unsubscribe := reader.cache.OnEviction(func(_ context.Context, reason ttlcache.EvictionReason, item *ttlcache.Item[uint64, EncodedSubjectRecord]) {
