@@ -9,8 +9,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	cachestatev1 "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
-
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -20,6 +18,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/config"
+	cachestatev1 "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/jetstreamutil"
 )

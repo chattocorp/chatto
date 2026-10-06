@@ -8,18 +8,20 @@ ADR-088 extends the shared framework with prepared reducers, coordinated
 components, one apply barrier, and projection snapshot cohorts. The framework
 remains application-neutral and independently versioned.
 
-The key-value leader reads, retried resource provisioning, and OCC conflict
-classification moved to the separate shared module `pkg/jetstreamutil`. They
-are JetStream client helpers, not event-sourcing mechanics, and both
-applications can use them without the event framework. The sections below
-that describe `KeyValue` now describe `jetstreamutil.KeyValue`.
-
 The framework has one projection snapshot shape. Every snapshot contains
 components, and each component contains parts. A single-payload projection is
 one component with one part. The projector therefore has one configuration,
 one capture, and one restore path. An application can store single-payload
 snapshots in a different format. Chatto keeps its single-generation format for
 these projections and its cohort format for `ServerContentView`.
+
+`KeyValue` and the retried resource provisioning moved from `pkg/events` to
+the separate shared module `pkg/jetstreamutil`, together with Chatto's public
+OCC conflict classifier. They are JetStream client helpers, not event-sourcing
+mechanics, and both applications can use them without the event framework.
+`pkg/events` keeps a private copy of the classifier so that it does not depend
+on another module. The sections below that describe `KeyValue` now describe
+`jetstreamutil.KeyValue`.
 
 ## Context
 

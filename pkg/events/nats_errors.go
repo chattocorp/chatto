@@ -6,6 +6,8 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
+// isSequenceConflict mirrors jetstreamutil.IsSequenceConflict without a
+// module dependency; change both together.
 func isSequenceConflict(err error) bool {
 	return errors.Is(err, jetstream.ErrKeyExists) ||
 		errors.Is(err, jetstream.ErrKeyRevisionMismatch) ||

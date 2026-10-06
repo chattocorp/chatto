@@ -20,8 +20,8 @@ the architecture should not make future process-level composition impossible.
 
 Temporarily incubate Authling in this repository as a separate Go module under
 `authling/`. The repository-level `go.work` file composes the Chatto, Authling,
-shared `pkg/events/`, shared `pkg/natsruntime/`, shared `pkg/datacrypto/`, and
-shared `pkg/appconfig/` modules for local development without merging their
+shared `pkg/events/`, shared `pkg/jetstreamutil/`, shared `pkg/natsruntime/`,
+shared `pkg/datacrypto/`, and shared `pkg/appconfig/` modules for local development without merging their
 module or package boundaries.
 
 Authling is a separate product and executable. It owns its configuration,
@@ -49,13 +49,16 @@ components, versions, changelogs, release pull requests, and tags:
 
 - Chatto remains the root component and uses `v<version>` tags. Its release
   component excludes commits whose files are entirely under `authling/`,
-  `pkg/events/`, `pkg/natsruntime/`, `pkg/datacrypto/`, `pkg/appconfig/`, or
-  `.agents/skills/`.
+  `pkg/events/`, `pkg/jetstreamutil/`, `pkg/natsruntime/`, `pkg/datacrypto/`,
+  `pkg/appconfig/`, or `.agents/skills/`.
 - Authling uses the `authling/` component and `authling/v<version>` tags. The
   slash follows Go's nested-module tag convention and keeps module versions
   consumable through normal Go tooling.
 - The events framework uses the `pkg/events/` component and
   `pkg/events/v<version>` tags, matching its nested-module repository path.
+- The JetStream utilities module uses the `pkg/jetstreamutil/` component and
+  `pkg/jetstreamutil/v<version>` tags, matching its nested-module repository
+  path.
 - The embedded NATS runtime uses the `pkg/natsruntime/` component and
   `pkg/natsruntime/v<version>` tags, matching its nested-module repository
   path.

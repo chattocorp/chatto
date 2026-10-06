@@ -10,7 +10,9 @@ import (
 )
 
 // IsSequenceConflict reports whether err is a JetStream optimistic-concurrency
-// conflict caused by an expected-last-sequence mismatch.
+// conflict caused by an expected-last-sequence mismatch. pkg/events keeps a
+// private copy so that it does not depend on this module; change both
+// together.
 func IsSequenceConflict(err error) bool {
 	return errors.Is(err, jetstream.ErrKeyExists) ||
 		errors.Is(err, jetstream.ErrKeyRevisionMismatch) ||
