@@ -112,9 +112,9 @@ func (v *ServerContentView) OwnsProjection(model events.SubjectProjection) bool 
 	return v.components.OwnsProjection(model)
 }
 
-// SnapshotCohortContractID returns the contract for this exact component set.
-func (v *ServerContentView) SnapshotCohortContractID() string {
-	return v.components.SnapshotCohortContractID()
+// SnapshotContractID returns the contract for this exact component set.
+func (v *ServerContentView) SnapshotContractID() string {
+	return v.components.SnapshotContractID()
 }
 
 // SnapshotComponentContracts returns the exact required snapshot component

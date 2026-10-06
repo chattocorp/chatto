@@ -73,7 +73,7 @@ func TestProjectorSnapshotLoadTimeoutFallsBackToColdReplay(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	projector.snapshotLoadTimeout = 20 * time.Millisecond
+	projector.snapshots.loadTimeout = 20 * time.Millisecond
 
 	runCtx, stop := context.WithCancel(context.Background())
 	t.Cleanup(stop)

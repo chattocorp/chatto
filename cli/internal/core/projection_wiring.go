@@ -72,15 +72,17 @@ func registerProjectionHandle[P events.SubjectProjection](
 	if err := handle.Projector().ConfigureConsumerIdentity(key, name); err != nil {
 		return events.ProjectionHandle[P]{}, fmt.Errorf("configure %s consumer identity: %w", key, err)
 	}
+	_, componentSnapshots := any(projection).(events.ComponentSnapshotProjection)
 	r.registrations = append(r.registrations, projectionRegistration{
-		key:              key,
-		name:             name,
-		projector:        handle.Projector(),
-		subjects:         slices.Clone(projection.Subjects()),
-		snapshotPolicy:   snapshotPolicy,
-		streamName:       streamName,
-		identityResolver: identityResolver,
-		estimate:         estimate,
+		key:                key,
+		name:               name,
+		projector:          handle.Projector(),
+		subjects:           slices.Clone(projection.Subjects()),
+		snapshotPolicy:     snapshotPolicy,
+		componentSnapshots: componentSnapshots,
+		streamName:         streamName,
+		identityResolver:   identityResolver,
+		estimate:           estimate,
 	})
 	return handle, nil
 }
@@ -345,37 +347,26 @@ func configureProjectionSnapshots(
 		if registration.snapshotPolicy == coldReplayOnly {
 			continue
 		}
-		componentized := registration.key == projectionsnapshot.ProjectionServerContentViewKey
+		// A componentized projection, such as ServerContentView, keeps its
+		// components in cohort storage. A single-payload projection keeps its
+		// payload in single-generation storage.
+		componentized := registration.componentSnapshots
+		var source events.ProjectionSnapshotSource = projectionSnapshotSource{repository: infra.snapshotRepository}
 		if componentized {
-			source := projectionSnapshotCohortSource{repository: infra.snapshotRepository}
-			if err := registration.projector.ConfigureSnapshotCohorts(
-				registration.key, source, registration.identityResolver,
-			); err != nil {
-				return fmt.Errorf("configure %s projection snapshots: %w", registration.key, err)
-			}
-			projections.snapshotJobs = append(projections.snapshotJobs, projectionSnapshotJob{
-				projector: registration.projector, repository: infra.snapshotRepository,
-				projectionKey: registration.key, streamName: registration.streamName,
-				componentized: true,
-			})
-			registration.snapshotEnabled = true
-			continue
+			source = projectionSnapshotCohortSource{repository: infra.snapshotRepository}
 		}
-		source := events.ProjectionSnapshotSource(projectionSnapshotSource{repository: infra.snapshotRepository})
 		if err := registration.projector.ConfigureSnapshots(
-			registration.key,
-			source,
-			registration.identityResolver,
+			registration.key, source, registration.identityResolver,
 		); err != nil {
 			return fmt.Errorf("configure %s projection snapshots: %w", registration.key, err)
 		}
-		job := projectionSnapshotJob{
+		projections.snapshotJobs = append(projections.snapshotJobs, projectionSnapshotJob{
 			projector:     registration.projector,
 			repository:    infra.snapshotRepository,
 			projectionKey: registration.key,
 			streamName:    registration.streamName,
-		}
-		projections.snapshotJobs = append(projections.snapshotJobs, job)
+			componentized: componentized,
+		})
 		registration.snapshotEnabled = true
 	}
 	return nil

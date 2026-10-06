@@ -36,12 +36,12 @@ func (m *blockingRestoreComponentModel) Restore(payload []byte) error {
 	return m.componentTestModel.Restore(payload)
 }
 
-type fixedComponentCohortSource struct {
-	cohort ProjectionSnapshotCohort
+type fixedSnapshotSource struct {
+	snapshot ProjectionSnapshot
 }
 
-func (s fixedComponentCohortSource) LoadProjectionSnapshotCohort(context.Context, ProjectionSnapshotCohortLoadRequest) (ProjectionSnapshotCohort, error) {
-	return s.cohort, nil
+func (s fixedSnapshotSource) LoadProjectionSnapshot(context.Context, ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
+	return s.snapshot, nil
 }
 
 func (m *componentTestModel) Subjects() []string {
@@ -263,14 +263,14 @@ func TestComponentizedProjectionRestoreUsesReadBarrier(t *testing.T) {
 		func([]byte) (DecodedEvent[int], error) { return DecodedEvent[int]{}, nil },
 		discardLogger{},
 	)
-	source := fixedComponentCohortSource{cohort: ProjectionSnapshotCohort{
+	source := fixedSnapshotSource{snapshot: ProjectionSnapshot{
 		GenerationID: "generation", ContractID: "cohort-v1", StreamName: "COMPONENT_RESTORE_TEST",
 		StreamIdentity: "stream", Components: []ProjectionSnapshotComponent{{
 			Key: "state", ContractID: "component-test-v1",
 			Parts: []ProjectionSnapshotPart{{Key: "state", Payload: []byte("9")}},
 		}},
 	}}
-	if err := projector.ConfigureSnapshotCohorts("component", source, func(*jetstream.StreamInfo) (string, error) {
+	if err := projector.ConfigureSnapshots("component", source, func(*jetstream.StreamInfo) (string, error) {
 		return "stream", nil
 	}); err != nil {
 		t.Fatal(err)

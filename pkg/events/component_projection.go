@@ -5,12 +5,10 @@
 package events
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"reflect"
 	"slices"
-	"time"
 )
 
 // PreparedMutation is an infallible state change produced by an EventReducer.
@@ -52,64 +50,18 @@ type PreparedEventProjection[E any] interface {
 	EventReducer[E]
 }
 
-// ProjectionSnapshotPart is one stable, independently stored part of a
-// projection component snapshot.
-type ProjectionSnapshotPart struct {
-	Key     string
-	Payload []byte
+// SubjectEventReducer can be implemented by a PreparedEventProjection that
+// needs the delivered record's subject. The Projector then calls
+// PrepareSubject instead of Prepare.
+type SubjectEventReducer[E any] interface {
+	PrepareSubject(event E, subject string, sequence uint64) (PreparedMutation, error)
 }
 
-// ProjectionSnapshotComponent is one independently serialized component in a
-// projection snapshot cohort. Part keys are stable within its contract.
-type ProjectionSnapshotComponent struct {
-	Key        string
-	ContractID string
-	Parts      []ProjectionSnapshotPart
-}
-
-// ProjectionSnapshotComponentContract identifies one required component and
-// bounds the number of payload parts that a snapshot source can load.
-type ProjectionSnapshotComponentContract struct {
-	Key        string
-	ContractID string
-	MaxParts   int
-}
-
-// ProjectionSnapshotCohort is component state captured or restored at one
-// event-log cutoff. A cohort is installed as one unit.
-type ProjectionSnapshotCohort struct {
-	GenerationID   string
-	ContractID     string
-	StreamName     string
-	CutoffSequence uint64
-	StreamIdentity string
-	CreatedAt      time.Time
-	Components     []ProjectionSnapshotComponent
-}
-
-// ProjectionSnapshotCohortLoadRequest contains the repository constraints for
-// one projection snapshot cohort.
-type ProjectionSnapshotCohortLoadRequest struct {
-	ProjectionKey  string
-	ContractID     string
-	StreamName     string
-	StreamIdentity string
-	MaxCutoff      uint64
-	Components     []ProjectionSnapshotComponentContract
-}
-
-// ProjectionSnapshotCohortSource loads one complete projection snapshot
-// cohort. It must not return a partial generation.
-type ProjectionSnapshotCohortSource interface {
-	LoadProjectionSnapshotCohort(context.Context, ProjectionSnapshotCohortLoadRequest) (ProjectionSnapshotCohort, error)
-}
-
-type snapshotCohortProjectionState interface {
-	SnapshotComponents() ([]ProjectionSnapshotComponent, error)
-	RestoreComponents([]ProjectionSnapshotComponent) error
-	ResetComponents() error
-	SnapshotCohortContractID() string
-	SnapshotComponentContracts() []ProjectionSnapshotComponentContract
+// ProjectionOwner can be implemented by a projection that owns other
+// projection models, such as ComponentizedProjection. BindDecodedProjectionHandle
+// accepts an owned model for the owner's Projector.
+type ProjectionOwner interface {
+	OwnsProjection(SubjectProjection) bool
 }
 
 // SnapshotComponentModel is a focused projection model with an independent
@@ -118,9 +70,7 @@ type snapshotCohortProjectionState interface {
 // componentized projection.
 type SnapshotComponentModel interface {
 	SubjectProjection
-	Snapshot() ([]byte, error)
-	Restore([]byte) error
-	SnapshotContractID() string
+	SnapshotProjection
 }
 
 // ProjectionComponent binds one focused reducer/model to its stable snapshot
@@ -231,15 +181,6 @@ func (p *ComponentizedProjection[E]) prepareComponents(event E, subject string, 
 	}), nil
 }
 
-func matchesAnySubject(filters []compiledSubjectFilter, subject string) bool {
-	for i := range filters {
-		if filters[i].matches(subject) {
-			return true
-		}
-	}
-	return false
-}
-
 // OwnsProjection reports whether model is one of the registered focused
 // models. Projector uses this to create typed handles that share its frontier.
 func (p *ComponentizedProjection[E]) OwnsProjection(model SubjectProjection) bool {
@@ -254,8 +195,8 @@ func (p *ComponentizedProjection[E]) OwnsProjection(model SubjectProjection) boo
 	return false
 }
 
-// SnapshotCohortContractID returns the contract for the component set.
-func (p *ComponentizedProjection[E]) SnapshotCohortContractID() string {
+// SnapshotContractID returns the contract for the component set.
+func (p *ComponentizedProjection[E]) SnapshotContractID() string {
 	return p.contractID
 }
 
@@ -282,7 +223,7 @@ func (p *ComponentizedProjection[E]) SnapshotComponents() ([]ProjectionSnapshotC
 		components = append(components, ProjectionSnapshotComponent{
 			Key:        component.key,
 			ContractID: component.model.SnapshotContractID(),
-			Parts:      []ProjectionSnapshotPart{{Key: "state", Payload: payload}},
+			Parts:      []ProjectionSnapshotPart{{Key: SnapshotStatePartKey, Payload: payload}},
 		})
 	}
 	return components, nil
@@ -302,18 +243,18 @@ func (p *ComponentizedProjection[E]) RestoreComponents(stored []ProjectionSnapsh
 		byKey[component.Key] = component
 	}
 
+	payloads := make([][]byte, len(p.components))
 	previous := make([][]byte, len(p.components))
 	for i, component := range p.components {
 		storedComponent, ok := byKey[component.key]
 		if !ok {
 			return fmt.Errorf("projection component %q is missing", component.key)
 		}
-		if storedComponent.ContractID != component.model.SnapshotContractID() {
-			return fmt.Errorf("projection component %q contract does not match", component.key)
+		storedPayload, err := statePartPayload(storedComponent, component.key, component.model.SnapshotContractID())
+		if err != nil {
+			return err
 		}
-		if len(storedComponent.Parts) != 1 || storedComponent.Parts[0].Key != "state" {
-			return fmt.Errorf("projection component %q has %d parts, want 1", component.key, len(storedComponent.Parts))
-		}
+		payloads[i] = storedPayload
 		payload, err := component.model.Snapshot()
 		if err != nil {
 			return fmt.Errorf("capture projection component %q before restore: %w", component.key, err)
@@ -322,7 +263,7 @@ func (p *ComponentizedProjection[E]) RestoreComponents(stored []ProjectionSnapsh
 	}
 
 	for i, component := range p.components {
-		if err := component.model.Restore(byKey[component.key].Parts[0].Payload); err != nil {
+		if err := component.model.Restore(payloads[i]); err != nil {
 			restoreErr := fmt.Errorf("restore projection component %q: %w", component.key, err)
 			var rollbackErrs []error
 			for rollbackIndex := 0; rollbackIndex <= i; rollbackIndex++ {
@@ -344,7 +285,7 @@ func (p *ComponentizedProjection[E]) ResetComponents() error {
 	for _, component := range p.components {
 		stored = append(stored, ProjectionSnapshotComponent{
 			Key: component.key, ContractID: component.model.SnapshotContractID(),
-			Parts: []ProjectionSnapshotPart{{Key: "state"}},
+			Parts: []ProjectionSnapshotPart{{Key: SnapshotStatePartKey}},
 		})
 	}
 	return p.RestoreComponents(stored)
