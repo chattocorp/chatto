@@ -56,11 +56,12 @@ action starts `rharkor/caching-for-turbo`, pinned to a commit. The action runs
 a local cache server that stores one Actions cache entry for each task hash.
 Jobs on the same operating system share build and check results, and GitHub
 removes entries that are not used. Build output stays in the repository's
-Actions cache, with the Go and pnpm caches. Pushes to `main` write entries.
-Other runs only read them: pull request entries cannot help a merge run or
-other pull requests, and GitHub would remove `main`'s entries to make space for
-them in the size-limited Actions cache. Jobs that publish images or releases
-turn the remote cache off, so published artifacts build from source.
+Actions cache, with the Go and pnpm caches. Every CI run reads and writes
+entries, so the first job that builds a task shares the result with the other
+jobs of the same run. Entries from a pull request are visible only to runs of
+that pull request, and all runs can read entries from `main`. A run that builds
+every task writes about 16 MB. Jobs that publish images or releases turn the
+remote cache off, so published artifacts build from source.
 
 Check tasks are cached. Lint and test tasks remain uncached. Use loose
 environment mode to retain existing release, test, and development settings.

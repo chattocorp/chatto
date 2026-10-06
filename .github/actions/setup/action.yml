@@ -22,7 +22,7 @@ inputs:
     required: false
     default: ''
   turbo-remote-cache:
-    description: 'Use the GitHub Actions cache as the Turbo remote cache. Pushes to main write to it; other runs only read. Jobs that publish images or releases turn it off, so published artifacts build from source.'
+    description: 'Use the GitHub Actions cache as the Turbo remote cache. Jobs that publish images or releases turn it off, so published artifacts build from source.'
     required: false
     default: 'true'
 runs:
@@ -112,12 +112,10 @@ runs:
       if: inputs.install-frontend-deps == 'true' && inputs.turbo-remote-cache == 'true'
       uses: rharkor/caching-for-turbo@2238fae6eb9a9936f92356f54cb3660200d105e7 # v2.5.1
 
-    # Only main writes entries. Other runs read them. Pull request entries
-    # cannot help a merge run or other pull requests, and GitHub would remove
-    # main's entries to make space for them in the size-limited Actions cache.
+    # Every run reads and writes entries, so the first job that builds a task
+    # shares the result with the other jobs of the same run. Entries from a
+    # pull request are visible only to runs of that pull request and are small.
     - name: Select Turbo cache sources
       if: inputs.install-frontend-deps == 'true' && inputs.turbo-remote-cache == 'true'
       shell: bash
-      env:
-        REMOTE_ACCESS: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'rw' || 'r' }}
-      run: echo "TURBO_CACHE=local:rw,remote:$REMOTE_ACCESS" >> "$GITHUB_ENV"
+      run: echo "TURBO_CACHE=local:rw,remote:rw" >> "$GITHUB_ENV"
