@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -191,6 +192,19 @@ func TestPublisherAppendsLifecycleBatchAtomically(t *testing.T) {
 	}
 	if len(positions) != 3 || positions[1].Seq != positions[0].Seq+1 || positions[2].Seq != positions[1].Seq+1 {
 		t.Fatalf("batch positions = %+v, want three adjacent records", positions)
+	}
+	// Lifecycle facts publish without an OCC guard, so NATS stores no guard
+	// headers with them.
+	for _, position := range positions {
+		stored, err := stream.GetMsg(ctx, position.Seq)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for key := range stored.Header {
+			if strings.HasPrefix(key, "Nats-Expected-") {
+				t.Fatalf("lifecycle fact at seq %d stores guard header %s", position.Seq, key)
+			}
+		}
 	}
 	info, err := stream.Info(ctx)
 	if err != nil {

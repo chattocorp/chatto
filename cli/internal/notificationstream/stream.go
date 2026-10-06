@@ -56,7 +56,8 @@ var (
 )
 
 // Publisher validates and protobuf-encodes notification events while the
-// shared event log owns OCC, de-duplication, and JetStream publication.
+// shared event log owns de-duplication and JetStream publication. Lifecycle
+// facts publish without an OCC guard.
 type Publisher struct {
 	log            *events.EncodedEventLog
 	retentionGrace time.Duration
@@ -71,9 +72,8 @@ func NewPublisher(js jetstream.JetStream, stream jetstream.Stream, retentionGrac
 	}
 }
 
-// AppendEventually publishes an immutable lifecycle event. Retrying after a
-// bounded-subject OCC conflict is safe because event IDs and state transitions
-// are idempotent.
+// AppendEventually publishes an immutable lifecycle event. A retry is safe
+// because event IDs and state transitions are idempotent.
 func (p *Publisher) AppendEventually(ctx context.Context, event *notificationv1.NotificationEvent) (events.StreamPosition, error) {
 	results, err := p.AppendBatchEventuallyResults(ctx, []*notificationv1.NotificationEvent{event})
 	if err != nil {
@@ -128,11 +128,6 @@ func (p *Publisher) AppendBatchEventuallyResults(ctx context.Context, notificati
 			data:           data,
 			physicalExpiry: event.GetExpiresAt().AsTime().UTC().Add(p.retentionGrace),
 		})
-	}
-	for _, event := range prepared {
-		if !p.now().UTC().Before(event.physicalExpiry) {
-			return nil, ErrExpiredEvent
-		}
 	}
 	// Lifecycle facts are complete before the write, and their permission does
 	// not depend on stream state, so they need no OCC guard. A guard on the

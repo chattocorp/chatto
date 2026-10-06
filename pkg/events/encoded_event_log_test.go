@@ -650,3 +650,19 @@ func TestAppendAtRejectsMissingGuard(t *testing.T) {
 		t.Fatalf("AppendAt with an empty filter = %v, want ErrInvalidOCC", err)
 	}
 }
+
+// A filter guard on the record's own subject becomes the own-subject header
+// and still rejects a stale sequence.
+func TestExactSubjectFilterGuardStillConflicts(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	ctx := testContext(t)
+	const subject = "evt.guards.exact.created"
+	if _, err := eventLog.AppendAt(ctx, subject, EncodedRecord{ID: "exact-first", Data: []byte("1")}, ExpectFilterSeq(subject, 0)); err != nil {
+		t.Fatal(err)
+	}
+	_, err := eventLog.AppendAt(ctx, subject, EncodedRecord{ID: "exact-stale", Data: []byte("2")}, ExpectFilterSeq(subject, 0))
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("stale exact-subject filter guard = %v, want ErrConflict", err)
+	}
+}
