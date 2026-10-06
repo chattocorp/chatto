@@ -119,11 +119,8 @@ func NewDurableWorker(
 	handle DurableDeliveryHandler,
 	opts DurableWorkerOptions,
 ) (*DurableWorker, error) {
-	if consumer == nil {
-		return nil, fmt.Errorf("durable worker consumer is nil")
-	}
-	if handle == nil {
-		return nil, fmt.Errorf("durable worker handler is nil")
+	if consumer == nil || handle == nil {
+		panic("events: durable worker requires a consumer and a handler")
 	}
 	if opts.MaxConcurrent <= 0 {
 		return nil, fmt.Errorf("durable worker max concurrency must be positive")

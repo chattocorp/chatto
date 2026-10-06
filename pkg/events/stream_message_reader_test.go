@@ -113,7 +113,7 @@ func (s *exactMessageSourceStub) GetMsg(ctx context.Context, sequence uint64, _ 
 	return message, nil
 }
 
-func newTestStreamMessageReader(t *testing.T, source exactStreamMessageSource, config StreamMessageReaderConfig) *StreamMessageReader {
+func newTestStreamMessageReader(t *testing.T, source exactStreamMessageSource, config StreamMessageReaderOptions) *StreamMessageReader {
 	t.Helper()
 	reader, err := newStreamMessageReader(source, config)
 	if err != nil {
@@ -131,7 +131,7 @@ func TestStreamMessageReaderCachesClonedRecords(t *testing.T) {
 			7: {Subject: "evt.room.room.message_posted", Sequence: 7, Header: header, Data: []byte("payload")},
 		},
 	}
-	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{CacheIdleTTL: time.Minute})
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderOptions{CacheIdleTTL: time.Minute})
 
 	first, err := reader.Message(context.Background(), 7)
 	if err != nil {
@@ -164,7 +164,7 @@ func TestStreamMessageReaderEvictsLeastRecentlyUsedRecordsAtByteLimit(t *testing
 		},
 	}
 	recordCost := streamMessageCacheEntryOverhead + uint64(len("evt.three")) + 1
-	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderOptions{
 		CacheMaxBytes: 2 * recordCost,
 	})
 
@@ -191,7 +191,7 @@ func TestStreamMessageReaderDoesNotRetainRecordLargerThanByteLimit(t *testing.T)
 			1: {Subject: "evt.one", Sequence: 1, Data: []byte("payload")},
 		},
 	}
-	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{CacheMaxBytes: 1})
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderOptions{CacheMaxBytes: 1})
 
 	for range 2 {
 		if _, err := reader.Message(context.Background(), 1); err != nil {
@@ -214,7 +214,7 @@ func TestStreamMessageReaderLogsDirectCacheMiss(t *testing.T) {
 			7: {Subject: "evt.test", Sequence: 7, Data: []byte("payload")},
 		},
 	}
-	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderOptions{
 		CacheIdleTTL: time.Minute,
 		Logger:       logger.logger(),
 	})
@@ -242,7 +242,7 @@ func TestStreamMessageReaderUsesSlidingIdleExpiry(t *testing.T) {
 			4: {Subject: "evt.room.room.user_joined", Sequence: 4, Data: []byte("four")},
 		},
 	}
-	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{CacheIdleTTL: 200 * time.Millisecond})
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderOptions{CacheIdleTTL: 200 * time.Millisecond})
 
 	if _, err := reader.Message(context.Background(), 4); err != nil {
 		t.Fatalf("Message initial read: %v", err)
@@ -280,7 +280,7 @@ func TestStreamMessageReaderForgetAndClear(t *testing.T) {
 			2: {Subject: "evt.two", Sequence: 2, Data: []byte("two")},
 		},
 	}
-	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{CacheIdleTTL: time.Minute})
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderOptions{CacheIdleTTL: time.Minute})
 	if _, err := reader.Messages(context.Background(), []uint64{1, 2}); err != nil {
 		t.Fatalf("Messages initial read: %v", err)
 	}
@@ -312,7 +312,7 @@ func TestStreamMessageReaderInvalidationPreventsInflightReadFromRefillingCache(t
 				started: make(chan struct{}, 1),
 				release: make(chan struct{}),
 			}
-			reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{CacheIdleTTL: time.Minute})
+			reader := newTestStreamMessageReader(t, source, StreamMessageReaderOptions{CacheIdleTTL: time.Minute})
 			done := make(chan error, 1)
 			go func() {
 				_, err := reader.Message(context.Background(), 1)
@@ -342,7 +342,7 @@ func TestStreamMessageReaderMessagesDeduplicateAndPreserveOrder(t *testing.T) {
 			9: {Subject: "evt.nine", Sequence: 9, Data: []byte("nine")},
 		},
 	}
-	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{})
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderOptions{})
 
 	records, err := reader.Messages(context.Background(), []uint64{9, 4, 9})
 	if err != nil {
@@ -365,7 +365,7 @@ func TestStreamMessageReaderLogsBatchCacheResults(t *testing.T) {
 			2: {Subject: "evt.two", Sequence: 2},
 		},
 	}
-	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderOptions{
 		CacheIdleTTL: time.Minute,
 		Logger:       logger.logger(),
 	})
@@ -409,7 +409,7 @@ func TestStreamMessageReaderLogsBatchLRUEvictions(t *testing.T) {
 			2: {Subject: "evt.two", Sequence: 2},
 		},
 	}
-	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderOptions{
 		CacheMaxBytes: streamMessageCacheEntryOverhead + uint64(len("evt.one")),
 		Logger:        logger.logger(),
 	})
@@ -430,7 +430,7 @@ func TestStreamMessageReaderMessagesHonorsCancellationWithCachedRecords(t *testi
 			1: {Subject: "evt.one", Sequence: 1, Data: []byte("one")},
 		},
 	}
-	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{CacheIdleTTL: time.Minute})
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderOptions{CacheIdleTTL: time.Minute})
 	if _, err := reader.Message(context.Background(), 1); err != nil {
 		t.Fatalf("Message: %v", err)
 	}
@@ -452,7 +452,7 @@ func TestStreamMessageReaderBoundsConcurrentReadsAcrossCalls(t *testing.T) {
 	for sequence := uint64(1); sequence <= limit*2; sequence++ {
 		source.msgs[sequence] = &jetstream.RawStreamMsg{Subject: "evt.test", Sequence: sequence}
 	}
-	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{MaxConcurrentReads: limit})
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderOptions{MaxConcurrentReads: limit})
 	done := make(chan error, limit*2)
 	for sequence := uint64(1); sequence <= limit*2; sequence++ {
 		go func() {
@@ -487,7 +487,7 @@ func TestStreamMessageReaderDoesNotCacheFailures(t *testing.T) {
 		reads: make(map[uint64]int),
 		msgs:  make(map[uint64]*jetstream.RawStreamMsg),
 	}
-	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{CacheIdleTTL: time.Minute})
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderOptions{CacheIdleTTL: time.Minute})
 	for range 2 {
 		if _, err := reader.Message(context.Background(), 8); !errors.Is(err, jetstream.ErrMsgNotFound) {
 			t.Fatalf("Message error = %v, want jetstream.ErrMsgNotFound", err)
@@ -505,20 +505,20 @@ func TestStreamMessageReaderRejectsUnexpectedSequence(t *testing.T) {
 			7: {Subject: "evt.test", Sequence: 8},
 		},
 	}
-	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{CacheIdleTTL: time.Minute})
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderOptions{CacheIdleTTL: time.Minute})
 	if _, err := reader.Message(context.Background(), 7); err == nil {
 		t.Fatal("Message error = nil, want unexpected sequence error")
 	}
 }
 
-func TestStreamMessageReaderConfigValidation(t *testing.T) {
+func TestStreamMessageReaderOptionsValidation(t *testing.T) {
 	source := &exactMessageSourceStub{}
-	for _, config := range []StreamMessageReaderConfig{
+	for _, config := range []StreamMessageReaderOptions{
 		{CacheIdleTTL: -time.Second},
 		{MaxConcurrentReads: -1},
 	} {
-		if _, err := newStreamMessageReader(source, config); !errors.Is(err, ErrInvalidStreamMessageReaderConfig) {
-			t.Fatalf("newStreamMessageReader(%+v) error = %v, want ErrInvalidStreamMessageReaderConfig", config, err)
+		if _, err := newStreamMessageReader(source, config); !errors.Is(err, ErrInvalidStreamMessageReaderOptions) {
+			t.Fatalf("newStreamMessageReader(%+v) error = %v, want ErrInvalidStreamMessageReaderOptions", config, err)
 		}
 	}
 }
@@ -532,7 +532,7 @@ func TestStreamMessageReaderRunRemovesExpiredEntriesAndClearsOnShutdown(t *testi
 			2: {Subject: "evt.two", Sequence: 2},
 		},
 	}
-	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderOptions{
 		CacheIdleTTL: 20 * time.Millisecond,
 		Logger:       logger.logger(),
 	})
@@ -593,7 +593,7 @@ func TestStreamMessageReaderRunRemovesExpiredEntriesAndClearsOnShutdown(t *testi
 }
 
 func TestStreamMessageReaderRunIsSingleUse(t *testing.T) {
-	reader := newTestStreamMessageReader(t, &exactMessageSourceStub{}, StreamMessageReaderConfig{})
+	reader := newTestStreamMessageReader(t, &exactMessageSourceStub{}, StreamMessageReaderOptions{})
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if err := reader.Run(ctx); !errors.Is(err, context.Canceled) {
@@ -611,7 +611,7 @@ func TestStreamMessageReaderRunClearsByteLimitedCacheWithoutIdleTTL(t *testing.T
 			1: {Subject: "evt.one", Sequence: 1},
 		},
 	}
-	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{CacheMaxBytes: 1 << 20})
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderOptions{CacheMaxBytes: 1 << 20})
 	if _, err := reader.Message(context.Background(), 1); err != nil {
 		t.Fatalf("Message: %v", err)
 	}

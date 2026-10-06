@@ -148,7 +148,7 @@ type projectorSnapshots struct {
 	source     ProjectionSnapshotSource
 	// resolveIdentity resolves the stream identity that binds snapshots.
 	resolveIdentity StreamIdentityResolver
-	// configuredIdentity is the identity resolved by ConfigureSnapshots. Run
+	// configuredIdentity is the identity resolved at construction. Run
 	// uses it when it cannot read fresh stream information.
 	configuredIdentity string
 	loadTimeout        time.Duration

@@ -120,6 +120,9 @@ type EncodedEventLog struct {
 
 // NewEncodedEventLog binds opaque event-log mechanics to one JetStream stream.
 func NewEncodedEventLog(js jetstream.JetStream, stream jetstream.Stream, logger *slog.Logger) *EncodedEventLog {
+	if js == nil || stream == nil {
+		panic("events: encoded event log requires a JetStream context and a stream")
+	}
 	return &EncodedEventLog{js: js, stream: stream, logger: normalizeLogger(logger)}
 }
 

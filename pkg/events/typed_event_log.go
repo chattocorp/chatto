@@ -68,6 +68,9 @@ type TypedEventLog[E any] struct {
 // Decode may be nil when the application only publishes through this log, but
 // typed subject reads then return an error.
 func NewTypedEventLog[E any](log *EncodedEventLog, encode TypedEventEncoder[E], decode TypedEventDecoder[E]) *TypedEventLog[E] {
+	if log == nil || encode == nil {
+		panic("events: typed event log requires an encoded event log and an encoder")
+	}
 	return &TypedEventLog[E]{EncodedEventLog: log, encode: encode, decode: decode}
 }
 

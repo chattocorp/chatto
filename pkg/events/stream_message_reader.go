@@ -27,9 +27,9 @@ const (
 	streamMessageCacheEntryOverhead = 256
 )
 
-// ErrInvalidStreamMessageReaderConfig marks invalid exact-read concurrency or
+// ErrInvalidStreamMessageReaderOptions marks invalid exact-read concurrency or
 // cache settings.
-var ErrInvalidStreamMessageReaderConfig = errors.New("invalid stream message reader config")
+var ErrInvalidStreamMessageReaderOptions = errors.New("invalid stream message reader options")
 
 // ErrStreamMessageReaderAlreadyStarted is returned when Run is called more
 // than once on the same reader. A reader owns one cache cleanup lifecycle.
@@ -39,9 +39,9 @@ type exactStreamMessageSource interface {
 	GetMsg(context.Context, uint64, ...jetstream.GetMsgOpt) (*jetstream.RawStreamMsg, error)
 }
 
-// StreamMessageReaderConfig controls exact stream reads and the optional
+// StreamMessageReaderOptions controls exact stream reads and the optional
 // process-local message cache.
-type StreamMessageReaderConfig struct {
+type StreamMessageReaderOptions struct {
 	// CacheIdleTTL sets sliding idle expiry. Zero disables idle expiry.
 	CacheIdleTTL time.Duration
 	// CacheMaxBytes sets the approximate maximum bytes retained by the cache.
@@ -79,38 +79,38 @@ type StreamMessageReader struct {
 
 // NewStreamMessageReader binds exact reads and an optional cache to one
 // JetStream stream.
-func NewStreamMessageReader(stream jetstream.Stream, config StreamMessageReaderConfig) (*StreamMessageReader, error) {
-	return newStreamMessageReader(stream, config)
+func NewStreamMessageReader(stream jetstream.Stream, opts StreamMessageReaderOptions) (*StreamMessageReader, error) {
+	return newStreamMessageReader(stream, opts)
 }
 
-func newStreamMessageReader(source exactStreamMessageSource, config StreamMessageReaderConfig) (*StreamMessageReader, error) {
+func newStreamMessageReader(source exactStreamMessageSource, opts StreamMessageReaderOptions) (*StreamMessageReader, error) {
 	if source == nil {
-		return nil, fmt.Errorf("%w: stream is unavailable", ErrInvalidStreamMessageReaderConfig)
+		panic("events: stream message reader requires a stream")
 	}
-	if config.CacheIdleTTL < 0 {
-		return nil, fmt.Errorf("%w: cache idle TTL must not be negative", ErrInvalidStreamMessageReaderConfig)
+	if opts.CacheIdleTTL < 0 {
+		return nil, fmt.Errorf("%w: cache idle TTL must not be negative", ErrInvalidStreamMessageReaderOptions)
 	}
-	if config.MaxConcurrentReads < 0 {
-		return nil, fmt.Errorf("%w: maximum concurrent reads must not be negative", ErrInvalidStreamMessageReaderConfig)
+	if opts.MaxConcurrentReads < 0 {
+		return nil, fmt.Errorf("%w: maximum concurrent reads must not be negative", ErrInvalidStreamMessageReaderOptions)
 	}
-	maxConcurrentReads := config.MaxConcurrentReads
+	maxConcurrentReads := opts.MaxConcurrentReads
 	if maxConcurrentReads == 0 {
 		maxConcurrentReads = defaultStreamMessageReadConcurrency
 	}
 	reader := &StreamMessageReader{
 		source:        source,
-		cacheIdleTTL:  config.CacheIdleTTL,
+		cacheIdleTTL:  opts.CacheIdleTTL,
 		readSemaphore: make(chan struct{}, maxConcurrentReads),
-		logger:        normalizeLogger(config.Logger),
+		logger:        normalizeLogger(opts.Logger),
 	}
-	if config.CacheIdleTTL > 0 || config.CacheMaxBytes > 0 {
+	if opts.CacheIdleTTL > 0 || opts.CacheMaxBytes > 0 {
 		options := make([]ttlcache.Option[uint64, EncodedSubjectRecord], 0, 2)
-		if config.CacheIdleTTL > 0 {
-			options = append(options, ttlcache.WithTTL[uint64, EncodedSubjectRecord](config.CacheIdleTTL))
+		if opts.CacheIdleTTL > 0 {
+			options = append(options, ttlcache.WithTTL[uint64, EncodedSubjectRecord](opts.CacheIdleTTL))
 		}
-		if config.CacheMaxBytes > 0 {
+		if opts.CacheMaxBytes > 0 {
 			options = append(options, ttlcache.WithMaxCost(
-				config.CacheMaxBytes,
+				opts.CacheMaxBytes,
 				streamMessageCacheCost,
 			))
 		}
