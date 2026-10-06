@@ -96,9 +96,12 @@ authorization, live events, backup and restore, and backend tests.
   `errors.Is(err, jetstream.ErrKeyExists)`. A replicated stream reports a
   conflict with a write in progress as code 10164. nats.go reports that code as
   `ErrKeyExists` only from `Create`. Errors from `Update`, a revision-checked
-  `Delete`, and raw publishes do not match it. Exception: a create-once publish
-  that accepts a conflict as a stored duplicate must accept only
-  `ErrKeyExists`, because a write in progress can still fail.
+  `Delete`, and raw publishes do not match it. A conflict does not prove that
+  the other write is stored, because a write in progress can still fail.
+  Thus, after `ErrKeyExists` from `Create`, read the key again before you use
+  the stored record. A raw create-once publish
+  (`WithExpectLastSequencePerSubject(0)`) can accept only `ErrKeyExists` as a
+  stored duplicate.
 - Give each KV watcher on `RUNTIME_STATE` exactly one key filter. JetStream
   scans every message block for a watcher with more than one filter. The
   bucket gets many writes and has thousands of sparse blocks. Thus, a
