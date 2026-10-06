@@ -47,16 +47,20 @@ root `pnpm turbo` script.
 The root script also sets `TURBO_CACHE=local:rw` when the caller does not set
 it. Local runs therefore use only the local cache, and no cache service
 receives source, build output, or logs. `turbo.json` enables remote caching
-only so that CI can select it.
+only so that CI can select it. A package script that runs Turbo must use
+`pnpm -w turbo`; plain `pnpm turbo` in a package runs Turbo without the root
+script.
 
 CI uses the GitHub Actions cache as the Turbo remote cache. The shared setup
 action starts `rharkor/caching-for-turbo`, pinned to a commit. The action runs
 a local cache server that stores one Actions cache entry for each task hash.
 All jobs share build and check results, and GitHub removes entries that are
 not used. Build output stays in the repository's Actions cache, with the Go and
-pnpm caches. Pushes to `main` write entries. Other runs only read them,
-because pull request caches are not visible to other branches. Release
-workflows turn the remote cache off, so release artifacts build from source.
+pnpm caches. Pushes to `main` write entries. Other runs only read them:
+pull request entries cannot help a merge run or other pull requests, and
+they would push `main`'s entries out of the size-limited Actions cache. Jobs
+that publish images or releases turn the remote cache off, so published
+artifacts build from source.
 
 Check tasks are cached. Lint and test tasks remain uncached. Use loose
 environment mode to retain existing release, test, and development settings.

@@ -9,7 +9,7 @@
     "node": ">=22.19.0"
   },
   "scripts": {
-    "build:dependencies": "pnpm turbo run build --filter=@chattocorp/chattobot^...",
+    "build:dependencies": "pnpm -w turbo run build --filter=@chattocorp/chattobot^...",
     "dev": "pnpm run build:dependencies && runling serve --watch",
     "start": "pnpm run build:dependencies && runling serve",
     "check": "tsc --noEmit",

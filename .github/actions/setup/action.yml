@@ -22,7 +22,7 @@ inputs:
     required: false
     default: ''
   turbo-remote-cache:
-    description: 'Use the GitHub Actions cache as the Turbo remote cache. Pushes to main write to it; other runs only read. Release workflows turn it off, so release artifacts build from source.'
+    description: 'Use the GitHub Actions cache as the Turbo remote cache. Pushes to main write to it; other runs only read. Jobs that publish images or releases turn it off, so published artifacts build from source.'
     required: false
     default: 'true'
 runs:
@@ -111,8 +111,9 @@ runs:
       if: inputs.install-frontend-deps == 'true' && inputs.turbo-remote-cache == 'true'
       uses: rharkor/caching-for-turbo@2238fae6eb9a9936f92356f54cb3660200d105e7 # v2.5.1
 
-    # Only main writes entries. Other runs read them: pull request caches are
-    # not visible to other branches, so their entries would only use storage.
+    # Only main writes entries. Other runs read them. Pull request entries
+    # cannot help a merge run or other pull requests, and they would push
+    # main's entries out of the size-limited Actions cache.
     - name: Select Turbo cache sources
       if: inputs.install-frontend-deps == 'true' && inputs.turbo-remote-cache == 'true'
       shell: bash
