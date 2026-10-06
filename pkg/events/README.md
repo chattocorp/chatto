@@ -137,6 +137,20 @@ For a single-record decision, `MutationResult.Committed` is false when
 JetStream acknowledges the stable message ID as a duplicate; callers can
 therefore distinguish a newly committed fact from an idempotent retry.
 
+Every write carries an OCC guard. An `Expectation` names the tail that must
+still have its expected last sequence:
+
+- `ExpectSubjectSeq(seq)` guards the record's own subject;
+- `ExpectFilterSeq(filter, seq)` guards an exact subject or a wildcard filter,
+  for example an aggregate's all-events filter; and
+- `ExpectStreamSeq(seq)` guards the complete stream.
+
+`AndStreamSeq` adds a stream guard to a subject guard. Pass the guard to
+`AppendAt`, or set it as `Expect` on an `EncodedBatchEntry`. Only the first
+batch entry can carry a stream guard, and at least one entry must carry a
+guard. `Append` and `AppendEventually` guard with the subject's current tail;
+`AppendEventually` retries the same record after a conflict.
+
 `EncodedRecord.TTL` optionally requests broker-side expiry for one record when
 the application-owned stream enables JetStream `AllowMsgTTL`. A zero value uses
 the stream retention policy. The framework only publishes the TTL header; the
