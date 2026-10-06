@@ -127,15 +127,15 @@ func (*subjectCountingProjection) Apply(string, uint64) error {
 
 func TestProjectorCachesProjectionSubjects(t *testing.T) {
 	projection := &subjectCountingProjection{}
-	projector := NewDecodedProjector(
-		nil,
-		nil,
+	projector := must(NewDecodedProjector(
+		stubJetStream{},
+		stubStream{},
 		projection,
 		func([]byte) (DecodedEvent[string], error) {
 			return DecodedEvent[string]{}, nil
 		},
-		nil,
-	)
+		ProjectorOptions{},
+	))
 
 	for range 10 {
 		_ = projector.Subjects()

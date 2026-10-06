@@ -56,23 +56,16 @@ func TestProjectorSnapshotLoadTimeoutFallsBackToColdReplay(t *testing.T) {
 	}
 
 	projection := &timeoutTestProjection{}
-	projector := NewDecodedProjector(
+	source := &timeoutSnapshotSource{canceled: make(chan struct{})}
+	projector := must(NewDecodedProjector(
 		js,
 		stream,
 		projection,
 		func(data []byte) (DecodedEvent[string], error) {
 			return DecodedEvent[string]{Event: string(data), ID: string(data)}, nil
 		},
-		nil,
-	)
-	source := &timeoutSnapshotSource{canceled: make(chan struct{})}
-	if err := projector.ConfigureSnapshots(
-		"timeout",
-		source,
-		func(*jetstream.StreamInfo) (string, error) { return "timeout-stream", nil },
-	); err != nil {
-		t.Fatal(err)
-	}
+		ProjectorOptions{Snapshots: &SnapshotOptions{Key: "timeout", Source: source, ResolveStreamIdentity: func(*jetstream.StreamInfo) (string, error) { return "timeout-stream", nil }}},
+	))
 	projector.snapshots.loadTimeout = 20 * time.Millisecond
 
 	runCtx, stop := context.WithCancel(context.Background())

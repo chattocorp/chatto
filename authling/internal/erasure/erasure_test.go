@@ -115,7 +115,10 @@ func TestDurableWorkerResumesPartialDestructionAndDuplicateDelivery(t *testing.T
 		t.Fatal(err)
 	}
 	projection := NewProjection()
-	handle := events.NewDecodedProjectionHandle(js, stream, projection, evtstream.Decode, logger)
+	handle, err := events.NewDecodedProjectionHandle(js, stream, projection, evtstream.Decode, events.ProjectorOptions{Logger: logger})
+	if err != nil {
+		t.Fatal(err)
+	}
 	runCtx, stop := context.WithCancel(ctx)
 	defer stop()
 	runErr := make(chan error, 1)

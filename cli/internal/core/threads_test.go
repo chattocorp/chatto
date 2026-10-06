@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -15,7 +14,9 @@ import (
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/events"
 )
 
 func TestPostThreadReplyWaitsForFollowProjectionBeforePlanningNotifications(t *testing.T) {
@@ -47,12 +48,12 @@ func TestPostThreadReplyWaitsForFollowProjectionBeforePlanningNotifications(t *t
 	}
 	testDeleteAllNotificationOccurrences(t, chattoCore, alice.Id)
 
-	delayedThreads := evtstream.NewProjectionHandle(
+	delayedThreads := mustProjector(evtstream.NewProjectionHandle(
 		chattoCore.js,
 		chattoCore.storage.serverEvtStream,
 		NewThreadProjection(),
-		testCoreLogger(),
-	)
+		events.ProjectorOptions{},
+	))
 	chattoCore.roomModel.threads = delayedThreads
 	type postResult struct {
 		event *evtv1.Event

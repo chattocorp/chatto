@@ -88,7 +88,10 @@ func newSafetyReplica(t *testing.T, js jetstream.JetStream, stream jetstream.Str
 	defer clear(key)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	publisher := evtstream.NewPublisher(events.NewEncodedEventLog(js, stream, logger))
-	handle := events.NewDecodedProjectionHandle(js, stream, NewProjection(vault, key), evtstream.Decode, logger)
+	handle, err := events.NewDecodedProjectionHandle(js, stream, NewProjection(vault, key), evtstream.Decode, events.ProjectorOptions{Logger: logger})
+	if err != nil {
+		t.Fatal(err)
+	}
 	service, err := NewService(ctx, publisher, handle, vault, 12)
 	if err != nil {
 		t.Fatal(err)

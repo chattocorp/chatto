@@ -17,6 +17,7 @@ import (
 	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
 	"hmans.de/chatto/internal/search"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/events"
 )
 
 type blockingStatusProjection struct {
@@ -43,7 +44,9 @@ func (p *blockingStatusProjection) Apply(*evtv1.Event, uint64) error {
 
 func TestNewProviderKeepsProjectionRuntimeTogether(t *testing.T) {
 	projection := &Projection{}
-	handle := evtstream.NewProjectionHandle(nil, nil, projection, log.New(io.Discard))
+	// The projector never runs, so it needs no NATS connection.
+	handle, err := evtstream.NewProjectionHandle(struct{ jetstream.JetStream }{}, struct{ jetstream.Stream }{}, projection, events.ProjectorOptions{})
+	require.NoError(t, err)
 	provider := newProvider(handle)
 
 	require.Same(t, projection, provider.projection.Projection())
@@ -84,7 +87,8 @@ func TestProviderStatusTransitionsFromIndexingToReady(t *testing.T) {
 		}
 	}
 	t.Cleanup(releaseProjection)
-	projector := evtstream.NewProjector(js, stream, projection, log.New(io.Discard))
+	projector, err := evtstream.NewProjector(js, stream, projection, events.ProjectorOptions{})
+	require.NoError(t, err)
 	runCtx, stop := context.WithCancel(context.Background())
 	t.Cleanup(stop)
 	go func() { _ = projector.Run(runCtx) }()
@@ -124,7 +128,8 @@ func TestProviderReportsFailedInitialReplayAsUnavailable(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	projector := evtstream.NewProjector(js, stream, &failingStatusProjection{}, log.New(io.Discard))
+	projector, err := evtstream.NewProjector(js, stream, &failingStatusProjection{}, events.ProjectorOptions{})
+	require.NoError(t, err)
 	go func() { _ = projector.Run(ctx) }()
 
 	require.Eventually(t, func() bool { return projector.Status().Failed }, 2*time.Second, 10*time.Millisecond)
@@ -144,7 +149,8 @@ func TestProviderReportsFailureAfterStartupAsDegraded(t *testing.T) {
 		Metadata: map[string]string{evtstream.IdentityMetadataKey: "evt-incarnation-v1:ffffffffffffffffffffffffffffffff"},
 	})
 	require.NoError(t, err)
-	projector := evtstream.NewProjector(js, stream, &failingStatusProjection{}, log.New(io.Discard))
+	projector, err := evtstream.NewProjector(js, stream, &failingStatusProjection{}, events.ProjectorOptions{})
+	require.NoError(t, err)
 	go func() { _ = projector.Run(ctx) }()
 	require.Eventually(t, func() bool { return projector.Status().StartupComplete }, 2*time.Second, 10*time.Millisecond)
 

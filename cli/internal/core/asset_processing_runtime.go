@@ -10,6 +10,7 @@ import (
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
+	"hmans.de/chatto/internal/logbridge"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -56,9 +57,13 @@ func NewAssetProcessingRuntime(
 	}
 	publisher := evtstream.NewPublisher(js, evt, logger)
 	projection := NewAssetProjection()
-	assets := evtstream.NewProjectionHandle(js, evt, projection, logger.WithPrefix("AssetsProjector"))
-	if err := assets.Projector().ConfigureConsumerIdentity("asset_processing", "Asset processing worker state"); err != nil {
-		return nil, fmt.Errorf("configure asset processing consumer identity: %w", err)
+	assets, err := evtstream.NewProjectionHandle(js, evt, projection, events.ProjectorOptions{
+		Logger:              logbridge.Slog(logger.WithPrefix("AssetsProjector")),
+		ConsumerName:        "asset_processing",
+		ConsumerDescription: "Asset processing worker state",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("construct asset processing projector: %w", err)
 	}
 
 	workerCore := &ChattoCore{

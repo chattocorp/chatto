@@ -11,6 +11,7 @@ import (
 
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 func TestNotificationDeliveryModesPatchSetClearAndValidation(t *testing.T) {
@@ -118,12 +119,12 @@ func TestGetNotificationPolicyWaitsForCurrentConfigProjection(t *testing.T) {
 		t.Fatalf("SetServerNotificationMode: %v", err)
 	}
 
-	delayedConfig := evtstream.NewProjectionHandle(
+	delayedConfig := mustProjector(evtstream.NewProjectionHandle(
 		chattoCore.js,
 		chattoCore.storage.serverEvtStream,
 		NewConfigProjection(),
-		testCoreLogger(),
-	)
+		events.ProjectorOptions{},
+	))
 	chattoCore.configModel = NewConfigModel(chattoCore.EventPublisher, delayedConfig)
 	type policyResult struct {
 		policy *NotificationPolicy

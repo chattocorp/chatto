@@ -46,50 +46,42 @@ type checkpointedProjectionState interface {
 	ResetCheckpoint(context.Context, ProjectionCheckpointRequest) error
 }
 
-// ConfigureCheckpoint enables projection-owned local checkpoint restore. The
-// identity resolver receives the same fresh stream information used for the
-// checkpoint bounds; its opaque result binds the local state to that stream
-// incarnation. It must be called before Run and cannot be combined with
-// snapshot restore.
-func (p *Projector) ConfigureCheckpoint(key string, resolveStreamIdentity StreamIdentityResolver) error {
-	if key == "" {
+// CheckpointOptions enables projection-owned local checkpoint restore for a
+// projection that implements CheckpointedProjection.
+type CheckpointOptions struct {
+	// Key is the stable projection key passed to the checkpoint methods.
+	Key string
+	// ResolveStreamIdentity receives the same fresh stream information used
+	// for the checkpoint bounds. Its opaque result binds the local state to
+	// that stream incarnation.
+	ResolveStreamIdentity StreamIdentityResolver
+}
+
+func (p *Projector) configureCheckpoint(opts CheckpointOptions) error {
+	if opts.Key == "" {
 		return fmt.Errorf("projection checkpoint key is required")
 	}
-	if resolveStreamIdentity == nil {
+	if opts.ResolveStreamIdentity == nil {
 		return fmt.Errorf("projection checkpoint stream identity resolver is required")
 	}
 	projection, ok := p.proj.(checkpointedProjectionState)
 	if !ok {
-		return fmt.Errorf("projection %q does not support local checkpoints", key)
+		return fmt.Errorf("projection %q does not support local checkpoints", opts.Key)
 	}
 	contractID := projection.CheckpointContractID()
 	if contractID == "" {
-		return fmt.Errorf("projection %q does not declare a checkpoint contract", key)
+		return fmt.Errorf("projection %q does not declare a checkpoint contract", opts.Key)
 	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.started {
-		return fmt.Errorf("configure projection checkpoint after projector start")
-	}
-	if p.snapshots.source != nil {
-		return fmt.Errorf("projection %q already uses snapshot restore", key)
-	}
-	if p.checkpointKey != "" {
-		return fmt.Errorf("projection %q checkpoint is already configured", key)
-	}
-	p.checkpointKey = key
+	p.checkpointKey = opts.Key
 	p.checkpointContractID = contractID
-	p.checkpointIdentityResolver = resolveStreamIdentity
+	p.checkpointIdentityResolver = opts.ResolveStreamIdentity
 	return nil
 }
 
 func (p *Projector) restoreCheckpointForRun(ctx context.Context, targetSeq uint64) error {
-	p.mu.Lock()
 	key := p.checkpointKey
 	contractID := p.checkpointContractID
 	resolveStreamIdentity := p.checkpointIdentityResolver
-	p.mu.Unlock()
 	if key == "" {
 		return fmt.Errorf("projection checkpoint is not configured")
 	}

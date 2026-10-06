@@ -220,9 +220,9 @@ func NewProjectionHandle[T any, P ProjectionPointer[T]](
 	js jetstream.JetStream,
 	stream jetstream.Stream,
 	projection P,
-	logger *log.Logger,
-) events.ProjectionHandle[P] {
-	return events.NewDecodedProjectionHandle(js, stream, projection, decodeEvent, logbridge.Slog(logger))
+	opts events.ProjectorOptions,
+) (events.ProjectionHandle[P], error) {
+	return events.NewDecodedProjectionHandle(js, stream, projection, decodeEvent, opts)
 }
 
 func decodeEvent(data []byte) (events.DecodedEvent[*notificationv1.NotificationEvent], error) {

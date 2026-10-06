@@ -156,7 +156,7 @@ func TestDecodedProjectionHandleRejectsNilProjection(t *testing.T) {
 			t.Fatal("NewDecodedProjectionHandle accepted a nil projection")
 		}
 	}()
-	NewDecodedProjectionHandle(nil, nil, projection, decodeCodecTestEvent, testLogger())
+	must(NewDecodedProjectionHandle(nil, nil, projection, decodeCodecTestEvent, ProjectorOptions{Logger: testLogger()}))
 }
 
 func TestDecodedProjectorRejectsTypedNilProjection(t *testing.T) {
@@ -166,7 +166,7 @@ func TestDecodedProjectorRejectsTypedNilProjection(t *testing.T) {
 			t.Fatalf("NewDecodedProjector panic = %v, want nil projection guard", got)
 		}
 	}()
-	NewDecodedProjector(nil, nil, projection, decodeCodecTestEvent, testLogger())
+	must(NewDecodedProjector(nil, nil, projection, decodeCodecTestEvent, ProjectorOptions{Logger: testLogger()}))
 }
 
 func TestDecodedProjectorRejectsValueProjection(t *testing.T) {
@@ -176,21 +176,21 @@ func TestDecodedProjectorRejectsValueProjection(t *testing.T) {
 		}
 	}()
 
-	NewDecodedProjector(nil, nil, valueCodecTestProjection{}, decodeCodecTestEvent, testLogger())
+	must(NewDecodedProjector(nil, nil, valueCodecTestProjection{}, decodeCodecTestEvent, ProjectorOptions{Logger: testLogger()}))
 }
 
 func TestDecodedProjectorAllowsNilLogger(t *testing.T) {
 	js, stream := setupTestStream(t)
 	projection := &nilSafeCodecTestProjection{}
-	projector := NewDecodedProjector(
+	projector := must(NewDecodedProjector(
 		js,
 		stream,
 		projection,
 		func([]byte) (DecodedEvent[codecTestEvent], error) {
 			return DecodedEvent[codecTestEvent]{Event: codecTestEvent{name: "event"}, ID: "event"}, nil
 		},
-		nil,
-	)
+		ProjectorOptions{},
+	))
 
 	stop := runConsumerProjector(t, projector)
 	defer stop()
@@ -201,15 +201,15 @@ func TestDecodedProjectorAllowsNilLogger(t *testing.T) {
 
 func TestProjectorRejectsRepeatedRun(t *testing.T) {
 	js, stream := setupTestStream(t)
-	projector := NewDecodedProjector(
+	projector := must(NewDecodedProjector(
 		js,
 		stream,
 		&nilSafeCodecTestProjection{},
 		func([]byte) (DecodedEvent[codecTestEvent], error) {
 			return DecodedEvent[codecTestEvent]{Event: codecTestEvent{name: "event"}, ID: "event"}, nil
 		},
-		testLogger(),
-	)
+		ProjectorOptions{Logger: testLogger()},
+	))
 	stop := runConsumerProjector(t, projector)
 	waitFor(t, 2*time.Second, func() bool { return projector.Status().StartupComplete })
 	if err := projector.Run(context.Background()); !errors.Is(err, ErrProjectorAlreadyStarted) {
@@ -227,13 +227,10 @@ func TestProjectorRejectsMismatchedSnapshotBinding(t *testing.T) {
 	}
 
 	projection := &codecTestProjection{subject: "evt.codec.binding.created"}
-	projector := NewDecodedProjector(js, stream, projection, decodeCodecTestEvent, testLogger())
 	identity := "codec-stream"
-	if err := projector.ConfigureSnapshots("codec", mismatchedCodecSnapshotSource{}, func(*jetstream.StreamInfo) (string, error) {
+	projector := must(NewDecodedProjector(js, stream, projection, decodeCodecTestEvent, ProjectorOptions{Logger: testLogger(), Snapshots: &SnapshotOptions{Key: "codec", Source: mismatchedCodecSnapshotSource{}, ResolveStreamIdentity: func(*jetstream.StreamInfo) (string, error) {
 		return identity, nil
-	}); err != nil {
-		t.Fatal(err)
-	}
+	}}}))
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -250,17 +247,14 @@ func TestProjectorRejectsMismatchedSnapshotBinding(t *testing.T) {
 func TestProjectorFailsWhenSnapshotStreamChangesDuringLoad(t *testing.T) {
 	js, stream := setupTestStream(t)
 	projection := &codecTestProjection{subject: "evt.codec.binding.changed"}
-	projector := NewDecodedProjector(js, stream, projection, decodeCodecTestEvent, testLogger())
 	identityCalls := 0
-	if err := projector.ConfigureSnapshots("codec", requestBoundCodecSnapshotSource{}, func(*jetstream.StreamInfo) (string, error) {
+	projector := must(NewDecodedProjector(js, stream, projection, decodeCodecTestEvent, ProjectorOptions{Logger: testLogger(), Snapshots: &SnapshotOptions{Key: "codec", Source: requestBoundCodecSnapshotSource{}, ResolveStreamIdentity: func(*jetstream.StreamInfo) (string, error) {
 		identityCalls++
 		if identityCalls >= 3 {
 			return "changed-stream", nil
 		}
 		return "codec-stream", nil
-	}); err != nil {
-		t.Fatal(err)
-	}
+	}}}))
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -296,7 +290,7 @@ func TestDecodedProjectorReplaysApplicationCodecInOrder(t *testing.T) {
 	}
 
 	projection := &codecTestProjection{subject: subject}
-	handle := NewDecodedProjectionHandle(js, stream, projection, decodeCodecTestEvent, testLogger())
+	handle := must(NewDecodedProjectionHandle(js, stream, projection, decodeCodecTestEvent, ProjectorOptions{Logger: testLogger()}))
 	if handle.Projection() != projection {
 		t.Fatal("decoded projection handle did not retain the projection")
 	}
@@ -345,7 +339,7 @@ func TestDecodedProjectorPreservesGenericStartupBatching(t *testing.T) {
 	projection := &codecTestBatchProjection{
 		codecTestProjection: codecTestProjection{subject: subject},
 	}
-	projector := NewDecodedProjector(js, stream, projection, decodeCodecTestEvent, testLogger())
+	projector := must(NewDecodedProjector(js, stream, projection, decodeCodecTestEvent, ProjectorOptions{Logger: testLogger()}))
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go func() { _ = projector.Run(runCtx) }()
@@ -373,15 +367,15 @@ func TestDecodedProjectorReportsApplicationDecodeFailure(t *testing.T) {
 
 	decodeErr := errors.New("application codec rejected record")
 	projection := &codecTestProjection{subject: subject}
-	projector := NewDecodedProjector(
+	projector := must(NewDecodedProjector(
 		js,
 		stream,
 		projection,
 		func([]byte) (DecodedEvent[codecTestEvent], error) {
 			return DecodedEvent[codecTestEvent]{}, decodeErr
 		},
-		testLogger(),
-	)
+		ProjectorOptions{Logger: testLogger()},
+	))
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	errCh := make(chan error, 1)
@@ -426,10 +420,7 @@ func TestSinglePayloadSnapshotRoundTrip(t *testing.T) {
 	resolveIdentity := func(*jetstream.StreamInfo) (string, error) { return "codec-stream", nil }
 
 	first := &codecTestProjection{subject: subject}
-	firstProjector := NewDecodedProjector(js, stream, first, decodeCodecTestEvent, testLogger())
-	if err := firstProjector.ConfigureSnapshots("codec", &capturedSnapshotSource{}, resolveIdentity); err != nil {
-		t.Fatal(err)
-	}
+	firstProjector := must(NewDecodedProjector(js, stream, first, decodeCodecTestEvent, ProjectorOptions{Logger: testLogger(), Snapshots: &SnapshotOptions{Key: "codec", Source: &capturedSnapshotSource{}, ResolveStreamIdentity: resolveIdentity}}))
 	runCtx, cancel := context.WithCancel(ctx)
 	t.Cleanup(cancel)
 	go func() { _ = firstProjector.Run(runCtx) }()
@@ -451,10 +442,7 @@ func TestSinglePayloadSnapshotRoundTrip(t *testing.T) {
 
 	source := &capturedSnapshotSource{snapshot: captured}
 	second := &codecTestProjection{subject: subject}
-	secondProjector := NewDecodedProjector(js, stream, second, decodeCodecTestEvent, testLogger())
-	if err := secondProjector.ConfigureSnapshots("codec", source, resolveIdentity); err != nil {
-		t.Fatal(err)
-	}
+	secondProjector := must(NewDecodedProjector(js, stream, second, decodeCodecTestEvent, ProjectorOptions{Logger: testLogger(), Snapshots: &SnapshotOptions{Key: "codec", Source: source, ResolveStreamIdentity: resolveIdentity}}))
 	go func() { _ = secondProjector.Run(runCtx) }()
 	if err := secondProjector.WaitForStartup(ctx); err != nil {
 		t.Fatal(err)
@@ -494,13 +482,10 @@ func TestSinglePayloadSnapshotRejectsComponentMismatch(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			projection := &codecTestProjection{subject: subject}
-			projector := NewDecodedProjector(js, stream, projection, decodeCodecTestEvent, testLogger())
 			source := &capturedSnapshotSource{}
-			if err := projector.ConfigureSnapshots("codec", source, func(info *jetstream.StreamInfo) (string, error) {
+			projector := must(NewDecodedProjector(js, stream, projection, decodeCodecTestEvent, ProjectorOptions{Logger: testLogger(), Snapshots: &SnapshotOptions{Key: "codec", Source: source, ResolveStreamIdentity: func(info *jetstream.StreamInfo) (string, error) {
 				return "codec-stream", nil
-			}); err != nil {
-				t.Fatal(err)
-			}
+			}}}))
 			source.snapshot = ProjectionSnapshot{
 				ContractID: "codec-test-v1", StreamName: stream.CachedInfo().Config.Name,
 				StreamIdentity: "codec-stream", CutoffSequence: seq, Components: components,
@@ -556,7 +541,7 @@ func TestPreparedProjectorUsesSubjectEventReducer(t *testing.T) {
 		}
 	}
 	projection := &subjectPreparedProjection{}
-	projector := NewDecodedPreparedProjector(js, stream, projection, decodeCodecTestEvent, testLogger())
+	projector := must(NewDecodedPreparedProjector(js, stream, projection, decodeCodecTestEvent, ProjectorOptions{Logger: testLogger()}))
 	runCtx, cancel := context.WithCancel(ctx)
 	t.Cleanup(cancel)
 	go func() { _ = projector.Run(runCtx) }()
@@ -586,7 +571,7 @@ func TestProjectorResetsSnapshotStateBeforeColdReplay(t *testing.T) {
 	js, stream := setupTestStream(t)
 	ctx := testContext(t)
 	projection := &resetRecordingProjection{codecTestProjection: codecTestProjection{subject: "evt.codec.reset.created"}}
-	projector := NewDecodedProjector(js, stream, projection, decodeCodecTestEvent, testLogger())
+	projector := must(NewDecodedProjector(js, stream, projection, decodeCodecTestEvent, ProjectorOptions{Logger: testLogger()}))
 	runCtx, cancel := context.WithCancel(ctx)
 	t.Cleanup(cancel)
 	go func() { _ = projector.Run(runCtx) }()
@@ -595,5 +580,41 @@ func TestProjectorResetsSnapshotStateBeforeColdReplay(t *testing.T) {
 	}
 	if len(projection.restores) != 1 || projection.restores[0] != nil {
 		t.Fatalf("Restore calls = %q, want one Restore(nil)", projection.restores)
+	}
+}
+
+// Invalid projector options fail construction instead of a later Run.
+func TestProjectorRejectsInvalidOptions(t *testing.T) {
+	js, stream := setupTestStream(t)
+	resolve := func(*jetstream.StreamInfo) (string, error) { return "codec-stream", nil }
+	snapshots := &SnapshotOptions{Key: "codec", Source: &capturedSnapshotSource{}, ResolveStreamIdentity: resolve}
+	for name, test := range map[string]struct {
+		projection EventProjection[codecTestEvent]
+		opts       ProjectorOptions
+	}{
+		"snapshots and checkpoint": {&codecTestProjection{subject: "evt.codec.options"}, ProjectorOptions{
+			Snapshots: snapshots, Checkpoint: &CheckpointOptions{Key: "codec", ResolveStreamIdentity: resolve},
+		}},
+		"snapshot without key": {&codecTestProjection{subject: "evt.codec.options"}, ProjectorOptions{
+			Snapshots: &SnapshotOptions{Source: &capturedSnapshotSource{}, ResolveStreamIdentity: resolve},
+		}},
+		"snapshot without source": {&codecTestProjection{subject: "evt.codec.options"}, ProjectorOptions{
+			Snapshots: &SnapshotOptions{Key: "codec", ResolveStreamIdentity: resolve},
+		}},
+		"empty snapshot stream identity": {&codecTestProjection{subject: "evt.codec.options"}, ProjectorOptions{
+			Snapshots: &SnapshotOptions{Key: "codec", Source: &capturedSnapshotSource{}, ResolveStreamIdentity: func(*jetstream.StreamInfo) (string, error) {
+				return "", nil
+			}},
+		}},
+		"snapshots without snapshot support": {&nilSafeCodecTestProjection{}, ProjectorOptions{Snapshots: snapshots}},
+		"checkpoint without checkpoint support": {&codecTestProjection{subject: "evt.codec.options"}, ProjectorOptions{
+			Checkpoint: &CheckpointOptions{Key: "codec", ResolveStreamIdentity: resolve},
+		}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := NewDecodedProjector(js, stream, test.projection, decodeCodecTestEvent, test.opts); err == nil {
+				t.Fatal("NewDecodedProjector accepted invalid options")
+			}
+		})
 	}
 }

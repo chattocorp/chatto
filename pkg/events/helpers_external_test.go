@@ -80,3 +80,12 @@ func waitFor(t *testing.T, timeout time.Duration, condition func() bool) {
 		time.Sleep(time.Millisecond)
 	}
 }
+
+// must returns value or panics with err. Tests use it for constructors that
+// must succeed.
+func must[T any](value T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return value
+}

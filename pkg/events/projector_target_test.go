@@ -25,10 +25,10 @@ func TestProjectorCurrentTargetSeqUsesHighestMatchingFilter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	projector := NewDecodedProjector(js, stream, &multiSubjectTargetProjection{},
+	projector := must(NewDecodedProjector(js, stream, &multiSubjectTargetProjection{},
 		func([]byte) (DecodedEvent[codecTestEvent], error) {
 			return DecodedEvent[codecTestEvent]{}, nil
-		}, testLogger())
+		}, ProjectorOptions{Logger: testLogger()}))
 
 	for _, subject := range []string{"evt.target.x.b", "evt.target.a", "evt.target.y.b", "evt.target.unmatched"} {
 		if _, err := js.Publish(ctx, subject, []byte(subject)); err != nil {

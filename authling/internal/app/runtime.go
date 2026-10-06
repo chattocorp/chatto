@@ -120,27 +120,34 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger *slog.
 		return closeOnError(fmt.Errorf("open workflow key: %w", err))
 	}
 	publisher := evtstream.NewPublisher(eventLog)
-	erasureHandle := events.NewDecodedProjectionHandle(js, stream, erasure.NewProjection(), evtstream.Decode, logger)
+	projectorOptions := events.ProjectorOptions{Logger: logger}
+	erasureHandle, err := events.NewDecodedProjectionHandle(js, stream, erasure.NewProjection(), evtstream.Decode, projectorOptions)
+	if err != nil {
+		return closeOnError(fmt.Errorf("construct erasure projector: %w", err))
+	}
 	erasureService := erasure.New(publisher, erasureHandle, vault)
 	projection := accounts.NewProjection(vault, workflowKey)
 	projection.SetErasureChecker(erasureService.IsRequested)
-	handle := events.NewDecodedProjectionHandle(
-		js,
-		stream,
-		projection,
-		evtstream.Decode,
-		logger,
-	)
+	handle, err := events.NewDecodedProjectionHandle(js, stream, projection, evtstream.Decode, projectorOptions)
+	if err != nil {
+		return closeOnError(fmt.Errorf("construct account projector: %w", err))
+	}
 	accountService, err := accounts.NewService(ctx, publisher, handle, vault, cfg.Authentication.PasswordMinimumLengthOrDefault())
 	if err != nil {
 		return closeOnError(fmt.Errorf("open account service: %w", err))
 	}
 	sessionService := sessions.New(stores.RuntimeState, js, workflowKey, accountService.AuthenticationVersion)
 	issuerProjection := issuer.NewProjection()
-	issuerHandle := events.NewDecodedProjectionHandle(js, stream, issuerProjection, evtstream.Decode, logger)
+	issuerHandle, err := events.NewDecodedProjectionHandle(js, stream, issuerProjection, evtstream.Decode, projectorOptions)
+	if err != nil {
+		return closeOnError(fmt.Errorf("construct issuer projector: %w", err))
+	}
 	issuerService := issuer.NewService(publisher, issuerHandle, vault, cfg.HTTP.PublicURLOrDefault(), cfg.OIDC.SigningKeyRotationInterval(), issuerOptions...)
 	authorizationProjection := authorizations.NewProjection()
-	authorizationHandle := events.NewDecodedProjectionHandle(js, stream, authorizationProjection, evtstream.Decode, logger)
+	authorizationHandle, err := events.NewDecodedProjectionHandle(js, stream, authorizationProjection, evtstream.Decode, projectorOptions)
+	if err != nil {
+		return closeOnError(fmt.Errorf("construct authorization projector: %w", err))
+	}
 	authorizationService, err := authorizations.NewService(publisher, authorizationHandle, workflowKey, vault)
 	if err != nil {
 		return closeOnError(fmt.Errorf("open authorization grant service: %w", err))

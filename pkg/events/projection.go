@@ -1,8 +1,6 @@
 package events
 
 import (
-	"fmt"
-	"log/slog"
 	"reflect"
 	"sync"
 
@@ -53,15 +51,16 @@ func NewDecodedProjectionHandle[T, E any, P EventProjectionPointer[T, E]](
 	stream jetstream.Stream,
 	projection P,
 	decoder EventDecoder[E],
-	logger *slog.Logger,
-) ProjectionHandle[P] {
+	opts ProjectorOptions,
+) (ProjectionHandle[P], error) {
 	if projection == nil {
 		panic("events: decoded projection handle requires a non-nil projection")
 	}
-	return ProjectionHandle[P]{
-		projection: projection,
-		projector:  NewDecodedProjector(js, stream, projection, decoder, logger),
+	projector, err := NewDecodedProjector(js, stream, projection, decoder, opts)
+	if err != nil {
+		return ProjectionHandle[P]{}, err
 	}
+	return ProjectionHandle[P]{projection: projection, projector: projector}, nil
 }
 
 // NewDecodedPreparedProjectionHandle constructs a typed prepared projection
@@ -71,33 +70,30 @@ func NewDecodedPreparedProjectionHandle[T, E any, P PreparedEventProjectionPoint
 	stream jetstream.Stream,
 	projection P,
 	decoder EventDecoder[E],
-	logger *slog.Logger,
-) ProjectionHandle[P] {
+	opts ProjectorOptions,
+) (ProjectionHandle[P], error) {
 	if projection == nil {
 		panic("events: decoded prepared projection handle requires a non-nil projection")
 	}
-	return ProjectionHandle[P]{
-		projection: projection,
-		projector:  NewDecodedPreparedProjector(js, stream, projection, decoder, logger),
-	}
-}
-
-// BindDecodedProjectionHandle joins a decoded event projection to an
-// already-constructed Projector. It rejects a projector that owns a different
-// projection. Prefer NewDecodedProjectionHandle when constructing a new
-// runtime; this adapter exists for lifecycle code that must configure the
-// Projector before handing it onward.
-func BindDecodedProjectionHandle[T, E any, P EventProjectionPointer[T, E]](projection P, projector *Projector) (ProjectionHandle[P], error) {
-	if projection == nil {
-		return ProjectionHandle[P]{}, fmt.Errorf("projection is nil")
-	}
-	if projector == nil {
-		return ProjectionHandle[P]{}, fmt.Errorf("projection projector is nil")
-	}
-	if !projector.ownsProjection(projection) {
-		return ProjectionHandle[P]{}, fmt.Errorf("projector owns a different projection")
+	projector, err := NewDecodedPreparedProjector(js, stream, projection, decoder, opts)
+	if err != nil {
+		return ProjectionHandle[P]{}, err
 	}
 	return ProjectionHandle[P]{projection: projection, projector: projector}, nil
+}
+
+// BindDecodedProjectionHandle joins a decoded event projection to an existing
+// Projector that owns it, either directly or through a ProjectionOwner such as
+// ComponentizedProjection. It panics when an argument is nil or when the
+// projector owns a different projection, because both are wiring errors.
+func BindDecodedProjectionHandle[T, E any, P EventProjectionPointer[T, E]](projection P, projector *Projector) ProjectionHandle[P] {
+	if projection == nil || projector == nil {
+		panic("events: binding a projection handle requires a projection and a projector")
+	}
+	if !projector.ownsProjection(projection) {
+		panic("events: projector owns a different projection")
+	}
+	return ProjectionHandle[P]{projection: projection, projector: projector}
 }
 
 // Projection returns the typed read model owned by the handle.

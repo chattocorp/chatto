@@ -43,15 +43,15 @@ func (p *blockingStartupCompletionProjection) CompleteStartupReplay() {
 
 func TestProjectorCompletesStartupReplayOnceAcrossReentry(t *testing.T) {
 	projection := &startupCompletionProjection{}
-	projector := NewDecodedProjector(
-		nil,
-		nil,
+	projector := must(NewDecodedProjector(
+		stubJetStream{},
+		stubStream{},
 		projection,
 		func([]byte) (DecodedEvent[struct{}], error) {
 			return DecodedEvent[struct{}]{Event: struct{}{}, ID: "test"}, nil
 		},
-		nil,
-	)
+		ProjectorOptions{},
+	))
 	projector.started = true
 
 	projector.maybeCompleteStartup(time.Now())
@@ -66,15 +66,15 @@ func TestProjectorCompletesStartupReplayOnceAcrossReentry(t *testing.T) {
 }
 
 func TestProjectorWaitForStartupHonorsContext(t *testing.T) {
-	projector := NewDecodedProjector(
-		nil,
-		nil,
+	projector := must(NewDecodedProjector(
+		stubJetStream{},
+		stubStream{},
 		&startupCompletionProjection{},
 		func([]byte) (DecodedEvent[struct{}], error) {
 			return DecodedEvent[struct{}]{Event: struct{}{}, ID: "test"}, nil
 		},
-		nil,
-	)
+		ProjectorOptions{},
+	))
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
@@ -84,15 +84,15 @@ func TestProjectorWaitForStartupHonorsContext(t *testing.T) {
 }
 
 func TestProjectorWaitForStartupReturnsProjectionFailure(t *testing.T) {
-	projector := NewDecodedProjector(
-		nil,
-		nil,
+	projector := must(NewDecodedProjector(
+		stubJetStream{},
+		stubStream{},
 		&startupCompletionProjection{},
 		func([]byte) (DecodedEvent[struct{}], error) {
 			return DecodedEvent[struct{}]{Event: struct{}{}, ID: "test"}, nil
 		},
-		nil,
-	)
+		ProjectorOptions{},
+	))
 	projector.fail(0, errors.New("decode failed"))
 
 	if err := projector.WaitForStartup(t.Context()); !errors.Is(err, ErrProjectionFailed) {
@@ -105,15 +105,15 @@ func TestProjectorWaitForStartupIncludesCompletionHook(t *testing.T) {
 		started: make(chan struct{}),
 		release: make(chan struct{}),
 	}
-	projector := NewDecodedProjector(
-		nil,
-		nil,
+	projector := must(NewDecodedProjector(
+		stubJetStream{},
+		stubStream{},
 		projection,
 		func([]byte) (DecodedEvent[struct{}], error) {
 			return DecodedEvent[struct{}]{Event: struct{}{}, ID: "test"}, nil
 		},
-		nil,
-	)
+		ProjectorOptions{},
+	))
 	projector.started = true
 	startupFinished := make(chan struct{})
 	go func() {
@@ -146,15 +146,15 @@ func TestProjectorWaitForStartupIncludesCompletionHook(t *testing.T) {
 // barrier, so a concurrent apply cannot observe one without the other.
 func TestProjectorCompletesStartupInsideApplyBarrier(t *testing.T) {
 	projection := &startupCompletionProjection{}
-	projector := NewDecodedProjector(
-		nil,
-		nil,
+	projector := must(NewDecodedProjector(
+		stubJetStream{},
+		stubStream{},
 		projection,
 		func([]byte) (DecodedEvent[struct{}], error) {
 			return DecodedEvent[struct{}]{Event: struct{}{}, ID: "test"}, nil
 		},
-		nil,
-	)
+		ProjectorOptions{},
+	))
 	projector.started = true
 
 	// Hold the barrier as an in-progress apply does.

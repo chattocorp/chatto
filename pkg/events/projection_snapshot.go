@@ -140,8 +140,8 @@ func resolveProjectionStreamIdentity(info *jetstream.StreamInfo, resolve StreamI
 	return identity, nil
 }
 
-// projectorSnapshots is the snapshot configuration of one Projector. Fields
-// are guarded by Projector.mu.
+// projectorSnapshots is the snapshot configuration of one Projector. It does
+// not change after construction.
 type projectorSnapshots struct {
 	key        string
 	contractID string
@@ -151,10 +151,7 @@ type projectorSnapshots struct {
 	// configuredIdentity is the identity resolved by ConfigureSnapshots. Run
 	// uses it when it cannot read fresh stream information.
 	configuredIdentity string
-	// runIdentity is the identity bound to the current run. Capture rejects a
-	// stream whose identity differs from it.
-	runIdentity string
-	loadTimeout time.Duration
+	loadTimeout        time.Duration
 }
 
 // payloadSnapshotter is the state interface of SnapshotProjection without the
@@ -236,43 +233,44 @@ func statePartPayload(component ProjectionSnapshotComponent, key, contractID str
 	return component.Parts[0].Payload, nil
 }
 
-// ConfigureSnapshots enables best-effort bootstrap restore for a projection
-// that implements SnapshotProjection or ComponentSnapshotProjection. The
-// identity resolver receives the same fresh stream information used by the
-// restore request. It must be called before Run and cannot be combined with a
-// local checkpoint. A load or restore failure is logged and falls back to an
-// empty projection followed by full event replay.
-func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSource, resolveStreamIdentity StreamIdentityResolver) error {
-	if key == "" {
+// SnapshotOptions enables best-effort bootstrap restore for a projection that
+// implements SnapshotProjection or ComponentSnapshotProjection. A load or
+// restore failure is logged and falls back to an empty projection followed by
+// full event replay.
+type SnapshotOptions struct {
+	// Key is the stable projection key passed to the snapshot source.
+	Key string
+	// Source loads persisted snapshots.
+	Source ProjectionSnapshotSource
+	// ResolveStreamIdentity receives the same fresh stream information used
+	// by the restore request. Its opaque result binds snapshots to that
+	// stream incarnation.
+	ResolveStreamIdentity StreamIdentityResolver
+}
+
+func (p *Projector) configureSnapshots(opts SnapshotOptions) error {
+	if opts.Key == "" {
 		return fmt.Errorf("projection snapshot key is required")
 	}
-	if source == nil {
+	if opts.Source == nil {
 		return fmt.Errorf("projection snapshot source is nil")
 	}
-	if resolveStreamIdentity == nil {
+	if opts.ResolveStreamIdentity == nil {
 		return fmt.Errorf("projection snapshot stream identity resolver is required")
 	}
-	configuredIdentity, err := resolveProjectionStreamIdentity(p.stream.CachedInfo(), resolveStreamIdentity)
+	configuredIdentity, err := resolveProjectionStreamIdentity(p.stream.CachedInfo(), opts.ResolveStreamIdentity)
 	if err != nil {
 		return fmt.Errorf("resolve projection snapshot stream identity: %w", err)
 	}
 	state, ok := snapshotStateOf(p.proj)
 	if !ok || state.SnapshotContractID() == "" {
-		return fmt.Errorf("projection %q does not declare a snapshot contract", key)
-	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.started {
-		return fmt.Errorf("configure projection snapshots after projector start")
-	}
-	if p.checkpointKey != "" {
-		return fmt.Errorf("projection %q already uses a local checkpoint", key)
+		return fmt.Errorf("projection %q does not declare a snapshot contract", opts.Key)
 	}
 	p.snapshots = projectorSnapshots{
-		key:                key,
+		key:                opts.Key,
 		contractID:         state.SnapshotContractID(),
-		source:             source,
-		resolveIdentity:    resolveStreamIdentity,
+		source:             opts.Source,
+		resolveIdentity:    opts.ResolveStreamIdentity,
 		configuredIdentity: configuredIdentity,
 		loadTimeout:        projectionSnapshotLoadTimeout,
 	}
@@ -282,8 +280,6 @@ func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSour
 // SnapshotContractID returns the contract captured when snapshots were
 // configured. Restore and publication must use this single value.
 func (p *Projector) SnapshotContractID() string {
-	p.mu.Lock()
-	defer p.mu.Unlock()
 	return p.snapshots.contractID
 }
 
@@ -292,8 +288,9 @@ func (p *Projector) SnapshotContractID() string {
 // apply barrier. An empty payload is valid canonical state and still carries
 // the projection's replay cutoff.
 func (p *Projector) CaptureSnapshot(ctx context.Context) (ProjectionSnapshot, error) {
-	p.mu.Lock()
 	snapshots := p.snapshots
+	p.mu.Lock()
+	runIdentity := p.snapshotRunIdentity
 	p.mu.Unlock()
 	state, ok := snapshotStateOf(p.proj)
 	if !ok {
@@ -307,7 +304,7 @@ func (p *Projector) CaptureSnapshot(ctx context.Context) (ProjectionSnapshot, er
 		if err != nil {
 			return fmt.Errorf("resolve stream identity %s snapshot capture: %w", stage, err)
 		}
-		if snapshots.runIdentity == "" || currentIdentity != snapshots.runIdentity {
+		if runIdentity == "" || currentIdentity != runIdentity {
 			return fmt.Errorf("stream identity changed during projector run")
 		}
 		return nil
@@ -338,7 +335,7 @@ func (p *Projector) CaptureSnapshot(ctx context.Context) (ProjectionSnapshot, er
 		ContractID:     snapshots.contractID,
 		StreamName:     p.stream.CachedInfo().Config.Name,
 		CutoffSequence: seq,
-		StreamIdentity: snapshots.runIdentity,
+		StreamIdentity: runIdentity,
 		Components:     components,
 	}, nil
 }
@@ -377,17 +374,13 @@ func (p *Projector) RecordSnapshotPublication(cutoff uint64, createdAt time.Time
 // local checkpoint, from a snapshot, or empty for a cold replay. The caller
 // holds applyMu.
 func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
-	p.mu.Lock()
-	checkpointKey := p.checkpointKey
-	snapshots := p.snapshots
-	p.mu.Unlock()
-	if checkpointKey != "" {
+	if p.checkpointKey != "" {
 		return p.restoreCheckpointForRun(ctx, targetSeq)
 	}
-	if snapshots.source == nil {
+	if p.snapshots.source == nil {
 		return p.resetForColdReplay()
 	}
-	return p.restoreSnapshotForRun(ctx, targetSeq, snapshots)
+	return p.restoreSnapshotForRun(ctx, targetSeq, p.snapshots)
 }
 
 // resetForColdReplay installs empty projection state before a replay of the
@@ -405,7 +398,7 @@ func (p *Projector) resetForColdReplay() error {
 func (p *Projector) setRunStreamIdentity(identity string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.snapshots.runIdentity = identity
+	p.snapshotRunIdentity = identity
 }
 
 func (p *Projector) restoreSnapshotForRun(ctx context.Context, targetSeq uint64, snapshots projectorSnapshots) error {

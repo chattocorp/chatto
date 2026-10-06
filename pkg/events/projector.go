@@ -90,8 +90,8 @@ type Projector struct {
 	replaySubjects  []string
 	subjectMatchers []compiledSubjectFilter
 
-	// Consumer identity is application-owned diagnostic text, guarded by mu
-	// and frozen by Run.
+	// Consumer identity is application-owned diagnostic text. It does not
+	// change after construction.
 	consumerName        string
 	consumerDescription string
 
@@ -121,7 +121,11 @@ type Projector struct {
 	// projectionStartupReconcileInterval.
 	startupReconcileInterval time.Duration
 
-	snapshots            projectorSnapshots
+	// snapshots and the checkpoint fields do not change after construction.
+	snapshots projectorSnapshots
+	// snapshotRunIdentity is the stream identity bound to the current run.
+	// CaptureSnapshot rejects a stream whose identity differs from it.
+	snapshotRunIdentity  string
 	restoredSeq          uint64
 	restoredGenerationID string
 	snapshotRestored     bool
@@ -170,23 +174,54 @@ type seqWaiter struct {
 	ch  chan struct{}
 }
 
+// ProjectorOptions configures a Projector at construction. The zero value is
+// valid: it discards diagnostics, uses the SDK's consumer name, and replays the
+// complete retained history on every run.
+type ProjectorOptions struct {
+	// Logger receives diagnostics. Nil discards them.
+	Logger *slog.Logger
+	// ConsumerName labels the ephemeral consumer. It must contain at most 64
+	// ASCII letters, digits, hyphens, or underscores. Run adds a random
+	// suffix so replicas never share a consumer. Empty uses the SDK's name.
+	ConsumerName string
+	// ConsumerDescription is stored in consumer metadata because the
+	// ordered-consumer API has no description field.
+	//
+	// The consumer labels must not contain personal data or secrets. They do
+	// not change snapshot identities or create a durable consumer.
+	ConsumerDescription string
+	// Snapshots enables snapshot restore. It cannot be combined with
+	// Checkpoint.
+	Snapshots *SnapshotOptions
+	// Checkpoint enables local checkpoint restore. It cannot be combined
+	// with Snapshots.
+	Checkpoint *CheckpointOptions
+}
+
 // NewDecodedProjector binds a non-nil pointer projection and decoder to a
 // stream. It does not start the consumer; call Run for that. Requiring a
 // pointer prevents the projector and application read side from receiving
 // separate value copies of mutable projection state. The decoder is the only
 // boundary between opaque stored records and application event values.
+//
+// It panics when a required argument is nil or the projection is not a
+// pointer. It returns an error when opts are invalid or when the snapshot
+// stream identity cannot be resolved.
 func NewDecodedProjector[E any](
 	js jetstream.JetStream,
 	stream jetstream.Stream,
 	proj EventProjection[E],
 	decoder EventDecoder[E],
-	logger *slog.Logger,
-) *Projector {
+	opts ProjectorOptions,
+) (*Projector, error) {
 	// Apply changes state during preparation. Both run under the apply
 	// barrier, so the result equals a prepared mutation with no commit step.
-	p := newProjector(js, stream, proj, decoder, logger, func(event E, _ string, seq uint64) (PreparedMutation, error) {
+	p, err := newProjector(js, stream, proj, decoder, opts, func(event E, _ string, seq uint64) (PreparedMutation, error) {
 		return nil, proj.Apply(event, seq)
 	})
+	if err != nil {
+		return nil, err
+	}
 	if projection, ok := proj.(StartupBatchEventProjection[E]); ok {
 		if size := projection.StartupBatchSize(); size > 1 {
 			p.startupBatchSize = size
@@ -202,7 +237,7 @@ func NewDecodedProjector[E any](
 			}
 		}
 	}
-	return p
+	return p, nil
 }
 
 // NewDecodedPreparedProjector binds a prepared projection and decoder to one
@@ -210,32 +245,34 @@ func NewDecodedProjector[E any](
 // the apply barrier, commits only after preparation succeeds, and then advances
 // the applied sequence before it releases the barrier. A projection that
 // implements SubjectEventReducer prepares with the delivered subject.
+//
+// It panics and returns errors like NewDecodedProjector.
 func NewDecodedPreparedProjector[E any](
 	js jetstream.JetStream,
 	stream jetstream.Stream,
 	proj PreparedEventProjection[E],
 	decoder EventDecoder[E],
-	logger *slog.Logger,
-) *Projector {
+	opts ProjectorOptions,
+) (*Projector, error) {
 	prepare := func(event E, _ string, seq uint64) (PreparedMutation, error) {
 		return proj.Prepare(event, seq)
 	}
 	if projection, ok := proj.(SubjectEventReducer[E]); ok {
 		prepare = projection.PrepareSubject
 	}
-	return newProjector(js, stream, proj, decoder, logger, prepare)
+	return newProjector(js, stream, proj, decoder, opts, prepare)
 }
 
-// newProjector validates a projection and decoder and builds the Projector
+// newProjector validates its arguments and options and builds the Projector
 // that prepares every decoded event with prepare.
 func newProjector[E any](
 	js jetstream.JetStream,
 	stream jetstream.Stream,
 	proj SubjectProjection,
 	decoder EventDecoder[E],
-	logger *slog.Logger,
+	opts ProjectorOptions,
 	prepare func(event E, subject string, seq uint64) (PreparedMutation, error),
-) *Projector {
+) (*Projector, error) {
 	if isNilProjection(proj) {
 		panic("events: projector requires a non-nil projection")
 	}
@@ -245,12 +282,23 @@ func newProjector[E any](
 	if decoder == nil {
 		panic("events: projector requires a non-nil event decoder")
 	}
+	if js == nil || stream == nil {
+		panic("events: projector requires a JetStream context and a stream")
+	}
+	if err := validateConsumerName(opts.ConsumerName); err != nil {
+		return nil, err
+	}
+	if opts.Snapshots != nil && opts.Checkpoint != nil {
+		return nil, fmt.Errorf("projection cannot use both snapshots and a local checkpoint")
+	}
 	subjects := slices.Clone(proj.Subjects())
-	return &Projector{
-		js:     js,
-		stream: stream,
-		proj:   proj,
-		logger: normalizeLogger(logger),
+	p := &Projector{
+		js:                  js,
+		stream:              stream,
+		proj:                proj,
+		logger:              normalizeLogger(opts.Logger),
+		consumerName:        opts.ConsumerName,
+		consumerDescription: opts.ConsumerDescription,
 		decode: func(data []byte) (decodedEvent, error) {
 			event, err := decoder(data)
 			if err != nil {
@@ -267,6 +315,17 @@ func newProjector[E any](
 		failedCh:        make(chan struct{}),
 		startupCh:       make(chan struct{}),
 	}
+	if opts.Snapshots != nil {
+		if err := p.configureSnapshots(*opts.Snapshots); err != nil {
+			return nil, err
+		}
+	}
+	if opts.Checkpoint != nil {
+		if err := p.configureCheckpoint(*opts.Checkpoint); err != nil {
+			return nil, err
+		}
+	}
+	return p, nil
 }
 
 // Status returns the projector's current lifecycle state. Safe to call from
@@ -613,16 +672,8 @@ func (p *Projector) fail(seq uint64, err error) {
 	p.waiters = nil
 }
 
-// ConfigureConsumerIdentity sets diagnostic labels for this projector's
-// ephemeral consumer. Call it before Run. The name must contain 1 to 64 ASCII
-// letters, digits, hyphens, or underscores. Neither value may contain personal
-// data or secrets. The description is stored in consumer metadata because the
-// ordered-consumer API has no description field.
-//
-// Run adds a random suffix to the name so replicas never share a consumer.
-// These labels do not change snapshot identities or create a durable consumer.
-func (p *Projector) ConfigureConsumerIdentity(name, description string) error {
-	if len(name) == 0 || len(name) > 64 {
+func validateConsumerName(name string) error {
+	if len(name) > 64 {
 		return fmt.Errorf("projection consumer name must contain 1 to 64 ASCII letters, digits, hyphens, or underscores")
 	}
 	for _, c := range name {
@@ -630,13 +681,6 @@ func (p *Projector) ConfigureConsumerIdentity(name, description string) error {
 			return fmt.Errorf("projection consumer name must contain only ASCII letters, digits, hyphens, or underscores")
 		}
 	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.started {
-		return ErrProjectorAlreadyStarted
-	}
-	p.consumerName = name
-	p.consumerDescription = description
 	return nil
 }
 
@@ -659,7 +703,6 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 		return ErrProjectorAlreadyStarted
 	}
 	p.started = true
-	consumerName, consumerDescription := p.consumerName, p.consumerDescription
 	if p.startupStartedAt.IsZero() {
 		p.startupStartedAt = startedAt
 	}
@@ -682,11 +725,11 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 		DeliverPolicy:     jetstream.DeliverAllPolicy,
 		InactiveThreshold: projectionConsumerInactiveThreshold,
 	}
-	if consumerName != "" {
-		consumerConfig.NamePrefix = "projection-" + consumerName + "-" + rand.Text()
+	if p.consumerName != "" {
+		consumerConfig.NamePrefix = "projection-" + p.consumerName + "-" + rand.Text()
 		consumerConfig.Metadata = map[string]string{
-			"projection_name":        consumerName,
-			"projection_description": consumerDescription,
+			"projection_name":        p.consumerName,
+			"projection_description": p.consumerDescription,
 		}
 	}
 	p.mu.Lock()

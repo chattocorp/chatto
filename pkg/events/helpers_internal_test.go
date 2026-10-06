@@ -6,6 +6,7 @@ import (
 
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 func startTestNATS(t *testing.T) *nats.Conn {
@@ -34,4 +35,19 @@ func startTestNATS(t *testing.T) *nats.Conn {
 	}
 	t.Cleanup(connection.Close)
 	return connection
+}
+
+// stubJetStream and stubStream satisfy the projector's non-nil argument checks
+// in tests that never call a NATS method on them.
+type stubJetStream struct{ jetstream.JetStream }
+
+type stubStream struct{ jetstream.Stream }
+
+// must returns value or panics with err. Tests use it for constructors that
+// must succeed.
+func must[T any](value T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return value
 }

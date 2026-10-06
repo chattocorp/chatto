@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/log"
 
 	"hmans.de/chatto/internal/evtstream"
+	"hmans.de/chatto/internal/logbridge"
 	"hmans.de/chatto/internal/notificationstream"
 	"hmans.de/chatto/internal/projectionsnapshot"
 	"hmans.de/chatto/pkg/events"
@@ -58,33 +59,61 @@ type projectionRegistrar struct {
 	registrations []projectionRegistration
 }
 
-func registerProjectionHandle[P events.SubjectProjection](
-	r *projectionRegistrar,
-	handle events.ProjectionHandle[P],
-	projection P,
+// projectorOptions returns the construction options of a registered
+// projection: its logger, consumer identity, and snapshot restore when the
+// repository exists and the policy allows it. A componentized projection, such
+// as ServerContentView, keeps its components in cohort storage. A
+// single-payload projection keeps its payload in single-generation storage.
+func (r *projectionRegistrar) projectorOptions(
+	projection events.SubjectProjection,
+	key string,
+	name string,
+	identityResolver events.StreamIdentityResolver,
+	snapshotPolicy projectionSnapshotPolicy,
+) events.ProjectorOptions {
+	loggerName := strings.ReplaceAll(name, " ", "") + "Projector"
+	opts := events.ProjectorOptions{
+		Logger:              logbridge.Slog(r.logger.WithPrefix("core." + loggerName)),
+		ConsumerName:        key,
+		ConsumerDescription: name,
+	}
+	if r.infra.snapshotRepository == nil || snapshotPolicy == coldReplayOnly {
+		return opts
+	}
+	var source events.ProjectionSnapshotSource = projectionSnapshotSource{repository: r.infra.snapshotRepository}
+	if _, componentized := projection.(events.ComponentSnapshotProjection); componentized {
+		source = projectionSnapshotCohortSource{repository: r.infra.snapshotRepository}
+	}
+	opts.Snapshots = &events.SnapshotOptions{Key: key, Source: source, ResolveStreamIdentity: identityResolver}
+	return opts
+}
+
+// register records a constructed projector for lifecycle, readiness,
+// diagnostics, and snapshot publication.
+func (r *projectionRegistrar) register(
+	projector *events.Projector,
+	projection events.SubjectProjection,
 	key string,
 	name string,
 	streamName string,
 	identityResolver events.StreamIdentityResolver,
 	estimate func() (int64, int64, []ProjectionAdminMetric),
 	snapshotPolicy projectionSnapshotPolicy,
-) (events.ProjectionHandle[P], error) {
-	if err := handle.Projector().ConfigureConsumerIdentity(key, name); err != nil {
-		return events.ProjectionHandle[P]{}, fmt.Errorf("configure %s consumer identity: %w", key, err)
-	}
-	_, componentSnapshots := any(projection).(events.ComponentSnapshotProjection)
+	opts events.ProjectorOptions,
+) {
+	_, componentSnapshots := projection.(events.ComponentSnapshotProjection)
 	r.registrations = append(r.registrations, projectionRegistration{
 		key:                key,
 		name:               name,
-		projector:          handle.Projector(),
+		projector:          projector,
 		subjects:           slices.Clone(projection.Subjects()),
 		snapshotPolicy:     snapshotPolicy,
+		snapshotEnabled:    opts.Snapshots != nil,
 		componentSnapshots: componentSnapshots,
 		streamName:         streamName,
 		identityResolver:   identityResolver,
 		estimate:           estimate,
 	})
-	return handle, nil
 }
 
 func registerProjection[T any, P evtstream.ProjectionPointer[T]](
@@ -95,29 +124,18 @@ func registerProjection[T any, P evtstream.ProjectionPointer[T]](
 	estimate func() (int64, int64, []ProjectionAdminMetric),
 	snapshotPolicy projectionSnapshotPolicy,
 ) (events.ProjectionHandle[P], error) {
-	loggerName := strings.ReplaceAll(name, " ", "") + "Projector"
 	streamName := r.infra.storage.serverEvtStream.CachedInfo().Config.Name
 	stream, err := r.infra.js.Stream(r.ctx, streamName)
 	if err != nil {
 		return events.ProjectionHandle[P]{}, fmt.Errorf("open EVT stream for %s: %w", name, err)
 	}
-	handle := evtstream.NewProjectionHandle(
-		r.infra.js,
-		stream,
-		projection,
-		r.logger.WithPrefix("core."+loggerName),
-	)
-	return registerProjectionHandle(
-		r,
-		handle,
-		projection,
-		key,
-		name,
-		streamName,
-		evtstream.IdentityFromInfo,
-		estimate,
-		snapshotPolicy,
-	)
+	opts := r.projectorOptions(projection, key, name, evtstream.IdentityFromInfo, snapshotPolicy)
+	handle, err := evtstream.NewProjectionHandle(r.infra.js, stream, projection, opts)
+	if err != nil {
+		return events.ProjectionHandle[P]{}, fmt.Errorf("construct %s projector: %w", key, err)
+	}
+	r.register(handle.Projector(), projection, key, name, streamName, evtstream.IdentityFromInfo, estimate, snapshotPolicy, opts)
+	return handle, nil
 }
 
 func registerPreparedProjection[T any, P evtstream.PreparedProjectionPointer[T]](
@@ -128,40 +146,17 @@ func registerPreparedProjection[T any, P evtstream.PreparedProjectionPointer[T]]
 	estimate func() (int64, int64, []ProjectionAdminMetric),
 	snapshotPolicy projectionSnapshotPolicy,
 ) (events.ProjectionHandle[P], error) {
-	loggerName := strings.ReplaceAll(name, " ", "") + "Projector"
 	streamName := r.infra.storage.serverEvtStream.CachedInfo().Config.Name
 	stream, err := r.infra.js.Stream(r.ctx, streamName)
 	if err != nil {
 		return events.ProjectionHandle[P]{}, fmt.Errorf("open EVT stream for %s: %w", name, err)
 	}
-	handle := evtstream.NewPreparedProjectionHandle(
-		r.infra.js,
-		stream,
-		projection,
-		r.logger.WithPrefix("core."+loggerName),
-	)
-	return registerProjectionHandle(
-		r,
-		handle,
-		projection,
-		key,
-		name,
-		streamName,
-		evtstream.IdentityFromInfo,
-		estimate,
-		snapshotPolicy,
-	)
-}
-
-func bindContentProjection[T any, P evtstream.ProjectionPointer[T]](
-	view *ServerContentView,
-	projection P,
-	name string,
-) (events.ProjectionHandle[P], error) {
-	handle, err := evtstream.BindProjectionHandle(projection, view.projector)
+	opts := r.projectorOptions(projection, key, name, evtstream.IdentityFromInfo, snapshotPolicy)
+	handle, err := evtstream.NewPreparedProjectionHandle(r.infra.js, stream, projection, opts)
 	if err != nil {
-		return events.ProjectionHandle[P]{}, fmt.Errorf("bind %s to ServerContentView: %w", name, err)
+		return events.ProjectionHandle[P]{}, fmt.Errorf("construct %s projector: %w", key, err)
 	}
+	r.register(handle.Projector(), projection, key, name, streamName, evtstream.IdentityFromInfo, estimate, snapshotPolicy, opts)
 	return handle, nil
 }
 
@@ -222,42 +217,18 @@ func initializeCoreProjections(
 	contentView.bindProjector(contentHandle.Projector())
 	projections.contentView = contentView
 
-	if projections.roomDirectory, err = bindContentProjection(contentView, roomDirectory, "room directory"); err != nil {
-		return nil, err
-	}
-	if projections.serverConfig, err = bindContentProjection(contentView, serverConfig, "server config"); err != nil {
-		return nil, err
-	}
-	if projections.roomGroupLayout, err = bindContentProjection(contentView, roomGroupLayout, "room group layout"); err != nil {
-		return nil, err
-	}
-	if projections.roomTimeline, err = bindContentProjection(contentView, roomTimeline, "room timeline"); err != nil {
-		return nil, err
-	}
-	if projections.callState, err = bindContentProjection(contentView, callState, "call state"); err != nil {
-		return nil, err
-	}
-	if projections.assets, err = bindContentProjection(contentView, assets, "assets"); err != nil {
-		return nil, err
-	}
-	if projections.threads, err = bindContentProjection(contentView, threads, "threads"); err != nil {
-		return nil, err
-	}
-	if projections.reactions, err = bindContentProjection(contentView, reactions, "reactions"); err != nil {
-		return nil, err
-	}
-	if projections.users, err = bindContentProjection(contentView, users, "users"); err != nil {
-		return nil, err
-	}
-	if projections.contentKeys, err = bindContentProjection(contentView, contentKeys, "content keys"); err != nil {
-		return nil, err
-	}
-	if projections.rbac, err = bindContentProjection(contentView, rbac, "RBAC"); err != nil {
-		return nil, err
-	}
-	if projections.mentionables, err = bindContentProjection(contentView, mentionables, "mentionables"); err != nil {
-		return nil, err
-	}
+	projections.roomDirectory = evtstream.BindProjectionHandle(roomDirectory, contentView.projector)
+	projections.serverConfig = evtstream.BindProjectionHandle(serverConfig, contentView.projector)
+	projections.roomGroupLayout = evtstream.BindProjectionHandle(roomGroupLayout, contentView.projector)
+	projections.roomTimeline = evtstream.BindProjectionHandle(roomTimeline, contentView.projector)
+	projections.callState = evtstream.BindProjectionHandle(callState, contentView.projector)
+	projections.assets = evtstream.BindProjectionHandle(assets, contentView.projector)
+	projections.threads = evtstream.BindProjectionHandle(threads, contentView.projector)
+	projections.reactions = evtstream.BindProjectionHandle(reactions, contentView.projector)
+	projections.users = evtstream.BindProjectionHandle(users, contentView.projector)
+	projections.contentKeys = evtstream.BindProjectionHandle(contentKeys, contentView.projector)
+	projections.rbac = evtstream.BindProjectionHandle(rbac, contentView.projector)
+	projections.mentionables = evtstream.BindProjectionHandle(mentionables, contentView.projector)
 
 	// Notification Decisions indexes the same message IDs as the content view,
 	// so it interns them in the same process-wide table.
@@ -276,18 +247,21 @@ func initializeCoreProjections(
 	if err != nil {
 		return nil, fmt.Errorf("open notification stream for projection: %w", err)
 	}
-	notificationHandle := notificationstream.NewProjectionHandle(
-		infra.js, notificationProjectionStream, notifications,
-		logger.WithPrefix("core.NotificationsProjector"),
+	notificationOpts := registrar.projectorOptions(
+		notifications, projectionsnapshot.ProjectionNotificationsKey, "Notifications",
+		notificationstream.IdentityFromInfo, sharedSnapshots,
 	)
-	projections.notifications, err = registerProjectionHandle(
-		registrar, notificationHandle, notifications, projectionsnapshot.ProjectionNotificationsKey,
-		"Notifications", notificationStreamName,
-		notificationstream.IdentityFromInfo, notifications.adminProjectionEstimate, sharedSnapshots,
+	projections.notifications, err = notificationstream.NewProjectionHandle(
+		infra.js, notificationProjectionStream, notifications, notificationOpts,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("construct %s projector: %w", projectionsnapshot.ProjectionNotificationsKey, err)
 	}
+	registrar.register(
+		projections.notifications.Projector(), notifications, projectionsnapshot.ProjectionNotificationsKey,
+		"Notifications", notificationStreamName, notificationstream.IdentityFromInfo,
+		notifications.adminProjectionEstimate, sharedSnapshots, notificationOpts,
+	)
 
 	projections.userAuth, err = registerProjection(
 		registrar, userAuth, "user_auth", "User Auth", userAuth.adminProjectionEstimate, coldReplayOnly,
@@ -328,46 +302,25 @@ func initializeCoreProjections(
 		return nil, err
 	}
 	projections.registrations = registrar.registrations
-	if err := configureProjectionSnapshots(infra, projections); err != nil {
-		return nil, err
-	}
+	projections.snapshotJobs = projectionSnapshotJobs(infra.snapshotRepository, projections.registrations)
 	return projections, nil
 }
 
-func configureProjectionSnapshots(
-	infra *coreInfrastructure,
-	projections *coreProjections,
-) error {
-	if infra.snapshotRepository == nil {
-		return nil
-	}
-
-	for i := range projections.registrations {
-		registration := &projections.registrations[i]
-		if registration.snapshotPolicy == coldReplayOnly {
+// projectionSnapshotJobs returns one snapshot publication job for each
+// registered projection that restores from snapshots.
+func projectionSnapshotJobs(repository *projectionsnapshot.Repository, registrations []projectionRegistration) []projectionSnapshotJob {
+	var jobs []projectionSnapshotJob
+	for _, registration := range registrations {
+		if !registration.snapshotEnabled {
 			continue
 		}
-		// A componentized projection, such as ServerContentView, keeps its
-		// components in cohort storage. A single-payload projection keeps its
-		// payload in single-generation storage.
-		componentized := registration.componentSnapshots
-		var source events.ProjectionSnapshotSource = projectionSnapshotSource{repository: infra.snapshotRepository}
-		if componentized {
-			source = projectionSnapshotCohortSource{repository: infra.snapshotRepository}
-		}
-		if err := registration.projector.ConfigureSnapshots(
-			registration.key, source, registration.identityResolver,
-		); err != nil {
-			return fmt.Errorf("configure %s projection snapshots: %w", registration.key, err)
-		}
-		projections.snapshotJobs = append(projections.snapshotJobs, projectionSnapshotJob{
+		jobs = append(jobs, projectionSnapshotJob{
 			projector:     registration.projector,
-			repository:    infra.snapshotRepository,
+			repository:    repository,
 			projectionKey: registration.key,
 			streamName:    registration.streamName,
-			componentized: componentized,
+			componentized: registration.componentSnapshots,
 		})
-		registration.snapshotEnabled = true
 	}
-	return nil
+	return jobs
 }

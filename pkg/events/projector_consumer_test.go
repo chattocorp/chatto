@@ -12,10 +12,19 @@ import (
 )
 
 func lifecycleProjector(js jetstream.JetStream, stream jetstream.Stream, decodeErr error) *Projector {
+	return lifecycleProjectorWithOptions(js, stream, decodeErr, ProjectorOptions{})
+}
+
+func lifecycleProjectorWithOptions(js jetstream.JetStream, stream jetstream.Stream, decodeErr error, opts ProjectorOptions) *Projector {
+	opts.Logger = testLogger()
+	return must(newLifecycleProjector(js, stream, decodeErr, opts))
+}
+
+func newLifecycleProjector(js jetstream.JetStream, stream jetstream.Stream, decodeErr error, opts ProjectorOptions) (*Projector, error) {
 	return NewDecodedProjector(js, stream, &codecTestProjection{subject: "evt.lifecycle.>"},
 		func(data []byte) (DecodedEvent[codecTestEvent], error) {
 			return DecodedEvent[codecTestEvent]{Event: codecTestEvent{name: string(data)}, ID: string(data)}, decodeErr
-		}, testLogger())
+		}, opts)
 }
 
 func lifecycleStream(t *testing.T) (jetstream.JetStream, jetstream.Stream) {
@@ -76,10 +85,8 @@ func TestProjectorConsumerIdentityRecoveryAndReplicaIsolation(t *testing.T) {
 	if _, err := stream.CreateConsumer(ctx, jetstream.ConsumerConfig{Durable: durable, AckPolicy: jetstream.AckExplicitPolicy}); err != nil {
 		t.Fatal(err)
 	}
-	first := lifecycleProjector(js, stream, nil)
-	if err := first.ConfigureConsumerIdentity("content", "Content read model"); err != nil {
-		t.Fatal(err)
-	}
+	contentIdentity := ProjectorOptions{ConsumerName: "content", ConsumerDescription: "Content read model"}
+	first := lifecycleProjectorWithOptions(js, stream, nil, contentIdentity)
 	stopFirst, firstDone := runLifecycleProjector(t, first)
 	var firstName string
 	for name, info := range lifecycleConsumers(t, stream) {
@@ -94,13 +101,7 @@ func TestProjectorConsumerIdentityRecoveryAndReplicaIsolation(t *testing.T) {
 	if firstName == "" {
 		t.Fatal("missing first projection consumer")
 	}
-	if err := first.ConfigureConsumerIdentity("changed", "Changed"); !errors.Is(err, ErrProjectorAlreadyStarted) {
-		t.Fatalf("identity mutation after Run = %v", err)
-	}
-	second := lifecycleProjector(js, stream, nil)
-	if err := second.ConfigureConsumerIdentity("content", "Content read model"); err != nil {
-		t.Fatal(err)
-	}
+	second := lifecycleProjectorWithOptions(js, stream, nil, contentIdentity)
 	stopSecond, secondDone := runLifecycleProjector(t, second)
 	before := lifecycleConsumers(t, stream)
 	if len(before) != 3 {
@@ -191,14 +192,16 @@ func TestProjectorConsumerCleanupHasIndependentDeadline(t *testing.T) {
 }
 
 func TestProjectorConsumerIdentityValidation(t *testing.T) {
-	p := lifecycleProjector(nil, nil, nil)
-	for _, name := range []string{"", "has.space", "has space", "has/slash", "has*wildcard", "has>filter", "ümlaut", strings.Repeat("a", 65)} {
-		if err := p.ConfigureConsumerIdentity(name, "Read model"); err == nil {
+	js, stream := lifecycleStream(t)
+	for _, name := range []string{"has.space", "has space", "has/slash", "has*wildcard", "has>filter", "ümlaut", strings.Repeat("a", 65)} {
+		if _, err := newLifecycleProjector(js, stream, nil, ProjectorOptions{ConsumerName: name}); err == nil {
 			t.Fatalf("accepted invalid name %q", name)
 		}
 	}
-	if err := p.ConfigureConsumerIdentity("content_v2-TEST", "Read model"); err != nil {
-		t.Fatal(err)
+	for _, name := range []string{"", "content_v2-TEST"} {
+		if _, err := newLifecycleProjector(js, stream, nil, ProjectorOptions{ConsumerName: name, ConsumerDescription: "Read model"}); err != nil {
+			t.Fatalf("rejected valid name %q: %v", name, err)
+		}
 	}
 }
 

@@ -115,13 +115,13 @@ func TestFrameworkSupportsAnExternalJSONConsumer(t *testing.T) {
 	ctx := testContext(t)
 
 	liveProjection := &ledgerBalanceProjection{}
-	liveHandle := events.NewDecodedProjectionHandle(
+	liveHandle := must(events.NewDecodedProjectionHandle(
 		js,
 		stream,
 		liveProjection,
 		decodeLedgerEntry,
-		testLogger(),
-	)
+		events.ProjectorOptions{Logger: testLogger()},
+	))
 	stopLiveProjector := runConsumerProjector(t, liveHandle.Projector())
 	waitFor(t, 2*time.Second, func() bool {
 		return liveHandle.Projector().Status().StartupComplete
@@ -186,13 +186,13 @@ func TestFrameworkSupportsAnExternalJSONConsumer(t *testing.T) {
 	stopLiveProjector()
 
 	replayedProjection := &ledgerBalanceProjection{}
-	replayedHandle := events.NewDecodedProjectionHandle(
+	replayedHandle := must(events.NewDecodedProjectionHandle(
 		js,
 		stream,
 		replayedProjection,
 		decodeLedgerEntry,
-		testLogger(),
-	)
+		events.ProjectorOptions{Logger: testLogger()},
+	))
 	runConsumerProjector(t, replayedHandle.Projector())
 	if err := replayedHandle.Projector().WaitFor(ctx, secondPosition); err != nil {
 		t.Fatalf("wait for replayed ledger history: %v", err)

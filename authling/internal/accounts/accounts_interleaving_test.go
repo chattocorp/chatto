@@ -46,7 +46,10 @@ func TestCredentialBoundAuditRequestsWaitForEmailClaim(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	publisher := evtstream.NewPublisher(events.NewEncodedEventLog(js, stream, logger))
 	projection := NewProjection(vault, indexKey)
-	handle := events.NewDecodedProjectionHandle(js, stream, projection, evtstream.Decode, logger)
+	handle, err := events.NewDecodedProjectionHandle(js, stream, projection, evtstream.Decode, events.ProjectorOptions{Logger: logger})
+	if err != nil {
+		t.Fatal(err)
+	}
 	service, err := NewService(ctx, publisher, handle, vault, 12)
 	if err != nil {
 		t.Fatalf("create account service: %v", err)
@@ -149,7 +152,10 @@ func TestCredentialBoundAuditRequestsWaitForEmailClaim(t *testing.T) {
 
 	stopAccountTestProjector(t, runCancel, runErrors)
 	replayed := NewProjection(vault, indexKey)
-	replayHandle := events.NewDecodedProjectionHandle(js, stream, replayed, evtstream.Decode, logger)
+	replayHandle, err := events.NewDecodedProjectionHandle(js, stream, replayed, evtstream.Decode, events.ProjectorOptions{Logger: logger})
+	if err != nil {
+		t.Fatal(err)
+	}
 	replayCancel, replayErrors := runAccountTestProjector(t, replayHandle.Projector())
 	if !replayed.HasEmail(newEmail) || replayed.HasEmail(oldEmail) {
 		t.Fatalf("cold replay email registry: old=%v new=%v", replayed.HasEmail(oldEmail), replayed.HasEmail(newEmail))

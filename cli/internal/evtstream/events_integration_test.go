@@ -838,7 +838,7 @@ func TestProjector_AppliesEventsInOrder(t *testing.T) {
 	}
 
 	proj := newTrackingProjection(RoomSubjectFilter())
-	projector := NewProjector(js, stream, proj, testLogger())
+	projector := must(NewProjector(js, stream, proj, ProjectorOptions{}))
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -875,7 +875,7 @@ func TestProjectorSkipsBroadReplaySubjectsBeforeDecoding(t *testing.T) {
 		[]string{RoomEventTypeFilter(EventUserJoinedRoom)},
 		[]string{EventSubjectFilter()},
 	)
-	projector := NewProjector(js, stream, projection, testLogger())
+	projector := must(NewProjector(js, stream, projection, ProjectorOptions{}))
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go func() { _ = projector.Run(runCtx) }()
@@ -899,7 +899,7 @@ func TestProjectorRunsProjectionWithoutSnapshotMethods(t *testing.T) {
 	}
 
 	projection := &minimalProjection{subject: subject}
-	projector := NewProjector(js, stream, projection, testLogger())
+	projector := must(NewProjector(js, stream, projection, ProjectorOptions{}))
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go func() { _ = projector.Run(runCtx) }()
@@ -929,7 +929,7 @@ func TestProjectorBatchesOnlyCapturedStartupReplay(t *testing.T) {
 	}
 
 	projection := newStartupBatchTrackingProjection(2, subject)
-	projector := NewProjector(js, stream, projection, testLogger())
+	projector := must(NewProjector(js, stream, projection, ProjectorOptions{}))
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go func() { _ = projector.Run(runCtx) }()
@@ -977,7 +977,7 @@ func TestProjectorStartupBatchFailureStartsAtFirstUncommittedSequence(t *testing
 	applyErr := errors.New("batch apply failed")
 	projection := newStartupBatchTrackingProjection(2, subject)
 	projection.batchErr = applyErr
-	projector := NewProjector(js, stream, projection, testLogger())
+	projector := must(NewProjector(js, stream, projection, ProjectorOptions{}))
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	errCh := make(chan error, 1)
@@ -1011,7 +1011,7 @@ func TestProjectorDecodeFailureIncludesPendingStartupBatch(t *testing.T) {
 	}
 
 	projection := newStartupBatchTrackingProjection(3, subject)
-	projector := NewProjector(js, stream, projection, testLogger())
+	projector := must(NewProjector(js, stream, projection, ProjectorOptions{}))
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	errCh := make(chan error, 1)
@@ -1047,10 +1047,7 @@ func TestProjectorRestoresLocalCheckpointAndReplaysTail(t *testing.T) {
 
 	projection := newCheckpointTrackingProjection(subject)
 	projection.checkpoint = seqs[1]
-	projector := NewProjector(js, stream, projection, testLogger())
-	if err := projector.ConfigureCheckpoint("search", fixedStreamIdentity(testStreamIdentity(t, stream))); err != nil {
-		t.Fatalf("ConfigureCheckpoint: %v", err)
-	}
+	projector := must(NewProjector(js, stream, projection, ProjectorOptions{Checkpoint: &CheckpointOptions{Key: "search", ResolveStreamIdentity: fixedStreamIdentity(testStreamIdentity(t, stream))}}))
 	// Configuration captures the contract before the projection can change it.
 	projection.contractID = "checkpoint-v2"
 
@@ -1096,10 +1093,7 @@ func TestProjectorRestoresLocalCheckpointBeyondFilteredTail(t *testing.T) {
 
 	projection := newCheckpointTrackingProjection(subject)
 	projection.checkpoint = unrelatedSeq
-	projector := NewProjector(js, stream, projection, testLogger())
-	if err := projector.ConfigureCheckpoint("search", fixedStreamIdentity(testStreamIdentity(t, stream))); err != nil {
-		t.Fatalf("ConfigureCheckpoint: %v", err)
-	}
+	projector := must(NewProjector(js, stream, projection, ProjectorOptions{Checkpoint: &CheckpointOptions{Key: "search", ResolveStreamIdentity: fixedStreamIdentity(testStreamIdentity(t, stream))}}))
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go func() { _ = projector.Run(runCtx) }()
@@ -1132,10 +1126,7 @@ func TestProjectorResetsInvalidLocalCheckpoint(t *testing.T) {
 
 	projection := newCheckpointTrackingProjection(subject)
 	projection.restoreErr = fmt.Errorf("%w: contract mismatch", ErrProjectionCheckpointInvalid)
-	projector := NewProjector(js, stream, projection, testLogger())
-	if err := projector.ConfigureCheckpoint("search", fixedStreamIdentity(testStreamIdentity(t, stream))); err != nil {
-		t.Fatalf("ConfigureCheckpoint: %v", err)
-	}
+	projector := must(NewProjector(js, stream, projection, ProjectorOptions{Checkpoint: &CheckpointOptions{Key: "search", ResolveStreamIdentity: fixedStreamIdentity(testStreamIdentity(t, stream))}}))
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go func() { _ = projector.Run(runCtx) }()
@@ -1154,10 +1145,7 @@ func TestProjectorDoesNotResetCheckpointOnOperationalRestoreFailure(t *testing.T
 	js, stream := setupTestStream(t)
 	projection := newCheckpointTrackingProjection(RoomSubjectFilter())
 	projection.restoreErr = errors.New("local volume unavailable")
-	projector := NewProjector(js, stream, projection, testLogger())
-	if err := projector.ConfigureCheckpoint("search", fixedStreamIdentity(testStreamIdentity(t, stream))); err != nil {
-		t.Fatalf("ConfigureCheckpoint: %v", err)
-	}
+	projector := must(NewProjector(js, stream, projection, ProjectorOptions{Checkpoint: &CheckpointOptions{Key: "search", ResolveStreamIdentity: fixedStreamIdentity(testStreamIdentity(t, stream))}}))
 
 	err := projector.Run(testContext(t))
 	if err == nil || !strings.Contains(err.Error(), "local volume unavailable") {
@@ -1184,10 +1172,7 @@ func TestProjectorResetsFutureLocalCheckpoint(t *testing.T) {
 
 	projection := newCheckpointTrackingProjection(subject)
 	projection.checkpoint = seq + 1
-	projector := NewProjector(js, stream, projection, testLogger())
-	if err := projector.ConfigureCheckpoint("search", fixedStreamIdentity(testStreamIdentity(t, stream))); err != nil {
-		t.Fatalf("ConfigureCheckpoint: %v", err)
-	}
+	projector := must(NewProjector(js, stream, projection, ProjectorOptions{Checkpoint: &CheckpointOptions{Key: "search", ResolveStreamIdentity: fixedStreamIdentity(testStreamIdentity(t, stream))}}))
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go func() { _ = projector.Run(runCtx) }()
@@ -1218,10 +1203,7 @@ func TestProjectorResetsCheckpointBehindRetainedEVT(t *testing.T) {
 
 	projection := newCheckpointTrackingProjection(subject)
 	projection.checkpoint = seqs[0]
-	projector := NewProjector(js, stream, projection, testLogger())
-	if err := projector.ConfigureCheckpoint("search", fixedStreamIdentity(testStreamIdentity(t, stream))); err != nil {
-		t.Fatalf("ConfigureCheckpoint: %v", err)
-	}
+	projector := must(NewProjector(js, stream, projection, ProjectorOptions{Checkpoint: &CheckpointOptions{Key: "search", ResolveStreamIdentity: fixedStreamIdentity(testStreamIdentity(t, stream))}}))
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go func() { _ = projector.Run(runCtx) }()
@@ -1245,10 +1227,7 @@ func TestProjectorResolvesCheckpointIdentityWithFreshStreamBounds(t *testing.T) 
 	projection := newCheckpointTrackingProjection(RoomSubjectFilter())
 	projection.checkpoint = 1
 	projection.expectedStreamIdentity = originalIdentity
-	projector := NewProjector(js, originalStream, projection, testLogger())
-	if err := projector.ConfigureCheckpoint("search", createdStreamIdentity); err != nil {
-		t.Fatal(err)
-	}
+	projector := must(NewProjector(js, originalStream, projection, ProjectorOptions{Checkpoint: &CheckpointOptions{Key: "search", ResolveStreamIdentity: createdStreamIdentity}}))
 
 	recreatedStream := recreateTestStream(t, ctx, js)
 	recreatedIdentity := testCreatedStreamIdentity(t, ctx, recreatedStream)
@@ -1286,10 +1265,7 @@ func TestProjectorResolvesSnapshotIdentityFromRecreatedStream(t *testing.T) {
 			Components:     stateSnapshotComponents("old-state"),
 		},
 	}
-	projector := NewProjector(js, originalStream, projection, testLogger())
-	if err := projector.ConfigureSnapshots("tracking", source, createdStreamIdentity); err != nil {
-		t.Fatal(err)
-	}
+	projector := must(NewProjector(js, originalStream, projection, ProjectorOptions{Snapshots: &SnapshotOptions{Key: "tracking", Source: source, ResolveStreamIdentity: createdStreamIdentity}}))
 
 	recreatedStream := recreateTestStream(t, ctx, js)
 	recreatedIdentity := testCreatedStreamIdentity(t, ctx, recreatedStream)
@@ -1342,10 +1318,7 @@ func TestProjectorSnapshotPublicationRecoversAfterTransientIdentityFailure(t *te
 	}
 	projection := newSnapshotTrackingProjection(RoomSubjectFilter())
 	source := &staticSnapshotSource{}
-	projector := NewProjector(js, stream, projection, testLogger())
-	if err := projector.ConfigureSnapshots("tracking", source, resolveIdentity); err != nil {
-		t.Fatal(err)
-	}
+	projector := must(NewProjector(js, stream, projection, ProjectorOptions{Snapshots: &SnapshotOptions{Key: "tracking", Source: source, ResolveStreamIdentity: resolveIdentity}}))
 
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -1384,10 +1357,7 @@ func TestProjectorSnapshotIdentityLookupDoesNotHoldApplyBarrier(t *testing.T) {
 	}
 
 	projection := newSnapshotTrackingProjection(RoomSubjectFilter())
-	projector := NewProjector(js, stream, projection, testLogger())
-	if err := projector.ConfigureSnapshots("tracking", &staticSnapshotSource{err: errors.New("snapshot unavailable")}, resolveIdentity); err != nil {
-		t.Fatal(err)
-	}
+	projector := must(NewProjector(js, stream, projection, ProjectorOptions{Snapshots: &SnapshotOptions{Key: "tracking", Source: &staticSnapshotSource{err: errors.New("snapshot unavailable")}, ResolveStreamIdentity: resolveIdentity}}))
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go func() { _ = projector.Run(runCtx) }()
@@ -1437,37 +1407,29 @@ func TestProjectorSnapshotIdentityLookupDoesNotHoldApplyBarrier(t *testing.T) {
 
 func TestProjectorRejectsCompetingRestoreAuthorities(t *testing.T) {
 	js, stream := setupTestStream(t)
-	source := &staticSnapshotSource{}
-	identity := testStreamIdentity(t, stream)
+	identity := fixedStreamIdentity(testStreamIdentity(t, stream))
 
-	checkpointFirst := NewProjector(js, stream, newCheckpointTrackingProjection(RoomSubjectFilter()), testLogger())
-	if err := checkpointFirst.ConfigureCheckpoint("search", fixedStreamIdentity(identity)); err != nil {
-		t.Fatalf("ConfigureCheckpoint: %v", err)
-	}
-	if err := checkpointFirst.ConfigureSnapshots("search", source, fixedStreamIdentity(identity)); err == nil {
-		t.Fatal("ConfigureSnapshots succeeded after ConfigureCheckpoint")
-	}
-
-	snapshotFirst := NewProjector(js, stream, newCheckpointTrackingProjection(RoomSubjectFilter()), testLogger())
-	if err := snapshotFirst.ConfigureSnapshots("search", source, fixedStreamIdentity(identity)); err != nil {
-		t.Fatalf("ConfigureSnapshots: %v", err)
-	}
-	if err := snapshotFirst.ConfigureCheckpoint("search", fixedStreamIdentity(identity)); err == nil {
-		t.Fatal("ConfigureCheckpoint succeeded after ConfigureSnapshots")
+	_, err := NewProjector(js, stream, newCheckpointTrackingProjection(RoomSubjectFilter()), ProjectorOptions{
+		Checkpoint: &CheckpointOptions{Key: "search", ResolveStreamIdentity: identity},
+		Snapshots:  &SnapshotOptions{Key: "search", Source: &staticSnapshotSource{}, ResolveStreamIdentity: identity},
+	})
+	if err == nil {
+		t.Fatal("NewProjector accepted both a checkpoint and snapshots")
 	}
 }
 
 func TestProjectorRequiresStreamIdentityForPersistence(t *testing.T) {
 	js, stream := setupTestStream(t)
 
-	checkpoint := NewProjector(js, stream, newCheckpointTrackingProjection(RoomSubjectFilter()), testLogger())
-	if err := checkpoint.ConfigureCheckpoint("search", nil); err == nil {
-		t.Fatal("ConfigureCheckpoint accepted a nil stream identity resolver")
+	if _, err := NewProjector(js, stream, newCheckpointTrackingProjection(RoomSubjectFilter()), ProjectorOptions{
+		Checkpoint: &CheckpointOptions{Key: "search"},
+	}); err == nil {
+		t.Fatal("NewProjector accepted a checkpoint without a stream identity resolver")
 	}
-
-	snapshot := NewProjector(js, stream, newSnapshotTrackingProjection(RoomSubjectFilter()), testLogger())
-	if err := snapshot.ConfigureSnapshots("tracking", &staticSnapshotSource{}, nil); err == nil {
-		t.Fatal("ConfigureSnapshots accepted a nil stream identity resolver")
+	if _, err := NewProjector(js, stream, newSnapshotTrackingProjection(RoomSubjectFilter()), ProjectorOptions{
+		Snapshots: &SnapshotOptions{Key: "tracking", Source: &staticSnapshotSource{}},
+	}); err == nil {
+		t.Fatal("NewProjector accepted snapshots without a stream identity resolver")
 	}
 }
 
@@ -1486,13 +1448,10 @@ func TestProjectorsRestoreAndReplayIndependently(t *testing.T) {
 
 	restoredProjection := newSnapshotTrackingProjection(RoomSubjectFilter())
 	coldProjection := newTrackingProjection(RoomSubjectFilter())
-	restoredProjector := NewProjector(js, stream, restoredProjection, testLogger())
-	coldProjector := NewProjector(js, stream, coldProjection, testLogger())
+	coldProjector := must(NewProjector(js, stream, coldProjection, ProjectorOptions{}))
 	createdAt := time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)
 	source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seqs[1], CreatedAt: createdAt, Components: stateSnapshotComponents("restored")}}
-	if err := restoredProjector.ConfigureSnapshots("tracking", source, fixedStreamIdentity(testStreamIdentity(t, stream))); err != nil {
-		t.Fatal(err)
-	}
+	restoredProjector := must(NewProjector(js, stream, restoredProjection, ProjectorOptions{Snapshots: &SnapshotOptions{Key: "tracking", Source: source, ResolveStreamIdentity: fixedStreamIdentity(testStreamIdentity(t, stream))}}))
 	// Configuration captures the contract once so restore and publication cannot
 	// diverge if projection wiring changes later.
 	restoredProjection.contractID = "tracking-v2"
@@ -1541,14 +1500,14 @@ func TestProjectorsStartAfterTheirOwnSnapshotCutoffs(t *testing.T) {
 
 	firstProjection := newSnapshotTrackingProjection(RoomSubjectFilter())
 	secondProjection := newSnapshotTrackingProjection(RoomSubjectFilter())
-	first := NewProjector(js, stream, firstProjection, testLogger())
-	second := NewProjector(js, stream, secondProjection, testLogger())
-	for projector, cutoff := range map[*Projector]uint64{first: malformedSeq, second: lastSeq} {
+	restoredAt := func(projection Projection, cutoff uint64) *Projector {
 		source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: cutoff, Components: stateSnapshotComponents("restored")}}
-		if err := projector.ConfigureSnapshots("tracking", source, fixedStreamIdentity(testStreamIdentity(t, stream))); err != nil {
-			t.Fatal(err)
-		}
+		return must(NewProjector(js, stream, projection, ProjectorOptions{
+			Snapshots: &SnapshotOptions{Key: "tracking", Source: source, ResolveStreamIdentity: fixedStreamIdentity(testStreamIdentity(t, stream))},
+		}))
 	}
+	first := restoredAt(firstProjection, malformedSeq)
+	second := restoredAt(secondProjection, lastSeq)
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -1583,15 +1542,12 @@ func TestProjectorConfiguresRestoredConsumerAfterItsCutoff(t *testing.T) {
 	}
 
 	projection := newSnapshotTrackingProjection(RoomSubjectFilter())
-	projector := NewProjector(js, stream, projection, testLogger())
 	source := &staticSnapshotSource{snapshot: ProjectionSnapshot{
 		GenerationID:   "generation",
 		CutoffSequence: seqs[1],
 		Components:     stateSnapshotComponents("restored"),
 	}}
-	if err := projector.ConfigureSnapshots("tracking", source, fixedStreamIdentity(testStreamIdentity(t, stream))); err != nil {
-		t.Fatal(err)
-	}
+	projector := must(NewProjector(js, stream, projection, ProjectorOptions{Snapshots: &SnapshotOptions{Key: "tracking", Source: source, ResolveStreamIdentity: fixedStreamIdentity(testStreamIdentity(t, stream))}}))
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go func() { _ = projector.Run(runCtx) }()
@@ -1623,11 +1579,8 @@ func TestProjectorRestoreReleasesWaiterRegisteredInFlight(t *testing.T) {
 		t.Fatal(err)
 	}
 	projection := newSnapshotTrackingProjection(RoomSubjectFilter())
-	projector := NewProjector(js, stream, projection, testLogger())
 	source := &gatedSnapshotSource{started: make(chan struct{}), release: make(chan struct{}), snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seq, Components: stateSnapshotComponents("restored")}}
-	if err := projector.ConfigureSnapshots("tracking", source, fixedStreamIdentity(testStreamIdentity(t, stream))); err != nil {
-		t.Fatal(err)
-	}
+	projector := must(NewProjector(js, stream, projection, ProjectorOptions{Snapshots: &SnapshotOptions{Key: "tracking", Source: source, ResolveStreamIdentity: fixedStreamIdentity(testStreamIdentity(t, stream))}}))
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go func() { _ = projector.Run(runCtx) }()
@@ -1669,7 +1622,7 @@ func TestProjectorSnapshotCutoffTracksItsLogicalEvents(t *testing.T) {
 		},
 		replay: []string{RoomSubjectFilter()},
 	}
-	projector := NewProjector(js, stream, projection, testLogger())
+	projector := must(NewProjector(js, stream, projection, ProjectorOptions{}))
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go func() { _ = projector.Run(runCtx) }()
@@ -1705,11 +1658,8 @@ func TestProjectorRejectsFutureSnapshotAndFallsBackAfterRestoreFailure(t *testin
 			}
 			projection := newSnapshotTrackingProjection(RoomSubjectFilter())
 			projection.restoreErr = test.restoreErr
-			projector := NewProjector(js, stream, projection, testLogger())
 			source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seq + test.cutoffDelta, Components: stateSnapshotComponents("bad")}}
-			if err := projector.ConfigureSnapshots("tracking", source, fixedStreamIdentity(testStreamIdentity(t, stream))); err != nil {
-				t.Fatal(err)
-			}
+			projector := must(NewProjector(js, stream, projection, ProjectorOptions{Snapshots: &SnapshotOptions{Key: "tracking", Source: source, ResolveStreamIdentity: fixedStreamIdentity(testStreamIdentity(t, stream))}}))
 			runCtx, cancel := context.WithCancel(context.Background())
 			t.Cleanup(cancel)
 			go func() { _ = projector.Run(runCtx) }()
@@ -1733,7 +1683,7 @@ func TestProjectorCaptureWaitsForApplyBarrier(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := newBlockingProjection(RoomSubjectFilter())
-	projector := NewProjector(js, stream, &structSnapshotBlockingProjection{blockingProjection: base}, testLogger())
+	projector := must(NewProjector(js, stream, &structSnapshotBlockingProjection{blockingProjection: base}, ProjectorOptions{}))
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go func() { _ = projector.Run(runCtx) }()
@@ -1772,7 +1722,7 @@ func (structSnapshotBlockingProjection) Restore([]byte) error      { return nil 
 func TestProjector_CompletesEmptyStartupReplayOnce(t *testing.T) {
 	js, stream := setupTestStream(t)
 	proj := newTrackingProjection(RoomSubjectFilter())
-	projector := NewProjector(js, stream, proj, testLogger())
+	projector := must(NewProjector(js, stream, proj, ProjectorOptions{}))
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -1799,8 +1749,8 @@ func TestProjectorsConsumeTheSameEventsIndependently(t *testing.T) {
 
 	projA := newTrackingProjection(RoomSubjectFilter())
 	projB := newTrackingProjection(RoomSubjectFilter())
-	projectorA := NewProjector(js, stream, projA, testLogger())
-	projectorB := NewProjector(js, stream, projB, testLogger())
+	projectorA := must(NewProjector(js, stream, projA, ProjectorOptions{}))
+	projectorB := must(NewProjector(js, stream, projB, ProjectorOptions{}))
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -1848,8 +1798,8 @@ func TestProjectorBroadReplayFilterSkipsNonLogicalSubjects(t *testing.T) {
 		[]string{RoomEventTypeFilter(EventUserJoinedRoom)},
 		[]string{RoomSubjectFilter()},
 	)
-	broadProjector := NewProjector(js, stream, broad, testLogger())
-	focusedProjector := NewProjector(js, stream, focused, testLogger())
+	broadProjector := must(NewProjector(js, stream, broad, ProjectorOptions{}))
+	focusedProjector := must(NewProjector(js, stream, focused, ProjectorOptions{}))
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -1896,7 +1846,7 @@ func TestProjector_StatusReportsStartupDuration(t *testing.T) {
 	}
 	t.Cleanup(releaseProjection)
 
-	projector := NewProjector(js, stream, proj, testLogger())
+	projector := must(NewProjector(js, stream, proj, ProjectorOptions{}))
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go func() { _ = projector.Run(runCtx) }()
@@ -1942,7 +1892,7 @@ func TestProjector_WaitFor_AlreadyReached(t *testing.T) {
 	}
 
 	proj := newTrackingProjection(RoomSubjectFilter())
-	projector := NewProjector(js, stream, proj, testLogger())
+	projector := must(NewProjector(js, stream, proj, ProjectorOptions{}))
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -1963,7 +1913,7 @@ func TestProjector_WaitFor_UnblocksOnApply(t *testing.T) {
 	pub := NewPublisher(js, stream, testLogger())
 
 	proj := newTrackingProjection(RoomSubjectFilter())
-	projector := NewProjector(js, stream, proj, testLogger())
+	projector := must(NewProjector(js, stream, proj, ProjectorOptions{}))
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -1992,7 +1942,7 @@ func TestProjector_WaitFor_HonoursContextCancel(t *testing.T) {
 	pub := NewPublisher(js, stream, testLogger())
 	proj := newBlockingProjection(RoomSubjectFilter())
 	t.Cleanup(func() { close(proj.release) })
-	projector := NewProjector(js, stream, proj, testLogger())
+	projector := must(NewProjector(js, stream, proj, ProjectorOptions{}))
 
 	runCtx, cancelRun := context.WithCancel(context.Background())
 	t.Cleanup(cancelRun)
@@ -2025,7 +1975,7 @@ func TestProjector_WaitForRejectsUnconsumedSubject(t *testing.T) {
 	ctx := testContext(t)
 
 	proj := newTrackingProjection(RoomSubjectFilter())
-	projector := NewProjector(js, stream, proj, testLogger())
+	projector := must(NewProjector(js, stream, proj, ProjectorOptions{}))
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -2060,7 +2010,7 @@ func TestProjector_WaitForRejectsSequenceSubjectMismatch(t *testing.T) {
 	ctx := testContext(t)
 
 	proj := newTrackingProjection(RoomSubjectFilter())
-	projector := NewProjector(js, stream, proj, testLogger())
+	projector := must(NewProjector(js, stream, proj, ProjectorOptions{}))
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -2085,7 +2035,7 @@ func TestProjector_WaitForAcceptsSubjectFilter(t *testing.T) {
 	ctx := testContext(t)
 
 	proj := newTrackingProjection(RoomSubjectFilter())
-	projector := NewProjector(js, stream, proj, testLogger())
+	projector := must(NewProjector(js, stream, proj, ProjectorOptions{}))
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -2119,7 +2069,7 @@ func TestProjector_WaitFor_ReturnsProjectionError(t *testing.T) {
 		trackingProjection: newTrackingProjection(RoomSubjectFilter()),
 		err:                applyErr,
 	}
-	projector := NewProjector(js, stream, proj, testLogger())
+	projector := must(NewProjector(js, stream, proj, ProjectorOptions{}))
 
 	runCtx, cancelRun := context.WithCancel(context.Background())
 	t.Cleanup(cancelRun)
@@ -2163,7 +2113,7 @@ func TestProjector_RunReturnsProjectionError(t *testing.T) {
 		trackingProjection: newTrackingProjection(RoomSubjectFilter()),
 		err:                applyErr,
 	}
-	projector := NewProjector(js, stream, proj, testLogger())
+	projector := must(NewProjector(js, stream, proj, ProjectorOptions{}))
 
 	runCtx, cancelRun := context.WithCancel(context.Background())
 	t.Cleanup(cancelRun)
@@ -2201,7 +2151,7 @@ func TestProjector_RunReturnsProjectionError(t *testing.T) {
 func TestProjector_RunFailsOnUnmarshalableEvent(t *testing.T) {
 	js, stream := setupTestStream(t)
 	proj := newTrackingProjection(RoomSubjectFilter())
-	projector := NewProjector(js, stream, proj, testLogger())
+	projector := must(NewProjector(js, stream, proj, ProjectorOptions{}))
 
 	runCtx, cancelRun := context.WithCancel(context.Background())
 	t.Cleanup(cancelRun)
@@ -2916,4 +2866,13 @@ func itoa(i int) string {
 		buf[pos] = '-'
 	}
 	return string(buf[pos:])
+}
+
+// must returns value or panics with err. Tests use it for constructors that
+// must succeed.
+func must[T any](value T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return value
 }
