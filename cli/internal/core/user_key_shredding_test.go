@@ -211,9 +211,17 @@ func TestUserKeyShreddingKeepsDEKsDiscoverableUntilWrappingKeysAreShredded(t *te
 	require.NoError(t, err)
 	require.NotEmpty(t, contentRefs)
 
+	// The shredding worker can retry the failed request in the background, so
+	// the test switches the failure off with a flag instead of replacing the
+	// function again.
+	var failWrappingShred atomic.Bool
+	failWrappingShred.Store(true)
 	originalShredWrapping := chatto.keyShredding.shredWrappingKeyFn
-	chatto.keyShredding.shredWrappingKeyFn = func(context.Context, string) error {
-		return errors.New("injected wrapping-key shred failure")
+	chatto.keyShredding.shredWrappingKeyFn = func(ctx context.Context, ref string) error {
+		if failWrappingShred.Load() {
+			return errors.New("injected wrapping-key shred failure")
+		}
+		return originalShredWrapping(ctx, ref)
 	}
 	err = chatto.DeleteUserEncryptionKeyAs(ctx, user.GetId(), user.GetId())
 	require.ErrorContains(t, err, "injected wrapping-key shred failure")
@@ -222,7 +230,7 @@ func TestUserKeyShreddingKeepsDEKsDiscoverableUntilWrappingKeysAreShredded(t *te
 		require.NoError(t, err, "DEK %s must remain discoverable while KEK shredding is incomplete", ref)
 	}
 
-	chatto.keyShredding.shredWrappingKeyFn = originalShredWrapping
+	failWrappingShred.Store(false)
 	require.NoError(t, chatto.DeleteUserEncryptionKeyAs(ctx, user.GetId(), user.GetId()))
 	for _, ref := range contentRefs {
 		_, err := chatto.encryption.contentKeys.Get(ctx, ref)
