@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/stretchr/testify/require"
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
@@ -875,12 +876,15 @@ func TestUserServiceGetUserReadsPublicUsers(t *testing.T) {
 	if roles := strings.Join(userRow.GetRoles(), ","); roles != "everyone,admin" {
 		t.Fatalf("GetUser roles = %q, want everyone,admin", roles)
 	}
-	batchResp, err := env.users.BatchGetUsers(ctx, connect.NewRequest(&apiv1.BatchGetUsersRequest{
-		UserIds: []string{env.viewer.Id, "missing-user", env.viewer.Id},
-	}))
-	if err != nil {
-		t.Fatalf("BatchGetUsers: %v", err)
-	}
+	// Bulk presence is a watcher snapshot, while GetUser reads KV directly.
+	// Verify the bulk result after its independent liveness update arrives.
+	var batchResp *connect.Response[apiv1.BatchGetUsersResponse]
+	require.Eventually(t, func() bool {
+		batchResp, err = env.users.BatchGetUsers(ctx, connect.NewRequest(&apiv1.BatchGetUsersRequest{
+			UserIds: []string{env.viewer.Id, "missing-user", env.viewer.Id},
+		}))
+		return err == nil && len(batchResp.Msg.GetUsers()) == 1 && batchResp.Msg.GetUsers()[0].GetUser().GetPresenceStatus() == apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE
+	}, 2*time.Second, time.Millisecond, "bulk presence did not catch up")
 	if got := batchResp.Msg.GetUsers(); len(got) != 1 {
 		t.Fatalf("BatchGetUsers len = %d, want 1: %+v", len(got), got)
 	} else if got[0].GetUser().GetId() != env.viewer.Id || got[0].GetUser().GetLogin() != env.viewer.Login || got[0].GetUser().GetDisplayName() != env.viewer.DisplayName || got[0].GetUser().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE {
