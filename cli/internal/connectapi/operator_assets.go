@@ -14,10 +14,9 @@ type operatorAssetService struct {
 }
 
 func (s *operatorAssetService) CreateUpload(ctx context.Context, req *connect.Request[operatorv1.CreateUploadRequest]) (*connect.Response[operatorv1.CreateUploadResponse], error) {
-	contentType := strings.TrimSpace(req.Msg.GetContentType())
-	if contentType == "" {
-		contentType = "application/octet-stream"
-	}
+	// Canonicalize before the video check so that a type such as "Video/MP4"
+	// cannot bypass it.
+	contentType, _ := core.CanonicalContentType(req.Msg.GetContentType())
 	if !s.api.config.Video.Enabled && strings.HasPrefix(contentType, "video/") {
 		return nil, invalidArgument("video uploads are disabled on this server")
 	}
