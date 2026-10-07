@@ -28,7 +28,8 @@ var ErrInvalidEncodedRecord = errors.New("invalid encoded event record")
 
 // ErrMissingOCC is returned when a write has no optimistic concurrency guard:
 // AppendAt with a zero Expectation, or an atomic batch without a guarded
-// entry. There is no publish-without-OCC path through the event log.
+// entry. Unguarded writes are explicit: use AppendEventually or
+// ExecuteMutation with the Unguarded boundary.
 var ErrMissingOCC = errors.New("missing optimistic concurrency guard")
 
 // ErrDuplicateBatchMessageID reports that JetStream rejected an atomic batch
@@ -101,7 +102,8 @@ type EncodedBatchEntry struct {
 	Expect  Expectation
 }
 
-// EncodedEventLog owns opaque-byte JetStream reads and OCC-only writes.
+// EncodedEventLog owns opaque-byte JetStream reads and OCC-guarded writes,
+// with an explicit unguarded path for state-independent facts.
 // Application adapters remain responsible for event validation, encoding, and
 // subject policy.
 type EncodedEventLog struct {

@@ -64,6 +64,5 @@ mise test-events
 mise license-check
 ```
 
-When Chatto integration changes, also run `mise test-cli`. When Authling begins
-consuming this module, keep `(cd authling && mise test)` passing with
-`GOWORK=off`.
+When Chatto integration changes, also run `mise test-cli`. Authling consumes
+this module: also keep `(cd authling && mise test)` passing with `GOWORK=off`.

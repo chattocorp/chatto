@@ -49,8 +49,8 @@ type TypedMutationEntry[E any] struct {
 // only the mechanical encode, decode, and batch/mutation mapping; applications
 // keep their subjects, semantic validation, envelope policy, and composition.
 //
-// Embedding an *EncodedEventLog means untyped log reads such as LastSubjectSeq,
-// LastSubjectPosition, StreamUsage, and SubjectRecordsAfterPage remain
+// Embedding an *EncodedEventLog means untyped log reads such as LastStreamSeq,
+// LastSubjectSeq, LastSubjectPosition, and SubjectRecordsAfterPage remain
 // available on the typed value.
 type TypedEventLog[E any] struct {
 	*EncodedEventLog

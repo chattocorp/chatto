@@ -21,7 +21,7 @@ Event sourcing inverts the relationship: events are the truth, state is derived.
 
 - **Subject cardinality drops to O(aggregates).** One subject per room, one per user, one per RBAC namespace — not one per message.
 - **Schema changes become projection rebuilds.** Drop the projection, replay the stream, done. No boot migration code.
-- **One write primitive.** Append event with OCC. Every mutation in the codebase goes through it.
+- **One write model.** Facts append to their aggregate subject; a write that depends on state carries an OCC guard.
 - **The audit log is the data, by construction.** Not a side effect.
 
 This is a large change. The migration is per-aggregate and phased; that strategy is the subject of [ADR-035](ADR-035-per-aggregate-phased-migration.md). The shape of the event log itself — single stream vs. many — is the subject of [ADR-034](ADR-034-single-event-stream.md). This ADR commits to the model.
@@ -47,7 +47,7 @@ Adopt event sourcing as the storage pattern for domain state.
 - **Read-your-writes via stream positions.** Successful publish returns a stream sequence number, and the writer already knows the subject or subject filter it published/guarded against. Domain code wraps those into an `events.StreamPosition` and asks the relevant projection owner to wait until its projector reaches that position. The projector verifies both sides of the contract: the sequence must belong to the supplied subject/filter, and the projection must consume the sequence's actual subject. Waiting on a raw sequence that the projection will never consume is a programming error, not a timeout-shaped control path. Reads from other actors see the new state on the projection's natural consumer cadence — typically sub-millisecond, never coordinated.
 - **Restore mechanisms are optional capabilities.** The base projection contract owns logical subjects and ordered event application. A projection may implement neither persistence mechanism and cold-replay every time. [ADR-050](ADR-050-ephemeral-encrypted-projection-snapshots.md) defines optional portable encrypted snapshots for eligible in-memory projections, while [ADR-054](ADR-054-optional-projection-persistence.md) defines the opt-in capability boundary, including projection-owned local checkpoints. Neither changes the authority of `EVT`.
 - **Runtime state stays out.** Presence, typing indicators, link-preview cache, auth tokens, image cache, and similar TTL-driven or content-addressed state are not part of the event log. Durable latest-value runtime state uses `RUNTIME_STATE` per [ADR-036](ADR-036-runtime-state-kv-boundary.md); purely transient state can remain memory-backed, and binary/object data stays in object stores. Security-relevant workflow facts may still be appended to EVT for audit, but only as safe facts without raw tokens, links, passwords, auth codes, or raw IP addresses.
-- **A thin internal Go package owns the abstractions.** No third-party event-sourcing framework is adopted. The package exposes `Publish`, `StreamPosition`, a `Projection` interface, and a `Projector` (consumer + apply loop). Estimated size: ~1000–1500 lines, fully under our control.
+- **A thin internal Go package owns the abstractions.** No third-party event-sourcing framework is adopted. The package exposes guarded and unguarded append methods, `StreamPosition`, a projection interface, and a `Projector` (consumer + apply loop). Estimated size: ~1000–1500 lines, fully under our control.
 
 This ADR supersedes ADR-006.
 
