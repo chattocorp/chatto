@@ -66,6 +66,8 @@ jobs:
 
       - name: Setup environment
         uses: ./.github/actions/setup
+        with:
+          turbo-remote-cache: 'false'
 
       - name: Resolve image metadata
         id: image
@@ -226,6 +228,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
         with:
+          turbo-remote-cache: 'false'
           install-cli-deps: 'false'
 
       - name: Resolve desktop version
@@ -669,6 +672,8 @@ jobs:
 
       - name: Setup environment
         uses: ./.github/actions/setup
+        with:
+          turbo-remote-cache: 'false'
 
       - name: Build frontend once
         run: mise build-frontend

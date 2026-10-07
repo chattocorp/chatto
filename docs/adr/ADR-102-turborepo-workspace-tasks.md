@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-21
 
-**Updated:** 2026-09-26
+**Updated:** 2026-10-06
 
 **Status:** Accepted
 
@@ -41,13 +41,31 @@ build task. Mise does not keep separate source lists for these builds.
 
 Do not set `cacheDir`. Turbo then shares the local cache of the main checkout
 with every Git worktree, so a new worktree restores unchanged builds. The
-cached outputs contain no absolute worktree paths. Disable remote caching and
-disable telemetry in the root `pnpm turbo` script; no cache service receives
-source, build output, or logs.
+cached outputs contain no absolute worktree paths. Disable telemetry in the
+root `pnpm turbo` script.
 
-Verification tasks remain uncached. Use loose environment mode to retain
-existing release, test, and development settings. Keep publishing, signing,
-and installed-package tests outside Turbo.
+The root script also sets `TURBO_CACHE=local:rw` when the caller does not set
+it. Local runs therefore use only the local cache, and no cache service
+receives source, build output, or logs. `turbo.json` enables remote caching
+only so that CI can select it. A package script that runs Turbo must use
+`pnpm -w turbo`; plain `pnpm turbo` in a package runs Turbo without the root
+script.
+
+CI uses the GitHub Actions cache as the Turbo remote cache. The shared setup
+action starts `rharkor/caching-for-turbo`, pinned to a commit. The action runs
+a local cache server that stores one Actions cache entry for each task hash.
+Jobs on the same operating system share build and check results, and GitHub
+removes entries that are not used. Build output stays in the repository's
+Actions cache, with the Go and pnpm caches. Every CI run reads and writes
+entries, so the first job that builds a task shares the result with the other
+jobs of the same run. Entries from a pull request are visible only to runs of
+that pull request, and all runs can read entries from `main`. A run that builds
+every task writes about 16 MB. Jobs that publish images or releases turn the
+remote cache off, so published artifacts build from source.
+
+Check tasks are cached. Lint and test tasks remain uncached. Use loose
+environment mode to retain existing release, test, and development settings.
+Keep publishing, signing, and installed-package tests outside Turbo.
 
 ## Consequences
 
@@ -59,6 +77,12 @@ build takes approximately one second. A warm `mise dev` restart takes a few
 seconds longer than with mise source checks, because it always replays the
 cached Turbo tasks and copies the embedded frontend. Root checks and tests keep one-task concurrency to bound memory use;
 do not run separate SvelteKit tasks concurrently in one checkout.
+
+CI jobs that install frontend dependencies run a third-party action, pinned to
+a commit. If its cache server does not start, the job fails. CI check and
+build results are only as correct as the Turbo task inputs: a task that reads
+a file or environment variable outside its declared inputs can restore a
+stale result.
 
 Use `mise x -- pnpm turbo run check --filter=runling --dry=json` to inspect the
 task graph. Use `--force` on a Turbo run to bypass cached results.

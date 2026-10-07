@@ -42,11 +42,13 @@ Use `mise check-chattobot` and `mise test-chattobot` to verify it.
 Root pnpm scripts use Turborepo to build workspace dependencies before their
 consumers. Prefer `mise` tasks or root scripts such as `mise x -- pnpm run
 check:frontend`; a command inside a package only runs that package's script.
-Turbo caches library, frontend, and Runling builds. All Git worktrees share
-the cache in the main checkout's `.turbo/cache`, so a new worktree restores
-unchanged builds. Verification tasks run without Turbo caching. Remote caching
-and telemetry are disabled by the repository configuration and scripts. See [ADR-102](docs/adr/ADR-102-turborepo-workspace-tasks.md)
-for the task and cache boundaries.
+Turbo caches library, frontend, and Runling builds, and check results. All
+Git worktrees share the cache in the main checkout's `.turbo/cache`, so a new
+worktree restores unchanged builds. Lint and test tasks run without Turbo
+caching. Local runs use only the local cache, and the root script disables
+telemetry. CI also uses the GitHub Actions cache as a Turbo remote cache. See
+[ADR-102](docs/adr/ADR-102-turborepo-workspace-tasks.md) for the task and
+cache boundaries.
 
 Run Chatto:
 
