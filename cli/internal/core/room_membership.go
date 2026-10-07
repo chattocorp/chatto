@@ -769,7 +769,7 @@ func (c *ChattoCore) GetRoomMemberReferencesForLookup(ctx context.Context, actor
 		}
 		if !roomManager && !accountManager {
 			for _, userID := range userIDs {
-				if _, err := c.requireBotManager(ctx, actorID, userID); err != nil {
+				if _, err := c.requireBotManagementPermission(ctx, actorID, userID); err != nil {
 					if errors.Is(err, ErrNotFound) || errors.Is(err, ErrHumanAccountRequired) {
 						return nil, ErrPermissionDenied
 					}

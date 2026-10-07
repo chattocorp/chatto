@@ -19,8 +19,8 @@ func (c *ChattoCore) CanAssignRoleToUser(ctx context.Context, actorID, targetUse
 }
 
 // CanRevokeRoleFromUser reports whether a role revocation is available for a
-// concrete target. It includes target-specific safety rules that the generic
-// role-authority comparison cannot express.
+// concrete target. It applies the revocation command's rules, including the
+// self-revocation and configured-owner protections.
 func (c *ChattoCore) CanRevokeRoleFromUser(ctx context.Context, actorID, targetUserID, roleName string) (bool, error) {
 	if roleName == RoleEveryone || isProtectedSelfRoleRevocation(actorID, targetUserID, roleName) {
 		return false, nil
@@ -95,6 +95,33 @@ func (c *ChattoCore) requireRoleDeletionWithinAuthority(ctx context.Context, act
 		return err
 	}
 	return c.requireRoleDecisionsWithinAuthority(ctx, actorID, roleName, true)
+}
+
+// requireBotGrantsWithinAuthority requires the actor to hold every permission
+// that the bot is allowed directly or through its roles. A new owner sets a
+// new ceiling for these grants, so a manager who hands the bot to an account
+// with more authority must not unlock grants beyond their own.
+func (c *ChattoCore) requireBotGrantsWithinAuthority(ctx context.Context, actorID, botID string) error {
+	if c.actorIsHierarchyExempt(actorID) {
+		return nil
+	}
+	for _, decision := range c.rbacModel.userPermissionDecisions(botID) {
+		if decision.Decision != DecisionAllow {
+			continue
+		}
+		if _, known := GetPermissionMetadata(decision.Permission); !known {
+			continue
+		}
+		if err := c.requirePermissionDecisionWithinAuthority(ctx, actorID, decision.Scope, decision.ScopeID, decision.Permission); err != nil {
+			return err
+		}
+	}
+	for _, roleName := range c.rbacModel.userRoles(botID) {
+		if err := c.requireRoleDecisionsWithinAuthority(ctx, actorID, roleName, false); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // requireRoleDecisionsWithinAuthority requires the actor to effectively hold

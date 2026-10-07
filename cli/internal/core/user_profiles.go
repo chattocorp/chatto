@@ -376,7 +376,9 @@ func (c *ChattoCore) requireCanAdminManageUser(ctx context.Context, actorID, tar
 	if !canManage {
 		return ErrPermissionDenied
 	}
-	return c.requireOutranksOtherAccount(actorID, targetUserID)
+	return c.authorizeAtStableInputs(ctx, func() error {
+		return c.requireOutranksOtherAccount(actorID, targetUserID)
+	})
 }
 
 // ============================================================================

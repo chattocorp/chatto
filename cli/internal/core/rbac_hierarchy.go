@@ -10,8 +10,9 @@ package core
 //
 // A non-owner may act on another account only when they rank strictly above
 // it, and may assign, revoke, edit, delete, or move only roles that rank
-// strictly below their own highest role. Everyone ranks below every account. The system actor is exempt. Callers
-// decide whether an action on the actor's own account uses these rules.
+// strictly below their own highest role. Everyone ranks below every account.
+// The system actor is exempt. Callers decide whether an action on the actor's
+// own account uses these rules.
 //
 // Bots rank by their own roles. As actors, bots never rank above their human
 // owner, like their permissions never exceed the owner's. Managing a bot also
@@ -55,6 +56,21 @@ func (c *ChattoCore) requireOutranksAccount(actorID, targetUserID string) error 
 	}
 	if !c.outranks(actorID, targetUserID) {
 		return ErrPermissionDenied
+	}
+	return nil
+}
+
+// requireOutranksAccountAndOwnedBots also requires the actor to outrank every
+// bot that the target owns. Deleting a human deletes their bots, and a bot can
+// hold a role above its owner.
+func (c *ChattoCore) requireOutranksAccountAndOwnedBots(actorID, targetUserID string) error {
+	if err := c.requireOutranksAccount(actorID, targetUserID); err != nil {
+		return err
+	}
+	for _, botID := range c.userModel.botIDsOwnedBy(targetUserID) {
+		if err := c.requireOutranksAccount(actorID, botID); err != nil {
+			return err
+		}
 	}
 	return nil
 }

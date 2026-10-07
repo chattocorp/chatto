@@ -216,7 +216,9 @@ func (x *RoleDeletedEvent) GetRoleName() string {
 	return ""
 }
 
-// Custom roles changed display order. Permission decisions are unchanged.
+// The role order changed. Role order is the administrative rank, so the
+// viewer's ranks_below_viewer and viewer_outranks flags can change. Permission
+// decisions are unchanged.
 type RolesReorderedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Role names in ascending position. Current servers list every role except

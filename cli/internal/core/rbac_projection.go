@@ -30,9 +30,8 @@ type rbacDecisionKey struct {
 	permission  Permission
 }
 
-// ScopedRolePermissionDecision is one explicit permission decision carried by
-// a role. It is used to keep delegated role assignment within the caller's own
-// authority without treating display order as an authorization rank.
+// ScopedRolePermissionDecision is one explicit permission decision of a role
+// or account. It keeps delegated changes within the caller's own authority.
 type ScopedRolePermissionDecision struct {
 	Scope      PermissionScope
 	ScopeID    string
@@ -444,11 +443,21 @@ func (p *RBACProjection) GetRoleUsers(roleName string) []string {
 }
 
 func (p *RBACProjection) RolePermissionDecisions(roleName string) []ScopedRolePermissionDecision {
+	return p.subjectPermissionDecisions(evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, roleName)
+}
+
+// UserPermissionDecisions returns the direct decisions of one account at every
+// scope, sorted like RolePermissionDecisions.
+func (p *RBACProjection) UserPermissionDecisions(userID string) []ScopedRolePermissionDecision {
+	return p.subjectPermissionDecisions(evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER, userID)
+}
+
+func (p *RBACProjection) subjectPermissionDecisions(kind evtv1.RbacPermissionSubjectKind, subject string) []ScopedRolePermissionDecision {
 	p.RLock()
 	defer p.RUnlock()
 	decisions := make([]ScopedRolePermissionDecision, 0)
 	for key, decision := range p.decisions {
-		if key.subjectKind != evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE || key.subject != roleName {
+		if key.subjectKind != kind || key.subject != subject {
 			continue
 		}
 		decisions = append(decisions, ScopedRolePermissionDecision{

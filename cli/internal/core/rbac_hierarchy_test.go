@@ -437,3 +437,95 @@ func TestBotOwnersCannotChangeRolesOfHigherRankedBots(t *testing.T) {
 		t.Fatalf("owner of the server revokes restriction: %v", err)
 	}
 }
+
+func TestDeletingAUserRequiresOutrankingTheirBots(t *testing.T) {
+	t.Parallel()
+
+	f := newHierarchyFixture(t)
+	c, ctx := f.c, f.ctx
+	if err := c.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermUserDeleteAny); err != nil {
+		t.Fatalf("GrantServerPermission user.delete-any: %v", err)
+	}
+	allowBotCreation(t, ctx, c, f.member)
+	bot, err := c.CreateBot(ctx, f.member, "cascade_bot", "Cascade Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	if _, err := c.CreateServerRole(ctx, SystemActorID, "ops", "Ops", ""); err != nil {
+		t.Fatalf("CreateServerRole ops: %v", err)
+	}
+	if _, err := c.ReorderServerRoles(ctx, SystemActorID, []string{RoleModerator, "ops", RoleAdmin}); err != nil {
+		t.Fatalf("ReorderServerRoles: %v", err)
+	}
+	if err := c.AssignServerRole(ctx, SystemActorID, bot.User.GetId(), "ops"); err != nil {
+		t.Fatalf("AssignServerRole ops: %v", err)
+	}
+
+	if allowed, err := c.CanDeleteUser(ctx, f.moderator, f.member); err != nil || allowed {
+		t.Fatalf("moderator CanDeleteUser(member with higher bot) = %v, %v; want false", allowed, err)
+	}
+	if err := c.AdminDeleteUserAs(ctx, f.moderator, f.member); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("moderator deletes member with higher bot: error = %v, want permission denied", err)
+	}
+	if allowed, err := c.CanDeleteUser(ctx, f.admin, f.member); err != nil || !allowed {
+		t.Fatalf("admin CanDeleteUser(member) = %v, %v; want true", allowed, err)
+	}
+}
+
+func TestBotManagersGrantOnlyWhatTheyHold(t *testing.T) {
+	t.Parallel()
+
+	f := newHierarchyFixture(t)
+	c, ctx := f.c, f.ctx
+	if err := c.GrantUserPermission(ctx, SystemActorID, f.moderator, PermBotManage); err != nil {
+		t.Fatalf("GrantUserPermission bot.manage: %v", err)
+	}
+	if err := c.GrantUserPermission(ctx, SystemActorID, f.member, PermRoomCreate); err != nil {
+		t.Fatalf("GrantUserPermission room.create: %v", err)
+	}
+	allowBotCreation(t, ctx, c, f.member)
+	bot, err := c.CreateBot(ctx, f.member, "ceiling_bot", "Ceiling Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	botID := bot.User.GetId()
+	server := PermissionTargetScope{Kind: MatrixScopeServer}
+
+	// call.screenshare needs no privileged mode, so only the grant ceiling
+	// stops the manager.
+	if err := c.DenyServerPermission(ctx, SystemActorID, RoleModerator, PermCallScreenShare); err != nil {
+		t.Fatalf("DenyServerPermission call.screenshare: %v", err)
+	}
+	if err := c.SetUserPermissionState(ctx, f.moderator, botID, server, PermCallScreenShare, PermissionStateAllow); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("manager grants call.screenshare they lack: error = %v, want permission denied", err)
+	}
+	if err := c.SetUserPermissionState(ctx, f.moderator, botID, server, PermMessageReact, PermissionStateAllow); err != nil {
+		t.Fatalf("manager grants held permission: %v", err)
+	}
+	if err := c.SetUserPermissionState(ctx, f.member, botID, server, PermRoomCreate, PermissionStateAllow); err != nil {
+		t.Fatalf("owner grants own permission: %v", err)
+	}
+	other, err := c.CreateUser(ctx, SystemActorID, "ceiling-recipient", "Recipient", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser recipient: %v", err)
+	}
+	if _, err := c.ReassignBotOwner(ctx, f.moderator, botID, other.Id); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("manager reassigns bot with grants they lack: error = %v, want permission denied", err)
+	}
+
+	// Reading management data and adding a bot to a room do not depend on rank.
+	adminBot, err := c.CreateBot(ctx, f.admin, "ceiling_admin_bot", "Ceiling Admin Bot")
+	if err != nil {
+		t.Fatalf("CreateBot admin bot: %v", err)
+	}
+	if _, err := c.GetUserPermissionMatrix(ctx, f.moderator, adminBot.User.GetId()); err != nil {
+		t.Fatalf("manager reads higher-ranked bot matrix: %v", err)
+	}
+	if err := allowReactForHierarchy(c, ctx, f.moderator, adminBot.User.GetId()); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("manager changes higher-ranked bot: error = %v, want permission denied", err)
+	}
+}
+
+func allowReactForHierarchy(c *ChattoCore, ctx context.Context, actorID, botID string) error {
+	return c.SetUserPermissionState(ctx, actorID, botID, PermissionTargetScope{Kind: MatrixScopeServer}, PermMessageReact, PermissionStateAllow)
+}

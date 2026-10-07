@@ -39,7 +39,7 @@ type RoleWithPermissions struct {
 	Permissions       []Permission // Permissions granted (allowed) by this role
 	PermissionDenials []Permission // Permissions denied by this role
 	IsSystem          bool
-	Position          int32 // Display/order position. Everyone=0, Owner=1000.
+	Position          int32 // Administrative rank order (ADR-114). Everyone=0, Owner=1000.
 	Pingable          bool
 }
 
@@ -743,8 +743,9 @@ func (c *ChattoCore) GetServerRole(ctx context.Context, name string) (*RoleWithP
 // DeleteServerRole deletes a custom role and all its associated data.
 // This includes: the role definition, all permission grants, and all user assignments.
 // System roles (owner, admin, moderator, everyone) cannot be deleted. Deletion
-// revokes the role from every holder, so a non-system actor needs the same
-// authority as for revocation: every permission that the role allows or denies.
+// revokes the role from every holder, so an actor who is not exempt from the
+// hierarchy needs the same authority as for revocation: the role must rank
+// below them, and they need every permission that the role allows or denies.
 func (c *ChattoCore) DeleteServerRole(ctx context.Context, actorID, name string) error {
 	if IsSystemRole(name) {
 		return ErrCannotDeleteSystemRole

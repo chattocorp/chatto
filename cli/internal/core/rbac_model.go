@@ -48,6 +48,10 @@ func (m *RBACModel) rolePermissionDecisions(roleName string) []ScopedRolePermiss
 	return m.rbac.Projection().RolePermissionDecisions(roleName)
 }
 
+func (m *RBACModel) userPermissionDecisions(userID string) []ScopedRolePermissionDecision {
+	return m.rbac.Projection().UserPermissionDecisions(userID)
+}
+
 func (m *RBACModel) decision(scope PermissionScope, scopeID, subject string, permission Permission) DecisionKind {
 	return m.rbac.Projection().GetDecision(scope, scopeID, subject, permission)
 }

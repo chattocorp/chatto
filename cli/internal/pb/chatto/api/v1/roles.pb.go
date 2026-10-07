@@ -33,7 +33,9 @@ type Role struct {
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	// Whether this is a built-in role.
 	IsSystem bool `protobuf:"varint,4,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
-	// Display/order position.
+	// Order position. A higher position ranks higher. Rank decides which
+	// accounts and roles a caller can manage; it does not change permission
+	// decisions.
 	Position int32 `protobuf:"varint,5,opt,name=position,proto3" json:"position,omitempty"`
 	// Whether messages may notify users assigned to this role.
 	Pingable      bool `protobuf:"varint,6,opt,name=pingable,proto3" json:"pingable,omitempty"`

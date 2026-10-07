@@ -116,8 +116,10 @@ type BotServiceClient interface {
 	CreateBotIncomingWebhook(context.Context, *connect.Request[v1.CreateBotIncomingWebhookRequest]) (*connect.Response[v1.CreateBotIncomingWebhookResponse], error)
 	// Revokes one incoming webhook without changing other webhooks.
 	RevokeBotIncomingWebhook(context.Context, *connect.Request[v1.RevokeBotIncomingWebhookRequest]) (*connect.Response[v1.RevokeBotIncomingWebhookResponse], error)
-	// Reassigns a bot to another active human owner. Requires bot.manage, and
-	// the caller must outrank the new owner unless it is their own account. The
+	// Reassigns a bot to another active human owner. Requires bot.manage. The
+	// caller must outrank the bot and its current owner (see
+	// Bot.viewer_outranks), must outrank the new owner unless it is their own
+	// account, and must have every permission that the bot is allowed. The
 	// current API keys and configured permission allowlist remain unchanged,
 	// while effective permissions immediately use the new owner's ceiling.
 	ReassignBotOwner(context.Context, *connect.Request[v1.ReassignBotOwnerRequest]) (*connect.Response[v1.ReassignBotOwnerResponse], error)
@@ -376,8 +378,10 @@ type BotServiceHandler interface {
 	CreateBotIncomingWebhook(context.Context, *connect.Request[v1.CreateBotIncomingWebhookRequest]) (*connect.Response[v1.CreateBotIncomingWebhookResponse], error)
 	// Revokes one incoming webhook without changing other webhooks.
 	RevokeBotIncomingWebhook(context.Context, *connect.Request[v1.RevokeBotIncomingWebhookRequest]) (*connect.Response[v1.RevokeBotIncomingWebhookResponse], error)
-	// Reassigns a bot to another active human owner. Requires bot.manage, and
-	// the caller must outrank the new owner unless it is their own account. The
+	// Reassigns a bot to another active human owner. Requires bot.manage. The
+	// caller must outrank the bot and its current owner (see
+	// Bot.viewer_outranks), must outrank the new owner unless it is their own
+	// account, and must have every permission that the bot is allowed. The
 	// current API keys and configured permission allowlist remain unchanged,
 	// while effective permissions immediately use the new owner's ceiling.
 	ReassignBotOwner(context.Context, *connect.Request[v1.ReassignBotOwnerRequest]) (*connect.Response[v1.ReassignBotOwnerResponse], error)

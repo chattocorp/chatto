@@ -72,8 +72,9 @@ type AdminUserServiceClient interface {
 	// Assigns a role to a user or bot. Requires role.assign. A caller who is not
 	// an owner may assign only roles below their own highest role whose granted
 	// authority they already possess, and must outrank the target (see
-	// AdminMember.viewer_outranks) unless it is their own account. Bots cannot
-	// hold the owner role.
+	// AdminMember.viewer_outranks) unless it is their own account. For a bot,
+	// the caller must always outrank the bot itself. Bots cannot hold the owner
+	// role.
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
 	// Revokes a role from a user or bot. Requires role.assign. A caller who is
 	// not an owner may revoke only roles below their own highest role whose
@@ -220,8 +221,9 @@ type AdminUserServiceHandler interface {
 	// Assigns a role to a user or bot. Requires role.assign. A caller who is not
 	// an owner may assign only roles below their own highest role whose granted
 	// authority they already possess, and must outrank the target (see
-	// AdminMember.viewer_outranks) unless it is their own account. Bots cannot
-	// hold the owner role.
+	// AdminMember.viewer_outranks) unless it is their own account. For a bot,
+	// the caller must always outrank the bot itself. Bots cannot hold the owner
+	// role.
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
 	// Revokes a role from a user or bot. Requires role.assign. A caller who is
 	// not an owner may revoke only roles below their own highest role whose

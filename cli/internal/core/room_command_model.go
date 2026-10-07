@@ -316,7 +316,8 @@ func (s *RoomCommandModel) authorizeMembershipChange(ctx context.Context, input 
 		if !user.GetIsBot() {
 			return ErrPermissionDenied
 		}
-		if _, err := s.core.requireBotManager(ctx, input.ActorID, input.UserID); err != nil {
+		// Removal checks rank below; adding a member does not act against it.
+		if _, err := s.core.requireBotManagementPermission(ctx, input.ActorID, input.UserID); err != nil {
 			return err
 		}
 	}

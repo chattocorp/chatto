@@ -298,7 +298,20 @@ func (c *ChattoCore) requireHumanUser(ctx context.Context, userID string) error 
 	return nil
 }
 
+// requireBotManager authorizes changes to a bot: the actor owns it, or holds
+// bot.manage and outranks the bot and its owner (ADR-114).
 func (c *ChattoCore) requireBotManager(ctx context.Context, actorID, botID string) (*evtv1.User, error) {
+	bot, err := c.requireBotManagementPermission(ctx, actorID, botID)
+	if err != nil || bot.GetBotOwnerUserId() == actorID {
+		return bot, err
+	}
+	return bot, c.requireOutranksAccount(actorID, botID)
+}
+
+// requireBotManagementPermission checks ownership or bot.manage without the
+// role hierarchy. Use it for reads of management data and for adding a bot to
+// a room; changes use requireBotManager.
+func (c *ChattoCore) requireBotManagementPermission(ctx context.Context, actorID, botID string) (*evtv1.User, error) {
 	if err := c.requireHumanUser(ctx, actorID); err != nil {
 		return nil, err
 	}
@@ -319,7 +332,7 @@ func (c *ChattoCore) requireBotManager(ctx context.Context, actorID, botID strin
 	if !allowed {
 		return nil, ErrPermissionDenied
 	}
-	return bot, c.requireOutranksAccount(actorID, botID)
+	return bot, nil
 }
 
 // requireBotViewer permits bot owners, bot managers, and account managers to
@@ -858,11 +871,15 @@ func (c *ChattoCore) ReassignBotOwner(ctx context.Context, actorID, botID, owner
 				return ErrHumanAccountRequired
 			}
 			// The actor must outrank the bot, its current owner, and the
-			// new owner, so a handoff cannot move a bot above the actor.
+			// new owner, so a handoff cannot move a bot above the actor. The
+			// new owner's ceiling must not unlock grants that the actor lacks.
 			if err := c.requireOutranksAccount(actorID, botID); err != nil {
 				return err
 			}
-			return c.requireOutranksOtherAccount(actorID, ownerUserID)
+			if err := c.requireOutranksOtherAccount(actorID, ownerUserID); err != nil {
+				return err
+			}
+			return c.requireBotGrantsWithinAuthority(ctx, actorID, botID)
 		}); err != nil {
 			return nil, err
 		}
@@ -1016,6 +1033,24 @@ func (c *ChattoCore) setBotUserPermissionState(ctx context.Context, actorID, bot
 			}
 			if decision != DecisionAllow {
 				return ErrBotOwnerPermissionCeiling
+			}
+			// A manager who does not own the bot can also grant only what they
+			// hold themselves (ADR-114).
+			if currentBot.GetBotOwnerUserId() != actorID {
+				var coreScope PermissionScope
+				switch normalized.Kind {
+				case MatrixScopeDM:
+					coreScope = ScopeDM
+				case MatrixScopeGroup:
+					coreScope = ScopeGroup
+				case MatrixScopeRoom:
+					coreScope = ScopeRoom
+				default:
+					coreScope = ScopeServer
+				}
+				if err := c.requirePermissionDecisionWithinAuthority(ctx, actorID, coreScope, normalized.ID, perm); err != nil {
+					return err
+				}
 			}
 			// Delegating elevated authority requires the acting human to hold
 			// it actively at this scope, independently of the owner's ceiling.

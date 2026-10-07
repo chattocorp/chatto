@@ -210,7 +210,7 @@ func (c *ChattoCore) GetUserPermissionMatrixPage(ctx context.Context, actorID, u
 		return nil, err
 	}
 	if user.GetIsBot() {
-		user, err = c.requireBotManager(ctx, actorID, userID)
+		user, err = c.requireBotManagementPermission(ctx, actorID, userID)
 		if err != nil {
 			return nil, err
 		}
