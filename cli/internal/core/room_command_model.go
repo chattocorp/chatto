@@ -273,7 +273,8 @@ func (s *RoomCommandModel) AddMember(ctx context.Context, input RoomUserInput) (
 }
 
 // RemoveMember permits account, room, and target-bot managers to remove members,
-// even after join authority is lost. Membership changes preserve grants.
+// even after join authority is lost. The actor must outrank the member.
+// Membership changes preserve grants.
 func (s *RoomCommandModel) RemoveMember(ctx context.Context, input RoomUserInput) (bool, error) {
 	if err := requireAuthenticatedActor(input.ActorID); err != nil {
 		return false, err
@@ -325,6 +326,12 @@ func (s *RoomCommandModel) authorizeMembershipChange(ctx context.Context, input 
 	}
 	if KindOfRoom(room) != KindChannel || room.GetUniversal() {
 		return invalidArgument("direct-message and universal room membership cannot be managed explicitly")
+	}
+	// Adding a member does not act against them; removing one does.
+	if !joining {
+		if err := s.core.requireOutranksOtherAccount(input.ActorID, input.UserID); err != nil {
+			return err
+		}
 	}
 	if room.GetArchived() && joining {
 		return ErrRoomArchived

@@ -52,7 +52,10 @@ type AdminMember struct {
 	// PrimaryVerifiedEmail is empty when no primary address is visible.
 	PrimaryVerifiedEmail   string
 	ViewerCanDeleteAccount bool
-	LastLoginChange        *time.Time
+	// ViewerOutranks reports whether the role hierarchy lets the viewer act on
+	// this account. Permission checks still apply.
+	ViewerOutranks  bool
+	LastLoginChange *time.Time
 	CustomStatus           *evtv1.CustomUserStatus
 }
 
@@ -326,6 +329,7 @@ func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, u
 		}
 	}
 
+	member.ViewerOutranks = c.HierarchyAllowsActingOn(actorID, user.GetId())
 	if actorID != user.GetId() {
 		viewerCanDeleteAccount, err := c.CanDeleteUser(ctx, actorID, user.GetId())
 		if err != nil {

@@ -53,7 +53,7 @@ export const AdminRoleService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Creates a custom role. Requires role.manage.
+     * Creates a custom role. Requires role.manage. The new role ranks lowest.
      *
      * @generated from rpc chatto.admin.v1.AdminRoleService.CreateRole
      */
@@ -64,7 +64,8 @@ export const AdminRoleService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Updates role metadata. Requires role.manage.
+     * Updates role metadata. Requires role.manage. A caller who is not an owner
+     * can update only roles below their own highest role.
      *
      * @generated from rpc chatto.admin.v1.AdminRoleService.UpdateRole
      */
@@ -76,8 +77,9 @@ export const AdminRoleService = {
     },
     /**
      * Deletes a custom role. Requires role.manage. A caller who is not an owner
-     * must also have every permission that the role allows or denies, at the
-     * same scope; otherwise the call returns PERMISSION_DENIED.
+     * can delete only roles below their own highest role, and must have every
+     * permission that the role allows or denies, at the same scope; otherwise
+     * the call returns PERMISSION_DENIED.
      *
      * @generated from rpc chatto.admin.v1.AdminRoleService.DeleteRole
      */
@@ -88,7 +90,8 @@ export const AdminRoleService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Replaces the custom role order. Requires role.manage.
+     * Replaces the role order. Requires role.manage. The order is the
+     * administrative rank; see ReorderRolesRequest.
      *
      * @generated from rpc chatto.admin.v1.AdminRoleService.ReorderRoles
      */

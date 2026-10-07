@@ -156,7 +156,8 @@ type RoomServiceClient interface {
 	// Preserves permission grants. Suspensions, archived, universal, and DM rooms prevent adding.
 	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
 	// Removes an explicit channel-room member. Requires room.manage for this room,
-	// user.manage-accounts, ownership of the target bot, or bot.manage.
+	// user.manage-accounts, ownership of the target bot, or bot.manage. The
+	// caller must outrank any other member.
 	// Removal is allowed after room.join is lost and from archived rooms.
 	// Preserves permission grants. Universal and DM membership cannot be edited.
 	RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error)
@@ -207,10 +208,11 @@ type RoomServiceClient interface {
 	// room.
 	MarkRoomAsRead(context.Context, *connect.Request[v1.MarkRoomAsReadRequest]) (*connect.Response[v1.MarkRoomAsReadResponse], error)
 	// Removes a current channel room member with a required reason. Requires
-	// room.remove-member. Without suspension, ordinary join rules apply afterward.
+	// room.remove-member, and the caller must outrank the member. Without suspension, ordinary join rules apply afterward.
 	// Universal rooms require a suspension. Direct-message rooms are excluded.
 	RemoveUser(context.Context, *connect.Request[v1.RemoveUserRequest]) (*connect.Response[v1.RemoveUserResponse], error)
-	// Lifts an active channel room suspension. Requires room.remove-member.
+	// Lifts an active channel room suspension. Requires room.remove-member, and
+	// the caller must outrank the member.
 	// Calling this when no active suspension exists succeeds.
 	LiftSuspension(context.Context, *connect.Request[v1.LiftSuspensionRequest]) (*connect.Response[v1.LiftSuspensionResponse], error)
 }
@@ -598,7 +600,8 @@ type RoomServiceHandler interface {
 	// Preserves permission grants. Suspensions, archived, universal, and DM rooms prevent adding.
 	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
 	// Removes an explicit channel-room member. Requires room.manage for this room,
-	// user.manage-accounts, ownership of the target bot, or bot.manage.
+	// user.manage-accounts, ownership of the target bot, or bot.manage. The
+	// caller must outrank any other member.
 	// Removal is allowed after room.join is lost and from archived rooms.
 	// Preserves permission grants. Universal and DM membership cannot be edited.
 	RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error)
@@ -649,10 +652,11 @@ type RoomServiceHandler interface {
 	// room.
 	MarkRoomAsRead(context.Context, *connect.Request[v1.MarkRoomAsReadRequest]) (*connect.Response[v1.MarkRoomAsReadResponse], error)
 	// Removes a current channel room member with a required reason. Requires
-	// room.remove-member. Without suspension, ordinary join rules apply afterward.
+	// room.remove-member, and the caller must outrank the member. Without suspension, ordinary join rules apply afterward.
 	// Universal rooms require a suspension. Direct-message rooms are excluded.
 	RemoveUser(context.Context, *connect.Request[v1.RemoveUserRequest]) (*connect.Response[v1.RemoveUserResponse], error)
-	// Lifts an active channel room suspension. Requires room.remove-member.
+	// Lifts an active channel room suspension. Requires room.remove-member, and
+	// the caller must outrank the member.
 	// Calling this when no active suspension exists succeeds.
 	LiftSuspension(context.Context, *connect.Request[v1.LiftSuspensionRequest]) (*connect.Response[v1.LiftSuspensionResponse], error)
 }

@@ -412,7 +412,7 @@ no explicit members. Revoked assignments are excluded.
 
 ### CreateRole
 
-Creates a custom role. Requires role.manage.
+Creates a custom role. Requires role.manage. The new role ranks lowest.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/CreateRole
@@ -447,7 +447,8 @@ Result of creating a role.
 
 ### UpdateRole
 
-Updates role metadata. Requires role.manage.
+Updates role metadata. Requires role.manage. A caller who is not an owner
+can update only roles below their own highest role.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/UpdateRole
@@ -484,8 +485,9 @@ Result of updating a role.
 ### DeleteRole
 
 Deletes a custom role. Requires role.manage. A caller who is not an owner
-must also have every permission that the role allows or denies, at the
-same scope; otherwise the call returns PERMISSION_DENIED.
+can delete only roles below their own highest role, and must have every
+permission that the role allows or denies, at the same scope; otherwise
+the call returns PERMISSION_DENIED.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/DeleteRole
@@ -513,7 +515,8 @@ Result of deleting a role.
 
 ### ReorderRoles
 
-Replaces the custom role order. Requires role.manage.
+Replaces the role order. Requires role.manage. The order is the
+administrative rank; see ReorderRolesRequest.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/ReorderRoles
@@ -523,18 +526,18 @@ POST /api/connect/chatto.admin.v1.AdminRoleService/ReorderRoles
 
 #### Input: ReorderRolesRequest
 
-Request to replace custom role order.
+Request to replace the role order.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `role_names` | `repeated string` | Ordered custom role names. The list must include every custom role exactly once; system roles keep fixed positions and must not be included. |
+| `role_names` | `repeated string` | Role names, lowest first. The list must include every role except owner and everyone exactly once; owner and everyone keep fixed positions. A caller who is not an owner can move only roles below their own highest role, and only to positions below it. |
 
 
 <a id="chatto-admin-v1-ReorderRolesResponse"></a>
 
 #### Result: ReorderRolesResponse
 
-Result of replacing custom role order.
+Result of replacing the role order.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -665,8 +668,11 @@ Batch server-admin member response.
 
 ### AssignRole
 
-Assigns a role to a user. Requires role.assign, and non-owner callers may
-only assign roles whose granted authority they already possess.
+Assigns a role to a user or bot. Requires role.assign. A caller who is not
+an owner may assign only roles below their own highest role whose granted
+authority they already possess, and must outrank the target (see
+AdminMember.viewer_outranks) unless it is their own account. Bots cannot
+hold the owner role.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/AssignRole
@@ -699,8 +705,10 @@ Result of assigning a role.
 
 ### RevokeRole
 
-Revokes a role from a user. Requires role.assign, and non-owner callers may
-only revoke roles whose permission decisions are within their authority.
+Revokes a role from a user or bot. Requires role.assign. A caller who is
+not an owner may revoke only roles below their own highest role whose
+permission decisions are within their authority, and must outrank the
+target unless it is their own account.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/RevokeRole
@@ -735,7 +743,7 @@ Result of revoking a role.
 
 Updates another user's password as an admin action. Requires
 user.manage-accounts and a fresh credential for the caller; the caller
-cannot target their own account.
+cannot target their own account and must outrank the target.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/ChangeUserPassword
@@ -770,6 +778,7 @@ Result of an admin password update.
 
 Clears the target user's self-service username-change cooldown. Requires
 user.manage-accounts, including when the caller targets their own account.
+The caller must outrank any other target.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/ClearUsernameCooldown
@@ -797,8 +806,8 @@ Result of clearing a user's username-change cooldown.
 
 ### DeleteUser
 
-Deletes a user account as an admin action. Requires user.delete-any for
-other users or user.delete-self for the caller.
+Deletes a user account as an admin action. Requires user.delete-any and
+a higher rank for other users, or user.delete-self for the caller.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/DeleteUser
@@ -1168,8 +1177,10 @@ Permission explanations for all permissions applicable at the requested scope.
 
 Sets one role permission decision. Server scope requires role.manage;
 group and room scopes also accept effective room.manage at that resource.
-A caller who is not an owner must also have the permission at the target
-scope; otherwise the call returns PERMISSION_DENIED.
+A caller who is not an owner can change only roles below their own
+highest role, and must have the permission at the target scope;
+otherwise the call returns PERMISSION_DENIED. Everyone ranks below every
+account.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/SetRolePermission
@@ -1206,10 +1217,10 @@ Result of setting one role permission state.
 
 Sets one user permission decision. Human targets require
 user.manage-permissions. A caller who is not an owner must also have the
-permission at the target scope and cannot change their own decisions;
+permission at the target scope and must outrank any other target;
 otherwise the call returns PERMISSION_DENIED. Bot targets require
-ownership or bot.manage and accept only allow or clear within the bot
-owner's current authority.
+ownership, or bot.manage and a higher rank than the bot and its owner, and
+accept only allow or clear within the bot owner's current authority.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/SetUserPermission
@@ -2443,6 +2454,7 @@ Role metadata plus administrative permission state.
 | `role` | `chatto.api.v1.Role` | Public role metadata shared with ordinary role catalog reads. |
 | `permissions` | `repeated string` | Permissions granted by this role. |
 | `permission_denials` | `repeated string` | Permissions denied by this role. |
+| `ranks_below_viewer` | `bool` | Whether this role ranks below the caller's highest role. Only then may the caller assign, revoke, edit, delete, or move it. Owners outrank every role, and everyone ranks below every account. The caller also needs the permission for each action. |
 
 
 
@@ -2465,6 +2477,7 @@ admin/member metadata with visibility controlled by the service.
 | `last_login_change` | `google.protobuf.Timestamp` | Start of the current username-change cooldown, when visible and known. |
 | `user` | `chatto.api.v1.User` | Public identity fields for this user. |
 | `primary_verified_email` | `optional string` | Selected primary verified email visible to the caller. Absence can mean that no primary email exists or that the field is not visible. |
+| `viewer_outranks` | `bool` | Whether the role hierarchy lets the caller act on this account: the caller ranks above it, or the caller is an owner. For a bot, the caller must also rank above its owner, unless the caller owns the bot. The caller also needs the permission for each action. |
 
 
 

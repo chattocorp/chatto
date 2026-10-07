@@ -793,7 +793,7 @@ func (c *ChattoCore) ReorderServerRoles(ctx context.Context, actorID string, rol
 			}
 		}
 		if !c.actorIsHierarchyExempt(actorID) {
-			rank := c.accountRank(actorID)
+			rank := c.actorRank(actorID)
 			for i, name := range roleNames {
 				role, _ := c.rbacModel.role(name)
 				moved := index[name] != i

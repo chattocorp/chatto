@@ -36,6 +36,11 @@ message AdminMember {
   // Selected primary verified email visible to the caller. Absence can mean
   // that no primary email exists or that the field is not visible.
   optional string primary_verified_email = 13;
+  // Whether the role hierarchy lets the caller act on this account: the
+  // caller ranks above it, or the caller is an owner. For a bot, the caller
+  // must also rank above its owner, unless the caller owns the bot. The
+  // caller also needs the permission for each action.
+  bool viewer_outranks = 14;
 }
 
 // Request server-admin member IDs.
@@ -209,20 +214,26 @@ service AdminUserService {
   rpc GetMember(GetMemberRequest) returns (GetMemberResponse);
   // Gets server member rows for multiple users. Requires admin.view-users.
   rpc BatchGetMembers(BatchGetMembersRequest) returns (BatchGetMembersResponse);
-  // Assigns a role to a user. Requires role.assign, and non-owner callers may
-  // only assign roles whose granted authority they already possess.
+  // Assigns a role to a user or bot. Requires role.assign. A caller who is not
+  // an owner may assign only roles below their own highest role whose granted
+  // authority they already possess, and must outrank the target (see
+  // AdminMember.viewer_outranks) unless it is their own account. Bots cannot
+  // hold the owner role.
   rpc AssignRole(AssignRoleRequest) returns (AssignRoleResponse);
-  // Revokes a role from a user. Requires role.assign, and non-owner callers may
-  // only revoke roles whose permission decisions are within their authority.
+  // Revokes a role from a user or bot. Requires role.assign. A caller who is
+  // not an owner may revoke only roles below their own highest role whose
+  // permission decisions are within their authority, and must outrank the
+  // target unless it is their own account.
   rpc RevokeRole(RevokeRoleRequest) returns (RevokeRoleResponse);
   // Updates another user's password as an admin action. Requires
   // user.manage-accounts and a fresh credential for the caller; the caller
-  // cannot target their own account.
+  // cannot target their own account and must outrank the target.
   rpc ChangeUserPassword(ChangeUserPasswordRequest) returns (ChangeUserPasswordResponse);
   // Clears the target user's self-service username-change cooldown. Requires
   // user.manage-accounts, including when the caller targets their own account.
+  // The caller must outrank any other target.
   rpc ClearUsernameCooldown(ClearUsernameCooldownRequest) returns (ClearUsernameCooldownResponse);
-  // Deletes a user account as an admin action. Requires user.delete-any for
-  // other users or user.delete-self for the caller.
+  // Deletes a user account as an admin action. Requires user.delete-any and
+  // a higher rank for other users, or user.delete-self for the caller.
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
 }

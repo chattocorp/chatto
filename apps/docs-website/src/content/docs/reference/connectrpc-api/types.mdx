@@ -987,6 +987,7 @@ them.
 | `incoming_webhooks` | repeated [`BotIncomingWebhook`](#chatto-api-v1-BotIncomingWebhook) | Active incoming webhook credentials, ordered by creation time. |
 | `api_keys` | repeated [`BotApiKey`](#chatto-api-v1-BotApiKey) | Active API keys, ordered by creation time. |
 | `last_login_change` | `google.protobuf.Timestamp` | Time of the last username change that started the 30-day username cooldown. Absent when no cooldown was started. The bot, its owner, and bot managers cannot change the username again until the cooldown ends. A caller with user.manage-accounts can change it at any time. |
+| `viewer_outranks` | `bool` | Whether the role hierarchy lets the caller manage this bot: the caller owns it, is an owner of the server, or ranks above both the bot and its owner. The caller also needs the permission for each action. |
 
 <a id="chatto-api-v1-BotApiKey"></a>
 
@@ -1625,6 +1626,7 @@ Role metadata plus administrative permission state.
 | `role` | `chatto.api.v1.Role` | Public role metadata shared with ordinary role catalog reads. |
 | `permissions` | `repeated string` | Permissions granted by this role. |
 | `permission_denials` | `repeated string` | Permissions denied by this role. |
+| `ranks_below_viewer` | `bool` | Whether this role ranks below the caller's highest role. Only then may the caller assign, revoke, edit, delete, or move it. Owners outrank every role, and everyone ranks below every account. The caller also needs the permission for each action. |
 
 <a id="chatto-admin-v1-AdminMember"></a>
 
@@ -1645,6 +1647,7 @@ admin/member metadata with visibility controlled by the service.
 | `last_login_change` | `google.protobuf.Timestamp` | Start of the current username-change cooldown, when visible and known. |
 | `user` | `chatto.api.v1.User` | Public identity fields for this user. |
 | `primary_verified_email` | `optional string` | Selected primary verified email visible to the caller. Absence can mean that no primary email exists or that the field is not visible. |
+| `viewer_outranks` | `bool` | Whether the role hierarchy lets the caller act on this account: the caller ranks above it, or the caller is an owner. For a bot, the caller must also rank above its owner, unless the caller owns the bot. The caller also needs the permission for each action. |
 
 <a id="chatto-admin-v1-OAuthClient"></a>
 

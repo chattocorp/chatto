@@ -752,7 +752,8 @@ Result of adding a user to a room.
 ### RemoveMember
 
 Removes an explicit channel-room member. Requires room.manage for this room,
-user.manage-accounts, ownership of the target bot, or bot.manage.
+user.manage-accounts, ownership of the target bot, or bot.manage. The
+caller must outrank any other member.
 Removal is allowed after room.join is lost and from archived rooms.
 Preserves permission grants. Universal and DM membership cannot be edited.
 
@@ -1129,7 +1130,7 @@ separator. Notification policy controls room Badge attention separately.
 ### RemoveUser
 
 Removes a current channel room member with a required reason. Requires
-room.remove-member. Without suspension, ordinary join rules apply afterward.
+room.remove-member, and the caller must outrank the member. Without suspension, ordinary join rules apply afterward.
 Universal rooms require a suspension. Direct-message rooms are excluded.
 
 ```http
@@ -1162,7 +1163,8 @@ Result of a moderated room removal.
 
 ### LiftSuspension
 
-Lifts an active channel room suspension. Requires room.remove-member.
+Lifts an active channel room suspension. Requires room.remove-member, and
+the caller must outrank the member.
 Calling this when no active suspension exists succeeds.
 
 ```http
@@ -2285,7 +2287,8 @@ Response after cancelling an upload.
 ## BotService
 
 Creates and manages bot accounts owned by human users. Bot API keys cannot
-call this service.
+call this service. A caller who manages a bot with bot.manage instead of
+ownership must outrank the bot and its owner (see Bot.viewer_outranks).
 
 <a id="chatto-api-v1-BotService-ListBotWebhookFailures"></a>
 
@@ -2806,7 +2809,8 @@ Result of revoking an incoming webhook.
 
 ### ReassignBotOwner
 
-Reassigns a bot to another active human owner. Requires bot.manage. The
+Reassigns a bot to another active human owner. Requires bot.manage, and
+the caller must outrank the new owner unless it is their own account. The
 current API keys and configured permission allowlist remain unchanged,
 while effective permissions immediately use the new owner's ceiling.
 
@@ -4412,9 +4416,10 @@ Batch user directory response.
 ### UpdateUserProfile
 
 Updates the target user's login, display name, and/or bio. Users can
-update themselves. Updating another human requires user.manage-accounts.
-A human who updates a bot needs ownership of the bot,
-user.manage-accounts, or bot.manage. A bot cannot target another account.
+update themselves. Updating another human requires user.manage-accounts
+and a higher rank. A human who updates a bot needs ownership of the bot,
+or user.manage-accounts or bot.manage and a higher rank than the bot and
+its owner. A bot cannot target another account.
 A login change returns FAILED_PRECONDITION while the target's
 username-change cooldown is active. A successful login change starts a
 new cooldown. This also applies when a bot owner or bot manager changes a
@@ -4458,10 +4463,8 @@ Result of a user profile update.
 
 ### UploadAvatar
 
-Uploads and sets an avatar for the target user. Users can update
-themselves. Updating another human requires user.manage-accounts.
-A human who updates a bot needs ownership of the bot,
-user.manage-accounts, or bot.manage.
+Uploads and sets an avatar for the target user. Authorization matches
+UpdateUserProfile.
 A bot cannot target another account. Unknown or deleted targets return
 NOT_FOUND. Invalid IDs or missing images return INVALID_ARGUMENT.
 
@@ -5910,6 +5913,7 @@ them.
 | `incoming_webhooks` | repeated [`BotIncomingWebhook`](#chatto-api-v1-BotIncomingWebhook) | Active incoming webhook credentials, ordered by creation time. |
 | `api_keys` | repeated [`BotApiKey`](#chatto-api-v1-BotApiKey) | Active API keys, ordered by creation time. |
 | `last_login_change` | `google.protobuf.Timestamp` | Time of the last username change that started the 30-day username cooldown. Absent when no cooldown was started. The bot, its owner, and bot managers cannot change the username again until the cooldown ends. A caller with user.manage-accounts can change it at any time. |
+| `viewer_outranks` | `bool` | Whether the role hierarchy lets the caller manage this bot: the caller owns it, is an owner of the server, or ranks above both the bot and its owner. The caller also needs the permission for each action. |
 
 
 

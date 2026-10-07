@@ -76,12 +76,12 @@ func (c *ChattoCore) requireRoleAssignmentWithinAuthority(ctx context.Context, a
 // requireRoleChangeForAccount authorizes assigning (includeDenials false) or
 // revoking (includeDenials true) a role for one account. The role must rank
 // below the actor and stay within the actor's authority, and the actor must
-// outrank the account unless it is their own.
+// outrank the account unless it is their own human account.
 func (c *ChattoCore) requireRoleChangeForAccount(ctx context.Context, actorID, targetUserID, roleName string, includeDenials bool) error {
 	if err := c.requireRoleAssignmentWithinAuthority(ctx, actorID, roleName, includeDenials); err != nil {
 		return err
 	}
-	return c.requireOutranksOtherAccount(actorID, targetUserID)
+	return c.requireOutranksForRoleChange(actorID, targetUserID)
 }
 
 // requireRoleDeletionWithinAuthority bounds role deletion like revocation from

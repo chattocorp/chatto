@@ -74,7 +74,7 @@ func (s *adminUserManagementService) GetMember(ctx context.Context, req *connect
 	}
 	response := &adminv1.GetMemberResponse{
 		Member:                         s.adminMember(ctx, *details.Member),
-		Roles:                          adminAPIRolesFromAdminMemberRoles(details.Roles),
+		Roles:                          s.adminAPIRolesFromAdminMemberRoles(caller.UserID, details.Roles),
 		AvailablePermissions:           corePermissionsToStrings(details.AvailablePermissions),
 		ViewerCanAssignRoles:           details.ViewerCanAssignRoles,
 		ViewerCanManageRoles:           details.ViewerCanManageRoles,
@@ -231,6 +231,7 @@ func (s *adminUserManagementService) adminMemberWithPresence(ctx context.Context
 		HasVerifiedEmail:       member.HasVerifiedEmail,
 		VerifiedEmails:         append([]string{}, member.VerifiedEmails...),
 		ViewerCanDeleteAccount: member.ViewerCanDeleteAccount,
+		ViewerOutranks:         member.ViewerOutranks,
 		User:                   adminMemberUserWithPresence(member, presence),
 	}
 	if member.AvatarURL != "" {
@@ -306,7 +307,7 @@ func publicAPIRoleFromAdminMemberSummary(role core.AdminMemberRoleSummary) *apiv
 	}
 }
 
-func adminAPIRolesFromAdminMemberRoles(roles []core.AdminMemberRole) []*adminv1.AdminRole {
+func (s *adminUserManagementService) adminAPIRolesFromAdminMemberRoles(viewerID string, roles []core.AdminMemberRole) []*adminv1.AdminRole {
 	out := make([]*adminv1.AdminRole, 0, len(roles))
 	for _, role := range roles {
 		out = append(out, &adminv1.AdminRole{
@@ -320,6 +321,7 @@ func adminAPIRolesFromAdminMemberRoles(roles []core.AdminMemberRole) []*adminv1.
 			},
 			Permissions:       corePermissionsToStrings(role.Permissions),
 			PermissionDenials: corePermissionsToStrings(role.PermissionDenials),
+			RanksBelowViewer:  s.api.core.RoleRanksBelowActor(viewerID, role.Name),
 		})
 	}
 	return out

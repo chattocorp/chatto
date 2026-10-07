@@ -2836,6 +2836,7 @@ func TestVoiceCallServiceRoomRemovalClearsCallParticipant(t *testing.T) {
 	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermRoomManage); err != nil {
 		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
 	}
+	grantAPITestRank(t, env, env.viewer.Id)
 
 	participantsResp, err := env.voice.ListCallParticipants(ctx, connect.NewRequest(&apiv1.ListCallParticipantsRequest{
 		RoomId: room.Id,

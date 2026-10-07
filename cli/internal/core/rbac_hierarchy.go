@@ -13,8 +13,11 @@ package core
 // strictly below their own highest role. Everyone ranks below every account. The system actor is exempt. Callers
 // decide whether an action on the actor's own account uses these rules.
 //
-// Bots rank by their own roles. Acting on a bot also requires outranking its
-// human owner, unless the actor is that owner.
+// Bots rank by their own roles. As actors, bots never rank above their human
+// owner, like their permissions never exceed the owner's. Managing a bot also
+// requires outranking its owner, unless the actor is that owner. Role changes
+// on a bot always require outranking the bot itself, so an owner cannot
+// remove a restriction role that a higher-ranked account assigned.
 
 // accountRank returns the administrative rank of an account.
 func (c *ChattoCore) accountRank(userID string) int32 {
@@ -69,7 +72,39 @@ func (c *ChattoCore) outranks(actorID, targetUserID string) bool {
 	if c.isServerOwner(targetUserID) {
 		return false
 	}
-	return c.accountRank(actorID) > c.accountRank(targetUserID)
+	return c.actorRank(actorID) > c.accountRank(targetUserID)
+}
+
+// actorRank is the rank with which an account acts. A bot acts with at most
+// its owner's rank.
+func (c *ChattoCore) actorRank(actorID string) int32 {
+	rank := c.accountRank(actorID)
+	if isBot, ownerID, ok := c.userModel.isBotAndOwner(actorID); ok && isBot {
+		if ownerRank := c.accountRank(ownerID); ownerRank < rank {
+			rank = ownerRank
+		}
+	}
+	return rank
+}
+
+// requireOutranksForRoleChange authorizes a role assignment or revocation for
+// an account. Humans may change their own roles. For a bot, the actor must
+// outrank the bot and, unless they own it, its owner.
+func (c *ChattoCore) requireOutranksForRoleChange(actorID, targetUserID string) error {
+	if c.actorIsHierarchyExempt(actorID) {
+		return nil
+	}
+	isBot, ownerID, ok := c.userModel.isBotAndOwner(targetUserID)
+	if !ok || !isBot {
+		return c.requireOutranksOtherAccount(actorID, targetUserID)
+	}
+	if !c.outranks(actorID, targetUserID) {
+		return ErrPermissionDenied
+	}
+	if ownerID != "" && ownerID != actorID && !c.outranks(actorID, ownerID) {
+		return ErrPermissionDenied
+	}
+	return nil
 }
 
 // requireRoleBelowActor requires the role to rank strictly below the actor's
@@ -86,8 +121,21 @@ func (c *ChattoCore) requireRoleBelowActor(actorID, roleName string) error {
 	if !ok {
 		return ErrRoleNotFound
 	}
-	if role.GetPosition() >= c.accountRank(actorID) {
+	if role.GetPosition() >= c.actorRank(actorID) {
 		return ErrPermissionDenied
 	}
 	return nil
+}
+
+// HierarchyAllowsActingOn reports whether the role hierarchy lets actorID act
+// on targetUserID. It does not check permissions. Clients use it to show which
+// actions can succeed.
+func (c *ChattoCore) HierarchyAllowsActingOn(actorID, targetUserID string) bool {
+	return c.requireOutranksAccount(actorID, targetUserID) == nil
+}
+
+// RoleRanksBelowActor reports whether the role hierarchy lets actorID manage
+// roleName. It does not check permissions.
+func (c *ChattoCore) RoleRanksBelowActor(actorID, roleName string) bool {
+	return c.requireRoleBelowActor(actorID, roleName) == nil
 }

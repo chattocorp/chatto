@@ -209,6 +209,9 @@ func apiBot(ctx context.Context, api *API, bot *core.Bot) (*apiv1.Bot, error) {
 		return nil, err
 	}
 	out := &apiv1.Bot{User: user, OwnerUserId: bot.OwnerUserID, CreatedAt: bot.User.GetCreatedAt(), ApiKeyCreatedAt: timestamppb.New(bot.APIKeyCreatedAt)}
+	if caller, err := requireCaller(ctx); err == nil {
+		out.ViewerOutranks = api.core.HierarchyAllowsActingOn(caller.UserID, bot.User.GetId())
+	}
 	lastLoginChange, err := api.core.GetLastLoginChange(ctx, bot.User.GetId())
 	if err != nil {
 		return nil, err

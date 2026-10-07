@@ -201,7 +201,8 @@ export const RoomService = {
     },
     /**
      * Removes an explicit channel-room member. Requires room.manage for this room,
-     * user.manage-accounts, ownership of the target bot, or bot.manage.
+     * user.manage-accounts, ownership of the target bot, or bot.manage. The
+     * caller must outrank any other member.
      * Removal is allowed after room.join is lost and from archived rooms.
      * Preserves permission grants. Universal and DM membership cannot be edited.
      *
@@ -342,7 +343,7 @@ export const RoomService = {
     },
     /**
      * Removes a current channel room member with a required reason. Requires
-     * room.remove-member. Without suspension, ordinary join rules apply afterward.
+     * room.remove-member, and the caller must outrank the member. Without suspension, ordinary join rules apply afterward.
      * Universal rooms require a suspension. Direct-message rooms are excluded.
      *
      * @generated from rpc chatto.api.v1.RoomService.RemoveUser
@@ -354,7 +355,8 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Lifts an active channel room suspension. Requires room.remove-member.
+     * Lifts an active channel room suspension. Requires room.remove-member, and
+     * the caller must outrank the member.
      * Calling this when no active suspension exists succeeds.
      *
      * @generated from rpc chatto.api.v1.RoomService.LiftSuspension

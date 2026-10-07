@@ -69,15 +69,18 @@ type AdminRoleServiceClient interface {
 	// Lists explicit role members. Requires role.assign, without requiring
 	// admin.view-users. Returns NOT_FOUND when the role does not exist.
 	ListMembers(context.Context, *connect.Request[v1.AdminRoleServiceListMembersRequest]) (*connect.Response[v1.AdminRoleServiceListMembersResponse], error)
-	// Creates a custom role. Requires role.manage.
+	// Creates a custom role. Requires role.manage. The new role ranks lowest.
 	CreateRole(context.Context, *connect.Request[v1.CreateRoleRequest]) (*connect.Response[v1.CreateRoleResponse], error)
-	// Updates role metadata. Requires role.manage.
+	// Updates role metadata. Requires role.manage. A caller who is not an owner
+	// can update only roles below their own highest role.
 	UpdateRole(context.Context, *connect.Request[v1.UpdateRoleRequest]) (*connect.Response[v1.UpdateRoleResponse], error)
 	// Deletes a custom role. Requires role.manage. A caller who is not an owner
-	// must also have every permission that the role allows or denies, at the
-	// same scope; otherwise the call returns PERMISSION_DENIED.
+	// can delete only roles below their own highest role, and must have every
+	// permission that the role allows or denies, at the same scope; otherwise
+	// the call returns PERMISSION_DENIED.
 	DeleteRole(context.Context, *connect.Request[v1.DeleteRoleRequest]) (*connect.Response[v1.DeleteRoleResponse], error)
-	// Replaces the custom role order. Requires role.manage.
+	// Replaces the role order. Requires role.manage. The order is the
+	// administrative rank; see ReorderRolesRequest.
 	ReorderRoles(context.Context, *connect.Request[v1.ReorderRolesRequest]) (*connect.Response[v1.ReorderRolesResponse], error)
 }
 
@@ -196,15 +199,18 @@ type AdminRoleServiceHandler interface {
 	// Lists explicit role members. Requires role.assign, without requiring
 	// admin.view-users. Returns NOT_FOUND when the role does not exist.
 	ListMembers(context.Context, *connect.Request[v1.AdminRoleServiceListMembersRequest]) (*connect.Response[v1.AdminRoleServiceListMembersResponse], error)
-	// Creates a custom role. Requires role.manage.
+	// Creates a custom role. Requires role.manage. The new role ranks lowest.
 	CreateRole(context.Context, *connect.Request[v1.CreateRoleRequest]) (*connect.Response[v1.CreateRoleResponse], error)
-	// Updates role metadata. Requires role.manage.
+	// Updates role metadata. Requires role.manage. A caller who is not an owner
+	// can update only roles below their own highest role.
 	UpdateRole(context.Context, *connect.Request[v1.UpdateRoleRequest]) (*connect.Response[v1.UpdateRoleResponse], error)
 	// Deletes a custom role. Requires role.manage. A caller who is not an owner
-	// must also have every permission that the role allows or denies, at the
-	// same scope; otherwise the call returns PERMISSION_DENIED.
+	// can delete only roles below their own highest role, and must have every
+	// permission that the role allows or denies, at the same scope; otherwise
+	// the call returns PERMISSION_DENIED.
 	DeleteRole(context.Context, *connect.Request[v1.DeleteRoleRequest]) (*connect.Response[v1.DeleteRoleResponse], error)
-	// Replaces the custom role order. Requires role.manage.
+	// Replaces the role order. Requires role.manage. The order is the
+	// administrative rank; see ReorderRolesRequest.
 	ReorderRoles(context.Context, *connect.Request[v1.ReorderRolesRequest]) (*connect.Response[v1.ReorderRolesResponse], error)
 }
 

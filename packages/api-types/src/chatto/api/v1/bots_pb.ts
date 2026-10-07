@@ -109,6 +109,15 @@ export class Bot extends Message<Bot> {
    */
   lastLoginChange?: Timestamp;
 
+  /**
+   * Whether the role hierarchy lets the caller manage this bot: the caller
+   * owns it, is an owner of the server, or ranks above both the bot and its
+   * owner. The caller also needs the permission for each action.
+   *
+   * @generated from field: bool viewer_outranks = 9;
+   */
+  viewerOutranks = false;
+
   constructor(data?: PartialMessage<Bot>) {
     super();
     proto3.util.initPartial(data, this);
@@ -124,6 +133,7 @@ export class Bot extends Message<Bot> {
     { no: 6, name: "incoming_webhooks", kind: "message", T: BotIncomingWebhook, repeated: true },
     { no: 7, name: "api_keys", kind: "message", T: BotApiKey, repeated: true },
     { no: 8, name: "last_login_change", kind: "message", T: Timestamp },
+    { no: 9, name: "viewer_outranks", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Bot {

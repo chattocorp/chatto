@@ -219,6 +219,7 @@ func TestRoomCommandModelManageRoomMembers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser manager: %v", err)
 	}
+	grantTestRank(t, core, ctx, manager.Id)
 	target, err := core.CreateUser(ctx, SystemActorID, "room-member-target", "Room Member Target", "password")
 	if err != nil {
 		t.Fatalf("CreateUser target: %v", err)
@@ -650,6 +651,7 @@ func TestAccountMembershipManagerOverridesJoinPermission(t *testing.T) {
 				ctx := testContext(t)
 				manager, err := c.CreateUser(ctx, SystemActorID, "account-manager", "Manager", "password")
 				require.NoError(t, err)
+				grantTestRank(t, c, ctx, manager.Id)
 				owner, err := c.CreateUser(ctx, SystemActorID, "account-owner", "Owner", "password")
 				require.NoError(t, err)
 				target := owner

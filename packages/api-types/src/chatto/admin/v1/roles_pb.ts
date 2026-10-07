@@ -36,6 +36,16 @@ export class AdminRole extends Message<AdminRole> {
    */
   permissionDenials: string[] = [];
 
+  /**
+   * Whether this role ranks below the caller's highest role. Only then may
+   * the caller assign, revoke, edit, delete, or move it. Owners outrank every
+   * role, and everyone ranks below every account. The caller also needs the
+   * permission for each action.
+   *
+   * @generated from field: bool ranks_below_viewer = 4;
+   */
+  ranksBelowViewer = false;
+
   constructor(data?: PartialMessage<AdminRole>) {
     super();
     proto3.util.initPartial(data, this);
@@ -47,6 +57,7 @@ export class AdminRole extends Message<AdminRole> {
     { no: 1, name: "role", kind: "message", T: Role },
     { no: 2, name: "permissions", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 3, name: "permission_denials", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 4, name: "ranks_below_viewer", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminRole {
@@ -652,14 +663,16 @@ export class DeleteRoleResponse extends Message<DeleteRoleResponse> {
 }
 
 /**
- * Request to replace custom role order.
+ * Request to replace the role order.
  *
  * @generated from message chatto.admin.v1.ReorderRolesRequest
  */
 export class ReorderRolesRequest extends Message<ReorderRolesRequest> {
   /**
-   * Ordered custom role names. The list must include every custom role exactly
-   * once; system roles keep fixed positions and must not be included.
+   * Role names, lowest first. The list must include every role except owner
+   * and everyone exactly once; owner and everyone keep fixed positions. A
+   * caller who is not an owner can move only roles below their own highest
+   * role, and only to positions below it.
    *
    * @generated from field: repeated string role_names = 1;
    */
@@ -694,7 +707,7 @@ export class ReorderRolesRequest extends Message<ReorderRolesRequest> {
 }
 
 /**
- * Result of replacing custom role order.
+ * Result of replacing the role order.
  *
  * @generated from message chatto.admin.v1.ReorderRolesResponse
  */

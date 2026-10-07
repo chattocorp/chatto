@@ -81,7 +81,7 @@ func (s *roleService) ListRoles(ctx context.Context, _ *connect.Request[adminv1.
 		return nil, err
 	}
 	return connect.NewResponse(&adminv1.ListRolesResponse{
-		Roles:                adminAPIRoles(catalog.Roles),
+		Roles:                s.adminAPIRoles(caller.UserID, catalog.Roles),
 		ViewerCanManageRoles: catalog.ViewerCanManageRoles,
 		ViewerCanAssignRoles: catalog.ViewerCanAssignRoles,
 	}), nil
@@ -100,7 +100,7 @@ func (s *roleService) GetRole(ctx context.Context, req *connect.Request[adminv1.
 		return nil, err
 	}
 	return connect.NewResponse(&adminv1.GetRoleResponse{
-		Role:                 adminAPIRole(details.Role),
+		Role:                 s.adminAPIRoleForViewer(caller.UserID, details.Role),
 		ViewerCanManageRoles: details.ViewerCanManageRoles,
 		ViewerCanAssignRoles: details.ViewerCanAssignRoles,
 	}), nil
@@ -121,7 +121,7 @@ func (s *roleService) CreateRole(ctx context.Context, req *connect.Request[admin
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.CreateRoleResponse{Role: adminAPIRole(role)}), nil
+	return connect.NewResponse(&adminv1.CreateRoleResponse{Role: s.adminAPIRoleForViewer(caller.UserID, role)}), nil
 }
 
 func (s *roleService) UpdateRole(ctx context.Context, req *connect.Request[adminv1.UpdateRoleRequest]) (*connect.Response[adminv1.UpdateRoleResponse], error) {
@@ -142,7 +142,7 @@ func (s *roleService) UpdateRole(ctx context.Context, req *connect.Request[admin
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.UpdateRoleResponse{Role: adminAPIRole(role)}), nil
+	return connect.NewResponse(&adminv1.UpdateRoleResponse{Role: s.adminAPIRoleForViewer(caller.UserID, role)}), nil
 }
 
 func (s *roleService) DeleteRole(ctx context.Context, req *connect.Request[adminv1.DeleteRoleRequest]) (*connect.Response[adminv1.DeleteRoleResponse], error) {
@@ -165,7 +165,7 @@ func (s *roleService) ReorderRoles(ctx context.Context, req *connect.Request[adm
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.ReorderRolesResponse{Roles: adminAPIRoles(roles)}), nil
+	return connect.NewResponse(&adminv1.ReorderRolesResponse{Roles: s.adminAPIRoles(caller.UserID, roles)}), nil
 }
 
 func publicAPIRoles(roles []core.RoleWithPermissions) []*apiv1.Role {
@@ -190,15 +190,15 @@ func publicAPIRole(role *core.RoleWithPermissions) *apiv1.Role {
 	}
 }
 
-func adminAPIRoles(roles []core.RoleWithPermissions) []*adminv1.AdminRole {
+func (s *roleService) adminAPIRoles(viewerID string, roles []core.RoleWithPermissions) []*adminv1.AdminRole {
 	out := make([]*adminv1.AdminRole, 0, len(roles))
 	for i := range roles {
-		out = append(out, adminAPIRole(&roles[i]))
+		out = append(out, adminAPIRole(&roles[i], s.api.core.RoleRanksBelowActor(viewerID, roles[i].Name)))
 	}
 	return out
 }
 
-func adminAPIRole(role *core.RoleWithPermissions) *adminv1.AdminRole {
+func adminAPIRole(role *core.RoleWithPermissions, ranksBelowViewer bool) *adminv1.AdminRole {
 	if role == nil {
 		return nil
 	}
@@ -206,7 +206,15 @@ func adminAPIRole(role *core.RoleWithPermissions) *adminv1.AdminRole {
 		Role:              publicAPIRole(role),
 		Permissions:       corePermissionsToStrings(role.Permissions),
 		PermissionDenials: corePermissionsToStrings(role.PermissionDenials),
+		RanksBelowViewer:  ranksBelowViewer,
 	}
+}
+
+func (s *roleService) adminAPIRoleForViewer(viewerID string, role *core.RoleWithPermissions) *adminv1.AdminRole {
+	if role == nil {
+		return nil
+	}
+	return adminAPIRole(role, s.api.core.RoleRanksBelowActor(viewerID, role.Name))
 }
 
 func (s *roleService) ListMembers(ctx context.Context, req *connect.Request[adminv1.AdminRoleServiceListMembersRequest]) (*connect.Response[adminv1.AdminRoleServiceListMembersResponse], error) {

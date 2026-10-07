@@ -230,7 +230,8 @@ func operatorAdminMember(ctx context.Context, api *API, user *core.AdminUserView
 func operatorAdminMemberRoles(roles []core.RoleWithPermissions) []*adminv1.AdminRole {
 	out := make([]*adminv1.AdminRole, 0, len(roles))
 	for i := range roles {
-		out = append(out, adminAPIRole(&roles[i]))
+		// The operator acts as the system actor, which every role ranks below.
+		out = append(out, adminAPIRole(&roles[i], true))
 	}
 	return out
 }
