@@ -157,7 +157,7 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **Privileged Mode** — Explicit, fixed 15-minute activation of the elevation-required permissions that a human is currently entitled to use on one server session. For an effective owner, it also activates the owner override. It does not grant a role or permission. See [ADR-096](adr/ADR-096-session-scoped-privileged-mode.md), [ADR-105](adr/ADR-105-privileged-mode-gates-owner-override.md), and [FDR-046](fdr/FDR-046-privileged-mode.md).
 
-**Position** — Numeric order value for a role. A higher position ranks higher. `everyone` = 0 and `owner` = 1000 never move. Fresh servers seed `moderator` = 100 and `admin` = 900; the first complete reorder, which also happens when a role is created, places `admin`, `moderator`, and custom roles at 1 and upward. Position decides [rank](#rank), not whether a permission is allowed.
+**Position** — Numeric order value for a role. A higher position ranks higher. `everyone` is always 0 and `owner` is always highest. Fresh servers seed `moderator` = 100, `admin` = 900, and `owner` = 1000; the first role move or role creation renumbers `admin`, `moderator`, and custom roles from 1 upward and places `owner` directly above them. There is no fixed limit on the number of roles. Position decides [rank](#rank), not whether a permission is allowed.
 
 **Rank** — Administrative order of accounts and roles (ADR-114). An account ranks at its highest role; owners rank above every role, and `everyone` ranks below every account. A non-owner can act only on accounts that rank strictly below them and manage only roles below their highest role. Rank never changes permission resolution.
 

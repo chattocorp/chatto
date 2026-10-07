@@ -62,11 +62,17 @@ unchanged (ADR-052): the rank never decides whether a permission is allowed.
   A bot ranks at its highest role, but acts with at most its owner's rank.
   Managing a bot requires outranking the bot and its owner, unless the actor
   owns the bot. Role changes on a bot always require outranking the bot.
-- **Events.** `RbacRolesReorderedEvent.complete_order` marks an order that
-  lists every role except `owner` and `everyone`. Readers assign positions
-  upward from 1. Older events list custom roles only and replay with the
-  previous fixed system positions. Role creation appends the created fact and a
-  complete order in one atomic batch.
+- **Moves, not complete orders.** `MoveRole` and `RbacRoleMovedEvent` place
+  one role directly above another role, or lowest. This matches the room
+  layout's `before` moves. A role created with `place_lowest` starts lowest.
+  For both, readers renumber every role except `owner` and `everyone` upward
+  from 1 and place `owner` directly above them, so the order has no fixed
+  limit. Older `RbacRolesReorderedEvent` events list custom roles only and
+  replay with the previous fixed system positions.
+- **Move rules.** A non-owner can move only a role below their own highest
+  role, and only directly above a role that is also below it, or lowest. The
+  moved role then stays below them. `owner` and `everyone` cannot move or
+  serve as the anchor.
 
 Rank checks run inside the command's OCC retry with the stable authorization
 inputs that permission checks use (ADR-087).
@@ -90,11 +96,14 @@ inputs that permission checks use (ADR-087).
 - An actor can still give their authority to a second account that ranks
   below them. The event log records the actor of every change, so an operator
   can find and undo such grants.
+- A move names only two roles. A role that another manager creates or
+  deletes at the same time does not invalidate it; the OCC retry applies it
+  to the new order. Each event stays small, also on servers with many roles.
 - During a rolling upgrade, older replicas apply the earlier rules and show
-  the earlier display order. They ignore `complete_order`. A legacy reorder or
-  role creation from an older replica after a complete order can give a
-  custom role the same position as a system role. Equal positions rank
-  equally until the next complete order. The RBAC projection snapshot
-  contract changes, so old and new replicas never share snapshots.
-- `everyone` and `owner` positions stay fixed; `admin` and `moderator` lose
-  their fixed positions after the first complete order.
+  the earlier display order. They ignore `RbacRoleMovedEvent` and
+  `place_lowest`. A legacy reorder or role creation from an older replica
+  after a move can give two roles the same position. Equal positions rank
+  equally until the next move. The RBAC projection snapshot contract
+  changes, so old and new replicas never share snapshots.
+- `everyone` stays at position 0 and `owner` stays highest. `admin` and
+  `moderator` lose their fixed positions at the first move or role creation.

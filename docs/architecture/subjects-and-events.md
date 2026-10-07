@@ -365,7 +365,8 @@ posting effects. No source ID or deduplication record is stored.
 | `evt.rbac.{server\|scopeId}.role_description_changed` | `RbacRoleDescriptionChangedEvent` |
 | `evt.rbac.{server\|scopeId}.role_pingable_changed` | `RbacRolePingableChangedEvent` |
 | `evt.rbac.{server\|scopeId}.role_deleted` | `RbacRoleDeletedEvent` |
-| `evt.rbac.{server\|scopeId}.roles_reordered` | `RbacRolesReorderedEvent` |
+| `evt.rbac.{server\|scopeId}.roles_reordered` | `RbacRolesReorderedEvent` (legacy custom-role orders) |
+| `evt.rbac.{server\|scopeId}.role_moved` | `RbacRoleMovedEvent` |
 | `evt.rbac.{server\|scopeId}.role_assigned` | `RbacRoleAssignedEvent` |
 | `evt.rbac.{server\|scopeId}.role_revoked` | `RbacRoleRevokedEvent` |
 | `evt.rbac.{server\|dm\|scopeId}.permission_granted` | `RbacPermissionGrantedEvent` |
@@ -389,9 +390,9 @@ authorization boundary that its decision uses. Room moves also guard the
 room-deletion subject, so a concurrent delete cannot leave a stale group
 membership. See ADR-086.
 
-Role creation commits `RbacRoleCreatedEvent` with a complete
-`RbacRolesReorderedEvent` that places the new role lowest. A complete order
-lists every role except `owner` and `everyone`; see ADR-114.
+Role creation sets `RbacRoleCreatedEvent.place_lowest`, so readers place the
+new role lowest. `RbacRoleMovedEvent` moves one role directly above another
+role, or lowest. Both renumber the role order; see ADR-114.
 
 `RoomCommandModel.UpdateRoom` commits all changed metadata, Universal, Slow
 Mode, and Threading Mode facts in one atomic batch. A patch that supplies a
