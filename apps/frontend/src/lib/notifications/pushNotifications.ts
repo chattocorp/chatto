@@ -338,8 +338,8 @@ export function getPushRegistrationTargets(): PushRegistrationTarget[] {
  * Turn push on for this device: clear the device-wide opt-out, ask for
  * notification permission, then register every eligible server. This is the
  * only place where Chatto asks the browser for notification permission. Call
- * it from the click handler of an explicit Enable action: browsers accept the
- * request only during a user interaction.
+ * it when the user checks Push notifications on this device in notification
+ * settings: browsers accept the request only during a user interaction.
  *
  * The permission request must happen before registration enters its async
  * coordination queue. Some browsers require the call itself to retain the
@@ -391,7 +391,7 @@ async function enablePushOnAllServersOnce(): Promise<EnablePushOnAllServersResul
   const registrations = await Promise.all(
     targets.map(async (target): Promise<PushRegistrationResult> => {
       try {
-        // An explicit Enable may create a browser subscription even after an
+        // A checkbox activation may create a browser subscription even after an
         // automatic attempt failed in this page.
         return { ...target, registered: await ensureRegistered(target, { manual: true }) };
       } catch (error) {

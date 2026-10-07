@@ -284,13 +284,6 @@
         "description": "{device} · このデバイスのすべてのサーバーに適用されます。",
         "setup_failed": "プッシュ通知を設定できませんでした: {reason}"
       },
-      "push_prompt": {
-        "title": "プッシュ通知を有効にする",
-        "message": "Chatto を閉じているときも、DM、メンション、返信の通知を受け取れます。",
-        "enable": "有効にする",
-        "enabled": "プッシュ通知を有効にしました",
-        "not_now": "後で"
-      },
       "sound": {
         "title": "通知音",
         "shape_title": "音の形",

@@ -167,15 +167,15 @@
 
   // Web Push registration is not needed for the first paint. Loading it on
   // demand keeps it out of every chat route's initial bundle.
-  const pushNotificationSetup = import('$lib/components/PushNotificationSetup.svelte');
+  const pushSubscriptionRefresh = import('$lib/components/PushSubscriptionRefresh.svelte');
 </script>
 
 <AuthStatusNotice />
 {#if idleState.isInAnyCall}
   <ScreenWakeLock />
 {/if}
-{#await pushNotificationSetup then { default: PushNotificationSetup }}
-  <PushNotificationSetup />
+{#await pushSubscriptionRefresh then { default: PushSubscriptionRefresh }}
+  <PushSubscriptionRefresh />
 {/await}
 {#if verifiedOriginUserId}
   <WelcomeBanner />

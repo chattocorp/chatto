@@ -284,13 +284,6 @@
         "description": "{device} · Applies to every server on this device.",
         "setup_failed": "Push notifications could not be set up: {reason}"
       },
-      "push_prompt": {
-        "title": "Enable push notifications",
-        "message": "Get notified about DMs, mentions, and replies, even when Chatto is closed.",
-        "enable": "Enable",
-        "enabled": "Push notifications enabled",
-        "not_now": "Not now"
-      },
       "sound": {
         "title": "Notification Sound",
         "shape_title": "Sound Shape",

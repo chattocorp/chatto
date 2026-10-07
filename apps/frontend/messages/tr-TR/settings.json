@@ -284,13 +284,6 @@
         "description": "{device} · Bu cihazdaki tüm sunucular için geçerlidir.",
         "setup_failed": "Anlık bildirimler ayarlanamadı: {reason}"
       },
-      "push_prompt": {
-        "title": "Anlık bildirimleri etkinleştir",
-        "message": "Chatto kapalıyken bile doğrudan mesajlar, bahsetmeler ve yanıtlar hakkında bildirim alın.",
-        "enable": "Etkinleştir",
-        "enabled": "Anlık bildirimler etkinleştirildi",
-        "not_now": "Şimdi değil"
-      },
       "sound": {
         "title": "Bildirim Sesi",
         "shape_title": "Ses Şekli",

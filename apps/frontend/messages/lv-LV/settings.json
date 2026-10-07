@@ -284,13 +284,6 @@
         "description": "{device} · Attiecas uz visiem šīs ierīces serveriem.",
         "setup_failed": "Push paziņojumus neizdevās iestatīt: {reason}"
       },
-      "push_prompt": {
-        "title": "Iespējot push paziņojumus",
-        "message": "Saņemiet paziņojumus par tiešajiem ziņojumiem, pieminējumiem un atbildēm arī tad, kad Chatto ir aizvērts.",
-        "enable": "Iespējot",
-        "enabled": "Push paziņojumi ir iespējoti",
-        "not_now": "Ne tagad"
-      },
       "sound": {
         "title": "Paziņojuma skaņa",
         "shape_title": "Skaņas forma",

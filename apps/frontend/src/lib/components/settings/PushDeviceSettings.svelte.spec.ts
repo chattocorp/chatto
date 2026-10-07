@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { ConnectError, Code } from '@connectrpc/connect';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
-import { isPushPromptSnoozed } from '$lib/notifications/pushPrompt';
 import PushDeviceSettings from './PushDeviceSettings.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -64,7 +63,6 @@ describe('PushDeviceSettings', () => {
     mocks.disablePushOnAllServers.mockReset();
     mocks.disablePushOnAllServers.mockResolvedValue(undefined);
     mocks.disabledOnDevice = false;
-    window.localStorage.removeItem('chatto:pushPromptSnoozedUntil');
   });
 
   it('shows that push is on for every server on this device', async () => {
@@ -149,7 +147,6 @@ describe('PushDeviceSettings', () => {
     await checkbox.click();
 
     expect(mocks.enablePushOnAllServers).toHaveBeenCalledOnce();
-    expect(isPushPromptSnoozed()).toBe(false);
   });
 
   it('explains a permission request that ended without a decision', async () => {
@@ -164,9 +161,6 @@ describe('PushDeviceSettings', () => {
       .element(screen.getByRole('alert'))
       .toHaveTextContent(/Notifications are not allowed for this site/);
     await expect.element(checkbox).not.toBeChecked();
-    // A dismissed browser prompt counts as Not now for the invitation too.
-    expect(isPushPromptSnoozed()).toBe(true);
-    window.localStorage.removeItem('chatto:pushPromptSnoozedUntil');
   });
 
   it('turns push off for every server on this device', async () => {

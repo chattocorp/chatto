@@ -284,13 +284,6 @@
         "description": "{device} · Gilt für alle Server auf diesem Gerät.",
         "setup_failed": "Push-Benachrichtigungen konnten nicht eingerichtet werden: {reason}"
       },
-      "push_prompt": {
-        "title": "Push-Benachrichtigungen aktivieren",
-        "message": "Erhalte Benachrichtigungen über DMs, Erwähnungen und Antworten, auch wenn Chatto geschlossen ist.",
-        "enable": "Aktivieren",
-        "enabled": "Push-Benachrichtigungen aktiviert",
-        "not_now": "Jetzt nicht"
-      },
       "sound": {
         "title": "Benachrichtigungston",
         "shape_title": "Klangform",

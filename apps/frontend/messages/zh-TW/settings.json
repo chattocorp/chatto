@@ -284,13 +284,6 @@
         "description": "{device} · 套用到此裝置上的所有伺服器。",
         "setup_failed": "無法設定推播通知：{reason}"
       },
-      "push_prompt": {
-        "title": "啟用推播通知",
-        "message": "即使 Chatto 已關閉，也能收到私訊、提及及回覆的通知。",
-        "enable": "啟用",
-        "enabled": "推播通知已啟用",
-        "not_now": "稍後再說"
-      },
       "sound": {
         "title": "通知音效",
         "shape_title": "音效效果",

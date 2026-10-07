@@ -284,13 +284,6 @@
         "description": "{device} · Geldt voor alle servers op dit apparaat.",
         "setup_failed": "Pushmeldingen konden niet worden ingesteld: {reason}"
       },
-      "push_prompt": {
-        "title": "Pushmeldingen inschakelen",
-        "message": "Ontvang meldingen over directe berichten, vermeldingen en antwoorden, ook als Chatto gesloten is.",
-        "enable": "Inschakelen",
-        "enabled": "Pushmeldingen ingeschakeld",
-        "not_now": "Niet nu"
-      },
       "sound": {
         "title": "Meldingsgeluid",
         "shape_title": "Geluidsvorm",

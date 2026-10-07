@@ -284,13 +284,6 @@
         "description": "{device} · Gäller alla servrar på den här enheten.",
         "setup_failed": "Push-meddelanden kunde inte konfigureras: {reason}"
       },
-      "push_prompt": {
-        "title": "Aktivera push-meddelanden",
-        "message": "Få meddelanden om direktmeddelanden, omnämnanden och svar även när Chatto är stängt.",
-        "enable": "Aktivera",
-        "enabled": "Push-meddelanden har aktiverats",
-        "not_now": "Inte nu"
-      },
       "sound": {
         "title": "Aviseringsljud",
         "shape_title": "Ljudform",
