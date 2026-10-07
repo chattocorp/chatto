@@ -459,7 +459,7 @@ test.describe('Admin Granular Permissions', () => {
     await createAndLoginAdminUser(page);
 
     await withRegularAdminPage(browser, serverURL, async ({ adminPage: regularAdminPage }) => {
-      await regularAdminPage.gotoRoles();
+      await regularAdminPage.gotoPermissions();
 
       await regularAdminPage.expectAccessDeniedForPermission('admin.view-roles');
     });
@@ -795,7 +795,7 @@ test.describe('Instance Role Permission Denials', () => {
     // neutral → allow → deny → neutral, so two clicks lands a fresh role on
     // Deny.
     const displayName = 'UI Denial Test Role';
-    await adminPage.gotoRoles();
+    await adminPage.gotoPermissions();
     await expect(page.getByRole('heading', { name: 'Permissions', level: 1 })).toBeVisible();
 
     const cell = page.locator(`td[data-role="${roleName}"][data-permission="message.post"] button`);

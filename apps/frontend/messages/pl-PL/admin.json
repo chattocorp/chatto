@@ -184,7 +184,6 @@
       "new_role_action": "+ Nowa rola",
       "creating_role": "Tworzenie...",
       "create_after_hint": "Po utworzeniu roli możesz przypisać do niej uprawnienia na stronie edycji.",
-      "back_to_permissions": "Powrót do uprawnień",
       "load_instance_failed": "Nie udało się załadować instancji",
       "need_manage_create": "Aby tworzyć role, potrzebujesz uprawnień role.manage.",
       "edit_role_title": "Edytuj rolę",

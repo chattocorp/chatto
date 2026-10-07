@@ -17,6 +17,7 @@
       "name_description": "Petites lettres uniquement. Ne peut pas être modifié après la création.",
       "name_too_long": "Le nom doit avoir au plus 32 caractères",
       "name_invalid": "Le nom doit utiliser des lettres minuscules, des chiffres et des tirets ; commencer par une lettre",
+      "name_reserved": "Vous ne pouvez pas utiliser ce nom pour un rôle. Choisissez un autre nom.",
       "name_locked": "Les noms de rôles ne peuvent pas être modifiés après la création.",
       "display_name": "Nom d'affichage",
       "display_name_placeholder": "par exemple, modérateur",

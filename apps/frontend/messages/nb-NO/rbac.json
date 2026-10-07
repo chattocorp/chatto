@@ -17,6 +17,7 @@
       "name_description": "Bare små bokstaver. Kan ikke endres etter opprettelse.",
       "name_too_long": "Navnet må være på 32 tegn eller mindre",
       "name_invalid": "Navnet må bruke små bokstaver, tall og bindestreker; begynne med en bokstav",
+      "name_reserved": "Du kan ikke bruke dette navnet på en rolle. Velg et annet navn.",
       "name_locked": "Rollenavn kan ikke endres etter opprettelse.",
       "display_name": "Visningsnavn",
       "display_name_placeholder": "f.eks. moderator",

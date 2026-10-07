@@ -184,7 +184,6 @@
       "new_role_action": "+ 添加角色",
       "creating_role": "正在创建...",
       "create_after_hint": "创建角色后，可在编辑页面为其分配权限。",
-      "back_to_permissions": "返回权限",
       "load_instance_failed": "加载实例失败",
       "need_manage_create": "你需要 roles.manage 权限才能创建角色。",
       "edit_role_title": "编辑角色",

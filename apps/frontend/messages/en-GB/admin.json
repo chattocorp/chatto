@@ -184,7 +184,6 @@
       "new_role_action": "+ New Role",
       "creating_role": "Creating...",
       "create_after_hint": "After creating the role, you can assign permissions to it on the edit page.",
-      "back_to_permissions": "Back to permissions",
       "load_instance_failed": "Failed to load instance",
       "need_manage_create": "You need the roles.manage permission to create roles.",
       "edit_role_title": "Edit Role",

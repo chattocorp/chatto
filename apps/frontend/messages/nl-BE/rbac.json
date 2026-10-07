@@ -17,6 +17,7 @@
       "name_description": "Alleen kleine letters. Kan na creatie niet meer worden gewijzigd.",
       "name_too_long": "Naam moet 32 tekens of minder bevatten",
       "name_invalid": "De naam moet kleine letters, cijfers en streepjes bevatten; beginnen met een letter",
+      "name_reserved": "Je kunt deze naam niet voor een rol gebruiken. Kies een andere naam.",
       "name_locked": "Rolnamen kunnen na het maken niet meer worden gewijzigd.",
       "display_name": "Weergavenaam",
       "display_name_placeholder": "Bijvoorbeeld moderator",

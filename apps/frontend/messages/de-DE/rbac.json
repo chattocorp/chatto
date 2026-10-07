@@ -17,6 +17,7 @@
       "name_description": "Nur Kleinbuchstaben. Kann nach der Erstellung nicht geändert werden.",
       "name_too_long": "Der Name darf höchstens 32 Zeichen lang sein",
       "name_invalid": "Der Name muss Kleinbuchstaben, Zahlen und Bindestriche verwenden und mit einem Buchstaben beginnen",
+      "name_reserved": "Diesen Namen kannst du für keine Rolle verwenden. Wähle einen anderen Namen.",
       "name_locked": "Rollennamen können nach der Erstellung nicht geändert werden.",
       "display_name": "Anzeigename",
       "display_name_placeholder": "z. B. Moderator",

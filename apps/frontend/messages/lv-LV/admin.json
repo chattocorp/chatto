@@ -184,7 +184,6 @@
       "new_role_action": "+ Jauna loma",
       "creating_role": "Notiek izveide...",
       "create_after_hint": "Pēc lomas izveides rediģēšanas lapā varat tai piešķirt atļaujas.",
-      "back_to_permissions": "Atgriezties pie atļaujām",
       "load_instance_failed": "Neizdevās ielādēt gadījumu",
       "need_manage_create": "Lai izveidotu lomas, nepieciešama lomas.manage atļauja.",
       "edit_role_title": "Rediģēt lomu",

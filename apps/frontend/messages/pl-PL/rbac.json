@@ -17,6 +17,7 @@
       "name_description": "Tylko małe litery. Nie można zmienić po utworzeniu.",
       "name_too_long": "Nazwa musi mieć maksymalnie 32 znaki",
       "name_invalid": "Nazwa musi zawierać małe litery, cyfry i myślniki; zacznij od litery",
+      "name_reserved": "Nie możesz użyć tej nazwy dla roli. Wybierz inną nazwę.",
       "name_locked": "Nazw ról nie można zmienić po utworzeniu.",
       "display_name": "Nazwa wyświetlana",
       "display_name_placeholder": "np. Moderator",

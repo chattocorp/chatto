@@ -422,8 +422,11 @@ test.describe('Server Roles Management', () => {
       updateMask: 'displayName'
     });
     await expect.poll(() => updates).toBe(1);
-    // The page label updates; the edit form keeps its draft across background reads.
-    await expect(page.getByText('After rename', { exact: true })).toBeVisible();
+    // The header of the role page shows the new display name without a reload.
+    const roleHeader = page.locator('[data-page-reveal]', {
+      has: page.getByRole('heading', { name: 'Edit Role', level: 1 })
+    });
+    await expect(roleHeader.getByText('After rename', { exact: true })).toBeVisible();
     expect(snapshots).toBe(before);
     expect(errors).toEqual([]);
   });
@@ -475,8 +478,8 @@ test.describe('Server Roles Management', () => {
     expect(errors).toEqual([]);
   });
 
-  test.describe('Roles List Page', () => {
-    test('server admin can view roles list', async ({ serverRolesPage }) => {
+  test.describe('Permissions page', () => {
+    test('server admin can view the permission matrix', async ({ serverRolesPage }) => {
       const { page } = serverRolesPage;
 
       // Create user and load the primary server
@@ -484,25 +487,27 @@ test.describe('Server Roles Management', () => {
       const server = await usePrimaryServerViaAPI(page);
 
       // Navigate to roles list
-      await serverRolesPage.gotoRolesList(server.id);
+      await serverRolesPage.gotoPermissionsMatrix(server.id);
 
       // Should see the roles table with default roles
-      await serverRolesPage.expectRolesListVisible();
+      await serverRolesPage.expectPermissionsMatrixVisible();
       await serverRolesPage.expectRoleInList('owner');
       await serverRolesPage.expectRoleInList('everyone');
     });
 
-    test('server admin can see Create role button', async ({ serverRolesPage }) => {
+    test('server admin can see the New Role column', async ({ serverRolesPage }) => {
       const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
 
-      await serverRolesPage.gotoRolesList(server.id);
-      await serverRolesPage.expectCreateRoleButtonVisible();
+      await serverRolesPage.gotoPermissionsMatrix(server.id);
+      await serverRolesPage.expectNewRoleColumnVisible();
     });
 
-    test('non-admin member sees access denied on roles page', async ({ serverRolesPage }) => {
+    test('non-admin member sees access denied on the Permissions and Roles pages', async ({
+      serverRolesPage
+    }) => {
       const { page } = serverRolesPage;
 
       // Create admin user and load the primary server
@@ -513,11 +518,16 @@ test.describe('Server Roles Management', () => {
       const nonAdmin = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, nonAdmin.login, nonAdmin.password);
-      // Navigate directly to roles list (bypassing nav filtering)
-      await page.goto(routes.serverAdminPermissions);
-
-      // Users without roles.manage permission see Access Denied
-      await serverRolesPage.expectAccessDenied();
+      // Navigate directly to the pages (bypassing nav filtering). Users without
+      // role.manage see Access Denied on each of them.
+      for (const route of [
+        routes.serverAdminPermissions,
+        routes.serverAdminRoles,
+        routes.serverAdminRole('moderator')
+      ]) {
+        await page.goto(route);
+        await serverRolesPage.expectAccessDenied();
+      }
     });
   });
 
@@ -532,7 +542,7 @@ test.describe('Server Roles Management', () => {
       await serverRolesPage.gotoRolesPage();
       await serverRolesPage
         .getRolesPageRow('moderator')
-        .getByRole('button', { name: 'Edit Moderator' })
+        .getByRole('link', { name: 'Edit Moderator' })
         .click();
       await serverRolesPage.expectRoleDetailPage('moderator');
       await page
@@ -546,6 +556,45 @@ test.describe('Server Roles Management', () => {
       await page.getByRole('link', { name: 'Create role' }).click();
       await expect(page).toHaveURL(routes.serverAdminRolesNew);
       await expect(serverRolesPage.nameInput).toBeVisible();
+    });
+
+    test('opens a role at or above a delegated role manager read-only', async ({
+      serverRolesPage
+    }) => {
+      const { page } = serverRolesPage;
+      await createAndLoginTestUser(page);
+      await usePrimaryServerViaAPI(page);
+      // A new role starts lowest, so it ranks below admin.
+      const delegateRole = generateRoleName('delegate');
+      await connectPost(page, 'chatto.admin.v1.AdminRoleService/CreateRole', {
+        name: delegateRole,
+        displayName: 'Delegated Managers'
+      });
+      await grantServerPermission(page, delegateRole, 'role.manage');
+      const manager = await createSecondTestUser(page);
+      await connectPost(page, 'chatto.admin.v1.AdminUserService/AssignRole', {
+        userId: manager.id!,
+        roleName: delegateRole
+      });
+      await logoutUser(page);
+      await loginUser(page, manager.login, manager.password);
+      await activatePrivilegedMode(page);
+
+      await serverRolesPage.gotoRolesPage();
+      const viewAdmin = serverRolesPage
+        .getRolesPageRow('admin')
+        .getByRole('link', { name: 'View Admin' });
+      await viewAdmin.click();
+      await serverRolesPage.expectRoleDetailPage('admin');
+      await expect(
+        page.getByText('The role order does not let you change this role.')
+      ).toBeVisible();
+      await expect(page.locator('#pingable')).toBeDisabled();
+
+      await page.goto(routes.serverAdminRolePermissions('admin'));
+      await expect(
+        page.locator('td[data-scope="server"][data-permission="message.manage"] button')
+      ).toBeDisabled();
     });
 
     test('redirects the former role page addresses to the Roles pages', async ({
@@ -870,7 +919,7 @@ test.describe('Roles Management', () => {
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
 
-      await serverRolesPage.gotoRolesList(server.id);
+      await serverRolesPage.gotoPermissionsMatrix(server.id);
 
       // The unified roles matrix should be visible
       await serverRolesPage.expectRolesPanelVisible();
@@ -971,8 +1020,8 @@ test.describe('Roles Management', () => {
       // Navigate to roles list - should have create/manage access via everyone role grant.
       // The matrix itself is intentionally hidden from non-admins because role
       // permission inspection is still restricted.
-      await serverRolesPage.gotoRolesList(server.id);
-      await serverRolesPage.expectCreateRoleButtonVisible();
+      await serverRolesPage.gotoPermissionsMatrix(server.id);
+      await serverRolesPage.expectNewRoleColumnVisible();
     });
 
     test('user with everyone role denial is blocked', async ({ serverRolesPage }) => {
@@ -1050,10 +1099,10 @@ test.describe('Server Permission Enforcement', () => {
       await loginUser(page, member.login, member.password);
       await activatePrivilegedMode(page);
       // Navigate to roles list
-      await serverRolesPage.gotoRolesList(server.id);
+      await serverRolesPage.gotoPermissionsMatrix(server.id);
 
       // Should see Create role button (has roles.manage)
-      await serverRolesPage.expectCreateRoleButtonVisible();
+      await serverRolesPage.expectNewRoleColumnVisible();
     });
 
     test('user without roles.manage permission sees access denied', async ({ serverRolesPage }) => {
@@ -1067,7 +1116,7 @@ test.describe('Server Permission Enforcement', () => {
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      // Navigate directly to roles list (bypassing nav filtering)
+      // Navigate directly to the page (bypassing nav filtering)
       await page.goto(routes.serverAdminPermissions);
 
       // Users without roles.manage permission see Access Denied

@@ -184,7 +184,6 @@
       "new_role_action": "+ دور جديد",
       "creating_role": "إنشاء...",
       "create_after_hint": "بعد إنشاء الدور، يمكنك تعيين الأذونات له في صفحة التحرير.",
-      "back_to_permissions": "العودة إلى الأذونات",
       "load_instance_failed": "فشل تحميل المثيل",
       "need_manage_create": "أنت بحاجة إلى إذن إدارة الأدوار لإنشاء الأدوار.",
       "edit_role_title": "تحرير الدور",

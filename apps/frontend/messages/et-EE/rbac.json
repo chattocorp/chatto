@@ -17,6 +17,7 @@
       "name_description": "Ainult väiketähed. Pärast loomist ei saa muuta.",
       "name_too_long": "Nimi peab olema kuni 32 tähemärki pikk",
       "name_invalid": "Nimes peab kasutama väiketähti, numbreid ja sidekriipse; alustada tähega",
+      "name_reserved": "Seda nime ei saa rolli jaoks kasutada. Valige teine nimi.",
       "name_locked": "Rollide nimesid ei saa pärast loomist muuta.",
       "display_name": "Kuvatav nimi",
       "display_name_placeholder": "nt moderaator",

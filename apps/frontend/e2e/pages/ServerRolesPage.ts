@@ -23,12 +23,12 @@ export class ServerRolesPage {
   // --- Locators ---
 
   /** The page heading */
-  get pageHeading(): Locator {
+  get permissionsHeading(): Locator {
     return this.page.getByRole('heading', { name: 'Permissions', exact: true, level: 1 });
   }
 
-  /** The create-role action at the end of the permission matrix header. */
-  get createRoleButton(): Locator {
+  /** The "+ New Role" link at the end of the permission matrix header. */
+  get newRoleColumn(): Locator {
     return this.page.getByTestId('new-role-column');
   }
 
@@ -105,11 +105,11 @@ export class ServerRolesPage {
   // --- Navigation ---
 
   /**
-   * Navigate to the roles list page.
+   * Navigate to the Permissions page with the server permission matrix.
    */
-  async gotoRolesList(spaceId: string): Promise<void> {
+  async gotoPermissionsMatrix(spaceId: string): Promise<void> {
     await this.page.goto(routes.serverAdminPermissions);
-    await expect(this.pageHeading).toBeVisible();
+    await expect(this.permissionsHeading).toBeVisible();
   }
 
   /**
@@ -296,7 +296,7 @@ export class ServerRolesPage {
     }
     if (!this.page.url().endsWith(`/manage/server/permissions`)) {
       await this.page.goto(routes.serverAdminPermissions);
-      await expect(this.pageHeading).toBeVisible();
+      await expect(this.permissionsHeading).toBeVisible();
     }
   }
 
@@ -386,10 +386,10 @@ export class ServerRolesPage {
   // --- Assertions ---
 
   /**
-   * Assert the roles list page is visible.
+   * Assert the Permissions page with its matrix is visible.
    */
-  async expectRolesListVisible(): Promise<void> {
-    await expect(this.pageHeading).toBeVisible();
+  async expectPermissionsMatrixVisible(): Promise<void> {
+    await expect(this.permissionsHeading).toBeVisible();
     await expect(this.rolesTable).toBeVisible();
   }
 
@@ -410,15 +410,15 @@ export class ServerRolesPage {
   /**
    * Assert the Create role button is visible.
    */
-  async expectCreateRoleButtonVisible(): Promise<void> {
-    await expect(this.createRoleButton).toBeVisible();
+  async expectNewRoleColumnVisible(): Promise<void> {
+    await expect(this.newRoleColumn).toBeVisible();
   }
 
   /**
    * Assert the Create role button is NOT visible.
    */
-  async expectCreateRoleButtonNotVisible(): Promise<void> {
-    await expect(this.createRoleButton).not.toBeVisible();
+  async expectNewRoleColumnNotVisible(): Promise<void> {
+    await expect(this.newRoleColumn).not.toBeVisible();
   }
 
   /** Assert the matrix cell for the current role × permission is set to allow. */
@@ -530,7 +530,7 @@ export class ServerRolesPage {
   async gotoRoleDetail(spaceId: string, roleName: string): Promise<void> {
     this.currentRoleName = roleName;
     this.currentSpaceId = spaceId;
-    await this.gotoRolesList(spaceId);
+    await this.gotoPermissionsMatrix(spaceId);
   }
 
   /**

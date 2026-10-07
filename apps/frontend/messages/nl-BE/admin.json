@@ -184,7 +184,6 @@
       "new_role_action": "+ Nieuwe rol",
       "creating_role": "Aanmaken...",
       "create_after_hint": "Nadat u de rol heeft aangemaakt, kunt u er machtigingen aan toewijzen op de bewerkingspagina.",
-      "back_to_permissions": "Terug naar rechten",
       "load_instance_failed": "Kan exemplaar niet laden",
       "need_manage_create": "Je hebt de machtiging Roles.Manage nodig om rollen te maken.",
       "edit_role_title": "Rol bewerken",

@@ -17,6 +17,7 @@
       "name_description": "Pouze malá písmena. Po vytvoření nelze změnit.",
       "name_too_long": "Název musí mít 32 znaků nebo méně",
       "name_invalid": "Název musí používat malá písmena, čísla a pomlčky; začít písmenem",
+      "name_reserved": "Tento název nemůžete použít pro roli. Zvolte jiný název.",
       "name_locked": "Názvy rolí nelze po vytvoření změnit.",
       "display_name": "Zobrazovaný název",
       "display_name_placeholder": "např. Moderátor",

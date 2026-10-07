@@ -184,7 +184,6 @@
       "new_role_action": "+ Nova função",
       "creating_role": "Criando...",
       "create_after_hint": "Após criar a função, você pode atribuir permissões a ela na página de edição.",
-      "back_to_permissions": "Voltar para permissões",
       "load_instance_failed": "Falha ao carregar instância",
       "need_manage_create": "Você precisa da permissão Roles.Manage para criar funções.",
       "edit_role_title": "Editar função",

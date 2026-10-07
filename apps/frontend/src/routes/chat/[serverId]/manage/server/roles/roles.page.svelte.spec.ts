@@ -174,21 +174,20 @@ describe('roles page', () => {
     const { container } = render(RolesPage);
     await vi.waitFor(() => expect(renderedOrder(container)).toHaveLength(5));
 
-    const action = (label: string) =>
-      container
-        .querySelector<HTMLElement>(`[role="img"][aria-label="${label}"]`)
-        ?.closest('button');
-    expect(action('View Owner')).toBeTruthy();
-    expect(action('View Admin')).toBeTruthy();
-    expect(action('Edit Moderator')).toBeTruthy();
-    expect(action('Edit Helper')).toBeTruthy();
-    expect(action('Edit Everyone')).toBeTruthy();
-    expect(action('Edit Admin')).toBeFalsy();
-
-    action('Edit Moderator')!.click();
-    expect(mocks.goto).toHaveBeenLastCalledWith('/chat/-/manage/server/roles/moderator');
-    action('View Admin')!.click();
-    expect(mocks.goto).toHaveBeenLastCalledWith('/chat/-/manage/server/roles/admin');
+    const link = (label: string) =>
+      container.querySelector<HTMLAnchorElement>(`a[aria-label="${label}"]`);
+    expect(link('View Owner')?.getAttribute('href')).toBe('/chat/-/manage/server/roles/owner');
+    expect(link('View Admin')?.getAttribute('href')).toBe('/chat/-/manage/server/roles/admin');
+    expect(link('Edit Moderator')?.getAttribute('href')).toBe(
+      '/chat/-/manage/server/roles/moderator'
+    );
+    expect(link('Edit Helper')?.getAttribute('href')).toBe('/chat/-/manage/server/roles/helper');
+    expect(link('Edit Everyone')?.getAttribute('href')).toBe(
+      '/chat/-/manage/server/roles/everyone'
+    );
+    expect(link('Edit Admin')).toBeNull();
+    // A real link, not a toggle: it works with a middle-click and in a new tab.
+    expect(link('Edit Moderator')?.hasAttribute('aria-pressed')).toBe(false);
     expect(api.reorderRoles).not.toHaveBeenCalled();
   });
 

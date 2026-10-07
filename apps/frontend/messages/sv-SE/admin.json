@@ -184,7 +184,6 @@
       "new_role_action": "+ Ny roll",
       "creating_role": "Skapar...",
       "create_after_hint": "Efter att ha skapat rollen kan du tilldela behörigheter till den på redigeringssidan.",
-      "back_to_permissions": "Tillbaka till behörigheter",
       "load_instance_failed": "Det gick inte att läsa in instans",
       "need_manage_create": "Du behöver behörigheten roles.manage för att skapa roller.",
       "edit_role_title": "Redigera roll",

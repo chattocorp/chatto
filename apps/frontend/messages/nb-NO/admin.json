@@ -184,7 +184,6 @@
       "new_role_action": "+ Ny rolle",
       "creating_role": "Oppretter...",
       "create_after_hint": "Etter å ha opprettet rollen, kan du tildele tillatelser til den på redigeringssiden.",
-      "back_to_permissions": "Tilbake til tillatelser",
       "load_instance_failed": "Kunne ikke laste forekomsten",
       "need_manage_create": "Du trenger roles.manage-tillatelsen for å opprette roller.",
       "edit_role_title": "Rediger rolle",

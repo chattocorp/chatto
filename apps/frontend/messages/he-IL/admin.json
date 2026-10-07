@@ -184,7 +184,6 @@
       "new_role_action": "+ תפקיד חדש",
       "creating_role": "יוצר...",
       "create_after_hint": "לאחר יצירת התפקיד, ניתן להקצות לו הרשאות בדף העריכה.",
-      "back_to_permissions": "חזרה להרשאות",
       "load_instance_failed": "טעינת המופע נכשלה",
       "need_manage_create": "אתה צריך את ההרשאה roles.manage כדי ליצור תפקידים.",
       "edit_role_title": "עריכת תפקיד",

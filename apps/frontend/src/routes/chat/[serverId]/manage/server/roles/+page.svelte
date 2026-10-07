@@ -16,7 +16,6 @@ key move as a `finalize` event while the drag continues, so it saves once when
 the drag stops (`consider` with the `dragStopped` trigger).
 -->
 <script lang="ts">
-  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { flip } from 'svelte/animate';
   import { onMount } from 'svelte';
@@ -36,16 +35,7 @@ the drag stops (`consider` with the `dragStopped` trigger).
   import { createMutation, createQuery, queryClient, refreshRoleQueries } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
-  import {
-    Hint,
-    LoadingFog,
-    PageTitle,
-    PaneContent,
-    PaneHeader,
-    Panel,
-    Pill,
-    ToggleChip
-  } from '$lib/ui';
+  import { Hint, LoadingFog, PageTitle, PaneContent, PaneHeader, Panel, Pill } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
@@ -156,41 +146,32 @@ the drag stops (`consider` with the `dragStopped` trigger).
     const roleNames = [...lockedRoles, ...items].map((role) => role.name).reverse();
     reorderMutation.mutate({ ...session.snapshot(), roleNames });
   }
-
-  function openRole(role: ServerRole) {
-    void goto(
-      resolve('/chat/[serverId]/manage/server/roles/[name]', {
-        serverId: serverSegment,
-        name: role.name
-      })
-    );
-  }
 </script>
 
 <!--
   Every role opens. Roles at or above the viewer's highest role open
-  read-only, so they show a view icon instead of an edit icon.
+  read-only, so they show a view icon instead of an edit icon. The link uses
+  the look of the square icon chips on the room rows.
 -->
 {#snippet openAction(role: ServerRole)}
   {@const editable = role.ranksBelowViewer}
   {@const label = editable
     ? m('admin.permissions.roles_page.edit_role', { role: role.displayName })
     : m('admin.permissions.roles_page.view_role', { role: role.displayName })}
-  <ToggleChip
-    tone="neutral"
-    square
+  <a
+    href={resolve('/chat/[serverId]/manage/server/roles/[name]', {
+      serverId: serverSegment,
+      name: role.name
+    })}
+    class="toggle-chip w-10 shrink-0 rounded-lg border-input-border bg-surface p-0 text-muted hover:bg-surface-emphasized hover:text-text"
     title={label}
-    onclick={(event) => {
-      event.stopPropagation();
-      openRole(role);
-    }}
+    aria-label={label}
   >
     <span
       class={['iconify text-base', editable ? 'icon-[uil--pen]' : 'icon-[uil--eye]']}
-      role="img"
-      aria-label={label}
+      aria-hidden="true"
     ></span>
-  </ToggleChip>
+  </a>
 {/snippet}
 
 {#snippet roleRow(role: ServerRole, badge: string | null, badgeTitle?: string)}

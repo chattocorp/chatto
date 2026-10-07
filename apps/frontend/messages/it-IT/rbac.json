@@ -17,6 +17,7 @@
       "name_description": "Solo lettere minuscole. Non può essere modificato dopo la creazione.",
       "name_too_long": "Il nome deve contenere massimo 32 caratteri",
       "name_invalid": "Il nome deve utilizzare lettere minuscole, numeri e trattini; iniziare con una lettera",
+      "name_reserved": "Non puoi usare questo nome per un ruolo. Scegli un altro nome.",
       "name_locked": "I nomi dei ruoli non possono essere modificati dopo la creazione.",
       "display_name": "Nome visualizzato",
       "display_name_placeholder": "ad esempio, Moderatore",

@@ -184,7 +184,6 @@
       "new_role_action": "+ Nuovo ruolo",
       "creating_role": "Creazione...",
       "create_after_hint": "Dopo aver creato il ruolo, puoi assegnargli le autorizzazioni nella pagina di modifica.",
-      "back_to_permissions": "Torniamo ai permessi",
       "load_instance_failed": "Impossibile caricare l'istanza",
       "need_manage_create": "Per creare ruoli è necessaria l'autorizzazione plans.manage.",
       "edit_role_title": "Modifica ruolo",

@@ -110,6 +110,19 @@ describe('RoleForm', () => {
       expect(container.textContent).toContain('start with a letter');
     });
 
+    it('rejects a reserved name and keeps the form from submitting', async () => {
+      const onSubmit = vi.fn();
+      const { container } = renderRoleForm({ name: 'new', displayName: 'Test', onSubmit });
+      await expect.element(q(container, 'p.text-error')).toBeInTheDocument();
+      expect(container.textContent).toContain('You cannot use this name for a role.');
+      await expect.element(q(container, 'button[type="submit"]')).toBeDisabled();
+    });
+
+    it('accepts a name that only starts with a reserved name', async () => {
+      const { container } = renderRoleForm({ name: 'newcomers', displayName: 'Test' });
+      expect(q(container, 'p.text-error')).toBeNull();
+    });
+
     it('accepts valid name format', async () => {
       const { container } = renderRoleForm({ name: 'validrole', displayName: 'Test' });
       // Should not have error text

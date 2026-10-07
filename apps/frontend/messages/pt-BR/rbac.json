@@ -17,6 +17,7 @@
       "name_description": "Somente letras minúsculas. Não pode ser alterado após a criação.",
       "name_too_long": "O nome deve ter 32 caracteres ou menos",
       "name_invalid": "O nome deve conter letras minúsculas, números e travessões; comece com uma carta",
+      "name_reserved": "Você não pode usar este nome para uma função. Escolha outro nome.",
       "name_locked": "Os nomes das funções não podem ser alterados após a criação.",
       "display_name": "Nome de exibição",
       "display_name_placeholder": "por exemplo, moderador",

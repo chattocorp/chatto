@@ -184,7 +184,6 @@
       "new_role_action": "+ Нова роль",
       "creating_role": "Створення...",
       "create_after_hint": "Після створення ролі ви можете призначити їй дозволи на сторінці редагування.",
-      "back_to_permissions": "Назад до дозволів",
       "load_instance_failed": "Не вдалося завантажити примірник",
       "need_manage_create": "Для створення ролей вам потрібен дозвіл roles.manage.",
       "edit_role_title": "Редагувати роль",

@@ -37,9 +37,14 @@ export class ServerAdminPage {
     return this.serverSettingsLinks.getByRole('link', { name: 'Rooms', exact: true });
   }
 
-  /** Sidebar navigation item for Permissions settings */
-  get rolesNavItem(): Locator {
+  /** Sidebar navigation item for the Permissions page */
+  get permissionsNavItem(): Locator {
     return this.serverSettingsLinks.getByRole('link', { name: 'Permissions', exact: true });
+  }
+
+  /** Sidebar navigation item for the Roles page */
+  get rolesNavItem(): Locator {
+    return this.serverSettingsLinks.getByRole('link', { name: 'Roles', exact: true });
   }
 
   /** Sidebar navigation item for the Members settings page. */
@@ -468,16 +473,22 @@ export class ServerAdminPage {
     await expect(this.membersNavItem).not.toBeVisible();
   }
 
-  /**
-   * Assert that the Roles nav item is visible in the admin sidebar.
-   */
+  /** Assert that the Permissions nav item is visible in the admin sidebar. */
+  async expectPermissionsNavVisible(): Promise<void> {
+    await expect(this.permissionsNavItem).toBeVisible();
+  }
+
+  /** Assert that the Permissions nav item is NOT visible in the admin sidebar. */
+  async expectPermissionsNavNotVisible(): Promise<void> {
+    await expect(this.permissionsNavItem).not.toBeVisible();
+  }
+
+  /** Assert that the Roles nav item is visible in the admin sidebar. */
   async expectRolesNavVisible(): Promise<void> {
     await expect(this.rolesNavItem).toBeVisible();
   }
 
-  /**
-   * Assert that the Roles nav item is NOT visible in the admin sidebar.
-   */
+  /** Assert that the Roles nav item is NOT visible in the admin sidebar. */
   async expectRolesNavNotVisible(): Promise<void> {
     await expect(this.rolesNavItem).not.toBeVisible();
   }

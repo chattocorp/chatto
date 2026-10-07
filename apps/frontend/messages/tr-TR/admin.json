@@ -184,7 +184,6 @@
       "new_role_action": "+ Yeni Rol",
       "creating_role": "Oluşturuluyor...",
       "create_after_hint": "Rolü oluşturduktan sonra düzenleme sayfasında ona izinler atayabilirsiniz.",
-      "back_to_permissions": "İzinlere geri dön",
       "load_instance_failed": "Örnek yüklenemedi",
       "need_manage_create": "Rolleri oluşturmak için roller.manage iznine ihtiyacınız var.",
       "edit_role_title": "Rolü Düzenle",

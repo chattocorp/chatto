@@ -17,6 +17,7 @@
       "name_description": "Tikai mazie burti. Pēc izveides to nevar mainīt.",
       "name_too_long": "Nosaukumā nedrīkst būt vairāk par 32 rakstzīmēm",
       "name_invalid": "Nosaukumā ir jāizmanto mazie burti, cipari un domuzīmes; sāciet ar burtu",
+      "name_reserved": "Jūs nevarat izmantot šo nosaukumu lomai. Izvēlieties citu nosaukumu.",
       "name_locked": "Pēc izveides lomu nosaukumus nevar mainīt.",
       "display_name": "Parādāmais nosaukums",
       "display_name_placeholder": "piem., Moderators",

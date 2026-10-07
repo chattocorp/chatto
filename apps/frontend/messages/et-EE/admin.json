@@ -184,7 +184,6 @@
       "new_role_action": "+ Uus roll",
       "creating_role": "Loomine...",
       "create_after_hint": "Pärast rolli loomist saate redigeerimislehel määrata sellele õigused.",
-      "back_to_permissions": "Tagasi lubade juurde",
       "load_instance_failed": "Eksemplari laadimine ebaõnnestus",
       "need_manage_create": "Rollide loomiseks vajate luba roles.manage.",
       "edit_role_title": "Redigeeri rolli",

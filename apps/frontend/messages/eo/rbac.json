@@ -17,6 +17,7 @@
       "name_description": "Nur minuskloj. Ne povas esti ŝanĝita post kreado.",
       "name_too_long": "Nomo devas esti 32 signoj aŭ malpli",
       "name_invalid": "Nomo devas uzi minusklojn, ciferojn kaj streketojn; komenci per letero",
+      "name_reserved": "Vi ne povas uzi ĉi tiun nomon por rolo. Elektu alian nomon.",
       "name_locked": "Rolnomoj ne povas esti ŝanĝitaj post kreado.",
       "display_name": "Afiŝnomo",
       "display_name_placeholder": "ekz., Moderiganto",

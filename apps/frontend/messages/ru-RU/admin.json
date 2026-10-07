@@ -184,7 +184,6 @@
       "new_role_action": "+ Новая роль",
       "creating_role": "Создание...",
       "create_after_hint": "После создания роли вы можете назначить ей разрешения на странице редактирования.",
-      "back_to_permissions": "Вернуться к разрешениям",
       "load_instance_failed": "Не удалось загрузить экземпляр",
       "need_manage_create": "Для создания ролей вам необходимо разрешение roles.manage.",
       "edit_role_title": "Изменить роль",

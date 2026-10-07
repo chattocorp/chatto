@@ -184,7 +184,6 @@
       "new_role_action": "+ Neue Rolle",
       "creating_role": "Wird erstellt...",
       "create_after_hint": "Nach dem Erstellen der Rolle kannst du ihr auf der Bearbeitungsseite Berechtigungen zuweisen.",
-      "back_to_permissions": "Zurück zu Berechtigungen",
       "load_instance_failed": "Instanz konnte nicht geladen werden",
       "need_manage_create": "Du brauchst die Berechtigung roles.manage, um Rollen zu erstellen.",
       "edit_role_title": "Rolle bearbeiten",

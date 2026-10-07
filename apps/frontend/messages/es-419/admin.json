@@ -184,7 +184,6 @@
       "new_role_action": "+ Nuevo rol",
       "creating_role": "Creando...",
       "create_after_hint": "Después de crear el rol, puedes asignarle permisos en la página de edición.",
-      "back_to_permissions": "Volver a permisos",
       "load_instance_failed": "No se pudo cargar la instancia",
       "need_manage_create": "Necesitas el permiso roles.manage para crear roles.",
       "edit_role_title": "Editar Rol",

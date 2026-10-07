@@ -261,6 +261,21 @@ describe('role management page identity', () => {
     ).toBe('role-a');
   });
 
+  it('explains the everyone role on its members address', async () => {
+    activeRoleName = 'everyone';
+    activeRouteId = `${ROLE_ROUTE}/members`;
+    mocks.getRole.mockResolvedValue(details('everyone', 'Everyone', ''));
+    const { container } = renderRole(['members']);
+    await vi.waitFor(() =>
+      expect(container.textContent).toContain(
+        'All server members have the everyone role implicitly.'
+      )
+    );
+
+    expect(container.textContent).not.toContain('You do not have permission');
+    expect(mocks.listMembers).not.toHaveBeenCalled();
+  });
+
   it('hides the Members tab for the everyone role and explains why', async () => {
     activeRoleName = 'everyone';
     mocks.getRole.mockResolvedValue(details('everyone', 'Everyone', ''));
@@ -469,6 +484,8 @@ describe('role management page identity', () => {
     const roleKey = adminQueryKeys.rolePermissions('origin', connection, 'role-a');
     const roleDetailsKey = adminQueryKeys.role('origin', connection, 'role-a');
     const userKey = adminQueryKeys.userPermissions('origin', connection, 'user-a');
+    const catalogKey = adminQueryKeys.roleCatalog('origin', connection);
+    queryClient.setQueryData(catalogKey, { roles: [] });
     queryClient.setQueryData(tierKey, { roles: [] });
     queryClient.setQueryData(roleKey, { roleName: 'role-a' });
     queryClient.setQueryData(roleDetailsKey, details('role-a', 'Role A', 'Description'));
@@ -493,5 +510,6 @@ describe('role management page identity', () => {
     expect(queryClient.getQueryData(roleDetailsKey)).toBeUndefined();
     expect(queryClient.getQueryState(tierKey)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(userKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(catalogKey)?.isInvalidated).toBe(true);
   });
 });

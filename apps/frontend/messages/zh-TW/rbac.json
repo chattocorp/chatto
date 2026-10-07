@@ -17,6 +17,7 @@
       "name_description": "只能使用小寫字母。建立後無法變更。",
       "name_too_long": "名稱不得超過 32 個字元",
       "name_invalid": "名稱只能使用小寫字母、數字及連字號，且須以字母開頭",
+      "name_reserved": "此名稱不能用於角色。請選擇其他名稱。",
       "name_locked": "角色名稱建立後無法變更。",
       "display_name": "顯示名稱",
       "display_name_placeholder": "例如 Moderator",

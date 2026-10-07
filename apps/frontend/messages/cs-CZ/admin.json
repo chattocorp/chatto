@@ -184,7 +184,6 @@
       "new_role_action": "+ Nová role",
       "creating_role": "Vytváření...",
       "create_after_hint": "Po vytvoření role jí můžete přiřadit oprávnění na stránce úprav.",
-      "back_to_permissions": "Zpět k oprávněním",
       "load_instance_failed": "Načtení instance se nezdařilo",
       "need_manage_create": "K vytváření rolí potřebujete oprávnění roles.manage.",
       "edit_role_title": "Upravit roli",

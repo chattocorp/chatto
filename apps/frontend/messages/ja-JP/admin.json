@@ -184,7 +184,6 @@
       "new_role_action": "+ 新しいロール",
       "creating_role": "作成中...",
       "create_after_hint": "ロールを作成した後、編集ページでロールに権限を割り当てることができます。",
-      "back_to_permissions": "権限に戻る",
       "load_instance_failed": "インスタンスのロードに失敗しました",
       "need_manage_create": "ロールを作成するには、roles.manage 権限が必要です。",
       "edit_role_title": "役割の編集",

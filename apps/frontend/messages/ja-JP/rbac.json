@@ -17,6 +17,7 @@
       "name_description": "小文字のみ。作成後に変更することはできません。",
       "name_too_long": "名前は 32 文字以下である必要があります",
       "name_invalid": "名前には小文字、数字、ダッシュを使用する必要があります。手紙から始める",
+      "name_reserved": "この名前はロールに使用できません。別の名前を選んでください。",
       "name_locked": "ロール名は作成後に変更できません。",
       "display_name": "表示名",
       "display_name_placeholder": "例: モデレーター",

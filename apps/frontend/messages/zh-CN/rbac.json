@@ -17,6 +17,7 @@
       "name_description": "仅限小写字母。创建后无法更改。",
       "name_too_long": "名称不能超过 32 个字符",
       "name_invalid": "名称只能使用小写字母、数字和连字符，且必须以字母开头",
+      "name_reserved": "此名称不能用于角色。请选择其他名称。",
       "name_locked": "角色名称创建后无法更改。",
       "display_name": "显示名称",
       "display_name_placeholder": "例如 版主",

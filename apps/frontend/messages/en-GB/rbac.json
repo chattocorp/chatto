@@ -17,6 +17,7 @@
       "name_description": "Lowercase letters only. Cannot be changed after creation.",
       "name_too_long": "Name must be 32 characters or less",
       "name_invalid": "Name must use lowercase letters, numbers, and dashes; start with a letter",
+      "name_reserved": "You cannot use this name for a role. Choose a different name.",
       "name_locked": "Role names cannot be changed after creation.",
       "display_name": "Display Name",
       "display_name_placeholder": "e.g., Moderator",

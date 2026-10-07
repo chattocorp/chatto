@@ -17,6 +17,7 @@
       "name_description": "Yalnızca küçük harfler. Oluşturulduktan sonra değiştirilemez.",
       "name_too_long": "Ad 32 karakter veya daha kısa olmalıdır",
       "name_invalid": "Adda küçük harfler, rakamlar ve kısa çizgiler kullanılmalıdır; bir harfle başla",
+      "name_reserved": "Bu adı bir rol için kullanamazsınız. Farklı bir ad seçin.",
       "name_locked": "Rol adları oluşturulduktan sonra değiştirilemez.",
       "display_name": "Görünen Ad",
       "display_name_placeholder": "örneğin Moderatör",
