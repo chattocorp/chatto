@@ -165,10 +165,12 @@ type ProjectorStatus struct {
 	LatestSnapshotAt     time.Time
 
 	// Err is the fatal error that stopped the projector, or nil. It wraps
-	// ErrProjectionFailed and the decode or apply error.
+	// ErrProjectionFailed and the cause: a decode, apply, restore, or other
+	// run error.
 	Err error
 	// FailedSeq is the stream sequence that the projector could not decode
-	// or apply. It is zero while Err is nil.
+	// or apply. It is zero while Err is nil, and when the failure has no
+	// sequence, for example a restore or run failure.
 	FailedSeq uint64
 }
 

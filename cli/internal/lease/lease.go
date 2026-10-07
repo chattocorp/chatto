@@ -345,7 +345,7 @@ func (l *Lease) renewAtRevision(ctx context.Context, revision uint64, acquiredAt
 		return err
 	}
 	// Renewal must refresh the TTL and stay conditional on the current
-	// revision; tests cover both because lease safety depends on them.
+	// revision; lease safety depends on both. UpdateWithTTL does both.
 	_, err = l.kv.UpdateWithTTL(ctx, l.key, data, revision, l.ttl)
 	if err != nil {
 		if jetstreamutil.IsSequenceConflict(err) || isMissingKey(err) {
