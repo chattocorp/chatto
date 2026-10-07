@@ -294,7 +294,7 @@ for S3 storage.
 
 ## Active Document Safety
 
-Chatto serves all original attachments with `nosniff`. It also adds a sandbox
+Chatto streams original attachments with `nosniff`. It also adds a sandbox
 policy and `Referrer-Policy: no-referrer` for all types except passive types:
 PNG, JPEG, GIF, WebP, AVIF, video, audio, plain text, and PDF. Files with a
 missing or malformed content type are served as `application/octet-stream` in

@@ -381,8 +381,12 @@ authorization, live events, backup and restore, and backend tests.
 - URLs are per-user and intentionally not shared/CDN-cacheable. Treat leaked URLs
   as usable until expiry or membership loss.
 - Chatto streams protected asset bytes by default. It may redirect heavy passive
-  originals such as video, audio, and large files to short-lived presigned S3
-  URLs after the same authorization check.
+  originals such as video, audio, and large passive files to short-lived
+  presigned S3 URLs after the same authorization check.
+- Original attachment responses use a CSP sandbox for every type outside a
+  passive allowlist. Never classify them with a denylist of active types. Send
+  only canonical content types, so that browsers and Go cannot read one type
+  differently.
 - The legacy `/assets/attachments/{signedLocator}` route has been removed; do
   not add new callers for signed locator URLs.
 
