@@ -686,7 +686,6 @@ sources = [
     "chatto.toml",
     "cmd/embedded/LICENSE",
     "cmd/embedded/NOTICE",
-    "internal/http_server/.client/**/*",
     "../pkg/**/*.go",
     "../go.work",
     "../go.work.sum",
