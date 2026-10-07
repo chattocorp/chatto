@@ -11,7 +11,8 @@
       "event_log": "イベントログ",
       "system": "システム",
       "back_to_server": "サーバーに戻る",
-      "invitations": "招待リンク"
+      "invitations": "招待リンク",
+      "roles": "ロール"
     },
     "neighbors": {
       "title": "ネイバー",
@@ -207,7 +208,6 @@
       "delete_role_failed": "ロールの削除に失敗しました",
       "role_order": {
         "title": "ロールの順序",
-        "subtitle": "どのロールが他のロールを管理できるかを決めます",
         "hint": "ロールの順序によって、誰が誰を管理できるかが決まります。移動できるのは、あなたの最上位ロールより下のロールだけです。停止ロールなどの制限ロールは、それを管理する人より下に配置してください。",
         "drag_role": "{role} を移動",
         "always_highest": "常に最上位",
@@ -217,7 +217,22 @@
         "save_failed": "ロールの順序を保存できませんでした",
         "list_label": "移動できるロール",
         "none_movable": "あなたの最上位ロールより下のロールはありません。"
-      }
+      },
+      "back_to_roles": "ロールに戻る",
+      "roles_page": {
+        "title": "ロール",
+        "subtitle": "このサーバーのロールを作成、編集、並べ替えます",
+        "edit_role": "{role} を編集",
+        "view_role": "{role} を表示"
+      },
+      "role_tabs": {
+        "label": "ロールのセクション",
+        "general": "一般",
+        "permissions": "権限",
+        "members": "メンバー"
+      },
+      "role_pings_on": "ロールのメンションをオンにしました",
+      "role_pings_off": "ロールのメンションをオフにしました"
     },
     "rooms_admin": {
       "title": "部屋",

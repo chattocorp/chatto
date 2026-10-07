@@ -86,10 +86,20 @@ export class ServerRolesPage {
     return this.page.getByRole('button', { name: 'Cancel' });
   }
 
-  /** The Back to Permissions arrow link in the pane header */
+  /** The Back to roles arrow link in the role page header */
   get backToRolesButton(): Locator {
-    // PaneHeader's backHref renders an <a> with aria-label="Back to permissions".
-    return this.page.getByRole('link', { name: 'Back to permissions' });
+    // PaneHeader's backHref renders an <a> with aria-label="Back to roles".
+    return this.page.getByRole('link', { name: 'Back to roles' });
+  }
+
+  /** The heading of the Roles page, which lists the roles in their order. */
+  get rolesPageHeading(): Locator {
+    return this.page.getByRole('heading', { name: 'Roles', exact: true, level: 1 });
+  }
+
+  /** A role row on the Roles page. Matrix cells use `td`/`th`, so match the row `div`. */
+  getRolesPageRow(roleName: string): Locator {
+    return this.page.locator(`div[data-role="${roleName}"]`);
   }
 
   // --- Navigation ---
@@ -106,7 +116,7 @@ export class ServerRolesPage {
    * Navigate to the create role page.
    */
   async gotoCreateRole(spaceId: string): Promise<void> {
-    await this.page.goto(routes.serverAdminPermissionsNew);
+    await this.page.goto(routes.serverAdminRolesNew);
     // Wait for either the form (if user has permission) or Access Denied message
     await expect(
       this.nameInput.or(this.page.getByText('Access Denied', { exact: true }))
@@ -114,17 +124,44 @@ export class ServerRolesPage {
   }
 
   /**
-   * Navigate to a specific role's edit page. The role detail page now hosts
-   * metadata + assigned-users only; permission editing happens on the matrix
-   * at the roles list. We track the role name here so subsequent permission
-   * helpers can resolve the matrix cell — they'll auto-navigate to the
-   * matrix as needed.
+   * Navigate to the General tab of a role's page. The permission helpers
+   * use the server permission matrix; we track the role name here so they
+   * can resolve the matrix cell — they'll auto-navigate to the matrix as
+   * needed.
    */
   async gotoEditRole(spaceId: string, roleName: string): Promise<void> {
     this.currentRoleName = roleName;
     this.currentSpaceId = spaceId;
-    await this.page.goto(routes.serverAdminPermission(roleName));
+    await this.page.goto(routes.serverAdminRole(roleName));
     await expect(this.page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
+  }
+
+  /** Navigate to the Members tab of a role's page. */
+  async gotoRoleMembers(roleName: string): Promise<void> {
+    await this.page.goto(routes.serverAdminRoleMembers(roleName));
+    await expect(this.page.getByRole('heading', { name: 'Users with this Role' })).toBeVisible();
+  }
+
+  /** Navigate to the Roles page. */
+  async gotoRolesPage(): Promise<void> {
+    await this.page.goto(routes.serverAdminRoles);
+    await expect(this.rolesPageHeading).toBeVisible();
+  }
+
+  /** Assert the Roles page is visible. */
+  async expectRolesPageVisible(): Promise<void> {
+    await expect(this.rolesPageHeading).toBeVisible();
+    await expect(this.getRolesPageRow('owner')).toBeVisible();
+  }
+
+  /** Assert a role is listed on the Roles page. */
+  async expectRoleOnRolesPage(roleName: string): Promise<void> {
+    await expect(this.getRolesPageRow(roleName)).toBeVisible();
+  }
+
+  /** Assert a role is not listed on the Roles page. */
+  async expectRoleNotOnRolesPage(roleName: string): Promise<void> {
+    await expect(this.getRolesPageRow(roleName)).toHaveCount(0);
   }
 
   // --- Role List Actions ---
@@ -511,7 +548,7 @@ export class ServerRolesPage {
 
   /**
    * Clicking a role's column header at server scope routes to the role
-   * detail page (`/manage/server/permissions/[name]`), which carries "Edit Role" + the
+   * detail page (`/manage/server/roles/[name]`), which carries "Edit Role" + the
    * role slug as a `<code>` value.
    */
   async expectRoleDetailPage(roleName: string): Promise<void> {

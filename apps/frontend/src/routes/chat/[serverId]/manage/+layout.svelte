@@ -28,7 +28,7 @@
     const roomGroupsBase = manageBase + '/room-groups';
     const moderationBase = serverBase + '/moderation';
     const permissionsBase = serverBase + '/permissions';
-    const roleOrderBase = serverBase + '/role-order';
+    const rolesBase = serverBase + '/roles';
     const securityBase = serverBase + '/security';
     const systemBase = serverBase + '/system';
     const eventLogBase = serverBase + '/event-log';
@@ -76,9 +76,9 @@
       return () => permissions.canModerateRooms;
     }
 
-    // Permissions pages call the server/group role permission matrix APIs,
-    // which require role.manage.
-    if (pathname.startsWith(permissionsBase) || pathname.startsWith(roleOrderBase)) {
+    // Permissions and Roles pages call the role and role permission matrix
+    // APIs, which require role.manage.
+    if (pathname.startsWith(permissionsBase) || pathname.startsWith(rolesBase)) {
       return () => permissions.canAdminManageRoles;
     }
 

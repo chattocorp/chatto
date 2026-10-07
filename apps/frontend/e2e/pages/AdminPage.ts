@@ -141,7 +141,7 @@ export class AdminPage {
    * Navigate to a specific role's page.
    */
   async gotoRole(roleName: string): Promise<void> {
-    await this.page.goto(routes.serverAdminPermission(roleName));
+    await this.page.goto(routes.serverAdminRole(roleName));
   }
 
   async navigateToGeneral(): Promise<void> {

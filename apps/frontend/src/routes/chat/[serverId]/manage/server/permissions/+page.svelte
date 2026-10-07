@@ -11,19 +11,15 @@
   const serverScope = useServerScope();
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
 
-  // Role detail pages require admin.manage-roles, and the role order allows
-  // edits only to roles below the viewer's highest role. Gate the column-header
-  // click so other viewers see plain text.
+  // Role pages require admin.manage-roles. Gate the column-header click so
+  // other viewers see plain text. Roles at or above the viewer's highest role
+  // open read-only, as on the Roles page.
   const canManageRoles = $derived(serverScope.store.permissions.canAdminManageRoles);
   const error = $derived(null);
 
-  function isRoleClickable(role: TierRole): boolean {
-    return canManageRoles && role.ranksBelowViewer;
-  }
-
   function openRoleDetail(role: TierRole) {
     goto(
-      resolve('/chat/[serverId]/manage/server/permissions/[name]', {
+      resolve('/chat/[serverId]/manage/server/roles/[name]', {
         serverId: serverSegment,
         name: role.roleName
       })
@@ -40,9 +36,9 @@
     {#snippet actions()}
       {#if canManageRoles}
         <HeaderIconButton
-          icon="icon-[uil--sort-amount-down]"
-          label={m('admin.permissions.role_order.title')}
-          href={resolve('/chat/[serverId]/manage/server/role-order', {
+          icon="icon-[uil--award]"
+          label={m('admin.nav.roles')}
+          href={resolve('/chat/[serverId]/manage/server/roles', {
             serverId: serverSegment
           })}
         />
@@ -57,9 +53,9 @@
       {:else}
         <PermissionMatrix
           onRoleClick={openRoleDetail}
-          {isRoleClickable}
+          isRoleClickable={() => canManageRoles}
           newRoleHref={canManageRoles
-            ? resolve('/chat/[serverId]/manage/server/permissions/new', { serverId: serverSegment })
+            ? resolve('/chat/[serverId]/manage/server/roles/new', { serverId: serverSegment })
             : undefined}
           fillHeight
         >

@@ -288,7 +288,7 @@ test.describe('Server Roles Management', () => {
       const refreshes = [0, 0];
       const errors: string[] = [];
       const url = perRole
-        ? routes.serverAdminPermission('everyone')
+        ? routes.serverAdminRolePermissions('everyone')
         : routes.serverAdminPermissions;
       for (const [index, client] of clients.entries()) {
         client.on('response', (response) => {
@@ -363,7 +363,7 @@ test.describe('Server Roles Management', () => {
       }
     });
     await page.setViewportSize({ width: 1000, height: 800 });
-    await page.goto(routes.serverAdminPermission('moderator'));
+    await page.goto(routes.serverAdminRolePermissions('moderator'));
     await expect(page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
     const viewport = page
       .locator('.data-table-viewport')
@@ -408,7 +408,7 @@ test.describe('Server Roles Management', () => {
         if (frame.case === 'event' && frame.value.event.case === 'roleUpdated') updates++;
       })
     );
-    await serverRolesPage.gotoEditRole(server.id, roleName);
+    await serverRolesPage.gotoRoleMembers(roleName);
     const before = snapshots;
     await connectPost(page, 'chatto.admin.v1.AdminUserService/AssignRole', {
       userId: other.id!,
@@ -455,7 +455,7 @@ test.describe('Server Roles Management', () => {
           );
       }
     });
-    await serverRolesPage.gotoEditRole(server.id, roleName);
+    await serverRolesPage.gotoRoleMembers(roleName);
     const rosterHeading = page.getByRole('heading', { name: 'Users with this Role' });
     await rosterHeading.scrollIntoViewIfNeeded();
     // Real wheel interaction reaches the trailing table sentinel.
@@ -521,6 +521,49 @@ test.describe('Server Roles Management', () => {
     });
   });
 
+  test.describe('Roles page', () => {
+    test('opens role creation and the role pages from the Roles page', async ({
+      serverRolesPage
+    }) => {
+      const { page } = serverRolesPage;
+      await createAndLoginTestUser(page);
+      await usePrimaryServerViaAPI(page);
+
+      await serverRolesPage.gotoRolesPage();
+      await serverRolesPage
+        .getRolesPageRow('moderator')
+        .getByRole('button', { name: 'Edit Moderator' })
+        .click();
+      await serverRolesPage.expectRoleDetailPage('moderator');
+      await page
+        .getByRole('navigation', { name: 'Role sections' })
+        .getByRole('link', { name: 'Permissions' })
+        .click();
+      await expect(page).toHaveURL(routes.serverAdminRolePermissions('moderator'));
+      await expect(page.locator('td[data-scope="server"]').first()).toBeVisible();
+
+      await serverRolesPage.backToRolesButton.click();
+      await page.getByRole('link', { name: 'Create role' }).click();
+      await expect(page).toHaveURL(routes.serverAdminRolesNew);
+      await expect(serverRolesPage.nameInput).toBeVisible();
+    });
+
+    test('redirects the former role page addresses to the Roles pages', async ({
+      serverRolesPage
+    }) => {
+      const { page } = serverRolesPage;
+      await createAndLoginTestUser(page);
+      await usePrimaryServerViaAPI(page);
+
+      await page.goto(routes.serverAdmin('permissions/moderator'));
+      await expect(page).toHaveURL(routes.serverAdminRole('moderator'));
+      await serverRolesPage.expectRoleDetailPage('moderator');
+      await page.goto(routes.serverAdmin('permissions/new'));
+      await expect(page).toHaveURL(routes.serverAdminRolesNew);
+      await expect(serverRolesPage.nameInput).toBeVisible();
+    });
+  });
+
   test.describe('Create role', () => {
     test('server admin can create a new role', async ({ serverRolesPage }) => {
       const { page } = serverRolesPage;
@@ -542,7 +585,7 @@ test.describe('Server Roles Management', () => {
 
       // Navigate back to list and verify role appears
       await serverRolesPage.backToRolesButton.click();
-      await serverRolesPage.expectRoleInList(roleName);
+      await serverRolesPage.expectRoleOnRolesPage(roleName);
     });
 
     test('role name validation rejects invalid characters', async ({ serverRolesPage }) => {
@@ -593,7 +636,7 @@ test.describe('Server Roles Management', () => {
       await logoutUser(page);
       await loginUser(page, nonAdmin.login, nonAdmin.password);
       // Navigate directly to create role page (bypassing method that expects success)
-      await page.goto(routes.serverAdminPermissionsNew);
+      await page.goto(routes.serverAdminRolesNew);
 
       // Should see access denied
       await serverRolesPage.expectAccessDenied();
@@ -771,7 +814,7 @@ test.describe('Server Roles Management', () => {
         release();
       }
       await deletion;
-      await serverRolesPage.expectRolesListVisible();
+      await serverRolesPage.expectRolesPageVisible();
       expect(errors).toEqual([]);
     });
 
@@ -792,11 +835,11 @@ test.describe('Server Roles Management', () => {
       // Delete the role
       await serverRolesPage.deleteCurrentRole();
 
-      // Should be redirected to roles list
-      await serverRolesPage.expectRolesListVisible();
+      // Should be redirected to the Roles page
+      await serverRolesPage.expectRolesPageVisible();
 
       // Role should no longer be in the list
-      await serverRolesPage.expectRoleNotInList('Delete Test Role');
+      await serverRolesPage.expectRoleNotOnRolesPage(roleName);
     });
 
     test('custom roles show delete button', async ({ serverRolesPage }) => {

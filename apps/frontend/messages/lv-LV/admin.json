@@ -11,7 +11,8 @@
       "event_log": "Notikumu žurnāls",
       "system": "Sistēma",
       "back_to_server": "Atgriezties uz serveri",
-      "invitations": "Uzaicinājumu saites"
+      "invitations": "Uzaicinājumu saites",
+      "roles": "Lomas"
     },
     "neighbors": {
       "title": "Kaimiņi",
@@ -207,7 +208,6 @@
       "delete_role_failed": "Neizdevās izdzēst lomu",
       "role_order": {
         "title": "Lomu secība",
-        "subtitle": "Nosakiet, kuras lomas var pārvaldīt citas lomas",
         "hint": "Lomu secība nosaka, kurš var pārvaldīt kuru. Jūs varat pārvietot tikai lomas, kas ir zemāk par jūsu augstāko lomu. Novietojiet ierobežojošās lomas, piemēram, apturēšanas lomu, zemāk par personām, kas tās pārvalda.",
         "drag_role": "Pārvietot {role}",
         "always_highest": "Vienmēr augstākā",
@@ -217,7 +217,22 @@
         "save_failed": "Neizdevās saglabāt lomu secību",
         "list_label": "Lomas, kuras jūs varat pārvietot",
         "none_movable": "Zem jūsu augstākās lomas nav nevienas lomas."
-      }
+      },
+      "back_to_roles": "Atgriezties pie lomām",
+      "roles_page": {
+        "title": "Lomas",
+        "subtitle": "Izveidojiet, rediģējiet un sakārtojiet šī servera lomas",
+        "edit_role": "Rediģēt {role}",
+        "view_role": "Skatīt {role}"
+      },
+      "role_tabs": {
+        "label": "Lomas sadaļas",
+        "general": "Vispārīgi",
+        "permissions": "Atļaujas",
+        "members": "Biedri"
+      },
+      "role_pings_on": "Lomas pieminēšana ieslēgta",
+      "role_pings_off": "Lomas pieminēšana izslēgta"
     },
     "rooms_admin": {
       "title": "Istabas",

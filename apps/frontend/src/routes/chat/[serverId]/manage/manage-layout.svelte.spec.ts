@@ -71,25 +71,28 @@ describe('management route admission', () => {
     await expect.element(container).toHaveTextContent('Access Denied');
   });
 
-  it('admits the role order page only for role managers', async () => {
-    route.pathname = '/chat/origin/manage/server/role-order';
-    const allowed = render(Layout, {
-      props: { children: testSnippet('<p data-testid="role-order">Role order</p>') }
-    });
-    await tick();
-    expect(allowed.container.querySelector('[data-testid="role-order"]')).not.toBeNull();
-    allowed.unmount();
+  it.each(['roles', 'roles/new', 'roles/moderator/members'])(
+    'admits the %s page only for role managers',
+    async (path) => {
+      route.pathname = `/chat/origin/manage/server/${path}`;
+      const allowed = render(Layout, {
+        props: { children: testSnippet('<p data-testid="role-page">Roles</p>') }
+      });
+      await tick();
+      expect(allowed.container.querySelector('[data-testid="role-page"]')).not.toBeNull();
+      allowed.unmount();
 
-    server.permissions.canAdminManageRoles = false;
-    // Server management alone does not admit the page.
-    server.permissions.canManageServer = true;
-    const denied = render(Layout, {
-      props: { children: testSnippet('<p data-testid="role-order">Role order</p>') }
-    });
-    await tick();
-    expect(denied.container.querySelector('[data-testid="role-order"]')).toBeNull();
-    await expect.element(denied.container).toHaveTextContent('Access Denied');
-  });
+      server.permissions.canAdminManageRoles = false;
+      // Server management alone does not admit the page.
+      server.permissions.canManageServer = true;
+      const denied = render(Layout, {
+        props: { children: testSnippet('<p data-testid="role-page">Roles</p>') }
+      });
+      await tick();
+      expect(denied.container.querySelector('[data-testid="role-page"]')).toBeNull();
+      await expect.element(denied.container).toHaveTextContent('Access Denied');
+    }
+  );
 
   it('does not admit private content while initial permissions are unknown', async () => {
     server.permissions.loaded = false;

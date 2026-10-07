@@ -11,7 +11,8 @@
       "event_log": "Händelselogg",
       "system": "System",
       "back_to_server": "Återgå till servern",
-      "invitations": "Inbjudningslänkar"
+      "invitations": "Inbjudningslänkar",
+      "roles": "Roller"
     },
     "neighbors": {
       "title": "Grannar",
@@ -207,7 +208,6 @@
       "delete_role_failed": "Det gick inte att ta bort rollen",
       "role_order": {
         "title": "Rollordning",
-        "subtitle": "Bestäm vilka roller som kan hantera andra roller",
         "hint": "Rollordningen avgör vem som kan hantera vem. Du kan bara flytta rollerna under din högsta roll. Placera begränsande roller, till exempel en avstängningsroll, under de personer som hanterar dem.",
         "drag_role": "Flytta {role}",
         "always_highest": "Alltid högst",
@@ -217,7 +217,22 @@
         "save_failed": "Det gick inte att spara rollordningen",
         "list_label": "Roller som du kan flytta",
         "none_movable": "Inga roller finns under din högsta roll."
-      }
+      },
+      "back_to_roles": "Tillbaka till roller",
+      "roles_page": {
+        "title": "Roller",
+        "subtitle": "Skapa, redigera och ordna rollerna på den här servern",
+        "edit_role": "Redigera {role}",
+        "view_role": "Visa {role}"
+      },
+      "role_tabs": {
+        "label": "Avsnitt för rollen",
+        "general": "Allmänt",
+        "permissions": "Behörigheter",
+        "members": "Medlemmar"
+      },
+      "role_pings_on": "Rollpingar aktiverade",
+      "role_pings_off": "Rollpingar inaktiverade"
     },
     "rooms_admin": {
       "title": "Rum",

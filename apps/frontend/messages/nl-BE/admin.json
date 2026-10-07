@@ -11,7 +11,8 @@
       "event_log": "Gebeurtenislogboek",
       "system": "Systeem",
       "back_to_server": "Terug naar de server",
-      "invitations": "Uitnodigingslinks"
+      "invitations": "Uitnodigingslinks",
+      "roles": "Rollen"
     },
     "neighbors": {
       "title": "Buren",
@@ -207,7 +208,6 @@
       "delete_role_failed": "Kan rol niet verwijderen",
       "role_order": {
         "title": "Rolvolgorde",
-        "subtitle": "Bepaal welke rollen andere rollen kunnen beheren",
         "hint": "De rolvolgorde bepaalt wie wie kan beheren. Je kunt alleen de rollen onder je hoogste rol verplaatsen. Zet beperkende rollen, zoals een schorsingsrol, onder de mensen die ze beheren.",
         "drag_role": "{role} verplaatsen",
         "always_highest": "Altijd de hoogste",
@@ -217,7 +217,22 @@
         "save_failed": "Kan de rolvolgorde niet opslaan",
         "list_label": "Rollen die je kunt verplaatsen",
         "none_movable": "Er zijn geen rollen onder je hoogste rol."
-      }
+      },
+      "back_to_roles": "Terug naar rollen",
+      "roles_page": {
+        "title": "Rollen",
+        "subtitle": "Maak, bewerk en orden de rollen van deze server",
+        "edit_role": "{role} bewerken",
+        "view_role": "{role} bekijken"
+      },
+      "role_tabs": {
+        "label": "Onderdelen van de rol",
+        "general": "Algemeen",
+        "permissions": "Rechten",
+        "members": "Leden"
+      },
+      "role_pings_on": "Rolvermeldingen ingeschakeld",
+      "role_pings_off": "Rolvermeldingen uitgeschakeld"
     },
     "rooms_admin": {
       "title": "Kamers",

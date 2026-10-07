@@ -75,7 +75,7 @@ describe('role creation query invalidation', () => {
 
     await vi.waitFor(() => expect(mocks.createRole).toHaveBeenCalledOnce());
     expect(queryClient.getQueryState(tierKey)?.isInvalidated).toBe(true);
-    expect(mocks.goto).toHaveBeenCalledWith('/chat/origin/manage/server/permissions/moderator');
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/origin/manage/server/roles/moderator');
   });
 
   it('reuses the cached role catalog capability snapshot', async () => {

@@ -11,7 +11,8 @@
       "event_log": "事件記錄",
       "system": "系統",
       "back_to_server": "返回伺服器",
-      "invitations": "邀請連結"
+      "invitations": "邀請連結",
+      "roles": "角色"
     },
     "neighbors": {
       "title": "鄰居",
@@ -207,7 +208,6 @@
       "delete_role_failed": "無法刪除角色",
       "role_order": {
         "title": "角色順序",
-        "subtitle": "決定哪些角色可以管理其他角色",
         "hint": "角色順序決定誰可以管理誰。你只能移動低於你最高角色的角色。請把限制角色（例如停權角色）放在管理它們的人之下。",
         "drag_role": "移動 {role}",
         "always_highest": "永遠最高",
@@ -217,7 +217,22 @@
         "save_failed": "無法儲存角色順序",
         "list_label": "你可以移動的角色",
         "none_movable": "沒有低於你最高角色的角色。"
-      }
+      },
+      "back_to_roles": "返回角色",
+      "roles_page": {
+        "title": "角色",
+        "subtitle": "建立、編輯和排列此伺服器的角色",
+        "edit_role": "編輯 {role}",
+        "view_role": "檢視 {role}"
+      },
+      "role_tabs": {
+        "label": "角色分區",
+        "general": "一般",
+        "permissions": "權限",
+        "members": "成員"
+      },
+      "role_pings_on": "已開啟角色提及",
+      "role_pings_off": "已關閉角色提及"
     },
     "rooms_admin": {
       "title": "聊天室",

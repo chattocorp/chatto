@@ -91,16 +91,18 @@ export function getAdminNavItems({
     });
   }
 
+  // Roles come before Permissions: a role must exist before its permissions
+  // can be set.
   if (permissions.canAdminManageRoles) {
+    items.push({
+      href: resolve('/chat/[serverId]/manage/server/roles', { serverId: serverSegment }),
+      label: m('admin.nav.roles'),
+      icon: 'iconify icon-[uil--award]'
+    });
     items.push({
       href: resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment }),
       label: m('admin.nav.permissions'),
       icon: 'iconify icon-[uil--shield-check]'
-    });
-    items.push({
-      href: resolve('/chat/[serverId]/manage/server/role-order', { serverId: serverSegment }),
-      label: m('admin.permissions.role_order.title'),
-      icon: 'iconify icon-[uil--sort-amount-down]'
     });
   }
 

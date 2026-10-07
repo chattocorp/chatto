@@ -1,8 +1,10 @@
 <!--
 @component
 
-Role order editor. The role order is an administrative rank: it decides who
-can manage whom. It does not change how permissions resolve.
+Roles page: the server roles in their role order, with a link to create a
+role and an edit (or view) link on each row. The role order is an
+administrative rank: it decides who can manage whom. It does not change how
+permissions resolve.
 
 The list shows the highest role first. `owner` is fixed at the top and
 `everyone` at the bottom. Roles at or above the viewer's highest role
@@ -14,6 +16,7 @@ key move as a `finalize` event while the drag continues, so it saves once when
 the drag stops (`consider` with the `dragStopped` trigger).
 -->
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { flip } from 'svelte/animate';
   import { onMount } from 'svelte';
@@ -33,7 +36,17 @@ the drag stops (`consider` with the `dragStopped` trigger).
   import { createMutation, createQuery, queryClient, refreshRoleQueries } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
-  import { Hint, LoadingFog, PageTitle, PaneContent, PaneHeader, Panel, Pill } from '$lib/ui';
+  import {
+    Hint,
+    LoadingFog,
+    PageTitle,
+    PaneContent,
+    PaneHeader,
+    Panel,
+    Pill,
+    ToggleChip
+  } from '$lib/ui';
+  import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
 
@@ -143,7 +156,42 @@ the drag stops (`consider` with the `dragStopped` trigger).
     const roleNames = [...lockedRoles, ...items].map((role) => role.name).reverse();
     reorderMutation.mutate({ ...session.snapshot(), roleNames });
   }
+
+  function openRole(role: ServerRole) {
+    void goto(
+      resolve('/chat/[serverId]/manage/server/roles/[name]', {
+        serverId: serverSegment,
+        name: role.name
+      })
+    );
+  }
 </script>
+
+<!--
+  Every role opens. Roles at or above the viewer's highest role open
+  read-only, so they show a view icon instead of an edit icon.
+-->
+{#snippet openAction(role: ServerRole)}
+  {@const editable = role.ranksBelowViewer}
+  {@const label = editable
+    ? m('admin.permissions.roles_page.edit_role', { role: role.displayName })
+    : m('admin.permissions.roles_page.view_role', { role: role.displayName })}
+  <ToggleChip
+    tone="neutral"
+    square
+    title={label}
+    onclick={(event) => {
+      event.stopPropagation();
+      openRole(role);
+    }}
+  >
+    <span
+      class={['iconify text-base', editable ? 'icon-[uil--pen]' : 'icon-[uil--eye]']}
+      role="img"
+      aria-label={label}
+    ></span>
+  </ToggleChip>
+{/snippet}
 
 {#snippet roleRow(role: ServerRole, badge: string | null, badgeTitle?: string)}
   <div class="flex min-w-0 flex-1 items-center gap-2">
@@ -153,6 +201,7 @@ the drag stops (`consider` with the `dragStopped` trigger).
   {#if badge}
     <Pill tone="muted" title={badgeTitle} class="shrink-0">{badge}</Pill>
   {/if}
+  {@render openAction(role)}
 {/snippet}
 
 {#snippet fixedRow(role: ServerRole, badge: string, badgeTitle?: string)}
@@ -164,16 +213,14 @@ the drag stops (`consider` with the `dragStopped` trigger).
 
 <PageTitle
   title={m('admin.common.server_admin_page_title', {
-    title: m('admin.permissions.role_order.title')
+    title: m('admin.permissions.roles_page.title')
   })}
 />
 
 <div class="pane-page">
   <PaneHeader
-    title={m('admin.permissions.role_order.title')}
-    subtitle={m('admin.permissions.role_order.subtitle')}
-    backHref={resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment })}
-    backLabel={m('admin.permissions.back_to_permissions')}
+    title={m('admin.permissions.roles_page.title')}
+    subtitle={m('admin.permissions.roles_page.subtitle')}
   />
 
   <PaneContent>
@@ -188,6 +235,18 @@ the drag stops (`consider` with the `dragStopped` trigger).
         <Hint>{m('admin.permissions.role_order.hint')}</Hint>
 
         <Panel title={m('admin.permissions.role_order.title')} noPadding>
+          {#snippet actions()}
+            <Button
+              size="sm"
+              variant="secondary"
+              href={resolve('/chat/[serverId]/manage/server/roles/new', {
+                serverId: serverSegment
+              })}
+            >
+              <span aria-hidden="true" class="iconify icon-[uil--plus]"></span>
+              {m('admin.permissions.create_role_action')}
+            </Button>
+          {/snippet}
           <div class="p-1">
             <div class="selectable-list panel-inset" aria-busy={saving}>
               {#if ownerRole}

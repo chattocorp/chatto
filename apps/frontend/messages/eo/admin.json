@@ -11,7 +11,8 @@
       "event_log": "Protokolo de Eventoj",
       "system": "Sistemo",
       "back_to_server": "Reiru al Servilo",
-      "invitations": "Invitligiloj"
+      "invitations": "Invitligiloj",
+      "roles": "Roloj"
     },
     "neighbors": {
       "title": "Najbaroj",
@@ -207,7 +208,6 @@
       "delete_role_failed": "Malsukcesis forigi rolon",
       "role_order": {
         "title": "Ordo de roloj",
-        "subtitle": "Decidu, kiuj roloj povas administri aliajn rolojn",
         "hint": "La ordo de roloj decidas, kiu povas administri kiun. Vi povas movi nur la rolojn sub via plej alta rolo. Metu limigajn rolojn, ekzemple suspendan rolon, sub la homojn, kiuj administras ilin.",
         "drag_role": "Movi {role}",
         "always_highest": "Ĉiam plej alta",
@@ -217,7 +217,22 @@
         "save_failed": "Ne eblis konservi la ordon de roloj",
         "list_label": "Roloj, kiujn vi povas movi",
         "none_movable": "Neniuj roloj estas sub via plej alta rolo."
-      }
+      },
+      "back_to_roles": "Reen al roloj",
+      "roles_page": {
+        "title": "Roloj",
+        "subtitle": "Kreu, redaktu kaj ordigu la rolojn de ĉi tiu servilo",
+        "edit_role": "Redakti {role}",
+        "view_role": "Vidi {role}"
+      },
+      "role_tabs": {
+        "label": "Sekcioj de la rolo",
+        "general": "Ĝenerala",
+        "permissions": "Permesoj",
+        "members": "Membroj"
+      },
+      "role_pings_on": "Mencioj de la rolo ŝaltitaj",
+      "role_pings_off": "Mencioj de la rolo malŝaltitaj"
     },
     "rooms_admin": {
       "title": "Ĉambroj",

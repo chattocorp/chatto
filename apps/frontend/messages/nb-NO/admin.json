@@ -11,7 +11,8 @@
       "event_log": "Hendelseslogg",
       "system": "System",
       "back_to_server": "Gå tilbake til server",
-      "invitations": "Invitasjonslenker"
+      "invitations": "Invitasjonslenker",
+      "roles": "Roller"
     },
     "neighbors": {
       "title": "Naboer",
@@ -207,7 +208,6 @@
       "delete_role_failed": "Kunne ikke slette rollen",
       "role_order": {
         "title": "Rollerekkefølge",
-        "subtitle": "Bestem hvilke roller som kan administrere andre roller",
         "hint": "Rollerekkefølgen bestemmer hvem som kan administrere hvem. Du kan bare flytte rollene under den høyeste rollen din. Plasser begrensende roller, for eksempel en suspensjonsrolle, under personene som administrerer dem.",
         "drag_role": "Flytt {role}",
         "always_highest": "Alltid høyest",
@@ -217,7 +217,22 @@
         "save_failed": "Kunne ikke lagre rollerekkefølgen",
         "list_label": "Roller du kan flytte",
         "none_movable": "Ingen roller er under den høyeste rollen din."
-      }
+      },
+      "back_to_roles": "Tilbake til roller",
+      "roles_page": {
+        "title": "Roller",
+        "subtitle": "Opprett, rediger og ordne rollene på denne serveren",
+        "edit_role": "Rediger {role}",
+        "view_role": "Vis {role}"
+      },
+      "role_tabs": {
+        "label": "Seksjoner for rollen",
+        "general": "Generelt",
+        "permissions": "Tillatelser",
+        "members": "Medlemmer"
+      },
+      "role_pings_on": "Rollepinger slått på",
+      "role_pings_off": "Rollepinger slått av"
     },
     "rooms_admin": {
       "title": "Rom",

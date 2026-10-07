@@ -11,7 +11,8 @@
       "event_log": "Registro de eventos",
       "system": "Sistema",
       "back_to_server": "Retornar ao servidor",
-      "invitations": "Links de convite"
+      "invitations": "Links de convite",
+      "roles": "Funções"
     },
     "neighbors": {
       "title": "Vizinhos",
@@ -207,7 +208,6 @@
       "delete_role_failed": "Falha ao excluir função",
       "role_order": {
         "title": "Ordem das funções",
-        "subtitle": "Decida quais funções podem gerenciar outras funções",
         "hint": "A ordem das funções decide quem pode gerenciar quem. Você só pode mover as funções abaixo da sua função mais alta. Coloque funções de restrição, como uma função de suspensão, abaixo das pessoas que as gerenciam.",
         "drag_role": "Mover {role}",
         "always_highest": "Sempre a mais alta",
@@ -217,7 +217,22 @@
         "save_failed": "Não foi possível salvar a ordem das funções",
         "list_label": "Funções que você pode mover",
         "none_movable": "Nenhuma função está abaixo da sua função mais alta."
-      }
+      },
+      "back_to_roles": "Voltar para funções",
+      "roles_page": {
+        "title": "Funções",
+        "subtitle": "Crie, edite e ordene as funções deste servidor",
+        "edit_role": "Editar {role}",
+        "view_role": "Ver {role}"
+      },
+      "role_tabs": {
+        "label": "Seções da função",
+        "general": "Geral",
+        "permissions": "Permissões",
+        "members": "Membros"
+      },
+      "role_pings_on": "Menções da função ativadas",
+      "role_pings_off": "Menções da função desativadas"
     },
     "rooms_admin": {
       "title": "Quartos",

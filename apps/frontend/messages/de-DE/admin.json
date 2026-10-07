@@ -11,7 +11,8 @@
       "event_log": "Ereignisprotokoll",
       "system": "System",
       "back_to_server": "Zurück zum Server",
-      "invitations": "Einladungslinks"
+      "invitations": "Einladungslinks",
+      "roles": "Rollen"
     },
     "neighbors": {
       "title": "Nachbarn",
@@ -207,7 +208,6 @@
       "delete_role_failed": "Rolle konnte nicht gelöscht werden",
       "role_order": {
         "title": "Rollenreihenfolge",
-        "subtitle": "Lege fest, welche Rollen andere Rollen verwalten können",
         "hint": "Die Rollenreihenfolge legt fest, wer wen verwalten kann. Du kannst nur die Rollen unter deiner höchsten Rolle verschieben. Platziere Einschränkungsrollen, zum Beispiel eine Sperrrolle, unter den Personen, die sie verwalten.",
         "drag_role": "{role} verschieben",
         "always_highest": "Immer die höchste",
@@ -217,7 +217,22 @@
         "save_failed": "Rollenreihenfolge konnte nicht gespeichert werden",
         "list_label": "Rollen, die du verschieben kannst",
         "none_movable": "Unter deiner höchsten Rolle gibt es keine Rollen."
-      }
+      },
+      "back_to_roles": "Zurück zu Rollen",
+      "roles_page": {
+        "title": "Rollen",
+        "subtitle": "Erstelle, bearbeite und ordne die Rollen dieses Servers",
+        "edit_role": "{role} bearbeiten",
+        "view_role": "{role} ansehen"
+      },
+      "role_tabs": {
+        "label": "Bereiche der Rolle",
+        "general": "Allgemein",
+        "permissions": "Berechtigungen",
+        "members": "Mitglieder"
+      },
+      "role_pings_on": "Rollen-Pings eingeschaltet",
+      "role_pings_off": "Rollen-Pings ausgeschaltet"
     },
     "rooms_admin": {
       "title": "Räume",

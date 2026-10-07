@@ -11,7 +11,8 @@
       "event_log": "Event Log",
       "system": "System",
       "back_to_server": "Return to Server",
-      "invitations": "Invite links"
+      "invitations": "Invite links",
+      "roles": "Roles"
     },
     "neighbors": {
       "title": "Neighbors",
@@ -207,7 +208,6 @@
       "delete_role_failed": "Failed to delete role",
       "role_order": {
         "title": "Role order",
-        "subtitle": "Decide which roles can manage other roles",
         "hint": "The role order decides who can manage whom. You can move only the roles below your highest role. Put restriction roles, such as a suspended role, below the people who manage them.",
         "drag_role": "Move {role}",
         "always_highest": "Always highest",
@@ -217,7 +217,22 @@
         "save_failed": "Could not save the role order",
         "list_label": "Roles that you can move",
         "none_movable": "No roles are below your highest role."
-      }
+      },
+      "back_to_roles": "Back to roles",
+      "roles_page": {
+        "title": "Roles",
+        "subtitle": "Create, edit, and order the roles of this server",
+        "edit_role": "Edit {role}",
+        "view_role": "View {role}"
+      },
+      "role_tabs": {
+        "label": "Role sections",
+        "general": "General",
+        "permissions": "Permissions",
+        "members": "Members"
+      },
+      "role_pings_on": "Role pings turned on",
+      "role_pings_off": "Role pings turned off"
     },
     "rooms_admin": {
       "title": "Rooms",

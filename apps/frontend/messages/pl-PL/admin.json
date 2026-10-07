@@ -11,7 +11,8 @@
       "event_log": "Dziennik zdarzeń",
       "system": "System",
       "back_to_server": "Wróć do serwera",
-      "invitations": "Linki z zaproszeniem"
+      "invitations": "Linki z zaproszeniem",
+      "roles": "Role"
     },
     "neighbors": {
       "title": "Sąsiedzi",
@@ -207,7 +208,6 @@
       "delete_role_failed": "Nie udało się usunąć roli",
       "role_order": {
         "title": "Kolejność ról",
-        "subtitle": "Określ, które role mogą zarządzać innymi rolami",
         "hint": "Kolejność ról decyduje, kto może kim zarządzać. Możesz przenosić tylko role poniżej swojej najwyższej roli. Umieść role ograniczające, na przykład rolę zawieszenia, poniżej osób, które nimi zarządzają.",
         "drag_role": "Przenieś {role}",
         "always_highest": "Zawsze najwyższa",
@@ -217,7 +217,22 @@
         "save_failed": "Nie udało się zapisać kolejności ról",
         "list_label": "Role, które możesz przenosić",
         "none_movable": "Poniżej twojej najwyższej roli nie ma żadnych ról."
-      }
+      },
+      "back_to_roles": "Powrót do ról",
+      "roles_page": {
+        "title": "Role",
+        "subtitle": "Twórz, edytuj i porządkuj role tego serwera",
+        "edit_role": "Edytuj {role}",
+        "view_role": "Wyświetl {role}"
+      },
+      "role_tabs": {
+        "label": "Sekcje roli",
+        "general": "Ogólne",
+        "permissions": "Uprawnienia",
+        "members": "Członkowie"
+      },
+      "role_pings_on": "Pingowanie roli włączone",
+      "role_pings_off": "Pingowanie roli wyłączone"
     },
     "rooms_admin": {
       "title": "Pokoje",

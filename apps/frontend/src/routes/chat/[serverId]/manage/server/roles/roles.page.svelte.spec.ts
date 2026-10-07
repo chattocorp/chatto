@@ -10,7 +10,19 @@ import { createTestServerScope, type TestServerScope } from '$lib/test-utils/ser
 
 const mocks = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
-  toastError: vi.fn()
+  toastError: vi.fn(),
+  goto: vi.fn()
+}));
+
+// Shared UI imports the other navigation functions too.
+vi.mock('$app/navigation', () => ({
+  goto: mocks.goto,
+  pushState: vi.fn(),
+  replaceState: vi.fn(),
+  afterNavigate: vi.fn(),
+  beforeNavigate: vi.fn(),
+  invalidate: vi.fn(),
+  invalidateAll: vi.fn()
 }));
 
 vi.mock(
@@ -25,7 +37,7 @@ vi.mock('$lib/ui/toast', () => ({
   toast: { success: mocks.toastSuccess, error: mocks.toastError }
 }));
 
-import RoleOrderPage from './+page.svelte';
+import RolesPage from './+page.svelte';
 
 const api = { listAdminRoles: vi.fn(), reorderRoles: vi.fn() };
 let server: TestServerScope;
@@ -123,7 +135,7 @@ const SWAPPED = [
   role('owner', 1000, false)
 ];
 
-describe('role order page', () => {
+describe('roles page', () => {
   beforeEach(async () => {
     queryClient.clear();
     vi.clearAllMocks();
@@ -134,7 +146,7 @@ describe('role order page', () => {
   });
 
   it('lists roles highest first and locks the roles that the viewer cannot move', async () => {
-    const { container } = render(RoleOrderPage);
+    const { container } = render(RolesPage);
     await vi.waitFor(() => expect(renderedOrder(container)).toHaveLength(5));
 
     expect(renderedOrder(container)).toEqual(['owner', 'admin', 'moderator', 'helper', 'everyone']);
@@ -145,6 +157,39 @@ describe('role order page', () => {
     expect(container.querySelector('[aria-label="Move Moderator"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="Move Admin"]')).toBeNull();
     expect(container.textContent).toContain('The role order decides who can manage whom.');
+  });
+
+  it('titles the page Roles and links to role creation', async () => {
+    const { container } = render(RolesPage);
+    await vi.waitFor(() => expect(renderedOrder(container)).toHaveLength(5));
+
+    expect(container.querySelector('h1')?.textContent).toContain('Roles');
+    const create = [...container.querySelectorAll('a')].find(
+      (link) => link.textContent?.trim() === 'Create role'
+    );
+    expect(create?.getAttribute('href')).toBe('/chat/-/manage/server/roles/new');
+  });
+
+  it('opens every role: roles below the viewer to edit, the others read-only', async () => {
+    const { container } = render(RolesPage);
+    await vi.waitFor(() => expect(renderedOrder(container)).toHaveLength(5));
+
+    const action = (label: string) =>
+      container
+        .querySelector<HTMLElement>(`[role="img"][aria-label="${label}"]`)
+        ?.closest('button');
+    expect(action('View Owner')).toBeTruthy();
+    expect(action('View Admin')).toBeTruthy();
+    expect(action('Edit Moderator')).toBeTruthy();
+    expect(action('Edit Helper')).toBeTruthy();
+    expect(action('Edit Everyone')).toBeTruthy();
+    expect(action('Edit Admin')).toBeFalsy();
+
+    action('Edit Moderator')!.click();
+    expect(mocks.goto).toHaveBeenLastCalledWith('/chat/-/manage/server/roles/moderator');
+    action('View Admin')!.click();
+    expect(mocks.goto).toHaveBeenLastCalledWith('/chat/-/manage/server/roles/admin');
+    expect(api.reorderRoles).not.toHaveBeenCalled();
   });
 
   it('saves the complete order, lowest first, after a drop', async () => {
@@ -160,7 +205,7 @@ describe('role order page', () => {
       api.listAdminRoles.mockResolvedValue(catalog(reordered));
       return reordered;
     });
-    const { container } = render(RoleOrderPage);
+    const { container } = render(RolesPage);
     await vi.waitFor(() => expect(movableRoles(container)).toEqual(['moderator', 'helper']));
 
     drop(container, ['helper', 'moderator']);
@@ -178,7 +223,7 @@ describe('role order page', () => {
   });
 
   it('does not save a drop that keeps the order', async () => {
-    const { container } = render(RoleOrderPage);
+    const { container } = render(RolesPage);
     await vi.waitFor(() => expect(movableRoles(container)).toEqual(['moderator', 'helper']));
 
     drop(container, ['moderator', 'helper']);
@@ -189,7 +234,7 @@ describe('role order page', () => {
 
   it('restores the saved order and reports a failed save', async () => {
     api.reorderRoles.mockRejectedValue(new ConnectError('backend failure', Code.Internal));
-    const { container } = render(RoleOrderPage);
+    const { container } = render(RolesPage);
     await vi.waitFor(() => expect(movableRoles(container)).toEqual(['moderator', 'helper']));
 
     drop(container, ['helper', 'moderator']);
@@ -206,7 +251,7 @@ describe('role order page', () => {
       api.listAdminRoles.mockResolvedValue(catalog(SWAPPED));
       return SWAPPED;
     });
-    const { container } = render(RoleOrderPage);
+    const { container } = render(RolesPage);
     await vi.waitFor(() => expect(movableRoles(container)).toEqual(['moderator', 'helper']));
 
     dndEvent(container, 'consider', ['moderator', 'helper'], 'keyboard', 'dragStarted');
@@ -226,7 +271,7 @@ describe('role order page', () => {
   });
 
   it('sends nothing after a keyboard pick-up and drop without a move', async () => {
-    const { container } = render(RoleOrderPage);
+    const { container } = render(RolesPage);
     await vi.waitFor(() => expect(movableRoles(container)).toEqual(['moderator', 'helper']));
 
     keyboardDrag(container, ['moderator', 'helper'], []);
@@ -238,7 +283,7 @@ describe('role order page', () => {
   });
 
   it('sends nothing when a keyboard drag returns the role to its place', async () => {
-    const { container } = render(RoleOrderPage);
+    const { container } = render(RolesPage);
     await vi.waitFor(() => expect(movableRoles(container)).toEqual(['moderator', 'helper']));
 
     keyboardDrag(
@@ -259,7 +304,7 @@ describe('role order page', () => {
     api.listAdminRoles.mockResolvedValue(
       catalog(ROLES.map((r) => ({ ...r, ranksBelowViewer: true })))
     );
-    const { container } = render(RoleOrderPage);
+    const { container } = render(RolesPage);
     await vi.waitFor(() => expect(renderedOrder(container)).toHaveLength(5));
 
     expect(movableRoles(container)).toEqual(['admin', 'moderator', 'helper']);
@@ -273,7 +318,7 @@ describe('role order page', () => {
     api.listAdminRoles.mockResolvedValue(
       catalog(ROLES.map((r) => (r.name === 'everyone' ? r : { ...r, ranksBelowViewer: false })))
     );
-    const { container } = render(RoleOrderPage);
+    const { container } = render(RolesPage);
     await vi.waitFor(() => expect(renderedOrder(container)).toHaveLength(5));
 
     expect(movableRoles(container)).toEqual([]);
@@ -281,7 +326,7 @@ describe('role order page', () => {
   });
 
   it('labels the list and its rows for screen readers and keeps them out of sidebar swipes', async () => {
-    const { container } = render(RoleOrderPage);
+    const { container } = render(RolesPage);
     await vi.waitFor(() => expect(movableRoles(container)).toEqual(['moderator', 'helper']));
 
     const zone = container.querySelector('[data-testid="role-order-dropzone"]')!;
@@ -297,7 +342,7 @@ describe('role order page', () => {
   it('disables dragging while a save runs', async () => {
     const save = deferred<ServerRole[]>();
     api.reorderRoles.mockReturnValue(save.promise);
-    const { container } = render(RoleOrderPage);
+    const { container } = render(RolesPage);
     await vi.waitFor(() => expect(movableRoles(container)).toEqual(['moderator', 'helper']));
     const handle = () => container.querySelector<HTMLElement>('[aria-label="Move Moderator"]')!;
     expect(handle().tabIndex).toBe(0);
@@ -314,7 +359,7 @@ describe('role order page', () => {
 
   it('explains the missing permission without loading roles', async () => {
     server.permissions.canAdminManageRoles = false;
-    const { container } = render(RoleOrderPage);
+    const { container } = render(RolesPage);
 
     await vi.waitFor(() =>
       expect(container.textContent).toContain('You need the roles.manage permission')

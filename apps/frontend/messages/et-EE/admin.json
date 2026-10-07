@@ -11,7 +11,8 @@
       "event_log": "Sündmuste logi",
       "system": "Süsteem",
       "back_to_server": "Tagasi serverisse",
-      "invitations": "Kutselingid"
+      "invitations": "Kutselingid",
+      "roles": "Rollid"
     },
     "neighbors": {
       "title": "Naabrid",
@@ -207,7 +208,6 @@
       "delete_role_failed": "Rolli kustutamine ebaõnnestus",
       "role_order": {
         "title": "Rollide järjekord",
-        "subtitle": "Määrake, millised rollid saavad teisi rolle hallata",
         "hint": "Rollide järjekord määrab, kes saab keda hallata. Saate liigutada ainult rolle, mis on teie kõrgeimast rollist madalamal. Paigutage piiravad rollid, näiteks peatamise roll, nende inimeste alla, kes neid haldavad.",
         "drag_role": "Liiguta rolli {role}",
         "always_highest": "Alati kõrgeim",
@@ -217,7 +217,22 @@
         "save_failed": "Rollide järjekorra salvestamine ebaõnnestus",
         "list_label": "Rollid, mida saate liigutada",
         "none_movable": "Teie kõrgeimast rollist madalamal ei ole rolle."
-      }
+      },
+      "back_to_roles": "Tagasi rollide juurde",
+      "roles_page": {
+        "title": "Rollid",
+        "subtitle": "Looge, muutke ja järjestage selle serveri rolle",
+        "edit_role": "Muuda rolli {role}",
+        "view_role": "Vaata rolli {role}"
+      },
+      "role_tabs": {
+        "label": "Rolli jaotised",
+        "general": "Üldine",
+        "permissions": "Load",
+        "members": "Liikmed"
+      },
+      "role_pings_on": "Rolli mainimine on sisse lülitatud",
+      "role_pings_off": "Rolli mainimine on välja lülitatud"
     },
     "rooms_admin": {
       "title": "Toad",

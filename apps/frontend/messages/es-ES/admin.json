@@ -11,7 +11,8 @@
       "event_log": "Registro de eventos",
       "system": "Sistema",
       "back_to_server": "Regresar al Servidor",
-      "invitations": "Enlaces de invitación"
+      "invitations": "Enlaces de invitación",
+      "roles": "Roles"
     },
     "neighbors": {
       "title": "Vecinos",
@@ -207,7 +208,6 @@
       "delete_role_failed": "No se pudo eliminar el rol",
       "role_order": {
         "title": "Orden de roles",
-        "subtitle": "Decide qué roles pueden gestionar otros roles",
         "hint": "El orden de roles decide quién puede gestionar a quién. Solo puedes mover los roles que están por debajo de tu rol más alto. Coloca los roles de restricción, como un rol de suspensión, por debajo de las personas que los gestionan.",
         "drag_role": "Mover {role}",
         "always_highest": "Siempre el más alto",
@@ -217,7 +217,22 @@
         "save_failed": "No se pudo guardar el orden de roles",
         "list_label": "Roles que puedes mover",
         "none_movable": "No hay roles por debajo de tu rol más alto."
-      }
+      },
+      "back_to_roles": "Volver a roles",
+      "roles_page": {
+        "title": "Roles",
+        "subtitle": "Crea, edita y ordena los roles de este servidor",
+        "edit_role": "Editar {role}",
+        "view_role": "Ver {role}"
+      },
+      "role_tabs": {
+        "label": "Secciones del rol",
+        "general": "General",
+        "permissions": "Permisos",
+        "members": "Miembros"
+      },
+      "role_pings_on": "Menciones del rol activadas",
+      "role_pings_off": "Menciones del rol desactivadas"
     },
     "rooms_admin": {
       "title": "Habitaciones",

@@ -11,7 +11,8 @@
       "event_log": "Protokol událostí",
       "system": "Systém",
       "back_to_server": "Návrat na server",
-      "invitations": "Zvací odkazy"
+      "invitations": "Zvací odkazy",
+      "roles": "Role"
     },
     "neighbors": {
       "title": "Sousedé",
@@ -207,7 +208,6 @@
       "delete_role_failed": "Nepodařilo se smazat roli",
       "role_order": {
         "title": "Pořadí rolí",
-        "subtitle": "Určete, které role mohou spravovat jiné role",
         "hint": "Pořadí rolí určuje, kdo může koho spravovat. Můžete přesouvat pouze role pod vaší nejvyšší rolí. Omezující role, například roli pozastavení, umístěte pod osoby, které je spravují.",
         "drag_role": "Přesunout {role}",
         "always_highest": "Vždy nejvyšší",
@@ -217,7 +217,22 @@
         "save_failed": "Pořadí rolí se nepodařilo uložit",
         "list_label": "Role, které můžete přesouvat",
         "none_movable": "Pod vaší nejvyšší rolí nejsou žádné role."
-      }
+      },
+      "back_to_roles": "Zpět k rolím",
+      "roles_page": {
+        "title": "Role",
+        "subtitle": "Vytvářejte, upravujte a řaďte role tohoto serveru",
+        "edit_role": "Upravit {role}",
+        "view_role": "Zobrazit {role}"
+      },
+      "role_tabs": {
+        "label": "Sekce role",
+        "general": "Obecné",
+        "permissions": "Oprávnění",
+        "members": "Členové"
+      },
+      "role_pings_on": "Zmínky role zapnuty",
+      "role_pings_off": "Zmínky role vypnuty"
     },
     "rooms_admin": {
       "title": "Pokoje",
