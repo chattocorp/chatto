@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AdminRoleServiceListMembersRequest, AdminRoleServiceListMembersResponse, CreateRoleRequest, CreateRoleResponse, DeleteRoleRequest, DeleteRoleResponse, GetRoleRequest, GetRoleResponse, ListRolesRequest, ListRolesResponse, ReorderRolesRequest, ReorderRolesResponse, UpdateRoleRequest, UpdateRoleResponse } from "./roles_pb.js";
+import { AdminRoleServiceListMembersRequest, AdminRoleServiceListMembersResponse, CreateRoleRequest, CreateRoleResponse, DeleteRoleRequest, DeleteRoleResponse, GetRoleRequest, GetRoleResponse, ListRolesRequest, ListRolesResponse, MoveRoleRequest, MoveRoleResponse, UpdateRoleRequest, UpdateRoleResponse } from "./roles_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -90,15 +90,16 @@ export const AdminRoleService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Replaces the role order. Requires role.manage. The order is the
-     * administrative rank; see ReorderRolesRequest.
+     * Moves one role in the role order. Requires role.manage. A caller who is
+     * not an owner can move only a role below their own highest role, and only
+     * directly above another role below it, or to the lowest place.
      *
-     * @generated from rpc chatto.admin.v1.AdminRoleService.ReorderRoles
+     * @generated from rpc chatto.admin.v1.AdminRoleService.MoveRole
      */
-    reorderRoles: {
-      name: "ReorderRoles",
-      I: ReorderRolesRequest,
-      O: ReorderRolesResponse,
+    moveRole: {
+      name: "MoveRole",
+      I: MoveRoleRequest,
+      O: MoveRoleResponse,
       kind: MethodKind.Unary,
     },
   }

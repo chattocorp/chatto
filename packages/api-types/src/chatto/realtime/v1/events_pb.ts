@@ -178,9 +178,9 @@ export class RoleDeletedEvent extends Message<RoleDeletedEvent> {
  */
 export class RolesReorderedEvent extends Message<RolesReorderedEvent> {
   /**
-   * Role names in ascending position. Current servers list every role except
-   * owner and everyone; older servers listed custom roles only. Reload the
-   * role list to get the current positions.
+   * Roles that moved. A move can renumber other roles too, so reload the
+   * role list to get the current positions. Creating a role does not send
+   * this event; reload the list after role_created as well.
    *
    * @generated from field: repeated string role_names = 1;
    */

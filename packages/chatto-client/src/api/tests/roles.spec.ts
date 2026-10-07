@@ -268,8 +268,8 @@ describe('createRoleAPI', () => {
     });
   });
 
-  it('reorders roles and maps the viewer hierarchy flag', async () => {
-    adminRoles.reorderRoles.mockReturnValue({
+  it('moves a role and maps the viewer hierarchy flag', async () => {
+    adminRoles.moveRole.mockReturnValue({
       roles: [
         {
           role: {
@@ -301,10 +301,11 @@ describe('createRoleAPI', () => {
     });
     const api = roleAPI();
 
-    const result = await api.reorderRoles(['moderator', 'admin']);
+    const result = await api.moveRole('moderator', 'admin');
 
-    expect(receivedRequest(adminRoles.reorderRoles)).toMatchObject({
-      roleNames: ['moderator', 'admin']
+    expect(receivedRequest(adminRoles.moveRole)).toMatchObject({
+      roleName: 'moderator',
+      beforeRoleName: 'admin'
     });
     expect(result.map((role) => [role.name, role.position, role.ranksBelowViewer])).toEqual([
       ['moderator', 1, true],

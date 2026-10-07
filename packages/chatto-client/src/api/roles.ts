@@ -143,11 +143,13 @@ export function createRoleAPI(config: ConnectAPIConfig) {
     },
 
     /**
-     * Replaces the role order. `roleNames` lists every role except owner and
-     * everyone, lowest first. Returns the full role catalogue.
+     * Moves one role in the role order. The role then ranks directly above
+     * `beforeRoleName`, the role that follows it in display order (highest
+     * first). Omit `beforeRoleName` to place the role lowest, directly above
+     * everyone. Returns the full role catalogue.
      */
-    async reorderRoles(roleNames: string[]): Promise<ServerRole[]> {
-      const response = await adminClient.reorderRoles({ roleNames });
+    async moveRole(roleName: string, beforeRoleName?: string): Promise<ServerRole[]> {
+      const response = await adminClient.moveRole({ roleName, beforeRoleName });
       return response.roles.map(serverRoleFromAdmin);
     }
   };
