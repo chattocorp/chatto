@@ -270,6 +270,7 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 	if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermRoomMemberRemove); err != nil {
 		t.Fatalf("GrantServerPermission ban: %v", err)
 	}
+	grantAPITestRank(t, env, env.viewer.Id)
 	if _, err := env.core.JoinRoom(env.ctx, target.Id, core.KindChannel, target.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom target: %v", err)
 	}

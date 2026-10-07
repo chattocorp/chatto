@@ -41,8 +41,18 @@ message RbacRoleDeletedEvent {
   string role_name = 1;
 }
 
+// Replaces the role order. Role order is the administrative rank: an account
+// ranks at its highest role, and it can manage only accounts and roles that
+// rank below it.
 message RbacRolesReorderedEvent {
+  // Role names, lowest first. See complete_order for which roles appear.
   repeated string role_names = 1;
+  // When true, role_names lists every role except owner and everyone, and
+  // readers assign positions upward from 1. Owner and everyone keep their
+  // fixed positions. When false, as in events from servers before 0.5,
+  // role_names lists custom roles only; readers assign their positions upward
+  // from 1 and skip the fixed positions of the system roles.
+  bool complete_order = 2;
 }
 
 message RbacRoleAssignedEvent {

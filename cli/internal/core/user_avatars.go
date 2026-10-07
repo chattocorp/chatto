@@ -108,10 +108,13 @@ func (c *ChattoCore) requireCanManageUserIdentity(ctx context.Context, actorID, 
 		if !canManageAccounts {
 			return nil, ErrPermissionDenied
 		}
+		return target, c.requireOutranksAccount(actorID, targetUserID)
+	}
+	if target.GetBotOwnerUserId() == actorID {
 		return target, nil
 	}
-	if target.GetBotOwnerUserId() == actorID || canManageAccounts {
-		return target, nil
+	if canManageAccounts {
+		return target, c.requireOutranksAccount(actorID, targetUserID)
 	}
 	canManageBots, err := c.CanManageBots(ctx, actorID)
 	if err != nil {
@@ -120,7 +123,7 @@ func (c *ChattoCore) requireCanManageUserIdentity(ctx context.Context, actorID, 
 	if !canManageBots {
 		return nil, ErrPermissionDenied
 	}
-	return target, nil
+	return target, c.requireOutranksAccount(actorID, targetUserID)
 }
 
 // appendManagedAvatarEvent commits one avatar fact against the target user.

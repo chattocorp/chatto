@@ -356,11 +356,13 @@ func TestBotElevatedGrantRequiresActiveActorAuthority(t *testing.T) {
 
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
+	// The bot owner is entitled to room.create, which needs privileged mode.
+	// A server owner would rank above the bot manager.
 	owner, err := c.CreateUser(ctx, SystemActorID, "grant-owner", "Owner", "password123")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := c.AssignOwnerRole(ctx, owner.Id); err != nil {
+	if err := c.GrantUserPermission(ctx, SystemActorID, owner.Id, PermRoomCreate); err != nil {
 		t.Fatal(err)
 	}
 	manager, err := c.CreateUser(ctx, SystemActorID, "grant-manager", "Manager", "password123")
@@ -370,6 +372,7 @@ func TestBotElevatedGrantRequiresActiveActorAuthority(t *testing.T) {
 	if err := c.GrantUserPermission(ctx, SystemActorID, manager.Id, PermBotManage); err != nil {
 		t.Fatal(err)
 	}
+	grantTestRank(t, c, ctx, manager.Id)
 	allowBotCreation(t, ctx, c, owner.Id)
 	bot, err := c.CreateBot(ctx, owner.Id, "grant_bot", "Bot")
 	if err != nil {

@@ -194,16 +194,17 @@ func projectRealtimePermissionChange(target *realtimev1.RealtimeEvent, viewerID 
 	return target
 }
 
-// A bot's owner ceiling can depend on any role. Deleted roles no longer retain
-// their former assignments, so role authority changes conservatively notify
-// bots without disclosing their owner's roles or private decisions.
+// A bot's own roles and its owner ceiling can depend on any role. Deleted
+// roles no longer retain their former assignments, so role authority changes
+// conservatively notify bots without disclosing their owner's roles or
+// private decisions.
 func rbacMayChangeBotAuthority(event *evtv1.Event, ownerID, botID string) bool {
 	var subject *evtv1.RbacPermissionSubject
 	switch e := event.GetEvent().(type) {
 	case *evtv1.Event_RbacRoleAssigned:
-		return e.RbacRoleAssigned.GetUserId() == ownerID
+		return e.RbacRoleAssigned.GetUserId() == ownerID || e.RbacRoleAssigned.GetUserId() == botID
 	case *evtv1.Event_RbacRoleRevoked:
-		return e.RbacRoleRevoked.GetUserId() == ownerID
+		return e.RbacRoleRevoked.GetUserId() == ownerID || e.RbacRoleRevoked.GetUserId() == botID
 	case *evtv1.Event_RbacRoleDeleted:
 		return true
 	case *evtv1.Event_RbacPermissionGranted:

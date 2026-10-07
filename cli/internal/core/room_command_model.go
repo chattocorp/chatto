@@ -378,7 +378,8 @@ func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) 
 }
 
 // RemoveUser removes a current member and optionally prevents rejoining.
-// It uses the room.remove-member permission at the target room.
+// It uses the room.remove-member permission at the target room, and the actor
+// must outrank the member.
 func (s *RoomCommandModel) RemoveUser(ctx context.Context, input RoomRemoveUserInput) error {
 	kind, err := s.authorizeRoomRemoval(ctx, input.ActorID, input.RoomID)
 	if err != nil {
@@ -388,8 +389,10 @@ func (s *RoomCommandModel) RemoveUser(ctx context.Context, input RoomRemoveUserI
 		return err
 	}
 	authorize := func() error {
-		_, err := s.authorizeRoomRemoval(ctx, input.ActorID, input.RoomID)
-		return err
+		if _, err := s.authorizeRoomRemoval(ctx, input.ActorID, input.RoomID); err != nil {
+			return err
+		}
+		return s.core.requireOutranksOtherAccount(input.ActorID, input.UserID)
 	}
 	if input.Suspension {
 		_, err := s.core.banMember(ctx, input.ActorID, kind, input.RoomID, input.UserID, input.Reason, input.ExpiresAt, authorize)
@@ -398,9 +401,17 @@ func (s *RoomCommandModel) RemoveUser(ctx context.Context, input RoomRemoveUserI
 	return s.core.removeUserWithoutSuspension(ctx, input.ActorID, kind, input.RoomID, input.UserID, input.Reason, authorize)
 }
 
+// LiftSuspension clears a member's active room suspension. It uses the
+// room.remove-member permission at the target room, and the actor must
+// outrank the member.
 func (s *RoomCommandModel) LiftSuspension(ctx context.Context, input RoomUnbanInput) error {
 	kind, err := s.authorizeRoomRemoval(ctx, input.ActorID, input.RoomID)
 	if err != nil {
+		return err
+	}
+	if err := s.core.authorizeAtStableInputs(ctx, func() error {
+		return s.core.requireOutranksOtherAccount(input.ActorID, input.UserID)
+	}); err != nil {
 		return err
 	}
 	if err := validateRoomRemovalReason(input.Reason); err != nil {

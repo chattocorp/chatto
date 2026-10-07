@@ -159,6 +159,7 @@ func TestRoomCommandModelAuthorization(t *testing.T) {
 	if _, err := core.JoinRoom(ctx, target.Id, KindChannel, target.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom target: %v", err)
 	}
+	grantTestRank(t, core, ctx, actor.Id)
 	if err := commands.RemoveUser(ctx, RoomRemoveUserInput{
 		ActorID:    actor.Id,
 		RoomID:     room.Id,
@@ -569,6 +570,7 @@ func TestBotManagerMembershipAndAuthorizationRetry(t *testing.T) {
 	manager, err := c.CreateUser(ctx, SystemActorID, "retry-manager", "Manager", "password")
 	require.NoError(t, err)
 	require.NoError(t, c.GrantUserPermission(ctx, SystemActorID, manager.Id, PermBotManage))
+	grantTestRank(t, c, ctx, manager.Id)
 	allowBotCreation(t, ctx, c, owner.Id)
 	bot, err := c.CreateBot(ctx, owner.Id, "retry_bot", "Retry Bot")
 	require.NoError(t, err)

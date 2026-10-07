@@ -1010,15 +1010,17 @@ func TestAdminRoleServiceManagesRoles(t *testing.T) {
 	if got := publicBatchResp.Msg.GetRoles(); len(got) != 2 || got[0].GetName() != "helpdesk" || got[1].GetName() != core.RoleEveryone {
 		t.Fatalf("public BatchGetRoles roles = %+v, want helpdesk,everyone", got)
 	}
+	grantAPITestRank(t, env, env.viewer.Id)
+	viewerRank := "rank-" + strings.ToLower(env.viewer.Id)
 	reorderResp, err := env.roles.ReorderRoles(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.ReorderRolesRequest{
-		RoleNames: []string{"triage", "helpdesk"},
+		RoleNames: []string{"triage", "helpdesk", core.RoleModerator, viewerRank, core.RoleAdmin},
 	}))
 	if err != nil {
 		t.Fatalf("ReorderRoles: %v", err)
 	}
 	var customOrder []string
 	for _, role := range reorderResp.Msg.GetRoles() {
-		if !role.GetRole().GetIsSystem() {
+		if !role.GetRole().GetIsSystem() && role.GetRole().GetName() != viewerRank {
 			customOrder = append(customOrder, role.GetRole().GetName())
 		}
 	}
@@ -1112,6 +1114,7 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermRoleManage); err != nil {
 		t.Fatalf("GrantUserPermission role.manage: %v", err)
 	}
+	grantAPITestRank(t, env, env.viewer.Id)
 	ctx := withCaller(env.ctx, env.viewer)
 	tierResp, err := env.permissions.GetRolePermissionTierMatrix(ctx, connect.NewRequest(&adminv1.GetRolePermissionTierMatrixRequest{}))
 	if err != nil {

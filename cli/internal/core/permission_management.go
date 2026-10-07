@@ -222,8 +222,8 @@ func (c *ChattoCore) GetUserPermissionMatrixPage(ctx context.Context, actorID, u
 
 // SetRolePermissionState changes one role decision. Role managers may edit
 // every scope; room managers may edit the groups and rooms that they manage.
-// A non-owner may change only decisions for permissions that they effectively
-// hold at the target scope.
+// A non-owner may change only roles that rank below them, and only decisions
+// for permissions that they effectively hold at the target scope.
 func (c *ChattoCore) SetRolePermissionState(ctx context.Context, actorID, roleName string, scope PermissionTargetScope, perm Permission, state PermissionState) error {
 	if roleName == RoleOwner {
 		return fmt.Errorf("%w: owner permissions are granted virtually and cannot be edited", ErrInvalidArgument)
@@ -279,6 +279,12 @@ func (c *ChattoCore) SetRolePermissionState(ctx context.Context, actorID, roleNa
 		if err := validatePermissionDecisionScope(coreScope, perm); err != nil {
 			return err
 		}
+		if !c.rbacModel.roleExists(roleName) {
+			return ErrRoleNotFound
+		}
+		if err := c.requireRoleBelowActor(actorID, roleName); err != nil {
+			return err
+		}
 		return c.requirePermissionDecisionWithinAuthority(ctx, actorID, coreScope, scope.ID, perm)
 	}
 	if err := check(); err != nil {
@@ -312,9 +318,9 @@ func (c *ChattoCore) requireCanManageRolePermissionsForGroup(ctx context.Context
 
 // SetUserPermissionState changes one direct permission decision of a user.
 // Bot decisions follow the bot allowlist rules. For humans, the actor needs
-// user.manage-permissions, a non-owner may change only decisions for
-// permissions that they effectively hold at the target scope, and only an
-// effective owner may change their own direct decisions.
+// user.manage-permissions, must outrank the user unless it is their own
+// account, and as a non-owner may change only decisions for permissions that
+// they effectively hold at the target scope.
 func (c *ChattoCore) SetUserPermissionState(ctx context.Context, actorID, userID string, scope PermissionTargetScope, perm Permission, state PermissionState) error {
 	if userID == "" {
 		return fmt.Errorf("%w: user id is required", ErrInvalidArgument)
@@ -361,7 +367,7 @@ func (c *ChattoCore) SetUserPermissionState(ctx context.Context, actorID, userID
 				return fmt.Errorf("wait for room directory projection: %w", err)
 			}
 		}
-		if err := c.requireNotOwnDirectDecisions(actorID, userID); err != nil {
+		if err := c.requireOutranksOtherAccount(actorID, userID); err != nil {
 			return err
 		}
 		if err := validatePermissionDecisionScope(coreScope, perm); err != nil {

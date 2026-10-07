@@ -8,6 +8,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"strings"
 	"testing"
 	"time"
 
@@ -452,5 +453,36 @@ func allowBotCreation(t testing.TB, ctx context.Context, c *core.ChattoCore, use
 	t.Helper()
 	if err := c.GrantUserPermission(ctx, core.SystemActorID, userID, core.PermBotCreate); err != nil {
 		t.Fatalf("grant bot.create: %v", err)
+	}
+}
+
+// grantAPITestRank assigns userID a new role without permissions and places it
+// directly below admin. The user then outranks moderators, custom roles, and
+// accounts without roles, but not admins or owners.
+func grantAPITestRank(t *testing.T, env *connectAPITestEnv, userID string) {
+	t.Helper()
+	roleName := "rank-" + strings.ToLower(userID)
+	if _, err := env.core.CreateServerRole(env.ctx, core.SystemActorID, roleName, "Test rank", ""); err != nil {
+		t.Fatalf("CreateServerRole %s: %v", roleName, err)
+	}
+	roles, err := env.core.ListServerRoles(env.ctx)
+	if err != nil {
+		t.Fatalf("ListServerRoles: %v", err)
+	}
+	order := make([]string, 0, len(roles))
+	for _, role := range roles {
+		switch role.Name {
+		case core.RoleOwner, core.RoleEveryone, roleName:
+			continue
+		case core.RoleAdmin:
+			order = append(order, roleName)
+		}
+		order = append(order, role.Name)
+	}
+	if _, err := env.core.ReorderServerRoles(env.ctx, core.SystemActorID, order); err != nil {
+		t.Fatalf("ReorderServerRoles: %v", err)
+	}
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, userID, roleName); err != nil {
+		t.Fatalf("AssignServerRole %s: %v", roleName, err)
 	}
 }

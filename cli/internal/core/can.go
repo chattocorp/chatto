@@ -120,13 +120,16 @@ func (c *ChattoCore) canStartDM(ctx context.Context, userID string) (bool, error
 // CanDeleteUser checks if an actor can delete a specific user account.
 // Returns true if:
 //   - The actor is deleting their own account and has user.delete-self, OR
-//   - The actor has user.delete-any (the admin power).
+//   - The actor has user.delete-any (the admin power) and outranks the target.
 func (c *ChattoCore) CanDeleteUser(ctx context.Context, actorID, targetUserID string) (bool, error) {
 	if actorID == targetUserID {
 		return c.HasServerPermission(ctx, actorID, PermUserDeleteSelf)
 	}
-
-	return c.HasServerPermission(ctx, actorID, PermUserDeleteAny)
+	allowed, err := c.HasServerPermission(ctx, actorID, PermUserDeleteAny)
+	if err != nil || !allowed {
+		return false, err
+	}
+	return permissionDeniedAsFalse(c.requireOutranksAccount(actorID, targetUserID))
 }
 
 // ============================================================================

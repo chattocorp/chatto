@@ -3,6 +3,7 @@ package core
 import (
 	"encoding/base64"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -556,6 +557,7 @@ func TestReassignBotOwnerRequiresGlobalManagementAndPreservesBotState(t *testing
 	if err := c.GrantUserPermission(ctx, SystemActorID, manager.GetId(), PermBotManage); err != nil {
 		t.Fatalf("grant manager bot.manage: %v", err)
 	}
+	grantTestRank(t, c, ctx, manager.GetId())
 	reassigned, err := c.ReassignBotOwner(ctx, manager.GetId(), bot.User.GetId(), newOwner.GetId())
 	if err != nil {
 		t.Fatalf("ReassignBotOwner: %v", err)
@@ -624,6 +626,7 @@ func TestConcurrentBotOwnerReassignmentsConvergeWithoutStaleIndexes(t *testing.T
 	if err := c.GrantUserPermission(ctx, SystemActorID, manager.GetId(), PermBotManage); err != nil {
 		t.Fatalf("grant manager bot.manage: %v", err)
 	}
+	grantTestRank(t, c, ctx, manager.GetId())
 	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "concurrent_bot", "Concurrent Bot")
 	if err != nil {
@@ -697,6 +700,7 @@ func TestReassignBotOwnerIsRaceSafeWithOwnerDeletion(t *testing.T) {
 			if err := c.GrantUserPermission(ctx, SystemActorID, manager.GetId(), PermBotManage); err != nil {
 				t.Fatalf("grant manager bot.manage: %v", err)
 			}
+			grantTestRank(t, c, ctx, manager.GetId())
 			allowBotCreation(t, ctx, c, owner.GetId())
 			bot, err := c.CreateBot(ctx, owner.GetId(), "race_bot", "Race Bot")
 			if err != nil {
@@ -775,8 +779,12 @@ func TestGenericAdminMutationsRejectBotAccounts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetAdminMemberDetails(bot): %v", err)
 	}
-	if details.ViewerCanAssignRoles || details.ViewerCanManageRoles || details.ViewerCanManageUserPermissions || details.Member.ViewerCanDeleteAccount {
-		t.Fatalf("bot generic admin capabilities = %+v, want all mutation capabilities false", details)
+	if details.ViewerCanManageRoles || details.ViewerCanManageUserPermissions || details.Member.ViewerCanDeleteAccount {
+		t.Fatalf("bot generic admin capabilities = %+v, want account mutation capabilities false", details)
+	}
+	// Bots can hold roles other than owner.
+	if !details.ViewerCanAssignRoles || slices.Contains(details.AssignableRoleNames, RoleOwner) {
+		t.Fatalf("bot role capabilities = %v %v, want assignable roles without owner", details.ViewerCanAssignRoles, details.AssignableRoleNames)
 	}
 }
 
@@ -812,8 +820,8 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermBotCreate, PermissionStateAllow); !errors.Is(err, ErrInvalidArgument) {
 		t.Fatalf("delegate bot.create err = %v, want ErrInvalidArgument", err)
 	}
-	if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, bot.User.GetId(), RoleAdmin); !errors.Is(err, ErrHumanAccountRequired) {
-		t.Fatalf("assign bot role err = %v, want ErrHumanAccountRequired", err)
+	if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, bot.User.GetId(), RoleOwner); !errors.Is(err, ErrHumanAccountRequired) {
+		t.Fatalf("assign bot owner role err = %v, want ErrHumanAccountRequired", err)
 	}
 
 	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermMessagePost, PermissionStateAllow); err != nil {
@@ -1280,6 +1288,7 @@ func TestCanonicalUserPermissionManagementUsesBotAuthorization(t *testing.T) {
 	if err := c.GrantUserPermission(ctx, SystemActorID, manager.GetId(), PermBotManage); err != nil {
 		t.Fatalf("GrantUserPermission bot.manage: %v", err)
 	}
+	grantTestRank(t, c, ctx, manager.GetId())
 	if _, err := c.GetUserPermissionMatrix(ctx, manager.GetId(), bot.User.GetId()); err != nil {
 		t.Fatalf("bot manager GetUserPermissionMatrix: %v", err)
 	}
@@ -1586,6 +1595,7 @@ func TestBotOwnerUpdatesBotProfile(t *testing.T) {
 	if err := c.GrantUserPermission(ctx, SystemActorID, botManager.GetId(), PermBotManage); err != nil {
 		t.Fatalf("grant bot.manage: %v", err)
 	}
+	grantTestRank(t, c, ctx, botManager.GetId())
 	if _, err := c.UpdateManagedUserProfile(ctx, botManager.GetId(), botID, &secondLogin, nil, nil); !errors.Is(err, ErrLoginChangeCooldown) {
 		t.Fatalf("bot manager rename err = %v, want ErrLoginChangeCooldown", err)
 	}
@@ -1603,6 +1613,7 @@ func TestBotOwnerUpdatesBotProfile(t *testing.T) {
 	if err := c.GrantUserPermission(ctx, SystemActorID, accountManager.GetId(), PermUserManageAccounts); err != nil {
 		t.Fatalf("grant user.manage-accounts: %v", err)
 	}
+	grantTestRank(t, c, ctx, accountManager.GetId())
 	if _, err := c.UpdateManagedUserProfile(ctx, accountManager.GetId(), botID, &secondLogin, nil, nil); err != nil {
 		t.Fatalf("account manager rename during cooldown: %v", err)
 	}

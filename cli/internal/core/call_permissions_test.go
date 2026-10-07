@@ -244,6 +244,7 @@ func TestCallPermissionsDMScopeAndBotDelegation(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, c.JoinVoiceCall(ctx, owner.Id, dm.Id))
 	require.NoError(t, c.GrantUserPermission(ctx, SystemActorID, owner.Id, PermRoleManage))
+	grantTestRank(t, c, ctx, owner.Id)
 	require.NoError(t, c.SetRolePermissionState(ctx, owner.Id, RoleEveryone, PermissionTargetScope{Kind: MatrixScopeDM}, PermCallVoice, PermissionStateDeny))
 	permissions, err := c.AuthorizeCall(ctx, owner.Id, dm.Id, false)
 	require.NoError(t, err)

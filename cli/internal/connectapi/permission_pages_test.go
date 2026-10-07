@@ -19,6 +19,7 @@ func TestPermissionMatricesExcludeArchivedChannels(t *testing.T) {
 	for _, permission := range []core.Permission{core.PermRoleManage, core.PermUserManagePermissions} {
 		require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, permission))
 	}
+	grantAPITestRank(t, env, env.viewer.Id)
 	service := &botService{api: env.api}
 	allowBotCreation(t, env.ctx, env.core, env.viewer.Id)
 	bot, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "archive_bot", DisplayName: "Archive Bot"}))
@@ -128,6 +129,7 @@ func TestPermissionScopePagesAndInheritance(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	grantAPITestRank(t, env, env.viewer.Id)
 	ctx := withCaller(env.ctx, env.viewer)
 	groupID := env.defaultRoomGroupID(t)
 	var roomID string

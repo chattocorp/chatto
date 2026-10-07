@@ -231,13 +231,13 @@ func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, role
 	}})
 
 	if _, err := c.appendRoleAssignmentEvent(ctx, userID, false, event, func() error {
-		if kind, _, ok := c.userModel.isBotAndOwner(userID); ok && kind {
+		if isBot, _, ok := c.userModel.isBotAndOwner(userID); ok && isBot && roleName == RoleOwner {
 			return ErrHumanAccountRequired
 		}
 		if _, ok := c.rbacModel.role(roleName); !ok {
 			return ErrRoleNotFound
 		}
-		if err := c.requireRoleAssignmentWithinAuthority(ctx, actorID, roleName, false); err != nil {
+		if err := c.requireRoleChangeForAccount(ctx, actorID, userID, roleName, false); err != nil {
 			return err
 		}
 		if c.rbacModel.hasRole(userID, roleName) {
@@ -269,13 +269,13 @@ func (c *ChattoCore) AssignServerRoleToExistingUser(ctx context.Context, actorID
 	}})
 
 	if _, err := c.appendRoleAssignmentEvent(ctx, userID, true, event, func() error {
-		if kind, _, ok := c.userModel.isBotAndOwner(userID); ok && kind {
+		if isBot, _, ok := c.userModel.isBotAndOwner(userID); ok && isBot && roleName == RoleOwner {
 			return ErrHumanAccountRequired
 		}
 		if _, ok := c.rbacModel.role(roleName); !ok {
 			return ErrRoleNotFound
 		}
-		if err := c.requireRoleAssignmentWithinAuthority(ctx, actorID, roleName, false); err != nil {
+		if err := c.requireRoleChangeForAccount(ctx, actorID, userID, roleName, false); err != nil {
 			return err
 		}
 		if c.rbacModel.hasRole(userID, roleName) {
@@ -322,7 +322,7 @@ func (c *ChattoCore) RevokeServerRole(ctx context.Context, actorID, userID, role
 		if _, ok := c.rbacModel.role(roleName); !ok {
 			return ErrRoleNotFound
 		}
-		if err := c.requireRoleAssignmentWithinAuthority(ctx, actorID, roleName, true); err != nil {
+		if err := c.requireRoleChangeForAccount(ctx, actorID, userID, roleName, true); err != nil {
 			return err
 		}
 		return nil
@@ -363,7 +363,7 @@ func (c *ChattoCore) RevokeServerRoleFromExistingUser(ctx context.Context, actor
 		if _, ok := c.rbacModel.role(roleName); !ok {
 			return ErrRoleNotFound
 		}
-		if err := c.requireRoleAssignmentWithinAuthority(ctx, actorID, roleName, true); err != nil {
+		if err := c.requireRoleChangeForAccount(ctx, actorID, userID, roleName, true); err != nil {
 			return err
 		}
 		return nil
@@ -541,36 +541,47 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, actorID, name, displa
 	}
 
 	var role *evtv1.Role
-	event := newEvent(actorID, &evtv1.Event{})
-	if _, err := c.appendRBACEventWithMentionableCheck(ctx, event, func() error {
+	created := newEvent(actorID, &evtv1.Event{})
+	reordered := newEvent(actorID, &evtv1.Event{})
+	if _, err := c.appendRBACEventsWithMentionableCheck(ctx, []*evtv1.Event{created, reordered}, func() error {
 		if c.rbacModel.roleExists(name) {
 			return ErrRoleAlreadyExists
 		}
 		if err := c.requireRoleMentionHandleAvailable(name); err != nil {
 			return err
 		}
+		// A new role starts lowest, below every role that could create it.
+		// The created fact keeps a legacy position for older replicas; the
+		// complete order in the same batch places the role for current ones.
+		order := append([]string{name}, c.orderableRoleNames()...)
+		if len(order) > MaxOrderableRoles {
+			return fmt.Errorf("%w: a server can have at most %d roles besides owner and everyone", ErrLimitExceeded, MaxOrderableRoles)
+		}
 		role = &evtv1.Role{
 			Name:        name,
 			DisplayName: displayName,
 			Description: description,
-			Position:    c.rbacModel.nextAvailablePosition(),
+			Position:    PositionCustomFirst,
 			Pingable:    pingable,
 		}
-		event.Event = &evtv1.Event_RbacRoleCreated{
+		created.Event = &evtv1.Event_RbacRoleCreated{
 			RbacRoleCreated: &evtv1.RbacRoleCreatedEvent{
 				RoleName:    role.GetName(),
 				DisplayName: role.GetDisplayName(),
 				Description: role.GetDescription(),
-				Rank:        role.GetPosition(),
+				Rank:        c.rbacModel.nextAvailablePosition(),
 				Pingable:    role.GetPingable(),
 			},
+		}
+		reordered.Event = &evtv1.Event_RbacRolesReordered{
+			RbacRolesReordered: &evtv1.RbacRolesReorderedEvent{RoleNames: order, CompleteOrder: true},
 		}
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 
-	c.logger.Info("Created role", "name", name, "display_name", displayName, "position", role.GetPosition(), "actor_id", actorID)
+	c.logger.Info("Created role", "name", name, "display_name", displayName, "actor_id", actorID)
 
 	return &RoleWithPermissions{
 		Name:              role.GetName(),
@@ -584,8 +595,8 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, actorID, name, displa
 	}, nil
 }
 
-// UpdateServerRole updates an existing role's metadata.
-// The role name cannot be changed.
+// UpdateServerRole updates an existing role's metadata. The role name cannot
+// be changed. A non-owner actor may update only roles that rank below them.
 func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displayName, description string, pingableValue ...bool) (*RoleWithPermissions, error) {
 	if err := validateRoleMetadata(displayName, description); err != nil {
 		return nil, err
@@ -598,6 +609,9 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 		existing, ok := c.rbacModel.role(name)
 		if !ok {
 			return ErrRoleNotFound
+		}
+		if err := c.requireRoleBelowActor(actorID, name); err != nil {
+			return err
 		}
 		if existing.GetDisplayName() == displayName {
 			updated = existing
@@ -623,6 +637,9 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 		existing, ok := c.rbacModel.role(name)
 		if !ok {
 			return ErrRoleNotFound
+		}
+		if err := c.requireRoleBelowActor(actorID, name); err != nil {
+			return err
 		}
 		if existing.GetDescription() == description {
 			updated = existing
@@ -650,6 +667,9 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 			existing, ok := c.rbacModel.role(name)
 			if !ok {
 				return ErrRoleNotFound
+			}
+			if err := c.requireRoleBelowActor(actorID, name); err != nil {
+				return err
 			}
 			if existing.GetPingable() == pingable {
 				updated = existing
@@ -746,43 +766,44 @@ func (c *ChattoCore) DeleteServerRole(ctx context.Context, actorID, name string)
 	return nil
 }
 
-// ReorderServerRoles reorders custom roles.
-// System roles (owner, admin, moderator, everyone) maintain fixed positions and should not be included.
-// Positions are assigned from PositionCustomFirst upward while skipping system-role positions.
-// Note: everyone=0, moderator=100, admin=900, owner=1000.
-// Returns all roles sorted by position.
+// ReorderServerRoles replaces the role order. roleNames lists every role
+// except owner and everyone, lowest first. A non-owner actor may move only
+// roles that rank below their own highest role, and only to positions below
+// it: every role at or above the actor's rank must keep its place. Returns all
+// roles sorted by position.
 func (c *ChattoCore) ReorderServerRoles(ctx context.Context, actorID string, roleNames []string) ([]RoleWithPermissions, error) {
-	for _, name := range roleNames {
-		if IsSystemRole(name) {
-			return nil, fmt.Errorf("%w: cannot reorder system role: %s", ErrInvalidArgument, name)
-		}
-	}
-
 	event := newEvent(actorID, &evtv1.Event{})
 	if _, err := c.appendRBACEvent(ctx, event, func() error {
-		customRoles := make(map[string]struct{})
-		for _, role := range c.rbacModel.roles() {
-			if role.GetName() == "" || IsSystemRole(role.GetName()) {
-				continue
-			}
-			customRoles[role.GetName()] = struct{}{}
+		current := c.orderableRoleNames()
+		if len(roleNames) != len(current) {
+			return fmt.Errorf("%w: role order must include every role except owner and everyone exactly once", ErrInvalidArgument)
 		}
-		if len(roleNames) != len(customRoles) {
-			return fmt.Errorf("%w: role reorder must include every custom role exactly once", ErrInvalidArgument)
+		index := make(map[string]int, len(current))
+		for i, name := range current {
+			index[name] = i
 		}
-
 		seen := make(map[string]struct{}, len(roleNames))
 		for _, name := range roleNames {
 			if _, ok := seen[name]; ok {
 				return fmt.Errorf("%w: duplicate role in reorder: %s", ErrInvalidArgument, name)
 			}
 			seen[name] = struct{}{}
-			if _, ok := customRoles[name]; !ok {
+			if _, ok := index[name]; !ok {
 				return fmt.Errorf("role %s: %w", name, ErrRoleNotFound)
 			}
 		}
+		if !c.actorIsHierarchyExempt(actorID) {
+			rank := c.accountRank(actorID)
+			for i, name := range roleNames {
+				role, _ := c.rbacModel.role(name)
+				moved := index[name] != i
+				if moved && role.GetPosition() >= rank {
+					return ErrPermissionDenied
+				}
+			}
+		}
 		event.Event = &evtv1.Event_RbacRolesReordered{
-			RbacRolesReordered: &evtv1.RbacRolesReorderedEvent{RoleNames: roleNames},
+			RbacRolesReordered: &evtv1.RbacRolesReorderedEvent{RoleNames: roleNames, CompleteOrder: true},
 		}
 		return nil
 	}); err != nil {
@@ -807,8 +828,21 @@ func (c *ChattoCore) ReorderServerRoles(ctx context.Context, actorID string, rol
 		})
 	}
 
-	c.logger.Info("Reordered roles", "order", roleNames, "actor_id", actorID)
+	c.logger.Info("Reordered roles", "count", len(roleNames), "actor_id", actorID)
 	return result, nil
+}
+
+// orderableRoleNames returns every role except owner and everyone, lowest
+// first.
+func (c *ChattoCore) orderableRoleNames() []string {
+	roles := c.rbacModel.roles()
+	names := make([]string, 0, len(roles))
+	for _, role := range roles {
+		if roleIsOrderable(role.GetName(), true) {
+			names = append(names, role.GetName())
+		}
+	}
+	return names
 }
 
 // GetRoomRolePermissions returns the per-room override grants and denials

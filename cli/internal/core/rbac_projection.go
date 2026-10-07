@@ -75,7 +75,7 @@ func (p *RBACProjection) Apply(event *evtv1.Event, seq uint64) error {
 	case *evtv1.Event_RbacRoleDeleted:
 		p.applyRoleDeleted(e.RbacRoleDeleted.GetRoleName())
 	case *evtv1.Event_RbacRolesReordered:
-		p.applyRolesReordered(e.RbacRolesReordered.GetRoleNames())
+		p.applyRolesReordered(e.RbacRolesReordered.GetRoleNames(), e.RbacRolesReordered.GetCompleteOrder())
 	case *evtv1.Event_RbacRoleAssigned:
 		p.applyRoleAssigned(e.RbacRoleAssigned.GetUserId(), e.RbacRoleAssigned.GetRoleName())
 	case *evtv1.Event_RbacRoleRevoked:
@@ -172,14 +172,17 @@ func (p *RBACProjection) applyRolePingableChanged(roleName string, pingable bool
 	p.roles[roleName] = updated
 }
 
-func (p *RBACProjection) applyRolesReordered(roleNames []string) {
+// applyRolesReordered assigns positions upward from PositionCustomFirst. A
+// complete order ranks admin, moderator, and custom roles together. A legacy
+// order lists custom roles only and skips the fixed system positions.
+func (p *RBACProjection) applyRolesReordered(roleNames []string, completeOrder bool) {
 	position := PositionCustomFirst
 	for _, roleName := range roleNames {
 		role := p.roles[roleName]
-		if role == nil || IsSystemRole(roleName) {
+		if role == nil || !roleIsOrderable(roleName, completeOrder) {
 			continue
 		}
-		for isSystemPosition(position) {
+		for !completeOrder && isSystemPosition(position) {
 			position++
 		}
 		updated := proto.Clone(role).(*evtv1.Role)

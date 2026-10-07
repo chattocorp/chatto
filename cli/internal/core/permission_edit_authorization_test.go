@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -33,11 +34,18 @@ func createPermissionEditRoom(t *testing.T, core *ChattoCore, ctx context.Contex
 }
 
 func TestDelegatedUserPermissionEditsStayWithinAuthority(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	actor := createPermissionEditUser(t, core, ctx, "user-permission-editor")
 	target := createPermissionEditUser(t, core, ctx, "user-permission-target")
 	roomID := createPermissionEditRoom(t, core, ctx, "user-permission-edit-room")
+	peer := createPermissionEditUser(t, core, ctx, "user-permission-peer")
+	grantTestRank(t, core, ctx, actor)
+	if err := core.AssignServerRole(ctx, SystemActorID, peer, "rank-"+strings.ToLower(actor)); err != nil {
+		t.Fatalf("AssignServerRole peer rank: %v", err)
+	}
 	if err := core.GrantUserPermission(ctx, SystemActorID, actor, PermUserManagePermissions); err != nil {
 		t.Fatalf("GrantUserPermission user.manage-permissions: %v", err)
 	}
@@ -63,9 +71,10 @@ func TestDelegatedUserPermissionEditsStayWithinAuthority(t *testing.T) {
 		{"grant held permission", target, server, PermMessageReact, PermissionStateAllow, true},
 		{"deny held permission", target, server, PermMessagePost, PermissionStateDeny, true},
 		{"clear held permission", target, server, PermMessagePost, PermissionStateNone, true},
-		{"grant own held permission", actor, server, PermMessageReact, PermissionStateAllow, false},
-		{"grant own room authority", actor, room, PermMessageManage, PermissionStateAllow, false},
-		{"grant own management authority", actor, server, PermRoleManage, PermissionStateAllow, false},
+		{"grant own held permission", actor, server, PermMessageReact, PermissionStateAllow, true},
+		{"grant own room authority", actor, room, PermMessageManage, PermissionStateAllow, true},
+		{"grant own permission beyond authority", actor, server, PermRoleManage, PermissionStateAllow, false},
+		{"grant held permission to a peer", peer, server, PermMessageReact, PermissionStateAllow, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -91,24 +100,9 @@ func TestDelegatedUserPermissionEditsStayWithinAuthority(t *testing.T) {
 	}
 }
 
-func TestOwnersMayEditTheirOwnDirectPermissions(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-	owner := createPermissionEditUser(t, core, ctx, "self-editing-owner")
-	if err := core.AssignOwnerRole(ctx, owner); err != nil {
-		t.Fatalf("AssignOwnerRole: %v", err)
-	}
-	roomID := createPermissionEditRoom(t, core, ctx, "owner-self-edit-room")
-	scope := PermissionTargetScope{Kind: MatrixScopeRoom, ID: roomID}
-	if err := core.SetUserPermissionState(ctx, owner, owner, scope, PermMessagePost, PermissionStateAllow); err != nil {
-		t.Fatalf("owner self-edit error = %v, want nil", err)
-	}
-	if got := core.rbacModel.decision(ScopeRoom, roomID, owner, PermMessagePost); got != DecisionAllow {
-		t.Fatalf("owner room decision = %s, want allow", got)
-	}
-}
-
 func TestPermissionEditsUseTheActorsPrivilegedModeState(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner := createPermissionEditUser(t, core, ctx, "privileged-permission-owner")
@@ -135,11 +129,15 @@ func TestPermissionEditsUseTheActorsPrivilegedModeState(t *testing.T) {
 }
 
 func TestDelegatedRolePermissionEditsStayWithinAuthority(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roleManager := createPermissionEditUser(t, core, ctx, "role-permission-editor")
 	roomManager := createPermissionEditUser(t, core, ctx, "room-permission-editor")
 	roomID := createPermissionEditRoom(t, core, ctx, "role-permission-edit-room")
+	grantTestRank(t, core, ctx, roleManager)
+	grantTestRank(t, core, ctx, roomManager)
 	if _, err := core.CreateServerRole(ctx, SystemActorID, "edited", "Edited", "", false); err != nil {
 		t.Fatalf("CreateServerRole edited: %v", err)
 	}
@@ -158,18 +156,21 @@ func TestDelegatedRolePermissionEditsStayWithinAuthority(t *testing.T) {
 	tests := []struct {
 		name    string
 		actor   string
+		role    string
 		scope   PermissionTargetScope
 		perm    Permission
 		state   PermissionState
 		allowed bool
 	}{
-		{"role manager grants beyond authority", roleManager, server, PermServerManage, PermissionStateAllow, false},
-		{"role manager clears restriction beyond authority", roleManager, server, PermUserDeleteAny, PermissionStateNone, false},
-		{"role manager grants held permission", roleManager, server, PermMessageReact, PermissionStateAllow, true},
-		{"role manager grants own management authority", roleManager, server, PermRoleManage, PermissionStateAllow, true},
-		{"room manager grants beyond authority", roomManager, room, PermMessageManage, PermissionStateAllow, false},
-		{"room manager grants held room authority", roomManager, room, PermRoomManage, PermissionStateAllow, true},
-		{"room manager denies held permission", roomManager, room, PermMessagePost, PermissionStateDeny, true},
+		{"role manager edits a role above them", roleManager, RoleAdmin, server, PermMessageReact, PermissionStateDeny, false},
+		{"room manager edits a role above them", roomManager, RoleAdmin, room, PermMessagePost, PermissionStateDeny, false},
+		{"role manager grants beyond authority", roleManager, "edited", server, PermServerManage, PermissionStateAllow, false},
+		{"role manager clears restriction beyond authority", roleManager, "edited", server, PermUserDeleteAny, PermissionStateNone, false},
+		{"role manager grants held permission", roleManager, "edited", server, PermMessageReact, PermissionStateAllow, true},
+		{"role manager grants own management authority", roleManager, "edited", server, PermRoleManage, PermissionStateAllow, true},
+		{"room manager grants beyond authority", roomManager, "edited", room, PermMessageManage, PermissionStateAllow, false},
+		{"room manager grants held room authority", roomManager, "edited", room, PermRoomManage, PermissionStateAllow, true},
+		{"room manager denies held permission", roomManager, "edited", room, PermMessagePost, PermissionStateDeny, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -177,8 +178,8 @@ func TestDelegatedRolePermissionEditsStayWithinAuthority(t *testing.T) {
 			if tt.scope.Kind == MatrixScopeRoom {
 				scopeKind, scopeID = ScopeRoom, tt.scope.ID
 			}
-			before := core.rbacModel.decision(scopeKind, scopeID, "edited", tt.perm)
-			err := core.SetRolePermissionState(ctx, tt.actor, "edited", tt.scope, tt.perm, tt.state)
+			before := core.rbacModel.decision(scopeKind, scopeID, tt.role, tt.perm)
+			err := core.SetRolePermissionState(ctx, tt.actor, tt.role, tt.scope, tt.perm, tt.state)
 			if tt.allowed {
 				if err != nil {
 					t.Fatalf("SetRolePermissionState error = %v, want nil", err)
@@ -188,7 +189,7 @@ func TestDelegatedRolePermissionEditsStayWithinAuthority(t *testing.T) {
 			if !errors.Is(err, ErrPermissionDenied) {
 				t.Fatalf("SetRolePermissionState error = %v, want permission denied", err)
 			}
-			if after := core.rbacModel.decision(scopeKind, scopeID, "edited", tt.perm); after != before {
+			if after := core.rbacModel.decision(scopeKind, scopeID, tt.role, tt.perm); after != before {
 				t.Fatalf("decision changed from %s to %s despite denial", before, after)
 			}
 		})
@@ -196,6 +197,8 @@ func TestDelegatedRolePermissionEditsStayWithinAuthority(t *testing.T) {
 }
 
 func TestPermissionEditsReportInvalidScopesBeforeAuthority(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	actor := createPermissionEditUser(t, core, ctx, "invalid-scope-editor")
@@ -217,9 +220,12 @@ func TestPermissionEditsReportInvalidScopesBeforeAuthority(t *testing.T) {
 }
 
 func TestDelegatedRoleDeletionStaysWithinAuthority(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	actor := createPermissionEditUser(t, core, ctx, "role-deleter")
+	grantTestRank(t, core, ctx, actor)
 	if err := core.GrantUserPermission(ctx, SystemActorID, actor, PermRoleManage); err != nil {
 		t.Fatalf("GrantUserPermission role.manage: %v", err)
 	}
@@ -262,10 +268,13 @@ func TestDelegatedRoleDeletionStaysWithinAuthority(t *testing.T) {
 }
 
 func TestRoleDeletionIgnoresRetiredPermissionDecisions(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roleManager := createPermissionEditUser(t, core, ctx, "retired-role-deleter")
 	owner := createPermissionEditUser(t, core, ctx, "retired-role-owner")
+	grantTestRank(t, core, ctx, roleManager)
 	if err := core.GrantUserPermission(ctx, SystemActorID, roleManager, PermRoleManage); err != nil {
 		t.Fatalf("GrantUserPermission role.manage: %v", err)
 	}

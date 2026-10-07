@@ -319,7 +319,7 @@ func (c *ChattoCore) requireBotManager(ctx context.Context, actorID, botID strin
 	if !allowed {
 		return nil, ErrPermissionDenied
 	}
-	return bot, nil
+	return bot, c.requireOutranksAccount(actorID, botID)
 }
 
 // requireBotViewer permits bot owners, bot managers, and account managers to
@@ -857,7 +857,12 @@ func (c *ChattoCore) ReassignBotOwner(ctx context.Context, actorID, botID, owner
 			if owner.GetIsBot() {
 				return ErrHumanAccountRequired
 			}
-			return nil
+			// The actor must outrank the bot, its current owner, and the
+			// new owner, so a handoff cannot move a bot above the actor.
+			if err := c.requireOutranksAccount(actorID, botID); err != nil {
+				return err
+			}
+			return c.requireOutranksOtherAccount(actorID, ownerUserID)
 		}); err != nil {
 			return nil, err
 		}

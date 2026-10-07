@@ -401,9 +401,19 @@ func (x *RbacRoleDeletedEvent) GetRoleName() string {
 	return ""
 }
 
+// Replaces the role order. Role order is the administrative rank: an account
+// ranks at its highest role, and it can manage only accounts and roles that
+// rank below it.
 type RbacRolesReorderedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoleNames     []string               `protobuf:"bytes,1,rep,name=role_names,json=roleNames,proto3" json:"role_names,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Role names, lowest first. See complete_order for which roles appear.
+	RoleNames []string `protobuf:"bytes,1,rep,name=role_names,json=roleNames,proto3" json:"role_names,omitempty"`
+	// When true, role_names lists every role except owner and everyone, and
+	// readers assign positions upward from 1. Owner and everyone keep their
+	// fixed positions. When false, as in events from servers before 0.5,
+	// role_names lists custom roles only; readers assign their positions upward
+	// from 1 and skip the fixed positions of the system roles.
+	CompleteOrder bool `protobuf:"varint,2,opt,name=complete_order,json=completeOrder,proto3" json:"complete_order,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -443,6 +453,13 @@ func (x *RbacRolesReorderedEvent) GetRoleNames() []string {
 		return x.RoleNames
 	}
 	return nil
+}
+
+func (x *RbacRolesReorderedEvent) GetCompleteOrder() bool {
+	if x != nil {
+		return x.CompleteOrder
+	}
+	return false
 }
 
 type RbacRoleAssignedEvent struct {
@@ -858,10 +875,11 @@ const file_chatto_core_evt_v1_rbac_events_proto_rawDesc = "" +
 	"\trole_name\x18\x01 \x01(\tR\broleName\x12\x1a\n" +
 	"\bpingable\x18\x02 \x01(\bR\bpingable\"3\n" +
 	"\x14RbacRoleDeletedEvent\x12\x1b\n" +
-	"\trole_name\x18\x01 \x01(\tR\broleName\"8\n" +
+	"\trole_name\x18\x01 \x01(\tR\broleName\"_\n" +
 	"\x17RbacRolesReorderedEvent\x12\x1d\n" +
 	"\n" +
-	"role_names\x18\x01 \x03(\tR\troleNames\"M\n" +
+	"role_names\x18\x01 \x03(\tR\troleNames\x12%\n" +
+	"\x0ecomplete_order\x18\x02 \x01(\bR\rcompleteOrder\"M\n" +
 	"\x15RbacRoleAssignedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
 	"\trole_name\x18\x02 \x01(\tR\broleName\"L\n" +

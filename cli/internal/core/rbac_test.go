@@ -1172,10 +1172,10 @@ func TestChattoCore_AssignServerRole_BoundedAuthority(t *testing.T) {
 		}
 	})
 
-	t.Run("admin can assign admin role when API gate permits the call", func(t *testing.T) {
+	t.Run("admin cannot assign the admin role, which does not rank below them", func(t *testing.T) {
 		err := core.AssignServerRole(ctx, admin.Id, target.Id, RoleAdmin)
-		if err != nil {
-			t.Fatalf("AssignServerRole: %v", err)
+		if !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AssignServerRole error = %v, want permission denied", err)
 		}
 	})
 
@@ -1207,7 +1207,7 @@ func TestChattoCore_AssignServerRole_BoundedAuthority(t *testing.T) {
 		}
 	})
 
-	t.Run("admin can assign moderator role to peer admin when API gate permits the call", func(t *testing.T) {
+	t.Run("admin cannot assign roles to a peer admin", func(t *testing.T) {
 		peerAdmin, err := core.CreateUser(ctx, SystemActorID, "assign-peer-admin", "Peer", "password123")
 		if err != nil {
 			t.Fatalf("Failed to create peer admin: %v", err)
@@ -1217,8 +1217,8 @@ func TestChattoCore_AssignServerRole_BoundedAuthority(t *testing.T) {
 		}
 
 		err = core.AssignServerRole(ctx, admin.Id, peerAdmin.Id, RoleModerator)
-		if err != nil {
-			t.Fatalf("AssignServerRole: %v", err)
+		if !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AssignServerRole error = %v, want permission denied", err)
 		}
 	})
 }
@@ -1272,10 +1272,10 @@ func TestChattoCore_RevokeServerRole_BoundedAuthority(t *testing.T) {
 		}
 	})
 
-	t.Run("admin can revoke another admin's role when API gate permits the call", func(t *testing.T) {
+	t.Run("admin cannot revoke a peer admin's role", func(t *testing.T) {
 		err := core.RevokeServerRole(ctx, admin.Id, otherAdmin.Id, RoleAdmin)
-		if err != nil {
-			t.Fatalf("RevokeServerRole: %v", err)
+		if !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("RevokeServerRole error = %v, want permission denied", err)
 		}
 	})
 
@@ -1314,109 +1314,61 @@ func TestChattoCore_ReorderServerRoles(t *testing.T) {
 
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
-	t.Run("reorders custom roles", func(t *testing.T) {
-		// Create custom roles
-		_, err := core.CreateServerRole(ctx, SystemActorID, "alpha", "Alpha", "First custom role")
+	for _, name := range []string{"alpha", "beta"} {
+		if _, err := core.CreateServerRole(ctx, SystemActorID, name, name, ""); err != nil {
+			t.Fatalf("CreateServerRole %s: %v", name, err)
+		}
+	}
+	positions := func() map[string]int32 {
+		roles, err := core.ListServerRoles(ctx)
 		if err != nil {
-			t.Fatalf("Failed to create alpha role: %v", err)
+			t.Fatalf("ListServerRoles: %v", err)
 		}
-		_, err = core.CreateServerRole(ctx, SystemActorID, "beta", "Beta", "Second custom role")
-		if err != nil {
-			t.Fatalf("Failed to create beta role: %v", err)
+		result := make(map[string]int32, len(roles))
+		for _, role := range roles {
+			result[role.Name] = role.Position
 		}
+		return result
+	}
 
-		// Get initial positions
-		initialRoles, _ := core.ListServerRoles(ctx)
-		var alphaInitialPos, betaInitialPos int32
-		for _, r := range initialRoles {
-			if r.Name == "alpha" {
-				alphaInitialPos = r.Position
+	t.Run("new roles start lowest", func(t *testing.T) {
+		got := positions()
+		if !(got[RoleEveryone] < got["beta"] && got["beta"] < got["alpha"] && got["alpha"] < got[RoleModerator]) {
+			t.Fatalf("positions = %v, want everyone < beta < alpha < moderator", got)
+		}
+	})
+
+	t.Run("orders system and custom roles together", func(t *testing.T) {
+		if _, err := core.ReorderServerRoles(ctx, SystemActorID, []string{RoleModerator, "alpha", RoleAdmin, "beta"}); err != nil {
+			t.Fatalf("ReorderServerRoles: %v", err)
+		}
+		got := positions()
+		if !(got[RoleEveryone] < got[RoleModerator] && got[RoleModerator] < got["alpha"] && got["alpha"] < got[RoleAdmin] &&
+			got[RoleAdmin] < got["beta"] && got["beta"] < got[RoleOwner]) {
+			t.Fatalf("positions = %v, want everyone < moderator < alpha < admin < beta < owner", got)
+		}
+		if got[RoleOwner] != PositionOwner || got[RoleEveryone] != PositionEveryone {
+			t.Fatalf("owner/everyone positions = %d/%d, want fixed", got[RoleOwner], got[RoleEveryone])
+		}
+	})
+
+	for _, tt := range []struct {
+		name  string
+		order []string
+		want  error
+	}{
+		{"rejects owner", []string{RoleOwner, RoleModerator, "alpha", RoleAdmin, "beta"}, ErrInvalidArgument},
+		{"rejects everyone", []string{RoleEveryone, RoleModerator, "alpha", RoleAdmin, "beta"}, ErrInvalidArgument},
+		{"rejects incomplete order", []string{RoleModerator, "alpha", RoleAdmin}, ErrInvalidArgument},
+		{"rejects duplicates", []string{RoleModerator, "alpha", RoleAdmin, "alpha"}, ErrInvalidArgument},
+		{"rejects unknown roles", []string{RoleModerator, "alpha", RoleAdmin, "gamma"}, ErrRoleNotFound},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := core.ReorderServerRoles(ctx, SystemActorID, tt.order); !errors.Is(err, tt.want) {
+				t.Fatalf("ReorderServerRoles error = %v, want %v", err, tt.want)
 			}
-			if r.Name == "beta" {
-				betaInitialPos = r.Position
-			}
-		}
-		t.Logf("Initial positions: alpha=%d, beta=%d", alphaInitialPos, betaInitialPos)
-
-		// Reorder: put beta before alpha
-		reordered, err := core.ReorderServerRoles(ctx, SystemActorID, []string{"beta", "alpha"})
-		if err != nil {
-			t.Fatalf("Failed to reorder: %v", err)
-		}
-
-		// Find the new positions from the returned list
-		var alphaNowPos, betaNowPos int32
-		for _, r := range reordered {
-			if r.Name == "alpha" {
-				alphaNowPos = r.Position
-			}
-			if r.Name == "beta" {
-				betaNowPos = r.Position
-			}
-		}
-
-		// Reorder semantics: the orderedNames argument goes from lower to
-		// higher display position, so beta should end up below alpha.
-		if betaNowPos >= alphaNowPos {
-			t.Errorf("After reorder, beta (position %d) should sort below alpha (position %d)", betaNowPos, alphaNowPos)
-		}
-	})
-
-	t.Run("rejects system role reordering", func(t *testing.T) {
-		_, err := core.ReorderServerRoles(ctx, SystemActorID, []string{RoleAdmin, RoleModerator})
-		if err == nil {
-			t.Error("Expected error when trying to reorder system roles")
-		}
-	})
-
-	t.Run("rejects incomplete custom role list", func(t *testing.T) {
-		_, err := core.ReorderServerRoles(ctx, SystemActorID, []string{"alpha"})
-		if err == nil {
-			t.Error("Expected error when reorder omits a custom role")
-		}
-	})
-
-	t.Run("rejects duplicate custom roles", func(t *testing.T) {
-		_, err := core.ReorderServerRoles(ctx, SystemActorID, []string{"alpha", "alpha"})
-		if err == nil {
-			t.Error("Expected error when reorder includes a duplicate role")
-		}
-	})
-
-	t.Run("rejects unknown custom role", func(t *testing.T) {
-		_, err := core.ReorderServerRoles(ctx, SystemActorID, []string{"alpha", "gamma"})
-		if !errors.Is(err, ErrRoleNotFound) {
-			t.Fatalf("Expected ErrRoleNotFound, got %v", err)
-		}
-	})
-
-	t.Run("preserves system role positions", func(t *testing.T) {
-		roles, _ := core.ListServerRoles(ctx)
-
-		var ownerPos, adminPos, modPos int32
-		for _, r := range roles {
-			switch r.Name {
-			case RoleOwner:
-				ownerPos = r.Position
-			case RoleAdmin:
-				adminPos = r.Position
-			case RoleModerator:
-				modPos = r.Position
-			}
-		}
-
-		// System role positions: everyone=0, moderator=100, admin=900, owner=1000.
-		if ownerPos != PositionOwner {
-			t.Errorf("Expected owner position %d, got %d", PositionOwner, ownerPos)
-		}
-		if adminPos != PositionAdmin {
-			t.Errorf("Expected admin position %d, got %d", PositionAdmin, adminPos)
-		}
-		if modPos != PositionModerator {
-			t.Errorf("Expected moderator position %d, got %d", PositionModerator, modPos)
-		}
-	})
+		})
+	}
 }
 
 func TestChattoCore_CreateServerRole_PositionAssignment(t *testing.T) {
@@ -2784,49 +2736,35 @@ func TestChattoCore_RevokeRole_CannotDemoteSelf(t *testing.T) {
 	}
 }
 
-func TestChattoCore_RevokeRole_RemovingRoleAlsoRemovesAssignmentAuthority(t *testing.T) {
+func TestChattoCore_RevokeRole_PeersCannotRevokeEachOther(t *testing.T) {
 	t.Parallel()
 
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Setup two moderators
-	modA := "mod-a"
-	modB := "mod-b"
-	core.AssignServerRole(ctx, SystemActorID, modA, RoleModerator)
-	core.AssignServerRole(ctx, SystemActorID, modB, RoleModerator)
+	modA, modB := "mod-a", "mod-b"
+	for _, userID := range []string{modA, modB} {
+		if err := core.AssignServerRole(ctx, SystemActorID, userID, RoleModerator); err != nil {
+			t.Fatalf("AssignServerRole %s: %v", userID, err)
+		}
+	}
+	if err := core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermRoleAssign); err != nil {
+		t.Fatalf("GrantServerPermission role.assign: %v", err)
+	}
 
-	// Grant role assignment permission to moderators so the core API calls can
-	// be exercised as permission-only behavior.
-	core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermRoleAssign)
-
-	t.Run("moderator A can revoke moderator B's moderator role", func(t *testing.T) {
-		err := core.RevokeServerRole(ctx, modA, modB, RoleModerator)
+	for _, pair := range [][2]string{{modA, modB}, {modB, modA}} {
+		if err := core.RevokeServerRole(ctx, pair[0], pair[1], RoleModerator); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("%s revokes %s: error = %v, want permission denied", pair[0], pair[1], err)
+		}
+	}
+	for _, userID := range []string{modA, modB} {
+		roles, err := core.GetUserRoles(ctx, userID)
 		if err != nil {
-			t.Fatalf("RevokeServerRole: %v", err)
+			t.Fatalf("GetUserRoles %s: %v", userID, err)
 		}
-	})
-
-	t.Run("B cannot demote A after losing the granting role", func(t *testing.T) {
-		err := core.RevokeServerRole(ctx, modB, modA, RoleModerator)
-		if !errors.Is(err, ErrPermissionDenied) {
-			t.Fatalf("RevokeServerRole error = %v, want permission denied", err)
+		if !slices.Contains(roles, RoleModerator) {
+			t.Fatalf("%s lost the moderator role", userID)
 		}
-	})
-
-	// B lost the moderator role; A retained it because B no longer had authority.
-	rolesA, _ := core.GetUserRoles(ctx, modA)
-	rolesB, _ := core.GetUserRoles(ctx, modB)
-
-	hasMod := func(roles []string) bool {
-		return slices.Contains(roles, RoleModerator)
-	}
-
-	if !hasMod(rolesA) {
-		t.Error("Moderator A should retain moderator role")
-	}
-	if hasMod(rolesB) {
-		t.Error("Moderator B should no longer have moderator role")
 	}
 }
 
@@ -2990,10 +2928,10 @@ func TestChattoCore_CreateRole_PositionAssignment(t *testing.T) {
 		core.CreateServerRole(ctx, SystemActorID, "alpha", "Alpha", "Alpha role")
 		core.CreateServerRole(ctx, SystemActorID, "beta", "Beta", "Beta role")
 
-		// Reorder all custom roles. ReorderServerRoles requires a complete
-		// custom-role list so clients cannot accidentally drop roles from the
-		// authoritative ordering event.
-		roles, err := core.ReorderServerRoles(ctx, SystemActorID, []string{"editor", "contributor", "beta", "alpha"})
+		// ReorderServerRoles requires every role except owner and everyone,
+		// so clients cannot accidentally drop roles from the authoritative
+		// ordering event.
+		roles, err := core.ReorderServerRoles(ctx, SystemActorID, []string{"editor", "contributor", "beta", "alpha", RoleModerator, RoleAdmin})
 		if err != nil {
 			t.Fatalf("ReorderServerRoles failed: %v", err)
 		}

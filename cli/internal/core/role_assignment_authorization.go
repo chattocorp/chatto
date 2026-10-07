@@ -6,42 +6,23 @@ import (
 	"fmt"
 )
 
-// CanAssignRole reports whether an actor with role.assign may grant a specific
-// role without granting authority they do not currently possess.
-func (c *ChattoCore) CanAssignRole(ctx context.Context, actorID, roleName string) (bool, error) {
+// CanAssignRoleToUser reports whether the actor may assign a role to a
+// concrete account. It applies the same rules as the assignment command.
+func (c *ChattoCore) CanAssignRoleToUser(ctx context.Context, actorID, targetUserID, roleName string) (bool, error) {
 	if roleName == RoleEveryone {
 		return false, nil
 	}
-	if err := c.requireRoleAssignmentWithinAuthority(ctx, actorID, roleName, false); err != nil {
-		if errors.Is(err, ErrPermissionDenied) {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
-}
-
-// CanRevokeRole reports whether an actor with role.assign may revoke a
-// specific role. Explicit denials are included because removing a restriction
-// can restore authority to the target user.
-func (c *ChattoCore) CanRevokeRole(ctx context.Context, actorID, roleName string) (bool, error) {
-	if roleName == RoleEveryone {
+	if isBot, _, ok := c.userModel.isBotAndOwner(targetUserID); ok && isBot && roleName == RoleOwner {
 		return false, nil
 	}
-	if err := c.requireRoleAssignmentWithinAuthority(ctx, actorID, roleName, true); err != nil {
-		if errors.Is(err, ErrPermissionDenied) {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
+	return permissionDeniedAsFalse(c.requireRoleChangeForAccount(ctx, actorID, targetUserID, roleName, false))
 }
 
 // CanRevokeRoleFromUser reports whether a role revocation is available for a
 // concrete target. It includes target-specific safety rules that the generic
 // role-authority comparison cannot express.
 func (c *ChattoCore) CanRevokeRoleFromUser(ctx context.Context, actorID, targetUserID, roleName string) (bool, error) {
-	if isProtectedSelfRoleRevocation(actorID, targetUserID, roleName) {
+	if roleName == RoleEveryone || isProtectedSelfRoleRevocation(actorID, targetUserID, roleName) {
 		return false, nil
 	}
 	if roleName == RoleOwner {
@@ -53,7 +34,16 @@ func (c *ChattoCore) CanRevokeRoleFromUser(ctx context.Context, actorID, targetU
 			return false, nil
 		}
 	}
-	return c.CanRevokeRole(ctx, actorID, roleName)
+	return permissionDeniedAsFalse(c.requireRoleChangeForAccount(ctx, actorID, targetUserID, roleName, true))
+}
+
+// permissionDeniedAsFalse turns an authorization result into a capability
+// flag. Other errors remain errors.
+func permissionDeniedAsFalse(err error) (bool, error) {
+	if errors.Is(err, ErrPermissionDenied) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 func isProtectedSelfRoleRevocation(actorID, targetUserID, roleName string) bool {
@@ -74,37 +64,37 @@ func (c *ChattoCore) requireRoleAssignmentWithinAuthority(ctx context.Context, a
 	if !canAssign {
 		return ErrPermissionDenied
 	}
-	isOwner, err := c.IsServerOwner(ctx, actorID)
-	if err != nil {
-		return err
-	}
-	if isOwner {
+	if c.isServerOwner(actorID) {
 		return nil
 	}
-	if roleName == RoleOwner {
-		return ErrPermissionDenied
+	if err := c.requireRoleBelowActor(actorID, roleName); err != nil {
+		return err
 	}
 	return c.requireRoleDecisionsWithinAuthority(ctx, actorID, roleName, includeDenials)
 }
 
-// requireRoleDeletionWithinAuthority bounds role deletion like revocation from
-// every holder: the actor must hold every permission that the role allows or
-// denies, at the same scope.
-func (c *ChattoCore) requireRoleDeletionWithinAuthority(ctx context.Context, actorID, roleName string) error {
-	if actorID == SystemActorID {
-		return nil
+// requireRoleChangeForAccount authorizes assigning (includeDenials false) or
+// revoking (includeDenials true) a role for one account. The role must rank
+// below the actor and stay within the actor's authority, and the actor must
+// outrank the account unless it is their own.
+func (c *ChattoCore) requireRoleChangeForAccount(ctx context.Context, actorID, targetUserID, roleName string, includeDenials bool) error {
+	if err := c.requireRoleAssignmentWithinAuthority(ctx, actorID, roleName, includeDenials); err != nil {
+		return err
 	}
-	return c.requireRoleDecisionsWithinAuthority(ctx, actorID, roleName, true)
+	return c.requireOutranksOtherAccount(actorID, targetUserID)
 }
 
-// requireNotOwnDirectDecisions prevents a non-owner from editing their own
-// direct decisions. Direct decisions survive role changes, so a self-edit
-// could copy role authority into a decision that outlasts the role.
-func (c *ChattoCore) requireNotOwnDirectDecisions(actorID, targetUserID string) error {
-	if actorID == targetUserID && !c.isServerOwner(actorID) {
-		return ErrPermissionDenied
+// requireRoleDeletionWithinAuthority bounds role deletion like revocation from
+// every holder: the role must rank below the actor, and the actor must hold
+// every permission that the role allows or denies, at the same scope.
+func (c *ChattoCore) requireRoleDeletionWithinAuthority(ctx context.Context, actorID, roleName string) error {
+	if c.actorIsHierarchyExempt(actorID) {
+		return nil
 	}
-	return nil
+	if err := c.requireRoleBelowActor(actorID, roleName); err != nil {
+		return err
+	}
+	return c.requireRoleDecisionsWithinAuthority(ctx, actorID, roleName, true)
 }
 
 // requireRoleDecisionsWithinAuthority requires the actor to effectively hold

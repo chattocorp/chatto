@@ -144,8 +144,12 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 	if err != nil {
 		return nil, err
 	}
+	if canManageUserPermissions && c.requireOutranksOtherAccount(actorID, targetUserID) != nil {
+		canManageUserPermissions = false
+	}
 	if user.GetIsBot() {
-		canAssignRoles = false
+		// Bots can hold roles, but their permissions, lifecycle, and role
+		// definitions are managed on the bot pages.
 		canManageRoles = false
 		canManageUserPermissions = false
 		member.ViewerCanDeleteAccount = false
@@ -158,7 +162,7 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 			if role.Name == RoleEveryone {
 				continue
 			}
-			canAssign, err := c.CanAssignRole(ctx, actorID, role.Name)
+			canAssign, err := c.CanAssignRoleToUser(ctx, actorID, targetUserID, role.Name)
 			if err != nil {
 				return nil, err
 			}

@@ -58,7 +58,7 @@ func (c *ChattoCore) SetOwnPassword(ctx context.Context, userID, currentPassword
 
 // AdminSetUserPasswordAuthorized sets a password for the target account without requiring
 // the old password. Changing another account requires the same admin-management
-// gate used by admin identity changes.
+// gate used by admin identity changes, and the actor must outrank the target.
 func (c *ChattoCore) AdminSetUserPasswordAuthorized(ctx context.Context, actorID, targetUserID, password string) error {
 	if actorID == "" {
 		return ErrNotAuthenticated
@@ -76,7 +76,14 @@ func (c *ChattoCore) AdminSetUserPasswordAuthorized(ctx context.Context, actorID
 	if !canManage {
 		return ErrPermissionDenied
 	}
-	return c.setPasswordHash(ctx, actorID, targetUserID, password, true, nil)
+	if err := c.requireOutranksAccount(actorID, targetUserID); err != nil {
+		return err
+	}
+	return c.setPasswordHash(ctx, actorID, targetUserID, password, true, func() error {
+		return c.authorizeAtStableInputs(ctx, func() error {
+			return c.requireOutranksAccount(actorID, targetUserID)
+		})
+	})
 }
 
 func (c *ChattoCore) HasPassword(ctx context.Context, userID string) (bool, error) {
