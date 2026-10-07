@@ -1,7 +1,7 @@
 # FDR-046: Privileged Mode
 
 **Status:** Active
-**Last reviewed:** 2026-09-25
+**Last reviewed:** 2026-10-07
 
 ## Overview
 
@@ -37,6 +37,11 @@ server session when they need them.
 - The client reads rooms and room groups again after activation,
   deactivation, and expiry. Rooms that the owner override made visible appear
   or disappear.
+- A successful activation or deactivation resume from a caught-up live
+  connection reuses the response's effective viewer permissions. It reads only
+  missing DM profiles and reloads timelines with changed message permissions.
+  It does not refresh the cached user directory. Snapshots, expiry, and
+  interrupted or failed recovery use the full current-value refresh.
 - An owner can stay an explicit member of a room after the mode ends but lose
   read access. Explicit memberships do not change.
 - Realtime delivery evaluates each session with its own mode state. Two
@@ -143,6 +148,19 @@ audit facts.
 **Tradeoff:** An EVT outage cannot prevent deactivation. If the runtime-state
 change succeeds and the audit append fails, Chatto keeps the safer runtime
 result and logs the audit failure.
+
+### 6. Limit explicit permission refreshes
+
+**Decision:** A successful resume after an explicit mode change reads rooms
+and room groups and reuses viewer permissions from the mutation response.
+It hydrates missing DM profiles and timelines with changed message permissions.
+All other recovery paths keep the full current-value refresh.
+
+**Why:** A permission change must not require reads for every cached user or
+reload message history whose permissions did not change.
+
+**Tradeoff:** This step keeps the reconnect. A transient change during its short
+gap can remain stale until a later event or full recovery.
 
 ## Compatibility
 

@@ -9,6 +9,12 @@ import { debugLog } from '../util/debugLog.js';
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'dormant' | 'disconnected';
 
+/** Context for an immediate reconnect after an authoritative privilege response. */
+export interface RealtimeReconnectOptions {
+  /** Reuse viewer permissions only for this authorization refresh generation. */
+  authorizationRefreshGeneration: number;
+}
+
 const HIDDEN_RECONNECT_AFTER_MS = 30_000;
 const MAX_BROWSER_RENEWAL_TIMER_MS = 24 * 60 * 60 * 1000;
 const BROWSER_RENEWAL_RETRY_MS = 60_000;
@@ -136,7 +142,7 @@ export class ServerConnection {
   #browserRenewalTimer: ReturnType<typeof setTimeout> | null = null;
   #browserRenewAfter: number | null = null;
   #serverId: string | undefined;
-  #realtimeReconnect: ((reason: string) => void) | null = null;
+  #realtimeReconnect: ((reason: string, options?: RealtimeReconnectOptions) => void) | null = null;
   #pendingForcedReconnectReason: string | null = null;
   #apis = new WeakMap<object, unknown>();
   readonly #registry: ServerConnectionRegistry;
@@ -227,9 +233,11 @@ export class ServerConnection {
   }
 
   /** Force-terminate and immediately reconnect the WebSocket. */
-  forceReconnect(reason: string) {
+  forceReconnect(reason: string, options?: RealtimeReconnectOptions) {
     this.#connectionFailed = false;
     if (this.status === 'connecting') {
+      // An in-flight recovery can have missed current values. Queue a full
+      // recovery instead of carrying the privilege-only refresh hint forward.
       this.#pendingForcedReconnectReason = reason;
       debugLog('[ws:%s] Force reconnect queued — already connecting: %s', this.#host, reason);
       return;
@@ -243,7 +251,8 @@ export class ServerConnection {
         this.status
       );
       this.#failedAttempts = 0;
-      this.#realtimeReconnect(reason);
+      if (options) this.#realtimeReconnect(reason, options);
+      else this.#realtimeReconnect(reason);
       return;
     }
     debugLog(
@@ -258,7 +267,9 @@ export class ServerConnection {
     this.forceReconnect('user-initiated retry');
   }
 
-  registerRealtimeReconnect(handler: (reason: string) => void): () => void {
+  registerRealtimeReconnect(
+    handler: (reason: string, options?: RealtimeReconnectOptions) => void
+  ): () => void {
     this.#realtimeReconnect = handler;
     const pendingReason = this.#pendingForcedReconnectReason;
     if (pendingReason && this.status !== 'connecting') {

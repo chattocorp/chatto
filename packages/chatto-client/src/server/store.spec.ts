@@ -857,7 +857,9 @@ describe('ServerStateStore privileged mode', () => {
     expect(store.permissions.canAdminViewSystem).toBe(true);
     expect(store.realtimeSync.resumeCursor).toBe('cursor-after');
     expect(store.realtimeSync.authorizationRefreshRequired).toBe(false);
-    expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode changed');
+    expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode changed', {
+      authorizationRefreshGeneration: 1
+    });
     expect(eventMocks.authorityChanged).toHaveBeenCalledWith({ lost: false });
   });
 
@@ -925,7 +927,9 @@ describe('ServerStateStore privileged mode', () => {
     expect(store.permissions.canAdminViewSystem).toBe(false);
     expect(store.realtimeSync.resumeCursor).toBe('cursor-after');
     expect(store.realtimeSync.authorizationRefreshRequired).toBe(false);
-    expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode changed');
+    expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode changed', {
+      authorizationRefreshGeneration: 1
+    });
     expect(eventMocks.authorityChanged).toHaveBeenCalledWith({ lost: true });
   });
 
@@ -966,7 +970,7 @@ describe('ServerStateStore privileged mode', () => {
     fake.forceReconnect.mockImplementation(() => {
       const generation = store.realtimeSync.pendingAuthorizationRefreshGeneration;
       void store
-        .completeRealtimeCatchUp('cursor-after')
+        .completeRealtimeCatchUp('cursor-after', generation)
         .then(() => store.realtimeSync.markCaughtUp('cursor-after', generation));
     });
 
@@ -1017,7 +1021,7 @@ describe('ServerStateStore privileged mode', () => {
     fake.forceReconnect.mockImplementation(() => {
       const generation = store.realtimeSync.pendingAuthorizationRefreshGeneration;
       void store
-        .completeRealtimeCatchUp('cursor-after')
+        .completeRealtimeCatchUp('cursor-after', generation)
         .then(() => store.realtimeSync.markCaughtUp('cursor-after', generation));
     });
 
@@ -1027,6 +1031,275 @@ describe('ServerStateStore privileged mode', () => {
 
     await store.setPrivilegedMode(false);
     expect(store.roomList.rooms.map((entry) => entry.id)).toEqual(['R1']);
+  });
+
+  it.each([true, false])(
+    'skips cached profiles and unrelated reads on a resumed privilege change (active=%s)',
+    async (active) => {
+      const fake = new FakeServerConnection([]);
+      const store = makeStore(fake);
+      store.projection.viewer = new GetViewerResponse({
+        user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
+        privilegedMode: new PrivilegedModeState({ available: true, active: !active })
+      });
+      // A large retained directory must not add requests to a privilege change.
+      for (let index = 0; index < 100_000; index++) {
+        const id = `cached-${index}`;
+        store.projection.users.set(id, new DirectoryMember({ user: new User({ id }) }));
+      }
+      const viewer = store.projection.viewer.user;
+      fake.forceReconnect.mockImplementation(() => {
+        const generation = store.realtimeSync.pendingAuthorizationRefreshGeneration;
+        void store
+          .completeRealtimeCatchUp('privilege-cursor', generation)
+          .then(() => store.realtimeSync.markCaughtUp('privilege-cursor', generation));
+      });
+
+      await store.setPrivilegedMode(active);
+
+      expect(apiMocks.readRealtimeResource.mock.calls).toEqual([
+        ['rooms', 'privilege-cursor'],
+        ['roomGroups', 'privilege-cursor']
+      ]);
+      expect(apiMocks.readRealtimeUsers).not.toHaveBeenCalled();
+      expect(store.projection.users.size).toBe(100_000);
+      expect(store.projection.viewer?.user).toEqual(viewer);
+      expect(store.projection.viewer?.privilegedMode?.active).toBe(active);
+    }
+  );
+
+  it('serializes concurrent privilege mutation responses', async () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.projection.viewer = new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: 'U1' }) })
+    });
+    const activation = {
+      privilegedMode: new PrivilegedModeState({ available: true, active: true }),
+      capabilities: new ViewerCapabilities(),
+      viewerPermissions: new ServerViewerPermissions()
+    };
+    let finish!: (value: typeof activation) => void;
+    apiMocks.activatePrivilegedMode.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    fake.forceReconnect.mockImplementation(() =>
+      store.realtimeSync.markCaughtUp(
+        'after',
+        store.realtimeSync.pendingAuthorizationRefreshGeneration
+      )
+    );
+    const activating = store.setPrivilegedMode(true);
+    await vi.waitFor(() => expect(apiMocks.activatePrivilegedMode).toHaveBeenCalledOnce());
+    const deactivating = store.setPrivilegedMode(false);
+    try {
+      await flushPromises();
+      expect(apiMocks.deactivatePrivilegedMode).not.toHaveBeenCalled();
+    } finally {
+      finish(activation);
+      await Promise.all([activating, deactivating]);
+    }
+    expect(apiMocks.deactivatePrivilegedMode).toHaveBeenCalledOnce();
+    expect(store.projection.viewer?.privilegedMode?.active).toBe(false);
+  });
+
+  it('deactivates without waiting for an earlier authorization recovery', async () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.projection.viewer = new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: 'U1' }) })
+    });
+    fake.forceReconnect.mockImplementation(() => {
+      if (fake.forceReconnect.mock.calls.length > 1) {
+        store.realtimeSync.markCaughtUp(
+          'after',
+          store.realtimeSync.pendingAuthorizationRefreshGeneration
+        );
+      }
+    });
+    const activating = store.setPrivilegedMode(true);
+    await vi.waitFor(() => expect(fake.forceReconnect).toHaveBeenCalledOnce());
+    const deactivating = store.setPrivilegedMode(false);
+    try {
+      await vi.waitFor(() => expect(apiMocks.deactivatePrivilegedMode).toHaveBeenCalledOnce(), {
+        timeout: 100
+      });
+    } finally {
+      store.realtimeSync.markCaughtUp(
+        'after',
+        store.realtimeSync.pendingAuthorizationRefreshGeneration
+      );
+      await Promise.all([activating, deactivating]);
+    }
+    expect(store.projection.viewer?.privilegedMode?.active).toBe(false);
+  });
+
+  it('continues queued privilege changes after a failed mutation', async () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.projection.viewer = new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: 'U1' }) })
+    });
+    apiMocks.activatePrivilegedMode.mockRejectedValueOnce(new Error('activation failed'));
+    fake.forceReconnect.mockImplementation(() =>
+      store.realtimeSync.markCaughtUp(
+        'after',
+        store.realtimeSync.pendingAuthorizationRefreshGeneration
+      )
+    );
+    const activating = expect(store.setPrivilegedMode(true)).rejects.toThrow('activation failed');
+    const deactivating = store.setPrivilegedMode(false);
+
+    await activating;
+    await deactivating;
+
+    expect(apiMocks.deactivatePrivilegedMode).toHaveBeenCalledOnce();
+    expect(store.projection.viewer?.privilegedMode?.active).toBe(false);
+  });
+
+  it('rejects queued privilege changes after the store is disposed', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const changing = store.setPrivilegedMode(true);
+    store.dispose();
+
+    await expect(changing).rejects.toThrow('no active server store');
+
+    expect(apiMocks.activatePrivilegedMode).not.toHaveBeenCalled();
+  });
+
+  it('hydrates only newly referenced DM profiles after a privilege refresh', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.projection.users.set('cached', new DirectoryMember({ user: new User({ id: 'cached' }) }));
+    apiMocks.readRealtimeResource.mockImplementation(async (family) =>
+      family === 'rooms'
+        ? [
+            roomResource([
+              new RoomWithViewerState({
+                room: new Room({ id: 'DM1', kind: RoomKind.DM }),
+                memberUserIds: ['cached', 'new-member']
+              })
+            ])
+          ]
+        : []
+    );
+    apiMocks.readRealtimeUsers.mockResolvedValueOnce([
+      new RealtimeResourceUpdate({
+        resource: {
+          case: 'users',
+          value: { users: [new DirectoryMember({ user: new User({ id: 'new-member' }) })] }
+        }
+      })
+    ]);
+    const generation = store.realtimeSync.invalidateAuthorization();
+
+    await store.completeRealtimeCatchUp('privilege-cursor', generation);
+
+    expect(apiMocks.readRealtimeUsers).toHaveBeenCalledOnce();
+    expect(apiMocks.readRealtimeUsers).toHaveBeenCalledWith(['new-member'], 'privilege-cursor');
+    expect(store.projection.users.has('new-member')).toBe(true);
+    expect(store.projection.users.has('cached')).toBe(true);
+  });
+
+  it('rejects late privilege reads when a newer authorization change supersedes them', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    let finish!: (resources: RealtimeResourceUpdate[]) => void;
+    apiMocks.readRealtimeResource.mockImplementation((family) =>
+      family === 'rooms'
+        ? new Promise((resolve) => {
+            finish = resolve;
+          })
+        : Promise.resolve([])
+    );
+    const generation = store.realtimeSync.invalidateAuthorization();
+    const completion = store.completeRealtimeCatchUp('old-cursor', generation);
+    const rejected = expect(completion).rejects.toThrow('newer authorization change');
+    store.realtimeSync.invalidateAuthorization();
+    finish([roomResource([new RoomWithViewerState({ room: new Room({ id: 'stale' }) })])]);
+
+    await rejected;
+
+    expect(store.projection.rooms.has('stale')).toBe(false);
+    expect(store.realtimeSync.authorizationRefreshRequired).toBe(true);
+    expect(apiMocks.readRealtimeUsers).not.toHaveBeenCalled();
+  });
+
+  it('reloads only timelines whose message permissions changed at the privilege cursor', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const room = (id: string, read: boolean) =>
+      new RoomWithViewerState({
+        room: new Room({ id }),
+        viewerState: {
+          isMember: true,
+          permissions: [
+            { permission: 'message.read', granted: read },
+            { permission: 'message.post', granted: true }
+          ]
+        }
+      });
+    store.projection.rooms.set('changed', room('changed', true));
+    store.projection.rooms.set('unchanged', room('unchanged', true));
+    const changed = store.rooms.messages('changed');
+    const unchanged = store.rooms.messages('unchanged');
+    await flushPromises();
+    const reloadChanged = vi.spyOn(changed, 'hydrateRealtimeProjection').mockResolvedValue(true);
+    const reloadUnchanged = vi
+      .spyOn(unchanged, 'hydrateRealtimeProjection')
+      .mockResolvedValue(true);
+    apiMocks.readRealtimeResource.mockImplementation(async (family) =>
+      family === 'rooms' ? [roomResource([room('changed', false), room('unchanged', true)])] : []
+    );
+    const generation = store.realtimeSync.invalidateAuthorization();
+
+    await store.completeRealtimeCatchUp('privilege-cursor', generation);
+
+    expect(reloadChanged).toHaveBeenCalledOnce();
+    expect(reloadChanged).toHaveBeenCalledWith('privilege-cursor', expect.any(Function));
+    expect(reloadUnchanged).not.toHaveBeenCalled();
+  });
+
+  it('uses full current-value recovery when a snapshot replaces a privilege resume', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({ reset: true, retainView: true })
+    );
+    store.projection.users.set('cached', new DirectoryMember({ user: new User({ id: 'cached' }) }));
+    const generation = store.realtimeSync.invalidateAuthorization();
+
+    await store.completeRealtimeCatchUp('snapshot-cursor', generation);
+
+    expect(apiMocks.readRealtimeResource.mock.calls.map(([family]) => family)).toEqual([
+      'serverState',
+      'viewer',
+      'rooms',
+      'roomGroups',
+      'notifications'
+    ]);
+    expect([...apiMocks.readRealtimeUsers.mock.calls[0][0]]).toEqual(['cached', 'U1']);
+  });
+
+  it('keeps authorization stale after a failed privilege read', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    apiMocks.readRealtimeResource.mockRejectedValueOnce(new Error('room read failed'));
+    const generation = store.realtimeSync.invalidateAuthorization();
+
+    await expect(store.completeRealtimeCatchUp('privilege-cursor', generation)).rejects.toThrow(
+      'room read failed'
+    );
+
+    expect(store.realtimeSync.authorizationRefreshRequired).toBe(true);
+    // A normal reconnect can retry with full current-value recovery.
+    apiMocks.readRealtimeResource.mockClear();
+    await store.completeRealtimeCatchUp('retry-cursor');
+    expect(apiMocks.readRealtimeResource.mock.calls.map(([family]) => family)).toEqual([
+      'serverState',
+      'viewer',
+      'rooms',
+      'roomGroups',
+      'notifications'
+    ]);
   });
 
   it('clears expired activation and refreshes effective permissions', async () => {

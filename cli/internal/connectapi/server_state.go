@@ -327,8 +327,8 @@ func serverMOTD(api *API) string {
 
 func (a *API) serverViewerState(ctx context.Context, userID string) (*apiv1.ServerViewerPermissions, *apiv1.ServerViewerState, error) {
 	var (
-		hasUnreadRooms   bool
-		permissionGrants []*apiv1.PermissionGrant
+		hasUnreadRooms bool
+		permissions    *apiv1.ServerViewerPermissions
 	)
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.Go(func() error {
@@ -338,29 +338,37 @@ func (a *API) serverViewerState(ctx context.Context, userID string) (*apiv1.Serv
 	})
 	group.Go(func() error {
 		var err error
-		permissionGrants, err = parallel.Map(
-			groupCtx,
-			maxConnectAPIHydrationConcurrency,
-			core.AllPermissions(),
-			func(ctx context.Context, _ int, meta core.PermissionMetadata) (*apiv1.PermissionGrant, error) {
-				granted, err := a.core.HasUserPermissionViaRoles(ctx, userID, meta.Permission)
-				if err != nil {
-					return nil, err
-				}
-				return &apiv1.PermissionGrant{
-					Permission: string(meta.Permission),
-					Granted:    granted,
-				}, nil
-			},
-		)
+		permissions, err = a.serverViewerPermissions(groupCtx, userID)
 		return err
 	})
 	if err := group.Wait(); err != nil {
 		return nil, nil, err
 	}
 
-	permissions := &apiv1.ServerViewerPermissions{Permissions: permissionGrants}
 	return permissions, &apiv1.ServerViewerState{HasUnreadRooms: hasUnreadRooms}, nil
+}
+
+// serverViewerPermissions reads effective server grants without unrelated viewer state.
+func (a *API) serverViewerPermissions(ctx context.Context, userID string) (*apiv1.ServerViewerPermissions, error) {
+	grants, err := parallel.Map(
+		ctx,
+		maxConnectAPIHydrationConcurrency,
+		core.AllPermissions(),
+		func(ctx context.Context, _ int, meta core.PermissionMetadata) (*apiv1.PermissionGrant, error) {
+			granted, err := a.core.HasUserPermissionViaRoles(ctx, userID, meta.Permission)
+			if err != nil {
+				return nil, err
+			}
+			return &apiv1.PermissionGrant{
+				Permission: string(meta.Permission),
+				Granted:    granted,
+			}, nil
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &apiv1.ServerViewerPermissions{Permissions: grants}, nil
 }
 
 func (a *API) viewerHasUnreadRooms(ctx context.Context, userID string) (bool, error) {

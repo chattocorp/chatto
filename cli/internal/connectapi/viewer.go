@@ -63,14 +63,14 @@ func (s *viewerService) ActivatePrivilegedMode(ctx context.Context, _ *connect.R
 		return nil, err
 	}
 	ctx = privilegedModeContext(ctx, deadline)
-	viewer, err := s.api.buildViewer(ctx, caller.UserID)
+	capabilities, permissions, err := s.api.buildViewerAuthorization(ctx, caller.UserID)
 	if err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&apiv1.ActivatePrivilegedModeResponse{
 		PrivilegedMode:    privilegedModeState(true, deadline),
-		Capabilities:      viewer.GetCapabilities(),
-		ViewerPermissions: viewer.GetViewerPermissions(),
+		Capabilities:      capabilities,
+		ViewerPermissions: permissions,
 	}), nil
 }
 
@@ -87,14 +87,14 @@ func (s *viewerService) DeactivatePrivilegedMode(ctx context.Context, _ *connect
 		return nil, err
 	}
 	ctx = privilegedModeContext(ctx, time.Time{})
-	viewer, err := s.api.buildViewer(ctx, caller.UserID)
+	capabilities, permissions, err := s.api.buildViewerAuthorization(ctx, caller.UserID)
 	if err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&apiv1.DeactivatePrivilegedModeResponse{
 		PrivilegedMode:    privilegedModeState(available, time.Time{}),
-		Capabilities:      viewer.GetCapabilities(),
-		ViewerPermissions: viewer.GetViewerPermissions(),
+		Capabilities:      capabilities,
+		ViewerPermissions: permissions,
 	}), nil
 }
 
@@ -131,6 +131,28 @@ func privilegedModeState(available bool, deadline time.Time) *apiv1.PrivilegedMo
 		state.ExpiresAt = timestamppb.New(deadline)
 	}
 	return state
+}
+
+// buildViewerAuthorization assembles the fields returned by privilege mutations.
+// It avoids profile, settings, and room-unread reads required only by GetViewer.
+func (a *API) buildViewerAuthorization(ctx context.Context, userID string) (*apiv1.ViewerCapabilities, *apiv1.ServerViewerPermissions, error) {
+	var capabilities *apiv1.ViewerCapabilities
+	var permissions *apiv1.ServerViewerPermissions
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		var err error
+		capabilities, err = viewerCapabilities(groupCtx, a, userID)
+		return err
+	})
+	group.Go(func() error {
+		var err error
+		permissions, err = a.serverViewerPermissions(groupCtx, userID)
+		return err
+	})
+	if err := group.Wait(); err != nil {
+		return nil, nil, err
+	}
+	return capabilities, permissions, nil
 }
 
 func (a *API) buildViewer(ctx context.Context, userID string) (*apiv1.GetViewerResponse, error) {
