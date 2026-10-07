@@ -223,7 +223,9 @@ func operatorAdminMember(ctx context.Context, api *API, user *core.AdminUserView
 		HasVerifiedEmail:       len(verifiedEmails) > 0,
 		VerifiedEmails:         verifiedEmails,
 		ViewerCanDeleteAccount: true,
-		User:                   apiUser,
+		// The operator acts as the system actor, which the hierarchy exempts.
+		ViewerOutranks: true,
+		User:           apiUser,
 	}, nil
 }
 

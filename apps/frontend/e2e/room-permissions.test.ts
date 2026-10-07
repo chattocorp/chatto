@@ -682,18 +682,6 @@ async function assignServerRole(page: Page, userId: string, roleName: string): P
   expect(data.member?.roles ?? []).toContain(roleName);
 }
 
-async function reorderServerRoles(page: Page, roleNames: string[]): Promise<void> {
-  const data = await connectPost<{ roles?: E2EAdminRole[] }>(
-    page,
-    'chatto.admin.v1.AdminRoleService/ReorderRoles',
-    { roleNames }
-  );
-  const roles = data.roles?.map(unwrapAdminRole) ?? [];
-  for (const roleName of roleNames) {
-    expect(roles.some((role) => role?.name === roleName)).toBe(true);
-  }
-}
-
 test.describe('Permission-only Resolution', () => {
   test.describe('#general room - default posting', () => {
     test('all server members can post to #general by default', async ({ page, roomPage }) => {
@@ -793,9 +781,8 @@ test.describe('Permission-only Resolution', () => {
       // Create "muted" role
       await createServerRole(page, 'muted', 'Muted', 'Cannot post messages');
 
-      // Reorder remains display metadata; the permission denial itself is what
-      // blocks posting under the deny-wins resolver.
-      await reorderServerRoles(page, ['muted']);
+      // The new role ranks lowest. The deny blocks posting under the
+      // deny-wins resolver, whatever the role order is.
 
       // Deny message.post for the muted role at room level
       await denyRoomPermission(page, generalRoomId, 'muted', 'message.post');
