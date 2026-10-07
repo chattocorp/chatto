@@ -721,6 +721,30 @@ func TestAsset_ActiveAttachment_UsesSandboxHeaders(t *testing.T) {
 			assertSandboxedOriginalAttachment(t, stableResp, tt.wantContentType)
 		})
 	}
+
+	// Records from older versions can store a declared type verbatim. Serving
+	// must classify and canonicalize those types again.
+	for _, legacyContentType := range []string{"text/html,", "text/plain, text/html"} {
+		t.Run("legacy "+legacyContentType, func(t *testing.T) {
+			attachment, err := env.core.UploadAttachment(env.ctx, user.Id, room.Id, "legacy.html", legacyContentType,
+				bytes.NewReader([]byte("<!doctype html><script>window.__ran = true</script>")))
+			if err != nil {
+				t.Fatalf("Failed to store legacy attachment: %v", err)
+			}
+			if got := attachment.GetContentType(); got != legacyContentType {
+				t.Fatalf("legacy content type = %q, want raw %q", got, legacyContentType)
+			}
+			stableResp, err := http.Get(env.url(env.core.GetStableAttachmentAssetURL(attachment.GetId(), user.Id).URL))
+			if err != nil {
+				t.Fatalf("Failed to fetch legacy attachment URL: %v", err)
+			}
+			stableResp.Body.Close()
+			if stableResp.StatusCode != http.StatusOK {
+				t.Fatalf("Expected legacy attachment status 200, got %d", stableResp.StatusCode)
+			}
+			assertSandboxedOriginalAttachment(t, stableResp, core.FallbackContentType)
+		})
+	}
 }
 
 func TestAsset_OriginalDownload(t *testing.T) {
