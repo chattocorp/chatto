@@ -80,7 +80,7 @@ keeps only the existence of each relationship, not the facts that caused it,
 because reads only ask whether a relationship exists. Its v3 snapshot contract
 records DM membership; the schema fingerprint selects a new cache namespace
 when this shape changes. The
-RBAC component snapshot contract is v2 and retains decisions from the
+RBAC component snapshot contract is v4. It retains decisions from the
 `evt.rbac.dm` singleton lane. Membership, message, thread, reaction, asset, realtime, room-group OCC,
 and sidebar-ordering paths use focused `RoomModel` operations instead of
 projection fields on `ChattoCore`. Raw membership reads are named as explicit

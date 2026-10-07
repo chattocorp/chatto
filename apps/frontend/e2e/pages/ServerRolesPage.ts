@@ -488,7 +488,7 @@ export class ServerRolesPage {
    */
   async expectReadOnlyMessage(): Promise<void> {
     await expect(
-      this.page.getByText('You need the roles.manage permission to make changes')
+      this.page.getByText('You need the role.manage permission to make changes')
     ).toBeVisible();
   }
 

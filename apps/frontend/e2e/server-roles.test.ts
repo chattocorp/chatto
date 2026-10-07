@@ -1080,8 +1080,8 @@ test.describe('Server Permission Enforcement', () => {
     });
   });
 
-  test.describe('roles.manage permission', () => {
-    test('user with roles.manage permission can access roles settings', async ({
+  test.describe('role.manage permission', () => {
+    test('user with role.manage permission can access roles settings', async ({
       serverRolesPage
     }) => {
       const { page } = serverRolesPage;
@@ -1101,11 +1101,11 @@ test.describe('Server Permission Enforcement', () => {
       // Navigate to roles list
       await serverRolesPage.gotoPermissionsMatrix(server.id);
 
-      // Should see Create role button (has roles.manage)
+      // Should see Create role button (has role.manage)
       await serverRolesPage.expectNewRoleColumnVisible();
     });
 
-    test('user without roles.manage permission sees access denied', async ({ serverRolesPage }) => {
+    test('user without role.manage permission sees access denied', async ({ serverRolesPage }) => {
       const { page } = serverRolesPage;
 
       // Create admin user and load the primary server
@@ -1119,7 +1119,7 @@ test.describe('Server Permission Enforcement', () => {
       // Navigate directly to the page (bypassing nav filtering)
       await page.goto(routes.serverAdminPermissions);
 
-      // Users without roles.manage permission see Access Denied
+      // Users without role.manage permission see Access Denied
       await serverRolesPage.expectAccessDenied();
     });
   });

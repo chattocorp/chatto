@@ -163,7 +163,7 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **Effective owner** — A user with the durable `owner` role. A verified email listed in `owners.emails` causes Chatto to materialize this role. Effective owners are entitled to every known RBAC permission virtually. This owner override is effective only in privileged mode. Without it, an owner has only the permissions of their other roles, direct grants, and `everyone`. DM contents remain protected by participation checks at the API boundary.
 
-**Owner** — Top system role (position 1000, fixed). Conferred through role assignment or through verified `owners.emails` configuration.
+**Owner** — Top system role. It always ranks highest (position 1000 on a new server). Conferred through role assignment or through verified `owners.emails` configuration.
 
 **Admin** — System role (position 900 on fresh servers; role managers can move it). Broad administrative defaults, still subject to explicit RBAC decisions unless the user is also an effective owner.
 

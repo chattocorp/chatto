@@ -430,7 +430,7 @@ describe('roles page', () => {
     const { container } = render(RolesPage);
 
     await vi.waitFor(() =>
-      expect(container.textContent).toContain('You need the roles.manage permission')
+      expect(container.textContent).toContain('You need the role.manage permission')
     );
     expect(container.querySelector('[data-testid="role-order-dropzone"]')).toBeNull();
     expect(api.listAdminRoles).not.toHaveBeenCalled();

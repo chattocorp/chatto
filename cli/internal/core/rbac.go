@@ -40,7 +40,7 @@ type RoleWithPermissions struct {
 	Permissions       []Permission // Permissions granted (allowed) by this role
 	PermissionDenials []Permission // Permissions denied by this role
 	IsSystem          bool
-	Position          int32 // Administrative rank order (ADR-114). Everyone=0, Owner=1000.
+	Position          int32 // Administrative rank order (ADR-114). Everyone=0; Owner is always highest.
 	Pingable          bool
 }
 

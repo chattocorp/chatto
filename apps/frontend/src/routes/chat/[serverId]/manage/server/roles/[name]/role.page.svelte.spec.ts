@@ -310,7 +310,7 @@ describe('role management page identity', () => {
     });
     const { container } = renderRole();
     await vi.waitFor(() =>
-      expect(container.textContent).toContain('You need the roles.manage permission')
+      expect(container.textContent).toContain('You need the role.manage permission')
     );
 
     expect(tabs(container)).toEqual([]);
