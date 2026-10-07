@@ -5,8 +5,8 @@
 **Updated:** 2026-10-06
 
 ADR-088 extends the shared framework with prepared reducers, coordinated
-components, one apply barrier, and component-shaped projection snapshots. The framework
-remains application-neutral and independently versioned.
+components, one apply barrier, and component-shaped projection snapshots. The
+framework remains application-neutral and independently versioned.
 
 The framework has one projection snapshot shape. Every snapshot contains
 components, and each component contains parts. A single-payload projection is
@@ -257,9 +257,9 @@ production event model or a promise that the current package API is stable.
 
 The framework test suite is portable with the module: it owns its in-process
 JetStream fixture and no-op logger instead of borrowing Chatto test helpers.
-Tests add only `nats-server/v2` to the dependencies allowed in production. The repository workspace composes the
-module for local development, while `mise test-events` also tests it with
-`GOWORK=off`.
+Tests add only `nats-server/v2` to the dependencies allowed in production. The
+repository workspace composes the module for local development, while
+`mise test-events` also tests it with `GOWORK=off`.
 
 ADR-057 temporarily places Authling in the same repository so it can drive
 this extraction without making either product part of the other.

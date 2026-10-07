@@ -89,7 +89,7 @@ before returning.
 
 ### Framework boundary
 
-Authling consumes the application-neutral `hmans.de/chatto/pkg/events`
+Authling will consume the application-neutral `hmans.de/chatto/pkg/events`
 incubation module. The shared module owns:
 
 - opaque event-log reads, OCC-guarded writes, and atomic append mechanics;
