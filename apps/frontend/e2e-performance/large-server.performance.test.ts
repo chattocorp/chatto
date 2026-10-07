@@ -29,8 +29,6 @@ interface PerformanceFixtureManifest {
 
 interface ListMembersResponse {
   userIds?: string[];
-  // CI also runs this test against the base revision's pre-0.5 response.
-  members?: Array<{ user?: { id?: string; login?: string } }>;
   page?: { totalCount?: number | string; hasMore?: boolean };
 }
 
@@ -52,7 +50,7 @@ interface PerformanceMeasurements {
   membersPageMs: number;
   roomPageMs: number;
   realtimeDeliveryMs: number;
-  realtimeSnapshotBytes?: number;
+  realtimeSnapshotBytes: number;
 }
 
 interface PerformanceSample {
@@ -119,8 +117,7 @@ test('large loaded server stays responsive across directory, timeline, and realt
     const realtimeSnapshotBytes = await readServerMetric(
       request,
       server,
-      'chatto_realtime_snapshot_bytes',
-      booleanEnvironment('CHATTO_E2E_PERF_ALLOW_MISSING_REALTIME_SNAPSHOT_METRIC', false)
+      'chatto_realtime_snapshot_bytes'
     );
     const measurements: PerformanceMeasurements = {
       measurementVersion: performanceMeasurementVersion,
@@ -161,12 +158,9 @@ test('large loaded server stays responsive across directory, timeline, and realt
       measurements.realtimeDeliveryMs,
       'receiver-visible realtime message'
     ).toBeLessThanOrEqual(ceilings.realtimeDeliveryMs);
-    if (measurements.realtimeSnapshotBytes !== undefined) {
-      expect(
-        measurements.realtimeSnapshotBytes,
-        'serialized realtime snapshot'
-      ).toBeLessThanOrEqual(ceilings.realtimeSnapshotBytes);
-    }
+    expect(measurements.realtimeSnapshotBytes, 'serialized realtime snapshot').toBeLessThanOrEqual(
+      ceilings.realtimeSnapshotBytes
+    );
   } finally {
     await stopServer(server, testInfo);
   }
@@ -237,7 +231,7 @@ async function measureLargeServer(
     const memberListApiMs = performance.now() - memberListStarted;
     const totalMembers = Number(members.page?.totalCount ?? 0);
     expect(totalMembers).toBeGreaterThanOrEqual(fixture.syntheticUsers + 1);
-    expect((members.userIds ?? members.members)?.length).toBe(Math.min(100, totalMembers));
+    expect(members.userIds?.length).toBe(Math.min(100, totalMembers));
 
     const memberSearchStarted = performance.now();
     const memberSearch = await connectPost<ListMembersResponse>(
@@ -247,8 +241,7 @@ async function measureLargeServer(
     );
     const memberSearchApiMs = performance.now() - memberSearchStarted;
     expect(Number(memberSearch.page?.totalCount)).toBe(1);
-    const searchIds =
-      memberSearch.userIds ?? memberSearch.members?.map((member) => member.user?.id);
+    const searchIds = memberSearch.userIds;
     expect(searchIds).toHaveLength(1);
     // Keep the list timing separate from hydration, as in the admin client.
     const hydratedSearch = await connectPost<BatchGetMembersResponse>(
@@ -368,14 +361,12 @@ async function attachServerMetrics(
 async function readServerMetric(
   request: APIRequestContext,
   server: ServerInfo,
-  name: string,
-  allowMissing = false
-): Promise<number | undefined> {
+  name: string
+): Promise<number> {
   if (!server.metricsURL) throw new Error('server metrics are required for performance tests');
   const response = await request.get(`${server.metricsURL}/metrics`);
   if (!response.ok()) throw new Error(`metrics request failed: ${response.status()}`);
   const match = (await response.text()).match(new RegExp(`^${name} ([0-9.eE+-]+)$`, 'm'));
-  if (!match && allowMissing) return undefined;
   if (!match) throw new Error(`metric ${name} is missing`);
   return Number(match[1]);
 }
