@@ -1,4 +1,5 @@
 import { expect, test } from './setup';
+import type { APIResponse } from '@playwright/test';
 import { createAndLoginTestUser, loginAsAdmin, logoutCurrentUser } from './fixtures/testUser';
 import { connectPostResponse } from './fixtures/connectHelpers';
 import * as routes from './routes';
@@ -72,6 +73,8 @@ test.describe('Verified email settings', () => {
     let releaseList = () => {};
     const listStarted = new Promise<void>((resolve) => (markListStarted = resolve));
     const listGate = new Promise<void>((resolve) => (releaseList = resolve));
+    let completeList = (_response: APIResponse) => {};
+    const listResponse = new Promise<APIResponse>((resolve) => (completeList = resolve));
     await page.route(
       LIST_EMAILS_ROUTE,
       async (route) => {
@@ -87,14 +90,14 @@ test.describe('Verified email settings', () => {
             cookie: cookies.map(({ name, value }) => `${name}=${value}`).join('; ')
           }
         });
+        // Session revocation can navigate the SPA before this response arrives.
+        // Inspect the server response even if the browser aborted its request.
+        completeList(response);
         await route.fulfill({ response });
       },
       { times: 1 }
     );
 
-    const listResponse = page.waitForResponse((response) =>
-      response.url().includes('/chatto.api.v1.MyAccountService/ListVerifiedEmails')
-    );
     await page.getByRole('link', { name: 'Account', exact: true }).click();
     await page.waitForURL(routes.settingsAccount);
     await listStarted;
@@ -125,23 +128,41 @@ test.describe('Verified email settings', () => {
     await expect(rejectedList.json()).resolves.toMatchObject({ code: 'failed_precondition' });
 
     const firstUserId = page.getByText(firstUser.id ?? '', { exact: true });
+    const firstUserEmail = page.getByText(`${firstUser.login}@example.com`, { exact: true });
     const secondUserId = page.getByText(secondUser.id ?? '', { exact: true });
     const secondUserEmail = page.getByText(`${secondUser.login}@example.com`, { exact: true });
+    const currentLogin = page.getByTestId('current-user-login');
     const accountChangedError = page.getByText(/authenticated account changed/);
     const sessionExpired = page.getByText('Session expired', { exact: true });
 
     // The root session can independently detect the new cookie. It must keep
     // Alice's view with the rejection, keep it after it marks Alice's session
-    // expired, or switch the complete view to Bob. An expired session holds
-    // private reads, so the email list can stay loading instead of showing the
-    // rejection. Bob's address must never appear while the page still
-    // identifies Alice.
+    // expired, switch the complete view to Bob, or end the revoked session.
+    // The new cookie can also redirect sign-in to Bob's overview. An expired
+    // session holds private reads, so the email list can stay loading instead
+    // of showing the rejection. Bob's address must never appear while the
+    // page still identifies Alice.
     await expect
       .poll(async () => {
+        const pathname = new URL(page.url()).pathname;
+        if (pathname === routes.root || pathname === routes.login) {
+          return (
+            !(await firstUserId.isVisible()) &&
+            !(await firstUserEmail.isVisible()) &&
+            !(await secondUserId.isVisible()) &&
+            !(await secondUserEmail.isVisible())
+          );
+        }
         if (await firstUserId.isVisible()) {
           return (
             ((await accountChangedError.isVisible()) || (await sessionExpired.isVisible())) &&
             !(await secondUserEmail.isVisible())
+          );
+        }
+        if (pathname !== routes.settingsAccount && (await currentLogin.isVisible())) {
+          return (
+            (await currentLogin.textContent())?.trim() === `@${secondUser.login}` &&
+            !(await firstUserEmail.isVisible())
           );
         }
         return (await secondUserId.isVisible()) && (await secondUserEmail.isVisible());
