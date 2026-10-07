@@ -56,7 +56,7 @@ type AdminMember struct {
 	// this account. Permission checks still apply.
 	ViewerOutranks  bool
 	LastLoginChange *time.Time
-	CustomStatus           *evtv1.CustomUserStatus
+	CustomStatus    *evtv1.CustomUserStatus
 }
 
 type AdminMemberList struct {
