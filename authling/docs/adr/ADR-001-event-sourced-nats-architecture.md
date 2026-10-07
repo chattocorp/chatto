@@ -16,8 +16,9 @@ The repository provides an independently versioned but unstable
 application-neutral event-sourcing module at `hmans.de/chatto/pkg/events`. As
 described by root
 [ADR-056](../../../docs/adr/ADR-056-extractable-nats-event-sourcing-framework.md),
-the framework already owns opaque JetStream event-log access, mandatory
-optimistic concurrency control (OCC), atomic publication, ordered projection
+the framework already owns opaque JetStream event-log access, optimistic
+concurrency control (OCC) with an explicit unguarded path for
+state-independent facts, atomic publication, ordered projection
 replay, readiness barriers, and optional snapshot and checkpoint hooks. Authling
 is the concrete second application that will harden this boundary and drive any
 remaining extraction needed before the module becomes stable and eventually
@@ -88,7 +89,7 @@ before returning.
 
 ### Framework boundary
 
-Authling will consume the application-neutral `hmans.de/chatto/pkg/events`
+Authling consumes the application-neutral `hmans.de/chatto/pkg/events`
 incubation module. The shared module owns:
 
 - opaque event-log reads, OCC-guarded writes, and atomic append mechanics;

@@ -5,7 +5,7 @@
 **Updated:** 2026-10-06
 
 ADR-088 extends the shared framework with prepared reducers, coordinated
-components, one apply barrier, and projection snapshot cohorts. The framework
+components, one apply barrier, and component-shaped projection snapshots. The framework
 remains application-neutral and independently versioned.
 
 The framework has one projection snapshot shape. Every snapshot contains
@@ -241,8 +241,9 @@ existing projectors. It intentionally does not absorb registration metadata or
 snapshot policy, so some application composition remains explicit.
 
 Extraction still requires deliberate work. The reusable module does not depend
-on any Chatto production package: its production imports are
-limited to the Go standard library and `nats.go`. It privately classifies the
+on any Chatto production package: its production imports are limited to the
+Go standard library, `nats.go`, `ttlcache/v3`, and `golang.org/x/sync/errgroup`,
+the reviewed allowlist in `pkg/events/AGENTS.md`. It privately classifies the
 JetStream wrong-last-sequence errors needed to preserve `ErrConflict` rather
 than depending on Chatto's application-wide JetStream helpers. Generic
 projection replay can use another application envelope or another log in the
@@ -256,8 +257,7 @@ production event model or a promise that the current package API is stable.
 
 The framework test suite is portable with the module: it owns its in-process
 JetStream fixture and no-op logger instead of borrowing Chatto test helpers.
-Tests add only `nats-server/v2` to the standard library and `nats.go`
-dependencies allowed in production. The repository workspace composes the
+Tests add only `nats-server/v2` to the dependencies allowed in production. The repository workspace composes the
 module for local development, while `mise test-events` also tests it with
 `GOWORK=off`.
 

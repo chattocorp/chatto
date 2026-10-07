@@ -16,8 +16,9 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// ErrProjectionFailed marks a projector that stopped applying events
-// because its Projection.Apply returned an error.
+// ErrProjectionFailed marks a projector that stopped because it could not
+// decode or apply an event, restore its state, or run its consumer.
+// Projector.Err and ProjectorStatus.Err wrap it.
 var ErrProjectionFailed = errors.New("projection failed")
 
 // ErrProjectionSubjectNotConsumed is returned when a caller asks a projector
@@ -103,10 +104,9 @@ type Projector struct {
 	failedCh  chan struct{}
 	startupCh chan struct{}
 	// started flips true the first time Run is invoked and stays true
-	// for the projector's lifetime. WaitFor uses this to short-
-	// circuit during boot-time mutations that happen before
-	// application lifecycle gets a chance to start the consumer (see the
-	// WaitFor doc for why).
+	// for the projector's lifetime. Run uses it to reject a second call,
+	// and the startup bookkeeping uses it to tell startup replay from
+	// live delivery. Status reports it.
 	started bool
 
 	startupStartedAt time.Time
@@ -372,8 +372,8 @@ func (p *Projector) Status() ProjectorStatus {
 	return status
 }
 
-// Err returns the fatal projection error, if the projector has stopped
-// because it could not decode or apply an event.
+// Err returns the fatal error that stopped the projector, or nil. It equals
+// Status().Err.
 func (p *Projector) Err() error {
 	return p.Status().Err
 }

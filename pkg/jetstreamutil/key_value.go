@@ -26,8 +26,9 @@ var (
 // returns an older revision or no entry. Read-your-writes, OCC updates, claims,
 // and revocations then decide from stale state.
 //
-// KeyValue routes Get and GetRevision through the stream leader. Every other
-// method is the bound bucket's, including watchers, key listings, and history.
+// KeyValue routes Get, GetRevision, and Latest through the stream leader, and
+// adds UpdateWithTTL, DeleteAt, and GetAnyReplica. Every other method is the
+// bound bucket's, including watchers, key listings, and history.
 // The bucket's Create also checks for a delete marker through DirectGet, so it
 // can report jetstream.ErrKeyExists for a key that a lagging replica still
 // shows. GetAnyReplica is the opt-in fast read for hot paths.
