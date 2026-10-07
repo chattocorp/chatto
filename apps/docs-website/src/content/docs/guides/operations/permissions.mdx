@@ -245,6 +245,9 @@ permission setting wins.
   this role is `admin`.
 - Permission settings directly on a user do not give rank. Give
   administrators a role.
+- Give `role.manage` only to administrators. A user with `role.manage` can
+  change the settings of `everyone`, and these settings apply to all members,
+  also to users who rank higher.
 - Moderating messages and adding a member to a room do not depend on rank.
 
 Put a restriction role, such as `suspended`, below the people who manage it.
