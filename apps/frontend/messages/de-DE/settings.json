@@ -266,6 +266,7 @@
       "push": {
         "title": "Push-Benachrichtigungen",
         "not_supported": "Push-Benachrichtigungen werden in diesem Browser nicht unterstützt.",
+        "server_unconfigured": "Push-Benachrichtigungen sind auf diesem Server nicht verfügbar. Die Serveradministration hat sie nicht eingerichtet.",
         "ios_home_screen_title": "Füge Chatto zum Home-Bildschirm hinzu",
         "ios_home_screen_description": "Auf unterstützten iOS-/iPadOS-Versionen kannst du Push-Benachrichtigungen aktivieren, nachdem du Chatto zum Home-Bildschirm hinzugefügt und über das App-Symbol geöffnet hast.",
         "blocked_title": "Push-Benachrichtigungen blockiert",

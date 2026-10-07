@@ -7,9 +7,9 @@ test notification through the current server.
 Push is on for every registered server or for none of them, so the checkbox in
 any server's panel applies to all servers. Checking it asks the browser for
 notification permission from that click; Chatto never asks without the user.
-The panel explains instead of offering the checkbox when this browser cannot
-use push or blocks notifications. Renders nothing when the server has no Web
-Push configuration or the app does not run in a browser.
+The panel shows a notice instead of the controls when the server has no Web
+Push configuration. It also explains when this browser cannot use push or
+blocks notifications. Renders nothing when the app does not run in a browser.
 -->
 <script lang="ts">
   import { Code, ConnectError } from '@connectrpc/connect';
@@ -50,7 +50,7 @@ Push configuration or the app does not run in a browser.
         })
       : (device.browser ?? m('settings.notifications.push.device_unknown'));
 
-  const visible = $derived(isBrowserWebPushRuntime() && store.serverInfo.pushNotificationsEnabled);
+  const visible = isBrowserWebPushRuntime();
   const permission = $derived(getPermission());
   const on = $derived(permission === 'granted' && !isPushDisabledOnThisDevice());
   /** Follows `on`; the checkbox overrides it until its change finishes. */
@@ -150,7 +150,9 @@ Push configuration or the app does not run in a browser.
 {#if visible}
   <Panel title={m('settings.notifications.push.title')} icon="iconify icon-[uil--bell]">
     <div class="flex max-w-2xl flex-col gap-4" data-testid="push-notification-settings">
-      {#if capability === 'ios_home_screen_required'}
+      {#if !store.serverInfo.pushNotificationsEnabled}
+        <Hint>{m('settings.notifications.push.server_unconfigured')}</Hint>
+      {:else if capability === 'ios_home_screen_required'}
         <Hint icon="icon-[uil--mobile-android]">
           <p class="font-medium">{m('settings.notifications.push.ios_home_screen_title')}</p>
           <p>{m('settings.notifications.push.ios_home_screen_description')}</p>

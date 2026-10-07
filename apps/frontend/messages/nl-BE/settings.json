@@ -266,6 +266,7 @@
       "push": {
         "title": "Pushmeldingen",
         "not_supported": "Pushmeldingen worden niet ondersteund in deze browser.",
+        "server_unconfigured": "Pushmeldingen zijn niet beschikbaar op deze server. De serverbeheerder heeft ze niet ingesteld.",
         "ios_home_screen_title": "Voeg Chatto toe aan je startscherm",
         "ios_home_screen_description": "Voeg op ondersteunde iOS/iPadOS-versies Chatto toe aan het startscherm en open het via het app-pictogram om pushmeldingen in te schakelen.",
         "blocked_title": "Pushmeldingen geblokkeerd",

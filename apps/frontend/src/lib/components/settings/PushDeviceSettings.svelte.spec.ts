@@ -221,16 +221,55 @@ describe('PushDeviceSettings', () => {
     await expect.element(screen.getByText('Add Chatto to your Home Screen')).toBeVisible();
   });
 
-  it('renders nothing when the server has no push configuration', async () => {
-    const screen = renderSettings(false);
+  it.each([
+    { capability: 'supported' as const, permission: 'granted' as const },
+    { capability: 'supported' as const, permission: 'denied' as const },
+    { capability: 'unsupported' as const, permission: null },
+    { capability: 'ios_home_screen_required' as const, permission: null }
+  ])(
+    'explains missing server push configuration with $capability and $permission',
+    async (state) => {
+      mocks.capability = state.capability;
+      mocks.permission = state.permission;
+      mocks.registered = false;
+      mocks.failure = 'Registration failed';
+      const screen = renderSettings(false);
 
-    expect(screen.container.querySelector('[data-testid="push-notification-settings"]')).toBeNull();
-  });
+      await expect
+        .element(
+          screen.getByText(
+            'Push notifications are unavailable on this server. The server administrator has not configured them.'
+          )
+        )
+        .toBeVisible();
+      expect(
+        screen.container.querySelector('[data-testid="push-notification-settings"]')
+      ).not.toBeNull();
+      await expect.element(screen.getByRole('checkbox')).not.toBeInTheDocument();
+      await expect.element(screen.getByRole('button')).not.toBeInTheDocument();
+      await expect.element(screen.getByText('Push notifications blocked')).not.toBeInTheDocument();
+      await expect
+        .element(screen.getByText('Push notifications are not supported in this browser.'))
+        .not.toBeInTheDocument();
+      await expect
+        .element(screen.getByText('Add Chatto to your Home Screen'))
+        .not.toBeInTheDocument();
+      expect(mocks.enablePushOnAllServers).not.toHaveBeenCalled();
+      expect(mocks.disablePushOnAllServers).not.toHaveBeenCalled();
+      expect(mocks.retryPushRegistration).not.toHaveBeenCalled();
+      expect(mocks.sendTestNotification).not.toHaveBeenCalled();
+    }
+  );
 
-  it('renders nothing outside a browser web app', async () => {
-    mocks.webPushRuntime = false;
-    const screen = renderSettings();
+  it.each([true, false])(
+    'renders nothing outside a browser web app with server push %s',
+    async (enabled) => {
+      mocks.webPushRuntime = false;
+      const screen = renderSettings(enabled);
 
-    expect(screen.container.querySelector('[data-testid="push-notification-settings"]')).toBeNull();
-  });
+      expect(
+        screen.container.querySelector('[data-testid="push-notification-settings"]')
+      ).toBeNull();
+    }
+  );
 });

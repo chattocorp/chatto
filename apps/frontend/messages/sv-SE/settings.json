@@ -266,6 +266,7 @@
       "push": {
         "title": "Push-meddelanden",
         "not_supported": "Push-meddelanden stöds inte i den här webbläsaren.",
+        "server_unconfigured": "Push-meddelanden är inte tillgängliga på den här servern. Serveradministratören har inte konfigurerat dem.",
         "ios_home_screen_title": "Lägg till Chatto på din startskärm",
         "ios_home_screen_description": "På versioner av iOS/iPadOS som stöds lägger du till Chatto på startskärmen och öppnar den från appikonen för att aktivera push-meddelanden.",
         "blocked_title": "Push-meddelanden blockerade",

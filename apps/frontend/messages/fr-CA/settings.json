@@ -266,6 +266,7 @@
       "push": {
         "title": "Notifications poussées",
         "not_supported": "Les notifications poussées ne sont pas prises en charge dans ce navigateur.",
+        "server_unconfigured": "Les notifications poussées ne sont pas disponibles sur ce serveur. L’administrateur du serveur ne les a pas configurées.",
         "ios_home_screen_title": "Ajoutez Chatto à votre écran d'accueil",
         "ios_home_screen_description": "Sur les versions prises en charge d’iOS/iPadOS, ajoutez Chatto à l’écran d’accueil et ouvrez-le à partir de l’icône de l’application pour activer les notifications poussées.",
         "blocked_title": "Notifications poussées bloquées",

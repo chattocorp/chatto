@@ -266,6 +266,7 @@
       "push": {
         "title": "推送通知",
         "not_supported": "此浏览器不支持推送通知。",
+        "server_unconfigured": "此服务器无法使用推送通知。服务器管理员尚未配置推送通知。",
         "ios_home_screen_title": "将 Chatto 添加到主屏幕",
         "ios_home_screen_description": "在受支持的 iOS/iPadOS 版本上，请将 Chatto 添加到主屏幕并通过应用图标打开，以启用推送通知。",
         "blocked_title": "推送通知已被阻止",

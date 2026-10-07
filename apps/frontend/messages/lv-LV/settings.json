@@ -266,6 +266,7 @@
       "push": {
         "title": "Push paziņojumi",
         "not_supported": "Push paziņojumi šajā pārlūkprogrammā netiek atbalstīti.",
+        "server_unconfigured": "Push paziņojumi šajā serverī nav pieejami. Servera administrators tos nav konfigurējis.",
         "ios_home_screen_title": "Pievienojiet Chatto sākuma ekrānam",
         "ios_home_screen_description": "Atbalstītās iOS/iPadOS versijās sākuma ekrānam pievienojiet Chatto un atveriet to no lietotnes ikonas, lai iespējotu informatīvos paziņojumus.",
         "blocked_title": "Push paziņojumi ir bloķēti",

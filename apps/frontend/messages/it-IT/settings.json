@@ -266,6 +266,7 @@
       "push": {
         "title": "Notifiche push",
         "not_supported": "Le notifiche push non sono supportate in questo browser.",
+        "server_unconfigured": "Le notifiche push non sono disponibili su questo server. L’amministratore del server non le ha configurate.",
         "ios_home_screen_title": "Aggiungi Chatto alla schermata iniziale",
         "ios_home_screen_description": "Nelle versioni iOS/iPadOS supportate, aggiungi Chatto alla schermata principale e aprila dall'icona dell'app per abilitare le notifiche push.",
         "blocked_title": "Notifiche push bloccate",

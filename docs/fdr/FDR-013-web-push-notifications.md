@@ -1,7 +1,7 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-10-03
+**Last reviewed:** 2026-10-07
 
 ## Overview
 
@@ -48,6 +48,7 @@ persistent notification system (see FDR-012).
 - Browser push requires the Web Locks API and writable durable local storage so registration and cleanup can be serialized safely across tabs and registration suspension survives reloads.
 - Signing out or removing a server writes a same-origin cross-tab suspension before cancelling active registration and queued refreshes. Per-server Web Locks serialize registration and cleanup across tabs, while storage events and a cross-tab cancellation signal release the lock even when registration is blocked on an unreachable RPC. Another tab therefore cannot recreate or adopt the shared service-worker subscription in the middle of cleanup. If an abort-insensitive save settles after another account resumes registration, account-independent cleanup presents the browser subscription's existing Push API auth secret plus its random per-save token and removes only the matching current owner/revision; this cleanup remains available after cookies or bearer tokens are revoked, and a later save reusing the same browser subscription cannot redirect it at another record. A durable same-origin refresh marker then makes the active account reassert its subscription, restoring ownership when stale work arrived last; the marker remains for the next startup until a covering save succeeds. Sign-out or server removal completes only after the browser subscription is confirmed absent or invalidated, or the server record is removed. Browser lookup failures are not treated as absence and retain the local session or server entry for a retry. Once browser invalidation succeeds, server-record cleanup remains best-effort. Only a newly authenticated session clears a sign-out/removal suspension. Earlier versions stored a per-server "disabled" suspension; the client turns one into the device-wide opt-out, so an earlier opt-out stays in effect.
 - Chatto omits servers that do not have VAPID keys from push registration.
+- In the browser app, an unconfigured server's notification settings keep the Push Notifications panel visible. An informational notice explains that the server administrator has not configured push. The notice replaces the device checkbox and all push actions. It takes precedence over browser support and permission guidance.
 
 ## Design Decisions
 
@@ -68,7 +69,7 @@ validation can still suppress it.
 ### 3. VAPID with self-managed keys
 
 **Decision:** Operators provide a VAPID key pair and subject (contact URL). Without configuration, the feature is disabled.
-**Why:** VAPID is the standard for Web Push. Self-managed keys mean the operator's server is the only entity that can send push notifications to its users — no third-party relay. Hiding the UI when unconfigured prevents user confusion.
+**Why:** VAPID is the standard for Web Push. Self-managed keys mean the operator's server is the only entity that can send push notifications to its users — no third-party relay. A notice in notification settings explains why push is unavailable when the server is unconfigured.
 **Tradeoff:** Operators have to generate keys and configure them. The setup docs cover this; it's a one-time cost.
 
 ### 4. Automatic cleanup of expired subscriptions

@@ -266,6 +266,7 @@
       "push": {
         "title": "Push Notifications",
         "not_supported": "Push notifications are not supported in this browser.",
+        "server_unconfigured": "Push notifications are unavailable on this server. The server administrator has not configured them.",
         "ios_home_screen_title": "Add Chatto to your Home Screen",
         "ios_home_screen_description": "On supported iOS/iPadOS versions, add Chatto to the Home Screen and open it from the app icon to enable push notifications.",
         "blocked_title": "Push notifications blocked",

@@ -266,6 +266,7 @@
       "push": {
         "title": "Anlık bildirimler",
         "not_supported": "Anında bildirimler bu tarayıcıda desteklenmiyor.",
+        "server_unconfigured": "Anlık bildirimler bu sunucuda kullanılamıyor. Sunucu yöneticisi bunları yapılandırmadı.",
         "ios_home_screen_title": "Ana Ekranınıza Chatto ekleyin",
         "ios_home_screen_description": "Desteklenen iOS/iPadOS sürümlerinde Chatto'yu Ana Ekrana ekleyin ve anlık bildirimleri etkinleştirmek için uygulama simgesinden açın.",
         "blocked_title": "Anlık bildirimler engellendi",

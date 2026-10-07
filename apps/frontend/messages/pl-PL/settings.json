@@ -266,6 +266,7 @@
       "push": {
         "title": "Powiadomienia push",
         "not_supported": "Powiadomienia push nie są obsługiwane w tej przeglądarce.",
+        "server_unconfigured": "Powiadomienia push nie są dostępne na tym serwerze. Administrator serwera ich nie skonfigurował.",
         "ios_home_screen_title": "Dodaj Chatto do swojego ekranu głównego",
         "ios_home_screen_description": "W obsługiwanych wersjach iOS/iPadOS dodaj Chatto do ekranu głównego i otwórz go za pomocą ikony aplikacji, aby włączyć powiadomienia push.",
         "blocked_title": "Powiadomienia push zablokowane",
