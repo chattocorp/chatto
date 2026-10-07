@@ -1,0 +1,25 @@
+name: Cache macOS capture helper build
+description: Restore and save the Swift Package Manager build directory of the macOS capture helper
+inputs:
+  configuration:
+    description: Swift build configuration that the job uses (debug or release)
+    required: true
+runs:
+  using: composite
+  steps:
+    # A different Swift compiler cannot reuse the build products, so the key
+    # includes the toolchain version.
+    - name: Identify Swift toolchain
+      id: toolchain
+      shell: bash
+      run: echo "id=$(xcrun swift --version 2>&1 | head -n 1 | shasum | cut -c1-12)" >> "$GITHUB_OUTPUT"
+
+    # The build directory holds the dependency checkouts, LiveKit's binary
+    # frameworks, and their build products. With a restored directory, only the
+    # helper's own sources compile. The key changes only when the toolchain or
+    # the resolved dependencies change, so the cache does not grow per commit.
+    - name: Cache Swift build directory
+      uses: actions/cache@v5
+      with:
+        path: apps/desktop/native/macos-capture-probe/.build
+        key: swiftpm-macos-capture-probe-${{ inputs.configuration }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.id }}-${{ hashFiles('apps/desktop/native/macos-capture-probe/Package.swift', 'apps/desktop/native/macos-capture-probe/Package.resolved') }}
