@@ -13,6 +13,7 @@ import {
 } from './fixtures/serverUser';
 import * as routes from './routes';
 import { POLLING_INTERVALS, TIMEOUTS } from './constants';
+import { unloadPageForIdentitySwitch } from './fixtures/navigation';
 import {
   getRoomIdByNameViaConnect,
   postMessagesViaConnect,
@@ -73,6 +74,7 @@ test.describe('Mention Notifications', () => {
     // Issue #330: upload the logo as e2eadmin (the bootstrap server owner) since
     // userA can't manage the server, then re-login as userA so they receive the
     // mention notification later in this test.
+    await unloadPageForIdentitySwitch(page);
     await loginAsAdmin(page);
     // Upload a logo to the server via settings (general settings page)
     await serverAdminPage.gotoGeneralDirectly(spaceId);
@@ -86,6 +88,8 @@ test.describe('Mention Notifications', () => {
     await serverAdminPage.expectToast('Logo uploaded successfully', TIMEOUTS.COMPLEX_OPERATION);
 
     // Re-login as userA so the rest of the test exercises userA's view.
+    // Close the old SPA before its cookie is revoked by the new login.
+    await unloadPageForIdentitySwitch(page);
     await loginTestUser(page, userA);
 
     // Navigate back to the server
