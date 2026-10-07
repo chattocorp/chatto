@@ -774,12 +774,10 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.chatto == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 20
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
       - name: Setup environment
         uses: ./.github/actions/setup
@@ -790,95 +788,36 @@ jobs:
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
 
-      - name: Prepare performance baseline
-        id: performance-baseline
-        shell: bash
-        env:
-          PERFORMANCE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: |
-          set -euo pipefail
-          baseline_dir="$RUNNER_TEMP/chatto-performance-base"
-          if [[ -z "$PERFORMANCE_BASE_SHA" || "$PERFORMANCE_BASE_SHA" =~ ^0+$ ]]; then
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if ! git cat-file -e "${PERFORMANCE_BASE_SHA}:apps/frontend/e2e-performance/large-server.performance.test.ts"; then
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          git worktree add --detach "$baseline_dir" "$PERFORMANCE_BASE_SHA"
-          cp apps/frontend/e2e-performance/large-server.performance.test.ts \
-            "$baseline_dir/apps/frontend/e2e-performance/large-server.performance.test.ts"
-          echo "available=true" >> "$GITHUB_OUTPUT"
-
-      - name: Run base-revision performance test
-        id: performance-baseline-test
-        if: steps.performance-baseline.outputs.available == 'true'
-        working-directory: ${{ runner.temp }}/chatto-performance-base
-        continue-on-error: true
-        env:
-          CHATTO_E2E_PERF_ALLOW_MISSING_REALTIME_SNAPSHOT_METRIC: true
-        run: mise test-e2e-performance
-
-      - name: Preserve base-revision results
-        if: steps.performance-baseline.outputs.available == 'true' && steps.performance-baseline-test.outcome == 'success'
-        shell: bash
-        run: |
-          set -euo pipefail
-          comparison_dir="apps/frontend/test-results/performance-comparison"
-          mkdir -p "$comparison_dir"
-          base_result=$(find "$RUNNER_TEMP/chatto-performance-base/apps/frontend/test-results/performance" -name performance-results.json -print -quit)
-          cp "$base_result" "$comparison_dir/base.json"
-          cp -R "$RUNNER_TEMP/chatto-performance-base/apps/frontend/playwright-report-performance" apps/frontend/playwright-report-performance-base
-
       - name: Build E2E server
         run: mise build-e2e-server
 
+      # Runner speed changes from run to run, so CI reports the measurements
+      # and does not compare them with other runs. Compare a baseline and a
+      # candidate on the same machine with mise compare-e2e-performance.
       - name: Run large-server E2E performance test
         run: mise test-e2e-performance
 
-      - name: Preserve candidate results
+      - name: Summarize performance results
+        if: ${{ !cancelled() }}
         shell: bash
         run: |
           set -euo pipefail
-          comparison_dir="apps/frontend/test-results/performance-comparison"
-          mkdir -p "$comparison_dir"
-          candidate_result=$(find apps/frontend/test-results/performance -name performance-results.json -print -quit)
-          cp "$candidate_result" "$comparison_dir/candidate.json"
-
-      - name: Compare performance with base revision
-        if: steps.performance-baseline.outputs.available == 'true' && steps.performance-baseline-test.outcome == 'success'
-        working-directory: apps/frontend
-        shell: bash
-        run: |
-          set -o pipefail
-          node scripts/compare-e2e-performance.mjs \
-            test-results/performance-comparison/base.json \
-            test-results/performance-comparison/candidate.json \
-            | tee -a "$GITHUB_STEP_SUMMARY"
-
-      - name: Summarize candidate-only performance results
-        if: steps.performance-baseline.outputs.available != 'true' || steps.performance-baseline-test.outcome == 'failure'
-        shell: bash
-        run: |
-          result="apps/frontend/test-results/performance-comparison/candidate.json"
+          result=$(find apps/frontend/test-results/performance -name performance-results.json -print -quit 2>/dev/null || true)
+          if [[ -z "$result" ]]; then
+            echo "No performance results were written."
+            exit 0
+          fi
           {
             echo "## Large-server E2E performance"
-            if [[ "${{ steps.performance-baseline-test.outcome }}" == 'failure' ]]; then
-              echo "> Warning: The base-revision benchmark failed, so these candidate results are not compared with the base revision."
-              echo ""
-            fi
+            echo ""
+            echo "> Runner speed changes from run to run. Do not compare these values with other runs."
+            echo ""
             jq -r '"Fixture: \(.measurements.syntheticUsers) users, \(.measurements.messages) messages; \(.measurements.sampleCount)-sample medians (\(.measurements.startupMode) startup)"' "$result"
             echo ""
             echo "| Measurement | Duration (ms) |"
             echo "| --- | ---: |"
             jq -r '.measurements | to_entries[] | select(.key | endswith("Ms")) | "| \(.key) | \(.value | round) |"' "$result"
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Remove performance baseline worktree
-        if: ${{ always() && steps.performance-baseline.outputs.available == 'true' }}
-        shell: bash
-        run: git worktree remove --force "$RUNNER_TEMP/chatto-performance-base"
 
       - name: Upload performance results
         uses: actions/upload-artifact@v7
@@ -887,9 +826,7 @@ jobs:
           name: e2e-performance-results
           path: |
             apps/frontend/test-results/performance/
-            apps/frontend/test-results/performance-comparison/
             apps/frontend/playwright-report-performance/
-            apps/frontend/playwright-report-performance-base/
           retention-days: 30
 
   publish-main-image:
