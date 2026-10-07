@@ -80,9 +80,8 @@ func initializeCoreServices(
 	cfg config.CoreConfig,
 	logger *log.Logger,
 ) error {
-	callReconcileLease, err := lease.New(infra.js, infra.storage.memoryCacheKV, lease.Options{
+	callReconcileLease, err := lease.New(infra.storage.memoryCacheKV, lease.Options{
 		Name:       callReconcileLeaseName,
-		Bucket:     "MEMORY_CACHE",
 		TTL:        callReconcileLeaseTTL,
 		RenewEvery: callReconcileLeaseRenewEvery,
 		RetryEvery: callReconcileLeaseRetryEvery,
@@ -148,9 +147,8 @@ func initializeCoreServices(
 	if err := core.botWebhooks.initialize(ctx); err != nil {
 		return fmt.Errorf("initialize bot webhooks: %w", err)
 	}
-	pushCleanupLease, err := lease.New(infra.js, infra.storage.memoryCacheKV, lease.Options{
+	pushCleanupLease, err := lease.New(infra.storage.memoryCacheKV, lease.Options{
 		Name:   pushSubscriptionReconcileLeaseName,
-		Bucket: "MEMORY_CACHE",
 		TTL:    pushSubscriptionReconcileLeaseTTL,
 		Logger: logger.WithPrefix("core.PushSubscriptionCleanupLease"),
 	})
@@ -210,9 +208,8 @@ func initializeProjectionSnapshotWorker(
 		return
 	}
 
-	snapshotLease, err := lease.New(infra.js, infra.storage.memoryCacheKV, lease.Options{
+	snapshotLease, err := lease.New(infra.storage.memoryCacheKV, lease.Options{
 		Name:   projectionSnapshotLeaseName,
-		Bucket: "MEMORY_CACHE",
 		Logger: logger.WithPrefix("core.ProjectionSnapshotLease"),
 	})
 	if err != nil {
@@ -235,9 +232,8 @@ func initializeProjectionSnapshotWorker(
 		return
 	}
 
-	expiryLease, err := lease.New(infra.js, infra.storage.memoryCacheKV, lease.Options{
+	expiryLease, err := lease.New(infra.storage.memoryCacheKV, lease.Options{
 		Name:   projectionSnapshotExpiryLeaseName,
-		Bucket: "MEMORY_CACHE",
 		TTL:    projectionSnapshotExpiryInterval,
 		Logger: logger.WithPrefix("core.ProjectionSnapshotExpiryLease"),
 	})

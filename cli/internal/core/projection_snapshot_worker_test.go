@@ -352,8 +352,8 @@ func TestProjectionSnapshotWorkersDoNotOverlapPassesAndReleaseLease(t *testing.T
 		t.Fatal(err)
 	}
 	newLease := func(owner string) *lease.Lease {
-		result, err := lease.New(js, kv, lease.Options{
-			Name: "snapshot-worker-test", OwnerID: owner, Bucket: "SNAPSHOT_WORKER_LEASE_TEST",
+		result, err := lease.New(bindTestKeyValue(t, js, kv), lease.Options{
+			Name: "snapshot-worker-test", OwnerID: owner,
 			TTL: 2 * time.Second, RenewEvery: 200 * time.Millisecond, RetryEvery: 10 * time.Millisecond,
 		})
 		if err != nil {
@@ -427,8 +427,8 @@ func TestProjectionSnapshotWorkersShareS3ExpiryCooldown(t *testing.T) {
 	})
 	require.NoError(t, err)
 	newLease := func(name, owner string) *lease.Lease {
-		result, err := lease.New(js, kv, lease.Options{
-			Name: name, OwnerID: owner, Bucket: "SNAPSHOT_EXPIRY_COOLDOWN_TEST",
+		result, err := lease.New(bindTestKeyValue(t, js, kv), lease.Options{
+			Name: name, OwnerID: owner,
 			TTL: 2 * time.Second, RenewEvery: 200 * time.Millisecond,
 		})
 		require.NoError(t, err)

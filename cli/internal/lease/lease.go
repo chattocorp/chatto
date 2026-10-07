@@ -57,11 +57,6 @@ type Options struct {
 	// generated when empty; tests may set it explicitly to make ownership stable.
 	OwnerID string
 
-	// Bucket is the KV bucket that stores the lease record. MEMORY_CACHE is the
-	// default because leases are ephemeral and should not survive a full NATS
-	// restart or backup/restore.
-	Bucket string
-
 	// TTL is the per-key expiry for the current lease record. RenewEvery must be
 	// shorter than TTL so the owner has time to refresh before expiry.
 	TTL        time.Duration
@@ -83,12 +78,10 @@ type Record struct {
 }
 
 type Lease struct {
-	js         jetstream.JetStream
-	kv         jetstream.KeyValue
+	kv         *jetstreamutil.KeyValue
 	name       string
 	key        string
 	ownerID    string
-	bucket     string
 	ttl        time.Duration
 	renewEvery time.Duration
 	retryEvery time.Duration
@@ -96,11 +89,10 @@ type Lease struct {
 }
 
 // New validates the lease configuration. It does not contact NATS; acquisition
-// happens lazily in TryAcquire/Run.
-func New(js jetstream.JetStream, kv jetstream.KeyValue, opts Options) (*Lease, error) {
-	if js == nil {
-		return nil, fmt.Errorf("lease JetStream handle is nil")
-	}
+// happens lazily in TryAcquire/Run. kv is the bucket that stores the lease
+// record. Use an ephemeral bucket such as MEMORY_CACHE: a lease must not
+// survive a full NATS restart or a backup and restore.
+func New(kv *jetstreamutil.KeyValue, opts Options) (*Lease, error) {
 	if kv == nil {
 		return nil, fmt.Errorf("lease KV bucket is nil")
 	}
@@ -115,10 +107,6 @@ func New(js jetstream.JetStream, kv jetstream.KeyValue, opts Options) (*Lease, e
 		if err != nil {
 			return nil, err
 		}
-	}
-	bucket := strings.TrimSpace(opts.Bucket)
-	if bucket == "" {
-		bucket = "MEMORY_CACHE"
 	}
 	ttl := opts.TTL
 	if ttl <= 0 {
@@ -136,12 +124,10 @@ func New(js jetstream.JetStream, kv jetstream.KeyValue, opts Options) (*Lease, e
 		return nil, fmt.Errorf("lease renew interval must be shorter than lease TTL")
 	}
 	return &Lease{
-		js:         js,
 		kv:         kv,
 		name:       name,
 		key:        "lease." + name,
 		ownerID:    ownerID,
-		bucket:     bucket,
 		ttl:        ttl,
 		renewEvery: renewEvery,
 		retryEvery: retryEvery,
@@ -358,18 +344,9 @@ func (l *Lease) renewAtRevision(ctx context.Context, revision uint64, acquiredAt
 	if err != nil {
 		return err
 	}
-	// NATS KV supports per-key TTL on Create, but not on the high-level
-	// revision-based Update call. Publish directly to the KV stream subject so
-	// renewal remains both TTL-refreshing and conditional on the current subject
-	// sequence. This intentionally relies on JetStream/KV internals; tests cover
-	// the behavior because lease safety depends on it.
-	_, err = l.js.Publish(
-		ctx,
-		"$KV."+l.bucket+"."+l.key,
-		data,
-		jetstream.WithExpectLastSequencePerSubject(revision),
-		jetstream.WithMsgTTL(l.ttl),
-	)
+	// Renewal must refresh the TTL and stay conditional on the current
+	// revision; tests cover both because lease safety depends on them.
+	_, err = l.kv.UpdateWithTTL(ctx, l.key, data, revision, l.ttl)
 	if err != nil {
 		if jetstreamutil.IsSequenceConflict(err) || isMissingKey(err) {
 			return ErrLost
