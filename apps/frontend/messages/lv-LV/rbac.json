@@ -214,6 +214,10 @@
       "call_voice": "Ļauj kontam zvanos sūtīt mikrofona audio. Bez tās konts joprojām var klausīties.",
       "call_camera": "Ļauj kontam zvanos sūtīt kameras video.",
       "call_screenshare": "Ļauj kontam zvanos kopīgot ekrānu, logu, cilni vai lietotni kopā ar audio. Tā neļauj sūtīt mikrofona audio; tam vajadzīga call.voice."
+    },
+    "role_order": {
+      "role_locked": "Lomu secība neļauj jums mainīt šo lomu.",
+      "account_locked": "Lomu secība neļauj jums mainīt šo kontu."
     }
   }
 }

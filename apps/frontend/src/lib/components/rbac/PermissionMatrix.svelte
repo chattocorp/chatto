@@ -5,7 +5,8 @@ Per-tier permission matrix. Rows are permissions, with category headers
 between the corresponding groups; columns are roles applicable at the
 requested scope. Each cell shows the override at this tier (saturated)
 layered over the inherited baseline from above (faded). Clicking a cell cycles
-`neutral → allow → deny → neutral`.
+`neutral → allow → deny → neutral`. Owner cells and cells of roles that do not
+rank below the viewer's highest role (`ranksBelowViewer`) are read-only.
 
 Scope is implied by which of `spaceId` / `roomId` are set:
 
@@ -31,7 +32,11 @@ focusing a cell highlights its permission row and role column.
   import { MatrixColumnHeading, MatrixTable } from '$lib/ui/matrix';
   import { ShortcutTextInput } from '$lib/ui/form';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { createPermissionAPI } from '@chatto/client/api/permissions';
+  import {
+    createPermissionAPI,
+    type TierRole,
+    type TierRoles
+  } from '@chatto/client/api/permissions';
   import { toast } from '$lib/ui/toast';
   import {
     getIncludingPermissions,
@@ -51,22 +56,6 @@ focusing a cell highlights its permission row and role column.
   import { invalidateRolePermissionDependents } from '$lib/query/adminInvalidation';
 
   type State = 'allow' | 'deny' | 'neutral';
-
-  type TierPerms = { permissions: string[]; permissionDenials: string[] };
-  type TierRole = {
-    roleName: string;
-    displayName: string;
-    description: string;
-    isSystem: boolean;
-    position: number;
-    override: TierPerms;
-    inheritedAllows: string[];
-    inheritedDenials: string[];
-  };
-  type TierRoles = {
-    applicablePermissions: string[];
-    roles: TierRole[];
-  };
   const CATEGORY_META: Record<string, { title: string; description: string }> = {
     space: {
       title: m('rbac.permissions.categories.space.title'),
@@ -264,6 +253,11 @@ focusing a cell highlights its permission row and role column.
     return role.roleName === 'owner';
   }
 
+  /** The role order keeps the viewer from editing roles at or above their highest role. */
+  function roleIsLockedByOrder(role: TierRole): boolean {
+    return !roleIsVirtualOwner(role) && !role.ranksBelowViewer;
+  }
+
   /**
    * Identify the tier that a mutation belongs to. The page can stay mounted when
    * only the tier changes. The server session cannot change while the matrix is
@@ -418,7 +412,11 @@ focusing a cell highlights its permission row and role column.
             @{role.roleName}
           </button>
         {:else}
-          <span class={highlighted ? 'text-action' : ''}>@{role.roleName}</span>
+          <span
+            class={highlighted ? 'text-action' : ''}
+            title={roleIsLockedByOrder(role) ? m('rbac.role_order.role_locked') : undefined}
+            >@{role.roleName}</span
+          >
         {/if}
       {/snippet}
       {#snippet trailingHeader()}
@@ -451,6 +449,7 @@ focusing a cell highlights its permission row and role column.
         {@const inh = inheritedState(role, permission)}
         {@const includedBy = includingPermission(role, permission)}
         {@const virtualOwner = roleIsVirtualOwner(role)}
+        {@const lockedByOrder = roleIsLockedByOrder(role)}
         {@const displayOverride = virtualOwner ? 'allow' : ov}
         {@const displayInherited = virtualOwner ? 'neutral' : inh}
         {@const ariaParts = virtualOwner
@@ -471,7 +470,8 @@ focusing a cell highlights its permission row and role column.
                     state: decisionWord(inh),
                     source: inheritedFromLabel
                   })
-                : null
+                : null,
+              lockedByOrder ? m('rbac.role_order.role_locked') : null
             ].filter(Boolean)}
         {@const ariaLabel = ariaParts.join(', ')}
         {@const titleParts = virtualOwner
@@ -489,13 +489,14 @@ focusing a cell highlights its permission row and role column.
               includedBy
                 ? m('rbac.permissions.cell.effective_included_by', { permission: includedBy })
                 : null,
-              ov === 'neutral' && inh === 'neutral' ? m('rbac.permissions.no_decision') : null
+              ov === 'neutral' && inh === 'neutral' ? m('rbac.permissions.no_decision') : null,
+              lockedByOrder ? m('rbac.role_order.role_locked') : null
             ].filter(Boolean)}
         <MatrixCell
           override={displayOverride}
           inherited={displayInherited}
           updating={cellIsUpdating(`${role.roleName}::${permission}`)}
-          disabled={virtualOwner}
+          disabled={virtualOwner || lockedByOrder}
           {ariaLabel}
           title={titleParts.join(' · ')}
           onCycle={(next) => void cycle(role, permission, next)}

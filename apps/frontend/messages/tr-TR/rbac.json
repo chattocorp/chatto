@@ -214,6 +214,10 @@
       "call_voice": "Bir hesabın aramalarda mikrofon sesi göndermesine izin verir. Bu izin olmadan hesap yine de dinleyebilir.",
       "call_camera": "Bir hesabın aramalarda kamera görüntüsü göndermesine izin verir.",
       "call_screenshare": "Bir hesabın aramalarda bir ekranı, pencereyi, sekmeyi veya uygulamayı sesiyle birlikte paylaşmasına izin verir. Mikrofon sesine izin vermez; bunun için call.voice gerekir."
+    },
+    "role_order": {
+      "role_locked": "Rol sırası bu rolü değiştirmenize izin vermiyor.",
+      "account_locked": "Rol sırası bu hesabı değiştirmenize izin vermiyor."
     }
   }
 }

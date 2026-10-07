@@ -202,7 +202,18 @@
       "resolution_hint": "Para cada usuário ou função nomeada, aplica-se o valor mais próximo de sala, grupo ou servidor. As negações prevalecem entre eles. Uma permissão só substitui uma negação de everyone no mesmo escopo ou em um mais específico.",
       "update_role_failed": "Falha ao atualizar função",
       "update_ping_failed": "Falha ao atualizar a configuração de menção da função",
-      "delete_role_failed": "Falha ao excluir função"
+      "delete_role_failed": "Falha ao excluir função",
+      "role_order": {
+        "title": "Ordem das funções",
+        "subtitle": "Decida quais funções podem gerenciar outras funções",
+        "hint": "A ordem das funções decide quem pode gerenciar quem. Você só pode mover as funções abaixo da sua função mais alta. Coloque funções de restrição, como uma função de suspensão, abaixo das pessoas que as gerenciam.",
+        "drag_role": "Mover {role}",
+        "always_highest": "Sempre a mais alta",
+        "always_lowest": "Sempre a mais baixa",
+        "locked": "Bloqueada",
+        "saved": "Ordem das funções salva",
+        "save_failed": "Não foi possível salvar a ordem das funções"
+      }
     },
     "rooms_admin": {
       "title": "Quartos",

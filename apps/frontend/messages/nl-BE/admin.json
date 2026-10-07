@@ -202,7 +202,18 @@
       "resolution_hint": "Voor elke gebruiker of benoemde rol geldt de dichtstbijzijnde kamer-, groeps- of serverwaarde. Weigeringen winnen onderling. Een toestemming overschrijft een weigering van everyone alleen op hetzelfde of een specifieker niveau.",
       "update_role_failed": "Kan rol niet bijwerken",
       "update_ping_failed": "Kan vermeldingsinstelling van rol niet bijwerken",
-      "delete_role_failed": "Kan rol niet verwijderen"
+      "delete_role_failed": "Kan rol niet verwijderen",
+      "role_order": {
+        "title": "Rolvolgorde",
+        "subtitle": "Bepaal welke rollen andere rollen kunnen beheren",
+        "hint": "De rolvolgorde bepaalt wie wie kan beheren. Je kunt alleen de rollen onder je hoogste rol verplaatsen. Zet beperkende rollen, zoals een schorsingsrol, onder de mensen die ze beheren.",
+        "drag_role": "{role} verplaatsen",
+        "always_highest": "Altijd de hoogste",
+        "always_lowest": "Altijd de laagste",
+        "locked": "Vergrendeld",
+        "saved": "Rolvolgorde opgeslagen",
+        "save_failed": "Kan de rolvolgorde niet opslaan"
+      }
     },
     "rooms_admin": {
       "title": "Kamers",

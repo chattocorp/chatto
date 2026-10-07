@@ -19,7 +19,7 @@ managers, and the danger zone for viewers who may delete the account.
   import { useMemberDetail, type MemberMutationScope } from '../../memberDetailContext';
 
   const detail = useMemberDetail();
-  const canManageIdentity = $derived(!detail.isBot && detail.canAdminManageAccounts);
+  const canManageIdentity = $derived(!detail.isBot && detail.canManageAccount);
 
   type IdentityMutationVariables = MemberMutationScope & {
     input: UpdateUserProfileInput;

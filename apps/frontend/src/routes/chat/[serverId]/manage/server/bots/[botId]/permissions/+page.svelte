@@ -17,6 +17,7 @@ authority. Only the owner and bot managers can open it.
 {#if detail.isPending || detail.canOperateBot}
   <UserPermissionsMatrix
     userId={detail.botId}
+    viewerOutranks={detail.bot?.viewerOutranks ?? false}
     subjectKind={m('settings.bots.singular')}
     ownerCapped
     decisionMode="binary"

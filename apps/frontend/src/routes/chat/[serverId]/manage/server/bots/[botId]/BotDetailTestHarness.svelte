@@ -9,8 +9,9 @@ SvelteKit does for the matching route.
   import BotOverviewPage from './+page.svelte';
   import BotIntegrationsPage from './integrations/+page.svelte';
   import BotPermissionsPage from './permissions/+page.svelte';
+  import BotRolesPage from './roles/+page.svelte';
 
-  let { section }: { section: 'overview' | 'integrations' | 'permissions' } = $props();
+  let { section }: { section: 'overview' | 'integrations' | 'permissions' | 'roles' } = $props();
 </script>
 
 <BotDetailLayout>
@@ -18,7 +19,9 @@ SvelteKit does for the matching route.
     <BotOverviewPage />
   {:else if section === 'integrations'}
     <BotIntegrationsPage />
-  {:else}
+  {:else if section === 'permissions'}
     <BotPermissionsPage />
+  {:else}
+    <BotRolesPage />
   {/if}
 </BotDetailLayout>

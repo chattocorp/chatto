@@ -214,6 +214,10 @@
       "call_voice": "Erlaubt einem Konto, in Anrufen Mikrofonaudio zu senden. Ohne sie kann das Konto trotzdem zuhören.",
       "call_camera": "Erlaubt einem Konto, in Anrufen Kameravideo zu senden.",
       "call_screenshare": "Erlaubt einem Konto, in Anrufen einen Bildschirm, ein Fenster, einen Tab oder eine Anwendung samt Audio zu teilen. Mikrofonaudio erlaubt sie nicht; dafür ist call.voice nötig."
+    },
+    "role_order": {
+      "role_locked": "Die Rollenreihenfolge erlaubt dir nicht, diese Rolle zu ändern.",
+      "account_locked": "Die Rollenreihenfolge erlaubt dir nicht, dieses Konto zu ändern."
     }
   }
 }

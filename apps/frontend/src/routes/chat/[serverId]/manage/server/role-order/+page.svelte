@@ -1,0 +1,214 @@
+<!--
+@component
+
+Role order editor. The role order is an administrative rank: it decides who
+can manage whom. It does not change how permissions resolve.
+
+The list shows the highest role first. `owner` is fixed at the top and
+`everyone` at the bottom. Roles at or above the viewer's highest role
+(`ranksBelowViewer === false`) are locked above the reorderable block. Only the
+roles below the viewer's highest role can be dragged.
+-->
+<script lang="ts">
+  import { resolve } from '$app/paths';
+  import { flip } from 'svelte/animate';
+  import { dragHandle, dragHandleZone, type DndEvent } from 'svelte-dnd-action';
+  import { createRoleAPI, type ServerRole } from '@chatto/client/api/roles';
+  import { m } from '$lib/i18n/messages';
+  import { serverIdToSegment } from '$lib/navigation';
+  import { adminQueryKeys } from '$lib/query/admin';
+  import { createMutation, createQuery, queryClient, refreshRoleQueries } from '$lib/query/client';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
+  import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
+  import { Hint, LoadingFog, PageTitle, PaneContent, PaneHeader, Panel, Pill } from '$lib/ui';
+  import { toast } from '$lib/ui/toast';
+  import { errorMessage, toastError } from '$lib/utils/errorMessage';
+  import type { RoleCatalog } from '@chatto/client/api/roles';
+
+  type RoleItem = ServerRole & { id: string };
+  type ReorderVariables = SessionSnapshot & { roleNames: string[] };
+
+  const serverScope = useServerScope();
+  const session = createSessionGuard(serverScope);
+  const serverSegment = serverIdToSegment(serverScope.serverId);
+  const canManageRoles = $derived(serverScope.store.permissions.canAdminManageRoles);
+
+  const rolesQuery = createQuery(() => {
+    const serverId = serverScope.serverId;
+    const connection = serverScope.connection;
+    return {
+      queryKey: adminQueryKeys.roleCatalog(serverId, connection),
+      queryFn: ({ signal }) => connection.getAPI(createRoleAPI).listAdminRoles({ signal }),
+      enabled: canManageRoles
+    };
+  });
+
+  /** Every role, highest first. */
+  const roles = $derived(
+    [...(rolesQuery.data?.roles ?? [])].sort((a, b) => b.position - a.position)
+  );
+  const ownerRole = $derived(roles.find((role) => role.name === 'owner') ?? null);
+  const everyoneRole = $derived(roles.find((role) => role.name === 'everyone') ?? null);
+  const orderedRoles = $derived(
+    roles.filter((role) => role.name !== 'owner' && role.name !== 'everyone')
+  );
+  const lockedRoles = $derived(orderedRoles.filter((role) => !role.ranksBelowViewer));
+
+  // The local order while a drag or its save runs. `null` shows the cached order.
+  let draftItems = $state.raw<RoleItem[] | null>(null);
+  const movableItems = $derived(
+    draftItems ??
+      orderedRoles
+        .filter((role) => role.ranksBelowViewer)
+        .map((role) => ({ ...role, id: role.name }))
+  );
+
+  const reorderMutation = createMutation(() => ({
+    mutationFn: ({ connection, roleNames }: ReorderVariables) =>
+      connection.getAPI(createRoleAPI).reorderRoles(roleNames),
+    onSuccess: (updatedRoles, variables) => {
+      if (!session.isCurrent(variables)) return;
+      queryClient.setQueryData<RoleCatalog>(
+        adminQueryKeys.roleCatalog(variables.serverId, variables.connection),
+        (current) => (current ? { ...current, roles: updatedRoles } : current)
+      );
+      refreshRoleQueries(variables.serverId);
+      toast.success(m('admin.permissions.role_order.saved'));
+    },
+    onError: (error, variables) => {
+      if (session.isCurrent(variables)) {
+        toastError(error, m('admin.permissions.role_order.save_failed'));
+      }
+    },
+    onSettled: () => {
+      // After a failure, this shows the cached order again.
+      draftItems = null;
+    }
+  }));
+
+  const saving = $derived(
+    reorderMutation.isPending && session.isCurrent(reorderMutation.variables)
+  );
+
+  function handleConsider(event: CustomEvent<DndEvent<RoleItem>>) {
+    draftItems = event.detail.items;
+  }
+
+  function handleFinalize(event: CustomEvent<DndEvent<RoleItem>>) {
+    const items = event.detail.items;
+    const unchanged =
+      items.length === movableItems.length &&
+      orderedRoles
+        .filter((role) => role.ranksBelowViewer)
+        .every((role, index) => items[index]?.name === role.name);
+    if (unchanged) {
+      draftItems = null;
+      return;
+    }
+    draftItems = items;
+    // The API takes every role except owner and everyone, lowest first.
+    const roleNames = [...lockedRoles, ...items].map((role) => role.name).reverse();
+    reorderMutation.mutate({ ...session.snapshot(), roleNames });
+  }
+</script>
+
+{#snippet roleRow(role: ServerRole, badge: string | null, badgeTitle?: string)}
+  <div class="flex min-w-0 flex-1 items-center gap-2">
+    <span class="min-w-0 truncate font-medium" dir="auto">{role.displayName}</span>
+    <span class="min-w-0 truncate text-muted">@{role.name}</span>
+  </div>
+  {#if badge}
+    <Pill tone="muted" title={badgeTitle} class="shrink-0">{badge}</Pill>
+  {/if}
+{/snippet}
+
+{#snippet fixedRow(role: ServerRole, badge: string, badgeTitle?: string)}
+  <div class="flex items-center gap-3 py-2 ps-3 pe-4" data-role={role.name} data-locked>
+    <span class="iconify icon-[uil--lock] shrink-0 text-lg text-muted" aria-hidden="true"></span>
+    {@render roleRow(role, badge, badgeTitle)}
+  </div>
+{/snippet}
+
+<PageTitle
+  title={m('admin.common.server_admin_page_title', {
+    title: m('admin.permissions.role_order.title')
+  })}
+/>
+
+<div class="pane-page">
+  <PaneHeader
+    title={m('admin.permissions.role_order.title')}
+    subtitle={m('admin.permissions.role_order.subtitle')}
+    backHref={resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment })}
+    backLabel={m('admin.permissions.back_to_permissions')}
+  />
+
+  <PaneContent>
+    <div class="flex flex-col gap-6">
+      {#if !canManageRoles}
+        <Hint tone="danger">{m('admin.permissions.need_manage_edit')}</Hint>
+      {:else if rolesQuery.isPending}
+        <LoadingFog class="h-48 w-full" />
+      {:else if rolesQuery.error}
+        <Hint tone="danger">{errorMessage(rolesQuery.error)}</Hint>
+      {:else}
+        <Hint>{m('admin.permissions.role_order.hint')}</Hint>
+
+        <Panel title={m('admin.permissions.role_order.title')} noPadding>
+          <div class="p-1">
+            <div class="selectable-list panel-inset" aria-busy={saving}>
+              {#if ownerRole}
+                {@render fixedRow(ownerRole, m('admin.permissions.role_order.always_highest'))}
+              {/if}
+              {#each lockedRoles as role (role.name)}
+                {@render fixedRow(
+                  role,
+                  m('admin.permissions.role_order.locked'),
+                  m('rbac.role_order.role_locked')
+                )}
+              {/each}
+              <div
+                class="flex flex-col gap-1"
+                data-testid="role-order-dropzone"
+                use:dragHandleZone={{
+                  items: movableItems,
+                  flipDurationMs: 200,
+                  dragDisabled: saving,
+                  dropTargetStyle: {
+                    outline: '2px dashed var(--color-action)',
+                    'outline-offset': '-2px',
+                    'border-radius': '0.5rem'
+                  },
+                  type: 'roles'
+                }}
+                onconsider={handleConsider}
+                onfinalize={handleFinalize}
+              >
+                {#each movableItems as role (role.id)}
+                  <div
+                    animate:flip={{ duration: 200 }}
+                    class="flex items-center gap-3 selectable-list-item py-2 ps-3 pe-4"
+                    data-role={role.name}
+                  >
+                    <span
+                      use:dragHandle
+                      class="iconify icon-[uil--draggabledots] shrink-0 cursor-grab text-lg text-muted hover:text-text"
+                      role="button"
+                      aria-label={m('admin.permissions.role_order.drag_role', {
+                        role: role.displayName
+                      })}
+                    ></span>
+                    {@render roleRow(role, null)}
+                  </div>
+                {/each}
+              </div>
+              {#if everyoneRole}
+                {@render fixedRow(everyoneRole, m('admin.permissions.role_order.always_lowest'))}
+              {/if}
+            </div>
+          </div>
+        </Panel>
+      {/if}
+    </div>
+  </PaneContent>
+</div>

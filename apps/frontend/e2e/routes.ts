@@ -60,6 +60,7 @@ export const serverAdminRooms = `/chat/${HOME}/manage/rooms`;
 export const serverAdminPermissions = serverAdmin('permissions');
 export const serverAdminPermissionsNew = serverAdmin('permissions/new');
 export const serverAdminPermission = (roleName: string) => serverAdmin(`permissions/${roleName}`);
+export const serverAdminRoleOrder = serverAdmin('role-order');
 export const serverAdminMembers = serverAdmin('members');
 export const serverAdminMember = (userId: string) => serverAdmin(`members/${userId}`);
 export const serverAdminMemberDelete = (userId: string) => serverAdmin(`members/${userId}/delete`);

@@ -214,6 +214,10 @@
       "call_voice": "Staat een account toe microfoongeluid te versturen in gesprekken. Zonder dit recht kan het account nog steeds luisteren.",
       "call_camera": "Staat een account toe camerabeeld te versturen in gesprekken.",
       "call_screenshare": "Staat een account toe een scherm, venster, tabblad of toepassing te delen in gesprekken, inclusief geluid. Het staat geen microfoongeluid toe; daarvoor is call.voice nodig."
+    },
+    "role_order": {
+      "role_locked": "Door de rolvolgorde kun je deze rol niet wijzigen.",
+      "account_locked": "Door de rolvolgorde kun je dit account niet wijzigen."
     }
   }
 }

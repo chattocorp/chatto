@@ -2,8 +2,8 @@
 @component
 
 Shared frame of the bot detail pages. It loads the bot, renders the header and
-the section tabs, and provides the bot to the Overview, Integrations, and
-Permissions pages through `botDetailContext`.
+the section tabs, and provides the bot to the Overview, Integrations,
+Permissions, and Roles pages through `botDetailContext`.
 -->
 <script lang="ts">
   import { resolve } from '$app/paths';
@@ -27,6 +27,7 @@ Permissions pages through `botDetailContext`.
   const botId = $derived(page.params.botId!);
   const canManageBots = $derived(serverScope.store.permissions.canManageBots);
   const canManageAccounts = $derived(serverScope.store.permissions.canAdminManageAccounts);
+  const canViewRoles = $derived(serverScope.store.permissions.canAdminViewUsers);
   const viewerId = $derived(serverScope.store.accountId);
   const serverSegment = serverIdToSegment(serverScope.serverId);
   const backHref = resolve('/chat/[serverId]/manage/server/bots', { serverId: serverSegment });
@@ -43,8 +44,15 @@ Permissions pages through `botDetailContext`.
   });
 
   const bot = $derived(botQuery.data ?? null);
-  const canOperateBot = $derived(!!bot && (bot.ownerUserId === viewerId || canManageBots));
-  const canEditIdentity = $derived(canOperateBot || canManageAccounts);
+  const isBotOwner = $derived(!!bot && bot.ownerUserId === viewerId);
+  // Managers other than the bot owner must outrank the bot and its owner.
+  const viewerOutranks = $derived(bot?.viewerOutranks === true);
+  const canOperateBot = $derived(isBotOwner || (canManageBots && viewerOutranks));
+  const canEditIdentity = $derived(canOperateBot || (canManageAccounts && viewerOutranks));
+  // Explain why the controls are missing to managers who could otherwise use them.
+  const showOrderLock = $derived(
+    !!bot && !isBotOwner && !viewerOutranks && (canManageBots || canManageAccounts)
+  );
   let layoutActive = true;
 
   onDestroy(() => {
@@ -72,6 +80,9 @@ Permissions pages through `botDetailContext`.
     },
     get canEditIdentity() {
       return canEditIdentity;
+    },
+    get canReassignOwner() {
+      return canManageBots && viewerOutranks;
     },
     isCurrentTarget(mutationTarget) {
       return layoutActive && serverScope.isCurrent() && mutationTarget === botId;
@@ -114,6 +125,14 @@ Permissions pages through `botDetailContext`.
         }
       );
     }
+    if (canViewRoles) {
+      items.push({
+        href: resolve('/chat/[serverId]/manage/server/bots/[botId]/roles', params),
+        label: m('admin.members.tabs.roles'),
+        icon: 'icon-[uil--award]',
+        current: routeId === '/chat/[serverId]/manage/server/bots/[botId]/roles'
+      });
+    }
     return items;
   });
 </script>
@@ -146,6 +165,9 @@ Permissions pages through `botDetailContext`.
       <Hint tone="danger">{errorMessage(botQuery.error)}</Hint>
     {:else}
       <div class="flex flex-col gap-6">
+        {#if showOrderLock}
+          <Hint>{m('rbac.role_order.account_locked')}</Hint>
+        {/if}
         {@render children()}
       </div>
     {/if}

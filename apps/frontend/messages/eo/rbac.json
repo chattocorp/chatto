@@ -214,6 +214,10 @@
       "call_voice": "Permesas al konto sendi mikrofonan sonon en vokoj. Sen ĝi, la konto tamen povas aŭskulti.",
       "call_camera": "Permesas al konto sendi kameraan videon en vokoj.",
       "call_screenshare": "Permesas al konto kunhavigi ekranon, fenestron, langeton aŭ aplikaĵon en vokoj, kun ĝia sono. Ĝi ne permesas mikrofonan sonon; por tio necesas call.voice."
+    },
+    "role_order": {
+      "role_locked": "La ordo de roloj ne permesas al vi ŝanĝi ĉi tiun rolon.",
+      "account_locked": "La ordo de roloj ne permesas al vi ŝanĝi ĉi tiun konton."
     }
   }
 }

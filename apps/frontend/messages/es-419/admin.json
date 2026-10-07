@@ -202,7 +202,18 @@
       "resolution_hint": "Para cada usuario o rol con nombre se aplica el valor más cercano de sala, grupo o servidor. Las denegaciones prevalecen entre ellos. Un permiso solo anula una denegación de everyone en el mismo ámbito o en uno más específico.",
       "update_role_failed": "No se pudo actualizar el rol",
       "update_ping_failed": "No se pudo actualizar la configuración de menciones del rol",
-      "delete_role_failed": "No se pudo eliminar el rol"
+      "delete_role_failed": "No se pudo eliminar el rol",
+      "role_order": {
+        "title": "Orden de roles",
+        "subtitle": "Decide qué roles pueden administrar otros roles",
+        "hint": "El orden de roles decide quién puede administrar a quién. Solo puedes mover los roles que están por debajo de tu rol más alto. Coloca los roles de restricción, como un rol de suspensión, por debajo de las personas que los administran.",
+        "drag_role": "Mover {role}",
+        "always_highest": "Siempre el más alto",
+        "always_lowest": "Siempre el más bajo",
+        "locked": "Bloqueado",
+        "saved": "Orden de roles guardado",
+        "save_failed": "No se pudo guardar el orden de roles"
+      }
     },
     "rooms_admin": {
       "title": "Habitaciones",

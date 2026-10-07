@@ -214,6 +214,10 @@
       "call_voice": "Låter ett konto skicka mikrofonljud i samtal. Utan den kan kontot ändå lyssna.",
       "call_camera": "Låter ett konto skicka kameravideo i samtal.",
       "call_screenshare": "Låter ett konto dela en skärm, ett fönster, en flik eller ett program i samtal, med dess ljud. Den tillåter inte mikrofonljud; det kräver call.voice."
+    },
+    "role_order": {
+      "role_locked": "Rollordningen låter dig inte ändra den här rollen.",
+      "account_locked": "Rollordningen låter dig inte ändra det här kontot."
     }
   }
 }

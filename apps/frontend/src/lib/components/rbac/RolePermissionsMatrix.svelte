@@ -35,7 +35,14 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
 
   type Matrix = MatrixData & { page: PermissionScopePage; roleName: string };
 
-  let { roleName }: { roleName: string } = $props();
+  let {
+    roleName,
+    readOnly = false
+  }: {
+    roleName: string;
+    /** Show the decisions without edit controls, for example for a role at or above the viewer. */
+    readOnly?: boolean;
+  } = $props();
 
   const serverScope = useServerScope();
 
@@ -88,7 +95,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   }
 
   async function handleCycle(scope: MatrixScope, permission: string, next: CellState) {
-    if (!data || visibleUpdatingKey) return;
+    if (!data || readOnly || visibleUpdatingKey) return;
     const snapshot = session.snapshot();
     const activeRoleName = data.roleName;
     const mutation = { roleName: activeRoleName, cellKey: `${scope.id}::${permission}` };
@@ -151,6 +158,6 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
     onCycle={handleCycle}
     subjectKind={m('rbac.permissions.cell.role_subject')}
     forceAllow={isOwnerRole}
-    readOnly={isOwnerRole || visibleUpdatingKey !== null}
+    readOnly={isOwnerRole || readOnly || visibleUpdatingKey !== null}
   />
 {/if}

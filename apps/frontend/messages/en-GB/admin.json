@@ -202,7 +202,18 @@
       "resolution_hint": "For each user or named role, the nearest room, group, or server value applies. Denies win between them. An allow overrides an everyone deny only at the same or a more specific scope.",
       "update_role_failed": "Failed to update role",
       "update_ping_failed": "Failed to update role ping setting",
-      "delete_role_failed": "Failed to delete role"
+      "delete_role_failed": "Failed to delete role",
+      "role_order": {
+        "title": "Role order",
+        "subtitle": "Decide which roles can manage other roles",
+        "hint": "The role order decides who can manage whom. You can move only the roles below your highest role. Put restriction roles, such as a suspended role, below the people who manage them.",
+        "drag_role": "Move {role}",
+        "always_highest": "Always highest",
+        "always_lowest": "Always lowest",
+        "locked": "Locked",
+        "saved": "Role order saved",
+        "save_failed": "Could not save the role order"
+      }
     },
     "rooms_admin": {
       "title": "Rooms",

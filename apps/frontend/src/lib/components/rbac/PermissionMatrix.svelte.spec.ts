@@ -19,6 +19,7 @@ type TierRoles = {
     override: { permissions: string[]; permissionDenials: string[] };
     inheritedAllows: string[];
     inheritedDenials: string[];
+    ranksBelowViewer: boolean;
   }>;
 };
 
@@ -33,7 +34,8 @@ const HAPPY_TIER_ROLES: TierRoles = {
       position: 1000,
       override: { permissions: [], permissionDenials: [] },
       inheritedAllows: [],
-      inheritedDenials: []
+      inheritedDenials: [],
+      ranksBelowViewer: true
     },
     {
       roleName: 'admin',
@@ -43,7 +45,8 @@ const HAPPY_TIER_ROLES: TierRoles = {
       position: 1,
       override: { permissions: ['message.post'], permissionDenials: [] },
       inheritedAllows: [],
-      inheritedDenials: []
+      inheritedDenials: [],
+      ranksBelowViewer: true
     },
     {
       roleName: 'moderator',
@@ -53,7 +56,8 @@ const HAPPY_TIER_ROLES: TierRoles = {
       position: 2,
       override: { permissions: [], permissionDenials: ['room.create'] },
       inheritedAllows: ['message.post'],
-      inheritedDenials: []
+      inheritedDenials: [],
+      ranksBelowViewer: true
     }
   ]
 };
@@ -210,7 +214,8 @@ describe('PermissionMatrix', () => {
             permissionDenials: ['message.read-interactions']
           },
           inheritedAllows: [],
-          inheritedDenials: []
+          inheritedDenials: [],
+          ranksBelowViewer: true
         }
       ]
     };
@@ -246,7 +251,8 @@ describe('PermissionMatrix', () => {
             permissionDenials: ['server.manage.neighbors', 'server.manage.neighbors.publish']
           },
           inheritedAllows: [],
-          inheritedDenials: []
+          inheritedDenials: [],
+          ranksBelowViewer: true
         }
       ]
     };
@@ -625,6 +631,35 @@ describe('PermissionMatrix', () => {
     expect(ownerMessagePost?.disabled).toBe(true);
     expect(ownerMessagePost?.getAttribute('aria-pressed')).toBe('true');
     expect(ownerMessagePost?.querySelector('[class~="icon-[uil--check]"]')).not.toBeNull();
+  });
+
+  it('renders cells of a role at or above the viewer as read-only', async () => {
+    nextTierRoles = {
+      ...HAPPY_TIER_ROLES,
+      roles: HAPPY_TIER_ROLES.roles.map((role) =>
+        role.roleName === 'admin' ? { ...role, ranksBelowViewer: false } : role
+      )
+    };
+    const onRoleClick = vi.fn();
+    const { container } = render(PermissionMatrix, { props: { onRoleClick } });
+    await settle();
+
+    const adminCell = container.querySelector<HTMLButtonElement>(
+      'td[data-role="admin"][data-permission="room.create"] button'
+    )!;
+    expect(adminCell.disabled).toBe(true);
+    expect(adminCell.title).toContain('The role order does not let you change this role.');
+    expect(adminCell.getAttribute('aria-label')).toContain(
+      'The role order does not let you change this role.'
+    );
+    adminCell.click();
+    expect(permissionMocks.setRolePermission).not.toHaveBeenCalled();
+
+    const moderatorCell = container.querySelector<HTMLButtonElement>(
+      'td[data-role="moderator"][data-permission="room.create"] button'
+    )!;
+    expect(moderatorCell.disabled).toBe(false);
+    expect(moderatorCell.title).not.toContain('The role order');
   });
 
   it('shows the "no roles" hint when the resolver returns no roles', async () => {

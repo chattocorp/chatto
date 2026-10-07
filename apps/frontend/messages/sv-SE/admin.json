@@ -202,7 +202,18 @@
       "resolution_hint": "För varje användare eller namngiven roll gäller det närmaste rums-, grupp- eller servervärdet. Nekanden vinner mellan dem. Ett tillstånd åsidosätter ett everyone-nekande endast på samma eller en mer specifik nivå.",
       "update_role_failed": "Det gick inte att uppdatera rollen",
       "update_ping_failed": "Det gick inte att uppdatera rollens inställning för omnämnanden",
-      "delete_role_failed": "Det gick inte att ta bort rollen"
+      "delete_role_failed": "Det gick inte att ta bort rollen",
+      "role_order": {
+        "title": "Rollordning",
+        "subtitle": "Bestäm vilka roller som kan hantera andra roller",
+        "hint": "Rollordningen avgör vem som kan hantera vem. Du kan bara flytta rollerna under din högsta roll. Placera begränsande roller, till exempel en avstängningsroll, under de personer som hanterar dem.",
+        "drag_role": "Flytta {role}",
+        "always_highest": "Alltid högst",
+        "always_lowest": "Alltid lägst",
+        "locked": "Låst",
+        "saved": "Rollordningen har sparats",
+        "save_failed": "Det gick inte att spara rollordningen"
+      }
     },
     "rooms_admin": {
       "title": "Rum",

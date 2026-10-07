@@ -214,6 +214,10 @@
       "call_voice": "Umožňuje účtu odesílat zvuk z mikrofonu v hovorech. Bez něj může účet stále poslouchat.",
       "call_camera": "Umožňuje účtu odesílat video z kamery v hovorech.",
       "call_screenshare": "Umožňuje účtu sdílet obrazovku, okno, kartu nebo aplikaci v hovorech, včetně zvuku. Neumožňuje zvuk z mikrofonu; k tomu je potřeba call.voice."
+    },
+    "role_order": {
+      "role_locked": "Pořadí rolí vám nedovoluje změnit tuto roli.",
+      "account_locked": "Pořadí rolí vám nedovoluje změnit tento účet."
     }
   }
 }

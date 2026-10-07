@@ -15,10 +15,19 @@ export interface BotDetailContext {
   readonly bot: Bot | null;
   /** True until the first bot read completes. */
   readonly isPending: boolean;
-  /** Owners and bot managers can manage credentials, webhooks, and permissions. */
+  /**
+   * Owners and bot managers can manage credentials, webhooks, and permissions.
+   * A bot manager who is not the owner must outrank the bot and its owner in
+   * the role order.
+   */
   readonly canOperateBot: boolean;
-  /** Owners, bot managers, and account managers can edit the public identity. */
+  /**
+   * Owners, bot managers, and account managers can edit the public identity.
+   * Managers other than the owner must outrank the bot and its owner.
+   */
   readonly canEditIdentity: boolean;
+  /** Bot managers who outrank the bot and its owner can give the bot to a new owner. */
+  readonly canReassignOwner: boolean;
   /**
    * True while the layout is mounted, the server scope is current, and the
    * route still shows the bot that `mutationTarget` names.

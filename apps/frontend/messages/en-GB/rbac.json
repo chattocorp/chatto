@@ -214,6 +214,10 @@
       "call_voice": "Allows an account to send microphone audio in calls. Without it, the account can still listen.",
       "call_camera": "Allows an account to send camera video in calls.",
       "call_screenshare": "Allows an account to share a screen, window, tab, or application in calls, with its audio. It does not allow microphone audio; that needs call.voice."
+    },
+    "role_order": {
+      "role_locked": "The role order does not let you change this role.",
+      "account_locked": "The role order does not let you change this account."
     }
   }
 }

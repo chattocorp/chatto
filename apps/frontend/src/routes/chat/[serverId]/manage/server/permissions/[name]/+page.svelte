@@ -53,6 +53,8 @@
 
   const canManageRoles = $derived(roleDetails?.viewerCanManageRoles ?? false);
   const canAssignRoles = $derived(roleDetails?.viewerCanAssignRoles ?? false);
+  // The role order lets the viewer change only roles below their highest role.
+  const canEditRole = $derived(canManageRoles && (role?.ranksBelowViewer ?? false));
   let scrollContainer = $state<HTMLDivElement>();
   const membersQuery = createInfiniteQuery(() => {
     const connection = serverScope.connection;
@@ -144,7 +146,7 @@
   }
 
   function saveMetadata(displayName: string, description: string): void {
-    if (!role || savingPingable) return;
+    if (!role || !canEditRole || savingPingable) return;
     metadataMutation.mutate({
       ...mutationScope(role),
       input: {
@@ -156,7 +158,7 @@
   }
 
   async function savePingable(nextPingable: boolean): Promise<boolean> {
-    if (!role || role.name === 'everyone' || saving) return false;
+    if (!role || !canEditRole || role.name === 'everyone' || saving) return false;
     if (nextPingable === role.pingable) return true;
     const variables = {
       ...mutationScope(role),
@@ -176,7 +178,7 @@
   }
 
   function deleteRole() {
-    if (!role || role.isSystem) return;
+    if (!role || !canEditRole || role.isSystem) return;
     deleteMutation.mutate(mutationScope(role));
   }
 
@@ -242,10 +244,15 @@
           <FormError {error} />
         {/if}
 
+        {#if !role.ranksBelowViewer}
+          <Hint>{m('rbac.role_order.role_locked')}</Hint>
+        {/if}
+
         <!-- Role Metadata -->
         {#key `${role.name}:${metadataRevision}`}
           <RoleMetadataPanel
             {role}
+            readOnly={!canEditRole}
             {saving}
             {savingPingable}
             onSaveMetadata={saveMetadata}
@@ -264,7 +271,7 @@
             {m('admin.permissions.role_permissions_hint')}
           {/if}
         </Hint>
-        <RolePermissionsMatrix {roleName} />
+        <RolePermissionsMatrix {roleName} readOnly={!canEditRole} />
       {/if}
 
       {#if role && canManageRoles}

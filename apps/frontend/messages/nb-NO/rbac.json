@@ -214,6 +214,10 @@
       "call_voice": "Lar en konto sende mikrofonlyd i samtaler. Uten den kan kontoen fortsatt lytte.",
       "call_camera": "Lar en konto sende kameravideo i samtaler.",
       "call_screenshare": "Lar en konto dele en skjerm, et vindu, en fane eller et program i samtaler, med lyd. Den tillater ikke mikrofonlyd; det krever call.voice."
+    },
+    "role_order": {
+      "role_locked": "Rollerekkefølgen lar deg ikke endre denne rollen.",
+      "account_locked": "Rollerekkefølgen lar deg ikke endre denne kontoen."
     }
   }
 }

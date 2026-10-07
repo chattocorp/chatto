@@ -214,6 +214,10 @@
       "call_voice": "Lubab kontol saata kõnedes mikrofoni heli. Ilma selleta saab konto siiski kuulata.",
       "call_camera": "Lubab kontol saata kõnedes kaamera videot.",
       "call_screenshare": "Lubab kontol jagada kõnedes ekraani, akent, vahelehte või rakendust koos heliga. See ei luba mikrofoni heli; selleks on vaja call.voice õigust."
+    },
+    "role_order": {
+      "role_locked": "Rollide järjekord ei luba teil seda rolli muuta.",
+      "account_locked": "Rollide järjekord ei luba teil seda kontot muuta."
     }
   }
 }

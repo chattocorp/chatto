@@ -1,5 +1,5 @@
 <script lang="ts">
-  let { roleName }: { roleName: string } = $props();
+  let { roleName, readOnly = false }: { roleName: string; readOnly?: boolean } = $props();
 </script>
 
-<div data-testid="role-permissions" data-role-name={roleName}></div>
+<div data-testid="role-permissions" data-role-name={roleName} data-read-only={readOnly}></div>

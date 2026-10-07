@@ -1,7 +1,7 @@
 <!--
 @component
 
-Roles section of a human member: the server role assignments.
+Roles section of a member or bot: the server role assignments.
 -->
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
@@ -10,9 +10,8 @@ Roles section of a human member: the server role assignments.
   import { adminQueryKeys } from '$lib/query/admin';
   import { createMutation, queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { Hint } from '$lib/ui';
   import { FormError } from '$lib/ui/form';
-  import MemberRoleAssignments from '../../MemberRoleAssignments.svelte';
+  import MemberRoleAssignments from '$lib/components/rbac/MemberRoleAssignments.svelte';
   import { useMemberDetail, type MemberMutationScope } from '../../memberDetailContext';
 
   const serverScope = useServerScope();
@@ -88,19 +87,15 @@ Roles section of a human member: the server role assignments.
   );
 </script>
 
-{#if detail.isBot}
-  <Hint tone="danger">{m('ui.access_denied.message')}</Hint>
-{:else}
-  {#if visibleRoleError}
-    <FormError error={visibleRoleError} />
-  {/if}
-  {#key detail.userId}
-    <MemberRoleAssignments
-      details={detail.details}
-      isSelf={detail.isSelf}
-      serverId={serverScope.serverId}
-      {updatingRole}
-      {toggleMemberRole}
-    />
-  {/key}
+{#if visibleRoleError}
+  <FormError error={visibleRoleError} />
 {/if}
+{#key detail.userId}
+  <MemberRoleAssignments
+    details={detail.details}
+    isSelf={detail.isSelf}
+    serverId={serverScope.serverId}
+    {updatingRole}
+    {toggleMemberRole}
+  />
+{/key}

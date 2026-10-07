@@ -202,7 +202,18 @@
       "resolution_hint": "對每位使用者或具名角色，會套用最接近的聊天室、群組或伺服器值。若設定衝突，以拒絕為準。只有在相同或更具體的範圍內，允許設定才能覆寫 everyone 的拒絕設定。",
       "update_role_failed": "無法更新角色",
       "update_ping_failed": "無法更新角色提及設定",
-      "delete_role_failed": "無法刪除角色"
+      "delete_role_failed": "無法刪除角色",
+      "role_order": {
+        "title": "角色順序",
+        "subtitle": "決定哪些角色可以管理其他角色",
+        "hint": "角色順序決定誰可以管理誰。你只能移動低於你最高角色的角色。請把限制角色（例如停權角色）放在管理它們的人之下。",
+        "drag_role": "移動 {role}",
+        "always_highest": "永遠最高",
+        "always_lowest": "永遠最低",
+        "locked": "已鎖定",
+        "saved": "已儲存角色順序",
+        "save_failed": "無法儲存角色順序"
+      }
     },
     "rooms_admin": {
       "title": "聊天室",

@@ -19,7 +19,8 @@ function member(id: string): AdminMember {
     hasVerifiedEmail: true,
     verifiedEmails: ['private@example.test'],
     primaryVerifiedEmail: 'private@example.test',
-    viewerCanDeleteAccount: false
+    viewerCanDeleteAccount: false,
+    viewerOutranks: false
   };
 }
 

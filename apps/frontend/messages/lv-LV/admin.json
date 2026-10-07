@@ -202,7 +202,18 @@
       "resolution_hint": "Katram lietotājam vai nosauktajai lomai tiek piemērota tuvākā telpas, grupas vai servera vērtība. Noliedz uzvaru starp viņiem. Atļauts ignorē visus aizliegts tikai tajā pašā vai konkrētākā tvērumā.",
       "update_role_failed": "Neizdevās atjaunināt lomu",
       "update_ping_failed": "Neizdevās atjaunināt lomas pieminēšanas iestatījumu",
-      "delete_role_failed": "Neizdevās izdzēst lomu"
+      "delete_role_failed": "Neizdevās izdzēst lomu",
+      "role_order": {
+        "title": "Lomu secība",
+        "subtitle": "Nosakiet, kuras lomas var pārvaldīt citas lomas",
+        "hint": "Lomu secība nosaka, kurš var pārvaldīt kuru. Jūs varat pārvietot tikai lomas, kas ir zemāk par jūsu augstāko lomu. Novietojiet ierobežojošās lomas, piemēram, apturēšanas lomu, zemāk par personām, kas tās pārvalda.",
+        "drag_role": "Pārvietot {role}",
+        "always_highest": "Vienmēr augstākā",
+        "always_lowest": "Vienmēr zemākā",
+        "locked": "Bloķēta",
+        "saved": "Lomu secība saglabāta",
+        "save_failed": "Neizdevās saglabāt lomu secību"
+      }
     },
     "rooms_admin": {
       "title": "Istabas",

@@ -202,7 +202,18 @@
       "resolution_hint": "Pour chaque utilisateur ou rôle nommé, la valeur la plus proche au niveau de la salle, du groupe ou du serveur s'applique. Les refus l'emportent entre eux. Une autorisation ne remplace un refus de everyone qu'au même niveau ou à un niveau plus précis.",
       "update_role_failed": "Échec de la mise à jour du rôle",
       "update_ping_failed": "Échec de la mise à jour du paramètre de mention du rôle",
-      "delete_role_failed": "Échec de la suppression du rôle"
+      "delete_role_failed": "Échec de la suppression du rôle",
+      "role_order": {
+        "title": "Ordre des rôles",
+        "subtitle": "Définissez quels rôles peuvent gérer d'autres rôles",
+        "hint": "L'ordre des rôles détermine qui peut gérer qui. Vous pouvez déplacer uniquement les rôles situés sous votre rôle le plus élevé. Placez les rôles de restriction, comme un rôle de suspension, sous les personnes qui les gèrent.",
+        "drag_role": "Déplacer {role}",
+        "always_highest": "Toujours le plus élevé",
+        "always_lowest": "Toujours le plus bas",
+        "locked": "Verrouillé",
+        "saved": "Ordre des rôles enregistré",
+        "save_failed": "Impossible d'enregistrer l'ordre des rôles"
+      }
     },
     "rooms_admin": {
       "title": "Chambres",

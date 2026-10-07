@@ -30,6 +30,12 @@ export interface MemberDetailContext {
   readonly isSelf: boolean;
   readonly isBot: boolean;
   readonly canAdminManageAccounts: boolean;
+  /**
+   * True when the viewer may change the account's identity, avatar, and
+   * password: an account manager on their own account, or on an account that
+   * ranks below them in the role order.
+   */
+  readonly canManageAccount: boolean;
   readonly canViewMemberEmails: boolean;
   /** True when this page may offer account deletion. */
   readonly canDeleteHere: boolean;

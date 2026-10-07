@@ -202,7 +202,18 @@
       "resolution_hint": "Por ĉiu uzanto aŭ nomita rolo validas la plej proksima ĉambra, grupa aŭ servila valoro. Malpermesoj venkas inter ili. Permeso superregas malpermeson de everyone nur je la sama aŭ pli specifa nivelo.",
       "update_role_failed": "Malsukcesis ĝisdatigi rolon",
       "update_ping_failed": "Malsukcesis ĝisdatigi la ping-agordon de la rolo",
-      "delete_role_failed": "Malsukcesis forigi rolon"
+      "delete_role_failed": "Malsukcesis forigi rolon",
+      "role_order": {
+        "title": "Ordo de roloj",
+        "subtitle": "Decidu, kiuj roloj povas administri aliajn rolojn",
+        "hint": "La ordo de roloj decidas, kiu povas administri kiun. Vi povas movi nur la rolojn sub via plej alta rolo. Metu limigajn rolojn, ekzemple suspendan rolon, sub la homojn, kiuj administras ilin.",
+        "drag_role": "Movi {role}",
+        "always_highest": "Ĉiam plej alta",
+        "always_lowest": "Ĉiam plej malalta",
+        "locked": "Ŝlosita",
+        "saved": "Ordo de roloj konservita",
+        "save_failed": "Ne eblis konservi la ordon de roloj"
+      }
     },
     "rooms_admin": {
       "title": "Ĉambroj",

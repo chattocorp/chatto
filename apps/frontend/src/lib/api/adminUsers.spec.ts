@@ -70,6 +70,7 @@ describe('createAdminUserManagementAPI', () => {
           verifiedEmails: ['first@example.test', 'alice@example.test'],
           primaryVerifiedEmail: 'alice@example.test',
           viewerCanDeleteAccount: true,
+          viewerOutranks: false,
           lastLoginChange: null
         }
       ],
@@ -118,6 +119,7 @@ describe('createAdminUserManagementAPI', () => {
         hasVerifiedEmail: false,
         verifiedEmails: [],
         viewerCanDeleteAccount: false,
+        viewerOutranks: true,
         lastLoginChange: Timestamp.fromDate(lastLoginChange)
       },
       roles: [
@@ -131,7 +133,8 @@ describe('createAdminUserManagementAPI', () => {
             pingable: false
           },
           permissions: ['room.manage'],
-          permissionDenials: ['message.post']
+          permissionDenials: ['message.post'],
+          ranksBelowViewer: true
         }
       ],
       availablePermissions: ['room.manage', 'message.post'],
@@ -162,6 +165,7 @@ describe('createAdminUserManagementAPI', () => {
         verifiedEmails: [],
         primaryVerifiedEmail: null,
         viewerCanDeleteAccount: false,
+        viewerOutranks: true,
         lastLoginChange: '2026-02-03T04:05:06.000Z'
       },
       roles: [
@@ -170,7 +174,8 @@ describe('createAdminUserManagementAPI', () => {
           displayName: 'Moderator',
           position: 50,
           permissions: ['room.manage'],
-          permissionDenials: ['message.post']
+          permissionDenials: ['message.post'],
+          ranksBelowViewer: true
         }
       ],
       availablePermissions: ['room.manage', 'message.post'],

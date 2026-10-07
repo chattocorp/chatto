@@ -214,6 +214,10 @@
       "call_voice": "Pozwala kontu wysyłać dźwięk z mikrofonu w połączeniach. Bez niego konto może nadal słuchać.",
       "call_camera": "Pozwala kontu wysyłać obraz z kamery w połączeniach.",
       "call_screenshare": "Pozwala kontu udostępniać ekran, okno, kartę lub aplikację w połączeniach, razem z dźwiękiem. Nie pozwala na dźwięk z mikrofonu; do tego potrzebne jest call.voice."
+    },
+    "role_order": {
+      "role_locked": "Kolejność ról nie pozwala ci zmienić tej roli.",
+      "account_locked": "Kolejność ról nie pozwala ci zmienić tego konta."
     }
   }
 }

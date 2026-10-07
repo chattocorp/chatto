@@ -202,7 +202,18 @@
       "resolution_hint": "Pro každého uživatele nebo pojmenovanou roli platí nejbližší hodnota místnosti, skupiny nebo serveru. Mezi nimi vítězí popírání. Povolení přepíše a odmítne všichni pouze ve stejném nebo konkrétnějším rozsahu.",
       "update_role_failed": "Nepodařilo se aktualizovat roli",
       "update_ping_failed": "Nepodařilo se aktualizovat nastavení zmínek role",
-      "delete_role_failed": "Nepodařilo se smazat roli"
+      "delete_role_failed": "Nepodařilo se smazat roli",
+      "role_order": {
+        "title": "Pořadí rolí",
+        "subtitle": "Určete, které role mohou spravovat jiné role",
+        "hint": "Pořadí rolí určuje, kdo může koho spravovat. Můžete přesouvat pouze role pod vaší nejvyšší rolí. Omezující role, například roli pozastavení, umístěte pod osoby, které je spravují.",
+        "drag_role": "Přesunout {role}",
+        "always_highest": "Vždy nejvyšší",
+        "always_lowest": "Vždy nejnižší",
+        "locked": "Zamčeno",
+        "saved": "Pořadí rolí bylo uloženo",
+        "save_failed": "Pořadí rolí se nepodařilo uložit"
+      }
     },
     "rooms_admin": {
       "title": "Pokoje",

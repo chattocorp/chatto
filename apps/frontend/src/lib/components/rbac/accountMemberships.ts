@@ -64,3 +64,22 @@ export async function loadAccountMemberships(
   }
   return { ...matrix, scopes };
 }
+
+/**
+ * Removing an account from a room acts against the account, so the role order
+ * must also let the viewer act on it (`viewerOutranks`). Adding it does not.
+ */
+export function limitMembershipRemoval<T extends Pick<MatrixData, 'scopes'>>(
+  data: T,
+  viewerOutranks: boolean
+): T {
+  if (viewerOutranks) return data;
+  return {
+    ...data,
+    scopes: data.scopes.map((scope) =>
+      scope.membership?.canLeave
+        ? { ...scope, membership: { ...scope.membership, canLeave: false } }
+        : scope
+    )
+  };
+}

@@ -97,6 +97,11 @@ export function getAdminNavItems({
       label: m('admin.nav.permissions'),
       icon: 'iconify icon-[uil--shield-check]'
     });
+    items.push({
+      href: resolve('/chat/[serverId]/manage/server/role-order', { serverId: serverSegment }),
+      label: m('admin.permissions.role_order.title'),
+      icon: 'iconify icon-[uil--sort-amount-down]'
+    });
   }
 
   if (permissions.canManageServer) {

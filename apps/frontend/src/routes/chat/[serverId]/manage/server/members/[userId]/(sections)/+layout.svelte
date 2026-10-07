@@ -74,6 +74,14 @@ deletion page is outside this route group and has its own frame.
   const details = $derived(memberQuery.data ?? null);
   const member = $derived(details?.member ?? null);
   const isBot = $derived(member?.isBot === true);
+  // The role order lets the viewer act on their own account and on accounts
+  // that rank below them.
+  const viewerOutranks = $derived(isSelf || member?.viewerOutranks === true);
+  const canManageAccount = $derived(canAdminManageAccounts && viewerOutranks);
+  // Explain why the controls are missing to viewers who could otherwise use them.
+  const showOrderLock = $derived(
+    !!member && !viewerOutranks && (canAdminManageAccounts || !!details?.viewerCanAssignRoles)
+  );
   // Self-deletion stays in the account settings danger zone; bots cascade with
   // their owner and cannot be deleted directly.
   const canDeleteHere = $derived(
@@ -103,6 +111,9 @@ deletion page is outside this route group and has its own frame.
     },
     get canAdminManageAccounts() {
       return canAdminManageAccounts;
+    },
+    get canManageAccount() {
+      return canManageAccount;
     },
     get canViewMemberEmails() {
       return canViewMemberEmails;
@@ -157,7 +168,7 @@ deletion page is outside this route group and has its own frame.
         current: routeId === base
       }
     ];
-    if (!isBot && (canAdminManageAccounts || canDeleteHere)) {
+    if (!isBot && (canManageAccount || canDeleteHere)) {
       items.push({
         href: resolve(`${base}/account`, params),
         label: m('admin.members.tabs.account'),
@@ -165,14 +176,12 @@ deletion page is outside this route group and has its own frame.
         current: routeId === `${base}/account`
       });
     }
-    if (!isBot) {
-      items.push({
-        href: resolve(`${base}/roles`, params),
-        label: m('admin.members.tabs.roles'),
-        icon: 'icon-[uil--award]',
-        current: routeId === `${base}/roles`
-      });
-    }
+    items.push({
+      href: resolve(`${base}/roles`, params),
+      label: m('admin.members.tabs.roles'),
+      icon: 'icon-[uil--award]',
+      current: routeId === `${base}/roles`
+    });
     if (!isBot && details.viewerCanManageUserPermissions) {
       items.push({
         href: resolve(`${base}/permissions`, params),
@@ -219,6 +228,9 @@ deletion page is outside this route group and has its own frame.
       {:else if !details || !member}
         <Hint tone="danger">{m('admin.members.not_found')}</Hint>
       {:else}
+        {#if showOrderLock}
+          <Hint>{m('rbac.role_order.account_locked')}</Hint>
+        {/if}
         {@render children()}
       {/if}
     </div>

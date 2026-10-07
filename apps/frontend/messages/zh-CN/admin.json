@@ -202,7 +202,18 @@
       "resolution_hint": "对于每位用户或具名角色，会应用最近一级聊天室、群组或服务器的值。如有冲突，以拒绝为准。只有在相同或更具体的作用域内，允许项才能覆盖 everyone 的拒绝项。",
       "update_role_failed": "更新角色失败",
       "update_ping_failed": "更新角色提及设置失败",
-      "delete_role_failed": "删除角色失败"
+      "delete_role_failed": "删除角色失败",
+      "role_order": {
+        "title": "角色顺序",
+        "subtitle": "决定哪些角色可以管理其他角色",
+        "hint": "角色顺序决定谁可以管理谁。你只能移动低于你最高角色的角色。请把限制角色（例如停用角色）放在管理它们的人之下。",
+        "drag_role": "移动 {role}",
+        "always_highest": "始终最高",
+        "always_lowest": "始终最低",
+        "locked": "已锁定",
+        "saved": "角色顺序已保存",
+        "save_failed": "无法保存角色顺序"
+      }
     },
     "rooms_admin": {
       "title": "聊天室",

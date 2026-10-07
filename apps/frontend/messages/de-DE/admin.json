@@ -202,7 +202,18 @@
       "resolution_hint": "Für jeden Benutzer oder jede benannte Rolle gilt der nächstgelegene Raum-, Gruppen- oder Serverwert. Verweigerungen haben dazwischen Vorrang. Eine Erlaubnis überschreibt eine everyone-Verweigerung nur auf derselben oder einer spezifischeren Ebene.",
       "update_role_failed": "Rolle konnte nicht aktualisiert werden",
       "update_ping_failed": "Ping-Einstellung der Rolle konnte nicht aktualisiert werden",
-      "delete_role_failed": "Rolle konnte nicht gelöscht werden"
+      "delete_role_failed": "Rolle konnte nicht gelöscht werden",
+      "role_order": {
+        "title": "Rollenreihenfolge",
+        "subtitle": "Lege fest, welche Rollen andere Rollen verwalten können",
+        "hint": "Die Rollenreihenfolge legt fest, wer wen verwalten kann. Du kannst nur die Rollen unter deiner höchsten Rolle verschieben. Platziere Einschränkungsrollen, zum Beispiel eine Sperrrolle, unter den Personen, die sie verwalten.",
+        "drag_role": "{role} verschieben",
+        "always_highest": "Immer die höchste",
+        "always_lowest": "Immer die niedrigste",
+        "locked": "Gesperrt",
+        "saved": "Rollenreihenfolge gespeichert",
+        "save_failed": "Rollenreihenfolge konnte nicht gespeichert werden"
+      }
     },
     "rooms_admin": {
       "title": "Räume",

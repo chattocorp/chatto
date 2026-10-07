@@ -202,7 +202,18 @@
       "resolution_hint": "Her kullanıcı veya adlandırılmış rol için en yakın oda, grup veya sunucu değeri geçerlidir. Aralarındaki galibiyeti reddediyor. İzin ver, yalnızca aynı veya daha spesifik bir kapsamda herkesin reddettiğini geçersiz kılar.",
       "update_role_failed": "Rol güncellenemedi",
       "update_ping_failed": "Rol bahsetme ayarı güncellenemedi",
-      "delete_role_failed": "Rol silinemedi"
+      "delete_role_failed": "Rol silinemedi",
+      "role_order": {
+        "title": "Rol sırası",
+        "subtitle": "Hangi rollerin diğer rolleri yönetebileceğini belirleyin",
+        "hint": "Rol sırası kimin kimi yönetebileceğini belirler. Yalnızca en yüksek rolünüzün altındaki rolleri taşıyabilirsiniz. Askıya alma rolü gibi kısıtlama rollerini, onları yöneten kişilerin altına yerleştirin.",
+        "drag_role": "{role} rolünü taşı",
+        "always_highest": "Her zaman en yüksek",
+        "always_lowest": "Her zaman en düşük",
+        "locked": "Kilitli",
+        "saved": "Rol sırası kaydedildi",
+        "save_failed": "Rol sırası kaydedilemedi"
+      }
     },
     "rooms_admin": {
       "title": "Odalar",

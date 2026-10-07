@@ -40,6 +40,8 @@ export type AdminRoleDetails = AdminRoleSummary & {
   position: number;
   permissions: string[];
   permissionDenials: string[];
+  /** True when the role ranks below the viewer's highest role. */
+  ranksBelowViewer: boolean;
 };
 
 export type AdminMemberList = {
@@ -250,6 +252,7 @@ function adminRoleDetails(role: APIAdminRole): AdminRoleDetails {
     ...adminRoleSummary(role.role),
     position: role.role.position,
     permissions: [...role.permissions],
-    permissionDenials: [...role.permissionDenials]
+    permissionDenials: [...role.permissionDenials],
+    ranksBelowViewer: role.ranksBelowViewer
   };
 }

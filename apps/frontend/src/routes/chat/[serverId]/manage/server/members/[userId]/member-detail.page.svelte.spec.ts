@@ -90,6 +90,7 @@ function member(id: string, overrides: Partial<AdminMember> = {}): AdminMember {
     verifiedEmails: [],
     primaryVerifiedEmail: null,
     viewerCanDeleteAccount: true,
+    viewerOutranks: true,
     lastLoginChange: null,
     ...overrides
   };
@@ -104,14 +105,16 @@ function details(value: AdminMember): AdminMemberDetails {
         displayName: 'Everyone',
         position: 0,
         permissions: [],
-        permissionDenials: []
+        permissionDenials: [],
+        ranksBelowViewer: true
       },
       {
         name: 'admin',
         displayName: 'Admin',
         position: 1,
         permissions: [],
-        permissionDenials: []
+        permissionDenials: [],
+        ranksBelowViewer: true
       }
     ],
     availablePermissions: [],
@@ -466,12 +469,62 @@ describe('server member detail queries', () => {
     ]);
   });
 
-  it('hides the section tabs for a bot account', async () => {
+  it('offers the profile and roles sections for a bot account', async () => {
     api.getMember.mockResolvedValueOnce(details(member('helper_bot', { isBot: true })));
     const rendered = renderSection('profile');
     await settle();
 
-    expect(rendered.container.querySelector('nav[aria-label="Member sections"]')).toBeNull();
+    expect(sectionLinks(rendered.container)).toEqual([
+      { label: 'Profile', current: 'page' },
+      { label: 'Roles', current: null }
+    ]);
+  });
+
+  it('shows the role assignments of a bot account', async () => {
+    routeUserId = 'helper_bot';
+    api.getMember.mockResolvedValue(details(member('helper_bot', { isBot: true })));
+    const rendered = renderSection('roles');
+    await settle();
+
+    expect(rendered.container.textContent).toContain('Role Assignments');
+    (rendered.container.querySelector('#role-assignment-admin') as HTMLInputElement).click();
+    await settle();
+    expect(api.assignRole).toHaveBeenCalledWith('helper_bot', 'admin');
+  });
+
+  it('keeps account controls from a manager who does not outrank the member', async () => {
+    routeUserId = 'bob';
+    api.getMember.mockResolvedValue(
+      details(member('bob', { viewerOutranks: false, viewerCanDeleteAccount: false }))
+    );
+    const rendered = renderSection('account');
+    await settle();
+
+    expect(rendered.container.textContent).toContain(
+      'The role order does not let you change this account.'
+    );
+    expect(rendered.container.querySelector('#member-login')).toBeNull();
+    expect(sectionLinks(rendered.container).map((link) => link.label)).not.toContain('Account');
+  });
+
+  it('hides the avatar editor from a manager who does not outrank the member', async () => {
+    routeUserId = 'bob';
+    api.getMember.mockResolvedValue(details(member('bob', { viewerOutranks: false })));
+    const rendered = renderSection('profile');
+    await settle();
+
+    expect(rendered.container.textContent).toContain('BOB');
+    expect(rendered.container.textContent).not.toContain('Upload avatar');
+  });
+
+  it('lets an account manager change their own account without outranking it', async () => {
+    routeUserId = 'viewer';
+    api.getMember.mockResolvedValue(details(member('viewer', { viewerOutranks: false })));
+    const rendered = renderSection('account');
+    await settle();
+
+    expect(rendered.container.querySelector('#member-login')).not.toBeNull();
+    expect(rendered.container.textContent).not.toContain('The role order');
   });
 
   it('shows the permissions matrix in the permissions section', async () => {
@@ -482,13 +535,16 @@ describe('server member detail queries', () => {
   });
 
   it('denies a section that the viewer cannot use', async () => {
-    api.getMember.mockResolvedValueOnce(details(member('helper_bot', { isBot: true })));
-    const rendered = renderSection('roles');
+    api.getMember.mockResolvedValueOnce({
+      ...details(member('helper_bot', { isBot: true })),
+      viewerCanManageUserPermissions: false
+    });
+    const rendered = renderSection('permissions');
     await settle();
 
     expect(rendered.container.textContent).toContain(
       'You do not have permission to access this page.'
     );
-    expect(rendered.container.textContent).not.toContain('Role Assignments');
+    expect(rendered.container.querySelector('[data-testid="user-permissions"]')).toBeNull();
   });
 });

@@ -214,6 +214,10 @@
       "call_voice": "Permet à un compte d’envoyer le son de son micro pendant les appels. Sans elle, le compte peut quand même écouter.",
       "call_camera": "Permet à un compte d’envoyer la vidéo de sa caméra pendant les appels.",
       "call_screenshare": "Permet à un compte de partager un écran, une fenêtre, un onglet ou une application pendant les appels, avec le son. Elle ne permet pas d’envoyer le son du micro ; il faut pour cela call.voice."
+    },
+    "role_order": {
+      "role_locked": "L'ordre des rôles ne vous permet pas de modifier ce rôle.",
+      "account_locked": "L'ordre des rôles ne vous permet pas de modifier ce compte."
     }
   }
 }

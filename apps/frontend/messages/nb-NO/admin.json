@@ -202,7 +202,18 @@
       "resolution_hint": "For hver bruker eller navngitte rolle gjelder den nærmeste rom-, gruppe- eller serververdien. Avslag vinner mellom dem. En tillatelse overstyrer et everyone-avslag bare på samme eller et mer spesifikt nivå.",
       "update_role_failed": "Kunne ikke oppdatere rollen",
       "update_ping_failed": "Kunne ikke oppdatere ping-innstillingen for rollen",
-      "delete_role_failed": "Kunne ikke slette rollen"
+      "delete_role_failed": "Kunne ikke slette rollen",
+      "role_order": {
+        "title": "Rollerekkefølge",
+        "subtitle": "Bestem hvilke roller som kan administrere andre roller",
+        "hint": "Rollerekkefølgen bestemmer hvem som kan administrere hvem. Du kan bare flytte rollene under den høyeste rollen din. Plasser begrensende roller, for eksempel en suspensjonsrolle, under personene som administrerer dem.",
+        "drag_role": "Flytt {role}",
+        "always_highest": "Alltid høyest",
+        "always_lowest": "Alltid lavest",
+        "locked": "Låst",
+        "saved": "Rollerekkefølgen er lagret",
+        "save_failed": "Kunne ikke lagre rollerekkefølgen"
+      }
     },
     "rooms_admin": {
       "title": "Rom",

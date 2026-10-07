@@ -90,7 +90,8 @@ function role(name: string, displayName: string, description: string): ServerRol
     permissionDenials: [],
     isSystem: false,
     position: 1,
-    pingable: false
+    pingable: false,
+    ranksBelowViewer: true
   };
 }
 
@@ -176,6 +177,39 @@ describe('role management page identity', () => {
     await settle();
     expect(container.textContent).not.toContain('Late A member');
     expect(container.textContent).not.toContain('role-a member');
+  });
+
+  it('shows a role at or above the viewer as read-only', async () => {
+    mocks.getRole.mockResolvedValue({
+      ...details('role-a', 'Role A', 'Role A description'),
+      role: { ...role('role-a', 'Role A', 'Role A description'), ranksBelowViewer: false }
+    });
+    const { container } = render(RolePage);
+    await vi.waitFor(() => expect(container.querySelector('code')?.textContent).toBe('role-a'));
+
+    expect(container.textContent).toContain('The role order does not let you change this role.');
+    expect(container.querySelector('#displayName')).toBeNull();
+    expect(container.textContent).toContain('Role A description');
+    expect((container.querySelector('#pingable') as HTMLInputElement).disabled).toBe(true);
+    expect(
+      [...container.querySelectorAll('button')].some(
+        (button) => button.textContent?.trim() === 'Delete role'
+      )
+    ).toBe(false);
+    expect(
+      container.querySelector('[data-testid="role-permissions"]')?.getAttribute('data-read-only')
+    ).toBe('true');
+  });
+
+  it('lets the viewer edit a role below their highest role', async () => {
+    mocks.getRole.mockResolvedValue(details('role-a', 'Role A', ''));
+    const { container } = render(RolePage);
+    await vi.waitFor(() => expect(container.querySelector('#displayName')).not.toBeNull());
+
+    expect(container.textContent).not.toContain('The role order');
+    expect(
+      container.querySelector('[data-testid="role-permissions"]')?.getAttribute('data-read-only')
+    ).toBe('false');
   });
 
   it('does not request or render a roster without assignment authority', async () => {

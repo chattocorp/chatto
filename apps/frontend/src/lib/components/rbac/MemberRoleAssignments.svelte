@@ -1,3 +1,11 @@
+<!--
+@component
+
+Server role assignments of one account, human or bot. The server decides which
+roles the viewer may assign or revoke (`assignableRoleNames` and
+`revocableRoleNames` in the member details), including the role order limits.
+The owner runs the mutation through `toggleMemberRole`.
+-->
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { Panel } from '$lib/ui';
@@ -68,7 +76,9 @@
         : isSelfProtectedRole
           ? m('admin.members.cannot_revoke_own_role', { role: role.displayName })
           : !isWithinAssignmentAuthority
-            ? m('ui.access_denied.message')
+            ? role.ranksBelowViewer
+              ? m('ui.access_denied.message')
+              : m('rbac.role_order.role_locked')
             : ''}
 
       <div class="flex items-center gap-3">
