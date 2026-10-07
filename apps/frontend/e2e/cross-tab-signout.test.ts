@@ -3,23 +3,19 @@ import type { Page } from '@playwright/test';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
 import { browserAuthenticationHeaders } from './fixtures/csrf';
+import { RealtimeCloseCode, RealtimeServerFrame } from '@chatto/api-types/realtime/v1/realtime_pb';
 
 /**
  * Navigate to a route and wait for the client-side app to be fully hydrated.
- * The WebSocket connection console log proves the full client-side app is initialized.
+ * Projection readiness proves the subscription has completed its initial catch-up.
  */
 async function gotoAndWaitForHydration(page: Page, url: string): Promise<void> {
-  const wsConnected = page.waitForEvent('console', {
-    predicate: (msg) => /\[ws:.*] Connected/.test(msg.text()),
-    timeout: TIMEOUTS.COMPLEX_OPERATION
-  });
-
   await page.goto(url);
-
-  // Wait for the WebSocket to connect, which proves the client-side app is running
-  await wsConnected;
-
-  await page.locator('body').waitFor({ state: 'visible' });
+  await expect(page.getByTestId('server-subscription-active')).toHaveAttribute(
+    'data-projection-ready',
+    'true',
+    { timeout: TIMEOUTS.COMPLEX_OPERATION }
+  );
 }
 
 async function expectLoggedOutRedirect(page: Page): Promise<void> {
@@ -65,6 +61,16 @@ test.describe('Cross-Tab Sign-Out', () => {
     });
     await context2.addCookies([sessionCookie!]);
     const page2 = await context2.newPage();
+    const terminalFrames: { code: RealtimeCloseCode; reconnect: boolean }[] = [];
+    page2.on('websocket', (socket) => {
+      socket.on('framereceived', ({ payload }) => {
+        if (typeof payload === 'string') return;
+        const frame = RealtimeServerFrame.fromBinary(payload).frame;
+        if (frame.case === 'close') {
+          terminalFrames.push({ code: frame.value.code, reconnect: frame.value.reconnect });
+        }
+      });
+    });
 
     try {
       // Navigate page2 to the home server and wait for full hydration.
@@ -73,17 +79,17 @@ test.describe('Cross-Tab Sign-Out', () => {
       // Verify page2 is authenticated and on the chat page
       await expect(page2).toHaveURL(routes.patterns.chatRedirect);
 
-      // Set up a listener for the session terminated console log before triggering logout
-      const sessionTerminatedLog = page2.waitForEvent('console', {
-        predicate: (msg) => msg.text().includes('Session terminated by server'),
-        timeout: TIMEOUTS.REALTIME_EVENT
-      });
-
-      // Log out in tab 1. The server sends a session-termination close frame.
+      // KV revocation can close the socket before the account-wide logout signal.
+      // Both terminal close codes must remove the authenticated surface.
       await logoutViaFetch(authPage.page);
-
-      // Wait for the session terminated event to be received
-      await sessionTerminatedLog;
+      await expect
+        .poll(() => terminalFrames.length, { timeout: TIMEOUTS.REALTIME_EVENT })
+        .toBeGreaterThan(0);
+      expect(terminalFrames[0].reconnect).toBe(false);
+      expect([
+        RealtimeCloseCode.AUTHENTICATION_REQUIRED,
+        RealtimeCloseCode.SESSION_TERMINATED
+      ]).toContain(terminalFrames[0].code);
 
       // Tab 2 should leave the authenticated chat surface.
       await expectLoggedOutRedirect(page2);

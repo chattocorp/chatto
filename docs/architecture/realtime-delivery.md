@@ -309,7 +309,10 @@ Network recovery, snapshot fallback, lost mode hints, and failed permission read
 use full current-value recovery. Projection and permission-check generations
 reject superseded reads. Expiry adopts inactive authority on the same socket.
 The periodic credential check remains a fallback for missed KV notifications.
-Credential revocation and bearer expiry still terminate the socket. See
+Cookie revocation sends terminal `SESSION_TERMINATED` so the browser ends its
+authenticated session even when the later logout publish has not arrived.
+Bearer invalidation retains authentication recovery; access expiry can renew
+the credential before reconnecting. See
 [ADR-096](../adr/ADR-096-session-scoped-privileged-mode.md) and
 [ADR-105](../adr/ADR-105-privileged-mode-gates-owner-override.md).
 

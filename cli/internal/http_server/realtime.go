@@ -247,7 +247,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 						// next interval retries the independent validation.
 						continue
 					}
-					terminateRealtimeForCredentialRevocation(cancel, writeFrame, func() {
+					terminateRealtimeForCredentialRevocation(credential.Kind, cancel, writeFrame, func() {
 						_ = conn.WriteControl(
 							websocket.CloseMessage,
 							websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"),
@@ -329,7 +329,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	privilegedUntil, err := s.revalidateRealtimeCredential(ctx)
 	if err != nil {
 		if errors.Is(err, core.ErrNotAuthenticated) {
-			writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED, "authentication required", false, 0)
+			writeClose(realtimeCredentialRevocationCode(credential.Kind), "the session is no longer valid", false, 0)
 			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"), time.Now().Add(time.Second))
 			return
 		}
@@ -417,7 +417,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		if errors.Is(catchUpCtx.Err(), context.DeadlineExceeded) {
 			failCatchUp("Realtime catch-up delivery timed out", err)
 		} else if errors.Is(err, core.ErrNotAuthenticated) {
-			writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED, "authentication required", false, 0)
+			writeClose(realtimeCredentialRevocationCode(credential.Kind), "the session is no longer valid", false, 0)
 		} else if errors.Is(err, errRealtimeAuthorityChanged) {
 			failCatchUp("Realtime authority changed during initial catch-up", err)
 		}
@@ -549,7 +549,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	refreshOrClose := func() bool {
 		if err := refreshAuthorization(); err != nil {
 			if errors.Is(err, core.ErrNotAuthenticated) {
-				writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED, "authentication required", false, 0)
+				writeClose(realtimeCredentialRevocationCode(credential.Kind), "the session is no longer valid", false, 0)
 			} else {
 				s.logger.Warn("Realtime authority refresh failed", "error", connectapi.LogSafeError(err))
 				writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "session authority refresh failed", true, time.Second)
@@ -756,7 +756,17 @@ func terminateRealtimeForBearerExpiry(
 	closeConnection()
 }
 
+// Cookie revocation ends the browser session immediately. Bearer clients use
+// authentication recovery to check whether their renewable session remains valid.
+func realtimeCredentialRevocationCode(kind authctx.RuntimeCredentialKind) realtimev1.RealtimeCloseCode {
+	if kind == authctx.RuntimeCredentialKindCookieSession {
+		return realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_SESSION_TERMINATED
+	}
+	return realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED
+}
+
 func terminateRealtimeForCredentialRevocation(
+	kind authctx.RuntimeCredentialKind,
 	cancel context.CancelFunc,
 	writeFrame func(*realtimev1.RealtimeServerFrame) error,
 	closeConnection func(),
@@ -764,7 +774,7 @@ func terminateRealtimeForCredentialRevocation(
 	cancel()
 	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
 		Close: &realtimev1.RealtimeClose{
-			Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED,
+			Code:      realtimeCredentialRevocationCode(kind),
 			Message:   "the session is no longer valid",
 			Reconnect: false,
 		},

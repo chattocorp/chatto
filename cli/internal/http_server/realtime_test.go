@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
+	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -822,8 +823,8 @@ func TestRealtimeWebSocketClosesAfterCookieRevocation(t *testing.T) {
 		t.Fatalf("RevokeCookieSession: %v", err)
 	}
 	frame, ok := readRealtimeServerFrame(t, conn, 2*time.Second)
-	if !ok || frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED || frame.GetClose().GetReconnect() {
-		t.Fatalf("revocation response = %+v, want terminal authentication_required", frame)
+	if !ok || frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_SESSION_TERMINATED || frame.GetClose().GetReconnect() {
+		t.Fatalf("revocation response = %+v, want terminal session_terminated", frame)
 	}
 }
 
@@ -1212,6 +1213,32 @@ func TestActivePrivilegedDeadline(t *testing.T) {
 		} else if !got.IsZero() {
 			t.Fatalf("inactive deadline = %v", got)
 		}
+	}
+}
+
+func TestRealtimeCredentialRevocationEndsCookiesButPreservesBearerRecovery(t *testing.T) {
+	for _, kind := range []authctx.RuntimeCredentialKind{authctx.RuntimeCredentialKindCookieSession, authctx.RuntimeCredentialKindBearerToken} {
+		t.Run(string(kind), func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			closed := false
+			terminateRealtimeForCredentialRevocation(kind, cancel, func(frame *realtimev1.RealtimeServerFrame) error {
+				if ctx.Err() == nil {
+					t.Fatal("revocation did not cancel authorized work before its close frame")
+				}
+				want := realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED
+				if kind == authctx.RuntimeCredentialKindCookieSession {
+					want = realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_SESSION_TERMINATED
+				}
+				if frame.GetClose().GetCode() != want || frame.GetClose().GetReconnect() {
+					t.Fatal("revocation did not send the correct terminal close")
+				}
+				return nil
+			}, func() { closed = true })
+			if !closed {
+				t.Fatal("revocation kept the socket open")
+			}
+		})
 	}
 }
 
