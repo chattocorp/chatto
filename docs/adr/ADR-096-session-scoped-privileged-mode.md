@@ -74,9 +74,10 @@ room-scoped permissions without unmounting the current interface.
 
 Snapshots, expiry, network recovery, queued reconnects, and failed permission
 reads use full current-value recovery. Late permission reads cannot complete a
-newer authorization refresh. Explicit mutations run in call order through their
-authorization refresh boundary. The mutation handlers assemble only the viewer
-capabilities and permission fields that their responses return.
+newer authorization refresh. Explicit mutation responses run in call order.
+Deactivation can proceed while an earlier projection refresh is pending.
+The mutation handlers assemble only the viewer capabilities and permission
+fields that their responses return.
 
 The realtime connection retains the privilege deadline accepted during its
 subscription. At that deadline, the server cancels authorized work and sends a

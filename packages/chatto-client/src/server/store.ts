@@ -275,7 +275,7 @@ export class ServerStateStore {
   }
 
   readonly #privilegedModeAPI: PrivilegedModeAPI;
-  /** Serialize explicit mutations through their authorization refresh boundary. */
+  /** Serialize mutation responses while allowing authorization recovery to overlap. */
   #privilegedModeChanges: Promise<void> = Promise.resolve();
   readonly #realtimeResources: RealtimeResourceAPI;
   #realtimeProjectionGeneration = 0;
@@ -372,16 +372,23 @@ export class ServerStateStore {
   }
 
   /** Change privilege activation and reconcile effective viewer permissions in
-   * place. Concurrent calls run in order, including their projection refresh. */
-  setPrivilegedMode(active: boolean): Promise<void> {
+   * place. Mutations run in call order; deactivation can proceed while an earlier
+   * projection refresh is pending. Each caller still waits for refreshed state. */
+  async setPrivilegedMode(active: boolean): Promise<void> {
     const change = this.#privilegedModeChanges.then(() => this.changePrivilegedMode(active));
     // The caller receives this change's error. A failed change must not block
     // a later deactivation or retry in the queue.
-    this.#privilegedModeChanges = change.catch(() => undefined);
-    return change;
+    this.#privilegedModeChanges = change.then(
+      () => undefined,
+      () => undefined
+    );
+    const { projectionRefreshed } = await change;
+    await projectionRefreshed;
   }
 
-  private async changePrivilegedMode(active: boolean): Promise<void> {
+  private async changePrivilegedMode(active: boolean): Promise<{
+    projectionRefreshed: Promise<boolean>;
+  }> {
     if (this.#disposed) throw new Error('privileged-mode update has no active server store');
     const update = active
       ? await this.#privilegedModeAPI.activate()
@@ -400,7 +407,7 @@ export class ServerStateStore {
     this.#serverConnection.forceReconnect('privileged mode changed', {
       authorizationRefreshGeneration
     });
-    await projectionRefreshed;
+    return { projectionRefreshed };
   }
 
   /** Reflect local expiry immediately; the reconnect obtains authoritative

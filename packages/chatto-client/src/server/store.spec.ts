@@ -1068,7 +1068,7 @@ describe('ServerStateStore privileged mode', () => {
     }
   );
 
-  it('serializes concurrent privilege mutations and their authorization refreshes', async () => {
+  it('serializes concurrent privilege mutation responses', async () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
     store.projection.viewer = new GetViewerResponse({
@@ -1103,6 +1103,37 @@ describe('ServerStateStore privileged mode', () => {
       await Promise.all([activating, deactivating]);
     }
     expect(apiMocks.deactivatePrivilegedMode).toHaveBeenCalledOnce();
+    expect(store.projection.viewer?.privilegedMode?.active).toBe(false);
+  });
+
+  it('deactivates without waiting for an earlier authorization recovery', async () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.projection.viewer = new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: 'U1' }) })
+    });
+    fake.forceReconnect.mockImplementation(() => {
+      if (fake.forceReconnect.mock.calls.length > 1) {
+        store.realtimeSync.markCaughtUp(
+          'after',
+          store.realtimeSync.pendingAuthorizationRefreshGeneration
+        );
+      }
+    });
+    const activating = store.setPrivilegedMode(true);
+    await vi.waitFor(() => expect(fake.forceReconnect).toHaveBeenCalledOnce());
+    const deactivating = store.setPrivilegedMode(false);
+    try {
+      await vi.waitFor(() => expect(apiMocks.deactivatePrivilegedMode).toHaveBeenCalledOnce(), {
+        timeout: 100
+      });
+    } finally {
+      store.realtimeSync.markCaughtUp(
+        'after',
+        store.realtimeSync.pendingAuthorizationRefreshGeneration
+      );
+      await Promise.all([activating, deactivating]);
+    }
     expect(store.projection.viewer?.privilegedMode?.active).toBe(false);
   });
 
