@@ -127,14 +127,16 @@ func (c *ChattoCore) AdminDeleteServerRole(ctx context.Context, actorID, roleNam
 	return c.DeleteServerRole(ctx, actorID, roleName)
 }
 
-func (c *ChattoCore) AdminReorderServerRoles(ctx context.Context, actorID string, roleNames []string) ([]RoleWithPermissions, error) {
+// AdminMoveServerRole moves one role in the role order. Requires role.manage;
+// MoveServerRole applies the role hierarchy.
+func (c *ChattoCore) AdminMoveServerRole(ctx context.Context, actorID, roleName, beforeRoleName string) ([]RoleWithPermissions, error) {
 	if err := c.requireCanManageAdminRoles(ctx, actorID); err != nil {
 		return nil, err
 	}
-	if roleNames == nil {
-		roleNames = []string{}
+	if roleName == "" {
+		return nil, fmt.Errorf("%w: role name is required", ErrInvalidArgument)
 	}
-	return c.ReorderServerRoles(ctx, actorID, roleNames)
+	return c.MoveServerRole(ctx, actorID, roleName, beforeRoleName)
 }
 
 func (c *ChattoCore) requireCanManageAdminRoles(ctx context.Context, actorID string) error {

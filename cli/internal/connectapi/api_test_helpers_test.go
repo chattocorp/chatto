@@ -469,18 +469,21 @@ func grantAPITestRank(t *testing.T, env *connectAPITestEnv, userID string) {
 	if err != nil {
 		t.Fatalf("ListServerRoles: %v", err)
 	}
-	order := make([]string, 0, len(roles))
+	// Place the role directly above the role that sits directly below admin.
+	before := ""
 	for _, role := range roles {
 		switch role.Name {
 		case core.RoleOwner, core.RoleEveryone, roleName:
 			continue
 		case core.RoleAdmin:
-			order = append(order, roleName)
+		default:
+			before = role.Name
+			continue
 		}
-		order = append(order, role.Name)
+		break
 	}
-	if _, err := env.core.ReorderServerRoles(env.ctx, core.SystemActorID, order); err != nil {
-		t.Fatalf("ReorderServerRoles: %v", err)
+	if _, err := env.core.MoveServerRole(env.ctx, core.SystemActorID, roleName, before); err != nil {
+		t.Fatalf("MoveServerRole: %v", err)
 	}
 	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, userID, roleName); err != nil {
 		t.Fatalf("AssignServerRole %s: %v", roleName, err)

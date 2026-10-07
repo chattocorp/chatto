@@ -16,13 +16,21 @@ func grantTestRank(t *testing.T, c *ChattoCore, ctx context.Context, userID stri
 	if _, err := c.CreateServerRole(ctx, SystemActorID, roleName, "Test rank", ""); err != nil {
 		t.Fatalf("CreateServerRole %s: %v", roleName, err)
 	}
-	order := slices.DeleteFunc(c.orderableRoleNames(), func(name string) bool { return name == roleName })
-	adminIndex := slices.Index(order, RoleAdmin)
-	order = slices.Insert(order, adminIndex, roleName)
-	if _, err := c.ReorderServerRoles(ctx, SystemActorID, order); err != nil {
-		t.Fatalf("ReorderServerRoles: %v", err)
-	}
+	moveTestRoleBelow(t, c, ctx, roleName, RoleAdmin)
 	if err := c.AssignServerRole(ctx, SystemActorID, userID, roleName); err != nil {
 		t.Fatalf("AssignServerRole %s: %v", roleName, err)
+	}
+}
+
+// moveTestRoleBelow places roleName directly below upperRoleName.
+func moveTestRoleBelow(t *testing.T, c *ChattoCore, ctx context.Context, roleName, upperRoleName string) {
+	t.Helper()
+	order := slices.DeleteFunc(c.orderableRoleNames(), func(name string) bool { return name == roleName })
+	before := ""
+	if upper := slices.Index(order, upperRoleName); upper > 0 {
+		before = order[upper-1]
+	}
+	if _, err := c.MoveServerRole(ctx, SystemActorID, roleName, before); err != nil {
+		t.Fatalf("MoveServerRole %s below %s: %v", roleName, upperRoleName, err)
 	}
 }

@@ -475,6 +475,7 @@ func IsRBACEvent(event *evtv1.Event) bool {
 		*evtv1.Event_RbacRolePingableChanged,
 		*evtv1.Event_RbacRoleDeleted,
 		*evtv1.Event_RbacRolesReordered,
+		*evtv1.Event_RbacRoleMoved,
 		*evtv1.Event_RbacRoleAssigned,
 		*evtv1.Event_RbacRoleRevoked,
 		*evtv1.Event_RbacPermissionGranted,

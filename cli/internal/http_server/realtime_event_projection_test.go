@@ -517,3 +517,19 @@ func TestRealtimeSessionTerminationUsesCloseFrame(t *testing.T) {
 func containsBytes(value, target []byte) bool {
 	return bytes.Contains(value, target)
 }
+
+func TestProjectRealtimeEventReportsRoleMovesAsReorders(t *testing.T) {
+	projected := projectRealtimeEvent("viewer", &evtv1.Event{
+		Id: "move-event-id",
+		Event: &evtv1.Event_RbacRoleMoved{
+			RbacRoleMoved: &evtv1.RbacRoleMovedEvent{RoleName: "helpdesk", BeforeRoleName: "moderator"},
+		},
+	})
+	reordered := projected.GetRolesReordered()
+	if reordered == nil || len(reordered.GetRoleNames()) != 1 || reordered.GetRoleNames()[0] != "helpdesk" {
+		t.Fatalf("projected = %v, want roles_reordered for helpdesk", projected)
+	}
+	if !core.IsRBACEvent(&evtv1.Event{Event: &evtv1.Event_RbacRoleMoved{RbacRoleMoved: &evtv1.RbacRoleMovedEvent{}}}) {
+		t.Fatal("role moves must count as RBAC events")
+	}
+}

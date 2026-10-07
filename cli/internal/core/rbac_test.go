@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -1309,7 +1310,7 @@ func TestChattoCore_RevokeServerRole_BoundedAuthority(t *testing.T) {
 // Instance Role Position and Reordering Tests
 // ============================================================================
 
-func TestChattoCore_ReorderServerRoles(t *testing.T) {
+func TestChattoCore_MoveServerRole(t *testing.T) {
 	t.Parallel()
 
 	core, _ := setupTestCore(t)
@@ -1338,36 +1339,95 @@ func TestChattoCore_ReorderServerRoles(t *testing.T) {
 		}
 	})
 
-	t.Run("orders system and custom roles together", func(t *testing.T) {
-		if _, err := core.ReorderServerRoles(ctx, SystemActorID, []string{RoleModerator, "alpha", RoleAdmin, "beta"}); err != nil {
-			t.Fatalf("ReorderServerRoles: %v", err)
+	t.Run("moves system and custom roles in one order", func(t *testing.T) {
+		// Start: beta < alpha < moderator < admin.
+		for _, move := range []struct{ role, before string }{
+			{RoleModerator, ""},      // moderator < beta < alpha < admin
+			{RoleAdmin, "beta"},      // moderator < beta < admin < alpha
+			{"alpha", RoleModerator}, // moderator < alpha < beta < admin
+		} {
+			if _, err := core.MoveServerRole(ctx, SystemActorID, move.role, move.before); err != nil {
+				t.Fatalf("MoveServerRole %s above %q: %v", move.role, move.before, err)
+			}
 		}
 		got := positions()
-		if !(got[RoleEveryone] < got[RoleModerator] && got[RoleModerator] < got["alpha"] && got["alpha"] < got[RoleAdmin] &&
-			got[RoleAdmin] < got["beta"] && got["beta"] < got[RoleOwner]) {
-			t.Fatalf("positions = %v, want everyone < moderator < alpha < admin < beta < owner", got)
+		if !(got[RoleEveryone] < got[RoleModerator] && got[RoleModerator] < got["alpha"] && got["alpha"] < got["beta"] &&
+			got["beta"] < got[RoleAdmin] && got[RoleAdmin] < got[RoleOwner]) {
+			t.Fatalf("positions = %v, want everyone < moderator < alpha < beta < admin < owner", got)
 		}
-		if got[RoleOwner] != PositionOwner || got[RoleEveryone] != PositionEveryone {
-			t.Fatalf("owner/everyone positions = %d/%d, want fixed", got[RoleOwner], got[RoleEveryone])
+		if got[RoleEveryone] != PositionEveryone {
+			t.Fatalf("everyone position = %d, want %d", got[RoleEveryone], PositionEveryone)
+		}
+	})
+
+	t.Run("a move that changes nothing succeeds", func(t *testing.T) {
+		before := positions()
+		if _, err := core.MoveServerRole(ctx, SystemActorID, "alpha", RoleModerator); err != nil {
+			t.Fatalf("MoveServerRole: %v", err)
+		}
+		if got := positions(); !mapsEqual(got, before) {
+			t.Fatalf("positions = %v, want unchanged %v", got, before)
 		}
 	})
 
 	for _, tt := range []struct {
-		name  string
-		order []string
-		want  error
+		name, role, before string
+		want               error
 	}{
-		{"rejects owner", []string{RoleOwner, RoleModerator, "alpha", RoleAdmin, "beta"}, ErrInvalidArgument},
-		{"rejects everyone", []string{RoleEveryone, RoleModerator, "alpha", RoleAdmin, "beta"}, ErrInvalidArgument},
-		{"rejects incomplete order", []string{RoleModerator, "alpha", RoleAdmin}, ErrInvalidArgument},
-		{"rejects duplicates", []string{RoleModerator, "alpha", RoleAdmin, "alpha"}, ErrInvalidArgument},
-		{"rejects unknown roles", []string{RoleModerator, "alpha", RoleAdmin, "gamma"}, ErrRoleNotFound},
+		{"rejects moving owner", RoleOwner, "", ErrInvalidArgument},
+		{"rejects moving everyone", RoleEveryone, "", ErrInvalidArgument},
+		{"rejects owner as anchor", "alpha", RoleOwner, ErrInvalidArgument},
+		{"rejects everyone as anchor", "alpha", RoleEveryone, ErrInvalidArgument},
+		{"rejects the role as its own anchor", "alpha", "alpha", ErrInvalidArgument},
+		{"rejects unknown roles", "gamma", "", ErrRoleNotFound},
+		{"rejects unknown anchors", "alpha", "gamma", ErrRoleNotFound},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			if _, err := core.ReorderServerRoles(ctx, SystemActorID, tt.order); !errors.Is(err, tt.want) {
-				t.Fatalf("ReorderServerRoles error = %v, want %v", err, tt.want)
+			if _, err := core.MoveServerRole(ctx, SystemActorID, tt.role, tt.before); !errors.Is(err, tt.want) {
+				t.Fatalf("MoveServerRole error = %v, want %v", err, tt.want)
 			}
 		})
+	}
+}
+
+// A move names only two roles, so a role created at the same time does not
+// invalidate it: the RBAC OCC retry recomputes the move on the new order.
+func TestChattoCore_MoveServerRole_ConcurrentCreation(t *testing.T) {
+	t.Parallel()
+
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "mover", "Mover", ""); err != nil {
+		t.Fatalf("CreateServerRole mover: %v", err)
+	}
+	const rounds = 10
+	for i := range rounds {
+		// Alternate the anchor so that every move changes the order.
+		before := RoleAdmin
+		if i%2 == 1 {
+			before = ""
+		}
+		var wg sync.WaitGroup
+		var moveErr, createErr error
+		wg.Go(func() { _, moveErr = core.MoveServerRole(ctx, SystemActorID, "mover", before) })
+		wg.Go(func() {
+			_, createErr = core.CreateServerRole(ctx, SystemActorID, fmt.Sprintf("concurrent-%d", i), "Concurrent", "")
+		})
+		wg.Wait()
+		if moveErr != nil || createErr != nil {
+			t.Fatalf("round %d: move error = %v, create error = %v", i, moveErr, createErr)
+		}
+		order := core.orderableRoleNames()
+		if len(order) != i+4 {
+			t.Fatalf("round %d: order = %v, want %d roles", i, order, i+4)
+		}
+		if before == RoleAdmin && order[len(order)-1] != "mover" {
+			t.Fatalf("round %d: order = %v, want mover directly above admin", i, order)
+		}
+		if before == "" && order[0] != "mover" && order[1] != "mover" {
+			// The concurrent creation can land below the moved role.
+			t.Fatalf("round %d: order = %v, want mover among the lowest roles", i, order)
+		}
 	}
 }
 
@@ -2923,17 +2983,19 @@ func TestChattoCore_CreateRole_PositionAssignment(t *testing.T) {
 		}
 	})
 
-	t.Run("roles can be reordered via ReorderServerRoles", func(t *testing.T) {
-		// Create multiple custom roles
-		core.CreateServerRole(ctx, SystemActorID, "alpha", "Alpha", "Alpha role")
-		core.CreateServerRole(ctx, SystemActorID, "beta", "Beta", "Beta role")
+	t.Run("roles can be moved via MoveServerRole", func(t *testing.T) {
+		// Create multiple custom roles. Each new role starts lowest, so beta
+		// ranks below alpha.
+		if _, err := core.CreateServerRole(ctx, SystemActorID, "alpha", "Alpha", "Alpha role"); err != nil {
+			t.Fatalf("CreateServerRole alpha: %v", err)
+		}
+		if _, err := core.CreateServerRole(ctx, SystemActorID, "beta", "Beta", "Beta role"); err != nil {
+			t.Fatalf("CreateServerRole beta: %v", err)
+		}
 
-		// ReorderServerRoles requires every role except owner and everyone,
-		// so clients cannot accidentally drop roles from the authoritative
-		// ordering event.
-		roles, err := core.ReorderServerRoles(ctx, SystemActorID, []string{"editor", "contributor", "beta", "alpha", RoleModerator, RoleAdmin})
+		roles, err := core.MoveServerRole(ctx, SystemActorID, "beta", "alpha")
 		if err != nil {
-			t.Fatalf("ReorderServerRoles failed: %v", err)
+			t.Fatalf("MoveServerRole failed: %v", err)
 		}
 
 		var alphaPos, betaPos int32
@@ -2946,8 +3008,8 @@ func TestChattoCore_CreateRole_PositionAssignment(t *testing.T) {
 			}
 		}
 
-		if betaPos >= alphaPos {
-			t.Errorf("After reorder: beta position (%d) should be < alpha position (%d)", betaPos, alphaPos)
+		if betaPos <= alphaPos {
+			t.Errorf("After move: beta position (%d) should be > alpha position (%d)", betaPos, alphaPos)
 		}
 	})
 }

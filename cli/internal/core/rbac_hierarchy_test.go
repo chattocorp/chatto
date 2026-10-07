@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"testing"
 
@@ -37,12 +38,69 @@ func TestRBACProjection_LegacyAndCompleteRoleOrders(t *testing.T) {
 		t.Fatalf("legacy positions = %v, want %v", got, want)
 	}
 
-	// Complete orders rank system and custom roles together.
-	applyRBACProjectionEvent(t, p, &evtv1.Event{Event: &evtv1.Event_RbacRolesReordered{
-		RbacRolesReordered: &evtv1.RbacRolesReorderedEvent{RoleNames: []string{"alpha", RoleAdmin, "beta", RoleModerator}, CompleteOrder: true},
+	// A move ranks system and custom roles together and renumbers them.
+	move := func(roleName, before string) {
+		t.Helper()
+		applyRBACProjectionEvent(t, p, &evtv1.Event{Event: &evtv1.Event_RbacRoleMoved{
+			RbacRoleMoved: &evtv1.RbacRoleMovedEvent{RoleName: roleName, BeforeRoleName: before},
+		}})
+	}
+	move(RoleModerator, "alpha")
+	if got, want := positions(), (map[string]int32{"beta": 1, "alpha": 2, RoleModerator: 3, RoleAdmin: 4}); !mapsEqual(got, want) {
+		t.Fatalf("positions after move = %v, want %v", got, want)
+	}
+	move(RoleAdmin, "")
+	move("beta", RoleModerator)
+	if got, want := positions(), (map[string]int32{RoleAdmin: 1, "alpha": 2, RoleModerator: 3, "beta": 4}); !mapsEqual(got, want) {
+		t.Fatalf("positions after moves = %v, want %v", got, want)
+	}
+	// Moves that refer to unknown or fixed roles change nothing.
+	move("missing", "")
+	move("alpha", "missing")
+	move(RoleEveryone, "")
+	if got, want := positions(), (map[string]int32{RoleAdmin: 1, "alpha": 2, RoleModerator: 3, "beta": 4}); !mapsEqual(got, want) {
+		t.Fatalf("positions after ignored moves = %v, want %v", got, want)
+	}
+
+	// A new role placed lowest renumbers the order.
+	applyRBACProjectionEvent(t, p, &evtv1.Event{Event: &evtv1.Event_RbacRoleCreated{
+		RbacRoleCreated: &evtv1.RbacRoleCreatedEvent{RoleName: "gamma", Rank: 99, PlaceLowest: true},
 	}})
-	if got, want := positions(), (map[string]int32{"alpha": 1, RoleAdmin: 2, "beta": 3, RoleModerator: 4}); !mapsEqual(got, want) {
-		t.Fatalf("complete positions = %v, want %v", got, want)
+	if got, want := positions(), (map[string]int32{"gamma": 1, RoleAdmin: 2, "alpha": 3, RoleModerator: 4, "beta": 5}); !mapsEqual(got, want) {
+		t.Fatalf("positions after lowest creation = %v, want %v", got, want)
+	}
+}
+
+func TestRBACProjection_RoleOrderHasNoFixedLimit(t *testing.T) {
+	t.Parallel()
+
+	p := NewRBACProjection()
+	for _, role := range []struct {
+		name string
+		rank int32
+	}{{RoleOwner, PositionOwner}, {RoleEveryone, PositionEveryone}, {RoleAdmin, PositionAdmin}} {
+		applyRBACProjectionEvent(t, p, &evtv1.Event{Event: &evtv1.Event_RbacRoleCreated{
+			RbacRoleCreated: &evtv1.RbacRoleCreatedEvent{RoleName: role.name, Rank: role.rank},
+		}})
+	}
+	const count = 1200
+	for i := range count {
+		applyRBACProjectionEvent(t, p, &evtv1.Event{Event: &evtv1.Event_RbacRoleCreated{
+			RbacRoleCreated: &evtv1.RbacRoleCreatedEvent{RoleName: fmt.Sprintf("role-%d", i), PlaceLowest: true},
+		}})
+	}
+	roles := p.ListRoles()
+	if len(roles) != count+3 {
+		t.Fatalf("roles = %d, want %d", len(roles), count+3)
+	}
+	if first, last := roles[0].GetName(), roles[len(roles)-1]; first != RoleEveryone || last.GetName() != RoleOwner {
+		t.Fatalf("order = %s ... %s, want everyone ... owner", first, last.GetName())
+	}
+	if admin, ok := p.GetRole(RoleAdmin); !ok || admin.GetPosition() != count+1 {
+		t.Fatalf("admin position = %d, want %d", admin.GetPosition(), count+1)
+	}
+	if owner, _ := p.GetRole(RoleOwner); owner.GetPosition() != count+2 {
+		t.Fatalf("owner position = %d, want %d", owner.GetPosition(), count+2)
 	}
 }
 
@@ -194,9 +252,9 @@ func TestHierarchyLimitsRoleManagementToLowerRoles(t *testing.T) {
 	if _, err := c.CreateServerRole(ctx, SystemActorID, "junior", "Junior", ""); err != nil {
 		t.Fatalf("CreateServerRole junior: %v", err)
 	}
-	// The owner places senior above admin.
-	if _, err := c.ReorderServerRoles(ctx, f.owner, []string{"junior", RoleModerator, RoleAdmin, "senior"}); err != nil {
-		t.Fatalf("owner reorders roles: %v", err)
+	// The owner places senior above admin. Junior, created last, is lowest.
+	if _, err := c.MoveServerRole(ctx, f.owner, "senior", RoleAdmin); err != nil {
+		t.Fatalf("owner moves senior: %v", err)
 	}
 
 	update := func(roleName string) error {
@@ -224,17 +282,25 @@ func TestHierarchyLimitsRoleManagementToLowerRoles(t *testing.T) {
 		t.Fatalf("admin assigns junior: %v", err)
 	}
 
-	t.Run("reorder keeps roles at or above the actor in place", func(t *testing.T) {
-		for _, order := range [][]string{
-			{RoleModerator, "junior", "senior", RoleAdmin},
-			{"junior", RoleAdmin, RoleModerator, "senior"},
+	t.Run("moves stay below the actor", func(t *testing.T) {
+		for _, move := range []struct{ role, before string }{
+			{"senior", ""},            // a role above the actor
+			{RoleAdmin, ""},           // the actor's own role
+			{"junior", RoleAdmin},     // to a place above the actor
+			{RoleModerator, "senior"}, // to a place above the actor
 		} {
-			if _, err := c.ReorderServerRoles(ctx, f.admin, order); !errors.Is(err, ErrPermissionDenied) {
-				t.Fatalf("admin reorders %v: error = %v, want permission denied", order, err)
+			if _, err := c.MoveServerRole(ctx, f.admin, move.role, move.before); !errors.Is(err, ErrPermissionDenied) {
+				t.Fatalf("admin moves %s above %q: error = %v, want permission denied", move.role, move.before, err)
 			}
 		}
-		if _, err := c.ReorderServerRoles(ctx, f.admin, []string{RoleModerator, "junior", RoleAdmin, "senior"}); err != nil {
-			t.Fatalf("admin reorders lower roles: %v", err)
+		if _, err := c.MoveServerRole(ctx, f.admin, "junior", RoleModerator); err != nil {
+			t.Fatalf("admin moves junior above moderator: %v", err)
+		}
+		if _, err := c.MoveServerRole(ctx, f.admin, RoleModerator, ""); err != nil {
+			t.Fatalf("admin moves moderator lowest: %v", err)
+		}
+		if got, want := c.orderableRoleNames(), []string{RoleModerator, "junior", RoleAdmin, "senior"}; !slices.Equal(got, want) {
+			t.Fatalf("order = %v, want %v", got, want)
 		}
 	})
 }
@@ -454,8 +520,8 @@ func TestDeletingAUserRequiresOutrankingTheirBots(t *testing.T) {
 	if _, err := c.CreateServerRole(ctx, SystemActorID, "ops", "Ops", ""); err != nil {
 		t.Fatalf("CreateServerRole ops: %v", err)
 	}
-	if _, err := c.ReorderServerRoles(ctx, SystemActorID, []string{RoleModerator, "ops", RoleAdmin}); err != nil {
-		t.Fatalf("ReorderServerRoles: %v", err)
+	if _, err := c.MoveServerRole(ctx, SystemActorID, "ops", RoleModerator); err != nil {
+		t.Fatalf("MoveServerRole ops: %v", err)
 	}
 	if err := c.AssignServerRole(ctx, SystemActorID, bot.User.GetId(), "ops"); err != nil {
 		t.Fatalf("AssignServerRole ops: %v", err)

@@ -8,7 +8,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 // DURABLE RBAC EVENTS (evt.rbac.>)
 //
 // Top-level Event oneof tags owned by this file:
-//   - 800-813: durable RBAC role, assignment, and permission events
+//   - 800-814: durable RBAC role, assignment, and permission events
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
@@ -18,8 +18,12 @@ message RbacRoleCreatedEvent {
   string role_name = 1;
   string display_name = 2;
   string description = 3;
+  // Position for readers that do not support place_lowest.
   int32 rank = 4;
   bool pingable = 5;
+  // When true, readers place the new role lowest, directly above everyone,
+  // and renumber the role order (ADR-114). Older readers use rank.
+  bool place_lowest = 6;
 }
 
 message RbacRoleDisplayNameChangedEvent {
@@ -41,18 +45,25 @@ message RbacRoleDeletedEvent {
   string role_name = 1;
 }
 
-// Replaces the role order. Role order is the administrative rank: an account
-// ranks at its highest role, and it can manage only accounts and roles that
-// rank below it.
+// Replaces the order of custom roles. Servers before 0.5 wrote this event;
+// current servers write RbacRoleMovedEvent. Readers assign positions upward
+// from 1 to the listed custom roles, lowest first, and skip the fixed system
+// positions (moderator 100, admin 900, owner 1000).
 message RbacRolesReorderedEvent {
-  // Role names, lowest first. See complete_order for which roles appear.
+  // Custom role names, lowest first.
   repeated string role_names = 1;
-  // When true, role_names lists every role except owner and everyone, and
-  // readers assign positions upward from 1. Owner and everyone keep their
-  // fixed positions. When false, as in events from servers before 0.5,
-  // role_names lists custom roles only; readers assign their positions upward
-  // from 1 and skip the fixed positions of the system roles.
-  bool complete_order = 2;
+}
+
+// Moves one role in the role order. Role order is the administrative rank:
+// an account ranks at its highest role and can manage only accounts and roles
+// that rank below it (ADR-114). Readers place role_name directly above
+// before_role_name, or lowest when before_role_name is empty, and renumber
+// every role except owner and everyone upward from 1. Owner then ranks
+// directly above the highest role, and everyone stays at 0.
+message RbacRoleMovedEvent {
+  string role_name = 1;
+  // Role directly below the moved role. Empty places the role lowest.
+  string before_role_name = 2;
 }
 
 message RbacRoleAssignedEvent {

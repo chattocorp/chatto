@@ -156,16 +156,16 @@ func (s *roleService) DeleteRole(ctx context.Context, req *connect.Request[admin
 	return connect.NewResponse(&adminv1.DeleteRoleResponse{}), nil
 }
 
-func (s *roleService) ReorderRoles(ctx context.Context, req *connect.Request[adminv1.ReorderRolesRequest]) (*connect.Response[adminv1.ReorderRolesResponse], error) {
+func (s *roleService) MoveRole(ctx context.Context, req *connect.Request[adminv1.MoveRoleRequest]) (*connect.Response[adminv1.MoveRoleResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
-	roles, err := s.api.core.AdminReorderServerRoles(ctx, caller.UserID, req.Msg.GetRoleNames())
+	roles, err := s.api.core.AdminMoveServerRole(ctx, caller.UserID, req.Msg.GetRoleName(), req.Msg.GetBeforeRoleName())
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.ReorderRolesResponse{Roles: s.adminAPIRoles(caller.UserID, roles)}), nil
+	return connect.NewResponse(&adminv1.MoveRoleResponse{Roles: s.adminAPIRoles(caller.UserID, roles)}), nil
 }
 
 func publicAPIRoles(roles []core.RoleWithPermissions) []*apiv1.Role {

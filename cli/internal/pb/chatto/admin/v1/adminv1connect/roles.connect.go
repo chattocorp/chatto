@@ -51,9 +51,9 @@ const (
 	// AdminRoleServiceDeleteRoleProcedure is the fully-qualified name of the AdminRoleService's
 	// DeleteRole RPC.
 	AdminRoleServiceDeleteRoleProcedure = "/chatto.admin.v1.AdminRoleService/DeleteRole"
-	// AdminRoleServiceReorderRolesProcedure is the fully-qualified name of the AdminRoleService's
-	// ReorderRoles RPC.
-	AdminRoleServiceReorderRolesProcedure = "/chatto.admin.v1.AdminRoleService/ReorderRoles"
+	// AdminRoleServiceMoveRoleProcedure is the fully-qualified name of the AdminRoleService's MoveRole
+	// RPC.
+	AdminRoleServiceMoveRoleProcedure = "/chatto.admin.v1.AdminRoleService/MoveRole"
 )
 
 // AdminRoleServiceClient is a client for the chatto.admin.v1.AdminRoleService service.
@@ -79,9 +79,10 @@ type AdminRoleServiceClient interface {
 	// permission that the role allows or denies, at the same scope; otherwise
 	// the call returns PERMISSION_DENIED.
 	DeleteRole(context.Context, *connect.Request[v1.DeleteRoleRequest]) (*connect.Response[v1.DeleteRoleResponse], error)
-	// Replaces the role order. Requires role.manage. The order is the
-	// administrative rank; see ReorderRolesRequest.
-	ReorderRoles(context.Context, *connect.Request[v1.ReorderRolesRequest]) (*connect.Response[v1.ReorderRolesResponse], error)
+	// Moves one role in the role order. Requires role.manage. A caller who is
+	// not an owner can move only a role below their own highest role, and only
+	// directly above another role below it, or to the lowest place.
+	MoveRole(context.Context, *connect.Request[v1.MoveRoleRequest]) (*connect.Response[v1.MoveRoleResponse], error)
 }
 
 // NewAdminRoleServiceClient constructs a client for the chatto.admin.v1.AdminRoleService service.
@@ -131,10 +132,10 @@ func NewAdminRoleServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(adminRoleServiceMethods.ByName("DeleteRole")),
 			connect.WithClientOptions(opts...),
 		),
-		reorderRoles: connect.NewClient[v1.ReorderRolesRequest, v1.ReorderRolesResponse](
+		moveRole: connect.NewClient[v1.MoveRoleRequest, v1.MoveRoleResponse](
 			httpClient,
-			baseURL+AdminRoleServiceReorderRolesProcedure,
-			connect.WithSchema(adminRoleServiceMethods.ByName("ReorderRoles")),
+			baseURL+AdminRoleServiceMoveRoleProcedure,
+			connect.WithSchema(adminRoleServiceMethods.ByName("MoveRole")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -142,13 +143,13 @@ func NewAdminRoleServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // adminRoleServiceClient implements AdminRoleServiceClient.
 type adminRoleServiceClient struct {
-	listRoles    *connect.Client[v1.ListRolesRequest, v1.ListRolesResponse]
-	getRole      *connect.Client[v1.GetRoleRequest, v1.GetRoleResponse]
-	listMembers  *connect.Client[v1.AdminRoleServiceListMembersRequest, v1.AdminRoleServiceListMembersResponse]
-	createRole   *connect.Client[v1.CreateRoleRequest, v1.CreateRoleResponse]
-	updateRole   *connect.Client[v1.UpdateRoleRequest, v1.UpdateRoleResponse]
-	deleteRole   *connect.Client[v1.DeleteRoleRequest, v1.DeleteRoleResponse]
-	reorderRoles *connect.Client[v1.ReorderRolesRequest, v1.ReorderRolesResponse]
+	listRoles   *connect.Client[v1.ListRolesRequest, v1.ListRolesResponse]
+	getRole     *connect.Client[v1.GetRoleRequest, v1.GetRoleResponse]
+	listMembers *connect.Client[v1.AdminRoleServiceListMembersRequest, v1.AdminRoleServiceListMembersResponse]
+	createRole  *connect.Client[v1.CreateRoleRequest, v1.CreateRoleResponse]
+	updateRole  *connect.Client[v1.UpdateRoleRequest, v1.UpdateRoleResponse]
+	deleteRole  *connect.Client[v1.DeleteRoleRequest, v1.DeleteRoleResponse]
+	moveRole    *connect.Client[v1.MoveRoleRequest, v1.MoveRoleResponse]
 }
 
 // ListRoles calls chatto.admin.v1.AdminRoleService.ListRoles.
@@ -181,9 +182,9 @@ func (c *adminRoleServiceClient) DeleteRole(ctx context.Context, req *connect.Re
 	return c.deleteRole.CallUnary(ctx, req)
 }
 
-// ReorderRoles calls chatto.admin.v1.AdminRoleService.ReorderRoles.
-func (c *adminRoleServiceClient) ReorderRoles(ctx context.Context, req *connect.Request[v1.ReorderRolesRequest]) (*connect.Response[v1.ReorderRolesResponse], error) {
-	return c.reorderRoles.CallUnary(ctx, req)
+// MoveRole calls chatto.admin.v1.AdminRoleService.MoveRole.
+func (c *adminRoleServiceClient) MoveRole(ctx context.Context, req *connect.Request[v1.MoveRoleRequest]) (*connect.Response[v1.MoveRoleResponse], error) {
+	return c.moveRole.CallUnary(ctx, req)
 }
 
 // AdminRoleServiceHandler is an implementation of the chatto.admin.v1.AdminRoleService service.
@@ -209,9 +210,10 @@ type AdminRoleServiceHandler interface {
 	// permission that the role allows or denies, at the same scope; otherwise
 	// the call returns PERMISSION_DENIED.
 	DeleteRole(context.Context, *connect.Request[v1.DeleteRoleRequest]) (*connect.Response[v1.DeleteRoleResponse], error)
-	// Replaces the role order. Requires role.manage. The order is the
-	// administrative rank; see ReorderRolesRequest.
-	ReorderRoles(context.Context, *connect.Request[v1.ReorderRolesRequest]) (*connect.Response[v1.ReorderRolesResponse], error)
+	// Moves one role in the role order. Requires role.manage. A caller who is
+	// not an owner can move only a role below their own highest role, and only
+	// directly above another role below it, or to the lowest place.
+	MoveRole(context.Context, *connect.Request[v1.MoveRoleRequest]) (*connect.Response[v1.MoveRoleResponse], error)
 }
 
 // NewAdminRoleServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -257,10 +259,10 @@ func NewAdminRoleServiceHandler(svc AdminRoleServiceHandler, opts ...connect.Han
 		connect.WithSchema(adminRoleServiceMethods.ByName("DeleteRole")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminRoleServiceReorderRolesHandler := connect.NewUnaryHandler(
-		AdminRoleServiceReorderRolesProcedure,
-		svc.ReorderRoles,
-		connect.WithSchema(adminRoleServiceMethods.ByName("ReorderRoles")),
+	adminRoleServiceMoveRoleHandler := connect.NewUnaryHandler(
+		AdminRoleServiceMoveRoleProcedure,
+		svc.MoveRole,
+		connect.WithSchema(adminRoleServiceMethods.ByName("MoveRole")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/chatto.admin.v1.AdminRoleService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -277,8 +279,8 @@ func NewAdminRoleServiceHandler(svc AdminRoleServiceHandler, opts ...connect.Han
 			adminRoleServiceUpdateRoleHandler.ServeHTTP(w, r)
 		case AdminRoleServiceDeleteRoleProcedure:
 			adminRoleServiceDeleteRoleHandler.ServeHTTP(w, r)
-		case AdminRoleServiceReorderRolesProcedure:
-			adminRoleServiceReorderRolesHandler.ServeHTTP(w, r)
+		case AdminRoleServiceMoveRoleProcedure:
+			adminRoleServiceMoveRoleHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -312,6 +314,6 @@ func (UnimplementedAdminRoleServiceHandler) DeleteRole(context.Context, *connect
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminRoleService.DeleteRole is not implemented"))
 }
 
-func (UnimplementedAdminRoleServiceHandler) ReorderRoles(context.Context, *connect.Request[v1.ReorderRolesRequest]) (*connect.Response[v1.ReorderRolesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminRoleService.ReorderRoles is not implemented"))
+func (UnimplementedAdminRoleServiceHandler) MoveRole(context.Context, *connect.Request[v1.MoveRoleRequest]) (*connect.Response[v1.MoveRoleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminRoleService.MoveRole is not implemented"))
 }

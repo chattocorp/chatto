@@ -194,10 +194,7 @@ func (c *ChattoCore) appendRBACEventAuthorized(ctx context.Context, event *evtv1
 	return 0, fmt.Errorf("RBAC OCC retry exhausted after %d attempts: %w", maxRBACMutationRetries, events.ErrConflict)
 }
 
-// appendRBACEventsWithMentionableCheck appends RBAC events as one atomic batch
-// with OCC on the whole event stream, because role names share the mention
-// handle namespace with other aggregates. check may fill in the events.
-func (c *ChattoCore) appendRBACEventsWithMentionableCheck(ctx context.Context, rbacEvents []*evtv1.Event, check func() error) (uint64, error) {
+func (c *ChattoCore) appendRBACEventWithMentionableCheck(ctx context.Context, event *evtv1.Event, check func() error) (uint64, error) {
 	filter := evtstream.EventSubjectFilter()
 
 	for attempt := range maxRBACMutationRetries {
@@ -220,16 +217,16 @@ func (c *ChattoCore) appendRBACEventsWithMentionableCheck(ctx context.Context, r
 		if err := c.authorizeAtStableInputs(ctx, check); err != nil {
 			return 0, err
 		}
-		entries := make([]evtstream.BatchEntry, 0, len(rbacEvents))
-		for _, event := range rbacEvents {
-			entries = append(entries, evtstream.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
-		}
-		entries[0].Expect = events.ExpectFilterSeq(filter, filterSeq)
+		subject := rbacSubjectForEvent(event)
+		entries := []evtstream.BatchEntry{{
+			Subject: subject,
+			Event:   event,
+			Expect:  events.ExpectFilterSeq(filter, filterSeq),
+		}}
 
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
-			last := len(entries) - 1
-			seq, subject := seqs[last], entries[last].Subject
+			seq := seqs[0]
 			if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(subject, seq)); err != nil {
 				return 0, fmt.Errorf("wait for RBAC projection: %w", err)
 			}

@@ -23,7 +23,7 @@ package core
 // accountRank returns the administrative rank of an account.
 func (c *ChattoCore) accountRank(userID string) int32 {
 	if c.isServerOwner(userID) {
-		return PositionOwner
+		return rankOwner
 	}
 	rank := PositionEveryone
 	for _, roleName := range c.rbacModel.userRoles(userID) {

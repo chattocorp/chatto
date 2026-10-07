@@ -1012,20 +1012,31 @@ func TestAdminRoleServiceManagesRoles(t *testing.T) {
 	}
 	grantAPITestRank(t, env, env.viewer.Id)
 	viewerRank := "rank-" + strings.ToLower(env.viewer.Id)
-	reorderResp, err := env.roles.ReorderRoles(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.ReorderRolesRequest{
-		RoleNames: []string{"triage", "helpdesk", core.RoleModerator, viewerRank, core.RoleAdmin},
+	viewerCtx := withCaller(env.ctx, env.viewer)
+	// New roles start lowest, so triage ranks below helpdesk until it moves.
+	moveResp, err := env.roles.MoveRole(viewerCtx, connect.NewRequest(&adminv1.MoveRoleRequest{
+		RoleName: "triage", BeforeRoleName: new("helpdesk"),
 	}))
 	if err != nil {
-		t.Fatalf("ReorderRoles: %v", err)
+		t.Fatalf("MoveRole: %v", err)
 	}
 	var customOrder []string
-	for _, role := range reorderResp.Msg.GetRoles() {
+	for _, role := range moveResp.Msg.GetRoles() {
 		if !role.GetRole().GetIsSystem() && role.GetRole().GetName() != viewerRank {
 			customOrder = append(customOrder, role.GetRole().GetName())
 		}
 	}
-	if strings.Join(customOrder, ",") != "triage,helpdesk" {
-		t.Fatalf("custom role order = %v, want triage,helpdesk", customOrder)
+	if strings.Join(customOrder, ",") != "helpdesk,triage" {
+		t.Fatalf("custom role order = %v, want helpdesk,triage", customOrder)
+	}
+	if _, err := env.roles.MoveRole(viewerCtx, connect.NewRequest(&adminv1.MoveRoleRequest{RoleName: core.RoleAdmin})); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("MoveRole admin code = %v, want permission denied", errorCode(err))
+	}
+	if _, err := env.roles.MoveRole(viewerCtx, connect.NewRequest(&adminv1.MoveRoleRequest{RoleName: core.RoleOwner})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("MoveRole owner code = %v, want invalid argument", errorCode(err))
+	}
+	if _, err := env.roles.MoveRole(viewerCtx, connect.NewRequest(&adminv1.MoveRoleRequest{RoleName: "missing-role"})); errorCode(err) != connect.CodeNotFound {
+		t.Fatalf("MoveRole missing code = %v, want not found", errorCode(err))
 	}
 
 	member, err := env.core.CreateUser(env.ctx, core.SystemActorID, "role-service-member", "Role Service Member", "password")

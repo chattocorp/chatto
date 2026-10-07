@@ -125,23 +125,20 @@ message DeleteRoleResponse {
   reserved "deleted";
 }
 
-// Request to replace the role order.
-message ReorderRolesRequest {
-  // Role names, lowest first. The list must include every role except owner
-  // and everyone exactly once; owner and everyone keep fixed positions. A
-  // caller who is not an owner can move only roles below their own highest
-  // role, and only to positions below it.
-  repeated string role_names = 1 [(buf.validate.field).repeated = {
-    max_items: 1000
-    items: {
-      string: {min_len: 1}
-    }
-  }];
+// Request to move one role in the role order. Role order is the
+// administrative rank; see ADR-114.
+message MoveRoleRequest {
+  // Required role to move. Owner and everyone cannot move.
+  string role_name = 1 [(buf.validate.field).string.min_len = 1];
+  // Role that follows the moved role in display order, which is highest
+  // first. The moved role then ranks directly above it. Omit to place the
+  // role lowest, directly above everyone.
+  optional string before_role_name = 2 [(buf.validate.field).string.min_len = 1];
 }
 
-// Result of replacing the role order.
-message ReorderRolesResponse {
-  // Full role catalog after reordering.
+// Result of moving one role.
+message MoveRoleResponse {
+  // Full role catalog after the move, sorted by position.
   repeated AdminRole roles = 1;
 }
 
@@ -168,7 +165,8 @@ service AdminRoleService {
   // permission that the role allows or denies, at the same scope; otherwise
   // the call returns PERMISSION_DENIED.
   rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
-  // Replaces the role order. Requires role.manage. The order is the
-  // administrative rank; see ReorderRolesRequest.
-  rpc ReorderRoles(ReorderRolesRequest) returns (ReorderRolesResponse);
+  // Moves one role in the role order. Requires role.manage. A caller who is
+  // not an owner can move only a role below their own highest role, and only
+  // directly above another role below it, or to the lowest place.
+  rpc MoveRole(MoveRoleRequest) returns (MoveRoleResponse);
 }
