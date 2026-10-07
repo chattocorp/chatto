@@ -170,7 +170,9 @@ export class RoleDeletedEvent extends Message<RoleDeletedEvent> {
 }
 
 /**
- * Custom roles changed display order. Permission decisions are unchanged.
+ * The role order changed. Role order is the administrative rank, so the
+ * viewer's ranks_below_viewer and viewer_outranks flags can change. Permission
+ * decisions are unchanged.
  *
  * @generated from message chatto.realtime.v1.RolesReorderedEvent
  */

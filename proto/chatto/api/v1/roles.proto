@@ -14,7 +14,9 @@ message Role {
   string description = 3;
   // Whether this is a built-in role.
   bool is_system = 4;
-  // Display/order position.
+  // Order position. A higher position ranks higher. Rank decides which
+  // accounts and roles a caller can manage; it does not change permission
+  // decisions.
   int32 position = 5;
   // Whether messages may notify users assigned to this role.
   bool pingable = 6;

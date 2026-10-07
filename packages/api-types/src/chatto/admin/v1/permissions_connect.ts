@@ -116,7 +116,8 @@ export const AdminPermissionService = {
      * permission at the target scope and must outrank any other target;
      * otherwise the call returns PERMISSION_DENIED. Bot targets require
      * ownership, or bot.manage and a higher rank than the bot and its owner, and
-     * accept only allow or clear within the bot owner's current authority.
+     * accept only allow or clear within the bot owner's current authority. A
+     * caller who does not own the bot must also have the permission they allow.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.SetUserPermission
      */

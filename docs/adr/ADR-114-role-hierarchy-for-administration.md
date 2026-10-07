@@ -76,7 +76,8 @@ inputs that permission checks use (ADR-087).
 - A delegated role, account, or permission manager can no longer give
   themselves more authority or act on accounts at or above their rank.
 - Two accounts with the same highest role cannot act on each other. Only an
-  owner can act on an admin.
+  owner can act on an account whose highest role is the top role, which is
+  `admin` by default.
 - Rank comes only from roles. A user with administrative direct permissions
   but no matching role has a low rank, can act on few accounts, and has little
   protection. Give administrators a role, not direct permissions.
@@ -90,6 +91,10 @@ inputs that permission checks use (ADR-087).
   below them. The event log records the actor of every change, so an operator
   can find and undo such grants.
 - During a rolling upgrade, older replicas apply the earlier rules and show
-  the earlier display order. They ignore `complete_order`.
+  the earlier display order. They ignore `complete_order`. A legacy reorder or
+  role creation from an older replica after a complete order can give a
+  custom role the same position as a system role. Equal positions rank
+  equally until the next complete order. The RBAC projection snapshot
+  contract changes, so old and new replicas never share snapshots.
 - `everyone` and `owner` positions stay fixed; `admin` and `moderator` lose
   their fixed positions after the first complete order.

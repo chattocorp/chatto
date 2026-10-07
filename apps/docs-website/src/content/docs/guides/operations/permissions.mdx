@@ -138,7 +138,7 @@ Scopes: **S** Server, **G** Room group, **R** Room, **DM** Direct messages.
 | `user.delete-any` | S | Yes | Delete any account. |
 | `user.delete-self` | S | | Delete your own account. |
 | `bot.create` | S | | Create bots that you own. |
-| `bot.manage` | S | Yes | Manage all bots on the server. |
+| `bot.manage` | S | Yes | Manage bots that rank below you and whose owners rank below you. |
 
 System diagnostics are only for owners. They are not a permission.
 
@@ -241,13 +241,14 @@ permission setting wins.
 - You can assign, remove, edit, delete, and move only roles below your own
   highest role. You can always edit the settings of `everyone`.
 - Two users with the same highest role cannot change each other. Only an
-  owner can change an admin.
+  owner can change a user whose highest role is the top role. By default,
+  this role is `admin`.
 - Permission settings directly on a user do not give rank. Give
   administrators a role.
 - Moderating messages and adding a member to a room do not depend on rank.
 
 Put a restriction role, such as `suspended`, below the people who manage it.
-If it is higher, a user who gets the role ranks higher, and those people can
+If it is higher, a user who gets the role ranks higher. The managers can then
 no longer manage that user.
 
 ## Where to configure permissions

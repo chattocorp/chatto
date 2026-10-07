@@ -202,7 +202,8 @@ export const RoomService = {
     /**
      * Removes an explicit channel-room member. Requires room.manage for this room,
      * user.manage-accounts, ownership of the target bot, or bot.manage. The
-     * caller must outrank any other member.
+     * caller must outrank any other member; the owner of a bot need not outrank
+     * their own bot.
      * Removal is allowed after room.join is lost and from archived rooms.
      * Preserves permission grants. Universal and DM membership cannot be edited.
      *

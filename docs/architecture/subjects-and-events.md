@@ -389,6 +389,10 @@ authorization boundary that its decision uses. Room moves also guard the
 room-deletion subject, so a concurrent delete cannot leave a stale group
 membership. See ADR-086.
 
+Role creation commits `RbacRoleCreatedEvent` with a complete
+`RbacRolesReorderedEvent` that places the new role lowest. A complete order
+lists every role except `owner` and `everyone`; see ADR-114.
+
 `RoomCommandModel.UpdateRoom` commits all changed metadata, Universal, Slow
 Mode, and Threading Mode facts in one atomic batch. A patch that supplies a
 name guards `evt.room.>` for name uniqueness and target-room state. Other

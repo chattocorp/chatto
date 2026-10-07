@@ -192,8 +192,10 @@ export const BotService = {
       idempotency: MethodIdempotency.Idempotent,
     },
     /**
-     * Reassigns a bot to another active human owner. Requires bot.manage, and
-     * the caller must outrank the new owner unless it is their own account. The
+     * Reassigns a bot to another active human owner. Requires bot.manage. The
+     * caller must outrank the bot and its current owner (see
+     * Bot.viewer_outranks), must outrank the new owner unless it is their own
+     * account, and must have every permission that the bot is allowed. The
      * current API keys and configured permission allowlist remain unchanged,
      * while effective permissions immediately use the new owner's ceiling.
      *

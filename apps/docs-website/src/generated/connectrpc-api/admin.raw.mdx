@@ -671,8 +671,9 @@ Batch server-admin member response.
 Assigns a role to a user or bot. Requires role.assign. A caller who is not
 an owner may assign only roles below their own highest role whose granted
 authority they already possess, and must outrank the target (see
-AdminMember.viewer_outranks) unless it is their own account. Bots cannot
-hold the owner role.
+AdminMember.viewer_outranks) unless it is their own account. For a bot,
+the caller must always outrank the bot itself. Bots cannot hold the owner
+role.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/AssignRole
@@ -1220,7 +1221,8 @@ user.manage-permissions. A caller who is not an owner must also have the
 permission at the target scope and must outrank any other target;
 otherwise the call returns PERMISSION_DENIED. Bot targets require
 ownership, or bot.manage and a higher rank than the bot and its owner, and
-accept only allow or clear within the bot owner's current authority.
+accept only allow or clear within the bot owner's current authority. A
+caller who does not own the bot must also have the permission they allow.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/SetUserPermission

@@ -165,7 +165,7 @@ message Role {
   string name = 1; // Unique identifier, lowercase + dashes only, e.g., "owner", "moderator", "content-reviewer"
   string display_name = 2; // Human-readable name, e.g., "Owner", "Moderator", "Content Reviewer"
   string description = 3;
-  int32 position = 4; // Display/order position; not an authorization rank.
+  int32 position = 4; // Administrative rank order (ADR-114); not used for permission resolution.
   bool pingable = 5; // Whether messages can ping users assigned to this role.
 }
 

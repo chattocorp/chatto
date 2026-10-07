@@ -316,7 +316,8 @@ must show the owner's ceiling and explain unavailable cells.
 ### 5. Bot creation is administrative by default
 
 **Decision:** `bot.create` lets a human create bots, ownership lets them manage
-their existing bots, and `bot.manage` lets a human manage any bot. Fresh RBAC
+their existing bots, and `bot.manage` lets a human manage bots that rank below
+them and whose owners rank below them (ADR-114). Fresh RBAC
 state grants `bot.create` and `bot.manage` to `admin`. Effective owners receive
 both through the normal virtual owner override. Bots do not inherit `everyone`
 and cannot exercise either capability themselves. Upgraded 0.4 servers receive
@@ -474,8 +475,9 @@ edit. Retracted or inaccessible messages are not sent.
 ## Permissions
 
 - `bot.create` — create bot accounts and become their owner.
-- `bot.manage` — view and manage every bot on the server, including reassigning
-  its owner, while preserving the current owner's permission ceiling.
+- `bot.manage` — view every bot, and manage and reassign bots when the caller
+  ranks above the bot and its owner, while preserving the current owner's
+  permission ceiling.
 - `message.read` — give the bot broad message access in configured channel
   rooms or in DMs, subject to membership and the owner's effective broad-read
   authority at the same scope.

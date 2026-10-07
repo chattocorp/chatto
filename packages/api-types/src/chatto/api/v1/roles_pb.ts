@@ -41,7 +41,9 @@ export class Role extends Message<Role> {
   isSystem = false;
 
   /**
-   * Display/order position.
+   * Order position. A higher position ranks higher. Rank decides which
+   * accounts and roles a caller can manage; it does not change permission
+   * decisions.
    *
    * @generated from field: int32 position = 5;
    */

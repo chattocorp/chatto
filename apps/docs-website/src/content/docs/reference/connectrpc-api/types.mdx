@@ -82,7 +82,7 @@ Public role metadata used for rendering role mentions, labels, and catalogs.
 | `display_name` | `string` | Display name shown in user-facing role UIs. |
 | `description` | `string` | Optional role description. |
 | `is_system` | `bool` | Whether this is a built-in role. |
-| `position` | `int32` | Display/order position. |
+| `position` | `int32` | Order position. A higher position ranks higher. Rank decides which accounts and roles a caller can manage; it does not change permission decisions. |
 | `pingable` | `bool` | Whether messages may notify users assigned to this role. |
 
 <a id="chatto-api-v1-PresencePreference"></a>
