@@ -47,5 +47,5 @@ ADR-039 is superseded.
   unless served through the explicit server-side transform cache.
 - **Heavy passive S3-backed originals may redirect.** Chatto authorizes the
   stable asset request first, then may return a short-lived presigned object URL
-  for video, audio, or large passive files. Active document types still stream
-  through Chatto so sandbox headers are applied.
+  for video, audio, or large passive files. All types that are not passive
+  stream through Chatto so sandbox headers are applied.
