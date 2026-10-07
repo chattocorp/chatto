@@ -283,12 +283,23 @@ timed-out, and rejected catch-ups.
 ## Authorization and projection readiness
 
 Privileged-mode changes keep the mounted client state and resume cursor. The
-client reconnects and reads current viewer, room, and room-group resources
-before it marks catch-up complete. The server cancels authorized work at the session's privilege
-deadline and sends a reconnecting `PRIVILEGED_MODE_EXPIRED` close. It does not
-write a live event after that deadline. The periodic credential check sends
-the same close when another connection of the session ends privileged mode. The client then reads effective
-permissions and rooms with privileged mode inactive. See
+client applies viewer permissions from the mutation response, then reconnects.
+An immediate reconnect from a caught-up live socket that reports `RESUMED`
+reads rooms and room groups at the caught-up cursor before it completes the
+authorization refresh. Only missing DM profiles and timelines with changed
+message permissions need hydration. Cached profiles, server runtime config,
+MOTD, and notifications keep their current values unless replay or live events
+request an update. Transient changes during this short reconnect can remain
+stale until a later event or full recovery.
+
+Network recovery, queued reconnects, snapshot fallback, expiry, and retries
+after failed reads use full current-value recovery. Projection and
+authorization generations reject superseded permission reads. The server
+cancels authorized work at the session's privilege deadline and sends a
+reconnecting `PRIVILEGED_MODE_EXPIRED` close. It does not write a live event
+after that deadline. The periodic credential check sends the same close when
+another connection of the session ends privileged mode. The client then reads
+effective permissions and rooms with privileged mode inactive. See
 [ADR-096](../adr/ADR-096-session-scoped-privileged-mode.md) and
 [ADR-105](../adr/ADR-105-privileged-mode-gates-owner-override.md).
 
@@ -446,7 +457,9 @@ prevent old responses from restoring a removed user. Reset rejects pending reads
 and disposal permanently fences the retired owner. Profile expiry timers have
 the same lifetime. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
 Snapshot user lists contain only referenced users. The client merges them into
-the shared store. At `caught_up`, it requests cached user IDs at that cursor.
+the shared store. During full recovery at `caught_up`, it requests cached user
+IDs at that cursor. A confirmed privilege-only resume reads only missing DM
+profiles, as described above.
 Only an omitted ID from this requested set confirms account removal. A reset
 generation and per-user revisions fence late reads and changes during the check.
 A room's first page and full background load remain separate so

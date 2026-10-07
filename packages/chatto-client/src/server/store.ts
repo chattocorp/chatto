@@ -275,6 +275,8 @@ export class ServerStateStore {
   }
 
   readonly #privilegedModeAPI: PrivilegedModeAPI;
+  /** Serialize explicit mutations through their authorization refresh boundary. */
+  #privilegedModeChanges: Promise<void> = Promise.resolve();
   readonly #realtimeResources: RealtimeResourceAPI;
   #realtimeProjectionGeneration = 0;
   #realtimeSnapshotPending = false;
@@ -369,11 +371,22 @@ export class ServerStateStore {
     });
   }
 
-  /** Change privilege activation and reconcile effective viewer permissions in place. */
-  async setPrivilegedMode(active: boolean): Promise<void> {
+  /** Change privilege activation and reconcile effective viewer permissions in
+   * place. Concurrent calls run in order, including their projection refresh. */
+  setPrivilegedMode(active: boolean): Promise<void> {
+    const change = this.#privilegedModeChanges.then(() => this.changePrivilegedMode(active));
+    // The caller receives this change's error. A failed change must not block
+    // a later deactivation or retry in the queue.
+    this.#privilegedModeChanges = change.catch(() => undefined);
+    return change;
+  }
+
+  private async changePrivilegedMode(active: boolean): Promise<void> {
+    if (this.#disposed) throw new Error('privileged-mode update has no active server store');
     const update = active
       ? await this.#privilegedModeAPI.activate()
       : await this.#privilegedModeAPI.deactivate();
+    if (this.#disposed) throw new Error('privileged-mode update has no active server store');
     const viewer = this.projection.viewer?.clone();
     if (!viewer) throw new Error('privileged-mode update has no viewer projection');
     viewer.privilegedMode = update.privilegedMode;
@@ -384,7 +397,9 @@ export class ServerStateStore {
     const projectionRefreshed = this.realtimeSync.waitForAuthorizationRefresh(
       authorizationRefreshGeneration
     );
-    this.#serverConnection.forceReconnect('privileged mode changed');
+    this.#serverConnection.forceReconnect('privileged mode changed', {
+      authorizationRefreshGeneration
+    });
     await projectionRefreshed;
   }
 
@@ -438,10 +453,18 @@ export class ServerStateStore {
   }
 
   /** Complete auxiliary reads and event reconciliation through `cursor`.
-   * Room groups must also be read: their viewer permissions can change when
-   * privileged mode changes without a durable room-layout event. */
-  async completeRealtimeCatchUp(cursor: string): Promise<void> {
+   * The optional authorization generation reuses a privilege mutation's viewer
+   * response on confirmed resume. Snapshot fallback always reads full state.
+   * Room-group permissions can change without a durable room-layout event. */
+  async completeRealtimeCatchUp(
+    cursor: string,
+    authorizationRefreshGeneration?: number
+  ): Promise<void> {
     if (this.#privacyCleanupFailed) throw new Error('Private data cleanup did not complete');
+    if (authorizationRefreshGeneration !== undefined && !this.#realtimeSnapshotPending) {
+      await this.completePrivilegedModeRefresh(cursor, authorizationRefreshGeneration);
+      return;
+    }
     const generation = this.#realtimeProjectionGeneration;
     this.#catchUpResourceReads++;
     const batches = await Promise.all(
@@ -534,6 +557,41 @@ export class ServerStateStore {
     }
     await this.waitForRealtimeReconciliation();
     this.requireCurrentRealtimeProjection(generation);
+  }
+
+  /** Reuse the mutation's viewer permissions and refresh only access-dependent
+   * state. Durable replay and queued event reads update existing user profiles. */
+  private async completePrivilegedModeRefresh(
+    cursor: string,
+    authorizationRefreshGeneration: number
+  ): Promise<void> {
+    const generation = this.#realtimeProjectionGeneration;
+    const requireCurrent = () => {
+      this.requireCurrentRealtimeProjection(generation);
+      if (
+        authorizationRefreshGeneration !== this.realtimeSync.pendingAuthorizationRefreshGeneration
+      ) {
+        throw new Error('privileged-mode refresh was superseded by a newer authorization change');
+      }
+    };
+    requireCurrent();
+    this.#catchUpResourceReads++;
+    const batches = await Promise.all(
+      (['rooms', 'roomGroups'] as const).map((family) =>
+        this.#realtimeResources.read(family, cursor)
+      )
+    ).finally(() => {
+      this.#catchUpResourceReads--;
+    });
+    requireCurrent();
+    batch(() => {
+      for (const resource of batches.flat()) {
+        this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource, cursor }));
+      }
+    });
+    await this.hydrateProjectedDMUsers(cursor, generation, requireCurrent);
+    await this.waitForRealtimeReconciliation();
+    requireCurrent();
   }
 
   /** Wait for queued event reads without starting catch-up resource reads. */
@@ -1035,14 +1093,16 @@ export class ServerStateStore {
 
   private async hydrateProjectedDMUsers(
     minimumCursor?: string,
-    generation = this.#realtimeProjectionGeneration
+    generation = this.#realtimeProjectionGeneration,
+    requireCurrent = () => this.requireCurrentRealtimeProjection(generation)
   ): Promise<void> {
-    this.requireCurrentRealtimeProjection(generation);
+    requireCurrent();
     const userIds = [...this.projection.rooms.values()].flatMap((room) => room.memberUserIds);
     const missingIds = userIds.filter((userId) => !this.projection.users.has(userId));
+    if (missingIds.length === 0) return;
     const presenceReadVersion = this.presence.version;
     const resources = await this.#realtimeResources.readUsers(missingIds, minimumCursor);
-    this.requireCurrentRealtimeProjection(generation);
+    requireCurrent();
     batch(() => {
       for (const resource of resources) {
         this.publishProjectionUpdate(

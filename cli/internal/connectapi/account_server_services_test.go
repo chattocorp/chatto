@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/config"
@@ -82,6 +83,10 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 	if !apiCapabilityGranted(armed.Msg.GetCapabilities().GetGrants(), viewerCapabilityAdminViewSystem) {
 		t.Fatal("armed owner lacks effective system capability")
 	}
+	if !proto.Equal(activated.Msg.GetCapabilities(), armed.Msg.GetCapabilities()) ||
+		!proto.Equal(activated.Msg.GetViewerPermissions(), armed.Msg.GetViewerPermissions()) {
+		t.Fatal("activation authorization differs from GetViewer")
+	}
 	activationLog, err := env.core.ListEventLog(requestContext(), owner.Id, core.EventLogQuery{
 		Filter: core.EventLogFilter{EventType: "PrivilegedModeActivatedEvent", ActorID: owner.Id},
 	})
@@ -118,6 +123,10 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 	}
 	if disarmed.Msg.GetPrivilegedMode().GetActive() {
 		t.Fatal("deactivated privileged mode remains active")
+	}
+	if !proto.Equal(deactivated.Msg.GetCapabilities(), disarmed.Msg.GetCapabilities()) ||
+		!proto.Equal(deactivated.Msg.GetViewerPermissions(), disarmed.Msg.GetViewerPermissions()) {
+		t.Fatal("deactivation authorization differs from GetViewer")
 	}
 }
 

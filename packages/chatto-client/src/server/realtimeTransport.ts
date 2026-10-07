@@ -15,6 +15,7 @@ import {
 } from '../realtime/eventBus.js';
 import {
   RealtimeInitialState,
+  RealtimeRecovery,
   RealtimeCloseCode,
   RealtimeServerFrame,
   RealtimeSubscribe,
@@ -26,7 +27,11 @@ import {
   ListRoomsResponse
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import { ListActiveCallsResponse } from '@chatto/api-types/api/v1/voice_calls_pb';
-import type { ConnectionStatus, ServerConnection } from './serverConnection.js';
+import type {
+  ConnectionStatus,
+  RealtimeReconnectOptions,
+  ServerConnection
+} from './serverConnection.js';
 import { RealtimeProjectionSyncState } from './realtimeSync.js';
 import { debugLog } from '../util/debugLog.js';
 
@@ -66,8 +71,12 @@ export type RealtimeServerRegistration = {
   sync: RealtimeProjectionSyncState;
   /** Canonical store reducer that must be present before transport startup. */
   projectionHandler: ProjectionHandler;
-  /** Refresh auxiliary state once at the subscription's caught-up boundary. */
-  completeProjectionCatchUp?: (cursor: string) => Promise<void>;
+  /** Refresh auxiliary state at caught-up. The optional generation selects a
+   * privilege-only refresh after an uninterrupted, successfully resumed stream. */
+  completeProjectionCatchUp?: (
+    cursor: string,
+    authorizationRefreshGeneration?: number
+  ) => Promise<void>;
   /** Wait for event-triggered reads without fetching unrelated resources. */
   waitForProjectionReconciliation?: () => Promise<void>;
 };
@@ -179,6 +188,7 @@ export class EventBusManager {
     let reconnectAttempts = 0;
     let generation = 0;
     let socket: RealtimeSocket | null = null;
+    let caughtUpSocket: RealtimeSocket | null = null;
     let socketSubscribed = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let pollResolution: ((caughtUp: boolean) => void) | null = null;
@@ -215,6 +225,7 @@ export class EventBusManager {
     const detachSocket = (close = true, reason = 'replaced') => {
       const current = socket;
       socket = null;
+      caughtUpSocket = null;
       socketSubscribed = false;
       if (!current) return;
       current.onopen = null;
@@ -332,7 +343,7 @@ export class EventBusManager {
       );
     };
 
-    const connect = (reason: string) => {
+    const connect = (reason: string, privilegeRefreshGeneration?: number) => {
       if (stopped || !projectionSupported || mode === 'dormant' || socket) return;
       clearReconnectTimer();
       generation++;
@@ -497,13 +508,28 @@ export class EventBusManager {
               case 'caughtUp': {
                 try {
                   await cursorReconciliation;
-                  await completeProjectionCatchUp?.(frame.frame.value.cursor);
+                  if (stopped || socket !== nextSocket) return;
+                  if (
+                    privilegeRefreshGeneration !== undefined &&
+                    privilegeRefreshGeneration === authorizationRefreshGeneration &&
+                    privilegeRefreshGeneration === sync.pendingAuthorizationRefreshGeneration &&
+                    !snapshotReceived &&
+                    frame.frame.value.recovery === RealtimeRecovery.RESUMED
+                  ) {
+                    await completeProjectionCatchUp?.(
+                      frame.frame.value.cursor,
+                      privilegeRefreshGeneration
+                    );
+                  } else {
+                    await completeProjectionCatchUp?.(frame.frame.value.cursor);
+                  }
                 } catch (error) {
                   failReconciliation(error);
                   return;
                 }
                 if (stopped || socket !== nextSocket) return;
                 catchUpComplete = true;
+                caughtUpSocket = nextSocket;
                 sync.markCaughtUp(frame.frame.value.cursor, authorizationRefreshGeneration);
                 resolvePoll(true);
                 if (mode === 'polling') {
@@ -602,7 +628,11 @@ export class EventBusManager {
       };
     };
 
-    function scheduleReconnect(reason: string, delayMs?: number): void {
+    function scheduleReconnect(
+      reason: string,
+      delayMs?: number,
+      privilegeRefreshGeneration?: number
+    ): void {
       if (stopped || mode !== 'live' || !projectionSupported) return;
       clearReconnectTimer();
       reconnectCount++;
@@ -615,22 +645,31 @@ export class EventBusManager {
         wait === 0 ? 'connecting' : 'disconnected',
         reconnectAttempts
       );
-      reconnectTimer = setTimeout(() => connect(reason), wait);
+      reconnectTimer = setTimeout(() => connect(reason, privilegeRefreshGeneration), wait);
     }
 
-    const reconnectNow = (reason: string) => {
+    const reconnectNow = (reason: string, options?: RealtimeReconnectOptions) => {
       if (stopped || mode !== 'live' || !projectionSupported) return;
+      // Only a healthy mounted view can skip current-value recovery. Socket
+      // failure, polling, queued reconnects, and retry attempts use full reads.
+      const privilegeRefreshGeneration =
+        socket &&
+        socket === caughtUpSocket &&
+        socket.readyState === 1 &&
+        Date.now() - lastEventAt < heartbeatStallMs
+          ? options?.authorizationRefreshGeneration
+          : undefined;
       detachSocket(true);
       reconnectAttempts = 0;
-      scheduleReconnect(reason, 0);
+      scheduleReconnect(reason, 0, privilegeRefreshGeneration);
     };
 
     // For an inactive server, a forced reconnect (tab wake, network recovery)
     // drops any catch-up that started before it, clears a failure reported
     // before it, and catches up again at once.
-    const unregisterReconnect = serverConnection.registerRealtimeReconnect((reason) => {
+    const unregisterReconnect = serverConnection.registerRealtimeReconnect((reason, options) => {
       if (mode === 'live') {
-        reconnectNow(reason);
+        reconnectNow(reason, options);
         return;
       }
       if (stopped || !projectionSupported) return;
@@ -652,7 +691,11 @@ export class EventBusManager {
       },
       update(supported) {
         projectionSupported = supported;
-        if (supported && mode === 'live') connect('projection capability confirmed');
+        // Reactive registration updates must preserve a scheduled reconnect's
+        // context and retry delay instead of opening a competing socket.
+        if (supported && mode === 'live' && !reconnectTimer) {
+          connect('projection capability confirmed');
+        }
         if (!supported && mode !== 'dormant') becomeDormant(false);
       },
       setMode(nextMode) {

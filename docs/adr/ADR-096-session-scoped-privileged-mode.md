@@ -63,10 +63,20 @@ can be used now. The bundled client puts the control in the current-user area
 for the selected server. Each mutation response includes the new effective
 server capabilities and permissions, which the client applies immediately. It
 then keeps its realtime projection and resume cursor and reconnects. The
-client reads current viewer and room resources through ConnectRPC before it
-completes catch-up. A normal cursor resume contains only later EVT changes and
-cannot represent this runtime-state mutation. These resource updates change
+client reads room and room-group resources through ConnectRPC before it
+completes catch-up. After an immediate reconnect from a caught-up live socket
+reports `RESUMED`, the client uses the mutation's viewer permissions. It reads
+only missing DM profiles and reloads only timelines whose message permissions
+changed. It does not refresh all cached users or unrelated current values for
+this permission change. A normal cursor resume contains only later EVT changes
+and cannot represent this runtime-state mutation. These resource updates change
 room-scoped permissions without unmounting the current interface.
+
+Snapshots, expiry, network recovery, queued reconnects, and failed permission
+reads use full current-value recovery. Late permission reads cannot complete a
+newer authorization refresh. Explicit mutations run in call order through their
+authorization refresh boundary. The mutation handlers assemble only the viewer
+capabilities and permission fields that their responses return.
 
 The realtime connection retains the privilege deadline accepted during its
 subscription. At that deadline, the server cancels authorized work and sends a

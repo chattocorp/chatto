@@ -4,6 +4,7 @@ import {
   RealtimeEvent,
   RealtimeClose,
   RealtimeCaughtUp,
+  RealtimeRecovery,
   RealtimeHeartbeat,
   RealtimeServerFrame,
   RealtimeSnapshot,
@@ -17,7 +18,11 @@ import {
   setRealtimePollRandomForTests,
   setRealtimeSocketFactoryForTests
 } from './realtimeTransport.js';
-import type { ConnectionStatus, ServerConnection } from './serverConnection.js';
+import type {
+  ConnectionStatus,
+  RealtimeReconnectOptions,
+  ServerConnection
+} from './serverConnection.js';
 import { RealtimeProjectionSyncState } from './realtimeSync.js';
 import type { EventBus, ProjectionHandler } from '../realtime/eventBus.js';
 
@@ -82,7 +87,7 @@ class FakeServerConnection {
   authRequiredCalls = 0;
   browserRenewalCalls = 0;
   authRenewed = false;
-  #reconnect: ((reason: string) => void) | null = null;
+  #reconnect: ((reason: string, options?: RealtimeReconnectOptions) => void) | null = null;
   #wasDisconnected = false;
   #connectionFailed = false;
 
@@ -103,7 +108,9 @@ class FakeServerConnection {
     this.statusUpdates.push(status);
   }
 
-  registerRealtimeReconnect(handler: (reason: string) => void): () => void {
+  registerRealtimeReconnect(
+    handler: (reason: string, options?: RealtimeReconnectOptions) => void
+  ): () => void {
     this.#reconnect = handler;
     return () => {
       if (this.#reconnect === handler) this.#reconnect = null;
@@ -114,9 +121,9 @@ class FakeServerConnection {
     return this.#connectionFailed;
   }
 
-  forceReconnect(reason: string): void {
+  forceReconnect(reason: string, options?: RealtimeReconnectOptions): void {
     this.#connectionFailed = false;
-    this.#reconnect?.(reason);
+    this.#reconnect?.(reason, options);
   }
 
   async handleAuthenticationRequired(): Promise<boolean> {
@@ -197,7 +204,10 @@ type LiveBusOptions = {
   projectionSupported?: boolean;
   sync?: RealtimeProjectionSyncState;
   reducer?: ProjectionHandler;
-  completeProjectionCatchUp?: (cursor: string) => Promise<void>;
+  completeProjectionCatchUp?: (
+    cursor: string,
+    authorizationRefreshGeneration?: number
+  ) => Promise<void>;
   waitForProjectionReconciliation?: () => Promise<void>;
 };
 
@@ -367,6 +377,153 @@ describe('eventBusManager realtime transport', () => {
     expect(sync.authorizationRefreshRequired).toBe(false);
     expect(updates).not.toHaveBeenCalled();
   });
+
+  it.each([
+    { recovery: RealtimeRecovery.RESUMED, snapshot: false, narrow: true },
+    { recovery: RealtimeRecovery.SNAPSHOT, snapshot: true, narrow: false },
+    { recovery: RealtimeRecovery.RESUMED, snapshot: true, narrow: false },
+    { recovery: RealtimeRecovery.LIVE_ONLY, snapshot: false, narrow: false },
+    { recovery: RealtimeRecovery.UNSPECIFIED, snapshot: false, narrow: false }
+  ])(
+    'uses a scoped privilege refresh only on confirmed resume ($recovery, snapshot=$snapshot)',
+    async ({ recovery, snapshot, narrow }) => {
+      vi.useFakeTimers();
+      const fake = new FakeServerConnection();
+      const sync = new RealtimeProjectionSyncState();
+      const completeCatchUp = vi.fn().mockResolvedValue(undefined);
+      startLiveBus(fake, { sync, completeProjectionCatchUp: completeCatchUp });
+      const original = sockets[0];
+      original.open();
+      await original.receive(
+        serverFrame({
+          case: 'caughtUp',
+          value: new RealtimeCaughtUp({ cursor: 'before' })
+        })
+      );
+      const generation = sync.invalidateAuthorization();
+      fake.forceReconnect('privileged mode changed', {
+        authorizationRefreshGeneration: generation
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      const replacement = sockets.at(-1)!;
+      replacement.open();
+      expect(RealtimeSubscribe.fromBinary(replacement.sent[0]).resumeCursor).toBe('before');
+      if (snapshot) {
+        await replacement.receive(
+          serverFrame({
+            case: 'snapshot',
+            value: new RealtimeSnapshot({ server: new ServerPublicProfile() })
+          })
+        );
+      }
+      completeCatchUp.mockClear();
+      await replacement.receive(
+        serverFrame({
+          case: 'caughtUp',
+          value: new RealtimeCaughtUp({ cursor: 'after', recovery })
+        })
+      );
+
+      if (narrow) expect(completeCatchUp).toHaveBeenCalledWith('after', generation);
+      else expect(completeCatchUp).toHaveBeenCalledWith('after');
+      expect(sync.authorizationRefreshRequired).toBe(false);
+    }
+  );
+
+  it('keeps a scheduled privilege reconnect when runtime registrations refresh', async () => {
+    vi.useFakeTimers();
+    const fake = new FakeServerConnection();
+    const sync = new RealtimeProjectionSyncState();
+    const completeCatchUp = vi.fn().mockResolvedValue(undefined);
+    startLiveBus(fake, { sync, completeProjectionCatchUp: completeCatchUp });
+    const original = sockets[0];
+    original.open();
+    await original.receive(
+      serverFrame({
+        case: 'caughtUp',
+        value: new RealtimeCaughtUp({ cursor: 'before' })
+      })
+    );
+    const generation = sync.invalidateAuthorization();
+    fake.forceReconnect('privileged mode changed', { authorizationRefreshGeneration: generation });
+    // Applying the mutation response schedules a runtime registration update
+    // before the reconnect timer fires. It must not replace that reconnect.
+    eventBusManager.ensureBus({
+      serverId: TEST_SERVER,
+      connection: fake as unknown as ServerConnection,
+      projectionSupported: true,
+      sync,
+      projectionHandler: () => {},
+      completeProjectionCatchUp: completeCatchUp
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    const replacement = sockets.at(-1)!;
+    replacement.open();
+    completeCatchUp.mockClear();
+    await replacement.receive(
+      serverFrame({
+        case: 'caughtUp',
+        value: new RealtimeCaughtUp({ cursor: 'after', recovery: RealtimeRecovery.RESUMED })
+      })
+    );
+
+    expect(completeCatchUp).toHaveBeenCalledWith('after', generation);
+  });
+
+  it.each(['network failure', 'read failure', 'not caught up', 'newer generation'])(
+    'falls back to full recovery after $0',
+    async (failure) => {
+      vi.useFakeTimers();
+      const fake = new FakeServerConnection();
+      const sync = new RealtimeProjectionSyncState();
+      const completeCatchUp = vi.fn().mockResolvedValue(undefined);
+      startLiveBus(fake, { sync, completeProjectionCatchUp: completeCatchUp });
+      const original = sockets[0];
+      original.open();
+      if (failure !== 'not caught up') {
+        await original.receive(
+          serverFrame({
+            case: 'caughtUp',
+            value: new RealtimeCaughtUp({ cursor: 'before' })
+          })
+        );
+      }
+      const generation = sync.invalidateAuthorization();
+      fake.forceReconnect('privileged mode changed', {
+        authorizationRefreshGeneration: generation
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      let replacement = sockets.at(-1)!;
+      replacement.open();
+      if (failure === 'newer generation') sync.invalidateAuthorization();
+      if (failure === 'read failure') {
+        completeCatchUp.mockRejectedValueOnce(new Error('read failed'));
+        await replacement.receive(
+          serverFrame({
+            case: 'caughtUp',
+            value: new RealtimeCaughtUp({ cursor: 'failed', recovery: RealtimeRecovery.RESUMED })
+          })
+        );
+      } else if (failure === 'network failure') replacement.serverClose();
+      if (failure === 'read failure' || failure === 'network failure') {
+        expect(sync.authorizationRefreshRequired).toBe(true);
+        await vi.advanceTimersByTimeAsync(5_000);
+        replacement = sockets.at(-1)!;
+        replacement.open();
+      }
+      completeCatchUp.mockClear();
+      await replacement.receive(
+        serverFrame({
+          case: 'caughtUp',
+          value: new RealtimeCaughtUp({ cursor: 'after', recovery: RealtimeRecovery.RESUMED })
+        })
+      );
+
+      expect(completeCatchUp).toHaveBeenCalledWith('after');
+      if (failure === 'newer generation') expect(sync.authorizationRefreshRequired).toBe(true);
+      else expect(sync.authorizationRefreshRequired).toBe(false);
+    }
+  );
 
   it('invalidates privileged authority when the server deadline closes the socket', async () => {
     vi.useFakeTimers();
