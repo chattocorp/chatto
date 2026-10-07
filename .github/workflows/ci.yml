@@ -266,6 +266,12 @@ jobs:
         with:
           install-cli-deps: 'false'
 
+      - name: Cache macOS capture helper build
+        if: runner.os == 'macOS'
+        uses: ./.github/actions/cache-macos-capture-probe
+        with:
+          configuration: release
+
       - name: Check and test desktop shell
         run: mise test-desktop
 
@@ -307,6 +313,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+
+      - name: Cache macOS capture helper build
+        uses: ./.github/actions/cache-macos-capture-probe
+        with:
+          configuration: debug
 
       - name: Test macOS game-capture helper
         run: tools/test-desktop-macos-capture.sh
