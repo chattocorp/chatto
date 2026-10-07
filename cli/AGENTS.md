@@ -296,7 +296,8 @@ authorization, live events, backup and restore, and backend tests.
 ## Authorization And RBAC
 
 - Core authorization source of truth lives around `cli/internal/core/permission.go`,
-  `permission_resolver.go`, `can.go`, FDR-001, ADR-040, ADR-096, and ADR-105.
+  `permission_resolver.go`, `rbac_hierarchy.go`, `can.go`, FDR-001, ADR-040, ADR-096,
+  ADR-105, and ADR-114.
 - Users are server-scoped. Spaces and rooms may be discoverable, but room
   message access requires room membership.
 - Each direct-user or explicitly assigned role contributes its nearest
@@ -332,15 +333,20 @@ authorization, live events, backup and restore, and backend tests.
   `message.read-interactions`.
 - Add permissions in Go first, regenerate frontend mirrors, and test scope and
   DM-scope behavior.
-- Targeted operations are permission-gated, not rank-gated: role assignment uses
-  `role.assign`, direct user permissions use `user.manage-permissions`, room
-  removal uses `room.remove-member`. A non-owner's role assignment authority is
-  bounded by the target role's explicit scoped permission decisions; assigning
-  requires every allow, revoking and deleting a role require every allow and
-  deny, and the `owner` role is owner-only. Changing one role or direct-user
-  decision requires the actor to hold that permission at that scope, and only
-  owners may edit their own direct decisions. Keep these bounds in
-  `role_assignment_authorization.go` and run them inside the RBAC OCC retry.
+- Role order is an administrative rank (ADR-114, `rbac_hierarchy.go`). It
+  never affects permission resolution. An account ranks at its highest role;
+  owners and the system actor are exempt, and `everyone` ranks below every
+  account. Targeted operations need their permission and a higher rank: a
+  non-owner acts only on accounts that rank strictly below them, and assigns,
+  revokes, edits, deletes, or moves only roles below their highest role. Bots
+  act with at most their owner's rank. Add the rank check to every new
+  operation that acts on another account.
+- Delegated authority is bounded: assigning a role requires every allow of the
+  role, revoking or deleting it requires every allow and deny, and changing one
+  role or direct-user decision requires the actor to hold that permission at
+  that scope. The `owner` role is owner-only. Keep these bounds in
+  `role_assignment_authorization.go` and `rbac_hierarchy.go`, and run them
+  inside the command's OCC retry.
 - Authorization-sensitive event writes must evaluate authorization inside the
   target aggregate's OCC retry. Request-time authorization is the default. For
   cross-aggregate inputs, capture their authoritative tails, wait for the

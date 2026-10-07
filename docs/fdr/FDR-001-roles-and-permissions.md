@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-10-05
+**Last reviewed:** 2026-10-07
 
 ## Overview
 
@@ -78,7 +78,7 @@ the backend permission catalog. Update both catalogs together.
   Pages reflect current assignments, so concurrent changes can shift offsets.
 
 - Every authenticated human user belongs to the implicit `everyone` role and may additionally hold one or more named roles. Bots inherit neither `everyone` nor named-role permissions.
-- The system roles are `owner`, `admin`, `moderator`, `everyone`. Role position controls ordering/display and legacy event compatibility; it is not an authorization rank.
+- The system roles are `owner`, `admin`, `moderator`, `everyone`. Role order is the administrative rank (Design Decision 11). It never changes whether a permission is allowed.
 - A role grants or denies named permissions like `message.post`, `room.create`, `admin.view-users`.
 - A permission identifier is an opaque, stable value. Current identifiers use
   punctuation to help developers recognize them, but punctuation does not
@@ -94,20 +94,22 @@ the backend permission catalog. Update both catalogs together.
   DMs after the membership check. `message.post` separately
   gates root-message posting and permits human users to start DMs. Bot accounts
   cannot start DMs regardless of their permissions.
-- Server admins can drag-and-drop to reorder custom roles. System role positions are fixed for ordering consistency.
+- Role managers change the role order on the **Role order** page. `owner` stays at the top and `everyone` at the bottom; `admin`, `moderator`, and custom roles share one order. A new role starts lowest. A non-owner can move only roles below their own highest role, and only to positions below it.
+- An account ranks at its highest role; an account without roles ranks with `everyone`. Owners rank above every role. A non-owner can act on another account only when they rank strictly above it: password, profile, avatar, login cooldown, deletion, roles, direct permissions, room removal, suspension lifts, membership removal, and bot management. Message moderation and adding a member to a room do not depend on rank.
 - Custom role display names are limited to 80 bytes; descriptions are limited to 500 bytes.
 - Owners are always entitled to all permissions. The owner override becomes effective only while the human session has privileged mode active. Without it, an owner resolves through direct grants, other roles, and `everyone` like any other user. An effective owner has the durable `owner` role; verified users listed in `owners.emails` in `chatto.toml` are materialized into that role at boot or through retryable durable work after verification.
 - `admin` and every other non-owner role confer only their explicit permission decisions; they have no role-name-based authority.
 - Owner permissions are virtual rather than persisted defaults: fresh servers do not seed editable owner permission rows, and the admin UI shows owner permissions as read-only green checks.
 - RBAC editor and inspection APIs are exposed through ConnectRPC admin services. Admin entry is authenticated, and individual operations keep narrower gates such as `role.manage`, `role.assign`, `user.manage-accounts`, `user.manage-permissions`, or `room.manage`.
-- Delegated role assignment is bounded by the assigner's own authority. A non-owner may assign a role only when they effectively possess every permission that role explicitly allows at the same scope, and may revoke it only when they have authority over all of its explicit allow and deny decisions. Only an effective owner may assign or revoke the `owner` role.
-- Permission editing is bounded by the editor's own authority. To set, deny,
-  or clear one role or direct-user decision, a non-owner must effectively
-  have that permission at the decision's scope. Room and room-group managers
-  follow the same rule at their scope. To delete a role, a non-owner must
-  have every permission that the role allows or denies. Only an effective
-  owner may change their own direct decisions. Bot decisions keep the bot
-  rules in FDR-038.
+- Delegated role assignment is bounded by the assigner's own authority and rank. A non-owner may assign a role only when it ranks below them and they effectively possess every permission that role explicitly allows at the same scope, and may revoke it only when they also have authority over all of its explicit allow and deny decisions. Only an effective owner may assign or revoke the `owner` role.
+- Permission editing is bounded by the editor's own authority and rank. To
+  set, deny, or clear one role or direct-user decision, a non-owner must
+  effectively have that permission at the decision's scope. The role must
+  rank below them, or the user must rank below them unless it is their own
+  account. `everyone` ranks below every account. Room and room-group managers
+  follow the same rules at their scope. To delete a role, a non-owner must
+  outrank it and have every permission that the role allows or denies. Bot
+  decisions keep the bot rules in FDR-038.
 - Default permissions are creation-time state: fresh server defaults are seeded only into an empty RBAC stream, and channel-room defaults are committed atomically with room creation. Startup does not backfill missing or cleared decisions, except for the one-time upgrade grants in Design Decision 9.
 - Roles have a `pingable` setting that controls whether `@role` pings notify assigned room members. Fresh servers seed `moderator` as pingable and leave `owner`, `admin`, and `everyone` unpingable.
 - User-initiated RBAC writes carry the authenticated user's ID as the event actor. Synthetic `system` actors are reserved for bootstrap, seeding, migrations, and other non-user maintenance.
@@ -127,7 +129,7 @@ the backend permission catalog. Update both catalogs together.
 ### 2. Named subjects with an `everyone` baseline
 
 **Decision:** For non-owner human users, select the nearest room/group/server decision independently for the direct user and every explicitly assigned named role. Denies win across those decisions. Select `everyone`'s nearest decision as the scoped baseline; a direct-user or named-role allow overrides an `everyone` deny only at the same or a nearer scope. If nothing applies, the result is denied at the API boundary. Bots instead use only explicit direct-user allows, further bounded by their owner's current RBAC entitlement.
-**Why:** Operators can express an allowlist by denying the `everyone` baseline and granting a named role, while a named restriction role such as `suspended` still reliably denies. Role position remains irrelevant to authorization. See ADR-052.
+**Why:** Operators can express an allowlist by denying the `everyone` baseline and granting a named role, while a named restriction role such as `suspended` still reliably denies. Role position does not affect resolution; it is only the administrative rank (Design Decision 11). See ADR-052.
 **Tradeoff:** An `everyone` deny can be overridden deliberately at its own scope or a nearer one. A restriction role's deny beats other subjects' grants, but a nearer allow configured on that same role replaces its broader deny. Direct-user decisions follow the same nearest-scope rule. ADR-052 records the compatibility audit.
 
 ### 3. Four permission scopes
@@ -159,11 +161,11 @@ append failure remains pending for redelivery instead of creating a live-only
 owner that notification cleanup cannot recognize.
 **Tradeoff:** A transient materialization failure can delay completion of email verification. Removing an email from `owners.emails` does not automatically revoke an already materialized owner role, because the server cannot distinguish config-created assignments from manual ones; operators may revoke it after updating configuration.
 
-### 6. Target-user mutations are permission-gated and delegated authority is bounded
+### 6. Target-user mutations need a permission, a higher rank, and bounded authority
 
-**Decision:** Mutations that target another user require concrete permissions, not actor-vs-target rank checks. Role assignment uses `role.assign`, but a non-owner may assign only roles whose explicit allows they themselves effectively hold at each exact scope. Revocation is also bounded by every explicit allow and deny on the role, because removing a deny can restore authority. Permission editing uses the same bound: a non-owner may set, deny, or clear a role or direct-user decision only for a permission that they effectively hold at that scope, and may delete a role only when they hold every permission that the role allows or denies. A non-owner may not edit their own direct decisions. The `owner` role remains owner-only; `admin` has no implicit authority outside its explicit permissions. Account lifecycle and recovery operations use `user.manage-accounts`; direct user permission overrides use `user.manage-permissions`; moderated room removal uses `room.remove-member`.
-**Why:** Concrete permissions are easier to audit and explain than a role-rank hierarchy. Without the bounds, `role.manage` or `user.manage-permissions` alone would let a holder grant themselves every permission, which would also make the `role.assign` bound ineffective. The bound covers denies and clears because removing a restriction can restore authority. Direct decisions survive role changes, so a self-edit could copy role authority into a decision that outlasts revocation of that role.
-**Tradeoff:** A delegated assigner or editor may need the underlying permissions even when they only administer membership or settings. Owners remain the recovery path, and old replicas can enforce the earlier unbounded rules during a rolling upgrade until they are replaced.
+**Decision:** Mutations that target another account require a concrete permission and a higher rank (Design Decision 11). Role assignment uses `role.assign`, but a non-owner may assign only roles that rank below them and whose explicit allows they themselves effectively hold at each exact scope. Revocation is also bounded by every explicit allow and deny on the role, because removing a deny can restore authority. Permission editing uses the same bound: a non-owner may set, deny, or clear a role or direct-user decision only for a permission that they effectively hold at that scope, and may delete a role only when they hold every permission that the role allows or denies. The `owner` role remains owner-only; `admin` has no implicit authority outside its explicit permissions. Account lifecycle and recovery operations use `user.manage-accounts`; direct user permission overrides use `user.manage-permissions`; moderated room removal uses `room.remove-member`.
+**Why:** Without the bounds, `role.manage` or `user.manage-permissions` alone would let a holder grant themselves every permission, which would also make the `role.assign` bound ineffective. The bound covers denies and clears because removing a restriction can restore authority. The rank protects accounts at or above the actor, which an authority bound alone cannot do. See ADR-114.
+**Tradeoff:** A delegated assigner or editor may need the underlying permissions and a role above the accounts that they manage. An actor can still give their authority to a second account below them; the event log records who made each change. Owners remain the recovery path, and old replicas can enforce the earlier unbounded rules during a rolling upgrade until they are replaced.
 
 ### 7. RBAC state is event-sourced
 
@@ -215,6 +217,12 @@ identifiers preserve persisted facts and integrations.
 **Tradeoff:** The backend and frontend catalogs must keep their explicit
 relationships in sync. Tests cover the current relationship.
 
+### 11. Role order is an administrative rank
+
+**Decision:** Role order ranks accounts for administration only. `owner` is fixed at the top and `everyone` at the bottom; the other roles share one order, and a new role starts lowest. An account ranks at its highest role; owners outrank every role, and `everyone` ranks below every account. A non-owner may act only on accounts that rank strictly below them and manage only roles that rank strictly below their highest role. Direct user decisions do not affect rank. Bots rank at their highest role but act with at most their owner's rank.
+**Why:** Delegated administration needs to protect accounts above the actor, and features need a user's highest role. Discord, Matrix, and Zulip use the same model. Keeping rank out of permission resolution keeps ADR-052's resolution rules intact. See ADR-114.
+**Tradeoff:** Two accounts with the same highest role cannot act on each other. A user with administrative direct permissions but no matching role ranks low. Denies win across roles, so a role manager can still restrict higher accounts through a lower role that they hold or through `everyone`. A restriction role placed above its managers raises the rank of the accounts it restricts. Older replicas ignore complete role orders during a rolling upgrade.
+
 ## Permissions
 
 - `call.start`, `call.join`, `call.voice`, `call.camera`, and `call.screenshare`
@@ -253,5 +261,5 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 
 ## Related
 
-- **ADRs:** ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override and explicit catalog inclusion), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (request-time authorization with aggregate OCC), ADR-096 (session-scoped privileged mode), ADR-105 (privileged mode gates the owner override), ADR-113 (one-time upgrade grants for new permissions)
+- **ADRs:** ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override and explicit catalog inclusion), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (request-time authorization with aggregate OCC), ADR-096 (session-scoped privileged mode), ADR-105 (privileged mode gates the owner override), ADR-113 (one-time upgrade grants for new permissions), ADR-114 (role hierarchy for administration)
 - **FDRs:** Every FDR that mentions a permission depends on this one; see also FDR-012 (Notifications), FDR-038 (Bot Accounts), FDR-039 (Message Access & Interactions), and FDR-046 (Privileged Mode).

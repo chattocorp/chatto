@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-27
+**Last reviewed:** 2026-10-07
 
 ## Overview
 
@@ -163,8 +163,15 @@ exercise more authority than its human owner currently possesses.
 - A direct-mention policy of Off creates no occurrence and no mention-driven
   follow. It does not remove the interaction relationship created by the
   durable mention fact.
-- Bots do not inherit the implicit `everyone` role, named-role permissions, or
-  any other baseline grants. An absent bot permission is denied.
+- Bots do not inherit the implicit `everyone` role or any other baseline
+  grants. An absent bot permission is denied.
+- A holder of `role.assign` can give a bot any role except `owner`, with the
+  usual role-assignment bounds (FDR-001). Role allows and denies combine with
+  the bot's own grants like a human's named roles: any deny wins. The owner's
+  permission ceiling also caps every role permission, and bots can never use
+  `bot.create`, `bot.manage`, or `user.delete-self`.
+- A bot ranks at its highest role, but acts with at most its owner's rank. A
+  bot with roles receives `@role` mentions like a human member of the role.
 - The account permission matrix has a **Joined** row above the permission rows.
   Owners and human bot managers can add and remove the bot in each visible
   channel room that is not archived. A confirmation dialog explains that the
@@ -215,9 +222,13 @@ exercise more authority than its human owner currently possesses.
   the normal room-directory policy to both the bot owner and the managing
   caller. It exposes the complete directory group layout, including empty
   groups, so group-scoped permissions such as `room.create` remain usable.
-- A human user with `bot.manage` can manage any bot. Changes made by a global
-  bot manager remain bounded by that bot's owner's permission ceiling.
+- A human user with `bot.manage` can manage a bot when they rank above the
+  bot and its owner (ADR-114). Changes made by a global bot manager remain
+  bounded by that bot's owner's permission ceiling. The owner of a bot manages
+  it at any rank, but changing a bot's roles always requires a rank above the
+  bot.
 - A human user with `bot.manage` can reassign a bot to another active human
+  account when they also rank above the new owner, unless that is their own
   account. Ownership alone does not authorize reassignment, and the recipient
   does not need to accept it or hold `bot.create`.
 - Reassignment preserves the bot's configured permission allowlist and active
@@ -273,17 +284,20 @@ eligible for a password or external identity. Profile and avatar operations stay
 shared in `UserService`. They take a target user ID, so the bot itself and its
 human managers use the same methods.
 
-### 3. Explicit allowlist instead of normal role inheritance
+### 3. Explicit allowlist and assigned roles instead of a baseline
 
-**Decision:** Bots receive permissions only from explicit decisions in the
-canonical user permission matrix. They do not receive the implicit `everyone`
-baseline or named-role grants, and absence means deny.
+**Decision:** Bots receive permissions from explicit decisions in the
+canonical user permission matrix and from roles that a role assigner gives
+them. They do not receive the implicit `everyone` baseline, and absence means
+deny. Bots cannot hold the `owner` role.
 **Why:** API keys are long-lived automation credentials and should start with
-no ambient authority. Owners should be able to explain a bot's access from one
-explicit matrix rather than by combining roles and server defaults.
+no ambient authority. Roles let operators configure many bots at once, apply
+restriction roles to bots, and give bots a rank (ADR-114). A new bot still has
+no roles, so it starts without authority.
 **Tradeoff:** Owners must grant even ordinary member capabilities before a new
 bot can do useful work, and newly introduced permissions do not automatically
-become available to existing bots. Owners cannot carve out a denied narrower
+become available to existing bots. A bot's access can come from its own grants
+and from its roles, so the effective matrix shows the combined result. Owners cannot carve out a denied narrower
 scope beneath a broader bot grant; they must clear the broader grant and add
 only the narrower grants the bot should retain.
 
@@ -556,7 +570,7 @@ editor only when the server version is 0.5.0-beta.9 or later.
 
 ## Related
 
-- **ADRs:** ADR-113 (one-time upgrade grants for new permissions), ADR-100 (shared integration client), ADR-111 (client state layer in `@chatto/client`), ADR-098 (retained operational log), ADR-097 (best-effort outbound bot webhooks), ADR-007 (per-user encryption and crypto-shredding), ADR-033
+- **ADRs:** ADR-114 (role hierarchy for administration), ADR-113 (one-time upgrade grants for new permissions), ADR-100 (shared integration client), ADR-111 (client state layer in `@chatto/client`), ADR-098 (retained operational log), ADR-097 (best-effort outbound bot webhooks), ADR-007 (per-user encryption and crypto-shredding), ADR-033
   (event-sourced state), ADR-036 (runtime state), ADR-040 (permission-only RBAC
   with owner override), ADR-045 (public API stability tiers), ADR-046 (typed
   runtime credentials), ADR-052

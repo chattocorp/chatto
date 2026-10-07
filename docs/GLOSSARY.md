@@ -157,17 +157,19 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **Privileged Mode** — Explicit, fixed 15-minute activation of the elevation-required permissions that a human is currently entitled to use on one server session. For an effective owner, it also activates the owner override. It does not grant a role or permission. See [ADR-096](adr/ADR-096-session-scoped-privileged-mode.md), [ADR-105](adr/ADR-105-privileged-mode-gates-owner-override.md), and [FDR-046](fdr/FDR-046-privileged-mode.md).
 
-**Position** — Numeric display/order value for a role. `everyone` = 0, `moderator` = 100, `admin` = 900, `owner` = 1000. Custom roles slot in the gaps. Position is not an authorization rank.
+**Position** — Numeric order value for a role. A higher position ranks higher. `everyone` = 0 and `owner` = 1000 never move. Fresh servers seed `moderator` = 100 and `admin` = 900; the first complete reorder places `admin`, `moderator`, and custom roles at 1 and upward. Position decides [rank](#rank), not whether a permission is allowed.
+
+**Rank** — Administrative order of accounts and roles (ADR-114). An account ranks at its highest role; owners rank above every role, and `everyone` ranks below every account. A non-owner can act only on accounts that rank strictly below them and manage only roles below their highest role. Rank never changes permission resolution.
 
 **Effective owner** — A user with the durable `owner` role. A verified email listed in `owners.emails` causes Chatto to materialize this role. Effective owners are entitled to every known RBAC permission virtually. This owner override is effective only in privileged mode. Without it, an owner has only the permissions of their other roles, direct grants, and `everyone`. DM contents remain protected by participation checks at the API boundary.
 
-**Owner** — Top system role (position 1000). Conferred through role assignment or through verified `owners.emails` configuration.
+**Owner** — Top system role (position 1000, fixed). Conferred through role assignment or through verified `owners.emails` configuration.
 
-**Admin** — System role (position 900). Broad administrative defaults, still subject to explicit RBAC decisions unless the user is also an effective owner.
+**Admin** — System role (position 900 on fresh servers; role managers can move it). Broad administrative defaults, still subject to explicit RBAC decisions unless the user is also an effective owner.
 
-**Moderator** — System role (position 100). Moderation permissions, no administrative reach.
+**Moderator** — System role (position 100 on fresh servers; role managers can move it). Moderation permissions, no administrative reach.
 
-**Everyone** — Implicit virtual role (position 0) held by every authenticated user. Its nearest decision is the scoped permission baseline. A direct-user or named-role allow overrides an `everyone` deny only at the same or a nearer scope; a named/direct deny always wins.
+**Everyone** — Implicit virtual role (position 0, fixed) held by every authenticated user. Its nearest decision is the scoped permission baseline. A direct-user or named-role allow overrides an `everyone` deny only at the same or a nearer scope; a named/direct deny always wins.
 
 **Scope** — Tier at which a permission is configured: Server, Direct messages,
 Room group, or Room. A channel check uses Room, Room group, then Server. A DM

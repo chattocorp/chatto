@@ -40,14 +40,16 @@ setting is **Allow**, **Deny**, or **Inherit**.
 | Room: `everyone` Deny. Server: `admin` Allow | **Denied**. The room setting is more specific. Add a room-level allow for `admin`. |
 | Server: `admin` Allow, `suspended` Deny | **Denied** for a user with both roles. The deny wins. |
 
-Bots do not get permissions from `everyone` or from other roles. A bot has only
-the permissions that you allow directly on the bot, and never more than its
-owner has. See [Bot accounts](/guides/integrations/bot-accounts/).
+Bots do not get permissions from `everyone`. A bot has the permissions that
+you allow directly on the bot and the permissions of the roles that you give
+it, but never more than its owner has. See
+[Bot accounts](/guides/integrations/bot-accounts/).
 
 ## Built-in roles
 
 Every server has four system roles. You cannot delete them. The order of the
-roles does not change which setting wins.
+roles does not change which setting wins. It decides who can manage whom; see
+[Role order](#role-order).
 
 | Role | Defaults on a new server (Server scope) |
 | ---- | --------------------------------------- |
@@ -126,13 +128,13 @@ Scopes: **S** Server, **G** Room group, **R** Room, **DM** Direct messages.
 | `call.voice` | All | | Send microphone audio. |
 | `call.camera` | All | | Send camera video. |
 | `call.screenshare` | All | | Share a screen, window, tab, or application, with its audio. |
-| `role.manage` | S | Yes | Create, change, and delete roles and their permission settings. A non-owner can change only the settings of permissions that they have at that scope. To delete a role, a non-owner must have every permission that the role allows or denies. |
-| `role.assign` | S | Yes | Assign and remove roles. A non-owner can assign only roles whose allows they have. Only owners can assign `owner`. |
+| `role.manage` | S | Yes | Create, change, and delete roles and their permission settings. A non-owner can change only roles below them, and only the settings of permissions that they have at that scope. To delete a role, a non-owner must have every permission that the role allows or denies. |
+| `role.assign` | S | Yes | Assign and remove roles. A non-owner can assign only roles below them whose allows they have, and only to accounts below them. Only owners can assign `owner`. |
 | `admin.view-users` | S | Yes | See the member list in Server Administration. |
 | `admin.view-audit` | S | Yes | See the event log. |
 | `user.invite` | S | Yes | List, create, copy, and revoke invite links. The holder can use all active invite links. |
 | `user.manage-accounts` | S | Yes | Create accounts, edit account identity, reset passwords, attach verified email addresses, and clear login cooldowns. |
-| `user.manage-permissions` | S | Yes | Change the permission settings of other users. A non-owner can change only the settings of permissions that they have at that scope. Only owners can change their own settings. |
+| `user.manage-permissions` | S | Yes | Change the permission settings of users. A non-owner can change only users below them or themselves, and only the settings of permissions that they have at that scope. |
 | `user.delete-any` | S | Yes | Delete any account. |
 | `user.delete-self` | S | | Delete your own account. |
 | `bot.create` | S | | Create bots that you own. |
@@ -197,7 +199,8 @@ removing the role also removes the user from the room.
 
 ### Suspend a user
 
-Create a `suspended` role. At Server scope, deny `message.post`,
+Create a `suspended` role and keep it low in the [role order](#role-order).
+At Server scope, deny `message.post`,
 `message.post-in-thread`, and `message.post-in-interactions`. You can also deny
 `message.attach`, `message.react`, and `message.echo`. Assign the role to the
 user. Do not add room or room-group allows to this role, because they replace
@@ -222,12 +225,38 @@ Allow `message.read-interactions` and `message.post-in-interactions` instead of
 the threads that `message.read-interactions` describes. This is useful for
 bots.
 
+## Role order
+
+The role order decides who can manage whom. It does not change which
+permission setting wins.
+
+- `owner` is always highest and `everyone` is always lowest. You can move
+  `admin`, `moderator`, and custom roles. A new role starts lowest.
+- A user ranks at their highest role. Owners rank above all roles.
+- To change another account, you need the permission for the change and a
+  higher rank than the account. This applies to passwords, profiles,
+  deletion, roles, permission settings, room removal and suspensions, room
+  membership removal, and bots. To manage a bot, you also need a higher rank
+  than its owner, unless you own the bot.
+- You can assign, remove, edit, delete, and move only roles below your own
+  highest role. You can always edit the settings of `everyone`.
+- Two users with the same highest role cannot change each other. Only an
+  owner can change an admin.
+- Permission settings directly on a user do not give rank. Give
+  administrators a role.
+- Moderating messages and adding a member to a room do not depend on rank.
+
+Put a restriction role, such as `suspended`, below the people who manage it.
+If it is higher, a user who gets the role ranks higher, and those people can
+no longer manage that user.
+
 ## Where to configure permissions
 
 | Task | Where |
 | ---- | ----- |
 | Create roles and edit their permissions | Server Administration → **Permissions** |
-| Assign roles | Server Administration → **Members** → member → **Roles** |
+| Change the role order | Server Administration → **Role order** |
+| Assign roles | Server Administration → **Members** → member → **Roles**, or **Bots** → bot → **Roles** |
 | Set permissions for one user | Server Administration → **Members** → member → **Permissions** |
 | Set permissions for one bot | Server Administration → **Bots** → bot → **Permissions** |
 | Set room permissions | The room's settings → **Permissions** |
@@ -236,8 +265,8 @@ bots.
 
 To add an account to a room or remove it, use the **Joined** row in the
 account's permissions. You need `user.manage-accounts`, or `room.manage` for
-that room. The account does not need `room.join`. This row does not change
-permissions or DMs.
+that room. To remove an account, you also need a higher rank. The account does
+not need `room.join`. This row does not change permissions or DMs.
 
 ## Upgrading from 0.4
 
@@ -263,11 +292,14 @@ Make these changes on an upgraded server:
   `message.post-in-thread` does not stop replies.
 - **Check `everyone` denies.** An allow on a named role or user at the same or
   a more specific scope now overrides them.
+- **Check the role order.** The role order now decides who can manage whom.
+  An upgraded server keeps `admin` above `moderator` and both above custom
+  roles. A user with a custom management role ranks below moderators and
+  cannot manage them. Move roles on the **Role order** page if necessary.
 - **Check delegated permission editors.** A user who is not an owner can now
   change only the permission settings of permissions that they have at that
   scope. To delete a role, this user must have every permission that the role
-  allows or denies. This user also cannot change their own permission
-  settings. Give these users the permissions that they must manage.
+  allows or denies. Give these users the permissions that they must manage.
 
 <Aside type="caution">
   Administrators, moderators, and owners must now enable

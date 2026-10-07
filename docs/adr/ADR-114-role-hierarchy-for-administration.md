@@ -1,0 +1,95 @@
+# ADR-114: Role Hierarchy for Administration
+
+**Date:** 2026-10-07
+
+## Status
+
+Accepted. Partially supersedes [ADR-040](ADR-040-permission-only-rbac-with-owner-override.md)
+and amends [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md):
+role position is now an administrative rank. Permission resolution does not
+change.
+
+## Context
+
+ADR-040 removed role rank from permission resolution and from targeted
+operations. Every role and every account became equal for administration:
+a permission alone decided whether an actor could act on another account or
+role. Two problems followed:
+
+- **Escalation.** A holder of `role.manage` or `user.manage-permissions` could
+  grant every permission, also to themselves. This made the bounded
+  `role.assign` rule ineffective.
+- **No target protection.** An actor with `user.manage-accounts`,
+  `user.delete-any`, `room.remove-member`, or `user.manage-permissions` could
+  act on any account. A help-desk role could set an owner's password, and an
+  admin could delete an owner or another admin.
+
+A rule "you can grant only what you have" stops escalation. It does not
+protect targets, and it does not stop an actor who gives their authority to a
+second account. Chat platforms such as Discord, Matrix, and Zulip solve
+delegated administration with an order of roles or power levels. Features
+that show a user's highest role also need such an order.
+
+## Decision
+
+Use role order as an administrative rank. Keep permission resolution
+unchanged (ADR-052): the rank never decides whether a permission is allowed.
+
+- **One order.** `owner` is fixed at the top and `everyone` at the bottom.
+  `admin`, `moderator`, and custom roles share one order that role managers
+  can change. A new role starts lowest.
+- **Rank.** An account ranks at the position of its highest role. An account
+  without roles ranks with `everyone`. Direct user permission decisions do not
+  affect rank. Effective owners rank above every role and are exempt from the
+  hierarchy, so an owner can always recover the server.
+- **Accounts.** A non-owner may act on another account only when they rank
+  strictly above it. This applies to password changes, profile and avatar
+  edits, login cooldown resets, account deletion, role assignment and
+  revocation, direct permission edits, room removal, suspension lifts,
+  membership removal, and bot management and reassignment. Message moderation
+  and adding a member to a room are not covered: they do not act against the
+  account.
+- **Roles.** A non-owner may assign, revoke, edit, delete, or move only roles
+  that rank strictly below their own highest role. `everyone` ranks below
+  every account, so room and role managers can edit its decisions. A reorder
+  must keep every role at or above the actor's rank in its place.
+- **Authority bound.** A non-owner may change one role or direct decision only
+  for a permission that they effectively hold at that scope. Deleting or
+  revoking a role requires every permission that the role allows or denies.
+  Assigning requires every permission that the role allows.
+- **Bots.** Bots may hold any role except `owner`. They still do not inherit
+  `everyone`, and their owner's current authority caps every role permission.
+  A bot ranks at its highest role, but acts with at most its owner's rank.
+  Managing a bot requires outranking the bot and its owner, unless the actor
+  owns the bot. Role changes on a bot always require outranking the bot.
+- **Events.** `RbacRolesReorderedEvent.complete_order` marks an order that
+  lists every role except `owner` and `everyone`. Readers assign positions
+  upward from 1. Older events list custom roles only and replay with the
+  previous fixed system positions. Role creation appends the created fact and a
+  complete order in one atomic batch.
+
+Rank checks run inside the command's OCC retry with the stable authorization
+inputs that permission checks use (ADR-087).
+
+## Consequences
+
+- A delegated role, account, or permission manager can no longer give
+  themselves more authority or act on accounts at or above their rank.
+- Two accounts with the same highest role cannot act on each other. Only an
+  owner can act on an admin.
+- Rank comes only from roles. A user with administrative direct permissions
+  but no matching role has a low rank, can act on few accounts, and has little
+  protection. Give administrators a role, not direct permissions.
+- Because denies win across roles (ADR-052), a role manager can still restrict
+  higher-ranked accounts through a role below the manager that those accounts
+  hold, or through `everyone`. Give role management only to trusted roles.
+- A restriction role, such as a suspended role, must rank below the people who
+  manage it. If it ranks higher, assigning it raises the restricted account's
+  rank.
+- An actor can still give their authority to a second account that ranks
+  below them. The event log records the actor of every change, so an operator
+  can find and undo such grants.
+- During a rolling upgrade, older replicas apply the earlier rules and show
+  the earlier display order. They ignore `complete_order`.
+- `everyone` and `owner` positions stay fixed; `admin` and `moderator` lose
+  their fixed positions after the first complete order.
