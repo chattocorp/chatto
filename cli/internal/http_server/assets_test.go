@@ -654,28 +654,69 @@ func TestAsset_ActiveAttachment_UsesSandboxHeaders(t *testing.T) {
 	}
 	env.login(t, "sandboxuser", "password123")
 
-	_, attachment := env.postAssetMessageWithAttachmentContentType(
-		t,
-		room.Id,
-		"html attachment",
-		[]byte("<!doctype html><script>window.__ran = true</script>"),
-		"demo.html",
-		"text/html; charset=utf-8",
-	)
-	attachmentURL := attachment.GetAssetUrl().GetUrl()
-	if attachmentURL == "" {
-		t.Fatal("Expected stable attachment URL")
+	tests := []struct {
+		declaredContentType string
+		wantContentType     string
+	}{
+		{declaredContentType: "text/html; charset=utf-8", wantContentType: "text/html; charset=utf-8"},
+		// Go rejects this type, but browsers read it as text/html.
+		{declaredContentType: "text/html,", wantContentType: core.FallbackContentType},
+		// Browsers run scripts in XSL documents.
+		{declaredContentType: "text/xsl", wantContentType: "text/xsl"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.declaredContentType, func(t *testing.T) {
+			_, attachment := env.postAssetMessageWithAttachmentContentType(
+				t,
+				room.Id,
+				"active attachment",
+				[]byte("<!doctype html><script>window.__ran = true</script>"),
+				"demo.html",
+				tt.declaredContentType,
+			)
+			if got := attachment.GetContentType(); got != tt.wantContentType {
+				t.Fatalf("stored content type = %q, want %q", got, tt.wantContentType)
+			}
+			attachmentURL := attachment.GetAssetUrl().GetUrl()
+			if attachmentURL == "" {
+				t.Fatal("Expected stable attachment URL")
+			}
+
+			stableResp, err := env.client.Get(env.server.URL + attachmentURL)
+			if err != nil {
+				t.Fatalf("Failed to fetch stable attachment URL: %v", err)
+			}
+			stableResp.Body.Close()
+			if stableResp.StatusCode != http.StatusOK {
+				t.Fatalf("Expected stable attachment status 200, got %d", stableResp.StatusCode)
+			}
+			assertSandboxedOriginalAttachment(t, stableResp, tt.wantContentType)
+		})
 	}
 
-	stableResp, err := env.client.Get(env.server.URL + attachmentURL)
-	if err != nil {
-		t.Fatalf("Failed to fetch stable attachment URL: %v", err)
+	// Records from older versions can store a declared type verbatim. Serving
+	// must classify and canonicalize those types again.
+	for _, legacyContentType := range []string{"text/html,", "text/plain, text/html"} {
+		t.Run("legacy "+legacyContentType, func(t *testing.T) {
+			attachment, err := env.core.UploadAttachment(env.ctx, user.Id, room.Id, "legacy.html", legacyContentType,
+				bytes.NewReader([]byte("<!doctype html><script>window.__ran = true</script>")))
+			if err != nil {
+				t.Fatalf("Failed to store legacy attachment: %v", err)
+			}
+			if got := attachment.GetContentType(); got != legacyContentType {
+				t.Fatalf("legacy content type = %q, want raw %q", got, legacyContentType)
+			}
+			stableResp, err := http.Get(env.server.URL + env.core.GetStableAttachmentAssetURL(attachment.GetId(), user.Id).URL)
+			if err != nil {
+				t.Fatalf("Failed to fetch legacy attachment URL: %v", err)
+			}
+			stableResp.Body.Close()
+			if stableResp.StatusCode != http.StatusOK {
+				t.Fatalf("Expected legacy attachment status 200, got %d", stableResp.StatusCode)
+			}
+			assertSandboxedOriginalAttachment(t, stableResp, core.FallbackContentType)
+		})
 	}
-	stableResp.Body.Close()
-	if stableResp.StatusCode != http.StatusOK {
-		t.Fatalf("Expected stable attachment status 200, got %d", stableResp.StatusCode)
-	}
-	assertSandboxedOriginalAttachment(t, stableResp)
 }
 
 func TestAsset_ActiveAttachmentOnS3_StreamsWithSandboxInsteadOfRedirect(t *testing.T) {
@@ -721,7 +762,7 @@ func TestAsset_ActiveAttachmentOnS3_StreamsWithSandboxInsteadOfRedirect(t *testi
 	if stableResp.StatusCode != http.StatusOK {
 		t.Fatalf("Expected S3 stable attachment to stream with 200, got %d", stableResp.StatusCode)
 	}
-	assertSandboxedOriginalAttachment(t, stableResp)
+	assertSandboxedOriginalAttachment(t, stableResp, "text/html")
 }
 
 func TestAsset_StableS3ImageStreamsThroughChattoByDefault(t *testing.T) {
@@ -887,33 +928,78 @@ func TestAsset_StableNilStorageS3VideoRedirectsViaProbe(t *testing.T) {
 	}
 }
 
-func TestOriginalAttachmentNeedsSandbox(t *testing.T) {
+func TestOriginalAttachmentResponseType(t *testing.T) {
 	tests := []struct {
-		name        string
-		contentType string
-		want        bool
+		name            string
+		contentType     string
+		wantContentType string
+		wantPassive     bool
 	}{
-		{name: "HTML", contentType: "text/html", want: true},
-		{name: "HTML with parameters", contentType: "text/html; charset=utf-8", want: true},
-		{name: "XHTML", contentType: "application/xhtml+xml", want: true},
-		{name: "SVG", contentType: "image/svg+xml", want: true},
-		{name: "XML", contentType: "application/xml", want: true},
-		{name: "XML suffix", contentType: "application/atom+xml", want: true},
-		{name: "PNG", contentType: "image/png", want: false},
-		{name: "PDF", contentType: "application/pdf", want: false},
-		{name: "unknown", contentType: "", want: false},
+		{name: "HTML", contentType: "text/html", wantContentType: "text/html"},
+		{name: "HTML with parameters", contentType: "text/html; charset=utf-8", wantContentType: "text/html; charset=utf-8"},
+		{name: "uppercase HTML", contentType: "TEXT/HTML", wantContentType: "text/html"},
+		{name: "HTML with trailing comma", contentType: "text/html,", wantContentType: core.FallbackContentType},
+		{name: "comma-separated types", contentType: "image/png, text/html", wantContentType: core.FallbackContentType},
+		{name: "XHTML", contentType: "application/xhtml+xml", wantContentType: "application/xhtml+xml"},
+		{name: "SVG", contentType: "image/svg+xml", wantContentType: "image/svg+xml"},
+		{name: "XML", contentType: "application/xml", wantContentType: "application/xml"},
+		{name: "XML suffix", contentType: "application/atom+xml", wantContentType: "application/atom+xml"},
+		{name: "XSL", contentType: "text/xsl", wantContentType: "text/xsl"},
+		{name: "XSLT", contentType: "application/xslt+xml", wantContentType: "application/xslt+xml"},
+		{name: "multipart", contentType: "multipart/x-mixed-replace; boundary=x", wantContentType: "multipart/x-mixed-replace; boundary=x"},
+		{name: "unknown", contentType: "application/x-unknown", wantContentType: "application/x-unknown"},
+		{name: "empty", contentType: "", wantContentType: core.FallbackContentType},
+		{name: "PNG", contentType: "image/png", wantContentType: "image/png", wantPassive: true},
+		{name: "uppercase PNG", contentType: "IMAGE/PNG", wantContentType: "image/png", wantPassive: true},
+		{name: "PDF", contentType: "application/pdf", wantContentType: "application/pdf", wantPassive: true},
+		{name: "plain text", contentType: "text/plain; charset=utf-8", wantContentType: "text/plain; charset=utf-8", wantPassive: true},
+		{name: "video", contentType: "video/mp4", wantContentType: "video/mp4", wantPassive: true},
+		{name: "audio", contentType: "audio/ogg", wantContentType: "audio/ogg", wantPassive: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := originalAttachmentNeedsSandbox(tt.contentType); got != tt.want {
-				t.Fatalf("originalAttachmentNeedsSandbox(%q) = %v, want %v", tt.contentType, got, tt.want)
+			gotContentType, gotPassive := originalAttachmentResponseType(tt.contentType)
+			if gotContentType != tt.wantContentType || gotPassive != tt.wantPassive {
+				t.Fatalf("originalAttachmentResponseType(%q) = (%q, %v), want (%q, %v)",
+					tt.contentType, gotContentType, gotPassive, tt.wantContentType, tt.wantPassive)
 			}
 		})
 	}
 }
 
-func assertSandboxedOriginalAttachment(t *testing.T, resp *http.Response) {
+func TestProtectedAssetDeliveryMode_RedirectsOnlyPassiveS3Attachments(t *testing.T) {
+	s3Storage := &corev1.DeprecatedAsset{Asset: &corev1.DeprecatedAsset_S3{S3: &corev1.S3Asset{Key: "attachments/a"}}}
+	natsStorage := &corev1.DeprecatedAsset{Asset: &corev1.DeprecatedAsset_Nats{Nats: &corev1.NATSAsset{Key: "a"}}}
+	large := int64(largeAttachmentRedirectThreshold)
+
+	tests := []struct {
+		name        string
+		contentType string
+		size        int64
+		storage     *corev1.DeprecatedAsset
+		want        assetDeliveryMode
+	}{
+		{name: "S3 video", contentType: "video/mp4", size: 1, storage: s3Storage, want: deliveryS3Redirect},
+		{name: "large S3 PDF", contentType: "application/pdf", size: large, storage: s3Storage, want: deliveryS3Redirect},
+		{name: "small S3 PDF", contentType: "application/pdf", size: 1, storage: s3Storage, want: deliveryChattoStream},
+		{name: "large S3 HTML", contentType: "text/html", size: large, storage: s3Storage, want: deliveryChattoStream},
+		{name: "large S3 malformed HTML", contentType: "text/html,", size: large, storage: s3Storage, want: deliveryChattoStream},
+		{name: "large S3 XSL", contentType: "text/xsl", size: large, storage: s3Storage, want: deliveryChattoStream},
+		{name: "large S3 unknown", contentType: "application/zip", size: large, storage: s3Storage, want: deliveryChattoStream},
+		{name: "NATS video", contentType: "video/mp4", size: 1, storage: natsStorage, want: deliveryChattoStream},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			attachment := &corev1.Attachment{ContentType: tt.contentType, Size: tt.size, Storage: tt.storage}
+			if got := protectedAssetDeliveryMode(attachment); got != tt.want {
+				t.Fatalf("protectedAssetDeliveryMode(%q, %d) = %v, want %v", tt.contentType, tt.size, got, tt.want)
+			}
+		})
+	}
+}
+
+func assertSandboxedOriginalAttachment(t *testing.T, resp *http.Response, wantContentType string) {
 	t.Helper()
 	if got := resp.Header.Get("X-Content-Type-Options"); got != "nosniff" {
 		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
@@ -921,8 +1007,8 @@ func assertSandboxedOriginalAttachment(t *testing.T, resp *http.Response) {
 	if got := resp.Header.Get("Content-Security-Policy"); got != originalAttachmentSandboxCSP {
 		t.Fatalf("Content-Security-Policy = %q, want %q", got, originalAttachmentSandboxCSP)
 	}
-	if got := resp.Header.Get("Content-Type"); !strings.HasPrefix(got, "text/html") {
-		t.Fatalf("Content-Type = %q, want text/html", got)
+	if got := resp.Header.Get("Content-Type"); got != wantContentType {
+		t.Fatalf("Content-Type = %q, want %q", got, wantContentType)
 	}
 }
 
