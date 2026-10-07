@@ -90,7 +90,7 @@ The official Docker image includes the required ffmpeg tools. Host installs need
 
 ## Active Document Safety
 
-Uploaded HTML, XHTML, SVG, XML, and XML-derived active document formats are served with a sandbox policy and `nosniff`. S3-backed active documents stream through Chatto instead of redirecting directly to object storage so the sandbox headers stay in place.
+Chatto serves all original attachments with `nosniff`. It also adds a sandbox policy for all types except passive types: PNG, JPEG, GIF, WebP, AVIF, video, audio, plain text, and PDF. Files with a missing or malformed content type are served as `application/octet-stream` in the sandbox. With S3 storage, only files of passive types can redirect to S3. Chatto streams all other files itself, including large archives. This keeps the sandbox headers in place.
 
 ## Related Guides
 
