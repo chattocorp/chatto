@@ -985,3 +985,7 @@ docker buildx build --build-arg TARGETARCH=amd64 -f "$context/Dockerfile" "$cont
 [tasks.test-oidc-conformance]
 description = "Check Authling and Chatto against the official OIDC suite"
 run = "bash tools/test-oidc-conformance.sh"
+
+[tasks.test-mcp-conformance]
+description = "Check an authenticated Chatto endpoint with the pinned official MCP suite"
+run = "node tools/test-mcp-conformance.mjs"

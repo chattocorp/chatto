@@ -21,6 +21,10 @@ The experimental integration supports MCP `2026-07-28` and these tools:
 | `join_room` | Join one visible channel room on the connected server. |
 | `leave_room` | Leave one joined channel room on the connected server. |
 
+Use a host that supports the stateless `2026-07-28` protocol. Older hosts that
+start with `initialize` cannot connect. Chatto does not expose MCP resources,
+prompts, logging, or catalog-change subscriptions.
+
 The tools apply the same RBAC, membership, validation, and visibility rules as
 the public Chatto API. `post_message` is not idempotent. An agent must not retry
 it when the first result is uncertain.
@@ -35,6 +39,10 @@ decides which available tool it calls.
 <Aside type="caution">
   MCP access can expose private Chatto data to an agent host. Enable it only
   for hosts that you trust. Treat tool results as untrusted user content.
+  Your browser connects to Chatto for consent. Chatto fetches the client's
+  metadata document; its host receives Chatto's IP address. Your agent host
+  receives the tool results and can send them to its model provider. Check
+  that host's data policy before you grant access.
 </Aside>
 
 ## Enable MCP
@@ -92,6 +100,65 @@ owner's current permission ceiling still apply. See [Bot Accounts](/guides/integ
 
 </Steps>
 
+### Codex CLI
+
+The setup below was tested with Codex CLI `0.160.1`:
+
+```sh
+codex mcp add chatto --url https://chat.example.com/mcp
+codex mcp login chatto --oauth-client-registration cimd
+```
+
+Complete sign-in and consent in the browser. Then start Codex and use the
+identity and room checks above. Codex identifies itself with its public CIMD
+document. You do not need a client secret or a first-party Chatto token.
+
+### MCP Inspector
+
+MCP Inspector `2.9.0` requires `--protocol-era modern` for this endpoint. Use a
+client metadata document that you control. For example:
+
+```json
+{
+  "client_id": "https://example.com/mcp-inspector-client.json",
+  "client_name": "My MCP Inspector",
+  "application_type": "native",
+  "redirect_uris": ["http://127.0.0.1/callback"],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none"
+}
+```
+
+Publish it at the exact `client_id` URL. Then run:
+
+```sh
+npx --yes @modelcontextprotocol/inspector@2.9.0 --cli \
+  --server-url https://chat.example.com/mcp --protocol-era modern \
+  --client-metadata-url https://example.com/mcp-inspector-client.json \
+  --callback-url http://127.0.0.1:6276/callback --method tools/list
+```
+
+Open the printed authorization URL and approve the consent request. The
+Inspector lists seven tools. Use `--method tools/call --tool-name
+get_server_info` to check the connected server. Use `--stored-auth-only` on
+later calls to use the stored grant without starting a new consent flow.
+
+## Troubleshoot connection failures
+
+| Failure | Action |
+| --- | --- |
+| `/mcp` returns `404` | Enable `[mcp].enabled` and check the public URL and reverse proxy. |
+| `initialize` returns method not found | Use a host with stateless `2026-07-28` support. In Inspector, select the modern protocol era. |
+| Consent rejects `redirect_uri` | Check the client's CIMD document. Runtime ports require a native client and a literal loopback IP callback. Named localhost callbacks must match exactly. |
+| A tool request returns `401` | Authorize the exact MCP URL again. Check grant expiry, client blocking, and the complete MCP scope set. A first-party token or a grant for another origin cannot be used. |
+| Inspector `--use-stored-auth` reports `no_stored_token` | Use `--stored-auth-only`. This Inspector version can fail to load its stored credentials through the older flag. |
+
+Claude Code `2.1.291` fails callback validation with its current CIMD document.
+That document omits `application_type: native`, while the client requests a
+callback with a runtime port. Use another tested host until the client and its
+metadata document agree. Do not disable callback validation.
+
 ## Understand permission failures
 
 An MCP call can succeed only when both the MCP OAuth grant and the normal
@@ -112,6 +179,12 @@ Set `[mcp].enabled = false` and restart Chatto to remove the MCP routes. You
 can also block an OAuth client in Server Admin or rotate a bot API key. These
 actions invalidate the related authority without changing other Chatto
 clients.
+
+Removing Chatto from an agent host or deleting its local credentials does not
+guarantee that its server-side grant is revoked. Ask a server administrator to
+block that OAuth client when you must terminate its access. A revoked grant
+or blocked client cannot start another MCP request or refresh its credential,
+also when the request reaches another Chatto replica.
 
 The network MCP server does not expose the Operator API, bootstrap, password
 reset, account management, or server management. Use the local Operator API
