@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"mime"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -66,7 +65,9 @@ func protectedAssetDeliveryMode(attachment *corev1.Attachment) assetDeliveryMode
 	if attachment == nil {
 		return deliveryChattoStream
 	}
-	if !attachmentCanUsePresignedRedirect(attachment.GetContentType()) {
+	// S3 serves the stored type verbatim, without Chatto's sandbox policy.
+	contentType, passive := originalAttachmentResponseType(attachment.GetContentType())
+	if !passive {
 		return deliveryChattoStream
 	}
 	if storage := attachment.GetStorage(); storage != nil {
@@ -74,7 +75,6 @@ func protectedAssetDeliveryMode(attachment *corev1.Attachment) assetDeliveryMode
 			return deliveryChattoStream
 		}
 	}
-	contentType := strings.ToLower(attachment.GetContentType())
 	if strings.HasPrefix(contentType, "video/") || strings.HasPrefix(contentType, "audio/") {
 		return deliveryS3Redirect
 	}
@@ -188,11 +188,7 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 		defer closer.Close()
 	}
 
-	contentType := info.ContentType
-	if contentType == "" {
-		contentType = "application/octet-stream"
-	}
-	setOriginalAttachmentSecurityHeaders(c, contentType)
+	contentType := setOriginalAttachmentSecurityHeaders(c, info.ContentType)
 
 	c.Header("Cache-Control", protectedAssetCacheControl)
 	c.Header("ETag", fmt.Sprintf("\"%s\"", assetID))
@@ -205,30 +201,44 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 
 const originalAttachmentSandboxCSP = "sandbox"
 
-func setOriginalAttachmentSecurityHeaders(c *gin.Context, contentType string) {
+// setOriginalAttachmentSecurityHeaders sets the security headers for an
+// original attachment response and returns the Content-Type to send with it.
+func setOriginalAttachmentSecurityHeaders(c *gin.Context, storedContentType string) string {
+	contentType, passive := originalAttachmentResponseType(storedContentType)
 	c.Header("X-Content-Type-Options", "nosniff")
-	if originalAttachmentNeedsSandbox(contentType) {
+	if !passive {
 		c.Header("Content-Security-Policy", originalAttachmentSandboxCSP)
 	}
+	return contentType
 }
 
-func attachmentCanUsePresignedRedirect(contentType string) bool {
-	return !originalAttachmentNeedsSandbox(contentType)
+// passiveAttachmentMediaTypes are the media types that a browser displays
+// without running uploaded scripts. Original attachments of these types do
+// not need the sandbox policy, and only these types may redirect to S3.
+var passiveAttachmentMediaTypes = map[string]bool{
+	"image/png":       true,
+	"image/jpeg":      true,
+	"image/gif":       true,
+	"image/webp":      true,
+	"image/avif":      true,
+	"text/plain":      true,
+	"application/pdf": true,
 }
 
-func originalAttachmentNeedsSandbox(contentType string) bool {
-	mediaType, _, err := mime.ParseMediaType(contentType)
-	if err != nil {
-		mediaType = strings.TrimSpace(strings.Split(contentType, ";")[0])
+// originalAttachmentResponseType returns the canonical Content-Type for an
+// original attachment response and whether the type is passive. The
+// stored type is client-declared and older records were not normalized, so
+// every response is classified again here. Types that are not on the passive
+// allowlist, including malformed and unknown types, need the sandbox policy.
+func originalAttachmentResponseType(storedContentType string) (contentType string, passive bool) {
+	contentType, ok := core.CanonicalContentType(storedContentType)
+	if !ok {
+		return contentType, false
 	}
-	mediaType = strings.ToLower(mediaType)
-
-	switch mediaType {
-	case "text/html", "application/xhtml+xml", "image/svg+xml", "application/xml", "text/xml":
-		return true
-	default:
-		return strings.HasSuffix(mediaType, "+xml")
-	}
+	mediaType, _, _ := strings.Cut(contentType, ";")
+	return contentType, passiveAttachmentMediaTypes[mediaType] ||
+		strings.HasPrefix(mediaType, "video/") ||
+		strings.HasPrefix(mediaType, "audio/")
 }
 
 // serveStableTransformedAttachment serves an authenticated image derivative:

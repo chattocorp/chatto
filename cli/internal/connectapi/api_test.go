@@ -5649,6 +5649,27 @@ func TestAssetUploadServiceDoesNotRequireThreadPostPermission(t *testing.T) {
 	}
 }
 
+func TestAssetUploadServiceRejectsVideoWhenProcessingDisabled(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("asset-upload-video-disabled")
+	ctx := withCaller(env.ctx, env.viewer)
+	sum := sha256.Sum256([]byte("video"))
+
+	// Uploads store canonical types, so the check must also reject other cases.
+	for _, contentType := range []string{"video/mp4", "Video/MP4"} {
+		_, err := env.assetUploads.CreateUpload(ctx, connect.NewRequest(&apiv1.CreateUploadRequest{
+			RoomId:      room.Id,
+			Filename:    "clip.mp4",
+			ContentType: contentType,
+			Size:        int64(len("video")),
+			Sha256:      hex.EncodeToString(sum[:]),
+		}))
+		if connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("CreateUpload(%q) code = %v, want %v", contentType, connect.CodeOf(err), connect.CodeInvalidArgument)
+		}
+	}
+}
+
 func TestAssetUploadServiceCompleteRechecksAttachmentPermission(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("upload-complete-permission")
