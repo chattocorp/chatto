@@ -38,6 +38,8 @@ func TestValidateRoleName(t *testing.T) {
 		{"too long", "abcdefghijklmnopqrstuvwxyzabcdefg", ErrInvalidRoleName}, // 33 chars
 		{"special chars", "admin!", ErrInvalidRoleName},
 		{"unicode", "adminé", ErrInvalidRoleName},
+		{"reserved page segment", "new", ErrInvalidRoleName},
+		{"contains reserved word", "newcomers", nil},
 	}
 
 	for _, tt := range tests {

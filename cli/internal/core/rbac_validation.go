@@ -23,11 +23,16 @@ var (
 // disallows underscores, dots, uppercase, and unicode.
 var roleNameRegex = regexp.MustCompile(`^[a-z]([a-z0-9-]{0,30}[a-z0-9])?$`)
 
-// ValidateRoleName checks if a role name is valid.
+// reservedRoleNames are path segments that role management pages use, such
+// as /roles/new. A role with such a name could not be opened. Existing roles
+// with these names stay valid.
+var reservedRoleNames = map[string]bool{"new": true}
+
+// ValidateRoleName checks if a name is valid for a new role.
 // Valid names: lowercase letters / digits / dashes, starting with a letter,
-// 1-32 characters, no leading or trailing dash.
+// 1-32 characters, no leading or trailing dash, and not reserved.
 func ValidateRoleName(name string) error {
-	if !roleNameRegex.MatchString(name) {
+	if !roleNameRegex.MatchString(name) || reservedRoleNames[name] {
 		return ErrInvalidRoleName
 	}
 	return nil

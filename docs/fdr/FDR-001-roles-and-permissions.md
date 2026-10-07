@@ -94,7 +94,7 @@ the backend permission catalog. Update both catalogs together.
   DMs after the membership check. `message.post` separately
   gates root-message posting and permits human users to start DMs. Bot accounts
   cannot start DMs regardless of their permissions.
-- Role managers create, edit, and order roles on the **Roles** page. Each role has General, Permissions, and Members tabs. Earlier role addresses under the Permissions page redirect to it.
+- Role managers create, edit, and order roles on the **Roles** page. Each role has General and Permissions tabs, and a Members tab for people who may assign roles. `everyone` has no Members tab. The name `new` is reserved for the create page. Earlier role addresses under the Permissions page redirect to it.
 - Role managers change the role order by dragging roles on the **Roles** page. `owner` stays at the top and `everyone` at the bottom; `admin`, `moderator`, and custom roles share one order. A new role starts lowest. A non-owner can move only roles below their own highest role, and only to positions below it.
 - An account ranks at its highest role. An account without roles ranks with `everyone`. Owners rank above every role.
 - A non-owner can act on another account only when they rank strictly above it. This applies to password, profile, avatar, login cooldown, deletion, roles, direct permissions, room removal, suspension lifts, membership removal, and bot management. Message moderation and adding a member to a room do not depend on rank.
