@@ -302,7 +302,8 @@ and expiry also read the viewer. Only missing DM profiles and timelines with
 changed message permissions need hydration. Cached profiles, server runtime
 config, MOTD, and notifications retain their values unless events request an
 update. Durable events in the internal handoff gap are replayed; transient
-presence or typing changes can remain stale until a later update.
+presence, typing, or latest-value invalidations can remain stale until a later
+update.
 
 Network recovery, snapshot fallback, lost mode hints, and failed permission reads
 use full current-value recovery. Projection and permission-check generations

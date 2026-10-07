@@ -164,8 +164,9 @@ All other recovery paths keep the full current-value refresh.
 reload message history whose permissions did not change.
 
 **Tradeoff:** Durable events committed during the internal subscription handoff
-are replayed. Transient presence or typing changes during that short gap can
-remain stale until a later update. A failed handoff uses reconnect recovery.
+are replayed. Transient presence, typing, or latest-value invalidations during
+that short gap can remain stale until a later update. A failed handoff uses
+reconnect recovery.
 
 ## Compatibility
 

@@ -75,8 +75,9 @@ An explicit mutation supplies the viewer permissions; another tab or expiry
 reads the viewer too. The client reads only missing DM profiles and reloads only
 timelines whose message permissions changed. It does not refresh all cached
 users or unrelated resources. These updates preserve the mounted interface.
-Transient presence or typing changes during the internal subscription handoff
-can remain stale until the next update. Durable events use bounded replay.
+Transient presence, typing, or latest-value invalidations during the internal
+subscription handoff can remain stale until the next update. Durable events
+use bounded replay.
 
 Snapshots, network recovery, lost acknowledgements, and failed permission reads
 use full current-value recovery. Late permission reads cannot complete a

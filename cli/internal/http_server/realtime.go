@@ -223,13 +223,6 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	defer stopCredentialWatch()
 	var privilegedModeDeadlineTimer *time.Timer
 	var privilegedModeDeadlineReached <-chan time.Time
-	if credentialOK && time.Now().Before(credential.PrivilegedModeExpiresAt) {
-		privilegedModeDeadlineTimer = time.NewTimer(time.Until(credential.PrivilegedModeExpiresAt))
-		privilegedModeDeadlineReached = privilegedModeDeadlineTimer.C
-	}
-	if privilegedModeDeadlineTimer != nil {
-		defer privilegedModeDeadlineTimer.Stop()
-	}
 
 	if credentialOK && (credential.Kind == authctx.RuntimeCredentialKindCookieSession || credential.Kind == authctx.RuntimeCredentialKindBearerToken) {
 		credentialCheckDone := make(chan struct{})

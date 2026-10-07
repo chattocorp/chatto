@@ -65,6 +65,11 @@ func (s *HTTPServer) refreshRealtimeAuthorization(ctx context.Context, userID st
 		return nil, func() {}, 0, err
 	}
 	defer release()
+	// Startup uses the long-lived stream context. Cancel it if the handoff
+	// budget expires, then detach this callback before cancelling a successful
+	// catch-up so its replacement stream stays alive.
+	stopStartupTimeout := context.AfterFunc(catchUpCtx, cancel)
+	defer stopStartupTimeout()
 	s.metrics.realtimeCatchUpStarted()
 	defer s.metrics.realtimeCatchUpFinished()
 	defer func() {

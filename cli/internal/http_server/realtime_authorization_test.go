@@ -1,6 +1,7 @@
 package http_server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -10,6 +11,42 @@ import (
 	"hmans.de/chatto/internal/core"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
+
+func TestRealtimeAuthorityTimeoutIncludesSubscriptionStartup(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	ctx, cancel := context.WithCancel(env.ctx)
+	defer cancel()
+	// A replica whose live hub has not started blocks subscription startup.
+	// The handoff budget must cancel that wait and release shared capacity.
+	notRunning, err := core.NewChattoCore(ctx, env.httpServer.nc, env.httpServer.config.Core)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &HTTPServer{core: notRunning, realtimeCatchUps: newRealtimeCatchUpAdmission(), metrics: newProcessMetrics()}
+	s.realtimeCatchUps.timeout = 20 * time.Millisecond
+	finished := make(chan error, 1)
+	go func() {
+		_, stop, _, err := s.refreshRealtimeAuthorization(ctx, "not-ready-viewer", 1, nil, func(*realtimev1.RealtimeServerFrame) error {
+			t.Error("timed-out subscription wrote a frame")
+			return nil
+		})
+		stop()
+		finished <- err
+	}()
+	select {
+	case err := <-finished:
+		if err == nil {
+			t.Fatal("unstarted hub accepted a subscription")
+		}
+	case <-time.After(time.Second):
+		cancel()
+		<-finished
+		t.Fatal("subscription startup ignored the handoff timeout")
+	}
+	if s.metrics.realtimeCatchUps.Load() != 0 || len(s.realtimeCatchUps.global) != 0 || s.metrics.realtimeCatchUpsTimedOut.Load() != 1 {
+		t.Fatal("timed-out handoff retained capacity or lost its timeout metric")
+	}
+}
 
 func TestRealtimeAuthorityGuardChecksInitialAndQueuedDelivery(t *testing.T) {
 	env := setupWebSocketTestServer(t)
