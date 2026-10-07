@@ -51,8 +51,7 @@ unchanged (ADR-052): the rank never decides whether a permission is allowed.
   account.
 - **Roles.** A non-owner may assign, revoke, edit, delete, or move only roles
   that rank strictly below their own highest role. `everyone` ranks below
-  every account, so room and role managers can edit its decisions. A reorder
-  must keep every role at or above the actor's rank in its place.
+  every account, so room and role managers can edit its decisions.
 - **Authority bound.** A non-owner may change one role or direct decision only
   for a permission that they effectively hold at that scope. Deleting or
   revoking a role requires every permission that the role allows or denies.
@@ -103,7 +102,7 @@ inputs that permission checks use (ADR-087).
   the earlier display order. They ignore `RbacRoleMovedEvent` and
   `place_lowest`. A legacy reorder or role creation from an older replica
   after a move can give two roles the same position. Equal positions rank
-  equally until the next move. The RBAC projection snapshot contract
+  equally until the next move or role creation, which orders them by name. The RBAC projection snapshot contract
   changes, so old and new replicas never share snapshots.
 - `everyone` stays at position 0 and `owner` stays highest. `admin` and
   `moderator` lose their fixed positions at the first move or role creation.

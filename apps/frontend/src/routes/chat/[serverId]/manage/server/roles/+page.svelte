@@ -67,7 +67,11 @@ do not break it.
 
   /** Every role, highest first. */
   const roles = $derived(
-    [...(rolesQuery.data?.roles ?? [])].sort((a, b) => b.position - a.position)
+    // Highest first. Equal positions, which only legacy events produce, rank
+    // by name on the server, so the later name shows first.
+    [...(rolesQuery.data?.roles ?? [])].sort(
+      (a, b) => b.position - a.position || (a.name < b.name ? 1 : a.name > b.name ? -1 : 0)
+    )
   );
   const ownerRole = $derived(roles.find((role) => role.name === 'owner') ?? null);
   const everyoneRole = $derived(roles.find((role) => role.name === 'everyone') ?? null);

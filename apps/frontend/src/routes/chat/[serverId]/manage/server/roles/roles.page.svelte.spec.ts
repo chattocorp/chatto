@@ -170,6 +170,21 @@ describe('roles page', () => {
     expect(container.textContent).toContain('The role order decides who can manage whom.');
   });
 
+  it('shows roles with equal positions in the server order, the later name first', async () => {
+    api.listAdminRoles.mockResolvedValue(
+      catalog([
+        role('everyone', 0, true),
+        role('alpha', 10, true),
+        role('beta', 10, true),
+        role('owner', 1000, false)
+      ])
+    );
+    const { container } = render(RolesPage);
+    await vi.waitFor(() => expect(renderedOrder(container)).toHaveLength(4));
+
+    expect(renderedOrder(container)).toEqual(['owner', 'beta', 'alpha', 'everyone']);
+  });
+
   it('titles the page Roles and links to role creation', async () => {
     const { container } = render(RolesPage);
     await vi.waitFor(() => expect(renderedOrder(container)).toHaveLength(5));
