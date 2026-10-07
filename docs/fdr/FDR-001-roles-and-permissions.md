@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-10-08
+**Last reviewed:** 2026-10-07
 
 ## Overview
 
