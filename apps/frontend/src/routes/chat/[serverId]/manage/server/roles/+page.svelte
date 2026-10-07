@@ -13,7 +13,10 @@ roles below the viewer's highest role can be dragged.
 
 A pointer drag saves when it is dropped. A keyboard drag reports every arrow
 key move as a `finalize` event while the drag continues, so it saves once when
-the drag stops (`consider` with the `dragStopped` trigger).
+the drag stops (`consider` with the `dragStopped` trigger). A save sends one
+relative move: the dragged role and the role that now follows it. It does not
+send the full order, so roles that others create or delete at the same time
+do not break it.
 -->
 <script lang="ts">
   import { resolve } from '$app/paths';
@@ -41,7 +44,11 @@ the drag stops (`consider` with the `dragStopped` trigger).
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
 
   type RoleItem = ServerRole & { id: string };
-  type ReorderVariables = SessionSnapshot & { roleNames: string[] };
+  type MoveVariables = SessionSnapshot & {
+    roleName: string;
+    /** The movable role directly below the moved role, or none for the lowest place. */
+    beforeRoleName?: string;
+  };
 
   const serverScope = useServerScope();
   const session = createSessionGuard(serverScope);
@@ -84,9 +91,9 @@ the drag stops (`consider` with the `dragStopped` trigger).
     return () => setAriaStrings(null);
   });
 
-  const reorderMutation = createMutation(() => ({
-    mutationFn: ({ connection, roleNames }: ReorderVariables) =>
-      connection.getAPI(createRoleAPI).reorderRoles(roleNames),
+  const moveMutation = createMutation(() => ({
+    mutationFn: ({ connection, roleName, beforeRoleName }: MoveVariables) =>
+      connection.getAPI(createRoleAPI).moveRole(roleName, beforeRoleName),
     onSuccess: (updatedRoles, variables) => {
       if (!session.isCurrent(variables)) return;
       queryClient.setQueryData<RoleCatalog>(
@@ -107,16 +114,14 @@ the drag stops (`consider` with the `dragStopped` trigger).
     }
   }));
 
-  const saving = $derived(
-    reorderMutation.isPending && session.isCurrent(reorderMutation.variables)
-  );
+  const saving = $derived(moveMutation.isPending && session.isCurrent(moveMutation.variables));
 
   // svelte-dnd-action changes its items array in place during keyboard drags,
   // so keep a copy to publish each change.
   function handleConsider(event: CustomEvent<DndEvent<RoleItem>>) {
     const { items, info } = event.detail;
     if (info.source === SOURCES.KEYBOARD && info.trigger === TRIGGERS.DRAG_STOPPED) {
-      saveOrder(items);
+      saveMove(items, info.id);
     } else {
       draftItems = [...items];
     }
@@ -128,23 +133,31 @@ the drag stops (`consider` with the `dragStopped` trigger).
       // An arrow key moved the item. The keyboard drag continues.
       draftItems = [...items];
     } else {
-      saveOrder(items);
+      saveMove(items, info.id);
     }
   }
 
-  /** Saves the order after a drag ends, or shows the saved order when nothing moved. */
-  function saveOrder(items: RoleItem[]) {
+  /**
+   * Saves the move of the dragged role `movedId` after a drag ends, or shows
+   * the saved order when nothing moved.
+   */
+  function saveMove(items: RoleItem[], movedId: string) {
+    const movedIndex = items.findIndex((role) => role.id === movedId);
     const unchanged =
       items.length === savedMovableItems.length &&
       savedMovableItems.every((role, index) => items[index]?.name === role.name);
-    if (unchanged) {
+    if (movedIndex < 0 || unchanged) {
       draftItems = null;
       return;
     }
     draftItems = [...items];
-    // The API takes every role except owner and everyone, lowest first.
-    const roleNames = [...lockedRoles, ...items].map((role) => role.name).reverse();
-    reorderMutation.mutate({ ...session.snapshot(), roleNames });
+    // The moved role ranks directly above the role after it in the list
+    // (highest first). At the bottom of the movable block, it goes lowest.
+    moveMutation.mutate({
+      ...session.snapshot(),
+      roleName: items[movedIndex].name,
+      beforeRoleName: items[movedIndex + 1]?.name
+    });
   }
 </script>
 
