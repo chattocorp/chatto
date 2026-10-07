@@ -111,7 +111,9 @@ cores and HTTP listeners with one NATS store. It verifies:
 - Revocation rejects new MCP requests and refresh on both replicas.
 - Client blocking rejects new MCP requests and refresh on both replicas.
 - Expired access and invalid refresh credentials are rejected over HTTP.
-- MCP request logs exclude credential, room-ID, and message-content canaries.
+- Rejected MCP request logs exclude credential, room-ID, and message-content
+  canaries. A successful identity call returns the private display name without
+  logging it or the account's credential, login, or password canaries.
 
 The existing core block-event test also verifies rejection on another replica
 before best-effort token cleanup. Existing OAuth tests cover consent, PKCE,

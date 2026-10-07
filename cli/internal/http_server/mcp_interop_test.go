@@ -239,6 +239,19 @@ func TestMCPRequestLogsExcludeCredentialsAndContent(t *testing.T) {
 	}
 	server := httptest.NewServer(s.router)
 	defer server.Close()
+	assertPrivateLog := func(canaries ...string) {
+		t.Helper()
+		for _, canary := range canaries {
+			if strings.Contains(output.String(), canary) {
+				t.Fatal("MCP request log contains private request or response data")
+			}
+		}
+		var entry map[string]any
+		if err := json.Unmarshal(output.Bytes(), &entry); err != nil {
+			t.Fatalf("decode request log: %v", err)
+		}
+		assertLogField(t, entry, "path", "/mcp")
+	}
 	const secret = "private-access-token-canary"
 	response := mcpInteropRequest(t, server, secret, "chatto.example", "tools/call", map[string]any{
 		"name": "post_message", "arguments": map[string]string{"room_id": "private-room-canary", "body": "private-message-canary"},
@@ -246,14 +259,38 @@ func TestMCPRequestLogsExcludeCredentialsAndContent(t *testing.T) {
 	if response.Code != http.StatusUnauthorized {
 		t.Fatalf("invalid credential status = %d, want 401", response.Code)
 	}
-	for _, canary := range []string{secret, "private-room-canary", "private-message-canary"} {
-		if strings.Contains(output.String(), canary) {
-			t.Fatal("MCP request log contains private request data")
-		}
+	assertPrivateLog(secret, "private-room-canary", "private-message-canary")
+	output.Reset()
+
+	// Successful tool results can contain account data. Verify that the data
+	// reaches the authenticated client without entering debug request logs.
+	ctx := context.Background()
+	const login, displayName, password = "private-login-canary", "private-display-canary", "private-password-canary"
+	user, err := s.core.CreateUser(ctx, core.SystemActorID, login, displayName, password)
+	if err != nil {
+		t.Fatalf("create private account: %v", err)
 	}
-	var entry map[string]any
-	if err := json.Unmarshal(output.Bytes(), &entry); err != nil {
-		t.Fatalf("decode request log: %v", err)
+	generation, err := s.core.CurrentAuthGeneration(ctx, user.GetId())
+	if err != nil {
+		t.Fatalf("get auth generation: %v", err)
 	}
-	assertLogField(t, entry, "path", "/mcp")
+	credentials, err := s.core.CreateOAuthBearerSessionForClientGrant(ctx, user.GetId(), testOAuthClientID, "https://chatto.example/mcp", config.MCPOAuthScopes(), generation)
+	if err != nil {
+		t.Fatalf("issue private grant: %v", err)
+	}
+	response = mcpInteropRequest(t, server, credentials.AccessToken, "chatto.example", "tools/call", map[string]any{"name": "get_current_user"})
+	var result struct {
+		Result struct {
+			StructuredContent struct {
+				DisplayName string `json:"displayName"`
+			} `json:"structuredContent"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode identity result: %v", err)
+	}
+	if response.Code != http.StatusOK || result.Result.StructuredContent.DisplayName != displayName {
+		t.Fatal("authenticated identity call did not return the private display name")
+	}
+	assertPrivateLog(login, displayName, password, credentials.AccessToken, credentials.RefreshToken)
 }
