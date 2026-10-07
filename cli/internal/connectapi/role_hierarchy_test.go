@@ -37,6 +37,14 @@ func TestRoleHierarchyFlagsDescribeTheViewer(t *testing.T) {
 	}
 	require.Equal(t, map[string]bool{core.RoleOwner: false, core.RoleAdmin: false, core.RoleModerator: true, core.RoleEveryone: true}, below)
 
+	tiers, err := env.permissions.GetRolePermissionTierMatrix(adminCtx, connect.NewRequest(&adminv1.GetRolePermissionTierMatrixRequest{}))
+	require.NoError(t, err)
+	tierBelow := map[string]bool{}
+	for _, role := range tiers.Msg.GetMatrix().GetRoles() {
+		tierBelow[role.GetRole().GetName()] = role.GetRanksBelowViewer()
+	}
+	require.Equal(t, below, tierBelow)
+
 	for _, target := range []struct {
 		id       string
 		outranks bool

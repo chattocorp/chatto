@@ -38,6 +38,11 @@ export type TierRole = {
   override: TierPermissions;
   inheritedAllows: string[];
   inheritedDenials: string[];
+  /**
+   * True when the role ranks below the viewer's highest role, so the viewer
+   * may edit its decisions if they may also edit this tier.
+   */
+  ranksBelowViewer: boolean;
 };
 
 export type TierRoles = {
@@ -267,7 +272,8 @@ function tierRole(role: APITierRole): TierRole {
       permissionDenials: [...(role.override?.permissionDenials ?? [])]
     },
     inheritedAllows: [...role.inheritedAllows],
-    inheritedDenials: [...role.inheritedDenials]
+    inheritedDenials: [...role.inheritedDenials],
+    ranksBelowViewer: role.ranksBelowViewer
   };
 }
 

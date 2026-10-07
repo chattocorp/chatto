@@ -23,6 +23,11 @@ export type AdminMember = AdminManagedUser & {
   verifiedEmails: string[];
   primaryVerifiedEmail: string | null;
   viewerCanDeleteAccount: boolean;
+  /**
+   * True when the role hierarchy lets the viewer act on this account.
+   * Permission checks still apply.
+   */
+  viewerOutranks: boolean;
   lastLoginChange?: string | null;
 };
 
@@ -225,6 +230,7 @@ function adminMember(member: APIAdminMember): AdminMember {
     verifiedEmails: [...member.verifiedEmails],
     primaryVerifiedEmail: member.primaryVerifiedEmail ?? null,
     viewerCanDeleteAccount: member.viewerCanDeleteAccount,
+    viewerOutranks: member.viewerOutranks,
     lastLoginChange: member.lastLoginChange?.toDate().toISOString() ?? null
   };
 }

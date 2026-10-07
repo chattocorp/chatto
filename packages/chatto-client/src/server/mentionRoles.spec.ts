@@ -10,7 +10,8 @@ function role(name: string) {
     permissionDenials: [],
     isSystem: false,
     position: 1,
-    pingable: true
+    pingable: true,
+    ranksBelowViewer: false
   };
 }
 

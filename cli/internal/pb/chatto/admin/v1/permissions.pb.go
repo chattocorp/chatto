@@ -322,9 +322,13 @@ type TierRole struct {
 	// Denials inherited from broader tiers.
 	InheritedDenials []string `protobuf:"bytes,8,rep,name=inherited_denials,json=inheritedDenials,proto3" json:"inherited_denials,omitempty"`
 	// Public role metadata.
-	Role          *v1.Role `protobuf:"bytes,9,opt,name=role,proto3" json:"role,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Role *v1.Role `protobuf:"bytes,9,opt,name=role,proto3" json:"role,omitempty"`
+	// Whether this role ranks below the caller's highest role, so the caller
+	// may edit its decisions when they also have the permission to edit this
+	// tier. Owners outrank every role, and everyone ranks below every account.
+	RanksBelowViewer bool `protobuf:"varint,10,opt,name=ranks_below_viewer,json=ranksBelowViewer,proto3" json:"ranks_below_viewer,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *TierRole) Reset() {
@@ -383,6 +387,13 @@ func (x *TierRole) GetRole() *v1.Role {
 		return x.Role
 	}
 	return nil
+}
+
+func (x *TierRole) GetRanksBelowViewer() bool {
+	if x != nil {
+		return x.RanksBelowViewer
+	}
+	return false
 }
 
 // Role permission matrix for one tier.
@@ -2053,12 +2064,14 @@ const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"\x02id\x18\x02 \x01(\tR\x02id\"b\n" +
 	"\x0fTierPermissions\x12 \n" +
 	"\vpermissions\x18\x01 \x03(\tR\vpermissions\x12-\n" +
-	"\x12permission_denials\x18\x02 \x03(\tR\x11permissionDenials\"\x8a\x02\n" +
+	"\x12permission_denials\x18\x02 \x03(\tR\x11permissionDenials\"\xb8\x02\n" +
 	"\bTierRole\x12<\n" +
 	"\boverride\x18\x06 \x01(\v2 .chatto.admin.v1.TierPermissionsR\boverride\x12)\n" +
 	"\x10inherited_allows\x18\a \x03(\tR\x0finheritedAllows\x12+\n" +
 	"\x11inherited_denials\x18\b \x03(\tR\x10inheritedDenials\x12'\n" +
-	"\x04role\x18\t \x01(\v2\x13.chatto.api.v1.RoleR\x04roleJ\x04\b\x01\x10\x06R\trole_nameR\fdisplay_nameR\vdescriptionR\tis_systemR\bposition\"s\n" +
+	"\x04role\x18\t \x01(\v2\x13.chatto.api.v1.RoleR\x04role\x12,\n" +
+	"\x12ranks_below_viewer\x18\n" +
+	" \x01(\bR\x10ranksBelowViewerJ\x04\b\x01\x10\x06R\trole_nameR\fdisplay_nameR\vdescriptionR\tis_systemR\bposition\"s\n" +
 	"\tTierRoles\x125\n" +
 	"\x16applicable_permissions\x18\x01 \x03(\tR\x15applicablePermissions\x12/\n" +
 	"\x05roles\x18\x02 \x03(\v2\x19.chatto.admin.v1.TierRoleR\x05roles\"\\\n" +

@@ -1797,6 +1797,7 @@ One role's permission state at a single tier.
 | `inherited_allows` | `repeated string` | Allows inherited from broader tiers. |
 | `inherited_denials` | `repeated string` | Denials inherited from broader tiers. |
 | `role` | `chatto.api.v1.Role` | Public role metadata. |
+| `ranks_below_viewer` | `bool` | Whether this role ranks below the caller's highest role, so the caller may edit its decisions when they also have the permission to edit this tier. Owners outrank every role, and everyone ranks below every account. |
 
 <a id="chatto-admin-v1-TierRoles"></a>
 

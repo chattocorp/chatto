@@ -47,7 +47,8 @@ describe('createRoleAPI', () => {
           permissionDenials: [],
           isSystem: true,
           position: 100,
-          pingable: true
+          pingable: true,
+          ranksBelowViewer: false
         }
       ],
       viewerCanManageRoles: false,
@@ -113,7 +114,8 @@ describe('createRoleAPI', () => {
           permissionDenials: ['message.post'],
           isSystem: true,
           position: 100,
-          pingable: true
+          pingable: true,
+          ranksBelowViewer: false
         }
       ],
       viewerCanManageRoles: true,
@@ -152,7 +154,8 @@ describe('createRoleAPI', () => {
         permissionDenials: [],
         isSystem: false,
         position: 10,
-        pingable: false
+        pingable: false,
+        ranksBelowViewer: false
       },
       viewerCanManageRoles: true,
       viewerCanAssignRoles: true
@@ -213,7 +216,7 @@ describe('createRoleAPI', () => {
     adminRoles.deleteRole.mockReturnValue({});
     const api = roleAPI();
 
-    await expect(api.createRole(role)).resolves.toEqual(role);
+    await expect(api.createRole(role)).resolves.toEqual({ ...role, ranksBelowViewer: false });
     await expect(
       api.updateRole({
         name: 'helpdesk',
@@ -263,5 +266,49 @@ describe('createRoleAPI', () => {
     await expect(roleAPI().getPublicRole('secret')).rejects.toMatchObject({
       code: Code.PermissionDenied
     });
+  });
+
+  it('reorders roles and maps the viewer hierarchy flag', async () => {
+    adminRoles.reorderRoles.mockReturnValue({
+      roles: [
+        {
+          role: {
+            name: 'moderator',
+            displayName: 'Moderator',
+            description: '',
+            isSystem: true,
+            position: 1,
+            pingable: true
+          },
+          permissions: ['message.manage'],
+          permissionDenials: [],
+          ranksBelowViewer: true
+        },
+        {
+          role: {
+            name: 'admin',
+            displayName: 'Admin',
+            description: '',
+            isSystem: true,
+            position: 2,
+            pingable: false
+          },
+          permissions: [],
+          permissionDenials: [],
+          ranksBelowViewer: false
+        }
+      ]
+    });
+    const api = roleAPI();
+
+    const result = await api.reorderRoles(['moderator', 'admin']);
+
+    expect(receivedRequest(adminRoles.reorderRoles)).toMatchObject({
+      roleNames: ['moderator', 'admin']
+    });
+    expect(result.map((role) => [role.name, role.position, role.ranksBelowViewer])).toEqual([
+      ['moderator', 1, true],
+      ['admin', 2, false]
+    ]);
   });
 });

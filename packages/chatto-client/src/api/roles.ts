@@ -13,8 +13,15 @@ export type ServerRole = {
   permissions: string[];
   permissionDenials: string[];
   isSystem: boolean;
+  /** Role order. Higher positions rank higher in the administrative hierarchy. */
   position: number;
   pingable: boolean;
+  /**
+   * True when the role ranks below the viewer's highest role, so the viewer
+   * may assign, revoke, edit, delete, or move it. Permission checks still
+   * apply. Always false for roles from public role reads.
+   */
+  ranksBelowViewer: boolean;
 };
 
 export type RoleUser = {
@@ -133,6 +140,15 @@ export function createRoleAPI(config: ConnectAPIConfig) {
     async deleteRole(name: string): Promise<boolean> {
       await adminClient.deleteRole({ name });
       return true;
+    },
+
+    /**
+     * Replaces the role order. `roleNames` lists every role except owner and
+     * everyone, lowest first. Returns the full role catalogue.
+     */
+    async reorderRoles(roleNames: string[]): Promise<ServerRole[]> {
+      const response = await adminClient.reorderRoles({ roleNames });
+      return response.roles.map(serverRoleFromAdmin);
     }
   };
 }
@@ -150,7 +166,10 @@ function serverRoleFromAdmin(role: APIAdminRole): ServerRole {
   if (!role.role) {
     throw new Error('admin role response did not include public role metadata');
   }
-  return serverRoleFromPublic(role.role, role.permissions, role.permissionDenials);
+  return {
+    ...serverRoleFromPublic(role.role, role.permissions, role.permissionDenials),
+    ranksBelowViewer: role.ranksBelowViewer
+  };
 }
 
 function serverRoleFromPublic(
@@ -166,7 +185,8 @@ function serverRoleFromPublic(
     permissionDenials: [...permissionDenials],
     isSystem: role.isSystem,
     position: role.position,
-    pingable: role.pingable
+    pingable: role.pingable,
+    ranksBelowViewer: false
   };
 }
 

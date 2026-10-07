@@ -56,7 +56,8 @@ describe('createPermissionAPI', () => {
           pingable: true,
           override: { permissions: ['message.post'], permissionDenials: [] },
           inheritedAllows: [],
-          inheritedDenials: ['message.react']
+          inheritedDenials: ['message.react'],
+          ranksBelowViewer: false
         }
       ]
     });
