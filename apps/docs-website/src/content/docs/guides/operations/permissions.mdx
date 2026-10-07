@@ -231,7 +231,8 @@ The role order decides who can manage whom. It does not change which
 permission setting wins.
 
 - `owner` is always highest and `everyone` is always lowest. You can move
-  `admin`, `moderator`, and custom roles. A new role starts lowest.
+  `admin`, `moderator`, and custom roles: drag them on the **Roles** page in
+  Server Administration. A new role starts lowest.
 - A user ranks at their highest role. Owners rank above all roles.
 - To change another account, you need the permission for the change and a
   higher rank than the account. This applies to passwords, profiles,
@@ -258,8 +259,8 @@ no longer manage that user.
 
 | Task | Where |
 | ---- | ----- |
-| Create roles and edit their permissions | Server Administration → **Permissions** |
-| Change the role order | Server Administration → **Role order** |
+| Create, edit, and order roles | Server Administration → **Roles** |
+| Compare the permissions of all roles | Server Administration → **Permissions** |
 | Assign roles | Server Administration → **Members** → member → **Roles**, or **Bots** → bot → **Roles** |
 | Set permissions for one user | Server Administration → **Members** → member → **Permissions** |
 | Set permissions for one bot | Server Administration → **Bots** → bot → **Permissions** |
@@ -299,7 +300,7 @@ Make these changes on an upgraded server:
 - **Check the role order.** The role order now decides who can manage whom.
   An upgraded server keeps `admin` above `moderator` and both above custom
   roles. A user with a custom management role ranks below moderators and
-  cannot manage them. Move roles on the **Role order** page if necessary.
+  cannot manage them. Move roles on the **Roles** page if necessary.
 - **Check delegated permission editors.** A user who is not an owner can now
   change only the permission settings of permissions that they have at that
   scope. To delete a role, this user must have every permission that the role
