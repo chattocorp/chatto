@@ -1155,7 +1155,7 @@ func TestProjectorDoesNotResetCheckpointOnOperationalRestoreFailure(t *testing.T
 		t.Fatalf("checkpoint resets = %d, want 0", projection.resets)
 	}
 	status := projector.Status()
-	if !status.Failed || status.Err == nil {
+	if status.Err == nil {
 		t.Fatalf("restore failure status = %+v, want failed projector", status)
 	}
 }
@@ -1522,7 +1522,7 @@ func TestProjectorsStartAfterTheirOwnSnapshotCutoffs(t *testing.T) {
 		if projector == second {
 			wantMessages = 0
 		}
-		if status.Failed || !status.SnapshotRestored || status.LastSeq != lastSeq || status.StartupMessages != wantMessages {
+		if status.Err != nil || !status.SnapshotRestored || status.LastSeq != lastSeq || status.StartupMessages != wantMessages {
 			t.Fatalf("%s status = %#v", name, status)
 		}
 	}
@@ -2094,8 +2094,8 @@ func TestProjector_WaitFor_ReturnsProjectionError(t *testing.T) {
 	}
 
 	status := projector.Status()
-	if !status.Failed {
-		t.Fatal("Status.Failed = false, want true")
+	if status.Err == nil {
+		t.Fatal("Status.Err = nil, want a projection failure")
 	}
 	if status.FailedSeq != seq {
 		t.Fatalf("Status.FailedSeq = %d, want %d", status.FailedSeq, seq)
@@ -2140,8 +2140,8 @@ func TestProjector_RunReturnsProjectionError(t *testing.T) {
 	}
 
 	status := projector.Status()
-	if !status.Failed {
-		t.Fatal("Status.Failed = false, want true")
+	if status.Err == nil {
+		t.Fatal("Status.Err = nil, want a projection failure")
 	}
 	if status.FailedSeq != seq {
 		t.Fatalf("Status.FailedSeq = %d, want %d", status.FailedSeq, seq)
@@ -2179,8 +2179,8 @@ func TestProjector_RunFailsOnUnmarshalableEvent(t *testing.T) {
 	}
 
 	status := projector.Status()
-	if !status.Failed {
-		t.Fatal("Status.Failed = false, want true")
+	if status.Err == nil {
+		t.Fatal("Status.Err = nil, want a projection failure")
 	}
 	if status.FailedSeq != ack.Sequence {
 		t.Fatalf("Status.FailedSeq = %d, want %d", status.FailedSeq, ack.Sequence)

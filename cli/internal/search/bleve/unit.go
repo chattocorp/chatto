@@ -152,11 +152,8 @@ func waitForSearchProjectionStartup(ctx context.Context, projector *events.Proje
 		if status.StartupComplete {
 			return false, nil
 		}
-		if status.Failed {
-			if status.Err != nil {
-				return false, status.Err
-			}
-			return false, events.ErrProjectionFailed
+		if status.Err != nil {
+			return false, status.Err
 		}
 		select {
 		case err := <-done:
@@ -179,7 +176,7 @@ func logSearchIndexingProgress(ctx context.Context, projector *events.Projector,
 			return
 		case <-ticker.C:
 			status := projector.Status()
-			if status.StartupComplete || status.Failed {
+			if status.StartupComplete || status.Err != nil {
 				return
 			}
 			if !status.Started {

@@ -53,9 +53,9 @@ func providerStatus(projector *events.Projector) *searchv1.GetStatusResponse {
 	indexed := status.StartupMessages
 	response.IndexedEventCount = &indexed
 	switch {
-	case status.Failed && !status.StartupComplete:
+	case status.Err != nil && !status.StartupComplete:
 		response.State = searchv1.ProviderState_PROVIDER_STATE_UNAVAILABLE
-	case status.Failed:
+	case status.Err != nil:
 		response.State = searchv1.ProviderState_PROVIDER_STATE_DEGRADED
 	case status.StartupComplete:
 		response.State = searchv1.ProviderState_PROVIDER_STATE_READY

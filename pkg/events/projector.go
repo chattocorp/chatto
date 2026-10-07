@@ -141,7 +141,8 @@ type Projector struct {
 
 // ProjectorStatus is a concurrency-safe snapshot of a projector's
 // lifecycle state. Operators use it for diagnostics; application readiness
-// uses Err to surface fatal projection failures.
+// uses Err to surface fatal projection failures. A projector has failed
+// exactly when Err is not nil.
 type ProjectorStatus struct {
 	Started bool
 	LastSeq uint64
@@ -163,10 +164,12 @@ type ProjectorStatus struct {
 	LatestSnapshotSeq    uint64
 	LatestSnapshotAt     time.Time
 
-	Failed    bool
+	// Err is the fatal error that stopped the projector, or nil. It wraps
+	// ErrProjectionFailed and the decode or apply error.
+	Err error
+	// FailedSeq is the stream sequence that the projector could not decode
+	// or apply. It is zero while Err is nil.
 	FailedSeq uint64
-	Failure   string
-	Err       error
 }
 
 type seqWaiter struct {
@@ -361,9 +364,7 @@ func (p *Projector) Status() ProjectorStatus {
 		status.StartupDuration = startupEndsAt.Sub(p.startupStartedAt)
 	}
 	if p.failedErr != nil {
-		status.Failed = true
 		status.FailedSeq = p.failedSeq
-		status.Failure = p.failedErr.Error()
 		status.Err = p.failedErr
 	}
 	return status
