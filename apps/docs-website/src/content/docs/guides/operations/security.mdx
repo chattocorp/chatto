@@ -190,8 +190,9 @@ Chatto sends these headers with every page:
 | `Content-Security-Policy` | `frame-ancestors 'none'` |
 
 The page also enforces a Content Security Policy that allows only Chatto's own
-scripts. Other sites cannot show Chatto in a frame. Uploaded HTML, SVG, and XML
-files are served with a sandbox policy. HTML previews open only after the
+scripts. Other sites cannot show Chatto in a frame. All uploaded files are
+served with a sandbox policy, except passive types: PNG, JPEG, GIF, WebP, AVIF,
+video, audio, plain text, and PDF. HTML previews open only after the
 member agrees, in a frame without permissions.
 
 Requests from other origins cannot use session cookies. They must send a bearer
