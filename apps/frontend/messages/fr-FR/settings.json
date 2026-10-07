@@ -285,13 +285,6 @@
         "description": "{device} · S’applique à tous les serveurs sur cet appareil.",
         "setup_failed": "Les notifications push n’ont pas pu être configurées : {reason}"
       },
-      "push_prompt": {
-        "title": "Activer les notifications push",
-        "message": "Recevez des notifications pour les messages privés, les mentions et les réponses, même lorsque Chatto est fermé.",
-        "enable": "Activer",
-        "enabled": "Notifications push activées",
-        "not_now": "Pas maintenant"
-      },
       "sound": {
         "title": "Son de notification",
         "shape_title": "Forme sonore",

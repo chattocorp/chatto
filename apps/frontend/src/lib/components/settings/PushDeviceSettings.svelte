@@ -27,7 +27,6 @@ blocks notifications. Renders nothing when the app does not run in a browser.
     retryPushRegistration,
     sendTestNotification
   } from '$lib/notifications/pushNotifications';
-  import { snoozePushPrompt } from '$lib/notifications/pushPrompt';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Hint, Panel } from '$lib/ui';
   import { Button, Checkbox } from '$lib/ui/form';
@@ -93,8 +92,6 @@ blocks notifications. Renders nothing when the app does not run in a browser.
         const result = await enablePushOnAllServers();
         if (result.permission === 'default') {
           problem = 'prompt_unanswered';
-          // A dismissed browser prompt counts as Not now for the invitation too.
-          snoozePushPrompt();
         }
       } else {
         await disablePushOnAllServers();

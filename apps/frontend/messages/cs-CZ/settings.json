@@ -285,13 +285,6 @@
         "description": "{device} · Platí pro všechny servery na tomto zařízení.",
         "setup_failed": "Push oznámení se nepodařilo nastavit: {reason}"
       },
-      "push_prompt": {
-        "title": "Povolit push oznámení",
-        "message": "Dostávejte oznámení o přímých zprávách, zmínkách a odpovědích, i když je Chatto zavřené.",
-        "enable": "Povolit",
-        "enabled": "Push oznámení jsou povolena",
-        "not_now": "Teď ne"
-      },
       "sound": {
         "title": "Zvuk upozornění",
         "shape_title": "Zvukový tvar",

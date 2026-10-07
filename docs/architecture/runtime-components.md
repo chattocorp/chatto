@@ -46,6 +46,16 @@ client keeps no chat data on the device, so each page load starts without a
 resume cursor and receives a fresh snapshot. See
 [ADR-107](../adr/ADR-107-keep-chat-data-out-of-device-storage.md).
 
+The bundled frontend's
+[`PushSubscriptionRefresh`](../../apps/frontend/src/lib/components/PushSubscriptionRefresh.svelte)
+component maintains Web Push subscriptions for the chat shell. It saves
+subscriptions when permission is granted and a server becomes eligible, and
+checks for refreshes on window focus and once an hour. It has no visible UI
+and never requests notification permission.
+[`PushDeviceSettings`](../../apps/frontend/src/lib/components/settings/PushDeviceSettings.svelte)
+requests permission when the user checks Push notifications on this device
+in notification settings. See [FDR-013](../fdr/FDR-013-web-push-notifications.md).
+
 The bundled frontend's per-server
 [`PendingHighlightStore`](../../apps/frontend/src/lib/state/server/pendingHighlight.ts)
 owns the active message jump. The request keeps its object identity through

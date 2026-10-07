@@ -211,7 +211,7 @@ vi.mock('$lib/components/AuthStatusNotice.svelte', async () => ({
   default: (await import('./ChatRootTestStub.svelte')).default
 }));
 
-vi.mock('$lib/components/PushNotificationSetup.svelte', async () => ({
+vi.mock('$lib/components/PushSubscriptionRefresh.svelte', async () => ({
   default: (await import('./ChatRootTestStub.svelte')).default
 }));
 

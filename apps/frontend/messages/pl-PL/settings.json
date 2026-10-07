@@ -285,13 +285,6 @@
         "description": "{device} · Dotyczy wszystkich serwerów na tym urządzeniu.",
         "setup_failed": "Nie udało się skonfigurować powiadomień push: {reason}"
       },
-      "push_prompt": {
-        "title": "Włącz powiadomienia push",
-        "message": "Otrzymuj powiadomienia o wiadomościach prywatnych, wzmiankach i odpowiedziach, nawet gdy Chatto jest zamknięte.",
-        "enable": "Włącz",
-        "enabled": "Powiadomienia push włączone",
-        "not_now": "Nie teraz"
-      },
       "sound": {
         "title": "Dźwięk powiadomienia",
         "shape_title": "Kształt dźwięku",

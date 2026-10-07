@@ -285,13 +285,6 @@
         "description": "{device} · Kehtib selle seadme kõigi serverite kohta.",
         "setup_failed": "Tõukemärguandeid ei õnnestunud seadistada: {reason}"
       },
-      "push_prompt": {
-        "title": "Luba tõukemärguanded",
-        "message": "Saage märguandeid otsesõnumite, mainimiste ja vastuste kohta ka siis, kui Chatto on suletud.",
-        "enable": "Luba",
-        "enabled": "Tõukemärguanded on lubatud",
-        "not_now": "Mitte praegu"
-      },
       "sound": {
         "title": "Teavitusheli",
         "shape_title": "Heli kuju",

@@ -285,13 +285,6 @@
         "description": "{device} · Gjelder alle servere på denne enheten.",
         "setup_failed": "Push-varsler kunne ikke konfigureres: {reason}"
       },
-      "push_prompt": {
-        "title": "Aktiver push-varsler",
-        "message": "Få varsler om direktemeldinger, omtaler og svar også når Chatto er lukket.",
-        "enable": "Aktiver",
-        "enabled": "Push-varsler aktivert",
-        "not_now": "Ikke nå"
-      },
       "sound": {
         "title": "Varslingslyd",
         "shape_title": "Lydform",

@@ -285,13 +285,6 @@
         "description": "{device} · Vale per tutti i server su questo dispositivo.",
         "setup_failed": "Non è stato possibile configurare le notifiche push: {reason}"
       },
-      "push_prompt": {
-        "title": "Abilita le notifiche push",
-        "message": "Ricevi notifiche su messaggi diretti, menzioni e risposte anche quando Chatto è chiuso.",
-        "enable": "Abilita",
-        "enabled": "Notifiche push abilitate",
-        "not_now": "Non ora"
-      },
       "sound": {
         "title": "Suono di notifica",
         "shape_title": "Forma del suono",

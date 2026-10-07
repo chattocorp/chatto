@@ -285,13 +285,6 @@
         "description": "{device} · Validas por ĉiuj serviloj en ĉi tiu aparato.",
         "setup_failed": "Ne eblis agordi puŝajn sciigojn: {reason}"
       },
-      "push_prompt": {
-        "title": "Ebligi puŝajn sciigojn",
-        "message": "Ricevu sciigojn pri rektaj mesaĝoj, mencioj kaj respondoj, eĉ kiam Chatto estas fermita.",
-        "enable": "Ebligi",
-        "enabled": "Puŝaj sciigoj ebligitaj",
-        "not_now": "Ne nun"
-      },
       "sound": {
         "title": "Sciiga Sono",
         "shape_title": "Sonformo",
