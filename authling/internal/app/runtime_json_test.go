@@ -138,7 +138,7 @@ func TestRuntimeServicesReadLegacyJSONEnvelopes(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if _, err := storage.UpdateKeyWithTTL(t.Context(), js, storage.RuntimeStateBucket, storageKey, legacy, entry.Revision(), time.Minute); err != nil {
+				if _, err := stores.RuntimeState.UpdateWithTTL(t.Context(), storageKey, legacy, entry.Revision(), time.Minute); err != nil {
 					t.Fatal(err)
 				}
 				rewritten++

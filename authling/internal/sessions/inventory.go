@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/authling/internal/storage"
 )
 
 var (
@@ -233,7 +232,7 @@ func (s *Service) revokeInventoryEntry(ctx context.Context, accountID string, pr
 		if state.AccountID != accountID || s.publicSessionID(projected.Key) != projected.ID {
 			return ErrNotFound
 		}
-		revision, err := storage.DeleteKey(ctx, s.js, storage.RuntimeStateBucket, projected.Key, entry.Revision())
+		revision, err := s.kv.DeleteAt(ctx, projected.Key, entry.Revision())
 		if err != nil {
 			continue
 		}

@@ -46,7 +46,10 @@ an OCC update, a claim, or a revocation, then works from stale state.
 stream leader and keep the semantics of the bucket's own methods. `Latest`
 returns the newest entry for a key or wildcard filter, including delete,
 purge, and expiry markers. `UpdateWithTTL` replaces a revision and sets a new
-per-message TTL, which the bucket API supports only on `Create`.
+per-message TTL, which the bucket API supports only on `Create`. `DeleteAt`
+deletes a revision and returns the revision of the delete marker, so that the
+caller can wait until a watcher observes the deletion. Both report a revision
+conflict as `jetstream.ErrKeyRevisionMismatch`.
 
 `GetAnyReplica` is the bucket's own read, for hot paths. Any replica can
 answer, so the result can be an older revision, or a miss for an entry that

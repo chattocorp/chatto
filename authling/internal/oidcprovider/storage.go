@@ -109,8 +109,7 @@ type ConsentRequest struct {
 
 // Storage persists OIDC protocol state in Authling's encrypted runtime bucket.
 type Storage struct {
-	kv      jetstream.KeyValue
-	js      jetstream.JetStream
+	kv      storage.KeyValue
 	key     []byte
 	clients *Resolver
 	issuer  *issuer.Service
@@ -122,13 +121,13 @@ type Storage struct {
 
 // NewStorage receives account read boundaries. Email must return the current
 // verified address; no account PII is retained in protocol state.
-func NewStorage(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, clients *Resolver, issuerService *issuer.Service, profile func(context.Context, string) (string, string, error), active func(context.Context, string) error, email func(context.Context, string) (string, error)) *Storage {
-	return &Storage{kv: kv, js: js, key: append([]byte(nil), key...), clients: clients, issuer: issuerService, now: time.Now, profile: profile, active: active, email: email}
+func NewStorage(kv storage.KeyValue, key []byte, clients *Resolver, issuerService *issuer.Service, profile func(context.Context, string) (string, string, error), active func(context.Context, string) error, email func(context.Context, string) (string, error)) *Storage {
+	return &Storage{kv: kv, key: append([]byte(nil), key...), clients: clients, issuer: issuerService, now: time.Now, profile: profile, active: active, email: email}
 }
 
 // admitAuthRequest runs at HTTP admission before client lookup or state creation.
 func (s *Storage) admitAuthRequest(ctx context.Context) error {
-	return storage.AdmitRequest(ctx, s.kv, s.js, "oidc.admission.global", maxAuthRequests, authRequestLifetime)
+	return storage.AdmitRequest(ctx, s.kv, "oidc.admission.global", maxAuthRequests, authRequestLifetime)
 }
 
 func (s *Storage) CreateAuthRequest(ctx context.Context, request *liboidc.AuthRequest, _ string) (op.AuthRequest, error) {
@@ -202,7 +201,7 @@ func (s *Storage) SaveAuthCode(ctx context.Context, id, code string) error {
 	if err != nil {
 		return err
 	}
-	_, err = storage.UpdateKeyWithTTL(ctx, s.js, storage.RuntimeStateBucket, s.requestKey(id), data, entry.Revision(), remaining)
+	_, err = s.kv.UpdateWithTTL(ctx, s.requestKey(id), data, entry.Revision(), remaining)
 	return err
 }
 
@@ -284,7 +283,7 @@ func (s *Storage) Authorize(ctx context.Context, id, accountID string, authentic
 	if err != nil {
 		return err
 	}
-	_, err = storage.UpdateKeyWithTTL(ctx, s.js, storage.RuntimeStateBucket, s.requestKey(id), data, entry.Revision(), remaining)
+	_, err = s.kv.UpdateWithTTL(ctx, s.requestKey(id), data, entry.Revision(), remaining)
 	return err
 }
 
@@ -375,7 +374,7 @@ func (s *Storage) claimCode(ctx context.Context, request *authRequestState) erro
 	if err != nil {
 		return err
 	}
-	if _, err := storage.UpdateKeyWithTTL(ctx, s.js, storage.RuntimeStateBucket, request.CodeKey, data, entry.Revision(), remaining); err != nil {
+	if _, err := s.kv.UpdateWithTTL(ctx, request.CodeKey, data, entry.Revision(), remaining); err != nil {
 		return errOIDCStateNotFound
 	}
 	return nil
@@ -536,7 +535,7 @@ func (s *Storage) create(ctx context.Context, key string, value any, ttl time.Du
 	if err != nil {
 		return err
 	}
-	_, err = s.js.Publish(ctx, "$KV."+storage.RuntimeStateBucket+"."+key, data, jetstream.WithExpectLastSequencePerSubject(0), jetstream.WithMsgTTL(ttl))
+	_, err = s.kv.Create(ctx, key, data, jetstream.KeyTTL(ttl))
 	return err
 }
 func (s *Storage) read(key string, ctx context.Context, value any) error {

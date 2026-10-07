@@ -54,7 +54,7 @@ func TestOperationalFailureDoesNotConsumeAttemptBudget(t *testing.T) {
 		t.Fatal(err)
 	}
 	authenticator := &stubAuthenticator{err: errors.New("key service unavailable")}
-	service := New(stores.RuntimeState, js, key, authenticator)
+	service := New(stores.RuntimeState, key, authenticator)
 	clear(key)
 
 	if _, err := service.Login(ctx, "person@example.com", "password"); err == nil || errors.Is(err, accounts.ErrInvalidCredentials) {

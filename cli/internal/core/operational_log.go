@@ -59,11 +59,10 @@ func (c *ChattoCore) appendOperationalLog(ctx context.Context, entry *logv1.Entr
 		return err
 	}
 	_, err = c.js.Publish(ctx, subject, data, jetstream.WithExpectLastSequencePerSubject(0))
+	// ErrKeyExists matches only the committed-record conflict. A replicated
+	// stream reports a conflict with a write in progress as another code; that
+	// write can still fail, so it does not prove the record is stored.
 	if errors.Is(err, jetstream.ErrKeyExists) {
-		return nil
-	}
-	var apiErr *jetstream.APIError
-	if errors.As(err, &apiErr) && apiErr.ErrorCode == jetstream.JSErrCodeStreamWrongLastSequence {
 		return nil
 	}
 	return err

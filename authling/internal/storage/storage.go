@@ -38,29 +38,17 @@ var provisioningRetry = jetstreamutil.JetStreamResourceRetryPolicy{
 	RetryDelay:  25 * time.Millisecond,
 }
 
-// UpdateKeyWithTTL performs an OCC KV update while preserving an explicit
-// per-key expiry. The high-level KV Update API cannot attach the TTL header.
-func UpdateKeyWithTTL(ctx context.Context, js jetstream.JetStream, bucket, key string, value []byte, revision uint64, ttl time.Duration) (uint64, error) {
-	msg := nats.NewMsg("$KV." + bucket + "." + key)
-	msg.Data = value
-	ack, err := js.PublishMsg(ctx, msg, jetstream.WithExpectLastSequencePerSubject(revision), jetstream.WithMsgTTL(ttl))
-	if err != nil {
-		return 0, err
-	}
-	return ack.Sequence, nil
+// KeyValue is the runtime-state access that Authling services use: the bucket's
+// own methods, leader-routed reads, and the revision-checked TTL update and
+// delete of jetstreamutil.KeyValue. Both report a revision conflict as
+// jetstream.ErrKeyRevisionMismatch. Tests can wrap it to inject faults.
+type KeyValue interface {
+	jetstream.KeyValue
+	UpdateWithTTL(ctx context.Context, key string, value []byte, revision uint64, ttl time.Duration) (uint64, error)
+	DeleteAt(ctx context.Context, key string, revision uint64) (uint64, error)
 }
 
-// DeleteKey performs an OCC KV deletion and returns the resulting stream
-// revision so an owning in-memory model can provide read-your-writes.
-func DeleteKey(ctx context.Context, js jetstream.JetStream, bucket, key string, revision uint64) (uint64, error) {
-	msg := nats.NewMsg("$KV." + bucket + "." + key)
-	msg.Header.Set("KV-Operation", "DEL")
-	ack, err := js.PublishMsg(ctx, msg, jetstream.WithExpectLastSequencePerSubject(revision))
-	if err != nil {
-		return 0, err
-	}
-	return ack.Sequence, nil
-}
+var _ KeyValue = (*jetstreamutil.KeyValue)(nil)
 
 // Open ensures Authling's event stream exists and returns the JetStream
 // context and stream bound to the current NATS account.

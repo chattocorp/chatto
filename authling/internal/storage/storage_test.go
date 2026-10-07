@@ -37,7 +37,7 @@ func TestRuntimeStateUpdatePreservesAndResetsPerKeyTTL(t *testing.T) {
 		t.Fatal(err)
 	}
 	time.Sleep(1200 * time.Millisecond)
-	if _, err := UpdateKeyWithTTL(ctx, js, RuntimeStateBucket, "ttl-contract", []byte("updated"), revision, ttl); err != nil {
+	if _, err := stores.RuntimeState.UpdateWithTTL(ctx, "ttl-contract", []byte("updated"), revision, ttl); err != nil {
 		t.Fatal(err)
 	}
 	time.Sleep(1200 * time.Millisecond)

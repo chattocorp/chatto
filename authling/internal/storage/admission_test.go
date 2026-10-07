@@ -11,11 +11,12 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/authling/internal/config"
 	"hmans.de/authling/internal/natsruntime"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 func TestAdmissionConcurrentWritersRestartAndExpiry(t *testing.T) {
 	cfg := config.NATSConfig{Embedded: config.EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}}
-	open := func() (*natsruntime.Connection, jetstream.JetStream, jetstream.KeyValue) {
+	open := func() (*natsruntime.Connection, jetstream.JetStream, *jetstreamutil.KeyValue) {
 		t.Helper()
 		connection, err := natsruntime.Open(t.Context(), cfg)
 		if err != nil {
@@ -33,19 +34,16 @@ func TestAdmissionConcurrentWritersRestartAndExpiry(t *testing.T) {
 	}
 	connection, js, kv := open()
 	// Separate handles share only server state, as on independent replicas.
-	other, err := js.KeyValue(t.Context(), RuntimeStateBucket)
-	if err != nil {
-		t.Fatal(err)
-	}
+	other := otherReplicaKeyValue(t, js)
 	var admitted atomic.Int32
 	var wg sync.WaitGroup
 	for i := range 24 {
 		wg.Go(func() {
-			store := kv
+			var store KeyValue = kv
 			if i%2 == 1 {
 				store = other
 			}
-			if err := AdmitRequest(t.Context(), store, js, "admission.test", 7, time.Minute); err == nil {
+			if err := AdmitRequest(t.Context(), store, "admission.test", 7, time.Minute); err == nil {
 				admitted.Add(1)
 			} else if !errors.Is(err, ErrAdmissionLimited) {
 				t.Errorf("admit: %v", err)
@@ -61,18 +59,18 @@ func TestAdmissionConcurrentWritersRestartAndExpiry(t *testing.T) {
 	}
 	connection, js, kv = open()
 	defer connection.Close()
-	if err := AdmitRequest(t.Context(), kv, js, "admission.test", 7, time.Minute); !errors.Is(err, ErrAdmissionLimited) {
+	if err := AdmitRequest(t.Context(), kv, "admission.test", 7, time.Minute); !errors.Is(err, ErrAdmissionLimited) {
 		t.Fatalf("budget lost on restart: %v", err)
 	}
-	if err := AdmitRequest(t.Context(), kv, js, "admission.expiry", 1, time.Second); err != nil {
+	if err := AdmitRequest(t.Context(), kv, "admission.expiry", 1, time.Second); err != nil {
 		t.Fatal(err)
 	}
-	if err := AdmitRequest(t.Context(), kv, js, "admission.expiry", 1, time.Second); !errors.Is(err, ErrAdmissionLimited) {
+	if err := AdmitRequest(t.Context(), kv, "admission.expiry", 1, time.Second); !errors.Is(err, ErrAdmissionLimited) {
 		t.Fatal(err)
 	}
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		err := AdmitRequest(t.Context(), kv, js, "admission.expiry", 1, time.Second)
+		err := AdmitRequest(t.Context(), kv, "admission.expiry", 1, time.Second)
 		if err == nil {
 			break
 		}
@@ -84,19 +82,19 @@ func TestAdmissionConcurrentWritersRestartAndExpiry(t *testing.T) {
 	if _, err := kv.Put(t.Context(), "admission.corrupt", []byte(`{"count":-1}`)); err != nil {
 		t.Fatal(err)
 	}
-	if err := AdmitRequest(t.Context(), kv, js, "admission.corrupt", 1, time.Minute); err == nil {
+	if err := AdmitRequest(t.Context(), kv, "admission.corrupt", 1, time.Minute); err == nil {
 		t.Fatal("accepted malformed counter")
 	}
 	lost := &lostAdmissionAck{KeyValue: kv}
-	if err := AdmitRequest(t.Context(), lost, js, "admission.lost-ack", 1, time.Minute); err == nil {
+	if err := AdmitRequest(t.Context(), lost, "admission.lost-ack", 1, time.Minute); err == nil {
 		t.Fatal("accepted lost acknowledgement")
 	}
-	if err := AdmitRequest(t.Context(), kv, js, "admission.lost-ack", 1, time.Minute); !errors.Is(err, ErrAdmissionLimited) {
+	if err := AdmitRequest(t.Context(), kv, "admission.lost-ack", 1, time.Minute); !errors.Is(err, ErrAdmissionLimited) {
 		t.Fatalf("unknown outcome refunded: %v", err)
 	}
 }
 
-type lostAdmissionAck struct{ jetstream.KeyValue }
+type lostAdmissionAck struct{ KeyValue }
 
 func (kv *lostAdmissionAck) Create(ctx context.Context, key string, value []byte, options ...jetstream.KVCreateOpt) (uint64, error) {
 	if _, err := kv.KeyValue.Create(ctx, key, value, options...); err != nil {

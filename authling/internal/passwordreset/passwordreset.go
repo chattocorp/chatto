@@ -48,8 +48,7 @@ type flowState struct {
 // Service coordinates expiring recovery state, email delivery, and durable
 // password changes without exposing whether an address has an account.
 type Service struct {
-	kv              jetstream.KeyValue
-	js              jetstream.JetStream
+	kv              storage.KeyValue
 	key             []byte
 	sender          email.Sender
 	siteName        string // Public service name used only in email copy.
@@ -60,15 +59,14 @@ type Service struct {
 }
 
 // New constructs the password-reset workflow.
-func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, sender email.Sender, accountService *accounts.Service, siteName string) *Service {
+func New(kv storage.KeyValue, key []byte, sender email.Sender, accountService *accounts.Service, siteName string) *Service {
 	return &Service{
 		kv:       kv,
-		js:       js,
 		key:      append([]byte(nil), key...),
 		sender:   sender,
 		siteName: siteName,
 		accounts: accountService,
-		deliveryBudget: storage.NewDeliveryBudget(kv, js, storage.DeliveryPolicy{
+		deliveryBudget: storage.NewDeliveryBudget(kv, storage.DeliveryPolicy{
 			GlobalKey:      "password-reset-limit.global",
 			GlobalLimit:    maxGlobalDeliveredCodes,
 			RecipientLimit: maxDeliveredCodes,
@@ -91,11 +89,11 @@ func (s *Service) Start(ctx context.Context, rawEmail string) (string, error) {
 	}
 	// Bound accepted work even when SMTP or a later storage operation fails.
 	// Global admission comes first to bound the number of address counters.
-	if err := storage.AdmitRequest(ctx, s.kv, s.js, "password-reset-admission.global", maxGlobalDeliveredCodes, FlowTTL); err != nil {
+	if err := storage.AdmitRequest(ctx, s.kv, "password-reset-admission.global", maxGlobalDeliveredCodes, FlowTTL); err != nil {
 		return "", err
 	}
 	admissionKey := "password-reset-admission." + base64.RawURLEncoding.EncodeToString(keyedDigest(s.key, "admission\x00"+normalized))
-	if err := storage.AdmitRequest(ctx, s.kv, s.js, admissionKey, maxDeliveredCodes, FlowTTL); err != nil {
+	if err := storage.AdmitRequest(ctx, s.kv, admissionKey, maxDeliveredCodes, FlowTTL); err != nil {
 		return "", err
 	}
 	token, err := randomToken(32)
@@ -230,7 +228,7 @@ func (s *Service) update(ctx context.Context, key string, revision uint64, state
 	if remaining <= 0 {
 		return 0, ErrInvalidFlow
 	}
-	updated, err := storage.UpdateKeyWithTTL(ctx, s.js, storage.RuntimeStateBucket, key, data, revision, remaining)
+	updated, err := s.kv.UpdateWithTTL(ctx, key, data, revision, remaining)
 	if err != nil {
 		return 0, ErrInvalidFlow
 	}

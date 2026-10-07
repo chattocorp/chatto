@@ -49,8 +49,7 @@ type AuthenticationVersionResolver func(ctx context.Context, accountID string) (
 
 // Service stores encrypted session state in Authling's runtime KV bucket.
 type Service struct {
-	kv                    jetstream.KeyValue
-	js                    jetstream.JetStream
+	kv                    storage.KeyValue
 	key                   []byte
 	now                   func() time.Time
 	authenticationVersion AuthenticationVersionResolver
@@ -67,10 +66,9 @@ type Service struct {
 }
 
 // New constructs the browser-session boundary.
-func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, authenticationVersion AuthenticationVersionResolver) *Service {
+func New(kv storage.KeyValue, key []byte, authenticationVersion AuthenticationVersionResolver) *Service {
 	return &Service{
 		kv:                    kv,
-		js:                    js,
 		key:                   append([]byte(nil), key...),
 		now:                   time.Now,
 		authenticationVersion: authenticationVersion,
@@ -205,7 +203,7 @@ func (s *Service) validate(ctx context.Context, token string, touch bool) (Sessi
 		if err != nil {
 			return Session{}, err
 		}
-		if revision, err := storage.UpdateKeyWithTTL(ctx, s.js, storage.RuntimeStateBucket, key, data, entry.Revision(), remaining); err == nil {
+		if revision, err := s.kv.UpdateWithTTL(ctx, key, data, entry.Revision(), remaining); err == nil {
 			if err := s.waitForInventoryRevision(ctx, revision); err != nil {
 				return Session{}, fmt.Errorf("wait for session inventory: %w", err)
 			}
@@ -232,7 +230,7 @@ func (s *Service) Revoke(ctx context.Context, token string) error {
 		if err != nil {
 			return fmt.Errorf("read session for revocation: %w", err)
 		}
-		revision, err := storage.DeleteKey(ctx, s.js, storage.RuntimeStateBucket, key, entry.Revision())
+		revision, err := s.kv.DeleteAt(ctx, key, entry.Revision())
 		if err == nil {
 			if err := s.waitForInventoryRevision(ctx, revision); err != nil {
 				return fmt.Errorf("wait for session inventory: %w", err)
