@@ -217,7 +217,8 @@
     },
     "role_order": {
       "role_locked": "Pořadí rolí vám nedovoluje změnit tuto roli.",
-      "account_locked": "Pořadí rolí vám nedovoluje změnit tento účet."
+      "account_locked": "Pořadí rolí vám nedovoluje změnit tento účet.",
+      "roles_locked": "Pořadí rolí vám nedovoluje změnit role tohoto účtu."
     }
   }
 }

@@ -89,7 +89,10 @@ function renderSection(section: Section) {
 }
 
 vi.mock('$lib/components/rbac', async () => ({
-  UserPermissionsMatrix: (await import('./BotUserPermissionsMatrixMock.svelte')).default
+  UserPermissionsMatrix: (await import('./BotUserPermissionsMatrixMock.svelte')).default,
+  MemberRoleAssignments: (await import('$lib/components/rbac/MemberRoleAssignments.svelte'))
+    .default,
+  roleOrderLocksRoles: (await import('$lib/components/rbac/roleAssignments')).roleOrderLocksRoles
 }));
 
 vi.mock('$lib/ui/toast', () => ({
@@ -115,6 +118,55 @@ function buttonByText(root: ParentNode, text: string): HTMLButtonElement {
 async function settle(): Promise<void> {
   await vi.waitFor(() => expect(queryClient.isFetching()).toBe(0));
   flushSync();
+}
+
+function memberRole(name: string, position: number, ranksBelowViewer: boolean) {
+  return {
+    name,
+    displayName: name.charAt(0).toUpperCase() + name.slice(1),
+    position,
+    permissions: [],
+    permissionDenials: [],
+    ranksBelowViewer
+  };
+}
+
+function botMember() {
+  return {
+    id: mocks.bot.id,
+    login: mocks.bot.login,
+    displayName: mocks.bot.displayName,
+    avatarUrl: null,
+    isBot: true,
+    roles: ['everyone'],
+    createdAt: null,
+    deleted: false,
+    hasVerifiedEmail: false,
+    verifiedEmails: [],
+    primaryVerifiedEmail: null,
+    viewerCanDeleteAccount: false,
+    viewerOutranks: true,
+    lastLoginChange: null
+  };
+}
+
+/** Member details of the bot for a viewer whose highest role ranks between admin and helper. */
+function botMemberDetails(lists: { assignableRoleNames: string[]; revocableRoleNames: string[] }) {
+  return {
+    member: botMember(),
+    roles: [
+      memberRole('owner', 3, false),
+      memberRole('admin', 2, false),
+      memberRole('moderator', 1, true),
+      memberRole('helper', 1, true),
+      memberRole('everyone', 0, true)
+    ],
+    availablePermissions: [],
+    viewerCanAssignRoles: true,
+    viewerCanManageRoles: false,
+    viewerCanManageUserPermissions: false,
+    ...lists
+  };
 }
 
 describe('Bot detail page', () => {
@@ -777,43 +829,12 @@ describe('Bot detail page', () => {
 
   it('assigns roles to a bot within the role order', async () => {
     server.permissions.canAdminViewUsers = true;
-    const role = (name: string, position: number, ranksBelowViewer: boolean) => ({
-      name,
-      displayName: name.charAt(0).toUpperCase() + name.slice(1),
-      position,
-      permissions: [],
-      permissionDenials: [],
-      ranksBelowViewer
-    });
-    const botMember = {
-      id: mocks.bot.id,
-      login: mocks.bot.login,
-      displayName: mocks.bot.displayName,
-      avatarUrl: null,
-      isBot: true,
-      roles: ['everyone'],
-      createdAt: null,
-      deleted: false,
-      hasVerifiedEmail: false,
-      verifiedEmails: [],
-      primaryVerifiedEmail: null,
-      viewerCanDeleteAccount: false,
-      viewerOutranks: true,
-      lastLoginChange: null
-    };
-    api.getMember.mockResolvedValue({
-      member: botMember,
-      roles: [role('admin', 2, false), role('moderator', 1, true), role('everyone', 0, true)],
-      availablePermissions: [],
-      viewerCanAssignRoles: true,
-      viewerCanManageRoles: false,
-      viewerCanManageUserPermissions: false,
-      assignableRoleNames: ['moderator'],
-      revocableRoleNames: ['moderator']
-    });
+    api.getMember.mockResolvedValue(
+      botMemberDetails({ assignableRoleNames: ['moderator'], revocableRoleNames: ['moderator'] })
+    );
     api.assignRole.mockResolvedValue({
       changed: true,
-      member: { ...botMember, roles: ['everyone', 'moderator'] }
+      member: { ...botMember(), roles: ['everyone', 'moderator'] }
     });
     const { container } = renderSection('roles');
     await settle();
@@ -832,6 +853,46 @@ describe('Bot detail page', () => {
     await vi.waitFor(() => expect(api.assignRole).toHaveBeenCalledWith('bot-user-id', 'moderator'));
     await vi.waitFor(() =>
       expect(mocks.toastSuccess).toHaveBeenCalledWith('Assigned Moderator role')
+    );
+  });
+
+  it('explains why a role below the viewer cannot be assigned to the bot', async () => {
+    server.permissions.canAdminViewUsers = true;
+    api.getMember.mockResolvedValue(
+      botMemberDetails({ assignableRoleNames: ['moderator'], revocableRoleNames: ['moderator'] })
+    );
+    const { container } = renderSection('roles');
+    await settle();
+
+    const title = (name: string) =>
+      container
+        .querySelector(`#role-assignment-${name}`)
+        ?.closest('[title]')
+        ?.getAttribute('title');
+    expect(title('helper')).toBe(
+      'You cannot change this role assignment. The role allows or denies permissions that you do not have.'
+    );
+    expect(title('owner')).toBe('The role order does not let you change this role.');
+    expect(container.textContent).not.toContain('The role order does not let you change the roles');
+  });
+
+  it('explains the role order to a bot owner when the bot outranks them', async () => {
+    server.permissions.canManageBots = false;
+    server.permissions.canAdminViewUsers = true;
+    api.getBot.mockResolvedValue({ ...mocks.bot, ownerUserId: 'viewer-1' });
+    api.getMember.mockResolvedValue(
+      botMemberDetails({ assignableRoleNames: [], revocableRoleNames: [] })
+    );
+    const { container } = renderSection('roles');
+    await settle();
+
+    expect(container.textContent).toContain(
+      'The role order does not let you change the roles of this account.'
+    );
+    const moderator = container.querySelector('#role-assignment-moderator') as HTMLInputElement;
+    expect(moderator.disabled).toBe(true);
+    expect(moderator.closest('[title]')?.getAttribute('title')).toBe(
+      'The role order does not let you change the roles of this account.'
     );
   });
 

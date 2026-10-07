@@ -3,11 +3,11 @@
 
 Roles section of a bot: its server role assignments. Bots can hold every role
 except owner. The member details of the bot tell which roles the viewer may
-assign or revoke.
+assign or revoke. A bot owner must also outrank the bot to change its roles.
 -->
 <script lang="ts">
   import { createAdminUserManagementAPI, type AdminMemberDetails } from '$lib/api/adminUsers';
-  import MemberRoleAssignments from '$lib/components/rbac/MemberRoleAssignments.svelte';
+  import { MemberRoleAssignments, roleOrderLocksRoles } from '$lib/components/rbac';
   import { m } from '$lib/i18n/messages';
   import { adminQueryKeys } from '$lib/query/admin';
   import { createQuery, queryClient } from '$lib/query/client';
@@ -98,6 +98,10 @@ assign or revoke.
 {:else if memberQuery.data}
   {#if visibleFailure}
     <FormError error={visibleFailure} />
+  {/if}
+  <!-- The layout explains the lock to bot managers who do not outrank the bot. -->
+  {#if !detail.orderLocked && roleOrderLocksRoles(memberQuery.data, false)}
+    <Hint>{m('rbac.role_order.roles_locked')}</Hint>
   {/if}
   {#key detail.botId}
     <MemberRoleAssignments

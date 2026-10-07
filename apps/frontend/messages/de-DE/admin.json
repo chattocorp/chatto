@@ -145,7 +145,9 @@
         "account": "Konto",
         "roles": "Rollen",
         "permissions": "Berechtigungen"
-      }
+      },
+      "role_beyond_viewer_permissions": "Du kannst diese Rollenzuweisung nicht ändern. Die Rolle erlaubt oder verweigert Berechtigungen, die du nicht hast.",
+      "bot_cannot_hold_owner": "Bots können die Rolle „owner“ nicht haben."
     },
     "member_delete": {
       "title": "Mitglied löschen",
@@ -212,7 +214,9 @@
         "always_lowest": "Immer die niedrigste",
         "locked": "Gesperrt",
         "saved": "Rollenreihenfolge gespeichert",
-        "save_failed": "Rollenreihenfolge konnte nicht gespeichert werden"
+        "save_failed": "Rollenreihenfolge konnte nicht gespeichert werden",
+        "list_label": "Rollen, die du verschieben kannst",
+        "none_movable": "Unter deiner höchsten Rolle gibt es keine Rollen."
       }
     },
     "rooms_admin": {

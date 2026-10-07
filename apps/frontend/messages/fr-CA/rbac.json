@@ -217,7 +217,8 @@
     },
     "role_order": {
       "role_locked": "L'ordre des rôles ne vous permet pas de modifier ce rôle.",
-      "account_locked": "L'ordre des rôles ne vous permet pas de modifier ce compte."
+      "account_locked": "L'ordre des rôles ne vous permet pas de modifier ce compte.",
+      "roles_locked": "L'ordre des rôles ne vous permet pas de modifier les rôles de ce compte."
     }
   }
 }

@@ -105,6 +105,13 @@
       "yesterday": "أمس",
       "this_week": "هذا الأسبوع",
       "this_month": "هذا الشهر"
+    },
+    "drag_and_drop": {
+      "drag_started": "بدأت نقل {item}. استخدم مفاتيح الأسهم لنقله. اضغط على المسافة أو Enter لإفلاته.",
+      "moved": "تم نقل {item} إلى الموضع {position} من {count}.",
+      "dropped": "توقفت عن نقل {item}.",
+      "zone_active": "انتقل إلى عنصر واضغط على المسافة أو Enter لبدء نقله.",
+      "zone_disabled": "استخدم مقبض السحب لنقل عنصر."
     }
   }
 }

@@ -217,7 +217,8 @@
     },
     "role_order": {
       "role_locked": "Rollide järjekord ei luba teil seda rolli muuta.",
-      "account_locked": "Rollide järjekord ei luba teil seda kontot muuta."
+      "account_locked": "Rollide järjekord ei luba teil seda kontot muuta.",
+      "roles_locked": "Rollide järjekord ei luba teil selle konto rolle muuta."
     }
   }
 }

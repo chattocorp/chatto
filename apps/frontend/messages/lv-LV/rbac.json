@@ -217,7 +217,8 @@
     },
     "role_order": {
       "role_locked": "Lomu secība neļauj jums mainīt šo lomu.",
-      "account_locked": "Lomu secība neļauj jums mainīt šo kontu."
+      "account_locked": "Lomu secība neļauj jums mainīt šo kontu.",
+      "roles_locked": "Lomu secība neļauj jums mainīt šī konta lomas."
     }
   }
 }

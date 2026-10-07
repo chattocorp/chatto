@@ -145,7 +145,9 @@
         "account": "Conta",
         "roles": "Funções",
         "permissions": "Permissões"
-      }
+      },
+      "role_beyond_viewer_permissions": "Não pode alterar esta atribuição de função. A função permite ou nega permissões que não tem.",
+      "bot_cannot_hold_owner": "Os bots não podem ter a função owner."
     },
     "member_delete": {
       "title": "Eliminar membro",
@@ -212,7 +214,9 @@
         "always_lowest": "Sempre a mais baixa",
         "locked": "Bloqueada",
         "saved": "Ordem das funções guardada",
-        "save_failed": "Não foi possível guardar a ordem das funções"
+        "save_failed": "Não foi possível guardar a ordem das funções",
+        "list_label": "Funções que pode mover",
+        "none_movable": "Nenhuma função está abaixo da sua função mais alta."
       }
     },
     "rooms_admin": {

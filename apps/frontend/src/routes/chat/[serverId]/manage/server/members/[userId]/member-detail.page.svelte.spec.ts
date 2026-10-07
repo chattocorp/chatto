@@ -59,7 +59,10 @@ function renderSection(section: Section) {
 }
 
 vi.mock('$lib/components/rbac', async () => ({
-  UserPermissionsMatrix: (await import('./MemberPermissionsMatrixMock.svelte')).default
+  UserPermissionsMatrix: (await import('./MemberPermissionsMatrixMock.svelte')).default,
+  MemberRoleAssignments: (await import('$lib/components/rbac/MemberRoleAssignments.svelte'))
+    .default,
+  roleOrderLocksRoles: (await import('$lib/components/rbac/roleAssignments')).roleOrderLocksRoles
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({

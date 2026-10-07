@@ -145,7 +145,9 @@
         "account": "Konto",
         "roles": "Role",
         "permissions": "Uprawnienia"
-      }
+      },
+      "role_beyond_viewer_permissions": "Nie możesz zmienić tego przypisania roli. Rola zezwala na uprawnienia lub ich odmawia, a ty ich nie masz.",
+      "bot_cannot_hold_owner": "Boty nie mogą mieć roli owner."
     },
     "member_delete": {
       "title": "Usuń członka",
@@ -212,7 +214,9 @@
         "always_lowest": "Zawsze najniższa",
         "locked": "Zablokowana",
         "saved": "Zapisano kolejność ról",
-        "save_failed": "Nie udało się zapisać kolejności ról"
+        "save_failed": "Nie udało się zapisać kolejności ról",
+        "list_label": "Role, które możesz przenosić",
+        "none_movable": "Poniżej twojej najwyższej roli nie ma żadnych ról."
       }
     },
     "rooms_admin": {

@@ -145,7 +145,9 @@
         "account": "Account",
         "roles": "Ruoli",
         "permissions": "Autorizzazioni"
-      }
+      },
+      "role_beyond_viewer_permissions": "Non puoi modificare questa assegnazione di ruolo. Il ruolo consente o nega autorizzazioni che non hai.",
+      "bot_cannot_hold_owner": "I bot non possono avere il ruolo owner."
     },
     "member_delete": {
       "title": "Elimina membro",
@@ -212,7 +214,9 @@
         "always_lowest": "Sempre il più basso",
         "locked": "Bloccato",
         "saved": "Ordine dei ruoli salvato",
-        "save_failed": "Impossibile salvare l'ordine dei ruoli"
+        "save_failed": "Impossibile salvare l'ordine dei ruoli",
+        "list_label": "Ruoli che puoi spostare",
+        "none_movable": "Non ci sono ruoli sotto il tuo ruolo più alto."
       }
     },
     "rooms_admin": {

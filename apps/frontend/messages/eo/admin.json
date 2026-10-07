@@ -145,7 +145,9 @@
         "account": "Konto",
         "roles": "Roloj",
         "permissions": "Permesoj"
-      }
+      },
+      "role_beyond_viewer_permissions": "Vi ne povas ŝanĝi ĉi tiun rolan atribuon. La rolo permesas aŭ rifuzas permesojn, kiujn vi ne havas.",
+      "bot_cannot_hold_owner": "Robotoj ne povas havi la rolon owner."
     },
     "member_delete": {
       "title": "Forigi membron",
@@ -212,7 +214,9 @@
         "always_lowest": "Ĉiam plej malalta",
         "locked": "Ŝlosita",
         "saved": "Ordo de roloj konservita",
-        "save_failed": "Ne eblis konservi la ordon de roloj"
+        "save_failed": "Ne eblis konservi la ordon de roloj",
+        "list_label": "Roloj, kiujn vi povas movi",
+        "none_movable": "Neniuj roloj estas sub via plej alta rolo."
       }
     },
     "rooms_admin": {

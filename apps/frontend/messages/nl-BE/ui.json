@@ -101,6 +101,13 @@
       "yesterday": "Gisteren",
       "this_week": "Deze week",
       "this_month": "Deze maand"
+    },
+    "drag_and_drop": {
+      "drag_started": "Je verplaatst {item}. Gebruik de pijltoetsen om het te verplaatsen. Druk op Spatie of Enter om het neer te zetten.",
+      "moved": "{item} verplaatst naar positie {position} van {count}.",
+      "dropped": "Je verplaatst {item} niet meer.",
+      "zone_active": "Ga naar een item en druk op Spatie of Enter om het te verplaatsen.",
+      "zone_disabled": "Gebruik een sleepgreep om een item te verplaatsen."
     }
   }
 }

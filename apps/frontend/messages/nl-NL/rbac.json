@@ -217,7 +217,8 @@
     },
     "role_order": {
       "role_locked": "Door de rolvolgorde kun je deze rol niet wijzigen.",
-      "account_locked": "Door de rolvolgorde kun je dit account niet wijzigen."
+      "account_locked": "Door de rolvolgorde kun je dit account niet wijzigen.",
+      "roles_locked": "Door de rolvolgorde kun je de rollen van dit account niet wijzigen."
     }
   }
 }

@@ -68,15 +68,60 @@ function movableRoles(container: HTMLElement): string[] {
   ].map((row) => row.dataset.role ?? '');
 }
 
-/** Simulates the drop that svelte-dnd-action reports after a drag. */
-function drop(container: HTMLElement, names: string[]) {
+function dndEvent(
+  container: HTMLElement,
+  type: 'consider' | 'finalize',
+  names: string[],
+  source: 'pointer' | 'keyboard',
+  trigger: string
+) {
   const items = names.map((name) => ({ ...ROLES.find((r) => r.name === name)!, id: name }));
-  container.querySelector('[data-testid="role-order-dropzone"]')!.dispatchEvent(
-    new CustomEvent('finalize', {
-      detail: { items, info: { id: names[0], source: 'pointer', trigger: 'droppedIntoZone' } }
-    })
+  container
+    .querySelector('[data-testid="role-order-dropzone"]')!
+    .dispatchEvent(
+      new CustomEvent(type, { detail: { items, info: { id: names[0], source, trigger } } })
+    );
+}
+
+/** Simulates the drop that svelte-dnd-action reports after a pointer drag. */
+function drop(container: HTMLElement, names: string[]) {
+  dndEvent(container, 'finalize', names, 'pointer', 'droppedIntoZone');
+}
+
+/**
+ * Simulates a keyboard drag. svelte-dnd-action reports each arrow key move as
+ * `finalize` while the drag continues, and the drop as `consider` with the
+ * `dragStopped` trigger.
+ */
+function keyboardDrag(container: HTMLElement, start: string[], moves: string[][]) {
+  dndEvent(container, 'consider', start, 'keyboard', 'dragStarted');
+  for (const order of moves) dndEvent(container, 'finalize', order, 'keyboard', 'droppedIntoZone');
+  dndEvent(container, 'consider', moves.at(-1) ?? start, 'keyboard', 'dragStopped');
+}
+
+/** Replaces the cached catalogue, as a realtime refresh does. */
+function setCachedOrder(roles: ServerRole[]) {
+  queryClient.setQueryData(
+    adminQueryKeys.roleCatalog('server-1', server.scope.connection),
+    catalog(roles)
   );
 }
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
+const SWAPPED = [
+  role('everyone', 0, true),
+  role('moderator', 10, true),
+  role('helper', 20, true),
+  role('admin', 30, false),
+  role('owner', 1000, false)
+];
 
 describe('role order page', () => {
   beforeEach(async () => {
@@ -154,6 +199,117 @@ describe('role order page', () => {
     );
     await vi.waitFor(() => expect(movableRoles(container)).toEqual(['moderator', 'helper']));
     expect(mocks.toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('saves a keyboard drag once when it stops, not on each arrow key', async () => {
+    api.reorderRoles.mockImplementation(async () => {
+      api.listAdminRoles.mockResolvedValue(catalog(SWAPPED));
+      return SWAPPED;
+    });
+    const { container } = render(RoleOrderPage);
+    await vi.waitFor(() => expect(movableRoles(container)).toEqual(['moderator', 'helper']));
+
+    dndEvent(container, 'consider', ['moderator', 'helper'], 'keyboard', 'dragStarted');
+    dndEvent(container, 'finalize', ['helper', 'moderator'], 'keyboard', 'droppedIntoZone');
+    dndEvent(container, 'finalize', ['moderator', 'helper'], 'keyboard', 'droppedIntoZone');
+    dndEvent(container, 'finalize', ['helper', 'moderator'], 'keyboard', 'droppedIntoZone');
+    await vi.waitFor(() => expect(movableRoles(container)).toEqual(['helper', 'moderator']));
+    expect(api.reorderRoles).not.toHaveBeenCalled();
+
+    dndEvent(container, 'consider', ['helper', 'moderator'], 'keyboard', 'dragStopped');
+
+    await vi.waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledOnce());
+    expect(api.reorderRoles).toHaveBeenCalledExactlyOnceWith(['moderator', 'helper', 'admin']);
+    // The draft is gone: the list follows the cached order again.
+    setCachedOrder(ROLES);
+    await vi.waitFor(() => expect(movableRoles(container)).toEqual(['moderator', 'helper']));
+  });
+
+  it('sends nothing after a keyboard pick-up and drop without a move', async () => {
+    const { container } = render(RoleOrderPage);
+    await vi.waitFor(() => expect(movableRoles(container)).toEqual(['moderator', 'helper']));
+
+    keyboardDrag(container, ['moderator', 'helper'], []);
+
+    expect(api.reorderRoles).not.toHaveBeenCalled();
+    // The list stays live and shows a later order from the server.
+    setCachedOrder(SWAPPED);
+    await vi.waitFor(() => expect(movableRoles(container)).toEqual(['helper', 'moderator']));
+  });
+
+  it('sends nothing when a keyboard drag returns the role to its place', async () => {
+    const { container } = render(RoleOrderPage);
+    await vi.waitFor(() => expect(movableRoles(container)).toEqual(['moderator', 'helper']));
+
+    keyboardDrag(
+      container,
+      ['moderator', 'helper'],
+      [
+        ['helper', 'moderator'],
+        ['moderator', 'helper']
+      ]
+    );
+
+    expect(api.reorderRoles).not.toHaveBeenCalled();
+    setCachedOrder(SWAPPED);
+    await vi.waitFor(() => expect(movableRoles(container)).toEqual(['helper', 'moderator']));
+  });
+
+  it('lets an owner move every role except owner and everyone', async () => {
+    api.listAdminRoles.mockResolvedValue(
+      catalog(ROLES.map((r) => ({ ...r, ranksBelowViewer: true })))
+    );
+    const { container } = render(RoleOrderPage);
+    await vi.waitFor(() => expect(renderedOrder(container)).toHaveLength(5));
+
+    expect(movableRoles(container)).toEqual(['admin', 'moderator', 'helper']);
+    expect(
+      [...container.querySelectorAll<HTMLElement>('[data-locked]')].map((row) => row.dataset.role)
+    ).toEqual(['owner', 'everyone']);
+    expect(container.textContent).not.toContain('Locked');
+  });
+
+  it('explains when no role is below the viewer', async () => {
+    api.listAdminRoles.mockResolvedValue(
+      catalog(ROLES.map((r) => (r.name === 'everyone' ? r : { ...r, ranksBelowViewer: false })))
+    );
+    const { container } = render(RoleOrderPage);
+    await vi.waitFor(() => expect(renderedOrder(container)).toHaveLength(5));
+
+    expect(movableRoles(container)).toEqual([]);
+    expect(container.textContent).toContain('No roles are below your highest role.');
+  });
+
+  it('labels the list and its rows for screen readers and keeps them out of sidebar swipes', async () => {
+    const { container } = render(RoleOrderPage);
+    await vi.waitFor(() => expect(movableRoles(container)).toEqual(['moderator', 'helper']));
+
+    const zone = container.querySelector('[data-testid="role-order-dropzone"]')!;
+    expect(zone.getAttribute('aria-label')).toBe('Roles that you can move');
+    const row = zone.querySelector('[data-role="moderator"]')!;
+    expect(row.getAttribute('aria-label')).toBe('Moderator');
+    expect(row.hasAttribute('data-sidebar-swipe-ignore')).toBe(true);
+    expect(
+      row.querySelector('[aria-label="Move Moderator"]')?.hasAttribute('data-sidebar-swipe-ignore')
+    ).toBe(true);
+  });
+
+  it('disables dragging while a save runs', async () => {
+    const save = deferred<ServerRole[]>();
+    api.reorderRoles.mockReturnValue(save.promise);
+    const { container } = render(RoleOrderPage);
+    await vi.waitFor(() => expect(movableRoles(container)).toEqual(['moderator', 'helper']));
+    const handle = () => container.querySelector<HTMLElement>('[aria-label="Move Moderator"]')!;
+    expect(handle().tabIndex).toBe(0);
+
+    drop(container, ['helper', 'moderator']);
+
+    await vi.waitFor(() => expect(handle().tabIndex).toBe(-1));
+    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    api.listAdminRoles.mockResolvedValue(catalog(SWAPPED));
+    save.resolve(SWAPPED);
+    await vi.waitFor(() => expect(handle().tabIndex).toBe(0));
+    expect(container.querySelector('[aria-busy="true"]')).toBeNull();
   });
 
   it('explains the missing permission without loading roles', async () => {

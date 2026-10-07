@@ -217,7 +217,8 @@
     },
     "role_order": {
       "role_locked": "Rollerekkefølgen lar deg ikke endre denne rollen.",
-      "account_locked": "Rollerekkefølgen lar deg ikke endre denne kontoen."
+      "account_locked": "Rollerekkefølgen lar deg ikke endre denne kontoen.",
+      "roles_locked": "Rollerekkefølgen lar deg ikke endre rollene til denne kontoen."
     }
   }
 }

@@ -28,6 +28,8 @@ export interface BotDetailContext {
   readonly canEditIdentity: boolean;
   /** Bot managers who outrank the bot and its owner can give the bot to a new owner. */
   readonly canReassignOwner: boolean;
+  /** True while the layout explains that the role order keeps the viewer from managing the bot. */
+  readonly orderLocked: boolean;
   /**
    * True while the layout is mounted, the server scope is current, and the
    * route still shows the bot that `mutationTarget` names.

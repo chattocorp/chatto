@@ -4,7 +4,8 @@
 Server role assignments of one account, human or bot. The server decides which
 roles the viewer may assign or revoke (`assignableRoleNames` and
 `revocableRoleNames` in the member details), including the role order limits.
-The owner runs the mutation through `toggleMemberRole`.
+The owner runs the mutation through `toggleMemberRole`. Disabled roles explain
+why the viewer cannot change them.
 -->
 <script lang="ts">
   import { resolve } from '$app/paths';
@@ -14,6 +15,7 @@ The owner runs the mutation through `toggleMemberRole`.
   import { Checkbox } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import type { AdminMemberDetails } from '$lib/api/adminUsers';
+  import { roleOrderLocksRoles } from './roleAssignments';
 
   type Props = {
     details: AdminMemberDetails;
@@ -24,6 +26,9 @@ The owner runs the mutation through `toggleMemberRole`.
   };
 
   let { details, isSelf, serverId, updatingRole, toggleMemberRole }: Props = $props();
+
+  const isBot = $derived(details.member?.isBot === true);
+  const rolesLocked = $derived(roleOrderLocksRoles(details, isSelf));
 
   const memberRoles = $derived(details.member?.roles ?? []);
 
@@ -75,11 +80,15 @@ The owner runs the mutation through `toggleMemberRole`.
         ? m('admin.members.implicit_role_tooltip')
         : isSelfProtectedRole
           ? m('admin.members.cannot_revoke_own_role', { role: role.displayName })
-          : !isWithinAssignmentAuthority
-            ? role.ranksBelowViewer
-              ? m('ui.access_denied.message')
-              : m('rbac.role_order.role_locked')
-            : ''}
+          : isWithinAssignmentAuthority
+            ? ''
+            : rolesLocked
+              ? m('rbac.role_order.roles_locked')
+              : !role.ranksBelowViewer
+                ? m('rbac.role_order.role_locked')
+                : isBot && role.name === 'owner'
+                  ? m('admin.members.bot_cannot_hold_owner')
+                  : m('admin.members.role_beyond_viewer_permissions')}
 
       <div class="flex items-center gap-3">
         <div class="min-w-0 flex-1" title={tooltip}>

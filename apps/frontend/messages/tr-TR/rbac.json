@@ -217,7 +217,8 @@
     },
     "role_order": {
       "role_locked": "Rol sırası bu rolü değiştirmenize izin vermiyor.",
-      "account_locked": "Rol sırası bu hesabı değiştirmenize izin vermiyor."
+      "account_locked": "Rol sırası bu hesabı değiştirmenize izin vermiyor.",
+      "roles_locked": "Rol sırası bu hesabın rollerini değiştirmenize izin vermiyor."
     }
   }
 }

@@ -101,6 +101,13 @@
       "yesterday": "昨天",
       "this_week": "本周",
       "this_month": "本月"
+    },
+    "drag_and_drop": {
+      "drag_started": "已开始移动 {item}。使用方向键移动它，按空格键或 Enter 键放下。",
+      "moved": "已将 {item} 移到第 {position} 位，共 {count} 位。",
+      "dropped": "已停止移动 {item}。",
+      "zone_active": "转到一个项目并按空格键或 Enter 键开始移动。",
+      "zone_disabled": "使用拖动手柄移动项目。"
     }
   }
 }

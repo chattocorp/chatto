@@ -84,6 +84,9 @@ Permissions, and Roles pages through `botDetailContext`.
     get canReassignOwner() {
       return canManageBots && viewerOutranks;
     },
+    get orderLocked() {
+      return showOrderLock;
+    },
     isCurrentTarget(mutationTarget) {
       return layoutActive && serverScope.isCurrent() && mutationTarget === botId;
     },

@@ -101,6 +101,13 @@
       "yesterday": "eile",
       "this_week": "Sel nädalal",
       "this_month": "Sel kuul"
+    },
+    "drag_and_drop": {
+      "drag_started": "Alustasite elemendi {item} liigutamist. Liigutage seda nooleklahvidega. Vajutage selle paigutamiseks tühikut või Enterit.",
+      "moved": "{item} liigutati kohale {position}/{count}.",
+      "dropped": "Lõpetasite elemendi {item} liigutamise.",
+      "zone_active": "Minge elemendile ja vajutage selle liigutamiseks tühikut või Enterit.",
+      "zone_disabled": "Kasutage elemendi liigutamiseks lohistamispidet."
     }
   }
 }

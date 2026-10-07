@@ -145,7 +145,9 @@
         "account": "Hesap",
         "roles": "Roller",
         "permissions": "İzinler"
-      }
+      },
+      "role_beyond_viewer_permissions": "Bu rol atamasını değiştiremezsiniz. Rol, sizde olmayan izinlere izin veriyor veya bunları reddediyor.",
+      "bot_cannot_hold_owner": "Botlar owner rolüne sahip olamaz."
     },
     "member_delete": {
       "title": "Üyeyi sil",
@@ -212,7 +214,9 @@
         "always_lowest": "Her zaman en düşük",
         "locked": "Kilitli",
         "saved": "Rol sırası kaydedildi",
-        "save_failed": "Rol sırası kaydedilemedi"
+        "save_failed": "Rol sırası kaydedilemedi",
+        "list_label": "Taşıyabileceğiniz roller",
+        "none_movable": "En yüksek rolünüzün altında hiç rol yok."
       }
     },
     "rooms_admin": {

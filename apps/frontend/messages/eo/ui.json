@@ -101,6 +101,13 @@
       "yesterday": "Hieraŭ",
       "this_week": "Ĉi-semajne",
       "this_month": "Ĉi-monate"
+    },
+    "drag_and_drop": {
+      "drag_started": "Vi komencis movi {item}. Uzu la sagoklavojn por movi ĝin. Premu Spaceton aŭ Enigon por demeti ĝin.",
+      "moved": "{item} movita al pozicio {position} el {count}.",
+      "dropped": "Vi ĉesis movi {item}.",
+      "zone_active": "Iru al ero kaj premu Spaceton aŭ Enigon por komenci movi ĝin.",
+      "zone_disabled": "Uzu tirtenilon por movi eron."
     }
   }
 }

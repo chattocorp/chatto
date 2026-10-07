@@ -8,12 +8,25 @@ The list shows the highest role first. `owner` is fixed at the top and
 `everyone` at the bottom. Roles at or above the viewer's highest role
 (`ranksBelowViewer === false`) are locked above the reorderable block. Only the
 roles below the viewer's highest role can be dragged.
+
+A pointer drag saves when it is dropped. A keyboard drag reports every arrow
+key move as a `finalize` event while the drag continues, so it saves once when
+the drag stops (`consider` with the `dragStopped` trigger).
 -->
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { flip } from 'svelte/animate';
-  import { dragHandle, dragHandleZone, type DndEvent } from 'svelte-dnd-action';
-  import { createRoleAPI, type ServerRole } from '@chatto/client/api/roles';
+  import { onMount } from 'svelte';
+  import {
+    dragHandle,
+    dragHandleZone,
+    setAriaStrings,
+    SOURCES,
+    TRIGGERS,
+    type DndEvent
+  } from 'svelte-dnd-action';
+  import { createRoleAPI, type RoleCatalog, type ServerRole } from '@chatto/client/api/roles';
+  import { dragAndDropAriaStrings } from '$lib/i18n/dragAndDropAria';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { adminQueryKeys } from '$lib/query/admin';
@@ -23,7 +36,6 @@ roles below the viewer's highest role can be dragged.
   import { Hint, LoadingFog, PageTitle, PaneContent, PaneHeader, Panel, Pill } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
-  import type { RoleCatalog } from '@chatto/client/api/roles';
 
   type RoleItem = ServerRole & { id: string };
   type ReorderVariables = SessionSnapshot & { roleNames: string[] };
@@ -53,15 +65,21 @@ roles below the viewer's highest role can be dragged.
     roles.filter((role) => role.name !== 'owner' && role.name !== 'everyone')
   );
   const lockedRoles = $derived(orderedRoles.filter((role) => !role.ranksBelowViewer));
-
-  // The local order while a drag or its save runs. `null` shows the cached order.
-  let draftItems = $state.raw<RoleItem[] | null>(null);
-  const movableItems = $derived(
-    draftItems ??
-      orderedRoles
-        .filter((role) => role.ranksBelowViewer)
-        .map((role) => ({ ...role, id: role.name }))
+  /** The saved order of the roles that the viewer can move, highest first. */
+  const savedMovableItems = $derived(
+    orderedRoles.filter((role) => role.ranksBelowViewer).map((role) => ({ ...role, id: role.name }))
   );
+
+  // The local order while a drag or its save runs. `null` shows the saved order.
+  let draftItems = $state.raw<RoleItem[] | null>(null);
+  const movableItems = $derived(draftItems ?? savedMovableItems);
+
+  // svelte-dnd-action announces in English by default. The setting is global,
+  // so restore the defaults when the page closes.
+  onMount(() => {
+    setAriaStrings(dragAndDropAriaStrings());
+    return () => setAriaStrings(null);
+  });
 
   const reorderMutation = createMutation(() => ({
     mutationFn: ({ connection, roleNames }: ReorderVariables) =>
@@ -90,22 +108,37 @@ roles below the viewer's highest role can be dragged.
     reorderMutation.isPending && session.isCurrent(reorderMutation.variables)
   );
 
+  // svelte-dnd-action changes its items array in place during keyboard drags,
+  // so keep a copy to publish each change.
   function handleConsider(event: CustomEvent<DndEvent<RoleItem>>) {
-    draftItems = event.detail.items;
+    const { items, info } = event.detail;
+    if (info.source === SOURCES.KEYBOARD && info.trigger === TRIGGERS.DRAG_STOPPED) {
+      saveOrder(items);
+    } else {
+      draftItems = [...items];
+    }
   }
 
   function handleFinalize(event: CustomEvent<DndEvent<RoleItem>>) {
-    const items = event.detail.items;
+    const { items, info } = event.detail;
+    if (info.source === SOURCES.KEYBOARD) {
+      // An arrow key moved the item. The keyboard drag continues.
+      draftItems = [...items];
+    } else {
+      saveOrder(items);
+    }
+  }
+
+  /** Saves the order after a drag ends, or shows the saved order when nothing moved. */
+  function saveOrder(items: RoleItem[]) {
     const unchanged =
-      items.length === movableItems.length &&
-      orderedRoles
-        .filter((role) => role.ranksBelowViewer)
-        .every((role, index) => items[index]?.name === role.name);
+      items.length === savedMovableItems.length &&
+      savedMovableItems.every((role, index) => items[index]?.name === role.name);
     if (unchanged) {
       draftItems = null;
       return;
     }
-    draftItems = items;
+    draftItems = [...items];
     // The API takes every role except owner and everyone, lowest first.
     const roleNames = [...lockedRoles, ...items].map((role) => role.name).reverse();
     reorderMutation.mutate({ ...session.snapshot(), roleNames });
@@ -170,6 +203,7 @@ roles below the viewer's highest role can be dragged.
               <div
                 class="flex flex-col gap-1"
                 data-testid="role-order-dropzone"
+                aria-label={m('admin.permissions.role_order.list_label')}
                 use:dragHandleZone={{
                   items: movableItems,
                   flipDurationMs: 200,
@@ -189,9 +223,12 @@ roles below the viewer's highest role can be dragged.
                     animate:flip={{ duration: 200 }}
                     class="flex items-center gap-3 selectable-list-item py-2 ps-3 pe-4"
                     data-role={role.name}
+                    aria-label={role.displayName}
+                    data-sidebar-swipe-ignore
                   >
                     <span
                       use:dragHandle
+                      data-sidebar-swipe-ignore
                       class="iconify icon-[uil--draggabledots] shrink-0 cursor-grab text-lg text-muted hover:text-text"
                       role="button"
                       aria-label={m('admin.permissions.role_order.drag_role', {
@@ -202,6 +239,11 @@ roles below the viewer's highest role can be dragged.
                   </div>
                 {/each}
               </div>
+              {#if movableItems.length === 0}
+                <p class="py-2 ps-3 pe-4 text-muted">
+                  {m('admin.permissions.role_order.none_movable')}
+                </p>
+              {/if}
               {#if everyoneRole}
                 {@render fixedRow(everyoneRole, m('admin.permissions.role_order.always_lowest'))}
               {/if}

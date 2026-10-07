@@ -217,7 +217,8 @@
     },
     "role_order": {
       "role_locked": "A ordem das funções não permite que você altere esta função.",
-      "account_locked": "A ordem das funções não permite que você altere esta conta."
+      "account_locked": "A ordem das funções não permite que você altere esta conta.",
+      "roles_locked": "A ordem das funções não permite que você altere as funções desta conta."
     }
   }
 }

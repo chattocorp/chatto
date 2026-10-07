@@ -101,6 +101,13 @@
       "yesterday": "Hier",
       "this_week": "Cette semaine",
       "this_month": "Ce mois-ci"
+    },
+    "drag_and_drop": {
+      "drag_started": "Déplacement de {item} commencé. Utilisez les flèches pour le déplacer. Appuyez sur Espace ou Entrée pour le déposer.",
+      "moved": "{item} déplacé en position {position} sur {count}.",
+      "dropped": "Déplacement de {item} terminé.",
+      "zone_active": "Allez sur un élément et appuyez sur Espace ou Entrée pour commencer à le déplacer.",
+      "zone_disabled": "Utilisez une poignée de déplacement pour déplacer un élément."
     }
   }
 }

@@ -145,7 +145,9 @@
         "account": "Konto",
         "roles": "Rollid",
         "permissions": "Load"
-      }
+      },
+      "role_beyond_viewer_permissions": "Te ei saa seda rollimäärangut muuta. Roll lubab või keelab õigusi, mida teil ei ole.",
+      "bot_cannot_hold_owner": "Robotitel ei saa olla rolli owner."
     },
     "member_delete": {
       "title": "Kustuta liige",
@@ -212,7 +214,9 @@
         "always_lowest": "Alati madalaim",
         "locked": "Lukustatud",
         "saved": "Rollide järjekord on salvestatud",
-        "save_failed": "Rollide järjekorra salvestamine ebaõnnestus"
+        "save_failed": "Rollide järjekorra salvestamine ebaõnnestus",
+        "list_label": "Rollid, mida saate liigutada",
+        "none_movable": "Teie kõrgeimast rollist madalamal ei ole rolle."
       }
     },
     "rooms_admin": {

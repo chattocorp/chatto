@@ -145,7 +145,9 @@
         "account": "Account",
         "roles": "Roles",
         "permissions": "Permissions"
-      }
+      },
+      "role_beyond_viewer_permissions": "You cannot change this role assignment. The role allows or denies permissions that you do not have.",
+      "bot_cannot_hold_owner": "Bots cannot hold the owner role."
     },
     "member_delete": {
       "title": "Delete Member",
@@ -212,7 +214,9 @@
         "always_lowest": "Always lowest",
         "locked": "Locked",
         "saved": "Role order saved",
-        "save_failed": "Could not save the role order"
+        "save_failed": "Could not save the role order",
+        "list_label": "Roles that you can move",
+        "none_movable": "No roles are below your highest role."
       }
     },
     "rooms_admin": {

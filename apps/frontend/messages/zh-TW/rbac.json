@@ -217,7 +217,8 @@
     },
     "role_order": {
       "role_locked": "角色順序不允許你變更此角色。",
-      "account_locked": "角色順序不允許你變更此帳號。"
+      "account_locked": "角色順序不允許你變更此帳號。",
+      "roles_locked": "角色順序不允許你變更此帳號的角色。"
     }
   }
 }

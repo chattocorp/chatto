@@ -145,7 +145,9 @@
         "account": "الحساب",
         "roles": "الأدوار",
         "permissions": "الأذونات"
-      }
+      },
+      "role_beyond_viewer_permissions": "لا يمكنك تغيير تعيين هذا الدور. يسمح الدور بأذونات لا تملكها أو يرفضها.",
+      "bot_cannot_hold_owner": "لا يمكن للروبوتات أن تحمل الدور owner."
     },
     "member_delete": {
       "title": "حذف عضو",
@@ -212,7 +214,9 @@
         "always_lowest": "الأدنى دائمًا",
         "locked": "مقفل",
         "saved": "تم حفظ ترتيب الأدوار",
-        "save_failed": "تعذّر حفظ ترتيب الأدوار"
+        "save_failed": "تعذّر حفظ ترتيب الأدوار",
+        "list_label": "الأدوار التي يمكنك نقلها",
+        "none_movable": "لا توجد أدوار أسفل أعلى دور لديك."
       }
     },
     "rooms_admin": {

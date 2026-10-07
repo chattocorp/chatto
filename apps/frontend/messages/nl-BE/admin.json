@@ -145,7 +145,9 @@
         "account": "Account",
         "roles": "Rollen",
         "permissions": "Rechten"
-      }
+      },
+      "role_beyond_viewer_permissions": "Je kunt deze roltoewijzing niet wijzigen. De rol staat machtigingen toe of weigert machtigingen die je niet hebt.",
+      "bot_cannot_hold_owner": "Bots kunnen de rol owner niet hebben."
     },
     "member_delete": {
       "title": "Lid verwijderen",
@@ -212,7 +214,9 @@
         "always_lowest": "Altijd de laagste",
         "locked": "Vergrendeld",
         "saved": "Rolvolgorde opgeslagen",
-        "save_failed": "Kan de rolvolgorde niet opslaan"
+        "save_failed": "Kan de rolvolgorde niet opslaan",
+        "list_label": "Rollen die je kunt verplaatsen",
+        "none_movable": "Er zijn geen rollen onder je hoogste rol."
       }
     },
     "rooms_admin": {

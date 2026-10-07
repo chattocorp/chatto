@@ -5,8 +5,14 @@ import { testSnippet } from '$lib/test-utils';
 import { RealtimeProjectionSyncState } from '@chatto/client/server/realtimeSync';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
+const route = vi.hoisted(() => ({ pathname: '/chat/origin/manage/server/permissions' }));
+
 vi.mock('$app/state', () => ({
-  page: { url: new URL('https://example.test/chat/origin/manage/server/permissions') }
+  page: {
+    get url() {
+      return new URL(`https://example.test${route.pathname}`);
+    }
+  }
 }));
 vi.mock('$app/paths', () => ({
   base: '',
@@ -28,6 +34,7 @@ let server: TestServerScope;
 let sync: RealtimeProjectionSyncState;
 
 beforeEach(() => {
+  route.pathname = '/chat/origin/manage/server/permissions';
   sync = new RealtimeProjectionSyncState();
   sync.markCaughtUp('initial');
   server = createTestServerScope({
@@ -62,6 +69,26 @@ describe('management route admission', () => {
     await tick();
     expect(container.querySelector('[data-testid="filter"]')).toBeNull();
     await expect.element(container).toHaveTextContent('Access Denied');
+  });
+
+  it('admits the role order page only for role managers', async () => {
+    route.pathname = '/chat/origin/manage/server/role-order';
+    const allowed = render(Layout, {
+      props: { children: testSnippet('<p data-testid="role-order">Role order</p>') }
+    });
+    await tick();
+    expect(allowed.container.querySelector('[data-testid="role-order"]')).not.toBeNull();
+    allowed.unmount();
+
+    server.permissions.canAdminManageRoles = false;
+    // Server management alone does not admit the page.
+    server.permissions.canManageServer = true;
+    const denied = render(Layout, {
+      props: { children: testSnippet('<p data-testid="role-order">Role order</p>') }
+    });
+    await tick();
+    expect(denied.container.querySelector('[data-testid="role-order"]')).toBeNull();
+    await expect.element(denied.container).toHaveTextContent('Access Denied');
   });
 
   it('does not admit private content while initial permissions are unknown', async () => {

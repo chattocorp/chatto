@@ -217,7 +217,8 @@
     },
     "role_order": {
       "role_locked": "Rollordningen låter dig inte ändra den här rollen.",
-      "account_locked": "Rollordningen låter dig inte ändra det här kontot."
+      "account_locked": "Rollordningen låter dig inte ändra det här kontot.",
+      "roles_locked": "Rollordningen låter dig inte ändra rollerna för det här kontot."
     }
   }
 }

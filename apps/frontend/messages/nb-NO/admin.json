@@ -145,7 +145,9 @@
         "account": "Konto",
         "roles": "Roller",
         "permissions": "Tillatelser"
-      }
+      },
+      "role_beyond_viewer_permissions": "Du kan ikke endre denne rolletildelingen. Rollen tillater eller avslår tillatelser som du ikke har.",
+      "bot_cannot_hold_owner": "Boter kan ikke ha rollen owner."
     },
     "member_delete": {
       "title": "Slett medlem",
@@ -212,7 +214,9 @@
         "always_lowest": "Alltid lavest",
         "locked": "Låst",
         "saved": "Rollerekkefølgen er lagret",
-        "save_failed": "Kunne ikke lagre rollerekkefølgen"
+        "save_failed": "Kunne ikke lagre rollerekkefølgen",
+        "list_label": "Roller du kan flytte",
+        "none_movable": "Ingen roller er under den høyeste rollen din."
       }
     },
     "rooms_admin": {

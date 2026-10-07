@@ -101,6 +101,13 @@
       "yesterday": "Gestern",
       "this_week": "Diese Woche",
       "this_month": "Dieser Monat"
+    },
+    "drag_and_drop": {
+      "drag_started": "{item} wird verschoben. Verschiebe es mit den Pfeiltasten. Drücke die Leertaste oder Enter, um es abzulegen.",
+      "moved": "{item} auf Position {position} von {count} verschoben.",
+      "dropped": "{item} wird nicht mehr verschoben.",
+      "zone_active": "Gehe zu einem Element und drücke die Leertaste oder Enter, um es zu verschieben.",
+      "zone_disabled": "Verwende einen Ziehgriff, um ein Element zu verschieben."
     }
   }
 }
