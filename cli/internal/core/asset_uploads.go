@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"os"
 	"slices"
 	"sort"
@@ -113,10 +114,7 @@ func (m *AssetUploadModel) CreateUpload(ctx context.Context, input AssetUploadCr
 	if filename == "" {
 		return nil, invalidArgument("filename is required")
 	}
-	contentType := strings.TrimSpace(input.ContentType)
-	if contentType == "" {
-		contentType = "application/octet-stream"
-	}
+	contentType, _ := CanonicalContentType(input.ContentType)
 	if input.Size < 0 {
 		return nil, invalidArgument("size must be non-negative")
 	}
@@ -420,6 +418,29 @@ func (m *AssetUploadModel) cleanupExpiredPendingAssets(ctx context.Context, now 
 		}
 	}
 	return nil
+}
+
+// FallbackContentType is the media type for attachment bytes with a missing or
+// unparseable declared content type.
+const FallbackContentType = "application/octet-stream"
+
+// CanonicalContentType parses a declared content type and returns it with a
+// lowercase media type and canonically formatted parameters. It returns
+// FallbackContentType and false for a missing or unparseable value.
+//
+// Uploads store only canonical values, and attachment responses send only
+// canonical values. Browsers must never receive a malformed type that Go and
+// the browser could interpret differently, such as "text/html,".
+func CanonicalContentType(declared string) (string, bool) {
+	mediaType, params, err := mime.ParseMediaType(declared)
+	if err != nil {
+		return FallbackContentType, false
+	}
+	canonical := mime.FormatMediaType(mediaType, params)
+	if canonical == "" {
+		return FallbackContentType, false
+	}
+	return canonical, true
 }
 
 func (m *AssetUploadModel) checkUploadSize(contentType string, size int64) error {
