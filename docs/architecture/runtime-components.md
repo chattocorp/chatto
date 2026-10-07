@@ -28,6 +28,17 @@ process supervisor.
 Independently deployable providers use this catalogue rather than adding
 custom startup blocks.
 
+## Runtime credential notifications
+
+[`credentialChanges`](../../cli/internal/core/credential_changes.go) runs inside
+`ChattoCore.Run`. It owns two process-wide, single-filter runtime KV watchers:
+`session.*` and `renewable_session.*`. They read metadata only and keep no session
+values. A startup synchronization boundary precedes listener registration.
+Connected sockets register listeners under their hashed credential keys; bearer
+listeners also use their renewable-session key. Stop removes each listener.
+Writes from any replica request exact credential revalidation on the live writer.
+Watcher failure stops the core through its existing worker error path.
+
 ## Client runtimes
 
 `ServerRuntimeCoordinator` owns the frontend startup recovery loop. It checks

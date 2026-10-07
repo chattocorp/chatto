@@ -282,24 +282,33 @@ timed-out, and rejected catch-ups.
 
 ## Authorization and projection readiness
 
-Privileged-mode changes keep the mounted client state and resume cursor. The
-client applies viewer permissions from the mutation response, then reconnects.
-An immediate reconnect from a caught-up live socket that reports `RESUMED`
-reads rooms and room groups at the caught-up cursor before it completes the
-authorization refresh. Only missing DM profiles and timelines with changed
-message permissions need hydration. Cached profiles, server runtime config,
-MOTD, and notifications keep their current values unless replay or live events
-request an update. Transient changes during this short reconnect can remain
-stale until a later event or full recovery.
+Privileged-mode changes keep the socket, mounted client state, and resume cursor.
+Process-wide credential watchers request exact credential validation on the
+socket's live writer. That writer cancels its old internal subscription, starts
+a new one with current session authority, and replays from the last delivered
+sequence before sending `ViewerPermissionsChangedEvent`. Its optional mode flag
+and deadline acknowledge the adopted authority; an absent deadline means inactive.
+This connection-local PubSub envelope has no NATS subject and is not stored in EVT.
 
-Network recovery, queued reconnects, snapshot fallback, expiry, and retries
-after failed reads use full current-value recovery. Projection and
-authorization generations reject superseded permission reads. The server
-cancels authorized work at the session's privilege deadline and sends a
-reconnecting `PRIVILEGED_MODE_EXPIRED` close. It does not write a live event
-after that deadline. The periodic credential check sends the same close when
-another connection of the session ends privileged mode. The client then reads
-effective permissions and rooms with privileged mode inactive. See
+Authority handoffs share the eight-slot catch-up capacity and 30-second timeout.
+They wait for a slot without using per-user rate tokens, so sibling tabs can
+refresh together. Initial, replay, and live writes check queued credential hints
+and the absolute deadline before delivery. A further mode change during handoff
+retries from the last actually delivered boundary, at most eight times.
+
+The client applies viewer permissions from a mutation response immediately.
+After the mode hint, it reads rooms, room groups, and active calls. Other tabs
+and expiry also read the viewer. Only missing DM profiles and timelines with
+changed message permissions need hydration. Cached profiles, server runtime
+config, MOTD, and notifications retain their values unless events request an
+update. Durable events in the internal handoff gap are replayed; transient
+presence or typing changes can remain stale until a later update.
+
+Network recovery, snapshot fallback, lost mode hints, and failed permission reads
+use full current-value recovery. Projection and permission-check generations
+reject superseded reads. Expiry adopts inactive authority on the same socket.
+The periodic credential check remains a fallback for missed KV notifications.
+Credential revocation and bearer expiry still terminate the socket. See
 [ADR-096](../adr/ADR-096-session-scoped-privileged-mode.md) and
 [ADR-105](../adr/ADR-105-privileged-mode-gates-owner-override.md).
 
@@ -458,7 +467,7 @@ and disposal permanently fences the retired owner. Profile expiry timers have
 the same lifetime. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
 Snapshot user lists contain only referenced users. The client merges them into
 the shared store. During full recovery at `caught_up`, it requests cached user
-IDs at that cursor. A confirmed privilege-only resume reads only missing DM
+IDs at that cursor. An acknowledged mode change reads only missing DM
 profiles, as described above.
 Only an omitted ID from this requested set confirms account removal. A reset
 generation and per-user revisions fence late reads and changes during the check.

@@ -61,9 +61,17 @@ message RolePermissionsChangedEvent {
 // covers changes to a bot's owner permission ceiling. Delivered only to the
 // affected viewer. Discard private cached data and load current authorized
 // state before displaying it again. The connection itself remains open.
-message ViewerPermissionsChangedEvent {}
+message ViewerPermissionsChangedEvent {
+  // True when this connection has adopted a new privileged-mode state.
+  // Refresh viewer, rooms, room groups, and active call visibility.
+  optional bool privileged_mode_changed = 1;
+  // End of the adopted activation. Absent when privileged mode is inactive.
+  // This acknowledges session authority, not a new activation or an extension.
+  google.protobuf.Timestamp privileged_mode_expires_at = 2;
+}
 
 import "chatto/api/v1/common.proto";
+import "google/protobuf/timestamp.proto";
 import "chatto/api/v1/presence.proto";
 import "chatto/api/v1/rooms.proto";
 

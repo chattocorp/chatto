@@ -1,9 +1,56 @@
 package http_server
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 )
+
+func TestRealtimeAuthorityAdmissionWaitsForSharedCapacity(t *testing.T) {
+	a := newRealtimeCatchUpAdmissionWithLimits(1, 3, time.Minute, time.Now)
+	release, err := a.acquire("viewer", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	admitted := make(chan func(), 1)
+	go func() {
+		stop, err := a.acquireAuthority(ctx)
+		if err != nil {
+			admitted <- nil
+			return
+		}
+		admitted <- stop
+	}()
+	select {
+	case <-admitted:
+		t.Fatal("authority handoff bypassed occupied shared capacity")
+	default:
+	}
+	release()
+	select {
+	case stop := <-admitted:
+		if stop == nil {
+			t.Fatal("authority handoff did not wait for capacity")
+		}
+		stop()
+		stop()
+	case <-ctx.Done():
+		t.Fatal("authority handoff stalled after capacity was released")
+	}
+	stop, err2 := a.acquireAuthority(ctx)
+	if err2 != nil {
+		t.Fatal(err2)
+	}
+	defer stop()
+	cancelled, cancelWait := context.WithCancel(context.Background())
+	cancelWait()
+	if _, err := a.acquireAuthority(cancelled); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled admission = %v", err)
+	}
+}
 
 func TestRealtimeCatchUpAdmissionBoundsUserAndProcessConcurrency(t *testing.T) {
 	now := time.Date(2026, time.July, 17, 12, 0, 0, 0, time.UTC)

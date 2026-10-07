@@ -631,6 +631,11 @@ covers changes to a bot's owner permission ceiling. Delivered only to the
 affected viewer. Discard private cached data and load current authorized
 state before displaying it again. The connection itself remains open.
 
+| Field | Type | Description |
+| --- | --- | --- |
+| `privileged_mode_changed` | `optional bool` | True when this connection has adopted a new privileged-mode state. Refresh viewer, rooms, room groups, and active call visibility. |
+| `privileged_mode_expires_at` | `google.protobuf.Timestamp` | End of the adopted activation. Absent when privileged mode is inactive. This acknowledges session authority, not a new activation or an extension. |
+
 
 
 <a id="chatto-realtime-v1-ViewerPreferencesChangedEvent"></a>

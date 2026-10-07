@@ -50,7 +50,8 @@ import { mapDirectoryMember } from '../api/memberDirectory.js';
 import {
   createPrivilegedModeAPI,
   viewerResponseToState,
-  type PrivilegedModeAPI
+  type PrivilegedModeAPI,
+  type PrivilegedModeUpdate
 } from '../api/viewer.js';
 import { directMessageParticipant } from './rooms.js';
 import { mapNotificationOccurrencePage } from '../api/notifications.js';
@@ -58,6 +59,12 @@ import { RealtimeProjectionSyncState } from './realtimeSync.js';
 import { PrivilegedModeState } from '@chatto/api-types/api/v1/viewer_pb';
 import { MentionRolesStore } from './mentionRoles.js';
 import { TimelineEventKind } from '../timeline/timelineEvents.js';
+import type { Timestamp } from '@bufbuild/protobuf';
+
+/** Compare absolute activation deadlines without the host's wall clock. */
+function privilegedDeadlineKey(deadline: Timestamp | undefined): string {
+  return deadline ? `${deadline.seconds}:${deadline.nanos}` : 'inactive';
+}
 
 function viewerAuthorizationLost(
   previous: GetViewerResponse | null,
@@ -277,6 +284,16 @@ export class ServerStateStore {
   readonly #privilegedModeAPI: PrivilegedModeAPI;
   /** Serialize mutation responses while allowing authorization recovery to overlap. */
   #privilegedModeChanges: Promise<void> = Promise.resolve();
+  #privilegedModeMutation?: Promise<PrivilegedModeUpdate>;
+  #privilegedModeMutationResult?: PrivilegedModeUpdate;
+  #privilegedModeOperation = 0;
+  #privilegedModeAuthority?: { deadline: string; refreshed: Promise<boolean> };
+  #privilegedModeAuthorityWaiters = new Set<{
+    operation: number;
+    deadline: string;
+    resolve: (refreshed: boolean) => void;
+    timeout: ReturnType<typeof setTimeout>;
+  }>();
   readonly #realtimeResources: RealtimeResourceAPI;
   #realtimeProjectionGeneration = 0;
   #realtimeSnapshotPending = false;
@@ -304,7 +321,7 @@ export class ServerStateStore {
   #pendingUserRefreshCursor: string | undefined;
   #pendingUserRefreshGeneration = 0;
   #reconciliationError: unknown = null;
-  readonly #projectionReconciliations = new ReactiveSet<Promise<void>>();
+  readonly #projectionReconciliations = new ReactiveSet<Promise<void | boolean>>();
   readonly #timelines: TimelineSync;
 
   constructor(
@@ -390,9 +407,30 @@ export class ServerStateStore {
     projectionRefreshed: Promise<boolean>;
   }> {
     if (this.#disposed) throw new Error('privileged-mode update has no active server store');
-    const update = active
-      ? await this.#privilegedModeAPI.activate()
-      : await this.#privilegedModeAPI.deactivate();
+    const previousAuthority = this.#privilegedModeAuthority;
+    const previousDeadline = privilegedDeadlineKey(
+      this.projection.viewer?.privilegedMode?.expiresAt
+    );
+    const previousActive = this.projection.viewer?.privilegedMode?.active;
+    const operation = ++this.#privilegedModeOperation;
+    this.#privilegedModeAuthority = undefined;
+    // A later command supersedes an earlier requested state, including when
+    // the server watcher coalesces both writes before sending its hint.
+    for (const waiter of this.#privilegedModeAuthorityWaiters) {
+      clearTimeout(waiter.timeout);
+      waiter.resolve(true);
+    }
+    this.#privilegedModeAuthorityWaiters.clear();
+    const mutation = active
+      ? this.#privilegedModeAPI.activate()
+      : this.#privilegedModeAPI.deactivate();
+    this.#privilegedModeMutation = mutation;
+    let update: PrivilegedModeUpdate;
+    try {
+      update = await mutation;
+    } finally {
+      if (this.#privilegedModeMutation === mutation) this.#privilegedModeMutation = undefined;
+    }
     if (this.#disposed) throw new Error('privileged-mode update has no active server store');
     const viewer = this.projection.viewer?.clone();
     if (!viewer) throw new Error('privileged-mode update has no viewer projection');
@@ -400,40 +438,97 @@ export class ServerStateStore {
     viewer.capabilities = update.capabilities;
     viewer.viewerPermissions = update.viewerPermissions;
     this.applyViewerSnapshot(viewer);
-    const authorizationRefreshGeneration = this.realtimeSync.invalidateAuthorization();
-    const projectionRefreshed = this.realtimeSync.waitForAuthorizationRefresh(
-      authorizationRefreshGeneration
+    this.#privilegedModeMutationResult = update;
+    const deadline = privilegedDeadlineKey(update.privilegedMode.expiresAt);
+    // An idempotent retry can return without a KV write or another server hint.
+    // Reuse an acknowledgement only when the requested state did not change.
+    if (
+      previousActive === update.privilegedMode.active &&
+      previousDeadline === deadline &&
+      previousAuthority?.deadline === deadline
+    ) {
+      this.#privilegedModeAuthority ??= previousAuthority;
+    }
+    const projectionRefreshed = this.waitForPrivilegedModeAuthority(deadline, operation).then(
+      async (refreshed) => {
+        if (refreshed || operation !== this.#privilegedModeOperation || this.#disposed)
+          return refreshed;
+        // A dormant/broken transport or a lost hint uses the existing full
+        // recovery path. Healthy session changes never reconnect the socket.
+        return this.recoverPrivilegedModePermissions();
+      }
     );
-    this.#serverConnection.forceReconnect('privileged mode changed', {
-      authorizationRefreshGeneration
-    });
     return { projectionRefreshed };
   }
 
-  /** Reflect local expiry immediately; the reconnect obtains authoritative
-   * effective permissions and catches role changes made during activation. */
+  private waitForPrivilegedModeAuthority(deadline: string, operation: number): Promise<boolean> {
+    if (this.#privilegedModeAuthority?.deadline === deadline) {
+      return this.#privilegedModeAuthority.refreshed;
+    }
+    return new Promise((resolve) => {
+      const waiter = {
+        deadline,
+        operation,
+        resolve,
+        timeout: setTimeout(() => {
+          this.#privilegedModeAuthorityWaiters.delete(waiter);
+          resolve(false);
+        }, 5_000)
+      };
+      this.#privilegedModeAuthorityWaiters.add(waiter);
+    });
+  }
+
+  /** A failed session hint requires a complete resource recovery. Clear its
+   * consumed error so the replacement catch-up does not retry it again. */
+  private recoverPrivilegedModePermissions(): Promise<boolean> {
+    this.#reconciliationError = null;
+    const generation = this.realtimeSync.invalidateAuthorization();
+    const recovered = this.realtimeSync.waitForAuthorizationRefresh(generation);
+    this.#serverConnection.forceReconnect('privileged mode refresh failed');
+    return recovered;
+  }
+
+  /** Reflect local expiry immediately. The server independently ends its
+   * activation and sends an in-place authority acknowledgement. */
   async expirePrivilegedMode(): Promise<void> {
+    const operation = this.#privilegedModeOperation;
     this.applyPrivilegedModeState(
       new PrivilegedModeState({
         available: this.projection.viewer?.privilegedMode?.available ?? false,
         active: false
       })
     );
+    const check = this.#permissionCheckGeneration;
     try {
-      this.applyViewerSnapshot(await this.#privilegedModeAPI.refresh());
+      if (this.#privilegedModeAuthority?.deadline !== 'inactive') {
+        const viewer = await this.#privilegedModeAPI.refresh();
+        // A server hint owns a permission refresh already in flight. A local
+        // timer must not cancel it or allow its older viewer read to overwrite it.
+        if (
+          check === this.#permissionCheckGeneration &&
+          this.#privilegedModeAuthority?.deadline !== 'inactive'
+        ) {
+          this.applyViewerSnapshot(viewer);
+        }
+      }
     } catch (error) {
       console.warn('[privileged-mode] failed to refresh effective permissions after expiry', error);
       // Reads must still recheck server authority when the viewer refresh fails.
       this.#emitAuthorityChanged({ lost: false });
-    } finally {
+    }
+    if (operation !== this.#privilegedModeOperation || this.#disposed) return;
+    if (
+      !(await this.waitForPrivilegedModeAuthority('inactive', operation)) &&
+      operation === this.#privilegedModeOperation &&
+      !this.#disposed
+    ) {
       this.realtimeSync.invalidateAuthorization();
-      this.#serverConnection.forceReconnect('privileged mode expired');
+      this.#serverConnection.forceReconnect('privileged mode expiry refresh failed');
     }
   }
 
   private applyPrivilegedModeState(state: PrivilegedModeState): void {
-    this.#permissionCheckGeneration++;
-    this.checkingPermissions = false;
     const viewer = this.projection.viewer?.clone();
     if (!viewer) return;
     viewer.privilegedMode = state;
@@ -448,7 +543,7 @@ export class ServerStateStore {
     this.projection.viewer = response;
     if (!this.currentUser.apply(viewerResponseToState(response).user)) return;
     // Mutation and expiry responses are authoritative. Refresh snapshots now,
-    // including room-only grants, without waiting for the realtime reconnect.
+    // including room-only grants, without waiting for the realtime acknowledgement.
     this.#emitAuthorityChanged({ lost: viewerAuthorizationLost(previousViewer, response) });
   }
 
@@ -768,6 +863,14 @@ export class ServerStateStore {
         this.projection.users.get(this.realtimeViewerId() ?? '')?.roles
       )
     ) {
+      if (
+        update.event.event.case === 'viewerPermissionsChanged' &&
+        update.event.event.value.privilegedModeChanged
+      ) {
+        this.refreshPrivilegedModePermissions(update);
+        return true;
+      }
+      this.#privilegedModeMutationResult = undefined;
       this.refreshViewerPermissions(update);
       return true;
     }
@@ -883,7 +986,11 @@ export class ServerStateStore {
    * the projection or its cursor. Individual resource owners remove denied data;
    * query observers and permitted route components retain their lifetime.
    */
-  private refreshViewerPermissions(update: RealtimeProjectionUpdate): void {
+  private refreshViewerPermissions(
+    update: RealtimeProjectionUpdate,
+    privilegedMode = false,
+    reuseViewer = false
+  ): Promise<boolean> {
     const check = ++this.#permissionCheckGeneration;
     const generation = this.#realtimeProjectionGeneration;
     this.checkingPermissions = true;
@@ -909,14 +1016,11 @@ export class ServerStateStore {
         )
       );
       if (!current()) return;
-      const families = [
-        'viewer',
-        'rooms',
-        'roomGroups',
-        'serverState',
-        'notifications',
-        'activeCalls'
-      ] as const;
+      const families: readonly RealtimeResourceFamily[] = privilegedMode
+        ? reuseViewer
+          ? ['rooms', 'roomGroups', 'activeCalls']
+          : ['viewer', 'rooms', 'roomGroups', 'activeCalls']
+        : ['viewer', 'rooms', 'roomGroups', 'serverState', 'notifications', 'activeCalls'];
       const reads = await Promise.allSettled(
         families.map(async (family) => {
           try {
@@ -942,25 +1046,74 @@ export class ServerStateStore {
       if (!current()) return;
       const listenerResults = await listeners;
       if (!current()) return;
-      this.invalidateUniversalMembership();
-      await Promise.all(
-        this.#rooms.all('members').map((store) => store.refresh({ reauthorize: true }))
-      );
+      if (privilegedMode) {
+        await this.hydrateProjectedDMUsers(update.cursor ?? '', generation);
+      } else {
+        this.invalidateUniversalMembership();
+        await Promise.all(
+          this.#rooms.all('members').map((store) => store.refresh({ reauthorize: true }))
+        );
+      }
       // Each cache must complete its own check before a partial failure is
       // reported to the cursor owner for retry.
       const failure = [...reads, ...listenerResults].find((result) => result.status === 'rejected');
       if (failure?.status === 'rejected') throw failure.reason;
     })()
+      .then(() => true)
       .catch((error) => {
         // A failed read retries through normal cursor reconciliation. Retain the
         // shell and unaffected data; never request a new permission snapshot.
         if (current()) this.#reconciliationError ??= error;
+        return false;
       })
       .finally(() => {
         if (current()) this.checkingPermissions = false;
         this.#projectionReconciliations.delete(refresh);
       });
     this.#projectionReconciliations.add(refresh);
+    return refresh;
+  }
+
+  /** Reconcile only access-dependent state after the server has adopted the
+   * session's new mode. A local mutation supplies the viewer reply; other tabs
+   * and server expiry obtain it through the ordinary viewer resource. */
+  private refreshPrivilegedModePermissions(update: RealtimeProjectionUpdate): void {
+    if (update.event?.event.case !== 'viewerPermissionsChanged') return;
+    const deadline = privilegedDeadlineKey(update.event.event.value.privilegedModeExpiresAt);
+    const mutation = this.#privilegedModeMutation;
+    const generation = this.#realtimeProjectionGeneration;
+    const refreshed = (async () => {
+      await mutation?.catch(() => undefined);
+      if (this.#disposed || generation !== this.#realtimeProjectionGeneration) return false;
+      const reply = this.#privilegedModeMutationResult;
+      const reuseViewer =
+        !!reply && privilegedDeadlineKey(reply.privilegedMode.expiresAt) === deadline;
+      if (reuseViewer) this.#privilegedModeMutationResult = undefined;
+      const succeeded = await this.refreshViewerPermissions(update, true, reuseViewer);
+      if (!succeeded) return false;
+      await this.waitForRealtimeReconciliation();
+      return true;
+    })()
+      .catch(() => false)
+      .then((succeeded) => {
+        if (
+          succeeded ||
+          this.#disposed ||
+          generation !== this.#realtimeProjectionGeneration ||
+          this.#privilegedModeAuthority?.refreshed !== refreshed
+        )
+          return succeeded;
+        // Session hints have no durable cursor. Other tabs and expiry must
+        // recover failed reads now, even when no later event arrives.
+        return this.recoverPrivilegedModePermissions();
+      });
+    this.#privilegedModeAuthority = { deadline, refreshed };
+    for (const waiter of this.#privilegedModeAuthorityWaiters) {
+      if (waiter.deadline !== deadline) continue;
+      clearTimeout(waiter.timeout);
+      this.#privilegedModeAuthorityWaiters.delete(waiter);
+      void refreshed.then(waiter.resolve);
+    }
   }
 
   /** Read and posting changes require fresh message content and reply capabilities. */
@@ -1498,6 +1651,11 @@ export class ServerStateStore {
     // does not stop the privacy cleanup below.
     this.#events.dispose.emit();
     this.#disposed = true;
+    for (const waiter of this.#privilegedModeAuthorityWaiters) {
+      clearTimeout(waiter.timeout);
+      waiter.resolve(false);
+    }
+    this.#privilegedModeAuthorityWaiters.clear();
     this.#realtime.getBus(this.serverId)?.clearReducer(this.realtimeProjectionHandler);
     this.currentUser.reset();
     this.#timelines.reset();

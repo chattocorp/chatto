@@ -9,6 +9,7 @@ package realtimev1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	v1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	reflect "reflect"
 	sync "sync"
@@ -429,9 +430,15 @@ func (x *RolePermissionsChangedEvent) GetRoleName() string {
 // affected viewer. Discard private cached data and load current authorized
 // state before displaying it again. The connection itself remains open.
 type ViewerPermissionsChangedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// True when this connection has adopted a new privileged-mode state.
+	// Refresh viewer, rooms, room groups, and active call visibility.
+	PrivilegedModeChanged *bool `protobuf:"varint,1,opt,name=privileged_mode_changed,json=privilegedModeChanged,proto3,oneof" json:"privileged_mode_changed,omitempty"`
+	// End of the adopted activation. Absent when privileged mode is inactive.
+	// This acknowledges session authority, not a new activation or an extension.
+	PrivilegedModeExpiresAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=privileged_mode_expires_at,json=privilegedModeExpiresAt,proto3" json:"privileged_mode_expires_at,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *ViewerPermissionsChangedEvent) Reset() {
@@ -462,6 +469,20 @@ func (x *ViewerPermissionsChangedEvent) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ViewerPermissionsChangedEvent.ProtoReflect.Descriptor instead.
 func (*ViewerPermissionsChangedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_realtime_v1_events_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ViewerPermissionsChangedEvent) GetPrivilegedModeChanged() bool {
+	if x != nil && x.PrivilegedModeChanged != nil {
+		return *x.PrivilegedModeChanged
+	}
+	return false
+}
+
+func (x *ViewerPermissionsChangedEvent) GetPrivilegedModeExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PrivilegedModeExpiresAt
+	}
+	return nil
 }
 
 // RoomCreatedEvent reports a new room that is visible to the caller.
@@ -2907,7 +2928,7 @@ var File_chatto_realtime_v1_events_proto protoreflect.FileDescriptor
 
 const file_chatto_realtime_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x1fchatto/realtime/v1/events.proto\x12\x12chatto.realtime.v1\x1a\x1achatto/api/v1/common.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x19chatto/api/v1/rooms.proto\"/\n" +
+	"\x1fchatto/realtime/v1/events.proto\x12\x12chatto.realtime.v1\x1a\x1achatto/api/v1/common.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x19chatto/api/v1/rooms.proto\"/\n" +
 	"\x10RoleCreatedEvent\x12\x1b\n" +
 	"\trole_name\x18\x01 \x01(\tR\broleName\"/\n" +
 	"\x10RoleUpdatedEvent\x12\x1b\n" +
@@ -2924,8 +2945,11 @@ const file_chatto_realtime_v1_events_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
 	"\trole_name\x18\x02 \x01(\tR\broleName\":\n" +
 	"\x1bRolePermissionsChangedEvent\x12\x1b\n" +
-	"\trole_name\x18\x01 \x01(\tR\broleName\"\x1f\n" +
-	"\x1dViewerPermissionsChangedEvent\"\xf5\x01\n" +
+	"\trole_name\x18\x01 \x01(\tR\broleName\"\xd1\x01\n" +
+	"\x1dViewerPermissionsChangedEvent\x12;\n" +
+	"\x17privileged_mode_changed\x18\x01 \x01(\bH\x00R\x15privilegedModeChanged\x88\x01\x01\x12W\n" +
+	"\x1aprivileged_mode_expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x17privilegedModeExpiresAtB\x1a\n" +
+	"\x18_privileged_mode_changed\"\xf5\x01\n" +
 	"\x10RoomCreatedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -3137,27 +3161,29 @@ var file_chatto_realtime_v1_events_proto_goTypes = []any{
 	(*NotificationOccurrencesChangedEvent)(nil),  // 51: chatto.realtime.v1.NotificationOccurrencesChangedEvent
 	(*NotificationUnreadStateChangedEvent)(nil),  // 52: chatto.realtime.v1.NotificationUnreadStateChangedEvent
 	(*RoomReadStateChangedEvent)(nil),            // 53: chatto.realtime.v1.RoomReadStateChangedEvent
-	(v1.RoomKind)(0),                             // 54: chatto.api.v1.RoomKind
-	(v1.RoomThreadingMode)(0),                    // 55: chatto.api.v1.RoomThreadingMode
-	(v1.PresenceStatus)(0),                       // 56: chatto.api.v1.PresenceStatus
+	(*timestamppb.Timestamp)(nil),                // 54: google.protobuf.Timestamp
+	(v1.RoomKind)(0),                             // 55: chatto.api.v1.RoomKind
+	(v1.RoomThreadingMode)(0),                    // 56: chatto.api.v1.RoomThreadingMode
+	(v1.PresenceStatus)(0),                       // 57: chatto.api.v1.PresenceStatus
 }
 var file_chatto_realtime_v1_events_proto_depIdxs = []int32{
-	54, // 0: chatto.realtime.v1.RoomCreatedEvent.kind:type_name -> chatto.api.v1.RoomKind
-	55, // 1: chatto.realtime.v1.RoomCreatedEvent.threading_mode:type_name -> chatto.api.v1.RoomThreadingMode
-	55, // 2: chatto.realtime.v1.RoomThreadingModeChangedEvent.threading_mode:type_name -> chatto.api.v1.RoomThreadingMode
-	28, // 3: chatto.realtime.v1.MessagePostedEvent.mentions:type_name -> chatto.realtime.v1.MessageMention
-	54, // 4: chatto.realtime.v1.MessagePostedEvent.room_kind:type_name -> chatto.api.v1.RoomKind
-	24, // 5: chatto.realtime.v1.MessageMention.direct:type_name -> chatto.realtime.v1.DirectUserMention
-	25, // 6: chatto.realtime.v1.MessageMention.role:type_name -> chatto.realtime.v1.RoleMessageMention
-	26, // 7: chatto.realtime.v1.MessageMention.here:type_name -> chatto.realtime.v1.HereMessageMention
-	27, // 8: chatto.realtime.v1.MessageMention.all:type_name -> chatto.realtime.v1.AllMessageMention
-	0,  // 9: chatto.realtime.v1.AssetProcessingFailedEvent.failure_code:type_name -> chatto.realtime.v1.AssetProcessingFailureCode
-	56, // 10: chatto.realtime.v1.PresenceChangedEvent.status:type_name -> chatto.api.v1.PresenceStatus
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	54, // 0: chatto.realtime.v1.ViewerPermissionsChangedEvent.privileged_mode_expires_at:type_name -> google.protobuf.Timestamp
+	55, // 1: chatto.realtime.v1.RoomCreatedEvent.kind:type_name -> chatto.api.v1.RoomKind
+	56, // 2: chatto.realtime.v1.RoomCreatedEvent.threading_mode:type_name -> chatto.api.v1.RoomThreadingMode
+	56, // 3: chatto.realtime.v1.RoomThreadingModeChangedEvent.threading_mode:type_name -> chatto.api.v1.RoomThreadingMode
+	28, // 4: chatto.realtime.v1.MessagePostedEvent.mentions:type_name -> chatto.realtime.v1.MessageMention
+	55, // 5: chatto.realtime.v1.MessagePostedEvent.room_kind:type_name -> chatto.api.v1.RoomKind
+	24, // 6: chatto.realtime.v1.MessageMention.direct:type_name -> chatto.realtime.v1.DirectUserMention
+	25, // 7: chatto.realtime.v1.MessageMention.role:type_name -> chatto.realtime.v1.RoleMessageMention
+	26, // 8: chatto.realtime.v1.MessageMention.here:type_name -> chatto.realtime.v1.HereMessageMention
+	27, // 9: chatto.realtime.v1.MessageMention.all:type_name -> chatto.realtime.v1.AllMessageMention
+	0,  // 10: chatto.realtime.v1.AssetProcessingFailedEvent.failure_code:type_name -> chatto.realtime.v1.AssetProcessingFailureCode
+	57, // 11: chatto.realtime.v1.PresenceChangedEvent.status:type_name -> chatto.api.v1.PresenceStatus
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_chatto_realtime_v1_events_proto_init() }
@@ -3165,6 +3191,7 @@ func file_chatto_realtime_v1_events_proto_init() {
 	if File_chatto_realtime_v1_events_proto != nil {
 		return
 	}
+	file_chatto_realtime_v1_events_proto_msgTypes[7].OneofWrappers = []any{}
 	file_chatto_realtime_v1_events_proto_msgTypes[22].OneofWrappers = []any{}
 	file_chatto_realtime_v1_events_proto_msgTypes[27].OneofWrappers = []any{
 		(*MessageMention_Direct)(nil),

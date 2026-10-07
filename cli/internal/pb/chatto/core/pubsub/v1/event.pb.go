@@ -49,6 +49,7 @@ type PubSubEvent struct {
 	//	*PubSubEvent_ThreadViewerStateChanged
 	//	*PubSubEvent_SessionTerminated
 	//	*PubSubEvent_ViewerPresencePreferenceChanged
+	//	*PubSubEvent_ViewerPermissionsChanged
 	Event         isPubSubEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -184,6 +185,15 @@ func (x *PubSubEvent) GetViewerPresencePreferenceChanged() *v1.ViewerPresencePre
 	return nil
 }
 
+func (x *PubSubEvent) GetViewerPermissionsChanged() *v1.ViewerPermissionsChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PubSubEvent_ViewerPermissionsChanged); ok {
+			return x.ViewerPermissionsChanged
+		}
+	}
+	return nil
+}
+
 type isPubSubEvent_Event interface {
 	isPubSubEvent_Event()
 }
@@ -226,6 +236,12 @@ type PubSubEvent_ViewerPresencePreferenceChanged struct {
 	ViewerPresencePreferenceChanged *v1.ViewerPresencePreferenceChangedEvent `protobuf:"bytes,17,opt,name=viewer_presence_preference_changed,json=viewerPresencePreferenceChanged,proto3,oneof"`
 }
 
+type PubSubEvent_ViewerPermissionsChanged struct {
+	// Local connection authority acknowledgement after session revalidation.
+	// This signal is not published to account-wide NATS subjects.
+	ViewerPermissionsChanged *v1.ViewerPermissionsChangedEvent `protobuf:"bytes,18,opt,name=viewer_permissions_changed,json=viewerPermissionsChanged,proto3,oneof"`
+}
+
 func (*PubSubEvent_UserTyping) isPubSubEvent_Event() {}
 
 func (*PubSubEvent_PresenceChanged) isPubSubEvent_Event() {}
@@ -241,6 +257,8 @@ func (*PubSubEvent_ThreadViewerStateChanged) isPubSubEvent_Event() {}
 func (*PubSubEvent_SessionTerminated) isPubSubEvent_Event() {}
 
 func (*PubSubEvent_ViewerPresencePreferenceChanged) isPubSubEvent_Event() {}
+
+func (*PubSubEvent_ViewerPermissionsChanged) isPubSubEvent_Event() {}
 
 // Notifies a user that their session has been terminated.
 // Published as a user-scoped event on logout or admin boot.
@@ -294,7 +312,7 @@ var File_chatto_core_pubsub_v1_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_pubsub_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/core/pubsub/v1/event.proto\x12\x15chatto.core.pubsub.v1\x1a\x1fchatto/realtime/v1/events.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xee\a\n" +
+	"!chatto/core/pubsub/v1/event.proto\x12\x15chatto.core.pubsub.v1\x1a\x1fchatto/realtime/v1/events.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe1\b\n" +
 	"\vPubSubEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -309,7 +327,8 @@ const file_chatto_core_pubsub_v1_event_proto_rawDesc = "" +
 	"\x17room_read_state_changed\x18\x0e \x01(\v2-.chatto.realtime.v1.RoomReadStateChangedEventH\x00R\x14roomReadStateChanged\x12r\n" +
 	"\x1bthread_viewer_state_changed\x18\x0f \x01(\v21.chatto.realtime.v1.ThreadViewerStateChangedEventH\x00R\x18threadViewerStateChanged\x12^\n" +
 	"\x12session_terminated\x18\x10 \x01(\v2-.chatto.core.pubsub.v1.SessionTerminatedEventH\x00R\x11sessionTerminated\x12\x87\x01\n" +
-	"\"viewer_presence_preference_changed\x18\x11 \x01(\v28.chatto.realtime.v1.ViewerPresencePreferenceChangedEventH\x00R\x1fviewerPresencePreferenceChangedB\a\n" +
+	"\"viewer_presence_preference_changed\x18\x11 \x01(\v28.chatto.realtime.v1.ViewerPresencePreferenceChangedEventH\x00R\x1fviewerPresencePreferenceChanged\x12q\n" +
+	"\x1aviewer_permissions_changed\x18\x12 \x01(\v21.chatto.realtime.v1.ViewerPermissionsChangedEventH\x00R\x18viewerPermissionsChangedB\a\n" +
 	"\x05event\"0\n" +
 	"\x16SessionTerminatedEvent\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reasonB\xda\x01\n" +
@@ -340,22 +359,24 @@ var file_chatto_core_pubsub_v1_event_proto_goTypes = []any{
 	(*v1.RoomReadStateChangedEvent)(nil),            // 7: chatto.realtime.v1.RoomReadStateChangedEvent
 	(*v1.ThreadViewerStateChangedEvent)(nil),        // 8: chatto.realtime.v1.ThreadViewerStateChangedEvent
 	(*v1.ViewerPresencePreferenceChangedEvent)(nil), // 9: chatto.realtime.v1.ViewerPresencePreferenceChangedEvent
+	(*v1.ViewerPermissionsChangedEvent)(nil),        // 10: chatto.realtime.v1.ViewerPermissionsChangedEvent
 }
 var file_chatto_core_pubsub_v1_event_proto_depIdxs = []int32{
-	2, // 0: chatto.core.pubsub.v1.PubSubEvent.created_at:type_name -> google.protobuf.Timestamp
-	3, // 1: chatto.core.pubsub.v1.PubSubEvent.user_typing:type_name -> chatto.realtime.v1.UserTypingEvent
-	4, // 2: chatto.core.pubsub.v1.PubSubEvent.presence_changed:type_name -> chatto.realtime.v1.PresenceChangedEvent
-	5, // 3: chatto.core.pubsub.v1.PubSubEvent.notification_occurrences_changed:type_name -> chatto.realtime.v1.NotificationOccurrencesChangedEvent
-	6, // 4: chatto.core.pubsub.v1.PubSubEvent.notification_unread_state_changed:type_name -> chatto.realtime.v1.NotificationUnreadStateChangedEvent
-	7, // 5: chatto.core.pubsub.v1.PubSubEvent.room_read_state_changed:type_name -> chatto.realtime.v1.RoomReadStateChangedEvent
-	8, // 6: chatto.core.pubsub.v1.PubSubEvent.thread_viewer_state_changed:type_name -> chatto.realtime.v1.ThreadViewerStateChangedEvent
-	1, // 7: chatto.core.pubsub.v1.PubSubEvent.session_terminated:type_name -> chatto.core.pubsub.v1.SessionTerminatedEvent
-	9, // 8: chatto.core.pubsub.v1.PubSubEvent.viewer_presence_preference_changed:type_name -> chatto.realtime.v1.ViewerPresencePreferenceChangedEvent
-	9, // [9:9] is the sub-list for method output_type
-	9, // [9:9] is the sub-list for method input_type
-	9, // [9:9] is the sub-list for extension type_name
-	9, // [9:9] is the sub-list for extension extendee
-	0, // [0:9] is the sub-list for field type_name
+	2,  // 0: chatto.core.pubsub.v1.PubSubEvent.created_at:type_name -> google.protobuf.Timestamp
+	3,  // 1: chatto.core.pubsub.v1.PubSubEvent.user_typing:type_name -> chatto.realtime.v1.UserTypingEvent
+	4,  // 2: chatto.core.pubsub.v1.PubSubEvent.presence_changed:type_name -> chatto.realtime.v1.PresenceChangedEvent
+	5,  // 3: chatto.core.pubsub.v1.PubSubEvent.notification_occurrences_changed:type_name -> chatto.realtime.v1.NotificationOccurrencesChangedEvent
+	6,  // 4: chatto.core.pubsub.v1.PubSubEvent.notification_unread_state_changed:type_name -> chatto.realtime.v1.NotificationUnreadStateChangedEvent
+	7,  // 5: chatto.core.pubsub.v1.PubSubEvent.room_read_state_changed:type_name -> chatto.realtime.v1.RoomReadStateChangedEvent
+	8,  // 6: chatto.core.pubsub.v1.PubSubEvent.thread_viewer_state_changed:type_name -> chatto.realtime.v1.ThreadViewerStateChangedEvent
+	1,  // 7: chatto.core.pubsub.v1.PubSubEvent.session_terminated:type_name -> chatto.core.pubsub.v1.SessionTerminatedEvent
+	9,  // 8: chatto.core.pubsub.v1.PubSubEvent.viewer_presence_preference_changed:type_name -> chatto.realtime.v1.ViewerPresencePreferenceChangedEvent
+	10, // 9: chatto.core.pubsub.v1.PubSubEvent.viewer_permissions_changed:type_name -> chatto.realtime.v1.ViewerPermissionsChangedEvent
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_pubsub_v1_event_proto_init() }
@@ -372,6 +393,7 @@ func file_chatto_core_pubsub_v1_event_proto_init() {
 		(*PubSubEvent_ThreadViewerStateChanged)(nil),
 		(*PubSubEvent_SessionTerminated)(nil),
 		(*PubSubEvent_ViewerPresencePreferenceChanged)(nil),
+		(*PubSubEvent_ViewerPermissionsChanged)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

@@ -55,6 +55,10 @@ message PubSubEvent {
 
     // Private current-state invalidation; delivered only to this account.
     chatto.realtime.v1.ViewerPresencePreferenceChangedEvent viewer_presence_preference_changed = 17;
+
+    // Local connection authority acknowledgement after session revalidation.
+    // This signal is not published to account-wide NATS subjects.
+    chatto.realtime.v1.ViewerPermissionsChangedEvent viewer_permissions_changed = 18;
   }
 }
 

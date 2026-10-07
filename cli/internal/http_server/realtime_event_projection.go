@@ -232,6 +232,8 @@ func projectRealtimePubSubEvent(source *pubsubv1.PubSubEvent) *realtimev1.Realti
 		target.ActorId = new(source.GetActorId())
 	}
 	switch e := source.GetEvent().(type) {
+	case *pubsubv1.PubSubEvent_ViewerPermissionsChanged:
+		target.Event = &realtimev1.RealtimeEvent_ViewerPermissionsChanged{ViewerPermissionsChanged: e.ViewerPermissionsChanged}
 	case *pubsubv1.PubSubEvent_ThreadViewerStateChanged:
 		target.Event = &realtimev1.RealtimeEvent_ThreadViewerStateChanged{ThreadViewerStateChanged: e.ThreadViewerStateChanged}
 	case *pubsubv1.PubSubEvent_ViewerPresencePreferenceChanged:

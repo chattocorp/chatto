@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { RoomKind } from "../../api/v1/rooms_pb.js";
 import { RoomThreadingMode } from "../../api/v1/common_pb.js";
 import { PresenceStatus } from "../../api/v1/presence_pb.js";
@@ -364,6 +364,22 @@ export class RolePermissionsChangedEvent extends Message<RolePermissionsChangedE
  * @generated from message chatto.realtime.v1.ViewerPermissionsChangedEvent
  */
 export class ViewerPermissionsChangedEvent extends Message<ViewerPermissionsChangedEvent> {
+  /**
+   * True when this connection has adopted a new privileged-mode state.
+   * Refresh viewer, rooms, room groups, and active call visibility.
+   *
+   * @generated from field: optional bool privileged_mode_changed = 1;
+   */
+  privilegedModeChanged?: boolean;
+
+  /**
+   * End of the adopted activation. Absent when privileged mode is inactive.
+   * This acknowledges session authority, not a new activation or an extension.
+   *
+   * @generated from field: google.protobuf.Timestamp privileged_mode_expires_at = 2;
+   */
+  privilegedModeExpiresAt?: Timestamp;
+
   constructor(data?: PartialMessage<ViewerPermissionsChangedEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -372,6 +388,8 @@ export class ViewerPermissionsChangedEvent extends Message<ViewerPermissionsChan
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.ViewerPermissionsChangedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "privileged_mode_changed", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 2, name: "privileged_mode_expires_at", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ViewerPermissionsChangedEvent {

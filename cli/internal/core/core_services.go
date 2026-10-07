@@ -194,6 +194,7 @@ func initializeCoreServices(
 	core.presenceModel = NewPresenceModel(infra.storage.memoryCacheKV, infra.storage.runtimeStateKV, logger)
 	core.PresenceHub = core.presenceModel.hub
 	core.myEventsModel = NewMyEventsModel(core)
+	core.credentialChanges = newCredentialChanges(core)
 	return nil
 }
 

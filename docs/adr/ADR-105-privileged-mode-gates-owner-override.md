@@ -50,9 +50,12 @@ receiving session:
   share visibility. Each fan-out decision uses the fixed state of its sessions,
   not the credential of the first subscriber and not an internal context.
 - A privileged realtime connection does not write an event after its
-  privilege deadline. The existing deadline close then reconnects the session.
-  The periodic credential check also reconnects a privileged socket when
-  another connection of the same session ends privileged mode.
+  privilege deadline. The writer adopts inactive mode on the same socket.
+  Process-wide runtime credential watchers also request revalidation when
+  another connection of the same session changes mode. The writer replaces
+  its internal subscription, recovers durable events, and acknowledges the
+  adopted deadline. The periodic credential check remains a fallback. See
+  [ADR-096](ADR-096-session-scoped-privileged-mode.md).
 - Notification decisions and alert revalidation are not bound to one session.
   They use the unprivileged view for owners.
 - A call connection outlives its token request. The token's participant

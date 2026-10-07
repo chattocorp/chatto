@@ -27,21 +27,21 @@ server session when they need them.
 - The user can deactivate the mode immediately.
 - Expiry, logout, and session revocation deactivate the mode.
 - The client updates effective server permissions from the activation or
-  deactivation response. It keeps its resume cursor and mounted realtime
-  projection. After resume, ConnectRPC resource reads update effective room
-  permissions in place before catch-up completes.
-- At the 15-minute deadline, the server closes each affected realtime
-  connection with a reconnect instruction. The resumed subscription replaces
-  effective permissions with privileged mode inactive. The server does not
-  write events that it authorized for the active mode after the deadline.
+  deactivation response. It keeps its connection, resume cursor, and mounted
+  state. The server acknowledges the adopted session mode on that connection;
+  ConnectRPC reads then update effective room permissions and call visibility.
+- At the 15-minute deadline, the server adopts inactive mode on each affected
+  realtime connection and acknowledges it without closing the socket. The
+  server does not write events authorized for active mode after the deadline.
 - The client reads rooms and room groups again after activation,
   deactivation, and expiry. Rooms that the owner override made visible appear
   or disappear.
-- A successful activation or deactivation resume from a caught-up live
-  connection reuses the response's effective viewer permissions. It reads only
+- A successful activation or deactivation on a live connection reuses the
+  response's effective viewer permissions. It reads only
   missing DM profiles and reloads timelines with changed message permissions.
-  It does not refresh the cached user directory. Snapshots, expiry, and
-  interrupted or failed recovery use the full current-value refresh.
+  It does not refresh the cached user directory. Expiry and other tabs read
+  viewer permissions too. Snapshots, lost acknowledgements, and interrupted
+  or failed recovery use the full current-value refresh.
 - An owner can stay an explicit member of a room after the mode ends but lose
   read access. Explicit memberships do not change.
 - Realtime delivery evaluates each session with its own mode state. Two
@@ -49,7 +49,9 @@ server session when they need them.
 - Notifications are not bound to one session. They use the owner's view
   without the mode.
 - When one connection of a session ends the mode, the other realtime
-  connections of that session reconnect within one credential check interval.
+  connections adopt the change through runtime-state notifications. Independent
+  sessions of the same user keep their own mode. The periodic credential check
+  remains a fallback.
 - A call connection keeps the mode state of the request that issued its
   token. After that deadline, the next call reconciliation applies ordinary
   RBAC to the owner.
@@ -151,16 +153,19 @@ result and logs the audit failure.
 
 ### 6. Limit explicit permission refreshes
 
-**Decision:** A successful resume after an explicit mode change reads rooms
-and room groups and reuses viewer permissions from the mutation response.
+**Decision:** A mode change keeps the existing socket. The server refreshes its
+session authority, recovers durable events, and acknowledges the adopted mode.
+The client reads rooms, room groups, and active calls, and reuses viewer
+permissions from an explicit mutation response.
 It hydrates missing DM profiles and timelines with changed message permissions.
 All other recovery paths keep the full current-value refresh.
 
 **Why:** A permission change must not require reads for every cached user or
 reload message history whose permissions did not change.
 
-**Tradeoff:** This step keeps the reconnect. A transient change during its short
-gap can remain stale until a later event or full recovery.
+**Tradeoff:** Durable events committed during the internal subscription handoff
+are replayed. Transient presence or typing changes during that short gap can
+remain stale until a later update. A failed handoff uses reconnect recovery.
 
 ## Compatibility
 

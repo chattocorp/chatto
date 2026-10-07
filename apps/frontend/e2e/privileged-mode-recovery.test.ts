@@ -4,7 +4,6 @@
 import type { Page } from '@playwright/test';
 import {
   RealtimeRecovery,
-  RealtimeCloseCode,
   RealtimeServerFrame,
   RealtimeSubscribe
 } from '@chatto/api-types/realtime/v1/realtime_pb';
@@ -169,7 +168,7 @@ for (const active of [true, false]) {
   });
 }
 
-for (const recovery of ['resume', 'snapshot', 'interrupted resume'] as const) {
+for (const recovery of ['live connection', 'snapshot', 'interrupted resume'] as const) {
   test(`open restricted room loses and regains read/post access through ${recovery}`, async ({
     page,
     roomPage
@@ -177,8 +176,14 @@ for (const recovery of ['resume', 'snapshot', 'interrupted resume'] as const) {
     let armed = false;
     let interrupted = false;
     const recoveries: RealtimeRecovery[] = [];
+    let disconnect: (() => void) | undefined;
+    let connections = 0;
     await page.routeWebSocket('**/api/realtime', (socket) => {
       const server = socket.connectToServer();
+      connections++;
+      disconnect = () => {
+        void socket.close();
+      };
       let observing = false;
       socket.onMessage((message) => {
         if (armed && typeof message !== 'string') {
@@ -211,8 +216,13 @@ for (const recovery of ['resume', 'snapshot', 'interrupted resume'] as const) {
     const composer = await roomPage.messageInput.elementHandle();
     const shell = await page.getByTestId('room-main-pane').elementHandle();
     const timeOrigin = await page.evaluate(() => performance.timeOrigin);
+    const initialConnections = connections;
     armed = true;
     await deactivate(page);
+    if (recovery !== 'live connection') {
+      disconnect!();
+      await expect.poll(() => recoveries.length).toBeGreaterThan(0);
+    }
     await expect(page.getByText(readDenied, { exact: true })).toBeVisible();
     await expect(page.getByText(room.body, { exact: true })).toHaveCount(0);
     await expect(page.locator('[role="article"]')).toHaveCount(0);
@@ -226,15 +236,20 @@ for (const recovery of ['resume', 'snapshot', 'interrupted resume'] as const) {
     await expect(page.getByText(room.body, { exact: true })).toHaveCount(1);
     await roomPage.sendMessage(`Posting restored after ${recovery}`);
     expect(await shell!.evaluate((node) => node.isConnected)).toBe(true);
-    expect(recoveries).toContain(
-      recovery === 'snapshot' ? RealtimeRecovery.SNAPSHOT : RealtimeRecovery.RESUMED
-    );
-    expect(recoveries.length).toBeGreaterThanOrEqual(2);
+    if (recovery === 'live connection') {
+      expect(connections).toBe(initialConnections);
+      expect(recoveries).toEqual([]);
+    } else {
+      expect(recoveries).toContain(
+        recovery === 'snapshot' ? RealtimeRecovery.SNAPSHOT : RealtimeRecovery.RESUMED
+      );
+    }
+    if (recovery !== 'live connection') expect(recoveries.length).toBeGreaterThanOrEqual(1);
     if (recovery === 'interrupted resume') expect(interrupted).toBe(true);
   });
 }
 
-test('shield resumes do not reload cached profiles or unrelated resources', async ({ page }) => {
+test('shield changes do not reload cached profiles or unrelated resources', async ({ page }) => {
   await page.goto(routes.root);
   await loginAsAdminAndUsePrimaryServer(page, { activatePrivilegedMode: false });
   const seeded = await seedData(page.request, { seed: 46, users: 12, rooms: 1, messages: 36 });
@@ -279,15 +294,96 @@ test('shield resumes do not reload cached profiles or unrelated resources', asyn
   }
 });
 
+test('a lost authority hint falls back to reconnect recovery', async ({ page }) => {
+  let drop = false;
+  let dropped = false;
+  let connections = 0;
+  await page.routeWebSocket('**/api/realtime', (socket) => {
+    connections++;
+    const server = socket.connectToServer();
+    server.onMessage((message) => {
+      if (drop && !dropped && typeof message !== 'string') {
+        const frame = RealtimeServerFrame.fromBinary(message).frame;
+        if (
+          frame.case === 'event' &&
+          frame.value.event.case === 'viewerPermissionsChanged' &&
+          frame.value.event.value.privilegedModeChanged
+        ) {
+          dropped = true;
+          return;
+        }
+      }
+      socket.send(message);
+    });
+  });
+  await page.goto(routes.root);
+  await loginAsAdminAndUsePrimaryServer(page, { activatePrivilegedMode: false });
+  await page.goto(routes.serverOverview);
+  await expect(page.getByTestId('server-subscription-active')).toHaveAttribute(
+    'data-projection-ready',
+    'true'
+  );
+  const before = connections;
+  drop = true;
+  await activate(page);
+  expect(dropped).toBe(true);
+  expect(connections).toBe(before + 1);
+  await expect(page.getByRole('button', { name: 'New Group' })).toBeVisible();
+  await deactivate(page);
+  expect(connections).toBe(before + 1);
+});
+
+test('ordinary messages continue through repeated shield changes', async ({ page, context }) => {
+  await page.goto(routes.root);
+  await loginAsAdminAndUsePrimaryServer(page);
+  const room = await restrictedRoom(page);
+  const ordinaryRoomId = await createRoomViaConnect(
+    page,
+    'shield-delivery',
+    await getDefaultRoomGroupIdViaConnect(page)
+  );
+  await connectPost(page, 'chatto.api.v1.RoomService/JoinRoom', { roomId: ordinaryRoomId });
+  await page.goto(routes.room(room.id));
+  await waitForRoomReady(page);
+  const receiver = await context.newPage();
+  try {
+    await receiver.goto(routes.room(ordinaryRoomId));
+    await waitForRoomReady(receiver, 'shield-delivery');
+    let connections = 0;
+    receiver.on('websocket', () => connections++);
+    const bodies = Array.from({ length: 16 }, (_, index) => `Continuous shield delivery ${index}`);
+    await Promise.all([
+      (async () => {
+        for (const body of bodies) await postMessageViaConnect(page, ordinaryRoomId, body);
+      })(),
+      (async () => {
+        for (let index = 0; index < 3; index++) {
+          await deactivate(page);
+          await expect(page.getByText(room.body, { exact: true })).toHaveCount(0);
+          await activate(page);
+          await expect(page.getByText(room.body, { exact: true })).toBeVisible();
+        }
+      })()
+    ]);
+    for (const body of bodies)
+      await expect(receiver.getByText(body, { exact: true })).toHaveCount(1);
+    expect(connections).toBe(0);
+  } finally {
+    await receiver.close();
+  }
+});
+
 for (const serverDriven of [false, true]) {
-  test(`automatic expiry removes open-room authority (${serverDriven ? 'server close' : 'normal clock'})`, async ({
+  test(`automatic expiry removes open-room authority without reconnect (${serverDriven ? 'server signal' : 'normal clock'})`, async ({
     page,
     roomPage
   }) => {
     let serverRequestedExpiry = false;
+    let connections = 0;
+    page.on('websocket', () => connections++);
     if (serverDriven) {
       // Hold browser Date fixed so its local deadline cannot initiate recovery.
-      // The real server clock must send the expiry close and drive the transition.
+      // The real server clock must send the permission hint and drive the transition.
       await page.clock.setFixedTime(new Date());
       await page.routeWebSocket('**/api/realtime', (socket) => {
         const server = socket.connectToServer();
@@ -295,10 +391,11 @@ for (const serverDriven of [false, true]) {
           if (typeof message !== 'string') {
             const frame = RealtimeServerFrame.fromBinary(message).frame;
             if (
-              frame.case === 'close' &&
-              frame.value.code === RealtimeCloseCode.PRIVILEGED_MODE_EXPIRED
+              frame.case === 'event' &&
+              frame.value.event.case === 'viewerPermissionsChanged' &&
+              frame.value.event.value.privilegedModeChanged &&
+              !frame.value.event.value.privilegedModeExpiresAt
             ) {
-              expect(frame.value.reconnect).toBe(true);
               serverRequestedExpiry = true;
             }
           }
@@ -317,6 +414,7 @@ for (const serverDriven of [false, true]) {
     expect(response.ok()).toBeTruthy();
     await page.goto(routes.room(room.id));
     await waitForRoomReady(page);
+    const initialConnections = connections;
     await expect(page.getByRole('button', { name: 'Disable privileged mode' })).toBeVisible();
     await expect(page.getByText(room.body, { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Enable privileged mode' })).toBeEnabled();
@@ -327,6 +425,7 @@ for (const serverDriven of [false, true]) {
     await activate(page);
     await expect(page.getByText(room.body, { exact: true })).toBeVisible();
     await roomPage.sendMessage('Posting restored after actual session expiry');
+    expect(connections).toBe(initialConnections);
   });
 }
 
@@ -359,9 +458,7 @@ test('deactivation reaches another tab but preserves an independent session of t
   serverURL,
   browserErrors
 }) => {
-  // The production credential check interval is one minute. Exercise it without
-  // a test-only fast path, and keep the timeout separate from ordinary UI waits.
-  test.setTimeout(100_000);
+  test.setTimeout(45_000);
   await page.goto(routes.root);
   await loginAsAdminAndUsePrimaryServer(page);
   const room = await restrictedRoom(page);
@@ -379,10 +476,14 @@ test('deactivation reaches another tab but preserves an independent session of t
     await loginAsAdminAndUsePrimaryServer(independent);
     await independent.goto(routes.room(room.id));
     await waitForRoomReady(independent);
+    let siblingConnections = 0;
+    let independentConnections = 0;
+    sibling.on('websocket', () => siblingConnections++);
+    independent.on('websocket', () => independentConnections++);
     await deactivate(page);
     await expectRestrictedAccessDenied(sibling, room.id);
     await expect(sibling.getByRole('button', { name: 'Enable privileged mode' })).toBeEnabled({
-      timeout: 75_000
+      timeout: 15_000
     });
     await expect(sibling.getByText(readDenied, { exact: true })).toBeVisible();
     await expect(sibling.getByText(room.body, { exact: true })).toHaveCount(0);
@@ -392,6 +493,11 @@ test('deactivation reaches another tab but preserves an independent session of t
     const body = 'Still authorized in the independent owner session';
     await postMessageViaConnect(independent, room.id, body);
     await expect(independent.getByText(body, { exact: true })).toBeVisible();
+    await activate(page);
+    await expect(sibling.getByRole('button', { name: 'Disable privileged mode' })).toBeEnabled();
+    await expect(sibling.getByText(room.body, { exact: true })).toBeVisible();
+    await deactivate(page);
+    await expect(sibling.getByText(room.body, { exact: true })).toHaveCount(0);
     // A subsequent event in a readable room proves the sibling recovered live
     // delivery while restricted content stays absent.
     await sibling.getByRole('link', { name: '# general', exact: true }).click();
@@ -399,6 +505,8 @@ test('deactivation reaches another tab but preserves an independent session of t
     const generalId = new URL(sibling.url()).pathname.split('/')[3];
     await postMessageViaConnect(independent, generalId, 'Sibling recovery remains live');
     await expect(sibling.getByText('Sibling recovery remains live', { exact: true })).toBeVisible();
+    expect(siblingConnections).toBe(0);
+    expect(independentConnections).toBe(0);
   } finally {
     await sibling.close();
     await independentContext.close();

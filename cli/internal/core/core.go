@@ -73,6 +73,7 @@ type ChattoCore struct {
 	projectionSnapshotWorker  *projectionSnapshotWorker
 	neighborhoodDiscovery     *neighborhoodDiscovery
 	credentialUsage           *credentialUsageRecorder
+	credentialChanges         *credentialChanges
 	serverOrigins             map[string]struct{}
 	natsRecoveryState         atomic.Int32
 	natsRecoveryStartedAt     atomic.Int64
@@ -214,6 +215,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error { return c.pushSubscriptionCleanup.Run(gctx) })
 	g.Go(func() error { return c.presenceModel.Run(gctx) })
 	g.Go(func() error { return c.myEventsModel.Run(gctx) })
+	g.Go(func() error { return c.credentialChanges.run(gctx) })
 	g.Go(func() error { return runCallModel(gctx) })
 	g.Go(func() error { return c.assetModel.Run(gctx) })
 	g.Go(func() error { return c.assetUploadModel.RunCleanup(gctx) })

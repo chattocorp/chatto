@@ -442,6 +442,13 @@ on NATS Core. It is not persisted. Genuinely ephemeral activity
 can be a public cursorless event. Latest-value invalidations are inputs to live
 projection assembly but are not replay facts.
 
+The `viewer_permissions_changed` variant is a connection-local exception. The
+WebSocket writer creates it after runtime session revalidation and maps it to
+the existing public viewer-permissions hint. It has no NATS subject, is not
+published to the account, and is not a stored fact. Its mode flag and deadline
+acknowledge the authority adopted by that connection. See
+[authorization delivery](realtime-delivery.md#authorization-and-projection-readiness).
+
 Patterns: `live.sync.>` for `PubSubEvent` values and `live.evt.>`
 for raw EVT committed facts. `myEvents` consumes both roots server-side:
 

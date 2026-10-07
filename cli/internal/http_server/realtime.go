@@ -202,33 +202,33 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		}()
 	}
 
-	closePrivilegedModeExpired := func() {
-		_ = conn.WriteControl(
-			websocket.CloseMessage,
-			websocket.FormatCloseMessage(websocket.CloseNormalClosure, "privileged mode expired"),
-			time.Now().Add(time.Second),
-		)
-		_ = conn.Close()
+	// The live writer owns session authority. Watchers only request validation;
+	// they never mutate a credential or write an authority-dependent frame.
+	authorizationWake := make(chan struct{}, 1)
+	wakeAuthorization := func() {
+		select {
+		case authorizationWake <- struct{}{}:
+		default:
+		}
 	}
+	credentialChanges, stopCredentialWatch, err := s.core.WatchRuntimeCredentialChanges(ctx, credential)
+	if err != nil {
+		if errors.Is(err, core.ErrAuthTokenNotFound) || errors.Is(err, core.ErrCookieSessionNotFound) {
+			writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED, "authentication required", false, 0)
+			return
+		}
+		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "session authority is temporarily unavailable", true, time.Second)
+		return
+	}
+	defer stopCredentialWatch()
 	var privilegedModeDeadlineTimer *time.Timer
+	var privilegedModeDeadlineReached <-chan time.Time
 	if credentialOK && time.Now().Before(credential.PrivilegedModeExpiresAt) {
 		privilegedModeDeadlineTimer = time.NewTimer(time.Until(credential.PrivilegedModeExpiresAt))
+		privilegedModeDeadlineReached = privilegedModeDeadlineTimer.C
 	}
 	if privilegedModeDeadlineTimer != nil {
 		defer privilegedModeDeadlineTimer.Stop()
-		privilegedModeWatcherDone := make(chan struct{})
-		go func() {
-			defer close(privilegedModeWatcherDone)
-			select {
-			case <-privilegedModeDeadlineTimer.C:
-				terminateRealtimeForPrivilegedModeExpiry(cancel, writeFrame, closePrivilegedModeExpired)
-			case <-ctx.Done():
-			}
-		}()
-		defer func() {
-			cancel()
-			<-privilegedModeWatcherDone
-		}()
 	}
 
 	if credentialOK && (credential.Kind == authctx.RuntimeCredentialKindCookieSession || credential.Kind == authctx.RuntimeCredentialKindBearerToken) {
@@ -244,15 +244,9 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			for {
 				select {
 				case <-ticker.C:
-					privilegedUntil, err := s.revalidateRealtimeCredential(ctx)
+					_, err := s.revalidateRealtimeCredential(ctx)
 					if err == nil {
-						now := time.Now()
-						if now.Before(credential.PrivilegedModeExpiresAt) && !now.Before(privilegedUntil) {
-							// Another connection of this session ended privileged mode.
-							// Reconnect so fan-out stops using the privileged state.
-							terminateRealtimeForPrivilegedModeExpiry(cancel, writeFrame, closePrivilegedModeExpired)
-							return
-						}
+						wakeAuthorization()
 						continue
 					}
 					if !errors.Is(err, core.ErrNotAuthenticated) {
@@ -339,7 +333,8 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		}()
 	}
 
-	if _, err := s.revalidateRealtimeCredential(ctx); err != nil {
+	privilegedUntil, err := s.revalidateRealtimeCredential(ctx)
+	if err != nil {
 		if errors.Is(err, core.ErrNotAuthenticated) {
 			writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED, "authentication required", false, 0)
 			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"), time.Now().Add(time.Second))
@@ -349,6 +344,28 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "temporarily unavailable"), time.Now().Add(time.Second))
 		return
 	}
+	credential.PrivilegedModeExpiresAt = activePrivilegedDeadline(privilegedUntil)
+	authorizationCtx := authctx.WithCredential(ctx, credential)
+	resetPrivilegedTimer := func() {
+		if privilegedModeDeadlineTimer != nil {
+			privilegedModeDeadlineTimer.Stop()
+		}
+		privilegedModeDeadlineReached = nil
+		if !credential.PrivilegedModeExpiresAt.IsZero() {
+			if privilegedModeDeadlineTimer == nil {
+				privilegedModeDeadlineTimer = time.NewTimer(time.Until(credential.PrivilegedModeExpiresAt))
+			} else {
+				privilegedModeDeadlineTimer.Reset(time.Until(credential.PrivilegedModeExpiresAt))
+			}
+			privilegedModeDeadlineReached = privilegedModeDeadlineTimer.C
+		}
+	}
+	defer func() {
+		if privilegedModeDeadlineTimer != nil {
+			privilegedModeDeadlineTimer.Stop()
+		}
+	}()
+	resetPrivilegedTimer()
 	if err := conn.SetReadDeadline(time.Time{}); err != nil {
 		return
 	}
@@ -380,10 +397,13 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		})
 	}
 	defer finishCatchUp()
-	catchUpCtx, cancelCatchUp := context.WithTimeout(ctx, s.realtimeCatchUps.timeout)
+	catchUpCtx, cancelCatchUp := context.WithTimeout(authorizationCtx, s.realtimeCatchUps.timeout)
 	defer cancelCatchUp()
 	writeCatchUpFrame := func(frame *realtimev1.RealtimeServerFrame) error {
 		if err := catchUpCtx.Err(); err != nil {
+			return err
+		}
+		if err := s.requireRealtimeAuthority(authorizationCtx, credentialChanges); err != nil {
 			return err
 		}
 		return writeFrame(frame)
@@ -403,10 +423,16 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	handleCatchUpWriteError := func(err error) {
 		if errors.Is(catchUpCtx.Err(), context.DeadlineExceeded) {
 			failCatchUp("Realtime catch-up delivery timed out", err)
+		} else if errors.Is(err, core.ErrNotAuthenticated) {
+			writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED, "authentication required", false, 0)
+		} else if errors.Is(err, errRealtimeAuthorityChanged) {
+			failCatchUp("Realtime authority changed during initial catch-up", err)
 		}
 	}
 
-	events, err := s.core.StreamMyEventsWithOptions(ctx, user.Id, core.StreamMyEventsOptions{TouchPresence: false})
+	streamCtx, stopStream := context.WithCancel(authorizationCtx)
+	defer func() { stopStream() }()
+	events, err := s.core.StreamMyEventsWithOptions(streamCtx, user.Id, core.StreamMyEventsOptions{TouchPresence: false})
 	if err != nil {
 		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "failed to start realtime event stream", true, time.Second)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "subscribe failed"), time.Now().Add(time.Second))
@@ -492,11 +518,85 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		return
 	}
 	cancelCatchUp()
+	refreshAuthorization := func() error {
+		deadline, err := s.revalidateRealtimeCredential(ctx)
+		if err != nil {
+			return err
+		}
+		deadline = activePrivilegedDeadline(deadline)
+		if deadline.Equal(credential.PrivilegedModeExpiresAt) {
+			return nil
+		}
+		// Stop old delivery before changing authority. Replay on the replacement
+		// internal stream closes this handoff without closing the WebSocket.
+		stopStream()
+		for range 8 {
+			credential.PrivilegedModeExpiresAt = deadline
+			authorizationCtx = authctx.WithCredential(ctx, credential)
+			var nextBoundary uint64
+			events, stopStream, nextBoundary, err = s.refreshRealtimeAuthorization(authorizationCtx, user.Id, boundarySequence, credentialChanges, writeFrame)
+			if errors.Is(err, errRealtimeAuthorityChanged) {
+				boundarySequence = nextBoundary
+				deadline, err = s.revalidateRealtimeCredential(ctx)
+				if err != nil {
+					return err
+				}
+				deadline = activePrivilegedDeadline(deadline)
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			boundarySequence = nextBoundary
+			resetPrivilegedTimer()
+			return nil
+		}
+		return fmt.Errorf("session authority changed repeatedly during catch-up")
+	}
+	refreshOrClose := func() bool {
+		if err := refreshAuthorization(); err != nil {
+			if errors.Is(err, core.ErrNotAuthenticated) {
+				writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED, "authentication required", false, 0)
+			} else {
+				s.logger.Warn("Realtime authority refresh failed", "error", connectapi.LogSafeError(err))
+				writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "session authority refresh failed", true, time.Second)
+			}
+			return false
+		}
+		return true
+	}
 
 	for {
+		// Prefer pending session changes to old queued events. The final deadline
+		// check below also catches expiry after select chose a delivery.
+		select {
+		case <-credentialChanges:
+			if !refreshOrClose() {
+				return
+			}
+			continue
+		case <-authorizationWake:
+			if !refreshOrClose() {
+				return
+			}
+			continue
+		default:
+		}
 		select {
 		case <-ctx.Done():
 			return
+		case <-credentialChanges:
+			if !refreshOrClose() {
+				return
+			}
+		case <-authorizationWake:
+			if !refreshOrClose() {
+				return
+			}
+		case <-privilegedModeDeadlineReached:
+			if !refreshOrClose() {
+				return
+			}
 		case event, ok := <-events:
 			if !ok {
 				_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
@@ -507,7 +607,13 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			if event.DeliverySeq() > 0 && event.DeliverySeq() <= boundarySequence {
 				continue
 			}
-			frame, mapErr := s.realtimeServerFrameForEvent(ctx, user.Id, event)
+			if !credential.PrivilegedModeExpiresAt.IsZero() && !time.Now().Before(credential.PrivilegedModeExpiresAt) {
+				if !refreshOrClose() {
+					return
+				}
+				continue
+			}
+			frame, mapErr := s.realtimeServerFrameForEvent(authorizationCtx, user.Id, event)
 			if mapErr != nil {
 				if errors.Is(mapErr, errRealtimeEventOmitted) {
 					// The viewer has safely processed this global boundary even
@@ -527,12 +633,11 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 				}
 				continue
 			}
-			if privilegedModeDeadlineTimer != nil && !time.Now().Before(credential.PrivilegedModeExpiresAt) {
-				// Fan-out evaluated this session with privileged mode active. Never
-				// write such an event after the deadline; the deadline watcher sends
-				// the reconnecting close frame and cancels ctx.
-				<-ctx.Done()
-				return
+			if !credential.PrivilegedModeExpiresAt.IsZero() && !time.Now().Before(credential.PrivilegedModeExpiresAt) {
+				if !refreshOrClose() {
+					return
+				}
+				continue
 			}
 			if heartbeat := frame.GetHeartbeat(); heartbeat != nil {
 				cursor, cursorErr := s.core.RealtimeCursorForSequence(user.Id, boundarySequence)
@@ -541,6 +646,19 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 					return
 				}
 				heartbeat.Cursor = &cursor
+			}
+			// Mapping can block on reads or decryption. Recheck a session hint
+			// that arrived meanwhile before writing the already-prepared frame.
+			select {
+			case <-credentialChanges:
+				previousStream := events
+				if !refreshOrClose() {
+					return
+				}
+				if events != previousStream {
+					continue
+				}
+			default:
 			}
 			if err := writeFrame(frame); err != nil {
 				return
@@ -675,25 +793,6 @@ func terminateRealtimeForCookieRenewal(
 		Close: &realtimev1.RealtimeClose{
 			Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED,
 			Message:   "the browser session is ready for renewal",
-			Reconnect: true,
-		},
-	}})
-	closeConnection()
-}
-
-// terminateRealtimeForPrivilegedModeExpiry reconnects the projection at the
-// exact server-side privilege deadline. The replacement connection receives
-// viewer and room permissions with privileged mode inactive.
-func terminateRealtimeForPrivilegedModeExpiry(
-	cancel context.CancelFunc,
-	writeFrame func(*realtimev1.RealtimeServerFrame) error,
-	closeConnection func(),
-) {
-	cancel()
-	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-		Close: &realtimev1.RealtimeClose{
-			Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_PRIVILEGED_MODE_EXPIRED,
-			Message:   "privileged mode expired",
 			Reconnect: true,
 		},
 	}})

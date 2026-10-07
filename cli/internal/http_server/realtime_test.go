@@ -829,9 +829,8 @@ func TestRealtimeWebSocketClosesAfterCookieRevocation(t *testing.T) {
 
 // Deactivation through another connection of the same session must end the
 // privileged fan-out state of this socket.
-func TestRealtimeWebSocketReconnectsAfterSessionPrivilegedModeDeactivation(t *testing.T) {
+func TestRealtimeWebSocketRefreshesSessionPrivilegedModeWithoutReconnect(t *testing.T) {
 	env := setupWebSocketTestServer(t)
-	env.httpServer.realtimeCredentialCheckEvery = 25 * time.Millisecond
 	if _, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-privileged-tabs", "RT Privileged Tabs", "password123"); err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
@@ -852,8 +851,6 @@ func TestRealtimeWebSocketReconnectsAfterSessionPrivilegedModeDeactivation(t *te
 	conn := env.dialRealtime(t)
 	subscribeRealtime(t, conn, "", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
 	readRealtimeCaughtUp(t, conn)
-	// Several credential checks pass while the session stays privileged.
-	time.Sleep(100 * time.Millisecond)
 	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-privileged-peer", "RT Privileged Peer", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser peer: %v", err)
@@ -871,15 +868,47 @@ func TestRealtimeWebSocketReconnectsAfterSessionPrivilegedModeDeactivation(t *te
 	for {
 		frame, ok := readRealtimeServerFrame(t, conn, time.Until(deadline))
 		if !ok {
-			t.Fatal("socket stayed open after privileged mode deactivation")
+			t.Fatal("socket did not acknowledge privileged mode deactivation")
 		}
-		if frame.GetClose() == nil {
+		if frame.GetClose() != nil {
+			t.Fatalf("deactivation closed the socket: %+v", frame)
+		}
+		change := frame.GetEvent().GetViewerPermissionsChanged()
+		if change == nil || !change.GetPrivilegedModeChanged() {
 			continue
 		}
-		if frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_PRIVILEGED_MODE_EXPIRED || !frame.GetClose().GetReconnect() {
-			t.Fatalf("deactivation response = %+v, want reconnecting privileged_mode_expired", frame)
+		if change.GetPrivilegedModeExpiresAt() != nil {
+			t.Fatalf("deactivation retained a privilege deadline: %+v", change)
 		}
-		return
+		break
+	}
+	if _, err := env.core.SetCookiePrivilegedMode(env.ctx, sessionID, true); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		frame, ok := readRealtimeServerFrame(t, conn, 2*time.Second)
+		if !ok || frame.GetClose() != nil {
+			t.Fatalf("reactivation frame = %+v", frame)
+		}
+		change := frame.GetEvent().GetViewerPermissionsChanged()
+		if change != nil && change.GetPrivilegedModeChanged() {
+			if change.GetPrivilegedModeExpiresAt() == nil {
+				t.Fatal("reactivation omitted its deadline")
+			}
+			break
+		}
+	}
+	if err := env.core.SetPresence(env.ctx, other.GetId(), core.PresenceStatusAway); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		frame, ok := readRealtimeServerFrame(t, conn, 2*time.Second)
+		if !ok || frame.GetClose() != nil {
+			t.Fatalf("live delivery after reactivation = %+v", frame)
+		}
+		if frame.GetEvent().GetPresenceChanged() != nil {
+			break
+		}
 	}
 }
 
@@ -1173,30 +1202,16 @@ func TestShouldCompressRealtimeFrame(t *testing.T) {
 	}
 }
 
-func TestPrivilegedModeExpiryCancelsAuthorizationAndRequestsReconnect(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	var written *realtimev1.RealtimeServerFrame
-	closed := false
-
-	terminateRealtimeForPrivilegedModeExpiry(
-		cancel,
-		func(frame *realtimev1.RealtimeServerFrame) error {
-			written = frame
-			return nil
-		},
-		func() { closed = true },
-	)
-
-	select {
-	case <-ctx.Done():
-	default:
-		t.Fatal("authorized context remained active at the privileged-mode deadline")
-	}
-	if !closed {
-		t.Fatal("connection remained open at the privileged-mode deadline")
-	}
-	if written.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_PRIVILEGED_MODE_EXPIRED || !written.GetClose().GetReconnect() {
-		t.Fatalf("expiry frame = %+v, want reconnecting privileged_mode_expired", written)
+func TestActivePrivilegedDeadline(t *testing.T) {
+	for _, deadline := range []time.Time{{}, time.Now().Add(-time.Second), time.Now().Add(time.Minute)} {
+		got := activePrivilegedDeadline(deadline)
+		if time.Now().Before(deadline) {
+			if !got.Equal(deadline) {
+				t.Fatalf("active deadline = %v, want %v", got, deadline)
+			}
+		} else if !got.IsZero() {
+			t.Fatalf("inactive deadline = %v", got)
+		}
 	}
 }
 

@@ -23,6 +23,12 @@ Related decisions: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md) and
 [ADR-081](../adr/ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) and
 [ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
 
+Credential change delivery adds no persisted state. Process-wide metadata watchers
+observe `session.*` and `renewable_session.*` in the runtime bucket. Listener maps
+contain only keys for connected credentials and buffered wake channels. Each
+socket reads its exact stored credential before it changes authority. See
+[runtime components](runtime-components.md#runtime-credential-notifications).
+
 ## KV buckets
 
 | Bucket            | Storage | Backup | Description                                                                                                                                                                                                             |

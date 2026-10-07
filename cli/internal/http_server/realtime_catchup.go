@@ -1,6 +1,7 @@
 package http_server
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -18,6 +19,19 @@ const (
 type realtimeCatchUpAdmissionError struct {
 	code       string
 	retryAfter time.Duration
+}
+
+// acquireAuthority bounds server-driven authority handoffs by the shared
+// global capacity. It waits instead of rejecting another tab of the same user.
+// These handoffs are not client-supplied replay attempts and spend no rate token.
+func (a *realtimeCatchUpAdmission) acquireAuthority(ctx context.Context) (func(), error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case a.global <- struct{}{}:
+	}
+	var once sync.Once
+	return func() { once.Do(func() { <-a.global }) }, nil
 }
 
 type realtimeCatchUpUserState struct {

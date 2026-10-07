@@ -476,6 +476,15 @@ func TestRealtimeEventCatalogueIsDedicatedAndExhaustivelyMapped(t *testing.T) {
 	}
 	for index := 0; index < pubsubOneof.Fields().Len(); index++ {
 		pubsubField := pubsubOneof.Fields().Get(index)
+		if pubsubField.Name() == "viewer_permissions_changed" {
+			// Durable RBAC also maps to this public event. Session handoffs
+			// use the restricted pubsub envelope on this connection only.
+			source := &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_ViewerPermissionsChanged{ViewerPermissionsChanged: &realtimev1.ViewerPermissionsChangedEvent{PrivilegedModeChanged: new(true)}}}
+			if event := projectRealtimePubSubEvent(source); !event.GetViewerPermissionsChanged().GetPrivilegedModeChanged() {
+				t.Fatal("session authority hint has no public mapping")
+			}
+			continue
+		}
 		if pubsubField.Name() == "session_terminated" {
 			continue
 		}
