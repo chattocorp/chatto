@@ -358,11 +358,19 @@ dir = "cli"
 # `-w` omits DWARF debug information. This reduces each link by approximately
 # 5 seconds. Stack traces still work. Remove `-w` locally to debug with Delve.
 run = "go build -trimpath -tags 'bootstrap nomsgpack' -ldflags \"-w -X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o bin/chatto ."
+# Workspace inputs: see test-cli.
 sources = [
     "go.mod",
     "go.sum",
     "**/*.go",
     "!**/*_test.go",
+    "../pkg/**/*.go",
+    "!../pkg/**/*_test.go",
+    "../go.work",
+    "../go.work.sum",
+    "../authling/go.mod",
+    "../pkg/*/go.mod",
+    "../pkg/*/go.sum",
     "cmd/embedded/LICENSE",
     "cmd/embedded/NOTICE",
     "internal/http_server/.client/**/*",
@@ -387,8 +395,19 @@ dir = "cli"
 # fixtures. Deliberately scoped — the e2e binary should NOT pull in any
 # future broader dev-only code that might land under a separate tag.
 run = "CGO_ENABLED=0 go build -trimpath -tags 'bootstrap nomsgpack test_endpoints' -ldflags \"-s -w -X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o ../apps/frontend/e2e/fixtures/bin/chatto ."
+# Workspace inputs: see test-cli.
 sources = [
+    "go.mod",
+    "go.sum",
     "**/*.go",
+    "!**/*_test.go",
+    "../pkg/**/*.go",
+    "!../pkg/**/*_test.go",
+    "../go.work",
+    "../go.work.sum",
+    "../authling/go.mod",
+    "../pkg/*/go.mod",
+    "../pkg/*/go.sum",
     "cmd/embedded/LICENSE",
     "cmd/embedded/NOTICE",
     "internal/http_server/.client/**/*",
@@ -400,8 +419,19 @@ description = "Build the production Chatto binary used as the current side of co
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
 run = "CGO_ENABLED=0 go build -trimpath -tags nomsgpack -ldflags \"-s -w -X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o ../apps/frontend/e2e/fixtures/bin/chatto-current ."
+# Workspace inputs: see test-cli.
 sources = [
+    "go.mod",
+    "go.sum",
     "**/*.go",
+    "!**/*_test.go",
+    "../pkg/**/*.go",
+    "!../pkg/**/*_test.go",
+    "../go.work",
+    "../go.work.sum",
+    "../authling/go.mod",
+    "../pkg/*/go.mod",
+    "../pkg/*/go.sum",
     "cmd/embedded/LICENSE",
     "cmd/embedded/NOTICE",
     "internal/http_server/.client/**/*",
@@ -646,8 +676,9 @@ run = [
     "node ../tools/dev-seed-smoke.mjs",
     "go test -trimpath -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./...",
 ]
-# The cli module replaces the shared pkg/* modules with local paths, so their
-# sources affect these tests too.
+# Go builds the cli module in workspace mode with the shared pkg/* modules as
+# local sources, and selects dependency versions across every workspace
+# module. List those inputs so that a change to them reruns the task.
 sources = [
     "**/*.go",
     "go.mod",
@@ -655,7 +686,11 @@ sources = [
     "chatto.toml",
     "cmd/embedded/LICENSE",
     "cmd/embedded/NOTICE",
+    "internal/http_server/.client/**/*",
     "../pkg/**/*.go",
+    "../go.work",
+    "../go.work.sum",
+    "../authling/go.mod",
     "../pkg/*/go.mod",
     "../pkg/*/go.sum",
     "../mise.toml",
@@ -717,7 +752,20 @@ description = "Run backend process shutdown integration tests"
 depends = ["setup-cli"]
 dir = "cli"
 run = "go test -trimpath -tags integration ./cmd -run TestRunCommandShutsDownOnSignals -count=1 -timeout 2m"
-sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
+# Workspace inputs: see test-cli.
+sources = [
+    "go.mod",
+    "go.sum",
+    "**/*.go",
+    "../pkg/**/*.go",
+    "../go.work",
+    "../go.work.sum",
+    "../authling/go.mod",
+    "../pkg/*/go.mod",
+    "../pkg/*/go.sum",
+    "cmd/embedded/LICENSE",
+    "cmd/embedded/NOTICE",
+]
 
 [tasks.knip]
 description = "Find unused frontend/docs files, dependencies, and exports"

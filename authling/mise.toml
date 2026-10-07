@@ -83,10 +83,15 @@ depends = ["deps-go", "codegen-templates", "build-web"]
 run = "go build -trimpath -o bin/authling ./cmd/authling"
 sources = [
     "go.mod",
+    "go.sum",
     "**/*.go",
     "!**/*_test.go",
     "../pkg/**/*.go",
-    "../pkg/**/go.mod",
+    "!../pkg/**/*_test.go",
+    "../pkg/*/go.mod",
+    "../pkg/*/go.sum",
+    "../go.work",
+    "../go.work.sum",
 ]
 outputs = ["bin/authling"]
 
@@ -97,7 +102,16 @@ run = [
     "GOWORK=off go test -trimpath ./...",
     "go test -trimpath ./...",
 ]
-sources = ["go.mod", "go.sum", "**/*.go", "../pkg/**/*.go", "../pkg/**/go.mod"]
+sources = [
+    "go.mod",
+    "go.sum",
+    "**/*.go",
+    "../pkg/**/*.go",
+    "../pkg/*/go.mod",
+    "../pkg/*/go.sum",
+    "../go.work",
+    "../go.work.sum",
+]
 
 [tasks.lint]
 description = "Vet Authling standalone and in the repository workspace"
