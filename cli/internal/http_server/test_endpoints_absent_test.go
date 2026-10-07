@@ -23,4 +23,13 @@ func TestAuthTestEndpointsUnavailableWithoutTag(t *testing.T) {
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("Expected status 404, got %d", resp.StatusCode)
 	}
+
+	deadlineResp, err := client.Post(ts.URL+"/auth/test/privileged-mode-deadline", "application/json", nil)
+	if err != nil {
+		t.Fatalf("post privileged-mode test endpoint: %v", err)
+	}
+	defer deadlineResp.Body.Close()
+	if deadlineResp.StatusCode != http.StatusNotFound {
+		t.Fatalf("privileged-mode test endpoint status = %d, want 404", deadlineResp.StatusCode)
+	}
 }
