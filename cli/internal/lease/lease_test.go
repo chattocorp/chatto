@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 type captureLeaseLogger struct {
@@ -41,7 +42,7 @@ func (l *captureLeaseLogger) contains(want string) bool {
 	return slices.Contains(l.messages, want)
 }
 
-func setupLeaseTest(t *testing.T) (context.Context, jetstream.JetStream, jetstream.KeyValue) {
+func setupLeaseTest(t *testing.T) (context.Context, *jetstreamutil.KeyValue) {
 	t.Helper()
 	_, nc := testutil.StartNATS(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -55,15 +56,16 @@ func setupLeaseTest(t *testing.T) (context.Context, jetstream.JetStream, jetstre
 		LimitMarkerTTL: 2 * time.Second,
 	})
 	require.NoError(t, err)
-	return ctx, js, kv
+	bound, err := jetstreamutil.NewKeyValue(js, kv)
+	require.NoError(t, err)
+	return ctx, bound
 }
 
-func newTestLease(t *testing.T, js jetstream.JetStream, kv jetstream.KeyValue, name, owner string) *Lease {
+func newTestLease(t *testing.T, kv *jetstreamutil.KeyValue, name, owner string) *Lease {
 	t.Helper()
-	l, err := New(js, kv, Options{
+	l, err := New(kv, Options{
 		Name:       name,
 		OwnerID:    owner,
-		Bucket:     "MEMORY_CACHE",
 		TTL:        2 * time.Second,
 		RenewEvery: 200 * time.Millisecond,
 		RetryEvery: 20 * time.Millisecond,
@@ -73,9 +75,9 @@ func newTestLease(t *testing.T, js jetstream.JetStream, kv jetstream.KeyValue, n
 }
 
 func TestLeaseTryAcquireExcludesOtherOwnersAndReleaseHandsOff(t *testing.T) {
-	ctx, js, kv := setupLeaseTest(t)
-	first := newTestLease(t, js, kv, "job", "owner-a")
-	second := newTestLease(t, js, kv, "job", "owner-b")
+	ctx, kv := setupLeaseTest(t)
+	first := newTestLease(t, kv, "job", "owner-a")
+	second := newTestLease(t, kv, "job", "owner-b")
 
 	acquired, err := first.TryAcquire(ctx)
 	require.NoError(t, err)
@@ -99,9 +101,9 @@ func TestLeaseTryAcquireExcludesOtherOwnersAndReleaseHandsOff(t *testing.T) {
 }
 
 func TestLeaseTryRunSkipsHeldLeaseWithoutRunningWork(t *testing.T) {
-	ctx, js, kv := setupLeaseTest(t)
-	first := newTestLease(t, js, kv, "job", "owner-a")
-	second := newTestLease(t, js, kv, "job", "owner-b")
+	ctx, kv := setupLeaseTest(t)
+	first := newTestLease(t, kv, "job", "owner-a")
+	second := newTestLease(t, kv, "job", "owner-b")
 
 	acquired, err := first.TryAcquire(ctx)
 	require.NoError(t, err)
@@ -119,9 +121,9 @@ func TestLeaseTryRunSkipsHeldLeaseWithoutRunningWork(t *testing.T) {
 }
 
 func TestLeaseTryRunReleasesAfterWork(t *testing.T) {
-	ctx, js, kv := setupLeaseTest(t)
-	first := newTestLease(t, js, kv, "job", "owner-a")
-	second := newTestLease(t, js, kv, "job", "owner-b")
+	ctx, kv := setupLeaseTest(t)
+	first := newTestLease(t, kv, "job", "owner-a")
+	second := newTestLease(t, kv, "job", "owner-b")
 
 	run, err := first.TryRun(ctx, func(runCtx context.Context) error {
 		return first.CheckOwnership(runCtx)
@@ -136,9 +138,9 @@ func TestLeaseTryRunReleasesAfterWork(t *testing.T) {
 }
 
 func TestLeaseTryRunWithCooldownRetainsSuccessfulClaim(t *testing.T) {
-	ctx, js, kv := setupLeaseTest(t)
-	first := newTestLease(t, js, kv, "daily-job", "owner-a")
-	second := newTestLease(t, js, kv, "daily-job", "owner-b")
+	ctx, kv := setupLeaseTest(t)
+	first := newTestLease(t, kv, "daily-job", "owner-a")
+	second := newTestLease(t, kv, "daily-job", "owner-b")
 
 	var runs atomic.Int32
 	run, err := first.TryRunWithCooldown(ctx, func(context.Context) error {
@@ -165,9 +167,9 @@ func TestLeaseTryRunWithCooldownRetainsSuccessfulClaim(t *testing.T) {
 }
 
 func TestLeaseTryRunWithCooldownReleasesFailedClaim(t *testing.T) {
-	ctx, js, kv := setupLeaseTest(t)
-	first := newTestLease(t, js, kv, "daily-job", "owner-a")
-	second := newTestLease(t, js, kv, "daily-job", "owner-b")
+	ctx, kv := setupLeaseTest(t)
+	first := newTestLease(t, kv, "daily-job", "owner-a")
+	second := newTestLease(t, kv, "daily-job", "owner-b")
 	wantErr := errors.New("work failed")
 
 	run, err := first.TryRunWithCooldown(ctx, func(context.Context) error { return wantErr })
@@ -181,10 +183,10 @@ func TestLeaseTryRunWithCooldownReleasesFailedClaim(t *testing.T) {
 }
 
 func TestLeaseTryRunWithCooldownAllowsWorkAfterTTL(t *testing.T) {
-	ctx, js, kv := setupLeaseTest(t)
+	ctx, kv := setupLeaseTest(t)
 	newCooldown := func(owner string) *Lease {
-		result, err := New(js, kv, Options{
-			Name: "short-cooldown", OwnerID: owner, Bucket: "MEMORY_CACHE",
+		result, err := New(kv, Options{
+			Name: "short-cooldown", OwnerID: owner,
 			TTL: time.Second, RenewEvery: 100 * time.Millisecond,
 		})
 		require.NoError(t, err)
@@ -204,8 +206,8 @@ func TestLeaseTryRunWithCooldownAllowsWorkAfterTTL(t *testing.T) {
 }
 
 func TestLeaseRenewRefreshesOwnedRecord(t *testing.T) {
-	ctx, js, kv := setupLeaseTest(t)
-	l := newTestLease(t, js, kv, "job", "owner-a")
+	ctx, kv := setupLeaseTest(t)
+	l := newTestLease(t, kv, "job", "owner-a")
 
 	acquired, err := l.TryAcquire(ctx)
 	require.NoError(t, err)
@@ -228,10 +230,10 @@ func TestLeaseRenewRefreshesOwnedRecord(t *testing.T) {
 }
 
 func TestLeaseRenewDoesNotLogRoutineSuccess(t *testing.T) {
-	ctx, js, kv := setupLeaseTest(t)
+	ctx, kv := setupLeaseTest(t)
 	logger := &captureLeaseLogger{}
-	l, err := New(js, kv, Options{
-		Name: "quiet-renewal", OwnerID: "owner-a", Bucket: "MEMORY_CACHE",
+	l, err := New(kv, Options{
+		Name: "quiet-renewal", OwnerID: "owner-a",
 		TTL: 2 * time.Second, RenewEvery: 200 * time.Millisecond, RetryEvery: 20 * time.Millisecond,
 		Logger: logger,
 	})
@@ -247,9 +249,9 @@ func TestLeaseRenewDoesNotLogRoutineSuccess(t *testing.T) {
 }
 
 func TestLeaseRenewFailsAfterAnotherOwnerTakesOver(t *testing.T) {
-	ctx, js, kv := setupLeaseTest(t)
-	first := newTestLease(t, js, kv, "job", "owner-a")
-	second := newTestLease(t, js, kv, "job", "owner-b")
+	ctx, kv := setupLeaseTest(t)
+	first := newTestLease(t, kv, "job", "owner-a")
+	second := newTestLease(t, kv, "job", "owner-b")
 
 	acquired, err := first.TryAcquire(ctx)
 	require.NoError(t, err)
@@ -265,9 +267,9 @@ func TestLeaseRenewFailsAfterAnotherOwnerTakesOver(t *testing.T) {
 }
 
 func TestLeaseRunAllowsOneLeaderAndThenHandsOff(t *testing.T) {
-	_, js, kv := setupLeaseTest(t)
-	first := newTestLease(t, js, kv, "job", "owner-a")
-	second := newTestLease(t, js, kv, "job", "owner-b")
+	_, kv := setupLeaseTest(t)
+	first := newTestLease(t, kv, "job", "owner-a")
+	second := newTestLease(t, kv, "job", "owner-b")
 	firstCtx, cancelFirst := context.WithCancel(context.Background())
 	secondCtx, cancelSecond := context.WithCancel(context.Background())
 	t.Cleanup(cancelSecond)
@@ -323,8 +325,8 @@ func TestLeaseRunAllowsOneLeaderAndThenHandsOff(t *testing.T) {
 }
 
 func TestLeaseRunContinuesAfterYield(t *testing.T) {
-	_, js, kv := setupLeaseTest(t)
-	l := newTestLease(t, js, kv, "job", "owner-a")
+	_, kv := setupLeaseTest(t)
+	l := newTestLease(t, kv, "job", "owner-a")
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 

@@ -132,7 +132,7 @@ func TestProviderReportsFailedInitialReplayAsUnavailable(t *testing.T) {
 	require.NoError(t, err)
 	go func() { _ = projector.Run(ctx) }()
 
-	require.Eventually(t, func() bool { return projector.Status().Failed }, 2*time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return projector.Status().Err != nil }, 2*time.Second, 10*time.Millisecond)
 	status := providerStatus(projector)
 	require.Equal(t, searchv1.ProviderState_PROVIDER_STATE_UNAVAILABLE, status.GetState())
 	require.Nil(t, status.GetRetryAfter())
@@ -160,7 +160,7 @@ func TestProviderReportsFailureAfterStartupAsDegraded(t *testing.T) {
 		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}},
 	})
 	require.NoError(t, err)
-	require.Eventually(t, func() bool { return projector.Status().Failed }, 2*time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return projector.Status().Err != nil }, 2*time.Second, 10*time.Millisecond)
 
 	status := providerStatus(projector)
 	require.Equal(t, searchv1.ProviderState_PROVIDER_STATE_DEGRADED, status.GetState())

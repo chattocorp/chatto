@@ -65,6 +65,10 @@ func (c *ChattoCore) ProjectionAdminStates(ctx context.Context) ([]ProjectionAdm
 			return err
 		}
 		status := projector.Status()
+		var failure string
+		if status.Err != nil {
+			failure = status.Err.Error()
+		}
 		lastApplied := status.LastSeq
 		var lag uint64
 		if targetSeq > lastApplied {
@@ -86,9 +90,9 @@ func (c *ChattoCore) ProjectionAdminStates(ctx context.Context) ([]ProjectionAdm
 			MatchingStreamSeq: targetSeq,
 			StreamLastSeq:     streamLastSeq,
 			Lag:               lag,
-			Failed:            status.Failed,
+			Failed:            status.Err != nil,
 			FailedSeq:         status.FailedSeq,
-			Failure:           status.Failure,
+			Failure:           failure,
 			EntryCount:        entries,
 			EstimatedBytes:    estimatedBytes,
 			AverageEntryBytes: avg,
