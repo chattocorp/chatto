@@ -266,6 +266,7 @@
       "push": {
         "title": "Puŝaj Sciigoj",
         "not_supported": "Puŝaj sciigoj ne estas subtenataj en ĉi tiu retumilo.",
+        "server_unconfigured": "Puŝaj sciigoj ne estas disponeblaj en ĉi tiu servilo. La servila administranto ne agordis ilin.",
         "ios_home_screen_title": "Aldonu Chatto al via Hejma Ekrano",
         "ios_home_screen_description": "Sur subtenataj versioj iOS/iPadOS, aldonu Chatto al la Hejma Ekrano kaj malfermu ĝin de la aplikaĵa ikono por ebligi puŝajn sciigojn.",
         "blocked_title": "Puŝaj sciigoj blokitaj",

@@ -266,6 +266,7 @@
       "push": {
         "title": "התראות דחיפה",
         "not_supported": "התראות דחיפה אינן נתמכות בדפדפן זה.",
+        "server_unconfigured": "התראות דחיפה אינן זמינות בשרת זה. מנהל השרת לא הגדיר אותן.",
         "ios_home_screen_title": "הוסף את Chatto למסך הבית שלך",
         "ios_home_screen_description": "בגרסאות iOS/iPadOS נתמכות, הוסף את Chatto למסך הבית ופתח אותו מסמל האפליקציה כדי לאפשר התראות דחיפה.",
         "blocked_title": "התראות דחיפה חסומות",

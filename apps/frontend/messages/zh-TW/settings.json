@@ -266,6 +266,7 @@
       "push": {
         "title": "推播通知",
         "not_supported": "此瀏覽器不支援推播通知。",
+        "server_unconfigured": "此伺服器無法使用推播通知。伺服器管理員尚未設定推播通知。",
         "ios_home_screen_title": "將 Chatto 加入主畫面",
         "ios_home_screen_description": "在支援的 iOS/iPadOS 版本中，請將 Chatto 加入主畫面，並從 App 圖示開啟，以啟用推播通知。",
         "blocked_title": "推播通知已封鎖",

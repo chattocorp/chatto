@@ -161,7 +161,7 @@ test.describe('Room message notifications', () => {
     await chatPage.goto();
 
     await page.goto(routes.settingsNotifications);
-    await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Notifications', exact: true })).toBeVisible();
 
     const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
     await updateNotificationPolicy(page, { roomMessages: 'IN_APP_NOTIFICATION' }, generalRoomId);

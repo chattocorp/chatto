@@ -266,6 +266,7 @@
       "push": {
         "title": "Tõukemärguanded",
         "not_supported": "See brauser ei toeta tõukemärguandeid.",
+        "server_unconfigured": "Tõukemärguanded pole selles serveris saadaval. Serveri administraator pole neid seadistanud.",
         "ios_home_screen_title": "Lisage Chatto oma avakuvale",
         "ios_home_screen_description": "Toetatud iOS-i/iPadOS-i versioonides lisage Chatto avakuvale ja avage see tõukemärguannete lubamiseks rakenduse ikooni kaudu.",
         "blocked_title": "Tõukemärguanded on blokeeritud",

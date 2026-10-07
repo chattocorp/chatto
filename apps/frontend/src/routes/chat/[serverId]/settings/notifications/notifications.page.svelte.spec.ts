@@ -124,7 +124,7 @@ describe('Notification settings page', () => {
     const { container } = render(NotificationsPage);
     await settle();
 
-    expect(container.querySelectorAll('.panel-shell')).toHaveLength(3);
+    expect(container.querySelectorAll('.panel-shell')).toHaveLength(4);
     const softPopButton = buttonWithText(container, 'Soft Pop');
     softPopButton.click();
     flushSync();
@@ -191,11 +191,21 @@ describe('Notification settings page', () => {
     expect(container.querySelector('.panel-shell')?.contains(pushSettings)).toBe(true);
   });
 
-  it('hides push status when the server has no push configuration', async () => {
-    const { container } = render(NotificationsPage);
+  it('shows the server push notice first when the server has no push configuration', async () => {
+    const screen = render(NotificationsPage);
     await settle();
 
-    expect(q(container, '[data-testid="push-notification-settings"]')).toBeNull();
+    const pushSettings = q(screen.container, '[data-testid="push-notification-settings"]');
+    expect(pushSettings).not.toBeNull();
+    expect(screen.container.querySelector('.panel-shell')?.contains(pushSettings)).toBe(true);
+    await expect
+      .element(
+        screen.getByText(
+          'Push notifications are unavailable on this server. The server administrator has not configured them.'
+        )
+      )
+      .toBeVisible();
+    expect(pushSettings?.querySelector('input, button')).toBeNull();
   });
 
   it('updates and persists notification sound filter sliders', async () => {

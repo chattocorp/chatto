@@ -266,6 +266,7 @@
       "push": {
         "title": "Push-varsler",
         "not_supported": "Push-varsler støttes ikke i denne nettleseren.",
+        "server_unconfigured": "Push-varsler er ikke tilgjengelige på denne serveren. Serveradministratoren har ikke konfigurert dem.",
         "ios_home_screen_title": "Legg til Chatto på startskjermen",
         "ios_home_screen_description": "På støttede versjoner av iOS/iPadOS legger du til Chatto på startskjermen og åpner den fra appikonet for å aktivere push-varslinger.",
         "blocked_title": "Push-varsler blokkert",

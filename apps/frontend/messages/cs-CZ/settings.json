@@ -266,6 +266,7 @@
       "push": {
         "title": "Push oznámení",
         "not_supported": "Push notifikace nejsou v tomto prohlížeči podporovány.",
+        "server_unconfigured": "Push oznámení nejsou na tomto serveru dostupná. Správce serveru je nenakonfiguroval.",
         "ios_home_screen_title": "Přidejte si Chatto na svou domovskou obrazovku",
         "ios_home_screen_description": "Na podporovaných verzích iOS/iPadOS přidejte Chatto na domovskou obrazovku a otevřete ji z ikony aplikace, abyste povolili oznámení push.",
         "blocked_title": "Push oznámení jsou blokována",

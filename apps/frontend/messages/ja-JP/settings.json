@@ -266,6 +266,7 @@
       "push": {
         "title": "プッシュ通知",
         "not_supported": "このブラウザではプッシュ通知がサポートされていません。",
+        "server_unconfigured": "このサーバーではプッシュ通知を利用できません。サーバー管理者が設定していません。",
         "ios_home_screen_title": "Chatto をホーム画面に追加します",
         "ios_home_screen_description": "サポートされている iOS/iPadOS バージョンでは、Chatto をホーム画面に追加し、アプリアイコンから開いてプッシュ通知を有効にします。",
         "blocked_title": "プッシュ通知がブロックされました",

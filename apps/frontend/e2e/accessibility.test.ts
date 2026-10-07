@@ -91,7 +91,7 @@ test.describe('Route accessibility', () => {
     await expectNoAccessibilityViolations(page, 'account settings');
 
     await page.goto(routes.settingsNotifications);
-    await expect(page.getByRole('heading', { name: /notifications/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Notifications', exact: true })).toBeVisible();
     await expectNoAccessibilityViolations(page, 'notification settings');
   });
 
