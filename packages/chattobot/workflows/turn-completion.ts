@@ -30,7 +30,7 @@ export function createTurnCompletion(options: {
       exposure: 'model-only',
       executionMode: 'sequential',
       description:
-        'Finish this turn with one action: reply with your complete text, react to a simple acknowledgement, or stay silent. Questions and task results need a reply. After success, stop; further text is not delivered. If a reaction fails, finish with a brief text reply instead.',
+        'Finish this turn with exactly one nested action object. Reply: {"action":{"kind":"reply","text":"your complete message"}}. React: {"action":{"kind":"react","emoji":"👍"}}. Stay silent: {"action":{"kind":"silent"}}. The action field must be an object, not a string; kind, text, and emoji belong inside it. Questions and task results need a reply. After success, stop; further text is not delivered. If a reaction fails, finish with a brief text reply instead.',
       parameters: turnCompletionSchema,
       async execute(_id, { action: completion }, signal) {
         if (selected || selecting) throw new Error('This turn already has a final action.');
