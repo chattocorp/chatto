@@ -23,6 +23,7 @@ setting is **Allow** or **Inherit** for a role, and **Allow**, **Deny**, or
   the same scope or a more specific scope. Giving a role never removes access.
 - **A deny on a user always wins.** When the most specific setting on the user
   is a deny, the user does not get the permission, whatever their roles allow.
+  The only exception is a broader permission that includes it (see below).
   An allow on a user works like a role allow.
 - **No setting means no access.**
 - **Prefer roles.** Give permissions through roles, also when only one person
@@ -143,7 +144,7 @@ Scopes: **S** Server, **G** Room group, **R** Room, **DM** Direct messages.
 | `user.delete-any` | S | Yes | Delete any account. |
 | `user.delete-self` | S | | Delete your own account. |
 | `bot.create` | S | | Create bots that you own. |
-| `bot.manage` | S | Yes | Manage bots that rank below you and whose owners rank below you. |
+| `bot.manage` | S | Yes | Manage bots whose owners rank below you. A bot ranks like its owner. |
 
 System diagnostics are only for owners. They are not a permission.
 
@@ -206,8 +207,8 @@ removing the role also removes the user from the room.
 
 ### Suspend a user
 
-On the user's **Permissions** page, deny `message.post` and
-`message.post-in-thread` at Server scope. You can also deny `message.attach`,
+On the user's **Permissions** page, deny `message.post`,
+`message.post-in-thread`, and `message.post-in-interactions` at Server scope. You can also deny `message.attach`,
 `message.react`, and `message.echo`. First remove room or room-group allows on
 that user, because they replace the server-level denies in those places. Roles
 cannot deny, so a `suspended` role does not work. To remove a user from one
