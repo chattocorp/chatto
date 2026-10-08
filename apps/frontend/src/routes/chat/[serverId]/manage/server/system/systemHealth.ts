@@ -194,7 +194,8 @@ function storageCheck(info: AdminSystemInfo): HealthCheck {
     id: 'storage',
     status,
     // Round down, so the shown percentage never reaches a threshold that the
-    // status has not reached.
-    detail: { kind: 'storage_used', percent: Math.floor(usage * 100) }
+    // status has not reached. The small tolerance keeps exact ratios such as
+    // 29/100, which multiply to 28.999…, from losing a percent.
+    detail: { kind: 'storage_used', percent: Math.floor(usage * 100 + 1e-9) }
   };
 }

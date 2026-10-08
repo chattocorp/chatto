@@ -210,6 +210,14 @@ describe('systemHealthChecks edge cases', () => {
       status: 'ok',
       detail: { kind: 'storage_used', percent: 74 }
     });
+
+    const exact = systemHealthChecks(
+      info({ account: { ...info().account, streams: 100, streamsUsed: 29 } })
+    );
+    expect(exact.find((check) => check.id === 'storage')?.detail).toEqual({
+      kind: 'storage_used',
+      percent: 29
+    });
   });
 
   it('treats an empty projection list as unreported', () => {
