@@ -133,7 +133,12 @@ func TestCallPermissionDefaultsDoNotReturnAfterClear(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	require.NoError(t, c.RevokeServerPermission(ctx, SystemActorID, RoleEveryone, PermCallVoice))
-	require.NoError(t, c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermCallCamera))
+	// An earlier version could store a server-scope deny of everyone. It is a
+	// decision, so seeding must not grant the default again.
+	_, err := c.appendRBACEvent(ctx, newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
+		RbacPermissionDenied: rbacRolePermissionDeniedEvent(ScopeServer, "", RoleEveryone, PermCallCamera),
+	}}), nil)
+	require.NoError(t, err)
 	before, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.RBACSubjectFilter())
 	require.NoError(t, err)
 	require.NoError(t, c.seedUpgradePermissions(ctx))
@@ -365,7 +370,13 @@ func TestCallPermissionsScopeMatrix(t *testing.T) {
 					require.NoError(t, c.RevokeServerPermission(ctx, SystemActorID, RoleEveryone, tc.permission))
 					for _, state := range []PermissionState{PermissionStateAllow, PermissionStateDeny, PermissionStateNone} {
 						t.Run(string(state), func(t *testing.T) {
-							require.NoError(t, c.SetRolePermissionState(ctx, manager.Id, RoleEveryone, scope, tc.permission, state))
+							err := c.SetRolePermissionState(ctx, manager.Id, RoleEveryone, scope, tc.permission, state)
+							if scopeKind == MatrixScopeServer && state == PermissionStateDeny {
+								// everyone cannot deny at server scope (ADR-116).
+								require.ErrorIs(t, err, ErrInvalidArgument)
+								return
+							}
+							require.NoError(t, err)
 							expected := CallPermissions{Start: true, Join: true, Voice: true, Camera: true, ScreenShare: true}
 							if state != PermissionStateAllow {
 								tc.disable(&expected)

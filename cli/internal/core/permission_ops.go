@@ -45,29 +45,18 @@ func (c *ChattoCore) GrantServerPermission(ctx context.Context, actorID, roleNam
 	return err
 }
 
-// requireRoleCanDeny rejects a deny for a named role. Roles only grant
-// permissions; only everyone and single users can deny (ADR-116).
-func requireRoleCanDeny(roleName string) error {
+// requireRoleCanDeny rejects a role deny at scope. Roles only grant
+// permissions; only everyone and single users can deny. A deny of everyone at
+// server scope means the same as no setting, so only narrower scopes accept
+// it (ADR-116).
+func requireRoleCanDeny(roleName string, scope PermissionScope) error {
 	if roleName != RoleEveryone {
 		return fmt.Errorf("%w: roles only grant permissions; set the deny for everyone or for a user", ErrInvalidArgument)
 	}
+	if scope == ScopeServer {
+		return fmt.Errorf("%w: everyone can deny only at room group, room, or direct-message scope; clear the server setting instead", ErrInvalidArgument)
+	}
 	return nil
-}
-
-// DenyServerPermission denies a permission at a role's server-level default.
-// Only everyone can deny.
-func (c *ChattoCore) DenyServerPermission(ctx context.Context, actorID, roleName string, perm Permission) error {
-	if err := ValidatePermission(perm); err != nil {
-		return err
-	}
-	if err := requireRoleCanDeny(roleName); err != nil {
-		return err
-	}
-	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
-		RbacPermissionDenied: rbacRolePermissionDeniedEvent(ScopeServer, "", roleName, perm),
-	}})
-	_, err := c.appendRBACEvent(ctx, event, nil)
-	return err
 }
 
 // ClearServerPermissionState clears both grant and denial for a permission.
@@ -190,7 +179,7 @@ func (c *ChattoCore) DenyRoomPermission(ctx context.Context, actorID, roomID, ro
 	if !PermissionAppliesAtScope(perm, ScopeRoom) {
 		return fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
-	if err := requireRoleCanDeny(roleName); err != nil {
+	if err := requireRoleCanDeny(roleName, ScopeRoom); err != nil {
 		return err
 	}
 	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{

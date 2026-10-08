@@ -93,7 +93,8 @@ Room group scope.
 4. In `#welcome`, `#rules`, and `#announcements`, allow `room.list` and
    `room.join` for `everyone`. Make `#welcome` and `#rules` universal, so that
    new accounts are in them immediately.
-5. Deny `room.list` and `room.join` for `everyone` at Server scope.
+5. Set `room.list` and `room.join` for `everyone` at Server scope to
+   **Inherit**.
 6. To let moderators assign `member`, allow `role.assign` and
    `admin.view-users` for `moderator`. Moderators assign the role on the
    member's **Roles** page in privileged mode.
@@ -102,7 +103,7 @@ Room group scope.
 
 Universal rooms follow `room.join`. When you assign `member`, Chatto adds the
 account to the universal rooms. When you remove the role, Chatto removes the
-account from them. A deny does not remove explicit room members. Examine the
+account from them. Removing the allow does not remove explicit room members. Examine the
 member lists of all rooms, because universal rooms can also have explicit
 members.
 
@@ -117,9 +118,9 @@ Do steps 1, 3, and 6, but not steps 2, 4, and 5. Then:
 
 1. Allow `message.post`, `message.attach`, and `message.react` for `member` at
    Server scope.
-2. Deny them for `everyone` at Server scope.
-3. On servers upgraded from earlier versions, also deny
-   `message.post-in-thread` for `everyone`.
+2. Set them for `everyone` at Server scope to **Inherit**.
+3. On servers upgraded from earlier versions, also set
+   `message.post-in-thread` for `everyone` at Server scope to **Inherit**.
 
 Guests cannot start direct messages or post in them, because direct messages
 use the Server setting when there is no Direct messages setting. They also

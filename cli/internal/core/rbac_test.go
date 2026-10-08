@@ -190,19 +190,19 @@ func TestChattoCore_initServerRBAC_PreservesPermissionChanges(t *testing.T) {
 		t.Error("Expected user to have user.delete-self permission by default")
 	}
 
-	// Step 2: Admin revokes the permission from the everyone role
-	err = core1.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermUserDeleteSelf)
+	// Step 2: Admin clears the default allow of the everyone role
+	err = core1.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermUserDeleteSelf)
 	if err != nil {
-		t.Fatalf("Failed to deny permission: %v", err)
+		t.Fatalf("Failed to clear permission: %v", err)
 	}
 
-	// Verify permission is now denied
+	// Verify permission is now gone
 	hasPerm, err = core1.HasServerPermission(ctx, user.Id, PermUserDeleteSelf)
 	if err != nil {
-		t.Fatalf("Failed to check permission after denial: %v", err)
+		t.Fatalf("Failed to check permission after clear: %v", err)
 	}
 	if hasPerm {
-		t.Error("Expected user to NOT have user.delete-self permission after denial")
+		t.Error("Expected user to NOT have user.delete-self permission after clear")
 	}
 
 	// Step 3: Simulate a restart by creating a new ChattoCore with the same NATS connection
@@ -620,10 +620,8 @@ func TestChattoCore_EveryoneFallback_AdminGrantWins(t *testing.T) {
 	if err := core.AssignAdminRole(ctx, userID); err != nil {
 		t.Fatalf("Failed to assign admin role: %v", err)
 	}
-
-	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermAdminUsersView); err != nil {
-		t.Fatalf("Failed to deny permission: %v", err)
-	}
+	// everyone has no setting for admin.view-users at server scope; a deny of
+	// everyone is not possible there (ADR-116).
 
 	t.Run("HasServerPermission allows from admin grant", func(t *testing.T) {
 		has, err := core.HasServerPermission(ctx, userID, PermAdminUsersView)
@@ -631,7 +629,7 @@ func TestChattoCore_EveryoneFallback_AdminGrantWins(t *testing.T) {
 			t.Fatalf("HasServerPermission error: %v", err)
 		}
 		if !has {
-			t.Error("Expected HasServerPermission to return true: admin grant should override everyone baseline deny")
+			t.Error("Expected HasServerPermission to return true: admin grant should apply without an everyone setting")
 		}
 	})
 
@@ -641,7 +639,7 @@ func TestChattoCore_EveryoneFallback_AdminGrantWins(t *testing.T) {
 			t.Fatalf("HasUserPermissionViaRoles error: %v", err)
 		}
 		if !has {
-			t.Error("Expected HasUserPermissionViaRoles to return true: admin grant should override everyone baseline deny")
+			t.Error("Expected HasUserPermissionViaRoles to return true: admin grant should apply without an everyone setting")
 		}
 	})
 
@@ -651,7 +649,7 @@ func TestChattoCore_EveryoneFallback_AdminGrantWins(t *testing.T) {
 			t.Fatalf("HasUserPermissionDeniedViaRoles error: %v", err)
 		}
 		if denied {
-			t.Error("Expected HasUserPermissionDeniedViaRoles to return false: ignored everyone baseline is not the effective decision")
+			t.Error("Expected HasUserPermissionDeniedViaRoles to return false: the admin grant is the effective decision")
 		}
 	})
 
@@ -667,17 +665,23 @@ func TestChattoCore_EveryoneFallback_AdminGrantWins(t *testing.T) {
 	})
 }
 
-func TestChattoCore_DenyWins_EveryoneDenyBlocksMember(t *testing.T) {
+func TestChattoCore_DenyWins_UserDenyBlocksMember(t *testing.T) {
 	t.Parallel()
 
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Regular user with no special roles — only has "everyone"
-	userID := "denywins-regular"
+	// Regular user with no special roles — only has "everyone", which allows
+	// message.post by default.
+	user, err := core.CreateUser(ctx, SystemActorID, "denywins-regular", "Regular", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+	userID := user.Id
 
-	// Deny space.create on the everyone role
-	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost); err != nil {
+	// Deny message.post for the user. everyone cannot deny at server scope
+	// (ADR-116).
+	if err := core.DenyUserPermission(ctx, SystemActorID, userID, PermMessagePost); err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
 
@@ -687,7 +691,7 @@ func TestChattoCore_DenyWins_EveryoneDenyBlocksMember(t *testing.T) {
 			t.Fatalf("error: %v", err)
 		}
 		if has {
-			t.Error("Expected false: everyone deny should block member")
+			t.Error("Expected false: user deny should block member")
 		}
 	})
 
@@ -697,7 +701,7 @@ func TestChattoCore_DenyWins_EveryoneDenyBlocksMember(t *testing.T) {
 			t.Fatalf("error: %v", err)
 		}
 		if !denied {
-			t.Error("Expected true: everyone deny should block member")
+			t.Error("Expected true: user deny should block member")
 		}
 	})
 
@@ -708,7 +712,7 @@ func TestChattoCore_DenyWins_EveryoneDenyBlocksMember(t *testing.T) {
 		}
 		for _, p := range perms {
 			if p == PermMessagePost {
-				t.Error("Expected message.post NOT to be in permissions: everyone deny should block member")
+				t.Error("Expected message.post NOT to be in permissions: user deny should block member")
 			}
 		}
 	})
@@ -729,22 +733,19 @@ func TestChattoCore_OwnerOverride_BeatsEverythingElse(t *testing.T) {
 		t.Fatalf("Failed to assign owner role: %v", err)
 	}
 
-	// Deny admin.view-users for everyone and for the owner directly.
-	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermAdminUsersView); err != nil {
-		t.Fatalf("Failed to deny everyone: %v", err)
-	}
+	// Deny admin.view-users for the owner directly.
 	if err := core.DenyUserPermission(ctx, SystemActorID, owner.Id, PermAdminUsersView); err != nil {
 		t.Fatalf("Failed to deny owner: %v", err)
 	}
 	// Owner role still has admin.view-users granted
 
-	t.Run("owner grant beats admin and everyone deny", func(t *testing.T) {
+	t.Run("owner grant beats user deny", func(t *testing.T) {
 		has, err := core.HasUserPermissionViaRoles(ctx, owner.Id, PermAdminUsersView)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
 		if !has {
-			t.Error("Expected true: owner grant should beat admin+everyone deny")
+			t.Error("Expected true: owner grant should beat user deny")
 		}
 	})
 
@@ -754,7 +755,7 @@ func TestChattoCore_OwnerOverride_BeatsEverythingElse(t *testing.T) {
 			t.Fatalf("error: %v", err)
 		}
 		if denied {
-			t.Error("Expected false: owner grant should beat admin+everyone deny")
+			t.Error("Expected false: owner grant should beat user deny")
 		}
 	})
 }
@@ -2641,13 +2642,13 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_DenyAlwaysWins(t *testing.T
 		t.Error("User should have room.create after grant")
 	}
 
-	// Deny room.create to everyone role
-	err = core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomCreate)
+	// Deny room.create to the user
+	err = core.DenyUserPermission(ctx, SystemActorID, user.Id, PermRoomCreate)
 	if err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
 
-	// Now user should NOT have room.create (deny wins)
+	// Now user should NOT have room.create (deny wins over the everyone allow)
 	perms2, err := core.GetUserEffectiveSpacePermissions(ctx, KindChannel, user.Id)
 	if err != nil {
 		t.Fatalf("GetUserEffectiveSpacePermissions failed: %v", err)

@@ -213,8 +213,9 @@ export class TierPermissions extends Message<TierPermissions> {
   permissions: string[] = [];
 
   /**
-   * Explicitly denied permissions. Only the everyone role can deny; this is
-   * empty for other roles.
+   * Explicitly denied permissions. Only the everyone role can deny, and only
+   * below the server tier; this is empty for other roles and at the server
+   * tier.
    *
    * @generated from field: repeated string permission_denials = 2;
    */

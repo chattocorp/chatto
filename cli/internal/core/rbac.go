@@ -31,17 +31,17 @@ var (
 	ErrCannotRevokeSelfAdmin = errors.New("cannot revoke your own admin role")
 )
 
-// RoleWithPermissions represents a role with its grants and denials, used by
-// the public API and admin tooling.
+// RoleWithPermissions represents a role with its server-scope grants, used by
+// the public API and admin tooling. A role cannot deny at server scope
+// (ADR-116), so there are no server-scope denies to report.
 type RoleWithPermissions struct {
-	Name              string
-	DisplayName       string
-	Description       string
-	Permissions       []Permission // Permissions granted (allowed) by this role
-	PermissionDenials []Permission // Permissions denied by this role
-	IsSystem          bool
-	Position          int32 // Administrative rank order (ADR-115). Everyone=0; Owner is always highest.
-	Pingable          bool
+	Name        string
+	DisplayName string
+	Description string
+	Permissions []Permission // Permissions granted (allowed) by this role at server scope
+	IsSystem    bool
+	Position    int32 // Administrative rank order (ADR-115). Everyone=0; Owner is always highest.
+	Pingable    bool
 }
 
 // ============================================================================
@@ -412,9 +412,8 @@ func (c *ChattoCore) GetUserRoles(ctx context.Context, userID string) ([]string,
 // This only removes grants, not denials. Use ClearServerPermissionState
 // to remove both. Idempotent — revoking a non-granted permission is a no-op.
 //
-// (GrantServerPermission, DenyServerPermission, and
-// ClearServerPermissionState live in permission_ops.go, alongside the
-// space-tier and room-tier counterparts.)
+// (GrantServerPermission and ClearServerPermissionState live in
+// permission_ops.go, alongside the group-tier and room-tier counterparts.)
 func (c *ChattoCore) RevokeServerPermission(ctx context.Context, actorID, roleName string, perm Permission) error {
 	if err := ValidatePermission(perm); err != nil {
 		return err
@@ -440,7 +439,9 @@ func (c *ChattoCore) RevokeServerPermission(ctx context.Context, actorID, roleNa
 	return nil
 }
 
-// GetServerRolePermissions returns all permissions granted to an role.
+// GetServerRolePermissions returns all server-scope permissions granted to a
+// role. A role has no server-scope denies: named roles only grant, and a
+// server-scope deny of everyone has no effect (ADR-116).
 // Note: Admin roles are NOT special-cased - permissions are materialized in the RBAC projection.
 func (c *ChattoCore) GetServerRolePermissions(ctx context.Context, roleName string) ([]Permission, error) {
 	if !c.rbacModel.roleExists(roleName) {
@@ -450,19 +451,9 @@ func (c *ChattoCore) GetServerRolePermissions(ctx context.Context, roleName stri
 	return grants, nil
 }
 
-// GetServerRolePermissionDenials returns the server-scope denies of a role.
-// Only everyone can deny; stored denies of named roles have no effect and are
-// left out (ADR-116).
-func (c *ChattoCore) GetServerRolePermissionDenials(ctx context.Context, roleName string) ([]Permission, error) {
-	if !c.rbacModel.roleExists(roleName) {
-		return nil, ErrRoleNotFound
-	}
-	_, denials := c.rbacModel.decisionsForRoleServer(roleName)
-	return effectiveRoleDenials(roleName, denials), nil
-}
-
-// effectiveRoleDenials returns the denies that take effect for roleName: the
-// denies of everyone, and none for a named role (ADR-116).
+// effectiveRoleDenials returns the denies that take effect for roleName at a
+// scope below server: the denies of everyone, and none for a named role
+// (ADR-116).
 func effectiveRoleDenials(roleName string, denials []Permission) []Permission {
 	if roleName != RoleEveryone {
 		return nil
@@ -513,17 +504,15 @@ func (c *ChattoCore) ListServerRoles(ctx context.Context) ([]RoleWithPermissions
 	result := make([]RoleWithPermissions, 0, len(roles))
 	for _, role := range roles {
 		perms, _ := c.GetServerRolePermissions(ctx, role.Name)
-		denials, _ := c.GetServerRolePermissionDenials(ctx, role.Name)
 
 		result = append(result, RoleWithPermissions{
-			Name:              role.Name,
-			DisplayName:       role.DisplayName,
-			Description:       role.Description,
-			Permissions:       perms,
-			PermissionDenials: denials,
-			IsSystem:          IsSystemRole(role.Name),
-			Position:          role.Position,
-			Pingable:          role.Pingable,
+			Name:        role.Name,
+			DisplayName: role.DisplayName,
+			Description: role.Description,
+			Permissions: perms,
+			IsSystem:    IsSystemRole(role.Name),
+			Position:    role.Position,
+			Pingable:    role.Pingable,
 		})
 	}
 	slices.Reverse(result)
@@ -587,14 +576,13 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, actorID, name, displa
 	c.logger.Info("Created role", "name", name, "display_name", displayName, "actor_id", actorID)
 
 	return &RoleWithPermissions{
-		Name:              role.GetName(),
-		DisplayName:       role.GetDisplayName(),
-		Description:       role.GetDescription(),
-		Permissions:       []Permission{},
-		PermissionDenials: []Permission{},
-		IsSystem:          false,
-		Position:          role.GetPosition(),
-		Pingable:          role.GetPingable(),
+		Name:        role.GetName(),
+		DisplayName: role.GetDisplayName(),
+		Description: role.GetDescription(),
+		Permissions: []Permission{},
+		IsSystem:    false,
+		Position:    role.GetPosition(),
+		Pingable:    role.GetPingable(),
 	}, nil
 }
 
@@ -705,16 +693,14 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 	c.logger.Info("Updated role", "name", name, "display_name", displayName, "actor_id", actorID)
 
 	perms, _ := c.GetServerRolePermissions(ctx, name)
-	denials, _ := c.GetServerRolePermissionDenials(ctx, name)
 	return &RoleWithPermissions{
-		Name:              updated.Name,
-		DisplayName:       updated.DisplayName,
-		Description:       updated.Description,
-		Permissions:       perms,
-		PermissionDenials: denials,
-		IsSystem:          IsSystemRole(name),
-		Position:          updated.Position,
-		Pingable:          updated.Pingable,
+		Name:        updated.Name,
+		DisplayName: updated.DisplayName,
+		Description: updated.Description,
+		Permissions: perms,
+		IsSystem:    IsSystemRole(name),
+		Position:    updated.Position,
+		Pingable:    updated.Pingable,
 	}, nil
 }
 
@@ -730,17 +716,15 @@ func (c *ChattoCore) GetServerRole(ctx context.Context, name string) (*RoleWithP
 	}
 
 	perms, _ := c.GetServerRolePermissions(ctx, name)
-	denials, _ := c.GetServerRolePermissionDenials(ctx, name)
 
 	return &RoleWithPermissions{
-		Name:              role.Name,
-		DisplayName:       role.DisplayName,
-		Description:       role.Description,
-		Permissions:       perms,
-		PermissionDenials: denials,
-		IsSystem:          IsSystemRole(name),
-		Position:          role.Position,
-		Pingable:          role.Pingable,
+		Name:        role.Name,
+		DisplayName: role.DisplayName,
+		Description: role.Description,
+		Permissions: perms,
+		IsSystem:    IsSystemRole(name),
+		Position:    role.Position,
+		Pingable:    role.Pingable,
 	}, nil
 }
 
@@ -873,7 +857,7 @@ func (c *ChattoCore) DenyGroupPermission(ctx context.Context, actorID, groupID, 
 	if !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
 		return fmt.Errorf("permission %s does not apply at group scope", perm)
 	}
-	if err := requireRoleCanDeny(roleName); err != nil {
+	if err := requireRoleCanDeny(roleName, ScopeGroup); err != nil {
 		return err
 	}
 	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{

@@ -838,19 +838,19 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 		t.Fatalf("configured bot message.read-interactions = %s, %v; want allow", decision, err)
 	}
 
-	if err := c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost); err != nil {
+	if err := c.DenyUserPermission(ctx, SystemActorID, owner.GetId(), PermMessagePost); err != nil {
 		t.Fatalf("deny owner permission: %v", err)
 	}
 	if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessagePost); err != nil || decision != DecisionDeny {
 		t.Fatalf("owner-capped bot message.post = %s, %v; want deny", decision, err)
 	}
-	if err := c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageRead); err != nil {
+	if err := c.DenyUserPermission(ctx, SystemActorID, owner.GetId(), PermMessageRead); err != nil {
 		t.Fatalf("deny owner message.read: %v", err)
 	}
 	if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessageRead); err != nil || decision != DecisionDeny {
 		t.Fatalf("owner-capped bot message.read = %s, %v; want deny", decision, err)
 	}
-	if err := c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageReadInteractions); err != nil {
+	if err := c.DenyUserPermission(ctx, SystemActorID, owner.GetId(), PermMessageReadInteractions); err != nil {
 		t.Fatalf("deny owner message.read-interactions: %v", err)
 	}
 	if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessageReadInteractions); err != nil || decision != DecisionDeny {
@@ -907,8 +907,8 @@ func TestBotMessageReadInclusionIntersectsBotAndOwnerAuthority(t *testing.T) {
 				t.Fatalf("grant bot %s: %v", test.botPermission, err)
 			}
 			if test.ownerNarrowOnly {
-				if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageRead); err != nil {
-					t.Fatalf("deny owner broad permission: %v", err)
+				if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessageRead); err != nil {
+					t.Fatalf("clear owner broad permission: %v", err)
 				}
 				if err := core.GrantUserPermission(ctx, SystemActorID, owner.GetId(), PermMessageReadInteractions); err != nil {
 					t.Fatalf("grant owner narrow permission: %v", err)

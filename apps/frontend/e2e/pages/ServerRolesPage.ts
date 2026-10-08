@@ -302,20 +302,16 @@ export class ServerRolesPage {
 
   /**
    * Drive the matrix cell for the current role × permission to a target
-   * state (`allow`, `deny`, or `neutral`). The cell cycles
-   * `neutral → allow → deny → neutral` on each click; we click up to three
+   * state (`allow` or `neutral`). Server cells cycle `neutral → allow →
+   * neutral`, because no role can deny at server scope; we click up to three
    * times until the state lands.
    */
-  async setPermissionState(
-    permission: string,
-    target: 'allow' | 'deny' | 'neutral'
-  ): Promise<void> {
+  async setPermissionState(permission: string, target: 'allow' | 'neutral'): Promise<void> {
     await this.ensureOnMatrix();
     const cell = this.currentCell(permission);
     for (let i = 0; i < 3; i++) {
       const label = (await cell.getAttribute('aria-label')) ?? '';
       if (target === 'allow' && /Override allow/.test(label)) return;
-      if (target === 'deny' && /Override deny/.test(label)) return;
       if (target === 'neutral' && /No override/.test(label)) return;
       await cell.click();
       // Optimistic UI update is synchronous after the API mutation resolves;
@@ -356,21 +352,10 @@ export class ServerRolesPage {
     );
   }
 
-  /** Drive the cell to the deny state. */
-  async denyPermission(permission: string): Promise<void> {
-    await this.setPermissionState(permission, 'deny');
-  }
-
   /** Whether the cell currently shows an allow override. */
   async isPermissionGranted(permission: string): Promise<boolean> {
     const label = (await this.currentCell(permission).getAttribute('aria-label')) ?? '';
     return /Override allow/.test(label);
-  }
-
-  /** Whether the cell currently shows a deny override. */
-  async isPermissionDenied(permission: string): Promise<boolean> {
-    const label = (await this.currentCell(permission).getAttribute('aria-label')) ?? '';
-    return /Override deny/.test(label);
   }
 
   // --- Delete role Actions ---
@@ -554,12 +539,6 @@ export class ServerRolesPage {
   async expectRoleDetailPage(roleName: string): Promise<void> {
     await expect(this.page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
     await expect(this.page.locator(`code:text-is("${roleName}")`)).toBeVisible();
-  }
-
-  /** Assert the matrix cell for the current role × permission is set to deny. */
-  async expectPermissionDenied(permission: string): Promise<void> {
-    await this.ensureOnMatrix();
-    await expect(this.currentCell(permission)).toHaveAttribute('aria-label', /Override deny/);
   }
 
   /**

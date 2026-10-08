@@ -93,10 +93,6 @@ async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
   await joinRoomViaConnect(page, roomId);
 }
 
-async function denyPermission(page: Page, role: string, permission: string): Promise<void> {
-  await setRolePermission(page, role, permission, 'PERMISSION_DECISION_DENY');
-}
-
 async function revokePermission(page: Page, role: string, permission: string): Promise<void> {
   await setRolePermission(page, role, permission, 'PERMISSION_DECISION_NONE');
 }
@@ -430,7 +426,7 @@ test.describe('Room-Level Permission Overrides', () => {
       await expect(chatInput).toHaveAttribute('contenteditable', 'true');
     });
 
-    test('room grant overrides server denial for the same role', async ({
+    test('room grant gives access that the server setting does not give', async ({
       page,
       roomPage: _roomPage
     }) => {
@@ -439,11 +435,12 @@ test.describe('Room-Level Permission Overrides', () => {
       const roomId = await createRoomViaAPI(page);
       await joinRoomViaAPI(page, roomId);
 
-      // Deny message.post at server level for everyone
-      await denyPermission(page, 'everyone', 'message.post');
+      // Clear message.post at server level for everyone. everyone cannot deny
+      // at server scope (ADR-116).
+      await revokePermission(page, 'everyone', 'message.post');
 
       // Grant at room level for everyone. The nearest decision for that same
-      // subject replaces its less-specific server decision.
+      // subject decides.
       await grantRoomPermission(page, roomId, 'everyone', 'message.post');
 
       // Create second user, join the room
@@ -617,7 +614,7 @@ test.describe('Room-Level Permission Overrides', () => {
       expect(result).toBeNull();
     });
 
-    test('room grant overrides server denial for the same role (backend enforcement)', async ({
+    test('room grant gives access that the server setting does not give (backend enforcement)', async ({
       page
     }) => {
       await createAndLoginTestUser(page);
@@ -628,8 +625,9 @@ test.describe('Room-Level Permission Overrides', () => {
       const adminMsg = await postMessageViaAPI(page, roomId, 'React to this');
       expect(adminMsg).not.toBeNull();
 
-      // Deny message.react at server level for everyone
-      await denyPermission(page, 'everyone', 'message.react');
+      // Clear message.react at server level for everyone. everyone cannot
+      // deny at server scope (ADR-116).
+      await revokePermission(page, 'everyone', 'message.react');
 
       // Grant message.react at room level. The room decision is nearest for
       // this same subject.

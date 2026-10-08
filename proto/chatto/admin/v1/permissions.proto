@@ -44,8 +44,9 @@ message PermissionScope {
 message TierPermissions {
   // Explicitly granted permissions.
   repeated string permissions = 1;
-  // Explicitly denied permissions. Only the everyone role can deny; this is
-  // empty for other roles.
+  // Explicitly denied permissions. Only the everyone role can deny, and only
+  // below the server tier; this is empty for other roles and at the server
+  // tier.
   repeated string permission_denials = 2;
 }
 
@@ -413,7 +414,7 @@ service AdminPermissionService {
   // role. Every caller who is not an owner must have the permission at the
   // target scope; otherwise the call returns PERMISSION_DENIED. Everyone ranks
   // below every account. Roles only grant: a deny for any role except
-  // everyone returns INVALID_ARGUMENT.
+  // everyone, or for everyone at server scope, returns INVALID_ARGUMENT.
   rpc SetRolePermission(SetRolePermissionRequest) returns (SetRolePermissionResponse);
   // Sets one user permission decision. Human targets require
   // user.manage-permissions. A caller who is not an owner must also have the

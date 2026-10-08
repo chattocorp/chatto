@@ -7,11 +7,14 @@ func TestRoleHolderResolutionAppliesMessageReadInclusion(t *testing.T) {
 
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
+	// everyone can deny only below server scope (ADR-116), so the deny is at
+	// room scope.
+	roomID := createPermissionEditRoom(t, c, ctx, "role-holder-inclusion")
 	if err := c.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessageRead); err != nil {
 		t.Fatalf("ClearServerPermissionState: %v", err)
 	}
-	if err := c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageReadInteractions); err != nil {
-		t.Fatalf("DenyServerPermission: %v", err)
+	if err := c.DenyRoomPermission(ctx, SystemActorID, roomID, RoleEveryone, PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
 	}
 	if err := c.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermMessageRead); err != nil {
 		t.Fatalf("GrantServerPermission: %v", err)
@@ -19,10 +22,10 @@ func TestRoleHolderResolutionAppliesMessageReadInclusion(t *testing.T) {
 
 	// The broad allow of the role includes the narrow permission, also over
 	// the everyone deny of the narrow permission.
-	if got := c.PermResolver().resolveRoleHolder(RoleModerator, KindChannel, "", "", PermMessageReadInteractions); got != DecisionAllow {
+	if got := c.PermResolver().resolveRoleHolder(RoleModerator, KindChannel, roomID, "", PermMessageReadInteractions); got != DecisionAllow {
 		t.Fatalf("moderator holder message.read-interactions = %s, want allow", got)
 	}
-	if got := c.PermResolver().resolveRoleHolder(RoleEveryone, KindChannel, "", "", PermMessageReadInteractions); got != DecisionDeny {
+	if got := c.PermResolver().resolveRoleHolder(RoleEveryone, KindChannel, roomID, "", PermMessageReadInteractions); got != DecisionDeny {
 		t.Fatalf("everyone message.read-interactions = %s, want deny", got)
 	}
 }

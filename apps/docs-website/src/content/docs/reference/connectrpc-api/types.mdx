@@ -1622,8 +1622,7 @@ Role metadata plus administrative permission state.
 | Field | Type | Description |
 | --- | --- | --- |
 | `role` | `chatto.api.v1.Role` | Public role metadata shared with ordinary role catalog reads. |
-| `permissions` | `repeated string` | Permissions granted by this role. |
-| `permission_denials` | `repeated string` | Permissions denied by this role. Only the everyone role can deny; this is empty for other roles, whose stored denies have no effect. |
+| `permissions` | `repeated string` | Permissions granted by this role at server scope. A role cannot deny at server scope. |
 
 <a id="chatto-admin-v1-AdminMember"></a>
 
@@ -1781,7 +1780,7 @@ Permission grants and denials at a single tier.
 | Field | Type | Description |
 | --- | --- | --- |
 | `permissions` | `repeated string` | Explicitly granted permissions. |
-| `permission_denials` | `repeated string` | Explicitly denied permissions. Only the everyone role can deny; this is empty for other roles. |
+| `permission_denials` | `repeated string` | Explicitly denied permissions. Only the everyone role can deny, and only below the server tier; this is empty for other roles and at the server tier. |
 
 <a id="chatto-admin-v1-TierRole"></a>
 

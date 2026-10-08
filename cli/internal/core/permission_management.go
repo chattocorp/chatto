@@ -292,11 +292,6 @@ func (c *ChattoCore) SetRolePermissionState(ctx context.Context, actorID, roleNa
 	if roleName == "" {
 		return fmt.Errorf("%w: role name is required", ErrInvalidArgument)
 	}
-	if state == PermissionStateDeny {
-		if err := requireRoleCanDeny(roleName); err != nil {
-			return err
-		}
-	}
 	var (
 		coreScope     PermissionScope
 		requireEditor func() error
@@ -337,6 +332,13 @@ func (c *ChattoCore) SetRolePermissionState(ctx context.Context, actorID, roleNa
 		coreScope = ScopeServer
 		scope.ID = ""
 		requireEditor = func() error { return c.requireCanManageAdminRoles(ctx, actorID) }
+	}
+	// Reject a deny that a role cannot hold before authorization, so callers
+	// learn that the request itself is invalid.
+	if state == PermissionStateDeny {
+		if err := requireRoleCanDeny(roleName, coreScope); err != nil {
+			return err
+		}
 	}
 	check := func() error {
 		if err := requireEditor(); err != nil {
@@ -536,7 +538,7 @@ func (c *ChattoCore) applyRolePermissionState(ctx context.Context, actorID strin
 		return err
 	}
 	if state == PermissionStateDeny {
-		if err := requireRoleCanDeny(roleName); err != nil {
+		if err := requireRoleCanDeny(roleName, scope); err != nil {
 			return err
 		}
 	}
@@ -675,13 +677,11 @@ func (c *ChattoCore) buildTierRole(ctx context.Context, role RoleWithPermissions
 		Pingable:    role.Pingable,
 	}
 
+	// A role has no server-scope denies (ADR-116). Thus the server tier
+	// inherits only allows, and server-tier cells never show a role deny.
 	serverGrants, err := c.GetServerRolePermissions(ctx, role.Name)
 	if err != nil {
 		return nil, fmt.Errorf("load server grants: %w", err)
-	}
-	serverDenials, err := c.GetServerRolePermissionDenials(ctx, role.Name)
-	if err != nil {
-		return nil, fmt.Errorf("load server denials: %w", err)
 	}
 
 	if groupID != "" {
@@ -691,13 +691,12 @@ func (c *ChattoCore) buildTierRole(ctx context.Context, role RoleWithPermissions
 		}
 		out.Override = newCoreTierPermissions(grants, denials)
 		out.InheritedAllows = filterCorePermsByScope(serverGrants, ScopeGroup)
-		out.InheritedDenials = filterCorePermsByScope(serverDenials, ScopeGroup)
 		return out, nil
 	}
 
 	switch scope {
 	case ScopeServer:
-		out.Override = newCoreTierPermissions(serverGrants, serverDenials)
+		out.Override = newCoreTierPermissions(serverGrants, nil)
 	case ScopeDM:
 		grants, denials, err := c.GetDMRolePermissions(ctx, role.Name)
 		if err != nil {
@@ -705,7 +704,6 @@ func (c *ChattoCore) buildTierRole(ctx context.Context, role RoleWithPermissions
 		}
 		out.Override = newCoreTierPermissions(grants, denials)
 		out.InheritedAllows = filterCorePermsByScope(serverGrants, ScopeDM)
-		out.InheritedDenials = filterCorePermsByScope(serverDenials, ScopeDM)
 	case ScopeRoom:
 		grants, denials, err := c.GetRoomRolePermissions(ctx, roomID, role.Name)
 		if err != nil {
@@ -727,7 +725,6 @@ func (c *ChattoCore) buildTierRole(ctx context.Context, role RoleWithPermissions
 		out.InheritedAllows, out.InheritedDenials = mergeInheritedPermissionDecisions(
 			groupGrants, groupDenials,
 			scopedCorePerms(serverGrants, ScopeRoom),
-			scopedCorePerms(serverDenials, ScopeRoom),
 		)
 	}
 	return out, nil
@@ -753,13 +750,10 @@ func (c *ChattoCore) buildRolePermissionMatrix(ctx context.Context, actorID, rol
 		return nil, err
 	}
 
+	// A role has no server-scope denies (ADR-116).
 	serverGrants, err := c.GetServerRolePermissions(ctx, roleName)
 	if err != nil {
 		return nil, fmt.Errorf("load server grants: %w", err)
-	}
-	serverDenials, err := c.GetServerRolePermissionDenials(ctx, roleName)
-	if err != nil {
-		return nil, fmt.Errorf("load server denials: %w", err)
 	}
 
 	groupGrants := make(map[string][]Permission)
@@ -812,7 +806,7 @@ func (c *ChattoCore) buildRolePermissionMatrix(ctx context.Context, actorID, rol
 		for _, scope := range scopes {
 			cell, ok := buildExactRolePermissionCell(
 				perm, scope,
-				serverGrants, serverDenials,
+				serverGrants,
 				dmGrants, dmDenials,
 				groupGrants, groupDenials,
 				roomGrants, roomDenials,
@@ -1037,10 +1031,14 @@ func matrixScopeTarget(scope PermissionMatrixScope) (kind RoomKind, roomID, grou
 	}
 }
 
+// buildExactRolePermissionCell builds one role matrix cell from the role's
+// stored settings. serverGrants holds the role's server-scope allows; a role
+// has no server-scope denies (ADR-116). The caller replaces Effective with the
+// resolver result.
 func buildExactRolePermissionCell(
 	perm Permission,
 	scope PermissionMatrixScope,
-	serverGrants, serverDenials []Permission,
+	serverGrants []Permission,
 	dmGrants, dmDenials []Permission,
 	groupGrants, groupDenials map[string][]Permission,
 	roomGrants, roomDenials map[string][]Permission,
@@ -1051,7 +1049,7 @@ func buildExactRolePermissionCell(
 		if !PermissionAppliesAtScope(perm, ScopeServer) {
 			return PermissionMatrixCell{}, false
 		}
-		override := matrixDecisionFromLists(perm, serverGrants, serverDenials)
+		override := matrixDecisionFromLists(perm, serverGrants, nil)
 		return PermissionMatrixCell{
 			Permission: string(perm),
 			ScopeID:    scope.ID,
@@ -1065,7 +1063,7 @@ func buildExactRolePermissionCell(
 		override := matrixDecisionFromLists(perm, dmGrants, dmDenials)
 		effective := override
 		if effective == MatrixDecisionNone && PermissionAppliesAtScope(perm, ScopeServer) {
-			effective = matrixDecisionFromLists(perm, serverGrants, serverDenials)
+			effective = matrixDecisionFromLists(perm, serverGrants, nil)
 		}
 		return PermissionMatrixCell{
 			Permission: string(perm),
@@ -1081,7 +1079,7 @@ func buildExactRolePermissionCell(
 		override := matrixDecisionFromLists(perm, groupGrants[groupID], groupDenials[groupID])
 		effective := override
 		if effective == MatrixDecisionNone && PermissionAppliesAtScope(perm, ScopeServer) {
-			effective = matrixDecisionFromLists(perm, serverGrants, serverDenials)
+			effective = matrixDecisionFromLists(perm, serverGrants, nil)
 		}
 		return PermissionMatrixCell{
 			Permission: string(perm),
@@ -1101,7 +1099,7 @@ func buildExactRolePermissionCell(
 				effective = matrixDecisionFromLists(perm, groupGrants[groupID], groupDenials[groupID])
 			}
 			if effective == MatrixDecisionNone && PermissionAppliesAtScope(perm, ScopeServer) {
-				effective = matrixDecisionFromLists(perm, serverGrants, serverDenials)
+				effective = matrixDecisionFromLists(perm, serverGrants, nil)
 			}
 		}
 		return PermissionMatrixCell{
@@ -1227,7 +1225,11 @@ func scopedCorePerms(perms []Permission, scope PermissionScope) []Permission {
 	return out
 }
 
-func mergeInheritedPermissionDecisions(overrideAllow, overrideDeny, parentAllow, parentDeny []Permission) ([]string, []string) {
+// mergeInheritedPermissionDecisions combines the group settings of a role with
+// its server allows into the allows and denies that a room inherits. A group
+// setting replaces the server allow of the same permission. The server tier
+// contributes no denies (ADR-116).
+func mergeInheritedPermissionDecisions(overrideAllow, overrideDeny, parentAllow []Permission) ([]string, []string) {
 	overridden := make(map[Permission]struct{}, len(overrideAllow)+len(overrideDeny))
 	for _, perm := range overrideAllow {
 		overridden[perm] = struct{}{}
@@ -1246,14 +1248,9 @@ func mergeInheritedPermissionDecisions(overrideAllow, overrideDeny, parentAllow,
 		}
 	}
 
-	deny := make([]string, 0, len(overrideDeny)+len(parentDeny))
+	deny := make([]string, 0, len(overrideDeny))
 	for _, perm := range overrideDeny {
 		deny = append(deny, string(perm))
-	}
-	for _, perm := range parentDeny {
-		if _, blocked := overridden[perm]; !blocked {
-			deny = append(deny, string(perm))
-		}
 	}
 	return allow, deny
 }

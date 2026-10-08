@@ -7,7 +7,7 @@ A single cell in the permission matrix. Combines two pieces of information:
   - **override**: the explicit override at this tier (saturated color)
 
 By default, click cycles the override through `neutral → allow → deny → neutral`.
-Cells of named roles pass `canDeny={false}`: roles only grant (ADR-116), so they
+Cells of named roles, and Server cells of everyone, pass `canDeny={false}` (ADR-116), so they
 cycle through `neutral → allow → neutral`. The
 inherited indicator persists faded behind the override (so you can see what
 the role would do without the override at this scope).

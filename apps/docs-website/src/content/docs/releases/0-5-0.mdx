@@ -335,6 +335,10 @@ Do these steps on every upgraded server:
   instead. A deny on a user now wins, also over a more specific role allow.
   To restrict a group of people, remove the access from `everyone` and allow
   it for a role. See [Common Setups](/guides/operations/common-setups/).
+- **Replace Server-scope `everyone` denies.** `everyone` can now deny only at
+  Room group, Room, and Direct messages scope. A Server-scope deny of
+  `everyone` has the same effect as no setting, and the permission matrices
+  no longer show it.
 - **Check the role order.** The role order now decides who can manage whom:
   to change another account or assign a role, a user who is not an owner
   must rank higher. Users with `role.manage` can change every role except
@@ -412,6 +416,9 @@ protocol 4. See [API compatibility](/guides/integrations/api-compatibility/).
   role order from the order of role lists, highest first.
 - Calls that change another account return `PERMISSION_DENIED` when the caller
   does not rank higher than that account.
+- `SetRolePermission` rejects a deny for a named role, and a deny for
+  `everyone` at Server scope, with `INVALID_ARGUMENT`.
+  `AdminRole.permission_denials` is removed.
 
 ## GitHub release
 

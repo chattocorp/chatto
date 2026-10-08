@@ -10,8 +10,11 @@ export type ServerRole = {
   name: string;
   displayName: string;
   description: string;
+  /**
+   * Permissions that the role grants at server scope. Empty for public role
+   * reads. A role cannot deny at server scope (ADR-116).
+   */
   permissions: string[];
-  permissionDenials: string[];
   isSystem: boolean;
   pingable: boolean;
 };
@@ -177,20 +180,15 @@ function serverRoleFromAdmin(role: APIAdminRole): ServerRole {
   if (!role.role) {
     throw new Error('admin role response did not include public role metadata');
   }
-  return serverRoleFromPublic(role.role, role.permissions, role.permissionDenials);
+  return serverRoleFromPublic(role.role, role.permissions);
 }
 
-function serverRoleFromPublic(
-  role: APIRole,
-  permissions: string[] = [],
-  permissionDenials: string[] = []
-): ServerRole {
+function serverRoleFromPublic(role: APIRole, permissions: string[] = []): ServerRole {
   return {
     name: role.name,
     displayName: role.displayName,
     description: role.description,
     permissions: [...permissions],
-    permissionDenials: [...permissionDenials],
     isSystem: role.isSystem,
     pingable: role.pingable
   };

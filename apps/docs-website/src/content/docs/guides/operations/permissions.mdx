@@ -8,7 +8,8 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 A **permission** controls one action, such as posting messages or managing
 rooms. A **role** gives a set of permissions to many people. A permission
 setting is **Allow** or **Inherit** for a role, and **Allow**, **Deny**, or
-**Inherit** for `everyone` and for a single user.
+**Inherit** for a single user. `everyone` can deny only at Room group, Room,
+and Direct messages scope.
 
 ## How permissions work
 
@@ -18,7 +19,8 @@ setting is **Allow** or **Inherit** for a role, and **Allow**, **Deny**, or
   group, then Server. A direct message (DM) checks Direct messages, then
   Server. **Inherit** uses the next broader setting of the same user or role.
 - **`everyone` is the baseline.** Its most specific setting applies to all
-  people. It can allow or deny.
+  people. It can allow at every scope. Below Server scope, it can also deny,
+  to take away what `everyone` gets at a broader scope.
 - **Roles only add permissions.** A role allow overrides an `everyone` deny at
   the same scope or a more specific scope. Giving a role never removes access.
 - **A deny on a user always wins.** When the most specific setting on the user
@@ -41,7 +43,7 @@ setting is **Allow** or **Inherit** for a role, and **Allow**, **Deny**, or
 
 | Settings | Result |
 | -------- | ------ |
-| Server: `everyone` Deny, `admin` Allow | **Allowed** for admins. Both settings are at the same scope. |
+| Server: `everyone` Inherit, `admin` Allow | **Allowed** for admins only. |
 | Room: `everyone` Deny. Server: `admin` Allow | **Denied**. The room setting is more specific. Add a room-level allow for `admin`. |
 | Server: `admin` Allow. User: Deny | **Denied** for that admin. The deny on the user wins. |
 

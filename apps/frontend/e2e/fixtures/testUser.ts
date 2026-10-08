@@ -234,15 +234,6 @@ export async function revokePermission(
 }
 
 /**
- * Denies a permission on a role (admin-only operation).
- * This adds the permission to the role's permissionDenials list.
- * Must be called while logged in as an admin user.
- */
-export async function denyPermission(page: Page, role: string, permission: string): Promise<void> {
-  await setServerRolePermission(page, role, permission, 'PERMISSION_DECISION_DENY');
-}
-
-/**
  * Clears the permission state on a role (admin-only operation).
  * This removes the permission from both grants and denials (neutral state).
  * Must be called while logged in as an admin user.

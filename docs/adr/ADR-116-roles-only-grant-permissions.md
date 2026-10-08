@@ -47,11 +47,15 @@ also when the user denies the included permission. To stop the included
 permission, deny the including permission too. Elevation-required permissions
 still need privileged mode (ADR-105).
 
-Only `everyone` and single users can deny. The API rejects a deny for a named
-role with `INVALID_ARGUMENT`. Stored denies of named roles have no effect.
-Role reads, such as `AdminRole.permission_denials`, leave them out. At startup,
-the server logs how many such denies it ignores. It does not change or delete
-them.
+Only `everyone` and single users can deny. `everyone` can deny only at Room
+group, Room, and Direct messages scope, where the deny takes away what
+`everyone` gets at a broader scope. At Server scope, an `everyone` deny means
+the same as no setting, because every allow is at the same or a more specific
+scope. The API rejects a deny for a named role, and an `everyone` deny at
+Server scope, with `INVALID_ARGUMENT`. Stored denies of these kinds have no
+effect, and role reads leave them out. `AdminRole.permission_denials`, which
+held only Server-scope denies, is removed. At startup, the server logs how
+many named-role denies it ignores. It does not change or delete them.
 
 Bots are unchanged: they hold no roles and do not inherit `everyone`. Their
 allowlist is capped by their owner (FDR-038).

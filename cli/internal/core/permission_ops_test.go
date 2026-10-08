@@ -4,6 +4,8 @@ import (
 	"context"
 	"slices"
 	"testing"
+
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // ============================================================================
@@ -28,14 +30,17 @@ func TestGrantServerPermission(t *testing.T) {
 	})
 
 	t.Run("removes existing denial when granting", func(t *testing.T) {
-		// First deny the permission. Only everyone can deny.
-		err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
-		if err != nil {
-			t.Fatalf("DenyServerPermission() error = %v", err)
+		// First store a deny, as an earlier version could. A server-scope deny
+		// of everyone is no longer accepted (ADR-116).
+		event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
+			RbacPermissionDenied: rbacRolePermissionDeniedEvent(ScopeServer, "", RoleEveryone, PermMessagePost),
+		}})
+		if _, err := core.appendRBACEvent(ctx, event, nil); err != nil {
+			t.Fatalf("append stored deny: %v", err)
 		}
 
 		// Now grant it - should remove the denial
-		err = core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("GrantServerPermission() error = %v", err)
 		}
@@ -47,49 +52,6 @@ func TestGrantServerPermission(t *testing.T) {
 
 	t.Run("rejects unrecognised permission", func(t *testing.T) {
 		err := core.GrantServerPermission(ctx, SystemActorID, RoleModerator, Permission("not.a.real.permission"))
-		if err == nil {
-			t.Error("Expected error for invalid permission")
-		}
-	})
-}
-
-func TestDenyServerPermission(t *testing.T) {
-	t.Parallel()
-
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	t.Run("creates deny decision", func(t *testing.T) {
-		err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
-		if err != nil {
-			t.Fatalf("DenyServerPermission() error = %v", err)
-		}
-
-		if got := core.rbacModel.decision(ScopeServer, "", RoleEveryone, PermMessagePost); got != DecisionDeny {
-			t.Errorf("decision = %s, want %s", got, DecisionDeny)
-		}
-	})
-
-	t.Run("removes existing grant when denying", func(t *testing.T) {
-		// First grant the permission
-		err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
-		if err != nil {
-			t.Fatalf("GrantServerPermission() error = %v", err)
-		}
-
-		// Now deny it - should remove the grant
-		err = core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
-		if err != nil {
-			t.Fatalf("DenyServerPermission() error = %v", err)
-		}
-
-		if got := core.rbacModel.decision(ScopeServer, "", RoleEveryone, PermMessagePost); got != DecisionDeny {
-			t.Errorf("decision = %s, want %s", got, DecisionDeny)
-		}
-	})
-
-	t.Run("rejects unrecognised permission", func(t *testing.T) {
-		err := core.DenyServerPermission(ctx, SystemActorID, RoleModerator, Permission("not.real.permission"))
 		if err == nil {
 			t.Error("Expected error for invalid permission")
 		}
@@ -168,21 +130,25 @@ func TestGrantSpaceRolePermission(t *testing.T) {
 	})
 }
 
-func TestDenySpaceRolePermission(t *testing.T) {
+func TestDenyGroupRolePermission(t *testing.T) {
 	t.Parallel()
 
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	_, _ = core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
+	groups, err := core.ListRoomGroupsOrdered(ctx, KindChannel)
+	if err != nil || len(groups) == 0 {
+		t.Fatalf("ListRoomGroupsOrdered: groups=%d err=%v", len(groups), err)
+	}
+	groupID := groups[0].GetId()
 
-	t.Run("creates deny decision in server RBAC", func(t *testing.T) {
-		err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
+	t.Run("creates deny decision for everyone in a room group", func(t *testing.T) {
+		err := core.DenyGroupPermission(ctx, SystemActorID, groupID, RoleEveryone, PermMessagePost)
 		if err != nil {
-			t.Fatalf("DenySpaceRolePermission() error = %v", err)
+			t.Fatalf("DenyGroupPermission() error = %v", err)
 		}
 
-		if got := core.rbacModel.decision(ScopeServer, "", RoleEveryone, PermMessagePost); got != DecisionDeny {
+		if got := core.rbacModel.decision(ScopeGroup, groupID, RoleEveryone, PermMessagePost); got != DecisionDeny {
 			t.Errorf("decision = %s, want %s", got, DecisionDeny)
 		}
 	})
@@ -317,13 +283,16 @@ func TestPermissionOpsIdempotency(t *testing.T) {
 		}
 	})
 
+	// everyone can deny only below server scope (ADR-116).
+	roomID := createPermissionEditRoom(t, core, ctx, "idempotency-room")
+
 	t.Run("denying same permission twice succeeds", func(t *testing.T) {
-		err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
+		err := core.DenyRoomPermission(ctx, SystemActorID, roomID, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("First deny failed: %v", err)
 		}
 
-		err = core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
+		err = core.DenyRoomPermission(ctx, SystemActorID, roomID, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Errorf("Second deny should succeed (idempotent), got: %v", err)
 		}
@@ -333,18 +302,18 @@ func TestPermissionOpsIdempotency(t *testing.T) {
 		perm := PermMessagePost
 
 		// Grant
-		err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, perm)
+		err := core.GrantRoomPermission(ctx, SystemActorID, roomID, RoleEveryone, perm)
 		if err != nil {
 			t.Fatalf("Grant failed: %v", err)
 		}
 
 		// Now deny
-		err = core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, perm)
+		err = core.DenyRoomPermission(ctx, SystemActorID, roomID, RoleEveryone, perm)
 		if err != nil {
 			t.Fatalf("Deny failed: %v", err)
 		}
 
-		if got := core.rbacModel.decision(ScopeServer, "", RoleEveryone, perm); got != DecisionDeny {
+		if got := core.rbacModel.decision(ScopeRoom, roomID, RoleEveryone, perm); got != DecisionDeny {
 			t.Errorf("decision = %s, want %s", got, DecisionDeny)
 		}
 	})

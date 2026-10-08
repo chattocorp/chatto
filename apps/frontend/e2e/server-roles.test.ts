@@ -6,11 +6,11 @@ import { AdminRoleServiceListMembersRequest } from '@chatto/api-types/admin/v1/r
 import {
   activatePrivilegedMode,
   createAndLoginTestUser,
-  denyPermission as denyServerPermission,
   generateRoleName,
   grantPermission as grantServerPermission,
   logoutCurrentUser,
   loginAsAdminAndUsePrimaryServer,
+  revokePermission as revokeServerPermission,
   type TestUser
 } from './fixtures/testUser';
 import {
@@ -130,13 +130,17 @@ async function grantPermission(
   await grantServerPermission(page, role, permission);
 }
 
-async function denyPermission(
+/**
+ * Clears a role's server-scope setting. everyone cannot deny at server scope
+ * (ADR-116), so a cleared everyone allow is the way to remove a default.
+ */
+async function clearPermission(
   page: Page,
   _serverId: string,
   role: string,
   permission: string
 ): Promise<void> {
-  await denyServerPermission(page, role, permission);
+  await revokeServerPermission(page, role, permission);
 }
 
 test.describe('Server Roles Management', () => {
@@ -179,7 +183,7 @@ test.describe('Server Roles Management', () => {
       expect(await originalFilter!.evaluate((node) => node.isConnected)).toBe(true);
       expect(connections).toBe(before.connections);
 
-      await denyServerPermission(page, 'everyone', 'role.manage');
+      await revokeServerPermission(page, 'everyone', 'role.manage');
       await expect(member.getByText('Access Denied', { exact: true })).toBeVisible();
       expect(await shell!.evaluate((node) => node.isConnected)).toBe(true);
       expect(connections).toBe(before.connections);
@@ -957,20 +961,21 @@ test.describe('Roles Management', () => {
       await serverRolesPage.expectPermissionGranted('role.manage');
     });
 
-    test('server admin can deny a permission for everyone', async ({ serverRolesPage }) => {
+    test('everyone cannot be denied at server scope', async ({ serverRolesPage }) => {
       const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
 
-      // Only everyone and single users can deny.
+      // A server-scope deny of everyone means the same as no setting, so the
+      // cell changes only between allow and inherit.
       await serverRolesPage.gotoRoleDetail(server.id, 'everyone');
-      await serverRolesPage.denyPermission('message.echo');
-
-      await serverRolesPage.expectToast('Denied message.echo');
-      await page.reload();
-      await serverRolesPage.expectPermissionDenied('message.echo');
       await serverRolesPage.setPermissionState('message.echo', 'allow');
+      await serverRolesPage.togglePermission('message.echo');
+      await serverRolesPage.expectPermissionNotDenied('message.echo');
+      expect(await serverRolesPage.isPermissionGranted('message.echo')).toBe(false);
+      await serverRolesPage.togglePermission('message.echo');
+      expect(await serverRolesPage.isPermissionGranted('message.echo')).toBe(true);
     });
 
     test('server admin can clear permission from role', async ({ serverRolesPage }) => {
@@ -1018,21 +1023,21 @@ test.describe('Roles Management', () => {
       await serverRolesPage.expectNewRoleColumnVisible();
     });
 
-    test('user with everyone role denial is blocked', async ({ serverRolesPage }) => {
+    test('user without an everyone role allow is blocked', async ({ serverRolesPage }) => {
       const { page } = serverRolesPage;
 
       // Create admin user and load the primary server
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
 
-      // Deny role.manage on the "everyone" role
-      await denyPermission(page, server.id, 'everyone', 'role.manage');
+      // Clear role.manage on the "everyone" role
+      await clearPermission(page, server.id, 'everyone', 'role.manage');
 
       // Create second user
       const regularUser = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, regularUser.login, regularUser.password);
-      // Navigate to roles list - should be denied because everyone role has denial
+      // Navigate to roles list - should be denied because no role allows role.manage
       await page.goto(routes.serverAdminPermissions);
       await serverRolesPage.expectAccessDenied();
     });
@@ -1190,9 +1195,9 @@ test.describe('Server Permission Enforcement', () => {
 
       const hiddenRoomId = await createRoomViaAPI(page);
 
-      // Deny room.list from everyone role. Users can still see rooms they
+      // Clear room.list from everyone role. Users can still see rooms they
       // already joined; this assertion checks that an unjoined room is filtered.
-      await denyPermission(page, server.id, 'everyone', 'room.list');
+      await clearPermission(page, server.id, 'everyone', 'room.list');
 
       // Create second user and log them in
       const member = await createSecondTestUser(page);
@@ -1235,8 +1240,8 @@ test.describe('Server Permission Enforcement', () => {
       const server = await usePrimaryServerViaAPI(page);
       const roomId = await createRoomViaAPI(page);
 
-      // Deny room.join from everyone role
-      await denyPermission(page, server.id, 'everyone', 'room.join');
+      // Clear room.join from everyone role
+      await clearPermission(page, server.id, 'everyone', 'room.join');
 
       // Create second user and log them in
       const member = await createSecondTestUser(page);
@@ -1246,7 +1251,7 @@ test.describe('Server Permission Enforcement', () => {
         roomId
       });
 
-      // Should fail - room.join is denied
+      // Should fail - no role allows room.join
       expect(joinResponse.ok()).toBe(false);
     });
 
@@ -1256,8 +1261,8 @@ test.describe('Server Permission Enforcement', () => {
       const server = await usePrimaryServerViaAPI(page);
       const roomId = await createRoomViaAPI(page);
 
-      // Deny message.post for everyone role at server level
-      await denyPermission(page, server.id, 'everyone', 'message.post');
+      // Clear message.post for everyone role at server level
+      await clearPermission(page, server.id, 'everyone', 'message.post');
 
       // Create second user, join the room
       const member = await createSecondTestUser(page);
@@ -1289,8 +1294,8 @@ test.describe('Server Permission Enforcement', () => {
       await page.goto(routes.room(roomId));
       await roomPage.sendMessage('Hello world');
 
-      // Deny message.react for everyone role
-      await denyPermission(page, server.id, 'everyone', 'message.react');
+      // Clear message.react for everyone role
+      await clearPermission(page, server.id, 'everyone', 'message.react');
 
       // Create second user, join the room
       const member = await createSecondTestUser(page);

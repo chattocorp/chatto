@@ -32,8 +32,8 @@ export type AdminRoleSummary = {
 };
 
 export type AdminRoleDetails = AdminRoleSummary & {
+  /** Permissions that the role grants at server scope. */
   permissions: string[];
-  permissionDenials: string[];
 };
 
 export type AdminMemberList = {
@@ -241,7 +241,6 @@ function adminRoleDetails(role: APIAdminRole): AdminRoleDetails {
   }
   return {
     ...adminRoleSummary(role.role),
-    permissions: [...role.permissions],
-    permissionDenials: [...role.permissionDenials]
+    permissions: [...role.permissions]
   };
 }

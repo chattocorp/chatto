@@ -30,7 +30,6 @@ export interface E2EAdminRole {
     pingable?: boolean;
   };
   permissions?: string[];
-  permissionDenials?: string[];
 }
 
 export interface E2EServerRole {
@@ -40,7 +39,6 @@ export interface E2EServerRole {
   isSystem?: boolean;
   pingable?: boolean;
   permissions: string[];
-  permissionDenials: string[];
 }
 
 export type E2ENotificationMode =
@@ -159,8 +157,7 @@ export function unwrapAdminRole(role: E2EAdminRole | undefined): E2EServerRole |
   if (!role?.role) return undefined;
   return {
     ...role.role,
-    permissions: [...(role.permissions ?? [])],
-    permissionDenials: [...(role.permissionDenials ?? [])]
+    permissions: [...(role.permissions ?? [])]
   };
 }
 

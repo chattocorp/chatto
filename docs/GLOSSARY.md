@@ -169,7 +169,7 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **Moderator** — System role (position 100 on fresh servers; role managers can move it). Moderation permissions, no administrative reach.
 
-**Everyone** — Implicit virtual role (position 0, fixed) held by every authenticated user. Its nearest decision is the scoped permission baseline. A named-role allow overrides an `everyone` deny only at the same or a nearer scope. Only `everyone` and single users can deny.
+**Everyone** — Implicit virtual role (position 0, fixed) held by every authenticated user. Its nearest decision is the scoped permission baseline. A named-role allow overrides an `everyone` deny only at the same or a nearer scope. Only single users and `everyone` can deny; `everyone` only below server scope, because a server-scope deny means the same as no setting.
 
 **Scope** — Tier at which a permission is configured: Server, Direct messages,
 Room group, or Room. A channel check uses Room, Room group, then Server. A DM

@@ -74,7 +74,7 @@ async function createRoleViaConnect(
   name: string,
   displayName: string,
   description: string
-): Promise<{ name?: string; permissionDenials?: string[] }> {
+): Promise<{ name?: string; permissions?: string[] }> {
   const data = await connectPost<{ role?: E2EAdminRole }>(
     page,
     'chatto.admin.v1.AdminRoleService/CreateRole',
@@ -99,7 +99,7 @@ async function deleteRoleViaConnect(page: Page, name: string): Promise<void> {
 async function getRoleViaConnect(
   page: Page,
   name: string
-): Promise<{ name?: string; permissionDenials?: string[] }> {
+): Promise<{ name?: string; permissions?: string[] }> {
   const data = await connectPost<{ role?: E2EAdminRole }>(
     page,
     'chatto.admin.v1.AdminRoleService/GetRole',
@@ -769,7 +769,7 @@ test.describe('Role permissions only grant', () => {
     expect(response.status()).toBe(400);
     expect(await response.text()).toContain('invalid_argument');
     const role = await getRoleViaConnect(page, roleName);
-    expect(role.permissionDenials ?? []).toEqual([]);
+    expect(role.permissions ?? []).not.toContain('message.post');
 
     await deleteRoleViaConnect(page, roleName);
   });

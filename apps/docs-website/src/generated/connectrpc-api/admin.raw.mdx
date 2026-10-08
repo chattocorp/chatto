@@ -1184,7 +1184,7 @@ callers who are not owners can change only roles below their own highest
 role. Every caller who is not an owner must have the permission at the
 target scope; otherwise the call returns PERMISSION_DENIED. Everyone ranks
 below every account. Roles only grant: a deny for any role except
-everyone returns INVALID_ARGUMENT.
+everyone, or for everyone at server scope, returns INVALID_ARGUMENT.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/SetRolePermission
@@ -2457,8 +2457,7 @@ Role metadata plus administrative permission state.
 | Field | Type | Description |
 | --- | --- | --- |
 | `role` | `chatto.api.v1.Role` | Public role metadata shared with ordinary role catalog reads. |
-| `permissions` | `repeated string` | Permissions granted by this role. |
-| `permission_denials` | `repeated string` | Permissions denied by this role. Only the everyone role can deny; this is empty for other roles, whose stored denies have no effect. |
+| `permissions` | `repeated string` | Permissions granted by this role at server scope. A role cannot deny at server scope. |
 
 
 
@@ -2638,7 +2637,7 @@ Permission grants and denials at a single tier.
 | Field | Type | Description |
 | --- | --- | --- |
 | `permissions` | `repeated string` | Explicitly granted permissions. |
-| `permission_denials` | `repeated string` | Explicitly denied permissions. Only the everyone role can deny; this is empty for other roles. |
+| `permission_denials` | `repeated string` | Explicitly denied permissions. Only the everyone role can deny, and only below the server tier; this is empty for other roles and at the server tier. |
 
 
 

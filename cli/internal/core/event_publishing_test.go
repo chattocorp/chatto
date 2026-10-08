@@ -701,8 +701,8 @@ func TestStreamMyEvents_DeliversDMEventsWhenMessagePostDenied(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser target: %v", err)
 	}
-	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost); err != nil {
-		t.Fatalf("DenyServerPermission message.post: %v", err)
+	if err := core.DenyUserPermission(ctx, SystemActorID, target.Id, PermMessagePost); err != nil {
+		t.Fatalf("DenyUserPermission message.post: %v", err)
 	}
 	canPostMessage, err := core.HasServerPermission(ctx, target.Id, PermMessagePost)
 	if err != nil {

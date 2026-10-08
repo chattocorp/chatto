@@ -7,7 +7,6 @@ function role(name: string) {
     displayName: name,
     description: '',
     permissions: [],
-    permissionDenials: [],
     isSystem: false,
     pingable: true
   };

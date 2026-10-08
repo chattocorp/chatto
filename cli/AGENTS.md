@@ -320,8 +320,9 @@ authorization, live events, backup and restore, and backend tests.
 - Roles only grant (ADR-116). A deny as the user's own nearest
   room/group/server setting decides. Otherwise, an allow of the user or a
   named role wins when it is at the same scope as `everyone`'s nearest setting
-  or a nearer one; otherwise `everyone`'s setting decides. Reject new named-role denies; stored
-  ones have no effect. Every check, explanation, and matrix goes through
+  or a nearer one; otherwise `everyone`'s setting decides. Reject new
+  named-role denies and server-scope `everyone` denies; stored ones have no
+  effect. Every check, explanation, and matrix goes through
   `PermissionResolver.explain`; do not add a second resolver.
 - Effective owner means durable `owner` role or verified email matching
   `owners.emails`. Owners are entitled to every permission, but the owner

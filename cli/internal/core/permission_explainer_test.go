@@ -119,29 +119,35 @@ func TestPermissionExplainer_NamedSubjectsAndEveryoneBaseline(t *testing.T) {
 	if err := core.AssignServerRole(ctx, SystemActorID, user.Id, RoleAdmin); err != nil {
 		t.Fatalf("assign admin: %v", err)
 	}
-	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermAdminUsersView); err != nil {
+	// everyone can deny only below server scope (ADR-116), so the baseline
+	// and the role allow are at room scope.
+	roomID := createPermissionEditRoom(t, core, ctx, "explainer-baseline-room")
+	if err := core.DenyRoomPermission(ctx, SystemActorID, roomID, RoleEveryone, PermMessageAttach); err != nil {
 		t.Fatalf("deny everyone: %v", err)
 	}
+	if err := core.GrantRoomPermission(ctx, SystemActorID, roomID, RoleAdmin, PermMessageAttach); err != nil {
+		t.Fatalf("grant admin: %v", err)
+	}
 
-	exp, err := core.permissionResolver.ExplainServerPermission(ctx, user.Id, PermAdminUsersView)
+	exp, err := core.permissionResolver.ExplainRoomPermission(ctx, user.Id, KindChannel, roomID, PermMessageAttach)
 	if err != nil {
-		t.Fatalf("ExplainServerPermission: %v", err)
+		t.Fatalf("ExplainRoomPermission: %v", err)
 	}
 	if exp.State != DecisionAllow || exp.DecidedByRole != RoleAdmin {
 		t.Fatalf("decision = %s by %q, want allow by admin; trace=%+v", exp.State, exp.DecidedByRole, exp.Trace)
 	}
-	if !traceContains(exp.Trace, RoleEveryone, LevelServer, DecisionDeny) {
+	if !traceContains(exp.Trace, RoleEveryone, LevelRoom, DecisionDeny) {
 		t.Fatalf("expected ignored everyone deny in trace, got %+v", exp.Trace)
 	}
 
 	// A setting on the user decides over its roles.
-	if err := core.DenyUserPermission(ctx, SystemActorID, user.Id, PermAdminUsersView); err != nil {
+	if err := core.DenyUserPermission(ctx, SystemActorID, user.Id, PermMessageAttach); err != nil {
 		t.Fatalf("deny user: %v", err)
 	}
 
-	exp, err = core.permissionResolver.ExplainServerPermission(ctx, user.Id, PermAdminUsersView)
+	exp, err = core.permissionResolver.ExplainRoomPermission(ctx, user.Id, KindChannel, roomID, PermMessageAttach)
 	if err != nil {
-		t.Fatalf("ExplainServerPermission with user deny: %v", err)
+		t.Fatalf("ExplainRoomPermission with user deny: %v", err)
 	}
 	if exp.State != DecisionDeny || exp.DecidedByRole != user.Id {
 		t.Fatalf("decision = %s by %q, want deny by the user; trace=%+v", exp.State, exp.DecidedByRole, exp.Trace)

@@ -5,7 +5,7 @@
 
 ## Overview
 
-Chatto controls who can do what through role-based access control. Every authenticated human user holds one or more roles; each role grants specific permissions, and the `everyone` role and single users can also deny them. Settings apply at server, room-group, and room scope, giving operators fine-grained control without inventing parallel role systems. Bot accounts are the deliberate exception: they use an explicit direct-permission allowlist bounded by their human owner's current authority (FDR-038).
+Chatto controls who can do what through role-based access control. Every authenticated human user holds one or more roles; each role grants specific permissions; single users, and the `everyone` role below server scope, can also deny them. Settings apply at server, room-group, and room scope, giving operators fine-grained control without inventing parallel role systems. Bot accounts are the deliberate exception: they use an explicit direct-permission allowlist bounded by their human owner's current authority (FDR-038).
 
 Role metadata and member role lists update through realtime events. Display
 changes do not reload the full client. Permission changes refresh affected data
@@ -56,8 +56,8 @@ as authorization (ADR-116), so the cell and the permission check always agree.
 - An account cell shows what that account gets. When the account has privileged
   mode available, the cell also tells which permissions it gets only in
   privileged mode. A room ban shows `room.join` as denied.
-- A named role cell changes between allow and no setting. Only `everyone` and
-  account cells can also deny.
+- A named role cell changes between allow and no setting. Account cells can
+  also deny. `everyone` cells can also deny below Server scope.
 - The server tells which cells the viewer can change. A cell for a permission
   that the viewer does not have at that scope is read-only, and its title
   tells why. Owners see no locked cells.
@@ -104,7 +104,8 @@ the backend permission catalog. Update both catalogs together.
 - Permission grants and denies can be configured at Server, Direct messages,
   Room group, and Room scope. Channel checks use Room, Room group, then Server.
   DM checks use Direct messages, then Server. Named roles can only grant;
-  `everyone` and single users can also deny (Design Decision 2).
+  single users can also deny, and `everyone` can also deny below Server scope
+  (Design Decision 2).
 - Roles are the normal way to give permissions. Direct per-user decisions are
   for rare exceptions: the admin UI does not show them on role pages, and they
   give no rank (Design Decision 11). Documentation recommends roles first.

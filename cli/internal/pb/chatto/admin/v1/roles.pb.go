@@ -29,13 +29,11 @@ type AdminRole struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Public role metadata shared with ordinary role catalog reads.
 	Role *v1.Role `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
-	// Permissions granted by this role.
-	Permissions []string `protobuf:"bytes,2,rep,name=permissions,proto3" json:"permissions,omitempty"`
-	// Permissions denied by this role. Only the everyone role can deny; this is
-	// empty for other roles, whose stored denies have no effect.
-	PermissionDenials []string `protobuf:"bytes,3,rep,name=permission_denials,json=permissionDenials,proto3" json:"permission_denials,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Permissions granted by this role at server scope. A role cannot deny at
+	// server scope.
+	Permissions   []string `protobuf:"bytes,2,rep,name=permissions,proto3" json:"permissions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AdminRole) Reset() {
@@ -78,13 +76,6 @@ func (x *AdminRole) GetRole() *v1.Role {
 func (x *AdminRole) GetPermissions() []string {
 	if x != nil {
 		return x.Permissions
-	}
-	return nil
-}
-
-func (x *AdminRole) GetPermissionDenials() []string {
-	if x != nil {
-		return x.PermissionDenials
 	}
 	return nil
 }
@@ -853,11 +844,10 @@ var File_chatto_admin_v1_roles_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_roles_proto_rawDesc = "" +
 	"\n" +
-	"\x1bchatto/admin/v1/roles.proto\x12\x0fchatto.admin.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1echatto/api/v1/pagination.proto\"\x85\x01\n" +
+	"\x1bchatto/admin/v1/roles.proto\x12\x0fchatto.admin.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1echatto/api/v1/pagination.proto\"p\n" +
 	"\tAdminRole\x12'\n" +
 	"\x04role\x18\x01 \x01(\v2\x13.chatto.api.v1.RoleR\x04role\x12 \n" +
-	"\vpermissions\x18\x02 \x03(\tR\vpermissions\x12-\n" +
-	"\x12permission_denials\x18\x03 \x03(\tR\x11permissionDenials\"\x12\n" +
+	"\vpermissions\x18\x02 \x03(\tR\vpermissionsJ\x04\b\x03\x10\x04R\x12permission_denials\"\x12\n" +
 	"\x10ListRolesRequest\"\xb3\x01\n" +
 	"\x11ListRolesResponse\x120\n" +
 	"\x05roles\x18\x01 \x03(\v2\x1a.chatto.admin.v1.AdminRoleR\x05roles\x125\n" +

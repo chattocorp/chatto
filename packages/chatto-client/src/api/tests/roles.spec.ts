@@ -44,7 +44,6 @@ describe('createRoleAPI', () => {
           displayName: 'Moderator',
           description: 'Moderates rooms',
           permissions: [],
-          permissionDenials: [],
           isSystem: true,
           pingable: true
         }
@@ -94,8 +93,7 @@ describe('createRoleAPI', () => {
             isSystem: true,
             pingable: true
           },
-          permissions: ['room.manage'],
-          permissionDenials: ['message.post']
+          permissions: ['room.manage']
         }
       ],
       viewerCanManageRoles: true,
@@ -112,7 +110,6 @@ describe('createRoleAPI', () => {
           displayName: 'Moderator',
           description: 'Moderates rooms',
           permissions: ['room.manage'],
-          permissionDenials: ['message.post'],
           isSystem: true,
           pingable: true
         }
@@ -132,8 +129,7 @@ describe('createRoleAPI', () => {
           isSystem: false,
           pingable: false
         },
-        permissions: [],
-        permissionDenials: []
+        permissions: []
       },
       viewerCanManageRoles: true,
       viewerCanAssignRoles: true
@@ -149,7 +145,6 @@ describe('createRoleAPI', () => {
         displayName: 'Helpdesk',
         description: '',
         permissions: [],
-        permissionDenials: [],
         isSystem: false,
         pingable: false
       },
@@ -188,7 +183,6 @@ describe('createRoleAPI', () => {
       displayName: 'Helpdesk',
       description: 'Support queue',
       permissions: [],
-      permissionDenials: [],
       isSystem: false,
       pingable: true
     };
@@ -200,8 +194,7 @@ describe('createRoleAPI', () => {
         isSystem: role.isSystem,
         pingable: role.pingable
       },
-      permissions: role.permissions,
-      permissionDenials: role.permissionDenials
+      permissions: role.permissions
     };
     adminRoles.createRole.mockReturnValue({ role: apiRole });
     adminRoles.updateRole.mockReturnValue({
@@ -273,8 +266,7 @@ describe('createRoleAPI', () => {
             isSystem: true,
             pingable: true
           },
-          permissions: ['message.manage'],
-          permissionDenials: []
+          permissions: ['message.manage']
         },
         {
           role: {
@@ -284,8 +276,7 @@ describe('createRoleAPI', () => {
             isSystem: true,
             pingable: false
           },
-          permissions: [],
-          permissionDenials: []
+          permissions: []
         }
       ]
     });

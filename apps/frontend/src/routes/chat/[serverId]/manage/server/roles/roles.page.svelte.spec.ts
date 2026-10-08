@@ -48,7 +48,6 @@ function role(name: string): ServerRole {
     displayName: name.charAt(0).toUpperCase() + name.slice(1),
     description: '',
     permissions: [],
-    permissionDenials: [],
     isSystem: ['owner', 'admin', 'everyone'].includes(name),
     pingable: false
   };

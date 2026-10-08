@@ -158,7 +158,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
     onCycle={handleCycle}
     subjectKind={m('rbac.permissions.cell.role_subject')}
     forceAllow={isOwnerRole}
-    canDeny={roleName === 'everyone'}
+    canDeny={(scope) => roleName === 'everyone' && scope.kind !== 'SERVER'}
     readOnly={isOwnerRole || readOnly || visibleUpdatingKey !== null}
   />
 {/if}

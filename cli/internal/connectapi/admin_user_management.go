@@ -316,8 +316,7 @@ func adminAPIRolesFromAdminMemberRoles(roles []core.AdminMemberRole) []*adminv1.
 				IsSystem:    role.IsSystem,
 				Pingable:    role.Pingable,
 			},
-			Permissions:       corePermissionsToStrings(role.Permissions),
-			PermissionDenials: corePermissionsToStrings(role.PermissionDenials),
+			Permissions: corePermissionsToStrings(role.Permissions),
 		})
 	}
 	return out

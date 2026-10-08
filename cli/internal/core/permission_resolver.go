@@ -206,8 +206,8 @@ func (r *PermissionResolver) resolveForAccount(ctx context.Context, userID strin
 //  5. A deny on the user decides. Otherwise, an allow of the user or a role
 //     at the same scope as everyone's nearest setting, or a more specific
 //     one, allows. Otherwise, everyone's nearest setting decides. No setting
-//     means no access. Roles only grant: stored role denies have no effect
-//     (ADR-116).
+//     means no access. Roles only grant: stored role denies and a stored
+//     server-scope deny of everyone have no effect (ADR-116).
 //  6. An allow of an elevation-required permission needs active privileged
 //     mode, except in entitlement checks.
 //
@@ -447,8 +447,8 @@ func (d applicablePermissionDecisions) trace() []TraceEntry {
 
 // collectApplicableDecisions collects the decisions that resolution uses from
 // decision, a lookup of stored decisions for one permission. scopes lists the
-// applicable scopes, most specific first. Named-role denies are skipped,
-// because roles only grant (ADR-116).
+// applicable scopes, most specific first. Named-role denies and a server-scope
+// deny of everyone are skipped (ADR-116).
 func collectApplicableDecisions(decision func(scope PermissionScope, scopeID, subject string) DecisionKind, userID string, roles []string, scopes []permissionScopeTarget) applicablePermissionDecisions {
 	nearest := func(subject string, allowOnly bool) (TraceEntry, bool) {
 		if subject == "" {
@@ -457,6 +457,11 @@ func collectApplicableDecisions(decision func(scope PermissionScope, scopeID, su
 		for _, target := range scopes {
 			found := decision(target.scope, target.id, subject)
 			if found == DecisionNone || (allowOnly && found != DecisionAllow) {
+				continue
+			}
+			// A stored deny of everyone at server scope means the same as no
+			// setting (ADR-116).
+			if subject == RoleEveryone && found == DecisionDeny && target.scope == ScopeServer {
 				continue
 			}
 			return TraceEntry{Level: target.level, RoleName: subject, Decision: found, ObjectID: target.objectID()}, true

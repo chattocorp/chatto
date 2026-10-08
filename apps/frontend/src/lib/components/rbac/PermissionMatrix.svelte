@@ -134,6 +134,9 @@ focusing a cell highlights its permission row and role column.
     /** Use a contained vertical viewport instead of flowing with the owning page. */
     scrollContents?: boolean;
   } = $props();
+  // Only everyone can deny, and only below Server scope, where a deny takes
+  // away what everyone gets at a broader scope (ADR-116).
+  const belowServer = $derived(roomId != null || groupId != null);
 
   const serverScope = useServerScope();
 
@@ -553,7 +556,7 @@ focusing a cell highlights its permission row and role column.
           effective={virtualOwner ? undefined : eff}
           updating={cellIsUpdating(`${role.roleName}::${permission}`)}
           disabled={virtualOwner || lockedByOrder || !viewerChangeable.has(permission)}
-          canDeny={role.roleName === 'everyone'}
+          canDeny={role.roleName === 'everyone' && belowServer}
           {ariaLabel}
           title={titleParts.join(' · ')}
           onCycle={(next) => void cycle(role, permission, next)}

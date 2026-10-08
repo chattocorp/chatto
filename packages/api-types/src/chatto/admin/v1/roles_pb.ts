@@ -23,19 +23,12 @@ export class AdminRole extends Message<AdminRole> {
   role?: Role;
 
   /**
-   * Permissions granted by this role.
+   * Permissions granted by this role at server scope. A role cannot deny at
+   * server scope.
    *
    * @generated from field: repeated string permissions = 2;
    */
   permissions: string[] = [];
-
-  /**
-   * Permissions denied by this role. Only the everyone role can deny; this is
-   * empty for other roles, whose stored denies have no effect.
-   *
-   * @generated from field: repeated string permission_denials = 3;
-   */
-  permissionDenials: string[] = [];
 
   constructor(data?: PartialMessage<AdminRole>) {
     super();
@@ -47,7 +40,6 @@ export class AdminRole extends Message<AdminRole> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "role", kind: "message", T: Role },
     { no: 2, name: "permissions", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 3, name: "permission_denials", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminRole {

@@ -471,3 +471,39 @@ it('localizes tri-state cell labels, titles, and scope headings', async () => {
   expect(container.querySelector('span[title="DMs (DM)"]')).not.toBeNull();
   expect(container.textContent).toContain('Berechtigung');
 });
+
+it('offers deny only at the scopes that canDeny accepts', () => {
+  const onCycle = vi.fn();
+  const groupAllow: MatrixData = {
+    ...data,
+    cells: data.cells.map((cell) =>
+      cell.scopeId === 'group:general' && cell.permission === 'message.post'
+        ? { ...cell, override: 'ALLOW' }
+        : cell
+    )
+  };
+  const { container } = render(SubjectPermissionsMatrix, {
+    props: {
+      data: groupAllow,
+      onCycle,
+      canDeny: (scope: { kind: string }) => scope.kind !== 'SERVER'
+    }
+  });
+  const cell = (scope: string) =>
+    container.querySelector(
+      `td[data-scope="${scope}"][data-permission="message.post"] button`
+    ) as HTMLButtonElement;
+
+  cell('server').click();
+  expect(onCycle).toHaveBeenLastCalledWith(
+    expect.objectContaining({ id: 'server' }),
+    'message.post',
+    'neutral'
+  );
+  cell('group:general').click();
+  expect(onCycle).toHaveBeenLastCalledWith(
+    expect.objectContaining({ id: 'group:general' }),
+    'message.post',
+    'deny'
+  );
+});
