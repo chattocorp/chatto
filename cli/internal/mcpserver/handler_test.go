@@ -279,6 +279,22 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	if failure.Code != "idempotency_conflict" || failure.Outcome != "not_applied" || failure.Retry != "never" {
 		t.Fatalf("mismatched send = %#v", failure)
 	}
+	if err := chattoCore.DenyUserRoomPermission(ctx, core.SystemActorID, visible.GetId(), viewer.GetId(), core.PermMessageRead); err != nil {
+		t.Fatal(err)
+	}
+	deniedReplay, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "post_message", Arguments: map[string]any{
+		"room_id": visible.GetId(), "body": "Hello from MCP", "idempotency_key": "cdd8d7d2-a6ab-4bb3-a30a-edcc15266d41",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	deniedFailure := assertToolFailure(t, deniedReplay, tools, "post_message")
+	if deniedFailure.Outcome != "applied" || deniedFailure.Retry != "never" || deniedFailure.RetrySameRequest {
+		t.Fatalf("committed send under revoked read access = %#v", deniedFailure)
+	}
+	if err := chattoCore.GrantUserRoomPermission(ctx, core.SystemActorID, visible.GetId(), viewer.GetId(), core.PermMessageRead); err != nil {
+		t.Fatal(err)
+	}
 
 	messagesResult, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_room_messages", Arguments: map[string]any{
 		"room_id": visible.GetId(), "limit": 10,

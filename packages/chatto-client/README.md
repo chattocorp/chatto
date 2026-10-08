@@ -134,7 +134,8 @@ still have reached the server.
 | `addReaction({ roomId, messageId }, emoji)`        | Reacts to a message                                       |
 | `addressedMessage(event, { reasons })`             | Recognizes an event as a message to the viewer            |
 
-Every helper takes `{ signal }` as its last argument. `postMessage`, `reply`,
+Request helpers take `{ signal }` as their last argument. A prepared operation
+takes it in `send({ signal })`. `postMessage`, `reply`,
 and `ctx.reply` return the `ids` of the new messages. Other helpers are
 `conversationKey`, `replyDestination`, `withTyping` and `startTyping` for
 custom typing updates, and `createDeliveryTracker` for replay filters.

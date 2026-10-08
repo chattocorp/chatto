@@ -5,7 +5,10 @@ import {
   MessageSendExpiredError
 } from './messageSend.js';
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 describe('prepared message sends', () => {
   it('reuses the exact prepared request after a lost response', async () => {
@@ -53,5 +56,30 @@ describe('prepared message sends', () => {
     vi.advanceTimersByTime(1);
     await expect(operation.send()).rejects.toBeInstanceOf(MessageSendExpiredError);
     expect(post).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not extend the retry window when the wall clock moves backward', async () => {
+    vi.useFakeTimers();
+    const originalTime = Date.now();
+    const monotonic = vi.spyOn(performance, 'now').mockReturnValue(0);
+    const post = vi.fn().mockRejectedValue(new Error('response lost'));
+    const operation = createMessageSend({ prepare: async (key) => ({ key }), post });
+    await expect(operation.send()).rejects.toThrow('response lost');
+    monotonic.mockReturnValue(MESSAGE_SEND_RETRY_WINDOW_MS);
+    vi.setSystemTime(originalTime - 60_000);
+    await expect(operation.send()).rejects.toBeInstanceOf(MessageSendExpiredError);
+    expect(post).toHaveBeenCalledOnce();
+  });
+
+  it('checks the deadline again after an asynchronous continuation resumes', async () => {
+    vi.useFakeTimers();
+    const post = vi.fn().mockRejectedValue(new Error('response lost'));
+    const operation = createMessageSend({ prepare: async (key) => ({ key }), post });
+    await expect(operation.send()).rejects.toThrow('response lost');
+    vi.advanceTimersByTime(MESSAGE_SEND_RETRY_WINDOW_MS - 1);
+    const retry = operation.send();
+    vi.advanceTimersByTime(1);
+    await expect(retry).rejects.toBeInstanceOf(MessageSendExpiredError);
+    expect(post).toHaveBeenCalledOnce();
   });
 });

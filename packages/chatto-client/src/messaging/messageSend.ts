@@ -41,7 +41,11 @@ export function createMessageSend<Request, Result>({
 }): MessageSendOperation<Result> {
   let prepared: Promise<Request> | undefined;
   let inFlight: Promise<Result> | undefined;
-  let startedAt: number | undefined;
+  let startedAt: { wall: number; monotonic: number } | undefined;
+  const expired = () =>
+    startedAt !== undefined &&
+    (Date.now() - startedAt.wall >= MESSAGE_SEND_RETRY_WINDOW_MS ||
+      performance.now() - startedAt.monotonic >= MESSAGE_SEND_RETRY_WINDOW_MS);
 
   return {
     idempotencyKey,
@@ -52,7 +56,7 @@ export function createMessageSend<Request, Result>({
       } catch (error) {
         return Promise.reject(error);
       }
-      if (startedAt !== undefined && Date.now() - startedAt >= MESSAGE_SEND_RETRY_WINDOW_MS) {
+      if (expired()) {
         return Promise.reject(new MessageSendExpiredError());
       }
       if (inFlight) return inFlight;
@@ -64,7 +68,10 @@ export function createMessageSend<Request, Result>({
         const request = await prepared;
         options.signal?.throwIfAborted();
         assertScope?.();
-        startedAt ??= Date.now();
+        // A browser can resume this continuation after the window has ended.
+        // The monotonic clock also prevents wall-clock rollback from extending it.
+        if (expired()) throw new MessageSendExpiredError();
+        startedAt ??= { wall: Date.now(), monotonic: performance.now() };
         return post(request, options);
       };
       inFlight = attempt().finally(() => {
