@@ -33,9 +33,11 @@ export class NoiseGate {
     this.level = Math.sqrt(sum / Math.max(1, frames * input.length));
     const disabled = this.threshold <= GATE_OFF;
     const opening = 10 ** (this.threshold / 20);
+    // Hysteresis: an open gate closes about 6 dB below the opening threshold.
     const closing = opening * 0.5;
     if (disabled || this.level >= (this.#open ? closing : opening)) {
       this.#open = true;
+      // Hold the gate open for 150 ms after the last loud block.
       this.#hold = this.sampleRate * 0.15;
     } else {
       this.#hold = Math.max(0, this.#hold - frames);
@@ -55,6 +57,7 @@ export class NoiseGate {
     const knee = position * position * (3 - 2 * position);
     const target = this.#open ? 1 : knee;
     const rising = target > this.#gain;
+    // Linear ramps: 5 ms attack; 80 ms release, extended by up to 100 ms with softness.
     const step = 1 / (this.sampleRate * (rising ? 0.005 : 0.08 + 0.1 * this.softness));
     for (let i = 0; i < frames; i++) {
       this.#gain = disabled
