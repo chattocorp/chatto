@@ -129,7 +129,7 @@ Scopes: **S** Server, **G** Room group, **R** Room, **DM** Direct messages.
 | `call.camera` | All | | Send camera video. |
 | `call.screenshare` | All | | Share a screen, window, tab, or application, with its audio. |
 | `role.manage` | S | Yes | Create, change, move, and delete roles and their permission settings, for every role except `owner`. A non-owner can change only the settings of permissions that they have at that scope. To delete a role, a non-owner must have every permission that the role allows or denies. |
-| `role.assign` | S | Yes | Assign and remove roles. A non-owner can assign only roles below them whose allows they have, and only to accounts below them. Only owners can assign `owner`. |
+| `role.assign` | S | Yes | Assign and remove roles. A non-owner can assign only roles below them whose allows they have, and only to accounts below them or to their own account. Only owners can assign `owner`. |
 | `admin.view-users` | S | Yes | See the member list in Server Administration. |
 | `admin.view-audit` | S | Yes | See the event log. |
 | `user.invite` | S | Yes | List, create, copy, and revoke invite links. The holder can use all active invite links. |
