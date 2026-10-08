@@ -15,7 +15,8 @@ frontend. The order belongs to this browser or app installation.
   home server.
 - Users can drag remote server icons with a mouse. The server menu also has
   **Move up** and **Move down** actions, with unavailable moves disabled.
-  Touch-only devices use the menu so swipes still scroll the list.
+  Touch input uses the menu, including on devices with a mouse or trackpad.
+  Taps select servers and swipes scroll the list.
 - New servers appear after the existing remote servers. Signed-out and
   unavailable servers can be moved. Moving a server does not select it.
 - Removing a server clears its saved position. Adding it again puts it after

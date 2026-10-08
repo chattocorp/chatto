@@ -50,10 +50,17 @@ export function attachServerGutterDrag(
         event.stopPropagation();
       }
     };
+    // Keep touch input native, including on devices with an attached mouse.
+    // The drag library cancels touchstart even for taps. Stop it in capture
+    // without preventing clicks, scrolling, or the pointer-based long press.
+    const touchStart = (event: TouchEvent) => {
+      event.stopPropagation();
+    };
     node.addEventListener('consider', consider);
     node.addEventListener('finalize', finalize);
     node.addEventListener('click', click, true);
     node.addEventListener('mousedown', mouseDown, true);
+    node.addEventListener('touchstart', touchStart, { capture: true, passive: true });
     const detachZone = fromAction(dndzone, () => ({
       items: options.items(),
       type: 'server-gutter',
@@ -71,6 +78,7 @@ export function attachServerGutterDrag(
       node.removeEventListener('finalize', finalize);
       node.removeEventListener('click', click, true);
       node.removeEventListener('mousedown', mouseDown, true);
+      node.removeEventListener('touchstart', touchStart, true);
       detachZone?.();
     };
   });
