@@ -3,6 +3,15 @@
 # separate `mise trust` or `mise install` step.
 min_version = "2026.8.9"
 
+[settings]
+# Turbo can restore outputs with older timestamps than local sources. Compare
+# content and the complete output tree so warm builds skip and missing files rebuild.
+task.source_freshness_hash_contents = true
+
+[vars]
+# The completion output must also change when build environment inputs change.
+frontend_build_environment = "{{ env.CHATTO_BUILD_VERSION | default(value='') | hash(len=16) }}-{{ env.CHATTO_FRONTEND_PRECOMPRESS | default(value='') | hash(len=16) }}-{{ env.NODE_OPTIONS | default(value='') | hash(len=16) }}"
+
 [tools]
 actionlint = "1.7.12"
 "aqua:koalaman/shellcheck" = "0.11.0"
@@ -126,6 +135,7 @@ run = "pnpm install"
 # package.json also contains app metadata and scripts; the lockfile is the
 # dependency-resolution input that should trigger installs.
 sources = ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", "apps/*/package.json", "examples/*/package.json", "packages/*/package.json"]
+outputs = ["node_modules/.modules.yaml"]
 
 [tasks.deps]
 description = "Install all dependencies"
@@ -270,11 +280,21 @@ run = "pnpm build:ios"
 description = "Build the generated TypeScript API package"
 depends = ["setup-frontend"]
 run = "pnpm run build:api-types"
+sources = [
+    "{package.json,pnpm-*.yaml,.npmrc,turbo.json,tools/turbo.mjs}",
+    "packages/api-types/{src/**,package.json,tsconfig*.json}",
+]
+outputs = ["packages/api-types/dist"]
 
 [tasks.build-lingua]
 description = "Build the JSON internationalisation runtime package"
 depends = ["setup-frontend"]
 run = "pnpm run build:lingua"
+sources = [
+    "{package.json,pnpm-*.yaml,.npmrc,turbo.json,tools/turbo.mjs}",
+    "packages/lingua/{src/**,package.json,tsconfig*.json}",
+]
+outputs = ["packages/lingua/dist"]
 
 [tasks.test-runling-bot]
 description = "Test the Runling webhook bot example"
@@ -295,6 +315,11 @@ run = "pnpm turbo run build --filter=@chatto/runling-bot^..."
 description = "Build the framework-neutral Chatto client"
 depends = ["setup-frontend"]
 run = "pnpm run build:chatto-client"
+sources = [
+    "{package.json,pnpm-*.yaml,.npmrc,turbo.json,tools/turbo.mjs}",
+    "packages/{api-types,chatto-client}/{src/**,package.json,tsconfig*.json}",
+]
+outputs = ["packages/api-types/dist", "packages/chatto-client/dist"]
 
 [tasks.test-chatto-client]
 description = "Check, lint, and test the Chatto client"
@@ -349,6 +374,24 @@ env = { CHATTO_DEV_BUILD_ID = "{{ now(timestamp=true) }}" }
 run = [
     "pnpm --dir ../.. run build:frontend",
     "bash ../../tools/prepare-embedded-frontend.sh build ../../cli/internal/http_server/.client",
+    "mkdir -p ../../.context/build-frontend",
+    "touch ../../.context/build-frontend/{{vars.frontend_build_environment}}",
+]
+# Include each workspace library that Turbo builds for the frontend. Declare
+# both the published build and the embedded copy, so either can be restored.
+sources = [
+    "{src,messages,static}/**",
+    "{package.json,*config.*,scripts/*.mjs,.env*}",
+    "../../{package.json,pnpm-*.yaml,.npmrc,.env*,turbo.json,tools/turbo.mjs,tools/prepare-embedded-frontend.sh}",
+    "../../packages/{api-types,lingua,chatto-client}/{src/**,package.json,tsconfig*.json}",
+]
+outputs = [
+    "build",
+    "../../cli/internal/http_server/.client",
+    "../../packages/api-types/dist",
+    "../../packages/lingua/dist",
+    "../../packages/chatto-client/dist",
+    "../../.context/build-frontend/{{vars.frontend_build_environment}}",
 ]
 
 [tasks.build-dev-cli]
@@ -846,6 +889,10 @@ description = "Run frontend unit tests"
 depends = ["setup-frontend"]
 run = "pnpm run test:frontend"
 
+[tasks.test-chatto-build]
+description = "Check that unchanged Chatto builds skip and missing assets are restored"
+run = "bash tools/test-chatto-build.sh"
+
 # Arguments go to Vitest, for example:
 #   mise test-frontend-focused -- src/path/Component.svelte.spec.ts -t 'substring'
 # Turbo builds the workspace packages that the specs import first. Always
@@ -909,6 +956,7 @@ run = [
     { task = "test-natsruntime" },
     { task = "test-cli" },
     { task = "test-desktop" },
+    { task = "test-chatto-build" },
     { task = "test-workspace" },
     { task = "test-e2e" },
 ]
