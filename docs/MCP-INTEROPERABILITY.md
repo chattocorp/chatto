@@ -106,7 +106,7 @@ fixture checks.
 
 **Reviewed:** 2026-10-08. Apply the
 [FDR-043 admission checklist](fdr/FDR-043-model-context-protocol-integration.md#tool-admission-policy)
-with each catalog change and before a stable release that enables MCP.
+with each catalog change and before a stable Chatto release that includes MCP.
 API completeness and CRUD symmetry are not admission criteria.
 
 The seven tools form one tester workflow: identify the server and account,
@@ -144,7 +144,8 @@ Both tools retain their existing request deadline and output limits. The
 exceptions retain the current read workflow for host tests; they do not claim
 a measured work budget for large directories or sparse message visibility.
 The MCP maintainer must measure these cases and resolve or explicitly renew
-the exceptions before catalog growth or a stable release that enables MCP.
+the exceptions before catalog growth or a stable Chatto release that includes
+MCP.
 They are not precedents for admitting another unbounded read.
 
 Review sources: [tool registration and room paging](../cli/internal/mcpserver/handler.go),

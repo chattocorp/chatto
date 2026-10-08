@@ -40,8 +40,8 @@ synthetic accounts and content; do not attach credentials or private data.
 Update FDR-043 and the
 [complete catalog review](docs/MCP-INTEROPERABILITY.md#catalog-admission-review).
 The MCP maintainer reviews each tool's disposition with every catalog change
-and before a stable release that enables MCP. Record limits and exceptions;
-do not present an unmeasured case as a passed check. A recorded tester
+and before a stable Chatto release that includes MCP. Record limits and
+exceptions; do not present an unmeasured case as a passed check. A recorded tester
 exception does not waive the admission checklist for another tool.
 
 ## Local Development Stack

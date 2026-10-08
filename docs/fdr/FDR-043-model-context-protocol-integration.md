@@ -328,12 +328,12 @@ credential issuance or management, raw diagnostics, event logs, and storage
 internals. Protocol conformance fixtures must not enter the product catalog.
 Administrative, moderation, destructive-content, and account-lifecycle tools
 are outside the current scope. They need a separate product and authority
-decision as well as the checklist. Operator integration remains a separate
-local bridge under ADR-085.
+decision as well as the checklist. Any future Operator MCP integration must
+use a separate local bridge under ADR-085.
 
 There is no numeric catalog budget. The MCP maintainer reviews the complete
-catalog with each catalog change and before each stable release that enables
-MCP. The review must check overlapping tools, selection ambiguity, retained
+catalog with each catalog change and before each stable Chatto release that
+includes MCP. The review must check overlapping tools, selection ambiguity, retained
 workflow evidence, and recorded exceptions. A small count alone does not make
 a tool useful or safe. Record each tool's disposition in the
 [catalog review](../MCP-INTEROPERABILITY.md#catalog-admission-review).
