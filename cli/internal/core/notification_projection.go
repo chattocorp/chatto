@@ -239,13 +239,24 @@ func (p *NotificationProjection) allOccurrences(now time.Time) []*notificationv1
 	return result
 }
 
-func (p *NotificationProjection) scopeOccurrences(scope notificationReadBoundaryScope, now time.Time) []*notificationv1.NotificationOccurrence {
-	p.Lock()
-	defer p.Unlock()
-	p.pruneExpiredLocked(now)
-	result := make([]*notificationv1.NotificationOccurrence, 0, len(p.idsByScope[scope]))
+// unreadScopeOccurrences returns detached, unexpired unread occurrences for
+// one recipient and timeline. Read commands must not prune the server-wide
+// notification collection or copy notifications from unrelated timelines.
+// Expired entries are omitted here; periodic maintenance removes them.
+func (p *NotificationProjection) unreadScopeOccurrences(scope notificationReadBoundaryScope, now time.Time) []*notificationv1.NotificationOccurrence {
+	p.RLock()
+	defer p.RUnlock()
+	var result []*notificationv1.NotificationOccurrence
 	for id := range p.idsByScope[scope] {
-		result = append(result, proto.Clone(p.byID[id]).(*notificationv1.NotificationOccurrence))
+		occurrence := p.byID[id]
+		if occurrence.GetRead() {
+			continue
+		}
+		expiresAt := occurrence.GetExpiresAt()
+		if expiresAt == nil || !expiresAt.IsValid() || !expiresAt.AsTime().After(now) {
+			continue
+		}
+		result = append(result, proto.Clone(occurrence).(*notificationv1.NotificationOccurrence))
 	}
 	return result
 }

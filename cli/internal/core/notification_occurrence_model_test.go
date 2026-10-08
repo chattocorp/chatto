@@ -367,7 +367,7 @@ func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
 		t.Fatalf("projected occurrence = (%+v, %v)", got, ok)
 	}
 	scope := notificationReadBoundaryScope{userID: "U1", roomID: "R1"}
-	if got := p.scopeOccurrences(scope, now); len(got) != 1 || got[0].GetId() != "N1" {
+	if got := p.unreadScopeOccurrences(scope, now); len(got) != 1 || got[0].GetId() != "N1" {
 		t.Fatalf("scope occurrences = %+v, want N1", got)
 	}
 	if err := p.Apply(&notificationv1.NotificationEvent{
@@ -391,7 +391,7 @@ func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
 	if state := states[notificationOccurrenceRef{recipientID: "U2", notificationID: "N1"}]; state.occurrence != nil || state.tombstoned {
 		t.Fatalf("cross-recipient occurrence state = %+v, want empty", state)
 	}
-	if got := p.scopeOccurrences(scope, now); len(got) != 0 {
+	if got := p.unreadScopeOccurrences(scope, now); len(got) != 0 {
 		t.Fatalf("dismissed scope occurrences = %+v, want none", got)
 	}
 	if got := p.pendingPhysicalDeletes(now)["N1"].signalSequence; got != 7 {
