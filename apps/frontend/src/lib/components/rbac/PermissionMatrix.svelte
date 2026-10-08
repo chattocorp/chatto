@@ -5,8 +5,9 @@ Per-tier permission matrix. Rows are permissions, with category headers
 between the corresponding groups; columns are roles applicable at the
 requested scope. Each cell shows the override at this tier (saturated)
 layered over the inherited baseline from above (faded). Clicking a cell cycles
-`neutral → allow → deny → neutral`. Owner cells and cells of roles that do not
-rank below the viewer's highest role (from the role catalogue) are read-only.
+`neutral → allow → deny → neutral`. Owner cells are read-only. Without `role.manage`, cells of
+roles that do not rank below the viewer's highest role (from the role
+catalogue) are read-only too.
 Roles appear in role order, highest first.
 
 Scope is implied by which of `spaceId` / `roomId` are set:
@@ -254,13 +255,17 @@ focusing a cell highlights its permission row and role column.
     return role.roleName === 'owner';
   }
 
-  // The role order keeps the viewer from editing roles at or above their
-  // highest role. Read the catalogue once for all cells.
+  // Without role.manage, the role order keeps the viewer from editing roles
+  // at or above their highest role. Read the catalogue once for all cells.
   const rolesLockedByOrder = $derived.by(() => {
     const catalog = serverScope.store.roleCatalog;
+    const canManageRoles = serverScope.store.permissions.canAdminManageRoles;
     return new Set(
       (data?.roles ?? [])
-        .filter((role) => !roleIsVirtualOwner(role) && !catalog.ranksBelowViewer(role.roleName))
+        .filter(
+          (role) =>
+            !roleIsVirtualOwner(role) && !catalog.canChangeRole(role.roleName, canManageRoles)
+        )
         .map((role) => role.roleName)
     );
   });

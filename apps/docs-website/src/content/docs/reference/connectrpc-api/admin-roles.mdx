@@ -164,8 +164,8 @@ Result of creating a role.
 
 ### UpdateRole
 
-Updates role metadata. Requires role.manage. A caller who is not an owner
-can update only roles below their own highest role.
+Updates role metadata. Requires role.manage. Only owners can update the
+owner role.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/UpdateRole
@@ -202,9 +202,8 @@ Result of updating a role.
 ### DeleteRole
 
 Deletes a custom role. Requires role.manage. A caller who is not an owner
-can delete only roles below their own highest role, and must have every
-permission that the role allows or denies, at the same scope; otherwise
-the call returns PERMISSION_DENIED.
+must have every permission that the role allows or denies, at the same
+scope; otherwise the call returns PERMISSION_DENIED.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/DeleteRole

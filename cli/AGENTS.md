@@ -338,8 +338,9 @@ authorization, live events, backup and restore, and backend tests.
   owners and the system actor are exempt, and `everyone` ranks below every
   account. Targeted operations need their permission and a higher rank: a
   non-owner acts only on accounts that rank strictly below them, and assigns,
-  revokes, edits, or deletes only roles below their highest role. Holders of
-  `role.manage` move every role except `owner` and `everyone`. Bots
+  revokes only roles below their highest role. Holders of `role.manage`
+  edit, delete, and move every role except `owner`; other editors of role
+  decisions, such as room managers, need the role to rank below them. Bots
   act with at most their owner's rank. Add the rank check to every new
   operation that acts on another account.
 - Delegated authority is bounded: assigning a role requires every allow of the

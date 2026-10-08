@@ -49,9 +49,12 @@ unchanged (ADR-052): the rank never decides whether a permission is allowed.
   membership removal, and bot management and reassignment. Message moderation
   and adding a member to a room are not covered: they do not act against the
   account.
-- **Roles.** A non-owner may assign, revoke, edit, or delete only roles that
-  rank strictly below their own highest role. `everyone` ranks below every
-  account, so room and role managers can edit its decisions.
+- **Roles.** A non-owner may assign or revoke only roles that rank strictly
+  below their own highest role. A holder of `role.manage` may edit, delete,
+  and move every role except `owner`, which stays owner-only. Other actors
+  who edit a role's decisions, such as room managers, may edit only roles
+  below their own highest role. `everyone` ranks below every account, so
+  room managers can edit its decisions.
 - **Authority bound.** A non-owner may change one role or direct decision only
   for a permission that they effectively hold at that scope. Deleting or
   revoking a role requires every permission that the role allows or denies.
@@ -85,8 +88,8 @@ inputs that permission checks use (ADR-087).
 
 - A delegated account, permission, or role-assignment manager can no longer
   give themselves more authority or act on accounts at or above their rank.
-  A holder of `role.manage` can move their own role higher, so give
-  `role.manage` only to administrators.
+  A holder of `role.manage` can change every role except `owner` and move
+  their own role higher, so give `role.manage` only to administrators.
 - Two accounts with the same highest role cannot act on each other. Only an
   owner can act on an account whose highest role is the top role, which is
   `admin` by default.

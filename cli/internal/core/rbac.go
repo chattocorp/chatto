@@ -605,7 +605,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 		if !ok {
 			return ErrRoleNotFound
 		}
-		if err := c.requireRoleBelowActor(actorID, name); err != nil {
+		if err := c.requireRoleManageable(ctx, actorID, name); err != nil {
 			return err
 		}
 		if existing.GetDisplayName() == displayName {
@@ -633,7 +633,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 		if !ok {
 			return ErrRoleNotFound
 		}
-		if err := c.requireRoleBelowActor(actorID, name); err != nil {
+		if err := c.requireRoleManageable(ctx, actorID, name); err != nil {
 			return err
 		}
 		if existing.GetDescription() == description {
@@ -663,7 +663,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 			if !ok {
 				return ErrRoleNotFound
 			}
-			if err := c.requireRoleBelowActor(actorID, name); err != nil {
+			if err := c.requireRoleManageable(ctx, actorID, name); err != nil {
 				return err
 			}
 			if existing.GetPingable() == pingable {

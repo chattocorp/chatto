@@ -71,13 +71,12 @@ type AdminRoleServiceClient interface {
 	ListMembers(context.Context, *connect.Request[v1.AdminRoleServiceListMembersRequest]) (*connect.Response[v1.AdminRoleServiceListMembersResponse], error)
 	// Creates a custom role. Requires role.manage. The new role ranks lowest.
 	CreateRole(context.Context, *connect.Request[v1.CreateRoleRequest]) (*connect.Response[v1.CreateRoleResponse], error)
-	// Updates role metadata. Requires role.manage. A caller who is not an owner
-	// can update only roles below their own highest role.
+	// Updates role metadata. Requires role.manage. Only owners can update the
+	// owner role.
 	UpdateRole(context.Context, *connect.Request[v1.UpdateRoleRequest]) (*connect.Response[v1.UpdateRoleResponse], error)
 	// Deletes a custom role. Requires role.manage. A caller who is not an owner
-	// can delete only roles below their own highest role, and must have every
-	// permission that the role allows or denies, at the same scope; otherwise
-	// the call returns PERMISSION_DENIED.
+	// must have every permission that the role allows or denies, at the same
+	// scope; otherwise the call returns PERMISSION_DENIED.
 	DeleteRole(context.Context, *connect.Request[v1.DeleteRoleRequest]) (*connect.Response[v1.DeleteRoleResponse], error)
 	// Moves one role in the role order. Requires role.manage. The caller can
 	// move every role except owner and everyone, also above their own highest
@@ -202,13 +201,12 @@ type AdminRoleServiceHandler interface {
 	ListMembers(context.Context, *connect.Request[v1.AdminRoleServiceListMembersRequest]) (*connect.Response[v1.AdminRoleServiceListMembersResponse], error)
 	// Creates a custom role. Requires role.manage. The new role ranks lowest.
 	CreateRole(context.Context, *connect.Request[v1.CreateRoleRequest]) (*connect.Response[v1.CreateRoleResponse], error)
-	// Updates role metadata. Requires role.manage. A caller who is not an owner
-	// can update only roles below their own highest role.
+	// Updates role metadata. Requires role.manage. Only owners can update the
+	// owner role.
 	UpdateRole(context.Context, *connect.Request[v1.UpdateRoleRequest]) (*connect.Response[v1.UpdateRoleResponse], error)
 	// Deletes a custom role. Requires role.manage. A caller who is not an owner
-	// can delete only roles below their own highest role, and must have every
-	// permission that the role allows or denies, at the same scope; otherwise
-	// the call returns PERMISSION_DENIED.
+	// must have every permission that the role allows or denies, at the same
+	// scope; otherwise the call returns PERMISSION_DENIED.
 	DeleteRole(context.Context, *connect.Request[v1.DeleteRoleRequest]) (*connect.Response[v1.DeleteRoleResponse], error)
 	// Moves one role in the role order. Requires role.manage. The caller can
 	// move every role except owner and everyone, also above their own highest

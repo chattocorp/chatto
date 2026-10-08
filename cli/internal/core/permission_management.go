@@ -281,7 +281,7 @@ func (c *ChattoCore) SetRolePermissionState(ctx context.Context, actorID, roleNa
 		if !c.rbacModel.roleExists(roleName) {
 			return ErrRoleNotFound
 		}
-		if err := c.requireRoleBelowActor(actorID, roleName); err != nil {
+		if err := c.requireRoleManageable(ctx, actorID, roleName); err != nil {
 			return err
 		}
 		return c.requirePermissionDecisionWithinAuthority(ctx, actorID, coreScope, scope.ID, perm)

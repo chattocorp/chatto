@@ -162,7 +162,7 @@ func TestDelegatedRolePermissionEditsStayWithinAuthority(t *testing.T) {
 		state   PermissionState
 		allowed bool
 	}{
-		{"role manager edits a role above them", roleManager, RoleAdmin, server, PermMessageReact, PermissionStateDeny, false},
+		{"role manager edits a role above them", roleManager, RoleAdmin, server, PermMessageReact, PermissionStateDeny, true},
 		{"room manager edits a role above them", roomManager, RoleAdmin, room, PermMessagePost, PermissionStateDeny, false},
 		{"role manager grants beyond authority", roleManager, "edited", server, PermServerManage, PermissionStateAllow, false},
 		{"role manager clears restriction beyond authority", roleManager, "edited", server, PermUserDeleteAny, PermissionStateNone, false},

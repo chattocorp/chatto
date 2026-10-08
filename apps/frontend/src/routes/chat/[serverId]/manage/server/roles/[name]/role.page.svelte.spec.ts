@@ -202,11 +202,22 @@ describe('role management page identity', () => {
     expect(container.textContent).not.toContain('role-a member');
   });
 
-  it('shows a role at or above the viewer as read-only', async () => {
+  it('lets a role manager edit a role at or above their highest role', async () => {
     server.setRoleOrder(['owner', 'role-a', 'role-b'], 'role-a');
     mocks.getRole.mockResolvedValue(details('role-a', 'Role A', 'Role A description'));
     const { container } = renderRole();
     await vi.waitFor(() => expect(container.querySelector('code')?.textContent).toBe('role-a'));
+
+    expect(container.querySelector('#displayName')).not.toBeNull();
+    expect(container.textContent).not.toContain('The role order does not let you change');
+  });
+
+  it('shows the owner role as read-only to a role manager who is not an owner', async () => {
+    activeRoleName = 'owner';
+    server.setRoleOrder(['owner', 'role-a'], 'role-a');
+    mocks.getRole.mockResolvedValue(details('owner', 'Role A', 'Role A description'));
+    const { container } = renderRole();
+    await vi.waitFor(() => expect(container.querySelector('code')?.textContent).toBe('owner'));
 
     expect(container.textContent).toContain('The role order does not let you change this role.');
     expect(container.querySelector('#displayName')).toBeNull();

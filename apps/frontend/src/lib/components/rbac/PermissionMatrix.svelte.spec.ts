@@ -76,7 +76,8 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'server-test',
     store: {
-      roleCatalog: { ranksBelowViewer: (roleName: string) => !rolesAboveViewer.has(roleName) }
+      permissions: { canAdminManageRoles: false },
+      roleCatalog: { canChangeRole: (roleName: string) => !rolesAboveViewer.has(roleName) }
     },
     connection: {
       queryScope: 'permission-matrix-test',

@@ -558,7 +558,7 @@ test.describe('Server Roles Management', () => {
       await expect(serverRolesPage.nameInput).toBeVisible();
     });
 
-    test('opens a role at or above a delegated role manager read-only', async ({
+    test('lets a delegated role manager edit every role except owner', async ({
       serverRolesPage
     }) => {
       const { page } = serverRolesPage;
@@ -581,20 +581,18 @@ test.describe('Server Roles Management', () => {
       await activatePrivilegedMode(page);
 
       await serverRolesPage.gotoRolesPage();
-      const viewAdmin = serverRolesPage
-        .getRolesPageRow('admin')
-        .getByRole('link', { name: 'View Admin' });
-      await viewAdmin.click();
-      await serverRolesPage.expectRoleDetailPage('admin');
+      await expect(
+        serverRolesPage.getRolesPageRow('admin').getByRole('link', { name: 'Edit Admin' })
+      ).toBeVisible();
+      await serverRolesPage
+        .getRolesPageRow('owner')
+        .getByRole('link', { name: 'View Owner' })
+        .click();
+      await serverRolesPage.expectRoleDetailPage('owner');
       await expect(
         page.getByText('The role order does not let you change this role.')
       ).toBeVisible();
       await expect(page.locator('#pingable')).toBeDisabled();
-
-      await page.goto(routes.serverAdminRolePermissions('admin'));
-      await expect(
-        page.locator('td[data-scope="server"][data-permission="message.manage"] button')
-      ).toBeDisabled();
     });
 
     test('redirects the former role page addresses to the Roles pages', async ({

@@ -103,6 +103,18 @@ export class RoleCatalogStore {
   }
 
   /**
+   * Whether the viewer may change the definition of `roleName`: its
+   * metadata, permission settings, or deletion. Holders of `role.manage`
+   * (`canManageRoles`) may change every role except `owner`, which only
+   * owners change. Others, such as room managers, need the role to rank
+   * below them. True while the viewer's rank is unknown.
+   */
+  canChangeRole(roleName: string, canManageRoles: boolean): boolean {
+    if (canManageRoles && roleName !== OWNER) return true;
+    return this.ranksBelowViewer(roleName);
+  }
+
+  /**
    * Whether the role hierarchy lets the viewer act on an account with
    * `accountRoles`. True while the viewer's rank is unknown.
    */

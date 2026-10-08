@@ -97,10 +97,11 @@ export const AdminPermissionService = {
     /**
      * Sets one role permission decision. Server scope requires role.manage;
      * group and room scopes also accept effective room.manage at that resource.
-     * A caller who is not an owner can change only roles below their own
-     * highest role, and must have the permission at the target scope;
-     * otherwise the call returns PERMISSION_DENIED. Everyone ranks below every
-     * account.
+     * A caller with role.manage can change every role except owner. Other
+     * callers who are not owners can change only roles below their own highest
+     * role. Every caller who is not an owner must have the permission at the
+     * target scope; otherwise the call returns PERMISSION_DENIED. Everyone ranks
+     * below every account.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.SetRolePermission
      */

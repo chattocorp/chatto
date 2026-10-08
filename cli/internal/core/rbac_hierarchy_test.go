@@ -241,7 +241,7 @@ func TestHierarchyBoundsRoomModeration(t *testing.T) {
 	}
 }
 
-func TestHierarchyLimitsRoleManagementToLowerRoles(t *testing.T) {
+func TestRoleManagersManageEveryRoleButAssignOnlyLowerRoles(t *testing.T) {
 	t.Parallel()
 
 	f := newHierarchyFixture(t)
@@ -257,30 +257,43 @@ func TestHierarchyLimitsRoleManagementToLowerRoles(t *testing.T) {
 		t.Fatalf("owner moves senior: %v", err)
 	}
 
-	update := func(roleName string) error {
-		_, err := c.AdminUpdateServerRole(ctx, f.admin, AdminRoleUpdateInput{Name: roleName, DisplayName: new("Renamed " + roleName)})
-		return err
+	// The admin holds role.manage, so the role order does not limit changes
+	// to role definitions, also of their own role and of roles above it.
+	for _, roleName := range []string{RoleAdmin, "senior", RoleModerator} {
+		if _, err := c.AdminUpdateServerRole(ctx, f.admin, AdminRoleUpdateInput{Name: roleName, DisplayName: new("Renamed " + roleName)}); err != nil {
+			t.Fatalf("admin updates %s: %v", roleName, err)
+		}
+		if err := c.SetRolePermissionState(ctx, f.admin, roleName, PermissionTargetScope{Kind: MatrixScopeServer}, PermMessageReact, PermissionStateAllow); err != nil {
+			t.Fatalf("admin edits %s permissions: %v", roleName, err)
+		}
 	}
+	if _, err := c.AdminUpdateServerRole(ctx, f.admin, AdminRoleUpdateInput{Name: RoleOwner, DisplayName: new("Renamed owner")}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("admin updates owner: error = %v, want permission denied", err)
+	}
+
+	// Assignment still follows the role order.
 	for _, roleName := range []string{RoleAdmin, "senior"} {
-		if err := update(roleName); !errors.Is(err, ErrPermissionDenied) {
-			t.Fatalf("admin updates %s: error = %v, want permission denied", roleName, err)
-		}
-		if err := c.SetRolePermissionState(ctx, f.admin, roleName, PermissionTargetScope{Kind: MatrixScopeServer}, PermMessageReact, PermissionStateDeny); !errors.Is(err, ErrPermissionDenied) {
-			t.Fatalf("admin edits %s permissions: error = %v, want permission denied", roleName, err)
-		}
 		if err := c.AdminAssignServerRole(ctx, f.admin, f.member, roleName); !errors.Is(err, ErrPermissionDenied) {
 			t.Fatalf("admin assigns %s: error = %v, want permission denied", roleName, err)
 		}
 	}
-	if err := c.AdminDeleteServerRole(ctx, f.admin, "senior"); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("admin deletes senior: error = %v, want permission denied", err)
-	}
-	if err := update(RoleModerator); err != nil {
-		t.Fatalf("admin updates moderator: %v", err)
-	}
 	if err := c.AdminAssignServerRole(ctx, f.admin, f.member, "junior"); err != nil {
 		t.Fatalf("admin assigns junior: %v", err)
 	}
+
+	t.Run("room managers edit only lower roles", func(t *testing.T) {
+		// The member may manage the room, but ranks with everyone.
+		if err := c.GrantUserRoomPermission(ctx, SystemActorID, f.roomID, f.member, PermRoomManage); err != nil {
+			t.Fatalf("GrantUserRoomPermission: %v", err)
+		}
+		room := PermissionTargetScope{Kind: MatrixScopeRoom, ID: f.roomID}
+		if err := c.SetRolePermissionState(ctx, f.member, RoleModerator, room, PermMessageReact, PermissionStateDeny); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("room manager edits moderator: error = %v, want permission denied", err)
+		}
+		if err := c.SetRolePermissionState(ctx, f.member, RoleEveryone, room, PermMessageReact, PermissionStateDeny); err != nil {
+			t.Fatalf("room manager edits everyone: %v", err)
+		}
+	})
 
 	t.Run("role managers move every role", func(t *testing.T) {
 		if _, err := c.AdminMoveServerRole(ctx, f.member, "junior", ""); !errors.Is(err, ErrPermissionDenied) {
@@ -300,6 +313,17 @@ func TestHierarchyLimitsRoleManagementToLowerRoles(t *testing.T) {
 			t.Fatalf("order = %v, want %v", got, want)
 		}
 	})
+
+	if err := c.AdminDeleteServerRole(ctx, f.admin, RoleAdmin); err == nil {
+		t.Fatal("admin deletes the admin system role: want an error")
+	}
+	// Senior now ranks below admin, so delete a role above the admin instead.
+	if _, err := c.MoveServerRole(ctx, f.owner, "junior", RoleAdmin); err != nil {
+		t.Fatalf("owner moves junior above admin: %v", err)
+	}
+	if err := c.AdminDeleteServerRole(ctx, f.admin, "junior"); err != nil {
+		t.Fatalf("admin deletes junior above them: %v", err)
+	}
 }
 
 func TestBotsHoldRolesWithinTheirOwnersCeiling(t *testing.T) {

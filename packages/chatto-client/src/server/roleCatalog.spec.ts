@@ -142,6 +142,11 @@ describe('role order helpers', () => {
     expect(store.ranksBelowViewer('admin')).toBe(false);
     expect(store.viewerOutranks(['moderator'])).toBe(true);
     expect(store.viewerOutranks(['admin'])).toBe(false);
+    // Holders of role.manage change every role except owner.
+    expect(store.canChangeRole('admin', true)).toBe(true);
+    expect(store.canChangeRole('owner', true)).toBe(false);
+    expect(store.canChangeRole('admin', false)).toBe(false);
+    expect(store.canChangeRole('moderator', false)).toBe(true);
   });
 
   it('keeps the catalogue while a reload runs and replaces it afterwards', async () => {

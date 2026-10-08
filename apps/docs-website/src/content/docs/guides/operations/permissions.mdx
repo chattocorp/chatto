@@ -128,7 +128,7 @@ Scopes: **S** Server, **G** Room group, **R** Room, **DM** Direct messages.
 | `call.voice` | All | | Send microphone audio. |
 | `call.camera` | All | | Send camera video. |
 | `call.screenshare` | All | | Share a screen, window, tab, or application, with its audio. |
-| `role.manage` | S | Yes | Create, change, and delete roles and their permission settings. A non-owner can change only roles below them, and only the settings of permissions that they have at that scope. To delete a role, a non-owner must have every permission that the role allows or denies. |
+| `role.manage` | S | Yes | Create, change, move, and delete roles and their permission settings, for every role except `owner`. A non-owner can change only the settings of permissions that they have at that scope. To delete a role, a non-owner must have every permission that the role allows or denies. |
 | `role.assign` | S | Yes | Assign and remove roles. A non-owner can assign only roles below them whose allows they have, and only to accounts below them. Only owners can assign `owner`. |
 | `admin.view-users` | S | Yes | See the member list in Server Administration. |
 | `admin.view-audit` | S | Yes | See the event log. |
@@ -239,10 +239,12 @@ permission setting wins.
   deletion, roles, permission settings, room removal and suspensions, room
   membership removal, and bots. To manage a bot, you also need a higher rank
   than its owner, unless you own the bot.
-- You can assign, remove, edit, and delete only roles below your own highest
-  role. You can always edit the settings of `everyone`.
-- With `role.manage`, you can move every role except `owner` and `everyone`,
-  also above your own highest role.
+- You can assign and remove only roles below your own highest role.
+- With `role.manage`, you can edit, delete, and move every role except
+  `owner`, also roles above your own. Only owners can change `owner`.
+- Without `role.manage`, for example as a room manager, you can edit the
+  room settings only of roles below your own highest role. You can always
+  edit the settings of `everyone`.
 - Two users with the same highest role cannot change each other. Only an
   owner can change a user whose highest role is the top role. By default,
   this role is `admin`.

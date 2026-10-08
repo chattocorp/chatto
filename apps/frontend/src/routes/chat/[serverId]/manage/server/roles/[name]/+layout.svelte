@@ -54,9 +54,11 @@ A role that does not rank below the viewer's highest role opens read-only.
   const role = $derived<Role | null>(roleDetails?.role ?? null);
   const canManageRoles = $derived(roleDetails?.viewerCanManageRoles ?? false);
   const canAssignRoles = $derived(roleDetails?.viewerCanAssignRoles ?? false);
-  // The role order lets the viewer change only roles below their highest role.
-  const ranksBelowViewer = $derived(serverScope.store.roleCatalog.ranksBelowViewer(roleName));
-  const canEditRole = $derived(canManageRoles && ranksBelowViewer);
+  // Role managers change every role except owner, which only owners change.
+  const canChangeRole = $derived(
+    serverScope.store.roleCatalog.canChangeRole(roleName, canManageRoles)
+  );
+  const canEditRole = $derived(canManageRoles && canChangeRole);
   const loading = $derived(roleQuery.isPending);
   const rolesHref = resolve('/chat/[serverId]/manage/server/roles', { serverId: serverSegment });
 
@@ -163,7 +165,7 @@ A role that does not rank below the viewer's highest role opens read-only.
       {:else if !canManageRoles}
         <Hint tone="danger">{m('admin.permissions.need_manage_edit')}</Hint>
       {:else}
-        {#if !ranksBelowViewer}
+        {#if !canChangeRole}
           <Hint>{m('rbac.role_order.role_locked')}</Hint>
         {/if}
         {@render children()}

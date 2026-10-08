@@ -184,14 +184,14 @@ describe('roles page', () => {
     expect(create?.getAttribute('href')).toBe('/chat/-/manage/server/roles/new');
   });
 
-  it('opens every role: roles below the viewer to edit, the others read-only', async () => {
+  it('opens every role to edit except owner, which only owners edit', async () => {
     const { container } = render(RolesPage);
     await vi.waitFor(() => expect(renderedOrder(container)).toHaveLength(5));
 
     const link = (label: string) =>
       container.querySelector<HTMLAnchorElement>(`a[aria-label="${label}"]`);
     expect(link('View Owner')?.getAttribute('href')).toBe('/chat/-/manage/server/roles/owner');
-    expect(link('View Admin')?.getAttribute('href')).toBe('/chat/-/manage/server/roles/admin');
+    expect(link('Edit Admin')?.getAttribute('href')).toBe('/chat/-/manage/server/roles/admin');
     expect(link('Edit Moderator')?.getAttribute('href')).toBe(
       '/chat/-/manage/server/roles/moderator'
     );
@@ -199,7 +199,7 @@ describe('roles page', () => {
     expect(link('Edit Everyone')?.getAttribute('href')).toBe(
       '/chat/-/manage/server/roles/everyone'
     );
-    expect(link('Edit Admin')).toBeNull();
+    expect(link('Edit Owner')).toBeNull();
     // A real link, not a toggle: it works with a middle-click and in a new tab.
     expect(link('Edit Moderator')?.hasAttribute('aria-pressed')).toBe(false);
     expect(api.moveRole).not.toHaveBeenCalled();

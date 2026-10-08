@@ -1,5 +1,10 @@
 package core
 
+import (
+	"context"
+	"fmt"
+)
+
 // Role hierarchy for administration (ADR-114).
 //
 // Role order is an administrative rank. It decides who may manage whom; it
@@ -9,9 +14,11 @@ package core
 // rules, so an owner can always recover the server.
 //
 // A non-owner may act on another account only when they rank strictly above
-// it, and may assign, revoke, edit, or delete only roles that rank strictly
-// below their own highest role. Everyone ranks below every account. Moves are
-// not limited: holders of role.manage may move every role (MoveServerRole).
+// it, and may assign or revoke only roles that rank strictly below their own
+// highest role. Everyone ranks below every account. Holders of role.manage
+// may move, edit, and delete every role except owner (requireRoleManageable,
+// MoveServerRole); others who edit a role's decisions, such as room managers,
+// need the role to rank below them.
 // The system actor is exempt. Callers decide whether an action on the actor's
 // own account uses these rules.
 //
@@ -142,6 +149,24 @@ func (c *ChattoCore) requireRoleBelowActor(actorID, roleName string) error {
 		return ErrPermissionDenied
 	}
 	return nil
+}
+
+// requireRoleManageable authorizes a change to a role definition: its
+// metadata, its permission decisions, or its deletion. Holders of role.manage
+// may change every role except owner, which stays owner-only. Other actors,
+// such as room managers who edit a role's room decisions, need the role to
+// rank below their highest role (ADR-114).
+func (c *ChattoCore) requireRoleManageable(ctx context.Context, actorID, roleName string) error {
+	if roleName != RoleOwner && !c.actorIsHierarchyExempt(actorID) {
+		canManage, err := c.CanManageRoles(ctx, actorID)
+		if err != nil {
+			return fmt.Errorf("check role.manage: %w", err)
+		}
+		if canManage {
+			return nil
+		}
+	}
+	return c.requireRoleBelowActor(actorID, roleName)
 }
 
 // ViewerHighestRole returns the name of the role at which actorID ranks:

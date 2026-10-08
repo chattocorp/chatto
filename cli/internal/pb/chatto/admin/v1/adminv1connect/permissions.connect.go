@@ -83,10 +83,11 @@ type AdminPermissionServiceClient interface {
 	ExplainPermissions(context.Context, *connect.Request[v1.ExplainPermissionsRequest]) (*connect.Response[v1.ExplainPermissionsResponse], error)
 	// Sets one role permission decision. Server scope requires role.manage;
 	// group and room scopes also accept effective room.manage at that resource.
-	// A caller who is not an owner can change only roles below their own
-	// highest role, and must have the permission at the target scope;
-	// otherwise the call returns PERMISSION_DENIED. Everyone ranks below every
-	// account.
+	// A caller with role.manage can change every role except owner. Other
+	// callers who are not owners can change only roles below their own highest
+	// role. Every caller who is not an owner must have the permission at the
+	// target scope; otherwise the call returns PERMISSION_DENIED. Everyone ranks
+	// below every account.
 	SetRolePermission(context.Context, *connect.Request[v1.SetRolePermissionRequest]) (*connect.Response[v1.SetRolePermissionResponse], error)
 	// Sets one user permission decision. Human targets require
 	// user.manage-permissions. A caller who is not an owner must also have the
@@ -240,10 +241,11 @@ type AdminPermissionServiceHandler interface {
 	ExplainPermissions(context.Context, *connect.Request[v1.ExplainPermissionsRequest]) (*connect.Response[v1.ExplainPermissionsResponse], error)
 	// Sets one role permission decision. Server scope requires role.manage;
 	// group and room scopes also accept effective room.manage at that resource.
-	// A caller who is not an owner can change only roles below their own
-	// highest role, and must have the permission at the target scope;
-	// otherwise the call returns PERMISSION_DENIED. Everyone ranks below every
-	// account.
+	// A caller with role.manage can change every role except owner. Other
+	// callers who are not owners can change only roles below their own highest
+	// role. Every caller who is not an owner must have the permission at the
+	// target scope; otherwise the call returns PERMISSION_DENIED. Everyone ranks
+	// below every account.
 	SetRolePermission(context.Context, *connect.Request[v1.SetRolePermissionRequest]) (*connect.Response[v1.SetRolePermissionResponse], error)
 	// Sets one user permission decision. Human targets require
 	// user.manage-permissions. A caller who is not an owner must also have the

@@ -85,13 +85,13 @@ func (c *ChattoCore) requireRoleChangeForAccount(ctx context.Context, actorID, t
 }
 
 // requireRoleDeletionWithinAuthority bounds role deletion like revocation from
-// every holder: the role must rank below the actor, and the actor must hold
+// every holder: the actor must be able to manage the role, and must hold
 // every permission that the role allows or denies, at the same scope.
 func (c *ChattoCore) requireRoleDeletionWithinAuthority(ctx context.Context, actorID, roleName string) error {
 	if c.actorIsHierarchyExempt(actorID) {
 		return nil
 	}
-	if err := c.requireRoleBelowActor(actorID, roleName); err != nil {
+	if err := c.requireRoleManageable(ctx, actorID, roleName); err != nil {
 		return err
 	}
 	return c.requireRoleDecisionsWithinAuthority(ctx, actorID, roleName, true)

@@ -8,8 +8,8 @@ permissions resolve.
 
 The list shows the roles in the server's order, highest first. `owner` is
 fixed at the top and `everyone` at the bottom. Role managers can drag every
-other role, also above their own highest role (ADR-114). Roles at or above the
-viewer's highest role open read-only.
+other role, also above their own highest role, and edit every role except
+`owner`, which only owners edit (ADR-114).
 
 A pointer drag saves when it is dropped. A keyboard drag reports every arrow
 key move as a `finalize` event while the drag continues, so it saves once when
@@ -75,11 +75,13 @@ do not break it.
       .filter((role) => role.name !== 'owner' && role.name !== 'everyone')
       .map((role) => ({ ...role, id: role.name }))
   );
-  // Roles at or above the viewer's highest role open read-only.
+  // Role managers change every role; only owners change the owner role.
   const roleCatalog = serverScope.store.roleCatalog;
   const editableRoles = $derived(
     new Set(
-      roles.filter((role) => roleCatalog.ranksBelowViewer(role.name)).map((role) => role.name)
+      roles
+        .filter((role) => roleCatalog.canChangeRole(role.name, canManageRoles))
+        .map((role) => role.name)
     )
   );
 
