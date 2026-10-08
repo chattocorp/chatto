@@ -84,7 +84,6 @@ func TestDefaultServerEveryonePermissions(t *testing.T) {
 		PermRoomList,
 		PermRoomJoin,
 		PermMessagePost,
-		PermMessagePostInThread,
 		PermMessageReact,
 		PermMessageEcho,
 	}

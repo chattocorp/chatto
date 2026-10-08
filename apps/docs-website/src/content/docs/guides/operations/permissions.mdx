@@ -24,6 +24,9 @@ setting is **Allow**, **Deny**, or **Inherit**.
 - **`everyone` is the baseline.** An allow on a user or a named role overrides
   an `everyone` deny only at the same scope or a more specific scope.
 - **No setting means no access.**
+- **Prefer roles.** Give permissions through roles, also when only one person
+  has the role. Use settings on a single user only for rare exceptions. They
+  are hard to find later, and they do not give [rank](#role-order).
 - **Owners have every permission in privileged mode.** Without the mode, an
   owner has only the permissions of their roles and grants. You cannot lock
   out an owner, because an owner can always enable privileged mode. A user is
@@ -53,15 +56,16 @@ roles does not change which setting wins. It decides who can manage whom; see
 
 | Role | Defaults on a new server (Server scope) |
 | ---- | --------------------------------------- |
-| `everyone` | `room.list`, `room.join`, `message.read`, `message.post`, `message.post-in-thread`, `message.attach`, `message.react`, `message.echo`, all `call.*` permissions, `user.delete-self` |
+| `everyone` | `room.list`, `room.join`, `message.read`, `message.post`, `message.attach`, `message.react`, `message.echo`, all `call.*` permissions, `user.delete-self` |
 | `moderator` | `message.manage`, `room.remove-member` |
 | `admin` | `server.manage`, `room.create`, `room.manage`, `room.remove-member`, `message.manage`, `role.manage`, `role.assign`, `admin.view-users`, `admin.view-audit`, `user.invite`, `user.manage-accounts`, `user.manage-permissions`, `user.delete-any`, `bot.create`, `bot.manage` |
 | `owner` | Every permission while privileged mode is active. You cannot edit these settings. |
 
 Moderators and admins get their member permissions from `everyone`. A new
 server also makes the `announcements` room read-only: in that room, it denies
-`message.post` for `everyone` and allows it for `admin`. Owners can post there
-only in privileged mode.
+`message.post` for `everyone`, allows it for `admin`, and allows
+`message.post-in-thread` for `everyone`, so members can reply in threads.
+Owners can post there only in privileged mode.
 
 ## Privileged mode
 
@@ -169,10 +173,10 @@ messages value, the Server setting applies.
 ### Read-only room
 
 In the room's permissions, allow `message.post` for each role that can post.
-Then deny it for `everyone` in the same room. To also stop replies, deny
-`message.post-in-thread` and `message.post-in-interactions` for `everyone`. To
-stop uploads, deny `message.attach`. Remove the denies to go back to the server
-defaults.
+Then deny it for `everyone` in the same room. This also stops thread replies.
+To keep replies open, allow `message.post-in-thread` for `everyone` in the
+room. To stop uploads, deny `message.attach`. Remove the denies to go back to
+the server defaults.
 
 ### Room for one role only
 
@@ -299,7 +303,10 @@ Make these changes on an upgraded server:
 - **Allow `message.post`** for `admin` in the `announcements` room if admins
   must post there. Until you do this, admins cannot post there.
 - **Check `message.post`.** It now also allows thread replies, so a deny of
-  `message.post-in-thread` does not stop replies.
+  `message.post-in-thread` does not stop replies. An upgraded server keeps its
+  Server allow of `message.post-in-thread` for `everyone`, which keeps replies
+  open where you deny `message.post`. Remove it if a deny of `message.post`
+  must also stop replies.
 - **Check `everyone` denies.** An allow on a named role or user at the same or
   a more specific scope now overrides them.
 - **Check the role order.** The role order now decides who can manage whom.

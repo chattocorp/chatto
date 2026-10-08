@@ -324,7 +324,10 @@ Do these steps on every upgraded server:
   server does not.
 - **Check thread posting.** `message.post` now also allows thread replies. A
   0.4 setup that allowed `message.post` and denied `message.post-in-thread` now
-  allows replies.
+  allows replies. A new server no longer allows `message.post-in-thread` for
+  `everyone`, so a deny of `message.post` also stops replies. An upgraded
+  server keeps this allow. Remove it if a deny of `message.post` must also stop
+  replies.
 - **Check `everyone` denies.** An allow for a named role or a user now
   overrides an `everyone` deny at the same or a narrower scope.
 - **Check the role order.** The role order now decides who can manage whom:

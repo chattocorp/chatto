@@ -397,7 +397,6 @@ func TestInitServerDefaults(t *testing.T) {
 			PermRoomJoin,
 			PermMessageRead,
 			PermMessagePost,
-			PermMessagePostInThread,
 			PermMessageAttach,
 			PermMessageReact,
 			PermMessageEcho,
@@ -550,6 +549,9 @@ func TestDefaultChannelRoomPermissions(t *testing.T) {
 				want := DecisionNone
 				if role == RoleEveryone && metadata.Permission == PermMessagePost {
 					want = DecisionDeny
+				}
+				if role == RoleEveryone && metadata.Permission == PermMessagePostInThread {
+					want = DecisionAllow
 				}
 				if role == RoleAdmin && metadata.Permission == PermMessagePost {
 					want = DecisionAllow

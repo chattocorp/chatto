@@ -87,6 +87,9 @@ the backend permission catalog. Update both catalogs together.
   Room group, and Room scope. Channel checks use Room, Room group, then Server.
   DM checks use Direct messages, then Server. Each direct user or named role
   contributes its nearest decision. Denies win across those explicit subjects.
+- Roles are the normal way to give permissions. Direct per-user decisions are
+  for rare exceptions: the admin UI does not show them on role pages, and they
+  give no rank (Design Decision 11). Documentation recommends roles first.
 - Permissions gate capabilities and channel-room message access. Channel-room
   membership is necessary for message reads. `message.read` supplies broad
   read authority and includes `message.read-interactions`, which
@@ -186,7 +189,7 @@ User-triggered RBAC events are audit facts as well as state facts, so their even
 
 ### 9. Defaults are one-time initialization, not startup policy
 
-**Decision:** Apply the current server default set only when the durable RBAC stream is empty. New groups and ordinary rooms store no default decisions. Commit a channel room and any exceptional default decisions in one atomic EVT batch: fresh announcements rooms deny `message.post` to `everyone` and allow it for `admin`. Do not reset existing permission state during startup. A new permission that
+**Decision:** Apply the current server default set only when the durable RBAC stream is empty. New groups and ordinary rooms store no default decisions. Commit a channel room and any exceptional default decisions in one atomic EVT batch: fresh announcements rooms deny `message.post` to `everyone`, allow it for `admin`, and allow `message.post-in-thread` for `everyone` so members can reply in threads. The server default set does not allow `message.post-in-thread` for `everyone`: `message.post` includes it, so a deny of `message.post` also stops thread replies. Upgraded servers keep their earlier allow. Do not reset existing permission state during startup. A new permission that
 gates an existing capability gets a one-time upgrade grant (ADR-113):
 
 - Initialize each missing server-level `everyone` call permission once. Any

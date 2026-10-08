@@ -334,7 +334,6 @@ func TestDefaultEveryonePermissions(t *testing.T) {
 		PermRoomJoin,
 		PermMessageRead,
 		PermMessagePost,
-		PermMessagePostInThread,
 		PermMessageAttach,
 		PermMessageReact,
 		PermMessageEcho,

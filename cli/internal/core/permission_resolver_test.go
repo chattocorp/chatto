@@ -1448,3 +1448,33 @@ func TestContentAuthorizationReadsOneServerContentViewGeneration(t *testing.T) {
 		})
 	}
 }
+
+func TestDenyingMessagePostAlsoStopsThreadReplies(t *testing.T) {
+	t.Parallel()
+
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user := createPermissionEditUser(t, core, ctx, "muted-member")
+	roomID := createPermissionEditRoom(t, core, ctx, "muted-room")
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "muted", "Muted", "", false); err != nil {
+		t.Fatalf("CreateServerRole: %v", err)
+	}
+	if err := core.DenyServerPermission(ctx, SystemActorID, "muted", PermMessagePost); err != nil {
+		t.Fatalf("DenyServerPermission: %v", err)
+	}
+	if err := core.AssignServerRole(ctx, SystemActorID, user, "muted"); err != nil {
+		t.Fatalf("AssignServerRole: %v", err)
+	}
+
+	// message.post includes thread replies, and no separate everyone default
+	// allows message.post-in-thread.
+	for _, perm := range []Permission{PermMessagePost, PermMessagePostInThread, PermMessagePostInInteractions} {
+		allowed, err := core.hasRoomPermission(ctx, KindChannel, roomID, user, perm)
+		if err != nil {
+			t.Fatalf("hasRoomPermission %s: %v", perm, err)
+		}
+		if allowed {
+			t.Errorf("%s allowed for a member whose role denies message.post", perm)
+		}
+	}
+}

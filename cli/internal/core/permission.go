@@ -393,7 +393,9 @@ func PermissionsForCategory(category PermissionCategory) []PermissionMetadata {
 // DefaultEveryonePermissions returns server-scope permissions granted to every
 // authenticated user (the implicit everyone role). These defaults make normal
 // rooms usable out of the box; operators can deny the room/group permissions at
-// room or group scope where they need local restrictions.
+// room or group scope where they need local restrictions. message.post
+// includes thread replies, so a deny of message.post also stops them; there
+// is no separate message.post-in-thread default.
 func DefaultEveryonePermissions() []Permission {
 	return []Permission{
 		PermUserDeleteSelf,
@@ -401,7 +403,6 @@ func DefaultEveryonePermissions() []Permission {
 		PermRoomJoin,
 		PermMessageRead,
 		PermMessagePost,
-		PermMessagePostInThread,
 		PermMessageAttach,
 		PermMessageReact,
 		PermMessageEcho,
@@ -459,6 +460,13 @@ const AnnouncementsRoomName = "announcements"
 // direct user has a room-local allow. Effective owners bypass the decision.
 func DefaultAnnouncementsEveryoneDenials() []Permission {
 	return []Permission{PermMessagePost}
+}
+
+// DefaultAnnouncementsEveryonePermissions returns the room-scope allows for
+// the built-in announcements room. Members cannot post root messages, but they
+// can reply in announcement threads.
+func DefaultAnnouncementsEveryonePermissions() []Permission {
+	return []Permission{PermMessagePostInThread}
 }
 
 // DefaultAnnouncementsAdminPermissions returns the room-scope grants that let
