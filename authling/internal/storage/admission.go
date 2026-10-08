@@ -16,9 +16,6 @@ var ErrAdmissionLimited = errors.New("request admission limit reached")
 // an OCC conflict reads the counter again. Storage failures and unknown
 // acknowledgements fail closed without refunds.
 func AdmitRequest(ctx context.Context, kv KeyValue, key string, limit int, window time.Duration) error {
-	if limit < 1 || window <= 0 {
-		return fmt.Errorf("invalid request admission policy")
-	}
 	limited, err := IncrementCounter(ctx, kv, key, limit, window)
 	if err != nil {
 		return fmt.Errorf("request admission: %w", err)

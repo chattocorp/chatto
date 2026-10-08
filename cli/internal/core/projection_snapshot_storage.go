@@ -68,7 +68,7 @@ type natsSnapshotPointerStore struct {
 func (n natsSnapshotPointerStore) GetPointer(ctx context.Context, key string) ([]byte, uint64, error) {
 	entry, err := n.kv.Get(ctx, key)
 	if err != nil {
-		if isKeyAbsent(err) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, 0, projectionsnapshot.ErrPointerNotFound
 		}
 		return nil, 0, fmt.Errorf("get projection snapshot pointer: %w", err)
@@ -90,7 +90,7 @@ func (n natsSnapshotPointerStore) CreatePointer(ctx context.Context, key string,
 func (n natsSnapshotPointerStore) UpdatePointer(ctx context.Context, key string, value []byte, expected uint64) (uint64, error) {
 	revision, err := n.kv.Update(ctx, key, value, expected)
 	if err != nil {
-		if jetstreamutil.IsSequenceConflict(err) || isKeyAbsent(err) {
+		if jetstreamutil.IsSequenceConflict(err) || errors.Is(err, jetstream.ErrKeyNotFound) {
 			return 0, projectionsnapshot.ErrPointerConflict
 		}
 		return 0, fmt.Errorf("update projection snapshot pointer: %w", err)

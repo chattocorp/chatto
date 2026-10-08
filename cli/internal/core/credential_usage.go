@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"sync"
@@ -127,7 +128,7 @@ func (r *credentialUsageRecorder) ForgetAll(ctx context.Context, botID string) {
 	delete(r.observed, botID)
 	delete(r.lastFlush, botID)
 	r.mu.Unlock()
-	if err := r.kv.Delete(ctx, credentialUsageRuntimeStateKey(botID)); err != nil && !isKeyAbsent(err) && r.logger != nil {
+	if err := r.kv.Delete(ctx, credentialUsageRuntimeStateKey(botID)); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) && r.logger != nil {
 		r.logger.Warn("Failed to remove deleted bot credential usage telemetry", "error", err)
 	}
 }
@@ -149,7 +150,7 @@ func (r *credentialUsageRecorder) LastUsed(ctx context.Context, botID string) (l
 	lastUsed = make(map[string]time.Time)
 	entry, err := r.kv.Get(ctx, credentialUsageRuntimeStateKey(botID))
 	if err != nil {
-		if !isKeyAbsent(err) {
+		if !errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, false
 		}
 	} else {
@@ -312,7 +313,7 @@ func (r *credentialUsageRecorder) writeMax(ctx context.Context, botID, credentia
 		entry, err := r.kv.Get(ctx, key)
 		state := &runtimestatev1.CredentialUsageState{LastUsedUnixMillis: make(map[string]int64)}
 		if err != nil {
-			if !isKeyAbsent(err) {
+			if !errors.Is(err, jetstream.ErrKeyNotFound) {
 				return err
 			}
 		} else if err := proto.Unmarshal(entry.Value(), state); err != nil {
@@ -350,7 +351,7 @@ func (r *credentialUsageRecorder) deletePersisted(ctx context.Context, botID, cr
 	for range 10 {
 		entry, err := r.kv.Get(ctx, key)
 		if err != nil {
-			if isKeyAbsent(err) {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				return nil
 			}
 			return err
@@ -372,7 +373,7 @@ func (r *credentialUsageRecorder) deletePersisted(ctx context.Context, botID, cr
 				_, err = r.kv.Update(ctx, key, value, entry.Revision())
 			}
 		}
-		if err == nil || isKeyAbsent(err) {
+		if err == nil || errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil
 		}
 		if !jetstreamutil.IsSequenceConflict(err) {

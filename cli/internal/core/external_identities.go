@@ -107,7 +107,7 @@ func (c *ChattoCore) ConsumePendingExternalIdentityLinkStart(ctx context.Context
 	key := c.externalIdentityLinkStartKey(token)
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
-		if isKeyAbsent(err) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, ErrExternalIdentityFlowNotFound
 		}
 		return nil, fmt.Errorf("get external identity link start: %w", err)
@@ -120,7 +120,7 @@ func (c *ChattoCore) ConsumePendingExternalIdentityLinkStart(ctx context.Context
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return nil, ErrExternalIdentityFlowExpired
 	}
-	if err := c.storage.runtimeStateKV.Delete(ctx, key); err != nil && !isKeyAbsent(err) {
+	if err := c.storage.runtimeStateKV.Delete(ctx, key); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return nil, fmt.Errorf("delete external identity link start: %w", err)
 	}
 	return &start, nil
@@ -228,7 +228,7 @@ func (c *ChattoCore) GetPendingExternalIdentityLinkFlow(ctx context.Context, tok
 func (c *ChattoCore) getPendingExternalIdentityFlowByKey(ctx context.Context, key string) (*PendingExternalIdentityFlow, error) {
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
-		if isKeyAbsent(err) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, ErrExternalIdentityFlowNotFound
 		}
 		return nil, fmt.Errorf("get external identity flow: %w", err)
@@ -248,7 +248,7 @@ func (c *ChattoCore) DeletePendingExternalIdentityFlow(ctx context.Context, toke
 	var firstErr error
 	for _, key := range []string{c.externalIdentityCreateTokenKey(token), c.externalIdentityLinkTokenKey(token)} {
 		err := c.storage.runtimeStateKV.Delete(ctx, key)
-		if err != nil && !isKeyAbsent(err) && firstErr == nil {
+		if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) && firstErr == nil {
 			firstErr = err
 		}
 	}

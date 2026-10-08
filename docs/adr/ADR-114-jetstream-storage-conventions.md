@@ -75,8 +75,9 @@ its own code and records its exceptions in its own documentation.
    `jetstreamutil.IsSequenceConflict`. After a conflict from `Create`, read the
    key again before you use the stored record, because a write in progress can
    still fail. A raw create-once publish is different: only
-   `jetstream.ErrKeyExists` proves that the record is stored. Use a shared
-   helper for the "key is absent" check, not an inline check.
+   `jetstream.ErrKeyExists` proves that the record is stored. A key-value
+   read reports a missing or removed key as `jetstream.ErrKeyNotFound`, so
+   that check is sufficient. Do not add checks for `jetstream.ErrKeyDeleted`.
 7. **Report every durable consumer.** Declare each durable consumer name once
    and include it in the operator diagnostics.
 
@@ -95,7 +96,6 @@ its own code and records its exceptions in its own documentation.
   list includes each durable consumer that core creates.
 - Key prefixes use snake_case. Keys that contain secret input use the hex
   HMAC from `runtime_token_keys.go`.
-- `isKeyAbsent` in `core` is the "key is absent" check.
 - Pass the bound `*jetstreamutil.KeyValue` handle in production code. A
   model can accept the `jetstream.KeyValue` interface so that tests can inject
   faults, but production wiring must pass the bound handle.

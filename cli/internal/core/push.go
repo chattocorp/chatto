@@ -282,7 +282,7 @@ func (c *ChattoCore) claimPushEndpointOwnership(ctx context.Context, userID, end
 	subscriptionKey := pushSubscriptionKey(userID, endpoint)
 	for range pushEndpointOwnerMaxRetries {
 		subscriptionEntry, err := c.storage.runtimeStateKV.Get(ctx, subscriptionKey)
-		if isKeyAbsent(err) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil
 		}
 		if err != nil {
@@ -303,7 +303,7 @@ func (c *ChattoCore) claimPushEndpointOwnership(ctx context.Context, userID, end
 			return fmt.Errorf("failed to marshal push endpoint owner: %w", err)
 		}
 		entry, err := c.storage.runtimeStateKV.Get(ctx, ownerKey)
-		if isKeyAbsent(err) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			if ownerRevision, err := c.storage.runtimeStateKV.Create(ctx, ownerKey, value); err == nil {
 				if current, err := c.storage.runtimeStateKV.Get(ctx, subscriptionKey); err == nil && current.Revision() == owner.SubscriptionRevision {
 					return nil
@@ -353,7 +353,7 @@ func (c *ChattoCore) claimPushEndpointOwnership(ctx context.Context, userID, end
 
 func (c *ChattoCore) deleteStalePushEndpointOwner(ctx context.Context, key string, revision uint64) error {
 	err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(revision))
-	if err == nil || isKeyAbsent(err) || jetstreamutil.IsSequenceConflict(err) {
+	if err == nil || errors.Is(err, jetstream.ErrKeyNotFound) || jetstreamutil.IsSequenceConflict(err) {
 		return nil
 	}
 	return fmt.Errorf("failed to remove stale push endpoint owner: %w", err)
@@ -377,7 +377,7 @@ func (c *ChattoCore) PushSubscriptionCurrentForUser(ctx context.Context, userID 
 	endpoint := subscription.GetEndpoint()
 	key := pushSubscriptionKey(userID, endpoint)
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-	if isKeyAbsent(err) {
+	if errors.Is(err, jetstream.ErrKeyNotFound) {
 		return false, nil
 	}
 	if err != nil {
@@ -396,7 +396,7 @@ func (c *ChattoCore) PushSubscriptionCurrentForUser(ctx context.Context, userID 
 
 func (c *ChattoCore) getPushEndpointOwner(ctx context.Context, endpoint string) (*pushEndpointOwner, error) {
 	entry, err := c.storage.runtimeStateKV.Get(ctx, pushEndpointOwnerKey(endpoint))
-	if isKeyAbsent(err) {
+	if errors.Is(err, jetstream.ErrKeyNotFound) {
 		return nil, nil
 	}
 	if err != nil {
@@ -421,7 +421,7 @@ func (c *ChattoCore) releasePushEndpointOwnership(ctx context.Context, userID, e
 	key := pushEndpointOwnerKey(endpoint)
 	for range pushEndpointOwnerMaxRetries {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-		if isKeyAbsent(err) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil
 		}
 		if err != nil {
@@ -435,7 +435,7 @@ func (c *ChattoCore) releasePushEndpointOwnership(ctx context.Context, userID, e
 			return nil
 		}
 		err = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
-		if err == nil || isKeyAbsent(err) {
+		if err == nil || errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil
 		}
 		if jetstreamutil.IsSequenceConflict(err) {
@@ -506,7 +506,7 @@ func validatePushClientHost(value string) error {
 func (c *ChattoCore) DeletePushSubscription(ctx context.Context, userID, endpoint string) error {
 	key := pushSubscriptionKey(userID, endpoint)
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-	if err != nil && !isKeyAbsent(err) {
+	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return fmt.Errorf("failed to get push subscription before deleting: %w", err)
 	}
 
@@ -522,7 +522,7 @@ func (c *ChattoCore) DeletePushSubscription(ctx context.Context, userID, endpoin
 
 	if entry != nil {
 		err = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
-		if err != nil && !isKeyAbsent(err) && !jetstreamutil.IsSequenceConflict(err) {
+		if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) && !jetstreamutil.IsSequenceConflict(err) {
 			return fmt.Errorf("failed to delete push subscription: %w", err)
 		}
 	}
@@ -562,7 +562,7 @@ func (c *ChattoCore) DeletePushSubscriptionByCapability(ctx context.Context, end
 	}
 	key := pushSubscriptionKey(owner.UserID, endpoint)
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-	if isKeyAbsent(err) {
+	if errors.Is(err, jetstream.ErrKeyNotFound) {
 		return nil
 	}
 	if err != nil {
@@ -586,7 +586,7 @@ func (c *ChattoCore) DeletePushSubscriptionByCapability(ctx context.Context, end
 		return err
 	}
 	err = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
-	if err != nil && !isKeyAbsent(err) && !jetstreamutil.IsSequenceConflict(err) {
+	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) && !jetstreamutil.IsSequenceConflict(err) {
 		return fmt.Errorf("failed to delete push subscription by capability: %w", err)
 	}
 	return nil
@@ -607,7 +607,7 @@ func (c *ChattoCore) GetUserPushSubscriptions(ctx context.Context, userID string
 	var subscriptions []*runtimestatev1.PushSubscription
 	for _, key := range keys {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-		if isKeyAbsent(err) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			continue
 		}
 		if err != nil {
@@ -651,7 +651,7 @@ func (c *ChattoCore) deleteExpiredPushSubscription(ctx context.Context, userID, 
 		return err
 	}
 	err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(revision))
-	if err != nil && !isKeyAbsent(err) && !jetstreamutil.IsSequenceConflict(err) {
+	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) && !jetstreamutil.IsSequenceConflict(err) {
 		return fmt.Errorf("failed to delete expired push subscription: %w", err)
 	}
 	return nil
@@ -670,7 +670,7 @@ func (c *ChattoCore) DeleteAllUserPushSubscriptions(ctx context.Context, userID 
 	var cleanupErrors []error
 	for _, key := range keys {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-		if isKeyAbsent(err) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			continue
 		}
 		if err != nil {
@@ -684,7 +684,7 @@ func (c *ChattoCore) DeleteAllUserPushSubscriptions(ctx context.Context, userID 
 			// damaged payload cannot be decoded. Erase it first; the global
 			// reconciler separately removes unusable or orphaned owner records.
 			deleteErr := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
-			if deleteErr == nil || isKeyAbsent(deleteErr) {
+			if deleteErr == nil || errors.Is(deleteErr, jetstream.ErrKeyNotFound) {
 				deleted++
 				cleanupErrors = append(cleanupErrors, fmt.Errorf("decode push subscription %s during deletion: %w", key, err))
 				continue
@@ -700,7 +700,7 @@ func (c *ChattoCore) DeleteAllUserPushSubscriptions(ctx context.Context, userID 
 		}
 
 		err = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
-		if err != nil && !isKeyAbsent(err) {
+		if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 			// A revision conflict means a concurrent registration replaced the
 			// credentials. Report it so the durable delivery retries and removes
 			// the newer exact revision rather than acknowledging partial cleanup.

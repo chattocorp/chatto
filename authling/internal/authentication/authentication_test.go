@@ -2,7 +2,6 @@ package authentication
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -69,13 +68,8 @@ func TestOperationalFailureDoesNotConsumeAttemptBudget(t *testing.T) {
 	if _, err := service.Login(ctx, "person@example.com", "password"); !errors.Is(err, accounts.ErrInvalidCredentials) {
 		t.Fatalf("credential mismatch error = %v", err)
 	}
-	entry, err := stores.RuntimeState.Get(ctx, keyName)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var counter attemptCounter
-	if err := json.Unmarshal(entry.Value(), &counter); err != nil || counter.Count != 1 {
-		t.Fatalf("attempt counter = %+v, decode error = %v; want count 1", counter, err)
+	if count, _, err := storage.ReadCounter(ctx, stores.RuntimeState, keyName); err != nil || count != 1 {
+		t.Fatalf("attempt counter = %d, read error = %v; want count 1", count, err)
 	}
 
 	authenticator.err = errors.New("key service unavailable")
@@ -91,12 +85,8 @@ func TestOperationalFailureDoesNotConsumeAttemptBudget(t *testing.T) {
 	if _, err := service.ChangePassword(ctx, "acct_test", "current password", "replacement password"); !errors.Is(err, accounts.ErrInvalidCredentials) {
 		t.Fatalf("password change credential mismatch error = %v", err)
 	}
-	entry, err = stores.RuntimeState.Get(ctx, passwordChangeKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := json.Unmarshal(entry.Value(), &counter); err != nil || counter.Count != 1 {
-		t.Fatalf("password change attempt counter = %+v, decode error = %v; want count 1", counter, err)
+	if count, _, err := storage.ReadCounter(ctx, stores.RuntimeState, passwordChangeKey); err != nil || count != 1 {
+		t.Fatalf("password change attempt counter = %d, read error = %v; want count 1", count, err)
 	}
 
 	// A password-policy rejection proves that the current password was valid,

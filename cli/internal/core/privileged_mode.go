@@ -84,7 +84,7 @@ func (c *ChattoCore) SetCookiePrivilegedMode(ctx context.Context, sessionID stri
 	for range 8 {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
-			if isKeyAbsent(err) {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				return time.Time{}, ErrCookieSessionNotFound
 			}
 			return time.Time{}, fmt.Errorf("get cookie session for privileged mode: %w", err)

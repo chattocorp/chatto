@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -74,7 +75,7 @@ func StartSharedNATS(t testing.TB) (*server.Server, *nats.Conn) {
 	}
 	t.Cleanup(nc.Close)
 
-	ResetChattoJetStream(t, nc)
+	ResetChattoJetStream(t, ns, nc)
 
 	return ns, nc
 }
@@ -103,7 +104,14 @@ func ShutdownSharedNATS() {
 // ResetChattoJetStream deletes every current Chatto resource in the
 // natsresources registry. It deliberately targets those names rather than
 // deleting every stream in the account, so ad-hoc test streams remain opt-in.
-func ResetChattoJetStream(t testing.TB, nc *nats.Conn) {
+//
+// nats-server moves a deleted stream's directory to a "."-prefixed name and
+// removes it in the background. If an earlier removal of that name is still
+// in progress, the move fails, the server ignores the error, and the old
+// message blocks stay in place. A stream created later with the same name
+// then recovers the old messages. Thus, the reset also removes both
+// directories itself before it returns.
+func ResetChattoJetStream(t testing.TB, ns *server.Server, nc *nats.Conn) {
 	t.Helper()
 
 	sharedNATSMu.Lock()
@@ -134,6 +142,37 @@ func ResetChattoJetStream(t testing.TB, nc *nats.Conn) {
 
 	if err := nc.FlushTimeout(2 * time.Second); err != nil {
 		t.Fatalf("flush after JetStream reset: %v", err)
+	}
+	removeDeletedStreamDirectories(t, ns)
+}
+
+// removeDeletedStreamDirectories removes the directories of every deleted
+// Chatto stream in every account.
+func removeDeletedStreamDirectories(t testing.TB, ns *server.Server) {
+	t.Helper()
+
+	accounts, err := filepath.Glob(filepath.Join(ns.JetStreamConfig().StoreDir, "*", "streams"))
+	if err != nil {
+		t.Fatalf("find JetStream stream directories: %v", err)
+	}
+	for _, streams := range accounts {
+		for _, resource := range natsresources.Current() {
+			for _, dir := range []string{resource.StreamName(), "." + resource.StreamName()} {
+				path := filepath.Join(streams, dir)
+				// The server can remove the same directory at the same time.
+				deadline := time.Now().Add(5 * time.Second)
+				for {
+					err := os.RemoveAll(path)
+					if _, statErr := os.Stat(path); errors.Is(statErr, os.ErrNotExist) {
+						break
+					}
+					if time.Now().After(deadline) {
+						t.Fatalf("remove deleted stream directory %s: %v", path, err)
+					}
+					time.Sleep(10 * time.Millisecond)
+				}
+			}
+		}
 	}
 }
 

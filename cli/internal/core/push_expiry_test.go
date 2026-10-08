@@ -2,10 +2,12 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
 	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
@@ -25,9 +27,9 @@ func requirePushKeyPresence(t *testing.T, core *ChattoCore, key string, want boo
 	switch {
 	case err == nil && !want:
 		t.Fatalf("key %s exists, want it removed", key)
-	case isKeyAbsent(err) && want:
+	case errors.Is(err, jetstream.ErrKeyNotFound) && want:
 		t.Fatalf("key %s is absent, want it present", key)
-	case err != nil && !isKeyAbsent(err):
+	case err != nil && !errors.Is(err, jetstream.ErrKeyNotFound):
 		t.Fatalf("get key %s: %v", key, err)
 	}
 }

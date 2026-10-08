@@ -172,7 +172,8 @@ authorization, live events, backup and restore, and backend tests.
   - Give each key family one builder and a snake_case prefix. Derive watcher
     filters from the same prefix. Hash secret key input with the HMAC helpers
     in `core/runtime_token_keys.go`.
-  - Check for a missing key with `isKeyAbsent`.
+  - Check for a missing key with `errors.Is(err, jetstream.ErrKeyNotFound)`.
+    Reads never return `jetstream.ErrKeyDeleted`.
   - Add each new durable consumer to `durableWorkerDiagnosticSpecs`.
 - Projection snapshots are disposable acceleration data, never recovery data.
   Bind them to the durable EVT incarnation identity in stream metadata as well

@@ -94,7 +94,7 @@ func TestChattoCore_LogoutWithStaleCredentialAfterPasswordChangeIsNotLive(t *tes
 	if userID, revoked, err := core.RevokePresentedRuntimeCredentialWithReason(ctx, stale.AccessToken, AuthTokenPresentationBearer, "logout"); err != nil || revoked || userID != "" {
 		t.Fatalf("stale access logout = (%q, %v, %v), want (\"\", false, nil)", userID, revoked, err)
 	}
-	if _, err := core.storage.runtimeStateKV.Get(ctx, core.authTokenKey(stale.AccessToken)); !isKeyAbsent(err) {
+	if _, err := core.storage.runtimeStateKV.Get(ctx, core.authTokenKey(stale.AccessToken)); !errors.Is(err, jetstream.ErrKeyNotFound) {
 		t.Fatalf("stale access record still stored: %v", err)
 	}
 	if userID, revoked, err := core.RevokeRefreshTokenWithReasonResult(ctx, staleRefresh.RefreshToken, "logout"); err != nil || revoked || userID != "" {
