@@ -651,27 +651,6 @@ test.describe('Room-Level Permission Overrides', () => {
 // Permission resolution tests
 // ============================================================================
 
-async function createServerRole(
-  page: Page,
-  name: string,
-  displayName: string,
-  description: string
-): Promise<void> {
-  const data = await connectPost<{ role?: E2EAdminRole }>(
-    page,
-    'chatto.admin.v1.AdminRoleService/CreateRole',
-    {
-      name,
-      displayName,
-      description
-    }
-  );
-  const role = unwrapAdminRole(data.role);
-  if (role?.name !== name) {
-    throw new Error(`CreateRole returned ${role?.name ?? '<none>'}, want ${name}`);
-  }
-}
-
 async function assignServerRole(page: Page, userId: string, roleName: string): Promise<void> {
   const data = await connectPost<{ member?: { roles?: string[]; user?: { id?: string } } }>(
     page,
@@ -767,36 +746,28 @@ test.describe('Permission-only Resolution', () => {
       await expect(page.getByText(targetBody)).toBeVisible();
     });
 
-    test('muted members cannot post to #general (role denial wins)', async ({
+    test('a member denied message.post in #general cannot post there', async ({
       page,
       roomPage: _roomPage
     }) => {
-      // Issue #330: usePrimaryServerViaAPI re-logs in as e2eadmin; subsequent admin
-      // operations stay on that session instead of bouncing back through a
-      // fresh "owner" account that the bootstrap server wouldn't recognise.
       await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page, `Muted Test ${Date.now()}`);
       const generalRoomId = await getRoomByName(page, 'general');
 
-      // Create "muted" role
-      await createServerRole(page, 'muted', 'Muted', 'Cannot post messages');
-
-      // The new role ranks lowest. The deny blocks posting under the
-      // deny-wins resolver, whatever the role order is.
-
-      // Deny message.post for the muted role at room level
-      await denyRoomPermission(page, generalRoomId, 'muted', 'message.post');
-
-      // Create member and assign muted role (still authed as e2eadmin from usePrimaryServerViaAPI).
+      // Roles only grant, so the deny goes on the member (still authed as
+      // e2eadmin from usePrimaryServerViaAPI).
       const member = await createSecondTestUser(page);
-      await assignServerRole(page, member.id!, 'muted');
+      await connectPost(page, 'chatto.admin.v1.AdminPermissionService/SetUserPermission', {
+        userId: member.id!,
+        permission: 'message.post',
+        decision: 'PERMISSION_DECISION_DENY',
+        scope: { kind: 'PERMISSION_SCOPE_KIND_ROOM', id: generalRoomId }
+      });
 
-      // Login as member
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
       await joinRoomViaAPI(page, generalRoomId);
 
-      // Member should NOT be able to post (muted role denial takes precedence)
       await page.goto(routes.room(generalRoomId));
       await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'false');
     });
@@ -964,8 +935,8 @@ test.describe('Permission-only Resolution', () => {
     });
   });
 
-  test.describe('message.post — Independence from Thread Permissions', () => {
-    test('message.post denied does not affect thread operations', async ({ page }) => {
+  test.describe('message.post — Read-only rooms with open threads', () => {
+    test('a room can deny root posts and keep thread replies open', async ({ page }) => {
       // Admin creates server and room, posts a root message
       await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page);
@@ -974,8 +945,10 @@ test.describe('Permission-only Resolution', () => {
       const rootMsg = await postMessageViaAPI(page, roomId, 'Root for post-denied test');
       expect(rootMsg).not.toBeNull();
 
-      // Deny message.post at room level for everyone (but keep thread perms)
+      // Deny message.post at room level for everyone. It includes thread
+      // replies, so allow those explicitly.
       await denyRoomPermission(page, roomId, 'everyone', 'message.post');
+      await grantRoomPermission(page, roomId, 'everyone', 'message.post-in-thread');
 
       // Create second user, join the room
       const member = await createSecondTestUser(page);

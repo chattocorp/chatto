@@ -149,7 +149,7 @@ another address does not change the selection. See
 
 Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
-**RBAC (Role-Based Access Control)** — The model: roles bundle permissions, users hold roles, and direct user decisions can grant or deny exceptions. See [ADR-040](adr/ADR-040-permission-only-rbac-with-owner-override.md) and [ADR-052](adr/ADR-052-subject-specific-rbac-with-everyone-baseline.md).
+**RBAC (Role-Based Access Control)** — The model: `everyone` sets the baseline, roles only add permissions, and user-level decisions grant or deny exceptions. See [ADR-040](adr/ADR-040-permission-only-rbac-with-owner-override.md), [ADR-052](adr/ADR-052-subject-specific-rbac-with-everyone-baseline.md), and [ADR-116](adr/ADR-116-roles-only-grant-permissions.md).
 
 **Role** — Named bundle of permissions, assignable to users. System roles are seeded; custom roles can be created. Role names share the message-mention namespace with user logins, and each role can be marked pingable to allow `@role` pings.
 
@@ -169,19 +169,19 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **Moderator** — System role (position 100 on fresh servers; role managers can move it). Moderation permissions, no administrative reach.
 
-**Everyone** — Implicit virtual role (position 0, fixed) held by every authenticated user. Its nearest decision is the scoped permission baseline. A direct-user or named-role allow overrides an `everyone` deny only at the same or a nearer scope; a named/direct deny always wins.
+**Everyone** — Implicit virtual role (position 0, fixed) held by every authenticated user. Its nearest decision is the scoped permission baseline. A named-role allow overrides an `everyone` deny only at the same or a nearer scope. Only `everyone` and single users can deny.
 
 **Scope** — Tier at which a permission is configured: Server, Direct messages,
 Room group, or Room. A channel check uses Room, Room group, then Server. A DM
-check uses Direct messages, then Server. Each direct user or named role
-contributes only its nearest explicit decision. See
+check uses Direct messages, then Server. Each user, named role, and
+`everyone` contributes only its nearest explicit decision. See
 [ADR-095](adr/ADR-095-direct-message-permission-scope-and-threads.md).
 
 **Request-time authorization** — Command authorization decision that becomes final after Chatto confirms that its projected RBAC, room-group, user, and other declared inputs did not change during evaluation. A later concurrent authorization change does not cancel the command; domain invariants use OCC separately. See [ADR-087](adr/ADR-087-request-time-authorization-with-aggregate-occ.md).
 
 **Interaction relationship** — Derived account-to-thread authorization relationship created when the account authors a room root, another account directly mentions it, or it receives a DM from another account. DM recipients are the other participants at the time of the post. With current room membership and `message.read-interactions`, the relationship permits the complete thread. See [FDR-039](fdr/FDR-039-message-access-and-interactions.md) and [ADR-082](adr/ADR-082-derive-thread-interactions-from-message-facts.md).
 
-**User-level decision** — Permission grant or deny attached directly to a user, not via a role. It participates alongside named-role decisions, so a user deny blocks named-role grants while a named-role deny blocks a user grant. Used for suspensions and ad-hoc grants.
+**User-level decision** — Permission grant or deny attached directly to a user, not via a role. The user's nearest decision decides for that user, over named roles and `everyone` (ADR-116). Use it sparingly, for suspensions and rare exceptions; prefer roles.
 
 **DM Privacy Boundary** — The fixed participant set that controls DM discovery
 and access. Membership is necessary but not sufficient for message content.

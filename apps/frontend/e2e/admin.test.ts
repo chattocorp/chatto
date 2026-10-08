@@ -20,6 +20,7 @@ import {
 } from './fixtures/serverUser';
 import {
   connectPost,
+  connectPostResponse,
   expectPermissionDecisionUpdate,
   type E2EAdminRole,
   type E2EPermissionDecision,
@@ -115,7 +116,7 @@ async function setRolePermissionViaConnect(
   page: Page,
   roleName: string,
   permission: string,
-  decision: Extract<E2EPermissionDecision, 'PERMISSION_DECISION_DENY' | 'PERMISSION_DECISION_NONE'>
+  decision: Extract<E2EPermissionDecision, 'PERMISSION_DECISION_NONE'>
 ): Promise<void> {
   const scope = { kind: 'PERMISSION_SCOPE_KIND_SERVER' } as const;
   const data = await connectPost<E2EPermissionDecisionUpdateResponse>(
@@ -749,55 +750,37 @@ test.describe('Instance Settings', () => {
   });
 });
 
-test.describe('Instance Role Permission Denials', () => {
-  test('admin can deny a permission on a role via API and it persists', async ({ page }) => {
+test.describe('Role permissions only grant', () => {
+  test('the API rejects a deny on a role', async ({ page }) => {
     await createAndLoginAdminUser(page);
-
-    // Create a custom role via API
     const roleName = generateRoleName('test');
-    const createdRole = await createRoleViaConnect(
+    await createRoleViaConnect(page, roleName, 'Test Grant Role', 'Roles only grant');
+
+    const response = await connectPostResponse(
       page,
-      roleName,
-      'Test Denial Role',
-      'A role for testing permission denials'
+      'chatto.admin.v1.AdminPermissionService/SetRolePermission',
+      {
+        roleName,
+        permission: 'message.post',
+        decision: 'PERMISSION_DECISION_DENY',
+        scope: { kind: 'PERMISSION_SCOPE_KIND_SERVER' }
+      }
     );
-    expect(createdRole.permissionDenials ?? []).toEqual([]);
-
-    // Deny a permission on the role
-    await setRolePermissionViaConnect(page, roleName, 'message.post', 'PERMISSION_DECISION_DENY');
-
-    // Query the role and verify the denial persists
+    expect(response.status()).toBe(400);
+    expect(await response.text()).toContain('invalid_argument');
     const role = await getRoleViaConnect(page, roleName);
-    expect(role.permissionDenials).toContain('message.post');
+    expect(role.permissionDenials ?? []).toEqual([]);
 
-    // Clean up - delete the role
     await deleteRoleViaConnect(page, roleName);
   });
 
-  test('admin can deny a permission on a role via UI and it persists', async ({
-    page,
-    adminPage
-  }) => {
+  test('role cells cycle between allow and not set', async ({ page, adminPage }) => {
     await createAndLoginAdminUser(page);
+    const roleName = generateRoleName('grant');
+    await createRoleViaConnect(page, roleName, 'UI Grant Test Role', 'Roles only grant');
 
-    // Create a custom role via API
-    const roleName = generateRoleName('deny');
-    await createRoleViaConnect(
-      page,
-      roleName,
-      'UI Denial Test Role',
-      'A role for testing permission denial UI'
-    );
-
-    // The matrix lives on the roles listing page now: rows are permissions,
-    // columns are roles, and each cell is a button whose aria-label encodes
-    // both the role displayName and the permission. Clicking cycles
-    // neutral → allow → deny → neutral, so two clicks lands a fresh role on
-    // Deny.
-    const displayName = 'UI Denial Test Role';
     await adminPage.gotoPermissions();
     await expect(page.getByRole('heading', { name: 'Permissions', level: 1 })).toBeVisible();
-
     const cell = page.locator(`td[data-role="${roleName}"][data-permission="message.post"] button`);
     await expect(cell).toHaveAttribute('aria-pressed', 'false');
 
@@ -807,20 +790,16 @@ test.describe('Instance Role Permission Denials', () => {
     });
 
     await cell.click();
-    await expect(cell).toHaveAttribute('aria-label', /Override deny/, {
+    await expect(cell).toHaveAttribute('aria-label', /No override/, {
       timeout: TIMEOUTS.UI_STANDARD
     });
 
-    // Reload and verify the denial persists.
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Permissions', level: 1 })).toBeVisible();
-    const cellAfterReload = page.locator(
-      `td[data-role="${roleName}"][data-permission="message.post"] button`
-    );
-    await expect(cellAfterReload).toHaveAttribute('aria-label', /Override deny/);
-    await expect(cellAfterReload).toHaveAttribute('aria-pressed', 'true');
+    await expect(
+      page.locator(`td[data-role="${roleName}"][data-permission="message.post"] button`)
+    ).toHaveAttribute('aria-label', /No override/);
 
-    // Clean up - delete the role
     await deleteRoleViaConnect(page, roleName);
   });
 });

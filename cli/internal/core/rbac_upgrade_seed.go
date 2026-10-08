@@ -176,3 +176,29 @@ func rbacUpgradeDecision(event *evtv1.Event) (string, rbacDecisionKey, bool) {
 	key, ok := legacyRBACDecisionKeyFromUnknown(legacy, permission)
 	return permission, key, ok
 }
+
+// warnIgnoredRoleDenies logs how many stored role denies have no effect.
+// Roles only grant permissions since 0.5 (ADR-116), so a deny on a named role,
+// for example from an earlier suspension recipe, is ignored. Call it after the
+// projections are current. The log names only a count.
+func (c *ChattoCore) warnIgnoredRoleDenies() {
+	if count := c.ignoredRoleDenyCount(); count > 0 && c.logger != nil {
+		c.logger.Warn("Role denies have no effect: roles only grant permissions. Set denies for everyone or for single users instead.", "ignored_role_denies", count)
+	}
+}
+
+// ignoredRoleDenyCount counts the stored denies of named roles.
+func (c *ChattoCore) ignoredRoleDenyCount() int {
+	count := 0
+	for _, role := range c.rbacModel.roles() {
+		if role.GetName() == RoleEveryone {
+			continue
+		}
+		for _, decision := range c.rbacModel.rolePermissionDecisions(role.GetName()) {
+			if decision.Decision == DecisionDeny {
+				count++
+			}
+		}
+	}
+	return count
+}

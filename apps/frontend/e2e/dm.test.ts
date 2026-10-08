@@ -423,8 +423,8 @@ test.describe('Direct Messages (room-shaped)', () => {
       // Deny both permissions before the regular user navigates. Membership
       // still exposes the conversation identity, but it does not bypass either
       // message permission.
-      const denyPostRole = await denyUserPermission(page, regularUser.id!, 'message.post');
-      const denyReadRole = await denyUserPermission(page, regularUser.id!, 'message.read');
+      await denyUserPermission(page, regularUser.id!, 'message.post');
+      await denyUserPermission(page, regularUser.id!, 'message.read');
       try {
         const deniedStartResp = await regularPage.request.post(
           '/api/connect/chatto.api.v1.RoomService/StartDM',
@@ -465,8 +465,8 @@ test.describe('Direct Messages (room-shaped)', () => {
         await expect(roomPage.messageInput).toHaveAttribute('contenteditable', 'false');
         await expect(roomPage.sendButton).toBeDisabled();
       } finally {
-        await clearUserPermissionOverride(page, regularUser.id!, 'message.read', denyReadRole);
-        await clearUserPermissionOverride(page, regularUser.id!, 'message.post', denyPostRole);
+        await clearUserPermissionOverride(page, regularUser.id!, 'message.read');
+        await clearUserPermissionOverride(page, regularUser.id!, 'message.post');
       }
     });
   });

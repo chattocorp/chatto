@@ -182,6 +182,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 			return fmt.Errorf("wait for notification materializer: %w", err)
 		}
 		c.secureDeleteObsoleteProjectedMessageBodyEvents(gctx)
+		c.warnIgnoredRoleDenies()
 		// Apply config-designated owners to already-verified users on every
 		// boot. Changing owners.emails requires a process restart, so this
 		// is the natural point to materialize new config owners as RBAC

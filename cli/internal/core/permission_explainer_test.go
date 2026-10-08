@@ -22,21 +22,15 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 	// Three subjects with distinct role configurations:
 	//   regular: just everyone
 	//   adminUser: admin role
-	//   denyUser: custom role denying message.post
+	//   denyUser: denied message.post directly
 	regular, _ := core.CreateUser(ctx, SystemActorID, "regular", "Regular", "password123")
 	adminUser, _ := core.CreateUser(ctx, SystemActorID, "adminuser", "Admin User", "password123")
 	if err := core.AssignServerRole(ctx, SystemActorID, adminUser.Id, RoleAdmin); err != nil {
 		t.Fatalf("assign admin role: %v", err)
 	}
 	denyUser, _ := core.CreateUser(ctx, SystemActorID, "denyuser", "Deny User", "password123")
-	if _, err := core.CreateServerRole(ctx, SystemActorID, "denytest", "Deny message.post", "Test deny role"); err != nil {
-		t.Fatalf("create deny role: %v", err)
-	}
-	if err := core.DenyServerPermission(ctx, SystemActorID, "denytest", PermMessagePost); err != nil {
+	if err := core.DenyUserPermission(ctx, SystemActorID, denyUser.Id, PermMessagePost); err != nil {
 		t.Fatalf("deny perm: %v", err)
-	}
-	if err := core.AssignServerRole(ctx, SystemActorID, denyUser.Id, "denytest"); err != nil {
-		t.Fatalf("assign deny role: %v", err)
 	}
 
 	// A space owned by adminUser, with an extra member (regular) and a non-member (denyUser).
@@ -140,22 +134,17 @@ func TestPermissionExplainer_NamedSubjectsAndEveryoneBaseline(t *testing.T) {
 		t.Fatalf("expected ignored everyone deny in trace, got %+v", exp.Trace)
 	}
 
-	if _, err := core.CreateServerRole(ctx, SystemActorID, "suspended", "Suspended", "Blocks capabilities"); err != nil {
-		t.Fatalf("create suspended: %v", err)
-	}
-	if err := core.DenyServerPermission(ctx, SystemActorID, "suspended", PermAdminUsersView); err != nil {
-		t.Fatalf("deny suspended: %v", err)
-	}
-	if err := core.AssignServerRole(ctx, SystemActorID, user.Id, "suspended"); err != nil {
-		t.Fatalf("assign suspended: %v", err)
+	// A setting on the user decides over its roles.
+	if err := core.DenyUserPermission(ctx, SystemActorID, user.Id, PermAdminUsersView); err != nil {
+		t.Fatalf("deny user: %v", err)
 	}
 
 	exp, err = core.permissionResolver.ExplainServerPermission(ctx, user.Id, PermAdminUsersView)
 	if err != nil {
-		t.Fatalf("ExplainServerPermission with suspended role: %v", err)
+		t.Fatalf("ExplainServerPermission with user deny: %v", err)
 	}
-	if exp.State != DecisionDeny || exp.DecidedByRole != "suspended" {
-		t.Fatalf("decision = %s by %q, want deny by suspended; trace=%+v", exp.State, exp.DecidedByRole, exp.Trace)
+	if exp.State != DecisionDeny || exp.DecidedByRole != user.Id {
+		t.Fatalf("decision = %s by %q, want deny by the user; trace=%+v", exp.State, exp.DecidedByRole, exp.Trace)
 	}
 }
 

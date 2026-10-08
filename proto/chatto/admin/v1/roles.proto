@@ -14,7 +14,8 @@ message AdminRole {
   chatto.api.v1.Role role = 1;
   // Permissions granted by this role.
   repeated string permissions = 2;
-  // Permissions denied by this role.
+  // Permissions denied by this role. Only the everyone role can deny; this is
+  // empty for other roles, whose stored denies have no effect.
   repeated string permission_denials = 3;
 }
 

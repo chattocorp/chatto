@@ -87,7 +87,8 @@ type AdminPermissionServiceClient interface {
 	// callers who are not owners can change only roles below their own highest
 	// role. Every caller who is not an owner must have the permission at the
 	// target scope; otherwise the call returns PERMISSION_DENIED. Everyone ranks
-	// below every account.
+	// below every account. Roles only grant: a deny for any role except
+	// everyone returns INVALID_ARGUMENT.
 	SetRolePermission(context.Context, *connect.Request[v1.SetRolePermissionRequest]) (*connect.Response[v1.SetRolePermissionResponse], error)
 	// Sets one user permission decision. Human targets require
 	// user.manage-permissions. A caller who is not an owner must also have the
@@ -245,7 +246,8 @@ type AdminPermissionServiceHandler interface {
 	// callers who are not owners can change only roles below their own highest
 	// role. Every caller who is not an owner must have the permission at the
 	// target scope; otherwise the call returns PERMISSION_DENIED. Everyone ranks
-	// below every account.
+	// below every account. Roles only grant: a deny for any role except
+	// everyone returns INVALID_ARGUMENT.
 	SetRolePermission(context.Context, *connect.Request[v1.SetRolePermissionRequest]) (*connect.Response[v1.SetRolePermissionResponse], error)
 	// Sets one user permission decision. Human targets require
 	// user.manage-permissions. A caller who is not an owner must also have the

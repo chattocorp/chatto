@@ -15,7 +15,7 @@ func (c *ChattoCore) CanAssignRoleToUser(ctx context.Context, actorID, targetUse
 	if isBot, _, ok := c.userModel.isBotAndOwner(targetUserID); ok && isBot && roleName == RoleOwner {
 		return false, nil
 	}
-	return permissionDeniedAsFalse(c.requireRoleChangeForAccount(ctx, actorID, targetUserID, roleName, false))
+	return permissionDeniedAsFalse(c.requireRoleChangeForAccount(ctx, actorID, targetUserID, roleName))
 }
 
 // CanRevokeRoleFromUser reports whether a role revocation is available for a
@@ -34,7 +34,7 @@ func (c *ChattoCore) CanRevokeRoleFromUser(ctx context.Context, actorID, targetU
 			return false, nil
 		}
 	}
-	return permissionDeniedAsFalse(c.requireRoleChangeForAccount(ctx, actorID, targetUserID, roleName, true))
+	return permissionDeniedAsFalse(c.requireRoleChangeForAccount(ctx, actorID, targetUserID, roleName))
 }
 
 // permissionDeniedAsFalse turns an authorization result into a capability
@@ -50,7 +50,7 @@ func isProtectedSelfRoleRevocation(actorID, targetUserID, roleName string) bool 
 	return actorID == targetUserID && (roleName == RoleOwner || roleName == RoleAdmin)
 }
 
-func (c *ChattoCore) requireRoleAssignmentWithinAuthority(ctx context.Context, actorID, roleName string, includeDenials bool) error {
+func (c *ChattoCore) requireRoleAssignmentWithinAuthority(ctx context.Context, actorID, roleName string) error {
 	if actorID == SystemActorID {
 		return nil
 	}
@@ -70,15 +70,15 @@ func (c *ChattoCore) requireRoleAssignmentWithinAuthority(ctx context.Context, a
 	if err := c.requireRoleBelowActor(actorID, roleName); err != nil {
 		return err
 	}
-	return c.requireRoleDecisionsWithinAuthority(ctx, actorID, roleName, includeDenials)
+	return c.requireRoleDecisionsWithinAuthority(ctx, actorID, roleName)
 }
 
-// requireRoleChangeForAccount authorizes assigning (includeDenials false) or
-// revoking (includeDenials true) a role for one account. The role must rank
+// requireRoleChangeForAccount authorizes assigning or revoking a role for one
+// account. The role must rank
 // below the actor and stay within the actor's authority, and the actor must
 // outrank the account unless it is their own human account.
-func (c *ChattoCore) requireRoleChangeForAccount(ctx context.Context, actorID, targetUserID, roleName string, includeDenials bool) error {
-	if err := c.requireRoleAssignmentWithinAuthority(ctx, actorID, roleName, includeDenials); err != nil {
+func (c *ChattoCore) requireRoleChangeForAccount(ctx context.Context, actorID, targetUserID, roleName string) error {
+	if err := c.requireRoleAssignmentWithinAuthority(ctx, actorID, roleName); err != nil {
 		return err
 	}
 	return c.requireOutranksOtherAccount(actorID, targetUserID)
@@ -86,7 +86,7 @@ func (c *ChattoCore) requireRoleChangeForAccount(ctx context.Context, actorID, t
 
 // requireRoleDeletionWithinAuthority bounds role deletion like revocation from
 // every holder: the actor must be able to manage the role, and must hold
-// every permission that the role allows or denies, at the same scope.
+// every permission that the role allows, at the same scope.
 func (c *ChattoCore) requireRoleDeletionWithinAuthority(ctx context.Context, actorID, roleName string) error {
 	if c.actorIsHierarchyExempt(actorID) {
 		return nil
@@ -94,7 +94,7 @@ func (c *ChattoCore) requireRoleDeletionWithinAuthority(ctx context.Context, act
 	if err := c.requireRoleManageable(ctx, actorID, roleName); err != nil {
 		return err
 	}
-	return c.requireRoleDecisionsWithinAuthority(ctx, actorID, roleName, true)
+	return c.requireRoleDecisionsWithinAuthority(ctx, actorID, roleName)
 }
 
 // requireBotGrantsWithinAuthority requires the actor to hold every permission
@@ -120,12 +120,11 @@ func (c *ChattoCore) requireBotGrantsWithinAuthority(ctx context.Context, actorI
 }
 
 // requireRoleDecisionsWithinAuthority requires the actor to effectively hold
-// every permission that the role explicitly allows at the same scope. With
-// includeDenials, it also requires every permission that the role denies,
-// because removing the role from a user removes those restrictions.
-func (c *ChattoCore) requireRoleDecisionsWithinAuthority(ctx context.Context, actorID, roleName string, includeDenials bool) error {
+// every permission that the role allows at the same scope. Roles only grant
+// (ADR-116), so stored role denies do not matter.
+func (c *ChattoCore) requireRoleDecisionsWithinAuthority(ctx context.Context, actorID, roleName string) error {
 	for _, decision := range c.rbacModel.rolePermissionDecisions(roleName) {
-		if decision.Decision != DecisionAllow && (!includeDenials || decision.Decision != DecisionDeny) {
+		if decision.Decision != DecisionAllow {
 			continue
 		}
 		// Retired permissions, such as room.ban-member from 0.4, stay in the

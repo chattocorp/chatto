@@ -6,8 +6,9 @@ description: Control what people and bots can do on your server, in rooms, and i
 import { Aside, Steps } from "@astrojs/starlight/components";
 
 A **permission** controls one action, such as posting messages or managing
-rooms. A **role** gives a set of permissions to many people. Each permission
-setting is **Allow**, **Deny**, or **Inherit**.
+rooms. A **role** gives a set of permissions to many people. A permission
+setting is **Allow** or **Inherit** for a role, and **Allow**, **Deny**, or
+**Inherit** for `everyone` and for a single user.
 
 ## How permissions work
 
@@ -16,13 +17,13 @@ setting is **Allow**, **Deny**, or **Inherit**.
 - **You set a permission at a scope.** A channel room checks Room, then Room
   group, then Server. A direct message (DM) checks Direct messages, then
   Server. **Inherit** uses the next broader setting of the same user or role.
-- **The most specific setting wins for one user or role.** A room setting
-  replaces the room-group and server settings of that user or role. It does not
-  replace the settings of a different role.
-- **A deny wins.** If the user or one of their roles denies an action, Chatto
-  denies it, even when a different role allows it.
-- **`everyone` is the baseline.** An allow on a user or a named role overrides
-  an `everyone` deny only at the same scope or a more specific scope.
+- **`everyone` is the baseline.** Its most specific setting applies to all
+  people. It can allow or deny.
+- **Roles only add permissions.** A role allow overrides an `everyone` deny at
+  the same scope or a more specific scope. Giving a role never removes access.
+- **A setting on a user decides for that user.** The most specific setting on
+  the user wins over their roles and `everyone`, allow or deny. A server-level
+  setting on the user applies in every room.
 - **No setting means no access.**
 - **Prefer roles.** Give permissions through roles, also when only one person
   has the role. Use settings on a single user only for rare exceptions. They
@@ -41,7 +42,7 @@ setting is **Allow**, **Deny**, or **Inherit**.
 | -------- | ------ |
 | Server: `everyone` Deny, `admin` Allow | **Allowed** for admins. Both settings are at the same scope. |
 | Room: `everyone` Deny. Server: `admin` Allow | **Denied**. The room setting is more specific. Add a room-level allow for `admin`. |
-| Server: `admin` Allow, `suspended` Deny | **Denied** for a user with both roles. The deny wins. |
+| Server: `admin` Allow. User: Deny | **Denied** for that admin. The setting on the user decides. |
 
 Bots do not get permissions from `everyone`, and they cannot hold roles. A bot
 has only the permissions that you allow directly on the bot, and never more
@@ -203,16 +204,12 @@ removing the role also removes the user from the room.
 
 ### Suspend a user
 
-Create a `suspended` role and keep it low in the [role order](#role-order).
-At Server scope, deny `message.post`,
-`message.post-in-thread`, and `message.post-in-interactions`. You can also deny
-`message.attach`, `message.react`, and `message.echo`. Assign the role to the
-user. Do not add room or room-group allows to this role, because they replace
-its server-level denies.
-
-For a single case, set the same denies directly on the user. First remove room
-or room-group allows on that user. To remove a user from one room, use
-`room.remove-member` instead.
+On the user's **Permissions** page, deny `message.post` at Server scope. This
+also stops thread replies. You can also deny `message.attach`,
+`message.react`, and `message.echo`. First remove room or room-group allows on
+that user, because they replace the server-level denies in those places. Roles
+cannot deny, so a `suspended` role does not work. To remove a user from one
+room, use `room.remove-member` instead.
 
 ### Delegate one room or room group
 
@@ -260,10 +257,6 @@ permission setting wins.
   also to users who rank higher.
 - Moderating messages and adding a member to a room do not depend on rank.
 
-Put a restriction role, such as `suspended`, below the people who manage it.
-If it is higher, a user who gets the role ranks higher. The managers can then
-no longer manage that user.
-
 ## Where to configure permissions
 
 | Task | Where |
@@ -309,6 +302,9 @@ Make these changes on an upgraded server:
   must also stop replies.
 - **Check `everyone` denies.** An allow on a named role or user at the same or
   a more specific scope now overrides them.
+- **Replace role denies.** Denies on roles other than `everyone` have no
+  effect. The server log reports how many it ignores. Set them on the users
+  instead.
 - **Check the role order.** The role order now decides who can manage whom.
   An upgraded server keeps `admin` above `moderator` and both above custom
   roles. A user with a custom management role ranks below moderators and

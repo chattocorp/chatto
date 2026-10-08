@@ -6,7 +6,9 @@ A single cell in the permission matrix. Combines two pieces of information:
   - **inherited**: the resolved baseline from tiers above (faded color)
   - **override**: the explicit override at this tier (saturated color)
 
-By default, click cycles the override through `neutral → allow → deny → neutral`. The
+By default, click cycles the override through `neutral → allow → deny → neutral`.
+Cells of named roles pass `canDeny={false}`: roles only grant (ADR-116), so they
+cycle through `neutral → allow → neutral`. The
 inherited indicator persists faded behind the override (so you can see what
 the role would do without the override at this scope).
 
@@ -38,6 +40,7 @@ to render an inert "—" cell with an explanation tooltip.
     allowBlocked = false,
     ceilingBlocked = false,
     decisionMode = 'tri-state',
+    canDeny = true,
     updating = false,
     ariaLabel,
     title,
@@ -54,6 +57,8 @@ to render an inert "—" cell with an explanation tooltip.
     /** Marks a configured allow that is dormant under a delegation ceiling. */
     ceilingBlocked?: boolean;
     decisionMode?: 'tri-state' | 'binary';
+    /** False for named roles, which can only allow. */
+    canDeny?: boolean;
     updating?: boolean;
     ariaLabel: string;
     title?: string;
@@ -62,6 +67,7 @@ to render an inert "—" cell with an explanation tooltip.
 
   function nextState(): State {
     if (decisionMode === 'binary') return visual === 'allow' ? 'neutral' : 'allow';
+    if (!canDeny) return override === 'neutral' && !allowBlocked ? 'allow' : 'neutral';
     if (override === 'neutral') return allowBlocked ? 'deny' : 'allow';
     if (override === 'allow') return 'deny';
     return 'neutral';

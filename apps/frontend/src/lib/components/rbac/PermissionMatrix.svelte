@@ -513,6 +513,7 @@ focusing a cell highlights its permission row and role column.
           inherited={displayInherited}
           updating={cellIsUpdating(`${role.roleName}::${permission}`)}
           disabled={virtualOwner || lockedByOrder}
+          canDeny={role.roleName === 'everyone'}
           {ariaLabel}
           title={titleParts.join(' · ')}
           onCycle={(next) => void cycle(role, permission, next)}

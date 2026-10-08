@@ -15,6 +15,7 @@ function renderCell(
     allowBlocked: boolean;
     ceilingBlocked: boolean;
     decisionMode: 'tri-state' | 'binary';
+    canDeny: boolean;
     updating: boolean;
     ariaLabel: string;
     title: string;
@@ -66,6 +67,18 @@ describe('MatrixCell', () => {
     container.querySelector('button')!.click();
     flushSync();
     expect(onCycle).toHaveBeenCalledWith('deny');
+  });
+
+  it.each([
+    ['neutral', 'allow'],
+    ['allow', 'neutral'],
+    ['deny', 'neutral']
+  ] as const)('cycles %s → %s for a role that cannot deny', async (override, next) => {
+    const onCycle = vi.fn();
+    const { container } = renderCell({ override, canDeny: false, onCycle });
+    (container.querySelector('button') as HTMLButtonElement).click();
+    flushSync();
+    expect(onCycle).toHaveBeenCalledWith(next);
   });
 
   it('cycles deny → neutral on click', async () => {

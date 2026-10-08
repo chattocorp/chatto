@@ -262,7 +262,8 @@ type TierPermissions struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Explicitly granted permissions.
 	Permissions []string `protobuf:"bytes,1,rep,name=permissions,proto3" json:"permissions,omitempty"`
-	// Explicitly denied permissions.
+	// Explicitly denied permissions. Only the everyone role can deny; this is
+	// empty for other roles.
 	PermissionDenials []string `protobuf:"bytes,2,rep,name=permission_denials,json=permissionDenials,proto3" json:"permission_denials,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache

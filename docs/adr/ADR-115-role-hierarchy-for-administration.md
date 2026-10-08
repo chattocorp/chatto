@@ -94,13 +94,10 @@ inputs that permission checks use (ADR-087).
 - Rank comes only from roles. A user with administrative direct permissions
   but no matching role has a low rank, can act on few accounts, and has little
   protection. Give administrators a role, not direct permissions.
-- Because denies win across roles (ADR-052), a holder of `role.manage` can
-  restrict higher-ranked accounts through any role except `owner`, within
-  the permissions that they hold. A room manager can restrict them through
-  `everyone` in their rooms. Give role management only to trusted roles.
-- A restriction role, such as a suspended role, must rank below the people who
-  manage it. If it ranks higher, assigning it raises the restricted account's
-  rank.
+- A holder of `role.manage` can restrict higher-ranked accounts through
+  `everyone`, within the permissions that they hold, and a room manager can
+  do so in their rooms. Roles only grant (ADR-116), so no other role can
+  restrict anyone. Give role management only to trusted roles.
 - An actor can still give their authority to a second account that ranks
   below them. The event log records the actor of every change, so an operator
   can find and undo such grants.

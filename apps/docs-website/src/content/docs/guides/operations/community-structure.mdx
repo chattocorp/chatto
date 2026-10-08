@@ -144,10 +144,10 @@ Start with broad defaults and add local exceptions:
 | One exceptional user | User permission override |
 | Reusable staff capability | Custom role |
 
-A room or group value overrides a less specific value for the same subject. A
-named-role allow overrides an `everyone` deny only at the same scope or a
-nearer scope. To make a deny stronger than other named grants, attach it to
-the user or to a restriction role. See
+A room or group value overrides a less specific value for the same subject.
+Roles only allow. A role allow overrides an `everyone` deny only at the same
+scope or a nearer scope. To deny one person something that their roles allow,
+set the deny on the user. See
 [Permissions & Roles](/guides/operations/permissions/) for the full model.
 
 ## Common Structures

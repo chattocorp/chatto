@@ -31,7 +31,8 @@ type AdminRole struct {
 	Role *v1.Role `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
 	// Permissions granted by this role.
 	Permissions []string `protobuf:"bytes,2,rep,name=permissions,proto3" json:"permissions,omitempty"`
-	// Permissions denied by this role.
+	// Permissions denied by this role. Only the everyone role can deny; this is
+	// empty for other roles, whose stored denies have no effect.
 	PermissionDenials []string `protobuf:"bytes,3,rep,name=permission_denials,json=permissionDenials,proto3" json:"permission_denials,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache

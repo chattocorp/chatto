@@ -1205,13 +1205,22 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	if !dmScopeFound {
 		t.Fatalf("DM matrix scope missing or invalid: %+v", dmMatrixResp.Msg.GetMatrix().GetScopes())
 	}
+	// Roles only grant permissions.
 	if _, err := env.permissions.SetRolePermission(ctx, connect.NewRequest(&adminv1.SetRolePermissionRequest{
 		RoleName:   core.RoleModerator,
 		Permission: string(core.PermMessagePost),
 		Decision:   adminv1.PermissionDecision_PERMISSION_DECISION_DENY,
 		Scope:      &adminv1.PermissionScope{Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_DM},
+	})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("SetRolePermission role deny code = %v, want invalid argument", errorCode(err))
+	}
+	if _, err := env.permissions.SetRolePermission(ctx, connect.NewRequest(&adminv1.SetRolePermissionRequest{
+		RoleName:   core.RoleModerator,
+		Permission: string(core.PermMessagePost),
+		Decision:   adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW,
+		Scope:      &adminv1.PermissionScope{Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_DM},
 	})); err != nil {
-		t.Fatalf("SetRolePermission DM deny: %v", err)
+		t.Fatalf("SetRolePermission DM allow: %v", err)
 	}
 	roleDecisionsResp, err := env.permissions.ListRolePermissionDecisions(ctx, connect.NewRequest(&adminv1.ListRolePermissionDecisionsRequest{
 		RoleName: core.RoleModerator,
@@ -1235,8 +1244,8 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListRolePermissionDecisions with DM: %v", err)
 	}
-	if decision := findAPIPermissionDecision(dmDecisionsResp.Msg.GetDecisions(), adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_DM, "", string(core.PermMessagePost)); decision == nil || decision.GetOverride() != adminv1.PermissionDecision_PERMISSION_DECISION_DENY {
-		t.Fatalf("DM message.post decision = %+v, want deny override", decision)
+	if decision := findAPIPermissionDecision(dmDecisionsResp.Msg.GetDecisions(), adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_DM, "", string(core.PermMessagePost)); decision == nil || decision.GetOverride() != adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW {
+		t.Fatalf("DM message.post decision = %+v, want allow override", decision)
 	}
 	if _, err := env.permissions.GetRolePermissionMatrix(ctx, connect.NewRequest(&adminv1.GetRolePermissionMatrixRequest{
 		RoleName: "missing-role",

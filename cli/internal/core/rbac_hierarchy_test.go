@@ -287,7 +287,7 @@ func TestRoleManagersManageEveryRoleButAssignOnlyLowerRoles(t *testing.T) {
 			t.Fatalf("GrantUserRoomPermission: %v", err)
 		}
 		room := PermissionTargetScope{Kind: MatrixScopeRoom, ID: f.roomID}
-		if err := c.SetRolePermissionState(ctx, f.member, RoleModerator, room, PermMessageReact, PermissionStateDeny); !errors.Is(err, ErrPermissionDenied) {
+		if err := c.SetRolePermissionState(ctx, f.member, RoleModerator, room, PermMessageReact, PermissionStateAllow); !errors.Is(err, ErrPermissionDenied) {
 			t.Fatalf("room manager edits moderator: error = %v, want permission denied", err)
 		}
 		if err := c.SetRolePermissionState(ctx, f.member, RoleEveryone, room, PermMessageReact, PermissionStateDeny); err != nil {
@@ -483,8 +483,8 @@ func TestBotManagersGrantOnlyWhatTheyHold(t *testing.T) {
 
 	// call.screenshare needs no privileged mode, so only the grant ceiling
 	// stops the manager.
-	if err := c.DenyServerPermission(ctx, SystemActorID, RoleModerator, PermCallScreenShare); err != nil {
-		t.Fatalf("DenyServerPermission call.screenshare: %v", err)
+	if err := c.DenyUserPermission(ctx, SystemActorID, f.moderator, PermCallScreenShare); err != nil {
+		t.Fatalf("DenyUserPermission call.screenshare: %v", err)
 	}
 	if err := c.SetUserPermissionState(ctx, f.moderator, botID, server, PermCallScreenShare, PermissionStateAllow); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("manager grants call.screenshare they lack: error = %v, want permission denied", err)

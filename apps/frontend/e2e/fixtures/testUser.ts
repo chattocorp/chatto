@@ -255,65 +255,43 @@ export async function clearInstancePermissionState(
   await setServerRolePermission(page, role, permission, 'PERMISSION_DECISION_NONE');
 }
 
-let denyRoleCounter = 0;
-
-/** Convert a number to a lowercase letter sequence: 1→a, 2→b, ..., 26→z, 27→aa, etc. */
-function numberToLetters(n: number): string {
-  let result = '';
-  while (n > 0) {
-    n--;
-    result = String.fromCharCode(97 + (n % 26)) + result;
-    n = Math.floor(n / 26);
-  }
-  return result;
+async function setUserServerPermission(
+  page: Page,
+  userId: string,
+  permission: string,
+  decision: E2EPermissionDecision
+): Promise<void> {
+  const data = await connectPost<E2EPermissionDecisionUpdateResponse>(
+    page,
+    'chatto.admin.v1.AdminPermissionService/SetUserPermission',
+    { userId, permission, decision }
+  );
+  expectPermissionDecisionUpdate(data, { permission, decision });
 }
 
 /**
- * Creates a custom role that denies a permission, then assigns it to a user.
- * Returns the role name so it can be revoked later.
+ * Denies a permission for one user at server scope. Roles only grant
+ * permissions, so the deny goes on the user.
  * Must be called while logged in as an admin user.
  */
 export async function denyUserPermission(
   page: Page,
   userId: string,
   permission: string
-): Promise<string> {
-  const suffix = numberToLetters(++denyRoleCounter);
-  const roleName = `deny${suffix}`;
-  const displayName = `Deny ${permission} #${denyRoleCounter}`;
-
-  const created = await connectPost<{ role?: E2EAdminRole }>(
-    page,
-    'chatto.admin.v1.AdminRoleService/CreateRole',
-    { name: roleName, displayName, description: `Auto-created to deny ${permission}` }
-  );
-  expect(unwrapAdminRole(created.role)?.name).toBe(roleName);
-
-  // Deny permission on role
-  await denyPermission(page, roleName, permission);
-
-  await assignRoleViaConnect(page, userId, roleName);
-
-  return roleName;
+): Promise<void> {
+  await setUserServerPermission(page, userId, permission, 'PERMISSION_DECISION_DENY');
 }
 
 /**
- * Revokes a deny role from a user, effectively clearing the permission denial.
+ * Clears a server-scope permission setting on one user.
  * Must be called while logged in as an admin user.
  */
 export async function clearUserPermissionOverride(
   page: Page,
   userId: string,
-  _permission: string,
-  roleName?: string
+  permission: string
 ): Promise<void> {
-  if (!roleName) {
-    // If no role name provided, we can't clean up properly.
-    // Tests should track the role name from denyUserPermission.
-    throw new Error('clearUserPermissionOverride requires roleName parameter');
-  }
-
-  await revokeRoleViaConnect(page, userId, roleName);
+  await setUserServerPermission(page, userId, permission, 'PERMISSION_DECISION_NONE');
 }
 
 /**

@@ -75,6 +75,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     readOnly = false,
     loading = false,
     decisionMode = 'tri-state',
+    canDeny = true,
     onMembershipChange,
     hasMore = false,
     loadingMore = false,
@@ -98,6 +99,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     loading?: boolean;
     /** Use a grant-or-absent allowlist UI; inherited grants are read-only. */
     decisionMode?: DecisionMode;
+    /** False for named roles, which can only allow (ADR-116). */
+    canDeny?: boolean;
     /** Enables the account membership row, separate from permission cells. */
     onMembershipChange?: (scope: MatrixScope, joined: boolean) => void;
   } = $props();
@@ -481,6 +484,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                 ceilingBlocked={cell.allowPermitted === false &&
                   (decisionMode === 'binary' ? binaryEnabled : ov === 'allow')}
                 {decisionMode}
+                {canDeny}
                 {ariaLabel}
                 title={titleParts.join(' · ')}
                 onCycle={(next) => cycleCell(scope, permission, cell.override, next)}

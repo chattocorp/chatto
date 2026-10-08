@@ -624,14 +624,8 @@ func TestRoomServiceStartDM(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser blocked: %v", err)
 	}
-	if _, err := env.core.CreateServerRole(env.ctx, core.SystemActorID, "connect-dm-blocked-role", "Connect DM Blocked", ""); err != nil {
-		t.Fatalf("CreateServerRole blocked: %v", err)
-	}
-	if err := env.core.DenyServerPermission(env.ctx, core.SystemActorID, "connect-dm-blocked-role", core.PermMessagePost); err != nil {
-		t.Fatalf("DenyServerPermission message.post: %v", err)
-	}
-	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, blocked.Id, "connect-dm-blocked-role"); err != nil {
-		t.Fatalf("AssignServerRole blocked: %v", err)
+	if err := env.core.DenyUserPermission(env.ctx, core.SystemActorID, blocked.Id, core.PermMessagePost); err != nil {
+		t.Fatalf("DenyUserPermission message.post: %v", err)
 	}
 	existingForBlocked, created, err := env.core.FindOrCreateDM(env.ctx, participant.Id, []string{blocked.Id})
 	if err != nil || !created {

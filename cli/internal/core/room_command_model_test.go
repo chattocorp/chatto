@@ -122,14 +122,8 @@ func TestRoomCommandModelAuthorization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser blocked: %v", err)
 	}
-	if _, err := core.CreateServerRole(ctx, SystemActorID, "room-command-dm-blocked-role", "Room Command DM Blocked", ""); err != nil {
-		t.Fatalf("CreateServerRole blocked: %v", err)
-	}
-	if err := core.DenyServerPermission(ctx, SystemActorID, "room-command-dm-blocked-role", PermMessagePost); err != nil {
-		t.Fatalf("DenyServerPermission message.post: %v", err)
-	}
-	if err := core.AssignServerRole(ctx, SystemActorID, blocked.Id, "room-command-dm-blocked-role"); err != nil {
-		t.Fatalf("AssignServerRole blocked: %v", err)
+	if err := core.DenyUserPermission(ctx, SystemActorID, blocked.Id, PermMessagePost); err != nil {
+		t.Fatalf("DenyUserPermission message.post: %v", err)
 	}
 	existingDM, created, err := core.FindOrCreateDM(ctx, dmParticipant.Id, []string{blocked.Id})
 	if err != nil || !created {

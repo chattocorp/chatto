@@ -45,9 +45,22 @@ func (c *ChattoCore) GrantServerPermission(ctx context.Context, actorID, roleNam
 	return err
 }
 
+// requireRoleCanDeny rejects a deny for a named role. Roles only grant
+// permissions; only everyone and single users can deny (ADR-116).
+func requireRoleCanDeny(roleName string) error {
+	if roleName != RoleEveryone {
+		return fmt.Errorf("%w: roles only grant permissions; set the deny for everyone or for a user", ErrInvalidArgument)
+	}
+	return nil
+}
+
 // DenyServerPermission denies a permission at a role's server-level default.
+// Only everyone can deny.
 func (c *ChattoCore) DenyServerPermission(ctx context.Context, actorID, roleName string, perm Permission) error {
 	if err := ValidatePermission(perm); err != nil {
+		return err
+	}
+	if err := requireRoleCanDeny(roleName); err != nil {
 		return err
 	}
 	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
@@ -176,6 +189,9 @@ func (c *ChattoCore) GrantRoomPermission(ctx context.Context, actorID, roomID, r
 func (c *ChattoCore) DenyRoomPermission(ctx context.Context, actorID, roomID, roleName string, perm Permission) error {
 	if !PermissionAppliesAtScope(perm, ScopeRoom) {
 		return fmt.Errorf("permission %s does not apply at room scope", perm)
+	}
+	if err := requireRoleCanDeny(roleName); err != nil {
+		return err
 	}
 	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
 		RbacPermissionDenied: rbacRolePermissionDeniedEvent(ScopeRoom, roomID, roleName, perm),

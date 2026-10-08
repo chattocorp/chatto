@@ -957,22 +957,20 @@ test.describe('Roles Management', () => {
       await serverRolesPage.expectPermissionGranted('role.manage');
     });
 
-    test('server admin can deny permission for role', async ({ serverRolesPage }) => {
+    test('server admin can deny a permission for everyone', async ({ serverRolesPage }) => {
       const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
 
-      // Navigate to admin role detail page
-      await serverRolesPage.gotoRoleDetail(server.id, 'admin');
+      // Only everyone and single users can deny.
+      await serverRolesPage.gotoRoleDetail(server.id, 'everyone');
+      await serverRolesPage.denyPermission('message.echo');
 
-      // Deny a permission
-      await serverRolesPage.denyPermission('room.list');
-
-      // Wait for toast and verify persistence
-      await serverRolesPage.expectToast('Denied room.list');
+      await serverRolesPage.expectToast('Denied message.echo');
       await page.reload();
-      await serverRolesPage.expectPermissionDenied('room.list');
+      await serverRolesPage.expectPermissionDenied('message.echo');
+      await serverRolesPage.setPermissionState('message.echo', 'allow');
     });
 
     test('server admin can clear permission from role', async ({ serverRolesPage }) => {
@@ -984,14 +982,12 @@ test.describe('Roles Management', () => {
       // Navigate to admin role detail page
       await serverRolesPage.gotoRoleDetail(server.id, 'admin');
 
-      // First grant a permission
-      await serverRolesPage.togglePermission('role.manage');
-      await serverRolesPage.expectToast('Granted role.manage');
+      // Make sure the permission is allowed. Admin allows it by default.
+      await serverRolesPage.setPermissionState('role.manage', 'allow');
       await page.reload();
 
-      // Now clear it (uncheck the Allow checkbox)
+      // Roles cannot deny, so one click on an allow clears it.
       await serverRolesPage.togglePermission('role.manage');
-      await serverRolesPage.expectToast('Cleared role.manage');
 
       // Verify it's no longer granted
       await page.reload();

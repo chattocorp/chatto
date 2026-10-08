@@ -85,8 +85,8 @@ the backend permission catalog. Update both catalogs together.
   define authority. The permission catalog defines inclusion explicitly.
 - Permission grants and denies can be configured at Server, Direct messages,
   Room group, and Room scope. Channel checks use Room, Room group, then Server.
-  DM checks use Direct messages, then Server. Each direct user or named role
-  contributes its nearest decision. Denies win across those explicit subjects.
+  DM checks use Direct messages, then Server. Named roles can only grant;
+  `everyone` and single users can also deny (Design Decision 2).
 - Roles are the normal way to give permissions. Direct per-user decisions are
   for rare exceptions: the admin UI does not show them on role pages, and they
   give no rank (Design Decision 11). Documentation recommends roles first.
@@ -132,11 +132,11 @@ the backend permission catalog. Update both catalogs together.
 **Why:** The earlier two-tier split duplicated concepts and made permission resolution unpredictable. Collapsing into one tier with per-room-group / per-room overrides gives equivalent flexibility with one mental model. See ADR-027 and ADR-030.
 **Tradeoff:** Operators who liked per-space role ownership now configure that through room-group overrides instead.
 
-### 2. Named subjects with an `everyone` baseline
+### 2. Roles only grant; a setting on the user decides
 
-**Decision:** For non-owner human users, select the nearest room/group/server decision independently for the direct user and every explicitly assigned named role. Denies win across those decisions. Select `everyone`'s nearest decision as the scoped baseline; a direct-user or named-role allow overrides an `everyone` deny only at the same or a nearer scope. If nothing applies, the result is denied at the API boundary. Bots instead use only explicit direct-user allows, further bounded by their owner's current RBAC entitlement.
-**Why:** Operators can express an allowlist by denying the `everyone` baseline and granting a named role, while a named restriction role such as `suspended` still reliably denies. Role position does not affect resolution; it is only the administrative rank (Design Decision 11). See ADR-052.
-**Tradeoff:** An `everyone` deny can be overridden deliberately at its own scope or a nearer one. A restriction role's deny beats other subjects' grants, but a nearer allow configured on that same role replaces its broader deny. Direct-user decisions follow the same nearest-scope rule. ADR-052 records the compatibility audit.
+**Decision:** For non-owner human users, the user's own nearest room/group/server setting decides, allow or deny. Without one, a named-role allow wins when it is at the same scope as `everyone`'s nearest setting or a more specific one; otherwise `everyone`'s nearest setting decides. If nothing applies, the result is denied at the API boundary. Named roles can only grant: the API rejects role denies, and stored role denies have no effect. Bots instead use only explicit direct-user allows, further bounded by their owner's current RBAC entitlement.
+**Why:** Three rules explain every result: the baseline, what roles add, and per-user exceptions. Giving a role never removes access. Operators can still express an allowlist by denying the `everyone` baseline in a room and granting a named role there. Role position does not affect resolution; it is only the administrative rank (Design Decision 11). See ADR-116.
+**Tradeoff:** Restriction roles such as `suspended` no longer work; until account suspension exists, operators deny permissions on the user. A server-level user allow also applies in rooms that deny `everyone`. Existing role denies stop having an effect on upgrade; the server logs how many it ignores.
 
 ### 3. Four permission scopes
 
@@ -226,8 +226,8 @@ relationships in sync. Tests cover the current relationship.
 ### 11. Role order is an administrative rank
 
 **Decision:** Role order ranks accounts for administration only. `owner` is fixed at the top and `everyone` at the bottom; the other roles share one order, and a new role starts lowest. An account ranks at its highest role; owners outrank every role, and `everyone` ranks below every account. A non-owner may act only on accounts that rank strictly below them and assign only roles that rank strictly below their highest role. A holder of `role.manage` may edit, delete, and move every role except `owner`; other editors of role decisions, such as room managers, may edit only roles below their highest role. Direct user decisions do not affect rank. Bots hold no roles and rank like their owner.
-**Why:** Delegated administration needs to protect accounts above the actor, and features need a user's highest role. Discord, Matrix, and Zulip use the same model. Keeping rank out of permission resolution keeps ADR-052's resolution rules intact. See ADR-115.
-**Tradeoff:** Two accounts with the same highest role cannot act on each other. A user with administrative direct permissions but no matching role ranks low. Denies win across roles, so a holder of `role.manage` can restrict higher accounts through any role except `owner`, within the permissions that they hold. A restriction role placed above its managers raises the rank of the accounts it restricts. A holder of `role.manage` can change every role except `owner` and move their own role higher, so give `role.manage` only to administrators. Older replicas ignore role moves and lowest placement during a rolling upgrade.
+**Why:** Delegated administration needs to protect accounts above the actor, and features need a user's highest role. Discord, Matrix, and Zulip use the same model. Keeping rank out of permission resolution keeps the resolution rules (Design Decision 2) intact. See ADR-115.
+**Tradeoff:** Two accounts with the same highest role cannot act on each other. A user with administrative direct permissions but no matching role ranks low. A holder of `role.manage` can restrict higher accounts through `everyone`, within the permissions that they hold. A holder of `role.manage` can change every role except `owner` and move their own role higher, so give `role.manage` only to administrators. Older replicas ignore role moves and lowest placement during a rolling upgrade.
 
 ## Permissions
 

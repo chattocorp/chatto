@@ -314,13 +314,15 @@ authorization, live events, backup and restore, and backend tests.
 
 - Core authorization source of truth lives around `cli/internal/core/permission.go`,
   `permission_resolver.go`, `rbac_hierarchy.go`, `can.go`, FDR-001, ADR-040, ADR-096,
-  ADR-105, and ADR-115.
+  ADR-105, ADR-115, and ADR-116.
 - Users are server-scoped. Spaces and rooms may be discoverable, but room
   message access requires room membership.
-- Each direct-user or explicitly assigned role contributes its nearest
-  room/group/server decision. Denies win across those subjects. The implicit
-  `everyone` role supplies the scoped baseline: a named allow overrides an
-  everyone deny only at the same or a nearer scope.
+- Roles only grant (ADR-116). The user's own nearest room/group/server
+  setting decides, allow or deny. Without one, a named-role allow wins when it
+  is at the same scope as `everyone`'s nearest setting or a nearer one;
+  otherwise `everyone`'s setting decides. Reject new named-role denies; stored
+  ones have no effect. Every check, explanation, and matrix goes through
+  `PermissionResolver.explain`; do not add a second resolver.
 - Effective owner means durable `owner` role or verified email matching
   `owners.emails`. Owners are entitled to every permission, but the owner
   override is effective only while the owner's session has active privileged

@@ -28,19 +28,19 @@ func TestGrantServerPermission(t *testing.T) {
 	})
 
 	t.Run("removes existing denial when granting", func(t *testing.T) {
-		// First deny the permission
-		err := core.DenyServerPermission(ctx, SystemActorID, RoleModerator, PermMessagePost)
+		// First deny the permission. Only everyone can deny.
+		err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("DenyServerPermission() error = %v", err)
 		}
 
 		// Now grant it - should remove the denial
-		err = core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermMessagePost)
+		err = core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("GrantServerPermission() error = %v", err)
 		}
 
-		if got := core.rbacModel.decision(ScopeServer, "", RoleModerator, PermMessagePost); got != DecisionAllow {
+		if got := core.rbacModel.decision(ScopeServer, "", RoleEveryone, PermMessagePost); got != DecisionAllow {
 			t.Errorf("decision = %s, want %s", got, DecisionAllow)
 		}
 	})

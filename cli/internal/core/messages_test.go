@@ -1864,10 +1864,6 @@ func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRBACChange(t *test
 	require.NoError(t, err)
 	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 	require.NoError(t, err)
-	const deniedRole = "post-race-denied"
-	_, err = core.CreateServerRole(ctx, SystemActorID, deniedRole, "Post Race Denied", "")
-	require.NoError(t, err)
-	require.NoError(t, core.DenyServerPermission(ctx, SystemActorID, deniedRole, PermMessagePost))
 
 	authorizationInput := MessagePostAuthorizationInput{
 		ActorID: user.Id,
@@ -1881,8 +1877,8 @@ func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRBACChange(t *test
 			return err
 		}
 		if attempts == 1 {
-			if err := core.AssignServerRole(attemptCtx, SystemActorID, user.Id, deniedRole); err != nil {
-				return fmt.Errorf("assign denying role between authorization and append: %w", err)
+			if err := core.DenyUserPermission(attemptCtx, SystemActorID, user.Id, PermMessagePost); err != nil {
+				return fmt.Errorf("deny message.post between authorization and append: %w", err)
 			}
 		}
 		return nil

@@ -729,12 +729,12 @@ func TestChattoCore_OwnerOverride_BeatsEverythingElse(t *testing.T) {
 		t.Fatalf("Failed to assign owner role: %v", err)
 	}
 
-	// Deny admin.view-users on both admin and everyone roles
+	// Deny admin.view-users for everyone and for the owner directly.
 	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermAdminUsersView); err != nil {
 		t.Fatalf("Failed to deny everyone: %v", err)
 	}
-	if err := core.DenyServerPermission(ctx, SystemActorID, RoleAdmin, PermAdminUsersView); err != nil {
-		t.Fatalf("Failed to deny admin: %v", err)
+	if err := core.DenyUserPermission(ctx, SystemActorID, owner.Id, PermAdminUsersView); err != nil {
+		t.Fatalf("Failed to deny owner: %v", err)
 	}
 	// Owner role still has admin.view-users granted
 
@@ -2661,7 +2661,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_DenyAlwaysWins(t *testing.T
 	}
 }
 
-func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *testing.T) {
+func TestChattoCore_GetUserEffectiveSpacePermissions_UserDenialInSpace(t *testing.T) {
 	t.Parallel()
 
 	core, _ := setupTestCore(t)
@@ -2688,13 +2688,13 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *
 		t.Fatalf("Failed to grant role permission: %v", err)
 	}
 
-	// Deny admin.view-users to moderator role.
-	err := core.DenyServerPermission(ctx, SystemActorID, RoleModerator, PermAdminUsersView)
+	// Deny admin.view-users to the user directly.
+	err := core.DenyUserPermission(ctx, SystemActorID, user.Id, PermAdminUsersView)
 	if err != nil {
-		t.Fatalf("Failed to deny role permission: %v", err)
+		t.Fatalf("Failed to deny user permission: %v", err)
 	}
 
-	// Now user should NOT have admin.view-users (role denial wins).
+	// Now user should NOT have admin.view-users (the user setting decides).
 	perms2, err := core.GetUserEffectiveSpacePermissions(ctx, KindChannel, user.Id)
 	if err != nil {
 		t.Fatalf("GetUserEffectiveSpacePermissions failed: %v", err)
@@ -2704,7 +2704,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *
 		permSet2[string(p)] = true
 	}
 	if permSet2["admin.view-users"] {
-		t.Error("User should NOT have admin.view-users after role denial")
+		t.Error("User should NOT have admin.view-users after a user denial")
 	}
 }
 

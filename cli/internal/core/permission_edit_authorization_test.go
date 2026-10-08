@@ -141,8 +141,8 @@ func TestDelegatedRolePermissionEditsStayWithinAuthority(t *testing.T) {
 	if _, err := core.CreateServerRole(ctx, SystemActorID, "edited", "Edited", "", false); err != nil {
 		t.Fatalf("CreateServerRole edited: %v", err)
 	}
-	if err := core.DenyServerPermission(ctx, SystemActorID, "edited", PermUserDeleteAny); err != nil {
-		t.Fatalf("DenyServerPermission user.delete-any: %v", err)
+	if err := core.GrantServerPermission(ctx, SystemActorID, "edited", PermUserDeleteAny); err != nil {
+		t.Fatalf("GrantServerPermission user.delete-any: %v", err)
 	}
 	if err := core.GrantUserPermission(ctx, SystemActorID, roleManager, PermRoleManage); err != nil {
 		t.Fatalf("GrantUserPermission role.manage: %v", err)
@@ -162,15 +162,15 @@ func TestDelegatedRolePermissionEditsStayWithinAuthority(t *testing.T) {
 		state   PermissionState
 		allowed bool
 	}{
-		{"role manager edits a role above them", roleManager, RoleAdmin, server, PermMessageReact, PermissionStateDeny, true},
-		{"room manager edits a role above them", roomManager, RoleAdmin, room, PermMessagePost, PermissionStateDeny, false},
+		{"role manager edits a role above them", roleManager, RoleAdmin, server, PermMessageReact, PermissionStateAllow, true},
+		{"room manager edits a role above them", roomManager, RoleAdmin, room, PermMessagePost, PermissionStateAllow, false},
 		{"role manager grants beyond authority", roleManager, "edited", server, PermServerManage, PermissionStateAllow, false},
-		{"role manager clears restriction beyond authority", roleManager, "edited", server, PermUserDeleteAny, PermissionStateNone, false},
+		{"role manager clears a grant beyond authority", roleManager, "edited", server, PermUserDeleteAny, PermissionStateNone, false},
 		{"role manager grants held permission", roleManager, "edited", server, PermMessageReact, PermissionStateAllow, true},
 		{"role manager grants own management authority", roleManager, "edited", server, PermRoleManage, PermissionStateAllow, true},
 		{"room manager grants beyond authority", roomManager, "edited", room, PermMessageManage, PermissionStateAllow, false},
 		{"room manager grants held room authority", roomManager, "edited", room, PermRoomManage, PermissionStateAllow, true},
-		{"room manager denies held permission", roomManager, "edited", room, PermMessagePost, PermissionStateDeny, true},
+		{"room manager denies a held permission for everyone", roomManager, RoleEveryone, room, PermMessagePost, PermissionStateDeny, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -235,7 +235,6 @@ func TestDelegatedRoleDeletionStaysWithinAuthority(t *testing.T) {
 		allowed  bool
 	}{
 		{"broader-grant", func(name string) error { return core.GrantServerPermission(ctx, SystemActorID, name, PermServerManage) }, false},
-		{"own-restriction", func(name string) error { return core.DenyServerPermission(ctx, SystemActorID, name, PermMessagePost) }, false},
 		{"held-grant", func(name string) error { return core.GrantServerPermission(ctx, SystemActorID, name, PermMessageReact) }, true},
 	} {
 		t.Run(role.name, func(t *testing.T) {
@@ -244,11 +243,6 @@ func TestDelegatedRoleDeletionStaysWithinAuthority(t *testing.T) {
 			}
 			if err := role.decision(role.name); err != nil {
 				t.Fatalf("set role decision: %v", err)
-			}
-			if role.name == "own-restriction" {
-				if err := core.AssignServerRole(ctx, SystemActorID, actor, role.name); err != nil {
-					t.Fatalf("AssignServerRole: %v", err)
-				}
 			}
 			err := core.AdminDeleteServerRole(ctx, actor, role.name)
 			if role.allowed {

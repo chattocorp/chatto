@@ -73,7 +73,7 @@ func TestImplicitEveryoneRoleIsNeverAssignableOrRevocable(t *testing.T) {
 	}
 }
 
-func TestDelegatedRoleRevocationCannotRemoveBroaderRestriction(t *testing.T) {
+func TestDelegatedRoleRevocationStaysWithinAuthority(t *testing.T) {
 	t.Parallel()
 
 	core, _ := setupTestCore(t)
@@ -90,8 +90,8 @@ func TestDelegatedRoleRevocationCannotRemoveBroaderRestriction(t *testing.T) {
 	if _, err := core.CreateServerRole(ctx, SystemActorID, "restricted", "Restricted", "", false); err != nil {
 		t.Fatalf("CreateServerRole restricted: %v", err)
 	}
-	if err := core.DenyServerPermission(ctx, SystemActorID, "restricted", PermRoomCreate); err != nil {
-		t.Fatalf("DenyServerPermission room.create: %v", err)
+	if err := core.GrantServerPermission(ctx, SystemActorID, "restricted", PermRoomCreate); err != nil {
+		t.Fatalf("GrantServerPermission room.create: %v", err)
 	}
 	if err := core.AssignServerRole(ctx, SystemActorID, target.Id, "restricted"); err != nil {
 		t.Fatalf("AssignServerRole restricted: %v", err)
@@ -101,13 +101,13 @@ func TestDelegatedRoleRevocationCannotRemoveBroaderRestriction(t *testing.T) {
 	}
 
 	if err := core.AdminRevokeServerRole(ctx, assigner.Id, target.Id, "restricted"); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("revoke restriction beyond authority error = %v, want permission denied", err)
+		t.Fatalf("revoke role beyond authority error = %v, want permission denied", err)
 	}
 	if err := core.GrantUserPermission(ctx, SystemActorID, assigner.Id, PermRoomCreate); err != nil {
 		t.Fatalf("GrantUserPermission room.create: %v", err)
 	}
 	if err := core.AdminRevokeServerRole(ctx, assigner.Id, target.Id, "restricted"); err != nil {
-		t.Fatalf("revoke restriction within authority: %v", err)
+		t.Fatalf("revoke role within authority: %v", err)
 	}
 }
 

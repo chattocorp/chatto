@@ -329,6 +329,11 @@ Do these steps on every upgraded server:
   replies.
 - **Check `everyone` denies.** An allow for a named role or a user now
   overrides an `everyone` deny at the same or a narrower scope.
+- **Replace role denies.** Roles now only add permissions. Denies on roles
+  other than `everyone`, such as a `suspended` role, have no effect, and the
+  server log reports how many it ignores. Set these denies on the users
+  instead. A setting on a user now decides for that user, also over a more
+  specific role allow.
 - **Check the role order.** The role order now decides who can manage whom:
   to change another account or assign a role, a user who is not an owner
   must rank higher. Users with `role.manage` can change every role except

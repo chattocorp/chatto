@@ -30,7 +30,8 @@ export class AdminRole extends Message<AdminRole> {
   permissions: string[] = [];
 
   /**
-   * Permissions denied by this role.
+   * Permissions denied by this role. Only the everyone role can deny; this is
+   * empty for other roles, whose stored denies have no effect.
    *
    * @generated from field: repeated string permission_denials = 3;
    */

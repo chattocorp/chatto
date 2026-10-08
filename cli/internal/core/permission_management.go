@@ -232,6 +232,11 @@ func (c *ChattoCore) SetRolePermissionState(ctx context.Context, actorID, roleNa
 	if roleName == "" {
 		return fmt.Errorf("%w: role name is required", ErrInvalidArgument)
 	}
+	if state == PermissionStateDeny {
+		if err := requireRoleCanDeny(roleName); err != nil {
+			return err
+		}
+	}
 	var (
 		coreScope     PermissionScope
 		requireEditor func() error
@@ -469,6 +474,11 @@ func validatePermissionDecisionScope(scope PermissionScope, perm Permission) err
 func (c *ChattoCore) applyRolePermissionState(ctx context.Context, actorID string, scope PermissionScope, scopeID, roleName string, perm Permission, state PermissionState, authorize func() error) error {
 	if err := validatePermissionDecisionScope(scope, perm); err != nil {
 		return err
+	}
+	if state == PermissionStateDeny {
+		if err := requireRoleCanDeny(roleName); err != nil {
+			return err
+		}
 	}
 
 	var event *evtv1.Event
