@@ -55,7 +55,6 @@ type contentKeyRecord struct {
 
 func NewContentKeyProjection() *ContentKeyProjection {
 	return &ContentKeyProjection{contentKeyState: contentKeyState{
-		users:         newProjectionIDTable[userIDKind](),
 		keys:          make(map[contentKeyID]contentKeyRecord),
 		activeEpoch:   make(map[contentKeyPurposeID]int32),
 		algorithms:    make(map[string]string),

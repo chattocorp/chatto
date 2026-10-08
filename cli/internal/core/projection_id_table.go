@@ -10,10 +10,6 @@ import (
 // projectionIDTable stores local IDs under the owning projection's lock.
 type projectionIDTable[Kind any] = intern.Table[Kind]
 
-func newProjectionIDTable[Kind any]() projectionIDTable[Kind] {
-	return projectionIDTable[Kind]{}
-}
-
 // Kinds follow the existing pool boundaries. Mixed namespaces retain one kind;
 // a kind is not a runtime table identity.
 type userIDKind struct{}
@@ -44,7 +40,7 @@ func sortedHandleKeys[H ~uint32, V any](ids handleIDResolver[H], values map[H]V)
 	return handles
 }
 
-// handleSlice stores one value per ID-table handle in a dense slice indexed by
+// handleSlice stores one value per event handle in a dense slice indexed by
 // handle minus one. The zero value of T means "no value", so handles of IDs
 // without a value cost only one zero element.
 type handleSlice[T comparable] []T

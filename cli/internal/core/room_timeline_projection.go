@@ -466,8 +466,6 @@ func newRoomTimelineProjection(eventIDs *eventIDTable) *RoomTimelineProjection {
 func newRoomTimelineState() roomTimelineState {
 	return roomTimelineState{
 		bodyEventIDs:               new(idArena),
-		rooms:                      newProjectionIDTable[roomIDKind](),
-		users:                      newProjectionIDTable[userIDKind](),
 		byRoom:                     make(map[string][]uint32),
 		messagePostsByRoom:         make(map[string][]uint32),
 		latestOriginalPostAt:       make(map[roomActorKey]time.Time),

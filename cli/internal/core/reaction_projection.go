@@ -77,7 +77,6 @@ func newReactionProjection(messages *eventIDTable) *ReactionProjection {
 		messages = newEventIDTable()
 	}
 	return &ReactionProjection{messages: messages, sharedEventIDs: shared, reactionState: reactionState{
-		ids:          newProjectionIDTable[reactionIDKind](),
 		byMessage:    make(map[eventHandle][]reactionProjectionEntry),
 		roomSeq:      make(map[string]uint64),
 		echoOriginal: make(map[eventHandle]eventHandle),

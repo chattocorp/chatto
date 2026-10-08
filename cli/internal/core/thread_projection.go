@@ -236,7 +236,6 @@ func newThreadProjectionState() threadProjectionState {
 		replyRoots:      make(map[eventHandle]eventHandle),
 		channelRooms:    make(map[string]struct{}),
 		dmRooms:         make(map[string]map[string]struct{}),
-		principalIDs:    newProjectionIDTable[principalIDKind](),
 		interactions:    make(map[threadInteractionKey]principalHandle),
 		summaryByThread: make(map[eventHandle]*threadSummary),
 		followState:     make(map[threadFollowKey]compactThreadFollowState),

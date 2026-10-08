@@ -229,7 +229,6 @@ func newNotificationBadgeSources(eventIDs *eventIDTable) *notificationBadgeSourc
 		eventIDs = newEventIDTable()
 	}
 	return &notificationBadgeSources{
-		ids:            newProjectionIDTable[badgeIDKind](),
 		eventIDs:       eventIDs,
 		sharedEventIDs: shared,
 		rooms:          make(map[badgeHandle]*badgeRoomSources),
