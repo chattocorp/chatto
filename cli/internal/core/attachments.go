@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -908,8 +909,8 @@ func (c *MediaModel) StoreCachedResize(ctx context.Context, key string, data []b
 
 // DeleteCachedResizesForAttachment deletes all cached resizes for an
 // attachment. Returns the number of deleted cache entries and any error
-// encountered. Current and earlier
-// stable attachment cache namespaces are removed; older room-kind prefixes
+// encountered. One cache scan removes current and earlier stable attachment
+// cache namespaces; older room-kind prefixes
 // remain unaddressable and expire after seven days.
 func (c *MediaModel) DeleteCachedResizesForAttachment(ctx context.Context, attachmentID string) (int, error) {
 	prefixes := []string{
@@ -917,14 +918,7 @@ func (c *MediaModel) DeleteCachedResizesForAttachment(ctx context.Context, attac
 		AttachmentSignResource,
 		attachmentLegacyStableCacheResource,
 	}
-	deleted := 0
-	var deleteErr error
-	for _, prefix := range prefixes {
-		count, err := c.DeleteCachedResizesForKey(ctx, prefix, attachmentID)
-		deleted += count
-		deleteErr = errors.Join(deleteErr, err)
-	}
-	return deleted, deleteErr
+	return c.deleteCachedResizesForPrefixes(ctx, attachmentID, prefixes...)
 }
 
 // DeleteCachedResizesForServerAsset deletes all cached resizes for a server
@@ -936,12 +930,24 @@ func (c *MediaModel) DeleteCachedResizesForServerAsset(ctx context.Context, asse
 // DeleteCachedResizesForKey deletes all cached resizes for a given prefix and asset key.
 // Returns the number of deleted cache entries and any error encountered.
 func (c *MediaModel) DeleteCachedResizesForKey(ctx context.Context, prefix, assetKey string) (int, error) {
-	if prefix == "" || assetKey == "" {
+	return c.deleteCachedResizesForPrefixes(ctx, assetKey, prefix)
+}
+
+// deleteCachedResizesForPrefixes lists the shared cache once for all namespaces.
+// A failed deletion does not prevent attempts for the remaining matching entries.
+func (c *MediaModel) deleteCachedResizesForPrefixes(ctx context.Context, assetKey string, prefixes ...string) (int, error) {
+	if assetKey == "" {
 		return 0, nil
 	}
-	// Cache keys follow the pattern: {prefix}.{assetKey}.{paramsHash}
-	// We need to find and delete all keys that start with {prefix}.{assetKey}.
-	keyPrefix := fmt.Sprintf("%s.%s.", prefix, assetKey)
+	keyPrefixes := make([]string, 0, len(prefixes))
+	for _, prefix := range prefixes {
+		if prefix != "" {
+			keyPrefixes = append(keyPrefixes, fmt.Sprintf("%s.%s.", prefix, assetKey))
+		}
+	}
+	if len(keyPrefixes) == 0 {
+		return 0, nil
+	}
 
 	// List all objects in the cache
 	objects, err := c.storage.imageCacheStore.List(ctx)
@@ -952,11 +958,11 @@ func (c *MediaModel) DeleteCachedResizesForKey(ctx context.Context, prefix, asse
 		return 0, fmt.Errorf("failed to list cache objects: %w", err)
 	}
 
-	// Find and delete objects matching our prefix
+	// Delete each matching object once, even if prefixes overlap.
 	deleted := 0
 	var deleteErr error
 	for _, info := range objects {
-		if strings.HasPrefix(info.Name, keyPrefix) {
+		if slices.ContainsFunc(keyPrefixes, func(prefix string) bool { return strings.HasPrefix(info.Name, prefix) }) {
 			if err := c.storage.imageCacheStore.Delete(ctx, info.Name); err != nil && !errors.Is(err, jetstream.ErrObjectNotFound) {
 				deleteErr = errors.Join(deleteErr, fmt.Errorf("delete cached resize %s: %w", info.Name, err))
 			} else {

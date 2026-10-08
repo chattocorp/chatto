@@ -3,9 +3,12 @@ package core
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"image"
 	"image/png"
 	"io"
+	"slices"
 	"testing"
 	"time"
 
@@ -1234,6 +1237,66 @@ func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *
 	}
 	if data != nil {
 		t.Fatal("Derivative thumbnail cache entry should be deleted")
+	}
+}
+
+// cacheCleanupStore records scans and deletions without background workers.
+type cacheCleanupStore struct {
+	jetstream.ObjectStore
+	objects []*jetstream.ObjectInfo
+	listed  int
+	deleted []string
+	failKey string
+	failure error
+}
+
+func (s *cacheCleanupStore) List(context.Context, ...jetstream.ListObjectsOpt) ([]*jetstream.ObjectInfo, error) {
+	s.listed++
+	return s.objects, nil
+}
+
+func (s *cacheCleanupStore) Delete(_ context.Context, name string) error {
+	s.deleted = append(s.deleted, name)
+	if name == s.failKey {
+		return s.failure
+	}
+	return nil
+}
+
+func TestAttachmentCacheCleanupScansOnce(t *testing.T) {
+	t.Parallel()
+	for _, failDelete := range []bool{false, true} {
+		t.Run(fmt.Sprint(failDelete), func(t *testing.T) {
+			keys := []string{
+				ImageCacheKey(AttachmentDerivativeCacheResource, "asset", 64, 64, "cover"),
+				ImageCacheKey(AttachmentSignResource, "asset", 64, 64, "cover"),
+				ImageCacheKey(attachmentLegacyStableCacheResource, "asset", 64, 64, "cover"),
+			}
+			store := &cacheCleanupStore{}
+			for _, key := range append(slices.Clone(keys), neighborhoodImageKey("hash"), ImageCacheKey(AttachmentSignResource, "asset-other", 64, 64, "cover"), ImageCacheKey(ServerAssetSignResource, "asset", 64, 64, "cover")) {
+				store.objects = append(store.objects, &jetstream.ObjectInfo{ObjectMeta: jetstream.ObjectMeta{Name: key}})
+			}
+			wantCount := len(keys)
+			if failDelete {
+				store.failKey, store.failure = keys[0], errors.New("delete failed")
+				wantCount--
+			}
+			model := &MediaModel{ChattoCore: &ChattoCore{storage: &storage{imageCacheStore: store}}}
+			count, err := model.DeleteCachedResizesForAttachment(context.Background(), "asset")
+			if store.listed != 1 {
+				t.Errorf("cache scans = %d, want 1", store.listed)
+			}
+			if count != wantCount || !errors.Is(err, store.failure) {
+				t.Errorf("cleanup = %d, %v; want %d, %v", count, err, wantCount, store.failure)
+			}
+			if !slices.Equal(store.deleted, keys) {
+				t.Errorf("deleted keys = %v, want %v", store.deleted, keys)
+			}
+			store.listed = 0
+			if _, err := model.DeleteCachedResizesForAttachment(context.Background(), ""); err != nil || store.listed != 0 {
+				t.Fatalf("empty asset ID must not scan: scans=%d, err=%v", store.listed, err)
+			}
+		})
 	}
 }
 
