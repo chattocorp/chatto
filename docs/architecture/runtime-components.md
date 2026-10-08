@@ -278,7 +278,8 @@ cleared or denied grant cannot return after restart. On new servers, the
 seeded Direct messages decisions for `everyone` close the call gate. No new
 event variant, stream, or snapshot contract is required. After the projections
 are current, startup also logs a warning with the number of stored role denies,
-which have no effect, and the IDs of the affected rooms and room groups
+which have no effect, the IDs of the affected rooms and room groups, and each
+deny as `role:permission@scope[:id]`. Each list shows at most 50 entries
 (ADR-116).
 
 ## Browser call picture-in-picture

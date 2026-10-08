@@ -227,8 +227,9 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 
 - New servers start closed. Only `#general` and `#announcements` are open to
   all members. [Open new rooms and room groups](/guides/operations/common-setups/#open-a-room-or-room-group)
-  to `everyone` or to a role. The settings of each room and room group show
-  who can find and join it.
+  to `everyone` or to a role. Admins and room managers can open rooms with
+  `room.manage`. The settings of each room and room group show who can find
+  and join it.
 - Server diagnostics show the health of background workers
   and asset cleanup.
 - Back up and restore a Docker Compose installation
@@ -344,7 +345,8 @@ members cannot post in direct messages.
 
 If you upgrade first, the rooms are open until you make these changes. After
 the upgrade, the server log shows the warning `Role denies have no effect`. It
-lists the IDs of the rooms and room groups that still have role denies. The
+lists the IDs of the rooms and room groups that still have role denies, and
+each deny as `role:permission@scope` or `role:permission@scope:id`. The
 settings of each room and room group show who can find and join it.
 
 ### Review your permissions before you upgrade
@@ -371,9 +373,9 @@ Do these steps on every upgraded server:
   it only to `admin`.
 - **Grant `room.manage`** to delegated room managers. Room group management
   used `role.manage` in 0.4.
-- **Allow `message.post` for `admin` in the `announcements` room** if
-  administrators must post there. A new server has this grant, but an upgraded
-  server does not.
+- **Allow `message.post` and `message.attach` for `admin` in the
+  `announcements` room** if administrators must post there. A new server has
+  these grants, but an upgraded server does not.
 - **Check thread posting.** `message.post` now also allows thread replies. A
   0.4 setup that allowed `message.post` and denied `message.post-in-thread` now
   allows replies. An upgraded server keeps its Server-scope allow of
@@ -402,7 +404,10 @@ Do these steps on every upgraded server:
 - **Check delegated permission editors.** A user who is not an owner can now
   change only the permission settings of permissions that they have at that
   scope. To delete a role, this user must have every permission that the role
-  allows. Give these users the permissions that they must manage.
+  allows. A room manager can also change the room permissions that do not
+  need privileged mode. See
+  [Limits for non-owners](/guides/operations/permissions/#limits-for-non-owners).
+  Give these users the permissions that they must manage.
 
 Administrators, moderators, and the owner must now enable privileged mode before
 they use their administrative permissions. This also applies to custom

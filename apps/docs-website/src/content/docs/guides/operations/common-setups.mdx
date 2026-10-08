@@ -21,14 +21,18 @@ room group shows who can find and join it.
 <Aside type="tip">
   Add the new allows before you remove the old ones. You can change a
   permission setting only if you have that permission at that scope, unless
-  you are an owner. If you remove your own access first, you cannot add the
-  allows after it.
+  you are an owner. With `room.manage` for a room or room group, you can also
+  change the room permissions that do not need privileged mode there. See
+  [Limits for non-owners](/guides/operations/permissions/#limits-for-non-owners).
+  If you remove your own access first, you cannot add the allows after it.
 </Aside>
 
 ## Open a Room or Room Group
 
 New rooms and room groups start closed. Only owners in privileged mode and
-the members that you add can reach them.
+the members that you add can reach them. To open a room, you need
+`room.manage` for the room or its room group, in privileged mode. By default,
+admins have it for every room.
 
 <Steps>
 
@@ -40,6 +44,11 @@ the members that you add can reach them.
 
 </Steps>
 
+- When you create a room in the sidebar, Chatto opens the room's settings.
+  The settings show who can find and join the room. You join the room only
+  when its permissions let you.
+- Members need `message.read` to read the room. The settings warn when
+  everyone can join a room but cannot read it.
 - Open a room group to open all its rooms, also rooms that you add later. A
   room can add allows, but it cannot remove the allows of its room group.
 - Do not allow `message.post` for `everyone` in a room group that contains a
@@ -94,7 +103,8 @@ Use this setup for announcements, rules, or news.
 2. For `everyone`, allow `room.list`, `room.join`, `message.read`, and
    `message.react`. To let members reply in threads, also allow
    `message.post-in-thread`.
-3. Allow `message.post` for each role that can post, such as `admin`.
+3. Allow `message.post` and `message.attach` for each role that can post,
+   such as `admin`.
 
 </Steps>
 
@@ -266,9 +276,15 @@ Use this setup to let a team lead manage the rooms of a team.
 
 </Steps>
 
+New rooms start closed. With `room.manage` in the room group, the lead can
+open the rooms that they create. With `room.create` alone, their new rooms
+stay closed until a user with `room.manage` opens them.
+
 To delegate one room, allow `room.manage` and the moderation permissions in
 the room. Holders must enable privileged mode to use these permissions. A room
-manager can change role settings only for permissions that they have at that
+manager can change the role settings of the room permissions that do not need
+privileged mode, such as `room.join` and `message.post`. For other
+permissions, such as `message.manage`, they must have the permission at that
 scope. Apart from `everyone`, they can change only roles below their highest
 role.
 

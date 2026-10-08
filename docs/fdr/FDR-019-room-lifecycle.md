@@ -9,7 +9,7 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 ## Behavior
 
-- **Create** — server admins (or anyone with `room.create` in the target group) can start room creation from that group in the sidebar. They give the channel a visible 1–30-code-point Unicode name, an optional description, a room group, and the desired Threading Mode, with Enabled as the default. They may also enable Universal. Names are unique across the server after Unicode compatibility normalization and full case folding.
+- **Create** — server admins (or anyone with `room.create` in the target group) can start room creation from that group in the sidebar. They give the channel a visible 1–30-code-point Unicode name, an optional description, a room group, and the desired Threading Mode, with Enabled as the default. They may also enable Universal. Names are unique across the server after Unicode compatibility normalization and full case folding. A new room starts closed (ADR-116). After creation from the sidebar, the app opens the room's settings, where the access summary shows; the creator joins only when the room lets them. To open the room, the creator needs `room.manage` in the room group, because `room.create` gives no allow in the new room.
 - **Edit** — `room.manage` holders can change the name, description, group, Universal setting, Threading Mode, and explicit member set of an existing channel room.
 - **Settings update** — one room-settings request commits its supplied name,
   description, Universal, Slow Mode, and Threading Mode together. A rejected
