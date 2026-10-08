@@ -57,7 +57,7 @@ func newPrivateCompactProjections() *compactProjections {
 func newSharedCompactProjections(foreignIDs int) *compactProjections {
 	table := newEventIDTable()
 	for i := range foreignIDs {
-		table.intern(fmt.Sprintf("FOREIGN-%04d", i))
+		table.Intern(fmt.Sprintf("FOREIGN-%04d", i))
 	}
 	c := &compactProjections{
 		timeline:    newRoomTimelineProjection(table),
@@ -67,12 +67,12 @@ func newSharedCompactProjections(foreignIDs int) *compactProjections {
 		contentKeys: NewContentKeyProjection(),
 	}
 	for _, id := range []string{"tada", "heart", "wave", "D1", "R2", "R1", "U5", "U4", "U3", "U2", "U1"} {
-		c.timeline.users.intern(id)
-		c.timeline.rooms.intern(id)
-		c.threads.principalIDs.intern(id)
-		c.reactions.ids.intern(id)
-		c.decisions.badges.ids.intern(id)
-		c.contentKeys.users.intern(id)
+		c.timeline.users.Intern(id)
+		c.timeline.rooms.Intern(id)
+		c.threads.principalIDs.Intern(id)
+		c.reactions.ids.Intern(id)
+		c.decisions.badges.ids.Intern(id)
+		c.contentKeys.users.Intern(id)
 	}
 	return c
 }

@@ -33,6 +33,62 @@ func completed(id, request string) *corev1.Event {
 	return &corev1.Event{Id: "evt_complete", CreatedAt: timestamppb.Now(), Event: &corev1.Event_AccountErased{AccountErased: &corev1.AccountErasedEvent{AccountId: id, ErasureRequestEventId: request}}}
 }
 
+func TestErasureInternedAccountsStayAlignedAcrossReplay(t *testing.T) {
+	t.Parallel()
+	history := []*corev1.Event{
+		created("acc_a", "uk_a", "dk_a"),
+		created("acc_b", "uk_b", "dk_b"),
+		requested("acc_a", "uk_a", "dk_a"),
+		released("acc_a", "evt_request"),
+		completed("acc_a", "evt_request"),
+	}
+	var wantA, wantB State
+	for replay := range 2 {
+		p := NewProjection()
+		if _, found := p.Get("acc_unknown"); found || p.accountIDs.Len() != 0 {
+			t.Fatal("unknown read allocated an account")
+		}
+		if err := p.Apply(requested("acc_unknown", "uk_unknown", "dk_unknown"), 1); err == nil {
+			t.Fatal("accepted erasure of an unknown account")
+		}
+		if p.accountIDs.Len() != 0 || len(p.accounts) != 0 {
+			t.Fatal("rejected history allocated an account")
+		}
+		for i, event := range history {
+			if err := p.Apply(event, uint64(i+2)); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := p.Apply(created("acc_b", "uk_b", "dk_b"), 10); err == nil {
+			t.Fatal("accepted duplicate account")
+		}
+		a, foundA := p.Get("acc_a")
+		b, foundB := p.Get("acc_b")
+		if !foundA || !foundB || !a.Complete || b.Complete ||
+			a.AccountID != "acc_a" || b.AccountID != "acc_b" ||
+			p.accountIDs.Len() != 2 || len(p.accounts) != 2 {
+			t.Fatal("typed account handles lost or aliased erasure state")
+		}
+		if replay == 0 {
+			wantA, wantB = a, b
+		} else if a != wantA || b != wantB {
+			t.Fatal("replay changed the public erasure state")
+		}
+	}
+}
+
+func TestErasureRejectsMisalignedAccountsWithoutAllocating(t *testing.T) {
+	t.Parallel()
+	p := NewProjection()
+	p.accounts = append(p.accounts, State{AccountID: "acc_orphan"})
+	if err := p.Apply(created("acc_a", "uk_a", "dk_a"), 1); err == nil {
+		t.Fatal("accepted an account while handles and records were out of step")
+	}
+	if _, found := p.Get("acc_a"); found || p.accountIDs.Len() != 0 {
+		t.Fatal("rejected account creation allocated a handle")
+	}
+}
+
 func TestErasureIndexRejectsSubstitutionAndInvalidOrder(t *testing.T) {
 	for _, tc := range []struct {
 		name   string

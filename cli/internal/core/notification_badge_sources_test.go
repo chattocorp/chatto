@@ -297,7 +297,7 @@ func BenchmarkBadgeAttentionFromStore(b *testing.B) {
 	now := time.Now()
 	if err := p.withCurrent(now, func(snapshot *notificationDecisionSnapshot) error {
 		for room := range snapshot.badges.rooms {
-			roomID := snapshot.badges.ids.id(room)
+			roomID := snapshot.badges.ids.Resolve(room)
 			for _, userID := range snapshot.roomMemberIDs(roomID) {
 				queries = append(queries, badgeQuery{userID: userID, roomID: roomID, now: now})
 			}
@@ -358,8 +358,8 @@ func TestBadgeListsDropExpiredSources(t *testing.T) {
 	var roots, targeted, reactions int
 	_ = f.p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
 		b := snapshot.badges
-		room, _ := b.ids.lookup("R1")
-		user, _ := b.ids.lookup("U1")
+		room, _ := b.ids.Lookup("R1")
+		user, _ := b.ids.Lookup("U1")
 		roots = len(b.rooms[room].roots)
 		targeted = len(b.rooms[room].targeted[user][0])
 		reactions = len(b.reactions)
@@ -386,8 +386,8 @@ func TestBadgeSweepDropsExpiredSourcesOfQuietThreads(t *testing.T) {
 	var replies, scopes int
 	_ = f.p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
 		b := snapshot.badges
-		room, _ := b.ids.lookup("R1")
-		user, _ := b.ids.lookup("U1")
+		room, _ := b.ids.Lookup("R1")
+		user, _ := b.ids.Lookup("U1")
 		replies = len(b.rooms[room].replies)
 		scopes = len(b.rooms[room].targeted[user])
 		return nil
@@ -508,13 +508,13 @@ func TestNotificationDecisionsShareEventIDsAcrossRestore(t *testing.T) {
 			t.Fatalf("apply timeline: %v", err)
 		}
 	}
-	known := eventIDs.len()
+	known := eventIDs.Len()
 	for _, event := range posts {
 		f.apply(event)
 	}
 	f.apply(threadFollowEvent("U1", "ROOT", true))
 	f.apply(&evtv1.Event{Id: "REACT", ActorId: "U2", Event: &evtv1.Event_ReactionAdded{ReactionAdded: &evtv1.ReactionAddedEvent{RoomId: "R1", MessageEventId: "ROOT", Emoji: "tada"}}})
-	if got := eventIDs.len(); got != known {
+	if got := eventIDs.Len(); got != known {
 		t.Fatalf("shared event IDs after decision replay = %d, want %d", got, known)
 	}
 
@@ -526,8 +526,8 @@ func TestNotificationDecisionsShareEventIDsAcrossRestore(t *testing.T) {
 	if err := restored.Restore(data); err != nil {
 		t.Fatalf("Restore: %v", err)
 	}
-	if restored.badges.eventIDs != eventIDs || eventIDs.len() != known {
-		t.Fatalf("restore used table %p with %d IDs, want shared table with %d IDs", restored.badges.eventIDs, eventIDs.len(), known)
+	if restored.badges.eventIDs != eventIDs || eventIDs.Len() != known {
+		t.Fatalf("restore used table %p with %d IDs, want shared table with %d IDs", restored.badges.eventIDs, eventIDs.Len(), known)
 	}
 	again, err := restored.Snapshot()
 	if err != nil {

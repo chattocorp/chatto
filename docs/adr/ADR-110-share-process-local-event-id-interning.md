@@ -4,6 +4,8 @@
 
 **Status:** Accepted
 
+**Updated:** 2026-10-08
+
 ## Context
 
 Each Chatto replica keeps every projection in RAM. The Server Content View
@@ -33,6 +35,20 @@ The Notification Decisions projection has its own replay frontier. A shared
 index must not connect the state or the frontiers of these models.
 
 ## Decision
+
+The reusable storage mechanics live in the optional `pkg/events/intern`
+subpackage. `ConcurrentTable` owns the shared-table algorithm, `Table` owns
+the caller-locked local-table algorithm, and `Arena` provides compact string
+storage without deduplication. The package uses only the Go standard library.
+Chatto core owns table scope, sharing, and lifetime. This extracts the existing
+implementations without changing projection layouts or persisted formats.
+Its tables return `ID[Kind]`, a defined `uint32` type. Kinds distinguish
+identifier pools at compile time without adding pointers or changing record
+sizes. Existing mixed namespaces keep their pool and kind. Numeric IDs remain
+local to a table instance; the kind does not add runtime ownership checks.
+String resolution stays explicit at read and snapshot boundaries.
+The projector does not require interning. Local handle-indexed collections
+and deterministic snapshot ordering remain with the application.
 
 Chatto keeps one process-wide event ID table. The table interns event IDs as
 dense, one-based `uint32` handles. Handle zero means "no ID". The production

@@ -186,7 +186,7 @@ func (v *ServerContentView) adminProjectionEstimate(eventIDs *eventIDTable, comp
 	if eventIDs != nil {
 		// Components exclude a shared table from their own estimates, so the
 		// view counts it once.
-		idCount, idBytes := int64(eventIDs.len()), eventIDs.estimatedBytes()
+		idCount, idBytes := int64(eventIDs.Len()), eventIDs.EstimatedBytes()
 		estimatedBytes += idBytes
 		metrics = append(metrics, ProjectionAdminMetric{Name: "component_event_ids", Value: idCount, Bytes: idBytes})
 	}

@@ -109,6 +109,11 @@ result, err := log.ExecuteMutation(ctx, events.AtSubject(aggregateFilter),
 
 ## Build a projection
 
+The optional [`intern`](intern/README.md) subpackage provides local and
+concurrent ID tables and compact string arenas for projection storage.
+Applications own their lifetime and sharing. The projector does not require
+interning, and handles never enter snapshot or event formats.
+
 Projection implementations must be non-nil pointers. The pointer is an
 ownership invariant: the projector and the application's read side must share
 one mutable state object.

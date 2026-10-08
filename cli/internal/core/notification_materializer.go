@@ -578,7 +578,7 @@ func (m *NotificationMaterializer) removeReaction(ctx context.Context, event *ev
 func (m *NotificationMaterializer) publishBadgeAudienceInvalidations(ctx context.Context, messageEventID, actorID string) {
 	decisions := m.decisions.Projection()
 	var roomID, threadRootEventID string
-	var message uint32
+	var message eventHandle
 	var userIDs []string
 	_ = decisions.withCurrent(time.Now().UTC(), func(snapshot *notificationDecisionSnapshot) error {
 		roomID, threadRootEventID, message, userIDs = snapshot.badgeAudience(messageEventID)
