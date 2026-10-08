@@ -1035,15 +1035,17 @@ describe('RoomSidebar', () => {
       participantCards[1],
       '[data-testid="call-participant-menu-button"]'
     ) as HTMLButtonElement;
+    participantCards[1].style.width = '280px';
+    await expect
+      .poll(() => q(participantCards[1], '[data-testid="call-feed-local-mute-button"]'))
+      .toBeNull();
     await userEvent.click(participantMenuButton);
-    const voiceLocalMuteButton = q(
-      participantCards[1],
-      '[data-testid="call-feed-local-mute-button"]'
-    ) as HTMLButtonElement;
     expect(mutedIndicator).toBeTruthy();
     expect(q(participantCards[1], '[data-testid="voice-activity"]')).toBeTruthy();
     expect(q(participantCards[1], '[data-testid="call-speaking-indicator"]')).toBeFalsy();
-    await expect.element(voiceLocalMuteButton).toBeVisible();
+    await expect
+      .element(page.getByRole('button', { name: 'Mute locally', exact: true }))
+      .toBeVisible();
     await expect
       .element(page.getByRole('slider', { name: /Voice volume/ }))
       .toHaveAttribute('max', '200');
@@ -1075,7 +1077,7 @@ describe('RoomSidebar', () => {
     muteButton.click();
     cameraButton.click();
     screenShareButton.click();
-    voiceLocalMuteButton.click();
+    await page.getByRole('button', { name: 'Mute locally', exact: true }).click();
     leaveButton.click();
     await tick();
 

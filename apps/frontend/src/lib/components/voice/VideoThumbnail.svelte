@@ -23,6 +23,7 @@ resolution to request for sidebar-width tiles.
 <script lang="ts">
   import { formatAccountName } from '@chatto/client/timeline/accountName';
   import { on } from 'svelte/events';
+  import type { Attachment } from 'svelte/attachments';
   import type { Track } from 'livekit-client';
   import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -34,7 +35,8 @@ resolution to request for sidebar-width tiles.
     user,
     showIdentityOverlay = true,
     fit = 'cover',
-    fill = false
+    fill = false,
+    videoAttachment
   }: {
     track: Track;
     name: string;
@@ -50,6 +52,8 @@ resolution to request for sidebar-width tiles.
     showIdentityOverlay?: boolean;
     fit?: 'cover' | 'contain';
     fill?: boolean;
+    /** Observe this track's exact video element without depending on parent mount order. */
+    videoAttachment?: Attachment<HTMLVideoElement>;
   } = $props();
 
   /** Keep native mouse menus while the card still owns touch long-press gestures. */
@@ -88,6 +92,7 @@ resolution to request for sidebar-width tiles.
   {#key track}
     <video
       {@attach attachVideo}
+      {@attach videoAttachment}
       {@attach nativeVideoMenu}
       width="640"
       height="360"

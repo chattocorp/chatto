@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "Azioni per {name}",
     "picture_in_picture": "Immagine nell’immagine",
     "picture_in_picture_failed": "Impossibile cambiare la modalità immagine nell’immagine.",
     "connection_lost": "Connessione persa",

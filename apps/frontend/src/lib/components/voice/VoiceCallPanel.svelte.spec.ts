@@ -15,6 +15,198 @@ vi.mock('$app/navigation', async (original) => ({
 
 afterEach(() => vi.restoreAllMocks());
 
+it.each([319, 320])('uses card width for overflow at %spx in a wide window', async (width) => {
+  const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'voice' });
+  await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
+  const card = screen.container.querySelector<HTMLElement>('[title="Alice"]')!;
+  card.style.width = `${width}px`;
+  await expect
+    .poll(() => card.querySelector('[data-testid="call-feed-local-mute-button"]') !== null)
+    .toBe(width === 320);
+  expect(window.innerWidth).toBeGreaterThan(width);
+  const menuButton = card.querySelector<HTMLButtonElement>(
+    '[data-testid="call-participant-menu-button"]'
+  )!;
+  expect(menuButton.getAttribute('aria-label')).toBe('Actions for Alice');
+  menuButton.click();
+  await expect.poll(() => document.querySelector('[data-testid="copy-user-id"]')).not.toBeNull();
+  expect(
+    document.querySelector('[popover] [data-testid="call-feed-local-mute-button"]') !== null
+  ).toBe(width < 320);
+});
+
+it('keeps mute toggles live in compact menus and keeps mute status visible', async () => {
+  const screen = renderCallPanelHarness({
+    layout: 'sidebar',
+    scenario: 'voice',
+    initiallyMuted: true
+  });
+  screen.container.style.width = '280px';
+  await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
+  const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
+  const muteSelf = vi.spyOn(call, 'toggleMute').mockImplementation(async () => {
+    call.isMuted = !call.isMuted;
+  });
+  const muteRemote = vi.spyOn(call, 'toggleParticipantLocalMute').mockImplementation((identity) => {
+    call.participants = call.participants.map((participant) =>
+      participant.identity === identity
+        ? { ...participant, isLocallyMuted: !participant.isLocallyMuted }
+        : participant
+    );
+  });
+  const alice = screen.container.querySelector<HTMLElement>('[title="Alice"]')!;
+  const bob = screen.container.querySelector<HTMLElement>('[title="Bob"]')!;
+  await expect
+    .poll(() => alice.querySelector('[data-testid="call-feed-local-mute-button"]'))
+    .toBeNull();
+  expect(alice.querySelector('[data-testid="call-muted-indicator"]')).not.toBeNull();
+  expect(bob.querySelector('[data-testid="call-locally-muted-indicator"]')).not.toBeNull();
+  alice.querySelector<HTMLButtonElement>('[data-testid="call-participant-menu-button"]')!.click();
+  await expect
+    .poll(() => document.querySelector('[popover] [data-testid="call-feed-local-mute-button"]'))
+    .not.toBeNull();
+  const toggle = document.querySelector<HTMLButtonElement>(
+    '[popover] [data-testid="call-feed-local-mute-button"]'
+  )!;
+  expect(toggle.getAttribute('role')).toBeNull();
+  expect(toggle.getAttribute('aria-pressed')).toBe('true');
+  toggle.click();
+  await expect.poll(() => toggle.getAttribute('aria-pressed')).toBe('false');
+  expect(toggle.textContent?.trim()).toBe('Mute');
+  expect(muteSelf).toHaveBeenCalledOnce();
+  expect(alice.querySelector('[data-testid="call-muted-indicator"]')).toBeNull();
+  expect(document.querySelector('[data-testid="copy-user-id"]')).not.toBeNull();
+  bob.querySelector<HTMLButtonElement>('[data-testid="call-participant-menu-button"]')!.click();
+  await expect
+    .poll(() =>
+      document
+        .querySelector<HTMLButtonElement>('[popover] [data-testid="call-feed-local-mute-button"]')
+        ?.textContent?.trim()
+    )
+    .toBe('Mute locally');
+  document
+    .querySelector<HTMLButtonElement>('[popover] [data-testid="call-feed-local-mute-button"]')!
+    .click();
+  await expect
+    .poll(() => bob.querySelector('[data-testid="call-locally-muted-indicator"]'))
+    .toBeNull();
+  expect(muteRemote).toHaveBeenCalledWith('bob');
+  expect(document.querySelector('input[type="range"]')).not.toBeNull();
+});
+
+it('dismisses overflow on resizing or removal and restores keyboard focus', async () => {
+  const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'voice' });
+  await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
+  const card = screen.container.querySelector<HTMLElement>('[title="Bob"]')!;
+  const trigger = card.querySelector<HTMLButtonElement>(
+    '[data-testid="call-participant-menu-button"]'
+  )!;
+  card.style.width = '319px';
+  await expect
+    .poll(() => card.querySelector('[data-testid="call-feed-local-mute-button"]'))
+    .toBeNull();
+  trigger.click();
+  await expect
+    .poll(() => document.querySelector('[popover] [data-testid="call-feed-local-mute-button"]'))
+    .not.toBeNull();
+  const toggle = document.querySelector<HTMLButtonElement>(
+    '[popover] [data-testid="call-feed-local-mute-button"]'
+  )!;
+  toggle.focus();
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await expect.poll(() => document.activeElement).toBe(trigger);
+  trigger.click();
+  await expect.poll(() => document.querySelector('[data-testid="copy-user-id"]')).not.toBeNull();
+  card.style.width = '320px';
+  await expect.poll(() => document.querySelector('[data-testid="copy-user-id"]')).toBeNull();
+  expect(document.activeElement).toBe(trigger);
+  const inline = card.querySelector<HTMLButtonElement>(
+    '[data-testid="call-feed-local-mute-button"]'
+  )!;
+  inline.focus();
+  card.style.width = '319px';
+  await expect.poll(() => document.activeElement).toBe(trigger);
+  trigger.click();
+  await expect.poll(() => document.querySelector('[data-testid="copy-user-id"]')).not.toBeNull();
+  const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
+  flushSync(() => {
+    call.participants = call.participants.filter((participant) => participant.identity !== 'bob');
+  });
+  await expect.poll(() => document.querySelector('[data-testid="copy-user-id"]')).toBeNull();
+  await expect
+    .poll(() => document.activeElement?.getAttribute('data-testid'))
+    .toBe('call-participant-menu-button');
+  expect(document.activeElement?.isConnected).toBe(true);
+});
+
+it('puts compact call actions in a touch sheet without opening a duplicate menu', async () => {
+  const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'voice' });
+  screen.container.style.width = '280px';
+  await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
+  const card = screen.container.querySelector<HTMLElement>('[title="Bob"]')!;
+  await expect
+    .poll(() => card.querySelector('[data-testid="call-feed-local-mute-button"]'))
+    .toBeNull();
+  card.dispatchEvent(
+    new PointerEvent('pointerdown', {
+      bubbles: true,
+      pointerType: 'touch',
+      isPrimary: true,
+      pointerId: 7,
+      clientX: 20,
+      clientY: 20
+    })
+  );
+  await expect
+    .poll(() =>
+      document.querySelector(
+        '[data-menu-presentation="sheet"] [data-testid="call-feed-local-mute-button"]'
+      )
+    )
+    .not.toBeNull();
+  card.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+  flushSync();
+  expect(document.querySelectorAll('[data-testid="copy-user-id"]')).toHaveLength(1);
+  expect(
+    document
+      .querySelector('[data-menu-presentation="sheet"] [data-testid="call-feed-local-mute-button"]')
+      ?.getAttribute('aria-pressed')
+  ).toBe('true');
+  card.dispatchEvent(
+    new PointerEvent('pointerup', { bubbles: true, pointerType: 'touch', pointerId: 7 })
+  );
+});
+
+it('offers unpin first in a compact featured menu and restores focus after unpinning', async () => {
+  const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'screen' });
+  await screen.getByRole('button', { name: 'Pin Bob to the stage' }).click();
+  const featured = screen.container.querySelector<HTMLElement>(
+    '[data-testid="call-featured-stage-card"]'
+  )!;
+  featured.style.width = '319px';
+  await expect
+    .poll(() => featured.querySelector('[data-testid="call-stage-unpin-button"]'))
+    .toBeNull();
+  featured
+    .querySelector<HTMLButtonElement>('[data-testid="call-participant-menu-button"]')!
+    .click();
+  await expect
+    .poll(() => document.querySelector('[popover] [data-testid="call-stage-unpin-button"]'))
+    .not.toBeNull();
+  const unpin = document.querySelector<HTMLButtonElement>(
+    '[popover] [data-testid="call-stage-unpin-button"]'
+  )!;
+  const actions = Array.from(unpin.parentElement!.querySelectorAll('[data-testid]')).map(
+    (element) => element.getAttribute('data-testid')
+  );
+  expect(actions[0]).toBe('call-stage-unpin-button');
+  unpin.click();
+  await expect.poll(() => document.querySelector('[data-testid="copy-user-id"]')).toBeNull();
+  await expect
+    .poll(() => document.activeElement?.getAttribute('data-testid'))
+    .toBe('call-stage-pin-button');
+});
+
 it('updates network warnings independently of microphone activity and clears them on recovery', async () => {
   const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'voice' });
   const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
@@ -119,6 +311,17 @@ it('gates entry and media controls from the current room permissions', async () 
   const selfCard = screen.container.querySelector<HTMLElement>('[title="Alice"]')!;
   expect(selfCard.querySelector('[data-testid="call-feed-local-mute-button"]')).toBeNull();
   expect(selfCard.querySelector('[data-testid="call-muted-indicator"]')).not.toBeNull();
+  screen.container.style.width = '296px';
+  await expect
+    .poll(() => screen.container.querySelector('[data-testid="call-feed-local-mute-button"]'))
+    .toBeNull();
+  selfCard
+    .querySelector<HTMLButtonElement>('[data-testid="call-participant-menu-button"]')!
+    .click();
+  await expect.poll(() => document.querySelector('[data-testid="copy-user-id"]')).not.toBeNull();
+  expect(
+    document.querySelector('[popover] [data-testid="call-feed-local-mute-button"]')
+  ).toBeNull();
   flushSync(() => {
     serverUi(store).voiceCall.connected = false;
   });

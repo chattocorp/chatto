@@ -15,7 +15,11 @@ type MenuSelection<T> = {
 export class UserMenuState<T> {
   #selection = $state.raw<MenuSelection<T> | null>(null);
 
-  constructor(private readonly onopen?: () => void) {}
+  /** Optional close callback runs before clearing the target, for host-owned focus restoration. */
+  constructor(
+    private readonly onopen?: () => void,
+    private readonly onclose?: () => void
+  ) {}
 
   /** Current target and placement, or null when the menu is closed. */
   get selection() {
@@ -56,6 +60,7 @@ export class UserMenuState<T> {
 
   /** Bound callback for dismissal and host actions that replace the menu. */
   close = (): void => {
+    if (this.target !== null) this.onclose?.();
     this.#selection = null;
   };
 }
