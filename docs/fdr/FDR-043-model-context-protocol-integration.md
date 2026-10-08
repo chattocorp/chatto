@@ -154,14 +154,20 @@ should become a tool.
 ### 2. Keep the tester catalog small
 
 **Decision:** Expose identity, bounded room and message reads, root text
-posting, and channel membership changes. Do not expose reactions, edits,
-deletions, attachments, moderation, administration, resources, or prompts.
+posting, and channel membership changes. Admit later tools only through the
+[tool-admission checklist](#tool-admission-policy). Prefer a bounded agent task
+over a tool for each public API method. Keep registration as an explicit
+allowlist; do not generate tools from protobuf services. The current catalog
+does not expose reactions, edits, deletions, attachments, moderation,
+administration, resources, or prompts.
 **Why:** This catalog is sufficient to test discovery, OAuth, schemas,
-pagination, RBAC, membership, reads, and writes in a real agent host. It does
-not create a second complete Chatto API.
+pagination, RBAC, membership, reads, and writes in a real agent host. API
+completeness and CRUD symmetry are not MCP goals. A public ConnectRPC method
+alone is not a reason to add a tool.
 **Tradeoff:** Message posting changes state and is not idempotent. An agent
 must not retry it after an uncertain result. Read access can disclose
-sensitive content and needs full authorization.
+sensitive content and needs full authorization. Some agent workflows must use
+ConnectRPC until there is evidence for a suitable MCP tool.
 
 ### 3. Use explicit human consent and existing bot identity
 
@@ -270,6 +276,71 @@ message post.
 write can still have a failed response, so an agent must check the result
 instead of assuming the write failed.
 
+## Tool Admission Policy
+
+A new tool must serve a demonstrated agent workflow that the current catalog
+cannot express safely. The proposal must answer every item below before a
+maintainer admits it:
+
+1. **Workflow:** State the user's task, the agent's steps, and the result that
+   the user needs. Explain why existing tools cannot complete it safely.
+   Prefer a bounded task over separate tools for each CRUD operation.
+2. **Cost and output:** Set limits for arguments, work, duration, result items,
+   and result bytes. Cover pagination, scans, and related-resource reads. A
+   page limit or request timeout alone does not prove bounded backend work.
+3. **Human effect:** State what the call reads or changes, who can observe the
+   change, and whether it is destructive or reversible. Make the effect clear
+   in the tool description and annotations. Host approval does not grant
+   Chatto authority.
+4. **Canonical operation:** Use existing Chatto application reads or commands
+   with their validation and consistency rules. A composed task must state
+   its partial-success behavior. Do not add MCP-only domain rules or state.
+5. **Authorization and privacy:** Define the OAuth scope, current RBAC,
+   membership, visibility, and bot authority checks for each target. Explain
+   hidden/absent behavior, returned private data, untrusted content, external
+   connections, and safe diagnostics. Check authority on every call.
+6. **Retry:** State idempotency, failure categories, cancellation, concurrent
+   changes, and write outcomes after a lost response or acknowledgement. A
+   host must not automatically repeat a non-idempotent write with an unknown
+   outcome. Tool hints do not replace the outcome contract.
+7. **Compatibility:** Review names, arguments, results, errors, and authority
+   as public contracts under ADR-045 and ADR-085. State client impact,
+   discovery behavior, and any migration or consent change.
+8. **Primitive:** Explain why a tool fits better than existing tools,
+   ConnectRPC, an MCP resource, or an MCP prompt. A new primitive needs its own
+   capability, authorization, cost, and compatibility review.
+9. **Evidence:** Supply a repeatable workflow in a real agent host with
+   synthetic accounts and content. Record the host version, limits tested,
+   user-visible result, and remaining gaps. Add automated success, denial,
+   invalid-input, cost-boundary, and retry/outcome checks where applicable.
+   Schema checks or SDK fixture calls alone are insufficient. A new tool
+   class, such as search or content changes, requires this evidence before
+   admission; an existing class does not waive the checklist.
+
+Evaluate an MCP resource when a host needs to load identified content as
+context, with no requested action. Evaluate a prompt when a host needs a
+reusable interaction template rather than a new application operation. These
+choices do not justify broader read access or trusted instructions from
+user-controlled content. Chatto currently advertises neither primitive.
+
+The public catalog excludes Operator API authority, bootstrap and recovery,
+credential issuance or management, raw diagnostics, event logs, and storage
+internals. Protocol conformance fixtures must not enter the product catalog.
+Administrative, moderation, destructive-content, and account-lifecycle tools
+are outside the current scope. They need a separate product and authority
+decision as well as the checklist. Operator integration remains a separate
+local bridge under ADR-085.
+
+There is no numeric catalog budget. The MCP maintainer reviews the complete
+catalog with each catalog change and before each stable release that enables
+MCP. The review must check overlapping tools, selection ambiguity, retained
+workflow evidence, and recorded exceptions. A small count alone does not make
+a tool useful or safe. Record each tool's disposition in the
+[catalog review](../MCP-INTEROPERABILITY.md#catalog-admission-review).
+An exception must state its reason, affected checklist items, evidence gaps,
+and the condition for review. Existing tester exceptions do not admit new
+tools or tool classes.
+
 ## Permissions
 
 The MCP integration adds no RBAC permissions.
@@ -305,7 +376,8 @@ relationships. The operation remains the source of truth.
 
 - Which product scopes should cover later thread, search, and other write
   tools?
-- When should Chatto add MCP resources or prompts instead of more tools?
+- Which demonstrated workflows meet the admission policy for MCP resources
+  or prompts?
 - When should the tested host matrix justify an older MCP protocol version?
 - Should Chatto ship a separate local operator MCP bridge after the public
   endpoint has operational experience?
