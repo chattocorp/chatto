@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-09-30
+**Last reviewed:** 2026-10-08
 
 ## Overview
 
