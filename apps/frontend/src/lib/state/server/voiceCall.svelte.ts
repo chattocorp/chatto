@@ -79,6 +79,8 @@ type LiveKitModule = typeof import('livekit-client');
 
 const RECENTLY_DISCONNECTED_CALL_SOUND_MS = 5_000;
 const MEDIA_DEVICE_TOAST_DEDUPLICATION_MS = 1_500;
+/** Minimum time an active speaker stays current before another can replace them. */
+export const ACTIVE_SPEAKER_HOLD_MS = 3_000;
 let liveKitModule: LiveKitModule | null = null;
 let liveKitModulePromise: Promise<LiveKitModule> | null = null;
 
@@ -225,6 +227,19 @@ export class VoiceCallState implements CallConnection {
 
   // Participants (including local)
   participants = $state<CallParticipantInfo[]>([]);
+
+  /**
+   * Identity of the remote participant who spoke most recently, from LiveKit's
+   * server-side active speaker updates. It ignores the local participant and
+   * keeps the last speaker during silence. A new speaker replaces the current
+   * one only after ACTIVE_SPEAKER_HOLD_MS, and only if they are still speaking
+   * then, so short interjections do not change it. Null until someone speaks.
+   */
+  activeSpeakerIdentity = $state<string | null>(null);
+  private activeSpeakerSince = 0;
+  /** Loudest remote speaker in the latest update, or null during silence. */
+  private latestRemoteSpeaker: string | null = null;
+  private activeSpeakerTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Remote participants locally muted by this browser session only.
   locallyMutedParticipantIds = $state<Record<string, boolean>>({});
@@ -1359,6 +1374,17 @@ export class VoiceCallState implements CallConnection {
       this.updateParticipants();
     });
 
+    // Speakers arrive loudest first and include the local participant.
+    this.room.on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) => {
+      if (this.room !== room) return;
+      this.latestRemoteSpeaker =
+        speakers.find(
+          (speaker) =>
+            speaker.identity !== room.localParticipant.identity && !isCompanionPublisher(speaker)
+        )?.identity ?? null;
+      this.updateActiveSpeaker();
+    });
+
     // Attach remote audio tracks so we actually hear other participants.
     // LiveKit delivers audio data over WebRTC, but the browser won't play it
     // until the track is attached to an <audio> element.
@@ -1408,6 +1434,23 @@ export class VoiceCallState implements CallConnection {
     this.audioLevelInterval = setInterval(() => {
       this.updateAudioLevels();
     }, 60);
+  }
+
+  /** Applies the latest remote speaker once the current speaker's hold ends. */
+  private updateActiveSpeaker(): void {
+    const next = this.latestRemoteSpeaker;
+    if (next === null || next === this.activeSpeakerIdentity) return;
+    const remainingHold = this.activeSpeakerSince + ACTIVE_SPEAKER_HOLD_MS - Date.now();
+    if (this.activeSpeakerIdentity !== null && remainingHold > 0) {
+      // LiveKit reports changes only, so check again when the hold ends.
+      this.activeSpeakerTimer ??= setTimeout(() => {
+        this.activeSpeakerTimer = null;
+        this.updateActiveSpeaker();
+      }, remainingHold);
+      return;
+    }
+    this.activeSpeakerIdentity = next;
+    this.activeSpeakerSince = Date.now();
   }
 
   private updateParticipants(): void {
@@ -1643,6 +1686,13 @@ export class VoiceCallState implements CallConnection {
       clearInterval(this.audioLevelInterval);
       this.audioLevelInterval = null;
     }
+    if (this.activeSpeakerTimer) {
+      clearTimeout(this.activeSpeakerTimer);
+      this.activeSpeakerTimer = null;
+    }
+    this.activeSpeakerIdentity = null;
+    this.activeSpeakerSince = 0;
+    this.latestRemoteSpeaker = null;
 
     if (this.room) {
       // Detach all remote audio tracks to clean up <audio> elements

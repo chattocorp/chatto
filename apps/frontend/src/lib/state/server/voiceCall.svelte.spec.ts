@@ -30,6 +30,7 @@ vi.mock('$lib/ui/toast', () => ({
 }));
 
 import {
+  ACTIVE_SPEAKER_HOLD_MS,
   getVoiceCallMediaDeviceErrorMessage,
   getVoiceCallJoinErrorMessage,
   VoiceCallJoinError,
@@ -246,6 +247,7 @@ vi.mock('livekit-client', () => {
       MediaDevicesChanged: 'MediaDevicesChanged',
       MediaDevicesError: 'MediaDevicesError',
       ConnectionQualityChanged: 'ConnectionQualityChanged',
+      ActiveSpeakersChanged: 'ActiveSpeakersChanged',
       TrackSubscribed: 'TrackSubscribed',
       TrackUnsubscribed: 'TrackUnsubscribed',
       TrackPublished: 'TrackPublished',
@@ -368,6 +370,77 @@ describe('VoiceCallState', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  describe('active speaker', () => {
+    const speaker = (identity: string) => ({ identity, metadata: '' });
+    const companion = {
+      identity: 'publisher',
+      metadata: JSON.stringify({ publisherKind: 'game_share', ownerIdentity: 'bob' })
+    };
+
+    async function joinedState() {
+      const state = createPermittedCallState(createVoiceCallClient());
+      await state.join('wss://livekit.example.test', 'R1');
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+      const report = (...identities: Array<string | typeof companion>) =>
+        roomEventHandlers.get('ActiveSpeakersChanged')?.(
+          identities.map((id) => (typeof id === 'string' ? speaker(id) : id))
+        );
+      return { state, report };
+    }
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('takes the loudest remote speaker and keeps them during silence', async () => {
+      const { state, report } = await joinedState();
+      expect(state.activeSpeakerIdentity).toBeNull();
+
+      report('local-user', companion, 'bob', 'chloe');
+      expect(state.activeSpeakerIdentity).toBe('bob');
+
+      report();
+      vi.advanceTimersByTime(ACTIVE_SPEAKER_HOLD_MS * 2);
+      expect(state.activeSpeakerIdentity).toBe('bob');
+      await state.leave();
+    });
+
+    it('switches after the hold only when the new speaker is still speaking', async () => {
+      const { state, report } = await joinedState();
+      report('bob');
+
+      // A short interjection inside the hold does not replace the speaker.
+      vi.advanceTimersByTime(1_000);
+      report('chloe');
+      expect(state.activeSpeakerIdentity).toBe('bob');
+      report();
+      vi.advanceTimersByTime(ACTIVE_SPEAKER_HOLD_MS);
+      expect(state.activeSpeakerIdentity).toBe('bob');
+
+      // After the hold, a new speaker replaces the current one at once.
+      report('chloe');
+      expect(state.activeSpeakerIdentity).toBe('chloe');
+
+      // Inside the next hold, a continuing speaker takes over when it ends.
+      report('dana');
+      vi.advanceTimersByTime(ACTIVE_SPEAKER_HOLD_MS - 1);
+      expect(state.activeSpeakerIdentity).toBe('chloe');
+      vi.advanceTimersByTime(1);
+      expect(state.activeSpeakerIdentity).toBe('dana');
+      await state.leave();
+    });
+
+    it('forgets the speaker and a pending switch when the call ends', async () => {
+      const { state, report } = await joinedState();
+      report('bob');
+      report('chloe');
+      await state.leave();
+      expect(state.activeSpeakerIdentity).toBeNull();
+      vi.advanceTimersByTime(ACTIVE_SPEAKER_HOLD_MS);
+      expect(state.activeSpeakerIdentity).toBeNull();
+    });
   });
 
   it('releases media at once when its store is disposed', async () => {
