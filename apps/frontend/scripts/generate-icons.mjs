@@ -17,7 +17,15 @@ const sizes = [
   { name: 'icon-maskable-192.png', size: 192, source: 'chatto-icon-maskable.png', flatten: true },
   { name: 'icon-maskable-512.png', size: 512, source: 'chatto-icon-maskable.png', flatten: true },
   // Browser tab favicon keeps the smaller rounded composition.
-  { name: 'favicon.png', size: 32, source: 'chatto-icon.png', flatten: false }
+  { name: 'favicon.png', size: 32, source: 'chatto-icon.png', flatten: false },
+  // Android masks the small notification badge. Keep its background and
+  // facial details transparent instead of using an opaque install icon.
+  {
+    name: 'notification-badge.png',
+    size: 96,
+    source: 'chatto-notification-badge.svg',
+    flatten: false
+  }
 ];
 
 async function main() {

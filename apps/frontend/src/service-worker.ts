@@ -199,7 +199,8 @@ function normalizePushNotification(payload: DeclarativePushPayload): NormalizedP
     options: {
       body: payload.body ?? notification?.body,
       icon: payload.icon ?? notification?.icon ?? '/icons/icon-192.png',
-      badge: payload.badge ?? notification?.badge ?? '/icons/icon-192.png',
+      // Android masks this small badge separately from the colour notification icon.
+      badge: payload.badge ?? notification?.badge ?? '/icons/notification-badge.png',
       tag: payload.tag ?? notification?.tag,
       data: {
         notificationId,
