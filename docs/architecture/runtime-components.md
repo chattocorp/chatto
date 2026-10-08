@@ -28,6 +28,19 @@ process supervisor.
 Independently deployable providers use this catalogue rather than adding
 custom startup blocks.
 
+`chatto run` logs its version before core boot. `Server ready` follows core
+boot, initial setup, and successful binding of all enabled HTTP, HTTPS,
+metrics, and operator API listeners. It includes the version, application
+listener address, and total startup duration. Optional runtime units and
+automatic TLS certificate issuance do not gate this message. If any listener
+cannot bind, startup closes the listeners already opened and does not log
+readiness. Shutdown and serve failures close all HTTP servers.
+
+INFO projection summaries report the projection name, rounded startup
+duration, replayed message count, and restore source. DEBUG logs contain
+subject filters, sequence positions, snapshot operations, and service setup.
+Expected snapshot absence uses DEBUG; other restore failures remain warnings.
+
 ## Client runtimes
 
 The frontend's

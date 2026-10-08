@@ -200,7 +200,7 @@ func ConnectToNATS(ctx context.Context, cfg config.ChattoConfig, embeddedNATS *n
 	}
 
 	if embeddedNATS != nil {
-		logger.Info("Connected to embedded NATS server")
+		logger.Debug("Connected to embedded NATS server")
 	} else {
 		logger.Info("Connected to NATS", "url", nc.ConnectedUrl())
 	}

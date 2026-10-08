@@ -93,7 +93,7 @@ func evtReadCacheConfig(cfg config.CoreConfig, logger *log.Logger) events.Stream
 	cacheLogger := logger.WithPrefix("core.EVTReadCache")
 	idleTTL := cfg.EVTReadCacheIdleTTLOrDefault()
 	maxBytes := cfg.EVTReadCacheMaxBytesOrDefault()
-	cacheLogger.Info(
+	cacheLogger.Debug(
 		"EVT read cache configured",
 		"idle_ttl", idleTTL,
 		"max_bytes", maxBytes,
@@ -181,6 +181,6 @@ func initializeProjectionSnapshotRepository(
 		return nil
 	}
 
-	logger.Info("Projection snapshot storage initialized", "backend", repository.Backend())
+	logger.Debug("Projection snapshot storage initialized", "backend", repository.Backend())
 	return repository
 }

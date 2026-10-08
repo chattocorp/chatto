@@ -1063,6 +1063,7 @@ type startupSummary struct {
 	duration                     time.Duration
 	targetSeq, lastSeq, messages uint64
 	projectionKey                string
+	restore                      string
 }
 
 // completeStartupLocked ends startup, runs the projection's
@@ -1086,6 +1087,18 @@ func (p *Projector) completeStartupLocked(now time.Time) (startupSummary, bool) 
 	if summary.projectionKey == "" {
 		summary.projectionKey = p.snapshots.key
 	}
+	if summary.projectionKey == "" {
+		summary.projectionKey = p.consumerName
+	}
+	if summary.projectionKey == "" {
+		summary.projectionKey = reflect.TypeOf(p.proj).Elem().String()
+	}
+	summary.restore = "none"
+	if p.snapshotRestored {
+		summary.restore = "snapshot"
+	} else if p.checkpointRestored {
+		summary.restore = "checkpoint"
+	}
 	p.mu.Unlock()
 
 	if projection, ok := p.proj.(StartupReplayCompleter); ok {
@@ -1099,15 +1112,14 @@ func (p *Projector) completeStartupLocked(now time.Time) (startupSummary, bool) 
 }
 
 func (p *Projector) logStartupComplete(summary startupSummary) {
-	var rate float64
-	if seconds := summary.duration.Seconds(); seconds > 0 {
-		rate = float64(summary.messages) / seconds
-	}
 	p.logger.Info("Projection startup complete",
 		"projection", summary.projectionKey,
-		"duration", summary.duration,
+		"duration", summary.duration.Round(time.Millisecond),
 		"messages", summary.messages,
-		"messages_per_second", rate,
+		"restore", summary.restore,
+	)
+	p.logger.Debug("Projection replay details",
+		"projection", summary.projectionKey,
 		"last_seq", summary.lastSeq,
 		"target_seq", summary.targetSeq,
 		"subjects", p.subjects,

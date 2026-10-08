@@ -878,6 +878,12 @@ func TestRepositoryLogsOperationalSnapshotContext(t *testing.T) {
 				continue
 			}
 			found = true
+			if record.level != "debug" {
+				t.Errorf("%q level = %q, want debug", message, record.level)
+			}
+			if _, ok := record.fields["error"]; ok {
+				t.Errorf("%q successful log contains an error field", message)
+			}
 			for _, field := range []string{"projection", "backend", "stage", "generation_id", "cutoff_seq", "payload_bytes", "producer_version", "duration"} {
 				if _, ok := record.fields[field]; !ok {
 					t.Errorf("%q log missing %q", message, field)

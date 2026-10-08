@@ -250,7 +250,7 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 		return err
 	}
 	job.projector.RecordSnapshotPublication(published.cutoffSequence, published.createdAt)
-	w.logger.Info("Projection snapshot generation complete",
+	w.logger.Debug("Projection snapshot generation complete",
 		"projection", job.projectionKey,
 		"backend", job.repository.Backend(),
 		"stage", "generate",
