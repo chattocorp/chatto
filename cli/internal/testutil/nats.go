@@ -31,7 +31,7 @@ func StartNATS(t testing.TB) (*server.Server, *nats.Conn) {
 	ns, err := server.NewServer(&server.Options{
 		JetStream:  true,
 		DontListen: true,
-		StoreDir:   t.TempDir(),
+		StoreDir:   StoreDir(t),
 		NoSigs:     true,
 	})
 	if err != nil {
@@ -55,6 +55,35 @@ func StartNATS(t testing.TB) (*server.Server, *nats.Conn) {
 	})
 
 	return ns, nc
+}
+
+// StoreDir returns a new temporary JetStream store directory for one test.
+// Unlike t.TempDir, its cleanup retries the removal. nats-server can still
+// write consumer state after Shutdown returns: a consumer store does not wait
+// for a flush in progress when its state is not dirty. A single removal then
+// fails with "directory not empty".
+func StoreDir(t testing.TB) string {
+	t.Helper()
+
+	dir, err := os.MkdirTemp("", "chatto-nats-*")
+	if err != nil {
+		t.Fatalf("create JetStream store directory: %v", err)
+	}
+	t.Cleanup(func() {
+		deadline := time.Now().Add(5 * time.Second)
+		for {
+			err := os.RemoveAll(dir)
+			if err == nil {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Errorf("remove JetStream store directory: %v", err)
+				return
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	})
+	return dir
 }
 
 // StartSharedNATS returns a fresh in-process connection to a package-shared
