@@ -147,8 +147,7 @@
         "roles": "Rollen",
         "permissions": "Berechtigungen"
       },
-      "role_beyond_viewer_permissions": "Du kannst diese Rollenzuweisung nicht ändern. Die Rolle erlaubt oder verweigert Berechtigungen, die du nicht hast.",
-      "bot_cannot_hold_owner": "Bots können die Rolle „owner“ nicht haben."
+      "role_beyond_viewer_permissions": "Du kannst diese Rollenzuweisung nicht ändern. Die Rolle erlaubt oder verweigert Berechtigungen, die du nicht hast."
     },
     "member_delete": {
       "title": "Mitglied löschen",

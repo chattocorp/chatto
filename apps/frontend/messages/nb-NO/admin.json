@@ -147,8 +147,7 @@
         "roles": "Roller",
         "permissions": "Tillatelser"
       },
-      "role_beyond_viewer_permissions": "Du kan ikke endre denne rolletildelingen. Rollen tillater eller avslår tillatelser som du ikke har.",
-      "bot_cannot_hold_owner": "Boter kan ikke ha rollen owner."
+      "role_beyond_viewer_permissions": "Du kan ikke endre denne rolletildelingen. Rollen tillater eller avslår tillatelser som du ikke har."
     },
     "member_delete": {
       "title": "Slett medlem",

@@ -147,8 +147,7 @@
         "roles": "Role",
         "permissions": "Oprávnění"
       },
-      "role_beyond_viewer_permissions": "Toto přiřazení role nemůžete změnit. Role povoluje nebo zakazuje oprávnění, která nemáte.",
-      "bot_cannot_hold_owner": "Boti nemohou mít roli owner."
+      "role_beyond_viewer_permissions": "Toto přiřazení role nemůžete změnit. Role povoluje nebo zakazuje oprávnění, která nemáte."
     },
     "member_delete": {
       "title": "Odstranit člena",

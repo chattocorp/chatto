@@ -1,7 +1,7 @@
 <!--
 @component
 
-Roles section of a member or bot: the server role assignments.
+Roles section of a human member: the server role assignments.
 -->
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';

@@ -197,7 +197,7 @@ func (c *ChattoCore) AdminDeleteUserAs(ctx context.Context, actorID, userID stri
 		if actorID == userID {
 			return nil
 		}
-		return c.requireOutranksAccountAndOwnedBots(actorID, userID)
+		return c.requireOutranksAccount(actorID, userID)
 	}); err != nil {
 		return err
 	}

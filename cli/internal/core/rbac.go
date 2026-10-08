@@ -232,7 +232,7 @@ func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, role
 	}})
 
 	if _, err := c.appendRoleAssignmentEvent(ctx, userID, false, event, func() error {
-		if isBot, _, ok := c.userModel.isBotAndOwner(userID); ok && isBot && roleName == RoleOwner {
+		if isBot, _, ok := c.userModel.isBotAndOwner(userID); ok && isBot {
 			return ErrHumanAccountRequired
 		}
 		if _, ok := c.rbacModel.role(roleName); !ok {
@@ -270,7 +270,7 @@ func (c *ChattoCore) AssignServerRoleToExistingUser(ctx context.Context, actorID
 	}})
 
 	if _, err := c.appendRoleAssignmentEvent(ctx, userID, true, event, func() error {
-		if isBot, _, ok := c.userModel.isBotAndOwner(userID); ok && isBot && roleName == RoleOwner {
+		if isBot, _, ok := c.userModel.isBotAndOwner(userID); ok && isBot {
 			return ErrHumanAccountRequired
 		}
 		if _, ok := c.rbacModel.role(roleName); !ok {

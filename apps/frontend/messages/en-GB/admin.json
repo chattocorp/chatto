@@ -147,8 +147,7 @@
         "roles": "Roles",
         "permissions": "Permissions"
       },
-      "role_beyond_viewer_permissions": "You cannot change this role assignment. The role allows or denies permissions that you do not have.",
-      "bot_cannot_hold_owner": "Bots cannot hold the owner role."
+      "role_beyond_viewer_permissions": "You cannot change this role assignment. The role allows or denies permissions that you do not have."
     },
     "member_delete": {
       "title": "Delete Member",

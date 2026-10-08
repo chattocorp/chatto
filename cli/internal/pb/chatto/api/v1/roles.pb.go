@@ -150,7 +150,7 @@ type ListRolesResponse struct {
 	Roles []*Role `protobuf:"bytes,1,rep,name=roles,proto3" json:"roles,omitempty"`
 	// Name of the role at which the caller ranks. This is owner for an owner
 	// of the server, the caller's highest assigned role otherwise, and
-	// everyone when the caller has no roles. A bot ranks at most at its
+	// everyone when the caller has no roles. A bot ranks at its
 	// owner's highest role. A non-owner caller can manage only accounts whose
 	// highest role comes after this role in roles, and only roles that come
 	// after it. Everyone ranks below every account. The caller also needs the

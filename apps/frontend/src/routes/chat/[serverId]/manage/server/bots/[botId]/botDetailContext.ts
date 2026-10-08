@@ -18,7 +18,7 @@ export interface BotDetailContext {
   /**
    * Owners and bot managers can manage credentials, webhooks, and permissions.
    * The server also requires a bot manager who is not the owner to outrank the
-   * bot and its owner in the role order.
+   * bot's owner in the role order.
    */
   readonly canOperateBot: boolean;
   /** Owners, bot managers, and account managers can edit the public identity. */

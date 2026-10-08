@@ -147,8 +147,7 @@
         "roles": "Funções",
         "permissions": "Permissões"
       },
-      "role_beyond_viewer_permissions": "Não pode alterar esta atribuição de função. A função permite ou nega permissões que não tem.",
-      "bot_cannot_hold_owner": "Os bots não podem ter a função owner."
+      "role_beyond_viewer_permissions": "Não pode alterar esta atribuição de função. A função permite ou nega permissões que não tem."
     },
     "member_delete": {
       "title": "Eliminar membro",

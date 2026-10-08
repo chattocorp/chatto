@@ -147,8 +147,7 @@
         "roles": "Roloj",
         "permissions": "Permesoj"
       },
-      "role_beyond_viewer_permissions": "Vi ne povas ŝanĝi ĉi tiun rolan atribuon. La rolo permesas aŭ rifuzas permesojn, kiujn vi ne havas.",
-      "bot_cannot_hold_owner": "Robotoj ne povas havi la rolon owner."
+      "role_beyond_viewer_permissions": "Vi ne povas ŝanĝi ĉi tiun rolan atribuon. La rolo permesas aŭ rifuzas permesojn, kiujn vi ne havas."
     },
     "member_delete": {
       "title": "Forigi membron",

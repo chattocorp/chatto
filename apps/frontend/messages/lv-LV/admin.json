@@ -147,8 +147,7 @@
         "roles": "Lomas",
         "permissions": "Atļaujas"
       },
-      "role_beyond_viewer_permissions": "Jūs nevarat mainīt šo lomas piešķīrumu. Loma atļauj vai liedz atļaujas, kuru jums nav.",
-      "bot_cannot_hold_owner": "Boti nevar saņemt lomu owner."
+      "role_beyond_viewer_permissions": "Jūs nevarat mainīt šo lomas piešķīrumu. Loma atļauj vai liedz atļaujas, kuru jums nav."
     },
     "member_delete": {
       "title": "Dzēst dalībnieku",

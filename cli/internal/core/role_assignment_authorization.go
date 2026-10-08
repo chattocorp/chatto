@@ -81,7 +81,7 @@ func (c *ChattoCore) requireRoleChangeForAccount(ctx context.Context, actorID, t
 	if err := c.requireRoleAssignmentWithinAuthority(ctx, actorID, roleName, includeDenials); err != nil {
 		return err
 	}
-	return c.requireOutranksForRoleChange(actorID, targetUserID)
+	return c.requireOutranksOtherAccount(actorID, targetUserID)
 }
 
 // requireRoleDeletionWithinAuthority bounds role deletion like revocation from
@@ -98,7 +98,7 @@ func (c *ChattoCore) requireRoleDeletionWithinAuthority(ctx context.Context, act
 }
 
 // requireBotGrantsWithinAuthority requires the actor to hold every permission
-// that the bot is allowed directly or through its roles. A new owner sets a
+// that the bot is allowed. A new owner sets a
 // new ceiling for these grants, so a manager who hands the bot to an account
 // with more authority must not unlock grants beyond their own.
 func (c *ChattoCore) requireBotGrantsWithinAuthority(ctx context.Context, actorID, botID string) error {
@@ -113,11 +113,6 @@ func (c *ChattoCore) requireBotGrantsWithinAuthority(ctx context.Context, actorI
 			continue
 		}
 		if err := c.requirePermissionDecisionWithinAuthority(ctx, actorID, decision.Scope, decision.ScopeID, decision.Permission); err != nil {
-			return err
-		}
-	}
-	for _, roleName := range c.rbacModel.userRoles(botID) {
-		if err := c.requireRoleDecisionsWithinAuthority(ctx, actorID, roleName, false); err != nil {
 			return err
 		}
 	}

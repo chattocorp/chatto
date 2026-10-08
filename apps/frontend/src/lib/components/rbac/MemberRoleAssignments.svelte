@@ -1,7 +1,7 @@
 <!--
 @component
 
-Server role assignments of one account, human or bot. The server decides which
+Server role assignments of one human account. The server decides which
 roles the viewer may assign or revoke (`assignableRoleNames` and
 `revocableRoleNames` in the member details), including the role order limits.
 The owner runs the mutation through `toggleMemberRole`. Disabled roles explain
@@ -29,7 +29,6 @@ why the viewer cannot change them, with the role catalogue's role order.
   let { details, isSelf, serverId, updatingRole, toggleMemberRole }: Props = $props();
 
   const roleCatalog = useServerScope().store.roleCatalog;
-  const isBot = $derived(details.member?.isBot === true);
   const rolesLocked = $derived(
     roleOrderLocksRoles(
       details,
@@ -102,9 +101,7 @@ why the viewer cannot change them, with the role catalogue's role order.
               ? m('rbac.role_order.roles_locked')
               : rolesAboveViewer.has(role.name)
                 ? m('rbac.role_order.role_locked')
-                : isBot && role.name === 'owner'
-                  ? m('admin.members.bot_cannot_hold_owner')
-                  : m('admin.members.role_beyond_viewer_permissions')}
+                : m('admin.members.role_beyond_viewer_permissions')}
 
       <div class="flex items-center gap-3">
         <div class="min-w-0 flex-1" title={tooltip}>

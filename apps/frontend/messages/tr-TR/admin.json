@@ -147,8 +147,7 @@
         "roles": "Roller",
         "permissions": "İzinler"
       },
-      "role_beyond_viewer_permissions": "Bu rol atamasını değiştiremezsiniz. Rol, sizde olmayan izinlere izin veriyor veya bunları reddediyor.",
-      "bot_cannot_hold_owner": "Botlar owner rolüne sahip olamaz."
+      "role_beyond_viewer_permissions": "Bu rol atamasını değiştiremezsiniz. Rol, sizde olmayan izinlere izin veriyor veya bunları reddediyor."
     },
     "member_delete": {
       "title": "Üyeyi sil",

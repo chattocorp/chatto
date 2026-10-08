@@ -213,7 +213,6 @@ test.describe('Route accessibility', () => {
       ['bot overview', botRoute],
       ['bot integrations', `${botRoute}/integrations`],
       ['bot permissions', `${botRoute}/permissions`],
-      ['bot roles', `${botRoute}/roles`],
       ['event log', routes.serverAdmin('event-log')],
       ['invite links', routes.serverAdmin('invite-links')],
       ['moderation', routes.serverAdmin('moderation')],

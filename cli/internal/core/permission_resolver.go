@@ -273,10 +273,9 @@ func (r *PermissionResolver) resolveBotWithGroup(ctx context.Context, botUserID,
 	return DecisionAllow, nil
 }
 
-// botDelegatedDecision resolves the bot's explicit direct-user decisions and
-// the decisions of its assigned roles. An explicit including permission can
-// satisfy the requested permission. Bots never receive everyone, owner, or
-// DM-default grants.
+// botDelegatedDecision resolves only the bot's explicit direct-user decisions.
+// An explicit including permission can satisfy the requested permission. Bots
+// never receive named-role, everyone, owner, or DM-default grants.
 func (r *PermissionResolver) botDelegatedDecision(botUserID string, kind RoomKind, roomID, groupID string, perm Permission) DecisionKind {
 	decision, _ := resolvePermissionWithInclusions(perm, func(candidate Permission) (DecisionKind, error) {
 		return r.botDelegatedExactDecision(botUserID, kind, roomID, groupID, candidate), nil
@@ -285,26 +284,15 @@ func (r *PermissionResolver) botDelegatedDecision(botUserID string, kind RoomKin
 }
 
 func (r *PermissionResolver) botDelegatedExactDecision(botUserID string, kind RoomKind, roomID, groupID string, perm Permission) DecisionKind {
-	decision, _, _ := r.botNamedDecision(botUserID, kind, roomID, groupID, perm)
-	return decision
-}
-
-// botNamedDecision combines the nearest decision of the bot and of each of its
-// roles like named subjects of a human: any deny wins. It returns the winning
-// trace entry.
-func (r *PermissionResolver) botNamedDecision(botUserID string, kind RoomKind, roomID, groupID string, perm Permission) (DecisionKind, TraceEntry, bool) {
 	if _, known := GetPermissionMetadata(perm); !known {
-		return DecisionNone, TraceEntry{}, false
+		return DecisionNone
 	}
 	scopes := r.applicableScopeTargets(kind, roomID, groupID, perm)
-	subjects := append([]string{botUserID}, r.core.rbacModel.userRoles(botUserID)...)
-	var entries []TraceEntry
-	for _, subject := range subjects {
-		if entry, ok := r.nearestDecision(subject, perm, scopes); ok {
-			entries = append(entries, entry)
-		}
+	entry, ok := r.nearestDecision(botUserID, perm, scopes)
+	if !ok {
+		return DecisionNone
 	}
-	return resolveDecisionEntries(entries)
+	return entry.Decision
 }
 
 // resolvePermissionWithInclusions applies explicit permission inclusion to an

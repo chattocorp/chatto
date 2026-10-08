@@ -147,8 +147,7 @@
         "roles": "Rollen",
         "permissions": "Rechten"
       },
-      "role_beyond_viewer_permissions": "Je kunt deze roltoewijzing niet wijzigen. De rol staat machtigingen toe of weigert machtigingen die je niet hebt.",
-      "bot_cannot_hold_owner": "Bots kunnen de rol owner niet hebben."
+      "role_beyond_viewer_permissions": "Je kunt deze roltoewijzing niet wijzigen. De rol staat machtigingen toe of weigert machtigingen die je niet hebt."
     },
     "member_delete": {
       "title": "Lid verwijderen",

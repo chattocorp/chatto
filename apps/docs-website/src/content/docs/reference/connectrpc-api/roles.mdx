@@ -47,7 +47,7 @@ Snapshot of the role catalog visible to the authenticated viewer.
 | Field | Type | Description |
 | --- | --- | --- |
 | `roles` | repeated [`Role`](/reference/connectrpc-api/types/#chatto-api-v1-Role) | Roles in role order, highest first: owner first and everyone last. Role order is the administrative rank. It decides which accounts and roles a caller can manage; it does not change permission decisions. |
-| `viewer_highest_role` | `string` | Name of the role at which the caller ranks. This is owner for an owner of the server, the caller's highest assigned role otherwise, and everyone when the caller has no roles. A bot ranks at most at its owner's highest role. A non-owner caller can manage only accounts whose highest role comes after this role in roles, and only roles that come after it. Everyone ranks below every account. The caller also needs the permission for each action. |
+| `viewer_highest_role` | `string` | Name of the role at which the caller ranks. This is owner for an owner of the server, the caller's highest assigned role otherwise, and everyone when the caller has no roles. A bot ranks at its owner's highest role. A non-owner caller can manage only accounts whose highest role comes after this role in roles, and only roles that come after it. Everyone ranks below every account. The caller also needs the permission for each action. |
 
 
 <a id="chatto-api-v1-RoleService-GetRole"></a>

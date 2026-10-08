@@ -467,27 +467,12 @@ describe('server member detail queries', () => {
     ]);
   });
 
-  it('offers the profile and roles sections for a bot account', async () => {
+  it('hides the section tabs for a bot account', async () => {
     api.getMember.mockResolvedValueOnce(details(member('helper_bot', { isBot: true })));
     const rendered = renderSection('profile');
     await settle();
 
-    expect(sectionLinks(rendered.container)).toEqual([
-      { label: 'Profile', current: 'page' },
-      { label: 'Roles', current: null }
-    ]);
-  });
-
-  it('shows the role assignments of a bot account', async () => {
-    routeUserId = 'helper_bot';
-    api.getMember.mockResolvedValue(details(member('helper_bot', { isBot: true })));
-    const rendered = renderSection('roles');
-    await settle();
-
-    expect(rendered.container.textContent).toContain('Role Assignments');
-    (rendered.container.querySelector('#role-assignment-admin') as HTMLInputElement).click();
-    await settle();
-    expect(api.assignRole).toHaveBeenCalledWith('helper_bot', 'admin');
+    expect(rendered.container.querySelector('nav[aria-label="Member sections"]')).toBeNull();
   });
 
   it('keeps account controls from a manager who does not outrank the member', async () => {

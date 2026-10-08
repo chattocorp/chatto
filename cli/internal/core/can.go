@@ -120,8 +120,8 @@ func (c *ChattoCore) canStartDM(ctx context.Context, userID string) (bool, error
 // CanDeleteUser checks if an actor can delete a specific user account.
 // Returns true if:
 //   - The actor is deleting their own account and has user.delete-self, OR
-//   - The actor has user.delete-any (the admin power) and outranks the target
-//     and every bot that the target owns, because deletion cascades to them.
+//   - The actor has user.delete-any (the admin power) and outranks the target.
+//     The target's bots rank like the target, so this covers the cascade.
 func (c *ChattoCore) CanDeleteUser(ctx context.Context, actorID, targetUserID string) (bool, error) {
 	if actorID == targetUserID {
 		return c.HasServerPermission(ctx, actorID, PermUserDeleteSelf)
@@ -130,7 +130,7 @@ func (c *ChattoCore) CanDeleteUser(ctx context.Context, actorID, targetUserID st
 	if err != nil || !allowed {
 		return false, err
 	}
-	return permissionDeniedAsFalse(c.requireOutranksAccountAndOwnedBots(actorID, targetUserID))
+	return permissionDeniedAsFalse(c.requireOutranksAccount(actorID, targetUserID))
 }
 
 // ============================================================================

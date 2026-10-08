@@ -147,8 +147,7 @@
         "roles": "תפקידים",
         "permissions": "הרשאות"
       },
-      "role_beyond_viewer_permissions": "אינך יכול לשנות את הקצאת התפקיד הזו. התפקיד מתיר או דוחה הרשאות שאין לך.",
-      "bot_cannot_hold_owner": "בוטים לא יכולים לקבל את התפקיד owner."
+      "role_beyond_viewer_permissions": "אינך יכול לשנות את הקצאת התפקיד הזו. התפקיד מתיר או דוחה הרשאות שאין לך."
     },
     "member_delete": {
       "title": "מחיקת חבר",

@@ -147,8 +147,7 @@
         "roles": "Role",
         "permissions": "Uprawnienia"
       },
-      "role_beyond_viewer_permissions": "Nie możesz zmienić tego przypisania roli. Rola zezwala na uprawnienia lub ich odmawia, a ty ich nie masz.",
-      "bot_cannot_hold_owner": "Boty nie mogą mieć roli owner."
+      "role_beyond_viewer_permissions": "Nie możesz zmienić tego przypisania roli. Rola zezwala na uprawnienia lub ich odmawia, a ty ich nie masz."
     },
     "member_delete": {
       "title": "Usuń członka",

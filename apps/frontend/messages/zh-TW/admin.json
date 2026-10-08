@@ -147,8 +147,7 @@
         "roles": "角色",
         "permissions": "權限"
       },
-      "role_beyond_viewer_permissions": "你無法變更此角色指派。該角色允許或拒絕你沒有的權限。",
-      "bot_cannot_hold_owner": "機器人不能擁有 owner 角色。"
+      "role_beyond_viewer_permissions": "你無法變更此角色指派。該角色允許或拒絕你沒有的權限。"
     },
     "member_delete": {
       "title": "刪除成員",

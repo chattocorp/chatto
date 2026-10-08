@@ -146,8 +146,9 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 		canManageUserPermissions = false
 	}
 	if user.GetIsBot() {
-		// Bots can hold roles, but their permissions, lifecycle, and role
-		// definitions are managed on the bot pages.
+		// Bots hold no roles. Their permissions and lifecycle are managed on
+		// the bot pages.
+		canAssignRoles = false
 		canManageRoles = false
 		canManageUserPermissions = false
 		member.ViewerCanDeleteAccount = false

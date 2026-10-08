@@ -3,7 +3,6 @@ package core
 import (
 	"encoding/base64"
 	"errors"
-	"slices"
 	"strings"
 	"testing"
 
@@ -779,12 +778,8 @@ func TestGenericAdminMutationsRejectBotAccounts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetAdminMemberDetails(bot): %v", err)
 	}
-	if details.ViewerCanManageRoles || details.ViewerCanManageUserPermissions || details.Member.ViewerCanDeleteAccount {
-		t.Fatalf("bot generic admin capabilities = %+v, want account mutation capabilities false", details)
-	}
-	// Bots can hold roles other than owner.
-	if !details.ViewerCanAssignRoles || slices.Contains(details.AssignableRoleNames, RoleOwner) {
-		t.Fatalf("bot role capabilities = %v %v, want assignable roles without owner", details.ViewerCanAssignRoles, details.AssignableRoleNames)
+	if details.ViewerCanAssignRoles || details.ViewerCanManageRoles || details.ViewerCanManageUserPermissions || details.Member.ViewerCanDeleteAccount {
+		t.Fatalf("bot generic admin capabilities = %+v, want all mutation capabilities false", details)
 	}
 }
 
@@ -820,8 +815,8 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermBotCreate, PermissionStateAllow); !errors.Is(err, ErrInvalidArgument) {
 		t.Fatalf("delegate bot.create err = %v, want ErrInvalidArgument", err)
 	}
-	if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, bot.User.GetId(), RoleOwner); !errors.Is(err, ErrHumanAccountRequired) {
-		t.Fatalf("assign bot owner role err = %v, want ErrHumanAccountRequired", err)
+	if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, bot.User.GetId(), RoleAdmin); !errors.Is(err, ErrHumanAccountRequired) {
+		t.Fatalf("assign bot role err = %v, want ErrHumanAccountRequired", err)
 	}
 
 	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermMessagePost, PermissionStateAllow); err != nil {

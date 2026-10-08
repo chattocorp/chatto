@@ -50,12 +50,11 @@ export const AdminUserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Assigns a role to a user or bot. Requires role.assign. A caller who is not
+     * Assigns a role to a human user. Requires role.assign. A caller who is not
      * an owner may assign only roles below their own highest role whose granted
      * authority they already possess, and must outrank the target (see
-     * chatto.api.v1.ListRolesResponse.viewer_highest_role) unless it is their own account. For a bot,
-     * the caller must always outrank the bot itself. Bots cannot hold the owner
-     * role.
+     * chatto.api.v1.ListRolesResponse.viewer_highest_role) unless it is their
+     * own account. Bots cannot hold roles.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.AssignRole
      */
@@ -66,7 +65,7 @@ export const AdminUserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Revokes a role from a user or bot. Requires role.assign. A caller who is
+     * Revokes a role from a human user. Requires role.assign. A caller who is
      * not an owner may revoke only roles below their own highest role whose
      * permission decisions are within their authority, and must outrank the
      * target unless it is their own account.

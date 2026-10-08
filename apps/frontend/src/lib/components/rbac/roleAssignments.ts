@@ -5,9 +5,7 @@ import type { AdminMemberDetails } from '$lib/api/adminUsers';
  * any role of the account.
  *
  * A viewer must outrank another account to change its roles
- * (`viewerOutranks`). For a bot, the server also checks the bot's owner. In
- * that case, the empty assignable and revocable lists from the server tell
- * that the role order blocks the change.
+ * (`viewerOutranks`).
  */
 export function roleOrderLocksRoles(
   details: AdminMemberDetails,
@@ -16,10 +14,5 @@ export function roleOrderLocksRoles(
 ): boolean {
   const member = details.member;
   if (!member || isSelf || !details.viewerCanAssignRoles) return false;
-  if (!viewerOutranks) return true;
-  return (
-    member.isBot === true &&
-    details.assignableRoleNames?.length === 0 &&
-    details.revocableRoleNames?.length === 0
-  );
+  return !viewerOutranks;
 }

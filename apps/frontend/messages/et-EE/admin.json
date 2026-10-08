@@ -147,8 +147,7 @@
         "roles": "Rollid",
         "permissions": "Load"
       },
-      "role_beyond_viewer_permissions": "Te ei saa seda rollimäärangut muuta. Roll lubab või keelab õigusi, mida teil ei ole.",
-      "bot_cannot_hold_owner": "Robotitel ei saa olla rolli owner."
+      "role_beyond_viewer_permissions": "Te ei saa seda rollimäärangut muuta. Roll lubab või keelab õigusi, mida teil ei ole."
     },
     "member_delete": {
       "title": "Kustuta liige",

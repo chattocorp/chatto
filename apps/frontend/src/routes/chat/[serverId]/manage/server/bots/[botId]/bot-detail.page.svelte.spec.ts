@@ -68,16 +68,13 @@ const api = {
   revokeBotIncomingWebhook: vi.fn(),
   updateUserProfile: vi.fn(),
   uploadAvatar: vi.fn(),
-  deleteAvatar: vi.fn(),
-  getMember: vi.fn(),
-  assignRole: vi.fn(),
-  revokeRole: vi.fn()
+  deleteAvatar: vi.fn()
 };
 let server: TestServerScope;
 let routeBotId = $state('bot-user-id');
 let routeId = $state('/chat/[serverId]/manage/server/bots/[botId]');
 
-type Section = 'overview' | 'integrations' | 'permissions' | 'roles';
+type Section = 'overview' | 'integrations' | 'permissions';
 
 function renderSection(section: Section) {
   routeId =
@@ -88,10 +85,7 @@ function renderSection(section: Section) {
 }
 
 vi.mock('$lib/components/rbac', async () => ({
-  UserPermissionsMatrix: (await import('./BotUserPermissionsMatrixMock.svelte')).default,
-  MemberRoleAssignments: (await import('$lib/components/rbac/MemberRoleAssignments.svelte'))
-    .default,
-  roleOrderLocksRoles: (await import('$lib/components/rbac/roleAssignments')).roleOrderLocksRoles
+  UserPermissionsMatrix: (await import('./BotUserPermissionsMatrixMock.svelte')).default
 }));
 
 vi.mock('$lib/ui/toast', () => ({
@@ -119,52 +113,6 @@ async function settle(): Promise<void> {
   flushSync();
 }
 
-function memberRole(name: string) {
-  return {
-    name,
-    displayName: name.charAt(0).toUpperCase() + name.slice(1),
-    permissions: [],
-    permissionDenials: []
-  };
-}
-
-function botMember() {
-  return {
-    id: mocks.bot.id,
-    login: mocks.bot.login,
-    displayName: mocks.bot.displayName,
-    avatarUrl: null,
-    isBot: true,
-    roles: ['everyone'],
-    createdAt: null,
-    deleted: false,
-    hasVerifiedEmail: false,
-    verifiedEmails: [],
-    primaryVerifiedEmail: null,
-    viewerCanDeleteAccount: false,
-    lastLoginChange: null
-  };
-}
-
-/** Member details of the bot for a viewer whose highest role ranks between admin and helper. */
-function botMemberDetails(lists: { assignableRoleNames: string[]; revocableRoleNames: string[] }) {
-  return {
-    member: botMember(),
-    roles: [
-      memberRole('owner'),
-      memberRole('admin'),
-      memberRole('moderator'),
-      memberRole('helper'),
-      memberRole('everyone')
-    ],
-    availablePermissions: [],
-    viewerCanAssignRoles: true,
-    viewerCanManageRoles: false,
-    viewerCanManageUserPermissions: false,
-    ...lists
-  };
-}
-
 describe('Bot detail page', () => {
   beforeEach(async () => {
     queryClient.clear();
@@ -173,8 +121,6 @@ describe('Bot detail page', () => {
     server = createTestServerScope({
       api,
       permissions: { canManageBots: true },
-      // The viewer is an admin: moderator and helper rank below them.
-      roleCatalog: { roles: ['owner', 'admin', 'moderator', 'helper'], viewerHighestRole: 'admin' },
       store: {
         navigation: {
           rooms: [
@@ -800,95 +746,6 @@ describe('Bot detail page', () => {
 
     expect(container.querySelector('[data-testid="bot-permissions-matrix"]')).toBeNull();
     expect(container.textContent).toContain('You do not have permission to access this page.');
-  });
-
-  it('keeps every bot section for its owner', async () => {
-    server.permissions.canManageBots = false;
-    api.getBot.mockResolvedValue({ ...mocks.bot, ownerUserId: 'viewer-1' });
-    const { container } = renderSection('permissions');
-    await settle();
-
-    expect(container.querySelector('[data-testid="bot-permissions-matrix"]')).not.toBeNull();
-    expect(container.textContent).not.toContain('The role order');
-  });
-
-  it('assigns roles to a bot within the role order', async () => {
-    server.permissions.canAdminViewUsers = true;
-    api.getMember.mockResolvedValue(
-      botMemberDetails({ assignableRoleNames: ['moderator'], revocableRoleNames: ['moderator'] })
-    );
-    api.assignRole.mockResolvedValue({
-      changed: true,
-      member: { ...botMember(), roles: ['everyone', 'moderator'] }
-    });
-    const { container } = renderSection('roles');
-    await settle();
-
-    const nav = container.querySelector('nav[aria-label="Bot sections"]');
-    expect(nav?.querySelector('a[aria-current="page"]')?.textContent?.trim()).toBe('Roles');
-    const admin = container.querySelector('#role-assignment-admin') as HTMLInputElement;
-    expect(admin.disabled).toBe(true);
-    expect(admin.closest('[title]')?.getAttribute('title')).toBe(
-      'The role order does not let you change this role.'
-    );
-    const moderator = container.querySelector('#role-assignment-moderator') as HTMLInputElement;
-    expect(moderator.disabled).toBe(false);
-    moderator.click();
-
-    await vi.waitFor(() => expect(api.assignRole).toHaveBeenCalledWith('bot-user-id', 'moderator'));
-    await vi.waitFor(() =>
-      expect(mocks.toastSuccess).toHaveBeenCalledWith('Assigned Moderator role')
-    );
-  });
-
-  it('explains why a role below the viewer cannot be assigned to the bot', async () => {
-    server.permissions.canAdminViewUsers = true;
-    api.getMember.mockResolvedValue(
-      botMemberDetails({ assignableRoleNames: ['moderator'], revocableRoleNames: ['moderator'] })
-    );
-    const { container } = renderSection('roles');
-    await settle();
-
-    const title = (name: string) =>
-      container
-        .querySelector(`#role-assignment-${name}`)
-        ?.closest('[title]')
-        ?.getAttribute('title');
-    expect(title('helper')).toBe(
-      'You cannot change this role assignment. The role allows or denies permissions that you do not have.'
-    );
-    expect(title('owner')).toBe('The role order does not let you change this role.');
-    expect(container.textContent).not.toContain('The role order does not let you change the roles');
-  });
-
-  it('explains the role order to a bot owner when the bot outranks them', async () => {
-    server.permissions.canManageBots = false;
-    server.permissions.canAdminViewUsers = true;
-    api.getBot.mockResolvedValue({ ...mocks.bot, ownerUserId: 'viewer-1' });
-    api.getMember.mockResolvedValue(
-      botMemberDetails({ assignableRoleNames: [], revocableRoleNames: [] })
-    );
-    const { container } = renderSection('roles');
-    await settle();
-
-    expect(container.textContent).toContain(
-      'The role order does not let you change the roles of this account.'
-    );
-    const moderator = container.querySelector('#role-assignment-moderator') as HTMLInputElement;
-    expect(moderator.disabled).toBe(true);
-    expect(moderator.closest('[title]')?.getAttribute('title')).toBe(
-      'The role order does not let you change the roles of this account.'
-    );
-  });
-
-  it('hides the bot roles section from viewers who cannot view members', async () => {
-    const { container } = renderSection('overview');
-    await settle();
-
-    expect(container.querySelector('nav[aria-label="Bot sections"]')?.textContent).not.toContain(
-      'Roles'
-    );
-    expect(api.getMember).not.toHaveBeenCalled();
   });
 
   it('reassigns the bot to a selected human owner', async () => {

@@ -33,7 +33,7 @@ export type PublicRoleCatalog = {
   /**
    * The role at which the viewer ranks: `owner` for owners of the server,
    * otherwise the viewer's highest role, or `everyone` without roles. A bot
-   * ranks at most at its owner's highest role. `null` when the server does not
+   * ranks at its owner's highest role. `null` when the server does not
    * report it.
    */
   viewerHighestRole: string | null;

@@ -43,9 +43,9 @@ setting is **Allow**, **Deny**, or **Inherit**.
 | Room: `everyone` Deny. Server: `admin` Allow | **Denied**. The room setting is more specific. Add a room-level allow for `admin`. |
 | Server: `admin` Allow, `suspended` Deny | **Denied** for a user with both roles. The deny wins. |
 
-Bots do not get permissions from `everyone`. A bot has the permissions that
-you allow directly on the bot and the permissions of the roles that you give
-it, but never more than its owner has. See
+Bots do not get permissions from `everyone`, and they cannot hold roles. A bot
+has only the permissions that you allow directly on the bot, and never more
+than its owner has. See
 [Bot accounts](/guides/integrations/bot-accounts/).
 
 ## Built-in roles

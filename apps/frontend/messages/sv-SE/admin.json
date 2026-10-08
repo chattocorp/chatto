@@ -147,8 +147,7 @@
         "roles": "Roller",
         "permissions": "Behörigheter"
       },
-      "role_beyond_viewer_permissions": "Du kan inte ändra den här rolltilldelningen. Rollen tillåter eller nekar behörigheter som du inte har.",
-      "bot_cannot_hold_owner": "Botar kan inte ha rollen owner."
+      "role_beyond_viewer_permissions": "Du kan inte ändra den här rolltilldelningen. Rollen tillåter eller nekar behörigheter som du inte har."
     },
     "member_delete": {
       "title": "Ta bort medlem",

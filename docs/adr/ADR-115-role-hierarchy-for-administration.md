@@ -59,11 +59,9 @@ unchanged (ADR-052): the rank never decides whether a permission is allowed.
   for a permission that they effectively hold at that scope. Deleting or
   revoking a role requires every permission that the role allows or denies.
   Assigning requires every permission that the role allows.
-- **Bots.** Bots may hold any role except `owner`. They still do not inherit
-  `everyone`, and their owner's current authority caps every role permission.
-  A bot ranks at its highest role, but acts with at most its owner's rank.
-  Managing a bot requires outranking the bot and its owner, unless the actor
-  owns the bot. Role changes on a bot always require outranking the bot.
+- **Bots.** Bots cannot hold roles. A bot ranks like its owner, both when it
+  acts and when someone acts on it. Managing a bot therefore requires
+  outranking its owner, unless the actor owns the bot.
 - **Moves, not complete orders.** `MoveRole` and `RbacRoleMovedEvent` place
   one role directly above another role, or lowest. This matches the room
   layout's `before` moves. A role created with `place_lowest` starts lowest.

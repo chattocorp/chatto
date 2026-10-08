@@ -326,62 +326,20 @@ func TestRoleManagersManageEveryRoleButAssignOnlyLowerRoles(t *testing.T) {
 	}
 }
 
-func TestBotsHoldRolesWithinTheirOwnersCeiling(t *testing.T) {
+func TestBotsCannotHoldRoles(t *testing.T) {
 	t.Parallel()
 
 	f := newHierarchyFixture(t)
 	c, ctx := f.c, f.ctx
 	allowBotCreation(t, ctx, c, f.member)
-	bot, err := c.CreateBot(ctx, f.member, "hierarchy_bot", "Hierarchy Bot")
+	bot, err := c.CreateBot(ctx, f.member, "roleless_bot", "Roleless Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
 	}
-	botID := bot.User.GetId()
-	if _, err := c.CreateServerRole(ctx, SystemActorID, "helpers", "Helpers", ""); err != nil {
-		t.Fatalf("CreateServerRole helpers: %v", err)
-	}
-	for _, perm := range []Permission{PermMessagePost, PermRoomCreate} {
-		if err := c.GrantServerPermission(ctx, SystemActorID, "helpers", perm); err != nil {
-			t.Fatalf("GrantServerPermission %s: %v", perm, err)
+	for _, roleName := range []string{RoleModerator, RoleAdmin, RoleOwner} {
+		if err := c.AdminAssignServerRole(ctx, f.owner, bot.User.GetId(), roleName); !errors.Is(err, ErrHumanAccountRequired) {
+			t.Fatalf("owner assigns %s to bot: error = %v, want ErrHumanAccountRequired", roleName, err)
 		}
-	}
-	resolve := func(perm Permission) DecisionKind {
-		t.Helper()
-		decision, err := c.PermResolver().Resolve(ctx, botID, KindChannel, "", perm)
-		if err != nil {
-			t.Fatalf("Resolve %s: %v", perm, err)
-		}
-		return decision
-	}
-
-	if err := c.AdminAssignServerRole(ctx, f.admin, botID, "helpers"); err != nil {
-		t.Fatalf("admin assigns helpers to bot: %v", err)
-	}
-	if got := resolve(PermMessagePost); got != DecisionAllow {
-		t.Fatalf("bot message.post from role = %s, want allow", got)
-	}
-	if got := resolve(PermRoomCreate); got != DecisionDeny {
-		t.Fatalf("bot room.create beyond owner ceiling = %s, want deny", got)
-	}
-	if err := c.AdminAssignServerRole(ctx, f.owner, botID, RoleOwner); !errors.Is(err, ErrHumanAccountRequired) {
-		t.Fatalf("assign owner to bot: error = %v, want ErrHumanAccountRequired", err)
-	}
-
-	// A restriction role wins over the bot's own allow.
-	if _, err := c.CreateServerRole(ctx, SystemActorID, "muted", "Muted", ""); err != nil {
-		t.Fatalf("CreateServerRole muted: %v", err)
-	}
-	if err := c.DenyServerPermission(ctx, SystemActorID, "muted", PermMessagePost); err != nil {
-		t.Fatalf("DenyServerPermission muted: %v", err)
-	}
-	if err := c.SetUserPermissionState(ctx, f.member, botID, PermissionTargetScope{Kind: MatrixScopeServer}, PermMessagePost, PermissionStateAllow); err != nil {
-		t.Fatalf("owner allows message.post: %v", err)
-	}
-	if err := c.AssignServerRole(ctx, SystemActorID, botID, "muted"); err != nil {
-		t.Fatalf("AssignServerRole muted: %v", err)
-	}
-	if got := resolve(PermMessagePost); got != DecisionDeny {
-		t.Fatalf("muted bot message.post = %s, want deny", got)
 	}
 }
 
@@ -415,15 +373,9 @@ func TestActingOnBotsRequiresOutrankingTheirOwners(t *testing.T) {
 		t.Fatalf("moderator manages admin's bot: error = %v, want permission denied", err)
 	}
 
-	// The owner of a bot manages it even when the bot outranks them.
-	if err := c.AssignServerRole(ctx, SystemActorID, memberBot, RoleModerator); err != nil {
-		t.Fatalf("AssignServerRole moderator to bot: %v", err)
-	}
+	// The owner of a bot always manages it.
 	if err := allowReact(f.member, memberBot); err != nil {
-		t.Fatalf("owner manages their higher-ranked bot: %v", err)
-	}
-	if err := allowReact(f.moderator, memberBot); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("moderator manages a peer-ranked bot: error = %v, want permission denied", err)
+		t.Fatalf("owner manages their bot: %v", err)
 	}
 
 	t.Run("reassignment stays below the actor", func(t *testing.T) {
@@ -463,7 +415,7 @@ func TestHighestRoleDecidesRank(t *testing.T) {
 	}
 }
 
-func TestBotsActWithAtMostTheirOwnersRank(t *testing.T) {
+func TestBotsActWithTheirOwnersRank(t *testing.T) {
 	t.Parallel()
 
 	f := newHierarchyFixture(t)
@@ -488,82 +440,25 @@ func TestBotsActWithAtMostTheirOwnersRank(t *testing.T) {
 	if err := c.SetUserPermissionState(ctx, f.member, botID, PermissionTargetScope{Kind: MatrixScopeRoom, ID: f.roomID}, PermRoomMemberRemove, PermissionStateAllow); err != nil {
 		t.Fatalf("delegate room.remove-member: %v", err)
 	}
-	if err := c.AssignServerRole(ctx, SystemActorID, botID, RoleModerator); err != nil {
-		t.Fatalf("AssignServerRole moderator to bot: %v", err)
-	}
 	if got := c.ViewerHighestRole(botID); got != RoleEveryone {
 		t.Fatalf("ViewerHighestRole(bot) = %q, want its owner's %q", got, RoleEveryone)
 	}
-	if err := c.RoomCommands().RemoveUser(ctx, RoomRemoveUserInput{ActorID: botID, RoomID: f.roomID, UserID: other.Id, Reason: "test"}); !errors.Is(err, ErrPermissionDenied) {
+	remove := func() error {
+		return c.RoomCommands().RemoveUser(ctx, RoomRemoveUserInput{ActorID: botID, RoomID: f.roomID, UserID: other.Id, Reason: "test"})
+	}
+	if err := remove(); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("bot removes a peer of its owner: error = %v, want permission denied", err)
 	}
-}
 
-func TestBotOwnersCannotChangeRolesOfHigherRankedBots(t *testing.T) {
-	t.Parallel()
-
-	f := newHierarchyFixture(t)
-	c, ctx := f.c, f.ctx
-	grantTestRank(t, c, ctx, f.member)
-	if err := c.GrantUserPermission(ctx, SystemActorID, f.member, PermRoleAssign); err != nil {
-		t.Fatalf("GrantUserPermission role.assign: %v", err)
+	// The bot's rank follows its owner.
+	if err := c.AssignServerRole(ctx, SystemActorID, f.member, RoleModerator); err != nil {
+		t.Fatalf("AssignServerRole moderator to owner: %v", err)
 	}
-	allowBotCreation(t, ctx, c, f.member)
-	bot, err := c.CreateBot(ctx, f.member, "restricted_bot", "Restricted Bot")
-	if err != nil {
-		t.Fatalf("CreateBot: %v", err)
+	if got := c.ViewerHighestRole(botID); got != RoleModerator {
+		t.Fatalf("ViewerHighestRole(bot) = %q, want its owner's %q", got, RoleModerator)
 	}
-	botID := bot.User.GetId()
-	if _, err := c.CreateServerRole(ctx, SystemActorID, "muted", "Muted", ""); err != nil {
-		t.Fatalf("CreateServerRole muted: %v", err)
-	}
-	for _, roleName := range []string{"muted", RoleAdmin} {
-		if err := c.AssignServerRole(ctx, SystemActorID, botID, roleName); err != nil {
-			t.Fatalf("AssignServerRole %s: %v", roleName, err)
-		}
-	}
-	if err := c.AdminRevokeServerRole(ctx, f.member, botID, "muted"); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("owner revokes restriction from higher-ranked bot: error = %v, want permission denied", err)
-	}
-	if err := c.AdminRevokeServerRole(ctx, f.admin, botID, "muted"); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("admin revokes role from peer-ranked bot: error = %v, want permission denied", err)
-	}
-	if err := c.AdminRevokeServerRole(ctx, f.owner, botID, "muted"); err != nil {
-		t.Fatalf("owner of the server revokes restriction: %v", err)
-	}
-}
-
-func TestDeletingAUserRequiresOutrankingTheirBots(t *testing.T) {
-	t.Parallel()
-
-	f := newHierarchyFixture(t)
-	c, ctx := f.c, f.ctx
-	if err := c.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermUserDeleteAny); err != nil {
-		t.Fatalf("GrantServerPermission user.delete-any: %v", err)
-	}
-	allowBotCreation(t, ctx, c, f.member)
-	bot, err := c.CreateBot(ctx, f.member, "cascade_bot", "Cascade Bot")
-	if err != nil {
-		t.Fatalf("CreateBot: %v", err)
-	}
-	if _, err := c.CreateServerRole(ctx, SystemActorID, "ops", "Ops", ""); err != nil {
-		t.Fatalf("CreateServerRole ops: %v", err)
-	}
-	if _, err := c.MoveServerRole(ctx, SystemActorID, "ops", RoleModerator); err != nil {
-		t.Fatalf("MoveServerRole ops: %v", err)
-	}
-	if err := c.AssignServerRole(ctx, SystemActorID, bot.User.GetId(), "ops"); err != nil {
-		t.Fatalf("AssignServerRole ops: %v", err)
-	}
-
-	if allowed, err := c.CanDeleteUser(ctx, f.moderator, f.member); err != nil || allowed {
-		t.Fatalf("moderator CanDeleteUser(member with higher bot) = %v, %v; want false", allowed, err)
-	}
-	if err := c.AdminDeleteUserAs(ctx, f.moderator, f.member); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("moderator deletes member with higher bot: error = %v, want permission denied", err)
-	}
-	if allowed, err := c.CanDeleteUser(ctx, f.admin, f.member); err != nil || !allowed {
-		t.Fatalf("admin CanDeleteUser(member) = %v, %v; want true", allowed, err)
+	if err := remove(); err != nil {
+		t.Fatalf("bot of a moderator removes a member: %v", err)
 	}
 }
 

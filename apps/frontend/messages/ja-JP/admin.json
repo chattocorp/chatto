@@ -147,8 +147,7 @@
         "roles": "役割",
         "permissions": "権限"
       },
-      "role_beyond_viewer_permissions": "このロールの割り当ては変更できません。このロールは、あなたが持っていない権限を許可または拒否します。",
-      "bot_cannot_hold_owner": "ボットは owner ロールを持てません。"
+      "role_beyond_viewer_permissions": "このロールの割り当ては変更できません。このロールは、あなたが持っていない権限を許可または拒否します。"
     },
     "member_delete": {
       "title": "メンバーを削除",

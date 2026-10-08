@@ -197,7 +197,8 @@ func (r *PermissionResolver) botDelegatedExplanation(botUserID string, kind Room
 		if _, known := GetPermissionMetadata(candidate); !known {
 			continue
 		}
-		_, entry, ok := r.botNamedDecision(botUserID, kind, roomID, groupID, candidate)
+		scopes := r.applicableScopeTargets(kind, roomID, groupID, candidate)
+		entry, ok := r.nearestDecision(botUserID, candidate, scopes)
 		if !ok {
 			continue
 		}

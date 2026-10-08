@@ -181,12 +181,14 @@ deletion page is outside this route group and has its own frame.
         current: routeId === `${base}/account`
       });
     }
-    items.push({
-      href: resolve(`${base}/roles`, params),
-      label: m('admin.members.tabs.roles'),
-      icon: 'icon-[uil--award]',
-      current: routeId === `${base}/roles`
-    });
+    if (!isBot) {
+      items.push({
+        href: resolve(`${base}/roles`, params),
+        label: m('admin.members.tabs.roles'),
+        icon: 'icon-[uil--award]',
+        current: routeId === `${base}/roles`
+      });
+    }
     if (!isBot && details.viewerCanManageUserPermissions) {
       items.push({
         href: resolve(`${base}/permissions`, params),

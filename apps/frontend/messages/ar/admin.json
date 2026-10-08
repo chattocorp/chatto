@@ -147,8 +147,7 @@
         "roles": "الأدوار",
         "permissions": "الأذونات"
       },
-      "role_beyond_viewer_permissions": "لا يمكنك تغيير تعيين هذا الدور. يسمح الدور بأذونات لا تملكها أو يرفضها.",
-      "bot_cannot_hold_owner": "لا يمكن للروبوتات أن تحمل الدور owner."
+      "role_beyond_viewer_permissions": "لا يمكنك تغيير تعيين هذا الدور. يسمح الدور بأذونات لا تملكها أو يرفضها."
     },
     "member_delete": {
       "title": "حذف عضو",

@@ -147,8 +147,7 @@
         "roles": "Ruoli",
         "permissions": "Autorizzazioni"
       },
-      "role_beyond_viewer_permissions": "Non puoi modificare questa assegnazione di ruolo. Il ruolo consente o nega autorizzazioni che non hai.",
-      "bot_cannot_hold_owner": "I bot non possono avere il ruolo owner."
+      "role_beyond_viewer_permissions": "Non puoi modificare questa assegnazione di ruolo. Il ruolo consente o nega autorizzazioni che non hai."
     },
     "member_delete": {
       "title": "Elimina membro",

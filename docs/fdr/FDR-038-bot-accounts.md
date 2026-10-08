@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-07
+**Last reviewed:** 2026-10-08
 
 ## Overview
 
@@ -163,15 +163,8 @@ exercise more authority than its human owner currently possesses.
 - A direct-mention policy of Off creates no occurrence and no mention-driven
   follow. It does not remove the interaction relationship created by the
   durable mention fact.
-- Bots do not inherit the implicit `everyone` role or any other baseline
-  grants. An absent bot permission is denied.
-- A holder of `role.assign` can give a bot any role except `owner`, with the
-  usual role-assignment bounds (FDR-001). Role allows and denies combine with
-  the bot's own grants like a human's named roles: any deny wins. The owner's
-  permission ceiling also caps every role permission, and bots can never use
-  `bot.create`, `bot.manage`, or `user.delete-self`.
-- A bot ranks at its highest role, but acts with at most its owner's rank. A
-  bot with roles receives `@role` mentions like a human member of the role.
+- Bots do not inherit the implicit `everyone` role, named-role permissions, or
+  any other baseline grants. An absent bot permission is denied.
 - The account permission matrix has a **Joined** row above the permission rows.
   Owners and human bot managers can add and remove the bot in each visible
   channel room that is not archived. A confirmation dialog explains that the
@@ -222,14 +215,13 @@ exercise more authority than its human owner currently possesses.
   the normal room-directory policy to both the bot owner and the managing
   caller. It exposes the complete directory group layout, including empty
   groups, so group-scoped permissions such as `room.create` remain usable.
-- A human user with `bot.manage` can manage a bot when they rank above the
-  bot and its owner (ADR-115). Changes made by a global bot manager remain
-  bounded by that bot's owner's permission ceiling. The owner of a bot manages
-  it at any rank, but changing a bot's roles always requires a rank above the
-  bot.
+- Bots cannot hold roles. A bot ranks like its owner (ADR-115), both when it
+  acts and when someone acts on it.
+- A human user with `bot.manage` can manage a bot when they rank above its
+  owner. Changes made by a global bot manager remain bounded by that bot's
+  owner's permission ceiling.
 - A human user with `bot.manage` can reassign a bot to another active human
-  account when they also rank above the new owner, unless that is their own
-  account. Ownership alone does not authorize reassignment, and the recipient
+  account that ranks below them, unless that is their own account. Ownership alone does not authorize reassignment, and the recipient
   does not need to accept it or hold `bot.create`.
 - Reassignment preserves the bot's configured permission allowlist and active
   API keys. Effective permissions immediately use the new owner's permission
@@ -284,20 +276,17 @@ eligible for a password or external identity. Profile and avatar operations stay
 shared in `UserService`. They take a target user ID, so the bot itself and its
 human managers use the same methods.
 
-### 3. Explicit allowlist and assigned roles instead of a baseline
+### 3. Explicit allowlist instead of normal role inheritance
 
-**Decision:** Bots receive permissions from explicit decisions in the
-canonical user permission matrix and from roles that a role assigner gives
-them. They do not receive the implicit `everyone` baseline, and absence means
-deny. Bots cannot hold the `owner` role.
+**Decision:** Bots receive permissions only from explicit decisions in the
+canonical user permission matrix. They do not receive the implicit `everyone`
+baseline or named-role grants, and absence means deny.
 **Why:** API keys are long-lived automation credentials and should start with
-no ambient authority. Roles let operators configure many bots at once, apply
-restriction roles to bots, and give bots a rank (ADR-115). A new bot still has
-no roles, so it starts without authority.
+no ambient authority. Owners should be able to explain a bot's access from one
+explicit matrix rather than by combining roles and server defaults.
 **Tradeoff:** Owners must grant even ordinary member capabilities before a new
 bot can do useful work, and newly introduced permissions do not automatically
-become available to existing bots. A bot's access can come from its own grants
-and from its roles, so the effective matrix shows the combined result. Owners cannot carve out a denied narrower
+become available to existing bots. Owners cannot carve out a denied narrower
 scope beneath a broader bot grant; they must clear the broader grant and add
 only the narrower grants the bot should retain.
 
@@ -316,8 +305,8 @@ must show the owner's ceiling and explain unavailable cells.
 ### 5. Bot creation is administrative by default
 
 **Decision:** `bot.create` lets a human create bots, ownership lets them manage
-their existing bots, and `bot.manage` lets a human manage bots that rank below
-them and whose owners rank below them (ADR-115). Fresh RBAC
+their existing bots, and `bot.manage` lets a human manage bots whose owners
+rank below them (ADR-115). Fresh RBAC
 state grants `bot.create` and `bot.manage` to `admin`. Effective owners receive
 both through the normal virtual owner override. Bots do not inherit `everyone`
 and cannot exercise either capability themselves. Upgraded 0.4 servers receive
@@ -475,9 +464,8 @@ edit. Retracted or inaccessible messages are not sent.
 ## Permissions
 
 - `bot.create` — create bot accounts and become their owner.
-- `bot.manage` — view every bot, and manage and reassign bots when the caller
-  ranks above the bot and its owner, while preserving the current owner's
-  permission ceiling.
+- `bot.manage` — view every bot, and manage and reassign bots whose owners rank
+  below the caller, while preserving the current owner's permission ceiling.
 - `message.read` — give the bot broad message access in configured channel
   rooms or in DMs, subject to membership and the owner's effective broad-read
   authority at the same scope.

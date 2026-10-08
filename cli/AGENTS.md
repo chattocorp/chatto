@@ -358,7 +358,7 @@ authorization, live events, backup and restore, and backend tests.
   or revokes only roles below their highest role. Holders of `role.manage`
   edit, delete, and move every role except `owner`; other editors of role
   decisions, such as room managers, need the role to rank below them. Bots
-  act with at most their owner's rank. Add the rank check to every new
+  hold no roles and rank like their owner. Add the rank check to every new
   operation that acts on another account.
 - Delegated authority is bounded: assigning a role requires every allow of the
   role, revoking or deleting it requires every allow and deny, and changing one
