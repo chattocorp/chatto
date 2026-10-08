@@ -334,6 +334,12 @@ Do these steps on every upgraded server:
   keeps `admin` above `moderator` and both above custom roles. Move roles on
   the **Roles** page if necessary. See
   [Role order](/guides/operations/permissions/#role-order).
+- **Give administrators a role.** Only roles give rank. A user who has
+  administrative permissions directly, without a role, ranks lowest and can
+  change almost no other account.
+- **Expect peers to be protected.** Users with the same highest role cannot
+  change each other. Only an owner can change users whose highest role is the
+  top role. By default, this role is `admin`.
 - **Check delegated permission editors.** A user who is not an owner can now
   change only the permission settings of permissions that they have at that
   scope. To delete a role, this user must have every permission that the role
@@ -393,6 +399,11 @@ See [Permissions](/guides/operations/permissions/) for the complete list.
 Regenerate every custom client from the 0.5 protobufs. The public API and the
 realtime protocol have breaking changes, and 0.5 servers accept only realtime
 protocol 4. See [API compatibility](/guides/integrations/api-compatibility/).
+
+- `ReorderRoles` and `Role.position` are removed. Use `MoveRole`, and read the
+  role order from the order of role lists, highest first.
+- Calls that change another account return `PERMISSION_DENIED` when the caller
+  does not rank higher than that account.
 
 ## GitHub release
 
