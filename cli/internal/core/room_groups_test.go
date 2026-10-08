@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
@@ -338,6 +339,31 @@ func TestCreateRoomAndDeleteRoomGroupDoNotBothWin(t *testing.T) {
 				t.Fatalf("iteration %d: created room but group rooms = %v", i, got.GetRoomIds())
 			}
 		}
+	}
+}
+
+// TestMoveRoomToGroupReportsDeletedRoomAsErrNotFound pins the error for a
+// move of a deleted room. connectapi maps it to Connect NotFound.
+func TestMoveRoomToGroupReportsDeletedRoomAsErrNotFound(t *testing.T) {
+	t.Parallel()
+
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	target, err := core.CreateRoomGroup(ctx, "actor", "Target", "")
+	if err != nil {
+		t.Fatalf("CreateRoomGroup: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, "actor", KindChannel, "", "deleted-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if err := core.DeleteRoom(ctx, "actor", KindChannel, room.Id); err != nil {
+		t.Fatalf("DeleteRoom: %v", err)
+	}
+
+	err = core.MoveRoomToGroup(ctx, "actor", room.Id, target.Id)
+	if !errors.Is(err, ErrNotFound) || errors.Is(err, jetstream.ErrKeyNotFound) {
+		t.Fatalf("MoveRoomToGroup error = %v, want ErrNotFound and not jetstream.ErrKeyNotFound", err)
 	}
 }
 
