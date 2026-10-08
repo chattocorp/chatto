@@ -132,7 +132,7 @@ func (c *ChattoCore) requireRoleDecisionsWithinAuthority(ctx context.Context, ac
 		if _, known := GetPermissionMetadata(decision.Permission); !known {
 			continue
 		}
-		if err := c.requirePermissionDecisionWithinAuthority(ctx, actorID, decision.Scope, decision.ScopeID, decision.Permission); err != nil {
+		if err := c.requireRoleDecisionWithinAuthority(ctx, actorID, decision.Scope, decision.ScopeID, decision.Permission); err != nil {
 			return err
 		}
 	}
@@ -145,28 +145,39 @@ func (c *ChattoCore) requireRoleDecisionsWithinAuthority(ctx context.Context, ac
 // denies, and clears alike, so a delegated manager can neither grant authority
 // they lack nor remove a restriction that they could not grant back. Effective
 // owners pass because they hold every permission while privileged mode is
-// active, which every RBAC management permission already requires.
-//
-// One exception lets room managers open their rooms: at room or room-group
-// scope, holding room.manage there is enough for a room permission that does
-// not need privileged mode, such as room.join or message.post (ADR-116). A
-// holder of room.manage can already add any account to the room, so this
-// gives no new access to the room.
+// active, which every RBAC management permission already requires. User and
+// bot decisions use it; role decisions use requireRoleDecisionWithinAuthority.
 func (c *ChattoCore) requirePermissionDecisionWithinAuthority(ctx context.Context, actorID string, scope PermissionScope, scopeID string, perm Permission) error {
-	can, err := c.actorCanSetDecision(ctx, actorID, ScopedRolePermissionDecision{Scope: scope, ScopeID: scopeID, Permission: perm})
+	return requireAuthority(c.actorHasScopedPermission(ctx, actorID, ScopedRolePermissionDecision{Scope: scope, ScopeID: scopeID, Permission: perm}))
+}
+
+// requireRoleDecisionWithinAuthority bounds a change to one role decision like
+// requirePermissionDecisionWithinAuthority, with one exception that lets room
+// managers open their rooms: at room or room-group scope, holding room.manage
+// there is enough for a room permission that does not need privileged mode,
+// such as room.join or message.post (ADR-116). A holder of room.manage can
+// already add any account to the room, and a role allow never overrides a
+// deny on a user, so this gives no new access. The exception does not apply
+// to user decisions: there, an allow can lift a deny on the user.
+func (c *ChattoCore) requireRoleDecisionWithinAuthority(ctx context.Context, actorID string, scope PermissionScope, scopeID string, perm Permission) error {
+	return requireAuthority(c.actorCanSetRoleDecision(ctx, actorID, ScopedRolePermissionDecision{Scope: scope, ScopeID: scopeID, Permission: perm}))
+}
+
+// requireAuthority turns an authority check into ErrPermissionDenied.
+func requireAuthority(has bool, err error) error {
 	if err != nil {
 		return err
 	}
-	if !can {
+	if !has {
 		return ErrPermissionDenied
 	}
 	return nil
 }
 
-// actorCanSetDecision reports whether the actor's authority covers a change
-// to decision (requirePermissionDecisionWithinAuthority). The permission
+// actorCanSetRoleDecision reports whether the actor's authority covers a
+// change to a role decision (requireRoleDecisionWithinAuthority). The role
 // matrices use it to tell which cells the viewer can change.
-func (c *ChattoCore) actorCanSetDecision(ctx context.Context, actorID string, decision ScopedRolePermissionDecision) (bool, error) {
+func (c *ChattoCore) actorCanSetRoleDecision(ctx context.Context, actorID string, decision ScopedRolePermissionDecision) (bool, error) {
 	has, err := c.actorHasScopedPermission(ctx, actorID, decision)
 	if err != nil || has || !roomManagersCanSet(decision.Scope, decision.Permission) {
 		return has, err

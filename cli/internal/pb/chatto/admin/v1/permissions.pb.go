@@ -584,9 +584,9 @@ func (x *GetAccessSummaryRequest) GetScope() *PermissionScope {
 	return nil
 }
 
-// Who can find and join a channel room, or the rooms of a room group. Explicit
-// room members, and owners in privileged mode, have access whatever the
-// summary says.
+// Who can find and join a channel room, or the rooms of a room group. Owners
+// in privileged mode have access whatever the summary says. Explicit room
+// members still need message.read to read the room.
 type GetAccessSummaryResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Whether every member can find the room (room.list).

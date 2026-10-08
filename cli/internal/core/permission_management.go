@@ -193,7 +193,7 @@ func (c *ChattoCore) buildTierRolesForViewer(ctx context.Context, actorID string
 		scopeID = groupID
 	}
 	for _, permission := range out.ApplicablePermissions {
-		holds, err := c.actorCanSetDecision(ctx, actorID, ScopedRolePermissionDecision{Scope: scope, ScopeID: scopeID, Permission: Permission(permission)})
+		holds, err := c.actorCanSetRoleDecision(ctx, actorID, ScopedRolePermissionDecision{Scope: scope, ScopeID: scopeID, Permission: Permission(permission)})
 		if err != nil {
 			return nil, err
 		}
@@ -204,9 +204,11 @@ func (c *ChattoCore) buildTierRolesForViewer(ctx context.Context, actorID string
 	return out, nil
 }
 
-// viewerCanChangeAtMatrixScope reports whether the viewer holds perm at the
-// matrix scope, which the grant limit requires to change a setting there.
-func (c *ChattoCore) viewerCanChangeAtMatrixScope(ctx context.Context, actorID string, perm Permission, scope PermissionMatrixScope) (bool, error) {
+// viewerCanChangeAtMatrixScope reports whether the grant limit lets the viewer
+// change a setting of perm at the matrix scope: a role setting when forRole
+// is true (requireRoleDecisionWithinAuthority), otherwise a user setting
+// (requirePermissionDecisionWithinAuthority).
+func (c *ChattoCore) viewerCanChangeAtMatrixScope(ctx context.Context, actorID string, perm Permission, scope PermissionMatrixScope, forRole bool) (bool, error) {
 	decision := ScopedRolePermissionDecision{Permission: perm}
 	switch scope.Kind {
 	case MatrixScopeServer:
@@ -220,7 +222,10 @@ func (c *ChattoCore) viewerCanChangeAtMatrixScope(ctx context.Context, actorID s
 	default:
 		return false, nil
 	}
-	return c.actorCanSetDecision(ctx, actorID, decision)
+	if forRole {
+		return c.actorCanSetRoleDecision(ctx, actorID, decision)
+	}
+	return c.actorHasScopedPermission(ctx, actorID, decision)
 }
 
 // GetRolePermissionDMTierMatrix returns the role matrix for the singleton
@@ -352,7 +357,7 @@ func (c *ChattoCore) SetRolePermissionState(ctx context.Context, actorID, roleNa
 		if err := c.requireRoleManageable(ctx, actorID, roleName); err != nil {
 			return err
 		}
-		return c.requirePermissionDecisionWithinAuthority(ctx, actorID, coreScope, scope.ID, perm)
+		return c.requireRoleDecisionWithinAuthority(ctx, actorID, coreScope, scope.ID, perm)
 	}
 	if err := check(); err != nil {
 		return err
@@ -774,7 +779,7 @@ func (c *ChattoCore) buildRolePermissionMatrix(ctx context.Context, actorID, rol
 			// allows of everyone and inclusion, from the resolver itself.
 			kind, roomID, groupID := matrixScopeTarget(scope)
 			cell.Effective = matrixDecisionFromCoreDecision(c.PermResolver().resolveRoleHolder(roleName, kind, roomID, groupID, perm))
-			canChange, err := c.viewerCanChangeAtMatrixScope(ctx, actorID, perm, scope)
+			canChange, err := c.viewerCanChangeAtMatrixScope(ctx, actorID, perm, scope, true)
 			if err != nil {
 				return nil, err
 			}
@@ -838,7 +843,7 @@ func (c *ChattoCore) buildUserPermissionMatrix(ctx context.Context, actorID stri
 					}
 					cell.AllowPermitted = &allowed
 				} else {
-					canChange, err := c.viewerCanChangeAtMatrixScope(ctx, actorID, perm, scope)
+					canChange, err := c.viewerCanChangeAtMatrixScope(ctx, actorID, perm, scope, false)
 					if err != nil {
 						return nil, err
 					}

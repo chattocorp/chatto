@@ -56,7 +56,7 @@ export type TierRoles = {
 /**
  * Who can find and join a channel room, or the rooms of a room group. New rooms
  * and room groups start closed, so admin pages show this to warn operators.
- * Explicit room members, and owners in privileged mode, have access anyway.
+ * Owners in privileged mode have access anyway.
  */
 export type AccessSummary = {
   everyoneCanList: boolean;

@@ -229,12 +229,12 @@
       "room_open_unlisted": "Tutti possono unirsi a questa stanza, ma non compare per tutti nell’elenco delle stanze.",
       "room_join_no_read": "Tutti possono unirsi a questa stanza, ma non possono leggerla. Per aprirla, consenti anche message.read e, per permettere ai membri di scrivere, message.post.",
       "room_roles": "Solo i membri di questi ruoli possono unirsi a questa stanza: {roles}.",
-      "room_closed": "Solo i proprietari e i membri che aggiungi possono aprire questa stanza. Per aprirla, consenti room.list, room.join e message.read a everyone o a un ruolo nelle autorizzazioni della stanza e, per permettere di scrivere, message.post.",
+      "room_closed": "Nessuno può ancora trovare questa stanza, unirsi a essa o leggerla, tranne i proprietari in modalità privilegiata. Per aprirla, consenti room.list, room.join e message.read a everyone o a un ruolo nelle autorizzazioni della stanza e, per permettere di scrivere, message.post.",
       "group_open": "Tutti possono trovare le stanze di questo gruppo di stanze e unirsi.",
       "group_open_unlisted": "Tutti possono unirsi alle stanze di questo gruppo di stanze, ma non compaiono per tutti nell’elenco delle stanze.",
       "group_join_no_read": "Tutti possono unirsi alle stanze di questo gruppo di stanze, ma non possono leggerle. Per aprirle, consenti anche message.read e, per permettere ai membri di scrivere, message.post.",
       "group_roles": "Solo i membri di questi ruoli possono unirsi alle stanze di questo gruppo di stanze: {roles}.",
-      "group_closed": "Solo i proprietari e i membri che aggiungi possono aprire le stanze di questo gruppo di stanze. Per aprirle, consenti qui sotto room.list, room.join e message.read a everyone o a un ruolo e, per permettere di scrivere, message.post."
+      "group_closed": "Nessuno può ancora trovare le stanze di questo gruppo di stanze, unirsi a esse o leggerle, tranne i proprietari in modalità privilegiata. Per aprirle, consenti qui sotto room.list, room.join e message.read a everyone o a un ruolo e, per permettere di scrivere, message.post."
     }
   }
 }

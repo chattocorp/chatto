@@ -229,12 +229,12 @@
       "room_open_unlisted": "Wszyscy mogą dołączyć do tego pokoju, ale nie wyświetla się on wszystkim na liście pokojów.",
       "room_join_no_read": "Wszyscy mogą dołączyć do tego pokoju, ale nie mogą go czytać. Aby go otworzyć, zezwól też na message.read, a aby członkowie mogli pisać, także na message.post.",
       "room_roles": "Do tego pokoju mogą dołączyć tylko członkowie tych ról: {roles}.",
-      "room_closed": "Ten pokój mogą otworzyć tylko właściciele i dodani przez ciebie członkowie. Aby go otworzyć, zezwól na room.list, room.join i message.read dla everyone lub dla roli w uprawnieniach pokoju, a aby mogli pisać, także na message.post.",
+      "room_closed": "Nikt nie może jeszcze znaleźć tego pokoju, dołączyć do niego ani go czytać, z wyjątkiem właścicieli w trybie uprzywilejowanym. Aby go otworzyć, zezwól na room.list, room.join i message.read dla everyone lub dla roli w uprawnieniach pokoju, a aby mogli pisać, także na message.post.",
       "group_open": "Wszyscy mogą znaleźć pokoje w tej grupie pokojów i do nich dołączyć.",
       "group_open_unlisted": "Wszyscy mogą dołączyć do pokojów w tej grupie pokojów, ale nie wyświetlają się one wszystkim na liście pokojów.",
       "group_join_no_read": "Wszyscy mogą dołączyć do pokojów w tej grupie pokojów, ale nie mogą ich czytać. Aby je otworzyć, zezwól też na message.read, a aby członkowie mogli pisać, także na message.post.",
       "group_roles": "Do pokojów w tej grupie pokojów mogą dołączyć tylko członkowie tych ról: {roles}.",
-      "group_closed": "Pokoje w tej grupie pokojów mogą otworzyć tylko właściciele i dodani przez ciebie członkowie. Aby je otworzyć, zezwól poniżej na room.list, room.join i message.read dla everyone lub dla roli, a aby mogli pisać, także na message.post."
+      "group_closed": "Nikt nie może jeszcze znaleźć pokojów w tej grupie pokojów, dołączyć do nich ani ich czytać, z wyjątkiem właścicieli w trybie uprzywilejowanym. Aby je otworzyć, zezwól poniżej na room.list, room.join i message.read dla everyone lub dla roli, a aby mogli pisać, także na message.post."
     }
   }
 }

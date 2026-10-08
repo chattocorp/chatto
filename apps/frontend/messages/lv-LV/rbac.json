@@ -229,12 +229,12 @@
       "room_open_unlisted": "Ikviens var pievienoties šai istabai, taču tā nav redzama visiem istabu sarakstā.",
       "room_join_no_read": "Ikviens var pievienoties šai istabai, taču nevar to lasīt. Lai to atvērtu, atļaujiet arī message.read, bet lai dalībnieki varētu rakstīt, atļaujiet message.post.",
       "room_roles": "Šai istabai var pievienoties tikai šo lomu dalībnieki: {roles}.",
-      "room_closed": "Šo istabu var atvērt tikai īpašnieki un dalībnieki, kurus jūs pievienojat. Lai to atvērtu, istabas atļaujās atļaujiet room.list, room.join un message.read lomai everyone vai kādai citai lomai, bet lai varētu rakstīt, atļaujiet message.post.",
+      "room_closed": "Šo istabu pagaidām nevar atrast, tai pievienoties vai to lasīt neviens, izņemot īpašniekus privileģētajā režīmā. Lai to atvērtu, istabas atļaujās atļaujiet room.list, room.join un message.read lomai everyone vai kādai citai lomai, bet lai varētu rakstīt, atļaujiet message.post.",
       "group_open": "Ikviens var atrast šīs istabu grupas istabas un tām pievienoties.",
       "group_open_unlisted": "Ikviens var pievienoties šīs istabu grupas istabām, taču tās nav redzamas visiem istabu sarakstā.",
       "group_join_no_read": "Ikviens var pievienoties šīs istabu grupas istabām, taču nevar tās lasīt. Lai tās atvērtu, atļaujiet arī message.read, bet lai dalībnieki varētu rakstīt, atļaujiet message.post.",
       "group_roles": "Šīs istabu grupas istabām var pievienoties tikai šo lomu dalībnieki: {roles}.",
-      "group_closed": "Šīs istabu grupas istabas var atvērt tikai īpašnieki un dalībnieki, kurus jūs pievienojat. Lai tās atvērtu, zemāk atļaujiet room.list, room.join un message.read lomai everyone vai kādai citai lomai, bet lai varētu rakstīt, atļaujiet message.post."
+      "group_closed": "Šīs istabu grupas istabas pagaidām nevar atrast, tām pievienoties vai tās lasīt neviens, izņemot īpašniekus privileģētajā režīmā. Lai tās atvērtu, zemāk atļaujiet room.list, room.join un message.read lomai everyone vai kādai citai lomai, bet lai varētu rakstīt, atļaujiet message.post."
     }
   }
 }

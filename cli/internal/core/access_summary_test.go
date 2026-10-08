@@ -122,9 +122,31 @@ func TestRoomManagersCanOpenTheirRooms(t *testing.T) {
 	if err := set(f.member, room.Id, PermRoomJoin); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("member opens a room: error = %v, want ErrPermissionDenied", err)
 	}
-	// Admins manage every room, so they can open new rooms.
+	// Admins manage every room, so they can open new rooms and room groups.
 	if err := set(f.admin, other.Id, PermRoomJoin); err != nil {
 		t.Fatalf("admin opens a room: %v", err)
+	}
+	group, err := c.CreateRoomGroup(ctx, f.owner, "Managed group", "")
+	if err != nil {
+		t.Fatalf("CreateRoomGroup: %v", err)
+	}
+	if err := c.SetRolePermissionState(ctx, f.admin, RoleEveryone, PermissionTargetScope{Kind: MatrixScopeGroup, ID: group.Id}, PermRoomJoin, PermissionStateAllow); err != nil {
+		t.Fatalf("admin opens a room group: %v", err)
+	}
+	// The exception covers only rooms and room groups.
+	for _, scope := range []PermissionTargetScope{{Kind: MatrixScopeServer}, {Kind: MatrixScopeDM}} {
+		if err := c.SetRolePermissionState(ctx, manager.Id, RoleEveryone, scope, PermMessagePost, PermissionStateAllow); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("room manager sets message.post at %s: error = %v, want ErrPermissionDenied", scope.Kind, err)
+		}
+	}
+
+	// It does not cover user settings, where an allow can lift a deny on a
+	// user: an admin muted by an owner cannot unmute themselves in a room.
+	if err := c.DenyUserPermission(ctx, SystemActorID, f.admin, PermMessagePost); err != nil {
+		t.Fatalf("DenyUserPermission: %v", err)
+	}
+	if err := c.SetUserPermissionState(ctx, f.admin, f.admin, PermissionTargetScope{Kind: MatrixScopeRoom, ID: other.Id}, PermMessagePost, PermissionStateAllow); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("muted admin allows themselves message.post: error = %v, want ErrPermissionDenied", err)
 	}
 
 	tiers, err := c.GetRolePermissionTierMatrix(ctx, manager.Id, room.Id, "")

@@ -492,9 +492,9 @@ export class GetAccessSummaryRequest extends Message<GetAccessSummaryRequest> {
 }
 
 /**
- * Who can find and join a channel room, or the rooms of a room group. Explicit
- * room members, and owners in privileged mode, have access whatever the
- * summary says.
+ * Who can find and join a channel room, or the rooms of a room group. Owners
+ * in privileged mode have access whatever the summary says. Explicit room
+ * members still need message.read to read the room.
  *
  * @generated from message chatto.admin.v1.GetAccessSummaryResponse
  */

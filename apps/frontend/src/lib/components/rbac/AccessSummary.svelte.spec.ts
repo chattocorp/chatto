@@ -47,7 +47,7 @@ it('warns when nobody else can join a new room', async () => {
   mocks.getAccessSummary.mockResolvedValue(summary());
   render(AccessSummary, { roomId: 'room-1' });
 
-  await expect.element(page.getByText(/Only owners and the members that you add/)).toBeVisible();
+  await expect.element(page.getByText(/Nobody can find, join, or read this room yet/)).toBeVisible();
   expect(mocks.getAccessSummary).toHaveBeenCalledWith(
     { roomId: 'room-1', groupId: null },
     expect.anything()

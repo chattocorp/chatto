@@ -9,8 +9,8 @@ import (
 // AccessSummary tells who can find and join a channel room, or the rooms of a
 // room group. New rooms and room groups start closed (ADR-116), so the admin
 // pages show it to warn operators about rooms that nobody else can reach.
-// Explicit room members, and owners in privileged mode, have access whatever
-// the summary says.
+// Owners in privileged mode have access whatever the summary says. Explicit
+// room members still need message.read to read the room.
 type AccessSummary struct {
 	// EveryoneCanList and EveryoneCanJoin report whether every member can
 	// find (room.list) and join (room.join) the room.

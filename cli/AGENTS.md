@@ -376,12 +376,17 @@ authorization, live events, backup and restore, and backend tests.
 - Delegated authority is bounded: assigning, revoking, or deleting a role
   requires every allow of the role, and changing one role or direct-user
   decision requires the actor to hold that permission at that scope. One
-  exception lets room managers open rooms: at Room or Room group scope,
-  `room.manage` there covers each room permission that does not need
-  privileged mode (`actorCanSetDecision`, ADR-116). Check every bound,
-  matrix cell flag, and bot grant through `actorCanSetDecision` or
-  `requirePermissionDecisionWithinAuthority`, not through a direct permission
-  check. The `owner` role is owner-only. Keep these bounds in
+  exception lets room managers open rooms: for a role decision at Room or
+  Room group scope, `room.manage` there covers each room permission that does
+  not need privileged mode (ADR-116). The exception applies only to role
+  decisions. It does not apply to direct-user decisions or bot grants,
+  because an allow on a user can lift a deny on that user. Check role
+  decisions, the role assign, revoke, and delete bounds, and role matrix cell
+  flags through `actorCanSetRoleDecision` or
+  `requireRoleDecisionWithinAuthority`. Check direct-user decisions and bot
+  grants through `requirePermissionDecisionWithinAuthority`, and user matrix
+  cell flags through the same check (`viewerCanChangeAtMatrixScope` with
+  `forRole` false). Do not use a direct permission check. The `owner` role is owner-only. Keep these bounds in
   `role_assignment_authorization.go` and `rbac_hierarchy.go`, and run them
   inside the command's OCC retry.
 - Authorization-sensitive event writes must evaluate authorization inside the

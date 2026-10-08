@@ -839,7 +839,7 @@ test.describe('Permission-only Resolution', () => {
 
       const summary = page.getByTestId('access-summary');
       await page.goto(`${routes.serverAdminRooms}/${roomId}`);
-      await expect(summary).toContainText('Only owners and the members that you add');
+      await expect(summary).toContainText('Nobody can find, join, or read this room yet');
 
       await grantRoomPermission(page, roomId, 'everyone', 'room.list');
       await grantRoomPermission(page, roomId, 'everyone', 'room.join');

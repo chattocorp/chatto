@@ -229,12 +229,12 @@
       "room_open_unlisted": "Všichni se mohou k této místnosti připojit, ale nezobrazuje se všem v seznamu místností.",
       "room_join_no_read": "Všichni se mohou k této místnosti připojit, ale nemohou ji číst. Chcete-li ji otevřít, povolte také message.read, a aby mohli členové psát, message.post.",
       "room_roles": "K této místnosti se mohou připojit jen členové těchto rolí: {roles}.",
-      "room_closed": "Tuto místnost mohou otevřít jen vlastníci a členové, které přidáte. Chcete-li ji otevřít, povolte v oprávněních místnosti room.list, room.join a message.read pro everyone nebo pro roli, a aby mohli psát, také message.post.",
+      "room_closed": "Nikdo zatím tuto místnost nemůže najít, připojit se k ní ani ji číst, kromě vlastníků v privilegovaném režimu. Chcete-li ji otevřít, povolte v oprávněních místnosti room.list, room.join a message.read pro everyone nebo pro roli, a aby mohli psát, také message.post.",
       "group_open": "Všichni mohou najít místnosti v této skupině místností a připojit se k nim.",
       "group_open_unlisted": "Všichni se mohou připojit k místnostem v této skupině místností, ale nezobrazují se všem v seznamu místností.",
       "group_join_no_read": "Všichni se mohou připojit k místnostem v této skupině místností, ale nemohou je číst. Chcete-li je otevřít, povolte také message.read, a aby mohli členové psát, message.post.",
       "group_roles": "K místnostem v této skupině místností se mohou připojit jen členové těchto rolí: {roles}.",
-      "group_closed": "Místnosti v této skupině místností mohou otevřít jen vlastníci a členové, které přidáte. Chcete-li je otevřít, povolte níže room.list, room.join a message.read pro everyone nebo pro roli, a aby mohli psát, také message.post."
+      "group_closed": "Nikdo zatím nemůže najít místnosti v této skupině místností, připojit se k nim ani je číst, kromě vlastníků v privilegovaném režimu. Chcete-li je otevřít, povolte níže room.list, room.join a message.read pro everyone nebo pro roli, a aby mohli psát, také message.post."
     }
   }
 }

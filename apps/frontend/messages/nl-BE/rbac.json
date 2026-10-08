@@ -229,12 +229,12 @@
       "room_open_unlisted": "Iedereen kan aan deze kamer deelnemen, maar de kamer staat niet voor iedereen in de lijst met kamers.",
       "room_join_no_read": "Iedereen kan aan deze kamer deelnemen, maar kan de kamer niet lezen. Sta om de kamer te openen ook message.read toe, en message.post zodat leden kunnen posten.",
       "room_roles": "Alleen leden van deze rollen kunnen aan deze kamer deelnemen: {roles}.",
-      "room_closed": "Alleen eigenaren en de leden die je toevoegt, kunnen deze kamer openen. Sta room.list, room.join en message.read toe voor everyone of voor een rol in de kamerrechten om de kamer te openen, en message.post zodat ze kunnen posten.",
+      "room_closed": "Niemand kan deze kamer nog vinden, eraan deelnemen of de kamer lezen, behalve eigenaren in bevoorrechte modus. Sta room.list, room.join en message.read toe voor everyone of voor een rol in de kamerrechten om de kamer te openen, en message.post zodat ze kunnen posten.",
       "group_open": "Iedereen kan de kamers in deze kamergroep vinden en eraan deelnemen.",
       "group_open_unlisted": "Iedereen kan aan de kamers in deze kamergroep deelnemen, maar de kamers staan niet voor iedereen in de lijst met kamers.",
       "group_join_no_read": "Iedereen kan aan de kamers in deze kamergroep deelnemen, maar kan ze niet lezen. Sta om ze te openen ook message.read toe, en message.post zodat leden kunnen posten.",
       "group_roles": "Alleen leden van deze rollen kunnen aan de kamers in deze kamergroep deelnemen: {roles}.",
-      "group_closed": "Alleen eigenaren en de leden die je toevoegt, kunnen de kamers in deze kamergroep openen. Sta hieronder room.list, room.join en message.read toe voor everyone of voor een rol om ze te openen, en message.post zodat ze kunnen posten."
+      "group_closed": "Niemand kan de kamers in deze kamergroep nog vinden, eraan deelnemen of ze lezen, behalve eigenaren in bevoorrechte modus. Sta hieronder room.list, room.join en message.read toe voor everyone of voor een rol om ze te openen, en message.post zodat ze kunnen posten."
     }
   }
 }

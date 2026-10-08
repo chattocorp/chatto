@@ -229,12 +229,12 @@
       "room_open_unlisted": "Alle kan bli med i dette rommet, men det vises ikke for alle i romlisten.",
       "room_join_no_read": "Alle kan bli med i dette rommet, men kan ikke lese det. For å åpne det må du også tillate message.read, og message.post for at medlemmer kan skrive.",
       "room_roles": "Bare medlemmer av disse rollene kan bli med i dette rommet: {roles}.",
-      "room_closed": "Bare eiere og medlemmene du legger til, kan åpne dette rommet. For å åpne det må du tillate room.list, room.join og message.read for everyone eller for en rolle i romtillatelsene, og message.post for at de kan skrive.",
+      "room_closed": "Ingen kan finne dette rommet, bli med i det eller lese det ennå, unntatt eiere i privilegert modus. For å åpne det må du tillate room.list, room.join og message.read for everyone eller for en rolle i romtillatelsene, og message.post for at de kan skrive.",
       "group_open": "Alle kan finne rommene i denne romgruppen og bli med i dem.",
       "group_open_unlisted": "Alle kan bli med i rommene i denne romgruppen, men de vises ikke for alle i romlisten.",
       "group_join_no_read": "Alle kan bli med i rommene i denne romgruppen, men kan ikke lese dem. For å åpne dem må du også tillate message.read, og message.post for at medlemmer kan skrive.",
       "group_roles": "Bare medlemmer av disse rollene kan bli med i rommene i denne romgruppen: {roles}.",
-      "group_closed": "Bare eiere og medlemmene du legger til, kan åpne rommene i denne romgruppen. For å åpne dem må du tillate room.list, room.join og message.read for everyone eller for en rolle nedenfor, og message.post for at de kan skrive."
+      "group_closed": "Ingen kan finne rommene i denne romgruppen, bli med i dem eller lese dem ennå, unntatt eiere i privilegert modus. For å åpne dem må du tillate room.list, room.join og message.read for everyone eller for en rolle nedenfor, og message.post for at de kan skrive."
     }
   }
 }
