@@ -584,7 +584,7 @@ func TestMCPHandlerServesConfiguredAliasAndRejectsWrongHostAndCrossOriginBrowser
 	}
 }
 
-func TestMCPHandlerRejectsHumanBearerWithoutCompleteMCPGrant(t *testing.T) {
+func TestMCPHandlerRejectsHumanBearerWithoutValidMCPGrant(t *testing.T) {
 	_, nc := testutil.StartSharedNATS(t)
 	chattoCore, err := core.NewChattoCore(context.Background(), nc, config.CoreConfig{
 		SecretKey: "test-core-secret", Assets: config.AssetsConfig{SigningSecret: "test-signing-secret"},
@@ -610,12 +610,14 @@ func TestMCPHandlerRejectsHumanBearerWithoutCompleteMCPGrant(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentAuthGeneration: %v", err)
 	}
-	legacyGrant, err := chattoCore.CreateOAuthBearerSessionForClientGrant(ctx, viewer.GetId(), "https://agent.example/client.json", "https://chat.example/mcp", []string{config.MCPRoomsReadScope}, generation)
-	if err != nil {
-		t.Fatalf("CreateOAuthBearerSessionForClientGrant: %v", err)
-	}
-	if _, err := verifier(ctx, legacyGrant.AccessToken, nil); err == nil {
-		t.Fatal("resource-bound bearer without the complete current MCP grant was accepted")
+	for _, scopes := range [][]string{nil, {"unknown"}, {config.MCPRoomsReadScope, "unknown"}} {
+		grant, err := chattoCore.CreateOAuthBearerSessionForClientGrant(ctx, viewer.GetId(), "https://agent.example/client.json", "https://chat.example/mcp", scopes, generation)
+		if err != nil {
+			t.Fatalf("CreateOAuthBearerSessionForClientGrant: %v", err)
+		}
+		if _, err := verifier(ctx, grant.AccessToken, nil); err == nil {
+			t.Fatalf("resource-bound bearer with invalid scopes %v was accepted", scopes)
+		}
 	}
 }
 

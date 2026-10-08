@@ -53,6 +53,9 @@ type BearerSessionCredentials struct {
 	AccessTokenExpiresAt time.Time
 	// SessionExpiresAt is the end of the current renewable-session window.
 	SessionExpiresAt time.Time
+	// Scopes is a detached copy of the exact OAuth grant for these credentials.
+	// First-party sessions have no OAuth scopes.
+	Scopes []string
 }
 
 // RenewableSession is the latest-value authority stored in RUNTIME_STATE for
@@ -311,6 +314,7 @@ func (c *ChattoCore) credentialsForGeneration(sessionID string, session Renewabl
 		RefreshToken:         c.refreshTokenForGeneration(sessionID, session.CurrentGeneration, renewableSessionIsResourceBound(session)),
 		AccessTokenExpiresAt: c.bearerAccessExpiresAt(session, issuedAt),
 		SessionExpiresAt:     session.ExpiresAt,
+		Scopes:               append([]string(nil), session.Scopes...),
 	}
 }
 

@@ -68,11 +68,27 @@ configured endpoint. A reverse proxy needs no separate MCP upstream.
 
 Human users authorize an MCP client through OAuth Authorization Code with S256
 PKCE. Chatto resolves the client's Client ID Metadata Document (CIMD), shows
-the exact `chatto:rooms:read`, `chatto:rooms:write`,
-`chatto:messages:read`, and `chatto:messages:write` scopes on the consent page,
-and issues an access token bound to the exact MCP resource in the request. A
+the requested scope capabilities on the consent page, and issues an access
+token bound to the exact MCP resource and approved scopes. A
 first-party Chatto bearer token without this resource and grant cannot use
 MCP.
+
+Request only the scopes your host needs. Chatto accepts any nonempty subset
+of these scopes. A write scope does not include read access.
+
+| Scope | Tools |
+| --- | --- |
+| `chatto:rooms:read` | `list_rooms` |
+| `chatto:rooms:write` | `join_room`, `leave_room` |
+| `chatto:messages:read` | `list_room_messages` |
+| `chatto:messages:write` | `post_message` |
+
+Any valid grant also permits discovery, `get_server_info`, and
+`get_current_user`. `tools/list` shows only the tools covered by your grant.
+Initial discovery requests room-read access, so the default grant has three
+tools. A host that needs message reads or writes must request those scopes.
+Additional scopes require fresh consent. Refresh keeps the approved scope
+set; the token response reports it in `scope`. Existing full grants still work.
 
 A native agent host can register an HTTP callback on `127.0.0.1`, `[::1]`,
 `localhost`, or one concrete `.localhost` hostname, even when Chatto is on a
@@ -91,12 +107,12 @@ owner's current permission ceiling still apply. See [Bot Accounts](/guides/integ
 1. Give your agent host the public Chatto URL with the `/mcp` path.
 2. Let the host read protected-resource and authorization-server metadata.
 3. Complete the Chatto consent screen when the host opens it.
-4. Confirm that the host discovers the seven tools in the table above.
+4. Confirm that the host discovers the tools covered by your grant.
 5. Ask the host to identify the server. Confirm that it reports the expected
    name and public URL.
 6. Ask the host to identify the connected account and list its visible rooms.
-7. In a test room, ask the host to join, post a unique test message, read the
-   message, and leave.
+7. To test all tools, approve all four scopes. In a test room, ask the host
+   to join, post a unique test message, read the message, and leave.
 
 </Steps>
 
@@ -112,6 +128,13 @@ codex mcp login chatto --oauth-client-registration cimd
 Complete sign-in and consent in the browser. Then start Codex and use the
 identity and room checks above. Codex identifies itself with its public CIMD
 document. You do not need a client secret or a first-party Chatto token.
+
+To grant all seven tools, request all four scopes explicitly:
+
+```sh
+codex mcp login chatto --oauth-client-registration cimd \
+  --scopes chatto:rooms:read,chatto:rooms:write,chatto:messages:read,chatto:messages:write
+```
 
 ### MCP Inspector
 
@@ -140,7 +163,7 @@ npx --yes @modelcontextprotocol/inspector@2.9.0 --cli \
 ```
 
 Open the printed authorization URL and approve the consent request. The
-Inspector lists seven tools. Use `--method tools/call --tool-name
+Inspector lists the tools covered by the approved scopes. Use `--method tools/call --tool-name
 get_server_info` to check the connected server. Use `--stored-auth-only` on
 later calls to use the stored grant without starting a new consent flow.
 
@@ -151,7 +174,8 @@ later calls to use the stored grant without starting a new consent flow.
 | `/mcp` returns `404` | Enable `[mcp].enabled` and check the public URL and reverse proxy. |
 | `initialize` returns method not found | Use a host with stateless `2026-07-28` support. In Inspector, select the modern protocol era. |
 | Consent rejects `redirect_uri` | Check the client's CIMD document. Runtime ports require a native client and a literal loopback IP callback. Named localhost callbacks must match exactly. |
-| A tool request returns `401` | Authorize the exact MCP URL again. Check grant expiry, client blocking, and the complete MCP scope set. A first-party token or a grant for another origin cannot be used. |
+| A tool request returns `401` | Authorize the exact MCP URL again. Check grant expiry, client blocking, and the valid MCP scopes. A first-party token or a grant for another origin cannot be used. |
+| A tool is absent or returns `403 insufficient_scope` | Request its scope in a new OAuth consent flow. The Bearer challenge identifies the required scope. Keep any existing scopes that the host still needs. |
 | Inspector `--use-stored-auth` reports `no_stored_token` | Use `--stored-auth-only`. This Inspector version can fail to load its stored credentials through the older flag. |
 
 Claude Code `2.1.291` fails callback validation with its current CIMD document.
@@ -162,9 +186,10 @@ metadata document agree. Do not disable callback validation.
 ## Understand permission failures
 
 An MCP call can succeed only when both the MCP OAuth grant and the normal
-Chatto authorization permit it. The current OAuth flow grants the complete
-tester scope set. RBAC and room membership can still reject one operation or
-target.
+Chatto authorization permit it. A missing tool scope returns HTTP `403` with
+an OAuth `insufficient_scope` challenge. A host can use this challenge to
+request additional consent. RBAC and room membership can still reject one
+operation or target after its scope is granted.
 
 Chatto returns a failed operation as an MCP tool error. When Chatto can confirm
 that an RBAC permission is missing, the error contains `permission_denied` and
