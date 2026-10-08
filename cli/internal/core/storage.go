@@ -33,9 +33,8 @@ type storage struct {
 	logStream          jetstream.Stream      // LOG - retained operational diagnostics; excluded from backups.
 	notificationStream jetstream.Stream      // NOTIFICATIONS - bounded notification lifecycle event log.
 
-	memoryCacheKV      *jetstreamutil.KeyValue // MEMORY_CACHE - volatile, memory-backed runtime cache state
-	imageCacheStore    jetstream.ObjectStore   // Optional: cached resized images (nil if disabled)
-	neighborhoodImages jetstream.ObjectStore   // NEIGHBORHOOD_IMAGES - expiring copies of discovered server images
+	memoryCacheKV   *jetstreamutil.KeyValue // MEMORY_CACHE - volatile, memory-backed runtime cache state
+	imageCacheStore jetstream.ObjectStore   // ASSET_CACHE - resized images and Neighborhood image copies
 }
 
 // newStorage initializes current JetStream resources.
@@ -61,14 +60,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, err
 	}
 
-	var imageCacheStore jetstream.ObjectStore
-	if cfg.Assets.Cache.Enabled {
-		imageCacheStore, err = createObjectStore(ctx, js, assetCacheConfig(cfg))
-		if err != nil {
-			return nil, err
-		}
-	}
-	neighborhoodImages, err := createObjectStore(ctx, js, neighborhoodImagesConfig(cfg))
+	imageCacheStore, err := createObjectStore(ctx, js, assetCacheConfig(cfg))
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +93,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		notificationStream: notificationStream,
 		memoryCacheKV:      memoryCacheKV,
 		imageCacheStore:    imageCacheStore,
-		neighborhoodImages: neighborhoodImages,
 	}, nil
 }
 
@@ -146,23 +137,10 @@ func memoryCacheConfig(cfg config.CoreConfig) jetstream.KeyValueConfig {
 func assetCacheConfig(cfg config.CoreConfig) jetstream.ObjectStoreConfig {
 	return jetstream.ObjectStoreConfig{
 		Bucket:      natsresources.AssetCache,
-		Description: "Cached resized images",
+		Description: "Cached resized images and Neighborhood images",
 		Storage:     jetstream.FileStorage,
 		Compression: true,
-		TTL:         cfg.Assets.Cache.TTLOrDefault(),
-		Replicas:    cfg.Replicas,
-	}
-}
-
-// neighborhoodImagesConfig keeps each image for a fixed period after its
-// latest write. Neighborhood discovery rewrites the images that it still
-// uses, so unused images expire without a cleanup pass.
-func neighborhoodImagesConfig(cfg config.CoreConfig) jetstream.ObjectStoreConfig {
-	return jetstream.ObjectStoreConfig{
-		Bucket:      natsresources.NeighborhoodImages,
-		Description: "Expiring copies of Neighborhood server images",
-		Storage:     jetstream.FileStorage,
-		TTL:         neighborhoodImageTTL,
+		TTL:         7 * 24 * time.Hour,
 		Replicas:    cfg.Replicas,
 	}
 }

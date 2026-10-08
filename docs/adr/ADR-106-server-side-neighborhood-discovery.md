@@ -50,10 +50,11 @@ image decoder and stores a re-encoded WebP copy.
 
 The latest directory is one `cache_state.v1.NeighborhoodDirectory` value under
 `neighborhood.directory` in `MEMORY_CACHE`. Image copies are content-addressed
-objects in the `NEIGHBORHOOD_IMAGES` object store. The object store has a
+objects under `neighborhood_image.{sha256}` in the shared `ASSET_CACHE`
+object store. The object store is always available and has a
 seven-day TTL. A pass rewrites an image that it still uses when the image is
 older than three days. Unused images expire without a cleanup pass. The public
-`/assets/neighborhood/{sha256}` route serves only names from this store.
+`/assets/neighborhood/{sha256}` route serves only names from this prefix.
 `ListNeighborhoodServers` returns each copy as this server-relative path. The
 client resolves the path against the origin that it called, also when the
 server does not configure that origin.
@@ -88,10 +89,27 @@ shared job queue can replace this worker.
   fifteen seconds. A server that was unavailable during a pass can return after
   about ten minutes.
 - A NATS restart removes the memory-backed directory. The next check starts a
-  new pass. Backups exclude `NEIGHBORHOOD_IMAGES`.
+  new pass. Backups exclude `ASSET_CACHE` and the legacy `NEIGHBORHOOD_IMAGES`.
 - The bundled Server Directory merges the Neighborhoods of all registered
   servers and removes its browser crawl and consent prompt. It accepts cached
   images only from the registered server that supplied them.
 - This supersedes FDR-042 Design Decisions 3 and 12. The Neighbor
   administration page also reads public profiles from the cached Neighborhood
   (FDR-042 Design Decision 16).
+
+## Shared cache update (2026-10-08)
+
+Resized images and Neighborhood images share `ASSET_CACHE` to reduce replicated
+NATS resources. Its TTL is fixed at seven days. The `core.assets.cache`
+configuration section and its environment variables are removed. The existing
+configuration loader still accepts unknown settings, but they have no effect.
+
+New replicas do not create or write `NEIGHBORHOOD_IMAGES`. Discovery regenerates
+the images in the shared cache. Missing images during cache rebuilds and mixed
+version operation are acceptable. The directory protobuf and public image URLs
+keep their existing content hashes without the storage prefix.
+
+The server does not delete the old bucket. An operator can remove it after all
+replicas use the new version. Until then, older replicas can still use it and
+apply their configured TTL to `ASSET_CACHE`. The fixed TTL takes full effect
+after the rollout. Both cache buckets remain excluded from backups.

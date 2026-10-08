@@ -211,13 +211,13 @@ func (x *NeighborhoodServerRecord) GetBanner() *NeighborhoodImage {
 }
 
 // NeighborhoodImage identifies one re-encoded public profile image in the
-// NEIGHBORHOOD_IMAGES object store.
+// ASSET_CACHE object store under neighborhood_image.{object_name}.
 type NeighborhoodImage struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Remote URL that supplied the image. Discovery reuses the stored copy
 	// while this URL is unchanged.
 	SourceUrl string `protobuf:"bytes,1,opt,name=source_url,json=sourceUrl,proto3" json:"source_url,omitempty"`
-	// Content-addressed object name in NEIGHBORHOOD_IMAGES.
+	// Content hash without the ASSET_CACHE storage prefix.
 	ObjectName    string `protobuf:"bytes,2,opt,name=object_name,json=objectName,proto3" json:"object_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

@@ -34,6 +34,7 @@ import (
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/email"
 	"hmans.de/chatto/internal/evtstream"
+	"hmans.de/chatto/internal/natsresources"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -88,10 +89,6 @@ func setupAssetTestServerWithOptions(t *testing.T, useS3 bool, videoEnabled bool
 	assetsCfg := config.AssetsConfig{
 		SigningSecret: "test-signing-secret-32-bytes-!!",
 		MaxUploadSize: 10 * 1024 * 1024, // 10MB
-		Cache: config.AssetsCacheConfig{
-			Enabled: true,
-			TTL:     config.Duration(7 * 24 * time.Hour), // 7 days
-		},
 	}
 	if useS3 {
 		s3Server := fakes3.NewServer(t)
@@ -2342,13 +2339,18 @@ func TestAsset_InteractionReaderCanFetchStableURL(t *testing.T) {
 
 func TestAsset_NeighborhoodImage(t *testing.T) {
 	env := setupAssetTestServer(t)
-	store, err := env.js.ObjectStore(env.ctx, "NEIGHBORHOOD_IMAGES")
+	store, err := env.js.ObjectStore(env.ctx, natsresources.AssetCache)
 	if err != nil {
 		t.Fatalf("open Neighborhood image store: %v", err)
 	}
 	name := strings.Repeat("b", 64)
+	// A valid hash outside the public namespace must remain inaccessible.
+	privateName := strings.Repeat("c", 64)
+	if _, err := store.Put(env.ctx, jetstream.ObjectMeta{Name: privateName}, bytes.NewReader([]byte("private cache"))); err != nil {
+		t.Fatal(err)
+	}
 	imageData := []byte("RIFF\x00\x00\x00\x00WEBP")
-	if _, err := store.Put(env.ctx, jetstream.ObjectMeta{Name: name}, bytes.NewReader(imageData)); err != nil {
+	if _, err := store.Put(env.ctx, jetstream.ObjectMeta{Name: "neighborhood_image." + name}, bytes.NewReader(imageData)); err != nil {
 		t.Fatalf("store Neighborhood image: %v", err)
 	}
 
@@ -2379,6 +2381,7 @@ func TestAsset_NeighborhoodImage(t *testing.T) {
 
 	for _, path := range []string{
 		core.NeighborhoodImagePath(strings.Repeat("c", 64)),
+		core.NeighborhoodImagePath("neighborhood_image." + name),
 		core.NeighborhoodImagePath(strings.ToUpper(name)),
 		core.NeighborhoodImagePath("not-a-hash"),
 	} {

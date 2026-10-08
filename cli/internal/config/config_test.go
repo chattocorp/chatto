@@ -102,9 +102,15 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 }
 
 func TestReadConfig_AllowsUnknownTOMLFieldsForCompatibility(t *testing.T) {
+	t.Setenv("CHATTO_CORE_ASSETS_CACHE_ENABLED", "false")
+	t.Setenv("CHATTO_CORE_ASSETS_CACHE_TTL", "invalid-obsolete-value")
 	path := filepath.Join(t.TempDir(), "chatto.toml")
 	if err := os.WriteFile(path, []byte(`
 future_option = true
+
+[core.assets.cache]
+enabled = false
+ttl = "invalid-obsolete-value"
 
 [webserver]
 port = 4000

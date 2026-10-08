@@ -863,11 +863,6 @@ func (c *MediaModel) GetTransformedServerAssetURL(key string, width, height int,
 // Image Cache Operations
 // ============================================================================
 
-// ImageCacheEnabled returns whether the image resize cache is enabled.
-func (c *MediaModel) ImageCacheEnabled() bool {
-	return c.storage.imageCacheStore != nil
-}
-
 // ImageCacheKey generates a cache key for a resized image.
 // Format: {spaceId}.{attachmentId}.{paramsHash}
 // Uses NATS subject notation (dots as separators).
@@ -878,12 +873,8 @@ func ImageCacheKey(spaceID, attachmentID string, width, height int, fit string) 
 }
 
 // GetCachedResize retrieves a cached resized image.
-// Returns nil, nil if the cache is disabled or the key is not found.
+// Returns nil, nil if the key is not found.
 func (c *MediaModel) GetCachedResize(ctx context.Context, key string) ([]byte, error) {
-	if c.storage.imageCacheStore == nil {
-		return nil, nil
-	}
-
 	result, err := c.storage.imageCacheStore.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrObjectNotFound) {
@@ -901,12 +892,7 @@ func (c *MediaModel) GetCachedResize(ctx context.Context, key string) ([]byte, e
 }
 
 // StoreCachedResize stores a resized image in the cache.
-// Does nothing if the cache is disabled.
 func (c *MediaModel) StoreCachedResize(ctx context.Context, key string, data []byte) error {
-	if c.storage.imageCacheStore == nil {
-		return nil
-	}
-
 	_, err := c.storage.imageCacheStore.Put(ctx, jetstream.ObjectMeta{
 		Name: key,
 		Headers: map[string][]string{
@@ -922,9 +908,9 @@ func (c *MediaModel) StoreCachedResize(ctx context.Context, key string, data []b
 
 // DeleteCachedResizesForAttachment deletes all cached resizes for an
 // attachment. Returns the number of deleted cache entries and any error
-// encountered. Does nothing if the cache is disabled. Current and earlier
+// encountered. Current and earlier
 // stable attachment cache namespaces are removed; older room-kind prefixes
-// remain unaddressable and age out through the configured TTL.
+// remain unaddressable and expire after seven days.
 func (c *MediaModel) DeleteCachedResizesForAttachment(ctx context.Context, attachmentID string) (int, error) {
 	prefixes := []string{
 		AttachmentDerivativeCacheResource,
@@ -949,15 +935,10 @@ func (c *MediaModel) DeleteCachedResizesForServerAsset(ctx context.Context, asse
 
 // DeleteCachedResizesForKey deletes all cached resizes for a given prefix and asset key.
 // Returns the number of deleted cache entries and any error encountered.
-// Does nothing if the cache is disabled.
 func (c *MediaModel) DeleteCachedResizesForKey(ctx context.Context, prefix, assetKey string) (int, error) {
 	if prefix == "" || assetKey == "" {
 		return 0, nil
 	}
-	if c.storage.imageCacheStore == nil {
-		return 0, nil
-	}
-
 	// Cache keys follow the pattern: {prefix}.{assetKey}.{paramsHash}
 	// We need to find and delete all keys that start with {prefix}.{assetKey}.
 	keyPrefix := fmt.Sprintf("%s.%s.", prefix, assetKey)

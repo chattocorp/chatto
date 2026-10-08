@@ -47,8 +47,12 @@ func TestForStreamFindsLegacyResources(t *testing.T) {
 	if _, ok := ForStream("SPACE_abc123_EVENTS"); ok {
 		t.Fatal("ForStream found an unknown stream")
 	}
+	resource, ok = ForStream("OBJ_NEIGHBORHOOD_IMAGES")
+	if !ok || resource.Backup != BackupSkip {
+		t.Fatalf("legacy Neighborhood cache must remain excluded from backups: %+v, %v", resource, ok)
+	}
 	for _, resource := range Current() {
-		if resource.Name == "AUTH_TOKENS" {
+		if resource.Name == "AUTH_TOKENS" || resource.Name == NeighborhoodImages {
 			t.Fatal("Current includes a legacy resource")
 		}
 	}

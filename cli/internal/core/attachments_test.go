@@ -973,10 +973,6 @@ func setupTestCoreWithCache(t *testing.T) (*ChattoCore, *nats.Conn) {
 		SecretKey: "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
-			Cache: config.AssetsCacheConfig{
-				Enabled: true,
-				TTL:     config.Duration(7 * 24 * time.Hour),
-			},
 		},
 	}
 	core, err := NewChattoCore(ctx, nc, cfg)
@@ -994,11 +990,6 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 
 	core, _ := setupTestCoreWithCache(t)
 	ctx := testContext(t)
-
-	// Verify caching is enabled
-	if !core.ImageCacheEnabled() {
-		t.Fatal("Image cache should be enabled for this test")
-	}
 
 	// Setup: create space, room, and attachment
 
@@ -1243,23 +1234,6 @@ func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *
 	}
 	if data != nil {
 		t.Fatal("Derivative thumbnail cache entry should be deleted")
-	}
-}
-
-func TestChattoCore_DeleteCachedResizesForAttachment_NoCacheEnabled(t *testing.T) {
-	t.Parallel()
-
-	// Use standard setup (no cache)
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	// Should not error when cache is disabled
-	deleted, err := core.mediaModel.DeleteCachedResizesForAttachment(ctx, "attachment")
-	if err != nil {
-		t.Errorf("Should not error when cache is disabled: %v", err)
-	}
-	if deleted != 0 {
-		t.Errorf("Should return 0 deleted when cache is disabled, got %d", deleted)
 	}
 }
 

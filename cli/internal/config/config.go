@@ -446,10 +446,7 @@ func (c *ChattoConfig) Validate() error {
 		errs = append(errs, "limits.max_users must be -1 (unlimited) or a non-negative integer")
 	}
 
-	// Asset cache configuration
-	if c.Core.Assets.Cache.Enabled && c.Core.Assets.Cache.TTL.Duration() < 0 {
-		errs = append(errs, "core.assets.cache.ttl must be positive when cache is enabled")
-	}
+	// Projection snapshot retention and process-local EVT read cache limits.
 	if c.Core.ProjectionSnapshotRetention.Duration() < 0 {
 		errs = append(errs, "core.projection_snapshot_retention must be positive")
 	}
