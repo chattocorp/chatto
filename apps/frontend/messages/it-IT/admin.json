@@ -468,6 +468,10 @@
           "one": "{count} processo bloccato o mancante",
           "other": "{count} processi bloccati o mancanti"
         },
+        "workers_unconfirmed_count": {
+          "one": "{count} processo non confermato",
+          "other": "{count} processi non confermati"
+        },
         "workers_running_count": {
           "one": "{count} processo in esecuzione",
           "other": "Tutti i {count} processi sono in esecuzione"

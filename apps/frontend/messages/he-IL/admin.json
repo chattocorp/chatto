@@ -472,6 +472,11 @@
           "two": "{count} עובדים תקועים או חסרים",
           "other": "{count} עובדים תקועים או חסרים"
         },
+        "workers_unconfirmed_count": {
+          "one": "{count} עובד לא אומת",
+          "two": "{count} עובדים לא אומתו",
+          "other": "{count} עובדים לא אומתו"
+        },
         "workers_running_count": {
           "one": "{count} עובד פועל",
           "two": "כל {count} העובדים פועלים",

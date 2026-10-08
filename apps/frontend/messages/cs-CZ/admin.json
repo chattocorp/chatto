@@ -476,6 +476,12 @@
           "many": "Zaseknutých nebo chybějících pracovníků: {count}",
           "other": "Zaseknutých nebo chybějících pracovníků: {count}"
         },
+        "workers_unconfirmed_count": {
+          "one": "Nepotvrzených pracovníků: {count}",
+          "few": "Nepotvrzených pracovníků: {count}",
+          "many": "Nepotvrzených pracovníků: {count}",
+          "other": "Nepotvrzených pracovníků: {count}"
+        },
         "workers_running_count": {
           "one": "Běží {count} pracovník",
           "few": "Běží všichni {count} pracovníci",

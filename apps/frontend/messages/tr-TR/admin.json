@@ -468,6 +468,10 @@
           "one": "{count} çalışan durdu veya eksik",
           "other": "{count} çalışan durdu veya eksik"
         },
+        "workers_unconfirmed_count": {
+          "one": "{count} çalışan doğrulanmadı",
+          "other": "{count} çalışan doğrulanmadı"
+        },
         "workers_running_count": {
           "one": "{count} çalışan çalışıyor",
           "other": "Tüm {count} çalışan çalışıyor"

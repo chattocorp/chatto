@@ -476,6 +476,12 @@
           "many": "{count} pracowników zatrzymanych lub brakujących",
           "other": "{count} pracowników zatrzymanych lub brakujących"
         },
+        "workers_unconfirmed_count": {
+          "one": "{count} pracownik niepotwierdzony",
+          "few": "{count} pracowników niepotwierdzonych",
+          "many": "{count} pracowników niepotwierdzonych",
+          "other": "{count} pracownika niepotwierdzonego"
+        },
         "workers_running_count": {
           "one": "{count} pracownik działa",
           "few": "Działają wszyscy {count} pracownicy",

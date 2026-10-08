@@ -464,6 +464,9 @@
         "workers_failing_count": {
           "other": "{count} 件のワーカーが停止または不明です"
         },
+        "workers_unconfirmed_count": {
+          "other": "{count} 件のワーカーが未確認です"
+        },
         "workers_running_count": {
           "other": "すべての {count} 件のワーカーが実行中です"
         },

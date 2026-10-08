@@ -468,6 +468,10 @@
           "one": "{count} proceso detenido o ausente",
           "other": "{count} procesos detenidos o ausentes"
         },
+        "workers_unconfirmed_count": {
+          "one": "{count} proceso sin confirmar",
+          "other": "{count} procesos sin confirmar"
+        },
         "workers_running_count": {
           "one": "{count} proceso en ejecución",
           "other": "Los {count} procesos están en ejecución"

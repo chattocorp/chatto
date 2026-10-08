@@ -160,7 +160,8 @@ describe('systemHealthChecks', () => {
       accountAvailable: false,
       natsAvailable: false,
       projectionsAvailable: false,
-      durableWorkers: [worker('inactive')]
+      // Without consumer state, the server reports every required worker as unavailable.
+      durableWorkers: [worker('unavailable'), worker('inactive')]
     });
 
     expect(statusOf(snapshot)).toEqual({
@@ -171,6 +172,36 @@ describe('systemHealthChecks', () => {
       storage: 'unknown'
     });
     expect(overallHealth(systemHealthChecks(snapshot))).toBe('ok');
+  });
+});
+
+describe('systemHealthChecks edge cases', () => {
+  it('keeps unconfirmed workers ok but does not count them as running', () => {
+    const checks = systemHealthChecks(
+      info({ durableWorkers: [worker('healthy'), worker('unconfirmed'), worker('working')] })
+    );
+    const workers = checks.find((check) => check.id === 'workers');
+
+    expect(workers).toEqual({
+      id: 'workers',
+      status: 'ok',
+      detail: { kind: 'workers_unconfirmed', count: 1 }
+    });
+  });
+
+  it('uses inclusive thresholds and handles usage above a limit', () => {
+    const at = (storageUsed: number) =>
+      statusOf(info({ account: { ...info().account, storage: 100, storageUsed } })).storage;
+
+    expect(at(74)).toBe('ok');
+    expect(at(75)).toBe('warning');
+    expect(at(89)).toBe('warning');
+    expect(at(90)).toBe('critical');
+    expect(at(120)).toBe('critical');
+  });
+
+  it('treats an empty projection list as unreported', () => {
+    expect(statusOf(info({ projections: [] })).projections).toBe('unknown');
   });
 });
 

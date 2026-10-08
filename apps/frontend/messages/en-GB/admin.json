@@ -468,6 +468,10 @@
           "one": "{count} worker stalled or missing",
           "other": "{count} workers stalled or missing"
         },
+        "workers_unconfirmed_count": {
+          "one": "{count} worker not confirmed",
+          "other": "{count} workers not confirmed"
+        },
         "workers_running_count": {
           "one": "{count} worker running",
           "other": "All {count} workers running"

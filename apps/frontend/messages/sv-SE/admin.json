@@ -468,6 +468,10 @@
           "one": "{count} arbetare har fastnat eller saknas",
           "other": "{count} arbetare har fastnat eller saknas"
         },
+        "workers_unconfirmed_count": {
+          "one": "{count} arbetare inte bekräftad",
+          "other": "{count} arbetare inte bekräftade"
+        },
         "workers_running_count": {
           "one": "{count} arbetare körs",
           "other": "Alla {count} arbetare körs"

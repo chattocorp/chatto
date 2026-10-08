@@ -468,6 +468,10 @@
           "one": "{count} töötaja on kinni jäänud või puudub",
           "other": "{count} töötajat on kinni jäänud või puuduvad"
         },
+        "workers_unconfirmed_count": {
+          "one": "{count} töötaja on kinnitamata",
+          "other": "{count} töötajat on kinnitamata"
+        },
         "workers_running_count": {
           "one": "{count} töötaja töötab",
           "other": "Kõik {count} töötajat töötavad"

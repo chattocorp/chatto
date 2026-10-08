@@ -27,6 +27,7 @@ export type HealthDetail =
   | { kind: 'projections_catching_up'; count: number }
   | { kind: 'projections_running'; count: number }
   | { kind: 'workers_failing'; count: number }
+  | { kind: 'workers_unconfirmed'; count: number }
   | { kind: 'workers_running'; count: number }
   | { kind: 'backlog_waiting'; count: number }
   | { kind: 'backlog_clear' }
@@ -45,8 +46,9 @@ const severity: Record<HealthStatus, number> = { unknown: 0, ok: 1, warning: 2, 
  *
  * Only lasting conditions raise a check above `ok`: a lost broker
  * connection, failed projections, stalled or missing durable workers, and
- * account usage close to a limit. Projection lag and consumer backlog are
- * normal while work flows, so they appear only as details.
+ * account usage close to a limit. Projection lag, consumer backlog, and
+ * unconfirmed workers are normal while work flows, so they appear only as
+ * details.
  *
  * The broker and projection checks describe the replica that handled the
  * request. The other checks use broker state that every replica shares.
@@ -127,7 +129,11 @@ function projectionsCheck(info: AdminSystemInfo): HealthCheck {
 }
 
 function workersCheck(info: AdminSystemInfo): HealthCheck {
-  const active = info.durableWorkers.filter((worker) => worker.health !== 'inactive');
+  // Worker health comes from consumer state. Without it, the server reports
+  // every required worker as unavailable, which says nothing about the workers.
+  const active = info.natsAvailable
+    ? info.durableWorkers.filter((worker) => worker.health !== 'inactive')
+    : [];
   if (active.length === 0) {
     return { id: 'workers', status: 'unknown', detail: { kind: 'unavailable' } };
   }
@@ -139,6 +145,16 @@ function workersCheck(info: AdminSystemInfo): HealthCheck {
       id: 'workers',
       status: 'critical',
       detail: { kind: 'workers_failing', count: failing }
+    };
+  }
+  // Broker state cannot tell a busy handler from a crashed one that waits for
+  // redelivery, so unconfirmed workers stay ok but are not counted as running.
+  const unconfirmed = active.filter((worker) => worker.health === 'unconfirmed').length;
+  if (unconfirmed > 0) {
+    return {
+      id: 'workers',
+      status: 'ok',
+      detail: { kind: 'workers_unconfirmed', count: unconfirmed }
     };
   }
   return {

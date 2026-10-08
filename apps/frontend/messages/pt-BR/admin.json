@@ -468,6 +468,10 @@
           "one": "{count} trabalhador parado ou ausente",
           "other": "{count} trabalhadores parados ou ausentes"
         },
+        "workers_unconfirmed_count": {
+          "one": "{count} trabalhador não confirmado",
+          "other": "{count} trabalhadores não confirmados"
+        },
         "workers_running_count": {
           "one": "{count} trabalhador em execução",
           "other": "Todos os {count} trabalhadores em execução"

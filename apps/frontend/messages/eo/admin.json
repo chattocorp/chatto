@@ -468,6 +468,10 @@
           "one": "{count} laboristo haltis aŭ mankas",
           "other": "{count} laboristoj haltis aŭ mankas"
         },
+        "workers_unconfirmed_count": {
+          "one": "{count} laboristo ne konfirmita",
+          "other": "{count} laboristoj ne konfirmitaj"
+        },
         "workers_running_count": {
           "one": "{count} laboristo funkcias",
           "other": "Ĉiuj {count} laboristoj funkcias"

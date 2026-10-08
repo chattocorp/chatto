@@ -468,6 +468,10 @@
           "one": "{count} Worker hängt oder fehlt",
           "other": "{count} Worker hängen oder fehlen"
         },
+        "workers_unconfirmed_count": {
+          "one": "{count} Worker nicht bestätigt",
+          "other": "{count} Worker nicht bestätigt"
+        },
         "workers_running_count": {
           "one": "{count} Worker läuft",
           "other": "Alle {count} Worker laufen"

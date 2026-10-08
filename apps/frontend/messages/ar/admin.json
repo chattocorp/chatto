@@ -484,6 +484,14 @@
           "many": "{count} عاملًا متوقفًا أو مفقودًا",
           "other": "{count} عامل متوقف أو مفقود"
         },
+        "workers_unconfirmed_count": {
+          "zero": "{count} عامل غير مؤكد",
+          "one": "{count} عامل غير مؤكد",
+          "two": "{count} عاملان غير مؤكدين",
+          "few": "{count} عمال غير مؤكدين",
+          "many": "{count} عاملًا غير مؤكد",
+          "other": "{count} عامل غير مؤكد"
+        },
         "workers_running_count": {
           "zero": "{count} عمال يعملون",
           "one": "{count} عامل يعمل",

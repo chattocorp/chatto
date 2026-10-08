@@ -468,6 +468,10 @@
           "one": "{count} arbeider har stoppet eller mangler",
           "other": "{count} arbeidere har stoppet eller mangler"
         },
+        "workers_unconfirmed_count": {
+          "one": "{count} arbeider ikke bekreftet",
+          "other": "{count} arbeidere ikke bekreftet"
+        },
         "workers_running_count": {
           "one": "{count} arbeider kjører",
           "other": "Alle {count} arbeidere kjører"

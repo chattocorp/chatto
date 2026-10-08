@@ -468,6 +468,10 @@
           "one": "{count} werker vastgelopen of ontbreekt",
           "other": "{count} werkers vastgelopen of ontbreken"
         },
+        "workers_unconfirmed_count": {
+          "one": "{count} werker niet bevestigd",
+          "other": "{count} werkers niet bevestigd"
+        },
         "workers_running_count": {
           "one": "{count} werker actief",
           "other": "Alle {count} werkers actief"

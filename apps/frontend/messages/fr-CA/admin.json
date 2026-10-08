@@ -468,6 +468,10 @@
           "one": "{count} tâche bloquée ou manquante",
           "other": "{count} tâches bloquées ou manquantes"
         },
+        "workers_unconfirmed_count": {
+          "one": "{count} tâche non confirmée",
+          "other": "{count} tâches non confirmées"
+        },
         "workers_running_count": {
           "one": "{count} tâche en cours d'exécution",
           "other": "Les {count} tâches sont en cours d'exécution"

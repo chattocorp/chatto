@@ -80,6 +80,8 @@ health checks. See `systemHealth.ts` for the rules behind each status.
         return m('admin.system.health.projections_running_count', { count: detail.count });
       case 'workers_failing':
         return m('admin.system.health.workers_failing_count', { count: detail.count });
+      case 'workers_unconfirmed':
+        return m('admin.system.health.workers_unconfirmed_count', { count: detail.count });
       case 'workers_running':
         return m('admin.system.health.workers_running_count', { count: detail.count });
       case 'backlog_waiting':

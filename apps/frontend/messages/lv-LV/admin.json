@@ -472,6 +472,11 @@
           "one": "{count} darbinieks apstājies vai trūkst",
           "other": "{count} darbinieki apstājušies vai trūkst"
         },
+        "workers_unconfirmed_count": {
+          "zero": "{count} darbinieki nav apstiprināti",
+          "one": "{count} darbinieks nav apstiprināts",
+          "other": "{count} darbinieki nav apstiprināti"
+        },
         "workers_running_count": {
           "zero": "Visi {count} darbinieki darbojas",
           "one": "{count} darbinieks darbojas",

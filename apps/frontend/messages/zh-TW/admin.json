@@ -464,6 +464,9 @@
         "workers_failing_count": {
           "other": "{count} 個 worker 已停滯或遺失"
         },
+        "workers_unconfirmed_count": {
+          "other": "{count} 個 worker 未確認"
+        },
         "workers_running_count": {
           "other": "全部 {count} 個 worker 正在運作"
         },
