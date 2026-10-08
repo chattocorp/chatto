@@ -3,9 +3,7 @@ package sessions
 
 import (
 	"context"
-	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -224,7 +222,7 @@ func (s *Service) Revoke(ctx context.Context, token string) error {
 	key := s.sessionKey(token)
 	for range 4 {
 		entry, err := s.kv.Get(ctx, key)
-		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+		if storage.IsKeyAbsent(err) {
 			return nil
 		}
 		if err != nil {
@@ -245,7 +243,7 @@ func (s *Service) Revoke(ctx context.Context, token string) error {
 
 func (s *Service) read(ctx context.Context, key string) (jetstream.KeyValueEntry, Session, error) {
 	entry, err := s.kv.Get(ctx, key)
-	if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+	if storage.IsKeyAbsent(err) {
 		return nil, Session{}, ErrNotFound
 	}
 	if err != nil {
@@ -285,9 +283,7 @@ func (s *Service) seal(key string, state Session) ([]byte, error) {
 }
 
 func (s *Service) sessionKey(token string) string {
-	digest := hmac.New(sha256.New, s.key)
-	_, _ = digest.Write([]byte("session\x00" + token))
-	return "session." + base64.RawURLEncoding.EncodeToString(digest.Sum(nil))
+	return storage.DigestKey("session.", s.key, "session\x00"+token)
 }
 
 func sessionAAD(key string) []byte {

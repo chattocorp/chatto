@@ -39,10 +39,6 @@ func NewDeliveryBudget(kv KeyValue, policy DeliveryPolicy) *DeliveryBudget {
 	return &DeliveryBudget{kv: kv, policy: policy}
 }
 
-type deliveryCounter struct {
-	Count int `json:"count"`
-}
-
 // Reserve consumes the global allowance before the recipient allowance.
 // Only a successful call grants permission to deliver. If the recipient write
 // fails, the confirmed global reservation is refunded on a best-effort basis.
@@ -69,46 +65,28 @@ func (b *DeliveryBudget) Rollback(ctx context.Context, recipientKey string) erro
 }
 
 func (b *DeliveryBudget) reserveCounter(ctx context.Context, key string, limit int) error {
-	for range 16 {
-		entry, err := b.kv.Get(ctx, key)
-		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
-			_, err = b.kv.Create(ctx, key, []byte(`{"count":1}`), jetstream.KeyTTL(b.policy.Window))
-		} else if err != nil {
-			return fmt.Errorf("read email delivery limit: %w", err)
-		} else {
-			var counter deliveryCounter
-			if json.Unmarshal(entry.Value(), &counter) != nil || counter.Count < 1 {
-				return fmt.Errorf("invalid email delivery counter")
-			}
-			if counter.Count >= limit {
-				return ErrDeliveryLimited
-			}
-			counter.Count++
-			data, _ := json.Marshal(counter)
-			_, err = b.kv.UpdateWithTTL(ctx, key, data, entry.Revision(), b.policy.Window)
-		}
-		if err == nil {
-			return nil
-		}
-		if !jetstreamutil.IsSequenceConflict(err) {
-			return fmt.Errorf("reserve email delivery: %w", err)
-		}
+	limited, err := IncrementCounter(ctx, b.kv, key, limit, b.policy.Window)
+	if err != nil {
+		return fmt.Errorf("reserve email delivery: %w", err)
 	}
-	return fmt.Errorf("email delivery reservation conflicted repeatedly")
+	if limited {
+		return ErrDeliveryLimited
+	}
+	return nil
 }
 
 func (b *DeliveryBudget) rollbackCounter(ctx context.Context, key string) error {
-	for range 16 {
+	for range maxCounterAttempts {
 		entry, err := b.kv.Get(ctx, key)
-		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+		if IsKeyAbsent(err) {
 			return nil
 		}
 		if err != nil {
 			return fmt.Errorf("read email delivery rollback: %w", err)
 		}
-		var counter deliveryCounter
-		if json.Unmarshal(entry.Value(), &counter) != nil || counter.Count < 1 {
-			return fmt.Errorf("invalid email delivery counter for rollback")
+		counter, err := decodeCounter(entry.Value())
+		if err != nil {
+			return fmt.Errorf("rollback email delivery: %w", err)
 		}
 		if counter.Count == 1 {
 			err = b.kv.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))

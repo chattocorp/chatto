@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -96,7 +95,7 @@ func (s *Service) Start(ctx context.Context, rawEmail string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	state := flowState{Email: normalized, CodeDigest: keyedDigest(s.key, "code\x00"+token+"\x00"+code), ExpiresAt: time.Now().UTC().Add(FlowTTL)}
+	state := flowState{Email: normalized, CodeDigest: storage.KeyedDigest(s.key, "code\x00"+token+"\x00"+code), ExpiresAt: time.Now().UTC().Add(FlowTTL)}
 	if err := s.deliveryBudget.Reserve(ctx, s.deliveryKey(normalized)); err != nil {
 		return "", err
 	}
@@ -133,7 +132,7 @@ func (s *Service) Verify(ctx context.Context, token, code string) error {
 	if err != nil || !time.Now().Before(state.ExpiresAt) || state.Verified || state.WrongAttempts >= maxWrongAttempts {
 		return ErrInvalidCode
 	}
-	want := keyedDigest(s.key, "code\x00"+token+"\x00"+strings.TrimSpace(code))
+	want := storage.KeyedDigest(s.key, "code\x00"+token+"\x00"+strings.TrimSpace(code))
 	if !hmac.Equal(state.CodeDigest, want) {
 		state.WrongAttempts++
 		if _, updateErr := s.update(ctx, key, entry.Revision(), state); updateErr != nil {
@@ -180,7 +179,7 @@ func (s *Service) Complete(ctx context.Context, token, password string) (account
 }
 
 func (s *Service) flowKey(token string) string {
-	return "signup." + base64.RawURLEncoding.EncodeToString(keyedDigest(s.key, "flow\x00"+token))
+	return storage.DigestKey("signup.", s.key, "flow\x00"+token)
 }
 
 func (s *Service) seal(key string, state flowState) ([]byte, error) {
@@ -216,7 +215,7 @@ func (s *Service) update(ctx context.Context, key string, revision uint64, state
 }
 
 func (s *Service) deliveryKey(address string) string {
-	return "signup-limit." + base64.RawURLEncoding.EncodeToString(keyedDigest(s.key, "delivery\x00"+address))
+	return storage.DigestKey("signup-limit.", s.key, "delivery\x00"+address)
 }
 
 func (s *Service) send(ctx context.Context, message email.Message) error {
@@ -240,11 +239,6 @@ func normalizeAndValidateEmail(raw string) (string, error) {
 	return value, nil
 }
 
-func keyedDigest(key []byte, value string) []byte {
-	h := hmac.New(sha256.New, key)
-	_, _ = h.Write([]byte(value))
-	return h.Sum(nil)
-}
 func randomToken(size int) (string, error) {
 	data := make([]byte, size)
 	if _, err := rand.Read(data); err != nil {

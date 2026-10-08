@@ -135,7 +135,21 @@ repository skills as non-product infrastructure.
   raw `$KV` messages. Classify an OCC conflict with
   `jetstreamutil.IsSequenceConflict`: a replicated stream reports a conflict
   with a write in progress with a code that matches `jetstream.ErrKeyExists`
-  only for `Create`.
+  only for `Create`. On a replicated stream, a `Create` that replaces a
+  removal marker reports a conflict with a code that does not match
+  `jetstream.ErrKeyExists`.
+- Follow the repository-wide storage rules in
+  [ADR-114](../docs/adr/ADR-114-jetstream-storage-conventions.md). Authling
+  applies them as follows:
+  - `internal/storage` declares the resource names and configurations.
+  - Key prefixes use kebab-case. Build keys from secret or personal input
+    with `storage.DigestKey`, which uses an unpadded base64url HMAC.
+  - Use `storage.IncrementCounter` for rate-limit counters and
+    `storage.IsKeyAbsent` for the "key is absent" check.
+  - Known exceptions: runtime records and key-vault records are JSON. These
+    shapes are persisted contracts.
+  - Known gaps: no test pins the resource configurations, and Authling has
+    no operator diagnostics for its durable consumer.
 
 ## Identity Events And Recovery
 
@@ -145,8 +159,9 @@ repository skills as non-product infrastructure.
   require historical-replay and mixed-version rollout reasoning.
 - Durable, PII-free identity and security facts belong in `AUTHLING_EVT`.
   Expiring OTP digests, recovery bearers, attempt counters, delivery limits,
-  and other workflow coordination belong in encrypted
-  `AUTHLING_RUNTIME_STATE`, not permanent event history.
+  and other workflow coordination belong in `AUTHLING_RUNTIME_STATE`, not
+  permanent event history. Encrypt workflow records; rate-limit counters
+  hold only counts and are not encrypted.
 - Never put raw email addresses, login identifiers, provider subjects, IP
   addresses, user agents, OTPs, recovery bearers, reset links, or equivalent
   sensitive material in event envelopes, event payloads, subjects, runtime

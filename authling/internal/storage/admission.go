@@ -2,13 +2,9 @@ package storage
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
-
-	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // ErrAdmissionLimited means the shared request budget is exhausted.
@@ -23,35 +19,12 @@ func AdmitRequest(ctx context.Context, kv KeyValue, key string, limit int, windo
 	if limit < 1 || window <= 0 {
 		return fmt.Errorf("invalid request admission policy")
 	}
-	for range 16 {
-		entry, err := kv.Get(ctx, key)
-		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
-			_, err = kv.Create(ctx, key, []byte(`{"count":1}`), jetstream.KeyTTL(window))
-			if err == nil {
-				return nil
-			}
-		} else if err != nil {
-			return fmt.Errorf("read request admission: %w", err)
-		} else {
-			var counter struct {
-				Count int `json:"count"`
-			}
-			if json.Unmarshal(entry.Value(), &counter) != nil || counter.Count < 1 {
-				return fmt.Errorf("invalid request admission counter")
-			}
-			if counter.Count >= limit {
-				return ErrAdmissionLimited
-			}
-			counter.Count++
-			data, _ := json.Marshal(counter)
-			_, err = kv.UpdateWithTTL(ctx, key, data, entry.Revision(), window)
-			if err == nil {
-				return nil
-			}
-		}
-		if !jetstreamutil.IsSequenceConflict(err) {
-			return fmt.Errorf("commit request admission: %w", err)
-		}
+	limited, err := IncrementCounter(ctx, kv, key, limit, window)
+	if err != nil {
+		return fmt.Errorf("request admission: %w", err)
 	}
-	return fmt.Errorf("request admission conflicted repeatedly")
+	if limited {
+		return ErrAdmissionLimited
+	}
+	return nil
 }

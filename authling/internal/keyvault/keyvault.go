@@ -16,7 +16,9 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/authling/internal/ids"
+	"hmans.de/authling/internal/storage"
 	"hmans.de/chatto/pkg/datacrypto"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 const (
@@ -77,7 +79,7 @@ func (v *Vault) WorkflowKey(ctx context.Context) ([]byte, error) {
 	if err == nil {
 		return decodeRaw(entry.Value())
 	}
-	if !errors.Is(err, jetstream.ErrKeyNotFound) {
+	if !storage.IsKeyAbsent(err) {
 		return nil, fmt.Errorf("read workflow key: %w", err)
 	}
 	key, err := datacrypto.GenerateKey()
@@ -89,7 +91,7 @@ func (v *Vault) WorkflowKey(ctx context.Context) ([]byte, error) {
 		return nil, fmt.Errorf("encode workflow key: %w", err)
 	}
 	if _, err := v.kv.Create(ctx, systemWorkflowKey, data); err != nil {
-		if !errors.Is(err, jetstream.ErrKeyExists) {
+		if !jetstreamutil.IsSequenceConflict(err) {
 			return nil, fmt.Errorf("create workflow key: %w", err)
 		}
 		entry, err = v.kv.Get(ctx, systemWorkflowKey)
@@ -113,7 +115,7 @@ func (v *Vault) OIDCTokenKey(ctx context.Context, initial []byte) ([]byte, error
 	if err == nil {
 		return decodeRaw(entry.Value())
 	}
-	if !errors.Is(err, jetstream.ErrKeyNotFound) {
+	if !storage.IsKeyAbsent(err) {
 		return nil, fmt.Errorf("open OIDC token key: %w", err)
 	}
 	key := append([]byte(nil), initial...)
@@ -123,7 +125,7 @@ func (v *Vault) OIDCTokenKey(ctx context.Context, initial []byte) ([]byte, error
 		return nil, fmt.Errorf("open OIDC token key: %w", err)
 	}
 	if _, err := v.kv.Create(ctx, systemOIDCTokenKey, encoded); err != nil {
-		if !errors.Is(err, jetstream.ErrKeyExists) {
+		if !jetstreamutil.IsSequenceConflict(err) {
 			return nil, fmt.Errorf("open OIDC token key: %w", err)
 		}
 		entry, err = v.kv.Get(ctx, systemOIDCTokenKey)
@@ -142,7 +144,7 @@ func (v *Vault) OIDCSigningKey(ctx context.Context) (SigningKey, error) {
 	if err == nil {
 		return decodeSigningKey(systemOIDCSigningKey, entry.Value())
 	}
-	if !errors.Is(err, jetstream.ErrKeyNotFound) {
+	if !storage.IsKeyAbsent(err) {
 		return SigningKey{}, fmt.Errorf("read OIDC signing key: %w", err)
 	}
 	private, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -160,7 +162,7 @@ func (v *Vault) OIDCSigningKey(ctx context.Context) (SigningKey, error) {
 		return SigningKey{}, fmt.Errorf("encode OIDC signing-key record: %w", err)
 	}
 	if _, err := v.kv.Create(ctx, systemOIDCSigningKey, data); err != nil {
-		if !errors.Is(err, jetstream.ErrKeyExists) {
+		if !jetstreamutil.IsSequenceConflict(err) {
 			return SigningKey{}, fmt.Errorf("create OIDC signing key: %w", err)
 		}
 		entry, err = v.kv.Get(ctx, systemOIDCSigningKey)
@@ -182,7 +184,7 @@ func (v *Vault) EnsureOIDCSigningKey(ctx context.Context, ref string) (SigningKe
 	if err == nil {
 		return decodeSigningKey(ref, entry.Value())
 	}
-	if !errors.Is(err, jetstream.ErrKeyNotFound) {
+	if !storage.IsKeyAbsent(err) {
 		return SigningKey{}, fmt.Errorf("read OIDC signing key: %w", err)
 	}
 	private, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -200,7 +202,7 @@ func (v *Vault) EnsureOIDCSigningKey(ctx context.Context, ref string) (SigningKe
 		return SigningKey{}, fmt.Errorf("encode OIDC signing-key record: %w", err)
 	}
 	if _, err := v.kv.Create(ctx, ref, data); err != nil {
-		if !errors.Is(err, jetstream.ErrKeyExists) {
+		if !jetstreamutil.IsSequenceConflict(err) {
 			return SigningKey{}, fmt.Errorf("create OIDC signing key: %w", err)
 		}
 		entry, err = v.kv.Get(ctx, ref)
@@ -231,7 +233,7 @@ func (v *Vault) DestroyOIDCSigningKey(ctx context.Context, ref string) error {
 		return fmt.Errorf("invalid OIDC signing-key reference")
 	}
 	err := v.kv.Purge(ctx, ref)
-	if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+	if storage.IsKeyAbsent(err) {
 		return nil
 	}
 	if err != nil {
@@ -255,7 +257,7 @@ func (v *Vault) AuthenticationDummyKey(ctx context.Context) (userRef, dataRef st
 		key, resolveErr := v.ResolveDataKey(ctx, systemDummyCredentialKey, systemDummyUserKey)
 		return systemDummyUserKey, systemDummyCredentialKey, key, resolveErr
 	}
-	if !errors.Is(err, jetstream.ErrKeyNotFound) {
+	if !storage.IsKeyAbsent(err) {
 		return "", "", nil, fmt.Errorf("read authentication dummy credential key: %w", err)
 	}
 	dataKey, err = datacrypto.GenerateKey()
@@ -277,7 +279,7 @@ func (v *Vault) AuthenticationDummyKey(ctx context.Context) (userRef, dataRef st
 	}
 	if _, err := v.kv.Create(ctx, systemDummyCredentialKey, encoded); err != nil {
 		clear(dataKey)
-		if !errors.Is(err, jetstream.ErrKeyExists) {
+		if !jetstreamutil.IsSequenceConflict(err) {
 			return "", "", nil, fmt.Errorf("store authentication dummy credential key: %w", err)
 		}
 		dataKey, err = v.ResolveDataKey(ctx, systemDummyCredentialKey, systemDummyUserKey)
@@ -293,7 +295,7 @@ func (v *Vault) ensureRawKey(ctx context.Context, ref string) ([]byte, error) {
 	if err == nil {
 		return decodeRaw(entry.Value())
 	}
-	if !errors.Is(err, jetstream.ErrKeyNotFound) {
+	if !storage.IsKeyAbsent(err) {
 		return nil, err
 	}
 	key, err := datacrypto.GenerateKey()
@@ -307,7 +309,7 @@ func (v *Vault) ensureRawKey(ctx context.Context, ref string) ([]byte, error) {
 	}
 	if _, err := v.kv.Create(ctx, ref, encoded); err != nil {
 		clear(key)
-		if !errors.Is(err, jetstream.ErrKeyExists) {
+		if !jetstreamutil.IsSequenceConflict(err) {
 			return nil, err
 		}
 		entry, err = v.kv.Get(ctx, ref)
@@ -385,17 +387,17 @@ func (v *Vault) ProvisionCredentialKeys(ctx context.Context) (operationRef, user
 func (v *Vault) RemoveProvisionedCredentialKeys(ctx context.Context, operationRef, userRef, dataRef string) error {
 	var errs []error
 	if dataRef != "" {
-		if err := v.kv.Purge(ctx, dataRef); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+		if err := v.kv.Purge(ctx, dataRef); err != nil && !storage.IsKeyAbsent(err) {
 			errs = append(errs, err)
 		}
 	}
 	if userRef != "" {
-		if err := v.kv.Purge(ctx, userRef); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+		if err := v.kv.Purge(ctx, userRef); err != nil && !storage.IsKeyAbsent(err) {
 			errs = append(errs, err)
 		}
 	}
 	if operationRef != "" {
-		if err := v.kv.Purge(ctx, operationRef); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+		if err := v.kv.Purge(ctx, operationRef); err != nil && !storage.IsKeyAbsent(err) {
 			errs = append(errs, err)
 		}
 	}
@@ -501,7 +503,7 @@ func (v *Vault) DestroyAccountKeys(ctx context.Context, userRef, dataRef string)
 		return fmt.Errorf("invalid account erasure key references")
 	}
 	for _, ref := range []string{userRef, dataRef} {
-		if err := v.kv.Purge(ctx, ref); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
+		if err := v.kv.Purge(ctx, ref); err != nil && !storage.IsKeyAbsent(err) {
 			return fmt.Errorf("destroy account key: %w", err)
 		}
 	}
