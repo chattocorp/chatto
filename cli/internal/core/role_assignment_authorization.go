@@ -155,10 +155,10 @@ func (c *ChattoCore) requirePermissionDecisionWithinAuthority(ctx context.Contex
 // requirePermissionDecisionWithinAuthority, with one exception that lets room
 // managers open their rooms: at room or room-group scope, holding room.manage
 // there is enough for a room permission that does not need privileged mode,
-// such as room.join or message.post (ADR-116). A holder of room.manage can
-// already add any account to the room, and a role allow never overrides a
-// deny on a user, so this gives no new access. The exception does not apply
-// to user decisions: there, an allow can lift a deny on the user.
+// such as room.join or message.post (ADR-116). It gives access only to rooms
+// that the actor already manages, and a role allow never overrides a deny on
+// a user. The exception does not apply to user decisions: there, an allow can
+// lift a deny on the user.
 func (c *ChattoCore) requireRoleDecisionWithinAuthority(ctx context.Context, actorID string, scope PermissionScope, scopeID string, perm Permission) error {
 	return requireAuthority(c.actorCanSetRoleDecision(ctx, actorID, ScopedRolePermissionDecision{Scope: scope, ScopeID: scopeID, Permission: perm}))
 }

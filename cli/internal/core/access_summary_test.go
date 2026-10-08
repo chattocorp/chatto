@@ -148,6 +148,11 @@ func TestRoomManagersCanOpenTheirRooms(t *testing.T) {
 	if err := c.SetUserPermissionState(ctx, f.admin, f.admin, PermissionTargetScope{Kind: MatrixScopeRoom, ID: other.Id}, PermMessagePost, PermissionStateAllow); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("muted admin allows themselves message.post: error = %v, want ErrPermissionDenied", err)
 	}
+	// An admin manages every room through server-scope room.manage, but the
+	// exception stops at rooms and room groups: no server-scope allow.
+	if err := c.SetRolePermissionState(ctx, f.admin, RoleEveryone, PermissionTargetScope{Kind: MatrixScopeServer}, PermMessagePost, PermissionStateAllow); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("admin allows message.post for everyone at server scope: error = %v, want ErrPermissionDenied", err)
+	}
 
 	tiers, err := c.GetRolePermissionTierMatrix(ctx, manager.Id, room.Id, "")
 	if err != nil {

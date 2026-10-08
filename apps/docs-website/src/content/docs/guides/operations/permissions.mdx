@@ -239,8 +239,8 @@ setting of a role, also of `everyone`, at Room group or Room scope,
 `room.manage` there is enough for each permission that does not need
 privileged mode, such as `room.list`, `room.join`, `message.read`, and
 `message.post`. The same exception applies when they assign, remove, or
-delete a role. `room.manage` already lets them add any account to the room,
-and a role allow does not override a deny on a user.
+delete a role. The exception gives access only to rooms that they already
+manage, and a role allow does not override a deny on a user.
 
 The exception does not apply:
 

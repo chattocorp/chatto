@@ -86,9 +86,9 @@ To change a role or user decision, a non-owner must hold the permission at
 that scope (ADR-115). One exception lets room managers open rooms: for a role
 decision at Room or Room group scope, `room.manage` there is enough for each
 room permission that does not need privileged mode, such as `room.list`,
-`room.join`, `message.read`, `message.post`, and the `call.*` permissions. A
-holder of `room.manage` can already add any account to the room, and a role
-allow never overrides a deny on a user, so the exception gives no new access.
+`room.join`, `message.read`, `message.post`, and the `call.*` permissions. The
+exception gives access only to rooms that the actor already manages, and a
+role allow never overrides a deny on a user.
 Admins can thus open every new room and room group, and a room-group manager
 can open the rooms of the group. Permissions that need privileged mode, such
 as `room.manage`, `room.remove-member`, `message.manage`, and `room.create`,
