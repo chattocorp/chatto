@@ -102,6 +102,63 @@ fixture checks.
 
 ## Authorization and privacy checks
 
+### Catalog admission review
+
+**Reviewed:** 2026-10-08. Apply the
+[FDR-043 admission checklist](fdr/FDR-043-model-context-protocol-integration.md#tool-admission-policy)
+with each catalog change and before a stable Chatto release that includes MCP.
+API completeness and CRUD symmetry are not admission criteria.
+
+The seven tools form one tester workflow: identify the server and account,
+choose a visible room, join a channel when needed, read context, send a text
+reply, and leave the channel. The local Codex and Inspector flows above are
+host evidence for this workflow. They do not establish deployment conformance
+or large-instance cost bounds.
+
+| Tool                 | Workflow, effect, and output                                                                                              | Disposition                                                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `get_server_info`    | Match the connected server to the user's task; return one server identity. No write.                                      | Pass.                                                                                                       |
+| `get_current_user`   | Confirm the account that acts for the host; return that account's identity. No write.                                     | Pass.                                                                                                       |
+| `list_rooms`         | Select a visible conversation; return at most 100 rooms and a continuation, with the exact visible count. No write.       | Existing tester exception for backend cost; see below.                                                      |
+| `list_room_messages` | Read context in one joined room; return at most 100 messages and a continuation. No write.                                | Existing tester exception for backend cost; see below.                                                      |
+| `post_message`       | Send one root text reply as the current account; body limit is 10000 bytes. Return one message.                           | Pass. Non-idempotent; never automatically repeat a completed or uncertain post.                             |
+| `join_room`          | Join one visible channel as the current account; return one room. Changes membership.                                     | Pass. Idempotent membership intent; bounded retry must obey current scope, authority, and outcome guidance. |
+| `leave_room`         | Leave one channel as the current account; return the room ID and result. Changes membership and access to future content. | Pass. Idempotent membership intent; bounded retry must obey current scope, authority, and outcome guidance. |
+
+All tools require a verified user or bot credential. The scope and permission
+rules in FDR-043 apply to every call; discovery is not target authorization.
+The adapters use existing application identity, directory, timeline, message,
+and membership behavior. Registration is an explicit seven-tool allowlist.
+Results contain only each tool's declared fields. Resources, prompts, and
+excluded operator, credential, diagnostic, and storage classes are absent.
+The current schemas and structured error/outcome contracts have SDK and raw
+HTTP coverage. These checks establish the current experimental contract, not
+a general compatibility guarantee for every host.
+
+**Existing cost exceptions:** `list_rooms` obtains the complete authorized
+directory before it sorts and returns a page. Its work and memory grow with
+the directory, even for a one-room page. `list_room_messages` hydrates a bounded
+page, but finding visible entries can scan more history when the account has
+only relationship-scoped read access. Page limits do not bound these scans.
+Both tools retain their existing request deadline and output limits. The
+exceptions retain the current read workflow for host tests; they do not claim
+a measured work budget for large directories or sparse message visibility.
+The MCP maintainer must measure these cases and resolve or explicitly renew
+the exceptions before catalog growth or a stable Chatto release that includes
+MCP.
+They are not precedents for admitting another unbounded read.
+
+Review sources: [tool registration and room paging](../cli/internal/mcpserver/handler.go),
+[tool adapters](../cli/internal/mcpserver/tools.go),
+[scope mapping](../cli/internal/mcpserver/scopes.go),
+[directory reads](../cli/internal/core/room_directory_read_model.go), and
+[timeline reads](../cli/internal/core/room_timeline_read_model.go).
+Verification includes the
+[SDK workflow and raw catalog tests](../cli/internal/mcpserver/handler_test.go),
+[tool failure contracts](../cli/internal/mcpserver/errors_test.go),
+[grant-subset checks](../cli/internal/mcpserver/scopes_test.go), and the host
+matrix in this record.
+
 `cli/internal/mcpserver/errors_test.go` checks every tool's argument-failure
 contract through the official Go SDK and independent raw protocol requests.
 It validates structured errors against the advertised output schemas and
