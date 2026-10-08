@@ -200,7 +200,7 @@ no longer imported.
 
 | Bucket                 | Description                                                     |
 | ---------------------- | --------------------------------------------------------------- |
-| `ASSET_CACHE`          | Resized images and Neighborhood images; seven-day TTL                                |
+| `ASSET_CACHE`          | Resized images and Neighborhood images; seven-day TTL           |
 | `PROJECTION_SNAPSHOTS` | Encrypted projection snapshots with configurable TTL (optional) |
 | `SERVER_ASSETS`        | NATS-backed persisted asset binaries                            |
 
@@ -215,8 +215,8 @@ Notes: Always created. Entries expire seven days after their latest write. Curre
 
 **ASSET_CACHE Neighborhood keys:**
 
-| Key        | Description                                                                                                                                                                |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Key                           | Description                                                                                                                                                                |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `neighborhood_image.{sha256}` | Lowercase hexadecimal SHA-256 of a WebP image that Neighborhood discovery re-encoded from a remote logo or banner. `GET /assets/neighborhood/{sha256}` serves it publicly. |
 
 Notes: Backups skip this bucket. Discovery rewrites an image that the current directory still uses after three days, so only unused images reach the seven-day TTL. See [ADR-106](../adr/ADR-106-server-side-neighborhood-discovery.md).
