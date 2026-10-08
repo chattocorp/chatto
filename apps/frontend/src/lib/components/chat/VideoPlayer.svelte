@@ -9,6 +9,7 @@
     shouldAbortHLSRecovery
   } from '$lib/media/hls';
   import { m } from '$lib/i18n/messages';
+  import { retainPlayback } from '$lib/media/playbackRetention';
 
   import 'vidstack/player/styles/default/theme.css';
   import 'vidstack/player/styles/default/layouts/video.css';
@@ -68,7 +69,10 @@
     autoLoop?: boolean;
     /** Fit the player to the shared attachment viewer rather than a timeline thumbnail. */
     viewer?: boolean;
-    /** Report playback until pause, end, failure, source clearing, or player removal. GIF loops are excluded. */
+    /**
+     * Report playback until pause, end, failure, source clearing, or player removal.
+     * Picture-in-picture keeps playback active until it ends. GIF loops are excluded.
+     */
     onPlaybackChange?: (active: boolean) => void;
     onMediaError?: () => void | Promise<string | null>;
     onPosterError?: () => void;
@@ -182,7 +186,6 @@
   }
 
   function handlePlayerError() {
-    if (!autoLoop) onPlaybackChange?.(false);
     onMediaError?.();
   }
 
@@ -345,17 +348,13 @@
   </div>
 {:else if status === 'COMPLETED' && playbackSource && elementsReady}
   <div class="embed-frame" style={frameStyle}>
-    <!-- Provider setup can rerun while playing; release playback only on element removal. -->
+    <!-- Read the prop only on use: a rerun attachment would lose its playback state. -->
     <media-player
       {@attach attachMediaPlayer}
-      {@attach () => () => onPlaybackChange?.(false)}
+      {@attach retainPlayback((active) => onPlaybackChange?.(active))}
       src={videoSrc}
       stream-type="on-demand"
       playsinline
-      onplay={() => onPlaybackChange?.(true)}
-      onpause={() => onPlaybackChange?.(false)}
-      onended={() => onPlaybackChange?.(false)}
-      onemptied={() => onPlaybackChange?.(false)}
       onerror={handlePlayerError}
       class="block h-full w-full"
       aria-describedby={describedBy}

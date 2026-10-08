@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
   import { trackScrollEdges, type ScrollEdges } from '$lib/ui/scrollEdges';
+  import { retainPlayback } from '$lib/media/playbackRetention';
   import { LoadingFog, LoadRetry } from '$lib/ui';
   import { type MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
 
@@ -52,7 +52,7 @@
     eventId: string;
     canDeleteAttachment?: boolean;
     canEditAttachmentDescription?: boolean;
-    /** Active while any attachment plays, including buffering; cleanup releases it. */
+    /** Active while any attachment plays or shows in picture-in-picture; cleanup releases it. */
     onPlaybackChange?: (active: boolean) => void;
   } = $props();
 
@@ -64,11 +64,6 @@
     else playingAttachments.delete(id);
     const isPlaying = playingAttachments.size > 0;
     if (isPlaying !== wasPlaying) onPlaybackChange?.(isPlaying);
-  }
-
-  /** Each keyed player releases playback on removal, even without a pause event. */
-  function releasePlaybackOnRemoval(id: string) {
-    return () => setAttachmentPlaying(id, false);
   }
 
   let refreshedAttachmentUrls = $state.raw(new Map<string, RefreshedAttachmentUrls>());
@@ -618,19 +613,12 @@
           title={attachment.description || undefined}
         >
           <video
-            {@attach () => releasePlaybackOnRemoval(untrack(() => attachment.id))}
+            {@attach retainPlayback((active) => setAttachmentPlaying(attachment.id, active))}
             controls
             preload="metadata"
             src={attachment.url}
             class="max-h-64 max-w-full object-contain"
-            onplay={() => setAttachmentPlaying(attachment.id, true)}
-            onpause={() => setAttachmentPlaying(attachment.id, false)}
-            onended={() => setAttachmentPlaying(attachment.id, false)}
-            onemptied={() => setAttachmentPlaying(attachment.id, false)}
-            onerror={() => {
-              setAttachmentPlaying(attachment.id, false);
-              refreshAfterAssetError(attachment, 'asset');
-            }}
+            onerror={() => refreshAfterAssetError(attachment, 'asset')}
             aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
           >
             <track kind="captions" />
@@ -644,20 +632,13 @@
           title={attachment.description || undefined}
         >
           <audio
-            {@attach () => releasePlaybackOnRemoval(untrack(() => attachment.id))}
+            {@attach retainPlayback((active) => setAttachmentPlaying(attachment.id, active))}
             controls
             preload="metadata"
             src={attachment.url}
             class="h-10 max-w-full min-w-[min(12rem,100%)] flex-1 basis-48"
             data-testid="audio-player"
-            onplay={() => setAttachmentPlaying(attachment.id, true)}
-            onpause={() => setAttachmentPlaying(attachment.id, false)}
-            onended={() => setAttachmentPlaying(attachment.id, false)}
-            onemptied={() => setAttachmentPlaying(attachment.id, false)}
-            onerror={() => {
-              setAttachmentPlaying(attachment.id, false);
-              refreshAfterAssetError(attachment, 'asset');
-            }}
+            onerror={() => refreshAfterAssetError(attachment, 'asset')}
             aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
           >
             {attachment.filename}

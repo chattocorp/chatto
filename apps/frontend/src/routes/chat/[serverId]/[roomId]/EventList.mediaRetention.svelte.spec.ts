@@ -134,6 +134,26 @@ describe('EventList media retention', () => {
     await vi.waitFor(() => expect(row(id)).toBeNull());
   });
 
+  it.each(['video', 'processed'])(
+    'keeps offscreen %s mounted after pause until picture-in-picture ends',
+    async (kind) => {
+      const id = `${kind}-playing`;
+      const { scroller } = renderTimeline(id);
+      const media = await startMedia(id);
+      // Headless browsers cannot open a real picture-in-picture window.
+      media.dispatchEvent(new Event('enterpictureinpicture'));
+      await scrollToStart(scroller);
+      media.pause();
+      await vi.waitFor(() => expect(media.paused).toBe(true));
+      scroller.scrollTop = 0;
+      await nextFrame();
+      await nextFrame();
+      expect(row(id)?.querySelector('video')).toBe(media);
+      media.dispatchEvent(new Event('leavepictureinpicture'));
+      await vi.waitFor(() => expect(row(id)).toBeNull());
+    }
+  );
+
   it('retains a row until all of its playing attachments pause', async () => {
     const id = 'multiple-playing';
     const { scroller } = renderTimeline(id);
