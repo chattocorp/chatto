@@ -11,11 +11,58 @@ import (
 	"testing"
 	"time"
 
+	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/testutil"
 )
+
+// Check the parsed-call guard without the SDK's HTTP header validation. A
+// future tool must not inherit the identity exemption if its policy is absent.
+func TestMCPParsedScopeGuard(t *testing.T) {
+	var ctx context.Context
+	protected := auth.RequireBearerToken(func(context.Context, string, *http.Request) (*auth.TokenInfo, error) {
+		return &auth.TokenInfo{Scopes: []string{config.MCPRoomsReadScope}}, nil
+	}, &auth.RequireBearerTokenOptions{AllowMissingExpiration: true})(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		ctx = r.Context()
+	}))
+	request := httptest.NewRequest(http.MethodPost, "/mcp", nil)
+	request.Header.Set("Authorization", "Bearer scope-test")
+	protected.ServeHTTP(httptest.NewRecorder(), request)
+	if ctx == nil {
+		t.Fatal("test credential was not authenticated")
+	}
+	for _, test := range []struct {
+		name    string
+		allowed bool
+	}{
+		{"get_server_info", true}, {"get_current_user", true}, {"list_rooms", true},
+		{"post_message", false}, {"new_unmapped_tool", false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			called := false
+			handler := scopedTools(func(context.Context, string, mcp.Request) (mcp.Result, error) {
+				called = true
+				return &mcp.CallToolResult{}, nil
+			})
+			result, err := handler(ctx, "tools/call", &mcp.CallToolRequest{Params: &mcp.CallToolParamsRaw{Name: test.name}})
+			if called != test.allowed {
+				t.Fatalf("parsed tool %q executed = %t, want %t", test.name, called, test.allowed)
+			}
+			if !test.allowed && err == nil && !result.(*mcp.CallToolResult).IsError {
+				t.Fatal("denied call had no protocol or tool error")
+			}
+		})
+	}
+	handler := scopedTools(func(context.Context, string, mcp.Request) (mcp.Result, error) {
+		return &mcp.ListToolsResult{Tools: []*mcp.Tool{{Name: "get_current_user"}, {Name: "new_unmapped_tool"}}}, nil
+	})
+	result, err := handler(ctx, "tools/list", &mcp.ListToolsRequest{})
+	if err != nil || len(result.(*mcp.ListToolsResult).Tools) != 1 {
+		t.Fatal("unmapped tool appeared in discovery")
+	}
+}
 
 // TestMCPGrantSubsets exercises every supported combination through the wire
 // protocol. Missing scope must fail before input or domain authorization.
