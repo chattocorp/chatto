@@ -27,6 +27,9 @@ import { batch } from '../reactivity/index.js';
 import { ListRoomsResponse, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { inertRealtimeSocket } from '../testing/inertSocket.js';
+import { ServerConnection } from './serverConnection.js';
+import { fakeServer, mockService, receivedRequest } from '../testing/fakeServer.js';
+import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 
 const profile = {
   name: 'Bot server',
@@ -67,6 +70,63 @@ describe('connections in Node', () => {
       token: 'key'
     });
     expect(connection.accountId).toBe('bot');
+  });
+
+  it('exposes a prepared message that retains its key and arguments after a failed response', async () => {
+    const handlers = mockService(MessageService);
+    handlers.createMessage
+      .mockRejectedValueOnce(new ConnectError('response lost', Code.Unavailable))
+      .mockResolvedValue({ message: { id: 'posted' } });
+    const config = vi
+      .spyOn(ServerConnection.prototype, 'apiConfig', 'get')
+      .mockReturnValue(fakeServer((router) => router.service(MessageService, handlers)));
+    try {
+      connection = client.connect({ serverUrl: 'https://chat.example', apiKey: 'key' });
+      const key = 'de29b0b4-70dc-44dd-9aa1-e6113965b923';
+      const operation = connection.prepareMessage(
+        { roomId: 'room', threadRootId: 'root', inReplyTo: 'destination-reply' },
+        'Hello',
+        { idempotencyKey: key, inReplyTo: 'explicit-reply' }
+      );
+      expect(operation.idempotencyKey).toBe(key);
+      expect(handlers.createMessage).not.toHaveBeenCalled();
+      await expect(operation.send()).rejects.toThrow('response lost');
+      await expect(operation.send()).resolves.toEqual({ id: 'posted' });
+      expect(receivedRequest(handlers.createMessage)?.toJson()).toEqual({
+        roomId: 'room',
+        body: 'Hello',
+        threadRootEventId: 'root',
+        inReplyTo: 'explicit-reply',
+        idempotencyKey: key
+      });
+      expect(receivedRequest(handlers.createMessage, 1)?.toJson()).toEqual(
+        receivedRequest(handlers.createMessage)?.toJson()
+      );
+      await expect(operation.send({ signal: AbortSignal.abort() })).rejects.toThrow();
+      expect(handlers.createMessage).toHaveBeenCalledTimes(2);
+    } finally {
+      config.mockRestore();
+    }
+  });
+
+  it('accepts an explicit message send key through the Server createMessage options', async () => {
+    const handlers = mockService(MessageService);
+    handlers.createMessage.mockResolvedValue({ message: { id: 'posted' } });
+    const config = vi
+      .spyOn(ServerConnection.prototype, 'apiConfig', 'get')
+      .mockReturnValue(fakeServer((router) => router.service(MessageService, handlers)));
+    try {
+      connection = client.connect({ serverUrl: 'https://chat.example', apiKey: 'key' });
+      const key = 'de29b0b4-70dc-44dd-9aa1-e6113965b923';
+      await expect(
+        connection.createMessage({ roomId: 'room', threadRootId: '' }, 'Hello', {
+          idempotencyKey: key
+        })
+      ).resolves.toEqual({ id: 'posted' });
+      expect(receivedRequest(handlers.createMessage)?.idempotencyKey).toBe(key);
+    } finally {
+      config.mockRestore();
+    }
   });
 
   it('never renews the fixed token and rejects when the server refuses it', async () => {
