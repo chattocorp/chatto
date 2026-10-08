@@ -28,7 +28,10 @@ export function formatGoDuration(duration: string): string {
   const match = /^(\d+(?:\.\d+)?)(ns|us|µs|μs|ms|s)$/.exec(duration);
   if (!match) return duration;
   const ms = Number(match[1]) * goDurationUnitMs[match[2]];
-  if (ms < 1) return `${Math.round(ms * 1000)} µs`;
-  if (ms < 1000) return `${parseFloat(ms.toFixed(ms < 10 ? 1 : 0))} ms`;
+  // Choose the unit after rounding, so 999.9 µs becomes 1 ms, not 1000 µs.
+  const us = Math.round(ms * 1000);
+  if (us < 1000) return `${us} µs`;
+  const roundedMs = parseFloat(ms.toFixed(ms < 10 ? 1 : 0));
+  if (roundedMs < 1000) return `${roundedMs} ms`;
   return `${parseFloat((ms / 1000).toFixed(2))} s`;
 }

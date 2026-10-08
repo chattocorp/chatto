@@ -10,6 +10,11 @@ describe('formatGoDuration', () => {
     expect(formatGoDuration('2.5s')).toBe('2.5 s');
   });
 
+  it('switches to the larger unit when rounding reaches it', () => {
+    expect(formatGoDuration('999.9µs')).toBe('1 ms');
+    expect(formatGoDuration('999.6ms')).toBe('1 s');
+  });
+
   it('returns other durations unchanged', () => {
     expect(formatGoDuration('1m2.5s')).toBe('1m2.5s');
     expect(formatGoDuration('')).toBe('');
