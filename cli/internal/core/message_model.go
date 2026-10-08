@@ -186,7 +186,6 @@ func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) 
 		return nil, err
 	}
 
-	s.core.NotifyRoomMarkedAsRead(ctx, input.ActorID, kind, room.Id)
 	return &MessagePostResult{Event: event}, nil
 }
 

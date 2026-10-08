@@ -644,16 +644,24 @@ func TestChattoCore_ThreadLastOpened(t *testing.T) {
 	}
 }
 
-func TestChattoCore_PostMessage_UpdatesThreadLastOpened(t *testing.T) {
+func TestChattoCore_PostMessagePreservesThreadLastOpened(t *testing.T) {
 	t.Parallel()
 
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	// Setup
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
-	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
-	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
+	if err != nil {
+		t.Fatal(err)
+	}
+	user, err := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatal(err)
+	}
 
 	// Post a root message to create a thread
 	rootMsg, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Root message", nil, "", "", nil, false)
@@ -672,18 +680,34 @@ func TestChattoCore_PostMessage_UpdatesThreadLastOpened(t *testing.T) {
 	}
 
 	// Post a thread reply
-	_, err = core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Thread reply", nil, threadRootEventId, "", nil, false)
+	reply, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Thread reply", nil, threadRootEventId, "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post thread reply: %v", err)
 	}
 
-	// Now the thread should be marked as "opened" for the user who posted
+	// Posting does not imply that the thread or its parent room was read.
 	lastOpened, err = core.GetThreadLastOpened(ctx, KindChannel, user.Id, room.Id, threadRootEventId)
 	if err != nil {
 		t.Fatalf("Failed to get thread last opened after reply: %v", err)
 	}
-	if lastOpened.IsZero() {
-		t.Error("Expected non-zero time after posting thread reply - poster's thread last opened should be updated")
+	if !lastOpened.IsZero() {
+		t.Fatal("posting created a thread read marker")
+	}
+	if readID, _, err := core.PeekLastReadEventID(ctx, user.Id, room.Id); err != nil || readID != "" {
+		t.Fatalf("posting a reply advanced the room marker: readID=%q err=%v", readID, err)
+	}
+	if _, err := core.ReadState().MarkThreadAsRead(ctx, user.Id, room.Id, threadRootEventId, reply.Id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Later reply", nil, threadRootEventId, "", nil, true); err != nil {
+		t.Fatal(err)
+	}
+	lastOpened, err = core.GetThreadLastOpened(ctx, KindChannel, user.Id, room.Id, threadRootEventId)
+	if err != nil || !lastOpened.Equal(reply.CreatedAt.AsTime()) {
+		t.Fatalf("posting advanced the thread marker: marker=%v err=%v", lastOpened, err)
+	}
+	if readID, _, err := core.PeekLastReadEventID(ctx, user.Id, room.Id); err != nil || readID != "" {
+		t.Fatalf("echoing a reply advanced the room marker: readID=%q err=%v", readID, err)
 	}
 }
 
@@ -975,9 +999,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 			t.Fatalf("Failed to list followed threads: %v", err)
 		}
 
-		// Both threads should be unread (user A never opened them via SetThreadLastOpened
-		// since auto-follow happened from PostMessage which does call SetThreadLastOpened
-		// for the poster but User A is the root author, not the replier)
+		// Both threads should be unread: auto-follow does not mark them read.
 		// Thread 1: User A is root author - auto-followed on first reply.
 		// PostMessage sets thread_last_opened for the replier (User B), not for User A.
 		// So User A's last-opened is from when they were auto-followed... but the
@@ -2064,6 +2086,9 @@ func TestChattoCore_SetThreadLastReadEventIDDoesNotRegress(t *testing.T) {
 	}
 	if reply2.GetCreatedAt().AsTime().IsZero() {
 		t.Fatal("reply2 created_at is zero")
+	}
+	if _, err := core.SetThreadLastReadEventID(ctx, KindChannel, user.Id, room.Id, root.Id, reply2.Id); err != nil {
+		t.Fatal(err)
 	}
 
 	marker2, err := core.GetThreadLastOpened(ctx, KindChannel, user.Id, room.Id, root.Id)

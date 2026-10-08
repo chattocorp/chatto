@@ -1284,7 +1284,7 @@ export class ServerStateStore {
         }
         if (payload.case === 'messagePosted') {
           // Posts do not establish viewer attention. Its user-scoped hints arrive
-          // after the server applies Badge decisions and the poster's read state.
+          // after the server applies Badge decisions. Views report reads separately.
           // Known DM activity is already applied by the room projection.
           if (!this.projection.rooms.has(roomId)) this.refreshRealtimeResource('rooms');
         }

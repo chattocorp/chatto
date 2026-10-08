@@ -620,8 +620,12 @@ authoritative notification-list read because their events carry no replacement
 notification data. Only occurrence-change hints request that list. Badge hints
 request room state, not notifications. A message post requests room state only
 when the room is missing from the retained directory; known DM activity is
-applied locally. The user-scoped post-commit hint reconciles the poster's read
-state and Slow Mode deadline after those updates finish on the server.
+applied locally. The user-scoped post-commit hint reconciles the poster's
+Slow Mode deadline and thread-follow changes. Posting does not write read
+markers or notification read boundaries. The conversation pane uses its
+normal arrival handler for every author, including the viewer, when the app
+is present and the pane shows the latest message. Explicit room/thread reads
+own the read-state writes and their invalidations.
 
 A self-authored Badge hint can skip the room read when the room is already
 read and Slow Mode is disabled. A room-read hint can also skip an already-read
