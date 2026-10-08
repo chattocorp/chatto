@@ -3,6 +3,13 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.25](https://github.com/chattocorp/chatto/compare/v0.4.24...v0.4.25) (2026-10-07)
+
+
+### Bug Fixes
+
+* **attachments:** backport passive attachment sandbox allowlist to 0.4 ([#2851](https://github.com/chattocorp/chatto/issues/2851)) ([3b9d153](https://github.com/chattocorp/chatto/commit/3b9d1538e6cb7c8ae73817bae38d42aea5cb490f))
+
 ## [0.4.24](https://github.com/chattocorp/chatto/compare/v0.4.23...v0.4.24) (2026-09-08)
 
 
