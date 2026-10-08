@@ -51,12 +51,6 @@ The server-management section gives owners and admins visibility into the server
 **Why:** The data is fundamentally point-in-time ("how much storage are we using right now?"). Caching would mean stale numbers shown to operators making capacity decisions. The fetch cost is low because NATS already has the data internally.
 **Tradeoff:** Refreshing the page hits NATS every time. Not a concern at admin-usage volume.
 
-### 5a. The health summary flags lasting conditions only
-
-**Decision:** The System Info health summary raises a check above OK only for a lasting condition: a lost broker connection, a failed projection, a stalled or missing required durable worker, or JetStream account usage at or above 75% (warning) or 90% (critical) of a limit. Projection lag and consumer backlog appear as details of an OK check. Data that the server does not report shows as unknown and does not change the overall status. Account storage usage counts a copy on each stream replica, so the page also shows the file-stream data size when a stream has more than one replica.
-**Why:** A snapshot often catches normal, short backlog or lag. If those raised warnings, operators would learn to ignore the summary. Lasting conditions need action, so they are the only ones that change the status.
-**Tradeoff:** Lag that continues for a long time does not raise a warning by itself. Operators must compare snapshots or use metrics to see it. The broker and projection checks describe only the replica that handled the request (see the open question below).
-
 ### 5. Diagnostic values are operator tooling, not product contracts
 
 **Decision:** Raw storage subjects, stream/consumer names, sanitized payload JSON, projection metric names, and memory estimates are documented as diagnostic values. The admin diagnostics APIs are intentional operator APIs, but clients should not parse those values as stable product-domain data. Payload JSON omits password verifiers.
@@ -90,6 +84,22 @@ even if its durable consumer remains retained.
 **Decision:** Server, room, and room-group configuration share the `/manage` namespace. Server-only operations live under `/manage/server`, while rooms and room groups are addressed as resources alongside it.
 **Why:** Room and room-group permissions can be delegated without granting server-wide administration. A resource-oriented management area gives those managers a direct destination without creating a separate top-level settings section for every manageable resource.
 **Tradeoff:** The unified Settings shell cannot assume that each viewer has the same Server configuration navigation. It must get navigation and access from the selected resource and the viewer's effective capabilities. It must also keep App preferences and account settings available.
+
+### 9. The health summary flags lasting conditions only
+
+**Decision:** The System Info health summary raises a check above OK only for a lasting condition:
+
+- The broker connection is lost.
+- A projection failed.
+- A required durable worker is stalled or missing.
+- JetStream account usage is at or above 75% of a limit (warning) or 90% (critical).
+
+Projection lag, consumer backlog, and unconfirmed workers appear as details of an OK check. When the server does not report the data for a check, the check shows as unknown. Unknown checks do not change the overall status. If JetStream consumer state is not available, the workers check is unknown.
+
+Account storage usage counts a copy on each stream replica. When a file stream has more than one replica, the page also shows the data size of the file streams.
+
+**Why:** A snapshot often catches normal, short backlog or lag. If those raised warnings, operators would learn to ignore the summary. Lasting conditions need action, so they are the only ones that change the status.
+**Tradeoff:** Lag that continues for a long time does not raise a warning by itself. Operators must compare snapshots or use metrics to see it. The broker and projection checks describe only the replica that handled the request (see the open question below).
 
 ## Permissions
 
