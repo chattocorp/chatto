@@ -42,7 +42,7 @@ rendering to `SubjectPermissionsMatrix`.
 
   let {
     userId,
-    viewerOutranks,
+    viewerOutranks = true,
     subjectKind = m('rbac.permissions.cell.user_subject'),
     ownerCapped = false,
     decisionMode = 'tri-state'
@@ -51,9 +51,10 @@ rendering to `SubjectPermissionsMatrix`.
     /**
      * True when the role order lets the viewer act on this account: it is the
      * viewer's own account, or it ranks below the viewer. Without it, the
-     * viewer cannot remove the account from rooms.
+     * viewer cannot remove the account from rooms. Defaults to true; the
+     * server checks the role order for every removal.
      */
-    viewerOutranks: boolean;
+    viewerOutranks?: boolean;
     subjectKind?: string;
     ownerCapped?: boolean;
     decisionMode?: DecisionMode;

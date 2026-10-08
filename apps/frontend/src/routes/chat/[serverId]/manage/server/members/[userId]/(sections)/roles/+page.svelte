@@ -92,7 +92,7 @@ Roles section of a member or bot: the server role assignments.
   <FormError error={visibleRoleError} />
 {/if}
 <!-- The layout explains the lock for accounts that the viewer does not outrank. -->
-{#if detail.member.viewerOutranks && roleOrderLocksRoles(detail.details, detail.isSelf)}
+{#if detail.viewerOutranks && roleOrderLocksRoles(detail.details, detail.isSelf, detail.viewerOutranks)}
   <Hint>{m('rbac.role_order.roles_locked')}</Hint>
 {/if}
 {#key detail.userId}

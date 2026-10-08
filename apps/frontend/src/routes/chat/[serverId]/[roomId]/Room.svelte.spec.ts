@@ -438,7 +438,7 @@ beforeEach(() => {
       voiceCall: {
         isInCall: vi.fn((roomId: string) => mocks.joinedCallRoomIds.has(roomId))
       },
-      mentionRoles: mocks.mentionRoles,
+      roleCatalog: mocks.mentionRoles,
       rooms: {
         messages: mocks.roomMessages,
         members: mocks.roomMembers,

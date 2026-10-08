@@ -34,6 +34,11 @@ assign or revoke. A bot owner must also outrank the bot to change its roles.
     };
   });
 
+  // Role changes on a bot need a viewer who outranks the bot itself.
+  const viewerOutranksBot = $derived(
+    serverScope.store.roleCatalog.viewerOutranks(memberQuery.data?.member?.roles ?? [])
+  );
+
   // Tag mutation state with the bot: SvelteKit reuses this page for another bot.
   let updating = $state.raw<{ botId: string; roleName: string } | null>(null);
   let failure = $state.raw<{ botId: string; message: string } | null>(null);
@@ -99,8 +104,7 @@ assign or revoke. A bot owner must also outrank the bot to change its roles.
   {#if visibleFailure}
     <FormError error={visibleFailure} />
   {/if}
-  <!-- The layout explains the lock to bot managers who do not outrank the bot. -->
-  {#if !detail.orderLocked && roleOrderLocksRoles(memberQuery.data, false)}
+  {#if roleOrderLocksRoles(memberQuery.data, false, viewerOutranksBot)}
     <Hint>{m('rbac.role_order.roles_locked')}</Hint>
   {/if}
   {#key detail.botId}

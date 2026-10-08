@@ -207,15 +207,13 @@
       "delete_role_failed": "Rol silinemedi",
       "role_order": {
         "title": "Rol sırası",
-        "hint": "Rol sırası kimin kimi yönetebileceğini belirler. Yalnızca en yüksek rolünüzün altındaki rolleri taşıyabilirsiniz. Askıya alma rolü gibi kısıtlama rollerini, onları yöneten kişilerin altına yerleştirin.",
+        "hint": "Rol sırası kimin kimi yönetebileceğini belirler. Askıya alma rolü gibi kısıtlama rollerini, onları yöneten kişilerin altına yerleştirin.",
         "drag_role": "{role} rolünü taşı",
         "always_highest": "Her zaman en yüksek",
         "always_lowest": "Her zaman en düşük",
-        "locked": "Kilitli",
         "saved": "Rol sırası kaydedildi",
         "save_failed": "Rol sırası kaydedilemedi",
-        "list_label": "Taşıyabileceğiniz roller",
-        "none_movable": "En yüksek rolünüzün altında hiç rol yok."
+        "list_label": "Taşıyabileceğiniz roller"
       },
       "back_to_roles": "Rollere geri dön",
       "roles_page": {

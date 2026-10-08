@@ -16,7 +16,7 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
 import { renderMarkdown } from '$lib/markdown';
 import type { CreateMessageInput } from '@chatto/client/api/messages';
-import { MentionRolesStore } from '@chatto/client/server/mentionRoles';
+import { RoleCatalogStore } from '@chatto/client/server/roleCatalog';
 import { Code, ConnectError } from '@chatto/client/api/connect';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 
@@ -98,7 +98,7 @@ const roomStateMock = vi.hoisted(() => ({
 }));
 
 // Mock instance state
-let mentionRolesStore = new MentionRolesStore({ listRoles: listRolesConnectMock });
+let mentionRolesStore = new RoleCatalogStore({ listRoles: listRolesConnectMock });
 // Match the connection getter's reactive counter, including changes below its threshold.
 const connectionAttempts = new SvelteMap([['failed', 0]]);
 const roomUnread = { setRoomUnread: vi.fn() };
@@ -378,7 +378,7 @@ describe('MessageComposer', () => {
       },
       store: {
         roomUnread,
-        get mentionRoles() {
+        get roleCatalog() {
           return mentionRolesStore;
         }
       },
@@ -443,7 +443,7 @@ describe('MessageComposer', () => {
     fetchLinkPreviewConnectMock.mockResolvedValue(null);
     listRolesConnectMock.mockReset();
     listRolesConnectMock.mockResolvedValue({ roles: [] });
-    mentionRolesStore = new MentionRolesStore({ listRoles: listRolesConnectMock });
+    mentionRolesStore = new RoleCatalogStore({ listRoles: listRolesConnectMock });
     sessionStorage.clear();
     vi.clearAllMocks();
   });
@@ -4152,7 +4152,7 @@ describe('MessageComposer', () => {
 
     it('asks for confirmation before sending a known role mention', async () => {
       listRolesConnectMock.mockResolvedValueOnce({
-        roles: [{ name: 'mods', isSystem: false, position: 10, pingable: false }]
+        roles: [{ name: 'mods', isSystem: false, pingable: false }]
       });
 
       const { container, getByRole } = renderMessageComposer({ roomId: 'room_456' });
@@ -4169,7 +4169,7 @@ describe('MessageComposer', () => {
 
     it('waits for the role catalog before deciding whether a role mention needs confirmation', async () => {
       const roleLoad = deferred<{
-        roles: { name: string; isSystem: boolean; position: number; pingable: boolean }[];
+        roles: { name: string; isSystem: boolean; pingable: boolean }[];
       }>();
       listRolesConnectMock.mockReturnValueOnce(roleLoad.promise);
 
@@ -4183,7 +4183,7 @@ describe('MessageComposer', () => {
       expect(q(document.body, '[role="dialog"]')).toBeNull();
 
       roleLoad.resolve({
-        roles: [{ name: 'mods', isSystem: false, position: 10, pingable: false }]
+        roles: [{ name: 'mods', isSystem: false, pingable: false }]
       });
 
       await expect.element(getByRole('dialog', { name: 'Send mention?' })).toBeInTheDocument();
@@ -4206,7 +4206,7 @@ describe('MessageComposer', () => {
 
     it('does not ask for confirmation for the implicit everyone role handle', async () => {
       listRolesConnectMock.mockResolvedValueOnce({
-        roles: [{ name: 'everyone', isSystem: true, position: 0, pingable: false }]
+        roles: [{ name: 'everyone', isSystem: true, pingable: false }]
       });
 
       const { container } = renderMessageComposer({ roomId: 'room_456' });

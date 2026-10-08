@@ -113,9 +113,7 @@ function role(name: string, displayName: string, description: string): ServerRol
     permissions: [],
     permissionDenials: [],
     isSystem: false,
-    position: 1,
-    pingable: false,
-    ranksBelowViewer: true
+    pingable: false
   };
 }
 
@@ -205,10 +203,8 @@ describe('role management page identity', () => {
   });
 
   it('shows a role at or above the viewer as read-only', async () => {
-    mocks.getRole.mockResolvedValue({
-      ...details('role-a', 'Role A', 'Role A description'),
-      role: { ...role('role-a', 'Role A', 'Role A description'), ranksBelowViewer: false }
-    });
+    server.setRoleOrder(['owner', 'role-a', 'role-b'], 'role-a');
+    mocks.getRole.mockResolvedValue(details('role-a', 'Role A', 'Role A description'));
     const { container } = renderRole();
     await vi.waitFor(() => expect(container.querySelector('code')?.textContent).toBe('role-a'));
 

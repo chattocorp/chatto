@@ -93,7 +93,6 @@ function member(id: string, overrides: Partial<AdminMember> = {}): AdminMember {
     verifiedEmails: [],
     primaryVerifiedEmail: null,
     viewerCanDeleteAccount: true,
-    viewerOutranks: true,
     lastLoginChange: null,
     ...overrides
   };
@@ -106,18 +105,14 @@ function details(value: AdminMember): AdminMemberDetails {
       {
         name: 'everyone',
         displayName: 'Everyone',
-        position: 0,
         permissions: [],
-        permissionDenials: [],
-        ranksBelowViewer: true
+        permissionDenials: []
       },
       {
         name: 'admin',
         displayName: 'Admin',
-        position: 1,
         permissions: [],
-        permissionDenials: [],
-        ranksBelowViewer: true
+        permissionDenials: []
       }
     ],
     availablePermissions: [],
@@ -497,8 +492,9 @@ describe('server member detail queries', () => {
 
   it('keeps account controls from a manager who does not outrank the member', async () => {
     routeUserId = 'bob';
+    server.setRoleOrder(['owner', 'admin'], 'admin');
     api.getMember.mockResolvedValue(
-      details(member('bob', { viewerOutranks: false, viewerCanDeleteAccount: false }))
+      details(member('bob', { roles: ['admin'], viewerCanDeleteAccount: false }))
     );
     const rendered = renderSection('account');
     await settle();
@@ -512,7 +508,8 @@ describe('server member detail queries', () => {
 
   it('hides the avatar editor from a manager who does not outrank the member', async () => {
     routeUserId = 'bob';
-    api.getMember.mockResolvedValue(details(member('bob', { viewerOutranks: false })));
+    server.setRoleOrder(['owner', 'admin'], 'admin');
+    api.getMember.mockResolvedValue(details(member('bob', { roles: ['admin'] })));
     const rendered = renderSection('profile');
     await settle();
 
@@ -522,7 +519,8 @@ describe('server member detail queries', () => {
 
   it('lets an account manager change their own account without outranking it', async () => {
     routeUserId = 'viewer';
-    api.getMember.mockResolvedValue(details(member('viewer', { viewerOutranks: false })));
+    server.setRoleOrder(['owner', 'admin'], 'admin');
+    api.getMember.mockResolvedValue(details(member('viewer', { roles: ['admin'] })));
     const rendered = renderSection('account');
     await settle();
 

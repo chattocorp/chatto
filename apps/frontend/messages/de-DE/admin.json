@@ -207,15 +207,13 @@
       "delete_role_failed": "Rolle konnte nicht gelöscht werden",
       "role_order": {
         "title": "Rollenreihenfolge",
-        "hint": "Die Rollenreihenfolge legt fest, wer wen verwalten kann. Du kannst nur die Rollen unter deiner höchsten Rolle verschieben. Platziere Einschränkungsrollen, zum Beispiel eine Sperrrolle, unter den Personen, die sie verwalten.",
+        "hint": "Die Rollenreihenfolge legt fest, wer wen verwalten kann. Platziere Einschränkungsrollen, zum Beispiel eine Sperrrolle, unter den Personen, die sie verwalten.",
         "drag_role": "{role} verschieben",
         "always_highest": "Immer die höchste",
         "always_lowest": "Immer die niedrigste",
-        "locked": "Gesperrt",
         "saved": "Rollenreihenfolge gespeichert",
         "save_failed": "Rollenreihenfolge konnte nicht gespeichert werden",
-        "list_label": "Rollen, die du verschieben kannst",
-        "none_movable": "Unter deiner höchsten Rolle gibt es keine Rollen."
+        "list_label": "Rollen, die du verschieben kannst"
       },
       "back_to_roles": "Zurück zu Rollen",
       "roles_page": {

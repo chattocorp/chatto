@@ -23,13 +23,13 @@ message RoleDeletedEvent {
   string role_name = 1;
 }
 
-// The role order changed. Role order is the administrative rank, so the
-// viewer's ranks_below_viewer and viewer_outranks flags can change. Permission
-// decisions are unchanged.
+// The role order changed. Role order is the administrative rank, so which
+// accounts and roles the viewer can manage can change. Permission decisions
+// are unchanged.
 message RolesReorderedEvent {
-  // Roles that moved. A move can renumber other roles too, so reload the
-  // role list to get the current positions. Creating a role does not send
-  // this event; reload the list after role_created as well.
+  // Roles that moved. Reload the role list to get the current order. Creating
+  // a role does not send this event; reload the list after role_created as
+  // well.
   repeated string role_names = 1;
 }
 

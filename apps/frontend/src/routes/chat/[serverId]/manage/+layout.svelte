@@ -12,6 +12,13 @@
   const serverScope = useServerScope();
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
   const permissions = $derived(serverScope.store.permissions);
+  // Management pages read the role catalogue to show which roles and accounts
+  // the role hierarchy lets the viewer manage. The store reloads it after
+  // role changes; load it again after a reset clears it.
+  const roleCatalog = serverScope.store.roleCatalog;
+  $effect(() => {
+    if (roleCatalog.status === 'idle') void roleCatalog.load();
+  });
 
   // Server management routes are gated here. Resource-scoped room routes
   // perform their own checks after loading the target resource.

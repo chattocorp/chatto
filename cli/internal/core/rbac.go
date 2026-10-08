@@ -493,8 +493,10 @@ func (c *ChattoCore) GetUserServerPermissions(ctx context.Context, userID string
 // Server-tier Role CRUD
 // ============================================================================
 
-// ListServerRoles returns all roles with their permissions.
-// Note: Admin roles are NOT special-cased - permissions are read from the RBAC projection.
+// ListServerRoles returns all roles with their permissions in role order,
+// highest first: owner first and everyone last. Roles with equal positions
+// keep the projection's name order, reversed. Admin roles are not special-
+// cased; permissions come from the RBAC projection.
 func (c *ChattoCore) ListServerRoles(ctx context.Context) ([]RoleWithPermissions, error) {
 	if err := c.waitForCurrentRoleState(ctx); err != nil {
 		return nil, err
@@ -516,7 +518,7 @@ func (c *ChattoCore) ListServerRoles(ctx context.Context) ([]RoleWithPermissions
 			Pingable:          role.Pingable,
 		})
 	}
-
+	slices.Reverse(result)
 	return result, nil
 }
 
@@ -762,9 +764,9 @@ func (c *ChattoCore) DeleteServerRole(ctx context.Context, actorID, name string)
 
 // MoveServerRole places a role directly above beforeRoleName, or lowest when
 // beforeRoleName is empty. Owner and everyone cannot move or serve as the
-// anchor. A non-owner actor may move only a role below their own highest role,
-// and only above a role that is also below it, so the moved role stays below
-// them. Returns all roles sorted by position.
+// anchor. The role hierarchy does not limit moves: callers that hold
+// role.manage may move every other role, also above their own (ADR-114).
+// Returns all roles in role order, highest first.
 func (c *ChattoCore) MoveServerRole(ctx context.Context, actorID, roleName, beforeRoleName string) ([]RoleWithPermissions, error) {
 	if !roleIsOrderable(roleName) || (beforeRoleName != "" && !roleIsOrderable(beforeRoleName)) {
 		return nil, fmt.Errorf("%w: owner and everyone keep fixed places in the role order", ErrInvalidArgument)
@@ -788,14 +790,6 @@ func (c *ChattoCore) MoveServerRole(ctx context.Context, actorID, roleName, befo
 				return fmt.Errorf("role %s: %w", beforeRoleName, ErrRoleNotFound)
 			}
 		}
-		if err := c.requireRoleBelowActor(actorID, roleName); err != nil {
-			return err
-		}
-		if beforeRoleName != "" {
-			if err := c.requireRoleBelowActor(actorID, beforeRoleName); err != nil {
-				return err
-			}
-		}
 		// The role already sits directly above the anchor, or lowest when
 		// there is no anchor (below is -1).
 		if current == below+1 {
@@ -807,26 +801,8 @@ func (c *ChattoCore) MoveServerRole(ctx context.Context, actorID, roleName, befo
 		return nil, err
 	}
 
-	allRoles := c.rbacModel.roles()
-	result := make([]RoleWithPermissions, 0, len(allRoles))
-	for _, role := range allRoles {
-		perms, _ := c.GetServerRolePermissions(ctx, role.Name)
-		denials, _ := c.GetServerRolePermissionDenials(ctx, role.Name)
-
-		result = append(result, RoleWithPermissions{
-			Name:              role.Name,
-			DisplayName:       role.DisplayName,
-			Description:       role.Description,
-			Permissions:       perms,
-			PermissionDenials: denials,
-			IsSystem:          IsSystemRole(role.Name),
-			Position:          role.Position,
-			Pingable:          role.Pingable,
-		})
-	}
-
 	c.logger.Info("Moved role", "role", roleName, "actor_id", actorID)
-	return result, nil
+	return c.ListServerRoles(ctx)
 }
 
 // orderableRoleNames returns every role except owner and everyone, lowest

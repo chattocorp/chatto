@@ -207,15 +207,13 @@
       "delete_role_failed": "Malsukcesis forigi rolon",
       "role_order": {
         "title": "Ordo de roloj",
-        "hint": "La ordo de roloj decidas, kiu povas administri kiun. Vi povas movi nur la rolojn sub via plej alta rolo. Metu limigajn rolojn, ekzemple suspendan rolon, sub la homojn, kiuj administras ilin.",
+        "hint": "La ordo de roloj decidas, kiu povas administri kiun. Metu limigajn rolojn, ekzemple suspendan rolon, sub la homojn, kiuj administras ilin.",
         "drag_role": "Movi {role}",
         "always_highest": "Ĉiam plej alta",
         "always_lowest": "Ĉiam plej malalta",
-        "locked": "Ŝlosita",
         "saved": "Ordo de roloj konservita",
         "save_failed": "Ne eblis konservi la ordon de roloj",
-        "list_label": "Roloj, kiujn vi povas movi",
-        "none_movable": "Neniuj roloj estas sub via plej alta rolo."
+        "list_label": "Roloj, kiujn vi povas movi"
       },
       "back_to_roles": "Reen al roloj",
       "roles_page": {

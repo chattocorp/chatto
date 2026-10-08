@@ -76,16 +76,6 @@ export class AdminMember extends Message<AdminMember> {
    */
   primaryVerifiedEmail?: string;
 
-  /**
-   * Whether the role hierarchy lets the caller act on this account: the
-   * caller ranks above it, or the caller is an owner. For a bot, the caller
-   * must also rank above its owner, unless the caller owns the bot. The
-   * caller also needs the permission for each action.
-   *
-   * @generated from field: bool viewer_outranks = 14;
-   */
-  viewerOutranks = false;
-
   constructor(data?: PartialMessage<AdminMember>) {
     super();
     proto3.util.initPartial(data, this);
@@ -102,7 +92,6 @@ export class AdminMember extends Message<AdminMember> {
     { no: 11, name: "last_login_change", kind: "message", T: Timestamp },
     { no: 12, name: "user", kind: "message", T: User },
     { no: 13, name: "primary_verified_email", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 14, name: "viewer_outranks", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminMember {

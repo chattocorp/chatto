@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sort"
 
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
@@ -50,7 +49,6 @@ type TierRole struct {
 	DisplayName      string
 	Description      string
 	IsSystem         bool
-	Position         int32
 	Pingable         bool
 	Override         TierPermissions
 	InheritedAllows  []string
@@ -59,7 +57,8 @@ type TierRole struct {
 
 type TierRoles struct {
 	ApplicablePermissions []string
-	Roles                 []TierRole
+	// Roles in role order, highest first.
+	Roles []TierRole
 }
 
 type PermissionMatrixScope struct {
@@ -567,9 +566,6 @@ func (c *ChattoCore) buildTierRoles(ctx context.Context, scope PermissionScope, 
 	if err != nil {
 		return nil, fmt.Errorf("list roles: %w", err)
 	}
-	sort.SliceStable(roles, func(i, j int) bool {
-		return roles[i].Position < roles[j].Position
-	})
 	for _, role := range roles {
 		tierRole, err := c.buildTierRole(ctx, role, scope, roomID, groupID)
 		if err != nil {
@@ -586,7 +582,6 @@ func (c *ChattoCore) buildTierRole(ctx context.Context, role RoleWithPermissions
 		DisplayName: role.DisplayName,
 		Description: role.Description,
 		IsSystem:    role.IsSystem,
-		Position:    role.Position,
 		Pingable:    role.Pingable,
 	}
 

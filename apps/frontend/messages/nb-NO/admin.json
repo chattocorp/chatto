@@ -207,15 +207,13 @@
       "delete_role_failed": "Kunne ikke slette rollen",
       "role_order": {
         "title": "Rollerekkefølge",
-        "hint": "Rollerekkefølgen bestemmer hvem som kan administrere hvem. Du kan bare flytte rollene under den høyeste rollen din. Plasser begrensende roller, for eksempel en suspensjonsrolle, under personene som administrerer dem.",
+        "hint": "Rollerekkefølgen bestemmer hvem som kan administrere hvem. Plasser begrensende roller, for eksempel en suspensjonsrolle, under personene som administrerer dem.",
         "drag_role": "Flytt {role}",
         "always_highest": "Alltid høyest",
         "always_lowest": "Alltid lavest",
-        "locked": "Låst",
         "saved": "Rollerekkefølgen er lagret",
         "save_failed": "Kunne ikke lagre rollerekkefølgen",
-        "list_label": "Roller du kan flytte",
-        "none_movable": "Ingen roller er under den høyeste rollen din."
+        "list_label": "Roller du kan flytte"
       },
       "back_to_roles": "Tilbake til roller",
       "roles_page": {

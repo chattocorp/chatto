@@ -23,11 +23,6 @@ export type AdminMember = AdminManagedUser & {
   verifiedEmails: string[];
   primaryVerifiedEmail: string | null;
   viewerCanDeleteAccount: boolean;
-  /**
-   * True when the role hierarchy lets the viewer act on this account.
-   * Permission checks still apply.
-   */
-  viewerOutranks: boolean;
   lastLoginChange?: string | null;
 };
 
@@ -37,11 +32,8 @@ export type AdminRoleSummary = {
 };
 
 export type AdminRoleDetails = AdminRoleSummary & {
-  position: number;
   permissions: string[];
   permissionDenials: string[];
-  /** True when the role ranks below the viewer's highest role. */
-  ranksBelowViewer: boolean;
 };
 
 export type AdminMemberList = {
@@ -232,7 +224,6 @@ function adminMember(member: APIAdminMember): AdminMember {
     verifiedEmails: [...member.verifiedEmails],
     primaryVerifiedEmail: member.primaryVerifiedEmail ?? null,
     viewerCanDeleteAccount: member.viewerCanDeleteAccount,
-    viewerOutranks: member.viewerOutranks,
     lastLoginChange: member.lastLoginChange?.toDate().toISOString() ?? null
   };
 }
@@ -250,9 +241,7 @@ function adminRoleDetails(role: APIAdminRole): AdminRoleDetails {
   }
   return {
     ...adminRoleSummary(role.role),
-    position: role.role.position,
     permissions: [...role.permissions],
-    permissionDenials: [...role.permissionDenials],
-    ranksBelowViewer: role.ranksBelowViewer
+    permissionDenials: [...role.permissionDenials]
   };
 }

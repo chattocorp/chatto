@@ -45,7 +45,7 @@
   const stores = serverScope.store;
   const serverInfo = stores.serverInfo;
   const roomUnreadStore = serverUi(stores).roomUnread;
-  const mentionRolesStore = stores.mentionRoles;
+  const mentionRolesStore = stores.roleCatalog;
 
   let {
     roomId,

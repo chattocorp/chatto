@@ -16,11 +16,6 @@ message AdminRole {
   repeated string permissions = 2;
   // Permissions denied by this role.
   repeated string permission_denials = 3;
-  // Whether this role ranks below the caller's highest role. Only then may
-  // the caller assign, revoke, edit, delete, or move it. Owners outrank every
-  // role, and everyone ranks below every account. The caller also needs the
-  // permission for each action.
-  bool ranks_below_viewer = 4;
 }
 
 // Request the role catalog.
@@ -28,7 +23,7 @@ message ListRolesRequest {}
 
 // Finite role catalog snapshot plus viewer role-management capabilities.
 message ListRolesResponse {
-  // Roles sorted by position.
+  // Roles in role order, highest first.
   repeated AdminRole roles = 1;
   // Whether the caller may create/update/delete role definitions.
   bool viewer_can_manage_roles = 2;
@@ -138,7 +133,7 @@ message MoveRoleRequest {
 
 // Result of moving one role.
 message MoveRoleResponse {
-  // Full role catalog after the move, sorted by position.
+  // Full role catalog after the move, in role order, highest first.
   repeated AdminRole roles = 1;
 }
 

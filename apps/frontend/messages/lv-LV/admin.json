@@ -207,15 +207,13 @@
       "delete_role_failed": "Neizdevās izdzēst lomu",
       "role_order": {
         "title": "Lomu secība",
-        "hint": "Lomu secība nosaka, kurš var pārvaldīt kuru. Jūs varat pārvietot tikai lomas, kas ir zemāk par jūsu augstāko lomu. Novietojiet ierobežojošās lomas, piemēram, apturēšanas lomu, zemāk par personām, kas tās pārvalda.",
+        "hint": "Lomu secība nosaka, kurš var pārvaldīt kuru. Novietojiet ierobežojošās lomas, piemēram, apturēšanas lomu, zemāk par personām, kas tās pārvalda.",
         "drag_role": "Pārvietot {role}",
         "always_highest": "Vienmēr augstākā",
         "always_lowest": "Vienmēr zemākā",
-        "locked": "Bloķēta",
         "saved": "Lomu secība saglabāta",
         "save_failed": "Neizdevās saglabāt lomu secību",
-        "list_label": "Lomas, kuras jūs varat pārvietot",
-        "none_movable": "Zem jūsu augstākās lomas nav nevienas lomas."
+        "list_label": "Lomas, kuras jūs varat pārvietot"
       },
       "back_to_roles": "Atgriezties pie lomām",
       "roles_page": {

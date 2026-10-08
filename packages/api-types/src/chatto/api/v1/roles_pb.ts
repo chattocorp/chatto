@@ -41,15 +41,6 @@ export class Role extends Message<Role> {
   isSystem = false;
 
   /**
-   * Order position. A higher position ranks higher. Rank decides which
-   * accounts and roles a caller can manage; it does not change permission
-   * decisions.
-   *
-   * @generated from field: int32 position = 5;
-   */
-  position = 0;
-
-  /**
    * Whether messages may notify users assigned to this role.
    *
    * @generated from field: bool pingable = 6;
@@ -68,7 +59,6 @@ export class Role extends Message<Role> {
     { no: 2, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "is_system", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "position", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 6, name: "pingable", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
@@ -129,11 +119,26 @@ export class ListRolesRequest extends Message<ListRolesRequest> {
  */
 export class ListRolesResponse extends Message<ListRolesResponse> {
   /**
-   * Roles sorted by position.
+   * Roles in role order, highest first: owner first and everyone last. Role
+   * order is the administrative rank. It decides which accounts and roles a
+   * caller can manage; it does not change permission decisions.
    *
    * @generated from field: repeated chatto.api.v1.Role roles = 1;
    */
   roles: Role[] = [];
+
+  /**
+   * Name of the role at which the caller ranks. This is owner for an owner
+   * of the server, the caller's highest assigned role otherwise, and
+   * everyone when the caller has no roles. A bot ranks at most at its
+   * owner's highest role. A non-owner caller can manage only accounts whose
+   * highest role comes after this role in roles, and only roles that come
+   * after it. Everyone ranks below every account. The caller also needs the
+   * permission for each action.
+   *
+   * @generated from field: string viewer_highest_role = 2;
+   */
+  viewerHighestRole = "";
 
   constructor(data?: PartialMessage<ListRolesResponse>) {
     super();
@@ -144,6 +149,7 @@ export class ListRolesResponse extends Message<ListRolesResponse> {
   static readonly typeName = "chatto.api.v1.ListRolesResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "roles", kind: "message", T: Role, repeated: true },
+    { no: 2, name: "viewer_highest_role", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRolesResponse {

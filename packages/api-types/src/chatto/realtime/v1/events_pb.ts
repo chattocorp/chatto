@@ -170,17 +170,17 @@ export class RoleDeletedEvent extends Message<RoleDeletedEvent> {
 }
 
 /**
- * The role order changed. Role order is the administrative rank, so the
- * viewer's ranks_below_viewer and viewer_outranks flags can change. Permission
- * decisions are unchanged.
+ * The role order changed. Role order is the administrative rank, so which
+ * accounts and roles the viewer can manage can change. Permission decisions
+ * are unchanged.
  *
  * @generated from message chatto.realtime.v1.RolesReorderedEvent
  */
 export class RolesReorderedEvent extends Message<RolesReorderedEvent> {
   /**
-   * Roles that moved. A move can renumber other roles too, so reload the
-   * role list to get the current positions. Creating a role does not send
-   * this event; reload the list after role_created as well.
+   * Roles that moved. Reload the role list to get the current order. Creating
+   * a role does not send this event; reload the list after role_created as
+   * well.
    *
    * @generated from field: repeated string role_names = 1;
    */

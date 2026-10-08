@@ -44,15 +44,10 @@ Permissions, and Roles pages through `botDetailContext`.
   });
 
   const bot = $derived(botQuery.data ?? null);
-  const isBotOwner = $derived(!!bot && bot.ownerUserId === viewerId);
-  // Managers other than the bot owner must outrank the bot and its owner.
-  const viewerOutranks = $derived(bot?.viewerOutranks === true);
-  const canOperateBot = $derived(isBotOwner || (canManageBots && viewerOutranks));
-  const canEditIdentity = $derived(canOperateBot || (canManageAccounts && viewerOutranks));
-  // Explain why the controls are missing to managers who could otherwise use them.
-  const showOrderLock = $derived(
-    !!bot && !isBotOwner && !viewerOutranks && (canManageBots || canManageAccounts)
-  );
+  // The server also requires managers other than the bot owner to outrank
+  // the bot and its owner, and rejects the action otherwise.
+  const canOperateBot = $derived(!!bot && (bot.ownerUserId === viewerId || canManageBots));
+  const canEditIdentity = $derived(canOperateBot || canManageAccounts);
   let layoutActive = true;
 
   onDestroy(() => {
@@ -80,12 +75,6 @@ Permissions, and Roles pages through `botDetailContext`.
     },
     get canEditIdentity() {
       return canEditIdentity;
-    },
-    get canReassignOwner() {
-      return canManageBots && viewerOutranks;
-    },
-    get orderLocked() {
-      return showOrderLock;
     },
     isCurrentTarget(mutationTarget) {
       return layoutActive && serverScope.isCurrent() && mutationTarget === botId;
@@ -168,9 +157,6 @@ Permissions, and Roles pages through `botDetailContext`.
       <Hint tone="danger">{errorMessage(botQuery.error)}</Hint>
     {:else}
       <div class="flex flex-col gap-6">
-        {#if showOrderLock}
-          <Hint>{m('rbac.role_order.account_locked')}</Hint>
-        {/if}
         {@render children()}
       </div>
     {/if}

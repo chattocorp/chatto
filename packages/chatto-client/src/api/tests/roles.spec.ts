@@ -27,10 +27,10 @@ describe('createRoleAPI', () => {
           displayName: 'Moderator',
           description: 'Moderates rooms',
           isSystem: true,
-          position: 100,
           pingable: true
         }
-      ]
+      ],
+      viewerHighestRole: 'moderator'
     });
     const api = roleAPI();
 
@@ -46,13 +46,10 @@ describe('createRoleAPI', () => {
           permissions: [],
           permissionDenials: [],
           isSystem: true,
-          position: 100,
-          pingable: true,
-          ranksBelowViewer: false
+          pingable: true
         }
       ],
-      viewerCanManageRoles: false,
-      viewerCanAssignRoles: false
+      viewerHighestRole: 'moderator'
     });
   });
 
@@ -62,7 +59,6 @@ describe('createRoleAPI', () => {
       displayName: 'Moderator',
       description: 'Moderates rooms',
       isSystem: true,
-      position: 100,
       pingable: true
     };
     roles.getRole.mockReturnValue({ role });
@@ -90,7 +86,6 @@ describe('createRoleAPI', () => {
             displayName: 'Moderator',
             description: 'Moderates rooms',
             isSystem: true,
-            position: 100,
             pingable: true
           },
           permissions: ['room.manage'],
@@ -113,9 +108,7 @@ describe('createRoleAPI', () => {
           permissions: ['room.manage'],
           permissionDenials: ['message.post'],
           isSystem: true,
-          position: 100,
-          pingable: true,
-          ranksBelowViewer: false
+          pingable: true
         }
       ],
       viewerCanManageRoles: true,
@@ -131,7 +124,6 @@ describe('createRoleAPI', () => {
           displayName: 'Helpdesk',
           description: '',
           isSystem: false,
-          position: 10,
           pingable: false
         },
         permissions: [],
@@ -153,9 +145,7 @@ describe('createRoleAPI', () => {
         permissions: [],
         permissionDenials: [],
         isSystem: false,
-        position: 10,
-        pingable: false,
-        ranksBelowViewer: false
+        pingable: false
       },
       viewerCanManageRoles: true,
       viewerCanAssignRoles: true
@@ -194,7 +184,6 @@ describe('createRoleAPI', () => {
       permissions: [],
       permissionDenials: [],
       isSystem: false,
-      position: 10,
       pingable: true
     };
     const apiRole = {
@@ -203,7 +192,6 @@ describe('createRoleAPI', () => {
         displayName: role.displayName,
         description: role.description,
         isSystem: role.isSystem,
-        position: role.position,
         pingable: role.pingable
       },
       permissions: role.permissions,
@@ -216,7 +204,7 @@ describe('createRoleAPI', () => {
     adminRoles.deleteRole.mockReturnValue({});
     const api = roleAPI();
 
-    await expect(api.createRole(role)).resolves.toEqual({ ...role, ranksBelowViewer: false });
+    await expect(api.createRole(role)).resolves.toEqual(role);
     await expect(
       api.updateRole({
         name: 'helpdesk',
@@ -245,7 +233,7 @@ describe('createRoleAPI', () => {
 
   it('reads a public role and treats a missing role as null', async () => {
     roles.getRole.mockReturnValueOnce({
-      role: { name: 'moderator', displayName: 'Moderator', description: '', position: 1 }
+      role: { name: 'moderator', displayName: 'Moderator', description: '' }
     });
     await expect(roleAPI().getPublicRole('moderator')).resolves.toMatchObject({
       name: 'moderator',
@@ -268,7 +256,7 @@ describe('createRoleAPI', () => {
     });
   });
 
-  it('moves a role and maps the viewer hierarchy flag', async () => {
+  it('moves a role and keeps the returned role order', async () => {
     adminRoles.moveRole.mockReturnValue({
       roles: [
         {
@@ -277,12 +265,10 @@ describe('createRoleAPI', () => {
             displayName: 'Moderator',
             description: '',
             isSystem: true,
-            position: 1,
             pingable: true
           },
           permissions: ['message.manage'],
-          permissionDenials: [],
-          ranksBelowViewer: true
+          permissionDenials: []
         },
         {
           role: {
@@ -290,12 +276,10 @@ describe('createRoleAPI', () => {
             displayName: 'Admin',
             description: '',
             isSystem: true,
-            position: 2,
             pingable: false
           },
           permissions: [],
-          permissionDenials: [],
-          ranksBelowViewer: false
+          permissionDenials: []
         }
       ]
     });
@@ -307,9 +291,6 @@ describe('createRoleAPI', () => {
       roleName: 'moderator',
       beforeRoleName: 'admin'
     });
-    expect(result.map((role) => [role.name, role.position, role.ranksBelowViewer])).toEqual([
-      ['moderator', 1, true],
-      ['admin', 2, false]
-    ]);
+    expect(result.map((role) => role.name)).toEqual(['moderator', 'admin']);
   });
 });

@@ -15,11 +15,9 @@ type TierRoles = {
     displayName: string;
     description: string;
     isSystem: boolean;
-    position: number;
     override: { permissions: string[]; permissionDenials: string[] };
     inheritedAllows: string[];
     inheritedDenials: string[];
-    ranksBelowViewer: boolean;
   }>;
 };
 
@@ -31,33 +29,27 @@ const HAPPY_TIER_ROLES: TierRoles = {
       displayName: 'Owner',
       description: '',
       isSystem: true,
-      position: 1000,
       override: { permissions: [], permissionDenials: [] },
       inheritedAllows: [],
-      inheritedDenials: [],
-      ranksBelowViewer: true
+      inheritedDenials: []
     },
     {
       roleName: 'admin',
       displayName: 'Admin',
       description: '',
       isSystem: true,
-      position: 1,
       override: { permissions: ['message.post'], permissionDenials: [] },
       inheritedAllows: [],
-      inheritedDenials: [],
-      ranksBelowViewer: true
+      inheritedDenials: []
     },
     {
       roleName: 'moderator',
       displayName: 'Moderator',
       description: '',
       isSystem: true,
-      position: 2,
       override: { permissions: [], permissionDenials: ['room.create'] },
       inheritedAllows: ['message.post'],
-      inheritedDenials: [],
-      ranksBelowViewer: true
+      inheritedDenials: []
     }
   ]
 };
@@ -77,10 +69,15 @@ vi.mock('@chatto/client/api/permissions', () => ({
   }))
 }));
 
+// Roles that rank at or above the viewer in the role order.
+const rolesAboveViewer = vi.hoisted(() => new Set<string>());
+
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'server-test',
-    store: {},
+    store: {
+      roleCatalog: { ranksBelowViewer: (roleName: string) => !rolesAboveViewer.has(roleName) }
+    },
     connection: {
       queryScope: 'permission-matrix-test',
       getAPI: (factory: (config: never) => unknown) => factory({} as never)
@@ -91,6 +88,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
+  rolesAboveViewer.clear();
   nextTierRoles = HAPPY_TIER_ROLES;
   permissionMocks.getRolePermissionTierMatrix.mockReset();
   permissionMocks.getRolePermissionTierMatrix.mockImplementation(async () => nextTierRoles);
@@ -208,14 +206,12 @@ describe('PermissionMatrix', () => {
           displayName: 'Reader',
           description: '',
           isSystem: false,
-          position: 1,
           override: {
             permissions: ['message.read'],
             permissionDenials: ['message.read-interactions']
           },
           inheritedAllows: [],
-          inheritedDenials: [],
-          ranksBelowViewer: true
+          inheritedDenials: []
         }
       ]
     };
@@ -245,14 +241,12 @@ describe('PermissionMatrix', () => {
           displayName: 'Publisher',
           description: '',
           isSystem: false,
-          position: 1,
           override: {
             permissions: ['server.manage'],
             permissionDenials: ['server.manage.neighbors', 'server.manage.neighbors.publish']
           },
           inheritedAllows: [],
-          inheritedDenials: [],
-          ranksBelowViewer: true
+          inheritedDenials: []
         }
       ]
     };
@@ -634,12 +628,7 @@ describe('PermissionMatrix', () => {
   });
 
   it('renders cells of a role at or above the viewer as read-only', async () => {
-    nextTierRoles = {
-      ...HAPPY_TIER_ROLES,
-      roles: HAPPY_TIER_ROLES.roles.map((role) =>
-        role.roleName === 'admin' ? { ...role, ranksBelowViewer: false } : role
-      )
-    };
+    rolesAboveViewer.add('admin');
     const onRoleClick = vi.fn();
     const { container } = render(PermissionMatrix, { props: { onRoleClick } });
     await settle();

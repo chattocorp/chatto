@@ -27,7 +27,6 @@ export interface E2EAdminRole {
     displayName?: string;
     description?: string;
     isSystem?: boolean;
-    position?: number;
     pingable?: boolean;
   };
   permissions?: string[];
@@ -39,7 +38,6 @@ export interface E2EServerRole {
   displayName?: string;
   description?: string;
   isSystem?: boolean;
-  position?: number;
   pingable?: boolean;
   permissions: string[];
   permissionDenials: string[];

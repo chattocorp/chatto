@@ -12,55 +12,45 @@ import (
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-func TestRoleHierarchyFlagsDescribeTheViewer(t *testing.T) {
+func TestRoleCatalogsDescribeTheViewerAndRoleOrder(t *testing.T) {
 	t.Parallel()
 
 	env := newConnectAPITestEnv(t)
-	create := func(login, role string) *evtv1.User {
-		user, err := env.core.CreateUser(env.ctx, core.SystemActorID, login, login, "password123")
-		require.NoError(t, err)
-		if role != "" {
-			require.NoError(t, env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, role))
-		}
-		return user
-	}
-	admin := create("flags-admin", core.RoleAdmin)
-	peer := create("flags-peer-admin", core.RoleAdmin)
-	member := create("flags-member", "")
-	adminCtx := withCaller(env.ctx, admin)
+	admin, err := env.core.CreateUser(env.ctx, core.SystemActorID, "catalog-admin", "catalog-admin", "password123")
+	require.NoError(t, err)
+	require.NoError(t, env.core.AssignServerRole(env.ctx, core.SystemActorID, admin.Id, core.RoleAdmin))
+	member, err := env.core.CreateUser(env.ctx, core.SystemActorID, "catalog-member", "catalog-member", "password123")
+	require.NoError(t, err)
 
+	wantOrder := []string{core.RoleOwner, core.RoleAdmin, core.RoleModerator, core.RoleEveryone}
+	for _, viewer := range []struct {
+		user *evtv1.User
+		want string
+	}{{admin, core.RoleAdmin}, {member, core.RoleEveryone}} {
+		resp, err := env.publicRoles.ListRoles(withCaller(env.ctx, viewer.user), connect.NewRequest(&apiv1.ListRolesRequest{}))
+		require.NoError(t, err)
+		require.Equal(t, viewer.want, resp.Msg.GetViewerHighestRole())
+		names := []string{}
+		for _, role := range resp.Msg.GetRoles() {
+			names = append(names, role.GetName())
+		}
+		require.Equal(t, wantOrder, names, "public catalog lists roles highest first")
+	}
+
+	adminCtx := withCaller(env.ctx, admin)
 	roles, err := env.roles.ListRoles(adminCtx, connect.NewRequest(&adminv1.ListRolesRequest{}))
 	require.NoError(t, err)
-	below := map[string]bool{}
+	adminNames := []string{}
 	for _, role := range roles.Msg.GetRoles() {
-		below[role.GetRole().GetName()] = role.GetRanksBelowViewer()
+		adminNames = append(adminNames, role.GetRole().GetName())
 	}
-	require.Equal(t, map[string]bool{core.RoleOwner: false, core.RoleAdmin: false, core.RoleModerator: true, core.RoleEveryone: true}, below)
+	require.Equal(t, wantOrder, adminNames, "admin catalog lists roles highest first")
 
 	tiers, err := env.permissions.GetRolePermissionTierMatrix(adminCtx, connect.NewRequest(&adminv1.GetRolePermissionTierMatrixRequest{}))
 	require.NoError(t, err)
-	tierBelow := map[string]bool{}
+	tierNames := []string{}
 	for _, role := range tiers.Msg.GetMatrix().GetRoles() {
-		tierBelow[role.GetRole().GetName()] = role.GetRanksBelowViewer()
+		tierNames = append(tierNames, role.GetRole().GetName())
 	}
-	require.Equal(t, below, tierBelow)
-
-	for _, target := range []struct {
-		id       string
-		outranks bool
-	}{{peer.Id, false}, {member.Id, true}} {
-		resp, err := env.adminUsers.GetMember(adminCtx, connect.NewRequest(&adminv1.GetMemberRequest{
-			Target: &adminv1.GetMemberRequest_UserId{UserId: target.id},
-		}))
-		require.NoError(t, err)
-		require.Equal(t, target.outranks, resp.Msg.GetMember().GetViewerOutranks(), "viewer_outranks for %s", target.id)
-		require.Equal(t, target.outranks, resp.Msg.GetMember().GetViewerCanDeleteAccount(), "viewer_can_delete_account for %s", target.id)
-	}
-
-	allowBotCreation(t, env.ctx, env.core, peer.Id)
-	bot, err := env.core.CreateBot(env.ctx, peer.Id, "flags_peer_bot", "Flags Peer Bot")
-	require.NoError(t, err)
-	botResp, err := (&botService{api: env.api}).GetBot(adminCtx, connect.NewRequest(&apiv1.GetBotRequest{BotUserId: bot.User.GetId()}))
-	require.NoError(t, err)
-	require.False(t, botResp.Msg.GetBot().GetViewerOutranks(), "admin must not outrank a peer admin's bot")
+	require.Equal(t, wantOrder, tierNames, "tier matrix lists roles highest first")
 }

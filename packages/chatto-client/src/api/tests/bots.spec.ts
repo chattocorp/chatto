@@ -34,8 +34,7 @@ describe('createBotAPI', () => {
           ownerUserId: 'U-owner',
           createdAt: Timestamp.fromDate(createdAt),
           apiKeyCreatedAt: Timestamp.fromDate(createdAt),
-          lastLoginChange: Timestamp.fromDate(createdAt),
-          viewerOutranks: true
+          lastLoginChange: Timestamp.fromDate(createdAt)
         }
       ]
     });
@@ -53,7 +52,6 @@ describe('createBotAPI', () => {
           ownerUserId: 'U-owner',
           createdAt,
           lastLoginChange: createdAt,
-          viewerOutranks: true,
           apiKeys: [],
           incomingWebhooks: []
         }

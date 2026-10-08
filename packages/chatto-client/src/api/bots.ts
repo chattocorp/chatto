@@ -14,12 +14,6 @@ export type Bot = {
   createdAt: Date | null;
   /** Start of the bot's current 30-day username cooldown; `null` when none was started. */
   lastLoginChange: Date | null;
-  /**
-   * True when the role hierarchy lets the viewer manage this bot: the viewer
-   * owns it, is a server owner, or ranks above the bot and its owner.
-   * Permission checks still apply.
-   */
-  viewerOutranks: boolean;
   apiKeys: {
     id: string;
     name: string;
@@ -161,7 +155,6 @@ function botFromAPI(bot: APIBot): Bot {
     ownerUserId: bot.ownerUserId,
     createdAt: bot.createdAt?.toDate() ?? null,
     lastLoginChange: bot.lastLoginChange?.toDate() ?? null,
-    viewerOutranks: bot.viewerOutranks,
     apiKeys: (bot.apiKeys ?? []).map((key) => ({
       id: key.id,
       name: key.name,

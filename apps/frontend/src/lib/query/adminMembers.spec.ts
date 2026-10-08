@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AdminMember } from '$lib/api/adminUsers';
 import { adminMemberRowKey, createAdminMemberLoader, type AdminMemberBatch } from './adminMembers';
-import { settingsQueryKeys } from './settings';
 import {
   queryClient,
   removeAdminQueries,
@@ -20,8 +19,7 @@ function member(id: string): AdminMember {
     hasVerifiedEmail: true,
     verifiedEmails: ['private@example.test'],
     primaryVerifiedEmail: 'private@example.test',
-    viewerCanDeleteAccount: false,
-    viewerOutranks: false
+    viewerCanDeleteAccount: false
   };
 }
 
@@ -69,24 +67,6 @@ describe('private admin member hydration', () => {
     );
     expect((await load(['u'])).roles[0].displayName).toBe('Renamed');
     expect(fetch).toHaveBeenCalledTimes(4);
-  });
-
-  it('refreshes bot snapshots after role events because their rank can change', async () => {
-    const connection = { queryScope: 'a' };
-    const botKey = settingsQueryKeys.bot('s', connection, 'bot-1');
-    const botListKey = settingsQueryKeys.bots('s', connection, '');
-    const otherServerBotKey = settingsQueryKeys.bot('other', connection, 'bot-1');
-    const policiesKey = settingsQueryKeys.notificationPolicies('s', connection, []);
-    for (const key of [botKey, botListKey, otherServerBotKey, policiesKey]) {
-      queryClient.setQueryData(key, { marker: true });
-    }
-
-    refreshRoleQueries('s');
-
-    await vi.waitFor(() => expect(queryClient.getQueryState(botKey)?.isInvalidated).toBe(true));
-    expect(queryClient.getQueryState(botListKey)?.isInvalidated).toBe(true);
-    expect(queryClient.getQueryState(otherServerBotKey)?.isInvalidated).toBe(false);
-    expect(queryClient.getQueryState(policiesKey)?.isInvalidated).toBe(false);
   });
 
   it.each(['logout', 'permission loss', 'deletion'] as const)(

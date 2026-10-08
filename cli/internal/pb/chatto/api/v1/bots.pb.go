@@ -102,12 +102,8 @@ type Bot struct {
 	// bot managers cannot change the username again until the cooldown ends.
 	// A caller with user.manage-accounts can change it at any time.
 	LastLoginChange *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=last_login_change,json=lastLoginChange,proto3" json:"last_login_change,omitempty"`
-	// Whether the role hierarchy lets the caller manage this bot: the caller
-	// owns it, is an owner of the server, or ranks above both the bot and its
-	// owner. The caller also needs the permission for each action.
-	ViewerOutranks bool `protobuf:"varint,9,opt,name=viewer_outranks,json=viewerOutranks,proto3" json:"viewer_outranks,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Bot) Reset() {
@@ -187,13 +183,6 @@ func (x *Bot) GetLastLoginChange() *timestamppb.Timestamp {
 		return x.LastLoginChange
 	}
 	return nil
-}
-
-func (x *Bot) GetViewerOutranks() bool {
-	if x != nil {
-		return x.ViewerOutranks
-	}
-	return false
 }
 
 // Safe metadata for one active bot API key. The raw key is returned only when
@@ -2298,7 +2287,7 @@ var File_chatto_api_v1_bots_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\n" +
-	"\x18chatto/api/v1/bots.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe6\x03\n" +
+	"\x18chatto/api/v1/bots.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbd\x03\n" +
 	"\x03Bot\x12'\n" +
 	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\x12\"\n" +
 	"\rowner_user_id\x18\x02 \x01(\tR\vownerUserId\x129\n" +
@@ -2307,8 +2296,7 @@ const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\x12api_key_created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x0fapiKeyCreatedAt\x12N\n" +
 	"\x11incoming_webhooks\x18\x06 \x03(\v2!.chatto.api.v1.BotIncomingWebhookR\x10incomingWebhooks\x123\n" +
 	"\bapi_keys\x18\a \x03(\v2\x18.chatto.api.v1.BotApiKeyR\aapiKeys\x12F\n" +
-	"\x11last_login_change\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\x12'\n" +
-	"\x0fviewer_outranks\x18\t \x01(\bR\x0eviewerOutranksJ\x04\b\x05\x10\x06R\x12api_key_rotated_at\"\x8e\x02\n" +
+	"\x11last_login_change\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChangeJ\x04\b\x05\x10\x06R\x12api_key_rotated_at\"\x8e\x02\n" +
 	"\tBotApiKey\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x129\n" +

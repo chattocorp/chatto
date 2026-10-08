@@ -239,14 +239,17 @@ permission setting wins.
   deletion, roles, permission settings, room removal and suspensions, room
   membership removal, and bots. To manage a bot, you also need a higher rank
   than its owner, unless you own the bot.
-- You can assign, remove, edit, delete, and move only roles below your own
-  highest role. You can always edit the settings of `everyone`.
+- You can assign, remove, edit, and delete only roles below your own highest
+  role. You can always edit the settings of `everyone`.
+- With `role.manage`, you can move every role except `owner` and `everyone`,
+  also above your own highest role.
 - Two users with the same highest role cannot change each other. Only an
   owner can change a user whose highest role is the top role. By default,
   this role is `admin`.
 - Permission settings directly on a user do not give rank. Give
   administrators a role.
 - Give `role.manage` only to administrators. A user with `role.manage` can
+  move their own role higher and then manage more users. They can also
   change the settings of `everyone`, and these settings apply to all members,
   also to users who rank higher.
 - Moderating messages and adding a member to a room do not depend on rank.

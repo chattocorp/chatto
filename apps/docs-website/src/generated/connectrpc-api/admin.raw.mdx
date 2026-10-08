@@ -331,7 +331,7 @@ Finite role catalog snapshot plus viewer role-management capabilities.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `roles` | repeated [`AdminRole`](#chatto-admin-v1-AdminRole) | Roles sorted by position. |
+| `roles` | repeated [`AdminRole`](#chatto-admin-v1-AdminRole) | Roles in role order, highest first. |
 | `viewer_can_manage_roles` | `bool` | Whether the caller may create/update/delete role definitions. |
 | `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles and view role rosters. |
 
@@ -544,7 +544,7 @@ Result of moving one role.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `roles` | repeated [`AdminRole`](#chatto-admin-v1-AdminRole) | Full role catalog after the move, sorted by position. |
+| `roles` | repeated [`AdminRole`](#chatto-admin-v1-AdminRole) | Full role catalog after the move, in role order, highest first. |
 
 
 <a id="chatto-admin-v1-AdminUserService"></a>
@@ -674,7 +674,7 @@ Batch server-admin member response.
 Assigns a role to a user or bot. Requires role.assign. A caller who is not
 an owner may assign only roles below their own highest role whose granted
 authority they already possess, and must outrank the target (see
-AdminMember.viewer_outranks) unless it is their own account. For a bot,
+chatto.api.v1.ListRolesResponse.viewer_highest_role) unless it is their own account. For a bot,
 the caller must always outrank the bot itself. Bots cannot hold the owner
 role.
 
@@ -2459,7 +2459,6 @@ Role metadata plus administrative permission state.
 | `role` | `chatto.api.v1.Role` | Public role metadata shared with ordinary role catalog reads. |
 | `permissions` | `repeated string` | Permissions granted by this role. |
 | `permission_denials` | `repeated string` | Permissions denied by this role. |
-| `ranks_below_viewer` | `bool` | Whether this role ranks below the caller's highest role. Only then may the caller assign, revoke, edit, delete, or move it. Owners outrank every role, and everyone ranks below every account. The caller also needs the permission for each action. |
 
 
 
@@ -2482,7 +2481,6 @@ admin/member metadata with visibility controlled by the service.
 | `last_login_change` | `google.protobuf.Timestamp` | Start of the current username-change cooldown, when visible and known. |
 | `user` | `chatto.api.v1.User` | Public identity fields for this user. |
 | `primary_verified_email` | `optional string` | Selected primary verified email visible to the caller. Absence can mean that no primary email exists or that the field is not visible. |
-| `viewer_outranks` | `bool` | Whether the role hierarchy lets the caller act on this account: the caller ranks above it, or the caller is an owner. For a bot, the caller must also rank above its owner, unless the caller owns the bot. The caller also needs the permission for each action. |
 
 
 
@@ -2654,7 +2652,6 @@ One role's permission state at a single tier.
 | `inherited_allows` | `repeated string` | Allows inherited from broader tiers. |
 | `inherited_denials` | `repeated string` | Denials inherited from broader tiers. |
 | `role` | `chatto.api.v1.Role` | Public role metadata. |
-| `ranks_below_viewer` | `bool` | Whether this role ranks below the caller's highest role, so the caller may edit its decisions when they also have the permission to edit this tier. Owners outrank every role, and everyone ranks below every account. |
 
 
 
@@ -2667,7 +2664,7 @@ Role permission matrix for one tier.
 | Field | Type | Description |
 | --- | --- | --- |
 | `applicable_permissions` | `repeated string` | Permissions configurable at this tier. |
-| `roles` | repeated [`TierRole`](#chatto-admin-v1-TierRole) | Roles sorted by position. |
+| `roles` | repeated [`TierRole`](#chatto-admin-v1-TierRole) | Roles in role order, highest first. |
 
 
 

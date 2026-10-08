@@ -32,7 +32,7 @@
   const sortedServerRoles = $derived(
     member.roles
       .filter((roleName) => roleName !== 'everyone')
-      .sort((a, b) => rolePosition(a) - rolePosition(b))
+      .sort((a, b) => roleRank(a) - roleRank(b))
   );
   const serverRoleCount = $derived(sortedServerRoles.length);
   const isBot = $derived(member.isBot === true);
@@ -54,8 +54,10 @@
     return roles.find((role) => role.name === roleName)?.displayName ?? roleName;
   }
 
-  function rolePosition(roleName: string): number {
-    return roles.find((role) => role.name === roleName)?.position ?? Number.MAX_SAFE_INTEGER;
+  /** Index in role order, highest first; unknown roles go last. */
+  function roleRank(roleName: string): number {
+    const index = roles.findIndex((role) => role.name === roleName);
+    return index < 0 ? Number.MAX_SAFE_INTEGER : index;
   }
 
   function formatOptionalDate(date: string | null | undefined): string {

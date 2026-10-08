@@ -282,15 +282,6 @@ export class TierRole extends Message<TierRole> {
    */
   role?: Role;
 
-  /**
-   * Whether this role ranks below the caller's highest role, so the caller
-   * may edit its decisions when they also have the permission to edit this
-   * tier. Owners outrank every role, and everyone ranks below every account.
-   *
-   * @generated from field: bool ranks_below_viewer = 10;
-   */
-  ranksBelowViewer = false;
-
   constructor(data?: PartialMessage<TierRole>) {
     super();
     proto3.util.initPartial(data, this);
@@ -303,7 +294,6 @@ export class TierRole extends Message<TierRole> {
     { no: 7, name: "inherited_allows", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 8, name: "inherited_denials", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 9, name: "role", kind: "message", T: Role },
-    { no: 10, name: "ranks_below_viewer", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TierRole {
@@ -337,7 +327,7 @@ export class TierRoles extends Message<TierRoles> {
   applicablePermissions: string[] = [];
 
   /**
-   * Roles sorted by position.
+   * Roles in role order, highest first.
    *
    * @generated from field: repeated chatto.admin.v1.TierRole roles = 2;
    */

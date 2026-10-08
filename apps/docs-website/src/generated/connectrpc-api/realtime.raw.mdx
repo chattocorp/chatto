@@ -359,13 +359,13 @@ This event does not change permission decisions.
 
 ### RolesReorderedEvent
 
-The role order changed. Role order is the administrative rank, so the
-viewer's ranks_below_viewer and viewer_outranks flags can change. Permission
-decisions are unchanged.
+The role order changed. Role order is the administrative rank, so which
+accounts and roles the viewer can manage can change. Permission decisions
+are unchanged.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `role_names` | `repeated string` | Roles that moved. A move can renumber other roles too, so reload the role list to get the current positions. Creating a role does not send this event; reload the list after role_created as well. |
+| `role_names` | `repeated string` | Roles that moved. Reload the role list to get the current order. Creating a role does not send this event; reload the list after role_created as well. |
 
 
 

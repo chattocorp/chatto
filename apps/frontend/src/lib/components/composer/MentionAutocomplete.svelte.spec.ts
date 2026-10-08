@@ -27,7 +27,7 @@ function member(login: string, displayName?: string, deleted = false): RoomMembe
 function renderAutocomplete(props: {
   query: string;
   members: RoomMember[];
-  roles?: { name: string; isSystem?: boolean; position?: number; pingable?: boolean }[];
+  roles?: { name: string; isSystem?: boolean; pingable?: boolean }[];
   prioritizedUserIds?: ReadonlySet<string>;
   onSelect?: (login: string, viaTab: boolean) => void;
   onClose?: () => void;

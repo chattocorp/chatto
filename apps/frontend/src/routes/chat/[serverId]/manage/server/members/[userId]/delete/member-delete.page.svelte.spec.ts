@@ -61,7 +61,6 @@ function member(id: string, overrides: Partial<AdminMember> = {}): AdminMember {
     verifiedEmails: [],
     primaryVerifiedEmail: null,
     viewerCanDeleteAccount: true,
-    viewerOutranks: true,
     lastLoginChange: null,
     ...overrides
   };

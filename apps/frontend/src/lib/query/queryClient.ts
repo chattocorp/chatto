@@ -109,26 +109,24 @@ export async function refreshServerQueries(serverId: string): Promise<void> {
   }
 }
 
-/**
- * Refresh role and member snapshots after a public role event; retain other
- * data. Bot snapshots refresh too: their `viewerOutranks` follows the role
- * order and the role assignments.
- */
+/** Refresh role and member snapshots after a public role event; retain other data. */
 export function refreshRoleQueries(serverId: string): void {
   const filters = {
     predicate: (query: { queryKey: QueryKey }) => {
       const key = query.queryKey;
-      if (key[0] !== 'server' || key[1] !== serverId) return false;
-      if (key[4] === 'settings') return key[5] === 'bots';
-      return [
-        'roles',
-        'role',
-        'role-members',
-        'role-permissions',
-        'members',
-        'member',
-        'permission-tier'
-      ].includes(String(key[5]));
+      return (
+        key[0] === 'server' &&
+        key[1] === serverId &&
+        [
+          'roles',
+          'role',
+          'role-members',
+          'role-permissions',
+          'members',
+          'member',
+          'permission-tier'
+        ].includes(String(key[5]))
+      );
     }
   };
   // An event can arrive during the first query load. Cancel that older read

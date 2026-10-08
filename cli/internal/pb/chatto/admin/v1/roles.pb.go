@@ -33,13 +33,8 @@ type AdminRole struct {
 	Permissions []string `protobuf:"bytes,2,rep,name=permissions,proto3" json:"permissions,omitempty"`
 	// Permissions denied by this role.
 	PermissionDenials []string `protobuf:"bytes,3,rep,name=permission_denials,json=permissionDenials,proto3" json:"permission_denials,omitempty"`
-	// Whether this role ranks below the caller's highest role. Only then may
-	// the caller assign, revoke, edit, delete, or move it. Owners outrank every
-	// role, and everyone ranks below every account. The caller also needs the
-	// permission for each action.
-	RanksBelowViewer bool `protobuf:"varint,4,opt,name=ranks_below_viewer,json=ranksBelowViewer,proto3" json:"ranks_below_viewer,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *AdminRole) Reset() {
@@ -93,13 +88,6 @@ func (x *AdminRole) GetPermissionDenials() []string {
 	return nil
 }
 
-func (x *AdminRole) GetRanksBelowViewer() bool {
-	if x != nil {
-		return x.RanksBelowViewer
-	}
-	return false
-}
-
 // Request the role catalog.
 type ListRolesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -140,7 +128,7 @@ func (*ListRolesRequest) Descriptor() ([]byte, []int) {
 // Finite role catalog snapshot plus viewer role-management capabilities.
 type ListRolesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Roles sorted by position.
+	// Roles in role order, highest first.
 	Roles []*AdminRole `protobuf:"bytes,1,rep,name=roles,proto3" json:"roles,omitempty"`
 	// Whether the caller may create/update/delete role definitions.
 	ViewerCanManageRoles bool `protobuf:"varint,2,opt,name=viewer_can_manage_roles,json=viewerCanManageRoles,proto3" json:"viewer_can_manage_roles,omitempty"`
@@ -817,7 +805,7 @@ func (x *MoveRoleRequest) GetBeforeRoleName() string {
 // Result of moving one role.
 type MoveRoleResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Full role catalog after the move, sorted by position.
+	// Full role catalog after the move, in role order, highest first.
 	Roles         []*AdminRole `protobuf:"bytes,1,rep,name=roles,proto3" json:"roles,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -864,12 +852,11 @@ var File_chatto_admin_v1_roles_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_roles_proto_rawDesc = "" +
 	"\n" +
-	"\x1bchatto/admin/v1/roles.proto\x12\x0fchatto.admin.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1echatto/api/v1/pagination.proto\"\xb3\x01\n" +
+	"\x1bchatto/admin/v1/roles.proto\x12\x0fchatto.admin.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1echatto/api/v1/pagination.proto\"\x85\x01\n" +
 	"\tAdminRole\x12'\n" +
 	"\x04role\x18\x01 \x01(\v2\x13.chatto.api.v1.RoleR\x04role\x12 \n" +
 	"\vpermissions\x18\x02 \x03(\tR\vpermissions\x12-\n" +
-	"\x12permission_denials\x18\x03 \x03(\tR\x11permissionDenials\x12,\n" +
-	"\x12ranks_below_viewer\x18\x04 \x01(\bR\x10ranksBelowViewer\"\x12\n" +
+	"\x12permission_denials\x18\x03 \x03(\tR\x11permissionDenials\"\x12\n" +
 	"\x10ListRolesRequest\"\xb3\x01\n" +
 	"\x11ListRolesResponse\x120\n" +
 	"\x05roles\x18\x01 \x03(\v2\x1a.chatto.admin.v1.AdminRoleR\x05roles\x125\n" +

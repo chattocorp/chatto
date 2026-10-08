@@ -205,12 +205,12 @@ seconds. The client sends no application ping. A heartbeat can contain a fresh
 
 Role changes arrive as normal events and do not close the connection. Read
 role metadata after `role_created` or `role_updated`. After `roles_reordered`,
-reload the roles: the role order is the administrative rank, so
-`ranks_below_viewer` and `viewer_outranks` can change. `roles_reordered`
-names only the roles that moved, and a move can renumber other roles. A new
-role starts lowest, so also reload the roles after `role_created`. Apply
-`role_assigned` and `role_revoked` to member role lists, and reload these
-flags when they concern the viewer.
+reload the role list: the role order is the administrative rank, so which
+accounts and roles the viewer can manage can change. `roles_reordered` names
+only the roles that moved. A new role starts lowest, so also reload the role
+list after `role_created`. Apply `role_assigned` and `role_revoked` to member
+role lists, and reload the role list when they concern the viewer, because
+`viewer_highest_role` can change.
 
 Reload all private cached data when:
 

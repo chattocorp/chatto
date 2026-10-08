@@ -30,10 +30,6 @@ message Bot {
   // bot managers cannot change the username again until the cooldown ends.
   // A caller with user.manage-accounts can change it at any time.
   google.protobuf.Timestamp last_login_change = 8;
-  // Whether the role hierarchy lets the caller manage this bot: the caller
-  // owns it, is an owner of the server, or ranks above both the bot and its
-  // owner. The caller also needs the permission for each action.
-  bool viewer_outranks = 9;
 }
 
 // Availability of best-effort credential last-use telemetry.
@@ -352,7 +348,8 @@ message RevokeBotOutboundWebhookResponse {}
 
 // Creates and manages bot accounts owned by human users. Bot API keys cannot
 // call this service. A caller who manages a bot with bot.manage instead of
-// ownership must outrank the bot and its owner (see Bot.viewer_outranks).
+// ownership must outrank the bot and its owner (see
+// ListRolesResponse.viewer_highest_role).
 service BotService {
   // List retained failures for an endpoint of a bot you can manage. Returns full
   // records in recording order, oldest first. Expired records are omitted.
@@ -401,8 +398,7 @@ service BotService {
     option idempotency_level = IDEMPOTENT;
   }
   // Reassigns a bot to another active human owner. Requires bot.manage. The
-  // caller must outrank the bot and its current owner (see
-  // Bot.viewer_outranks), must outrank the new owner unless it is their own
+  // caller must outrank the bot and its current owner, must outrank the new owner unless it is their own
   // account, and must have every permission that the bot is allowed. The
   // current API keys and configured permission allowlist remain unchanged,
   // while effective permissions immediately use the new owner's ceiling.

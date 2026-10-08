@@ -207,15 +207,13 @@
       "delete_role_failed": "Falha ao eliminar função",
       "role_order": {
         "title": "Ordem das funções",
-        "hint": "A ordem das funções decide quem pode gerir quem. Só pode mover as funções abaixo da sua função mais alta. Coloque funções de restrição, como uma função de suspensão, abaixo das pessoas que as gerem.",
+        "hint": "A ordem das funções decide quem pode gerir quem. Coloque funções de restrição, como uma função de suspensão, abaixo das pessoas que as gerem.",
         "drag_role": "Mover {role}",
         "always_highest": "Sempre a mais alta",
         "always_lowest": "Sempre a mais baixa",
-        "locked": "Bloqueada",
         "saved": "Ordem das funções guardada",
         "save_failed": "Não foi possível guardar a ordem das funções",
-        "list_label": "Funções que pode mover",
-        "none_movable": "Nenhuma função está abaixo da sua função mais alta."
+        "list_label": "Funções que pode mover"
       },
       "back_to_roles": "Voltar às funções",
       "roles_page": {

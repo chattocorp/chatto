@@ -8,6 +8,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -469,18 +470,16 @@ func grantAPITestRank(t *testing.T, env *connectAPITestEnv, userID string) {
 	if err != nil {
 		t.Fatalf("ListServerRoles: %v", err)
 	}
-	// Place the role directly above the role that sits directly below admin.
+	// Place the role directly below admin: directly above the role that
+	// follows admin in role order, which lists roles highest first.
 	before := ""
-	for _, role := range roles {
-		switch role.Name {
-		case core.RoleOwner, core.RoleEveryone, roleName:
-			continue
-		case core.RoleAdmin:
-		default:
-			before = role.Name
-			continue
+	if admin := slices.IndexFunc(roles, func(role core.RoleWithPermissions) bool { return role.Name == core.RoleAdmin }); admin >= 0 {
+		for _, role := range roles[admin+1:] {
+			if role.Name != roleName && role.Name != core.RoleEveryone {
+				before = role.Name
+				break
+			}
 		}
-		break
 	}
 	if _, err := env.core.MoveServerRole(env.ctx, core.SystemActorID, roleName, before); err != nil {
 		t.Fatalf("MoveServerRole: %v", err)

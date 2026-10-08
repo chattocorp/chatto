@@ -49,9 +49,9 @@ unchanged (ADR-052): the rank never decides whether a permission is allowed.
   membership removal, and bot management and reassignment. Message moderation
   and adding a member to a room are not covered: they do not act against the
   account.
-- **Roles.** A non-owner may assign, revoke, edit, delete, or move only roles
-  that rank strictly below their own highest role. `everyone` ranks below
-  every account, so room and role managers can edit its decisions.
+- **Roles.** A non-owner may assign, revoke, edit, or delete only roles that
+  rank strictly below their own highest role. `everyone` ranks below every
+  account, so room and role managers can edit its decisions.
 - **Authority bound.** A non-owner may change one role or direct decision only
   for a permission that they effectively hold at that scope. Deleting or
   revoking a role requires every permission that the role allows or denies.
@@ -68,18 +68,25 @@ unchanged (ADR-052): the rank never decides whether a permission is allowed.
   from 1 and place `owner` directly above them, so the order has no fixed
   limit. Older `RbacRolesReorderedEvent` events list custom roles only and
   replay with the previous fixed system positions.
-- **Move rules.** A non-owner can move only a role below their own highest
-  role, and only directly above a role that is also below it, or lowest. The
-  moved role then stays below them. `owner` and `everyone` cannot move or
-  serve as the anchor.
+- **Move rules.** A holder of `role.manage` can move every role except
+  `owner` and `everyone`, also above their own highest role. `owner` and
+  `everyone` cannot move or serve as the anchor. `role.manage` is an
+  administrator permission: a holder can give themselves a higher rank.
+- **Public API.** Clients get the role order from role lists, which list
+  roles highest first. `ListRolesResponse.viewer_highest_role` names the role
+  at which the caller ranks (`owner` for owners). Clients compare the two to
+  show which actions can succeed. Role positions are internal and not part
+  of the public API.
 
 Rank checks run inside the command's OCC retry with the stable authorization
 inputs that permission checks use (ADR-087).
 
 ## Consequences
 
-- A delegated role, account, or permission manager can no longer give
-  themselves more authority or act on accounts at or above their rank.
+- A delegated account, permission, or role-assignment manager can no longer
+  give themselves more authority or act on accounts at or above their rank.
+  A holder of `role.manage` can move their own role higher, so give
+  `role.manage` only to administrators.
 - Two accounts with the same highest role cannot act on each other. Only an
   owner can act on an account whose highest role is the top role, which is
   `admin` by default.
@@ -99,7 +106,8 @@ inputs that permission checks use (ADR-087).
   deletes at the same time does not invalidate it; the OCC retry applies it
   to the new order. Each event stays small, also on servers with many roles.
 - During a rolling upgrade, older replicas apply the earlier rules and show
-  the earlier display order. They ignore `RbacRoleMovedEvent` and
+  the earlier display order. They list roles lowest first and do not send
+  `viewer_highest_role`. They ignore `RbacRoleMovedEvent` and
   `place_lowest`. A legacy reorder or role creation from an older replica
   after a move can give two roles the same position. Equal positions rank
   equally until the next move or role creation, which orders them by name. The RBAC projection snapshot contract

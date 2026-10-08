@@ -61,17 +61,13 @@ message TierRole {
   repeated string inherited_denials = 8;
   // Public role metadata.
   chatto.api.v1.Role role = 9;
-  // Whether this role ranks below the caller's highest role, so the caller
-  // may edit its decisions when they also have the permission to edit this
-  // tier. Owners outrank every role, and everyone ranks below every account.
-  bool ranks_below_viewer = 10;
 }
 
 // Role permission matrix for one tier.
 message TierRoles {
   // Permissions configurable at this tier.
   repeated string applicable_permissions = 1;
-  // Roles sorted by position.
+  // Roles in role order, highest first.
   repeated TierRole roles = 2;
 }
 

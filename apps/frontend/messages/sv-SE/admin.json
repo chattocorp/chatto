@@ -207,15 +207,13 @@
       "delete_role_failed": "Det gick inte att ta bort rollen",
       "role_order": {
         "title": "Rollordning",
-        "hint": "Rollordningen avgör vem som kan hantera vem. Du kan bara flytta rollerna under din högsta roll. Placera begränsande roller, till exempel en avstängningsroll, under de personer som hanterar dem.",
+        "hint": "Rollordningen avgör vem som kan hantera vem. Placera begränsande roller, till exempel en avstängningsroll, under de personer som hanterar dem.",
         "drag_role": "Flytta {role}",
         "always_highest": "Alltid högst",
         "always_lowest": "Alltid lägst",
-        "locked": "Låst",
         "saved": "Rollordningen har sparats",
         "save_failed": "Det gick inte att spara rollordningen",
-        "list_label": "Roller som du kan flytta",
-        "none_movable": "Inga roller finns under din högsta roll."
+        "list_label": "Roller som du kan flytta"
       },
       "back_to_roles": "Tillbaka till roller",
       "roles_page": {

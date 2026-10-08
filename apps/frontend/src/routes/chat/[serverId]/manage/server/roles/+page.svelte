@@ -6,10 +6,10 @@ role and an edit (or view) link on each row. The role order is an
 administrative rank: it decides who can manage whom. It does not change how
 permissions resolve.
 
-The list shows the highest role first. `owner` is fixed at the top and
-`everyone` at the bottom. Roles at or above the viewer's highest role
-(`ranksBelowViewer === false`) are locked above the reorderable block. Only the
-roles below the viewer's highest role can be dragged.
+The list shows the roles in the server's order, highest first. `owner` is
+fixed at the top and `everyone` at the bottom. Role managers can drag every
+other role, also above their own highest role (ADR-114). Roles at or above the
+viewer's highest role open read-only.
 
 A pointer drag saves when it is dropped. A keyboard drag reports every arrow
 key move as a `finalize` event while the drag continues, so it saves once when
@@ -65,23 +65,22 @@ do not break it.
     };
   });
 
-  /** Every role, highest first. */
-  const roles = $derived(
-    // Highest first. Equal positions, which only legacy events produce, rank
-    // by name on the server, so the later name shows first.
-    [...(rolesQuery.data?.roles ?? [])].sort(
-      (a, b) => b.position - a.position || (a.name < b.name ? 1 : a.name > b.name ? -1 : 0)
-    )
-  );
+  /** Every role, highest first, as the server lists them. */
+  const roles = $derived(rolesQuery.data?.roles ?? []);
   const ownerRole = $derived(roles.find((role) => role.name === 'owner') ?? null);
   const everyoneRole = $derived(roles.find((role) => role.name === 'everyone') ?? null);
-  const orderedRoles = $derived(
-    roles.filter((role) => role.name !== 'owner' && role.name !== 'everyone')
-  );
-  const lockedRoles = $derived(orderedRoles.filter((role) => !role.ranksBelowViewer));
-  /** The saved order of the roles that the viewer can move, highest first. */
+  /** The saved order of the roles that can move, highest first. */
   const savedMovableItems = $derived(
-    orderedRoles.filter((role) => role.ranksBelowViewer).map((role) => ({ ...role, id: role.name }))
+    roles
+      .filter((role) => role.name !== 'owner' && role.name !== 'everyone')
+      .map((role) => ({ ...role, id: role.name }))
+  );
+  // Roles at or above the viewer's highest role open read-only.
+  const roleCatalog = serverScope.store.roleCatalog;
+  const editableRoles = $derived(
+    new Set(
+      roles.filter((role) => roleCatalog.ranksBelowViewer(role.name)).map((role) => role.name)
+    )
   );
 
   // The local order while a drag or its save runs. `null` shows the saved order.
@@ -156,7 +155,7 @@ do not break it.
     }
     draftItems = [...items];
     // The moved role ranks directly above the role after it in the list
-    // (highest first). At the bottom of the movable block, it goes lowest.
+    // (highest first). At the bottom of the list, it goes lowest.
     moveMutation.mutate({
       ...session.snapshot(),
       roleName: items[movedIndex].name,
@@ -171,7 +170,7 @@ do not break it.
   the look of the square icon chips on the room rows.
 -->
 {#snippet openAction(role: ServerRole)}
-  {@const editable = role.ranksBelowViewer}
+  {@const editable = editableRoles.has(role.name)}
   {@const label = editable
     ? m('admin.permissions.roles_page.edit_role', { role: role.displayName })
     : m('admin.permissions.roles_page.view_role', { role: role.displayName })}
@@ -191,21 +190,21 @@ do not break it.
   </a>
 {/snippet}
 
-{#snippet roleRow(role: ServerRole, badge: string | null, badgeTitle?: string)}
+{#snippet roleRow(role: ServerRole, badge: string | null)}
   <div class="flex min-w-0 flex-1 items-center gap-2">
     <span class="min-w-0 truncate font-medium" dir="auto">{role.displayName}</span>
     <span class="min-w-0 truncate text-muted">@{role.name}</span>
   </div>
   {#if badge}
-    <Pill tone="muted" title={badgeTitle} class="shrink-0">{badge}</Pill>
+    <Pill tone="muted" class="shrink-0">{badge}</Pill>
   {/if}
   {@render openAction(role)}
 {/snippet}
 
-{#snippet fixedRow(role: ServerRole, badge: string, badgeTitle?: string)}
+{#snippet fixedRow(role: ServerRole, badge: string)}
   <div class="flex items-center gap-3 py-2 ps-3 pe-4" data-role={role.name} data-locked>
     <span class="iconify icon-[uil--lock] shrink-0 text-lg text-muted" aria-hidden="true"></span>
-    {@render roleRow(role, badge, badgeTitle)}
+    {@render roleRow(role, badge)}
   </div>
 {/snippet}
 
@@ -250,13 +249,6 @@ do not break it.
               {#if ownerRole}
                 {@render fixedRow(ownerRole, m('admin.permissions.role_order.always_highest'))}
               {/if}
-              {#each lockedRoles as role (role.name)}
-                {@render fixedRow(
-                  role,
-                  m('admin.permissions.role_order.locked'),
-                  m('rbac.role_order.role_locked')
-                )}
-              {/each}
               <div
                 class="flex flex-col gap-1"
                 data-testid="role-order-dropzone"
@@ -296,11 +288,6 @@ do not break it.
                   </div>
                 {/each}
               </div>
-              {#if movableItems.length === 0}
-                <p class="py-2 ps-3 pe-4 text-muted">
-                  {m('admin.permissions.role_order.none_movable')}
-                </p>
-              {/if}
               {#if everyoneRole}
                 {@render fixedRow(everyoneRole, m('admin.permissions.role_order.always_lowest'))}
               {/if}

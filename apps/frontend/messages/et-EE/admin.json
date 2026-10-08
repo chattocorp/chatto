@@ -207,15 +207,13 @@
       "delete_role_failed": "Rolli kustutamine ebaõnnestus",
       "role_order": {
         "title": "Rollide järjekord",
-        "hint": "Rollide järjekord määrab, kes saab keda hallata. Saate liigutada ainult rolle, mis on teie kõrgeimast rollist madalamal. Paigutage piiravad rollid, näiteks peatamise roll, nende inimeste alla, kes neid haldavad.",
+        "hint": "Rollide järjekord määrab, kes saab keda hallata. Paigutage piiravad rollid, näiteks peatamise roll, nende inimeste alla, kes neid haldavad.",
         "drag_role": "Liiguta rolli {role}",
         "always_highest": "Alati kõrgeim",
         "always_lowest": "Alati madalaim",
-        "locked": "Lukustatud",
         "saved": "Rollide järjekord on salvestatud",
         "save_failed": "Rollide järjekorra salvestamine ebaõnnestus",
-        "list_label": "Rollid, mida saate liigutada",
-        "none_movable": "Teie kõrgeimast rollist madalamal ei ole rolle."
+        "list_label": "Rollid, mida saate liigutada"
       },
       "back_to_roles": "Tagasi rollide juurde",
       "roles_page": {

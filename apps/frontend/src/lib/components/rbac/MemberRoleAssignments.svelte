@@ -5,7 +5,7 @@ Server role assignments of one account, human or bot. The server decides which
 roles the viewer may assign or revoke (`assignableRoleNames` and
 `revocableRoleNames` in the member details), including the role order limits.
 The owner runs the mutation through `toggleMemberRole`. Disabled roles explain
-why the viewer cannot change them.
+why the viewer cannot change them, with the role catalogue's role order.
 -->
 <script lang="ts">
   import { resolve } from '$app/paths';
@@ -15,6 +15,7 @@ why the viewer cannot change them.
   import { Checkbox } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import type { AdminMemberDetails } from '$lib/api/adminUsers';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { roleOrderLocksRoles } from './roleAssignments';
 
   type Props = {
@@ -27,8 +28,23 @@ why the viewer cannot change them.
 
   let { details, isSelf, serverId, updatingRole, toggleMemberRole }: Props = $props();
 
+  const roleCatalog = useServerScope().store.roleCatalog;
   const isBot = $derived(details.member?.isBot === true);
-  const rolesLocked = $derived(roleOrderLocksRoles(details, isSelf));
+  const rolesLocked = $derived(
+    roleOrderLocksRoles(
+      details,
+      isSelf,
+      isSelf || roleCatalog.viewerOutranks(details.member?.roles ?? [])
+    )
+  );
+  // Roles that rank at or above the viewer's highest role.
+  const rolesAboveViewer = $derived(
+    new Set(
+      details.roles
+        .filter((role) => !roleCatalog.ranksBelowViewer(role.name))
+        .map((role) => role.name)
+    )
+  );
 
   const memberRoles = $derived(details.member?.roles ?? []);
 
@@ -84,7 +100,7 @@ why the viewer cannot change them.
             ? ''
             : rolesLocked
               ? m('rbac.role_order.roles_locked')
-              : !role.ranksBelowViewer
+              : rolesAboveViewer.has(role.name)
                 ? m('rbac.role_order.role_locked')
                 : isBot && role.name === 'owner'
                   ? m('admin.members.bot_cannot_hold_owner')

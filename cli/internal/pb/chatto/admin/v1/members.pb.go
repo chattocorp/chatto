@@ -47,13 +47,8 @@ type AdminMember struct {
 	// Selected primary verified email visible to the caller. Absence can mean
 	// that no primary email exists or that the field is not visible.
 	PrimaryVerifiedEmail *string `protobuf:"bytes,13,opt,name=primary_verified_email,json=primaryVerifiedEmail,proto3,oneof" json:"primary_verified_email,omitempty"`
-	// Whether the role hierarchy lets the caller act on this account: the
-	// caller ranks above it, or the caller is an owner. For a bot, the caller
-	// must also rank above its owner, unless the caller owns the bot. The
-	// caller also needs the permission for each action.
-	ViewerOutranks bool `protobuf:"varint,14,opt,name=viewer_outranks,json=viewerOutranks,proto3" json:"viewer_outranks,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *AdminMember) Reset() {
@@ -140,13 +135,6 @@ func (x *AdminMember) GetPrimaryVerifiedEmail() string {
 		return *x.PrimaryVerifiedEmail
 	}
 	return ""
-}
-
-func (x *AdminMember) GetViewerOutranks() bool {
-	if x != nil {
-		return x.ViewerOutranks
-	}
-	return false
 }
 
 // Request server-admin member IDs.
@@ -1045,7 +1033,7 @@ var File_chatto_admin_v1_members_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	"\n" +
-	"\x1dchatto/admin/v1/members.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1bchatto/admin/v1/roles.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9a\x04\n" +
+	"\x1dchatto/admin/v1/members.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1bchatto/admin/v1/roles.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf1\x03\n" +
 	"\vAdminMember\x12\x14\n" +
 	"\x05roles\x18\x05 \x03(\tR\x05roles\x129\n" +
 	"\n" +
@@ -1056,8 +1044,7 @@ const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	" \x01(\bR\x16viewerCanDeleteAccount\x12F\n" +
 	"\x11last_login_change\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\x12'\n" +
 	"\x04user\x18\f \x01(\v2\x13.chatto.api.v1.UserR\x04user\x129\n" +
-	"\x16primary_verified_email\x18\r \x01(\tH\x00R\x14primaryVerifiedEmail\x88\x01\x01\x12'\n" +
-	"\x0fviewer_outranks\x18\x0e \x01(\bR\x0eviewerOutranksB\x19\n" +
+	"\x16primary_verified_email\x18\r \x01(\tH\x00R\x14primaryVerifiedEmail\x88\x01\x01B\x19\n" +
 	"\x17_primary_verified_emailJ\x04\b\x01\x10\x05J\x04\b\a\x10\bR\x02idR\x05loginR\fdisplay_nameR\n" +
 	"avatar_urlR\adeleted\"w\n" +
 	"\x12ListMembersRequest\x12\x16\n" +

@@ -53,7 +53,7 @@ export const AdminUserService = {
      * Assigns a role to a user or bot. Requires role.assign. A caller who is not
      * an owner may assign only roles below their own highest role whose granted
      * authority they already possess, and must outrank the target (see
-     * AdminMember.viewer_outranks) unless it is their own account. For a bot,
+     * chatto.api.v1.ListRolesResponse.viewer_highest_role) unless it is their own account. For a bot,
      * the caller must always outrank the bot itself. Bots cannot hold the owner
      * role.
      *

@@ -13,15 +13,7 @@ export type ServerRole = {
   permissions: string[];
   permissionDenials: string[];
   isSystem: boolean;
-  /** Role order. Higher positions rank higher in the administrative hierarchy. */
-  position: number;
   pingable: boolean;
-  /**
-   * True when the role ranks below the viewer's highest role, so the viewer
-   * may assign, revoke, edit, delete, or move it. Permission checks still
-   * apply. Always false for roles from public role reads.
-   */
-  ranksBelowViewer: boolean;
 };
 
 export type RoleUser = {
@@ -31,6 +23,22 @@ export type RoleUser = {
   isBot: boolean;
 };
 
+/**
+ * Public role catalogue. `roles` lists every role in role order, highest
+ * first: `owner` first and `everyone` last. Role order is the administrative
+ * rank (ADR-114).
+ */
+export type PublicRoleCatalog = {
+  roles: ServerRole[];
+  /**
+   * The role at which the viewer ranks: `owner` for owners of the server,
+   * otherwise the viewer's highest role, or `everyone` without roles. A bot
+   * ranks at most at its owner's highest role.
+   */
+  viewerHighestRole: string;
+};
+
+/** Administrative role catalogue, in role order, highest first. */
 export type RoleCatalog = {
   roles: ServerRole[];
   viewerCanManageRoles: boolean;
@@ -66,12 +74,11 @@ export function createRoleAPI(config: ConnectAPIConfig) {
   const adminClient = createChattoClient(AdminRoleService, config);
 
   return {
-    async listRoles(): Promise<RoleCatalog> {
+    async listRoles(): Promise<PublicRoleCatalog> {
       const response = await client.listRoles({});
       return {
         roles: response.roles.map((role) => serverRoleFromPublic(role)),
-        viewerCanManageRoles: false,
-        viewerCanAssignRoles: false
+        viewerHighestRole: response.viewerHighestRole
       };
     },
 
@@ -168,10 +175,7 @@ function serverRoleFromAdmin(role: APIAdminRole): ServerRole {
   if (!role.role) {
     throw new Error('admin role response did not include public role metadata');
   }
-  return {
-    ...serverRoleFromPublic(role.role, role.permissions, role.permissionDenials),
-    ranksBelowViewer: role.ranksBelowViewer
-  };
+  return serverRoleFromPublic(role.role, role.permissions, role.permissionDenials);
 }
 
 function serverRoleFromPublic(
@@ -186,9 +190,7 @@ function serverRoleFromPublic(
     permissions: [...permissions],
     permissionDenials: [...permissionDenials],
     isSystem: role.isSystem,
-    position: role.position,
-    pingable: role.pingable,
-    ranksBelowViewer: false
+    pingable: role.pingable
   };
 }
 

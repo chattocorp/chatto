@@ -36,16 +36,6 @@ export class AdminRole extends Message<AdminRole> {
    */
   permissionDenials: string[] = [];
 
-  /**
-   * Whether this role ranks below the caller's highest role. Only then may
-   * the caller assign, revoke, edit, delete, or move it. Owners outrank every
-   * role, and everyone ranks below every account. The caller also needs the
-   * permission for each action.
-   *
-   * @generated from field: bool ranks_below_viewer = 4;
-   */
-  ranksBelowViewer = false;
-
   constructor(data?: PartialMessage<AdminRole>) {
     super();
     proto3.util.initPartial(data, this);
@@ -57,7 +47,6 @@ export class AdminRole extends Message<AdminRole> {
     { no: 1, name: "role", kind: "message", T: Role },
     { no: 2, name: "permissions", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 3, name: "permission_denials", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 4, name: "ranks_below_viewer", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminRole {
@@ -117,7 +106,7 @@ export class ListRolesRequest extends Message<ListRolesRequest> {
  */
 export class ListRolesResponse extends Message<ListRolesResponse> {
   /**
-   * Roles sorted by position.
+   * Roles in role order, highest first.
    *
    * @generated from field: repeated chatto.admin.v1.AdminRole roles = 1;
    */
@@ -721,7 +710,7 @@ export class MoveRoleRequest extends Message<MoveRoleRequest> {
  */
 export class MoveRoleResponse extends Message<MoveRoleResponse> {
   /**
-   * Full role catalog after the move, sorted by position.
+   * Full role catalog after the move, in role order, highest first.
    *
    * @generated from field: repeated chatto.admin.v1.AdminRole roles = 1;
    */

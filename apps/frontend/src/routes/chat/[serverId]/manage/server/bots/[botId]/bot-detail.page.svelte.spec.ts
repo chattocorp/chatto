@@ -24,7 +24,6 @@ const mocks = vi.hoisted(() => ({
     ownerUserId: 'owner-user-id',
     createdAt: null,
     lastLoginChange: null as Date | null,
-    viewerOutranks: true,
     apiKeys: [
       {
         id: 'legacy',
@@ -120,14 +119,12 @@ async function settle(): Promise<void> {
   flushSync();
 }
 
-function memberRole(name: string, position: number, ranksBelowViewer: boolean) {
+function memberRole(name: string) {
   return {
     name,
     displayName: name.charAt(0).toUpperCase() + name.slice(1),
-    position,
     permissions: [],
-    permissionDenials: [],
-    ranksBelowViewer
+    permissionDenials: []
   };
 }
 
@@ -145,7 +142,6 @@ function botMember() {
     verifiedEmails: [],
     primaryVerifiedEmail: null,
     viewerCanDeleteAccount: false,
-    viewerOutranks: true,
     lastLoginChange: null
   };
 }
@@ -155,11 +151,11 @@ function botMemberDetails(lists: { assignableRoleNames: string[]; revocableRoleN
   return {
     member: botMember(),
     roles: [
-      memberRole('owner', 3, false),
-      memberRole('admin', 2, false),
-      memberRole('moderator', 1, true),
-      memberRole('helper', 1, true),
-      memberRole('everyone', 0, true)
+      memberRole('owner'),
+      memberRole('admin'),
+      memberRole('moderator'),
+      memberRole('helper'),
+      memberRole('everyone')
     ],
     availablePermissions: [],
     viewerCanAssignRoles: true,
@@ -177,6 +173,8 @@ describe('Bot detail page', () => {
     server = createTestServerScope({
       api,
       permissions: { canManageBots: true },
+      // The viewer is an admin: moderator and helper rank below them.
+      roleCatalog: { roles: ['owner', 'admin', 'moderator', 'helper'], viewerHighestRole: 'admin' },
       store: {
         navigation: {
           rooms: [
@@ -802,19 +800,6 @@ describe('Bot detail page', () => {
 
     expect(container.querySelector('[data-testid="bot-permissions-matrix"]')).toBeNull();
     expect(container.textContent).toContain('You do not have permission to access this page.');
-  });
-
-  it('limits a bot manager who does not outrank the bot in the role order', async () => {
-    server.permissions.canAdminManageAccounts = true;
-    api.getBot.mockResolvedValue({ ...mocks.bot, viewerOutranks: false });
-    const { container } = renderSection('overview');
-    await settle();
-
-    expect(container.textContent).toContain('The role order does not let you change this account.');
-    expect(container.querySelector('[data-testid="bot-profile-login"]')).toBeNull();
-    expect(container.textContent).not.toContain('Upload avatar');
-    expect(container.textContent).not.toContain('Reassign owner');
-    expect(container.querySelector('nav[aria-label="Bot sections"]')).toBeNull();
   });
 
   it('keeps every bot section for its owner', async () => {

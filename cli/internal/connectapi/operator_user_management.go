@@ -223,17 +223,14 @@ func operatorAdminMember(ctx context.Context, api *API, user *core.AdminUserView
 		HasVerifiedEmail:       len(verifiedEmails) > 0,
 		VerifiedEmails:         verifiedEmails,
 		ViewerCanDeleteAccount: true,
-		// The operator acts as the system actor, which the hierarchy exempts.
-		ViewerOutranks: true,
-		User:           apiUser,
+		User:                   apiUser,
 	}, nil
 }
 
 func operatorAdminMemberRoles(roles []core.RoleWithPermissions) []*adminv1.AdminRole {
 	out := make([]*adminv1.AdminRole, 0, len(roles))
 	for i := range roles {
-		// The operator acts as the system actor, which every role ranks below.
-		out = append(out, adminAPIRole(&roles[i], true))
+		out = append(out, adminAPIRole(&roles[i]))
 	}
 	return out
 }

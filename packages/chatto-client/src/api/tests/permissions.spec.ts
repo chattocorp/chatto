@@ -27,7 +27,6 @@ describe('createPermissionAPI', () => {
               displayName: 'Moderator',
               description: '',
               isSystem: true,
-              position: 100,
               pingable: true
             },
             override: { permissions: ['message.post'], permissionDenials: [] },
@@ -52,12 +51,10 @@ describe('createPermissionAPI', () => {
           displayName: 'Moderator',
           description: '',
           isSystem: true,
-          position: 100,
           pingable: true,
           override: { permissions: ['message.post'], permissionDenials: [] },
           inheritedAllows: [],
-          inheritedDenials: ['message.react'],
-          ranksBelowViewer: false
+          inheritedDenials: ['message.react']
         }
       ]
     });

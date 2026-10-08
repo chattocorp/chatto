@@ -207,15 +207,13 @@
       "delete_role_failed": "Impossibile eliminare il ruolo",
       "role_order": {
         "title": "Ordine dei ruoli",
-        "hint": "L'ordine dei ruoli decide chi può gestire chi. Puoi spostare solo i ruoli sotto il tuo ruolo più alto. Metti i ruoli di restrizione, come un ruolo di sospensione, sotto le persone che li gestiscono.",
+        "hint": "L'ordine dei ruoli decide chi può gestire chi. Metti i ruoli di restrizione, come un ruolo di sospensione, sotto le persone che li gestiscono.",
         "drag_role": "Sposta {role}",
         "always_highest": "Sempre il più alto",
         "always_lowest": "Sempre il più basso",
-        "locked": "Bloccato",
         "saved": "Ordine dei ruoli salvato",
         "save_failed": "Impossibile salvare l'ordine dei ruoli",
-        "list_label": "Ruoli che puoi spostare",
-        "none_movable": "Non ci sono ruoli sotto il tuo ruolo più alto."
+        "list_label": "Ruoli che puoi spostare"
       },
       "back_to_roles": "Torna ai ruoli",
       "roles_page": {

@@ -282,24 +282,21 @@ func TestHierarchyLimitsRoleManagementToLowerRoles(t *testing.T) {
 		t.Fatalf("admin assigns junior: %v", err)
 	}
 
-	t.Run("moves stay below the actor", func(t *testing.T) {
+	t.Run("role managers move every role", func(t *testing.T) {
+		if _, err := c.AdminMoveServerRole(ctx, f.member, "junior", ""); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("member without role.manage moves junior: error = %v, want permission denied", err)
+		}
 		for _, move := range []struct{ role, before string }{
 			{"senior", ""},            // a role above the actor
-			{RoleAdmin, ""},           // the actor's own role
+			{RoleAdmin, "senior"},     // the actor's own role
 			{"junior", RoleAdmin},     // to a place above the actor
-			{RoleModerator, "senior"}, // to a place above the actor
+			{RoleModerator, "junior"}, // to the top
 		} {
-			if _, err := c.MoveServerRole(ctx, f.admin, move.role, move.before); !errors.Is(err, ErrPermissionDenied) {
-				t.Fatalf("admin moves %s above %q: error = %v, want permission denied", move.role, move.before, err)
+			if _, err := c.AdminMoveServerRole(ctx, f.admin, move.role, move.before); err != nil {
+				t.Fatalf("admin moves %s above %q: %v", move.role, move.before, err)
 			}
 		}
-		if _, err := c.MoveServerRole(ctx, f.admin, "junior", RoleModerator); err != nil {
-			t.Fatalf("admin moves junior above moderator: %v", err)
-		}
-		if _, err := c.MoveServerRole(ctx, f.admin, RoleModerator, ""); err != nil {
-			t.Fatalf("admin moves moderator lowest: %v", err)
-		}
-		if got, want := c.orderableRoleNames(), []string{RoleModerator, "junior", RoleAdmin, "senior"}; !slices.Equal(got, want) {
+		if got, want := c.orderableRoleNames(), []string{"senior", RoleAdmin, "junior", RoleModerator}; !slices.Equal(got, want) {
 			t.Fatalf("order = %v, want %v", got, want)
 		}
 	})
@@ -435,6 +432,11 @@ func TestHighestRoleDecidesRank(t *testing.T) {
 	if ranks[f.moderator] != ranks[f.admin] || !slices.IsSorted([]int32{ranks[f.member], ranks[f.admin], ranks[f.owner]}) || ranks[f.member] != PositionEveryone {
 		t.Fatalf("ranks = %v, want member < admin = moderator-with-admin < owner", ranks)
 	}
+	for userID, want := range map[string]string{f.owner: RoleOwner, f.admin: RoleAdmin, f.moderator: RoleAdmin, f.member: RoleEveryone} {
+		if got := f.c.ViewerHighestRole(userID); got != want {
+			t.Fatalf("ViewerHighestRole(%s) = %q, want %q", userID, got, want)
+		}
+	}
 }
 
 func TestBotsActWithAtMostTheirOwnersRank(t *testing.T) {
@@ -464,6 +466,9 @@ func TestBotsActWithAtMostTheirOwnersRank(t *testing.T) {
 	}
 	if err := c.AssignServerRole(ctx, SystemActorID, botID, RoleModerator); err != nil {
 		t.Fatalf("AssignServerRole moderator to bot: %v", err)
+	}
+	if got := c.ViewerHighestRole(botID); got != RoleEveryone {
+		t.Fatalf("ViewerHighestRole(bot) = %q, want its owner's %q", got, RoleEveryone)
 	}
 	if err := c.RoomCommands().RemoveUser(ctx, RoomRemoveUserInput{ActorID: botID, RoomID: f.roomID, UserID: other.Id, Reason: "test"}); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("bot removes a peer of its owner: error = %v, want permission denied", err)

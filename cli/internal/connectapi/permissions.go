@@ -27,7 +27,7 @@ func (s *permissionService) GetRolePermissionTierMatrix(ctx context.Context, req
 		if err != nil {
 			return nil, err
 		}
-		return connect.NewResponse(&adminv1.GetRolePermissionTierMatrixResponse{Matrix: s.apiTierRoles(caller.UserID, matrix)}), nil
+		return connect.NewResponse(&adminv1.GetRolePermissionTierMatrixResponse{Matrix: apiTierRoles(matrix)}), nil
 	}
 	roomID, groupID, err := permissionScopeIDs(req.Msg.GetScope())
 	if err != nil {
@@ -37,7 +37,7 @@ func (s *permissionService) GetRolePermissionTierMatrix(ctx context.Context, req
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.GetRolePermissionTierMatrixResponse{Matrix: s.apiTierRoles(caller.UserID, matrix)}), nil
+	return connect.NewResponse(&adminv1.GetRolePermissionTierMatrixResponse{Matrix: apiTierRoles(matrix)}), nil
 }
 
 func (s *permissionService) GetRolePermissionMatrix(ctx context.Context, req *connect.Request[adminv1.GetRolePermissionMatrixRequest]) (*connect.Response[adminv1.GetRolePermissionMatrixResponse], error) {
@@ -250,7 +250,7 @@ func apiPermissionDecisionLevel(level core.PermissionLevel) adminv1.PermissionDe
 	}
 }
 
-func (s *permissionService) apiTierRoles(viewerID string, matrix *core.TierRoles) *adminv1.TierRoles {
+func apiTierRoles(matrix *core.TierRoles) *adminv1.TierRoles {
 	if matrix == nil {
 		return nil
 	}
@@ -268,10 +268,8 @@ func (s *permissionService) apiTierRoles(viewerID string, matrix *core.TierRoles
 				DisplayName: role.DisplayName,
 				Description: role.Description,
 				IsSystem:    role.IsSystem,
-				Position:    role.Position,
 				Pingable:    role.Pingable,
 			},
-			RanksBelowViewer: s.api.core.RoleRanksBelowActor(viewerID, role.RoleName),
 		})
 	}
 	return out

@@ -143,15 +143,32 @@ func (c *ChattoCore) requireRoleBelowActor(actorID, roleName string) error {
 	return nil
 }
 
-// HierarchyAllowsActingOn reports whether the role hierarchy lets actorID act
-// on targetUserID. It does not check permissions. Clients use it to show which
-// actions can succeed.
-func (c *ChattoCore) HierarchyAllowsActingOn(actorID, targetUserID string) bool {
-	return c.requireOutranksAccount(actorID, targetUserID) == nil
-}
-
-// RoleRanksBelowActor reports whether the role hierarchy lets actorID manage
-// roleName. It does not check permissions.
-func (c *ChattoCore) RoleRanksBelowActor(actorID, roleName string) bool {
-	return c.requireRoleBelowActor(actorID, roleName) == nil
+// ViewerHighestRole returns the name of the role at which actorID ranks:
+// owner for effective owners, the highest assigned role otherwise, and
+// everyone without roles. A bot ranks at most at its owner's highest role.
+// Clients use it with the role order to show which actions can succeed.
+func (c *ChattoCore) ViewerHighestRole(actorID string) string {
+	userID := actorID
+	if isBot, ownerID, ok := c.userModel.isBotAndOwner(actorID); ok && isBot && ownerID != "" {
+		if c.accountRank(ownerID) < c.accountRank(actorID) {
+			userID = ownerID
+		}
+	}
+	if c.isServerOwner(userID) {
+		return RoleOwner
+	}
+	// Among roles with equal positions, prefer the one that comes first in
+	// role order, which ListServerRoles sorts by name in reverse.
+	highest, highestPosition := RoleEveryone, PositionEveryone
+	for _, roleName := range c.rbacModel.userRoles(userID) {
+		role, ok := c.rbacModel.role(roleName)
+		if !ok {
+			continue
+		}
+		position := role.GetPosition()
+		if position > highestPosition || (position == highestPosition && roleName > highest) {
+			highest, highestPosition = roleName, position
+		}
+	}
+	return highest
 }

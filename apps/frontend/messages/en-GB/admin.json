@@ -207,15 +207,13 @@
       "delete_role_failed": "Failed to delete role",
       "role_order": {
         "title": "Role order",
-        "hint": "The role order decides who can manage whom. You can move only the roles below your highest role. Put restriction roles, such as a suspended role, below the people who manage them.",
+        "hint": "The role order decides who can manage whom. Put restriction roles, such as a suspended role, below the people who manage them.",
         "drag_role": "Move {role}",
         "always_highest": "Always highest",
         "always_lowest": "Always lowest",
-        "locked": "Locked",
         "saved": "Role order saved",
         "save_failed": "Could not save the role order",
-        "list_label": "Roles that you can move",
-        "none_movable": "No roles are below your highest role."
+        "list_label": "Roles that you can move"
       },
       "back_to_roles": "Back to roles",
       "roles_page": {

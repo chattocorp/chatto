@@ -207,15 +207,13 @@
       "delete_role_failed": "Nie udało się usunąć roli",
       "role_order": {
         "title": "Kolejność ról",
-        "hint": "Kolejność ról decyduje, kto może kim zarządzać. Możesz przenosić tylko role poniżej swojej najwyższej roli. Umieść role ograniczające, na przykład rolę zawieszenia, poniżej osób, które nimi zarządzają.",
+        "hint": "Kolejność ról decyduje, kto może kim zarządzać. Umieść role ograniczające, na przykład rolę zawieszenia, poniżej osób, które nimi zarządzają.",
         "drag_role": "Przenieś {role}",
         "always_highest": "Zawsze najwyższa",
         "always_lowest": "Zawsze najniższa",
-        "locked": "Zablokowana",
         "saved": "Zapisano kolejność ról",
         "save_failed": "Nie udało się zapisać kolejności ról",
-        "list_label": "Role, które możesz przenosić",
-        "none_movable": "Poniżej twojej najwyższej roli nie ma żadnych ról."
+        "list_label": "Role, które możesz przenosić"
       },
       "back_to_roles": "Powrót do ról",
       "roles_page": {

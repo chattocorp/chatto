@@ -207,15 +207,13 @@
       "delete_role_failed": "無法刪除角色",
       "role_order": {
         "title": "角色順序",
-        "hint": "角色順序決定誰可以管理誰。你只能移動低於你最高角色的角色。請把限制角色（例如停權角色）放在管理它們的人之下。",
+        "hint": "角色順序決定誰可以管理誰。請把限制角色（例如停權角色）放在管理它們的人之下。",
         "drag_role": "移動 {role}",
         "always_highest": "永遠最高",
         "always_lowest": "永遠最低",
-        "locked": "已鎖定",
         "saved": "已儲存角色順序",
         "save_failed": "無法儲存角色順序",
-        "list_label": "你可以移動的角色",
-        "none_movable": "沒有低於你最高角色的角色。"
+        "list_label": "你可以移動的角色"
       },
       "back_to_roles": "返回角色",
       "roles_page": {

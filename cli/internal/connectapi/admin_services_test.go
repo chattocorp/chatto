@@ -1026,11 +1026,23 @@ func TestAdminRoleServiceManagesRoles(t *testing.T) {
 			customOrder = append(customOrder, role.GetRole().GetName())
 		}
 	}
-	if strings.Join(customOrder, ",") != "helpdesk,triage" {
-		t.Fatalf("custom role order = %v, want helpdesk,triage", customOrder)
+	// Roles are listed highest first.
+	if strings.Join(customOrder, ",") != "triage,helpdesk" {
+		t.Fatalf("custom role order = %v, want triage,helpdesk", customOrder)
 	}
-	if _, err := env.roles.MoveRole(viewerCtx, connect.NewRequest(&adminv1.MoveRoleRequest{RoleName: core.RoleAdmin})); errorCode(err) != connect.CodePermissionDenied {
-		t.Fatalf("MoveRole admin code = %v, want permission denied", errorCode(err))
+	// Role managers can move every role, also their own role above admin.
+	raiseResp, err := env.roles.MoveRole(viewerCtx, connect.NewRequest(&adminv1.MoveRoleRequest{
+		RoleName: viewerRank, BeforeRoleName: new(core.RoleAdmin),
+	}))
+	if err != nil {
+		t.Fatalf("MoveRole viewer rank above admin: %v", err)
+	}
+	var topRoles []string
+	for _, role := range raiseResp.Msg.GetRoles()[:3] {
+		topRoles = append(topRoles, role.GetRole().GetName())
+	}
+	if want := []string{core.RoleOwner, viewerRank, core.RoleAdmin}; !slices.Equal(topRoles, want) {
+		t.Fatalf("top roles = %v, want %v", topRoles, want)
 	}
 	if _, err := env.roles.MoveRole(viewerCtx, connect.NewRequest(&adminv1.MoveRoleRequest{RoleName: core.RoleOwner})); errorCode(err) != connect.CodeInvalidArgument {
 		t.Fatalf("MoveRole owner code = %v, want invalid argument", errorCode(err))

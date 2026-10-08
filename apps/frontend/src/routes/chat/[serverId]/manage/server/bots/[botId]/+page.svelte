@@ -38,7 +38,7 @@ owner reassignment and deletion actions.
   const detail = useBotDetail();
   const bot = $derived(detail.bot);
   const canManageAccounts = $derived(serverScope.store.permissions.canAdminManageAccounts);
-  const canReassignOwner = $derived(detail.canReassignOwner);
+  const canReassignOwner = $derived(serverScope.store.permissions.canManageBots);
 
   const ownerQuery = createQuery(() => {
     const serverId = serverScope.serverId;

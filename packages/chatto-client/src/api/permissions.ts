@@ -33,20 +33,15 @@ export type TierRole = {
   displayName: string;
   description: string;
   isSystem: boolean;
-  position: number;
   pingable: boolean;
   override: TierPermissions;
   inheritedAllows: string[];
   inheritedDenials: string[];
-  /**
-   * True when the role ranks below the viewer's highest role, so the viewer
-   * may edit its decisions if they may also edit this tier.
-   */
-  ranksBelowViewer: boolean;
 };
 
 export type TierRoles = {
   applicablePermissions: string[];
+  /** Roles in role order, highest first. */
   roles: TierRole[];
 };
 
@@ -265,15 +260,13 @@ function tierRole(role: APITierRole): TierRole {
     displayName: apiRole.displayName,
     description: apiRole.description,
     isSystem: apiRole.isSystem,
-    position: apiRole.position,
     pingable: apiRole.pingable,
     override: {
       permissions: [...(role.override?.permissions ?? [])],
       permissionDenials: [...(role.override?.permissionDenials ?? [])]
     },
     inheritedAllows: [...role.inheritedAllows],
-    inheritedDenials: [...role.inheritedDenials],
-    ranksBelowViewer: role.ranksBelowViewer
+    inheritedDenials: [...role.inheritedDenials]
   };
 }
 

@@ -207,15 +207,13 @@
       "delete_role_failed": "Kan rol niet verwijderen",
       "role_order": {
         "title": "Rolvolgorde",
-        "hint": "De rolvolgorde bepaalt wie wie kan beheren. Je kunt alleen de rollen onder je hoogste rol verplaatsen. Zet beperkende rollen, zoals een schorsingsrol, onder de mensen die ze beheren.",
+        "hint": "De rolvolgorde bepaalt wie wie kan beheren. Zet beperkende rollen, zoals een schorsingsrol, onder de mensen die ze beheren.",
         "drag_role": "{role} verplaatsen",
         "always_highest": "Altijd de hoogste",
         "always_lowest": "Altijd de laagste",
-        "locked": "Vergrendeld",
         "saved": "Rolvolgorde opgeslagen",
         "save_failed": "Kan de rolvolgorde niet opslaan",
-        "list_label": "Rollen die je kunt verplaatsen",
-        "none_movable": "Er zijn geen rollen onder je hoogste rol."
+        "list_label": "Rollen die je kunt verplaatsen"
       },
       "back_to_roles": "Terug naar rollen",
       "roles_page": {

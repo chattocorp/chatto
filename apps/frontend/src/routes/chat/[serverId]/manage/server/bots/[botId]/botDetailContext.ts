@@ -17,19 +17,12 @@ export interface BotDetailContext {
   readonly isPending: boolean;
   /**
    * Owners and bot managers can manage credentials, webhooks, and permissions.
-   * A bot manager who is not the owner must outrank the bot and its owner in
-   * the role order.
+   * The server also requires a bot manager who is not the owner to outrank the
+   * bot and its owner in the role order.
    */
   readonly canOperateBot: boolean;
-  /**
-   * Owners, bot managers, and account managers can edit the public identity.
-   * Managers other than the owner must outrank the bot and its owner.
-   */
+  /** Owners, bot managers, and account managers can edit the public identity. */
   readonly canEditIdentity: boolean;
-  /** Bot managers who outrank the bot and its owner can give the bot to a new owner. */
-  readonly canReassignOwner: boolean;
-  /** True while the layout explains that the role order keeps the viewer from managing the bot. */
-  readonly orderLocked: boolean;
   /**
    * True while the layout is mounted, the server scope is current, and the
    * route still shows the bot that `mutationTarget` names.

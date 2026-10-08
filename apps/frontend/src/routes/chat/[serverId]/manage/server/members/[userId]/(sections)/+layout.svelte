@@ -76,7 +76,9 @@ deletion page is outside this route group and has its own frame.
   const isBot = $derived(member?.isBot === true);
   // The role order lets the viewer act on their own account and on accounts
   // that rank below them.
-  const viewerOutranks = $derived(isSelf || member?.viewerOutranks === true);
+  const viewerOutranks = $derived(
+    isSelf || (!!member && store.roleCatalog.viewerOutranks(member.roles))
+  );
   const canManageAccount = $derived(canAdminManageAccounts && viewerOutranks);
   // Explain why the controls are missing to viewers who could otherwise use them.
   const showOrderLock = $derived(
@@ -108,6 +110,9 @@ deletion page is outside this route group and has its own frame.
     },
     get isBot() {
       return isBot;
+    },
+    get viewerOutranks() {
+      return viewerOutranks;
     },
     get canAdminManageAccounts() {
       return canAdminManageAccounts;
