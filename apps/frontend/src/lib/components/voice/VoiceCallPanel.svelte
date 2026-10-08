@@ -94,7 +94,7 @@ Room sidebar panel for voice/video calls.
 
   /** Options for a participant card header. */
   type HeaderOptions = {
-    /** Show picture-in-picture and fullscreen buttons for the card's video. */
+    /** Show the picture-in-picture button for the card's video. */
     media?: boolean;
     /** Show the muted indicator. Defaults to `true`. */
     indicators?: boolean;
@@ -420,25 +420,6 @@ Room sidebar panel for voice/video calls.
     }
   }
 
-  async function toggleFullscreenElement(element: HTMLElement | null): Promise<void> {
-    if (!element || typeof document === 'undefined') return;
-
-    try {
-      if (document.fullscreenElement === element) {
-        await document.exitFullscreen();
-      } else {
-        await element.requestFullscreen();
-      }
-    } catch {
-      // Browsers can reject fullscreen requests when system policy denies them.
-    }
-  }
-
-  function toggleMediaFullscreen(controls: CallCardControls, event: MouseEvent): void {
-    event.stopPropagation();
-    void toggleFullscreenElement(controls.actions.element);
-  }
-
   function toggleFeedMute(participant: DisplayParticipant, event: MouseEvent): void {
     event.stopPropagation();
     if (participant.isLocal) {
@@ -483,15 +464,6 @@ Room sidebar panel for voice/video calls.
 
 {#snippet mediaTileActions(controls: CallCardControls)}
   <CallPictureInPictureButton {controls} />
-  {#if !controls.actions.compact}
-    <CompactActionButton
-      label={m('voice.fullscreen_feed')}
-      data-testid="call-feed-fullscreen-button"
-      onclick={(event) => toggleMediaFullscreen(controls, event)}
-    >
-      <span class="iconify icon-[mdi--monitor-share]" aria-hidden="true"></span>
-    </CompactActionButton>
-  {/if}
 {/snippet}
 
 {#snippet participantIndicators(
@@ -603,6 +575,7 @@ Room sidebar panel for voice/video calls.
     ]}
     title={formatAccountName(participant.displayName, participant.avatarUser)}
     data-testid="call-participant-card"
+    data-call-tile
     data-call-media-card={showVideo ? true : undefined}
   >
     {#snippet children(controls)}
@@ -641,6 +614,7 @@ Room sidebar panel for voice/video calls.
       name: formatAccountName(participant.displayName, participant.avatarUser)
     })}
     data-testid="call-screen-share-card"
+    data-call-tile
     data-call-media-card
   >
     {#snippet children(controls)}
@@ -705,6 +679,7 @@ Room sidebar panel for voice/video calls.
     style={`width: ${featuredStageCardWidth}`}
     title={stageTileTitle(tile)}
     data-testid="call-featured-stage-card"
+    data-call-tile
     data-stage-tile-key={tile.key}
     data-call-media-card={hasMedia ? true : undefined}
   >
@@ -756,6 +731,7 @@ Room sidebar panel for voice/video calls.
     class={[callTileCardClass, 'participant-card-video']}
     title={stageTileTitle(tile)}
     data-testid="call-stage-tile"
+    data-call-tile
     data-stage-tile-key={tile.key}
     data-stage-tile-kind={tile.kind}
   >
@@ -785,7 +761,7 @@ Room sidebar panel for voice/video calls.
             />
           </div>
         {:else}
-          {@render stageMedia(tile, false)}
+          {@render stageMedia(tile, false, controls)}
         {/if}
         {#if selectAction === 'pin'}
           <span
@@ -1016,6 +992,7 @@ Room sidebar panel for voice/video calls.
 </div>
 
 {#if userMenu.target && menuParticipant}
+  {@const selection = userMenu.target}
   <UserMenu
     state={userMenu}
     audioSource={userMenu.target.screen ? 'streamVolume' : 'voiceVolume'}
@@ -1026,6 +1003,13 @@ Room sidebar panel for voice/video calls.
     {onOpenProfile}
   >
     {#snippet extraActions()}
+      <CallPictureInPictureButton
+        controls={selection.controls}
+        presentation="menu"
+        onToggle={() => {
+          if (userMenu.target === selection) userMenu.close();
+        }}
+      />
       {#if userMenu.target?.controls.actions.compact && isInThisCall && menuParticipant}
         {@const controls = userMenu.target.controls}
         {@const isPinned = controls.actions.element?.dataset.stageTileKey === pinnedStageTileKey}
@@ -1043,31 +1027,6 @@ Room sidebar panel for voice/video calls.
               }}
             >
               {m('voice.unpin_from_stage')}
-            </MenuItem>
-          {/if}
-          {#if controls.media.hasMedia}
-            {#if controls.media.supported}
-              <MenuItem
-                icon="icon-[mdi--picture-in-picture-bottom-right]"
-                pressed={controls.media.active}
-                disabled={controls.media.pending ||
-                  (!controls.media.ready && !controls.media.active)}
-                dataTestid="call-feed-pip-button"
-                onclick={controls.media.togglePictureInPicture}
-              >
-                {m('voice.picture_in_picture')}
-              </MenuItem>
-            {/if}
-            <MenuItem
-              icon="icon-[mdi--monitor-share]"
-              dataTestid="call-feed-fullscreen-button"
-              onclick={(event) => {
-                const selectedControls = controls;
-                userMenu.close();
-                toggleMediaFullscreen(selectedControls, event);
-              }}
-            >
-              {m('voice.fullscreen_feed')}
             </MenuItem>
           {/if}
           {#if canShowMuteButton(menuParticipant)}

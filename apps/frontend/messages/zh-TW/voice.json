@@ -37,7 +37,6 @@
     "microphone": "麥克風",
     "speaker": "揚聲器",
     "camera": "攝影機",
-    "fullscreen_feed": "全螢幕顯示畫面",
     "fullscreen_call": "全螢幕顯示通話",
     "exit_fullscreen_call": "退出全螢幕通話",
     "pin_to_stage": "將 {name} 釘選到舞台",

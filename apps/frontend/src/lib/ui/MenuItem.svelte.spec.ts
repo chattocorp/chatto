@@ -108,5 +108,12 @@ describe('MenuItem', () => {
     });
 
     expect(q(container, '[data-testid="icon-button"]')?.getAttribute('role')).toBeNull();
+    const toggle = q(container, '[data-testid="toggle-button"]') as HTMLButtonElement;
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    toggle.click();
+    flushSync();
+    expect(toggle.getAttribute('role')).toBeNull();
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(toggle.textContent).toContain('Picture-in-picture');
   });
 });

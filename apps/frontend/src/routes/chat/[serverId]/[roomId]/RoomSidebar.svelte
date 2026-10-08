@@ -158,8 +158,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
   let sidebarElement = $state<HTMLElement | null>(null);
   /**
    * The call pane uses the stage layout and hides its chrome in fullscreen.
-   * Use `:fullscreen` rather than `document.fullscreenElement`: a media card
-   * that goes fullscreen on top of the pane keeps the pane in the stack.
    */
   let isCallFullscreen = $state(false);
 

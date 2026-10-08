@@ -22,7 +22,6 @@ resolution to request for sidebar-width tiles.
 -->
 <script lang="ts">
   import { formatAccountName } from '@chatto/client/timeline/accountName';
-  import { on } from 'svelte/events';
   import type { Attachment } from 'svelte/attachments';
   import type { Track } from 'livekit-client';
   import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -63,23 +62,6 @@ resolution to request for sidebar-width tiles.
    */
   const videoTrack = $derived(track);
 
-  /** Keep native mouse menus while the card still owns touch long-press gestures. */
-  function nativeVideoMenu(element: HTMLVideoElement) {
-    let fromTouch = false;
-    const cleanups = [
-      on(element, 'pointerdown', (event) => {
-        fromTouch = event.pointerType === 'touch';
-      }),
-      on(element, 'contextmenu', (event) => {
-        if (fromTouch || (event instanceof PointerEvent && event.pointerType === 'touch')) return;
-        event.stopPropagation();
-      })
-    ];
-    return () => {
-      for (const cleanup of cleanups) cleanup();
-    };
-  }
-
   /** Give each track its own element so a replacement cannot overwrite retained PiP media. */
   function attachVideo(element: HTMLVideoElement) {
     const attachedTrack = videoTrack;
@@ -100,7 +82,6 @@ resolution to request for sidebar-width tiles.
     <video
       {@attach attachVideo}
       {@attach videoAttachment}
-      {@attach nativeVideoMenu}
       width="640"
       height="360"
       class={['h-full w-full', fit === 'contain' ? 'object-contain' : 'object-cover']}

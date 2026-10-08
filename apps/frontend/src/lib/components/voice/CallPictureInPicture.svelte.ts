@@ -1,6 +1,7 @@
-import { pictureInPictureVideo } from '$lib/state/callPictureInPicture';
-import { m } from '$lib/i18n/messages';
-import { toastError } from '$lib/utils/errorMessage';
+import {
+  observeCallPictureInPicture,
+  toggleCallPictureInPicture
+} from '$lib/state/callPictureInPicture';
 
 /** Owns one card's PiP state independently of its toolbar and menu presentation. */
 export class CallPictureInPicture {
@@ -12,10 +13,12 @@ export class CallPictureInPicture {
   active = $state(false);
   /** A PiP request is still running; both presentations must reject another request. */
   pending = $state(false);
+  /** Whether the selected video still belongs to an active call stream. */
+  available = $state(false);
   #video = $state.raw<HTMLVideoElement | null>(null);
   #videoGeneration = 0;
 
-  /** Only cards with an observed media action expose PiP and fullscreen. */
+  /** Whether this card observes a video, including a secondary stage tile. */
   get hasMedia(): boolean {
     return this.#video !== null;
   }
@@ -24,58 +27,29 @@ export class CallPictureInPicture {
   observeVideo = (video: HTMLVideoElement): (() => void) => {
     this.#video = video;
     const generation = ++this.#videoGeneration;
-    this.supported =
-      typeof video.requestPictureInPicture === 'function' && document.pictureInPictureEnabled;
-    const update = () => {
-      this.ready = video.readyState >= HTMLMediaElement.HAVE_METADATA && video.videoWidth > 0;
-      this.active = document.pictureInPictureElement === pictureInPictureVideo(video);
-    };
-    const events = [
-      'loadedmetadata',
-      'loadeddata',
-      'resize',
-      'emptied',
-      'enterpictureinpicture',
-      'leavepictureinpicture'
-    ];
-    for (const event of events) video.addEventListener(event, update);
-    document.addEventListener('enterpictureinpicture', update, true);
-    document.addEventListener('leavepictureinpicture', update, true);
-    update();
+    const cleanup = observeCallPictureInPicture(video, (status) => {
+      this.supported = status.supported;
+      this.ready = status.ready;
+      this.active = status.active;
+      this.pending = status.pending;
+      this.available = status.available;
+    });
     return () => {
-      for (const event of events) video.removeEventListener(event, update);
-      document.removeEventListener('enterpictureinpicture', update, true);
-      document.removeEventListener('leavepictureinpicture', update, true);
+      cleanup();
       if (generation !== this.#videoGeneration) return;
       ++this.#videoGeneration;
       this.#video = null;
       this.supported = false;
       this.ready = false;
       this.active = false;
+      this.pending = false;
+      this.available = false;
     };
   };
 
   /** Toggle this card's video synchronously from a user gesture; reject duplicate requests. */
-  togglePictureInPicture = async (event: MouseEvent): Promise<void> => {
+  togglePictureInPicture = (event: MouseEvent): Promise<boolean> => {
     event.stopPropagation();
-    const video = this.#video && pictureInPictureVideo(this.#video);
-    if (!video || this.pending || !this.supported || (!this.ready && !this.active)) return;
-    const generation = this.#videoGeneration;
-    this.pending = true;
-    try {
-      if (document.pictureInPictureElement === video) {
-        await document.exitPictureInPicture();
-      } else {
-        await video.requestPictureInPicture();
-        if (generation !== this.#videoGeneration && document.pictureInPictureElement === video) {
-          await document.exitPictureInPicture();
-        }
-      }
-    } catch {
-      if (generation === this.#videoGeneration)
-        toastError(null, m('voice.picture_in_picture_failed'));
-    } finally {
-      this.pending = false;
-    }
+    return this.#video ? toggleCallPictureInPicture(this.#video) : Promise.resolve(false);
   };
 }

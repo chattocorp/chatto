@@ -19,10 +19,12 @@ keep the compact menu without a navigation action.
 - `banningFromRoom` - Whether the room removal action is currently running
 - `onBanFromRoom` - Callback when "Remove from room" is clicked
 - `onOpenProfile` - Optional callback that opens the full room-sidebar profile
+- `extraActions` - Optional host actions, rendered before profile actions
 - `viewerSettings` - Optional viewer preferences for the user's local-time display
 - `onClose` - Callback to close the popover/sheet
 -->
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { serverUi } from '$lib/state/server/serverUi';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
