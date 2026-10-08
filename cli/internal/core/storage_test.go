@@ -45,12 +45,8 @@ func TestStorageConfigsArePinned(t *testing.T) {
 
 	objectStores := map[string][2]jetstream.ObjectStoreConfig{
 		"ASSET_CACHE": {assetCacheConfig(cfg), {
-			Bucket: "ASSET_CACHE", Description: "Cached resized images",
+			Bucket: "ASSET_CACHE", Description: "Cached resized images and Neighborhood images",
 			Storage: jetstream.FileStorage, Compression: true, TTL: 7 * day, Replicas: 3,
-		}},
-		"NEIGHBORHOOD_IMAGES": {neighborhoodImagesConfig(cfg), {
-			Bucket: "NEIGHBORHOOD_IMAGES", Description: "Expiring copies of Neighborhood server images",
-			Storage: jetstream.FileStorage, TTL: 7 * day, Replicas: 3,
 		}},
 		"SERVER_ASSETS": {serverAssetsConfig(cfg), {
 			Bucket: "SERVER_ASSETS", Description: "Server asset binaries (avatars, branding, link previews, attachments)",
@@ -110,7 +106,6 @@ func TestNewChattoCoreProvisionsExactlyTheRegisteredResources(t *testing.T) {
 		Assets: config.AssetsConfig{
 			SigningSecret:  "test-signing-secret",
 			StorageBackend: config.StorageBackendNATS,
-			Cache:          config.AssetsCacheConfig{Enabled: true},
 		},
 		ProjectionSnapshots: true,
 	}

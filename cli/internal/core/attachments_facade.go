@@ -76,10 +76,6 @@ func (c *ChattoCore) GetTransformedServerAssetURL(key string, width, height int,
 	return c.mediaModel.GetTransformedServerAssetURL(key, width, height, fit)
 }
 
-func (c *ChattoCore) ImageCacheEnabled() bool {
-	return c.mediaModel.ImageCacheEnabled()
-}
-
 func (c *ChattoCore) GetCachedResize(ctx context.Context, key string) ([]byte, error) {
 	return c.mediaModel.GetCachedResize(ctx, key)
 }

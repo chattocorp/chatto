@@ -14,7 +14,7 @@ files, use S3-compatible storage.
 
 | Asset type | Behavior |
 | ---------- | -------- |
-| Images | Chatto serves resized WebP versions on request. Set `core.assets.cache.enabled = true` to cache them. |
+| Images | Chatto serves resized WebP versions on request and caches them for seven days. |
 | Documents and other files | Chatto serves them through signed URLs. |
 | Videos | Chatto accepts them only when `video.enabled = true`. |
 | Animated GIFs | Chatto stores them as images. When video uploads are enabled, it also converts them to video. |
@@ -314,3 +314,15 @@ sandbox headers in place.
 
 See [Environment Variables](/reference/environment-variables/#assets) for all
 asset settings.
+
+## Asset Cache Upgrades
+
+Remove `[core.assets.cache]` and the `CHATTO_CORE_ASSETS_CACHE_ENABLED` and
+`CHATTO_CORE_ASSETS_CACHE_TTL` environment variables from your configuration.
+Caching is always enabled with a seven-day lifetime. During a rolling upgrade,
+older replicas can still apply their configured cache lifetime. The fixed
+lifetime takes full effect when the rollout completes.
+
+After all replicas use the shared cache, you can delete the legacy NATS Object
+Store bucket `NEIGHBORHOOD_IMAGES`. Chatto does not delete it automatically.
+Neighborhood images can be temporarily unavailable while the cache rebuilds.

@@ -28,9 +28,9 @@ const (
 	MemoryCache = "MEMORY_CACHE"
 	// ServerAssets is the default store for persisted asset binaries.
 	ServerAssets = "SERVER_ASSETS"
-	// AssetCache is the optional cache for transformed image bytes.
+	// AssetCache holds resized images and Neighborhood image copies for seven days.
 	AssetCache = "ASSET_CACHE"
-	// NeighborhoodImages holds expiring copies of Neighborhood images (ADR-106).
+	// NeighborhoodImages is the legacy Neighborhood image cache (ADR-106).
 	NeighborhoodImages = "NEIGHBORHOOD_IMAGES"
 	// ProjectionSnapshots holds optional encrypted projection snapshots (ADR-050).
 	ProjectionSnapshots = "PROJECTION_SNAPSHOTS"
@@ -101,7 +101,6 @@ var current = []Resource{
 	{Name: MemoryCache, Kind: KindKeyValue, Backup: BackupSkip, SkipReason: skipEphemeral},
 	{Name: ServerAssets, Kind: KindObjectStore, Backup: BackupInclude},
 	{Name: AssetCache, Kind: KindObjectStore, Backup: BackupSkip, SkipReason: skipCache},
-	{Name: NeighborhoodImages, Kind: KindObjectStore, Backup: BackupSkip, SkipReason: skipCache},
 	// Snapshots are disposable, but a backup keeps them so that a restored
 	// server can start without a full replay.
 	{Name: ProjectionSnapshots, Kind: KindObjectStore, Backup: BackupInclude},
@@ -111,6 +110,7 @@ var current = []Resource{
 // not provision them, but nothing deletes them, so they can still exist on
 // upgraded servers. Backups must keep skipping them.
 var legacy = []Resource{
+	{Name: NeighborhoodImages, Kind: KindObjectStore, Backup: BackupSkip, SkipReason: skipCache},
 	{Name: "USER_PRESENCE", Kind: KindKeyValue, Backup: BackupSkip, SkipReason: skipEphemeral},
 	{Name: "CALL_STATE", Kind: KindKeyValue, Backup: BackupSkip, SkipReason: skipEphemeral},
 	{Name: "LINK_PREVIEW_CACHE", Kind: KindKeyValue, Backup: BackupSkip, SkipReason: skipCache},

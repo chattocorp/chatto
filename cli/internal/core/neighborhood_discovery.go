@@ -52,9 +52,7 @@ const (
 	neighborhoodFailureBackoff = time.Minute
 	// neighborhoodPassTimeout bounds one pass, including image downloads.
 	neighborhoodPassTimeout = 20 * time.Minute
-	// neighborhoodImageTTL is the object store TTL. Discovery rewrites an
-	// image that it still uses after neighborhoodImageRewriteAge.
-	neighborhoodImageTTL        = 7 * 24 * time.Hour
+	// Renew retained images before the shared asset cache's seven-day TTL.
 	neighborhoodImageRewriteAge = 3 * 24 * time.Hour
 	// maxNeighborhoodDirectoryBytes keeps the stored directory below the
 	// default NATS payload limit.
@@ -62,7 +60,7 @@ const (
 )
 
 // neighborhoodImageName matches the content-addressed object names in
-// NEIGHBORHOOD_IMAGES.
+// ASSET_CACHE's neighborhood_image namespace (without the storage prefix).
 var neighborhoodImageName = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 // ErrNeighborhoodImageNotFound means that a Neighborhood image does not exist
@@ -257,7 +255,7 @@ func (d *neighborhoodDiscovery) storeImage(ctx context.Context, origin, sourceUR
 	name := hex.EncodeToString(sum[:])
 	if !d.imageIsFresh(ctx, name) {
 		if _, err := d.images.Put(ctx, jetstream.ObjectMeta{
-			Name:    name,
+			Name:    neighborhoodImageKey(name),
 			Headers: map[string][]string{"Content-Type": {"image/webp"}},
 		}, bytes.NewReader(encoded)); err != nil {
 			d.logger.Warn("Neighborhood image storage failed", "stage", "image_put", "error", err)
@@ -270,23 +268,23 @@ func (d *neighborhoodDiscovery) storeImage(ctx context.Context, origin, sourceUR
 // keepImage reports whether a previous image still exists. It rewrites an
 // older image so that the object store TTL does not remove an image in use.
 func (d *neighborhoodDiscovery) keepImage(ctx context.Context, name string) bool {
-	info, err := d.images.GetInfo(ctx, name)
+	info, err := d.images.GetInfo(ctx, neighborhoodImageKey(name))
 	if err != nil {
 		return false
 	}
 	if d.now().Sub(info.ModTime) < neighborhoodImageRewriteAge {
 		return true
 	}
-	data, err := d.images.GetBytes(ctx, name)
+	data, err := d.images.GetBytes(ctx, neighborhoodImageKey(name))
 	if err != nil {
 		return false
 	}
-	_, err = d.images.Put(ctx, jetstream.ObjectMeta{Name: name, Headers: info.Headers}, bytes.NewReader(data))
+	_, err = d.images.Put(ctx, jetstream.ObjectMeta{Name: neighborhoodImageKey(name), Headers: info.Headers}, bytes.NewReader(data))
 	return err == nil
 }
 
 func (d *neighborhoodDiscovery) imageIsFresh(ctx context.Context, name string) bool {
-	info, err := d.images.GetInfo(ctx, name)
+	info, err := d.images.GetInfo(ctx, neighborhoodImageKey(name))
 	return err == nil && d.now().Sub(info.ModTime) < neighborhoodImageRewriteAge
 }
 
@@ -327,6 +325,12 @@ func (c *ChattoCore) NeighborhoodDirectory(ctx context.Context) (*cachestatev1.N
 	return loadNeighborhoodDirectory(ctx, c.storage.memoryCacheKV)
 }
 
+// neighborhoodImageKey isolates public Neighborhood images from other cache entries.
+// The directory and public URL retain the unprefixed content hash.
+func neighborhoodImageKey(name string) string {
+	return "neighborhood_image." + name
+}
+
 // NeighborhoodImagePath returns the public server-relative URL path of one
 // cached Neighborhood image.
 func NeighborhoodImagePath(name string) string {
@@ -339,7 +343,7 @@ func (c *ChattoCore) OpenNeighborhoodImage(ctx context.Context, name string) (io
 	if !neighborhoodImageName.MatchString(name) {
 		return nil, nil, ErrNeighborhoodImageNotFound
 	}
-	result, err := c.storage.neighborhoodImages.Get(ctx, name)
+	result, err := c.storage.imageCacheStore.Get(ctx, neighborhoodImageKey(name))
 	if errors.Is(err, jetstream.ErrObjectNotFound) {
 		return nil, nil, ErrNeighborhoodImageNotFound
 	}
@@ -357,7 +361,7 @@ func (c *ChattoCore) OpenNeighborhoodImage(ctx context.Context, name string) (io
 func initializeNeighborhoodDiscovery(core *ChattoCore, infra *coreInfrastructure, cfg config.CoreConfig, logger *log.Logger) {
 	core.neighborhoodDiscovery = &neighborhoodDiscovery{
 		kv:          infra.storage.memoryCacheKV,
-		images:      infra.storage.neighborhoodImages,
+		images:      infra.storage.imageCacheStore,
 		fetcher:     neighborhood.RemoteFetcher{Client: newNeighborhoodHTTPClient()},
 		selfOrigins: slices.Clone(cfg.ServerOrigins),
 		neighbors: func() []string {

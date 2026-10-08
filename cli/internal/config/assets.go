@@ -12,12 +12,6 @@ import (
 
 const defaultEVTReadCacheMaxBytes ByteSizeLimit = 256 << 20
 
-// AssetsCacheConfig contains settings for caching resized images.
-type AssetsCacheConfig struct {
-	Enabled bool     `toml:"enabled" env:"CHATTO_CORE_ASSETS_CACHE_ENABLED" comment:"Enable caching for resized images. Default: false (opt-in)."`
-	TTL     Duration `toml:"ttl" env:"CHATTO_CORE_ASSETS_CACHE_TTL" comment:"Time-to-live for cached images. Supports '7d', '1w', '168h', etc. Default: 7d."`
-}
-
 // StorageBackend defines where new asset uploads are stored.
 type StorageBackend string
 
@@ -128,21 +122,12 @@ func validateS3PathPrefix(prefix string) error {
 	return nil
 }
 
-// TTLOrDefault returns the configured TTL, or 7 days if not set.
-func (c *AssetsCacheConfig) TTLOrDefault() time.Duration {
-	if c.TTL == 0 {
-		return 7 * 24 * time.Hour // 7 days
-	}
-	return c.TTL.Duration()
-}
-
 // AssetsConfig contains settings for asset storage (attachments, thumbnails, etc.).
 type AssetsConfig struct {
 	SigningSecret  string            `toml:"signing_secret" env:"CHATTO_CORE_ASSETS_SIGNING_SECRET" comment:"Secret for signing asset URLs. NEVER SHARE THIS!\nIf it leaks, regenerate it. Existing signed URLs will become invalid but will be regenerated on next request."`
 	MaxUploadSize  datasize.ByteSize `toml:"max_upload_size" env:"CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE" comment:"Maximum size for uploaded files. Supports human-readable formats like '25 MB', '25MB', '25MiB'."`
 	StorageBackend StorageBackend    `toml:"storage_backend" env:"CHATTO_CORE_ASSETS_STORAGE_BACKEND" comment:"Where to store new uploads: 'nats' (default) or 's3'. Existing assets are served from their original location regardless of this setting."`
 	S3             S3Config          `toml:"s3,commented" comment:"S3-compatible storage configuration. Only used when storage_backend = 's3'."`
-	Cache          AssetsCacheConfig `toml:"cache" comment:"Caching configuration for resized images."`
 }
 
 // CoreConfig contains settings for the Chatto core service.
