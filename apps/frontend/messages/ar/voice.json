@@ -39,6 +39,8 @@
     "fullscreen_feed": "عرض بملء الشاشة",
     "fullscreen_call": "مكالمة بملء الشاشة",
     "exit_fullscreen_call": "قم بالخروج من المكالمة بملء الشاشة",
+    "pin_to_stage": "تثبيت {name} في المنصة",
+    "unpin_from_stage": "إلغاء التثبيت من المنصة",
     "locally_mute_participant": "كتم الصوت محليًا",
     "locally_muted": "تم كتم صوته محليًا",
     "unknown_device": "جهاز غير معروف",

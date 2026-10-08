@@ -39,6 +39,8 @@
     "fullscreen_feed": "Informační kanál na celou obrazovku",
     "fullscreen_call": "Celoobrazovkový hovor",
     "exit_fullscreen_call": "Ukončit celoobrazovkový hovor",
+    "pin_to_stage": "Připnout {name} na pódium",
+    "unpin_from_stage": "Odepnout z pódia",
     "locally_mute_participant": "Ztlumit lokálně",
     "locally_muted": "Lokálně ztlumeno",
     "unknown_device": "Neznámé zařízení",

@@ -39,6 +39,8 @@
     "fullscreen_feed": "Helskärmsflöde",
     "fullscreen_call": "Helskärmssamtal",
     "exit_fullscreen_call": "Avsluta helskärmssamtal",
+    "pin_to_stage": "Fäst {name} på scenen",
+    "unpin_from_stage": "Lossa från scenen",
     "locally_mute_participant": "Stäng av ljudet lokalt",
     "locally_muted": "Lokalt avstängt",
     "unknown_device": "Okänd enhet",

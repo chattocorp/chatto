@@ -39,6 +39,8 @@
     "fullscreen_feed": "Feed op volledig scherm",
     "fullscreen_call": "Gesprek op volledig scherm",
     "exit_fullscreen_call": "Gesprek op volledig scherm afsluiten",
+    "pin_to_stage": "{name} vastzetten op het podium",
+    "unpin_from_stage": "Losmaken van het podium",
     "locally_mute_participant": "Lokaal dempen",
     "locally_muted": "Lokaal gedempt",
     "unknown_device": "Onbekend apparaat",

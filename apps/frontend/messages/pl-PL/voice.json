@@ -39,6 +39,8 @@
     "fullscreen_feed": "Kanał pełnoekranowy",
     "fullscreen_call": "Rozmowa na pełnym ekranie",
     "exit_fullscreen_call": "Zakończ połączenie pełnoekranowe",
+    "pin_to_stage": "Przypnij {name} na scenie",
+    "unpin_from_stage": "Odepnij ze sceny",
     "locally_mute_participant": "Wycisz lokalnie",
     "locally_muted": "Lokalnie wyciszony",
     "unknown_device": "Nieznane urządzenie",

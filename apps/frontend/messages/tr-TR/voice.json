@@ -39,6 +39,8 @@
     "fullscreen_feed": "Tam ekran feed'i",
     "fullscreen_call": "Tam ekran arama",
     "exit_fullscreen_call": "Tam ekran aramadan çık",
+    "pin_to_stage": "{name} öğesini sahneye sabitleyin",
+    "unpin_from_stage": "Sahneden sabitlemeyi kaldırın",
     "locally_mute_participant": "Yerel olarak sessize al",
     "locally_muted": "Yerel olarak sessize alındı",
     "unknown_device": "Bilinmeyen cihaz",

@@ -39,6 +39,8 @@
     "fullscreen_feed": "全屏显示画面",
     "fullscreen_call": "全屏显示通话",
     "exit_fullscreen_call": "退出全屏通话",
+    "pin_to_stage": "将 {name} 固定到舞台",
+    "unpin_from_stage": "从舞台取消固定",
     "locally_mute_participant": "仅在本地静音",
     "locally_muted": "已在本地静音",
     "unknown_device": "未知设备",
