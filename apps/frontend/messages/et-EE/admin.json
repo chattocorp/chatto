@@ -228,7 +228,8 @@
         "members": "Liikmed"
       },
       "role_pings_on": "Rolli mainimine on sisse lülitatud",
-      "role_pings_off": "Rolli mainimine on välja lülitatud"
+      "role_pings_off": "Rolli mainimine on välja lülitatud",
+      "server_scope_warning": "Sellel lehel olevad seaded kehtivad kõigi serveri ruumide ja ruumirühmade kohta. Kui soovite avada ainult mõned ruumid, määrake nende ruumide või ruumirühmade õigused."
     },
     "rooms_admin": {
       "title": "Toad",
@@ -237,7 +238,7 @@
       "room_permissions_subtitle": "Ruumipõhised alistamise load (kihina ruumi rühma peal)",
       "permissions_page_title": "Load – {name}",
       "back_to_rooms": "Tagasi tubadesse",
-      "group_permissions_hint": "Selle rühma kanaliruumide grupipõhised alistamised. Vaikeväärtused on päritud serveri ulatuselt. Üksikud ruumid saavad oma lubade lehel olevaid õigusi veelgi alistada.",
+      "group_permissions_hint": "Siinsed seaded kehtivad kõigi selle ruumirühma ruumide kohta. Ruum võib lubada rohkem, kuid ei saa ära võtta seda, mida ruumirühm lubab.",
       "room_permissions_hint": "Need seaded kehtivad ainult selles ruumis. Need lisanduvad ruumirühma ja serveri rollide lubadele. Kui soovite, et siin saaksid midagi teha ainult mõned rollid, ärge lubage seda everyone jaoks laiemas ulatuses. Seejärel lubage see siin nende rollide jaoks.",
       "loading": "Ruumide laadimine...",
       "empty_groups": "Ruumigruppe pole veel",

@@ -51,6 +51,9 @@
       {#if error}
         <Hint tone="danger">{error}</Hint>
       {:else}
+        <Hint tone="warning" icon="icon-[uil--exclamation-triangle]">
+          {m('admin.permissions.server_scope_warning')}
+        </Hint>
         <PermissionMatrix
           onRoleClick={openRoleDetail}
           isRoleClickable={() => canManageRoles}

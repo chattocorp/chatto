@@ -223,6 +223,16 @@
       "role_locked": "Rollordningen låter dig inte ändra den här rollen.",
       "account_locked": "Rollordningen låter dig inte ändra det här kontot.",
       "roles_locked": "Rollordningen låter dig inte ändra rollerna för det här kontot."
+    },
+    "access": {
+      "room_open": "Alla kan hitta det här rummet och gå med i det.",
+      "room_open_unlisted": "Alla kan gå med i det här rummet, men det visas inte för alla i rumslistan.",
+      "room_roles": "Bara medlemmar i de här rollerna kan gå med i det här rummet: {roles}.",
+      "room_closed": "Bara ägare och medlemmar som du lägger till kan öppna det här rummet. Öppna det genom att tillåta room.list och room.join för everyone eller för en roll i rummets behörigheter.",
+      "group_open": "Alla kan hitta rummen i den här rumsgruppen och gå med i dem.",
+      "group_open_unlisted": "Alla kan gå med i rummen i den här rumsgruppen, men de visas inte för alla i rumslistan.",
+      "group_roles": "Bara medlemmar i de här rollerna kan gå med i rummen i den här rumsgruppen: {roles}.",
+      "group_closed": "Bara ägare och medlemmar som du lägger till kan öppna rummen i den här rumsgruppen. Öppna dem genom att tillåta room.list och room.join för everyone eller för en roll nedan."
     }
   }
 }

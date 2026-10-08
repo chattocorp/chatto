@@ -228,7 +228,8 @@
         "members": "Leden"
       },
       "role_pings_on": "Rolvermeldingen ingeschakeld",
-      "role_pings_off": "Rolvermeldingen uitgeschakeld"
+      "role_pings_off": "Rolvermeldingen uitgeschakeld",
+      "server_scope_warning": "Instellingen op deze pagina gelden voor elke kamer en elke kamergroep op de server. Stel de rechten van die kamers of kamergroepen in om alleen sommige kamers te openen."
     },
     "rooms_admin": {
       "title": "Kamers",
@@ -237,7 +238,7 @@
       "room_permissions_subtitle": "Overschrijvingsrechten per kamer (gelaagd bovenop de groep van de kamer)",
       "permissions_page_title": "Rechten - {name}",
       "back_to_rooms": "Terug naar kamers",
-      "group_permissions_hint": "Overschrijvingen per groep voor de kanaalkamers in deze groep. Standaardwaarden overgenomen van het serverbereik. Individuele kamers kunnen de machtigingen verder overschrijven vanaf hun eigen machtigingspagina.",
+      "group_permissions_hint": "Instellingen hier gelden voor elke kamer in deze kamergroep. Een kamer kan meer toestaan, maar kan niet intrekken wat de kamergroep toestaat.",
       "room_permissions_hint": "Deze instellingen gelden alleen in deze kamer. Ze komen bovenop de roltoestemmingen van de kamergroep en de server. Wil je dat alleen bepaalde rollen hier iets mogen, sta het dan niet toe voor everyone op een breder niveau. Sta het daarna hier toe voor die rollen.",
       "loading": "Kamers laden...",
       "empty_groups": "Nog geen kamergroepen",

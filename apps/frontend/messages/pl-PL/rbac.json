@@ -223,6 +223,16 @@
       "role_locked": "Kolejność ról nie pozwala ci zmienić tej roli.",
       "account_locked": "Kolejność ról nie pozwala ci zmienić tego konta.",
       "roles_locked": "Kolejność ról nie pozwala ci zmienić ról tego konta."
+    },
+    "access": {
+      "room_open": "Wszyscy mogą znaleźć ten pokój i do niego dołączyć.",
+      "room_open_unlisted": "Wszyscy mogą dołączyć do tego pokoju, ale nie wyświetla się on wszystkim na liście pokojów.",
+      "room_roles": "Do tego pokoju mogą dołączyć tylko członkowie tych ról: {roles}.",
+      "room_closed": "Ten pokój mogą otworzyć tylko właściciele i dodani przez ciebie członkowie. Aby go otworzyć, zezwól na room.list i room.join dla everyone lub dla roli w uprawnieniach pokoju.",
+      "group_open": "Wszyscy mogą znaleźć pokoje w tej grupie pokojów i do nich dołączyć.",
+      "group_open_unlisted": "Wszyscy mogą dołączyć do pokojów w tej grupie pokojów, ale nie wyświetlają się one wszystkim na liście pokojów.",
+      "group_roles": "Do pokojów w tej grupie pokojów mogą dołączyć tylko członkowie tych ról: {roles}.",
+      "group_closed": "Pokoje w tej grupie pokojów mogą otworzyć tylko właściciele i dodani przez ciebie członkowie. Aby je otworzyć, zezwól poniżej na room.list i room.join dla everyone lub dla roli."
     }
   }
 }

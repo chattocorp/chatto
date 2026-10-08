@@ -228,7 +228,8 @@
         "members": "Miembros"
       },
       "role_pings_on": "Menciones del rol activadas",
-      "role_pings_off": "Menciones del rol desactivadas"
+      "role_pings_off": "Menciones del rol desactivadas",
+      "server_scope_warning": "Los ajustes de esta página se aplican a todas las salas y todos los grupos de salas del servidor. Para abrir solo algunas salas, define los permisos de esas salas o grupos de salas."
     },
     "rooms_admin": {
       "title": "Habitaciones",
@@ -237,7 +238,7 @@
       "room_permissions_subtitle": "Permisos de anulación por sala (en capas encima del grupo de la sala)",
       "permissions_page_title": "Permisos - {name}",
       "back_to_rooms": "Volver a salas",
-      "group_permissions_hint": "Anulaciones por grupo para las salas de canales de este grupo. Valores predeterminados heredados del ámbito del servidor. Las salas individuales pueden anular aún más los permisos desde su propia página de permisos.",
+      "group_permissions_hint": "Los ajustes de aquí se aplican a todas las salas de este grupo de salas. Una sala puede permitir más, pero no puede quitar lo que permite el grupo de salas.",
       "room_permissions_hint": "Estos ajustes solo se aplican en esta sala. Se suman a los permisos de las funciones del grupo de salas y del servidor. Para que solo algunas funciones puedan hacer algo aquí, no lo permitas para everyone en un ámbito más amplio. Después, permítelo aquí para esas funciones.",
       "loading": "Cargando salas...",
       "empty_groups": "Aún no hay grupos de salas",

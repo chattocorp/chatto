@@ -228,7 +228,8 @@
         "members": "Membroj"
       },
       "role_pings_on": "Mencioj de la rolo ŝaltitaj",
-      "role_pings_off": "Mencioj de la rolo malŝaltitaj"
+      "role_pings_off": "Mencioj de la rolo malŝaltitaj",
+      "server_scope_warning": "La agordoj en ĉi tiu paĝo validas por ĉiu ĉambro kaj ĉiu ĉambrogrupo en la servilo. Por malfermi nur kelkajn ĉambrojn, agordu la permesojn de tiuj ĉambroj aŭ ĉambrogrupoj."
     },
     "rooms_admin": {
       "title": "Ĉambroj",
@@ -237,7 +238,7 @@
       "room_permissions_subtitle": "Per-ĉambraj anstataŭigaj permesoj (tavoligitaj sur la grupo de la ĉambro)",
       "permissions_page_title": "Permesoj - {name}",
       "back_to_rooms": "Reen al ĉambroj",
-      "group_permissions_hint": "Po-grupaj anstataŭaĵoj por la kanalĉambroj en ĉi tiu grupo. Defaŭltoj hereditaj de la servila amplekso. Individuaj ĉambroj povas plue superregi permesojn de sia propra permespaĝo.",
+      "group_permissions_hint": "La agordoj ĉi tie validas por ĉiu ĉambro en ĉi tiu ĉambrogrupo. Ĉambro povas permesi pli, sed ne povas forpreni tion, kion la ĉambrogrupo permesas.",
       "room_permissions_hint": "Ĉi tiuj agordoj validas nur en ĉi tiu ĉambro. Ili aldoniĝas al la rolaj permesoj de la ĉambrogrupo kaj de la servilo. Por permesi ion ĉi tie nur al kelkaj roloj, ne permesu ĝin al everyone je pli larĝa nivelo. Poste permesu ĝin ĉi tie al tiuj roloj.",
       "loading": "Ŝarĝante ĉambrojn...",
       "empty_groups": "Ankoraŭ neniuj ĉambrogrupoj",

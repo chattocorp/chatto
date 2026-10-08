@@ -5,5 +5,6 @@ export { default as SubjectPermissionsMatrix } from './SubjectPermissionsMatrix.
 export { default as UserPermissionsMatrix } from './UserPermissionsMatrix.svelte';
 export { default as RolePermissionsMatrix } from './RolePermissionsMatrix.svelte';
 export { default as MemberRoleAssignments } from './MemberRoleAssignments.svelte';
+export { default as AccessSummary } from './AccessSummary.svelte';
 export type { Role, PermissionState } from './types';
 export { roleOrderLocksRoles } from './roleAssignments';

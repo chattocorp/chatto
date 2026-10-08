@@ -228,7 +228,8 @@
         "members": "成员"
       },
       "role_pings_on": "已开启角色提及",
-      "role_pings_off": "已关闭角色提及"
+      "role_pings_off": "已关闭角色提及",
+      "server_scope_warning": "此页面上的设置适用于服务器上的每个聊天室和每个聊天室分组。如果只想打开部分聊天室，请设置这些聊天室或聊天室分组的权限。"
     },
     "rooms_admin": {
       "title": "聊天室",
@@ -237,7 +238,7 @@
       "room_permissions_subtitle": "各聊天室的覆盖权限（叠加在聊天室所属群组之上）",
       "permissions_page_title": "权限 - {name}",
       "back_to_rooms": "返回聊天室",
-      "group_permissions_hint": "此群组内频道聊天室的群组级覆盖项。默认值继承自服务器作用域。各聊天室可在自己的权限页面中进一步覆盖权限。",
+      "group_permissions_hint": "此处的设置适用于此聊天室分组中的每个聊天室。聊天室可以允许更多内容，但不能取消聊天室分组已允许的内容。",
       "room_permissions_hint": "这些设置仅在此聊天室中生效。它们会添加到聊天室分组和服务器的角色允许项之上。如果只想让部分角色在这里执行某项操作，请不要在更大的作用域中为 everyone 设置“允许”，然后在这里为这些角色设置“允许”。",
       "loading": "正在加载聊天室...",
       "empty_groups": "暂无聊天室群组",

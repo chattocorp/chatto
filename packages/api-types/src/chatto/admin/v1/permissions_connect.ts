@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ExplainPermissionsRequest, ExplainPermissionsResponse, GetRolePermissionMatrixRequest, GetRolePermissionMatrixResponse, GetRolePermissionTierMatrixRequest, GetRolePermissionTierMatrixResponse, GetUserPermissionMatrixRequest, GetUserPermissionMatrixResponse, ListRolePermissionDecisionsRequest, ListRolePermissionDecisionsResponse, ListUserPermissionDecisionsRequest, ListUserPermissionDecisionsResponse, SetRolePermissionRequest, SetRolePermissionResponse, SetUserPermissionRequest, SetUserPermissionResponse } from "./permissions_pb.js";
+import { ExplainPermissionsRequest, ExplainPermissionsResponse, GetAccessSummaryRequest, GetAccessSummaryResponse, GetRolePermissionMatrixRequest, GetRolePermissionMatrixResponse, GetRolePermissionTierMatrixRequest, GetRolePermissionTierMatrixResponse, GetUserPermissionMatrixRequest, GetUserPermissionMatrixResponse, ListRolePermissionDecisionsRequest, ListRolePermissionDecisionsResponse, ListUserPermissionDecisionsRequest, ListUserPermissionDecisionsResponse, SetRolePermissionRequest, SetRolePermissionResponse, SetUserPermissionRequest, SetUserPermissionResponse } from "./permissions_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -31,6 +31,20 @@ export const AdminPermissionService = {
       name: "GetRolePermissionTierMatrix",
       I: GetRolePermissionTierMatrixRequest,
       O: GetRolePermissionTierMatrixResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Summarizes who can find and join a channel room or the rooms of a room
+     * group. New rooms and room groups start closed, so clients use it to warn
+     * operators. Requires role.manage or effective room.manage at the room or
+     * group. Only ROOM and GROUP scopes are accepted.
+     *
+     * @generated from rpc chatto.admin.v1.AdminPermissionService.GetAccessSummary
+     */
+    getAccessSummary: {
+      name: "GetAccessSummary",
+      I: GetAccessSummaryRequest,
+      O: GetAccessSummaryResponse,
       kind: MethodKind.Unary,
     },
     /**

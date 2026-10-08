@@ -228,7 +228,8 @@
         "members": "Üyeler"
       },
       "role_pings_on": "Rol bahsetmeleri açıldı",
-      "role_pings_off": "Rol bahsetmeleri kapatıldı"
+      "role_pings_off": "Rol bahsetmeleri kapatıldı",
+      "server_scope_warning": "Bu sayfadaki ayarlar sunucudaki her oda ve oda grubu için geçerlidir. Yalnızca bazı odaları açmak için bu odaların veya oda gruplarının izinlerini ayarlayın."
     },
     "rooms_admin": {
       "title": "Odalar",
@@ -237,7 +238,7 @@
       "room_permissions_subtitle": "Oda başına geçersiz kılma izinleri (oda grubunun üstüne yerleştirilmiş)",
       "permissions_page_title": "İzinler - {name}",
       "back_to_rooms": "Odalara geri dön",
-      "group_permissions_hint": "Bu gruptaki kanal odaları için grup başına geçersiz kılmalar. Sunucu kapsamından devralınan varsayılanlar. Bireysel odalar ayrıca kendi izinler sayfalarından izinleri geçersiz kılabilir.",
+      "group_permissions_hint": "Buradaki ayarlar bu oda grubundaki her oda için geçerlidir. Bir oda daha fazlasına izin verebilir, ancak oda grubunun izin verdiği şeyi kaldıramaz.",
       "room_permissions_hint": "Bu ayarlar yalnızca bu odada geçerlidir. Oda grubunun ve sunucunun rol izinlerine eklenir. Burada yalnızca bazı rollerin bir işlem yapabilmesi için daha geniş bir kapsamda everyone rolüne izin vermeyin. Ardından burada bu rollere izin verin.",
       "loading": "Odalar yükleniyor...",
       "empty_groups": "Henüz oda grubu yok",

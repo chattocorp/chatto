@@ -228,7 +228,8 @@
         "members": "Biedri"
       },
       "role_pings_on": "Lomas pieminēšana ieslēgta",
-      "role_pings_off": "Lomas pieminēšana izslēgta"
+      "role_pings_off": "Lomas pieminēšana izslēgta",
+      "server_scope_warning": "Šīs lapas iestatījumi attiecas uz katru servera istabu un istabu grupu. Lai atvērtu tikai dažas istabas, iestatiet šo istabu vai istabu grupu atļaujas."
     },
     "rooms_admin": {
       "title": "Istabas",
@@ -237,7 +238,7 @@
       "room_permissions_subtitle": "Katrai telpai piešķirtās ignorēšanas atļaujas (novietotas virs telpas grupas)",
       "permissions_page_title": "Atļaujas — {name}",
       "back_to_rooms": "Atpakaļ uz istabām",
-      "group_permissions_hint": "Šīs grupas kanālu telpu ignorēšana katrā grupā. Noklusējumi mantoti no servera darbības jomas. Atsevišķas telpas var tālāk ignorēt atļaujas no savas atļauju lapas.",
+      "group_permissions_hint": "Šeit norādītie iestatījumi attiecas uz katru šīs istabu grupas istabu. Istaba var atļaut vairāk, taču nevar atņemt to, ko atļauj istabu grupa.",
       "room_permissions_hint": "Šie iestatījumi attiecas tikai uz šo istabu. Tie papildina istabu grupas un servera lomu atļaujas. Lai šeit kaut ko atļautu tikai dažām lomām, neatļaujiet to lomai everyone plašākā tvērumā. Pēc tam atļaujiet to šeit šīm lomām.",
       "loading": "Notiek telpu ielāde...",
       "empty_groups": "Vēl nav telpu grupu",

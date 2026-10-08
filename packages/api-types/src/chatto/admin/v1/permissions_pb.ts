@@ -451,6 +451,116 @@ export class GetRolePermissionTierMatrixResponse extends Message<GetRolePermissi
 }
 
 /**
+ * Request an access summary for one channel room or room group.
+ *
+ * @generated from message chatto.admin.v1.GetAccessSummaryRequest
+ */
+export class GetAccessSummaryRequest extends Message<GetAccessSummaryRequest> {
+  /**
+   * ROOM or GROUP scope with its id.
+   *
+   * @generated from field: chatto.admin.v1.PermissionScope scope = 1;
+   */
+  scope?: PermissionScope;
+
+  constructor(data?: PartialMessage<GetAccessSummaryRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.GetAccessSummaryRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scope", kind: "message", T: PermissionScope },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAccessSummaryRequest {
+    return new GetAccessSummaryRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAccessSummaryRequest {
+    return new GetAccessSummaryRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAccessSummaryRequest {
+    return new GetAccessSummaryRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAccessSummaryRequest | PlainMessage<GetAccessSummaryRequest> | undefined, b: GetAccessSummaryRequest | PlainMessage<GetAccessSummaryRequest> | undefined): boolean {
+    return proto3.util.equals(GetAccessSummaryRequest, a, b);
+  }
+}
+
+/**
+ * Who can find and join a channel room, or the rooms of a room group. Explicit
+ * room members, and owners in privileged mode, have access whatever the
+ * summary says.
+ *
+ * @generated from message chatto.admin.v1.GetAccessSummaryResponse
+ */
+export class GetAccessSummaryResponse extends Message<GetAccessSummaryResponse> {
+  /**
+   * Whether every member can find the room (room.list).
+   *
+   * @generated from field: bool everyone_can_list = 1;
+   */
+  everyoneCanList = false;
+
+  /**
+   * Whether every member can join the room (room.join).
+   *
+   * @generated from field: bool everyone_can_join = 2;
+   */
+  everyoneCanJoin = false;
+
+  /**
+   * Roles whose holders can find the room although everyone cannot, highest
+   * first. Empty when everyone can.
+   *
+   * @generated from field: repeated string roles_can_list = 3;
+   */
+  rolesCanList: string[] = [];
+
+  /**
+   * Roles whose holders can join the room although everyone cannot, highest
+   * first. Empty when everyone can.
+   *
+   * @generated from field: repeated string roles_can_join = 4;
+   */
+  rolesCanJoin: string[] = [];
+
+  constructor(data?: PartialMessage<GetAccessSummaryResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.GetAccessSummaryResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "everyone_can_list", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "everyone_can_join", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "roles_can_list", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 4, name: "roles_can_join", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAccessSummaryResponse {
+    return new GetAccessSummaryResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAccessSummaryResponse {
+    return new GetAccessSummaryResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAccessSummaryResponse {
+    return new GetAccessSummaryResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAccessSummaryResponse | PlainMessage<GetAccessSummaryResponse> | undefined, b: GetAccessSummaryResponse | PlainMessage<GetAccessSummaryResponse> | undefined): boolean {
+    return proto3.util.equals(GetAccessSummaryResponse, a, b);
+  }
+}
+
+/**
  * Matrix column scope.
  *
  * @generated from message chatto.admin.v1.PermissionMatrixScope

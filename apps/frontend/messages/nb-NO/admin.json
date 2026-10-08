@@ -228,7 +228,8 @@
         "members": "Medlemmer"
       },
       "role_pings_on": "Rollepinger slått på",
-      "role_pings_off": "Rollepinger slått av"
+      "role_pings_off": "Rollepinger slått av",
+      "server_scope_warning": "Innstillingene på denne siden gjelder alle rom og romgrupper på serveren. For å åpne bare noen rom må du angi tillatelsene til disse rommene eller romgruppene."
     },
     "rooms_admin": {
       "title": "Rom",
@@ -237,7 +238,7 @@
       "room_permissions_subtitle": "Overstyringstillatelser per rom (lagt på toppen av rommets gruppe)",
       "permissions_page_title": "Tillatelser – {name}",
       "back_to_rooms": "Tilbake til rommene",
-      "group_permissions_hint": "Overstyringer per gruppe for kanalrommene i denne gruppen. Standarder som er arvet fra serveromfanget. Individuelle rom kan videre overstyre tillatelser fra deres egen tillatelsesside.",
+      "group_permissions_hint": "Innstillingene her gjelder alle rom i denne romgruppen. Et rom kan tillate mer, men kan ikke ta bort det romgruppen tillater.",
       "room_permissions_hint": "Disse innstillingene gjelder bare i dette rommet. De kommer i tillegg til rolletillatelsene for romgruppen og serveren. Hvis bare noen roller skal kunne gjøre noe her, må du ikke tillate det for everyone på et bredere nivå. Tillat det deretter her for disse rollene.",
       "loading": "Laster rom ...",
       "empty_groups": "Ingen romgrupper ennå",

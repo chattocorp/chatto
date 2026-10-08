@@ -223,6 +223,16 @@
       "role_locked": "Die Rollenreihenfolge erlaubt dir nicht, diese Rolle zu ändern.",
       "account_locked": "Die Rollenreihenfolge erlaubt dir nicht, dieses Konto zu ändern.",
       "roles_locked": "Die Rollenreihenfolge erlaubt dir nicht, die Rollen dieses Kontos zu ändern."
+    },
+    "access": {
+      "room_open": "Alle können diesen Raum finden und ihm beitreten.",
+      "room_open_unlisted": "Alle können diesem Raum beitreten, aber er wird nicht für alle in der Raumliste angezeigt.",
+      "room_roles": "Nur Mitglieder dieser Rollen können diesem Raum beitreten: {roles}.",
+      "room_closed": "Nur Owner und die Mitglieder, die du hinzufügst, können diesen Raum öffnen. Um ihn zu öffnen, erlaube room.list und room.join in den Raumberechtigungen für everyone oder für eine Rolle.",
+      "group_open": "Alle können die Räume in dieser Raumgruppe finden und ihnen beitreten.",
+      "group_open_unlisted": "Alle können den Räumen in dieser Raumgruppe beitreten, aber sie werden nicht für alle in der Raumliste angezeigt.",
+      "group_roles": "Nur Mitglieder dieser Rollen können den Räumen in dieser Raumgruppe beitreten: {roles}.",
+      "group_closed": "Nur Owner und die Mitglieder, die du hinzufügst, können die Räume in dieser Raumgruppe öffnen. Um sie zu öffnen, erlaube unten room.list und room.join für everyone oder für eine Rolle."
     }
   }
 }

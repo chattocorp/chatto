@@ -228,7 +228,8 @@
         "members": "Członkowie"
       },
       "role_pings_on": "Pingowanie roli włączone",
-      "role_pings_off": "Pingowanie roli wyłączone"
+      "role_pings_off": "Pingowanie roli wyłączone",
+      "server_scope_warning": "Ustawienia na tej stronie obowiązują w każdym pokoju i każdej grupie pokojów na serwerze. Aby otworzyć tylko niektóre pokoje, ustaw uprawnienia tych pokojów lub grup pokojów."
     },
     "rooms_admin": {
       "title": "Pokoje",
@@ -237,7 +238,7 @@
       "room_permissions_subtitle": "Zastąpienie uprawnień dla poszczególnych pomieszczeń (nałożone na grupę pomieszczeń)",
       "permissions_page_title": "Uprawnienia - {name}",
       "back_to_rooms": "Powrót do pokoi",
-      "group_permissions_hint": "Zastąpienie poszczególnych grup pomieszczeń kanałów w tej grupie. Wartości domyślne dziedziczone z zakresu serwera. Poszczególne pokoje mogą dodatkowo zastępować uprawnienia na własnej stronie uprawnień.",
+      "group_permissions_hint": "Ustawienia tutaj obowiązują w każdym pokoju w tej grupie pokojów. Pokój może zezwalać na więcej, ale nie może odebrać tego, na co zezwala grupa pokojów.",
       "room_permissions_hint": "Te ustawienia obowiązują tylko w tym pokoju. Dodają się do zezwoleń ról z grupy pokojów i serwera. Aby tylko niektóre role mogły tu coś zrobić, nie zezwalaj na to dla everyone w szerszym zakresie. Następnie zezwól na to tutaj tym rolom.",
       "loading": "Ładowanie pokoi...",
       "empty_groups": "Nie ma jeszcze grup pokoi",

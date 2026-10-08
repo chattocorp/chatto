@@ -228,7 +228,8 @@
         "members": "Mitglieder"
       },
       "role_pings_on": "Rollen-Pings eingeschaltet",
-      "role_pings_off": "Rollen-Pings ausgeschaltet"
+      "role_pings_off": "Rollen-Pings ausgeschaltet",
+      "server_scope_warning": "Einstellungen auf dieser Seite gelten für jeden Raum und jede Raumgruppe auf dem Server. Um nur einige Räume zu öffnen, lege die Berechtigungen dieser Räume oder Raumgruppen fest."
     },
     "rooms_admin": {
       "title": "Räume",
@@ -237,7 +238,7 @@
       "room_permissions_subtitle": "Berechtigungsüberschreibungen pro Raum (auf der Raumgruppe aufbauend)",
       "permissions_page_title": "Berechtigungen - {name}",
       "back_to_rooms": "Zurück zu Räumen",
-      "group_permissions_hint": "Überschreibungen pro Gruppe für die Kanalräume in dieser Gruppe. Vorgaben werden vom Serverbereich geerbt. Einzelne Räume können Berechtigungen auf ihrer eigenen Berechtigungsseite weiter überschreiben.",
+      "group_permissions_hint": "Einstellungen hier gelten für jeden Raum in dieser Raumgruppe. Ein Raum kann mehr erlauben, aber nicht wegnehmen, was die Raumgruppe erlaubt.",
       "room_permissions_hint": "Diese Einstellungen gelten nur in diesem Raum. Sie ergänzen die Rollenerlaubnisse der Raumgruppe und des Servers. Wenn hier nur bestimmte Rollen etwas tun dürfen, erlaube es everyone nicht auf einer breiteren Ebene. Erlaube es dann hier für diese Rollen.",
       "loading": "Räume werden geladen...",
       "empty_groups": "Noch keine Raumgruppen",

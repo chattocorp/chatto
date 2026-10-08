@@ -223,6 +223,16 @@
       "role_locked": "El orden de roles no te permite cambiar este rol.",
       "account_locked": "El orden de roles no te permite cambiar esta cuenta.",
       "roles_locked": "El orden de roles no te permite cambiar los roles de esta cuenta."
+    },
+    "access": {
+      "room_open": "Todos pueden encontrar esta sala y unirse a ella.",
+      "room_open_unlisted": "Todos pueden unirse a esta sala, pero no aparece para todos en la lista de salas.",
+      "room_roles": "Solo los miembros de estos roles pueden unirse a esta sala: {roles}.",
+      "room_closed": "Solo los propietarios y los miembros que agregues pueden abrir esta sala. Para abrirla, permite room.list y room.join para everyone o para un rol en los permisos de la sala.",
+      "group_open": "Todos pueden encontrar las salas de este grupo de salas y unirse a ellas.",
+      "group_open_unlisted": "Todos pueden unirse a las salas de este grupo de salas, pero no aparecen para todos en la lista de salas.",
+      "group_roles": "Solo los miembros de estos roles pueden unirse a las salas de este grupo de salas: {roles}.",
+      "group_closed": "Solo los propietarios y los miembros que agregues pueden abrir las salas de este grupo de salas. Para abrirlas, permite abajo room.list y room.join para everyone o para un rol."
     }
   }
 }

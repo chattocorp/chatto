@@ -228,7 +228,8 @@
         "members": "Membros"
       },
       "role_pings_on": "Menções da função ativadas",
-      "role_pings_off": "Menções da função desativadas"
+      "role_pings_off": "Menções da função desativadas",
+      "server_scope_warning": "As definições desta página aplicam-se a todas as salas e a todos os grupos de salas do servidor. Para abrir apenas algumas salas, defina as permissões dessas salas ou grupos de salas."
     },
     "rooms_admin": {
       "title": "Quartos",
@@ -237,7 +238,7 @@
       "room_permissions_subtitle": "Permissões de substituição por sala (colocadas no topo do grupo da sala)",
       "permissions_page_title": "Permissões - {name}",
       "back_to_rooms": "Voltar às salas",
-      "group_permissions_hint": "Substituições por grupo para as salas de canal deste grupo. Padrões herdados do âmbito do servidor. As salas individuais podem substituir ainda mais as permissões das suas próprias páginas de permissões.",
+      "group_permissions_hint": "As definições aqui aplicam-se a todas as salas deste grupo de salas. Uma sala pode permitir mais, mas não pode retirar o que o grupo de salas permite.",
       "room_permissions_hint": "Estas definições aplicam-se apenas nesta sala. Somam-se às permissões das funções do grupo de salas e do servidor. Para que só algumas funções possam fazer algo aqui, não o permita para everyone num âmbito mais amplo. Depois, permita-o aqui para essas funções.",
       "loading": "A carregar salas...",
       "empty_groups": "Ainda não existem grupos de salas",

@@ -228,7 +228,8 @@
         "members": "Membri"
       },
       "role_pings_on": "Menzioni del ruolo attivate",
-      "role_pings_off": "Menzioni del ruolo disattivate"
+      "role_pings_off": "Menzioni del ruolo disattivate",
+      "server_scope_warning": "Le impostazioni di questa pagina valgono per ogni stanza e ogni gruppo di stanze del server. Per aprire solo alcune stanze, imposta le autorizzazioni di quelle stanze o di quei gruppi di stanze."
     },
     "rooms_admin": {
       "title": "Camere",
@@ -237,7 +238,7 @@
       "room_permissions_subtitle": "Autorizzazioni di sostituzione per stanza (stratificate sopra il gruppo della stanza)",
       "permissions_page_title": "Autorizzazioni - {name}",
       "back_to_rooms": "Torniamo alle stanze",
-      "group_permissions_hint": "Sostituzioni per gruppo per le stanze canale in questo gruppo. Impostazioni predefinite ereditate dall'ambito del server. Le singole stanze possono inoltre sovrascrivere le autorizzazioni dalla propria pagina delle autorizzazioni.",
+      "group_permissions_hint": "Le impostazioni qui valgono per ogni stanza di questo gruppo di stanze. Una stanza può consentire di più, ma non può togliere ciò che il gruppo di stanze consente.",
       "room_permissions_hint": "Queste impostazioni valgono solo in questa stanza. Si aggiungono alle autorizzazioni dei ruoli del gruppo di stanze e del server. Per consentire un’azione qui solo ad alcuni ruoli, non consentirla a everyone in un ambito più ampio. Poi consentila qui a quei ruoli.",
       "loading": "Caricamento stanze...",
       "empty_groups": "Nessun gruppo di stanze ancora",

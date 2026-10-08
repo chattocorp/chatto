@@ -228,7 +228,8 @@
         "members": "Members"
       },
       "role_pings_on": "Role pings turned on",
-      "role_pings_off": "Role pings turned off"
+      "role_pings_off": "Role pings turned off",
+      "server_scope_warning": "Settings on this page apply to every room and room group on the server. To open only some rooms, set the permissions of those rooms or room groups."
     },
     "rooms_admin": {
       "title": "Rooms",
@@ -237,7 +238,7 @@
       "room_permissions_subtitle": "Per-room override permissions (layered on top of the room's group)",
       "permissions_page_title": "Permissions - {name}",
       "back_to_rooms": "Back to rooms",
-      "group_permissions_hint": "Per-group overrides for the channel rooms in this group. Defaults inherited from the server scope. Individual rooms can further override permissions from their own permissions page.",
+      "group_permissions_hint": "Settings here apply to every room in this room group. A room can allow more, but cannot take away what the room group allows.",
       "room_permissions_hint": "These settings apply only in this room. They add to the role allows of the room group and server. To let only some roles do something here, do not allow it for everyone at a broader scope. Then allow it for those roles here.",
       "loading": "Loading rooms...",
       "empty_groups": "No room groups yet",

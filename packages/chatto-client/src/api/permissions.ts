@@ -53,6 +53,20 @@ export type TierRoles = {
   roles: TierRole[];
 };
 
+/**
+ * Who can find and join a channel room, or the rooms of a room group. New rooms
+ * and room groups start closed, so admin pages show this to warn operators.
+ * Explicit room members, and owners in privileged mode, have access anyway.
+ */
+export type AccessSummary = {
+  everyoneCanList: boolean;
+  everyoneCanJoin: boolean;
+  /** Role names whose holders can find it although everyone cannot, highest first. */
+  rolesCanList: string[];
+  /** Role names whose holders can join it although everyone cannot, highest first. */
+  rolesCanJoin: string[];
+};
+
 export type MatrixScope = {
   id: string;
   label: string;
@@ -148,6 +162,23 @@ export function createPermissionAPI(config: ConnectAPIConfig) {
         { signal: options.signal }
       );
       return response.matrix ? tierRoles(response.matrix) : null;
+    },
+
+    /** Summarizes access to one channel room or room group. Pass exactly one id. */
+    async getAccessSummary(
+      input: { roomId?: string | null; groupId?: string | null },
+      options: { signal?: AbortSignal } = {}
+    ): Promise<AccessSummary> {
+      const response = await client.getAccessSummary(
+        { scope: apiTierMatrixScope(input) },
+        { signal: options.signal }
+      );
+      return {
+        everyoneCanList: response.everyoneCanList,
+        everyoneCanJoin: response.everyoneCanJoin,
+        rolesCanList: [...response.rolesCanList],
+        rolesCanJoin: [...response.rolesCanJoin]
+      };
     },
 
     async getRolePermissionMatrix(

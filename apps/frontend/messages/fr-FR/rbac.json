@@ -223,6 +223,16 @@
       "role_locked": "L'ordre des rôles ne vous permet pas de modifier ce rôle.",
       "account_locked": "L'ordre des rôles ne vous permet pas de modifier ce compte.",
       "roles_locked": "L'ordre des rôles ne vous permet pas de modifier les rôles de ce compte."
+    },
+    "access": {
+      "room_open": "Tout le monde peut trouver cette salle et la rejoindre.",
+      "room_open_unlisted": "Tout le monde peut rejoindre cette salle, mais elle n’apparaît pas pour tout le monde dans la liste des salles.",
+      "room_roles": "Seuls les membres de ces rôles peuvent rejoindre cette salle : {roles}.",
+      "room_closed": "Seuls les propriétaires et les membres que vous ajoutez peuvent ouvrir cette salle. Pour l’ouvrir, autorisez room.list et room.join pour everyone ou pour un rôle dans les permissions de la salle.",
+      "group_open": "Tout le monde peut trouver les salles de ce groupe de salles et les rejoindre.",
+      "group_open_unlisted": "Tout le monde peut rejoindre les salles de ce groupe de salles, mais elles n’apparaissent pas pour tout le monde dans la liste des salles.",
+      "group_roles": "Seuls les membres de ces rôles peuvent rejoindre les salles de ce groupe de salles : {roles}.",
+      "group_closed": "Seuls les propriétaires et les membres que vous ajoutez peuvent ouvrir les salles de ce groupe de salles. Pour les ouvrir, autorisez ci-dessous room.list et room.join pour everyone ou pour un rôle."
     }
   }
 }

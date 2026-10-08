@@ -223,6 +223,16 @@
       "role_locked": "The role order does not let you change this role.",
       "account_locked": "The role order does not let you change this account.",
       "roles_locked": "The role order does not let you change the roles of this account."
+    },
+    "access": {
+      "room_open": "Everyone can find and join this room.",
+      "room_open_unlisted": "Everyone can join this room, but it does not show in the room list for everyone.",
+      "room_roles": "Only members of these roles can join this room: {roles}.",
+      "room_closed": "Only owners and the members that you add can open this room. To open it, allow room.list and room.join for everyone or for a role in the room permissions.",
+      "group_open": "Everyone can find and join the rooms in this room group.",
+      "group_open_unlisted": "Everyone can join the rooms in this room group, but they do not show in the room list for everyone.",
+      "group_roles": "Only members of these roles can join the rooms in this room group: {roles}.",
+      "group_closed": "Only owners and the members that you add can open the rooms in this room group. To open them, allow room.list and room.join for everyone or for a role below."
     }
   }
 }

@@ -223,6 +223,16 @@
       "role_locked": "角色順序不允許你變更此角色。",
       "account_locked": "角色順序不允許你變更此帳號。",
       "roles_locked": "角色順序不允許你變更此帳號的角色。"
+    },
+    "access": {
+      "room_open": "所有人都可以找到並加入此聊天室。",
+      "room_open_unlisted": "所有人都可以加入此聊天室，但聊天室清單不會向所有人顯示它。",
+      "room_roles": "只有這些角色的成員可以加入此聊天室：{roles}。",
+      "room_closed": "只有擁有者和你新增的成員可以開啟此聊天室。若要開啟，請在聊天室權限中為 everyone 或某個角色設定「允許」room.list 和 room.join。",
+      "group_open": "所有人都可以找到並加入此聊天室群組中的聊天室。",
+      "group_open_unlisted": "所有人都可以加入此聊天室群組中的聊天室，但聊天室清單不會向所有人顯示它們。",
+      "group_roles": "只有這些角色的成員可以加入此聊天室群組中的聊天室：{roles}。",
+      "group_closed": "只有擁有者和你新增的成員可以開啟此聊天室群組中的聊天室。若要開啟，請在下方為 everyone 或某個角色設定「允許」room.list 和 room.join。"
     }
   }
 }

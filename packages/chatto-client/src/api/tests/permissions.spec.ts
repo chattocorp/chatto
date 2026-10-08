@@ -62,6 +62,28 @@ describe('createPermissionAPI', () => {
     });
   });
 
+  it('loads the access summary of a room group', async () => {
+    mocks.getAccessSummary.mockReturnValue({
+      everyoneCanList: false,
+      everyoneCanJoin: false,
+      rolesCanList: ['staff'],
+      rolesCanJoin: ['staff', 'engineering']
+    });
+    const api = permissionAPI();
+
+    const result = await api.getAccessSummary({ groupId: 'G1' });
+
+    expect(receivedRequest(mocks.getAccessSummary)).toMatchObject({
+      scope: { kind: PermissionScopeKind.GROUP, id: 'G1' }
+    });
+    expect(result).toEqual({
+      everyoneCanList: false,
+      everyoneCanJoin: false,
+      rolesCanList: ['staff'],
+      rolesCanJoin: ['staff', 'engineering']
+    });
+  });
+
   it('rejects tier matrix roles without shared role metadata', async () => {
     mocks.getRolePermissionTierMatrix.mockReturnValue({
       matrix: {

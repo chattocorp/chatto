@@ -228,7 +228,8 @@
         "members": "Medlemmar"
       },
       "role_pings_on": "Rollpingar aktiverade",
-      "role_pings_off": "Rollpingar inaktiverade"
+      "role_pings_off": "Rollpingar inaktiverade",
+      "server_scope_warning": "Inställningarna på den här sidan gäller för alla rum och alla rumsgrupper på servern. Om du bara vill öppna vissa rum ställer du in behörigheterna för de rummen eller rumsgrupperna."
     },
     "rooms_admin": {
       "title": "Rum",
@@ -237,7 +238,7 @@
       "room_permissions_subtitle": "Åsidosättningsbehörigheter per rum (lagrat ovanpå rummets grupp)",
       "permissions_page_title": "Behörigheter – {name}",
       "back_to_rooms": "Tillbaka till rummen",
-      "group_permissions_hint": "Åsidosättanden per grupp för kanalrummen i denna grupp. Standardvärden ärvda från serveromfånget. Enskilda rum kan ytterligare åsidosätta behörigheter från sin egen behörighetssida.",
+      "group_permissions_hint": "Inställningarna här gäller för alla rum i den här rumsgruppen. Ett rum kan tillåta mer, men kan inte ta bort det som rumsgruppen tillåter.",
       "room_permissions_hint": "De här inställningarna gäller bara i det här rummet. De läggs till rollernas tillstånd från rumsgruppen och servern. Om bara vissa roller ska kunna göra något här ska du inte tillåta det för everyone på en bredare nivå. Tillåt det sedan här för de rollerna.",
       "loading": "Laddar rum...",
       "empty_groups": "Inga rumsgrupper än",

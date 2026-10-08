@@ -14,6 +14,31 @@ type permissionService struct {
 	api *API
 }
 
+func (s *permissionService) GetAccessSummary(ctx context.Context, req *connect.Request[adminv1.GetAccessSummaryRequest]) (*connect.Response[adminv1.GetAccessSummaryResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	kind := req.Msg.GetScope().GetKind()
+	if kind != adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_ROOM && kind != adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_GROUP {
+		return nil, invalidArgument("scope must be a room or a room group")
+	}
+	roomID, groupID, err := permissionScopeIDs(req.Msg.GetScope())
+	if err != nil {
+		return nil, err
+	}
+	summary, err := s.api.core.GetAccessSummary(ctx, caller.UserID, roomID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&adminv1.GetAccessSummaryResponse{
+		EveryoneCanList: summary.EveryoneCanList,
+		EveryoneCanJoin: summary.EveryoneCanJoin,
+		RolesCanList:    summary.RolesCanList,
+		RolesCanJoin:    summary.RolesCanJoin,
+	}), nil
+}
+
 func (s *permissionService) GetRolePermissionTierMatrix(ctx context.Context, req *connect.Request[adminv1.GetRolePermissionTierMatrixRequest]) (*connect.Response[adminv1.GetRolePermissionTierMatrixResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

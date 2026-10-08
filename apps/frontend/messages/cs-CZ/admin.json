@@ -228,7 +228,8 @@
         "members": "Členové"
       },
       "role_pings_on": "Zmínky role zapnuty",
-      "role_pings_off": "Zmínky role vypnuty"
+      "role_pings_off": "Zmínky role vypnuty",
+      "server_scope_warning": "Nastavení na této stránce platí pro každou místnost a každou skupinu místností na serveru. Chcete-li otevřít jen některé místnosti, nastavte oprávnění těchto místností nebo skupin místností."
     },
     "rooms_admin": {
       "title": "Pokoje",
@@ -237,7 +238,7 @@
       "room_permissions_subtitle": "Oprávnění pro přepsání pro jednotlivé místnosti (vrstvené nad skupinou místnosti)",
       "permissions_page_title": "Oprávnění – {name}",
       "back_to_rooms": "Zpět do pokojů",
-      "group_permissions_hint": "Přepisy pro skupiny kanálů v této skupině. Výchozí hodnoty zděděné z oboru serveru. Jednotlivé místnosti mohou dále přepsat oprávnění ze své vlastní stránky oprávnění.",
+      "group_permissions_hint": "Zde nastavení platí pro každou místnost v této skupině místností. Místnost může povolit více, ale nemůže odebrat to, co povoluje skupina místností.",
       "room_permissions_hint": "Tato nastavení platí jen v této místnosti. Doplňují povolení rolí ze skupiny místností a serveru. Pokud chcete něco povolit jen některým rolím, nepovolujte to pro everyone v širším rozsahu. Potom to zde povolte pro tyto role.",
       "loading": "Načítání místností...",
       "empty_groups": "Zatím žádné skupiny místností",

@@ -223,6 +223,16 @@
       "role_locked": "Door de rolvolgorde kun je deze rol niet wijzigen.",
       "account_locked": "Door de rolvolgorde kun je dit account niet wijzigen.",
       "roles_locked": "Door de rolvolgorde kun je de rollen van dit account niet wijzigen."
+    },
+    "access": {
+      "room_open": "Iedereen kan deze kamer vinden en eraan deelnemen.",
+      "room_open_unlisted": "Iedereen kan aan deze kamer deelnemen, maar de kamer staat niet voor iedereen in de lijst met kamers.",
+      "room_roles": "Alleen leden van deze rollen kunnen aan deze kamer deelnemen: {roles}.",
+      "room_closed": "Alleen eigenaren en de leden die je toevoegt, kunnen deze kamer openen. Sta room.list en room.join toe voor everyone of voor een rol in de kamerrechten om de kamer te openen.",
+      "group_open": "Iedereen kan de kamers in deze kamergroep vinden en eraan deelnemen.",
+      "group_open_unlisted": "Iedereen kan aan de kamers in deze kamergroep deelnemen, maar de kamers staan niet voor iedereen in de lijst met kamers.",
+      "group_roles": "Alleen leden van deze rollen kunnen aan de kamers in deze kamergroep deelnemen: {roles}.",
+      "group_closed": "Alleen eigenaren en de leden die je toevoegt, kunnen de kamers in deze kamergroep openen. Sta hieronder room.list en room.join toe voor everyone of voor een rol om ze te openen."
     }
   }
 }

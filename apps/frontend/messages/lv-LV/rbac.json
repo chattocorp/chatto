@@ -223,6 +223,16 @@
       "role_locked": "Lomu secība neļauj jums mainīt šo lomu.",
       "account_locked": "Lomu secība neļauj jums mainīt šo kontu.",
       "roles_locked": "Lomu secība neļauj jums mainīt šī konta lomas."
+    },
+    "access": {
+      "room_open": "Ikviens var atrast šo istabu un tai pievienoties.",
+      "room_open_unlisted": "Ikviens var pievienoties šai istabai, taču tā nav redzama visiem istabu sarakstā.",
+      "room_roles": "Šai istabai var pievienoties tikai šo lomu dalībnieki: {roles}.",
+      "room_closed": "Šo istabu var atvērt tikai īpašnieki un dalībnieki, kurus jūs pievienojat. Lai to atvērtu, istabas atļaujās atļaujiet room.list un room.join lomai everyone vai kādai citai lomai.",
+      "group_open": "Ikviens var atrast šīs istabu grupas istabas un tām pievienoties.",
+      "group_open_unlisted": "Ikviens var pievienoties šīs istabu grupas istabām, taču tās nav redzamas visiem istabu sarakstā.",
+      "group_roles": "Šīs istabu grupas istabām var pievienoties tikai šo lomu dalībnieki: {roles}.",
+      "group_closed": "Šīs istabu grupas istabas var atvērt tikai īpašnieki un dalībnieki, kurus jūs pievienojat. Lai tās atvērtu, zemāk atļaujiet room.list un room.join lomai everyone vai kādai citai lomai."
     }
   }
 }

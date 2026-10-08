@@ -223,6 +223,16 @@
       "role_locked": "Rollerekkefølgen lar deg ikke endre denne rollen.",
       "account_locked": "Rollerekkefølgen lar deg ikke endre denne kontoen.",
       "roles_locked": "Rollerekkefølgen lar deg ikke endre rollene til denne kontoen."
+    },
+    "access": {
+      "room_open": "Alle kan finne dette rommet og bli med i det.",
+      "room_open_unlisted": "Alle kan bli med i dette rommet, men det vises ikke for alle i romlisten.",
+      "room_roles": "Bare medlemmer av disse rollene kan bli med i dette rommet: {roles}.",
+      "room_closed": "Bare eiere og medlemmene du legger til, kan åpne dette rommet. For å åpne det må du tillate room.list og room.join for everyone eller for en rolle i romtillatelsene.",
+      "group_open": "Alle kan finne rommene i denne romgruppen og bli med i dem.",
+      "group_open_unlisted": "Alle kan bli med i rommene i denne romgruppen, men de vises ikke for alle i romlisten.",
+      "group_roles": "Bare medlemmer av disse rollene kan bli med i rommene i denne romgruppen: {roles}.",
+      "group_closed": "Bare eiere og medlemmene du legger til, kan åpne rommene i denne romgruppen. For å åpne dem må du tillate room.list og room.join for everyone eller for en rolle nedenfor."
     }
   }
 }

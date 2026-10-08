@@ -985,6 +985,46 @@ Response containing a role-permission tier matrix.
 | `matrix` | [`TierRoles`](#chatto-admin-v1-TierRoles) | Requested matrix. |
 
 
+<a id="chatto-admin-v1-AdminPermissionService-GetAccessSummary"></a>
+
+### GetAccessSummary
+
+Summarizes who can find and join a channel room or the rooms of a room
+group. New rooms and room groups start closed, so clients use it to warn
+operators. Requires role.manage or effective room.manage at the room or
+group. Only ROOM and GROUP scopes are accepted.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminPermissionService/GetAccessSummary
+```
+
+<a id="chatto-admin-v1-GetAccessSummaryRequest"></a>
+
+#### Input: GetAccessSummaryRequest
+
+Request an access summary for one channel room or room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`PermissionScope`](#chatto-admin-v1-PermissionScope) | ROOM or GROUP scope with its id. |
+
+
+<a id="chatto-admin-v1-GetAccessSummaryResponse"></a>
+
+#### Result: GetAccessSummaryResponse
+
+Who can find and join a channel room, or the rooms of a room group. Explicit
+room members, and owners in privileged mode, have access whatever the
+summary says.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `everyone_can_list` | `bool` | Whether every member can find the room (room.list). |
+| `everyone_can_join` | `bool` | Whether every member can join the room (room.join). |
+| `roles_can_list` | `repeated string` | Roles whose holders can find the room although everyone cannot, highest first. Empty when everyone can. |
+| `roles_can_join` | `repeated string` | Roles whose holders can join the room although everyone cannot, highest first. Empty when everyone can. |
+
+
 <a id="chatto-admin-v1-AdminPermissionService-GetRolePermissionMatrix"></a>
 
 ### GetRolePermissionMatrix

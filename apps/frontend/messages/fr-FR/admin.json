@@ -228,7 +228,8 @@
         "members": "Membres"
       },
       "role_pings_on": "Mentions du rôle activées",
-      "role_pings_off": "Mentions du rôle désactivées"
+      "role_pings_off": "Mentions du rôle désactivées",
+      "server_scope_warning": "Les paramètres de cette page s’appliquent à toutes les salles et à tous les groupes de salles du serveur. Pour ouvrir seulement certaines salles, définissez les permissions de ces salles ou groupes de salles."
     },
     "rooms_admin": {
       "title": "Chambres",
@@ -237,7 +238,7 @@
       "room_permissions_subtitle": "Autorisations de remplacement par salle (superposées au groupe de la salle)",
       "permissions_page_title": "Autorisations - {name}",
       "back_to_rooms": "Retour aux chambres",
-      "group_permissions_hint": "Remplacements par groupe pour les salles de canal de ce groupe. Valeurs par défaut héritées de la portée du serveur. Les salles individuelles peuvent en outre remplacer les autorisations de leur propre page d'autorisations.",
+      "group_permissions_hint": "Les paramètres ici s’appliquent à toutes les salles de ce groupe de salles. Une salle peut autoriser davantage, mais elle ne peut pas retirer ce que le groupe de salles autorise.",
       "room_permissions_hint": "Ces paramètres s’appliquent uniquement dans cette salle. Ils s’ajoutent aux autorisations des rôles du groupe de salles et du serveur. Pour que seuls certains rôles puissent faire une action ici, ne l’autorisez pas pour everyone à un niveau plus large. Autorisez-la ensuite ici pour ces rôles.",
       "loading": "Chargement des salles...",
       "empty_groups": "Aucun groupe de salles pour l'instant",

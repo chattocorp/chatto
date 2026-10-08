@@ -228,7 +228,8 @@
         "members": "成員"
       },
       "role_pings_on": "已開啟角色提及",
-      "role_pings_off": "已關閉角色提及"
+      "role_pings_off": "已關閉角色提及",
+      "server_scope_warning": "此頁面上的設定適用於伺服器上的每個聊天室和每個聊天室群組。如果只想開啟部分聊天室，請設定這些聊天室或聊天室群組的權限。"
     },
     "rooms_admin": {
       "title": "聊天室",
@@ -237,7 +238,7 @@
       "room_permissions_subtitle": "各聊天室的覆寫權限（疊加於聊天室所屬群組之上）",
       "permissions_page_title": "權限 - {name}",
       "back_to_rooms": "返回聊天室",
-      "group_permissions_hint": "此群組內頻道聊天室的群組層級覆寫。預設值繼承自伺服器範圍。個別聊天室可在各自的權限頁面進一步覆寫權限。",
+      "group_permissions_hint": "此處的設定適用於此聊天室群組中的每個聊天室。聊天室可以允許更多內容，但不能取消聊天室群組已允許的內容。",
       "room_permissions_hint": "這些設定只在此聊天室中生效。它們會加在聊天室群組和伺服器的角色允許設定之上。如果只想讓部分角色在這裡執行某項操作，請不要在更大的範圍中為 everyone 設定「允許」，然後在這裡為這些角色設定「允許」。",
       "loading": "正在載入聊天室...",
       "empty_groups": "尚無聊天室群組",

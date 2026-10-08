@@ -92,6 +92,28 @@ message GetRolePermissionTierMatrixResponse {
   TierRoles matrix = 1;
 }
 
+// Request an access summary for one channel room or room group.
+message GetAccessSummaryRequest {
+  // ROOM or GROUP scope with its id.
+  PermissionScope scope = 1;
+}
+
+// Who can find and join a channel room, or the rooms of a room group. Explicit
+// room members, and owners in privileged mode, have access whatever the
+// summary says.
+message GetAccessSummaryResponse {
+  // Whether every member can find the room (room.list).
+  bool everyone_can_list = 1;
+  // Whether every member can join the room (room.join).
+  bool everyone_can_join = 2;
+  // Roles whose holders can find the room although everyone cannot, highest
+  // first. Empty when everyone can.
+  repeated string roles_can_list = 3;
+  // Roles whose holders can join the room although everyone cannot, highest
+  // first. Empty when everyone can.
+  repeated string roles_can_join = 4;
+}
+
 // Matrix column scope.
 message PermissionMatrixScope {
   // Stable scope ID for the server, direct messages, a group, or a room.
@@ -387,6 +409,11 @@ service AdminPermissionService {
   // role.manage; group and room scopes require role.manage or effective
   // room.manage at the requested resource.
   rpc GetRolePermissionTierMatrix(GetRolePermissionTierMatrixRequest) returns (GetRolePermissionTierMatrixResponse);
+  // Summarizes who can find and join a channel room or the rooms of a room
+  // group. New rooms and room groups start closed, so clients use it to warn
+  // operators. Requires role.manage or effective room.manage at the room or
+  // group. Only ROOM and GROUP scopes are accepted.
+  rpc GetAccessSummary(GetAccessSummaryRequest) returns (GetAccessSummaryResponse);
   // Gets one page of a role's permission matrix. Requires role.manage. Returns
   // NOT_FOUND when the role does not exist.
   rpc GetRolePermissionMatrix(GetRolePermissionMatrixRequest) returns (GetRolePermissionMatrixResponse);

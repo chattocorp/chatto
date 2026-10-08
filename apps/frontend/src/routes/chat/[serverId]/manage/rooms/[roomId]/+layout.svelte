@@ -35,6 +35,7 @@ through `roomManagementContext`.
   } from '$lib/query/adminInvalidation';
   import { invalidateRoomMemberQueries } from '$lib/query/roomMembers';
   import { m } from '$lib/i18n/messages';
+  import AccessSummary from '$lib/components/rbac/AccessSummary.svelte';
   import { provideRoomManagement, type RoomMutationScope } from './roomManagementContext';
 
   let { children }: { children: Snippet } = $props();
@@ -216,6 +217,7 @@ through `roomManagementContext`.
     <PaneContent bind:scrollContainer>
       <div class="flex flex-col gap-6">
         {#if room}
+          <AccessSummary {roomId} />
           {@render children()}
         {:else}
           <LoadingFog class="h-40 w-full" />
