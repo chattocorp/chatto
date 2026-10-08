@@ -1701,8 +1701,9 @@ Matrix cell for one permission and scope.
 | `permission` | `string` | Permission identifier. |
 | `scope_id` | `string` | Scope ID matching PermissionMatrixScope.id. |
 | `override` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Explicit decision at this scope. |
-| `effective` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Effective decision at this scope. |
+| `effective` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Effective decision at this scope. For a human account, this is the result without privileged mode. |
 | `allow_permitted` | `optional bool` | Whether an explicit allow may currently be stored for this target. Absent when no additional delegation ceiling applies. |
+| `effective_with_privileged_mode` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | For a human account, the effective decision while the account has privileged mode active. It differs from effective for elevation-required permissions and for owners. Unspecified for roles and bots. |
 
 <a id="chatto-admin-v1-PermissionMatrixScope"></a>
 

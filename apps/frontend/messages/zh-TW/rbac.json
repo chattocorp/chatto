@@ -124,7 +124,9 @@
         "effective_included_by": "目前生效：允許（包含於 {permission}）",
         "effective_inherited": "目前生效：{state}（繼承）",
         "manage_role": "管理 {role}",
-        "no_scopes": "此{subject}沒有可用的範圍。"
+        "no_scopes": "此{subject}沒有可用的範圍。",
+        "effective_state": "實際結果：{state}",
+        "privileged_only": "僅在特權模式下允許"
       },
       "help": {
         "open": "關於 {permission}",

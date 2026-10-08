@@ -124,7 +124,9 @@
         "effective_included_by": "Effectief: Toestaan (inbegrepen in {permission})",
         "effective_inherited": "Effectief: {state} (overgenomen)",
         "manage_role": "{role} beheren",
-        "no_scopes": "Geen bereiken beschikbaar voor dit type ({subject})."
+        "no_scopes": "Geen bereiken beschikbaar voor dit type ({subject}).",
+        "effective_state": "Effectief: {state}",
+        "privileged_only": "Alleen toegestaan in bevoorrechte modus"
       },
       "help": {
         "open": "Over {permission}",

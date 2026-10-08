@@ -402,6 +402,9 @@ func apiPermissionMatrixCells(cells []core.PermissionMatrixCell) []*adminv1.Perm
 		if cell.AllowPermitted != nil {
 			mapped.AllowPermitted = cell.AllowPermitted
 		}
+		if cell.EffectiveWithPrivilegedMode != "" {
+			mapped.EffectiveWithPrivilegedMode = apiPermissionDecision(cell.EffectiveWithPrivilegedMode)
+		}
 		out = append(out, mapped)
 	}
 	return out

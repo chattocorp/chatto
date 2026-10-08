@@ -124,7 +124,9 @@
         "effective_included_by": "Effettivo: Consenti (incluso in {permission})",
         "effective_inherited": "Effettivo: {state} (ereditato)",
         "manage_role": "Gestisci {role}",
-        "no_scopes": "Nessun ambito disponibile per questo {subject}."
+        "no_scopes": "Nessun ambito disponibile per questo {subject}.",
+        "effective_state": "Effettivo: {state}",
+        "privileged_only": "Consentito solo in modalità privilegiata"
       },
       "help": {
         "open": "Informazioni su {permission}",

@@ -55,6 +55,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     scopeId: string;
     override: MatrixDecision;
     effective: MatrixDecision;
+    /** For a human account, the result while privileged mode is active. */
+    effectiveWithPrivilegedMode?: MatrixDecision;
     /** Present when a delegation ceiling can prevent storing an allow. */
     allowPermitted?: boolean;
   };
@@ -373,6 +375,11 @@ scrolling; the table only scrolls horizontally when its columns overflow.
               {@const parent = parentDecision(scope, permission)}
               {@const configured = cell.override !== 'NONE' ? cell.override : parent}
               {@const includedBy = includingPermission(scope, permission)}
+              {@const privilegedOnly =
+                decisionMode !== 'binary' &&
+                !forceAllow &&
+                cell.effective !== 'ALLOW' &&
+                cell.effectiveWithPrivilegedMode === 'ALLOW'}
               {@const binaryEnabled = configured === 'ALLOW' || includedBy !== null}
               {@const inheritedBinaryGrant =
                 decisionMode === 'binary' && cell.override === 'NONE' && binaryEnabled}
@@ -458,6 +465,12 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                             scope: scope.label
                           })
                         : null,
+                      ov !== 'neutral' && ov !== eff && !includedBy
+                        ? m('rbac.permissions.cell.effective_state', {
+                            state: decisionTitle(eff)
+                          })
+                        : null,
+                      privilegedOnly ? m('rbac.permissions.cell.privileged_only') : null,
                       includedBy
                         ? m('rbac.permissions.cell.effective_included_by', {
                             permission: includedBy
@@ -476,6 +489,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
               <MatrixCell
                 override={displayOverride}
                 inherited={displayEffective}
+                effective={decisionMode !== 'binary' && !forceAllow ? eff : undefined}
+                {privilegedOnly}
                 updating={updatingKey === `${scope.id}::${permission}`}
                 disabled={readOnly}
                 locked={inheritedBinaryGrant}
@@ -485,7 +500,9 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                   (decisionMode === 'binary' ? binaryEnabled : ov === 'allow')}
                 {decisionMode}
                 {canDeny}
-                {ariaLabel}
+                ariaLabel={privilegedOnly
+                  ? `${ariaLabel} · ${m('rbac.permissions.cell.privileged_only')}`
+                  : ariaLabel}
                 title={titleParts.join(' · ')}
                 onCycle={(next) => cycleCell(scope, permission, cell.override, next)}
               />

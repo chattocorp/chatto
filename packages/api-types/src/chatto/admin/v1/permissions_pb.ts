@@ -538,7 +538,8 @@ export class PermissionMatrixCell extends Message<PermissionMatrixCell> {
   override = PermissionDecision.UNSPECIFIED;
 
   /**
-   * Effective decision at this scope.
+   * Effective decision at this scope. For a human account, this is the result
+   * without privileged mode.
    *
    * @generated from field: chatto.admin.v1.PermissionDecision effective = 4;
    */
@@ -551,6 +552,15 @@ export class PermissionMatrixCell extends Message<PermissionMatrixCell> {
    * @generated from field: optional bool allow_permitted = 5;
    */
   allowPermitted?: boolean;
+
+  /**
+   * For a human account, the effective decision while the account has
+   * privileged mode active. It differs from effective for elevation-required
+   * permissions and for owners. Unspecified for roles and bots.
+   *
+   * @generated from field: chatto.admin.v1.PermissionDecision effective_with_privileged_mode = 6;
+   */
+  effectiveWithPrivilegedMode = PermissionDecision.UNSPECIFIED;
 
   constructor(data?: PartialMessage<PermissionMatrixCell>) {
     super();
@@ -565,6 +575,7 @@ export class PermissionMatrixCell extends Message<PermissionMatrixCell> {
     { no: 3, name: "override", kind: "enum", T: proto3.getEnumType(PermissionDecision) },
     { no: 4, name: "effective", kind: "enum", T: proto3.getEnumType(PermissionDecision) },
     { no: 5, name: "allow_permitted", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 6, name: "effective_with_privileged_mode", kind: "enum", T: proto3.getEnumType(PermissionDecision) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PermissionMatrixCell {

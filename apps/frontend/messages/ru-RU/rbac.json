@@ -124,7 +124,9 @@
         "effective_included_by": "Действует: Разрешить (входит в {permission})",
         "effective_inherited": "Действует: {state} (унаследовано)",
         "manage_role": "Управлять ролью {role}",
-        "no_scopes": "Для этого типа ({subject}) нет доступных областей."
+        "no_scopes": "Для этого типа ({subject}) нет доступных областей.",
+        "effective_state": "Фактически: {state}",
+        "privileged_only": "Разрешено только в привилегированном режиме"
       },
       "help": {
         "open": "О разрешении {permission}",

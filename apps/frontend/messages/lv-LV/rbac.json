@@ -124,7 +124,9 @@
         "effective_included_by": "Spēkā: Atļaut (ietverts atļaujā {permission})",
         "effective_inherited": "Spēkā: {state} (mantots)",
         "manage_role": "Pārvaldīt lomu {role}",
-        "no_scopes": "Šim tipam ({subject}) nav pieejamu tvērumu."
+        "no_scopes": "Šim tipam ({subject}) nav pieejamu tvērumu.",
+        "effective_state": "Faktiski: {state}",
+        "privileged_only": "Atļauts tikai privileģētajā režīmā"
       },
       "help": {
         "open": "Par atļauju {permission}",

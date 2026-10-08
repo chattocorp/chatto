@@ -124,7 +124,9 @@
         "effective_included_by": "בתוקף: אפשר (כלול ב-{permission})",
         "effective_inherited": "בתוקף: {state} (בירושה)",
         "manage_role": "ניהול {role}",
-        "no_scopes": "אין תחומים זמינים עבור סוג זה ({subject})."
+        "no_scopes": "אין תחומים זמינים עבור סוג זה ({subject}).",
+        "effective_state": "בפועל: {state}",
+        "privileged_only": "מותר רק במצב הרשאות מוגברות"
       },
       "help": {
         "open": "על {permission}",

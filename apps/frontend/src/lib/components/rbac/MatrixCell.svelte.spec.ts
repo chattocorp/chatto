@@ -16,6 +16,8 @@ function renderCell(
     ceilingBlocked: boolean;
     decisionMode: 'tri-state' | 'binary';
     canDeny: boolean;
+    effective: State;
+    privilegedOnly: boolean;
     updating: boolean;
     ariaLabel: string;
     title: string;
@@ -79,6 +81,18 @@ describe('MatrixCell', () => {
     (container.querySelector('button') as HTMLButtonElement).click();
     flushSync();
     expect(onCycle).toHaveBeenCalledWith(next);
+  });
+
+  it('colors the cell by the effective result, not the override', async () => {
+    const { container } = renderCell({ override: 'allow', effective: 'deny' });
+    const icon = container.querySelector('button span.iconify')!;
+    expect(icon.className).toContain('icon-[uil--times]');
+  });
+
+  it('marks a result that is allowed only in privileged mode', async () => {
+    const { container } = renderCell({ effective: 'deny', privilegedOnly: true });
+    const icon = container.querySelector('button span.iconify')!;
+    expect(icon.className).toContain('icon-[uil--shield-check]');
   });
 
   it('cycles deny → neutral on click', async () => {

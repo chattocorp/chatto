@@ -124,7 +124,9 @@
         "effective_included_by": "Gäller: Tillåt (ingår i {permission})",
         "effective_inherited": "Gäller: {state} (ärvd)",
         "manage_role": "Hantera {role}",
-        "no_scopes": "Inga omfång tillgängliga för {subject}."
+        "no_scopes": "Inga omfång tillgängliga för {subject}.",
+        "effective_state": "Faktiskt: {state}",
+        "privileged_only": "Tillåtet endast i privilegierat läge"
       },
       "help": {
         "open": "Om {permission}",

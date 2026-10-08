@@ -56,7 +56,13 @@ export type MatrixCell = {
   permission: string;
   scopeId: string;
   override: MatrixDecision;
+  /** Effective result. For a human account, the result without privileged mode. */
   effective: MatrixDecision;
+  /**
+   * For a human account, the effective result while the account has
+   * privileged mode active. Absent for roles and bots.
+   */
+  effectiveWithPrivilegedMode?: MatrixDecision;
   allowPermitted?: boolean;
 };
 
@@ -303,6 +309,9 @@ function matrixCell(cell: APIPermissionMatrixCell): MatrixCell {
     scopeId: cell.scopeId,
     override: matrixDecision(cell.override),
     effective: matrixDecision(cell.effective),
+    ...(cell.effectiveWithPrivilegedMode !== PermissionDecision.UNSPECIFIED
+      ? { effectiveWithPrivilegedMode: matrixDecision(cell.effectiveWithPrivilegedMode) }
+      : {}),
     ...(cell.allowPermitted !== undefined ? { allowPermitted: cell.allowPermitted } : {})
   };
 }

@@ -124,7 +124,9 @@
         "effective_included_by": "Obowiązuje: Zezwól (zawarte w {permission})",
         "effective_inherited": "Obowiązuje: {state} (odziedziczone)",
         "manage_role": "Zarządzaj rolą {role}",
-        "no_scopes": "Brak dostępnych zakresów dla tego typu ({subject})."
+        "no_scopes": "Brak dostępnych zakresów dla tego typu ({subject}).",
+        "effective_state": "Faktycznie: {state}",
+        "privileged_only": "Dozwolone tylko w trybie uprzywilejowanym"
       },
       "help": {
         "open": "Informacje o {permission}",

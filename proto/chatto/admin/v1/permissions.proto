@@ -104,11 +104,16 @@ message PermissionMatrixCell {
   string scope_id = 2;
   // Explicit decision at this scope.
   PermissionDecision override = 3;
-  // Effective decision at this scope.
+  // Effective decision at this scope. For a human account, this is the result
+  // without privileged mode.
   PermissionDecision effective = 4;
   // Whether an explicit allow may currently be stored for this target. Absent
   // when no additional delegation ceiling applies.
   optional bool allow_permitted = 5;
+  // For a human account, the effective decision while the account has
+  // privileged mode active. It differs from effective for elevation-required
+  // permissions and for owners. Unspecified for roles and bots.
+  PermissionDecision effective_with_privileged_mode = 6;
 }
 
 // Permission matrix for one role within a scope page.

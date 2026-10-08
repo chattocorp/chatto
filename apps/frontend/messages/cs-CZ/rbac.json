@@ -124,7 +124,9 @@
         "effective_included_by": "Výsledně: Povolit (zahrnuto v {permission})",
         "effective_inherited": "Výsledně: {state} (zděděno)",
         "manage_role": "Spravovat {role}",
-        "no_scopes": "Pro tento typ ({subject}) nejsou k dispozici žádné rozsahy."
+        "no_scopes": "Pro tento typ ({subject}) nejsou k dispozici žádné rozsahy.",
+        "effective_state": "Účinně: {state}",
+        "privileged_only": "Povoleno pouze v privilegovaném režimu"
       },
       "help": {
         "open": "O oprávnění {permission}",

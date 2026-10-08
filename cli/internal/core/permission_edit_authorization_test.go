@@ -302,3 +302,52 @@ func TestRoleDeletionIgnoresRetiredPermissionDecisions(t *testing.T) {
 		})
 	}
 }
+
+// TestUserPermissionMatrixDescribesTheTargetAccount checks that member
+// permission cells describe the target account, not the viewer's session.
+func TestUserPermissionMatrixDescribesTheTargetAccount(t *testing.T) {
+	t.Parallel()
+
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	admin := createPermissionEditUser(t, c, ctx, "matrix-target-admin")
+	if err := c.AssignServerRole(ctx, SystemActorID, admin, RoleAdmin); err != nil {
+		t.Fatalf("AssignServerRole admin: %v", err)
+	}
+	owner := createPermissionEditUser(t, c, ctx, "matrix-target-owner")
+	if err := c.AssignServerRole(ctx, SystemActorID, owner, RoleOwner); err != nil {
+		t.Fatalf("AssignServerRole owner: %v", err)
+	}
+	member := createPermissionEditUser(t, c, ctx, "matrix-target-member")
+	roomID := createPermissionEditRoom(t, c, ctx, "matrix-target-room")
+	server := PermissionMatrixScope{Kind: MatrixScopeServer, ID: "server"}
+
+	cell := func(userID string, perm Permission, scope PermissionMatrixScope) PermissionMatrixCell {
+		t.Helper()
+		// No credential in ctx: internal work would see everything as
+		// privileged, so the result must not depend on it.
+		got, ok, err := c.buildUserPermissionMatrixCell(ctx, userID, perm, scope)
+		if err != nil || !ok {
+			t.Fatalf("buildUserPermissionMatrixCell(%s, %s): ok=%v err=%v", userID, perm, ok, err)
+		}
+		return got
+	}
+
+	if got := cell(admin, PermRoleManage, server); got.Effective != MatrixDecisionDeny || got.EffectiveWithPrivilegedMode != MatrixDecisionAllow {
+		t.Fatalf("admin role.manage = %s / %s, want deny without and allow with privileged mode", got.Effective, got.EffectiveWithPrivilegedMode)
+	}
+	if got := cell(owner, PermUserDeleteAny, server); got.Effective == MatrixDecisionAllow || got.EffectiveWithPrivilegedMode != MatrixDecisionAllow {
+		t.Fatalf("owner user.delete-any = %s / %s, want not allowed without and allowed with privileged mode", got.Effective, got.EffectiveWithPrivilegedMode)
+	}
+
+	if _, err := c.JoinRoom(ctx, member, KindChannel, member, roomID); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	if err := c.RoomCommands().RemoveUser(ctx, RoomRemoveUserInput{ActorID: owner, RoomID: roomID, UserID: member, Reason: "test", Suspension: true}); err != nil {
+		t.Fatalf("RemoveUser with suspension: %v", err)
+	}
+	room := PermissionMatrixScope{Kind: MatrixScopeRoom, ID: "room:" + roomID}
+	if got := cell(member, PermRoomJoin, room); got.Effective != MatrixDecisionDeny || got.EffectiveWithPrivilegedMode != MatrixDecisionDeny {
+		t.Fatalf("suspended member room.join = %s / %s, want deny", got.Effective, got.EffectiveWithPrivilegedMode)
+	}
+}

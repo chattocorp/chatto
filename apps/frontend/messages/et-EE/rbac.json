@@ -124,7 +124,9 @@
         "effective_included_by": "Kehtiv: Luba (sisaldub õiguses {permission})",
         "effective_inherited": "Kehtiv: {state} (päritud)",
         "manage_role": "Halda rolli {role}",
-        "no_scopes": "Selle tüübi ({subject}) jaoks pole ühtegi ulatust saadaval."
+        "no_scopes": "Selle tüübi ({subject}) jaoks pole ühtegi ulatust saadaval.",
+        "effective_state": "Tegelikult: {state}",
+        "privileged_only": "Lubatud ainult privilegeeritud režiimis"
       },
       "help": {
         "open": "Teave: {permission}",

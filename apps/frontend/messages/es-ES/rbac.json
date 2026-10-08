@@ -124,7 +124,9 @@
         "effective_included_by": "Efectivo: Permitir (incluido en {permission})",
         "effective_inherited": "Efectivo: {state} (heredado)",
         "manage_role": "Gestionar {role}",
-        "no_scopes": "No hay ámbitos disponibles para este {subject}."
+        "no_scopes": "No hay ámbitos disponibles para este {subject}.",
+        "effective_state": "Efectivo: {state}",
+        "privileged_only": "Permitido solo en modo privilegiado"
       },
       "help": {
         "open": "Acerca de {permission}",

@@ -124,7 +124,9 @@
         "effective_included_by": "Wirksam: Erlauben (enthalten in {permission})",
         "effective_inherited": "Wirksam: {state} (geerbt)",
         "manage_role": "{role} verwalten",
-        "no_scopes": "Keine Bereiche für {subject} verfügbar."
+        "no_scopes": "Keine Bereiche für {subject} verfügbar.",
+        "effective_state": "Wirksam: {state}",
+        "privileged_only": "Nur im privilegierten Modus erlaubt"
       },
       "help": {
         "open": "Über {permission}",

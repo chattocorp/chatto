@@ -124,7 +124,9 @@
         "effective_included_by": "適用値：許可（{permission} に含まれる）",
         "effective_inherited": "適用値：{state}（継承）",
         "manage_role": "{role} を管理",
-        "no_scopes": "この{subject}で利用できるスコープはありません。"
+        "no_scopes": "この{subject}で利用できるスコープはありません。",
+        "effective_state": "実際の結果: {state}",
+        "privileged_only": "特権モードでのみ許可"
       },
       "help": {
         "open": "{permission} について",

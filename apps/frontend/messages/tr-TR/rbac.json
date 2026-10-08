@@ -124,7 +124,9 @@
         "effective_included_by": "Geçerli: İzin ver ({permission} kapsamında)",
         "effective_inherited": "Geçerli: {state} (devralındı)",
         "manage_role": "{role} rolünü yönet",
-        "no_scopes": "Bu {subject} için kullanılabilir kapsam yok."
+        "no_scopes": "Bu {subject} için kullanılabilir kapsam yok.",
+        "effective_state": "Etkin: {state}",
+        "privileged_only": "Yalnızca ayrıcalıklı modda izin verilir"
       },
       "help": {
         "open": "{permission} hakkında",

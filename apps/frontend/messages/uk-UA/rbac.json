@@ -124,7 +124,9 @@
         "effective_included_by": "Діє: Дозволити (входить до {permission})",
         "effective_inherited": "Діє: {state} (успадковано)",
         "manage_role": "Керувати роллю {role}",
-        "no_scopes": "Для цього типу ({subject}) немає доступних областей."
+        "no_scopes": "Для цього типу ({subject}) немає доступних областей.",
+        "effective_state": "Фактично: {state}",
+        "privileged_only": "Дозволено лише в привілейованому режимі"
       },
       "help": {
         "open": "Про дозвіл {permission}",

@@ -22,6 +22,11 @@ Permission ceilings use a lock only when the cell is fully inert. A configured
 grant that remains removable uses a warning marker instead, so the lock never
 advertises a clickable control.
 
+Pass `effective`, the result that the server computed, to color the cell by the
+real result instead of the override. The override still shows as an explicit
+marker. `privilegedOnly` marks a result that is allowed only while the account
+has privileged mode active.
+
 When the permission is not applicable to the role at this scope (e.g. a
 room-only permission queried at instance scope), pass `applicable={false}`
 to render an inert "—" cell with an explanation tooltip.
@@ -34,6 +39,8 @@ to render an inert "—" cell with an explanation tooltip.
   let {
     override,
     inherited = 'neutral',
+    effective,
+    privilegedOnly = false,
     applicable = true,
     disabled = false,
     locked = false,
@@ -48,6 +55,10 @@ to render an inert "—" cell with an explanation tooltip.
   }: {
     override: State;
     inherited?: State;
+    /** The real result from the server. When set, it colors the cell. */
+    effective?: State;
+    /** True when the result is allowed only in privileged mode. */
+    privilegedOnly?: boolean;
     applicable?: boolean;
     disabled?: boolean;
     /** Keep an inherited state visible while making the cell fully inert. */
@@ -85,22 +96,25 @@ to render an inert "—" cell with an explanation tooltip.
     onCycle(nextState());
   }
 
-  // The cell is colored by the *override* when present, otherwise by the
-  // inherited baseline (so a row's effective state is visible at a glance,
-  // matching the editor's "permission name reflects effective state" rule).
-  const visual = $derived(override !== 'neutral' ? override : inherited);
+  // The cell is colored by the server's effective result when known.
+  // Otherwise by the *override* when present, else by the inherited baseline
+  // (so a row's effective state is visible at a glance, matching the editor's
+  // "permission name reflects effective state" rule).
+  const visual = $derived(effective ?? (override !== 'neutral' ? override : inherited));
   const isOverride = $derived(override !== 'neutral');
   const interactionDisabled = $derived(
     disabled || locked || (decisionMode === 'binary' && allowBlocked && visual !== 'allow')
   );
   const displayLocked = $derived(locked || (allowBlocked && interactionDisabled));
   const icon = $derived.by(() => {
+    if (privilegedOnly) return 'icon-[uil--shield-check]';
     if (visual === 'allow') return 'icon-[uil--check]';
     if (visual === 'deny' && decisionMode === 'tri-state') return 'icon-[uil--times]';
     return 'icon-[uil--minus]';
   });
   const tone = $derived.by<MatrixCellTone>(() => {
     if (ceilingBlocked) return 'warning';
+    if (privilegedOnly) return 'neutral';
     if (visual === 'allow') return 'success';
     if (visual === 'deny') return 'danger';
     return 'neutral';

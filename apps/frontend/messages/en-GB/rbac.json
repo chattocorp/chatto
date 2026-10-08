@@ -124,7 +124,9 @@
         "effective_included_by": "Effective Allow (included by {permission})",
         "effective_inherited": "Effective {state} (inherited)",
         "manage_role": "Manage {role}",
-        "no_scopes": "No scopes available for this {subject}."
+        "no_scopes": "No scopes available for this {subject}.",
+        "effective_state": "Effective {state}",
+        "privileged_only": "Allowed only in privileged mode"
       },
       "help": {
         "open": "About {permission}",

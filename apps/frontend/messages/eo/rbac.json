@@ -124,7 +124,9 @@
         "effective_included_by": "Efektive: Permesi (inkluzivita de {permission})",
         "effective_inherited": "Efektive: {state} (heredita)",
         "manage_role": "Administri {role}",
-        "no_scopes": "Neniuj ampleksoj disponeblaj por ĉi tiu {subject}."
+        "no_scopes": "Neniuj ampleksoj disponeblaj por ĉi tiu {subject}.",
+        "effective_state": "Efektive: {state}",
+        "privileged_only": "Permesata nur en privilegia reĝimo"
       },
       "help": {
         "open": "Pri {permission}",
