@@ -19,6 +19,7 @@
     "open_link": "Bağlantıyı aç",
     "remove_link": "Bağlantıyı kaldır",
     "code_language": "Kod dili",
+    "footnote_reference": "{number} numaralı dipnota gidin",
     "placeholder": "Bir mesaj yazın...",
     "editing_placeholder": "Mesaj düzenleniyor...",
     "drop_files_title": "Dosyaları buraya bırakın",
@@ -54,6 +55,7 @@
       "ordered_list": "Numaralı liste",
       "blockquote": "Alıntı",
       "code_block": "Kod bloğu",
+      "footnote": "Dipnot ekleyin",
       "outdent": "Girintiyi azalt",
       "indent": "Girintiyi artır"
     },

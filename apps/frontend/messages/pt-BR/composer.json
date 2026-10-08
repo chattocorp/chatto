@@ -19,6 +19,7 @@
     "open_link": "Abrir link",
     "remove_link": "Remover link",
     "code_language": "Linguagem de código",
+    "footnote_reference": "Vá para a nota de rodapé {number}",
     "placeholder": "Digite uma mensagem...",
     "editing_placeholder": "Editando mensagem...",
     "drop_files_title": "Solte os arquivos aqui",
@@ -54,6 +55,7 @@
       "ordered_list": "Lista numerada",
       "blockquote": "Citação",
       "code_block": "Bloco de código",
+      "footnote": "Inserir nota de rodapé",
       "outdent": "Diminuir recuo",
       "indent": "Aumentar recuo"
     },

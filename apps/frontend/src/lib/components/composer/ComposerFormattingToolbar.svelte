@@ -41,7 +41,8 @@ block in the DOM until it finishes.
     [
       { command: 'bold', icon: 'icon-[mdi--format-bold]' },
       { command: 'italic', icon: 'icon-[mdi--format-italic]' },
-      { command: 'inlineCode', icon: 'icon-[mdi--code-tags]' }
+      { command: 'inlineCode', icon: 'icon-[mdi--code-tags]' },
+      { command: 'footnote', icon: 'icon-[mdi--format-superscript]' }
     ],
     [
       { command: 'heading', icon: 'icon-[mdi--format-header-2]' },
@@ -72,6 +73,8 @@ block in the DOM until it finishes.
         return m('composer.format.blockquote');
       case 'codeBlock':
         return m('composer.format.code_block');
+      case 'footnote':
+        return m('composer.format.footnote');
     }
   }
 </script>
@@ -90,12 +93,16 @@ block in the DOM until it finishes.
       >
         {#each formattingControls as control (control.command)}
           {@const label = formattingLabel(control.command)}
-          {@const active = formattingState[control.command]}
+          {@const active =
+            control.command === 'footnote' ? undefined : formattingState[control.command]}
           <button
             type="button"
             onpointerdown={(event) => event.preventDefault()}
             onclick={() => editorApi?.toggleFormatting(control.command)}
-            disabled={inputDisabled || !editorApi}
+            disabled={inputDisabled ||
+              !editorApi ||
+              (control.command === 'footnote' &&
+                (formattingState.codeBlock || formattingState.inlineCode))}
             aria-label={label}
             aria-pressed={active}
             title={label}

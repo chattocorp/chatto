@@ -1,7 +1,7 @@
 # FDR-032: Message Formatting
 
 **Status:** Active
-**Last reviewed:** 2026-09-27
+**Last reviewed:** 2026-10-09
 
 ## Overview
 
@@ -11,6 +11,8 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 
 - Messages support paragraphs, ATX headings, emphasis, links and autolinks, inline code, fenced and indented code blocks, blockquotes, and ordered and unordered lists.
 - Messages support GFM pipe tables with a header delimiter row, optional outer pipes, left/centre/right column alignment, inline formatting, and escaped pipes inside cells.
+- Messages, server welcome messages, and Markdown attachment previews support named footnotes. Notes are numbered in reference order and appear after the text. Each reference links to its note, and each note has a return link for every reference. These links stay inside the current message or preview.
+- Both composer editors can insert a footnote from the formatting toolbar. The visual editor shows numbered markers and editable notes, supports repeated references, and retains the named syntax when switching modes or editing a message. Typing `[^label]` in the visual editor creates a note or refers to its existing definition.
 - Wide tables scroll horizontally inside the message instead of widening or clipping the conversation layout.
 - Message source HTML, horizontal rules, reference-style links, and setext headings render as literal text rather than active formatting. Image syntax never loads or displays an image; its label and destination can fall back to an ordinary link.
 - Backslashes normally remain literal so common chat text such as Windows paths and kaomoji is not unexpectedly changed. An escaped pipe inside a GFM table cell is still interpreted as cell content rather than a column boundary.
@@ -40,7 +42,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 
 ### 2. The supported syntax is deliberately constrained
 
-**Decision:** The bundled renderer enables common conversational structure and GFM tables while keeping source HTML, images, and several lower-value block constructs disabled.
+**Decision:** The bundled renderer enables common conversational structure, GFM tables, and named footnotes while keeping source HTML, images, and several lower-value block constructs disabled.
 **Why:** A small reviewed output surface is easier to keep predictable and safe in user-authored messages. File attachments already provide the supported path for images.
 **Tradeoff:** Markdown copied from other applications may contain valid constructs that Chatto intentionally shows as literal text.
 

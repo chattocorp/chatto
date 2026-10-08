@@ -9,6 +9,8 @@ describe('createComposerExtensions', () => {
       'starterKit',
       'link',
       'markdown',
+      'footnoteReference',
+      'footnoteDefinition',
       'codeBlock',
       'selectedTextInlineCodeShortcut',
       'markdownLinkInputRule',
