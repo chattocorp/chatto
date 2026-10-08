@@ -306,25 +306,28 @@ it('shares readiness and pending state between the user menu and header', async 
   await expect.poll(() => pipButton(card).getAttribute('aria-pressed')).toBe('true');
 });
 
-it('keeps a newly selected menu open when an earlier video request completes', async () => {
-  let completeRequest!: () => void;
-  vi.spyOn(HTMLVideoElement.prototype, 'requestPictureInPicture').mockImplementation(function (
-    this: HTMLVideoElement
-  ) {
-    return new Promise((resolve) => {
-      completeRequest = () => resolve(enterPictureInPicture(this));
+it.each(['same', 'another'] as const)(
+  'keeps a reopened menu for %s video open when an earlier request completes',
+  async (source) => {
+    let completeRequest!: () => void;
+    vi.spyOn(HTMLVideoElement.prototype, 'requestPictureInPicture').mockImplementation(function (
+      this: HTMLVideoElement
+    ) {
+      return new Promise((resolve) => {
+        completeRequest = () => resolve(enterPictureInPicture(this));
+      });
     });
-  });
-  const screen = renderCallPanelHarness({ scenario: 'screen', layout: 'sidebar' });
-  await expect.poll(() => mediaCards(screen.container).length).toBeGreaterThan(1);
-  const [first, second] = screen.container.querySelectorAll('video');
-  (await openVideoMenu(first)).click();
-  const selectedMenu = await openVideoMenu(second);
-  completeRequest();
-  await expect.poll(() => currentVideo).toBe(first);
-  expect(document.querySelector('[data-testid="call-menu-pip-button"]')).toBe(selectedMenu);
-  expect(selectedMenu.getAttribute('aria-pressed')).toBe('false');
-});
+    const screen = renderCallPanelHarness({ scenario: 'screen', layout: 'sidebar' });
+    await expect.poll(() => mediaCards(screen.container).length).toBeGreaterThan(1);
+    const [first, second] = screen.container.querySelectorAll('video');
+    (await openVideoMenu(first)).click();
+    const selectedMenu = await openVideoMenu(source === 'same' ? first : second);
+    completeRequest();
+    await expect.poll(() => currentVideo).toBe(first);
+    expect(document.querySelector('[data-testid="call-menu-pip-button"]')).toBe(selectedMenu);
+    expect(selectedMenu.getAttribute('aria-pressed')).toBe(source === 'same' ? 'true' : 'false');
+  }
+);
 
 it('releases retained video state when the browser closes PiP after a panel remount', async () => {
   const screen = renderCallPanelHarness({ scenario: 'screen', playableMedia: true });

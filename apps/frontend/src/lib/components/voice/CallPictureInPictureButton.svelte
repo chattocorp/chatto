@@ -5,6 +5,7 @@ VideoThumbnail owns the observation attachment, independently of button visibili
 <script lang="ts">
   import { CompactActionButton, MenuItem, MenuSection } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
+  import { onDestroy } from 'svelte';
   import type { CallCardControls } from './CallCard.svelte';
   let {
     controls,
@@ -22,10 +23,13 @@ VideoThumbnail owns the observation attachment, independently of button visibili
       !controls.media.available ||
       (!controls.media.ready && !controls.media.active)
   );
+  let mounted = true;
+  onDestroy(() => (mounted = false));
 
   async function toggle(event: MouseEvent): Promise<void> {
+    const media = controls.media;
     const onSuccess = onToggle;
-    if (await controls.media.togglePictureInPicture(event)) onSuccess?.();
+    if ((await media.togglePictureInPicture(event)) && mounted) onSuccess?.();
   }
 </script>
 

@@ -24,7 +24,6 @@ keep the compact menu without a navigation action.
 - `onClose` - Callback to close the popover/sheet
 -->
 <script lang="ts">
-  import type { Snippet } from 'svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { serverUi } from '$lib/state/server/serverUi';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';

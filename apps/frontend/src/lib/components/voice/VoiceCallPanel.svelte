@@ -1003,13 +1003,15 @@ Room sidebar panel for voice/video calls.
     {onOpenProfile}
   >
     {#snippet extraActions()}
-      <CallPictureInPictureButton
-        controls={selection.controls}
-        presentation="menu"
-        onToggle={() => {
-          if (userMenu.target === selection) userMenu.close();
-        }}
-      />
+      {#key selection}
+        <CallPictureInPictureButton
+          controls={selection.controls}
+          presentation="menu"
+          onToggle={() => {
+            if (userMenu.target === selection) userMenu.close();
+          }}
+        />
+      {/key}
       {#if userMenu.target?.controls.actions.compact && isInThisCall && menuParticipant}
         {@const controls = userMenu.target.controls}
         {@const isPinned = controls.actions.element?.dataset.stageTileKey === pinnedStageTileKey}
