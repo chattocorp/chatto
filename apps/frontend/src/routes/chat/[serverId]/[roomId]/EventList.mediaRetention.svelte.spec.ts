@@ -199,6 +199,14 @@ describe('EventList media retention', () => {
       const id = `${kind}-playing`;
       const { scroller, eventIds, rerender } = renderTimeline(id);
       const media = await startMedia(id);
+      // A tall media row can leave the preceding text outside virtua's mounted range.
+      scroller.dispatchEvent(new WheelEvent('wheel', { deltaY: -200, bubbles: true }));
+      await vi.waitFor(async () => {
+        const offset = row(id)!.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+        scroller.scrollTop += offset - scroller.clientHeight / 2;
+        await nextFrame();
+        expect(row('msg-47')).not.toBeNull();
+      });
       const anchor = row('msg-47')!.querySelector('span')!.firstChild!;
       const selection = document.getSelection()!;
       selection.setBaseAndExtent(anchor, 0, anchor, 0);
