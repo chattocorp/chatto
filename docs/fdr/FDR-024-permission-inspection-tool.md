@@ -18,7 +18,7 @@ bundled permission-explainer UI.
 - The ConnectRPC permission-inspection API keeps inspection in the RBAC
   administration namespace and requires `role.manage`.
 - The trace lists the nearest applicable (subject, scope) entry for the direct user and each assigned named role. It also includes the nearest `everyone` baseline entry.
-- Denies win across direct-user and named-role entries. A named/direct allow wins over an `everyone` deny only at the same or a nearer scope; otherwise the nearer baseline row is marked as winning.
+- The rules of ADR-116 decide. A deny on the user wins. Otherwise, an allow of the user or of a named role wins when it is at the same scope as the nearest `everyone` entry or at a nearer one; otherwise the `everyone` entry wins. Stored denies of named roles have no effect.
 - Each trace entry shows: the subject (a role name, or "user" for user-level overrides), the scope (server / room group / room / user), the decided state (allow / deny / none), and whether this is the entry that won.
 - If no role or override produced a decision, the resulting state is "none" — which the API boundary treats as deny by default.
 - An owner explanation shows the owner override only when it applies to the inspected user in the request. An inspector checks a different user, so the trace for an owner shows their ordinary decisions. See ADR-105.

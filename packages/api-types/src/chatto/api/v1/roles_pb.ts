@@ -132,9 +132,10 @@ export class ListRolesResponse extends Message<ListRolesResponse> {
    * of the server, the caller's highest assigned role otherwise, and
    * everyone when the caller has no roles. A bot ranks at its
    * owner's highest role. A non-owner caller can manage only accounts whose
-   * highest role comes after this role in roles, and only roles that come
-   * after it. Everyone ranks below every account. The caller also needs the
-   * permission for each action.
+   * highest role comes after this role in roles. They can assign and revoke
+   * only roles that come after it; with role.manage, they can change every
+   * role except owner. Everyone ranks below every account. The caller also
+   * needs the permission for each action.
    *
    * @generated from field: string viewer_highest_role = 2;
    */

@@ -77,8 +77,8 @@ type AdminUserServiceClient interface {
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
 	// Revokes a role from a human user. Requires role.assign. A caller who is
 	// not an owner may revoke only roles below their own highest role whose
-	// permission decisions are within their authority, and must outrank the
-	// target unless it is their own account.
+	// granted authority they already possess, and must outrank the target
+	// unless it is their own account.
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
 	// Updates another user's password as an admin action. Requires
 	// user.manage-accounts and a fresh credential for the caller; the caller
@@ -225,8 +225,8 @@ type AdminUserServiceHandler interface {
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
 	// Revokes a role from a human user. Requires role.assign. A caller who is
 	// not an owner may revoke only roles below their own highest role whose
-	// permission decisions are within their authority, and must outrank the
-	// target unless it is their own account.
+	// granted authority they already possess, and must outrank the target
+	// unless it is their own account.
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
 	// Updates another user's password as an admin action. Requires
 	// user.manage-accounts and a fresh credential for the caller; the caller

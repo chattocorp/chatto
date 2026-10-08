@@ -174,9 +174,11 @@ messages value, the Server setting applies.
 ### Read-only room
 
 In the room's permissions, allow `message.post` for each role that can post.
-Then deny it for `everyone` in the same room. This also stops thread replies.
-To keep replies open, allow `message.post-in-thread` for `everyone` in the
-room. To stop uploads, deny `message.attach`. Remove the denies to go back to
+Then deny it for `everyone` in the same room. On new servers, this also stops
+thread replies. Servers upgraded from earlier versions allow
+`message.post-in-thread` for `everyone` at Server scope. On these servers,
+also deny `message.post-in-thread` for `everyone` in the room. To keep replies
+open, allow `message.post-in-thread` for `everyone` in the room. To stop uploads, deny `message.attach`. Remove the denies to go back to
 the server defaults.
 
 ### Room for one role only
@@ -204,8 +206,8 @@ removing the role also removes the user from the room.
 
 ### Suspend a user
 
-On the user's **Permissions** page, deny `message.post` at Server scope. This
-also stops thread replies. You can also deny `message.attach`,
+On the user's **Permissions** page, deny `message.post` and
+`message.post-in-thread` at Server scope. You can also deny `message.attach`,
 `message.react`, and `message.echo`. First remove room or room-group allows on
 that user, because they replace the server-level denies in those places. Roles
 cannot deny, so a `suspended` role does not work. To remove a user from one
@@ -263,7 +265,7 @@ permission setting wins.
 | ---- | ----- |
 | Create, edit, and order roles | Server Administration → **Roles** |
 | Compare the permissions of all roles | Server Administration → **Permissions** |
-| Assign roles | Server Administration → **Members** → member → **Roles**, or **Bots** → bot → **Roles** |
+| Assign roles | Server Administration → **Members** → member → **Roles** |
 | Set permissions for one user | Server Administration → **Members** → member → **Permissions** |
 | Set permissions for one bot | Server Administration → **Bots** → bot → **Permissions** |
 | Set room permissions | The room's settings → **Permissions** |

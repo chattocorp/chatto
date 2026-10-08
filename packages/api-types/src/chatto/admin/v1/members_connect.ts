@@ -67,8 +67,8 @@ export const AdminUserService = {
     /**
      * Revokes a role from a human user. Requires role.assign. A caller who is
      * not an owner may revoke only roles below their own highest role whose
-     * permission decisions are within their authority, and must outrank the
-     * target unless it is their own account.
+     * granted authority they already possess, and must outrank the target
+     * unless it is their own account.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.RevokeRole
      */
