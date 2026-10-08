@@ -194,6 +194,8 @@ it.each(['sidebar', 'stage'] as const)(
     const screen = render(VoiceCallPanelStoryHarness, {
       props: { layout, scenario: 'screen' }
     });
+    // The stage sizes its featured card from the pane, so give it one.
+    Object.assign(screen.container.style, { display: 'flex', width: '1080px', height: '720px' });
     await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
     const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
     const mic = vi
@@ -356,10 +358,59 @@ it('pins a filmstrip tile to the stage until the viewer unpins it or its source 
   await strip.getByRole('button', { name: 'Pin Chloe to the stage' }).click();
   await expect.element(featured).toHaveTextContent('Chloe');
   const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
+  const chloe = call.participants.find((p) => p.identity === 'chloe')!;
   flushSync(() => {
     call.participants = call.participants.filter((p) => p.identity !== 'chloe');
   });
   await expect.element(featured).toHaveTextContent("Dana's screen");
+
+  // The ended source's pin is cleared, so a returning participant stays in the strip.
+  flushSync(() => {
+    call.participants = [...call.participants, chloe];
+  });
+  await expect.element(strip).toHaveTextContent('Chloe');
+  await expect.element(featured).toHaveTextContent("Dana's screen");
+});
+
+it('keeps keyboard focus on the reversing control when pinning and unpinning', async () => {
+  const screen = render(VoiceCallPanelStoryHarness, {
+    props: { layout: 'stage', scenario: 'screen' }
+  });
+  Object.assign(screen.container.style, { display: 'flex', width: '1080px', height: '720px' });
+  const strip = screen.getByTestId('call-secondary-stage-list');
+  await strip.getByRole('button', { name: 'Pin Bob to the stage' }).click();
+  await expect
+    .poll(() => document.activeElement?.getAttribute('data-testid'))
+    .toBe('call-stage-unpin-button');
+
+  (document.activeElement as HTMLElement).click();
+  await expect
+    .poll(() => document.activeElement?.getAttribute('aria-label'))
+    .toBe('Pin Bob to the stage');
+});
+
+it('features a remote screen share before the viewer screen share', async () => {
+  const screen = render(VoiceCallPanelStoryHarness, {
+    props: { layout: 'stage', scenario: 'screen' }
+  });
+  await expect.element(screen.getByTestId('call-featured-stage-card')).toBeInTheDocument();
+  const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
+  const dana = call.participants.find((p) => p.identity === 'dana')!;
+  flushSync(() => {
+    call.participants = [
+      ...call.participants
+        .filter((p) => p.identity !== 'dana')
+        .map((p) =>
+          p.isLocal
+            ? { ...p, isScreenShareEnabled: true, screenShareTrack: dana.screenShareTrack }
+            : p
+        ),
+      dana
+    ];
+  });
+  await expect
+    .element(screen.getByTestId('call-featured-stage-card'))
+    .toHaveTextContent("Dana's screen");
 });
 
 it('features remote camera feeds before the viewer camera', async () => {
