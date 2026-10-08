@@ -34,12 +34,12 @@ order:
 
 1. Effective owners in privileged mode are allowed (ADR-105).
 2. Permissions that do not apply in direct messages are denied there.
-3. **A setting on the user decides.** The user's nearest setting (room, then
-   room group, then server, or Direct messages, then server) is final, allow
-   or deny.
-4. **Otherwise, roles and `everyone` decide.** A role allow wins when it is at
-   the same scope as the nearest `everyone` setting, or at a more specific one.
-   Otherwise, the nearest `everyone` setting decides.
+3. **A deny on the user decides.** When the user's nearest setting (room, then
+   room group, then server, or Direct messages, then server) is a deny, the
+   result is deny.
+4. **Otherwise, allows and `everyone` decide.** An allow of the user or of a
+   role wins when it is at the same scope as the nearest `everyone` setting, or
+   at a more specific one. Otherwise, the nearest `everyone` setting decides.
 5. No setting means no access.
 
 An allow of an including permission still allows the included permission, and
@@ -57,10 +57,13 @@ allowlist is capped by their owner (FDR-038).
 ## Consequences
 
 - Giving a person a role never removes access.
-- A setting on the user is the exception tool: it can deny one person a
-  permission that their roles allow, or allow what `everyone` denies. A
-  server-level user allow also applies in rooms that deny `everyone`. Use a
-  room-level user setting for an exception in one room.
+- A setting on the user is the exception tool. A deny on the user wins over
+  every role. An allow on the user follows the same scope rule as a role
+  allow, so a server-level user allow does not open a room that denies
+  `everyone`; use a room-level user allow for that. This also keeps a
+  delegated permission manager from granting access to rooms that they cannot
+  enter: the grant limit (ADR-115) checks the manager's authority only at the
+  scope of the setting.
 - Room allowlists work as before: deny `everyone` in the room and allow the
   role there. A server-level role allow does not open the room.
 - The announcements room keeps its behavior: `everyone` is denied

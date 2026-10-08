@@ -317,10 +317,10 @@ authorization, live events, backup and restore, and backend tests.
   ADR-105, ADR-115, and ADR-116.
 - Users are server-scoped. Spaces and rooms may be discoverable, but room
   message access requires room membership.
-- Roles only grant (ADR-116). The user's own nearest room/group/server
-  setting decides, allow or deny. Without one, a named-role allow wins when it
-  is at the same scope as `everyone`'s nearest setting or a nearer one;
-  otherwise `everyone`'s setting decides. Reject new named-role denies; stored
+- Roles only grant (ADR-116). A deny as the user's own nearest
+  room/group/server setting decides. Otherwise, an allow of the user or a
+  named role wins when it is at the same scope as `everyone`'s nearest setting
+  or a nearer one; otherwise `everyone`'s setting decides. Reject new named-role denies; stored
   ones have no effect. Every check, explanation, and matrix goes through
   `PermissionResolver.explain`; do not add a second resolver.
 - Effective owner means durable `owner` role or verified email matching

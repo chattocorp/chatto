@@ -181,7 +181,7 @@ check uses Direct messages, then Server. Each user, named role, and
 
 **Interaction relationship** — Derived account-to-thread authorization relationship created when the account authors a room root, another account directly mentions it, or it receives a DM from another account. DM recipients are the other participants at the time of the post. With current room membership and `message.read-interactions`, the relationship permits the complete thread. See [FDR-039](fdr/FDR-039-message-access-and-interactions.md) and [ADR-082](adr/ADR-082-derive-thread-interactions-from-message-facts.md).
 
-**User-level decision** — Permission grant or deny attached directly to a user, not via a role. The user's nearest decision decides for that user, over named roles and `everyone` (ADR-116). Use it sparingly, for suspensions and rare exceptions; prefer roles.
+**User-level decision** — Permission grant or deny attached directly to a user, not via a role. A deny as the user's nearest decision decides for that user, over named roles and `everyone`; an allow follows the same scope rule as a role allow (ADR-116). Use it sparingly, for suspensions and rare exceptions; prefer roles.
 
 **DM Privacy Boundary** — The fixed participant set that controls DM discovery
 and access. Membership is necessary but not sufficient for message content.

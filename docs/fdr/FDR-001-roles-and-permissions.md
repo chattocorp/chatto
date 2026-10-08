@@ -132,11 +132,11 @@ the backend permission catalog. Update both catalogs together.
 **Why:** The earlier two-tier split duplicated concepts and made permission resolution unpredictable. Collapsing into one tier with per-room-group / per-room overrides gives equivalent flexibility with one mental model. See ADR-027 and ADR-030.
 **Tradeoff:** Operators who liked per-space role ownership now configure that through room-group overrides instead.
 
-### 2. Roles only grant; a setting on the user decides
+### 2. Roles only grant; a deny on the user decides
 
-**Decision:** For non-owner human users, the user's own nearest room/group/server setting decides, allow or deny. Without one, a named-role allow wins when it is at the same scope as `everyone`'s nearest setting or a more specific one; otherwise `everyone`'s nearest setting decides. If nothing applies, the result is denied at the API boundary. Named roles can only grant: the API rejects role denies, and stored role denies have no effect. Bots instead use only explicit direct-user allows, further bounded by their owner's current RBAC entitlement.
+**Decision:** For non-owner human users, a deny as the user's own nearest room/group/server setting decides. Otherwise, an allow of the user or of a named role wins when it is at the same scope as `everyone`'s nearest setting or a more specific one; otherwise `everyone`'s nearest setting decides. If nothing applies, the result is denied at the API boundary. Named roles can only grant: the API rejects role denies, and stored role denies have no effect. Bots instead use only explicit direct-user allows, further bounded by their owner's current RBAC entitlement.
 **Why:** Three rules explain every result: the baseline, what roles add, and per-user exceptions. Giving a role never removes access. Operators can still express an allowlist by denying the `everyone` baseline in a room and granting a named role there. Role position does not affect resolution; it is only the administrative rank (Design Decision 11). See ADR-116.
-**Tradeoff:** Restriction roles such as `suspended` no longer work; until account suspension exists, operators deny permissions on the user. A server-level user allow also applies in rooms that deny `everyone`. Existing role denies stop having an effect on upgrade; the server logs how many it ignores.
+**Tradeoff:** Restriction roles such as `suspended` no longer work; until account suspension exists, operators deny permissions on the user. A server-level user allow does not open a room that denies `everyone`; this keeps delegated permission managers within their own authority. Existing role denies stop having an effect on upgrade; the server logs how many it ignores.
 
 ### 3. Four permission scopes
 

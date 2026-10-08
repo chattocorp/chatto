@@ -144,16 +144,6 @@ func TestDMRoomPermissionDefaults(t *testing.T) {
 
 	userID := "test-user"
 
-	t.Run("CanJoinRoom returns true for DM rooms", func(t *testing.T) {
-		can, err := core.CanJoinRoom(ctx, userID, KindDM)
-		if err != nil {
-			t.Fatalf("CanJoinRoom error: %v", err)
-		}
-		if !can {
-			t.Error("CanJoinRoom should return true for DM rooms")
-		}
-	})
-
 	t.Run("CanManageServer returns false for a regular user", func(t *testing.T) {
 		can, err := core.CanManageServer(ctx, userID)
 		if err != nil {

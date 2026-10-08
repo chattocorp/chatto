@@ -187,7 +187,27 @@ const (
 	// privilegeEntitled describes assigned authority: the owner override
 	// applies, and elevation-required permissions are not gated.
 	privilegeEntitled
+	// privilegeInactive evaluates the account as if privileged mode were off,
+	// independent of the request in ctx.
+	privilegeInactive
+	// privilegeActive evaluates the account as if privileged mode were on,
+	// independent of the request in ctx.
+	privilegeActive
 )
+
+// resolveForAccount resolves userID with a fixed privileged-mode state,
+// independent of the request in ctx. Admin screens use it to show an
+// account's own access rather than the viewer's.
+func (r *PermissionResolver) resolveForAccount(ctx context.Context, userID string, kind RoomKind, roomID, groupID string, perm Permission, privileged bool) (DecisionKind, error) {
+	mode := privilegeInactive
+	if privileged {
+		mode = privilegeActive
+	}
+	return r.resolveInContentView(ctx, func(readCtx context.Context) (DecisionKind, error) {
+		exp, err := r.explain(readCtx, userID, kind, roomID, groupID, perm, mode)
+		return exp.State, err
+	})
+}
 
 // explain is the single permission resolver. It returns the effective decision
 // for userID and the trace that produced it. Resolve, the entitlement checks,
@@ -201,10 +221,11 @@ const (
 //  3. Effective owners are allowed everything while privileged mode is active,
 //     and in entitlement checks.
 //  4. An allow of an including permission allows the included permission.
-//  5. A setting on the user decides. Otherwise, a role allow at the same scope
-//     as everyone's nearest setting, or a more specific one, allows.
-//     Otherwise, everyone's nearest setting decides. No setting means no
-//     access. Roles only grant: stored role denies have no effect (ADR-116).
+//  5. A deny on the user decides. Otherwise, an allow of the user or a role
+//     at the same scope as everyone's nearest setting, or a more specific
+//     one, allows. Otherwise, everyone's nearest setting decides. No setting
+//     means no access. Roles only grant: stored role denies have no effect
+//     (ADR-116).
 //  6. An allow of an elevation-required permission needs active privileged
 //     mode, except in entitlement checks.
 //
@@ -223,7 +244,8 @@ func (r *PermissionResolver) explain(ctx context.Context, userID string, kind Ro
 		exp.applyDMApplicabilityDeny(LevelDM)
 		return exp, nil
 	}
-	active := mode == privilegeEntitled || (mode == privilegeRequest && privilegedModeAllows(ctx, userID, time.Now()))
+	active := mode == privilegeEntitled || mode == privilegeActive ||
+		(mode == privilegeRequest && privilegedModeAllows(ctx, userID, time.Now()))
 	if active && r.core.isServerOwner(userID) {
 		exp.allowAsOwner()
 		return exp, nil
@@ -466,23 +488,29 @@ func (r *PermissionResolver) nearestDecision(subject string, perm Permission, sc
 	return TraceEntry{}, false
 }
 
-// resolveApplicablePermissionDecisions applies the subject rules: a setting on
-// the user decides. Otherwise, the most specific role allow wins when it is at
-// the same scope as everyone's setting or a more specific one. Otherwise,
-// everyone's setting decides. It returns the winning entry.
+// resolveApplicablePermissionDecisions applies the subject rules: a deny on
+// the user decides. Otherwise, the most specific allow of the user or a role
+// wins when it is at the same scope as everyone's setting or a more specific
+// one. Otherwise, everyone's setting decides. It returns the winning entry.
+//
+// A user allow follows the same scope rule as a role allow, so a setting on
+// one user cannot open a room that denies everyone at a nearer scope.
 func resolveApplicablePermissionDecisions(decisions applicablePermissionDecisions) (DecisionKind, TraceEntry, bool) {
-	if decisions.user != nil {
-		return decisions.user.Decision, *decisions.user, true
+	if decisions.user != nil && decisions.user.Decision == DecisionDeny {
+		return DecisionDeny, *decisions.user, true
 	}
-	var role *TraceEntry
+	var allow *TraceEntry
+	if decisions.user != nil {
+		allow = decisions.user
+	}
 	for i := range decisions.roles {
-		if role == nil || permissionLevelSpecificity(decisions.roles[i].Level) > permissionLevelSpecificity(role.Level) {
-			role = &decisions.roles[i]
+		if allow == nil || permissionLevelSpecificity(decisions.roles[i].Level) > permissionLevelSpecificity(allow.Level) {
+			allow = &decisions.roles[i]
 		}
 	}
 	everyone := decisions.everyone
-	if role != nil && (everyone == nil || permissionLevelSpecificity(role.Level) >= permissionLevelSpecificity(everyone.Level)) {
-		return DecisionAllow, *role, true
+	if allow != nil && (everyone == nil || permissionLevelSpecificity(allow.Level) >= permissionLevelSpecificity(everyone.Level)) {
+		return DecisionAllow, *allow, true
 	}
 	if everyone != nil {
 		return everyone.Decision, *everyone, true

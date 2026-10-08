@@ -21,9 +21,9 @@ setting is **Allow** or **Inherit** for a role, and **Allow**, **Deny**, or
   people. It can allow or deny.
 - **Roles only add permissions.** A role allow overrides an `everyone` deny at
   the same scope or a more specific scope. Giving a role never removes access.
-- **A setting on a user decides for that user.** The most specific setting on
-  the user wins over their roles and `everyone`, allow or deny. A server-level
-  setting on the user applies in every room.
+- **A deny on a user always wins.** When the most specific setting on the user
+  is a deny, the user does not get the permission, whatever their roles allow.
+  An allow on a user works like a role allow.
 - **No setting means no access.**
 - **Prefer roles.** Give permissions through roles, also when only one person
   has the role. Use settings on a single user only for rare exceptions. They
@@ -42,7 +42,7 @@ setting is **Allow** or **Inherit** for a role, and **Allow**, **Deny**, or
 | -------- | ------ |
 | Server: `everyone` Deny, `admin` Allow | **Allowed** for admins. Both settings are at the same scope. |
 | Room: `everyone` Deny. Server: `admin` Allow | **Denied**. The room setting is more specific. Add a room-level allow for `admin`. |
-| Server: `admin` Allow. User: Deny | **Denied** for that admin. The setting on the user decides. |
+| Server: `admin` Allow. User: Deny | **Denied** for that admin. The deny on the user wins. |
 
 Bots do not get permissions from `everyone`, and they cannot hold roles. A bot
 has only the permissions that you allow directly on the bot, and never more

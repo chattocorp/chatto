@@ -1211,9 +1211,9 @@ func TestDenyingMessagePostAlsoStopsThreadReplies(t *testing.T) {
 }
 
 // TestPermissionResolver_AdditiveRoles covers the subject rules (ADR-116): a
-// setting on the user decides; otherwise a role allow at the same scope as
-// everyone's nearest setting, or a more specific one, allows; otherwise
-// everyone's setting decides.
+// deny on the user decides; otherwise an allow of the user or a role at the
+// same scope as everyone's nearest setting, or a more specific one, allows;
+// otherwise everyone's setting decides.
 func TestPermissionResolver_AdditiveRoles(t *testing.T) {
 	t.Parallel()
 
@@ -1237,12 +1237,27 @@ func TestPermissionResolver_AdditiveRoles(t *testing.T) {
 			}
 			return f.c.DenyUserPermission(f.ctx, SystemActorID, f.user, perm)
 		}, false},
-		{"user allow beats a more specific everyone deny", func(t *testing.T, f fixture) error {
+		// A server-level allow on one user must not open a room that denies
+		// everyone, or a delegated manager could grant access to rooms that
+		// they cannot enter themselves.
+		{"user allow loses to a more specific everyone deny", func(t *testing.T, f fixture) error {
 			if err := f.c.DenyRoomPermission(f.ctx, SystemActorID, f.roomID, RoleEveryone, perm); err != nil {
 				return err
 			}
 			return f.c.GrantUserPermission(f.ctx, SystemActorID, f.user, perm)
+		}, false},
+		{"user allow beats everyone deny at the same scope", func(t *testing.T, f fixture) error {
+			if err := f.c.DenyRoomPermission(f.ctx, SystemActorID, f.roomID, RoleEveryone, perm); err != nil {
+				return err
+			}
+			return f.c.GrantUserRoomPermission(f.ctx, SystemActorID, f.roomID, f.user, perm)
 		}, true},
+		{"user deny beats everyone allow", func(t *testing.T, f fixture) error {
+			if err := f.c.GrantRoomPermission(f.ctx, SystemActorID, f.roomID, RoleEveryone, perm); err != nil {
+				return err
+			}
+			return f.c.DenyUserPermission(f.ctx, SystemActorID, f.user, perm)
+		}, false},
 		{"nearest user setting wins", func(t *testing.T, f fixture) error {
 			if err := f.c.DenyUserPermission(f.ctx, SystemActorID, f.user, perm); err != nil {
 				return err

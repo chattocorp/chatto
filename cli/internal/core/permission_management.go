@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"time"
 
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
@@ -72,7 +73,12 @@ type PermissionMatrixCell struct {
 	Permission string
 	ScopeID    string
 	Override   MatrixDecision
-	Effective  MatrixDecision
+	// Effective is the result for the subject. For a human account it is the
+	// result without privileged mode.
+	Effective MatrixDecision
+	// EffectiveWithPrivilegedMode is the result for a human account with
+	// privileged mode active. It is empty for roles and bots.
+	EffectiveWithPrivilegedMode MatrixDecision
 	// AllowPermitted reports the bot owner's RBAC entitlement at this scope.
 	// It does not include the acting human's session activation or edit authority.
 	// Nil means that the cell does not use a bot owner ceiling.
@@ -1046,9 +1052,12 @@ func buildExactRolePermissionCell(
 
 func (c *ChattoCore) buildUserPermissionMatrixCell(ctx context.Context, userID string, perm Permission, scope PermissionMatrixScope) (PermissionMatrixCell, bool, error) {
 	var (
-		override  DecisionKind
-		effective DecisionKind
-		err       error
+		override       DecisionKind
+		err            error
+		kind           = KindChannel
+		roomID         string
+		groupID        string
+		bannedFromRoom bool
 	)
 
 	switch scope.Kind {
@@ -1057,60 +1066,52 @@ func (c *ChattoCore) buildUserPermissionMatrixCell(ctx context.Context, userID s
 			return PermissionMatrixCell{}, false, nil
 		}
 		override, err = c.GetUserExplicitServerOverride(ctx, userID, perm)
-		if err != nil {
-			return PermissionMatrixCell{}, false, err
-		}
-		effective, err = c.PermResolver().Resolve(ctx, userID, KindChannel, "", perm)
-		if err != nil {
-			return PermissionMatrixCell{}, false, err
-		}
 	case MatrixScopeDM:
 		if !PermissionAppliesAtScope(perm, ScopeDM) {
 			return PermissionMatrixCell{}, false, nil
 		}
+		kind = KindDM
 		override, err = c.GetUserExplicitDMOverride(ctx, userID, perm)
-		if err != nil {
-			return PermissionMatrixCell{}, false, err
-		}
-		effective, err = c.PermResolver().Resolve(ctx, userID, KindDM, "", perm)
-		if err != nil {
-			return PermissionMatrixCell{}, false, err
-		}
 	case MatrixScopeGroup:
 		if !PermissionAppliesAtScope(perm, ScopeGroup) {
 			return PermissionMatrixCell{}, false, nil
 		}
-		groupID := scopeRefID(scope.ID, "group:")
+		groupID = scopeRefID(scope.ID, "group:")
 		override, err = c.GetUserExplicitGroupOverride(ctx, groupID, userID, perm)
-		if err != nil {
-			return PermissionMatrixCell{}, false, err
-		}
-		effective, err = c.PermResolver().ResolveGroup(ctx, userID, KindChannel, groupID, perm)
-		if err != nil {
-			return PermissionMatrixCell{}, false, err
-		}
 	case MatrixScopeRoom:
 		if !PermissionAppliesAtScope(perm, ScopeRoom) {
 			return PermissionMatrixCell{}, false, nil
 		}
-		roomID := scopeRefID(scope.ID, "room:")
+		roomID = scopeRefID(scope.ID, "room:")
 		override, err = c.GetUserExplicitRoomOverride(ctx, roomID, userID, perm)
-		if err != nil {
-			return PermissionMatrixCell{}, false, err
-		}
-		effective, err = c.PermResolver().Resolve(ctx, userID, KindChannel, roomID, perm)
-		if err != nil {
-			return PermissionMatrixCell{}, false, err
-		}
+		// An active room ban blocks joining whatever the permissions say.
+		bannedFromRoom = perm == PermRoomJoin && c.roomModel.isRoomBanActive(roomID, userID, time.Now())
 	default:
 		return PermissionMatrixCell{}, false, fmt.Errorf("%w: unknown scope kind %q", ErrInvalidArgument, scope.Kind)
 	}
+	if err != nil {
+		return PermissionMatrixCell{}, false, err
+	}
 
+	// Show the account's own access, not the viewer's: once without and once
+	// with privileged mode (ADR-105).
+	effective, err := c.PermResolver().resolveForAccount(ctx, userID, kind, roomID, groupID, perm, false)
+	if err != nil {
+		return PermissionMatrixCell{}, false, err
+	}
+	privileged, err := c.PermResolver().resolveForAccount(ctx, userID, kind, roomID, groupID, perm, true)
+	if err != nil {
+		return PermissionMatrixCell{}, false, err
+	}
+	if bannedFromRoom {
+		effective, privileged = DecisionDeny, DecisionDeny
+	}
 	return PermissionMatrixCell{
-		Permission: string(perm),
-		ScopeID:    scope.ID,
-		Override:   matrixDecisionFromCoreDecision(override),
-		Effective:  matrixDecisionFromCoreDecision(effective),
+		Permission:                  string(perm),
+		ScopeID:                     scope.ID,
+		Override:                    matrixDecisionFromCoreDecision(override),
+		Effective:                   matrixDecisionFromCoreDecision(effective),
+		EffectiveWithPrivilegedMode: matrixDecisionFromCoreDecision(privileged),
 	}, true, nil
 }
 
