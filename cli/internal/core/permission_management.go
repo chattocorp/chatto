@@ -1158,26 +1158,32 @@ func (c *ChattoCore) buildUserPermissionMatrixCell(ctx context.Context, userID s
 		return PermissionMatrixCell{}, false, err
 	}
 
-	// Show the account's own access, not the viewer's: once without and once
-	// with privileged mode (ADR-105).
+	// Show the account's own access, not the viewer's: once without and, for
+	// humans, once with privileged mode (ADR-105). Bots have no privileged mode.
 	effective, err := c.PermResolver().resolveForAccount(ctx, userID, kind, roomID, groupID, perm, false)
 	if err != nil {
 		return PermissionMatrixCell{}, false, err
 	}
-	privileged, err := c.PermResolver().resolveForAccount(ctx, userID, kind, roomID, groupID, perm, true)
-	if err != nil {
-		return PermissionMatrixCell{}, false, err
+	cell := PermissionMatrixCell{
+		Permission: string(perm),
+		ScopeID:    scope.ID,
+		Override:   matrixDecisionFromCoreDecision(override),
+	}
+	if isBot, _, _ := c.userModel.isBotAndOwner(userID); !isBot {
+		privileged, err := c.PermResolver().resolveForAccount(ctx, userID, kind, roomID, groupID, perm, true)
+		if err != nil {
+			return PermissionMatrixCell{}, false, err
+		}
+		if bannedFromRoom {
+			privileged = DecisionDeny
+		}
+		cell.EffectiveWithPrivilegedMode = matrixDecisionFromCoreDecision(privileged)
 	}
 	if bannedFromRoom {
-		effective, privileged = DecisionDeny, DecisionDeny
+		effective = DecisionDeny
 	}
-	return PermissionMatrixCell{
-		Permission:                  string(perm),
-		ScopeID:                     scope.ID,
-		Override:                    matrixDecisionFromCoreDecision(override),
-		Effective:                   matrixDecisionFromCoreDecision(effective),
-		EffectiveWithPrivilegedMode: matrixDecisionFromCoreDecision(privileged),
-	}, true, nil
+	cell.Effective = matrixDecisionFromCoreDecision(effective)
+	return cell, true, nil
 }
 
 func (c *ChattoCore) lookupRoomGroupID(ctx context.Context, roomID string) (string, error) {

@@ -351,6 +351,15 @@ func TestUserPermissionMatrixDescribesTheTargetAccount(t *testing.T) {
 	if got := cell(member, PermRoomJoin, room); got.Effective != MatrixDecisionDeny || got.EffectiveWithPrivilegedMode != MatrixDecisionDeny {
 		t.Fatalf("suspended member room.join = %s / %s, want deny", got.Effective, got.EffectiveWithPrivilegedMode)
 	}
+
+	// Bots have no privileged mode, so their cells have no privileged result.
+	bot, err := c.CreateBot(ctx, admin, "matrix_target_bot", "Matrix Target Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	if got := cell(bot.User.GetId(), PermMessagePost, server); got.EffectiveWithPrivilegedMode != "" {
+		t.Fatalf("bot message.post privileged result = %q, want unspecified", got.EffectiveWithPrivilegedMode)
+	}
 }
 
 // TestPermissionMatricesReportWhatTheViewerCanChange checks that the grant
