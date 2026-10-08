@@ -855,7 +855,7 @@ func TestRepositoryLogsFailedGenerationCleanupAfterPointerWriteFailure(t *testin
 	}
 }
 
-func TestRepositoryLogsOperationalSnapshotContext(t *testing.T) {
+func TestRepositoryDoesNotDuplicateSnapshotSuccessLogs(t *testing.T) {
 	ctx := context.Background()
 	blobs := newMemoryBlobStore()
 	logger := &captureLogger{}
@@ -863,7 +863,7 @@ func TestRepositoryLogsOperationalSnapshotContext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	saved, err := repository.Save(ctx, testSaveInput(12, []byte("state")))
+	_, err = repository.Save(ctx, testSaveInput(12, []byte("state")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -871,24 +871,7 @@ func TestRepositoryLogsOperationalSnapshotContext(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, message := range []string{"Projection snapshot published", "Projection snapshot loaded"} {
-		found := false
-		for _, record := range logger.logs {
-			if record.message != message {
-				continue
-			}
-			found = true
-			for _, field := range []string{"projection", "backend", "stage", "generation_id", "cutoff_seq", "payload_bytes", "producer_version", "duration"} {
-				if _, ok := record.fields[field]; !ok {
-					t.Errorf("%q log missing %q", message, field)
-				}
-			}
-			if record.fields["generation_id"] != saved.GenerationID {
-				t.Errorf("%q generation id = %v", message, record.fields["generation_id"])
-			}
-		}
-		if !found {
-			t.Errorf("missing %q log", message)
-		}
+	if len(logger.logs) != 0 {
+		t.Fatalf("repository duplicated caller outcomes: %+v", logger.logs)
 	}
 }

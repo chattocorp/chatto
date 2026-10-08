@@ -123,7 +123,6 @@ func NewMyEventsHub(model *MyEventsModel) *MyEventsHub {
 // messages in arrival order. It is started once by ChattoCore.Run.
 func (h *MyEventsHub) Run(ctx context.Context) error {
 	msgChan := make(chan *nats.Msg, myEventsIngressBuffer)
-	h.model.core.logger.Debug("myEvents hub started")
 	defer func() {
 		h.quarantine("hub stopped")
 		h.model.core.logger.Debug("myEvents hub stopped")

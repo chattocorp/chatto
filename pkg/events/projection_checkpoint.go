@@ -138,11 +138,6 @@ func (p *Projector) restoreCheckpointForRun(ctx context.Context, targetSeq uint6
 	if checkpoint.CutoffSequence > 0 {
 		p.advance(checkpoint.CutoffSequence)
 	}
-	p.logger.Info("Projection checkpoint restored",
-		"projection", key,
-		"stage", "checkpoint_restore",
-		"cutoff_seq", checkpoint.CutoffSequence,
-		"target_seq", targetSeq)
 	return nil
 }
 

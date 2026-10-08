@@ -35,6 +35,22 @@ at 30 seconds. A standalone-capable unit failure still exits for its process
 supervisor. Independently deployable providers use this catalogue rather than
 adding custom startup blocks.
 
+`chatto run` logs its version before core boot. `Server ready` follows core
+boot, projection startup-completion hooks, initial setup, and successful
+binding of all enabled HTTP, HTTPS, metrics, and operator API listeners.
+It includes the version, application
+listener address, and total startup duration. Optional runtime units and
+automatic TLS certificate issuance do not gate this message. If any listener
+cannot bind, startup closes the listeners already opened and does not log
+readiness. Shutdown and serve failures close all HTTP servers.
+
+INFO projection summaries report the projection name, rounded startup
+duration, replayed message count, restore source, and final sequence. Each
+projection logs one completion record, also at DEBUG verbosity. Expected
+snapshot absence is quiet; restore failures remain warnings. The snapshot
+worker logs one DEBUG record per publication. Repository load and save
+operations do not duplicate these outcomes.
+
 - **`ChattoCore`** ([`core.go`](../../cli/internal/core/core.go),
   [`core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go),
   [`storage.go`](../../cli/internal/core/storage.go),

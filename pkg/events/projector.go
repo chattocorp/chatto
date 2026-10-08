@@ -1060,9 +1060,10 @@ func (p *Projector) maybeCompleteStartup(now time.Time) {
 
 // startupSummary holds the values that the startup-complete log reports.
 type startupSummary struct {
-	duration                     time.Duration
-	targetSeq, lastSeq, messages uint64
-	projectionKey                string
+	duration          time.Duration
+	lastSeq, messages uint64
+	projectionKey     string
+	restore           string
 }
 
 // completeStartupLocked ends startup, runs the projection's
@@ -1078,13 +1079,24 @@ func (p *Projector) completeStartupLocked(now time.Time) (startupSummary, bool) 
 	p.startupEndedAt = now
 	summary := startupSummary{
 		duration:      now.Sub(p.startupStartedAt),
-		targetSeq:     p.startupTargetSeq,
 		lastSeq:       p.lastSeq,
 		messages:      p.startupMessages,
 		projectionKey: p.checkpointKey,
 	}
 	if summary.projectionKey == "" {
 		summary.projectionKey = p.snapshots.key
+	}
+	if summary.projectionKey == "" {
+		summary.projectionKey = p.consumerName
+	}
+	if summary.projectionKey == "" {
+		summary.projectionKey = reflect.TypeOf(p.proj).Elem().String()
+	}
+	summary.restore = "none"
+	if p.snapshotRestored {
+		summary.restore = "snapshot"
+	} else if p.checkpointRestored {
+		summary.restore = "checkpoint"
 	}
 	p.mu.Unlock()
 
@@ -1099,18 +1111,12 @@ func (p *Projector) completeStartupLocked(now time.Time) (startupSummary, bool) 
 }
 
 func (p *Projector) logStartupComplete(summary startupSummary) {
-	var rate float64
-	if seconds := summary.duration.Seconds(); seconds > 0 {
-		rate = float64(summary.messages) / seconds
-	}
 	p.logger.Info("Projection startup complete",
 		"projection", summary.projectionKey,
-		"duration", summary.duration,
+		"duration", summary.duration.Round(time.Millisecond),
 		"messages", summary.messages,
-		"messages_per_second", rate,
+		"restore", summary.restore,
 		"last_seq", summary.lastSeq,
-		"target_seq", summary.targetSeq,
-		"subjects", p.subjects,
 	)
 }
 

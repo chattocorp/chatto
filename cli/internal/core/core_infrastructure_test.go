@@ -16,6 +16,7 @@ func TestEVTReadCacheConfigLogsEffectiveDefaults(t *testing.T) {
 
 	var output bytes.Buffer
 	logger := log.New(&output)
+	logger.SetLevel(log.DebugLevel)
 	logger.SetFormatter(log.JSONFormatter)
 
 	readerConfig := evtReadCacheConfig(config.CoreConfig{}, logger)
@@ -40,6 +41,7 @@ func TestEVTReadCacheConfigMapsUnlimitedBytesToFrameworkZero(t *testing.T) {
 
 	var output bytes.Buffer
 	logger := log.New(&output)
+	logger.SetLevel(log.DebugLevel)
 	logger.SetFormatter(log.JSONFormatter)
 	limit := config.ByteSizeLimit(-1)
 	readerConfig := evtReadCacheConfig(config.CoreConfig{EVTReadCacheMaxBytes: &limit}, logger)

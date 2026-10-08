@@ -95,12 +95,14 @@ func init() {
 }
 
 func runServer(configPath string) {
+	startupStartedAt := time.Now()
 	cfg, err := config.ReadConfig(configPath)
 	if err != nil {
 		log.Fatal("Failed to read configuration", "error", err)
 	}
 
 	configureLogging(cfg.General)
+	log.Info("Starting Chatto", "version", Version)
 	if shouldPrintBanner(cfg.General.LogFormat, isLogOutputTerminal()) {
 		printBanner()
 	}
@@ -264,11 +266,12 @@ func runServer(configPath string) {
 	// Create and run HTTP server
 	addr := fmt.Sprintf(":%d", cfg.Webserver.EffectivePort())
 	httpServer, err := http_server.NewHTTPServer(http_server.HTTPServerConfig{
-		Config:  cfg,
-		NC:      nc,
-		Core:    chattoCore,
-		Addr:    addr,
-		Version: Version,
+		Config:           cfg,
+		NC:               nc,
+		Core:             chattoCore,
+		Addr:             addr,
+		Version:          Version,
+		StartupStartedAt: startupStartedAt,
 	})
 	if err != nil {
 		log.Error("Failed to create HTTP server", "error", err)

@@ -37,8 +37,6 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 		return
 	}
 
-	logger.Info("Applying [bootstrap] section", "users", len(cfg.Users), "bots", len(cfg.Bots), "server", hasServer)
-
 	if empty, err := serverDataEmptyForBootstrap(ctx, c); err != nil {
 		logger.Warn("Could not determine whether server is empty; skipping [bootstrap]", "error", err)
 		return
@@ -46,6 +44,8 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 		logger.Debug("Server already has data; skipping [bootstrap]")
 		return
 	}
+
+	logger.Debug("Applying [bootstrap] section", "users", len(cfg.Users), "bots", len(cfg.Bots), "server", hasServer)
 
 	ownerID := ""
 	firstUserID := ""

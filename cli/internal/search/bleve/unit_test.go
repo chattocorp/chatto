@@ -167,9 +167,9 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 		return strings.Contains(unitLogs.String(), "Projection startup complete")
 	}, time.Second, 10*time.Millisecond)
 	logged := unitLogs.String()
-	require.Contains(t, logged, "Starting bundled search provider")
-	require.Contains(t, logged, "Search index opened")
-	require.Contains(t, logged, "Search provider service registered")
+	require.NotContains(t, logged, "Starting bundled search provider")
+	require.NotContains(t, logged, "Search index opened")
+	require.NotContains(t, logged, "Search provider service registered")
 	require.Contains(t, logged, "Projection startup complete")
 	require.Contains(t, logged, `"projection":"message_search"`)
 
@@ -219,7 +219,7 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, searchv1.ProviderState_PROVIDER_STATE_READY, status.GetState())
 	require.Eventually(t, func() bool {
-		return strings.Contains(unitLogs.String(), "Projection checkpoint restored")
+		return strings.Contains(unitLogs.String(), `"restore":"checkpoint"`)
 	}, time.Second, 10*time.Millisecond)
 
 	// Upgrade an on-disk v10 checkpoint through the real startup/replay path.
