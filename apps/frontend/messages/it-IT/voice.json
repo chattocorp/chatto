@@ -39,6 +39,8 @@
     "fullscreen_feed": "Alimentazione a schermo intero",
     "fullscreen_call": "Chiamata a schermo intero",
     "exit_fullscreen_call": "Esci dalla chiamata a schermo intero",
+    "pin_to_stage": "Fissa {name} sul palco",
+    "unpin_from_stage": "Rimuovi dal palco",
     "locally_mute_participant": "Disattiva l'audio localmente",
     "locally_muted": "Disattivato localmente",
     "unknown_device": "Dispositivo sconosciuto",

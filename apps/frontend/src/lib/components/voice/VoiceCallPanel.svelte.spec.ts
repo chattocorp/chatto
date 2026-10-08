@@ -333,3 +333,73 @@ it('keeps voice columns equal below a single screen share and stacks in a narrow
   );
   expect(share.getBoundingClientRect().width).toBe(list.getBoundingClientRect().width);
 });
+
+it('pins a filmstrip tile to the stage until the viewer unpins it or its source ends', async () => {
+  const screen = render(VoiceCallPanelStoryHarness, {
+    props: { layout: 'stage', scenario: 'screen' }
+  });
+  // The featured stage sizes its 16:9 card from the pane, so give it one.
+  Object.assign(screen.container.style, { display: 'flex', width: '1080px', height: '720px' });
+  const featured = screen.getByTestId('call-featured-stage-card');
+  await expect.element(featured).toHaveTextContent("Dana's screen");
+  const strip = screen.getByTestId('call-secondary-stage-list');
+  await expect.element(strip.getByTestId('call-stage-tile')).toHaveLength(4);
+
+  await strip.getByRole('button', { name: 'Pin Bob to the stage' }).click();
+  await expect.element(featured).toHaveTextContent('Bob');
+  await expect.element(strip).toHaveTextContent("Dana's screen");
+  await expect.element(strip).not.toHaveTextContent('Bob');
+
+  await featured.getByTestId('call-stage-unpin-button').click();
+  await expect.element(featured).toHaveTextContent("Dana's screen");
+
+  await strip.getByRole('button', { name: 'Pin Chloe to the stage' }).click();
+  await expect.element(featured).toHaveTextContent('Chloe');
+  const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
+  flushSync(() => {
+    call.participants = call.participants.filter((p) => p.identity !== 'chloe');
+  });
+  await expect.element(featured).toHaveTextContent("Dana's screen");
+});
+
+it('features remote camera feeds before the viewer camera', async () => {
+  const screen = render(VoiceCallPanelStoryHarness, {
+    props: { layout: 'stage', scenario: 'screen' }
+  });
+  await expect.element(screen.getByTestId('call-featured-stage-card')).toBeInTheDocument();
+  const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
+  flushSync(() => {
+    call.participants = call.participants.filter((p) => p.identity !== 'dana');
+  });
+  await expect.element(screen.getByTestId('call-featured-stage-card')).toHaveTextContent('Bob');
+});
+
+it.each([
+  { width: 1600, height: 560, placement: 'side' },
+  { width: 900, height: 800, placement: 'bottom' }
+])(
+  'places the other stage tiles where the featured card gets more room: $placement',
+  async ({ width, height, placement }) => {
+    const screen = render(VoiceCallPanelStoryHarness, {
+      props: { layout: 'stage', scenario: 'screen' }
+    });
+    Object.assign(screen.container.style, {
+      display: 'flex',
+      width: `${width}px`,
+      height: `${height}px`
+    });
+    await expect
+      .element(screen.getByTestId('call-stage-layout'))
+      .toHaveAttribute('data-filmstrip-placement', placement);
+    const featured = screen.getByTestId('call-featured-stage-card').element();
+    const tile = screen.getByTestId('call-stage-tile').first().element();
+    const featuredBox = featured.getBoundingClientRect();
+    const tileBox = tile.getBoundingClientRect();
+    if (placement === 'side') {
+      expect(tileBox.left).toBeGreaterThanOrEqual(featuredBox.right);
+      expect(tileBox.top).toBe(featuredBox.top);
+    } else {
+      expect(tileBox.top).toBeGreaterThanOrEqual(featuredBox.bottom);
+    }
+  }
+);

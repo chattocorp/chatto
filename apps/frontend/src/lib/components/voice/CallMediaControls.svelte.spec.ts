@@ -251,31 +251,52 @@ it('preserves touch long-press and suppresses its duplicate native menu', async 
   );
 });
 
-it.each(['sidebar', 'stage'] as const)(
-  'toggles the selected video and follows browser closure in %s',
-  async (layout) => {
-    const screen = render(VoiceCallPanelStoryHarness, { props: { layout, scenario: 'screen' } });
-    await expect
-      .poll(() => screen.container.querySelectorAll('[data-testid="call-feed-pip-button"]').length)
-      .toBeGreaterThan(1);
-    const [screenCard, cameraCard] = mediaCards(screen.container);
-    pipButton(screenCard).click();
-    await expect.poll(() => pipButton(screenCard).getAttribute('aria-pressed')).toBe('true');
-    expect(currentVideo).toBe(screenCard.querySelector('video'));
-    expect(document.querySelector('[data-testid="copy-user-id"]')).toBeNull();
-    pipButton(cameraCard).click();
-    await expect.poll(() => pipButton(cameraCard).getAttribute('aria-pressed')).toBe('true');
-    expect(currentVideo).toBe(cameraCard.querySelector('video'));
-    expect(pipButton(screenCard).getAttribute('aria-pressed')).toBe('false');
-    pipButton(cameraCard).click();
-    await expect.poll(() => pipButton(cameraCard).getAttribute('aria-pressed')).toBe('false');
-    expect(currentVideo).toBeNull();
-    pipButton(screenCard).click();
-    await expect.poll(() => pipButton(screenCard).getAttribute('aria-pressed')).toBe('true');
-    await document.exitPictureInPicture();
-    await expect.poll(() => pipButton(screenCard).getAttribute('aria-pressed')).toBe('false');
-  }
-);
+it('toggles the selected video and follows browser closure in the sidebar', async () => {
+  const screen = render(VoiceCallPanelStoryHarness, {
+    props: { layout: 'sidebar', scenario: 'screen' }
+  });
+  await expect
+    .poll(() => screen.container.querySelectorAll('[data-testid="call-feed-pip-button"]').length)
+    .toBeGreaterThan(1);
+  const [screenCard, cameraCard] = mediaCards(screen.container);
+  pipButton(screenCard).click();
+  await expect.poll(() => pipButton(screenCard).getAttribute('aria-pressed')).toBe('true');
+  expect(currentVideo).toBe(screenCard.querySelector('video'));
+  expect(document.querySelector('[data-testid="copy-user-id"]')).toBeNull();
+  pipButton(cameraCard).click();
+  await expect.poll(() => pipButton(cameraCard).getAttribute('aria-pressed')).toBe('true');
+  expect(currentVideo).toBe(cameraCard.querySelector('video'));
+  expect(pipButton(screenCard).getAttribute('aria-pressed')).toBe('false');
+  pipButton(cameraCard).click();
+  await expect.poll(() => pipButton(cameraCard).getAttribute('aria-pressed')).toBe('false');
+  expect(currentVideo).toBeNull();
+  pipButton(screenCard).click();
+  await expect.poll(() => pipButton(screenCard).getAttribute('aria-pressed')).toBe('true');
+  await document.exitPictureInPicture();
+  await expect.poll(() => pipButton(screenCard).getAttribute('aria-pressed')).toBe('false');
+});
+
+it('keeps media controls on the featured stage source and off the filmstrip', async () => {
+  const screen = render(VoiceCallPanelStoryHarness, {
+    props: { layout: 'stage', scenario: 'screen' }
+  });
+  await expect
+    .poll(() => screen.container.querySelector('[data-testid="call-feed-pip-button"]'))
+    .not.toBeNull();
+  const [featured, ...others] = mediaCards(screen.container);
+  expect(featured.dataset.testid).toBe('call-featured-stage-card');
+  expect(others).toHaveLength(0);
+  expect(
+    screen.container.querySelector(
+      '[data-testid="call-secondary-stage-list"] [data-testid="call-feed-pip-button"]'
+    )
+  ).toBeNull();
+  pipButton(featured).click();
+  await expect.poll(() => pipButton(featured).getAttribute('aria-pressed')).toBe('true');
+  expect(currentVideo).toBe(featured.querySelector('video'));
+  await document.exitPictureInPicture();
+  await expect.poll(() => pipButton(featured).getAttribute('aria-pressed')).toBe('false');
+});
 
 it.each(['policy', 'method'] as const)(
   'hides PiP when unsupported by %s without blocking native menus',

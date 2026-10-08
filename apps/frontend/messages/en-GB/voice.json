@@ -39,6 +39,8 @@
     "fullscreen_feed": "Fullscreen feed",
     "fullscreen_call": "Fullscreen call",
     "exit_fullscreen_call": "Exit fullscreen call",
+    "pin_to_stage": "Pin {name} to the stage",
+    "unpin_from_stage": "Unpin from the stage",
     "locally_mute_participant": "Mute locally",
     "locally_muted": "Locally muted",
     "unknown_device": "Unknown device",

@@ -63,7 +63,7 @@
   </div>
 </Story>
 
-<Story name="Stage voice fallback" asChild>
+<Story name="Stage voice grid" asChild>
   <div
     class="flex h-[720px] w-[1080px] overflow-hidden rounded-md border border-border bg-background"
   >

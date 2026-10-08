@@ -39,6 +39,8 @@
     "fullscreen_feed": "Feed em tela cheia",
     "fullscreen_call": "Chamada em tela cheia",
     "exit_fullscreen_call": "Sair da chamada em tela cheia",
+    "pin_to_stage": "Fixar {name} no palco",
+    "unpin_from_stage": "Desafixar do palco",
     "locally_mute_participant": "Silenciar localmente",
     "locally_muted": "Silenciado localmente",
     "unknown_device": "Dispositivo desconhecido",

@@ -1519,7 +1519,7 @@ describe('RoomSidebar', () => {
     expect(secondaryList!.children[0].textContent).toContain('Alice');
   });
 
-  it('falls back to a voice participant for the maximized call stage with speaking and quality indicators', async () => {
+  it('shows voice-only participants in an equal maximized call grid with speaking and quality indicators', async () => {
     callStore.voiceCall.connected = true;
     callStore.voiceCall.isInAnyCall = true;
     callStore.voiceCall.roomId = 'room-1';
@@ -1552,7 +1552,10 @@ describe('RoomSidebar', () => {
       }
     });
 
-    const featured = q(container, '[data-testid="call-featured-stage-card"]');
+    expect(q(container, '[data-testid="call-featured-stage-card"]')).toBeFalsy();
+    const grid = q(container, '[data-testid="call-stage-grid"]');
+    expect(grid).toBeTruthy();
+    const featured = q(grid!, '[data-testid="call-stage-tile"]');
     expect(featured).toBeTruthy();
     expect(featured!.textContent).toContain('Alice');
     expect(featured!.querySelector('video')).toBeFalsy();
@@ -2186,6 +2189,45 @@ describe('RoomSidebar', () => {
     expect(requestFullscreen).toHaveBeenCalledOnce();
     expect(fullscreenTargets[0].getAttribute('aria-label')).toBe('Room extras');
     requestFullscreen.mockRestore();
+  });
+
+  it('uses the stage layout without pane chrome while the call pane is fullscreen', async () => {
+    callStore.voiceCall.connected = true;
+    callStore.voiceCall.roomId = 'room-1';
+    const exitFullscreen = vi.spyOn(document, 'exitFullscreen').mockResolvedValue();
+    const props = {
+      activePanel: 'call' as const,
+      hasActiveCall: true,
+      livekitUrl: 'wss://livekit.example.test',
+      roomData: roomData([member(1)], 1, false),
+      onToggleMaximized: vi.fn()
+    };
+    const { container, rerender } = render(RoomSidebarTestHarness, { props });
+    const sidebar = container.querySelector<HTMLElement>('[aria-label="Room extras"]')!;
+    const fullscreenElement = vi.spyOn(document, 'fullscreenElement', 'get');
+    fullscreenElement.mockReturnValue(sidebar);
+    document.dispatchEvent(new Event('fullscreenchange'));
+    await tick();
+
+    try {
+      expect(container.querySelector('[aria-label="Hide room extras"]')).toBeFalsy();
+      expect(container.querySelector('[aria-label="Maximise call"]')).toBeFalsy();
+      expect(container.querySelector('[aria-label="Resize room extras pane"]')).toBeFalsy();
+      expect(q(container, '[data-testid="call-stage-grid"]')).toBeTruthy();
+      expect(q(container, '[data-testid="call-participants-list"]')).toBeFalsy();
+
+      (q(container, '[data-testid="call-exit-fullscreen-button"]') as HTMLButtonElement).click();
+      await Promise.resolve();
+      expect(exitFullscreen).toHaveBeenCalledOnce();
+
+      // Leaving the call removes the exit control, so fullscreen ends as well.
+      await rerender({ ...props, hasActiveCall: false });
+      expect(exitFullscreen).toHaveBeenCalledTimes(2);
+    } finally {
+      fullscreenElement.mockRestore();
+      exitFullscreen.mockRestore();
+      document.dispatchEvent(new Event('fullscreenchange'));
+    }
   });
 
   it.each([

@@ -39,6 +39,8 @@
     "fullscreen_feed": "תצוגה במסך מלא",
     "fullscreen_call": "שיחה במסך מלא",
     "exit_fullscreen_call": "צא משיחת מסך מלא",
+    "pin_to_stage": "הצמד את {name} לבמה",
+    "unpin_from_stage": "בטל הצמדה מהבמה",
     "locally_mute_participant": "השתקה מקומית",
     "locally_muted": "מושתק מקומי",
     "unknown_device": "מכשיר לא ידוע",

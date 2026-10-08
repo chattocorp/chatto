@@ -39,6 +39,8 @@
     "fullscreen_feed": "Полноэкранный канал",
     "fullscreen_call": "Полноэкранный вызов",
     "exit_fullscreen_call": "Выйти из полноэкранного вызова",
+    "pin_to_stage": "Закрепить {name} на сцене",
+    "unpin_from_stage": "Открепить от сцены",
     "locally_mute_participant": "Отключить звук локально",
     "locally_muted": "Локально отключен звук",
     "unknown_device": "Неизвестное устройство",
