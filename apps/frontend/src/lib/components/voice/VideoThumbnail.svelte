@@ -5,9 +5,9 @@ Renders a LiveKit video track in a thumbnail-sized `<video>` element.
 It can optionally include a small avatar overlay in the top-left corner for
 identification.
 
-Manages the attach/detach lifecycle imperatively — only detaches/reattaches
-when the track reference actually changes, not on every parent re-render.
-This prevents flicker from the 60ms audio level polling in VoiceCallPanel.
+Attaches the track to its `<video>` once. A new track mounts a new `<video>`.
+Other parent updates, such as a participant mute, do not detach the track.
+Detaching clears the video and makes the tile flash.
 
 The explicit width/height attributes tell LiveKit's `adaptiveStream` what
 resolution to request for sidebar-width tiles.
@@ -56,6 +56,13 @@ resolution to request for sidebar-width tiles.
     videoAttachment?: Attachment<HTMLVideoElement>;
   } = $props();
 
+  /**
+   * The track itself, apart from the parent object that supplied it. A derived
+   * notifies its readers only when its value changes, so a parent update that
+   * keeps the track, such as a participant mute, does not detach the video.
+   */
+  const videoTrack = $derived(track);
+
   /** Keep native mouse menus while the card still owns touch long-press gestures. */
   function nativeVideoMenu(element: HTMLVideoElement) {
     let fromTouch = false;
@@ -75,7 +82,7 @@ resolution to request for sidebar-width tiles.
 
   /** Give each track its own element so a replacement cannot overwrite retained PiP media. */
   function attachVideo(element: HTMLVideoElement) {
-    const attachedTrack = track;
+    const attachedTrack = videoTrack;
     registerCallVideo(attachedTrack, element);
     attachedTrack.attach(element);
     return () => releaseCallVideo(attachedTrack, element);
@@ -89,7 +96,7 @@ resolution to request for sidebar-width tiles.
     fill ? 'h-full min-h-0' : 'aspect-video'
   ]}
 >
-  {#key track}
+  {#key videoTrack}
     <video
       {@attach attachVideo}
       {@attach videoAttachment}
