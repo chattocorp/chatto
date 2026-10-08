@@ -213,10 +213,28 @@ Room sidebar panel for voice/video calls.
       pinnedStageTileKey = null;
     }
   });
-  /** Remote media before the viewer's own media, and screens before cameras. */
+  /**
+   * The remote active speaker, with or without a camera, while any camera is
+   * on. A voice-only call keeps its grid, where the speaking glow shows who
+   * talks, so the stage does not move without video to gain.
+   */
+  let activeSpeakerStageTile = $derived(
+    isInThisCall && participantTiles.some((tile) => tile.kind === 'video')
+      ? participantTiles.find(
+          (tile) =>
+            !tile.participant.isLocal &&
+            tile.participant.key === voiceCallState.activeSpeakerIdentity
+        )
+      : undefined
+  );
+  /**
+   * Screens first, then the active speaker, then cameras. Remote media comes
+   * before the viewer's own media.
+   */
   let automaticStageTile = $derived(
     screenShareTiles.find((tile) => !tile.participant.isLocal) ??
       screenShareTiles[0] ??
+      activeSpeakerStageTile ??
       participantTiles.find((tile) => tile.kind === 'video' && !tile.participant.isLocal) ??
       participantTiles.find((tile) => tile.kind === 'video')
   );

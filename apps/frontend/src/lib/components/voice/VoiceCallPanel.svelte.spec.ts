@@ -435,3 +435,64 @@ it('keeps focus on the stage when an unpinned source stays featured', async () =
     .toBe('call-participant-menu-button');
   expect(featured.element().contains(document.activeElement)).toBe(true);
 });
+
+it('features a remote active speaker without a camera over the viewer camera', async () => {
+  const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'camera' });
+  const featured = screen.getByTestId('call-featured-stage-card');
+  await expect.element(featured).toHaveTextContent('Alice');
+  const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
+
+  flushSync(() => {
+    call.activeSpeakerIdentity = 'chloe';
+  });
+  await expect.element(featured).toHaveTextContent('Chloe');
+
+  // A pin still wins over the active speaker.
+  await screen
+    .getByTestId('call-secondary-stage-list')
+    .getByRole('button', { name: 'Pin Bob to the stage' })
+    .click();
+  await expect.element(featured).toHaveTextContent('Bob');
+});
+
+it('keeps screen shares ahead of the active speaker', async () => {
+  const screen = renderCallPanelHarness({
+    layout: 'stage',
+    scenario: 'screen',
+    activeSpeaker: 'chloe'
+  });
+  await expect
+    .element(screen.getByTestId('call-featured-stage-card'))
+    .toHaveTextContent("Dana's screen");
+});
+
+it('keeps the voice-only grid when someone speaks', async () => {
+  const screen = renderCallPanelHarness({
+    layout: 'stage',
+    scenario: 'voice',
+    activeSpeaker: 'bob'
+  });
+  await expect.element(screen.getByTestId('call-stage-grid')).toBeInTheDocument();
+  expect(screen.container.querySelector('[data-testid="call-featured-stage-card"]')).toBeNull();
+});
+
+it('features the remote active speaker over another remote camera', async () => {
+  const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'screen' });
+  const featured = screen.getByTestId('call-featured-stage-card');
+  const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
+  flushSync(() => {
+    call.participants = call.participants.filter((p) => p.identity !== 'dana');
+  });
+  await expect.element(featured).toHaveTextContent('Bob');
+
+  flushSync(() => {
+    call.activeSpeakerIdentity = 'chloe';
+  });
+  await expect.element(featured).toHaveTextContent('Chloe');
+
+  // A speaker who is no longer in the call does not block the fallback.
+  flushSync(() => {
+    call.participants = call.participants.filter((p) => p.identity !== 'chloe');
+  });
+  await expect.element(featured).toHaveTextContent('Bob');
+});

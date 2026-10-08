@@ -21,7 +21,8 @@
     scenario = 'screen',
     animateVoice = false,
     initiallyMuted = false,
-    playableMedia = false
+    playableMedia = false,
+    activeSpeaker = null
   }: {
     layout?: 'sidebar' | 'stage';
     scenario?: 'screen' | 'screen-voice' | 'screen-single-secondary' | 'camera' | 'voice' | 'idle';
@@ -29,6 +30,8 @@
     initiallyMuted?: boolean;
     /** Use a local canvas stream to exercise native media controls without a call server. */
     playableMedia?: boolean;
+    /** Identity that the call reports as the remote active speaker. */
+    activeSpeaker?: string | null;
   } = $props();
 
   const roomId = 'storybook-call-room';
@@ -260,6 +263,7 @@
     voiceCall.isCameraEnabled = scenario !== 'voice' && scenario !== 'screen-voice';
     voiceCall.isScreenShareEnabled = scenario === 'screen';
     voiceCall.participants = scenario === 'idle' ? [] : participantsForScenario();
+    voiceCall.activeSpeakerIdentity = activeSpeaker;
   }
 
   onMount(async () => {
