@@ -42,8 +42,10 @@ order:
    at a more specific one. Otherwise, the nearest `everyone` setting decides.
 5. No setting means no access.
 
-An allow of an including permission still allows the included permission, and
-elevation-required permissions still need privileged mode (ADR-105).
+An allow of an including permission still allows the included permission,
+also when the user denies the included permission. To stop the included
+permission, deny the including permission too. Elevation-required permissions
+still need privileged mode (ADR-105).
 
 Only `everyone` and single users can deny. The API rejects a deny for a named
 role with `INVALID_ARGUMENT`. Stored denies of named roles have no effect.
