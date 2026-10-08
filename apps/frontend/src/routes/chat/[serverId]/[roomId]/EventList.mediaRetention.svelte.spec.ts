@@ -193,29 +193,32 @@ describe('EventList media retention', () => {
     expect(row(id)).toBeNull();
   });
 
-  it('combines selection and playback retention after older rows are prepended', async () => {
-    const id = 'audio-playing';
-    const { scroller, eventIds, rerender } = renderTimeline(id);
-    const media = await startMedia(id);
-    const anchor = row('msg-47')!.querySelector('span')!.firstChild!;
-    const selection = document.getSelection()!;
-    selection.setBaseAndExtent(anchor, 0, anchor, 0);
-    await nextFrame();
-    await scrollToStart(scroller);
-    const focus = row('msg-0')!.querySelector('span')!.firstChild!;
-    selection.setBaseAndExtent(anchor, anchor.textContent!.length, focus, 0);
-    await tick();
-    await vi.waitFor(() => expect(row('msg-24')).not.toBeNull());
-    await rerender({
-      eventIds: [...Array.from({ length: 8 }, (_, i) => `older-${i}`), ...eventIds]
-    });
-    expect(row(id)?.querySelector('audio')).toBe(media);
-    expect(document.contains(anchor)).toBe(true);
-    selection.removeAllRanges();
-    await nextFrame();
-    await scrollToStart(scroller, 'older-0');
-    expect(row(id)?.querySelector('audio')).toBe(media);
-  });
+  it.each(['audio', 'video', 'processed'])(
+    'combines selection and %s playback after older rows are prepended',
+    async (kind) => {
+      const id = `${kind}-playing`;
+      const { scroller, eventIds, rerender } = renderTimeline(id);
+      const media = await startMedia(id);
+      const anchor = row('msg-47')!.querySelector('span')!.firstChild!;
+      const selection = document.getSelection()!;
+      selection.setBaseAndExtent(anchor, 0, anchor, 0);
+      await nextFrame();
+      await scrollToStart(scroller);
+      const focus = row('msg-0')!.querySelector('span')!.firstChild!;
+      selection.setBaseAndExtent(anchor, anchor.textContent!.length, focus, 0);
+      await tick();
+      await vi.waitFor(() => expect(row('msg-24')).not.toBeNull());
+      await rerender({
+        eventIds: [...Array.from({ length: 8 }, (_, i) => `older-${i}`), ...eventIds]
+      });
+      expect(row(id)?.querySelector('audio, video')).toBe(media);
+      expect(document.contains(anchor)).toBe(true);
+      selection.removeAllRanges();
+      await nextFrame();
+      await scrollToStart(scroller, 'older-0');
+      expect(row(id)?.querySelector('audio, video')).toBe(media);
+    }
+  );
 
   it('removes retained media when the timeline unmounts', async () => {
     const id = 'audio-playing';

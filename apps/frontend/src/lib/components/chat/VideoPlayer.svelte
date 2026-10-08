@@ -318,7 +318,6 @@
     const cleanupVideoObserver = observePlayerVideo(node);
 
     return () => {
-      onPlaybackChange?.(false);
       cleanupFullscreen();
       cleanupVideoObserver();
       node.removeEventListener('provider-change', handleProviderChange);
@@ -346,8 +345,10 @@
   </div>
 {:else if status === 'COMPLETED' && playbackSource && elementsReady}
   <div class="embed-frame" style={frameStyle}>
+    <!-- Provider setup can rerun while playing; release playback only on element removal. -->
     <media-player
       {@attach attachMediaPlayer}
+      {@attach () => () => onPlaybackChange?.(false)}
       src={videoSrc}
       stream-type="on-demand"
       playsinline
