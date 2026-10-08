@@ -4,12 +4,18 @@ import { retainPlayback } from './playbackRetention';
 function attach() {
   const wrapper = document.createElement('div');
   const video = document.createElement('video');
-  wrapper.append(video);
+  const poster = document.createElement('img');
+  wrapper.append(poster, video);
   const onChange = vi.fn();
   const cleanup = retainPlayback(onChange)(wrapper) as () => void;
   // Media events do not bubble; the wrapper sees them in the capture phase.
-  const fire = (type: string) => video.dispatchEvent(new Event(type));
-  return { onChange, cleanup, fire };
+  const fire = (type: string, target: Element = video) => target.dispatchEvent(new Event(type));
+  return { onChange, cleanup, fire, poster, video, wrapper };
+}
+
+function setPresentationMode(video: HTMLVideoElement, mode: string) {
+  Object.defineProperty(video, 'webkitPresentationMode', { value: mode, configurable: true });
+  video.dispatchEvent(new Event('webkitpresentationmodechanged'));
 }
 
 describe('retainPlayback', () => {
@@ -29,6 +35,29 @@ describe('retainPlayback', () => {
     expect(onChange.mock.calls).toEqual([[true]]);
     fire('leavepictureinpicture');
     expect(onChange.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it('follows Safari picture-in-picture presentation mode', () => {
+    const { onChange, fire, video } = attach();
+    setPresentationMode(video, 'picture-in-picture');
+    fire('pause');
+    expect(onChange.mock.calls).toEqual([[true]]);
+    setPresentationMode(video, 'inline');
+    expect(onChange.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it('accepts events dispatched on the wrapper itself', () => {
+    const { onChange, fire, wrapper } = attach();
+    fire('play', wrapper);
+    fire('error', wrapper);
+    expect(onChange.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it('ignores errors from non-media descendants such as a poster image', () => {
+    const { onChange, fire, poster } = attach();
+    fire('play');
+    fire('error', poster);
+    expect(onChange.mock.calls).toEqual([[true]]);
   });
 
   it('keeps media active when picture-in-picture ends during playback', () => {

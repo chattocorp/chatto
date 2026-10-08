@@ -1,5 +1,8 @@
 import type { Attachment } from 'svelte/attachments';
 
+/** Safari's presentation mode, which Vidstack uses for picture-in-picture where available. */
+type WebKitVideoElement = HTMLVideoElement & { webkitPresentationMode?: string };
+
 /**
  * Report whether media inside an element needs to stay mounted.
  *
@@ -10,6 +13,8 @@ import type { Attachment } from 'svelte/attachments';
  *
  * Listeners use the capture phase, so a wrapper such as Vidstack's
  * `<media-player>` also gets the non-bubbling events of its inner `<video>`.
+ * They accept only events from the element itself or from a media element:
+ * an `error` from a poster image or `<source>` does not stop playback.
  * Repeated events report only changes.
  *
  * @param onChange Receives `true` when the media becomes active and `false` when it is released.
@@ -29,23 +34,33 @@ export function retainPlayback(onChange: (active: boolean) => void): Attachment<
       }
     }
 
-    const listeners: Record<string, () => void> = {
+    const listeners: Record<string, (target: EventTarget) => void> = {
       play: () => update({ playing: true }),
       pause: () => update({ playing: false }),
       ended: () => update({ playing: false }),
       emptied: () => update({ playing: false }),
       error: () => update({ playing: false }),
       enterpictureinpicture: () => update({ pictureInPicture: true }),
-      leavepictureinpicture: () => update({ pictureInPicture: false })
+      leavepictureinpicture: () => update({ pictureInPicture: false }),
+      webkitpresentationmodechanged: (target) => {
+        if (!(target instanceof HTMLVideoElement)) return;
+        const mode = (target as WebKitVideoElement).webkitPresentationMode;
+        update({ pictureInPicture: mode === 'picture-in-picture' });
+      }
     };
+    const controller = new AbortController();
     for (const [type, listener] of Object.entries(listeners)) {
-      node.addEventListener(type, listener, true);
+      node.addEventListener(
+        type,
+        ({ target }) => {
+          if (target === node || target instanceof HTMLMediaElement) listener(target);
+        },
+        { capture: true, signal: controller.signal }
+      );
     }
 
     return () => {
-      for (const [type, listener] of Object.entries(listeners)) {
-        node.removeEventListener(type, listener, true);
-      }
+      controller.abort();
       if (active) onChange(false);
     };
   };
