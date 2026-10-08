@@ -25,7 +25,11 @@ func TestKindsRejectAccidentalMixing(t *testing.T) {
 	t.Parallel()
 	// Compile an external consumer against the actual exported API. testdata
 	// keeps this intentionally invalid package outside ordinary ./... builds.
-	cmd := exec.Command("go", "test", "./testdata/kinds")
+	goCommand, err := exec.LookPath("go")
+	if err != nil {
+		t.Skip("the go command is not available")
+	}
+	cmd := exec.Command(goCommand, "test", "./testdata/kinds")
 	output, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Fatal("Go accepted IDs from different kinds")
