@@ -27,6 +27,9 @@
   import { clientAccount } from '$lib/state/clientAccount';
   import { toast } from '$lib/ui/toast';
   import { notificationPath } from '$lib/notificationPath';
+  import { serverGutterOrder } from '$lib/state/serverGutterOrder.svelte';
+  import type { Attachment } from 'svelte/attachments';
+  import { tick } from 'svelte';
 
   let { serverId }: { serverId: string } = $props();
 
@@ -43,6 +46,14 @@
   // svelte-ignore state_referenced_locally - serverId is stable per component lifetime (keyed by server.id)
   const serverConnection = serverConnectionManager.getClient(serverId);
   const registeredServer = $derived(serverRegistry.getServer(serverId));
+  const isOrigin = $derived(serverRegistry.isOriginServer(serverId));
+  const remoteIds = $derived(
+    serverRegistry.servers
+      .filter((server) => !serverRegistry.isOriginServer(server.id))
+      .map((server) => server.id)
+  );
+  const orderedRemoteIds = $derived(serverGutterOrder.ordered(remoteIds));
+  const orderIndex = $derived(orderedRemoteIds.indexOf(serverId));
   const host = $derived(registeredServer ? serverHost(registeredServer.url) : null);
 
   // After the URL collapse (ADR-027), the active context is the deployment-wide
@@ -111,12 +122,54 @@
   );
   let contextMenu = $state<ContextMenuTriggerDetails | null>(null);
   let signingOut = $state(false);
-  const serverContextMenuTrigger = contextMenuTrigger((details) => {
-    contextMenu = details;
-  });
+  let serverLink: HTMLAnchorElement | null = null;
+  let keyboardMenu = false;
+  /** Move keyboard focus into the menu after its popover reaches the top layer. */
+  const focusKeyboardMenu: Attachment<HTMLElement> = (node) => {
+    if (!keyboardMenu) return;
+    const frame = requestAnimationFrame(() =>
+      node
+        .closest('[role="menu"]')
+        ?.querySelector<HTMLButtonElement>('button:not(:disabled)')
+        ?.focus()
+    );
+    return () => cancelAnimationFrame(frame);
+  };
+  /** Native pointer menus plus an explicit keyboard path on every platform. */
+  const serverContextMenuTrigger: Attachment<HTMLElement> = (node) => {
+    serverLink = node.querySelector('a');
+    const detach = contextMenuTrigger((details) => {
+      keyboardMenu = false;
+      contextMenu = details;
+    })(node);
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      keyboardMenu = true;
+      const rect = node.getBoundingClientRect();
+      contextMenu = { position: { x: rect.right, y: rect.bottom }, presentation: 'auto' };
+    };
+    node.addEventListener('keydown', keydown);
+    return () => {
+      node.removeEventListener('keydown', keydown);
+      detach?.();
+      serverLink = null;
+    };
+  };
 
   function closeContextMenu(): void {
+    const returnFocus = keyboardMenu;
+    keyboardMenu = false;
     contextMenu = null;
+    if (returnFocus) void tick().then(() => serverLink?.focus({ preventScroll: true }));
+  }
+
+  /** Move within the remote list without changing navigation or authentication. */
+  function moveServer(direction: -1 | 1): void {
+    closeContextMenu();
+    serverGutterOrder.move(serverId, direction, remoteIds);
+    void tick().then(() => serverLink?.focus({ preventScroll: true }));
   }
 
   function handleMarkServerRead(): void {
@@ -262,6 +315,7 @@
   contextMenuTrigger={serverContextMenuTrigger}
   title={iconTitle}
   warning={problem !== null}
+  home={isOrigin}
 />
 
 {#if contextMenu}
@@ -276,6 +330,7 @@
       class="menu-section px-3 py-2 text-sm"
       role="presentation"
       data-testid="server-compatibility-section"
+      {@attach focusKeyboardMenu}
     >
       <div class="truncate font-medium text-text" data-testid="server-name">
         {iconServer.name}
@@ -324,6 +379,26 @@
       onMarkRead={handleMarkServerRead}
       onLeave={handleRemoveServer}
     />
+    {#if !isOrigin}
+      <MenuSection>
+        <MenuItem
+          icon="icon-[uil--arrow-up]"
+          onclick={() => moveServer(-1)}
+          disabled={orderIndex <= 0}
+          dataTestid="move-server-up"
+        >
+          {m('chat.server_gutter.move_up')}
+        </MenuItem>
+        <MenuItem
+          icon="icon-[uil--arrow-down]"
+          onclick={() => moveServer(1)}
+          disabled={orderIndex < 0 || orderIndex >= orderedRemoteIds.length - 1}
+          dataTestid="move-server-down"
+        >
+          {m('chat.server_gutter.move_down')}
+        </MenuItem>
+      </MenuSection>
+    {/if}
     <MenuSection>
       {#if signInRequired || stores.isAuthenticated}
         {#if signInRequired}

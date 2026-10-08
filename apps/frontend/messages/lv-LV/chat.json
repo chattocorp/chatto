@@ -53,6 +53,9 @@
       "copy_user_id": "Kopēt lietotāja ID"
     },
     "server_gutter": {
+      "home_server": "Sākuma serveris",
+      "move_up": "Pārvietot uz augšu",
+      "move_down": "Pārvietot uz leju",
       "add_server": "Pievienot serveri",
       "log_in": "Pieteikties šajā serverī",
       "sign_out": "Izrakstīties no šī servera",

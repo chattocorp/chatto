@@ -34,6 +34,7 @@ const { mocks } = vi.hoisted(() => {
         disableRoomCallWideFor: vi.fn()
       },
       showConnectionLostIcon: false,
+      otherServerIds: [] as string[],
       server: {
         id: 'remote',
         url: 'https://remote.example.com',
@@ -113,6 +114,9 @@ vi.mock(
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
+    get servers() {
+      return [mocks.server, ...mocks.otherServerIds.map((id) => ({ ...mocks.server, id }))];
+    },
     needsRecovery: () =>
       Boolean(
         mocks.server.token && mocks.server.reauthRequiredAt === null && !mocks.store.isAuthenticated
@@ -210,6 +214,7 @@ vi.mock('$lib/ui/toast', () => ({
 
 import { isRemoteSignInPending } from '$lib/auth/remoteSignIn.svelte';
 import ServerSidebarEntry from './ServerSidebarEntry.svelte';
+import { serverGutterOrder } from './state/serverGutterOrder.svelte';
 
 /** Opens the server menu as a right-click does. */
 function openServerMenu(icon: Element | null): void {
@@ -272,6 +277,8 @@ describe('ServerSidebarEntry', () => {
   let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    mocks.otherServerIds = [];
+    serverGutterOrder.save([]);
     consoleErrorSpy?.mockRestore();
     consoleWarnSpy?.mockRestore();
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -346,6 +353,44 @@ describe('ServerSidebarEntry', () => {
   afterEach(() => {
     consoleErrorSpy.mockRestore();
     consoleWarnSpy.mockRestore();
+  });
+
+  it('opens the move actions from the keyboard and keeps navigation unchanged', async () => {
+    mocks.otherServerIds = ['second'];
+    const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
+    const icon = q(container, '[data-testid="server-icon"]')!;
+    icon.focus();
+    icon.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'F10',
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true
+      })
+    );
+    await tick();
+    await vi.waitFor(() => expect(document.activeElement?.getAttribute('role')).toBe('menuitem'));
+    await expect.element(q(document.body, '[data-testid="move-server-up"]')).toBeDisabled();
+    const down = q(document.body, '[data-testid="move-server-down"]')!;
+    await expect.element(down).toBeEnabled();
+    down.click();
+    await tick();
+    expect(serverGutterOrder.ordered(['remote', 'second'])).toEqual(['second', 'remote']);
+    expect(document.activeElement).toBe(icon);
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+
+  it('marks the origin and omits its move actions', async () => {
+    mocks.isOriginServer.mockReturnValue(true);
+    const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
+    const icon = q(container, '[data-testid="server-icon"]')!;
+    const descriptionId = icon.getAttribute('aria-describedby');
+    expect(q(container, '[data-testid="server-home"]')).not.toBeNull();
+    expect(document.getElementById(descriptionId!)?.textContent).toBe('Home server');
+    openServerMenu(icon);
+    await vi.waitFor(() => expect(q(document.body, '[data-testid="server-name"]')).not.toBeNull());
+    expect(q(document.body, '[data-testid="move-server-up"]')).toBeNull();
+    expect(q(document.body, '[data-testid="move-server-down"]')).toBeNull();
   });
 
   it('opens server actions on right-click and marks the server as read', async () => {

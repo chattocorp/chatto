@@ -180,6 +180,60 @@ message ClearUsernameCooldownResponse {
   bool cleared = 1;
 }
 
+// Root-only external identity detail. Unlike public account responses, this
+// record exposes the issuer and raw subject for explicit operator recovery.
+message UserExternalIdentity {
+  // Event-time provider ID. The provider can since have changed or been removed.
+  string provider_id = 1;
+  // Event-time provider type.
+  string provider_type = 2;
+  // Exact OIDC issuer URL or OAuth-only provider namespace.
+  string issuer = 3;
+  // Exact provider subject. Empty for historical hash-only links.
+  string subject = 4;
+  // Stable identity hash used to select a link for removal.
+  string subject_hash = 5;
+  // True when a currently configured provider accepts this identity namespace.
+  // This does not test provider reachability or the provider account's status.
+  bool login_available = 6;
+}
+
+// Lists all stored links for one existing human account, including stale links.
+message ListUserExternalIdentitiesRequest {
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Current links, ordered by provider ID and stable identity hash.
+message ListUserExternalIdentitiesResponse {
+  repeated UserExternalIdentity identities = 1;
+}
+
+// Links an operator-verified identity to an existing human account. The operator
+// must verify that the subject belongs to this user. No provider login occurs.
+message LinkUserExternalIdentityRequest {
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Configured provider. Its current type and issuer determine the namespace.
+  string provider_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Exact subject issued by that provider. It is not an email lookup.
+  string subject = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+// The linked identity. An existing link to the same user succeeds without a new write.
+message LinkUserExternalIdentityResponse {
+  UserExternalIdentity identity = 1;
+}
+
+// Removes one stored link. Another configured identity or an enabled password
+// sign-in method must remain. Existing sessions remain valid.
+message UnlinkUserExternalIdentityRequest {
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Identity hash returned by ListUserExternalIdentities.
+  string subject_hash = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Successful removal. A missing user or link returns NOT_FOUND.
+message UnlinkUserExternalIdentityResponse {}
+
 // Root-equivalent local operator user commands.
 service OperatorUserService {
   // Creates a user as a local operator.
@@ -202,4 +256,11 @@ service OperatorUserService {
   rpc AddVerifiedEmail(AddVerifiedEmailRequest) returns (AddVerifiedEmailResponse);
   // Clears a user's self-service username-change cooldown.
   rpc ClearUsernameCooldown(ClearUsernameCooldownRequest) returns (ClearUsernameCooldownResponse);
+  // Lists all external identities for a human account, including stale links.
+  rpc ListUserExternalIdentities(ListUserExternalIdentitiesRequest) returns (ListUserExternalIdentitiesResponse);
+  // Links an operator-verified subject through a configured provider. Conflicts
+  // with another account's identity return ALREADY_EXISTS; ownership never moves.
+  rpc LinkUserExternalIdentity(LinkUserExternalIdentityRequest) returns (LinkUserExternalIdentityResponse);
+  // Removes a link, or returns FAILED_PRECONDITION for the last configured method.
+  rpc UnlinkUserExternalIdentity(UnlinkUserExternalIdentityRequest) returns (UnlinkUserExternalIdentityResponse);
 }

@@ -143,6 +143,19 @@ test.describe('video player @ffmpeg', () => {
         });
         await expect(inlineVideo).not.toHaveJSProperty('paused', true);
 
+        // Compact previews expose the same native PiP action as the large viewer.
+        await roomPage.mediaPlayer.hover();
+        const pipButton = roomPage.mediaPlayer.getByRole('button', {
+          name: 'Picture-in-picture',
+          exact: true
+        });
+        await expect(pipButton).toBeVisible();
+        await pipButton.click();
+        await expect
+          .poll(() => inlineVideo.evaluate((video) => document.pictureInPictureElement === video))
+          .toBe(true);
+        await page.evaluate(() => document.exitPictureInPicture());
+
         await videoMessage.reactViaToolbar('👍');
         await videoMessage.expectReaction('👍', 1);
 

@@ -15,6 +15,80 @@ import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
 test.describe('Server Directory (sidebar entry point)', () => {
+  test('server order syncs live between tabs without changing navigation', async ({
+    page,
+    context
+  }) => {
+    await context.route('http://order-*.localhost/**', (route) => route.abort());
+    await createAndLoginTestUser(page);
+    // Unload the app before seeding storage so catalogue writes cannot race it.
+    await page.goto('/readyz');
+    await page.evaluate(() => {
+      const servers = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]');
+      for (const id of ['order-a', 'order-b']) {
+        servers.push({
+          id,
+          url: `http://${id}.localhost`,
+          name: id,
+          iconUrl: null,
+          addedAt: Date.now()
+        });
+      }
+      localStorage.setItem('chatto:instances', JSON.stringify(servers));
+      localStorage.removeItem('chatto:serverGutterOrder');
+    });
+    await page.goto('/chat/servers');
+    const other = await context.newPage();
+    await other.goto('/chat/servers');
+    const icons = (tab: typeof page) =>
+      tab.getByTestId('remote-server-list').getByTestId('server-icon');
+    const hrefs = (tab: typeof page) =>
+      icons(tab).evaluateAll((links) => links.map((link) => link.getAttribute('href')));
+    const initial = ['/chat/order-a.localhost', '/chat/order-b.localhost'];
+    await expect.poll(() => hrefs(page)).toEqual(initial);
+    await expect.poll(() => hrefs(other)).toEqual(initial);
+    await expect(page.getByTestId('server-home')).toHaveCount(1);
+    const firstURL = page.url();
+    const otherURL = other.url();
+
+    await icons(page).first().focus();
+    await icons(page).first().press('Shift+F10');
+    await page.getByTestId('move-server-down').click();
+    const moved = ['/chat/order-b.localhost', '/chat/order-a.localhost'];
+    await expect.poll(() => hrefs(page)).toEqual(moved);
+    await expect.poll(() => hrefs(other)).toEqual(moved);
+
+    await icons(other).first().focus();
+    await icons(other).first().press('Shift+F10');
+    await other.getByTestId('move-server-down').click();
+    await expect.poll(() => hrefs(page)).toEqual(initial);
+    await expect.poll(() => hrefs(other)).toEqual(initial);
+    expect(page.url()).toBe(firstURL);
+    expect(other.url()).toBe(otherURL);
+    await other.close();
+
+    // Removing a registration clears its position even if it is added again later.
+    await icons(page).first().focus();
+    await icons(page).first().press('Shift+F10');
+    await page.getByRole('menuitem', { name: 'Remove server' }).click();
+    await page.getByRole('button', { name: 'Remove Server' }).click();
+    await expect.poll(() => hrefs(page)).toEqual(['/chat/order-b.localhost']);
+    await page.goto('/readyz');
+    await page.evaluate(() => {
+      const servers = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]');
+      servers.push({
+        id: 'order-a',
+        url: 'http://order-a.localhost',
+        name: 'order-a',
+        iconUrl: null,
+        addedAt: Date.now()
+      });
+      localStorage.setItem('chatto:instances', JSON.stringify(servers));
+    });
+    await page.goto('/chat/servers');
+    await expect.poll(() => hrefs(page)).toEqual(moved);
+  });
+
   test('sidebar "+" opens the Server Directory in a dialog', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
@@ -40,6 +114,133 @@ test.describe('Server Directory (sidebar entry point)', () => {
     });
     await expect(page.getByLabel('Server URL')).toBeVisible();
     await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+});
+
+test.describe('Server gutter on hybrid-input devices', () => {
+  test.use({ hasTouch: true, viewport: { width: 1280, height: 720 } });
+
+  test.beforeEach(async ({ page, context }) => {
+    // Chromium touch emulation reports a touch-only device. Model an attached
+    // mouse while retaining real browser touch input for taps and scrolling.
+    await context.addInitScript(() => {
+      const matchMedia = window.matchMedia.bind(window);
+      window.matchMedia = (query) => {
+        const result = matchMedia(query);
+        if (query === '(any-pointer: coarse) and (any-hover: none)') {
+          Object.defineProperty(result, 'matches', { value: false });
+        }
+        return result;
+      };
+    });
+    await context.route('http://order-*.localhost/**', (route) => route.abort());
+    await createAndLoginTestUser(page);
+    // Unload the app before seeding storage so catalogue writes cannot race it.
+    await page.goto('/readyz');
+    await page.evaluate(() => {
+      const servers = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]');
+      for (let i = 0; i < 20; i += 1) {
+        const id = `order-${i}.localhost`;
+        servers.push({
+          id,
+          url: `http://${id}`,
+          name: id,
+          iconUrl: null,
+          addedAt: Date.now()
+        });
+      }
+      localStorage.setItem('chatto:instances', JSON.stringify(servers));
+      localStorage.removeItem('chatto:serverGutterOrder');
+    });
+    await page.goto('/chat/servers');
+    await expect(page.getByTestId('remote-server-list')).toHaveAttribute(
+      'data-server-drag-ready',
+      'true'
+    );
+  });
+
+  test('touch taps navigate with mouse dragging enabled', async ({ page }) => {
+    await page.getByTestId('remote-server-list').getByTestId('server-icon').first().tap();
+    await expect(page).toHaveURL(/\/chat\/order-0\.localhost/);
+  });
+
+  test('touch swipes from an icon scroll without reordering', async ({ page }) => {
+    const zone = page.getByTestId('remote-server-list');
+    const icon = zone.getByTestId('server-icon').nth(4);
+    const box = await icon.boundingBox();
+    expect(box).not.toBeNull();
+    const x = box!.x + box!.width / 2;
+    const y = box!.y + box!.height / 2;
+    const client = await page.context().newCDPSession(page);
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x, y }]
+    });
+    for (let step = 1; step <= 6; step += 1) {
+      await client.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x, y: y - step * 24 }]
+      });
+    }
+    await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect
+      .poll(() =>
+        zone.evaluate((element) => {
+          for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+            if (parent.scrollHeight > parent.clientHeight && parent.scrollTop > 0) {
+              return parent.scrollTop;
+            }
+          }
+          return 0;
+        })
+      )
+      .toBeGreaterThan(0);
+    expect(await page.evaluate(() => localStorage.getItem('chatto:serverGutterOrder'))).toBeNull();
+    await expect(zone.getByTestId('server-icon').first()).toHaveAttribute(
+      'href',
+      '/chat/order-0.localhost'
+    );
+  });
+
+  test('touch long presses use the menu and mouse drags still reorder', async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+    const zone = page.getByTestId('remote-server-list');
+    const icons = zone.getByTestId('server-icon');
+    const initialURL = page.url();
+    const box = await icons.first().boundingBox();
+    expect(box).not.toBeNull();
+    const client = await page.context().newCDPSession(page);
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 }]
+    });
+    await expect(page.getByTestId('move-server-down')).toBeVisible();
+    await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.getByTestId('move-server-down').tap();
+    const savedOrder = () =>
+      page.evaluate(() => JSON.parse(localStorage.getItem('chatto:serverGutterOrder') ?? '[]'));
+    await expect
+      .poll(async () => (await savedOrder()).slice(0, 2))
+      .toEqual(['order-1.localhost', 'order-0.localhost']);
+
+    // A completed mouse drag moves the first icon back below the second one.
+    const first = await icons.first().boundingBox();
+    const second = await icons.nth(1).boundingBox();
+    expect(first).not.toBeNull();
+    expect(second).not.toBeNull();
+    const x = first!.x + first!.width / 2;
+    await page.mouse.move(x, first!.y + first!.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(x, second!.y + second!.height / 2, { steps: 6 });
+    await expect(page.locator('#dnd-action-dragged-el')).toBeVisible();
+    await expect(zone.locator('[data-is-dnd-shadow-item-hint]')).toHaveCount(1);
+    await page.mouse.up();
+    await expect
+      .poll(async () => (await savedOrder()).slice(0, 2))
+      .toEqual(['order-0.localhost', 'order-1.localhost']);
+    expect(page.url()).toBe(initialURL);
+    expect(pageErrors).toEqual([]);
   });
 });
 

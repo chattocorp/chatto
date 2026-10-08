@@ -23,7 +23,8 @@ const routes = [
     name: 'overview',
     // CI baseline: 340.3 KiB, with roughly 10% headroom. Theme customisation
     // added about 3.7 KiB of global CSS and preference code.
-    budgetKiB: 379,
+    // Server gutter ordering adds about 1.7 KiB; drag code stays lazy.
+    budgetKiB: 380,
     components: [
       'src/routes/+layout.svelte',
       'src/routes/chat/+layout.svelte',

@@ -79,9 +79,9 @@ export class RoomPage {
     return this.page.locator('media-player');
   }
 
-  /** Vidstack media controls bar */
+  /** Vidstack's default layout controls bar, separate from added preview controls. */
   get mediaControls(): Locator {
-    return this.page.locator('media-player media-controls');
+    return this.page.locator('media-player media-video-layout media-controls');
   }
 
   /** Vidstack settings menu (should be hidden via CSS for chat embeds) */

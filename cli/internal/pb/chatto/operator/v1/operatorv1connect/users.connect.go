@@ -63,6 +63,15 @@ const (
 	// OperatorUserServiceClearUsernameCooldownProcedure is the fully-qualified name of the
 	// OperatorUserService's ClearUsernameCooldown RPC.
 	OperatorUserServiceClearUsernameCooldownProcedure = "/chatto.operator.v1.OperatorUserService/ClearUsernameCooldown"
+	// OperatorUserServiceListUserExternalIdentitiesProcedure is the fully-qualified name of the
+	// OperatorUserService's ListUserExternalIdentities RPC.
+	OperatorUserServiceListUserExternalIdentitiesProcedure = "/chatto.operator.v1.OperatorUserService/ListUserExternalIdentities"
+	// OperatorUserServiceLinkUserExternalIdentityProcedure is the fully-qualified name of the
+	// OperatorUserService's LinkUserExternalIdentity RPC.
+	OperatorUserServiceLinkUserExternalIdentityProcedure = "/chatto.operator.v1.OperatorUserService/LinkUserExternalIdentity"
+	// OperatorUserServiceUnlinkUserExternalIdentityProcedure is the fully-qualified name of the
+	// OperatorUserService's UnlinkUserExternalIdentity RPC.
+	OperatorUserServiceUnlinkUserExternalIdentityProcedure = "/chatto.operator.v1.OperatorUserService/UnlinkUserExternalIdentity"
 )
 
 // OperatorUserServiceClient is a client for the chatto.operator.v1.OperatorUserService service.
@@ -87,6 +96,13 @@ type OperatorUserServiceClient interface {
 	AddVerifiedEmail(context.Context, *connect.Request[v1.AddVerifiedEmailRequest]) (*connect.Response[v1.AddVerifiedEmailResponse], error)
 	// Clears a user's self-service username-change cooldown.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
+	// Lists all external identities for a human account, including stale links.
+	ListUserExternalIdentities(context.Context, *connect.Request[v1.ListUserExternalIdentitiesRequest]) (*connect.Response[v1.ListUserExternalIdentitiesResponse], error)
+	// Links an operator-verified subject through a configured provider. Conflicts
+	// with another account's identity return ALREADY_EXISTS; ownership never moves.
+	LinkUserExternalIdentity(context.Context, *connect.Request[v1.LinkUserExternalIdentityRequest]) (*connect.Response[v1.LinkUserExternalIdentityResponse], error)
+	// Removes a link, or returns FAILED_PRECONDITION for the last configured method.
+	UnlinkUserExternalIdentity(context.Context, *connect.Request[v1.UnlinkUserExternalIdentityRequest]) (*connect.Response[v1.UnlinkUserExternalIdentityResponse], error)
 }
 
 // NewOperatorUserServiceClient constructs a client for the chatto.operator.v1.OperatorUserService
@@ -160,21 +176,42 @@ func NewOperatorUserServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(operatorUserServiceMethods.ByName("ClearUsernameCooldown")),
 			connect.WithClientOptions(opts...),
 		),
+		listUserExternalIdentities: connect.NewClient[v1.ListUserExternalIdentitiesRequest, v1.ListUserExternalIdentitiesResponse](
+			httpClient,
+			baseURL+OperatorUserServiceListUserExternalIdentitiesProcedure,
+			connect.WithSchema(operatorUserServiceMethods.ByName("ListUserExternalIdentities")),
+			connect.WithClientOptions(opts...),
+		),
+		linkUserExternalIdentity: connect.NewClient[v1.LinkUserExternalIdentityRequest, v1.LinkUserExternalIdentityResponse](
+			httpClient,
+			baseURL+OperatorUserServiceLinkUserExternalIdentityProcedure,
+			connect.WithSchema(operatorUserServiceMethods.ByName("LinkUserExternalIdentity")),
+			connect.WithClientOptions(opts...),
+		),
+		unlinkUserExternalIdentity: connect.NewClient[v1.UnlinkUserExternalIdentityRequest, v1.UnlinkUserExternalIdentityResponse](
+			httpClient,
+			baseURL+OperatorUserServiceUnlinkUserExternalIdentityProcedure,
+			connect.WithSchema(operatorUserServiceMethods.ByName("UnlinkUserExternalIdentity")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // operatorUserServiceClient implements OperatorUserServiceClient.
 type operatorUserServiceClient struct {
-	createUser            *connect.Client[v1.CreateUserRequest, v1.CreateUserResponse]
-	listUsers             *connect.Client[v1.ListUsersRequest, v1.ListUsersResponse]
-	getUser               *connect.Client[v1.GetUserRequest, v1.GetUserResponse]
-	assignRole            *connect.Client[v1.AssignRoleRequest, v1.AssignRoleResponse]
-	revokeRole            *connect.Client[v1.RevokeRoleRequest, v1.RevokeRoleResponse]
-	updateUser            *connect.Client[v1.UpdateUserRequest, v1.UpdateUserResponse]
-	setUserPassword       *connect.Client[v1.SetUserPasswordRequest, v1.SetUserPasswordResponse]
-	deleteUser            *connect.Client[v1.DeleteUserRequest, v1.DeleteUserResponse]
-	addVerifiedEmail      *connect.Client[v1.AddVerifiedEmailRequest, v1.AddVerifiedEmailResponse]
-	clearUsernameCooldown *connect.Client[v1.ClearUsernameCooldownRequest, v1.ClearUsernameCooldownResponse]
+	createUser                 *connect.Client[v1.CreateUserRequest, v1.CreateUserResponse]
+	listUsers                  *connect.Client[v1.ListUsersRequest, v1.ListUsersResponse]
+	getUser                    *connect.Client[v1.GetUserRequest, v1.GetUserResponse]
+	assignRole                 *connect.Client[v1.AssignRoleRequest, v1.AssignRoleResponse]
+	revokeRole                 *connect.Client[v1.RevokeRoleRequest, v1.RevokeRoleResponse]
+	updateUser                 *connect.Client[v1.UpdateUserRequest, v1.UpdateUserResponse]
+	setUserPassword            *connect.Client[v1.SetUserPasswordRequest, v1.SetUserPasswordResponse]
+	deleteUser                 *connect.Client[v1.DeleteUserRequest, v1.DeleteUserResponse]
+	addVerifiedEmail           *connect.Client[v1.AddVerifiedEmailRequest, v1.AddVerifiedEmailResponse]
+	clearUsernameCooldown      *connect.Client[v1.ClearUsernameCooldownRequest, v1.ClearUsernameCooldownResponse]
+	listUserExternalIdentities *connect.Client[v1.ListUserExternalIdentitiesRequest, v1.ListUserExternalIdentitiesResponse]
+	linkUserExternalIdentity   *connect.Client[v1.LinkUserExternalIdentityRequest, v1.LinkUserExternalIdentityResponse]
+	unlinkUserExternalIdentity *connect.Client[v1.UnlinkUserExternalIdentityRequest, v1.UnlinkUserExternalIdentityResponse]
 }
 
 // CreateUser calls chatto.operator.v1.OperatorUserService.CreateUser.
@@ -227,6 +264,23 @@ func (c *operatorUserServiceClient) ClearUsernameCooldown(ctx context.Context, r
 	return c.clearUsernameCooldown.CallUnary(ctx, req)
 }
 
+// ListUserExternalIdentities calls
+// chatto.operator.v1.OperatorUserService.ListUserExternalIdentities.
+func (c *operatorUserServiceClient) ListUserExternalIdentities(ctx context.Context, req *connect.Request[v1.ListUserExternalIdentitiesRequest]) (*connect.Response[v1.ListUserExternalIdentitiesResponse], error) {
+	return c.listUserExternalIdentities.CallUnary(ctx, req)
+}
+
+// LinkUserExternalIdentity calls chatto.operator.v1.OperatorUserService.LinkUserExternalIdentity.
+func (c *operatorUserServiceClient) LinkUserExternalIdentity(ctx context.Context, req *connect.Request[v1.LinkUserExternalIdentityRequest]) (*connect.Response[v1.LinkUserExternalIdentityResponse], error) {
+	return c.linkUserExternalIdentity.CallUnary(ctx, req)
+}
+
+// UnlinkUserExternalIdentity calls
+// chatto.operator.v1.OperatorUserService.UnlinkUserExternalIdentity.
+func (c *operatorUserServiceClient) UnlinkUserExternalIdentity(ctx context.Context, req *connect.Request[v1.UnlinkUserExternalIdentityRequest]) (*connect.Response[v1.UnlinkUserExternalIdentityResponse], error) {
+	return c.unlinkUserExternalIdentity.CallUnary(ctx, req)
+}
+
 // OperatorUserServiceHandler is an implementation of the chatto.operator.v1.OperatorUserService
 // service.
 type OperatorUserServiceHandler interface {
@@ -250,6 +304,13 @@ type OperatorUserServiceHandler interface {
 	AddVerifiedEmail(context.Context, *connect.Request[v1.AddVerifiedEmailRequest]) (*connect.Response[v1.AddVerifiedEmailResponse], error)
 	// Clears a user's self-service username-change cooldown.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
+	// Lists all external identities for a human account, including stale links.
+	ListUserExternalIdentities(context.Context, *connect.Request[v1.ListUserExternalIdentitiesRequest]) (*connect.Response[v1.ListUserExternalIdentitiesResponse], error)
+	// Links an operator-verified subject through a configured provider. Conflicts
+	// with another account's identity return ALREADY_EXISTS; ownership never moves.
+	LinkUserExternalIdentity(context.Context, *connect.Request[v1.LinkUserExternalIdentityRequest]) (*connect.Response[v1.LinkUserExternalIdentityResponse], error)
+	// Removes a link, or returns FAILED_PRECONDITION for the last configured method.
+	UnlinkUserExternalIdentity(context.Context, *connect.Request[v1.UnlinkUserExternalIdentityRequest]) (*connect.Response[v1.UnlinkUserExternalIdentityResponse], error)
 }
 
 // NewOperatorUserServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -319,6 +380,24 @@ func NewOperatorUserServiceHandler(svc OperatorUserServiceHandler, opts ...conne
 		connect.WithSchema(operatorUserServiceMethods.ByName("ClearUsernameCooldown")),
 		connect.WithHandlerOptions(opts...),
 	)
+	operatorUserServiceListUserExternalIdentitiesHandler := connect.NewUnaryHandler(
+		OperatorUserServiceListUserExternalIdentitiesProcedure,
+		svc.ListUserExternalIdentities,
+		connect.WithSchema(operatorUserServiceMethods.ByName("ListUserExternalIdentities")),
+		connect.WithHandlerOptions(opts...),
+	)
+	operatorUserServiceLinkUserExternalIdentityHandler := connect.NewUnaryHandler(
+		OperatorUserServiceLinkUserExternalIdentityProcedure,
+		svc.LinkUserExternalIdentity,
+		connect.WithSchema(operatorUserServiceMethods.ByName("LinkUserExternalIdentity")),
+		connect.WithHandlerOptions(opts...),
+	)
+	operatorUserServiceUnlinkUserExternalIdentityHandler := connect.NewUnaryHandler(
+		OperatorUserServiceUnlinkUserExternalIdentityProcedure,
+		svc.UnlinkUserExternalIdentity,
+		connect.WithSchema(operatorUserServiceMethods.ByName("UnlinkUserExternalIdentity")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.operator.v1.OperatorUserService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case OperatorUserServiceCreateUserProcedure:
@@ -341,6 +420,12 @@ func NewOperatorUserServiceHandler(svc OperatorUserServiceHandler, opts ...conne
 			operatorUserServiceAddVerifiedEmailHandler.ServeHTTP(w, r)
 		case OperatorUserServiceClearUsernameCooldownProcedure:
 			operatorUserServiceClearUsernameCooldownHandler.ServeHTTP(w, r)
+		case OperatorUserServiceListUserExternalIdentitiesProcedure:
+			operatorUserServiceListUserExternalIdentitiesHandler.ServeHTTP(w, r)
+		case OperatorUserServiceLinkUserExternalIdentityProcedure:
+			operatorUserServiceLinkUserExternalIdentityHandler.ServeHTTP(w, r)
+		case OperatorUserServiceUnlinkUserExternalIdentityProcedure:
+			operatorUserServiceUnlinkUserExternalIdentityHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -388,4 +473,16 @@ func (UnimplementedOperatorUserServiceHandler) AddVerifiedEmail(context.Context,
 
 func (UnimplementedOperatorUserServiceHandler) ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.operator.v1.OperatorUserService.ClearUsernameCooldown is not implemented"))
+}
+
+func (UnimplementedOperatorUserServiceHandler) ListUserExternalIdentities(context.Context, *connect.Request[v1.ListUserExternalIdentitiesRequest]) (*connect.Response[v1.ListUserExternalIdentitiesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.operator.v1.OperatorUserService.ListUserExternalIdentities is not implemented"))
+}
+
+func (UnimplementedOperatorUserServiceHandler) LinkUserExternalIdentity(context.Context, *connect.Request[v1.LinkUserExternalIdentityRequest]) (*connect.Response[v1.LinkUserExternalIdentityResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.operator.v1.OperatorUserService.LinkUserExternalIdentity is not implemented"))
+}
+
+func (UnimplementedOperatorUserServiceHandler) UnlinkUserExternalIdentity(context.Context, *connect.Request[v1.UnlinkUserExternalIdentityRequest]) (*connect.Response[v1.UnlinkUserExternalIdentityResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.operator.v1.OperatorUserService.UnlinkUserExternalIdentity is not implemented"))
 }
