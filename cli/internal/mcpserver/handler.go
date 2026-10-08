@@ -171,6 +171,17 @@ func withRequestDeadline(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), requestTimeout)
 		defer cancel()
+		// Context cancellation alone does not interrupt a blocked body read or
+		// response write. Bound socket I/O too, so slow clients release their
+		// admission slots. Clear deadlines for subsequent keep-alive requests.
+		deadline, _ := ctx.Deadline()
+		controller := http.NewResponseController(w)
+		if controller.SetReadDeadline(deadline) == nil {
+			defer func() { _ = controller.SetReadDeadline(time.Time{}) }()
+		}
+		if controller.SetWriteDeadline(deadline) == nil {
+			defer func() { _ = controller.SetWriteDeadline(time.Time{}) }()
+		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

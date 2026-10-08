@@ -117,6 +117,8 @@ structured retry guidance with `not_applied` outcome. No request queue or
 cross-replica enforcement is added. See
 [`mcpserver/admission.go`](../../cli/internal/mcpserver/admission.go) and the
 [admission state](runtime-state.md#mcp-admission-state).
+The request deadline also bounds HTTP body reads and response writes, so a
+slow client cannot keep admission slots after its I/O deadline.
 
 MCP advertises only tools. Its stateless descriptor does not advertise logging
 or catalog-change subscriptions. Resource, prompt, and completion methods

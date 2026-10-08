@@ -1,9 +1,12 @@
 package mcpserver
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -402,5 +405,63 @@ func TestMCPAdmissionRetryRounding(t *testing.T) {
 		if w.Header().Get("Retry-After") != test.seconds {
 			t.Fatal("retry delay was not rounded up")
 		}
+	}
+}
+
+// A context timeout does not unblock net/http body reads or socket writes.
+// Use real TCP clients that withhold input or stop reading the response.
+func TestMCPAdmissionSlowHTTPClientsReleaseSlots(t *testing.T) {
+	for _, operation := range []string{"read", "write"} {
+		t.Run(operation, func(t *testing.T) {
+			a := newAdmissionController()
+			done := make(chan struct{})
+			var ioErr error
+			handler := admissionTestHandler(a, func(context.Context, string, *http.Request) (*auth.TokenInfo, error) {
+				return &auth.TokenInfo{UserID: "slow-client-account"}, nil
+			}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if operation == "read" {
+					_, ioErr = io.ReadAll(r.Body)
+				} else {
+					chunk := bytes.Repeat([]byte("x"), 64*1024)
+					for range 1024 {
+						if _, ioErr = w.Write(chunk); ioErr != nil {
+							break
+						}
+					}
+				}
+			}))
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				ctx, cancel := context.WithTimeout(r.Context(), 50*time.Millisecond)
+				defer cancel()
+				withRequestDeadline(handler).ServeHTTP(w, r.WithContext(ctx))
+				close(done)
+			}))
+			defer server.Close()
+			conn, err := net.DialTimeout("tcp", server.Listener.Addr().String(), time.Second)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer conn.Close()
+			if tcp, ok := conn.(*net.TCPConn); ok {
+				if err := tcp.SetReadBuffer(1024); err != nil {
+					t.Fatal(err)
+				}
+			}
+			length, body := 0, ""
+			if operation == "read" {
+				length, body = 10, "x"
+			}
+			if _, err := fmt.Fprintf(conn, "POST /mcp HTTP/1.1\r\nHost: chat.example\r\nAuthorization: Bearer slow-client-token\r\nContent-Length: %d\r\n\r\n%s", length, body); err != nil {
+				t.Fatal(err)
+			}
+			select {
+			case <-done:
+				if ioErr == nil || a.verification.active != 0 || a.account.active != 0 {
+					t.Fatal("HTTP deadline did not interrupt I/O and release slots")
+				}
+			case <-time.After(time.Second):
+				t.Fatal("slow HTTP client kept admission slots after the deadline")
+			}
+		})
 	}
 }
