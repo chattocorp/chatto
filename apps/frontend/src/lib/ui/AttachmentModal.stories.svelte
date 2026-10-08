@@ -2,6 +2,7 @@
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import AttachmentModal from './AttachmentModal.svelte';
   import AttachmentPreview from './AttachmentPreview.svelte';
+  import pdfUrl from '$lib/test-utils/fixtures/attachment.pdf?url';
   import { renderMarkdown } from '$lib/markdown';
   const { Story } = defineMeta({
     title: 'UI/Attachment viewer',
@@ -26,6 +27,7 @@
       )
   }));
   let documentOpen = $state(false);
+  let pdfOpen = $state(false);
   const archiveDescription =
     'Project files and reference material for the next release.\n\nIncludes source files, illustrations, and notes from the design review.';
   let markdownOpen = $state(false);
@@ -131,6 +133,35 @@
         }}
         serverId="story"
         url={null}
+        busy={false}
+        onpreview={() => {}}
+        onerror={async () => null}
+      />
+    </AttachmentModal>
+  {/if}
+</Story>
+
+<Story name="Native PDF document" asChild>
+  <button class="btn-action" onclick={() => (pdfOpen = true)}>Open PDF</button>
+  {#if pdfOpen}
+    <AttachmentModal
+      filename="Report.pdf"
+      contentType="application/pdf"
+      description="A two-page PDF document."
+      downloadUrl={pdfUrl}
+      ondownload={() => {}}
+      onclose={() => (pdfOpen = false)}
+    >
+      <AttachmentPreview
+        item={{
+          id: 'pdf',
+          filename: 'Report.pdf',
+          contentType: 'application/pdf',
+          width: 0,
+          height: 0
+        }}
+        serverId="story"
+        url={pdfUrl}
         busy={false}
         onpreview={() => {}}
         onerror={async () => null}

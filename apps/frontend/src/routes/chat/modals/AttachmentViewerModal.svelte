@@ -36,10 +36,16 @@ media. HTML consent is never stored in history or carried to another selection.
   let recoveryUsed = false;
   let retryAttempt = 0;
   let previewRequest: AbortController | null = null;
+  const pdfViewerEnabled = typeof navigator !== 'undefined' && navigator.pdfViewerEnabled === true;
   const html = $derived(isHtmlAttachment(item.contentType));
   const markdown = $derived(isMarkdownAttachment(item.contentType, item.filename));
   const type = $derived(item.contentType.split(';', 1)[0].trim().toLowerCase());
-  const previewable = $derived(html || markdown || /^(image|audio|video)\//.test(type));
+  const previewable = $derived(
+    html ||
+      markdown ||
+      /^(image|audio|video)\//.test(type) ||
+      (type === 'application/pdf' && pdfViewerEnabled)
+  );
   const zoomable = $derived(type.startsWith('image/') && !item.videoProcessing);
   const downloadUrl = $derived(
     attachmentDownloadUrl(assetUrlForServer(modal.serverId, item.assetUrl?.url))
@@ -82,6 +88,7 @@ media. HTML consent is never stored in history or carried to another selection.
     previewRequest?.abort();
     previewRequest = null;
     markdownHtml = null;
+    previewUrl = null;
   }
   function navigate(direction: -1 | 1) {
     generation += 1;
@@ -275,6 +282,7 @@ media. HTML consent is never stored in history or carried to another selection.
       {markdownHtml}
       {busy}
       {zoomable}
+      {pdfViewerEnabled}
       onpreview={() => {
         recoveryUsed = false;
         void showPreview();

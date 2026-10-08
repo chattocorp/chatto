@@ -84,7 +84,7 @@ test('Markdown attachments render automatically and download their original byte
   await expect(trigger).toBeFocused();
 });
 
-test('another user can download unsupported files and play audio in the shared mobile viewer', async ({
+test('another user can preview PDFs, download unsupported files and play audio in the shared mobile viewer', async ({
   page,
   chatPage,
   serverURL
@@ -105,8 +105,14 @@ test('another user can download unsupported files and play audio in the shared m
     ['test-audio.mp3', 'audio/mpeg']
   ]) {
     const audio = contentType.startsWith('audio/');
-    const path = audio ? 'e2e/fixtures/test-audio.mp3' : testInfo.outputPath(filename);
-    if (!audio) await writeFile(path, `Original bytes for ${filename}\n`);
+    const pdf = contentType === 'application/pdf';
+    const nativePdf = pdf && (await page.evaluate(() => navigator.pdfViewerEnabled === true));
+    const path = audio
+      ? 'e2e/fixtures/test-audio.mp3'
+      : pdf
+        ? 'src/lib/test-utils/fixtures/attachment.pdf'
+        : testInfo.outputPath(filename);
+    if (!audio && !pdf) await writeFile(path, `Original bytes for ${filename}\n`);
     const description = `Notes for ${filename}\n${'A long description that stays readable on a small screen.\n'.repeat(14)}`;
     await postMessageAttachmentOnRemote(
       serverURL,
@@ -123,7 +129,7 @@ test('another user can download unsupported files and play audio in the shared m
     const dialog = page.getByRole('dialog', { name: filename, exact: true });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText(contentType, { exact: true })).toBeVisible();
-    await expect(dialog.locator('iframe')).toHaveCount(0);
+    await expect(dialog.locator('iframe')).toHaveCount(nativePdf ? 1 : 0);
     const caption = dialog.locator('p[id]');
     await expect(caption).toHaveText(description);
     await expect(dialog).toHaveAttribute('aria-describedby', (await caption.getAttribute('id'))!);
@@ -142,6 +148,10 @@ test('another user can download unsupported files and play audio in the shared m
         await element.play();
       });
       await expect(dialog.locator('audio')).toHaveJSProperty('paused', false);
+    } else if (nativePdf) {
+      await expect(dialog.getByTitle(`Preview of ${filename}`)).toBeVisible();
+      await expect(dialog.locator('iframe')).toHaveAttribute('referrerpolicy', 'no-referrer');
+      await expect(dialog.locator('iframe')).toHaveAttribute('src', /\/assets\/files\//);
     } else {
       await expect(
         dialog.getByText('No preview is available for this file. Use Download to save it.')
@@ -150,9 +160,9 @@ test('another user can download unsupported files and play audio in the shared m
     }
     if (contentType === 'application/pdf') {
       await page.setViewportSize({ width: 1440, height: 1000 });
-      const fallback = dialog.getByText(
-        'No preview is available for this file. Use Download to save it.'
-      );
+      const fallback = nativePdf
+        ? dialog.locator('iframe')
+        : dialog.getByText('No preview is available for this file. Use Download to save it.');
       const previewBounds = (await fallback.boundingBox())!;
       const captionBounds = (await caption.boundingBox())!;
       expect(captionBounds.x).toBeGreaterThanOrEqual(previewBounds.x + previewBounds.width);
@@ -170,7 +180,7 @@ test('another user can download unsupported files and play audio in the shared m
     await page.goBack();
     await expect(dialog).not.toBeVisible();
     await expect(trigger).toBeFocused();
-    await expect(page.locator('dialog audio')).toHaveCount(0);
+    await expect(page.locator('dialog audio, dialog iframe')).toHaveCount(0);
   }
   expect(errors).toEqual([]);
 });

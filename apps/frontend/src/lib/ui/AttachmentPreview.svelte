@@ -20,6 +20,7 @@ component on selection changes so playback and consent cannot cross items.
     busy,
     markdownHtml = null,
     zoomable = false,
+    pdfViewerEnabled = typeof navigator !== 'undefined' && navigator.pdfViewerEnabled === true,
     onpreview,
     onerror
   }: {
@@ -31,6 +32,8 @@ component on selection changes so playback and consent cannot cross items.
     markdownHtml?: string | null;
     /** Static image previews can use the viewer's zoom surface. */
     zoomable?: boolean;
+    /** Native PDF capability, supplied by the owner or detected in the browser. */
+    pdfViewerEnabled?: boolean;
     onpreview: () => void;
     onerror: () => Promise<string | null>;
   } = $props();
@@ -71,6 +74,13 @@ component on selection changes so playback and consent cannot cross items.
     referrerpolicy="no-referrer"
     class="h-full w-full rounded-md border-0 bg-white"
     in:scale={{ start: 0.98, ...expoOutTransition() }}
+  ></iframe>
+{:else if url && type === 'application/pdf' && pdfViewerEnabled}
+  <iframe
+    src={url}
+    title={m('room.attachment.html_viewer.preview_title', { filename: item.filename })}
+    referrerpolicy="no-referrer"
+    class="h-full w-full rounded-md border-0 bg-white"
   ></iframe>
 {:else if url && item.videoProcessing?.status === 'COMPLETED' && (type.startsWith('video/') || type === 'image/gif')}
   {#await import('$lib/components/chat/VideoPlayer.svelte')}
