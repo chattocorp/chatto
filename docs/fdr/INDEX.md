@@ -58,3 +58,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-046](FDR-046-privileged-mode.md)                       | Privileged Mode                       | Active       | 2026-09-24    |
 | [FDR-047](FDR-047-first-run-setup.md)                       | First-Run Setup                       | Active       | 2026-09-10    |
 | [FDR-048](FDR-048-chatto-mobile.md)                         | Chatto Mobile                         | Experimental | 2026-09-25    |
+| [FDR-049](FDR-049-message-send-retries.md)                  | Message Send Retries                  | Experimental | 2026-10-08    |

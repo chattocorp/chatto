@@ -25,6 +25,15 @@ Related decisions: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md) and
 
 ## KV buckets
 
+Message-post claims use `message_post.{actorId}.{uuid}` in `RUNTIME_STATE`.
+The immutable protobuf `runtime_state.v1.MessagePostClaim` contains a
+server-generated message event ID and a request HMAC. `MessageModel` owns
+leader reads and KV `Create`, with a fixed 30-minute per-key TTL. Exact retries
+do not update the key. The existing 24-hour expiry-marker policy remains.
+EVT alone proves that the reserved message ID committed. There is no watcher,
+new consumer, or caller-key data in EVT. See
+[ADR-115](../adr/ADR-115-message-post-idempotency.md).
+
 | Bucket            | Storage | Backup | Description                                                                                                                                                                                                             |
 | ----------------- | ------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `RUNTIME_STATE`   | File    | Yes    | Persisted latest-value runtime/user state, including notification visibility boundaries, credential-usage telemetry, push subscriptions, auth/workflow tokens, wrapped app DEK records, and encrypted snapshot pointers |

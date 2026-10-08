@@ -133,7 +133,7 @@ func (c *ChattoCore) ImportHistoricalMessage(ctx context.Context, input Historic
 		}
 	}
 	_, err := c.appendMessageWithOptionalThreadCreated(ctx, evtstream.RoomAggregate(input.RoomID), bodyEvent, postedEvent,
-		nil, "", false, attachedEvents, processingEvents, validateRoomAndReply, nil)
+		nil, "", false, attachedEvents, processingEvents, validateRoomAndReply, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("import historical message: %w", err)
 	}

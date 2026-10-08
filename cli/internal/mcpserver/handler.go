@@ -101,7 +101,7 @@ func newResourceHandler(chattoCore *core.ChattoCore, issuer, resource, version s
 		}, listRoomMessagesHandler(chattoCore))
 		addTool(server, &mcp.Tool{
 			Name:        "post_message",
-			Description: "Post one text message to a joined room on the connected Chatto server. This operation is not idempotent; do not retry it after an uncertain result.",
+			Description: "Post one text message to a joined room on the connected Chatto server. Supply an optional caller-generated UUID idempotency_key to retry the exact request safely within 30 minutes of the first attempt. Changed arguments with the same key are rejected. Without a key, do not retry after an uncertain result. The idempotent hint is false because the key is optional.",
 			Annotations: mutationToolAnnotations("Post message", false, false),
 		}, postMessageHandler(chattoCore))
 		addTool(server, &mcp.Tool{

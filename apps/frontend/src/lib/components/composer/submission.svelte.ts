@@ -11,6 +11,7 @@ import type { MentionRolesStatus } from '@chatto/client/server/mentionRoles';
 import { extractMentions, hasRoleOrVirtualMention } from '$lib/mentions';
 import { toast } from '$lib/ui/toast';
 import { m } from '$lib/i18n/messages';
+import type { MessageSendOperation } from '@chatto/client/messaging/messageSend';
 
 export type AttachmentSubmissionStatus =
   | { phase: 'preparing' }
@@ -33,7 +34,7 @@ export type PreparedPost = {
 };
 
 type MessageSubmissionAPI = {
-  createMessage(input: CreateMessageInput): Promise<CreateMessageResult>;
+  prepareMessage(input: CreateMessageInput): MessageSendOperation<CreateMessageResult>;
   updateMessage(input: UpdateMessageInput): Promise<unknown>;
 };
 
@@ -63,6 +64,12 @@ export class ComposerSubmissionState {
   readonly attachmentStatuses = new SvelteMap<File, AttachmentSubmissionStatus>();
 
   readonly #dependencies: ComposerSubmissionDependencies;
+  // An unchanged failed draft resumes the same client-owned send operation.
+  // Successful sends release it so repeating the text is an intended new send.
+  #pendingSend: {
+    post: PreparedPost;
+    operation: MessageSendOperation<CreateMessageResult>;
+  } | null = null;
 
   constructor(dependencies: ComposerSubmissionDependencies) {
     this.#dependencies = dependencies;
@@ -155,19 +162,31 @@ export class ComposerSubmissionState {
     try {
       let response: CreateMessageResult;
       try {
-        response = await this.#dependencies.getAPI().createMessage({
-          roomId: post.roomId,
-          body: post.bodyToSend,
-          attachmentAssetIds: post.attachmentAssetIds,
-          attachments: post.attachmentAssetIds?.length ? null : post.filesToSend,
-          attachmentDescriptions: post.attachmentDescriptions,
-          onAttachmentUploadUpdate: (update) => this.updateAttachmentStatus(update),
-          threadRootEventId: post.threadRootEventId,
-          inReplyTo: post.inReplyTo,
-          linkPreviewToken: post.linkPreviewToken,
-          alsoSendToChannel: post.alsoSendToChannel,
-          createThread: post.createThread
-        });
+        if (!this.#pendingSend || !samePreparedPost(this.#pendingSend.post, post)) {
+          const operation = this.#dependencies.getAPI().prepareMessage({
+            roomId: post.roomId,
+            body: post.bodyToSend,
+            attachmentAssetIds: post.attachmentAssetIds,
+            attachments: post.attachmentAssetIds?.length ? null : post.filesToSend,
+            attachmentDescriptions: post.attachmentDescriptions,
+            onAttachmentUploadUpdate: (update) => this.updateAttachmentStatus(update),
+            threadRootEventId: post.threadRootEventId,
+            inReplyTo: post.inReplyTo,
+            linkPreviewToken: post.linkPreviewToken,
+            alsoSendToChannel: post.alsoSendToChannel,
+            createThread: post.createThread
+          });
+          this.#pendingSend = {
+            post: {
+              ...post,
+              filesToSend: post.filesToSend?.slice() ?? null,
+              attachmentAssetIds: post.attachmentAssetIds?.slice(),
+              attachmentDescriptions: post.attachmentDescriptions?.map((entry) => ({ ...entry }))
+            },
+            operation
+          };
+        }
+        response = await this.#pendingSend.operation.send();
       } catch (error) {
         if (![...this.attachmentStatuses.values()].some((status) => status.phase === 'failed')) {
           this.attachmentStatuses.clear();
@@ -180,11 +199,41 @@ export class ComposerSubmissionState {
       }
 
       this.attachmentStatuses.clear();
+      this.#pendingSend = null;
       this.#dependencies.onPostSuccess(post, response.event);
     } finally {
       this.loading = false;
     }
   }
+}
+
+/** Compare send intent, including File identities, without reading file bytes. */
+function samePreparedPost(first: PreparedPost, second: PreparedPost): boolean {
+  const firstFiles = first.filesToSend;
+  const secondFiles = second.filesToSend;
+  const firstDescriptions = first.attachmentDescriptions;
+  const secondDescriptions = second.attachmentDescriptions;
+  return (
+    first.draftKey === second.draftKey &&
+    first.roomId === second.roomId &&
+    first.bodyToSend === second.bodyToSend &&
+    first.threadRootEventId === second.threadRootEventId &&
+    first.inReplyTo === second.inReplyTo &&
+    first.linkPreviewToken === second.linkPreviewToken &&
+    first.alsoSendToChannel === second.alsoSendToChannel &&
+    first.createThread === second.createThread &&
+    (first.attachmentAssetIds?.length ?? 0) === (second.attachmentAssetIds?.length ?? 0) &&
+    (first.attachmentAssetIds ?? []).every(
+      (id, index) => id === second.attachmentAssetIds?.[index]
+    ) &&
+    (firstFiles?.length ?? 0) === (secondFiles?.length ?? 0) &&
+    (firstFiles ?? []).every((file, index) => file === secondFiles?.[index]) &&
+    (firstDescriptions?.length ?? 0) === (secondDescriptions?.length ?? 0) &&
+    (firstDescriptions ?? []).every((entry, index) => {
+      const other = secondDescriptions?.[index];
+      return entry.file === other?.file && entry.description === other.description;
+    })
+  );
 }
 
 export function uploadPercentage(status: AttachmentSubmissionStatus): number | null {

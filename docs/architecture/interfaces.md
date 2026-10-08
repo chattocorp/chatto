@@ -162,6 +162,13 @@ The shared posting check combines membership, room policy,
 read access, and broad or interaction-scoped write authority. The write model
 repeats this check inside the room aggregate's OCC attempt. Interaction posting
 uses the existing thread projection; it adds no durable events or runtime keys.
+`MessageService.CreateMessage` accepts an optional UUID `idempotency_key`.
+ConnectRPC and MCP `post_message`
+delegate this key to `MessageModel`. Exact retries retain the message ID for
+30 minutes; changed arguments fail. The shared client owns prepared sends and
+retains uploaded asset IDs across retries. See
+[ADR-115](../adr/ADR-115-message-post-idempotency.md).
+
 `MessageService.CreateMessage` accepts attachment descriptions keyed by an asset
 ID in the same request. `MessageService.SetAttachmentDescription` replaces or
 clears one current description with message-edit authorization. Hydrated message

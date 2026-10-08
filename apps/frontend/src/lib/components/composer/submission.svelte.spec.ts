@@ -42,7 +42,13 @@ describe('ComposerSubmissionState', () => {
     toast.clear();
 
     state = new ComposerSubmissionState({
-      getAPI: () => ({ createMessage, updateMessage }),
+      getAPI: () => ({
+        prepareMessage: (input) => ({
+          idempotencyKey: 'test-key',
+          send: () => createMessage(input)
+        }),
+        updateMessage
+      }),
       getMentionRoleStatus: () => mentionRoleStatus,
       loadMentionRoles,
       getMentionRoleNames: () => mentionRoleNames,
@@ -61,6 +67,20 @@ describe('ComposerSubmissionState', () => {
     );
     expect(onPostSuccess).toHaveBeenCalledWith(post, null);
     expect(state.loading).toBe(false);
+  });
+
+  it('reuses an unchanged failed send and releases it after success', async () => {
+    createMessage.mockRejectedValueOnce(new Error('response lost'));
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await state.requestPost(preparedPost());
+      await state.requestPost(preparedPost());
+      expect(createMessage.mock.calls[0]![0]).toBe(createMessage.mock.calls[1]![0]);
+      await state.requestPost(preparedPost());
+      expect(createMessage.mock.calls[2]![0]).not.toBe(createMessage.mock.calls[1]![0]);
+    } finally {
+      errorLog.mockRestore();
+    }
   });
 
   it('loads role metadata before deciding whether a mention needs confirmation', async () => {

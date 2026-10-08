@@ -112,6 +112,10 @@ vi.mock(
 vi.mock('@chatto/client/api/messages', () => ({
   createMessageAPI: () => ({
     createMessage: createMessageConnectMock,
+    prepareMessage: (input: import('@chatto/client/api/messages').CreateMessageInput) => ({
+      idempotencyKey: 'test-key',
+      send: () => createMessageConnectMock(input)
+    }),
     updateMessage: updateMessageConnectMock
   })
 }));

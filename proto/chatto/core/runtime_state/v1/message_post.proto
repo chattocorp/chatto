@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package chatto.core.runtime_state.v1;
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
+
+// MessagePostClaim is an immutable 30-minute RUNTIME_STATE mapping for one
+// account-scoped send key. Its presence reserves an identity; only the message
+// event in EVT proves that the send committed. Neither the caller key nor the
+// request fingerprint enters EVT. Expiry uses the KV record's creation time.
+message MessagePostClaim {
+  // Message event ID allocated by the server before the first posting attempt.
+  string message_id = 1;
+  // Purpose-scoped HMAC of the normalized caller request, including the room.
+  bytes request_fingerprint = 2;
+}
