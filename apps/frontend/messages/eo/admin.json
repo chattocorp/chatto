@@ -147,7 +147,7 @@
         "roles": "Roloj",
         "permissions": "Permesoj"
       },
-      "role_beyond_viewer_permissions": "Vi ne povas ŝanĝi ĉi tiun rolan atribuon. La rolo permesas aŭ rifuzas permesojn, kiujn vi ne havas."
+      "role_beyond_viewer_permissions": "Vi ne povas ŝanĝi ĉi tiun rolan atribuon. La rolo permesas permesojn, kiujn vi ne havas."
     },
     "member_delete": {
       "title": "Forigi membron",
@@ -194,19 +194,19 @@
       "save_changes": "Konservu Ŝanĝojn",
       "delete_role_description": "Forigo de ĉi tiu rolo forigos ĝin de ĉiuj uzantoj, kiuj havas ĝin asignita.",
       "owner_permissions_hint": "Posedantoj ĉiam ricevas ĉiujn permesojn. La matrico estas nurlegebla ĉar posedantoj permesoj ne estas stokitaj kiel redakteblaj subvencioj aŭ neoj.",
-      "role_permissions_hint": "La subvencioj kaj neoj de ĉi tiu rolo trans ĉiu amplekso. Kombinite kun la aliaj roloj de la uzanto ĉe rezoluciotempo - uzu la po-uzantan matricon por vidi, kion individua uzanto finas.",
+      "role_permissions_hint": "Ĉiu ĉelo montras, kion ricevas membro, kiu havas nur ĉi tiun rolon, kune kun la rolo everyone. Por vidi, kion ricevas certa membro, malfermu la permesojn de tiu membro.",
       "users_with_role": "Uzantoj kun ĉi tiu Rolo",
       "everyone_implicit": "Ĉiuj servilanoj havas la rolon de ĉiuj implicite.",
       "no_users_with_role": "Neniuj uzantoj havas ĉi tiun rolon",
       "server_tier_intro": "Ĉi tiu paĝo estas por servil-nivelaj rolpermesoj: larĝaj defaŭltoj kiuj validas antaŭ ĉambrospecifaj anstataŭaĵoj.",
       "server_tier_rooms_hint": "Uzu Ĉambrojn por po-grupoj kaj po-ĉambraj anstataŭoj.",
-      "resolution_hint": "Por ĉiu uzanto aŭ nomita rolo validas la plej proksima ĉambra, grupa aŭ servila valoro. Malpermesoj venkas inter ili. Permeso superregas malpermeson de everyone nur je la sama aŭ pli specifa nivelo.",
+      "resolution_hint": "Malpermeso ĉe la uzanto decidas. Alie validas permeso de la uzanto aŭ de rolo, se ĝi estas je la sama nivelo kiel la plej proksima agordo de everyone, aŭ je pli specifa nivelo. Alie decidas la agordo de everyone.",
       "update_role_failed": "Malsukcesis ĝisdatigi rolon",
       "update_ping_failed": "Malsukcesis ĝisdatigi la ping-agordon de la rolo",
       "delete_role_failed": "Malsukcesis forigi rolon",
       "role_order": {
         "title": "Ordo de roloj",
-        "hint": "La ordo de roloj decidas, kiu povas administri kiun. Metu limigajn rolojn, ekzemple suspendan rolon, sub la homojn, kiuj administras ilin.",
+        "hint": "La ordo de roloj decidas, kiu povas administri kiun. Membro povas administri nur kontojn kaj rolojn sub sia plej alta rolo.",
         "drag_role": "Movi {role}",
         "always_highest": "Ĉiam plej alta",
         "always_lowest": "Ĉiam plej malalta",

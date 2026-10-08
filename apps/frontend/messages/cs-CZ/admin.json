@@ -147,7 +147,7 @@
         "roles": "Role",
         "permissions": "Oprávnění"
       },
-      "role_beyond_viewer_permissions": "Toto přiřazení role nemůžete změnit. Role povoluje nebo zakazuje oprávnění, která nemáte."
+      "role_beyond_viewer_permissions": "Toto přiřazení role nemůžete změnit. Role povoluje oprávnění, která nemáte."
     },
     "member_delete": {
       "title": "Odstranit člena",
@@ -194,19 +194,19 @@
       "save_changes": "Uložit změny",
       "delete_role_description": "Smazáním této role ji odeberete všem uživatelům, kteří ji mají přiřazenou.",
       "owner_permissions_hint": "Vlastníkům jsou vždy udělena všechna oprávnění. Matice je pouze pro čtení, protože oprávnění vlastníka nejsou uložena jako upravitelná udělení nebo zamítnutí.",
-      "role_permissions_hint": "Udělení a zamítnutí této role ve všech oblastech. V kombinaci s dalšími rolemi uživatele v době řešení – použijte matici pro jednotlivé uživatele, abyste viděli, s čím jednotlivý uživatel skončí.",
+      "role_permissions_hint": "Každá buňka ukazuje, co získá člen, který má pouze tuto roli, spolu s rolí everyone. Chcete-li zjistit, co získá konkrétní člen, otevřete oprávnění tohoto člena.",
       "users_with_role": "Uživatelé s touto rolí",
       "everyone_implicit": "Všichni členové serveru mají implicitně roli everyone.",
       "no_users_with_role": "Žádní uživatelé nemají tuto roli",
       "server_tier_intro": "Tato stránka je určena pro oprávnění role na úrovni serveru: obecné výchozí hodnoty, které platí před přepsáním pro konkrétní místnost.",
       "server_tier_rooms_hint": "Použít Místnosti pro přepsání pro skupinu a místnost.",
-      "resolution_hint": "Pro každého uživatele nebo pojmenovanou roli platí nejbližší hodnota místnosti, skupiny nebo serveru. Mezi nimi vítězí popírání. Povolení přepíše a odmítne všichni pouze ve stejném nebo konkrétnějším rozsahu.",
+      "resolution_hint": "Rozhoduje zákaz nastavený pro uživatele. Jinak platí povolení uživatele nebo role, pokud je ve stejném rozsahu jako nejbližší nastavení everyone, nebo v konkrétnějším. Jinak rozhoduje nastavení everyone.",
       "update_role_failed": "Nepodařilo se aktualizovat roli",
       "update_ping_failed": "Nepodařilo se aktualizovat nastavení zmínek role",
       "delete_role_failed": "Nepodařilo se smazat roli",
       "role_order": {
         "title": "Pořadí rolí",
-        "hint": "Pořadí rolí určuje, kdo může koho spravovat. Omezující role, například roli pozastavení, umístěte pod osoby, které je spravují.",
+        "hint": "Pořadí rolí určuje, kdo může koho spravovat. Člen může spravovat jen účty a role pod svou nejvyšší rolí.",
         "drag_role": "Přesunout {role}",
         "always_highest": "Vždy nejvyšší",
         "always_lowest": "Vždy nejnižší",

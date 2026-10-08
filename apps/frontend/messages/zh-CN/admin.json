@@ -147,7 +147,7 @@
         "roles": "角色",
         "permissions": "权限"
       },
-      "role_beyond_viewer_permissions": "你无法更改此角色分配。该角色允许或拒绝你没有的权限。"
+      "role_beyond_viewer_permissions": "你无法更改此角色分配。该角色允许你没有的权限。"
     },
     "member_delete": {
       "title": "删除成员",
@@ -194,19 +194,19 @@
       "save_changes": "保存更改",
       "delete_role_description": "删除此角色后，所有获分配此角色的用户都会失去该角色。",
       "owner_permissions_hint": "所有者始终拥有全部权限。由于所有者权限不会存储为可编辑的允许或拒绝项，因此此矩阵为只读。",
-      "role_permissions_hint": "此角色在各个作用域内的允许和拒绝项。解析权限时会与用户的其他角色合并；如需查看单个用户最终获得的权限，请使用用户权限矩阵。",
+      "role_permissions_hint": "每个单元格显示仅拥有此角色的成员连同 everyone 角色所获得的权限。如需查看某位成员获得的权限，请打开该成员的权限。",
       "users_with_role": "拥有此角色的用户",
       "everyone_implicit": "所有服务器成员都会自动拥有 everyone 角色。",
       "no_users_with_role": "没有用户拥有此角色",
       "server_tier_intro": "此页面用于设置服务器层级的角色权限，即应用聊天室特定覆盖项之前的通用默认值。",
       "server_tier_rooms_hint": "请前往“聊天室”设置各群组和聊天室的覆盖项。",
-      "resolution_hint": "对于每位用户或具名角色，会应用最近一级聊天室、群组或服务器的值。如有冲突，以拒绝为准。只有在相同或更具体的作用域内，允许项才能覆盖 everyone 的拒绝项。",
+      "resolution_hint": "用户上的拒绝项具有决定性。否则，只有当用户或角色的允许项与最近一级 everyone 设置处于相同作用域或更具体的作用域时，才会生效。其余情况由 everyone 设置决定。",
       "update_role_failed": "更新角色失败",
       "update_ping_failed": "更新角色提及设置失败",
       "delete_role_failed": "删除角色失败",
       "role_order": {
         "title": "角色顺序",
-        "hint": "角色顺序决定谁可以管理谁。请把限制角色（例如停用角色）放在管理它们的人之下。",
+        "hint": "角色顺序决定谁可以管理谁。成员只能管理低于其最高角色的账号和角色。",
         "drag_role": "移动 {role}",
         "always_highest": "始终最高",
         "always_lowest": "始终最低",

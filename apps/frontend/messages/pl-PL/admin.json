@@ -147,7 +147,7 @@
         "roles": "Role",
         "permissions": "Uprawnienia"
       },
-      "role_beyond_viewer_permissions": "Nie możesz zmienić tego przypisania roli. Rola zezwala na uprawnienia lub ich odmawia, a ty ich nie masz."
+      "role_beyond_viewer_permissions": "Nie możesz zmienić tego przypisania roli. Rola zezwala na uprawnienia, których nie masz."
     },
     "member_delete": {
       "title": "Usuń członka",
@@ -194,19 +194,19 @@
       "save_changes": "Zapisz zmiany",
       "delete_role_description": "Usunięcie tej roli spowoduje usunięcie jej ze wszystkich użytkowników, którzy mają ją przypisaną.",
       "owner_permissions_hint": "Właściciele zawsze otrzymują wszystkie uprawnienia. Macierz jest tylko do odczytu, ponieważ uprawnienia właściciela nie są przechowywane jako edytowalne uprawnienia lub odmowy.",
-      "role_permissions_hint": "Przyznaje i odmawia tej roli w każdym zakresie. W połączeniu z innymi rolami użytkownika w momencie rozwiązywania problemu — użyj macierzy poszczególnych użytkowników, aby zobaczyć, z czym zakończy się dany użytkownik.",
+      "role_permissions_hint": "Każda komórka pokazuje, co otrzymuje członek, który ma tylko tę rolę, razem z rolą everyone. Aby zobaczyć, co otrzymuje konkretny członek, otwórz uprawnienia tego członka.",
       "users_with_role": "Użytkownicy z tą rolą",
       "everyone_implicit": "Wszyscy członkowie serwera domyślnie mają rolę wszyscy.",
       "no_users_with_role": "Żaden użytkownik nie ma tej roli",
       "server_tier_intro": "Ta strona dotyczy uprawnień roli na poziomie serwera: ogólne ustawienia domyślne, które mają zastosowanie przed zastąpieniami specyficznymi dla pokoju.",
       "server_tier_rooms_hint": "Użyj Pokoi, aby zastąpić ustawienia na grupę i na pokój.",
-      "resolution_hint": "Dla każdego użytkownika lub nazwanej roli obowiązuje najbliższa wartość pokoju, grupy albo serwera. Odmowy mają między nimi pierwszeństwo. Zezwolenie zastępuje odmowę everyone tylko w tym samym lub bardziej szczegółowym zakresie.",
+      "resolution_hint": "Decyduje odmowa ustawiona dla użytkownika. W przeciwnym razie obowiązuje zezwolenie użytkownika lub roli, jeśli jest w tym samym zakresie co najbliższe ustawienie everyone albo w bardziej szczegółowym. W przeciwnym razie decyduje ustawienie everyone.",
       "update_role_failed": "Nie udało się zaktualizować roli",
       "update_ping_failed": "Nie udało się zaktualizować ustawienia wzmianek roli",
       "delete_role_failed": "Nie udało się usunąć roli",
       "role_order": {
         "title": "Kolejność ról",
-        "hint": "Kolejność ról decyduje, kto może kim zarządzać. Umieść role ograniczające, na przykład rolę zawieszenia, poniżej osób, które nimi zarządzają.",
+        "hint": "Kolejność ról decyduje, kto może kim zarządzać. Członek może zarządzać tylko kontami i rolami poniżej swojej najwyższej roli.",
         "drag_role": "Przenieś {role}",
         "always_highest": "Zawsze najwyższa",
         "always_lowest": "Zawsze najniższa",

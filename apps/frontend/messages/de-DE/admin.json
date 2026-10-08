@@ -147,7 +147,7 @@
         "roles": "Rollen",
         "permissions": "Berechtigungen"
       },
-      "role_beyond_viewer_permissions": "Du kannst diese Rollenzuweisung nicht ändern. Die Rolle erlaubt oder verweigert Berechtigungen, die du nicht hast."
+      "role_beyond_viewer_permissions": "Du kannst diese Rollenzuweisung nicht ändern. Die Rolle erlaubt Berechtigungen, die du nicht hast."
     },
     "member_delete": {
       "title": "Mitglied löschen",
@@ -194,19 +194,19 @@
       "save_changes": "Änderungen speichern",
       "delete_role_description": "Das Löschen dieser Rolle entfernt sie von allen Benutzern, denen sie zugewiesen ist.",
       "owner_permissions_hint": "Owner erhalten immer alle Berechtigungen. Die Matrix ist schreibgeschützt, weil Owner-Berechtigungen nicht als bearbeitbare Erlaubnisse oder Verweigerungen gespeichert werden.",
-      "role_permissions_hint": "Erlaubnisse und Verweigerungen dieser Rolle über alle Bereiche. Sie werden zur Auflösungszeit mit den anderen Rollen des Benutzers kombiniert - nutze die Matrix pro Benutzer, um das Ergebnis für eine Person zu sehen.",
+      "role_permissions_hint": "Jede Zelle zeigt, was ein Mitglied erhält, das nur diese Rolle hat, zusammen mit der Rolle everyone. Um zu sehen, was ein bestimmtes Mitglied erhält, öffne die Berechtigungen dieses Mitglieds.",
       "users_with_role": "Benutzer mit dieser Rolle",
       "everyone_implicit": "Alle Servermitglieder haben die Rolle everyone implizit.",
       "no_users_with_role": "Keine Benutzer haben diese Rolle",
       "server_tier_intro": "Diese Seite ist für serverweite Rollenberechtigungen: breite Vorgaben, die vor raumspezifischen Überschreibungen gelten.",
       "server_tier_rooms_hint": "Nutze Räume für Überschreibungen pro Gruppe und Raum.",
-      "resolution_hint": "Für jeden Benutzer oder jede benannte Rolle gilt der nächstgelegene Raum-, Gruppen- oder Serverwert. Verweigerungen haben dazwischen Vorrang. Eine Erlaubnis überschreibt eine everyone-Verweigerung nur auf derselben oder einer spezifischeren Ebene.",
+      "resolution_hint": "Eine Verweigerung beim Benutzer entscheidet. Andernfalls gilt eine Erlaubnis des Benutzers oder einer Rolle, wenn sie auf derselben Ebene wie die nächstgelegene everyone-Einstellung liegt oder auf einer spezifischeren. Andernfalls entscheidet die everyone-Einstellung.",
       "update_role_failed": "Rolle konnte nicht aktualisiert werden",
       "update_ping_failed": "Ping-Einstellung der Rolle konnte nicht aktualisiert werden",
       "delete_role_failed": "Rolle konnte nicht gelöscht werden",
       "role_order": {
         "title": "Rollenreihenfolge",
-        "hint": "Die Rollenreihenfolge legt fest, wer wen verwalten kann. Platziere Einschränkungsrollen, zum Beispiel eine Sperrrolle, unter den Personen, die sie verwalten.",
+        "hint": "Die Rollenreihenfolge legt fest, wer wen verwalten kann. Ein Mitglied kann nur Konten und Rollen unterhalb seiner höchsten Rolle verwalten.",
         "drag_role": "{role} verschieben",
         "always_highest": "Immer die höchste",
         "always_lowest": "Immer die niedrigste",

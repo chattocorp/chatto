@@ -147,7 +147,7 @@
         "roles": "角色",
         "permissions": "權限"
       },
-      "role_beyond_viewer_permissions": "你無法變更此角色指派。該角色允許或拒絕你沒有的權限。"
+      "role_beyond_viewer_permissions": "你無法變更此角色指派。該角色允許你沒有的權限。"
     },
     "member_delete": {
       "title": "刪除成員",
@@ -194,19 +194,19 @@
       "save_changes": "儲存變更",
       "delete_role_description": "刪除此角色後，所有獲指派此角色的使用者都會失去該角色。",
       "owner_permissions_hint": "擁有者一律獲授所有權限。由於擁有者權限不會儲存為可編輯的允許或拒絕設定，因此此矩陣僅供檢視。",
-      "role_permissions_hint": "此角色在各個範圍內的允許與拒絕設定。解析權限時會與使用者的其他角色合併；若要查看個別使用者最終取得的權限，請使用個別使用者矩陣。",
+      "role_permissions_hint": "每個儲存格顯示僅擁有此角色的成員連同 everyone 角色所獲得的權限。若要查看某位成員獲得的權限，請開啟該成員的權限。",
       "users_with_role": "擁有此角色的使用者",
       "everyone_implicit": "所有伺服器成員都會自動擁有 everyone 角色。",
       "no_users_with_role": "沒有使用者擁有此角色",
       "server_tier_intro": "此頁面用於設定伺服器層級的角色權限，也就是套用在聊天室特定覆寫之前的廣泛預設值。",
       "server_tier_rooms_hint": "請前往「聊天室」設定各群組及聊天室的覆寫。",
-      "resolution_hint": "對每位使用者或具名角色，會套用最接近的聊天室、群組或伺服器值。若設定衝突，以拒絕為準。只有在相同或更具體的範圍內，允許設定才能覆寫 everyone 的拒絕設定。",
+      "resolution_hint": "使用者上的拒絕設定具有決定性。否則，只有當使用者或角色的允許設定與最接近的 everyone 設定處於相同範圍或更具體的範圍時，才會生效。其餘情況由 everyone 設定決定。",
       "update_role_failed": "無法更新角色",
       "update_ping_failed": "無法更新角色提及設定",
       "delete_role_failed": "無法刪除角色",
       "role_order": {
         "title": "角色順序",
-        "hint": "角色順序決定誰可以管理誰。請把限制角色（例如停權角色）放在管理它們的人之下。",
+        "hint": "角色順序決定誰可以管理誰。成員只能管理低於其最高角色的帳號和角色。",
         "drag_role": "移動 {role}",
         "always_highest": "永遠最高",
         "always_lowest": "永遠最低",

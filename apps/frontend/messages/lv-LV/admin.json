@@ -147,7 +147,7 @@
         "roles": "Lomas",
         "permissions": "Atļaujas"
       },
-      "role_beyond_viewer_permissions": "Jūs nevarat mainīt šo lomas piešķīrumu. Loma atļauj vai liedz atļaujas, kuru jums nav."
+      "role_beyond_viewer_permissions": "Jūs nevarat mainīt šo lomas piešķīrumu. Loma atļauj atļaujas, kuru jums nav."
     },
     "member_delete": {
       "title": "Dzēst dalībnieku",
@@ -194,19 +194,19 @@
       "save_changes": "Saglabāt izmaiņas",
       "delete_role_description": "Dzēšot šo lomu, tā tiks noņemta no visiem lietotājiem, kuriem tā ir piešķirta.",
       "owner_permissions_hint": "Īpašniekiem vienmēr tiek piešķirtas visas atļaujas. Matrica ir tikai lasāma, jo īpašnieka atļaujas netiek glabātas kā rediģējamas piešķiršanas vai atteikumi.",
-      "role_permissions_hint": "Šīs lomas piešķiršana un atteikums visās jomās. Apvienojumā ar citām lietotāja lomām izšķirtspējas laikā — izmantojiet katra lietotāja matricu, lai redzētu, ar ko beidzas atsevišķs lietotājs.",
+      "role_permissions_hint": "Katra šūna rāda, ko iegūst dalībnieks, kuram ir tikai šī loma, kopā ar lomu everyone. Lai redzētu, ko iegūst konkrēts dalībnieks, atveriet šī dalībnieka atļaujas.",
       "users_with_role": "Lietotāji ar šo lomu",
       "everyone_implicit": "Visiem servera dalībniekiem netieši ir ikviena loma.",
       "no_users_with_role": "Nevienam lietotājam nav šīs lomas",
       "server_tier_intro": "Šī lapa ir paredzēta servera līmeņa lomu atļaujām: plašiem noklusējuma iestatījumiem, kas tiek piemēroti pirms telpai specifiskām ignorēšanas.",
       "server_tier_rooms_hint": "Izmantojiet telpas, lai ignorētu katru grupu un telpu.",
-      "resolution_hint": "Katram lietotājam vai nosauktajai lomai tiek piemērota tuvākā telpas, grupas vai servera vērtība. Noliedz uzvaru starp viņiem. Atļauts ignorē visus aizliegts tikai tajā pašā vai konkrētākā tvērumā.",
+      "resolution_hint": "Izšķiroša ir lietotājam piemērotā aizliegšana. Pretējā gadījumā lietotāja vai lomas atļauja tiek piemērota, ja tā ir tajā pašā tvērumā kā tuvākais everyone iestatījums vai konkrētākā tvērumā. Pretējā gadījumā lēmumu nosaka everyone iestatījums.",
       "update_role_failed": "Neizdevās atjaunināt lomu",
       "update_ping_failed": "Neizdevās atjaunināt lomas pieminēšanas iestatījumu",
       "delete_role_failed": "Neizdevās izdzēst lomu",
       "role_order": {
         "title": "Lomu secība",
-        "hint": "Lomu secība nosaka, kurš var pārvaldīt kuru. Novietojiet ierobežojošās lomas, piemēram, apturēšanas lomu, zemāk par personām, kas tās pārvalda.",
+        "hint": "Lomu secība nosaka, kurš var pārvaldīt kuru. Dalībnieks var pārvaldīt tikai kontus un lomas, kas ir zemāk par viņa augstāko lomu.",
         "drag_role": "Pārvietot {role}",
         "always_highest": "Vienmēr augstākā",
         "always_lowest": "Vienmēr zemākā",

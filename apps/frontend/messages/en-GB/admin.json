@@ -147,7 +147,7 @@
         "roles": "Roles",
         "permissions": "Permissions"
       },
-      "role_beyond_viewer_permissions": "You cannot change this role assignment. The role allows or denies permissions that you do not have."
+      "role_beyond_viewer_permissions": "You cannot change this role assignment. The role allows permissions that you do not have."
     },
     "member_delete": {
       "title": "Delete Member",
@@ -194,19 +194,19 @@
       "save_changes": "Save changes",
       "delete_role_description": "Deleting this role will remove it from all users who have it assigned.",
       "owner_permissions_hint": "Owners are always granted all permissions. The matrix is read-only because owner permissions are not stored as editable grants or denials.",
-      "role_permissions_hint": "This role's grants and denials across every scope. Combined with the user's other roles at resolution time - use the per-user matrix to see what an individual user ends up with.",
+      "role_permissions_hint": "Each cell shows what a member who holds only this role gets, together with the everyone role. To see what one member gets, open the permissions of that member.",
       "users_with_role": "Users with this Role",
       "everyone_implicit": "All server members have the everyone role implicitly.",
       "no_users_with_role": "No users have this role",
       "server_tier_intro": "This page is for server-tier role permissions: broad defaults that apply before room-specific overrides.",
       "server_tier_rooms_hint": "Use Rooms for per-group and per-room overrides.",
-      "resolution_hint": "For each user or named role, the nearest room, group, or server value applies. Denies win between them. An allow overrides an everyone deny only at the same or a more specific scope.",
+      "resolution_hint": "A deny on the user decides. Otherwise, an allow of the user or of a role applies when it is at the same scope as the nearest everyone setting, or at a more specific one. Otherwise, the everyone setting decides.",
       "update_role_failed": "Failed to update role",
       "update_ping_failed": "Failed to update role ping setting",
       "delete_role_failed": "Failed to delete role",
       "role_order": {
         "title": "Role order",
-        "hint": "The role order decides who can manage whom. Put restriction roles, such as a suspended role, below the people who manage them.",
+        "hint": "The role order decides who can manage whom. A member can manage only accounts and roles below their highest role.",
         "drag_role": "Move {role}",
         "always_highest": "Always highest",
         "always_lowest": "Always lowest",

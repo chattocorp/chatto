@@ -147,7 +147,7 @@
         "roles": "Funciones",
         "permissions": "Permisos"
       },
-      "role_beyond_viewer_permissions": "No puedes cambiar esta asignación de rol. El rol permite o niega permisos que no tienes."
+      "role_beyond_viewer_permissions": "No puedes cambiar esta asignación de rol. El rol permite permisos que no tienes."
     },
     "member_delete": {
       "title": "Eliminar miembro",
@@ -194,19 +194,19 @@
       "save_changes": "Guardar cambios",
       "delete_role_description": "Eliminar este rol lo eliminará de todos los usuarios que lo tengan asignado.",
       "owner_permissions_hint": "Los propietarios siempre tienen todos los permisos. La matriz es de sólo lectura porque los permisos del propietario no se almacenan como concesiones o denegaciones editables.",
-      "role_permissions_hint": "Las concesiones y denegaciones de este rol en todos los ámbitos. Combinado con los otros roles del usuario en el momento de la resolución: use la matriz por usuario para ver con qué termina un usuario individual.",
+      "role_permissions_hint": "Cada celda muestra lo que obtiene un miembro que solo tiene este rol, junto con el rol everyone. Para ver lo que obtiene un miembro concreto, abre los permisos de ese miembro.",
       "users_with_role": "Usuarios con este Rol",
       "everyone_implicit": "Todos los miembros del servidor tienen implícitamente el rol de todos.",
       "no_users_with_role": "Ningún usuario tiene este rol",
       "server_tier_intro": "Esta página es para permisos de rol a nivel de servidor: valores predeterminados amplios que se aplican antes de las anulaciones específicas de la sala.",
       "server_tier_rooms_hint": "Usar Salas para anulaciones por grupo y por sala.",
-      "resolution_hint": "Para cada usuario o rol con nombre se aplica el valor más cercano de sala, grupo o servidor. Las denegaciones prevalecen entre ellos. Un permiso solo anula una denegación de everyone en el mismo ámbito o en uno más específico.",
+      "resolution_hint": "Una denegación del usuario decide. De lo contrario, un permiso del usuario o de un rol se aplica cuando está en el mismo ámbito que el ajuste más cercano de everyone, o en uno más específico. De lo contrario, decide el ajuste de everyone.",
       "update_role_failed": "No se pudo actualizar el rol",
       "update_ping_failed": "No se pudo actualizar la configuración de menciones del rol",
       "delete_role_failed": "No se pudo eliminar el rol",
       "role_order": {
         "title": "Orden de roles",
-        "hint": "El orden de roles decide quién puede administrar a quién. Coloca los roles de restricción, como un rol de suspensión, por debajo de las personas que los administran.",
+        "hint": "El orden de roles decide quién puede administrar a quién. Un miembro solo puede administrar cuentas y roles que estén por debajo de su rol más alto.",
         "drag_role": "Mover {role}",
         "always_highest": "Siempre el más alto",
         "always_lowest": "Siempre el más bajo",

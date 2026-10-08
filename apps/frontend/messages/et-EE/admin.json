@@ -147,7 +147,7 @@
         "roles": "Rollid",
         "permissions": "Load"
       },
-      "role_beyond_viewer_permissions": "Te ei saa seda rollimäärangut muuta. Roll lubab või keelab õigusi, mida teil ei ole."
+      "role_beyond_viewer_permissions": "Te ei saa seda rollimäärangut muuta. Roll lubab õigusi, mida teil ei ole."
     },
     "member_delete": {
       "title": "Kustuta liige",
@@ -194,19 +194,19 @@
       "save_changes": "Salvesta muudatused",
       "delete_role_description": "Selle rolli kustutamisel eemaldatakse see kõigilt kasutajatelt, kellele see roll on määratud.",
       "owner_permissions_hint": "Omanikele antakse alati kõik load. Maatriks on kirjutuskaitstud, kuna omaniku õigusi ei salvestata redigeeritavate lubade või keeldudena.",
-      "role_permissions_hint": "Selle rolli toetused ja keeldumised igas ulatuses. Kombineerituna kasutaja muude rollidega lahenduse ajal – kasutage kasutajapõhist maatriksit, et näha, millega üksikkasutaja välja jõuab.",
+      "role_permissions_hint": "Iga lahter näitab, mida saab liige, kellel on ainult see roll, koos rolliga everyone. Konkreetse liikme õiguste nägemiseks avage selle liikme õigused.",
       "users_with_role": "Selle rolliga kasutajad",
       "everyone_implicit": "Kõigil serveriliikmetel on kaudselt igaühe roll.",
       "no_users_with_role": "Seda rolli ei ole ühelgi kasutajal",
       "server_tier_intro": "See leht on mõeldud serveritasandi rolliõiguste jaoks: üldised vaikeväärtused, mis rakenduvad enne ruumispetsiifilisi alistamisi.",
       "server_tier_rooms_hint": "Kasutage ruume rühma- ja ruumipõhiseks alistamiseks.",
-      "resolution_hint": "Iga kasutaja või nimega rolli puhul kehtib lähim ruumi, rühma või serveri väärtus. Eitab nende vahel võitu. Lubamine alistab kõik keelamise ainult samas või konkreetsemas ulatuses.",
+      "resolution_hint": "Otsustab kasutaja keeld. Vastasel juhul kehtib kasutaja või rolli lubamine, kui see on samas ulatuses lähima everyone seadega või konkreetsemas ulatuses. Vastasel juhul otsustab everyone seade.",
       "update_role_failed": "Rolli uuendamine ebaõnnestus",
       "update_ping_failed": "Rolli mainimisseade uuendamine ebaõnnestus",
       "delete_role_failed": "Rolli kustutamine ebaõnnestus",
       "role_order": {
         "title": "Rollide järjekord",
-        "hint": "Rollide järjekord määrab, kes saab keda hallata. Paigutage piiravad rollid, näiteks peatamise roll, nende inimeste alla, kes neid haldavad.",
+        "hint": "Rollide järjekord määrab, kes saab keda hallata. Liige saab hallata ainult kontosid ja rolle, mis on tema kõrgeimast rollist allpool.",
         "drag_role": "Liiguta rolli {role}",
         "always_highest": "Alati kõrgeim",
         "always_lowest": "Alati madalaim",

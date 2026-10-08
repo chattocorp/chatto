@@ -147,7 +147,7 @@
         "roles": "Ruoli",
         "permissions": "Autorizzazioni"
       },
-      "role_beyond_viewer_permissions": "Non puoi modificare questa assegnazione di ruolo. Il ruolo consente o nega autorizzazioni che non hai."
+      "role_beyond_viewer_permissions": "Non puoi modificare questa assegnazione di ruolo. Il ruolo consente autorizzazioni che non hai."
     },
     "member_delete": {
       "title": "Elimina membro",
@@ -194,19 +194,19 @@
       "save_changes": "Salva modifiche",
       "delete_role_description": "L'eliminazione di questo ruolo lo rimuoverà da tutti gli utenti a cui è assegnato.",
       "owner_permissions_hint": "Ai proprietari vengono sempre concesse tutte le autorizzazioni. La matrice è di sola lettura perché le autorizzazioni del proprietario non vengono archiviate come concessioni o rifiuti modificabili.",
-      "role_permissions_hint": "Le concessioni e i rifiuti di questo ruolo in ogni ambito. In combinazione con gli altri ruoli dell'utente al momento della risoluzione: utilizza la matrice per utente per vedere cosa ottiene un singolo utente.",
+      "role_permissions_hint": "Ogni cella mostra ciò che ottiene un membro che ha solo questo ruolo, insieme al ruolo everyone. Per vedere cosa ottiene un singolo membro, apri le autorizzazioni di quel membro.",
       "users_with_role": "Utenti con questo ruolo",
       "everyone_implicit": "Tutti i membri del server hanno implicitamente il ruolo Everyone.",
       "no_users_with_role": "Nessun utente ha questo ruolo",
       "server_tier_intro": "Questa pagina riguarda le autorizzazioni dei ruoli a livello di server: impostazioni predefinite generali che si applicano prima delle sostituzioni specifiche della sala.",
       "server_tier_rooms_hint": "Utilizzare le stanze per le sostituzioni per gruppo e per stanza.",
-      "resolution_hint": "Per ciascun utente o ruolo denominato si applica il valore della sala, del gruppo o del server più vicino. Nega la vittoria tra loro. Un'autorizzazione prevale su una negazione per tutti solo nello stesso ambito o in un ambito più specifico.",
+      "resolution_hint": "Una negazione sull'utente prevale. In caso contrario, un'autorizzazione dell'utente o di un ruolo si applica quando si trova nello stesso ambito dell'impostazione everyone più vicina o in uno più specifico. Altrimenti decide l'impostazione everyone.",
       "update_role_failed": "Impossibile aggiornare il ruolo",
       "update_ping_failed": "Impossibile aggiornare l'impostazione delle menzioni del ruolo",
       "delete_role_failed": "Impossibile eliminare il ruolo",
       "role_order": {
         "title": "Ordine dei ruoli",
-        "hint": "L'ordine dei ruoli decide chi può gestire chi. Metti i ruoli di restrizione, come un ruolo di sospensione, sotto le persone che li gestiscono.",
+        "hint": "L'ordine dei ruoli decide chi può gestire chi. Un membro può gestire solo account e ruoli al di sotto del proprio ruolo più alto.",
         "drag_role": "Sposta {role}",
         "always_highest": "Sempre il più alto",
         "always_lowest": "Sempre il più basso",

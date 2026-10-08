@@ -147,7 +147,7 @@
         "roles": "Funções",
         "permissions": "Permissões"
       },
-      "role_beyond_viewer_permissions": "Você não pode alterar esta atribuição de função. A função permite ou nega permissões que você não tem."
+      "role_beyond_viewer_permissions": "Você não pode alterar esta atribuição de função. A função permite permissões que você não tem."
     },
     "member_delete": {
       "title": "Excluir membro",
@@ -194,19 +194,19 @@
       "save_changes": "Salvar alterações",
       "delete_role_description": "Excluir esta função irá removê-la de todos os usuários aos quais ela foi atribuída.",
       "owner_permissions_hint": "Os proprietários sempre recebem todas as permissões. A matriz é somente leitura porque as permissões do proprietário não são armazenadas como concessões ou negações editáveis.",
-      "role_permissions_hint": "Concessões e negações desta função em todos os escopos. Combinado com outras funções do usuário no momento da resolução - use a matriz por usuário para ver o que um usuário individual obtém.",
+      "role_permissions_hint": "Cada célula mostra o que um membro que tem apenas esta função recebe, junto com a função everyone. Para ver o que um membro específico recebe, abra as permissões desse membro.",
       "users_with_role": "Usuários com esta função",
       "everyone_implicit": "Todos os membros do servidor têm implicitamente a função de todos.",
       "no_users_with_role": "Nenhum usuário tem esta função",
       "server_tier_intro": "Esta página é para permissões de função na camada de servidor: padrões amplos que se aplicam antes de substituições específicas de salas.",
       "server_tier_rooms_hint": "Use Salas para substituições por grupo e por sala.",
-      "resolution_hint": "Para cada usuário ou função nomeada, aplica-se o valor mais próximo de sala, grupo ou servidor. As negações prevalecem entre eles. Uma permissão só substitui uma negação de everyone no mesmo escopo ou em um mais específico.",
+      "resolution_hint": "Uma negação no usuário decide. Caso contrário, uma permissão do usuário ou de uma função se aplica quando está no mesmo escopo da configuração everyone mais próxima, ou em um mais específico. Caso contrário, a configuração everyone decide.",
       "update_role_failed": "Falha ao atualizar função",
       "update_ping_failed": "Falha ao atualizar a configuração de menção da função",
       "delete_role_failed": "Falha ao excluir função",
       "role_order": {
         "title": "Ordem das funções",
-        "hint": "A ordem das funções decide quem pode gerenciar quem. Coloque funções de restrição, como uma função de suspensão, abaixo das pessoas que as gerenciam.",
+        "hint": "A ordem das funções decide quem pode gerenciar quem. Um membro só pode gerenciar contas e funções abaixo da sua função mais alta.",
         "drag_role": "Mover {role}",
         "always_highest": "Sempre a mais alta",
         "always_lowest": "Sempre a mais baixa",

@@ -147,7 +147,7 @@
         "roles": "Roller",
         "permissions": "İzinler"
       },
-      "role_beyond_viewer_permissions": "Bu rol atamasını değiştiremezsiniz. Rol, sizde olmayan izinlere izin veriyor veya bunları reddediyor."
+      "role_beyond_viewer_permissions": "Bu rol atamasını değiştiremezsiniz. Rol, sizde olmayan izinlere izin veriyor."
     },
     "member_delete": {
       "title": "Üyeyi sil",
@@ -194,19 +194,19 @@
       "save_changes": "Değişiklikleri Kaydet",
       "delete_role_description": "Bu rolün silinmesi, bu rolün atandığı tüm kullanıcılardan kaldırılmasına neden olacaktır.",
       "owner_permissions_hint": "Sahiplere her zaman tüm izinler verilir. Sahip izinleri düzenlenebilir izinler veya reddetmeler olarak saklanmadığından matris salt okunurdur.",
-      "role_permissions_hint": "Bu rolün her kapsamda verilmesi ve reddedilmesi. Çözümleme sırasında kullanıcının diğer rolleriyle birlikte, bireysel bir kullanıcının neyle sonuçlandığını görmek için kullanıcı başına matrisi kullanın.",
+      "role_permissions_hint": "Her hücre, yalnızca bu role sahip bir üyenin everyone rolüyle birlikte neler elde ettiğini gösterir. Belirli bir üyenin neler elde ettiğini görmek için o üyenin izinlerini açın.",
       "users_with_role": "Bu role sahip kullanıcılar",
       "everyone_implicit": "Tüm sunucu üyeleri dolaylı olarak herkes rolüne sahiptir.",
       "no_users_with_role": "Hiçbir kullanıcı bu role sahip değil",
       "server_tier_intro": "Bu sayfa, sunucu katmanı rol izinleri içindir: odaya özel geçersiz kılmalardan önce geçerli olan geniş varsayılanlar.",
       "server_tier_rooms_hint": "Grup başına ve oda başına geçersiz kılmalar için Odalar'ı kullanın.",
-      "resolution_hint": "Her kullanıcı veya adlandırılmış rol için en yakın oda, grup veya sunucu değeri geçerlidir. Aralarındaki galibiyeti reddediyor. İzin ver, yalnızca aynı veya daha spesifik bir kapsamda herkesin reddettiğini geçersiz kılar.",
+      "resolution_hint": "Kullanıcıya uygulanan bir ret belirleyicidir. Aksi halde kullanıcının veya bir rolün izni, en yakın everyone ayarıyla aynı kapsamdaysa ya da daha spesifik bir kapsamdaysa geçerli olur. Aksi halde everyone ayarı belirler.",
       "update_role_failed": "Rol güncellenemedi",
       "update_ping_failed": "Rol bahsetme ayarı güncellenemedi",
       "delete_role_failed": "Rol silinemedi",
       "role_order": {
         "title": "Rol sırası",
-        "hint": "Rol sırası kimin kimi yönetebileceğini belirler. Askıya alma rolü gibi kısıtlama rollerini, onları yöneten kişilerin altına yerleştirin.",
+        "hint": "Rol sırası kimin kimi yönetebileceğini belirler. Bir üye yalnızca en yüksek rolünün altındaki hesapları ve rolleri yönetebilir.",
         "drag_role": "{role} rolünü taşı",
         "always_highest": "Her zaman en yüksek",
         "always_lowest": "Her zaman en düşük",

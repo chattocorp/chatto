@@ -147,7 +147,7 @@
         "roles": "Rôles",
         "permissions": "Autorisations"
       },
-      "role_beyond_viewer_permissions": "Vous ne pouvez pas modifier cette attribution de rôle. Le rôle autorise ou refuse des permissions que vous n'avez pas."
+      "role_beyond_viewer_permissions": "Vous ne pouvez pas modifier cette attribution de rôle. Le rôle autorise des permissions que vous n'avez pas."
     },
     "member_delete": {
       "title": "Supprimer un membre",
@@ -194,19 +194,19 @@
       "save_changes": "Enregistrer les modifications",
       "delete_role_description": "La suppression de ce rôle le supprimera de tous les utilisateurs auxquels il est attribué.",
       "owner_permissions_hint": "Les propriétaires disposent toujours de toutes les autorisations. La matrice est en lecture seule car les autorisations du propriétaire ne sont pas stockées sous forme d'autorisations ou de refus modifiables.",
-      "role_permissions_hint": "Accords et refus de ce rôle dans toutes les étendues. Combiné avec les autres rôles de l'utilisateur au moment de la résolution, utilisez la matrice par utilisateur pour voir ce qu'un utilisateur individuel obtient.",
+      "role_permissions_hint": "Chaque cellule indique ce que reçoit un membre qui possède uniquement ce rôle, avec le rôle everyone. Pour voir ce que reçoit un membre précis, ouvrez les permissions de ce membre.",
       "users_with_role": "Utilisateurs avec ce rôle",
       "everyone_implicit": "Tous les membres du serveur ont implicitement le rôle Tout le monde.",
       "no_users_with_role": "Aucun utilisateur n'a ce rôle",
       "server_tier_intro": "Cette page concerne les autorisations de rôle au niveau du serveur : valeurs par défaut générales qui s'appliquent avant les remplacements spécifiques à la salle.",
       "server_tier_rooms_hint": "Utilisez les salles pour les remplacements par groupe et par salle.",
-      "resolution_hint": "Pour chaque utilisateur ou rôle nommé, la valeur la plus proche au niveau de la salle, du groupe ou du serveur s'applique. Les refus l'emportent entre eux. Une autorisation ne remplace un refus de everyone qu'au même niveau ou à un niveau plus précis.",
+      "resolution_hint": "Un refus sur l'utilisateur l'emporte. Sinon, une autorisation de l'utilisateur ou d'un rôle s'applique si elle se situe au même niveau que le réglage everyone le plus proche, ou à un niveau plus précis. Sinon, le réglage everyone décide.",
       "update_role_failed": "Échec de la mise à jour du rôle",
       "update_ping_failed": "Échec de la mise à jour du paramètre de mention du rôle",
       "delete_role_failed": "Échec de la suppression du rôle",
       "role_order": {
         "title": "Ordre des rôles",
-        "hint": "L'ordre des rôles détermine qui peut gérer qui. Placez les rôles de restriction, comme un rôle de suspension, sous les personnes qui les gèrent.",
+        "hint": "L'ordre des rôles détermine qui peut gérer qui. Un membre ne peut gérer que les comptes et les rôles situés sous son rôle le plus élevé.",
         "drag_role": "Déplacer {role}",
         "always_highest": "Toujours le plus élevé",
         "always_lowest": "Toujours le plus bas",

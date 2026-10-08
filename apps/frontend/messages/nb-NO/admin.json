@@ -147,7 +147,7 @@
         "roles": "Roller",
         "permissions": "Tillatelser"
       },
-      "role_beyond_viewer_permissions": "Du kan ikke endre denne rolletildelingen. Rollen tillater eller avslår tillatelser som du ikke har."
+      "role_beyond_viewer_permissions": "Du kan ikke endre denne rolletildelingen. Rollen tillater tillatelser som du ikke har."
     },
     "member_delete": {
       "title": "Slett medlem",
@@ -194,19 +194,19 @@
       "save_changes": "Lagre endringer",
       "delete_role_description": "Hvis du sletter denne rollen, fjernes den fra alle brukere som har den tildelt.",
       "owner_permissions_hint": "Eiere får alltid alle tillatelser. Matrisen er skrivebeskyttet fordi eiertillatelser ikke lagres som redigerbare tildelinger eller avslag.",
-      "role_permissions_hint": "Denne rollens bevilgninger og avslag på tvers av alle områder. Kombinert med brukerens andre roller på oppløsningstidspunktet – bruk per-bruker-matrisen for å se hva en individuell bruker ender opp med.",
+      "role_permissions_hint": "Hver celle viser hva et medlem som bare har denne rollen, får sammen med rollen everyone. For å se hva ett bestemt medlem får, åpne tillatelsene til dette medlemmet.",
       "users_with_role": "Brukere med denne rollen",
       "everyone_implicit": "Alle servermedlemmer har alle-rollen implisitt.",
       "no_users_with_role": "Ingen brukere har denne rollen",
       "server_tier_intro": "Denne siden er for rolletillatelser på servernivå: brede standarder som gjelder før romspesifikke overstyringer.",
       "server_tier_rooms_hint": "Bruk rom for overstyringer per gruppe og per rom.",
-      "resolution_hint": "For hver bruker eller navngitte rolle gjelder den nærmeste rom-, gruppe- eller serververdien. Avslag vinner mellom dem. En tillatelse overstyrer et everyone-avslag bare på samme eller et mer spesifikt nivå.",
+      "resolution_hint": "Et avslag på brukeren avgjør. Ellers gjelder en tillatelse fra brukeren eller en rolle når den er på samme nivå som den nærmeste everyone-innstillingen, eller på et mer spesifikt nivå. Ellers avgjør everyone-innstillingen.",
       "update_role_failed": "Kunne ikke oppdatere rollen",
       "update_ping_failed": "Kunne ikke oppdatere ping-innstillingen for rollen",
       "delete_role_failed": "Kunne ikke slette rollen",
       "role_order": {
         "title": "Rollerekkefølge",
-        "hint": "Rollerekkefølgen bestemmer hvem som kan administrere hvem. Plasser begrensende roller, for eksempel en suspensjonsrolle, under personene som administrerer dem.",
+        "hint": "Rollerekkefølgen bestemmer hvem som kan administrere hvem. Et medlem kan bare administrere kontoer og roller under sin høyeste rolle.",
         "drag_role": "Flytt {role}",
         "always_highest": "Alltid høyest",
         "always_lowest": "Alltid lavest",

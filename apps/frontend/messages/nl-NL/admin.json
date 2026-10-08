@@ -147,7 +147,7 @@
         "roles": "Rollen",
         "permissions": "Rechten"
       },
-      "role_beyond_viewer_permissions": "Je kunt deze roltoewijzing niet wijzigen. De rol staat machtigingen toe of weigert machtigingen die je niet hebt."
+      "role_beyond_viewer_permissions": "Je kunt deze roltoewijzing niet wijzigen. De rol staat machtigingen toe die je niet hebt."
     },
     "member_delete": {
       "title": "Lid verwijderen",
@@ -194,19 +194,19 @@
       "save_changes": "Wijzigingen opslaan",
       "delete_role_description": "Als u deze rol verwijdert, wordt deze verwijderd van alle gebruikers aan wie deze is toegewezen.",
       "owner_permissions_hint": "Eigenaren krijgen altijd alle rechten. De matrix is ​​alleen-lezen omdat eigenaarsrechten niet worden opgeslagen als bewerkbare toekenningen of weigeringen.",
-      "role_permissions_hint": "De toekenningen en weigeringen van deze rol voor elk bereik. Gecombineerd met de andere rollen van de gebruiker op het moment dat het probleem wordt opgelost: gebruik de matrix per gebruiker om te zien waar een individuele gebruiker mee eindigt.",
+      "role_permissions_hint": "Elke cel toont wat een lid krijgt dat alleen deze rol heeft, samen met de rol everyone. Open de machtigingen van een lid om te zien wat dat lid krijgt.",
       "users_with_role": "Gebruikers met deze rol",
       "everyone_implicit": "Alle serverleden hebben impliciet de rol Iedereen.",
       "no_users_with_role": "Er zijn geen gebruikers met deze rol",
       "server_tier_intro": "Deze pagina is bedoeld voor rolmachtigingen op serverniveau: brede standaardwaarden die van toepassing zijn vóór kamerspecifieke overschrijvingen.",
       "server_tier_rooms_hint": "Gebruik kamers voor overschrijvingen per groep en per kamer.",
-      "resolution_hint": "Voor elke gebruiker of benoemde rol geldt de dichtstbijzijnde kamer-, groeps- of serverwaarde. Weigeringen winnen onderling. Een toestemming overschrijft een weigering van everyone alleen op hetzelfde of een specifieker niveau.",
+      "resolution_hint": "Een weigering bij de gebruiker beslist. Anders geldt een toestemming van de gebruiker of van een rol als die op hetzelfde niveau staat als de dichtstbijzijnde everyone-instelling, of op een specifieker niveau. Anders beslist de everyone-instelling.",
       "update_role_failed": "Kan rol niet bijwerken",
       "update_ping_failed": "Kan vermeldingsinstelling van rol niet bijwerken",
       "delete_role_failed": "Kan rol niet verwijderen",
       "role_order": {
         "title": "Rolvolgorde",
-        "hint": "De rolvolgorde bepaalt wie wie kan beheren. Zet beperkende rollen, zoals een schorsingsrol, onder de mensen die ze beheren.",
+        "hint": "De rolvolgorde bepaalt wie wie kan beheren. Een lid kan alleen accounts en rollen beheren die onder zijn hoogste rol staan.",
         "drag_role": "{role} verplaatsen",
         "always_highest": "Altijd de hoogste",
         "always_lowest": "Altijd de laagste",
