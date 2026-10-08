@@ -551,6 +551,9 @@ jobs:
       - name: Build frontend
         run: mise build-frontend
 
+      - name: Verify development build freshness
+        run: mise test-chatto-build
+
       - name: Verify development data seeding
         run: mise x -- node tools/dev-seed-smoke.mjs
 

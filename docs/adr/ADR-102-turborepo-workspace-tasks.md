@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-21
 
-**Updated:** 2026-10-06
+**Updated:** 2026-10-08
 
 **Status:** Accepted
 
@@ -36,8 +36,15 @@ Also cache the Chatto frontend and Runling builds. The frontend build reads
 `CHATTO_BUILD_VERSION` and `CHATTO_FRONTEND_PRECOMPRESS`, so both are declared
 task environment inputs. Test, story, end-to-end, and documentation files are
 excluded from both task inputs. Turbo restores `build/**` and `dist/**`
-respectively. Mise keeps frontend embedding and runs it after every frontend
-build task. Mise does not keep separate source lists for these builds.
+respectively. The Chatto mise build tasks declare their sources and output
+directories. The frontend task includes its workspace libraries and both the
+frontend build and embedded copy. Mise checks source content and complete output
+trees, so it skips unchanged tasks and restores missing files. This also works
+when Turbo restores files with timestamps older than the local sources.
+The frontend completion output includes the build version, compression setting,
+and `NODE_OPTIONS` in its name as a hash. Changes to these environment inputs
+also make mise run the task again.
+The frontend task runs embedding only when it must build or restore output.
 
 Do not set `cacheDir`. Turbo then shares the local cache of the main checkout
 with every Git worktree, so a new worktree restores unchanged builds. The
@@ -73,9 +80,10 @@ New consumers declare workspace dependencies in `package.json` instead of
 adding ordered build chains. Existing root script and mise task names remain
 available. Library, frontend, and Runling artifacts can be restored after
 their output folders are removed, also in a different worktree. A restored
-build takes approximately one second. A warm `mise dev` restart takes a few
-seconds longer than with mise source checks, because it always replays the
-cached Turbo tasks and copies the embedded frontend. Root checks and tests keep one-task concurrency to bound memory use;
+build takes approximately one second. A warm `mise dev` restart skips the
+frontend build, embedding, and Go build. Changes to frontend source, workspace
+libraries, build configuration, or output files make mise run the affected
+build tasks again. Root checks and tests keep one-task concurrency to bound memory use;
 do not run separate SvelteKit tasks concurrently in one checkout.
 
 CI jobs that install frontend dependencies run a third-party action, pinned to
