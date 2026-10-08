@@ -505,7 +505,9 @@ func TestMyEventsHubRejectsSnapshotAcrossProcessedVisibilityChange(t *testing.T)
 func TestMyEventsHubQuarantineBlocksAdmissionUntilNextGeneration(t *testing.T) {
 	t.Parallel()
 
-	core, _ := setupTestCore(t)
+	// The real defaults add no permission events after boot. The ingress
+	// would otherwise still apply them while the test starts a generation.
+	core, _ := setupTestCoreWithDefaults(t)
 	ctx := testContext(t)
 	hub := core.myEventsModel.hub
 	hub.quarantine("test discontinuity")
