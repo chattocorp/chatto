@@ -107,6 +107,27 @@ function footnoteNumbers(document: ProseMirrorNode): Map<string, number> {
   return numbers;
 }
 
+/** Select the first text block, including inside a list or quote, within this note. */
+function selectFootnoteText(tr: Transaction, notePosition: number): void {
+  const note = tr.doc.nodeAt(notePosition)!;
+  let textPosition: number | undefined;
+  note.descendants((node, offset) => {
+    if (textPosition !== undefined) return false;
+    if (node.isTextblock) {
+      textPosition = notePosition + offset + 2;
+      return false;
+    }
+  });
+  if (textPosition === undefined) {
+    // A note made only of block atoms needs a paragraph for text entry.
+    const end = notePosition + note.nodeSize - 1;
+    tr.insert(end, tr.doc.type.schema.nodes.paragraph.create());
+    textPosition = end + 1;
+  }
+  tr.setSelection(TextSelection.create(tr.doc, textPosition));
+  tr.scrollIntoView();
+}
+
 /** Insert a marker after the selection and focus its existing or new note. */
 export function insertVisualFootnote(tr: Transaction, requestedLabel?: string): boolean {
   if (
@@ -142,8 +163,7 @@ export function insertVisualFootnote(tr: Transaction, requestedLabel?: string): 
       schema.nodes.footnoteDefinition.create({ label, number }, schema.nodes.paragraph.create())
     );
   }
-  tr.setSelection(TextSelection.create(tr.doc, notePosition + 2));
-  tr.scrollIntoView();
+  selectFootnoteText(tr, notePosition);
   return true;
 }
 
@@ -224,7 +244,15 @@ export const FootnoteReference = Node.create({
         if (node.type.name === 'footnoteDefinition' && node.attrs.label === label) position = pos;
       });
       if (position === undefined) return false;
-      return this.editor.commands.setTextSelection(position + 2) && this.editor.commands.focus();
+      const notePosition = position;
+      return this.editor
+        .chain()
+        .command(({ tr }) => {
+          selectFootnoteText(tr, notePosition);
+          return true;
+        })
+        .focus()
+        .run();
     };
     return [
       new Plugin({

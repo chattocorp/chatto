@@ -8,6 +8,35 @@ import type { ComposerEditorApi } from './editorTypes';
 import { renderInlineMarkdown } from '$lib/markdown';
 
 describe('Composer footnote editing', () => {
+  it.each([
+    { content: '- First item\n    - Second item', expected: '- Edited First item' },
+    { content: '> Quoted text', expected: '> Edited Quoted text' },
+    {
+      content: '| Name | Value |\n    | --- | --- |\n    | Answer | 42 |',
+      expected: 'Edited '
+    }
+  ])('focuses editable text without replacing a note that starts with $content', async (note) => {
+    const readyApis: ComposerEditorApi[] = [];
+    const updates: string[] = [];
+    const { container } = render(TipTapEditor, {
+      props: {
+        placeholder: 'Footnote editor',
+        onReady: (api: ComposerEditorApi) => readyApis.push(api),
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+    api.setContent(`Message[^note].\n\n[^note]: ${note.content}`);
+    await userEvent.click(container.querySelector('.composer-footnote-ref')!);
+    api.insertText('Edited ');
+    await vi.waitFor(() => expect(updates.at(-1)).toContain(note.expected));
+    expect(updates.at(-1)).toContain('Message[^note].');
+    if (note.content.startsWith('|')) {
+      expect(updates.at(-1)).toContain('| Answer | 42 |');
+    }
+  });
+
   it('retains footnote definitions when copying and pasting editor text', async () => {
     const readyApis: ComposerEditorApi[] = [];
     const updates: string[] = [];
