@@ -20,7 +20,8 @@ trap cleanup EXIT
 
 run_chatto() {
 	local log="$1"
-	if ! mise run --output prefix --no-timings chatto --version > "$log" 2>&1; then
+	# CI enables color even for redirected logs. Keep assertions independent of it.
+	if ! MISE_COLOR=0 mise run --output prefix --no-timings chatto --version > "$log" 2>&1; then
 		cat "$log" >&2
 		exit 1
 	fi
