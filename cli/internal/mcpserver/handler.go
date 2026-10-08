@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -79,7 +78,7 @@ func newResourceHandler(chattoCore *core.ChattoCore, issuer, resource, version s
 			// catalog subscriptions, so do not advertise the SDK defaults.
 			Capabilities: &mcp.ServerCapabilities{Tools: &mcp.ToolCapabilities{}},
 		})
-		server.AddReceivingMiddleware(toolsOnlyMethods)
+		server.AddReceivingMiddleware(toolsOnlyMethods, scopedTools)
 		mcp.AddTool(server, &mcp.Tool{
 			Name:        "get_server_info",
 			Description: "Identify the one Chatto server connected through this MCP endpoint. Use this tool to match a server that the user names and to distinguish this connection from other Chatto servers. The result includes the configured name, canonical public URL, connected MCP URL, and software version.",
@@ -126,18 +125,19 @@ func newResourceHandler(chattoCore *core.ChattoCore, issuer, resource, version s
 	})
 	protected := auth.RequireBearerToken(tokenVerifier(chattoCore, resource), &auth.RequireBearerTokenOptions{
 		ResourceMetadataURL:    metadataURL,
-		Scopes:                 config.MCPOAuthScopes(),
 		AllowMissingExpiration: true,
-	})(streamable)
+	})(requireToolScope(metadataURL, streamable))
 
 	mux := http.NewServeMux()
 	mcpHandler := http.NewCrossOriginProtection().Handler(withRequestDeadline(protected))
 	mcpHandler = withAdmissionLimit(limiter, mcpHandler)
 	mux.Handle("/mcp", mcpHandler)
 	mux.Handle("/.well-known/oauth-protected-resource/mcp", auth.ProtectedResourceMetadataHandler(&oauthex.ProtectedResourceMetadata{
-		Resource:               resource,
-		AuthorizationServers:   []string{issuer},
-		ScopesSupported:        config.MCPOAuthScopes(),
+		Resource:             resource,
+		AuthorizationServers: []string{issuer},
+		// Resource discovery asks for basic room reads. The issuer metadata
+		// lists every supported scope; writes need separate explicit consent.
+		ScopesSupported:        []string{config.MCPRoomsReadScope},
 		BearerMethodsSupported: []string{"header"},
 		ResourceName:           "Chatto MCP",
 	}))
@@ -192,7 +192,7 @@ func tokenVerifier(chattoCore *core.ChattoCore, resource string) auth.TokenVerif
 	return func(ctx context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
 		credential, err := chattoCore.ValidatePresentedRuntimeCredential(ctx, token, core.AuthTokenPresentationResourceBearer)
 		if err == nil {
-			if credential.Kind != core.AuthTokenKindOAuthAccessToken || credential.Resource != resource || !hasAllScopes(credential.Scopes, config.MCPOAuthScopes()) {
+			if credential.Kind != core.AuthTokenKindOAuthAccessToken || credential.Resource != resource || !config.ValidMCPOAuthScopes(credential.Scopes) {
 				return nil, auth.ErrInvalidToken
 			}
 			return &auth.TokenInfo{Scopes: credential.Scopes, Expiration: credential.ExpiresAt, UserID: credential.UserID, Extra: runtimeCredentialExtra(authctx.RuntimeCredential{
@@ -231,15 +231,6 @@ const runtimeCredentialExtraKey = "chatto_runtime_credential"
 
 func runtimeCredentialExtra(credential authctx.RuntimeCredential) map[string]any {
 	return map[string]any{runtimeCredentialExtraKey: credential}
-}
-
-func hasAllScopes(granted, required []string) bool {
-	for _, scope := range required {
-		if !slices.Contains(granted, scope) {
-			return false
-		}
-	}
-	return true
 }
 
 func readOnlyToolAnnotations(title string) *mcp.ToolAnnotations {

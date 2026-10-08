@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -93,18 +94,60 @@ func TestMCPCredentialsAcrossReplicas(t *testing.T) {
 		assertAccess(t, credentials.AccessToken, "alias.example", http.StatusOK)
 		assertAccess(t, credentials.AccessToken, "chatto.example", http.StatusUnauthorized)
 	})
-	t.Run("missing scope", func(t *testing.T) {
-		credentials := issue(t, resource, []string{config.MCPRoomsReadScope})
+	t.Run("unknown scope", func(t *testing.T) {
+		credentials := issue(t, resource, []string{"chatto:unknown"})
 		assertAccess(t, credentials.AccessToken, "chatto.example", http.StatusUnauthorized)
 	})
 	t.Run("revoked grant", func(t *testing.T) {
-		credentials := issue(t, resource, config.MCPOAuthScopes())
+		credentials := issue(t, resource, []string{config.MCPRoomsReadScope})
 		assertAccess(t, credentials.AccessToken, "chatto.example", http.StatusOK)
 		if err := first.core.RevokeRefreshTokenWithReason(ctx, credentials.RefreshToken, "explicit"); err != nil {
 			t.Fatalf("revoke grant: %v", err)
 		}
 		assertAccess(t, credentials.AccessToken, "chatto.example", http.StatusUnauthorized)
 		assertRefresh(t, credentials.RefreshToken, http.StatusBadRequest)
+	})
+	t.Run("refresh subset on another replica", func(t *testing.T) {
+		credentials := issue(t, resource, []string{config.MCPMessagesWriteScope})
+		assertAccess(t, credentials.AccessToken, "chatto.example", http.StatusOK)
+		form := url.Values{"grant_type": {"refresh_token"}, "refresh_token": {credentials.RefreshToken}, "client_id": {testOAuthClientID}, "resource": {resource}, "scope": {strings.Join(config.MCPOAuthScopes(), " ")}}
+		request, err := http.NewRequestWithContext(ctx, http.MethodPost, servers[1].URL+"/oauth/token", strings.NewReader(form.Encode()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		response, err := servers[1].Client().Do(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var refreshed struct {
+			AccessToken  string `json:"access_token"`
+			RefreshToken string `json:"refresh_token"`
+			Scope        string `json:"scope"`
+		}
+		decodeErr := json.NewDecoder(response.Body).Decode(&refreshed)
+		response.Body.Close()
+		if decodeErr != nil || response.StatusCode != http.StatusOK || refreshed.Scope != config.MCPMessagesWriteScope {
+			t.Fatalf("cross-replica refresh status/scope = %d/%q (decode: %v)", response.StatusCode, refreshed.Scope, decodeErr)
+		}
+		for _, replica := range []*HTTPServer{first, second} {
+			grant, err := replica.core.ValidatePresentedRuntimeCredential(ctx, refreshed.AccessToken, core.AuthTokenPresentationResourceBearer)
+			if err != nil || grant.Resource != resource || !slices.Equal(grant.Scopes, []string{config.MCPMessagesWriteScope}) {
+				t.Fatalf("refreshed subset changed across replicas: %v", err)
+			}
+		}
+		assertAccess(t, refreshed.AccessToken, "chatto.example", http.StatusOK)
+		for _, server := range servers {
+			denied := mcpInteropRequest(t, server, refreshed.AccessToken, "chatto.example", "tools/call", map[string]any{"name": "list_rooms", "arguments": map[string]any{}})
+			if denied.Code != http.StatusForbidden || !strings.Contains(denied.Header().Get("WWW-Authenticate"), `error="insufficient_scope"`) {
+				t.Fatal("refresh widened the subset grant")
+			}
+		}
+		if err := first.core.RevokeRefreshTokenWithReason(ctx, refreshed.RefreshToken, "explicit"); err != nil {
+			t.Fatal(err)
+		}
+		assertAccess(t, refreshed.AccessToken, "chatto.example", http.StatusUnauthorized)
+		assertRefresh(t, refreshed.RefreshToken, http.StatusBadRequest)
 	})
 	t.Run("invalid refresh credential", func(t *testing.T) {
 		assertRefresh(t, "invalid-refresh-credential", http.StatusBadRequest)
@@ -116,7 +159,7 @@ func TestMCPCredentialsAcrossReplicas(t *testing.T) {
 		if err := first.core.RecordOAuthClientAuthorization(ctx, user.GetId(), testOAuthClientID, "Interop Client", "https://client.example", "https://client.example", evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
 			t.Fatalf("record client: %v", err)
 		}
-		credentials := issue(t, resource, config.MCPOAuthScopes())
+		credentials := issue(t, resource, []string{config.MCPRoomsReadScope})
 		assertAccess(t, credentials.AccessToken, "chatto.example", http.StatusOK)
 		if _, err := first.core.UpdateOAuthClientPolicy(ctx, user.GetId(), testOAuthClientID, evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED); err != nil {
 			t.Fatalf("block client: %v", err)

@@ -1,7 +1,7 @@
 # FDR-043: Model Context Protocol Integration
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-07
+**Last reviewed:** 2026-10-08
 **Implementation state:** Tester tool catalog implemented with OAuth, server
 and account identity, room and message reads, posting, and room membership.
 
@@ -45,11 +45,13 @@ primitive.
   callback origin and requires consent for each authorization.
 - Human MCP access tokens are valid only for the exact MCP resource that the
   user approved. A token for one configured origin is not valid for another
-  origin. The current grant has the `chatto:rooms:read`,
-  `chatto:rooms:write`, `chatto:messages:read`, and
-  `chatto:messages:write` scopes. These scopes are an additional ceiling on
-  the user's normal Chatto authority. The consent screen states the room-list,
-  room-membership, and message read/write capabilities before approval.
+  origin. A grant can contain any nonempty subset of `chatto:rooms:read`,
+  `chatto:rooms:write`, `chatto:messages:read`, and `chatto:messages:write`.
+  These scopes are an additional ceiling on the user's normal Chatto authority.
+  Writes do not imply reads. Empty sets and unknown scopes are rejected.
+  The consent screen states only the approved capabilities and identifies
+  server and account identity access. Message reads and writes have separate
+  consent text.
 - Resource-bound access and refresh credentials use a separate credential
   class. A validator that supports only general bearer credentials rejects
   them instead of ignoring their resource and scope boundary.
@@ -60,6 +62,22 @@ primitive.
 - The tool catalog contains `get_server_info`, `get_current_user`,
   `list_rooms`, `list_room_messages`, `post_message`, `join_room`, and
   `leave_room`.
+- Any valid MCP grant permits discovery and the two identity tools.
+  `list_rooms` requires room-read scope; `list_room_messages` requires
+  message-read scope; `post_message` requires message-write scope; `join_room`
+  and `leave_room` require room-write scope. `tools/list` shows only tools
+  covered by the grant. Its result has private cache scope and a zero TTL.
+  Bot keys have the complete catalog but retain their normal authority ceiling.
+- Protected-resource metadata requests only `chatto:rooms:read` for initial
+  discovery. Issuer metadata lists all four scopes. A host can request more
+  scopes through fresh consent. Existing complete grants remain valid.
+- A call without its tool scope returns HTTP `403` with an OAuth
+  `insufficient_scope` challenge that names only the required scope and the
+  protected-resource metadata URL. This check precedes domain operations.
+  A scope-present RBAC denial remains an MCP tool error.
+- Consent records identify the exact resource and normalized scope set.
+  Authorization-code exchange and refresh preserve that grant. The token
+  response reports the granted `scope`. A token request cannot widen it.
 - Identity tools return the effective server identity or the authenticated
   account identity. Server identity includes the canonical server URL and the
   connected MCP URL. Room and message list tools return bounded pages. The
@@ -86,8 +104,7 @@ primitive.
   or unknown hosts. It rejects cross-origin browser writes, limits admission
   across all configured hosts to 20 requests per second with a burst of 40,
   and gives each request 15 seconds.
-- A listed tool can reject a specific target even when the credential has the
-  complete MCP grant.
+- A listed tool can reject a specific target even when its scope is granted.
 - Every tool call applies current Chatto RBAC, room membership, message access,
   search visibility, and absence rules. A successful earlier call does not
   grant authority to a later call.
@@ -150,12 +167,15 @@ authority.
 
 **Decision:** MCP OAuth scopes limit the classes of MCP operations that a
 human client can request. Normal Chatto permissions and resource visibility
-still decide what the user can do and see.
+still decide what the user can do and see. Accept independent scope subsets,
+filter discovery, and require fresh consent to add authority. Keep the exact
+grant through code exchange, refresh, and multi-replica credential validation.
 **Why:** A user can grant an agent less authority than the user's complete
 account. RBAC remains the canonical product authorization model.
 **Tradeoff:** A call can fail because of either the OAuth ceiling or the
 current product authority. Errors and consent text must make this distinction
-clear without disclosing hidden resources.
+clear without disclosing hidden resources. Hosts that need more than the
+initial room-read grant must request the additional scopes.
 
 ### 5. Target the dated stateless MCP specification
 

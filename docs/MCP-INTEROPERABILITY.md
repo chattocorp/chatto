@@ -107,7 +107,9 @@ cores and HTTP listeners with one NATS store. It verifies:
 
 - A valid grant works on both replicas.
 - A grant for an alias fails on the canonical resource.
-- A grant with a missing scope fails with an OAuth resource challenge.
+- A grant with unknown scopes fails with an OAuth resource challenge.
+- A single-scope grant refreshes on another replica without gaining scopes.
+  Both replicas reject a call outside the refreshed grant with `403`.
 - Revocation rejects new MCP requests and refresh on both replicas.
 - Client blocking rejects new MCP requests and refresh on both replicas.
 - Expired access and invalid refresh credentials are rejected over HTTP.
@@ -120,6 +122,17 @@ before best-effort token cleanup. Existing OAuth tests cover consent, PKCE,
 resource binding, refresh rotation, and code exchange. The SDK's default
 logger discards its diagnostics. HTTP metrics use fixed metric names and
 bounded state/reason labels; MCP does not add request-content labels.
+
+Scope-subset checks on 2026-10-08 also cover all 15 nonempty grants through
+OAuth consent, code exchange, refresh, filtered discovery, and successful
+covered tool calls. Missing tool scope returns `403 insufficient_scope`
+before domain work. False method/name headers cannot bypass the scope check.
+The official Go client starts with room-read access and completes fresh
+consent for message-write access after a `403` challenge. Its next tool list
+contains only identity, room-list, and posting tools. The host matrix above
+records earlier full-grant tests; it does not verify this scope upgrade in
+Codex or Inspector. The public guide gives an explicit full-scope Codex login
+command for hosts that need the complete catalog.
 
 These checks do not replace a full deployment log and metric audit. Before
 release, collect diagnostics from a synthetic complete host flow, including

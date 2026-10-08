@@ -69,9 +69,13 @@ The first implementation will use these boundaries:
 6. Each MCP call uses the same authenticated application operation as the
    equivalent public API call. The operation enforces RBAC, membership,
    message-access rules, validation, pagination, and resource visibility.
-7. MCP tool discovery can reduce the visible catalog for the credential, but
-   the catalog is not an authorization boundary. Every call checks authority
-   again.
+7. Human grants can contain any nonempty subset of the supported MCP scopes.
+   MCP tool discovery shows only tools covered by the grant. Identity tools
+   require no additional scope. Every call checks its operation scope and
+   normal authority again. The scope-filtered catalog has private cache scope
+   and a zero TTL. Initial discovery requests only room-read access;
+   additional scopes require fresh consent. Code exchange and refresh cannot
+   widen the approved grant.
 8. Tool output uses canonical public resource shapes or a deliberate bounded
    projection of them. It does not expose persisted event payloads, NATS
    subjects, JetStream positions, internal cursors, or projection internals.

@@ -134,6 +134,22 @@ func MCPOAuthScopes() []string {
 	}
 }
 
+// ValidMCPOAuthScopes accepts any nonempty subset of the supported MCP scopes.
+// Each scope grants only its own operation class; writes do not imply reads.
+func ValidMCPOAuthScopes(scopes []string) bool {
+	if len(scopes) == 0 {
+		return false
+	}
+	for _, scope := range scopes {
+		switch scope {
+		case MCPMessagesReadScope, MCPMessagesWriteScope, MCPRoomsReadScope, MCPRoomsWriteScope:
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 // MCPResourceURL returns the canonical MCP endpoint and OAuth resource. MCP is
 // mounted on the public HTTP server, so it shares the canonical webserver.url
 // origin.
