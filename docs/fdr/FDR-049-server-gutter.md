@@ -10,9 +10,10 @@ frontend. The order belongs to this browser or app installation.
 
 ## Behavior
 
-- The server that hosts the frontend is first and has a small home badge.
-  It scrolls with the list and cannot be moved. A standalone frontend has no
-  home server.
+- The server that hosts the frontend is first. It has a small home badge only
+  when another server is registered, including a signed-out or unavailable
+  server. It scrolls with the list and cannot be moved. A standalone frontend
+  has no home server.
 - Users can drag remote server icons with a mouse. The server menu also has
   **Move up** and **Move down** actions, with unavailable moves disabled.
   Touch input uses the menu, including on devices with a mouse or trackpad.
@@ -35,8 +36,10 @@ frontend. The order belongs to this browser or app installation.
 
 ### 1. Keep the home server first
 
-**Decision:** Mark the server that hosts the frontend and keep it first.
+**Decision:** Keep the server that hosts the frontend first. Mark it with a
+home badge only when another server is registered.
 **Why:** Its place stays clear when the user adds or moves remote servers.
+The badge is not needed when there is only one server.
 **Tradeoff:** Users cannot place a remote server before it.
 
 ### 2. Share saved order through browser storage

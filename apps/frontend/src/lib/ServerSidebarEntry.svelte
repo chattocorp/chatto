@@ -315,7 +315,7 @@
   contextMenuTrigger={serverContextMenuTrigger}
   title={iconTitle}
   warning={problem !== null}
-  home={isOrigin}
+  home={isOrigin && remoteIds.length > 0}
 />
 
 {#if contextMenu}
