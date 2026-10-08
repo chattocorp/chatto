@@ -82,6 +82,7 @@ let localTrackPublications: Array<{
   track: { source: string; mediaStreamTrack?: MediaStreamTrack };
 }> = [];
 let mockRemoteParticipants = new Map<string, unknown>();
+let mockActiveSpeakers: unknown[] = [];
 
 let processorConstructionFails = false;
 vi.mock('$lib/audio/microphoneProcessor', async (importOriginal) => {
@@ -194,6 +195,9 @@ vi.mock('livekit-client', () => {
       getTrackPublications: vi.fn(() => localTrackPublications)
     };
     remoteParticipants = mockRemoteParticipants;
+    get activeSpeakers() {
+      return mockActiveSpeakers;
+    }
 
     constructor(options: Record<string, unknown>) {
       lastRoomOptions = options;
@@ -343,6 +347,7 @@ describe('VoiceCallState', () => {
     roomEventHandlers = new Map();
     localTrackPublications = [];
     mockRemoteParticipants = new Map();
+    mockActiveSpeakers = [];
     gameCaptureMocks.start.mockReset();
     vi.stubGlobal(
       'AudioContext',
@@ -373,32 +378,55 @@ describe('VoiceCallState', () => {
   });
 
   describe('active speaker', () => {
-    const speaker = (identity: string) => ({ identity, metadata: '' });
-    const companion = {
-      identity: 'publisher',
-      metadata: JSON.stringify({ publisherKind: 'game_share', ownerIdentity: 'bob' })
-    };
+    function remote(identity: string, metadata = '') {
+      return {
+        identity,
+        name: identity,
+        metadata,
+        connectionQuality: 'good',
+        isSpeaking: false,
+        audioLevel: 0,
+        setVolume: vi.fn(),
+        trackPublications: new Map(),
+        getTrackPublications: vi.fn(() => [])
+      };
+    }
 
     async function joinedState() {
+      const participants = {
+        bob: remote('bob'),
+        chloe: remote('chloe'),
+        dana: remote('dana'),
+        publisher: remote(
+          'publisher',
+          JSON.stringify({ publisherKind: 'game_share', ownerIdentity: 'bob' })
+        )
+      };
+      for (const participant of Object.values(participants)) {
+        mockRemoteParticipants.set(participant.identity, participant);
+      }
       const state = createPermittedCallState(createVoiceCallClient());
       await state.join('wss://livekit.example.test', 'R1');
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
-      const report = (...identities: Array<string | typeof companion>) =>
+      const local = lastRoom!.localParticipant;
+      const report = (...identities: string[]) =>
         roomEventHandlers.get('ActiveSpeakersChanged')?.(
-          identities.map((id) => (typeof id === 'string' ? speaker(id) : id))
+          identities.map((id) =>
+            id === 'local-user' ? local : participants[id as keyof typeof participants]
+          )
         );
-      return { state, report };
+      return { state, report, participants };
     }
 
     afterEach(() => {
       vi.useRealTimers();
     });
 
-    it('takes the loudest remote speaker and keeps them during silence', async () => {
+    it('takes the loudest connected remote speaker and keeps them during silence', async () => {
       const { state, report } = await joinedState();
       expect(state.activeSpeakerIdentity).toBeNull();
 
-      report('local-user', companion, 'bob', 'chloe');
+      report('local-user', 'publisher', 'bob', 'chloe');
       expect(state.activeSpeakerIdentity).toBe('bob');
 
       report();
@@ -407,27 +435,42 @@ describe('VoiceCallState', () => {
       await state.leave();
     });
 
-    it('switches after the hold only when the new speaker is still speaking', async () => {
+    it('switches only after a new speaker stays the loudest for the hold time', async () => {
       const { state, report } = await joinedState();
       report('bob');
+      vi.advanceTimersByTime(ACTIVE_SPEAKER_HOLD_MS * 10);
 
-      // A short interjection inside the hold does not replace the speaker.
-      vi.advanceTimersByTime(1_000);
-      report('chloe');
-      expect(state.activeSpeakerIdentity).toBe('bob');
-      report();
+      // A short interjection does not move the stage, however long Bob talked.
+      report('chloe', 'bob');
+      vi.advanceTimersByTime(400);
+      report('bob');
       vi.advanceTimersByTime(ACTIVE_SPEAKER_HOLD_MS);
       expect(state.activeSpeakerIdentity).toBe('bob');
 
-      // After the hold, a new speaker replaces the current one at once.
+      // Other list changes do not restart the new speaker's hold.
       report('chloe');
+      vi.advanceTimersByTime(ACTIVE_SPEAKER_HOLD_MS - 1);
+      report('chloe', 'dana');
+      expect(state.activeSpeakerIdentity).toBe('bob');
+      vi.advanceTimersByTime(1);
+      expect(state.activeSpeakerIdentity).toBe('chloe');
+      await state.leave();
+    });
+
+    it('ignores a departed speaker that LiveKit still lists', async () => {
+      const { state, report, participants } = await joinedState();
+      report('bob');
+      expect(state.activeSpeakerIdentity).toBe('bob');
+
+      // Bob leaves while marked as speaking. LiveKit keeps him first in its
+      // list with a frozen level and sends no speaker update.
+      mockRemoteParticipants.delete('bob');
+      mockActiveSpeakers = [participants.bob, participants.chloe];
+      roomEventHandlers.get('ParticipantDisconnected')?.();
       expect(state.activeSpeakerIdentity).toBe('chloe');
 
-      // Inside the next hold, a continuing speaker takes over when it ends.
-      report('dana');
-      vi.advanceTimersByTime(ACTIVE_SPEAKER_HOLD_MS - 1);
-      expect(state.activeSpeakerIdentity).toBe('chloe');
-      vi.advanceTimersByTime(1);
+      report('bob', 'dana');
+      vi.advanceTimersByTime(ACTIVE_SPEAKER_HOLD_MS);
       expect(state.activeSpeakerIdentity).toBe('dana');
       await state.leave();
     });

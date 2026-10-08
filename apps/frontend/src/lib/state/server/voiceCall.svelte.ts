@@ -79,7 +79,7 @@ type LiveKitModule = typeof import('livekit-client');
 
 const RECENTLY_DISCONNECTED_CALL_SOUND_MS = 5_000;
 const MEDIA_DEVICE_TOAST_DEDUPLICATION_MS = 1_500;
-/** Minimum time an active speaker stays current before another can replace them. */
+/** Time a new speaker must stay the loudest remote speaker before replacing the current one. */
 export const ACTIVE_SPEAKER_HOLD_MS = 3_000;
 let liveKitModule: LiveKitModule | null = null;
 let liveKitModulePromise: Promise<LiveKitModule> | null = null;
@@ -232,12 +232,13 @@ export class VoiceCallState implements CallConnection {
    * Identity of the remote participant who spoke most recently, from LiveKit's
    * server-side active speaker updates. It ignores the local participant and
    * keeps the last speaker during silence. A new speaker replaces the current
-   * one only after ACTIVE_SPEAKER_HOLD_MS, and only if they are still speaking
-   * then, so short interjections do not change it. Null until someone speaks.
+   * one only after staying the loudest remote speaker for
+   * ACTIVE_SPEAKER_HOLD_MS without interruption, so short interjections do not
+   * change it. The first speaker, or the next one after the current speaker
+   * leaves, applies at once. Null until someone speaks.
    */
   activeSpeakerIdentity = $state<string | null>(null);
-  private activeSpeakerSince = 0;
-  /** Loudest remote speaker in the latest update, or null during silence. */
+  /** Loudest connected remote speaker in the latest update, or null during silence. */
   private latestRemoteSpeaker: string | null = null;
   private activeSpeakerTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -1343,6 +1344,9 @@ export class VoiceCallState implements CallConnection {
 
     this.room.on(RoomEvent.ParticipantDisconnected, () => {
       this.updateParticipants();
+      // LiveKit keeps a departed speaker in its list and sends no speaker
+      // update, so select again without them.
+      this.handleActiveSpeakers(room.activeSpeakers);
     });
 
     this.room.on(RoomEvent.TrackMuted, () => {
@@ -1374,15 +1378,9 @@ export class VoiceCallState implements CallConnection {
       this.updateParticipants();
     });
 
-    // Speakers arrive loudest first and include the local participant.
     this.room.on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) => {
       if (this.room !== room) return;
-      this.latestRemoteSpeaker =
-        speakers.find(
-          (speaker) =>
-            speaker.identity !== room.localParticipant.identity && !isCompanionPublisher(speaker)
-        )?.identity ?? null;
-      this.updateActiveSpeaker();
+      this.handleActiveSpeakers(speakers);
     });
 
     // Attach remote audio tracks so we actually hear other participants.
@@ -1436,21 +1434,37 @@ export class VoiceCallState implements CallConnection {
     }, 60);
   }
 
-  /** Applies the latest remote speaker once the current speaker's hold ends. */
-  private updateActiveSpeaker(): void {
-    const next = this.latestRemoteSpeaker;
-    if (next === null || next === this.activeSpeakerIdentity) return;
-    const remainingHold = this.activeSpeakerSince + ACTIVE_SPEAKER_HOLD_MS - Date.now();
-    if (this.activeSpeakerIdentity !== null && remainingHold > 0) {
-      // LiveKit reports changes only, so check again when the hold ends.
-      this.activeSpeakerTimer ??= setTimeout(() => {
-        this.activeSpeakerTimer = null;
-        this.updateActiveSpeaker();
-      }, remainingHold);
+  /**
+   * Takes LiveKit's speaker list, loudest first, and starts the hold for a new
+   * loudest remote speaker. Only connected remote participants count: the list
+   * also holds the local participant and can hold participants who left.
+   */
+  private handleActiveSpeakers(speakers: Participant[]): void {
+    const room = this.room;
+    if (!room) return;
+    const latest =
+      speakers.find(
+        (speaker) =>
+          room.remoteParticipants.get(speaker.identity) === speaker &&
+          !isCompanionPublisher(speaker)
+      )?.identity ?? null;
+    if (this.activeSpeakerIdentity && !room.remoteParticipants.has(this.activeSpeakerIdentity)) {
+      this.activeSpeakerIdentity = null;
+    }
+    if (latest === this.latestRemoteSpeaker && this.activeSpeakerIdentity !== null) return;
+    this.latestRemoteSpeaker = latest;
+
+    if (this.activeSpeakerTimer) clearTimeout(this.activeSpeakerTimer);
+    this.activeSpeakerTimer = null;
+    if (latest === null || latest === this.activeSpeakerIdentity) return;
+    if (this.activeSpeakerIdentity === null) {
+      this.activeSpeakerIdentity = latest;
       return;
     }
-    this.activeSpeakerIdentity = next;
-    this.activeSpeakerSince = Date.now();
+    this.activeSpeakerTimer = setTimeout(() => {
+      this.activeSpeakerTimer = null;
+      this.activeSpeakerIdentity = latest;
+    }, ACTIVE_SPEAKER_HOLD_MS);
   }
 
   private updateParticipants(): void {
@@ -1691,7 +1705,6 @@ export class VoiceCallState implements CallConnection {
       this.activeSpeakerTimer = null;
     }
     this.activeSpeakerIdentity = null;
-    this.activeSpeakerSince = 0;
     this.latestRemoteSpeaker = null;
 
     if (this.room) {
