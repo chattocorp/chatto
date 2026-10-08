@@ -200,6 +200,18 @@ describe('systemHealthChecks edge cases', () => {
     expect(at(120)).toBe('critical');
   });
 
+  it('rounds the shown percentage down so it matches the status', () => {
+    const checks = systemHealthChecks(
+      info({ account: { ...info().account, storage: 1000, storageUsed: 746 } })
+    );
+
+    expect(checks.find((check) => check.id === 'storage')).toEqual({
+      id: 'storage',
+      status: 'ok',
+      detail: { kind: 'storage_used', percent: 74 }
+    });
+  });
+
   it('treats an empty projection list as unreported', () => {
     expect(statusOf(info({ projections: [] })).projections).toBe('unknown');
   });

@@ -193,6 +193,8 @@ function storageCheck(info: AdminSystemInfo): HealthCheck {
   return {
     id: 'storage',
     status,
-    detail: { kind: 'storage_used', percent: Math.round(usage * 100) }
+    // Round down, so the shown percentage never reaches a threshold that the
+    // status has not reached.
+    detail: { kind: 'storage_used', percent: Math.floor(usage * 100) }
   };
 }
