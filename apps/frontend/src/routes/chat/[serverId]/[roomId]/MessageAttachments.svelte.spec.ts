@@ -296,10 +296,10 @@ describe('MessageAttachments', () => {
       const border = parseFloat(getComputedStyle(card).borderTopWidth);
       expect(first.left - frame.left - border).toBe(12);
       expect(frame.right - last.right - border).toBe(12);
-      for (const child of [first, last]) {
-        expect(child.top - frame.top - border).toBe(12);
-        expect(frame.bottom - child.bottom - border).toBe(12);
-      }
+      expect(first.top - frame.top - border).toBe(12);
+      expect(frame.bottom - first.bottom - border).toBe(12);
+      expect(last.top - frame.top - border).toBe(18);
+      expect(frame.bottom - last.bottom - border).toBe(18);
     }
     expect(cards[0].getBoundingClientRect().height).toBe(cards[1].getBoundingClientRect().height);
   });
@@ -346,6 +346,45 @@ describe('MessageAttachments', () => {
     expect(image.className).not.toContain('object-cover');
     expect(image.className).toContain('h-full');
     expect(image.className).toContain('w-full');
+  });
+
+  it('keeps a narrow portrait image unchanged while fitting its action row', () => {
+    const { container } = renderAttachment(
+      imageAttachment({ filename: 'tall.jpg', width: 320, height: 1600 }),
+      { canDeleteAttachment: true, canEditAttachmentDescription: true }
+    );
+    const { button } = imageFrame(container, 'tall.jpg');
+    const wrapper = button.parentElement!.getBoundingClientRect();
+    const actions = [...container.querySelectorAll<HTMLElement>('.attachment-action-button')];
+    const [first, last] = actions.map((action) => action.getBoundingClientRect());
+
+    expect(button.getBoundingClientRect().width).toBe(40);
+    expect(first.left - wrapper.left).toBeGreaterThanOrEqual(8);
+    expect(wrapper.right - last.right).toBe(8);
+    expect(first.top - wrapper.top).toBe(8);
+    expect(last.top).toBe(first.top);
+    expect(last.left - first.right).toBe(4);
+    for (const action of actions) {
+      expect(action.getBoundingClientRect().width).toBe(28);
+      expect(action.getBoundingClientRect().height).toBe(28);
+    }
+  });
+
+  it.each([false, true])('balances image action insets (gallery: %s)', (gallery) => {
+    const attachments = [imageAttachment({ id: 'first', filename: 'first.jpg' })];
+    if (gallery) attachments.push(imageAttachment({ id: 'second', filename: 'second.jpg' }));
+    const { container } = renderAttachments(attachments, {
+      canDeleteAttachment: true,
+      canEditAttachmentDescription: true
+    });
+    const { button } = imageFrame(container, 'first.jpg');
+    const frame = button.getBoundingClientRect();
+    const edit = button
+      .parentElement!.querySelector<HTMLElement>('[aria-label="Add description"]')!
+      .getBoundingClientRect();
+
+    expect(edit.top - frame.top).toBe(8);
+    expect(frame.right - edit.right).toBe(8);
   });
 
   it('renders ultra-wide landscape images as contained shallow strips', () => {
@@ -470,12 +509,25 @@ describe('MessageAttachments', () => {
       await expect.poll(() => container.querySelector(playerSelector)).toBeTruthy();
       const player = container.querySelector<HTMLElement>(playerSelector)!;
       const edit = container.querySelector<HTMLElement>('[aria-label="Add description"]')!;
+      const actions = [...container.querySelectorAll<HTMLElement>('.attachment-action-button')];
       for (const width of [120, 240, 320]) {
         container.style.width = `${width}px`;
         await expect.poll(() => player.getBoundingClientRect().width).toBeLessThanOrEqual(width);
         expect(
           player.getBoundingClientRect().bottom - edit.getBoundingClientRect().bottom
         ).toBeGreaterThanOrEqual(48);
+        const bounds = actions.map((action) => action.getBoundingClientRect());
+        const frame = (processed ? player : player.parentElement!).getBoundingClientRect();
+        expect(bounds[0].top - frame.top).toBeCloseTo(
+          frame.right - bounds[bounds.length - 1].right,
+          1
+        );
+        for (const [index, bound] of bounds.entries()) {
+          expect(bound.width).toBe(28);
+          expect(bound.height).toBe(28);
+          expect(bound.top).toBe(bounds[0].top);
+          if (index > 0) expect(bound.left - bounds[index - 1].right).toBe(4);
+        }
       }
     }
   );
@@ -506,7 +558,7 @@ describe('MessageAttachments', () => {
     });
   });
 
-  it('stacks delete before edit and uses a file-edit icon for descriptions', () => {
+  it('places delete before edit in a row and uses a file-edit icon for descriptions', () => {
     const { container } = renderAttachment(imageAttachment({ description: 'A chart.' }), {
       canDeleteAttachment: true,
       canEditAttachmentDescription: true
@@ -523,9 +575,10 @@ describe('MessageAttachments', () => {
         'button[aria-label="Delete attachment"], button[aria-label="Edit description"]'
       )
     ]).toEqual([remove, edit]);
-    expect(remove.getBoundingClientRect().bottom).toBeLessThanOrEqual(
-      edit.getBoundingClientRect().top
+    expect(remove.getBoundingClientRect().right).toBeLessThanOrEqual(
+      edit.getBoundingClientRect().left
     );
+    expect(remove.getBoundingClientRect().top).toBe(edit.getBoundingClientRect().top);
     expect(edit.querySelector('span')?.classList.contains('icon-[uil--file-edit-alt]')).toBe(true);
   });
 

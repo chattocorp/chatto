@@ -148,14 +148,54 @@ describe('server admin system diagnostics', () => {
     await vi.waitFor(() => expect(container.textContent).toContain('refreshed-server'));
   });
 
+  it('summarizes health, usage, and server counts at the top', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({
+      ...systemInfo,
+      account: { ...systemInfo.account, storageUsed: 1600 }
+    });
+    const { container } = render(SystemPage);
+    await settle();
+
+    expect(container.textContent).toContain('Needs attention');
+    expect(container.textContent).toContain('80% of the nearest limit used');
+    expect(container.textContent).toMatch(/Users\s*4/);
+    expect(container.textContent).toContain('1 direct message');
+    expect(container.querySelector('[role="meter"][aria-label="File Storage"]')).not.toBeNull();
+  });
+
+  it('marks critical checks with an accessible status', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({
+      ...systemInfo,
+      connection: { ...systemInfo.connection, connected: false }
+    });
+    const { container } = render(SystemPage);
+    await settle();
+
+    expect(container.textContent).toContain('Problems found');
+    expect(container.textContent).toContain('Not connected to the NATS broker');
+    expect(
+      container.querySelector('[data-health="critical"] [role="img"]')?.getAttribute('aria-label')
+    ).toBe('Problem');
+  });
+
+  it('reads a new snapshot when the refresh action is used', async () => {
+    const screen = render(SystemPage);
+    await settle();
+    expect(mocks.getAdminSystemInfo).toHaveBeenCalledOnce();
+
+    await screen.getByRole('button', { name: 'Refresh' }).click();
+    await vi.waitFor(() => expect(mocks.getAdminSystemInfo).toHaveBeenCalledTimes(2));
+  });
+
   it('keeps unrelated diagnostics visible when JetStream telemetry is unavailable', async () => {
     mocks.getAdminSystemInfo.mockResolvedValue({ ...systemInfo, natsAvailable: false });
     const { container } = render(SystemPage);
     await settle();
 
     expect(container.textContent).toContain('test-server');
-    expect(container.textContent).toContain('Unavailable');
+    expect(container.textContent).toContain('Stream and consumer details are not available.');
+    expect(container.textContent).toContain('No problems found. Some checks have no data.');
     expect(container.textContent).toContain('Projection Summary');
-    expect(container.textContent).not.toContain('Stream Activity');
+    expect(container.textContent).not.toContain('Stored Data');
   });
 });

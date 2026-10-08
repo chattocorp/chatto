@@ -376,11 +376,9 @@
       "title": "Süsteem",
       "subtitle": "Maakler, JetStreami salvestusruum, tarbijad ja projektsiooni tervis",
       "loading": "Süsteemi teabe laadimine...",
-      "connection": "Ühendus",
       "broker": "NATSi maakler",
       "connected": "Ühendatud",
       "disconnected": "Ühendus katkestatud",
-      "unlimited": "piiramatu",
       "all_subjects": "kõik õppeained",
       "pending_state": "Ootel",
       "worker_unconfirmed": "Kinnitamata",
@@ -388,32 +386,12 @@
       "max_payload": "Maksimaalne kandevõime",
       "server_id": "Serveri ID",
       "server_name": "Serveri nimi",
-      "limit": "Limiit: {limit}",
       "used_of_limit": "{used}/{limit}",
-      "jetstream_account": "JetStreami konto",
       "account_storage": "Failide salvestusruum",
       "account_memory": "Mälu salvestusruum",
-      "stream_capacity": "Voo läbilaskevõime",
-      "consumer_capacity": "Tarbija võimsus",
-      "stream_activity": "Voo tegevus",
       "events": "Sündmused",
-      "event_bytes": "Sündmuse baidid",
-      "messages_stored": "Salvestatud sõnumid",
-      "stream_bytes": "Voobaidid",
       "average_message_size": "{size} keskmine",
-      "storage_mix": "{file} failiga tagatud / {memory} mäluga tagatud voogu",
-      "consumer_backlog": "Tarbijate mahajäämus",
-      "consumer_backlog_subtitle": "{count} tarbija(d) ootel sõnumitega",
-      "redelivered_total": "{count} uuesti tarnitud",
-      "stream_summary": "Voo kokkuvõte",
-      "file_streams": "Failivood",
-      "memory_streams": "Mälu vood",
       "largest_stream": "Suurim voog",
-      "messages_lower": "sõnumeid",
-      "consumer_summary": "Tarbija kokkuvõte",
-      "pull_consumers": "Tõmba Tarbijad",
-      "push_consumers": "Push Tarbijad",
-      "unbound_push_consumers": "Piiramata push-tarbijad",
       "projection_summary": "Projektsiooni kokkuvõte",
       "average_entry_size": "Keskmine sisenemine",
       "average_entry_value": "{size} keskmine",
@@ -444,7 +422,6 @@
       "projection_memory": "Projektsioonimälu",
       "projection_failures": "Projektsiooni tõrked",
       "projection_lag": "Projektsiooni viivitus",
-      "projection_entries": "{count} prognoositud kirjet",
       "no_projections": "Prognoose ei registreerita.",
       "projection": "Projektsioon",
       "state": "osariik",
@@ -471,15 +448,99 @@
       "asset_cleanup_inactive_summary": "Praegu ei ole ühelgi varapuhastustöötajal rendilepingut sõlmitud.",
       "asset_cleanup_unavailable_summary": "See serveriversioon ei teata puhastamise seisundist.",
       "asset_cleanup_pending": "Uued katsed on ootel",
-      "asset_cleanup_oldest": "Vanim ootel",
-      "asset_cleanup_last_pass": "Viimane läbimine",
-      "asset_cleanup_last_success": "Viimati õnnestunud: {time}",
       "asset_cleanup_event_scan": "Sündmuste skaneerimine",
       "asset_cleanup_caught_up": "Tabatud",
       "asset_cleanup_events_waiting": "Uued sündmused ootavad",
-      "asset_cleanup_never": "Mitte kunagi",
-      "asset_cleanup_none": "Mitte ühtegi",
-      "asset_cleanup_in_progress": "Pooleli"
+      "asset_cleanup_in_progress": "Pooleli",
+      "refresh": "Värskenda",
+      "account_unavailable": "JetStreami konto kasutus pole saadaval.",
+      "jetstream_unavailable": "Voogude ja tarbijate üksikasjad pole saadaval.",
+      "projections_unavailable": "Projektsioonide üksikasjad pole saadaval.",
+      "durable_workers": "Taustatöötajad",
+      "no_durable_workers": "Taustatöötajaid ei ole teatatud.",
+      "broker_scope_label": "Selle ühenduse kohta",
+      "broker_scope_help": "See on selle päringu töödelnud Chatto eksemplari ühendus maakleriga. Kui käitate mitut eksemplari, võivad teised eksemplarid ühenduda teise NATSi sõlmega.",
+      "health": {
+        "title": "Tervis",
+        "status_ok": "OK",
+        "status_warning": "Hoiatus",
+        "status_critical": "Probleem",
+        "status_unknown": "Teadmata",
+        "overall_ok": "Kõik töötab normaalselt",
+        "overall_warning": "Vajab tähelepanu",
+        "overall_critical": "Leiti probleeme",
+        "overall_ok_summary": "Kõik kontrollid läbiti selle hetktõmmise tegemise ajal.",
+        "overall_partial_summary": "Probleeme ei leitud. Mõne kontrolli kohta puuduvad andmed.",
+        "overall_problem_summary": "Vaadake allolevad kontrollid üle. Üksikasjad on allpool olevates jaotistes.",
+        "broker": "Ühendus maakleriga",
+        "projections": "Projektsioonid",
+        "workers": "Taustatöötajad",
+        "backlog": "Järjekord",
+        "storage": "Konto piirangud",
+        "unavailable": "Pole teatatud",
+        "broker_connected": "Ühendatud NATSiga {version}",
+        "broker_disconnected": "NATSi maakleriga pole ühendatud",
+        "projections_failed_count": {
+          "one": "{count} projektsioon ebaõnnestus",
+          "other": "{count} projektsiooni ebaõnnestus"
+        },
+        "projections_catching_up_count": {
+          "one": "{count} projektsioon jõuab järele",
+          "other": "{count} projektsiooni jõuavad järele"
+        },
+        "projections_running_count": {
+          "one": "{count} projektsioon on ajakohane",
+          "other": "Kõik {count} projektsiooni on ajakohased"
+        },
+        "workers_failing_count": {
+          "one": "{count} töötaja on kinni jäänud või puudub",
+          "other": "{count} töötajat on kinni jäänud või puuduvad"
+        },
+        "workers_unconfirmed_count": {
+          "one": "{count} töötaja on kinnitamata",
+          "other": "{count} töötajat on kinnitamata"
+        },
+        "workers_running_count": {
+          "one": "{count} töötaja töötab",
+          "other": "Kõik {count} töötajat töötavad"
+        },
+        "backlog_waiting_count": {
+          "one": "{count} sõnum ootab või on töös",
+          "other": "{count} sõnumit ootab või on töös"
+        },
+        "backlog_clear": "Ühtegi sõnumit ei oota",
+        "storage_used": "{percent}% lähimast piirangust on kasutatud",
+        "storage_unlimited": "Piiranguid pole seadistatud"
+      },
+      "overview": {
+        "users": "Kasutajad",
+        "rooms": "Ruumid",
+        "direct_messages_count": {
+          "one": "{count} otsesõnum",
+          "other": "{count} otsesõnumit"
+        },
+        "events": "Sündmused",
+        "stored_data": "Salvestatud andmed",
+        "stored_data_subtitle_count": {
+          "one": "{count} voos",
+          "other": "{count} voogudes"
+        }
+      },
+      "usage": {
+        "title": "JetStreami kasutus",
+        "no_limit": "piirang puudub",
+        "replica_copies_note": "Sisaldab koopiat igas vooreplikas. Failivood sisaldavad {size} andmeid.",
+        "stream_mix": "{file} failis, {memory} mälus",
+        "consumer_mix": "{pull} Pull, {push} Push",
+        "unbound_count": {
+          "one": "{count} seondamata",
+          "other": "{count} seondamata"
+        },
+        "messages_count": {
+          "one": "{count} sõnum",
+          "other": "{count} sõnumit"
+        }
+      }
     },
     "event_log": {
       "title": "Sündmuste logi",

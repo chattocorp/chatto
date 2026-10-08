@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// Role hierarchy for administration (ADR-114).
+// Role hierarchy for administration (ADR-115).
 //
 // Role order is an administrative rank. It decides who may manage whom; it
 // never changes how a permission resolves. An account ranks at the position of
@@ -155,7 +155,7 @@ func (c *ChattoCore) requireRoleBelowActor(actorID, roleName string) error {
 // metadata, its permission decisions, or its deletion. Holders of role.manage
 // may change every role except owner, which stays owner-only. Other actors,
 // such as room managers who edit a role's room decisions, need the role to
-// rank below their highest role (ADR-114).
+// rank below their highest role (ADR-115).
 func (c *ChattoCore) requireRoleManageable(ctx context.Context, actorID, roleName string) error {
 	if roleName != RoleOwner && !c.actorIsHierarchyExempt(actorID) {
 		canManage, err := c.CanManageRoles(ctx, actorID)

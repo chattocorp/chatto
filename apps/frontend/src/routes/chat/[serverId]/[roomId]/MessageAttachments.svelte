@@ -441,8 +441,8 @@
       <div
         class={[
           'z-10 flex gap-1',
-          layout === 'row' ? 'max-w-full flex-wrap items-center' : 'shrink-0 flex-col',
-          layout === 'overlay' && 'absolute end-2 top-3',
+          layout === 'row' ? 'max-w-full flex-wrap items-center' : 'shrink-0 items-center',
+          layout === 'overlay' && 'absolute end-2 top-2',
           layout !== 'row' &&
             'transition-opacity feedback-quick group-hover/attachment:opacity-100 focus-within:opacity-100 compact-input:hover-actions:opacity-0'
         ]}
@@ -467,7 +467,13 @@
           : fallbackSingleThumbDisplay()}
     <div
       class={[
-        'group/attachment relative min-w-0',
+        'group/attachment attachment-media-frame',
+        // Reserve room for the action row without changing the image dimensions.
+        canDeleteAttachment && canEditAttachmentDescription
+          ? 'min-w-19'
+          : canDeleteAttachment || canEditAttachmentDescription
+            ? 'min-w-11'
+            : 'min-w-0',
         variant === 'gallery' ? 'shrink-0' : 'max-w-full'
       ]}
     >

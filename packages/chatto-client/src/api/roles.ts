@@ -26,7 +26,7 @@ export type RoleUser = {
 /**
  * Public role catalogue. `roles` lists every role in role order, highest
  * first: `owner` first and `everyone` last. Role order is the administrative
- * rank (ADR-114).
+ * rank (ADR-115).
  */
 export type PublicRoleCatalog = {
   roles: ServerRole[];

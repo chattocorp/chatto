@@ -9,7 +9,7 @@ permissions resolve.
 The list shows the roles in the server's order, highest first. `owner` is
 fixed at the top and `everyone` at the bottom. Role managers can drag every
 other role, also above their own highest role, and edit every role except
-`owner`, which only owners edit (ADR-114).
+`owner`, which only owners edit (ADR-115).
 
 A pointer drag saves when it is dropped. A keyboard drag reports every arrow
 key move as a `finalize` event while the drag continues, so it saves once when

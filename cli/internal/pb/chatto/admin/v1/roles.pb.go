@@ -745,7 +745,7 @@ func (*DeleteRoleResponse) Descriptor() ([]byte, []int) {
 }
 
 // Request to move one role in the role order. Role order is the
-// administrative rank; see ADR-114.
+// administrative rank; see ADR-115.
 type MoveRoleRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required role to move. Owner and everyone cannot move.

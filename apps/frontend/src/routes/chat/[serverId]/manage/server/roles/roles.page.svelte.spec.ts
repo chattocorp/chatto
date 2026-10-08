@@ -160,7 +160,7 @@ describe('roles page', () => {
     expect(
       [...container.querySelectorAll<HTMLElement>('[data-locked]')].map((row) => row.dataset.role)
     ).toEqual(['owner', 'everyone']);
-    // The viewer's own role and the roles above it move too (ADR-114).
+    // The viewer's own role and the roles above it move too (ADR-115).
     expect(container.querySelector('[aria-label="Move Admin"]')).not.toBeNull();
     expect(container.textContent).toContain('The role order decides who can manage whom.');
   });

@@ -223,7 +223,7 @@ exercise more authority than its human owner currently possesses.
   caller. It exposes the complete directory group layout, including empty
   groups, so group-scoped permissions such as `room.create` remain usable.
 - A human user with `bot.manage` can manage a bot when they rank above the
-  bot and its owner (ADR-114). Changes made by a global bot manager remain
+  bot and its owner (ADR-115). Changes made by a global bot manager remain
   bounded by that bot's owner's permission ceiling. The owner of a bot manages
   it at any rank, but changing a bot's roles always requires a rank above the
   bot.
@@ -292,7 +292,7 @@ them. They do not receive the implicit `everyone` baseline, and absence means
 deny. Bots cannot hold the `owner` role.
 **Why:** API keys are long-lived automation credentials and should start with
 no ambient authority. Roles let operators configure many bots at once, apply
-restriction roles to bots, and give bots a rank (ADR-114). A new bot still has
+restriction roles to bots, and give bots a rank (ADR-115). A new bot still has
 no roles, so it starts without authority.
 **Tradeoff:** Owners must grant even ordinary member capabilities before a new
 bot can do useful work, and newly introduced permissions do not automatically
@@ -317,7 +317,7 @@ must show the owner's ceiling and explain unavailable cells.
 
 **Decision:** `bot.create` lets a human create bots, ownership lets them manage
 their existing bots, and `bot.manage` lets a human manage bots that rank below
-them and whose owners rank below them (ADR-114). Fresh RBAC
+them and whose owners rank below them (ADR-115). Fresh RBAC
 state grants `bot.create` and `bot.manage` to `admin`. Effective owners receive
 both through the normal virtual owner override. Bots do not inherit `everyone`
 and cannot exercise either capability themselves. Upgraded 0.4 servers receive
@@ -572,7 +572,7 @@ editor only when the server version is 0.5.0-beta.9 or later.
 
 ## Related
 
-- **ADRs:** ADR-114 (role hierarchy for administration), ADR-113 (one-time upgrade grants for new permissions), ADR-100 (shared integration client), ADR-111 (client state layer in `@chatto/client`), ADR-098 (retained operational log), ADR-097 (best-effort outbound bot webhooks), ADR-007 (per-user encryption and crypto-shredding), ADR-033
+- **ADRs:** ADR-115 (role hierarchy for administration), ADR-113 (one-time upgrade grants for new permissions), ADR-100 (shared integration client), ADR-111 (client state layer in `@chatto/client`), ADR-098 (retained operational log), ADR-097 (best-effort outbound bot webhooks), ADR-007 (per-user encryption and crypto-shredding), ADR-033
   (event-sourced state), ADR-036 (runtime state), ADR-040 (permission-only RBAC
   with owner override), ADR-045 (public API stability tiers), ADR-046 (typed
   runtime credentials), ADR-052

@@ -392,7 +392,7 @@ membership. See ADR-086.
 
 Role creation sets `RbacRoleCreatedEvent.place_lowest`, so readers place the
 new role lowest. `RbacRoleMovedEvent` moves one role directly above another
-role, or lowest. Both renumber the role order; see ADR-114.
+role, or lowest. Both renumber the role order; see ADR-115.
 
 `RoomCommandModel.UpdateRoom` commits all changed metadata, Universal, Slow
 Mode, and Threading Mode facts in one atomic batch. A patch that supplies a

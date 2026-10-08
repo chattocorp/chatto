@@ -134,7 +134,7 @@ func (c *ChattoCore) AdminDeleteServerRole(ctx context.Context, actorID, roleNam
 }
 
 // AdminMoveServerRole moves one role in the role order. Requires role.manage.
-// The role hierarchy does not limit moves (ADR-114).
+// The role hierarchy does not limit moves (ADR-115).
 func (c *ChattoCore) AdminMoveServerRole(ctx context.Context, actorID, roleName, beforeRoleName string) ([]RoleWithPermissions, error) {
 	if err := c.requireCanManageAdminRoles(ctx, actorID); err != nil {
 		return nil, err

@@ -376,11 +376,9 @@
       "title": "Systeem",
       "subtitle": "Broker, JetStream-opslag, consumenten en projectiestatus",
       "loading": "Systeeminformatie laden...",
-      "connection": "Verbinding",
       "broker": "NATS Makelaar",
       "connected": "Verbonden",
       "disconnected": "Verbinding verbroken",
-      "unlimited": "onbeperkt",
       "all_subjects": "alle onderwerpen",
       "pending_state": "In behandeling",
       "worker_unconfirmed": "Onbevestigd",
@@ -388,32 +386,12 @@
       "max_payload": "Maximale lading",
       "server_id": "Server-ID",
       "server_name": "Servernaam",
-      "limit": "Limiet: {limit}",
       "used_of_limit": "{used} van {limit}",
-      "jetstream_account": "JetStream-account",
       "account_storage": "Bestandsopslag",
       "account_memory": "Geheugenopslag",
-      "stream_capacity": "Streamcapaciteit",
-      "consumer_capacity": "Consumentencapaciteit",
-      "stream_activity": "Streamactiviteit",
       "events": "Evenementen",
-      "event_bytes": "Gebeurtenisbytes",
-      "messages_stored": "Berichten opgeslagen",
-      "stream_bytes": "Streambytes",
       "average_message_size": "{size} gemiddelde",
-      "storage_mix": "{file} bestandsback-up / {memory} geheugenback-upstreams",
-      "consumer_backlog": "Achterstand van consumenten",
-      "consumer_backlog_subtitle": "{count} consument(en) met openstaande berichten",
-      "redelivered_total": "{count} opnieuw afgeleverd",
-      "stream_summary": "Streamoverzicht",
-      "file_streams": "Bestandsstreams",
-      "memory_streams": "Geheugenstreams",
       "largest_stream": "Grootste stream",
-      "messages_lower": "berichten",
-      "consumer_summary": "Consumentenoverzicht",
-      "pull_consumers": "Trek consumenten aan",
-      "push_consumers": "Push consumenten",
-      "unbound_push_consumers": "Ongebonden push-consumenten",
       "projection_summary": "Projectieoverzicht",
       "average_entry_size": "Gemiddelde deelname",
       "average_entry_value": "{size} gemiddelde",
@@ -444,7 +422,6 @@
       "projection_memory": "Projectiegeheugen",
       "projection_failures": "Projectiefouten",
       "projection_lag": "Projectievertraging",
-      "projection_entries": "{count} geprojecteerde vermeldingen",
       "no_projections": "Er zijn geen projecties geregistreerd.",
       "projection": "Projectie",
       "state": "Staat",
@@ -471,15 +448,99 @@
       "asset_cleanup_inactive_summary": "Momenteel heeft geen enkele medewerker voor het opruimen van activa het leasecontract.",
       "asset_cleanup_unavailable_summary": "De opschoonstatus wordt niet gerapporteerd door deze serverversie.",
       "asset_cleanup_pending": "Nieuwe pogingen in behandeling",
-      "asset_cleanup_oldest": "Oudste in behandeling",
-      "asset_cleanup_last_pass": "Laatste pass",
-      "asset_cleanup_last_success": "Laatste succes: {time}",
       "asset_cleanup_event_scan": "Gebeurtenisscan",
       "asset_cleanup_caught_up": "Ingehaald",
       "asset_cleanup_events_waiting": "Er wachten nieuwe evenementen",
-      "asset_cleanup_never": "Nooit",
-      "asset_cleanup_none": "Geen",
-      "asset_cleanup_in_progress": "Bezig"
+      "asset_cleanup_in_progress": "Bezig",
+      "refresh": "Vernieuwen",
+      "account_unavailable": "Het JetStream-accountgebruik is niet beschikbaar.",
+      "jetstream_unavailable": "Details van streams en consumenten zijn niet beschikbaar.",
+      "projections_unavailable": "Projectiedetails zijn niet beschikbaar.",
+      "durable_workers": "Achtergrondwerkers",
+      "no_durable_workers": "Er worden geen achtergrondwerkers gemeld.",
+      "broker_scope_label": "Over deze verbinding",
+      "broker_scope_help": "Dit is de makelaarverbinding van de Chatto-instantie die dit verzoek heeft afgehandeld. Als je meer dan één instantie draait, kunnen de andere instanties met een ander NATS-knooppunt verbonden zijn.",
+      "health": {
+        "title": "Gezondheid",
+        "status_ok": "OK",
+        "status_warning": "Waarschuwing",
+        "status_critical": "Probleem",
+        "status_unknown": "Onbekend",
+        "overall_ok": "Alles werkt normaal",
+        "overall_warning": "Heeft aandacht nodig",
+        "overall_critical": "Problemen gevonden",
+        "overall_ok_summary": "Alle controles waren geslaagd toen deze momentopname werd gemaakt.",
+        "overall_partial_summary": "Geen problemen gevonden. Voor sommige controles zijn geen gegevens beschikbaar.",
+        "overall_problem_summary": "Bekijk de controles hieronder. De secties verderop tonen de details.",
+        "broker": "Makelaarverbinding",
+        "projections": "Projecties",
+        "workers": "Achtergrondwerkers",
+        "backlog": "Achterstand",
+        "storage": "Accountlimieten",
+        "unavailable": "Niet gemeld",
+        "broker_connected": "Verbonden met NATS {version}",
+        "broker_disconnected": "Niet verbonden met de NATS-makelaar",
+        "projections_failed_count": {
+          "one": "{count} projectie mislukt",
+          "other": "{count} projecties mislukt"
+        },
+        "projections_catching_up_count": {
+          "one": "{count} projectie haalt achterstand in",
+          "other": "{count} projecties halen achterstand in"
+        },
+        "projections_running_count": {
+          "one": "{count} projectie is actueel",
+          "other": "Alle {count} projecties zijn actueel"
+        },
+        "workers_failing_count": {
+          "one": "{count} werker vastgelopen of ontbreekt",
+          "other": "{count} werkers vastgelopen of ontbreken"
+        },
+        "workers_unconfirmed_count": {
+          "one": "{count} werker niet bevestigd",
+          "other": "{count} werkers niet bevestigd"
+        },
+        "workers_running_count": {
+          "one": "{count} werker actief",
+          "other": "Alle {count} werkers actief"
+        },
+        "backlog_waiting_count": {
+          "one": "{count} bericht wacht of is in behandeling",
+          "other": "{count} berichten wachten of zijn in behandeling"
+        },
+        "backlog_clear": "Geen wachtende berichten",
+        "storage_used": "{percent}% van de dichtstbijzijnde limiet gebruikt",
+        "storage_unlimited": "Geen limieten ingesteld"
+      },
+      "overview": {
+        "users": "Gebruikers",
+        "rooms": "Kamers",
+        "direct_messages_count": {
+          "one": "{count} direct bericht",
+          "other": "{count} directe berichten"
+        },
+        "events": "Evenementen",
+        "stored_data": "Opgeslagen gegevens",
+        "stored_data_subtitle_count": {
+          "one": "Verdeeld over {count} stream",
+          "other": "Verdeeld over {count} streams"
+        }
+      },
+      "usage": {
+        "title": "JetStream-gebruik",
+        "no_limit": "geen limiet",
+        "replica_copies_note": "Inclusief een kopie op elke streamreplica. De bestandsstreams bevatten {size} aan gegevens.",
+        "stream_mix": "{file} bestand, {memory} geheugen",
+        "consumer_mix": "{pull} Pull, {push} Push",
+        "unbound_count": {
+          "one": "{count} niet gebonden",
+          "other": "{count} niet gebonden"
+        },
+        "messages_count": {
+          "one": "{count} bericht",
+          "other": "{count} berichten"
+        }
+      }
     },
     "event_log": {
       "title": "Gebeurtenislogboek",

@@ -121,7 +121,7 @@ message DeleteRoleResponse {
 }
 
 // Request to move one role in the role order. Role order is the
-// administrative rank; see ADR-114.
+// administrative rank; see ADR-115.
 message MoveRoleRequest {
   // Required role to move. Owner and everyone cannot move.
   string role_name = 1 [(buf.validate.field).string.min_len = 1];

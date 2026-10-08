@@ -27,7 +27,7 @@
 > positions remain active. ADR-052 replaces the literal all-subject,
 > all-scope deny-wins combination rule.
 >
-> **Partially superseded by [ADR-114](ADR-114-role-hierarchy-for-administration.md)
+> **Partially superseded by [ADR-115](ADR-115-role-hierarchy-for-administration.md)
 > (2026-10-07).** Role position is an administrative rank again. Targeted
 > operations need a permission and a higher rank. Permission resolution still
 > ignores role position.

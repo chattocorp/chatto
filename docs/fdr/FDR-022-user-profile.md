@@ -145,7 +145,7 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 ### 7. Cross-user identity edits use target-aware authorization
 
 **Decision:** Cooldown resets require `user.manage-accounts`, including when the caller targets their own human account. Profile edits and avatar changes use the target-aware `UserService` methods. Human and bot self-edits do not require a permission; the login cooldown applies unless the caller has `user.manage-accounts`. A cross-user human target requires `user.manage-accounts` and a higher rank. A cross-user bot target permits its owner, or `user.manage-accounts` or `bot.manage` with a higher rank than the bot and its owner. A bot cannot target another account. Bot lifecycle and credential management remain separate owner-authorized operations in `BotService`.
-**Why:** Cross-user account edits need the permission and a higher rank (ADR-114), so delegated account managers cannot change accounts at or above their rank. Owners are exempt.
+**Why:** Cross-user account edits need the permission and a higher rank (ADR-115), so delegated account managers cannot change accounts at or above their rank. Owners are exempt.
 **Tradeoff:** Profile and avatar authority differ from custom-status, presence, and settings authority, which stay self-only. Clients must not infer one authority from access to the other operations.
 
 ### 8. Custom status is durable profile metadata, not presence

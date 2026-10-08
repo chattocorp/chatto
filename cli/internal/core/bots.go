@@ -299,7 +299,7 @@ func (c *ChattoCore) requireHumanUser(ctx context.Context, userID string) error 
 }
 
 // requireBotManager authorizes changes to a bot: the actor owns it, or holds
-// bot.manage and outranks the bot and its owner (ADR-114).
+// bot.manage and outranks the bot and its owner (ADR-115).
 func (c *ChattoCore) requireBotManager(ctx context.Context, actorID, botID string) (*evtv1.User, error) {
 	bot, err := c.requireBotManagementPermission(ctx, actorID, botID)
 	if err != nil || bot.GetBotOwnerUserId() == actorID {
@@ -1035,7 +1035,7 @@ func (c *ChattoCore) setBotUserPermissionState(ctx context.Context, actorID, bot
 				return ErrBotOwnerPermissionCeiling
 			}
 			// A manager who does not own the bot can also grant only what they
-			// hold themselves (ADR-114).
+			// hold themselves (ADR-115).
 			if currentBot.GetBotOwnerUserId() != actorID {
 				var coreScope PermissionScope
 				switch normalized.Kind {

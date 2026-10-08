@@ -30,17 +30,19 @@ the category or health of the metric; it is not decorative.
   };
 </script>
 
-<div class="panel-shell p-6">
-  <div class="flex items-center gap-4">
-    <div class="rounded-lg p-3 {colorClasses[color].bg}">
-      <span aria-hidden="true" class="{icon} text-2xl {colorClasses[color].text}"></span>
+<div class="flex min-w-0 flex-col gap-3 panel-shell p-5">
+  <div class="flex items-center gap-2.5">
+    <div class="flex rounded-md p-1.5 {colorClasses[color].bg}">
+      <span aria-hidden="true" class="{icon} text-lg {colorClasses[color].text}"></span>
     </div>
-    <div class="min-w-0">
-      <div class="text-3xl font-bold tabular-nums">{value}</div>
-      <div class="text-sm text-muted">{label}</div>
-      {#if subtitle}
-        <div class="text-xs text-muted">{subtitle}</div>
-      {/if}
+    <div class="truncate text-sm text-muted">{label}</div>
+  </div>
+  <div class="min-w-0">
+    <div class="truncate text-2xl font-bold tabular-nums sm:text-3xl" title={String(value)}>
+      {value}
     </div>
+    {#if subtitle}
+      <div class="mt-0.5 truncate text-xs text-muted" title={subtitle}>{subtitle}</div>
+    {/if}
   </div>
 </div>

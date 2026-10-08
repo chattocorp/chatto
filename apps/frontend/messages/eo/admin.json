@@ -376,11 +376,9 @@
       "title": "Sistemo",
       "subtitle": "Makleristo, JetStream stokado, konsumantoj kaj projekcia sano",
       "loading": "Ŝarĝante sisteman informon...",
-      "connection": "Konekto",
       "broker": "NATS Makleristo",
       "connected": "Konektita",
       "disconnected": "Malkonektita",
-      "unlimited": "senlima",
       "all_subjects": "ĉiuj temoj",
       "pending_state": "Pritraktata",
       "worker_unconfirmed": "Nekonfirmita",
@@ -388,32 +386,12 @@
       "max_payload": "Maksimuma Utila Ŝarĝo",
       "server_id": "Servila ID",
       "server_name": "Servilo Nomo",
-      "limit": "Limo: {limit}",
       "used_of_limit": "{used} de {limit}",
-      "jetstream_account": "JetStream Konto",
       "account_storage": "Dosiera Stokado",
       "account_memory": "Memorstokado",
-      "stream_capacity": "Flua Kapacito",
-      "consumer_capacity": "Konsumanto Kapablo",
-      "stream_activity": "Flua Agado",
       "events": "Eventoj",
-      "event_bytes": "Bajtoj de eventoj",
-      "messages_stored": "Mesaĝoj Stokitaj",
-      "stream_bytes": "Fluaj bajtoj",
       "average_message_size": "{size} mezumo",
-      "storage_mix": "{file} dosiersubtenataj fluoj / {memory} memorsubtenaj fluoj",
-      "consumer_backlog": "Konsumanto Backlog",
-      "consumer_backlog_subtitle": "{count} konsumanto(j) kun pritraktataj mesaĝoj",
-      "redelivered_total": "{count} denove liverita",
-      "stream_summary": "Flua Resumo",
-      "file_streams": "Dosieraj Fluoj",
-      "memory_streams": "Memorfluoj",
       "largest_stream": "Plej granda rivereto",
-      "messages_lower": "mesaĝoj",
-      "consumer_summary": "Konsumanto-Resumo",
-      "pull_consumers": "Tiru Konsumantojn",
-      "push_consumers": "Puŝu Konsumantojn",
-      "unbound_push_consumers": "Neligitaj Puŝo-Konsumantoj",
       "projection_summary": "Projekcio-Resumo",
       "average_entry_size": "Meza Eniro",
       "average_entry_value": "{size} mezumo",
@@ -444,7 +422,6 @@
       "projection_memory": "Projekcia Memoro",
       "projection_failures": "Projekciaj Fiaskoj",
       "projection_lag": "Projekcio Lag",
-      "projection_entries": "{count} projektitaj enskriboj",
       "no_projections": "Neniuj projekcioj estas registritaj.",
       "projection": "Projekcio",
       "state": "Ŝtato",
@@ -471,15 +448,99 @@
       "asset_cleanup_inactive_summary": "Neniu laboristo pri purigado de valoraĵoj nuntempe posedas la lizkontrakton.",
       "asset_cleanup_unavailable_summary": "Puriga sano ne estas raportita de ĉi tiu servila versio.",
       "asset_cleanup_pending": "Reprovoj atendas",
-      "asset_cleanup_oldest": "Plej malnova pritraktata",
-      "asset_cleanup_last_pass": "Lasta enirpermesilo",
-      "asset_cleanup_last_success": "Lasta sukcesa: {time}",
       "asset_cleanup_event_scan": "Skanado de evento",
       "asset_cleanup_caught_up": "Kaptita",
       "asset_cleanup_events_waiting": "Novaj eventoj atendas",
-      "asset_cleanup_never": "Neniam",
-      "asset_cleanup_none": "Neniu",
-      "asset_cleanup_in_progress": "En progreso"
+      "asset_cleanup_in_progress": "En progreso",
+      "refresh": "Aktualigi",
+      "account_unavailable": "Uzado de la JetStream-konto ne disponeblas.",
+      "jetstream_unavailable": "Detaloj pri fluoj kaj konsumantoj ne disponeblas.",
+      "projections_unavailable": "Detaloj pri projekcioj ne disponeblas.",
+      "durable_workers": "Fonaj Laboristoj",
+      "no_durable_workers": "Neniuj fonaj laboristoj estas raportitaj.",
+      "broker_scope_label": "Pri ĉi tiu konekto",
+      "broker_scope_help": "Ĉi tio estas la konekto al la makleristo de la Chatto-instanco, kiu traktis ĉi tiun peton. Se vi funkciigas pli ol unu instancon, la aliaj instancoj povas konektiĝi al alia NATS-nodo.",
+      "health": {
+        "title": "Sano",
+        "status_ok": "Bone",
+        "status_warning": "Averto",
+        "status_critical": "Problemo",
+        "status_unknown": "Nekonata",
+        "overall_ok": "Ĉio funkcias normale",
+        "overall_warning": "Bezonas atenton",
+        "overall_critical": "Problemoj troviĝis",
+        "overall_ok_summary": "Ĉiuj kontroloj sukcesis kiam ĉi tiu momentfoto estis farita.",
+        "overall_partial_summary": "Neniuj problemoj troviĝis. Kelkaj kontroloj ne havas datumojn.",
+        "overall_problem_summary": "Revizu la kontrolojn sube. La sekcioj pli sube montras la detalojn.",
+        "broker": "Konekto al makleristo",
+        "projections": "Projekcioj",
+        "workers": "Fonaj laboristoj",
+        "backlog": "Atendovico",
+        "storage": "Kontaj limoj",
+        "unavailable": "Ne raportita",
+        "broker_connected": "Konektita al NATS {version}",
+        "broker_disconnected": "Ne konektita al la NATS-makleristo",
+        "projections_failed_count": {
+          "one": "{count} projekcio malsukcesis",
+          "other": "{count} projekcioj malsukcesis"
+        },
+        "projections_catching_up_count": {
+          "one": "{count} projekcio postkuras",
+          "other": "{count} projekcioj postkuras"
+        },
+        "projections_running_count": {
+          "one": "{count} projekcio estas ĝisdata",
+          "other": "Ĉiuj {count} projekcioj estas ĝisdataj"
+        },
+        "workers_failing_count": {
+          "one": "{count} laboristo haltis aŭ mankas",
+          "other": "{count} laboristoj haltis aŭ mankas"
+        },
+        "workers_unconfirmed_count": {
+          "one": "{count} laboristo ne konfirmita",
+          "other": "{count} laboristoj ne konfirmitaj"
+        },
+        "workers_running_count": {
+          "one": "{count} laboristo funkcias",
+          "other": "Ĉiuj {count} laboristoj funkcias"
+        },
+        "backlog_waiting_count": {
+          "one": "{count} mesaĝo atendas aŭ estas prilaborata",
+          "other": "{count} mesaĝoj atendas aŭ estas prilaborataj"
+        },
+        "backlog_clear": "Neniuj mesaĝoj atendas",
+        "storage_used": "{percent}% de la plej proksima limo uzita",
+        "storage_unlimited": "Neniuj limoj estas agordita"
+      },
+      "overview": {
+        "users": "Uzantoj",
+        "rooms": "Ĉambroj",
+        "direct_messages_count": {
+          "one": "{count} rekta mesaĝo",
+          "other": "{count} rektaj mesaĝoj"
+        },
+        "events": "Eventoj",
+        "stored_data": "Stokitaj Datumoj",
+        "stored_data_subtitle_count": {
+          "one": "En {count} fluo",
+          "other": "En {count} fluoj"
+        }
+      },
+      "usage": {
+        "title": "JetStream-Uzado",
+        "no_limit": "sen limo",
+        "replica_copies_note": "Inkluzivas kopion sur ĉiu fluo-kopio. La dosieraj fluoj tenas {size} da datumoj.",
+        "stream_mix": "{file} dosiere, {memory} memore",
+        "consumer_mix": "{pull} tirataj, {push} puŝataj",
+        "unbound_count": {
+          "one": "{count} neligita",
+          "other": "{count} neligitaj"
+        },
+        "messages_count": {
+          "one": "{count} mesaĝo",
+          "other": "{count} mesaĝoj"
+        }
+      }
     },
     "event_log": {
       "title": "Protokolo de Eventoj",

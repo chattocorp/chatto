@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-19
 
-> **Amended 2026-10-07:** [ADR-114](ADR-114-role-hierarchy-for-administration.md)
+> **Amended 2026-10-07:** [ADR-115](ADR-115-role-hierarchy-for-administration.md)
 > uses role position as an administrative rank. The resolution rules in this
 > record do not change: position still has no effect on whether a permission
 > is allowed.

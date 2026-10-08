@@ -29,7 +29,6 @@ import (
 )
 
 const (
-	neighborhoodImagesBucket = "NEIGHBORHOOD_IMAGES"
 	// neighborhoodDirectoryKey stores the latest discovery result in
 	// MEMORY_CACHE.
 	neighborhoodDirectoryKey = "neighborhood.directory"

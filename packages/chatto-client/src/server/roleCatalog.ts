@@ -11,7 +11,7 @@ const EVERYONE = 'everyone';
 
 /**
  * Reports whether the role hierarchy lets an account that ranks at
- * `highestRole` manage the role `roleName` (ADR-114). `order` lists role names
+ * `highestRole` manage the role `roleName` (ADR-115). `order` lists role names
  * highest first and may leave out `everyone`, which ranks below every account
  * and is always manageable. Only owners manage `owner`.
  */
@@ -28,7 +28,7 @@ export function roleRanksBelow(
 
 /**
  * Reports whether an account that ranks at `highestRole` outranks an account
- * that holds `accountRoles` (ADR-114). Owners outrank everybody else. Other
+ * that holds `accountRoles` (ADR-115). Owners outrank everybody else. Other
  * accounts must rank strictly higher, so two accounts with the same highest
  * role, or two accounts without roles, do not outrank each other.
  */

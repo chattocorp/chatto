@@ -11,14 +11,18 @@
     StatCard,
     LoadingFog,
     PaneHeader,
-    PageTitle
+    PageTitle,
+    HeaderIconButton
   } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
   import { createQuery } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
   import AssetCleanupPanel from './AssetCleanupPanel.svelte';
+  import BrokerPanel from './BrokerPanel.svelte';
   import DurableWorkersPanel from './DurableWorkersPanel.svelte';
+  import JetStreamUsagePanel from './JetStreamUsagePanel.svelte';
+  import SystemHealthPanel from './SystemHealthPanel.svelte';
 
   const serverScope = useServerScope();
 
@@ -54,46 +58,14 @@
   const failedProjectionCount = $derived(
     projections.filter((projection) => projection.failed).length
   );
-  const consumersWithBacklog = $derived(
-    consumers.filter((consumer) => consumer.pending > 0).length
-  );
-  const fileStreamCount = $derived(streams.filter((stream) => stream.storage === 'File').length);
-  const memoryStreamCount = $derived(
-    streams.filter((stream) => stream.storage === 'Memory').length
-  );
-  const pullConsumerCount = $derived(consumers.filter((consumer) => consumer.pullBased).length);
-  const pushConsumerCount = $derived(consumers.length - pullConsumerCount);
-  const unboundPushConsumerCount = $derived(
-    consumers.filter((consumer) => !consumer.pullBased && !consumer.pushBound).length
-  );
-  const totalRedelivered = $derived(
-    consumers.reduce((sum, consumer) => sum + consumer.redelivered, 0)
-  );
+  /** Chatto's event log; other streams hold derived or bounded data. */
+  const eventStream = $derived(streams.find((stream) => stream.name === 'EVT') ?? null);
   const averageEventBytes = $derived(
-    systemInfo?.natsAvailable && systemInfo.nats.totalMessages > 0
-      ? systemInfo.nats.totalBytes / systemInfo.nats.totalMessages
-      : 0
+    eventStream && eventStream.messages > 0 ? eventStream.bytes / eventStream.messages : 0
   );
   const averageProjectionEntryBytes = $derived(
     totalEntries > 0 ? totalEstimatedBytes / totalEntries : 0
   );
-  const largestStream = $derived.by(() => {
-    let largest = streams[0] ?? null;
-    for (const stream of streams) {
-      if (!largest || stream.bytes > largest.bytes) largest = stream;
-    }
-    return largest;
-  });
-
-  function formatLimit(limit: number, formatter: (n: number) => string = String): string {
-    return limit <= 0 ? m('admin.system.unlimited') : formatter(limit);
-  }
-
-  function formatPercent(used: number, limit: number): string {
-    if (limit <= 0) return m('admin.system.unlimited');
-    return `${Math.round((used / limit) * 100)}%`;
-  }
-
   function consumerFilters(consumer: {
     filterSubject: string;
     filterSubjects: string[];
@@ -119,7 +91,16 @@
 <PageTitle title={m('admin.common.page_title', { title: m('admin.system.title') })} />
 
 <div class="pane-page">
-  <PaneHeader title={m('admin.system.title')} subtitle={m('admin.system.subtitle')} />
+  <PaneHeader title={m('admin.system.title')} subtitle={m('admin.system.subtitle')}>
+    {#snippet actions()}
+      <HeaderIconButton
+        icon="icon-[uil--sync]"
+        label={m('admin.system.refresh')}
+        disabled={systemInfoQuery.isFetching}
+        onclick={() => systemInfoQuery.refetch()}
+      />
+    {/snippet}
+  </PaneHeader>
 
   <PaneContent>
     <div class="flex flex-col gap-6">
@@ -128,212 +109,57 @@
       {:else if error}
         <Hint tone="danger">{error}</Hint>
       {:else if systemInfo}
-        <Panel title={m('admin.system.broker')} icon="iconify icon-[uil--server]">
-          <div class="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)]">
-            <div class="rounded-lg border border-border bg-surface/70 p-4">
-              <div class="text-sm text-muted">{m('admin.common.status')}</div>
-              <div class="mt-1 flex items-center gap-2 text-xl font-semibold">
-                <span
-                  class={[
-                    'h-2.5 w-2.5 rounded-full',
-                    systemInfo.connection.connected ? 'bg-success' : 'bg-danger'
-                  ]}
-                ></span>
-                {systemInfo.connection.connected
-                  ? m('admin.system.connected')
-                  : m('admin.system.disconnected')}
-              </div>
-              <div
-                class="mt-3 truncate font-mono text-xs text-muted"
-                title={systemInfo.connection.serverId}
-              >
-                {systemInfo.connection.serverId || '-'}
-              </div>
-            </div>
+        <SystemHealthPanel info={systemInfo} />
 
-            <div class="grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-4">
-              <div>
-                <div class="text-sm text-muted">{m('admin.common.version')}</div>
-                <div class="font-mono text-sm">{systemInfo.connection.version || '-'}</div>
-              </div>
-              <div>
-                <div class="text-sm text-muted">{m('admin.system.rtt')}</div>
-                <div class="font-mono text-sm">{systemInfo.connection.rtt || '-'}</div>
-              </div>
-              <div>
-                <div class="text-sm text-muted">{m('admin.system.max_payload')}</div>
-                <div class="font-mono text-sm">{formatBytes(systemInfo.connection.maxPayload)}</div>
-              </div>
-              <div>
-                <div class="text-sm text-muted">{m('admin.system.server_name')}</div>
-                <div class="truncate font-mono text-sm" title={systemInfo.connection.serverName}>
-                  {systemInfo.connection.serverName || '-'}
-                </div>
-              </div>
-            </div>
-          </div>
-        </Panel>
-
-        {#if systemInfo.accountAvailable}
-          <div>
-            <h2 class="mb-3 text-sm font-semibold text-muted uppercase">
-              {m('admin.system.jetstream_account')}
-            </h2>
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {#if systemInfo.statsAvailable || systemInfo.natsAvailable}
+          <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
+            {#if systemInfo.statsAvailable}
               <StatCard
-                value={formatBytes(systemInfo.account.storageUsed)}
-                label={m('admin.system.account_storage')}
-                icon="iconify icon-[uil--hdd]"
-                color="action"
-                subtitle={m('admin.system.limit', {
-                  limit: formatLimit(systemInfo.account.storage, formatBytes)
-                })}
-              />
-              <StatCard
-                value={formatBytes(systemInfo.account.memoryUsed)}
-                label={m('admin.system.account_memory')}
-                icon="iconify icon-[uil--processor]"
-                color="success"
-                subtitle={m('admin.system.limit', {
-                  limit: formatLimit(systemInfo.account.memory, formatBytes)
-                })}
-              />
-              <StatCard
-                value={formatPercent(systemInfo.account.streamsUsed, systemInfo.account.streams)}
-                label={m('admin.system.stream_capacity')}
-                icon="iconify icon-[uil--exchange]"
-                color="warning"
-                subtitle={m('admin.system.used_of_limit', {
-                  used: formatNumber(systemInfo.account.streamsUsed),
-                  limit: formatLimit(systemInfo.account.streams)
-                })}
-              />
-              <StatCard
-                value={formatPercent(
-                  systemInfo.account.consumersUsed,
-                  systemInfo.account.consumers
-                )}
-                label={m('admin.system.consumer_capacity')}
+                value={formatNumber(systemInfo.stats.userCount)}
+                label={m('admin.system.overview.users')}
                 icon="iconify icon-[uil--users-alt]"
-                color="danger"
-                subtitle={m('admin.system.used_of_limit', {
-                  used: formatNumber(systemInfo.account.consumersUsed),
-                  limit: formatLimit(systemInfo.account.consumers)
+              />
+              <StatCard
+                value={formatNumber(systemInfo.stats.channelRoomCount)}
+                label={m('admin.system.overview.rooms')}
+                icon="iconify icon-[uil--comments]"
+                subtitle={m('admin.system.overview.direct_messages_count', {
+                  count: systemInfo.stats.dmRoomCount
                 })}
               />
-            </div>
-          </div>
-        {:else}
-          <Hint>{m('admin.system.asset_cleanup_unavailable')}</Hint>
-        {/if}
-
-        {#if systemInfo.natsAvailable}
-          <div>
-            <h2 class="mb-3 text-sm font-semibold text-muted uppercase">
-              {m('admin.system.stream_activity')}
-            </h2>
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {/if}
+            {#if systemInfo.natsAvailable}
               <StatCard
-                value={formatNumber(systemInfo.nats.totalMessages)}
-                label={m('admin.system.messages_stored')}
-                icon="iconify icon-[uil--database]"
-                color="action"
+                value={formatNumber(eventStream?.messages ?? 0)}
+                label={m('admin.system.overview.events')}
+                icon="iconify icon-[uil--history]"
                 subtitle={m('admin.system.average_message_size', {
                   size: formatBytes(averageEventBytes)
                 })}
               />
               <StatCard
                 value={formatBytes(systemInfo.nats.totalBytes)}
-                label={m('admin.system.stream_bytes')}
-                icon="iconify icon-[uil--hdd]"
-                color="success"
-                subtitle={m('admin.system.storage_mix', {
-                  file: formatNumber(fileStreamCount),
-                  memory: formatNumber(memoryStreamCount)
+                label={m('admin.system.overview.stored_data')}
+                icon="iconify icon-[uil--database]"
+                subtitle={m('admin.system.overview.stored_data_subtitle_count', {
+                  count: streams.length
                 })}
               />
-              <StatCard
-                value={formatNumber(systemInfo.nats.totalConsumerPending)}
-                label={m('admin.system.consumer_backlog')}
-                icon="iconify icon-[uil--clock]"
-                color={systemInfo.nats.totalConsumerPending > 0 ? 'warning' : 'success'}
-                subtitle={m('admin.system.consumer_backlog_subtitle', {
-                  count: formatNumber(consumersWithBacklog)
-                })}
-              />
-              <StatCard
-                value={formatNumber(systemInfo.nats.totalAckPending)}
-                label={m('admin.system.ack_pending')}
-                icon="iconify icon-[uil--check-circle]"
-                color={systemInfo.nats.totalAckPending > 0 ? 'warning' : 'success'}
-                subtitle={m('admin.system.redelivered_total', {
-                  count: formatNumber(totalRedelivered)
-                })}
-              />
-            </div>
+            {/if}
           </div>
+        {/if}
 
-          <div class="grid gap-4 lg:grid-cols-2">
-            <Panel title={m('admin.system.stream_summary')} icon="iconify icon-[uil--chart-line]">
-              <div class="grid grid-cols-2 gap-x-6 gap-y-4">
-                <div>
-                  <div class="text-sm text-muted">{m('admin.system.file_streams')}</div>
-                  <div class="font-mono text-lg">{formatNumber(fileStreamCount)}</div>
-                </div>
-                <div>
-                  <div class="text-sm text-muted">{m('admin.system.memory_streams')}</div>
-                  <div class="font-mono text-lg">{formatNumber(memoryStreamCount)}</div>
-                </div>
-                <div class="col-span-2">
-                  <div class="text-sm text-muted">{m('admin.system.largest_stream')}</div>
-                  {#if largestStream}
-                    <div class="min-w-0">
-                      <div class="truncate font-medium" title={largestStream.name}>
-                        {largestStream.name}
-                      </div>
-                      <div class="font-mono text-sm text-muted">
-                        {formatBytes(largestStream.bytes)} / {formatNumber(largestStream.messages)}
-                        {m('admin.system.messages_lower')}
-                      </div>
-                    </div>
-                  {:else}
-                    <div class="font-mono text-sm text-muted">-</div>
-                  {/if}
-                </div>
-              </div>
-            </Panel>
+        <div class="grid items-start gap-6 lg:grid-cols-2">
+          <JetStreamUsagePanel
+            account={systemInfo.account}
+            accountAvailable={systemInfo.accountAvailable}
+            nats={systemInfo.nats}
+            natsAvailable={systemInfo.natsAvailable}
+          />
+          <BrokerPanel connection={systemInfo.connection} />
+        </div>
 
-            <Panel title={m('admin.system.consumer_summary')} icon="iconify icon-[uil--users-alt]">
-              <div class="grid grid-cols-2 gap-x-6 gap-y-4">
-                <div>
-                  <div class="text-sm text-muted">{m('admin.system.pull_consumers')}</div>
-                  <div class="font-mono text-lg">{formatNumber(pullConsumerCount)}</div>
-                </div>
-                <div>
-                  <div class="text-sm text-muted">{m('admin.system.push_consumers')}</div>
-                  <div class="font-mono text-lg">{formatNumber(pushConsumerCount)}</div>
-                </div>
-                <div>
-                  <div class="text-sm text-muted">{m('admin.system.unbound_push_consumers')}</div>
-                  <div
-                    class={[
-                      'font-mono text-lg',
-                      unboundPushConsumerCount > 0 ? 'text-warning' : ''
-                    ]}
-                  >
-                    {formatNumber(unboundPushConsumerCount)}
-                  </div>
-                </div>
-                <div>
-                  <div class="text-sm text-muted">{m('admin.system.redelivered')}</div>
-                  <div class={['font-mono text-lg', totalRedelivered > 0 ? 'text-warning' : '']}>
-                    {formatNumber(totalRedelivered)}
-                  </div>
-                </div>
-              </div>
-            </Panel>
-          </div>
-
+        {#if systemInfo.natsAvailable}
           <Panel title={m('admin.system.streams')} icon="iconify icon-[uil--exchange]" noPadding>
             <DataTable items={streams} columns={6} emptyMessage={m('admin.system.no_streams')}>
               {#snippet header()}
@@ -437,7 +263,7 @@
             </DataTable>
           </Panel>
         {:else}
-          <Hint>{m('admin.system.asset_cleanup_unavailable')}</Hint>
+          <Hint>{m('admin.system.jetstream_unavailable')}</Hint>
         {/if}
 
         {#if systemInfo.projectionsAvailable}
@@ -549,7 +375,7 @@
             </DataTable>
           </Panel>
         {:else}
-          <Hint>{m('admin.system.asset_cleanup_unavailable')}</Hint>
+          <Hint>{m('admin.system.projections_unavailable')}</Hint>
         {/if}
 
         <DurableWorkersPanel workers={systemInfo.durableWorkers} />

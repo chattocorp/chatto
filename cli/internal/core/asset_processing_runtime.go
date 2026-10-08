@@ -11,6 +11,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/logbridge"
+	"hmans.de/chatto/internal/natsresources"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -43,11 +44,11 @@ func NewAssetProcessingRuntime(
 		logger = log.WithPrefix("core.AssetProcessingRuntime")
 	}
 
-	evt, err := js.Stream(ctx, "EVT")
+	evt, err := js.Stream(ctx, natsresources.EVT)
 	if err != nil {
 		return nil, fmt.Errorf("open EVT stream: %w", err)
 	}
-	serverAssets, err := js.ObjectStore(ctx, "SERVER_ASSETS")
+	serverAssets, err := js.ObjectStore(ctx, natsresources.ServerAssets)
 	if err != nil {
 		return nil, fmt.Errorf("open SERVER_ASSETS object store: %w", err)
 	}

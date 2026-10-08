@@ -40,7 +40,7 @@ type RoleWithPermissions struct {
 	Permissions       []Permission // Permissions granted (allowed) by this role
 	PermissionDenials []Permission // Permissions denied by this role
 	IsSystem          bool
-	Position          int32 // Administrative rank order (ADR-114). Everyone=0; Owner is always highest.
+	Position          int32 // Administrative rank order (ADR-115). Everyone=0; Owner is always highest.
 	Pingable          bool
 }
 
@@ -766,7 +766,7 @@ func (c *ChattoCore) DeleteServerRole(ctx context.Context, actorID, name string)
 // MoveServerRole places a role directly above beforeRoleName, or lowest when
 // beforeRoleName is empty. Owner and everyone cannot move or serve as the
 // anchor. The role hierarchy does not limit moves: callers that hold
-// role.manage may move every other role, also above their own (ADR-114).
+// role.manage may move every other role, also above their own (ADR-115).
 // Returns all roles in role order, highest first.
 func (c *ChattoCore) MoveServerRole(ctx context.Context, actorID, roleName, beforeRoleName string) ([]RoleWithPermissions, error) {
 	if !roleIsOrderable(roleName) || (beforeRoleName != "" && !roleIsOrderable(beforeRoleName)) {

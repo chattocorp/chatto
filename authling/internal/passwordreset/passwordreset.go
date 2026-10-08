@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -92,8 +91,7 @@ func (s *Service) Start(ctx context.Context, rawEmail string) (string, error) {
 	if err := storage.AdmitRequest(ctx, s.kv, "password-reset-admission.global", maxGlobalDeliveredCodes, FlowTTL); err != nil {
 		return "", err
 	}
-	admissionKey := "password-reset-admission." + base64.RawURLEncoding.EncodeToString(keyedDigest(s.key, "admission\x00"+normalized))
-	if err := storage.AdmitRequest(ctx, s.kv, admissionKey, maxDeliveredCodes, FlowTTL); err != nil {
+	if err := storage.AdmitRequest(ctx, s.kv, s.admissionKey(normalized), maxDeliveredCodes, FlowTTL); err != nil {
 		return "", err
 	}
 	token, err := randomToken(32)
@@ -119,7 +117,7 @@ func (s *Service) Start(ctx context.Context, rawEmail string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("record password reset request: %w", err)
 	}
-	state := flowState{Target: target, CodeDigest: keyedDigest(s.key, "code\x00"+token+"\x00"+code), ExpiresAt: time.Now().UTC().Add(FlowTTL)}
+	state := flowState{Target: target, CodeDigest: storage.KeyedDigest(s.key, "code\x00"+token+"\x00"+code), ExpiresAt: time.Now().UTC().Add(FlowTTL)}
 	key := s.flowKey(token)
 	data, err := s.seal(key, state)
 	if err != nil {
@@ -145,7 +143,7 @@ func (s *Service) Verify(ctx context.Context, token, code string) error {
 	if err != nil || !time.Now().Before(state.ExpiresAt) || state.Verified || state.WrongAttempts >= maxWrongAttempts {
 		return ErrInvalidCode
 	}
-	want := keyedDigest(s.key, "code\x00"+token+"\x00"+strings.TrimSpace(code))
+	want := storage.KeyedDigest(s.key, "code\x00"+token+"\x00"+strings.TrimSpace(code))
 	if !hmac.Equal(state.CodeDigest, want) {
 		state.WrongAttempts++
 		if _, updateErr := s.update(ctx, key, entry.Revision(), state); updateErr != nil {
@@ -200,7 +198,7 @@ func (s *Service) Complete(ctx context.Context, token, password string) (account
 }
 
 func (s *Service) flowKey(token string) string {
-	return "password-reset." + base64.RawURLEncoding.EncodeToString(keyedDigest(s.key, "flow\x00"+token))
+	return storage.DigestKey("password-reset.", s.key, "flow\x00"+token)
 }
 
 func (s *Service) seal(key string, state flowState) ([]byte, error) {
@@ -235,8 +233,13 @@ func (s *Service) update(ctx context.Context, key string, revision uint64, state
 	return updated, nil
 }
 
+// admissionKey is the request admission counter for one normalized address.
+func (s *Service) admissionKey(normalized string) string {
+	return storage.DigestKey("password-reset-admission.", s.key, "admission\x00"+normalized)
+}
+
 func (s *Service) deliveryKey(address string) string {
-	return "password-reset-limit." + base64.RawURLEncoding.EncodeToString(keyedDigest(s.key, "delivery\x00"+address))
+	return storage.DigestKey("password-reset-limit.", s.key, "delivery\x00"+address)
 }
 
 func (s *Service) send(ctx context.Context, message email.Message) error {
@@ -258,12 +261,6 @@ func normalizeAndValidateEmail(raw string) (string, error) {
 		return "", ErrInvalidEmail
 	}
 	return value, nil
-}
-
-func keyedDigest(key []byte, value string) []byte {
-	h := hmac.New(sha256.New, key)
-	_, _ = h.Write([]byte(value))
-	return h.Sum(nil)
 }
 
 func randomToken(size int) (string, error) {

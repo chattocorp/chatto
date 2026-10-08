@@ -134,7 +134,7 @@ type RbacRoleCreatedEvent struct {
 	Rank     int32 `protobuf:"varint,4,opt,name=rank,proto3" json:"rank,omitempty"`
 	Pingable bool  `protobuf:"varint,5,opt,name=pingable,proto3" json:"pingable,omitempty"`
 	// When true, readers place the new role lowest, directly above everyone,
-	// and renumber the role order (ADR-114). Older readers use rank.
+	// and renumber the role order (ADR-115). Older readers use rank.
 	PlaceLowest   bool `protobuf:"varint,6,opt,name=place_lowest,json=placeLowest,proto3" json:"place_lowest,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -463,7 +463,7 @@ func (x *RbacRolesReorderedEvent) GetRoleNames() []string {
 
 // Moves one role in the role order. Role order is the administrative rank:
 // an account ranks at its highest role and can manage only accounts and roles
-// that rank below it (ADR-114). Readers place role_name directly above
+// that rank below it (ADR-115). Readers place role_name directly above
 // before_role_name, or lowest when before_role_name is empty, and renumber
 // every role except owner and everyone upward from 1. Owner then ranks
 // directly above the highest role, and everyone stays at 0.

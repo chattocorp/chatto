@@ -1763,17 +1763,27 @@
 
 @utility attachment-action-button {
   /* Pair with a standard button tone; it owns the shared depth and feedback. */
-  @apply h-10 w-10 shrink-0 rounded-md p-0 text-sm;
+  @apply h-7 min-h-7 w-7 min-w-7 shrink-0 rounded-md p-0 text-sm;
 }
 
 @utility attachment-card {
   @apply flex max-w-full items-center gap-3 p-3;
 }
 
-@utility attachment-video-frame {
-  @apply relative max-w-full min-w-0;
+@utility attachment-media-frame {
+  @apply relative my-1.5;
 
-  /* Keep the vertical action stack above the player's bottom controls, even
+  /* Put spacing outside the overlay's containing block so the top and end
+   * offsets both start at the visible media frame. */
+  & > .embed-frame {
+    @apply my-0;
+  }
+}
+
+@utility attachment-video-frame {
+  @apply attachment-media-frame max-w-full min-w-0;
+
+  /* Keep the action row above the player's bottom controls, even
    * when a narrow message reduces the video's natural display height. */
   & > .embed-frame,
   & > video {

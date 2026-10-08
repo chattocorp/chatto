@@ -376,11 +376,9 @@
       "title": "Sistem",
       "subtitle": "Aracı, JetStream depolama, tüketiciler ve projeksiyon sağlığı",
       "loading": "Sistem bilgileri yükleniyor...",
-      "connection": "Bağlantı",
       "broker": "NATS Brokerı",
       "connected": "Bağlı",
       "disconnected": "Bağlantı kesildi",
-      "unlimited": "sınırsız",
       "all_subjects": "tüm konular",
       "pending_state": "Beklemede",
       "worker_unconfirmed": "Doğrulanmadı",
@@ -388,32 +386,12 @@
       "max_payload": "Maksimum Yük",
       "server_id": "Sunucu Kimliği",
       "server_name": "Sunucu Adı",
-      "limit": "Sınır: {limit}",
       "used_of_limit": "{used} / {limit}",
-      "jetstream_account": "JetStream Hesabı",
       "account_storage": "Dosya Depolama",
       "account_memory": "Bellek Depolama",
-      "stream_capacity": "Akış Kapasitesi",
-      "consumer_capacity": "Tüketici Kapasitesi",
-      "stream_activity": "Akış Etkinliği",
       "events": "Etkinlikler",
-      "event_bytes": "Olay Baytları",
-      "messages_stored": "Saklanan Mesajlar",
-      "stream_bytes": "Akış Baytları",
       "average_message_size": "{size} ortalama",
-      "storage_mix": "{file} dosya destekli / {memory} bellek destekli akışlar",
-      "consumer_backlog": "Tüketici İş Listesi",
-      "consumer_backlog_subtitle": "Bekleyen mesajları olan {count} tüketici(ler)",
-      "redelivered_total": "{count} yeniden teslim edildi",
-      "stream_summary": "Akış Özeti",
-      "file_streams": "Dosya Akışları",
-      "memory_streams": "Bellek Akışları",
       "largest_stream": "En Büyük Akış",
-      "messages_lower": "mesajlar",
-      "consumer_summary": "Tüketici Özeti",
-      "pull_consumers": "Tüketicileri Çekin",
-      "push_consumers": "Tüketicileri İtin",
-      "unbound_push_consumers": "Sınırsız Push Tüketicileri",
       "projection_summary": "Projeksiyon Özeti",
       "average_entry_size": "Ortalama Giriş",
       "average_entry_value": "{size} ortalama",
@@ -444,7 +422,6 @@
       "projection_memory": "Projeksiyon Belleği",
       "projection_failures": "Projeksiyon Arızaları",
       "projection_lag": "Projeksiyon Gecikmesi",
-      "projection_entries": "{count} öngörülen girişler",
       "no_projections": "Hiçbir projeksiyon kayıtlı değil.",
       "projection": "Projeksiyon",
       "state": "Eyalet",
@@ -471,15 +448,99 @@
       "asset_cleanup_inactive_summary": "Şu anda hiçbir varlık temizleme çalışanı kira kontratını elinde bulundurmuyor.",
       "asset_cleanup_unavailable_summary": "Temizleme durumu bu sunucu sürümü tarafından raporlanmıyor.",
       "asset_cleanup_pending": "Yeniden denemeler beklemede",
-      "asset_cleanup_oldest": "Bekleyen en eski",
-      "asset_cleanup_last_pass": "Son geçiş",
-      "asset_cleanup_last_success": "Son başarılı: {time}",
       "asset_cleanup_event_scan": "Olay taraması",
       "asset_cleanup_caught_up": "yakalandı",
       "asset_cleanup_events_waiting": "Yeni etkinlikler bekleniyor",
-      "asset_cleanup_never": "Asla",
-      "asset_cleanup_none": "Yok",
-      "asset_cleanup_in_progress": "Devam ediyor"
+      "asset_cleanup_in_progress": "Devam ediyor",
+      "refresh": "Yenile",
+      "account_unavailable": "JetStream hesap kullanımı bilgisi kullanılamıyor.",
+      "jetstream_unavailable": "Akış ve tüketici ayrıntıları kullanılamıyor.",
+      "projections_unavailable": "Projeksiyon ayrıntıları kullanılamıyor.",
+      "durable_workers": "Arka Plan Çalışanları",
+      "no_durable_workers": "Bildirilen arka plan çalışanı yok.",
+      "broker_scope_label": "Bu bağlantı hakkında",
+      "broker_scope_help": "Bu, bu isteği işleyen Chatto örneğinin broker bağlantısıdır. Birden fazla örnek çalıştırıyorsanız, diğer örnekler farklı bir NATS düğümüne bağlanabilir.",
+      "health": {
+        "title": "Sağlık",
+        "status_ok": "Tamam",
+        "status_warning": "Uyarı",
+        "status_critical": "Sorun",
+        "status_unknown": "Bilinmiyor",
+        "overall_ok": "Her şey normal çalışıyor",
+        "overall_warning": "Dikkat gerekiyor",
+        "overall_critical": "Sorunlar bulundu",
+        "overall_ok_summary": "Bu anlık görüntü alındığında tüm kontroller başarılı oldu.",
+        "overall_partial_summary": "Sorun bulunamadı. Bazı kontrollerin verisi yok.",
+        "overall_problem_summary": "Aşağıdaki kontrolleri inceleyin. Ayrıntılar alttaki bölümlerde gösterilir.",
+        "broker": "Broker bağlantısı",
+        "projections": "Projeksiyonlar",
+        "workers": "Arka plan çalışanları",
+        "backlog": "Birikim",
+        "storage": "Hesap sınırları",
+        "unavailable": "Bildirilmedi",
+        "broker_connected": "NATS {version} sürümüne bağlı",
+        "broker_disconnected": "NATS brokerına bağlı değil",
+        "projections_failed_count": {
+          "one": "{count} projeksiyon başarısız oldu",
+          "other": "{count} projeksiyon başarısız oldu"
+        },
+        "projections_catching_up_count": {
+          "one": "{count} projeksiyon geride, yetişiyor",
+          "other": "{count} projeksiyon geride, yetişiyor"
+        },
+        "projections_running_count": {
+          "one": "{count} projeksiyon güncel",
+          "other": "Tüm {count} projeksiyon güncel"
+        },
+        "workers_failing_count": {
+          "one": "{count} çalışan durdu veya eksik",
+          "other": "{count} çalışan durdu veya eksik"
+        },
+        "workers_unconfirmed_count": {
+          "one": "{count} çalışan doğrulanmadı",
+          "other": "{count} çalışan doğrulanmadı"
+        },
+        "workers_running_count": {
+          "one": "{count} çalışan çalışıyor",
+          "other": "Tüm {count} çalışan çalışıyor"
+        },
+        "backlog_waiting_count": {
+          "one": "{count} mesaj bekliyor veya işleniyor",
+          "other": "{count} mesaj bekliyor veya işleniyor"
+        },
+        "backlog_clear": "Bekleyen mesaj yok",
+        "storage_used": "En yakın sınırın %{percent} kadarı kullanıldı",
+        "storage_unlimited": "Yapılandırılmış sınır yok"
+      },
+      "overview": {
+        "users": "Kullanıcılar",
+        "rooms": "Odalar",
+        "direct_messages_count": {
+          "one": "{count} doğrudan mesaj",
+          "other": "{count} doğrudan mesaj"
+        },
+        "events": "Etkinlikler",
+        "stored_data": "Depolanan Veriler",
+        "stored_data_subtitle_count": {
+          "one": "{count} akışta",
+          "other": "{count} akışta"
+        }
+      },
+      "usage": {
+        "title": "JetStream Kullanımı",
+        "no_limit": "sınır yok",
+        "replica_copies_note": "Her akış kopyasındaki bir kopyayı içerir. Dosya akışları {size} veri tutar.",
+        "stream_mix": "{file} dosya, {memory} bellek",
+        "consumer_mix": "{pull} çekme, {push} itme",
+        "unbound_count": {
+          "one": "{count} bağlı değil",
+          "other": "{count} bağlı değil"
+        },
+        "messages_count": {
+          "one": "{count} mesaj",
+          "other": "{count} mesaj"
+        }
+      }
     },
     "event_log": {
       "title": "Olay Günlüğü",

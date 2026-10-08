@@ -1,8 +1,14 @@
 package core
 
-import "hmans.de/chatto/internal/notificationstream"
+import (
+	"hmans.de/chatto/internal/natsresources"
+	"hmans.de/chatto/internal/notificationstream"
+)
 
-const assetProcessingConsumerName = "chatto-asset-processing-v1"
+// AssetProcessingConsumerName is the durable EVT consumer of the
+// asset-processing runtime unit. The name is a persisted resource contract
+// (ADR-069).
+const AssetProcessingConsumerName = "chatto-asset-processing-v1"
 
 // DurableWorkerHealth is broker-derived health for a known durable queue.
 type DurableWorkerHealth int
@@ -35,16 +41,23 @@ type durableWorkerDiagnosticSpec struct {
 	required     bool
 }
 
-func durableWorkerAdminStatuses(stats *JetStreamStats, videoUploadsEnabled bool) []DurableWorkerAdminStatus {
-	specs := []durableWorkerDiagnosticSpec{
-		{key: "asset_cleanup", streamName: "EVT", consumerName: assetCleanupConsumerName, required: true},
-		{key: "call_key_cleanup", streamName: "EVT", consumerName: callKeyCleanupConsumerName, required: true},
-		{key: "user_key_shredding", streamName: "EVT", consumerName: userKeyShreddingConsumerName, required: true},
-		{key: "user_push_subscription_cleanup", streamName: "EVT", consumerName: pushSubscriptionCleanupConsumerName, required: true},
-		{key: "notification_materializer", streamName: "EVT", consumerName: notificationWorkerConsumerName, required: true},
+// durableWorkerDiagnosticSpecs lists every durable consumer that Chatto
+// creates. Add each new durable consumer here so operators can see its health.
+func durableWorkerDiagnosticSpecs(videoUploadsEnabled bool) []durableWorkerDiagnosticSpec {
+	return []durableWorkerDiagnosticSpec{
+		{key: "asset_cleanup", streamName: natsresources.EVT, consumerName: assetCleanupConsumerName, required: true},
+		{key: "call_key_cleanup", streamName: natsresources.EVT, consumerName: callKeyCleanupConsumerName, required: true},
+		{key: "user_key_shredding", streamName: natsresources.EVT, consumerName: userKeyShreddingConsumerName, required: true},
+		{key: "user_push_subscription_cleanup", streamName: natsresources.EVT, consumerName: pushSubscriptionCleanupConsumerName, required: true},
+		{key: "notification_materializer", streamName: natsresources.EVT, consumerName: notificationWorkerConsumerName, required: true},
 		{key: "notification_alert_delivery", streamName: notificationstream.StreamName, consumerName: notificationAlertConsumerName, required: true},
-		{key: "asset_processing", streamName: "EVT", consumerName: assetProcessingConsumerName, required: videoUploadsEnabled},
+		{key: "bot_webhook_source", streamName: natsresources.EVT, consumerName: botWebhookSourceConsumer, required: true},
+		{key: "asset_processing", streamName: natsresources.EVT, consumerName: AssetProcessingConsumerName, required: videoUploadsEnabled},
 	}
+}
+
+func durableWorkerAdminStatuses(stats *JetStreamStats, videoUploadsEnabled bool) []DurableWorkerAdminStatus {
+	specs := durableWorkerDiagnosticSpecs(videoUploadsEnabled)
 	type consumerCoordinate struct{ stream, name string }
 	consumers := make(map[consumerCoordinate]ConsumerStats)
 	if stats != nil {

@@ -18,7 +18,9 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/kms"
+	"hmans.de/chatto/internal/natsresources"
 	"hmans.de/chatto/pkg/jetstreamutil"
 	"hmans.de/chatto/pkg/natsauth"
 )
@@ -127,7 +129,7 @@ func runKeysExport(cmd *cobra.Command, args []string) {
 		log.Fatal("Failed to create JetStream context", "error", err)
 	}
 
-	bucket, err := js.KeyValue(ctx, "ENCRYPTION_KEYS")
+	bucket, err := js.KeyValue(ctx, natsresources.EncryptionKeys)
 	if err != nil {
 		log.Fatal("Failed to open ENCRYPTION_KEYS bucket", "error", err)
 	}
@@ -191,13 +193,7 @@ func runKeysImport(cmd *cobra.Command, args []string) {
 		log.Fatal("Failed to create JetStream context", "error", err)
 	}
 
-	encryptionKV, err := openOrCreateKeyValue(ctx, js, jetstream.KeyValueConfig{
-		Bucket:      "ENCRYPTION_KEYS",
-		Description: "KMS key-encryption keys (excluded from backups)",
-		Storage:     jetstream.FileStorage,
-		History:     1,
-		Replicas:    cfg.NATS.ReplicasOrDefault(),
-	})
+	encryptionKV, err := openOrCreateKeyValue(ctx, js, core.EncryptionKeysConfig(cfg.NATS.ReplicasOrDefault()))
 	if err != nil {
 		log.Fatal("Failed to open ENCRYPTION_KEYS bucket", "error", err)
 	}
@@ -275,11 +271,17 @@ func importKeys(ctx context.Context, kv jetstream.KeyValue, keys []ExportedKey) 
 	for _, key := range importable {
 		_, err := kv.Create(ctx, key.ref, key.key)
 		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyExists) {
-				skippedExisting++
-				continue
+			if !jetstreamutil.IsSequenceConflict(err) {
+				return imported, skippedExisting, skippedWrappedDEKs, fmt.Errorf("failed to import key %s: %w", key.ref, err)
 			}
-			return imported, skippedExisting, skippedWrappedDEKs, fmt.Errorf("failed to import key %s: %w", key.ref, err)
+			// A conflict can come from a write that is still in progress and
+			// can still fail. Count the key as existing only after a read
+			// confirms it.
+			if _, getErr := kv.Get(ctx, key.ref); getErr != nil {
+				return imported, skippedExisting, skippedWrappedDEKs, fmt.Errorf("failed to import key %s: %w", key.ref, errors.Join(err, getErr))
+			}
+			skippedExisting++
+			continue
 		}
 		imported++
 	}

@@ -471,23 +471,21 @@ export class AdminPage {
    */
   async expectSystemConnected(): Promise<void> {
     await expect(this.page.getByText('NATS Broker')).toBeVisible();
-    await expect(this.page.getByText('Connected')).toBeVisible({
+    await expect(this.page.getByText('Connected', { exact: true })).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
   }
 
   /**
-   * Assert that system stat cards are visible.
+   * Assert that the health summary, stat cards, usage panel, and projection
+   * summary of the System page are visible.
    */
   async expectSystemStatsVisible(): Promise<void> {
-    await expect(this.mainContent.getByText('JetStream Account')).toBeVisible();
-    await expect(this.mainContent.getByText('File Storage')).toBeVisible();
-    await expect(this.mainContent.getByText('Memory Storage')).toBeVisible();
-    await expect(this.mainContent.getByText('Stream Capacity')).toBeVisible();
-    await expect(this.mainContent.getByText('Consumer Capacity')).toBeVisible();
-    await expect(this.mainContent.getByText('Stream Activity')).toBeVisible();
-    await expect(this.mainContent.getByText('Stream Summary')).toBeVisible();
-    await expect(this.mainContent.getByText('Consumer Summary')).toBeVisible();
+    await expect(this.mainContent.getByTestId('system-health-overall')).toBeVisible();
+    await expect(this.mainContent.getByText('Stored Data', { exact: true })).toBeVisible();
+    await expect(this.mainContent.getByText('JetStream Usage', { exact: true })).toBeVisible();
+    await expect(this.mainContent.getByText('File Storage', { exact: true })).toBeVisible();
+    await expect(this.mainContent.getByText('Memory Storage', { exact: true })).toBeVisible();
     await expect(this.mainContent.getByText('Projection Summary')).toBeVisible();
   }
 

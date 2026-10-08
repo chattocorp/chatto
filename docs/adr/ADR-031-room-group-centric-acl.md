@@ -42,7 +42,7 @@ Adopt a **channel-centric ACL** model for channel-room permissions with **room g
 | **Room**       | Room-scope permissions, **overriding the room group on a per-(role, permission) basis** | Same as above; only the (role, permission) pairs explicitly overridden change from the group's value, the rest inherit |
 
 Subjects are unchanged: **roles** and **users** (for direct overrides). Role
-position does not affect permission resolution. Since ADR-114 it is the
+position does not affect permission resolution. Since ADR-115 it is the
 administrative rank. Every authenticated user
 implicitly carries `everyone`.
 

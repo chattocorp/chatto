@@ -376,11 +376,9 @@
       "title": "システム",
       "subtitle": "ブローカー、JetStream ストレージ、コンシューマー、およびプロジェクションの健全性",
       "loading": "システム情報を読み込み中...",
-      "connection": "接続",
       "broker": "NATS ブローカー",
       "connected": "接続しました",
       "disconnected": "切断されました",
-      "unlimited": "無制限",
       "all_subjects": "すべての科目",
       "pending_state": "保留中",
       "worker_unconfirmed": "未確認",
@@ -388,32 +386,12 @@
       "max_payload": "最大ペイロード",
       "server_id": "サーバーID",
       "server_name": "サーバー名",
-      "limit": "制限: {limit}",
       "used_of_limit": "{used}/{limit}",
-      "jetstream_account": "JetStream アカウント",
       "account_storage": "ファイルストレージ",
       "account_memory": "メモリストレージ",
-      "stream_capacity": "ストリーム容量",
-      "consumer_capacity": "消費者の能力",
-      "stream_activity": "ストリームアクティビティ",
       "events": "イベント",
-      "event_bytes": "イベントバイト",
-      "messages_stored": "保存されたメッセージ",
-      "stream_bytes": "ストリームバイト数",
       "average_message_size": "{size} 平均",
-      "storage_mix": "{file} ファイルベース / {memory} メモリベースのストリーム",
-      "consumer_backlog": "消費者向けバックログ",
-      "consumer_backlog_subtitle": "保留中のメッセージを持つ {count} コンシューマー",
-      "redelivered_total": "{count} を再配信しました",
-      "stream_summary": "ストリーム概要",
-      "file_streams": "ファイルストリーム",
-      "memory_streams": "メモリストリーム",
       "largest_stream": "最大のストリーム",
-      "messages_lower": "メッセージ",
-      "consumer_summary": "消費者の概要",
-      "pull_consumers": "プルコンシューマー",
-      "push_consumers": "プッシュコンシューマー",
-      "unbound_push_consumers": "アンバウンドプッシュコンシューマー",
       "projection_summary": "予測の概要",
       "average_entry_size": "平均エントリー数",
       "average_entry_value": "{size} 平均",
@@ -444,7 +422,6 @@
       "projection_memory": "プロジェクションメモリー",
       "projection_failures": "投影の失敗",
       "projection_lag": "投影ラグ",
-      "projection_entries": "{count} 投影されたエントリ",
       "no_projections": "投影法が登録されていません。",
       "projection": "プロジェクション",
       "state": "状態",
@@ -471,15 +448,88 @@
       "asset_cleanup_inactive_summary": "現在、リースを保持している資産クリーンアップ作業者はいません。",
       "asset_cleanup_unavailable_summary": "このサーバー バージョンではクリーンアップの健全性が報告されません。",
       "asset_cleanup_pending": "再試行が保留中です",
-      "asset_cleanup_oldest": "最も古い保留中",
-      "asset_cleanup_last_pass": "ラストパス",
-      "asset_cleanup_last_success": "最後に成功しました: {time}",
       "asset_cleanup_event_scan": "イベントスキャン",
       "asset_cleanup_caught_up": "追いつきました",
       "asset_cleanup_events_waiting": "新しいイベントが待機中です",
-      "asset_cleanup_never": "決してしない",
-      "asset_cleanup_none": "なし",
-      "asset_cleanup_in_progress": "進行中です"
+      "asset_cleanup_in_progress": "進行中です",
+      "refresh": "更新",
+      "account_unavailable": "JetStream アカウントの使用状況は利用できません。",
+      "jetstream_unavailable": "ストリームとコンシューマーの詳細は利用できません。",
+      "projections_unavailable": "プロジェクションの詳細は利用できません。",
+      "durable_workers": "バックグラウンドワーカー",
+      "no_durable_workers": "報告されているバックグラウンドワーカーはありません。",
+      "broker_scope_label": "この接続について",
+      "broker_scope_help": "これは、このリクエストを処理した Chatto インスタンスのブローカー接続です。複数のインスタンスを実行している場合、他のインスタンスは別の NATS ノードに接続している可能性があります。",
+      "health": {
+        "title": "健全性",
+        "status_ok": "正常",
+        "status_warning": "警告",
+        "status_critical": "問題あり",
+        "status_unknown": "不明",
+        "overall_ok": "すべて正常に動作しています",
+        "overall_warning": "確認が必要です",
+        "overall_critical": "問題が見つかりました",
+        "overall_ok_summary": "このスナップショットの取得時点で、すべてのチェックに合格しました。",
+        "overall_partial_summary": "問題は見つかりませんでした。一部のチェックにはデータがありません。",
+        "overall_problem_summary": "以下のチェックを確認してください。詳細は下のセクションに表示されます。",
+        "broker": "ブローカー接続",
+        "projections": "プロジェクション",
+        "workers": "バックグラウンドワーカー",
+        "backlog": "バックログ",
+        "storage": "アカウントの上限",
+        "unavailable": "報告なし",
+        "broker_connected": "NATS {version} に接続しています",
+        "broker_disconnected": "NATS ブローカーに接続していません",
+        "projections_failed_count": {
+          "other": "{count} 件のプロジェクションが失敗しました"
+        },
+        "projections_catching_up_count": {
+          "other": "{count} 件のプロジェクションが追い付き中です"
+        },
+        "projections_running_count": {
+          "other": "すべての {count} 件のプロジェクションが最新です"
+        },
+        "workers_failing_count": {
+          "other": "{count} 件のワーカーが停止または不明です"
+        },
+        "workers_unconfirmed_count": {
+          "other": "{count} 件のワーカーが未確認です"
+        },
+        "workers_running_count": {
+          "other": "すべての {count} 件のワーカーが実行中です"
+        },
+        "backlog_waiting_count": {
+          "other": "{count} 件のメッセージが待機中または処理中"
+        },
+        "backlog_clear": "待機中のメッセージはありません",
+        "storage_used": "最も近い上限の {percent}% を使用中",
+        "storage_unlimited": "上限は設定されていません"
+      },
+      "overview": {
+        "users": "ユーザー",
+        "rooms": "部屋",
+        "direct_messages_count": {
+          "other": "{count} 件のダイレクトメッセージ"
+        },
+        "events": "イベント",
+        "stored_data": "保存データ",
+        "stored_data_subtitle_count": {
+          "other": "{count} 個のストリーム内"
+        }
+      },
+      "usage": {
+        "title": "JetStream の使用状況",
+        "no_limit": "上限なし",
+        "replica_copies_note": "各ストリームレプリカ上のコピーを含みます。ファイルストリームには {size} のデータがあります。",
+        "stream_mix": "ファイル {file}、メモリ {memory}",
+        "consumer_mix": "プル {pull}、プッシュ {push}",
+        "unbound_count": {
+          "other": "{count} 件がアンバウンド"
+        },
+        "messages_count": {
+          "other": "{count} 件のメッセージ"
+        }
+      }
     },
     "event_log": {
       "title": "イベントログ",

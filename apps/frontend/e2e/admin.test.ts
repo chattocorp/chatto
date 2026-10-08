@@ -259,7 +259,7 @@ test.describe('Admin System Page', () => {
     // Wait for system info to load and check for connection status
     await adminPage.expectSystemConnected();
 
-    // Should see account usage stat cards
+    // Should see the health summary, stat cards, and usage panel
     await adminPage.expectSystemStatsVisible();
   });
 });

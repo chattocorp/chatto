@@ -1,4 +1,4 @@
-# ADR-114: Role Hierarchy for Administration
+# ADR-115: Role Hierarchy for Administration
 
 **Date:** 2026-10-07
 

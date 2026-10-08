@@ -22,7 +22,7 @@ message RbacRoleCreatedEvent {
   int32 rank = 4;
   bool pingable = 5;
   // When true, readers place the new role lowest, directly above everyone,
-  // and renumber the role order (ADR-114). Older readers use rank.
+  // and renumber the role order (ADR-115). Older readers use rank.
   bool place_lowest = 6;
 }
 
@@ -56,7 +56,7 @@ message RbacRolesReorderedEvent {
 
 // Moves one role in the role order. Role order is the administrative rank:
 // an account ranks at its highest role and can manage only accounts and roles
-// that rank below it (ADR-114). Readers place role_name directly above
+// that rank below it (ADR-115). Readers place role_name directly above
 // before_role_name, or lowest when before_role_name is empty, and renumber
 // every role except owner and everyone upward from 1. Owner then ranks
 // directly above the highest role, and everyone stays at 0.
