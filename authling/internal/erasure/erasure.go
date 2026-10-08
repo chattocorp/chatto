@@ -68,6 +68,11 @@ func (p *Projection) Apply(e *corev1.Event, sequence uint64) error {
 		if exists {
 			return fmt.Errorf("duplicate account in erasure index")
 		}
+		// Only this branch interns account IDs, so the next handle always
+		// names the next dense slot.
+		if p.accountIDs.Len() != len(p.accounts) {
+			return fmt.Errorf("erasure index handles and records are out of step")
+		}
 		for _, ref := range []string{c.GetUserKeyRef(), c.GetCredentialKeyRef()} {
 			if ref != "" {
 				if _, used := p.owners[ref]; used {
@@ -76,12 +81,7 @@ func (p *Projection) Apply(e *corev1.Event, sequence uint64) error {
 				p.owners[ref] = struct{}{}
 			}
 		}
-		// Only this branch interns account IDs, so the new handle always
-		// names the next dense slot.
-		handle = p.accountIDs.Intern(id)
-		if int(handle) != len(p.accounts)+1 {
-			return fmt.Errorf("erasure index handles and records are out of step")
-		}
+		p.accountIDs.Intern(id)
 		p.accounts = append(p.accounts, State{AccountID: id, UserRef: c.GetUserKeyRef(), DataRef: c.GetCredentialKeyRef()})
 		return nil
 	}

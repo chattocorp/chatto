@@ -77,6 +77,18 @@ func TestErasureInternedAccountsStayAlignedAcrossReplay(t *testing.T) {
 	}
 }
 
+func TestErasureRejectsMisalignedAccountsWithoutAllocating(t *testing.T) {
+	t.Parallel()
+	p := NewProjection()
+	p.accounts = append(p.accounts, State{AccountID: "acc_orphan"})
+	if err := p.Apply(created("acc_a", "uk_a", "dk_a"), 1); err == nil {
+		t.Fatal("accepted an account while handles and records were out of step")
+	}
+	if _, found := p.Get("acc_a"); found || p.accountIDs.Len() != 0 {
+		t.Fatal("rejected account creation allocated a handle")
+	}
+}
+
 func TestErasureIndexRejectsSubstitutionAndInvalidOrder(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
