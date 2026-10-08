@@ -39,7 +39,6 @@
     TIMELINE_ITEM_KEY_ATTRIBUTE,
     type TimelineSelectionKeys
   } from './timelineSelection';
-  import { retainPlayingTimelineMedia } from './timelineMediaRetention';
   import { findLastEditableMessage } from './lastEditableMessage';
   import { LoadingDots, ScrollFader } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -470,10 +469,14 @@
   // The items at the ends of the document selection. The virtualizer keeps every item
   // between them mounted, because a copy contains only mounted DOM.
   let selectionKeys = $state<TimelineSelectionKeys | null>(null);
-  let playingMediaKeys = $state.raw<ReadonlySet<string>>(new Set());
-  const retainPlayingMedia = retainPlayingTimelineMedia((keys) => {
-    playingMediaKeys = keys;
-  });
+  const playingMediaKeys = new SvelteSet<string>();
+
+  function messagePlaybackHandler(key: string) {
+    return (active: boolean) => {
+      if (active) playingMediaKeys.add(key);
+      else playingMediaKeys.delete(key);
+    };
+  }
   // Resolve stable row keys after pagination and merge both reasons for retention.
   const keepMounted = $derived.by(() => {
     const selectionIndexes = selectionKeys ? keptIndexes(virtualItems, selectionKeys) : [];
@@ -958,7 +961,6 @@
   >
     <div
       class="mt-auto mobile-presentation:px-1"
-      {@attach retainPlayingMedia}
       {@attach restoreViewport(recoveryTarget)}
       {@attach landOnUnreadEntry(unreadEntryLanding)}
       {@attach scrollToMessage(scrollTarget)}
@@ -1028,6 +1030,7 @@
                   activeCallId={serverUi(stores).activeCallRooms.getCallId(roomId)}
                   {onOpenCall}
                   onOpenUser={openUserMenu}
+                  onPlaybackChange={messagePlaybackHandler(eventData.id)}
                   {threadingMode}
                 />
               {/if}

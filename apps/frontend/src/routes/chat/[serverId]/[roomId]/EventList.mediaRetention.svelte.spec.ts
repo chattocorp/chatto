@@ -6,7 +6,7 @@ import { render } from 'vitest-browser-svelte';
 import EventListTestHarness from './EventListTestHarness.svelte';
 import '../../../../app.css';
 
-// Keep the real Virtualizer and VideoPlayer: retention must preserve their DOM nodes.
+// Keep the real Virtualizer, MessageAttachments, and VideoPlayer to test callback ownership.
 vi.mock('./RoomEvent.svelte', async () => {
   const { default: RoomEvent } = await import('./EventListMediaRoomEventMock.svelte');
   return { default: RoomEvent };
@@ -76,7 +76,8 @@ describe('EventList media retention', () => {
   beforeEach(async () => {
     createTestServerScope({
       store: { realtimeSync: { isRecoveringSnapshot: false } },
-      serverInfo: { messageEditWindowSeconds: 300 }
+      serverInfo: { messageEditWindowSeconds: 300 },
+      api: { refreshAssetUrls: async () => new Map() }
     });
     // Audio playback needs a real user gesture, even when it is muted.
     await userEvent.click(document.body);
@@ -114,12 +115,22 @@ describe('EventList media retention', () => {
     });
   });
 
-  it.each(['ended', 'error', 'emptied'])('releases an offscreen row on %s', async (type) => {
-    const id = 'audio-playing';
+  it.each([
+    ['audio', 'ended'],
+    ['audio', 'error'],
+    ['audio', 'emptied'],
+    ['video', 'ended'],
+    ['video', 'error'],
+    ['video', 'emptied'],
+    ['processed', 'ended'],
+    ['processed', 'error'],
+    ['processed', 'emptied']
+  ])('releases offscreen %s on %s', async (kind, type) => {
+    const id = `${kind}-playing`;
     const { scroller } = renderTimeline(id);
     const media = await startMedia(id);
     await scrollToStart(scroller);
-    media.dispatchEvent(new Event(type));
+    (media.closest('media-player') ?? media).dispatchEvent(new Event(type));
     await vi.waitFor(() => expect(row(id)).toBeNull());
   });
 
@@ -157,14 +168,18 @@ describe('EventList media retention', () => {
     expect(row(id)).toBeNull();
   });
 
-  it('releases a row when its playing attachment is removed', async () => {
-    const id = 'audio-playing';
-    const { scroller } = renderTimeline(id);
-    const media = await startMedia(id);
-    await scrollToStart(scroller);
-    media.remove();
-    await vi.waitFor(() => expect(row(id)).toBeNull());
-  });
+  it.each(['audio', 'video', 'processed'])(
+    'releases a row when its playing %s is removed',
+    async (kind) => {
+      const id = `${kind}-playing`;
+      const { scroller } = renderTimeline(id);
+      const media = await startMedia(id);
+      await scrollToStart(scroller);
+      row(id)!.querySelector<HTMLButtonElement>('[data-testid="remove-attachments"]')!.click();
+      await vi.waitFor(() => expect(row(id)).toBeNull());
+      expect(media.isConnected).toBe(false);
+    }
+  );
 
   it('does not retain a deleted message when its key is reused', async () => {
     const id = 'audio-playing';

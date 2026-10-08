@@ -101,15 +101,15 @@ URL responses and unmount the previous media. Metadata queries are scoped to
 the server session, room, and asset and are not retained after unmount.
 See [FDR-008](../fdr/FDR-008-file-attachments-and-video.md).
 
-Each mounted `EventList` timeline owns an attachment that captures native audio
-and video playback events, including the video element inside Vidstack. It
-tracks playing media by element and timeline row key, then combines those keys
-with text-selection retention for virtua's `keepMounted` indexes. Pagination
+Audio and raw video markup report playback directly. `VideoPlayer` reports
+Vidstack player events through an optional callback. `MessageAttachments` tracks
+playing attachment IDs and reports whether any attachment is active through
+`MessageEvent` and `RoomEvent` to `EventList`. The timeline combines playing row
+keys with text-selection retention for virtua's `keepMounted` indexes. Pagination
 resolves the keys against the current virtual items. Pause, playback end, media
-errors, and source removal release playback retention. A DOM observer removes
-entries for deleted attachments and rows. Timeline cleanup removes all listeners,
-disconnects the observer, and clears the media references. Converted GIF loops
-are excluded. This state exists only in the mounted room or thread timeline.
+errors, and source clearing release playback retention. Svelte cleanup releases
+removed players and attachments. Converted GIF loops are excluded. This state
+exists only in the mounted room or thread timeline.
 
 The experimental Electron desktop shell is a Chatto client runtime using a
 pinned stable Electron and bundled Chromium release. It embeds the official

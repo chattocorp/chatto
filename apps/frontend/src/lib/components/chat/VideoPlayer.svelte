@@ -50,6 +50,7 @@
     describedBy,
     autoLoop = false,
     viewer = false,
+    onPlaybackChange,
     onMediaError,
     onPosterError
   }: {
@@ -67,6 +68,8 @@
     autoLoop?: boolean;
     /** Fit the player to the shared attachment viewer rather than a timeline thumbnail. */
     viewer?: boolean;
+    /** Report playback until pause, end, failure, source clearing, or player removal. GIF loops are excluded. */
+    onPlaybackChange?: (active: boolean) => void;
     onMediaError?: () => void | Promise<string | null>;
     onPosterError?: () => void;
   } = $props();
@@ -179,6 +182,7 @@
   }
 
   function handlePlayerError() {
+    if (!autoLoop) onPlaybackChange?.(false);
     onMediaError?.();
   }
 
@@ -314,6 +318,7 @@
     const cleanupVideoObserver = observePlayerVideo(node);
 
     return () => {
+      onPlaybackChange?.(false);
       cleanupFullscreen();
       cleanupVideoObserver();
       node.removeEventListener('provider-change', handleProviderChange);
@@ -346,6 +351,10 @@
       src={videoSrc}
       stream-type="on-demand"
       playsinline
+      onplay={() => onPlaybackChange?.(true)}
+      onpause={() => onPlaybackChange?.(false)}
+      onended={() => onPlaybackChange?.(false)}
+      onemptied={() => onPlaybackChange?.(false)}
       onerror={handlePlayerError}
       class="block h-full w-full"
       aria-describedby={describedBy}
