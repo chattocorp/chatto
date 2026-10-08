@@ -53,6 +53,13 @@ func TestMCPParsedScopeGuard(t *testing.T) {
 			if !test.allowed && err == nil && !result.(*mcp.CallToolResult).IsError {
 				t.Fatal("denied call had no protocol or tool error")
 			}
+			if test.name == "post_message" {
+				var output toolErrorOutput
+				decodeStructuredContent(t, result.(*mcp.CallToolResult).StructuredContent, &output)
+				if output.Error.Code != "insufficient_scope" || output.Error.RequiredScope != config.MCPMessagesWriteScope || output.Error.NextAction != "authorize_scope" || output.Error.Outcome != "not_applied" || output.Error.Retry != "after_change" {
+					t.Fatalf("parsed scope failure = %#v", output)
+				}
+			}
 		})
 	}
 	handler := scopedTools(func(context.Context, string, mcp.Request) (mcp.Result, error) {
@@ -171,6 +178,11 @@ func TestMCPGrantSubsets(t *testing.T) {
 					challenge := response.Header().Get("WWW-Authenticate")
 					if response.Code != http.StatusForbidden || !strings.Contains(challenge, `error="insufficient_scope"`) || !strings.Contains(challenge, fmt.Sprintf("scope=%q", tool.scope)) || !strings.Contains(challenge, `resource_metadata="https://chat.example/.well-known/oauth-protected-resource/mcp"`) {
 						t.Fatalf("%s missing-scope status/challenge = %d/%q", tool.name, response.Code, challenge)
+					}
+					var output toolErrorOutput
+					decodeMCPResponse(t, response, &output)
+					if output.Error.Code != "insufficient_scope" || output.Error.RequiredScope != tool.scope || output.Error.NextAction != "authorize_scope" || output.Error.Outcome != "not_applied" || output.Error.Retry != "after_change" || response.Header().Get("Cache-Control") != "no-store" {
+						t.Fatalf("HTTP scope failure = %#v", output)
 					}
 				} else if response.Code != http.StatusOK || strings.Contains(response.Body.String(), "insufficient_scope") {
 					t.Fatalf("%s with granted scope failed: status %d", tool.name, response.Code)

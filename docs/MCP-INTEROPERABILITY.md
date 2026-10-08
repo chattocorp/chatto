@@ -1,6 +1,6 @@
 # MCP Interoperability Checks
 
-**Last checked:** 2026-10-07
+**Last checked:** 2026-10-08
 **Status:** Experimental; conformance is incomplete.
 
 This record tracks [issue #2214](https://github.com/chattocorp/chatto/issues/2214).
@@ -15,11 +15,11 @@ Checks used a real local Chatto server, synthetic accounts, and a separate
 test room on macOS. Browser sign-in and consent used Chrome DevTools MCP.
 Codex calls used the app-server API without a model turn.
 
-| Client | Version | Result |
-| --- | --- | --- |
-| Codex CLI | `0.160.1` | Protected-resource and issuer discovery, public CIMD, browser consent, S256 PKCE exchange, seven-tool discovery, and join/post/read/leave succeeded. Calls after a two-second access lifetime succeeded without new consent. |
-| MCP Inspector CLI | `2.9.0`, modern protocol era | The same flow and tools succeeded with a locally served native CIMD document. Calls after a two-second access lifetime succeeded with `--stored-auth-only`. |
-| Claude Code | `2.1.291` | Discovery produced the correct resource and scopes. Authorization stopped at callback validation. Its CIMD omits native application type and registers a portless localhost callback; the client requests a runtime port. No token was issued. |
+| Client            | Version                      | Result                                                                                                                                                                                                                                         |
+| ----------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Codex CLI         | `0.160.1`                    | Protected-resource and issuer discovery, public CIMD, browser consent, S256 PKCE exchange, seven-tool discovery, and join/post/read/leave succeeded. Calls after a two-second access lifetime succeeded without new consent.                   |
+| MCP Inspector CLI | `2.9.0`, modern protocol era | The same flow and tools succeeded with a locally served native CIMD document. Calls after a two-second access lifetime succeeded with `--stored-auth-only`.                                                                                    |
+| Claude Code       | `2.1.291`                    | Discovery produced the correct resource and scopes. Authorization stopped at callback validation. Its CIMD omits native application type and registers a portless localhost callback; the client requests a runtime port. No token was issued. |
 
 Calls after the short access lifetime establish refresh behavior: an expired
 access token alone cannot authenticate the endpoint. Inspector's older
@@ -102,6 +102,26 @@ fixture checks.
 
 ## Authorization and privacy checks
 
+`cli/internal/mcpserver/errors_test.go` checks every tool's argument-failure
+contract through the official Go SDK and independent raw protocol requests.
+It validates structured errors against the advertised output schemas and
+checks the JSON text fallback. Canonical-operation cases cover membership,
+confirmed missing RBAC permissions, generic policy denial, and identical
+errors for absent rooms, hidden channels, and nonparticipant direct-message
+rooms. Boundary fault fixtures check conflict, timeout, temporary failure,
+rate-limit delay, and uncertain or completed message-post outcomes. These
+fixtures do not simulate a real lost JetStream commit acknowledgement.
+Scope-subset tests check HTTP scope challenges and the structured scope body.
+The HTTP OAuth test still checks the official client's fresh-consent upgrade.
+These automated checks do not add an independent production host to the matrix.
+
+On 2026-10-08, Inspector CLI `2.9.0` accepted all seven success/error output
+schemas on a real local server. With a synthetic bot key, a rejected post
+returned `permission_denied`, `missingPermissions: ["message.post"]`,
+`contact_administrator`, and `not_applied` as structured fields, plus the text
+fallback. Inspector reported the tool failure with exit status `5`. This check
+used an isolated development data directory and did not repeat browser OAuth.
+
 `cli/internal/http_server/mcp_interop_test.go` uses two independent Chatto
 cores and HTTP listeners with one NATS store. It verifies:
 
@@ -146,9 +166,9 @@ canaries. HTTP request logging was checked separately by the request-log test.
 ## Release checklist
 
 - [ ] Rerun the pinned suite and resolve or explicitly classify each required
-  failure. Record unmeasured checks separately from passed checks.
+      failure. Record unmeasured checks separately from passed checks.
 - [ ] Repeat the host matrix against public HTTPS and the deployment's proxy.
-  Verify the Claude Code blocker again or complete its flow after a host fix.
+      Verify the Claude Code blocker again or complete its flow after a host fix.
 - [ ] Run cross-replica revocation and client-blocking HTTP tests.
 - [ ] Complete the deployment log, diagnostic, and metric canary audit.
 - [ ] Verify the public setup guide and record the exact host versions.

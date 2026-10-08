@@ -2,7 +2,6 @@ package mcpserver
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -37,7 +36,7 @@ func getCurrentUserHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[getCu
 		}
 		user, err := chattoCore.GetUser(ctx, userID)
 		if err != nil {
-			return nil, getCurrentUserOutput{}, toolOperationError(ctx, chattoCore, userID, "", nil, err)
+			return nil, getCurrentUserOutput{}, toolOperationError(ctx, chattoCore, userID, "", nil, err, "get_current_user")
 		}
 		accountType := "human"
 		if user.GetIsBot() {
@@ -90,7 +89,10 @@ func listRoomMessagesHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[lis
 			limit = defaultListMessagesLimit
 		}
 		if limit < 1 || limit > maxListMessagesLimit {
-			return nil, listRoomMessagesOutput{}, fmt.Errorf("limit must be between 1 and %d", maxListMessagesLimit)
+			return nil, listRoomMessagesOutput{}, invalidToolArgument(fmt.Sprintf("limit must be between 1 and %d", maxListMessagesLimit))
+		}
+		if err := requireVisibleToolRoom(ctx, chattoCore, userID, input.RoomID); err != nil {
+			return nil, listRoomMessagesOutput{}, err
 		}
 
 		var beforeSeq *uint64
@@ -101,14 +103,14 @@ func listRoomMessagesHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[lis
 				ActorID: userID, RoomID: input.RoomID, Limit: 1,
 			})
 			if err != nil {
-				return nil, listRoomMessagesOutput{}, toolOperationError(ctx, chattoCore, userID, input.RoomID, []core.Permission{core.PermMessageRead, core.PermMessageReadInteractions}, err)
+				return nil, listRoomMessagesOutput{}, toolOperationError(ctx, chattoCore, userID, input.RoomID, []core.Permission{core.PermMessageRead, core.PermMessageReadInteractions}, err, "list_room_messages")
 			}
 			cursorEvent, err := chattoCore.GetRoomEventByEventID(ctx, authorized.Kind, input.RoomID, input.BeforeEventID)
 			if err != nil {
 				return nil, listRoomMessagesOutput{}, err
 			}
 			if cursorEvent == nil {
-				return nil, listRoomMessagesOutput{}, fmt.Errorf("before_event_id was not found in this room")
+				return nil, listRoomMessagesOutput{}, invalidToolArgument("before_event_id is not a valid cursor for this room")
 			}
 			seq, err := chattoCore.GetEventSequence(ctx, authorized.Kind, input.RoomID, input.BeforeEventID)
 			if err != nil {
@@ -121,7 +123,7 @@ func listRoomMessagesHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[lis
 			ActorID: userID, RoomID: input.RoomID, Limit: limit, BeforeSeq: beforeSeq,
 		})
 		if err != nil {
-			return nil, listRoomMessagesOutput{}, toolOperationError(ctx, chattoCore, userID, input.RoomID, []core.Permission{core.PermMessageRead, core.PermMessageReadInteractions}, err)
+			return nil, listRoomMessagesOutput{}, toolOperationError(ctx, chattoCore, userID, input.RoomID, []core.Permission{core.PermMessageRead, core.PermMessageReadInteractions}, err, "list_room_messages")
 		}
 		output := listRoomMessagesOutput{
 			ServerName: chattoCore.ConfigModel().GetEffectiveServerName(),
@@ -166,18 +168,23 @@ func postMessageHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[postMess
 			return nil, postMessageOutput{}, err
 		}
 		if !core.HasVisibleContent(input.Body) {
-			return nil, postMessageOutput{}, fmt.Errorf("body must contain visible text")
+			return nil, postMessageOutput{}, invalidToolArgument("body must contain visible text")
 		}
 		if len(input.Body) > core.MaxMessageBodyLength {
-			return nil, postMessageOutput{}, fmt.Errorf("body must not exceed %d bytes", core.MaxMessageBodyLength)
+			return nil, postMessageOutput{}, invalidToolArgument(fmt.Sprintf("body must not exceed %d bytes", core.MaxMessageBodyLength))
+		}
+		if err := requireVisibleToolRoom(ctx, chattoCore, userID, input.RoomID); err != nil {
+			return nil, postMessageOutput{}, err
 		}
 		result, err := chattoCore.Messages().PostMessage(ctx, core.MessagePostInput{ActorID: userID, RoomID: input.RoomID, Body: input.Body})
 		if err != nil {
-			return nil, postMessageOutput{}, toolOperationError(ctx, chattoCore, userID, input.RoomID, []core.Permission{core.PermMessagePost}, err)
+			return nil, postMessageOutput{}, toolOperationError(ctx, chattoCore, userID, input.RoomID, []core.Permission{core.PermMessagePost}, err, "post_message")
 		}
 		message, err := mcpMessageResult(core.WithDEKRequestCache(ctx), chattoCore, result.Event)
 		if err != nil {
-			return nil, postMessageOutput{}, err
+			// The canonical command succeeded. A failed response must never
+			// tell a host to post the same message again.
+			return nil, postMessageOutput{}, postedMessageResultError(err)
 		}
 		return nil, postMessageOutput{ServerName: chattoCore.ConfigModel().GetEffectiveServerName(), Message: message}, nil
 	}
@@ -201,9 +208,12 @@ func joinRoomHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[roomMembers
 		if err := validateResourceID("room_id", input.RoomID, true); err != nil {
 			return nil, joinRoomOutput{}, err
 		}
+		if err := requireVisibleToolRoom(ctx, chattoCore, userID, input.RoomID); err != nil {
+			return nil, joinRoomOutput{}, err
+		}
 		room, err := chattoCore.RoomCommands().JoinRoom(ctx, core.RoomIDInput{ActorID: userID, RoomID: input.RoomID})
 		if err != nil {
-			return nil, joinRoomOutput{}, toolOperationError(ctx, chattoCore, userID, input.RoomID, []core.Permission{core.PermRoomJoin}, err)
+			return nil, joinRoomOutput{}, toolOperationError(ctx, chattoCore, userID, input.RoomID, []core.Permission{core.PermRoomJoin}, err, "join_room")
 		}
 		return nil, joinRoomOutput{
 			ServerName: chattoCore.ConfigModel().GetEffectiveServerName(),
@@ -227,8 +237,11 @@ func leaveRoomHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[roomMember
 		if err := validateResourceID("room_id", input.RoomID, true); err != nil {
 			return nil, leaveRoomOutput{}, err
 		}
+		if err := requireVisibleToolRoom(ctx, chattoCore, userID, input.RoomID); err != nil {
+			return nil, leaveRoomOutput{}, err
+		}
 		if err := chattoCore.RoomCommands().LeaveRoom(ctx, core.RoomIDInput{ActorID: userID, RoomID: input.RoomID}); err != nil {
-			return nil, leaveRoomOutput{}, toolOperationError(ctx, chattoCore, userID, input.RoomID, nil, err)
+			return nil, leaveRoomOutput{}, toolOperationError(ctx, chattoCore, userID, input.RoomID, nil, err, "leave_room")
 		}
 		return nil, leaveRoomOutput{ServerName: chattoCore.ConfigModel().GetEffectiveServerName(), RoomID: input.RoomID, Left: true}, nil
 	}
@@ -252,10 +265,10 @@ func authenticatedRequest(ctx context.Context) (context.Context, string, error) 
 
 func validateResourceID(name, value string, required bool) error {
 	if required && value == "" {
-		return fmt.Errorf("%s is required", name)
+		return invalidToolArgument(fmt.Sprintf("%s is required", name))
 	}
 	if len(value) > maxResourceIDLength || strings.TrimSpace(value) != value {
-		return fmt.Errorf("%s is invalid", name)
+		return invalidToolArgument(fmt.Sprintf("%s is invalid", name))
 	}
 	return nil
 }
@@ -302,51 +315,6 @@ func roomResultFromRoom(room *evtv1.Room, isMember bool) roomResult {
 		ID: room.GetId(), Name: room.GetName(), Description: room.GetDescription(),
 		Kind: roomKind(room.GetKind()), Archived: room.GetArchived(), IsMember: isMember,
 	}
-}
-
-func toolOperationError(ctx context.Context, chattoCore *core.ChattoCore, userID, roomID string, permissions []core.Permission, err error) error {
-	switch {
-	case errors.Is(err, core.ErrNotRoomMember):
-		return fmt.Errorf("not_room_member: this operation requires current room membership")
-	case errors.Is(err, core.ErrPermissionDenied):
-		missing := missingRoomPermissions(ctx, chattoCore, userID, roomID, permissions)
-		if len(missing) > 0 {
-			quoted := make([]string, len(missing))
-			for i, permission := range missing {
-				quoted[i] = fmt.Sprintf("%q", permission)
-			}
-			return fmt.Errorf("permission_denied: Chatto RBAC requires %s for this room; ask an administrator to grant it", strings.Join(quoted, " or "))
-		}
-		return fmt.Errorf("permission_denied: Chatto denied this operation because of room policy or another authorization rule")
-	case errors.Is(err, core.ErrNotFound):
-		return fmt.Errorf("not_found: the requested Chatto resource does not exist or is not visible")
-	default:
-		return err
-	}
-}
-
-func missingRoomPermissions(ctx context.Context, chattoCore *core.ChattoCore, userID, roomID string, permissions []core.Permission) []core.Permission {
-	if roomID == "" || len(permissions) == 0 {
-		return nil
-	}
-	room, err := chattoCore.FindRoomByID(ctx, roomID)
-	if err != nil || room == nil {
-		return nil
-	}
-	missing := make([]core.Permission, 0, len(permissions))
-	for _, permission := range permissions {
-		explanation, err := chattoCore.PermResolver().ExplainRoomPermission(ctx, userID, core.KindOfRoom(room), roomID, permission)
-		if err != nil {
-			return nil
-		}
-		if explanation.State != core.DecisionAllow {
-			missing = append(missing, permission)
-		}
-	}
-	if len(missing) != len(permissions) {
-		return nil
-	}
-	return missing
 }
 
 func formatTimestamp(value time.Time) string {

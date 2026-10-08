@@ -48,7 +48,7 @@ func requireToolScope(metadataURL string, next http.Handler) http.Handler {
 		scope, known := toolScope(name)
 		if r.Method == http.MethodPost && r.Header.Get("Mcp-Method") == "tools/call" && known && scope != "" && !hasToolScope(r.Context(), name) {
 			w.Header().Set("WWW-Authenticate", fmt.Sprintf("Bearer error=\"insufficient_scope\", scope=%q, resource_metadata=%q", scope, metadataURL))
-			http.Error(w, "insufficient_scope: authorize the required MCP scope", http.StatusForbidden)
+			writeHTTPFailure(w, http.StatusForbidden, scopeFailure(scope))
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -63,12 +63,10 @@ func scopedTools(next mcp.MethodHandler) mcp.MethodHandler {
 		if call, ok := request.(*mcp.CallToolRequest); ok {
 			scope, known := toolScope(call.Params.Name)
 			if !known {
-				return nil, &jsonrpc.Error{Code: jsonrpc.CodeInvalidParams, Message: fmt.Sprintf("unknown tool %q", call.Params.Name)}
+				return nil, &jsonrpc.Error{Code: jsonrpc.CodeInvalidParams, Message: "unknown tool"}
 			}
 			if !hasToolScope(ctx, call.Params.Name) {
-				return &mcp.CallToolResult{IsError: true, Content: []mcp.Content{&mcp.TextContent{
-					Text: fmt.Sprintf("insufficient_scope: authorize MCP scope %q", scope),
-				}}}, nil
+				return toolErrorResult(scopeFailure(scope)), nil
 			}
 		}
 		result, err := next(ctx, method, request)

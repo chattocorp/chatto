@@ -78,38 +78,38 @@ func newResourceHandler(chattoCore *core.ChattoCore, issuer, resource, version s
 			// catalog subscriptions, so do not advertise the SDK defaults.
 			Capabilities: &mcp.ServerCapabilities{Tools: &mcp.ToolCapabilities{}},
 		})
-		server.AddReceivingMiddleware(toolsOnlyMethods, scopedTools)
-		mcp.AddTool(server, &mcp.Tool{
+		server.AddReceivingMiddleware(toolsOnlyMethods, scopedTools, structuredToolErrors)
+		addTool(server, &mcp.Tool{
 			Name:        "get_server_info",
 			Description: "Identify the one Chatto server connected through this MCP endpoint. Use this tool to match a server that the user names and to distinguish this connection from other Chatto servers. The result includes the configured name, canonical public URL, connected MCP URL, and software version.",
 			Annotations: readOnlyToolAnnotations("Get server information"),
 		}, getServerInfoHandler(chattoCore, issuer, resource, version))
-		mcp.AddTool(server, &mcp.Tool{
+		addTool(server, &mcp.Tool{
 			Name:        "get_current_user",
 			Description: "Identify the Chatto user or bot account that this MCP connection uses on the connected server.",
 			Annotations: readOnlyToolAnnotations("Get current user"),
 		}, getCurrentUserHandler(chattoCore))
-		mcp.AddTool(server, &mcp.Tool{
+		addTool(server, &mcp.Tool{
 			Name:        "list_rooms",
 			Description: "List one page of rooms visible to the authenticated account on the connected Chatto server. Use this tool as the source of truth for room lists and room counts. totalCount is the exact number of visible rooms. To retrieve every room record, pass nextAfterRoomId as after_room_id until nextAfterRoomId is absent.",
 			Annotations: readOnlyToolAnnotations("List rooms"),
 		}, listRoomsHandler(chattoCore))
-		mcp.AddTool(server, &mcp.Tool{
+		addTool(server, &mcp.Tool{
 			Name:        "list_room_messages",
 			Description: "List one page of recent messages in a joined room on the connected Chatto server. To retrieve older messages, pass nextBeforeEventId as before_event_id until nextBeforeEventId is absent.",
 			Annotations: readOnlyToolAnnotations("List room messages"),
 		}, listRoomMessagesHandler(chattoCore))
-		mcp.AddTool(server, &mcp.Tool{
+		addTool(server, &mcp.Tool{
 			Name:        "post_message",
 			Description: "Post one text message to a joined room on the connected Chatto server. This operation is not idempotent; do not retry it after an uncertain result.",
 			Annotations: mutationToolAnnotations("Post message", false, false),
 		}, postMessageHandler(chattoCore))
-		mcp.AddTool(server, &mcp.Tool{
+		addTool(server, &mcp.Tool{
 			Name:        "join_room",
 			Description: "Join one visible channel room on the connected Chatto server as the authenticated account.",
 			Annotations: mutationToolAnnotations("Join room", true, false),
 		}, joinRoomHandler(chattoCore))
-		mcp.AddTool(server, &mcp.Tool{
+		addTool(server, &mcp.Tool{
 			Name:        "leave_room",
 			Description: "Leave one joined channel room on the connected Chatto server as the authenticated account.",
 			Annotations: mutationToolAnnotations("Leave room", true, true),
@@ -173,7 +173,9 @@ func withAdmissionLimit(limiter *rate.Limiter, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !limiter.Allow() {
 			w.Header().Set("Retry-After", "1")
-			http.Error(w, "MCP request rate limit exceeded", http.StatusTooManyRequests)
+			f := failure("rate_limited", "MCP request rate limit exceeded. Wait before trying again.", "retry", "after_delay")
+			f.RetryAfterMs = 1000
+			writeHTTPFailure(w, http.StatusTooManyRequests, f)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -300,10 +302,10 @@ func listRoomsHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[listRoomsI
 			limit = defaultListRoomsLimit
 		}
 		if limit < 1 || limit > maxListRoomsLimit {
-			return nil, listRoomsOutput{}, fmt.Errorf("limit must be between 1 and %d", maxListRoomsLimit)
+			return nil, listRoomsOutput{}, invalidToolArgument(fmt.Sprintf("limit must be between 1 and %d", maxListRoomsLimit))
 		}
 		if len(input.AfterRoomID) > 256 || strings.TrimSpace(input.AfterRoomID) != input.AfterRoomID {
-			return nil, listRoomsOutput{}, fmt.Errorf("after_room_id is invalid")
+			return nil, listRoomsOutput{}, invalidToolArgument("after_room_id is invalid")
 		}
 		rooms, err := chattoCore.RoomDirectoryReads().ListRooms(ctx, userID, core.RoomDirectoryListOptions{IncludeChannels: true, IncludeDMs: true})
 		if err != nil {
