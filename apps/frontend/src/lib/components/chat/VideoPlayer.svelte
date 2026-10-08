@@ -371,6 +371,25 @@
         {/if}
       </media-provider>
       <media-video-layout></media-video-layout>
+      <!-- Vidstack's compact layout omits PiP; use its native button beside casting. -->
+      <media-controls class="vds-controls preview-pip-controls">
+        <media-tooltip class="vds-tooltip">
+          <media-tooltip-trigger>
+            <media-pip-button
+              class="vds-pip-button vds-button preview-pip-button"
+              aria-label={m('voice.picture_in_picture')}
+            >
+              <span
+                class="iconify icon-[mdi--picture-in-picture-bottom-right] size-6"
+                aria-hidden="true"
+              ></span>
+            </media-pip-button>
+          </media-tooltip-trigger>
+          <media-tooltip-content class="vds-tooltip-content" placement="bottom">
+            {m('voice.picture_in_picture')}
+          </media-tooltip-content>
+        </media-tooltip>
+      </media-controls>
     </media-player>
   </div>
 {:else if status === 'PENDING' || status === 'PROCESSING'}
@@ -398,6 +417,22 @@
 {/if}
 
 <style>
+  /* Vidstack's runtime layout attributes need selectors beyond Tailwind utilities. */
+  :global(media-video-layout:not([data-sm])) ~ .preview-pip-controls {
+    display: none;
+  }
+
+  .preview-pip-controls {
+    --media-button-size: var(--video-sm-button-size, 36px);
+  }
+
+  .preview-pip-button {
+    position: absolute;
+    top: 4px;
+    left: calc(var(--video-sm-button-size, 36px) + 12px);
+    pointer-events: auto;
+  }
+
   /* Hide menus from Vidstack's default layout — not useful for embedded chat videos. */
   :global(media-player .vds-settings-menu),
   :global(media-player .vds-chapters-menu) {
