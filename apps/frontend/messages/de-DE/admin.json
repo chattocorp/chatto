@@ -349,11 +349,9 @@
       "title": "System",
       "subtitle": "Broker, JetStream-Speicher, Consumer und Projektionszustand",
       "loading": "Systeminformationen werden geladen...",
-      "connection": "Verbindung",
       "broker": "NATS-Broker",
       "connected": "Verbunden",
       "disconnected": "Getrennt",
-      "unlimited": "unbegrenzt",
       "all_subjects": "alle Subjects",
       "pending_state": "Ausstehend",
       "worker_unconfirmed": "Unbestätigt",
@@ -361,32 +359,12 @@
       "max_payload": "Maximale Nutzlast",
       "server_id": "Server-ID",
       "server_name": "Servername",
-      "limit": "Limit: {limit}",
       "used_of_limit": "{used} von {limit}",
-      "jetstream_account": "JetStream-Konto",
       "account_storage": "Dateispeicher",
       "account_memory": "Memory-Speicher",
-      "stream_capacity": "Stream-Kapazität",
-      "consumer_capacity": "Consumer-Kapazität",
-      "stream_activity": "Stream-Aktivität",
       "events": "Events",
-      "event_bytes": "Event-Bytes",
-      "messages_stored": "Gespeicherte Nachrichten",
-      "stream_bytes": "Stream-Bytes",
       "average_message_size": "{size} im Durchschnitt",
-      "storage_mix": "{file} dateibasierte / {memory} speicherbasierte Streams",
-      "consumer_backlog": "Consumer-Rückstau",
-      "consumer_backlog_subtitle": "{count} Consumer mit ausstehenden Nachrichten",
-      "redelivered_total": "{count} erneut zugestellt",
-      "stream_summary": "Stream-Zusammenfassung",
-      "file_streams": "Datei-Streams",
-      "memory_streams": "Memory-Streams",
       "largest_stream": "Größter Stream",
-      "messages_lower": "Nachrichten",
-      "consumer_summary": "Consumer-Zusammenfassung",
-      "pull_consumers": "Pull-Consumer",
-      "push_consumers": "Push-Consumer",
-      "unbound_push_consumers": "Ungebundene Push-Consumer",
       "projection_summary": "Projektionsübersicht",
       "average_entry_size": "Durchschn. Eintrag",
       "average_entry_value": "{size} im Durchschnitt",
@@ -417,7 +395,6 @@
       "projection_memory": "Projektionsspeicher",
       "projection_failures": "Projektionsfehler",
       "projection_lag": "Projektionsverzug",
-      "projection_entries": "{count} projizierte Einträge",
       "no_projections": "Keine Projektionen registriert.",
       "projection": "Projektion",
       "state": "Zustand",
@@ -444,15 +421,94 @@
       "asset_cleanup_inactive_summary": "Derzeit hält kein Asset-Bereinigungs-Worker die Lease.",
       "asset_cleanup_unavailable_summary": "Diese Serverversion meldet keinen Bereinigungszustand.",
       "asset_cleanup_pending": "Ausstehende Wiederholungen",
-      "asset_cleanup_oldest": "Älteste ausstehende",
-      "asset_cleanup_last_pass": "Letzter Durchlauf",
-      "asset_cleanup_last_success": "Letzter erfolgreicher: {time}",
       "asset_cleanup_event_scan": "Event-Scan",
       "asset_cleanup_caught_up": "Aktuell",
       "asset_cleanup_events_waiting": "Neue Events warten",
-      "asset_cleanup_never": "Nie",
-      "asset_cleanup_none": "Keine",
-      "asset_cleanup_in_progress": "Läuft"
+      "asset_cleanup_in_progress": "Läuft",
+      "refresh": "Aktualisieren",
+      "account_unavailable": "Die JetStream-Kontonutzung ist nicht verfügbar.",
+      "jetstream_unavailable": "Details zu Streams und Consumern sind nicht verfügbar.",
+      "projections_unavailable": "Projektionsdetails sind nicht verfügbar.",
+      "durable_workers": "Hintergrund-Worker",
+      "no_durable_workers": "Es werden keine Hintergrund-Worker gemeldet.",
+      "broker_scope_label": "Über diese Verbindung",
+      "broker_scope_help": "Dies ist die Broker-Verbindung der Chatto-Instanz, die diese Anfrage bearbeitet hat. Wenn du mehr als eine Instanz betreibst, können sich die anderen Instanzen mit einem anderen NATS-Knoten verbinden.",
+      "health": {
+        "title": "Zustand",
+        "status_ok": "OK",
+        "status_warning": "Warnung",
+        "status_critical": "Problem",
+        "status_unknown": "Unbekannt",
+        "overall_ok": "Alles läuft normal",
+        "overall_warning": "Benötigt Aufmerksamkeit",
+        "overall_critical": "Probleme gefunden",
+        "overall_ok_summary": "Alle Prüfungen waren beim Erstellen dieser Momentaufnahme erfolgreich.",
+        "overall_problem_summary": "Sieh dir die Prüfungen unten an. Die Abschnitte weiter unten zeigen die Details.",
+        "broker": "Broker-Verbindung",
+        "projections": "Projektionen",
+        "workers": "Hintergrund-Worker",
+        "backlog": "Rückstand",
+        "storage": "Kontolimits",
+        "unavailable": "Nicht gemeldet",
+        "broker_connected": "Verbunden mit NATS {version}",
+        "broker_disconnected": "Nicht mit dem NATS-Broker verbunden",
+        "projections_failed_count": {
+          "one": "{count} Projektion fehlgeschlagen",
+          "other": "{count} Projektionen fehlgeschlagen"
+        },
+        "projections_catching_up_count": {
+          "one": "{count} Projektion holt auf",
+          "other": "{count} Projektionen holen auf"
+        },
+        "projections_running_count": {
+          "one": "{count} Projektion ist aktuell",
+          "other": "Alle {count} Projektionen sind aktuell"
+        },
+        "workers_failing_count": {
+          "one": "{count} Worker hängt oder fehlt",
+          "other": "{count} Worker hängen oder fehlen"
+        },
+        "workers_running_count": {
+          "one": "{count} Worker läuft",
+          "other": "Alle {count} Worker laufen"
+        },
+        "backlog_waiting_count": {
+          "one": "{count} Nachricht in Bearbeitung",
+          "other": "{count} Nachrichten in Bearbeitung"
+        },
+        "backlog_clear": "Keine wartenden Nachrichten",
+        "storage_used": "{percent} % des nächsten Limits genutzt",
+        "storage_unlimited": "Keine Limits konfiguriert"
+      },
+      "overview": {
+        "users": "Benutzer",
+        "rooms": "Räume",
+        "direct_messages_count": {
+          "one": "{count} Direktnachricht",
+          "other": "{count} Direktnachrichten"
+        },
+        "events": "Events",
+        "stored_data": "Gespeicherte Daten",
+        "stored_data_subtitle_count": {
+          "one": "In {count} Stream",
+          "other": "In {count} Streams"
+        }
+      },
+      "usage": {
+        "title": "JetStream-Nutzung",
+        "no_limit": "kein Limit",
+        "replica_copies_note": "Enthält eine Kopie auf jedem Stream-Replikat. Die Datei-Streams enthalten {size} an Daten.",
+        "stream_mix": "{file} Datei, {memory} Memory",
+        "consumer_mix": "{pull} Pull, {push} Push",
+        "unbound_count": {
+          "one": "{count} nicht gebunden",
+          "other": "{count} nicht gebunden"
+        },
+        "messages_count": {
+          "one": "{count} Nachricht",
+          "other": "{count} Nachrichten"
+        }
+      }
     },
     "event_log": {
       "title": "Event-Log",

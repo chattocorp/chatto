@@ -1,7 +1,7 @@
 # FDR-021: Admin Dashboard & System Monitoring
 
 **Status:** Active
-**Last reviewed:** 2026-09-27
+**Last reviewed:** 2026-10-08
 
 ## Overview
 
@@ -19,6 +19,7 @@ The server-management section gives owners and admins visibility into the server
   profiles, assign roles, suspend, or delete users when they hold the relevant
   permission.
 - **System Info page** — owner-only page showing backing message-broker connection status, storage account limits and current usage, stream/consumer health, known durable-worker queue health, projection health (lag, entry counts, and rough memory estimates), and `AdminDiagnosticsService.GetSystemInfo` stats (user count, channel room count, DM room count).
+- The System Info page starts with a health summary: one overall status and one row for each check (broker connection, projections, background workers, backlog, and account limits). Below it are the user, room, event, and stored-data counts, account usage against each limit, and the broker connection. A refresh action in the page header reads a new snapshot.
 - **Audit log page** — chronological diagnostic event-log view for forensic review, grouped by event creation date. The list view uses `AdminEventLogService.ListEvents`; the detail view uses `AdminEventLogService.GetEvent` to show sanitized payload JSON for human inspection. Password verifiers are omitted.
 - The audit log UI can be filtered by exact event type and exact actor ID. Event type suggestions come from the admin event-log API; the actor field reuses the server member lookup but still accepts synthetic actor IDs such as `system:bootstrap`. The API also supports inclusive created-at bounds for callers, but the server-management page does not expose time-range controls.
 - The audit/event-log API returns `totalCount` as a 64-bit value because it reflects retained stream message counts, which can exceed 32-bit integer range on long-running servers.
@@ -49,6 +50,12 @@ The server-management section gives owners and admins visibility into the server
 **Decision:** System Info fetches fresh data from NATS and projection diagnostics on every page load. No caching layer.
 **Why:** The data is fundamentally point-in-time ("how much storage are we using right now?"). Caching would mean stale numbers shown to operators making capacity decisions. The fetch cost is low because NATS already has the data internally.
 **Tradeoff:** Refreshing the page hits NATS every time. Not a concern at admin-usage volume.
+
+### 5a. The health summary flags lasting conditions only
+
+**Decision:** The System Info health summary raises a check above OK only for a lasting condition: a lost broker connection, a failed projection, a stalled or missing required durable worker, or JetStream account usage at or above 75% (warning) or 90% (critical) of a limit. Projection lag and consumer backlog appear as details of an OK check. Data that the server does not report shows as unknown and does not change the overall status. Account storage usage counts a copy on each stream replica, so the page also shows the file-stream data size when a stream has more than one replica.
+**Why:** A snapshot often catches normal, short backlog or lag. If those raised warnings, operators would learn to ignore the summary. Lasting conditions need action, so they are the only ones that change the status.
+**Tradeoff:** Lag that continues for a long time does not raise a warning by itself. Operators must compare snapshots or use metrics to see it. The broker and projection checks describe only the replica that handled the request (see the open question below).
 
 ### 5. Diagnostic values are operator tooling, not product contracts
 
@@ -107,3 +114,4 @@ permissions.
 ## Open Questions
 
 - A more sensitive operator-only surface for raw storage inspection or content moderation would need its own permission and audit model. Not currently planned.
+- The broker connection and projection diagnostics come from the replica that handled the request. With more than one replica, the page cannot show the state of the others. Issue #2857 proposes per-replica health records in a KV bucket.

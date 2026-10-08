@@ -349,11 +349,9 @@
       "title": "系统",
       "subtitle": "Broker、JetStream 存储、consumer 和 projection 健康状态",
       "loading": "正在加载系统信息...",
-      "connection": "连接",
       "broker": "NATS Broker",
       "connected": "已连接",
       "disconnected": "已断开连接",
-      "unlimited": "无限制",
       "all_subjects": "所有 subject",
       "pending_state": "待处理",
       "worker_unconfirmed": "未确认",
@@ -361,32 +359,12 @@
       "max_payload": "Payload 上限",
       "server_id": "服务器 ID",
       "server_name": "服务器名称",
-      "limit": "上限：{limit}",
       "used_of_limit": "已使用 {used}，上限 {limit}",
-      "jetstream_account": "JetStream 账号",
       "account_storage": "文件存储",
       "account_memory": "内存存储",
-      "stream_capacity": "Stream 容量",
-      "consumer_capacity": "Consumer 容量",
-      "stream_activity": "Stream 活动",
       "events": "事件",
-      "event_bytes": "事件字节数",
-      "messages_stored": "已存储消息",
-      "stream_bytes": "Stream 字节数",
       "average_message_size": "平均 {size}",
-      "storage_mix": "{file} 个文件型 stream / {memory} 个内存型 stream",
-      "consumer_backlog": "Consumer 积压",
-      "consumer_backlog_subtitle": "{count} 个 consumer 有待处理消息",
-      "redelivered_total": "已重新投递 {count} 次",
-      "stream_summary": "Stream 摘要",
-      "file_streams": "文件型 Stream",
-      "memory_streams": "内存型 Stream",
       "largest_stream": "最大 Stream",
-      "messages_lower": "条消息",
-      "consumer_summary": "Consumer 摘要",
-      "pull_consumers": "Pull Consumer",
-      "push_consumers": "Push Consumer",
-      "unbound_push_consumers": "未绑定的 Push Consumer",
       "projection_summary": "Projection 摘要",
       "average_entry_size": "平均条目大小",
       "average_entry_value": "平均 {size}",
@@ -417,7 +395,6 @@
       "projection_memory": "Projection 内存",
       "projection_failures": "Projection 失败",
       "projection_lag": "Projection 延迟",
-      "projection_entries": "{count} 个已投影条目",
       "no_projections": "未注册任何 projection。",
       "projection": "Projection",
       "state": "状态",
@@ -444,15 +421,84 @@
       "asset_cleanup_inactive_summary": "当前没有资源清理 worker 持有租约。",
       "asset_cleanup_unavailable_summary": "此服务器版本未报告清理健康状态。",
       "asset_cleanup_pending": "待重试",
-      "asset_cleanup_oldest": "最早的待处理项",
-      "asset_cleanup_last_pass": "上次执行",
-      "asset_cleanup_last_success": "上次成功：{time}",
       "asset_cleanup_event_scan": "事件扫描",
       "asset_cleanup_caught_up": "已赶上进度",
       "asset_cleanup_events_waiting": "有新事件待处理",
-      "asset_cleanup_never": "从未",
-      "asset_cleanup_none": "无",
-      "asset_cleanup_in_progress": "进行中"
+      "asset_cleanup_in_progress": "进行中",
+      "refresh": "刷新",
+      "account_unavailable": "无法获取 JetStream 账户用量。",
+      "jetstream_unavailable": "无法获取 Stream 和 Consumer 详情。",
+      "projections_unavailable": "无法获取 Projection 详情。",
+      "durable_workers": "后台 worker",
+      "no_durable_workers": "未报告任何后台 worker。",
+      "broker_scope_label": "关于此连接",
+      "broker_scope_help": "这是处理此请求的 Chatto 实例的 broker 连接。如果你运行多个实例，其他实例可能连接到不同的 NATS 节点。",
+      "health": {
+        "title": "健康状态",
+        "status_ok": "正常",
+        "status_warning": "警告",
+        "status_critical": "问题",
+        "status_unknown": "未知",
+        "overall_ok": "一切运行正常",
+        "overall_warning": "需要关注",
+        "overall_critical": "发现问题",
+        "overall_ok_summary": "生成此快照时，所有检查均已通过。",
+        "overall_problem_summary": "请查看下方的检查项。更下方的部分显示详细信息。",
+        "broker": "Broker 连接",
+        "projections": "Projection",
+        "workers": "后台 worker",
+        "backlog": "积压",
+        "storage": "账户限制",
+        "unavailable": "未报告",
+        "broker_connected": "已连接到 NATS {version}",
+        "broker_disconnected": "未连接到 NATS broker",
+        "projections_failed_count": {
+          "other": "{count} 个 projection 失败"
+        },
+        "projections_catching_up_count": {
+          "other": "{count} 个 projection 正在追赶进度"
+        },
+        "projections_running_count": {
+          "other": "全部 {count} 个 projection 均为最新"
+        },
+        "workers_failing_count": {
+          "other": "{count} 个 worker 已停滞或缺失"
+        },
+        "workers_running_count": {
+          "other": "全部 {count} 个 worker 正在运行"
+        },
+        "backlog_waiting_count": {
+          "other": "{count} 条消息处理中"
+        },
+        "backlog_clear": "没有等待中的消息",
+        "storage_used": "已使用最近限制的 {percent}%",
+        "storage_unlimited": "未配置任何限制"
+      },
+      "overview": {
+        "users": "用户",
+        "rooms": "聊天室",
+        "direct_messages_count": {
+          "other": "{count} 条私信"
+        },
+        "events": "事件",
+        "stored_data": "已存储数据",
+        "stored_data_subtitle_count": {
+          "other": "位于 {count} 个 stream 中"
+        }
+      },
+      "usage": {
+        "title": "JetStream 用量",
+        "no_limit": "无限制",
+        "replica_copies_note": "包含每个 stream 副本上的一份拷贝。文件 stream 中有 {size} 数据。",
+        "stream_mix": "文件 {file}，内存 {memory}",
+        "consumer_mix": "Pull {pull}，Push {push}",
+        "unbound_count": {
+          "other": "{count} 个未绑定"
+        },
+        "messages_count": {
+          "other": "{count} 条消息"
+        }
+      }
     },
     "event_log": {
       "title": "事件日志",

@@ -349,11 +349,9 @@
       "title": "Sistēma",
       "subtitle": "Brokeris, JetStream krātuve, patērētāji un projekcijas veselība",
       "loading": "Notiek sistēmas informācijas ielāde...",
-      "connection": "Savienojums",
       "broker": "NATS brokeris",
       "connected": "Savienots",
       "disconnected": "Atvienots",
-      "unlimited": "neierobežots",
       "all_subjects": "visi priekšmeti",
       "pending_state": "Gaida",
       "worker_unconfirmed": "Neapstiprināts",
@@ -361,32 +359,12 @@
       "max_payload": "Maksimālā kravnesība",
       "server_id": "Servera ID",
       "server_name": "Servera nosaukums",
-      "limit": "Ierobežojums: {limit}",
       "used_of_limit": "{used} no {limit}",
-      "jetstream_account": "JetStream konts",
       "account_storage": "Failu krātuve",
       "account_memory": "Atmiņas krātuve",
-      "stream_capacity": "Straumes jauda",
-      "consumer_capacity": "Patērētāju jauda",
-      "stream_activity": "Straumēšanas darbība",
       "events": "Pasākumi",
-      "event_bytes": "Notikuma baiti",
-      "messages_stored": "Saglabātie ziņojumi",
-      "stream_bytes": "Straumes baiti",
       "average_message_size": "{size} vidēji",
-      "storage_mix": "{file} ar failiem nodrošinātas / {memory} straumes ar atmiņu",
-      "consumer_backlog": "Patērētāju atpalicība",
-      "consumer_backlog_subtitle": "{count} patērētājs(-i) ar neapstiprinātām ziņām",
-      "redelivered_total": "{count} atkārtoti piegādāts",
-      "stream_summary": "Straumes kopsavilkums",
-      "file_streams": "Failu straumes",
-      "memory_streams": "Atmiņas straumes",
       "largest_stream": "Lielākā straume",
-      "messages_lower": "ziņas",
-      "consumer_summary": "Patērētāju kopsavilkums",
-      "pull_consumers": "Vilkšanas patērētāji",
-      "push_consumers": "Pašpiegādes patērētāji",
-      "unbound_push_consumers": "Nesaistīti push patērētāji",
       "projection_summary": "Projekcijas kopsavilkums",
       "average_entry_size": "Vidējais ienākums",
       "average_entry_value": "{size} vidēji",
@@ -417,7 +395,6 @@
       "projection_memory": "Projekcijas atmiņa",
       "projection_failures": "Projekcijas kļūmes",
       "projection_lag": "Projekcijas nobīde",
-      "projection_entries": "{count} prognozētie ieraksti",
       "no_projections": "Prognozes nav reģistrētas.",
       "projection": "Projekcija",
       "state": "valsts",
@@ -444,15 +421,104 @@
       "asset_cleanup_inactive_summary": "Pašlaik nevienam īpašumu tīrīšanas darbiniekam nav nomas līguma.",
       "asset_cleanup_unavailable_summary": "Šajā servera versijā netiek ziņots par tīrīšanas stāvokli.",
       "asset_cleanup_pending": "Gaida atkārtotus mēģinājumus",
-      "asset_cleanup_oldest": "Vecākais gaida",
-      "asset_cleanup_last_pass": "Pēdējā piespēle",
-      "asset_cleanup_last_success": "Pēdējā veiksmīgā: {time}",
       "asset_cleanup_event_scan": "Notikumu skenēšana",
       "asset_cleanup_caught_up": "Pieķērās",
       "asset_cleanup_events_waiting": "Gaidāmi jauni notikumi",
-      "asset_cleanup_never": "Nekad",
-      "asset_cleanup_none": "Nav",
-      "asset_cleanup_in_progress": "Notiek"
+      "asset_cleanup_in_progress": "Notiek",
+      "refresh": "Atsvaidzināt",
+      "account_unavailable": "JetStream konta lietojuma dati nav pieejami.",
+      "jetstream_unavailable": "Informācija par straumēm un patērētājiem nav pieejama.",
+      "projections_unavailable": "Informācija par projekcijām nav pieejama.",
+      "durable_workers": "Fona darbinieki",
+      "no_durable_workers": "Par fona darbiniekiem netiek ziņots.",
+      "broker_scope_label": "Par šo savienojumu",
+      "broker_scope_help": "Šis ir tās Chatto instances brokera savienojums, kas apstrādāja šo pieprasījumu. Ja darbinājat vairāk nekā vienu instanci, pārējās instances var savienoties ar citu NATS mezglu.",
+      "health": {
+        "title": "Veselība",
+        "status_ok": "Kārtībā",
+        "status_warning": "Brīdinājums",
+        "status_critical": "Problēma",
+        "status_unknown": "Nezināms",
+        "overall_ok": "Viss darbojas normāli",
+        "overall_warning": "Nepieciešama uzmanība",
+        "overall_critical": "Konstatētas problēmas",
+        "overall_ok_summary": "Visas pārbaudes bija sekmīgas, kad tika izveidots šis momentuzņēmums.",
+        "overall_problem_summary": "Pārskatiet tālāk norādītās pārbaudes. Sīkāka informācija ir zemāk esošajās sadaļās.",
+        "broker": "Brokera savienojums",
+        "projections": "Projekcijas",
+        "workers": "Fona darbinieki",
+        "backlog": "Rinda",
+        "storage": "Konta ierobežojumi",
+        "unavailable": "Netiek ziņots",
+        "broker_connected": "Savienots ar NATS {version}",
+        "broker_disconnected": "Nav savienojuma ar NATS brokeri",
+        "projections_failed_count": {
+          "zero": "Neizdevās {count} projekciju",
+          "one": "Neizdevās {count} projekcija",
+          "other": "Neizdevās {count} projekcijas"
+        },
+        "projections_catching_up_count": {
+          "zero": "{count} projekciju panāk atpalicību",
+          "one": "{count} projekcija panāk atpalicību",
+          "other": "{count} projekcijas panāk atpalicību"
+        },
+        "projections_running_count": {
+          "zero": "Visas {count} projekcijas ir aktuālas",
+          "one": "{count} projekcija ir aktuāla",
+          "other": "Visas {count} projekcijas ir aktuālas"
+        },
+        "workers_failing_count": {
+          "zero": "{count} darbinieku apstājušies vai trūkst",
+          "one": "{count} darbinieks apstājies vai trūkst",
+          "other": "{count} darbinieki apstājušies vai trūkst"
+        },
+        "workers_running_count": {
+          "zero": "Visi {count} darbinieki darbojas",
+          "one": "{count} darbinieks darbojas",
+          "other": "Visi {count} darbinieki darbojas"
+        },
+        "backlog_waiting_count": {
+          "zero": "{count} ziņojumu tiek apstrādāti",
+          "one": "{count} ziņojums tiek apstrādāts",
+          "other": "{count} ziņojumi tiek apstrādāti"
+        },
+        "backlog_clear": "Nav gaidošu ziņojumu",
+        "storage_used": "Izmantoti {percent}% no tuvākā ierobežojuma",
+        "storage_unlimited": "Ierobežojumi nav iestatīti"
+      },
+      "overview": {
+        "users": "Lietotāji",
+        "rooms": "Istabas",
+        "direct_messages_count": {
+          "zero": "{count} tiešo ziņojumu",
+          "one": "{count} tiešais ziņojums",
+          "other": "{count} tiešie ziņojumi"
+        },
+        "events": "Notikumi",
+        "stored_data": "Saglabātie dati",
+        "stored_data_subtitle_count": {
+          "zero": "Ietverts {count} straumēs",
+          "one": "Ietverts {count} straumē",
+          "other": "Ietverts {count} straumēs"
+        }
+      },
+      "usage": {
+        "title": "JetStream lietojums",
+        "no_limit": "bez ierobežojuma",
+        "replica_copies_note": "Ietver kopiju katrā straumes replikā. Failu straumēs ir {size} datu.",
+        "stream_mix": "{file} failos, {memory} atmiņā",
+        "consumer_mix": "{pull} vilkšanas, {push} spiešanas",
+        "unbound_count": {
+          "zero": "{count} nesaistītu",
+          "one": "{count} nesaistīts",
+          "other": "{count} nesaistīti"
+        },
+        "messages_count": {
+          "zero": "{count} ziņojumu",
+          "one": "{count} ziņojums",
+          "other": "{count} ziņojumi"
+        }
+      }
     },
     "event_log": {
       "title": "Notikumu žurnāls",

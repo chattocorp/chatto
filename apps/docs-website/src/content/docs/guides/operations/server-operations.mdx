@@ -21,8 +21,10 @@ backups, and know which tool repairs an account or a deployment.
 ## Admin Dashboard
 
 Owners and administrators use the admin UI for daily operations. Their
-permissions control which pages they see. The **System** tab shows health
-data, such as background workers and asset cleanup.
+permissions control which pages they see. The **System** tab starts with a
+health summary. It shows a lost broker connection, failed projections, stalled
+background workers, and JetStream usage near an account limit. Below the
+summary, the tab shows the details.
 
 The system pages show operational metadata, not message content. This is an
 application boundary. A person who controls the process, the storage, and the

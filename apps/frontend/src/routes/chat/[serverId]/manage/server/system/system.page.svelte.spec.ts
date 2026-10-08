@@ -148,14 +148,29 @@ describe('server admin system diagnostics', () => {
     await vi.waitFor(() => expect(container.textContent).toContain('refreshed-server'));
   });
 
+  it('summarizes health, usage, and server counts at the top', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({
+      ...systemInfo,
+      account: { ...systemInfo.account, storageUsed: 1600 }
+    });
+    const { container } = render(SystemPage);
+    await settle();
+
+    expect(container.textContent).toContain('Needs attention');
+    expect(container.textContent).toContain('80% of the nearest limit used');
+    expect(container.textContent).toMatch(/Users\s*4/);
+    expect(container.textContent).toContain('1 direct message');
+    expect(container.querySelector('[role="meter"][aria-label="File Storage"]')).not.toBeNull();
+  });
+
   it('keeps unrelated diagnostics visible when JetStream telemetry is unavailable', async () => {
     mocks.getAdminSystemInfo.mockResolvedValue({ ...systemInfo, natsAvailable: false });
     const { container } = render(SystemPage);
     await settle();
 
     expect(container.textContent).toContain('test-server');
-    expect(container.textContent).toContain('Unavailable');
+    expect(container.textContent).toContain('Stream and consumer details are not available.');
     expect(container.textContent).toContain('Projection Summary');
-    expect(container.textContent).not.toContain('Stream Activity');
+    expect(container.textContent).not.toContain('Stored Data');
   });
 });

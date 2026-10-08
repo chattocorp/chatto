@@ -9,3 +9,26 @@ export function formatBytes(bytes: number): string {
 export function formatNumber(n: number): string {
   return n.toLocaleString();
 }
+
+const goDurationUnitMs: Record<string, number> = {
+  ns: 1e-6,
+  us: 1e-3,
+  µs: 1e-3,
+  μs: 1e-3,
+  ms: 1,
+  s: 1000
+};
+
+/**
+ * Formats a single-unit Go duration string, such as `543.432µs`, as a
+ * rounded value with the most readable unit. Returns other input, such as
+ * `1m2.5s`, unchanged.
+ */
+export function formatGoDuration(duration: string): string {
+  const match = /^(\d+(?:\.\d+)?)(ns|us|µs|μs|ms|s)$/.exec(duration);
+  if (!match) return duration;
+  const ms = Number(match[1]) * goDurationUnitMs[match[2]];
+  if (ms < 1) return `${Math.round(ms * 1000)} µs`;
+  if (ms < 1000) return `${parseFloat(ms.toFixed(ms < 10 ? 1 : 0))} ms`;
+  return `${parseFloat((ms / 1000).toFixed(2))} s`;
+}

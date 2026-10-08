@@ -48,12 +48,8 @@
   }
 </script>
 
-<Panel
-  title={m('admin.system.durable', { name: m('admin.system.consumers') })}
-  icon="iconify icon-[uil--cog]"
-  noPadding
->
-  <DataTable items={workers} columns={6} emptyMessage={m('admin.system.asset_cleanup_unavailable')}>
+<Panel title={m('admin.system.durable_workers')} icon="iconify icon-[uil--cog]" noPadding>
+  <DataTable items={workers} columns={6} emptyMessage={m('admin.system.no_durable_workers')}>
     {#snippet header()}
       <th class="table-header-cell">{m('admin.system.consumer')}</th>
       <th class="table-header-cell">{m('admin.system.state')}</th>

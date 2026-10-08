@@ -349,11 +349,9 @@
       "title": "Sistema",
       "subtitle": "Broker, armazenamento JetStream, consumidores e integridade da projeção",
       "loading": "Carregando informações do sistema...",
-      "connection": "Conexão",
       "broker": "Corretor NATS",
       "connected": "Conectado",
       "disconnected": "Desconectado",
-      "unlimited": "ilimitado",
       "all_subjects": "todos os assuntos",
       "pending_state": "Pendente",
       "worker_unconfirmed": "Não confirmado",
@@ -361,32 +359,12 @@
       "max_payload": "Carga útil máxima",
       "server_id": "ID do servidor",
       "server_name": "Nome do servidor",
-      "limit": "Limite: {limit}",
       "used_of_limit": "{used} de {limit}",
-      "jetstream_account": "Conta JetStream",
       "account_storage": "Armazenamento de arquivos",
       "account_memory": "Armazenamento de memória",
-      "stream_capacity": "Capacidade de transmissão",
-      "consumer_capacity": "Capacidade do Consumidor",
-      "stream_activity": "Atividade de transmissão",
       "events": "Eventos",
-      "event_bytes": "Bytes de evento",
-      "messages_stored": "Mensagens armazenadas",
-      "stream_bytes": "Bytes de fluxo",
       "average_message_size": "Média {size}",
-      "storage_mix": "Fluxos com suporte de arquivo {file} / {memory} com suporte de memória",
-      "consumer_backlog": "Pendências do Consumidor",
-      "consumer_backlog_subtitle": "Consumidor(es) {count} com mensagens pendentes",
-      "redelivered_total": "{count} reenviado",
-      "stream_summary": "Resumo da transmissão",
-      "file_streams": "Fluxos de arquivos",
-      "memory_streams": "Fluxos de memória",
       "largest_stream": "Maior transmissão",
-      "messages_lower": "mensagens",
-      "consumer_summary": "Resumo do Consumidor",
-      "pull_consumers": "Atrair Consumidores",
-      "push_consumers": "Empurre os consumidores",
-      "unbound_push_consumers": "Consumidores push não vinculados",
       "projection_summary": "Resumo da projeção",
       "average_entry_size": "Entrada média",
       "average_entry_value": "Média {size}",
@@ -417,7 +395,6 @@
       "projection_memory": "Memória de projeção",
       "projection_failures": "Falhas de projeção",
       "projection_lag": "Atraso de projeção",
-      "projection_entries": "Entradas projetadas {count}",
       "no_projections": "Não há projeções cadastradas.",
       "projection": "Projeção",
       "state": "Estado",
@@ -444,15 +421,94 @@
       "asset_cleanup_inactive_summary": "Nenhum trabalhador de limpeza de ativos possui atualmente o arrendamento.",
       "asset_cleanup_unavailable_summary": "A integridade da limpeza não é relatada por esta versão do servidor.",
       "asset_cleanup_pending": "Novas tentativas pendentes",
-      "asset_cleanup_oldest": "Pendência mais antiga",
-      "asset_cleanup_last_pass": "Última passagem",
-      "asset_cleanup_last_success": "Último sucesso: {time}",
       "asset_cleanup_event_scan": "Verificação de eventos",
       "asset_cleanup_caught_up": "Alcançados",
       "asset_cleanup_events_waiting": "Novos eventos aguardando",
-      "asset_cleanup_never": "Nunca",
-      "asset_cleanup_none": "Nenhum",
-      "asset_cleanup_in_progress": "Em andamento"
+      "asset_cleanup_in_progress": "Em andamento",
+      "refresh": "Atualizar",
+      "account_unavailable": "O uso da conta JetStream não está disponível.",
+      "jetstream_unavailable": "Os detalhes de transmissões e consumidores não estão disponíveis.",
+      "projections_unavailable": "Os detalhes das projeções não estão disponíveis.",
+      "durable_workers": "Trabalhadores em segundo plano",
+      "no_durable_workers": "Nenhum trabalhador em segundo plano foi reportado.",
+      "broker_scope_label": "Sobre esta conexão",
+      "broker_scope_help": "Esta é a conexão com o corretor da instância do Chatto que processou esta requisição. Se você executa mais de uma instância, as outras instâncias podem se conectar a um nó NATS diferente.",
+      "health": {
+        "title": "Integridade",
+        "status_ok": "OK",
+        "status_warning": "Aviso",
+        "status_critical": "Problema",
+        "status_unknown": "Desconhecido",
+        "overall_ok": "Tudo está funcionando normalmente",
+        "overall_warning": "Requer atenção",
+        "overall_critical": "Problemas encontrados",
+        "overall_ok_summary": "Todas as verificações passaram quando este instantâneo foi criado.",
+        "overall_problem_summary": "Revise as verificações abaixo. As seções seguintes mostram os detalhes.",
+        "broker": "Conexão com o corretor",
+        "projections": "Projeções",
+        "workers": "Trabalhadores em segundo plano",
+        "backlog": "Fila pendente",
+        "storage": "Limites da conta",
+        "unavailable": "Não informado",
+        "broker_connected": "Conectado ao NATS {version}",
+        "broker_disconnected": "Sem conexão com o corretor NATS",
+        "projections_failed_count": {
+          "one": "{count} projeção falhou",
+          "other": "{count} projeções falharam"
+        },
+        "projections_catching_up_count": {
+          "one": "{count} projeção se atualizando",
+          "other": "{count} projeções se atualizando"
+        },
+        "projections_running_count": {
+          "one": "{count} projeção atualizada",
+          "other": "Todas as {count} projeções atualizadas"
+        },
+        "workers_failing_count": {
+          "one": "{count} trabalhador parado ou ausente",
+          "other": "{count} trabalhadores parados ou ausentes"
+        },
+        "workers_running_count": {
+          "one": "{count} trabalhador em execução",
+          "other": "Todos os {count} trabalhadores em execução"
+        },
+        "backlog_waiting_count": {
+          "one": "{count} mensagem em andamento",
+          "other": "{count} mensagens em andamento"
+        },
+        "backlog_clear": "Nenhuma mensagem aguardando",
+        "storage_used": "{percent}% do limite mais próximo utilizado",
+        "storage_unlimited": "Nenhum limite configurado"
+      },
+      "overview": {
+        "users": "Usuários",
+        "rooms": "Salas",
+        "direct_messages_count": {
+          "one": "{count} mensagem direta",
+          "other": "{count} mensagens diretas"
+        },
+        "events": "Eventos",
+        "stored_data": "Dados armazenados",
+        "stored_data_subtitle_count": {
+          "one": "Em {count} transmissão",
+          "other": "Em {count} transmissões"
+        }
+      },
+      "usage": {
+        "title": "Uso do JetStream",
+        "no_limit": "sem limite",
+        "replica_copies_note": "Inclui uma cópia em cada réplica da transmissão. As transmissões de arquivo contêm {size} de dados.",
+        "stream_mix": "{file} em arquivos, {memory} em memória",
+        "consumer_mix": "{pull} Pull, {push} Push",
+        "unbound_count": {
+          "one": "{count} não vinculado",
+          "other": "{count} não vinculados"
+        },
+        "messages_count": {
+          "one": "{count} mensagem",
+          "other": "{count} mensagens"
+        }
+      }
     },
     "event_log": {
       "title": "Registro de eventos",

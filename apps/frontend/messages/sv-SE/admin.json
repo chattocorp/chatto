@@ -349,11 +349,9 @@
       "title": "System",
       "subtitle": "Mäklare, JetStream lagring, konsumenter och projektionshälsa",
       "loading": "Laddar systeminformation...",
-      "connection": "Anslutning",
       "broker": "NATS Mäklare",
       "connected": "Ansluten",
       "disconnected": "Frånkopplad",
-      "unlimited": "obegränsat",
       "all_subjects": "alla ämnen",
       "pending_state": "Väntar",
       "worker_unconfirmed": "Obekräftad",
@@ -361,32 +359,12 @@
       "max_payload": "Max nyttolast",
       "server_id": "Server-ID",
       "server_name": "Servernamn",
-      "limit": "Gräns: {limit}",
       "used_of_limit": "{used} av {limit}",
-      "jetstream_account": "JetStream-konto",
       "account_storage": "Fillagring",
       "account_memory": "Minneslagring",
-      "stream_capacity": "Strömkapacitet",
-      "consumer_capacity": "Konsumentkapacitet",
-      "stream_activity": "Strömningsaktivitet",
       "events": "Händelser",
-      "event_bytes": "Händelsebyte",
-      "messages_stored": "Meddelanden lagrade",
-      "stream_bytes": "Strömbyte",
       "average_message_size": "{size} genomsnitt",
-      "storage_mix": "{file} filstödda / {memory} minnesstödda strömmar",
-      "consumer_backlog": "Konsumentbacklog",
-      "consumer_backlog_subtitle": "{count} konsument(er) med väntande meddelanden",
-      "redelivered_total": "{count} återlevererad",
-      "stream_summary": "Strömsammanfattning",
-      "file_streams": "Filströmmar",
-      "memory_streams": "Minnesströmmar",
       "largest_stream": "Största strömmen",
-      "messages_lower": "meddelanden",
-      "consumer_summary": "Konsumentsammanfattning",
-      "pull_consumers": "Dra konsumenter",
-      "push_consumers": "Pressa konsumenter",
-      "unbound_push_consumers": "Obundna push-konsumenter",
       "projection_summary": "Projektionssammanfattning",
       "average_entry_size": "Genomsnittlig post",
       "average_entry_value": "{size} genomsnitt",
@@ -417,7 +395,6 @@
       "projection_memory": "Projektionsminne",
       "projection_failures": "Projektionsfel",
       "projection_lag": "Projektionsfördröjning",
-      "projection_entries": "{count} projicerade poster",
       "no_projections": "Inga projektioner har registrerats.",
       "projection": "Projektion",
       "state": "Tillstånd",
@@ -444,15 +421,94 @@
       "asset_cleanup_inactive_summary": "Ingen saneringsarbetare innehar för närvarande hyresavtalet.",
       "asset_cleanup_unavailable_summary": "Rensningsstatus rapporteras inte av den här serverversionen.",
       "asset_cleanup_pending": "Väntar på nytt försök",
-      "asset_cleanup_oldest": "Äldsta väntande",
-      "asset_cleanup_last_pass": "Sista passet",
-      "asset_cleanup_last_success": "Senast lyckad: {time}",
       "asset_cleanup_event_scan": "Händelseskanning",
       "asset_cleanup_caught_up": "Kom ikapp",
       "asset_cleanup_events_waiting": "Nya händelser väntar",
-      "asset_cleanup_never": "Aldrig",
-      "asset_cleanup_none": "Inga",
-      "asset_cleanup_in_progress": "Pågår"
+      "asset_cleanup_in_progress": "Pågår",
+      "refresh": "Uppdatera",
+      "account_unavailable": "JetStream-kontoanvändning är inte tillgänglig.",
+      "jetstream_unavailable": "Information om strömmar och konsumenter är inte tillgänglig.",
+      "projections_unavailable": "Information om projektioner är inte tillgänglig.",
+      "durable_workers": "Bakgrundsarbetare",
+      "no_durable_workers": "Inga bakgrundsarbetare har rapporterats.",
+      "broker_scope_label": "Om den här anslutningen",
+      "broker_scope_help": "Det här är mäklaranslutningen för den Chatto-instans som hanterade den här begäran. Om du kör fler än en instans kan de andra instanserna vara anslutna till en annan NATS-nod.",
+      "health": {
+        "title": "Hälsa",
+        "status_ok": "OK",
+        "status_warning": "Varning",
+        "status_critical": "Problem",
+        "status_unknown": "Okänd",
+        "overall_ok": "Allt fungerar normalt",
+        "overall_warning": "Behöver uppmärksamhet",
+        "overall_critical": "Problem hittades",
+        "overall_ok_summary": "Alla kontroller godkändes när den här ögonblicksbilden togs.",
+        "overall_problem_summary": "Granska kontrollerna nedan. Avsnitten längre ned visar detaljerna.",
+        "broker": "Mäklaranslutning",
+        "projections": "Projektioner",
+        "workers": "Bakgrundsarbetare",
+        "backlog": "Kö",
+        "storage": "Kontogränser",
+        "unavailable": "Inte rapporterad",
+        "broker_connected": "Ansluten till NATS {version}",
+        "broker_disconnected": "Inte ansluten till NATS-mäklaren",
+        "projections_failed_count": {
+          "one": "{count} projektion misslyckades",
+          "other": "{count} projektioner misslyckades"
+        },
+        "projections_catching_up_count": {
+          "one": "{count} projektion hinner ikapp",
+          "other": "{count} projektioner hinner ikapp"
+        },
+        "projections_running_count": {
+          "one": "{count} projektion är uppdaterad",
+          "other": "Alla {count} projektioner är uppdaterade"
+        },
+        "workers_failing_count": {
+          "one": "{count} arbetare har fastnat eller saknas",
+          "other": "{count} arbetare har fastnat eller saknas"
+        },
+        "workers_running_count": {
+          "one": "{count} arbetare körs",
+          "other": "Alla {count} arbetare körs"
+        },
+        "backlog_waiting_count": {
+          "one": "{count} meddelande pågår",
+          "other": "{count} meddelanden pågår"
+        },
+        "backlog_clear": "Inga meddelanden väntar",
+        "storage_used": "{percent} % av närmaste gräns används",
+        "storage_unlimited": "Inga gränser har ställts in"
+      },
+      "overview": {
+        "users": "Användare",
+        "rooms": "Rum",
+        "direct_messages_count": {
+          "one": "{count} direktmeddelande",
+          "other": "{count} direktmeddelanden"
+        },
+        "events": "Händelser",
+        "stored_data": "Lagrad data",
+        "stored_data_subtitle_count": {
+          "one": "I {count} ström",
+          "other": "I {count} strömmar"
+        }
+      },
+      "usage": {
+        "title": "JetStream-användning",
+        "no_limit": "ingen gräns",
+        "replica_copies_note": "Inkluderar en kopia på varje strömreplika. Filströmmarna innehåller {size} data.",
+        "stream_mix": "{file} fil, {memory} minne",
+        "consumer_mix": "{pull} Pull, {push} Push",
+        "unbound_count": {
+          "one": "{count} obunden",
+          "other": "{count} obundna"
+        },
+        "messages_count": {
+          "one": "{count} meddelande",
+          "other": "{count} meddelanden"
+        }
+      }
     },
     "event_log": {
       "title": "Händelselogg",
