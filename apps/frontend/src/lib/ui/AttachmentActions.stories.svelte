@@ -76,8 +76,8 @@
   <div class="flex max-w-full flex-wrap items-start gap-6">
     <div class="w-30 max-w-full">
       <p class="mb-2">Video</p>
-      <div class="group/attachment attachment-video-frame embed-frame">
-        <video controls preload="none" class="w-full"><track kind="captions" /></video>
+      <div class="group/attachment attachment-video-frame">
+        <video controls preload="none" class="embed-frame w-full"><track kind="captions" /></video>
         <div
           class="absolute end-2 top-2 z-10 flex items-center gap-1 transition-opacity feedback-quick group-hover/attachment:opacity-100 focus-within:opacity-100 compact-input:hover-actions:opacity-0"
         >
@@ -89,7 +89,7 @@
       <p class="mb-2">Image gallery</p>
       <div class="flex gap-2 overflow-x-auto">
         {#each [40, 180, 240] as width (width)}
-          <div class="group/attachment relative min-w-19 shrink-0">
+          <div class="group/attachment attachment-media-frame min-w-19 shrink-0">
             <img
               src={'data:image/svg+xml,' +
                 encodeURIComponent(

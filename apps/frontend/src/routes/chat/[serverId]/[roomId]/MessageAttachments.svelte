@@ -467,7 +467,7 @@
           : fallbackSingleThumbDisplay()}
     <div
       class={[
-        'group/attachment relative',
+        'group/attachment attachment-media-frame',
         // Reserve room for the action row without changing the image dimensions.
         canDeleteAttachment && canEditAttachmentDescription
           ? 'min-w-19'

@@ -476,6 +476,8 @@ gap, with 40 px players and 28 px action controls. Action rows add no outer marg
 Image and video overlays use one horizontal row with 4 px gaps, 8 px from the
 top and inline end. Narrow image wrappers reserve room for the actions without
 changing the image dimensions.
+`attachment-media-frame` puts vertical spacing on the outer wrapper, so child
+frame margins do not change the action insets. Video frames use it too.
 Image and video action groups appear on desktop hover or keyboard focus. The standard button
 tone supplies the fill, border, focus, pressed state, and shared depth finish.
 These controls follow the Flat, Kinda 3D, and Very 3D preference.

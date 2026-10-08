@@ -370,6 +370,23 @@ describe('MessageAttachments', () => {
     }
   });
 
+  it.each([false, true])('balances image action insets (gallery: %s)', (gallery) => {
+    const attachments = [imageAttachment({ id: 'first', filename: 'first.jpg' })];
+    if (gallery) attachments.push(imageAttachment({ id: 'second', filename: 'second.jpg' }));
+    const { container } = renderAttachments(attachments, {
+      canDeleteAttachment: true,
+      canEditAttachmentDescription: true
+    });
+    const { button } = imageFrame(container, 'first.jpg');
+    const frame = button.getBoundingClientRect();
+    const edit = button
+      .parentElement!.querySelector<HTMLElement>('[aria-label="Add description"]')!
+      .getBoundingClientRect();
+
+    expect(edit.top - frame.top).toBe(8);
+    expect(frame.right - edit.right).toBe(8);
+  });
+
   it('renders ultra-wide landscape images as contained shallow strips', () => {
     const { container } = renderAttachment(
       imageAttachment({
@@ -500,6 +517,11 @@ describe('MessageAttachments', () => {
           player.getBoundingClientRect().bottom - edit.getBoundingClientRect().bottom
         ).toBeGreaterThanOrEqual(48);
         const bounds = actions.map((action) => action.getBoundingClientRect());
+        const frame = (processed ? player : player.parentElement!).getBoundingClientRect();
+        expect(bounds[0].top - frame.top).toBeCloseTo(
+          frame.right - bounds[bounds.length - 1].right,
+          1
+        );
         for (const [index, bound] of bounds.entries()) {
           expect(bound.width).toBe(28);
           expect(bound.height).toBe(28);
