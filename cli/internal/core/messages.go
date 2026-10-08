@@ -886,25 +886,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 
 	c.logger.Debug("Message posted", "kind", kind, "room_id", room_id, "event_id", event.Id, "sequence_id", sequenceID, "user_id", user_id)
 
-	// Mark the room as read for the poster. For root posts, the just-
-	// published event is the new last root. For thread replies, we look up
-	// the room's current last root so the Message Read Cursor tracks a real
-	// root event ID for the New messages separator.
-	var posterReadEventID string
-	if inThread == "" {
-		posterReadEventID = event.Id
-	} else if lastRootID, _, exists, err := c.GetRoomLastEvent(ctx, kind, room_id); err == nil && exists {
-		posterReadEventID = lastRootID
-	}
-	if posterReadEventID != "" {
-		if _, err := c.AdvanceLastReadEventID(ctx, kind, user_id, room_id, posterReadEventID); err != nil {
-			c.logger.Warn("Failed to set last read event for poster", "error", err)
-		}
-		if _, err := c.notificationOccurrences.MarkCoveredRead(ctx, user_id, room_id, "", posterReadEventID); err != nil {
-			c.logger.Warn("Failed to cover notifications for poster", "error", err)
-		}
-	}
-
 	// Update thread metadata if this is a thread reply.
 	// Reply count / participants / lastReplyAt are derived live from
 	// ThreadProjection now, so no KV write — but we still need the
@@ -920,13 +901,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		var rootAuthorID string
 		if rootEvent != nil {
 			rootAuthorID = messageAuthorID(rootEvent)
-		}
-
-		// Update the poster's thread read marker to the reply they just wrote.
-		// This ensures that on page reload, their own message won't show as "unread".
-		if _, err := c.SetThreadLastReadEventID(ctx, kind, user_id, room_id, inThread, event.Id); err != nil {
-			c.logger.Warn("Failed to update thread last opened for poster", "error", err, "thread_root_event_id", inThread)
-			// Continue anyway - this is best-effort
 		}
 
 		// Auto-follow the thread for the poster (best-effort).
@@ -973,10 +947,10 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// source message. The materializer owns completion and retry; posting must
 	// not make message delivery latency grow with the room's member count.
 
-	// The durable message fact can reach realtime subscribers before the
-	// poster's read boundary and Slow Mode state above are current. Publish one
-	// transient, user-scoped reconciliation only after those post-commit updates
-	// run. Recipient Badge decisions publish their own invalidations.
+	// Keep the post-commit hint for the poster's Slow Mode deadline and thread
+	// follow changes. Posting does not advance read boundaries; clients report
+	// reads separately when the message is visible. Recipient Badge decisions
+	// publish their own invalidations.
 	c.NotifyNotificationUnreadStateChanged(ctx, user_id, user_id, room_id, "")
 
 	return event, nil

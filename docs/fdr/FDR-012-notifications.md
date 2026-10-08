@@ -193,9 +193,13 @@ setting Room messages to Off prevents neutral dots for ordinary root messages
 without disabling last-read tracking. Badge does not update an operating-system
 or application-icon badge.
 
-Posting a room message advances the poster's Message Read Cursor and records
-the same notification read boundary as an explicit room read. Thus, posting
-also clears older Badge attention without coupling the dot to cursor lag.
+Posting a message does not advance the poster's Message Read Cursor or
+notification read boundary. The bundled client uses the same read path for
+arrivals from the viewer and other authors when the viewer is present at the
+latest message. Arrivals while the viewer is away or reading older history
+do not mark the conversation read. The viewer's own arrivals do not place a
+New messages separator. A thread reply does not mark the parent room read.
+This keeps sending independent of which messages the viewer has seen.
 
 The scope filter always keeps the server column. A room match also keeps its
 parent group. A group match keeps all current-member rooms in that group.

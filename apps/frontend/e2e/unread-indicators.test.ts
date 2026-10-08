@@ -7,6 +7,7 @@ import {
   getRoomIdByNameViaConnect,
   joinRoomViaConnect,
   postMessageViaConnect,
+  waitForReadMarkerViaConnect,
   waitForRoomReadViaConnect,
   waitForRoomUnreadViaConnect
 } from './fixtures/connectHelpers';
@@ -1039,12 +1040,11 @@ test.describe('Room unread separator', () => {
         await roomPage2.expectMessageVisible('Existing message from User A');
         await waitForRoomReadViaConnect(page2, generalRoomId);
 
-        // User B posts their own message. Posting auto-advances the read cursor
-        // server-side, so the client cursor must follow.
+        // Viewing the own arrival must save its exact ID before backgrounding.
         const ownMessage = `User B own message ${Date.now()}`;
-        await roomPage2.sendMessage(ownMessage);
+        const sent = await roomPage2.sendMessage(ownMessage);
         await roomPage2.expectMessageVisible(ownMessage);
-        await waitForRoomReadViaConnect(page2, generalRoomId);
+        await waitForReadMarkerViaConnect(page2, generalRoomId, (await sent.getEventId())!);
         await roomPage2.expectNoUnreadSeparator();
 
         // User B's tab goes to the background — still in the room.
@@ -1082,11 +1082,11 @@ test.describe('Room unread separator', () => {
     // Get the general room ID for polling
     const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
 
-    // Post a message (this marks the room as read)
-    await roomPage.sendMessage('Initial message');
+    // The visible own arrival advances the saved position.
+    const initial = await roomPage.sendMessage('Initial message');
 
     // Wait for server to confirm room is read
-    await waitForRoomReadViaConnect(page, generalRoomId);
+    await waitForReadMarkerViaConnect(page, generalRoomId, (await initial.getEventId())!);
 
     // Leave room by going to announcements
     await chatPage.enterRoom('announcements');
@@ -1101,7 +1101,8 @@ test.describe('Room unread separator', () => {
 
     // Post a second message (this should also update our last-read position)
     const ownMessage = `My own message ${Date.now()}`;
-    await roomPage.sendMessage(ownMessage);
+    const sent = await roomPage.sendMessage(ownMessage);
+    await waitForReadMarkerViaConnect(page, generalRoomId, (await sent.getEventId())!);
 
     // Reload the page
     await page.reload();
@@ -1111,7 +1112,8 @@ test.describe('Room unread separator', () => {
     await roomPage.expectMessageVisible(ownMessage);
 
     // The user's own message should NOT show the unread separator
-    // (they clearly saw it since they posted it)
+    // The saved position reached it before reload; own-message filtering alone
+    // cannot satisfy this test.
     await roomPage.expectNoUnreadSeparator();
   });
 

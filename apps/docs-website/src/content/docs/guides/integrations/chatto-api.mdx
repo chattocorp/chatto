@@ -295,6 +295,12 @@ root author appears only if they also replied. The batch read-state methods
 accept at most 100 targets. A read state without `marker` means that no
 position is stored. A read-state call does not mark anything as read.
 
+Creating a message does not mark its room or thread as read or clear older
+notifications. If your client previously relied on that side effect, call
+`RoomService.MarkRoomAsRead` or `ThreadService.MarkThreadAsRead` when the user
+views the messages. Set `upToEventId` to the newest message the user has seen.
+A thread read does not mark the parent room as read.
+
 ## Page Through Lists
 
 List methods use a `page` field. For example, to list rooms:

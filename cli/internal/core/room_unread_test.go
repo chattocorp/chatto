@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 )
 
 func TestChattoCore_GetRoomLastEvent(t *testing.T) {
@@ -282,7 +283,7 @@ func TestChattoCore_HasUnread_NewMessages(t *testing.T) {
 	}
 }
 
-func TestChattoCore_PostMessageClearsExistingRoomBadge(t *testing.T) {
+func TestChattoCore_PostMessagePreservesRoomReadState(t *testing.T) {
 	t.Parallel()
 
 	core, _ := setupTestCore(t)
@@ -305,7 +306,18 @@ func TestChattoCore_PostMessageClearsExistingRoomBadge(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := core.PostMessage(ctx, KindChannel, room.Id, other.Id, "unread source", nil, "", "", nil, false); err != nil {
+	anchor, err := core.PostMessage(ctx, KindChannel, room.Id, poster.Id, "read anchor", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if readID, _, err := core.PeekLastReadEventID(ctx, poster.Id, room.Id); err != nil || readID != "" {
+		t.Fatalf("posting advanced the initial room marker: readID=%q err=%v", readID, err)
+	}
+	if _, err := core.ReadState().MarkRoomAsRead(ctx, poster.Id, room.Id, anchor.Id); err != nil {
+		t.Fatal(err)
+	}
+	source, err := core.PostMessage(ctx, KindChannel, room.Id, other.Id, "unread source", nil, "", "", nil, false)
+	if err != nil {
 		t.Fatal(err)
 	}
 	if err := core.notificationMaterializer.WaitCurrent(ctx); err != nil {
@@ -315,19 +327,44 @@ func TestChattoCore_PostMessageClearsExistingRoomBadge(t *testing.T) {
 		t.Fatalf("Badge before poster reply = (%v, %v), want (true, nil)", unread, err)
 	}
 
-	posted, err := core.PostMessage(ctx, KindChannel, room.Id, poster.Id, "I have caught up", nil, "", "", nil, false)
+	sourceEntry, ok := core.roomModel.timelineEntry(source.Id)
+	if !ok {
+		t.Fatal("source message missing from timeline")
+	}
+	occurrence, _, err := core.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID: poster.Id, SourceEventID: source.Id, SourceCreated: source.CreatedAt.AsTime(), ActorID: other.Id,
+		Signal:               testNotificationSignal(notificationTestSignalDirectMention, room.Id, source.Id),
+		Mode:                 evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+		AttentionLevel:       notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		SourceStreamSequence: sourceEntry.StreamSeq,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	posted, err := core.Messages().PostMessage(ctx, MessagePostInput{ActorID: poster.Id, RoomID: room.Id, Body: "sent without reading"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := core.notificationMaterializer.WaitCurrent(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if unread, err := core.HasUnread(ctx, KindChannel, poster.Id, room.Id); err != nil || unread {
-		t.Fatalf("Badge after poster reply = (%v, %v), want (false, nil)", unread, err)
+	if unread, err := core.HasUnread(ctx, KindChannel, poster.Id, room.Id); err != nil || !unread {
+		t.Fatalf("Badge after poster reply = (%v, %v), want (true, nil)", unread, err)
 	}
 	readID, exists, err := core.PeekLastReadEventID(ctx, poster.Id, room.Id)
-	if err != nil || !exists || readID != posted.Id {
-		t.Fatalf("poster Message Read Cursor = (%q, %v, %v), want %q", readID, exists, err, posted.Id)
+	if err != nil || !exists || readID != anchor.Id {
+		t.Fatalf("poster Message Read Cursor = (%q, %v, %v), want %q", readID, exists, err, anchor.Id)
+	}
+	stored, err := core.NotificationOccurrences().Get(ctx, poster.Id, occurrence.Id)
+	if err != nil || stored.GetRead() {
+		t.Fatalf("posting marked notification read: read=%v err=%v", stored.GetRead(), err)
+	}
+	if _, err := core.ReadState().MarkRoomAsRead(ctx, poster.Id, room.Id, posted.Event.Id); err != nil {
+		t.Fatal(err)
+	}
+	stored, err = core.NotificationOccurrences().Get(ctx, poster.Id, occurrence.Id)
+	if err != nil || !stored.GetRead() {
+		t.Fatalf("explicit read did not cover notification: read=%v err=%v", stored.GetRead(), err)
 	}
 }
 
