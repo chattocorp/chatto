@@ -11,6 +11,8 @@ export type PendingThreadReply = {
 export type ThreadOpenOptions = {
   highlightEventId?: string;
   quoteText?: QuoteInsertionContent;
+  /** Focus the thread composer without selecting a reply target. */
+  focusComposer?: boolean;
   reply?: PendingThreadReply;
 };
 
