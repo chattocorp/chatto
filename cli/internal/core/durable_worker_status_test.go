@@ -51,6 +51,8 @@ func TestDurableWorkerAdminStatusesDeriveAvailabilityAndWork(t *testing.T) {
 // TestDurableWorkerAdminStatusesCoverEveryCoreConsumer fails when core creates
 // a durable consumer that the operator diagnostics do not report.
 func TestDurableWorkerAdminStatusesCoverEveryCoreConsumer(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
