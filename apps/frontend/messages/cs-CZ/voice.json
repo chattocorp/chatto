@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "Akce pro {name}",
     "picture_in_picture": "Obraz v obraze",
     "picture_in_picture_failed": "Režim obrazu v obraze se nepodařilo změnit.",
     "connection_lost": "Spojení ztraceno",

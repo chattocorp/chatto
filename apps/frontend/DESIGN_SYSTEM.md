@@ -732,6 +732,14 @@ Let the `ContextMenu` gap separate sibling sections. Do not draw a hairline
 divider inside a section because it conflicts with the standard surface-gap
 separator.
 
+Use `ResponsiveActions` from `$lib/ui` when actions must move from an inline
+region to a menu at a container-width cutoff. Set `breakpointRem` and supply
+menu ownership, dismissal, and fallback focus callbacks. Attach `observe` to
+the container, `inline` to the inline action region, and `trigger` to the
+overflow button. Render action snippets from `compact`; keep each action's
+state with the host. Call `restoreFocus` when the menu closes. `UserCard`
+accepts the trigger attachment through `menu.attachment`.
+
 The supported variants are `action`, `neutral`, `secondary`, `ghost`,
 `warning`, `danger`, and `danger-secondary`. Use the variant whose meaning
 matches the action.

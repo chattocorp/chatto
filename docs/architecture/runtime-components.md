@@ -279,6 +279,16 @@ stream, or snapshot contract is required.
 
 ## Browser call picture-in-picture
 
+Each mounted [call card](../../apps/frontend/src/lib/components/voice/CallCard.svelte)
+owns separate layout and media controllers. The shared
+[responsive actions](../../apps/frontend/src/lib/ui/ResponsiveActions.svelte.ts)
+controller observes the card's width and restores focus when actions move to
+its menu or the card disappears. It has no call or media state. The
+[PiP controller](../../apps/frontend/src/lib/components/voice/CallPictureInPicture.svelte.ts)
+supplies the same video state and request guard to inline and menu controls.
+Menu dismissal and layout changes do not release video observation. Card and
+track teardown remove the observers.
+
 The browser's [call PiP owner](../../apps/frontend/src/lib/state/callPictureInPicture.ts)
 keeps the selected video element and its LiveKit attachment in a hidden DOM
 host when its tile unmounts. The host is outside the room and server route

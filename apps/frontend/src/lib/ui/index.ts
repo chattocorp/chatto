@@ -44,6 +44,7 @@ export { default as UserCard } from './UserCard.svelte';
 export { default as FadeScale } from './FadeScale.svelte';
 export { default as PillButtonGroup } from './PillButtonGroup.svelte';
 export { default as WipeReveal } from './WipeReveal.svelte';
+export { ResponsiveActions, type ResponsiveActionsOptions } from './ResponsiveActions.svelte';
 
 // Context menu and menu presentation helpers
 export { contextMenuTrigger, type ContextMenuTriggerDetails } from './contextMenuTrigger.svelte';

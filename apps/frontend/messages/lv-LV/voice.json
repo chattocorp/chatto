@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "Darbības lietotājam {name}",
     "picture_in_picture": "Attēls attēlā",
     "picture_in_picture_failed": "Neizdevās mainīt režīmu attēls attēlā.",
     "connection_lost": "Savienojums zaudēts",
