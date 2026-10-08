@@ -101,9 +101,17 @@ primitive.
   limits. Tool results do not contain raw broker coordinates or internal
   storage identifiers.
 - The endpoint requires a configured public server Host and rejects wildcard
-  or unknown hosts. It rejects cross-origin browser writes, limits admission
-  across all configured hosts to 20 requests per second with a burst of 40,
-  and gives each request 15 seconds.
+  or unknown hosts. It rejects cross-origin browser writes and gives each
+  request 15 seconds.
+- Admission has separate budgets before credential verification and after
+  account authentication. Each credential and account has 20 requests per
+  second, a burst of 40, and at most four active requests. All credentials
+  for one account share its budget across configured MCP origins. Missing or
+  malformed bearer headers share one anonymous budget.
+- Each admission stage also has a global safety ceiling of 100 requests per
+  second, a burst of 200, and 32 active requests. A full budget returns HTTP
+  `429` with safe retry guidance before tool work. Requests do not wait in a
+  queue. Limits are per replica and reset on process restart.
 - A listed tool can reject a specific target even when its scope is granted.
 - Every tool call applies current Chatto RBAC, room membership, message access,
   search visibility, and absence rules. A successful earlier call does not
@@ -269,6 +277,19 @@ message post.
 **Tradeoff:** Generic policy errors need human investigation. A completed
 write can still have a failed response, so an agent must check the result
 instead of assuming the write failed.
+
+### 12. Isolate callers within bounded server capacity
+
+**Decision:** Limit work before credential verification and again by the
+authenticated account. Share the account budget across grants, token renewal,
+and configured origins. Keep bounded global safety ceilings and per-replica
+enforcement for the experimental release.
+**Why:** One busy caller must not consume another account's normal allowance.
+Unauthenticated requests must also have bounded cost. Separate account budgets
+prevent credential changes from resetting a caller's allowance.
+**Tradeoff:** Global overload can still reject independent callers. Limits
+multiply with replica count and reset on restart. They protect server capacity;
+they do not replace current credential or operation authorization.
 
 ## Permissions
 

@@ -167,6 +167,33 @@ Inspector lists the tools covered by the approved scopes. Use `--method tools/ca
 get_server_info` to check the connected server. Use `--stored-auth-only` on
 later calls to use the stored grant without starting a new consent flow.
 
+## Request limits
+
+Keep each account below 20 MCP requests per second and four active requests.
+The account can send a burst of 40 requests. Discovery requests also count.
+All credentials for an account share this allowance across the server's MCP
+URLs. Token refresh, another grant, or another URL does not reset it.
+
+Chatto also checks a separate allowance before it verifies a credential. Each
+presented bearer token has the same rate, burst, and active-request limits.
+Requests with missing or malformed bearer headers share one anonymous
+allowance. Each stage has a global safety ceiling of 100 requests per second,
+a burst of 200, and 32 active requests. Global overload can reject a request
+even when the account still has allowance.
+
+These limits apply to each server process. A deployment with multiple replicas
+has independent budgets on each replica. A process restart resets its budgets.
+The experimental release does not enforce one shared deployment-wide quota.
+
+When capacity is full, Chatto returns HTTP `429` before a tool starts. It does
+not queue the request. Wait at least the number of seconds in `Retry-After`
+before retrying. The JSON body has `code: "rate_limited"`,
+`retry: "after_delay"`, `outcome: "not_applied"`, and a matching `retryAfterMs`.
+Use bounded retries with backoff because capacity can remain full.
+This guidance applies to a received admission rejection. A lost response to
+`post_message` still has an uncertain outcome and must not be repeated
+automatically.
+
 ## Troubleshoot connection failures
 
 | Failure | Action |
@@ -175,6 +202,7 @@ later calls to use the stored grant without starting a new consent flow.
 | `initialize` returns method not found | Use a host with stateless `2026-07-28` support. In Inspector, select the modern protocol era. |
 | Consent rejects `redirect_uri` | Check the client's CIMD document. Runtime ports require a native client and a literal loopback IP callback. Named localhost callbacks must match exactly. |
 | A tool request returns `401` | Authorize the exact MCP URL again. Check grant expiry, client blocking, and the valid MCP scopes. A first-party token or a grant for another origin cannot be used. |
+| A request returns `429` | Wait for `Retry-After`, reduce the request rate and active requests, and use bounded retries with backoff. |
 | A tool is absent or returns `403 insufficient_scope` | Request its scope in a new OAuth consent flow. The Bearer challenge identifies the required scope. Keep any existing scopes that the host still needs. |
 | Inspector `--use-stored-auth` reports `no_stored_token` | Use `--stored-auth-only`. This Inspector version can fail to load its stored credentials through the older flag. |
 

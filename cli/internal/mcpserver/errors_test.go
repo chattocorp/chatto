@@ -16,7 +16,6 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"golang.org/x/time/rate"
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
@@ -307,7 +306,9 @@ func TestMCPFailureRetryContract(t *testing.T) {
 
 func TestMCPAdmissionFailureContract(t *testing.T) {
 	called := false
-	handler := withAdmissionLimit(rate.NewLimiter(0, 0), http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true }))
+	admission := newAdmissionController()
+	admission.verification.limits.globalConcurrent = 0
+	handler := admission.beforeAuthentication(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true }))
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/mcp", nil))
 	var output toolErrorOutput

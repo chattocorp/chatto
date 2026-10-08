@@ -326,6 +326,25 @@ credentials. Shutdown discards this state. The shared EVT source consumer
 retains progress only until handoff, not until HTTP completion. See
 [NATS resources](nats-resources.md) and [effects](durable-effects.md).
 
+## MCP admission state
+
+The MCP HTTP handler owns two process-local admission stages shared across
+its configured origins. The first stores normalized bearer-token digests; the
+second stores verified account-ID digests. Each stage has token buckets and
+active-request counters with caller limits of 20 requests/s, burst 40, and
+four active requests. Global limits are 100 requests/s, burst 200, and 32 active
+requests. Both stages retain their slots until request work exits.
+
+Each stage retains at most 8192 caller entries. Request-driven cleanup runs
+at most once per ten seconds and removes entries that have been idle for one
+minute. Active entries cannot expire. A stage that rejects a request does not
+allocate an entry or consume its rate tokens. An earlier stage can already
+have admitted that request. There is no queue, background worker, authentication
+cache, KV record, backup state, or cross-replica coordination. Process restart
+resets the budgets. No raw token, IP address, or human profile is retained or
+logged. See [`admission.go`](../../cli/internal/mcpserver/admission.go) and
+[FDR-043](../fdr/FDR-043-model-context-protocol-integration.md).
+
 ## Operational diagnostic history
 
 LOG stores retained records, not latest-value runtime state. It has no KV or
