@@ -6,7 +6,7 @@ import { LocalVideoTrack } from 'livekit-client';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { registerCallVideo, releaseCallVideo } from '$lib/state/callPictureInPicture';
 import { toast } from '$lib/ui/toast';
-import VoiceCallPanelStoryHarness from './VoiceCallPanelStoryHarness.svelte';
+import { renderCallPanelHarness } from './renderCallPanelHarness';
 import VideoThumbnail from './VideoThumbnail.svelte';
 
 let currentVideo: Element | null;
@@ -64,9 +64,7 @@ afterEach(() => {
 });
 
 it('keeps PiP through panel remounts and closes it when the call ends', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { scenario: 'screen', playableMedia: true }
-  });
+  const screen = renderCallPanelHarness({ scenario: 'screen', playableMedia: true });
   await expect.poll(() => mediaCards(screen.container).length).toBeGreaterThan(0);
   const video = mediaCards(screen.container)[0].querySelector('video')!;
   pipButton(mediaCards(screen.container)[0]).click();
@@ -114,7 +112,7 @@ it('moves the active video without restarting playback when moveBefore is availa
 it.each([false, true])('falls back to insertion while preserving paused=%s', async (paused) => {
   Object.defineProperty(Element.prototype, 'moveBefore', { configurable: true, value: undefined });
   vi.spyOn(HTMLMediaElement.prototype, 'paused', 'get').mockReturnValue(paused);
-  const screen = render(VoiceCallPanelStoryHarness, { props: { scenario: 'camera' } });
+  const screen = renderCallPanelHarness({ scenario: 'camera' });
   await expect.poll(() => mediaCards(screen.container).length).toBeGreaterThan(0);
   const video = mediaCards(screen.container)[0].querySelector('video')!;
   enterPictureInPicture(video);
@@ -126,9 +124,7 @@ it.each([false, true])('falls back to insertion while preserving paused=%s', asy
 it.each(['browser', 'call'] as const)(
   'sizes retained video to native PiP and removes resize listeners on %s closure',
   async (closure) => {
-    const screen = render(VoiceCallPanelStoryHarness, {
-      props: { scenario: 'screen', playableMedia: true }
-    });
+    const screen = renderCallPanelHarness({ scenario: 'screen', playableMedia: true });
     await expect.poll(() => mediaCards(screen.container).length).toBeGreaterThan(0);
     const video = mediaCards(screen.container)[0].querySelector('video')!;
     const pipWindow = enterPictureInPicture(video);
@@ -213,7 +209,7 @@ it.each([
 ] as const)(
   'preserves native video menus and left-click menus in %s %s tiles',
   async (layout, scenario) => {
-    const screen = render(VoiceCallPanelStoryHarness, { props: { layout, scenario } });
+    const screen = renderCallPanelHarness({ layout, scenario });
     await expect.poll(() => mediaCards(screen.container).length).toBeGreaterThan(0);
     for (const card of mediaCards(screen.container)) {
       const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2 });
@@ -228,7 +224,7 @@ it.each([
 );
 
 it('preserves touch long-press and suppresses its duplicate native menu', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, { props: { scenario: 'screen' } });
+  const screen = renderCallPanelHarness({ scenario: 'screen' });
   await expect.poll(() => screen.container.querySelector('video')).not.toBeNull();
   const video = screen.container.querySelector('video')!;
   video.dispatchEvent(
@@ -252,9 +248,7 @@ it('preserves touch long-press and suppresses its duplicate native menu', async 
 });
 
 it('toggles the selected video and follows browser closure in the sidebar', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'sidebar', scenario: 'screen' }
-  });
+  const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'screen' });
   await expect
     .poll(() => screen.container.querySelectorAll('[data-testid="call-feed-pip-button"]').length)
     .toBeGreaterThan(1);
@@ -277,9 +271,7 @@ it('toggles the selected video and follows browser closure in the sidebar', asyn
 });
 
 it('keeps media controls on the featured stage source and off the filmstrip', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'stage', scenario: 'screen' }
-  });
+  const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'screen' });
   await expect
     .poll(() => screen.container.querySelector('[data-testid="call-feed-pip-button"]'))
     .not.toBeNull();
@@ -309,7 +301,7 @@ it.each(['policy', 'method'] as const)(
         configurable: true
       });
     }
-    const screen = render(VoiceCallPanelStoryHarness, { props: { scenario: 'screen' } });
+    const screen = renderCallPanelHarness({ scenario: 'screen' });
     await expect.poll(() => screen.container.querySelector('video')).not.toBeNull();
     flushSync();
     expect(screen.container.querySelector('[data-testid="call-feed-pip-button"]')).toBeNull();
@@ -330,7 +322,7 @@ it('waits for media and prevents duplicate requests while a request is pending',
           resolveRequest = resolve;
         })
     );
-  const screen = render(VoiceCallPanelStoryHarness, { props: { scenario: 'camera' } });
+  const screen = renderCallPanelHarness({ scenario: 'camera' });
   await expect
     .poll(() => screen.container.querySelector('[data-testid="call-feed-pip-button"]'))
     .not.toBeNull();
@@ -355,7 +347,7 @@ it.each(['enter', 'exit'] as const)(
   'reports rejected %s requests without raw browser errors',
   async (operation) => {
     const error = vi.spyOn(toast, 'error').mockReturnValue('pip-error');
-    const screen = render(VoiceCallPanelStoryHarness, { props: { scenario: 'camera' } });
+    const screen = renderCallPanelHarness({ scenario: 'camera' });
     await expect
       .poll(() => screen.container.querySelector('[data-testid="call-feed-pip-button"]'))
       .not.toBeNull();
@@ -389,7 +381,7 @@ it('closes its PiP window when unmounted, including a late successful request', 
       };
     });
   });
-  const screen = render(VoiceCallPanelStoryHarness, { props: { scenario: 'camera' } });
+  const screen = renderCallPanelHarness({ scenario: 'camera' });
   await expect
     .poll(() => screen.container.querySelector('[data-testid="call-feed-pip-button"]'))
     .not.toBeNull();
@@ -403,7 +395,7 @@ it('closes its PiP window when unmounted, including a late successful request', 
 it.each(['sidebar', 'stage'] as const)(
   'retains native PiP after %s tiles unmount',
   async (layout) => {
-    const screen = render(VoiceCallPanelStoryHarness, { props: { scenario: 'screen', layout } });
+    const screen = renderCallPanelHarness({ scenario: 'screen', layout });
     await expect
       .poll(() => screen.container.querySelector('[data-testid="call-feed-pip-button"]'))
       .not.toBeNull();

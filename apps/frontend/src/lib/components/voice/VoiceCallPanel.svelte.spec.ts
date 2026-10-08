@@ -1,11 +1,10 @@
 import '../../../app.css';
 import { afterEach, expect, it, vi } from 'vitest';
-import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { serverRegistry } from '$lib/client';
 import { serverUi } from '$lib/state/server/serverUi';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
-import VoiceCallPanelStoryHarness from './VoiceCallPanelStoryHarness.svelte';
+import { renderCallPanelHarness } from './renderCallPanelHarness';
 import { serverIdToSegment } from '$lib/navigation';
 
 const { goto } = vi.hoisted(() => ({ goto: vi.fn() }));
@@ -17,9 +16,7 @@ vi.mock('$app/navigation', async (original) => ({
 afterEach(() => vi.restoreAllMocks());
 
 it('updates network warnings independently of microphone activity and clears them on recovery', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'sidebar', scenario: 'voice' }
-  });
+  const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'voice' });
   const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
   await expect
     .element(screen.getByRole('button', { name: 'Poor connection', exact: true }))
@@ -45,9 +42,7 @@ it('updates network warnings independently of microphone activity and clears the
 });
 
 it('opens voice preferences from the toolbar gear', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'sidebar', scenario: 'voice' }
-  });
+  const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'voice' });
   await screen.getByTestId('call-device-menu-button').click();
   expect(goto).toHaveBeenCalledWith(
     `/chat/${serverIdToSegment(serverRegistry.originServer!.id)}/settings/voice`
@@ -55,9 +50,7 @@ it('opens voice preferences from the toolbar gear', async () => {
 });
 
 it('removes voice activity and participant controls when a call becomes observed', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'sidebar', scenario: 'voice' }
-  });
+  const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'voice' });
   await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
   const store = serverRegistry.getStore(serverRegistry.originServer!.id);
   vi.spyOn(serverUi(store).voiceCall, 'getAudioLevel').mockReturnValue({
@@ -86,9 +79,7 @@ it('removes voice activity and participant controls when a call becomes observed
 });
 
 it('settles voice activity when the participant mutes their microphone', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'sidebar', scenario: 'voice' }
-  });
+  const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'voice' });
   await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
   const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
   vi.spyOn(call, 'getAudioLevel').mockReturnValue({ isSpeaking: true, audioLevel: 0.5 });
@@ -103,9 +94,7 @@ it('settles voice activity when the participant mutes their microphone', async (
 });
 
 it('gates entry and media controls from the current room permissions', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'sidebar', scenario: 'voice' }
-  });
+  const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'voice' });
   await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
   const store = serverRegistry.getStore(serverRegistry.originServer!.id);
   const roomId = serverUi(store).voiceCall.roomId!;
@@ -138,9 +127,7 @@ it('gates entry and media controls from the current room permissions', async () 
 });
 
 it('includes volume controls in the remote user context menu', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'sidebar', scenario: 'voice' }
-  });
+  const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'voice' });
   await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
   const store = serverRegistry.getStore(serverRegistry.originServer!.id);
   const change = vi.spyOn(serverUi(store).voiceCall, 'setParticipantVolume');
@@ -165,9 +152,7 @@ it('includes volume controls in the remote user context menu', async () => {
 });
 
 it('opens the user menu and volume controls by right-clicking a media card', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'stage', scenario: 'screen' }
-  });
+  const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'screen' });
   await expect.element(screen.getByTestId('call-featured-stage-card')).toBeInTheDocument();
   const card = screen.container.querySelector('[data-testid="call-featured-stage-card"]')!;
   const event = new MouseEvent('contextmenu', {
@@ -191,11 +176,7 @@ it('opens the user menu and volume controls by right-clicking a media card', asy
 it.each(['sidebar', 'stage'] as const)(
   'uses screen audio independently in the %s screen tile',
   async (layout) => {
-    const screen = render(VoiceCallPanelStoryHarness, {
-      props: { layout, scenario: 'screen' }
-    });
-    // The stage sizes its featured card from the pane, so give it one.
-    Object.assign(screen.container.style, { display: 'flex', width: '1080px', height: '720px' });
+    const screen = renderCallPanelHarness({ layout, scenario: 'screen' });
     await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
     const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
     const mic = vi
@@ -219,9 +200,7 @@ it.each(['sidebar', 'stage'] as const)(
 );
 
 it('keeps the current user menu free of listener volume controls', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'sidebar', scenario: 'voice' }
-  });
+  const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'voice' });
   await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
   screen.container
     .querySelector<HTMLButtonElement>(
@@ -233,9 +212,7 @@ it('keeps the current user menu free of listener volume controls', async () => {
 });
 
 it('places the overflow menu in the screen-share card header', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'stage', scenario: 'screen' }
-  });
+  const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'screen' });
   await expect.element(screen.getByTestId('call-featured-stage-card')).toBeInTheDocument();
   const card = screen.container.querySelector('[data-testid="call-featured-stage-card"]')!;
   expect(card.querySelector('[data-testid="call-participant-menu-button"]')).not.toBeNull();
@@ -243,9 +220,7 @@ it('places the overflow menu in the screen-share card header', async () => {
 });
 
 it('keeps voice cards equal in height with compact direct mute controls', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'sidebar', scenario: 'voice' }
-  });
+  const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'voice' });
   await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
   const store = serverRegistry.getStore(serverRegistry.originServer!.id);
   const muteRemote = vi.spyOn(serverUi(store).voiceCall, 'toggleParticipantLocalMute');
@@ -305,9 +280,7 @@ it('keeps voice cards equal in height with compact direct mute controls', async 
 });
 
 it('keeps voice columns equal below a single screen share and stacks in a narrow pane', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'sidebar', scenario: 'screen-voice' }
-  });
+  const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'screen-voice' });
   screen.container.style.width = '500px';
   await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
   const cards = [
@@ -337,11 +310,7 @@ it('keeps voice columns equal below a single screen share and stacks in a narrow
 });
 
 it('pins a filmstrip tile to the stage until the viewer unpins it or its source ends', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'stage', scenario: 'screen' }
-  });
-  // The featured stage sizes its 16:9 card from the pane, so give it one.
-  Object.assign(screen.container.style, { display: 'flex', width: '1080px', height: '720px' });
+  const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'screen' });
   const featured = screen.getByTestId('call-featured-stage-card');
   await expect.element(featured).toHaveTextContent("Dana's screen");
   const strip = screen.getByTestId('call-secondary-stage-list');
@@ -373,10 +342,7 @@ it('pins a filmstrip tile to the stage until the viewer unpins it or its source 
 });
 
 it('keeps keyboard focus on the reversing control when pinning and unpinning', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'stage', scenario: 'screen' }
-  });
-  Object.assign(screen.container.style, { display: 'flex', width: '1080px', height: '720px' });
+  const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'screen' });
   const strip = screen.getByTestId('call-secondary-stage-list');
   await strip.getByRole('button', { name: 'Pin Bob to the stage' }).click();
   await expect
@@ -390,10 +356,7 @@ it('keeps keyboard focus on the reversing control when pinning and unpinning', a
 });
 
 it('features a remote screen share before the viewer screen share', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'stage', scenario: 'screen' }
-  });
-  Object.assign(screen.container.style, { display: 'flex', width: '1080px', height: '720px' });
+  const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'screen' });
   await expect.element(screen.getByTestId('call-featured-stage-card')).toBeInTheDocument();
   const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
   const dana = call.participants.find((p) => p.identity === 'dana')!;
@@ -415,10 +378,7 @@ it('features a remote screen share before the viewer screen share', async () => 
 });
 
 it('features remote camera feeds before the viewer camera', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'stage', scenario: 'screen' }
-  });
-  Object.assign(screen.container.style, { display: 'flex', width: '1080px', height: '720px' });
+  const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'screen' });
   await expect.element(screen.getByTestId('call-featured-stage-card')).toBeInTheDocument();
   const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
   flushSync(() => {
@@ -433,9 +393,7 @@ it.each([
 ])(
   'places the other stage tiles where the featured card gets more room: $placement',
   async ({ width, height, placement }) => {
-    const screen = render(VoiceCallPanelStoryHarness, {
-      props: { layout: 'stage', scenario: 'screen' }
-    });
+    const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'screen' });
     Object.assign(screen.container.style, {
       display: 'flex',
       width: `${width}px`,
@@ -458,10 +416,7 @@ it.each([
 );
 
 it('keeps focus on the stage when an unpinned source stays featured', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'stage', scenario: 'screen' }
-  });
-  Object.assign(screen.container.style, { display: 'flex', width: '1080px', height: '720px' });
+  const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'screen' });
   const featured = screen.getByTestId('call-featured-stage-card');
   await screen
     .getByTestId('call-secondary-stage-list')
