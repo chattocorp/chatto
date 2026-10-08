@@ -6,6 +6,8 @@ import { LocalVideoTrack } from 'livekit-client';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { registerCallVideo, releaseCallVideo } from '$lib/state/callPictureInPicture';
 import { toast } from '$lib/ui/toast';
+import { serverRegistry } from '$lib/client';
+import { serverUi } from '$lib/state/server/serverUi';
 import { renderCallPanelHarness } from './renderCallPanelHarness';
 import VideoThumbnail from './VideoThumbnail.svelte';
 
@@ -536,5 +538,36 @@ it.each(['sidebar', 'stage'] as const)(
     expect(currentVideo).toBeNull();
     expect(video.isConnected).toBe(false);
     expect(document.querySelector('[data-call-pip-host]')).toBeNull();
+  }
+);
+
+it.each(['sidebar', 'stage'] as const)(
+  'keeps %s videos attached when participant state changes without new tracks',
+  async (layout) => {
+    const screen = renderCallPanelHarness({ layout, scenario: 'camera' });
+    await expect.poll(() => mediaCards(screen.container).length).toBeGreaterThan(0);
+    const videos = Array.from(screen.container.querySelectorAll('video'));
+    // Harness tracks remove the poster on detach and set it again on attach.
+    const changes: MutationRecord[] = [];
+    const observer = new MutationObserver((records) => changes.push(...records));
+    observer.observe(screen.container, {
+      subtree: true,
+      childList: true,
+      attributeFilter: ['poster']
+    });
+    try {
+      const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
+      // Each LiveKit mute event rebuilds every participant around the same tracks.
+      call.participants = call.participants.map((participant) => ({
+        ...participant,
+        isMuted: !participant.isMuted
+      }));
+      flushSync();
+      changes.push(...observer.takeRecords());
+      expect(changes.filter((change) => change.attributeName === 'poster')).toEqual([]);
+      expect(Array.from(screen.container.querySelectorAll('video'))).toEqual(videos);
+    } finally {
+      observer.disconnect();
+    }
   }
 );
