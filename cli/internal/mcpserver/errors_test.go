@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/auth"
+	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"golang.org/x/time/rate"
 
@@ -313,6 +314,19 @@ func TestMCPAdmissionFailureContract(t *testing.T) {
 	decodeMCPResponse(t, response, &output)
 	if called || response.Code != http.StatusTooManyRequests || response.Header().Get("Retry-After") != "1" || response.Header().Get("Cache-Control") != "no-store" || output.Error.Code != "rate_limited" || output.Error.Retry != "after_delay" || output.Error.RetryAfterMs != 1000 || output.Error.Outcome != "not_applied" {
 		t.Fatalf("admission failure = %d/%#v", response.Code, output)
+	}
+}
+
+func TestMCPProtocolErrorsRemainProtocolErrors(t *testing.T) {
+	for _, code := range []int64{jsonrpc.CodeInvalidParams, jsonrpc.CodeInvalidRequest, jsonrpc.CodeParseError, jsonrpc.CodeMethodNotFound} {
+		handler := structuredToolErrors(func(context.Context, string, mcp.Request) (mcp.Result, error) {
+			return nil, &jsonrpc.Error{Code: code, Message: "private-protocol-diagnostic", Data: json.RawMessage(`{"private":"submitted-value"}`)}
+		})
+		result, err := handler(context.Background(), "tools/call", &mcp.CallToolRequest{Params: &mcp.CallToolParamsRaw{Name: "post_message"}})
+		wire, ok := errors.AsType[*jsonrpc.Error](err)
+		if result != nil || !ok || wire.Code != code || wire.Data != nil || strings.Contains(wire.Message, "private") {
+			t.Fatalf("protocol rejection changed or leaked details: result=%#v err=%v", result, err)
+		}
 	}
 }
 

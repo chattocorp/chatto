@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/auth"
+	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"hmans.de/chatto/internal/core"
@@ -75,6 +76,9 @@ func addTool[In, Out any](server *mcp.Server, tool *mcp.Tool, handler mcp.ToolHa
 	mcp.AddTool(server, tool, func(ctx context.Context, request *mcp.CallToolRequest, input In) (*mcp.CallToolResult, any, error) {
 		result, output, err := handler(ctx, request, input)
 		if err != nil {
+			if protocol := safeProtocolError(err); protocol != nil {
+				return nil, nil, protocol
+			}
 			f := classifyToolError(err, tool.Name)
 			return toolErrorResult(f), toolErrorOutput{Error: *f}, nil
 		}
@@ -93,6 +97,9 @@ func structuredToolErrors(next mcp.MethodHandler) mcp.MethodHandler {
 			return result, err
 		}
 		if err != nil {
+			if protocol := safeProtocolError(err); protocol != nil {
+				return nil, protocol
+			}
 			return toolErrorResult(classifyToolError(err, call.Params.Name)), nil
 		}
 		if result, ok := result.(*mcp.CallToolResult); ok && result.IsError && result.StructuredContent == nil {
@@ -100,6 +107,18 @@ func structuredToolErrors(next mcp.MethodHandler) mcp.MethodHandler {
 		}
 		return result, nil
 	}
+}
+
+// safeProtocolError preserves request-level failures. SDK diagnostic text and
+// data can contain submitted values, so only the standard code is forwarded.
+func safeProtocolError(err error) *jsonrpc.Error {
+	if wire, ok := errors.AsType[*jsonrpc.Error](err); ok {
+		switch wire.Code {
+		case jsonrpc.CodeInvalidParams, jsonrpc.CodeInvalidRequest, jsonrpc.CodeParseError, jsonrpc.CodeMethodNotFound:
+			return &jsonrpc.Error{Code: wire.Code, Message: "MCP protocol request rejected"}
+		}
+	}
+	return nil
 }
 
 // toolErrorResult also supplies JSON as text for hosts that discard structured
