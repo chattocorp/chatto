@@ -445,9 +445,7 @@ func (p *Projector) restoreSnapshotForRun(ctx context.Context, targetSeq uint64,
 		Components:     state.SnapshotComponentContracts(),
 	})
 	if err != nil {
-		if errors.Is(err, ErrProjectionSnapshotNotFound) {
-			p.logger.Debug("Projection snapshot not found; replaying event log", "projection", key)
-		} else {
+		if !errors.Is(err, ErrProjectionSnapshotNotFound) {
 			p.logger.Warn("Projection snapshot unavailable; replaying event log",
 				"projection", key, "stage", "restore", "error", err)
 		}
@@ -502,19 +500,5 @@ func (p *Projector) restoreSnapshotForRun(ctx context.Context, targetSeq uint64,
 	// may already be waiting for this sequence. Advance through the normal
 	// waiter path instead of assigning lastSeq directly.
 	p.advance(snapshot.CutoffSequence)
-	payloadBytes := 0
-	for _, component := range snapshot.Components {
-		for _, part := range component.Parts {
-			payloadBytes += len(part.Payload)
-		}
-	}
-	p.logger.Debug("Projection snapshot restored",
-		"projection", key,
-		"stage", "restore_apply",
-		"generation_id", snapshot.GenerationID,
-		"cutoff_seq", snapshot.CutoffSequence,
-		"target_seq", targetSeq,
-		"components", len(snapshot.Components),
-		"payload_bytes", payloadBytes)
 	return nil
 }

@@ -113,7 +113,7 @@ type ChattoCore struct {
 	// drift into separate hand-maintained lists.
 	projections []projectionRegistration
 
-	// bootDone is closed by Run once all projectors are started AND
+	// bootDone is closed by Run once all projection startup hooks and
 	// boot-time mutations (ensureChannelRoomsAreInAGroup) have
 	// completed. Callers that need to issue projection-backed reads
 	// during startup — most notably SeedDefaultRooms in cmd/run.go —
@@ -164,6 +164,13 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error {
 		if err := c.waitForProjectorsStarted(gctx, 5*time.Second); err != nil {
 			return fmt.Errorf("wait for projectors: %w", err)
+		}
+		// Sequence waiters can be released before startup completion hooks
+		// finish. Boot consumers, including snapshot capture, need both.
+		for _, projection := range c.projections {
+			if err := projection.projector.WaitForStartup(gctx); err != nil {
+				return fmt.Errorf("wait for %s projection startup: %w", projection.name, err)
+			}
 		}
 		// Before issuing boot-time "ensure" mutations, let every
 		// projection replay the durable stream as it exists now. A
@@ -260,7 +267,7 @@ func (c *ChattoCore) AllProjectorsStarted() bool {
 }
 
 // WaitForBoot blocks until Run has finished boot-time setup
-// (projectors running + ensureChannelRoomsAreInAGroup done) or ctx
+// (projection startup hooks and ensureChannelRoomsAreInAGroup done) or ctx
 // is cancelled. Callers that issue projection-backed mutations during
 // startup — e.g. SeedDefaultRooms in cmd/run.go — must wait here
 // first; mutating before boot completes leaves orphan rooms because

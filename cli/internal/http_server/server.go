@@ -413,8 +413,6 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 			s.logger.Debug("Starting operator API server", "socket", srv.Addr)
 		} else if srv == tlsServer {
 			s.logger.Debug("Starting HTTPS server with Let's Encrypt", "addr", tlsServer.Addr, "domain", s.config.Webserver.TLS.Domain)
-		} else {
-			s.logger.Debug("Starting HTTP server", "addr", srv.Addr, "url", s.config.Webserver.URL)
 		}
 		go func(srv *http.Server) {
 			var err error

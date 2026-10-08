@@ -26,13 +26,13 @@ func (*startupSnapshotProjection) SnapshotContractID() string { return "test-v1"
 func (*startupSnapshotProjection) Snapshot() ([]byte, error)  { return nil, nil }
 func (*startupSnapshotProjection) Restore([]byte) error       { return nil }
 
-func TestSnapshotAbsenceLogsAtDebugAndFailuresWarn(t *testing.T) {
+func TestSnapshotAbsenceIsQuietAndFailuresWarn(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		err   error
 		level string
 	}{
-		{"absent", fmt.Errorf("load: %w", ErrProjectionSnapshotNotFound), "DEBUG"},
+		{"absent", fmt.Errorf("load: %w", ErrProjectionSnapshotNotFound), ""},
 		{"failed", errors.New("storage unavailable"), "WARN"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -45,6 +45,12 @@ func TestSnapshotAbsenceLogsAtDebugAndFailuresWarn(t *testing.T) {
 			}))
 			if err := p.restoreForRun(t.Context(), 0); err != nil {
 				t.Fatal(err)
+			}
+			if tc.level == "" {
+				if output.Len() != 0 {
+					t.Fatalf("expected absence produced a log: %s", output.String())
+				}
+				return
 			}
 			var record map[string]any
 			if err := json.Unmarshal(output.Bytes(), &record); err != nil {
@@ -77,7 +83,7 @@ func TestProjectorStartupLogSummary(t *testing.T) {
 			if record["projection"] != "events.startupCompletionProjection" || record["restore"] != restore {
 				t.Fatalf("unexpected summary: %v", record)
 			}
-			for _, field := range []string{"subjects", "last_seq", "target_seq", "messages_per_second"} {
+			for _, field := range []string{"subjects", "target_seq", "messages_per_second"} {
 				if _, ok := record[field]; ok {
 					t.Errorf("INFO summary contains %s", field)
 				}
@@ -85,8 +91,8 @@ func TestProjectorStartupLogSummary(t *testing.T) {
 			output.Reset()
 			p.logger = slog.New(slog.NewJSONHandler(&output, &slog.HandlerOptions{Level: slog.LevelDebug}))
 			p.logStartupComplete(startupSummary{projectionKey: "named", restore: restore})
-			if !strings.Contains(output.String(), "Projection replay details") || !strings.Contains(output.String(), "subjects") {
-				t.Fatalf("missing DEBUG replay details: %s", output.String())
+			if strings.Count(output.String(), "\n") != 1 || strings.Contains(output.String(), "subjects") {
+				t.Fatalf("DEBUG must keep one compact completion record: %s", output.String())
 			}
 		})
 	}
