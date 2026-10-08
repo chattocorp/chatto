@@ -84,7 +84,6 @@ Room sidebar panel for voice/video calls.
   let canEnterCall = $derived(callPermissions.join && (hasActiveCall || callPermissions.start));
   let isStageLayout = $derived(layout === 'stage');
 
-  /** Unified participant shape for rendering (structural data only). */
   /** Options for a participant card header. */
   type HeaderOptions = {
     /** Show picture-in-picture and fullscreen buttons for the card's video. */
@@ -97,6 +96,7 @@ Room sidebar panel for voice/video calls.
     pinned?: boolean;
   };
 
+  /** Unified participant shape for rendering (structural data only). */
   type DisplayParticipant = {
     key: string;
     displayName: string;
@@ -287,8 +287,10 @@ Room sidebar panel for voice/video calls.
 
   let panelElement = $state<HTMLElement | null>(null);
 
-  // Pinning and unpinning remove the focused button, so move focus to the
-  // control that reverses the action to keep keyboard users in place.
+  // Pinning and unpinning remove the focused button, so move focus to keep
+  // keyboard users in place: to the control that reverses the action, or to
+  // the formerly pinned source's menu button when it has no pin button, for
+  // example when it stays featured or the stage switches to the grid.
   async function pinStageTile(tile: StageTile, event: MouseEvent): Promise<void> {
     event.stopPropagation();
     pinnedStageTileKey = tile.key;
@@ -301,12 +303,14 @@ Room sidebar panel for voice/video calls.
     const key = pinnedStageTileKey;
     pinnedStageTileKey = null;
     await tick();
-    if (key === null) return;
-    panelElement
-      ?.querySelector<HTMLElement>(
-        `[data-stage-tile-key="${CSS.escape(key)}"] [data-testid="call-stage-pin-button"]`
+    if (key === null || !panelElement) return;
+    const tile = `[data-stage-tile-key="${CSS.escape(key)}"]`;
+    (
+      panelElement.querySelector<HTMLElement>(`${tile} [data-testid="call-stage-pin-button"]`) ??
+      panelElement.querySelector<HTMLElement>(
+        `${tile} [data-testid="call-participant-menu-button"]`
       )
-      ?.focus();
+    )?.focus();
   }
   let isIdle = $derived(!hasActiveCall && !isInThisCall);
   let joinLabel = $derived.by(() => {
@@ -609,6 +613,7 @@ Room sidebar panel for voice/video calls.
     style:width={featuredStageCardWidth}
     title={stageTileTitle(tile)}
     data-testid="call-featured-stage-card"
+    data-stage-tile-key={tile.key}
     {@attach userMenu.trigger(() => ({ participant, screen: isScreen }))}
     data-call-media-card={hasMedia ? true : undefined}
   >

@@ -393,6 +393,7 @@ it('features a remote screen share before the viewer screen share', async () => 
   const screen = render(VoiceCallPanelStoryHarness, {
     props: { layout: 'stage', scenario: 'screen' }
   });
+  Object.assign(screen.container.style, { display: 'flex', width: '1080px', height: '720px' });
   await expect.element(screen.getByTestId('call-featured-stage-card')).toBeInTheDocument();
   const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
   const dana = call.participants.find((p) => p.identity === 'dana')!;
@@ -417,6 +418,7 @@ it('features remote camera feeds before the viewer camera', async () => {
   const screen = render(VoiceCallPanelStoryHarness, {
     props: { layout: 'stage', scenario: 'screen' }
   });
+  Object.assign(screen.container.style, { display: 'flex', width: '1080px', height: '720px' });
   await expect.element(screen.getByTestId('call-featured-stage-card')).toBeInTheDocument();
   const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
   flushSync(() => {
@@ -454,3 +456,27 @@ it.each([
     }
   }
 );
+
+it('keeps focus on the stage when an unpinned source stays featured', async () => {
+  const screen = render(VoiceCallPanelStoryHarness, {
+    props: { layout: 'stage', scenario: 'screen' }
+  });
+  Object.assign(screen.container.style, { display: 'flex', width: '1080px', height: '720px' });
+  const featured = screen.getByTestId('call-featured-stage-card');
+  await screen
+    .getByTestId('call-secondary-stage-list')
+    .getByRole('button', { name: 'Pin Bob to the stage' })
+    .click();
+  await expect.element(featured).toHaveTextContent('Bob');
+  const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
+  flushSync(() => {
+    call.participants = call.participants.filter((p) => p.identity !== 'dana');
+  });
+
+  await featured.getByTestId('call-stage-unpin-button').click();
+  await expect.element(featured).toHaveTextContent('Bob');
+  await expect
+    .poll(() => document.activeElement?.getAttribute('data-testid'))
+    .toBe('call-participant-menu-button');
+  expect(featured.element().contains(document.activeElement)).toBe(true);
+});
