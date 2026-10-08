@@ -29,6 +29,16 @@
         "activity": "{actor} saatis sulle teavituse."
       }
     },
+    "home": {
+      "title": "Avaleht",
+      "subtitle": "Mis teid kõigis teie serverites ootab",
+      "direct_messages_empty": "Otsesõnumeid veel pole",
+      "live_calls_title": "Käimasolevad kõned",
+      "call_participants_count": {
+        "one": "{count} osaleja",
+        "other": "{count} osalejat"
+      }
+    },
     "sign_out": {
       "title": "Logi välja",
       "current_server": "Praegune server",
@@ -53,6 +63,7 @@
       "copy_user_id": "Kopeeri kasutaja ID"
     },
     "server_gutter": {
+      "home": "Avaleht",
       "move_up": "Liigutage üles",
       "move_down": "Liigutage alla",
       "add_server": "Lisa server",

@@ -29,6 +29,18 @@
         "activity": "Masz nowe powiadomienie od {actor}."
       }
     },
+    "home": {
+      "title": "Start",
+      "subtitle": "Co czeka na ciebie na wszystkich twoich serwerach",
+      "direct_messages_empty": "Brak wiadomości bezpośrednich",
+      "live_calls_title": "Trwające rozmowy",
+      "call_participants_count": {
+        "one": "{count} uczestnik",
+        "few": "{count} uczestników",
+        "many": "{count} uczestników",
+        "other": "{count} uczestnika"
+      }
+    },
     "sign_out": {
       "title": "Wyloguj się",
       "current_server": "Bieżący serwer",
@@ -53,6 +65,7 @@
       "copy_user_id": "Kopiuj identyfikator użytkownika"
     },
     "server_gutter": {
+      "home": "Start",
       "move_up": "Przesuń w górę",
       "move_down": "Przesuń w dół",
       "add_server": "Dodaj serwer",

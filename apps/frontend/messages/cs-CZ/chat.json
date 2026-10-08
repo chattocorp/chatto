@@ -29,6 +29,18 @@
         "activity": "Uživatel {actor} vám poslal oznámení."
       }
     },
+    "home": {
+      "title": "Domů",
+      "subtitle": "Co na vás čeká na všech vašich serverech",
+      "direct_messages_empty": "Zatím žádné přímé zprávy",
+      "live_calls_title": "Probíhající hovory",
+      "call_participants_count": {
+        "one": "{count} účastník",
+        "few": "{count} účastníci",
+        "many": "{count} účastníka",
+        "other": "{count} účastníků"
+      }
+    },
     "sign_out": {
       "title": "Odhlásit se",
       "current_server": "Aktuální server",
@@ -53,6 +65,7 @@
       "copy_user_id": "Zkopírovat ID uživatele"
     },
     "server_gutter": {
+      "home": "Domů",
       "move_up": "Přesunout nahoru",
       "move_down": "Přesunout dolů",
       "add_server": "Přidat server",

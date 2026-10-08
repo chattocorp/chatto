@@ -29,6 +29,16 @@
         "activity": "{actor} sendte deg et varsel."
       }
     },
+    "home": {
+      "title": "Hjem",
+      "subtitle": "Det som venter på deg på alle serverne dine",
+      "direct_messages_empty": "Ingen direktemeldinger ennå",
+      "live_calls_title": "Pågående samtaler",
+      "call_participants_count": {
+        "one": "{count} deltaker",
+        "other": "{count} deltakere"
+      }
+    },
     "sign_out": {
       "title": "Logg av",
       "current_server": "Nåværende server",
@@ -53,6 +63,7 @@
       "copy_user_id": "Kopier bruker-ID"
     },
     "server_gutter": {
+      "home": "Hjem",
       "move_up": "Flytt opp",
       "move_down": "Flytt ned",
       "add_server": "Legg til server",

@@ -29,6 +29,17 @@
         "activity": "{actor} nosūtīja jums paziņojumu."
       }
     },
+    "home": {
+      "title": "Sākums",
+      "subtitle": "Kas jūs gaida visos jūsu serveros",
+      "direct_messages_empty": "Vēl nav tiešo ziņojumu",
+      "live_calls_title": "Notiekošie zvani",
+      "call_participants_count": {
+        "zero": "{count} dalībnieku",
+        "one": "{count} dalībnieks",
+        "other": "{count} dalībnieki"
+      }
+    },
     "sign_out": {
       "title": "Izrakstīties",
       "current_server": "Pašreizējais serveris",
@@ -53,6 +64,7 @@
       "copy_user_id": "Kopēt lietotāja ID"
     },
     "server_gutter": {
+      "home": "Sākums",
       "move_up": "Pārvietot uz augšu",
       "move_down": "Pārvietot uz leju",
       "add_server": "Pievienot serveri",

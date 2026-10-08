@@ -29,6 +29,18 @@
         "activity": "Від користувача {actor} надійшло сповіщення."
       }
     },
+    "home": {
+      "title": "Головна",
+      "subtitle": "Що чекає на вас на всіх ваших серверах",
+      "direct_messages_empty": "Ще немає особистих повідомлень",
+      "live_calls_title": "Поточні дзвінки",
+      "call_participants_count": {
+        "one": "{count} учасник",
+        "few": "{count} учасники",
+        "many": "{count} учасників",
+        "other": "{count} учасника"
+      }
+    },
     "sign_out": {
       "title": "Вийти",
       "current_server": "Поточний сервер",
@@ -53,6 +65,7 @@
       "copy_user_id": "Копіювати ID користувача"
     },
     "server_gutter": {
+      "home": "Головна",
       "move_up": "Перемістити вгору",
       "move_down": "Перемістити вниз",
       "add_server": "Додати сервер",

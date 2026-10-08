@@ -429,6 +429,17 @@ export class QuickSwitcherModel {
 
     items.push({
       kind: 'destination',
+      id: 'home',
+      label: m('chat.home.title'),
+      detail: '',
+      serverId: '',
+      serverName: '',
+      href: resolve('/chat/home'),
+      icon: 'icon-[uil--estate]',
+      score: 0
+    });
+    items.push({
+      kind: 'destination',
       id: 'notifications',
       label: m('ui.notifications'),
       detail: '',

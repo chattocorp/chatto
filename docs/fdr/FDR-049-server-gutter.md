@@ -10,6 +10,8 @@ frontend. The order belongs to this browser or app installation.
 
 ## Behavior
 
+- The Home button stays at the top and opens Home. See
+  [FDR-050](FDR-050-home.md).
 - All servers share one list and can be moved, including the server that
   hosts the frontend. There is no home badge.
 - Users can drag server icons with a mouse. The server menu also has
@@ -61,5 +63,6 @@ choose their own layout.
   [ADR-112](../adr/ADR-112-keep-the-server-catalogue-in-the-frontend.md)
 - **FDRs:** [FDR-023](FDR-023-authentication-and-sessions.md),
   [FDR-031](FDR-031-client-server-compatibility-discovery.md),
-  [FDR-042](FDR-042-chatto-neighbors.md)
+  [FDR-042](FDR-042-chatto-neighbors.md),
+  [FDR-050](FDR-050-home.md)
 - **Issue:** [#2856](https://github.com/chattocorp/chatto/issues/2856)

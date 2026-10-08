@@ -29,6 +29,17 @@
         "activity": "קיבלת התראה מאת {actor}."
       }
     },
+    "home": {
+      "title": "בית",
+      "subtitle": "מה מחכה לך בכל השרתים שלך",
+      "direct_messages_empty": "אין עדיין הודעות ישירות",
+      "live_calls_title": "שיחות פעילות",
+      "call_participants_count": {
+        "one": "{count} משתתף",
+        "two": "{count} משתתפים",
+        "other": "{count} משתתפים"
+      }
+    },
     "sign_out": {
       "title": "צא",
       "current_server": "שרת נוכחי",
@@ -53,6 +64,7 @@
       "copy_user_id": "העתקת מזהה המשתמש"
     },
     "server_gutter": {
+      "home": "בית",
       "move_up": "העבר למעלה",
       "move_down": "העבר למטה",
       "add_server": "הוסף שרת",

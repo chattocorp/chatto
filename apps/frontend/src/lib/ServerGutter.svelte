@@ -1,8 +1,9 @@
 <!--
 @component
 
-The **Server Gutter** — narrow inline-start column listing every server the user
-is connected to, plus the add-server button pinned to the bottom. See the
+The **Server Gutter** — narrow inline-start column with the Home button pinned
+to the top, every server the user is connected to, and the add-server button
+pinned to the bottom. See the
 "UI" section of `docs/GLOSSARY.md`.
 -->
 <script lang="ts">
@@ -68,6 +69,8 @@ is connected to, plus the add-server button pinned to the bottom. See the
     };
   };
 
+  const homeHref = resolve('/chat/home');
+  const homeActive = $derived(page.route.id === '/chat/home');
   const directoryHref = resolve('/chat/servers');
   const directoryActive = $derived(
     page.route.id === '/chat/servers' || page.state.modal?.type === 'addServer'
@@ -96,6 +99,20 @@ is connected to, plus the add-server button pinned to the bottom. See the
 </script>
 
 <div class="server-gutter flex min-h-0 flex-1 flex-col border-e border-border" {@attach syncOrder}>
+  <!-- Home - pinned to the top -->
+  <div class="flex shrink-0 flex-col items-center p-2 pb-0 max-md:ps-3">
+    <a
+      href={homeHref}
+      title={m('chat.server_gutter.home')}
+      aria-label={m('chat.server_gutter.home')}
+      aria-current={homeActive ? 'page' : undefined}
+      class={['server-gutter-item cursor-pointer', homeActive && 'server-gutter-item-active']}
+      data-testid="server-gutter-home"
+    >
+      <span aria-hidden="true" class="iconify icon-[uil--estate]"></span>
+    </a>
+  </div>
+
   <ScrollFader top bottom scrollClass="scrollbar-hide">
     <div class="flex flex-col gap-2 p-2 max-md:ps-3">
       <div

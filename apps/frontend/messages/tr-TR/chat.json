@@ -29,6 +29,16 @@
         "activity": "{actor} sana bir bildirim gönderdi."
       }
     },
+    "home": {
+      "title": "Ana sayfa",
+      "subtitle": "Tüm sunucularınızda sizi bekleyenler",
+      "direct_messages_empty": "Henüz doğrudan mesaj yok",
+      "live_calls_title": "Devam eden aramalar",
+      "call_participants_count": {
+        "one": "{count} katılımcı",
+        "other": "{count} katılımcı"
+      }
+    },
     "sign_out": {
       "title": "Oturumu Kapat",
       "current_server": "Mevcut Sunucu",
@@ -53,6 +63,7 @@
       "copy_user_id": "Kullanıcı kimliğini kopyala"
     },
     "server_gutter": {
+      "home": "Ana sayfa",
       "move_up": "Yukarı taşıyın",
       "move_down": "Aşağı taşıyın",
       "add_server": "Sunucu Ekle",

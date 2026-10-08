@@ -29,6 +29,16 @@
         "activity": "{actor} sendis al vi sciigon."
       }
     },
+    "home": {
+      "title": "Hejmo",
+      "subtitle": "Kio atendas vin en ĉiuj viaj serviloj",
+      "direct_messages_empty": "Ankoraŭ neniuj rektaj mesaĝoj",
+      "live_calls_title": "Daŭrantaj vokoj",
+      "call_participants_count": {
+        "one": "{count} partoprenanto",
+        "other": "{count} partoprenantoj"
+      }
+    },
     "sign_out": {
       "title": "Eliru",
       "current_server": "Nuna Servilo",
@@ -53,6 +63,7 @@
       "copy_user_id": "Kopii identigilon de uzanto"
     },
     "server_gutter": {
+      "home": "Hejmo",
       "move_up": "Movi supren",
       "move_down": "Movi malsupren",
       "add_server": "Aldonu Servilon",

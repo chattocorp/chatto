@@ -29,6 +29,16 @@
         "activity": "{actor} heeft je een melding gestuurd."
       }
     },
+    "home": {
+      "title": "Start",
+      "subtitle": "Wat op je servers op je wacht",
+      "direct_messages_empty": "Nog geen privéberichten",
+      "live_calls_title": "Lopende gesprekken",
+      "call_participants_count": {
+        "one": "{count} deelnemer",
+        "other": "{count} deelnemers"
+      }
+    },
     "sign_out": {
       "title": "Uitloggen",
       "current_server": "Huidige server",
@@ -53,6 +63,7 @@
       "copy_user_id": "Gebruikers-ID kopiëren"
     },
     "server_gutter": {
+      "home": "Start",
       "move_up": "Omhoog verplaatsen",
       "move_down": "Omlaag verplaatsen",
       "add_server": "Server toevoegen",
