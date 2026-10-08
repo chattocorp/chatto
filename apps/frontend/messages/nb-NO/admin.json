@@ -443,6 +443,7 @@
         "overall_warning": "Trenger oppmerksomhet",
         "overall_critical": "Problemer funnet",
         "overall_ok_summary": "Alle kontroller var vellykkede da dette øyeblikksbildet ble tatt.",
+        "overall_partial_summary": "Fant ingen problemer. Noen kontroller har ingen data.",
         "overall_problem_summary": "Se gjennom kontrollene nedenfor. Delene lenger ned viser detaljene.",
         "broker": "Megler-tilkobling",
         "projections": "Anslag",
@@ -477,8 +478,8 @@
           "other": "Alle {count} arbeidere kjører"
         },
         "backlog_waiting_count": {
-          "one": "{count} melding pågår",
-          "other": "{count} meldinger pågår"
+          "one": "{count} melding venter eller pågår",
+          "other": "{count} meldinger venter eller pågår"
         },
         "backlog_clear": "Ingen meldinger venter",
         "storage_used": "{percent} % av nærmeste grense er brukt",

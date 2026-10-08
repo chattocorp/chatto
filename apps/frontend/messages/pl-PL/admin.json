@@ -443,6 +443,7 @@
         "overall_warning": "Wymaga uwagi",
         "overall_critical": "Znaleziono problemy",
         "overall_ok_summary": "Wszystkie kontrole zakończyły się powodzeniem w chwili wykonania tej migawki.",
+        "overall_partial_summary": "Nie znaleziono problemów. Część kontroli nie ma danych.",
         "overall_problem_summary": "Sprawdź poniższe kontrole. Szczegóły znajdziesz w kolejnych sekcjach.",
         "broker": "Połączenie z brokerem",
         "projections": "Projekcje",
@@ -489,10 +490,10 @@
           "other": "Działa wszystkich {count} pracowników"
         },
         "backlog_waiting_count": {
-          "one": "{count} wiadomość w toku",
-          "few": "{count} wiadomości w toku",
-          "many": "{count} wiadomości w toku",
-          "other": "{count} wiadomości w toku"
+          "one": "{count} wiadomość oczekuje lub jest w toku",
+          "few": "{count} wiadomości oczekują lub są w toku",
+          "many": "{count} wiadomości oczekuje lub jest w toku",
+          "other": "{count} wiadomości oczekuje lub jest w toku"
         },
         "backlog_clear": "Brak oczekujących wiadomości",
         "storage_used": "Wykorzystano {percent}% najbliższego limitu",

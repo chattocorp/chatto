@@ -443,6 +443,7 @@
         "overall_warning": "Requer atenção",
         "overall_critical": "Problemas encontrados",
         "overall_ok_summary": "Todas as verificações passaram quando este instantâneo foi criado.",
+        "overall_partial_summary": "Nenhum problema encontrado. Algumas verificações não têm dados.",
         "overall_problem_summary": "Revise as verificações abaixo. As seções seguintes mostram os detalhes.",
         "broker": "Conexão com o corretor",
         "projections": "Projeções",
@@ -477,8 +478,8 @@
           "other": "Todos os {count} trabalhadores em execução"
         },
         "backlog_waiting_count": {
-          "one": "{count} mensagem em andamento",
-          "other": "{count} mensagens em andamento"
+          "one": "{count} mensagem aguardando ou em andamento",
+          "other": "{count} mensagens aguardando ou em andamento"
         },
         "backlog_clear": "Nenhuma mensagem aguardando",
         "storage_used": "{percent}% do limite mais próximo utilizado",

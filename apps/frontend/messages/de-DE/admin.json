@@ -443,6 +443,7 @@
         "overall_warning": "Benötigt Aufmerksamkeit",
         "overall_critical": "Probleme gefunden",
         "overall_ok_summary": "Alle Prüfungen waren beim Erstellen dieser Momentaufnahme erfolgreich.",
+        "overall_partial_summary": "Keine Probleme gefunden. Für einige Prüfungen liegen keine Daten vor.",
         "overall_problem_summary": "Sieh dir die Prüfungen unten an. Die Abschnitte weiter unten zeigen die Details.",
         "broker": "Broker-Verbindung",
         "projections": "Projektionen",
@@ -477,8 +478,8 @@
           "other": "Alle {count} Worker laufen"
         },
         "backlog_waiting_count": {
-          "one": "{count} Nachricht in Bearbeitung",
-          "other": "{count} Nachrichten in Bearbeitung"
+          "one": "{count} Nachricht wartet oder ist in Bearbeitung",
+          "other": "{count} Nachrichten warten oder sind in Bearbeitung"
         },
         "backlog_clear": "Keine wartenden Nachrichten",
         "storage_used": "{percent} % des nächsten Limits genutzt",

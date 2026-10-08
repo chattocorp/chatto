@@ -443,6 +443,7 @@
         "overall_warning": "Richiede attenzione",
         "overall_critical": "Sono stati rilevati problemi",
         "overall_ok_summary": "Tutti i controlli sono stati superati al momento di questo snapshot.",
+        "overall_partial_summary": "Nessun problema trovato. Alcuni controlli non hanno dati.",
         "overall_problem_summary": "Controlla le verifiche qui sotto. Le sezioni successive mostrano i dettagli.",
         "broker": "Connessione al broker",
         "projections": "Proiezioni",
@@ -477,8 +478,8 @@
           "other": "Tutti i {count} processi sono in esecuzione"
         },
         "backlog_waiting_count": {
-          "one": "{count} messaggio in corso",
-          "other": "{count} messaggi in corso"
+          "one": "{count} messaggio in attesa o in corso",
+          "other": "{count} messaggi in attesa o in corso"
         },
         "backlog_clear": "Nessun messaggio in attesa",
         "storage_used": "{percent}% del limite più vicino utilizzato",

@@ -443,6 +443,7 @@
         "overall_warning": "Needs attention",
         "overall_critical": "Problems found",
         "overall_ok_summary": "All checks passed when this snapshot was taken.",
+        "overall_partial_summary": "No problems found. Some checks have no data.",
         "overall_problem_summary": "Review the checks below. The sections further down show the details.",
         "broker": "Broker connection",
         "projections": "Projections",
@@ -477,8 +478,8 @@
           "other": "All {count} workers running"
         },
         "backlog_waiting_count": {
-          "one": "{count} message in progress",
-          "other": "{count} messages in progress"
+          "one": "{count} message waiting or in progress",
+          "other": "{count} messages waiting or in progress"
         },
         "backlog_clear": "No messages waiting",
         "storage_used": "{percent}% of the nearest limit used",

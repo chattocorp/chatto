@@ -443,6 +443,7 @@
         "overall_warning": "需要关注",
         "overall_critical": "发现问题",
         "overall_ok_summary": "生成此快照时，所有检查均已通过。",
+        "overall_partial_summary": "未发现问题。部分检查没有数据。",
         "overall_problem_summary": "请查看下方的检查项。更下方的部分显示详细信息。",
         "broker": "Broker 连接",
         "projections": "Projection",
@@ -471,7 +472,7 @@
           "other": "全部 {count} 个 worker 正在运行"
         },
         "backlog_waiting_count": {
-          "other": "{count} 条消息处理中"
+          "other": "{count} 条消息等待或处理中"
         },
         "backlog_clear": "没有等待中的消息",
         "storage_used": "已使用最近限制的 {percent}%",

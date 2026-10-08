@@ -443,6 +443,7 @@
         "overall_warning": "Vyžaduje pozornost",
         "overall_critical": "Nalezeny problémy",
         "overall_ok_summary": "Všechny kontroly při pořízení tohoto snímku prošly.",
+        "overall_partial_summary": "Nebyly nalezeny žádné problémy. Některé kontroly nemají data.",
         "overall_problem_summary": "Zkontrolujte kontroly níže. Podrobnosti najdete v následujících sekcích.",
         "broker": "Připojení k brokeru",
         "projections": "Projekce",
@@ -489,10 +490,10 @@
           "other": "Běží všech {count} pracovníků"
         },
         "backlog_waiting_count": {
-          "one": "{count} zpráva se zpracovává",
-          "few": "{count} zprávy se zpracovávají",
-          "many": "{count} zprávy se zpracovává",
-          "other": "{count} zpráv se zpracovává"
+          "one": "{count} zpráva čeká nebo se zpracovává",
+          "few": "{count} zprávy čekají nebo se zpracovávají",
+          "many": "{count} zprávy čeká nebo se zpracovává",
+          "other": "{count} zpráv čeká nebo se zpracovává"
         },
         "backlog_clear": "Žádné zprávy nečekají",
         "storage_used": "Využito {percent} % nejbližšího limitu",

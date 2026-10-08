@@ -443,6 +443,7 @@
         "overall_warning": "Behöver uppmärksamhet",
         "overall_critical": "Problem hittades",
         "overall_ok_summary": "Alla kontroller godkändes när den här ögonblicksbilden togs.",
+        "overall_partial_summary": "Inga problem hittades. Vissa kontroller saknar data.",
         "overall_problem_summary": "Granska kontrollerna nedan. Avsnitten längre ned visar detaljerna.",
         "broker": "Mäklaranslutning",
         "projections": "Projektioner",
@@ -477,8 +478,8 @@
           "other": "Alla {count} arbetare körs"
         },
         "backlog_waiting_count": {
-          "one": "{count} meddelande pågår",
-          "other": "{count} meddelanden pågår"
+          "one": "{count} meddelande väntar eller pågår",
+          "other": "{count} meddelanden väntar eller pågår"
         },
         "backlog_clear": "Inga meddelanden väntar",
         "storage_used": "{percent} % av närmaste gräns används",

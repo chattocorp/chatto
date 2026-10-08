@@ -443,6 +443,7 @@
         "overall_warning": "Bezonas atenton",
         "overall_critical": "Problemoj troviĝis",
         "overall_ok_summary": "Ĉiuj kontroloj sukcesis kiam ĉi tiu momentfoto estis farita.",
+        "overall_partial_summary": "Neniuj problemoj troviĝis. Kelkaj kontroloj ne havas datumojn.",
         "overall_problem_summary": "Revizu la kontrolojn sube. La sekcioj pli sube montras la detalojn.",
         "broker": "Konekto al makleristo",
         "projections": "Projekcioj",
@@ -477,8 +478,8 @@
           "other": "Ĉiuj {count} laboristoj funkcias"
         },
         "backlog_waiting_count": {
-          "one": "{count} mesaĝo estas prilaborata",
-          "other": "{count} mesaĝoj estas prilaborataj"
+          "one": "{count} mesaĝo atendas aŭ estas prilaborata",
+          "other": "{count} mesaĝoj atendas aŭ estas prilaborataj"
         },
         "backlog_clear": "Neniuj mesaĝoj atendas",
         "storage_used": "{percent}% de la plej proksima limo uzita",

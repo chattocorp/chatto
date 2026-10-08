@@ -443,6 +443,7 @@
         "overall_warning": "Vajab tähelepanu",
         "overall_critical": "Leiti probleeme",
         "overall_ok_summary": "Kõik kontrollid läbiti selle hetktõmmise tegemise ajal.",
+        "overall_partial_summary": "Probleeme ei leitud. Mõne kontrolli kohta puuduvad andmed.",
         "overall_problem_summary": "Vaadake allolevad kontrollid üle. Üksikasjad on allpool olevates jaotistes.",
         "broker": "Ühendus maakleriga",
         "projections": "Projektsioonid",
@@ -477,8 +478,8 @@
           "other": "Kõik {count} töötajat töötavad"
         },
         "backlog_waiting_count": {
-          "one": "{count} sõnum on töös",
-          "other": "{count} sõnumit on töös"
+          "one": "{count} sõnum ootab või on töös",
+          "other": "{count} sõnumit ootab või on töös"
         },
         "backlog_clear": "Ühtegi sõnumit ei oota",
         "storage_used": "{percent}% lähimast piirangust on kasutatud",

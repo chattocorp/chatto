@@ -443,6 +443,7 @@
         "overall_warning": "Dikkat gerekiyor",
         "overall_critical": "Sorunlar bulundu",
         "overall_ok_summary": "Bu anlık görüntü alındığında tüm kontroller başarılı oldu.",
+        "overall_partial_summary": "Sorun bulunamadı. Bazı kontrollerin verisi yok.",
         "overall_problem_summary": "Aşağıdaki kontrolleri inceleyin. Ayrıntılar alttaki bölümlerde gösterilir.",
         "broker": "Broker bağlantısı",
         "projections": "Projeksiyonlar",
@@ -477,8 +478,8 @@
           "other": "Tüm {count} çalışan çalışıyor"
         },
         "backlog_waiting_count": {
-          "one": "{count} mesaj işleniyor",
-          "other": "{count} mesaj işleniyor"
+          "one": "{count} mesaj bekliyor veya işleniyor",
+          "other": "{count} mesaj bekliyor veya işleniyor"
         },
         "backlog_clear": "Bekleyen mesaj yok",
         "storage_used": "En yakın sınırın %{percent} kadarı kullanıldı",

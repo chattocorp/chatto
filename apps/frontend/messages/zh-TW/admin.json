@@ -443,6 +443,7 @@
         "overall_warning": "需要留意",
         "overall_critical": "發現問題",
         "overall_ok_summary": "產生此快照時，所有檢查皆已通過。",
+        "overall_partial_summary": "未發現問題。部分檢查沒有資料。",
         "overall_problem_summary": "請查看下方的檢查項目。更下方的區段會顯示詳細資料。",
         "broker": "Broker 連線",
         "projections": "Projection",
@@ -471,7 +472,7 @@
           "other": "全部 {count} 個 worker 正在運作"
         },
         "backlog_waiting_count": {
-          "other": "{count} 則訊息處理中"
+          "other": "{count} 則訊息等待中或處理中"
         },
         "backlog_clear": "沒有等待中的訊息",
         "storage_used": "已使用最近限制的 {percent}%",

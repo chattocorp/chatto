@@ -51,9 +51,11 @@ health checks. See `systemHealth.ts` for the rules behind each status.
   );
 
   const overallSummary = $derived(
-    overall === 'ok'
-      ? m('admin.system.health.overall_ok_summary')
-      : m('admin.system.health.overall_problem_summary')
+    overall !== 'ok'
+      ? m('admin.system.health.overall_problem_summary')
+      : checks.some((check) => check.status === 'unknown')
+        ? m('admin.system.health.overall_partial_summary')
+        : m('admin.system.health.overall_ok_summary')
   );
 
   const checkLabel = $derived<Record<HealthCheckId, string>>({

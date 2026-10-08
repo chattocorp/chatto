@@ -443,6 +443,7 @@
         "overall_warning": "Nepieciešama uzmanība",
         "overall_critical": "Konstatētas problēmas",
         "overall_ok_summary": "Visas pārbaudes bija sekmīgas, kad tika izveidots šis momentuzņēmums.",
+        "overall_partial_summary": "Problēmas netika atrastas. Dažām pārbaudēm nav datu.",
         "overall_problem_summary": "Pārskatiet tālāk norādītās pārbaudes. Sīkāka informācija ir zemāk esošajās sadaļās.",
         "broker": "Brokera savienojums",
         "projections": "Projekcijas",
@@ -483,9 +484,9 @@
           "other": "Visi {count} darbinieki darbojas"
         },
         "backlog_waiting_count": {
-          "zero": "{count} ziņojumu tiek apstrādāti",
-          "one": "{count} ziņojums tiek apstrādāts",
-          "other": "{count} ziņojumi tiek apstrādāti"
+          "zero": "{count} ziņojumu gaida vai tiek apstrādāti",
+          "one": "{count} ziņojums gaida vai tiek apstrādāts",
+          "other": "{count} ziņojumi gaida vai tiek apstrādāti"
         },
         "backlog_clear": "Nav gaidošu ziņojumu",
         "storage_used": "Izmantoti {percent}% no tuvākā ierobežojuma",

@@ -443,6 +443,7 @@
         "overall_warning": "Heeft aandacht nodig",
         "overall_critical": "Problemen gevonden",
         "overall_ok_summary": "Alle controles waren geslaagd toen deze momentopname werd gemaakt.",
+        "overall_partial_summary": "Geen problemen gevonden. Voor sommige controles zijn geen gegevens beschikbaar.",
         "overall_problem_summary": "Bekijk de controles hieronder. De secties verderop tonen de details.",
         "broker": "Makelaarverbinding",
         "projections": "Projecties",
@@ -477,8 +478,8 @@
           "other": "Alle {count} werkers actief"
         },
         "backlog_waiting_count": {
-          "one": "{count} bericht in behandeling",
-          "other": "{count} berichten in behandeling"
+          "one": "{count} bericht wacht of is in behandeling",
+          "other": "{count} berichten wachten of zijn in behandeling"
         },
         "backlog_clear": "Geen wachtende berichten",
         "storage_used": "{percent}% van de dichtstbijzijnde limiet gebruikt",

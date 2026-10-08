@@ -443,6 +443,7 @@
         "overall_warning": "確認が必要です",
         "overall_critical": "問題が見つかりました",
         "overall_ok_summary": "このスナップショットの取得時点で、すべてのチェックに合格しました。",
+        "overall_partial_summary": "問題は見つかりませんでした。一部のチェックにはデータがありません。",
         "overall_problem_summary": "以下のチェックを確認してください。詳細は下のセクションに表示されます。",
         "broker": "ブローカー接続",
         "projections": "プロジェクション",
@@ -471,7 +472,7 @@
           "other": "すべての {count} 件のワーカーが実行中です"
         },
         "backlog_waiting_count": {
-          "other": "{count} 件のメッセージを処理中"
+          "other": "{count} 件のメッセージが待機中または処理中"
         },
         "backlog_clear": "待機中のメッセージはありません",
         "storage_used": "最も近い上限の {percent}% を使用中",

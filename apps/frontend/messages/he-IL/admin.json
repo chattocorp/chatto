@@ -443,6 +443,7 @@
         "overall_warning": "דורש תשומת לב",
         "overall_critical": "נמצאו בעיות",
         "overall_ok_summary": "כל הבדיקות עברו בעת יצירת תמונת מצב זו.",
+        "overall_partial_summary": "לא נמצאו בעיות. לחלק מהבדיקות אין נתונים.",
         "overall_problem_summary": "עיין בבדיקות שלמטה. הקטעים הבאים מציגים את הפרטים.",
         "broker": "חיבור לברוקר",
         "projections": "הטלות",
@@ -483,9 +484,9 @@
           "other": "כל {count} העובדים פועלים"
         },
         "backlog_waiting_count": {
-          "one": "{count} הודעה בעיבוד",
-          "two": "{count} הודעות בעיבוד",
-          "other": "{count} הודעות בעיבוד"
+          "one": "{count} הודעה ממתינה או בעיבוד",
+          "two": "{count} הודעות ממתינות או בעיבוד",
+          "other": "{count} הודעות ממתינות או בעיבוד"
         },
         "backlog_clear": "אין הודעות ממתינות",
         "storage_used": "נעשה שימוש ב-{percent}% מהמגבלה הקרובה ביותר",

@@ -443,6 +443,7 @@
         "overall_warning": "Nécessite votre attention",
         "overall_critical": "Des problèmes ont été détectés",
         "overall_ok_summary": "Toutes les vérifications ont réussi au moment de cet instantané.",
+        "overall_partial_summary": "Aucun problème détecté. Certaines vérifications n'ont pas de données.",
         "overall_problem_summary": "Examinez les vérifications ci-dessous. Les sections suivantes présentent les détails.",
         "broker": "Connexion au courtier",
         "projections": "Projections",
@@ -477,8 +478,8 @@
           "other": "Les {count} tâches sont en cours d'exécution"
         },
         "backlog_waiting_count": {
-          "one": "{count} message en cours de traitement",
-          "other": "{count} messages en cours de traitement"
+          "one": "{count} message en attente ou en cours de traitement",
+          "other": "{count} messages en attente ou en cours de traitement"
         },
         "backlog_clear": "Aucun message en attente",
         "storage_used": "{percent} % de la limite la plus proche utilisé",
