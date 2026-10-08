@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -20,13 +19,16 @@ type counterRecord struct {
 // window. It returns limited without a write when the counter has already
 // reached limit. OCC keeps the count correct across replicas: a conflict reads
 // the counter again. Any other storage error stops the operation and is
-// returned. key must be a product-owned constant or an opaque keyed digest,
-// never PII.
-func IncrementCounter(ctx context.Context, kv KeyValue, key string, limit int, window time.Duration) (limited bool, err error) {
+// returned, because the outcome of a failed write is unknown. key must be a
+// product-owned constant or an opaque keyed digest, never PII.
+func IncrementCounter(ctx context.Context, kv KeyValue, key string, limit int, window time.Duration) (bool, error) {
+	if limit < 1 || window <= 0 {
+		return false, fmt.Errorf("invalid counter policy")
+	}
 	for range maxCounterAttempts {
 		entry, err := kv.Get(ctx, key)
 		switch {
-		case errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted):
+		case IsKeyAbsent(err):
 			_, err = kv.Create(ctx, key, []byte(`{"count":1}`), jetstream.KeyTTL(window))
 		case err != nil:
 			return false, fmt.Errorf("read counter: %w", err)

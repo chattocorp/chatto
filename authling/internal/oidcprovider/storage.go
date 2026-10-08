@@ -210,7 +210,7 @@ func (s *Storage) DeleteAuthRequest(ctx context.Context, id string) error {
 	if request.CodeKey != "" {
 		_ = s.kv.Delete(ctx, request.CodeKey)
 	}
-	if err := s.kv.Delete(ctx, s.requestKey(id), jetstream.LastRevision(entry.Revision())); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+	if err := s.kv.Delete(ctx, s.requestKey(id), jetstream.LastRevision(entry.Revision())); err != nil && !storage.IsKeyAbsent(err) {
 		return err
 	}
 	return nil

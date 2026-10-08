@@ -185,7 +185,7 @@ func (s *Service) acquirePasswordSlot(ctx context.Context) (func(), error) {
 
 func (s *Service) readLimit(ctx context.Context, key string) (limitState, error) {
 	entry, err := s.kv.Get(ctx, key)
-	if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+	if storage.IsKeyAbsent(err) {
 		return limitState{key: key}, nil
 	}
 	if err != nil {
@@ -199,12 +199,10 @@ func (s *Service) readLimit(ctx context.Context, key string) (limitState, error)
 }
 
 // recordFailure counts one failed attempt. A counter at the limit stays
-// unchanged.
+// unchanged. A storage failure is returned without a retry.
 func (s *Service) recordFailure(ctx context.Context, key string) error {
-	if _, err := storage.IncrementCounter(ctx, s.kv, key, maxFailedAttempts, attemptWindow); err != nil {
-		return fmt.Errorf("record failed login attempt: %w", err)
-	}
-	return nil
+	_, err := storage.IncrementCounter(ctx, s.kv, key, maxFailedAttempts, attemptWindow)
+	return err
 }
 
 func (s *Service) attemptKey(namespace, identifier string) string {

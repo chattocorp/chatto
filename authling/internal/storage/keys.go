@@ -4,7 +4,17 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
+
+	"github.com/nats-io/nats.go/jetstream"
 )
+
+// IsKeyAbsent reports that a key-value operation found no live entry. Reads
+// report a removal marker as jetstream.ErrKeyNotFound. The
+// jetstream.ErrKeyDeleted check is defensive.
+func IsKeyAbsent(err error) bool {
+	return errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted)
+}
 
 // KeyedDigest returns the HMAC-SHA256 of value under key.
 func KeyedDigest(key []byte, value string) []byte {
