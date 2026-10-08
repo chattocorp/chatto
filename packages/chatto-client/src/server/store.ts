@@ -1218,8 +1218,7 @@ export class ServerStateStore {
         this.refreshRealtimeUsers([payload.value.userId]);
         if (payload.value.userId === this.accountId) {
           // The viewer's highest role can change.
-          this.roleCatalog.invalidate();
-          void this.roleCatalog.load();
+          void this.roleCatalog.reload();
         }
         return;
       }
@@ -1230,14 +1229,12 @@ export class ServerStateStore {
             this.setProjectedUserRole(userId, payload.value.roleName, false);
           }
         }
-        this.roleCatalog.invalidate();
-        void this.roleCatalog.load();
+        void this.roleCatalog.reload();
         return;
       case 'roleCreated':
       case 'roleUpdated':
       case 'rolesReordered':
-        this.roleCatalog.invalidate();
-        void this.roleCatalog.load();
+        void this.roleCatalog.reload();
         return;
       case 'rolePermissionsChanged':
         this.invalidateUniversalMembership();

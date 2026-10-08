@@ -1,5 +1,5 @@
 import type { RoleAPI } from '../api/roles.js';
-import { computed, signal } from '../reactivity/index.js';
+import { batch, computed, signal } from '../reactivity/index.js';
 import type { MentionRole } from '../room/mentionRoles.js';
 
 type RoleCatalogAPI = Pick<RoleAPI, 'listRoles'>;
@@ -51,7 +51,8 @@ export function outranksAccount(
  * Shared public role catalogue: the roles in role order, highest first, and
  * the role at which the viewer ranks. Message rendering and composers use its
  * roles as mention targets. Management screens use it to show which roles
- * and accounts the role hierarchy lets the viewer manage. The server still
+ * and accounts the role hierarchy lets the viewer manage. While the viewer's
+ * rank is unknown, the hierarchy checks allow everything: the server still
  * checks the hierarchy and the permission for every action.
  */
 export class RoleCatalogStore {
@@ -63,15 +64,16 @@ export class RoleCatalogStore {
   set roles(value: MentionRole[]) {
     this.#rolesSignal.set(value);
   }
-  readonly #viewerHighestRoleSignal = signal(EVERYONE);
+  readonly #viewerHighestRoleSignal = signal<string | null>(null);
   /**
    * The role at which the viewer ranks: `owner` for owners of the server,
-   * otherwise the viewer's highest role, or `everyone` without roles.
+   * otherwise the viewer's highest role, or `everyone` without roles. `null`
+   * until the catalogue loads, and after a reset or a failed read.
    */
-  get viewerHighestRole(): string {
+  get viewerHighestRole(): string | null {
     return this.#viewerHighestRoleSignal.get();
   }
-  set viewerHighestRole(value: string) {
+  set viewerHighestRole(value: string | null) {
     this.#viewerHighestRoleSignal.set(value);
   }
   readonly #statusSignal = signal<RoleCatalogStatus>('idle');
@@ -92,25 +94,45 @@ export class RoleCatalogStore {
     this.#canLoad = canLoad;
   }
 
-  /** Whether the role hierarchy lets the viewer manage `roleName`. */
+  /**
+   * Whether the role hierarchy lets the viewer manage `roleName`. True while
+   * the viewer's rank is unknown.
+   */
   ranksBelowViewer(roleName: string): boolean {
-    return roleRanksBelow(this.#order.get(), this.viewerHighestRole, roleName);
+    const highestRole = this.viewerHighestRole;
+    return highestRole === null || roleRanksBelow(this.#order.get(), highestRole, roleName);
   }
 
-  /** Whether the role hierarchy lets the viewer act on an account with `accountRoles`. */
+  /**
+   * Whether the role hierarchy lets the viewer act on an account with
+   * `accountRoles`. True while the viewer's rank is unknown.
+   */
   viewerOutranks(accountRoles: readonly string[]): boolean {
-    return outranksAccount(this.#order.get(), this.viewerHighestRole, accountRoles);
+    const highestRole = this.viewerHighestRole;
+    return highestRole === null || outranksAccount(this.#order.get(), highestRole, accountRoles);
   }
 
   readonly #order = computed(() => this.roles.map((role) => role.name));
 
-  /** Discard obsolete reads so an event can request a fresh catalogue. */
+  /** Discard the catalogue and obsolete reads, for example after a reset. */
   invalidate(): void {
     this.#generation++;
     this.#loadPromise = null;
-    this.roles = [];
-    this.viewerHighestRole = EVERYONE;
-    this.status = 'idle';
+    batch(() => {
+      this.roles = [];
+      this.viewerHighestRole = null;
+      this.status = 'idle';
+    });
+  }
+
+  /**
+   * Read the catalogue again after a role change. The current catalogue stays
+   * until the new read arrives, so screens keep their state meanwhile.
+   */
+  reload(): Promise<boolean> {
+    this.#generation++;
+    this.#loadPromise = null;
+    return this.refresh();
   }
 
   /** Ensure the catalogue has loaded, coalescing concurrent consumers. */
@@ -131,18 +153,22 @@ export class RoleCatalogStore {
       .listRoles()
       .then(({ roles, viewerHighestRole }) => {
         if (generation !== this.#generation) return false;
-        this.roles = roles
-          .filter(({ name }) => name !== EVERYONE)
-          .map(({ name, isSystem, pingable }) => ({ name, isSystem, pingable }));
-        this.viewerHighestRole = viewerHighestRole;
-        this.status = 'ready';
+        batch(() => {
+          this.roles = roles
+            .filter(({ name }) => name !== EVERYONE)
+            .map(({ name, isSystem, pingable }) => ({ name, isSystem, pingable }));
+          this.viewerHighestRole = viewerHighestRole;
+          this.status = 'ready';
+        });
         return true;
       })
       .catch(() => {
         if (generation !== this.#generation) return false;
-        this.roles = [];
-        this.viewerHighestRole = EVERYONE;
-        this.status = 'failed';
+        batch(() => {
+          this.roles = [];
+          this.viewerHighestRole = null;
+          this.status = 'failed';
+        });
         return false;
       })
       .finally(() => {

@@ -80,7 +80,7 @@ describe('RoleCatalogStore', () => {
     await expect(store.refresh()).resolves.toBe(false);
     expect(store.status).toBe('failed');
     expect(store.roles).toEqual([]);
-    expect(store.viewerHighestRole).toBe('everyone');
+    expect(store.viewerHighestRole).toBeNull();
 
     await expect(store.load()).resolves.toBe(true);
     expect(store.status).toBe('ready');
@@ -134,11 +134,51 @@ describe('role order helpers', () => {
         viewerHighestRole: 'admin'
       })
     });
-    expect(store.ranksBelowViewer('moderator')).toBe(false);
+    // An unknown rank locks nothing; the server still checks every action.
+    expect(store.ranksBelowViewer('admin')).toBe(true);
+    expect(store.viewerOutranks(['admin'])).toBe(true);
     await store.load();
     expect(store.ranksBelowViewer('moderator')).toBe(true);
     expect(store.ranksBelowViewer('admin')).toBe(false);
     expect(store.viewerOutranks(['moderator'])).toBe(true);
     expect(store.viewerOutranks(['admin'])).toBe(false);
+  });
+
+  it('keeps the catalogue while a reload runs and replaces it afterwards', async () => {
+    let resolveReload: ((value: unknown) => void) | undefined;
+    const listRoles = vi
+      .fn()
+      .mockResolvedValueOnce({ roles: [role('admin'), role('helper')], viewerHighestRole: 'admin' })
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveReload = resolve;
+          })
+      );
+    const store = new RoleCatalogStore({ listRoles });
+    await store.load();
+
+    const reload = store.reload();
+    expect(store.status).toBe('loading');
+    expect(store.viewerHighestRole).toBe('admin');
+    expect(store.ranksBelowViewer('admin')).toBe(false);
+
+    resolveReload?.({ roles: [role('helper'), role('admin')], viewerHighestRole: 'helper' });
+    await expect(reload).resolves.toBe(true);
+    expect(store.roles.map(({ name }) => name)).toEqual(['helper', 'admin']);
+    expect(store.ranksBelowViewer('admin')).toBe(true);
+  });
+
+  it('forgets the rank after a reset', async () => {
+    const store = new RoleCatalogStore({
+      listRoles: vi.fn().mockResolvedValue({ roles: [role('admin')], viewerHighestRole: 'helper' })
+    });
+    await store.load();
+    expect(store.ranksBelowViewer('admin')).toBe(false);
+
+    store.invalidate();
+
+    expect(store.viewerHighestRole).toBeNull();
+    expect(store.ranksBelowViewer('admin')).toBe(true);
   });
 });
