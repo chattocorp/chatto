@@ -75,14 +75,18 @@ deletion page is outside this route group and has its own frame.
   const member = $derived(details?.member ?? null);
   const isBot = $derived(member?.isBot === true);
   // The role order lets the viewer act on their own account and on accounts
-  // that rank below them.
+  // that rank below them. A bot ranks like its owner, whose roles this read
+  // does not include, so bot accounts are managed on the Bots page instead.
   const viewerOutranks = $derived(
-    isSelf || (!!member && store.roleCatalog.viewerOutranks(member.roles))
+    isSelf || (!!member && !isBot && store.roleCatalog.viewerOutranks(member.roles))
   );
   const canManageAccount = $derived(canAdminManageAccounts && viewerOutranks);
   // Explain why the controls are missing to viewers who could otherwise use them.
   const showOrderLock = $derived(
-    !!member && !viewerOutranks && (canAdminManageAccounts || !!details?.viewerCanAssignRoles)
+    !!member &&
+      !isBot &&
+      !viewerOutranks &&
+      (canAdminManageAccounts || !!details?.viewerCanAssignRoles)
   );
   // Self-deletion stays in the account settings danger zone; bots cascade with
   // their owner and cannot be deleted directly.

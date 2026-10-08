@@ -515,7 +515,10 @@ focusing a cell highlights its permission row and role column.
               effectiveDiffers
                 ? m('rbac.permissions.cell.effective_state', { state: decisionWord(eff) })
                 : null,
-              lockedByOrder ? m('rbac.role_order.role_locked') : null
+              lockedByOrder ? m('rbac.role_order.role_locked') : null,
+              !viewerChangeable.has(permission)
+                ? m('rbac.permissions.cell.beyond_viewer_authority')
+                : null
             ].filter(Boolean)}
         {@const ariaLabel = ariaParts.join(', ')}
         {@const titleParts = virtualOwner

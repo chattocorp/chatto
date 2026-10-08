@@ -505,9 +505,15 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                   (decisionMode === 'binary' ? binaryEnabled : ov === 'allow')}
                 {decisionMode}
                 {canDeny}
-                ariaLabel={privilegedOnly
-                  ? `${ariaLabel} · ${m('rbac.permissions.cell.privileged_only')}`
-                  : ariaLabel}
+                ariaLabel={[
+                  ariaLabel,
+                  privilegedOnly ? m('rbac.permissions.cell.privileged_only') : null,
+                  cell.viewerCanChange === false
+                    ? m('rbac.permissions.cell.beyond_viewer_authority')
+                    : null
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
                 title={titleParts.join(' · ')}
                 onCycle={(next) => cycleCell(scope, permission, cell.override, next)}
               />

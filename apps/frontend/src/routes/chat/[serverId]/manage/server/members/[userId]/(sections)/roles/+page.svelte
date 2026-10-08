@@ -88,19 +88,23 @@ Roles section of a human member: the server role assignments.
   );
 </script>
 
-{#if visibleRoleError}
-  <FormError error={visibleRoleError} />
+{#if detail.isBot}
+  <Hint tone="danger">{m('ui.access_denied.message')}</Hint>
+{:else}
+  {#if visibleRoleError}
+    <FormError error={visibleRoleError} />
+  {/if}
+  <!-- The layout explains the lock for accounts that the viewer does not outrank. -->
+  {#if detail.viewerOutranks && roleOrderLocksRoles(detail.details, detail.isSelf, detail.viewerOutranks)}
+    <Hint>{m('rbac.role_order.roles_locked')}</Hint>
+  {/if}
+  {#key detail.userId}
+    <MemberRoleAssignments
+      details={detail.details}
+      isSelf={detail.isSelf}
+      serverId={serverScope.serverId}
+      {updatingRole}
+      {toggleMemberRole}
+    />
+  {/key}
 {/if}
-<!-- The layout explains the lock for accounts that the viewer does not outrank. -->
-{#if detail.viewerOutranks && roleOrderLocksRoles(detail.details, detail.isSelf, detail.viewerOutranks)}
-  <Hint>{m('rbac.role_order.roles_locked')}</Hint>
-{/if}
-{#key detail.userId}
-  <MemberRoleAssignments
-    details={detail.details}
-    isSelf={detail.isSelf}
-    serverId={serverScope.serverId}
-    {updatingRole}
-    {toggleMemberRole}
-  />
-{/key}

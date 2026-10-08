@@ -248,6 +248,12 @@ rendering to `SubjectPermissionsMatrix`.
 
     if (result.update) {
       const decision = result.update.decision;
+      // Until the refetch, show the new setting as the result, as the role
+      // editor does. Binary cells do not show the result.
+      const optimistic =
+        decisionMode === 'binary'
+          ? { override: decision }
+          : { override: decision, effective: decision };
       queryClient.setQueryData<InfiniteData<Matrix | null, number>>(queryKey, (current) =>
         current
           ? {
@@ -258,7 +264,7 @@ rendering to `SubjectPermissionsMatrix`.
                       ...page,
                       cells: page.cells.map((cell) =>
                         cell.scopeId === scope.id && cell.permission === permission
-                          ? { ...cell, override: decision }
+                          ? { ...cell, ...optimistic }
                           : cell
                       )
                     }
