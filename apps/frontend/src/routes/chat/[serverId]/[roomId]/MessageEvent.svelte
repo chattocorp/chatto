@@ -57,6 +57,7 @@
     actionOverlays,
     onOpenThread,
     onOpenUser,
+    onPlaybackChange,
     threadingMode = RoomThreadingMode.ENABLED
   }: {
     event: TimelineEventView;
@@ -68,6 +69,8 @@
     actionOverlays: MessageActionOverlayState;
     onOpenThread?: OpenThreadHandler;
     onOpenUser?: (user: UserAvatarUserView | RoomMember, anchorRect: DOMRect | null) => void;
+    /** Report whether any message attachment needs playback retention. */
+    onPlaybackChange?: (active: boolean) => void;
     threadingMode?: RoomThreadingMode;
   } = $props();
 
@@ -502,6 +505,7 @@
         eventId={target.isEcho ? msg!.echoOfEventId! : event.id}
         canDeleteAttachment={target.isAuthor}
         canEditAttachmentDescription={target.canEdit}
+        {onPlaybackChange}
       />
 
       {#if msg?.linkPreview}

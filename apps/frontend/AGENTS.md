@@ -387,7 +387,10 @@ Do not generate playground links for code written into this repository.
   root before you finish.
 - Do not run frontend checks, tests, builds, or other commands that invoke
   SvelteKit sync concurrently in the same checkout. They share generated
-  `.svelte-kit` state and can produce transient missing-type failures.
+  `.svelte-kit` state. Concurrent commands can cause missing-type failures or
+  produce a broken SPA whose HTML and JavaScript use different startup
+  identifiers. Run these commands in sequence. The build checks the adapted
+  HTML and client payload identifiers before it can be cached or embedded.
 - `mise test-frontend` runs the frontend suite.
 - The server, browser-component, and Storybook Vitest projects run sequentially
   to bound peak memory while still executing the complete suite.
