@@ -37,7 +37,7 @@
       "ref": "main",
       "sourceType": "github",
       "skillPath": "tools/skills/svelte-core-bestpractices/SKILL.md",
-      "computedHash": "98b4ee346ac45e13740c9f3353b604d5c6e844c96cdc8867052fa961cbdb525d"
+      "computedHash": "3cd6c1f1a92b8bf52af8120e5cb3a93b5512f83b905fd902b895adafb7225456"
     },
     "technical-writing": {
       "source": "hmans/skills",

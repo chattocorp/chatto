@@ -15,6 +15,10 @@ import (
 // component key.
 const SnapshotStatePartKey = "state"
 
+// ErrProjectionSnapshotNotFound means no snapshot is available. Sources return
+// this error for expected absence so cold replay does not produce a warning.
+var ErrProjectionSnapshotNotFound = errors.New("projection snapshot not found")
+
 // SnapshotProjection is a projection whose complete state serializes to one
 // payload. The Projector stores it as a snapshot with one component that has
 // one part.
@@ -118,6 +122,8 @@ type ProjectionSnapshotLoadRequest struct {
 type ProjectionSnapshotSource interface {
 	// LoadProjectionSnapshot returns a snapshot whose contract ID and stream
 	// identity match the request and whose cutoff does not exceed MaxCutoff.
+	// Return ErrProjectionSnapshotNotFound for expected absence. Other errors
+	// produce a warning before the projector falls back to cold replay.
 	LoadProjectionSnapshot(context.Context, ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error)
 }
 
@@ -417,14 +423,14 @@ func (p *Projector) restoreSnapshotForRun(ctx context.Context, targetSeq uint64,
 	info, err := p.freshStreamInfo(loadCtx)
 	if err != nil {
 		p.setRunStreamIdentity(snapshots.configuredIdentity)
-		p.logger.Info("Projection snapshot stream info unavailable; replaying event log",
+		p.logger.Warn("Projection snapshot stream info unavailable; replaying event log",
 			"projection", key, "stage", "restore_stream_info", "error", err)
 		return p.resetForColdReplay()
 	}
 	streamIdentity, err := resolveProjectionStreamIdentity(info, snapshots.resolveIdentity)
 	if err != nil {
 		p.setRunStreamIdentity(snapshots.configuredIdentity)
-		p.logger.Info("Projection snapshot stream identity unavailable; replaying event log",
+		p.logger.Warn("Projection snapshot stream identity unavailable; replaying event log",
 			"projection", key, "stage", "restore_stream_identity", "error", err)
 		return p.resetForColdReplay()
 	}
@@ -439,8 +445,10 @@ func (p *Projector) restoreSnapshotForRun(ctx context.Context, targetSeq uint64,
 		Components:     state.SnapshotComponentContracts(),
 	})
 	if err != nil {
-		p.logger.Info("Projection snapshot unavailable; replaying event log",
-			"projection", key, "stage", "restore", "error", err)
+		if !errors.Is(err, ErrProjectionSnapshotNotFound) {
+			p.logger.Warn("Projection snapshot unavailable; replaying event log",
+				"projection", key, "stage", "restore", "error", err)
+		}
 		return p.resetForColdReplay()
 	}
 	if snapshot.ContractID != snapshots.contractID || snapshot.StreamName != info.Config.Name || snapshot.StreamIdentity != streamIdentity {
@@ -492,19 +500,5 @@ func (p *Projector) restoreSnapshotForRun(ctx context.Context, targetSeq uint64,
 	// may already be waiting for this sequence. Advance through the normal
 	// waiter path instead of assigning lastSeq directly.
 	p.advance(snapshot.CutoffSequence)
-	payloadBytes := 0
-	for _, component := range snapshot.Components {
-		for _, part := range component.Parts {
-			payloadBytes += len(part.Payload)
-		}
-	}
-	p.logger.Info("Projection snapshot restored",
-		"projection", key,
-		"stage", "restore_apply",
-		"generation_id", snapshot.GenerationID,
-		"cutoff_seq", snapshot.CutoffSequence,
-		"target_seq", targetSeq,
-		"components", len(snapshot.Components),
-		"payload_bytes", payloadBytes)
 	return nil
 }

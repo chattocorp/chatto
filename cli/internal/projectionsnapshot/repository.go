@@ -13,6 +13,7 @@ import (
 	"time"
 
 	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
+	"hmans.de/chatto/pkg/events"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -57,7 +58,7 @@ var (
 	ErrBlobNotFound      = errors.New("projection snapshot blob not found")
 	ErrPointerNotFound   = errors.New("projection snapshot pointer not found")
 	ErrPointerConflict   = errors.New("projection snapshot pointer revision conflict")
-	ErrSnapshotNotFound  = errors.New("projection snapshot not found")
+	ErrSnapshotNotFound  = events.ErrProjectionSnapshotNotFound
 	ErrSnapshotRegressed = errors.New("projection snapshot cutoff regresses the current generation")
 	ErrSnapshotFresh     = errors.New("projection snapshot is already fresh")
 	ErrIncompatible      = errors.New("incompatible projection snapshot")
@@ -224,7 +225,6 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 		}
 	}
 
-	started := time.Now()
 	createdAt := r.now().UTC()
 	var generationID [generationIDSize]byte
 	if _, err := io.ReadFull(r.rand, generationID[:]); err != nil {
@@ -288,14 +288,6 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 			r.logWarn("Projection snapshot cleanup failed", input.ProjectionKey, "cleanup", err)
 		}
 	}
-	r.logInfo("Projection snapshot published", input.ProjectionKey,
-		"publish", nil,
-		"generation_id", generationIDText,
-		"cutoff_seq", input.CutoffSequence,
-		"payload_bytes", len(input.Payload),
-		"stored_bytes", len(sealed),
-		"producer_version", r.producerVersion,
-		"duration", time.Since(started))
 	return LoadedSnapshot{GenerationID: generationIDText, CutoffSequence: input.CutoffSequence, StreamIdentity: input.StreamIdentity, Payload: input.Payload, CreatedAt: createdAt, ProducerVersion: r.producerVersion}, nil
 }
 
@@ -303,12 +295,8 @@ func (r *Repository) Load(ctx context.Context, projectionKey, contractID, stream
 	if !validProjectionKey(projectionKey) || !validContractID(contractID) {
 		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key or contract id is invalid")
 	}
-	started := time.Now()
 	pointer, err := r.loadPointer(ctx, projectionKey, contractID)
 	if err != nil {
-		if errors.Is(err, ErrSnapshotNotFound) {
-			r.logDebug("Projection snapshot not found", projectionKey, "pointer_read", nil)
-		}
 		return LoadedSnapshot{}, err
 	}
 	positions := []string{pointer.GetCurrentGenerationId(), pointer.GetPreviousGenerationId()}
@@ -319,14 +307,6 @@ func (r *Repository) Load(ctx context.Context, projectionKey, contractID, stream
 		}
 		loaded, err := r.loadGeneration(ctx, generationID, projectionKey, contractID, streamName, streamIdentity, maxCutoff)
 		if err == nil {
-			r.logInfo("Projection snapshot loaded", projectionKey,
-				"restore", nil,
-				"generation_id", generationID,
-				"cutoff_seq", loaded.CutoffSequence,
-				"pointer_slot", index,
-				"payload_bytes", len(loaded.Payload),
-				"producer_version", loaded.ProducerVersion,
-				"duration", time.Since(started))
 			return loaded, nil
 		}
 		failures = append(failures, fmt.Errorf("generation %s: %w", generationID, err))
@@ -554,23 +534,17 @@ func decompress(compressed []byte) ([]byte, error) {
 	return plain, nil
 }
 
-func (r *Repository) logDebug(message, projection, stage string, err error, extra ...any) {
-	if r.logger == nil {
-		return
+func (r *Repository) logFields(projection, stage string, err error, extra ...any) []any {
+	fields := []any{"projection", projection, "backend", r.Backend(), "stage", stage}
+	if err != nil {
+		fields = append(fields, "error", err)
 	}
-	r.logger.Debug(message, append([]any{"projection", projection, "backend", r.Backend(), "stage", stage, "error", err}, extra...)...)
-}
-
-func (r *Repository) logInfo(message, projection, stage string, err error, extra ...any) {
-	if r.logger == nil {
-		return
-	}
-	r.logger.Info(message, append([]any{"projection", projection, "backend", r.Backend(), "stage", stage, "error", err}, extra...)...)
+	return append(fields, extra...)
 }
 
 func (r *Repository) logWarn(message, projection, stage string, err error, extra ...any) {
 	if r.logger == nil {
 		return
 	}
-	r.logger.Warn(message, append([]any{"projection", projection, "backend", r.Backend(), "stage", stage, "error", err}, extra...)...)
+	r.logger.Warn(message, r.logFields(projection, stage, err, extra...)...)
 }

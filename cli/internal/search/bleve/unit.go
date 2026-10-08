@@ -35,11 +35,6 @@ func (Unit) Name() string { return runtimeUnitName }
 
 func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 	languages := env.Config.SearchProvider.LanguagesOrDefault()
-	env.Logger.Info("Starting bundled search provider",
-		"stage", "startup",
-		"startup_batch_size", startupReplayBatchSize,
-		"language_analyzers", languages,
-		"language_analyzer_count", len(languages))
 	defer env.Logger.Info("Bundled search provider stopped", "stage", "shutdown")
 
 	evt, err := env.JS.Stream(ctx, natsresources.EVT)
@@ -75,9 +70,6 @@ func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 		return err
 	}
 	defer projection.Close()
-	env.Logger.Info("Search index opened",
-		"stage", "index_open",
-		"checkpoint_contract", projection.CheckpointContractID())
 
 	projectionHandle, err := evtstream.NewProjectionHandle(env.JS, evt, projection, events.ProjectorOptions{
 		Logger:              logbridge.Slog(env.Logger),
@@ -95,9 +87,6 @@ func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 		return fmt.Errorf("register search provider status service: %w", err)
 	}
 	defer service.Stop()
-	env.Logger.Info("Search provider status service registered",
-		"stage", "status_ready",
-		"status_subject", search.StartupStatusSubject)
 
 	monitorContext, stopMonitor := context.WithCancel(ctx)
 	defer stopMonitor()
@@ -132,10 +121,7 @@ func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 		<-projectorDone
 		return fmt.Errorf("register search provider ready status endpoint: %w", err)
 	}
-	env.Logger.Info("Search provider service registered",
-		"stage", "service_ready",
-		"query_subject", search.QuerySubject,
-		"status_subject", search.StatusSubject)
+	env.Logger.Info("Search provider ready")
 
 	err = <-projectorDone
 	stopProjector()

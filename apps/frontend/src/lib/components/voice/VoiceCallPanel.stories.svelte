@@ -18,6 +18,7 @@
 </script>
 
 <Story name="Playable media controls" asChild>
+  <p class="mb-2">Right-click a video to open its user menu and picture-in-picture control.</p>
   <div
     class="flex h-[720px] w-[1080px] flex-col overflow-hidden rounded-md border border-border bg-background"
   >
@@ -26,6 +27,7 @@
 </Story>
 
 <Story name="Playable sidebar media controls" asChild>
+  <p class="mb-2">Right-click a camera or screen share to open its user menu.</p>
   <div
     class="flex h-[720px] w-[360px] flex-col overflow-hidden rounded-md border border-border bg-background"
   >

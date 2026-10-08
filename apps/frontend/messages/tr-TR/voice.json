@@ -37,7 +37,6 @@
     "microphone": "Mikrofon",
     "speaker": "Hoparlör",
     "camera": "Kamera",
-    "fullscreen_feed": "Tam ekran feed'i",
     "fullscreen_call": "Tam ekran arama",
     "exit_fullscreen_call": "Tam ekran aramadan çık",
     "pin_to_stage": "{name} öğesini sahneye sabitleyin",

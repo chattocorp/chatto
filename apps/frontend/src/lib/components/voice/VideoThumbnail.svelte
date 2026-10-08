@@ -5,9 +5,9 @@ Renders a LiveKit video track in a thumbnail-sized `<video>` element.
 It can optionally include a small avatar overlay in the top-left corner for
 identification.
 
-Manages the attach/detach lifecycle imperatively — only detaches/reattaches
-when the track reference actually changes, not on every parent re-render.
-This prevents flicker from the 60ms audio level polling in VoiceCallPanel.
+Attaches the track to its `<video>` once. A new track mounts a new `<video>`.
+Other parent updates, such as a participant mute, do not detach the track.
+Detaching clears the video and makes the tile flash.
 
 The explicit width/height attributes tell LiveKit's `adaptiveStream` what
 resolution to request for sidebar-width tiles.
@@ -22,7 +22,6 @@ resolution to request for sidebar-width tiles.
 -->
 <script lang="ts">
   import { formatAccountName } from '@chatto/client/timeline/accountName';
-  import { on } from 'svelte/events';
   import type { Attachment } from 'svelte/attachments';
   import type { Track } from 'livekit-client';
   import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -56,26 +55,16 @@ resolution to request for sidebar-width tiles.
     videoAttachment?: Attachment<HTMLVideoElement>;
   } = $props();
 
-  /** Keep native mouse menus while the card still owns touch long-press gestures. */
-  function nativeVideoMenu(element: HTMLVideoElement) {
-    let fromTouch = false;
-    const cleanups = [
-      on(element, 'pointerdown', (event) => {
-        fromTouch = event.pointerType === 'touch';
-      }),
-      on(element, 'contextmenu', (event) => {
-        if (fromTouch || (event instanceof PointerEvent && event.pointerType === 'touch')) return;
-        event.stopPropagation();
-      })
-    ];
-    return () => {
-      for (const cleanup of cleanups) cleanup();
-    };
-  }
+  /**
+   * The track itself, apart from the parent object that supplied it. A derived
+   * notifies its readers only when its value changes, so a parent update that
+   * keeps the track, such as a participant mute, does not detach the video.
+   */
+  const videoTrack = $derived(track);
 
   /** Give each track its own element so a replacement cannot overwrite retained PiP media. */
   function attachVideo(element: HTMLVideoElement) {
-    const attachedTrack = track;
+    const attachedTrack = videoTrack;
     registerCallVideo(attachedTrack, element);
     attachedTrack.attach(element);
     return () => releaseCallVideo(attachedTrack, element);
@@ -89,11 +78,10 @@ resolution to request for sidebar-width tiles.
     fill ? 'h-full min-h-0' : 'aspect-video'
   ]}
 >
-  {#key track}
+  {#key videoTrack}
     <video
       {@attach attachVideo}
       {@attach videoAttachment}
-      {@attach nativeVideoMenu}
       width="640"
       height="360"
       class={['h-full w-full', fit === 'contain' ? 'object-contain' : 'object-cover']}

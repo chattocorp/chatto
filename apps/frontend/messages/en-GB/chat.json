@@ -53,7 +53,6 @@
       "copy_user_id": "Copy User ID"
     },
     "server_gutter": {
-      "home_server": "Home server",
       "move_up": "Move up",
       "move_down": "Move down",
       "add_server": "Add Server",

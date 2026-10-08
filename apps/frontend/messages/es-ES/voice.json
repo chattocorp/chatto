@@ -37,7 +37,6 @@
     "microphone": "Micrófono",
     "speaker": "Altavoz",
     "camera": "Cámara",
-    "fullscreen_feed": "Feed en pantalla completa",
     "fullscreen_call": "Llamada en pantalla completa",
     "exit_fullscreen_call": "Salir de la llamada en pantalla completa",
     "pin_to_stage": "Fijar {name} en el escenario",
