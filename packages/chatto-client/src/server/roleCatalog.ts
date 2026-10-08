@@ -20,9 +20,8 @@ export function roleRanksBelow(
   highestRole: string,
   roleName: string
 ): boolean {
-  if (roleName === EVERYONE) return true;
+  if (roleName === EVERYONE || highestRole === OWNER) return true;
   if (roleName === OWNER) return false;
-  if (highestRole === OWNER) return true;
   const highest = order.indexOf(highestRole);
   return highest >= 0 && order.indexOf(roleName) > highest;
 }

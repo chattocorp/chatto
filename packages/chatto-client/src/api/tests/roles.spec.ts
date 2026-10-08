@@ -53,6 +53,12 @@ describe('createRoleAPI', () => {
     });
   });
 
+  it('reports an unknown rank when the server does not send one', async () => {
+    roles.listRoles.mockReturnValue({ roles: [] });
+
+    await expect(roleAPI().listRoles()).resolves.toEqual({ roles: [], viewerHighestRole: null });
+  });
+
   it('gets and batch gets public roles', async () => {
     const role = {
       name: 'moderator',

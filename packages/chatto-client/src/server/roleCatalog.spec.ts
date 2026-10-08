@@ -109,7 +109,7 @@ describe('role order helpers', () => {
   it('keeps everyone manageable and owner owner-only', () => {
     expect(roleRanksBelow(order, 'everyone', 'everyone')).toBe(true);
     expect(roleRanksBelow(order, 'admin', 'owner')).toBe(false);
-    expect(roleRanksBelow(order, 'owner', 'owner')).toBe(false);
+    expect(roleRanksBelow(order, 'owner', 'owner')).toBe(true);
     expect(roleRanksBelow(order, 'owner', 'admin')).toBe(true);
   });
 

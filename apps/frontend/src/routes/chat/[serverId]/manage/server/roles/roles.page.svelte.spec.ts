@@ -205,13 +205,13 @@ describe('roles page', () => {
     expect(api.moveRole).not.toHaveBeenCalled();
   });
 
-  it('opens every role except owner to edit for an owner', async () => {
+  it('opens every role to edit for an owner', async () => {
     server.setRoleOrder(['owner', 'admin', 'moderator', 'helper'], 'owner');
     const { container } = render(RolesPage);
     await vi.waitFor(() => expect(renderedOrder(container)).toHaveLength(5));
 
     expect(container.querySelector('a[aria-label="Edit Admin"]')).not.toBeNull();
-    expect(container.querySelector('a[aria-label="View Owner"]')).not.toBeNull();
+    expect(container.querySelector('a[aria-label="Edit Owner"]')).not.toBeNull();
   });
 
   it('moves a role up with the role below it as the anchor', async () => {

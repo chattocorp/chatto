@@ -33,9 +33,10 @@ export type PublicRoleCatalog = {
   /**
    * The role at which the viewer ranks: `owner` for owners of the server,
    * otherwise the viewer's highest role, or `everyone` without roles. A bot
-   * ranks at most at its owner's highest role.
+   * ranks at most at its owner's highest role. `null` when the server does not
+   * report it.
    */
-  viewerHighestRole: string;
+  viewerHighestRole: string | null;
 };
 
 /** Administrative role catalogue, in role order, highest first. */
@@ -78,7 +79,8 @@ export function createRoleAPI(config: ConnectAPIConfig) {
       const response = await client.listRoles({});
       return {
         roles: response.roles.map((role) => serverRoleFromPublic(role)),
-        viewerHighestRole: response.viewerHighestRole
+        // Servers before viewer_highest_role send an empty string.
+        viewerHighestRole: response.viewerHighestRole || null
       };
     },
 
