@@ -1763,7 +1763,7 @@
 
 @utility attachment-action-button {
   /* Pair with a standard button tone; it owns the shared depth and feedback. */
-  @apply h-10 w-10 shrink-0 rounded-md p-0 text-sm;
+  @apply h-7 min-h-7 w-7 min-w-7 shrink-0 rounded-md p-0 text-sm;
 }
 
 @utility attachment-card {
@@ -1773,7 +1773,7 @@
 @utility attachment-video-frame {
   @apply relative max-w-full min-w-0;
 
-  /* Keep the vertical action stack above the player's bottom controls, even
+  /* Keep the action row above the player's bottom controls, even
    * when a narrow message reduces the video's natural display height. */
   & > .embed-frame,
   & > video {

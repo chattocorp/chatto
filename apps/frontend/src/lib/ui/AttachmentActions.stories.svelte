@@ -39,7 +39,7 @@
       <div style:--depth-strength={mode.strength} style:--depth-width={mode.width}>
         <p class="mb-2">{mode.label}</p>
         <div class="group/attachment relative embed-frame h-48 w-64 bg-surface-emphasized">
-          <div class="absolute top-3 right-2 flex flex-col gap-1">
+          <div class="absolute end-2 top-2 flex items-center gap-1">
             {@render actions(true)}
           </div>
         </div>
@@ -69,5 +69,44 @@
         </div>
       </div>
     {/each}
+  </div>
+</Story>
+
+<Story name="Narrow media" asChild>
+  <div class="flex max-w-full flex-wrap items-start gap-6">
+    <div class="w-30 max-w-full">
+      <p class="mb-2">Video</p>
+      <div class="group/attachment attachment-video-frame embed-frame">
+        <video controls preload="none" class="w-full"><track kind="captions" /></video>
+        <div
+          class="absolute end-2 top-2 z-10 flex items-center gap-1 transition-opacity feedback-quick group-hover/attachment:opacity-100 focus-within:opacity-100 compact-input:hover-actions:opacity-0"
+        >
+          {@render actions(true)}
+        </div>
+      </div>
+    </div>
+    <div class="w-64 max-w-full">
+      <p class="mb-2">Image gallery</p>
+      <div class="flex gap-2 overflow-x-auto">
+        {#each [40, 180, 240] as width (width)}
+          <div class="group/attachment relative min-w-19 shrink-0">
+            <img
+              src={'data:image/svg+xml,' +
+                encodeURIComponent(
+                  '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="200"><rect width="240" height="200" fill="#408cab"/><circle cx="120" cy="100" r="32" fill="white"/></svg>'
+                )}
+              alt="White circle on a blue background"
+              class="embed-frame h-50 object-cover"
+              style:width={`${width}px`}
+            />
+            <div
+              class="absolute end-2 top-2 z-10 flex items-center gap-1 transition-opacity feedback-quick group-hover/attachment:opacity-100 focus-within:opacity-100 compact-input:hover-actions:opacity-0"
+            >
+              {@render actions()}
+            </div>
+          </div>
+        {/each}
+      </div>
+    </div>
   </div>
 </Story>
