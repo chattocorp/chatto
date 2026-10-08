@@ -349,11 +349,9 @@
       "title": "מערכת",
       "subtitle": "ברוקר, אחסון JetStream, צרכנים ובריאות הקרנה",
       "loading": "טוען מידע מערכת...",
-      "connection": "חיבור",
       "broker": "ברוקר NATS",
       "connected": "מחובר",
       "disconnected": "מנותק",
-      "unlimited": "ללא הגבלה",
       "all_subjects": "כל הנושאים",
       "pending_state": "בהמתנה",
       "worker_unconfirmed": "לא מאומת",
@@ -361,32 +359,12 @@
       "max_payload": "מטען מרבי",
       "server_id": "מזהה שרת",
       "server_name": "שם השרת",
-      "limit": "מגבלה: {limit}",
       "used_of_limit": "{used} של {limit}",
-      "jetstream_account": "חשבון JetStream",
       "account_storage": "אחסון קבצים",
       "account_memory": "אחסון זיכרון",
-      "stream_capacity": "קיבולת זרם",
-      "consumer_capacity": "קיבולת צרכן",
-      "stream_activity": "פעילות זרם",
       "events": "אירועים",
-      "event_bytes": "בתים של אירועים",
-      "messages_stored": "הודעות מאוחסנות",
-      "stream_bytes": "בתים של זרמים",
       "average_message_size": "{size} ממוצע",
-      "storage_mix": "{file} מגובים בקבצים / {memory} זרמים מגובי זיכרון",
-      "consumer_backlog": "צבר צרכנים",
-      "consumer_backlog_subtitle": "{count} צרכנים עם הודעות ממתינות",
-      "redelivered_total": "{count} נמסר מחדש",
-      "stream_summary": "סיכום זרם",
-      "file_streams": "זרמי קבצים",
-      "memory_streams": "זרמי זיכרון",
       "largest_stream": "הזרם הגדול ביותר",
-      "messages_lower": "הודעות",
-      "consumer_summary": "סיכום צרכנים",
-      "pull_consumers": "צרכני משיכה",
-      "push_consumers": "צרכני דחיפה",
-      "unbound_push_consumers": "צרכני דחיפה לא מאוגדים",
       "projection_summary": "סיכום הקרנה",
       "average_entry_size": "ערך ממוצע",
       "average_entry_value": "{size} ממוצע",
@@ -417,7 +395,6 @@
       "projection_memory": "זיכרון הקרנה",
       "projection_failures": "כשלי הקרנה",
       "projection_lag": "השהיית הקרנה",
-      "projection_entries": "{count} ערכים מוערכים",
       "no_projections": "לא רשומות הטלות.",
       "projection": "הטלה",
       "state": "מצב",
@@ -444,15 +421,110 @@
       "asset_cleanup_inactive_summary": "אף עובד ניקיון נכסים לא מחזיק כרגע בחוזה השכירות.",
       "asset_cleanup_unavailable_summary": "תקינות הניקוי אינה מדווחת על ידי גרסת שרת זו.",
       "asset_cleanup_pending": "ניסיונות חוזרים בהמתנה",
-      "asset_cleanup_oldest": "הישן ביותר בהמתנה",
-      "asset_cleanup_last_pass": "מעבר אחרון",
-      "asset_cleanup_last_success": "בהצלחה אחרונה: {time}",
       "asset_cleanup_event_scan": "סריקת אירועים",
       "asset_cleanup_caught_up": "נתפס",
       "asset_cleanup_events_waiting": "אירועים חדשים ממתינים",
-      "asset_cleanup_never": "לעולם",
-      "asset_cleanup_none": "אין",
-      "asset_cleanup_in_progress": "בתהליך"
+      "asset_cleanup_in_progress": "בתהליך",
+      "refresh": "רענון",
+      "account_unavailable": "נתוני השימוש בחשבון JetStream אינם זמינים.",
+      "jetstream_unavailable": "פרטי הזרמים והצרכנים אינם זמינים.",
+      "projections_unavailable": "פרטי ההטלות אינם זמינים.",
+      "durable_workers": "עובדי רקע",
+      "no_durable_workers": "לא דווח על עובדי רקע.",
+      "broker_scope_label": "על חיבור זה",
+      "broker_scope_help": "זהו חיבור הברוקר של מופע Chatto שטיפל בבקשה זו. אם מופעלים כמה מופעים, המופעים האחרים עשויים להתחבר לצומת NATS אחר.",
+      "health": {
+        "title": "בריאות",
+        "status_ok": "תקין",
+        "status_warning": "אזהרה",
+        "status_critical": "בעיה",
+        "status_unknown": "לא ידוע",
+        "overall_ok": "הכול פועל כרגיל",
+        "overall_warning": "דורש תשומת לב",
+        "overall_critical": "נמצאו בעיות",
+        "overall_ok_summary": "כל הבדיקות עברו בעת יצירת תמונת מצב זו.",
+        "overall_partial_summary": "לא נמצאו בעיות. לחלק מהבדיקות אין נתונים.",
+        "overall_problem_summary": "עיין בבדיקות שלמטה. הקטעים הבאים מציגים את הפרטים.",
+        "broker": "חיבור לברוקר",
+        "projections": "הטלות",
+        "workers": "עובדי רקע",
+        "backlog": "צבר",
+        "storage": "מגבלות החשבון",
+        "unavailable": "לא דווח",
+        "broker_connected": "מחובר ל-NATS {version}",
+        "broker_disconnected": "לא מחובר לברוקר NATS",
+        "projections_failed_count": {
+          "one": "{count} הטלה נכשלה",
+          "two": "{count} הטלות נכשלו",
+          "other": "{count} הטלות נכשלו"
+        },
+        "projections_catching_up_count": {
+          "one": "{count} הטלה משלימה פערים",
+          "two": "{count} הטלות משלימות פערים",
+          "other": "{count} הטלות משלימות פערים"
+        },
+        "projections_running_count": {
+          "one": "{count} הטלה מעודכנת",
+          "two": "כל {count} ההטלות מעודכנות",
+          "other": "כל {count} ההטלות מעודכנות"
+        },
+        "workers_failing_count": {
+          "one": "{count} עובד תקוע או חסר",
+          "two": "{count} עובדים תקועים או חסרים",
+          "other": "{count} עובדים תקועים או חסרים"
+        },
+        "workers_unconfirmed_count": {
+          "one": "{count} עובד לא אומת",
+          "two": "{count} עובדים לא אומתו",
+          "other": "{count} עובדים לא אומתו"
+        },
+        "workers_running_count": {
+          "one": "{count} עובד פועל",
+          "two": "כל {count} העובדים פועלים",
+          "other": "כל {count} העובדים פועלים"
+        },
+        "backlog_waiting_count": {
+          "one": "{count} הודעה ממתינה או בעיבוד",
+          "two": "{count} הודעות ממתינות או בעיבוד",
+          "other": "{count} הודעות ממתינות או בעיבוד"
+        },
+        "backlog_clear": "אין הודעות ממתינות",
+        "storage_used": "נעשה שימוש ב-{percent}% מהמגבלה הקרובה ביותר",
+        "storage_unlimited": "לא הוגדרו מגבלות"
+      },
+      "overview": {
+        "users": "משתמשים",
+        "rooms": "חדרים",
+        "direct_messages_count": {
+          "one": "{count} הודעה ישירה",
+          "two": "{count} הודעות ישירות",
+          "other": "{count} הודעות ישירות"
+        },
+        "events": "אירועים",
+        "stored_data": "נתונים מאוחסנים",
+        "stored_data_subtitle_count": {
+          "one": "ב-{count} זרם",
+          "two": "ב-{count} זרמים",
+          "other": "ב-{count} זרמים"
+        }
+      },
+      "usage": {
+        "title": "שימוש ב-JetStream",
+        "no_limit": "ללא הגבלה",
+        "replica_copies_note": "כולל עותק בכל העתק של זרם. זרמי הקבצים מכילים {size} של נתונים.",
+        "stream_mix": "{file} קבצים, {memory} זיכרון",
+        "consumer_mix": "{pull} משיכה, {push} דחיפה",
+        "unbound_count": {
+          "one": "{count} לא מאוגד",
+          "two": "{count} לא מאוגדים",
+          "other": "{count} לא מאוגדים"
+        },
+        "messages_count": {
+          "one": "{count} הודעה",
+          "two": "{count} הודעות",
+          "other": "{count} הודעות"
+        }
+      }
     },
     "event_log": {
       "title": "יומן אירועים",

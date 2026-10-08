@@ -349,11 +349,9 @@
       "title": "System",
       "subtitle": "Megler, JetStream lagring, forbrukere og projeksjonshelse",
       "loading": "Laster inn systeminformasjon...",
-      "connection": "Tilkobling",
       "broker": "NATS megler",
       "connected": "Tilkoblet",
       "disconnected": "Koblet fra",
-      "unlimited": "ubegrenset",
       "all_subjects": "alle fag",
       "pending_state": "Venter",
       "worker_unconfirmed": "Ubekreftet",
@@ -361,32 +359,12 @@
       "max_payload": "Maks nyttelast",
       "server_id": "Server-ID",
       "server_name": "Servernavn",
-      "limit": "Grens: {limit}",
       "used_of_limit": "{used} av {limit}",
-      "jetstream_account": "JetStream-konto",
       "account_storage": "Fillagring",
       "account_memory": "Minnelagring",
-      "stream_capacity": "Strømkapasitet",
-      "consumer_capacity": "Forbrukerkapasitet",
-      "stream_activity": "Strømmeaktivitet",
       "events": "Hendelser",
-      "event_bytes": "Hendelsesbyte",
-      "messages_stored": "Meldinger lagret",
-      "stream_bytes": "Strømbyte",
       "average_message_size": "{size} gjennomsnitt",
-      "storage_mix": "{file} filstøttede / {memory} minnestøttede strømmer",
-      "consumer_backlog": "Forbrukeretterslep",
-      "consumer_backlog_subtitle": "{count} forbruker(er) med ventende meldinger",
-      "redelivered_total": "{count} levert på nytt",
-      "stream_summary": "Strømsammendrag",
-      "file_streams": "Filstrømmer",
-      "memory_streams": "Minnestrømmer",
       "largest_stream": "Største strømmen",
-      "messages_lower": "meldinger",
-      "consumer_summary": "Forbrukersammendrag",
-      "pull_consumers": "Trekk forbrukere",
-      "push_consumers": "Push forbrukere",
-      "unbound_push_consumers": "Ubundne push-forbrukere",
       "projection_summary": "Projeksjonssammendrag",
       "average_entry_size": "Gjennomsnittlig oppføring",
       "average_entry_value": "{size} gjennomsnitt",
@@ -417,7 +395,6 @@
       "projection_memory": "Projeksjonsminne",
       "projection_failures": "Projeksjonsfeil",
       "projection_lag": "Projeksjonsforsinkelse",
-      "projection_entries": "{count} projiserte oppføringer",
       "no_projections": "Ingen anslag er registrert.",
       "projection": "Projeksjon",
       "state": "Tilstand",
@@ -444,15 +421,99 @@
       "asset_cleanup_inactive_summary": "Ingen oppryddingsarbeider har for øyeblikket leieavtalen.",
       "asset_cleanup_unavailable_summary": "Oppryddingshelse rapporteres ikke av denne serverversjonen.",
       "asset_cleanup_pending": "Venter på nytt forsøk",
-      "asset_cleanup_oldest": "Eldste venter",
-      "asset_cleanup_last_pass": "Siste pass",
-      "asset_cleanup_last_success": "Sist vellykket: {time}",
       "asset_cleanup_event_scan": "Hendelsesskanning",
       "asset_cleanup_caught_up": "Hentet opp",
       "asset_cleanup_events_waiting": "Nye hendelser venter",
-      "asset_cleanup_never": "Aldri",
-      "asset_cleanup_none": "Ingen",
-      "asset_cleanup_in_progress": "Pågår"
+      "asset_cleanup_in_progress": "Pågår",
+      "refresh": "Oppdater",
+      "account_unavailable": "JetStream-kontobruk er ikke tilgjengelig.",
+      "jetstream_unavailable": "Detaljer om strømmer og forbrukere er ikke tilgjengelige.",
+      "projections_unavailable": "Detaljer om projeksjoner er ikke tilgjengelige.",
+      "durable_workers": "Bakgrunnsarbeidere",
+      "no_durable_workers": "Ingen bakgrunnsarbeidere er rapportert.",
+      "broker_scope_label": "Om denne tilkoblingen",
+      "broker_scope_help": "Dette er megler-tilkoblingen til Chatto-instansen som behandlet denne forespørselen. Hvis du kjører mer enn én instans, kan de andre instansene være koblet til en annen NATS-node.",
+      "health": {
+        "title": "Helse",
+        "status_ok": "OK",
+        "status_warning": "Advarsel",
+        "status_critical": "Problem",
+        "status_unknown": "Ukjent",
+        "overall_ok": "Alt kjører normalt",
+        "overall_warning": "Trenger oppmerksomhet",
+        "overall_critical": "Problemer funnet",
+        "overall_ok_summary": "Alle kontroller var vellykkede da dette øyeblikksbildet ble tatt.",
+        "overall_partial_summary": "Fant ingen problemer. Noen kontroller har ingen data.",
+        "overall_problem_summary": "Se gjennom kontrollene nedenfor. Delene lenger ned viser detaljene.",
+        "broker": "Megler-tilkobling",
+        "projections": "Anslag",
+        "workers": "Bakgrunnsarbeidere",
+        "backlog": "Etterslep",
+        "storage": "Kontogrenser",
+        "unavailable": "Ikke rapportert",
+        "broker_connected": "Koblet til NATS {version}",
+        "broker_disconnected": "Ikke koblet til NATS-megleren",
+        "projections_failed_count": {
+          "one": "{count} projeksjon mislyktes",
+          "other": "{count} projeksjoner mislyktes"
+        },
+        "projections_catching_up_count": {
+          "one": "{count} projeksjon tar igjen etterslepet",
+          "other": "{count} projeksjoner tar igjen etterslepet"
+        },
+        "projections_running_count": {
+          "one": "{count} projeksjon er oppdatert",
+          "other": "Alle {count} projeksjoner er oppdatert"
+        },
+        "workers_failing_count": {
+          "one": "{count} arbeider har stoppet eller mangler",
+          "other": "{count} arbeidere har stoppet eller mangler"
+        },
+        "workers_unconfirmed_count": {
+          "one": "{count} arbeider ikke bekreftet",
+          "other": "{count} arbeidere ikke bekreftet"
+        },
+        "workers_running_count": {
+          "one": "{count} arbeider kjører",
+          "other": "Alle {count} arbeidere kjører"
+        },
+        "backlog_waiting_count": {
+          "one": "{count} melding venter eller pågår",
+          "other": "{count} meldinger venter eller pågår"
+        },
+        "backlog_clear": "Ingen meldinger venter",
+        "storage_used": "{percent} % av nærmeste grense er brukt",
+        "storage_unlimited": "Ingen grenser er konfigurert"
+      },
+      "overview": {
+        "users": "Brukere",
+        "rooms": "Rom",
+        "direct_messages_count": {
+          "one": "{count} direktemelding",
+          "other": "{count} direktemeldinger"
+        },
+        "events": "Hendelser",
+        "stored_data": "Lagrede data",
+        "stored_data_subtitle_count": {
+          "one": "I {count} strøm",
+          "other": "I {count} strømmer"
+        }
+      },
+      "usage": {
+        "title": "JetStream-bruk",
+        "no_limit": "ingen grense",
+        "replica_copies_note": "Inkluderer en kopi på hver strømreplika. Filstrømmene inneholder {size} data.",
+        "stream_mix": "{file} fil, {memory} minne",
+        "consumer_mix": "{pull} trekk, {push} trykk",
+        "unbound_count": {
+          "one": "{count} ubundet",
+          "other": "{count} ubundne"
+        },
+        "messages_count": {
+          "one": "{count} melding",
+          "other": "{count} meldinger"
+        }
+      }
     },
     "event_log": {
       "title": "Hendelseslogg",

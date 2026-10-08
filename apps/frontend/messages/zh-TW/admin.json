@@ -349,11 +349,9 @@
       "title": "系統",
       "subtitle": "Broker、JetStream 儲存空間、consumer 與 projection 健康狀態",
       "loading": "正在載入系統資訊...",
-      "connection": "連線",
       "broker": "NATS Broker",
       "connected": "已連線",
       "disconnected": "已中斷連線",
-      "unlimited": "無限制",
       "all_subjects": "所有 subject",
       "pending_state": "待處理",
       "worker_unconfirmed": "未確認",
@@ -361,32 +359,12 @@
       "max_payload": "Payload 上限",
       "server_id": "伺服器 ID",
       "server_name": "伺服器名稱",
-      "limit": "上限：{limit}",
       "used_of_limit": "已使用 {used}，上限 {limit}",
-      "jetstream_account": "JetStream 帳號",
       "account_storage": "檔案儲存空間",
       "account_memory": "記憶體儲存空間",
-      "stream_capacity": "Stream 容量",
-      "consumer_capacity": "Consumer 容量",
-      "stream_activity": "Stream 活動",
       "events": "事件",
-      "event_bytes": "事件位元組數",
-      "messages_stored": "已儲存訊息",
-      "stream_bytes": "Stream 位元組數",
       "average_message_size": "平均 {size}",
-      "storage_mix": "{file} 個檔案型 stream / {memory} 個記憶體型 stream",
-      "consumer_backlog": "Consumer 積壓",
-      "consumer_backlog_subtitle": "{count} 個 consumer 有待處理訊息",
-      "redelivered_total": "已重新傳送 {count} 次",
-      "stream_summary": "Stream 摘要",
-      "file_streams": "檔案型 Stream",
-      "memory_streams": "記憶體型 Stream",
       "largest_stream": "最大 Stream",
-      "messages_lower": "則訊息",
-      "consumer_summary": "Consumer 摘要",
-      "pull_consumers": "Pull Consumer",
-      "push_consumers": "Push Consumer",
-      "unbound_push_consumers": "未繫結的 Push Consumer",
       "projection_summary": "Projection 摘要",
       "average_entry_size": "平均項目大小",
       "average_entry_value": "平均 {size}",
@@ -417,7 +395,6 @@
       "projection_memory": "Projection 記憶體",
       "projection_failures": "Projection 失敗",
       "projection_lag": "Projection 延遲",
-      "projection_entries": "{count} 個已投影項目",
       "no_projections": "未註冊任何 projection。",
       "projection": "Projection",
       "state": "狀態",
@@ -444,15 +421,88 @@
       "asset_cleanup_inactive_summary": "目前沒有資產清理 worker 持有租約。",
       "asset_cleanup_unavailable_summary": "此伺服器版本未回報清理健康狀態。",
       "asset_cleanup_pending": "待重試",
-      "asset_cleanup_oldest": "最早的待處理項目",
-      "asset_cleanup_last_pass": "上次執行",
-      "asset_cleanup_last_success": "上次成功：{time}",
       "asset_cleanup_event_scan": "事件掃描",
       "asset_cleanup_caught_up": "已追上進度",
       "asset_cleanup_events_waiting": "有新事件待處理",
-      "asset_cleanup_never": "從未",
-      "asset_cleanup_none": "無",
-      "asset_cleanup_in_progress": "進行中"
+      "asset_cleanup_in_progress": "進行中",
+      "refresh": "重新整理",
+      "account_unavailable": "無法取得 JetStream 帳號用量。",
+      "jetstream_unavailable": "無法取得 Stream 與 Consumer 詳細資料。",
+      "projections_unavailable": "無法取得 Projection 詳細資料。",
+      "durable_workers": "背景 worker",
+      "no_durable_workers": "未回報任何背景 worker。",
+      "broker_scope_label": "關於此連線",
+      "broker_scope_help": "這是處理此要求的 Chatto 執行個體的 broker 連線。如果你執行多個執行個體，其他執行個體可能連線到不同的 NATS 節點。",
+      "health": {
+        "title": "健康狀態",
+        "status_ok": "正常",
+        "status_warning": "警告",
+        "status_critical": "問題",
+        "status_unknown": "未知",
+        "overall_ok": "一切運作正常",
+        "overall_warning": "需要留意",
+        "overall_critical": "發現問題",
+        "overall_ok_summary": "產生此快照時，所有檢查皆已通過。",
+        "overall_partial_summary": "未發現問題。部分檢查沒有資料。",
+        "overall_problem_summary": "請查看下方的檢查項目。更下方的區段會顯示詳細資料。",
+        "broker": "Broker 連線",
+        "projections": "Projection",
+        "workers": "背景 worker",
+        "backlog": "積壓",
+        "storage": "帳號限制",
+        "unavailable": "未回報",
+        "broker_connected": "已連線到 NATS {version}",
+        "broker_disconnected": "未連線到 NATS broker",
+        "projections_failed_count": {
+          "other": "{count} 個 projection 失敗"
+        },
+        "projections_catching_up_count": {
+          "other": "{count} 個 projection 正在追趕進度"
+        },
+        "projections_running_count": {
+          "other": "全部 {count} 個 projection 皆為最新"
+        },
+        "workers_failing_count": {
+          "other": "{count} 個 worker 已停滯或遺失"
+        },
+        "workers_unconfirmed_count": {
+          "other": "{count} 個 worker 未確認"
+        },
+        "workers_running_count": {
+          "other": "全部 {count} 個 worker 正在運作"
+        },
+        "backlog_waiting_count": {
+          "other": "{count} 則訊息等待中或處理中"
+        },
+        "backlog_clear": "沒有等待中的訊息",
+        "storage_used": "已使用最近限制的 {percent}%",
+        "storage_unlimited": "未設定任何限制"
+      },
+      "overview": {
+        "users": "使用者",
+        "rooms": "聊天室",
+        "direct_messages_count": {
+          "other": "{count} 則私訊"
+        },
+        "events": "事件",
+        "stored_data": "已儲存資料",
+        "stored_data_subtitle_count": {
+          "other": "位於 {count} 個 stream 中"
+        }
+      },
+      "usage": {
+        "title": "JetStream 用量",
+        "no_limit": "無限制",
+        "replica_copies_note": "包含每個 stream 複本上的一份副本。檔案 stream 中有 {size} 資料。",
+        "stream_mix": "檔案 {file}，記憶體 {memory}",
+        "consumer_mix": "Pull {pull}，Push {push}",
+        "unbound_count": {
+          "other": "{count} 個未繫結"
+        },
+        "messages_count": {
+          "other": "{count} 則訊息"
+        }
+      }
     },
     "event_log": {
       "title": "事件記錄",

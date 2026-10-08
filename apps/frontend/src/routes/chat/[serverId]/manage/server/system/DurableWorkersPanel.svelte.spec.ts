@@ -25,9 +25,9 @@ describe('DurableWorkersPanel', () => {
     expect(container.textContent).toContain('user_key_shredding');
   });
 
-  it('shows unavailable when an older server reports no worker diagnostics', () => {
+  it('explains when an older server reports no worker diagnostics', () => {
     const { container } = render(DurableWorkersPanel, { props: { workers: [] } });
-    expect(container.textContent).toContain('Unavailable');
+    expect(container.textContent).toContain('No background workers are reported.');
   });
 
   it('labels ambiguous handler liveness as unconfirmed', () => {
