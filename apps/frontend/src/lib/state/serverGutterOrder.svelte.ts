@@ -20,13 +20,23 @@ export class ServerGutterOrder {
   /** Retain local moves across focus changes if persistence failed. */
   #storageWriteFailed = false;
 
-  /** Known IDs in saved order, followed by new IDs in catalogue order. */
-  ordered(knownIds: readonly string[]): string[] {
-    const ids = [...this.#ids.filter((id) => knownIds.includes(id)), ...knownIds];
+  /**
+   * Known IDs in saved order, followed by new IDs in catalogue order.
+   * A formerly pinned ID stays first when a legacy order omits it. Once a
+   * complete order includes that ID, its saved position applies normally.
+   */
+  ordered(knownIds: readonly string[], formerlyPinnedId?: string): string[] {
+    const initialIds =
+      formerlyPinnedId &&
+      knownIds.includes(formerlyPinnedId) &&
+      !this.#ids.includes(formerlyPinnedId)
+        ? [formerlyPinnedId]
+        : [];
+    const ids = [...initialIds, ...this.#ids.filter((id) => knownIds.includes(id)), ...knownIds];
     return ids.filter((id, index) => ids.indexOf(id) === index);
   }
 
-  /** Commit a complete remote-server order and notify other tabs through storage. */
+  /** Commit a complete server order and notify other tabs through storage. */
   save(ids: readonly string[]): void {
     this.#ids = ids.filter((id, index) => ids.indexOf(id) === index);
     orderSlot.set(this.#ids);
@@ -41,8 +51,13 @@ export class ServerGutterOrder {
   }
 
   /** Move one known server by one position; list boundaries are no-ops. */
-  move(id: string, direction: -1 | 1, knownIds: readonly string[]): void {
-    const ids = this.ordered(knownIds);
+  move(
+    id: string,
+    direction: -1 | 1,
+    knownIds: readonly string[],
+    formerlyPinnedId?: string
+  ): void {
+    const ids = this.ordered(knownIds, formerlyPinnedId);
     const index = ids.indexOf(id);
     const target = index + direction;
     if (index < 0 || target < 0 || target >= ids.length) return;

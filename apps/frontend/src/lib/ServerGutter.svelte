@@ -21,18 +21,13 @@ is connected to, plus the add-server button pinned to the bottom. See the
 
   const touchOnly = new MediaQuery(TOUCH_ONLY_QUERY, false);
   const servers = $derived(serverRegistry.servers);
-  const origin = $derived(servers.find((server) => serverRegistry.isOriginServer(server.id)));
-  const remoteIds = $derived(
-    servers
-      .filter(
-        (server) =>
-          !serverRegistry.isOriginServer(server.id) && serverRegistry.tryGetStore(server.id)
-      )
-      .map((server) => server.id)
+  const originId = $derived(servers.find((server) => serverRegistry.isOriginServer(server.id))?.id);
+  const serverIds = $derived(
+    servers.filter((server) => serverRegistry.tryGetStore(server.id)).map((server) => server.id)
   );
-  const membership = $derived([...remoteIds].sort().join('\0'));
+  const membership = $derived([...serverIds].sort().join('\0'));
   const orderedItems: GutterItem[] = $derived(
-    serverGutterOrder.ordered(remoteIds).map((id) => ({ id, serverId: id }))
+    serverGutterOrder.ordered(serverIds, originId).map((id) => ({ id, serverId: id }))
   );
   let preview = $state.raw<GutterItem[] | null>(null);
   const items: GutterItem[] = $derived(preview ?? orderedItems);
@@ -40,7 +35,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
   /** Restart the drag action when membership changes, cancelling stale drops. */
   const dragServers: Attachment<HTMLDivElement> = (node) => {
     const initialMembership = membership;
-    if (touchOnly.current || remoteIds.length < 2) return;
+    if (touchOnly.current || serverIds.length < 2) return;
     let disposed = false;
     let detach: (() => void) | undefined;
     // Public pages import the gutter. Keep drag code outside their initial graph.
@@ -56,9 +51,9 @@ is connected to, plus the add-server button pinned to the bottom. See the
           if (
             membership === initialMembership &&
             info.trigger !== 'droppedOutsideOfAny' &&
-            ids.length === remoteIds.length &&
+            ids.length === serverIds.length &&
             ids.every((id, index) => ids.indexOf(id) === index) &&
-            ids.every((id) => remoteIds.includes(id))
+            ids.every((id) => serverIds.includes(id))
           ) {
             serverGutterOrder.save(ids);
           }
@@ -103,18 +98,10 @@ is connected to, plus the add-server button pinned to the bottom. See the
 <div class="server-gutter flex min-h-0 flex-1 flex-col border-e border-border" {@attach syncOrder}>
   <ScrollFader top bottom scrollClass="scrollbar-hide">
     <div class="flex flex-col gap-2 p-2 max-md:ps-3">
-      {#if origin}
-        {@const store = serverRegistry.tryGetStore(origin.id)}
-        {#if store}
-          {#key store}
-            <ServerSidebarEntry serverId={origin.id} />
-          {/key}
-        {/if}
-      {/if}
       <div
         class="flex flex-col gap-2"
         data-sidebar-swipe-ignore={!touchOnly.current || undefined}
-        data-testid="remote-server-list"
+        data-testid="server-list"
         {@attach dragServers}
       >
         {#each items as item (item.id)}

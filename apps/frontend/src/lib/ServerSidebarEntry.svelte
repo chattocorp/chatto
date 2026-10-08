@@ -46,14 +46,11 @@
   // svelte-ignore state_referenced_locally - serverId is stable per component lifetime (keyed by server.id)
   const serverConnection = serverConnectionManager.getClient(serverId);
   const registeredServer = $derived(serverRegistry.getServer(serverId));
-  const isOrigin = $derived(serverRegistry.isOriginServer(serverId));
-  const remoteIds = $derived(
-    serverRegistry.servers
-      .filter((server) => !serverRegistry.isOriginServer(server.id))
-      .map((server) => server.id)
-  );
-  const orderedRemoteIds = $derived(serverGutterOrder.ordered(remoteIds));
-  const orderIndex = $derived(orderedRemoteIds.indexOf(serverId));
+  const servers = $derived(serverRegistry.servers);
+  const originId = $derived(servers.find((server) => serverRegistry.isOriginServer(server.id))?.id);
+  const serverIds = $derived(servers.map((server) => server.id));
+  const orderedServerIds = $derived(serverGutterOrder.ordered(serverIds, originId));
+  const orderIndex = $derived(orderedServerIds.indexOf(serverId));
   const host = $derived(registeredServer ? serverHost(registeredServer.url) : null);
 
   // After the URL collapse (ADR-027), the active context is the deployment-wide
@@ -165,10 +162,10 @@
     if (returnFocus) void tick().then(() => serverLink?.focus({ preventScroll: true }));
   }
 
-  /** Move within the remote list without changing navigation or authentication. */
+  /** Move within the server list without changing navigation or authentication. */
   function moveServer(direction: -1 | 1): void {
     closeContextMenu();
-    serverGutterOrder.move(serverId, direction, remoteIds);
+    serverGutterOrder.move(serverId, direction, serverIds, originId);
     void tick().then(() => serverLink?.focus({ preventScroll: true }));
   }
 
@@ -315,7 +312,6 @@
   contextMenuTrigger={serverContextMenuTrigger}
   title={iconTitle}
   warning={problem !== null}
-  home={isOrigin && remoteIds.length > 0}
 />
 
 {#if contextMenu}
@@ -379,26 +375,24 @@
       onMarkRead={handleMarkServerRead}
       onLeave={handleRemoveServer}
     />
-    {#if !isOrigin}
-      <MenuSection>
-        <MenuItem
-          icon="icon-[uil--arrow-up]"
-          onclick={() => moveServer(-1)}
-          disabled={orderIndex <= 0}
-          dataTestid="move-server-up"
-        >
-          {m('chat.server_gutter.move_up')}
-        </MenuItem>
-        <MenuItem
-          icon="icon-[uil--arrow-down]"
-          onclick={() => moveServer(1)}
-          disabled={orderIndex < 0 || orderIndex >= orderedRemoteIds.length - 1}
-          dataTestid="move-server-down"
-        >
-          {m('chat.server_gutter.move_down')}
-        </MenuItem>
-      </MenuSection>
-    {/if}
+    <MenuSection>
+      <MenuItem
+        icon="icon-[uil--arrow-up]"
+        onclick={() => moveServer(-1)}
+        disabled={orderIndex <= 0}
+        dataTestid="move-server-up"
+      >
+        {m('chat.server_gutter.move_up')}
+      </MenuItem>
+      <MenuItem
+        icon="icon-[uil--arrow-down]"
+        onclick={() => moveServer(1)}
+        disabled={orderIndex < 0 || orderIndex >= orderedServerIds.length - 1}
+        dataTestid="move-server-down"
+      >
+        {m('chat.server_gutter.move_down')}
+      </MenuItem>
+    </MenuSection>
     <MenuSection>
       {#if signInRequired || stores.isAuthenticated}
         {#if signInRequired}

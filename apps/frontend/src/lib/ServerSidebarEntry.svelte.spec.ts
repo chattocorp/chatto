@@ -382,40 +382,33 @@ describe('ServerSidebarEntry', () => {
     expect(mocks.goto).not.toHaveBeenCalled();
   });
 
-  it('shows the home badge only while another server is registered', async () => {
-    mocks.isOriginServer.mockImplementation((id) => id === 'remote');
-    const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
-    const icon = q(container, '[data-testid="server-icon"]')!;
-    expect(q(container, '[data-testid="server-home"]')).toBeNull();
-    expect(icon.hasAttribute('aria-describedby')).toBe(false);
-
-    // A registration counts before it has a store or an authenticated session.
-    otherServerIds.add('second');
-    await tick();
-    expect(q(container, '[data-testid="server-home"]')).not.toBeNull();
-    const descriptionId = icon.getAttribute('aria-describedby');
-    expect(document.getElementById(descriptionId!)?.textContent).toBe('Home server');
-
-    otherServerIds.delete('second');
-    await tick();
-    expect(q(container, '[data-testid="server-home"]')).toBeNull();
-    expect(icon.hasAttribute('aria-describedby')).toBe(false);
-    expect(document.getElementById(descriptionId!)).toBeNull();
-    expect(q(container, '[data-testid="server-icon"]')).toBe(icon);
-  });
-
-  it('marks the origin among multiple servers and omits its move actions', async () => {
+  it('moves the origin down and up like other servers without changing navigation', async () => {
     mocks.isOriginServer.mockImplementation((id) => id === 'remote');
     otherServerIds.add('second');
     const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
     const icon = q(container, '[data-testid="server-icon"]')!;
-    const descriptionId = icon.getAttribute('aria-describedby');
-    expect(q(container, '[data-testid="server-home"]')).not.toBeNull();
-    expect(document.getElementById(descriptionId!)?.textContent).toBe('Home server');
+    expect(q(container, '[data-testid="server-home"]')).toBeNull();
+    expect(icon.hasAttribute('aria-describedby')).toBe(false);
     openServerMenu(icon);
     await vi.waitFor(() => expect(q(document.body, '[data-testid="server-name"]')).not.toBeNull());
-    expect(q(document.body, '[data-testid="move-server-up"]')).toBeNull();
-    expect(q(document.body, '[data-testid="move-server-down"]')).toBeNull();
+    await expect.element(q(document.body, '[data-testid="move-server-up"]')).toBeDisabled();
+    const down = q(document.body, '[data-testid="move-server-down"]')!;
+    await expect.element(down).toBeEnabled();
+    down.click();
+    await tick();
+    expect(serverGutterOrder.ordered(['remote', 'second'], 'remote')).toEqual(['second', 'remote']);
+
+    openServerMenu(icon);
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="move-server-up"]')).not.toBeNull()
+    );
+    await expect.element(q(document.body, '[data-testid="move-server-down"]')).toBeDisabled();
+    const up = q(document.body, '[data-testid="move-server-up"]')!;
+    await expect.element(up).toBeEnabled();
+    up.click();
+    await tick();
+    expect(serverGutterOrder.ordered(['remote', 'second'], 'remote')).toEqual(['remote', 'second']);
+    expect(mocks.goto).not.toHaveBeenCalled();
   });
 
   it('opens server actions on right-click and marks the server as read', async () => {

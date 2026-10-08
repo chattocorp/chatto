@@ -16,14 +16,14 @@
     }
   });
 
-  const home = { name: 'Home Server', logoUrl: null };
+  const origin = { name: 'Origin Server', logoUrl: null };
   const remote = { name: 'Remote Server', logoUrl: null };
   const legacy = { name: 'Legacy Server', logoUrl: null };
 </script>
 
 <Story name="Gutter states" asChild>
   <div class="inline-flex flex-col gap-2 rounded-xl border border-border bg-background p-2">
-    <ServerIcon server={home} href="/chat/-" title="Home Server" selected home />
+    <ServerIcon server={origin} href="/chat/-" title="Origin Server" selected />
     <ServerIcon server={remote} href="/chat/remote" title="Remote Server needs sign-in" warning />
     <ServerIcon
       server={legacy}
@@ -34,25 +34,18 @@
   </div>
 </Story>
 
-<Story name="Home" asChild>
-  <div class="inline-flex rounded-xl border border-border bg-background p-2">
-    <ServerIcon server={home} href="#home" title="Home Server" home />
-  </div>
-</Story>
-
 <Story name="Warning" asChild>
   <div class="inline-flex rounded-xl border border-border bg-background p-2">
     <ServerIcon server={remote} href="/chat/remote" title="Remote Server needs sign-in" warning />
   </div>
 </Story>
 
-<Story name="Home with warning and notification" asChild>
+<Story name="Warning and notification" asChild>
   <div class="inline-flex rounded-xl border border-border bg-background p-2">
     <ServerIcon
-      server={home}
-      href="#home"
-      title="Home Server"
-      home
+      server={origin}
+      href="#origin"
+      title="Origin Server"
       warning
       selected
       indicator="notification"
@@ -64,7 +57,7 @@
 
 <Story name="Route and attention" asChild>
   <div class="inline-flex flex-col gap-2 rounded-xl border border-border bg-background p-2">
-    <ServerIcon server={home} href="#home" title="Home Server" selected />
+    <ServerIcon server={origin} href="#origin" title="Origin Server" selected />
     <ServerIcon server={remote} href="#remote" title="Remote Server" indicator="unread" />
     <ServerIcon
       server={legacy}
