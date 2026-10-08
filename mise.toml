@@ -374,8 +374,7 @@ env = { CHATTO_DEV_BUILD_ID = "{{ now(timestamp=true) }}" }
 run = [
     "pnpm --dir ../.. run build:frontend",
     "bash ../../tools/prepare-embedded-frontend.sh build ../../cli/internal/http_server/.client",
-    "mkdir -p ../../.context/build-frontend",
-    "touch ../../.context/build-frontend/{{vars.frontend_build_environment}}",
+    "bash -c \"mkdir -p ../../.context/build-frontend && touch ../../.context/build-frontend/{{vars.frontend_build_environment}}\"",
 ]
 # Include each workspace library that Turbo builds for the frontend. Declare
 # both the published build and the embedded copy, so either can be restored.
