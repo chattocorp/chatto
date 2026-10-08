@@ -436,7 +436,7 @@ it('keeps focus on the stage when an unpinned source stays featured', async () =
   expect(featured.element().contains(document.activeElement)).toBe(true);
 });
 
-it('features the remote active speaker, with or without a camera, while a camera is on', async () => {
+it('features a remote active speaker without a camera over the viewer camera', async () => {
   const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'camera' });
   const featured = screen.getByTestId('call-featured-stage-card');
   await expect.element(featured).toHaveTextContent('Alice');
@@ -474,4 +474,25 @@ it('keeps the voice-only grid when someone speaks', async () => {
   });
   await expect.element(screen.getByTestId('call-stage-grid')).toBeInTheDocument();
   expect(screen.container.querySelector('[data-testid="call-featured-stage-card"]')).toBeNull();
+});
+
+it('features the remote active speaker over another remote camera', async () => {
+  const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'screen' });
+  const featured = screen.getByTestId('call-featured-stage-card');
+  const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
+  flushSync(() => {
+    call.participants = call.participants.filter((p) => p.identity !== 'dana');
+  });
+  await expect.element(featured).toHaveTextContent('Bob');
+
+  flushSync(() => {
+    call.activeSpeakerIdentity = 'chloe';
+  });
+  await expect.element(featured).toHaveTextContent('Chloe');
+
+  // A speaker who is no longer in the call does not block the fallback.
+  flushSync(() => {
+    call.participants = call.participants.filter((p) => p.identity !== 'chloe');
+  });
+  await expect.element(featured).toHaveTextContent('Bob');
 });
