@@ -206,4 +206,5 @@ rather than a prerequisite for adopting the architecture.
 - [ADR-058](ADR-058-application-neutral-embedded-nats-runtime.md)
 - [ADR-069](ADR-069-explicit-durable-consumer-lifecycle.md)
 - [ADR-076](ADR-076-deterministic-notification-occurrences.md)
+- [ADR-114](ADR-114-jetstream-storage-conventions.md)
 - [Authling ADR-001](../../authling/docs/adr/ADR-001-event-sourced-nats-architecture.md)

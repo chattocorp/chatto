@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // PrivilegedModeWindow is the fixed lifetime of one explicit activation.
@@ -54,7 +55,7 @@ func (c *ChattoCore) setRenewableSessionPrivilegedMode(ctx context.Context, sess
 			return time.Time{}, fmt.Errorf("marshal privileged renewable session: %w", err)
 		}
 		if _, err := c.updateRuntimeStateUntil(ctx, c.renewableSessionKey(sessionID), value, entry.Revision(), session.ExpiresAt, now); err != nil {
-			if isRuntimeStateRevisionConflict(err) {
+			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
 			return time.Time{}, fmt.Errorf("set renewable-session privileged mode: %w", err)
@@ -83,7 +84,7 @@ func (c *ChattoCore) SetCookiePrivilegedMode(ctx context.Context, sessionID stri
 	for range 8 {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+			if isKeyAbsent(err) {
 				return time.Time{}, ErrCookieSessionNotFound
 			}
 			return time.Time{}, fmt.Errorf("get cookie session for privileged mode: %w", err)
@@ -124,7 +125,7 @@ func (c *ChattoCore) SetCookiePrivilegedMode(ctx context.Context, sessionID stri
 			return time.Time{}, fmt.Errorf("marshal privileged cookie session: %w", err)
 		}
 		if _, err := c.updateRuntimeStateUntil(ctx, key, value, entry.Revision(), tokenData.ExpiresAt, now); err != nil {
-			if isRuntimeStateRevisionConflict(err) {
+			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
 			return time.Time{}, fmt.Errorf("set cookie-session privileged mode: %w", err)

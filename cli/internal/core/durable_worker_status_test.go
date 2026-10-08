@@ -1,6 +1,11 @@
 package core
 
-import "testing"
+import (
+	"testing"
+
+	"hmans.de/chatto/internal/natsresources"
+	"hmans.de/chatto/internal/notificationstream"
+)
 
 func TestDurableWorkerAdminStatusesDeriveAvailabilityAndWork(t *testing.T) {
 	t.Parallel()
@@ -12,7 +17,8 @@ func TestDurableWorkerAdminStatusesDeriveAvailabilityAndWork(t *testing.T) {
 		{Stream: "EVT", Name: userKeyShreddingConsumerName},
 		{Stream: "EVT", Name: pushSubscriptionCleanupConsumerName, Waiting: 1},
 		{Stream: "EVT", Name: notificationWorkerConsumerName, Waiting: 1, DeliveredStreamSeq: 52, AckFloorStreamSeq: 51},
-		{Stream: "EVT", Name: assetProcessingConsumerName, Waiting: 0, Pending: 4},
+		{Stream: "EVT", Name: botWebhookSourceConsumer, Waiting: 1},
+		{Stream: "EVT", Name: AssetProcessingConsumerName, Waiting: 0, Pending: 4},
 	}}, false)
 
 	byKey := make(map[string]DurableWorkerAdminStatus, len(statuses))
@@ -34,8 +40,48 @@ func TestDurableWorkerAdminStatusesDeriveAvailabilityAndWork(t *testing.T) {
 	if got := byKey["notification_materializer"]; got.Health != DurableWorkerHealthHealthy || got.LastDeliveredSequence != 52 || got.AckFloorSequence != 51 {
 		t.Fatalf("notification materializer status = %+v, want healthy with consumer progress", got)
 	}
+	if got := byKey["bot_webhook_source"]; got.Health != DurableWorkerHealthHealthy {
+		t.Fatalf("bot webhook source status = %+v, want healthy", got)
+	}
 	if got := byKey["asset_processing"]; got.Health != DurableWorkerHealthInactive {
 		t.Fatalf("asset processing status = %+v, want inactive", got)
+	}
+}
+
+// TestDurableWorkerAdminStatusesCoverEveryCoreConsumer fails when core creates
+// a durable consumer that the operator diagnostics do not report.
+func TestDurableWorkerAdminStatusesCoverEveryCoreConsumer(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	type coordinate struct{ stream, name string }
+	reported := make(map[coordinate]bool)
+	for _, spec := range durableWorkerDiagnosticSpecs(false) {
+		reported[coordinate{spec.streamName, spec.consumerName}] = true
+	}
+	var created []coordinate
+	for _, streamName := range []string{natsresources.EVT, notificationstream.StreamName} {
+		stream, err := core.js.Stream(ctx, streamName)
+		if err != nil {
+			t.Fatal(err)
+		}
+		consumers := stream.ListConsumers(ctx)
+		for info := range consumers.Info() {
+			if info.Config.Durable != "" {
+				created = append(created, coordinate{streamName, info.Name})
+			}
+		}
+		if err := consumers.Err(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(created) == 0 {
+		t.Fatal("core created no durable consumers")
+	}
+	for _, consumer := range created {
+		if !reported[consumer] {
+			t.Errorf("durable consumer %s on %s is missing from the admin diagnostics", consumer.name, consumer.stream)
+		}
 	}
 }
 
@@ -54,8 +100,8 @@ func TestDurableWorkerAdminStatusesReportMissingRequiredConsumers(t *testing.T) 
 	t.Parallel()
 
 	statuses := durableWorkerAdminStatuses(nil, true)
-	if len(statuses) != 7 {
-		t.Fatalf("statuses len = %d, want 7", len(statuses))
+	if len(statuses) != 8 {
+		t.Fatalf("statuses len = %d, want 8", len(statuses))
 	}
 	for _, status := range statuses {
 		if status.Health != DurableWorkerHealthUnavailable {

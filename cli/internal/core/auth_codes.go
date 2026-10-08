@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // ============================================================================
@@ -186,7 +187,7 @@ func (c *ChattoCore) ExchangeAuthCodeForClientResourceSession(ctx context.Contex
 	// Atomically claim the code before validation and token issuance. A
 	// concurrent exchange that read the same revision must not also succeed.
 	if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) || isRuntimeStateRevisionConflict(err) {
+		if isKeyAbsent(err) || jetstreamutil.IsSequenceConflict(err) {
 			return BearerSessionCredentials{}, "", ErrAuthCodeNotFound
 		}
 		return BearerSessionCredentials{}, "", fmt.Errorf("failed to consume auth code: %w", err)

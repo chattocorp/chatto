@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 const (
@@ -191,7 +192,9 @@ func (c *ChattoCore) verifyNATSRecovery(ctx context.Context) error {
 	if _, err := c.storage.serverEvtStream.Info(ctx); err != nil {
 		return fmt.Errorf("EVT recovery: %w", err)
 	}
-	if _, err := c.js.CreateOrUpdateKeyValue(ctx, memoryCacheConfig(c.config)); err != nil {
+	if _, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.KeyValue, error) {
+		return c.js.CreateOrUpdateKeyValue(ctx, memoryCacheConfig(c.config))
+	}); err != nil {
 		return fmt.Errorf("MEMORY_CACHE recovery: %w", err)
 	}
 	if err := c.WaitForProjectionsCurrent(ctx); err != nil {

@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/embedded_nats"
+	"hmans.de/chatto/internal/natsresources"
 	"hmans.de/chatto/pkg/natsauth"
 	"hmans.de/chatto/pkg/natsruntime"
 )
@@ -318,7 +319,7 @@ func restoreConfigForTarget(streamDir, streamName string, targetReplicas int) (*
 // backed up (i.e. present and not marked skipped/failed in the manifest).
 func manifestIncludesEncryptionKeys(m BackupManifest) bool {
 	for _, s := range m.Streams {
-		if s.Name != "KV_ENCRYPTION_KEYS" {
+		if s.Name != natsresources.KeyValueStream(natsresources.EncryptionKeys) {
 			continue
 		}
 		return s.Type != "skipped" && s.Error == ""

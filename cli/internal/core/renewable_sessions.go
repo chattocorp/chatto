@@ -17,6 +17,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/config"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 const (
@@ -348,7 +349,7 @@ func (c *ChattoCore) createAccessTokenRecord(ctx context.Context, sessionID stri
 		return fmt.Errorf("marshal bearer access token: %w", err)
 	}
 	if _, err := c.storage.runtimeStateKV.Create(ctx, c.authTokenKey(token), value, jetstream.KeyTTL(ttl)); err != nil {
-		if !errors.Is(err, jetstream.ErrKeyExists) {
+		if !jetstreamutil.IsSequenceConflict(err) {
 			return fmt.Errorf("store bearer access token: %w", err)
 		}
 		entry, getErr := c.storage.runtimeStateKV.Get(ctx, c.authTokenKey(token))
@@ -502,7 +503,7 @@ func (c *ChattoCore) refreshBearerSessionAt(ctx context.Context, refreshToken, r
 			return BearerSessionCredentials{}, ErrRefreshTokenNotFound
 		}
 		if _, err := c.updateRuntimeStateUntil(ctx, c.renewableSessionKey(sessionID), value, entry.Revision(), next.ExpiresAt, now); err != nil {
-			if isRuntimeStateRevisionConflict(err) {
+			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
 			return BearerSessionCredentials{}, fmt.Errorf("rotate renewable session: %w", err)
@@ -614,7 +615,7 @@ func (c *ChattoCore) markRenewableSessionFresh(ctx context.Context, sessionID, m
 			return ErrAuthTokenNotFound
 		}
 		if _, err := c.updateRuntimeStateUntil(ctx, c.renewableSessionKey(sessionID), value, entry.Revision(), session.ExpiresAt, now); err != nil {
-			if isRuntimeStateRevisionConflict(err) {
+			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
 			return fmt.Errorf("mark renewable session fresh: %w", err)

@@ -169,7 +169,7 @@ func TestPushSubscriptionCleanupReconcilesLateWriteAfterCompletedDeletionDeliver
 	if err := chatto.pushSubscriptionCleanup.reconcileDeletedAccountPushState(ctx); err != nil {
 		t.Fatalf("reconcile deleted-account push state: %v", err)
 	}
-	if _, err := chatto.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(userID, endpoint)); !isPushRuntimeStateKeyAbsent(err) {
+	if _, err := chatto.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(userID, endpoint)); !isKeyAbsent(err) {
 		t.Fatalf("late subscription remains after reconciliation: %v", err)
 	}
 	if owned, err := chatto.PushSubscriptionOwnedByUser(ctx, userID, endpoint); err != nil || owned {
@@ -252,7 +252,7 @@ func TestPushSubscriptionCleanupRepairsOwnerOnlyCrashState(t *testing.T) {
 	if err := chatto.pushSubscriptionCleanup.reconcileDeletedAccountPushState(ctx); err != nil {
 		t.Fatalf("reconcile owner-only crash state: %v", err)
 	}
-	if _, err := chatto.storage.runtimeStateKV.Get(ctx, ownerKey); !isPushRuntimeStateKeyAbsent(err) {
+	if _, err := chatto.storage.runtimeStateKV.Get(ctx, ownerKey); !isKeyAbsent(err) {
 		t.Fatalf("owner-only record remains after reconciliation: %v", err)
 	}
 }
@@ -311,7 +311,7 @@ func TestDeleteUserImmediatelyRemovesPushCredentials(t *testing.T) {
 	if err := chatto.DeleteUser(ctx, SystemActorID, user.GetId()); err != nil {
 		t.Fatalf("delete user: %v", err)
 	}
-	if _, err := chatto.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(user.GetId(), endpoint)); !isPushRuntimeStateKeyAbsent(err) {
+	if _, err := chatto.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(user.GetId(), endpoint)); !isKeyAbsent(err) {
 		t.Fatalf("push subscription remains after account deletion: %v", err)
 	}
 	if owned, err := chatto.PushSubscriptionOwnedByUser(ctx, user.GetId(), endpoint); err != nil || owned {

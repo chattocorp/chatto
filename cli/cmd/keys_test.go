@@ -194,6 +194,14 @@ func TestKeysExportImportRoundTrip(t *testing.T) {
 
 	// --- Verify: importing again skips existing keys ---
 
+	imported, skippedExisting, _, err = importKeys(ctx, dstKV, decrypted)
+	if err != nil {
+		t.Fatal("second importKeys failed:", err)
+	}
+	if imported != 0 || skippedExisting != len(testKeys) {
+		t.Errorf("second import imported=%d skipped_existing=%d, want 0/%d", imported, skippedExisting, len(testKeys))
+	}
+
 	for _, key := range decrypted {
 		if _, err := dstKV.Create(ctx, keyRefForImport(key), key.Key); err == nil {
 			t.Errorf("Expected key %s to already exist on second import", keyRefForImport(key))

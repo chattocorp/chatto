@@ -150,16 +150,7 @@ func initializeProjectionSnapshotRepository(
 	if cfg.Assets.StorageBackend == config.StorageBackendS3 && s3Client != nil {
 		snapshotBlobs = s3SnapshotBlobStore{client: s3Client}
 	} else {
-		snapshotStore, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.ObjectStore, error) {
-			return js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
-				Bucket:      projectionSnapshotObjectStoreName,
-				Description: "Encrypted ephemeral projection snapshots",
-				Storage:     jetstream.FileStorage,
-				Compression: true,
-				Replicas:    cfg.Replicas,
-				TTL:         cfg.ProjectionSnapshotRetentionOrDefault(),
-			})
-		})
+		snapshotStore, err := createObjectStore(ctx, js, projectionSnapshotsConfig(cfg))
 		if err != nil {
 			logger.Warn("Projection snapshots disabled after object store initialization failure",
 				"backend", "nats",

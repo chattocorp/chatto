@@ -37,6 +37,12 @@ storage contract:
 | `chatto.core.projection.v1`    | Rebuildable projection snapshot payloads               |
 | `chatto.core.pubsub.v1`        | Internal pubsub events published on `live.sync.>`      |
 
+The table names the package for the protobuf records in each resource. It
+does not mean that each record in the resource is protobuf. `RUNTIME_STATE`
+and `MEMORY_CACHE` also hold JSON and raw binary records.
+[ADR-114](ADR-114-jetstream-storage-conventions.md) lists these exceptions and
+requires protobuf for new record types.
+
 Types that are part of an EVT fact stay in `chatto.core.evt.v1`, even when a
 projection or runtime operation also uses them. For example, notification
 delivery policy is durable configuration in EVT. The notification package owns
@@ -86,3 +92,4 @@ protobuf full names without a new decision and migration plan.
 - [ADR-045](ADR-045-public-api-stability-tiers.md)
 - [ADR-050](ADR-050-ephemeral-encrypted-projection-snapshots.md)
 - [ADR-076](ADR-076-deterministic-notification-occurrences.md)
+- [ADR-114](ADR-114-jetstream-storage-conventions.md)

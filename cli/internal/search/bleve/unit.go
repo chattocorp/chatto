@@ -11,6 +11,7 @@ import (
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/logbridge"
+	"hmans.de/chatto/internal/natsresources"
 	"hmans.de/chatto/internal/runtimeunit"
 	"hmans.de/chatto/internal/search"
 	"hmans.de/chatto/pkg/events"
@@ -41,15 +42,15 @@ func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 		"language_analyzer_count", len(languages))
 	defer env.Logger.Info("Bundled search provider stopped", "stage", "shutdown")
 
-	evt, err := env.JS.Stream(ctx, "EVT")
+	evt, err := env.JS.Stream(ctx, natsresources.EVT)
 	if err != nil {
 		return fmt.Errorf("open EVT stream: %w", err)
 	}
-	encryptionBucket, err := env.JS.KeyValue(ctx, "ENCRYPTION_KEYS")
+	encryptionBucket, err := env.JS.KeyValue(ctx, natsresources.EncryptionKeys)
 	if err != nil {
 		return fmt.Errorf("open ENCRYPTION_KEYS bucket: %w", err)
 	}
-	runtimeStateBucket, err := env.JS.KeyValue(ctx, "RUNTIME_STATE")
+	runtimeStateBucket, err := env.JS.KeyValue(ctx, natsresources.RuntimeState)
 	if err != nil {
 		return fmt.Errorf("open RUNTIME_STATE bucket: %w", err)
 	}

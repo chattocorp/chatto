@@ -65,7 +65,7 @@ func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testin
 	if err := first.RevokeRefreshTokenWithReason(ctx, recovered.RefreshToken, "test"); err != nil {
 		t.Fatalf("RevokeRefreshTokenWithReason: %v", err)
 	}
-	if _, err := first.storage.runtimeStateKV.Get(ctx, sessionKey); !isRuntimeStateKeyAbsent(err) {
+	if _, err := first.storage.runtimeStateKV.Get(ctx, sessionKey); !isKeyAbsent(err) {
 		t.Fatalf("revoked renewable session lookup error = %v, want absent key", err)
 	}
 }

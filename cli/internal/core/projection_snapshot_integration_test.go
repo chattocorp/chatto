@@ -16,6 +16,7 @@ import (
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
+	"hmans.de/chatto/internal/natsresources"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/projectionsnapshot"
 	"hmans.de/chatto/internal/testutil"
@@ -589,7 +590,7 @@ func TestProjectionSnapshotNATSStoreUsesConfiguredRetention(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	store, err := core.js.ObjectStore(testContext(t), projectionSnapshotObjectStoreName)
+	store, err := core.js.ObjectStore(testContext(t), natsresources.ProjectionSnapshots)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -720,7 +721,7 @@ func projectionSnapshotObjectNames(t *testing.T, ctx context.Context, core *Chat
 
 func projectionSnapshotObjectStore(t *testing.T, ctx context.Context, core *ChattoCore) jetstream.ObjectStore {
 	t.Helper()
-	store, err := core.js.ObjectStore(ctx, projectionSnapshotObjectStoreName)
+	store, err := core.js.ObjectStore(ctx, natsresources.ProjectionSnapshots)
 	if err != nil {
 		t.Fatal(err)
 	}

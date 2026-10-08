@@ -31,7 +31,7 @@ func (m *NotificationMaterializer) recordVisibilityBoundary(ctx context.Context,
 	binary.BigEndian.PutUint64(value, sequence)
 	for range maxNotificationStateWriteRetries {
 		entry, err := m.core.storage.runtimeStateKV.Get(ctx, key)
-		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+		if isKeyAbsent(err) {
 			if revision, err := m.core.storage.runtimeStateKV.Create(ctx, key, value, jetstream.KeyTTL(notificationTTL)); err == nil {
 				if err := m.core.notificationBoundaries.waitForRevision(ctx, key, revision); err != nil {
 					return err
@@ -96,14 +96,14 @@ func (m *NotificationMaterializer) purgeVisibilityBoundaries(ctx context.Context
 func (m *NotificationMaterializer) deleteRuntimeStateKey(ctx context.Context, key string) error {
 	for range maxNotificationStateWriteRetries {
 		entry, err := m.core.storage.runtimeStateKV.Get(ctx, key)
-		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+		if isKeyAbsent(err) {
 			return nil
 		}
 		if err != nil {
 			return fmt.Errorf("read runtime-state key for deletion: %w", err)
 		}
 		err = m.core.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
-		if err == nil || errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+		if err == nil || isKeyAbsent(err) {
 			return nil
 		}
 		if !jetstreamutil.IsSequenceConflict(err) {

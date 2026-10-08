@@ -86,7 +86,9 @@ authorization, live events, backup and restore, and backend tests.
   reach the local watcher before returning when read-your-writes matters.
   Watchers belong to the process lifecycle, never to a request, user, or
   WebSocket goroutine.
-- Bind every key-value bucket handle through `jetstreamutil.NewKeyValue`.
+- Bind every key-value bucket handle through `jetstreamutil.NewKeyValue`, and
+  pass the bound handle in production wiring. A model can accept the
+  `jetstream.KeyValue` interface only so that tests can inject faults.
   Chatto's buckets allow direct gets, so a plain `KeyValue.Get` can come from
   a lagging replica with an older revision or no entry. The bound `Get` reads
   through the stream leader. A hot path can read with `GetAnyReplica` to accept
@@ -157,6 +159,21 @@ authorization, live events, backup and restore, and backend tests.
   update constructors, parsers, tests, architecture docs, and e2e coverage.
 - For mixed records in one stream or KV bucket, encode discriminators in the key
   prefix so reads can filter by subject/prefix without deserializing everything.
+- Follow ADR-114 when you add or change storage. Resource names,
+  configurations, subjects, key shapes, value encodings, and durable consumer
+  names are persisted contracts. Never change them as a refactor. Checklist:
+  - Use an existing resource if possible. For a new stream, bucket, or Object
+    Store, add it to `internal/natsresources` with its backup policy, add a
+    configuration function in `core/storage.go`, and extend
+    `TestStorageConfigsArePinned`.
+  - Use names from `natsresources`, not string literals.
+  - Encode a new record type as protobuf in the package for its storage
+    contract. Do not add JSON record types or import public API protobufs.
+  - Give each key family one builder and a snake_case prefix. Derive watcher
+    filters from the same prefix. Hash secret key input with the HMAC helpers
+    in `core/runtime_token_keys.go`.
+  - Check for a missing key with `isKeyAbsent`.
+  - Add each new durable consumer to `durableWorkerDiagnosticSpecs`.
 - Projection snapshots are disposable acceleration data, never recovery data.
   Bind them to the durable EVT incarnation identity in stream metadata as well
   as the stream name and cutoff sequence; reject missing, corrupt,

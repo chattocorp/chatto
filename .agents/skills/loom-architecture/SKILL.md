@@ -53,6 +53,26 @@ available after crashes or handoffs between processes. Delivery is at least
 once, so outcome handlers must tolerate receiving the same event more than
 once. Projections only derive state; durable workers perform external effects.
 
+## Storage conventions
+
+[ADR-114](../../../docs/adr/ADR-114-jetstream-storage-conventions.md) gives
+the storage rules for each Loom application:
+
+- Resource names, configurations, subjects, key shapes, value encodings, and
+  durable consumer names are persisted contracts. Change them only with a
+  migration that is safe when replicas of different versions run together.
+- Use an existing resource first. A new resource needs a lifecycle, retention,
+  storage type, or backup policy that no existing resource gives.
+- Declare each resource once: name, configuration, and backup policy. Pin the
+  configuration with a test.
+- Encode new records as protobuf from the package for their storage contract.
+- Build each key family in one place: prefix first, then owner identifiers
+  from the widest to the narrowest scope. Each application selects one key
+  style.
+- Classify OCC conflicts with `jetstreamutil.IsSequenceConflict`, and read the
+  key again after a `Create` conflict.
+- Report every durable consumer in the operator diagnostics.
+
 ## Framework and application
 
 The framework supplies the reusable mechanics for publishing events, replaying

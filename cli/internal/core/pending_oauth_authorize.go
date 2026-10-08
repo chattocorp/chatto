@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 const (
@@ -71,7 +72,7 @@ func (c *ChattoCore) ConsumePendingOAuthAuthorize(ctx context.Context, token str
 		return PendingOAuthAuthorize{}, err
 	}
 	if err := c.storage.runtimeStateKV.Delete(ctx, c.pendingOAuthAuthorizeKey(token), jetstream.LastRevision(revision)); err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) || isRuntimeStateRevisionConflict(err) {
+		if isKeyAbsent(err) || jetstreamutil.IsSequenceConflict(err) {
 			return PendingOAuthAuthorize{}, ErrPendingOAuthAuthorizeNotFound
 		}
 		return PendingOAuthAuthorize{}, fmt.Errorf("consume pending OAuth authorization request: %w", err)
@@ -85,7 +86,7 @@ func (c *ChattoCore) DiscardPendingOAuthAuthorize(ctx context.Context, token str
 		return nil
 	}
 	err := c.storage.runtimeStateKV.Delete(ctx, c.pendingOAuthAuthorizeKey(token))
-	if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+	if isKeyAbsent(err) {
 		return nil
 	}
 	if err != nil {
@@ -100,7 +101,7 @@ func (c *ChattoCore) getPendingOAuthAuthorize(ctx context.Context, token string)
 	}
 	entry, err := c.storage.runtimeStateKV.Get(ctx, c.pendingOAuthAuthorizeKey(token))
 	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+		if isKeyAbsent(err) {
 			return PendingOAuthAuthorize{}, 0, ErrPendingOAuthAuthorizeNotFound
 		}
 		return PendingOAuthAuthorize{}, 0, fmt.Errorf("get pending OAuth authorization request: %w", err)

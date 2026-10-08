@@ -154,7 +154,7 @@ func TestCredentialUsageRecorderRemovesWriteThatFinishesAfterForget(t *testing.T
 	close(kv.release)
 	<-flushed
 
-	if _, err := c.storage.runtimeStateKV.Get(ctx, credentialUsageRuntimeStateKey(botID)); !isRuntimeStateKeyAbsent(err) {
+	if _, err := c.storage.runtimeStateKV.Get(ctx, credentialUsageRuntimeStateKey(botID)); !isKeyAbsent(err) {
 		t.Fatalf("persisted state after late flush = %v, want absent", err)
 	}
 	recorder.mu.RLock()
@@ -200,7 +200,7 @@ func TestCredentialUsageRecorderSweepsCredentialRevokedOnAnotherReplica(t *testi
 	active = false
 	recorder.flushDue(ctx, usedAt.Add(time.Minute))
 
-	if _, err := c.storage.runtimeStateKV.Get(ctx, credentialUsageRuntimeStateKey(botID)); !isRuntimeStateKeyAbsent(err) {
+	if _, err := c.storage.runtimeStateKV.Get(ctx, credentialUsageRuntimeStateKey(botID)); !isKeyAbsent(err) {
 		t.Fatalf("persisted state after remote revocation = %v, want absent", err)
 	}
 	recorder.mu.RLock()

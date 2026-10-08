@@ -11,11 +11,10 @@ import (
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
+	"hmans.de/chatto/internal/natsresources"
 	"hmans.de/chatto/internal/notificationstream"
 	"hmans.de/chatto/pkg/jetstreamutil"
 )
-
-const projectionSnapshotObjectStoreName = "PROJECTION_SNAPSHOTS"
 
 // ============================================================================
 // Storage
@@ -40,180 +39,57 @@ type storage struct {
 }
 
 // newStorage initializes current JetStream resources.
+//
+// Every replica updates each resource to the configuration below at startup,
+// and replicas of different versions can run at the same time. A configuration
+// change is therefore a deliberate storage decision, not a refactor; see
+// TestStorageConfigsArePinned and ADR-114.
 func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConfig) (*storage, error) {
-	// Initialize KMS KEK bucket (excluded from backups for security). App-owned
-	// wrapped DEK records live in RUNTIME_STATE so normal backups keep encrypted
-	// content together with its wrapped content-key registry, but not the KEKs
-	// needed to unwrap it.
-	encryptionKV, err := createKeyValue(ctx, js, jetstream.KeyValueConfig{
-		Bucket:      "ENCRYPTION_KEYS",
-		Description: "KMS key-encryption keys (excluded from backups)",
-		Storage:     jetstream.FileStorage,
-		History:     1,
-		Replicas:    cfg.Replicas,
-	})
+	// App-owned wrapped DEK records live in RUNTIME_STATE so normal backups
+	// keep encrypted content together with its wrapped content-key registry,
+	// but not the KEKs needed to unwrap it.
+	encryptionKV, err := createKeyValue(ctx, js, EncryptionKeysConfig(cfg.Replicas))
 	if err != nil {
 		return nil, err
 	}
-
-	runtimeStateKV, err := createKeyValue(ctx, js, jetstream.KeyValueConfig{
-		Bucket:         "RUNTIME_STATE",
-		Description:    "Persisted latest-value runtime/user state",
-		Storage:        jetstream.FileStorage,
-		History:        1,
-		Compression:    true,
-		Replicas:       cfg.Replicas,
-		LimitMarkerTTL: 24 * time.Hour,
-	})
+	runtimeStateKV, err := createKeyValue(ctx, js, runtimeStateConfig(cfg))
 	if err != nil {
 		return nil, err
 	}
-
 	memoryCacheKV, err := createKeyValue(ctx, js, memoryCacheConfig(cfg))
 	if err != nil {
 		return nil, err
 	}
 
-	// Initialize image cache object store (optional, only when enabled)
 	var imageCacheStore jetstream.ObjectStore
 	if cfg.Assets.Cache.Enabled {
-		imageCacheStore, err = createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.ObjectStore, error) {
-			return js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
-				Bucket:      "ASSET_CACHE",
-				Description: "Cached resized images",
-				Storage:     jetstream.FileStorage,
-				Compression: true,
-				TTL:         cfg.Assets.Cache.TTLOrDefault(),
-				Replicas:    cfg.Replicas,
-			})
-		})
+		imageCacheStore, err = createObjectStore(ctx, js, assetCacheConfig(cfg))
 		if err != nil {
-			return nil, fmt.Errorf("failed to create ASSET_CACHE object store: %w", err)
+			return nil, err
 		}
+	}
+	neighborhoodImages, err := createObjectStore(ctx, js, neighborhoodImagesConfig(cfg))
+	if err != nil {
+		return nil, err
+	}
+	serverAssets, err := createObjectStore(ctx, js, serverAssetsConfig(cfg))
+	if err != nil {
+		return nil, err
 	}
 
-	neighborhoodImages, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.ObjectStore, error) {
-		return js.CreateOrUpdateObjectStore(ctx, neighborhoodImagesConfig(cfg))
-	})
+	serverEvtStream, err := createIdentifiedStream(ctx, js, evtStreamConfig(cfg), evtStreamIdentity)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create %s object store: %w", neighborhoodImagesBucket, err)
+		return nil, err
 	}
-
-	serverAssets, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.ObjectStore, error) {
-		return js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
-			Bucket:      "SERVER_ASSETS",
-			Description: "Server asset binaries (avatars, branding, link previews, attachments)",
-			Storage:     jetstream.FileStorage,
-			Compression: true,
-			Replicas:    cfg.Replicas,
-		})
-	})
+	notificationStream, err := createIdentifiedStream(ctx, js, notificationsStreamConfig(cfg), notificationStreamIdentity)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create SERVER_ASSETS object store: %w", err)
+		return nil, err
 	}
-
-	// EVT — the event-sourcing log (ADR-033/034).
-	// Subjects are evt.{aggregateType}.{aggregateId}.{eventType}; live.evt.> is
-	// the republish target so projections and live subscribers consume
-	// from a single NATS Core path.
-	evtMetadata, err := prepareEVTStreamMetadata(ctx, js)
-	if err != nil {
-		return nil, fmt.Errorf("prepare EVT stream metadata: %w", err)
-	}
-	evtConfig := jetstream.StreamConfig{
-		Name:        "EVT",
-		Description: "Event-sourcing log (ADR-033)",
-		Subjects:    []string{"evt.>"},
-		Storage:     jetstream.FileStorage,
-		Compression: jetstream.S2Compression,
-		Replicas:    cfg.Replicas,
-		Metadata:    evtMetadata,
-		// AllowAtomicPublish gates the Nats-Batch-Id / Nats-Batch-Commit
-		// protocol on this stream. Used by Publisher.AppendBatch to
-		// land multi-aggregate cascades (MoveRoomToGroup, DM creation)
-		// adjacently in stream order so projections never observe an
-		// intermediate state that breaks an invariant.
-		AllowAtomicPublish: true,
-		RePublish: &jetstream.RePublish{
-			Source:      "evt.>",
-			Destination: "live.evt.>",
-		},
-	}
-	serverEvtStream, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
-		return js.CreateOrUpdateStream(ctx, evtConfig)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create EVT stream: %w", err)
-	}
-	if !evtstream.ValidIdentity(evtConfig.Metadata[evtstream.IdentityMetadataKey]) {
-		info := serverEvtStream.CachedInfo()
-		if info == nil {
-			return nil, fmt.Errorf("created EVT stream info is unavailable")
-		}
-		identity, identityErr := evtstream.NewIdentity(info.Created)
-		if identityErr != nil {
-			return nil, identityErr
-		}
-		evtConfig.Metadata[evtstream.IdentityMetadataKey] = identity
-		serverEvtStream, err = createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
-			return js.CreateOrUpdateStream(ctx, evtConfig)
-		})
-		if err != nil {
-			return nil, fmt.Errorf("persist EVT stream identity: %w", err)
-		}
-	}
-
-	notificationMetadata, err := prepareNotificationStreamMetadata(ctx, js)
-	if err != nil {
-		return nil, fmt.Errorf("prepare NOTIFICATIONS stream metadata: %w", err)
-	}
-	notificationConfig := jetstream.StreamConfig{
-		Name:               notificationstream.StreamName,
-		Description:        "Bounded notification lifecycle event log",
-		Subjects:           notificationstream.Subjects(),
-		Storage:            jetstream.FileStorage,
-		Compression:        jetstream.S2Compression,
-		Replicas:           cfg.Replicas,
-		MaxAge:             notificationTTL + notificationPhysicalCleanupGrace,
-		Duplicates:         notificationAlertDeliveryTTL,
-		AllowMsgTTL:        true,
-		AllowAtomicPublish: true,
-		Metadata:           notificationMetadata,
-	}
-	notificationStream, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
-		return js.CreateOrUpdateStream(ctx, notificationConfig)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create %s stream: %w", notificationstream.StreamName, err)
-	}
-	if !notificationstream.ValidIdentity(notificationConfig.Metadata[notificationstream.IdentityMetadataKey]) {
-		info := notificationStream.CachedInfo()
-		if info == nil {
-			return nil, fmt.Errorf("created NOTIFICATIONS stream info is unavailable")
-		}
-		identity, identityErr := notificationstream.NewIdentity(info.Created)
-		if identityErr != nil {
-			return nil, identityErr
-		}
-		notificationConfig.Metadata[notificationstream.IdentityMetadataKey] = identity
-		notificationStream, err = createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
-			return js.CreateOrUpdateStream(ctx, notificationConfig)
-		})
-		if err != nil {
-			return nil, fmt.Errorf("persist NOTIFICATIONS stream identity: %w", err)
-		}
-	}
-
 	logStream, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
-		return js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
-			Name: "LOG", Description: "Retained operational diagnostics", Subjects: []string{"log.>"},
-			Storage: jetstream.FileStorage, Compression: jetstream.S2Compression, Replicas: cfg.Replicas,
-			Retention: jetstream.LimitsPolicy, MaxAge: cfg.Log.RetentionOrDefault(),
-			Duplicates: min(2*time.Minute, cfg.Log.RetentionOrDefault()),
-		})
+		return js.CreateOrUpdateStream(ctx, logStreamConfig(cfg))
 	})
 	if err != nil {
-		return nil, fmt.Errorf("create LOG stream: %w", err)
+		return nil, fmt.Errorf("create %s stream: %w", natsresources.Log, err)
 	}
 
 	return &storage{
@@ -229,32 +105,53 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	}, nil
 }
 
-func prepareNotificationStreamMetadata(ctx context.Context, js jetstream.JetStream) (map[string]string, error) {
-	metadata := make(map[string]string)
-	stream, err := js.Stream(ctx, notificationstream.StreamName)
-	switch {
-	case err == nil:
-		info, infoErr := stream.Info(ctx)
-		if infoErr != nil {
-			return nil, fmt.Errorf("read existing NOTIFICATIONS stream info: %w", infoErr)
-		}
-		maps.Copy(metadata, info.Config.Metadata)
-	case errors.Is(err, jetstream.ErrStreamNotFound):
-	case err != nil:
-		return nil, fmt.Errorf("open existing NOTIFICATIONS stream: %w", err)
+// EncryptionKeysConfig is the ENCRYPTION_KEYS bucket configuration. The server
+// and `chatto keys import` must create the bucket identically. The bucket is
+// excluded from backups for security.
+func EncryptionKeysConfig(replicas int) jetstream.KeyValueConfig {
+	return jetstream.KeyValueConfig{
+		Bucket:      natsresources.EncryptionKeys,
+		Description: "KMS key-encryption keys (excluded from backups)",
+		Storage:     jetstream.FileStorage,
+		History:     1,
+		Replicas:    replicas,
 	}
-	if notificationstream.ValidIdentity(metadata[notificationstream.IdentityMetadataKey]) {
-		return metadata, nil
+}
+
+func runtimeStateConfig(cfg config.CoreConfig) jetstream.KeyValueConfig {
+	return jetstream.KeyValueConfig{
+		Bucket:         natsresources.RuntimeState,
+		Description:    "Persisted latest-value runtime/user state",
+		Storage:        jetstream.FileStorage,
+		History:        1,
+		Compression:    true,
+		Replicas:       cfg.Replicas,
+		LimitMarkerTTL: 24 * time.Hour,
 	}
-	if stream == nil || stream.CachedInfo() == nil {
-		return metadata, nil
+}
+
+// memoryCacheConfig enables per-key TTLs for every MEMORY_CACHE record. The
+// limit marker lifetime comes from presence, the bucket's first TTL user.
+func memoryCacheConfig(cfg config.CoreConfig) jetstream.KeyValueConfig {
+	return jetstream.KeyValueConfig{
+		Bucket:         natsresources.MemoryCache,
+		Description:    "Volatile memory-backed runtime cache state",
+		Storage:        jetstream.MemoryStorage,
+		History:        1,
+		Replicas:       cfg.Replicas,
+		LimitMarkerTTL: PresenceTTL,
 	}
-	identity, err := notificationstream.NewIdentity(stream.CachedInfo().Created)
-	if err != nil {
-		return nil, err
+}
+
+func assetCacheConfig(cfg config.CoreConfig) jetstream.ObjectStoreConfig {
+	return jetstream.ObjectStoreConfig{
+		Bucket:      natsresources.AssetCache,
+		Description: "Cached resized images",
+		Storage:     jetstream.FileStorage,
+		Compression: true,
+		TTL:         cfg.Assets.Cache.TTLOrDefault(),
+		Replicas:    cfg.Replicas,
 	}
-	metadata[notificationstream.IdentityMetadataKey] = identity
-	return metadata, nil
 }
 
 // neighborhoodImagesConfig keeps each image for a fixed period after its
@@ -262,11 +159,86 @@ func prepareNotificationStreamMetadata(ctx context.Context, js jetstream.JetStre
 // uses, so unused images expire without a cleanup pass.
 func neighborhoodImagesConfig(cfg config.CoreConfig) jetstream.ObjectStoreConfig {
 	return jetstream.ObjectStoreConfig{
-		Bucket:      neighborhoodImagesBucket,
+		Bucket:      natsresources.NeighborhoodImages,
 		Description: "Expiring copies of Neighborhood server images",
 		Storage:     jetstream.FileStorage,
 		TTL:         neighborhoodImageTTL,
 		Replicas:    cfg.Replicas,
+	}
+}
+
+func serverAssetsConfig(cfg config.CoreConfig) jetstream.ObjectStoreConfig {
+	return jetstream.ObjectStoreConfig{
+		Bucket:      natsresources.ServerAssets,
+		Description: "Server asset binaries (avatars, branding, link previews, attachments)",
+		Storage:     jetstream.FileStorage,
+		Compression: true,
+		Replicas:    cfg.Replicas,
+	}
+}
+
+func projectionSnapshotsConfig(cfg config.CoreConfig) jetstream.ObjectStoreConfig {
+	return jetstream.ObjectStoreConfig{
+		Bucket:      natsresources.ProjectionSnapshots,
+		Description: "Encrypted ephemeral projection snapshots",
+		Storage:     jetstream.FileStorage,
+		Compression: true,
+		Replicas:    cfg.Replicas,
+		TTL:         cfg.ProjectionSnapshotRetentionOrDefault(),
+	}
+}
+
+// evtStreamConfig is the EVT event-sourcing log (ADR-033/034). Subjects are
+// evt.{aggregateType}.{aggregateId}.{eventType}; live.evt.> is the republish
+// target so projections and live subscribers consume from a single NATS Core
+// path. createIdentifiedStream adds the identity metadata.
+func evtStreamConfig(cfg config.CoreConfig) jetstream.StreamConfig {
+	return jetstream.StreamConfig{
+		Name:        natsresources.EVT,
+		Description: "Event-sourcing log (ADR-033)",
+		Subjects:    []string{"evt.>"},
+		Storage:     jetstream.FileStorage,
+		Compression: jetstream.S2Compression,
+		Replicas:    cfg.Replicas,
+		// AllowAtomicPublish gates the Nats-Batch-Id / Nats-Batch-Commit
+		// protocol on this stream. Used by Publisher.AppendBatch to
+		// land multi-aggregate cascades (MoveRoomToGroup, DM creation)
+		// adjacently in stream order so projections never observe an
+		// intermediate state that breaks an invariant.
+		AllowAtomicPublish: true,
+		RePublish: &jetstream.RePublish{
+			Source:      "evt.>",
+			Destination: "live.evt.>",
+		},
+	}
+}
+
+func notificationsStreamConfig(cfg config.CoreConfig) jetstream.StreamConfig {
+	return jetstream.StreamConfig{
+		Name:               natsresources.Notifications,
+		Description:        "Bounded notification lifecycle event log",
+		Subjects:           notificationstream.Subjects(),
+		Storage:            jetstream.FileStorage,
+		Compression:        jetstream.S2Compression,
+		Replicas:           cfg.Replicas,
+		MaxAge:             notificationTTL + notificationPhysicalCleanupGrace,
+		Duplicates:         notificationAlertDeliveryTTL,
+		AllowMsgTTL:        true,
+		AllowAtomicPublish: true,
+	}
+}
+
+func logStreamConfig(cfg config.CoreConfig) jetstream.StreamConfig {
+	return jetstream.StreamConfig{
+		Name:        natsresources.Log,
+		Description: "Retained operational diagnostics",
+		Subjects:    []string{"log.>"},
+		Storage:     jetstream.FileStorage,
+		Compression: jetstream.S2Compression,
+		Replicas:    cfg.Replicas,
+		Retention:   jetstream.LimitsPolicy,
+		MaxAge:      cfg.Log.RetentionOrDefault(),
+		Duplicates:  min(2*time.Minute, cfg.Log.RetentionOrDefault()),
 	}
 }
 
@@ -281,45 +253,106 @@ func createKeyValue(ctx context.Context, js jetstream.JetStream, cfg jetstream.K
 	return jetstreamutil.NewKeyValue(js, bucket)
 }
 
-func memoryCacheConfig(cfg config.CoreConfig) jetstream.KeyValueConfig {
-	return jetstream.KeyValueConfig{
-		Bucket:         "MEMORY_CACHE",
-		Description:    "Volatile memory-backed runtime cache state",
-		Storage:        jetstream.MemoryStorage,
-		History:        1,
-		Replicas:       cfg.Replicas,
-		LimitMarkerTTL: PresenceTTL,
-	}
+// isKeyAbsent reports that a key-value read found no live entry. Bound reads
+// report a removal marker as jetstream.ErrKeyNotFound; other reads, such as a
+// raw revision read, report it as jetstream.ErrKeyDeleted.
+func isKeyAbsent(err error) bool {
+	return errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted)
 }
 
-func prepareEVTStreamMetadata(ctx context.Context, js jetstream.JetStream) (map[string]string, error) {
-	metadata := make(map[string]string)
-	stream, err := js.Stream(ctx, "EVT")
-	switch {
-	case err == nil:
-		info, infoErr := stream.Info(ctx)
-		if infoErr != nil {
-			return nil, fmt.Errorf("read existing EVT stream info: %w", infoErr)
-		}
-		maps.Copy(metadata, info.Config.Metadata)
-	case errors.Is(err, jetstream.ErrStreamNotFound):
-	case err != nil:
-		return nil, fmt.Errorf("open existing EVT stream: %w", err)
+// createObjectStore creates or updates an Object Store.
+func createObjectStore(ctx context.Context, js jetstream.JetStream, cfg jetstream.ObjectStoreConfig) (jetstream.ObjectStore, error) {
+	store, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.ObjectStore, error) {
+		return js.CreateOrUpdateObjectStore(ctx, cfg)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create %s object store: %w", cfg.Bucket, err)
 	}
-	if evtstream.ValidIdentity(metadata[evtstream.IdentityMetadataKey]) {
-		return metadata, nil
+	return store, nil
+}
+
+// streamIdentity is one stream's incarnation identity scheme. The owning
+// package defines the metadata key and format.
+type streamIdentity struct {
+	metadataKey string
+	valid       func(string) bool
+	derive      func(created time.Time) (string, error)
+}
+
+var (
+	evtStreamIdentity = streamIdentity{
+		metadataKey: evtstream.IdentityMetadataKey,
+		valid:       evtstream.ValidIdentity,
+		derive:      evtstream.NewIdentity,
 	}
-	if stream == nil {
-		return metadata, nil
+	notificationStreamIdentity = streamIdentity{
+		metadataKey: notificationstream.IdentityMetadataKey,
+		valid:       notificationstream.ValidIdentity,
+		derive:      notificationstream.NewIdentity,
 	}
-	if stream.CachedInfo() == nil {
-		return nil, fmt.Errorf("existing EVT stream info is unavailable")
+)
+
+// createIdentifiedStream creates or updates a stream and keeps its incarnation
+// identity in the stream metadata. It keeps the existing metadata. When the
+// identity is missing, it derives one from the stream creation time: from the
+// existing stream, or from the new stream after a second update.
+func createIdentifiedStream(ctx context.Context, js jetstream.JetStream, cfg jetstream.StreamConfig, identity streamIdentity) (jetstream.Stream, error) {
+	metadata, err := prepareStreamIdentityMetadata(ctx, js, cfg.Name, identity)
+	if err != nil {
+		return nil, fmt.Errorf("prepare %s stream metadata: %w", cfg.Name, err)
 	}
-	identity, err := evtstream.NewIdentity(stream.CachedInfo().Created)
+	cfg.Metadata = metadata
+	create := func(ctx context.Context) (jetstream.Stream, error) {
+		return js.CreateOrUpdateStream(ctx, cfg)
+	}
+	stream, err := createJetStreamResourceWithRetry(ctx, create)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create %s stream: %w", cfg.Name, err)
+	}
+	if identity.valid(metadata[identity.metadataKey]) {
+		return stream, nil
+	}
+	info := stream.CachedInfo()
+	if info == nil {
+		return nil, fmt.Errorf("created %s stream info is unavailable", cfg.Name)
+	}
+	value, err := identity.derive(info.Created)
 	if err != nil {
 		return nil, err
 	}
-	metadata[evtstream.IdentityMetadataKey] = identity
+	metadata[identity.metadataKey] = value
+	stream, err = createJetStreamResourceWithRetry(ctx, create)
+	if err != nil {
+		return nil, fmt.Errorf("persist %s stream identity: %w", cfg.Name, err)
+	}
+	return stream, nil
+}
+
+// prepareStreamIdentityMetadata returns the existing stream metadata. It adds
+// an identity derived from the existing stream's creation time when the
+// metadata has no valid identity. It returns no identity for a new stream.
+func prepareStreamIdentityMetadata(ctx context.Context, js jetstream.JetStream, name string, identity streamIdentity) (map[string]string, error) {
+	metadata := make(map[string]string)
+	stream, err := js.Stream(ctx, name)
+	switch {
+	case errors.Is(err, jetstream.ErrStreamNotFound):
+		return metadata, nil
+	case err != nil:
+		return nil, fmt.Errorf("open existing %s stream: %w", name, err)
+	}
+	info, err := stream.Info(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read existing %s stream info: %w", name, err)
+	}
+	maps.Copy(metadata, info.Config.Metadata)
+	if identity.valid(metadata[identity.metadataKey]) {
+		return metadata, nil
+	}
+	value, err := identity.derive(info.Created)
+	if err != nil {
+		return nil, err
+	}
+	metadata[identity.metadataKey] = value
 	return metadata, nil
 }
 
