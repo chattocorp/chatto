@@ -53,6 +53,9 @@
       "copy_user_id": "Kopii identigilon de uzanto"
     },
     "server_gutter": {
+      "home_server": "Hejma servilo",
+      "move_up": "Movi supren",
+      "move_down": "Movi malsupren",
       "add_server": "Aldonu Servilon",
       "log_in": "Ensaluti al ĉi tiu servilo",
       "sign_out": "Elsaluti el ĉi tiu servilo",

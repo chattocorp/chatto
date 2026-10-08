@@ -53,6 +53,9 @@
       "copy_user_id": "複製使用者 ID"
     },
     "server_gutter": {
+      "home_server": "主伺服器",
+      "move_up": "向上移動",
+      "move_down": "向下移動",
       "add_server": "新增伺服器",
       "log_in": "登入此伺服器",
       "sign_out": "登出此伺服器",

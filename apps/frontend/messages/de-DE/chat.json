@@ -53,6 +53,9 @@
       "copy_user_id": "Benutzer-ID kopieren"
     },
     "server_gutter": {
+      "home_server": "Server dieser App",
+      "move_up": "Nach oben verschieben",
+      "move_down": "Nach unten verschieben",
       "add_server": "Server hinzufügen",
       "log_in": "Bei diesem Server anmelden",
       "sign_out": "Von diesem Server abmelden",

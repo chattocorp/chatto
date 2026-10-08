@@ -53,6 +53,9 @@
       "copy_user_id": "Copia ID utente"
     },
     "server_gutter": {
+      "home_server": "Server principale",
+      "move_up": "Sposta in alto",
+      "move_down": "Sposta in basso",
       "add_server": "Aggiungi server",
       "log_in": "Accedi a questo server",
       "sign_out": "Esci da questo server",
