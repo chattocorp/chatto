@@ -1,12 +1,19 @@
 # Runtime Component Inventory
 
+This file lists the server-side components of the Chatto process: the core
+facade, runtime units, models, publishers, and workers. It does not list
+client runtimes (the bundled frontend, the desktop and mobile shells, and
+`@chatto/client`) or development tools. Their ownership is documented in their
+source, FDRs, and ADRs.
+
 Key files: [`cli/cmd/run.go`](../../cli/cmd/run.go),
 [`cli/internal/core/core.go`](../../cli/internal/core/core.go),
 [`cli/internal/runtimeunit/runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go),
-[`cli/internal/evtstream/effects.go`](../../cli/internal/evtstream/effects.go), and
-[`apps/desktop/main.mjs`](../../apps/desktop/main.mjs)
+and [`cli/internal/evtstream/effects.go`](../../cli/internal/evtstream/effects.go).
 
-The core runtime is process-local but must be safe under multiple Chatto replicas connected to the same NATS account. Correctness comes from JetStream/KV atomicity and projection catch-up, not in-process serialization.
+The core runtime is process-local but must be safe under multiple Chatto
+replicas connected to the same NATS account. Correctness comes from
+JetStream/KV atomicity and projection catch-up, not in-process serialization.
 
 Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
 [ADR-041](../adr/ADR-041-runtime-units.md),
@@ -16,206 +23,325 @@ Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections
 [ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md), and
 [ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
 
+## Process and runtime units
+
 `chatto run` composes optional runtime units from a validated catalogue. A
 registration supplies a `runtimeunit.Unit` plus a config predicate that
 controls whether it starts in the main process. Standalone-capable units also
-use the same implementation in a standalone command. The exporter, bundled
-search provider, and asset-processing worker are registered units. An embedded
-unit failure is logged and degrades that optional capability without stopping
-the core server. The catalogue supervisor restarts it with exponential backoff
-capped at 30 seconds. A standalone-capable unit failure still exits for its
-process supervisor.
-Independently deployable providers use this catalogue rather than adding
-custom startup blocks.
+use the same implementation in a standalone command. An embedded unit failure
+is logged and degrades that optional capability without stopping the core
+server. The catalogue supervisor restarts it with exponential backoff capped
+at 30 seconds. A standalone-capable unit failure still exits for its process
+supervisor. Independently deployable providers use this catalogue rather than
+adding custom startup blocks.
 
-## Client runtimes
+- **`ChattoCore`** ([`core.go`](../../cli/internal/core/core.go),
+  [`core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go),
+  [`storage.go`](../../cli/internal/core/storage.go),
+  [`projection_wiring.go`](../../cli/internal/core/projection_wiring.go),
+  [`core_services.go`](../../cli/internal/core/core_services.go)): Application
+  facade and composition root; staged resource initialization, six registered
+  projector lifecycles, API-facing operations, and only production-consumed read
+  models and cross-package adapters.
+- **NATS recovery gate**
+  ([`nats_recovery.go`](../../cli/internal/core/nats_recovery.go),
+  [`health.go`](../../cli/internal/http_server/health.go)): Marks the replica
+  unready across NATS continuity gaps, quarantines realtime sessions, restores
+  volatile resources, refreshes KV watchers, waits for projection catch-up, and
+  fails liveness after a five-minute recovery stall.
+- **Embedded NATS runtime**
+  ([`nats_server.go`](../../cli/internal/embedded_nats/nats_server.go),
+  [`nats.go`](../../cli/internal/config/nats.go),
+  [`server.go`](../../pkg/natsruntime/server.go),
+  [`restore.go`](../../cli/cmd/restore.go)): `chatto run` maps Chatto-owned
+  listener, authentication, monitoring, logging, storage, and optional JetStream
+  disk-sync policy into the shared server lifecycle; an unset sync interval
+  preserves the NATS default; restore uses the same lifecycle with a temporary
+  in-process-only server.
+- **Runtime-unit catalogue** ([`run.go`](../../cli/cmd/run.go),
+  [`runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go)): Validated
+  composition and capped-backoff supervision of optional units under
+  `chatto run` using the same unit implementations as standalone commands.
+- **`exporter.Unit`** ([`unit.go`](../../cli/internal/exporter/unit.go)):
+  Optional export runtime started by `[exporter].enabled` under `chatto run` or
+  directly by its standalone command.
+- **`bleve.Unit`** ([`unit.go`](../../cli/internal/search/bleve/unit.go),
+  [`search_provider.go`](../../cli/cmd/search_provider.go)): Bundled
+  message-search provider with the runtime diagnostic identity
+  `search.BleveProvider`, started by `[search_provider].enabled` under
+  `chatto run` or as `chatto search-provider`; opens existing EVT and encryption
+  resources without starting `ChattoCore`, exposes status during startup replay,
+  and joins the shared query queue only after replay is current.
+- **`video.Unit`** ([`unit.go`](../../cli/internal/video/unit.go),
+  [`asset_processing.go`](../../cli/cmd/asset_processing.go),
+  [`asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go)):
+  Durable asset-processing worker started by `[asset_processing].enabled` under
+  `chatto run` or explicitly as `chatto asset-processing`; `[asset_processing]`
+  also owns its ffmpeg paths, temporary directory, and per-process concurrency;
+  runs a private AssetProjection without starting `ChattoCore` or main-app boot
+  mutations.
+- **`video.Service`** ([`service.go`](../../cli/internal/video/service.go),
+  [`processor.go`](../../cli/internal/video/processor.go)): Synchronous
+  video/animated-GIF processing attempts: web-compatible stereo audio
+  normalization, HLS segment packaging and upload, animated-GIF MP4 upload, and
+  terminal asset processing events; queue and concurrency remain owned by
+  `video.Unit`.
 
-The frontend's
-[`ServerGutterOrder`](../../apps/frontend/src/lib/state/serverGutterOrder.svelte.ts)
-owns the committed remote-server display order. It stores an ordered list of
-server IDs at `chatto:serverGutterOrder` in browser local storage. The gutter
-mounts the storage, focus, and page-resume listeners and removes them when it
-unmounts. Other tabs read the latest stored order without writing it back.
-Drag previews belong to the gutter component and are not shared. This state
-does not change client registration order or sessions. See
-[FDR-049](../fdr/FDR-049-server-gutter.md).
+## Event-sourcing framework and adapters
 
-`ServerRuntimeCoordinator` owns the frontend startup recovery loop. It checks
-registered servers for discovery failures and unresolved retained bearer
-sessions, with independent backoff and no overlapping scheduled attempts for
-one server. Browser visibility, network return, and Capacitor resume events
-trigger recovery. Hidden, paused, or offline clients do not start attempts.
-The registry fences viewer-summary writes against server removal and credential
-changes. Realtime connection ownership remains with the existing event buses.
-Registry start creates a store for each registered server. It starts
-discovery for each server and the viewer check for each remote server. The
-root route load waits for origin discovery and the origin viewer. A remote
-server route load waits for that server's viewer check. The
-coordinator starts realtime only after the server confirms the viewer. The
-client keeps no chat data on the device, so each page load starts without a
-resume cursor and receives a fresh snapshot. See
-[ADR-107](../adr/ADR-107-keep-chat-data-out-of-device-storage.md).
+The shared modules under `pkg/events/` are application-neutral. The
+`evtstream` package adapts them to Chatto's EVT envelope and subjects.
 
-The bundled frontend's
-[`PushSubscriptionRefresh`](../../apps/frontend/src/lib/components/PushSubscriptionRefresh.svelte)
-component maintains Web Push subscriptions for the chat shell. It saves
-subscriptions when permission is granted and a server becomes eligible, and
-checks for refreshes on window focus and once an hour. It has no visible UI
-and never requests notification permission.
-[`PushDeviceSettings`](../../apps/frontend/src/lib/components/settings/PushDeviceSettings.svelte)
-requests permission when the user checks Push notifications on this device
-in notification settings. See [FDR-013](../fdr/FDR-013-web-push-notifications.md).
+- **`events.EncodedEventLog`**
+  ([`encoded_event_log.go`](../../pkg/events/encoded_event_log.go)):
+  Independently versioned incubation-module boundary for opaque-byte JetStream
+  reads and OCC-guarded writes with an explicit unguarded path for
+  state-independent facts, including message deduplication, atomic batches,
+  filter-scoped guards, and stream positions; it has no Chatto event-envelope or
+  subject-policy knowledge.
+- **`events.StreamMessageReader`**
+  ([`stream_message_reader.go`](../../pkg/events/stream_message_reader.go)):
+  Application-neutral exact-sequence stream reads with process-wide concurrency
+  limits, duplicate removal, immutable byte copies, explicit invalidation, and
+  an optional process-local cache with sliding idle expiry.
+- **`evtstream.Publisher`**
+  ([`publisher.go`](../../cli/internal/evtstream/publisher.go),
+  [`subjects.go`](../../cli/internal/evtstream/subjects.go)): Chatto adapter
+  that owns the stable EVT subject vocabulary, validates durable `evtv1.Event`
+  values, preserves their stable IDs, and protobuf-encodes/decodes them above
+  `EncodedEventLog`.
+- **`evtstream.Reader`**
+  ([`reader.go`](../../cli/internal/evtstream/reader.go)): Typed exact-sequence
+  EVT adapter over `events.StreamMessageReader`; it validates and decodes Chatto
+  events while the shared reader owns bounded JetStream access and the
+  process-local opaque-record cache.
+- **`events.ProjectionHandle` / `events.Projector` /
+  `events.ComponentizedProjection`**
+  ([`projector.go`](../../pkg/events/projector.go),
+  [`component_projection.go`](../../pkg/events/component_projection.go),
+  [`projector.go`](../../cli/internal/evtstream/projector.go)): Envelope-neutral
+  typed model ownership, prepared reducers, one projector-owned apply barrier
+  for related components, ordered replay, readiness, failure, component-shaped
+  projection snapshots (one component for a single payload), and checkpoints;
+  `evtstream` supplies the Chatto event decoder and typed constructors.
+- **`events.DurableWorker`**
+  ([`durable_worker.go`](../../pkg/events/durable_worker.go)):
+  Application-neutral bounded, at-least-once execution from an application-owned
+  JetStream pull consumer; transient fetches retry, deleted consumers return
+  control to application lifecycle, and callers own decoding, projection
+  barriers, idempotency, retry classification, and terminal facts.
+- **`evtstream` effect adapter**
+  ([`effects.go`](../../cli/internal/evtstream/effects.go)): Chatto-owned
+  consumer creation and standard `events.DurableWorker` wiring. Effect sites
+  retain durable names, filters, acknowledgement policy, decoding, barriers,
+  idempotency, and retry decisions.
 
-The bundled frontend's per-server
-[`PendingHighlightStore`](../../apps/frontend/src/lib/state/server/pendingHighlight.ts)
-owns the active message jump. The request keeps its object identity through
-room hydration, snapshot replacement, and component remounts.
-[`RoomNavigationState`](../../apps/frontend/src/routes/chat/[serverId]/[roomId]/roomNavigationState.svelte.ts)
-reads this store instead of keeping a separate highlight. The keyed
-[`RoomRouteHighlight`](../../apps/frontend/src/routes/chat/[serverId]/[roomId]/RoomRouteHighlight.svelte)
-component converts an explicit URL target into a request when room data is ready.
-The keyed
-[`HighlightJump`](../../apps/frontend/src/routes/chat/[serverId]/[roomId]/HighlightJump.svelte)
-component owns one load attempt; unmounting cancels its completion report.
-[`RoomWindowLifecycle`](../../apps/frontend/src/routes/chat/[serverId]/[roomId]/RoomWindowLifecycle.svelte)
-restores the latest window on room activation and cleanup, unless a root jump
-still owns that window. The timeline's scroll attachment reports a successful
-request only after its target is visible and highlighted. A late
-completion cannot clear a newer request. Navigation away from the destination,
-loss of room access, a viewer privacy reset, and server disposal cancel the
-request. See [FDR-012](../fdr/FDR-012-notifications.md).
+## Core models
 
-The experimental iOS shell under `apps/mobile/` bundles the shared frontend
-with Capacitor at `capacitor://localhost`. Its persistent webview store owns
-client state. The native launch-screen view covers WebKit startup until a
-main-frame message from the bundled HTML signals a rendering opportunity.
-The shell also uses the page's resolved sRGB background to paint the native
-window exposed around the keyboard. A full-window native host constrains the
-webview to UIKit's keyboard layout guide instead of the plugin's delayed resize;
-the browser viewport workaround is disabled in this host.
-The narrow `ChattoAuthorization` plugin presents one bounded
-system authentication session; the shared frontend validates its callback and
-completes PKCE and per-server registration. The shell adds no backend or NATS
-resources. Native push and locked-phone calls are deferred. See
-[ADR-099](../adr/ADR-099-capacitor-mobile-client.md).
+The core model inventory in
+[`model_inventory.go`](../../cli/internal/core/model_inventory.go) is a list of
+stable machine-readable keys such as `config_model`, `message_model`, and
+`my_events_model`. Per-process metrics expose these keys via
+`chatto_model_info`.
 
-The bundled client routes message attachments through
-[`AttachmentViewerModal.svelte`](../../apps/frontend/src/routes/chat/modals/AttachmentViewerModal.svelte).
-One shallow-history entry owns the attachment list. Gallery selection, preview
-consent, loading state, and refresh generations exist only for that opening.
-The shared `AttachmentModal` shell keeps Close, file metadata, and Download
-outside the preview and fills small viewports. `AttachmentPreview` selects an
-image, a lazily loaded video player, native audio/video, an opt-in sandboxed HTML
-iframe, or a download-only fallback. Selection and closure invalidate pending
-URL responses and unmount the previous media. Metadata queries are scoped to
-the server session, room, and asset and are not retained after unmount.
-See [FDR-008](../fdr/FDR-008-file-attachments-and-video.md).
+- **`ServerContentView`**
+  ([`server_content_view.go`](../../cli/internal/core/server_content_view.go),
+  [`projection_wiring.go`](../../cli/internal/core/projection_wiring.go)): One
+  process-local `evt.>` consumer, apply barrier, readiness state, and sequence
+  for room, timeline, call, asset, thread, reaction, configuration,
+  user-profile, content-key, RBAC, and mentionable components; also supplies the
+  stable read transaction for content-backed authorization.
+- **`ConfigModel`**
+  ([`config_model.go`](../../cli/internal/core/config_model.go),
+  [`server_config_model.go`](../../cli/internal/core/server_config_model.go),
+  [`neighbors.go`](../../cli/internal/core/neighbors.go)): Sole core boundary
+  for semantic server/user config and Neighbor reads and event writes, including
+  `ConfigProjection` readiness.
+- **`NotificationPolicyModel` / `NotificationOccurrenceModel` /
+  `NotificationProjection` / `NotificationMaterializer` /
+  `NotificationDecisionProjection` / `NotificationAlertDelivery`**
+  ([`notification_policy.go`](../../cli/internal/core/notification_policy.go),
+  [`notification_occurrence_model.go`](../../cli/internal/core/notification_occurrence_model.go),
+  [`notification_badge.go`](../../cli/internal/core/notification_badge.go),
+  [`notification_badge_sources.go`](../../cli/internal/core/notification_badge_sources.go),
+  [`notification_projection.go`](../../cli/internal/core/notification_projection.go),
+  [`notification_materializer.go`](../../cli/internal/core/notification_materializer.go),
+  [`notification_decision_projection.go`](../../cli/internal/core/notification_decision_projection.go),
+  [`notification_alert_delivery.go`](../../cli/internal/core/notification_alert_delivery.go),
+  [`stream.go`](../../cli/internal/notificationstream/stream.go)):
+  Projection-fenced field-based server/room-group/room policy for each built-in
+  signal class; materialization-time Ambient/Important classification
+  independent from delivery mode; deterministic recipient/source/signal
+  identity; durable rich mention causes; root channel-message delivery to
+  current members with `message.read`; Badge attention computed when it is read
+  from the decision projection's Badge source index, current visibility, and
+  read boundaries (ADR-109), with hints only when a source turns attention on; a
+  compact current-state decision projection; direct double-ack derivation from
+  existing EVT facts into `NOTIFICATIONS`; lifecycle facts and encrypted
+  snapshots over `NOTIFICATIONS`; secure deletion of rich signals after
+  projected removal; best-effort local-sound hints for notification modes; and
+  direct durable push consumption from `notifications.signalled` with an
+  immutable deadline and current policy, visibility, DND, and subscription
+  revalidation.
+- **`MessageModel`**
+  ([`message_model.go`](../../cli/internal/core/message_model.go),
+  [`messages.go`](../../cli/internal/core/messages.go)): Operation-level message
+  posting and mutation API with preflight validation, stable request-time
+  authorization, Slow Mode and Threading Mode enforcement, room-OCC writes,
+  projection waits, encrypted attachment-description replacement, atomic
+  edit-driven echo reconciliation, explicit reads separate from posting, and
+  atomic author-created root-thread writes.
+- **`MessageSearchReadModel`**
+  ([`message_search_read_model.go`](../../cli/internal/core/message_search_read_model.go)):
+  Resolves provider queries to current member-room scopes and re-authorizes thin
+  provider hits against current room membership and message state.
+- **`ReactionModel`**
+  ([`reaction_model.go`](../../cli/internal/core/reaction_model.go),
+  [`reactions.go`](../../cli/internal/core/reactions.go)): Sole reaction
+  mutation boundary: actor membership and `message.react` authZ, room-aggregate
+  OCC writes and retries, and reaction-projection readiness.
+- **`RoomCommandModel`**
+  ([`room_command_model.go`](../../cli/internal/core/room_command_model.go)):
+  Operation-level room lifecycle, Slow Mode and Threading Mode configuration,
+  membership, moderation, and DM commands with public API authorization and
+  room-kind preconditions.
+- **`RoomDirectoryReadModel`**
+  ([`room_directory_read_model.go`](../../cli/internal/core/room_directory_read_model.go)):
+  Operation-level room directory and sidebar reads, viewer capability and Slow
+  Mode deadline hydration, and directory-adjacent join commands.
+- **`RoomTimelineReadModel`**
+  ([`room_timeline_read_model.go`](../../cli/internal/core/room_timeline_read_model.go),
+  [`room_events.go`](../../cli/internal/core/room_events.go),
+  [`room_timeline_hydrator.go`](../../cli/internal/core/room_timeline_hydrator.go)):
+  Operation-level room/thread timeline read API with actor membership checks,
+  broad or interaction-scoped message authorization, thread-root validation,
+  compact projection-backed page selection, exact EVT payload hydration,
+  validation, and stale-plan retries.
+- **`ReadStateModel`**
+  ([`read_state_model.go`](../../cli/internal/core/read_state_model.go),
+  [`read_state_index.go`](../../cli/internal/core/read_state_index.go),
+  [`room_unread.go`](../../cli/internal/core/room_unread.go),
+  [`threads.go`](../../cli/internal/core/threads.go)): Operation-level
+  room/thread Message Read Cursor API plus one process-wide filtered
+  `RUNTIME_STATE` watcher; initial-sync readiness, in-memory reads, KV OCC
+  writes, revision barriers, and sync events. The room cursor places the New
+  messages separator. It does not create Badge attention.
+- **`ThreadFollowModel`**
+  ([`thread_follow_model.go`](../../cli/internal/core/thread_follow_model.go),
+  [`threads.go`](../../cli/internal/core/threads.go)): Operation-level thread
+  follow/unfollow API plus current-account interaction discovery; revalidates
+  membership and read permission, validates thread roots, writes durable follow
+  state, waits for projections, and publishes sync events.
+- **`RoomModel`** ([`room_model.go`](../../cli/internal/core/room_model.go),
+  [`rooms.go`](../../cli/internal/core/rooms.go),
+  [`room_groups.go`](../../cli/internal/core/room_groups.go),
+  [`pinned_messages.go`](../../cli/internal/core/pinned_messages.go)): Eagerly
+  wired room-derived projection readiness and narrow reads for room catalog,
+  membership, layout, timeline, threads, reactions, and pinned messages;
+  supplies projection snapshots and readiness to atomic room and room-group
+  structural batches and room-OCC pin mutations.
+- **`UserModel`** ([`user_model.go`](../../cli/internal/core/user_model.go)):
+  Sole core owner of user profile, cold-replayed authentication, and content-key
+  projection reads and readiness for account, identity, credential, profile,
+  custom-status, encryption operations, and durable bot-key-generation
+  invalidation watches for realtime connections.
+- **`InvitationModel`**
+  ([`invitations.go`](../../cli/internal/core/invitations.go),
+  [`invitation_projection.go`](../../cli/internal/core/invitation_projection.go)):
+  Sole core owner of invite-link creation, listing, revocation, validation,
+  compact purpose-separated token derivation, and projection readiness;
+  redemption commits atomically with the admitted account against a whole-EVT
+  OCC guard.
+- **`OAuthClientModel`**
+  ([`oauth_clients.go`](../../cli/internal/core/oauth_clients.go),
+  [`oauth_client_projection.go`](../../cli/internal/core/oauth_client_projection.go)):
+  Sole core owner of successful OAuth-client authorization records,
+  administrative default/trusted/blocked policy, fail-closed projection-backed
+  authorization checks, per-client active-realtime access-denial notifications
+  on every replica, and block-triggered OAuth token cleanup.
+- **`UserKeyShreddingModel`**
+  ([`user_key_shredding.go`](../../cli/internal/core/user_key_shredding.go)):
+  Request-before-destruction crypto-shredding, privacy-projection barriers,
+  synchronous idempotent completion, and shared durable recovery across
+  replicas.
+- **`RBACModel`** ([`rbac_model.go`](../../cli/internal/core/rbac_model.go)):
+  Sole core owner of RBAC projection reads and readiness for role, assignment,
+  and permission authorization and writes.
+- **`MentionablesModel`**
+  ([`mentionables_projection.go`](../../cli/internal/core/mentionables_projection.go)):
+  Global mention-handle namespace lookup and readiness.
+- **`PresenceModel`**
+  ([`presence_model.go`](../../cli/internal/core/presence_model.go),
+  [`presence_hub.go`](../../cli/internal/core/presence_hub.go)): Current private
+  choices in `RUNTIME_STATE`, liveness in `MEMORY_CACHE`, and two per-process KV
+  watchers deriving public presence and counts; no EVT writes.
+- **`CallModel`** ([`call_model.go`](../../cli/internal/core/call_model.go),
+  [`voice.go`](../../cli/internal/core/voice.go),
+  [`lease.go`](../../cli/internal/lease/lease.go)): Sole core owner of
+  call-state projection reads and readiness; generation-consistent participant
+  snapshots and call ID/E2EE access material; durable LiveKit call
+  lifecycle/participant facts and elected LiveKit reconciliation, including
+  current call permission enforcement.
+- **`MediaModel`** ([`media_model.go`](../../cli/internal/core/media_model.go),
+  [`attachments.go`](../../cli/internal/core/attachments.go)): Eagerly wired
+  attachment/media binary storage, signed asset and origin-scoped HLS URLs,
+  transformed image cache operations.
+- **`AssetModel`** ([`asset_model.go`](../../cli/internal/core/asset_model.go),
+  [`asset_cleanup.go`](../../cli/internal/core/asset_cleanup.go),
+  [`asset_projection.go`](../../cli/internal/core/asset_projection.go)): Sole
+  core owner of asset-projection reads and readiness; detached
+  generation-consistent asset state; uploader-bound exclusive message
+  attachments with asset-aggregate OCC; exact-owner deletion; processing
+  transitions, tombstones, and shared durable physical deletion.
+- **`AssetUploadModel`**
+  ([`asset_uploads.go`](../../cli/internal/core/asset_uploads.go)): Eagerly
+  wired chunked attachment upload sessions, temporary object assembly,
+  pending-asset expiry, and process-local periodic cleanup.
 
-The `retainPlayback` attachment in `$lib/media/playbackRetention` reports
-whether media must stay mounted. Media is active while it plays or shows in
-picture-in-picture. Audio and raw video markup use it directly. `VideoPlayer`
-uses it on Vidstack's player and reports through an optional callback.
-`MessageAttachments` tracks active attachment IDs and reports whether any
-attachment is active through `MessageEvent` and `RoomEvent` to `EventList`. The
-timeline combines active row keys with text-selection retention for virtua's
-`keepMounted` indexes. Pagination resolves the keys against the current virtual
-items. Pause, playback end, media errors, and source clearing release playback
-retention, unless the video is in picture-in-picture. The end of
-picture-in-picture releases a paused video. Svelte cleanup releases removed
-players and attachments. Converted GIF loops are excluded. This state exists
-only in the mounted room or thread timeline.
+## Realtime
 
-The experimental Electron desktop shell is a Chatto client runtime using a
-pinned stable Electron and bundled Chromium release. It embeds the official
-static SvelteKit build and intercepts the fixed secure origin
-`chatto://desktop` without opening a TCP listener; ordinary HTTP and HTTPS
-traffic remains on Chromium's normal network path. The existing standalone
-frontend owns server registration, authentication, and routing.
+- **`MyEventsModel`**
+  ([`my_events_model.go`](../../cli/internal/core/my_events_model.go),
+  [`realtime_replay.go`](../../cli/internal/core/realtime_replay.go)): Eagerly
+  wired `myEvents` live delivery, bounded EVT-gap planning, projection
+  readiness, heartbeats, per-user room and thread authorization, and
+  process-local stream counters.
+- **Realtime event and consistency boundary**
+  ([`realtime.go`](../../cli/internal/http_server/realtime.go),
+  [`realtime_event_projection.go`](../../cli/internal/http_server/realtime_event_projection.go),
+  [`realtime_snapshot.go`](../../cli/internal/http_server/realtime_snapshot.go),
+  [`realtime_consistency.go`](../../cli/internal/connectapi/realtime_consistency.go),
+  [`realtime_replay.go`](../../cli/internal/core/realtime_replay.go)): Exact
+  authorized snapshots, dedicated public event payloads after one boundary `E`,
+  short bounded replay, and cursor-bounded targeted ConnectRPC reads without
+  exposing stored EVT fields or broker coordinates.
 
-Electron's default persistent session stores browser state in the application's
-user-data directory. Browser and desktop deployments use the same popup-based
-OAuth flow and return the same-origin callback through `BroadcastChannel`.
-The shared frontend then persists the renewable bearer pair and expiry metadata
-per server, serializes background refresh with same-tab coalescing and a
-same-browser Web Lock, and updates its existing API and realtime transports in
-place. Permanent refresh failure preserves the current route and requires an
-explicit reconnect; it never opens OAuth automatically.
+## Background workers
 
-The shell owns no Chatto backend, NATS resources, projections, or durable
-domain state. Every macOS build adds a narrow optional `screenShare` renderer
-capability and a nested ScreenCaptureKit helper. The bridge lists bounded,
-temporary opaque window/display sources with static JPEG previews and controls
-a publish-only native LiveKit companion. Preview bytes cross Electron as
-structured-clone data and remain in memory; captured media stays in the
-helper's native WebRTC path, so only credentials and acknowledged lifecycle
-control cross IPC during publication.
-
-Window capture includes isolated owning-application audio. Display capture is
-video-only because system audio
-would include remote call playback. The companion publishes an H.264 simulcast
-ladder and enables dynacast so LiveKit can select receiver-appropriate
-qualities and pause unused layers.
-
-The shared frontend feature-detects the capability through its focused desktop
-adapter. One screen-share control opens Chatto's source chooser when the
-capability exists and otherwise invokes the complete browser/LiveKit path,
-including the browser's own chooser. This is the host-capability pattern from
-[ADR-072](../adr/ADR-072-optional-host-capabilities-in-the-shared-frontend.md);
-the frontend does not branch on Electron, macOS, the app origin, or user-agent
-identity.
-
-macOS CI builds and smoke-tests the helper inside the complete app
-bundle. The shell restricts navigation and browser
-permissions at the Electron boundary, while OAuth behavior remains specified by
-[FDR-023](../fdr/FDR-023-authentication-and-sessions.md).
-
-The core model inventory is a list of stable machine-readable keys such as `config_model`, `message_model`, and `my_events_model`. Per-process metrics expose these keys via `chatto_model_info`.
-
-| Model                                                                                                                                                                              | Key files                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Responsibility                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ChattoCore`                                                                                                                                                                       | [`core.go`](../../cli/internal/core/core.go), [`core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`storage.go`](../../cli/internal/core/storage.go), [`projection_wiring.go`](../../cli/internal/core/projection_wiring.go), [`core_services.go`](../../cli/internal/core/core_services.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Application facade and composition root; staged resource initialization, six registered projector lifecycles, API-facing operations, and only production-consumed read models and cross-package adapters                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| NATS recovery gate                                                                                                                                                                 | [`nats_recovery.go`](../../cli/internal/core/nats_recovery.go), [`health.go`](../../cli/internal/http_server/health.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Marks the replica unready across NATS continuity gaps, quarantines realtime sessions, restores volatile resources, refreshes KV watchers, waits for projection catch-up, and fails liveness after a five-minute recovery stall                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Embedded NATS runtime                                                                                                                                                              | [`nats_server.go`](../../cli/internal/embedded_nats/nats_server.go), [`nats.go`](../../cli/internal/config/nats.go), [`server.go`](../../pkg/natsruntime/server.go), [`restore.go`](../../cli/cmd/restore.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `chatto run` maps Chatto-owned listener, authentication, monitoring, logging, storage, and optional JetStream disk-sync policy into the shared server lifecycle; an unset sync interval preserves the NATS default; restore uses the same lifecycle with a temporary in-process-only server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Runtime-unit catalogue                                                                                                                                                             | [`run.go`](../../cli/cmd/run.go), [`runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Validated composition and capped-backoff supervision of optional units under `chatto run` using the same unit implementations as standalone commands                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `exporter.Unit`                                                                                                                                                                    | [`unit.go`](../../cli/internal/exporter/unit.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Optional export runtime started by `[exporter].enabled` under `chatto run` or directly by its standalone command                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `bleve.Unit`                                                                                                                                                                       | [`unit.go`](../../cli/internal/search/bleve/unit.go), [`search_provider.go`](../../cli/cmd/search_provider.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Bundled message-search provider with the runtime diagnostic identity `search.BleveProvider`, started by `[search_provider].enabled` under `chatto run` or as `chatto search-provider`; opens existing EVT and encryption resources without starting `ChattoCore`, exposes status during startup replay, and joins the shared query queue only after replay is current                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `video.Unit`                                                                                                                                                                       | [`unit.go`](../../cli/internal/video/unit.go), [`asset_processing.go`](../../cli/cmd/asset_processing.go), [`asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Durable asset-processing worker started by `[asset_processing].enabled` under `chatto run` or explicitly as `chatto asset-processing`; `[asset_processing]` also owns its ffmpeg paths, temporary directory, and per-process concurrency; runs a private AssetProjection without starting `ChattoCore` or main-app boot mutations                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `MyEventsModel`                                                                                                                                                                    | [`my_events_model.go`](../../cli/internal/core/my_events_model.go), [`realtime_replay.go`](../../cli/internal/core/realtime_replay.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Eagerly wired `myEvents` live delivery, bounded EVT-gap planning, projection readiness, heartbeats, per-user room and thread authorization, and process-local stream counters                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Realtime event and consistency boundary                                                                                                                                            | [`realtime.go`](../../cli/internal/http_server/realtime.go), [`realtime_event_projection.go`](../../cli/internal/http_server/realtime_event_projection.go), [`realtime_snapshot.go`](../../cli/internal/http_server/realtime_snapshot.go), [`realtime_consistency.go`](../../cli/internal/connectapi/realtime_consistency.go), [`realtime_replay.go`](../../cli/internal/core/realtime_replay.go)                                                                                                                                                                                                                                                                                                                                                                                            | Exact authorized snapshots, dedicated public event payloads after one boundary `E`, short bounded replay, and cursor-bounded targeted ConnectRPC reads without exposing stored EVT fields or broker coordinates                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `events.EncodedEventLog`                                                                                                                                                           | [`encoded_event_log.go`](../../pkg/events/encoded_event_log.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Independently versioned incubation-module boundary for opaque-byte JetStream reads and OCC-guarded writes with an explicit unguarded path for state-independent facts, including message deduplication, atomic batches, filter-scoped guards, and stream positions; it has no Chatto event-envelope or subject-policy knowledge                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `events.StreamMessageReader`                                                                                                                                                       | [`stream_message_reader.go`](../../pkg/events/stream_message_reader.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Application-neutral exact-sequence stream reads with process-wide concurrency limits, duplicate removal, immutable byte copies, explicit invalidation, and an optional process-local cache with sliding idle expiry                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `evtstream.Publisher`                                                                                                                                                              | [`publisher.go`](../../cli/internal/evtstream/publisher.go), [`subjects.go`](../../cli/internal/evtstream/subjects.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Chatto adapter that owns the stable EVT subject vocabulary, validates durable `evtv1.Event` values, preserves their stable IDs, and protobuf-encodes/decodes them above `EncodedEventLog`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `evtstream.Reader`                                                                                                                                                                 | [`reader.go`](../../cli/internal/evtstream/reader.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Typed exact-sequence EVT adapter over `events.StreamMessageReader`; it validates and decodes Chatto events while the shared reader owns bounded JetStream access and the process-local opaque-record cache                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `events.ProjectionHandle` / `events.Projector` / `events.ComponentizedProjection`                                                                                                  | [`projector.go`](../../pkg/events/projector.go), [`component_projection.go`](../../pkg/events/component_projection.go), [`projector.go`](../../cli/internal/evtstream/projector.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Envelope-neutral typed model ownership, prepared reducers, one projector-owned apply barrier for related components, ordered replay, readiness, failure, component-shaped projection snapshots (one component for a single payload), and checkpoints; `evtstream` supplies the Chatto event decoder and typed constructors                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `ServerContentView`                                                                                                                                                                | [`server_content_view.go`](../../cli/internal/core/server_content_view.go), [`projection_wiring.go`](../../cli/internal/core/projection_wiring.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | One process-local `evt.>` consumer, apply barrier, readiness state, and sequence for room, timeline, call, asset, thread, reaction, configuration, user-profile, content-key, RBAC, and mentionable components; also supplies the stable read transaction for content-backed authorization                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `events.DurableWorker`                                                                                                                                                             | [`durable_worker.go`](../../pkg/events/durable_worker.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Application-neutral bounded, at-least-once execution from an application-owned JetStream pull consumer; transient fetches retry, deleted consumers return control to application lifecycle, and callers own decoding, projection barriers, idempotency, retry classification, and terminal facts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `evtstream` effect adapter                                                                                                                                                         | [`effects.go`](../../cli/internal/evtstream/effects.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Chatto-owned consumer creation and standard `events.DurableWorker` wiring. Effect sites retain durable names, filters, acknowledgement policy, decoding, barriers, idempotency, and retry decisions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `ConfigModel`                                                                                                                                                                      | [`config_model.go`](../../cli/internal/core/config_model.go), [`server_config_model.go`](../../cli/internal/core/server_config_model.go), [`neighbors.go`](../../cli/internal/core/neighbors.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Sole core boundary for semantic server/user config and Neighbor reads and event writes, including `ConfigProjection` readiness                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `NotificationPolicyModel` / `NotificationOccurrenceModel` / `NotificationProjection` / `NotificationMaterializer` / `NotificationDecisionProjection` / `NotificationAlertDelivery` | [`notification_policy.go`](../../cli/internal/core/notification_policy.go), [`notification_occurrence_model.go`](../../cli/internal/core/notification_occurrence_model.go), [`notification_badge.go`](../../cli/internal/core/notification_badge.go), [`notification_badge_sources.go`](../../cli/internal/core/notification_badge_sources.go), [`notification_projection.go`](../../cli/internal/core/notification_projection.go), [`notification_materializer.go`](../../cli/internal/core/notification_materializer.go), [`notification_decision_projection.go`](../../cli/internal/core/notification_decision_projection.go), [`notification_alert_delivery.go`](../../cli/internal/core/notification_alert_delivery.go), [`stream.go`](../../cli/internal/notificationstream/stream.go) | Projection-fenced field-based server/room-group/room policy for each built-in signal class; materialization-time Ambient/Important classification independent from delivery mode; deterministic recipient/source/signal identity; durable rich mention causes; root channel-message delivery to current members with `message.read`; Badge attention computed when it is read from the decision projection's Badge source index, current visibility, and read boundaries (ADR-109), with hints only when a source turns attention on; a compact current-state decision projection; direct double-ack derivation from existing EVT facts into `NOTIFICATIONS`; lifecycle facts and encrypted snapshots over `NOTIFICATIONS`; secure deletion of rich signals after projected removal; best-effort local-sound hints for notification modes; and direct durable push consumption from `notifications.signalled` with an immutable deadline and current policy, visibility, DND, and subscription revalidation |
-| `MessageModel`                                                                                                                                                                     | [`message_model.go`](../../cli/internal/core/message_model.go), [`messages.go`](../../cli/internal/core/messages.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Operation-level message posting and mutation API with preflight validation, stable request-time authorization, Slow Mode and Threading Mode enforcement, room-OCC writes, projection waits, encrypted attachment-description replacement, atomic edit-driven echo reconciliation, explicit reads separate from posting, and atomic author-created root-thread writes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `MessageSearchReadModel`                                                                                                                                                           | [`message_search_read_model.go`](../../cli/internal/core/message_search_read_model.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Resolves provider queries to current member-room scopes and re-authorizes thin provider hits against current room membership and message state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `ReactionModel`                                                                                                                                                                    | [`reaction_model.go`](../../cli/internal/core/reaction_model.go), [`reactions.go`](../../cli/internal/core/reactions.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Sole reaction mutation boundary: actor membership and `message.react` authZ, room-aggregate OCC writes and retries, and reaction-projection readiness                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `RoomCommandModel`                                                                                                                                                                 | [`room_command_model.go`](../../cli/internal/core/room_command_model.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Operation-level room lifecycle, Slow Mode and Threading Mode configuration, membership, moderation, and DM commands with public API authorization and room-kind preconditions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `RoomDirectoryReadModel`                                                                                                                                                           | [`room_directory_read_model.go`](../../cli/internal/core/room_directory_read_model.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Operation-level room directory and sidebar reads, viewer capability and Slow Mode deadline hydration, and directory-adjacent join commands                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `RoomTimelineReadModel`                                                                                                                                                            | [`room_timeline_read_model.go`](../../cli/internal/core/room_timeline_read_model.go), [`room_events.go`](../../cli/internal/core/room_events.go), [`room_timeline_hydrator.go`](../../cli/internal/core/room_timeline_hydrator.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Operation-level room/thread timeline read API with actor membership checks, broad or interaction-scoped message authorization, thread-root validation, compact projection-backed page selection, exact EVT payload hydration, validation, and stale-plan retries                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `ReadStateModel`                                                                                                                                                                   | [`read_state_model.go`](../../cli/internal/core/read_state_model.go), [`read_state_index.go`](../../cli/internal/core/read_state_index.go), [`room_unread.go`](../../cli/internal/core/room_unread.go), [`threads.go`](../../cli/internal/core/threads.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Operation-level room/thread Message Read Cursor API plus one process-wide filtered `RUNTIME_STATE` watcher; initial-sync readiness, in-memory reads, KV OCC writes, revision barriers, and sync events. The room cursor places the New messages separator. It does not create Badge attention                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `ThreadFollowModel`                                                                                                                                                                | [`thread_follow_model.go`](../../cli/internal/core/thread_follow_model.go), [`threads.go`](../../cli/internal/core/threads.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Operation-level thread follow/unfollow API plus current-account interaction discovery; revalidates membership and read permission, validates thread roots, writes durable follow state, waits for projections, and publishes sync events                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `RoomModel`                                                                                                                                                                        | [`room_model.go`](../../cli/internal/core/room_model.go), [`rooms.go`](../../cli/internal/core/rooms.go), [`room_groups.go`](../../cli/internal/core/room_groups.go), [`pinned_messages.go`](../../cli/internal/core/pinned_messages.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Eagerly wired room-derived projection readiness and narrow reads for room catalog, membership, layout, timeline, threads, reactions, and pinned messages; supplies projection snapshots and readiness to atomic room and room-group structural batches and room-OCC pin mutations                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `UserModel`                                                                                                                                                                        | [`user_model.go`](../../cli/internal/core/user_model.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Sole core owner of user profile, cold-replayed authentication, and content-key projection reads and readiness for account, identity, credential, profile, custom-status, encryption operations, and durable bot-key-generation invalidation watches for realtime connections                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Credential usage recorder                                                                                                                                                          | [`credential_usage.go`](../../cli/internal/core/credential_usage.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Best-effort in-process intake and coalesced `RUNTIME_STATE` persistence for credential last-use telemetry; KV OCC keeps the maximum observed time across replicas, projected lifecycle checks remove entries that another replica revoked, and telemetry failure does not affect credential authentication or the requested action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `InvitationModel`                                                                                                                                                                  | [`invitations.go`](../../cli/internal/core/invitations.go), [`invitation_projection.go`](../../cli/internal/core/invitation_projection.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Sole core owner of invite-link creation, listing, revocation, validation, compact purpose-separated token derivation, and projection readiness; redemption commits atomically with the admitted account against a whole-EVT OCC guard                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `OAuthClientModel`                                                                                                                                                                 | [`oauth_clients.go`](../../cli/internal/core/oauth_clients.go), [`oauth_client_projection.go`](../../cli/internal/core/oauth_client_projection.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Sole core owner of successful OAuth-client authorization records, administrative default/trusted/blocked policy, fail-closed projection-backed authorization checks, per-client active-realtime access-denial notifications on every replica, and block-triggered OAuth token cleanup                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `UserKeyShreddingModel`                                                                                                                                                            | [`user_key_shredding.go`](../../cli/internal/core/user_key_shredding.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Request-before-destruction crypto-shredding, privacy-projection barriers, synchronous idempotent completion, and shared durable recovery across replicas                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `RBACModel`                                                                                                                                                                        | [`rbac_model.go`](../../cli/internal/core/rbac_model.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Sole core owner of RBAC projection reads and readiness for role, assignment, and permission authorization and writes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `MentionablesModel`                                                                                                                                                                | [`mentionables_projection.go`](../../cli/internal/core/mentionables_projection.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Global mention-handle namespace lookup and readiness                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `PresenceModel`                                                                                                                                                                    | [`presence_model.go`](../../cli/internal/core/presence_model.go), [`presence_hub.go`](../../cli/internal/core/presence_hub.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Current private choices in `RUNTIME_STATE`, liveness in `MEMORY_CACHE`, and two per-process KV watchers deriving public presence and counts; no EVT writes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `CallModel`                                                                                                                                                                        | [`call_model.go`](../../cli/internal/core/call_model.go), [`voice.go`](../../cli/internal/core/voice.go), [`lease.go`](../../cli/internal/lease/lease.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Sole core owner of call-state projection reads and readiness; generation-consistent participant snapshots and call ID/E2EE access material; durable LiveKit call lifecycle/participant facts and elected LiveKit reconciliation, including current call permission enforcement                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `MediaModel`                                                                                                                                                                       | [`media_model.go`](../../cli/internal/core/media_model.go), [`attachments.go`](../../cli/internal/core/attachments.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Eagerly wired attachment/media binary storage, signed asset and origin-scoped HLS URLs, transformed image cache operations                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `AssetModel`                                                                                                                                                                       | [`asset_model.go`](../../cli/internal/core/asset_model.go), [`asset_cleanup.go`](../../cli/internal/core/asset_cleanup.go), [`asset_projection.go`](../../cli/internal/core/asset_projection.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Sole core owner of asset-projection reads and readiness; detached generation-consistent asset state; uploader-bound exclusive message attachments with asset-aggregate OCC; exact-owner deletion; processing transitions, tombstones, and shared durable physical deletion                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `AssetUploadModel`                                                                                                                                                                 | [`asset_uploads.go`](../../cli/internal/core/asset_uploads.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Eagerly wired chunked attachment upload sessions, temporary object assembly, pending-asset expiry, and process-local periodic cleanup                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `neighborhoodDiscovery`                                                                                                                                                            | [`neighborhood_discovery.go`](../../cli/internal/core/neighborhood_discovery.go), [`crawl.go`](../../cli/internal/core/neighborhood/crawl.go), [`remote.go`](../../cli/internal/core/neighborhood/remote.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Post-boot five-second check on every replica; each replica runs a bounded Neighborhood discovery pass when the cached directory is missing, one hour old, ten minutes old after a failed remote request, or based on a different Neighbor set. Replicas do not coordinate passes; they write equivalent results. The pass uses the SSRF-guarded link-preview client without redirects, writes `neighborhood.directory`, and stores re-encoded images in `ASSET_CACHE` (ADR-106)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `projectionSnapshotWorker`                                                                                                                                                         | [`projection_snapshot_worker.go`](../../cli/internal/core/projection_snapshot_worker.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Optional per-pass elected post-boot and daily publication of encrypted scalar generations and complete `ServerContentView` projection snapshot cohorts; a separate cluster-wide cooldown limits bounded S3 age expiry when Chatto owns lifecycle cleanup                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `video.Service`                                                                                                                                                                    | [`service.go`](../../cli/internal/video/service.go), [`processor.go`](../../cli/internal/video/processor.go)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Synchronous video/animated-GIF processing attempts: web-compatible stereo audio normalization, HLS segment packaging and upload, animated-GIF MP4 upload, and terminal asset processing events; queue and concurrency remain owned by `video.Unit`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+- **`neighborhoodDiscovery`**
+  ([`neighborhood_discovery.go`](../../cli/internal/core/neighborhood_discovery.go),
+  [`crawl.go`](../../cli/internal/core/neighborhood/crawl.go),
+  [`remote.go`](../../cli/internal/core/neighborhood/remote.go)): Post-boot
+  five-second check on every replica; each replica runs a bounded Neighborhood
+  discovery pass when the cached directory is missing, one hour old, ten minutes
+  old after a failed remote request, or based on a different Neighbor set.
+  Replicas do not coordinate passes; they write equivalent results. The pass
+  uses the SSRF-guarded link-preview client without redirects, writes
+  `neighborhood.directory`, and stores re-encoded images in `ASSET_CACHE`
+  (ADR-106).
+- **`projectionSnapshotWorker`**
+  ([`projection_snapshot_worker.go`](../../cli/internal/core/projection_snapshot_worker.go)):
+  Optional per-pass elected post-boot and daily publication of encrypted scalar
+  generations and complete `ServerContentView` projection snapshot cohorts; a
+  separate cluster-wide cooldown limits bounded S3 age expiry when Chatto owns
+  lifecycle cleanup.
+- **Credential usage recorder**
+  ([`credential_usage.go`](../../cli/internal/core/credential_usage.go)):
+  Best-effort in-process intake and coalesced `RUNTIME_STATE` persistence for
+  credential last-use telemetry; KV OCC keeps the maximum observed time across
+  replicas, projected lifecycle checks remove entries that another replica
+  revoked, and telemetry failure does not affect credential authentication or
+  the requested action.
 
 ## Outbound bot webhooks
 
@@ -238,41 +364,6 @@ LOG publication, subject mapping, and scoped reads. Storage creates LOG before
 core services start. There is no log worker, projection, or KV index. Recording
 uses a bounded publish attempt; reads use the shared JetStream stream.
 
-## Development integration bot
-
-[`mise dev-full`](../../mise.toml) starts the
-[Runling workflow](../../examples/runling-bot/reply.ts) as a supervised Node
-process on loopback at the workspace port plus three. The same port serves its
-console at `http://localhost:<port>`. The task supplies the
-Chatto backend URL and bootstrap TestBot key path, including a custom
-`CHATTO_DEV_DATA_ROOT`. The bot owner configures its webhook destination once.
-Runling receives outbound webhooks, composes answers with
-`openrouter/google/gemini-2.5-flash-lite`, and posts thread replies through the public
-API. Each delivery owns a disposable agent session with read-only tools for
-the active thread and public web pages. The web tool pins validated public DNS
-addresses, checks redirect destinations, and bounds response size and time.
-The prompt directs Chatto questions to `https://docs.chatto.run/` and requires
-source citations. Channel mentions and DMs preload all thread pages into the agent
-prompt on each delivery. A separate workflow
-step starts the live typing indicator, which refreshes during context loading,
-composition, and final-answer delivery. Intermediate assistant text, thinking,
-and tool output stay out of the chat. Runling's local history is available for
-diagnostics. Its `report_outcome` tool remains available throughout the run.
-The validated report supplies one complete final answer from `details`, or
-from `summary` when details are empty.
-The example's `sender.ts` owns one POST attempt per run, shared by the final
-answer and error notification, and the confirmed final-answer ID. A failed or
-uncertain POST is never retried. The workflow waits for delivery before
-finishing. `typing.ts` owns refresh and stop behavior.
-Success requires a completed Runling outcome and confirmed final-answer
-delivery. Valid blocked or failed reports are delivered but keep the workflow
-failed. If context loading or composition fails before a reply POST, a separate
-workflow step sends a fixed error notification. A previous POST attempt
-suppresses that notification. The agent is disposed and typing refreshes stop
-on exit.
-`OPENROUTER_API_KEY` supplies model credentials. It has no realtime connection. Its local run history is stored under
-`examples/runling-bot/.runling`. This process is not part of server releases.
-
 ## First-run setup
 
 Core owns first-run setup in `server_setup.go`; it is not a runtime unit.
@@ -281,6 +372,8 @@ bootstrap, startup closes setup when user history exists. The operation uses
 authoritative EVT reads and the existing user creation, RBAC, and configuration
 write models. Successful setup waits for the required projections before the
 browser starts normal login. See [FDR-047](../fdr/FDR-047-first-run-setup.md).
+
+## Call authorization
 
 Call authorization lives in [`call_permissions.go`](../../cli/internal/core/call_permissions.go).
 Join writes recheck start/join authority on each room OCC attempt. Credential
@@ -300,147 +393,3 @@ grants guarded by the complete RBAC subject tail. The same startup step also
 applies the 0.5 upgrade grants (ADR-113). It reads historical decisions so a
 cleared or denied grant cannot return after restart. No new event variant,
 stream, or snapshot contract is required.
-
-## Browser call picture-in-picture
-
-Each mounted [call card](../../apps/frontend/src/lib/components/voice/CallCard.svelte)
-owns separate layout and media controllers. The shared
-[responsive actions](../../apps/frontend/src/lib/ui/ResponsiveActions.svelte.ts)
-controller observes the card's width and restores focus when actions move to
-its menu or the card disappears. It has no call or media state. The
-[PiP controller](../../apps/frontend/src/lib/components/voice/CallPictureInPicture.svelte.ts)
-supplies the same video state and request guard to inline and menu controls.
-Menu dismissal and layout changes do not release video observation. Card and
-track teardown remove the observers.
-
-The browser's [call PiP owner](../../apps/frontend/src/lib/state/callPictureInPicture.ts)
-keeps the selected video element and its LiveKit attachment in a hidden DOM
-host when its tile unmounts. The host is outside the room and server route
-trees. Closing PiP releases the retained attachment and removes the host.
-Where supported, `moveBefore()` preserves playback state during the move.
-The fallback inserts the video and resumes it only if it was playing.
-The hidden host follows the PiP window's size so LiveKit's adaptive stream
-uses that size when it selects a video layer. Cleanup removes the window's
-resize listener with the retained attachment.
-The call state releases selected streams when they disappear or the call
-ends, including access loss and account disposal. Track object identity keeps
-different calls and servers separate. No media or PiP state is persisted.
-
-## Browser call preferences and device test
-
-The server-owned frontend store gives each call state a browser-local
-`CallPreferencesState`. It saves device IDs, join-muted, microphone threshold,
-voice boosting, and per-user voice/stream playback levels at the
-existing per-server storage boundary. These settings do not enter Chatto APIs or EVT.
-Voice boosting is a boolean that defaults to true; only an explicit false
-disables it. Previous voice amounts, presets, and experimental effect settings
-are ignored. Other saved choices remain intact. The preference selects the
-existing processing amount of 100 when enabled and 0 when disabled.
-LiveKit capture defaults use the saved input choices; a missing output device
-uses the browser default. Device switches save only after success.
-
-Calls and `CallDeviceTest` share `MicrophoneProcessor`, a LiveKit-compatible
-track processor. Its bundled audio worklet calculates input RMS and applies
-one gate envelope across channels. Processing uses the audio sample clock,
-not browser UI timers: attack 5 ms, hold 150 ms, release 80 ms, and a closing
-threshold half the opening amplitude (about 6 dB lower). The -60 dB control
-position disables gating. Voice Boosting selects a polish amount of 1 when
-enabled and 0 when disabled.
-This widens the closed gate's smooth gain transition from 0 to 12 dB below the
-opening threshold and extends release from 80 to 180 ms. Hold and hysteresis
-remain unchanged. The input meter maps -60 to 0 dBFS onto 0–1.
-The gate worklet then applies `LowFrequencyControl` in place, before native EQ
-and compression. A 120 Hz low-pass detector compares 2 ms energy with a 150 ms
-baseline and full-band energy to identify audible bass bursts. Its cut is
-bounded to 3 dB, with 1 ms gain attack and 80 ms release. A separate 250 Hz
-low-pass stage reduces sustained audible bass dominance by up to 1.5 dB, with
-150 ms detection/attack and 500 ms release. Both share gains across channels,
-scale with the existing polish amount, and bypass exactly when boosting is off.
-Partial threshold messages do not change their amount. The heuristic can react to
-very low-pitched vowels; bounded cuts limit that tradeoff. No new worklet node,
-look-ahead buffer, saved setting, or external connection is required.
-`MicrophoneEffectsGraph` adds native Web Audio processing around the gate:
-60 Hz high-pass filter at maximum (0 Hz when disabled), pre-EQ headroom gain,
-200 Hz low shelf, 1.2 kHz peaking filter, 4 kHz high shelf, and a soft-knee
-compressor. Each EQ band is bounded to ±12 dB. At full strength, compressor amount maps 0–100
-to threshold -12…-20 dB and ratio 1.5…3.5, with 15 ms attack and 200 ms release.
-Voice Boosting selects low-cut 60 Hz, EQ +8/+6/+10 dB, compressor threshold
--18 dB and ratio 3. Disabling it selects neutral processing.
-The compressor receives the boosted EQ signal directly;
-pre-EQ attenuation reserves headroom only when compression is disabled.
-Voice Boosting adds +3 dB of post-compressor gain before the final peak limiter;
-this is a gain-stage setting, not the net output increase. Fractional DSP
-parameters are not rounded. There is no
-saturation branch; ordinary speech must retain its harmonic balance.
-A second processor in the same bundled worklet runs `VoicePolish` after the
-native graph. A complementary one-pole split at 4 kHz detects prominent,
-audible high-band energy and reduces that band by up to 2 dB at full polish.
-Detection and gain attack use 1 ms; gain release uses 80 ms. Linked channel
-gains preserve balance. A final sample-peak limiter has immediate attack and
-80 ms release and a fixed ceiling of 0.99 while processing is enabled.
-This is a pre-encoding sample ceiling, not an inter-sample peak guarantee.
-Polish amount changes use 15 ms smoothing and blend held corrections directly,
-so slow release does not produce a level step when disabling Voice Boosting.
-Disabling Voice Boosting bypasses the added stage exactly. Neither stage adds a look-ahead buffer. Both worklets are owned by
-`MicrophoneProcessor`; a failure in either stops both and routes raw input to
-the existing output track and fallback meter. Restart restores derived settings.
-Disabled compression uses a dry path. Parameter changes use 15 ms smoothing.
-The gate meters the signal after the optional low-cut filter and before EQ.
-Capture requests disable browser AGC in both owners. The processor graph is
-lazy-loaded for calls and requires no additional service or dependency.
-Calls attach the processor after LiveKit assigns its audio context. The
-processor owns its output tracks and graph; LiveKit or the test owns the
-input and context. Device restarts rebuild the graph. Permanent disposal
-rejects queued initialization after call or page exit. Module or processor
-failure preserves ordinary audio. The processor owns an analyser fallback when the worklet cannot run, so
-call state does not create a separate audio context or sampling path. The worklet asset comes from the frontend
-origin and sends only input levels to the UI, with no external connection.
-
-The settings page owns `CallDeviceTest`. With Voice Boosting off and the gate
-Off, it records the original capture stream and uses a parallel analyser for
-the input meter. No custom processor initializes. Browser echo cancellation,
-noise suppression, and automatic gain control are disabled on this raw path.
-Enabling processing restarts capture with noise suppression and records the
-processor's output track. Returning to bypass also restarts capture. Both
-transitions preserve the selected speaker. Processor failure records the raw
-track. No capture path connects to speaker output.
-
-The local recorder stops after 10 seconds or on request. It releases capture
-before a separate audio element plays the in-memory sample. The audio element
-or a playback-only audio context selects the speaker. Explicit output errors
-stop the test instead of selecting another speaker silently. Output changes
-are serialized and do not reopen capture. Explicit microphone choices use an
-exact device constraint. Generation checks stop late streams or playback after
-cancellation.
-Page exit stops tracks and playback, closes the audio context, cancels meter
-updates, and discards the sample. See [FDR-016](../fdr/FDR-016-voice-calls.md)
-for the user-visible test behavior.
-Camera discovery requests temporary access on page open only if device names
-are unavailable and no call is active on the selected server.
-The test does not contact a media server.
-
-### Participant playback gain
-
-The browser call state owns one AudioContext per call and supplies it to
-LiveKit's Web Audio mixer. Remote participant volume uses the shared
-[`participantVolumeGain`](../../apps/frontend/src/lib/audio/participantVolume.ts)
-mapping per source. Companion publishers use their owner's user ID. Local mute overrides
-both gains without replacing preferences. Track subscription and reconnect
-reapply these gains. Call cleanup closes the context after detaching tracks.
-No new network connection is required. If context creation fails, media-element
-playback remains available with gain capped at 1.
-
-The call state also owns screen-audio meters in
-[`TrackAudioLevels`](../../apps/frontend/src/lib/audio/trackAudioLevels.ts).
-These meters share the call's AudioContext and sample existing screen audio
-tracks before listener-local gain. Companion tracks use their owner's identity.
-The 60 ms call sampler updates non-reactive RMS levels for screen tiles.
-Track replacement, mute, unsubscription, and call cleanup disconnect meter
-nodes without stopping the media tracks. Meter nodes do not connect to playback.
-
-Call state also owns local and received microphone meters through
-`TrackAudioLevels`, using the same AudioContext and sampling timer. Track
-replacement reconnects the meters; call cleanup disconnects them. The local
-meter samples capture before Chatto effects for the settings meter and
-participant glow. See [FDR-016](../fdr/FDR-016-voice-calls.md) for voice activity
-behavior.
