@@ -12,6 +12,7 @@ import (
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/evtstream"
+	"hmans.de/chatto/internal/natsresources"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/runtimeunit"
 	"hmans.de/chatto/pkg/events"
@@ -19,7 +20,6 @@ import (
 
 const (
 	runtimeUnitName    = "asset-processing"
-	consumerName       = "chatto-asset-processing-v1"
 	consumerAckWait    = 2 * time.Minute
 	deliveryHeartbeat  = 30 * time.Second
 	retryDelay         = 30 * time.Second
@@ -75,7 +75,7 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 		return err
 	}
 	env.Logger.Info("Asset-processing worker started",
-		"consumer", consumerName,
+		"consumer", core.AssetProcessingConsumerName,
 		"max_concurrent_jobs", env.Config.AssetProcessing.MaxConcurrentJobsOrDefault())
 
 	workerCtx, stopWorker := context.WithCancel(ctx)
@@ -130,12 +130,12 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 }
 
 func createConsumer(ctx context.Context, js jetstream.JetStream) (jetstream.Consumer, error) {
-	evt, err := js.Stream(ctx, "EVT")
+	evt, err := js.Stream(ctx, natsresources.EVT)
 	if err != nil {
 		return nil, fmt.Errorf("open EVT stream: %w", err)
 	}
 	consumer, err := evtstream.CreateEffectConsumer(ctx, evt, evtstream.EffectConsumerConfig{
-		Name:        consumerName,
+		Name:        core.AssetProcessingConsumerName,
 		Description: "Shared durable queue for Chatto asset-processing workers",
 		FilterSubjects: []string{
 			evtstream.AssetEventTypeFilter(evtstream.EventAssetProcessingStarted),

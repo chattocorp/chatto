@@ -9,6 +9,7 @@ import (
 
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"hmans.de/chatto/pkg/jetstreamutil"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -137,7 +138,7 @@ func (c *ChattoCore) LoadCookieSessionValue(ctx context.Context, sessionID strin
 	// The returned revision fences later saves and deletes, so read the latest.
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+		if isKeyAbsent(err) {
 			return CookieSessionStoreEntry{}, ErrCookieSessionNotFound
 		}
 		return CookieSessionStoreEntry{}, fmt.Errorf("failed to load cookie session: %w", err)
@@ -169,7 +170,7 @@ func (c *ChattoCore) MigrateLegacyCookieSession(ctx context.Context, sessionID s
 	for range 8 {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+			if isKeyAbsent(err) {
 				return nil, ErrCookieSessionNotFound
 			}
 			return nil, fmt.Errorf("failed to get legacy cookie session: %w", err)
@@ -214,7 +215,7 @@ func (c *ChattoCore) MigrateLegacyCookieSession(ctx context.Context, sessionID s
 			return nil, fmt.Errorf("failed to marshal migrated cookie session: %w", err)
 		}
 		if _, err := c.updateRuntimeStateUntil(ctx, key, value, entry.Revision(), tokenData.ExpiresAt, now); err != nil {
-			if isRuntimeStateRevisionConflict(err) {
+			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
 			return nil, fmt.Errorf("failed to migrate legacy cookie session: %w", err)
@@ -314,7 +315,7 @@ func (c *ChattoCore) RenewCookieSession(ctx context.Context, sessionID string, n
 	for range 8 {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+			if isKeyAbsent(err) {
 				return nil, false, ErrCookieSessionNotFound
 			}
 			return nil, false, fmt.Errorf("failed to get cookie session for renewal: %w", err)
@@ -353,7 +354,7 @@ func (c *ChattoCore) RenewCookieSession(ctx context.Context, sessionID string, n
 			return nil, false, fmt.Errorf("failed to marshal renewed cookie session: %w", err)
 		}
 		if _, err := c.updateRuntimeStateUntil(ctx, key, value, entry.Revision(), tokenData.ExpiresAt, now); err != nil {
-			if isRuntimeStateRevisionConflict(err) {
+			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
 			return nil, false, fmt.Errorf("failed to renew cookie session: %w", err)

@@ -1,6 +1,6 @@
 # NATS Resource Inventory
 
-Key files: [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go), [`cli/internal/core/core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`cli/internal/evtstream/identity.go`](../../cli/internal/evtstream/identity.go), [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go), [`cli/internal/core/subjects/subjects.go`](../../cli/internal/core/subjects/subjects.go), [`cli/internal/video/unit.go`](../../cli/internal/video/unit.go), [`cli/cmd/backup.go`](../../cli/cmd/backup.go)
+Key files: [`cli/internal/natsresources/natsresources.go`](../../cli/internal/natsresources/natsresources.go), [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go), [`cli/internal/core/core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`cli/internal/evtstream/identity.go`](../../cli/internal/evtstream/identity.go), [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go), [`cli/internal/core/subjects/subjects.go`](../../cli/internal/core/subjects/subjects.go), [`cli/internal/video/unit.go`](../../cli/internal/video/unit.go), [`cli/cmd/backup.go`](../../cli/cmd/backup.go)
 
 Related decisions: [ADR-001](../adr/ADR-001-nats-jetstream-as-primary-data-store.md),
 [ADR-034](../adr/ADR-034-single-event-stream.md),
@@ -9,13 +9,21 @@ Related decisions: [ADR-001](../adr/ADR-001-nats-jetstream-as-primary-data-store
 [ADR-069](../adr/ADR-069-explicit-durable-consumer-lifecycle.md), and
 [ADR-079](../adr/ADR-079-renewable-bearer-sessions.md), and
 [ADR-081](../adr/ADR-081-explicit-expiry-for-mutable-runtime-credentials.md), and
-[ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
+[ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md), and
+[ADR-114](../adr/ADR-114-jetstream-storage-conventions.md).
 
 Key and subject schemas are maintained separately in the
 [runtime state](runtime-state.md) and [subject and event](subjects-and-events.md)
 inventories.
 
 ## Startup provisioning
+
+The `natsresources` registry lists each resource name, kind, and backup
+policy. It also lists legacy buckets that earlier versions created and that
+upgraded servers can still have. Backup, restore, `chatto keys import`, and
+the test reset use the registry. `storage.go` has one configuration function
+for each resource, and a test pins each configuration. Another test makes sure
+that core creates exactly the registered resources.
 
 Chatto provisions its core streams, KV buckets, and Object Stores through
 `jetstreamutil.CreateJetStreamResourceWithRetry`, including optional projection
@@ -31,20 +39,20 @@ and retry exhaustion fail startup. The JetStream default request timeout is
 
 ## Current resources
 
-| Type         | Name                   | Storage | Backup | Description                                                                                                                                                                                              |
-| ------------ | ---------------------- | ------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Stream       | `EVT`                  | File    | Yes    | Event-sourcing log for durable `evtv1.Event` facts on `evt.>`                                                                                                                                            |
-| Stream       | `LOG`                  | File    | No     | Retained operational protobuf records from `chatto.core.log.v1`; seven-day default age, configurable with `core.log.retention`; no byte/count limit                                                      |
-| Stream       | `NOTIFICATIONS`        | File    | Yes    | Replicated bounded `notificationv1.NotificationEvent` log for 90-day notification signals, reads, removals, and push outcomes; per-message TTL adds a 24-hour physical-cleanup grace                     |
-| KV bucket    | `RUNTIME_STATE`        | File    | Yes    | Persisted latest-value records from `chatto.core.runtime_state.v1`, including current private presence choices, credentials, telemetry, notification boundaries, wrapped app DEKs, and snapshot pointers |
-| KV bucket    | `MEMORY_CACHE`         | Memory  | No     | Volatile shared records from `chatto.core.cache_state.v1`, plus non-protobuf worker leases, cooldowns, counters, and health heartbeats                                                                   |
-| KV bucket    | `ENCRYPTION_KEYS`      | File    | No     | KMS records from `chatto.core.key_material.v1`; excluded from backups                                                                                                                                    |
-| Object store | `SERVER_ASSETS`        | File    | Yes    | Default/legacy NATS-backed persisted asset binaries                                                                                                                                                      |
-| Object store | `PROJECTION_SNAPSHOTS` | File    | Yes    | Optional encrypted `chatto.core.projection.v1` snapshot objects; configurable TTL defaults to seven days                                                                                                 |
-| Object store | `ASSET_CACHE`          | File    | No     | Optional TTL cache for transformed image bytes                                                                                                                                                           |
-| Object store | `NEIGHBORHOOD_IMAGES`  | File    | No     | Content-addressed WebP copies of Neighborhood logos and banners; seven-day TTL (ADR-106)                                                                                                                 |
-| NATS Core    | `live.sync.>`          | None    | No     | Non-durable `pubsubv1.PubSubEvent` values                                                                                                                                                                |
-| Republish    | `live.evt.>`           | None    | No     | Raw committed `EVT` facts republished by JetStream for server-side live delivery                                                                                                                         |
+| Type         | Name                   | Storage | Backup | Description                                                                                                                                                                                                                                                                           |
+| ------------ | ---------------------- | ------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stream       | `EVT`                  | File    | Yes    | Event-sourcing log for durable `evtv1.Event` facts on `evt.>`                                                                                                                                                                                                                         |
+| Stream       | `LOG`                  | File    | No     | Retained operational protobuf records from `chatto.core.log.v1`; seven-day default age, configurable with `core.log.retention`; no byte/count limit                                                                                                                                   |
+| Stream       | `NOTIFICATIONS`        | File    | Yes    | Replicated bounded `notificationv1.NotificationEvent` log for 90-day notification signals, reads, removals, and push outcomes; per-message TTL adds a 24-hour physical-cleanup grace                                                                                                  |
+| KV bucket    | `RUNTIME_STATE`        | File    | Yes    | Persisted latest-value records: `chatto.core.runtime_state.v1` protobuf, plus JSON credential and workflow records and raw binary read markers (ADR-114). Includes private presence choices, credentials, telemetry, notification boundaries, wrapped app DEKs, and snapshot pointers |
+| KV bucket    | `MEMORY_CACHE`         | Memory  | No     | Volatile shared records from `chatto.core.cache_state.v1`, plus non-protobuf worker leases, cooldowns, counters, and health heartbeats                                                                                                                                                |
+| KV bucket    | `ENCRYPTION_KEYS`      | File    | No     | KMS records from `chatto.core.key_material.v1`; excluded from backups                                                                                                                                                                                                                 |
+| Object store | `SERVER_ASSETS`        | File    | Yes    | Default/legacy NATS-backed persisted asset binaries                                                                                                                                                                                                                                   |
+| Object store | `PROJECTION_SNAPSHOTS` | File    | Yes    | Optional encrypted `chatto.core.projection.v1` snapshot objects; configurable TTL defaults to seven days                                                                                                                                                                              |
+| Object store | `ASSET_CACHE`          | File    | No     | Optional TTL cache for transformed image bytes                                                                                                                                                                                                                                        |
+| Object store | `NEIGHBORHOOD_IMAGES`  | File    | No     | Content-addressed WebP copies of Neighborhood logos and banners; seven-day TTL (ADR-106)                                                                                                                                                                                              |
+| NATS Core    | `live.sync.>`          | None    | No     | Non-durable `pubsubv1.PubSubEvent` values                                                                                                                                                                                                                                             |
+| Republish    | `live.evt.>`           | None    | No     | Raw committed `EVT` facts republished by JetStream for server-side live delivery                                                                                                                                                                                                      |
 
 ## Projection consumers
 

@@ -22,6 +22,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/spf13/cobra"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/natsresources"
 	"hmans.de/chatto/pkg/natsauth"
 )
 
@@ -321,11 +322,11 @@ func enumerateStreams(ctx context.Context, js jetstream.JetStream) ([]string, er
 func orderBackupStreams(names []string) {
 	priority := func(name string) int {
 		switch name {
-		case "EVT":
+		case natsresources.EVT:
 			return 0
-		case "KV_RUNTIME_STATE":
+		case natsresources.KeyValueStream(natsresources.RuntimeState):
 			return 1
-		case "NOTIFICATIONS":
+		case natsresources.Notifications:
 			return 2
 		default:
 			return 1
@@ -415,32 +416,31 @@ func backupStream(ctx context.Context, mgr *jsm.Manager, streamName, streamsDir 
 }
 
 // skipReason returns a human-readable reason if the stream should be skipped,
-// or an empty string if it should be backed up. When includeKeys is true,
-// KV_ENCRYPTION_KEYS is backed up; the archive must then be treated as sensitive.
+// or an empty string if it should be backed up. The policy comes from the
+// natsresources registry, which also lists legacy resources that upgraded
+// servers can still have. Unknown streams are backed up. When includeKeys is
+// true, KV_ENCRYPTION_KEYS is backed up; the archive must then be treated as
+// sensitive.
 func skipReason(name string, includeKeys bool) string {
-	switch name {
-	case "LOG":
-		return "retained diagnostics (not recovery state)"
-	case "KV_MEMORY_CACHE":
-		return "ephemeral (memory storage)"
-	case "KV_USER_PRESENCE":
-		return "ephemeral (memory storage)"
-	case "KV_CALL_STATE":
-		return "ephemeral (memory storage)"
-	case "KV_ENCRYPTION_KEYS":
+	resource, ok := natsresources.ForStream(name)
+	if !ok {
+		// Earlier versions also skipped every stream with this prefix.
+		if strings.HasPrefix(name, natsresources.ObjectStoreStream(natsresources.AssetCache)) {
+			return "cache (regeneratable)"
+		}
+		return ""
+	}
+	switch resource.Backup {
+	case natsresources.BackupSkip:
+		return resource.SkipReason
+	case natsresources.BackupSkipUnlessKeys:
 		if includeKeys {
 			return ""
 		}
-		return "security (keys excluded from backups; pass --include-keys to override)"
-	case "KV_LINK_PREVIEW_CACHE":
-		return "cache (regeneratable)"
-	case "KV_AUTH_TOKENS":
-		return "security (prevents token leakage)"
+		return resource.SkipReason
+	default:
+		return ""
 	}
-	if strings.HasPrefix(name, "OBJ_ASSET_CACHE") || name == "OBJ_NEIGHBORHOOD_IMAGES" {
-		return "cache (regeneratable)"
-	}
-	return ""
 }
 
 // classifyStream determines the type of stream for the manifest

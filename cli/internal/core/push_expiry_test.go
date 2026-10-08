@@ -25,9 +25,9 @@ func requirePushKeyPresence(t *testing.T, core *ChattoCore, key string, want boo
 	switch {
 	case err == nil && !want:
 		t.Fatalf("key %s exists, want it removed", key)
-	case isPushRuntimeStateKeyAbsent(err) && want:
+	case isKeyAbsent(err) && want:
 		t.Fatalf("key %s is absent, want it present", key)
-	case err != nil && !isPushRuntimeStateKeyAbsent(err):
+	case err != nil && !isKeyAbsent(err):
 		t.Fatalf("get key %s: %v", key, err)
 	}
 }

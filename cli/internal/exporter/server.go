@@ -18,6 +18,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/natsresources"
 	cachestatev1 "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/jetstreamutil"
@@ -138,11 +139,11 @@ func (s *Server) initResources(ctx context.Context) error {
 			return fmt.Errorf("create JetStream context: %w", err)
 		}
 	}
-	evt, err := js.Stream(ctx, "EVT")
+	evt, err := js.Stream(ctx, natsresources.EVT)
 	if err != nil {
 		return fmt.Errorf("open EVT stream: %w", err)
 	}
-	memoryBucket, err := js.KeyValue(ctx, "MEMORY_CACHE")
+	memoryBucket, err := js.KeyValue(ctx, natsresources.MemoryCache)
 	if err != nil {
 		return fmt.Errorf("open MEMORY_CACHE KV bucket: %w", err)
 	}

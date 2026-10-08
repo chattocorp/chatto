@@ -11,6 +11,7 @@ import (
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"hmans.de/chatto/internal/natsresources"
 )
 
 var (
@@ -99,9 +100,9 @@ func ShutdownSharedNATS() {
 	sharedNATSOnce = sync.Once{}
 }
 
-// ResetChattoJetStream deletes the durable resources Chatto test cores create.
-// It deliberately targets current Chatto resource names rather than deleting
-// every stream in the account, so ad-hoc test streams remain opt-in.
+// ResetChattoJetStream deletes every current Chatto resource in the
+// natsresources registry. It deliberately targets those names rather than
+// deleting every stream in the account, so ad-hoc test streams remain opt-in.
 func ResetChattoJetStream(t testing.TB, nc *nats.Conn) {
 	t.Helper()
 
@@ -116,29 +117,18 @@ func ResetChattoJetStream(t testing.TB, nc *nats.Conn) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	for _, bucket := range []string{
-		"ENCRYPTION_KEYS",
-		"RUNTIME_STATE",
-		"MEMORY_CACHE",
-	} {
-		if err := js.DeleteKeyValue(ctx, bucket); err != nil && !errors.Is(err, jetstream.ErrBucketNotFound) {
-			t.Fatalf("delete KV bucket %s: %v", bucket, err)
+	for _, resource := range natsresources.Current() {
+		var err error
+		switch resource.Kind {
+		case natsresources.KindKeyValue:
+			err = js.DeleteKeyValue(ctx, resource.Name)
+		case natsresources.KindObjectStore:
+			err = js.DeleteObjectStore(ctx, resource.Name)
+		default:
+			err = js.DeleteStream(ctx, resource.Name)
 		}
-	}
-
-	for _, bucket := range []string{
-		"ASSET_CACHE",
-		"PROJECTION_SNAPSHOTS",
-		"SERVER_ASSETS",
-	} {
-		if err := js.DeleteObjectStore(ctx, bucket); err != nil && !errors.Is(err, jetstream.ErrBucketNotFound) {
-			t.Fatalf("delete object store %s: %v", bucket, err)
-		}
-	}
-
-	for _, stream := range []string{"EVT", "NOTIFICATIONS"} {
-		if err := js.DeleteStream(ctx, stream); err != nil && !errors.Is(err, jetstream.ErrStreamNotFound) {
-			t.Fatalf("delete stream %s: %v", stream, err)
+		if err != nil && !errors.Is(err, jetstream.ErrBucketNotFound) && !errors.Is(err, jetstream.ErrStreamNotFound) {
+			t.Fatalf("delete %s: %v", resource.Name, err)
 		}
 	}
 

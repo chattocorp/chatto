@@ -2,13 +2,13 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"maps"
 	"sync"
 	"time"
 
 	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"hmans.de/chatto/pkg/jetstreamutil"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
@@ -127,7 +127,7 @@ func (r *credentialUsageRecorder) ForgetAll(ctx context.Context, botID string) {
 	delete(r.observed, botID)
 	delete(r.lastFlush, botID)
 	r.mu.Unlock()
-	if err := r.kv.Delete(ctx, credentialUsageRuntimeStateKey(botID)); err != nil && !isRuntimeStateKeyAbsent(err) && r.logger != nil {
+	if err := r.kv.Delete(ctx, credentialUsageRuntimeStateKey(botID)); err != nil && !isKeyAbsent(err) && r.logger != nil {
 		r.logger.Warn("Failed to remove deleted bot credential usage telemetry", "error", err)
 	}
 }
@@ -149,7 +149,7 @@ func (r *credentialUsageRecorder) LastUsed(ctx context.Context, botID string) (l
 	lastUsed = make(map[string]time.Time)
 	entry, err := r.kv.Get(ctx, credentialUsageRuntimeStateKey(botID))
 	if err != nil {
-		if !isRuntimeStateKeyAbsent(err) {
+		if !isKeyAbsent(err) {
 			return nil, false
 		}
 	} else {
@@ -312,7 +312,7 @@ func (r *credentialUsageRecorder) writeMax(ctx context.Context, botID, credentia
 		entry, err := r.kv.Get(ctx, key)
 		state := &runtimestatev1.CredentialUsageState{LastUsedUnixMillis: make(map[string]int64)}
 		if err != nil {
-			if !isRuntimeStateKeyAbsent(err) {
+			if !isKeyAbsent(err) {
 				return err
 			}
 		} else if err := proto.Unmarshal(entry.Value(), state); err != nil {
@@ -338,7 +338,7 @@ func (r *credentialUsageRecorder) writeMax(ctx context.Context, botID, credentia
 		if err == nil {
 			return nil
 		}
-		if !isRuntimeStateRevisionConflict(err) {
+		if !jetstreamutil.IsSequenceConflict(err) {
 			return err
 		}
 	}
@@ -350,7 +350,7 @@ func (r *credentialUsageRecorder) deletePersisted(ctx context.Context, botID, cr
 	for range 10 {
 		entry, err := r.kv.Get(ctx, key)
 		if err != nil {
-			if isRuntimeStateKeyAbsent(err) {
+			if isKeyAbsent(err) {
 				return nil
 			}
 			return err
@@ -372,10 +372,10 @@ func (r *credentialUsageRecorder) deletePersisted(ctx context.Context, botID, cr
 				_, err = r.kv.Update(ctx, key, value, entry.Revision())
 			}
 		}
-		if err == nil || errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+		if err == nil || isKeyAbsent(err) {
 			return nil
 		}
-		if !isRuntimeStateRevisionConflict(err) {
+		if !jetstreamutil.IsSequenceConflict(err) {
 			return err
 		}
 	}

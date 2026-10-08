@@ -153,7 +153,7 @@ func (c *ChattoCore) getEmailOTPCode(ctx context.Context, scope, subject, code s
 	key := c.emailOTPCodeKey(scope, subject, code)
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
-		if isRuntimeStateKeyAbsent(err) {
+		if isKeyAbsent(err) {
 			return nil, c.recordEmailOTPFailure(ctx, scope, subject, ttl)
 		}
 		return nil, fmt.Errorf("failed to get email otp code: %w", err)
@@ -167,7 +167,7 @@ func (c *ChattoCore) consumeEmailOTPCode(ctx context.Context, scope, subject str
 		return errEmailOTPNotFound
 	}
 	if err := c.storage.runtimeStateKV.Delete(ctx, entry.key, jetstream.LastRevision(entry.revision)); err != nil {
-		if isRuntimeStateKeyAbsent(err) || isRuntimeStateRevisionConflict(err) {
+		if isKeyAbsent(err) || jetstreamutil.IsSequenceConflict(err) {
 			return errEmailOTPNotFound
 		}
 		return fmt.Errorf("failed to consume email otp code: %w", err)
@@ -183,7 +183,7 @@ func (c *ChattoCore) reserveEmailOTPIssuance(ctx context.Context, scope, subject
 	for range emailOTPWriteMaxRetries {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
-			if !isRuntimeStateKeyAbsent(err) {
+			if !isKeyAbsent(err) {
 				return "", 0, false, fmt.Errorf("failed to get email otp challenge: %w", err)
 			}
 			challenge := emailOTPChallenge{
@@ -227,7 +227,7 @@ func (c *ChattoCore) reserveEmailOTPIssuance(ctx context.Context, scope, subject
 		if err == nil {
 			return key, revision, false, nil
 		}
-		if isRuntimeStateRevisionConflict(err) {
+		if jetstreamutil.IsSequenceConflict(err) {
 			continue
 		}
 		return "", 0, false, fmt.Errorf("failed to update email otp challenge: %w", err)
@@ -240,14 +240,14 @@ func (c *ChattoCore) rollbackEmailOTPIssuance(ctx context.Context, key string, r
 		return nil
 	}
 	if created {
-		if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(revision)); err != nil && !isRuntimeStateKeyAbsent(err) && !isRuntimeStateRevisionConflict(err) {
+		if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(revision)); err != nil && !isKeyAbsent(err) && !jetstreamutil.IsSequenceConflict(err) {
 			return err
 		}
 		return nil
 	}
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
-		if isRuntimeStateKeyAbsent(err) {
+		if isKeyAbsent(err) {
 			return nil
 		}
 		return err
@@ -264,7 +264,7 @@ func (c *ChattoCore) rollbackEmailOTPIssuance(ctx context.Context, key string, r
 	if err != nil {
 		return err
 	}
-	if _, err := c.storage.runtimeStateKV.UpdateWithTTL(ctx, key, data, entry.Revision(), ttl); err != nil && !isRuntimeStateRevisionConflict(err) {
+	if _, err := c.storage.runtimeStateKV.UpdateWithTTL(ctx, key, data, entry.Revision(), ttl); err != nil && !jetstreamutil.IsSequenceConflict(err) {
 		return err
 	}
 	return nil
@@ -279,7 +279,7 @@ func (c *ChattoCore) cancelEmailOTP(ctx context.Context, scope, subject, code st
 
 	codeKey := c.emailOTPCodeKey(scope, subject, code)
 	if err := c.storage.runtimeStateKV.Delete(ctx, codeKey); err != nil {
-		if isRuntimeStateKeyAbsent(err) {
+		if isKeyAbsent(err) {
 			return nil
 		}
 		return fmt.Errorf("failed to delete email otp code: %w", err)
@@ -292,7 +292,7 @@ func (c *ChattoCore) decrementEmailOTPIssuance(ctx context.Context, scope, subje
 	for range emailOTPWriteMaxRetries {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
-			if isRuntimeStateKeyAbsent(err) {
+			if isKeyAbsent(err) {
 				return nil
 			}
 			return fmt.Errorf("failed to get email otp challenge: %w", err)
@@ -309,10 +309,10 @@ func (c *ChattoCore) decrementEmailOTPIssuance(ctx context.Context, scope, subje
 
 		if challenge.IssuedCount == 0 && challenge.Attempts == 0 && !challenge.Exhausted {
 			if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil {
-				if isRuntimeStateKeyAbsent(err) {
+				if isKeyAbsent(err) {
 					return nil
 				}
-				if isRuntimeStateRevisionConflict(err) {
+				if jetstreamutil.IsSequenceConflict(err) {
 					continue
 				}
 				return fmt.Errorf("failed to delete email otp challenge: %w", err)
@@ -325,7 +325,7 @@ func (c *ChattoCore) decrementEmailOTPIssuance(ctx context.Context, scope, subje
 			return fmt.Errorf("failed to marshal email otp challenge: %w", err)
 		}
 		if _, err := c.storage.runtimeStateKV.UpdateWithTTL(ctx, key, data, entry.Revision(), ttl); err != nil {
-			if isRuntimeStateRevisionConflict(err) {
+			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
 			return fmt.Errorf("failed to update email otp challenge: %w", err)
@@ -339,7 +339,7 @@ func (c *ChattoCore) getEmailOTPChallenge(ctx context.Context, scope, subject st
 	key := c.emailOTPChallengeKey(scope, subject)
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
-		if isRuntimeStateKeyAbsent(err) {
+		if isKeyAbsent(err) {
 			return nil, 0, errEmailOTPNotFound
 		}
 		return nil, 0, fmt.Errorf("failed to get email otp challenge: %w", err)
@@ -366,7 +366,7 @@ func (c *ChattoCore) recordEmailOTPFailure(ctx context.Context, scope, subject s
 	for range emailOTPWriteMaxRetries {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
-			if isRuntimeStateKeyAbsent(err) {
+			if isKeyAbsent(err) {
 				return errEmailOTPNotFound
 			}
 			return fmt.Errorf("failed to get email otp challenge: %w", err)
@@ -391,7 +391,7 @@ func (c *ChattoCore) recordEmailOTPFailure(ctx context.Context, scope, subject s
 			return fmt.Errorf("failed to marshal email otp challenge: %w", err)
 		}
 		if _, err := c.storage.runtimeStateKV.UpdateWithTTL(ctx, key, data, entry.Revision(), ttl); err != nil {
-			if isRuntimeStateRevisionConflict(err) {
+			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
 			return fmt.Errorf("failed to update email otp challenge: %w", err)
@@ -440,7 +440,7 @@ func (c *ChattoCore) deleteEmailOTPKeys(ctx context.Context, scope, subject, kee
 		if key == keepKey {
 			continue
 		}
-		if err := c.storage.runtimeStateKV.Delete(ctx, key); err != nil && !isRuntimeStateKeyAbsent(err) {
+		if err := c.storage.runtimeStateKV.Delete(ctx, key); err != nil && !isKeyAbsent(err) {
 			return fmt.Errorf("failed to delete email otp key: %w", err)
 		}
 	}

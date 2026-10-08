@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -22,7 +21,7 @@ func (c *ChattoCore) updateRuntimeStateUntil(ctx context.Context, key string, va
 // fence a cleanup operation against a concurrent update.
 func (c *ChattoCore) deleteRuntimeStateKey(ctx context.Context, key string, opts ...jetstream.KVDeleteOpt) error {
 	err := c.storage.runtimeStateKV.Delete(ctx, key, opts...)
-	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
+	if err != nil && !isKeyAbsent(err) {
 		return fmt.Errorf("delete runtime-state key %s: %w", key, err)
 	}
 	return nil

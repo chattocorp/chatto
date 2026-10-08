@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-
-	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // ============================================================================
@@ -197,14 +195,6 @@ func (c *ChattoCore) VerifyRegistrationCode(ctx context.Context, email, code str
 // delivered, so failed email sends do not consume resend throttle slots.
 func (c *ChattoCore) CancelRegistrationCode(ctx context.Context, email, code string) error {
 	return c.cancelEmailOTP(ctx, registrationOTPScope, normalizeRegistrationEmail(email), code, c.registrationCodeTTL())
-}
-
-func isRuntimeStateRevisionConflict(err error) bool {
-	return jetstreamutil.IsSequenceConflict(err)
-}
-
-func isRuntimeStateKeyAbsent(err error) bool {
-	return errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted)
 }
 
 // ============================================================================

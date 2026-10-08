@@ -898,7 +898,7 @@ func TestDeleteAllUserPushSubscriptionsRetainsRecoverableRecordWhenOwnerReleaseF
 	if err := core.pushSubscriptionCleanup.reconcileDeletedAccountPushState(ctx); err != nil {
 		t.Fatalf("reconcile malformed owner: %v", err)
 	}
-	if _, err := core.storage.runtimeStateKV.Get(ctx, ownerKey); !isPushRuntimeStateKeyAbsent(err) {
+	if _, err := core.storage.runtimeStateKV.Get(ctx, ownerKey); !isKeyAbsent(err) {
 		t.Fatalf("undecodable endpoint owner was not repaired: %v", err)
 	}
 
@@ -909,10 +909,10 @@ func TestDeleteAllUserPushSubscriptionsRetainsRecoverableRecordWhenOwnerReleaseF
 	if deleted != 1 {
 		t.Fatalf("retry deleted = %d, want 1", deleted)
 	}
-	if _, err := core.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(userID, endpoint)); !isPushRuntimeStateKeyAbsent(err) {
+	if _, err := core.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(userID, endpoint)); !isKeyAbsent(err) {
 		t.Fatalf("subscription remains after retry: %v", err)
 	}
-	if _, err := core.storage.runtimeStateKV.Get(ctx, ownerKey); !isPushRuntimeStateKeyAbsent(err) {
+	if _, err := core.storage.runtimeStateKV.Get(ctx, ownerKey); !isKeyAbsent(err) {
 		t.Fatalf("endpoint owner remains after retry: %v", err)
 	}
 }

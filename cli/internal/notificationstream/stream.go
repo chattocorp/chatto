@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/log"
 
 	"hmans.de/chatto/internal/logbridge"
+	"hmans.de/chatto/internal/natsresources"
 	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -21,7 +22,7 @@ import (
 )
 
 const (
-	StreamName           = "NOTIFICATIONS"
+	StreamName           = natsresources.Notifications
 	SignalledSubject     = "notifications.signalled"
 	ReadSubject          = "notifications.read"
 	RemovedSubject       = "notifications.removed"
