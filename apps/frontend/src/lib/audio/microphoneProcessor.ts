@@ -1,5 +1,7 @@
 import { MicrophoneEffectsGraph } from './microphoneEffectsGraph';
 import type { AudioProcessorOptions, Track, TrackProcessor } from 'livekit-client';
+// The worklet is bundled and loads from the frontend origin. Only input levels
+// cross its message port to the UI; it opens no external connection.
 import workletURL from './noiseGate.worklet?worker&url';
 import { GATE_OFF } from './noiseGate';
 import { normalizeMicrophoneEffects, type MicrophoneEffects } from './microphoneEffects';
@@ -103,6 +105,8 @@ export class MicrophoneProcessor implements TrackProcessor<
         this.#level = data;
       };
       node.port.postMessage({ threshold: this.#threshold });
+      // A runtime failure in either worklet stops both. Raw input then feeds the
+      // same output track, and an analyser replaces the worklet meter.
       this.#onError = () => {
         if (generation !== this.#generation) return;
         source.disconnect();

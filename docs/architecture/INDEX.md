@@ -42,7 +42,7 @@ Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections
 
 | Category                                      | Contents                                                                         |
 | --------------------------------------------- | -------------------------------------------------------------------------------- |
-| [Runtime components](runtime-components.md)   | Core models, facades, publishers, workers, and their responsibilities            |
+| [Runtime components](runtime-components.md)   | Server core models, facades, publishers, workers, runtime units, and owners      |
 | [Projections](projections.md)                 | Registered projectors, logical subjects, read models, and snapshot support       |
 | [NATS resources](nats-resources.md)           | Streams, KV buckets, Object Stores, live roots, persistence, and backup status   |
 | [Subjects and events](subjects-and-events.md) | Durable envelopes, subject namespace, event tokens, and transient subjects       |
@@ -54,6 +54,14 @@ Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections
 ## Inventory rules
 
 - Record current runtime facts, not migration archaeology or design rationale.
+- Record the server runtime only. Client runtimes (`@chatto/client`, the
+  bundled frontend, and the desktop and mobile shells) and development tools
+  document their ownership in source comments, FDRs, and ADRs.
+- Record the owner, lifecycle, and source links of a component. Do not record
+  tuning values, UI behavior, or step-by-step algorithms; the source and FDRs
+  hold them.
+- Add a new entry to the matching section. Restructure a file when an addition
+  does not fit, instead of appending a new top-level section for one feature.
 - Link to the authoritative source files and relevant ADRs or FDRs.
 - Put feature semantics in an FDR and public API details in protobuf comments;
   do not reproduce either here.
