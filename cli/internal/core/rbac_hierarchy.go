@@ -9,8 +9,9 @@ package core
 // rules, so an owner can always recover the server.
 //
 // A non-owner may act on another account only when they rank strictly above
-// it, and may assign, revoke, edit, delete, or move only roles that rank
-// strictly below their own highest role. Everyone ranks below every account.
+// it, and may assign, revoke, edit, or delete only roles that rank strictly
+// below their own highest role. Everyone ranks below every account. Moves are
+// not limited: holders of role.manage may move every role (MoveServerRole).
 // The system actor is exempt. Callers decide whether an action on the actor's
 // own account uses these rules.
 //

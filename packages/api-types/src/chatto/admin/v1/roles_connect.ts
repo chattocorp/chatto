@@ -90,9 +90,9 @@ export const AdminRoleService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Moves one role in the role order. Requires role.manage. A caller who is
-     * not an owner can move only a role below their own highest role, and only
-     * directly above another role below it, or to the lowest place.
+     * Moves one role in the role order. Requires role.manage. The caller can
+     * move every role except owner and everyone, also above their own highest
+     * role.
      *
      * @generated from rpc chatto.admin.v1.AdminRoleService.MoveRole
      */

@@ -79,9 +79,9 @@ type AdminRoleServiceClient interface {
 	// permission that the role allows or denies, at the same scope; otherwise
 	// the call returns PERMISSION_DENIED.
 	DeleteRole(context.Context, *connect.Request[v1.DeleteRoleRequest]) (*connect.Response[v1.DeleteRoleResponse], error)
-	// Moves one role in the role order. Requires role.manage. A caller who is
-	// not an owner can move only a role below their own highest role, and only
-	// directly above another role below it, or to the lowest place.
+	// Moves one role in the role order. Requires role.manage. The caller can
+	// move every role except owner and everyone, also above their own highest
+	// role.
 	MoveRole(context.Context, *connect.Request[v1.MoveRoleRequest]) (*connect.Response[v1.MoveRoleResponse], error)
 }
 
@@ -210,9 +210,9 @@ type AdminRoleServiceHandler interface {
 	// permission that the role allows or denies, at the same scope; otherwise
 	// the call returns PERMISSION_DENIED.
 	DeleteRole(context.Context, *connect.Request[v1.DeleteRoleRequest]) (*connect.Response[v1.DeleteRoleResponse], error)
-	// Moves one role in the role order. Requires role.manage. A caller who is
-	// not an owner can move only a role below their own highest role, and only
-	// directly above another role below it, or to the lowest place.
+	// Moves one role in the role order. Requires role.manage. The caller can
+	// move every role except owner and everyone, also above their own highest
+	// role.
 	MoveRole(context.Context, *connect.Request[v1.MoveRoleRequest]) (*connect.Response[v1.MoveRoleResponse], error)
 }
 
