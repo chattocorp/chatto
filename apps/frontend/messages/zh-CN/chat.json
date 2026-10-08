@@ -53,7 +53,6 @@
       "copy_user_id": "复制用户 ID"
     },
     "server_gutter": {
-      "home_server": "主服务器",
       "move_up": "向上移动",
       "move_down": "向下移动",
       "add_server": "添加服务器",

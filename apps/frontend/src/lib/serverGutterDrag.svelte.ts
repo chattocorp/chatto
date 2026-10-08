@@ -1,4 +1,4 @@
-/** Lazily loaded mouse drag behavior for the remote-server gutter. */
+/** Lazily loaded mouse drag behavior for the server gutter. */
 import { fromAction } from 'svelte/attachments';
 import { dndzone, type DndEvent } from 'svelte-dnd-action';
 

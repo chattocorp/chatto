@@ -9,6 +9,7 @@ import { q } from '$lib/test-utils';
 import { page } from '$app/state';
 
 const connectionLostServers = new SvelteSet<string>();
+const otherServerIds = new SvelteSet<string>();
 
 const { mocks } = vi.hoisted(() => {
   return {
@@ -26,7 +27,7 @@ const { mocks } = vi.hoisted(() => {
       hardRedirectAfterSignOut: vi.fn(),
       recoverServer: vi.fn().mockResolvedValue(undefined),
       beginOriginReauthentication: vi.fn(),
-      isOriginServer: vi.fn(() => false),
+      isOriginServer: vi.fn<(serverId: string) => boolean>(() => false),
       writeClipboardText: vi.fn(),
       toastError: vi.fn(),
       toastSuccess: vi.fn(),
@@ -34,7 +35,6 @@ const { mocks } = vi.hoisted(() => {
         disableRoomCallWideFor: vi.fn()
       },
       showConnectionLostIcon: false,
-      otherServerIds: [] as string[],
       server: {
         id: 'remote',
         url: 'https://remote.example.com',
@@ -115,7 +115,7 @@ vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
     get servers() {
-      return [mocks.server, ...mocks.otherServerIds.map((id) => ({ ...mocks.server, id }))];
+      return [mocks.server, ...Array.from(otherServerIds, (id) => ({ ...mocks.server, id }))];
     },
     needsRecovery: () =>
       Boolean(
@@ -277,7 +277,7 @@ describe('ServerSidebarEntry', () => {
   let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    mocks.otherServerIds = [];
+    otherServerIds.clear();
     serverGutterOrder.save([]);
     consoleErrorSpy?.mockRestore();
     consoleWarnSpy?.mockRestore();
@@ -356,9 +356,11 @@ describe('ServerSidebarEntry', () => {
   });
 
   it('opens the move actions from the keyboard and keeps navigation unchanged', async () => {
-    mocks.otherServerIds = ['second'];
+    otherServerIds.add('second');
     const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
     const icon = q(container, '[data-testid="server-icon"]')!;
+    expect(q(container, '[data-testid="server-home"]')).toBeNull();
+    expect(icon.hasAttribute('aria-describedby')).toBe(false);
     icon.focus();
     icon.dispatchEvent(
       new KeyboardEvent('keydown', {
@@ -380,17 +382,33 @@ describe('ServerSidebarEntry', () => {
     expect(mocks.goto).not.toHaveBeenCalled();
   });
 
-  it('marks the origin and omits its move actions', async () => {
-    mocks.isOriginServer.mockReturnValue(true);
+  it('moves the origin down and up like other servers without changing navigation', async () => {
+    mocks.isOriginServer.mockImplementation((id) => id === 'remote');
+    otherServerIds.add('second');
     const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
     const icon = q(container, '[data-testid="server-icon"]')!;
-    const descriptionId = icon.getAttribute('aria-describedby');
-    expect(q(container, '[data-testid="server-home"]')).not.toBeNull();
-    expect(document.getElementById(descriptionId!)?.textContent).toBe('Home server');
+    expect(q(container, '[data-testid="server-home"]')).toBeNull();
+    expect(icon.hasAttribute('aria-describedby')).toBe(false);
     openServerMenu(icon);
     await vi.waitFor(() => expect(q(document.body, '[data-testid="server-name"]')).not.toBeNull());
-    expect(q(document.body, '[data-testid="move-server-up"]')).toBeNull();
-    expect(q(document.body, '[data-testid="move-server-down"]')).toBeNull();
+    await expect.element(q(document.body, '[data-testid="move-server-up"]')).toBeDisabled();
+    const down = q(document.body, '[data-testid="move-server-down"]')!;
+    await expect.element(down).toBeEnabled();
+    down.click();
+    await tick();
+    expect(serverGutterOrder.ordered(['remote', 'second'], 'remote')).toEqual(['second', 'remote']);
+
+    openServerMenu(icon);
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="move-server-up"]')).not.toBeNull()
+    );
+    await expect.element(q(document.body, '[data-testid="move-server-down"]')).toBeDisabled();
+    const up = q(document.body, '[data-testid="move-server-up"]')!;
+    await expect.element(up).toBeEnabled();
+    up.click();
+    await tick();
+    expect(serverGutterOrder.ordered(['remote', 'second'], 'remote')).toEqual(['remote', 'second']);
+    expect(mocks.goto).not.toHaveBeenCalled();
   });
 
   it('opens server actions on right-click and marks the server as read', async () => {

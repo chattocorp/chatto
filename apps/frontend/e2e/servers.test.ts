@@ -40,27 +40,28 @@ test.describe('Server Directory (sidebar entry point)', () => {
     await page.goto('/chat/servers');
     const other = await context.newPage();
     await other.goto('/chat/servers');
-    const icons = (tab: typeof page) =>
-      tab.getByTestId('remote-server-list').getByTestId('server-icon');
+    const icons = (tab: typeof page) => tab.getByTestId('server-list').getByTestId('server-icon');
     const hrefs = (tab: typeof page) =>
       icons(tab).evaluateAll((links) => links.map((link) => link.getAttribute('href')));
-    const initial = ['/chat/order-a.localhost', '/chat/order-b.localhost'];
+    const initial = ['/chat/-', '/chat/order-a.localhost', '/chat/order-b.localhost'];
     await expect.poll(() => hrefs(page)).toEqual(initial);
     await expect.poll(() => hrefs(other)).toEqual(initial);
-    await expect(page.getByTestId('server-home')).toHaveCount(1);
+    await expect(page.getByTestId('server-home')).toHaveCount(0);
     const firstURL = page.url();
     const otherURL = other.url();
 
     await icons(page).first().focus();
     await icons(page).first().press('Shift+F10');
     await page.getByTestId('move-server-down').click();
-    const moved = ['/chat/order-b.localhost', '/chat/order-a.localhost'];
+    const moved = ['/chat/order-a.localhost', '/chat/-', '/chat/order-b.localhost'];
     await expect.poll(() => hrefs(page)).toEqual(moved);
     await expect.poll(() => hrefs(other)).toEqual(moved);
+    await page.reload();
+    await expect.poll(() => hrefs(page)).toEqual(moved);
 
-    await icons(other).first().focus();
-    await icons(other).first().press('Shift+F10');
-    await other.getByTestId('move-server-down').click();
+    await icons(other).nth(1).focus();
+    await icons(other).nth(1).press('Shift+F10');
+    await other.getByTestId('move-server-up').click();
     await expect.poll(() => hrefs(page)).toEqual(initial);
     await expect.poll(() => hrefs(other)).toEqual(initial);
     expect(page.url()).toBe(firstURL);
@@ -68,11 +69,11 @@ test.describe('Server Directory (sidebar entry point)', () => {
     await other.close();
 
     // Removing a registration clears its position even if it is added again later.
-    await icons(page).first().focus();
-    await icons(page).first().press('Shift+F10');
+    await icons(page).nth(1).focus();
+    await icons(page).nth(1).press('Shift+F10');
     await page.getByRole('menuitem', { name: 'Remove server' }).click();
     await page.getByRole('button', { name: 'Remove Server' }).click();
-    await expect.poll(() => hrefs(page)).toEqual(['/chat/order-b.localhost']);
+    await expect.poll(() => hrefs(page)).toEqual(['/chat/-', '/chat/order-b.localhost']);
     await page.goto('/readyz');
     await page.evaluate(() => {
       const servers = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]');
@@ -86,7 +87,9 @@ test.describe('Server Directory (sidebar entry point)', () => {
       localStorage.setItem('chatto:instances', JSON.stringify(servers));
     });
     await page.goto('/chat/servers');
-    await expect.poll(() => hrefs(page)).toEqual(moved);
+    await expect
+      .poll(() => hrefs(page))
+      .toEqual(['/chat/-', '/chat/order-b.localhost', '/chat/order-a.localhost']);
   });
 
   test('sidebar "+" opens the Server Directory in a dialog', async ({ page, chatPage }) => {
@@ -153,19 +156,16 @@ test.describe('Server gutter on hybrid-input devices', () => {
       localStorage.removeItem('chatto:serverGutterOrder');
     });
     await page.goto('/chat/servers');
-    await expect(page.getByTestId('remote-server-list')).toHaveAttribute(
-      'data-server-drag-ready',
-      'true'
-    );
+    await expect(page.getByTestId('server-list')).toHaveAttribute('data-server-drag-ready', 'true');
   });
 
   test('touch taps navigate with mouse dragging enabled', async ({ page }) => {
-    await page.getByTestId('remote-server-list').getByTestId('server-icon').first().tap();
+    await page.getByTestId('server-list').getByTestId('server-icon').nth(1).tap();
     await expect(page).toHaveURL(/\/chat\/order-0\.localhost/);
   });
 
   test('touch swipes from an icon scroll without reordering', async ({ page }) => {
-    const zone = page.getByTestId('remote-server-list');
+    const zone = page.getByTestId('server-list');
     const icon = zone.getByTestId('server-icon').nth(4);
     const box = await icon.boundingBox();
     expect(box).not.toBeNull();
@@ -196,18 +196,22 @@ test.describe('Server gutter on hybrid-input devices', () => {
       )
       .toBeGreaterThan(0);
     expect(await page.evaluate(() => localStorage.getItem('chatto:serverGutterOrder'))).toBeNull();
-    await expect(zone.getByTestId('server-icon').first()).toHaveAttribute(
-      'href',
-      '/chat/order-0.localhost'
-    );
+    await expect(zone.getByTestId('server-icon').first()).toHaveAttribute('href', '/chat/-');
   });
 
   test('touch long presses use the menu and mouse drags still reorder', async ({ page }) => {
     const pageErrors: string[] = [];
     page.on('pageerror', (error) => pageErrors.push(error.message));
-    const zone = page.getByTestId('remote-server-list');
+    const zone = page.getByTestId('server-list');
     const icons = zone.getByTestId('server-icon');
     const initialURL = page.url();
+    const originId = await page.evaluate(() => {
+      const servers: { id: string; url: string }[] = JSON.parse(
+        localStorage.getItem('chatto:instances') ?? '[]'
+      );
+      return servers.find((server) => new URL(server.url).origin === location.origin)?.id;
+    });
+    expect(originId).toBeTruthy();
     const box = await icons.first().boundingBox();
     expect(box).not.toBeNull();
     const client = await page.context().newCDPSession(page);
@@ -222,23 +226,23 @@ test.describe('Server gutter on hybrid-input devices', () => {
       page.evaluate(() => JSON.parse(localStorage.getItem('chatto:serverGutterOrder') ?? '[]'));
     await expect
       .poll(async () => (await savedOrder()).slice(0, 2))
-      .toEqual(['order-1.localhost', 'order-0.localhost']);
+      .toEqual(['order-0.localhost', originId]);
 
-    // A completed mouse drag moves the first icon back below the second one.
-    const first = await icons.first().boundingBox();
-    const second = await icons.nth(1).boundingBox();
-    expect(first).not.toBeNull();
-    expect(second).not.toBeNull();
-    const x = first!.x + first!.width / 2;
-    await page.mouse.move(x, first!.y + first!.height / 2);
+    // A completed mouse drag moves the origin back above the first remote.
+    const origin = await icons.nth(1).boundingBox();
+    const remote = await icons.first().boundingBox();
+    expect(origin).not.toBeNull();
+    expect(remote).not.toBeNull();
+    const x = origin!.x + origin!.width / 2;
+    await page.mouse.move(x, origin!.y + origin!.height / 2);
     await page.mouse.down();
-    await page.mouse.move(x, second!.y + second!.height / 2, { steps: 6 });
+    await page.mouse.move(x, remote!.y + remote!.height / 2, { steps: 6 });
     await expect(page.locator('#dnd-action-dragged-el')).toBeVisible();
     await expect(zone.locator('[data-is-dnd-shadow-item-hint]')).toHaveCount(1);
     await page.mouse.up();
     await expect
       .poll(async () => (await savedOrder()).slice(0, 2))
-      .toEqual(['order-0.localhost', 'order-1.localhost']);
+      .toEqual([originId, 'order-0.localhost']);
     expect(page.url()).toBe(initialURL);
     expect(pageErrors).toEqual([]);
   });
