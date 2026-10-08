@@ -251,6 +251,13 @@ focusing a cell highlights its permission row and role column.
     return exactInheritedState(role, permission);
   }
 
+  /** What a member with only this role gets here, as the server resolved it. */
+  function effectiveState(role: TierRole, permission: string): State {
+    if (role.effectiveAllows.includes(permission)) return 'allow';
+    if (role.effectiveDenials.includes(permission)) return 'deny';
+    return 'neutral';
+  }
+
   function roleIsVirtualOwner(role: TierRole): boolean {
     return role.roleName === 'owner';
   }
@@ -269,6 +276,10 @@ focusing a cell highlights its permission row and role column.
         .map((role) => role.roleName)
     );
   });
+
+  // The grant limit lets the viewer change only permissions that they hold
+  // at this tier (ADR-115). Owners hold every permission.
+  const viewerChangeable = $derived(new Set(data?.viewerChangeablePermissions ?? []));
 
   function roleIsLockedByOrder(role: TierRole): boolean {
     return rolesLockedByOrder.has(role.roleName);
@@ -350,10 +361,22 @@ focusing a cell highlights its permission row and role column.
           );
           if (next === 'allow') permissions.push(permission);
           if (next === 'deny') permissionDenials.push(permission);
-          return { ...candidate, override: { permissions, permissionDenials } };
+          // A setting at this tier decides for a member with only this role.
+          // After a clear, the refetch below supplies the inherited result.
+          const effectiveAllows = candidate.effectiveAllows.filter((p) => p !== permission);
+          const effectiveDenials = candidate.effectiveDenials.filter((p) => p !== permission);
+          if (next === 'allow') effectiveAllows.push(permission);
+          if (next === 'deny') effectiveDenials.push(permission);
+          return {
+            ...candidate,
+            override: { permissions, permissionDenials },
+            effectiveAllows,
+            effectiveDenials
+          };
         })
       };
     });
+    void queryClient.invalidateQueries({ queryKey, exact: true });
     void queryClient.invalidateQueries({
       queryKey: adminQueryKeys.rolePermissions(serverId, activeConnection, role.roleName)
     });
@@ -464,6 +487,8 @@ focusing a cell highlights its permission row and role column.
         {@const ov = overrideState(role, permission)}
         {@const inh = inheritedState(role, permission)}
         {@const includedBy = includingPermission(role, permission)}
+        {@const eff = effectiveState(role, permission)}
+        {@const effectiveDiffers = eff !== (ov !== 'neutral' ? ov : inh)}
         {@const virtualOwner = roleIsVirtualOwner(role)}
         {@const lockedByOrder = roleIsLockedByOrder(role)}
         {@const displayOverride = virtualOwner ? 'allow' : ov}
@@ -487,6 +512,9 @@ focusing a cell highlights its permission row and role column.
                     source: inheritedFromLabel
                   })
                 : null,
+              effectiveDiffers
+                ? m('rbac.permissions.cell.effective_state', { state: decisionWord(eff) })
+                : null,
               lockedByOrder ? m('rbac.role_order.role_locked') : null
             ].filter(Boolean)}
         {@const ariaLabel = ariaParts.join(', ')}
@@ -505,14 +533,23 @@ focusing a cell highlights its permission row and role column.
               includedBy
                 ? m('rbac.permissions.cell.effective_included_by', { permission: includedBy })
                 : null,
-              ov === 'neutral' && inh === 'neutral' ? m('rbac.permissions.no_decision') : null,
-              lockedByOrder ? m('rbac.role_order.role_locked') : null
+              effectiveDiffers
+                ? m('rbac.permissions.cell.effective_state', { state: decisionTitle(eff) })
+                : null,
+              ov === 'neutral' && inh === 'neutral' && eff === 'neutral'
+                ? m('rbac.permissions.no_decision')
+                : null,
+              lockedByOrder ? m('rbac.role_order.role_locked') : null,
+              !virtualOwner && !viewerChangeable.has(permission)
+                ? m('rbac.permissions.cell.beyond_viewer_authority')
+                : null
             ].filter(Boolean)}
         <MatrixCell
           override={displayOverride}
           inherited={displayInherited}
+          effective={virtualOwner ? undefined : eff}
           updating={cellIsUpdating(`${role.roleName}::${permission}`)}
-          disabled={virtualOwner || lockedByOrder}
+          disabled={virtualOwner || lockedByOrder || !viewerChangeable.has(permission)}
           canDeny={role.roleName === 'everyone'}
           {ariaLabel}
           title={titleParts.join(' · ')}

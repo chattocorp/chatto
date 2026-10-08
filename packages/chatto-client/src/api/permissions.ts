@@ -37,10 +37,19 @@ export type TierRole = {
   override: TierPermissions;
   inheritedAllows: string[];
   inheritedDenials: string[];
+  /** What a member with only this role is allowed at this tier (from the server). */
+  effectiveAllows: string[];
+  /** What a member with only this role is denied at this tier (from the server). */
+  effectiveDenials: string[];
 };
 
 export type TierRoles = {
   applicablePermissions: string[];
+  /**
+   * Applicable permissions that the viewer may change at this tier. A viewer
+   * who is not an owner must hold the permission here.
+   */
+  viewerChangeablePermissions: string[];
   /** Roles in role order, highest first. */
   roles: TierRole[];
 };
@@ -64,6 +73,11 @@ export type MatrixCell = {
    */
   effectiveWithPrivilegedMode?: MatrixDecision;
   allowPermitted?: boolean;
+  /**
+   * Whether the viewer may change this setting: a viewer who is not an owner
+   * must hold the permission at this scope. Absent for bot cells.
+   */
+  viewerCanChange?: boolean;
 };
 
 export type MatrixData = {
@@ -252,6 +266,7 @@ export type PermissionAPI = ReturnType<typeof createPermissionAPI>;
 function tierRoles(matrix: APITierRoles): TierRoles {
   return {
     applicablePermissions: [...matrix.applicablePermissions],
+    viewerChangeablePermissions: [...matrix.viewerChangeablePermissions],
     roles: matrix.roles.map(tierRole)
   };
 }
@@ -272,7 +287,9 @@ function tierRole(role: APITierRole): TierRole {
       permissionDenials: [...(role.override?.permissionDenials ?? [])]
     },
     inheritedAllows: [...role.inheritedAllows],
-    inheritedDenials: [...role.inheritedDenials]
+    inheritedDenials: [...role.inheritedDenials],
+    effectiveAllows: [...role.effectiveAllows],
+    effectiveDenials: [...role.effectiveDenials]
   };
 }
 
@@ -312,7 +329,8 @@ function matrixCell(cell: APIPermissionMatrixCell): MatrixCell {
     ...(cell.effectiveWithPrivilegedMode !== PermissionDecision.UNSPECIFIED
       ? { effectiveWithPrivilegedMode: matrixDecision(cell.effectiveWithPrivilegedMode) }
       : {}),
-    ...(cell.allowPermitted !== undefined ? { allowPermitted: cell.allowPermitted } : {})
+    ...(cell.allowPermitted !== undefined ? { allowPermitted: cell.allowPermitted } : {}),
+    ...(cell.viewerCanChange !== undefined ? { viewerCanChange: cell.viewerCanChange } : {})
   };
 }
 

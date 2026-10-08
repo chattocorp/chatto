@@ -126,7 +126,8 @@
         "manage_role": "{role} を管理",
         "no_scopes": "この{subject}で利用できるスコープはありません。",
         "effective_state": "実際の結果: {state}",
-        "privileged_only": "特権モードでのみ許可"
+        "privileged_only": "特権モードでのみ許可",
+        "beyond_viewer_authority": "この設定は、ここでこの権限を持っている場合にのみ変更できます。"
       },
       "help": {
         "open": "{permission} について",

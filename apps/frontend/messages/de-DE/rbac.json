@@ -126,7 +126,8 @@
         "manage_role": "{role} verwalten",
         "no_scopes": "Keine Bereiche für {subject} verfügbar.",
         "effective_state": "Wirksam: {state}",
-        "privileged_only": "Nur im privilegierten Modus erlaubt"
+        "privileged_only": "Nur im privilegierten Modus erlaubt",
+        "beyond_viewer_authority": "Du kannst diese Einstellung nur ändern, wenn du diese Berechtigung hier hast."
       },
       "help": {
         "open": "Über {permission}",

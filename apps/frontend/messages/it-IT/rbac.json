@@ -126,7 +126,8 @@
         "manage_role": "Gestisci {role}",
         "no_scopes": "Nessun ambito disponibile per questo {subject}.",
         "effective_state": "Effettivo: {state}",
-        "privileged_only": "Consentito solo in modalità privilegiata"
+        "privileged_only": "Consentito solo in modalità privilegiata",
+        "beyond_viewer_authority": "Puoi modificare questa impostazione solo se hai questa autorizzazione qui."
       },
       "help": {
         "open": "Informazioni su {permission}",

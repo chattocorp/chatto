@@ -126,7 +126,8 @@
         "manage_role": "{role} beheren",
         "no_scopes": "Geen bereiken beschikbaar voor dit type ({subject}).",
         "effective_state": "Effectief: {state}",
-        "privileged_only": "Alleen toegestaan in bevoorrechte modus"
+        "privileged_only": "Alleen toegestaan in bevoorrechte modus",
+        "beyond_viewer_authority": "Je kunt deze instelling alleen wijzigen als je hier deze machtiging hebt."
       },
       "help": {
         "open": "Over {permission}",

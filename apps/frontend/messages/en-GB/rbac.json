@@ -126,7 +126,8 @@
         "manage_role": "Manage {role}",
         "no_scopes": "No scopes available for this {subject}.",
         "effective_state": "Effective {state}",
-        "privileged_only": "Allowed only in privileged mode"
+        "privileged_only": "Allowed only in privileged mode",
+        "beyond_viewer_authority": "You can change this setting only if you have this permission here."
       },
       "help": {
         "open": "About {permission}",

@@ -126,7 +126,8 @@
         "manage_role": "Gerenciar {role}",
         "no_scopes": "Nenhum escopo disponível para este tipo ({subject}).",
         "effective_state": "Efetivo: {state}",
-        "privileged_only": "Permitido apenas no modo privilegiado"
+        "privileged_only": "Permitido apenas no modo privilegiado",
+        "beyond_viewer_authority": "Você só pode alterar esta configuração se tiver esta permissão aqui."
       },
       "help": {
         "open": "Sobre {permission}",

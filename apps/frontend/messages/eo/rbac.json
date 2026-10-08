@@ -126,7 +126,8 @@
         "manage_role": "Administri {role}",
         "no_scopes": "Neniuj ampleksoj disponeblaj por ĉi tiu {subject}.",
         "effective_state": "Efektive: {state}",
-        "privileged_only": "Permesata nur en privilegia reĝimo"
+        "privileged_only": "Permesata nur en privilegia reĝimo",
+        "beyond_viewer_authority": "Vi povas ŝanĝi ĉi tiun agordon nur se vi havas ĉi tiun permeson ĉi tie."
       },
       "help": {
         "open": "Pri {permission}",

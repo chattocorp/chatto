@@ -126,7 +126,8 @@
         "manage_role": "Spravovat {role}",
         "no_scopes": "Pro tento typ ({subject}) nejsou k dispozici žádné rozsahy.",
         "effective_state": "Účinně: {state}",
-        "privileged_only": "Povoleno pouze v privilegovaném režimu"
+        "privileged_only": "Povoleno pouze v privilegovaném režimu",
+        "beyond_viewer_authority": "Toto nastavení můžete změnit, pouze pokud zde máte toto oprávnění."
       },
       "help": {
         "open": "O oprávnění {permission}",

@@ -126,7 +126,8 @@
         "manage_role": "Gerir {role}",
         "no_scopes": "Nenhum âmbito disponível para este tipo ({subject}).",
         "effective_state": "Efetivo: {state}",
-        "privileged_only": "Permitido apenas no modo privilegiado"
+        "privileged_only": "Permitido apenas no modo privilegiado",
+        "beyond_viewer_authority": "Só pode alterar esta definição se tiver esta permissão aqui."
       },
       "help": {
         "open": "Sobre {permission}",

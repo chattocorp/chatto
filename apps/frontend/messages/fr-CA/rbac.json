@@ -126,7 +126,8 @@
         "manage_role": "Gérer {role}",
         "no_scopes": "Aucune portée disponible pour ce {subject}.",
         "effective_state": "Effectif : {state}",
-        "privileged_only": "Autorisé uniquement en mode privilégié"
+        "privileged_only": "Autorisé uniquement en mode privilégié",
+        "beyond_viewer_authority": "Vous pouvez modifier ce paramètre uniquement si vous avez cette autorisation ici."
       },
       "help": {
         "open": "À propos de {permission}",

@@ -2549,6 +2549,7 @@ Matrix cell for one permission and scope.
 | `effective` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Effective decision at this scope. For a human account, this is the result without privileged mode. |
 | `allow_permitted` | `optional bool` | Whether an explicit allow may currently be stored for this target. Absent when no additional delegation ceiling applies. |
 | `effective_with_privileged_mode` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | For a human account, the effective decision while the account has privileged mode active. It differs from effective for elevation-required permissions and for owners. Unspecified for roles and bots. |
+| `viewer_can_change` | `optional bool` | Whether the caller may change this setting. A caller who is not an owner must hold the permission at this scope. Absent for bot cells, which use allow_permitted. |
 
 
 
@@ -2653,6 +2654,8 @@ One role's permission state at a single tier.
 | `inherited_allows` | `repeated string` | Allows inherited from broader tiers. |
 | `inherited_denials` | `repeated string` | Denials inherited from broader tiers. |
 | `role` | `chatto.api.v1.Role` | Public role metadata. |
+| `effective_allows` | `repeated string` | Permissions that a member with only this role is allowed at this tier. The server resolves them with the same rules as authorization: the everyone baseline, inclusion, and the scope rule. They do not include settings on single users, the owner override, or privileged mode. |
+| `effective_denials` | `repeated string` | Permissions that a member with only this role is denied at this tier, for example because everyone is denied at a more specific scope. Permissions in neither list have no setting, which also means no access. |
 
 
 
@@ -2666,6 +2669,7 @@ Role permission matrix for one tier.
 | --- | --- | --- |
 | `applicable_permissions` | `repeated string` | Permissions configurable at this tier. |
 | `roles` | repeated [`TierRole`](#chatto-admin-v1-TierRole) | Roles in role order, highest first. |
+| `viewer_changeable_permissions` | `repeated string` | Applicable permissions that the caller may change at this tier. A caller who is not an owner must hold the permission here. |
 
 
 

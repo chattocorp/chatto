@@ -126,7 +126,8 @@
         "manage_role": "管理 {role}",
         "no_scopes": "此{subject}没有可用的范围。",
         "effective_state": "实际结果：{state}",
-        "privileged_only": "仅在特权模式下允许"
+        "privileged_only": "仅在特权模式下允许",
+        "beyond_viewer_authority": "只有你在这里拥有此权限时，才能更改此设置。"
       },
       "help": {
         "open": "关于 {permission}",

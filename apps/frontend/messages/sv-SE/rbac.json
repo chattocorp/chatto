@@ -126,7 +126,8 @@
         "manage_role": "Hantera {role}",
         "no_scopes": "Inga omfång tillgängliga för {subject}.",
         "effective_state": "Faktiskt: {state}",
-        "privileged_only": "Tillåtet endast i privilegierat läge"
+        "privileged_only": "Tillåtet endast i privilegierat läge",
+        "beyond_viewer_authority": "Du kan bara ändra den här inställningen om du har den här behörigheten här."
       },
       "help": {
         "open": "Om {permission}",

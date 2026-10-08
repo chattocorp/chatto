@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -349,5 +350,30 @@ func TestUserPermissionMatrixDescribesTheTargetAccount(t *testing.T) {
 	room := PermissionMatrixScope{Kind: MatrixScopeRoom, ID: "room:" + roomID}
 	if got := cell(member, PermRoomJoin, room); got.Effective != MatrixDecisionDeny || got.EffectiveWithPrivilegedMode != MatrixDecisionDeny {
 		t.Fatalf("suspended member room.join = %s / %s, want deny", got.Effective, got.EffectiveWithPrivilegedMode)
+	}
+}
+
+// TestPermissionMatricesReportWhatTheViewerCanChange checks that the grant
+// limit reaches the matrices, so locked cells do not look editable.
+func TestPermissionMatricesReportWhatTheViewerCanChange(t *testing.T) {
+	t.Parallel()
+
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roomManager := createPermissionEditUser(t, c, ctx, "matrix-room-manager")
+	roomID := createPermissionEditRoom(t, c, ctx, "matrix-change-room")
+	if err := c.GrantUserRoomPermission(ctx, SystemActorID, roomID, roomManager, PermRoomManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
+	}
+
+	tiers, err := c.GetRolePermissionTierMatrix(ctx, roomManager, roomID, "")
+	if err != nil {
+		t.Fatalf("GetRolePermissionTierMatrix: %v", err)
+	}
+	if !slices.Contains(tiers.ViewerChangeablePermissions, string(PermMessagePost)) {
+		t.Fatalf("changeable = %v, want the held message.post", tiers.ViewerChangeablePermissions)
+	}
+	if slices.Contains(tiers.ViewerChangeablePermissions, string(PermMessageManage)) {
+		t.Fatalf("changeable = %v, want no message.manage, which the manager lacks", tiers.ViewerChangeablePermissions)
 	}
 }

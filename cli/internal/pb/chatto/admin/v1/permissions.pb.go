@@ -323,9 +323,18 @@ type TierRole struct {
 	// Denials inherited from broader tiers.
 	InheritedDenials []string `protobuf:"bytes,8,rep,name=inherited_denials,json=inheritedDenials,proto3" json:"inherited_denials,omitempty"`
 	// Public role metadata.
-	Role          *v1.Role `protobuf:"bytes,9,opt,name=role,proto3" json:"role,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Role *v1.Role `protobuf:"bytes,9,opt,name=role,proto3" json:"role,omitempty"`
+	// Permissions that a member with only this role is allowed at this tier.
+	// The server resolves them with the same rules as authorization: the
+	// everyone baseline, inclusion, and the scope rule. They do not include
+	// settings on single users, the owner override, or privileged mode.
+	EffectiveAllows []string `protobuf:"bytes,10,rep,name=effective_allows,json=effectiveAllows,proto3" json:"effective_allows,omitempty"`
+	// Permissions that a member with only this role is denied at this tier,
+	// for example because everyone is denied at a more specific scope.
+	// Permissions in neither list have no setting, which also means no access.
+	EffectiveDenials []string `protobuf:"bytes,11,rep,name=effective_denials,json=effectiveDenials,proto3" json:"effective_denials,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *TierRole) Reset() {
@@ -386,15 +395,32 @@ func (x *TierRole) GetRole() *v1.Role {
 	return nil
 }
 
+func (x *TierRole) GetEffectiveAllows() []string {
+	if x != nil {
+		return x.EffectiveAllows
+	}
+	return nil
+}
+
+func (x *TierRole) GetEffectiveDenials() []string {
+	if x != nil {
+		return x.EffectiveDenials
+	}
+	return nil
+}
+
 // Role permission matrix for one tier.
 type TierRoles struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Permissions configurable at this tier.
 	ApplicablePermissions []string `protobuf:"bytes,1,rep,name=applicable_permissions,json=applicablePermissions,proto3" json:"applicable_permissions,omitempty"`
 	// Roles in role order, highest first.
-	Roles         []*TierRole `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Roles []*TierRole `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`
+	// Applicable permissions that the caller may change at this tier. A caller
+	// who is not an owner must hold the permission here.
+	ViewerChangeablePermissions []string `protobuf:"bytes,3,rep,name=viewer_changeable_permissions,json=viewerChangeablePermissions,proto3" json:"viewer_changeable_permissions,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *TierRoles) Reset() {
@@ -437,6 +463,13 @@ func (x *TierRoles) GetApplicablePermissions() []string {
 func (x *TierRoles) GetRoles() []*TierRole {
 	if x != nil {
 		return x.Roles
+	}
+	return nil
+}
+
+func (x *TierRoles) GetViewerChangeablePermissions() []string {
+	if x != nil {
+		return x.ViewerChangeablePermissions
 	}
 	return nil
 }
@@ -625,8 +658,12 @@ type PermissionMatrixCell struct {
 	// privileged mode active. It differs from effective for elevation-required
 	// permissions and for owners. Unspecified for roles and bots.
 	EffectiveWithPrivilegedMode PermissionDecision `protobuf:"varint,6,opt,name=effective_with_privileged_mode,json=effectiveWithPrivilegedMode,proto3,enum=chatto.admin.v1.PermissionDecision" json:"effective_with_privileged_mode,omitempty"`
-	unknownFields               protoimpl.UnknownFields
-	sizeCache                   protoimpl.SizeCache
+	// Whether the caller may change this setting. A caller who is not an owner
+	// must hold the permission at this scope. Absent for bot cells, which use
+	// allow_permitted.
+	ViewerCanChange *bool `protobuf:"varint,7,opt,name=viewer_can_change,json=viewerCanChange,proto3,oneof" json:"viewer_can_change,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *PermissionMatrixCell) Reset() {
@@ -699,6 +736,13 @@ func (x *PermissionMatrixCell) GetEffectiveWithPrivilegedMode() PermissionDecisi
 		return x.EffectiveWithPrivilegedMode
 	}
 	return PermissionDecision_PERMISSION_DECISION_UNSPECIFIED
+}
+
+func (x *PermissionMatrixCell) GetViewerCanChange() bool {
+	if x != nil && x.ViewerCanChange != nil {
+		return *x.ViewerCanChange
+	}
+	return false
 }
 
 // Permission matrix for one role within a scope page.
@@ -2066,15 +2110,19 @@ const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"\x02id\x18\x02 \x01(\tR\x02id\"b\n" +
 	"\x0fTierPermissions\x12 \n" +
 	"\vpermissions\x18\x01 \x03(\tR\vpermissions\x12-\n" +
-	"\x12permission_denials\x18\x02 \x03(\tR\x11permissionDenials\"\x8a\x02\n" +
+	"\x12permission_denials\x18\x02 \x03(\tR\x11permissionDenials\"\xe2\x02\n" +
 	"\bTierRole\x12<\n" +
 	"\boverride\x18\x06 \x01(\v2 .chatto.admin.v1.TierPermissionsR\boverride\x12)\n" +
 	"\x10inherited_allows\x18\a \x03(\tR\x0finheritedAllows\x12+\n" +
 	"\x11inherited_denials\x18\b \x03(\tR\x10inheritedDenials\x12'\n" +
-	"\x04role\x18\t \x01(\v2\x13.chatto.api.v1.RoleR\x04roleJ\x04\b\x01\x10\x06R\trole_nameR\fdisplay_nameR\vdescriptionR\tis_systemR\bposition\"s\n" +
+	"\x04role\x18\t \x01(\v2\x13.chatto.api.v1.RoleR\x04role\x12)\n" +
+	"\x10effective_allows\x18\n" +
+	" \x03(\tR\x0feffectiveAllows\x12+\n" +
+	"\x11effective_denials\x18\v \x03(\tR\x10effectiveDenialsJ\x04\b\x01\x10\x06R\trole_nameR\fdisplay_nameR\vdescriptionR\tis_systemR\bposition\"\xb7\x01\n" +
 	"\tTierRoles\x125\n" +
 	"\x16applicable_permissions\x18\x01 \x03(\tR\x15applicablePermissions\x12/\n" +
-	"\x05roles\x18\x02 \x03(\v2\x19.chatto.admin.v1.TierRoleR\x05roles\"\\\n" +
+	"\x05roles\x18\x02 \x03(\v2\x19.chatto.admin.v1.TierRoleR\x05roles\x12B\n" +
+	"\x1dviewer_changeable_permissions\x18\x03 \x03(\tR\x1bviewerChangeablePermissions\"\\\n" +
 	"\"GetRolePermissionTierMatrixRequest\x126\n" +
 	"\x05scope\x18\x01 \x01(\v2 .chatto.admin.v1.PermissionScopeR\x05scope\"Y\n" +
 	"#GetRolePermissionTierMatrixResponse\x122\n" +
@@ -2083,7 +2131,7 @@ const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x128\n" +
 	"\x04kind\x18\x03 \x01(\x0e2$.chatto.admin.v1.PermissionScopeKindR\x04kind\x12&\n" +
-	"\x0fparent_group_id\x18\x04 \x01(\tR\rparentGroupId\"\x81\x03\n" +
+	"\x0fparent_group_id\x18\x04 \x01(\tR\rparentGroupId\"\xc8\x03\n" +
 	"\x14PermissionMatrixCell\x12\x1e\n" +
 	"\n" +
 	"permission\x18\x01 \x01(\tR\n" +
@@ -2092,8 +2140,10 @@ const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"\boverride\x18\x03 \x01(\x0e2#.chatto.admin.v1.PermissionDecisionR\boverride\x12A\n" +
 	"\teffective\x18\x04 \x01(\x0e2#.chatto.admin.v1.PermissionDecisionR\teffective\x12,\n" +
 	"\x0fallow_permitted\x18\x05 \x01(\bH\x00R\x0eallowPermitted\x88\x01\x01\x12h\n" +
-	"\x1eeffective_with_privileged_mode\x18\x06 \x01(\x0e2#.chatto.admin.v1.PermissionDecisionR\x1beffectiveWithPrivilegedModeB\x12\n" +
-	"\x10_allow_permitted\"\xe7\x01\n" +
+	"\x1eeffective_with_privileged_mode\x18\x06 \x01(\x0e2#.chatto.admin.v1.PermissionDecisionR\x1beffectiveWithPrivilegedMode\x12/\n" +
+	"\x11viewer_can_change\x18\a \x01(\bH\x01R\x0fviewerCanChange\x88\x01\x01B\x12\n" +
+	"\x10_allow_permittedB\x14\n" +
+	"\x12_viewer_can_change\"\xe7\x01\n" +
 	"\x14RolePermissionMatrix\x12\x1b\n" +
 	"\trole_name\x18\x01 \x01(\tR\broleName\x125\n" +
 	"\x16applicable_permissions\x18\x02 \x03(\tR\x15applicablePermissions\x12>\n" +

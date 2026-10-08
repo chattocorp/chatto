@@ -54,10 +54,18 @@ type TierRole struct {
 	Override         TierPermissions
 	InheritedAllows  []string
 	InheritedDenials []string
+	// EffectiveAllows and EffectiveDenials list what a member with only this
+	// role gets at the tier, from the resolver (resolveRoleHolder).
+	EffectiveAllows  []string
+	EffectiveDenials []string
 }
 
 type TierRoles struct {
 	ApplicablePermissions []string
+	// ViewerChangeablePermissions lists the applicable permissions that the
+	// viewer holds at this tier. The grant limit (ADR-115) requires that for
+	// every change of a setting.
+	ViewerChangeablePermissions []string
 	// Roles in role order, highest first.
 	Roles []TierRole
 }
@@ -83,6 +91,10 @@ type PermissionMatrixCell struct {
 	// It does not include the acting human's session activation or edit authority.
 	// Nil means that the cell does not use a bot owner ceiling.
 	AllowPermitted *bool
+	// ViewerCanChange reports whether the viewer holds the permission at this
+	// scope, which the grant limit requires for every change (ADR-115). Nil
+	// for bot cells, which have their own limits.
+	ViewerCanChange *bool
 }
 
 type RolePermissionMatrix struct {
@@ -156,18 +168,60 @@ func (c *ChattoCore) GetRolePermissionTierMatrix(ctx context.Context, actorID, r
 		if err := c.requireCanManageRolePermissionsForRoom(ctx, actorID, roomID); err != nil {
 			return nil, err
 		}
-		return c.buildTierRoles(ctx, ScopeRoom, roomID, "")
+		return c.buildTierRolesForViewer(ctx, actorID, ScopeRoom, roomID, "")
 	}
 	if groupID != "" {
 		if err := c.requireCanManageRolePermissionsForGroup(ctx, actorID, groupID); err != nil {
 			return nil, err
 		}
-		return c.buildTierRoles(ctx, ScopeGroup, "", groupID)
+		return c.buildTierRolesForViewer(ctx, actorID, ScopeGroup, "", groupID)
 	}
 	if err := c.requireCanManageAdminRoles(ctx, actorID); err != nil {
 		return nil, err
 	}
-	return c.buildTierRoles(ctx, ScopeServer, "", "")
+	return c.buildTierRolesForViewer(ctx, actorID, ScopeServer, "", "")
+}
+
+// buildTierRolesForViewer builds a tier matrix and lists the permissions that
+// the viewer may change at the tier.
+func (c *ChattoCore) buildTierRolesForViewer(ctx context.Context, actorID string, scope PermissionScope, roomID, groupID string) (*TierRoles, error) {
+	out, err := c.buildTierRoles(ctx, scope, roomID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	scopeID := roomID
+	if scope == ScopeGroup {
+		scopeID = groupID
+	}
+	for _, permission := range out.ApplicablePermissions {
+		holds, err := c.actorHasScopedPermission(ctx, actorID, ScopedRolePermissionDecision{Scope: scope, ScopeID: scopeID, Permission: Permission(permission)})
+		if err != nil {
+			return nil, err
+		}
+		if holds {
+			out.ViewerChangeablePermissions = append(out.ViewerChangeablePermissions, permission)
+		}
+	}
+	return out, nil
+}
+
+// viewerCanChangeAtMatrixScope reports whether the viewer holds perm at the
+// matrix scope, which the grant limit requires to change a setting there.
+func (c *ChattoCore) viewerCanChangeAtMatrixScope(ctx context.Context, actorID string, perm Permission, scope PermissionMatrixScope) (bool, error) {
+	decision := ScopedRolePermissionDecision{Permission: perm}
+	switch scope.Kind {
+	case MatrixScopeServer:
+		decision.Scope = ScopeServer
+	case MatrixScopeDM:
+		decision.Scope = ScopeDM
+	case MatrixScopeGroup:
+		decision.Scope, decision.ScopeID = ScopeGroup, scopeRefID(scope.ID, "group:")
+	case MatrixScopeRoom:
+		decision.Scope, decision.ScopeID = ScopeRoom, scopeRefID(scope.ID, "room:")
+	default:
+		return false, nil
+	}
+	return c.actorHasScopedPermission(ctx, actorID, decision)
 }
 
 // GetRolePermissionDMTierMatrix returns the role matrix for the singleton
@@ -176,7 +230,7 @@ func (c *ChattoCore) GetRolePermissionDMTierMatrix(ctx context.Context, actorID 
 	if err := c.requireCanManageAdminRoles(ctx, actorID); err != nil {
 		return nil, err
 	}
-	return c.buildTierRoles(ctx, ScopeDM, "", "")
+	return c.buildTierRolesForViewer(ctx, actorID, ScopeDM, "", "")
 }
 
 func (c *ChattoCore) GetRolePermissionMatrix(ctx context.Context, actorID, roleName string) (*RolePermissionMatrix, error) {
@@ -193,7 +247,7 @@ func (c *ChattoCore) GetRolePermissionMatrixPage(ctx context.Context, actorID, r
 	if err := c.requireCanManageAdminRoles(ctx, actorID); err != nil {
 		return nil, err
 	}
-	return c.buildRolePermissionMatrix(ctx, roleName, includeDM, query)
+	return c.buildRolePermissionMatrix(ctx, actorID, roleName, includeDM, query)
 }
 
 func (c *ChattoCore) GetUserPermissionMatrix(ctx context.Context, actorID, userID string) (*UserPermissionMatrix, error) {
@@ -584,10 +638,28 @@ func (c *ChattoCore) buildTierRoles(ctx context.Context, scope PermissionScope, 
 	if err != nil {
 		return nil, fmt.Errorf("list roles: %w", err)
 	}
+	kind := KindChannel
+	if scope == ScopeDM {
+		kind = KindDM
+	}
+	tierGroupID := groupID
+	if roomID != "" && tierGroupID == "" {
+		if tierGroupID, err = c.lookupRoomGroupID(ctx, roomID); err != nil {
+			return nil, err
+		}
+	}
 	for _, role := range roles {
 		tierRole, err := c.buildTierRole(ctx, role, scope, roomID, groupID)
 		if err != nil {
 			return nil, err
+		}
+		for _, permission := range out.ApplicablePermissions {
+			switch c.PermResolver().resolveRoleHolder(role.Name, kind, roomID, tierGroupID, Permission(permission)) {
+			case DecisionAllow:
+				tierRole.EffectiveAllows = append(tierRole.EffectiveAllows, permission)
+			case DecisionDeny:
+				tierRole.EffectiveDenials = append(tierRole.EffectiveDenials, permission)
+			}
 		}
 		out.Roles = append(out.Roles, *tierRole)
 	}
@@ -661,7 +733,7 @@ func (c *ChattoCore) buildTierRole(ctx context.Context, role RoleWithPermissions
 	return out, nil
 }
 
-func (c *ChattoCore) buildRolePermissionMatrix(ctx context.Context, roleName string, includeDM bool, query PermissionScopeQuery) (*RolePermissionMatrix, error) {
+func (c *ChattoCore) buildRolePermissionMatrix(ctx context.Context, actorID, roleName string, includeDM bool, query PermissionScopeQuery) (*RolePermissionMatrix, error) {
 	role, err := c.GetServerRole(ctx, roleName)
 	if err != nil {
 		return nil, fmt.Errorf("load role: %w", err)
@@ -738,7 +810,7 @@ func (c *ChattoCore) buildRolePermissionMatrix(ctx context.Context, roleName str
 	for _, permStr := range applicable {
 		perm := Permission(permStr)
 		for _, scope := range scopes {
-			cell, ok := buildRolePermissionCell(
+			cell, ok := buildExactRolePermissionCell(
 				perm, scope,
 				serverGrants, serverDenials,
 				dmGrants, dmDenials,
@@ -746,9 +818,19 @@ func (c *ChattoCore) buildRolePermissionMatrix(ctx context.Context, roleName str
 				roomGrants, roomDenials,
 				roomToGroup,
 			)
-			if ok {
-				cells = append(cells, cell)
+			if !ok {
+				continue
 			}
+			// Show what a member with only this role gets, including the
+			// everyone baseline and inclusion, from the resolver itself.
+			kind, roomID, groupID := matrixScopeTarget(scope)
+			cell.Effective = matrixDecisionFromCoreDecision(c.PermResolver().resolveRoleHolder(roleName, kind, roomID, groupID, perm))
+			canChange, err := c.viewerCanChangeAtMatrixScope(ctx, actorID, perm, scope)
+			if err != nil {
+				return nil, err
+			}
+			cell.ViewerCanChange = &canChange
+			cells = append(cells, cell)
 		}
 	}
 
@@ -806,6 +888,12 @@ func (c *ChattoCore) buildUserPermissionMatrix(ctx context.Context, actorID stri
 						return nil, err
 					}
 					cell.AllowPermitted = &allowed
+				} else {
+					canChange, err := c.viewerCanChangeAtMatrixScope(ctx, actorID, perm, scope)
+					if err != nil {
+						return nil, err
+					}
+					cell.ViewerCanChange = &canChange
 				}
 				cells = append(cells, cell)
 			}
@@ -935,41 +1023,18 @@ func (c *ChattoCore) buildMatrixScopesVisibleTo(ctx context.Context, includeDM b
 	return scopes, nil
 }
 
-func buildRolePermissionCell(
-	perm Permission,
-	scope PermissionMatrixScope,
-	serverGrants, serverDenials []Permission,
-	dmGrants, dmDenials []Permission,
-	groupGrants, groupDenials map[string][]Permission,
-	roomGrants, roomDenials map[string][]Permission,
-	roomToGroup map[string]string,
-) (PermissionMatrixCell, bool) {
-	cell, ok := buildExactRolePermissionCell(
-		perm, scope,
-		serverGrants, serverDenials,
-		dmGrants, dmDenials,
-		groupGrants, groupDenials,
-		roomGrants, roomDenials,
-		roomToGroup,
-	)
-	if !ok {
-		return PermissionMatrixCell{}, false
+// matrixScopeTarget maps a matrix scope to the resolver's location.
+func matrixScopeTarget(scope PermissionMatrixScope) (kind RoomKind, roomID, groupID string) {
+	switch scope.Kind {
+	case MatrixScopeDM:
+		return KindDM, "", ""
+	case MatrixScopeGroup:
+		return KindChannel, "", scopeRefID(scope.ID, "group:")
+	case MatrixScopeRoom:
+		return KindChannel, scopeRefID(scope.ID, "room:"), scope.ParentGroupID
+	default:
+		return KindChannel, "", ""
 	}
-	for _, including := range includingPermissions(perm) {
-		includingCell, applies := buildExactRolePermissionCell(
-			including, scope,
-			serverGrants, serverDenials,
-			dmGrants, dmDenials,
-			groupGrants, groupDenials,
-			roomGrants, roomDenials,
-			roomToGroup,
-		)
-		if applies && includingCell.Effective == MatrixDecisionAllow {
-			cell.Effective = MatrixDecisionAllow
-			break
-		}
-	}
-	return cell, true
 }
 
 func buildExactRolePermissionCell(

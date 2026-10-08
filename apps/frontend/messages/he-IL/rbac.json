@@ -126,7 +126,8 @@
         "manage_role": "ניהול {role}",
         "no_scopes": "אין תחומים זמינים עבור סוג זה ({subject}).",
         "effective_state": "בפועל: {state}",
-        "privileged_only": "מותר רק במצב הרשאות מוגברות"
+        "privileged_only": "מותר רק במצב הרשאות מוגברות",
+        "beyond_viewer_authority": "אפשר לשנות הגדרה זו רק אם יש לך הרשאה זו כאן."
       },
       "help": {
         "open": "על {permission}",

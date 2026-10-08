@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -1364,4 +1365,39 @@ func TestRoleDenyWritesAreRejectedAndStoredRoleDeniesHaveNoEffect(t *testing.T) 
 	if got := c.ignoredRoleDenyCount(); got != 1 {
 		t.Fatalf("ignored role denies = %d, want 1", got)
 	}
+}
+
+// TestRoleGridsShowWhatARoleHolderGets checks that role grids use the
+// resolver: a server-level role allow does not show as allowed in a room
+// that denies everyone.
+func TestRoleGridsShowWhatARoleHolderGets(t *testing.T) {
+	t.Parallel()
+
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roomID := createPermissionEditRoom(t, c, ctx, "role-grid-room")
+	if err := c.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermMessageAttach); err != nil {
+		t.Fatalf("GrantServerPermission: %v", err)
+	}
+	if err := c.DenyRoomPermission(ctx, SystemActorID, roomID, RoleEveryone, PermMessageAttach); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
+	}
+
+	tiers, err := c.buildTierRoles(ctx, ScopeRoom, roomID, "")
+	if err != nil {
+		t.Fatalf("buildTierRoles: %v", err)
+	}
+	for _, role := range tiers.Roles {
+		if role.RoleName != RoleModerator {
+			continue
+		}
+		if !slices.Contains(role.EffectiveDenials, string(PermMessageAttach)) || slices.Contains(role.EffectiveAllows, string(PermMessageAttach)) {
+			t.Fatalf("moderator effective in room = allows %v, denials %v; want message.attach denied", role.EffectiveAllows, role.EffectiveDenials)
+		}
+		if !slices.Contains(role.InheritedAllows, string(PermMessageAttach)) {
+			t.Fatalf("moderator inherited allows = %v, want the server allow", role.InheritedAllows)
+		}
+		return
+	}
+	t.Fatal("moderator missing from the tier grid")
 }

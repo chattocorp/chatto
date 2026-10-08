@@ -126,7 +126,8 @@
         "manage_role": "Administrer {role}",
         "no_scopes": "Ingen områder tilgjengelig for {subject}.",
         "effective_state": "Faktisk: {state}",
-        "privileged_only": "Bare tillatt i privilegert modus"
+        "privileged_only": "Bare tillatt i privilegert modus",
+        "beyond_viewer_authority": "Du kan bare endre denne innstillingen hvis du har denne tillatelsen her."
       },
       "help": {
         "open": "Om {permission}",

@@ -126,7 +126,8 @@
         "manage_role": "Halda rolli {role}",
         "no_scopes": "Selle tüübi ({subject}) jaoks pole ühtegi ulatust saadaval.",
         "effective_state": "Tegelikult: {state}",
-        "privileged_only": "Lubatud ainult privilegeeritud režiimis"
+        "privileged_only": "Lubatud ainult privilegeeritud režiimis",
+        "beyond_viewer_authority": "Saate seda seadet muuta ainult siis, kui teil on siin see õigus."
       },
       "help": {
         "open": "Teave: {permission}",

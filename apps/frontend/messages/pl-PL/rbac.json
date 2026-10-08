@@ -126,7 +126,8 @@
         "manage_role": "Zarządzaj rolą {role}",
         "no_scopes": "Brak dostępnych zakresów dla tego typu ({subject}).",
         "effective_state": "Faktycznie: {state}",
-        "privileged_only": "Dozwolone tylko w trybie uprzywilejowanym"
+        "privileged_only": "Dozwolone tylko w trybie uprzywilejowanym",
+        "beyond_viewer_authority": "Możesz zmienić to ustawienie tylko wtedy, gdy masz tutaj to uprawnienie."
       },
       "help": {
         "open": "Informacje o {permission}",

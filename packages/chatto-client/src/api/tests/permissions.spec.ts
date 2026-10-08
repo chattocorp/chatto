@@ -31,9 +31,12 @@ describe('createPermissionAPI', () => {
             },
             override: { permissions: ['message.post'], permissionDenials: [] },
             inheritedAllows: [],
-            inheritedDenials: ['message.react']
+            inheritedDenials: ['message.react'],
+            effectiveAllows: ['message.post'],
+            effectiveDenials: []
           }
-        ]
+        ],
+        viewerChangeablePermissions: ['message.post']
       }
     });
     const api = permissionAPI();
@@ -45,6 +48,7 @@ describe('createPermissionAPI', () => {
     });
     expect(result).toEqual({
       applicablePermissions: ['message.post'],
+      viewerChangeablePermissions: ['message.post'],
       roles: [
         {
           roleName: 'moderator',
@@ -54,7 +58,9 @@ describe('createPermissionAPI', () => {
           pingable: true,
           override: { permissions: ['message.post'], permissionDenials: [] },
           inheritedAllows: [],
-          inheritedDenials: ['message.react']
+          inheritedDenials: ['message.react'],
+          effectiveAllows: ['message.post'],
+          effectiveDenials: []
         }
       ]
     });

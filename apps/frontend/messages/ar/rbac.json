@@ -126,7 +126,8 @@
         "manage_role": "إدارة {role}",
         "no_scopes": "لا توجد نطاقات متاحة لـ {subject}.",
         "effective_state": "الفعلي: {state}",
-        "privileged_only": "مسموح فقط في الوضع المميز"
+        "privileged_only": "مسموح فقط في الوضع المميز",
+        "beyond_viewer_authority": "يمكنك تغيير هذا الإعداد فقط إذا كان لديك هذا الإذن هنا."
       },
       "help": {
         "open": "حول {permission}",

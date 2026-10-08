@@ -59,6 +59,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     effectiveWithPrivilegedMode?: MatrixDecision;
     /** Present when a delegation ceiling can prevent storing an allow. */
     allowPermitted?: boolean;
+    /** False when the grant limit keeps the viewer from changing the cell. */
+    viewerCanChange?: boolean;
   };
   export type MatrixData = {
     applicablePermissions: string[];
@@ -471,6 +473,9 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                           })
                         : null,
                       privilegedOnly ? m('rbac.permissions.cell.privileged_only') : null,
+                      cell.viewerCanChange === false
+                        ? m('rbac.permissions.cell.beyond_viewer_authority')
+                        : null,
                       includedBy
                         ? m('rbac.permissions.cell.effective_included_by', {
                             permission: includedBy
@@ -492,7 +497,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                 effective={decisionMode !== 'binary' && !forceAllow ? eff : undefined}
                 {privilegedOnly}
                 updating={updatingKey === `${scope.id}::${permission}`}
-                disabled={readOnly}
+                disabled={readOnly || cell.viewerCanChange === false}
                 locked={inheritedBinaryGrant}
                 allowBlocked={cell.allowPermitted === false &&
                   (decisionMode !== 'binary' || parent !== 'ALLOW')}

@@ -62,6 +62,15 @@ message TierRole {
   repeated string inherited_denials = 8;
   // Public role metadata.
   chatto.api.v1.Role role = 9;
+  // Permissions that a member with only this role is allowed at this tier.
+  // The server resolves them with the same rules as authorization: the
+  // everyone baseline, inclusion, and the scope rule. They do not include
+  // settings on single users, the owner override, or privileged mode.
+  repeated string effective_allows = 10;
+  // Permissions that a member with only this role is denied at this tier,
+  // for example because everyone is denied at a more specific scope.
+  // Permissions in neither list have no setting, which also means no access.
+  repeated string effective_denials = 11;
 }
 
 // Role permission matrix for one tier.
@@ -70,6 +79,9 @@ message TierRoles {
   repeated string applicable_permissions = 1;
   // Roles in role order, highest first.
   repeated TierRole roles = 2;
+  // Applicable permissions that the caller may change at this tier. A caller
+  // who is not an owner must hold the permission here.
+  repeated string viewer_changeable_permissions = 3;
 }
 
 // Request a role-permission tier matrix.
@@ -114,6 +126,10 @@ message PermissionMatrixCell {
   // privileged mode active. It differs from effective for elevation-required
   // permissions and for owners. Unspecified for roles and bots.
   PermissionDecision effective_with_privileged_mode = 6;
+  // Whether the caller may change this setting. A caller who is not an owner
+  // must hold the permission at this scope. Absent for bot cells, which use
+  // allow_permitted.
+  optional bool viewer_can_change = 7;
 }
 
 // Permission matrix for one role within a scope page.

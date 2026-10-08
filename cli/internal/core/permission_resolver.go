@@ -356,6 +356,39 @@ func (r *PermissionResolver) explainBot(ctx context.Context, botUserID, ownerUse
 	return exp, nil
 }
 
+// resolveRoleHolder returns what a human member who holds only roleName gets:
+// the role's allows combined with the everyone baseline, with inclusion, and
+// without settings on the member, the owner override, or the privileged-mode
+// gate. For everyone, it is the baseline alone. Role grids in the admin UI use
+// it, so they show the same result as authorization (ADR-116).
+func (r *PermissionResolver) resolveRoleHolder(roleName string, kind RoomKind, roomID, groupID string, perm Permission) DecisionKind {
+	if _, known := GetPermissionMetadata(perm); !known {
+		return DecisionNone
+	}
+	if kind == KindDM && !PermissionAppliesAtScope(perm, ScopeDM) {
+		return DecisionDeny
+	}
+	var roles []string
+	if roleName != RoleEveryone {
+		roles = []string{roleName}
+	}
+	for _, candidate := range append(includingPermissions(perm), perm) {
+		if _, known := GetPermissionMetadata(candidate); !known {
+			continue
+		}
+		scopes := r.applicableScopeTargets(kind, roomID, groupID, candidate)
+		decisions := collectApplicableDecisions(func(scope PermissionScope, scopeID, subject string) DecisionKind {
+			return r.decisionFor(scope, scopeID, subject, candidate)
+		}, "", roles, scopes)
+		state, _, _ := resolveApplicablePermissionDecisions(decisions)
+		if candidate != perm && state != DecisionAllow {
+			continue
+		}
+		return state
+	}
+	return DecisionNone
+}
+
 // groupForRoom returns groupID, or the group of a channel room when the
 // permission applies at room scope and no group was given.
 func (r *PermissionResolver) groupForRoom(ctx context.Context, kind RoomKind, roomID, groupID string, perm Permission) string {

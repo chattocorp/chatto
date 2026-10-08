@@ -126,7 +126,8 @@
         "manage_role": "Pārvaldīt lomu {role}",
         "no_scopes": "Šim tipam ({subject}) nav pieejamu tvērumu.",
         "effective_state": "Faktiski: {state}",
-        "privileged_only": "Atļauts tikai privileģētajā režīmā"
+        "privileged_only": "Atļauts tikai privileģētajā režīmā",
+        "beyond_viewer_authority": "Šo iestatījumu varat mainīt tikai tad, ja jums šeit ir šī atļauja."
       },
       "help": {
         "open": "Par atļauju {permission}",

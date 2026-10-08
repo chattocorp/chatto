@@ -255,14 +255,17 @@ func apiTierRoles(matrix *core.TierRoles) *adminv1.TierRoles {
 		return nil
 	}
 	out := &adminv1.TierRoles{
-		ApplicablePermissions: append([]string(nil), matrix.ApplicablePermissions...),
-		Roles:                 make([]*adminv1.TierRole, 0, len(matrix.Roles)),
+		ApplicablePermissions:       append([]string(nil), matrix.ApplicablePermissions...),
+		ViewerChangeablePermissions: append([]string(nil), matrix.ViewerChangeablePermissions...),
+		Roles:                       make([]*adminv1.TierRole, 0, len(matrix.Roles)),
 	}
 	for _, role := range matrix.Roles {
 		out.Roles = append(out.Roles, &adminv1.TierRole{
 			Override:         apiTierPermissions(role.Override),
 			InheritedAllows:  append([]string(nil), role.InheritedAllows...),
 			InheritedDenials: append([]string(nil), role.InheritedDenials...),
+			EffectiveAllows:  append([]string(nil), role.EffectiveAllows...),
+			EffectiveDenials: append([]string(nil), role.EffectiveDenials...),
 			Role: &apiv1.Role{
 				Name:        role.RoleName,
 				DisplayName: role.DisplayName,
@@ -401,6 +404,9 @@ func apiPermissionMatrixCells(cells []core.PermissionMatrixCell) []*adminv1.Perm
 		}
 		if cell.AllowPermitted != nil {
 			mapped.AllowPermitted = cell.AllowPermitted
+		}
+		if cell.ViewerCanChange != nil {
+			mapped.ViewerCanChange = cell.ViewerCanChange
 		}
 		if cell.EffectiveWithPrivilegedMode != "" {
 			mapped.EffectiveWithPrivilegedMode = apiPermissionDecision(cell.EffectiveWithPrivilegedMode)

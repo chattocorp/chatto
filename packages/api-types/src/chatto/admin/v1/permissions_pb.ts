@@ -283,6 +283,25 @@ export class TierRole extends Message<TierRole> {
    */
   role?: Role;
 
+  /**
+   * Permissions that a member with only this role is allowed at this tier.
+   * The server resolves them with the same rules as authorization: the
+   * everyone baseline, inclusion, and the scope rule. They do not include
+   * settings on single users, the owner override, or privileged mode.
+   *
+   * @generated from field: repeated string effective_allows = 10;
+   */
+  effectiveAllows: string[] = [];
+
+  /**
+   * Permissions that a member with only this role is denied at this tier,
+   * for example because everyone is denied at a more specific scope.
+   * Permissions in neither list have no setting, which also means no access.
+   *
+   * @generated from field: repeated string effective_denials = 11;
+   */
+  effectiveDenials: string[] = [];
+
   constructor(data?: PartialMessage<TierRole>) {
     super();
     proto3.util.initPartial(data, this);
@@ -295,6 +314,8 @@ export class TierRole extends Message<TierRole> {
     { no: 7, name: "inherited_allows", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 8, name: "inherited_denials", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 9, name: "role", kind: "message", T: Role },
+    { no: 10, name: "effective_allows", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 11, name: "effective_denials", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TierRole {
@@ -334,6 +355,14 @@ export class TierRoles extends Message<TierRoles> {
    */
   roles: TierRole[] = [];
 
+  /**
+   * Applicable permissions that the caller may change at this tier. A caller
+   * who is not an owner must hold the permission here.
+   *
+   * @generated from field: repeated string viewer_changeable_permissions = 3;
+   */
+  viewerChangeablePermissions: string[] = [];
+
   constructor(data?: PartialMessage<TierRoles>) {
     super();
     proto3.util.initPartial(data, this);
@@ -344,6 +373,7 @@ export class TierRoles extends Message<TierRoles> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "applicable_permissions", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 2, name: "roles", kind: "message", T: TierRole, repeated: true },
+    { no: 3, name: "viewer_changeable_permissions", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TierRoles {
@@ -562,6 +592,15 @@ export class PermissionMatrixCell extends Message<PermissionMatrixCell> {
    */
   effectiveWithPrivilegedMode = PermissionDecision.UNSPECIFIED;
 
+  /**
+   * Whether the caller may change this setting. A caller who is not an owner
+   * must hold the permission at this scope. Absent for bot cells, which use
+   * allow_permitted.
+   *
+   * @generated from field: optional bool viewer_can_change = 7;
+   */
+  viewerCanChange?: boolean;
+
   constructor(data?: PartialMessage<PermissionMatrixCell>) {
     super();
     proto3.util.initPartial(data, this);
@@ -576,6 +615,7 @@ export class PermissionMatrixCell extends Message<PermissionMatrixCell> {
     { no: 4, name: "effective", kind: "enum", T: proto3.getEnumType(PermissionDecision) },
     { no: 5, name: "allow_permitted", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 6, name: "effective_with_privileged_mode", kind: "enum", T: proto3.getEnumType(PermissionDecision) },
+    { no: 7, name: "viewer_can_change", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PermissionMatrixCell {
