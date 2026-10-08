@@ -48,7 +48,7 @@ func TestConcurrentTableRejectsOversizedID(t *testing.T) {
 				t.Fatal("oversized ID did not panic")
 			}
 		}()
-		table.Intern(strings.Repeat("x", idArenaMaxIDBytes+1))
+		table.Intern(strings.Repeat("x", arenaMaxIDBytes+1))
 	}()
 	if table.Len() != 1 || table.Resolve(handle) != "existing" {
 		t.Fatal("failed insertion changed the table")
@@ -125,7 +125,7 @@ func TestConcurrentTable_KeepsIDsAcrossArenaChunks(t *testing.T) {
 	t.Parallel()
 
 	table := NewConcurrentTable[testKind]()
-	long := strings.Repeat("L", idArenaMaxChunkBytes/4+1)
+	long := strings.Repeat("L", arenaMaxChunkBytes/4+1)
 	ids := make([]string, 0, 20_002)
 	for i := range 10_000 {
 		ids = append(ids, fmt.Sprintf("E%014d", i))
@@ -152,7 +152,7 @@ func TestConcurrentTable_KeepsIDsAcrossArenaChunks(t *testing.T) {
 		}
 	}
 	for _, chunk := range chunks {
-		if len(chunk) > idArenaMaxChunkBytes && len(chunk) != len(long) && len(chunk) != len(long)+1 {
+		if len(chunk) > arenaMaxChunkBytes && len(chunk) != len(long) && len(chunk) != len(long)+1 {
 			t.Fatalf("chunk of %d bytes exceeds the shared chunk limit", len(chunk))
 		}
 	}

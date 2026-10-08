@@ -7,14 +7,14 @@ import (
 )
 
 const (
-	// idArenaFirstChunkBytes keeps small and test projections small.
-	idArenaFirstChunkBytes = 1 << 10
-	// idArenaMaxChunkBytes bounds chunk growth so an offset fits in 16 bits.
-	idArenaMaxChunkBytes = 1 << 16
-	// idArenaMaxIDBytes is the longest ID that fits in a Location length.
+	// arenaFirstChunkBytes keeps small arenas small.
+	arenaFirstChunkBytes = 1 << 10
+	// arenaMaxChunkBytes bounds chunk growth so an offset fits in 16 bits.
+	arenaMaxChunkBytes = 1 << 16
+	// arenaMaxIDBytes is the longest ID that fits in a Location length.
 	// Longer IDs cannot be represented by a packed location.
-	idArenaMaxIDBytes = 1<<24 - 1
-	idArenaMaxChunks  = 1 << 24
+	arenaMaxIDBytes = 1<<24 - 1
+	arenaMaxChunks  = 1 << 24
 )
 
 // Arena stores immutable ID bytes in append-only chunks without deduplication.
@@ -46,7 +46,7 @@ type Arena struct {
 // Internally, it packs chunk, offset, and length into 24, 16, and 24 bits.
 type Location uint64
 
-func newIDLocation(chunk, offset, length int) Location {
+func newLocation(chunk, offset, length int) Location {
 	return Location(uint64(chunk)<<40 | uint64(offset)<<24 | uint64(length))
 }
 
@@ -63,24 +63,24 @@ func (a *Arena) Add(id string) Location {
 	if id == "" {
 		return 0
 	}
-	if len(id) > idArenaMaxIDBytes {
-		panic(fmt.Sprintf("intern: ID of %d bytes exceeds the %d-byte arena limit", len(id), idArenaMaxIDBytes))
+	if len(id) > arenaMaxIDBytes {
+		panic(fmt.Sprintf("intern: ID of %d bytes exceeds the %d-byte arena limit", len(id), arenaMaxIDBytes))
 	}
-	if len(id) > idArenaMaxChunkBytes/4 {
+	if len(id) > arenaMaxChunkBytes/4 {
 		// A long ID gets its own exact chunk instead of wasting the free tail
 		// of the target chunk.
 		return a.appendChunk(len(id), id)
 	}
-	size := idArenaFirstChunkBytes
+	size := arenaFirstChunkBytes
 	if a.target != 0 {
 		chunk := a.loadChunks()[a.target-1]
 		if len(chunk)-a.used >= len(id) {
 			offset := a.used
 			copy(chunk[offset:], id)
 			a.used += len(id)
-			return newIDLocation(a.target-1, offset, len(id))
+			return newLocation(a.target-1, offset, len(id))
 		}
-		size = min(len(chunk)*2, idArenaMaxChunkBytes)
+		size = min(len(chunk)*2, arenaMaxChunkBytes)
 	}
 	location := a.appendChunk(max(size, len(id)), id)
 	a.target = location.chunk() + 1
@@ -91,7 +91,7 @@ func (a *Arena) Add(id string) Location {
 // appendChunk publishes a new chunk of size bytes that starts with id.
 func (a *Arena) appendChunk(size int, id string) Location {
 	chunks := a.loadChunks()
-	if len(chunks) >= idArenaMaxChunks {
+	if len(chunks) >= arenaMaxChunks {
 		panic("intern: ID arena chunk limit exceeded")
 	}
 	chunk := make([]byte, size)
@@ -100,7 +100,7 @@ func (a *Arena) appendChunk(size int, id string) Location {
 	copy(next, chunks)
 	next[len(chunks)] = chunk
 	a.chunks.Store(&next)
-	return newIDLocation(len(chunks), 0, len(id))
+	return newLocation(len(chunks), 0, len(id))
 }
 
 func (a *Arena) loadChunks() [][]byte {

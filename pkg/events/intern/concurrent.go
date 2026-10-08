@@ -31,7 +31,7 @@ import (
 // table is released. All interned bytes are retained for the table's lifetime.
 type ConcurrentTable[Kind any] struct {
 	seed   maphash.Seed
-	shards [eventIDShardCount]eventIDShard
+	shards [shardCount]indexShard
 	// mu serializes handle assignment: count, pages, and arena writes.
 	mu sync.Mutex
 	// count is the number of interned IDs.
@@ -42,14 +42,14 @@ type ConcurrentTable[Kind any] struct {
 	arena Arena
 }
 
-// eventIDShardCount is the number of independently locked index shards. It
+// shardCount is the number of independently locked index shards. It
 // must be a power of two.
-const eventIDShardCount = 64
+const shardCount = 64
 
-// eventIDShard indexes the IDs whose hash selects it. Padding keeps each
+// indexShard indexes the IDs whose hash selects it. Padding keeps each
 // shard's lock on its own cache lines, so readers of different shards do not
 // contend.
-type eventIDShard struct {
+type indexShard struct {
 	mu sync.RWMutex
 	// byHash maps an ID's 64-bit hash to the handle of the first interned ID
 	// with that hash.
@@ -71,8 +71,8 @@ func NewConcurrentTable[Kind any]() *ConcurrentTable[Kind] {
 
 // shard returns the index shard of an ID hash. The high bits select the shard
 // because the map inside the shard uses the low bits.
-func (t *ConcurrentTable[Kind]) shard(hash uint64) *eventIDShard {
-	return &t.shards[hash>>58&(eventIDShardCount-1)]
+func (t *ConcurrentTable[Kind]) shard(hash uint64) *indexShard {
+	return &t.shards[hash>>58&(shardCount-1)]
 }
 
 // Intern returns the handle for id and adds id when it is new. An empty id
@@ -141,7 +141,7 @@ func (t *ConcurrentTable[Kind]) Lookup(id string) (ID[Kind], bool) {
 	return ID[Kind](handle), found
 }
 
-func (t *ConcurrentTable[Kind]) lookupLocked(shard *eventIDShard, hash uint64, id string) (uint32, bool) {
+func (t *ConcurrentTable[Kind]) lookupLocked(shard *indexShard, hash uint64, id string) (uint32, bool) {
 	if handle, ok := shard.byHash[hash]; ok && t.Resolve(ID[Kind](handle)) == id {
 		return handle, true
 	}
