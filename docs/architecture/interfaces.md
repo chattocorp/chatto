@@ -333,11 +333,18 @@ system diagnostics or turn unavailable metrics into healthy-looking zeroes.
 
 | Package              | Service                  | Access policy                                                                                      |
 | -------------------- | ------------------------ | -------------------------------------------------------------------------------------------------- |
-| `chatto.operator.v1` | `OperatorUserService`    | Root-equivalent access over the private Unix socket                                                |
+| `chatto.operator.v1` | `OperatorUserService`    | Root-equivalent account and external identity management over the private Unix socket              |
 | `chatto.operator.v1` | `OperatorRoomService`    | Root-equivalent channel lookup, creation, and explicit membership add over the private Unix socket |
 | `chatto.operator.v1` | `OperatorAssetService`   | Root-equivalent attachment upload for a mapped author over the private Unix socket                 |
 | `chatto.operator.v1` | `OperatorMessageService` | Root-equivalent historical message import over the private Unix socket                             |
 | `chatto.operator.v1` | `OperatorSeedService`    | Private Unix socket; compiled only with `bootstrap` or `test_endpoints`                            |
+
+The [operator identity handlers](../../cli/internal/connectapi/operator_external_identities.go)
+resolve link namespaces from configured providers. They expose issuer and raw
+subject only through this root-only service. Link and unlink operations append
+the existing user identity facts as the system actor, use user-event OCC, and
+wait for authentication projections. Unlink checks the remaining configured
+namespaces and password-login setting inside the mutation decision.
 
 The [synthetic data generator](../../cli/internal/core/seed_development.go) uses
 existing account, channel, membership, and message operations. Its CLI is

@@ -22,9 +22,10 @@ const routes = [
   {
     name: 'overview',
     // CI baseline: 340.3 KiB, with roughly 10% headroom. Theme customisation
-    // added about 3.7 KiB of global CSS and preference code. The role hierarchy
-    // and additive roles added about 1.2 KiB of role catalogue code and
-    // strings.
+    // added about 3.7 KiB of global CSS and preference code.
+    // Server gutter ordering adds about 1.7 KiB; drag code stays lazy.
+    // The role hierarchy and additive roles added about 1.2 KiB of role
+    // catalogue code and strings.
     budgetKiB: 380,
     components: [
       'src/routes/+layout.svelte',

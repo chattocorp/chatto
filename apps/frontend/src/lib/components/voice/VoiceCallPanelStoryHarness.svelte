@@ -294,11 +294,16 @@
 </script>
 
 {#if playableMedia}
-  <button type="button" onclick={() => (panelVisible = !panelVisible)}>
+  <button
+    type="button"
+    class="shrink-0 cursor-pointer self-start"
+    onclick={() => (panelVisible = !panelVisible)}
+  >
     {panelVisible ? 'Hide call panel' : 'Show call panel'}
   </button>
   <button
     type="button"
+    class="shrink-0 cursor-pointer self-start"
     onclick={() =>
       serverUi(serverRegistry.getStore(getScopedServerId())).voiceCall.handleRoomAccessRevoked(
         roomId

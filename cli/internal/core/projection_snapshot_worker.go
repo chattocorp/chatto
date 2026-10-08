@@ -167,7 +167,7 @@ func (w *projectionSnapshotWorker) expire(ctx context.Context) error {
 		return err
 	}
 	w.logger.Info("Projection snapshot S3 expiry pass complete",
-		"backend", w.expirer.Backend(), "stage", "expire", "error", nil,
+		"backend", w.expirer.Backend(), "stage", "expire",
 		"retention", w.retention, "scanned_objects", result.ScannedObjects,
 		"scanned_bytes", result.ScannedBytes, "recent_objects", result.RecentObjects,
 		"eligible_objects", result.EligibleObjects, "eligible_bytes", result.EligibleBytes,
@@ -198,10 +198,6 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 		return fmt.Errorf("projection startup is not complete")
 	}
 	if status.LastSeq == 0 {
-		w.logger.Debug("Projection snapshot generation skipped for empty EVT stream",
-			"projection", job.projectionKey,
-			"backend", job.repository.Backend(),
-			"stage", "generate_skip")
 		return nil
 	}
 	if !projectionSnapshotRefreshDue(status, started, publishReplayDelta) {
@@ -250,15 +246,14 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 		return err
 	}
 	job.projector.RecordSnapshotPublication(published.cutoffSequence, published.createdAt)
-	w.logger.Info("Projection snapshot generation complete",
+	w.logger.Debug("Projection snapshot published",
 		"projection", job.projectionKey,
 		"backend", job.repository.Backend(),
-		"stage", "generate",
 		"generation_id", published.generationID,
 		"cutoff_seq", published.cutoffSequence,
 		"components", len(captured.Components),
 		"payload_bytes", projectionSnapshotPayloadBytes(captured),
-		"duration", now().Sub(started))
+		"duration", now().Sub(started).Round(time.Millisecond))
 	return nil
 }
 

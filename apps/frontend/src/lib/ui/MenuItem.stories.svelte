@@ -3,6 +3,7 @@
 
   import MenuItem from './MenuItem.svelte';
   import MenuSection from './MenuSection.svelte';
+  import ContextMenu from './ContextMenu.svelte';
 
   const { Story } = defineMeta({
     title: 'UI/MenuItem',
@@ -38,6 +39,19 @@
       <MenuItem icon="icon-[uil--lock]" disabled>Unavailable</MenuItem>
     </MenuSection>
   </div>
+</Story>
+
+<Story name="Dialog toggle" asChild>
+  <ContextMenu
+    position={{ x: 20, y: 20 }}
+    role="dialog"
+    ariaLabel="Call actions"
+    onclose={() => {}}
+  >
+    <MenuSection>
+      <MenuItem pressed={true} icon="icon-[uil--volume-mute]">Mute locally</MenuItem>
+    </MenuSection>
+  </ContextMenu>
 </Story>
 
 <Story name="Wrapped and selected" asChild>

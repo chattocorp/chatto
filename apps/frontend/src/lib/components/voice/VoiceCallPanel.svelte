@@ -27,7 +27,14 @@ Room sidebar panel for voice/video calls.
   import { serverUi } from '$lib/state/server/serverUi';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { formatAccountName } from '@chatto/client/timeline/accountName';
-  import { UserCard, WipeReveal, CompactActionButton, PillButtonGroup } from '$lib/ui';
+  import {
+    UserCard,
+    WipeReveal,
+    CompactActionButton,
+    PillButtonGroup,
+    MenuItem,
+    MenuSection
+  } from '$lib/ui';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
@@ -41,6 +48,7 @@ Room sidebar panel for voice/video calls.
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import VideoThumbnail from './VideoThumbnail.svelte';
   import CallPictureInPictureButton from './CallPictureInPictureButton.svelte';
+  import CallCard, { type CallCardControls } from './CallCard.svelte';
   import ConnectionQualityHint from './ConnectionQualityHint.svelte';
   import { tick } from 'svelte';
   import { goto } from '$app/navigation';
@@ -313,7 +321,12 @@ Room sidebar panel for voice/video calls.
     event.stopPropagation();
     pinnedStageTileKey = tile.key;
     await tick();
-    panelElement?.querySelector<HTMLElement>('[data-testid="call-stage-unpin-button"]')?.focus();
+    (
+      panelElement?.querySelector<HTMLElement>('[data-testid="call-stage-unpin-button"]') ??
+      panelElement?.querySelector<HTMLElement>(
+        '[data-testid="call-featured-stage-card"] [data-testid="call-participant-menu-button"]'
+      )
+    )?.focus();
   }
 
   async function unpinStageTile(event: MouseEvent): Promise<void> {
@@ -359,10 +372,36 @@ Room sidebar panel for voice/video calls.
 
   const canStartDMs = $derived(stores.permissions.canStartDMs);
 
-  const userMenu = new UserMenuState<{ participant: DisplayParticipant; screen: boolean }>();
+  const userMenu = new UserMenuState<{
+    participant: DisplayParticipant;
+    screen: boolean;
+    controls: CallCardControls;
+  }>(undefined, () => {
+    void userMenu.target?.controls.actions.restoreFocus();
+  });
+  const menuParticipant = $derived(
+    participants.find((participant) => participant.key === userMenu.target?.participant.key)
+  );
 
-  function showUserMenu(participant: DisplayParticipant, e: MouseEvent, screen = false) {
-    userMenu.open({ participant, screen }, e);
+  /** Choose the next available call control after a card disappears. */
+  function cardFocusFallback(): HTMLElement | null | undefined {
+    return panelElement?.querySelector<HTMLElement>(
+      '[data-testid="call-participant-menu-button"], [data-testid="call-leave-button"], [data-testid="call-join-button"]'
+    );
+  }
+
+  function cardMenuTarget(identity: string, screen: boolean) {
+    const participant = participants.find((participant) => participant.key === identity);
+    return participant ? { participant, screen } : null;
+  }
+
+  function showUserMenu(
+    participant: DisplayParticipant,
+    controls: CallCardControls,
+    e: MouseEvent,
+    screen = false
+  ) {
+    userMenu.open({ participant, screen, controls }, e);
   }
 
   function openVoicePreferences() {
@@ -395,12 +434,9 @@ Room sidebar panel for voice/video calls.
     }
   }
 
-  function toggleClosestMediaFullscreen(event: MouseEvent): void {
+  function toggleMediaFullscreen(controls: CallCardControls, event: MouseEvent): void {
     event.stopPropagation();
-    const mediaCard = (event.currentTarget as HTMLElement).closest<HTMLElement>(
-      '[data-call-media-card]'
-    );
-    void toggleFullscreenElement(mediaCard);
+    void toggleFullscreenElement(controls.actions.element);
   }
 
   function toggleFeedMute(participant: DisplayParticipant, event: MouseEvent): void {
@@ -445,22 +481,26 @@ Room sidebar panel for voice/video calls.
   {/if}
 {/snippet}
 
-{#snippet mediaTileActions(track: Track | null)}
-  {#key track}
-    <CallPictureInPictureButton />
-  {/key}
-  <CompactActionButton
-    label={m('voice.fullscreen_feed')}
-    data-testid="call-feed-fullscreen-button"
-    onclick={toggleClosestMediaFullscreen}
-  >
-    <span class="iconify icon-[mdi--monitor-share]" aria-hidden="true"></span>
-  </CompactActionButton>
+{#snippet mediaTileActions(controls: CallCardControls)}
+  <CallPictureInPictureButton {controls} />
+  {#if !controls.actions.compact}
+    <CompactActionButton
+      label={m('voice.fullscreen_feed')}
+      data-testid="call-feed-fullscreen-button"
+      onclick={(event) => toggleMediaFullscreen(controls, event)}
+    >
+      <span class="iconify icon-[mdi--monitor-share]" aria-hidden="true"></span>
+    </CompactActionButton>
+  {/if}
 {/snippet}
 
-{#snippet participantIndicators(participant: DisplayParticipant)}
+{#snippet participantIndicators(
+  participant: DisplayParticipant,
+  compact: boolean,
+  microphone: boolean
+)}
   {@const isMuted = participant.isLocal ? voiceCallState.isMuted : participant.isMuted}
-  {#if isMuted && !(participant.isLocal && isInThisCall && canShowMuteButton(participant))}
+  {#if microphone && isMuted && (compact || !(participant.isLocal && isInThisCall && canShowMuteButton(participant)))}
     <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-end gap-1.5 text-sm">
       <span
         class="iconify icon-[uil--microphone-slash] text-danger"
@@ -470,11 +510,20 @@ Room sidebar panel for voice/video calls.
       ></span>
     </span>
   {/if}
+  {#if compact && !participant.isLocal && participant.isLocallyMuted}
+    <span
+      class="iconify icon-[uil--volume-mute] shrink-0"
+      role="img"
+      aria-label={m('voice.locally_muted')}
+      data-testid="call-locally-muted-indicator"
+    ></span>
+  {/if}
 {/snippet}
 
 {#snippet participantHeader(
   participant: DisplayParticipant,
   label: string,
+  controls: CallCardControls,
   {
     media = false,
     indicators: showIndicators = true,
@@ -482,6 +531,7 @@ Room sidebar panel for voice/video calls.
     pinned = false
   }: HeaderOptions
 )}
+  {@const compact = controls.actions.compact}
   <UserCard
     name={label}
     identity={participant.avatarUser}
@@ -493,118 +543,137 @@ Room sidebar panel for voice/video calls.
             : participantVoiceLevel(participant)
       : undefined}
     class="shrink-0"
-    identityAttributes={{ onclick: (e) => showUserMenu(participant, e, screen) }}
+    identityAttributes={{ onclick: (e) => showUserMenu(participant, controls, e, screen) }}
     menu={{
-      label: m('room.sidebar.view_profile', {
+      label: m('voice.participant_actions', {
         name: formatAccountName(participant.displayName, participant.avatarUser)
       }),
-      onclick: (event) => showUserMenu(participant, event, screen),
+      onclick: (event) => showUserMenu(participant, controls, event, screen),
       expanded:
         userMenu.target?.participant.key === participant.key && userMenu.target.screen === screen,
-      testId: 'call-participant-menu-button'
+      testId: 'call-participant-menu-button',
+      attachment: controls.actions.trigger
     }}
   >
     {#snippet avatar()}
       <UserAvatar user={participant.avatarUser} size="sm" />
     {/snippet}
     {#snippet indicators()}
-      {#if showIndicators}
-        {@render participantIndicators(participant)}
-      {/if}
+      {@render participantIndicators(
+        participant,
+        compact,
+        showIndicators || (compact && participant.isLocal && isInThisCall)
+      )}
     {/snippet}
     {#snippet actions()}
       {#if isInThisCall && !screen}
         <ConnectionQualityHint quality={participant.connectionQuality} />
       {/if}
-      {#if pinned}
-        <CompactActionButton
-          label={m('voice.unpin_from_stage')}
-          data-testid="call-stage-unpin-button"
-          onclick={unpinStageTile}
-        >
-          <span class="iconify icon-[mdi--pin-off-outline]" aria-hidden="true"></span>
-        </CompactActionButton>
-      {/if}
-      {#if media}
-        {@render mediaTileActions(screen ? participant.screenShareTrack : participant.videoTrack)}
-      {/if}
-      {#if isInThisCall}
-        {@render localMuteButton(participant)}
-      {/if}
+      <div class="contents" {@attach controls.actions.inline}>
+        {#if pinned && !compact}
+          <CompactActionButton
+            label={m('voice.unpin_from_stage')}
+            data-testid="call-stage-unpin-button"
+            onclick={unpinStageTile}
+          >
+            <span class="iconify icon-[mdi--pin-off-outline]" aria-hidden="true"></span>
+          </CompactActionButton>
+        {/if}
+        {#if media && controls}
+          {@render mediaTileActions(controls)}
+        {/if}
+        {#if isInThisCall && !compact}
+          {@render localMuteButton(participant)}
+        {/if}
+      </div>
     {/snippet}
   </UserCard>
 {/snippet}
 
 {#snippet participantCard(participant: DisplayParticipant, mode: 'compact' | 'video')}
   {@const showVideo = mode === 'video' && hasVideo(participant)}
-  <div
+  <CallCard
+    menu={userMenu}
+    target={() => cardMenuTarget(participant.key, false)}
+    focusFallback={cardFocusFallback}
+    focusScope={() => panelElement}
     class={[
       callTileCardClass,
       mode === 'video' ? 'participant-card-video' : 'participant-card-compact'
     ]}
     title={formatAccountName(participant.displayName, participant.avatarUser)}
     data-testid="call-participant-card"
-    {@attach userMenu.trigger(() => ({ participant, screen: false }))}
     data-call-media-card={showVideo ? true : undefined}
   >
-    {@render participantHeader(participant, participant.displayName, {
-      media: isInThisCall && !!showVideo,
-      indicators: isInThisCall
-    })}
+    {#snippet children(controls)}
+      {@render participantHeader(participant, participant.displayName, controls, {
+        media: isInThisCall && !!showVideo,
+        indicators: isInThisCall
+      })}
 
-    {#if showVideo}
-      <button
-        type="button"
-        class={callTileMediaButtonClass}
-        onclick={(e) => showUserMenu(participant, e)}
-      >
-        <VideoThumbnail
-          track={participant.videoTrack!}
-          name={participant.displayName}
-          user={participant.avatarUser}
-          showIdentityOverlay={false}
-        />
-      </button>
-    {/if}
-  </div>
+      {#if showVideo}
+        <button
+          type="button"
+          class={callTileMediaButtonClass}
+          onclick={(e) => showUserMenu(participant, controls, e)}
+        >
+          <VideoThumbnail
+            track={participant.videoTrack!}
+            videoAttachment={controls.media.observeVideo}
+            name={participant.displayName}
+            user={participant.avatarUser}
+            showIdentityOverlay={false}
+          />
+        </button>
+      {/if}
+    {/snippet}
+  </CallCard>
 {/snippet}
 
 {#snippet screenShareCard(participant: DisplayParticipant)}
-  <div
+  <CallCard
+    menu={userMenu}
+    target={() => cardMenuTarget(participant.key, true)}
+    focusFallback={cardFocusFallback}
+    focusScope={() => panelElement}
     class={[callTileCardClass, 'participant-card-video col-span-full']}
     title={m('voice.screen_title', {
       name: formatAccountName(participant.displayName, participant.avatarUser)
     })}
     data-testid="call-screen-share-card"
-    {@attach userMenu.trigger(() => ({ participant, screen: true }))}
     data-call-media-card
   >
-    {@render participantHeader(
-      participant,
-      m('voice.screen_title', { name: participant.displayName }),
-      { media: true, indicators: false, screen: true }
-    )}
-    <button
-      type="button"
-      class={callTileMediaButtonClass}
-      onclick={(e) => showUserMenu(participant, e, true)}
-    >
-      <VideoThumbnail
-        track={participant.screenShareTrack!}
-        name={m('voice.screen_title', { name: participant.displayName })}
-        user={participant.avatarUser}
-        showIdentityOverlay={false}
-        fit="contain"
-      />
-    </button>
-  </div>
+    {#snippet children(controls)}
+      {@render participantHeader(
+        participant,
+        m('voice.screen_title', { name: participant.displayName }),
+        controls,
+        { media: true, indicators: false, screen: true }
+      )}
+      <button
+        type="button"
+        class={callTileMediaButtonClass}
+        onclick={(e) => showUserMenu(participant, controls, e, true)}
+      >
+        <VideoThumbnail
+          track={participant.screenShareTrack!}
+          videoAttachment={controls.media.observeVideo}
+          name={m('voice.screen_title', { name: participant.displayName })}
+          user={participant.avatarUser}
+          showIdentityOverlay={false}
+          fit="contain"
+        />
+      </button>
+    {/snippet}
+  </CallCard>
 {/snippet}
 
-{#snippet stageMedia(tile: StageTile, fill: boolean)}
+{#snippet stageMedia(tile: StageTile, fill: boolean, controls?: CallCardControls)}
   {@const participant = tile.participant}
   {#if tile.kind === 'screen'}
     <VideoThumbnail
       track={participant.screenShareTrack!}
+      videoAttachment={controls?.media.observeVideo}
       name={stageTileLabel(tile)}
       user={participant.avatarUser}
       showIdentityOverlay={false}
@@ -614,6 +683,7 @@ Room sidebar panel for voice/video calls.
   {:else if tile.kind === 'video'}
     <VideoThumbnail
       track={participant.videoTrack!}
+      videoAttachment={controls?.media.observeVideo}
       name={participant.displayName}
       user={participant.avatarUser}
       showIdentityOverlay={false}
@@ -626,44 +696,49 @@ Room sidebar panel for voice/video calls.
   {@const participant = tile.participant}
   {@const isScreen = tile.kind === 'screen'}
   {@const hasMedia = tile.kind !== 'voice'}
-  <div
+  <CallCard
+    menu={userMenu}
+    target={() => cardMenuTarget(participant.key, isScreen)}
+    focusFallback={cardFocusFallback}
+    focusScope={() => panelElement}
     class={[callTileCardClass, 'participant-card-video']}
-    style:width={featuredStageCardWidth}
+    style={`width: ${featuredStageCardWidth}`}
     title={stageTileTitle(tile)}
     data-testid="call-featured-stage-card"
     data-stage-tile-key={tile.key}
-    {@attach userMenu.trigger(() => ({ participant, screen: isScreen }))}
     data-call-media-card={hasMedia ? true : undefined}
   >
-    {@render participantHeader(participant, stageTileLabel(tile), {
-      media: hasMedia,
-      indicators: !isScreen,
-      screen: isScreen,
-      pinned: tile.key === pinnedStageTileKey
-    })}
-    <button
-      type="button"
-      class={[
-        callTileMediaButtonClass,
-        'aspect-video items-center justify-center',
-        !hasMedia && 'p-6'
-      ]}
-      onclick={(e) => showUserMenu(participant, e, isScreen)}
-    >
-      {#if hasMedia}
-        {@render stageMedia(tile, true)}
-      {:else}
-        <div class="flex min-w-0 flex-col items-center gap-4">
-          <UserAvatar user={participant.avatarUser} size="xl" showPresence={false} />
-          <AccountName
-            name={participant.displayName}
-            identity={participant.avatarUser}
-            class="text-lg font-semibold"
-          />
-        </div>
-      {/if}
-    </button>
-  </div>
+    {#snippet children(controls)}
+      {@render participantHeader(participant, stageTileLabel(tile), controls, {
+        media: hasMedia,
+        indicators: !isScreen,
+        screen: isScreen,
+        pinned: tile.key === pinnedStageTileKey
+      })}
+      <button
+        type="button"
+        class={[
+          callTileMediaButtonClass,
+          'aspect-video items-center justify-center',
+          !hasMedia && 'p-6'
+        ]}
+        onclick={(e) => showUserMenu(participant, controls, e, isScreen)}
+      >
+        {#if hasMedia}
+          {@render stageMedia(tile, true, controls)}
+        {:else}
+          <div class="flex min-w-0 flex-col items-center gap-4">
+            <UserAvatar user={participant.avatarUser} size="xl" showPresence={false} />
+            <AccountName
+              name={participant.displayName}
+              identity={participant.avatarUser}
+              class="text-lg font-semibold"
+            />
+          </div>
+        {/if}
+      </button>
+    {/snippet}
+  </CallCard>
 {/snippet}
 
 <!--
@@ -673,50 +748,57 @@ Room sidebar panel for voice/video calls.
 {#snippet stageTileCard(tile: StageTile, selectAction: 'pin' | 'menu')}
   {@const participant = tile.participant}
   {@const isScreen = tile.kind === 'screen'}
-  <div
+  <CallCard
+    menu={userMenu}
+    target={() => cardMenuTarget(participant.key, isScreen)}
+    focusFallback={cardFocusFallback}
+    focusScope={() => panelElement}
     class={[callTileCardClass, 'participant-card-video']}
     title={stageTileTitle(tile)}
     data-testid="call-stage-tile"
     data-stage-tile-key={tile.key}
     data-stage-tile-kind={tile.kind}
-    {@attach userMenu.trigger(() => ({ participant, screen: isScreen }))}
   >
-    {@render participantHeader(participant, stageTileLabel(tile), {
-      indicators: !isScreen,
-      screen: isScreen
-    })}
-    <button
-      type="button"
-      class={[callTileMediaButtonClass, 'group/pin relative']}
-      aria-label={selectAction === 'pin'
-        ? m('voice.pin_to_stage', { name: stageTileLabel(tile) })
-        : undefined}
-      data-testid={selectAction === 'pin' ? 'call-stage-pin-button' : undefined}
-      onclick={(e) =>
-        selectAction === 'pin' ? pinStageTile(tile, e) : showUserMenu(participant, e, isScreen)}
-    >
-      {#if tile.kind === 'voice'}
-        <div class="flex aspect-video w-full items-center justify-center">
-          <UserAvatar
-            user={participant.avatarUser}
-            size={selectAction === 'pin' ? 'lg' : 'xl'}
-            showPresence={false}
-          />
-        </div>
-      {:else}
-        {@render stageMedia(tile, false)}
-      {/if}
-      {#if selectAction === 'pin'}
-        <span
-          class="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md bg-black/40 opacity-0 transition-opacity group-hover/pin:opacity-100 group-focus-visible/pin:opacity-100"
-          aria-hidden="true"
-        >
-          <span class="iconify icon-[mdi--pin-outline] text-2xl text-white" aria-hidden="true"
-          ></span>
-        </span>
-      {/if}
-    </button>
-  </div>
+    {#snippet children(controls)}
+      {@render participantHeader(participant, stageTileLabel(tile), controls, {
+        indicators: !isScreen,
+        screen: isScreen
+      })}
+      <button
+        type="button"
+        class={[callTileMediaButtonClass, 'group/pin relative']}
+        aria-label={selectAction === 'pin'
+          ? m('voice.pin_to_stage', { name: stageTileLabel(tile) })
+          : undefined}
+        data-testid={selectAction === 'pin' ? 'call-stage-pin-button' : undefined}
+        onclick={(e) =>
+          selectAction === 'pin'
+            ? pinStageTile(tile, e)
+            : showUserMenu(participant, controls, e, isScreen)}
+      >
+        {#if tile.kind === 'voice'}
+          <div class="flex aspect-video w-full items-center justify-center">
+            <UserAvatar
+              user={participant.avatarUser}
+              size={selectAction === 'pin' ? 'lg' : 'xl'}
+              showPresence={false}
+            />
+          </div>
+        {:else}
+          {@render stageMedia(tile, false)}
+        {/if}
+        {#if selectAction === 'pin'}
+          <span
+            class="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md bg-black/40 opacity-0 transition-opacity group-hover/pin:opacity-100 group-focus-visible/pin:opacity-100"
+            aria-hidden="true"
+          >
+            <span class="iconify icon-[mdi--pin-outline] text-2xl text-white" aria-hidden="true"
+            ></span>
+          </span>
+        {/if}
+      </button>
+    {/snippet}
+  </CallCard>
 {/snippet}
 
 {#snippet callControls()}
@@ -933,14 +1015,81 @@ Room sidebar panel for voice/video calls.
   </div>
 </div>
 
-{#if userMenu.target}
+{#if userMenu.target && menuParticipant}
   <UserMenu
     state={userMenu}
     audioSource={userMenu.target.screen ? 'streamVolume' : 'voiceVolume'}
-    user={userMenu.target.participant.avatarUser}
+    user={menuParticipant.avatarUser}
     canSendMessage={canStartDMs}
     viewerSettings={serverScope.store.currentUser.user?.settings}
     onSendMessage={() => startDMWith(activeServerId, userMenu.target!.participant.avatarUser.id)}
     {onOpenProfile}
-  />
+  >
+    {#snippet extraActions()}
+      {#if userMenu.target?.controls.actions.compact && isInThisCall && menuParticipant}
+        {@const controls = userMenu.target.controls}
+        {@const isPinned = controls.actions.element?.dataset.stageTileKey === pinnedStageTileKey}
+        {@const isMuted = menuParticipant.isLocal
+          ? voiceCallState.isMuted
+          : menuParticipant.isLocallyMuted}
+        <MenuSection>
+          {#if isPinned}
+            <MenuItem
+              icon="icon-[mdi--pin-off-outline]"
+              dataTestid="call-stage-unpin-button"
+              onclick={(event) => {
+                userMenu.close();
+                void unpinStageTile(event);
+              }}
+            >
+              {m('voice.unpin_from_stage')}
+            </MenuItem>
+          {/if}
+          {#if controls.media.hasMedia}
+            {#if controls.media.supported}
+              <MenuItem
+                icon="icon-[mdi--picture-in-picture-bottom-right]"
+                pressed={controls.media.active}
+                disabled={controls.media.pending ||
+                  (!controls.media.ready && !controls.media.active)}
+                dataTestid="call-feed-pip-button"
+                onclick={controls.media.togglePictureInPicture}
+              >
+                {m('voice.picture_in_picture')}
+              </MenuItem>
+            {/if}
+            <MenuItem
+              icon="icon-[mdi--monitor-share]"
+              dataTestid="call-feed-fullscreen-button"
+              onclick={(event) => {
+                const selectedControls = controls;
+                userMenu.close();
+                toggleMediaFullscreen(selectedControls, event);
+              }}
+            >
+              {m('voice.fullscreen_feed')}
+            </MenuItem>
+          {/if}
+          {#if canShowMuteButton(menuParticipant)}
+            <MenuItem
+              icon={menuParticipant.isLocal
+                ? isMuted
+                  ? 'icon-[uil--microphone-slash]'
+                  : 'icon-[uil--microphone]'
+                : isMuted
+                  ? 'icon-[uil--volume-mute]'
+                  : 'icon-[uil--volume-up]'}
+              pressed={isMuted}
+              dataTestid="call-feed-local-mute-button"
+              onclick={(event) => {
+                if (menuParticipant) toggleFeedMute(menuParticipant, event);
+              }}
+            >
+              {menuParticipant.isLocal ? m('voice.mute') : m('voice.locally_mute_participant')}
+            </MenuItem>
+          {/if}
+        </MenuSection>
+      {/if}
+    {/snippet}
+  </UserMenu>
 {/if}

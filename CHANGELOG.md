@@ -3,6 +3,65 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.12](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.11...v0.5.0-beta.12) (2026-10-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* **messages:** separate posting from read state ([#2868](https://github.com/chattocorp/chatto/issues/2868))
+* **events:** collapse ProjectorStatus failure fields and renew leases through jetstreamutil ([#2839](https://github.com/chattocorp/chatto/issues/2839))
+* **events:** move JetStream client helpers into pkg/jetstreamutil ([#2832](https://github.com/chattocorp/chatto/issues/2832))
+* **events:** stop guarding writes that do not depend on state ([#2826](https://github.com/chattocorp/chatto/issues/2826))
+* **events:** one OCC guard type for every write ([#2825](https://github.com/chattocorp/chatto/issues/2825))
+* **events:** slog logging, projector options at construction, one constructor rule ([#2824](https://github.com/chattocorp/chatto/issues/2824))
+* **events:** unify projection snapshots and simplify the projector ([#2823](https://github.com/chattocorp/chatto/issues/2823))
+
+### Features
+
+* **events:** extract typed ID interning for projections ([#2864](https://github.com/chattocorp/chatto/issues/2864)) ([8bd9dbf](https://github.com/chattocorp/chatto/commit/8bd9dbf68954754e640b800658239714b9ec2651))
+* extract chatto-client-placement agentic skill ([#2808](https://github.com/chattocorp/chatto/issues/2808)) ([cbe9353](https://github.com/chattocorp/chatto/commit/cbe9353c9f5b2845e27080bcd1fd2aa2095554d1))
+* **frontend:** add a health summary to the admin System page ([#2858](https://github.com/chattocorp/chatto/issues/2858)) ([da5dd60](https://github.com/chattocorp/chatto/commit/da5dd605231582b12feae4e2eaedf14fea0d3fd1))
+* **frontend:** feature the active speaker on the call stage ([#2877](https://github.com/chattocorp/chatto/issues/2877)) ([8b8a472](https://github.com/chattocorp/chatto/commit/8b8a472f1691493bc3ccba5074e7bac0ed63892d))
+* **frontend:** improve wide and fullscreen call stage layouts ([#2874](https://github.com/chattocorp/chatto/issues/2874)) ([921e091](https://github.com/chattocorp/chatto/commit/921e09117838db1b7ff04838347f750c6f9ffa22))
+* **frontend:** open user context menu from system event names and avatars ([#2827](https://github.com/chattocorp/chatto/issues/2827)) ([c1577c2](https://github.com/chattocorp/chatto/commit/c1577c2e3ee2b055505d59aed95f4b81f28a2aff))
+* **frontend:** preview PDF attachments with the native viewer ([#2862](https://github.com/chattocorp/chatto/issues/2862)) ([d101189](https://github.com/chattocorp/chatto/commit/d101189fd56a69790a59cce06e1d81ada9c5ccce))
+* **mcp:** return structured tool failures ([#2869](https://github.com/chattocorp/chatto/issues/2869)) ([b5a4b4e](https://github.com/chattocorp/chatto/commit/b5a4b4e874297f0be750274329dcd0b861ed4685))
+* **mcp:** support least-privilege OAuth grants ([#2865](https://github.com/chattocorp/chatto/issues/2865)) ([e9be1f2](https://github.com/chattocorp/chatto/commit/e9be1f283c4c53c848004807a45dcad00da9b726))
+* **rbac:** keep 0.4 access on upgrade and limit bot creation to admins ([#2747](https://github.com/chattocorp/chatto/issues/2747)) ([2d80c46](https://github.com/chattocorp/chatto/commit/2d80c4698fa963f2dd55d70ab94346f9ff79b03f))
+
+
+### Bug Fixes
+
+* **attachments:** sandbox all original attachments except passive types ([#2848](https://github.com/chattocorp/chatto/issues/2848)) ([9c4fdf2](https://github.com/chattocorp/chatto/commit/9c4fdf2f2f1a6fbb9feaa08d812a0baf9053f9ce))
+* **authling:** read key-value state through the stream leader ([#2836](https://github.com/chattocorp/chatto/issues/2836)) ([4840de3](https://github.com/chattocorp/chatto/commit/4840de36452a0e0de754050bd4d06de893e0987a))
+* **calls:** decide LiveKit reconciliation before core boot ([#2829](https://github.com/chattocorp/chatto/issues/2829)) ([9052c49](https://github.com/chattocorp/chatto/commit/9052c497b4f5d12ee004d79ea5fb191244a3f47e))
+* classify JetStream conflicts consistently and drop Authling's raw KV writes ([#2837](https://github.com/chattocorp/chatto/issues/2837)) ([df07391](https://github.com/chattocorp/chatto/commit/df07391f4e3e3aa7140d070ba821c6402b39ee99))
+* **frontend:** compact attachment actions into horizontal rows ([#2859](https://github.com/chattocorp/chatto/issues/2859)) ([3fb2ff7](https://github.com/chattocorp/chatto/commit/3fb2ff7efbd05306c2cee25f4ce632720925be3d))
+* **frontend:** explain unavailable server push notifications ([#2846](https://github.com/chattocorp/chatto/issues/2846)) ([de0bd6d](https://github.com/chattocorp/chatto/commit/de0bd6d3dbc6a45bcfb29662d360c5e76db5008f))
+* **frontend:** remove push notification activation prompt ([#2847](https://github.com/chattocorp/chatto/issues/2847)) ([3f76c8f](https://github.com/chattocorp/chatto/commit/3f76c8faa06c1622565ef1d3729bf0b18a4a5b61))
+* **frontend:** use a transparent Android notification badge ([#2876](https://github.com/chattocorp/chatto/issues/2876)) ([587c41f](https://github.com/chattocorp/chatto/commit/587c41f623482e11a79ec94cacf579e1097f0118))
+* **link-previews:** show video thumbnails in social-post cards ([#2811](https://github.com/chattocorp/chatto/issues/2811)) ([410c078](https://github.com/chattocorp/chatto/commit/410c078749fc701ba48a8f1ddd5176d7b1e10b55))
+* **mcp:** align capabilities and verify interoperability ([#2850](https://github.com/chattocorp/chatto/issues/2850)) ([9e5d121](https://github.com/chattocorp/chatto/commit/9e5d12194bf064313d279d38c4feff343d45faac))
+* **mcp:** bound HTTP I/O by the request deadline ([#2873](https://github.com/chattocorp/chatto/issues/2873)) ([0966f3d](https://github.com/chattocorp/chatto/commit/0966f3d94713e0a38999d27f407335d610b9bebf))
+* **messages:** separate posting from read state ([#2868](https://github.com/chattocorp/chatto/issues/2868)) ([3531551](https://github.com/chattocorp/chatto/commit/35315515ea936e729b55386566810ee4dd3bde87))
+* **notifications:** scope read cleanup to the current timeline ([#2866](https://github.com/chattocorp/chatto/issues/2866)) ([9f0881c](https://github.com/chattocorp/chatto/commit/9f0881cea993cd3c4ce956d197d3351fb3a9e614))
+* **privileged-mode:** limit permission refresh on resumed reconnects ([#2849](https://github.com/chattocorp/chatto/issues/2849)) ([de0efa2](https://github.com/chattocorp/chatto/commit/de0efa26483904122d8264175b56b4e3df71d80b))
+* **test:** remove leftover stream directories in the shared NATS reset ([#2863](https://github.com/chattocorp/chatto/issues/2863)) ([09d01aa](https://github.com/chattocorp/chatto/commit/09d01aa2eaadf4a5b8474460575d23597c2c6332))
+
+
+### Performance Improvements
+
+* **events:** stop guarding writes that do not depend on state ([#2826](https://github.com/chattocorp/chatto/issues/2826)) ([11acb9c](https://github.com/chattocorp/chatto/commit/11acb9c4967180c74a4df48654972e362269a595))
+
+
+### Code Refactoring
+
+* **events:** collapse ProjectorStatus failure fields and renew leases through jetstreamutil ([#2839](https://github.com/chattocorp/chatto/issues/2839)) ([6b48808](https://github.com/chattocorp/chatto/commit/6b48808b370082ad29fdf0c5fd8ecab884721e2b))
+* **events:** move JetStream client helpers into pkg/jetstreamutil ([#2832](https://github.com/chattocorp/chatto/issues/2832)) ([8bed0d5](https://github.com/chattocorp/chatto/commit/8bed0d59145ebb30d592446f4ccb0dc1c854b10b))
+* **events:** one OCC guard type for every write ([#2825](https://github.com/chattocorp/chatto/issues/2825)) ([6a64332](https://github.com/chattocorp/chatto/commit/6a6433258fc7e2a23f3c7251213eda6b7d5033cd))
+* **events:** slog logging, projector options at construction, one constructor rule ([#2824](https://github.com/chattocorp/chatto/issues/2824)) ([bf065a9](https://github.com/chattocorp/chatto/commit/bf065a9ff8c8f3493021b2e03672f1549f5d193d))
+* **events:** unify projection snapshots and simplify the projector ([#2823](https://github.com/chattocorp/chatto/issues/2823)) ([93ef94c](https://github.com/chattocorp/chatto/commit/93ef94cb65017cc254eeef12d68c07e107a92fbd))
+
 ## [0.5.0-beta.11](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.10...v0.5.0-beta.11) (2026-10-04)
 
 

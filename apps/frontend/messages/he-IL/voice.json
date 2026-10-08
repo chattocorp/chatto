@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "פעולות עבור {name}",
     "picture_in_picture": "תמונה בתוך תמונה",
     "picture_in_picture_failed": "לא ניתן לשנות את מצב תמונה בתוך תמונה.",
     "connection_lost": "החיבור אבד",

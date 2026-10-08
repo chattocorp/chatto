@@ -1,5 +1,6 @@
 <script lang="ts">
   import { trackScrollEdges, type ScrollEdges } from '$lib/ui/scrollEdges';
+  import { retainPlayback } from '$lib/media/playbackRetention';
   import { LoadingFog, LoadRetry } from '$lib/ui';
   import { type MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
 
@@ -42,7 +43,8 @@
     roomId,
     eventId,
     canDeleteAttachment = false,
-    canEditAttachmentDescription = false
+    canEditAttachmentDescription = false,
+    onPlaybackChange
   }: {
     attachments: readonly MessageAttachmentView[];
     serverId: string;
@@ -50,7 +52,19 @@
     eventId: string;
     canDeleteAttachment?: boolean;
     canEditAttachmentDescription?: boolean;
+    /** Active while any attachment plays or shows in picture-in-picture; cleanup releases it. */
+    onPlaybackChange?: (active: boolean) => void;
   } = $props();
+
+  const playingAttachments = new SvelteSet<string>();
+
+  function setAttachmentPlaying(id: string, active: boolean) {
+    const wasPlaying = playingAttachments.size > 0;
+    if (active) playingAttachments.add(id);
+    else playingAttachments.delete(id);
+    const isPlaying = playingAttachments.size > 0;
+    if (isPlaying !== wasPlaying) onPlaybackChange?.(isPlaying);
+  }
 
   let refreshedAttachmentUrls = $state.raw(new Map<string, RefreshedAttachmentUrls>());
   const assetRetrySalts = new SvelteMap<string, number>();
@@ -566,6 +580,7 @@
               filename={attachment.filename}
               describedBy={attachment.description ? descriptionID(attachment) : undefined}
               {autoLoop}
+              onPlaybackChange={(active) => setAttachmentPlaying(attachment.id, active)}
               onPosterError={autoLoop
                 ? undefined
                 : () => refreshAfterAssetError(attachment, 'video')}
@@ -598,6 +613,7 @@
           title={attachment.description || undefined}
         >
           <video
+            {@attach retainPlayback((active) => setAttachmentPlaying(attachment.id, active))}
             controls
             preload="metadata"
             src={attachment.url}
@@ -616,6 +632,7 @@
           title={attachment.description || undefined}
         >
           <audio
+            {@attach retainPlayback((active) => setAttachmentPlaying(attachment.id, active))}
             controls
             preload="metadata"
             src={attachment.url}

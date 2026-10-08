@@ -221,6 +221,62 @@ chatto operator user set-password USER_ID \
 
 The new password cannot be empty. Setting a password does not require the previous password.
 
+## Manage external sign-in identities
+
+List the stored identities for an existing human account:
+
+```sh
+chatto operator user identity list USER_ID
+chatto operator user identity list USER_ID --json
+```
+
+Each row shows the identity hash, provider, issuer, subject, and
+`login_available`. Stale links remain in the list. `login_available` means that
+a configured provider accepts the stored identity namespace. It does not test
+provider reachability or the status of the provider account. Historical links
+can have an empty issuer or subject; Chatto cannot determine availability for
+a hash-only link.
+
+Verify that the provider subject belongs to this user, then link it:
+
+```sh
+chatto operator user identity link USER_ID \
+  --provider company-sso \
+  --subject 'provider-subject'
+```
+
+Use the provider ID from `[[auth.providers]]`. Chatto uses that provider's
+current issuer and type. The subject must be exact; do not use an email address
+to infer account ownership. The command does not contact the provider or
+perform an SSO login. It refuses an identity owned by another account.
+A repeat for the same user and identity succeeds without another write.
+
+Remove a link with the hash returned by `identity list`:
+
+```sh
+chatto operator user identity unlink USER_ID SUBJECT_HASH
+```
+
+Another configured identity or an enabled password sign-in method must remain.
+A stored password does not count when `auth.direct_login = false`. Existing
+sessions stay valid. A missing link returns an error; use `identity list` to
+check the result after an interrupted command.
+
+### Recover access after an OIDC issuer change
+
+Keep the original Chatto account. Update the configured provider's `issuer_url`
+to match the provider, then restart Chatto. Verify the current subject for that
+person at the provider; an issuer change does not guarantee an unchanged subject.
+
+1. Use `identity list` to find the old link and save its hash.
+2. Use `identity link` with the configured provider and the verified subject.
+3. Ask the user to sign in through SSO and check that the original account opens.
+4. Use `identity unlink` to remove the old hash.
+
+Password login can remain disabled throughout recovery. Account IDs, roles,
+and messages stay unchanged. These commands record new identity changes and
+preserve the account's history.
+
 ## Clear a username-change cooldown
 
 Allow a user or bot to change its username again after a recent username change:

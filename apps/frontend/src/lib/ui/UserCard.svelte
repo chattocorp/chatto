@@ -10,6 +10,7 @@ Actions are siblings of that button, so controls never nest inside a button.
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { formatAccountName, type AccountNameIdentity } from '@chatto/client/timeline/accountName';
   import type { Snippet } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
   import type { ClassValue, HTMLButtonAttributes, HTMLAttributes } from 'svelte/elements';
   import CompactActionButton from './CompactActionButton.svelte';
   import VoiceActivity from './VoiceActivity.svelte';
@@ -53,6 +54,8 @@ Actions are siblings of that button, so controls never nest inside a button.
       expanded?: boolean;
       testId?: string;
       disabled?: boolean;
+      /** Register the actual overflow button for host-owned focus restoration. */
+      attachment?: Attachment<HTMLElement>;
       /** Reveal on hover or keyboard focus; touch devices keep the control visible. */
       revealOnHover?: boolean;
       oncontextmenu?: NonNullable<HTMLAttributes<HTMLDivElement>['oncontextmenu']>;
@@ -136,6 +139,7 @@ Actions are siblings of that button, so controls never nest inside a button.
         disabled={menu.disabled}
         aria-haspopup="dialog"
         aria-expanded={menu.expanded ?? false}
+        {@attach menu.attachment}
       >
         <span class="iconify icon-[uil--ellipsis-v]" aria-hidden="true"></span>
       </CompactActionButton>

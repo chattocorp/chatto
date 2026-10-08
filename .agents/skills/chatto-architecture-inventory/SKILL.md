@@ -31,8 +31,15 @@ Paths below are relative to the repository root.
 
 ## Editing And Verification
 
+- The inventory covers the Chatto server only. Do not add client runtimes,
+  browser behavior, or development tools. Follow the inventory rules in the
+  index.
 - Link to source code and relevant decisions. Do not copy tables from other
   categories or reproduce the generated per-RPC reference.
+- Keep each entry to its owner, lifecycle, and links. Put feature behavior in
+  an FDR and tuning values in source.
+- Prefer lists to wide tables. Prettier pads every table cell to the widest
+  cell in its column.
 - Replace stale facts in place. Keep compatibility details only while they
   affect current behavior or stored data.
 - Distinguish unavailable operational data from a healthy zero value.

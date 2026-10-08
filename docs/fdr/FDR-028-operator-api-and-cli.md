@@ -1,7 +1,7 @@
 # FDR-028: Operator API & CLI
 
 **Status:** Active
-**Last reviewed:** 2026-09-27
+**Last reviewed:** 2026-10-08
 
 ## Overview
 
@@ -18,6 +18,21 @@ The Operator API gives server operators local, root-equivalent user administrati
 - Operator actions are attributed to the system actor. They are not tied to a Chatto user account, cookie session, bearer session, or RBAC role.
 - The user-administration surface lives in `chatto.operator.v1.OperatorUserService`. Operators can create, list, and look up users by ID, login, or verified email.
 - Operators can update login and display name, set passwords, delete users, add verified email addresses, assign and revoke roles, and clear a user's username-change cooldown.
+- Operators can list, link, and unlink external sign-in identities for an
+  existing human account. Lists include stale links, their issuer and subject,
+  and whether a configured provider accepts their identity namespace. This
+  indicator does not test provider reachability or account status. Historical
+  hash-only links have no known namespace and are not counted as available.
+- Linking requires an explicit account, configured provider, and exact subject.
+  The operator must verify ownership. Chatto uses the provider's current
+  namespace and refuses an identity owned by another account. Repeating a link
+  to the same account succeeds without another identity change.
+- Unlinking requires the stored identity hash. Another configured identity or
+  an enabled password sign-in method must remain. A stored password does not
+  count when password login is disabled. Existing sessions stay valid.
+- These commands can recover an account after an issuer change while password
+  login remains disabled. The operator links the verified current identity,
+  checks SSO login, and then removes the old link. Account history is retained.
 - The CLI groups these commands under `chatto operator user ...`, for example `chatto operator user create`, `chatto operator user get --email`, and `chatto operator user clear-username-cooldown`.
 - `chatto operator room list` shows active and archived channel rooms without a user session or room membership. Operators can filter by the exact stored name. Each result includes the room ID, name, description, group ID, and archived state.
 - Room pages use stable room ID order and include a total count and next-page status. Pages are live reads; room changes between requests can move results between offsets. A repeated read is safe.
@@ -116,6 +131,18 @@ fixture remains separate so its workload stays comparable.
 **Decision:** Historical imports use normal message encryption and attachment storage. Each message keeps the mapped author and records the import as a system action. A source reply stays a reply reference in the channel timeline, even when the target belongs to a Chatto thread. Imports do not cause new message activity, including after a server restart.
 **Why:** Scripts need source-time messages that ordinary readers can use without causing new attention or read activity.
 **Tradeoff:** A repeated import creates another message. The import script must save returned IDs and decide whether an uncertain request needs a retry. Message order in a channel follows import order; scripts should send messages in source order. All server replicas must run a version that understands the historical marker before import starts.
+
+### 12. Operator external identities
+
+**Decision:** Operators manage individual account identity links through
+configured providers. They cannot transfer another account's identity or
+infer ownership from email. New identity changes record the system actor.
+**Why:** Recovery, provider migration, and account provisioning need the same
+account operation. Operators can restore SSO access without adding a password
+or enabling password login across the server.
+**Tradeoff:** The operator verifies the provider subject. Namespace availability
+comes from this replica's configuration, not a provider health check. A bulk
+issuer migration still needs explicit subject mappings and a separate design.
 
 ## Permissions
 

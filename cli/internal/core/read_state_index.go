@@ -69,7 +69,6 @@ func NewReadStateIndex(kv jetstream.KeyValue, logger *log.Logger) *ReadStateInde
 // and then keeps the index current until ctx is cancelled.
 func (i *ReadStateIndex) Run(ctx context.Context) error {
 	if i.logger != nil {
-		i.logger.Debug("Read state index started")
 		defer i.logger.Debug("Read state index stopped")
 	}
 

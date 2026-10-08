@@ -53,6 +53,9 @@
       "copy_user_id": "Zkopírovat ID uživatele"
     },
     "server_gutter": {
+      "home_server": "Domovský server",
+      "move_up": "Přesunout nahoru",
+      "move_down": "Přesunout dolů",
       "add_server": "Přidat server",
       "log_in": "Přihlásit se k tomuto serveru",
       "sign_out": "Odhlásit se z tohoto serveru",

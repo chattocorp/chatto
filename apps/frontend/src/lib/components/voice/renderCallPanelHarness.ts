@@ -12,6 +12,9 @@ type HarnessProps = ComponentProps<typeof VoiceCallPanelStoryHarness>;
  */
 export function renderCallPanelHarness(props: HarnessProps = {}) {
   const screen = render(VoiceCallPanelStoryHarness, { props });
+  if (props.playableMedia) {
+    Object.assign(screen.container.style, { display: 'flex', flexDirection: 'column' });
+  }
   if ((props.layout ?? 'stage') === 'stage') {
     Object.assign(screen.container.style, { display: 'flex', width: '1080px', height: '720px' });
   }

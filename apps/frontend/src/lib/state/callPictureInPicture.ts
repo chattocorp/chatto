@@ -2,7 +2,11 @@ import type { Track } from 'livekit-client';
 import { m } from '$lib/i18n/messages';
 import { toastError } from '$lib/utils/errorMessage';
 
-/** Retain the original PiP video outside route-owned tiles until its stream or PiP ends. */
+/**
+ * Retain the original PiP video outside route-owned tiles until its stream or PiP ends.
+ * The retained video lives in a hidden host on `document.body`, outside the room and
+ * server route trees. Track identity separates calls and servers. Nothing is persisted.
+ */
 const videoTracks = new WeakMap<HTMLVideoElement, Track>();
 const pictureInPictureWindows = new WeakMap<HTMLVideoElement, PictureInPictureWindow>();
 const endedTracks = new WeakSet<Track>();
@@ -55,6 +59,8 @@ export function releaseCallVideo(track: Track, video: HTMLVideoElement): void {
   host.dataset.callPipHost = '';
   host.style.cssText = 'position:fixed;left:-10000px;top:0;visibility:hidden;pointer-events:none';
   const pipWindow = pictureInPictureWindows.get(video);
+  // LiveKit's adaptive stream selects a video layer from the element size, so
+  // the hidden host follows the PiP window instead of a collapsed size.
   const updateSize = () => {
     host.style.width = `${pipWindow?.width || video.videoWidth || 640}px`;
     host.style.height = `${pipWindow?.height || video.videoHeight || 360}px`;

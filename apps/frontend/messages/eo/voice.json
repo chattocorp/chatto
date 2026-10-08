@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "Agoj por {name}",
     "picture_in_picture": "Bildo en bildo",
     "picture_in_picture_failed": "Ne eblis ŝanĝi la reĝimon bildo en bildo.",
     "connection_lost": "Konekto perdita",

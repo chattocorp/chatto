@@ -156,9 +156,11 @@ Never leave a dev stack running in a detached or yielded terminal session.
 ## Chatto Documentation Updates
 
 - Use FDRs for feature behavior/rationale and ADRs for cross-cutting decisions.
-- Update the relevant file in `docs/architecture/` when changing runtime
-  components, projections, EVT events or subjects, NATS resources, runtime
+- Update the relevant file in `docs/architecture/` when changing server
+  runtime components, projections, EVT events or subjects, NATS resources, runtime
   state, durable effects, realtime delivery, or mounted ConnectRPC services.
+  The inventory records the server only. Do not add client runtimes, browser
+  behavior, or development tools to it.
 - Update `docs/GLOSSARY.md` when introducing, renaming, or clarifying canonical
   vocabulary.
 - Public documentation requires a meaningful reader impact. Update

@@ -127,7 +127,11 @@ function hlsVideoAttachment(overrides: Partial<MessageAttachmentView> = {}): Mes
 
 function renderAttachments(
   attachments: MessageAttachmentView[],
-  options: { canDeleteAttachment?: boolean; canEditAttachmentDescription?: boolean } = {}
+  options: {
+    canDeleteAttachment?: boolean;
+    canEditAttachmentDescription?: boolean;
+    onPlaybackChange?: (active: boolean) => void;
+  } = {}
 ) {
   return render(MessageAttachments, {
     props: {
@@ -156,6 +160,24 @@ function imageFrame(container: HTMLElement, filename: string) {
 }
 
 describe('MessageAttachments', () => {
+  it('preserves playback across metadata updates and releases it on disposal', async () => {
+    const attachment = fileAttachment({ contentType: 'audio/mpeg', filename: 'audio.mp3' });
+    const onPlaybackChange = vi.fn();
+    const view = renderAttachments([attachment], { onPlaybackChange });
+    const audio = view.container.querySelector('audio')!;
+    audio.dispatchEvent(new Event('play'));
+    expect(onPlaybackChange.mock.calls).toEqual([[true]]);
+
+    await view.rerender({ attachments: [{ ...attachment, description: 'Updated description' }] });
+    expect(view.container.querySelector('audio')).toBe(audio);
+    expect(onPlaybackChange.mock.calls).toEqual([[true]]);
+
+    await view.unmount();
+    expect(onPlaybackChange.mock.calls).toEqual([[true], [false]]);
+    audio.dispatchEvent(new Event('play'));
+    expect(onPlaybackChange.mock.calls).toEqual([[true], [false]]);
+  });
+
   beforeEach(() => {
     attachmentMocks.pushState.mockReset();
     attachmentMocks.refreshAssetUrls.mockReset();

@@ -20,6 +20,7 @@
     activeCallId = null,
     onOpenCall,
     onOpenUser,
+    onPlaybackChange,
     threadingMode = RoomThreadingMode.ENABLED
   }: {
     event: TimelineEventView;
@@ -32,6 +33,8 @@
     activeCallId?: string | null;
     onOpenCall?: () => void;
     onOpenUser?: (user: UserAvatarUserView | RoomMember, anchorRect: DOMRect | null) => void;
+    /** Report whether any message attachment needs playback retention. */
+    onPlaybackChange?: (active: boolean) => void;
     threadingMode?: RoomThreadingMode;
   } = $props();
 </script>
@@ -48,6 +51,7 @@
     {actionOverlays}
     {onOpenThread}
     {onOpenUser}
+    {onPlaybackChange}
     {threadingMode}
   />
 {:else}
