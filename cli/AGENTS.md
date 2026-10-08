@@ -337,8 +337,8 @@ authorization, live events, backup and restore, and backend tests.
   never affects permission resolution. An account ranks at its highest role;
   owners and the system actor are exempt, and `everyone` ranks below every
   account. Targeted operations need their permission and a higher rank: a
-  non-owner acts only on accounts that rank strictly below them, and assigns,
-  revokes only roles below their highest role. Holders of `role.manage`
+  non-owner acts only on accounts that rank strictly below them, and assigns
+  or revokes only roles below their highest role. Holders of `role.manage`
   edit, delete, and move every role except `owner`; other editors of role
   decisions, such as room managers, need the role to rank below them. Bots
   act with at most their owner's rank. Add the rank check to every new
