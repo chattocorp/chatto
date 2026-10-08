@@ -99,6 +99,26 @@ not require a call permission. Call management is not part of these permissions.
 
 ## Setup
 
+For a new local installation, generate both configuration files:
+
+```bash
+chatto init --with-livekit
+livekit-server --config livekit.yaml
+```
+
+Run `chatto run` in a separate terminal. The flag enables LiveKit in
+`chatto.toml` and creates `livekit.yaml` in the same directory. Both files use
+matching random credentials. LiveKit sends webhooks to
+`http://localhost:4000/webhooks/livekit`. The command refuses to replace either
+file. With `-c /path/to/chatto.toml`, it creates `/path/to/livekit.yaml`.
+
+These settings are for local use. Before deployment, configure the public
+LiveKit URL, TLS, media network settings, and the Chatto webhook URL as described
+below. Browsers connect directly to LiveKit for calls, which exposes their IP
+addresses to that server.
+
+For an existing installation, follow these steps:
+
 <Steps>
 
 1. **Install and run LiveKit**

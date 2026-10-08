@@ -1,0 +1,13 @@
+# Local LiveKit server for Chatto. Configure public URLs and TLS before deployment.
+port: 7880
+rtc:
+  tcp_port: 7881
+  udp_port: 7882
+  use_external_ip: false
+  enable_loopback_candidate: true
+keys:
+  "VEB63LPKIEODOYN66FTOCM5BJ2": "1c3c02c8933e7feb9c116721b006b82d41d75c9683b335a5f7b0bf275df8302a"
+webhook:
+  urls:
+    - http://localhost:4000/webhooks/livekit
+  api_key: "VEB63LPKIEODOYN66FTOCM5BJ2"

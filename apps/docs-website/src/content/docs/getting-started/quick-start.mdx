@@ -44,6 +44,10 @@ The quickest and easiest way to give Chatto a try is to just download the execut
 
    This creates a `chatto.toml` with random secrets for cookie signing, cookie encryption, runtime-token verifiers, asset signing, and NATS authentication.
 
+   To include a local LiveKit server configuration for calls, use `chatto init --with-livekit`. See [voice and video calls](/guides/infrastructure/voice-calls/) for startup and deployment instructions.
+
+   To enable message search and its bundled provider, add `--with-search`. You can combine both flags: `chatto init --with-livekit --with-search`. See [Search](/guides/operations/search/) for index storage and configuration.
+
    **Take a minute to review this file.** It is already a working configuration, but you can customize it. Configure SMTP or JMAP if Chatto must send transactional email.
 
 3. **Start the server:**

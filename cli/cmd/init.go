@@ -3,8 +3,10 @@ package cmd
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,27 +19,39 @@ import (
 )
 
 var initConfigFile string
+var initWithLiveKit bool
+var initWithSearch bool
 
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initializes the chatto server and generates a configuration file",
 
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		configPath := initConfigFile
 		if configPath == "" {
 			configPath = "chatto.toml"
 		}
 
-		// Check if config file already exists
-		if _, err := os.Stat(configPath); err == nil {
-			log.Error("Config file already exists, aborting to prevent overwrite", "path", configPath)
-			os.Exit(1)
+		liveKitPath := filepath.Join(filepath.Dir(configPath), "livekit.yaml")
+		paths := []string{configPath}
+		if initWithLiveKit {
+			if filepath.Clean(configPath) == liveKitPath {
+				return fmt.Errorf("Chatto config path must differ from LiveKit config path %s", liveKitPath)
+			}
+			paths = append(paths, liveKitPath)
+		}
+		for _, path := range paths {
+			if _, err := os.Lstat(path); err == nil {
+				return fmt.Errorf("config file already exists: %s", path)
+			} else if !os.IsNotExist(err) {
+				return fmt.Errorf("check config path: %w", err)
+			}
 		}
 
 		// Generate a random session signing secret (32 bytes = 256 bits)
 		sessionSecret := make([]byte, 32)
 		if _, err := rand.Read(sessionSecret); err != nil {
-			log.Fatal("Failed to generate session secret", "error", err)
+			return fmt.Errorf("generate session secret: %w", err)
 		}
 		sessionSecretString := hex.EncodeToString(sessionSecret)
 
@@ -45,28 +59,28 @@ var initCmd = &cobra.Command{
 		// Decoded back to raw bytes at server startup.
 		cookieEncryptionSecret := make([]byte, 32)
 		if _, err := rand.Read(cookieEncryptionSecret); err != nil {
-			log.Fatal("Failed to generate cookie encryption secret", "error", err)
+			return fmt.Errorf("generate cookie encryption secret: %w", err)
 		}
 		cookieEncryptionSecretString := hex.EncodeToString(cookieEncryptionSecret)
 
 		// Generate a random signing secret for assets (32 bytes = 256 bits)
 		signingSecret := make([]byte, 32)
 		if _, err := rand.Read(signingSecret); err != nil {
-			log.Fatal("Failed to generate signing secret", "error", err)
+			return fmt.Errorf("generate signing secret: %w", err)
 		}
 		signingSecretString := hex.EncodeToString(signingSecret)
 
 		// Generate a random server-wide core secret for token verifiers.
 		coreSecret := make([]byte, 32)
 		if _, err := rand.Read(coreSecret); err != nil {
-			log.Fatal("Failed to generate core secret", "error", err)
+			return fmt.Errorf("generate core secret: %w", err)
 		}
 		coreSecretString := hex.EncodeToString(coreSecret)
 
 		// Generate a random auth token for NATS connections (32 bytes = 256 bits)
 		authToken := make([]byte, 32)
 		if _, err := rand.Read(authToken); err != nil {
-			log.Fatal("Failed to generate auth token", "error", err)
+			return fmt.Errorf("generate auth token: %w", err)
 		}
 		authTokenString := hex.EncodeToString(authToken)
 
@@ -138,18 +152,99 @@ var initCmd = &cobra.Command{
 
 		// Write config file
 		log.Info("Writing configuration", "path", configPath)
-		b, err := toml.Marshal(cfg)
+		// Override only explicitly enabled tables; retain commented examples for the others.
+		type searchInitConfig struct {
+			config.ChattoConfig
+			Search         config.SearchConfig         `toml:"search" comment:"Message search configuration."`
+			SearchProvider config.SearchProviderConfig `toml:"search_provider" comment:"Bundled Bleve message search provider."`
+		}
+		searchConfig := searchInitConfig{
+			ChattoConfig:   cfg,
+			Search:         config.SearchConfig{Enabled: true},
+			SearchProvider: config.SearchProviderConfig{Enabled: true, Directory: "./data/search"},
+		}
+		var configDocument any = cfg
+		if initWithSearch {
+			configDocument = searchConfig
+		}
+		var liveKitConfig []byte
+		if initWithLiveKit {
+			apiKey := rand.Text()
+			// LiveKit requires an API secret of at least 32 characters.
+			secretBytes := make([]byte, 32)
+			if _, err := rand.Read(secretBytes); err != nil {
+				return fmt.Errorf("generate LiveKit API secret: %w", err)
+			}
+			apiSecret := hex.EncodeToString(secretBytes)
+			liveKitConfig = []byte(fmt.Sprintf(`# Local LiveKit server for Chatto. Configure public URLs and TLS before deployment.
+port: 7880
+rtc:
+  tcp_port: 7881
+  udp_port: 7882
+  use_external_ip: false
+  enable_loopback_candidate: true
+keys:
+  %q: %q
+webhook:
+  urls:
+    - http://localhost:4000/webhooks/livekit
+  api_key: %q
+`, apiKey, apiSecret, apiKey))
+			liveKit := config.LiveKitConfig{
+				Enabled:   true,
+				URL:       "ws://localhost:7880",
+				APIKey:    apiKey,
+				APISecret: apiSecret,
+			}
+			if initWithSearch {
+				configDocument = struct {
+					searchInitConfig
+					LiveKit config.LiveKitConfig `toml:"livekit" comment:"LiveKit voice and video call configuration. Credentials match the generated livekit.yaml."`
+				}{searchConfig, liveKit}
+			} else {
+				configDocument = struct {
+					config.ChattoConfig
+					LiveKit config.LiveKitConfig `toml:"livekit" comment:"LiveKit voice and video call configuration. Credentials match the generated livekit.yaml."`
+				}{cfg, liveKit}
+			}
+		}
+		b, err := toml.Marshal(configDocument)
 		if err != nil {
-			log.Fatal("Failed to marshal config", "error", err)
+			return fmt.Errorf("marshal config: %w", err)
 		}
 		text := addAuthProviderExamples(string(b))
 		text = addEmailOTPDefaults(text)
 
-		if err := os.WriteFile(configPath, []byte(text), 0600); err != nil {
-			log.Fatal("Failed to write config file", "error", err)
+		if err := writeInitConfig(configPath, []byte(text)); err != nil {
+			return err
+		}
+		if initWithLiveKit {
+			if err := writeInitConfig(liveKitPath, liveKitConfig); err != nil {
+				// Remove only the Chatto config created by this invocation, so init can be retried.
+				if cleanupErr := os.Remove(configPath); cleanupErr != nil {
+					return fmt.Errorf("%w (remove partial Chatto config: %v)", err, cleanupErr)
+				}
+				return err
+			}
+			fmt.Printf("LiveKit configuration written to %s\n", liveKitPath)
 		}
 		fmt.Printf("Configuration written to %s\n", configPath)
+		return nil
 	},
+}
+
+// writeInitConfig creates a private configuration file without replacing an existing file.
+func writeInitConfig(path string, data []byte) error {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return fmt.Errorf("create config: %w", err)
+	}
+	_, writeErr := file.Write(data)
+	closeErr := file.Close()
+	if err := errors.Join(writeErr, closeErr); err != nil {
+		return errors.Join(fmt.Errorf("write config: %w", err), os.Remove(path))
+	}
+	return nil
 }
 
 func addAuthProviderExamples(tomlText string) string {
@@ -206,5 +301,7 @@ throttling_enabled = true
 
 func init() {
 	rootCmd.AddCommand(initCmd)
+	initCmd.Flags().BoolVar(&initWithSearch, "with-search", false, "enable message search and the bundled search provider")
 	initCmd.Flags().StringVarP(&initConfigFile, "config", "c", "", "path to configuration file (default: chatto.toml)")
+	initCmd.Flags().BoolVar(&initWithLiveKit, "with-livekit", false, "generate matching Chatto and livekit.yaml settings for a local LiveKit server")
 }
