@@ -48,6 +48,12 @@ exactly one of `roomId` and `groupId`.
     group: boolean
   ): { tone: 'info' | 'warning'; text: string } | null {
     if (!summary) return null;
+    if (summary.everyoneCanJoin && !summary.everyoneCanRead) {
+      return {
+        tone: 'warning',
+        text: group ? m('rbac.access.group_join_no_read') : m('rbac.access.room_join_no_read')
+      };
+    }
     if (summary.everyoneCanJoin) {
       return {
         tone: 'info',

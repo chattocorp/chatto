@@ -189,7 +189,8 @@ const ignoredRoleDenyLogLimit = 50
 // Roles, everyone included, only grant permissions since 0.5 (ADR-116), so a
 // stored role deny, for example from an earlier suspension recipe or a
 // restricted room, is ignored. Call it after the projections are current. The
-// log names only a count and opaque room and room-group IDs.
+// log names only a count, role names, permissions, scopes, and opaque room and
+// room-group IDs.
 func (c *ChattoCore) warnIgnoredRoleDenies() {
 	denies := c.ignoredRoleDenies()
 	if denies.count == 0 || c.logger == nil {
@@ -197,12 +198,15 @@ func (c *ChattoCore) warnIgnoredRoleDenies() {
 	}
 	roomIDs, moreRooms := capIDs(denies.roomIDs, ignoredRoleDenyLogLimit)
 	groupIDs, moreGroups := capIDs(denies.groupIDs, ignoredRoleDenyLogLimit)
+	entries, moreEntries := capIDs(denies.entries, ignoredRoleDenyLogLimit)
 	c.logger.Warn("Role denies have no effect: roles only grant permissions. Review the affected rooms and room groups, and set denies on single users instead.",
 		"ignored_role_denies", denies.count,
 		"affected_room_ids", roomIDs,
 		"more_affected_rooms", moreRooms,
 		"affected_group_ids", groupIDs,
 		"more_affected_groups", moreGroups,
+		"ignored_denies", entries,
+		"more_ignored_denies", moreEntries,
 	)
 }
 
@@ -213,6 +217,9 @@ type ignoredRoleDenySummary struct {
 	// roomIDs and groupIDs list, sorted and without duplicates, the rooms and
 	// room groups that have a stored role deny.
 	roomIDs, groupIDs []string
+	// entries describes each deny as role:permission@scope or
+	// role:permission@scope:id, sorted, so operators can find it.
+	entries []string
 }
 
 // ignoredRoleDenies summarizes the stored denies of all roles, everyone
@@ -227,6 +234,11 @@ func (c *ChattoCore) ignoredRoleDenies() ignoredRoleDenySummary {
 				continue
 			}
 			out.count++
+			entry := role.GetName() + ":" + string(decision.Permission) + "@" + string(decision.Scope)
+			if decision.ScopeID != "" {
+				entry += ":" + decision.ScopeID
+			}
+			out.entries = append(out.entries, entry)
 			switch decision.Scope {
 			case ScopeRoom:
 				rooms[decision.ScopeID] = struct{}{}
@@ -237,10 +249,11 @@ func (c *ChattoCore) ignoredRoleDenies() ignoredRoleDenySummary {
 	}
 	out.roomIDs = slices.Sorted(maps.Keys(rooms))
 	out.groupIDs = slices.Sorted(maps.Keys(groups))
+	slices.Sort(out.entries)
 	return out
 }
 
-// capIDs returns at most limit IDs and the number of IDs left out.
+// capIDs returns at most limit values and the number of values left out.
 func capIDs(ids []string, limit int) ([]string, int) {
 	if len(ids) <= limit {
 		return ids, 0

@@ -227,12 +227,14 @@
     "access": {
       "room_open": "Ĉiuj povas trovi ĉi tiun ĉambron kaj aliĝi al ĝi.",
       "room_open_unlisted": "Ĉiuj povas aliĝi al ĉi tiu ĉambro, sed ĝi ne aperas por ĉiuj en la listo de ĉambroj.",
+      "room_join_no_read": "Ĉiuj povas aliĝi al ĉi tiu ĉambro, sed ne povas legi ĝin. Por malfermi ĝin, permesu ankaŭ message.read, kaj message.post por ke membroj povu afiŝi.",
       "room_roles": "Nur membroj de ĉi tiuj roloj povas aliĝi al ĉi tiu ĉambro: {roles}.",
-      "room_closed": "Nur posedantoj kaj la membroj, kiujn vi aldonas, povas malfermi ĉi tiun ĉambron. Por malfermi ĝin, permesu room.list kaj room.join al everyone aŭ al rolo en la permesoj de la ĉambro.",
+      "room_closed": "Nur posedantoj kaj la membroj, kiujn vi aldonas, povas malfermi ĉi tiun ĉambron. Por malfermi ĝin, permesu room.list, room.join kaj message.read al everyone aŭ al rolo en la permesoj de la ĉambro, kaj message.post por ke ili povu afiŝi.",
       "group_open": "Ĉiuj povas trovi la ĉambrojn en ĉi tiu ĉambrogrupo kaj aliĝi al ili.",
       "group_open_unlisted": "Ĉiuj povas aliĝi al la ĉambroj en ĉi tiu ĉambrogrupo, sed ili ne aperas por ĉiuj en la listo de ĉambroj.",
+      "group_join_no_read": "Ĉiuj povas aliĝi al la ĉambroj en ĉi tiu ĉambrogrupo, sed ne povas legi ilin. Por malfermi ilin, permesu ankaŭ message.read, kaj message.post por ke membroj povu afiŝi.",
       "group_roles": "Nur membroj de ĉi tiuj roloj povas aliĝi al la ĉambroj en ĉi tiu ĉambrogrupo: {roles}.",
-      "group_closed": "Nur posedantoj kaj la membroj, kiujn vi aldonas, povas malfermi la ĉambrojn en ĉi tiu ĉambrogrupo. Por malfermi ilin, permesu sube room.list kaj room.join al everyone aŭ al rolo."
+      "group_closed": "Nur posedantoj kaj la membroj, kiujn vi aldonas, povas malfermi la ĉambrojn en ĉi tiu ĉambrogrupo. Por malfermi ilin, permesu sube room.list, room.join kaj message.read al everyone aŭ al rolo, kaj message.post por ke ili povu afiŝi."
     }
   }
 }

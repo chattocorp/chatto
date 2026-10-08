@@ -193,7 +193,7 @@ func (c *ChattoCore) buildTierRolesForViewer(ctx context.Context, actorID string
 		scopeID = groupID
 	}
 	for _, permission := range out.ApplicablePermissions {
-		holds, err := c.actorHasScopedPermission(ctx, actorID, ScopedRolePermissionDecision{Scope: scope, ScopeID: scopeID, Permission: Permission(permission)})
+		holds, err := c.actorCanSetDecision(ctx, actorID, ScopedRolePermissionDecision{Scope: scope, ScopeID: scopeID, Permission: Permission(permission)})
 		if err != nil {
 			return nil, err
 		}
@@ -220,7 +220,7 @@ func (c *ChattoCore) viewerCanChangeAtMatrixScope(ctx context.Context, actorID s
 	default:
 		return false, nil
 	}
-	return c.actorHasScopedPermission(ctx, actorID, decision)
+	return c.actorCanSetDecision(ctx, actorID, decision)
 }
 
 // GetRolePermissionDMTierMatrix returns the role matrix for the singleton

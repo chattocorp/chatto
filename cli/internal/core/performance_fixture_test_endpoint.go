@@ -177,6 +177,7 @@ func (c *ChattoCore) createPerformanceFixtureRoom(ctx context.Context) (*evtv1.R
 		performanceFixtureRoomName,
 		"Synthetic large-history performance fixture",
 		WithUniversalRoom(true),
+		WithOpenRoomDefaults(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create performance fixture room: %w", err)

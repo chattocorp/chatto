@@ -109,9 +109,12 @@ message GetAccessSummaryResponse {
   // Roles whose holders can find the room although everyone cannot, highest
   // first. Empty when everyone can.
   repeated string roles_can_list = 3;
-  // Roles whose holders can join the room although everyone cannot, highest
-  // first. Empty when everyone can.
+  // Roles whose holders can join and read the room although everyone cannot,
+  // highest first. Empty when everyone can join and read it.
   repeated string roles_can_join = 4;
+  // Whether every member can read the room (message.read). A room that
+  // everyone can join but not read is not open.
+  bool everyone_can_read = 5;
 }
 
 // Matrix column scope.

@@ -1395,6 +1395,10 @@ func TestRolesOnlyGrant(t *testing.T) {
 		if !slices.Equal(summary.groupIDs, []string{groupID}) {
 			t.Fatalf("affected groups = %v, want [%s]", summary.groupIDs, groupID)
 		}
+		wantRoom := RoleEveryone + ":" + string(perm) + "@room:" + roomID
+		if len(summary.entries) != 3 || !slices.Contains(summary.entries, wantRoom) {
+			t.Fatalf("ignored deny entries = %v, want 3 entries with %s", summary.entries, wantRoom)
+		}
 	})
 
 	t.Run("role grids show no deny", func(t *testing.T) {

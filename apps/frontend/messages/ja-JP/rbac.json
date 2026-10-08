@@ -227,12 +227,14 @@
     "access": {
       "room_open": "誰でもこのルームを見つけて参加できます。",
       "room_open_unlisted": "誰でもこのルームに参加できますが、ルーム一覧には全員には表示されません。",
+      "room_join_no_read": "誰でもこのルームに参加できますが、読むことはできません。開くには、message.read も許可してください。メンバーが投稿できるようにするには、message.post も許可してください。",
       "room_roles": "これらのロールのメンバーだけがこのルームに参加できます: {roles}。",
-      "room_closed": "このルームを開けるのは、所有者と追加したメンバーだけです。開くには、ルームの権限で everyone またはロールに room.list と room.join を許可してください。",
+      "room_closed": "このルームを開けるのは、所有者と追加したメンバーだけです。開くには、ルームの権限で everyone またはロールに room.list、room.join、message.read を許可してください。投稿できるようにするには、message.post も許可してください。",
       "group_open": "誰でもこのルームグループのルームを見つけて参加できます。",
       "group_open_unlisted": "誰でもこのルームグループのルームに参加できますが、ルーム一覧には全員には表示されません。",
+      "group_join_no_read": "誰でもこのルームグループのルームに参加できますが、読むことはできません。開くには、message.read も許可してください。メンバーが投稿できるようにするには、message.post も許可してください。",
       "group_roles": "これらのロールのメンバーだけがこのルームグループのルームに参加できます: {roles}。",
-      "group_closed": "このルームグループのルームを開けるのは、所有者と追加したメンバーだけです。開くには、下で everyone またはロールに room.list と room.join を許可してください。"
+      "group_closed": "このルームグループのルームを開けるのは、所有者と追加したメンバーだけです。開くには、下で everyone またはロールに room.list、room.join、message.read を許可してください。投稿できるようにするには、message.post も許可してください。"
     }
   }
 }

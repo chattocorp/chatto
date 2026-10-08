@@ -493,5 +493,5 @@ func DefaultAnnouncementsEveryonePermissions() []Permission {
 // admins publish announcements. Their other abilities in the room come from
 // everyone, and moderators receive no announcement-specific grant.
 func DefaultAnnouncementsAdminPermissions() []Permission {
-	return []Permission{PermMessagePost}
+	return []Permission{PermMessagePost, PermMessageAttach}
 }

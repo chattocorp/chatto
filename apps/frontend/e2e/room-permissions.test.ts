@@ -844,6 +844,10 @@ test.describe('Permission-only Resolution', () => {
       await grantRoomPermission(page, roomId, 'everyone', 'room.list');
       await grantRoomPermission(page, roomId, 'everyone', 'room.join');
       await page.reload();
+      await expect(summary).toContainText('Everyone can join this room, but cannot read it.');
+
+      await grantRoomPermission(page, roomId, 'everyone', 'message.read');
+      await page.reload();
       await expect(summary).toContainText('Everyone can find and join this room.');
     });
 

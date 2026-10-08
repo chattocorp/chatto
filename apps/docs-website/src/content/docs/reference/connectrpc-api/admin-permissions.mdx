@@ -97,7 +97,8 @@ summary says.
 | `everyone_can_list` | `bool` | Whether every member can find the room (room.list). |
 | `everyone_can_join` | `bool` | Whether every member can join the room (room.join). |
 | `roles_can_list` | `repeated string` | Roles whose holders can find the room although everyone cannot, highest first. Empty when everyone can. |
-| `roles_can_join` | `repeated string` | Roles whose holders can join the room although everyone cannot, highest first. Empty when everyone can. |
+| `roles_can_join` | `repeated string` | Roles whose holders can join and read the room although everyone cannot, highest first. Empty when everyone can join and read it. |
+| `everyone_can_read` | `bool` | Whether every member can read the room (message.read). A room that everyone can join but not read is not open. |
 
 
 <a id="chatto-admin-v1-AdminPermissionService-GetRolePermissionMatrix"></a>

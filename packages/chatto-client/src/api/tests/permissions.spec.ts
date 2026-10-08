@@ -66,6 +66,7 @@ describe('createPermissionAPI', () => {
     mocks.getAccessSummary.mockReturnValue({
       everyoneCanList: false,
       everyoneCanJoin: false,
+      everyoneCanRead: false,
       rolesCanList: ['staff'],
       rolesCanJoin: ['staff', 'engineering']
     });
@@ -79,6 +80,7 @@ describe('createPermissionAPI', () => {
     expect(result).toEqual({
       everyoneCanList: false,
       everyoneCanJoin: false,
+      everyoneCanRead: false,
       rolesCanList: ['staff'],
       rolesCanJoin: ['staff', 'engineering']
     });

@@ -1495,7 +1495,7 @@ describe('RoomList', () => {
     expect(mocks.layoutAPI.moveSidebarItem).not.toHaveBeenCalled();
   });
 
-  it('creates and joins a room in the group selected through the creation menu', async () => {
+  it('creates a room in the group selected through the creation menu and opens its settings', async () => {
     mocks.roomCommandAPI.createRoom.mockResolvedValueOnce({ id: 'created-room' });
     mocks.store.navigation.roomGroups = ['first', 'second'].map((id) => ({
       id,
@@ -1527,7 +1527,7 @@ describe('RoomList', () => {
       )
     );
     expect(mocks.roomCommandAPI.joinRoom).toHaveBeenCalledWith('created-room');
-    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/created-room');
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/rooms/created-room');
     expect(document.querySelector('[role="menu"]')).toBeNull();
   });
 

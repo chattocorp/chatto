@@ -227,12 +227,14 @@
     "access": {
       "room_open": "Herkes bu odayı bulabilir ve odaya katılabilir.",
       "room_open_unlisted": "Herkes bu odaya katılabilir, ancak oda herkes için oda listesinde görünmez.",
+      "room_join_no_read": "Herkes bu odaya katılabilir, ancak odayı okuyamaz. Odayı açmak için message.read iznini de verin; üyelerin yazabilmesi için message.post iznini verin.",
       "room_roles": "Bu odaya yalnızca şu rollerin üyeleri katılabilir: {roles}.",
-      "room_closed": "Bu odayı yalnızca sahipler ve eklediğiniz üyeler açabilir. Odayı açmak için oda izinlerinde room.list ve room.join izinlerini everyone veya bir rol için verin.",
+      "room_closed": "Bu odayı yalnızca sahipler ve eklediğiniz üyeler açabilir. Odayı açmak için oda izinlerinde room.list, room.join ve message.read izinlerini everyone veya bir rol için verin; yazabilmeleri için message.post iznini de verin.",
       "group_open": "Herkes bu oda grubundaki odaları bulabilir ve odalara katılabilir.",
       "group_open_unlisted": "Herkes bu oda grubundaki odalara katılabilir, ancak odalar herkes için oda listesinde görünmez.",
+      "group_join_no_read": "Herkes bu oda grubundaki odalara katılabilir, ancak odaları okuyamaz. Odaları açmak için message.read iznini de verin; üyelerin yazabilmesi için message.post iznini verin.",
       "group_roles": "Bu oda grubundaki odalara yalnızca şu rollerin üyeleri katılabilir: {roles}.",
-      "group_closed": "Bu oda grubundaki odaları yalnızca sahipler ve eklediğiniz üyeler açabilir. Odaları açmak için aşağıda room.list ve room.join izinlerini everyone veya bir rol için verin."
+      "group_closed": "Bu oda grubundaki odaları yalnızca sahipler ve eklediğiniz üyeler açabilir. Odaları açmak için aşağıda room.list, room.join ve message.read izinlerini everyone veya bir rol için verin; yazabilmeleri için message.post iznini de verin."
     }
   }
 }

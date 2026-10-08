@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"slices"
 )
 
 // AccessSummary tells who can find and join a channel room, or the rooms of a
@@ -15,9 +16,13 @@ type AccessSummary struct {
 	// find (room.list) and join (room.join) the room.
 	EveryoneCanList bool
 	EveryoneCanJoin bool
-	// RolesCanList and RolesCanJoin name the named roles whose holders can
-	// find or join the room although everyone cannot, highest first. They
-	// are empty when everyone can.
+	// EveryoneCanRead reports whether every member can read the room
+	// (message.read). A room that everyone can join but not read is not open.
+	EveryoneCanRead bool
+	// RolesCanList names the named roles whose holders can find the room
+	// although everyone cannot. RolesCanJoin names those whose holders can
+	// join and read it although everyone cannot. Both are highest first, and
+	// empty when everyone can.
 	RolesCanList []string
 	RolesCanJoin []string
 }
@@ -48,13 +53,13 @@ func (c *ChattoCore) GetAccessSummary(ctx context.Context, actorID, roomID, grou
 	allowed := func(roleName string, perm Permission) bool {
 		return resolver.resolveRoleHolder(roleName, KindChannel, roomID, groupID, perm) == DecisionAllow
 	}
-	rolesWith := func(perm Permission) []string {
+	rolesWith := func(perms ...Permission) []string {
 		var names []string
 		for _, role := range roles {
 			if role.Name == RoleOwner || role.Name == RoleEveryone {
 				continue
 			}
-			if allowed(role.Name, perm) {
+			if !slices.ContainsFunc(perms, func(perm Permission) bool { return !allowed(role.Name, perm) }) {
 				names = append(names, role.Name)
 			}
 		}
@@ -64,12 +69,13 @@ func (c *ChattoCore) GetAccessSummary(ctx context.Context, actorID, roomID, grou
 	summary := &AccessSummary{
 		EveryoneCanList: allowed(RoleEveryone, PermRoomList),
 		EveryoneCanJoin: allowed(RoleEveryone, PermRoomJoin),
+		EveryoneCanRead: allowed(RoleEveryone, PermMessageRead),
 	}
 	if !summary.EveryoneCanList {
 		summary.RolesCanList = rolesWith(PermRoomList)
 	}
-	if !summary.EveryoneCanJoin {
-		summary.RolesCanJoin = rolesWith(PermRoomJoin)
+	if !summary.EveryoneCanJoin || !summary.EveryoneCanRead {
+		summary.RolesCanJoin = rolesWith(PermRoomJoin, PermMessageRead)
 	}
 	return summary, nil
 }

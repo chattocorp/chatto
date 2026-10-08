@@ -227,12 +227,14 @@
     "access": {
       "room_open": "Tout le monde peut trouver cette salle et la rejoindre.",
       "room_open_unlisted": "Tout le monde peut rejoindre cette salle, mais elle n’apparaît pas pour tout le monde dans la liste des salles.",
+      "room_join_no_read": "Tout le monde peut rejoindre cette salle, mais ne peut pas la lire. Pour l’ouvrir, autorisez aussi message.read, et message.post pour que les membres puissent publier.",
       "room_roles": "Seuls les membres de ces rôles peuvent rejoindre cette salle : {roles}.",
-      "room_closed": "Seuls les propriétaires et les membres que vous ajoutez peuvent ouvrir cette salle. Pour l’ouvrir, autorisez room.list et room.join pour everyone ou pour un rôle dans les permissions de la salle.",
+      "room_closed": "Seuls les propriétaires et les membres que vous ajoutez peuvent ouvrir cette salle. Pour l’ouvrir, autorisez room.list, room.join et message.read pour everyone ou pour un rôle dans les permissions de la salle, et message.post pour qu’ils puissent publier.",
       "group_open": "Tout le monde peut trouver les salles de ce groupe de salles et les rejoindre.",
       "group_open_unlisted": "Tout le monde peut rejoindre les salles de ce groupe de salles, mais elles n’apparaissent pas pour tout le monde dans la liste des salles.",
+      "group_join_no_read": "Tout le monde peut rejoindre les salles de ce groupe de salles, mais ne peut pas les lire. Pour les ouvrir, autorisez aussi message.read, et message.post pour que les membres puissent publier.",
       "group_roles": "Seuls les membres de ces rôles peuvent rejoindre les salles de ce groupe de salles : {roles}.",
-      "group_closed": "Seuls les propriétaires et les membres que vous ajoutez peuvent ouvrir les salles de ce groupe de salles. Pour les ouvrir, autorisez ci-dessous room.list et room.join pour everyone ou pour un rôle."
+      "group_closed": "Seuls les propriétaires et les membres que vous ajoutez peuvent ouvrir les salles de ce groupe de salles. Pour les ouvrir, autorisez ci-dessous room.list, room.join et message.read pour everyone ou pour un rôle, et message.post pour qu’ils puissent publier."
     }
   }
 }

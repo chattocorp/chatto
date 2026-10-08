@@ -227,12 +227,14 @@
     "access": {
       "room_open": "Everyone can find and join this room.",
       "room_open_unlisted": "Everyone can join this room, but it does not show in the room list for everyone.",
+      "room_join_no_read": "Everyone can join this room, but cannot read it. To open it, also allow message.read, and message.post to let members post.",
       "room_roles": "Only members of these roles can join this room: {roles}.",
-      "room_closed": "Only owners and the members that you add can open this room. To open it, allow room.list and room.join for everyone or for a role in the room permissions.",
+      "room_closed": "Only owners and the members that you add can open this room. To open it, allow room.list, room.join, and message.read for everyone or for a role in the room permissions, and message.post to let them post.",
       "group_open": "Everyone can find and join the rooms in this room group.",
       "group_open_unlisted": "Everyone can join the rooms in this room group, but they do not show in the room list for everyone.",
+      "group_join_no_read": "Everyone can join the rooms in this room group, but cannot read them. To open them, also allow message.read, and message.post to let members post.",
       "group_roles": "Only members of these roles can join the rooms in this room group: {roles}.",
-      "group_closed": "Only owners and the members that you add can open the rooms in this room group. To open them, allow room.list and room.join for everyone or for a role below."
+      "group_closed": "Only owners and the members that you add can open the rooms in this room group. To open them, allow room.list, room.join, and message.read for everyone or for a role below, and message.post to let them post."
     }
   }
 }

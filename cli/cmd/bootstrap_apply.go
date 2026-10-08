@@ -378,7 +378,8 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 	// every existing channel room so dev/e2e users land ready to use the
 	// server.
 	for _, name := range inst.Rooms {
-		if _, err := c.CreateRoom(ctx, ownerID, core.KindChannel, "", name, ""); err != nil {
+		// Configured rooms are opened to everyone like the seeded #general.
+		if _, err := c.CreateRoom(ctx, ownerID, core.KindChannel, "", name, "", core.WithOpenRoomDefaults()); err != nil {
 			if !errors.Is(err, core.ErrRoomNameExists) {
 				logger.Warn("Failed to create [bootstrap] room", "room", name, "error", err)
 			}

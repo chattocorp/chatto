@@ -61,9 +61,11 @@ export type TierRoles = {
 export type AccessSummary = {
   everyoneCanList: boolean;
   everyoneCanJoin: boolean;
+  /** Whether everyone can read it. A room that everyone can join but not read is not open. */
+  everyoneCanRead: boolean;
   /** Role names whose holders can find it although everyone cannot, highest first. */
   rolesCanList: string[];
-  /** Role names whose holders can join it although everyone cannot, highest first. */
+  /** Role names whose holders can join and read it although everyone cannot, highest first. */
   rolesCanJoin: string[];
 };
 
@@ -176,6 +178,7 @@ export function createPermissionAPI(config: ConnectAPIConfig) {
       return {
         everyoneCanList: response.everyoneCanList,
         everyoneCanJoin: response.everyoneCanJoin,
+        everyoneCanRead: response.everyoneCanRead,
         rolesCanList: [...response.rolesCanList],
         rolesCanJoin: [...response.rolesCanJoin]
       };

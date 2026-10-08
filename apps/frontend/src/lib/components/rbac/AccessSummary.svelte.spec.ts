@@ -19,6 +19,7 @@ function summary(overrides: Partial<Summary> = {}): Summary {
   return {
     everyoneCanList: false,
     everyoneCanJoin: false,
+    everyoneCanRead: false,
     rolesCanList: [],
     rolesCanJoin: [],
     ...overrides
@@ -64,7 +65,7 @@ it('names the roles that can join', async () => {
 
 it('tells when everyone can find and join the rooms of a room group', async () => {
   mocks.getAccessSummary.mockResolvedValue(
-    summary({ everyoneCanList: true, everyoneCanJoin: true })
+    summary({ everyoneCanList: true, everyoneCanJoin: true, everyoneCanRead: true })
   );
   render(AccessSummary, { groupId: 'group-1' });
 
@@ -74,8 +75,21 @@ it('tells when everyone can find and join the rooms of a room group', async () =
 });
 
 it('tells when everyone can join a room that is not listed for everyone', async () => {
-  mocks.getAccessSummary.mockResolvedValue(summary({ everyoneCanJoin: true }));
+  mocks.getAccessSummary.mockResolvedValue(
+    summary({ everyoneCanJoin: true, everyoneCanRead: true })
+  );
   render(AccessSummary, { roomId: 'room-1' });
 
-  await expect.element(page.getByText(/Everyone can join this room, but/)).toBeVisible();
+  await expect.element(page.getByText(/does not show in the room list/)).toBeVisible();
+});
+
+it('warns when everyone can join a room but cannot read it', async () => {
+  mocks.getAccessSummary.mockResolvedValue(
+    summary({ everyoneCanList: true, everyoneCanJoin: true })
+  );
+  render(AccessSummary, { roomId: 'room-1' });
+
+  await expect
+    .element(page.getByText(/Everyone can join this room, but cannot read it/))
+    .toBeVisible();
 });

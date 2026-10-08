@@ -522,12 +522,20 @@ export class GetAccessSummaryResponse extends Message<GetAccessSummaryResponse> 
   rolesCanList: string[] = [];
 
   /**
-   * Roles whose holders can join the room although everyone cannot, highest
-   * first. Empty when everyone can.
+   * Roles whose holders can join and read the room although everyone cannot,
+   * highest first. Empty when everyone can join and read it.
    *
    * @generated from field: repeated string roles_can_join = 4;
    */
   rolesCanJoin: string[] = [];
+
+  /**
+   * Whether every member can read the room (message.read). A room that
+   * everyone can join but not read is not open.
+   *
+   * @generated from field: bool everyone_can_read = 5;
+   */
+  everyoneCanRead = false;
 
   constructor(data?: PartialMessage<GetAccessSummaryResponse>) {
     super();
@@ -541,6 +549,7 @@ export class GetAccessSummaryResponse extends Message<GetAccessSummaryResponse> 
     { no: 2, name: "everyone_can_join", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 3, name: "roles_can_list", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 4, name: "roles_can_join", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 5, name: "everyone_can_read", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAccessSummaryResponse {

@@ -227,12 +227,14 @@
     "access": {
       "room_open": "Kõik saavad selle ruumi leida ja sellega liituda.",
       "room_open_unlisted": "Kõik saavad selle ruumiga liituda, kuid see ei ole kõigile ruumide loendis nähtav.",
+      "room_join_no_read": "Kõik saavad selle ruumiga liituda, kuid ei saa seda lugeda. Selle avamiseks lubage ka message.read ning liikmetele postitamiseks message.post.",
       "room_roles": "Selle ruumiga saavad liituda ainult nende rollide liikmed: {roles}.",
-      "room_closed": "Selle ruumi saavad avada ainult omanikud ja liikmed, kelle te lisate. Selle avamiseks lubage ruumi õigustes room.list ja room.join rollile everyone või mõnele rollile.",
+      "room_closed": "Selle ruumi saavad avada ainult omanikud ja liikmed, kelle te lisate. Selle avamiseks lubage ruumi õigustes room.list, room.join ja message.read rollile everyone või mõnele rollile ning postitamiseks message.post.",
       "group_open": "Kõik saavad selle ruumirühma ruumid leida ja nendega liituda.",
       "group_open_unlisted": "Kõik saavad selle ruumirühma ruumidega liituda, kuid need ei ole kõigile ruumide loendis nähtavad.",
+      "group_join_no_read": "Kõik saavad selle ruumirühma ruumidega liituda, kuid ei saa neid lugeda. Nende avamiseks lubage ka message.read ning liikmetele postitamiseks message.post.",
       "group_roles": "Selle ruumirühma ruumidega saavad liituda ainult nende rollide liikmed: {roles}.",
-      "group_closed": "Selle ruumirühma ruumid saavad avada ainult omanikud ja liikmed, kelle te lisate. Nende avamiseks lubage allpool room.list ja room.join rollile everyone või mõnele rollile."
+      "group_closed": "Selle ruumirühma ruumid saavad avada ainult omanikud ja liikmed, kelle te lisate. Nende avamiseks lubage allpool room.list, room.join ja message.read rollile everyone või mõnele rollile ning postitamiseks message.post."
     }
   }
 }

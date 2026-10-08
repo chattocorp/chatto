@@ -227,12 +227,14 @@
     "access": {
       "room_open": "Todos podem encontrar esta sala e entrar nela.",
       "room_open_unlisted": "Todos podem entrar nesta sala, mas ela não aparece para todos na lista de salas.",
+      "room_join_no_read": "Todos podem entrar nesta sala, mas não a podem ler. Para a abrir, permita também message.read e, para que os membros possam publicar, message.post.",
       "room_roles": "Só os membros destas funções podem entrar nesta sala: {roles}.",
-      "room_closed": "Só os proprietários e os membros que forem adicionados podem abrir esta sala. Para a abrir, permita room.list e room.join para everyone ou para uma função nas permissões da sala.",
+      "room_closed": "Só os proprietários e os membros que forem adicionados podem abrir esta sala. Para a abrir, permita room.list, room.join e message.read para everyone ou para uma função nas permissões da sala e, para que possam publicar, message.post.",
       "group_open": "Todos podem encontrar as salas deste grupo de salas e entrar nelas.",
       "group_open_unlisted": "Todos podem entrar nas salas deste grupo de salas, mas elas não aparecem para todos na lista de salas.",
+      "group_join_no_read": "Todos podem entrar nas salas deste grupo de salas, mas não as podem ler. Para as abrir, permita também message.read e, para que os membros possam publicar, message.post.",
       "group_roles": "Só os membros destas funções podem entrar nas salas deste grupo de salas: {roles}.",
-      "group_closed": "Só os proprietários e os membros que forem adicionados podem abrir as salas deste grupo de salas. Para as abrir, permita abaixo room.list e room.join para everyone ou para uma função."
+      "group_closed": "Só os proprietários e os membros que forem adicionados podem abrir as salas deste grupo de salas. Para as abrir, permita abaixo room.list, room.join e message.read para everyone ou para uma função e, para que possam publicar, message.post."
     }
   }
 }

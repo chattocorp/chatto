@@ -549,7 +549,7 @@ func TestDefaultChannelRoomPermissions(t *testing.T) {
 				if role == RoleEveryone && slices.Contains(DefaultAnnouncementsEveryonePermissions(), metadata.Permission) {
 					want = DecisionAllow
 				}
-				if role == RoleAdmin && metadata.Permission == PermMessagePost {
+				if role == RoleAdmin && slices.Contains(DefaultAnnouncementsAdminPermissions(), metadata.Permission) {
 					want = DecisionAllow
 				}
 				if got := core.rbacModel.decision(ScopeRoom, annRoom.Id, role, metadata.Permission); got != want {

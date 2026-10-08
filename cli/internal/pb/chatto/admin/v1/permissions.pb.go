@@ -596,11 +596,14 @@ type GetAccessSummaryResponse struct {
 	// Roles whose holders can find the room although everyone cannot, highest
 	// first. Empty when everyone can.
 	RolesCanList []string `protobuf:"bytes,3,rep,name=roles_can_list,json=rolesCanList,proto3" json:"roles_can_list,omitempty"`
-	// Roles whose holders can join the room although everyone cannot, highest
-	// first. Empty when everyone can.
-	RolesCanJoin  []string `protobuf:"bytes,4,rep,name=roles_can_join,json=rolesCanJoin,proto3" json:"roles_can_join,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Roles whose holders can join and read the room although everyone cannot,
+	// highest first. Empty when everyone can join and read it.
+	RolesCanJoin []string `protobuf:"bytes,4,rep,name=roles_can_join,json=rolesCanJoin,proto3" json:"roles_can_join,omitempty"`
+	// Whether every member can read the room (message.read). A room that
+	// everyone can join but not read is not open.
+	EveryoneCanRead bool `protobuf:"varint,5,opt,name=everyone_can_read,json=everyoneCanRead,proto3" json:"everyone_can_read,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *GetAccessSummaryResponse) Reset() {
@@ -659,6 +662,13 @@ func (x *GetAccessSummaryResponse) GetRolesCanJoin() []string {
 		return x.RolesCanJoin
 	}
 	return nil
+}
+
+func (x *GetAccessSummaryResponse) GetEveryoneCanRead() bool {
+	if x != nil {
+		return x.EveryoneCanRead
+	}
+	return false
 }
 
 // Matrix column scope.
@@ -2222,12 +2232,13 @@ const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"#GetRolePermissionTierMatrixResponse\x122\n" +
 	"\x06matrix\x18\x01 \x01(\v2\x1a.chatto.admin.v1.TierRolesR\x06matrix\"Q\n" +
 	"\x17GetAccessSummaryRequest\x126\n" +
-	"\x05scope\x18\x01 \x01(\v2 .chatto.admin.v1.PermissionScopeR\x05scope\"\xbe\x01\n" +
+	"\x05scope\x18\x01 \x01(\v2 .chatto.admin.v1.PermissionScopeR\x05scope\"\xea\x01\n" +
 	"\x18GetAccessSummaryResponse\x12*\n" +
 	"\x11everyone_can_list\x18\x01 \x01(\bR\x0feveryoneCanList\x12*\n" +
 	"\x11everyone_can_join\x18\x02 \x01(\bR\x0feveryoneCanJoin\x12$\n" +
 	"\x0eroles_can_list\x18\x03 \x03(\tR\frolesCanList\x12$\n" +
-	"\x0eroles_can_join\x18\x04 \x03(\tR\frolesCanJoin\"\x9f\x01\n" +
+	"\x0eroles_can_join\x18\x04 \x03(\tR\frolesCanJoin\x12*\n" +
+	"\x11everyone_can_read\x18\x05 \x01(\bR\x0feveryoneCanRead\"\x9f\x01\n" +
 	"\x15PermissionMatrixScope\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x128\n" +

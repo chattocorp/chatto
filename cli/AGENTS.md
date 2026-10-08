@@ -375,7 +375,13 @@ authorization, live events, backup and restore, and backend tests.
   operation that acts on another account.
 - Delegated authority is bounded: assigning, revoking, or deleting a role
   requires every allow of the role, and changing one role or direct-user
-  decision requires the actor to hold that permission at that scope. The `owner` role is owner-only. Keep these bounds in
+  decision requires the actor to hold that permission at that scope. One
+  exception lets room managers open rooms: at Room or Room group scope,
+  `room.manage` there covers each room permission that does not need
+  privileged mode (`actorCanSetDecision`, ADR-116). Check every bound,
+  matrix cell flag, and bot grant through `actorCanSetDecision` or
+  `requirePermissionDecisionWithinAuthority`, not through a direct permission
+  check. The `owner` role is owner-only. Keep these bounds in
   `role_assignment_authorization.go` and `rbac_hierarchy.go`, and run them
   inside the command's OCC retry.
 - Authorization-sensitive event writes must evaluate authorization inside the

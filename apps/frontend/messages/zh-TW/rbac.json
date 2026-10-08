@@ -227,12 +227,14 @@
     "access": {
       "room_open": "所有人都可以找到並加入此聊天室。",
       "room_open_unlisted": "所有人都可以加入此聊天室，但聊天室清單不會向所有人顯示它。",
+      "room_join_no_read": "所有人都可以加入此聊天室，但無法閱讀。若要開啟，請同時設定「允許」message.read；若要讓成員發言，請設定「允許」message.post。",
       "room_roles": "只有這些角色的成員可以加入此聊天室：{roles}。",
-      "room_closed": "只有擁有者和你新增的成員可以開啟此聊天室。若要開啟，請在聊天室權限中為 everyone 或某個角色設定「允許」room.list 和 room.join。",
+      "room_closed": "只有擁有者和你新增的成員可以開啟此聊天室。若要開啟，請在聊天室權限中為 everyone 或某個角色設定「允許」room.list、room.join 和 message.read；若要讓他們發言，請設定「允許」message.post。",
       "group_open": "所有人都可以找到並加入此聊天室群組中的聊天室。",
       "group_open_unlisted": "所有人都可以加入此聊天室群組中的聊天室，但聊天室清單不會向所有人顯示它們。",
+      "group_join_no_read": "所有人都可以加入此聊天室群組中的聊天室，但無法閱讀。若要開啟，請同時設定「允許」message.read；若要讓成員發言，請設定「允許」message.post。",
       "group_roles": "只有這些角色的成員可以加入此聊天室群組中的聊天室：{roles}。",
-      "group_closed": "只有擁有者和你新增的成員可以開啟此聊天室群組中的聊天室。若要開啟，請在下方為 everyone 或某個角色設定「允許」room.list 和 room.join。"
+      "group_closed": "只有擁有者和你新增的成員可以開啟此聊天室群組中的聊天室。若要開啟，請在下方為 everyone 或某個角色設定「允許」room.list、room.join 和 message.read；若要讓他們發言，請設定「允許」message.post。"
     }
   }
 }

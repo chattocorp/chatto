@@ -34,6 +34,7 @@ func (s *permissionService) GetAccessSummary(ctx context.Context, req *connect.R
 	return connect.NewResponse(&adminv1.GetAccessSummaryResponse{
 		EveryoneCanList: summary.EveryoneCanList,
 		EveryoneCanJoin: summary.EveryoneCanJoin,
+		EveryoneCanRead: summary.EveryoneCanRead,
 		RolesCanList:    summary.RolesCanList,
 		RolesCanJoin:    summary.RolesCanJoin,
 	}), nil

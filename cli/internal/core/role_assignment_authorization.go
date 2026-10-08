@@ -146,15 +146,44 @@ func (c *ChattoCore) requireRoleDecisionsWithinAuthority(ctx context.Context, ac
 // they lack nor remove a restriction that they could not grant back. Effective
 // owners pass because they hold every permission while privileged mode is
 // active, which every RBAC management permission already requires.
+//
+// One exception lets room managers open their rooms: at room or room-group
+// scope, holding room.manage there is enough for a room permission that does
+// not need privileged mode, such as room.join or message.post (ADR-116). A
+// holder of room.manage can already add any account to the room, so this
+// gives no new access to the room.
 func (c *ChattoCore) requirePermissionDecisionWithinAuthority(ctx context.Context, actorID string, scope PermissionScope, scopeID string, perm Permission) error {
-	has, err := c.actorHasScopedPermission(ctx, actorID, ScopedRolePermissionDecision{Scope: scope, ScopeID: scopeID, Permission: perm})
+	can, err := c.actorCanSetDecision(ctx, actorID, ScopedRolePermissionDecision{Scope: scope, ScopeID: scopeID, Permission: perm})
 	if err != nil {
 		return err
 	}
-	if !has {
+	if !can {
 		return ErrPermissionDenied
 	}
 	return nil
+}
+
+// actorCanSetDecision reports whether the actor's authority covers a change
+// to decision (requirePermissionDecisionWithinAuthority). The permission
+// matrices use it to tell which cells the viewer can change.
+func (c *ChattoCore) actorCanSetDecision(ctx context.Context, actorID string, decision ScopedRolePermissionDecision) (bool, error) {
+	has, err := c.actorHasScopedPermission(ctx, actorID, decision)
+	if err != nil || has || !roomManagersCanSet(decision.Scope, decision.Permission) {
+		return has, err
+	}
+	decision.Permission = PermRoomManage
+	return c.actorHasScopedPermission(ctx, actorID, decision)
+}
+
+// roomManagersCanSet reports whether a holder of room.manage at a room or
+// room group may set perm there without holding it: perm applies to rooms and
+// does not need privileged mode.
+func roomManagersCanSet(scope PermissionScope, perm Permission) bool {
+	if scope != ScopeRoom && scope != ScopeGroup {
+		return false
+	}
+	meta, known := GetPermissionMetadata(perm)
+	return known && !meta.RequiresPrivilegedMode && PermissionAppliesAtScope(perm, ScopeRoom)
 }
 
 func (c *ChattoCore) actorHasScopedPermission(ctx context.Context, actorID string, decision ScopedRolePermissionDecision) (bool, error) {
