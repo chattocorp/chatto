@@ -34,6 +34,7 @@ func init() {
 		operatorUserDeleteCmd(),
 		operatorUserAddEmailCmd(),
 		operatorUserRoleCmd(),
+		operatorUserIdentityCmd(),
 	)
 }
 
