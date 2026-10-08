@@ -241,9 +241,11 @@ it.each([false, true])(
 it.each(['sidebar', 'stage'] as const)(
   'toggles the selected video from its menu and synchronizes header state in %s',
   async (layout) => {
-    const screen = renderCallPanelHarness({ scenario: 'screen', layout });
+    const screen = renderCallPanelHarness({ scenario: 'screen', layout, playableMedia: true });
+    const tileVideo = (index: number) =>
+      screen.container.querySelectorAll<HTMLVideoElement>('video')[index];
     await expect.poll(() => screen.container.querySelector('video')).not.toBeNull();
-    const firstVideo = screen.container.querySelector('video')!;
+    const firstVideo = tileVideo(0);
     const menuButton = await openVideoMenu(firstVideo);
     expect(menuButton.getAttribute('aria-pressed')).toBe('false');
     menuButton.click();
@@ -255,18 +257,24 @@ it.each(['sidebar', 'stage'] as const)(
       .poll(() => pipButton(mediaCards(screen.container)[0]).getAttribute('aria-pressed'))
       .toBe('true');
 
-    const activeMenu = await openVideoMenu(firstVideo);
+    // A panel remount retains the original PiP video outside its replacement tile.
+    await screen.getByRole('button', { name: 'Hide call panel' }).click();
+    await screen.getByRole('button', { name: 'Show call panel' }).click();
+    expect(firstVideo.closest('[data-call-pip-host]')).not.toBeNull();
+
+    const activeMenu = await openVideoMenu(tileVideo(0));
     expect(activeMenu.getAttribute('aria-pressed')).toBe('true');
     await document.exitPictureInPicture();
     await expect.poll(() => activeMenu.getAttribute('aria-pressed')).toBe('false');
+    const nextFirstVideo = tileVideo(0);
     activeMenu.click();
-    await expect.poll(() => currentVideo).toBe(firstVideo);
+    await expect.poll(() => currentVideo).toBe(nextFirstVideo);
 
-    const secondVideo = screen.container.querySelectorAll('video')[1];
-    (await openVideoMenu(secondVideo)).click();
+    const secondVideo = tileVideo(1);
+    (await openVideoMenu(tileVideo(1))).click();
     await expect.poll(() => currentVideo).toBe(secondVideo);
     expect(pipButton(mediaCards(screen.container)[0]).getAttribute('aria-pressed')).toBe('false');
-    (await openVideoMenu(secondVideo)).click();
+    (await openVideoMenu(tileVideo(1))).click();
     await expect.poll(() => currentVideo).toBeNull();
   }
 );
