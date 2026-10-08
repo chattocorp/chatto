@@ -9,29 +9,11 @@ import (
 	"hmans.de/chatto/internal/authctx"
 )
 
-// PermissionResolver handles permission resolution using a deliberately small
-// model:
-//
-//  1. Effective owners are entitled to every known RBAC permission. The
-//     override is effective only where privileged mode allows it; otherwise
-//     owners resolve through the same rules as everyone else.
-//  2. For everyone else, permissions outside the DM scope are denied in DMs.
-//  3. Each direct-user or explicitly assigned role contributes its nearest
-//     decision (room, then group, then server). Across those decisions, any
-//     deny wins; otherwise any allow grants the permission.
-//  4. The implicit everyone role supplies the nearest scope baseline. A named
-//     allow overrides an everyone deny only at the same or a nearer scope;
-//     named denies always win.
-//  5. An allow from an explicitly including permission satisfies the requested
-//     permission. Denies do not propagate through an inclusion.
-//  6. No decision is denied at the API boundary.
-//
-// This makes everyone a scoped baseline rather than an absolute restriction: a
-// room allow can grant access that everyone lacks in that room, while an
-// unrelated server-wide role grant cannot bypass a nearer room baseline. A
-// deny from another named role (for example suspended) still blocks the action.
-// Scope specificity is evaluated independently for each subject, so a room
-// decision replaces that subject's group/server decision for the room.
+// PermissionResolver resolves permissions. explain holds the rules (ADR-116):
+// the owner override in privileged mode, DM applicability, inclusion, a deny
+// on the user, allows of the user and named roles against the everyone
+// baseline, and the privileged-mode gate. Every authorization check,
+// explanation, and permission matrix goes through these rules.
 type PermissionResolver struct {
 	core *ChattoCore
 }
@@ -267,6 +249,13 @@ func (r *PermissionResolver) explainHumanDecisions(ctx context.Context, userID s
 	if err != nil {
 		return fmt.Errorf("failed to get user roles: %w", err)
 	}
+	r.explainSubjectDecisions(userID, roles, kind, roomID, groupID, perm, exp)
+	return nil
+}
+
+// explainSubjectDecisions applies inclusion and the subject rules of explain
+// to the settings of userID (empty for none), the named roles, and everyone.
+func (r *PermissionResolver) explainSubjectDecisions(userID string, roles []string, kind RoomKind, roomID, groupID string, perm Permission, exp *PermissionExplanation) {
 	for _, candidate := range append(includingPermissions(perm), perm) {
 		if _, known := GetPermissionMetadata(candidate); !known {
 			continue
@@ -286,9 +275,8 @@ func (r *PermissionResolver) explainHumanDecisions(ctx context.Context, userID s
 		if decided {
 			exp.State, exp.DecidedAt, exp.DecidedByRole = state, winner.Level, winner.RoleName
 		}
-		return nil
+		return
 	}
-	return nil
 }
 
 // explainBot resolves a bot: its own allowlist, where an allow of an including
@@ -372,21 +360,9 @@ func (r *PermissionResolver) resolveRoleHolder(roleName string, kind RoomKind, r
 	if roleName != RoleEveryone {
 		roles = []string{roleName}
 	}
-	for _, candidate := range append(includingPermissions(perm), perm) {
-		if _, known := GetPermissionMetadata(candidate); !known {
-			continue
-		}
-		scopes := r.applicableScopeTargets(kind, roomID, groupID, candidate)
-		decisions := collectApplicableDecisions(func(scope PermissionScope, scopeID, subject string) DecisionKind {
-			return r.decisionFor(scope, scopeID, subject, candidate)
-		}, "", roles, scopes)
-		state, _, _ := resolveApplicablePermissionDecisions(decisions)
-		if candidate != perm && state != DecisionAllow {
-			continue
-		}
-		return state
-	}
-	return DecisionNone
+	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
+	r.explainSubjectDecisions("", roles, kind, roomID, groupID, perm, &exp)
+	return exp.State
 }
 
 // groupForRoom returns groupID, or the group of a channel room when the
