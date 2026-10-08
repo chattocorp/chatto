@@ -126,7 +126,8 @@ Guests cannot start direct messages or post in them, because direct messages
 use the Server setting when there is no Direct messages setting. They also
 cannot reply to a moderator's direct message. To let them, allow
 `message.post` for `everyone` at Direct messages scope. To also stop calls,
-deny `call.start` and `call.join` for `everyone`.
+set `call.start` and `call.join` for `everyone` at Server scope to
+**Inherit**, and allow them for `member`.
 
 ## Private Room for One Role
 
