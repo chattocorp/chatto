@@ -13,6 +13,65 @@ is connected to, plus the add-server button pinned to the bottom. See the
   import { m } from '$lib/i18n/messages';
   import { ScrollFader } from '$lib/ui';
   import ServerSidebarEntry from './ServerSidebarEntry.svelte';
+  import { serverGutterOrder } from '$lib/state/serverGutterOrder.svelte';
+  import type { Attachment } from 'svelte/attachments';
+  import { MediaQuery } from 'svelte/reactivity';
+  import { TOUCH_ONLY_QUERY } from '$lib/utils/inputMediaQueries';
+  import type { GutterItem } from './serverGutterDrag.svelte';
+
+  const touchOnly = new MediaQuery(TOUCH_ONLY_QUERY, false);
+  const servers = $derived(serverRegistry.servers);
+  const origin = $derived(servers.find((server) => serverRegistry.isOriginServer(server.id)));
+  const remoteIds = $derived(
+    servers
+      .filter(
+        (server) =>
+          !serverRegistry.isOriginServer(server.id) && serverRegistry.tryGetStore(server.id)
+      )
+      .map((server) => server.id)
+  );
+  const membership = $derived([...remoteIds].sort().join('\0'));
+  const orderedItems: GutterItem[] = $derived(
+    serverGutterOrder.ordered(remoteIds).map((id) => ({ id, serverId: id }))
+  );
+  let preview = $state.raw<GutterItem[] | null>(null);
+  const items: GutterItem[] = $derived(preview ?? orderedItems);
+  const syncOrder: Attachment = () => serverGutterOrder.listen();
+  /** Restart the drag action when membership changes, cancelling stale drops. */
+  const dragServers: Attachment<HTMLDivElement> = (node) => {
+    const initialMembership = membership;
+    if (touchOnly.current || remoteIds.length < 2) return;
+    let disposed = false;
+    let detach: (() => void) | undefined;
+    // Public pages import the gutter. Keep drag code outside their initial graph.
+    void import('./serverGutterDrag.svelte').then(({ attachServerGutterDrag }) => {
+      if (disposed) return;
+      detach = attachServerGutterDrag(node, {
+        items: () => items,
+        consider: (detail) => {
+          if (membership === initialMembership) preview = detail.items;
+        },
+        finalize: ({ items: dropped, info }) => {
+          const ids = dropped.filter((item) => !item.isDndShadowItem).map((item) => item.serverId);
+          if (
+            membership === initialMembership &&
+            info.trigger !== 'droppedOutsideOfAny' &&
+            ids.length === remoteIds.length &&
+            ids.every((id, index) => ids.indexOf(id) === index) &&
+            ids.every((id) => remoteIds.includes(id))
+          ) {
+            serverGutterOrder.save(ids);
+          }
+          preview = null;
+        }
+      });
+    });
+    return () => {
+      disposed = true;
+      detach?.();
+      preview = null;
+    };
+  };
 
   const directoryHref = resolve('/chat/servers');
   const directoryActive = $derived(
@@ -41,19 +100,38 @@ is connected to, plus the add-server button pinned to the bottom. See the
   }
 </script>
 
-<div class="server-gutter flex min-h-0 flex-1 flex-col border-e border-border">
+<div class="server-gutter flex min-h-0 flex-1 flex-col border-e border-border" {@attach syncOrder}>
   <ScrollFader top bottom scrollClass="scrollbar-hide">
     <div class="flex flex-col gap-2 p-2 max-md:ps-3">
-      {#each serverRegistry.servers as server (server.id)}
-        {@const store = serverRegistry.tryGetStore(server.id)}
+      {#if origin}
+        {@const store = serverRegistry.tryGetStore(origin.id)}
         {#if store}
-          <!-- Authentication changes replace the per-server store. Remount the
-               entry so its one-time private-data load follows the new state. -->
           {#key store}
-            <ServerSidebarEntry serverId={server.id} />
+            <ServerSidebarEntry serverId={origin.id} />
           {/key}
         {/if}
-      {/each}
+      {/if}
+      <div
+        class="flex flex-col gap-2"
+        data-sidebar-swipe-ignore={!touchOnly.current || undefined}
+        data-testid="remote-server-list"
+        {@attach dragServers}
+      >
+        {#each items as item (item.id)}
+          {@const store = serverRegistry.tryGetStore(item.serverId)}
+          <div
+            aria-hidden={item.isDndShadowItem || undefined}
+            data-is-dnd-shadow-item-hint={item.isDndShadowItem || undefined}
+          >
+            {#if store}
+              <!-- Authentication changes replace the store; ordering keeps the entry mounted. -->
+              {#key store}
+                <ServerSidebarEntry serverId={item.serverId} />
+              {/key}
+            {/if}
+          </div>
+        {/each}
+      </div>
     </div>
   </ScrollFader>
 

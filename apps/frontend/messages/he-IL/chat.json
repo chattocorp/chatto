@@ -53,6 +53,9 @@
       "copy_user_id": "העתקת מזהה המשתמש"
     },
     "server_gutter": {
+      "home_server": "שרת הבית",
+      "move_up": "העבר למעלה",
+      "move_down": "העבר למטה",
       "add_server": "הוסף שרת",
       "log_in": "התחברות לשרת הזה",
       "sign_out": "התנתקות מהשרת הזה",

@@ -5,10 +5,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"strings"
 
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
+
+// errExternalIdentityAlreadyLinked ends an idempotent link before publication.
+var errExternalIdentityAlreadyLinked = errors.New("external identity already linked to this account")
 
 var (
 	// ErrExternalIdentityAlreadyClaimed is returned when an external identity is already linked to a different user.
@@ -52,15 +56,33 @@ func (c *ChattoCore) GetUserByExternalIdentityForAuthentication(ctx context.Cont
 // providers. providerID/providerType are event-time metadata and are not used
 // for lookup, so config changes do not break existing links. Idempotent for the same user.
 func (c *ChattoCore) LinkExternalIdentity(ctx context.Context, providerID, providerType, issuer, subject, userID string) error {
-	if err := c.requireHumanUser(ctx, userID); err != nil {
-		return err
+	_, err := c.LinkExternalIdentityAs(ctx, userID, providerID, providerType, issuer, subject, userID)
+	return err
+}
+
+// LinkExternalIdentityAs links an operator-verified or provider-verified identity
+// with explicit actor attribution. It checks ownership across all users and
+// waits for authentication projection catch-up. Repeating the same link does
+// not append another event. Issuer and subject are exact, opaque identifiers.
+func (c *ChattoCore) LinkExternalIdentityAs(ctx context.Context, actorID, providerID, providerType, issuer, subject, userID string) (ExternalIdentity, error) {
+	if actorID == "" {
+		return ExternalIdentity{}, ErrNotAuthenticated
 	}
-	event := newEvent(userID, &evtv1.Event{Event: &evtv1.Event_UserExternalIdentityLinked{
+	for _, value := range []string{providerID, providerType, issuer, subject, userID} {
+		if strings.TrimSpace(value) == "" {
+			return ExternalIdentity{}, ErrInvalidArgument
+		}
+	}
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return ExternalIdentity{}, err
+	}
+	identity := ExternalIdentity{ProviderID: providerID, ProviderType: providerType, Issuer: issuer, Subject: subject, SubjectHash: externalIdentityHash(issuer, subject)}
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserExternalIdentityLinked{
 		UserExternalIdentityLinked: &evtv1.UserExternalIdentityLinkedEvent{
 			UserId:       userID,
 			Issuer:       issuer,
 			Subject:      subject,
-			SubjectHash:  externalIdentityHash(issuer, subject),
+			SubjectHash:  identity.SubjectHash,
 			ProviderId:   providerID,
 			ProviderType: providerType,
 		},
@@ -77,12 +99,25 @@ func (c *ChattoCore) LinkExternalIdentity(ctx context.Context, providerID, provi
 		if claimed && existingUserID != userID {
 			return ErrExternalIdentityAlreadyClaimed
 		}
-		if !claimed {
-			if err := c.requireVerifiedAccountCapacity(ctx, userID); err != nil {
-				return err
+		if claimed {
+			for _, stored := range c.userModel.externalIdentities(userID) {
+				if stored.SubjectHash == identity.SubjectHash {
+					identity = stored
+					break
+				}
 			}
+			return errExternalIdentityAlreadyLinked
+		}
+		if err := c.requireVerifiedAccountCapacity(ctx, userID); err != nil {
+			return err
 		}
 		return nil
 	})
-	return err
+	if errors.Is(err, errExternalIdentityAlreadyLinked) {
+		return identity, nil
+	}
+	if err != nil {
+		return ExternalIdentity{}, err
+	}
+	return identity, nil
 }

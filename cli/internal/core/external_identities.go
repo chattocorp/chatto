@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -325,7 +326,14 @@ func (c *ChattoCore) ConfirmPendingExternalIdentityLink(ctx context.Context, flo
 	}, nil
 }
 
+// ExternalIdentitiesForUser returns detached identity links for an existing
+// human account, ordered by provider ID and hash. It catches up both user and
+// authentication projections. The raw issuer and subject require an account-
+// owner or operator response boundary; they must not be logged.
 func (c *ChattoCore) ExternalIdentitiesForUser(ctx context.Context, userID string) ([]ExternalIdentity, error) {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return nil, err
+	}
 	if err := c.userModel.waitForUsersCurrent(ctx, "external identities", evtstream.UserAggregate(userID).AllEventsFilter()); err != nil {
 		return nil, err
 	}
@@ -337,6 +345,37 @@ func (c *ChattoCore) ExternalIdentitiesForUser(ctx context.Context, userID strin
 // accounts so users created through SSO cannot lock themselves out.
 // Existing sessions remain valid; unlinking removes a future sign-in method.
 func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, subjectHash string) error {
+	return c.disconnectExternalIdentity(ctx, userID, userID, subjectHash, nil)
+}
+
+// ExternalIdentitySignInPolicy describes the sign-in methods enabled on the
+// serving replica. Issuers contains exact OIDC issuer URLs and configured
+// provider IDs for OAuth-only providers. Stored event-time provider IDs do not
+// determine whether an identity is usable.
+type ExternalIdentitySignInPolicy struct {
+	// PasswordLoginEnabled counts a stored password as an available method.
+	PasswordLoginEnabled bool
+	// Issuers contains identity namespaces accepted by configured providers.
+	Issuers []string
+}
+
+// AllowsIdentity reports whether a configured provider accepts this namespace.
+func (p ExternalIdentitySignInPolicy) AllowsIdentity(identity ExternalIdentity) bool {
+	return slices.Contains(p.Issuers, identity.Issuer)
+}
+
+// DisconnectExternalIdentityAs removes a link with explicit actor attribution.
+// It refuses removal when no method enabled by policy would remain. The check
+// runs inside user OCC, so concurrent removals cannot remove both last methods.
+// Existing sessions remain valid. A missing link returns ErrExternalIdentityNotFound.
+func (c *ChattoCore) DisconnectExternalIdentityAs(ctx context.Context, actorID, userID, subjectHash string, policy ExternalIdentitySignInPolicy) error {
+	return c.disconnectExternalIdentity(ctx, actorID, userID, subjectHash, &policy)
+}
+
+func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, userID, subjectHash string, policy *ExternalIdentitySignInPolicy) error {
+	if actorID == "" {
+		return ErrNotAuthenticated
+	}
 	if err := c.requireHumanUser(ctx, userID); err != nil {
 		return err
 	}
@@ -345,7 +384,7 @@ func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, sub
 	if userID == "" || subjectHash == "" {
 		return ErrInvalidArgument
 	}
-	event := newEvent(userID, &evtv1.Event{Event: &evtv1.Event_UserExternalIdentityUnlinked{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserExternalIdentityUnlinked{
 		UserExternalIdentityUnlinked: &evtv1.UserExternalIdentityUnlinkedEvent{
 			UserId:                      userID,
 			SubjectHash:                 subjectHash,
@@ -362,16 +401,22 @@ func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, sub
 		}
 		identities := c.userModel.externalIdentities(userID)
 		found := false
+		remainingIdentity := false
 		for _, identity := range identities {
 			if identity.SubjectHash == subjectHash {
 				found = true
-				break
+				continue
+			}
+			if policy == nil || policy.AllowsIdentity(identity) {
+				remainingIdentity = true
 			}
 		}
 		if !found {
 			return ErrExternalIdentityNotFound
 		}
-		if _, hasPassword := c.userModel.passwordHash(userID); !hasPassword && len(identities) <= 1 {
+		_, hasPassword := c.userModel.passwordHash(userID)
+		passwordAvailable := hasPassword && (policy == nil || policy.PasswordLoginEnabled)
+		if !passwordAvailable && !remainingIdentity {
 			return ErrExternalIdentityLastMethod
 		}
 		return nil

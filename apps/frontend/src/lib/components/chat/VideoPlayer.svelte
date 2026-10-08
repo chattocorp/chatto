@@ -9,6 +9,7 @@
     shouldAbortHLSRecovery
   } from '$lib/media/hls';
   import { m } from '$lib/i18n/messages';
+  import { retainPlayback } from '$lib/media/playbackRetention';
 
   import 'vidstack/player/styles/default/theme.css';
   import 'vidstack/player/styles/default/layouts/video.css';
@@ -50,6 +51,7 @@
     describedBy,
     autoLoop = false,
     viewer = false,
+    onPlaybackChange,
     onMediaError,
     onPosterError
   }: {
@@ -67,6 +69,11 @@
     autoLoop?: boolean;
     /** Fit the player to the shared attachment viewer rather than a timeline thumbnail. */
     viewer?: boolean;
+    /**
+     * Report playback until pause, end, failure, source clearing, or player removal.
+     * Picture-in-picture keeps playback active until it ends. GIF loops are excluded.
+     */
+    onPlaybackChange?: (active: boolean) => void;
     onMediaError?: () => void | Promise<string | null>;
     onPosterError?: () => void;
   } = $props();
@@ -341,8 +348,10 @@
   </div>
 {:else if status === 'COMPLETED' && playbackSource && elementsReady}
   <div class="embed-frame" style={frameStyle}>
+    <!-- Read the prop only on use: a rerun attachment would lose its playback state. -->
     <media-player
       {@attach attachMediaPlayer}
+      {@attach retainPlayback((active) => onPlaybackChange?.(active))}
       src={videoSrc}
       stream-type="on-demand"
       playsinline
@@ -361,6 +370,25 @@
         {/if}
       </media-provider>
       <media-video-layout></media-video-layout>
+      <!-- Vidstack's compact layout omits PiP; use its native button beside casting. -->
+      <media-controls class="vds-controls preview-pip-controls">
+        <media-tooltip class="vds-tooltip">
+          <media-tooltip-trigger>
+            <media-pip-button
+              class="vds-pip-button vds-button preview-pip-button"
+              aria-label={m('voice.picture_in_picture')}
+            >
+              <span
+                class="iconify icon-[mdi--picture-in-picture-bottom-right] size-6"
+                aria-hidden="true"
+              ></span>
+            </media-pip-button>
+          </media-tooltip-trigger>
+          <media-tooltip-content class="vds-tooltip-content" placement="bottom">
+            {m('voice.picture_in_picture')}
+          </media-tooltip-content>
+        </media-tooltip>
+      </media-controls>
     </media-player>
   </div>
 {:else if status === 'PENDING' || status === 'PROCESSING'}
@@ -388,6 +416,22 @@
 {/if}
 
 <style>
+  /* Vidstack's runtime layout attributes need selectors beyond Tailwind utilities. */
+  :global(media-video-layout:not([data-sm])) ~ .preview-pip-controls {
+    display: none;
+  }
+
+  .preview-pip-controls {
+    --media-button-size: var(--video-sm-button-size, 36px);
+  }
+
+  .preview-pip-button {
+    position: absolute;
+    top: 4px;
+    left: calc(var(--video-sm-button-size, 36px) + 12px);
+    pointer-events: auto;
+  }
+
   /* Hide menus from Vidstack's default layout — not useful for embedded chat videos. */
   :global(media-player .vds-settings-menu),
   :global(media-player .vds-chapters-menu) {

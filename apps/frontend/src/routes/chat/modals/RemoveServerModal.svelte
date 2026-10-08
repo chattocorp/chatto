@@ -10,6 +10,7 @@
   import { unsubscribeBeforeLeaving as unsubscribePushBeforeLeaving } from '$lib/notifications/pushNotifications';
   import { ConfirmDialog } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
+  import { serverGutterOrder } from '$lib/state/serverGutterOrder.svelte';
 
   let {
     modal,
@@ -30,6 +31,7 @@
       await unsubscribePushBeforeLeaving(modal.serverId);
       clearLastRoom(modal.serverId);
       serverRegistry.removeServer(modal.serverId);
+      serverGutterOrder.forget(modal.serverId);
 
       if (!removingActiveServer) {
         onclose();

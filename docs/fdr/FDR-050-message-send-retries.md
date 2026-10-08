@@ -1,4 +1,4 @@
-# FDR-049: Message Send Retries
+# FDR-050: Message Send Retries
 
 **Status:** Experimental
 **Last reviewed:** 2026-10-08

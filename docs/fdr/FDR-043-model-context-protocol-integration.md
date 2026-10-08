@@ -275,7 +275,7 @@ message post.
 **Tradeoff:** Generic policy errors need human investigation. A completed
 write can still have a failed response. A keyed retry keeps the same message
 identity; an unkeyed post needs a result check. See
-[FDR-049](FDR-049-message-send-retries.md) and
+[FDR-050](FDR-050-message-send-retries.md) and
 [ADR-115](../adr/ADR-115-message-post-idempotency.md).
 
 ## Tool Admission Policy
@@ -372,7 +372,7 @@ relationships. The operation remains the source of truth.
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-023 (Authentication & Sessions),
   FDR-028 (Operator API & CLI), FDR-031 (Client–Server Compatibility
   Discovery), FDR-033 (Message Search), FDR-038 (Bot Accounts), FDR-039
-  (Message Access & Interactions), FDR-049 (Message Send Retries)
+  (Message Access & Interactions), FDR-050 (Message Send Retries)
 
 ## Open Questions
 
