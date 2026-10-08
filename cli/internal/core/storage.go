@@ -253,9 +253,9 @@ func createKeyValue(ctx context.Context, js jetstream.JetStream, cfg jetstream.K
 	return jetstreamutil.NewKeyValue(js, bucket)
 }
 
-// isKeyAbsent reports that a key-value read found no live entry. Bound reads
-// report a removal marker as jetstream.ErrKeyNotFound; other reads, such as a
-// raw revision read, report it as jetstream.ErrKeyDeleted.
+// isKeyAbsent reports that a key-value operation found no live entry. Reads
+// report a removal marker as jetstream.ErrKeyNotFound. The
+// jetstream.ErrKeyDeleted check is defensive.
 func isKeyAbsent(err error) bool {
 	return errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted)
 }

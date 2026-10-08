@@ -37,7 +37,7 @@ deliveries are always logged. Shutdown cancels outstanding pulls before active
 handlers and schedules redelivery beyond the maximum pull lifetime, preventing
 an orphaned server-side pull from reclaiming its own handoff.
 
-Owner-only admin diagnostics classify the seven known Chatto durable queues from
+Owner-only admin diagnostics classify the known Chatto durable queues from
 their JetStream consumer state without adding process-local health as a source
 of truth. Waiting pulls demonstrate availability. Ack-pending deliveries
 without a waiting pull are unconfirmed because they may be actively handled or

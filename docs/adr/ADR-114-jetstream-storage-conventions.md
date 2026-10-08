@@ -40,7 +40,7 @@ must not change data that is already stored.
 ### Rules for each Loom application
 
 These rules apply to Chatto and Authling. Each application applies them in
-its own code.
+its own code and records its exceptions in its own documentation.
 
 1. **Persisted contracts.** Resource names, resource configurations, stream
    subjects, key shapes, value encodings, and durable consumer names are
@@ -54,11 +54,12 @@ its own code.
    or backup policy that no existing resource gives. ADR-073 requires an
    explicit reason for a secondary event log. Record each new resource in an
    ADR or in the architecture inventory.
-3. **Declare each resource once.** Keep the name, the configuration, and the
-   backup policy of a resource in one place. The server, operator commands,
-   backup, restore, and test resets use that declaration. A test pins every
-   configuration, because each replica updates the resource to its own
-   configuration at startup.
+3. **Declare each resource fact once.** Declare the name, the configuration,
+   and the backup policy of each resource in one place each, for example a
+   registry for names and backup policies and one configuration function for
+   each resource. The server, operator commands, backup, restore, and test
+   resets use these declarations. A test pins every configuration, because
+   each replica updates the resource to its own configuration at startup.
 4. **Encode new records as protobuf.** A new record type uses protobuf from
    the package that names its storage contract (ADR-084). Do not add new JSON
    record types. A storage protobuf does not import a public API protobuf.
@@ -73,7 +74,9 @@ its own code.
 6. **Classify errors with shared helpers.** Classify OCC conflicts with
    `jetstreamutil.IsSequenceConflict`. After a conflict from `Create`, read the
    key again before you use the stored record, because a write in progress can
-   still fail. Use one helper per application for the "key is absent" check.
+   still fail. A raw create-once publish is different: only
+   `jetstream.ErrKeyExists` proves that the record is stored. Use a shared
+   helper for the "key is absent" check, not an inline check.
 7. **Report every durable consumer.** Declare each durable consumer name once
    and include it in the operator diagnostics.
 
@@ -92,6 +95,7 @@ its own code.
   list includes each durable consumer that core creates.
 - Key prefixes use snake_case. Keys that contain secret input use the hex
   HMAC from `runtime_token_keys.go`.
+- `isKeyAbsent` in `core` is the "key is absent" check.
 - Pass the bound `*jetstreamutil.KeyValue` handle in production code. A
   model can accept the `jetstream.KeyValue` interface so that tests can inject
   faults, but production wiring must pass the bound handle.
@@ -108,6 +112,8 @@ contracts:
   `chatto.api.v1.PresenceStatus` enum.
 - LiveKit call E2EE keys use the `key_material.v1.UserKeyEncryptionKey`
   message.
+- Push subscription and push endpoint owner keys use an unkeyed SHA-256 hash
+  of the push endpoint. The subscription key uses only the first 8 bytes.
 
 This ADR does not decide whether runtime records must be encrypted at rest.
 
