@@ -19,6 +19,7 @@ keep the compact menu without a navigation action.
 - `banningFromRoom` - Whether the room removal action is currently running
 - `onBanFromRoom` - Callback when "Remove from room" is clicked
 - `onOpenProfile` - Optional callback that opens the full room-sidebar profile
+- `extraActions` - Optional host actions, rendered before profile actions
 - `viewerSettings` - Optional viewer preferences for the user's local-time display
 - `onClose` - Callback to close the popover/sheet
 -->

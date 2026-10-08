@@ -12,6 +12,7 @@
   } = $props();
 
   let clickCount = $state(0);
+  let pressed = $state(false);
 </script>
 
 <output data-testid="click-count">{clickCount}</output>
@@ -28,6 +29,11 @@
       Copy identifier
     </MenuItem>
     <MenuItem dataTestid="text-button">Text-only action</MenuItem>
+    {#if containerRole === 'dialog'}
+      <MenuItem {pressed} dataTestid="toggle-button" onclick={() => (pressed = !pressed)}>
+        Picture-in-picture
+      </MenuItem>
+    {/if}
     <MenuItem href="/settings" dataTestid="link-item">Open settings</MenuItem>
     <MenuItem disabled dataTestid="disabled-button" onclick={() => (clickCount += 1)}>
       Unavailable action

@@ -13,7 +13,7 @@
       docs: {
         description: {
           component:
-            'Standard command entry for context menus and action sheets. Supports buttons, links, optional or custom leading content, trailing content, destructive tone, disabled state, wrapped labels, and RTL icon mirroring.'
+            'Standard command entry for context menus and action sheets. Supports buttons, links, optional or custom leading content, trailing content, destructive tone, disabled state, pressed toggle buttons, wrapped labels, and RTL icon mirroring.'
         }
       }
     }
@@ -27,6 +27,7 @@
     presentation: () => 'floating',
     containerRole: () => 'menu'
   });
+  let pressed = $state(false);
 </script>
 
 <Story name="Common states" asChild>
@@ -43,13 +44,23 @@
 
 <Story name="Dialog toggle" asChild>
   <ContextMenu
-    position={{ x: 20, y: 20 }}
     role="dialog"
-    ariaLabel="Call actions"
+    ariaLabel="Video actions"
+    presentation="floating"
+    position={{ x: 24, y: 32 }}
     onclose={() => {}}
   >
     <MenuSection>
-      <MenuItem pressed={true} icon="icon-[uil--volume-mute]">Mute locally</MenuItem>
+      <MenuItem
+        icon="icon-[mdi--picture-in-picture-bottom-right]"
+        {pressed}
+        onclick={() => (pressed = !pressed)}
+      >
+        Picture-in-picture
+        {#snippet trailing()}
+          {#if pressed}<span class="iconify icon-[uil--check]" aria-hidden="true"></span>{/if}
+        {/snippet}
+      </MenuItem>
     </MenuSection>
   </ContextMenu>
 </Story>
