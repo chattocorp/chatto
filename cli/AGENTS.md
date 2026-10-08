@@ -417,7 +417,7 @@ authorization, live events, backup and restore, and backend tests.
 - `KV_ENCRYPTION_KEYS`/KEK material is intentionally separate from data backups.
   Use `chatto keys export`/`import` for built-in KMS key records.
 - When adding streams, KV buckets, or Object Stores, decide whether backup should
-  include or skip them and update `skipReason()` if needed.
+  include or skip them and record that policy in `internal/natsresources`.
 
 ## Backend Tests
 
@@ -458,6 +458,12 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
   `-parallel 4` to `-race` runs. The race detector makes tests much slower,
   and with more concurrent tests, tests that wait for background work can
   miss their deadlines.
+- A test helper that deletes a JetStream stream and then creates one with the
+  same name on the same server must also remove the stream's directories.
+  nats-server moves a deleted stream's directory aside and removes it in the
+  background. When an earlier removal is still running, the move fails and
+  the server ignores the error. The new stream then recovers the old
+  messages. `testutil.ResetChattoJetStream` shows how to remove them.
 - Treat fixture and setup errors as fatal before using returned values. Never
   discard an error from helpers such as `CreateRoom` or `CreateUser` and then
   dereference the result; fail the test at the setup call instead.
