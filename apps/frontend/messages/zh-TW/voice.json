@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "{name}的操作",
     "picture_in_picture": "子母畫面",
     "picture_in_picture_failed": "無法變更子母畫面模式。",
     "connection_lost": "連線已中斷",

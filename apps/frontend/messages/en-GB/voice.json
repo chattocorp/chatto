@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "Actions for {name}",
     "picture_in_picture": "Picture-in-picture",
     "picture_in_picture_failed": "Could not change picture-in-picture mode.",
     "connection_lost": "Connection lost",

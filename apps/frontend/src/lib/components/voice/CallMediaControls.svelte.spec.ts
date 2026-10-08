@@ -70,6 +70,8 @@ it('keeps PiP through panel remounts and closes it when the call ends', async ()
   pipButton(mediaCards(screen.container)[0]).click();
   await expect.poll(() => currentVideo).toBe(video);
   await screen.getByRole('button', { name: 'Hide call panel' }).click();
+  await expect.element(screen.getByRole('button', { name: 'Show call panel' })).toBeInTheDocument();
+  await expect.poll(() => video.closest('[data-call-pip-host]')).not.toBeNull();
   expect(video.isConnected).toBe(true);
   expect(video.closest('[data-call-pip-host]')).not.toBeNull();
   expect(video.play).toHaveBeenCalled();
@@ -132,6 +134,10 @@ it.each(['browser', 'call'] as const)(
     pipWindow.width = 800;
     pipWindow.height = 450;
     await screen.getByRole('button', { name: 'Hide call panel' }).click();
+    await expect
+      .element(screen.getByRole('button', { name: 'Show call panel' }))
+      .toBeInTheDocument();
+    await expect.poll(() => video.closest('[data-call-pip-host]')).not.toBeNull();
     const host = video.closest<HTMLElement>('[data-call-pip-host]')!;
     expect(host.style.width).toBe('800px');
     expect(host.style.height).toBe('450px');
@@ -159,6 +165,124 @@ function mediaCards(container: HTMLElement) {
 function pipButton(card: HTMLElement) {
   return card.querySelector<HTMLButtonElement>('[data-testid="call-feed-pip-button"]')!;
 }
+
+it('shares PiP state between overflow and inline controls without interrupting the video', async () => {
+  const screen = renderCallPanelHarness({
+    layout: 'sidebar',
+    scenario: 'screen',
+    playableMedia: true
+  });
+  await expect.poll(() => mediaCards(screen.container).length).toBeGreaterThan(1);
+  const [share, camera] = mediaCards(screen.container);
+  for (const card of [share, camera]) {
+    card.style.width = '319px';
+    await expect.poll(() => card.querySelector('[data-testid="call-feed-pip-button"]')).toBeNull();
+    const trigger = card.querySelector<HTMLButtonElement>(
+      '[data-testid="call-participant-menu-button"]'
+    )!;
+    trigger.click();
+    await expect
+      .poll(() => document.querySelector('[popover] [data-testid="call-feed-pip-button"]'))
+      .not.toBeNull();
+    const button = document.querySelector<HTMLButtonElement>(
+      '[popover] [data-testid="call-feed-pip-button"]'
+    )!;
+    expect(
+      Array.from(button.parentElement!.querySelectorAll('[data-testid]')).map((element) =>
+        element.getAttribute('data-testid')
+      )
+    ).toEqual([
+      'call-feed-pip-button',
+      'call-feed-fullscreen-button',
+      'call-feed-local-mute-button'
+    ]);
+    button.click();
+    await expect.poll(() => currentVideo).toBe(card.querySelector('video'));
+    await expect.poll(() => button.getAttribute('aria-pressed')).toBe('true');
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await expect.poll(() => document.querySelector('[data-testid="copy-user-id"]')).toBeNull();
+    expect(currentVideo).toBe(card.querySelector('video'));
+    trigger.click();
+    await expect
+      .poll(() =>
+        document
+          .querySelector('[popover] [data-testid="call-feed-pip-button"]')
+          ?.getAttribute('aria-pressed')
+      )
+      .toBe('true');
+    card.style.width = '320px';
+    await expect.poll(() => document.querySelector('[data-testid="copy-user-id"]')).toBeNull();
+    await expect.poll(() => pipButton(card)?.getAttribute('aria-pressed')).toBe('true');
+    expect(currentVideo).toBe(card.querySelector('video'));
+    pipButton(card).click();
+    await expect.poll(() => currentVideo).toBeNull();
+  }
+});
+
+it('targets the selected media card for fullscreen from overflow and hides unsupported PiP', async () => {
+  vi.spyOn(document, 'pictureInPictureEnabled', 'get').mockReturnValue(false);
+  const fullscreen = vi.spyOn(HTMLElement.prototype, 'requestFullscreen').mockResolvedValue();
+  const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'screen' });
+  await expect.poll(() => mediaCards(screen.container).length).toBeGreaterThan(1);
+  for (const card of mediaCards(screen.container)) {
+    card.style.width = '280px';
+    await expect
+      .poll(() => card.querySelector('[data-testid="call-feed-fullscreen-button"]'))
+      .toBeNull();
+    card.querySelector<HTMLButtonElement>('[data-testid="call-participant-menu-button"]')!.click();
+    await expect
+      .poll(() => document.querySelector('[popover] [data-testid="call-feed-fullscreen-button"]'))
+      .not.toBeNull();
+    expect(document.querySelector('[popover] [data-testid="call-feed-pip-button"]')).toBeNull();
+    document
+      .querySelector<HTMLButtonElement>('[popover] [data-testid="call-feed-fullscreen-button"]')!
+      .click();
+    expect(fullscreen.mock.contexts.at(-1)).toBe(card);
+    await expect.poll(() => document.querySelector('[data-testid="copy-user-id"]')).toBeNull();
+  }
+});
+
+it('keeps a pending PiP request alive when its overflow menu closes', async () => {
+  let finish!: () => void;
+  const request = vi
+    .spyOn(HTMLVideoElement.prototype, 'requestPictureInPicture')
+    .mockImplementation(function (this: HTMLVideoElement) {
+      return new Promise((resolve) => {
+        finish = () => resolve(enterPictureInPicture(this));
+      });
+    });
+  const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'camera' });
+  await expect.poll(() => mediaCards(screen.container).length).toBeGreaterThan(0);
+  const card = mediaCards(screen.container)[0];
+  card.style.width = '280px';
+  await expect.poll(() => pipButton(card)).toBeNull();
+  const trigger = card.querySelector<HTMLButtonElement>(
+    '[data-testid="call-participant-menu-button"]'
+  )!;
+  trigger.click();
+  await expect
+    .poll(() => document.querySelector('[popover] [data-testid="call-feed-pip-button"]'))
+    .not.toBeNull();
+  const button = document.querySelector<HTMLButtonElement>(
+    '[popover] [data-testid="call-feed-pip-button"]'
+  )!;
+  button.click();
+  button.click();
+  await expect.poll(() => button.disabled).toBe(true);
+  expect(request).toHaveBeenCalledOnce();
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  finish();
+  await expect.poll(() => currentVideo).toBe(card.querySelector('video'));
+  expect(document.exitPictureInPicture).not.toHaveBeenCalled();
+  trigger.click();
+  await expect
+    .poll(() =>
+      document
+        .querySelector('[popover] [data-testid="call-feed-pip-button"]')
+        ?.getAttribute('aria-pressed')
+    )
+    .toBe('true');
+});
 
 it('retains the original PiP stream when a tile is reused for another track', async () => {
   const original = new LocalVideoTrack(
@@ -249,6 +373,7 @@ it('preserves touch long-press and suppresses its duplicate native menu', async 
 
 it('toggles the selected video and follows browser closure in the sidebar', async () => {
   const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'screen' });
+  screen.container.style.width = '800px';
   await expect
     .poll(() => screen.container.querySelectorAll('[data-testid="call-feed-pip-button"]').length)
     .toBeGreaterThan(1);

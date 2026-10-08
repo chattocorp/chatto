@@ -19,7 +19,7 @@
 
 <Story name="Playable media controls" asChild>
   <div
-    class="flex h-[720px] w-[1080px] overflow-hidden rounded-md border border-border bg-background"
+    class="flex h-[720px] w-[1080px] flex-col overflow-hidden rounded-md border border-border bg-background"
   >
     <VoiceCallPanelStoryHarness layout="stage" scenario="screen" playableMedia />
   </div>
@@ -27,7 +27,23 @@
 
 <Story name="Playable sidebar media controls" asChild>
   <div
-    class="flex h-[720px] w-[360px] overflow-hidden rounded-md border border-border bg-background"
+    class="flex h-[720px] w-[360px] flex-col overflow-hidden rounded-md border border-border bg-background"
+  >
+    <VoiceCallPanelStoryHarness layout="sidebar" scenario="screen" playableMedia />
+  </div>
+</Story>
+
+<Story name="Narrow card overflow" asChild>
+  <div
+    class="flex h-[720px] w-[500px] flex-col overflow-hidden rounded-md border border-border bg-background"
+  >
+    <VoiceCallPanelStoryHarness layout="sidebar" scenario="screen" playableMedia />
+  </div>
+</Story>
+
+<Story name="Wide card controls" asChild>
+  <div
+    class="flex h-[720px] w-[360px] flex-col overflow-hidden rounded-md border border-border bg-background"
   >
     <VoiceCallPanelStoryHarness layout="sidebar" scenario="screen" playableMedia />
   </div>
