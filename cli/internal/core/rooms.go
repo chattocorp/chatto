@@ -124,10 +124,10 @@ func ValidateRoomDescription(description string) error {
 const maxRoomNameClaimRetries = 5
 
 type createRoomOptions struct {
-	universal                  bool
-	threadingMode              evtv1.RoomThreadingMode
+	universal     bool
+	threadingMode evtv1.RoomThreadingMode
 	// defaultDecisions returns the room-scope permission facts that commit
-	// with the room. Only first-boot seeding sets it.
+	// with the room. Only first-boot and development seeding set it.
 	defaultDecisions func(roomID string) []rbacSeedDecision
 }
 

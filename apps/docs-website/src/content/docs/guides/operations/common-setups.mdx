@@ -8,29 +8,61 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 This page shows how to set up typical communities. Each setup uses the
 permission model in [Permissions & Roles](/guides/operations/permissions/):
 
-- `everyone` sets the baseline for all members.
-- Roles add permissions. A role cannot remove a permission.
+- Roles, also `everyone`, only allow. An allow at the Server, Room group, or
+  Room scope of a room gives the permission in that room.
+- A Server-scope allow reaches every room. A room or room group cannot take it
+  away.
 - A deny on a single user is for rare exceptions.
 
-To restrict a group of people, do not make a role that removes access. Remove
-the access from `everyone`, and then give it back with a role to the people
-who must have it.
+To restrict a group of people, do not allow the access for `everyone`. Allow
+it for a role that only these people have. The settings page of each room and
+room group shows who can find and join it.
 
 <Aside type="tip">
-  Add the allows before the denies. You can change a permission setting only
-  if you have that permission at that scope, unless you are an owner. If a
-  deny removes your own access first, you cannot add the allows after it.
+  Add the new allows before you remove the old ones. You can change a
+  permission setting only if you have that permission at that scope, unless
+  you are an owner. If you remove your own access first, you cannot add the
+  allows after it.
 </Aside>
+
+## Open a Room or Room Group
+
+New rooms and room groups start closed. Only owners in privileged mode and
+the members that you add can reach them.
+
+<Steps>
+
+1. Open the room's settings → **Permissions**, or the room group's settings.
+2. For `everyone`, allow `room.list` and `room.join`.
+3. For `everyone`, allow what members can do in the room: `message.read`,
+   `message.post`, `message.attach`, `message.react`, `message.echo`, and the
+   `call.*` permissions.
+
+</Steps>
+
+- Open a room group to open all its rooms, also rooms that you add later. A
+  room can add allows, but it cannot remove the allows of its room group.
+- Do not allow `message.post` for `everyone` in a room group that contains a
+  [read-only room](#read-only-room). On a new server, `#announcements` is in
+  the `Lobby` group. Open the other rooms of `Lobby` one at a time, or move
+  `#announcements` to a room group of its own.
+- To open a room only to some people, allow these permissions for a role
+  instead of `everyone`. See [Private room for one role](#private-room-for-one-role).
+- Servers upgraded from earlier versions usually allow these permissions for
+  `everyone` at Server scope. There, all rooms are open.
 
 ## Open Community
 
-A new server is open. All members can see and join all rooms, read, post,
-attach files, react, and use calls. `#announcements` is read-only.
+A new server opens only `#general` and `#announcements` to all members.
 
-1. Assign `moderator` to the people who moderate. See
+1. Open each room group to `everyone`. See
+   [Open a room or room group](#open-a-room-or-room-group). Keep
+   `#announcements` read-only. Do not use Server scope: a Server-scope allow
+   also opens the rooms that you want to keep private later.
+2. Assign `moderator` to the people who moderate. See
    [Set up a moderation team](#set-up-a-moderation-team).
-2. Assign `admin` only to the people who manage the server.
-3. To control who can make an account, use
+3. Assign `admin` only to the people who manage the server.
+4. To control who can make an account, use
    [invite-only account creation](/guides/operations/identity-login/#invite-only-account-creation).
 
 ## Set Up a Moderation Team
@@ -59,42 +91,44 @@ Use this setup for announcements, rules, or news.
 <Steps>
 
 1. Open the room's settings → **Permissions**.
-2. Allow `message.post` for each role that can post, such as `admin`.
-3. Deny `message.post` for `everyone`.
+2. For `everyone`, allow `room.list`, `room.join`, `message.read`, and
+   `message.react`. To let members reply in threads, also allow
+   `message.post-in-thread`.
+3. Allow `message.post` for each role that can post, such as `admin`.
 
 </Steps>
 
-- On a new server, the deny also stops thread replies. To let members reply in
-  threads, allow `message.post-in-thread` for `everyone` in the room. The
-  default `#announcements` room does this.
-- Servers upgraded from earlier versions allow `message.post-in-thread` for
-  `everyone` at Server scope. On these servers, also deny
-  `message.post-in-thread` for `everyone` in the room to stop thread replies.
-- To stop uploads and reactions, deny `message.attach` and `message.react` for
-  `everyone`, and allow them for the roles that can post.
-
-To go back to the server defaults, set these settings to **Inherit**.
+- `everyone` must not have `message.post` at a scope that reaches the room.
+  Do not allow it in the room's room group or at Server scope. If the room is
+  in an open room group, move it to a room group that does not allow posting
+  for `everyone`.
+- Servers upgraded from earlier versions usually allow `message.post` and
+  `message.post-in-thread` for `everyone` at Server scope. Remove these
+  allows, and allow them in the room groups or rooms where members can post.
+- The default `#announcements` room uses this setup.
 
 ## Members-Only Server
 
 New accounts see only a few rooms, such as `#welcome` and `#rules`. After a
 check, a moderator gives the account the `member` role. With the role, the
-account can see and join all rooms that do not deny `everyone` at Room or
-Room group scope.
+account can see and join the rooms that you open to `member`.
 
 <Steps>
 
 1. On the **Roles** page, create the role `member`. A new role starts lowest,
    below `moderator`.
-2. Allow `room.list` and `room.join` for `member` at Server scope.
+2. Open the room groups for members to `member`: allow the permissions in
+   [Open a room or room group](#open-a-room-or-room-group) for `member`, not
+   for `everyone`.
 3. Assign `member` to all current members who must keep access, also to
    owners and moderators. Owners have access without the role only in
    privileged mode.
-4. In `#welcome`, `#rules`, and `#announcements`, allow `room.list` and
-   `room.join` for `everyone`. Make `#welcome` and `#rules` universal, so that
-   new accounts are in them immediately.
-5. Set `room.list` and `room.join` for `everyone` at Server scope to
-   **Inherit**.
+4. Open `#welcome` and `#rules` to `everyone`. Make them universal, so that
+   new accounts are in them immediately. `#announcements` is open to
+   `everyone` on a new server.
+5. Remove the allows of `room.list` and `room.join` for `everyone` from the
+   room groups for members and from their rooms, such as `#general`. On
+   servers upgraded from earlier versions, also remove them at Server scope.
 6. To let moderators assign `member`, allow `role.assign` and
    `admin.view-users` for `moderator`. Moderators assign the role on the
    member's **Roles** page in privileged mode.
@@ -114,20 +148,19 @@ invite many members.
 
 ### Guests Who Can Read but Not Post
 
-Do steps 1, 3, and 6, but not steps 2, 4, and 5. Then:
+Do steps 1, 3, and 6. Then, in the room groups:
 
-1. Allow `message.post`, `message.attach`, and `message.react` for `member` at
-   Server scope.
-2. Set them for `everyone` at Server scope to **Inherit**.
-3. On servers upgraded from earlier versions, also set
-   `message.post-in-thread` for `everyone` at Server scope to **Inherit**.
+1. Allow `room.list`, `room.join`, and `message.read` for `everyone`.
+2. Allow `message.post`, `message.attach`, `message.react`, and
+   `message.echo` for `member`.
+3. Remove these posting permissions for `everyone` in the rooms that allow
+   them, such as `#general`. On servers upgraded from earlier versions, also
+   remove them and `message.post-in-thread` for `everyone` at Server scope.
 
-Guests cannot start direct messages or post in them, because direct messages
-use the Server setting when there is no Direct messages setting. They also
-cannot reply to a moderator's direct message. To let them, allow
-`message.post` for `everyone` at Direct messages scope. To also stop calls,
-set `call.start` and `call.join` for `everyone` at Server scope to
-**Inherit**, and allow them for `member`.
+Guests can still use direct messages, because a new server allows
+`message.post` for `everyone` at Direct messages scope. To stop this, see
+[Limit direct messages](#limit-direct-messages). To let only members use
+calls, allow the `call.*` permissions in the room groups only for `member`.
 
 ## Private Room for One Role
 
@@ -136,25 +169,32 @@ Use this setup for staff rooms, team rooms, or rooms for supporters.
 <Steps>
 
 1. Create a role, such as `engineering`, and assign it.
-2. In the room's permissions, allow `room.list` and `room.join` for
+2. Make sure that no allow of `room.list` or `room.join` for `everyone`
+   reaches the room. Put the room in a room group that is not open to
+   `everyone`, and do not allow these permissions for `everyone` at Server
+   scope.
+3. In the room's permissions, allow `room.list`, `room.join`, and the content
+   permissions, such as `message.read` and `message.post`, for
    `engineering`.
-3. In the same room, deny `room.list` and `room.join` for `everyone`.
 4. Remove the current room members who must not have access.
 5. Turn on **Universal** to add each account with the role to the room.
 
 </Steps>
 
-Other roles need their own allow in the room. A Server or Room group allow
-does not override the room-level `everyone` deny. Owners can access the room
-only in privileged mode, unless they have the role or their own allow in the
-room.
+The room's settings must show that only `engineering` can join it. Other roles
+need their own allow. You cannot close a room with a setting in the room: an
+allow for `everyone` in the room group or at Server scope opens it. Owners can
+access the room only in privileged mode, unless they have the role or their
+own allow in the room.
 
 ## Private Room Group for a Team
 
 To make all rooms of a room group private, use the steps for one room at
-Room group scope. Open the room group's settings, allow `room.list` and
-`room.join` for the role, and deny them for `everyone`. Each room in the group
-uses these settings. A room setting in the group overrides them for that room.
+Room group scope. Open the room group's settings, and allow `room.list`,
+`room.join`, and the content permissions for the role. Do not allow them for
+`everyone` there or at Server scope. Each room in the group uses these
+settings. A room can add allows, for example to open one room of the group to
+`everyone`.
 
 ## Events and Courses
 
@@ -163,7 +203,8 @@ uses these settings. A room setting in the group overrides them for that room.
 1. Create a role for each cohort or track, such as `cohort-2026`.
 2. Create a room group for each cohort and make it private for the role. See
    [Private room group for a team](#private-room-group-for-a-team).
-3. Add a universal, read-only `#announcements` room for all participants.
+3. Add a universal, read-only `#announcements` room for all participants. See
+   [Read-only room](#read-only-room).
 4. Add sidebar links to schedules, recordings, and forms.
 5. When the event ends, archive its rooms. See
    [Archive rooms](/guides/operations/community-structure/#archive-rooms).
@@ -179,20 +220,30 @@ To keep each question and its answers together, set the room's
 
 ## Limit Calls to Some People
 
-- **Calls only for a role:** in the room, deny `call.start` and `call.join`
-  for `everyone`, and allow them for the role.
-- **Talks with an audience:** in the room, deny `call.start`, `call.voice`,
-  `call.camera`, and `call.screenshare` for `everyone`. Allow them for a
-  `speaker` role. Everyone who can join can listen.
+`everyone` must not have these permissions at a scope that reaches the room.
+A new server allows them for `everyone` only in `#general` and at Direct
+messages scope. Servers upgraded from earlier versions allow them at Server
+scope.
+
+- **Calls only for a role:** in the room, allow `call.start`, `call.join`,
+  `call.voice`, `call.camera`, and `call.screenshare` for the role.
+- **Talks with an audience:** in the room, allow `call.join` for `everyone`.
+  Allow `call.start`, `call.voice`, `call.camera`, and `call.screenshare` for
+  a `speaker` role. Everyone who can join the call can listen.
 
 Members without `call.join` can still see that a call is active. See
 [Calls](/guides/infrastructure/voice-calls/#call-permissions).
 
 ## Limit Direct Messages
 
-Deny `message.post` for `everyone` at Direct messages scope. Then allow it for
-the roles that can use direct messages. Accounts without the permission cannot
-start direct messages or post in them.
+Set `message.post` for `everyone` at Direct messages scope to **Inherit**.
+Then allow it at Direct messages scope for the roles that can use direct
+messages. Accounts without the permission cannot start direct messages or post
+in them.
+
+A Server-scope allow also applies in direct messages. Servers upgraded from
+earlier versions usually allow `message.post` for `everyone` at Server scope.
+Remove it there, and allow it in the room groups or rooms where members post.
 
 ## Team Mentions
 

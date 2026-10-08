@@ -271,7 +271,7 @@ export class TierRole extends Message<TierRole> {
   /**
    * Permissions that a member with only this role is allowed at this tier.
    * The server resolves them with the same rules as authorization: the
-   * everyone baseline and inclusion. They do not include settings on single
+   * allows of the role and of everyone, and inclusion. They do not include settings on single
    * users, the owner override, or privileged mode. Other applicable
    * permissions have no allow, which means no access.
    *
@@ -1432,7 +1432,8 @@ export class PermissionExplanation extends Message<PermissionExplanation> {
   permission = "";
 
   /**
-   * Overall decision after resolving named subjects and the everyone baseline.
+   * Overall decision after resolving the user and their roles, everyone
+   * included.
    *
    * @generated from field: chatto.admin.v1.PermissionDecision state = 2;
    */

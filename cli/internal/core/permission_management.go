@@ -771,7 +771,7 @@ func (c *ChattoCore) buildRolePermissionMatrix(ctx context.Context, actorID, rol
 				continue
 			}
 			// Show what a member with only this role gets, including the
-			// everyone baseline and inclusion, from the resolver itself.
+			// allows of everyone and inclusion, from the resolver itself.
 			kind, roomID, groupID := matrixScopeTarget(scope)
 			cell.Effective = matrixDecisionFromCoreDecision(c.PermResolver().resolveRoleHolder(roleName, kind, roomID, groupID, perm))
 			canChange, err := c.viewerCanChangeAtMatrixScope(ctx, actorID, perm, scope)

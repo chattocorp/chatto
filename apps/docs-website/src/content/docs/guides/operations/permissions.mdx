@@ -7,27 +7,27 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 
 A **permission** controls one action, such as posting messages or managing
 rooms. A **role** gives a set of permissions to many people. A permission
-setting is **Allow** or **Inherit** for a role, and **Allow**, **Deny**, or
-**Inherit** for a single user. `everyone` can deny only at Room group, Room,
-and Direct messages scope.
+setting is **Allow** or **Inherit** for a role, also for `everyone`, and
+**Allow**, **Deny**, or **Inherit** for a single user. **Inherit** means no
+setting.
 
 ## How permissions work
 
 - **Every signed-in person has the `everyone` role.** You can also assign the
   built-in `moderator` and `admin` roles, and your own roles.
-- **You set a permission at a scope.** A channel room checks Room, then Room
-  group, then Server. A direct message (DM) checks Direct messages, then
-  Server. **Inherit** uses the next broader setting of the same user or role.
-- **`everyone` is the baseline.** Its most specific setting applies to all
-  people. It can allow at every scope. Below Server scope, it can also deny,
-  to take away what `everyone` gets at a broader scope.
-- **Roles only add permissions.** A role allow overrides an `everyone` deny at
-  the same scope or a more specific scope. Giving a role never removes access.
+- **You set a permission at a scope.** A channel room uses its Room, Room
+  group, and Server settings. A direct message (DM) uses the Direct messages
+  and Server settings.
+- **Roles only allow.** This includes `everyone`. An allow of a role at any
+  scope of the room gives the permission. Giving a role never removes access.
+- **A Server-scope allow reaches every room.** A room or room group cannot
+  take it away. Allow room access and room content at Room group or Room
+  scope.
 - **A deny on a user always wins.** When the most specific setting on the user
   is a deny, the user does not get the permission, whatever their roles allow.
   The only exception is a broader permission that includes it (see below).
   An allow on a user works like a role allow.
-- **No setting means no access.**
+- **No allow means no access.**
 - **Prefer roles.** Give permissions through roles, also when only one person
   has the role. Use settings on a single user only for rare exceptions. They
   are hard to find later, and they do not give [rank](#role-order).
@@ -43,8 +43,9 @@ and Direct messages scope.
 
 | Settings | Result |
 | -------- | ------ |
-| Server: `everyone` Inherit, `admin` Allow | **Allowed** for admins only. |
-| Room: `everyone` Deny. Server: `admin` Allow | **Denied**. The room setting is more specific. Add a room-level allow for `admin`. |
+| Server: `everyone` Inherit, `admin` Allow | **Allowed** for admins only, in every room. |
+| Room: `engineering` Allow. Room group and Server: `everyone` Inherit | **Allowed** in this room for `engineering` only. |
+| Server: `everyone` Allow. Room: `engineering` Allow | **Allowed** for all members. The Server allow reaches this room. |
 | Server: `admin` Allow. User: Deny | **Denied** for that admin. The deny on the user wins. |
 
 Bots do not get permissions from `everyone`, and they cannot hold roles. A bot
@@ -58,18 +59,32 @@ Every server has four system roles. You cannot delete them. The order of the
 roles does not change which setting wins. It decides who can manage whom; see
 [Role order](#role-order).
 
-| Role | Defaults on a new server (Server scope) |
-| ---- | --------------------------------------- |
-| `everyone` | `room.list`, `room.join`, `message.read`, `message.post`, `message.attach`, `message.react`, `message.echo`, all `call.*` permissions, `user.delete-self` |
-| `moderator` | `message.manage`, `room.remove-member` |
-| `admin` | `server.manage`, `room.create`, `room.manage`, `room.remove-member`, `message.manage`, `role.manage`, `role.assign`, `admin.view-users`, `admin.view-audit`, `user.invite`, `user.manage-accounts`, `user.manage-permissions`, `user.delete-any`, `bot.create`, `bot.manage` |
+| Role | Defaults on a new server |
+| ---- | ------------------------ |
+| `everyone` | Server: `user.delete-self`. Direct messages: `message.read`, `message.post`, `message.attach`, `message.react`, `message.echo`, all `call.*` permissions. |
+| `moderator` | Server: `message.manage`, `room.remove-member` |
+| `admin` | Server: `server.manage`, `room.create`, `room.manage`, `room.remove-member`, `message.manage`, `role.manage`, `role.assign`, `admin.view-users`, `admin.view-audit`, `user.invite`, `user.manage-accounts`, `user.manage-permissions`, `user.delete-any`, `user.delete-self`, `bot.create`, `bot.manage` |
 | `owner` | Every permission while privileged mode is active. You cannot edit these settings. |
 
-Moderators and admins get their member permissions from `everyone`. A new
-server also makes the `announcements` room read-only: in that room, it denies
-`message.post` for `everyone`, allows it for `admin`, and allows
-`message.post-in-thread` for `everyone`, so members can reply in threads.
-Owners can post there only in privileged mode.
+Moderators and admins get their member permissions from `everyone`. `admin`
+has no Server-scope `room.list` or `room.join`, because these would also open
+private rooms. Admins find and join rooms like other members. With
+`room.manage` in privileged mode, they can add members to a room.
+
+A new server starts closed. It opens only the two rooms in the `Lobby` room
+group, at Room scope:
+
+| Room | `everyone` can |
+| ---- | -------------- |
+| `#general` | Find and join the room, read, post, attach files, react, echo replies, and use calls. |
+| `#announcements` | Find and join the room, read, react, and reply in threads. The room is universal, so all members are in it. Only `admin` can post root messages there. |
+
+The `Lobby` room group has no allows for `everyone`. Each new room and room
+group starts without allows for `everyone`. Only owners in privileged mode and
+members that you add can reach it. To open it, see
+[Open a room or room group](/guides/operations/common-setups/#open-a-room-or-room-group).
+The settings page of each room and room group shows who can find and join it.
+Owners can post in `#announcements` only in privileged mode.
 
 ## Privileged mode
 
@@ -93,8 +108,8 @@ marked **Yes** in the [permission reference](#permission-reference), from any
 role or user setting. It does not give you permissions that you do not have.
 
 For owners, privileged mode also turns on the owner permissions. Without the
-mode, an owner cannot see, join, or read a room that denies this to
-`everyone`, unless one of their roles or their own allow in the room allows it. If an owner
+mode, an owner cannot see, join, or read a room unless their roles or their
+own settings allow it, as for other members. If an owner
 joins such a room in privileged mode, they stay a member, but they can read the
 room only while the mode is active. Chatto removes them from a call in such a
 room shortly after the mode ends. Notifications use the permissions without the
@@ -174,8 +189,8 @@ messages value, the Server setting applies.
 
 ## Common setups
 
-For step-by-step setups, such as read-only rooms, members-only servers,
-private rooms, and delegated room groups, see
+For step-by-step setups, such as opening rooms, read-only rooms,
+members-only servers, private rooms, and delegated room groups, see
 [Common Setups](/guides/operations/common-setups/).
 
 ## Role order
@@ -214,12 +229,13 @@ permission setting wins.
 | Task | Where |
 | ---- | ----- |
 | Create, edit, and order roles | Server Administration → **Roles** |
-| Compare the permissions of all roles | Server Administration → **Permissions** |
+| Compare the permissions of all roles. These settings apply in every room. | Server Administration → **Permissions** |
 | Assign roles | Server Administration → **Members** → member → **Roles** |
 | Set permissions for one user | Server Administration → **Members** → member → **Permissions** |
 | Set permissions for one bot | Server Administration → **Bots** → bot → **Permissions** |
 | Set room permissions | The room's settings → **Permissions** |
 | Set room-group permissions | The room group's settings |
+| See who can find and join a room or room group | The settings of the room or room group |
 | Set recovery owners | `owners.emails` in `chatto.toml` |
 
 To add an account to a room or remove it, use the **Joined** row in the
@@ -228,6 +244,16 @@ that room. To remove an account, you also need a higher rank. The account does
 not need `room.join`. This row does not change permissions or DMs.
 
 ## Upgrading from 0.4
+
+<Aside type="caution" title="Private rooms open on upgrade">
+  Chatto 0.5 ignores denies on roles, also on `everyone`. A room that is
+  private or read-only only because of an `everyone` deny opens to all members
+  who have the access at Server scope. On a default 0.4 server, this is every
+  member. This includes `#announcements`. Before you upgrade, follow the steps
+  in
+  [Make private rooms private before you upgrade](/releases/0-5-0/#make-private-rooms-private-before-you-upgrade).
+  After the upgrade, the server log lists the affected rooms and room groups.
+</Aside>
 
 Chatto applies default permissions only on a new server. When a 0.4 server
 starts with 0.5 for the first time, Chatto adds these grants one time to keep
@@ -245,19 +271,19 @@ Make these changes on an upgraded server:
 - **Allow `bot.create`** for the roles that can create bots.
 - **Allow `room.manage`** for delegated room managers. In 0.4, room-group
   management used `role.manage`.
+- **Make private and read-only rooms work without denies.** Do this before
+  you upgrade. See the caution above.
 - **Allow `message.post`** for `admin` in the `announcements` room if admins
-  must post there. Until you do this, admins cannot post there.
-- **Check `message.post`.** It now also allows thread replies, so a deny of
-  `message.post-in-thread` does not stop replies. An upgraded server keeps its
-  Server allow of `message.post-in-thread` for `everyone`, which keeps replies
-  open where you deny `message.post`. Remove it if a deny of `message.post`
-  must also stop replies.
-- **Check `everyone` denies.** An allow on a named role or user at the same or
-  a more specific scope now overrides them.
-- **Replace role denies.** Denies on roles other than `everyone` have no
-  effect. The server log reports how many it ignores. Set them on the users
-  instead. To restrict a group of people, remove the access from `everyone`
-  and allow it for a role. See [Common Setups](/guides/operations/common-setups/).
+  must post there.
+- **Check `message.post-in-thread`.** `message.post` now also allows thread
+  replies. An upgraded server keeps its Server allow of
+  `message.post-in-thread` for `everyone`, so members can reply in threads in
+  every room, also in read-only rooms. Remove it if necessary, and allow it in
+  the room groups or rooms where members can reply.
+- **Replace role denies.** Denies on roles, also on `everyone`, have no
+  effect. Set denies on the users instead. To restrict a group of people, do
+  not allow the access for `everyone`, and allow it for a role. See
+  [Common Setups](/guides/operations/common-setups/).
 - **Check the role order.** The role order now decides who can manage whom.
   An upgraded server keeps `admin` above `moderator` and both above custom
   roles. A user with a custom management role ranks below moderators and
@@ -271,9 +297,10 @@ Make these changes on an upgraded server:
   Administrators, moderators, and owners must now enable
   [privileged mode](#privileged-mode) to use their administrative permissions.
   This also applies to custom `room.create` grants. Owners also need privileged
-  mode to see, join, or read rooms that deny this to `everyone`, and to post in
-  the `announcements` room. Give an owner the `admin` role or a room-level allow
-  if they need this access during normal use.
+  mode to see, join, or read rooms that their roles do not open to them, and to
+  post in the `announcements` room. If an owner needs this access during
+  normal use, give them a role or a room-level allow that opens these rooms.
+  The `admin` role lets them post in `announcements`.
 </Aside>
 
 See the [0.5.0 release notes](/releases/0-5-0/) for all upgrade steps.

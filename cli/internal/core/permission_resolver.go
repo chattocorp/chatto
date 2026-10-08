@@ -11,8 +11,8 @@ import (
 
 // PermissionResolver resolves permissions. explain holds the rules (ADR-116):
 // the owner override in privileged mode, DM applicability, inclusion, a deny
-// on the user, allows of the user and named roles against the everyone
-// baseline, and the privileged-mode gate. Every authorization check,
+// on the user, allows of the user and of roles (everyone included), and the
+// privileged-mode gate. Every authorization check,
 // explanation, and permission matrix goes through these rules.
 type PermissionResolver struct {
 	core *ChattoCore
@@ -344,9 +344,9 @@ func (r *PermissionResolver) explainBot(ctx context.Context, botUserID, ownerUse
 }
 
 // resolveRoleHolder returns what a human member who holds only roleName gets:
-// the role's allows combined with the everyone baseline, with inclusion, and
-// without settings on the member, the owner override, or the privileged-mode
-// gate. For everyone, it is the baseline alone. Role grids in the admin UI use
+// the allows of the role and of everyone, with inclusion, and without
+// settings on the member, the owner override, or the privileged-mode gate.
+// For everyone, it is the allows of everyone alone. Role grids in the admin UI use
 // it, so they show the same result as authorization (ADR-116).
 func (r *PermissionResolver) resolveRoleHolder(roleName string, kind RoomKind, roomID, groupID string, perm Permission) DecisionKind {
 	if _, known := GetPermissionMetadata(perm); !known {

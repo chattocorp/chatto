@@ -315,7 +315,7 @@ type TierRole struct {
 	Role *v1.Role `protobuf:"bytes,9,opt,name=role,proto3" json:"role,omitempty"`
 	// Permissions that a member with only this role is allowed at this tier.
 	// The server resolves them with the same rules as authorization: the
-	// everyone baseline and inclusion. They do not include settings on single
+	// allows of the role and of everyone, and inclusion. They do not include settings on single
 	// users, the owner override, or privileged mode. Other applicable
 	// permissions have no allow, which means no access.
 	EffectiveAllows []string `protobuf:"bytes,10,rep,name=effective_allows,json=effectiveAllows,proto3" json:"effective_allows,omitempty"`
@@ -1628,7 +1628,8 @@ type PermissionExplanation struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Permission identifier.
 	Permission string `protobuf:"bytes,1,opt,name=permission,proto3" json:"permission,omitempty"`
-	// Overall decision after resolving named subjects and the everyone baseline.
+	// Overall decision after resolving the user and their roles, everyone
+	// included.
 	State PermissionDecision `protobuf:"varint,2,opt,name=state,proto3,enum=chatto.admin.v1.PermissionDecision" json:"state,omitempty"`
 	// Level of the winning decision, when state is not NONE.
 	DecidedAt PermissionDecisionLevel `protobuf:"varint,3,opt,name=decided_at,json=decidedAt,proto3,enum=chatto.admin.v1.PermissionDecisionLevel" json:"decided_at,omitempty"`

@@ -208,6 +208,10 @@ and decision reads. The core selects at most 100 scopes before cell evaluation
 and loads parent-group rules independently of the page. Scope enumeration still
 scans the directory. Bot reads filter room visibility before pagination and
 counts. See [permission scope selection](../../cli/internal/core/permission_scope_page.go).
+`AdminPermissionService.GetAccessSummary` resolves `room.list` and `room.join`
+for `everyone` and for each named role at one channel room or room group, with
+the same resolver as authorization. See
+[access summary](../../cli/internal/core/access_summary.go).
 
 `RoomService.ListMembers` returns active membership IDs in stable ID order.
 An empty search reads lifecycle and membership metadata without profile

@@ -59,9 +59,8 @@ const (
 
 	// PermRoomList allows seeing a room in the directory and elsewhere
 	// the server enumerates rooms (e.g. group "Join all" affordances).
-	// Default-granted at server scope so the directory works out of the
-	// box; deny it on a restricted room to keep it hidden from
-	// non-members.
+	// New servers grant it to everyone only on the seeded rooms; other
+	// rooms stay hidden until an operator allows it (ADR-116).
 	PermRoomList Permission = "room.list"
 
 	// PermRoomManage allows updating or deleting channel rooms.
@@ -98,9 +97,9 @@ const (
 	PermMessageReadInteractions Permission = "message.read-interactions"
 
 	// PermMessagePost allows posting root messages and thread replies. It includes
-	// PermMessagePostInThread and PermMessagePostInInteractions. Server-scope
-	// decisions act as global defaults/overrides; room or group denies can narrow
-	// that default where a room should be more restrictive.
+	// PermMessagePostInThread and PermMessagePostInInteractions. A server-scope
+	// allow reaches every room; allow it at room or group scope to open only
+	// some rooms.
 	PermMessagePost Permission = "message.post"
 
 	// PermMessagePostInThread allows posting messages in a thread (first or subsequent reply).

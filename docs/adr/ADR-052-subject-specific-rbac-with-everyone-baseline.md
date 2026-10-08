@@ -3,9 +3,10 @@
 **Date:** 2026-07-19
 
 > **Partially superseded 2026-10-08:** [ADR-116](ADR-116-roles-only-grant-permissions.md)
-> replaces the subject rules: roles only grant, a setting on the user decides,
-> and named-role denies have no effect. The scope rules and the `everyone`
-> baseline stay.
+> replaces the subject rules and the `everyone` baseline: all roles,
+> `everyone` included, only grant; a deny on the user decides; otherwise any
+> applicable allow gives access. Stored role denies have no effect. The scopes
+> stay.
 
 > **Amended 2026-10-07:** [ADR-115](ADR-115-role-hierarchy-for-administration.md)
 > uses role position as an administrative rank. The resolution rules in this

@@ -322,13 +322,18 @@ authorization, live events, backup and restore, and backend tests.
   ADR-105, ADR-115, and ADR-116.
 - Users are server-scoped. Spaces and rooms may be discoverable, but room
   message access requires room membership.
-- Roles only grant (ADR-116). A deny as the user's own nearest
-  room/group/server setting decides. Otherwise, an allow of the user or a
-  named role wins when it is at the same scope as `everyone`'s nearest setting
-  or a nearer one; otherwise `everyone`'s setting decides. Reject new
-  named-role denies and server-scope `everyone` denies; stored ones have no
-  effect. Every check, explanation, and matrix goes through
-  `PermissionResolver.explain`; do not add a second resolver.
+- Roles, `everyone` included, only grant (ADR-116). Only single users deny.
+  A deny as the user's own nearest room/group/server setting decides, unless
+  an including permission is allowed. Otherwise, any allow of the user, a
+  role, or `everyone` at any applicable scope allows. No allow means no
+  access. Reject every role deny with `ErrInvalidArgument`; stored role denies
+  have no effect. Every check, explanation, matrix, and access summary goes
+  through `PermissionResolver.explain`; do not add a second resolver.
+- A Server-scope allow reaches every room. New servers start closed: keep
+  room access and room content out of the Server-scope defaults of
+  `everyone` and `admin`. New rooms and room groups get no `everyone` allows;
+  only first-boot and development seeding open rooms (`WithOpenRoomDefaults`,
+  `WithAnnouncementsRoomDefaults`).
 - Effective owner means durable `owner` role or verified email matching
   `owners.emails`. Owners are entitled to every permission, but the owner
   override is effective only while the owner's session has active privileged

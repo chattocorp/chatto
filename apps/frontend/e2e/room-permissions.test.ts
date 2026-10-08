@@ -831,6 +831,22 @@ test.describe('Permission-only Resolution', () => {
       await joinRoomViaAPI(page, roomId);
     });
 
+    test('room settings warn about a closed room until it is opened', async ({ page }) => {
+      await createAndLoginTestUser(page);
+      await usePrimaryServerViaAPI(page, `Access Summary ${Date.now()}`);
+      const roomId = await createRoomViaAPI(page, `summary-${shortSuffix()}`);
+      await activatePrivilegedMode(page);
+
+      const summary = page.getByTestId('access-summary');
+      await page.goto(`${routes.serverAdminRooms}/${roomId}`);
+      await expect(summary).toContainText('Only owners and the members that you add');
+
+      await grantRoomPermission(page, roomId, 'everyone', 'room.list');
+      await grantRoomPermission(page, roomId, 'everyone', 'room.join');
+      await page.reload();
+      await expect(summary).toContainText('Everyone can find and join this room.');
+    });
+
     test('announcements room lets the owner post and members only read', async ({
       page,
       roomPage

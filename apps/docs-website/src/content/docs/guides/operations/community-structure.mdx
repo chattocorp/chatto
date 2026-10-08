@@ -15,23 +15,29 @@ identity of the server.
    message of the day.
 2. Decide which rooms all members see immediately.
 3. Create room groups for the topics or teams in your community.
-4. Make rooms universal when all eligible members must belong to them.
-5. Create a custom role only when you need a reusable set of permissions.
-6. Use room or group permissions for local behavior, not server-wide denies.
-7. Keep at least one verified owner recovery email in `owners.emails`.
+4. Open each room group or room to `everyone` or to a role. New rooms and room
+   groups start closed. See
+   [Open a room or room group](/guides/operations/common-setups/#open-a-room-or-room-group).
+5. Make rooms universal when all eligible members must belong to them.
+6. Create a custom role only when you need a reusable set of permissions.
+7. Allow room access at Room group or Room scope, not at Server scope. A
+   Server-scope allow reaches every room.
+8. Keep at least one verified owner recovery email in `owners.emails`.
 
 For step-by-step setups, such as members-only servers and private rooms, see
 [Common Setups](/guides/operations/common-setups/).
 
 ## Room Groups
 
-Each channel room belongs to one room group. A group organizes the sidebar and
-sets the default permissions for its rooms. Use groups for durable categories,
+Each channel room belongs to one room group. A group organizes the sidebar,
+and its allows apply to all its rooms. Use groups for durable categories,
 such as `Announcements`, `General`, `Project Teams`, or `Support`. Do not make
-a group for each small topic. Room overrides are easier to understand when the
-group default is correct for most rooms in the group.
+a group for each small topic. A room can add allows to those of its group,
+but it cannot remove them. Put rooms with the same access in the same group.
 
-A new server has a `Lobby` group with `#announcements` and `#general`.
+A new server has a `Lobby` group with `#announcements` and `#general`. Both
+rooms are open to `everyone`. The group itself is closed, so a new room in it
+is closed too.
 
 - To add a room or link, select **+** at the end of a group header. Then
   select **New Room** (needs `room.create`) or **New Link** (needs
@@ -82,8 +88,9 @@ add or remove members. You need `room.manage` for the room. You cannot change
 members while the room is archived.
 
 Explicit membership gives access independently of `room.list` and `room.join`.
-A deny of discovery or self-join does not remove current members. Examine the
-member list when you restrict a room.
+Removing the allows of discovery or self-join does not remove current members.
+Examine the member list when you restrict a room. Members still need
+permissions such as `message.read` and `message.post` to use the room.
 
 ## Archive Rooms
 
@@ -107,8 +114,7 @@ wait, they can still write drafts, edit messages, and add reactions.
 
 Members with `room.manage` or `message.manage` are exempt. Slow Mode is not
 available in direct messages. It does not make a room read-only: for that,
-deny `message.post`, `message.post-in-thread`, and
-`message.post-in-interactions`.
+see [Read-only room](/guides/operations/common-setups/#read-only-room).
 
 ## Threading Mode
 
@@ -149,22 +155,22 @@ cannot change them until you unarchive the room.
 
 ## Permissions Strategy
 
-Start with broad defaults and add local exceptions:
+Start closed, and open what members need:
 
 | Goal | Where to configure it |
 | ---- | --------------------- |
-| Defaults for all members | Server-scope grants on `everyone` |
-| Behavior for a category of rooms | Group permissions |
-| One exceptional room | Room permissions |
-| One exceptional user | User permission override |
+| Permissions that all members need in every room | Server-scope allows for `everyone` |
+| Access to a category of rooms | Room group allows for `everyone` or a role |
+| One exceptional room | Room allows |
+| One exceptional user | User permission setting |
 | Reusable staff capability | Custom role |
 
-A room or group value overrides a less specific value for the same subject.
-Roles only allow. A role allow overrides an `everyone` deny only at the same
-scope or a nearer scope. To deny one person something that their roles allow,
-set the deny on the user. See
-[Permissions & Roles](/guides/operations/permissions/) for the full model, and
-[Common Setups](/guides/operations/common-setups/) for examples.
+Roles, also `everyone`, only allow. An allow at Server, Room group, or Room
+scope gives the permission in the room. A more specific scope cannot take it
+away. To deny one person something that their roles allow, set the deny on
+the user. The settings of each room and room group show who can find and join
+it. See [Permissions & Roles](/guides/operations/permissions/) for the full
+model, and [Common Setups](/guides/operations/common-setups/) for examples.
 
 ## Common Structures
 

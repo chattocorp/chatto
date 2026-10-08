@@ -8,6 +8,11 @@
 static DM permission deny list with the global Direct messages scope. DMs
 remain outside room groups.
 
+**Resolution amendment:** ADR-116 replaces the `everyone` deny rules in this
+record. Roles, `everyone` included, only allow. A user deny decides; otherwise
+any applicable allow gives access. New rooms and room groups start without
+`everyone` allows.
+
 **Storage evolution:** ADR-033, ADR-034, and ADR-035 replaced the original KV
 and `RoomLayout` storage model with event-sourced group and layout aggregates.
 The room-group permission-container decision remains current.

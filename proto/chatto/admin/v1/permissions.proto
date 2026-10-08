@@ -63,7 +63,7 @@ message TierRole {
   chatto.api.v1.Role role = 9;
   // Permissions that a member with only this role is allowed at this tier.
   // The server resolves them with the same rules as authorization: the
-  // everyone baseline and inclusion. They do not include settings on single
+  // allows of the role and of everyone, and inclusion. They do not include settings on single
   // users, the owner override, or privileged mode. Other applicable
   // permissions have no allow, which means no access.
   repeated string effective_allows = 10;
@@ -301,7 +301,8 @@ message PermissionTraceEntry {
 message PermissionExplanation {
   // Permission identifier.
   string permission = 1;
-  // Overall decision after resolving named subjects and the everyone baseline.
+  // Overall decision after resolving the user and their roles, everyone
+  // included.
   PermissionDecision state = 2;
   // Level of the winning decision, when state is not NONE.
   PermissionDecisionLevel decided_at = 3;

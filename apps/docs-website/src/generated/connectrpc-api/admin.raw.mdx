@@ -2566,7 +2566,7 @@ Full decision trace for one permission and target user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `permission` | `string` | Permission identifier. |
-| `state` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Overall decision after resolving named subjects and the everyone baseline. |
+| `state` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Overall decision after resolving the user and their roles, everyone included. |
 | `decided_at` | [`PermissionDecisionLevel`](#chatto-admin-v1-PermissionDecisionLevel) | Level of the winning decision, when state is not NONE. |
 | `decided_by_role` | `string` | Role name, user ID, or policy marker that produced the winning decision. |
 | `trace` | repeated [`PermissionTraceEntry`](#chatto-admin-v1-PermissionTraceEntry) | Ordered decision trace. The first entry is the winning decision. |
@@ -2691,7 +2691,7 @@ One role's permission state at a single tier.
 | `override` | [`TierPermissions`](#chatto-admin-v1-TierPermissions) | Explicit state at this tier. |
 | `inherited_allows` | `repeated string` | Allows inherited from broader tiers. |
 | `role` | `chatto.api.v1.Role` | Public role metadata. |
-| `effective_allows` | `repeated string` | Permissions that a member with only this role is allowed at this tier. The server resolves them with the same rules as authorization: the everyone baseline and inclusion. They do not include settings on single users, the owner override, or privileged mode. Other applicable permissions have no allow, which means no access. |
+| `effective_allows` | `repeated string` | Permissions that a member with only this role is allowed at this tier. The server resolves them with the same rules as authorization: the allows of the role and of everyone, and inclusion. They do not include settings on single users, the owner override, or privileged mode. Other applicable permissions have no allow, which means no access. |
 
 
 

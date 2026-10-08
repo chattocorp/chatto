@@ -72,15 +72,18 @@ Server, Room group, Room, or Direct messages scope:
 | `call.camera` | Publish camera video. |
 | `call.screenshare` | Share a screen, window, tab, or native application, including captured audio. |
 
-To create a listening audience in a room, deny `call.start` and the three
-media permissions for `everyone`, and allow them for a speaker role. See
+A new server allows all call permissions for `everyone` at Direct messages
+scope and in `#general`. In other rooms, allow them when you open the room. To
+create a listening audience in a room, allow `call.join` for `everyone`, and
+allow `call.start` and the three media permissions only for a speaker role. See
 [Limit calls to some people](/guides/operations/common-setups/#limit-calls-to-some-people).
 DM policy uses the shared Direct messages scope.
 
-On upgrade, Chatto grants these new permissions to `everyone` only if that
-permission has no previous server-level `everyone` decision. Restarting never
-restores a permission that you cleared or denied. Bots require explicit grants
-and sufficient authority from their owner.
+On upgrade, Chatto grants these new permissions to `everyone` at Server scope
+only if that permission has no previous `everyone` decision at Server or Direct
+messages scope. Restarting never restores a permission that you cleared or
+denied. Bots require explicit grants and sufficient authority from their
+owner.
 
 The client stops revoked media when it receives updated room permissions. The
 server also checks connected participants on its 30-second LiveKit reconciliation

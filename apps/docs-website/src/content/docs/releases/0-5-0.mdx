@@ -6,11 +6,12 @@ description: Unreleased release notes for Chatto 0.5.0.
 import ReleaseFeatureCard from "../../../components/release-notes/ReleaseFeatureCard.astro";
 import ReleaseFeatureGrid from "../../../components/release-notes/ReleaseFeatureGrid.astro";
 import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
+import { Aside, Steps } from "@astrojs/starlight/components";
 
 <ReleaseHero
   version="0.5.0"
   status="Unreleased"
-  summary="0.5.0 adds bots and webhooks, server-wide search, persistent notifications, a new composer, and privileged mode for administrators. Read the upgrade notes before you upgrade: some permissions need review."
+  summary="0.5.0 adds bots and webhooks, server-wide search, persistent notifications, a new composer, and privileged mode for administrators. Read the upgrade notes before you upgrade: private rooms open to all members unless you change their permissions first."
 />
 
 ## Using Chatto
@@ -224,6 +225,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ### Other noteworthy changes
 
+- New servers start closed. Only `#general` and `#announcements` are open to
+  all members. [Open new rooms and room groups](/guides/operations/common-setups/#open-a-room-or-room-group)
+  to `everyone` or to a role. The settings of each room and room group show
+  who can find and join it.
 - Server diagnostics show the health of background workers
   and asset cleanup.
 - Back up and restore a Docker Compose installation
@@ -294,6 +299,54 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ## Upgrade Notes
 
+### Make private rooms private before you upgrade
+
+<Aside type="caution" title="Private and read-only rooms open on upgrade">
+  Roles, also `everyone`, can no longer deny permissions. Chatto 0.5 ignores
+  all stored role denies. A room that is private or read-only only because of
+  an `everyone` deny opens to all members who have the access at Server scope.
+  On a default 0.4 server, this is every member. All members can then find,
+  join, and read private rooms, and post in read-only rooms such as
+  `#announcements`. Do the steps below on the 0.4 server before you upgrade.
+</Aside>
+
+In 0.5, a Server-scope allow reaches every room. A room is private when no
+allow for `everyone` reaches it. Make your private and read-only rooms work
+this way:
+
+<Steps>
+
+1. Find the rooms and room groups that deny permissions for `everyone`.
+   Usually, private rooms deny `room.list` and `room.join`, and read-only
+   rooms deny `message.post`. `#announcements` is a read-only room.
+2. Optional: move the private rooms into room groups of their own. Then you
+   can open each other room group with one set of allows.
+3. Open each room group or room that must stay open: allow these permissions
+   for `everyone` there. Where members can post, also allow
+   `message.post-in-thread`.
+4. In each private room or room group, allow `room.list` and `room.join` for
+   the roles that must have access. In each read-only room, allow
+   `message.post` for the roles that can post.
+5. Remove the Server-scope allows of these permissions for `everyone`. For
+   read-only rooms, also remove the Server-scope allow of
+   `message.post-in-thread`.
+6. Remove the `everyone` denies. They have no effect in 0.5.
+
+</Steps>
+
+Explicit room members keep their access. Examine the member lists of private
+rooms.
+
+In 0.5, direct messages use the Server settings when the Direct messages scope
+has no setting. If you removed posting permissions at Server scope, allow
+them for `everyone` at Direct messages scope after the upgrade. Otherwise,
+members cannot post in direct messages.
+
+If you upgrade first, the rooms are open until you make these changes. After
+the upgrade, the server log shows the warning `Role denies have no effect`. It
+lists the IDs of the rooms and room groups that still have role denies. The
+settings of each room and room group show who can find and join it.
+
 ### Review your permissions before you upgrade
 
 Version 0.5 adds new permissions. When a 0.4 server starts with 0.5 for the
@@ -323,18 +376,16 @@ Do these steps on every upgraded server:
   server does not.
 - **Check thread posting.** `message.post` now also allows thread replies. A
   0.4 setup that allowed `message.post` and denied `message.post-in-thread` now
-  allows replies. A new server no longer allows `message.post-in-thread` for
-  `everyone`, so a deny of `message.post` also stops replies. An upgraded
-  server keeps this allow. Remove it if a deny of `message.post` must also stop
-  replies.
-- **Check `everyone` denies.** An allow for a named role or a user now
-  overrides an `everyone` deny at the same or a narrower scope.
-- **Replace role denies.** Roles now only add permissions. Denies on roles
-  other than `everyone`, such as a `suspended` role, have no effect, and the
-  server log reports how many it ignores. Set these denies on the users
-  instead. A deny on a user now wins, also over a more specific role allow.
-  To restrict a group of people, remove the access from `everyone` and allow
-  it for a role. See [Common Setups](/guides/operations/common-setups/).
+  allows replies. An upgraded server keeps its Server-scope allow of
+  `message.post-in-thread` for `everyone`, so members can reply in threads in
+  every room, also in read-only rooms. Remove it if necessary, and allow it in
+  the room groups or rooms where members can reply.
+- **Replace role denies.** Roles now only add permissions. Denies on all
+  roles, also on `everyone` and on roles such as `suspended`, have no effect.
+  Set these denies on the users instead. A deny on a user now wins, also over
+  a more specific role allow. To restrict a group of people, do not allow the
+  access for `everyone`, and allow it for a role. See
+  [Common Setups](/guides/operations/common-setups/).
 - **Check the role order.** The role order now decides who can manage whom:
   to change another account or assign a role, a user who is not an owner
   must rank higher. Users with `role.manage` can change every role except
@@ -356,9 +407,10 @@ Do these steps on every upgraded server:
 Administrators, moderators, and the owner must now enable privileged mode before
 they use their administrative permissions. This also applies to custom
 `room.create` grants. Owners also need privileged mode to see, join, or read
-rooms that deny these actions to `everyone`, and to post in the announcements
-room. Give an owner the `admin` role or a room-level allow if they need this
-access during normal use.
+rooms that their roles do not open to them, and to post in the announcements
+room. If an owner needs this access during normal use, give them a role or a
+room-level allow that opens these rooms. The `admin` role lets them post in the
+announcements room after you allow it there.
 
 See [Permissions](/guides/operations/permissions/) for the complete list.
 
@@ -412,9 +464,10 @@ protocol 4. See [API compatibility](/guides/integrations/api-compatibility/).
   role order from the order of role lists, highest first.
 - Calls that change another account return `PERMISSION_DENIED` when the caller
   does not rank higher than that account.
-- `SetRolePermission` rejects a deny for a named role, and a deny for
-  `everyone` at Server scope, with `INVALID_ARGUMENT`.
-  `AdminRole.permission_denials` is removed.
+- `SetRolePermission` rejects a deny for every role, also for `everyone`,
+  with `INVALID_ARGUMENT`. `AdminRole.permission_denials`,
+  `TierPermissions.permission_denials`, and `TierRole.inherited_denials` are
+  removed.
 
 ## GitHub release
 
