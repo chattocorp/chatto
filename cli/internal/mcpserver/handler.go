@@ -186,6 +186,18 @@ func withRequestDeadline(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), requestTimeout)
 		defer cancel()
+
+		// Context cancellation does not interrupt blocked HTTP reads or writes.
+		// Use the same deadline for I/O, including an earlier parent deadline.
+		// Clear it on exit so subsequent keep-alive requests can use the connection.
+		deadline, _ := ctx.Deadline()
+		controller := http.NewResponseController(w)
+		if controller.SetReadDeadline(deadline) == nil {
+			defer func() { _ = controller.SetReadDeadline(time.Time{}) }()
+		}
+		if controller.SetWriteDeadline(deadline) == nil {
+			defer func() { _ = controller.SetWriteDeadline(time.Time{}) }()
+		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
