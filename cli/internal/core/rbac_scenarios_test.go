@@ -5,14 +5,13 @@ import (
 	"testing"
 )
 
-// Roles only grant, so a private group removes room.list and room.join from
-// everyone at server scope. It then allows both for everyone in the public
-// group and for the chosen role in the private group, so every room in each
-// group inherits the allow.
+// New room groups start closed (ADR-116). The setup allows room.list and
+// room.join for everyone in the public group and for the chosen role in the
+// private group, so every room in each group inherits the allow.
 func TestRBACScenario_RoleOnlyRoomGroup(t *testing.T) {
 	t.Parallel()
 
-	core, _ := setupTestCore(t)
+	core, _ := setupTestCoreWithDefaults(t)
 	ctx := testContext(t)
 
 	member, err := core.CreateUser(ctx, SystemActorID, "scenario-group-member", "Engineering Member", "password123")
@@ -52,9 +51,6 @@ func TestRBACScenario_RoleOnlyRoomGroup(t *testing.T) {
 		if err := core.GrantGroupPermission(ctx, SystemActorID, privateGroup.Id, "engineering", permission); err != nil {
 			t.Fatalf("GrantGroupPermission engineering/%s: %v", permission, err)
 		}
-		if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, permission); err != nil {
-			t.Fatalf("ClearServerPermissionState everyone/%s: %v", permission, err)
-		}
 	}
 
 	privateRoomIDs := make([]string, 0, 2)
@@ -71,12 +67,12 @@ func TestRBACScenario_RoleOnlyRoomGroup(t *testing.T) {
 		t.Fatalf("CreateRoom public: %v", err)
 	}
 
-	// Roles only grant: admin's default server-scope room.list and room.join
-	// allows apply in every room, so admin keeps access to the private group.
+	// Admins have no default server-scope room.list or room.join, so the
+	// private group stays private to them too.
 	for _, roomID := range privateRoomIDs {
 		assertRoomAccessScenario(t, core, member.Id, roomID, true, true)
 		assertRoomAccessScenario(t, core, outsider.Id, roomID, false, false)
-		assertRoomAccessScenario(t, core, admin.Id, roomID, true, true)
+		assertRoomAccessScenario(t, core, admin.Id, roomID, false, false)
 	}
 	assertRoomAccessScenario(t, core, outsider.Id, publicRoom.Id, true, true)
 
@@ -86,8 +82,8 @@ func TestRBACScenario_RoleOnlyRoomGroup(t *testing.T) {
 	if _, err := core.RoomCommands().JoinRoom(ctx, RoomIDInput{ActorID: outsider.Id, RoomID: privateRoomIDs[0]}); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("outsider join error = %v, want ErrPermissionDenied", err)
 	}
-	if _, err := core.RoomCommands().JoinRoom(ctx, RoomIDInput{ActorID: admin.Id, RoomID: privateRoomIDs[0]}); err != nil {
-		t.Fatalf("admin joins private room through its server allow: %v", err)
+	if _, err := core.RoomCommands().JoinRoom(ctx, RoomIDInput{ActorID: admin.Id, RoomID: privateRoomIDs[0]}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("admin join error = %v, want ErrPermissionDenied", err)
 	}
 }
 

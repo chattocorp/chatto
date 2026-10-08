@@ -931,49 +931,61 @@ func TestPermissionResolver_DMContract(t *testing.T) {
 func TestPermissionResolver_DMAttachInheritsAndOverridesServer(t *testing.T) {
 	t.Parallel()
 
-	core, _ := setupTestCore(t)
+	core, _ := setupTestCoreWithDefaults(t)
 	ctx := testContext(t)
 
-	regular, _ := core.CreateUser(ctx, "system", "dmattachdeny", "DM Attach Deny", "password123")
-	dmRoomID := "R_dm_attach_deny_test"
-
-	if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessageAttach); err != nil {
-		t.Fatalf("ClearServerPermissionState: %v", err)
-	}
-
-	got, err := core.permissionResolver.HasRoomPermission(ctx, regular.Id, KindDM, dmRoomID, PermMessageAttach)
+	regular, err := core.CreateUser(ctx, "system", "dmattachdeny", "DM Attach Deny", "password123")
 	if err != nil {
-		t.Fatalf("HasRoomPermission before deny: %v", err)
+		t.Fatalf("CreateUser regular: %v", err)
 	}
-	if got {
-		t.Fatal("message.attach should be absent after the inherited Server grant is cleared")
+	admin, err := core.CreateUser(ctx, SystemActorID, "dmattach-admin", "Admin", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser admin: %v", err)
 	}
-	admin, _ := core.CreateUser(ctx, SystemActorID, "dmattach-admin", "Admin", "password123")
 	if err := core.AssignOwnerRole(ctx, admin.Id); err != nil {
 		t.Fatalf("AssignOwnerRole: %v", err)
 	}
-	if err := core.SetUserPermissionState(ctx, admin.Id, regular.Id, PermissionTargetScope{Kind: MatrixScopeDM}, PermMessageAttach, PermissionStateAllow); err != nil {
+	dmRoomID := "R_dm_attach_deny_test"
+	dmScope := PermissionTargetScope{Kind: MatrixScopeDM}
+	hasAttach := func(step string) bool {
+		t.Helper()
+		got, err := core.permissionResolver.HasRoomPermission(ctx, regular.Id, KindDM, dmRoomID, PermMessageAttach)
+		if err != nil {
+			t.Fatalf("HasRoomPermission %s: %v", step, err)
+		}
+		return got
+	}
+
+	if !hasAttach("with defaults") {
+		t.Fatal("message.attach should come from the everyone Direct-messages default")
+	}
+	if err := core.SetRolePermissionState(ctx, admin.Id, RoleEveryone, dmScope, PermMessageAttach, PermissionStateNone); err != nil {
+		t.Fatalf("clear everyone DM allow: %v", err)
+	}
+	if hasAttach("after clear") {
+		t.Fatal("message.attach should be absent after the everyone DM grant is cleared")
+	}
+
+	if err := core.SetUserPermissionState(ctx, admin.Id, regular.Id, dmScope, PermMessageAttach, PermissionStateAllow); err != nil {
 		t.Fatalf("SetUserPermissionState allow: %v", err)
 	}
-	got, err = core.permissionResolver.HasRoomPermission(ctx, regular.Id, KindDM, dmRoomID, PermMessageAttach)
-	if err != nil || !got {
-		t.Fatalf("DM override result = %v, %v; want allow", got, err)
+	if !hasAttach("with user DM allow") {
+		t.Fatal("DM user allow should grant message.attach")
 	}
-	if err := core.SetUserPermissionState(ctx, admin.Id, regular.Id, PermissionTargetScope{Kind: MatrixScopeDM}, PermMessageAttach, PermissionStateNone); err != nil {
+	if err := core.SetUserPermissionState(ctx, admin.Id, regular.Id, dmScope, PermMessageAttach, PermissionStateNone); err != nil {
 		t.Fatalf("SetUserPermissionState clear: %v", err)
 	}
 
-	// Only a single user can be denied (ADR-116).
+	// Only a single user can be denied (ADR-116). The nearest user setting
+	// wins over every role allow, here the everyone DM allow.
+	if err := core.SetRolePermissionState(ctx, admin.Id, RoleEveryone, dmScope, PermMessageAttach, PermissionStateAllow); err != nil {
+		t.Fatalf("restore everyone DM allow: %v", err)
+	}
 	if err := core.DenyUserPermission(ctx, SystemActorID, regular.Id, PermMessageAttach); err != nil {
 		t.Fatalf("DenyUserPermission: %v", err)
 	}
-
-	got, err = core.permissionResolver.HasRoomPermission(ctx, regular.Id, KindDM, dmRoomID, PermMessageAttach)
-	if err != nil {
-		t.Fatalf("HasRoomPermission after deny: %v", err)
-	}
-	if got {
-		t.Fatal("explicit Server deny should apply when the DM override is absent")
+	if hasAttach("after deny") {
+		t.Fatal("explicit Server user deny should apply when the DM user override is absent")
 	}
 }
 

@@ -733,6 +733,8 @@ func TestMCPHandlerAppliesOwnerPrivilegedModeGate(t *testing.T) {
 	}
 }
 
+// startTestCore runs chattoCore until the test ends and opens the server to
+// everyone (openServerToEveryone).
 func startTestCore(t *testing.T, chattoCore *core.ChattoCore) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -750,6 +752,20 @@ func startTestCore(t *testing.T, chattoCore *core.ChattoCore) {
 	defer bootCancel()
 	if err := chattoCore.WaitForBoot(bootCtx); err != nil {
 		t.Fatalf("WaitForBoot: %v", err)
+	}
+	openServerToEveryone(t, chattoCore)
+}
+
+// openServerToEveryone grants everyone the open-room permissions at server
+// scope, as an operator who opens the whole server would. New servers start
+// closed (ADR-116), but most tests exercise other behavior in open rooms.
+// The core package tests the real seeded defaults.
+func openServerToEveryone(t testing.TB, c *core.ChattoCore) {
+	t.Helper()
+	for _, perm := range core.DefaultOpenRoomEveryonePermissions() {
+		if err := c.GrantServerPermission(context.Background(), core.SystemActorID, core.RoleEveryone, perm); err != nil {
+			t.Fatalf("open server to everyone: grant %s: %v", perm, err)
+		}
 	}
 }
 

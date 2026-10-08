@@ -81,6 +81,30 @@ func setupTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 	return core, nc
 }
 
+// setupTestCoreWithDefaults is setupTestCore without openServerToEveryone.
+// Use it for tests of the real seeded permission defaults, under which new
+// rooms and room groups start closed (ADR-116).
+func setupTestCoreWithDefaults(t *testing.T) (*ChattoCore, *nats.Conn) {
+	t.Helper()
+	core, nc := newTestCore(t)
+	startCoreServicesWithDefaults(t, core)
+	return core, nc
+}
+
+// openServerToEveryone grants everyone the open-room permissions at server
+// scope, as an operator who opens the whole server would. New servers start
+// closed (ADR-116), but most tests exercise other behavior in open rooms.
+// Tests of the real seeded defaults use setupTestCoreWithDefaults or
+// startCoreServicesWithDefaults instead.
+func openServerToEveryone(t testing.TB, core *ChattoCore) {
+	t.Helper()
+	for _, perm := range DefaultOpenRoomEveryonePermissions() {
+		if err := core.GrantServerPermission(context.Background(), SystemActorID, RoleEveryone, perm); err != nil {
+			t.Fatalf("open server to everyone: grant %s: %v", perm, err)
+		}
+	}
+}
+
 // newTestCore constructs but does not start a core, allowing tests to install
 // startup-only provider seams before background workers begin.
 func newTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
@@ -113,7 +137,18 @@ func newTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 //
 // Once `core.Run` owns the lifecycle of every background service, new
 // projectors (ADR-035) get picked up here automatically.
+//
+// It then opens the server to everyone (openServerToEveryone). Use
+// startCoreServicesWithDefaults to keep the real seeded defaults.
 func startCoreServices(t testing.TB, core *ChattoCore) {
+	t.Helper()
+	startCoreServicesWithDefaults(t, core)
+	openServerToEveryone(t, core)
+}
+
+// startCoreServicesWithDefaults is startCoreServices without
+// openServerToEveryone.
+func startCoreServicesWithDefaults(t testing.TB, core *ChattoCore) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)

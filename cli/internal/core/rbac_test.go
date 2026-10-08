@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"hmans.de/chatto/internal/config"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -78,23 +79,10 @@ func TestDefaultServerEveryonePermissions(t *testing.T) {
 		t.Error("Expected at least one default everyone permission")
 	}
 
-	// Server defaults provide ordinary member capabilities globally.
-	expected := []Permission{
-		PermUserDeleteSelf,
-		PermRoomList,
-		PermRoomJoin,
-		PermMessagePost,
-		PermMessageReact,
-		PermMessageEcho,
-	}
-	permSet := make(map[Permission]bool)
-	for _, p := range perms {
-		permSet[p] = true
-	}
-	for _, exp := range expected {
-		if !permSet[exp] {
-			t.Errorf("Expected %s in default everyone permissions", exp)
-		}
+	// A server-scope allow reaches every room, so the everyone server defaults
+	// hold no room access or room content (ADR-116).
+	if !slices.Equal(perms, []Permission{PermUserDeleteSelf}) {
+		t.Errorf("default everyone permissions = %v, want [%s]", perms, PermUserDeleteSelf)
 	}
 }
 
@@ -105,7 +93,7 @@ func TestDefaultServerEveryonePermissions(t *testing.T) {
 func TestChattoCore_initServerRBAC(t *testing.T) {
 	t.Parallel()
 
-	core, _ := setupTestCore(t)
+	core, _ := setupTestCoreWithDefaults(t)
 	ctx := testContext(t)
 
 	// initServerRBAC is called during NewChattoCore, so just verify the state
@@ -119,13 +107,14 @@ func TestChattoCore_initServerRBAC(t *testing.T) {
 		t.Error("Expected everyone to have user.delete-self permission")
 	}
 
-	// Check that everyone has message.post at server scope by default.
+	// New servers start closed (ADR-116): everyone has no server-scope
+	// message.post.
 	hasPerm, err = core.HasServerPermission(ctx, "any-user", PermMessagePost)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
-	if !hasPerm {
-		t.Error("Expected everyone to have server-scope message.post permission")
+	if hasPerm {
+		t.Error("Expected everyone to NOT have server-scope message.post permission")
 	}
 
 	// Check that everyone does NOT have admin view permission
@@ -239,13 +228,16 @@ func TestChattoCore_RestartPreservesFullyClearedDefaultPermissions(t *testing.T)
 	if err != nil {
 		t.Fatalf("NewChattoCore first startup: %v", err)
 	}
-	startCoreServices(t, core1)
+	startCoreServicesWithDefaults(t, core1)
 	for _, decision := range core1.rbacModel.rbac.Projection().Decisions() {
-		if decision.scope != ScopeServer {
-			t.Fatalf("unexpected non-server seed decision: %+v", decision)
+		if decision.scope != ScopeServer && decision.scope != ScopeDM {
+			t.Fatalf("unexpected seed decision outside server and DM scope: %+v", decision)
 		}
-		if err := core1.ClearServerPermissionState(ctx, SystemActorID, decision.subject, decision.permission); err != nil {
-			t.Fatalf("ClearServerPermissionState(%s, %s): %v", decision.subject, decision.permission, err)
+		event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionCleared{
+			RbacPermissionCleared: rbacRolePermissionClearedEvent(decision.scope, decision.scopeID, decision.subject, decision.permission),
+		}})
+		if _, err := core1.appendRBACEvent(ctx, event, nil); err != nil {
+			t.Fatalf("clear %s %s/%s: %v", decision.scope, decision.subject, decision.permission, err)
 		}
 	}
 	if got := len(core1.rbacModel.rbac.Projection().Decisions()); got != 0 {
@@ -256,7 +248,7 @@ func TestChattoCore_RestartPreservesFullyClearedDefaultPermissions(t *testing.T)
 	if err != nil {
 		t.Fatalf("NewChattoCore restart: %v", err)
 	}
-	startCoreServices(t, core2)
+	startCoreServicesWithDefaults(t, core2)
 	if got := len(core2.rbacModel.rbac.Projection().Decisions()); got != 0 {
 		t.Fatalf("decisions after restart = %d, want 0", got)
 	}
@@ -278,12 +270,15 @@ func TestChattoCore_RestartPreservesClearedRoomDefaultPermission(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewChattoCore first startup: %v", err)
 	}
-	startCoreServices(t, core1)
+	startCoreServicesWithDefaults(t, core1)
 	room, err := core1.CreateRoom(ctx, SystemActorID, KindChannel, "", AnnouncementsRoomName, "", WithAnnouncementsRoomDefaults())
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if err := core1.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost); err != nil {
+	if got := core1.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePostInThread); got != DecisionAllow {
+		t.Fatalf("room decision before clear = %s, want %s", got, DecisionAllow)
+	}
+	if err := core1.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePostInThread); err != nil {
 		t.Fatalf("ClearRoomPermissionState: %v", err)
 	}
 
@@ -291,8 +286,8 @@ func TestChattoCore_RestartPreservesClearedRoomDefaultPermission(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewChattoCore restart: %v", err)
 	}
-	startCoreServices(t, core2)
-	if got := core2.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionNone {
+	startCoreServicesWithDefaults(t, core2)
+	if got := core2.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePostInThread); got != DecisionNone {
 		t.Fatalf("room decision after restart = %s, want %s", got, DecisionNone)
 	}
 }

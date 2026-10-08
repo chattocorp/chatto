@@ -22,9 +22,9 @@ type DefaultGlobalRoom struct {
 }
 
 // DefaultGlobalRooms is the list of channel rooms seeded on a fresh
-// deployment. Each lands in the seed "Lobby" group. Normal rooms inherit the
-// server-tier everyone defaults; the "announcements" room is universal and
-// adds a room-tier everyone/message.post denial and admin/message.post grant.
+// deployment. Each lands in the seed "Lobby" group, which stays closed. Each
+// seeded room is opened to everyone at room scope: "general" fully, and the
+// universal "announcements" room for reading, with posting for admins.
 var DefaultGlobalRooms = []DefaultGlobalRoom{
 	{Name: AnnouncementsRoomName, Description: "Announcements and news", Universal: true},
 	{Name: "general", Description: "General discussion"},
@@ -49,7 +49,7 @@ func (c *ChattoCore) SeedDefaultRooms(ctx context.Context) error {
 	}
 
 	for _, r := range DefaultGlobalRooms {
-		options := []CreateRoomOption{WithUniversalRoom(r.Universal)}
+		options := []CreateRoomOption{WithUniversalRoom(r.Universal), WithOpenRoomDefaults()}
 		if r.Name == AnnouncementsRoomName {
 			options = append(options, WithAnnouncementsRoomDefaults())
 		}

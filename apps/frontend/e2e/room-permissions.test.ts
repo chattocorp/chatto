@@ -684,27 +684,6 @@ async function assignServerRole(page: Page, userId: string, roleName: string): P
 
 test.describe('Permission-only Resolution', () => {
   test.describe('#general room - default posting', () => {
-    test('all server members can post to #general by default', async ({ page, roomPage }) => {
-      // Owner loads the primary server (auto-creates #general and #announcements rooms)
-      const _owner = await createAndLoginTestUser(page);
-      await usePrimaryServerViaAPI(page, `Hierarchy Test ${Date.now()}`);
-      const generalRoomId = await getRoomByName(page, 'general');
-
-      // Create regular member
-      const member = await createSecondTestUser(page);
-      await logoutUser(page);
-      await loginUser(page, member.login, member.password);
-      await joinRoomViaAPI(page, generalRoomId);
-
-      // Member should be able to post
-      await page.goto(routes.room(generalRoomId));
-      const chatInput = page.getByTestId('message-input');
-      await expect(chatInput).toHaveAttribute('contenteditable', 'true');
-
-      // Actually post a message
-      await roomPage.sendMessage('Hello from a regular member!');
-    });
-
     test('joining from an unjoined sidebar room shows inline join and enables posting', async ({
       page,
       roomPage
@@ -789,11 +768,73 @@ test.describe('Permission-only Resolution', () => {
     });
   });
 
-  test.describe('#announcements room - posting', () => {
-    // The seeded room-scope deny of message.post for everyone has no effect,
-    // because roles, everyone included, only grant (ADR-116). Members keep
-    // the server-scope allow of everyone.
-    test('announcements room lets the owner and members post', async ({ page, roomPage }) => {
+  // These tests keep the closed defaults of a new server (ADR-116): only the
+  // seeded rooms are open to everyone, at room scope.
+  test.describe('closed server defaults', () => {
+    test.use({ openServerToEveryone: false });
+
+    test('all server members can post to #general by default', async ({ page, roomPage }) => {
+      // The seeded #general room is open to everyone at room scope.
+      const _owner = await createAndLoginTestUser(page);
+      await usePrimaryServerViaAPI(page, `Hierarchy Test ${Date.now()}`);
+      const generalRoomId = await getRoomByName(page, 'general');
+
+      // Create regular member
+      const member = await createSecondTestUser(page);
+      await logoutUser(page);
+      await loginUser(page, member.login, member.password);
+      await joinRoomViaAPI(page, generalRoomId);
+
+      // Member should be able to post
+      await page.goto(routes.room(generalRoomId));
+      const chatInput = page.getByTestId('message-input');
+      await expect(chatInput).toHaveAttribute('contenteditable', 'true');
+
+      // Actually post a message
+      await roomPage.sendMessage('Hello from a regular member!');
+    });
+
+    test('a new room is hidden from members until everyone may list and join it', async ({
+      page
+    }) => {
+      await createAndLoginTestUser(page);
+      await usePrimaryServerViaAPI(page, `Closed Room ${Date.now()}`);
+      const roomId = await createRoomViaAPI(page, `closed-${shortSuffix()}`);
+      const member = await createSecondTestUser(page);
+
+      const listMemberRoomIds = async () => {
+        const data = await connectPost<{ rooms?: { room?: { id?: string } }[] }>(
+          page,
+          'chatto.api.v1.RoomDirectoryService/ListRooms',
+          { scope: 'ROOM_DIRECTORY_SCOPE_CHANNELS' }
+        );
+        return data.rooms?.map((entry) => entry.room?.id) ?? [];
+      };
+      const tryJoin = () =>
+        connectPostResponse(page, 'chatto.api.v1.RoomService/JoinRoom', { roomId });
+
+      // The new room starts closed: the member can neither find nor join it.
+      await logoutUser(page);
+      await loginUser(page, member.login, member.password);
+      expect(await listMemberRoomIds()).not.toContain(roomId);
+      expect((await tryJoin()).ok()).toBe(false);
+
+      // An admin allows room.list and room.join for everyone on this room.
+      await logoutUser(page);
+      await usePrimaryServerViaAPI(page);
+      await grantRoomPermission(page, roomId, 'everyone', 'room.list');
+      await grantRoomPermission(page, roomId, 'everyone', 'room.join');
+
+      await logoutUser(page);
+      await loginUser(page, member.login, member.password);
+      expect(await listMemberRoomIds()).toContain(roomId);
+      await joinRoomViaAPI(page, roomId);
+    });
+
+    test('announcements room lets the owner post and members only read', async ({
+      page,
+      roomPage
+    }) => {
       // Owner loads the primary server - this auto-creates #announcements
       const _owner = await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page, `Announcements Test ${Date.now()}`);
@@ -811,10 +852,10 @@ test.describe('Permission-only Resolution', () => {
       await loginUser(page, member.login, member.password);
       await joinRoomViaAPI(page, announcementsRoomId);
 
-      // Member can see the announcement and post
+      // Member can see the announcement but cannot post root messages
       await page.goto(routes.room(announcementsRoomId));
       await expect(page.getByText('Important announcement from owner!')).toBeVisible();
-      await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'true');
+      await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'false');
     });
 
     test('admin can post root messages in announcements room', async ({ page }) => {

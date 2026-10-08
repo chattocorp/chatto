@@ -85,14 +85,18 @@ func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultPermissionsWithCreation
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionDeny {
-		t.Fatalf("message.post decision on return = %s, want %s", got, DecisionDeny)
+	// Roles only grant (ADR-116): everyone gets no message.post decision, so
+	// only the admin allow lets anyone post root messages.
+	if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionNone {
+		t.Fatalf("message.post decision on return = %s, want %s", got, DecisionNone)
 	}
 	if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleAdmin, PermMessagePost); got != DecisionAllow {
 		t.Fatalf("admin message.post decision on return = %s, want %s", got, DecisionAllow)
 	}
-	if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePostInThread); got != DecisionAllow {
-		t.Fatalf("everyone message.post-in-thread decision on return = %s, want %s", got, DecisionAllow)
+	for _, perm := range DefaultAnnouncementsEveryonePermissions() {
+		if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, perm); got != DecisionAllow {
+			t.Fatalf("everyone %s decision on return = %s, want %s", perm, got, DecisionAllow)
+		}
 	}
 
 	created, createdSeq, err := core.EventPublisher.SubjectEvents(
@@ -102,7 +106,7 @@ func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultPermissionsWithCreation
 	if err != nil {
 		t.Fatalf("read RoomCreated event: %v", err)
 	}
-	denied, deniedSeq, err := core.EventPublisher.SubjectEvents(
+	denied, _, err := core.EventPublisher.SubjectEvents(
 		ctx,
 		evtstream.RBACScopedAggregate(room.Id).Subject(evtstream.EventRBACPermissionDenied),
 	)
@@ -123,13 +127,12 @@ func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultPermissionsWithCreation
 	if err != nil {
 		t.Fatalf("read room group membership: %v", err)
 	}
-	// One deny (everyone message.post) and two allows (admin message.post,
-	// everyone message.post-in-thread).
-	if len(created) != 1 || len(added) != 1 || len(denied) != 1 || len(granted) != 2 {
-		t.Fatalf("created events = %d, added events = %d, denied events = %d, granted events = %d; want 1, 1, 1, 2", len(created), len(added), len(denied), len(granted))
+	wantGranted := len(DefaultAnnouncementsEveryonePermissions()) + len(DefaultAnnouncementsAdminPermissions())
+	if len(created) != 1 || len(added) != 1 || len(denied) != 0 || len(granted) != wantGranted {
+		t.Fatalf("created events = %d, added events = %d, denied events = %d, granted events = %d; want 1, 1, 0, %d", len(created), len(added), len(denied), len(granted), wantGranted)
 	}
-	if addedSeq != createdSeq+1 || max(grantedSeq, deniedSeq) != addedSeq+3 {
-		t.Fatalf("room creation sequences = created %d, added %d, denied %d, granted %d; want one contiguous batch", createdSeq, addedSeq, deniedSeq, grantedSeq)
+	if addedSeq != createdSeq+1 || grantedSeq != addedSeq+uint64(wantGranted) {
+		t.Fatalf("room creation sequences = created %d, added %d, granted %d; want one contiguous batch", createdSeq, addedSeq, grantedSeq)
 	}
 }
 

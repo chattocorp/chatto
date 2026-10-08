@@ -6,6 +6,7 @@ import {
   type StartServerOptions
 } from './fixtures/server';
 import { composerTestStorageState } from './fixtures/testUser';
+import { openServerToEveryone } from './fixtures/openServer';
 import {
   AccountPage,
   AdminPage,
@@ -36,13 +37,27 @@ export const test = base.extend<{
   serverURL: string; // Expose server URL to tests for creating new contexts
   server: ServerInfo; // Test-scoped: one server per test
   serverOptions: StartServerOptions; // Override to pass custom options (e.g. env vars) to the server
+  openServerToEveryone: boolean; // Set to false to keep the closed defaults of a new server
 }>({
   // Option fixture: tests can override via test.use({ serverOptions: { ... } })
   serverOptions: [{}, { option: true }],
 
+  // Option fixture: new servers start closed (ADR-116), but most tests
+  // exercise other behavior in rooms that they create. Tests of the real
+  // closed defaults use test.use({ openServerToEveryone: false }).
+  openServerToEveryone: [true, { option: true }],
+
   // Test-scoped: one server per test for complete isolation
-  server: async ({ serverOptions }, use, testInfo) => {
+  server: async ({ serverOptions, openServerToEveryone: openServer }, use, testInfo) => {
     const server = await startServer(testInfo, serverOptions);
+    if (openServer) {
+      try {
+        await openServerToEveryone(server.baseURL);
+      } catch (error) {
+        await stopServer(server, testInfo);
+        throw error;
+      }
+    }
     await use(server);
     await stopServer(server, testInfo);
   },

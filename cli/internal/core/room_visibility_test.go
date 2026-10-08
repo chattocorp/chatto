@@ -92,14 +92,13 @@ func TestCanSeeRoom_VisibilityFollowsListPermission(t *testing.T) {
 	})
 }
 
-// Roles only grant, so a role-only room needs an everyone baseline without
-// room.list and room.join. The named role's room allow then gives access to
-// its holders. Other roles keep access through their own allows, such as
-// admin's default server-scope room.list and room.join.
+// Roles only grant, and new rooms start closed (ADR-116). The named role's
+// room allow gives access to its holders only. Admins have no default
+// server-scope room.list or room.join, so they do not get access either.
 func TestCanSeeRoom_NamedRoleOverridesEveryoneBaseline(t *testing.T) {
 	t.Parallel()
 
-	core, _ := setupTestCore(t)
+	core, _ := setupTestCoreWithDefaults(t)
 	ctx := testContext(t)
 
 	owner, _ := core.CreateUser(ctx, SystemActorID, "private-owner", "Owner", "password123")
@@ -118,11 +117,6 @@ func TestCanSeeRoom_NamedRoleOverridesEveryoneBaseline(t *testing.T) {
 	if err := core.AssignServerRole(ctx, SystemActorID, allowed.Id, "engineering"); err != nil {
 		t.Fatalf("AssignServerRole engineering: %v", err)
 	}
-	for _, perm := range []Permission{PermRoomList, PermRoomJoin} {
-		if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, perm); err != nil {
-			t.Fatalf("ClearServerPermissionState everyone/%s: %v", perm, err)
-		}
-	}
 
 	t.Run("non-universal room is visible only to the allowed role", func(t *testing.T) {
 		room, err := core.CreateRoom(ctx, owner.Id, KindChannel, "", "private-engineering", "")
@@ -139,8 +133,8 @@ func TestCanSeeRoom_NamedRoleOverridesEveryoneBaseline(t *testing.T) {
 		if visible, err := core.CanSeeRoom(ctx, stranger.Id, KindChannel, room.Id); err != nil || visible {
 			t.Fatalf("stranger visibility = %v, err = %v; want false", visible, err)
 		}
-		if visible, err := core.CanSeeRoom(ctx, admin.Id, KindChannel, room.Id); err != nil || !visible {
-			t.Fatalf("admin visibility = %v, err = %v; want true through admin's server-scope room.list allow", visible, err)
+		if visible, err := core.CanSeeRoom(ctx, admin.Id, KindChannel, room.Id); err != nil || visible {
+			t.Fatalf("admin visibility = %v, err = %v; want false without a server-scope room.list allow", visible, err)
 		}
 	})
 
@@ -161,8 +155,8 @@ func TestCanSeeRoom_NamedRoleOverridesEveryoneBaseline(t *testing.T) {
 		if member, err := core.RoomMembershipExists(ctx, KindChannel, stranger.Id, room.Id); err != nil || member {
 			t.Fatalf("stranger membership = %v, err = %v; want false", member, err)
 		}
-		if member, err := core.RoomMembershipExists(ctx, KindChannel, admin.Id, room.Id); err != nil || !member {
-			t.Fatalf("admin membership = %v, err = %v; want true through admin's server-scope room.join allow", member, err)
+		if member, err := core.RoomMembershipExists(ctx, KindChannel, admin.Id, room.Id); err != nil || member {
+			t.Fatalf("admin membership = %v, err = %v; want false without a server-scope room.join allow", member, err)
 		}
 	})
 }

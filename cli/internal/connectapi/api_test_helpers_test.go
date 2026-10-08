@@ -161,6 +161,7 @@ func newConnectAPITestEnvWithTimeout(t *testing.T, timeout time.Duration) *conne
 		t.Fatalf("NewChattoCore: %v", err)
 	}
 	startConnectAPITestCore(t, c)
+	openServerToEveryone(t, c)
 
 	viewer, err := c.CreateUser(ctx, core.SystemActorID, "timeline-viewer", "Timeline Viewer", "password")
 	if err != nil {
@@ -220,6 +221,19 @@ func startConnectAPITestCore(t *testing.T, c *core.ChattoCore) {
 	defer bootCancel()
 	if err := c.WaitForBoot(bootCtx); err != nil {
 		t.Fatalf("WaitForBoot: %v", err)
+	}
+}
+
+// openServerToEveryone grants everyone the open-room permissions at server
+// scope, as an operator who opens the whole server would. New servers start
+// closed (ADR-116), but most tests exercise other behavior in open rooms.
+// The core package tests the real seeded defaults.
+func openServerToEveryone(t testing.TB, c *core.ChattoCore) {
+	t.Helper()
+	for _, perm := range core.DefaultOpenRoomEveryonePermissions() {
+		if err := c.GrantServerPermission(context.Background(), core.SystemActorID, core.RoleEveryone, perm); err != nil {
+			t.Fatalf("open server to everyone: grant %s: %v", perm, err)
+		}
 	}
 }
 

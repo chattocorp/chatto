@@ -38,7 +38,9 @@ func v05UpgradePermissions() []Permission {
 // facts. It runs after seedDefaultRBAC on every startup and has two gates:
 //
 //   - Each call permission is initialized for everyone at server scope unless
-//     that server/everyone decision was ever granted, denied, or cleared.
+//     an everyone decision for it at server or Direct messages scope was ever
+//     granted, denied, or cleared. New servers seed the Direct messages
+//     decision, so they stay closed (ADR-116).
 //   - The 0.5 grants apply as one set, only while no v05UpgradePermissions
 //     decision exists anywhere in the log. They keep only capabilities that
 //     0.4 servers had: everyone reads messages, and room.remove-member copies
@@ -76,7 +78,7 @@ func (c *ChattoCore) seedUpgradePermissions(ctx context.Context) error {
 // rbacUpgradeState is one complete or early-stopped scan of the RBAC log.
 type rbacUpgradeState struct {
 	seq         uint64
-	callDecided map[Permission]bool // server/everyone call decisions ever seen
+	callDecided map[Permission]bool // everyone call decisions at server or DM scope ever seen
 	v05Pending  bool                // no 0.5 permission decision seen
 	// replay holds current decisions for the 0.5 grants. It is complete only
 	// when v05Pending is true, because the scan stops once the gate closes.
@@ -135,7 +137,7 @@ func (c *ChattoCore) scanRBACUpgradeState(ctx context.Context) (rbacUpgradeState
 			if v05[Permission(permission)] {
 				state.v05Pending = false
 			}
-			if ok && key.scope == ScopeServer && key.subjectKind == evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE && key.subject == RoleEveryone {
+			if ok && (key.scope == ScopeServer || key.scope == ScopeDM) && key.subjectKind == evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE && key.subject == RoleEveryone {
 				for _, id := range callPermissionIDs() {
 					if key.permission == id {
 						state.callDecided[id] = true

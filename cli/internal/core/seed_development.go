@@ -235,12 +235,14 @@ func (c *ChattoCore) createSeedUser(ctx context.Context, base, displayName strin
 	return nil, fmt.Errorf("could not allocate a unique permitted synthetic login")
 }
 
+// createSeedRoom creates a synthetic room opened to everyone, so the seeded
+// users can post in it. Other new rooms start closed (ADR-116).
 func (c *ChattoCore) createSeedRoom(ctx context.Context, base, description string) (*evtv1.Room, error) {
 	for attempt := range 10000 {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", seedNameCandidate(base, attempt), description)
+		room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", seedNameCandidate(base, attempt), description, WithOpenRoomDefaults())
 		if !errors.Is(err, ErrRoomNameExists) {
 			return room, err
 		}

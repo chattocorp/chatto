@@ -315,13 +315,16 @@ func TestPermissionOpsIdempotency(t *testing.T) {
 func TestInitServerDefaults(t *testing.T) {
 	t.Parallel()
 
-	core, _ := setupTestCore(t)
+	core, _ := setupTestCoreWithDefaults(t)
 
-	// InitServerDefaults is called during setupTestCore, so we can verify its effects
+	// InitServerDefaults is called during setupTestCoreWithDefaults, so we can
+	// verify its effects.
 
 	t.Run("admin has expected server permissions", func(t *testing.T) {
 		// Admin-specific defaults include administration, room administration,
-		// and message management. Ordinary posting and call defaults come from everyone.
+		// and message management. Ordinary posting and call defaults come from
+		// room-scope allows. Admins get no server-scope room.list or room.join:
+		// those would reach every private room (ADR-116).
 		for _, perm := range PermissionsForScope(ScopeServer) {
 			if perm.Category == CategoryCall || (perm.Category == CategoryMessage && perm.Permission != PermMessageManage) {
 				continue
@@ -331,8 +334,12 @@ func TestInitServerDefaults(t *testing.T) {
 			if perm.Permission == PermServerManageNeighbors {
 				continue
 			}
-			if got := core.rbacModel.decision(ScopeServer, "", RoleAdmin, perm.Permission); got != DecisionAllow {
-				t.Errorf("admin decision for %s = %s, want %s", perm.Permission, got, DecisionAllow)
+			want := DecisionAllow
+			if perm.Permission == PermRoomList || perm.Permission == PermRoomJoin {
+				want = DecisionNone
+			}
+			if got := core.rbacModel.decision(ScopeServer, "", RoleAdmin, perm.Permission); got != want {
+				t.Errorf("admin decision for %s = %s, want %s", perm.Permission, got, want)
 			}
 		}
 		for _, perm := range []Permission{PermMessagePost, PermMessagePostInThread, PermMessageReact, PermMessageEcho, PermCallStart, PermCallJoin, PermCallVoice, PermCallCamera, PermCallScreenShare} {
@@ -342,17 +349,20 @@ func TestInitServerDefaults(t *testing.T) {
 		}
 	})
 
-	t.Run("everyone has default server message.post permission", func(t *testing.T) {
-		if got := core.rbacModel.decision(ScopeServer, "", RoleEveryone, PermMessagePost); got != DecisionAllow {
-			t.Errorf("everyone decision for %s = %s, want %s", PermMessagePost, got, DecisionAllow)
+	t.Run("everyone has only user.delete-self at server scope", func(t *testing.T) {
+		for _, perm := range PermissionsForScope(ScopeServer) {
+			want := DecisionNone
+			if perm.Permission == PermUserDeleteSelf {
+				want = DecisionAllow
+			}
+			if got := core.rbacModel.decision(ScopeServer, "", RoleEveryone, perm.Permission); got != want {
+				t.Errorf("everyone server decision for %s = %s, want %s", perm.Permission, got, want)
+			}
 		}
 	})
 
-	t.Run("everyone has expected permissions", func(t *testing.T) {
+	t.Run("everyone has message and call permissions at Direct-messages scope", func(t *testing.T) {
 		expectedPerms := []Permission{
-			PermUserDeleteSelf,
-			PermRoomList,
-			PermRoomJoin,
 			PermMessageRead,
 			PermMessagePost,
 			PermMessageAttach,
@@ -361,13 +371,13 @@ func TestInitServerDefaults(t *testing.T) {
 			PermCallStart, PermCallJoin, PermCallVoice, PermCallCamera, PermCallScreenShare,
 		}
 		for _, perm := range expectedPerms {
-			if got := core.rbacModel.decision(ScopeServer, "", RoleEveryone, perm); got != DecisionAllow {
-				t.Errorf("everyone decision for %s = %s, want %s", perm, got, DecisionAllow)
+			if got := core.rbacModel.decision(ScopeDM, "", RoleEveryone, perm); got != DecisionAllow {
+				t.Errorf("everyone DM decision for %s = %s, want %s", perm, got, DecisionAllow)
 			}
 		}
 	})
 
-	t.Run("admin inherits call access from everyone", func(t *testing.T) {
+	t.Run("admin inherits DM call access from everyone but has none at server scope", func(t *testing.T) {
 		ctx := testContext(t)
 		user, err := core.CreateUser(ctx, SystemActorID, "call-default-admin", "Admin", "password")
 		if err != nil {
@@ -377,9 +387,13 @@ func TestInitServerDefaults(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, permission := range callPermissionIDs() {
-			allowed, err := core.HasServerPermission(ctx, user.Id, permission)
+			allowed, err := core.hasKindPermission(ctx, KindDM, user.Id, permission)
 			if err != nil || !allowed {
-				t.Errorf("admin effective %s = %v, %v; want allow", permission, allowed, err)
+				t.Errorf("admin effective DM %s = %v, %v; want allow", permission, allowed, err)
+			}
+			allowed, err = core.HasServerPermission(ctx, user.Id, permission)
+			if err != nil || allowed {
+				t.Errorf("admin effective server %s = %v, %v; want no allow", permission, allowed, err)
 			}
 		}
 	})
@@ -388,7 +402,7 @@ func TestInitServerDefaults(t *testing.T) {
 func TestDefaultRBACSeed(t *testing.T) {
 	t.Parallel()
 
-	core, _ := setupTestCore(t)
+	core, _ := setupTestCoreWithDefaults(t)
 	ctx := testContext(t)
 
 	_, _ = core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
@@ -443,6 +457,19 @@ func TestDefaultRBACSeed(t *testing.T) {
 		}
 	})
 
+	t.Run("only everyone stores Direct-messages defaults", func(t *testing.T) {
+		for _, role := range []string{RoleEveryone, RoleModerator, RoleAdmin, RoleOwner} {
+			for _, metadata := range PermissionsForScope(ScopeDM) {
+				want := DecisionNone
+				if role == RoleEveryone && slices.Contains(DefaultEveryoneDMPermissions(), metadata.Permission) {
+					want = DecisionAllow
+				}
+				if got := core.rbacModel.decision(ScopeDM, "", role, metadata.Permission); got != want {
+					t.Errorf("%s DM decision for %s = %s, want %s", role, metadata.Permission, got, want)
+				}
+			}
+		}
+	})
 }
 
 // ============================================================================
@@ -472,7 +499,7 @@ func TestPermissionOpsWithCancelledContext(t *testing.T) {
 func TestDefaultChannelRoomPermissions(t *testing.T) {
 	t.Parallel()
 
-	core, _ := setupTestCore(t)
+	core, _ := setupTestCoreWithDefaults(t)
 	ctx := testContext(t)
 
 	// Create a user (with owner role; formerly via CreateSpace)
@@ -484,8 +511,14 @@ func TestDefaultChannelRoomPermissions(t *testing.T) {
 		t.Fatalf("AssignServerRole: %v", err)
 	}
 
-	// Create a regular room
-	regularRoom, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "general", "")
+	// Create a regular room. It starts closed (ADR-116).
+	regularRoom, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "regular", "")
+	if err != nil {
+		t.Fatalf("CreateRoom (regular) failed: %v", err)
+	}
+
+	// Create a seeded open room, like #general, with its explicit defaults.
+	openRoom, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "general", "", WithOpenRoomDefaults())
 	if err != nil {
 		t.Fatalf("CreateRoom (general) failed: %v", err)
 	}
@@ -505,10 +538,15 @@ func TestDefaultChannelRoomPermissions(t *testing.T) {
 				}
 
 				want := DecisionNone
-				if role == RoleEveryone && metadata.Permission == PermMessagePost {
-					want = DecisionDeny
+				if role == RoleEveryone && slices.Contains(DefaultOpenRoomEveryonePermissions(), metadata.Permission) {
+					want = DecisionAllow
 				}
-				if role == RoleEveryone && metadata.Permission == PermMessagePostInThread {
+				if got := core.rbacModel.decision(ScopeRoom, openRoom.Id, role, metadata.Permission); got != want {
+					t.Errorf("open room %s decision for %s = %s, want %s", role, metadata.Permission, got, want)
+				}
+
+				want = DecisionNone
+				if role == RoleEveryone && slices.Contains(DefaultAnnouncementsEveryonePermissions(), metadata.Permission) {
 					want = DecisionAllow
 				}
 				if role == RoleAdmin && metadata.Permission == PermMessagePost {
@@ -535,11 +573,9 @@ func TestDefaultChannelRoomPermissions(t *testing.T) {
 		}
 	})
 
-	// The seeded everyone deny of message.post in announcements is a role deny,
-	// so it has no effect: roles only grant (ADR-116). The everyone server
-	// allow lets every member post.
-	t.Run("owner, admin, moderator, and regular member can post in announcements", func(t *testing.T) {
-		// Owner should be able to post
+	// Only the owner and admins can post root messages in announcements.
+	// Members can reply in threads.
+	t.Run("only owner and admin can post root messages in announcements", func(t *testing.T) {
 		canOwner, err := core.CanPostMessage(ctx, user.Id, KindChannel, annRoom.Id)
 		if err != nil {
 			t.Fatalf("CanPostMessage (owner) failed: %v", err)
@@ -570,34 +606,32 @@ func TestDefaultChannelRoomPermissions(t *testing.T) {
 		if err := core.AssignServerRole(ctx, SystemActorID, moderator.Id, RoleModerator); err != nil {
 			t.Fatalf("AssignServerRole (moderator): %v", err)
 		}
+		if _, err := core.JoinRoom(ctx, moderator.Id, KindChannel, moderator.Id, annRoom.Id); err != nil {
+			t.Fatalf("JoinRoom (moderator) failed: %v", err)
+		}
 		canModerator, err := core.CanPostMessage(ctx, moderator.Id, KindChannel, annRoom.Id)
 		if err != nil {
 			t.Fatalf("CanPostMessage (moderator) failed: %v", err)
 		}
-		if !canModerator {
-			t.Error("Moderator should be able to post in announcements room: the everyone deny has no effect")
+		if canModerator {
+			t.Error("Moderator should not be able to post root messages in announcements room")
 		}
 
-		// Create a regular member
 		member, err := core.CreateUser(ctx, SystemActorID, "member-user", "Member", "password")
 		if err != nil {
 			t.Fatalf("CreateUser (member) failed: %v", err)
 		}
-		_, err = core.JoinRoom(ctx, member.Id, KindChannel, member.Id, annRoom.Id)
-		if err != nil {
+		if _, err := core.JoinRoom(ctx, member.Id, KindChannel, member.Id, annRoom.Id); err != nil {
 			t.Fatalf("JoinRoom failed: %v", err)
 		}
-
-		// Regular member can post too: the everyone deny has no effect.
 		canMember, err := core.CanPostMessage(ctx, member.Id, KindChannel, annRoom.Id)
 		if err != nil {
 			t.Fatalf("CanPostMessage (member) failed: %v", err)
 		}
-		if !canMember {
-			t.Error("Regular member should be able to post in announcements room: the everyone deny has no effect")
+		if canMember {
+			t.Error("Regular member should not be able to post root messages in announcements room")
 		}
 
-		// Regular member SHOULD be able to post in threads (default space permission)
 		canMemberPostInThread, err := core.CanPostInThread(ctx, member.Id, KindChannel, annRoom.Id)
 		if err != nil {
 			t.Fatalf("CanPostInThread (member) failed: %v", err)

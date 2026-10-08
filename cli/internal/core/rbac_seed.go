@@ -79,18 +79,20 @@ func defaultRBACRoles() map[string]*evtv1.Role {
 func defaultRBACDecisions() []rbacSeedDecision {
 	roleDefaults := []struct {
 		role  string
+		scope PermissionScope
 		perms []Permission
 	}{
-		{RoleAdmin, DefaultAdminPermissions()},
-		{RoleModerator, DefaultModeratorPermissions()},
-		{RoleEveryone, DefaultEveryonePermissions()},
+		{RoleAdmin, ScopeServer, DefaultAdminPermissions()},
+		{RoleModerator, ScopeServer, DefaultModeratorPermissions()},
+		{RoleEveryone, ScopeServer, DefaultEveryonePermissions()},
+		{RoleEveryone, ScopeDM, DefaultEveryoneDMPermissions()},
 	}
 	var decisions []rbacSeedDecision
 	for _, spec := range roleDefaults {
 		for _, perm := range spec.perms {
-			if PermissionAppliesAtScope(perm, ScopeServer) {
+			if PermissionAppliesAtScope(perm, spec.scope) {
 				decisions = append(decisions, rbacSeedDecision{
-					scope:       ScopeServer,
+					scope:       spec.scope,
 					subjectKind: evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE,
 					subject:     spec.role,
 					permission:  perm,
