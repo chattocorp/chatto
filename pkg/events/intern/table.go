@@ -9,7 +9,8 @@ package intern
 // The table is append-only: handles stay valid for the table's lifetime and
 // are never reused. Handles are process-local and must not be persisted;
 // snapshots store the ID strings. The caller must prevent concurrent reads and
-// writes. The zero value is ready for use. Do not copy a table after first use.
+// writes. The zero value is ready for use. A copy shares storage with the
+// original. After a copy, use only one of the two values.
 type Table[Kind any] struct {
 	handles map[string]ID[Kind]
 	ids     []string

@@ -49,7 +49,9 @@ or replay position. An ID can exist in a shared table before a model has
 processed it. Check the model's own state to determine whether it exists there.
 
 Zero means the empty string. Other handles and locations belong only to the
-table or arena that issued them. Do not copy a table or arena after first use.
+table or arena that issued them. Do not copy a `ConcurrentTable` or `Arena`
+after first use. A copy of a `Table` shares storage with the original. After a
+copy, use only one of the two values.
 Do not construct handles or locations from arbitrary numbers.
 
 Storage is append-only. Entries are never removed and handles are never
