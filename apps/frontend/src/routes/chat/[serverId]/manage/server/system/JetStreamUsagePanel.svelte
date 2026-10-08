@@ -34,7 +34,8 @@ so every replica reports the same data.
     warning?: string;
   };
 
-  const fileStreamCount = $derived(nats.streams.filter((s) => s.storage === 'File').length);
+  const fileStreams = $derived(nats.streams.filter((stream) => stream.storage === 'File'));
+  const fileStreamCount = $derived(fileStreams.length);
   const memoryStreamCount = $derived(nats.streams.filter((s) => s.storage === 'Memory').length);
   const pullConsumerCount = $derived(nats.consumers.filter((c) => c.pullBased).length);
   const pushConsumerCount = $derived(nats.consumers.length - pullConsumerCount);
@@ -50,13 +51,9 @@ so every replica reports the same data.
 
   // JetStream counts every replica's copy against the account storage, so
   // a replicated stream uses a multiple of its own size.
-  const fileStreamBytes = $derived(
-    nats.streams
-      .filter((stream) => stream.storage === 'File')
-      .reduce((sum, stream) => sum + stream.bytes, 0)
-  );
+  const fileStreamBytes = $derived(fileStreams.reduce((sum, stream) => sum + stream.bytes, 0));
   const includesReplicaCopies = $derived(
-    natsAvailable && nats.streams.some((stream) => stream.replicas > 1)
+    natsAvailable && fileStreams.some((stream) => stream.replicas > 1)
   );
 
   const meters = $derived<Meter[]>([
@@ -147,7 +144,7 @@ so every replica reports the same data.
                 aria-label={meter.label}
                 aria-valuemin={0}
                 aria-valuemax={meter.limit}
-                aria-valuenow={meter.used}
+                aria-valuenow={Math.min(meter.used, meter.limit)}
                 aria-valuetext={m('admin.system.used_of_limit', {
                   used: meter.format(meter.used),
                   limit: meter.format(meter.limit)
