@@ -76,7 +76,12 @@ func (p *Projection) Apply(e *corev1.Event, sequence uint64) error {
 				p.owners[ref] = struct{}{}
 			}
 		}
-		p.accountIDs.Intern(id)
+		// Only this branch interns account IDs, so the new handle always
+		// names the next dense slot.
+		handle = p.accountIDs.Intern(id)
+		if int(handle) != len(p.accounts)+1 {
+			return fmt.Errorf("erasure index handles and records are out of step")
+		}
 		p.accounts = append(p.accounts, State{AccountID: id, UserRef: c.GetUserKeyRef(), DataRef: c.GetCredentialKeyRef()})
 		return nil
 	}
