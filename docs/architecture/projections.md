@@ -28,6 +28,14 @@ same wait and failure boundary. Chatto-specific keys, names, memory estimates,
 diagnostics, and snapshot policy remain in the core registration layer. This
 boundary follows [ADR-056](../adr/ADR-056-extractable-nats-event-sourcing-framework.md).
 
+Notification read commands and scoped read-boundary repair use the existing
+recipient/room/thread index. They copy only unread occurrences that have not
+expired, under a shared projection lock. This lookup does not sort the user's
+notification list or run global expiry cleanup. Periodic maintenance still
+removes expired entries. The durable read-boundary handshake is unchanged;
+see [`NotificationOccurrenceModel`](../../cli/internal/core/notification_occurrence_model.go)
+and [`NotificationProjection`](../../cli/internal/core/notification_projection.go).
+
 `ChattoCore.Run` starts one process-local ordered consumer for each registered
 projector. `ServerContentView` and the five independent EVT projectors read
 `EVT`. Notifications reads `NOTIFICATIONS`. Each projector owns its physical
