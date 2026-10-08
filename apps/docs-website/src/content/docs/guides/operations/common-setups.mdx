@@ -22,15 +22,17 @@ room group shows who can find and join it.
   Add the new allows before you remove the old ones. You can change a
   permission setting only if you have that permission at that scope, unless
   you are an owner. With `room.manage` for a room or room group, you can also
-  change the room permissions that do not need privileged mode there. See
+  change the role settings of room permissions that do not need privileged
+  mode there, but not the settings of a user or bot. See
   [Limits for non-owners](/guides/operations/permissions/#limits-for-non-owners).
   If you remove your own access first, you cannot add the allows after it.
 </Aside>
 
 ## Open a Room or Room Group
 
-New rooms and room groups start closed. Only owners in privileged mode and
-the members that you add can reach them. To open a room, you need
+New rooms and room groups start closed. Nobody can find, join, or read them,
+except owners in privileged mode. Members that you add see the room, but
+cannot read or post in it until you open it. To open a room, you need
 `room.manage` for the room or its room group, in privileged mode. By default,
 admins have it for every room.
 
@@ -47,8 +49,9 @@ admins have it for every room.
 - When you create a room in the sidebar, Chatto opens the room's settings.
   The settings show who can find and join the room. You join the room only
   when its permissions let you.
-- Members need `message.read` to read the room. The settings warn when
-  everyone can join a room but cannot read it.
+- Members need `message.read` to read the room and `message.post` to post,
+  also members that you add. The settings warn when everyone can join a room
+  but cannot read it.
 - Open a room group to open all its rooms, also rooms that you add later. A
   room can add allows, but it cannot remove the allows of its room group.
 - Do not allow `message.post` for `everyone` in a room group that contains a
@@ -284,9 +287,9 @@ To delegate one room, allow `room.manage` and the moderation permissions in
 the room. Holders must enable privileged mode to use these permissions. A room
 manager can change the role settings of the room permissions that do not need
 privileged mode, such as `room.join` and `message.post`. For other
-permissions, such as `message.manage`, they must have the permission at that
-scope. Apart from `everyone`, they can change only roles below their highest
-role.
+permissions, such as `message.manage`, and for the settings of a single user
+or bot, they must have the permission at that scope. Apart from `everyone`,
+they can change only roles below their highest role.
 
 ## Add a Bot to One Room
 

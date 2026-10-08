@@ -133,7 +133,7 @@ chatto operator room create --name "team-chat" --group-id GROUP_ID
 
 The command returns the room ID, name, group ID, archived state, and description. Use `--json` when a script needs the full response. Chatto checks the name and description as it does for rooms created in the app.
 
-The new room starts closed. It gets only the permissions of its room group, and the operator CLI cannot change permissions. For an import, create the rooms in a room group that is open to the members, or [open each room](/guides/operations/common-setups/#open-a-room-or-room-group) in the app. Members that you add with `room member add` also need `message.read` to read the room.
+The new room starts closed. It gets only the permissions of its room group, and the operator CLI cannot change permissions. For an import, create the rooms in a room group that is open to the members, or [open each room](/guides/operations/common-setups/#open-a-room-or-room-group) in the app. Members that you add with `room member add` also need `message.read` to read the room and `message.post` to post.
 
 An import script can save the returned Chatto room ID alongside its source room ID. If the response is lost, use `room list --name` to find the room before creating it again. A repeated create request with the same name returns a conflict.
 

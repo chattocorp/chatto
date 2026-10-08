@@ -59,9 +59,10 @@ as authorization (ADR-116), so the cell and the permission check always agree.
   No role cell offers deny. Account cells can also deny.
 - The server tells which cells the viewer can change. A cell for a permission
   that the viewer does not have at that scope is read-only, and its title
-  tells why. A room permission that does not need privileged mode is
-  changeable at Room or Room group scope when the viewer has `room.manage`
-  there (Design Decision 6). Owners see no locked cells.
+  tells why. In a role matrix, a room permission that does not need
+  privileged mode is changeable at Room or Room group scope when the viewer
+  has `room.manage` there (Design Decision 6). Account matrices have no such
+  exception. Owners see no locked cells.
 - The server permissions page warns that its settings apply to every room and
   room group.
 
@@ -75,8 +76,8 @@ join the room, or the rooms of the group:
 - everyone can join it, but cannot read it. This statement is a warning, and
   it tells which permissions to allow;
 - only members of the listed roles can join and read it;
-- only owners and the members that an operator adds can open it. This
-  statement is a warning. It tells the operator to allow `room.list`,
+- nobody can find, join, or read it yet, except owners in privileged mode.
+  This statement is a warning. It tells the operator to allow `room.list`,
   `room.join`, and `message.read`, and `message.post` to let members post.
 
 `AdminPermissionService.GetAccessSummary` supplies the summary. It resolves
@@ -84,8 +85,10 @@ join the room, or the rooms of the group:
 who holds only one named role, with the same resolver as authorization. A role
 counts as able to join only when its holders can join and read. The summary
 leaves out settings on single users. It needs `role.manage`, or `room.manage` at the room or group.
-Explicit room members, and owners in privileged mode, have access whatever the
-summary says.
+Owners in privileged mode have access whatever the summary says. Room
+membership alone does not give access: a member who is added to a closed room
+sees the room, but cannot read or post in it without `message.read` and
+`message.post`.
 
 ## Permission Help
 
@@ -150,18 +153,21 @@ the backend permission catalog. Update both catalogs together.
 - `admin` and every other non-owner role confer only their explicit permission decisions; they have no role-name-based authority.
 - Owner permissions are virtual rather than persisted defaults: fresh servers do not seed editable owner permission rows, and the admin UI shows owner permissions as read-only green checks.
 - RBAC editor and inspection APIs are exposed through ConnectRPC admin services. Admin entry is authenticated, and individual operations keep narrower gates such as `role.manage`, `role.assign`, `user.manage-accounts`, `user.manage-permissions`, or `room.manage`.
-- Delegated role assignment is bounded by the assigner's own authority and rank. A non-owner may assign a role only when it ranks below them. They must also effectively possess every permission that the role explicitly allows at the same scope, with the room-manager exception below. Revoking the role needs the same permissions. Only an effective owner may assign or revoke the `owner` role.
+- Delegated role assignment is bounded by the assigner's own authority and rank. A non-owner may assign a role only when it ranks below them. They must also effectively possess every permission that the role explicitly allows at the same scope, with the room-manager exception for role decisions below. Revoking the role needs the same permissions. Only an effective owner may assign or revoke the `owner` role.
 - Permission editing is bounded by the editor's own authority and rank. To
   set or clear one role decision, or to set, deny, or clear one direct-user
   decision, a non-owner must
   effectively have that permission at the decision's scope. One exception
-  lets room managers open rooms: at Room or Room group scope, `room.manage`
-  there is enough for each room permission that does not need privileged
-  mode, such as `room.join`, `message.read`, and `message.post`. A holder of
-  `room.manage` can already add any account to the room, so the exception
-  gives no new access. Permissions that need privileged mode, such as
-  `room.manage`, `room.remove-member`, `message.manage`, and `room.create`,
-  still need the editor to hold them. A holder of
+  lets room managers open rooms: for a role decision at Room or Room group
+  scope, `room.manage` there is enough for each room permission that does not
+  need privileged mode, such as `room.join`, `message.read`, and
+  `message.post`. A holder of `room.manage` can already add any account to
+  the room, and a role allow never overrides a deny on a user, so the
+  exception gives no new access. The exception does not apply to direct-user
+  decisions or bot grants, because an allow on a user can lift a deny on that
+  user. Permissions that need privileged mode, such as `room.manage`,
+  `room.remove-member`, `message.manage`, and `room.create`, still need the
+  editor to hold them. A holder of
   `role.manage` may change every role except `owner`; other editors, such as
   room and room-group managers, need the role to rank below them. A user must
   rank below the editor unless it is their own account. `everyone` ranks
@@ -222,8 +228,8 @@ owner that notification cleanup cannot recognize.
 
 ### 6. Target-user mutations need a permission, a higher rank, and bounded authority
 
-**Decision:** Mutations that target another account require a concrete permission and a higher rank (Design Decision 11). Role assignment uses `role.assign`. A non-owner may assign only roles that rank below them. They must effectively hold each explicit allow of the role at its exact scope. Revocation needs the same permissions. Permission editing uses the same bound. A non-owner may set or clear a role decision, or set, deny, or clear a direct-user decision, only for a permission that they effectively hold at that scope. At Room or Room group scope, `room.manage` there is also enough for each room permission that does not need privileged mode. To delete a role, they must hold every permission that the role allows, with the same exception. The `owner` role remains owner-only; `admin` has no implicit authority outside its explicit permissions. Account lifecycle and recovery operations use `user.manage-accounts`; direct user permission overrides use `user.manage-permissions`; moderated room removal uses `room.remove-member`.
-**Why:** Without the bounds, `role.manage` or `user.manage-permissions` alone would let a holder grant themselves every permission, which would also make the `role.assign` bound ineffective. The bound covers denies and clears because removing a restriction can restore authority. The `room.manage` exception exists because new rooms start closed and admins have no `room.join` or `message.read` at Server scope; without it, only owners could open rooms. It gives no new access, because `room.manage` already lets its holder add any account to the room. The rank protects accounts at or above the actor, which an authority bound alone cannot do. See ADR-115.
+**Decision:** Mutations that target another account require a concrete permission and a higher rank (Design Decision 11). Role assignment uses `role.assign`. A non-owner may assign only roles that rank below them. They must effectively hold each explicit allow of the role at its exact scope. Revocation needs the same permissions. Permission editing uses the same bound. A non-owner may set or clear a role decision, or set, deny, or clear a direct-user decision, only for a permission that they effectively hold at that scope. For a role decision at Room or Room group scope, `room.manage` there is also enough for each room permission that does not need privileged mode. This exception does not apply to direct-user decisions or bot grants. To delete a role, they must hold every permission that the role allows, with the same exception. The `owner` role remains owner-only; `admin` has no implicit authority outside its explicit permissions. Account lifecycle and recovery operations use `user.manage-accounts`; direct user permission overrides use `user.manage-permissions`; moderated room removal uses `room.remove-member`.
+**Why:** Without the bounds, `role.manage` or `user.manage-permissions` alone would let a holder grant themselves every permission, which would also make the `role.assign` bound ineffective. The bound covers denies and clears because removing a restriction can restore authority. The `room.manage` exception exists because new rooms start closed and admins have no `room.join` or `message.read` at Server scope; without it, only owners could open rooms. It gives no new access, because `room.manage` already lets its holder add any account to the room, and a role allow never overrides a deny on a user. The exception stops at role decisions because an allow on a user can lift a deny on that user: otherwise, an admin with a deny on `message.post` could allow `message.post` for themselves in a room that they manage. The rank protects accounts at or above the actor, which an authority bound alone cannot do. See ADR-115.
 **Tradeoff:** A delegated assigner or editor may need the underlying permissions and a role above the accounts that they manage. An actor can still give their authority to a second account below them; the event log records who made each change. Owners remain the recovery path, and old replicas can enforce the earlier unbounded rules during a rolling upgrade until they are replaced.
 
 ### 7. RBAC state is event-sourced
@@ -251,7 +257,8 @@ User-triggered RBAC events are audit facts as well as state facts, so their even
 - `admin` gets administrative permissions at Server scope, but not `room.list`
   or `room.join`. Admins do not see or join a closed room. In privileged
   mode, their Server-scope `room.manage` lets them open it (Design Decision
-  6) or add members to it, also themselves. `moderator` gets `message.manage` and
+  6). Adding members, also themselves, does not open it, because members also
+  need `message.read`. `moderator` gets `message.manage` and
   `room.remove-member`.
 - The seeded `#general` room allows `everyone` `room.list`, `room.join`,
   `message.read`, `message.post`, `message.attach`, `message.react`,
@@ -347,7 +354,7 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 - `message.post-in-thread` — reply in any readable thread where room policy permits it.
 - `message.post-in-interactions` — reply only in readable threads with an interaction relationship.
 - `message.attach` — attach files to new messages. Fresh servers grant this to `everyone` at Direct messages scope and in the seeded `#general` room; existing servers are not automatically backfilled after upgrade, so operators may need to grant it manually if uploads should remain enabled.
-- `room.manage` — edit/configure/delete channel rooms. At Room or Room group scope, it also lets non-owners set room permissions that do not need privileged mode (Design Decision 6).
+- `room.manage` — edit/configure/delete channel rooms. At Room or Room group scope, it also lets non-owners set role decisions for room permissions that do not need privileged mode (Design Decision 6).
 - `room.remove-member` — remove current channel-room members with an optional suspension. DM membership is not managed through this permission. Upgraded 0.4 servers copy each `room.ban-member` decision to this permission once.
 
 ## Related

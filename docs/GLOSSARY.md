@@ -185,7 +185,7 @@ Server-scope allow reaches every room. See
 
 **User-level decision** — Permission grant or deny attached directly to a user, not via a role. Only users can deny. A deny as the user's nearest decision decides for that user, over every role allow, except an allow of a permission that includes the denied one. An allow adds to the role allows, like a role allow (ADR-116). Use it sparingly, for suspensions and rare exceptions; prefer roles.
 
-**Access summary** — Statement on the settings page of a channel room or room group that tells who can find, join, and read it: everyone, only some roles, or only owners and explicitly added members. It warns when everyone can join but not read. Clients read it from `AdminPermissionService.GetAccessSummary`. See [FDR-001](fdr/FDR-001-roles-and-permissions.md).
+**Access summary** — Statement on the settings page of a channel room or room group that tells who can find, join, and read it: everyone, only some roles, or nobody except owners in privileged mode. It warns when everyone can join but not read. Room membership alone does not give access: an added member also needs `message.read`. Clients read it from `AdminPermissionService.GetAccessSummary`. See [FDR-001](fdr/FDR-001-roles-and-permissions.md).
 
 **DM Privacy Boundary** — The fixed participant set that controls DM discovery
 and access. Membership is necessary but not sufficient for message content.

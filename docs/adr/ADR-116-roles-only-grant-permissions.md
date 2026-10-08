@@ -65,7 +65,8 @@ A Server-scope allow reaches every room, so new servers start closed:
   messages scope, so direct messages work.
 - `admin` gets no Server-scope `room.list` or `room.join`. Admins do not see
   or join a closed room. In privileged mode, their Server-scope `room.manage`
-  lets them open the room or add members to it, also themselves.
+  lets them open the room. Adding members, also themselves, does not open it:
+  members also need `message.read`.
 - The seeded `#general` room is open to `everyone` at Room scope: `room.list`,
   `room.join`, `message.read`, `message.post`, `message.attach`,
   `message.react`, `message.echo`, and the `call.*` permissions.
@@ -82,19 +83,24 @@ create`. The operator opens it. `room.create` alone does not let a user open
 the rooms that they create, and the creator gets no automatic allow.
 
 To change a role or user decision, a non-owner must hold the permission at
-that scope (ADR-115). One exception lets room managers open rooms: at Room
-or Room group scope, `room.manage` there is enough for each room permission
-that does not need privileged mode, such as `room.list`, `room.join`,
-`message.read`, `message.post`, and the `call.*` permissions. A holder of
-`room.manage` can already add any account to the room, so the exception gives
-no new access. Admins can thus open every new room and room group, and a
-room-group manager can open the rooms of the group. Permissions that need
-privileged mode, such as `room.manage`, `room.remove-member`,
-`message.manage`, and `room.create`, still need the actor to hold them. The
-exception also applies to the bounds of role assignment, revocation, and
-deletion, to the bound on bot grants by a manager who does not own the bot,
-and to the cells that the permission matrices let the viewer change. It does
-not change the owner ceiling of bots.
+that scope (ADR-115). One exception lets room managers open rooms: for a role
+decision at Room or Room group scope, `room.manage` there is enough for each
+room permission that does not need privileged mode, such as `room.list`,
+`room.join`, `message.read`, `message.post`, and the `call.*` permissions. A
+holder of `room.manage` can already add any account to the room, and a role
+allow never overrides a deny on a user, so the exception gives no new access.
+Admins can thus open every new room and room group, and a room-group manager
+can open the rooms of the group. Permissions that need privileged mode, such
+as `room.manage`, `room.remove-member`, `message.manage`, and `room.create`,
+still need the actor to hold them. The exception also applies to the bounds
+of role assignment, revocation, and deletion, and to the cells that the role
+permission matrices let the viewer change.
+
+The exception does not apply to decisions on a single user or to bot grants.
+An allow on a user can lift a deny on that user. Without this limit, an admin
+with a deny on `message.post` could allow `message.post` for themselves in a
+room that they manage. To change a user decision or a bot grant, a non-owner
+must hold the permission. The owner ceiling of bots does not change.
 
 To show the result, the room and room-group settings pages show an access
 summary from `AdminPermissionService.GetAccessSummary`. It resolves
@@ -129,14 +135,19 @@ allowlist is capped by their owner (FDR-038).
   private the new way before they upgrade, and the startup log lists the
   affected rooms and room groups.
 - Operators must open each new room and room group. The access summary warns
-  when only owners and explicitly added members can open a room. After a user
-  creates a room in the sidebar, the app opens the room's settings, where the
-  summary shows. The creator joins the room only when it lets them.
+  when nobody can find, join, or read a room, except owners in privileged
+  mode. Room membership alone does not give access: a member without a
+  `message.read` allow sees the room but cannot read it, and posting also
+  needs `message.post`. After a user creates a room in the sidebar, the app
+  opens the room's settings, where the summary shows. The creator joins the
+  room only when it lets them.
 - A user who must create usable rooms needs `room.manage` in addition to
   `room.create` in the room group. With `room.create` alone, their rooms stay
   closed.
 - Delegated role assignment, revocation, and deletion need only the
   permissions that the role allows, or `room.manage` for the room permissions
   of the exception above (ADR-115). Role denies no longer count.
+- A room manager can open a room for roles and `everyone`, but cannot give a
+  single user or a bot a permission that the manager does not hold.
 - The permission explainer, the permission matrices, and the access summary
   use the same resolver as authorization, so they show the same result.

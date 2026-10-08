@@ -70,7 +70,8 @@ Moderators and admins get their member permissions from `everyone`. `admin`
 has no Server-scope `room.list` or `room.join`, because these would also open
 private rooms. Admins find and join rooms like other members. With
 `room.manage` in privileged mode, they can open a room or room group, and add
-members to a room, also themselves.
+members to a room, also themselves. Membership alone does not let a member
+read or post: the room must also allow `message.read` and `message.post`.
 
 A new server starts closed. It opens only the two rooms in the `Lobby` room
 group, at Room scope:
@@ -81,9 +82,10 @@ group, at Room scope:
 | `#announcements` | Find and join the room, read, react, and reply in threads. The room is universal, so all members are in it. Only `admin` can post root messages and attach files there. |
 
 The `Lobby` room group has no allows for `everyone`. Each new room and room
-group starts without allows for `everyone`. Only owners in privileged mode and
-members that you add can reach it. Admins and room managers can open it in
-privileged mode. To open it, see
+group starts without allows for `everyone`. Nobody can find, join, or read it,
+except owners in privileged mode. Members that you add see the room, but
+cannot read or post in it. Admins and room managers can open it in privileged
+mode. To open it, see
 [Open a room or room group](/guides/operations/common-setups/#open-a-room-or-room-group).
 The settings page of each room and room group shows who can find and join it.
 Owners can post in `#announcements` only in privileged mode.
@@ -137,7 +139,7 @@ Scopes: **S** Server, **G** Room group, **R** Room, **DM** Direct messages.
 | `room.list` | S, G, R | | See rooms in the room directory and room lists. |
 | `room.join` | S, G, R | | Join channel rooms. |
 | `room.create` | S, G | Yes | Create channel rooms. A new room starts closed. To open it, the user also needs `room.manage` in the room group. |
-| `room.manage` | S, G, R | Yes | Configure, rename, archive, and delete rooms and room groups at that scope, and add or remove room members. [Open rooms](#limits-for-non-owners) at that scope. At Server scope, also create and order room groups. |
+| `room.manage` | S, G, R | Yes | Configure, rename, archive, and delete rooms and room groups at that scope, and add or remove room members. [Open rooms for roles](#limits-for-non-owners) at that scope. At Server scope, also create and order room groups. |
 | `room.remove-member` | S, G, R | Yes | Remove a member from a channel room, with a reason and an optional suspension. Replaces `room.ban-member`. |
 | `message.read` | All | | Read messages, threads, attachments, search results, and typing indicators. Includes `message.read-interactions`. |
 | `message.read-interactions` | All | | Read only threads that the account started, where another account mentioned it directly, or where it received a DM. It can read the full thread. |
@@ -159,7 +161,7 @@ Scopes: **S** Server, **G** Room group, **R** Room, **DM** Direct messages.
 | `admin.view-audit` | S | Yes | See the event log. |
 | `user.invite` | S | Yes | List, create, copy, and revoke invite links. The holder can use all active invite links. |
 | `user.manage-accounts` | S | Yes | Create accounts, edit account identity, reset passwords, attach verified email addresses, and clear login cooldowns. |
-| `user.manage-permissions` | S | Yes | Change the permission settings of users. A non-owner can change only users below them or themselves, and only the settings of permissions that they have at that scope, with [one exception](#limits-for-non-owners). |
+| `user.manage-permissions` | S | Yes | Change the permission settings of users. A non-owner can change only users below them or themselves, and only the settings of permissions that they have at that scope. The [room manager exception](#limits-for-non-owners) does not apply to users. |
 | `user.delete-any` | S | Yes | Delete any account. |
 | `user.delete-self` | S | | Delete your own account. |
 | `bot.create` | S | | Create bots that you own. |
@@ -232,12 +234,21 @@ To change a permission setting of a role or user, a non-owner must have that
 permission at that scope. To assign, remove, or delete a role, a non-owner
 must have each permission that the role allows, at its scope.
 
-One exception lets admins and room managers open rooms. At Room group or Room
-scope, `room.manage` there is enough for each permission that does not need
+One exception lets admins and room managers open rooms for roles. For a
+setting of a role, also of `everyone`, at Room group or Room scope,
+`room.manage` there is enough for each permission that does not need
 privileged mode, such as `room.list`, `room.join`, `message.read`, and
-`message.post`. `room.manage` already lets them add any account to the room.
-The exception does not apply to permissions that need privileged mode, such
-as `room.manage`, `room.remove-member`, and `message.manage`.
+`message.post`. The same exception applies when they assign, remove, or
+delete a role. `room.manage` already lets them add any account to the room,
+and a role allow does not override a deny on a user.
+
+The exception does not apply:
+
+- to permissions that need privileged mode, such as `room.manage`,
+  `room.remove-member`, and `message.manage`;
+- to settings on a single user or bot. An allow on a user can remove a deny
+  on that user. For example, an admin with a deny on `message.post` cannot
+  allow `message.post` for themselves in a room that they manage.
 
 ## Where to configure permissions
 
@@ -256,7 +267,9 @@ as `room.manage`, `room.remove-member`, and `message.manage`.
 To add an account to a room or remove it, use the **Joined** row in the
 account's permissions. You need `user.manage-accounts`, or `room.manage` for
 that room. To remove an account, you also need a higher rank. The account does
-not need `room.join`. This row does not change permissions or DMs.
+not need `room.join`. This row does not change permissions or DMs. Membership
+does not give read access: to read and post, the account also needs
+`message.read` and `message.post` in the room.
 
 ## Upgrading from 0.4
 
@@ -306,8 +319,9 @@ Make these changes on an upgraded server:
 - **Check delegated permission editors.** A user who is not an owner can now
   change only the permission settings of permissions that they have at that
   scope. To delete a role, this user must have every permission that the role
-  allows. A room manager can also change the settings of room permissions
-  that do not need privileged mode. See
+  allows. A room manager can also change the role settings of room
+  permissions that do not need privileged mode, but not the settings of a
+  user or bot. See
   [Limits for non-owners](#limits-for-non-owners). Give these users the
   permissions that they must manage.
 

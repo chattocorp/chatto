@@ -56,11 +56,13 @@ unchanged (ADR-052): the rank never decides whether a permission is allowed.
   below their own highest role. `everyone` ranks below every account, so
   room managers can edit its decisions.
 - **Authority bound.** A non-owner may change one role or direct decision only
-  for a permission that they effectively hold at that scope. At Room or Room
-  group scope, `room.manage` there also covers each room permission that does
-  not need privileged mode, so room managers can open their rooms (ADR-116).
-  Assigning, revoking, or deleting a role requires every permission that the
-  role allows, with the same exception. Roles cannot deny (ADR-116).
+  for a permission that they effectively hold at that scope. For a role
+  decision at Room or Room group scope, `room.manage` there also covers each
+  room permission that does not need privileged mode, so room managers can
+  open their rooms (ADR-116). This exception does not apply to direct
+  decisions or bot grants, because an allow on a user can lift a deny on that
+  user. Assigning, revoking, or deleting a role requires every permission that
+  the role allows, with the same exception. Roles cannot deny (ADR-116).
 - **Bots.** Bots cannot hold roles. A bot ranks like its owner, both when it
   acts and when someone acts on it. Managing a bot therefore requires
   outranking its owner, unless the actor owns the bot.

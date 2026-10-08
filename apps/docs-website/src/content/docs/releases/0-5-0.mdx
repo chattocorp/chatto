@@ -335,8 +335,9 @@ this way:
 
 </Steps>
 
-Explicit room members keep their access. Examine the member lists of private
-rooms.
+Explicit room members stay in the room. They can read it while a
+`message.read` allow reaches them, for example the Server-scope allow of
+`everyone`. Examine the member lists of private rooms.
 
 In 0.5, direct messages use the Server settings when the Direct messages scope
 has no setting. If you removed posting permissions at Server scope, allow
@@ -404,8 +405,9 @@ Do these steps on every upgraded server:
 - **Check delegated permission editors.** A user who is not an owner can now
   change only the permission settings of permissions that they have at that
   scope. To delete a role, this user must have every permission that the role
-  allows. A room manager can also change the room permissions that do not
-  need privileged mode. See
+  allows. A room manager can also change the role settings of room
+  permissions that do not need privileged mode, but not the settings of a
+  user or bot. See
   [Limits for non-owners](/guides/operations/permissions/#limits-for-non-owners).
   Give these users the permissions that they must manage.
 

@@ -87,10 +87,13 @@ Use explicit membership for private or opt-in rooms. Open
 add or remove members. You need `room.manage` for the room. You cannot change
 members while the room is archived.
 
-Explicit membership gives access independently of `room.list` and `room.join`.
-Removing the allows of discovery or self-join does not remove current members.
-Examine the member list when you restrict a room. Members still need
-permissions such as `message.read` and `message.post` to use the room.
+An explicit member does not need `room.list` or `room.join`, and sees the room.
+Membership alone does not give read access: to read and post, a member also
+needs `message.read` and `message.post` in the room. Add members to a room
+that allows these permissions for them, for example to a room that allows
+them for a role that the members hold. Removing the allows of discovery or
+self-join does not remove current members. Examine the member list when you
+restrict a room.
 
 ## Archive Rooms
 
