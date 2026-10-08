@@ -191,12 +191,71 @@ an OAuth `insufficient_scope` challenge. A host can use this challenge to
 request additional consent. RBAC and room membership can still reject one
 operation or target after its scope is granted.
 
-Chatto returns a failed operation as an MCP tool error. When Chatto can confirm
-that an RBAC permission is missing, the error contains `permission_denied` and
-the permission name, such as `room.join` or `message.post`. An agent can report
-that name and ask the human driver to contact an administrator. Chatto uses a
-generic error for room policy denials and hidden resources so it does not
-disclose private state.
+Chatto returns a failed operation with `isError: true`. Read
+`structuredContent.error` to decide what to tell the human driver. Each tool's
+output schema permits its success result or this error object. Success fields
+keep their existing shape. Hosts that discard structured content receive a
+short text explanation and the same error object as JSON text.
+
+For example, a confirmed missing posting permission returns:
+
+```json
+{
+  "error": {
+    "code": "permission_denied",
+    "message": "Chatto RBAC requires message.post. Ask an administrator to grant access.",
+    "nextAction": "contact_administrator",
+    "retry": "after_change",
+    "outcome": "not_applied",
+    "missingPermissions": ["message.post"]
+  }
+}
+```
+
+Use these stable fields. Do not parse `message`; its wording can change.
+
+| Field | Meaning |
+| --- | --- |
+| `code` | Failure category from the table below. |
+| `message` | Short explanation for a human. |
+| `nextAction` | Suggested action. It does not grant permission or confirm that another call will succeed. |
+| `retry` | `after_change`: correct the input, consent, access, or policy first. `after_delay`: wait before retrying. `never`: do not automatically repeat this operation. |
+| `outcome` | `not_applied`: this request made no change. Reads also use this value. `applied`: the command completed, but its response could not be assembled. `unknown`: the command may have completed. |
+| `missingPermissions` | Optional confirmed missing RBAC identifiers. If more than one is listed, any one satisfies the permission gate; other gates still apply. |
+| `requiredScope` | Optional MCP OAuth scope that needs fresh consent. |
+| `retryAfterMs` | Optional minimum wait in milliseconds when `retry` is `after_delay`. If absent, use bounded backoff. |
+
+| `code` | `nextAction` and human guidance |
+| --- | --- |
+| `invalid_argument` | `fix_arguments`: correct the tool arguments. Submitted values are not copied into the error. |
+| `authentication_required` | `authorize_scope`: authorize the connection again. |
+| `insufficient_scope` | `authorize_scope`: request fresh consent for `requiredScope`. Keep the existing scopes that the host still needs. |
+| `not_room_member` | `join_room`: request membership in the visible room. Joining still needs its own scope and Chatto authority. |
+| `permission_denied` | `contact_administrator`: report `missingPermissions`, such as `room.join` or `message.post`, to an administrator. |
+| `policy_denied` | `contact_administrator`: ask an administrator to check access. The response does not name a private policy or claim that an RBAC grant will fix it. |
+| `not_found` | `check_access`: verify the target and access with an administrator. Hidden and absent resources have the same error. |
+| `conflict` | `retry`: concurrent state changed. Use bounded backoff and obey `retry`. |
+| `rate_limited` | `retry`: wait for `retryAfterMs`, if present. |
+| `timeout` | Obey `nextAction`, `retry`, and `outcome`. |
+| `temporary_failure` | Obey `nextAction`, `retry`, and `outcome`. Backend diagnostics are not exposed. |
+
+Scope rejection before MCP dispatch keeps HTTP `403` and its
+`WWW-Authenticate` challenge. Admission rejection keeps HTTP `429` and
+`Retry-After`. Their JSON bodies use the same `error` object. These bodies are
+HTTP error details, not JSON-RPC tool results. Malformed protocol requests and
+unknown tools remain protocol errors.
+
+Room tools check visibility before they run. They do not reveal whether an
+inaccessible channel or direct-message room exists. A joined room remains
+visible to its members. To join a channel as a nonmember, the account needs
+normal room visibility, usually `room.list`, as well as `room.join`. A bot needs
+the relevant explicit grants and sufficient current authority from its owner.
+
+When `nextAction` is `check_result`, ask the human to check the room. Do not
+automatically repeat `post_message` when its outcome is `applied` or `unknown`.
+The same rule applies when a connection closes without a result: the message
+may have been posted. A failed response after a successful post is not a failed
+post. Message posting has no idempotency key yet.
 
 ## Disable access
 

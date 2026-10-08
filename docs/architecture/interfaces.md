@@ -97,6 +97,16 @@ OAuth `insufficient_scope` challenge before domain work. `tools/list` filters
 the catalog by grant and uses private, zero-TTL caching. Code exchange and
 refresh preserve the exact grant and report it in the token response `scope`.
 
+MCP tool output schemas permit the unchanged success payload or a shared
+structured error envelope. The adapter supplies safe failure categories,
+confirmed missing RBAC identifiers, next actions, retry rules, and write
+outcomes. Room tools check visibility before execution and again before
+authorization details are disclosed. Hidden and absent targets share one
+error. OAuth scope and admission failures preserve HTTP challenges/statuses
+and use the same safe envelope. See the
+[public error contract](../../apps/docs-website/src/content/docs/guides/integrations/mcp.mdx#understand-permission-failures)
+and [`mcpserver/errors.go`](../../cli/internal/mcpserver/errors.go).
+
 MCP advertises only tools. Its stateless descriptor does not advertise logging
 or catalog-change subscriptions. Resource, prompt, and completion methods
 return method-not-found errors. See the

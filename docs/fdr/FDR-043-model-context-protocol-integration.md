@@ -108,10 +108,22 @@ primitive.
 - Every tool call applies current Chatto RBAC, room membership, message access,
   search visibility, and absence rules. A successful earlier call does not
   grant authority to a later call.
-- A failed tool call returns an MCP error result. When Chatto can confirm that
-  an RBAC permission is missing, the error names that permission and tells the
-  agent to ask an administrator. Policy denials and hidden resources remain
-  generic so the error does not disclose private state.
+- A failed tool call returns structured failure details and a short text
+  explanation. Hosts can distinguish invalid input, missing consent,
+  membership, confirmed missing RBAC permissions, generic policy denial,
+  hidden or absent resources, conflict, rate limits, timeout, and temporary
+  failure without parsing the explanation. Suggested actions do not grant
+  authority. Permission names appear only after visibility and permission
+  checks confirm that they are missing. Policy details and backend diagnostics
+  remain private.
+- Room tools check visibility before they run. A hidden channel or a
+  nonparticipant direct-message room has the same failure as an absent room.
+  Joined rooms remain visible to their members.
+- Failure details state whether a write did not occur, completed, or has an
+  unknown outcome. A host must not automatically repeat a message post after
+  a completed or uncertain result, also when the connection closes without a
+  result. Known input, access, and policy rejections need a change before
+  retry. Safe temporary failures permit bounded retry.
 - A tool returns only the data needed for its declared operation. It does not
   add related private resources for agent convenience.
 - User-controlled Chatto content is untrusted data. It cannot change tool
@@ -245,6 +257,18 @@ host. Exact resource binding prevents a credential for one host from becoming
 authority on a different host.
 **Tradeoff:** A human must approve a new grant when the client changes to a
 different configured origin. Wildcard CORS entries cannot expose MCP.
+
+### 11. Give safe failure guidance
+
+**Decision:** Give hosts stable failure categories, suggested actions, retry
+rules, and write outcomes. Confirm visibility before an operation and before
+disclosing missing RBAC identifiers. Preserve standard OAuth scope challenges.
+**Why:** An agent must be able to ask its human driver for the right next action
+without parsing prose, disclosing a hidden room, or repeating an uncertain
+message post.
+**Tradeoff:** Generic policy errors need human investigation. A completed
+write can still have a failed response, so an agent must check the result
+instead of assuming the write failed.
 
 ## Permissions
 
