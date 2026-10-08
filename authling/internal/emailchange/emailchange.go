@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -148,7 +147,7 @@ func (s *Service) Start(ctx context.Context, accountID, password, rawNewEmail st
 	if err != nil {
 		return "", err
 	}
-	state := flowState{Target: target, NewEmail: newEmail, CodeDigest: keyedDigest(s.key, "code\x00"+token+"\x00"+code), ExpiresAt: s.now().UTC().Add(FlowTTL)}
+	state := flowState{Target: target, NewEmail: newEmail, CodeDigest: storage.KeyedDigest(s.key, "code\x00"+token+"\x00"+code), ExpiresAt: s.now().UTC().Add(FlowTTL)}
 	key := s.flowKey(token)
 	data, err := s.seal(key, state)
 	if err != nil {
@@ -173,7 +172,7 @@ func (s *Service) Verify(ctx context.Context, accountID, token, code string) err
 	if err != nil || state.Target.AccountID != accountID || !s.now().Before(state.ExpiresAt) || state.Verified || state.WrongAttempts >= maxWrongAttempts {
 		return ErrInvalidCode
 	}
-	want := keyedDigest(s.key, "code\x00"+token+"\x00"+strings.TrimSpace(code))
+	want := storage.KeyedDigest(s.key, "code\x00"+token+"\x00"+strings.TrimSpace(code))
 	if !hmac.Equal(state.CodeDigest, want) {
 		state.WrongAttempts++
 		if _, updateErr := s.update(ctx, key, entry.Revision(), state); updateErr != nil {
@@ -264,7 +263,7 @@ func (s *Service) finishCommitted(key string, revision uint64, state flowState, 
 }
 
 func (s *Service) flowKey(token string) string {
-	return "email-change." + base64.RawURLEncoding.EncodeToString(keyedDigest(s.key, "flow\x00"+token))
+	return storage.DigestKey("email-change.", s.key, "flow\x00"+token)
 }
 
 func (s *Service) seal(key string, state flowState) ([]byte, error) {
@@ -300,7 +299,7 @@ func (s *Service) update(ctx context.Context, key string, revision uint64, state
 }
 
 func (s *Service) deliveryKey(address string) string {
-	return "email-change-limit." + base64.RawURLEncoding.EncodeToString(keyedDigest(s.key, "delivery\x00"+address))
+	return storage.DigestKey("email-change-limit.", s.key, "delivery\x00"+address)
 }
 
 func (s *Service) send(ctx context.Context, message email.Message) error {
@@ -322,12 +321,6 @@ func normalizeAndValidateEmail(raw string) (string, error) {
 		return "", ErrInvalidEmail
 	}
 	return value, nil
-}
-
-func keyedDigest(key []byte, value string) []byte {
-	h := hmac.New(sha256.New, key)
-	_, _ = h.Write([]byte(value))
-	return h.Sum(nil)
 }
 
 func randomToken(size int) (string, error) {

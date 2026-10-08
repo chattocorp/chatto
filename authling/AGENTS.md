@@ -135,7 +135,17 @@ repository skills as non-product infrastructure.
   raw `$KV` messages. Classify an OCC conflict with
   `jetstreamutil.IsSequenceConflict`: a replicated stream reports a conflict
   with a write in progress with a code that matches `jetstream.ErrKeyExists`
-  only for `Create`.
+  only for `Create`. A `Create` that replaces a removal marker reports the
+  conflict with a code that does not match `jetstream.ErrKeyExists`.
+- Follow the repository-wide storage rules in
+  [ADR-114](../docs/adr/ADR-114-jetstream-storage-conventions.md). Authling
+  applies them as follows:
+  - Key prefixes use kebab-case. Build keys from secret or personal input
+    with `storage.DigestKey`, which uses an unpadded base64url HMAC.
+  - Use `storage.IncrementCounter` for rate-limit counters.
+  - Known exceptions: runtime records and key-vault records are JSON, and
+    rate-limit counters are not encrypted. `AUTHLING_EVT` subjects have no
+    event-type segment. These shapes are persisted contracts.
 
 ## Identity Events And Recovery
 

@@ -4,9 +4,6 @@ package authentication
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -201,39 +198,15 @@ func (s *Service) readLimit(ctx context.Context, key string) (limitState, error)
 	return limitState{key: key, revision: entry.Revision(), limited: counter.Count >= maxFailedAttempts}, nil
 }
 
+// recordFailure counts one failed attempt. A counter at the limit stays
+// unchanged.
 func (s *Service) recordFailure(ctx context.Context, key string) error {
-	for range 16 {
-		entry, err := s.kv.Get(ctx, key)
-		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
-			data, _ := json.Marshal(attemptCounter{Count: 1})
-			_, createErr := s.kv.Create(ctx, key, data, jetstream.KeyTTL(attemptWindow))
-			if createErr == nil {
-				return nil
-			}
-			continue
-		}
-		if err != nil {
-			return err
-		}
-		var counter attemptCounter
-		if json.Unmarshal(entry.Value(), &counter) != nil || counter.Count < 1 {
-			return fmt.Errorf("decode password attempt counter")
-		}
-		if counter.Count >= maxFailedAttempts {
-			return nil
-		}
-		counter.Count++
-		data, _ := json.Marshal(counter)
-		_, updateErr := s.kv.UpdateWithTTL(ctx, key, data, entry.Revision(), attemptWindow)
-		if updateErr == nil {
-			return nil
-		}
+	if _, err := storage.IncrementCounter(ctx, s.kv, key, maxFailedAttempts, attemptWindow); err != nil {
+		return fmt.Errorf("record failed login attempt: %w", err)
 	}
-	return fmt.Errorf("update login attempt counter after repeated conflicts")
+	return nil
 }
 
 func (s *Service) attemptKey(namespace, identifier string) string {
-	digest := hmac.New(sha256.New, s.key)
-	_, _ = digest.Write([]byte(namespace + "\x00" + identifier))
-	return "login-limit." + base64.RawURLEncoding.EncodeToString(digest.Sum(nil))
+	return storage.DigestKey("login-limit.", s.key, namespace+"\x00"+identifier)
 }

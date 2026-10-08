@@ -57,7 +57,7 @@ func deliveryCount(t *testing.T, kv jetstream.KeyValue, key string) int {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var counter deliveryCounter
+	var counter counterRecord
 	if err := json.Unmarshal(entry.Value(), &counter); err != nil {
 		t.Fatal(err)
 	}
@@ -216,7 +216,7 @@ func TestDeliveryBudgetDoesNotRetryUnknownWrites(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			_, _, kv := openDeliveryStore(t, config.NATSConfig{Embedded: config.EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}})
 			if tc.initial > 0 {
-				data, _ := json.Marshal(deliveryCounter{Count: tc.initial})
+				data, _ := json.Marshal(counterRecord{Count: tc.initial})
 				if _, err := kv.Put(t.Context(), "unknown", data); err != nil {
 					t.Fatal(err)
 				}

@@ -17,6 +17,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/authling/internal/ids"
 	"hmans.de/chatto/pkg/datacrypto"
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 const (
@@ -89,7 +90,7 @@ func (v *Vault) WorkflowKey(ctx context.Context) ([]byte, error) {
 		return nil, fmt.Errorf("encode workflow key: %w", err)
 	}
 	if _, err := v.kv.Create(ctx, systemWorkflowKey, data); err != nil {
-		if !errors.Is(err, jetstream.ErrKeyExists) {
+		if !jetstreamutil.IsSequenceConflict(err) {
 			return nil, fmt.Errorf("create workflow key: %w", err)
 		}
 		entry, err = v.kv.Get(ctx, systemWorkflowKey)
@@ -123,7 +124,7 @@ func (v *Vault) OIDCTokenKey(ctx context.Context, initial []byte) ([]byte, error
 		return nil, fmt.Errorf("open OIDC token key: %w", err)
 	}
 	if _, err := v.kv.Create(ctx, systemOIDCTokenKey, encoded); err != nil {
-		if !errors.Is(err, jetstream.ErrKeyExists) {
+		if !jetstreamutil.IsSequenceConflict(err) {
 			return nil, fmt.Errorf("open OIDC token key: %w", err)
 		}
 		entry, err = v.kv.Get(ctx, systemOIDCTokenKey)
@@ -160,7 +161,7 @@ func (v *Vault) OIDCSigningKey(ctx context.Context) (SigningKey, error) {
 		return SigningKey{}, fmt.Errorf("encode OIDC signing-key record: %w", err)
 	}
 	if _, err := v.kv.Create(ctx, systemOIDCSigningKey, data); err != nil {
-		if !errors.Is(err, jetstream.ErrKeyExists) {
+		if !jetstreamutil.IsSequenceConflict(err) {
 			return SigningKey{}, fmt.Errorf("create OIDC signing key: %w", err)
 		}
 		entry, err = v.kv.Get(ctx, systemOIDCSigningKey)
@@ -200,7 +201,7 @@ func (v *Vault) EnsureOIDCSigningKey(ctx context.Context, ref string) (SigningKe
 		return SigningKey{}, fmt.Errorf("encode OIDC signing-key record: %w", err)
 	}
 	if _, err := v.kv.Create(ctx, ref, data); err != nil {
-		if !errors.Is(err, jetstream.ErrKeyExists) {
+		if !jetstreamutil.IsSequenceConflict(err) {
 			return SigningKey{}, fmt.Errorf("create OIDC signing key: %w", err)
 		}
 		entry, err = v.kv.Get(ctx, ref)
@@ -277,7 +278,7 @@ func (v *Vault) AuthenticationDummyKey(ctx context.Context) (userRef, dataRef st
 	}
 	if _, err := v.kv.Create(ctx, systemDummyCredentialKey, encoded); err != nil {
 		clear(dataKey)
-		if !errors.Is(err, jetstream.ErrKeyExists) {
+		if !jetstreamutil.IsSequenceConflict(err) {
 			return "", "", nil, fmt.Errorf("store authentication dummy credential key: %w", err)
 		}
 		dataKey, err = v.ResolveDataKey(ctx, systemDummyCredentialKey, systemDummyUserKey)
@@ -307,7 +308,7 @@ func (v *Vault) ensureRawKey(ctx context.Context, ref string) ([]byte, error) {
 	}
 	if _, err := v.kv.Create(ctx, ref, encoded); err != nil {
 		clear(key)
-		if !errors.Is(err, jetstream.ErrKeyExists) {
+		if !jetstreamutil.IsSequenceConflict(err) {
 			return nil, err
 		}
 		entry, err = v.kv.Get(ctx, ref)

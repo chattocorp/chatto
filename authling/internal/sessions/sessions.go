@@ -3,9 +3,7 @@ package sessions
 
 import (
 	"context"
-	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -285,9 +283,7 @@ func (s *Service) seal(key string, state Session) ([]byte, error) {
 }
 
 func (s *Service) sessionKey(token string) string {
-	digest := hmac.New(sha256.New, s.key)
-	_, _ = digest.Write([]byte("session\x00" + token))
-	return "session." + base64.RawURLEncoding.EncodeToString(digest.Sum(nil))
+	return storage.DigestKey("session.", s.key, "session\x00"+token)
 }
 
 func sessionAAD(key string) []byte {

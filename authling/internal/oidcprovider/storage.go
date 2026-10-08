@@ -2,9 +2,6 @@ package oidcprovider
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net"
@@ -556,9 +553,7 @@ func (s *Storage) open(key string, data []byte, value any) error {
 	return err
 }
 func (s *Storage) derivedKey(kind, secret string) string {
-	digest := hmac.New(sha256.New, s.key)
-	_, _ = digest.Write([]byte("oidc:" + kind + "\x00" + secret))
-	return "oidc." + kind + "." + base64.RawURLEncoding.EncodeToString(digest.Sum(nil))
+	return storage.DigestKey("oidc."+kind+".", s.key, "oidc:"+kind+"\x00"+secret)
 }
 func (s *Storage) requestKey(id string) string { return s.derivedKey("request", id) }
 func (s *Storage) codeKey(code string) string  { return s.derivedKey("code", code) }
