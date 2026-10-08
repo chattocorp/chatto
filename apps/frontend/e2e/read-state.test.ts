@@ -1,6 +1,7 @@
 /** Verify persisted read positions across browser visibility, scrolling, and RPC failures. */
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
+import { TIMEOUTS } from './constants';
 import { loginAndEnterRoom, withLoggedInServerWindow } from './fixtures/serverUser';
 import {
   getReadMarkerViaConnect,
@@ -141,6 +142,9 @@ for (const kind of ['room', 'thread'] as const) {
           // An offscreen row is not in the virtual DOM. Its hydration response
           // proves realtime delivery without scrolling it into view.
           await hydrated;
+          // Observe beyond the partial-read debounce. An immediate negative
+          // assertion could miss an incorrect delayed read while away.
+          await page.waitForTimeout(TIMEOUTS.SERVER_MUTATION_SYNC);
           await page.waitForLoadState('networkidle');
           expect(await getReadMarkerViaConnect(page, roomId, threadId)).toBe(anchor);
           expect(reads).toEqual([]);
