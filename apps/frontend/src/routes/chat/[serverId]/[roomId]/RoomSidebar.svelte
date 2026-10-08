@@ -156,11 +156,12 @@ calls, and similar room-specific panels can plug into the same shell. See the
 
   const canStartDMs = $derived(serverScope.store.permissions.canStartDMs);
   let sidebarElement = $state<HTMLElement | null>(null);
-  let fullscreenElement = $state<Element | null>(null);
-  /** The call pane uses the stage layout and hides its chrome in fullscreen. */
-  const isCallFullscreen = $derived(
-    fullscreenElement !== null && fullscreenElement === sidebarElement
-  );
+  /**
+   * The call pane uses the stage layout and hides its chrome in fullscreen.
+   * Use `:fullscreen` rather than `document.fullscreenElement`: a media card
+   * that goes fullscreen on top of the pane keeps the pane in the stack.
+   */
+  let isCallFullscreen = $state(false);
 
   const userMenu = new UserMenuState<string>();
   let banningMemberId = $state<string | null>(null);
@@ -365,8 +366,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
     void membersStore.setSearch('');
   }
 
-  // Leave fullscreen when its call controls go away, for example when the
-  // viewer leaves the call, because the pane header is hidden in fullscreen.
+  // Leave fullscreen when the call controls go away, because the pane header
+  // is hidden in fullscreen. This happens when the call ends for the viewer
+  // or when the pane switches to a profile from the call user menu.
   $effect(() => {
     if (isCallFullscreen && !showCallFullscreenButton)
       document.exitFullscreen().catch(() => undefined);
@@ -376,7 +378,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     if (!sidebarElement || typeof document === 'undefined') return;
 
     try {
-      if (document.fullscreenElement === sidebarElement) {
+      if (isCallFullscreen) {
         await document.exitFullscreen();
       } else {
         await sidebarElement.requestFullscreen();
@@ -387,7 +389,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
   }
 </script>
 
-<svelte:document onfullscreenchange={() => (fullscreenElement = document.fullscreenElement)} />
+<svelte:document
+  onfullscreenchange={() => (isCallFullscreen = !!sidebarElement?.matches(':fullscreen'))}
+/>
 
 <aside
   bind:this={sidebarElement}

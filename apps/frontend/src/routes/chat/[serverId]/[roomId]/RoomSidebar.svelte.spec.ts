@@ -2204,6 +2204,10 @@ describe('RoomSidebar', () => {
     };
     const { container, rerender } = render(RoomSidebarTestHarness, { props });
     const sidebar = container.querySelector<HTMLElement>('[aria-label="Room extras"]')!;
+    const matches = sidebar.matches.bind(sidebar);
+    vi.spyOn(sidebar, 'matches').mockImplementation(
+      (selector) => selector === ':fullscreen' || matches(selector)
+    );
     const fullscreenElement = vi.spyOn(document, 'fullscreenElement', 'get');
     fullscreenElement.mockReturnValue(sidebar);
     document.dispatchEvent(new Event('fullscreenchange'));
@@ -2216,16 +2220,26 @@ describe('RoomSidebar', () => {
       expect(q(container, '[data-testid="call-stage-grid"]')).toBeTruthy();
       expect(q(container, '[data-testid="call-participants-list"]')).toBeFalsy();
 
+      // A media card fullscreened on top of the pane keeps the pane in the
+      // fullscreen stack, so the pane must keep its stage layout.
+      const card = q(container, '[data-testid="call-stage-tile"]') as HTMLElement;
+      fullscreenElement.mockReturnValue(card);
+      document.dispatchEvent(new Event('fullscreenchange'));
+      await tick();
+      expect(q(container, '[data-testid="call-stage-grid"]')).toBeTruthy();
+      expect(container.querySelector('[aria-label="Hide room extras"]')).toBeFalsy();
+
       (q(container, '[data-testid="call-exit-fullscreen-button"]') as HTMLButtonElement).click();
       await Promise.resolve();
       expect(exitFullscreen).toHaveBeenCalledOnce();
 
-      // Leaving the call removes the exit control, so fullscreen ends as well.
+      // Ending the call removes the exit control, so fullscreen ends as well.
       await rerender({ ...props, hasActiveCall: false });
       expect(exitFullscreen).toHaveBeenCalledTimes(2);
     } finally {
       fullscreenElement.mockRestore();
       exitFullscreen.mockRestore();
+      vi.mocked(sidebar.matches).mockRestore();
       document.dispatchEvent(new Event('fullscreenchange'));
     }
   });
