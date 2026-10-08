@@ -732,8 +732,8 @@ Let the `ContextMenu` gap separate sibling sections. Do not draw a hairline
 divider inside a section because it conflicts with the standard surface-gap
 separator.
 
-Use `ResponsiveActions` from `$lib/ui` when actions must move from an inline
-region to a menu at a container-width cutoff. Set `breakpointRem` and supply
+Use `ResponsiveActions` from `$lib/ui/responsiveActions` when actions must move
+from an inline region to a menu at a container-width cutoff. Set `breakpointRem` and supply
 menu ownership, dismissal, and fallback focus callbacks. Attach `observe` to
 the container, `inline` to the inline action region, and `trigger` to the
 overflow button. Render action snippets from `compact`; keep each action's
@@ -929,14 +929,15 @@ differs.
 Outside `src/lib/ui`, import design-system components and `.svelte.ts`
 modules through a public entry point:
 
-| Entry point           | Contents                                                             |
-| --------------------- | -------------------------------------------------------------------- |
-| `$lib/ui`             | General primitives, menus, motion wrappers, and context-menu helpers |
-| `$lib/ui/form`        | Form controls, validation helpers, and form state                    |
-| `$lib/ui/toast`       | The `toast` API and toast components                                 |
-| `$lib/ui/matrix`      | Permission-matrix table, headings, and cells                         |
-| `$lib/ui/attachments` | Attachment viewer modals and previews                                |
-| `$lib/ui/code`        | Syntax-highlighted code display                                      |
+| Entry point                 | Contents                                                             |
+| --------------------------- | -------------------------------------------------------------------- |
+| `$lib/ui`                   | General primitives, menus, motion wrappers, and context-menu helpers |
+| `$lib/ui/form`              | Form controls, validation helpers, and form state                    |
+| `$lib/ui/toast`             | The `toast` API and toast components                                 |
+| `$lib/ui/matrix`            | Permission-matrix table, headings, and cells                         |
+| `$lib/ui/attachments`       | Attachment viewer modals and previews                                |
+| `$lib/ui/code`              | Syntax-highlighted code display                                      |
+| `$lib/ui/responsiveActions` | Container-width action layout, menu dismissal, and focus recovery    |
 
 `scripts/check-design-system.mjs` rejects direct `.svelte` and `.svelte.ts`
 imports into `src/lib/ui` from other code. Specs and stories may import

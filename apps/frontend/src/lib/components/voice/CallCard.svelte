@@ -4,7 +4,7 @@ the card content and live menu target. Replacing a card releases its observers;
 resizing or closing its menu leaves media observation with the mounted card.
 -->
 <script module lang="ts">
-  import { ResponsiveActions } from '$lib/ui';
+  import { ResponsiveActions } from '$lib/ui/responsiveActions';
   import { CallPictureInPicture } from './CallPictureInPicture.svelte';
 
   /** Independent layout and media controllers shared by the card's action presentations. */

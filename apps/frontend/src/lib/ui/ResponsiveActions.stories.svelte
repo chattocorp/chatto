@@ -31,7 +31,7 @@
     await userEvent.keyboard('{Escape}');
     await expect(canvas.getByRole('button', { name: 'Document actions' })).toHaveFocus();
     await userEvent.click(canvas.getByRole('button', { name: 'Wide card' }));
-    await expect(canvas.getByRole('button', { name: 'Notifications' })).toHaveAttribute(
+    await expect(await canvas.findByRole('button', { name: 'Notifications' })).toHaveAttribute(
       'aria-pressed',
       'true'
     );
