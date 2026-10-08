@@ -50,10 +50,13 @@ The first implementation will use these boundaries:
    the origin from `webserver.url` and each exact non-wildcard origin from
    `webserver.allowed_origins`. It does not own a separate listener, lifecycle,
    or URL setting.
-2. The preferred MCP specification version is `2026-07-28`. Chatto does not
-   call this version "MCP 2.0." The SDK can negotiate its older supported
-   versions during their compatibility window, but Chatto does not add a
-   separate compatibility promise for them.
+2. The MCP specification version is `2026-07-28`. Chatto does not call this
+   version "MCP 2.0." The stateless endpoint does not support the older
+   `initialize` handshake. Keep this boundary for the experimental release:
+   tested Codex and MCP Inspector clients can use the stateless protocol.
+   Do not add an older transport or relax callback validation to accommodate
+   a host blocker. Record host results in the
+   [interoperability checks](../MCP-INTEROPERABILITY.md).
 3. The initial catalog stays small. It has server and account identity,
    bounded room and message reads, root text posting, and channel membership
    changes. Later tools can adapt other existing public operations after this

@@ -94,6 +94,12 @@ The signing jobs enforce this before running repository code.
 
 ## Create a stable release branch
 
+Before a release with MCP, use the
+[MCP interoperability checklist](MCP-INTEROPERABILITY.md). Keep MCP marked as
+experimental. Record the tested protocol, host versions, conformance results,
+and unresolved blockers. A successful Chatto unit test run does not prove
+conformance or agent-host compatibility.
+
 Create `release-x.y` from the commit intended for the stable release. On that
 branch, remove `versioning`, `prerelease`, and `prerelease-type` from
 `.release-please-config.json`. Commit the stable configuration with an explicit

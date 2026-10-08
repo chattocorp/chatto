@@ -1,7 +1,7 @@
 # FDR-043: Model Context Protocol Integration
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-10
+**Last reviewed:** 2026-10-07
 **Implementation state:** Tester tool catalog implemented with OAuth, server
 and account identity, room and message reads, posting, and room membership.
 
@@ -32,9 +32,12 @@ primitive.
 - When enabled, Chatto serves MCP over stateless Streamable HTTP at `/mcp` on
   the existing public HTTP server. It serves the canonical `webserver.url`
   origin and each exact non-wildcard `webserver.allowed_origins` entry.
-- The implementation prefers MCP `2026-07-28`. The SDK can negotiate its
-  older supported versions during their compatibility window, but Chatto does
-  not add a separate compatibility promise for them.
+- The implementation supports MCP `2026-07-28`. The older `initialize`
+  handshake is not supported. See ADR-085 and the
+  [tested host matrix](../MCP-INTEROPERABILITY.md).
+- The server advertises only tools. Resource, prompt, and completion methods
+  return method-not-found errors. Logging and catalog-change subscriptions
+  are not advertised.
 - A human grants an MCP client access through Chatto OAuth. The flow uses
   Authorization Code with PKCE and the client's CIMD identity.
 - A native MCP client can receive the OAuth result on a literal loopback IP,
@@ -259,7 +262,7 @@ relationships. The operation remains the source of truth.
 - Which product scopes should cover later thread, search, and other write
   tools?
 - When should Chatto add MCP resources or prompts instead of more tools?
-- Do real agent hosts require support for an older MCP specification version?
+- When should the tested host matrix justify an older MCP protocol version?
 - Should Chatto ship a separate local operator MCP bridge after the public
   endpoint has operational experience?
 - Which audit events and safe usage metrics should identify MCP calls without

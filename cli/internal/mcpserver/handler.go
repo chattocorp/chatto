@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/auth"
+	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
 	"golang.org/x/time/rate"
@@ -72,7 +73,13 @@ func newResourceHandler(chattoCore *core.ChattoCore, issuer, resource, version s
 			Name:    "Chatto",
 			Title:   chattoCore.ConfigModel().GetEffectiveServerName(),
 			Version: version,
-		}, &mcp.ServerOptions{Instructions: serverInstructions})
+		}, &mcp.ServerOptions{
+			Instructions: serverInstructions,
+			// This descriptor is rebuilt per request. It has no logging or live
+			// catalog subscriptions, so do not advertise the SDK defaults.
+			Capabilities: &mcp.ServerCapabilities{Tools: &mcp.ToolCapabilities{}},
+		})
+		server.AddReceivingMiddleware(toolsOnlyMethods)
 		mcp.AddTool(server, &mcp.Tool{
 			Name:        "get_server_info",
 			Description: "Identify the one Chatto server connected through this MCP endpoint. Use this tool to match a server that the user names and to distinguish this connection from other Chatto servers. The result includes the configured name, canonical public URL, connected MCP URL, and software version.",
@@ -135,6 +142,20 @@ func newResourceHandler(chattoCore *core.ChattoCore, issuer, resource, version s
 		ResourceName:           "Chatto MCP",
 	}))
 	return mux
+}
+
+// toolsOnlyMethods rejects catalog methods for primitives that Chatto does
+// not expose. The SDK otherwise answers empty lists for absent catalogs, which
+// conflicts with the capabilities advertised through server/discover.
+func toolsOnlyMethods(next mcp.MethodHandler) mcp.MethodHandler {
+	return func(ctx context.Context, method string, request mcp.Request) (mcp.Result, error) {
+		switch method {
+		case "prompts/list", "prompts/get", "resources/list", "resources/read", "resources/templates/list", "completion/complete":
+			return nil, &jsonrpc.Error{Code: jsonrpc.CodeMethodNotFound, Message: "method not found"}
+		default:
+			return next(ctx, method, request)
+		}
+	}
 }
 
 func requireConfiguredHost(handlers map[string]http.Handler) http.Handler {
