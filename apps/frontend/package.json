@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "svelte-kit sync && vite build && pnpm check:bundle && pnpm check:csp",
+    "build": "svelte-kit sync && vite build && pnpm check:bootstrap && pnpm check:bundle && pnpm check:csp",
+    "check:bootstrap": "node --test scripts/check-bootstrap.test.mjs && node scripts/check-bootstrap.mjs",
     "check:bundle": "node scripts/check-bundle-size.mjs",
     "check:csp": "node scripts/check-csp.mjs",
     "preview": "vite preview",
