@@ -302,6 +302,53 @@ describe('service worker notifications', () => {
     }
   );
 
+  it.each(['legacy', 'declarative', 'event'])(
+    'uses separate default icon and badge assets for %s pushes',
+    async (format) => {
+      const worker = await importServiceWorker();
+      const notification = { title: 'Push' };
+      await worker.dispatch(
+        'push',
+        format === 'event'
+          ? { notification }
+          : { data: { json: () => (format === 'legacy' ? notification : { notification }) } }
+      );
+
+      expect(worker.registration.showNotification).toHaveBeenCalledWith(
+        'Push',
+        expect.objectContaining({
+          icon: '/icons/icon-192.png',
+          badge: '/icons/notification-badge.png'
+        })
+      );
+    }
+  );
+
+  it('keeps explicit legacy icon and badge overrides ahead of declarative fields', async () => {
+    const worker = await importServiceWorker();
+    await worker.dispatch('push', {
+      data: {
+        json: () => ({
+          title: 'Push',
+          icon: 'https://chatto.example/custom-icon.png',
+          badge: 'https://chatto.example/custom-badge.png',
+          notification: {
+            icon: 'https://chatto.example/declarative-icon.png',
+            badge: 'https://chatto.example/declarative-badge.png'
+          }
+        })
+      }
+    });
+
+    expect(worker.registration.showNotification).toHaveBeenCalledWith(
+      'Push',
+      expect.objectContaining({
+        icon: 'https://chatto.example/custom-icon.png',
+        badge: 'https://chatto.example/custom-badge.png'
+      })
+    );
+  });
+
   it('uses declarative push notification fields when legacy root fields are absent', async () => {
     const worker = await importServiceWorker();
 
@@ -315,7 +362,7 @@ describe('service worker notifications', () => {
             body: 'Opened by the browser or worker fallback',
             tag: 'notification-2',
             icon: 'https://chatto.example/icons/icon-192.png',
-            badge: 'https://chatto.example/icons/icon-192.png',
+            badge: 'https://chatto.example/icons/notification-badge.png',
             app_badge: '5',
             navigate: 'https://chatto.example/chat/-/room-2?highlight=event-2',
             data: {
@@ -333,7 +380,7 @@ describe('service worker notifications', () => {
     expect(worker.registration.showNotification).toHaveBeenCalledWith('Declarative notification', {
       body: 'Opened by the browser or worker fallback',
       icon: 'https://chatto.example/icons/icon-192.png',
-      badge: 'https://chatto.example/icons/icon-192.png',
+      badge: 'https://chatto.example/icons/notification-badge.png',
       tag: 'notification-2',
       data: {
         notificationId: 'notif-2',
@@ -435,7 +482,7 @@ describe('service worker notifications', () => {
         body: 'Handled through PushEvent.notification',
         tag: 'notification-3',
         icon: 'https://chatto.example/icons/icon-192.png',
-        badge: 'https://chatto.example/icons/icon-192.png',
+        badge: 'https://chatto.example/icons/notification-badge.png',
         data: {
           notificationId: 'notif-3',
           url: 'https://chatto.example/chat/-/room-3?highlight=event-3'
@@ -448,7 +495,7 @@ describe('service worker notifications', () => {
       {
         body: 'Handled through PushEvent.notification',
         icon: 'https://chatto.example/icons/icon-192.png',
-        badge: 'https://chatto.example/icons/icon-192.png',
+        badge: 'https://chatto.example/icons/notification-badge.png',
         tag: 'notification-3',
         data: {
           notificationId: 'notif-3',
@@ -477,7 +524,7 @@ describe('service worker notifications', () => {
     expect(worker.registration.showNotification).toHaveBeenCalledWith('New notification', {
       body: undefined,
       icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
+      badge: '/icons/notification-badge.png',
       tag: undefined,
       data: {
         notificationId: undefined,

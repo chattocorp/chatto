@@ -426,7 +426,7 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 				Body:  "Push notifications are working.",
 				URL:   push.NavigationBaseURL(subscription, cfg.Webserver.URL, cfg.Webserver.ServerOrigins()...),
 				Icon:  "/icons/icon-192.png",
-				Badge: "/icons/icon-192.png",
+				Badge: "/icons/notification-badge.png",
 				Tag:   "push-test",
 			}
 		})

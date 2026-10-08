@@ -257,6 +257,43 @@ describe('app.html metadata', () => {
     expect(metadata.width).toBe(32);
     expect(metadata.height).toBe(32);
   });
+
+  it('keeps the Android notification badge white with a transparent background', async () => {
+    const badge = sharp(
+      fileURLToPath(new URL('../static/icons/notification-badge.png', import.meta.url))
+    );
+    const metadata = await badge.metadata();
+    expect(metadata.format).toBe('png');
+    expect(metadata.width).toBe(96);
+    expect(metadata.height).toBe(96);
+    expect(metadata.hasAlpha).toBe(true);
+
+    const { data, info } = await badge.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    let transparentPixels = 0;
+    let opaquePixels = 0;
+    let colouredPixels = 0;
+    for (let offset = 0; offset < data.length; offset += info.channels) {
+      const alpha = data[offset + 3];
+      if (alpha === 0) transparentPixels += 1;
+      if (alpha === 255) opaquePixels += 1;
+      if (alpha > 0 && data.subarray(offset, offset + 3).some((value) => value !== 255)) {
+        colouredPixels += 1;
+      }
+    }
+
+    expect(transparentPixels).toBeGreaterThan(0);
+    expect(opaquePixels).toBeGreaterThan(0);
+    expect(colouredPixels).toBe(0);
+    expect(data[3]).toBe(0);
+
+    // Eyes, nose, and mouth must remain holes when Android masks the artwork.
+    const alphaAt = (x: number, y: number) => data[(y * info.width + x) * info.channels + 3];
+    expect(alphaAt(28, 57)).toBe(0);
+    expect(alphaAt(68, 57)).toBe(0);
+    expect(alphaAt(48, 51)).toBe(0);
+    expect(alphaAt(48, 70)).toBe(0);
+    expect(alphaAt(48, 40)).toBe(255);
+  });
 });
 
 describe('app.html theme bootstrap', () => {

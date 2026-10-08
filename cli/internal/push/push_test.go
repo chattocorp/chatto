@@ -564,8 +564,31 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 		if payload.Icon != expectedIcon {
 			t.Errorf("Expected icon %s, got %s", expectedIcon, payload.Icon)
 		}
-		if payload.Badge != expectedIcon {
-			t.Errorf("Expected badge %s, got %s", expectedIcon, payload.Badge)
+		expectedBadge := "https://chatto.example.com/icons/notification-badge.png"
+		if payload.Badge != expectedBadge {
+			t.Errorf("Expected badge %s, got %s", expectedBadge, payload.Badge)
+		}
+
+		data, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var decoded struct {
+			Icon         string `json:"icon"`
+			Badge        string `json:"badge"`
+			Notification struct {
+				Icon  string `json:"icon"`
+				Badge string `json:"badge"`
+			} `json:"notification"`
+		}
+		if err := json.Unmarshal(data, &decoded); err != nil {
+			t.Fatal(err)
+		}
+		if decoded.Icon != expectedIcon || decoded.Notification.Icon != expectedIcon {
+			t.Errorf("Expected colour icon in both payload formats, got %+v", decoded)
+		}
+		if decoded.Badge != expectedBadge || decoded.Notification.Badge != expectedBadge {
+			t.Errorf("Expected transparent badge in both payload formats, got %+v", decoded)
 		}
 	})
 
@@ -614,6 +637,9 @@ func TestBuildPayloadFromOccurrenceForSubscription(t *testing.T) {
 	}
 	if payload.Icon != "https://remote.example.com/icons/icon-192.png" {
 		t.Fatalf("Icon = %q", payload.Icon)
+	}
+	if payload.Badge != "https://remote.example.com/icons/notification-badge.png" {
+		t.Fatalf("Badge = %q", payload.Badge)
 	}
 }
 
