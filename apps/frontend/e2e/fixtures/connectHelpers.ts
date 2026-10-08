@@ -244,6 +244,32 @@ export async function waitForRoomReadViaConnect(
   await waitForRoomUnreadViaConnect(page, roomId, false, timeout);
 }
 
+/** Read the saved position without changing it; badge state is a separate value. */
+export async function getReadMarkerViaConnect(
+  page: Page,
+  roomId: string,
+  threadRootEventId?: string
+): Promise<string | null> {
+  const response = await connectPost<{ state?: { marker?: { lastReadEventId?: string } } }>(
+    page,
+    threadRootEventId
+      ? 'chatto.api.v1.ThreadService/GetThreadReadState'
+      : 'chatto.api.v1.RoomService/GetRoomReadState',
+    { roomId, ...(threadRootEventId ? { threadRootEventId } : {}) }
+  );
+  return response.state?.marker?.lastReadEventId ?? null;
+}
+
+/** Wait for the exact saved event ID, including own messages that produce no badge. */
+export async function waitForReadMarkerViaConnect(
+  page: Page,
+  roomId: string,
+  eventId: string,
+  threadRootEventId?: string
+): Promise<void> {
+  await expect.poll(() => getReadMarkerViaConnect(page, roomId, threadRootEventId)).toBe(eventId);
+}
+
 export async function waitForUserDeletedViaConnect(
   page: Page,
   userId: string,
