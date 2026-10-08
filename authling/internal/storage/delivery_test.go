@@ -51,7 +51,7 @@ func otherReplicaKeyValue(t *testing.T, js jetstream.JetStream) KeyValue {
 func deliveryCount(t *testing.T, kv jetstream.KeyValue, key string) int {
 	t.Helper()
 	entry, err := kv.Get(t.Context(), key)
-	if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+	if errors.Is(err, jetstream.ErrKeyNotFound) {
 		return 0
 	}
 	if err != nil {

@@ -59,7 +59,7 @@ func TestWorkflowDeliveryFailureRefundsExistingBudgetKeys(t *testing.T) {
 				t.Fatalf("failed delivery: calls=%d, error=%v", calls, err)
 			}
 			for _, key := range keys {
-				if _, err := stores.RuntimeState.Get(t.Context(), key); !errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
+				if _, err := stores.RuntimeState.Get(t.Context(), key); !errors.Is(err, jetstream.ErrKeyNotFound) {
 					t.Fatalf("failed delivery retained budget: %v", err)
 				}
 			}

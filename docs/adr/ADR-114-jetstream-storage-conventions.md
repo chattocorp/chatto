@@ -77,7 +77,7 @@ its own code and records its exceptions in its own documentation.
    still fail. A raw create-once publish is different: only
    `jetstream.ErrKeyExists` proves that the record is stored. A key-value
    read reports a missing or removed key as `jetstream.ErrKeyNotFound`, so
-   that check is sufficient. Do not add checks for `jetstream.ErrKeyDeleted`.
+   that check is enough. Do not add checks for `jetstream.ErrKeyDeleted`.
 7. **Report every durable consumer.** Declare each durable consumer name once
    and include it in the operator diagnostics.
 

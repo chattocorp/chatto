@@ -158,18 +158,10 @@ func removeDeletedStreamDirectories(t testing.TB, ns *server.Server) {
 	for _, streams := range accounts {
 		for _, resource := range natsresources.Current() {
 			for _, dir := range []string{resource.StreamName(), "." + resource.StreamName()} {
-				path := filepath.Join(streams, dir)
-				// The server can remove the same directory at the same time.
-				deadline := time.Now().Add(5 * time.Second)
-				for {
-					err := os.RemoveAll(path)
-					if _, statErr := os.Stat(path); errors.Is(statErr, os.ErrNotExist) {
-						break
-					}
-					if time.Now().After(deadline) {
-						t.Fatalf("remove deleted stream directory %s: %v", path, err)
-					}
-					time.Sleep(10 * time.Millisecond)
+				// The server can remove the same directory at the same time;
+				// os.RemoveAll then still succeeds.
+				if err := os.RemoveAll(filepath.Join(streams, dir)); err != nil {
+					t.Fatalf("remove deleted stream directory %s: %v", dir, err)
 				}
 			}
 		}

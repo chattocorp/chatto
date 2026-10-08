@@ -65,7 +65,7 @@ type backupTestSnapshotPointers struct{ kv jetstream.KeyValue }
 
 func (p backupTestSnapshotPointers) GetPointer(ctx context.Context, key string) ([]byte, uint64, error) {
 	entry, err := p.kv.Get(ctx, key)
-	if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+	if errors.Is(err, jetstream.ErrKeyNotFound) {
 		return nil, 0, projectionsnapshot.ErrPointerNotFound
 	}
 	if err != nil {
@@ -82,7 +82,7 @@ func (p backupTestSnapshotPointers) CreatePointer(ctx context.Context, key strin
 }
 func (p backupTestSnapshotPointers) UpdatePointer(ctx context.Context, key string, value []byte, expected uint64) (uint64, error) {
 	revision, err := p.kv.Update(ctx, key, value, expected)
-	if jetstreamutil.IsSequenceConflict(err) || errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+	if jetstreamutil.IsSequenceConflict(err) || errors.Is(err, jetstream.ErrKeyNotFound) {
 		return 0, projectionsnapshot.ErrPointerConflict
 	}
 	return revision, err

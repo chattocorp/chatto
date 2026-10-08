@@ -118,7 +118,7 @@ func TestAccountErasureDeniesAccessReleasesEmailAndReplaysWithoutKeys(t *testing
 		t.Fatal(err)
 	}
 	for _, ref := range refs {
-		if _, err := stores.Keys.Get(t.Context(), ref); !errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
+		if _, err := stores.Keys.Get(t.Context(), ref); !errors.Is(err, jetstream.ErrKeyNotFound) {
 			t.Fatalf("key was not purged: %v", err)
 		}
 	}

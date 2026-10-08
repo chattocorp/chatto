@@ -3,7 +3,6 @@ package keyvault
 import (
 	"bytes"
 	"context"
-	"sync"
 	"testing"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -19,15 +18,12 @@ import (
 // error does not match jetstream.ErrKeyExists. Later reads see the stored key.
 type raceLoserKeyValue struct {
 	jetstream.KeyValue
-	mu   sync.Mutex
 	seen map[string]bool
 }
 
 func (kv *raceLoserKeyValue) Get(ctx context.Context, key string) (jetstream.KeyValueEntry, error) {
-	kv.mu.Lock()
 	first := !kv.seen[key]
 	kv.seen[key] = true
-	kv.mu.Unlock()
 	if first {
 		return nil, jetstream.ErrKeyNotFound
 	}

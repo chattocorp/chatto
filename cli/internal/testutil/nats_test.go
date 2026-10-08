@@ -18,7 +18,7 @@ import (
 // blocks on disk. A stream created later with the same name must still start
 // empty.
 func TestResetChattoJetStreamRemovesDataWhenServerDeletionLeavesIt(t *testing.T) {
-	ns, nc := StartSharedNATS(t)
+	ns, nc := StartNATS(t)
 	js, err := jetstream.New(nc)
 	if err != nil {
 		t.Fatal(err)
