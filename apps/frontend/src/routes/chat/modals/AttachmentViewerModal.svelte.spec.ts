@@ -251,6 +251,116 @@ describe('HTML viewer', () => {
   );
 });
 
+describe('Native PDF previews', () => {
+  function pdfModal(expired = false) {
+    const modal = modalState(expired);
+    modal.items[0].filename = 'report.pdf';
+    modal.items[0].contentType = 'application/pdf';
+    if (!expired) modal.items[0].assetUrl!.url = 'about:blank';
+    return modal;
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(navigator, 'pdfViewerEnabled', 'get').mockReturnValue(true);
+    mocks.refreshUrls.mockResolvedValue(freshUrls());
+    mocks.getMetadata.mockResolvedValue({ size: 1536 });
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each(['application/pdf', ' Application/PDF; version=1.7 '])(
+    'automatically previews %s without HTML consent',
+    async (contentType) => {
+      const modal = pdfModal();
+      modal.items[0].contentType = contentType;
+      const view = mount(modal);
+      await expect.element(view.getByTitle('Preview of report.pdf')).toBeVisible();
+      const frame = view.container.querySelector('iframe')!;
+      expect(frame.src).toBe('about:blank');
+      expect(frame.referrerPolicy).toBe('no-referrer');
+      expect(frame.hasAttribute('sandbox')).toBe(false);
+      await expect.element(view.getByRole('link', { name: 'Download', exact: true })).toBeVisible();
+      expect(mocks.refreshUrls).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([false, undefined])('keeps the fallback when PDF capability is %s', async (supported) => {
+    vi.spyOn(navigator, 'pdfViewerEnabled', 'get').mockReturnValue(supported as boolean);
+    const view = mount(pdfModal(true));
+    await expect
+      .element(view.getByText('No preview is available for this file. Use Download to save it.'))
+      .toBeVisible();
+    expect(view.container.querySelector('iframe')).toBeNull();
+    expect(mocks.refreshUrls).not.toHaveBeenCalled();
+    await expect
+      .element(view.getByRole('link', { name: 'Download', exact: true }))
+      .toHaveAttribute('href', 'https://remote.example/assets/files/html?access=ticket&download=1');
+  });
+
+  it('does not infer PDF support from a filename', async () => {
+    const modal = pdfModal();
+    modal.items[0].contentType = 'application/octet-stream';
+    const view = mount(modal);
+    await expect
+      .element(view.getByText('No preview is available for this file. Use Download to save it.'))
+      .toBeVisible();
+    expect(view.container.querySelector('iframe')).toBeNull();
+  });
+
+  it('refreshes an expired PDF URL before embedding the document', async () => {
+    const view = mount(pdfModal(true));
+    await expect
+      .element(view.getByTitle('Preview of report.pdf'))
+      .toHaveAttribute('src', 'about:blank');
+    expect(mocks.refreshUrls).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers retry when URL refresh fails', async () => {
+    mocks.refreshUrls.mockRejectedValueOnce(new Error('Unavailable'));
+    const view = mount(pdfModal(true));
+    await expect.element(view.getByRole('alert')).toHaveTextContent('Could not load preview');
+    expect(view.container.querySelector('iframe')).toBeNull();
+    await view.getByRole('button', { name: 'Try Again', exact: true }).click();
+    await expect.element(view.getByTitle('Preview of report.pdf')).toBeVisible();
+  });
+
+  it('removes the document on selection change and close', async () => {
+    const modal = pdfModal();
+    modal.items.push({
+      ...modal.items[0],
+      id: 'archive',
+      filename: 'archive.zip',
+      contentType: 'application/zip'
+    });
+    const view = mount(modal);
+    await expect.element(view.getByTitle('Preview of report.pdf')).toBeVisible();
+    const frame = view.container.querySelector('iframe')!;
+    await view.getByRole('button', { name: 'Next image' }).click();
+    expect(frame.isConnected).toBe(false);
+    expect(view.container.querySelector('iframe')).toBeNull();
+    await view.getByRole('button', { name: 'Next image' }).click();
+    await expect.element(view.getByTitle('Preview of report.pdf')).toBeVisible();
+    await view.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect.poll(() => view.onclose.mock.calls.length).toBe(1);
+    await expect.poll(() => view.container.querySelector('iframe')).toBeNull();
+  });
+
+  it('discards a PDF URL refresh that finishes after close', async () => {
+    let resolve!: (urls: Map<string, RefreshedAttachmentUrls>) => void;
+    mocks.refreshUrls.mockReturnValue(
+      new Promise<Map<string, RefreshedAttachmentUrls>>((done) => {
+        resolve = done;
+      })
+    );
+    const view = mount(pdfModal(true));
+    await view.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect.poll(() => view.onclose.mock.calls.length).toBe(1);
+    resolve(freshUrls());
+    await tick();
+    expect(view.container.querySelector('iframe')).toBeNull();
+  });
+});
+
 /** Viewer tests use controlled byte responses, including responses that ignore abort. */
 describe('Markdown attachment previews', () => {
   const fetchDocument = vi.fn<typeof fetch>();

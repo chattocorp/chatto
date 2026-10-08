@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-10-04
+**Last reviewed:** 2026-10-08
 
 ## Overview
 
@@ -9,6 +9,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 
 ## Behavior
 
+- PDF attachments open automatically in the browser's native PDF viewer when the browser reports inline PDF support. The file type must be PDF; a `.pdf` filename alone does not enable the preview. Browsers without this capability show the download fallback without loading the document. Native controls vary by browser. Download stays available when a document cannot render because the browser does not reliably report these failures to Chatto. Preview requests use the attachment server and its configured storage, with no external document-viewer service.
 - The composer accepts files via drag-and-drop, paste, and a file picker button when the viewer has `message.attach`.
 - Draft attachments persist across room switches inside the same session.
 - Message attachments are uploaded through `chatto.api.v1.AssetUploadService` before message creation. The browser sends bounded unary chunks with SHA-256 checksums, then calls `MessageService.CreateMessage` with completed attachment asset IDs.
@@ -140,7 +141,7 @@ already in the cache and newly posted attachments are inserted directly.
 
 **Decision:** Message attachments use one history-backed viewer shell. The shell owns the filename, file metadata, gallery controls, and download action. On desktop, a side panel holds the description, metadata, gallery controls, and Download. Smaller screens place these below the preview. Images use a subtle background without an outline and fit without cropping. Preview components use the existing image and media paths. HTML keeps its per-opening consent gate. Files without a supported preview show a download action without loading their bytes. Gallery navigation stays local to one opening and unmounts the previous media. The dialog fills viewports below 640 CSS pixels and uses a large framed layout on wider screens, with controls outside the preview.
 **Why:** Every file needs an accessible download action and consistent dismissal. A shared shell keeps mobile layout and keyboard behavior consistent while preserving image galleries and HTML privacy controls.
-**Tradeoff:** Images in one message form a gallery; other attachments open individually. PDF, text, archive, and other unsupported formats have no built-in preview. The viewer adds no document parser, external service, protocol field, or stored-data migration.
+**Tradeoff:** Images in one message form a gallery; other attachments open individually. PDF previews depend on native browser support. Plain text, archives, and other unsupported formats have no built-in preview. PDF support adds no document parser, external service, protocol field, or stored-data migration.
 
 ## Permissions
 

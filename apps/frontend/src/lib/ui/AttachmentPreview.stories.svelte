@@ -1,6 +1,7 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import AttachmentPreview from './AttachmentPreview.svelte';
+  import pdfUrl from '$lib/test-utils/fixtures/attachment.pdf?url';
 
   const { Story } = defineMeta({
     title: 'UI/Attachment preview',
@@ -30,6 +31,13 @@
     height: 0,
     url: null
   };
+  const pdf = {
+    id: 'pdf',
+    filename: 'Report.pdf',
+    contentType: 'application/pdf',
+    width: 0,
+    height: 0
+  };
 </script>
 
 <Story name="Image" asChild>
@@ -40,6 +48,33 @@
       url={image.url}
       busy={false}
       zoomable
+      onpreview={() => {}}
+      onerror={async () => null}
+    />
+  </div>
+</Story>
+
+<Story name="Native PDF" asChild>
+  <div class="h-[70vh]">
+    <AttachmentPreview
+      item={pdf}
+      serverId="story"
+      url={pdfUrl}
+      busy={false}
+      onpreview={() => {}}
+      onerror={async () => null}
+    />
+  </div>
+</Story>
+
+<Story name="PDF without native support" asChild>
+  <div class="h-80">
+    <AttachmentPreview
+      item={pdf}
+      serverId="story"
+      url={pdfUrl}
+      busy={false}
+      pdfViewerEnabled={false}
       onpreview={() => {}}
       onerror={async () => null}
     />
