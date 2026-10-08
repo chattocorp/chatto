@@ -92,7 +92,7 @@ role or user setting. It does not give you permissions that you do not have.
 
 For owners, privileged mode also turns on the owner permissions. Without the
 mode, an owner cannot see, join, or read a room that denies this to
-`everyone`, unless one of their roles or a direct grant allows it. If an owner
+`everyone`, unless one of their roles or their own allow in the room allows it. If an owner
 joins such a room in privileged mode, they stay a member, but they can read the
 room only while the mode is active. Chatto removes them from a call in such a
 room shortly after the mode ends. Notifications use the permissions without the
@@ -170,64 +170,11 @@ messages value, the Server setting applies.
 - A participant with `message.manage` can edit or delete the messages of other
   participants. Nobody can moderate a DM that they are not part of.
 
-## Common patterns
+## Common setups
 
-### Read-only room
-
-In the room's permissions, allow `message.post` for each role that can post.
-Then deny it for `everyone` in the same room. On new servers, this also stops
-thread replies. Servers upgraded from earlier versions allow
-`message.post-in-thread` for `everyone` at Server scope. On these servers,
-also deny `message.post-in-thread` for `everyone` in the room. To keep replies
-open, allow `message.post-in-thread` for `everyone` in the room. To stop uploads, deny `message.attach`. Remove the denies to go back to
-the server defaults.
-
-### Room for one role only
-
-<Steps>
-
-1. Create a role, such as `engineering`, and assign it.
-2. In the room's permissions, allow `room.list` and `room.join` for
-   `engineering`.
-3. In the same room, deny `room.list` and `room.join` for `everyone`.
-4. Turn on **Universal** to add each member of the role to the room
-   automatically.
-5. Remove the current room members who must not have access.
-
-</Steps>
-
-Add the allows before the denies. You can change a permission setting only
-if you have that permission, unless you are an owner. If the deny removes your
-own access first, you cannot add the allows after it.
-
-Other roles need their own allow in the room. A server or room-group allow does
-not override the room-level `everyone` deny. Owners can access the room only in
-privileged mode, unless they have the role or their own allow. If **Universal** added a user,
-removing the role also removes the user from the room.
-
-### Suspend a user
-
-On the user's **Permissions** page, deny `message.post`,
-`message.post-in-thread`, and `message.post-in-interactions` at Server scope. You can also deny `message.attach`,
-`message.react`, and `message.echo`. First remove room or room-group allows on
-that user, because they replace the server-level denies in those places. Roles
-cannot deny, so a `suspended` role does not work. To remove a user from one
-room, use `room.remove-member` instead.
-
-### Delegate one room or room group
-
-Allow `room.manage` for a user or role at Room or Room group scope. Add
-`message.manage` and `room.remove-member` at the same scope to let them
-moderate. They must enable privileged mode to use these permissions.
-A room manager can change role permissions only for the permissions that they
-have at that scope.
-
-### Limit an account to its own conversations
-
-Allow `message.read-interactions` and `message.post-in-interactions` instead of
-`message.read` and `message.post`. The account can then read and reply only in
-the threads that `message.read-interactions` describes. This is useful for
-bots.
+For step-by-step setups, such as read-only rooms, members-only servers,
+private rooms, and delegated room groups, see
+[Common Setups](/guides/operations/common-setups/).
 
 ## Role order
 
@@ -307,7 +254,8 @@ Make these changes on an upgraded server:
   a more specific scope now overrides them.
 - **Replace role denies.** Denies on roles other than `everyone` have no
   effect. The server log reports how many it ignores. Set them on the users
-  instead.
+  instead. To restrict a group of people, remove the access from `everyone`
+  and allow it for a role. See [Common Setups](/guides/operations/common-setups/).
 - **Check the role order.** The role order now decides who can manage whom.
   An upgraded server keeps `admin` above `moderator` and both above custom
   roles. A user with a custom management role ranks below moderators and

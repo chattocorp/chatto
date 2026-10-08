@@ -72,8 +72,9 @@ Server, Room group, Room, or Direct messages scope:
 | `call.camera` | Publish camera video. |
 | `call.screenshare` | Share a screen, window, tab, or native application, including captured audio. |
 
-To create a listening audience, allow `call.join` and deny the three media
-permissions. Allow `call.start` only for people who can start the conversation.
+To create a listening audience in a room, deny `call.start` and the three
+media permissions for `everyone`, and allow them for a speaker role. See
+[Limit calls to some people](/guides/operations/common-setups/#limit-calls-to-some-people).
 DM policy uses the shared Direct messages scope.
 
 On upgrade, Chatto grants these new permissions to `everyone` only if that

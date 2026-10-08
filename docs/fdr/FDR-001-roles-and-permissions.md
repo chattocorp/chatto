@@ -5,7 +5,7 @@
 
 ## Overview
 
-Chatto controls who can do what through role-based access control. Every authenticated human user holds one or more roles; each role grants or denies specific permissions. Permissions can also be overridden per room-group and per room, giving operators fine-grained control without inventing parallel role systems. Bot accounts are the deliberate exception: they use an explicit direct-permission allowlist bounded by their human owner's current authority (FDR-038).
+Chatto controls who can do what through role-based access control. Every authenticated human user holds one or more roles; each role grants specific permissions, and the `everyone` role and single users can also deny them. Settings apply at server, room-group, and room scope, giving operators fine-grained control without inventing parallel role systems. Bot accounts are the deliberate exception: they use an explicit direct-permission allowlist bounded by their human owner's current authority (FDR-038).
 
 Role metadata and member role lists update through realtime events. Display
 changes do not reload the full client. Permission changes refresh affected data

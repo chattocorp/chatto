@@ -20,6 +20,9 @@ identity of the server.
 6. Use room or group permissions for local behavior, not server-wide denies.
 7. Keep at least one verified owner recovery email in `owners.emails`.
 
+For step-by-step setups, such as members-only servers and private rooms, see
+[Common Setups](/guides/operations/common-setups/).
+
 ## Room Groups
 
 Each channel room belongs to one room group. A group organizes the sidebar and
@@ -60,6 +63,9 @@ Membership comes from the room's `room.join` permission. Good candidates:
 | `#general` | All members take part. |
 | `#rules` | All members see it. Posting is restricted. |
 
+To restrict posting, see
+[Read-only room](/guides/operations/common-setups/#read-only-room).
+
 To remove a member from a universal room, suspend the member in that room. If
 you turn off **Universal**, explicit memberships from before stay.
 
@@ -78,6 +84,15 @@ members while the room is archived.
 Explicit membership gives access independently of `room.list` and `room.join`.
 A deny of discovery or self-join does not remove current members. Examine the
 member list when you restrict a room.
+
+## Archive Rooms
+
+Archive a room when it is no longer active, for example after an event. Open
+the room's context menu and select **Archive Room**. You need `room.manage`.
+
+- The room does not show in the sidebar, the server overview, or search.
+- Members, messages, and pins stay. The room is read-only.
+- To use the room again, unarchive it.
 
 ## Slow Mode
 
@@ -148,15 +163,19 @@ A room or group value overrides a less specific value for the same subject.
 Roles only allow. A role allow overrides an `everyone` deny only at the same
 scope or a nearer scope. To deny one person something that their roles allow,
 set the deny on the user. See
-[Permissions & Roles](/guides/operations/permissions/) for the full model.
+[Permissions & Roles](/guides/operations/permissions/) for the full model, and
+[Common Setups](/guides/operations/common-setups/) for examples.
 
 ## Common Structures
 
 | Community | Structure |
 | --------- | --------- |
 | Small community | One `Lobby` group. Universal, read-only `#announcements`. `#general` as a normal or universal room. A `moderator` role if necessary. |
-| Team or organization | One group for rooms for all members, and one group for each team or project. Universal `#announcements`. Custom roles for staff, contractors, or project leads. |
+| Team or organization | One group for rooms for all members, and one group for each team or project. Universal `#announcements`. A role for each team, with a private room group for the team. Roles for staff or project leads. |
 | Event or course | Universal, read-only `#announcements`. One group for each track or cohort. Sidebar links to schedules, recordings, and forms. |
+
+For the permission settings of these structures, see
+[Common Setups](/guides/operations/common-setups/).
 
 ## Branding And Public Presentation
 

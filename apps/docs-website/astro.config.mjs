@@ -85,6 +85,7 @@ export default defineConfig({
           items: [
             'guides/operations/community-structure',
             'guides/operations/permissions',
+            'guides/operations/common-setups',
             'guides/operations/identity-login',
             'guides/integrations/external-login-providers',
             'guides/infrastructure/media-attachments',

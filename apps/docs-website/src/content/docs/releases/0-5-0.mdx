@@ -333,6 +333,8 @@ Do these steps on every upgraded server:
   other than `everyone`, such as a `suspended` role, have no effect, and the
   server log reports how many it ignores. Set these denies on the users
   instead. A deny on a user now wins, also over a more specific role allow.
+  To restrict a group of people, remove the access from `everyone` and allow
+  it for a role. See [Common Setups](/guides/operations/common-setups/).
 - **Check the role order.** The role order now decides who can manage whom:
   to change another account or assign a role, a user who is not an owner
   must rank higher. Users with `role.manage` can change every role except
