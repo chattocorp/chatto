@@ -55,6 +55,10 @@ authorization, live events, backup and restore, and backend tests.
   Connect codes through the `connectError` table; do not call `connectError`
   in handlers. Code or tests that call a handler directly and inspect the code
   must use `errorCode`, because direct calls skip the interceptor.
+- Core reports a missing resource with `core.ErrNotFound` or a more specific
+  core sentinel. Do not return a JetStream error such as
+  `jetstream.ErrKeyNotFound` for a projection miss, and do not check for one
+  outside the code that reads the key-value bucket.
 - Keep projected read hydration out of ConnectRPC handlers. Put per-response
   batching, bounded concurrency, include-map construction, and protobuf response
   assembly in small `*_assembler.go` helpers near the service that owns the

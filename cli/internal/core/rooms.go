@@ -10,7 +10,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/unicode/norm"
 
@@ -640,7 +639,7 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 func (c *ChattoCore) GetRoom(ctx context.Context, kind RoomKind, room_id string) (*evtv1.Room, error) {
 	room, ok := c.roomModel.room(room_id)
 	if !ok || room.Kind != ProtoKindForRoomKind(kind) {
-		return nil, fmt.Errorf("room not found: %w", jetstream.ErrKeyNotFound)
+		return nil, fmt.Errorf("room %s: %w", room_id, ErrNotFound)
 	}
 	if gid := c.roomModel.roomGroupForRoom(room_id); gid != "" {
 		room.GroupId = gid
@@ -715,7 +714,7 @@ func (c *ChattoCore) ListMemberRooms(ctx context.Context, kind RoomKind, userID 
 	for _, roomID := range roomIDs {
 		room, err := c.GetRoom(ctx, kind, roomID)
 		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
+			if errors.Is(err, ErrNotFound) {
 				continue
 			}
 			return nil, fmt.Errorf("lookup room %s: %w", roomID, err)

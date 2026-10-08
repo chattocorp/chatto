@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nats-io/nats.go/jetstream"
-
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
@@ -533,7 +531,7 @@ func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, autho
 			return fmt.Errorf("read room deletion boundary before move: %w", err)
 		}
 		if !roomDeletedPosition.IsZero() {
-			return fmt.Errorf("room not found: %w", jetstream.ErrKeyNotFound)
+			return fmt.Errorf("room %s: %w", roomID, ErrNotFound)
 		}
 
 		snapshot := c.roomModel.roomGroupMoveSnapshot(roomID, targetGroupID)
@@ -628,7 +626,7 @@ func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, autho
 				return fmt.Errorf("re-read room deletion boundary for unassigned room move: %w", err)
 			}
 			if !currentDeletedPosition.IsZero() {
-				return fmt.Errorf("room not found: %w", jetstream.ErrKeyNotFound)
+				return fmt.Errorf("room %s: %w", roomID, ErrNotFound)
 			}
 			entries[0].Expect = events.ExpectFilterSeq(occFilter, snapshot.Seq).AndStreamSeq(streamSeq)
 		}

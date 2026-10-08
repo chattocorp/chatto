@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nats-io/nats.go/jetstream"
-
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
@@ -21,7 +19,7 @@ const maxJoinRoomRetries = 5
 // pair fully identifies a membership.
 func (c *ChattoCore) GetRoomMembership(ctx context.Context, kind RoomKind, user_id, room_id string) (*evtv1.RoomMembership, error) {
 	if !c.roomModel.hasExplicitRoomMembership(room_id, user_id) {
-		return nil, fmt.Errorf("room membership not found for user %s in room %s: %w", user_id, room_id, jetstream.ErrKeyNotFound)
+		return nil, fmt.Errorf("room membership for user %s in room %s: %w", user_id, room_id, ErrNotFound)
 	}
 	return &evtv1.RoomMembership{
 		UserId: user_id,
@@ -266,7 +264,7 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKin
 
 	room, err := c.GetRoom(ctx, kind, room_id)
 	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) && !c.roomModel.hasExplicitRoomMembership(room_id, user_id) {
+		if errors.Is(err, ErrNotFound) && !c.roomModel.hasExplicitRoomMembership(room_id, user_id) {
 			return nil
 		}
 		return err
@@ -582,10 +580,10 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 	}
 	var entries []roomEntry
 	for _, roomID := range allRoomIDs {
-		// Filter by kind: GetRoom returns ErrKeyNotFound when the
+		// Filter by kind: GetRoom returns ErrNotFound when the
 		// room exists but is of a different kind.
 		if _, err := c.GetRoom(ctx, kind, roomID); err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
+			if errors.Is(err, ErrNotFound) {
 				continue
 			}
 			return fmt.Errorf("lookup room %s during membership cleanup: %w", roomID, err)
