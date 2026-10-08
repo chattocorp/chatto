@@ -1000,10 +1000,6 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		}
 
 		// Both threads should be unread: auto-follow does not mark them read.
-		// Thread 1: User A is root author - auto-followed on first reply.
-		// PostMessage sets thread_last_opened for the replier (User B), not for User A.
-		// So User A's last-opened is from when they were auto-followed... but the
-		// auto-follow doesn't set last-opened. Let's verify:
 		for _, thread := range threads {
 			if !thread.HasUnreadReplies {
 				t.Errorf("Expected HasUnreadReplies=true for thread %s (user never opened it)", thread.ThreadRootEventID)
