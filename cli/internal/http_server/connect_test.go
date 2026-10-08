@@ -141,6 +141,15 @@ func TestConnectOperatorAPISeparation(t *testing.T) {
 		if _, err := operatorClient.ListUsers(context.Background(), connect.NewRequest(&operatorv1.ListUsersRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
 			t.Fatalf("OperatorUserService on public server err = %v, want unimplemented", err)
 		}
+		if _, err := operatorClient.ListUserExternalIdentities(context.Background(), connect.NewRequest(&operatorv1.ListUserExternalIdentitiesRequest{UserId: "user"})); connect.CodeOf(err) != connect.CodeUnimplemented {
+			t.Fatalf("operator identity list on public server err = %v, want unimplemented", err)
+		}
+		if _, err := operatorClient.LinkUserExternalIdentity(context.Background(), connect.NewRequest(&operatorv1.LinkUserExternalIdentityRequest{UserId: "user", ProviderId: "provider", Subject: "subject"})); connect.CodeOf(err) != connect.CodeUnimplemented {
+			t.Fatalf("operator identity link on public server err = %v, want unimplemented", err)
+		}
+		if _, err := operatorClient.UnlinkUserExternalIdentity(context.Background(), connect.NewRequest(&operatorv1.UnlinkUserExternalIdentityRequest{UserId: "user", SubjectHash: "hash"})); connect.CodeOf(err) != connect.CodeUnimplemented {
+			t.Fatalf("operator identity unlink on public server err = %v, want unimplemented", err)
+		}
 		roomClient := operatorv1connect.NewOperatorRoomServiceClient(publicTS.Client(), publicTS.URL+connectAPIPrefix)
 		if _, err := roomClient.ListRooms(context.Background(), connect.NewRequest(&operatorv1.ListRoomsRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
 			t.Fatalf("OperatorRoomService on public server err = %v, want unimplemented", err)

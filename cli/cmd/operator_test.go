@@ -161,6 +161,10 @@ type operatorCLITestEnv struct {
 }
 
 func newOperatorCLITestEnv(t *testing.T) *operatorCLITestEnv {
+	return newOperatorCLITestEnvWithConfig(t, config.ChattoConfig{})
+}
+
+func newOperatorCLITestEnvWithConfig(t *testing.T, cfg config.ChattoConfig) *operatorCLITestEnv {
 	t.Helper()
 	resetOperatorGlobals(t)
 
@@ -186,7 +190,6 @@ func newOperatorCLITestEnv(t *testing.T) *operatorCLITestEnv {
 	}
 
 	socketPath := fmt.Sprintf("/tmp/chatto-operator-%d.sock", time.Now().UnixNano())
-	cfg := config.ChattoConfig{}
 	mux := http.NewServeMux()
 	api := connectapi.New(c, cfg, "test")
 	for _, handler := range api.OperatorHandlers() {
