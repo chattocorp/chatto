@@ -111,6 +111,20 @@ URL responses and unmount the previous media. Metadata queries are scoped to
 the server session, room, and asset and are not retained after unmount.
 See [FDR-008](../fdr/FDR-008-file-attachments-and-video.md).
 
+The `retainPlayback` attachment in `$lib/media/playbackRetention` reports
+whether media must stay mounted. Media is active while it plays or shows in
+picture-in-picture. Audio and raw video markup use it directly. `VideoPlayer`
+uses it on Vidstack's player and reports through an optional callback.
+`MessageAttachments` tracks active attachment IDs and reports whether any
+attachment is active through `MessageEvent` and `RoomEvent` to `EventList`. The
+timeline combines active row keys with text-selection retention for virtua's
+`keepMounted` indexes. Pagination resolves the keys against the current virtual
+items. Pause, playback end, media errors, and source clearing release playback
+retention, unless the video is in picture-in-picture. The end of
+picture-in-picture releases a paused video. Svelte cleanup releases removed
+players and attachments. Converted GIF loops are excluded. This state exists
+only in the mounted room or thread timeline.
+
 The experimental Electron desktop shell is a Chatto client runtime using a
 pinned stable Electron and bundled Chromium release. It embeds the official
 static SvelteKit build and intercepts the fixed secure origin
