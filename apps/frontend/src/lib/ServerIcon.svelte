@@ -75,12 +75,12 @@
 
   {#if home}
     <span
-      class="pointer-events-none absolute -start-1 -bottom-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-surface text-muted"
+      class="pointer-events-none absolute -start-1 -bottom-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-text text-background"
       title={m('chat.server_gutter.home_server')}
       data-testid="server-home"
       aria-hidden="true"
     >
-      <span class="iconify icon-[uil--home-alt] text-xs" aria-hidden="true"></span>
+      <span class="iconify icon-[mdi--home] text-sm" aria-hidden="true"></span>
     </span>
     <span id={homeDescriptionId} class="sr-only">{m('chat.server_gutter.home_server')}</span>
   {/if}
