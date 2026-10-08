@@ -39,6 +39,7 @@
     TIMELINE_ITEM_KEY_ATTRIBUTE,
     type TimelineSelectionKeys
   } from './timelineSelection';
+  import { retainPlayingTimelineMedia } from './timelineMediaRetention';
   import { findLastEditableMessage } from './lastEditableMessage';
   import { LoadingDots, ScrollFader } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -469,9 +470,19 @@
   // The items at the ends of the document selection. The virtualizer keeps every item
   // between them mounted, because a copy contains only mounted DOM.
   let selectionKeys = $state<TimelineSelectionKeys | null>(null);
-  const keepMounted = $derived(
-    selectionKeys ? keptIndexes(virtualItems, selectionKeys) : undefined
-  );
+  let playingMediaKeys = $state.raw<ReadonlySet<string>>(new Set());
+  const retainPlayingMedia = retainPlayingTimelineMedia((keys) => {
+    playingMediaKeys = keys;
+  });
+  // Resolve stable row keys after pagination and merge both reasons for retention.
+  const keepMounted = $derived.by(() => {
+    const selectionIndexes = selectionKeys ? keptIndexes(virtualItems, selectionKeys) : [];
+    const mediaIndexes = playingMediaKeys.size
+      ? virtualItems.flatMap((item, index) => (playingMediaKeys.has(item.key) ? [index] : []))
+      : [];
+    const indexes = [...new Set([...selectionIndexes, ...mediaIndexes])];
+    return indexes.length > 0 ? indexes.sort((a, b) => a - b) : undefined;
+  });
 
   // Record the ends while the anchor item is still mounted. After this, a scroll during
   // the selection cannot unmount the anchor and break the selection.
@@ -947,6 +958,7 @@
   >
     <div
       class="mt-auto mobile-presentation:px-1"
+      {@attach retainPlayingMedia}
       {@attach restoreViewport(recoveryTarget)}
       {@attach landOnUnreadEntry(unreadEntryLanding)}
       {@attach scrollToMessage(scrollTarget)}
