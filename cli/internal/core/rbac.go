@@ -751,7 +751,7 @@ func (c *ChattoCore) GetServerRole(ctx context.Context, name string) (*RoleWithP
 // System roles (owner, admin, moderator, everyone) cannot be deleted. Deletion
 // revokes the role from every holder, so an actor who is not exempt from the
 // hierarchy must be able to manage the role (requireRoleManageable) and needs
-// every permission that the role allows or denies.
+// every permission that the role allows.
 func (c *ChattoCore) DeleteServerRole(ctx context.Context, actorID, name string) error {
 	if IsSystemRole(name) {
 		return ErrCannotDeleteSystemRole

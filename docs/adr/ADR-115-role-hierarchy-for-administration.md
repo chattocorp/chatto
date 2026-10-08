@@ -56,9 +56,9 @@ unchanged (ADR-052): the rank never decides whether a permission is allowed.
   below their own highest role. `everyone` ranks below every account, so
   room managers can edit its decisions.
 - **Authority bound.** A non-owner may change one role or direct decision only
-  for a permission that they effectively hold at that scope. Deleting or
-  revoking a role requires every permission that the role allows or denies.
-  Assigning requires every permission that the role allows.
+  for a permission that they effectively hold at that scope. Assigning,
+  revoking, or deleting a role requires every permission that the role
+  allows. Roles cannot deny (ADR-116).
 - **Bots.** Bots cannot hold roles. A bot ranks like its owner, both when it
   acts and when someone acts on it. Managing a bot therefore requires
   outranking its owner, unless the actor owns the bot.

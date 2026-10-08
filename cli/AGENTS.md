@@ -362,10 +362,9 @@ authorization, live events, backup and restore, and backend tests.
   decisions, such as room managers, need the role to rank below them. Bots
   hold no roles and rank like their owner. Add the rank check to every new
   operation that acts on another account.
-- Delegated authority is bounded: assigning a role requires every allow of the
-  role, revoking or deleting it requires every allow and deny, and changing one
-  role or direct-user decision requires the actor to hold that permission at
-  that scope. The `owner` role is owner-only. Keep these bounds in
+- Delegated authority is bounded: assigning, revoking, or deleting a role
+  requires every allow of the role, and changing one role or direct-user
+  decision requires the actor to hold that permission at that scope. The `owner` role is owner-only. Keep these bounds in
   `role_assignment_authorization.go` and `rbac_hierarchy.go`, and run them
   inside the command's OCC retry.
 - Authorization-sensitive event writes must evaluate authorization inside the
