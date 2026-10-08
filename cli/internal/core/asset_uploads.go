@@ -333,7 +333,7 @@ func (m *AssetUploadModel) cleanupExpiredUploadSessions(ctx context.Context, now
 	for _, key := range keys {
 		entry, err := m.core.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
-			if isKeyAbsent(err) {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				continue
 			}
 			return fmt.Errorf("load asset upload session for cleanup: %w", err)
@@ -508,7 +508,7 @@ func (m *AssetUploadModel) loadUpload(ctx context.Context, uploadID string) (*As
 	}
 	entry, err := m.core.storage.runtimeStateKV.Get(ctx, assetUploadKey(uploadID))
 	if err != nil {
-		if isKeyAbsent(err) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, 0, ErrNotFound
 		}
 		return nil, 0, fmt.Errorf("load upload session: %w", err)

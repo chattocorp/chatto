@@ -10,12 +10,13 @@ import (
 	"github.com/nats-io/nats-server/v2/server"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/runtimeunit"
+	"hmans.de/chatto/internal/testutil"
 )
 
 func TestChattoCoreRecoversAfterExternalNATSRestart(t *testing.T) {
 	t.Parallel()
 
-	storeDir := t.TempDir()
+	storeDir := testutil.StoreDir(t)
 	ns := startRecoveryTestNATS(t, storeDir, -1)
 	port := ns.Addr().(*net.TCPAddr).Port
 

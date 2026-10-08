@@ -231,13 +231,6 @@ func createKeyValue(ctx context.Context, js jetstream.JetStream, cfg jetstream.K
 	return jetstreamutil.NewKeyValue(js, bucket)
 }
 
-// isKeyAbsent reports that a key-value operation found no live entry. Reads
-// report a removal marker as jetstream.ErrKeyNotFound. The
-// jetstream.ErrKeyDeleted check is defensive.
-func isKeyAbsent(err error) bool {
-	return errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted)
-}
-
 // createObjectStore creates or updates an Object Store.
 func createObjectStore(ctx context.Context, js jetstream.JetStream, cfg jetstream.ObjectStoreConfig) (jetstream.ObjectStore, error) {
 	store, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.ObjectStore, error) {

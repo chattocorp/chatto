@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/nats-io/nats.go/jetstream"
 	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 
 	"google.golang.org/protobuf/proto"
@@ -898,7 +899,7 @@ func TestDeleteAllUserPushSubscriptionsRetainsRecoverableRecordWhenOwnerReleaseF
 	if err := core.pushSubscriptionCleanup.reconcileDeletedAccountPushState(ctx); err != nil {
 		t.Fatalf("reconcile malformed owner: %v", err)
 	}
-	if _, err := core.storage.runtimeStateKV.Get(ctx, ownerKey); !isKeyAbsent(err) {
+	if _, err := core.storage.runtimeStateKV.Get(ctx, ownerKey); !errors.Is(err, jetstream.ErrKeyNotFound) {
 		t.Fatalf("undecodable endpoint owner was not repaired: %v", err)
 	}
 
@@ -909,10 +910,10 @@ func TestDeleteAllUserPushSubscriptionsRetainsRecoverableRecordWhenOwnerReleaseF
 	if deleted != 1 {
 		t.Fatalf("retry deleted = %d, want 1", deleted)
 	}
-	if _, err := core.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(userID, endpoint)); !isKeyAbsent(err) {
+	if _, err := core.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(userID, endpoint)); !errors.Is(err, jetstream.ErrKeyNotFound) {
 		t.Fatalf("subscription remains after retry: %v", err)
 	}
-	if _, err := core.storage.runtimeStateKV.Get(ctx, ownerKey); !isKeyAbsent(err) {
+	if _, err := core.storage.runtimeStateKV.Get(ctx, ownerKey); !errors.Is(err, jetstream.ErrKeyNotFound) {
 		t.Fatalf("endpoint owner remains after retry: %v", err)
 	}
 }

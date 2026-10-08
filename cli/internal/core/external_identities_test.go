@@ -9,6 +9,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 // This test does not call t.Parallel: it replaces the package-wide
@@ -385,7 +387,7 @@ func TestChattoCore_PendingExternalIdentityFlowExpiresByCreatedAt(t *testing.T) 
 	if _, err := core.GetPendingExternalIdentityFlow(ctx, token); !errors.Is(err, ErrExternalIdentityFlowExpired) {
 		t.Fatalf("GetPendingExternalIdentityFlow expired error = %v, want ErrExternalIdentityFlowExpired", err)
 	}
-	if _, err := core.storage.runtimeStateKV.Get(ctx, core.externalIdentityCreateTokenKey(token)); !isKeyAbsent(err) {
+	if _, err := core.storage.runtimeStateKV.Get(ctx, core.externalIdentityCreateTokenKey(token)); !errors.Is(err, jetstream.ErrKeyNotFound) {
 		t.Fatalf("expired flow still present in RUNTIME_STATE: %v", err)
 	}
 }

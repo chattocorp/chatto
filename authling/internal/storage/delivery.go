@@ -78,7 +78,7 @@ func (b *DeliveryBudget) reserveCounter(ctx context.Context, key string, limit i
 func (b *DeliveryBudget) rollbackCounter(ctx context.Context, key string) error {
 	for range maxCounterAttempts {
 		entry, err := b.kv.Get(ctx, key)
-		if IsKeyAbsent(err) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil
 		}
 		if err != nil {

@@ -245,7 +245,7 @@ func TestChattoCore_MigrateLegacyCookieSessionRejectsRevokedAuthority(t *testing
 	if _, err := core.MigrateLegacyCookieSession(ctx, sessionID, now); !errors.Is(err, ErrCookieSessionNotFound) {
 		t.Fatalf("MigrateLegacyCookieSession err = %v, want ErrCookieSessionNotFound", err)
 	}
-	if _, err := core.storage.runtimeStateKV.Get(ctx, key); !isKeyAbsent(err) {
+	if _, err := core.storage.runtimeStateKV.Get(ctx, key); !errors.Is(err, jetstream.ErrKeyNotFound) {
 		t.Fatalf("revoked legacy cookie session still stored: %v", err)
 	}
 }
@@ -408,7 +408,7 @@ func TestMutableCookieSessionRetainsPhysicalTTL(t *testing.T) {
 			t.Fatal("mutable cookie session did not expire")
 		case <-ticker.C:
 			_, err := core.storage.runtimeStateKV.Get(context.Background(), key)
-			if isKeyAbsent(err) {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				return
 			}
 			if err != nil {

@@ -222,7 +222,7 @@ func (s *Service) Revoke(ctx context.Context, token string) error {
 	key := s.sessionKey(token)
 	for range 4 {
 		entry, err := s.kv.Get(ctx, key)
-		if storage.IsKeyAbsent(err) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil
 		}
 		if err != nil {
@@ -243,7 +243,7 @@ func (s *Service) Revoke(ctx context.Context, token string) error {
 
 func (s *Service) read(ctx context.Context, key string) (jetstream.KeyValueEntry, Session, error) {
 	entry, err := s.kv.Get(ctx, key)
-	if storage.IsKeyAbsent(err) {
+	if errors.Is(err, jetstream.ErrKeyNotFound) {
 		return nil, Session{}, ErrNotFound
 	}
 	if err != nil {

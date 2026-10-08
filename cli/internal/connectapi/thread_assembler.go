@@ -55,7 +55,7 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 		if err != nil {
 			// List responses omit resources that disappear between the core page
 			// snapshot and response hydration instead of failing the whole page.
-			if errors.Is(err, core.ErrNotFound) || errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+			if errors.Is(err, core.ErrNotFound) || errors.Is(err, jetstream.ErrKeyNotFound) {
 				return nil, nil
 			}
 			return nil, err

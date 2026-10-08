@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/config"
 )
 
@@ -65,7 +66,7 @@ func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testin
 	if err := first.RevokeRefreshTokenWithReason(ctx, recovered.RefreshToken, "test"); err != nil {
 		t.Fatalf("RevokeRefreshTokenWithReason: %v", err)
 	}
-	if _, err := first.storage.runtimeStateKV.Get(ctx, sessionKey); !isKeyAbsent(err) {
+	if _, err := first.storage.runtimeStateKV.Get(ctx, sessionKey); !errors.Is(err, jetstream.ErrKeyNotFound) {
 		t.Fatalf("revoked renewable session lookup error = %v, want absent key", err)
 	}
 }

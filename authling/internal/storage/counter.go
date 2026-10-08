@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -28,7 +29,7 @@ func IncrementCounter(ctx context.Context, kv KeyValue, key string, limit int, w
 	for range maxCounterAttempts {
 		entry, err := kv.Get(ctx, key)
 		switch {
-		case IsKeyAbsent(err):
+		case errors.Is(err, jetstream.ErrKeyNotFound):
 			_, err = kv.Create(ctx, key, []byte(`{"count":1}`), jetstream.KeyTTL(window))
 		case err != nil:
 			return false, fmt.Errorf("read counter: %w", err)
@@ -52,6 +53,23 @@ func IncrementCounter(ctx context.Context, kv KeyValue, key string, limit int, w
 		}
 	}
 	return false, fmt.Errorf("counter conflicted repeatedly")
+}
+
+// ReadCounter returns the current count and revision of the counter at key.
+// It returns a zero count and revision when the counter does not exist.
+func ReadCounter(ctx context.Context, kv KeyValue, key string) (count int, revision uint64, err error) {
+	entry, err := kv.Get(ctx, key)
+	if errors.Is(err, jetstream.ErrKeyNotFound) {
+		return 0, 0, nil
+	}
+	if err != nil {
+		return 0, 0, fmt.Errorf("read counter: %w", err)
+	}
+	counter, err := decodeCounter(entry.Value())
+	if err != nil {
+		return 0, 0, err
+	}
+	return counter.Count, entry.Revision(), nil
 }
 
 // maxCounterAttempts bounds the OCC retries of one counter operation.

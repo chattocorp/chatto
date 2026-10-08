@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -111,7 +112,7 @@ func (c *ChattoCore) createOAuthClientAuthorizationCode(ctx context.Context, aut
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
 		cleanupErr := c.storage.runtimeStateKV.Delete(cleanupCtx, c.authCodeKey(code))
-		if cleanupErr != nil && !isKeyAbsent(cleanupErr) {
+		if cleanupErr != nil && !errors.Is(cleanupErr, jetstream.ErrKeyNotFound) {
 			return "", fmt.Errorf("record OAuth client authorization: %w; discard authorization code: %v", err, cleanupErr)
 		}
 		return "", err

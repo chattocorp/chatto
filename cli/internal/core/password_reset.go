@@ -153,18 +153,18 @@ func (c *ChattoCore) CancelPasswordResetToken(ctx context.Context, token string)
 	requestKey := c.passwordResetRequestKey(tokenData.UserID)
 	entry, err := c.storage.runtimeStateKV.Get(cleanupCtx, requestKey)
 	if err != nil {
-		if !isKeyAbsent(err) {
+		if !errors.Is(err, jetstream.ErrKeyNotFound) {
 			return fmt.Errorf("failed to get password reset request reservation: %w", err)
 		}
 	} else if string(entry.Value()) == tokenKey {
-		if err := c.storage.runtimeStateKV.Delete(cleanupCtx, requestKey, jetstream.LastRevision(entry.Revision())); err != nil && !isKeyAbsent(err) && !jetstreamutil.IsSequenceConflict(err) {
+		if err := c.storage.runtimeStateKV.Delete(cleanupCtx, requestKey, jetstream.LastRevision(entry.Revision())); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) && !jetstreamutil.IsSequenceConflict(err) {
 			return fmt.Errorf("failed to release password reset request reservation: %w", err)
 		}
 	}
 
 	// Delete the token after its reservation so a transient reservation failure
 	// leaves cancellation retryable instead of orphaning the throttle record.
-	if err := c.storage.runtimeStateKV.Delete(cleanupCtx, tokenKey, jetstream.LastRevision(revision)); err != nil && !isKeyAbsent(err) && !jetstreamutil.IsSequenceConflict(err) {
+	if err := c.storage.runtimeStateKV.Delete(cleanupCtx, tokenKey, jetstream.LastRevision(revision)); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) && !jetstreamutil.IsSequenceConflict(err) {
 		return fmt.Errorf("failed to cancel password reset token: %w", err)
 	}
 	return nil
@@ -231,7 +231,7 @@ func (c *ChattoCore) ResetPassword(ctx context.Context, token string, newPasswor
 	// reset that read the same revision loses this delete and cannot proceed.
 	key := c.passwordResetTokenKey(token)
 	if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(revision)); err != nil {
-		if isKeyAbsent(err) || jetstreamutil.IsSequenceConflict(err) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) || jetstreamutil.IsSequenceConflict(err) {
 			return ErrPasswordResetTokenNotFound
 		}
 		return fmt.Errorf("failed to consume password reset token: %w", err)

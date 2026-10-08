@@ -197,7 +197,7 @@ func TestDurableWorkerResumesPartialDestructionAndDuplicateDelivery(t *testing.T
 	if err := service.Complete(ctx, "acc_test"); err == nil {
 		t.Fatal("purge failure not observed")
 	}
-	if _, err := stores.Keys.Get(ctx, user); !errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
+	if _, err := stores.Keys.Get(ctx, user); !errors.Is(err, jetstream.ErrKeyNotFound) {
 		t.Fatalf("user key remained: %v", err)
 	}
 	if _, err := stores.Keys.Get(ctx, data); err != nil {
@@ -223,7 +223,7 @@ func TestDurableWorkerResumesPartialDestructionAndDuplicateDelivery(t *testing.T
 		case <-time.After(10 * time.Millisecond):
 		}
 	}
-	if _, err := stores.Keys.Get(ctx, data); !errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
+	if _, err := stores.Keys.Get(ctx, data); !errors.Is(err, jetstream.ErrKeyNotFound) {
 		t.Fatalf("data key remained: %v", err)
 	}
 	tail, err = pub.AccountTail(ctx, "acc_test")
