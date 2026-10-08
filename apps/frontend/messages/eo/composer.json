@@ -24,6 +24,8 @@
     "drop_files_title": "Forigu dosierojn ĉi tie",
     "drop_files_subtitle": "Bildoj kaj filmetoj estos aldonitaj al via mesaĝo",
     "send_failed": "Malsukcesis sendi mesaĝon",
+    "send_retry_expired": "La periodo por reprovi la sendon finiĝis. Kontrolu ĉu via mesaĝo alvenis antaŭ ol sendi ĝin denove.",
+    "send_retry_reset": "La konekto estis restarigita. Kontrolu ĉu via mesaĝo alvenis antaŭ ol sendi ĝin denove.",
     "slow_mode_ready": "Malrapida reĝimo: unu mesaĝo ĉiun {interval}.",
     "slow_mode_waiting": "Malrapida reĝimo: sendu denove post {countdown}.",
     "slow_mode_bypassed": "Malrapida reĝimo: {interval} (vi estas esceptita).",

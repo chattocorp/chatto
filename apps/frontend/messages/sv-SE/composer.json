@@ -24,6 +24,8 @@
     "drop_files_title": "Släpp filer här",
     "drop_files_subtitle": "Bilder och videor kommer att läggas till i ditt meddelande",
     "send_failed": "Det gick inte att skicka meddelandet",
+    "send_retry_expired": "Tiden för att försöka skicka igen har löpt ut. Kontrollera om ditt meddelande kom fram innan du skickar det igen.",
+    "send_retry_reset": "Anslutningen återställdes. Kontrollera om ditt meddelande kom fram innan du skickar det igen.",
     "slow_mode_ready": "Långsamt läge: ett meddelande per {interval}.",
     "slow_mode_waiting": "Långsamt läge: skicka igen om {countdown}.",
     "slow_mode_bypassed": "Långsamt läge: {interval} (du är undantagen).",

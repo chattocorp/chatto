@@ -24,6 +24,8 @@
     "drop_files_title": "Zet bestanden hier neer",
     "drop_files_subtitle": "Afbeeldingen en video's worden aan je bericht toegevoegd",
     "send_failed": "Kan bericht niet verzenden",
+    "send_retry_expired": "De termijn om opnieuw te verzenden is verstreken. Controleer of je bericht is aangekomen voordat je het opnieuw verzendt.",
+    "send_retry_reset": "De verbinding is opnieuw ingesteld. Controleer of je bericht is aangekomen voordat je het opnieuw verzendt.",
     "slow_mode_ready": "Langzame modus: één bericht per {interval}.",
     "slow_mode_waiting": "Langzame modus: opnieuw verzenden over {countdown}.",
     "slow_mode_bypassed": "Langzame modus: {interval} (je bent vrijgesteld).",

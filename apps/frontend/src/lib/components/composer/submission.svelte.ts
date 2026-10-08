@@ -11,7 +11,11 @@ import type { MentionRolesStatus } from '@chatto/client/server/mentionRoles';
 import { extractMentions, hasRoleOrVirtualMention } from '$lib/mentions';
 import { toast } from '$lib/ui/toast';
 import { m } from '$lib/i18n/messages';
-import type { MessageSendOperation } from '@chatto/client/messaging/messageSend';
+import {
+  MessageSendExpiredError,
+  type MessageSendOperation
+} from '@chatto/client/messaging/messageSend';
+import { StaleResponseError } from '@chatto/client/api/connect';
 
 export type AttachmentSubmissionStatus =
   | { phase: 'preparing' }
@@ -65,7 +69,7 @@ export class ComposerSubmissionState {
 
   readonly #dependencies: ComposerSubmissionDependencies;
   // An unchanged failed draft resumes the same client-owned send operation.
-  // Successful sends release it so repeating the text is an intended new send.
+  // Success or a terminal retry error releases it. A fresh send needs another click.
   #pendingSend: {
     post: PreparedPost;
     operation: MessageSendOperation<CreateMessageResult>;
@@ -161,6 +165,7 @@ export class ComposerSubmissionState {
 
     try {
       let response: CreateMessageResult;
+      let operation: MessageSendOperation<CreateMessageResult> | undefined;
       try {
         if (!this.#pendingSend || !samePreparedPost(this.#pendingSend.post, post)) {
           const operation = this.#dependencies.getAPI().prepareMessage({
@@ -186,12 +191,22 @@ export class ComposerSubmissionState {
             operation
           };
         }
-        response = await this.#pendingSend.operation.send();
+        operation = this.#pendingSend.operation;
+        response = await operation.send();
       } catch (error) {
         if (![...this.attachmentStatuses.values()].some((status) => status.phase === 'failed')) {
           this.attachmentStatuses.clear();
         }
-        if (!this.#dependencies.onPostError?.(error)) {
+        if (error instanceof MessageSendExpiredError || error instanceof StaleResponseError) {
+          // The old send can have committed. Release it without posting again,
+          // and preserve any newer operation while its request is in flight.
+          if (this.#pendingSend?.operation === operation) this.#pendingSend = null;
+          toast.error(
+            error instanceof MessageSendExpiredError
+              ? m('composer.send_retry_expired')
+              : m('composer.send_retry_reset')
+          );
+        } else if (!this.#dependencies.onPostError?.(error)) {
           toast.error(m('composer.send_failed'));
           console.error('Error creating message:', error);
         }

@@ -24,6 +24,8 @@
     "drop_files_title": "Suelta archivos aquí",
     "drop_files_subtitle": "Se agregarán imágenes y videos a tu mensaje",
     "send_failed": "No se pudo enviar el mensaje",
+    "send_retry_expired": "El plazo para reintentar el envío ha terminado. Comprueba si tu mensaje llegó antes de enviarlo de nuevo.",
+    "send_retry_reset": "La conexión se restableció. Comprueba si tu mensaje llegó antes de enviarlo de nuevo.",
     "slow_mode_ready": "Modo lento: un mensaje cada {interval}.",
     "slow_mode_waiting": "Modo lento: vuelve a enviar en {countdown}.",
     "slow_mode_bypassed": "Modo lento: {interval} (tienes una exención).",

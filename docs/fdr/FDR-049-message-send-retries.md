@@ -20,7 +20,11 @@ response without posting the same intended message twice.
   do not make a completed post occur again. Edits and retractions retain its ID.
 - The shared client offers a prepared send that keeps the key and uploaded
   attachment IDs. The bundled composer reuses it when an unchanged failed draft
-  is sent again. A successful send releases it.
+  is sent again. A successful send releases it. When a retry fails because its
+  window expired or connection data was reset, the composer releases it and
+  preserves the draft. The composer
+  asks the user to check whether the message arrived. Another Send click starts
+  a new send; the composer does not post again automatically.
 - Prepared sends stay in memory. They do not survive a client restart. A client
   stops retries at its 30-minute deadline and asks the caller to check the result.
 - MCP tells a host when it can retry the same request. Without a key, an
