@@ -32,15 +32,15 @@ type reactionState struct {
 	// ids interns emoji, user, and room IDs as handles. Reaction source event
 	// IDs are unique per reaction, so entries keep them as strings; interning
 	// them would only grow the append-only table.
-	ids projectionIDTable
+	ids projectionIDTable[reactionIDKind]
 	// byMessage maps a canonical message handle to its active reactions,
 	// sorted by emoji handle and then user handle. Each pair appears once.
-	byMessage map[uint32][]reactionProjectionEntry
+	byMessage map[eventHandle][]reactionProjectionEntry
 	roomSeq   map[string]uint64
 	// messageRooms holds the ids room handle of each posted message handle.
-	messageRooms handleSlice[uint32]
+	messageRooms handleSlice[reactionHandle]
 	// echoOriginal maps an echo message handle to its original message handle.
-	echoOriginal map[uint32]uint32
+	echoOriginal map[eventHandle]eventHandle
 	assetRoom    map[string]string
 	replayGuard  projectionReplayGuard
 }
@@ -59,8 +59,8 @@ type reactionProjectionEntry struct {
 	// projectionTime).
 	addedAtNanos int64
 	source       string
-	emoji        uint32
-	user         uint32
+	emoji        reactionHandle
+	user         reactionHandle
 }
 
 // NewReactionProjection returns an empty projection with a private message ID
@@ -77,10 +77,10 @@ func newReactionProjection(messages *eventIDTable) *ReactionProjection {
 		messages = newEventIDTable()
 	}
 	return &ReactionProjection{messages: messages, sharedEventIDs: shared, reactionState: reactionState{
-		ids:          newProjectionIDTable(),
-		byMessage:    make(map[uint32][]reactionProjectionEntry),
+		ids:          newProjectionIDTable[reactionIDKind](),
+		byMessage:    make(map[eventHandle][]reactionProjectionEntry),
 		roomSeq:      make(map[string]uint64),
-		echoOriginal: make(map[uint32]uint32),
+		echoOriginal: make(map[eventHandle]eventHandle),
 		assetRoom:    make(map[string]string),
 		replayGuard:  newProjectionReplayGuard(),
 	}}
@@ -173,10 +173,10 @@ func (p *ReactionProjection) noteRoomOwnershipLocked(event *evtv1.Event, roomID 
 	switch e := event.GetEvent().(type) {
 	case *evtv1.Event_MessagePosted:
 		if event.GetId() != "" {
-			message := p.messages.intern(event.GetId())
-			p.messageRooms.set(message, p.ids.intern(roomID))
+			message := p.messages.Intern(event.GetId())
+			p.messageRooms.set(message, p.ids.Intern(roomID))
 			if originalID := e.MessagePosted.GetEchoOfEventId(); originalID != "" {
-				p.echoOriginal[message] = p.messages.intern(originalID)
+				p.echoOriginal[message] = p.messages.Intern(originalID)
 			}
 		}
 	case *evtv1.Event_AssetCreated:
@@ -189,21 +189,21 @@ func (p *ReactionProjection) noteRoomOwnershipLocked(event *evtv1.Event, roomID 
 }
 
 func (p *ReactionProjection) messageRoomLocked(messageEventID string) string {
-	message, ok := p.messages.lookup(messageEventID)
+	message, ok := p.messages.Lookup(messageEventID)
 	if !ok {
 		return ""
 	}
 	room, _ := p.messageRooms.get(message)
-	return p.ids.id(room)
+	return p.ids.Resolve(room)
 }
 
 func (p *ReactionProjection) applyAdded(e *evtv1.ReactionAddedEvent, userID string, nanos int64, sourceEventID string) {
 	if e == nil || userID == "" || e.GetMessageEventId() == "" || e.GetEmoji() == "" {
 		return
 	}
-	message := p.canonicalMessageLocked(p.messages.intern(e.GetMessageEventId()))
-	emoji := p.ids.intern(e.GetEmoji())
-	user := p.ids.intern(userID)
+	message := p.canonicalMessageLocked(p.messages.Intern(e.GetMessageEventId()))
+	emoji := p.ids.Intern(e.GetEmoji())
+	user := p.ids.Intern(userID)
 	reactions := p.byMessage[message]
 	index, exists := reactionSearch(reactions, emoji, user)
 	if exists {
@@ -218,9 +218,9 @@ func (p *ReactionProjection) applyRemoved(e *evtv1.ReactionRemovedEvent, userID 
 	if e == nil || userID == "" || e.GetMessageEventId() == "" || e.GetEmoji() == "" {
 		return
 	}
-	message, messageKnown := p.messages.lookup(e.GetMessageEventId())
-	emoji, emojiKnown := p.ids.lookup(e.GetEmoji())
-	user, userKnown := p.ids.lookup(userID)
+	message, messageKnown := p.messages.Lookup(e.GetMessageEventId())
+	emoji, emojiKnown := p.ids.Lookup(e.GetEmoji())
+	user, userKnown := p.ids.Lookup(userID)
 	if !messageKnown || !emojiKnown || !userKnown {
 		return
 	}
@@ -252,11 +252,11 @@ func compareReactions(a, b reactionProjectionEntry) int {
 
 // reactionSearch finds the emoji and user pair in sorted reactions. It returns
 // the pair's position, or its insertion position when the pair is absent.
-func reactionSearch(reactions []reactionProjectionEntry, emoji, user uint32) (int, bool) {
+func reactionSearch(reactions []reactionProjectionEntry, emoji, user reactionHandle) (int, bool) {
 	return slices.BinarySearchFunc(reactions, reactionProjectionEntry{emoji: emoji, user: user}, compareReactions)
 }
 
-func (p *ReactionProjection) canonicalMessageLocked(message uint32) uint32 {
+func (p *ReactionProjection) canonicalMessageLocked(message eventHandle) eventHandle {
 	if original := p.echoOriginal[message]; original != 0 {
 		return original
 	}
@@ -266,7 +266,7 @@ func (p *ReactionProjection) canonicalMessageLocked(message uint32) uint32 {
 // reactionsForMessageLocked returns the active reactions of a message ID,
 // following an echo to its original message.
 func (p *ReactionProjection) reactionsForMessageLocked(messageEventID string) []reactionProjectionEntry {
-	message, ok := p.messages.lookup(messageEventID)
+	message, ok := p.messages.Lookup(messageEventID)
 	if !ok {
 		return nil
 	}
@@ -291,11 +291,11 @@ func (p *ReactionProjection) ReactionMutationSnapshot(roomID, messageEventID, em
 	defer p.RUnlock()
 
 	snapshot := ReactionMutationSnapshot{Seq: p.roomSeq[roomID]}
-	user, ok := p.ids.lookup(userID)
+	user, ok := p.ids.Lookup(userID)
 	if !ok {
 		return snapshot
 	}
-	emojiHandle, emojiKnown := p.ids.lookup(emoji)
+	emojiHandle, emojiKnown := p.ids.Lookup(emoji)
 	for _, reaction := range p.reactionsForMessageLocked(messageEventID) {
 		if reaction.user != user {
 			continue
@@ -357,11 +357,11 @@ func (p *ReactionProjection) reactionSummariesLocked(reactions []reactionProject
 			end++
 		}
 		g := group{
-			summary:       ReactionSummary{Emoji: p.ids.id(reactions[start].emoji), UserIDs: make([]string, 0, end-start)},
+			summary:       ReactionSummary{Emoji: p.ids.Resolve(reactions[start].emoji), UserIDs: make([]string, 0, end-start)},
 			earliestNanos: reactions[start].addedAtNanos,
 		}
 		for _, reaction := range reactions[start:end] {
-			g.summary.UserIDs = append(g.summary.UserIDs, p.ids.id(reaction.user))
+			g.summary.UserIDs = append(g.summary.UserIDs, p.ids.Resolve(reaction.user))
 			if g.earliestNanos == 0 || reaction.addedAtNanos < g.earliestNanos {
 				g.earliestNanos = reaction.addedAtNanos
 			}

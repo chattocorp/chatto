@@ -18,7 +18,7 @@ type ContentKeyProjection struct {
 // Restore builds a new value and replaces the complete state at once.
 type contentKeyState struct {
 	// users interns the user IDs of stored keys.
-	users projectionIDTable
+	users projectionIDTable[userIDKind]
 	// keys holds each stored DEK epoch in compact form. Reads rebuild the
 	// UserDEKGeneratedEvent.
 	keys map[contentKeyID]contentKeyRecord
@@ -34,7 +34,7 @@ type contentKeyState struct {
 // contentKeyPurposeID identifies one user's keys for one purpose. user is a
 // users handle.
 type contentKeyPurposeID struct {
-	user    uint32
+	user    userHandle
 	purpose evtv1.UserDEKPurpose
 }
 
@@ -55,7 +55,7 @@ type contentKeyRecord struct {
 
 func NewContentKeyProjection() *ContentKeyProjection {
 	return &ContentKeyProjection{contentKeyState: contentKeyState{
-		users:         newProjectionIDTable(),
+		users:         newProjectionIDTable[userIDKind](),
 		keys:          make(map[contentKeyID]contentKeyRecord),
 		activeEpoch:   make(map[contentKeyPurposeID]int32),
 		algorithms:    make(map[string]string),
@@ -98,7 +98,7 @@ func (p *ContentKeyProjection) clearUserLocked(userID string) {
 	if userID == "" {
 		return
 	}
-	if user, known := p.users.lookup(userID); known {
+	if user, known := p.users.Lookup(userID); known {
 		for id := range p.keys {
 			if id.user == user {
 				delete(p.keys, id)
@@ -126,7 +126,7 @@ func (p *ContentKeyProjection) applyDEKGeneratedLocked(e *evtv1.UserDEKGenerated
 	if _, shredded := p.shreddedUsers[e.GetUserId()]; shredded {
 		return
 	}
-	purpose := contentKeyPurposeID{user: p.users.intern(e.GetUserId()), purpose: e.GetPurpose()}
+	purpose := contentKeyPurposeID{user: p.users.Intern(e.GetUserId()), purpose: e.GetPurpose()}
 	id := contentKeyID{contentKeyPurposeID: purpose, epoch: e.GetEpoch()}
 	if _, exists := p.keys[id]; !exists {
 		algorithm, known := p.algorithms[e.GetWrappingAlgorithm()]
@@ -149,7 +149,7 @@ func (p *ContentKeyProjection) applyDEKGeneratedLocked(e *evtv1.UserDEKGenerated
 func (p *ContentKeyProjection) Active(userID string, purpose evtv1.UserDEKPurpose) (*evtv1.UserDEKGeneratedEvent, bool) {
 	p.RLock()
 	defer p.RUnlock()
-	user, known := p.users.lookup(userID)
+	user, known := p.users.Lookup(userID)
 	if !known {
 		return nil, false
 	}
@@ -170,7 +170,7 @@ func (p *ContentKeyProjection) Active(userID string, purpose evtv1.UserDEKPurpos
 func (p *ContentKeyProjection) Get(userID string, purpose evtv1.UserDEKPurpose, epoch int32) (*evtv1.UserDEKGeneratedEvent, bool) {
 	p.RLock()
 	defer p.RUnlock()
-	user, known := p.users.lookup(userID)
+	user, known := p.users.Lookup(userID)
 	if !known {
 		return nil, false
 	}

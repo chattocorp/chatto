@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-30
 
-**Updated:** 2026-10-06
+**Updated:** 2026-10-08
 
 ADR-088 extends the shared framework with prepared reducers, coordinated
 components, one apply barrier, and component-shaped projection snapshots. The
@@ -55,6 +55,8 @@ NATS framework that may later move to a standalone repository.
 
 Framework-owned responsibilities are:
 
+- optional ID interning and compact string storage through the standard-library-only
+  `intern` subpackage; applications retain table scope, sharing, and lifetime;
 - opaque-byte event-log reads, OCC-guarded publishing with an explicit
   unguarded path for state-independent facts, and atomic append mechanics,
   including duplicate-aware results and optional per-record broker TTL;

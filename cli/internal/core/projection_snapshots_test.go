@@ -341,11 +341,11 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		}},
 		{"reactions", func() snapshotProjection { return NewReactionProjection() }, func(raw snapshotProjection) {
 			p := raw.(*ReactionProjection)
-			message := p.messages.intern("M1")
-			p.byMessage[message] = []reactionProjectionEntry{{addedAtNanos: now.UnixNano(), emoji: p.ids.intern("+1"), user: p.ids.intern("U1"), source: "E-reaction"}}
+			message := p.messages.Intern("M1")
+			p.byMessage[message] = []reactionProjectionEntry{{addedAtNanos: now.UnixNano(), emoji: p.ids.Intern("+1"), user: p.ids.Intern("U1"), source: "E-reaction"}}
 			p.roomSeq["R1"] = 41
-			p.messageRooms.set(message, p.ids.intern("R1"))
-			p.echoOriginal[p.messages.intern("M2")] = message
+			p.messageRooms.set(message, p.ids.Intern("R1"))
+			p.echoOriginal[p.messages.Intern("M2")] = message
 			p.assetRoom["A1"] = "R1"
 			p.replayGuard.highestSeq = 41
 			p.replayGuard.completeReplay()

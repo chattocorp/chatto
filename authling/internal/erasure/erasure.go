@@ -15,6 +15,7 @@ import (
 	"hmans.de/authling/internal/keyvault"
 	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
 	"hmans.de/chatto/pkg/events"
+	"hmans.de/chatto/pkg/events/intern"
 )
 
 // State is non-secret erasure evidence. A non-empty RequestID denies access;
@@ -25,17 +26,24 @@ type State struct {
 	Complete                               bool
 }
 
+// accountIDKind separates this projection's account handles from other IDs.
+// The handles stay local to this projection and never enter stored events.
+type accountIDKind struct{}
+
 // Projection must replay before projections that decrypt account history.
 // Retained key ownership prevents an erasure request from naming another key.
 type Projection struct {
 	events.MemoryProjection
-	accounts map[string]State
+	accountIDs intern.Table[accountIDKind]
+	// accounts is dense and indexed by the account handle minus one. Erasure
+	// tombstones remain present, so handles never have gaps or get reused.
+	accounts []State
 	owners   map[string]struct{}
 }
 
 // NewProjection creates an empty structural erasure index.
 func NewProjection() *Projection {
-	return &Projection{accounts: map[string]State{}, owners: map[string]struct{}{}}
+	return &Projection{owners: map[string]struct{}{}}
 }
 
 // Subjects includes account facts and correlated registry releases.
@@ -51,7 +59,11 @@ func (p *Projection) Apply(e *corev1.Event, sequence uint64) error {
 	}
 	p.Lock()
 	defer p.Unlock()
-	state, exists := p.accounts[id]
+	handle, exists := p.accountIDs.Lookup(id)
+	var state State
+	if exists {
+		state = p.accounts[handle-1]
+	}
 	if c := e.GetAccountCreated(); c != nil {
 		if exists {
 			return fmt.Errorf("duplicate account in erasure index")
@@ -64,7 +76,8 @@ func (p *Projection) Apply(e *corev1.Event, sequence uint64) error {
 				p.owners[ref] = struct{}{}
 			}
 		}
-		p.accounts[id] = State{AccountID: id, UserRef: c.GetUserKeyRef(), DataRef: c.GetCredentialKeyRef()}
+		p.accountIDs.Intern(id)
+		p.accounts = append(p.accounts, State{AccountID: id, UserRef: c.GetUserKeyRef(), DataRef: c.GetCredentialKeyRef()})
 		return nil
 	}
 	if !exists {
@@ -89,7 +102,7 @@ func (p *Projection) Apply(e *corev1.Event, sequence uint64) error {
 	} else if state.RequestID != "" {
 		return fmt.Errorf("account event follows erasure request")
 	}
-	p.accounts[id] = state
+	p.accounts[handle-1] = state
 	return nil
 }
 
@@ -97,8 +110,11 @@ func (p *Projection) Apply(e *corev1.Event, sequence uint64) error {
 func (p *Projection) Get(id string) (State, bool) {
 	p.RLock()
 	defer p.RUnlock()
-	s, ok := p.accounts[id]
-	return s, ok
+	handle, ok := p.accountIDs.Lookup(id)
+	if !ok {
+		return State{}, false
+	}
+	return p.accounts[handle-1], true
 }
 
 // Service synchronizes erasure evidence and performs idempotent destruction.
