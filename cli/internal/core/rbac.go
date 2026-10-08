@@ -173,10 +173,8 @@ func (c *ChattoCore) hasKindPermission(ctx context.Context, kind RoomKind, userI
 	return c.permissionResolver.HasSpacePermission(ctx, userID, kind, perm)
 }
 
-// hasRoomPermission checks a permission at the room level. Each direct user or
-// named role contributes its nearest room/group/server decision; named denies
-// win across those subjects. Everyone supplies a scoped baseline: a named allow
-// overrides its deny only at the same or a nearer scope.
+// hasRoomPermission checks a permission at the room level, with the room,
+// group, and server settings that apply to the room (ADR-116).
 func (c *ChattoCore) hasRoomPermission(ctx context.Context, kind RoomKind, roomID, userID string, perm Permission) (bool, error) {
 	return c.permissionResolver.HasRoomPermission(ctx, userID, kind, roomID, perm)
 }
@@ -775,7 +773,8 @@ func (c *ChattoCore) DeleteServerRole(ctx context.Context, actorID, name string)
 
 // MoveServerRole places a role directly above beforeRoleName, or lowest when
 // beforeRoleName is empty. Owner and everyone cannot move or serve as the
-// anchor. The role hierarchy does not limit moves: callers that hold
+// anchor. The actor needs role.manage, checked inside the OCC retry; the
+// system actor is exempt. The role hierarchy does not limit moves: holders of
 // role.manage may move every other role, also above their own (ADR-115).
 // Returns all roles in role order, highest first.
 func (c *ChattoCore) MoveServerRole(ctx context.Context, actorID, roleName, beforeRoleName string) ([]RoleWithPermissions, error) {
@@ -790,6 +789,12 @@ func (c *ChattoCore) MoveServerRole(ctx context.Context, actorID, roleName, befo
 		RbacRoleMoved: &evtv1.RbacRoleMovedEvent{RoleName: roleName, BeforeRoleName: beforeRoleName},
 	}})
 	_, err := c.appendRBACEvent(ctx, event, func() error {
+		// A move changes rank, so a concurrent loss of role.manage must stop it.
+		if actorID != SystemActorID {
+			if err := c.requireCanManageAdminRoles(ctx, actorID); err != nil {
+				return err
+			}
+		}
 		order := c.orderableRoleNames()
 		current := slices.Index(order, roleName)
 		if current < 0 {
