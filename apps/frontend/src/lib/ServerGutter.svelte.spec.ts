@@ -26,7 +26,8 @@ vi.mock('$lib/client', async () => ({
     get servers() {
       return mocks.servers;
     },
-    tryGetStore: (serverId: string) => mocks.stores.get(serverId)
+    tryGetStore: (serverId: string) => mocks.stores.get(serverId),
+    isOriginServer: (serverId: string) => serverId === 'origin'
   }
 }));
 
@@ -52,8 +53,12 @@ vi.mock('$lib/ui/ScrollFader.svelte', async () => ({
 }));
 
 import ServerGutter from './ServerGutter.svelte';
+import { serverGutterOrder } from './state/serverGutterOrder.svelte';
+import { tick } from 'svelte';
+import { TRIGGERS, SOURCES } from 'svelte-dnd-action';
 
 beforeEach(() => {
+  serverGutterOrder.save([]);
   mocks.servers = [];
   mocks.stores = new SvelteMap();
   mocks.routeId = '/chat/-/overview';
@@ -62,6 +67,84 @@ beforeEach(() => {
 });
 
 describe('ServerGutter', () => {
+  function register(...ids: string[]) {
+    mocks.servers = ids.map((id) => ({ id, reauthRequiredAt: null }));
+    ids.forEach((id) => mocks.stores.set(id, { isAuthenticated: false, currentUser: {} }));
+  }
+
+  function entries(container: HTMLElement) {
+    return [...container.querySelectorAll('[data-testid="server-entry"]')].map(
+      (entry) => entry.textContent
+    );
+  }
+
+  it('keeps the origin first and applies the saved remote order', () => {
+    register('a', 'b', 'origin', 'new');
+    serverGutterOrder.save(['b', 'missing', 'b', 'a']);
+    const { container } = render(ServerGutter);
+    expect(entries(container)).toEqual(['origin', 'b', 'a', 'new']);
+  });
+
+  it('updates on a storage event without remounting entries or writing back', async () => {
+    register('origin', 'a', 'b');
+    const { container } = render(ServerGutter);
+    const original = [...container.querySelectorAll('[data-testid="server-entry"]')];
+    localStorage.setItem('chatto:serverGutterOrder', JSON.stringify(['b', 'a']));
+    const write = vi.spyOn(Storage.prototype, 'setItem');
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: 'chatto:serverGutterOrder',
+        storageArea: localStorage,
+        newValue: JSON.stringify(['a', 'b']) // An older queued event must not win.
+      })
+    );
+    await tick();
+    expect(entries(container)).toEqual(['origin', 'b', 'a']);
+    expect(container.querySelectorAll('[data-testid="server-entry"]')[2]).toBe(original[1]);
+    expect(write).not.toHaveBeenCalled();
+    write.mockRestore();
+  });
+
+  it('keeps drag previews local and saves only a complete drop', async () => {
+    register('a', 'b');
+    const { container } = render(ServerGutter);
+    const zone = container.querySelector('[data-testid="remote-server-list"]')!;
+    await vi.waitFor(() => expect(zone.getAttribute('data-server-drag-ready')).toBe('true'));
+    const items = ['b', 'a'].map((id) => ({ id, serverId: id }));
+    const info = { id: 'b', source: SOURCES.POINTER, trigger: TRIGGERS.DRAG_STARTED };
+    zone.dispatchEvent(new CustomEvent('consider', { detail: { items, info } }));
+    await tick();
+    expect(entries(container)).toEqual(['b', 'a']);
+    expect(JSON.parse(localStorage.getItem('chatto:serverGutterOrder')!)).toEqual([]);
+    zone.dispatchEvent(
+      new CustomEvent('finalize', {
+        detail: { items, info: { ...info, trigger: TRIGGERS.DROPPED_INTO_ZONE } }
+      })
+    );
+    await tick();
+    expect(JSON.parse(localStorage.getItem('chatto:serverGutterOrder')!)).toEqual(['b', 'a']);
+  });
+
+  it('discards a drop after catalogue membership changes', async () => {
+    register('a', 'b');
+    const { container } = render(ServerGutter);
+    const zone = container.querySelector('[data-testid="remote-server-list"]')!;
+    await vi.waitFor(() => expect(zone.getAttribute('data-server-drag-ready')).toBe('true'));
+    const items = ['b', 'a'].map((id) => ({ id, serverId: id }));
+    const info = { id: 'b', source: SOURCES.POINTER, trigger: TRIGGERS.DRAG_STARTED };
+    zone.dispatchEvent(new CustomEvent('consider', { detail: { items, info } }));
+    mocks.stores.delete('b');
+    await tick();
+    zone.dispatchEvent(
+      new CustomEvent('finalize', {
+        detail: { items, info: { ...info, trigger: TRIGGERS.DROPPED_INTO_ZONE } }
+      })
+    );
+    await tick();
+    expect(entries(container)).toEqual(['a']);
+    expect(JSON.parse(localStorage.getItem('chatto:serverGutterOrder')!)).toEqual([]);
+  });
+
   it('keeps an unauthenticated registered server available for navigation', () => {
     mocks.servers = [{ id: 'origin', reauthRequiredAt: null }];
     mocks.stores.set('origin', {

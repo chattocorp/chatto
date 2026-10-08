@@ -19,7 +19,8 @@
     onIndicatorClick,
     contextMenuTrigger,
     title,
-    warning = false
+    warning = false,
+    home = false
   }: {
     /** Display data for the icon (server name + optional logo). */
     server?: { name: string; logoUrl?: string | null };
@@ -46,7 +47,10 @@
      * the problem.
      */
     warning?: boolean;
+    /** Mark the server that hosts this frontend, independently from its session. */
+    home?: boolean;
   } = $props();
+  const homeDescriptionId = $props.id();
 </script>
 
 <div class="server-icon-wrapper relative" {@attach contextMenuTrigger}>
@@ -55,6 +59,7 @@
     {onclick}
     {title}
     aria-label={title ?? server?.name}
+    aria-describedby={home ? homeDescriptionId : undefined}
     class={[
       'server-icon server-gutter-item cursor-pointer',
       selected && 'server-gutter-item-active'
@@ -67,6 +72,18 @@
       <span class={icon} aria-hidden="true"></span>
     {/if}
   </a>
+
+  {#if home}
+    <span
+      class="pointer-events-none absolute -start-1 -bottom-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-surface text-muted"
+      title={m('chat.server_gutter.home_server')}
+      data-testid="server-home"
+      aria-hidden="true"
+    >
+      <span class="iconify icon-[uil--home-alt] text-xs" aria-hidden="true"></span>
+    </span>
+    <span id={homeDescriptionId} class="sr-only">{m('chat.server_gutter.home_server')}</span>
+  {/if}
 
   {#if warning}
     <span

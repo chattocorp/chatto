@@ -23,7 +23,7 @@
 
 <Story name="Gutter states" asChild>
   <div class="inline-flex flex-col gap-2 rounded-xl border border-border bg-background p-2">
-    <ServerIcon server={home} href="/chat/-" title="Home Server" selected />
+    <ServerIcon server={home} href="/chat/-" title="Home Server" selected home />
     <ServerIcon server={remote} href="/chat/remote" title="Remote Server needs sign-in" warning />
     <ServerIcon
       server={legacy}
@@ -37,6 +37,22 @@
 <Story name="Warning" asChild>
   <div class="inline-flex rounded-xl border border-border bg-background p-2">
     <ServerIcon server={remote} href="/chat/remote" title="Remote Server needs sign-in" warning />
+  </div>
+</Story>
+
+<Story name="Home with warning and notification" asChild>
+  <div class="inline-flex rounded-xl border border-border bg-background p-2">
+    <ServerIcon
+      server={home}
+      href="#home"
+      title="Home Server"
+      home
+      warning
+      selected
+      indicator="notification"
+      notificationCount={3}
+      importantNotificationCount={3}
+    />
   </div>
 </Story>
 

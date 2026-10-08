@@ -53,6 +53,9 @@
       "copy_user_id": "Kopiera användar-ID"
     },
     "server_gutter": {
+      "home_server": "Hemserver",
+      "move_up": "Flytta upp",
+      "move_down": "Flytta ned",
       "add_server": "Lägg till server",
       "log_in": "Logga in på den här servern",
       "sign_out": "Logga ut från den här servern",

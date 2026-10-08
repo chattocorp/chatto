@@ -53,6 +53,9 @@
       "copy_user_id": "Kopeeri kasutaja ID"
     },
     "server_gutter": {
+      "home_server": "Koduserver",
+      "move_up": "Liigutage üles",
+      "move_down": "Liigutage alla",
       "add_server": "Lisa server",
       "log_in": "Logi sellesse serverisse sisse",
       "sign_out": "Logi sellest serverist välja",

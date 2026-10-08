@@ -53,6 +53,9 @@
       "copy_user_id": "Gebruikers-ID kopiëren"
     },
     "server_gutter": {
+      "home_server": "Thuisserver",
+      "move_up": "Omhoog verplaatsen",
+      "move_down": "Omlaag verplaatsen",
       "add_server": "Server toevoegen",
       "log_in": "Aanmelden bij deze server",
       "sign_out": "Afmelden bij deze server",

@@ -15,6 +15,78 @@ import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
 test.describe('Server Directory (sidebar entry point)', () => {
+  test('server order syncs live between tabs without changing navigation', async ({
+    page,
+    context
+  }) => {
+    await context.route('http://order-*.localhost/**', (route) => route.abort());
+    await createAndLoginTestUser(page);
+    await page.goto('/chat/servers');
+    await page.evaluate(() => {
+      const servers = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]');
+      for (const id of ['order-a', 'order-b']) {
+        servers.push({
+          id,
+          url: `http://${id}.localhost`,
+          name: id,
+          iconUrl: null,
+          addedAt: Date.now()
+        });
+      }
+      localStorage.setItem('chatto:instances', JSON.stringify(servers));
+      localStorage.removeItem('chatto:serverGutterOrder');
+    });
+    await page.reload();
+    const other = await context.newPage();
+    await other.goto('/chat/servers');
+    const icons = (tab: typeof page) =>
+      tab.getByTestId('remote-server-list').getByTestId('server-icon');
+    const hrefs = (tab: typeof page) =>
+      icons(tab).evaluateAll((links) => links.map((link) => link.getAttribute('href')));
+    const initial = ['/chat/order-a.localhost', '/chat/order-b.localhost'];
+    await expect.poll(() => hrefs(page)).toEqual(initial);
+    await expect.poll(() => hrefs(other)).toEqual(initial);
+    await expect(page.getByTestId('server-home')).toHaveCount(1);
+    const firstURL = page.url();
+    const otherURL = other.url();
+
+    await icons(page).first().focus();
+    await icons(page).first().press('Shift+F10');
+    await page.getByTestId('move-server-down').click();
+    const moved = ['/chat/order-b.localhost', '/chat/order-a.localhost'];
+    await expect.poll(() => hrefs(page)).toEqual(moved);
+    await expect.poll(() => hrefs(other)).toEqual(moved);
+
+    await icons(other).first().focus();
+    await icons(other).first().press('Shift+F10');
+    await other.getByTestId('move-server-down').click();
+    await expect.poll(() => hrefs(page)).toEqual(initial);
+    await expect.poll(() => hrefs(other)).toEqual(initial);
+    expect(page.url()).toBe(firstURL);
+    expect(other.url()).toBe(otherURL);
+    await other.close();
+
+    // Removing a registration clears its position even if it is added again later.
+    await icons(page).first().focus();
+    await icons(page).first().press('Shift+F10');
+    await page.getByRole('menuitem', { name: 'Remove server' }).click();
+    await page.getByRole('button', { name: 'Remove Server' }).click();
+    await expect.poll(() => hrefs(page)).toEqual(['/chat/order-b.localhost']);
+    await page.evaluate(() => {
+      const servers = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]');
+      servers.push({
+        id: 'order-a',
+        url: 'http://order-a.localhost',
+        name: 'order-a',
+        iconUrl: null,
+        addedAt: Date.now()
+      });
+      localStorage.setItem('chatto:instances', JSON.stringify(servers));
+    });
+    await page.reload();
+    await expect.poll(() => hrefs(page)).toEqual(moved);
+  });
+
   test('sidebar "+" opens the Server Directory in a dialog', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
