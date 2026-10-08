@@ -33,8 +33,6 @@ type Role struct {
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	// Whether this is a built-in role.
 	IsSystem bool `protobuf:"varint,4,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
-	// Display/order position.
-	Position int32 `protobuf:"varint,5,opt,name=position,proto3" json:"position,omitempty"`
 	// Whether messages may notify users assigned to this role.
 	Pingable      bool `protobuf:"varint,6,opt,name=pingable,proto3" json:"pingable,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -99,13 +97,6 @@ func (x *Role) GetIsSystem() bool {
 	return false
 }
 
-func (x *Role) GetPosition() int32 {
-	if x != nil {
-		return x.Position
-	}
-	return 0
-}
-
 func (x *Role) GetPingable() bool {
 	if x != nil {
 		return x.Pingable
@@ -153,10 +144,21 @@ func (*ListRolesRequest) Descriptor() ([]byte, []int) {
 // Snapshot of the role catalog visible to the authenticated viewer.
 type ListRolesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Roles sorted by position.
-	Roles         []*Role `protobuf:"bytes,1,rep,name=roles,proto3" json:"roles,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Roles in role order, highest first: owner first and everyone last. Role
+	// order is the administrative rank. It decides which accounts and roles a
+	// caller can manage; it does not change permission decisions.
+	Roles []*Role `protobuf:"bytes,1,rep,name=roles,proto3" json:"roles,omitempty"`
+	// Name of the role at which the caller ranks. This is owner for an owner
+	// of the server, the caller's highest assigned role otherwise, and
+	// everyone when the caller has no roles. A bot ranks at its
+	// owner's highest role. A non-owner caller can manage only accounts whose
+	// highest role comes after this role in roles. They can assign and revoke
+	// only roles that come after it; with role.manage, they can change every
+	// role except owner. Everyone ranks below every account. The caller also
+	// needs the permission for each action.
+	ViewerHighestRole string `protobuf:"bytes,2,opt,name=viewer_highest_role,json=viewerHighestRole,proto3" json:"viewer_highest_role,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ListRolesResponse) Reset() {
@@ -194,6 +196,13 @@ func (x *ListRolesResponse) GetRoles() []*Role {
 		return x.Roles
 	}
 	return nil
+}
+
+func (x *ListRolesResponse) GetViewerHighestRole() string {
+	if x != nil {
+		return x.ViewerHighestRole
+	}
+	return ""
 }
 
 // Request one public role by stable role name.
@@ -385,17 +394,17 @@ var File_chatto_api_v1_roles_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_roles_proto_rawDesc = "" +
 	"\n" +
-	"\x19chatto/api/v1/roles.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"\xb4\x01\n" +
+	"\x19chatto/api/v1/roles.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"\xa8\x01\n" +
 	"\x04Role\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1b\n" +
 	"\tis_system\x18\x04 \x01(\bR\bisSystem\x12\x1a\n" +
-	"\bposition\x18\x05 \x01(\x05R\bposition\x12\x1a\n" +
-	"\bpingable\x18\x06 \x01(\bR\bpingable\"\x12\n" +
-	"\x10ListRolesRequest\">\n" +
+	"\bpingable\x18\x06 \x01(\bR\bpingableJ\x04\b\x05\x10\x06R\bposition\"\x12\n" +
+	"\x10ListRolesRequest\"n\n" +
 	"\x11ListRolesResponse\x12)\n" +
-	"\x05roles\x18\x01 \x03(\v2\x13.chatto.api.v1.RoleR\x05roles\"-\n" +
+	"\x05roles\x18\x01 \x03(\v2\x13.chatto.api.v1.RoleR\x05roles\x12.\n" +
+	"\x13viewer_highest_role\x18\x02 \x01(\tR\x11viewerHighestRole\"-\n" +
 	"\x0eGetRoleRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\":\n" +
 	"\x0fGetRoleResponse\x12'\n" +

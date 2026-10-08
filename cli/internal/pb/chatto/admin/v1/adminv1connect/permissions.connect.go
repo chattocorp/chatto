@@ -36,6 +36,9 @@ const (
 	// AdminPermissionServiceGetRolePermissionTierMatrixProcedure is the fully-qualified name of the
 	// AdminPermissionService's GetRolePermissionTierMatrix RPC.
 	AdminPermissionServiceGetRolePermissionTierMatrixProcedure = "/chatto.admin.v1.AdminPermissionService/GetRolePermissionTierMatrix"
+	// AdminPermissionServiceGetAccessSummaryProcedure is the fully-qualified name of the
+	// AdminPermissionService's GetAccessSummary RPC.
+	AdminPermissionServiceGetAccessSummaryProcedure = "/chatto.admin.v1.AdminPermissionService/GetAccessSummary"
 	// AdminPermissionServiceGetRolePermissionMatrixProcedure is the fully-qualified name of the
 	// AdminPermissionService's GetRolePermissionMatrix RPC.
 	AdminPermissionServiceGetRolePermissionMatrixProcedure = "/chatto.admin.v1.AdminPermissionService/GetRolePermissionMatrix"
@@ -65,6 +68,11 @@ type AdminPermissionServiceClient interface {
 	// role.manage; group and room scopes require role.manage or effective
 	// room.manage at the requested resource.
 	GetRolePermissionTierMatrix(context.Context, *connect.Request[v1.GetRolePermissionTierMatrixRequest]) (*connect.Response[v1.GetRolePermissionTierMatrixResponse], error)
+	// Summarizes who can find and join a channel room or the rooms of a room
+	// group. New rooms and room groups start closed, so clients use it to warn
+	// operators. Requires role.manage or effective room.manage at the room or
+	// group. Only ROOM and GROUP scopes are accepted.
+	GetAccessSummary(context.Context, *connect.Request[v1.GetAccessSummaryRequest]) (*connect.Response[v1.GetAccessSummaryResponse], error)
 	// Gets one page of a role's permission matrix. Requires role.manage. Returns
 	// NOT_FOUND when the role does not exist.
 	GetRolePermissionMatrix(context.Context, *connect.Request[v1.GetRolePermissionMatrixRequest]) (*connect.Response[v1.GetRolePermissionMatrixResponse], error)
@@ -83,10 +91,20 @@ type AdminPermissionServiceClient interface {
 	ExplainPermissions(context.Context, *connect.Request[v1.ExplainPermissionsRequest]) (*connect.Response[v1.ExplainPermissionsResponse], error)
 	// Sets one role permission decision. Server scope requires role.manage;
 	// group and room scopes also accept effective room.manage at that resource.
+	// A caller with role.manage can change every role except owner. Other
+	// callers who are not owners can change only roles below their own highest
+	// role. Every caller who is not an owner must have the permission at the
+	// target scope; otherwise the call returns PERMISSION_DENIED. Everyone ranks
+	// below every account. Roles, everyone included, only grant: a deny for any
+	// role returns INVALID_ARGUMENT. Set a deny on a single user instead.
 	SetRolePermission(context.Context, *connect.Request[v1.SetRolePermissionRequest]) (*connect.Response[v1.SetRolePermissionResponse], error)
 	// Sets one user permission decision. Human targets require
-	// user.manage-permissions; bot targets require ownership or bot.manage and
-	// accept only allow or clear within the bot owner's current authority.
+	// user.manage-permissions. A caller who is not an owner must also have the
+	// permission at the target scope and must outrank any other target;
+	// otherwise the call returns PERMISSION_DENIED. Bot targets require
+	// ownership, or bot.manage and a higher rank than the bot and its owner, and
+	// accept only allow or clear within the bot owner's current authority. A
+	// caller who does not own the bot must also have the permission they allow.
 	SetUserPermission(context.Context, *connect.Request[v1.SetUserPermissionRequest]) (*connect.Response[v1.SetUserPermissionResponse], error)
 }
 
@@ -105,6 +123,12 @@ func NewAdminPermissionServiceClient(httpClient connect.HTTPClient, baseURL stri
 			httpClient,
 			baseURL+AdminPermissionServiceGetRolePermissionTierMatrixProcedure,
 			connect.WithSchema(adminPermissionServiceMethods.ByName("GetRolePermissionTierMatrix")),
+			connect.WithClientOptions(opts...),
+		),
+		getAccessSummary: connect.NewClient[v1.GetAccessSummaryRequest, v1.GetAccessSummaryResponse](
+			httpClient,
+			baseURL+AdminPermissionServiceGetAccessSummaryProcedure,
+			connect.WithSchema(adminPermissionServiceMethods.ByName("GetAccessSummary")),
 			connect.WithClientOptions(opts...),
 		),
 		getRolePermissionMatrix: connect.NewClient[v1.GetRolePermissionMatrixRequest, v1.GetRolePermissionMatrixResponse](
@@ -155,6 +179,7 @@ func NewAdminPermissionServiceClient(httpClient connect.HTTPClient, baseURL stri
 // adminPermissionServiceClient implements AdminPermissionServiceClient.
 type adminPermissionServiceClient struct {
 	getRolePermissionTierMatrix *connect.Client[v1.GetRolePermissionTierMatrixRequest, v1.GetRolePermissionTierMatrixResponse]
+	getAccessSummary            *connect.Client[v1.GetAccessSummaryRequest, v1.GetAccessSummaryResponse]
 	getRolePermissionMatrix     *connect.Client[v1.GetRolePermissionMatrixRequest, v1.GetRolePermissionMatrixResponse]
 	listRolePermissionDecisions *connect.Client[v1.ListRolePermissionDecisionsRequest, v1.ListRolePermissionDecisionsResponse]
 	getUserPermissionMatrix     *connect.Client[v1.GetUserPermissionMatrixRequest, v1.GetUserPermissionMatrixResponse]
@@ -168,6 +193,11 @@ type adminPermissionServiceClient struct {
 // chatto.admin.v1.AdminPermissionService.GetRolePermissionTierMatrix.
 func (c *adminPermissionServiceClient) GetRolePermissionTierMatrix(ctx context.Context, req *connect.Request[v1.GetRolePermissionTierMatrixRequest]) (*connect.Response[v1.GetRolePermissionTierMatrixResponse], error) {
 	return c.getRolePermissionTierMatrix.CallUnary(ctx, req)
+}
+
+// GetAccessSummary calls chatto.admin.v1.AdminPermissionService.GetAccessSummary.
+func (c *adminPermissionServiceClient) GetAccessSummary(ctx context.Context, req *connect.Request[v1.GetAccessSummaryRequest]) (*connect.Response[v1.GetAccessSummaryResponse], error) {
+	return c.getAccessSummary.CallUnary(ctx, req)
 }
 
 // GetRolePermissionMatrix calls chatto.admin.v1.AdminPermissionService.GetRolePermissionMatrix.
@@ -214,6 +244,11 @@ type AdminPermissionServiceHandler interface {
 	// role.manage; group and room scopes require role.manage or effective
 	// room.manage at the requested resource.
 	GetRolePermissionTierMatrix(context.Context, *connect.Request[v1.GetRolePermissionTierMatrixRequest]) (*connect.Response[v1.GetRolePermissionTierMatrixResponse], error)
+	// Summarizes who can find and join a channel room or the rooms of a room
+	// group. New rooms and room groups start closed, so clients use it to warn
+	// operators. Requires role.manage or effective room.manage at the room or
+	// group. Only ROOM and GROUP scopes are accepted.
+	GetAccessSummary(context.Context, *connect.Request[v1.GetAccessSummaryRequest]) (*connect.Response[v1.GetAccessSummaryResponse], error)
 	// Gets one page of a role's permission matrix. Requires role.manage. Returns
 	// NOT_FOUND when the role does not exist.
 	GetRolePermissionMatrix(context.Context, *connect.Request[v1.GetRolePermissionMatrixRequest]) (*connect.Response[v1.GetRolePermissionMatrixResponse], error)
@@ -232,10 +267,20 @@ type AdminPermissionServiceHandler interface {
 	ExplainPermissions(context.Context, *connect.Request[v1.ExplainPermissionsRequest]) (*connect.Response[v1.ExplainPermissionsResponse], error)
 	// Sets one role permission decision. Server scope requires role.manage;
 	// group and room scopes also accept effective room.manage at that resource.
+	// A caller with role.manage can change every role except owner. Other
+	// callers who are not owners can change only roles below their own highest
+	// role. Every caller who is not an owner must have the permission at the
+	// target scope; otherwise the call returns PERMISSION_DENIED. Everyone ranks
+	// below every account. Roles, everyone included, only grant: a deny for any
+	// role returns INVALID_ARGUMENT. Set a deny on a single user instead.
 	SetRolePermission(context.Context, *connect.Request[v1.SetRolePermissionRequest]) (*connect.Response[v1.SetRolePermissionResponse], error)
 	// Sets one user permission decision. Human targets require
-	// user.manage-permissions; bot targets require ownership or bot.manage and
-	// accept only allow or clear within the bot owner's current authority.
+	// user.manage-permissions. A caller who is not an owner must also have the
+	// permission at the target scope and must outrank any other target;
+	// otherwise the call returns PERMISSION_DENIED. Bot targets require
+	// ownership, or bot.manage and a higher rank than the bot and its owner, and
+	// accept only allow or clear within the bot owner's current authority. A
+	// caller who does not own the bot must also have the permission they allow.
 	SetUserPermission(context.Context, *connect.Request[v1.SetUserPermissionRequest]) (*connect.Response[v1.SetUserPermissionResponse], error)
 }
 
@@ -250,6 +295,12 @@ func NewAdminPermissionServiceHandler(svc AdminPermissionServiceHandler, opts ..
 		AdminPermissionServiceGetRolePermissionTierMatrixProcedure,
 		svc.GetRolePermissionTierMatrix,
 		connect.WithSchema(adminPermissionServiceMethods.ByName("GetRolePermissionTierMatrix")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminPermissionServiceGetAccessSummaryHandler := connect.NewUnaryHandler(
+		AdminPermissionServiceGetAccessSummaryProcedure,
+		svc.GetAccessSummary,
+		connect.WithSchema(adminPermissionServiceMethods.ByName("GetAccessSummary")),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminPermissionServiceGetRolePermissionMatrixHandler := connect.NewUnaryHandler(
@@ -298,6 +349,8 @@ func NewAdminPermissionServiceHandler(svc AdminPermissionServiceHandler, opts ..
 		switch r.URL.Path {
 		case AdminPermissionServiceGetRolePermissionTierMatrixProcedure:
 			adminPermissionServiceGetRolePermissionTierMatrixHandler.ServeHTTP(w, r)
+		case AdminPermissionServiceGetAccessSummaryProcedure:
+			adminPermissionServiceGetAccessSummaryHandler.ServeHTTP(w, r)
 		case AdminPermissionServiceGetRolePermissionMatrixProcedure:
 			adminPermissionServiceGetRolePermissionMatrixHandler.ServeHTTP(w, r)
 		case AdminPermissionServiceListRolePermissionDecisionsProcedure:
@@ -323,6 +376,10 @@ type UnimplementedAdminPermissionServiceHandler struct{}
 
 func (UnimplementedAdminPermissionServiceHandler) GetRolePermissionTierMatrix(context.Context, *connect.Request[v1.GetRolePermissionTierMatrixRequest]) (*connect.Response[v1.GetRolePermissionTierMatrixResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminPermissionService.GetRolePermissionTierMatrix is not implemented"))
+}
+
+func (UnimplementedAdminPermissionServiceHandler) GetAccessSummary(context.Context, *connect.Request[v1.GetAccessSummaryRequest]) (*connect.Response[v1.GetAccessSummaryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminPermissionService.GetAccessSummary is not implemented"))
 }
 
 func (UnimplementedAdminPermissionServiceHandler) GetRolePermissionMatrix(context.Context, *connect.Request[v1.GetRolePermissionMatrixRequest]) (*connect.Response[v1.GetRolePermissionMatrixResponse], error) {

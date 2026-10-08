@@ -26,6 +26,19 @@
 > The effective-owner override, permission-only gates, and non-ranking role
 > positions remain active. ADR-052 replaces the literal all-subject,
 > all-scope deny-wins combination rule.
+>
+> **Partially superseded by [ADR-115](ADR-115-role-hierarchy-for-administration.md)
+> (2026-10-07).** Role position is an administrative rank again. Targeted
+> operations need a permission and a higher rank. Permission resolution still
+> ignores role position.
+>
+> **Partially superseded 2026-10-08:** [ADR-116](ADR-116-roles-only-grant-permissions.md)
+> replaces the default permissions. New servers no longer grant channel-room
+> member permissions to `everyone` at Server scope; new rooms and room groups
+> start closed, and the seeded rooms get Room-scope allows. Roles cannot deny,
+> so `#announcements` no longer uses an `everyone` deny for `message.post`:
+> `everyone` gets no `message.post` allow there, and `admin` does. The owner
+> override and permission-only gates stay.
 
 ## Context
 

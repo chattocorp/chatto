@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { browserAuthenticationHeaders } from './csrf';
 import {
   connectPost,
@@ -6,6 +6,7 @@ import {
   type E2EAdminRole,
   type E2EPermissionDecision,
   type E2EPermissionDecisionUpdateResponse,
+  type E2EPermissionScope,
   unwrapAdminRole
 } from './connectHelpers';
 import { unloadPageForIdentitySwitch } from './navigation';
@@ -233,87 +234,58 @@ export async function revokePermission(
   await setServerRolePermission(page, role, permission, 'PERMISSION_DECISION_NONE');
 }
 
-/**
- * Denies a permission on a role (admin-only operation).
- * This adds the permission to the role's permissionDenials list.
- * Must be called while logged in as an admin user.
- */
-export async function denyPermission(page: Page, role: string, permission: string): Promise<void> {
-  await setServerRolePermission(page, role, permission, 'PERMISSION_DECISION_DENY');
-}
-
-/**
- * Clears the permission state on a role (admin-only operation).
- * This removes the permission from both grants and denials (neutral state).
- * Must be called while logged in as an admin user.
- */
-export async function clearInstancePermissionState(
-  page: Page,
-  role: string,
-  permission: string
+async function setUserPermission(
+  client: Page | APIRequestContext,
+  userId: string,
+  permission: string,
+  decision: E2EPermissionDecision,
+  scope?: E2EPermissionScope
 ): Promise<void> {
-  await setServerRolePermission(page, role, permission, 'PERMISSION_DECISION_NONE');
-}
-
-let denyRoleCounter = 0;
-
-/** Convert a number to a lowercase letter sequence: 1→a, 2→b, ..., 26→z, 27→aa, etc. */
-function numberToLetters(n: number): string {
-  let result = '';
-  while (n > 0) {
-    n--;
-    result = String.fromCharCode(97 + (n % 26)) + result;
-    n = Math.floor(n / 26);
-  }
-  return result;
+  const data = await connectPost<E2EPermissionDecisionUpdateResponse>(
+    client,
+    'chatto.admin.v1.AdminPermissionService/SetUserPermission',
+    { userId, permission, decision, ...(scope ? { scope } : {}) }
+  );
+  expectPermissionDecisionUpdate(data, { permission, decision, scope });
 }
 
 /**
- * Creates a custom role that denies a permission, then assigns it to a user.
- * Returns the role name so it can be revoked later.
- * Must be called while logged in as an admin user.
+ * Denies a permission for one user. Roles, `everyone` included, only grant
+ * permissions, so a test that needs a deny puts it on the user (ADR-116).
+ * Omit `scope` for server scope.
+ * `client` must be authenticated as an admin user.
  */
 export async function denyUserPermission(
-  page: Page,
+  client: Page | APIRequestContext,
   userId: string,
-  permission: string
-): Promise<string> {
-  const suffix = numberToLetters(++denyRoleCounter);
-  const roleName = `deny${suffix}`;
-  const displayName = `Deny ${permission} #${denyRoleCounter}`;
-
-  const created = await connectPost<{ role?: E2EAdminRole }>(
-    page,
-    'chatto.admin.v1.AdminRoleService/CreateRole',
-    { name: roleName, displayName, description: `Auto-created to deny ${permission}` }
-  );
-  expect(unwrapAdminRole(created.role)?.name).toBe(roleName);
-
-  // Deny permission on role
-  await denyPermission(page, roleName, permission);
-
-  await assignRoleViaConnect(page, userId, roleName);
-
-  return roleName;
+  permission: string,
+  scope?: E2EPermissionScope
+): Promise<void> {
+  await setUserPermission(client, userId, permission, 'PERMISSION_DECISION_DENY', scope);
 }
 
 /**
- * Revokes a deny role from a user, effectively clearing the permission denial.
- * Must be called while logged in as an admin user.
+ * Clears a permission setting on one user. Omit `scope` for server scope.
+ * `client` must be authenticated as an admin user.
  */
 export async function clearUserPermissionOverride(
-  page: Page,
+  client: Page | APIRequestContext,
   userId: string,
-  _permission: string,
-  roleName?: string
+  permission: string,
+  scope?: E2EPermissionScope
 ): Promise<void> {
-  if (!roleName) {
-    // If no role name provided, we can't clean up properly.
-    // Tests should track the role name from denyUserPermission.
-    throw new Error('clearUserPermissionOverride requires roleName parameter');
-  }
+  await setUserPermission(client, userId, permission, 'PERMISSION_DECISION_NONE', scope);
+}
 
-  await revokeRoleViaConnect(page, userId, roleName);
+/** Returns the user ID of the account that `page` is signed in as. */
+export async function getViewerUserId(page: Page): Promise<string> {
+  const viewer = await connectPost<{ user?: { profile?: { id?: string } } }>(
+    page,
+    'chatto.api.v1.ViewerService/GetViewer'
+  );
+  const userId = viewer.user?.profile?.id;
+  expect(userId).toBeTruthy();
+  return userId!;
 }
 
 /**

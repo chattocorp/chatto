@@ -11,10 +11,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// The development seed must work on a new server, which starts closed
+// (ADR-116), so this test keeps the real defaults.
 func TestSeedDataCreatesReadableReproducibleState(t *testing.T) {
 	t.Parallel()
 
-	c, _ := setupTestCore(t)
+	c, _ := setupTestCoreWithDefaults(t)
 	ctx := testContext(t)
 	options := SeedOptions{Seed: 42, Users: 3, Rooms: 2, Messages: 12, ThreadReplies: 5}
 	first, err := c.SeedData(ctx, options)
@@ -52,7 +54,7 @@ func TestSeedDataCreatesReadableReproducibleState(t *testing.T) {
 		require.NoError(t, err)
 		require.EqualValues(t, replies[message.ID], metadata.ReplyCount)
 	}
-	otherCore, _ := setupTestCore(t)
+	otherCore, _ := setupTestCoreWithDefaults(t)
 	second, err := otherCore.SeedData(ctx, options)
 	require.NoError(t, err)
 	// Normalize only generated identifiers. Persisted

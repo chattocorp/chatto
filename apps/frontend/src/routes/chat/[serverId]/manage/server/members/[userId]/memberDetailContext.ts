@@ -29,7 +29,19 @@ export interface MemberDetailContext {
   /** True when the viewer is looking at their own account. */
   readonly isSelf: boolean;
   readonly isBot: boolean;
+  /**
+   * True when the role order lets the viewer act on the account: it is their
+   * own account, or it ranks below them. The server also requires a bot's
+   * owner to rank below the viewer, unless the viewer owns the bot.
+   */
+  readonly viewerOutranks: boolean;
   readonly canAdminManageAccounts: boolean;
+  /**
+   * True when the viewer may change the account's identity, avatar, and
+   * password: an account manager on their own account, or on an account that
+   * ranks below them in the role order.
+   */
+  readonly canManageAccount: boolean;
   readonly canViewMemberEmails: boolean;
   /** True when this page may offer account deletion. */
   readonly canDeleteHere: boolean;

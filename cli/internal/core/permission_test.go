@@ -328,20 +328,27 @@ func TestPermissionsForCategory(t *testing.T) {
 func TestDefaultEveryonePermissions(t *testing.T) {
 	t.Parallel()
 
-	want := []Permission{
-		PermUserDeleteSelf,
-		PermRoomList,
-		PermRoomJoin,
+	// New servers start closed (ADR-116): a server-scope allow reaches every
+	// room, so everyone gets room access and content only at narrower scopes.
+	if want := []Permission{PermUserDeleteSelf}; !slices.Equal(DefaultEveryonePermissions(), want) {
+		t.Errorf("everyone server defaults = %v, want %v", DefaultEveryonePermissions(), want)
+	}
+
+	wantDM := []Permission{
 		PermMessageRead,
 		PermMessagePost,
-		PermMessagePostInThread,
 		PermMessageAttach,
 		PermMessageReact,
 		PermMessageEcho,
 		PermCallStart, PermCallJoin, PermCallVoice, PermCallCamera, PermCallScreenShare,
 	}
-	if !slices.Equal(DefaultEveryonePermissions(), want) {
-		t.Errorf("everyone server defaults = %v, want %v", DefaultEveryonePermissions(), want)
+	if !slices.Equal(DefaultEveryoneDMPermissions(), wantDM) {
+		t.Errorf("everyone DM defaults = %v, want %v", DefaultEveryoneDMPermissions(), wantDM)
+	}
+
+	wantOpenRoom := append([]Permission{PermRoomList, PermRoomJoin}, wantDM...)
+	if !slices.Equal(DefaultOpenRoomEveryonePermissions(), wantOpenRoom) {
+		t.Errorf("everyone open-room defaults = %v, want %v", DefaultOpenRoomEveryonePermissions(), wantOpenRoom)
 	}
 }
 
@@ -493,6 +500,25 @@ func TestPermissionConsistency(t *testing.T) {
 		}
 	})
 
+	t.Run("everyone DM and room defaults apply at their scopes", func(t *testing.T) {
+		for _, perm := range DefaultEveryoneDMPermissions() {
+			if !PermissionAppliesAtScope(perm, ScopeDM) {
+				t.Errorf("everyone DM default %s does not apply at DM scope", perm)
+			}
+		}
+		for _, perms := range [][]Permission{
+			DefaultOpenRoomEveryonePermissions(),
+			DefaultAnnouncementsEveryonePermissions(),
+			DefaultAnnouncementsAdminPermissions(),
+		} {
+			for _, perm := range perms {
+				if !PermissionAppliesAtScope(perm, ScopeRoom) {
+					t.Errorf("room default %s does not apply at room scope", perm)
+				}
+			}
+		}
+	})
+
 	t.Run("moderator defaults are valid", func(t *testing.T) {
 		for _, perm := range DefaultModeratorPermissions() {
 			if err := ValidatePermission(perm); err != nil {
@@ -514,8 +540,6 @@ func TestPermissionConsistency(t *testing.T) {
 			PermServerManage,
 			PermUserInvite,
 			PermRoomCreate,
-			PermRoomJoin,
-			PermRoomList,
 			PermRoomManage,
 			PermRoomMemberRemove,
 			PermMessageManage,
@@ -542,6 +566,13 @@ func TestPermissionConsistency(t *testing.T) {
 		} {
 			if slices.Contains(DefaultAdminPermissions(), mustNotInclude) {
 				t.Errorf("admin-specific defaults should rely on everyone for %v", mustNotInclude)
+			}
+		}
+		// A server-scope room.list or room.join would let admins find and
+		// join every private room.
+		for _, mustNotInclude := range []Permission{PermRoomList, PermRoomJoin} {
+			if slices.Contains(DefaultAdminPermissions(), mustNotInclude) {
+				t.Errorf("admin server defaults must not include %v", mustNotInclude)
 			}
 		}
 	})

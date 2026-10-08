@@ -8,6 +8,8 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -159,6 +161,7 @@ func newConnectAPITestEnvWithTimeout(t *testing.T, timeout time.Duration) *conne
 		t.Fatalf("NewChattoCore: %v", err)
 	}
 	startConnectAPITestCore(t, c)
+	openServerToEveryone(t, c)
 
 	viewer, err := c.CreateUser(ctx, core.SystemActorID, "timeline-viewer", "Timeline Viewer", "password")
 	if err != nil {
@@ -218,6 +221,19 @@ func startConnectAPITestCore(t *testing.T, c *core.ChattoCore) {
 	defer bootCancel()
 	if err := c.WaitForBoot(bootCtx); err != nil {
 		t.Fatalf("WaitForBoot: %v", err)
+	}
+}
+
+// openServerToEveryone grants everyone the open-room permissions at server
+// scope, as an operator who opens the whole server would. New servers start
+// closed (ADR-116), but most tests exercise other behavior in open rooms.
+// The core package tests the real seeded defaults.
+func openServerToEveryone(t testing.TB, c *core.ChattoCore) {
+	t.Helper()
+	for _, perm := range core.DefaultOpenRoomEveryonePermissions() {
+		if err := c.GrantServerPermission(context.Background(), core.SystemActorID, core.RoleEveryone, perm); err != nil {
+			t.Fatalf("open server to everyone: grant %s: %v", perm, err)
+		}
 	}
 }
 
@@ -452,5 +468,37 @@ func allowBotCreation(t testing.TB, ctx context.Context, c *core.ChattoCore, use
 	t.Helper()
 	if err := c.GrantUserPermission(ctx, core.SystemActorID, userID, core.PermBotCreate); err != nil {
 		t.Fatalf("grant bot.create: %v", err)
+	}
+}
+
+// grantAPITestRank assigns userID a new role without permissions and places it
+// directly below admin. The user then outranks moderators, custom roles, and
+// accounts without roles, but not admins or owners.
+func grantAPITestRank(t *testing.T, env *connectAPITestEnv, userID string) {
+	t.Helper()
+	roleName := "rank-" + strings.ToLower(userID)
+	if _, err := env.core.CreateServerRole(env.ctx, core.SystemActorID, roleName, "Test rank", ""); err != nil {
+		t.Fatalf("CreateServerRole %s: %v", roleName, err)
+	}
+	roles, err := env.core.ListServerRoles(env.ctx)
+	if err != nil {
+		t.Fatalf("ListServerRoles: %v", err)
+	}
+	// Place the role directly below admin: directly above the role that
+	// follows admin in role order, which lists roles highest first.
+	before := ""
+	if admin := slices.IndexFunc(roles, func(role core.RoleWithPermissions) bool { return role.Name == core.RoleAdmin }); admin >= 0 {
+		for _, role := range roles[admin+1:] {
+			if role.Name != roleName && role.Name != core.RoleEveryone {
+				before = role.Name
+				break
+			}
+		}
+	}
+	if _, err := env.core.MoveServerRole(env.ctx, core.SystemActorID, roleName, before); err != nil {
+		t.Fatalf("MoveServerRole: %v", err)
+	}
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, userID, roleName); err != nil {
+		t.Fatalf("AssignServerRole %s: %v", roleName, err)
 	}
 }

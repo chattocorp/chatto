@@ -197,21 +197,13 @@ func TestCanDeleteUser(t *testing.T) {
 	})
 
 	t.Run("self-deletion denied when user.delete.self permission is revoked", func(t *testing.T) {
-		// Create a custom role that denies self-deletion
-		if _, err := core.CreateServerRole(ctx, SystemActorID, "selfdelete-denied", "No Self Delete", ""); err != nil {
-			t.Fatalf("failed to create role: %v", err)
-		}
-		if err := core.DenyServerPermission(ctx, SystemActorID, "selfdelete-denied", PermUserDeleteSelf); err != nil {
-			t.Fatalf("failed to deny permission: %v", err)
-		}
-
-		// Create a user and assign the deny role
+		// Create a user and deny self-deletion for that user
 		blockedUser, err := core.CreateUser(ctx, SystemActorID, "noselfdelete", "No Self Delete User", "password123")
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
-		if err := core.AssignServerRole(ctx, SystemActorID, blockedUser.Id, "selfdelete-denied"); err != nil {
-			t.Fatalf("failed to assign role: %v", err)
+		if err := core.DenyUserPermission(ctx, SystemActorID, blockedUser.Id, PermUserDeleteSelf); err != nil {
+			t.Fatalf("failed to deny permission: %v", err)
 		}
 
 		can, err := core.CanDeleteUser(ctx, blockedUser.Id, blockedUser.Id)
@@ -337,7 +329,6 @@ func TestCanHelpers(t *testing.T) {
 		{"CanAssignRoles", func() (bool, error) { return core.CanAssignRoles(ctx, creator.Id) }, true},
 		{"CanCreateRoom", func() (bool, error) { return core.CanCreateRoom(ctx, creator.Id, KindChannel, "") }, true},
 		{"CanManageAnyRoom", func() (bool, error) { return core.CanManageAnyRoom(ctx, creator.Id) }, true},
-		{"CanJoinRoom", func() (bool, error) { return core.CanJoinRoom(ctx, creator.Id, KindChannel) }, true},
 	}
 
 	t.Run("admin has all permissions", func(t *testing.T) {
@@ -361,7 +352,6 @@ func TestCanHelpers(t *testing.T) {
 		expect bool
 	}{
 		// Default member permissions (should be true)
-		{"CanJoinRoom", func() (bool, error) { return core.CanJoinRoom(ctx, member.Id, KindChannel) }, true},
 
 		// Admin/elevated permissions (should be false) - room.create is opt-in
 		{"CanCreateRoom", func() (bool, error) { return core.CanCreateRoom(ctx, member.Id, KindChannel, "") }, false},
@@ -463,33 +453,6 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 			t.Error("admin should still have CanCreateRoom")
 		}
 	})
-
-	// Deny room.join from the everyone role. Joining is default-available
-	// unless an applicable deny blocks it.
-	t.Run("deny room.join from everyone role", func(t *testing.T) {
-		err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomJoin)
-		if err != nil {
-			t.Fatalf("failed to deny permission: %v", err)
-		}
-
-		// Member should no longer have CanJoinRoom
-		can, err := core.CanJoinRoom(ctx, member.Id, KindChannel)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if can {
-			t.Error("member should NOT have CanJoinRoom after denial")
-		}
-
-		// Admin should still have it
-		can, err = core.CanJoinRoom(ctx, creator.Id, KindChannel)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !can {
-			t.Error("admin should still have CanJoinRoom")
-		}
-	})
 }
 
 // TestCanHelpers_RoomOverrides verifies that room-scoped Can* helpers
@@ -517,8 +480,8 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 		// Ensure space grants message.post
 		core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 
-		// Deny at room level
-		core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
+		// Deny the member at room level
+		core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, member.Id, PermMessagePost)
 
 		can, err := core.CanPostMessage(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
@@ -529,18 +492,18 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 		}
 
 		// Cleanup
-		core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
+		core.ClearUserRoomPermissionState(ctx, SystemActorID, room.Id, member.Id, PermMessagePost)
 	})
 
 	t.Run("CanPostInThread respects room-level denial", func(t *testing.T) {
-		if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost); err != nil {
+		if err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, member.Id, PermMessagePost); err != nil {
 			t.Fatal(err)
 		}
 		// Ensure space grants message.post-in-thread
 		core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePostInThread)
 
-		// Deny at room level
-		core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePostInThread)
+		// Deny the member at room level
+		core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, member.Id, PermMessagePostInThread)
 
 		can, err := core.CanPostInThread(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
@@ -551,8 +514,8 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 		}
 
 		// Cleanup
-		core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePostInThread)
-		core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
+		core.ClearUserRoomPermissionState(ctx, SystemActorID, room.Id, member.Id, PermMessagePostInThread)
+		core.ClearUserRoomPermissionState(ctx, SystemActorID, room.Id, member.Id, PermMessagePost)
 	})
 
 	t.Run("CanReactToMessage respects room-level grant", func(t *testing.T) {

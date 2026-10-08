@@ -350,7 +350,8 @@ func (c *ChattoCore) UpdateManagedUserProfile(ctx context.Context, actorID, targ
 }
 
 // AdminClearLoginChangeCooldown clears a human account's login cooldown.
-// The actor needs user.manage-accounts, including when targeting their own account.
+// The actor needs user.manage-accounts, including when targeting their own
+// account, and must outrank any other target.
 func (c *ChattoCore) AdminClearLoginChangeCooldown(ctx context.Context, actorID, targetUserID string) error {
 	if err := c.requireCanAdminManageUser(ctx, actorID, targetUserID); err != nil {
 		return err
@@ -375,7 +376,9 @@ func (c *ChattoCore) requireCanAdminManageUser(ctx context.Context, actorID, tar
 	if !canManage {
 		return ErrPermissionDenied
 	}
-	return nil
+	return c.authorizeAtStableInputs(ctx, func() error {
+		return c.requireOutranksOtherAccount(actorID, targetUserID)
+	})
 }
 
 // ============================================================================

@@ -47,8 +47,10 @@ func TestRoomMemberReadOperationsRequireMembership(t *testing.T) {
 	if !userRefsContain(listableMembers, member.Id) {
 		t.Fatalf("listable room member references = %+v, want member %s", listableMembers, member.Id)
 	}
-	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin); err != nil {
-		t.Fatalf("DenyRoomPermission room.join: %v", err)
+	for _, userID := range []string{outsider.Id, member.Id} {
+		if err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, userID, PermRoomJoin); err != nil {
+			t.Fatalf("DenyUserRoomPermission room.join: %v", err)
+		}
 	}
 	if _, err := core.ListRoomMemberReferencesForList(ctx, outsider.Id, room.Id); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("join-denied ListRoomMemberReferencesForList error = %v, want ErrPermissionDenied", err)

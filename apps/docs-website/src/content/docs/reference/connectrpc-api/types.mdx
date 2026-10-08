@@ -82,7 +82,6 @@ Public role metadata used for rendering role mentions, labels, and catalogs.
 | `display_name` | `string` | Display name shown in user-facing role UIs. |
 | `description` | `string` | Optional role description. |
 | `is_system` | `bool` | Whether this is a built-in role. |
-| `position` | `int32` | Display/order position. |
 | `pingable` | `bool` | Whether messages may notify users assigned to this role. |
 
 <a id="chatto-api-v1-PresencePreference"></a>
@@ -1623,8 +1622,7 @@ Role metadata plus administrative permission state.
 | Field | Type | Description |
 | --- | --- | --- |
 | `role` | `chatto.api.v1.Role` | Public role metadata shared with ordinary role catalog reads. |
-| `permissions` | `repeated string` | Permissions granted by this role. |
-| `permission_denials` | `repeated string` | Permissions denied by this role. |
+| `permissions` | `repeated string` | Permissions granted by this role at server scope. Roles only grant permissions. |
 
 <a id="chatto-admin-v1-AdminMember"></a>
 
@@ -1685,7 +1683,7 @@ Full decision trace for one permission and target user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `permission` | `string` | Permission identifier. |
-| `state` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Overall decision after resolving named subjects and the everyone baseline. |
+| `state` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Overall decision after resolving the user and their roles, everyone included. |
 | `decided_at` | [`PermissionDecisionLevel`](#chatto-admin-v1-PermissionDecisionLevel) | Level of the winning decision, when state is not NONE. |
 | `decided_by_role` | `string` | Role name, user ID, or policy marker that produced the winning decision. |
 | `trace` | repeated [`PermissionTraceEntry`](#chatto-admin-v1-PermissionTraceEntry) | Ordered decision trace. The first entry is the winning decision. |
@@ -1702,8 +1700,10 @@ Matrix cell for one permission and scope.
 | `permission` | `string` | Permission identifier. |
 | `scope_id` | `string` | Scope ID matching PermissionMatrixScope.id. |
 | `override` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Explicit decision at this scope. |
-| `effective` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Effective decision at this scope. |
+| `effective` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Effective decision at this scope. For a human account, this is the result without privileged mode. |
 | `allow_permitted` | `optional bool` | Whether an explicit allow may currently be stored for this target. Absent when no additional delegation ceiling applies. |
+| `effective_with_privileged_mode` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | For a human account, the effective decision while the account has privileged mode active. It differs from effective for elevation-required permissions and for owners. Unspecified for roles and bots. |
+| `viewer_can_change` | `optional bool` | Whether the caller may change this setting. A caller who is not an owner must hold the permission at this scope. Absent for bot cells, which use allow_permitted. |
 
 <a id="chatto-admin-v1-PermissionMatrixScope"></a>
 
@@ -1775,12 +1775,11 @@ shape when building integrations that do not need matrix column joins.
 
 ### TierPermissions
 
-Permission grants and denials at a single tier.
+Explicit permission grants of a role at a single tier.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `permissions` | `repeated string` | Explicitly granted permissions. |
-| `permission_denials` | `repeated string` | Explicitly denied permissions. |
+| `permissions` | `repeated string` | Explicitly granted permissions. Roles only grant, so a role has no explicit denies. |
 
 <a id="chatto-admin-v1-TierRole"></a>
 
@@ -1792,8 +1791,8 @@ One role's permission state at a single tier.
 | --- | --- | --- |
 | `override` | [`TierPermissions`](#chatto-admin-v1-TierPermissions) | Explicit state at this tier. |
 | `inherited_allows` | `repeated string` | Allows inherited from broader tiers. |
-| `inherited_denials` | `repeated string` | Denials inherited from broader tiers. |
 | `role` | `chatto.api.v1.Role` | Public role metadata. |
+| `effective_allows` | `repeated string` | Permissions that a member with only this role is allowed at this tier. The server resolves them with the same rules as authorization: the allows of the role and of everyone, and inclusion. They do not include settings on single users, the owner override, or privileged mode. Other applicable permissions have no allow, which means no access. |
 
 <a id="chatto-admin-v1-TierRoles"></a>
 
@@ -1804,7 +1803,8 @@ Role permission matrix for one tier.
 | Field | Type | Description |
 | --- | --- | --- |
 | `applicable_permissions` | `repeated string` | Permissions configurable at this tier. |
-| `roles` | repeated [`TierRole`](#chatto-admin-v1-TierRole) | Roles sorted by position. |
+| `roles` | repeated [`TierRole`](#chatto-admin-v1-TierRole) | Roles in role order, highest first. |
+| `viewer_changeable_permissions` | `repeated string` | Applicable permissions that the caller may change at this tier. A caller who is not an owner must hold the permission here. |
 
 <a id="chatto-admin-v1-UserPermissionMatrix"></a>
 

@@ -1,6 +1,10 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { test } from './setup';
-import { createAndLoginTestUser, loginAsAdminAndUsePrimaryServer } from './fixtures/testUser';
+import {
+  createAndLoginTestUser,
+  denyUserPermission,
+  loginAsAdminAndUsePrimaryServer
+} from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
 import { ServerAdminPage, ServerAdminRoomsPage } from './pages';
 import { TIMEOUTS } from './constants';
@@ -8,8 +12,6 @@ import {
   connectPost,
   connectPostResponse,
   createRoomViaConnect,
-  expectPermissionDecisionUpdate,
-  type E2EPermissionDecisionUpdateResponse,
   getDefaultRoomGroupIdViaConnect,
   joinRoomViaConnect
 } from './fixtures/connectHelpers';
@@ -71,30 +73,6 @@ async function createRoomViaAPI(page: Page, name: string): Promise<string> {
 
 async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
   await joinRoomViaConnect(page, roomId);
-}
-
-async function denyRoomPermissionViaAPI(
-  page: Page,
-  roomId: string,
-  roleName: string,
-  permission: string
-): Promise<void> {
-  const decision = 'PERMISSION_DECISION_DENY';
-  const scope = {
-    kind: 'PERMISSION_SCOPE_KIND_ROOM',
-    id: roomId
-  } as const;
-  const data = await connectPost<E2EPermissionDecisionUpdateResponse>(
-    page,
-    'chatto.admin.v1.AdminPermissionService/SetRolePermission',
-    {
-      roleName,
-      permission,
-      decision,
-      scope
-    }
-  );
-  expectPermissionDecisionUpdate(data, { permission, decision, scope });
 }
 
 // updateRoomLayoutViaAPI reshapes the room-group layout to match the
@@ -491,7 +469,6 @@ test.describe('Room Layout', () => {
 
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
       const secretId = await createRoomViaAPI(page, 'secret');
-      await denyRoomPermissionViaAPI(page, secretId, 'everyone', 'room.list');
       const seedSetId = await getSeedSetId(page);
 
       // Reshape: "Public" set holds the default rooms, "Secret" holds secret.
@@ -501,8 +478,13 @@ test.describe('Room Layout', () => {
       ]);
 
       // User B joins the server — implicit membership in the default global
-      // rooms (announcements, general), but not in secret.
-      await withServerUser(browser!, serverURL, async ({ page: page2 }) => {
+      // rooms (announcements, general), but not in secret. Roles only grant,
+      // so the owner hides secret from User B with a deny on User B.
+      await withServerUser(browser!, serverURL, async ({ page: page2, user: userB }) => {
+        await denyUserPermission(page, userB.id!, 'room.list', {
+          kind: 'PERMISSION_SCOPE_KIND_ROOM',
+          id: secretId
+        });
         await navigateToSpace(page2);
 
         // User B should only see the "Public" set, not "Secret" (empty for them

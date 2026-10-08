@@ -1026,20 +1026,45 @@ func TestAdminRoleServiceManagesRoles(t *testing.T) {
 	if got := publicBatchResp.Msg.GetRoles(); len(got) != 2 || got[0].GetName() != "helpdesk" || got[1].GetName() != core.RoleEveryone {
 		t.Fatalf("public BatchGetRoles roles = %+v, want helpdesk,everyone", got)
 	}
-	reorderResp, err := env.roles.ReorderRoles(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.ReorderRolesRequest{
-		RoleNames: []string{"triage", "helpdesk"},
+	grantAPITestRank(t, env, env.viewer.Id)
+	viewerRank := "rank-" + strings.ToLower(env.viewer.Id)
+	viewerCtx := withCaller(env.ctx, env.viewer)
+	// New roles start lowest, so triage ranks below helpdesk until it moves.
+	moveResp, err := env.roles.MoveRole(viewerCtx, connect.NewRequest(&adminv1.MoveRoleRequest{
+		RoleName: "triage", BeforeRoleName: new("helpdesk"),
 	}))
 	if err != nil {
-		t.Fatalf("ReorderRoles: %v", err)
+		t.Fatalf("MoveRole: %v", err)
 	}
 	var customOrder []string
-	for _, role := range reorderResp.Msg.GetRoles() {
-		if !role.GetRole().GetIsSystem() {
+	for _, role := range moveResp.Msg.GetRoles() {
+		if !role.GetRole().GetIsSystem() && role.GetRole().GetName() != viewerRank {
 			customOrder = append(customOrder, role.GetRole().GetName())
 		}
 	}
+	// Roles are listed highest first.
 	if strings.Join(customOrder, ",") != "triage,helpdesk" {
 		t.Fatalf("custom role order = %v, want triage,helpdesk", customOrder)
+	}
+	// Role managers can move every role, also their own role above admin.
+	raiseResp, err := env.roles.MoveRole(viewerCtx, connect.NewRequest(&adminv1.MoveRoleRequest{
+		RoleName: viewerRank, BeforeRoleName: new(core.RoleAdmin),
+	}))
+	if err != nil {
+		t.Fatalf("MoveRole viewer rank above admin: %v", err)
+	}
+	var topRoles []string
+	for _, role := range raiseResp.Msg.GetRoles()[:3] {
+		topRoles = append(topRoles, role.GetRole().GetName())
+	}
+	if want := []string{core.RoleOwner, viewerRank, core.RoleAdmin}; !slices.Equal(topRoles, want) {
+		t.Fatalf("top roles = %v, want %v", topRoles, want)
+	}
+	if _, err := env.roles.MoveRole(viewerCtx, connect.NewRequest(&adminv1.MoveRoleRequest{RoleName: core.RoleOwner})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("MoveRole owner code = %v, want invalid argument", errorCode(err))
+	}
+	if _, err := env.roles.MoveRole(viewerCtx, connect.NewRequest(&adminv1.MoveRoleRequest{RoleName: "missing-role"})); errorCode(err) != connect.CodeNotFound {
+		t.Fatalf("MoveRole missing code = %v, want not found", errorCode(err))
 	}
 
 	member, err := env.core.CreateUser(env.ctx, core.SystemActorID, "role-service-member", "Role Service Member", "password")
@@ -1128,6 +1153,7 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermRoleManage); err != nil {
 		t.Fatalf("GrantUserPermission role.manage: %v", err)
 	}
+	grantAPITestRank(t, env, env.viewer.Id)
 	ctx := withCaller(env.ctx, env.viewer)
 	tierResp, err := env.permissions.GetRolePermissionTierMatrix(ctx, connect.NewRequest(&adminv1.GetRolePermissionTierMatrixRequest{}))
 	if err != nil {
@@ -1195,13 +1221,22 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	if !dmScopeFound {
 		t.Fatalf("DM matrix scope missing or invalid: %+v", dmMatrixResp.Msg.GetMatrix().GetScopes())
 	}
+	// Roles only grant permissions.
 	if _, err := env.permissions.SetRolePermission(ctx, connect.NewRequest(&adminv1.SetRolePermissionRequest{
 		RoleName:   core.RoleModerator,
 		Permission: string(core.PermMessagePost),
 		Decision:   adminv1.PermissionDecision_PERMISSION_DECISION_DENY,
 		Scope:      &adminv1.PermissionScope{Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_DM},
+	})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("SetRolePermission role deny code = %v, want invalid argument", errorCode(err))
+	}
+	if _, err := env.permissions.SetRolePermission(ctx, connect.NewRequest(&adminv1.SetRolePermissionRequest{
+		RoleName:   core.RoleModerator,
+		Permission: string(core.PermMessagePost),
+		Decision:   adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW,
+		Scope:      &adminv1.PermissionScope{Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_DM},
 	})); err != nil {
-		t.Fatalf("SetRolePermission DM deny: %v", err)
+		t.Fatalf("SetRolePermission DM allow: %v", err)
 	}
 	roleDecisionsResp, err := env.permissions.ListRolePermissionDecisions(ctx, connect.NewRequest(&adminv1.ListRolePermissionDecisionsRequest{
 		RoleName: core.RoleModerator,
@@ -1225,8 +1260,8 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListRolePermissionDecisions with DM: %v", err)
 	}
-	if decision := findAPIPermissionDecision(dmDecisionsResp.Msg.GetDecisions(), adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_DM, "", string(core.PermMessagePost)); decision == nil || decision.GetOverride() != adminv1.PermissionDecision_PERMISSION_DECISION_DENY {
-		t.Fatalf("DM message.post decision = %+v, want deny override", decision)
+	if decision := findAPIPermissionDecision(dmDecisionsResp.Msg.GetDecisions(), adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_DM, "", string(core.PermMessagePost)); decision == nil || decision.GetOverride() != adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW {
+		t.Fatalf("DM message.post decision = %+v, want allow override", decision)
 	}
 	if _, err := env.permissions.GetRolePermissionMatrix(ctx, connect.NewRequest(&adminv1.GetRolePermissionMatrixRequest{
 		RoleName: "missing-role",
@@ -1277,6 +1312,18 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "permission-target", "Permission Target", "password")
 	if err != nil {
 		t.Fatalf("CreateUser target: %v", err)
+	}
+	// Direct decisions are bounded by the editor's own authority.
+	if _, err := env.permissions.SetUserPermission(ctx, connect.NewRequest(&adminv1.SetUserPermissionRequest{
+		UserId:     target.Id,
+		Permission: string(core.PermAdminUsersView),
+		Decision:   adminv1.PermissionDecision_PERMISSION_DECISION_DENY,
+		Scope:      &adminv1.PermissionScope{Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_SERVER},
+	})); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("SetUserPermission beyond authority code = %v, want permission denied (err=%v)", errorCode(err), err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermAdminUsersView); err != nil {
+		t.Fatalf("GrantUserPermission admin.view-users: %v", err)
 	}
 	if _, err := env.permissions.SetUserPermission(ctx, connect.NewRequest(&adminv1.SetUserPermissionRequest{
 		UserId:     target.Id,
@@ -1357,6 +1404,7 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
 	}
 	roomManagerCtx := withCaller(env.ctx, roomManager)
+	// Roles only grant, also at room scope and also for everyone.
 	if _, err := env.permissions.SetRolePermission(roomManagerCtx, connect.NewRequest(&adminv1.SetRolePermissionRequest{
 		RoleName:   core.RoleEveryone,
 		Permission: string(core.PermMessageReact),
@@ -1365,8 +1413,19 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 			Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_ROOM,
 			Id:   room.Id,
 		},
+	})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("SetRolePermission room manager everyone deny code = %v, want invalid argument (err=%v)", errorCode(err), err)
+	}
+	if _, err := env.permissions.SetRolePermission(roomManagerCtx, connect.NewRequest(&adminv1.SetRolePermissionRequest{
+		RoleName:   core.RoleEveryone,
+		Permission: string(core.PermMessageReact),
+		Decision:   adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW,
+		Scope: &adminv1.PermissionScope{
+			Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_ROOM,
+			Id:   room.Id,
+		},
 	})); err != nil {
-		t.Fatalf("SetRolePermission room manager deny: %v", err)
+		t.Fatalf("SetRolePermission room manager allow: %v", err)
 	}
 	roomTierResp, err := env.permissions.GetRolePermissionTierMatrix(roomManagerCtx, connect.NewRequest(&adminv1.GetRolePermissionTierMatrixRequest{
 		Scope: &adminv1.PermissionScope{
@@ -1378,8 +1437,8 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 		t.Fatalf("GetRolePermissionTierMatrix room manager: %v", err)
 	}
 	everyone := findAPITierRole(roomTierResp.Msg.GetMatrix().GetRoles(), core.RoleEveryone)
-	if everyone == nil || !slices.Contains(everyone.GetOverride().GetPermissionDenials(), string(core.PermMessageReact)) {
-		t.Fatalf("everyone room override = %+v, want message.react denial", everyone)
+	if everyone == nil || !slices.Contains(everyone.GetOverride().GetPermissions(), string(core.PermMessageReact)) {
+		t.Fatalf("everyone room override = %+v, want message.react allow and no denial", everyone)
 	}
 	groupManager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "permission-group-manager", "Permission Group Manager", "password")
 	if err != nil {
@@ -1397,8 +1456,19 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 			Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_GROUP,
 			Id:   room.GetGroupId(),
 		},
+	})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("SetRolePermission group manager everyone deny code = %v, want invalid argument (err=%v)", errorCode(err), err)
+	}
+	if _, err := env.permissions.SetRolePermission(groupManagerCtx, connect.NewRequest(&adminv1.SetRolePermissionRequest{
+		RoleName:   core.RoleEveryone,
+		Permission: string(core.PermMessageReact),
+		Decision:   adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW,
+		Scope: &adminv1.PermissionScope{
+			Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_GROUP,
+			Id:   room.GetGroupId(),
+		},
 	})); err != nil {
-		t.Fatalf("SetRolePermission group manager deny: %v", err)
+		t.Fatalf("SetRolePermission group manager allow: %v", err)
 	}
 	if _, err := env.permissions.GetRolePermissionTierMatrix(groupManagerCtx, connect.NewRequest(&adminv1.GetRolePermissionTierMatrixRequest{
 		Scope: &adminv1.PermissionScope{
@@ -1772,12 +1842,12 @@ func TestAdminRoomLayoutServiceManagementReadsDoNotRequireDirectoryVisibility(t 
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomList); err != nil {
-		t.Fatalf("DenyRoomPermission room.list: %v", err)
-	}
 	roleManager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "private-role-manager", "Private Role Manager", "password")
 	if err != nil {
 		t.Fatalf("CreateUser role manager: %v", err)
+	}
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, roleManager.Id, core.PermRoomList); err != nil {
+		t.Fatalf("DenyUserRoomPermission room.list: %v", err)
 	}
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleManager.Id, core.PermRoleManage); err != nil {
 		t.Fatalf("GrantUserPermission role.manage: %v", err)

@@ -23,9 +23,9 @@ export type PermissionScope =
   | { tier: 'group'; groupId: string }
   | { tier: 'room'; roomId: string };
 
+/** Permissions that a role grants at one tier. Roles only grant; they never deny (ADR-116). */
 export type TierPermissions = {
   permissions: string[];
-  permissionDenials: string[];
 };
 
 export type TierRole = {
@@ -33,16 +33,40 @@ export type TierRole = {
   displayName: string;
   description: string;
   isSystem: boolean;
-  position: number;
   pingable: boolean;
+  /** Permissions that this role grants directly at this tier. */
   override: TierPermissions;
+  /** Permissions that this role grants at a parent tier. */
   inheritedAllows: string[];
-  inheritedDenials: string[];
+  /** What a member with only this role is allowed at this tier (from the server). */
+  effectiveAllows: string[];
 };
 
 export type TierRoles = {
   applicablePermissions: string[];
+  /**
+   * Applicable permissions that the viewer may change at this tier. A viewer
+   * who is not an owner must hold the permission here.
+   */
+  viewerChangeablePermissions: string[];
+  /** Roles in role order, highest first. */
   roles: TierRole[];
+};
+
+/**
+ * Who can find and join a channel room, or the rooms of a room group. New rooms
+ * and room groups start closed, so admin pages show this to warn operators.
+ * Owners in privileged mode have access anyway.
+ */
+export type AccessSummary = {
+  everyoneCanList: boolean;
+  everyoneCanJoin: boolean;
+  /** Whether everyone can read it. A room that everyone can join but not read is not open. */
+  everyoneCanRead: boolean;
+  /** Role names whose holders can find it although everyone cannot, highest first. */
+  rolesCanList: string[];
+  /** Role names whose holders can join and read it although everyone cannot, highest first. */
+  rolesCanJoin: string[];
 };
 
 export type MatrixScope = {
@@ -56,8 +80,19 @@ export type MatrixCell = {
   permission: string;
   scopeId: string;
   override: MatrixDecision;
+  /** Effective result. For a human account, the result without privileged mode. */
   effective: MatrixDecision;
+  /**
+   * For a human account, the effective result while the account has
+   * privileged mode active. Absent for roles and bots.
+   */
+  effectiveWithPrivilegedMode?: MatrixDecision;
   allowPermitted?: boolean;
+  /**
+   * Whether the viewer may change this setting: a viewer who is not an owner
+   * must hold the permission at this scope. Absent for bot cells.
+   */
+  viewerCanChange?: boolean;
 };
 
 export type MatrixData = {
@@ -129,6 +164,24 @@ export function createPermissionAPI(config: ConnectAPIConfig) {
         { signal: options.signal }
       );
       return response.matrix ? tierRoles(response.matrix) : null;
+    },
+
+    /** Summarizes access to one channel room or room group. Pass exactly one id. */
+    async getAccessSummary(
+      input: { roomId?: string | null; groupId?: string | null },
+      options: { signal?: AbortSignal } = {}
+    ): Promise<AccessSummary> {
+      const response = await client.getAccessSummary(
+        { scope: apiTierMatrixScope(input) },
+        { signal: options.signal }
+      );
+      return {
+        everyoneCanList: response.everyoneCanList,
+        everyoneCanJoin: response.everyoneCanJoin,
+        everyoneCanRead: response.everyoneCanRead,
+        rolesCanList: [...response.rolesCanList],
+        rolesCanJoin: [...response.rolesCanJoin]
+      };
     },
 
     async getRolePermissionMatrix(
@@ -246,6 +299,7 @@ export type PermissionAPI = ReturnType<typeof createPermissionAPI>;
 function tierRoles(matrix: APITierRoles): TierRoles {
   return {
     applicablePermissions: [...matrix.applicablePermissions],
+    viewerChangeablePermissions: [...matrix.viewerChangeablePermissions],
     roles: matrix.roles.map(tierRole)
   };
 }
@@ -260,14 +314,12 @@ function tierRole(role: APITierRole): TierRole {
     displayName: apiRole.displayName,
     description: apiRole.description,
     isSystem: apiRole.isSystem,
-    position: apiRole.position,
     pingable: apiRole.pingable,
     override: {
-      permissions: [...(role.override?.permissions ?? [])],
-      permissionDenials: [...(role.override?.permissionDenials ?? [])]
+      permissions: [...(role.override?.permissions ?? [])]
     },
     inheritedAllows: [...role.inheritedAllows],
-    inheritedDenials: [...role.inheritedDenials]
+    effectiveAllows: [...role.effectiveAllows]
   };
 }
 
@@ -304,7 +356,11 @@ function matrixCell(cell: APIPermissionMatrixCell): MatrixCell {
     scopeId: cell.scopeId,
     override: matrixDecision(cell.override),
     effective: matrixDecision(cell.effective),
-    ...(cell.allowPermitted !== undefined ? { allowPermitted: cell.allowPermitted } : {})
+    ...(cell.effectiveWithPrivilegedMode !== PermissionDecision.UNSPECIFIED
+      ? { effectiveWithPrivilegedMode: matrixDecision(cell.effectiveWithPrivilegedMode) }
+      : {}),
+    ...(cell.allowPermitted !== undefined ? { allowPermitted: cell.allowPermitted } : {}),
+    ...(cell.viewerCanChange !== undefined ? { viewerCanChange: cell.viewerCanChange } : {})
   };
 }
 

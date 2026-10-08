@@ -23,18 +23,12 @@ export class AdminRole extends Message<AdminRole> {
   role?: Role;
 
   /**
-   * Permissions granted by this role.
+   * Permissions granted by this role at server scope. Roles only grant
+   * permissions.
    *
    * @generated from field: repeated string permissions = 2;
    */
   permissions: string[] = [];
-
-  /**
-   * Permissions denied by this role.
-   *
-   * @generated from field: repeated string permission_denials = 3;
-   */
-  permissionDenials: string[] = [];
 
   constructor(data?: PartialMessage<AdminRole>) {
     super();
@@ -46,7 +40,6 @@ export class AdminRole extends Message<AdminRole> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "role", kind: "message", T: Role },
     { no: 2, name: "permissions", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 3, name: "permission_denials", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminRole {
@@ -106,7 +99,7 @@ export class ListRolesRequest extends Message<ListRolesRequest> {
  */
 export class ListRolesResponse extends Message<ListRolesResponse> {
   /**
-   * Roles sorted by position.
+   * Roles in role order, highest first.
    *
    * @generated from field: repeated chatto.admin.v1.AdminRole roles = 1;
    */
@@ -652,84 +645,94 @@ export class DeleteRoleResponse extends Message<DeleteRoleResponse> {
 }
 
 /**
- * Request to replace custom role order.
+ * Request to move one role in the role order. Role order is the
+ * administrative rank; see ADR-115.
  *
- * @generated from message chatto.admin.v1.ReorderRolesRequest
+ * @generated from message chatto.admin.v1.MoveRoleRequest
  */
-export class ReorderRolesRequest extends Message<ReorderRolesRequest> {
+export class MoveRoleRequest extends Message<MoveRoleRequest> {
   /**
-   * Ordered custom role names. The list must include every custom role exactly
-   * once; system roles keep fixed positions and must not be included.
+   * Required role to move. Owner and everyone cannot move.
    *
-   * @generated from field: repeated string role_names = 1;
+   * @generated from field: string role_name = 1;
    */
-  roleNames: string[] = [];
+  roleName = "";
 
-  constructor(data?: PartialMessage<ReorderRolesRequest>) {
+  /**
+   * Role that follows the moved role in display order, which is highest
+   * first. The moved role then ranks directly above it. Omit to place the
+   * role lowest, directly above everyone.
+   *
+   * @generated from field: optional string before_role_name = 2;
+   */
+  beforeRoleName?: string;
+
+  constructor(data?: PartialMessage<MoveRoleRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.ReorderRolesRequest";
+  static readonly typeName = "chatto.admin.v1.MoveRoleRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "role_names", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 1, name: "role_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "before_role_name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReorderRolesRequest {
-    return new ReorderRolesRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MoveRoleRequest {
+    return new MoveRoleRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReorderRolesRequest {
-    return new ReorderRolesRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MoveRoleRequest {
+    return new MoveRoleRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReorderRolesRequest {
-    return new ReorderRolesRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MoveRoleRequest {
+    return new MoveRoleRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ReorderRolesRequest | PlainMessage<ReorderRolesRequest> | undefined, b: ReorderRolesRequest | PlainMessage<ReorderRolesRequest> | undefined): boolean {
-    return proto3.util.equals(ReorderRolesRequest, a, b);
+  static equals(a: MoveRoleRequest | PlainMessage<MoveRoleRequest> | undefined, b: MoveRoleRequest | PlainMessage<MoveRoleRequest> | undefined): boolean {
+    return proto3.util.equals(MoveRoleRequest, a, b);
   }
 }
 
 /**
- * Result of replacing custom role order.
+ * Result of moving one role.
  *
- * @generated from message chatto.admin.v1.ReorderRolesResponse
+ * @generated from message chatto.admin.v1.MoveRoleResponse
  */
-export class ReorderRolesResponse extends Message<ReorderRolesResponse> {
+export class MoveRoleResponse extends Message<MoveRoleResponse> {
   /**
-   * Full role catalog after reordering.
+   * Full role catalog after the move, in role order, highest first.
    *
    * @generated from field: repeated chatto.admin.v1.AdminRole roles = 1;
    */
   roles: AdminRole[] = [];
 
-  constructor(data?: PartialMessage<ReorderRolesResponse>) {
+  constructor(data?: PartialMessage<MoveRoleResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.ReorderRolesResponse";
+  static readonly typeName = "chatto.admin.v1.MoveRoleResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "roles", kind: "message", T: AdminRole, repeated: true },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReorderRolesResponse {
-    return new ReorderRolesResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MoveRoleResponse {
+    return new MoveRoleResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReorderRolesResponse {
-    return new ReorderRolesResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MoveRoleResponse {
+    return new MoveRoleResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReorderRolesResponse {
-    return new ReorderRolesResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MoveRoleResponse {
+    return new MoveRoleResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ReorderRolesResponse | PlainMessage<ReorderRolesResponse> | undefined, b: ReorderRolesResponse | PlainMessage<ReorderRolesResponse> | undefined): boolean {
-    return proto3.util.equals(ReorderRolesResponse, a, b);
+  static equals(a: MoveRoleResponse | PlainMessage<MoveRoleResponse> | undefined, b: MoveRoleResponse | PlainMessage<MoveRoleResponse> | undefined): boolean {
+    return proto3.util.equals(MoveRoleResponse, a, b);
   }
 }

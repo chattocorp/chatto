@@ -60,6 +60,47 @@ Response containing a role-permission tier matrix.
 | `matrix` | [`TierRoles`](/reference/connectrpc-api/types/#chatto-admin-v1-TierRoles) | Requested matrix. |
 
 
+<a id="chatto-admin-v1-AdminPermissionService-GetAccessSummary"></a>
+
+### GetAccessSummary
+
+Summarizes who can find and join a channel room or the rooms of a room
+group. New rooms and room groups start closed, so clients use it to warn
+operators. Requires role.manage or effective room.manage at the room or
+group. Only ROOM and GROUP scopes are accepted.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminPermissionService/GetAccessSummary
+```
+
+<a id="chatto-admin-v1-GetAccessSummaryRequest"></a>
+
+#### Input: GetAccessSummaryRequest
+
+Request an access summary for one channel room or room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`PermissionScope`](/reference/connectrpc-api/types/#chatto-admin-v1-PermissionScope) | ROOM or GROUP scope with its id. |
+
+
+<a id="chatto-admin-v1-GetAccessSummaryResponse"></a>
+
+#### Result: GetAccessSummaryResponse
+
+Who can find and join a channel room, or the rooms of a room group. Owners
+in privileged mode have access whatever the summary says. Explicit room
+members still need message.read to read the room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `everyone_can_list` | `bool` | Whether every member can find the room (room.list). |
+| `everyone_can_join` | `bool` | Whether every member can join the room (room.join). |
+| `roles_can_list` | `repeated string` | Roles whose holders can find the room although everyone cannot, highest first. Empty when everyone can. |
+| `roles_can_join` | `repeated string` | Roles whose holders can join and read the room although everyone cannot, highest first. Empty when everyone can join and read it. |
+| `everyone_can_read` | `bool` | Whether every member can read the room (message.read). A room that everyone can join but not read is not open. |
+
+
 <a id="chatto-admin-v1-AdminPermissionService-GetRolePermissionMatrix"></a>
 
 ### GetRolePermissionMatrix
@@ -254,6 +295,12 @@ Permission explanations for all permissions applicable at the requested scope.
 
 Sets one role permission decision. Server scope requires role.manage;
 group and room scopes also accept effective room.manage at that resource.
+A caller with role.manage can change every role except owner. Other
+callers who are not owners can change only roles below their own highest
+role. Every caller who is not an owner must have the permission at the
+target scope; otherwise the call returns PERMISSION_DENIED. Everyone ranks
+below every account. Roles, everyone included, only grant: a deny for any
+role returns INVALID_ARGUMENT. Set a deny on a single user instead.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/SetRolePermission
@@ -269,7 +316,7 @@ Request to set one role permission state.
 | --- | --- | --- |
 | `role_name` | `string` | Role name. |
 | `permission` | `string` | Permission identifier. |
-| `decision` | [`PermissionDecision`](/reference/connectrpc-api/types/#chatto-admin-v1-PermissionDecision) | New decision. NONE clears the explicit state. |
+| `decision` | [`PermissionDecision`](/reference/connectrpc-api/types/#chatto-admin-v1-PermissionDecision) | New decision. NONE clears the explicit state. Roles only grant, so DENY returns INVALID_ARGUMENT. |
 | `scope` | [`PermissionScope`](/reference/connectrpc-api/types/#chatto-admin-v1-PermissionScope) | Target scope. Omit or use SERVER for server scope. |
 
 
@@ -289,8 +336,12 @@ Result of setting one role permission state.
 ### SetUserPermission
 
 Sets one user permission decision. Human targets require
-user.manage-permissions; bot targets require ownership or bot.manage and
-accept only allow or clear within the bot owner's current authority.
+user.manage-permissions. A caller who is not an owner must also have the
+permission at the target scope and must outrank any other target;
+otherwise the call returns PERMISSION_DENIED. Bot targets require
+ownership, or bot.manage and a higher rank than the bot and its owner, and
+accept only allow or clear within the bot owner's current authority. A
+caller who does not own the bot must also have the permission they allow.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/SetUserPermission

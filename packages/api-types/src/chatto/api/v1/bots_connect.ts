@@ -8,7 +8,9 @@ import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * Creates and manages bot accounts owned by human users. Bot API keys cannot
- * call this service.
+ * call this service. A caller who manages a bot with bot.manage instead of
+ * ownership must outrank the bot and its owner (see
+ * ListRolesResponse.viewer_highest_role).
  *
  * @generated from service chatto.api.v1.BotService
  */
@@ -192,6 +194,8 @@ export const BotService = {
     },
     /**
      * Reassigns a bot to another active human owner. Requires bot.manage. The
+     * caller must outrank the bot and its current owner, must outrank the new owner unless it is their own
+     * account, and must have every permission that the bot is allowed. The
      * current API keys and configured permission allowlist remain unchanged,
      * while effective permissions immediately use the new owner's ceiling.
      *

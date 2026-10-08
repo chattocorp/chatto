@@ -69,21 +69,27 @@ type AdminUserServiceClient interface {
 	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
 	// Gets server member rows for multiple users. Requires admin.view-users.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error)
-	// Assigns a role to a user. Requires role.assign, and non-owner callers may
-	// only assign roles whose granted authority they already possess.
+	// Assigns a role to a human user. Requires role.assign. A caller who is not
+	// an owner may assign only roles below their own highest role whose granted
+	// authority they already possess, and must outrank the target (see
+	// chatto.api.v1.ListRolesResponse.viewer_highest_role) unless it is their
+	// own account. Bots cannot hold roles.
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
-	// Revokes a role from a user. Requires role.assign, and non-owner callers may
-	// only revoke roles whose permission decisions are within their authority.
+	// Revokes a role from a human user. Requires role.assign. A caller who is
+	// not an owner may revoke only roles below their own highest role whose
+	// granted authority they already possess, and must outrank the target
+	// unless it is their own account.
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
 	// Updates another user's password as an admin action. Requires
 	// user.manage-accounts and a fresh credential for the caller; the caller
-	// cannot target their own account.
+	// cannot target their own account and must outrank the target.
 	ChangeUserPassword(context.Context, *connect.Request[v1.ChangeUserPasswordRequest]) (*connect.Response[v1.ChangeUserPasswordResponse], error)
 	// Clears the target user's self-service username-change cooldown. Requires
 	// user.manage-accounts, including when the caller targets their own account.
+	// The caller must outrank any other target.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
-	// Deletes a user account as an admin action. Requires user.delete-any for
-	// other users or user.delete-self for the caller.
+	// Deletes a user account as an admin action. Requires user.delete-any and
+	// a higher rank for other users, or user.delete-self for the caller.
 	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
 }
 
@@ -211,21 +217,27 @@ type AdminUserServiceHandler interface {
 	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
 	// Gets server member rows for multiple users. Requires admin.view-users.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error)
-	// Assigns a role to a user. Requires role.assign, and non-owner callers may
-	// only assign roles whose granted authority they already possess.
+	// Assigns a role to a human user. Requires role.assign. A caller who is not
+	// an owner may assign only roles below their own highest role whose granted
+	// authority they already possess, and must outrank the target (see
+	// chatto.api.v1.ListRolesResponse.viewer_highest_role) unless it is their
+	// own account. Bots cannot hold roles.
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
-	// Revokes a role from a user. Requires role.assign, and non-owner callers may
-	// only revoke roles whose permission decisions are within their authority.
+	// Revokes a role from a human user. Requires role.assign. A caller who is
+	// not an owner may revoke only roles below their own highest role whose
+	// granted authority they already possess, and must outrank the target
+	// unless it is their own account.
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
 	// Updates another user's password as an admin action. Requires
 	// user.manage-accounts and a fresh credential for the caller; the caller
-	// cannot target their own account.
+	// cannot target their own account and must outrank the target.
 	ChangeUserPassword(context.Context, *connect.Request[v1.ChangeUserPasswordRequest]) (*connect.Response[v1.ChangeUserPasswordResponse], error)
 	// Clears the target user's self-service username-change cooldown. Requires
 	// user.manage-accounts, including when the caller targets their own account.
+	// The caller must outrank any other target.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
-	// Deletes a user account as an admin action. Requires user.delete-any for
-	// other users or user.delete-self for the caller.
+	// Deletes a user account as an admin action. Requires user.delete-any and
+	// a higher rank for other users, or user.delete-self for the caller.
 	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
 }
 

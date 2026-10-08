@@ -10,7 +10,9 @@ import (
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-var rbacSnapshotContractID = snapshotContractID("v2", &projectionv1.RBACProjectionSnapshot{})
+// v4: role moves and lowest placement (ADR-115) renumber the role order on
+// replay.
+var rbacSnapshotContractID = snapshotContractID("v4", &projectionv1.RBACProjectionSnapshot{})
 
 func (*RBACProjection) SnapshotContractID() string { return rbacSnapshotContractID }
 

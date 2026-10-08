@@ -101,6 +101,13 @@
       "yesterday": "včera",
       "this_week": "Tento týden",
       "this_month": "Tento měsíc"
+    },
+    "drag_and_drop": {
+      "drag_started": "Začali jste přesouvat {item}. Přesuňte jej pomocí šipek. Stisknutím mezerníku nebo Enter jej pusťte.",
+      "moved": "{item} přesunuto na pozici {position} z {count}.",
+      "dropped": "Přesouvání {item} skončilo.",
+      "zone_active": "Přejděte na položku a stisknutím mezerníku nebo Enter ji začněte přesouvat.",
+      "zone_disabled": "K přesunutí položky použijte úchyt."
     }
   }
 }

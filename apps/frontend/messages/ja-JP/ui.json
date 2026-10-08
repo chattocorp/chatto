@@ -101,6 +101,13 @@
       "yesterday": "昨日",
       "this_week": "今週",
       "this_month": "今月"
+    },
+    "drag_and_drop": {
+      "drag_started": "{item} の移動を開始しました。矢印キーで移動し、Space キーまたは Enter キーで配置します。",
+      "moved": "{item} を {count} 件中 {position} 番目に移動しました。",
+      "dropped": "{item} の移動を終了しました。",
+      "zone_active": "項目に移動して Space キーまたは Enter キーを押すと、移動を開始します。",
+      "zone_disabled": "移動ハンドルを使って項目を移動します。"
     }
   }
 }

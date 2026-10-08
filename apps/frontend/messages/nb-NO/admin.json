@@ -11,7 +11,8 @@
       "event_log": "Hendelseslogg",
       "system": "System",
       "back_to_server": "Gå tilbake til server",
-      "invitations": "Invitasjonslenker"
+      "invitations": "Invitasjonslenker",
+      "roles": "Roller"
     },
     "neighbors": {
       "title": "Naboer",
@@ -145,7 +146,8 @@
         "account": "Konto",
         "roles": "Roller",
         "permissions": "Tillatelser"
-      }
+      },
+      "role_beyond_viewer_permissions": "Du kan ikke endre denne rolletildelingen. Rollen tillater tillatelser som du ikke har."
     },
     "member_delete": {
       "title": "Slett medlem",
@@ -181,38 +183,63 @@
       "new_role_action": "+ Ny rolle",
       "creating_role": "Oppretter...",
       "create_after_hint": "Etter å ha opprettet rollen, kan du tildele tillatelser til den på redigeringssiden.",
-      "back_to_permissions": "Tilbake til tillatelser",
       "load_instance_failed": "Kunne ikke laste forekomsten",
-      "need_manage_create": "Du trenger roles.manage-tillatelsen for å opprette roller.",
+      "need_manage_create": "Du trenger role.manage-tillatelsen for å opprette roller.",
       "edit_role_title": "Rediger rolle",
       "loading_role": "Laster inn rolle...",
       "role_not_found": "Rollen ble ikke funnet",
-      "need_manage_edit": "Du trenger tillatelsen roles.manage for å redigere roller.",
+      "need_manage_edit": "Du trenger tillatelsen role.manage for å redigere roller.",
       "system_metadata_locked": "Systemrollens metadata kan ikke endres.",
       "everyone_pingable_description": "Bruk @all for levering i hele rommet; alle er ikke en rolle ping-håndtak.",
       "save_changes": "Lagre endringer",
       "delete_role_description": "Hvis du sletter denne rollen, fjernes den fra alle brukere som har den tildelt.",
       "owner_permissions_hint": "Eiere får alltid alle tillatelser. Matrisen er skrivebeskyttet fordi eiertillatelser ikke lagres som redigerbare tildelinger eller avslag.",
-      "role_permissions_hint": "Denne rollens bevilgninger og avslag på tvers av alle områder. Kombinert med brukerens andre roller på oppløsningstidspunktet – bruk per-bruker-matrisen for å se hva en individuell bruker ender opp med.",
+      "role_permissions_hint": "Hver celle viser hva et medlem som bare har denne rollen, får sammen med rollen everyone. For å se hva ett bestemt medlem får, åpne tillatelsene til dette medlemmet.",
       "users_with_role": "Brukere med denne rollen",
       "everyone_implicit": "Alle servermedlemmer har alle-rollen implisitt.",
       "no_users_with_role": "Ingen brukere har denne rollen",
       "server_tier_intro": "Denne siden er for rolletillatelser på servernivå: brede standarder som gjelder før romspesifikke overstyringer.",
       "server_tier_rooms_hint": "Bruk rom for overstyringer per gruppe og per rom.",
-      "resolution_hint": "For hver bruker eller navngitte rolle gjelder den nærmeste rom-, gruppe- eller serververdien. Avslag vinner mellom dem. En tillatelse overstyrer et everyone-avslag bare på samme eller et mer spesifikt nivå.",
+      "resolution_hint": "Et avslag på brukeren avgjør. Ellers gir en tillatelse fra brukeren, en rolle eller everyone tilgang. Uten en tillatelse er det ingen tilgang.",
       "update_role_failed": "Kunne ikke oppdatere rollen",
       "update_ping_failed": "Kunne ikke oppdatere ping-innstillingen for rollen",
-      "delete_role_failed": "Kunne ikke slette rollen"
+      "delete_role_failed": "Kunne ikke slette rollen",
+      "role_order": {
+        "title": "Rollerekkefølge",
+        "hint": "Rollerekkefølgen bestemmer hvem som kan administrere hvem. Et medlem kan bare administrere kontoer og roller under sin høyeste rolle.",
+        "drag_role": "Flytt {role}",
+        "always_highest": "Alltid høyest",
+        "always_lowest": "Alltid lavest",
+        "saved": "Rollerekkefølgen er lagret",
+        "save_failed": "Kunne ikke lagre rollerekkefølgen",
+        "list_label": "Roller du kan flytte"
+      },
+      "back_to_roles": "Tilbake til roller",
+      "roles_page": {
+        "title": "Roller",
+        "subtitle": "Opprett, rediger og ordne rollene på denne serveren",
+        "edit_role": "Rediger {role}",
+        "view_role": "Vis {role}"
+      },
+      "role_tabs": {
+        "label": "Seksjoner for rollen",
+        "general": "Generelt",
+        "permissions": "Tillatelser",
+        "members": "Medlemmer"
+      },
+      "role_pings_on": "Rollepinger slått på",
+      "role_pings_off": "Rollepinger slått av",
+      "server_scope_warning": "Innstillingene på denne siden gjelder alle rom og romgrupper på serveren. For å åpne bare noen rom må du angi tillatelsene til disse rommene eller romgruppene."
     },
     "rooms_admin": {
       "title": "Rom",
       "subtitle": "Opprett, rediger, organiser og arkiver rom",
-      "group_permissions_subtitle": "Tillatelser og avslag per gruppe roller",
+      "group_permissions_subtitle": "Rolletillatelser per gruppe",
       "room_permissions_subtitle": "Overstyringstillatelser per rom (lagt på toppen av rommets gruppe)",
       "permissions_page_title": "Tillatelser – {name}",
       "back_to_rooms": "Tilbake til rommene",
-      "group_permissions_hint": "Overstyringer per gruppe for kanalrommene i denne gruppen. Standarder som er arvet fra serveromfanget. Individuelle rom kan videre overstyre tillatelser fra deres egen tillatelsesside.",
-      "room_permissions_hint": "Disse innstillingene gjelder bare i dette rommet. De erstatter innstillingene for romgruppen og serveren for samme rolle eller bruker. Hvis bare noen roller skal kunne gjøre noe her, velger du Avvis for everyone og Tillat for disse rollene.",
+      "group_permissions_hint": "Innstillingene her gjelder alle rom i denne romgruppen. Et rom kan tillate mer, men kan ikke ta bort det romgruppen tillater.",
+      "room_permissions_hint": "Disse innstillingene gjelder bare i dette rommet. De kommer i tillegg til rolletillatelsene for romgruppen og serveren. Hvis bare noen roller skal kunne gjøre noe her, må du ikke tillate det for everyone på et bredere nivå. Tillat det deretter her for disse rollene.",
       "loading": "Laster rom ...",
       "empty_groups": "Ingen romgrupper ennå",
       "empty_groups_body": "Lag et sett for å begynne å organisere rom.",

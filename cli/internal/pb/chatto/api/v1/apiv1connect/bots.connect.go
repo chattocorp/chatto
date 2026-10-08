@@ -117,6 +117,8 @@ type BotServiceClient interface {
 	// Revokes one incoming webhook without changing other webhooks.
 	RevokeBotIncomingWebhook(context.Context, *connect.Request[v1.RevokeBotIncomingWebhookRequest]) (*connect.Response[v1.RevokeBotIncomingWebhookResponse], error)
 	// Reassigns a bot to another active human owner. Requires bot.manage. The
+	// caller must outrank the bot and its current owner, must outrank the new owner unless it is their own
+	// account, and must have every permission that the bot is allowed. The
 	// current API keys and configured permission allowlist remain unchanged,
 	// while effective permissions immediately use the new owner's ceiling.
 	ReassignBotOwner(context.Context, *connect.Request[v1.ReassignBotOwnerRequest]) (*connect.Response[v1.ReassignBotOwnerResponse], error)
@@ -376,6 +378,8 @@ type BotServiceHandler interface {
 	// Revokes one incoming webhook without changing other webhooks.
 	RevokeBotIncomingWebhook(context.Context, *connect.Request[v1.RevokeBotIncomingWebhookRequest]) (*connect.Response[v1.RevokeBotIncomingWebhookResponse], error)
 	// Reassigns a bot to another active human owner. Requires bot.manage. The
+	// caller must outrank the bot and its current owner, must outrank the new owner unless it is their own
+	// account, and must have every permission that the bot is allowed. The
 	// current API keys and configured permission allowlist remain unchanged,
 	// while effective permissions immediately use the new owner's ceiling.
 	ReassignBotOwner(context.Context, *connect.Request[v1.ReassignBotOwnerRequest]) (*connect.Response[v1.ReassignBotOwnerResponse], error)

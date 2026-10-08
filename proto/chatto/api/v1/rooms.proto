@@ -466,7 +466,9 @@ service RoomService {
   // Preserves permission grants. Suspensions, archived, universal, and DM rooms prevent adding.
   rpc AddMember(AddMemberRequest) returns (AddMemberResponse);
   // Removes an explicit channel-room member. Requires room.manage for this room,
-  // user.manage-accounts, ownership of the target bot, or bot.manage.
+  // user.manage-accounts, ownership of the target bot, or bot.manage. The
+  // caller must outrank any other member; the owner of a bot need not outrank
+  // their own bot.
   // Removal is allowed after room.join is lost and from archived rooms.
   // Preserves permission grants. Universal and DM membership cannot be edited.
   rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
@@ -517,10 +519,11 @@ service RoomService {
   // room.
   rpc MarkRoomAsRead(MarkRoomAsReadRequest) returns (MarkRoomAsReadResponse);
   // Removes a current channel room member with a required reason. Requires
-  // room.remove-member. Without suspension, ordinary join rules apply afterward.
+  // room.remove-member, and the caller must outrank the member. Without suspension, ordinary join rules apply afterward.
   // Universal rooms require a suspension. Direct-message rooms are excluded.
   rpc RemoveUser(RemoveUserRequest) returns (RemoveUserResponse);
-  // Lifts an active channel room suspension. Requires room.remove-member.
+  // Lifts an active channel room suspension. Requires room.remove-member, and
+  // the caller must outrank the member.
   // Calling this when no active suspension exists succeeds.
   rpc LiftSuspension(LiftSuspensionRequest) returns (LiftSuspensionResponse);
 }

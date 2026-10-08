@@ -21,19 +21,16 @@ type AdminMemberRoleSummary struct {
 	DisplayName string
 	Description string
 	IsSystem    bool
-	Position    int32
 	Pingable    bool
 }
 
 type AdminMemberRole struct {
-	Name              string
-	DisplayName       string
-	Description       string
-	IsSystem          bool
-	Position          int32
-	Pingable          bool
-	Permissions       []Permission
-	PermissionDenials []Permission
+	Name        string
+	DisplayName string
+	Description string
+	IsSystem    bool
+	Pingable    bool
+	Permissions []Permission
 }
 
 type AdminMember struct {
@@ -144,7 +141,12 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 	if err != nil {
 		return nil, err
 	}
+	if canManageUserPermissions && c.requireOutranksOtherAccount(actorID, targetUserID) != nil {
+		canManageUserPermissions = false
+	}
 	if user.GetIsBot() {
+		// Bots hold no roles. Their permissions and lifecycle are managed on
+		// the bot pages.
 		canAssignRoles = false
 		canManageRoles = false
 		canManageUserPermissions = false
@@ -158,7 +160,7 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 			if role.Name == RoleEveryone {
 				continue
 			}
-			canAssign, err := c.CanAssignRole(ctx, actorID, role.Name)
+			canAssign, err := c.CanAssignRoleToUser(ctx, actorID, targetUserID, role.Name)
 			if err != nil {
 				return nil, err
 			}
@@ -380,7 +382,6 @@ func adminMemberRoleSummaries(roles []RoleWithPermissions) []AdminMemberRoleSumm
 			DisplayName: role.DisplayName,
 			Description: role.Description,
 			IsSystem:    role.IsSystem,
-			Position:    role.Position,
 			Pingable:    role.Pingable,
 		})
 	}
@@ -391,14 +392,12 @@ func adminMemberRoles(roles []RoleWithPermissions) []AdminMemberRole {
 	out := make([]AdminMemberRole, 0, len(roles))
 	for _, role := range roles {
 		out = append(out, AdminMemberRole{
-			Name:              role.Name,
-			DisplayName:       role.DisplayName,
-			Description:       role.Description,
-			IsSystem:          role.IsSystem,
-			Position:          role.Position,
-			Pingable:          role.Pingable,
-			Permissions:       append([]Permission{}, role.Permissions...),
-			PermissionDenials: append([]Permission{}, role.PermissionDenials...),
+			Name:        role.Name,
+			DisplayName: role.DisplayName,
+			Description: role.Description,
+			IsSystem:    role.IsSystem,
+			Pingable:    role.Pingable,
+			Permissions: append([]Permission{}, role.Permissions...),
 		})
 	}
 	return out

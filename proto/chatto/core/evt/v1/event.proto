@@ -222,6 +222,7 @@ message Event {
     RbacPermissionDeniedEvent rbac_permission_denied = 811;
     RbacPermissionClearedEvent rbac_permission_cleared = 812;
     RbacRolePingableChangedEvent rbac_role_pingable_changed = 813;
+    RbacRoleMovedEvent rbac_role_moved = 814;
 
     // ----- Legacy authorization concurrency fence (830-839, durable) -----
     AuthorizationFenceAdvancedEvent authorization_fence_advanced = 830 [deprecated = true];

@@ -101,6 +101,13 @@
       "yesterday": "Dün",
       "this_week": "Bu hafta",
       "this_month": "Bu ay"
+    },
+    "drag_and_drop": {
+      "drag_started": "{item} taşınmaya başlandı. Taşımak için ok tuşlarını kullanın. Bırakmak için Boşluk veya Enter tuşuna basın.",
+      "moved": "{item}, {count} içinde {position}. konuma taşındı.",
+      "dropped": "{item} taşıması durduruldu.",
+      "zone_active": "Bir öğeye gidin ve taşımaya başlamak için Boşluk veya Enter tuşuna basın.",
+      "zone_disabled": "Bir öğeyi taşımak için bir sürükleme tutamacı kullanın."
     }
   }
 }

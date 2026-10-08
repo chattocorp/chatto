@@ -35,7 +35,7 @@ vi.mock('@chatto/client/api/serverState', async () => {
 });
 
 vi.mock('$lib/ui/Panel.svelte', async () => ({
-  default: (await import('../permissions/[name]/RolePageSnippetMock.svelte')).default
+  default: (await import('../roles/[name]/RolePageSnippetMock.svelte')).default
 }));
 vi.mock('$lib/ui/DataTable.svelte', async () => ({
   default: (await import('./DataTableMock.svelte')).default
@@ -46,14 +46,14 @@ vi.mock('$lib/ui', async () => ({
   PageTitle: (await import('$lib/ui/PageTitle.svelte')).default,
   LoadingFog: (await import('$lib/ui/LoadingFog.svelte')).default,
   DataTable: (await import('$lib/ui/DataTable.svelte')).default,
-  Hint: (await import('../permissions/[name]/RolePageSnippetMock.svelte')).default,
-  PaneContent: (await import('../permissions/[name]/RolePageSnippetMock.svelte')).default
+  Hint: (await import('../roles/[name]/RolePageSnippetMock.svelte')).default,
+  PaneContent: (await import('../roles/[name]/RolePageSnippetMock.svelte')).default
 }));
 vi.mock('$lib/ui/PaneHeader.svelte', async () => ({
-  default: (await import('../permissions/[name]/RolePageSnippetMock.svelte')).default
+  default: (await import('../roles/[name]/RolePageSnippetMock.svelte')).default
 }));
 vi.mock('$lib/ui/PageTitle.svelte', async () => ({
-  default: (await import('../permissions/[name]/RolePageSnippetMock.svelte')).default
+  default: (await import('../roles/[name]/RolePageSnippetMock.svelte')).default
 }));
 vi.mock('$lib/ui/toast', () => ({
   toast: { success: mocks.success, error: mocks.error }

@@ -10,6 +10,12 @@ export type E2EPermissionDecision =
 export type E2EPermissionScopeKind =
   'PERMISSION_SCOPE_KIND_SERVER' | 'PERMISSION_SCOPE_KIND_GROUP' | 'PERMISSION_SCOPE_KIND_ROOM';
 
+/** The scope of a permission setting. `id` is the room or group ID; omit it for server scope. */
+export type E2EPermissionScope = {
+  kind: E2EPermissionScopeKind;
+  id?: string;
+};
+
 export interface E2EPermissionDecisionUpdateResponse {
   decision?: {
     permission?: string;
@@ -27,11 +33,9 @@ export interface E2EAdminRole {
     displayName?: string;
     description?: string;
     isSystem?: boolean;
-    position?: number;
     pingable?: boolean;
   };
   permissions?: string[];
-  permissionDenials?: string[];
 }
 
 export interface E2EServerRole {
@@ -39,10 +43,8 @@ export interface E2EServerRole {
   displayName?: string;
   description?: string;
   isSystem?: boolean;
-  position?: number;
   pingable?: boolean;
   permissions: string[];
-  permissionDenials: string[];
 }
 
 export type E2ENotificationMode =
@@ -161,8 +163,7 @@ export function unwrapAdminRole(role: E2EAdminRole | undefined): E2EServerRole |
   if (!role?.role) return undefined;
   return {
     ...role.role,
-    permissions: [...(role.permissions ?? [])],
-    permissionDenials: [...(role.permissionDenials ?? [])]
+    permissions: [...(role.permissions ?? [])]
   };
 }
 
@@ -171,7 +172,7 @@ export function expectPermissionDecisionUpdate(
   expected: {
     permission: string;
     decision: E2EPermissionDecision;
-    scope?: { kind: E2EPermissionScopeKind; id?: string };
+    scope?: E2EPermissionScope;
   }
 ): void {
   expect(data.decision).toEqual(

@@ -1,7 +1,7 @@
 # FDR-024: Permission Inspection Tool
 
 **Status:** Active
-**Last reviewed:** 2026-09-25
+**Last reviewed:** 2026-10-08
 
 ## Overview
 
@@ -17,8 +17,8 @@ bundled permission-explainer UI.
   optional room. It returns every permission that applies at that scope.
 - The ConnectRPC permission-inspection API keeps inspection in the RBAC
   administration namespace and requires `role.manage`.
-- The trace lists the nearest applicable (subject, scope) entry for the direct user and each assigned named role. It also includes the nearest `everyone` baseline entry.
-- Denies win across direct-user and named-role entries. A named/direct allow wins over an `everyone` deny only at the same or a nearer scope; otherwise the nearer baseline row is marked as winning.
+- The trace lists the user's nearest applicable setting, and the nearest applicable allow of each assigned named role and of `everyone`.
+- The rules of ADR-116 decide. A deny as the user's nearest setting wins. Otherwise, any allow in the trace gives access; the most specific allow is the winning entry. Stored role denies, `everyone` included, have no effect and do not show in the trace.
 - Each trace entry shows: the subject (a role name, or "user" for user-level overrides), the scope (server / room group / room / user), the decided state (allow / deny / none), and whether this is the entry that won.
 - If no role or override produced a decision, the resulting state is "none" — which the API boundary treats as deny by default.
 - An owner explanation shows the owner override only when it applies to the inspected user in the request. An inspector checks a different user, so the trace for an owner shows their ordinary decisions. See ADR-105.
@@ -27,8 +27,8 @@ bundled permission-explainer UI.
 
 ### 1. Trace, not just final decision
 
-**Decision:** The tool returns the complete set of effective subject entries, not just the boolean outcome. Less-specific entries shadowed by the same subject's nearer decision are omitted; the `everyone` baseline is retained so operators can see whether its scope applied.
-**Why:** "Did the resolver allow this?" is a question the resolver itself answers. "Why?" requires showing the decision path so operators can spot misconfigurations — e.g., "this user gets `message.post` because their custom role has it granted at server scope, even though we denied it on `everyone`". A boolean wouldn't help debug a misconfig.
+**Decision:** The tool returns the complete set of effective subject entries, not just the boolean outcome. Less-specific entries of the same subject are omitted.
+**Why:** "Did the resolver allow this?" is a question the resolver itself answers. "Why?" requires showing the decision path so operators can spot misconfigurations — e.g., "this user gets `message.post` in a private room because their custom role has it granted at server scope". A boolean wouldn't help debug a misconfig.
 **Tradeoff:** Bigger response payloads. Acceptable for an admin tool that's used sparingly.
 
 ### 2. Admin-only, no self-inspection

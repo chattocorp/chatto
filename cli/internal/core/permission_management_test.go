@@ -2,62 +2,43 @@ package core
 
 import "testing"
 
-func TestRolePermissionMatrixAppliesMessageReadInclusion(t *testing.T) {
+func TestRoleHolderResolutionAppliesMessageReadInclusion(t *testing.T) {
 	t.Parallel()
 
-	scope := PermissionMatrixScope{ID: "server", Kind: MatrixScopeServer}
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roomID := createPermissionEditRoom(t, c, ctx, "role-holder-inclusion")
+	for _, perm := range []Permission{PermMessageRead, PermMessageReadInteractions} {
+		if err := c.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, perm); err != nil {
+			t.Fatalf("ClearServerPermissionState %s: %v", perm, err)
+		}
+	}
+	// An everyone deny that an earlier version stored has no effect (ADR-116).
+	appendStoredRoleDeny(t, c, ctx, ScopeRoom, roomID, RoleEveryone, PermMessageReadInteractions)
+	if err := c.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermMessageRead); err != nil {
+		t.Fatalf("GrantServerPermission: %v", err)
+	}
 
-	t.Run("broad allow wins over narrow deny", func(t *testing.T) {
-		cell, ok := buildRolePermissionCell(
-			PermMessageReadInteractions,
-			scope,
-			[]Permission{PermMessageRead},
-			[]Permission{PermMessageReadInteractions},
-			nil, nil,
-			nil, nil, nil, nil, nil,
-		)
-		if !ok {
-			t.Fatal("narrow permission did not apply at server scope")
-		}
-		if cell.Override != MatrixDecisionDeny || cell.Effective != MatrixDecisionAllow {
-			t.Fatalf("cell = %+v, want deny override and allow effective decision", cell)
-		}
-	})
-
-	t.Run("narrow allow is independent of broad deny", func(t *testing.T) {
-		cell, ok := buildRolePermissionCell(
-			PermMessageReadInteractions,
-			scope,
-			[]Permission{PermMessageReadInteractions},
-			[]Permission{PermMessageRead},
-			nil, nil,
-			nil, nil, nil, nil, nil,
-		)
-		if !ok {
-			t.Fatal("narrow permission did not apply at server scope")
-		}
-		if cell.Override != MatrixDecisionAllow || cell.Effective != MatrixDecisionAllow {
-			t.Fatalf("cell = %+v, want allow override and effective decision", cell)
-		}
-	})
+	// The broad allow of the role includes the narrow permission.
+	if got := c.PermResolver().resolveRoleHolder(RoleModerator, KindChannel, roomID, "", PermMessageReadInteractions); got != DecisionAllow {
+		t.Fatalf("moderator holder message.read-interactions = %s, want allow", got)
+	}
+	// Without an allow, a member with only everyone has no access.
+	if got := c.PermResolver().resolveRoleHolder(RoleEveryone, KindChannel, roomID, "", PermMessageReadInteractions); got != DecisionNone {
+		t.Fatalf("everyone message.read-interactions = %s, want none", got)
+	}
 }
 
 // This test does not call t.Parallel: installTestPermissionInclusion changes
 // the package-wide permission catalog.
-func TestRolePermissionMatrixAppliesExplicitInclusion(t *testing.T) {
+func TestRoleHolderResolutionAppliesExplicitInclusion(t *testing.T) {
 	broad, narrow := installTestPermissionInclusion(t)
-	cell, ok := buildRolePermissionCell(
-		narrow,
-		PermissionMatrixScope{ID: "server", Kind: MatrixScopeServer},
-		[]Permission{broad},
-		[]Permission{narrow},
-		nil, nil,
-		nil, nil, nil, nil, nil,
-	)
-	if !ok {
-		t.Fatal("narrow permission did not apply at server scope")
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	if err := c.GrantServerPermission(ctx, SystemActorID, RoleModerator, broad); err != nil {
+		t.Fatalf("GrantServerPermission: %v", err)
 	}
-	if cell.Override != MatrixDecisionDeny || cell.Effective != MatrixDecisionAllow {
-		t.Fatalf("cell = %+v, want deny override and included allow", cell)
+	if got := c.PermResolver().resolveRoleHolder(RoleModerator, KindChannel, "", "", narrow); got != DecisionAllow {
+		t.Fatalf("moderator holder %s = %s, want allow included by %s", narrow, got, broad)
 	}
 }

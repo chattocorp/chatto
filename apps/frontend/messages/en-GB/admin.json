@@ -11,7 +11,8 @@
       "event_log": "Event Log",
       "system": "System",
       "back_to_server": "Return to Server",
-      "invitations": "Invite links"
+      "invitations": "Invite links",
+      "roles": "Roles"
     },
     "neighbors": {
       "title": "Neighbors",
@@ -145,7 +146,8 @@
         "account": "Account",
         "roles": "Roles",
         "permissions": "Permissions"
-      }
+      },
+      "role_beyond_viewer_permissions": "You cannot change this role assignment. The role allows permissions that you do not have."
     },
     "member_delete": {
       "title": "Delete Member",
@@ -181,38 +183,63 @@
       "new_role_action": "+ New Role",
       "creating_role": "Creating...",
       "create_after_hint": "After creating the role, you can assign permissions to it on the edit page.",
-      "back_to_permissions": "Back to permissions",
       "load_instance_failed": "Failed to load instance",
-      "need_manage_create": "You need the roles.manage permission to create roles.",
+      "need_manage_create": "You need the role.manage permission to create roles.",
       "edit_role_title": "Edit Role",
       "loading_role": "Loading role...",
       "role_not_found": "Role not found",
-      "need_manage_edit": "You need the roles.manage permission to edit roles.",
+      "need_manage_edit": "You need the role.manage permission to edit roles.",
       "system_metadata_locked": "System role metadata cannot be modified.",
       "everyone_pingable_description": "Use @all for room-wide delivery; everyone is not a role ping handle.",
       "save_changes": "Save changes",
       "delete_role_description": "Deleting this role will remove it from all users who have it assigned.",
       "owner_permissions_hint": "Owners are always granted all permissions. The matrix is read-only because owner permissions are not stored as editable grants or denials.",
-      "role_permissions_hint": "This role's grants and denials across every scope. Combined with the user's other roles at resolution time - use the per-user matrix to see what an individual user ends up with.",
+      "role_permissions_hint": "Each cell shows what a member who holds only this role gets, together with the everyone role. To see what one member gets, open the permissions of that member.",
       "users_with_role": "Users with this Role",
       "everyone_implicit": "All server members have the everyone role implicitly.",
       "no_users_with_role": "No users have this role",
       "server_tier_intro": "This page is for server-tier role permissions: broad defaults that apply before room-specific overrides.",
       "server_tier_rooms_hint": "Use Rooms for per-group and per-room overrides.",
-      "resolution_hint": "For each user or named role, the nearest room, group, or server value applies. Denies win between them. An allow overrides an everyone deny only at the same or a more specific scope.",
+      "resolution_hint": "A deny on the user decides. Otherwise, an allow of the user, of a role, or of everyone gives access. Without an allow, there is no access.",
       "update_role_failed": "Failed to update role",
       "update_ping_failed": "Failed to update role ping setting",
-      "delete_role_failed": "Failed to delete role"
+      "delete_role_failed": "Failed to delete role",
+      "role_order": {
+        "title": "Role order",
+        "hint": "The role order decides who can manage whom. A member can manage only accounts and roles below their highest role.",
+        "drag_role": "Move {role}",
+        "always_highest": "Always highest",
+        "always_lowest": "Always lowest",
+        "saved": "Role order saved",
+        "save_failed": "Could not save the role order",
+        "list_label": "Roles that you can move"
+      },
+      "back_to_roles": "Back to roles",
+      "roles_page": {
+        "title": "Roles",
+        "subtitle": "Create, edit, and order the roles of this server",
+        "edit_role": "Edit {role}",
+        "view_role": "View {role}"
+      },
+      "role_tabs": {
+        "label": "Role sections",
+        "general": "General",
+        "permissions": "Permissions",
+        "members": "Members"
+      },
+      "role_pings_on": "Role pings turned on",
+      "role_pings_off": "Role pings turned off",
+      "server_scope_warning": "Settings on this page apply to every room and room group on the server. To open only some rooms, set the permissions of those rooms or room groups."
     },
     "rooms_admin": {
       "title": "Rooms",
       "subtitle": "Create, edit, organise, and archive rooms",
-      "group_permissions_subtitle": "Per-group role permission grants and denials",
+      "group_permissions_subtitle": "Per-group role permission grants",
       "room_permissions_subtitle": "Per-room override permissions (layered on top of the room's group)",
       "permissions_page_title": "Permissions - {name}",
       "back_to_rooms": "Back to rooms",
-      "group_permissions_hint": "Per-group overrides for the channel rooms in this group. Defaults inherited from the server scope. Individual rooms can further override permissions from their own permissions page.",
-      "room_permissions_hint": "These settings apply only in this room. They replace the room group and server settings for the same role or user. To let only some roles do something here, set Deny for everyone and Allow for those roles.",
+      "group_permissions_hint": "Settings here apply to every room in this room group. A room can allow more, but cannot take away what the room group allows.",
+      "room_permissions_hint": "These settings apply only in this room. They add to the role allows of the room group and server. To let only some roles do something here, do not allow it for everyone at a broader scope. Then allow it for those roles here.",
       "loading": "Loading rooms...",
       "empty_groups": "No room groups yet",
       "empty_groups_body": "Create a set to start organising rooms.",

@@ -9,7 +9,12 @@ import {
   RealtimeSubscribe
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { test as base, expect } from './setup';
-import { createAndLoginTestUser, loginAsAdminAndUsePrimaryServer } from './fixtures/testUser';
+import {
+  createAndLoginTestUser,
+  denyUserPermission,
+  getViewerUserId,
+  loginAsAdminAndUsePrimaryServer
+} from './fixtures/testUser';
 import {
   connectPost,
   connectPostResponse,
@@ -55,7 +60,11 @@ async function deactivate(page: Page): Promise<void> {
   await expect(page.getByRole('button', { name: 'Enable privileged mode' })).toBeEnabled();
 }
 
-/** Keep membership while making message read/post authority depend on elevation. */
+/**
+ * Keep membership while making message read/post authority depend on elevation.
+ * Roles only grant (ADR-116), so the signed-in owner denies these permissions
+ * to themselves; privileged mode overrides the deny.
+ */
 async function restrictedRoom(page: Page): Promise<{ id: string; body: string }> {
   const id = await createRoomViaConnect(
     page,
@@ -65,13 +74,9 @@ async function restrictedRoom(page: Page): Promise<{ id: string; body: string }>
   const body = 'A message visible only with the owner override';
   await connectPost(page, 'chatto.api.v1.RoomService/JoinRoom', { roomId: id });
   await postMessageViaConnect(page, id, body);
+  const ownerId = await getViewerUserId(page);
   for (const permission of ['message.read', 'message.post']) {
-    await connectPost(page, 'chatto.admin.v1.AdminPermissionService/SetRolePermission', {
-      roleName: 'everyone',
-      permission,
-      decision: 'PERMISSION_DECISION_DENY',
-      scope: { kind: 'PERMISSION_SCOPE_KIND_ROOM', id }
-    });
+    await denyUserPermission(page, ownerId, permission, { kind: 'PERMISSION_SCOPE_KIND_ROOM', id });
   }
   return { id, body };
 }

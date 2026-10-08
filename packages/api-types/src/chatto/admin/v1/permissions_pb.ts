@@ -200,24 +200,18 @@ export class PermissionScope extends Message<PermissionScope> {
 }
 
 /**
- * Permission grants and denials at a single tier.
+ * Explicit permission grants of a role at a single tier.
  *
  * @generated from message chatto.admin.v1.TierPermissions
  */
 export class TierPermissions extends Message<TierPermissions> {
   /**
-   * Explicitly granted permissions.
+   * Explicitly granted permissions. Roles only grant, so a role has no
+   * explicit denies.
    *
    * @generated from field: repeated string permissions = 1;
    */
   permissions: string[] = [];
-
-  /**
-   * Explicitly denied permissions.
-   *
-   * @generated from field: repeated string permission_denials = 2;
-   */
-  permissionDenials: string[] = [];
 
   constructor(data?: PartialMessage<TierPermissions>) {
     super();
@@ -228,7 +222,6 @@ export class TierPermissions extends Message<TierPermissions> {
   static readonly typeName = "chatto.admin.v1.TierPermissions";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "permissions", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 2, name: "permission_denials", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TierPermissions {
@@ -269,18 +262,22 @@ export class TierRole extends Message<TierRole> {
   inheritedAllows: string[] = [];
 
   /**
-   * Denials inherited from broader tiers.
-   *
-   * @generated from field: repeated string inherited_denials = 8;
-   */
-  inheritedDenials: string[] = [];
-
-  /**
    * Public role metadata.
    *
    * @generated from field: chatto.api.v1.Role role = 9;
    */
   role?: Role;
+
+  /**
+   * Permissions that a member with only this role is allowed at this tier.
+   * The server resolves them with the same rules as authorization: the
+   * allows of the role and of everyone, and inclusion. They do not include settings on single
+   * users, the owner override, or privileged mode. Other applicable
+   * permissions have no allow, which means no access.
+   *
+   * @generated from field: repeated string effective_allows = 10;
+   */
+  effectiveAllows: string[] = [];
 
   constructor(data?: PartialMessage<TierRole>) {
     super();
@@ -292,8 +289,8 @@ export class TierRole extends Message<TierRole> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 6, name: "override", kind: "message", T: TierPermissions },
     { no: 7, name: "inherited_allows", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 8, name: "inherited_denials", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 9, name: "role", kind: "message", T: Role },
+    { no: 10, name: "effective_allows", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TierRole {
@@ -327,11 +324,19 @@ export class TierRoles extends Message<TierRoles> {
   applicablePermissions: string[] = [];
 
   /**
-   * Roles sorted by position.
+   * Roles in role order, highest first.
    *
    * @generated from field: repeated chatto.admin.v1.TierRole roles = 2;
    */
   roles: TierRole[] = [];
+
+  /**
+   * Applicable permissions that the caller may change at this tier. A caller
+   * who is not an owner must hold the permission here.
+   *
+   * @generated from field: repeated string viewer_changeable_permissions = 3;
+   */
+  viewerChangeablePermissions: string[] = [];
 
   constructor(data?: PartialMessage<TierRoles>) {
     super();
@@ -343,6 +348,7 @@ export class TierRoles extends Message<TierRoles> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "applicable_permissions", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 2, name: "roles", kind: "message", T: TierRole, repeated: true },
+    { no: 3, name: "viewer_changeable_permissions", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TierRoles {
@@ -445,6 +451,125 @@ export class GetRolePermissionTierMatrixResponse extends Message<GetRolePermissi
 }
 
 /**
+ * Request an access summary for one channel room or room group.
+ *
+ * @generated from message chatto.admin.v1.GetAccessSummaryRequest
+ */
+export class GetAccessSummaryRequest extends Message<GetAccessSummaryRequest> {
+  /**
+   * ROOM or GROUP scope with its id.
+   *
+   * @generated from field: chatto.admin.v1.PermissionScope scope = 1;
+   */
+  scope?: PermissionScope;
+
+  constructor(data?: PartialMessage<GetAccessSummaryRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.GetAccessSummaryRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scope", kind: "message", T: PermissionScope },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAccessSummaryRequest {
+    return new GetAccessSummaryRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAccessSummaryRequest {
+    return new GetAccessSummaryRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAccessSummaryRequest {
+    return new GetAccessSummaryRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAccessSummaryRequest | PlainMessage<GetAccessSummaryRequest> | undefined, b: GetAccessSummaryRequest | PlainMessage<GetAccessSummaryRequest> | undefined): boolean {
+    return proto3.util.equals(GetAccessSummaryRequest, a, b);
+  }
+}
+
+/**
+ * Who can find and join a channel room, or the rooms of a room group. Owners
+ * in privileged mode have access whatever the summary says. Explicit room
+ * members still need message.read to read the room.
+ *
+ * @generated from message chatto.admin.v1.GetAccessSummaryResponse
+ */
+export class GetAccessSummaryResponse extends Message<GetAccessSummaryResponse> {
+  /**
+   * Whether every member can find the room (room.list).
+   *
+   * @generated from field: bool everyone_can_list = 1;
+   */
+  everyoneCanList = false;
+
+  /**
+   * Whether every member can join the room (room.join).
+   *
+   * @generated from field: bool everyone_can_join = 2;
+   */
+  everyoneCanJoin = false;
+
+  /**
+   * Roles whose holders can find the room although everyone cannot, highest
+   * first. Empty when everyone can.
+   *
+   * @generated from field: repeated string roles_can_list = 3;
+   */
+  rolesCanList: string[] = [];
+
+  /**
+   * Roles whose holders can join and read the room although everyone cannot,
+   * highest first. Empty when everyone can join and read it.
+   *
+   * @generated from field: repeated string roles_can_join = 4;
+   */
+  rolesCanJoin: string[] = [];
+
+  /**
+   * Whether every member can read the room (message.read). A room that
+   * everyone can join but not read is not open.
+   *
+   * @generated from field: bool everyone_can_read = 5;
+   */
+  everyoneCanRead = false;
+
+  constructor(data?: PartialMessage<GetAccessSummaryResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.GetAccessSummaryResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "everyone_can_list", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "everyone_can_join", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "roles_can_list", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 4, name: "roles_can_join", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 5, name: "everyone_can_read", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAccessSummaryResponse {
+    return new GetAccessSummaryResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAccessSummaryResponse {
+    return new GetAccessSummaryResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAccessSummaryResponse {
+    return new GetAccessSummaryResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAccessSummaryResponse | PlainMessage<GetAccessSummaryResponse> | undefined, b: GetAccessSummaryResponse | PlainMessage<GetAccessSummaryResponse> | undefined): boolean {
+    return proto3.util.equals(GetAccessSummaryResponse, a, b);
+  }
+}
+
+/**
  * Matrix column scope.
  *
  * @generated from message chatto.admin.v1.PermissionMatrixScope
@@ -537,7 +662,8 @@ export class PermissionMatrixCell extends Message<PermissionMatrixCell> {
   override = PermissionDecision.UNSPECIFIED;
 
   /**
-   * Effective decision at this scope.
+   * Effective decision at this scope. For a human account, this is the result
+   * without privileged mode.
    *
    * @generated from field: chatto.admin.v1.PermissionDecision effective = 4;
    */
@@ -550,6 +676,24 @@ export class PermissionMatrixCell extends Message<PermissionMatrixCell> {
    * @generated from field: optional bool allow_permitted = 5;
    */
   allowPermitted?: boolean;
+
+  /**
+   * For a human account, the effective decision while the account has
+   * privileged mode active. It differs from effective for elevation-required
+   * permissions and for owners. Unspecified for roles and bots.
+   *
+   * @generated from field: chatto.admin.v1.PermissionDecision effective_with_privileged_mode = 6;
+   */
+  effectiveWithPrivilegedMode = PermissionDecision.UNSPECIFIED;
+
+  /**
+   * Whether the caller may change this setting. A caller who is not an owner
+   * must hold the permission at this scope. Absent for bot cells, which use
+   * allow_permitted.
+   *
+   * @generated from field: optional bool viewer_can_change = 7;
+   */
+  viewerCanChange?: boolean;
 
   constructor(data?: PartialMessage<PermissionMatrixCell>) {
     super();
@@ -564,6 +708,8 @@ export class PermissionMatrixCell extends Message<PermissionMatrixCell> {
     { no: 3, name: "override", kind: "enum", T: proto3.getEnumType(PermissionDecision) },
     { no: 4, name: "effective", kind: "enum", T: proto3.getEnumType(PermissionDecision) },
     { no: 5, name: "allow_permitted", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 6, name: "effective_with_privileged_mode", kind: "enum", T: proto3.getEnumType(PermissionDecision) },
+    { no: 7, name: "viewer_can_change", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PermissionMatrixCell {
@@ -1295,7 +1441,8 @@ export class PermissionExplanation extends Message<PermissionExplanation> {
   permission = "";
 
   /**
-   * Overall decision after resolving named subjects and the everyone baseline.
+   * Overall decision after resolving the user and their roles, everyone
+   * included.
    *
    * @generated from field: chatto.admin.v1.PermissionDecision state = 2;
    */
@@ -1600,7 +1747,8 @@ export class SetRolePermissionRequest extends Message<SetRolePermissionRequest> 
   permission = "";
 
   /**
-   * New decision. NONE clears the explicit state.
+   * New decision. NONE clears the explicit state. Roles only
+   * grant, so DENY returns INVALID_ARGUMENT.
    *
    * @generated from field: chatto.admin.v1.PermissionDecision decision = 3;
    */

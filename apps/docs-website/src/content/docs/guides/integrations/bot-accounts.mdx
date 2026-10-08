@@ -31,8 +31,11 @@ permissions and cannot sign in through the login forms.
 
 On a new server, only the `admin` role has `bot.create`. To let members create
 bots, allow `bot.create` for `everyone` or for a role. The creator of a bot can
-always manage it. Accounts with `bot.manage` can manage all bots and can select
-**Reassign owner** to give a bot to another active human account. Reassignment
+always manage it. Accounts with `bot.manage` can manage a bot when they rank
+higher than its owner; see [Role order](/guides/operations/permissions/#role-order).
+They can select **Reassign owner** to give a bot to another active human
+account that ranks below them. A bot cannot hold roles, and it ranks like its
+owner. Reassignment
 keeps the permissions and API keys of the bot. If the previous owner must lose
 access, create a new key and revoke the old one.
 
@@ -42,7 +45,8 @@ account owns. Reassign long-lived bots first.
 ## Grant permissions
 
 Bots do not inherit `everyone`, named roles, or the roles of their owner. The
-bot matrix is an allowlist. A permission is effective only while the owner also
+bot matrix is an allowlist. To limit a bot to one room, see
+[Add a bot to one room](/guides/operations/common-setups/#add-a-bot-to-one-room). A permission is effective only while the owner also
 has it at that scope. A lock icon marks a permission that the owner ceiling
 blocks. If the owner loses a permission, the bot also loses it. Bots do not
 need privileged mode, and they keep working while the owner is signed out.
@@ -86,7 +90,7 @@ expand **Inactive grants** to see saved grants that the owner ceiling blocks.
 The owner of a bot can change its display name, username, bio, and avatar.
 Open the bot in **Server Admin → Bots**, or select **Manage bot** in the user
 menu of the bot. Accounts with `bot.manage` or `user.manage-accounts` can do
-this for all bots. API clients use the same `UserService` methods as the bot,
+this when they rank higher than the bot's owner. API clients use the same `UserService` methods as the bot,
 with the user ID of the bot.
 
 The username of a bot has the same 30-day cooldown as the username of a

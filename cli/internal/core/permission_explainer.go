@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"time"
 )
 
 // PermissionExplanation captures the full resolution trace for a single
@@ -38,8 +37,7 @@ func (r *PermissionResolver) explainServerPermission(ctx context.Context, userID
 		return exp, fmt.Errorf("permission %s does not apply at server scope", perm)
 	}
 
-	err := r.collectFullTrace(ctx, userID, KindChannel, "", perm, &exp)
-	return exp, err
+	return r.explain(ctx, userID, KindChannel, "", "", perm, privilegeRequest)
 }
 
 func (r *PermissionResolver) explainServerKindPermission(ctx context.Context, userID string, kind RoomKind, perm Permission) (PermissionExplanation, error) {
@@ -51,8 +49,7 @@ func (r *PermissionResolver) explainServerKindPermission(ctx context.Context, us
 		}
 	}
 
-	err := r.collectFullTrace(ctx, userID, kind, "", perm, &exp)
-	return exp, err
+	return r.explain(ctx, userID, kind, "", "", perm, privilegeRequest)
 }
 
 // ExplainRoomPermission resolves a permission with a room context and returns
@@ -70,164 +67,7 @@ func (r *PermissionResolver) explainRoomPermission(ctx context.Context, userID s
 		return exp, fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
 
-	err := r.collectFullTrace(ctx, userID, kind, roomID, perm, &exp)
-	return exp, err
-}
-
-// collectFullTrace mirrors Resolve while preserving the nearest decision for
-// each direct-user/named-role subject plus the everyone baseline. The baseline
-// remains visible in the trace and can win when its deny is nearer than every
-// named allow. The effective-owner override appears only when privileged mode
-// allows it for userID in ctx; otherwise an owner's ordinary decisions explain
-// the result.
-func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission, exp *PermissionExplanation) error {
-	if _, known := GetPermissionMetadata(perm); !known {
-		return nil
-	}
-	if isBot, ownerUserID, exists := r.core.userModel.isBotAndOwner(userID); exists && isBot {
-		return r.collectBotFullTrace(ctx, userID, ownerUserID, kind, roomID, perm, exp)
-	}
-	return r.collectHumanFullTrace(ctx, userID, kind, roomID, perm, exp, privilegedModeAllows(ctx, userID, time.Now()))
-}
-
-// collectHumanFullTrace explains a human decision. ownerOverride has the same
-// meaning as in resolveHumanWithGroup.
-func (r *PermissionResolver) collectHumanFullTrace(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission, exp *PermissionExplanation, ownerOverride bool) error {
-	if _, known := GetPermissionMetadata(perm); known {
-		if kind == KindDM && !PermissionAppliesAtScope(perm, ScopeDM) {
-			exp.applyDMApplicabilityDeny(LevelDM)
-			return nil
-		}
-		if ownerOverride && r.core.isServerOwner(userID) {
-			exp.State = DecisionAllow
-			exp.DecidedAt = LevelServer
-			exp.DecidedByRole = RoleOwner
-			exp.Trace = []TraceEntry{{
-				Level:    LevelServer,
-				RoleName: RoleOwner,
-				Decision: DecisionAllow,
-				ObjectID: ObjectIdAny,
-			}}
-			return nil
-		}
-	}
-
-	groupID := ""
-	if kind == KindChannel && roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom) {
-		if room, err := r.core.GetRoom(ctx, KindChannel, roomID); err == nil && room != nil {
-			groupID = room.GroupId
-		}
-	}
-	for _, including := range includingPermissions(perm) {
-		included := PermissionExplanation{Permission: including, State: DecisionNone}
-		if err := r.collectFullTraceExact(ctx, userID, kind, roomID, groupID, including, &included); err != nil {
-			return err
-		}
-		if included.State == DecisionAllow {
-			exp.IncludedBy = including
-			exp.State = included.State
-			exp.DecidedAt = included.DecidedAt
-			exp.DecidedByRole = included.DecidedByRole
-			exp.Trace = included.Trace
-			return nil
-		}
-	}
-	return r.collectFullTraceExact(ctx, userID, kind, roomID, groupID, perm, exp)
-}
-
-func (r *PermissionResolver) collectBotFullTrace(ctx context.Context, botUserID, ownerUserID string, kind RoomKind, roomID string, perm Permission, exp *PermissionExplanation) error {
-	if perm == PermBotCreate || perm == PermBotManage {
-		exp.applyBotPolicyDeny(roomID, "@bot-policy")
-		return nil
-	}
-	if kind == KindDM && !PermissionAppliesAtScope(perm, ScopeDM) {
-		exp.applyDMApplicabilityDeny(LevelDM)
-		return nil
-	}
-	ownerIsBot, _, ownerExists := r.core.userModel.isBotAndOwner(ownerUserID)
-	if !ownerExists || ownerIsBot {
-		exp.applyBotPolicyDeny(roomID, "@bot-owner-ceiling")
-		return nil
-	}
-
-	groupID := ""
-	if kind == KindChannel && roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom) {
-		if room, err := r.core.GetRoom(ctx, KindChannel, roomID); err == nil && room != nil {
-			groupID = room.GroupId
-		}
-	}
-	delegated, sourcePermission, sourceEntry := r.botDelegatedExplanation(botUserID, kind, roomID, groupID, perm)
-	if delegated != DecisionAllow {
-		if sourceEntry != nil {
-			exp.State = DecisionDeny
-			exp.DecidedAt = sourceEntry.Level
-			exp.DecidedByRole = sourceEntry.RoleName
-			exp.Trace = []TraceEntry{*sourceEntry}
-		} else {
-			exp.applyBotPolicyDeny(roomID, "@bot-allowlist")
-		}
-		return nil
-	}
-
-	// The owner ceiling uses entitlement, independent of any human session.
-	ownerExplanation := PermissionExplanation{Permission: perm, State: DecisionNone}
-	if err := r.collectHumanFullTrace(ctx, ownerUserID, kind, roomID, perm, &ownerExplanation, true); err != nil {
-		return err
-	}
-	if ownerExplanation.State != DecisionAllow {
-		exp.applyBotPolicyDeny(roomID, "@bot-owner-ceiling")
-		exp.Trace = append(exp.Trace, ownerExplanation.Trace...)
-		return nil
-	}
-
-	if sourcePermission != perm {
-		exp.IncludedBy = sourcePermission
-	} else {
-		exp.IncludedBy = ownerExplanation.IncludedBy
-	}
-	exp.State = DecisionAllow
-	exp.DecidedAt = sourceEntry.Level
-	exp.DecidedByRole = sourceEntry.RoleName
-	exp.Trace = append([]TraceEntry{*sourceEntry}, ownerExplanation.Trace...)
-	return nil
-}
-
-func (r *PermissionResolver) botDelegatedExplanation(botUserID string, kind RoomKind, roomID, groupID string, perm Permission) (DecisionKind, Permission, *TraceEntry) {
-	for _, candidate := range append(includingPermissions(perm), perm) {
-		if _, known := GetPermissionMetadata(candidate); !known {
-			continue
-		}
-		scopes := r.applicableScopeTargets(kind, roomID, groupID, candidate)
-		entry, ok := r.nearestDecision(botUserID, candidate, scopes)
-		if !ok {
-			continue
-		}
-		if entry.Decision == DecisionAllow {
-			return DecisionAllow, candidate, &entry
-		}
-		if candidate == perm {
-			return DecisionDeny, candidate, &entry
-		}
-	}
-	return DecisionNone, perm, nil
-}
-
-func (r *PermissionResolver) collectFullTraceExact(ctx context.Context, userID string, kind RoomKind, roomID, groupID string, perm Permission, exp *PermissionExplanation) error {
-	decisions, err := r.applicableDecisions(ctx, userID, kind, roomID, groupID, perm)
-	if err != nil {
-		return err
-	}
-	exp.Trace = append(exp.Trace, decisions.named...)
-	if decisions.everyone != nil {
-		exp.Trace = append(exp.Trace, *decisions.everyone)
-	}
-	state, winner, decided := resolveApplicablePermissionDecisions(decisions)
-	if decided {
-		exp.State = state
-		exp.DecidedAt = winner.Level
-		exp.DecidedByRole = winner.RoleName
-	}
-	return nil
+	return r.explain(ctx, userID, kind, roomID, "", perm, privilegeRequest)
 }
 
 // ExplainAllPermissions returns explanations for every permission applicable at
@@ -297,6 +137,23 @@ func (r *PermissionResolver) explainInContentView(ctx context.Context, explain f
 		return explainErr
 	})
 	return explanation, err
+}
+
+// allowAsOwner explains the effective-owner override.
+func (exp *PermissionExplanation) allowAsOwner() {
+	exp.State = DecisionAllow
+	exp.DecidedAt = LevelServer
+	exp.DecidedByRole = RoleOwner
+	exp.Trace = []TraceEntry{{Level: LevelServer, RoleName: RoleOwner, Decision: DecisionAllow, ObjectID: ObjectIdAny}}
+}
+
+// applyPrivilegedModeDeny explains why an allowed elevation-required
+// permission is denied: privileged mode is not active. The trace keeps the
+// decisions that allowed it, followed by the synthetic @privileged-mode entry.
+func (exp *PermissionExplanation) applyPrivilegedModeDeny() {
+	exp.State = DecisionDeny
+	exp.DecidedByRole = "@privileged-mode"
+	exp.Trace = append(exp.Trace, TraceEntry{Level: exp.DecidedAt, RoleName: "@privileged-mode", Decision: DecisionDeny})
 }
 
 // applyDMApplicabilityDeny explains why a permission that is outside the

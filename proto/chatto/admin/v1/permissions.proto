@@ -40,35 +40,44 @@ message PermissionScope {
   string id = 2;
 }
 
-// Permission grants and denials at a single tier.
+// Explicit permission grants of a role at a single tier.
 message TierPermissions {
-  // Explicitly granted permissions.
+  reserved 2;
+  reserved "permission_denials";
+
+  // Explicitly granted permissions. Roles only grant, so a role has no
+  // explicit denies.
   repeated string permissions = 1;
-  // Explicitly denied permissions.
-  repeated string permission_denials = 2;
 }
 
 // One role's permission state at a single tier.
 message TierRole {
-  reserved 1 to 5;
-  reserved "role_name", "display_name", "description", "is_system", "position";
+  reserved 1 to 5, 8;
+  reserved "role_name", "display_name", "description", "is_system", "position", "inherited_denials";
 
   // Explicit state at this tier.
   TierPermissions override = 6;
   // Allows inherited from broader tiers.
   repeated string inherited_allows = 7;
-  // Denials inherited from broader tiers.
-  repeated string inherited_denials = 8;
   // Public role metadata.
   chatto.api.v1.Role role = 9;
+  // Permissions that a member with only this role is allowed at this tier.
+  // The server resolves them with the same rules as authorization: the
+  // allows of the role and of everyone, and inclusion. They do not include settings on single
+  // users, the owner override, or privileged mode. Other applicable
+  // permissions have no allow, which means no access.
+  repeated string effective_allows = 10;
 }
 
 // Role permission matrix for one tier.
 message TierRoles {
   // Permissions configurable at this tier.
   repeated string applicable_permissions = 1;
-  // Roles sorted by position.
+  // Roles in role order, highest first.
   repeated TierRole roles = 2;
+  // Applicable permissions that the caller may change at this tier. A caller
+  // who is not an owner must hold the permission here.
+  repeated string viewer_changeable_permissions = 3;
 }
 
 // Request a role-permission tier matrix.
@@ -81,6 +90,31 @@ message GetRolePermissionTierMatrixRequest {
 message GetRolePermissionTierMatrixResponse {
   // Requested matrix.
   TierRoles matrix = 1;
+}
+
+// Request an access summary for one channel room or room group.
+message GetAccessSummaryRequest {
+  // ROOM or GROUP scope with its id.
+  PermissionScope scope = 1;
+}
+
+// Who can find and join a channel room, or the rooms of a room group. Owners
+// in privileged mode have access whatever the summary says. Explicit room
+// members still need message.read to read the room.
+message GetAccessSummaryResponse {
+  // Whether every member can find the room (room.list).
+  bool everyone_can_list = 1;
+  // Whether every member can join the room (room.join).
+  bool everyone_can_join = 2;
+  // Roles whose holders can find the room although everyone cannot, highest
+  // first. Empty when everyone can.
+  repeated string roles_can_list = 3;
+  // Roles whose holders can join and read the room although everyone cannot,
+  // highest first. Empty when everyone can join and read it.
+  repeated string roles_can_join = 4;
+  // Whether every member can read the room (message.read). A room that
+  // everyone can join but not read is not open.
+  bool everyone_can_read = 5;
 }
 
 // Matrix column scope.
@@ -103,11 +137,20 @@ message PermissionMatrixCell {
   string scope_id = 2;
   // Explicit decision at this scope.
   PermissionDecision override = 3;
-  // Effective decision at this scope.
+  // Effective decision at this scope. For a human account, this is the result
+  // without privileged mode.
   PermissionDecision effective = 4;
   // Whether an explicit allow may currently be stored for this target. Absent
   // when no additional delegation ceiling applies.
   optional bool allow_permitted = 5;
+  // For a human account, the effective decision while the account has
+  // privileged mode active. It differs from effective for elevation-required
+  // permissions and for owners. Unspecified for roles and bots.
+  PermissionDecision effective_with_privileged_mode = 6;
+  // Whether the caller may change this setting. A caller who is not an owner
+  // must hold the permission at this scope. Absent for bot cells, which use
+  // allow_permitted.
+  optional bool viewer_can_change = 7;
 }
 
 // Permission matrix for one role within a scope page.
@@ -261,7 +304,8 @@ message PermissionTraceEntry {
 message PermissionExplanation {
   // Permission identifier.
   string permission = 1;
-  // Overall decision after resolving named subjects and the everyone baseline.
+  // Overall decision after resolving the user and their roles, everyone
+  // included.
   PermissionDecision state = 2;
   // Level of the winning decision, when state is not NONE.
   PermissionDecisionLevel decided_at = 3;
@@ -320,7 +364,8 @@ message SetRolePermissionRequest {
   string role_name = 1 [(buf.validate.field).string.min_len = 1];
   // Permission identifier.
   string permission = 2 [(buf.validate.field).string.min_len = 1];
-  // New decision. NONE clears the explicit state.
+  // New decision. NONE clears the explicit state. Roles only
+  // grant, so DENY returns INVALID_ARGUMENT.
   PermissionDecision decision = 3 [(buf.validate.field).enum = {
     defined_only: true
     not_in: [0]
@@ -368,6 +413,11 @@ service AdminPermissionService {
   // role.manage; group and room scopes require role.manage or effective
   // room.manage at the requested resource.
   rpc GetRolePermissionTierMatrix(GetRolePermissionTierMatrixRequest) returns (GetRolePermissionTierMatrixResponse);
+  // Summarizes who can find and join a channel room or the rooms of a room
+  // group. New rooms and room groups start closed, so clients use it to warn
+  // operators. Requires role.manage or effective room.manage at the room or
+  // group. Only ROOM and GROUP scopes are accepted.
+  rpc GetAccessSummary(GetAccessSummaryRequest) returns (GetAccessSummaryResponse);
   // Gets one page of a role's permission matrix. Requires role.manage. Returns
   // NOT_FOUND when the role does not exist.
   rpc GetRolePermissionMatrix(GetRolePermissionMatrixRequest) returns (GetRolePermissionMatrixResponse);
@@ -386,9 +436,19 @@ service AdminPermissionService {
   rpc ExplainPermissions(ExplainPermissionsRequest) returns (ExplainPermissionsResponse);
   // Sets one role permission decision. Server scope requires role.manage;
   // group and room scopes also accept effective room.manage at that resource.
+  // A caller with role.manage can change every role except owner. Other
+  // callers who are not owners can change only roles below their own highest
+  // role. Every caller who is not an owner must have the permission at the
+  // target scope; otherwise the call returns PERMISSION_DENIED. Everyone ranks
+  // below every account. Roles, everyone included, only grant: a deny for any
+  // role returns INVALID_ARGUMENT. Set a deny on a single user instead.
   rpc SetRolePermission(SetRolePermissionRequest) returns (SetRolePermissionResponse);
   // Sets one user permission decision. Human targets require
-  // user.manage-permissions; bot targets require ownership or bot.manage and
-  // accept only allow or clear within the bot owner's current authority.
+  // user.manage-permissions. A caller who is not an owner must also have the
+  // permission at the target scope and must outrank any other target;
+  // otherwise the call returns PERMISSION_DENIED. Bot targets require
+  // ownership, or bot.manage and a higher rank than the bot and its owner, and
+  // accept only allow or clear within the bot owner's current authority. A
+  // caller who does not own the bot must also have the permission they allow.
   rpc SetUserPermission(SetUserPermissionRequest) returns (SetUserPermissionResponse);
 }

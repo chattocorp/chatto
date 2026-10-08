@@ -3,6 +3,7 @@ import { fakeServer, type FakeServerRoutes } from '@chatto/client/testing/fakeSe
 import type { CurrentUser } from '@chatto/client/api/viewer';
 import { CurrentUserState } from '@chatto/client/auth/currentUser';
 import { NO_SERVER_PERMISSIONS, type ServerPermissions } from '@chatto/client/server/permissions';
+import { RoleCatalogStore } from '@chatto/client/server/roleCatalog';
 import type { ServerScope } from '$lib/state/server/scope.svelte';
 import type { ServerConnection } from '@chatto/client/server/serverConnection';
 import type { ServerStateStore } from '@chatto/client/server/store';
@@ -22,6 +23,12 @@ export type TestServerScopeOptions = {
   viewer?: Partial<CurrentUser> | null;
   /** Permission flags over `NO_SERVER_PERMISSIONS`. The result is loaded unless `loaded` is false. */
   permissions?: Partial<ServerPermissions>;
+  /**
+   * The loaded role catalogue: role names in role order, highest first, and
+   * the viewer's highest role. Default: no roles and an owner viewer, so the
+   * role order allows every action.
+   */
+  roleCatalog?: { roles?: string[]; viewerHighestRole?: string };
   /** What `serverInfo.isSupportedVersion` reports. Default: true. */
   isSupportedVersion?: boolean;
   /**
@@ -73,6 +80,10 @@ export class TestServerScope {
   readonly queryScope: string;
   /** A real account state, so `update()` and its same-account rule behave as in the app. */
   readonly currentUser = new CurrentUserState();
+  /** A real, loaded role catalogue. Change it with {@link setRoleOrder}. */
+  readonly roleCatalog = new RoleCatalogStore({
+    listRoles: () => Promise.reject(new Error('the test role catalogue does not load'))
+  });
   readonly scope: ServerScope;
 
   constructor(options: TestServerScopeOptions = {}) {
@@ -80,6 +91,11 @@ export class TestServerScope {
     this.queryScope = options.queryScope ?? `${this.serverId}-session`;
     this.permissions = { ...NO_SERVER_PERMISSIONS, loaded: true, ...options.permissions };
     this.isSupportedVersion = options.isSupportedVersion ?? true;
+    this.setRoleOrder(
+      options.roleCatalog?.roles ?? [],
+      options.roleCatalog?.viewerHighestRole ?? 'owner'
+    );
+    this.roleCatalog.status = 'ready';
     this.currentUser.loading = false;
     if (options.viewer !== null) {
       this.currentUser.accept({
@@ -92,6 +108,12 @@ export class TestServerScope {
     }
 
     this.scope = buildScope(this, options);
+  }
+
+  /** Sets the role order, role names highest first, and the viewer's highest role. */
+  setRoleOrder(roles: string[], viewerHighestRole: string): void {
+    this.roleCatalog.roles = roles.map((name) => ({ name, isSystem: false, pingable: false }));
+    this.roleCatalog.viewerHighestRole = viewerHighestRole;
   }
 }
 
@@ -185,6 +207,7 @@ function buildStore(
       get permissions() {
         return t.permissions;
       },
+      roleCatalog: t.roleCatalog,
       serverInfo: withMembers(withMembers({}, serverInfo), {
         get isSupportedVersion() {
           return t.isSupportedVersion;

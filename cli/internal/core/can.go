@@ -120,13 +120,17 @@ func (c *ChattoCore) canStartDM(ctx context.Context, userID string) (bool, error
 // CanDeleteUser checks if an actor can delete a specific user account.
 // Returns true if:
 //   - The actor is deleting their own account and has user.delete-self, OR
-//   - The actor has user.delete-any (the admin power).
+//   - The actor has user.delete-any (the admin power) and outranks the target.
+//     The target's bots rank like the target, so this covers the cascade.
 func (c *ChattoCore) CanDeleteUser(ctx context.Context, actorID, targetUserID string) (bool, error) {
 	if actorID == targetUserID {
 		return c.HasServerPermission(ctx, actorID, PermUserDeleteSelf)
 	}
-
-	return c.HasServerPermission(ctx, actorID, PermUserDeleteAny)
+	allowed, err := c.HasServerPermission(ctx, actorID, PermUserDeleteAny)
+	if err != nil || !allowed {
+		return false, err
+	}
+	return permissionDeniedAsFalse(c.requireOutranksAccount(actorID, targetUserID))
 }
 
 // ============================================================================
@@ -279,24 +283,6 @@ func (c *ChattoCore) CanCreateRoom(ctx context.Context, userID string, kind Room
 		return c.hasGroupPermission(ctx, kind, groupID, userID, PermRoomCreate)
 	}
 	return c.hasKindPermission(ctx, kind, userID, PermRoomCreate)
-}
-
-// CanJoinRoom checks if a user can join existing rooms at the server tier
-// (no specific room context). Used as a top-level "is the join action
-// available at all" check. For per-room decisions — including "is this
-// user implicitly a member of this global room" — use CanJoinRoomAt,
-// which evaluates room, group, and server decisions.
-//
-// DM-sensitive: DMs grant join implicitly to participants.
-func (c *ChattoCore) CanJoinRoom(ctx context.Context, userID string, kind RoomKind) (bool, error) {
-	if kind == KindDM {
-		return true, nil
-	}
-	decision, err := c.ResolveUserPermission(ctx, userID, kind, "", PermRoomJoin)
-	if err != nil {
-		return false, err
-	}
-	return decision != DecisionDeny, nil
 }
 
 // CanJoinRoomAt checks if a user can join a specific room. Uses room-scope

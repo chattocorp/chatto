@@ -15,6 +15,7 @@ also tells you how other Chatto clients connect to your server.
 | ----- | ----- |
 | Local accounts only | Configure [transactional email](#transactional-email) for verification and password reset. |
 | Invite-only server | Set [invite-only account creation](#invite-only-account-creation). |
+| Members-only community | Combine invite-only account creation with a [members-only server](/guides/operations/common-setups/#members-only-server). |
 | Organization SSO | Add [login providers](/guides/integrations/external-login-providers/) and turn off [password login](#sso-only-login). |
 | Mixed community | Keep password accounts and add selected login providers. |
 
@@ -222,7 +223,9 @@ emails = ["admin@example.com"]
 ```
 
 A user becomes an owner only after they verify one of these addresses. Owners
-have every normal permission, and role denies cannot lock them out.
+have every permission in
+[privileged mode](/guides/operations/permissions/#privileged-mode), and
+permission denies cannot lock them out.
 
 <Aside type="tip">
   Keep at least one owner email that the server operator controls. Do not

@@ -126,7 +126,9 @@ describe('subject permission loaders', () => {
           finishMutation = resolve;
         })
     );
-    const { container } = render(UserPermissionsMatrix, { props: { userId: 'user-a' } });
+    const { container } = render(UserPermissionsMatrix, {
+      props: { viewerOutranks: true, userId: 'user-a' }
+    });
     await expect.poll(() => cellButton(container, 'message.post')).toBeTruthy();
     cellButton(container, 'message.post').click();
     await settle();
@@ -174,7 +176,9 @@ describe('subject permission loaders', () => {
     const initial = matrix({ userId: 'user-a' });
     initial.scopes[0].label = 'Private scope';
     permissionMocks.getUserPermissionMatrix.mockResolvedValue(initial);
-    const { container } = render(UserPermissionsMatrix, { props: { userId: 'user-a' } });
+    const { container } = render(UserPermissionsMatrix, {
+      props: { viewerOutranks: true, userId: 'user-a' }
+    });
     await expect.poll(() => container.querySelector('td[data-permission]')).toBeTruthy();
     const panel = container.querySelector<HTMLElement>(
       '[data-testid="subject-permissions-matrix"]'
@@ -303,7 +307,9 @@ describe('subject permission loaders', () => {
           mutations.push({ resolve, reject });
         })
     );
-    const rendered = render(UserPermissionsMatrix, { props: { userId: 'user-a' } });
+    const rendered = render(UserPermissionsMatrix, {
+      props: { viewerOutranks: true, userId: 'user-a' }
+    });
     await settle();
     await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
 
@@ -334,7 +340,9 @@ describe('subject permission loaders', () => {
   });
 
   it('scrubs a mounted user matrix without refetching after realtime user removal', async () => {
-    const rendered = render(UserPermissionsMatrix, { props: { userId: 'user-a' } });
+    const rendered = render(UserPermissionsMatrix, {
+      props: { viewerOutranks: true, userId: 'user-a' }
+    });
     await settle();
     await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
     expect(rendered.container.querySelector('table')).not.toBeNull();
@@ -351,7 +359,9 @@ describe('subject permission loaders', () => {
     permissionMocks.setUserPermission.mockImplementation(
       () => new Promise<object>((resolve) => (resolveMutation = resolve))
     );
-    const rendered = render(UserPermissionsMatrix, { props: { userId: 'user-a' } });
+    const rendered = render(UserPermissionsMatrix, {
+      props: { viewerOutranks: true, userId: 'user-a' }
+    });
     await settle();
     await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
     rendered.container.style.height = '80px';
@@ -377,7 +387,7 @@ describe('subject permission loaders', () => {
       () => new Promise<object>((resolve) => (resolveMutation = resolve))
     );
     const rendered = render(UserPermissionsMatrix, {
-      props: { userId: 'user-a', decisionMode: 'binary' }
+      props: { viewerOutranks: true, userId: 'user-a', decisionMode: 'binary' }
     });
     await settle();
     await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
@@ -444,7 +454,12 @@ describe('subject permission loaders', () => {
       ]
     });
     const rendered = render(UserPermissionsMatrix, {
-      props: { userId: 'bot-inheritance', decisionMode: 'binary', ownerCapped: true }
+      props: {
+        viewerOutranks: true,
+        userId: 'bot-inheritance',
+        decisionMode: 'binary',
+        ownerCapped: true
+      }
     });
     await expect
       .poll(() => scopedCellButton(rendered.container, 'group:general', 'message.post'))
@@ -498,7 +513,7 @@ describe('subject permission loaders', () => {
       ]
     });
     const rendered = render(UserPermissionsMatrix, {
-      props: { userId: 'bot-read', decisionMode: 'binary', ownerCapped: true }
+      props: { viewerOutranks: true, userId: 'bot-read', decisionMode: 'binary', ownerCapped: true }
     });
     await settle();
     await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
@@ -533,6 +548,49 @@ describe('subject permission loaders', () => {
     });
   });
 
+  it('never offers deny to the everyone role at any scope', async () => {
+    const scopes = [
+      { id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' },
+      { id: 'group:general', label: 'General', kind: 'GROUP', parentGroupId: '' },
+      { id: 'room:lobby', label: 'Lobby', kind: 'ROOM', parentGroupId: 'general' }
+    ];
+    permissionMocks.getRolePermissionMatrix.mockResolvedValue({
+      roleName: 'everyone',
+      page: { totalCount: scopes.length, hasMore: false },
+      applicablePermissions: ['message.post'],
+      scopes,
+      cells: scopes.map((scope) => ({
+        permission: 'message.post',
+        scopeId: scope.id,
+        override: 'ALLOW',
+        effective: 'ALLOW'
+      }))
+    });
+    const rendered = render(RolePermissionsMatrix, { props: { roleName: 'everyone' } });
+    await settle();
+    await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
+
+    for (const [scopeId, scope] of [
+      ['server', { tier: 'server', roleName: 'everyone' }],
+      ['group:general', { tier: 'group', roleName: 'everyone', groupId: 'general' }],
+      ['room:lobby', { tier: 'room', roleName: 'everyone', roomId: 'lobby' }]
+    ] as const) {
+      await vi.waitFor(() =>
+        expect(scopedCellButton(rendered.container, scopeId, 'message.post').disabled).toBe(false)
+      );
+      scopedCellButton(rendered.container, scopeId, 'message.post').click();
+      // An allow cycles back to no decision, never on to deny.
+      await vi.waitFor(() =>
+        expect(permissionMocks.setRolePermission).toHaveBeenLastCalledWith({
+          roleName: 'everyone',
+          permission: 'message.post',
+          scope,
+          state: 'neutral'
+        })
+      );
+    }
+  });
+
   it('invalidates cached user matrices after a role permission changes', async () => {
     const connection = { queryScope: 'permission-loader-test' };
     const userPermissionKey = adminQueryKeys.userPermissions('origin', connection, 'user-a');
@@ -556,7 +614,9 @@ describe('subject permission loaders', () => {
     permissionMocks.setUserPermission.mockImplementation(
       () => new Promise<object>((resolve) => (resolveMutation = resolve))
     );
-    const rendered = render(UserPermissionsMatrix, { props: { userId: 'user-a' } });
+    const rendered = render(UserPermissionsMatrix, {
+      props: { viewerOutranks: true, userId: 'user-a' }
+    });
     await settle();
     await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
 
@@ -577,7 +637,7 @@ describe('subject permission loaders', () => {
 
   it('shows the owner ceiling and writes bot decisions through the user permission API', async () => {
     const rendered = render(UserPermissionsMatrix, {
-      props: { userId: 'bot-a', subjectKind: 'bot', ownerCapped: true }
+      props: { viewerOutranks: true, userId: 'bot-a', subjectKind: 'bot', ownerCapped: true }
     });
     await settle();
     await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
@@ -647,7 +707,12 @@ describe('account membership mutations', () => {
     });
     permissionMocks.getUserPermissionMatrix.mockImplementation(async () => snapshot());
     const { container } = render(UserPermissionsMatrix, {
-      props: { userId: 'membership-bot', ownerCapped: true, decisionMode: 'binary' }
+      props: {
+        viewerOutranks: true,
+        userId: 'membership-bot',
+        ownerCapped: true,
+        decisionMode: 'binary'
+      }
     });
     const join = () =>
       container.querySelector<HTMLButtonElement>('button[aria-label="Add account to #work"]');
@@ -678,7 +743,12 @@ describe('account membership mutations', () => {
       })
       .mockResolvedValue(botMatrix());
     const { container } = render(UserPermissionsMatrix, {
-      props: { userId: 'membership-bot', ownerCapped: true, decisionMode: 'binary' }
+      props: {
+        viewerOutranks: true,
+        userId: 'membership-bot',
+        ownerCapped: true,
+        decisionMode: 'binary'
+      }
     });
     await expect.poll(() => permissionMocks.getUserPermissionMatrix.mock.calls.length).toBe(1);
     viewerPermissions.canAdminManageAccounts = false;
@@ -704,7 +774,12 @@ describe('account membership mutations', () => {
       return true;
     });
     const { container } = render(UserPermissionsMatrix, {
-      props: { userId: 'membership-bot', ownerCapped: false, decisionMode: 'tri-state' }
+      props: {
+        viewerOutranks: true,
+        userId: 'membership-bot',
+        ownerCapped: false,
+        decisionMode: 'tri-state'
+      }
     });
     await expect
       .poll(() => container.querySelector('button[aria-label="Add account to #work"]'))
@@ -739,6 +814,27 @@ describe('account membership mutations', () => {
     expect(permissionMocks.setUserPermission).not.toHaveBeenCalled();
   });
 
+  it('keeps a joined account in its room when the viewer does not outrank it', async () => {
+    viewerPermissions.canAdminManageAccounts = true;
+    permissionMocks.batchGetRoomMembers.mockResolvedValue([{ id: 'human' }]);
+    permissionMocks.getUserPermissionMatrix.mockResolvedValue({ ...botMatrix(), userId: 'human' });
+    const rendered = render(UserPermissionsMatrix, {
+      props: { viewerOutranks: false, userId: 'human' }
+    });
+    const remove = () =>
+      rendered.container.querySelector<HTMLButtonElement>(
+        'button[aria-label="Remove account from #work"]'
+      );
+    await expect.poll(() => remove()?.disabled).toBe(true);
+    remove()!.click();
+    await settle();
+    expect(document.querySelector('dialog[open]')).toBeNull();
+
+    await rendered.rerender({ viewerOutranks: true, userId: 'human' });
+    await expect.poll(() => remove()?.disabled).toBe(false);
+    expect(permissionMocks.removeMember).not.toHaveBeenCalled();
+  });
+
   it('lets a scoped room manager add a human without room.join', async () => {
     viewerPermissions.canAdminManageAccounts = false;
     permissionMocks.batchGetRooms.mockResolvedValue([
@@ -746,7 +842,9 @@ describe('account membership mutations', () => {
     ]);
     permissionMocks.getUserPermissionMatrix.mockResolvedValue({ ...botMatrix(), userId: 'human' });
     permissionMocks.addMember.mockResolvedValue({});
-    const { container } = render(UserPermissionsMatrix, { props: { userId: 'human' } });
+    const { container } = render(UserPermissionsMatrix, {
+      props: { viewerOutranks: true, userId: 'human' }
+    });
     await expect
       .poll(
         () =>
@@ -771,7 +869,9 @@ describe('account membership mutations', () => {
       permissionMocks.batchGetRoomMembers.mockResolvedValue(
         joined ? [{ id: 'membership-bot' }] : []
       );
-      const { container } = render(UserPermissionsMatrix, { props: { userId: 'membership-bot' } });
+      const { container } = render(UserPermissionsMatrix, {
+        props: { viewerOutranks: true, userId: 'membership-bot' }
+      });
       const label = joined ? 'Remove account from #work' : 'Add account to #work';
       await expect
         .poll(() => container.querySelector(`button[aria-label="${label}"]`))
@@ -793,7 +893,9 @@ describe('account membership mutations', () => {
     permissionMocks.getUserPermissionMatrix.mockImplementation((userId: string) =>
       Promise.resolve({ ...botMatrix(), userId })
     );
-    const rendered = render(UserPermissionsMatrix, { props: { userId: 'membership-bot' } });
+    const rendered = render(UserPermissionsMatrix, {
+      props: { viewerOutranks: true, userId: 'membership-bot' }
+    });
     await expect
       .poll(() => rendered.container.querySelector('button[aria-label="Add account to #work"]'))
       .toBeTruthy();
@@ -812,7 +914,9 @@ describe('account membership mutations', () => {
 
   it('rechecks membership availability when confirming', async () => {
     permissionMocks.getUserPermissionMatrix.mockResolvedValue(botMatrix());
-    const { container } = render(UserPermissionsMatrix, { props: { userId: 'membership-bot' } });
+    const { container } = render(UserPermissionsMatrix, {
+      props: { viewerOutranks: true, userId: 'membership-bot' }
+    });
     await expect
       .poll(() => container.querySelector('button[aria-label="Add account to #work"]'))
       .toBeTruthy();
@@ -845,7 +949,7 @@ describe('account membership mutations', () => {
     viewerPermissions.canAdminManageAccounts = false;
     permissionMocks.getUserPermissionMatrix.mockResolvedValue(botMatrix());
     const { container } = render(UserPermissionsMatrix, {
-      props: { userId: 'membership-bot', ownerCapped: true }
+      props: { viewerOutranks: true, userId: 'membership-bot', ownerCapped: true }
     });
     await expect
       .poll(
@@ -861,7 +965,12 @@ describe('account membership mutations', () => {
     permissionMocks.getUserPermissionMatrix.mockResolvedValue(botMatrix());
     permissionMocks.addMember.mockRejectedValue(new Error('denied'));
     const { container } = render(UserPermissionsMatrix, {
-      props: { userId: 'membership-bot', ownerCapped: true, decisionMode: 'binary' }
+      props: {
+        viewerOutranks: true,
+        userId: 'membership-bot',
+        ownerCapped: true,
+        decisionMode: 'binary'
+      }
     });
     await expect
       .poll(() => container.querySelector('button[aria-label="Add account to #work"]'))
@@ -893,7 +1002,12 @@ describe('account membership mutations', () => {
         })
     );
     const rendered = render(UserPermissionsMatrix, {
-      props: { userId: 'membership-bot', ownerCapped: true, decisionMode: 'binary' }
+      props: {
+        viewerOutranks: true,
+        userId: 'membership-bot',
+        ownerCapped: true,
+        decisionMode: 'binary'
+      }
     });
     await expect
       .poll(() => rendered.container.querySelector('button[aria-label="Add account to #work"]'))
@@ -945,7 +1059,7 @@ it.each(['role', 'user'] as const)(
     const rendered =
       kind === 'role'
         ? render(RolePermissionsMatrix, { props: { roleName: 'first' } })
-        : render(UserPermissionsMatrix, { props: { userId: 'first' } });
+        : render(UserPermissionsMatrix, { props: { viewerOutranks: true, userId: 'first' } });
     await vi.waitFor(() => expect(resolveNext).toBeTypeOf('function'));
     const signal = read.mock.calls.find(
       ([id, options]) => id === 'first' && options.page.offset === 1

@@ -88,6 +88,24 @@ describe('getAdminNavItems', () => {
     expect(items.some((item) => item.label === 'Permissions')).toBe(true);
   });
 
+  it('lists Roles before Permissions only for role managers', () => {
+    const hidden = getAdminNavItems({
+      serverSegment: 'local',
+      permissions: permissions({ canViewAdmin: true, canAssignRoles: true })
+    });
+    const visible = getAdminNavItems({
+      serverSegment: 'local',
+      permissions: permissions({ canViewAdmin: true, canAdminManageRoles: true })
+    });
+
+    expect(hidden.some((item) => item.label === 'Roles')).toBe(false);
+    const labels = visible.map((item) => item.label);
+    expect(labels.indexOf('Roles')).toBe(labels.indexOf('Permissions') - 1);
+    expect(visible.find((item) => item.label === 'Roles')?.href).toBe(
+      '/chat/local/manage/server/roles'
+    );
+  });
+
   it('shows Invite links only for invitation managers', () => {
     const hidden = getAdminNavItems({
       serverSegment: 'local',

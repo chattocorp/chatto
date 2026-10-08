@@ -11,7 +11,8 @@
       "event_log": "Notikumu žurnāls",
       "system": "Sistēma",
       "back_to_server": "Atgriezties uz serveri",
-      "invitations": "Uzaicinājumu saites"
+      "invitations": "Uzaicinājumu saites",
+      "roles": "Lomas"
     },
     "neighbors": {
       "title": "Kaimiņi",
@@ -145,7 +146,8 @@
         "account": "Konts",
         "roles": "Lomas",
         "permissions": "Atļaujas"
-      }
+      },
+      "role_beyond_viewer_permissions": "Jūs nevarat mainīt šo lomas piešķīrumu. Loma atļauj atļaujas, kuru jums nav."
     },
     "member_delete": {
       "title": "Dzēst dalībnieku",
@@ -181,38 +183,63 @@
       "new_role_action": "+ Jauna loma",
       "creating_role": "Notiek izveide...",
       "create_after_hint": "Pēc lomas izveides rediģēšanas lapā varat tai piešķirt atļaujas.",
-      "back_to_permissions": "Atgriezties pie atļaujām",
       "load_instance_failed": "Neizdevās ielādēt gadījumu",
-      "need_manage_create": "Lai izveidotu lomas, nepieciešama lomas.manage atļauja.",
+      "need_manage_create": "Lai izveidotu lomas, nepieciešama role.manage atļauja.",
       "edit_role_title": "Rediģēt lomu",
       "loading_role": "Notiek lomas ielāde...",
       "role_not_found": "Loma nav atrasta",
-      "need_manage_edit": "Lai rediģētu lomas, jums ir nepieciešama atļauja roles.manage.",
+      "need_manage_edit": "Lai rediģētu lomas, jums ir nepieciešama atļauja role.manage.",
       "system_metadata_locked": "Sistēmas lomu metadatus nevar mainīt.",
       "everyone_pingable_description": "Izmantojiet @all piegādei visā telpā; visi nav lomu ping rokturi.",
       "save_changes": "Saglabāt izmaiņas",
       "delete_role_description": "Dzēšot šo lomu, tā tiks noņemta no visiem lietotājiem, kuriem tā ir piešķirta.",
       "owner_permissions_hint": "Īpašniekiem vienmēr tiek piešķirtas visas atļaujas. Matrica ir tikai lasāma, jo īpašnieka atļaujas netiek glabātas kā rediģējamas piešķiršanas vai atteikumi.",
-      "role_permissions_hint": "Šīs lomas piešķiršana un atteikums visās jomās. Apvienojumā ar citām lietotāja lomām izšķirtspējas laikā — izmantojiet katra lietotāja matricu, lai redzētu, ar ko beidzas atsevišķs lietotājs.",
+      "role_permissions_hint": "Katra šūna rāda, ko iegūst dalībnieks, kuram ir tikai šī loma, kopā ar lomu everyone. Lai redzētu, ko iegūst konkrēts dalībnieks, atveriet šī dalībnieka atļaujas.",
       "users_with_role": "Lietotāji ar šo lomu",
       "everyone_implicit": "Visiem servera dalībniekiem netieši ir ikviena loma.",
       "no_users_with_role": "Nevienam lietotājam nav šīs lomas",
       "server_tier_intro": "Šī lapa ir paredzēta servera līmeņa lomu atļaujām: plašiem noklusējuma iestatījumiem, kas tiek piemēroti pirms telpai specifiskām ignorēšanas.",
       "server_tier_rooms_hint": "Izmantojiet telpas, lai ignorētu katru grupu un telpu.",
-      "resolution_hint": "Katram lietotājam vai nosauktajai lomai tiek piemērota tuvākā telpas, grupas vai servera vērtība. Noliedz uzvaru starp viņiem. Atļauts ignorē visus aizliegts tikai tajā pašā vai konkrētākā tvērumā.",
+      "resolution_hint": "Izšķiroša ir lietotājam piemērotā aizliegšana. Pretējā gadījumā piekļuvi dod lietotāja, lomas vai everyone atļauja. Bez atļaujas piekļuves nav.",
       "update_role_failed": "Neizdevās atjaunināt lomu",
       "update_ping_failed": "Neizdevās atjaunināt lomas pieminēšanas iestatījumu",
-      "delete_role_failed": "Neizdevās izdzēst lomu"
+      "delete_role_failed": "Neizdevās izdzēst lomu",
+      "role_order": {
+        "title": "Lomu secība",
+        "hint": "Lomu secība nosaka, kurš var pārvaldīt kuru. Dalībnieks var pārvaldīt tikai kontus un lomas, kas ir zemāk par viņa augstāko lomu.",
+        "drag_role": "Pārvietot {role}",
+        "always_highest": "Vienmēr augstākā",
+        "always_lowest": "Vienmēr zemākā",
+        "saved": "Lomu secība saglabāta",
+        "save_failed": "Neizdevās saglabāt lomu secību",
+        "list_label": "Lomas, kuras jūs varat pārvietot"
+      },
+      "back_to_roles": "Atgriezties pie lomām",
+      "roles_page": {
+        "title": "Lomas",
+        "subtitle": "Izveidojiet, rediģējiet un sakārtojiet šī servera lomas",
+        "edit_role": "Rediģēt {role}",
+        "view_role": "Skatīt {role}"
+      },
+      "role_tabs": {
+        "label": "Lomas sadaļas",
+        "general": "Vispārīgi",
+        "permissions": "Atļaujas",
+        "members": "Biedri"
+      },
+      "role_pings_on": "Lomas pieminēšana ieslēgta",
+      "role_pings_off": "Lomas pieminēšana izslēgta",
+      "server_scope_warning": "Šīs lapas iestatījumi attiecas uz katru servera istabu un istabu grupu. Lai atvērtu tikai dažas istabas, iestatiet šo istabu vai istabu grupu atļaujas."
     },
     "rooms_admin": {
       "title": "Istabas",
       "subtitle": "Izveidojiet, rediģējiet, kārtojiet un arhivējiet telpas",
-      "group_permissions_subtitle": "Atļauju piešķiršana un atteikumi katrai grupai",
+      "group_permissions_subtitle": "Atļauju piešķiršana katrai grupai",
       "room_permissions_subtitle": "Katrai telpai piešķirtās ignorēšanas atļaujas (novietotas virs telpas grupas)",
       "permissions_page_title": "Atļaujas — {name}",
       "back_to_rooms": "Atpakaļ uz istabām",
-      "group_permissions_hint": "Šīs grupas kanālu telpu ignorēšana katrā grupā. Noklusējumi mantoti no servera darbības jomas. Atsevišķas telpas var tālāk ignorēt atļaujas no savas atļauju lapas.",
-      "room_permissions_hint": "Šie iestatījumi attiecas tikai uz šo istabu. Tie aizstāj istabu grupas un servera iestatījumus tai pašai lomai vai lietotājam. Lai šeit kaut ko atļautu tikai dažām lomām, iestatiet Aizliegt lomai everyone un Atļaut šīm lomām.",
+      "group_permissions_hint": "Šeit norādītie iestatījumi attiecas uz katru šīs istabu grupas istabu. Istaba var atļaut vairāk, taču nevar atņemt to, ko atļauj istabu grupa.",
+      "room_permissions_hint": "Šie iestatījumi attiecas tikai uz šo istabu. Tie papildina istabu grupas un servera lomu atļaujas. Lai šeit kaut ko atļautu tikai dažām lomām, neatļaujiet to lomai everyone plašākā tvērumā. Pēc tam atļaujiet to šeit šīm lomām.",
       "loading": "Notiek telpu ielāde...",
       "empty_groups": "Vēl nav telpu grupu",
       "empty_groups_body": "Izveidojiet komplektu, lai sāktu kārtot telpas.",

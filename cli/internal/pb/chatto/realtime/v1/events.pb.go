@@ -216,10 +216,14 @@ func (x *RoleDeletedEvent) GetRoleName() string {
 	return ""
 }
 
-// Custom roles changed display order. Permission decisions are unchanged.
+// The role order changed. Role order is the administrative rank, so which
+// accounts and roles the viewer can manage can change. Permission decisions
+// are unchanged.
 type RolesReorderedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Custom role names in ascending display position.
+	// Roles that moved. Reload the role list to get the current order. Creating
+	// a role does not send this event; reload the list after role_created as
+	// well.
 	RoleNames     []string `protobuf:"bytes,1,rep,name=role_names,json=roleNames,proto3" json:"role_names,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

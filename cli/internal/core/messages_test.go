@@ -1723,8 +1723,8 @@ func TestMessageModel_PostMessageCommitAuthorizationUsesInferredThread(t *testin
 	require.NoError(t, err)
 	reply, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "reply", nil, root.Id, "", nil, false)
 	require.NoError(t, err)
-	require.NoError(t, core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePostInThread))
-	require.NoError(t, core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost))
+	require.NoError(t, core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermMessagePostInThread))
+	require.NoError(t, core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermMessagePost))
 
 	_, err = core.Messages().PostMessage(ctx, MessagePostInput{
 		ActorID:   user.Id,
@@ -1864,10 +1864,6 @@ func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRBACChange(t *test
 	require.NoError(t, err)
 	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 	require.NoError(t, err)
-	const deniedRole = "post-race-denied"
-	_, err = core.CreateServerRole(ctx, SystemActorID, deniedRole, "Post Race Denied", "")
-	require.NoError(t, err)
-	require.NoError(t, core.DenyServerPermission(ctx, SystemActorID, deniedRole, PermMessagePost))
 
 	authorizationInput := MessagePostAuthorizationInput{
 		ActorID: user.Id,
@@ -1881,8 +1877,8 @@ func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRBACChange(t *test
 			return err
 		}
 		if attempts == 1 {
-			if err := core.AssignServerRole(attemptCtx, SystemActorID, user.Id, deniedRole); err != nil {
-				return fmt.Errorf("assign denying role between authorization and append: %w", err)
+			if err := core.DenyUserPermission(attemptCtx, SystemActorID, user.Id, PermMessagePost); err != nil {
+				return fmt.Errorf("deny message.post between authorization and append: %w", err)
 			}
 		}
 		return nil
@@ -1925,8 +1921,9 @@ func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRoomGroupChange(t 
 	require.NoError(t, err)
 	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 	require.NoError(t, err)
-	require.NoError(t, core.DenyGroupPermission(ctx, SystemActorID, targetGroup.Id, RoleEveryone, PermMessagePostInThread))
-	require.NoError(t, core.DenyGroupPermission(ctx, SystemActorID, targetGroup.Id, RoleEveryone, PermMessagePost))
+	for _, perm := range []Permission{PermMessagePostInThread, PermMessagePost} {
+		setStoredUserDeny(t, core, ctx, ScopeGroup, targetGroup.Id, user.Id, perm, true)
+	}
 
 	root, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "thread root", nil, "", "", nil, false)
 	require.NoError(t, err)

@@ -8,6 +8,11 @@
 static DM permission deny list with the global Direct messages scope. DMs
 remain outside room groups.
 
+**Resolution amendment:** ADR-116 replaces the `everyone` deny rules in this
+record. Roles, `everyone` included, only allow. A user deny decides; otherwise
+any applicable allow gives access. New rooms and room groups start without
+`everyone` allows.
+
 **Storage evolution:** ADR-033, ADR-034, and ADR-035 replaced the original KV
 and `RoomLayout` storage model with event-sourced group and layout aggregates.
 The room-group permission-container decision remains current.
@@ -42,7 +47,8 @@ Adopt a **channel-centric ACL** model for channel-room permissions with **room g
 | **Room**       | Room-scope permissions, **overriding the room group on a per-(role, permission) basis** | Same as above; only the (role, permission) pairs explicitly overridden change from the group's value, the rest inherit |
 
 Subjects are unchanged: **roles** and **users** (for direct overrides). Role
-position controls display order, not authorization. Every authenticated user
+position does not affect permission resolution. Since ADR-115 it is the
+administrative rank. Every authenticated user
 implicitly carries `everyone`.
 
 **DMs are out of scope for this ADR.** DM rooms are not part of any room group; their permission shape is captured separately in ADR-037. Room groups are a feature on top of channel rooms only.

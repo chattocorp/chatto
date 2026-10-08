@@ -11,7 +11,8 @@
       "event_log": "Gebeurtenislogboek",
       "system": "Systeem",
       "back_to_server": "Terug naar de server",
-      "invitations": "Uitnodigingslinks"
+      "invitations": "Uitnodigingslinks",
+      "roles": "Rollen"
     },
     "neighbors": {
       "title": "Buren",
@@ -145,7 +146,8 @@
         "account": "Account",
         "roles": "Rollen",
         "permissions": "Rechten"
-      }
+      },
+      "role_beyond_viewer_permissions": "Je kunt deze roltoewijzing niet wijzigen. De rol staat machtigingen toe die je niet hebt."
     },
     "member_delete": {
       "title": "Lid verwijderen",
@@ -181,38 +183,63 @@
       "new_role_action": "+ Nieuwe rol",
       "creating_role": "Aanmaken...",
       "create_after_hint": "Nadat u de rol heeft aangemaakt, kunt u er machtigingen aan toewijzen op de bewerkingspagina.",
-      "back_to_permissions": "Terug naar rechten",
       "load_instance_failed": "Kan exemplaar niet laden",
-      "need_manage_create": "Je hebt de machtiging Roles.Manage nodig om rollen te maken.",
+      "need_manage_create": "Je hebt de machtiging role.manage nodig om rollen te maken.",
       "edit_role_title": "Rol bewerken",
       "loading_role": "Rol laden...",
       "role_not_found": "Rol niet gevonden",
-      "need_manage_edit": "Je hebt de machtiging Roles.Manage nodig om rollen te bewerken.",
+      "need_manage_edit": "Je hebt de machtiging role.manage nodig om rollen te bewerken.",
       "system_metadata_locked": "Metagegevens van systeemrollen kunnen niet worden gewijzigd.",
       "everyone_pingable_description": "Gebruik @all voor bezorging in de hele kamer; iedereen is geen rol-ping-handle.",
       "save_changes": "Wijzigingen opslaan",
       "delete_role_description": "Als u deze rol verwijdert, wordt deze verwijderd van alle gebruikers aan wie deze is toegewezen.",
       "owner_permissions_hint": "Eigenaren krijgen altijd alle rechten. De matrix is ​​alleen-lezen omdat eigenaarsrechten niet worden opgeslagen als bewerkbare toekenningen of weigeringen.",
-      "role_permissions_hint": "De toekenningen en weigeringen van deze rol voor elk bereik. Gecombineerd met de andere rollen van de gebruiker op het moment dat het probleem wordt opgelost: gebruik de matrix per gebruiker om te zien waar een individuele gebruiker mee eindigt.",
+      "role_permissions_hint": "Elke cel toont wat een lid krijgt dat alleen deze rol heeft, samen met de rol everyone. Open de machtigingen van een lid om te zien wat dat lid krijgt.",
       "users_with_role": "Gebruikers met deze rol",
       "everyone_implicit": "Alle serverleden hebben impliciet de rol Iedereen.",
       "no_users_with_role": "Er zijn geen gebruikers met deze rol",
       "server_tier_intro": "Deze pagina is bedoeld voor rolmachtigingen op serverniveau: brede standaardwaarden die van toepassing zijn vóór kamerspecifieke overschrijvingen.",
       "server_tier_rooms_hint": "Gebruik kamers voor overschrijvingen per groep en per kamer.",
-      "resolution_hint": "Voor elke gebruiker of benoemde rol geldt de dichtstbijzijnde kamer-, groeps- of serverwaarde. Weigeringen winnen onderling. Een toestemming overschrijft een weigering van everyone alleen op hetzelfde of een specifieker niveau.",
+      "resolution_hint": "Een weigering bij de gebruiker beslist. Anders geeft een toestemming van de gebruiker, van een rol of van everyone toegang. Zonder toestemming is er geen toegang.",
       "update_role_failed": "Kan rol niet bijwerken",
       "update_ping_failed": "Kan vermeldingsinstelling van rol niet bijwerken",
-      "delete_role_failed": "Kan rol niet verwijderen"
+      "delete_role_failed": "Kan rol niet verwijderen",
+      "role_order": {
+        "title": "Rolvolgorde",
+        "hint": "De rolvolgorde bepaalt wie wie kan beheren. Een lid kan alleen accounts en rollen beheren die onder zijn hoogste rol staan.",
+        "drag_role": "{role} verplaatsen",
+        "always_highest": "Altijd de hoogste",
+        "always_lowest": "Altijd de laagste",
+        "saved": "Rolvolgorde opgeslagen",
+        "save_failed": "Kan de rolvolgorde niet opslaan",
+        "list_label": "Rollen die je kunt verplaatsen"
+      },
+      "back_to_roles": "Terug naar rollen",
+      "roles_page": {
+        "title": "Rollen",
+        "subtitle": "Maak, bewerk en orden de rollen van deze server",
+        "edit_role": "{role} bewerken",
+        "view_role": "{role} bekijken"
+      },
+      "role_tabs": {
+        "label": "Onderdelen van de rol",
+        "general": "Algemeen",
+        "permissions": "Rechten",
+        "members": "Leden"
+      },
+      "role_pings_on": "Rolvermeldingen ingeschakeld",
+      "role_pings_off": "Rolvermeldingen uitgeschakeld",
+      "server_scope_warning": "Instellingen op deze pagina gelden voor elke kamer en elke kamergroep op de server. Stel de rechten van die kamers of kamergroepen in om alleen sommige kamers te openen."
     },
     "rooms_admin": {
       "title": "Kamers",
       "subtitle": "Ruimtes maken, bewerken, ordenen en archiveren",
-      "group_permissions_subtitle": "Toekenning en weigering van rolrechten per groep",
+      "group_permissions_subtitle": "Toekenning van rolrechten per groep",
       "room_permissions_subtitle": "Overschrijvingsrechten per kamer (gelaagd bovenop de groep van de kamer)",
       "permissions_page_title": "Rechten - {name}",
       "back_to_rooms": "Terug naar kamers",
-      "group_permissions_hint": "Overschrijvingen per groep voor de kanaalkamers in deze groep. Standaardwaarden overgenomen van het serverbereik. Individuele kamers kunnen de machtigingen verder overschrijven vanaf hun eigen machtigingspagina.",
-      "room_permissions_hint": "Deze instellingen gelden alleen in deze kamer. Ze vervangen de instellingen van de kamergroep en de server voor dezelfde rol of gebruiker. Wil je dat alleen bepaalde rollen hier iets mogen, stel dan Weigeren in voor everyone en Toestaan voor die rollen.",
+      "group_permissions_hint": "Instellingen hier gelden voor elke kamer in deze kamergroep. Een kamer kan meer toestaan, maar kan niet intrekken wat de kamergroep toestaat.",
+      "room_permissions_hint": "Deze instellingen gelden alleen in deze kamer. Ze komen bovenop de roltoestemmingen van de kamergroep en de server. Wil je dat alleen bepaalde rollen hier iets mogen, sta het dan niet toe voor everyone op een breder niveau. Sta het daarna hier toe voor die rollen.",
       "loading": "Kamers laden...",
       "empty_groups": "Nog geen kamergroepen",
       "empty_groups_body": "Maak een set om kamers te organiseren.",

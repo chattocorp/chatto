@@ -17,6 +17,7 @@
       "name_description": "Tikai mazie burti. Pēc izveides to nevar mainīt.",
       "name_too_long": "Nosaukumā nedrīkst būt vairāk par 32 rakstzīmēm",
       "name_invalid": "Nosaukumā ir jāizmanto mazie burti, cipari un domuzīmes; sāciet ar burtu",
+      "name_reserved": "Jūs nevarat izmantot šo nosaukumu lomai. Izvēlieties citu nosaukumu.",
       "name_locked": "Pēc izveides lomu nosaukumus nevar mainīt.",
       "display_name": "Parādāmais nosaukums",
       "display_name_placeholder": "piem., Moderators",
@@ -123,7 +124,10 @@
         "effective_included_by": "Spēkā: Atļaut (ietverts atļaujā {permission})",
         "effective_inherited": "Spēkā: {state} (mantots)",
         "manage_role": "Pārvaldīt lomu {role}",
-        "no_scopes": "Šim tipam ({subject}) nav pieejamu tvērumu."
+        "no_scopes": "Šim tipam ({subject}) nav pieejamu tvērumu.",
+        "effective_state": "Faktiski: {state}",
+        "privileged_only": "Atļauts tikai privileģētajā režīmā",
+        "beyond_viewer_authority": "Šo iestatījumu varat mainīt tikai tad, ja jums šeit ir šī atļauja."
       },
       "help": {
         "open": "Par atļauju {permission}",
@@ -185,8 +189,8 @@
       "server_manage": "Ļauj kontam mainīt servera nosaukumu, aprakstu, logotipu un citus servera iestatījumus. Tā ļauj arī mainīt publisko kaimiņu katalogu. Piešķiriet to tikai cilvēkiem, kas var runāt visa servera vārdā.",
       "server_manage_neighbors": "Ļauj kontam pievienot, mainīt un noņemt ierakstus publiskajā kaimiņu katalogā. Tā neļauj mainīt citus servera iestatījumus.",
       "room_create": "Ļauj kontam izveidot kanālu telpas. Telpu grupas līmenī tā ļauj izveidot jaunas telpas tikai šajā grupā.",
-      "room_join": "Ļauj kontam pašam pievienoties kanālu telpām. Bez tās konts tomēr var kļūt par dalībnieku, ja kāds to pievieno vai ja universāla telpa pievieno tā lomu. Lai telpu pilnībā paslēptu, aizliedziet arī room.list.",
-      "room_list": "Ļauj kontam redzēt telpas telpu katalogā un telpu sarakstos. Konts var redzēt telpu arī bez tiesībām tai pievienoties, piemēram, lai pieprasītu piekļuvi. Aizliedziet to ierobežotā telpā, lai paslēptu to no personām, kas nav dalībnieki.",
+      "room_join": "Ļauj kontam pašam pievienoties kanālu telpām. Bez tās konts tomēr var kļūt par dalībnieku, ja kāds to pievieno vai ja universāla telpa pievieno tā lomu. Lai telpu pilnībā paslēptu, ierobežojiet arī, kam tajā ir room.list.",
+      "room_list": "Ļauj kontam redzēt telpas telpu katalogā un telpu sarakstos. Konts var redzēt telpu arī bez tiesībām tai pievienoties, piemēram, lai pieprasītu piekļuvi. Lai paslēptu ierobežotu telpu no personām, kas nav dalībnieki, neatļaujiet to lomai everyone plašākā tvērumā un telpā atļaujiet to tikai lomām, kurām tā jāredz.",
       "room_manage": "Ļauj kontam konfigurēt, pārdēvēt, arhivēt un dzēst telpas un telpu grupas līmenī, kurā to iestatāt, kā arī pievienot un noņemt telpu dalībniekus. Servera līmenī tā ļauj arī izveidot telpu grupas un mainīt to secību. Kontus ar šo atļauju neierobežo lēnais režīms.",
       "room_remove_member": "Ļauj kontam noņemt dalībnieku no kanāla telpas, norādot iemeslu. Tas var arī apturēt dalībnieku, lai viņš nevarētu atkal pievienoties telpai. Moderēšanas lapai šī atļauja nepieciešama servera līmenī.",
       "message_read": "Ļauj kontam lasīt ziņas, pavedienus, pielikumus, meklēšanas rezultātus un rakstīšanas indikatorus. Kontam arī jābūt telpas vai tiešās ziņas dalībniekam. Ja aizliedzat šo atļauju, message.read-interactions joprojām var dot piekļuvi paša konta sarunām.",
@@ -194,7 +198,7 @@
       "message_post": "Ļauj kontam publicēt ziņas un atbildēt pavedienos. Tiešo ziņu līmenī cilvēki var arī sākt tiešās ziņas. Kontam jābūt telpas dalībniekam, un telpas pavedienu režīmam jāatļauj ziņa. Tikai message.post aizliegums neaptur atbildes pavedienos, ja message.post-in-thread ir atļauta. Lai apturētu jebkādu publicēšanu, aizliedziet arī message.post-in-thread un message.post-in-interactions.",
       "message_post_interactions": "Ļauj kontam atbildēt tikai pavedienos, ko tas sācis, pavedienos, kuros cits konts to tieši pieminējis, un saņemtajās tiešajās ziņās. Tā neļauj lasīt citus pavedienus vai publicēt jaunas ziņas. Izmantojiet to kopā ar message.read-interactions, lai ierobežotu kontu ar tā paša sarunām.",
       "message_post_in_thread": "Ļauj kontam atbildēt katrā pavedienā, ko tas var lasīt, bet ne publicēt jaunas ziņas telpā. message.post atļauja ietver arī šo atļauju, tāpēc aizliegums šeit neaptur šo kontu atbildes.",
-      "message_attach": "Ļauj kontam pievienot failus jaunām ziņām. Aizliedziet to, lai telpā apturētu augšupielādes, bet joprojām atļautu teksta ziņas.",
+      "message_attach": "Ļauj kontam pievienot failus jaunām ziņām. Bez tās konts joprojām var publicēt teksta ziņas.",
       "message_echo": "Ļauj kontam parādīt pavediena atbildi arī telpas laika joslā, lai to redzētu arī tie, kas pavedienam neseko.",
       "message_manage": "Ļauj kontam rediģēt vai dzēst citu kontu ziņas. Savas ziņas ikviens vienmēr var rediģēt un dzēst bez šīs atļaujas. Kontus ar šo atļauju neierobežo lēnais režīms. Tiešajā ziņā to var izmantot tikai dalībnieki.",
       "message_react": "Ļauj kontam pievienot un noņemt reakcijas ziņām, ko tas var lasīt.",
@@ -203,7 +207,7 @@
       "admin_view_users": "Ļauj kontam redzēt dalībnieku sarakstu servera administrēšanā. Darbībām ar dalībniekiem vajadzīgas savas atļaujas, piemēram, role.assign vai user.manage-accounts.",
       "admin_view_audit": "Ļauj kontam redzēt notikumu žurnālu servera administrēšanā. Notikumu žurnāls reģistrē administratīvās izmaiņas un katru privileģētā režīma sākumu un beigas.",
       "user_delete_any": "Ļauj kontam dzēst jebkura dalībnieka kontu. Piešķiriet to tikai cilvēkiem, kas drīkst lemt par kāda noņemšanu no servera.",
-      "user_delete_self": "Ļauj cilvēkiem dzēst savu kontu. Aizliedziet to, ja kontus drīkst dzēst tikai administratori.",
+      "user_delete_self": "Ļauj cilvēkiem dzēst savu kontu. Neatļaujiet to lomai everyone, ja kontus drīkst dzēst tikai administratori.",
       "user_invite": "Ļauj kontam uzskaitīt, izveidot, kopēt un atsaukt uzaicinājuma saites. Tas var redzēt un izmantot visas aktīvās uzaicinājuma saites, ne tikai savas.",
       "user_manage_accounts": "Ļauj kontam citiem dalībniekiem izveidot kontus, mainīt konta identitāti, atiestatīt paroles, pievienot verificētas e-pasta adreses un notīrīt pieteikšanās gaidīšanas laikus. Tā ļauj arī pievienot kontu telpai vai noņemt to no telpas ar rindu Pievienojās.",
       "user_manage_permissions": "Ļauj kontam tieši mainīt viena dalībnieka vai bota atļauju iestatījumus neatkarīgi no lomām. Tā ir vajadzīga arī, lai redzētu personas spēkā esošās atļaujas.",
@@ -214,6 +218,23 @@
       "call_voice": "Ļauj kontam zvanos sūtīt mikrofona audio. Bez tās konts joprojām var klausīties.",
       "call_camera": "Ļauj kontam zvanos sūtīt kameras video.",
       "call_screenshare": "Ļauj kontam zvanos kopīgot ekrānu, logu, cilni vai lietotni kopā ar audio. Tā neļauj sūtīt mikrofona audio; tam vajadzīga call.voice."
+    },
+    "role_order": {
+      "role_locked": "Lomu secība neļauj jums mainīt šo lomu.",
+      "account_locked": "Lomu secība neļauj jums mainīt šo kontu.",
+      "roles_locked": "Lomu secība neļauj jums mainīt šī konta lomas."
+    },
+    "access": {
+      "room_open": "Ikviens var atrast šo istabu un tai pievienoties.",
+      "room_open_unlisted": "Ikviens var pievienoties šai istabai, taču tā nav redzama visiem istabu sarakstā.",
+      "room_join_no_read": "Ikviens var pievienoties šai istabai, taču nevar to lasīt. Lai to atvērtu, atļaujiet arī message.read, bet lai dalībnieki varētu rakstīt, atļaujiet message.post.",
+      "room_roles": "Šai istabai var pievienoties tikai šo lomu dalībnieki: {roles}.",
+      "room_closed": "Šo istabu pagaidām nevar atrast, tai pievienoties vai to lasīt neviens, izņemot īpašniekus privileģētajā režīmā. Lai to atvērtu, istabas atļaujās atļaujiet room.list, room.join un message.read lomai everyone vai kādai citai lomai, bet lai varētu rakstīt, atļaujiet message.post.",
+      "group_open": "Ikviens var atrast šīs istabu grupas istabas un tām pievienoties.",
+      "group_open_unlisted": "Ikviens var pievienoties šīs istabu grupas istabām, taču tās nav redzamas visiem istabu sarakstā.",
+      "group_join_no_read": "Ikviens var pievienoties šīs istabu grupas istabām, taču nevar tās lasīt. Lai tās atvērtu, atļaujiet arī message.read, bet lai dalībnieki varētu rakstīt, atļaujiet message.post.",
+      "group_roles": "Šīs istabu grupas istabām var pievienoties tikai šo lomu dalībnieki: {roles}.",
+      "group_closed": "Šīs istabu grupas istabas pagaidām nevar atrast, tām pievienoties vai tās lasīt neviens, izņemot īpašniekus privileģētajā režīmā. Lai tās atvērtu, zemāk atļaujiet room.list, room.join un message.read lomai everyone vai kādai citai lomai, bet lai varētu rakstīt, atļaujiet message.post."
     }
   }
 }

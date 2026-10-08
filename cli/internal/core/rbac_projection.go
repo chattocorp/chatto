@@ -3,6 +3,7 @@ package core
 import (
 	"slices"
 	"sort"
+	"strings"
 
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
@@ -30,9 +31,8 @@ type rbacDecisionKey struct {
 	permission  Permission
 }
 
-// ScopedRolePermissionDecision is one explicit permission decision carried by
-// a role. It is used to keep delegated role assignment within the caller's own
-// authority without treating display order as an authorization rank.
+// ScopedRolePermissionDecision is one explicit permission decision of a role
+// or account. It keeps delegated changes within the caller's own authority.
 type ScopedRolePermissionDecision struct {
 	Scope      PermissionScope
 	ScopeID    string
@@ -65,7 +65,7 @@ func (p *RBACProjection) Apply(event *evtv1.Event, seq uint64) error {
 
 	switch e := event.GetEvent().(type) {
 	case *evtv1.Event_RbacRoleCreated:
-		p.applyRoleUpsert(rbacRoleFromCreated(e.RbacRoleCreated))
+		p.applyRoleCreated(e.RbacRoleCreated)
 	case *evtv1.Event_RbacRoleDisplayNameChanged:
 		p.applyRoleDisplayNameChanged(e.RbacRoleDisplayNameChanged.GetRoleName(), e.RbacRoleDisplayNameChanged.GetDisplayName())
 	case *evtv1.Event_RbacRoleDescriptionChanged:
@@ -76,6 +76,8 @@ func (p *RBACProjection) Apply(event *evtv1.Event, seq uint64) error {
 		p.applyRoleDeleted(e.RbacRoleDeleted.GetRoleName())
 	case *evtv1.Event_RbacRolesReordered:
 		p.applyRolesReordered(e.RbacRolesReordered.GetRoleNames())
+	case *evtv1.Event_RbacRoleMoved:
+		p.applyRoleMoved(e.RbacRoleMoved.GetRoleName(), e.RbacRoleMoved.GetBeforeRoleName())
 	case *evtv1.Event_RbacRoleAssigned:
 		p.applyRoleAssigned(e.RbacRoleAssigned.GetUserId(), e.RbacRoleAssigned.GetRoleName())
 	case *evtv1.Event_RbacRoleRevoked:
@@ -126,6 +128,18 @@ func rbacRoleFromCreated(event *evtv1.RbacRoleCreatedEvent) *evtv1.Role {
 	}
 }
 
+// applyRoleCreated adds a role. A role created with place_lowest moves below
+// every other orderable role; older events keep their legacy rank.
+func (p *RBACProjection) applyRoleCreated(event *evtv1.RbacRoleCreatedEvent) {
+	role := rbacRoleFromCreated(event)
+	p.applyRoleUpsert(role)
+	if role == nil || !event.GetPlaceLowest() || !roleIsOrderable(role.GetName()) {
+		return
+	}
+	order := slices.DeleteFunc(p.orderLocked(), func(name string) bool { return name == role.GetName() })
+	p.renumberLocked(slices.Insert(order, 0, role.GetName()))
+}
+
 func (p *RBACProjection) applyRoleUpsert(role *evtv1.Role) {
 	if role == nil || role.GetName() == "" {
 		return
@@ -172,6 +186,8 @@ func (p *RBACProjection) applyRolePingableChanged(roleName string, pingable bool
 	p.roles[roleName] = updated
 }
 
+// applyRolesReordered replays a legacy custom-role order. It assigns positions
+// upward from PositionCustomFirst and skips the fixed system positions.
 func (p *RBACProjection) applyRolesReordered(roleNames []string) {
 	position := PositionCustomFirst
 	for _, roleName := range roleNames {
@@ -187,6 +203,62 @@ func (p *RBACProjection) applyRolesReordered(roleNames []string) {
 		p.roles[roleName] = updated
 		position++
 	}
+}
+
+// applyRoleMoved places a role directly above beforeRoleName, or lowest when
+// beforeRoleName is empty, and renumbers the order. Writers validate both
+// names; the reader ignores a move that refers to unknown or fixed roles.
+func (p *RBACProjection) applyRoleMoved(roleName, beforeRoleName string) {
+	if !roleIsOrderable(roleName) || p.roles[roleName] == nil {
+		return
+	}
+	order := slices.DeleteFunc(p.orderLocked(), func(name string) bool { return name == roleName })
+	index := 0
+	if beforeRoleName != "" {
+		below := slices.Index(order, beforeRoleName)
+		if below < 0 {
+			return
+		}
+		index = below + 1
+	}
+	p.renumberLocked(slices.Insert(order, index, roleName))
+}
+
+// orderLocked returns every orderable role, lowest first. Equal positions,
+// which only legacy events can produce, sort by name.
+func (p *RBACProjection) orderLocked() []string {
+	names := make([]string, 0, len(p.roles))
+	for name := range p.roles {
+		if roleIsOrderable(name) {
+			names = append(names, name)
+		}
+	}
+	slices.SortFunc(names, func(a, b string) int {
+		if pa, pb := p.roles[a].GetPosition(), p.roles[b].GetPosition(); pa != pb {
+			return int(pa) - int(pb)
+		}
+		return strings.Compare(a, b)
+	})
+	return names
+}
+
+// renumberLocked assigns positions upward from PositionCustomFirst to order,
+// which lists every orderable role lowest first, and places owner directly
+// above them. Everyone keeps position 0.
+func (p *RBACProjection) renumberLocked(order []string) {
+	setPosition := func(name string, position int32) {
+		role := p.roles[name]
+		if role == nil || role.GetPosition() == position {
+			return
+		}
+		updated := proto.Clone(role).(*evtv1.Role)
+		updated.Position = position
+		p.roles[name] = updated
+	}
+	for i, name := range order {
+		setPosition(name, PositionCustomFirst+int32(i))
+	}
+	setPosition(RoleOwner, PositionCustomFirst+int32(len(order)))
 }
 
 func (p *RBACProjection) applyRoleDeleted(roleName string) {
@@ -441,11 +513,21 @@ func (p *RBACProjection) GetRoleUsers(roleName string) []string {
 }
 
 func (p *RBACProjection) RolePermissionDecisions(roleName string) []ScopedRolePermissionDecision {
+	return p.subjectPermissionDecisions(evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, roleName)
+}
+
+// UserPermissionDecisions returns the direct decisions of one account at every
+// scope, sorted like RolePermissionDecisions.
+func (p *RBACProjection) UserPermissionDecisions(userID string) []ScopedRolePermissionDecision {
+	return p.subjectPermissionDecisions(evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER, userID)
+}
+
+func (p *RBACProjection) subjectPermissionDecisions(kind evtv1.RbacPermissionSubjectKind, subject string) []ScopedRolePermissionDecision {
 	p.RLock()
 	defer p.RUnlock()
 	decisions := make([]ScopedRolePermissionDecision, 0)
 	for key, decision := range p.decisions {
-		if key.subjectKind != evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE || key.subject != roleName {
+		if key.subjectKind != kind || key.subject != subject {
 			continue
 		}
 		decisions = append(decisions, ScopedRolePermissionDecision{

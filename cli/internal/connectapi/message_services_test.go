@@ -277,8 +277,8 @@ func TestMessageServiceCreateMessageRequiresAuthMembershipAndPermission(t *testi
 		t.Fatalf("non-member CreateMessage code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePost); err != nil {
-		t.Fatalf("DenyRoomPermission: %v", err)
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessagePost); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
 	if _, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), req); errorCode(err) != connect.CodePermissionDenied {
 		t.Fatalf("denied CreateMessage code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
@@ -355,8 +355,8 @@ func TestMessageServiceAddAndRemoveRequiresAuthMembershipAndPermission(t *testin
 		t.Fatalf("non-member AddReaction code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageReact); err != nil {
-		t.Fatalf("DenyRoomPermission: %v", err)
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessageReact); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
 	if _, err := env.messages.AddReaction(withCaller(env.ctx, env.viewer), req); errorCode(err) != connect.CodePermissionDenied {
 		t.Fatalf("denied AddReaction code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
@@ -843,8 +843,8 @@ func TestMessageServiceCreateMessageBroadPostIncludesThreadCreation(t *testing.T
 	room := env.createJoinedRoom("thread-root-permission")
 	ctx := withCaller(env.ctx, env.viewer)
 
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePostInThread); err != nil {
-		t.Fatalf("DenyRoomPermission thread post: %v", err)
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessagePostInThread); err != nil {
+		t.Fatalf("DenyUserRoomPermission thread post: %v", err)
 	}
 
 	if _, err := env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
@@ -934,8 +934,8 @@ func TestMessageServiceCreateMessageAttachmentPreflightDoesNotCreateAssets(t *te
 	room := env.createJoinedRoom("message-post-upload-preflight")
 	ctx := withCaller(env.ctx, env.viewer)
 
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageAttach); err != nil {
-		t.Fatalf("DenyRoomPermission: %v", err)
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessageAttach); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
 	before, err := env.core.GetAssetCount(env.ctx)
 	if err != nil {
@@ -1248,12 +1248,12 @@ func TestAssetUploadServiceDoesNotRequireThreadPostPermission(t *testing.T) {
 	ctx := withCaller(env.ctx, env.viewer)
 	content := []byte("thread attachment")
 	sum := sha256.Sum256(content)
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePost); err != nil {
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessagePost); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePostInThread); err != nil {
-		t.Fatalf("DenyRoomPermission thread post: %v", err)
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessagePostInThread); err != nil {
+		t.Fatalf("DenyUserRoomPermission thread post: %v", err)
 	}
 
 	created, err := env.assetUploads.CreateUpload(ctx, connect.NewRequest(&apiv1.CreateUploadRequest{
@@ -1308,8 +1308,8 @@ func TestAssetUploadServiceCompleteRechecksAttachmentPermission(t *testing.T) {
 		t.Fatalf("UploadChunk: %v", err)
 	}
 
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageAttach); err != nil {
-		t.Fatalf("DenyRoomPermission attach: %v", err)
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessageAttach); err != nil {
+		t.Fatalf("DenyUserRoomPermission attach: %v", err)
 	}
 
 	_, err = env.assetUploads.CompleteUpload(ctx, connect.NewRequest(&apiv1.CompleteUploadRequest{
@@ -1744,8 +1744,8 @@ func TestRoomServiceRefreshTypingIndicatorRequiresMembershipOnly(t *testing.T) {
 		t.Fatalf("outsider RefreshTypingIndicator code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePost); err != nil {
-		t.Fatalf("DenyRoomPermission post: %v", err)
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessagePost); err != nil {
+		t.Fatalf("DenyUserRoomPermission post: %v", err)
 	}
 	resp, err := env.rooms.RefreshTypingIndicator(withCaller(env.ctx, env.viewer), req)
 	if err != nil {

@@ -153,7 +153,7 @@ require broad `message.read`, or `message.read-interactions` with a
 relationship to the asset's owning thread. This check applies again when a
 client uses an existing signed or ticketed asset URL.
 
-Fresh servers seed `message.attach` for `everyone` so new deployments keep uploads enabled by default. Existing servers are not automatically backfilled after upgrade; operators should grant `message.attach` manually or through their chosen RBAC maintenance flow if existing rooms should keep allowing uploads.
+Fresh servers seed `message.attach` for `everyone` at Direct messages scope and in the seeded `#general` room. In other rooms, operators allow it when they open the room. Existing servers are not automatically backfilled after upgrade; operators should grant `message.attach` manually or through their chosen RBAC maintenance flow if existing rooms should keep allowing uploads.
 
 ## Related
 

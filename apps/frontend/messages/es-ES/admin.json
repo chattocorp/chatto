@@ -11,7 +11,8 @@
       "event_log": "Registro de eventos",
       "system": "Sistema",
       "back_to_server": "Regresar al Servidor",
-      "invitations": "Enlaces de invitación"
+      "invitations": "Enlaces de invitación",
+      "roles": "Roles"
     },
     "neighbors": {
       "title": "Vecinos",
@@ -145,7 +146,8 @@
         "account": "Cuenta",
         "roles": "Funciones",
         "permissions": "Permisos"
-      }
+      },
+      "role_beyond_viewer_permissions": "No puedes cambiar esta asignación de rol. El rol permite permisos que no tienes."
     },
     "member_delete": {
       "title": "Eliminar miembro",
@@ -181,38 +183,63 @@
       "new_role_action": "+ Nuevo rol",
       "creating_role": "Creando...",
       "create_after_hint": "Después de crear el rol, puedes asignarle permisos en la página de edición.",
-      "back_to_permissions": "Volver a permisos",
       "load_instance_failed": "No se pudo cargar la instancia",
-      "need_manage_create": "Necesitas el permiso roles.manage para crear roles.",
+      "need_manage_create": "Necesitas el permiso role.manage para crear roles.",
       "edit_role_title": "Editar Rol",
       "loading_role": "Cargando rol...",
       "role_not_found": "Rol no encontrado",
-      "need_manage_edit": "Necesitas el permiso roles.manage para editar roles.",
+      "need_manage_edit": "Necesitas el permiso role.manage para editar roles.",
       "system_metadata_locked": "Los metadatos de la función del sistema no se pueden modificar.",
       "everyone_pingable_description": "Utilice @all para entrega en toda la sala; No todo el mundo es un identificador de ping de rol.",
       "save_changes": "Guardar cambios",
       "delete_role_description": "Eliminar este rol lo eliminará de todos los usuarios que lo tengan asignado.",
       "owner_permissions_hint": "Los propietarios siempre tienen todos los permisos. La matriz es de sólo lectura porque los permisos del propietario no se almacenan como concesiones o denegaciones editables.",
-      "role_permissions_hint": "Las concesiones y denegaciones de este rol en todos los ámbitos. Combinado con los otros roles del usuario en el momento de la resolución: use la matriz por usuario para ver con qué termina un usuario individual.",
+      "role_permissions_hint": "Cada celda muestra lo que obtiene un miembro que solo tiene este rol, junto con el rol everyone. Para ver lo que obtiene un miembro concreto, abre los permisos de ese miembro.",
       "users_with_role": "Usuarios con este Rol",
       "everyone_implicit": "Todos los miembros del servidor tienen implícitamente el rol de todos.",
       "no_users_with_role": "Ningún usuario tiene este rol",
       "server_tier_intro": "Esta página es para permisos de rol a nivel de servidor: valores predeterminados amplios que se aplican antes de las anulaciones específicas de la sala.",
       "server_tier_rooms_hint": "Usar Salas para anulaciones por grupo y por sala.",
-      "resolution_hint": "Para cada usuario o rol con nombre se aplica el valor más cercano de sala, grupo o servidor. Las denegaciones prevalecen entre ellos. Un permiso solo anula una denegación de everyone en el mismo ámbito o en uno más específico.",
+      "resolution_hint": "Una denegación del usuario decide. De lo contrario, un permiso del usuario, de un rol o de everyone da acceso. Sin un permiso, no hay acceso.",
       "update_role_failed": "No se pudo actualizar el rol",
       "update_ping_failed": "No se pudo actualizar la configuración de menciones del rol",
-      "delete_role_failed": "No se pudo eliminar el rol"
+      "delete_role_failed": "No se pudo eliminar el rol",
+      "role_order": {
+        "title": "Orden de roles",
+        "hint": "El orden de roles decide quién puede gestionar a quién. Un miembro solo puede gestionar cuentas y roles que estén por debajo de su rol más alto.",
+        "drag_role": "Mover {role}",
+        "always_highest": "Siempre el más alto",
+        "always_lowest": "Siempre el más bajo",
+        "saved": "Orden de roles guardado",
+        "save_failed": "No se pudo guardar el orden de roles",
+        "list_label": "Roles que puedes mover"
+      },
+      "back_to_roles": "Volver a roles",
+      "roles_page": {
+        "title": "Roles",
+        "subtitle": "Crea, edita y ordena los roles de este servidor",
+        "edit_role": "Editar {role}",
+        "view_role": "Ver {role}"
+      },
+      "role_tabs": {
+        "label": "Secciones del rol",
+        "general": "General",
+        "permissions": "Permisos",
+        "members": "Miembros"
+      },
+      "role_pings_on": "Menciones del rol activadas",
+      "role_pings_off": "Menciones del rol desactivadas",
+      "server_scope_warning": "Los ajustes de esta página se aplican a todas las salas y todos los grupos de salas del servidor. Para abrir solo algunas salas, define los permisos de esas salas o grupos de salas."
     },
     "rooms_admin": {
       "title": "Habitaciones",
       "subtitle": "Crear, editar, organizar y archivar salas",
-      "group_permissions_subtitle": "Concesión y denegación de permisos de roles por grupo",
+      "group_permissions_subtitle": "Concesión de permisos de roles por grupo",
       "room_permissions_subtitle": "Permisos de anulación por sala (en capas encima del grupo de la sala)",
       "permissions_page_title": "Permisos - {name}",
       "back_to_rooms": "Volver a salas",
-      "group_permissions_hint": "Anulaciones por grupo para las salas de canales de este grupo. Valores predeterminados heredados del ámbito del servidor. Las salas individuales pueden anular aún más los permisos desde su propia página de permisos.",
-      "room_permissions_hint": "Estos ajustes solo se aplican en esta sala. Sustituyen los ajustes del grupo de salas y del servidor para la misma función o el mismo usuario. Para que solo algunas funciones puedan hacer algo aquí, establece Denegar para everyone y Permitir para esas funciones.",
+      "group_permissions_hint": "Los ajustes de aquí se aplican a todas las salas de este grupo de salas. Una sala puede permitir más, pero no puede quitar lo que permite el grupo de salas.",
+      "room_permissions_hint": "Estos ajustes solo se aplican en esta sala. Se suman a los permisos de las funciones del grupo de salas y del servidor. Para que solo algunas funciones puedan hacer algo aquí, no lo permitas para everyone en un ámbito más amplio. Después, permítelo aquí para esas funciones.",
       "loading": "Cargando salas...",
       "empty_groups": "Aún no hay grupos de salas",
       "empty_groups_body": "Crea un conjunto para empezar a organizar salas.",

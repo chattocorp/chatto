@@ -101,6 +101,13 @@
       "yesterday": "I går",
       "this_week": "Denne uken",
       "this_month": "Denne måneden"
+    },
+    "drag_and_drop": {
+      "drag_started": "Du flytter {item}. Bruk piltastene for å flytte det. Trykk mellomrom eller Enter for å slippe det.",
+      "moved": "{item} er flyttet til posisjon {position} av {count}.",
+      "dropped": "Du sluttet å flytte {item}.",
+      "zone_active": "Gå til et element og trykk mellomrom eller Enter for å begynne å flytte det.",
+      "zone_disabled": "Bruk et drahåndtak for å flytte et element."
     }
   }
 }

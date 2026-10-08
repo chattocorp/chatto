@@ -46,7 +46,8 @@ Snapshot of the role catalog visible to the authenticated viewer.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `roles` | repeated [`Role`](#chatto-api-v1-Role) | Roles sorted by position. |
+| `roles` | repeated [`Role`](#chatto-api-v1-Role) | Roles in role order, highest first: owner first and everyone last. Role order is the administrative rank. It decides which accounts and roles a caller can manage; it does not change permission decisions. |
+| `viewer_highest_role` | `string` | Name of the role at which the caller ranks. This is owner for an owner of the server, the caller's highest assigned role otherwise, and everyone when the caller has no roles. A bot ranks at its owner's highest role. A non-owner caller can manage only accounts whose highest role comes after this role in roles. They can assign and revoke only roles that come after it; with role.manage, they can change every role except owner. Everyone ranks below every account. The caller also needs the permission for each action. |
 
 
 <a id="chatto-api-v1-RoleService-GetRole"></a>
@@ -752,7 +753,9 @@ Result of adding a user to a room.
 ### RemoveMember
 
 Removes an explicit channel-room member. Requires room.manage for this room,
-user.manage-accounts, ownership of the target bot, or bot.manage.
+user.manage-accounts, ownership of the target bot, or bot.manage. The
+caller must outrank any other member; the owner of a bot need not outrank
+their own bot.
 Removal is allowed after room.join is lost and from archived rooms.
 Preserves permission grants. Universal and DM membership cannot be edited.
 
@@ -1129,7 +1132,7 @@ separator. Notification policy controls room Badge attention separately.
 ### RemoveUser
 
 Removes a current channel room member with a required reason. Requires
-room.remove-member. Without suspension, ordinary join rules apply afterward.
+room.remove-member, and the caller must outrank the member. Without suspension, ordinary join rules apply afterward.
 Universal rooms require a suspension. Direct-message rooms are excluded.
 
 ```http
@@ -1162,7 +1165,8 @@ Result of a moderated room removal.
 
 ### LiftSuspension
 
-Lifts an active channel room suspension. Requires room.remove-member.
+Lifts an active channel room suspension. Requires room.remove-member, and
+the caller must outrank the member.
 Calling this when no active suspension exists succeeds.
 
 ```http
@@ -2285,7 +2289,9 @@ Response after cancelling an upload.
 ## BotService
 
 Creates and manages bot accounts owned by human users. Bot API keys cannot
-call this service.
+call this service. A caller who manages a bot with bot.manage instead of
+ownership must outrank the bot and its owner (see
+ListRolesResponse.viewer_highest_role).
 
 <a id="chatto-api-v1-BotService-ListBotWebhookFailures"></a>
 
@@ -2807,6 +2813,8 @@ Result of revoking an incoming webhook.
 ### ReassignBotOwner
 
 Reassigns a bot to another active human owner. Requires bot.manage. The
+caller must outrank the bot and its current owner, must outrank the new owner unless it is their own
+account, and must have every permission that the bot is allowed. The
 current API keys and configured permission allowlist remain unchanged,
 while effective permissions immediately use the new owner's ceiling.
 
@@ -4412,9 +4420,10 @@ Batch user directory response.
 ### UpdateUserProfile
 
 Updates the target user's login, display name, and/or bio. Users can
-update themselves. Updating another human requires user.manage-accounts.
-A human who updates a bot needs ownership of the bot,
-user.manage-accounts, or bot.manage. A bot cannot target another account.
+update themselves. Updating another human requires user.manage-accounts
+and a higher rank. A human who updates a bot needs ownership of the bot,
+or user.manage-accounts or bot.manage and a higher rank than the bot and
+its owner. A bot cannot target another account.
 A login change returns FAILED_PRECONDITION while the target's
 username-change cooldown is active. A successful login change starts a
 new cooldown. This also applies when a bot owner or bot manager changes a
@@ -4458,10 +4467,8 @@ Result of a user profile update.
 
 ### UploadAvatar
 
-Uploads and sets an avatar for the target user. Users can update
-themselves. Updating another human requires user.manage-accounts.
-A human who updates a bot needs ownership of the bot,
-user.manage-accounts, or bot.manage.
+Uploads and sets an avatar for the target user. Authorization matches
+UpdateUserProfile.
 A bot cannot target another account. Unknown or deleted targets return
 NOT_FOUND. Invalid IDs or missing images return INVALID_ARGUMENT.
 
@@ -4879,7 +4886,6 @@ Public role metadata used for rendering role mentions, labels, and catalogs.
 | `display_name` | `string` | Display name shown in user-facing role UIs. |
 | `description` | `string` | Optional role description. |
 | `is_system` | `bool` | Whether this is a built-in role. |
-| `position` | `int32` | Display/order position. |
 | `pingable` | `bool` | Whether messages may notify users assigned to this role. |
 
 

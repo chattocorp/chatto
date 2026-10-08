@@ -861,6 +861,7 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, accountManager.Id, core.PermUserManageAccounts); err != nil {
 		t.Fatalf("GrantUserPermission user.manage-accounts: %v", err)
 	}
+	grantAPITestRank(t, env, accountManager.Id)
 	if _, err := env.adminUsers.GetMember(withCaller(env.ctx, accountManager), connect.NewRequest(&adminv1.GetMemberRequest{
 		Target: &adminv1.GetMemberRequest_UserId{UserId: target.Id},
 	})); errorCode(err) != connect.CodePermissionDenied {
@@ -1226,6 +1227,7 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermRoomMemberRemove); err != nil {
 		t.Fatalf("GrantUserPermission room.remove-member: %v", err)
 	}
+	grantAPITestRank(t, env, roleAssigner.Id)
 	roleAssignerCtx := withCaller(env.ctx, roleAssigner)
 	if _, err := env.adminUsers.GetMember(roleAssignerCtx, connect.NewRequest(&adminv1.GetMemberRequest{
 		Target: &adminv1.GetMemberRequest_UserId{UserId: target.Id},

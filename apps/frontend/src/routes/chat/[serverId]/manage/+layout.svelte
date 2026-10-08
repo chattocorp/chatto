@@ -12,6 +12,13 @@
   const serverScope = useServerScope();
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
   const permissions = $derived(serverScope.store.permissions);
+  // Management pages read the role catalogue to show which roles and accounts
+  // the role hierarchy lets the viewer manage. The store reloads it after
+  // role changes; load it again after a reset clears it.
+  const roleCatalog = serverScope.store.roleCatalog;
+  $effect(() => {
+    if (roleCatalog.status === 'idle') void roleCatalog.load();
+  });
 
   // Server management routes are gated here. Resource-scoped room routes
   // perform their own checks after loading the target resource.
@@ -28,6 +35,7 @@
     const roomGroupsBase = manageBase + '/room-groups';
     const moderationBase = serverBase + '/moderation';
     const permissionsBase = serverBase + '/permissions';
+    const rolesBase = serverBase + '/roles';
     const securityBase = serverBase + '/security';
     const systemBase = serverBase + '/system';
     const eventLogBase = serverBase + '/event-log';
@@ -75,9 +83,9 @@
       return () => permissions.canModerateRooms;
     }
 
-    // Permissions pages call the server/group role permission matrix APIs,
-    // which require role.manage.
-    if (pathname.startsWith(permissionsBase)) {
+    // Permissions and Roles pages call the role and role permission matrix
+    // APIs, which require role.manage.
+    if (pathname.startsWith(permissionsBase) || pathname.startsWith(rolesBase)) {
       return () => permissions.canAdminManageRoles;
     }
 

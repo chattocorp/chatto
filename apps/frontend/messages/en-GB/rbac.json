@@ -17,6 +17,7 @@
       "name_description": "Lowercase letters only. Cannot be changed after creation.",
       "name_too_long": "Name must be 32 characters or less",
       "name_invalid": "Name must use lowercase letters, numbers, and dashes; start with a letter",
+      "name_reserved": "You cannot use this name for a role. Choose a different name.",
       "name_locked": "Role names cannot be changed after creation.",
       "display_name": "Display Name",
       "display_name_placeholder": "e.g., Moderator",
@@ -123,7 +124,10 @@
         "effective_included_by": "Effective Allow (included by {permission})",
         "effective_inherited": "Effective {state} (inherited)",
         "manage_role": "Manage {role}",
-        "no_scopes": "No scopes available for this {subject}."
+        "no_scopes": "No scopes available for this {subject}.",
+        "effective_state": "Effective {state}",
+        "privileged_only": "Allowed only in privileged mode",
+        "beyond_viewer_authority": "You can change this setting only if you have this permission here."
       },
       "help": {
         "open": "About {permission}",
@@ -185,8 +189,8 @@
       "server_manage": "Allows an account to change the server name, description, logo, and other server settings. It also allows changes to the public Neighbor directory. Give it only to people who can speak for the whole server.",
       "server_manage_neighbors": "Allows an account to add, change, and remove entries in the public Neighbor directory. It does not allow changes to other server settings.",
       "room_create": "Allows an account to create channel rooms. At Room group scope, it allows new rooms only in that group.",
-      "room_join": "Allows an account to join channel rooms by itself. Without it, an account can still become a member when someone adds it or when a Universal room adds its role. To hide a room completely, also deny room.list.",
-      "room_list": "Allows an account to see rooms in the room directory and in room lists. An account can see a room without permission to join it, for example to request access. Deny it on a restricted room to hide that room from non-members.",
+      "room_join": "Allows an account to join channel rooms by itself. Without it, an account can still become a member when someone adds it or when a Universal room adds its role. To hide a room completely, also limit who has room.list there.",
+      "room_list": "Allows an account to see rooms in the room directory and in room lists. An account can see a room without permission to join it, for example to request access. To hide a restricted room from non-members, do not allow it for everyone at a broader scope, and allow it in the room only for the roles that must see it.",
       "room_manage": "Allows an account to configure, rename, archive, and delete rooms and room groups at the scope where you set it, and to add or remove room members. At Server scope, it also allows creating and ordering room groups. Accounts with this permission are not limited by Slow Mode.",
       "room_remove_member": "Allows an account to remove a member from a channel room with a reason. It can also suspend the member, so that they cannot join the room again. The Moderation page needs this permission at Server scope.",
       "message_read": "Allows an account to read messages, threads, attachments, search results, and typing indicators. The account must also be a member of the room or DM. If you deny this permission, message.read-interactions can still give access to the account's own conversations.",
@@ -194,7 +198,7 @@
       "message_post": "Allows an account to post messages and reply in threads. At Direct messages scope, people can also start DMs. The account must be a member of the room, and the room's Threading Mode must allow the message. A deny for message.post alone does not stop thread replies when message.post-in-thread is allowed. To stop all posting, also deny message.post-in-thread and message.post-in-interactions.",
       "message_post_interactions": "Allows an account to reply only in the threads it started, the threads where another account mentioned it directly, and the DMs it received. It does not allow reading other threads or posting new messages. Use it with message.read-interactions to limit an account to its own conversations.",
       "message_post_in_thread": "Allows an account to reply in each thread that it can read, but not to post new messages in the room. An allow for message.post also includes this permission, so a deny here does not stop replies from those accounts.",
-      "message_attach": "Allows an account to attach files to new messages. Deny it to stop uploads in a room but still allow text messages.",
+      "message_attach": "Allows an account to attach files to new messages. Without it, an account can still post text messages.",
       "message_echo": "Allows an account to show a thread reply in the room timeline too, so that people who do not follow the thread also see it.",
       "message_manage": "Allows an account to edit or delete messages from other accounts. People can always edit and delete their own messages without this permission. Accounts with this permission are not limited by Slow Mode. In a DM, only participants can use it.",
       "message_react": "Allows an account to add and remove reactions on the messages that it can read.",
@@ -203,7 +207,7 @@
       "admin_view_users": "Allows an account to see the member list in Server Administration. Actions on members need their own permissions, such as role.assign or user.manage-accounts.",
       "admin_view_audit": "Allows an account to see the event log in Server Administration. The event log records administrative changes and each start and stop of privileged mode.",
       "user_delete_any": "Allows an account to delete the account of any member. Give it only to people who can decide to remove someone from the server.",
-      "user_delete_self": "Allows people to delete their own account. Deny it if only administrators must delete accounts.",
+      "user_delete_self": "Allows people to delete their own account. Do not allow it for everyone if only administrators must delete accounts.",
       "user_invite": "Allows an account to list, create, copy, and revoke invite links. It can see and use all active invite links, not only its own.",
       "user_manage_accounts": "Allows an account to create accounts, change account identity, reset passwords, attach verified email addresses, and clear login cooldowns for other members. It also allows adding an account to a room or removing it with the Joined row.",
       "user_manage_permissions": "Allows an account to change the permission settings of one member or bot directly, outside of roles. It is also necessary to see the effective permissions of a person.",
@@ -214,6 +218,23 @@
       "call_voice": "Allows an account to send microphone audio in calls. Without it, the account can still listen.",
       "call_camera": "Allows an account to send camera video in calls.",
       "call_screenshare": "Allows an account to share a screen, window, tab, or application in calls, with its audio. It does not allow microphone audio; that needs call.voice."
+    },
+    "role_order": {
+      "role_locked": "The role order does not let you change this role.",
+      "account_locked": "The role order does not let you change this account.",
+      "roles_locked": "The role order does not let you change the roles of this account."
+    },
+    "access": {
+      "room_open": "Everyone can find and join this room.",
+      "room_open_unlisted": "Everyone can join this room, but it does not show in the room list for everyone.",
+      "room_join_no_read": "Everyone can join this room, but cannot read it. To open it, also allow message.read, and message.post to let members post.",
+      "room_roles": "Only members of these roles can join this room: {roles}.",
+      "room_closed": "Nobody can find, join, or read this room yet, except owners in privileged mode. To open it, allow room.list, room.join, and message.read for everyone or for a role in the room permissions, and message.post to let them post.",
+      "group_open": "Everyone can find and join the rooms in this room group.",
+      "group_open_unlisted": "Everyone can join the rooms in this room group, but they do not show in the room list for everyone.",
+      "group_join_no_read": "Everyone can join the rooms in this room group, but cannot read them. To open them, also allow message.read, and message.post to let members post.",
+      "group_roles": "Only members of these roles can join the rooms in this room group: {roles}.",
+      "group_closed": "Nobody can find, join, or read the rooms in this room group yet, except owners in privileged mode. To open them, allow room.list, room.join, and message.read for everyone or for a role below, and message.post to let them post."
     }
   }
 }

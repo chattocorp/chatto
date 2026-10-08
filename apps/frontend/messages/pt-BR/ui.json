@@ -101,6 +101,13 @@
       "yesterday": "Ontem",
       "this_week": "Esta semana",
       "this_month": "Este mês"
+    },
+    "drag_and_drop": {
+      "drag_started": "Você começou a mover {item}. Use as setas para movê-lo. Pressione Espaço ou Enter para soltá-lo.",
+      "moved": "{item} movido para a posição {position} de {count}.",
+      "dropped": "Você parou de mover {item}.",
+      "zone_active": "Vá até um item e pressione Espaço ou Enter para começar a movê-lo.",
+      "zone_disabled": "Use uma alça de arrasto para mover um item."
     }
   }
 }

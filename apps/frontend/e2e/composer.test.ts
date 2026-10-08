@@ -400,10 +400,9 @@ test.describe('Composer links', () => {
 });
 
 // Use #general (postable) as the starting room and a freshly-created custom
-// room (also postable) as the navigation target. We can't use #announcements
-// — its special permissions deny message.post for regular members, which
-// leaves the composer's contenteditable disabled, so focus can never land
-// on it regardless of the navigation behaviour we're testing.
+// room (also postable) as the navigation target. Both rooms must let the user
+// post: a disabled composer can never receive focus, regardless of the
+// navigation behaviour we're testing.
 
 async function setupTwoRooms(
   page: import('@playwright/test').Page,

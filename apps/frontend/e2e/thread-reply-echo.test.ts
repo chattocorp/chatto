@@ -1,11 +1,9 @@
 import { expect, type Locator } from '@playwright/test';
-import { createAndLoginTestUser } from './fixtures/testUser';
+import { createAndLoginTestUser, denyUserPermission, openServer } from './fixtures/testUser';
 import { withBootstrapAdminRequest, withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import {
   connectPost,
-  expectPermissionDecisionUpdate,
-  type E2EPermissionDecisionUpdateResponse,
   getDefaultRoomGroupIdViaConnect,
   getIdsFromUrlViaConnect,
   getRoomIdByNameViaConnect,
@@ -378,33 +376,29 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await roomPage.closeThread();
     await roomPage.expectThreadRouteClosed();
 
-    await test.step('Deny message.post-in-thread on everyone for the seed room group', async () => {
-      await withBootstrapAdminRequest(serverURL, async (adminRequest) => {
-        const seedSetId = await getDefaultRoomGroupIdViaConnect(adminRequest);
-        const permission = 'message.post-in-thread';
-        const decision = 'PERMISSION_DECISION_DENY';
-        const scope = {
-          kind: 'PERMISSION_SCOPE_KIND_GROUP',
-          id: seedSetId
-        } as const;
-        const response = await connectPost<E2EPermissionDecisionUpdateResponse>(
-          adminRequest,
-          'chatto.admin.v1.AdminPermissionService/SetRolePermission',
-          {
-            roleName: 'everyone',
-            permission,
-            decision,
-            scope
-          }
-        );
-        expectPermissionDecisionUpdate(response, { permission, decision, scope });
-      });
-    });
-
     await withServerUser(
       browser!,
       serverURL,
-      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+      async ({ page: page2, user: userB, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await test.step('Deny thread posting to User B for the seed room group', async () => {
+          // Roles only grant (ADR-116), so the deny goes on User B. message.post
+          // includes thread replies, so deny it too.
+          await withBootstrapAdminRequest(serverURL, async (adminRequest) => {
+            const scope = {
+              kind: 'PERMISSION_SCOPE_KIND_GROUP',
+              id: await getDefaultRoomGroupIdViaConnect(adminRequest)
+            } as const;
+            for (const permission of [
+              'message.post',
+              'message.post-in-thread',
+              'message.post-in-interactions'
+            ]) {
+              await denyUserPermission(adminRequest, userB.id!, permission, scope);
+            }
+          });
+          await openServer(page2);
+        });
+
         await chatPage2.enterRoom('general');
         await waitForRoomReady(page2, 'general');
 
@@ -1071,40 +1065,26 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     const rootMessage = `Root for permission test ${Date.now()}`;
     await roomPage.sendMessage(rootMessage);
 
-    await test.step('Deny message.echo on everyone for the seed room group (as e2eadmin)', async () => {
-      // Issue #330: bootstrap server owner is e2eadmin; userA can't deny perms.
-      // Switch to a separate request context so the page session stays as userA
-      // (userA still owns the message and is the primary actor for this test).
-      //
-      // ADR-031: message.echo is a channel-room permission, so the deny must
-      // be scoped to the room's set (server-scope grants don't cascade into
-      // channel rooms anymore). "general" lives in the seed "Lobby" group.
-      await withBootstrapAdminRequest(serverURL, async (adminRequest) => {
-        const seedSetId = await getDefaultRoomGroupIdViaConnect(adminRequest);
-        const permission = 'message.echo';
-        const decision = 'PERMISSION_DECISION_DENY';
-        const scope = {
-          kind: 'PERMISSION_SCOPE_KIND_GROUP',
-          id: seedSetId
-        } as const;
-        const response = await connectPost<E2EPermissionDecisionUpdateResponse>(
-          adminRequest,
-          'chatto.admin.v1.AdminPermissionService/SetRolePermission',
-          {
-            roleName: 'everyone',
-            permission,
-            decision,
-            scope
-          }
-        );
-        expectPermissionDecisionUpdate(response, { permission, decision, scope });
-      });
-    });
-
     await withServerUser(
       browser!,
       serverURL,
-      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+      async ({ page: page2, user: userB, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await test.step('Deny message.echo to User B for the seed room group (as e2eadmin)', async () => {
+          // Issue #330: bootstrap server owner is e2eadmin; userA can't deny perms.
+          // Use a separate request context so the page session stays as userA
+          // (userA still owns the message and is the primary actor for this test).
+          // Roles only grant (ADR-116), so the deny goes on User B. "general"
+          // lives in the seed "Lobby" group.
+          await withBootstrapAdminRequest(serverURL, async (adminRequest) => {
+            const seedSetId = await getDefaultRoomGroupIdViaConnect(adminRequest);
+            await denyUserPermission(adminRequest, userB.id!, 'message.echo', {
+              kind: 'PERMISSION_SCOPE_KIND_GROUP',
+              id: seedSetId
+            });
+          });
+          await openServer(page2);
+        });
+
         await test.step('User B opens the server and enters room', async () => {
           await chatPage2.enterRoom('general');
           await waitForRoomReady(page2, 'general');

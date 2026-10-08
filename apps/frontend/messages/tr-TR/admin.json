@@ -11,7 +11,8 @@
       "event_log": "Olay Günlüğü",
       "system": "Sistem",
       "back_to_server": "Sunucuya Geri Dön",
-      "invitations": "Davet bağlantıları"
+      "invitations": "Davet bağlantıları",
+      "roles": "Roller"
     },
     "neighbors": {
       "title": "Komşular",
@@ -145,7 +146,8 @@
         "account": "Hesap",
         "roles": "Roller",
         "permissions": "İzinler"
-      }
+      },
+      "role_beyond_viewer_permissions": "Bu rol atamasını değiştiremezsiniz. Rol, sizde olmayan izinlere izin veriyor."
     },
     "member_delete": {
       "title": "Üyeyi sil",
@@ -181,38 +183,63 @@
       "new_role_action": "+ Yeni Rol",
       "creating_role": "Oluşturuluyor...",
       "create_after_hint": "Rolü oluşturduktan sonra düzenleme sayfasında ona izinler atayabilirsiniz.",
-      "back_to_permissions": "İzinlere geri dön",
       "load_instance_failed": "Örnek yüklenemedi",
-      "need_manage_create": "Rolleri oluşturmak için roller.manage iznine ihtiyacınız var.",
+      "need_manage_create": "Rolleri oluşturmak için role.manage iznine ihtiyacınız var.",
       "edit_role_title": "Rolü Düzenle",
       "loading_role": "Rol yükleniyor...",
       "role_not_found": "Rol bulunamadı",
-      "need_manage_edit": "Rolleri düzenlemek için roller.manage iznine ihtiyacınız var.",
+      "need_manage_edit": "Rolleri düzenlemek için role.manage iznine ihtiyacınız var.",
       "system_metadata_locked": "Sistem rolü meta verileri değiştirilemez.",
       "everyone_pingable_description": "Oda çapında dağıtım için @all'ı kullanın; herkes bir rol ping kolu değildir.",
       "save_changes": "Değişiklikleri Kaydet",
       "delete_role_description": "Bu rolün silinmesi, bu rolün atandığı tüm kullanıcılardan kaldırılmasına neden olacaktır.",
       "owner_permissions_hint": "Sahiplere her zaman tüm izinler verilir. Sahip izinleri düzenlenebilir izinler veya reddetmeler olarak saklanmadığından matris salt okunurdur.",
-      "role_permissions_hint": "Bu rolün her kapsamda verilmesi ve reddedilmesi. Çözümleme sırasında kullanıcının diğer rolleriyle birlikte, bireysel bir kullanıcının neyle sonuçlandığını görmek için kullanıcı başına matrisi kullanın.",
+      "role_permissions_hint": "Her hücre, yalnızca bu role sahip bir üyenin everyone rolüyle birlikte neler elde ettiğini gösterir. Belirli bir üyenin neler elde ettiğini görmek için o üyenin izinlerini açın.",
       "users_with_role": "Bu role sahip kullanıcılar",
       "everyone_implicit": "Tüm sunucu üyeleri dolaylı olarak herkes rolüne sahiptir.",
       "no_users_with_role": "Hiçbir kullanıcı bu role sahip değil",
       "server_tier_intro": "Bu sayfa, sunucu katmanı rol izinleri içindir: odaya özel geçersiz kılmalardan önce geçerli olan geniş varsayılanlar.",
       "server_tier_rooms_hint": "Grup başına ve oda başına geçersiz kılmalar için Odalar'ı kullanın.",
-      "resolution_hint": "Her kullanıcı veya adlandırılmış rol için en yakın oda, grup veya sunucu değeri geçerlidir. Aralarındaki galibiyeti reddediyor. İzin ver, yalnızca aynı veya daha spesifik bir kapsamda herkesin reddettiğini geçersiz kılar.",
+      "resolution_hint": "Kullanıcıya uygulanan bir ret belirleyicidir. Aksi halde kullanıcının, bir rolün veya everyone rolünün izni erişim verir. İzin yoksa erişim de yoktur.",
       "update_role_failed": "Rol güncellenemedi",
       "update_ping_failed": "Rol bahsetme ayarı güncellenemedi",
-      "delete_role_failed": "Rol silinemedi"
+      "delete_role_failed": "Rol silinemedi",
+      "role_order": {
+        "title": "Rol sırası",
+        "hint": "Rol sırası kimin kimi yönetebileceğini belirler. Bir üye yalnızca en yüksek rolünün altındaki hesapları ve rolleri yönetebilir.",
+        "drag_role": "{role} rolünü taşı",
+        "always_highest": "Her zaman en yüksek",
+        "always_lowest": "Her zaman en düşük",
+        "saved": "Rol sırası kaydedildi",
+        "save_failed": "Rol sırası kaydedilemedi",
+        "list_label": "Taşıyabileceğiniz roller"
+      },
+      "back_to_roles": "Rollere geri dön",
+      "roles_page": {
+        "title": "Roller",
+        "subtitle": "Bu sunucunun rollerini oluşturun, düzenleyin ve sıralayın",
+        "edit_role": "{role} rolünü düzenle",
+        "view_role": "{role} rolünü görüntüle"
+      },
+      "role_tabs": {
+        "label": "Rol bölümleri",
+        "general": "Genel",
+        "permissions": "İzinler",
+        "members": "Üyeler"
+      },
+      "role_pings_on": "Rol bahsetmeleri açıldı",
+      "role_pings_off": "Rol bahsetmeleri kapatıldı",
+      "server_scope_warning": "Bu sayfadaki ayarlar sunucudaki her oda ve oda grubu için geçerlidir. Yalnızca bazı odaları açmak için bu odaların veya oda gruplarının izinlerini ayarlayın."
     },
     "rooms_admin": {
       "title": "Odalar",
       "subtitle": "Odaları oluşturun, düzenleyin, organize edin ve arşivleyin",
-      "group_permissions_subtitle": "Grup başına rol izni verme ve reddetme",
+      "group_permissions_subtitle": "Grup başına rol izni verme",
       "room_permissions_subtitle": "Oda başına geçersiz kılma izinleri (oda grubunun üstüne yerleştirilmiş)",
       "permissions_page_title": "İzinler - {name}",
       "back_to_rooms": "Odalara geri dön",
-      "group_permissions_hint": "Bu gruptaki kanal odaları için grup başına geçersiz kılmalar. Sunucu kapsamından devralınan varsayılanlar. Bireysel odalar ayrıca kendi izinler sayfalarından izinleri geçersiz kılabilir.",
-      "room_permissions_hint": "Bu ayarlar yalnızca bu odada geçerlidir. Aynı rol veya kullanıcı için oda grubunun ve sunucunun ayarlarının yerini alır. Burada yalnızca bazı rollerin bir işlem yapabilmesi için everyone için Reddet, bu roller için İzin ver ayarlayın.",
+      "group_permissions_hint": "Buradaki ayarlar bu oda grubundaki her oda için geçerlidir. Bir oda daha fazlasına izin verebilir, ancak oda grubunun izin verdiği şeyi kaldıramaz.",
+      "room_permissions_hint": "Bu ayarlar yalnızca bu odada geçerlidir. Oda grubunun ve sunucunun rol izinlerine eklenir. Burada yalnızca bazı rollerin bir işlem yapabilmesi için daha geniş bir kapsamda everyone rolüne izin vermeyin. Ardından burada bu rollere izin verin.",
       "loading": "Odalar yükleniyor...",
       "empty_groups": "Henüz oda grubu yok",
       "empty_groups_body": "Odaları düzenlemeye başlamak için bir set oluşturun.",

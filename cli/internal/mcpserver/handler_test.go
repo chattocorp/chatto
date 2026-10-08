@@ -72,8 +72,8 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom hidden: %v", err)
 	}
-	if err := chattoCore.DenyRoomPermission(ctx, core.SystemActorID, hidden.GetId(), core.RoleEveryone, core.PermRoomList); err != nil {
-		t.Fatalf("DenyRoomPermission: %v", err)
+	if err := chattoCore.DenyUserRoomPermission(ctx, core.SystemActorID, hidden.GetId(), viewer.GetId(), core.PermRoomList); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
 	generation, err := chattoCore.CurrentAuthGeneration(ctx, viewer.GetId())
 	if err != nil {
@@ -682,8 +682,8 @@ func TestMCPHandlerAppliesOwnerPrivilegedModeGate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if err := chattoCore.DenyRoomPermission(ctx, core.SystemActorID, restricted.GetId(), core.RoleEveryone, core.PermRoomList); err != nil {
-		t.Fatalf("DenyRoomPermission: %v", err)
+	if err := chattoCore.DenyUserRoomPermission(ctx, core.SystemActorID, restricted.GetId(), owner.GetId(), core.PermRoomList); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
 	generation, err := chattoCore.CurrentAuthGeneration(ctx, owner.GetId())
 	if err != nil {
@@ -733,6 +733,8 @@ func TestMCPHandlerAppliesOwnerPrivilegedModeGate(t *testing.T) {
 	}
 }
 
+// startTestCore runs chattoCore until the test ends and opens the server to
+// everyone (openServerToEveryone).
 func startTestCore(t *testing.T, chattoCore *core.ChattoCore) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -750,6 +752,20 @@ func startTestCore(t *testing.T, chattoCore *core.ChattoCore) {
 	defer bootCancel()
 	if err := chattoCore.WaitForBoot(bootCtx); err != nil {
 		t.Fatalf("WaitForBoot: %v", err)
+	}
+	openServerToEveryone(t, chattoCore)
+}
+
+// openServerToEveryone grants everyone the open-room permissions at server
+// scope, as an operator who opens the whole server would. New servers start
+// closed (ADR-116), but most tests exercise other behavior in open rooms.
+// The core package tests the real seeded defaults.
+func openServerToEveryone(t testing.TB, c *core.ChattoCore) {
+	t.Helper()
+	for _, perm := range core.DefaultOpenRoomEveryonePermissions() {
+		if err := c.GrantServerPermission(context.Background(), core.SystemActorID, core.RoleEveryone, perm); err != nil {
+			t.Fatalf("open server to everyone: grant %s: %v", perm, err)
+		}
 	}
 }
 

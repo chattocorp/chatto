@@ -126,12 +126,16 @@ func (RbacPermissionSubjectKind) EnumDescriptor() ([]byte, []int) {
 }
 
 type RbacRoleCreatedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoleName      string                 `protobuf:"bytes,1,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
-	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Rank          int32                  `protobuf:"varint,4,opt,name=rank,proto3" json:"rank,omitempty"`
-	Pingable      bool                   `protobuf:"varint,5,opt,name=pingable,proto3" json:"pingable,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	RoleName    string                 `protobuf:"bytes,1,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	DisplayName string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Description string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	// Position for readers that do not support place_lowest.
+	Rank     int32 `protobuf:"varint,4,opt,name=rank,proto3" json:"rank,omitempty"`
+	Pingable bool  `protobuf:"varint,5,opt,name=pingable,proto3" json:"pingable,omitempty"`
+	// When true, readers place the new role lowest, directly above everyone,
+	// and renumber the role order (ADR-115). Older readers use rank.
+	PlaceLowest   bool `protobuf:"varint,6,opt,name=place_lowest,json=placeLowest,proto3" json:"place_lowest,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -197,6 +201,13 @@ func (x *RbacRoleCreatedEvent) GetRank() int32 {
 func (x *RbacRoleCreatedEvent) GetPingable() bool {
 	if x != nil {
 		return x.Pingable
+	}
+	return false
+}
+
+func (x *RbacRoleCreatedEvent) GetPlaceLowest() bool {
+	if x != nil {
+		return x.PlaceLowest
 	}
 	return false
 }
@@ -401,9 +412,14 @@ func (x *RbacRoleDeletedEvent) GetRoleName() string {
 	return ""
 }
 
+// Replaces the order of custom roles. Servers before 0.5 wrote this event;
+// current servers write RbacRoleMovedEvent. Readers assign positions upward
+// from 1 to the listed custom roles, lowest first, and skip the fixed system
+// positions (moderator 100, admin 900, owner 1000).
 type RbacRolesReorderedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoleNames     []string               `protobuf:"bytes,1,rep,name=role_names,json=roleNames,proto3" json:"role_names,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Custom role names, lowest first.
+	RoleNames     []string `protobuf:"bytes,1,rep,name=role_names,json=roleNames,proto3" json:"role_names,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -445,6 +461,65 @@ func (x *RbacRolesReorderedEvent) GetRoleNames() []string {
 	return nil
 }
 
+// Moves one role in the role order. Role order is the administrative rank:
+// an account ranks at its highest role and can manage only accounts and roles
+// that rank below it (ADR-115). Readers place role_name directly above
+// before_role_name, or lowest when before_role_name is empty, and renumber
+// every role except owner and everyone upward from 1. Owner then ranks
+// directly above the highest role, and everyone stays at 0.
+type RbacRoleMovedEvent struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	RoleName string                 `protobuf:"bytes,1,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	// Role directly below the moved role. Empty places the role lowest.
+	BeforeRoleName string `protobuf:"bytes,2,opt,name=before_role_name,json=beforeRoleName,proto3" json:"before_role_name,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *RbacRoleMovedEvent) Reset() {
+	*x = RbacRoleMovedEvent{}
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RbacRoleMovedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RbacRoleMovedEvent) ProtoMessage() {}
+
+func (x *RbacRoleMovedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RbacRoleMovedEvent.ProtoReflect.Descriptor instead.
+func (*RbacRoleMovedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *RbacRoleMovedEvent) GetRoleName() string {
+	if x != nil {
+		return x.RoleName
+	}
+	return ""
+}
+
+func (x *RbacRoleMovedEvent) GetBeforeRoleName() string {
+	if x != nil {
+		return x.BeforeRoleName
+	}
+	return ""
+}
+
 type RbacRoleAssignedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -455,7 +530,7 @@ type RbacRoleAssignedEvent struct {
 
 func (x *RbacRoleAssignedEvent) Reset() {
 	*x = RbacRoleAssignedEvent{}
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[6]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -467,7 +542,7 @@ func (x *RbacRoleAssignedEvent) String() string {
 func (*RbacRoleAssignedEvent) ProtoMessage() {}
 
 func (x *RbacRoleAssignedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[6]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -480,7 +555,7 @@ func (x *RbacRoleAssignedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RbacRoleAssignedEvent.ProtoReflect.Descriptor instead.
 func (*RbacRoleAssignedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{6}
+	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RbacRoleAssignedEvent) GetUserId() string {
@@ -507,7 +582,7 @@ type RbacRoleRevokedEvent struct {
 
 func (x *RbacRoleRevokedEvent) Reset() {
 	*x = RbacRoleRevokedEvent{}
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[7]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -519,7 +594,7 @@ func (x *RbacRoleRevokedEvent) String() string {
 func (*RbacRoleRevokedEvent) ProtoMessage() {}
 
 func (x *RbacRoleRevokedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[7]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -532,7 +607,7 @@ func (x *RbacRoleRevokedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RbacRoleRevokedEvent.ProtoReflect.Descriptor instead.
 func (*RbacRoleRevokedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{7}
+	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *RbacRoleRevokedEvent) GetUserId() string {
@@ -561,7 +636,7 @@ type RbacPermissionScope struct {
 
 func (x *RbacPermissionScope) Reset() {
 	*x = RbacPermissionScope{}
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[8]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -573,7 +648,7 @@ func (x *RbacPermissionScope) String() string {
 func (*RbacPermissionScope) ProtoMessage() {}
 
 func (x *RbacPermissionScope) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[8]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -586,7 +661,7 @@ func (x *RbacPermissionScope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RbacPermissionScope.ProtoReflect.Descriptor instead.
 func (*RbacPermissionScope) Descriptor() ([]byte, []int) {
-	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{8}
+	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *RbacPermissionScope) GetKind() RbacPermissionScopeKind {
@@ -614,7 +689,7 @@ type RbacPermissionSubject struct {
 
 func (x *RbacPermissionSubject) Reset() {
 	*x = RbacPermissionSubject{}
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[9]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -626,7 +701,7 @@ func (x *RbacPermissionSubject) String() string {
 func (*RbacPermissionSubject) ProtoMessage() {}
 
 func (x *RbacPermissionSubject) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[9]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -639,7 +714,7 @@ func (x *RbacPermissionSubject) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RbacPermissionSubject.ProtoReflect.Descriptor instead.
 func (*RbacPermissionSubject) Descriptor() ([]byte, []int) {
-	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{9}
+	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *RbacPermissionSubject) GetKind() RbacPermissionSubjectKind {
@@ -667,7 +742,7 @@ type RbacPermissionGrantedEvent struct {
 
 func (x *RbacPermissionGrantedEvent) Reset() {
 	*x = RbacPermissionGrantedEvent{}
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[10]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -679,7 +754,7 @@ func (x *RbacPermissionGrantedEvent) String() string {
 func (*RbacPermissionGrantedEvent) ProtoMessage() {}
 
 func (x *RbacPermissionGrantedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[10]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -692,7 +767,7 @@ func (x *RbacPermissionGrantedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RbacPermissionGrantedEvent.ProtoReflect.Descriptor instead.
 func (*RbacPermissionGrantedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{10}
+	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RbacPermissionGrantedEvent) GetPermission() string {
@@ -727,7 +802,7 @@ type RbacPermissionDeniedEvent struct {
 
 func (x *RbacPermissionDeniedEvent) Reset() {
 	*x = RbacPermissionDeniedEvent{}
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[11]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -739,7 +814,7 @@ func (x *RbacPermissionDeniedEvent) String() string {
 func (*RbacPermissionDeniedEvent) ProtoMessage() {}
 
 func (x *RbacPermissionDeniedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[11]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -752,7 +827,7 @@ func (x *RbacPermissionDeniedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RbacPermissionDeniedEvent.ProtoReflect.Descriptor instead.
 func (*RbacPermissionDeniedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{11}
+	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RbacPermissionDeniedEvent) GetPermission() string {
@@ -788,7 +863,7 @@ type RbacPermissionClearedEvent struct {
 
 func (x *RbacPermissionClearedEvent) Reset() {
 	*x = RbacPermissionClearedEvent{}
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[12]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -800,7 +875,7 @@ func (x *RbacPermissionClearedEvent) String() string {
 func (*RbacPermissionClearedEvent) ProtoMessage() {}
 
 func (x *RbacPermissionClearedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[12]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -813,7 +888,7 @@ func (x *RbacPermissionClearedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RbacPermissionClearedEvent.ProtoReflect.Descriptor instead.
 func (*RbacPermissionClearedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{12}
+	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *RbacPermissionClearedEvent) GetPermission() string {
@@ -841,13 +916,14 @@ var File_chatto_core_evt_v1_rbac_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_rbac_events_proto_rawDesc = "" +
 	"\n" +
-	"$chatto/core/evt/v1/rbac_events.proto\x12\x12chatto.core.evt.v1\"\xa8\x01\n" +
+	"$chatto/core/evt/v1/rbac_events.proto\x12\x12chatto.core.evt.v1\"\xcb\x01\n" +
 	"\x14RbacRoleCreatedEvent\x12\x1b\n" +
 	"\trole_name\x18\x01 \x01(\tR\broleName\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x12\n" +
 	"\x04rank\x18\x04 \x01(\x05R\x04rank\x12\x1a\n" +
-	"\bpingable\x18\x05 \x01(\bR\bpingable\"a\n" +
+	"\bpingable\x18\x05 \x01(\bR\bpingable\x12!\n" +
+	"\fplace_lowest\x18\x06 \x01(\bR\vplaceLowest\"a\n" +
 	"\x1fRbacRoleDisplayNameChangedEvent\x12\x1b\n" +
 	"\trole_name\x18\x01 \x01(\tR\broleName\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\"`\n" +
@@ -861,7 +937,10 @@ const file_chatto_core_evt_v1_rbac_events_proto_rawDesc = "" +
 	"\trole_name\x18\x01 \x01(\tR\broleName\"8\n" +
 	"\x17RbacRolesReorderedEvent\x12\x1d\n" +
 	"\n" +
-	"role_names\x18\x01 \x03(\tR\troleNames\"M\n" +
+	"role_names\x18\x01 \x03(\tR\troleNames\"[\n" +
+	"\x12RbacRoleMovedEvent\x12\x1b\n" +
+	"\trole_name\x18\x01 \x01(\tR\broleName\x12(\n" +
+	"\x10before_role_name\x18\x02 \x01(\tR\x0ebeforeRoleName\"M\n" +
 	"\x15RbacRoleAssignedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
 	"\trole_name\x18\x02 \x01(\tR\broleName\"L\n" +
@@ -917,7 +996,7 @@ func file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_core_evt_v1_rbac_events_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_chatto_core_evt_v1_rbac_events_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_chatto_core_evt_v1_rbac_events_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_chatto_core_evt_v1_rbac_events_proto_goTypes = []any{
 	(RbacPermissionScopeKind)(0),            // 0: chatto.core.evt.v1.RbacPermissionScopeKind
 	(RbacPermissionSubjectKind)(0),          // 1: chatto.core.evt.v1.RbacPermissionSubjectKind
@@ -927,23 +1006,24 @@ var file_chatto_core_evt_v1_rbac_events_proto_goTypes = []any{
 	(*RbacRolePingableChangedEvent)(nil),    // 5: chatto.core.evt.v1.RbacRolePingableChangedEvent
 	(*RbacRoleDeletedEvent)(nil),            // 6: chatto.core.evt.v1.RbacRoleDeletedEvent
 	(*RbacRolesReorderedEvent)(nil),         // 7: chatto.core.evt.v1.RbacRolesReorderedEvent
-	(*RbacRoleAssignedEvent)(nil),           // 8: chatto.core.evt.v1.RbacRoleAssignedEvent
-	(*RbacRoleRevokedEvent)(nil),            // 9: chatto.core.evt.v1.RbacRoleRevokedEvent
-	(*RbacPermissionScope)(nil),             // 10: chatto.core.evt.v1.RbacPermissionScope
-	(*RbacPermissionSubject)(nil),           // 11: chatto.core.evt.v1.RbacPermissionSubject
-	(*RbacPermissionGrantedEvent)(nil),      // 12: chatto.core.evt.v1.RbacPermissionGrantedEvent
-	(*RbacPermissionDeniedEvent)(nil),       // 13: chatto.core.evt.v1.RbacPermissionDeniedEvent
-	(*RbacPermissionClearedEvent)(nil),      // 14: chatto.core.evt.v1.RbacPermissionClearedEvent
+	(*RbacRoleMovedEvent)(nil),              // 8: chatto.core.evt.v1.RbacRoleMovedEvent
+	(*RbacRoleAssignedEvent)(nil),           // 9: chatto.core.evt.v1.RbacRoleAssignedEvent
+	(*RbacRoleRevokedEvent)(nil),            // 10: chatto.core.evt.v1.RbacRoleRevokedEvent
+	(*RbacPermissionScope)(nil),             // 11: chatto.core.evt.v1.RbacPermissionScope
+	(*RbacPermissionSubject)(nil),           // 12: chatto.core.evt.v1.RbacPermissionSubject
+	(*RbacPermissionGrantedEvent)(nil),      // 13: chatto.core.evt.v1.RbacPermissionGrantedEvent
+	(*RbacPermissionDeniedEvent)(nil),       // 14: chatto.core.evt.v1.RbacPermissionDeniedEvent
+	(*RbacPermissionClearedEvent)(nil),      // 15: chatto.core.evt.v1.RbacPermissionClearedEvent
 }
 var file_chatto_core_evt_v1_rbac_events_proto_depIdxs = []int32{
 	0,  // 0: chatto.core.evt.v1.RbacPermissionScope.kind:type_name -> chatto.core.evt.v1.RbacPermissionScopeKind
 	1,  // 1: chatto.core.evt.v1.RbacPermissionSubject.kind:type_name -> chatto.core.evt.v1.RbacPermissionSubjectKind
-	10, // 2: chatto.core.evt.v1.RbacPermissionGrantedEvent.scope:type_name -> chatto.core.evt.v1.RbacPermissionScope
-	11, // 3: chatto.core.evt.v1.RbacPermissionGrantedEvent.subject:type_name -> chatto.core.evt.v1.RbacPermissionSubject
-	10, // 4: chatto.core.evt.v1.RbacPermissionDeniedEvent.scope:type_name -> chatto.core.evt.v1.RbacPermissionScope
-	11, // 5: chatto.core.evt.v1.RbacPermissionDeniedEvent.subject:type_name -> chatto.core.evt.v1.RbacPermissionSubject
-	10, // 6: chatto.core.evt.v1.RbacPermissionClearedEvent.scope:type_name -> chatto.core.evt.v1.RbacPermissionScope
-	11, // 7: chatto.core.evt.v1.RbacPermissionClearedEvent.subject:type_name -> chatto.core.evt.v1.RbacPermissionSubject
+	11, // 2: chatto.core.evt.v1.RbacPermissionGrantedEvent.scope:type_name -> chatto.core.evt.v1.RbacPermissionScope
+	12, // 3: chatto.core.evt.v1.RbacPermissionGrantedEvent.subject:type_name -> chatto.core.evt.v1.RbacPermissionSubject
+	11, // 4: chatto.core.evt.v1.RbacPermissionDeniedEvent.scope:type_name -> chatto.core.evt.v1.RbacPermissionScope
+	12, // 5: chatto.core.evt.v1.RbacPermissionDeniedEvent.subject:type_name -> chatto.core.evt.v1.RbacPermissionSubject
+	11, // 6: chatto.core.evt.v1.RbacPermissionClearedEvent.scope:type_name -> chatto.core.evt.v1.RbacPermissionScope
+	12, // 7: chatto.core.evt.v1.RbacPermissionClearedEvent.subject:type_name -> chatto.core.evt.v1.RbacPermissionSubject
 	8,  // [8:8] is the sub-list for method output_type
 	8,  // [8:8] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name
@@ -962,7 +1042,7 @@ func file_chatto_core_evt_v1_rbac_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_evt_v1_rbac_events_proto_rawDesc), len(file_chatto_core_evt_v1_rbac_events_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   13,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

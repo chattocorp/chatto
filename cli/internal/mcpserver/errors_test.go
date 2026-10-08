@@ -63,11 +63,11 @@ func TestMCPToolErrorContracts(t *testing.T) {
 	archived := createRoom("private-policy-detail", true)
 	hidden := createRoom("private-hidden-name", false)
 	for _, permission := range []core.Permission{core.PermRoomJoin, core.PermMessagePost, core.PermMessageRead, core.PermMessageReadInteractions} {
-		if err := c.DenyRoomPermission(ctx, core.SystemActorID, denied, core.RoleEveryone, permission); err != nil {
+		if err := c.DenyUserRoomPermission(ctx, core.SystemActorID, denied, user.GetId(), permission); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := c.DenyRoomPermission(ctx, core.SystemActorID, hidden, core.RoleEveryone, core.PermRoomList); err != nil {
+	if err := c.DenyUserRoomPermission(ctx, core.SystemActorID, hidden, user.GetId(), core.PermRoomList); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := c.ArchiveRoom(ctx, core.SystemActorID, core.KindChannel, archived); err != nil {

@@ -39,6 +39,7 @@ func TestPublicBotOwnerProfile(t *testing.T) {
 	require.Nil(t, humanSnapshot.Bot)
 
 	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermBotManage))
+	grantAPITestRank(t, env, env.viewer.Id)
 	_, err = env.core.ReassignBotOwner(env.ctx, env.viewer.Id, bot.User.Id, reader.Id)
 	require.NoError(t, err)
 	response, err = service.BatchGetUsers(withCaller(env.ctx, reader), request)

@@ -160,6 +160,7 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.GetId(), core.PermBotManage); err != nil {
 		t.Fatalf("GrantUserPermission bot.manage: %v", err)
 	}
+	grantAPITestRank(t, env, env.viewer.GetId())
 	reassigned, err := service.ReassignBotOwner(ctx, connect.NewRequest(&apiv1.ReassignBotOwnerRequest{
 		BotUserId: bot.GetUser().GetId(), OwnerUserId: recipient.GetId(),
 	}))

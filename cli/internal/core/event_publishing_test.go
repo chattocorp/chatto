@@ -536,11 +536,11 @@ func TestMyEventsFilter_DropsMessageAndAssetFactsWithoutMessageRead(t *testing.T
 		t.Fatalf("GetRoomEventByEventID: %v", err)
 	}
 
-	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
-		t.Fatalf("DenyRoomPermission message.read: %v", err)
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.Id, viewer.Id, PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
 	}
-	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReadInteractions); err != nil {
-		t.Fatalf("DenyRoomPermission message.read-interactions: %v", err)
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.Id, viewer.Id, PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read-interactions: %v", err)
 	}
 
 	service := NewMyEventsModel(chatto)
@@ -701,8 +701,8 @@ func TestStreamMyEvents_DeliversDMEventsWhenMessagePostDenied(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser target: %v", err)
 	}
-	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost); err != nil {
-		t.Fatalf("DenyServerPermission message.post: %v", err)
+	if err := core.DenyUserPermission(ctx, SystemActorID, target.Id, PermMessagePost); err != nil {
+		t.Fatalf("DenyUserPermission message.post: %v", err)
 	}
 	canPostMessage, err := core.HasServerPermission(ctx, target.Id, PermMessagePost)
 	if err != nil {

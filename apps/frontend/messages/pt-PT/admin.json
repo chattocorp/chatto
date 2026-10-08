@@ -11,7 +11,8 @@
       "event_log": "Registo de eventos",
       "system": "Sistema",
       "back_to_server": "Regressar ao servidor",
-      "invitations": "Ligações de convite"
+      "invitations": "Ligações de convite",
+      "roles": "Funções"
     },
     "neighbors": {
       "title": "Vizinhos",
@@ -145,7 +146,8 @@
         "account": "Conta",
         "roles": "Funções",
         "permissions": "Permissões"
-      }
+      },
+      "role_beyond_viewer_permissions": "Não pode alterar esta atribuição de função. A função permite permissões que não tem."
     },
     "member_delete": {
       "title": "Eliminar membro",
@@ -181,38 +183,63 @@
       "new_role_action": "+ Nova função",
       "creating_role": "Criar...",
       "create_after_hint": "Após criar a função, pode atribuir-lhe permissões na página de edição.",
-      "back_to_permissions": "Voltar às permissões",
       "load_instance_failed": "Falha ao carregar instância",
-      "need_manage_create": "Necessita da permissão Roles.Manage para criar funções.",
+      "need_manage_create": "Necessita da permissão role.manage para criar funções.",
       "edit_role_title": "Editar função",
       "loading_role": "Função de carregamento...",
       "role_not_found": "Função não encontrada",
-      "need_manage_edit": "Necessita da permissão roles.manage para editar funções.",
+      "need_manage_edit": "Necessita da permissão role.manage para editar funções.",
       "system_metadata_locked": "Os metadados da função do sistema não podem ser modificados.",
       "everyone_pingable_description": "Utilize @all para entrega em todo o quarto; nem toda a gente é um identificador de ping de função.",
       "save_changes": "Guardar alterações",
       "delete_role_description": "Apagar esta função irá removê-la de todos os utilizadores aos quais foi atribuída.",
       "owner_permissions_hint": "Os proprietários recebem sempre todas as permissões. A matriz é de leitura apenas porque as permissões do proprietário não são armazenadas como concessões ou negações editáveis.",
-      "role_permissions_hint": "Concessões e negações desta função em todos os âmbitos. Combinado com outras funções do utilizador no momento da resolução - utilize a matriz por utilizador para ver o que um utilizador individual obtém.",
+      "role_permissions_hint": "Cada célula mostra o que recebe um membro que tem apenas esta função, juntamente com a função everyone. Para ver o que recebe um membro específico, abra as permissões desse membro.",
       "users_with_role": "Utilizadores com esta função",
       "everyone_implicit": "Todos os membros do servidor têm implicitamente a função de todos.",
       "no_users_with_role": "Nenhum utilizador tem esta função",
       "server_tier_intro": "Esta página é para permissões de funções na camada de servidor: padrões amplos que se aplicam antes de substituições específicas de salas.",
       "server_tier_rooms_hint": "Utilize Salas para substituições por grupo e por sala.",
-      "resolution_hint": "Para cada utilizador ou função nomeada, aplica-se o valor mais próximo de sala, grupo ou servidor. As negações prevalecem entre eles. Uma permissão só substitui uma negação de everyone no mesmo âmbito ou num mais específico.",
+      "resolution_hint": "Uma negação no utilizador decide. Caso contrário, uma permissão do utilizador, de uma função ou de everyone dá acesso. Sem uma permissão, não há acesso.",
       "update_role_failed": "Falha ao atualizar função",
       "update_ping_failed": "Falha ao atualizar a configuração de menção da função",
-      "delete_role_failed": "Falha ao eliminar função"
+      "delete_role_failed": "Falha ao eliminar função",
+      "role_order": {
+        "title": "Ordem das funções",
+        "hint": "A ordem das funções decide quem pode gerir quem. Um membro só pode gerir contas e funções abaixo da sua função mais alta.",
+        "drag_role": "Mover {role}",
+        "always_highest": "Sempre a mais alta",
+        "always_lowest": "Sempre a mais baixa",
+        "saved": "Ordem das funções guardada",
+        "save_failed": "Não foi possível guardar a ordem das funções",
+        "list_label": "Funções que pode mover"
+      },
+      "back_to_roles": "Voltar às funções",
+      "roles_page": {
+        "title": "Funções",
+        "subtitle": "Crie, edite e ordene as funções deste servidor",
+        "edit_role": "Editar {role}",
+        "view_role": "Ver {role}"
+      },
+      "role_tabs": {
+        "label": "Secções da função",
+        "general": "Geral",
+        "permissions": "Permissões",
+        "members": "Membros"
+      },
+      "role_pings_on": "Menções da função ativadas",
+      "role_pings_off": "Menções da função desativadas",
+      "server_scope_warning": "As definições desta página aplicam-se a todas as salas e a todos os grupos de salas do servidor. Para abrir apenas algumas salas, defina as permissões dessas salas ou grupos de salas."
     },
     "rooms_admin": {
       "title": "Quartos",
       "subtitle": "Criar, editar, organizar e arquivar salas",
-      "group_permissions_subtitle": "Concessões e negações de permissões de funções por grupo",
+      "group_permissions_subtitle": "Concessões de permissões de funções por grupo",
       "room_permissions_subtitle": "Permissões de substituição por sala (colocadas no topo do grupo da sala)",
       "permissions_page_title": "Permissões - {name}",
       "back_to_rooms": "Voltar às salas",
-      "group_permissions_hint": "Substituições por grupo para as salas de canal deste grupo. Padrões herdados do âmbito do servidor. As salas individuais podem substituir ainda mais as permissões das suas próprias páginas de permissões.",
-      "room_permissions_hint": "Estas definições aplicam-se apenas nesta sala. Substituem as definições do grupo de salas e do servidor para a mesma função ou o mesmo utilizador. Para que só algumas funções possam fazer algo aqui, defina Negar para everyone e Permitir para essas funções.",
+      "group_permissions_hint": "As definições aqui aplicam-se a todas as salas deste grupo de salas. Uma sala pode permitir mais, mas não pode retirar o que o grupo de salas permite.",
+      "room_permissions_hint": "Estas definições aplicam-se apenas nesta sala. Somam-se às permissões das funções do grupo de salas e do servidor. Para que só algumas funções possam fazer algo aqui, não o permita para everyone num âmbito mais amplo. Depois, permita-o aqui para essas funções.",
       "loading": "A carregar salas...",
       "empty_groups": "Ainda não existem grupos de salas",
       "empty_groups_body": "Crie um conjunto para começar a organizar as salas.",

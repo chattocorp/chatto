@@ -371,7 +371,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     createRoomDialogVisible = false;
     createRoomGroupId = null;
     toast.success(m('admin.rooms_admin.room_created'));
-    void goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
+    // New rooms start closed (ADR-116), so open the settings, where the access
+    // summary tells who can join, rather than the room itself.
+    void goto(
+      resolve('/chat/[serverId]/manage/rooms/[roomId]', { serverId: serverSegment, roomId })
+    );
   }
 
   function openCreateLink(group: RoomsListGroup): void {

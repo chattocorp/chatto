@@ -101,6 +101,13 @@
       "yesterday": "vakar",
       "this_week": "Šonedēļ",
       "this_month": "Šomēnes"
+    },
+    "drag_and_drop": {
+      "drag_started": "Jūs sākāt pārvietot {item}. Izmantojiet bulttaustiņus, lai to pārvietotu. Nospiediet atstarpes taustiņu vai Enter, lai to nomestu.",
+      "moved": "{item} pārvietots uz pozīciju {position} no {count}.",
+      "dropped": "Jūs beidzāt pārvietot {item}.",
+      "zone_active": "Pārejiet uz vienumu un nospiediet atstarpes taustiņu vai Enter, lai sāktu to pārvietot.",
+      "zone_disabled": "Izmantojiet vilkšanas rokturi, lai pārvietotu vienumu."
     }
   }
 }

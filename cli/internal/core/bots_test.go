@@ -556,6 +556,7 @@ func TestReassignBotOwnerRequiresGlobalManagementAndPreservesBotState(t *testing
 	if err := c.GrantUserPermission(ctx, SystemActorID, manager.GetId(), PermBotManage); err != nil {
 		t.Fatalf("grant manager bot.manage: %v", err)
 	}
+	grantTestRank(t, c, ctx, manager.GetId())
 	reassigned, err := c.ReassignBotOwner(ctx, manager.GetId(), bot.User.GetId(), newOwner.GetId())
 	if err != nil {
 		t.Fatalf("ReassignBotOwner: %v", err)
@@ -624,6 +625,7 @@ func TestConcurrentBotOwnerReassignmentsConvergeWithoutStaleIndexes(t *testing.T
 	if err := c.GrantUserPermission(ctx, SystemActorID, manager.GetId(), PermBotManage); err != nil {
 		t.Fatalf("grant manager bot.manage: %v", err)
 	}
+	grantTestRank(t, c, ctx, manager.GetId())
 	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "concurrent_bot", "Concurrent Bot")
 	if err != nil {
@@ -697,6 +699,7 @@ func TestReassignBotOwnerIsRaceSafeWithOwnerDeletion(t *testing.T) {
 			if err := c.GrantUserPermission(ctx, SystemActorID, manager.GetId(), PermBotManage); err != nil {
 				t.Fatalf("grant manager bot.manage: %v", err)
 			}
+			grantTestRank(t, c, ctx, manager.GetId())
 			allowBotCreation(t, ctx, c, owner.GetId())
 			bot, err := c.CreateBot(ctx, owner.GetId(), "race_bot", "Race Bot")
 			if err != nil {
@@ -835,19 +838,19 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 		t.Fatalf("configured bot message.read-interactions = %s, %v; want allow", decision, err)
 	}
 
-	if err := c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost); err != nil {
+	if err := c.DenyUserPermission(ctx, SystemActorID, owner.GetId(), PermMessagePost); err != nil {
 		t.Fatalf("deny owner permission: %v", err)
 	}
 	if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessagePost); err != nil || decision != DecisionDeny {
 		t.Fatalf("owner-capped bot message.post = %s, %v; want deny", decision, err)
 	}
-	if err := c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageRead); err != nil {
+	if err := c.DenyUserPermission(ctx, SystemActorID, owner.GetId(), PermMessageRead); err != nil {
 		t.Fatalf("deny owner message.read: %v", err)
 	}
 	if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessageRead); err != nil || decision != DecisionDeny {
 		t.Fatalf("owner-capped bot message.read = %s, %v; want deny", decision, err)
 	}
-	if err := c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageReadInteractions); err != nil {
+	if err := c.DenyUserPermission(ctx, SystemActorID, owner.GetId(), PermMessageReadInteractions); err != nil {
 		t.Fatalf("deny owner message.read-interactions: %v", err)
 	}
 	if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessageReadInteractions); err != nil || decision != DecisionDeny {
@@ -904,8 +907,8 @@ func TestBotMessageReadInclusionIntersectsBotAndOwnerAuthority(t *testing.T) {
 				t.Fatalf("grant bot %s: %v", test.botPermission, err)
 			}
 			if test.ownerNarrowOnly {
-				if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageRead); err != nil {
-					t.Fatalf("deny owner broad permission: %v", err)
+				if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessageRead); err != nil {
+					t.Fatalf("clear owner broad permission: %v", err)
 				}
 				if err := core.GrantUserPermission(ctx, SystemActorID, owner.GetId(), PermMessageReadInteractions); err != nil {
 					t.Fatalf("grant owner narrow permission: %v", err)
@@ -1280,6 +1283,7 @@ func TestCanonicalUserPermissionManagementUsesBotAuthorization(t *testing.T) {
 	if err := c.GrantUserPermission(ctx, SystemActorID, manager.GetId(), PermBotManage); err != nil {
 		t.Fatalf("GrantUserPermission bot.manage: %v", err)
 	}
+	grantTestRank(t, c, ctx, manager.GetId())
 	if _, err := c.GetUserPermissionMatrix(ctx, manager.GetId(), bot.User.GetId()); err != nil {
 		t.Fatalf("bot manager GetUserPermissionMatrix: %v", err)
 	}
@@ -1323,8 +1327,9 @@ func TestCanonicalUserPermissionMatrixForBotFiltersHiddenRoomsAndKeepsDirectoryG
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if err := c.DenyRoomPermission(ctx, SystemActorID, room.GetId(), RoleEveryone, PermRoomList); err != nil {
-		t.Fatalf("DenyRoomPermission: %v", err)
+	// The bot matrix shows only rooms that the owner (here also the caller) can see.
+	if err := c.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), owner.GetId(), PermRoomList); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
 
 	matrix, err := c.GetUserPermissionMatrix(ctx, owner.GetId(), bot.User.GetId())
@@ -1586,6 +1591,7 @@ func TestBotOwnerUpdatesBotProfile(t *testing.T) {
 	if err := c.GrantUserPermission(ctx, SystemActorID, botManager.GetId(), PermBotManage); err != nil {
 		t.Fatalf("grant bot.manage: %v", err)
 	}
+	grantTestRank(t, c, ctx, botManager.GetId())
 	if _, err := c.UpdateManagedUserProfile(ctx, botManager.GetId(), botID, &secondLogin, nil, nil); !errors.Is(err, ErrLoginChangeCooldown) {
 		t.Fatalf("bot manager rename err = %v, want ErrLoginChangeCooldown", err)
 	}
@@ -1603,6 +1609,7 @@ func TestBotOwnerUpdatesBotProfile(t *testing.T) {
 	if err := c.GrantUserPermission(ctx, SystemActorID, accountManager.GetId(), PermUserManageAccounts); err != nil {
 		t.Fatalf("grant user.manage-accounts: %v", err)
 	}
+	grantTestRank(t, c, ctx, accountManager.GetId())
 	if _, err := c.UpdateManagedUserProfile(ctx, accountManager.GetId(), botID, &secondLogin, nil, nil); err != nil {
 		t.Fatalf("account manager rename during cooldown: %v", err)
 	}

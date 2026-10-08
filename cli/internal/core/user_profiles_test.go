@@ -790,6 +790,7 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CreateUser target: %v", err)
 		}
+		grantTestRank(t, c, ctx, accountManager.Id)
 
 		if err := c.AdminSetUserPasswordAuthorized(ctx, accountManager.Id, target.Id, "managedpassword456"); err != nil {
 			t.Fatalf("AdminSetUserPasswordAuthorized: %v", err)

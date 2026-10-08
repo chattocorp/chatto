@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getToasts, toast } from '$lib/ui/toast';
 import { ComposerSubmissionState, type PreparedPost, uploadPercentage } from './submission.svelte';
-import type { MentionRolesStatus } from '@chatto/client/server/mentionRoles';
+import type { RoleCatalogStatus } from '@chatto/client/server/roleCatalog';
 
 function preparedPost(overrides: Partial<PreparedPost> = {}): PreparedPost {
   return {
@@ -24,7 +24,7 @@ describe('ComposerSubmissionState', () => {
   const loadMentionRoles = vi.fn();
   const onPostSuccess = vi.fn();
   const onEditSuccess = vi.fn();
-  let mentionRoleStatus: MentionRolesStatus;
+  let mentionRoleStatus: RoleCatalogStatus;
   let mentionRoleNames: string[];
   let state: ComposerSubmissionState;
 

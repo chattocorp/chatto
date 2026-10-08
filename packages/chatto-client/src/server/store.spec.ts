@@ -4086,7 +4086,30 @@ describe('ServerStateStore realtime resource hints', () => {
     );
   });
 
-  it('reloads mention roles when roles change', async () => {
+  it('reloads the role catalogue when the viewer gains or loses a role', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.currentUser.accept({ id: 'U1', login: 'alice' } as NonNullable<
+      typeof store.currentUser.user
+    >);
+    for (const [kind, userId, reloads] of [
+      ['roleAssigned', 'U2', false],
+      ['roleAssigned', 'U1', true],
+      ['roleRevoked', 'U1', true]
+    ] as const) {
+      apiMocks.listRoles.mockClear();
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({
+          event: new RealtimeEvent({
+            event: { case: kind, value: { userId, roleName: 'helpers' } }
+          })
+        })
+      );
+      await flushPromises();
+      expect(apiMocks.listRoles.mock.calls.length > 0).toBe(reloads);
+    }
+  });
+
+  it('reloads the role catalogue when roles change', async () => {
     const store = makeStore(new FakeServerConnection([]));
     for (const kind of ['roleCreated', 'roleUpdated', 'rolesReordered', 'roleDeleted'] as const) {
       apiMocks.listRoles.mockClear();

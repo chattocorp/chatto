@@ -48,6 +48,20 @@ func TestRequireCanManageUserIdentityAuthorizationMatrix(t *testing.T) {
 	if err := c.GrantUserPermission(ctx, SystemActorID, botManager.GetId(), PermBotManage); err != nil {
 		t.Fatalf("grant bot.manage: %v", err)
 	}
+	grantTestRank(t, c, ctx, accountManager.GetId())
+	grantTestRank(t, c, ctx, botManager.GetId())
+	adminHuman, err := c.CreateUser(ctx, SystemActorID, "avataradmin", "Avatar Admin", "")
+	if err != nil {
+		t.Fatalf("CreateUser admin: %v", err)
+	}
+	if err := c.AssignServerRole(ctx, SystemActorID, adminHuman.GetId(), RoleAdmin); err != nil {
+		t.Fatalf("AssignServerRole admin: %v", err)
+	}
+	allowBotCreation(t, ctx, c, adminHuman.GetId())
+	adminBot, err := c.CreateBot(ctx, adminHuman.GetId(), "avatar_admin_bot", "Avatar Admin Bot")
+	if err != nil {
+		t.Fatalf("CreateBot admin bot: %v", err)
+	}
 
 	tests := []struct {
 		name     string
@@ -61,6 +75,10 @@ func TestRequireCanManageUserIdentityAuthorizationMatrix(t *testing.T) {
 		{name: "account manager human", actorID: accountManager.GetId(), targetID: otherHuman.GetId()},
 		{name: "account manager bot", actorID: accountManager.GetId(), targetID: bot.User.GetId()},
 		{name: "bot manager bot", actorID: botManager.GetId(), targetID: bot.User.GetId()},
+		{name: "account manager higher-ranked human", actorID: accountManager.GetId(), targetID: adminHuman.GetId(), wantErr: ErrPermissionDenied},
+		{name: "account manager bot of higher-ranked owner", actorID: accountManager.GetId(), targetID: adminBot.User.GetId(), wantErr: ErrPermissionDenied},
+		{name: "bot manager bot of higher-ranked owner", actorID: botManager.GetId(), targetID: adminBot.User.GetId(), wantErr: ErrPermissionDenied},
+		{name: "higher-ranked admin human", actorID: adminHuman.GetId(), targetID: accountManager.GetId()},
 		{name: "unrelated human", actorID: unrelated.GetId(), targetID: otherHuman.GetId(), wantErr: ErrPermissionDenied},
 		{name: "unrelated bot", actorID: unrelated.GetId(), targetID: bot.User.GetId(), wantErr: ErrPermissionDenied},
 		{name: "bot targets human", actorID: bot.User.GetId(), targetID: otherHuman.GetId(), wantErr: ErrPermissionDenied},
@@ -80,8 +98,9 @@ func TestRequireCanManageUserIdentityAuthorizationMatrix(t *testing.T) {
 		t.Fatalf("account manager GetBot: %v", err)
 	}
 	visibleBots, err := c.ListBots(ctx, accountManager.GetId())
-	if err != nil || len(visibleBots) != 1 || visibleBots[0].User.GetId() != bot.User.GetId() {
-		t.Fatalf("account manager ListBots = %+v, %v; want target bot", visibleBots, err)
+	// Reading bot metadata does not depend on rank.
+	if err != nil || len(visibleBots) != 2 {
+		t.Fatalf("account manager ListBots = %+v, %v; want both bots", visibleBots, err)
 	}
 	if _, err := c.CreateBotAPIKey(ctx, accountManager.GetId(), bot.User.GetId(), "Not allowed"); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("account manager CreateBotAPIKey err = %v, want permission denied", err)

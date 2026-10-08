@@ -157,6 +157,8 @@ func (c *ChattoCore) ListBotWebhookFailures(ctx context.Context, actorID, botID,
 		position.Next = msg.Sequence + 1
 	}
 	// Permission changes during a multi-read page must not release stale access.
+	// Logs can reveal integration details, so reading them requires the same
+	// rank as managing the bot.
 	if err := c.authorizeAtStableInputs(ctx, func() error { _, err := c.requireBotManager(ctx, actorID, botID); return err }); err != nil {
 		return nil, err
 	}

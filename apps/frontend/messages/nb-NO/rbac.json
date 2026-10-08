@@ -17,6 +17,7 @@
       "name_description": "Bare små bokstaver. Kan ikke endres etter opprettelse.",
       "name_too_long": "Navnet må være på 32 tegn eller mindre",
       "name_invalid": "Navnet må bruke små bokstaver, tall og bindestreker; begynne med en bokstav",
+      "name_reserved": "Du kan ikke bruke dette navnet på en rolle. Velg et annet navn.",
       "name_locked": "Rollenavn kan ikke endres etter opprettelse.",
       "display_name": "Visningsnavn",
       "display_name_placeholder": "f.eks. moderator",
@@ -123,7 +124,10 @@
         "effective_included_by": "Gjeldende: Tillat (inkludert i {permission})",
         "effective_inherited": "Gjeldende: {state} (arvet)",
         "manage_role": "Administrer {role}",
-        "no_scopes": "Ingen områder tilgjengelig for {subject}."
+        "no_scopes": "Ingen områder tilgjengelig for {subject}.",
+        "effective_state": "Faktisk: {state}",
+        "privileged_only": "Bare tillatt i privilegert modus",
+        "beyond_viewer_authority": "Du kan bare endre denne innstillingen hvis du har denne tillatelsen her."
       },
       "help": {
         "open": "Om {permission}",
@@ -185,8 +189,8 @@
       "server_manage": "Lar en konto endre servernavn, beskrivelse, logo og andre serverinnstillinger. Den tillater også endringer i den offentlige nabokatalogen. Gi den bare til personer som kan tale for hele serveren.",
       "server_manage_neighbors": "Lar en konto legge til, endre og fjerne oppføringer i den offentlige nabokatalogen. Den tillater ikke endringer i andre serverinnstillinger.",
       "room_create": "Lar en konto opprette kanalrom. På romgruppenivå tillater den nye rom bare i den gruppen.",
-      "room_join": "Lar en konto bli med i kanalrom på egen hånd. Uten den kan en konto likevel bli medlem når noen legger den til, eller når et universelt rom legger til rollen dens. Nekt også room.list for å skjule et rom helt.",
-      "room_list": "Lar en konto se rom i romkatalogen og i romlister. En konto kan se et rom uten å få bli med i det, for eksempel for å be om tilgang. Nekt den i et begrenset rom for å skjule rommet for ikke-medlemmer.",
+      "room_join": "Lar en konto bli med i kanalrom på egen hånd. Uten den kan en konto likevel bli medlem når noen legger den til, eller når et universelt rom legger til rollen dens. Begrens også hvem som har room.list i rommet for å skjule det helt.",
+      "room_list": "Lar en konto se rom i romkatalogen og i romlister. En konto kan se et rom uten å få bli med i det, for eksempel for å be om tilgang. For å skjule et begrenset rom for ikke-medlemmer må du ikke tillate den for everyone på et bredere nivå, og i rommet tillater du den bare for rollene som må se det.",
       "room_manage": "Lar en konto konfigurere, gi nytt navn til, arkivere og slette rom og romgrupper på nivået der du angir den, og legge til eller fjerne rommedlemmer. På servernivå tillater den også å opprette og ordne romgrupper. Kontoer med denne tillatelsen begrenses ikke av sakte modus.",
       "room_remove_member": "Lar en konto fjerne et medlem fra et kanalrom med en begrunnelse. Den kan også utestenge medlemmet slik at det ikke kan bli med i rommet igjen. Modereringssiden krever denne tillatelsen på servernivå.",
       "message_read": "Lar en konto lese meldinger, tråder, vedlegg, søkeresultater og skriveindikatorer. Kontoen må også være medlem av rommet eller direktemeldingen. Hvis du nekter denne tillatelsen, kan message.read-interactions likevel gi tilgang til kontoens egne samtaler.",
@@ -194,7 +198,7 @@
       "message_post": "Lar en konto sende meldinger og svare i tråder. På direktemeldingsnivå kan personer også starte direktemeldinger. Kontoen må være medlem av rommet, og rommets trådmodus må tillate meldingen. Å nekte bare message.post stopper ikke trådsvar når message.post-in-thread er tillatt. Nekt også message.post-in-thread og message.post-in-interactions for å stoppe alle innlegg.",
       "message_post_interactions": "Lar en konto bare svare i tråder den har startet, tråder der en annen konto har nevnt den direkte, og direktemeldinger den har mottatt. Den tillater ikke å lese andre tråder eller sende nye meldinger. Bruk den sammen med message.read-interactions for å begrense en konto til sine egne samtaler.",
       "message_post_in_thread": "Lar en konto svare i hver tråd den kan lese, men ikke sende nye meldinger i rommet. En tillatelse for message.post omfatter også denne, så et avslag her stopper ikke svar fra disse kontoene.",
-      "message_attach": "Lar en konto legge ved filer i nye meldinger. Nekt den for å stoppe opplastinger i et rom, men fortsatt tillate tekstmeldinger.",
+      "message_attach": "Lar en konto legge ved filer i nye meldinger. Uten den kan en konto fortsatt legge ut tekstmeldinger.",
       "message_echo": "Lar en konto vise et trådsvar også i rommets tidslinje, slik at personer som ikke følger tråden, også ser det.",
       "message_manage": "Lar en konto redigere eller slette meldinger fra andre kontoer. Alle kan alltid redigere og slette sine egne meldinger uten denne tillatelsen. Kontoer med denne tillatelsen begrenses ikke av sakte modus. I en direktemelding kan bare deltakerne bruke den.",
       "message_react": "Lar en konto legge til og fjerne reaksjoner på meldinger den kan lese.",
@@ -203,7 +207,7 @@
       "admin_view_users": "Lar en konto se medlemslisten i serveradministrasjonen. Handlinger på medlemmer krever egne tillatelser, for eksempel role.assign eller user.manage-accounts.",
       "admin_view_audit": "Lar en konto se hendelsesloggen i serveradministrasjonen. Hendelsesloggen registrerer administrative endringer og hver start og stopp av privilegert modus.",
       "user_delete_any": "Lar en konto slette kontoen til et hvilket som helst medlem. Gi den bare til personer som kan bestemme å fjerne noen fra serveren.",
-      "user_delete_self": "Lar personer slette sin egen konto. Nekt den hvis bare administratorer skal slette kontoer.",
+      "user_delete_self": "Lar personer slette sin egen konto. Ikke tillat den for everyone hvis bare administratorer skal slette kontoer.",
       "user_invite": "Lar en konto liste, opprette, kopiere og trekke tilbake invitasjonslenker. Den kan se og bruke alle aktive invitasjonslenker, ikke bare sine egne.",
       "user_manage_accounts": "Lar en konto opprette kontoer, endre kontoidentitet, tilbakestille passord, legge til bekreftede e-postadresser og fjerne innloggingssperrer for andre medlemmer. Den tillater også å legge en konto til i et rom eller fjerne den med raden Ble med.",
       "user_manage_permissions": "Lar en konto endre tillatelsesinnstillingene til ett enkelt medlem eller én bot direkte, utenom roller. Den trengs også for å se de gjeldende tillatelsene til en person.",
@@ -214,6 +218,23 @@
       "call_voice": "Lar en konto sende mikrofonlyd i samtaler. Uten den kan kontoen fortsatt lytte.",
       "call_camera": "Lar en konto sende kameravideo i samtaler.",
       "call_screenshare": "Lar en konto dele en skjerm, et vindu, en fane eller et program i samtaler, med lyd. Den tillater ikke mikrofonlyd; det krever call.voice."
+    },
+    "role_order": {
+      "role_locked": "Rollerekkefølgen lar deg ikke endre denne rollen.",
+      "account_locked": "Rollerekkefølgen lar deg ikke endre denne kontoen.",
+      "roles_locked": "Rollerekkefølgen lar deg ikke endre rollene til denne kontoen."
+    },
+    "access": {
+      "room_open": "Alle kan finne dette rommet og bli med i det.",
+      "room_open_unlisted": "Alle kan bli med i dette rommet, men det vises ikke for alle i romlisten.",
+      "room_join_no_read": "Alle kan bli med i dette rommet, men kan ikke lese det. For å åpne det må du også tillate message.read, og message.post for at medlemmer kan skrive.",
+      "room_roles": "Bare medlemmer av disse rollene kan bli med i dette rommet: {roles}.",
+      "room_closed": "Ingen kan finne dette rommet, bli med i det eller lese det ennå, unntatt eiere i privilegert modus. For å åpne det må du tillate room.list, room.join og message.read for everyone eller for en rolle i romtillatelsene, og message.post for at de kan skrive.",
+      "group_open": "Alle kan finne rommene i denne romgruppen og bli med i dem.",
+      "group_open_unlisted": "Alle kan bli med i rommene i denne romgruppen, men de vises ikke for alle i romlisten.",
+      "group_join_no_read": "Alle kan bli med i rommene i denne romgruppen, men kan ikke lese dem. For å åpne dem må du også tillate message.read, og message.post for at medlemmer kan skrive.",
+      "group_roles": "Bare medlemmer av disse rollene kan bli med i rommene i denne romgruppen: {roles}.",
+      "group_closed": "Ingen kan finne rommene i denne romgruppen, bli med i dem eller lese dem ennå, unntatt eiere i privilegert modus. For å åpne dem må du tillate room.list, room.join og message.read for everyone eller for en rolle nedenfor, og message.post for at de kan skrive."
     }
   }
 }

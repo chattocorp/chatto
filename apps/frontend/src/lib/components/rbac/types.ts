@@ -6,10 +6,9 @@ export type Role = {
   name: string;
   displayName: string;
   description: string;
+  /** Permissions that the role grants at server scope. */
   permissions: string[];
-  permissionDenials: string[];
   isSystem: boolean;
-  position: number;
   pingable: boolean;
 };
 

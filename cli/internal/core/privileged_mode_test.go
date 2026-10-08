@@ -356,11 +356,13 @@ func TestBotElevatedGrantRequiresActiveActorAuthority(t *testing.T) {
 
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
+	// The bot owner is entitled to room.create, which needs privileged mode.
+	// A server owner would rank above the bot manager.
 	owner, err := c.CreateUser(ctx, SystemActorID, "grant-owner", "Owner", "password123")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := c.AssignOwnerRole(ctx, owner.Id); err != nil {
+	if err := c.GrantUserPermission(ctx, SystemActorID, owner.Id, PermRoomCreate); err != nil {
 		t.Fatal(err)
 	}
 	manager, err := c.CreateUser(ctx, SystemActorID, "grant-manager", "Manager", "password123")
@@ -370,6 +372,7 @@ func TestBotElevatedGrantRequiresActiveActorAuthority(t *testing.T) {
 	if err := c.GrantUserPermission(ctx, SystemActorID, manager.Id, PermBotManage); err != nil {
 		t.Fatal(err)
 	}
+	grantTestRank(t, c, ctx, manager.Id)
 	allowBotCreation(t, ctx, c, owner.Id)
 	bot, err := c.CreateBot(ctx, owner.Id, "grant_bot", "Bot")
 	if err != nil {
@@ -430,8 +433,8 @@ func TestPermissionResolver_PrivilegedModeGatesOwnerOverride(t *testing.T) {
 		t.Fatalf("CreateRoom restricted: %v", err)
 	}
 	for _, perm := range []Permission{PermRoomList, PermRoomJoin, PermMessageRead} {
-		if err := c.DenyRoomPermission(ctx, SystemActorID, restricted.Id, RoleEveryone, perm); err != nil {
-			t.Fatalf("DenyRoomPermission %s: %v", perm, err)
+		if err := c.DenyUserRoomPermission(ctx, SystemActorID, restricted.Id, owner.Id, perm); err != nil {
+			t.Fatalf("DenyUserRoomPermission %s: %v", perm, err)
 		}
 	}
 	dm, _, err := c.FindOrCreateDM(ctx, owner.Id, []string{other.Id})
@@ -513,8 +516,8 @@ func TestPermissionResolver_PrivilegedModeGatesOwnerOverride(t *testing.T) {
 				if explanation.State != DecisionAllow || explanation.DecidedByRole != RoleOwner {
 					t.Errorf("explanation = %s by %q; want allow by owner", explanation.State, explanation.DecidedByRole)
 				}
-			} else if explanation.State != DecisionDeny || explanation.DecidedByRole != RoleEveryone {
-				t.Errorf("explanation = %s by %q; want deny by everyone", explanation.State, explanation.DecidedByRole)
+			} else if explanation.State != DecisionDeny || explanation.DecidedByRole != owner.Id {
+				t.Errorf("explanation = %s by %q; want deny by the owner's own setting", explanation.State, explanation.DecidedByRole)
 			}
 
 			// Entitlement keeps the owner override for discovery and ceilings.

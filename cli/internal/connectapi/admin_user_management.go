@@ -301,7 +301,6 @@ func publicAPIRoleFromAdminMemberSummary(role core.AdminMemberRoleSummary) *apiv
 		DisplayName: role.DisplayName,
 		Description: role.Description,
 		IsSystem:    role.IsSystem,
-		Position:    role.Position,
 		Pingable:    role.Pingable,
 	}
 }
@@ -315,11 +314,9 @@ func adminAPIRolesFromAdminMemberRoles(roles []core.AdminMemberRole) []*adminv1.
 				DisplayName: role.DisplayName,
 				Description: role.Description,
 				IsSystem:    role.IsSystem,
-				Position:    role.Position,
 				Pingable:    role.Pingable,
 			},
-			Permissions:       corePermissionsToStrings(role.Permissions),
-			PermissionDenials: corePermissionsToStrings(role.PermissionDenials),
+			Permissions: corePermissionsToStrings(role.Permissions),
 		})
 	}
 	return out

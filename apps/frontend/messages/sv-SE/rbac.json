@@ -17,6 +17,7 @@
       "name_description": "Endast små bokstäver. Kan inte ändras efter skapande.",
       "name_too_long": "Namnet måste bestå av 32 tecken eller mindre",
       "name_invalid": "Namnet måste använda gemener, siffror och bindestreck; börja med en bokstav",
+      "name_reserved": "Du kan inte använda det här namnet för en roll. Välj ett annat namn.",
       "name_locked": "Rollnamn kan inte ändras efter skapandet.",
       "display_name": "Visningsnamn",
       "display_name_placeholder": "t.ex. Moderator",
@@ -123,7 +124,10 @@
         "effective_included_by": "Gäller: Tillåt (ingår i {permission})",
         "effective_inherited": "Gäller: {state} (ärvd)",
         "manage_role": "Hantera {role}",
-        "no_scopes": "Inga omfång tillgängliga för {subject}."
+        "no_scopes": "Inga omfång tillgängliga för {subject}.",
+        "effective_state": "Faktiskt: {state}",
+        "privileged_only": "Tillåtet endast i privilegierat läge",
+        "beyond_viewer_authority": "Du kan bara ändra den här inställningen om du har den här behörigheten här."
       },
       "help": {
         "open": "Om {permission}",
@@ -185,8 +189,8 @@
       "server_manage": "Låter ett konto ändra serverns namn, beskrivning, logotyp och andra serverinställningar. Den tillåter också ändringar i den offentliga grannkatalogen. Ge den bara till personer som kan tala för hela servern.",
       "server_manage_neighbors": "Låter ett konto lägga till, ändra och ta bort poster i den offentliga grannkatalogen. Den tillåter inte ändringar av andra serverinställningar.",
       "room_create": "Låter ett konto skapa kanalrum. På rumsgruppsnivå tillåter den nya rum bara i den gruppen.",
-      "room_join": "Låter ett konto gå med i kanalrum på egen hand. Utan den kan ett konto ändå bli medlem när någon lägger till det eller när ett universellt rum lägger till dess roll. Neka också room.list för att dölja ett rum helt.",
-      "room_list": "Låter ett konto se rum i rumskatalogen och i rumslistor. Ett konto kan se ett rum utan att få gå med i det, till exempel för att begära åtkomst. Neka den i ett begränsat rum för att dölja rummet för icke-medlemmar.",
+      "room_join": "Låter ett konto gå med i kanalrum på egen hand. Utan den kan ett konto ändå bli medlem när någon lägger till det eller när ett universellt rum lägger till dess roll. Begränsa också vem som har room.list i rummet för att dölja det helt.",
+      "room_list": "Låter ett konto se rum i rumskatalogen och i rumslistor. Ett konto kan se ett rum utan att få gå med i det, till exempel för att begära åtkomst. För att dölja ett begränsat rum för icke-medlemmar ska du inte tillåta den för everyone på en bredare nivå, och i rummet tillåter du den bara för de roller som måste se det.",
       "room_manage": "Låter ett konto konfigurera, byta namn på, arkivera och ta bort rum och rumsgrupper på den nivå där du ställer in den, och lägga till eller ta bort rumsmedlemmar. På servernivå tillåter den också att skapa och ordna rumsgrupper. Konton med den här behörigheten begränsas inte av långsamt läge.",
       "room_remove_member": "Låter ett konto ta bort en medlem från ett kanalrum med en motivering. Det kan också stänga av medlemmen så att den inte kan gå med i rummet igen. Modereringssidan kräver den här behörigheten på servernivå.",
       "message_read": "Låter ett konto läsa meddelanden, trådar, bilagor, sökresultat och skrivindikatorer. Kontot måste också vara medlem i rummet eller direktmeddelandet. Om du nekar den här behörigheten kan message.read-interactions ändå ge åtkomst till kontots egna konversationer.",
@@ -194,7 +198,7 @@
       "message_post": "Låter ett konto skicka meddelanden och svara i trådar. På direktmeddelandenivå kan personer också starta direktmeddelanden. Kontot måste vara medlem i rummet, och rummets trådläge måste tillåta meddelandet. Att bara neka message.post stoppar inte trådsvar när message.post-in-thread är tillåten. Neka också message.post-in-thread och message.post-in-interactions för att stoppa alla inlägg.",
       "message_post_interactions": "Låter ett konto bara svara i trådar som det har startat, trådar där ett annat konto har nämnt det direkt och direktmeddelanden som det har fått. Den tillåter inte att läsa andra trådar eller skicka nya meddelanden. Använd den med message.read-interactions för att begränsa ett konto till dess egna konversationer.",
       "message_post_in_thread": "Låter ett konto svara i varje tråd som det kan läsa, men inte skicka nya meddelanden i rummet. En tillåtelse för message.post omfattar också den här behörigheten, så ett nekande här stoppar inte svar från de kontona.",
-      "message_attach": "Låter ett konto bifoga filer till nya meddelanden. Neka den för att stoppa uppladdningar i ett rum men ändå tillåta textmeddelanden.",
+      "message_attach": "Låter ett konto bifoga filer till nya meddelanden. Utan den kan ett konto ändå skicka textmeddelanden.",
       "message_echo": "Låter ett konto visa ett trådsvar även i rummets tidslinje, så att personer som inte följer tråden också ser det.",
       "message_manage": "Låter ett konto redigera eller ta bort meddelanden från andra konton. Alla kan alltid redigera och ta bort sina egna meddelanden utan den här behörigheten. Konton med den här behörigheten begränsas inte av långsamt läge. I ett direktmeddelande kan bara deltagarna använda den.",
       "message_react": "Låter ett konto lägga till och ta bort reaktioner på meddelanden som det kan läsa.",
@@ -203,7 +207,7 @@
       "admin_view_users": "Låter ett konto se medlemslistan i serveradministrationen. Åtgärder på medlemmar kräver egna behörigheter, till exempel role.assign eller user.manage-accounts.",
       "admin_view_audit": "Låter ett konto se händelseloggen i serveradministrationen. Händelseloggen registrerar administrativa ändringar och varje start och stopp av privilegierat läge.",
       "user_delete_any": "Låter ett konto ta bort vilken medlems konto som helst. Ge den bara till personer som får bestämma att ta bort någon från servern.",
-      "user_delete_self": "Låter personer ta bort sitt eget konto. Neka den om bara administratörer ska ta bort konton.",
+      "user_delete_self": "Låter personer ta bort sitt eget konto. Tillåt den inte för everyone om bara administratörer ska ta bort konton.",
       "user_invite": "Låter ett konto lista, skapa, kopiera och återkalla inbjudningslänkar. Det kan se och använda alla aktiva inbjudningslänkar, inte bara sina egna.",
       "user_manage_accounts": "Låter ett konto skapa konton, ändra kontoidentitet, återställa lösenord, lägga till verifierade e-postadresser och rensa inloggningsspärrar för andra medlemmar. Den tillåter också att lägga till ett konto i ett rum eller ta bort det med raden Gick med.",
       "user_manage_permissions": "Låter ett konto ändra behörighetsinställningarna för en enskild medlem eller bot direkt, utanför roller. Den behövs också för att se en persons effektiva behörigheter.",
@@ -214,6 +218,23 @@
       "call_voice": "Låter ett konto skicka mikrofonljud i samtal. Utan den kan kontot ändå lyssna.",
       "call_camera": "Låter ett konto skicka kameravideo i samtal.",
       "call_screenshare": "Låter ett konto dela en skärm, ett fönster, en flik eller ett program i samtal, med dess ljud. Den tillåter inte mikrofonljud; det kräver call.voice."
+    },
+    "role_order": {
+      "role_locked": "Rollordningen låter dig inte ändra den här rollen.",
+      "account_locked": "Rollordningen låter dig inte ändra det här kontot.",
+      "roles_locked": "Rollordningen låter dig inte ändra rollerna för det här kontot."
+    },
+    "access": {
+      "room_open": "Alla kan hitta det här rummet och gå med i det.",
+      "room_open_unlisted": "Alla kan gå med i det här rummet, men det visas inte för alla i rumslistan.",
+      "room_join_no_read": "Alla kan gå med i det här rummet, men kan inte läsa det. Öppna det genom att också tillåta message.read, och message.post så att medlemmar kan skriva.",
+      "room_roles": "Bara medlemmar i de här rollerna kan gå med i det här rummet: {roles}.",
+      "room_closed": "Ingen kan ännu hitta det här rummet, gå med i det eller läsa det, utom ägare i privilegierat läge. Öppna det genom att tillåta room.list, room.join och message.read för everyone eller för en roll i rummets behörigheter, och message.post så att de kan skriva.",
+      "group_open": "Alla kan hitta rummen i den här rumsgruppen och gå med i dem.",
+      "group_open_unlisted": "Alla kan gå med i rummen i den här rumsgruppen, men de visas inte för alla i rumslistan.",
+      "group_join_no_read": "Alla kan gå med i rummen i den här rumsgruppen, men kan inte läsa dem. Öppna dem genom att också tillåta message.read, och message.post så att medlemmar kan skriva.",
+      "group_roles": "Bara medlemmar i de här rollerna kan gå med i rummen i den här rumsgruppen: {roles}.",
+      "group_closed": "Ingen kan ännu hitta rummen i den här rumsgruppen, gå med i dem eller läsa dem, utom ägare i privilegierat läge. Öppna dem genom att tillåta room.list, room.join och message.read för everyone eller för en roll nedan, och message.post så att de kan skriva."
     }
   }
 }

@@ -3,21 +3,23 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { Hint, PaneContent, PaneHeader, PageTitle } from '$lib/ui';
+  import { HeaderIconButton, Hint, PaneContent, PaneHeader, PageTitle } from '$lib/ui';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
   import { m } from '$lib/i18n/messages';
+  import type { TierRole } from '@chatto/client/api/permissions';
 
   const serverScope = useServerScope();
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
 
-  // Role detail pages require admin.manage-roles. Gate the column-header
-  // click so non-admins see plain text.
+  // Role pages require admin.manage-roles. Gate the column-header click so
+  // other viewers see plain text. Roles at or above the viewer's highest role
+  // open read-only, as on the Roles page.
   const canManageRoles = $derived(serverScope.store.permissions.canAdminManageRoles);
   const error = $derived(null);
 
-  function openRoleDetail(role: { roleName: string }) {
+  function openRoleDetail(role: TierRole) {
     goto(
-      resolve('/chat/[serverId]/manage/server/permissions/[name]', {
+      resolve('/chat/[serverId]/manage/server/roles/[name]', {
         serverId: serverSegment,
         name: role.roleName
       })
@@ -30,18 +32,33 @@
 />
 
 <div class="pane-page">
-  <PaneHeader title={m('admin.permissions.title')} subtitle={m('admin.permissions.subtitle')} />
+  <PaneHeader title={m('admin.permissions.title')} subtitle={m('admin.permissions.subtitle')}>
+    {#snippet actions()}
+      {#if canManageRoles}
+        <HeaderIconButton
+          icon="icon-[uil--award]"
+          label={m('admin.nav.roles')}
+          href={resolve('/chat/[serverId]/manage/server/roles', {
+            serverId: serverSegment
+          })}
+        />
+      {/if}
+    {/snippet}
+  </PaneHeader>
 
   <PaneContent fillHeight>
     <div class="flex min-h-0 flex-1 flex-col gap-6">
       {#if error}
         <Hint tone="danger">{error}</Hint>
       {:else}
+        <Hint tone="warning" icon="icon-[uil--exclamation-triangle]">
+          {m('admin.permissions.server_scope_warning')}
+        </Hint>
         <PermissionMatrix
           onRoleClick={openRoleDetail}
           isRoleClickable={() => canManageRoles}
           newRoleHref={canManageRoles
-            ? resolve('/chat/[serverId]/manage/server/permissions/new', { serverId: serverSegment })
+            ? resolve('/chat/[serverId]/manage/server/roles/new', { serverId: serverSegment })
             : undefined}
           fillHeight
         >

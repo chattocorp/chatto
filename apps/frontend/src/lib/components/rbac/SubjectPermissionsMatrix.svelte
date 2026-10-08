@@ -55,8 +55,12 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     scopeId: string;
     override: MatrixDecision;
     effective: MatrixDecision;
+    /** For a human account, the result while privileged mode is active. */
+    effectiveWithPrivilegedMode?: MatrixDecision;
     /** Present when a delegation ceiling can prevent storing an allow. */
     allowPermitted?: boolean;
+    /** False when the grant limit keeps the viewer from changing the cell. */
+    viewerCanChange?: boolean;
   };
   export type MatrixData = {
     applicablePermissions: string[];
@@ -75,6 +79,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     readOnly = false,
     loading = false,
     decisionMode = 'tri-state',
+    canDeny = true,
     onMembershipChange,
     hasMore = false,
     loadingMore = false,
@@ -98,6 +103,11 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     loading?: boolean;
     /** Use a grant-or-absent allowlist UI; inherited grants are read-only. */
     decisionMode?: DecisionMode;
+    /**
+     * Whether cells offer deny. Role matrices pass `false` because roles only
+     * grant (ADR-116); user matrices can deny.
+     */
+    canDeny?: boolean;
     /** Enables the account membership row, separate from permission cells. */
     onMembershipChange?: (scope: MatrixScope, joined: boolean) => void;
   } = $props();
@@ -370,6 +380,11 @@ scrolling; the table only scrolls horizontally when its columns overflow.
               {@const parent = parentDecision(scope, permission)}
               {@const configured = cell.override !== 'NONE' ? cell.override : parent}
               {@const includedBy = includingPermission(scope, permission)}
+              {@const privilegedOnly =
+                decisionMode !== 'binary' &&
+                !forceAllow &&
+                cell.effective !== 'ALLOW' &&
+                cell.effectiveWithPrivilegedMode === 'ALLOW'}
               {@const binaryEnabled = configured === 'ALLOW' || includedBy !== null}
               {@const inheritedBinaryGrant =
                 decisionMode === 'binary' && cell.override === 'NONE' && binaryEnabled}
@@ -455,6 +470,15 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                             scope: scope.label
                           })
                         : null,
+                      ov !== 'neutral' && ov !== eff && !includedBy
+                        ? m('rbac.permissions.cell.effective_state', {
+                            state: decisionTitle(eff)
+                          })
+                        : null,
+                      privilegedOnly ? m('rbac.permissions.cell.privileged_only') : null,
+                      cell.viewerCanChange === false
+                        ? m('rbac.permissions.cell.beyond_viewer_authority')
+                        : null,
                       includedBy
                         ? m('rbac.permissions.cell.effective_included_by', {
                             permission: includedBy
@@ -473,15 +497,26 @@ scrolling; the table only scrolls horizontally when its columns overflow.
               <MatrixCell
                 override={displayOverride}
                 inherited={displayEffective}
+                effective={decisionMode !== 'binary' && !forceAllow ? eff : undefined}
+                {privilegedOnly}
                 updating={updatingKey === `${scope.id}::${permission}`}
-                disabled={readOnly}
+                disabled={readOnly || cell.viewerCanChange === false}
                 locked={inheritedBinaryGrant}
                 allowBlocked={cell.allowPermitted === false &&
                   (decisionMode !== 'binary' || parent !== 'ALLOW')}
                 ceilingBlocked={cell.allowPermitted === false &&
                   (decisionMode === 'binary' ? binaryEnabled : ov === 'allow')}
                 {decisionMode}
-                {ariaLabel}
+                {canDeny}
+                ariaLabel={[
+                  ariaLabel,
+                  privilegedOnly ? m('rbac.permissions.cell.privileged_only') : null,
+                  cell.viewerCanChange === false
+                    ? m('rbac.permissions.cell.beyond_viewer_authority')
+                    : null
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
                 title={titleParts.join(' · ')}
                 onCycle={(next) => cycleCell(scope, permission, cell.override, next)}
               />

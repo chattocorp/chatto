@@ -7,6 +7,7 @@
 
   let {
     role,
+    readOnly = false,
     saving,
     savingPingable,
     onSaveMetadata,
@@ -14,6 +15,8 @@
     onDelete
   }: {
     role: Role;
+    /** Show the metadata without edit or delete controls. */
+    readOnly?: boolean;
     saving: boolean;
     savingPingable: boolean;
     onSaveMetadata: (displayName: string, description: string) => void;
@@ -29,7 +32,8 @@
   const metadataChanged = $derived(
     editDisplayName !== role.displayName || editDescription !== role.description
   );
-  const canEditPingable = $derived(role.name !== 'everyone');
+  const canEditPingable = $derived(!readOnly && role.name !== 'everyone');
+  const canEditMetadata = $derived(!readOnly && !role.isSystem);
 
   function saveMetadata(event: SubmitEvent): void {
     event.preventDefault();
@@ -55,7 +59,7 @@
       <p class="mt-1 text-xs text-muted">{m('rbac.role_form.name_locked')}</p>
     </div>
 
-    {#if role.isSystem}
+    {#if !canEditMetadata}
       <div>
         <div class="mb-1 text-sm font-medium">{m('rbac.role_form.display_name')}</div>
         <div class="text-text">{role.displayName}</div>
@@ -64,7 +68,9 @@
         <div class="mb-1 text-sm font-medium">{m('rbac.role_form.description')}</div>
         <div class="text-muted">{role.description}</div>
       </div>
-      <p class="text-sm text-muted">{m('admin.permissions.system_metadata_locked')}</p>
+      {#if role.isSystem}
+        <p class="text-sm text-muted">{m('admin.permissions.system_metadata_locked')}</p>
+      {/if}
     {:else}
       <TextInput
         id="displayName"
@@ -86,12 +92,12 @@
       label={m('rbac.role_form.pingable')}
       onchange={savePingable}
       disabled={saving || savingPingable || !canEditPingable}
-      description={canEditPingable
-        ? m('rbac.role_form.pingable_description')
-        : m('admin.permissions.everyone_pingable_description')}
+      description={role.name === 'everyone'
+        ? m('admin.permissions.everyone_pingable_description')
+        : m('rbac.role_form.pingable_description')}
     />
 
-    {#if !role.isSystem}
+    {#if canEditMetadata}
       <div class="flex gap-2">
         <Button type="submit" disabled={!metadataChanged || saving || savingPingable}>
           {saving ? m('rbac.role_form.saving') : m('admin.permissions.save_changes')}

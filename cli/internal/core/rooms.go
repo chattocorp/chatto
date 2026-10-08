@@ -124,9 +124,11 @@ func ValidateRoomDescription(description string) error {
 const maxRoomNameClaimRetries = 5
 
 type createRoomOptions struct {
-	universal                  bool
-	threadingMode              evtv1.RoomThreadingMode
-	applyAnnouncementsDefaults bool
+	universal     bool
+	threadingMode evtv1.RoomThreadingMode
+	// defaultDecisions returns the room-scope permission facts that commit
+	// with the room. Only first-boot and development seeding set it.
+	defaultDecisions func(roomID string) []rbacSeedDecision
 }
 
 // CreateRoomOption customizes room creation for trusted/internal callers.
@@ -186,12 +188,26 @@ func normalizedRoomThreadingMode(kind evtv1.RoomKind, mode evtv1.RoomThreadingMo
 	return EffectiveRoomThreadingMode(&evtv1.Room{Kind: kind, ThreadingMode: mode})
 }
 
-// WithAnnouncementsRoomDefaults applies the built-in announcements room's
-// creation-time posting permissions. It is for first-boot seeding only; a
-// user-created room does not gain special permissions from its display name.
+// WithAnnouncementsRoomDefaults opens the built-in announcements room to
+// everyone for reading, reactions, and thread replies, and lets admins post.
+// It is for first-boot seeding only; a user-created room does not gain
+// permissions from its name.
 func WithAnnouncementsRoomDefaults() CreateRoomOption {
 	return func(options *createRoomOptions) {
-		options.applyAnnouncementsDefaults = true
+		options.defaultDecisions = func(roomID string) []rbacSeedDecision {
+			decisions := roomRoleAllows(roomID, RoleEveryone, DefaultAnnouncementsEveryonePermissions())
+			return append(decisions, roomRoleAllows(roomID, RoleAdmin, DefaultAnnouncementsAdminPermissions())...)
+		}
+	}
+}
+
+// WithOpenRoomDefaults opens a seeded room to everyone. It is for first-boot
+// and development seeding only. Other new rooms start closed (ADR-116).
+func WithOpenRoomDefaults() CreateRoomOption {
+	return func(options *createRoomOptions) {
+		options.defaultDecisions = func(roomID string) []rbacSeedDecision {
+			return roomRoleAllows(roomID, RoleEveryone, DefaultOpenRoomEveryonePermissions())
+		}
 	}
 }
 
@@ -233,8 +249,8 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 	if kind == KindDM && options.universal {
 		return nil, fmt.Errorf("DM rooms cannot be universal")
 	}
-	if kind == KindDM && options.applyAnnouncementsDefaults {
-		return nil, fmt.Errorf("DM rooms cannot use announcements defaults")
+	if kind == KindDM && options.defaultDecisions != nil {
+		return nil, fmt.Errorf("DM rooms cannot use seeded room defaults")
 	}
 	if kind == KindDM && options.threadingMode != evtv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED {
 		return nil, invalidArgument("DM rooms cannot configure threading")
@@ -285,8 +301,8 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 	})
 
 	var defaultPermissionEntries []evtstream.BatchEntry
-	if kind == KindChannel && options.applyAnnouncementsDefaults {
-		defaultPermissionEntries = rbacSeedEntries(nil, nil, defaultAnnouncementsRoomDecisions(room_id))
+	if kind == KindChannel && options.defaultDecisions != nil {
+		defaultPermissionEntries = rbacSeedEntries(nil, nil, options.defaultDecisions(room_id))
 	}
 	additionalEntries := func(ctx context.Context) ([]evtstream.BatchEntry, error) {
 		entries := make([]evtstream.BatchEntry, 0, len(defaultPermissionEntries)+1)
@@ -345,23 +361,19 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 	return room, nil
 }
 
-func defaultAnnouncementsRoomDecisions(roomID string) []rbacSeedDecision {
-	var decisions []rbacSeedDecision
-	appendRoleDecisions := func(roleName string, permissions []Permission, decision DecisionKind) {
-		for _, permission := range permissions {
-			decisions = append(decisions, rbacSeedDecision{
-				scope:       ScopeRoom,
-				scopeID:     roomID,
-				subjectKind: evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE,
-				subject:     roleName,
-				permission:  permission,
-				decision:    decision,
-			})
-		}
+// roomRoleAllows returns room-scope allows of permissions for roleName.
+func roomRoleAllows(roomID, roleName string, permissions []Permission) []rbacSeedDecision {
+	decisions := make([]rbacSeedDecision, 0, len(permissions))
+	for _, permission := range permissions {
+		decisions = append(decisions, rbacSeedDecision{
+			scope:       ScopeRoom,
+			scopeID:     roomID,
+			subjectKind: evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE,
+			subject:     roleName,
+			permission:  permission,
+			decision:    DecisionAllow,
+		})
 	}
-
-	appendRoleDecisions(RoleEveryone, DefaultAnnouncementsEveryoneDenials(), DecisionDeny)
-	appendRoleDecisions(RoleAdmin, DefaultAnnouncementsAdminPermissions(), DecisionAllow)
 	return decisions
 }
 

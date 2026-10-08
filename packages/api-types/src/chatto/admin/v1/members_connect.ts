@@ -50,8 +50,11 @@ export const AdminUserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Assigns a role to a user. Requires role.assign, and non-owner callers may
-     * only assign roles whose granted authority they already possess.
+     * Assigns a role to a human user. Requires role.assign. A caller who is not
+     * an owner may assign only roles below their own highest role whose granted
+     * authority they already possess, and must outrank the target (see
+     * chatto.api.v1.ListRolesResponse.viewer_highest_role) unless it is their
+     * own account. Bots cannot hold roles.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.AssignRole
      */
@@ -62,8 +65,10 @@ export const AdminUserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Revokes a role from a user. Requires role.assign, and non-owner callers may
-     * only revoke roles whose permission decisions are within their authority.
+     * Revokes a role from a human user. Requires role.assign. A caller who is
+     * not an owner may revoke only roles below their own highest role whose
+     * granted authority they already possess, and must outrank the target
+     * unless it is their own account.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.RevokeRole
      */
@@ -76,7 +81,7 @@ export const AdminUserService = {
     /**
      * Updates another user's password as an admin action. Requires
      * user.manage-accounts and a fresh credential for the caller; the caller
-     * cannot target their own account.
+     * cannot target their own account and must outrank the target.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.ChangeUserPassword
      */
@@ -89,6 +94,7 @@ export const AdminUserService = {
     /**
      * Clears the target user's self-service username-change cooldown. Requires
      * user.manage-accounts, including when the caller targets their own account.
+     * The caller must outrank any other target.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.ClearUsernameCooldown
      */
@@ -99,8 +105,8 @@ export const AdminUserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Deletes a user account as an admin action. Requires user.delete-any for
-     * other users or user.delete-self for the caller.
+     * Deletes a user account as an admin action. Requires user.delete-any and
+     * a higher rank for other users, or user.delete-self for the caller.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.DeleteUser
      */

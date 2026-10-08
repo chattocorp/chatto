@@ -131,7 +131,7 @@ owner must not read these rooms during ordinary use without an audited
 activation. See ADR-105.
 
 **Tradeoff:** On a fresh server, the first owner has only the `owner` role.
-The announcements room denies root posts to `everyone`, so this owner must
+The announcements room does not allow root posts for `everyone`, so this owner must
 activate the mode to post there, or get the `admin` role or a room allow. MCP
 tools cannot activate the mode, so they act without the owner override.
 

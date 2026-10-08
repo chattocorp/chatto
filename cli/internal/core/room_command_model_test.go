@@ -122,14 +122,8 @@ func TestRoomCommandModelAuthorization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser blocked: %v", err)
 	}
-	if _, err := core.CreateServerRole(ctx, SystemActorID, "room-command-dm-blocked-role", "Room Command DM Blocked", ""); err != nil {
-		t.Fatalf("CreateServerRole blocked: %v", err)
-	}
-	if err := core.DenyServerPermission(ctx, SystemActorID, "room-command-dm-blocked-role", PermMessagePost); err != nil {
-		t.Fatalf("DenyServerPermission message.post: %v", err)
-	}
-	if err := core.AssignServerRole(ctx, SystemActorID, blocked.Id, "room-command-dm-blocked-role"); err != nil {
-		t.Fatalf("AssignServerRole blocked: %v", err)
+	if err := core.DenyUserPermission(ctx, SystemActorID, blocked.Id, PermMessagePost); err != nil {
+		t.Fatalf("DenyUserPermission message.post: %v", err)
 	}
 	existingDM, created, err := core.FindOrCreateDM(ctx, dmParticipant.Id, []string{blocked.Id})
 	if err != nil || !created {
@@ -159,6 +153,7 @@ func TestRoomCommandModelAuthorization(t *testing.T) {
 	if _, err := core.JoinRoom(ctx, target.Id, KindChannel, target.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom target: %v", err)
 	}
+	grantTestRank(t, core, ctx, actor.Id)
 	if err := commands.RemoveUser(ctx, RoomRemoveUserInput{
 		ActorID:    actor.Id,
 		RoomID:     room.Id,
@@ -218,6 +213,7 @@ func TestRoomCommandModelManageRoomMembers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser manager: %v", err)
 	}
+	grantTestRank(t, core, ctx, manager.Id)
 	target, err := core.CreateUser(ctx, SystemActorID, "room-member-target", "Room Member Target", "password")
 	if err != nil {
 		t.Fatalf("CreateUser target: %v", err)
@@ -233,8 +229,8 @@ func TestRoomCommandModelManageRoomMembers(t *testing.T) {
 	if err := core.GrantUserRoomPermission(ctx, SystemActorID, room.Id, manager.Id, PermRoomManage); err != nil {
 		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
 	}
-	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin); err != nil {
-		t.Fatalf("DenyRoomPermission room.join: %v", err)
+	if err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, target.Id, PermRoomJoin); err != nil {
+		t.Fatalf("DenyUserRoomPermission room.join: %v", err)
 	}
 
 	if _, err := commands.AddMember(ctx, RoomUserInput{
@@ -495,7 +491,7 @@ func TestBotOwnerRoomMembership(t *testing.T) {
 	// permission is revoked; matrix directory visibility remains unchanged.
 	_, err = c.JoinRoom(ctx, owner.Id, KindChannel, owner.Id, room.Id)
 	require.NoError(t, err)
-	require.NoError(t, c.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin))
+	require.NoError(t, c.DenyUserRoomPermission(ctx, SystemActorID, room.Id, owner.Id, PermRoomJoin))
 	_, err = commands.AddMember(ctx, input)
 	require.ErrorIs(t, err, ErrPermissionDenied, "owner ceiling applies even to an existing member")
 	require.True(t, joined())
@@ -510,7 +506,7 @@ func TestBotOwnerRoomMembership(t *testing.T) {
 	}
 	_, err = commands.AddMember(ctx, input)
 	require.ErrorIs(t, err, ErrPermissionDenied)
-	require.NoError(t, c.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin))
+	require.NoError(t, c.ClearUserRoomPermissionState(ctx, SystemActorID, room.Id, owner.Id, PermRoomJoin))
 	_, err = commands.AddMember(ctx, input)
 	require.NoError(t, err)
 	_, err = c.ArchiveRoom(ctx, SystemActorID, KindChannel, room.Id)
@@ -569,6 +565,7 @@ func TestBotManagerMembershipAndAuthorizationRetry(t *testing.T) {
 	manager, err := c.CreateUser(ctx, SystemActorID, "retry-manager", "Manager", "password")
 	require.NoError(t, err)
 	require.NoError(t, c.GrantUserPermission(ctx, SystemActorID, manager.Id, PermBotManage))
+	grantTestRank(t, c, ctx, manager.Id)
 	allowBotCreation(t, ctx, c, owner.Id)
 	bot, err := c.CreateBot(ctx, owner.Id, "retry_bot", "Retry Bot")
 	require.NoError(t, err)
@@ -648,6 +645,7 @@ func TestAccountMembershipManagerOverridesJoinPermission(t *testing.T) {
 				ctx := testContext(t)
 				manager, err := c.CreateUser(ctx, SystemActorID, "account-manager", "Manager", "password")
 				require.NoError(t, err)
+				grantTestRank(t, c, ctx, manager.Id)
 				owner, err := c.CreateUser(ctx, SystemActorID, "account-owner", "Owner", "password")
 				require.NoError(t, err)
 				target := owner
@@ -659,7 +657,7 @@ func TestAccountMembershipManagerOverridesJoinPermission(t *testing.T) {
 				}
 				room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "managed-membership", "")
 				require.NoError(t, err)
-				require.NoError(t, c.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin))
+				require.NoError(t, c.DenyUserRoomPermission(ctx, SystemActorID, room.Id, target.Id, PermRoomJoin))
 				input := RoomUserInput{ActorID: manager.Id, RoomID: room.Id, UserID: target.Id}
 				_, err = c.RoomCommands().AddMember(ctx, input)
 				require.ErrorIs(t, err, ErrPermissionDenied)

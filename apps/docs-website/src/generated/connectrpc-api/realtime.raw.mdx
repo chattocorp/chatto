@@ -359,11 +359,13 @@ This event does not change permission decisions.
 
 ### RolesReorderedEvent
 
-Custom roles changed display order. Permission decisions are unchanged.
+The role order changed. Role order is the administrative rank, so which
+accounts and roles the viewer can manage can change. Permission decisions
+are unchanged.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `role_names` | `repeated string` | Custom role names in ascending display position. |
+| `role_names` | `repeated string` | Roles that moved. Reload the role list to get the current order. Creating a role does not send this event; reload the list after role_created as well. |
 
 
 

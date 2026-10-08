@@ -7,7 +7,7 @@ import type {
   UpdateMessageInput
 } from '@chatto/client/api/messages';
 import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
-import type { MentionRolesStatus } from '@chatto/client/server/mentionRoles';
+import type { RoleCatalogStatus } from '@chatto/client/server/roleCatalog';
 import { extractMentions, hasRoleOrVirtualMention } from '$lib/mentions';
 import { toast } from '$lib/ui/toast';
 import { m } from '$lib/i18n/messages';
@@ -39,7 +39,7 @@ type MessageSubmissionAPI = {
 
 type ComposerSubmissionDependencies = {
   getAPI: () => MessageSubmissionAPI;
-  getMentionRoleStatus: () => MentionRolesStatus;
+  getMentionRoleStatus: () => RoleCatalogStatus;
   loadMentionRoles: () => Promise<boolean>;
   getMentionRoleNames: () => string[];
   onPostSuccess: (post: PreparedPost, event: TimelineEventView | null) => void;

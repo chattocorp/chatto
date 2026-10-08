@@ -259,8 +259,8 @@ func TestNotificationSoundEligibleDoesNotApplyOwnerOverride(t *testing.T) {
 		t.Fatalf("NotificationSoundEligible before deny = (%v, %v), want true, nil", eligible, err)
 	}
 	for _, perm := range []Permission{PermMessageRead, PermMessageReadInteractions} {
-		if err := chattoCore.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, perm); err != nil {
-			t.Fatalf("DenyRoomPermission %s: %v", perm, err)
+		if err := chattoCore.DenyUserRoomPermission(ctx, SystemActorID, room.Id, recipient.Id, perm); err != nil {
+			t.Fatalf("DenyUserRoomPermission %s: %v", perm, err)
 		}
 	}
 	if eligible, err := chattoCore.NotificationSoundEligible(ctx, occurrence); err != nil || eligible {

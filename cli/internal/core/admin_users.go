@@ -191,6 +191,16 @@ func (c *ChattoCore) AdminDeleteUserAs(ctx context.Context, actorID, userID stri
 	if err := c.requireHumanUser(ctx, userID); err != nil {
 		return err
 	}
+	// Deletion is irreversible. Recheck the rank on current inputs before the
+	// first destructive step.
+	if err := c.authorizeAtStableInputs(ctx, func() error {
+		if actorID == userID {
+			return nil
+		}
+		return c.requireOutranksAccount(actorID, userID)
+	}); err != nil {
+		return err
+	}
 	return c.DeleteUser(ctx, actorID, userID)
 }
 

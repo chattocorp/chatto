@@ -210,6 +210,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await serverAdminPage.expectMembersNavVisible();
       await serverAdminPage.expectBotsNavVisible();
       await serverAdminPage.expectRolesNavVisible();
+      await serverAdminPage.expectPermissionsNavVisible();
     });
 
     test('member with only role.assign permission does not see Permissions or Members nav items', async ({
@@ -234,8 +235,9 @@ test.describe('Server Admin Navigation Permissions', () => {
       // with an admin-scoped action permission.
       await page.goto(routes.serverAdmin('moderation'));
 
-      // Should not see Permissions or Members.
+      // Should not see Roles, Permissions, or Members.
       await serverAdminPage.expectRolesNavNotVisible();
+      await serverAdminPage.expectPermissionsNavNotVisible();
       await serverAdminPage.expectMembersNavNotVisible();
 
       // Should NOT see unrelated permission-gated nav items.
@@ -247,7 +249,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await serverAdminPage.expectAccessDenied();
     });
 
-    test('member with only role.manage permission sees Roles nav item', async ({
+    test('member with only role.manage permission sees Roles and Permissions nav items', async ({
       serverAdminPage,
       serverRolesPage
     }) => {
@@ -265,11 +267,12 @@ test.describe('Server Admin Navigation Permissions', () => {
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
       await activatePrivilegedMode(page);
-      // Navigate directly to roles page using the roles page object
-      await serverRolesPage.gotoRolesList(server.id);
+      // Navigate directly to the Permissions page using the roles page object
+      await serverRolesPage.gotoPermissionsMatrix(server.id);
 
-      // Should see Roles (has role.manage)
+      // Should see Roles and Permissions (has role.manage)
       await serverAdminPage.expectRolesNavVisible();
+      await serverAdminPage.expectPermissionsNavVisible();
 
       // Should NOT see other permission-gated nav items
       await serverAdminPage.expectGeneralNavNotVisible();

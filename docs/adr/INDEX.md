@@ -67,7 +67,7 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-049](ADR-049-process-wide-realtime-event-hub.md)                    | Process-Wide Realtime Event Hub                                  | Accepted             | 2026-07-14 |
 | [ADR-050](ADR-050-ephemeral-encrypted-projection-snapshots.md)           | Ephemeral Encrypted Projection Snapshots                         | Accepted             | 2026-07-13 |
 | [ADR-051](ADR-051-server-scoped-resumable-client-projection.md)          | Server-Scoped Resumable Client Projection                        | Superseded           | 2026-07-16 |
-| [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md)       | Subject-Specific RBAC with an Everyone Baseline                  | Accepted             | 2026-07-19 |
+| [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md)       | Subject-Specific RBAC with an Everyone Baseline                  | Partially superseded | 2026-07-19 |
 | [ADR-053](ADR-053-versioned-nats-service-namespaces.md)                  | Versioned NATS Service Namespaces                                | Accepted             | 2026-07-20 |
 | [ADR-054](ADR-054-optional-projection-persistence.md)                    | Projection Persistence Is Optional                               | Accepted             | 2026-07-20 |
 | [ADR-055](ADR-055-pluggable-message-search-over-nats.md)                 | Pluggable Message Search over NATS                               | Accepted             | 2026-07-21 |
@@ -129,3 +129,5 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-112](ADR-112-keep-the-server-catalogue-in-the-frontend.md)          | Keep the Server Catalogue in the Frontend                        | Accepted             | 2026-10-02 |
 | [ADR-113](ADR-113-grant-new-permissions-once-on-upgrade.md)              | Grant New Permissions Once on Upgrade                            | Accepted             | 2026-09-28 |
 | [ADR-114](ADR-114-jetstream-storage-conventions.md)                      | JetStream Storage Conventions                                    | Accepted             | 2026-10-08 |
+| [ADR-115](ADR-115-role-hierarchy-for-administration.md)                  | Role Hierarchy for Administration                                | Accepted             | 2026-10-07 |
+| [ADR-116](ADR-116-roles-only-grant-permissions.md)                      | Roles Only Grant Permissions                                     | Accepted             | 2026-10-08 |

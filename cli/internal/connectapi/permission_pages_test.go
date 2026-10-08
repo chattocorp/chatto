@@ -19,6 +19,7 @@ func TestPermissionMatricesExcludeArchivedChannels(t *testing.T) {
 	for _, permission := range []core.Permission{core.PermRoleManage, core.PermUserManagePermissions} {
 		require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, permission))
 	}
+	grantAPITestRank(t, env, env.viewer.Id)
 	service := &botService{api: env.api}
 	allowBotCreation(t, env.ctx, env.core, env.viewer.Id)
 	bot, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "archive_bot", DisplayName: "Archive Bot"}))
@@ -29,6 +30,8 @@ func TestPermissionMatricesExcludeArchivedChannels(t *testing.T) {
 	require.NoError(t, err)
 	active, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, env.defaultRoomGroupID(t), "active-matrix-room", "")
 	require.NoError(t, err)
+	human, err := env.core.CreateUser(env.ctx, core.SystemActorID, "archive-matrix-human", "Archive Matrix Human", "password")
+	require.NoError(t, err)
 	target := &adminv1.PermissionScope{Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_ROOM, Id: archived.Id}
 
 	// Both response matrix types expose the same scope and cell collections.
@@ -37,7 +40,7 @@ func TestPermissionMatricesExcludeArchivedChannels(t *testing.T) {
 		GetCells() []*adminv1.PermissionMatrixCell
 	}
 	for _, subject := range []struct{ name, userID string }{
-		{"role", ""}, {"human", env.viewer.Id}, {"bot", bot.Msg.Bot.User.Id},
+		{"role", ""}, {"human", human.Id}, {"bot", bot.Msg.Bot.User.Id},
 	} {
 		t.Run(subject.name, func(t *testing.T) {
 			fetch := func(page *apiv1.PageRequest, scope *adminv1.PermissionScope) (matrixView, *apiv1.PageInfo) {
@@ -126,6 +129,7 @@ func TestPermissionScopePagesAndInheritance(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	grantAPITestRank(t, env, env.viewer.Id)
 	ctx := withCaller(env.ctx, env.viewer)
 	groupID := env.defaultRoomGroupID(t)
 	var roomID string

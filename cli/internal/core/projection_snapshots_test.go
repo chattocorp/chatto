@@ -78,7 +78,7 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 		{mentionablesSnapshotContractID, "v2", &projectionv1.MentionablesProjectionSnapshot{}},
 		{notificationDecisionSnapshotContractID, "v2", &projectionv1.NotificationDecisionProjectionSnapshot{}},
 		{notificationSnapshotContractID, "v2", &projectionv1.NotificationProjectionSnapshot{}},
-		{rbacSnapshotContractID, "v2", &projectionv1.RBACProjectionSnapshot{}},
+		{rbacSnapshotContractID, "v4", &projectionv1.RBACProjectionSnapshot{}},
 		{reactionSnapshotContractID, "v1", &projectionv1.ReactionProjectionSnapshot{}},
 		{roomDirectorySnapshotContractID, "v2", &projectionv1.RoomDirectoryProjectionSnapshot{}},
 		{roomGroupLayoutSnapshotContractID, "v1", &projectionv1.RoomGroupLayoutProjectionSnapshot{}},
@@ -107,6 +107,8 @@ func TestPrivacyBoundaryProjectionContractsRejectPreRequestSnapshots(t *testing.
 		{threadSnapshotContractID, snapshotContractID("v1", &projectionv1.ThreadProjectionSnapshot{})},
 		{threadSnapshotContractID, snapshotContractID("v2", &projectionv1.ThreadProjectionSnapshot{})},
 		{rbacSnapshotContractID, snapshotContractID("v1", &projectionv1.RBACProjectionSnapshot{})},
+		{rbacSnapshotContractID, snapshotContractID("v2", &projectionv1.RBACProjectionSnapshot{})},
+		{rbacSnapshotContractID, snapshotContractID("v3", &projectionv1.RBACProjectionSnapshot{})},
 	}
 	for _, tt := range tests {
 		require.NotEqual(t, tt.old, tt.current)
@@ -381,7 +383,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		"room_directory": "v2-", "server_config": "v3-", "room_group_layout": "v1-",
 		"notification_decisions": "v2-", "notifications": "v2-",
 		"room_timeline": "v9-", "threads": "v3-", "call_state": "v1-", "assets": "v3-", "reactions": "v1-",
-		"content_keys": "v1-", "rbac": "v2-", "mentionables": "v2-", "users": "v4-",
+		"content_keys": "v1-", "rbac": "v4-", "mentionables": "v2-", "users": "v4-",
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

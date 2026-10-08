@@ -1243,7 +1243,7 @@ func TestAsset_StableURLBearerAppliesOwnerPrivilegedModeGate(t *testing.T) {
 		t.Fatalf("Failed to parse stable URL: %v", err)
 	}
 	stable.RawQuery = ""
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageRead); err != nil {
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, owner.Id, core.PermMessageRead); err != nil {
 		t.Fatalf("Failed to deny message.read: %v", err)
 	}
 
@@ -2262,11 +2262,11 @@ func TestAsset_RevokedMessageReadRevokesStableURL(t *testing.T) {
 	if before.StatusCode != http.StatusOK {
 		t.Fatalf("status before denial = %d, want 200", before.StatusCode)
 	}
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageRead); err != nil {
-		t.Fatalf("DenyRoomPermission: %v", err)
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, viewer.Id, core.PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
 	}
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageReadInteractions); err != nil {
-		t.Fatalf("DenyRoomPermission message.read-interactions: %v", err)
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, viewer.Id, core.PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read-interactions: %v", err)
 	}
 	after, err := plainClient.Get(env.url(attachmentURL))
 	if err != nil {
@@ -2298,8 +2298,8 @@ func TestAsset_InteractionReaderCanFetchStableURL(t *testing.T) {
 			t.Fatalf("JoinRoom %s: %v", userID, err)
 		}
 	}
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.GetId(), core.RoleEveryone, core.PermMessageRead); err != nil {
-		t.Fatalf("DenyRoomPermission message.read: %v", err)
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.GetId(), reader.GetId(), core.PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
 	}
 	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.GetId(), reader.GetId(), core.PermMessageReadInteractions); err != nil {
 		t.Fatalf("GrantUserRoomPermission message.read-interactions: %v", err)

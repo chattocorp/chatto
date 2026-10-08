@@ -83,7 +83,10 @@
       const roomId = created?.id;
       if (!roomId) throw new Error(m('room.create.failed'));
 
-      await api.joinRoom(roomId);
+      // New rooms start closed (ADR-116). The creator joins when the room
+      // lets them; otherwise they open it on its settings page, where the
+      // access summary explains who can join.
+      await api.joinRoom(roomId).catch(() => undefined);
 
       if (!serverScope.isCurrent()) return;
       onroomcreated?.(roomId);

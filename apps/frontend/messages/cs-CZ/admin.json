@@ -11,7 +11,8 @@
       "event_log": "Protokol událostí",
       "system": "Systém",
       "back_to_server": "Návrat na server",
-      "invitations": "Zvací odkazy"
+      "invitations": "Zvací odkazy",
+      "roles": "Role"
     },
     "neighbors": {
       "title": "Sousedé",
@@ -145,7 +146,8 @@
         "account": "Účet",
         "roles": "Role",
         "permissions": "Oprávnění"
-      }
+      },
+      "role_beyond_viewer_permissions": "Toto přiřazení role nemůžete změnit. Role povoluje oprávnění, která nemáte."
     },
     "member_delete": {
       "title": "Odstranit člena",
@@ -181,38 +183,63 @@
       "new_role_action": "+ Nová role",
       "creating_role": "Vytváření...",
       "create_after_hint": "Po vytvoření role jí můžete přiřadit oprávnění na stránce úprav.",
-      "back_to_permissions": "Zpět k oprávněním",
       "load_instance_failed": "Načtení instance se nezdařilo",
-      "need_manage_create": "K vytváření rolí potřebujete oprávnění roles.manage.",
+      "need_manage_create": "K vytváření rolí potřebujete oprávnění role.manage.",
       "edit_role_title": "Upravit roli",
       "loading_role": "Načítání role...",
       "role_not_found": "Role nenalezena",
-      "need_manage_edit": "K úpravě rolí potřebujete oprávnění roles.manage.",
+      "need_manage_edit": "K úpravě rolí potřebujete oprávnění role.manage.",
       "system_metadata_locked": "Metadata systémové role nelze upravit.",
       "everyone_pingable_description": "Použijte @all pro doručení po celé místnosti; každý není role ping handle.",
       "save_changes": "Uložit změny",
       "delete_role_description": "Smazáním této role ji odeberete všem uživatelům, kteří ji mají přiřazenou.",
       "owner_permissions_hint": "Vlastníkům jsou vždy udělena všechna oprávnění. Matice je pouze pro čtení, protože oprávnění vlastníka nejsou uložena jako upravitelná udělení nebo zamítnutí.",
-      "role_permissions_hint": "Udělení a zamítnutí této role ve všech oblastech. V kombinaci s dalšími rolemi uživatele v době řešení – použijte matici pro jednotlivé uživatele, abyste viděli, s čím jednotlivý uživatel skončí.",
+      "role_permissions_hint": "Každá buňka ukazuje, co získá člen, který má pouze tuto roli, spolu s rolí everyone. Chcete-li zjistit, co získá konkrétní člen, otevřete oprávnění tohoto člena.",
       "users_with_role": "Uživatelé s touto rolí",
       "everyone_implicit": "Všichni členové serveru mají implicitně roli everyone.",
       "no_users_with_role": "Žádní uživatelé nemají tuto roli",
       "server_tier_intro": "Tato stránka je určena pro oprávnění role na úrovni serveru: obecné výchozí hodnoty, které platí před přepsáním pro konkrétní místnost.",
       "server_tier_rooms_hint": "Použít Místnosti pro přepsání pro skupinu a místnost.",
-      "resolution_hint": "Pro každého uživatele nebo pojmenovanou roli platí nejbližší hodnota místnosti, skupiny nebo serveru. Mezi nimi vítězí popírání. Povolení přepíše a odmítne všichni pouze ve stejném nebo konkrétnějším rozsahu.",
+      "resolution_hint": "Rozhoduje zákaz nastavený pro uživatele. Jinak přístup dává povolení uživatele, role nebo everyone. Bez povolení není přístup.",
       "update_role_failed": "Nepodařilo se aktualizovat roli",
       "update_ping_failed": "Nepodařilo se aktualizovat nastavení zmínek role",
-      "delete_role_failed": "Nepodařilo se smazat roli"
+      "delete_role_failed": "Nepodařilo se smazat roli",
+      "role_order": {
+        "title": "Pořadí rolí",
+        "hint": "Pořadí rolí určuje, kdo může koho spravovat. Člen může spravovat jen účty a role pod svou nejvyšší rolí.",
+        "drag_role": "Přesunout {role}",
+        "always_highest": "Vždy nejvyšší",
+        "always_lowest": "Vždy nejnižší",
+        "saved": "Pořadí rolí bylo uloženo",
+        "save_failed": "Pořadí rolí se nepodařilo uložit",
+        "list_label": "Role, které můžete přesouvat"
+      },
+      "back_to_roles": "Zpět k rolím",
+      "roles_page": {
+        "title": "Role",
+        "subtitle": "Vytvářejte, upravujte a řaďte role tohoto serveru",
+        "edit_role": "Upravit {role}",
+        "view_role": "Zobrazit {role}"
+      },
+      "role_tabs": {
+        "label": "Sekce role",
+        "general": "Obecné",
+        "permissions": "Oprávnění",
+        "members": "Členové"
+      },
+      "role_pings_on": "Zmínky role zapnuty",
+      "role_pings_off": "Zmínky role vypnuty",
+      "server_scope_warning": "Nastavení na této stránce platí pro každou místnost a každou skupinu místností na serveru. Chcete-li otevřít jen některé místnosti, nastavte oprávnění těchto místností nebo skupin místností."
     },
     "rooms_admin": {
       "title": "Pokoje",
       "subtitle": "Vytvářejte, upravujte, organizujte a archivujte místnosti",
-      "group_permissions_subtitle": "Udělení a zamítnutí oprávnění role podle skupiny",
+      "group_permissions_subtitle": "Udělení oprávnění role podle skupiny",
       "room_permissions_subtitle": "Oprávnění pro přepsání pro jednotlivé místnosti (vrstvené nad skupinou místnosti)",
       "permissions_page_title": "Oprávnění – {name}",
       "back_to_rooms": "Zpět do pokojů",
-      "group_permissions_hint": "Přepisy pro skupiny kanálů v této skupině. Výchozí hodnoty zděděné z oboru serveru. Jednotlivé místnosti mohou dále přepsat oprávnění ze své vlastní stránky oprávnění.",
-      "room_permissions_hint": "Tato nastavení platí jen v této místnosti. Pro stejnou roli nebo uživatele nahrazují nastavení skupiny místností a serveru. Pokud chcete něco povolit jen některým rolím, nastavte zde Zakázat pro everyone a Povolit pro tyto role.",
+      "group_permissions_hint": "Zde nastavení platí pro každou místnost v této skupině místností. Místnost může povolit více, ale nemůže odebrat to, co povoluje skupina místností.",
+      "room_permissions_hint": "Tato nastavení platí jen v této místnosti. Doplňují povolení rolí ze skupiny místností a serveru. Pokud chcete něco povolit jen některým rolím, nepovolujte to pro everyone v širším rozsahu. Potom to zde povolte pro tyto role.",
       "loading": "Načítání místností...",
       "empty_groups": "Zatím žádné skupiny místností",
       "empty_groups_body": "Vytvořte sadu a začněte organizovat místnosti.",

@@ -13,6 +13,8 @@ import (
 // ============================================================================
 //
 // These ChattoCore methods append scoped RBAC Grant / Deny / Clear facts.
+// Roles, everyone included, only grant permissions; only single users can be
+// denied (ADR-116).
 // They apply scope-validity checks (PermissionAppliesAtScope) and
 // permission-shape validation (ValidatePermission), then wait for the local
 // RBAC projection to catch up before returning.
@@ -42,18 +44,6 @@ func (c *ChattoCore) GrantServerPermission(ctx context.Context, actorID, roleNam
 	if errors.Is(err, errRBACNoop) {
 		return nil
 	}
-	return err
-}
-
-// DenyServerPermission denies a permission at a role's server-level default.
-func (c *ChattoCore) DenyServerPermission(ctx context.Context, actorID, roleName string, perm Permission) error {
-	if err := ValidatePermission(perm); err != nil {
-		return err
-	}
-	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
-		RbacPermissionDenied: rbacRolePermissionDeniedEvent(ScopeServer, "", roleName, perm),
-	}})
-	_, err := c.appendRBACEvent(ctx, event, nil)
 	return err
 }
 
@@ -167,18 +157,6 @@ func (c *ChattoCore) GrantRoomPermission(ctx context.Context, actorID, roomID, r
 	}
 	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{
 		RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeRoom, roomID, roleName, perm),
-	}})
-	_, err := c.appendRBACEvent(ctx, event, nil)
-	return err
-}
-
-// DenyRoomPermission denies a permission for a role at a specific room.
-func (c *ChattoCore) DenyRoomPermission(ctx context.Context, actorID, roomID, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeRoom) {
-		return fmt.Errorf("permission %s does not apply at room scope", perm)
-	}
-	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
-		RbacPermissionDenied: rbacRolePermissionDeniedEvent(ScopeRoom, roomID, roleName, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
 	return err

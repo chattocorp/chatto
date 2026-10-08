@@ -14,6 +14,32 @@ type permissionService struct {
 	api *API
 }
 
+func (s *permissionService) GetAccessSummary(ctx context.Context, req *connect.Request[adminv1.GetAccessSummaryRequest]) (*connect.Response[adminv1.GetAccessSummaryResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	kind := req.Msg.GetScope().GetKind()
+	if kind != adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_ROOM && kind != adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_GROUP {
+		return nil, invalidArgument("scope must be a room or a room group")
+	}
+	roomID, groupID, err := permissionScopeIDs(req.Msg.GetScope())
+	if err != nil {
+		return nil, err
+	}
+	summary, err := s.api.core.GetAccessSummary(ctx, caller.UserID, roomID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&adminv1.GetAccessSummaryResponse{
+		EveryoneCanList: summary.EveryoneCanList,
+		EveryoneCanJoin: summary.EveryoneCanJoin,
+		EveryoneCanRead: summary.EveryoneCanRead,
+		RolesCanList:    summary.RolesCanList,
+		RolesCanJoin:    summary.RolesCanJoin,
+	}), nil
+}
+
 func (s *permissionService) GetRolePermissionTierMatrix(ctx context.Context, req *connect.Request[adminv1.GetRolePermissionTierMatrixRequest]) (*connect.Response[adminv1.GetRolePermissionTierMatrixResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
@@ -255,32 +281,25 @@ func apiTierRoles(matrix *core.TierRoles) *adminv1.TierRoles {
 		return nil
 	}
 	out := &adminv1.TierRoles{
-		ApplicablePermissions: append([]string(nil), matrix.ApplicablePermissions...),
-		Roles:                 make([]*adminv1.TierRole, 0, len(matrix.Roles)),
+		ApplicablePermissions:       append([]string(nil), matrix.ApplicablePermissions...),
+		ViewerChangeablePermissions: append([]string(nil), matrix.ViewerChangeablePermissions...),
+		Roles:                       make([]*adminv1.TierRole, 0, len(matrix.Roles)),
 	}
 	for _, role := range matrix.Roles {
 		out.Roles = append(out.Roles, &adminv1.TierRole{
-			Override:         apiTierPermissions(role.Override),
-			InheritedAllows:  append([]string(nil), role.InheritedAllows...),
-			InheritedDenials: append([]string(nil), role.InheritedDenials...),
+			Override:        &adminv1.TierPermissions{Permissions: append([]string(nil), role.Override.Permissions...)},
+			InheritedAllows: append([]string(nil), role.InheritedAllows...),
+			EffectiveAllows: append([]string(nil), role.EffectiveAllows...),
 			Role: &apiv1.Role{
 				Name:        role.RoleName,
 				DisplayName: role.DisplayName,
 				Description: role.Description,
 				IsSystem:    role.IsSystem,
-				Position:    role.Position,
 				Pingable:    role.Pingable,
 			},
 		})
 	}
 	return out
-}
-
-func apiTierPermissions(perms core.TierPermissions) *adminv1.TierPermissions {
-	return &adminv1.TierPermissions{
-		Permissions:       append([]string(nil), perms.Permissions...),
-		PermissionDenials: append([]string(nil), perms.PermissionDenials...),
-	}
 }
 
 func apiRolePermissionMatrix(matrix *core.RolePermissionMatrix) *adminv1.RolePermissionMatrix {
@@ -402,6 +421,12 @@ func apiPermissionMatrixCells(cells []core.PermissionMatrixCell) []*adminv1.Perm
 		}
 		if cell.AllowPermitted != nil {
 			mapped.AllowPermitted = cell.AllowPermitted
+		}
+		if cell.ViewerCanChange != nil {
+			mapped.ViewerCanChange = cell.ViewerCanChange
+		}
+		if cell.EffectiveWithPrivilegedMode != "" {
+			mapped.EffectiveWithPrivilegedMode = apiPermissionDecision(cell.EffectiveWithPrivilegedMode)
 		}
 		out = append(out, mapped)
 	}

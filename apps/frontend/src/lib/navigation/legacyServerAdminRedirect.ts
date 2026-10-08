@@ -33,11 +33,16 @@ export function legacyServerAdminDestination(
       serverId,
       groupId: segments[2]
     });
+  } else if (segments.length === 2 && segments[0] === 'permissions') {
+    // Role pages moved from Permissions to Roles.
+    destination = resolve('/chat/[serverId]/manage/server/roles/[name]', {
+      serverId,
+      name: segments[1]
+    });
   } else if (
     serverPages.has(segments[0] ?? '') &&
     (segments.length === 1 ||
-      (segments.length === 2 &&
-        ['members', 'permissions', 'event-log'].includes(segments[0] ?? '')))
+      (segments.length === 2 && ['members', 'event-log'].includes(segments[0] ?? '')))
   ) {
     const suffix = segments.map(encodeURIComponent).join('/');
     destination = `/chat/${encodeURIComponent(serverId)}/manage/server/${suffix}`;

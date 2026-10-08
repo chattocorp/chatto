@@ -48,7 +48,7 @@ Finite role catalog snapshot plus viewer role-management capabilities.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `roles` | repeated [`AdminRole`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRole) | Roles sorted by position. |
+| `roles` | repeated [`AdminRole`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRole) | Roles in role order, highest first. |
 | `viewer_can_manage_roles` | `bool` | Whether the caller may create/update/delete role definitions. |
 | `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles and view role rosters. |
 
@@ -129,7 +129,7 @@ no explicit members. Revoked assignments are excluded.
 
 ### CreateRole
 
-Creates a custom role. Requires role.manage.
+Creates a custom role. Requires role.manage. The new role ranks lowest.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/CreateRole
@@ -164,7 +164,8 @@ Result of creating a role.
 
 ### UpdateRole
 
-Updates role metadata. Requires role.manage.
+Updates role metadata. Requires role.manage. Only owners can update the
+owner role.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/UpdateRole
@@ -200,7 +201,9 @@ Result of updating a role.
 
 ### DeleteRole
 
-Deletes a custom role. Requires role.manage.
+Deletes a custom role. Requires role.manage. A caller who is not an owner
+must have every permission that the role allows, at the same scope;
+otherwise the call returns PERMISSION_DENIED.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/DeleteRole
@@ -224,33 +227,37 @@ Request to delete a role.
 Result of deleting a role.
 
 
-<a id="chatto-admin-v1-AdminRoleService-ReorderRoles"></a>
+<a id="chatto-admin-v1-AdminRoleService-MoveRole"></a>
 
-### ReorderRoles
+### MoveRole
 
-Replaces the custom role order. Requires role.manage.
+Moves one role in the role order. Requires role.manage. The caller can
+move every role except owner and everyone, also above their own highest
+role.
 
 ```http
-POST /api/connect/chatto.admin.v1.AdminRoleService/ReorderRoles
+POST /api/connect/chatto.admin.v1.AdminRoleService/MoveRole
 ```
 
-<a id="chatto-admin-v1-ReorderRolesRequest"></a>
+<a id="chatto-admin-v1-MoveRoleRequest"></a>
 
-#### Input: ReorderRolesRequest
+#### Input: MoveRoleRequest
 
-Request to replace custom role order.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `role_names` | `repeated string` | Ordered custom role names. The list must include every custom role exactly once; system roles keep fixed positions and must not be included. |
-
-
-<a id="chatto-admin-v1-ReorderRolesResponse"></a>
-
-#### Result: ReorderRolesResponse
-
-Result of replacing custom role order.
+Request to move one role in the role order. Role order is the
+administrative rank; see ADR-115.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `roles` | repeated [`AdminRole`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRole) | Full role catalog after reordering. |
+| `role_name` | `string` | Required role to move. Owner and everyone cannot move. |
+| `before_role_name` | `optional string` | Role that follows the moved role in display order, which is highest first. The moved role then ranks directly above it. Omit to place the role lowest, directly above everyone. |
+
+
+<a id="chatto-admin-v1-MoveRoleResponse"></a>
+
+#### Result: MoveRoleResponse
+
+Result of moving one role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `roles` | repeated [`AdminRole`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRole) | Full role catalog after the move, in role order, highest first. |

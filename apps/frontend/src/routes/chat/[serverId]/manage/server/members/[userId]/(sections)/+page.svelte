@@ -39,7 +39,7 @@ account managers, the avatar.
   canViewMemberEmails={detail.canViewMemberEmails}
 />
 
-{#if (detail.isSelf || detail.canAdminManageAccounts) && !detail.member.deleted}
+{#if (detail.isSelf || detail.canManageAccount) && !detail.member.deleted}
   {#key detail.userId}
     <AvatarEditor user={detail.member} onupload={uploadAvatar} ondelete={deleteAvatar} />
   {/key}

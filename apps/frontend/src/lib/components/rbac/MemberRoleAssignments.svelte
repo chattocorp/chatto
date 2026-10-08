@@ -1,3 +1,12 @@
+<!--
+@component
+
+Server role assignments of one human account. The server decides which
+roles the viewer may assign or revoke (`assignableRoleNames` and
+`revocableRoleNames` in the member details), including the role order limits.
+The owner runs the mutation through `toggleMemberRole`. Disabled roles explain
+why the viewer cannot change them, with the role catalogue's role order.
+-->
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { Panel } from '$lib/ui';
@@ -6,6 +15,8 @@
   import { Checkbox } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import type { AdminMemberDetails } from '$lib/api/adminUsers';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
+  import { roleOrderLocksRoles } from './roleAssignments';
 
   type Props = {
     details: AdminMemberDetails;
@@ -16,6 +27,23 @@
   };
 
   let { details, isSelf, serverId, updatingRole, toggleMemberRole }: Props = $props();
+
+  const roleCatalog = useServerScope().store.roleCatalog;
+  const rolesLocked = $derived(
+    roleOrderLocksRoles(
+      details,
+      isSelf,
+      isSelf || roleCatalog.viewerOutranks(details.member?.roles ?? [])
+    )
+  );
+  // Roles that rank at or above the viewer's highest role.
+  const rolesAboveViewer = $derived(
+    new Set(
+      details.roles
+        .filter((role) => !roleCatalog.ranksBelowViewer(role.name))
+        .map((role) => role.name)
+    )
+  );
 
   const memberRoles = $derived(details.member?.roles ?? []);
 
@@ -67,9 +95,13 @@
         ? m('admin.members.implicit_role_tooltip')
         : isSelfProtectedRole
           ? m('admin.members.cannot_revoke_own_role', { role: role.displayName })
-          : !isWithinAssignmentAuthority
-            ? m('ui.access_denied.message')
-            : ''}
+          : isWithinAssignmentAuthority
+            ? ''
+            : rolesLocked
+              ? m('rbac.role_order.roles_locked')
+              : rolesAboveViewer.has(role.name)
+                ? m('rbac.role_order.role_locked')
+                : m('admin.members.role_beyond_viewer_permissions')}
 
       <div class="flex items-center gap-3">
         <div class="min-w-0 flex-1" title={tooltip}>
@@ -90,7 +122,7 @@
         </div>
         {#if details.viewerCanManageRoles}
           <a
-            href={resolve('/chat/[serverId]/manage/server/permissions/[name]', {
+            href={resolve('/chat/[serverId]/manage/server/roles/[name]', {
               serverId: serverIdToSegment(serverId),
               name: role.name
             })}

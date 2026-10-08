@@ -28,6 +28,12 @@
     onCancel?: () => void;
   } = $props();
 
+  /**
+   * Names that role pages use as path segments, such as `/roles/new`. The
+   * server rejects them for new roles too.
+   */
+  const RESERVED_ROLE_NAMES = new Set(['new']);
+
   let nameError = $derived.by(() => {
     if (!name) return undefined;
     if (name.length > 32) {
@@ -35,6 +41,9 @@
     }
     if (!/^[a-z]([a-z0-9-]*[a-z0-9])?$/.test(name)) {
       return m('rbac.role_form.name_invalid');
+    }
+    if (RESERVED_ROLE_NAMES.has(name)) {
+      return m('rbac.role_form.name_reserved');
     }
     return undefined;
   });

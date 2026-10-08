@@ -46,7 +46,7 @@
         () => {
           invalidatePermissionTiers(variables.serverId, variables.connection);
           void goto(
-            resolve('/chat/[serverId]/manage/server/permissions/[name]', {
+            resolve('/chat/[serverId]/manage/server/roles/[name]', {
               serverId: serverIdToSegment(variables.serverId),
               name: variables.input.name
             })
@@ -95,10 +95,10 @@
   <PaneHeader
     title={m('admin.permissions.create_role_title')}
     subtitle={m('admin.permissions.create_role_subtitle')}
-    backHref={resolve('/chat/[serverId]/manage/server/permissions', {
+    backHref={resolve('/chat/[serverId]/manage/server/roles', {
       serverId: serverIdToSegment(serverScope.serverId)
     })}
-    backLabel={m('admin.permissions.back_to_permissions')}
+    backLabel={m('admin.permissions.back_to_roles')}
   />
 
   <PaneContent>

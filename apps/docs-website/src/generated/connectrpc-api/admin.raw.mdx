@@ -331,7 +331,7 @@ Finite role catalog snapshot plus viewer role-management capabilities.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `roles` | repeated [`AdminRole`](#chatto-admin-v1-AdminRole) | Roles sorted by position. |
+| `roles` | repeated [`AdminRole`](#chatto-admin-v1-AdminRole) | Roles in role order, highest first. |
 | `viewer_can_manage_roles` | `bool` | Whether the caller may create/update/delete role definitions. |
 | `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles and view role rosters. |
 
@@ -412,7 +412,7 @@ no explicit members. Revoked assignments are excluded.
 
 ### CreateRole
 
-Creates a custom role. Requires role.manage.
+Creates a custom role. Requires role.manage. The new role ranks lowest.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/CreateRole
@@ -447,7 +447,8 @@ Result of creating a role.
 
 ### UpdateRole
 
-Updates role metadata. Requires role.manage.
+Updates role metadata. Requires role.manage. Only owners can update the
+owner role.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/UpdateRole
@@ -483,7 +484,9 @@ Result of updating a role.
 
 ### DeleteRole
 
-Deletes a custom role. Requires role.manage.
+Deletes a custom role. Requires role.manage. A caller who is not an owner
+must have every permission that the role allows, at the same scope;
+otherwise the call returns PERMISSION_DENIED.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/DeleteRole
@@ -507,36 +510,40 @@ Request to delete a role.
 Result of deleting a role.
 
 
-<a id="chatto-admin-v1-AdminRoleService-ReorderRoles"></a>
+<a id="chatto-admin-v1-AdminRoleService-MoveRole"></a>
 
-### ReorderRoles
+### MoveRole
 
-Replaces the custom role order. Requires role.manage.
+Moves one role in the role order. Requires role.manage. The caller can
+move every role except owner and everyone, also above their own highest
+role.
 
 ```http
-POST /api/connect/chatto.admin.v1.AdminRoleService/ReorderRoles
+POST /api/connect/chatto.admin.v1.AdminRoleService/MoveRole
 ```
 
-<a id="chatto-admin-v1-ReorderRolesRequest"></a>
+<a id="chatto-admin-v1-MoveRoleRequest"></a>
 
-#### Input: ReorderRolesRequest
+#### Input: MoveRoleRequest
 
-Request to replace custom role order.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `role_names` | `repeated string` | Ordered custom role names. The list must include every custom role exactly once; system roles keep fixed positions and must not be included. |
-
-
-<a id="chatto-admin-v1-ReorderRolesResponse"></a>
-
-#### Result: ReorderRolesResponse
-
-Result of replacing custom role order.
+Request to move one role in the role order. Role order is the
+administrative rank; see ADR-115.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `roles` | repeated [`AdminRole`](#chatto-admin-v1-AdminRole) | Full role catalog after reordering. |
+| `role_name` | `string` | Required role to move. Owner and everyone cannot move. |
+| `before_role_name` | `optional string` | Role that follows the moved role in display order, which is highest first. The moved role then ranks directly above it. Omit to place the role lowest, directly above everyone. |
+
+
+<a id="chatto-admin-v1-MoveRoleResponse"></a>
+
+#### Result: MoveRoleResponse
+
+Result of moving one role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `roles` | repeated [`AdminRole`](#chatto-admin-v1-AdminRole) | Full role catalog after the move, in role order, highest first. |
 
 
 <a id="chatto-admin-v1-AdminUserService"></a>
@@ -663,8 +670,11 @@ Batch server-admin member response.
 
 ### AssignRole
 
-Assigns a role to a user. Requires role.assign, and non-owner callers may
-only assign roles whose granted authority they already possess.
+Assigns a role to a human user. Requires role.assign. A caller who is not
+an owner may assign only roles below their own highest role whose granted
+authority they already possess, and must outrank the target (see
+chatto.api.v1.ListRolesResponse.viewer_highest_role) unless it is their
+own account. Bots cannot hold roles.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/AssignRole
@@ -697,8 +707,10 @@ Result of assigning a role.
 
 ### RevokeRole
 
-Revokes a role from a user. Requires role.assign, and non-owner callers may
-only revoke roles whose permission decisions are within their authority.
+Revokes a role from a human user. Requires role.assign. A caller who is
+not an owner may revoke only roles below their own highest role whose
+granted authority they already possess, and must outrank the target
+unless it is their own account.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/RevokeRole
@@ -733,7 +745,7 @@ Result of revoking a role.
 
 Updates another user's password as an admin action. Requires
 user.manage-accounts and a fresh credential for the caller; the caller
-cannot target their own account.
+cannot target their own account and must outrank the target.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/ChangeUserPassword
@@ -768,6 +780,7 @@ Result of an admin password update.
 
 Clears the target user's self-service username-change cooldown. Requires
 user.manage-accounts, including when the caller targets their own account.
+The caller must outrank any other target.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/ClearUsernameCooldown
@@ -795,8 +808,8 @@ Result of clearing a user's username-change cooldown.
 
 ### DeleteUser
 
-Deletes a user account as an admin action. Requires user.delete-any for
-other users or user.delete-self for the caller.
+Deletes a user account as an admin action. Requires user.delete-any and
+a higher rank for other users, or user.delete-self for the caller.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/DeleteUser
@@ -970,6 +983,47 @@ Response containing a role-permission tier matrix.
 | Field | Type | Description |
 | --- | --- | --- |
 | `matrix` | [`TierRoles`](#chatto-admin-v1-TierRoles) | Requested matrix. |
+
+
+<a id="chatto-admin-v1-AdminPermissionService-GetAccessSummary"></a>
+
+### GetAccessSummary
+
+Summarizes who can find and join a channel room or the rooms of a room
+group. New rooms and room groups start closed, so clients use it to warn
+operators. Requires role.manage or effective room.manage at the room or
+group. Only ROOM and GROUP scopes are accepted.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminPermissionService/GetAccessSummary
+```
+
+<a id="chatto-admin-v1-GetAccessSummaryRequest"></a>
+
+#### Input: GetAccessSummaryRequest
+
+Request an access summary for one channel room or room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`PermissionScope`](#chatto-admin-v1-PermissionScope) | ROOM or GROUP scope with its id. |
+
+
+<a id="chatto-admin-v1-GetAccessSummaryResponse"></a>
+
+#### Result: GetAccessSummaryResponse
+
+Who can find and join a channel room, or the rooms of a room group. Owners
+in privileged mode have access whatever the summary says. Explicit room
+members still need message.read to read the room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `everyone_can_list` | `bool` | Whether every member can find the room (room.list). |
+| `everyone_can_join` | `bool` | Whether every member can join the room (room.join). |
+| `roles_can_list` | `repeated string` | Roles whose holders can find the room although everyone cannot, highest first. Empty when everyone can. |
+| `roles_can_join` | `repeated string` | Roles whose holders can join and read the room although everyone cannot, highest first. Empty when everyone can join and read it. |
+| `everyone_can_read` | `bool` | Whether every member can read the room (message.read). A room that everyone can join but not read is not open. |
 
 
 <a id="chatto-admin-v1-AdminPermissionService-GetRolePermissionMatrix"></a>
@@ -1166,6 +1220,12 @@ Permission explanations for all permissions applicable at the requested scope.
 
 Sets one role permission decision. Server scope requires role.manage;
 group and room scopes also accept effective room.manage at that resource.
+A caller with role.manage can change every role except owner. Other
+callers who are not owners can change only roles below their own highest
+role. Every caller who is not an owner must have the permission at the
+target scope; otherwise the call returns PERMISSION_DENIED. Everyone ranks
+below every account. Roles, everyone included, only grant: a deny for any
+role returns INVALID_ARGUMENT. Set a deny on a single user instead.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/SetRolePermission
@@ -1181,7 +1241,7 @@ Request to set one role permission state.
 | --- | --- | --- |
 | `role_name` | `string` | Role name. |
 | `permission` | `string` | Permission identifier. |
-| `decision` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | New decision. NONE clears the explicit state. |
+| `decision` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | New decision. NONE clears the explicit state. Roles only grant, so DENY returns INVALID_ARGUMENT. |
 | `scope` | [`PermissionScope`](#chatto-admin-v1-PermissionScope) | Target scope. Omit or use SERVER for server scope. |
 
 
@@ -1201,8 +1261,12 @@ Result of setting one role permission state.
 ### SetUserPermission
 
 Sets one user permission decision. Human targets require
-user.manage-permissions; bot targets require ownership or bot.manage and
-accept only allow or clear within the bot owner's current authority.
+user.manage-permissions. A caller who is not an owner must also have the
+permission at the target scope and must outrank any other target;
+otherwise the call returns PERMISSION_DENIED. Bot targets require
+ownership, or bot.manage and a higher rank than the bot and its owner, and
+accept only allow or clear within the bot owner's current authority. A
+caller who does not own the bot must also have the permission they allow.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/SetUserPermission
@@ -2434,8 +2498,7 @@ Role metadata plus administrative permission state.
 | Field | Type | Description |
 | --- | --- | --- |
 | `role` | `chatto.api.v1.Role` | Public role metadata shared with ordinary role catalog reads. |
-| `permissions` | `repeated string` | Permissions granted by this role. |
-| `permission_denials` | `repeated string` | Permissions denied by this role. |
+| `permissions` | `repeated string` | Permissions granted by this role at server scope. Roles only grant permissions. |
 
 
 
@@ -2504,7 +2567,7 @@ Full decision trace for one permission and target user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `permission` | `string` | Permission identifier. |
-| `state` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Overall decision after resolving named subjects and the everyone baseline. |
+| `state` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Overall decision after resolving the user and their roles, everyone included. |
 | `decided_at` | [`PermissionDecisionLevel`](#chatto-admin-v1-PermissionDecisionLevel) | Level of the winning decision, when state is not NONE. |
 | `decided_by_role` | `string` | Role name, user ID, or policy marker that produced the winning decision. |
 | `trace` | repeated [`PermissionTraceEntry`](#chatto-admin-v1-PermissionTraceEntry) | Ordered decision trace. The first entry is the winning decision. |
@@ -2523,8 +2586,10 @@ Matrix cell for one permission and scope.
 | `permission` | `string` | Permission identifier. |
 | `scope_id` | `string` | Scope ID matching PermissionMatrixScope.id. |
 | `override` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Explicit decision at this scope. |
-| `effective` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Effective decision at this scope. |
+| `effective` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Effective decision at this scope. For a human account, this is the result without privileged mode. |
 | `allow_permitted` | `optional bool` | Whether an explicit allow may currently be stored for this target. Absent when no additional delegation ceiling applies. |
+| `effective_with_privileged_mode` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | For a human account, the effective decision while the account has privileged mode active. It differs from effective for elevation-required permissions and for owners. Unspecified for roles and bots. |
+| `viewer_can_change` | `optional bool` | Whether the caller may change this setting. A caller who is not an owner must hold the permission at this scope. Absent for bot cells, which use allow_permitted. |
 
 
 
@@ -2608,12 +2673,11 @@ shape when building integrations that do not need matrix column joins.
 
 ### TierPermissions
 
-Permission grants and denials at a single tier.
+Explicit permission grants of a role at a single tier.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `permissions` | `repeated string` | Explicitly granted permissions. |
-| `permission_denials` | `repeated string` | Explicitly denied permissions. |
+| `permissions` | `repeated string` | Explicitly granted permissions. Roles only grant, so a role has no explicit denies. |
 
 
 
@@ -2627,8 +2691,8 @@ One role's permission state at a single tier.
 | --- | --- | --- |
 | `override` | [`TierPermissions`](#chatto-admin-v1-TierPermissions) | Explicit state at this tier. |
 | `inherited_allows` | `repeated string` | Allows inherited from broader tiers. |
-| `inherited_denials` | `repeated string` | Denials inherited from broader tiers. |
 | `role` | `chatto.api.v1.Role` | Public role metadata. |
+| `effective_allows` | `repeated string` | Permissions that a member with only this role is allowed at this tier. The server resolves them with the same rules as authorization: the allows of the role and of everyone, and inclusion. They do not include settings on single users, the owner override, or privileged mode. Other applicable permissions have no allow, which means no access. |
 
 
 
@@ -2641,7 +2705,8 @@ Role permission matrix for one tier.
 | Field | Type | Description |
 | --- | --- | --- |
 | `applicable_permissions` | `repeated string` | Permissions configurable at this tier. |
-| `roles` | repeated [`TierRole`](#chatto-admin-v1-TierRole) | Roles sorted by position. |
+| `roles` | repeated [`TierRole`](#chatto-admin-v1-TierRole) | Roles in role order, highest first. |
+| `viewer_changeable_permissions` | `repeated string` | Applicable permissions that the caller may change at this tier. A caller who is not an owner must hold the permission here. |
 
 
 

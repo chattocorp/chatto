@@ -58,8 +58,13 @@ export const serverAdmin = (sub?: string) =>
 export const serverAdminGeneral = serverAdmin('general');
 export const serverAdminRooms = `/chat/${HOME}/manage/rooms`;
 export const serverAdminPermissions = serverAdmin('permissions');
-export const serverAdminPermissionsNew = serverAdmin('permissions/new');
-export const serverAdminPermission = (roleName: string) => serverAdmin(`permissions/${roleName}`);
+export const serverAdminRoles = serverAdmin('roles');
+export const serverAdminRolesNew = serverAdmin('roles/new');
+export const serverAdminRole = (roleName: string) => serverAdmin(`roles/${roleName}`);
+export const serverAdminRolePermissions = (roleName: string) =>
+  serverAdmin(`roles/${roleName}/permissions`);
+export const serverAdminRoleMembers = (roleName: string) =>
+  serverAdmin(`roles/${roleName}/members`);
 export const serverAdminMembers = serverAdmin('members');
 export const serverAdminMember = (userId: string) => serverAdmin(`members/${userId}`);
 export const serverAdminMemberDelete = (userId: string) => serverAdmin(`members/${userId}/delete`);

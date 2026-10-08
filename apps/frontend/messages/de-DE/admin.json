@@ -11,7 +11,8 @@
       "event_log": "Ereignisprotokoll",
       "system": "System",
       "back_to_server": "Zurück zum Server",
-      "invitations": "Einladungslinks"
+      "invitations": "Einladungslinks",
+      "roles": "Rollen"
     },
     "neighbors": {
       "title": "Nachbarn",
@@ -145,7 +146,8 @@
         "account": "Konto",
         "roles": "Rollen",
         "permissions": "Berechtigungen"
-      }
+      },
+      "role_beyond_viewer_permissions": "Du kannst diese Rollenzuweisung nicht ändern. Die Rolle erlaubt Berechtigungen, die du nicht hast."
     },
     "member_delete": {
       "title": "Mitglied löschen",
@@ -181,38 +183,63 @@
       "new_role_action": "+ Neue Rolle",
       "creating_role": "Wird erstellt...",
       "create_after_hint": "Nach dem Erstellen der Rolle kannst du ihr auf der Bearbeitungsseite Berechtigungen zuweisen.",
-      "back_to_permissions": "Zurück zu Berechtigungen",
       "load_instance_failed": "Instanz konnte nicht geladen werden",
-      "need_manage_create": "Du brauchst die Berechtigung roles.manage, um Rollen zu erstellen.",
+      "need_manage_create": "Du brauchst die Berechtigung role.manage, um Rollen zu erstellen.",
       "edit_role_title": "Rolle bearbeiten",
       "loading_role": "Rolle wird geladen...",
       "role_not_found": "Rolle nicht gefunden",
-      "need_manage_edit": "Du brauchst die Berechtigung roles.manage, um Rollen zu bearbeiten.",
+      "need_manage_edit": "Du brauchst die Berechtigung role.manage, um Rollen zu bearbeiten.",
       "system_metadata_locked": "Metadaten von Systemrollen können nicht geändert werden.",
       "everyone_pingable_description": "Nutze @all für raumweite Zustellung; everyone ist kein Rollen-Ping-Handle.",
       "save_changes": "Änderungen speichern",
       "delete_role_description": "Das Löschen dieser Rolle entfernt sie von allen Benutzern, denen sie zugewiesen ist.",
       "owner_permissions_hint": "Owner erhalten immer alle Berechtigungen. Die Matrix ist schreibgeschützt, weil Owner-Berechtigungen nicht als bearbeitbare Erlaubnisse oder Verweigerungen gespeichert werden.",
-      "role_permissions_hint": "Erlaubnisse und Verweigerungen dieser Rolle über alle Bereiche. Sie werden zur Auflösungszeit mit den anderen Rollen des Benutzers kombiniert - nutze die Matrix pro Benutzer, um das Ergebnis für eine Person zu sehen.",
+      "role_permissions_hint": "Jede Zelle zeigt, was ein Mitglied erhält, das nur diese Rolle hat, zusammen mit der Rolle everyone. Um zu sehen, was ein bestimmtes Mitglied erhält, öffne die Berechtigungen dieses Mitglieds.",
       "users_with_role": "Benutzer mit dieser Rolle",
       "everyone_implicit": "Alle Servermitglieder haben die Rolle everyone implizit.",
       "no_users_with_role": "Keine Benutzer haben diese Rolle",
       "server_tier_intro": "Diese Seite ist für serverweite Rollenberechtigungen: breite Vorgaben, die vor raumspezifischen Überschreibungen gelten.",
       "server_tier_rooms_hint": "Nutze Räume für Überschreibungen pro Gruppe und Raum.",
-      "resolution_hint": "Für jeden Benutzer oder jede benannte Rolle gilt der nächstgelegene Raum-, Gruppen- oder Serverwert. Verweigerungen haben dazwischen Vorrang. Eine Erlaubnis überschreibt eine everyone-Verweigerung nur auf derselben oder einer spezifischeren Ebene.",
+      "resolution_hint": "Eine Verweigerung beim Benutzer entscheidet. Andernfalls gibt eine Erlaubnis des Benutzers, einer Rolle oder von everyone Zugriff. Ohne Erlaubnis gibt es keinen Zugriff.",
       "update_role_failed": "Rolle konnte nicht aktualisiert werden",
       "update_ping_failed": "Ping-Einstellung der Rolle konnte nicht aktualisiert werden",
-      "delete_role_failed": "Rolle konnte nicht gelöscht werden"
+      "delete_role_failed": "Rolle konnte nicht gelöscht werden",
+      "role_order": {
+        "title": "Rollenreihenfolge",
+        "hint": "Die Rollenreihenfolge legt fest, wer wen verwalten kann. Ein Mitglied kann nur Konten und Rollen unterhalb seiner höchsten Rolle verwalten.",
+        "drag_role": "{role} verschieben",
+        "always_highest": "Immer die höchste",
+        "always_lowest": "Immer die niedrigste",
+        "saved": "Rollenreihenfolge gespeichert",
+        "save_failed": "Rollenreihenfolge konnte nicht gespeichert werden",
+        "list_label": "Rollen, die du verschieben kannst"
+      },
+      "back_to_roles": "Zurück zu Rollen",
+      "roles_page": {
+        "title": "Rollen",
+        "subtitle": "Erstelle, bearbeite und ordne die Rollen dieses Servers",
+        "edit_role": "{role} bearbeiten",
+        "view_role": "{role} ansehen"
+      },
+      "role_tabs": {
+        "label": "Bereiche der Rolle",
+        "general": "Allgemein",
+        "permissions": "Berechtigungen",
+        "members": "Mitglieder"
+      },
+      "role_pings_on": "Rollen-Pings eingeschaltet",
+      "role_pings_off": "Rollen-Pings ausgeschaltet",
+      "server_scope_warning": "Einstellungen auf dieser Seite gelten für jeden Raum und jede Raumgruppe auf dem Server. Um nur einige Räume zu öffnen, lege die Berechtigungen dieser Räume oder Raumgruppen fest."
     },
     "rooms_admin": {
       "title": "Räume",
       "subtitle": "Räume erstellen, bearbeiten, organisieren und archivieren",
-      "group_permissions_subtitle": "Rollenberechtigungen pro Gruppe erlauben und verweigern",
+      "group_permissions_subtitle": "Rollenberechtigungen pro Gruppe erlauben",
       "room_permissions_subtitle": "Berechtigungsüberschreibungen pro Raum (auf der Raumgruppe aufbauend)",
       "permissions_page_title": "Berechtigungen - {name}",
       "back_to_rooms": "Zurück zu Räumen",
-      "group_permissions_hint": "Überschreibungen pro Gruppe für die Kanalräume in dieser Gruppe. Vorgaben werden vom Serverbereich geerbt. Einzelne Räume können Berechtigungen auf ihrer eigenen Berechtigungsseite weiter überschreiben.",
-      "room_permissions_hint": "Diese Einstellungen gelten nur in diesem Raum. Sie ersetzen für dieselbe Rolle oder denselben Benutzer die Einstellungen der Raumgruppe und des Servers. Wenn hier nur bestimmte Rollen etwas tun dürfen, setze Verweigern für everyone und Erlauben für diese Rollen.",
+      "group_permissions_hint": "Einstellungen hier gelten für jeden Raum in dieser Raumgruppe. Ein Raum kann mehr erlauben, aber nicht wegnehmen, was die Raumgruppe erlaubt.",
+      "room_permissions_hint": "Diese Einstellungen gelten nur in diesem Raum. Sie ergänzen die Rollenerlaubnisse der Raumgruppe und des Servers. Wenn hier nur bestimmte Rollen etwas tun dürfen, erlaube es everyone nicht auf einer breiteren Ebene. Erlaube es dann hier für diese Rollen.",
       "loading": "Räume werden geladen...",
       "empty_groups": "Noch keine Raumgruppen",
       "empty_groups_body": "Erstelle ein Set, um Räume zu organisieren.",

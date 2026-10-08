@@ -7,7 +7,7 @@ import type {
   RoomMember,
   RoomMembersStore
 } from '$lib/state/room';
-import type { MentionRolesStore } from '@chatto/client/server/mentionRoles';
+import type { RoleCatalogStore } from '@chatto/client/server/roleCatalog';
 import type { RoomUnreadStore } from '$lib/state/server/roomUnread';
 import type { ServerInfoState } from '@chatto/client/server/state';
 import type { createMessageAPI, UpdateMessageInput } from '@chatto/client/api/messages';
@@ -102,7 +102,7 @@ type MessageComposerDependencies = {
   getMembers: () => RoomMember[];
   getMentionPriorityUserIds: () => ReadonlySet<string> | undefined;
   membersStore: RoomMembersStore;
-  mentionRolesStore: MentionRolesStore;
+  mentionRolesStore: RoleCatalogStore;
   serverInfo: ServerInfoState;
   roomUnreadStore: RoomUnreadStore;
   getMessageAPI: () => ReturnType<typeof createMessageAPI>;

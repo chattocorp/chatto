@@ -56,7 +56,7 @@ import { directMessageParticipant } from './rooms.js';
 import { mapNotificationOccurrencePage } from '../api/notifications.js';
 import { RealtimeProjectionSyncState } from './realtimeSync.js';
 import { PrivilegedModeState } from '@chatto/api-types/api/v1/viewer_pb';
-import { MentionRolesStore } from './mentionRoles.js';
+import { RoleCatalogStore } from './roleCatalog.js';
 import { TimelineEventKind } from '../timeline/timelineEvents.js';
 
 function viewerAuthorizationLost(
@@ -98,7 +98,8 @@ export class ServerStateStore {
   readonly notifications: NotificationStore;
   /** The rooms and room groups of the projection. */
   readonly roomList: RoomListView;
-  readonly mentionRoles: MentionRolesStore;
+  /** Public role catalogue: mention targets, role order, and the viewer's rank. */
+  readonly roleCatalog: RoleCatalogStore;
   readonly projection: ServerProjectionStore;
   /** Readiness and opaque resume position for this retained projection. */
   readonly realtimeSync = new RealtimeProjectionSyncState();
@@ -344,7 +345,7 @@ export class ServerStateStore {
     );
     this.notifications = new NotificationStore(notificationAPI);
     this.roomList = new RoomListView(this.projection, this.realtimeSync);
-    this.mentionRoles = new MentionRolesStore(roleAPI, () => this.isAuthenticated);
+    this.roleCatalog = new RoleCatalogStore(roleAPI, () => this.isAuthenticated);
     this.#rooms = new RoomStores({
       serverId: this.serverId,
       connection: serverConnection,
@@ -1215,6 +1216,10 @@ export class ServerStateStore {
           payload.case === 'roleAssigned'
         );
         this.refreshRealtimeUsers([payload.value.userId]);
+        if (payload.value.userId === this.accountId) {
+          // The viewer's highest role can change.
+          void this.roleCatalog.reload();
+        }
         return;
       }
       case 'roleDeleted':
@@ -1224,14 +1229,12 @@ export class ServerStateStore {
             this.setProjectedUserRole(userId, payload.value.roleName, false);
           }
         }
-        this.mentionRoles.invalidate();
-        void this.mentionRoles.load();
+        void this.roleCatalog.reload();
         return;
       case 'roleCreated':
       case 'roleUpdated':
       case 'rolesReordered':
-        this.mentionRoles.invalidate();
-        void this.mentionRoles.load();
+        void this.roleCatalog.reload();
         return;
       case 'rolePermissionsChanged':
         this.invalidateUniversalMembership();
@@ -1426,7 +1429,7 @@ export class ServerStateStore {
       () => this.projection.users.clear(),
       () => this.presence.clear(),
       ...this.#rooms.resetHandlers(),
-      () => this.mentionRoles.invalidate(),
+      () => this.roleCatalog.invalidate(),
       () => this.notifications.resetProjectionState()
     ]);
     return complete;

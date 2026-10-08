@@ -23,12 +23,12 @@ export class ServerRolesPage {
   // --- Locators ---
 
   /** The page heading */
-  get pageHeading(): Locator {
+  get permissionsHeading(): Locator {
     return this.page.getByRole('heading', { name: 'Permissions', exact: true, level: 1 });
   }
 
-  /** The create-role action at the end of the permission matrix header. */
-  get createRoleButton(): Locator {
+  /** The "+ New Role" link at the end of the permission matrix header. */
+  get newRoleColumn(): Locator {
     return this.page.getByTestId('new-role-column');
   }
 
@@ -86,27 +86,37 @@ export class ServerRolesPage {
     return this.page.getByRole('button', { name: 'Cancel' });
   }
 
-  /** The Back to Permissions arrow link in the pane header */
+  /** The Back to roles arrow link in the role page header */
   get backToRolesButton(): Locator {
-    // PaneHeader's backHref renders an <a> with aria-label="Back to permissions".
-    return this.page.getByRole('link', { name: 'Back to permissions' });
+    // PaneHeader's backHref renders an <a> with aria-label="Back to roles".
+    return this.page.getByRole('link', { name: 'Back to roles' });
+  }
+
+  /** The heading of the Roles page, which lists the roles in their order. */
+  get rolesPageHeading(): Locator {
+    return this.page.getByRole('heading', { name: 'Roles', exact: true, level: 1 });
+  }
+
+  /** A role row on the Roles page. Matrix cells use `td`/`th`, so match the row `div`. */
+  getRolesPageRow(roleName: string): Locator {
+    return this.page.locator(`div[data-role="${roleName}"]`);
   }
 
   // --- Navigation ---
 
   /**
-   * Navigate to the roles list page.
+   * Navigate to the Permissions page with the server permission matrix.
    */
-  async gotoRolesList(spaceId: string): Promise<void> {
+  async gotoPermissionsMatrix(spaceId: string): Promise<void> {
     await this.page.goto(routes.serverAdminPermissions);
-    await expect(this.pageHeading).toBeVisible();
+    await expect(this.permissionsHeading).toBeVisible();
   }
 
   /**
    * Navigate to the create role page.
    */
   async gotoCreateRole(spaceId: string): Promise<void> {
-    await this.page.goto(routes.serverAdminPermissionsNew);
+    await this.page.goto(routes.serverAdminRolesNew);
     // Wait for either the form (if user has permission) or Access Denied message
     await expect(
       this.nameInput.or(this.page.getByText('Access Denied', { exact: true }))
@@ -114,17 +124,44 @@ export class ServerRolesPage {
   }
 
   /**
-   * Navigate to a specific role's edit page. The role detail page now hosts
-   * metadata + assigned-users only; permission editing happens on the matrix
-   * at the roles list. We track the role name here so subsequent permission
-   * helpers can resolve the matrix cell — they'll auto-navigate to the
-   * matrix as needed.
+   * Navigate to the General tab of a role's page. The permission helpers
+   * use the server permission matrix; we track the role name here so they
+   * can resolve the matrix cell — they'll auto-navigate to the matrix as
+   * needed.
    */
   async gotoEditRole(spaceId: string, roleName: string): Promise<void> {
     this.currentRoleName = roleName;
     this.currentSpaceId = spaceId;
-    await this.page.goto(routes.serverAdminPermission(roleName));
+    await this.page.goto(routes.serverAdminRole(roleName));
     await expect(this.page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
+  }
+
+  /** Navigate to the Members tab of a role's page. */
+  async gotoRoleMembers(roleName: string): Promise<void> {
+    await this.page.goto(routes.serverAdminRoleMembers(roleName));
+    await expect(this.page.getByRole('heading', { name: 'Users with this Role' })).toBeVisible();
+  }
+
+  /** Navigate to the Roles page. */
+  async gotoRolesPage(): Promise<void> {
+    await this.page.goto(routes.serverAdminRoles);
+    await expect(this.rolesPageHeading).toBeVisible();
+  }
+
+  /** Assert the Roles page is visible. */
+  async expectRolesPageVisible(): Promise<void> {
+    await expect(this.rolesPageHeading).toBeVisible();
+    await expect(this.getRolesPageRow('owner')).toBeVisible();
+  }
+
+  /** Assert a role is listed on the Roles page. */
+  async expectRoleOnRolesPage(roleName: string): Promise<void> {
+    await expect(this.getRolesPageRow(roleName)).toBeVisible();
+  }
+
+  /** Assert a role is not listed on the Roles page. */
+  async expectRoleNotOnRolesPage(roleName: string): Promise<void> {
+    await expect(this.getRolesPageRow(roleName)).toHaveCount(0);
   }
 
   // --- Role List Actions ---
@@ -259,26 +296,22 @@ export class ServerRolesPage {
     }
     if (!this.page.url().endsWith(`/manage/server/permissions`)) {
       await this.page.goto(routes.serverAdminPermissions);
-      await expect(this.pageHeading).toBeVisible();
+      await expect(this.permissionsHeading).toBeVisible();
     }
   }
 
   /**
    * Drive the matrix cell for the current role × permission to a target
-   * state (`allow`, `deny`, or `neutral`). The cell cycles
-   * `neutral → allow → deny → neutral` on each click; we click up to three
-   * times until the state lands.
+   * state (`allow` or `neutral`). Role cells cycle `neutral → allow →
+   * neutral`, because roles only grant; we click up to three times until the
+   * state lands.
    */
-  async setPermissionState(
-    permission: string,
-    target: 'allow' | 'deny' | 'neutral'
-  ): Promise<void> {
+  async setPermissionState(permission: string, target: 'allow' | 'neutral'): Promise<void> {
     await this.ensureOnMatrix();
     const cell = this.currentCell(permission);
     for (let i = 0; i < 3; i++) {
       const label = (await cell.getAttribute('aria-label')) ?? '';
       if (target === 'allow' && /Override allow/.test(label)) return;
-      if (target === 'deny' && /Override deny/.test(label)) return;
       if (target === 'neutral' && /No override/.test(label)) return;
       await cell.click();
       // Optimistic UI update is synchronous after the API mutation resolves;
@@ -319,21 +352,10 @@ export class ServerRolesPage {
     );
   }
 
-  /** Drive the cell to the deny state. */
-  async denyPermission(permission: string): Promise<void> {
-    await this.setPermissionState(permission, 'deny');
-  }
-
   /** Whether the cell currently shows an allow override. */
   async isPermissionGranted(permission: string): Promise<boolean> {
     const label = (await this.currentCell(permission).getAttribute('aria-label')) ?? '';
     return /Override allow/.test(label);
-  }
-
-  /** Whether the cell currently shows a deny override. */
-  async isPermissionDenied(permission: string): Promise<boolean> {
-    const label = (await this.currentCell(permission).getAttribute('aria-label')) ?? '';
-    return /Override deny/.test(label);
   }
 
   // --- Delete role Actions ---
@@ -349,10 +371,10 @@ export class ServerRolesPage {
   // --- Assertions ---
 
   /**
-   * Assert the roles list page is visible.
+   * Assert the Permissions page with its matrix is visible.
    */
-  async expectRolesListVisible(): Promise<void> {
-    await expect(this.pageHeading).toBeVisible();
+  async expectPermissionsMatrixVisible(): Promise<void> {
+    await expect(this.permissionsHeading).toBeVisible();
     await expect(this.rolesTable).toBeVisible();
   }
 
@@ -373,15 +395,15 @@ export class ServerRolesPage {
   /**
    * Assert the Create role button is visible.
    */
-  async expectCreateRoleButtonVisible(): Promise<void> {
-    await expect(this.createRoleButton).toBeVisible();
+  async expectNewRoleColumnVisible(): Promise<void> {
+    await expect(this.newRoleColumn).toBeVisible();
   }
 
   /**
    * Assert the Create role button is NOT visible.
    */
-  async expectCreateRoleButtonNotVisible(): Promise<void> {
-    await expect(this.createRoleButton).not.toBeVisible();
+  async expectNewRoleColumnNotVisible(): Promise<void> {
+    await expect(this.newRoleColumn).not.toBeVisible();
   }
 
   /** Assert the matrix cell for the current role × permission is set to allow. */
@@ -400,7 +422,7 @@ export class ServerRolesPage {
 
   /**
    * Assert the matrix cell for the current role × permission is NOT set to
-   * allow at this scope (it might be deny or neutral).
+   * allow at this scope.
    */
   async expectPermissionNotGranted(permission: string): Promise<void> {
     await this.ensureOnMatrix();
@@ -451,7 +473,7 @@ export class ServerRolesPage {
    */
   async expectReadOnlyMessage(): Promise<void> {
     await expect(
-      this.page.getByText('You need the roles.manage permission to make changes')
+      this.page.getByText('You need the role.manage permission to make changes')
     ).toBeVisible();
   }
 
@@ -493,7 +515,7 @@ export class ServerRolesPage {
   async gotoRoleDetail(spaceId: string, roleName: string): Promise<void> {
     this.currentRoleName = roleName;
     this.currentSpaceId = spaceId;
-    await this.gotoRolesList(spaceId);
+    await this.gotoPermissionsMatrix(spaceId);
   }
 
   /**
@@ -511,7 +533,7 @@ export class ServerRolesPage {
 
   /**
    * Clicking a role's column header at server scope routes to the role
-   * detail page (`/manage/server/permissions/[name]`), which carries "Edit Role" + the
+   * detail page (`/manage/server/roles/[name]`), which carries "Edit Role" + the
    * role slug as a `<code>` value.
    */
   async expectRoleDetailPage(roleName: string): Promise<void> {
@@ -519,15 +541,10 @@ export class ServerRolesPage {
     await expect(this.page.locator(`code:text-is("${roleName}")`)).toBeVisible();
   }
 
-  /** Assert the matrix cell for the current role × permission is set to deny. */
-  async expectPermissionDenied(permission: string): Promise<void> {
-    await this.ensureOnMatrix();
-    await expect(this.currentCell(permission)).toHaveAttribute('aria-label', /Override deny/);
-  }
-
   /**
    * Assert the matrix cell for the current role × permission is NOT set
-   * to deny at this scope (it might be allow or neutral).
+   * to deny at this scope. Roles only grant, so a role cell is allow or
+   * neutral.
    */
   async expectPermissionNotDenied(permission: string): Promise<void> {
     await this.ensureOnMatrix();

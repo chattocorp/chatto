@@ -101,6 +101,13 @@
       "yesterday": "Wczoraj",
       "this_week": "W tym tygodniu",
       "this_month": "W tym miesiącu"
+    },
+    "drag_and_drop": {
+      "drag_started": "Przenosisz {item}. Użyj klawiszy strzałek, aby go przenieść. Naciśnij Spację lub Enter, aby go upuścić.",
+      "moved": "Przeniesiono {item} na pozycję {position} z {count}.",
+      "dropped": "Zakończono przenoszenie {item}.",
+      "zone_active": "Przejdź do elementu i naciśnij Spację lub Enter, aby zacząć go przenosić.",
+      "zone_disabled": "Użyj uchwytu, aby przenieść element."
     }
   }
 }

@@ -317,14 +317,23 @@ authorization, live events, backup and restore, and backend tests.
 
 ## Authorization And RBAC
 
-- Core authorization source of truth lives around `cli/internal/core/permissions.go`,
-  `permission_resolver.go`, `can.go`, FDR-001, ADR-040, ADR-096, and ADR-105.
+- Core authorization source of truth lives around `cli/internal/core/permission.go`,
+  `permission_resolver.go`, `rbac_hierarchy.go`, `can.go`, FDR-001, ADR-040, ADR-096,
+  ADR-105, ADR-115, and ADR-116.
 - Users are server-scoped. Spaces and rooms may be discoverable, but room
   message access requires room membership.
-- Each direct-user or explicitly assigned role contributes its nearest
-  room/group/server decision. Denies win across those subjects. The implicit
-  `everyone` role supplies the scoped baseline: a named allow overrides an
-  everyone deny only at the same or a nearer scope.
+- Roles, `everyone` included, only grant (ADR-116). Only single users deny.
+  A deny as the user's own nearest room/group/server setting decides, unless
+  an including permission is allowed. Otherwise, any allow of the user, a
+  role, or `everyone` at any applicable scope allows. No allow means no
+  access. Reject every role deny with `ErrInvalidArgument`; stored role denies
+  have no effect. Every check, explanation, matrix, and access summary goes
+  through `PermissionResolver.explain`; do not add a second resolver.
+- A Server-scope allow reaches every room. New servers start closed: keep
+  room access and room content out of the Server-scope defaults of
+  `everyone` and `admin`. New rooms and room groups get no `everyone` allows;
+  only first-boot and development seeding open rooms (`WithOpenRoomDefaults`,
+  `WithAnnouncementsRoomDefaults`).
 - Effective owner means durable `owner` role or verified email matching
   `owners.emails`. Owners are entitled to every permission, but the owner
   override is effective only while the owner's session has active privileged
@@ -354,12 +363,32 @@ authorization, live events, backup and restore, and backend tests.
   `message.read-interactions`.
 - Add permissions in Go first, regenerate frontend mirrors, and test scope and
   DM-scope behavior.
-- Targeted operations are permission-gated, not rank-gated: role assignment uses
-  `role.assign`, direct user permissions use `user.manage-permissions`, room
-  bans use `room.ban-member`. A non-owner's role assignment authority is bounded
-  by the target role's explicit scoped permission decisions; assigning requires
-  every allow, revoking requires every allow and deny, and the `owner` role is
-  owner-only.
+- Role order is an administrative rank (ADR-115, `rbac_hierarchy.go`). It
+  never affects permission resolution. An account ranks at its highest role;
+  owners and the system actor are exempt, and `everyone` ranks below every
+  account. Targeted operations need their permission and a higher rank: a
+  non-owner acts only on accounts that rank strictly below them, and assigns
+  or revokes only roles below their highest role. Holders of `role.manage`
+  edit, delete, and move every role except `owner`; other editors of role
+  decisions, such as room managers, need the role to rank below them. Bots
+  hold no roles and rank like their owner. Add the rank check to every new
+  operation that acts on another account.
+- Delegated authority is bounded: assigning, revoking, or deleting a role
+  requires every allow of the role, and changing one role or direct-user
+  decision requires the actor to hold that permission at that scope. One
+  exception lets room managers open rooms: for a role decision at Room or
+  Room group scope, `room.manage` there covers each room permission that does
+  not need privileged mode (ADR-116). The exception applies only to role
+  decisions. It does not apply to direct-user decisions or bot grants,
+  because an allow on a user can lift a deny on that user. Check role
+  decisions, the role assign, revoke, and delete bounds, and role matrix cell
+  flags through `actorCanSetRoleDecision` or
+  `requireRoleDecisionWithinAuthority`. Check direct-user decisions and bot
+  grants through `requirePermissionDecisionWithinAuthority`, and user matrix
+  cell flags through the same check (`viewerCanChangeAtMatrixScope` with
+  `forRole` false). Do not use a direct permission check. The `owner` role is owner-only. Keep these bounds in
+  `role_assignment_authorization.go` and `rbac_hierarchy.go`, and run them
+  inside the command's OCC retry.
 - Authorization-sensitive event writes must evaluate authorization inside the
   target aggregate's OCC retry. Request-time authorization is the default. For
   cross-aggregate inputs, capture their authoritative tails, wait for the

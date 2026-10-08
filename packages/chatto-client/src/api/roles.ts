@@ -10,10 +10,12 @@ export type ServerRole = {
   name: string;
   displayName: string;
   description: string;
+  /**
+   * Permissions that the role grants at server scope. Empty for public role
+   * reads. Roles only grant permissions (ADR-116).
+   */
   permissions: string[];
-  permissionDenials: string[];
   isSystem: boolean;
-  position: number;
   pingable: boolean;
 };
 
@@ -24,6 +26,23 @@ export type RoleUser = {
   isBot: boolean;
 };
 
+/**
+ * Public role catalogue. `roles` lists every role in role order, highest
+ * first: `owner` first and `everyone` last. Role order is the administrative
+ * rank (ADR-115).
+ */
+export type PublicRoleCatalog = {
+  roles: ServerRole[];
+  /**
+   * The role at which the viewer ranks: `owner` for owners of the server,
+   * otherwise the viewer's highest role, or `everyone` without roles. A bot
+   * ranks at its owner's highest role. `null` when the server does not
+   * report it.
+   */
+  viewerHighestRole: string | null;
+};
+
+/** Administrative role catalogue, in role order, highest first. */
 export type RoleCatalog = {
   roles: ServerRole[];
   viewerCanManageRoles: boolean;
@@ -59,12 +78,12 @@ export function createRoleAPI(config: ConnectAPIConfig) {
   const adminClient = createChattoClient(AdminRoleService, config);
 
   return {
-    async listRoles(): Promise<RoleCatalog> {
+    async listRoles(): Promise<PublicRoleCatalog> {
       const response = await client.listRoles({});
       return {
         roles: response.roles.map((role) => serverRoleFromPublic(role)),
-        viewerCanManageRoles: false,
-        viewerCanAssignRoles: false
+        // Servers before viewer_highest_role send an empty string.
+        viewerHighestRole: response.viewerHighestRole || null
       };
     },
 
@@ -133,6 +152,17 @@ export function createRoleAPI(config: ConnectAPIConfig) {
     async deleteRole(name: string): Promise<boolean> {
       await adminClient.deleteRole({ name });
       return true;
+    },
+
+    /**
+     * Moves one role in the role order. The role then ranks directly above
+     * `beforeRoleName`, the role that follows it in display order (highest
+     * first). Omit `beforeRoleName` to place the role lowest, directly above
+     * everyone. Returns the full role catalogue.
+     */
+    async moveRole(roleName: string, beforeRoleName?: string): Promise<ServerRole[]> {
+      const response = await adminClient.moveRole({ roleName, beforeRoleName });
+      return response.roles.map(serverRoleFromAdmin);
     }
   };
 }
@@ -150,22 +180,16 @@ function serverRoleFromAdmin(role: APIAdminRole): ServerRole {
   if (!role.role) {
     throw new Error('admin role response did not include public role metadata');
   }
-  return serverRoleFromPublic(role.role, role.permissions, role.permissionDenials);
+  return serverRoleFromPublic(role.role, role.permissions);
 }
 
-function serverRoleFromPublic(
-  role: APIRole,
-  permissions: string[] = [],
-  permissionDenials: string[] = []
-): ServerRole {
+function serverRoleFromPublic(role: APIRole, permissions: string[] = []): ServerRole {
   return {
     name: role.name,
     displayName: role.displayName,
     description: role.description,
     permissions: [...permissions],
-    permissionDenials: [...permissionDenials],
     isSystem: role.isSystem,
-    position: role.position,
     pingable: role.pingable
   };
 }

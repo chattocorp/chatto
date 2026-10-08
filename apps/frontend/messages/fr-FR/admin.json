@@ -11,7 +11,8 @@
       "event_log": "Journal des événements",
       "system": "Système",
       "back_to_server": "Retour au serveur",
-      "invitations": "Liens d’invitation"
+      "invitations": "Liens d’invitation",
+      "roles": "Rôles"
     },
     "neighbors": {
       "title": "Voisins",
@@ -145,7 +146,8 @@
         "account": "Compte",
         "roles": "Rôles",
         "permissions": "Autorisations"
-      }
+      },
+      "role_beyond_viewer_permissions": "Vous ne pouvez pas modifier cette attribution de rôle. Le rôle autorise des permissions que vous n'avez pas."
     },
     "member_delete": {
       "title": "Supprimer un membre",
@@ -181,38 +183,63 @@
       "new_role_action": "+ Nouveau rôle",
       "creating_role": "Création...",
       "create_after_hint": "Après avoir créé le rôle, vous pouvez lui attribuer des autorisations sur la page d'édition.",
-      "back_to_permissions": "Retour aux autorisations",
       "load_instance_failed": "Échec du chargement de l'instance",
-      "need_manage_create": "Vous avez besoin de l'autorisation rôles.manage pour créer des rôles.",
+      "need_manage_create": "Vous avez besoin de l'autorisation role.manage pour créer des rôles.",
       "edit_role_title": "Modifier le rôle",
       "loading_role": "Chargement du rôle...",
       "role_not_found": "Rôle introuvable",
-      "need_manage_edit": "Vous avez besoin de l'autorisation rôles.manage pour modifier les rôles.",
+      "need_manage_edit": "Vous avez besoin de l'autorisation role.manage pour modifier les rôles.",
       "system_metadata_locked": "Les métadonnées du rôle système ne peuvent pas être modifiées.",
       "everyone_pingable_description": "Utilisez @all pour une diffusion dans toute la salle ; tout le monde n'est pas un gestionnaire de rôle.",
       "save_changes": "Enregistrer les modifications",
       "delete_role_description": "La suppression de ce rôle le supprimera de tous les utilisateurs auxquels il est attribué.",
       "owner_permissions_hint": "Les propriétaires disposent toujours de toutes les autorisations. La matrice est en lecture seule car les autorisations du propriétaire ne sont pas stockées sous forme d'autorisations ou de refus modifiables.",
-      "role_permissions_hint": "Accords et refus de ce rôle dans toutes les étendues. Combiné avec les autres rôles de l'utilisateur au moment de la résolution, utilisez la matrice par utilisateur pour voir ce qu'un utilisateur individuel obtient.",
+      "role_permissions_hint": "Chaque cellule indique ce que reçoit un membre qui possède uniquement ce rôle, avec le rôle everyone. Pour voir ce que reçoit un membre précis, ouvrez les permissions de ce membre.",
       "users_with_role": "Utilisateurs avec ce rôle",
       "everyone_implicit": "Tous les membres du serveur ont implicitement le rôle Tout le monde.",
       "no_users_with_role": "Aucun utilisateur n'a ce rôle",
       "server_tier_intro": "Cette page concerne les autorisations de rôle au niveau du serveur : valeurs par défaut générales qui s'appliquent avant les remplacements spécifiques à la salle.",
       "server_tier_rooms_hint": "Utilisez les salles pour les remplacements par groupe et par salle.",
-      "resolution_hint": "Pour chaque utilisateur ou rôle nommé, la valeur la plus proche au niveau de la salle, du groupe ou du serveur s'applique. Les refus l'emportent entre eux. Une autorisation ne remplace un refus de everyone qu'au même niveau ou à un niveau plus précis.",
+      "resolution_hint": "Un refus sur l'utilisateur l'emporte. Sinon, une autorisation de l'utilisateur, d'un rôle ou de everyone donne l'accès. Sans autorisation, il n'y a pas d'accès.",
       "update_role_failed": "Échec de la mise à jour du rôle",
       "update_ping_failed": "Échec de la mise à jour du paramètre de mention du rôle",
-      "delete_role_failed": "Échec de la suppression du rôle"
+      "delete_role_failed": "Échec de la suppression du rôle",
+      "role_order": {
+        "title": "Ordre des rôles",
+        "hint": "L'ordre des rôles détermine qui peut gérer qui. Un membre ne peut gérer que les comptes et les rôles situés sous son rôle le plus élevé.",
+        "drag_role": "Déplacer {role}",
+        "always_highest": "Toujours le plus élevé",
+        "always_lowest": "Toujours le plus bas",
+        "saved": "Ordre des rôles enregistré",
+        "save_failed": "Impossible d'enregistrer l'ordre des rôles",
+        "list_label": "Rôles que vous pouvez déplacer"
+      },
+      "back_to_roles": "Retour aux rôles",
+      "roles_page": {
+        "title": "Rôles",
+        "subtitle": "Créez, modifiez et ordonnez les rôles de ce serveur",
+        "edit_role": "Modifier {role}",
+        "view_role": "Voir {role}"
+      },
+      "role_tabs": {
+        "label": "Sections du rôle",
+        "general": "Général",
+        "permissions": "Autorisations",
+        "members": "Membres"
+      },
+      "role_pings_on": "Mentions du rôle activées",
+      "role_pings_off": "Mentions du rôle désactivées",
+      "server_scope_warning": "Les paramètres de cette page s’appliquent à toutes les salles et à tous les groupes de salles du serveur. Pour ouvrir seulement certaines salles, définissez les permissions de ces salles ou groupes de salles."
     },
     "rooms_admin": {
       "title": "Chambres",
       "subtitle": "Créer, modifier, organiser et archiver des salles",
-      "group_permissions_subtitle": "Octroi et refus d'autorisations de rôle par groupe",
+      "group_permissions_subtitle": "Octroi d'autorisations de rôle par groupe",
       "room_permissions_subtitle": "Autorisations de remplacement par salle (superposées au groupe de la salle)",
       "permissions_page_title": "Autorisations - {name}",
       "back_to_rooms": "Retour aux chambres",
-      "group_permissions_hint": "Remplacements par groupe pour les salles de canal de ce groupe. Valeurs par défaut héritées de la portée du serveur. Les salles individuelles peuvent en outre remplacer les autorisations de leur propre page d'autorisations.",
-      "room_permissions_hint": "Ces paramètres s’appliquent uniquement dans cette salle. Ils remplacent les paramètres du groupe de salles et du serveur pour le même rôle ou le même utilisateur. Pour que seuls certains rôles puissent faire une action ici, définissez Refuser pour everyone et Autoriser pour ces rôles.",
+      "group_permissions_hint": "Les paramètres ici s’appliquent à toutes les salles de ce groupe de salles. Une salle peut autoriser davantage, mais elle ne peut pas retirer ce que le groupe de salles autorise.",
+      "room_permissions_hint": "Ces paramètres s’appliquent uniquement dans cette salle. Ils s’ajoutent aux autorisations des rôles du groupe de salles et du serveur. Pour que seuls certains rôles puissent faire une action ici, ne l’autorisez pas pour everyone à un niveau plus large. Autorisez-la ensuite ici pour ces rôles.",
       "loading": "Chargement des salles...",
       "empty_groups": "Aucun groupe de salles pour l'instant",
       "empty_groups_body": "Créez un ensemble pour commencer à organiser les salles.",

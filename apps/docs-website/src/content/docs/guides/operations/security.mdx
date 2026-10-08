@@ -63,9 +63,9 @@ Every API request goes through the permission system. Administrative and
 moderation permissions become effective only after an administrator enables
 privileged mode for 15 minutes. Bot API keys do not use privileged mode.
 
-The first owner comes from `owners.emails`. Chatto matches only verified email
-addresses, so a user cannot claim ownership with an address that they do not
-control.
+The setup wizard creates the first owner. `owners.emails` makes more owners
+and recovers access. Chatto matches only verified email addresses, so a user
+cannot claim ownership with an address that they do not control.
 
 Administrators cannot read conversations that they are not part of through
 Chatto. This is an application boundary, not a cryptographic one. A person who

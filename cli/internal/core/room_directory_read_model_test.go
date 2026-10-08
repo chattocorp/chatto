@@ -31,11 +31,11 @@ func TestRoomDirectoryReadModelVisibilityAndJoinGroup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom hidden: %v", err)
 	}
-	if err := core.DenyRoomPermission(ctx, SystemActorID, hidden.Id, RoleEveryone, PermRoomList); err != nil {
-		t.Fatalf("DenyRoomPermission room.list: %v", err)
+	if err := core.DenyUserRoomPermission(ctx, SystemActorID, hidden.Id, actor.Id, PermRoomList); err != nil {
+		t.Fatalf("DenyUserRoomPermission room.list: %v", err)
 	}
-	if err := core.DenyRoomPermission(ctx, SystemActorID, hidden.Id, RoleEveryone, PermRoomJoin); err != nil {
-		t.Fatalf("DenyRoomPermission room.join: %v", err)
+	if err := core.DenyUserRoomPermission(ctx, SystemActorID, hidden.Id, actor.Id, PermRoomJoin); err != nil {
+		t.Fatalf("DenyUserRoomPermission room.join: %v", err)
 	}
 
 	rooms, err := reads.ListRooms(ctx, actor.Id, RoomDirectoryListOptions{IncludeChannels: true})

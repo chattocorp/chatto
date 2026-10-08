@@ -11,8 +11,7 @@ import (
 // from the bool path: both share the same applicable-decision collector.
 //
 // It also asserts that the explanation identifies one trace entry as the
-// resolver's winning decision. The trace may include an ignored everyone
-// baseline after a direct-user or named-role decision.
+// resolver's winning decision. The trace may list allows that did not win.
 func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 	t.Parallel()
 
@@ -22,21 +21,15 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 	// Three subjects with distinct role configurations:
 	//   regular: just everyone
 	//   adminUser: admin role
-	//   denyUser: custom role denying message.post
+	//   denyUser: denied message.post directly
 	regular, _ := core.CreateUser(ctx, SystemActorID, "regular", "Regular", "password123")
 	adminUser, _ := core.CreateUser(ctx, SystemActorID, "adminuser", "Admin User", "password123")
 	if err := core.AssignServerRole(ctx, SystemActorID, adminUser.Id, RoleAdmin); err != nil {
 		t.Fatalf("assign admin role: %v", err)
 	}
 	denyUser, _ := core.CreateUser(ctx, SystemActorID, "denyuser", "Deny User", "password123")
-	if _, err := core.CreateServerRole(ctx, SystemActorID, "denytest", "Deny message.post", "Test deny role"); err != nil {
-		t.Fatalf("create deny role: %v", err)
-	}
-	if err := core.DenyServerPermission(ctx, SystemActorID, "denytest", PermMessagePost); err != nil {
+	if err := core.DenyUserPermission(ctx, SystemActorID, denyUser.Id, PermMessagePost); err != nil {
 		t.Fatalf("deny perm: %v", err)
-	}
-	if err := core.AssignServerRole(ctx, SystemActorID, denyUser.Id, "denytest"); err != nil {
-		t.Fatalf("assign deny role: %v", err)
 	}
 
 	// A space owned by adminUser, with an extra member (regular) and a non-member (denyUser).
@@ -50,11 +43,12 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 		t.Fatalf("regular joins room: %v", err)
 	}
 
-	// Room-level override: deny message.post for the everyone role in this room.
-	// Owners should still post via the effective-owner override.
-	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, "everyone", PermMessagePost); err != nil {
+	// Room-level settings: a user deny of message.post for regular, and an
+	// everyone deny that an earlier version stored, which has no effect.
+	if err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, regular.Id, PermMessagePost); err != nil {
 		t.Fatalf("deny room perm: %v", err)
 	}
+	appendStoredRoleDeny(t, core, ctx, ScopeRoom, room.Id, RoleEveryone, PermMessageAttach)
 
 	subjects := []struct {
 		name string
@@ -125,37 +119,35 @@ func TestPermissionExplainer_NamedSubjectsAndEveryoneBaseline(t *testing.T) {
 	if err := core.AssignServerRole(ctx, SystemActorID, user.Id, RoleAdmin); err != nil {
 		t.Fatalf("assign admin: %v", err)
 	}
-	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermAdminUsersView); err != nil {
-		t.Fatalf("deny everyone: %v", err)
+	// everyone has the default server allow. The admin room allow is more
+	// specific, so it is the reported winner.
+	roomID := createPermissionEditRoom(t, core, ctx, "explainer-baseline-room")
+	if err := core.GrantRoomPermission(ctx, SystemActorID, roomID, RoleAdmin, PermMessageAttach); err != nil {
+		t.Fatalf("grant admin: %v", err)
 	}
 
-	exp, err := core.permissionResolver.ExplainServerPermission(ctx, user.Id, PermAdminUsersView)
+	exp, err := core.permissionResolver.ExplainRoomPermission(ctx, user.Id, KindChannel, roomID, PermMessageAttach)
 	if err != nil {
-		t.Fatalf("ExplainServerPermission: %v", err)
+		t.Fatalf("ExplainRoomPermission: %v", err)
 	}
-	if exp.State != DecisionAllow || exp.DecidedByRole != RoleAdmin {
-		t.Fatalf("decision = %s by %q, want allow by admin; trace=%+v", exp.State, exp.DecidedByRole, exp.Trace)
+	if exp.State != DecisionAllow || exp.DecidedByRole != RoleAdmin || exp.DecidedAt != LevelRoom {
+		t.Fatalf("decision = %s at %s by %q, want room allow by admin; trace=%+v", exp.State, exp.DecidedAt, exp.DecidedByRole, exp.Trace)
 	}
-	if !traceContains(exp.Trace, RoleEveryone, LevelServer, DecisionDeny) {
-		t.Fatalf("expected ignored everyone deny in trace, got %+v", exp.Trace)
-	}
-
-	if _, err := core.CreateServerRole(ctx, SystemActorID, "suspended", "Suspended", "Blocks capabilities"); err != nil {
-		t.Fatalf("create suspended: %v", err)
-	}
-	if err := core.DenyServerPermission(ctx, SystemActorID, "suspended", PermAdminUsersView); err != nil {
-		t.Fatalf("deny suspended: %v", err)
-	}
-	if err := core.AssignServerRole(ctx, SystemActorID, user.Id, "suspended"); err != nil {
-		t.Fatalf("assign suspended: %v", err)
+	if !traceContains(exp.Trace, RoleEveryone, LevelServer, DecisionAllow) {
+		t.Fatalf("expected the everyone server allow in trace, got %+v", exp.Trace)
 	}
 
-	exp, err = core.permissionResolver.ExplainServerPermission(ctx, user.Id, PermAdminUsersView)
+	// A setting on the user decides over its roles.
+	if err := core.DenyUserPermission(ctx, SystemActorID, user.Id, PermMessageAttach); err != nil {
+		t.Fatalf("deny user: %v", err)
+	}
+
+	exp, err = core.permissionResolver.ExplainRoomPermission(ctx, user.Id, KindChannel, roomID, PermMessageAttach)
 	if err != nil {
-		t.Fatalf("ExplainServerPermission with suspended role: %v", err)
+		t.Fatalf("ExplainRoomPermission with user deny: %v", err)
 	}
-	if exp.State != DecisionDeny || exp.DecidedByRole != "suspended" {
-		t.Fatalf("decision = %s by %q, want deny by suspended; trace=%+v", exp.State, exp.DecidedByRole, exp.Trace)
+	if exp.State != DecisionDeny || exp.DecidedByRole != user.Id {
+		t.Fatalf("decision = %s by %q, want deny by the user; trace=%+v", exp.State, exp.DecidedByRole, exp.Trace)
 	}
 }
 
@@ -244,7 +236,10 @@ func TestPermissionExplainer_AgreesWithBotReadInclusion(t *testing.T) {
 	}
 }
 
-func TestPermissionExplainer_NearerEveryoneDenyBeatsNamedAllow(t *testing.T) {
+// TestPermissionExplainer_StoredEveryoneDenyIsIgnored checks that an everyone
+// deny that an earlier version stored neither decides nor shows in the trace
+// (ADR-116).
+func TestPermissionExplainer_StoredEveryoneDenyIsIgnored(t *testing.T) {
 	t.Parallel()
 
 	core, _ := setupTestCore(t)
@@ -259,19 +254,34 @@ func TestPermissionExplainer_NearerEveryoneDenyBeatsNamedAllow(t *testing.T) {
 	if err := core.AssignServerRole(ctx, SystemActorID, admin.Id, RoleAdmin); err != nil {
 		t.Fatalf("assign admin: %v", err)
 	}
+	member, _ := core.CreateUser(ctx, SystemActorID, "explainer-scope-member", "Member", "password123")
+	if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermRoomList); err != nil {
+		t.Fatalf("clear everyone: %v", err)
+	}
+	appendStoredRoleDeny(t, core, ctx, ScopeRoom, room.Id, RoleEveryone, PermRoomList)
+
+	// Without an allow, a member has no access, and no deny decides.
+	exp, err := core.permissionResolver.ExplainRoomPermission(ctx, member.Id, KindChannel, room.Id, PermRoomList)
+	if err != nil {
+		t.Fatalf("ExplainRoomPermission without allow: %v", err)
+	}
+	if exp.State != DecisionNone || traceContains(exp.Trace, RoleEveryone, LevelRoom, DecisionDeny) {
+		t.Fatalf("decision = %s, want none without the stored deny in trace; trace=%+v", exp.State, exp.Trace)
+	}
+
+	// A less specific role allow decides for a role holder.
 	if err := core.GrantServerPermission(ctx, SystemActorID, RoleAdmin, PermRoomList); err != nil {
 		t.Fatalf("grant admin: %v", err)
 	}
-	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList); err != nil {
-		t.Fatalf("deny everyone: %v", err)
-	}
-
-	exp, err := core.permissionResolver.ExplainRoomPermission(ctx, admin.Id, KindChannel, room.Id, PermRoomList)
+	exp, err = core.permissionResolver.ExplainRoomPermission(ctx, admin.Id, KindChannel, room.Id, PermRoomList)
 	if err != nil {
 		t.Fatalf("ExplainRoomPermission: %v", err)
 	}
-	if exp.State != DecisionDeny || exp.DecidedByRole != RoleEveryone || exp.DecidedAt != LevelRoom {
-		t.Fatalf("decision = %s at %s by %q, want room deny by everyone; trace=%+v", exp.State, exp.DecidedAt, exp.DecidedByRole, exp.Trace)
+	if exp.State != DecisionAllow || exp.DecidedByRole != RoleAdmin || exp.DecidedAt != LevelServer {
+		t.Fatalf("decision = %s at %s by %q, want server allow by admin; trace=%+v", exp.State, exp.DecidedAt, exp.DecidedByRole, exp.Trace)
+	}
+	if traceContains(exp.Trace, RoleEveryone, LevelRoom, DecisionDeny) {
+		t.Fatalf("stored everyone deny in trace: %+v", exp.Trace)
 	}
 }
 
@@ -362,8 +372,8 @@ func assertAgreement(
 	}
 
 	// State / DecidedAt / DecidedByRole must identify a trace entry. Do not
-	// infer the winner by scanning for any deny: an everyone deny may be
-	// overridden by a same-scope or nearer direct-user/named-role allow.
+	// infer the winner by scanning the trace: it can list several allows, and
+	// only the most specific one is the reported winner.
 	if len(exp.Trace) > 0 {
 		foundWinner := false
 		for _, entry := range exp.Trace {

@@ -970,6 +970,9 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to list followed threads: %v", err)
 		}
+		if len(threads) != 2 {
+			t.Fatalf("followed threads = %d, want 2", len(threads))
+		}
 
 		// Thread 2 (first in list) has 2 replies
 		thread2 := threads[0]

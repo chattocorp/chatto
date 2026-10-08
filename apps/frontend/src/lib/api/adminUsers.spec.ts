@@ -127,11 +127,9 @@ describe('createAdminUserManagementAPI', () => {
             displayName: 'Moderator',
             description: '',
             isSystem: true,
-            position: 50,
             pingable: false
           },
-          permissions: ['room.manage'],
-          permissionDenials: ['message.post']
+          permissions: ['room.manage']
         }
       ],
       availablePermissions: ['room.manage', 'message.post'],
@@ -168,9 +166,7 @@ describe('createAdminUserManagementAPI', () => {
         {
           name: 'moderator',
           displayName: 'Moderator',
-          position: 50,
-          permissions: ['room.manage'],
-          permissionDenials: ['message.post']
+          permissions: ['room.manage']
         }
       ],
       availablePermissions: ['room.manage', 'message.post'],

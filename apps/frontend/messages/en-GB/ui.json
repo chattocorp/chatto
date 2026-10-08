@@ -101,6 +101,13 @@
       "yesterday": "Yesterday",
       "this_week": "This week",
       "this_month": "This month"
+    },
+    "drag_and_drop": {
+      "drag_started": "Started moving {item}. Use the arrow keys to move it. Press Space or Enter to drop it.",
+      "moved": "Moved {item} to position {position} of {count}.",
+      "dropped": "Stopped moving {item}.",
+      "zone_active": "Go to an item and press Space or Enter to start moving it.",
+      "zone_disabled": "Use a move handle to start moving an item."
     }
   }
 }

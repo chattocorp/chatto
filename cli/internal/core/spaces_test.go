@@ -109,7 +109,7 @@ func TestSeedDefaultRooms(t *testing.T) {
 	t.Parallel()
 
 	t.Run("creates announcements and general in the seed Lobby group", func(t *testing.T) {
-		c, _ := setupTestCore(t)
+		c, _ := setupTestCoreWithDefaults(t)
 		ctx := testContext(t)
 
 		if err := c.SeedDefaultRooms(ctx); err != nil {
@@ -151,10 +151,19 @@ func TestSeedDefaultRooms(t *testing.T) {
 		if universal["general"] {
 			t.Error("general should not be universal after seeding")
 		}
+		// The Lobby group stays closed (ADR-116); only the seeded rooms are
+		// opened at room scope.
+		for _, metadata := range PermissionsForScope(ScopeGroup) {
+			if got := c.rbacModel.decision(ScopeGroup, lobbyID, RoleEveryone, metadata.Permission); got != DecisionNone {
+				t.Errorf("Lobby everyone decision for %s = %s, want %s", metadata.Permission, got, DecisionNone)
+			}
+		}
 	})
 
-	t.Run("announcements room denies message.post to everyone", func(t *testing.T) {
-		c, _ := setupTestCore(t)
+	// Members can read announcements and reply in threads, but only admins
+	// have a message.post allow there (ADR-116).
+	t.Run("announcements room seed lets members reply but not post", func(t *testing.T) {
+		c, _ := setupTestCoreWithDefaults(t)
 		ctx := testContext(t)
 
 		if err := c.SeedDefaultRooms(ctx); err != nil {
@@ -183,7 +192,14 @@ func TestSeedDefaultRooms(t *testing.T) {
 			t.Fatalf("CanPostMessage failed: %v", err)
 		}
 		if can {
-			t.Error("regular member should NOT be able to post root messages in announcements")
+			t.Error("regular member should not be able to post root messages in announcements")
+		}
+		canRead, err := c.CanReadMessages(ctx, user.Id, KindChannel, announcementsID)
+		if err != nil {
+			t.Fatalf("CanReadMessages failed: %v", err)
+		}
+		if !canRead {
+			t.Error("regular member should be able to read announcements")
 		}
 
 		// And they CAN still post in threads.

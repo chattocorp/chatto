@@ -40,7 +40,10 @@ export function invalidatePermissionTiers(
   });
 }
 
-/** Remove a deleted role snapshot and refresh every cache that can derive from it. */
+/**
+ * Remove a deleted role snapshot and refresh every cache that can derive from
+ * it, including the role catalogue of the Roles page.
+ */
 export function removeDeletedRoleQueries(
   serverId: string,
   connection: AdminQueryConnection,
@@ -57,6 +60,9 @@ export function removeDeletedRoleQueries(
   void queryClient.cancelQueries({ queryKey: membersKey, exact: true });
   queryClient.setQueryData(membersKey, null);
   queryClient.removeQueries({ queryKey: membersKey, exact: true });
+  void queryClient.invalidateQueries({
+    queryKey: adminQueryKeys.roleCatalog(serverId, connection)
+  });
   invalidateRolePermissionDependents(serverId, connection, roleName);
 }
 

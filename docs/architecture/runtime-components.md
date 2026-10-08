@@ -407,5 +407,10 @@ reconnects using old unexpired credentials.
 Startup initializes missing server/everyone call permissions with ordinary RBAC
 grants guarded by the complete RBAC subject tail. The same startup step also
 applies the 0.5 upgrade grants (ADR-113). It reads historical decisions so a
-cleared or denied grant cannot return after restart. No new event variant,
-stream, or snapshot contract is required.
+cleared or denied grant cannot return after restart. On new servers, the
+seeded Direct messages decisions for `everyone` close the call gate. No new
+event variant, stream, or snapshot contract is required. After the projections
+are current, startup also logs a warning with the number of stored role denies,
+which have no effect, the IDs of the affected rooms and room groups, and each
+deny as `role:permission@scope[:id]`. Each list shows at most 50 entries
+(ADR-116).

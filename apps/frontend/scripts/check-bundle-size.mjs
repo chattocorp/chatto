@@ -15,8 +15,10 @@ const routes = [
     // CI baseline: 296.5 KiB. Keep a small allowance for routine feature
     // growth and build variation; eager-loading guards below remain independent.
     // Theme customisation (surface tones, palette fades, first-paint colours)
-    // added about 3.6 KiB of global CSS and preference code.
-    budgetKiB: 337,
+    // added about 3.6 KiB of global CSS and preference code. The role
+    // hierarchy, additive roles, and access summary added about 1.2 KiB of
+    // British English fallback strings.
+    budgetKiB: 339,
     components: ['src/routes/+layout.svelte', 'src/routes/login/+page.svelte']
   },
   {
@@ -24,7 +26,9 @@ const routes = [
     // CI baseline: 340.3 KiB, with roughly 10% headroom. Theme customisation
     // added about 3.7 KiB of global CSS and preference code.
     // Server gutter ordering adds about 1.7 KiB; drag code stays lazy.
-    budgetKiB: 380,
+    // The role hierarchy, additive roles, and access summary added about
+    // 1.4 KiB of role catalogue code and strings.
+    budgetKiB: 382,
     components: [
       'src/routes/+layout.svelte',
       'src/routes/chat/+layout.svelte',

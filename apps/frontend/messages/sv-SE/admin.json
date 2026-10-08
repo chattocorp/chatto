@@ -11,7 +11,8 @@
       "event_log": "Händelselogg",
       "system": "System",
       "back_to_server": "Återgå till servern",
-      "invitations": "Inbjudningslänkar"
+      "invitations": "Inbjudningslänkar",
+      "roles": "Roller"
     },
     "neighbors": {
       "title": "Grannar",
@@ -145,7 +146,8 @@
         "account": "Konto",
         "roles": "Roller",
         "permissions": "Behörigheter"
-      }
+      },
+      "role_beyond_viewer_permissions": "Du kan inte ändra den här rolltilldelningen. Rollen tillåter behörigheter som du inte har."
     },
     "member_delete": {
       "title": "Ta bort medlem",
@@ -181,38 +183,63 @@
       "new_role_action": "+ Ny roll",
       "creating_role": "Skapar...",
       "create_after_hint": "Efter att ha skapat rollen kan du tilldela behörigheter till den på redigeringssidan.",
-      "back_to_permissions": "Tillbaka till behörigheter",
       "load_instance_failed": "Det gick inte att läsa in instans",
-      "need_manage_create": "Du behöver behörigheten roles.manage för att skapa roller.",
+      "need_manage_create": "Du behöver behörigheten role.manage för att skapa roller.",
       "edit_role_title": "Redigera roll",
       "loading_role": "Laddar roll...",
       "role_not_found": "Rollen hittades inte",
-      "need_manage_edit": "Du behöver behörigheten roles.manage för att redigera roller.",
+      "need_manage_edit": "Du behöver behörigheten role.manage för att redigera roller.",
       "system_metadata_locked": "Systemrollens metadata kan inte ändras.",
       "everyone_pingable_description": "Använd @all för leverans i hela rummet; alla är inte en roll ping handtag.",
       "save_changes": "Spara ändringar",
       "delete_role_description": "Om du tar bort den här rollen tas den bort från alla användare som har den tilldelad.",
       "owner_permissions_hint": "Ägare beviljas alltid alla behörigheter. Matrisen är skrivskyddad eftersom ägarbehörigheter inte lagras som redigerbara tillstånd eller avslag.",
-      "role_permissions_hint": "Den här rollens bidrag och avslag i alla omfattningar. Kombinerat med användarens övriga roller vid upplösningstidpunkten – använd per-användarmatrisen för att se vad en enskild användare hamnar på.",
+      "role_permissions_hint": "Varje cell visar vad en medlem som bara har den här rollen får, tillsammans med rollen everyone. Om du vill se vad en enskild medlem får öppnar du den medlemmens behörigheter.",
       "users_with_role": "Användare med denna roll",
       "everyone_implicit": "Alla servermedlemmar har implicit rollen alla.",
       "no_users_with_role": "Inga användare har den här rollen",
       "server_tier_intro": "Den här sidan är för rollbehörigheter på servernivå: breda standardinställningar som gäller före rumsspecifika åsidosättningar.",
       "server_tier_rooms_hint": "Använd rum för åsidosättningar per grupp och per rum.",
-      "resolution_hint": "För varje användare eller namngiven roll gäller det närmaste rums-, grupp- eller servervärdet. Nekanden vinner mellan dem. Ett tillstånd åsidosätter ett everyone-nekande endast på samma eller en mer specifik nivå.",
+      "resolution_hint": "Ett nekande på användaren avgör. Annars ger ett tillstånd från användaren, en roll eller everyone åtkomst. Utan tillstånd finns ingen åtkomst.",
       "update_role_failed": "Det gick inte att uppdatera rollen",
       "update_ping_failed": "Det gick inte att uppdatera rollens inställning för omnämnanden",
-      "delete_role_failed": "Det gick inte att ta bort rollen"
+      "delete_role_failed": "Det gick inte att ta bort rollen",
+      "role_order": {
+        "title": "Rollordning",
+        "hint": "Rollordningen avgör vem som kan hantera vem. En medlem kan bara hantera konton och roller under sin högsta roll.",
+        "drag_role": "Flytta {role}",
+        "always_highest": "Alltid högst",
+        "always_lowest": "Alltid lägst",
+        "saved": "Rollordningen har sparats",
+        "save_failed": "Det gick inte att spara rollordningen",
+        "list_label": "Roller som du kan flytta"
+      },
+      "back_to_roles": "Tillbaka till roller",
+      "roles_page": {
+        "title": "Roller",
+        "subtitle": "Skapa, redigera och ordna rollerna på den här servern",
+        "edit_role": "Redigera {role}",
+        "view_role": "Visa {role}"
+      },
+      "role_tabs": {
+        "label": "Avsnitt för rollen",
+        "general": "Allmänt",
+        "permissions": "Behörigheter",
+        "members": "Medlemmar"
+      },
+      "role_pings_on": "Rollpingar aktiverade",
+      "role_pings_off": "Rollpingar inaktiverade",
+      "server_scope_warning": "Inställningarna på den här sidan gäller för alla rum och alla rumsgrupper på servern. Om du bara vill öppna vissa rum ställer du in behörigheterna för de rummen eller rumsgrupperna."
     },
     "rooms_admin": {
       "title": "Rum",
       "subtitle": "Skapa, redigera, organisera och arkivera rum",
-      "group_permissions_subtitle": "Beviljande och avslag på behörigheter per grupp",
+      "group_permissions_subtitle": "Beviljande av behörigheter per grupp",
       "room_permissions_subtitle": "Åsidosättningsbehörigheter per rum (lagrat ovanpå rummets grupp)",
       "permissions_page_title": "Behörigheter – {name}",
       "back_to_rooms": "Tillbaka till rummen",
-      "group_permissions_hint": "Åsidosättanden per grupp för kanalrummen i denna grupp. Standardvärden ärvda från serveromfånget. Enskilda rum kan ytterligare åsidosätta behörigheter från sin egen behörighetssida.",
-      "room_permissions_hint": "De här inställningarna gäller bara i det här rummet. De ersätter inställningarna för rumsgruppen och servern för samma roll eller användare. Om bara vissa roller ska kunna göra något här väljer du Neka för everyone och Tillåt för de rollerna.",
+      "group_permissions_hint": "Inställningarna här gäller för alla rum i den här rumsgruppen. Ett rum kan tillåta mer, men kan inte ta bort det som rumsgruppen tillåter.",
+      "room_permissions_hint": "De här inställningarna gäller bara i det här rummet. De läggs till rollernas tillstånd från rumsgruppen och servern. Om bara vissa roller ska kunna göra något här ska du inte tillåta det för everyone på en bredare nivå. Tillåt det sedan här för de rollerna.",
       "loading": "Laddar rum...",
       "empty_groups": "Inga rumsgrupper än",
       "empty_groups_body": "Skapa en uppsättning för att börja organisera rum.",

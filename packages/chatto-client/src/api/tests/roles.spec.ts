@@ -27,10 +27,10 @@ describe('createRoleAPI', () => {
           displayName: 'Moderator',
           description: 'Moderates rooms',
           isSystem: true,
-          position: 100,
           pingable: true
         }
-      ]
+      ],
+      viewerHighestRole: 'moderator'
     });
     const api = roleAPI();
 
@@ -44,15 +44,18 @@ describe('createRoleAPI', () => {
           displayName: 'Moderator',
           description: 'Moderates rooms',
           permissions: [],
-          permissionDenials: [],
           isSystem: true,
-          position: 100,
           pingable: true
         }
       ],
-      viewerCanManageRoles: false,
-      viewerCanAssignRoles: false
+      viewerHighestRole: 'moderator'
     });
+  });
+
+  it('reports an unknown rank when the server does not send one', async () => {
+    roles.listRoles.mockReturnValue({ roles: [] });
+
+    await expect(roleAPI().listRoles()).resolves.toEqual({ roles: [], viewerHighestRole: null });
   });
 
   it('gets and batch gets public roles', async () => {
@@ -61,7 +64,6 @@ describe('createRoleAPI', () => {
       displayName: 'Moderator',
       description: 'Moderates rooms',
       isSystem: true,
-      position: 100,
       pingable: true
     };
     roles.getRole.mockReturnValue({ role });
@@ -89,11 +91,9 @@ describe('createRoleAPI', () => {
             displayName: 'Moderator',
             description: 'Moderates rooms',
             isSystem: true,
-            position: 100,
             pingable: true
           },
-          permissions: ['room.manage'],
-          permissionDenials: ['message.post']
+          permissions: ['room.manage']
         }
       ],
       viewerCanManageRoles: true,
@@ -110,9 +110,7 @@ describe('createRoleAPI', () => {
           displayName: 'Moderator',
           description: 'Moderates rooms',
           permissions: ['room.manage'],
-          permissionDenials: ['message.post'],
           isSystem: true,
-          position: 100,
           pingable: true
         }
       ],
@@ -129,11 +127,9 @@ describe('createRoleAPI', () => {
           displayName: 'Helpdesk',
           description: '',
           isSystem: false,
-          position: 10,
           pingable: false
         },
-        permissions: [],
-        permissionDenials: []
+        permissions: []
       },
       viewerCanManageRoles: true,
       viewerCanAssignRoles: true
@@ -149,9 +145,7 @@ describe('createRoleAPI', () => {
         displayName: 'Helpdesk',
         description: '',
         permissions: [],
-        permissionDenials: [],
         isSystem: false,
-        position: 10,
         pingable: false
       },
       viewerCanManageRoles: true,
@@ -189,9 +183,7 @@ describe('createRoleAPI', () => {
       displayName: 'Helpdesk',
       description: 'Support queue',
       permissions: [],
-      permissionDenials: [],
       isSystem: false,
-      position: 10,
       pingable: true
     };
     const apiRole = {
@@ -200,11 +192,9 @@ describe('createRoleAPI', () => {
         displayName: role.displayName,
         description: role.description,
         isSystem: role.isSystem,
-        position: role.position,
         pingable: role.pingable
       },
-      permissions: role.permissions,
-      permissionDenials: role.permissionDenials
+      permissions: role.permissions
     };
     adminRoles.createRole.mockReturnValue({ role: apiRole });
     adminRoles.updateRole.mockReturnValue({
@@ -242,7 +232,7 @@ describe('createRoleAPI', () => {
 
   it('reads a public role and treats a missing role as null', async () => {
     roles.getRole.mockReturnValueOnce({
-      role: { name: 'moderator', displayName: 'Moderator', description: '', position: 1 }
+      role: { name: 'moderator', displayName: 'Moderator', description: '' }
     });
     await expect(roleAPI().getPublicRole('moderator')).resolves.toMatchObject({
       name: 'moderator',
@@ -263,5 +253,41 @@ describe('createRoleAPI', () => {
     await expect(roleAPI().getPublicRole('secret')).rejects.toMatchObject({
       code: Code.PermissionDenied
     });
+  });
+
+  it('moves a role and keeps the returned role order', async () => {
+    adminRoles.moveRole.mockReturnValue({
+      roles: [
+        {
+          role: {
+            name: 'moderator',
+            displayName: 'Moderator',
+            description: '',
+            isSystem: true,
+            pingable: true
+          },
+          permissions: ['message.manage']
+        },
+        {
+          role: {
+            name: 'admin',
+            displayName: 'Admin',
+            description: '',
+            isSystem: true,
+            pingable: false
+          },
+          permissions: []
+        }
+      ]
+    });
+    const api = roleAPI();
+
+    const result = await api.moveRole('moderator', 'admin');
+
+    expect(receivedRequest(adminRoles.moveRole)).toMatchObject({
+      roleName: 'moderator',
+      beforeRoleName: 'admin'
+    });
+    expect(result.map((role) => role.name)).toEqual(['moderator', 'admin']);
   });
 });

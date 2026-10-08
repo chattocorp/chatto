@@ -2,12 +2,14 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 
 	"hmans.de/chatto/internal/config"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -77,24 +79,10 @@ func TestDefaultServerEveryonePermissions(t *testing.T) {
 		t.Error("Expected at least one default everyone permission")
 	}
 
-	// Server defaults provide ordinary member capabilities globally.
-	expected := []Permission{
-		PermUserDeleteSelf,
-		PermRoomList,
-		PermRoomJoin,
-		PermMessagePost,
-		PermMessagePostInThread,
-		PermMessageReact,
-		PermMessageEcho,
-	}
-	permSet := make(map[Permission]bool)
-	for _, p := range perms {
-		permSet[p] = true
-	}
-	for _, exp := range expected {
-		if !permSet[exp] {
-			t.Errorf("Expected %s in default everyone permissions", exp)
-		}
+	// A server-scope allow reaches every room, so the everyone server defaults
+	// hold no room access or room content (ADR-116).
+	if !slices.Equal(perms, []Permission{PermUserDeleteSelf}) {
+		t.Errorf("default everyone permissions = %v, want [%s]", perms, PermUserDeleteSelf)
 	}
 }
 
@@ -105,7 +93,7 @@ func TestDefaultServerEveryonePermissions(t *testing.T) {
 func TestChattoCore_initServerRBAC(t *testing.T) {
 	t.Parallel()
 
-	core, _ := setupTestCore(t)
+	core, _ := setupTestCoreWithDefaults(t)
 	ctx := testContext(t)
 
 	// initServerRBAC is called during NewChattoCore, so just verify the state
@@ -119,13 +107,14 @@ func TestChattoCore_initServerRBAC(t *testing.T) {
 		t.Error("Expected everyone to have user.delete-self permission")
 	}
 
-	// Check that everyone has message.post at server scope by default.
+	// New servers start closed (ADR-116): everyone has no server-scope
+	// message.post.
 	hasPerm, err = core.HasServerPermission(ctx, "any-user", PermMessagePost)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
-	if !hasPerm {
-		t.Error("Expected everyone to have server-scope message.post permission")
+	if hasPerm {
+		t.Error("Expected everyone to NOT have server-scope message.post permission")
 	}
 
 	// Check that everyone does NOT have admin view permission
@@ -190,19 +179,19 @@ func TestChattoCore_initServerRBAC_PreservesPermissionChanges(t *testing.T) {
 		t.Error("Expected user to have user.delete-self permission by default")
 	}
 
-	// Step 2: Admin revokes the permission from the everyone role
-	err = core1.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermUserDeleteSelf)
+	// Step 2: Admin clears the default allow of the everyone role
+	err = core1.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermUserDeleteSelf)
 	if err != nil {
-		t.Fatalf("Failed to deny permission: %v", err)
+		t.Fatalf("Failed to clear permission: %v", err)
 	}
 
-	// Verify permission is now denied
+	// Verify permission is now gone
 	hasPerm, err = core1.HasServerPermission(ctx, user.Id, PermUserDeleteSelf)
 	if err != nil {
-		t.Fatalf("Failed to check permission after denial: %v", err)
+		t.Fatalf("Failed to check permission after clear: %v", err)
 	}
 	if hasPerm {
-		t.Error("Expected user to NOT have user.delete-self permission after denial")
+		t.Error("Expected user to NOT have user.delete-self permission after clear")
 	}
 
 	// Step 3: Simulate a restart by creating a new ChattoCore with the same NATS connection
@@ -239,13 +228,16 @@ func TestChattoCore_RestartPreservesFullyClearedDefaultPermissions(t *testing.T)
 	if err != nil {
 		t.Fatalf("NewChattoCore first startup: %v", err)
 	}
-	startCoreServices(t, core1)
+	startCoreServicesWithDefaults(t, core1)
 	for _, decision := range core1.rbacModel.rbac.Projection().Decisions() {
-		if decision.scope != ScopeServer {
-			t.Fatalf("unexpected non-server seed decision: %+v", decision)
+		if decision.scope != ScopeServer && decision.scope != ScopeDM {
+			t.Fatalf("unexpected seed decision outside server and DM scope: %+v", decision)
 		}
-		if err := core1.ClearServerPermissionState(ctx, SystemActorID, decision.subject, decision.permission); err != nil {
-			t.Fatalf("ClearServerPermissionState(%s, %s): %v", decision.subject, decision.permission, err)
+		event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionCleared{
+			RbacPermissionCleared: rbacRolePermissionClearedEvent(decision.scope, decision.scopeID, decision.subject, decision.permission),
+		}})
+		if _, err := core1.appendRBACEvent(ctx, event, nil); err != nil {
+			t.Fatalf("clear %s %s/%s: %v", decision.scope, decision.subject, decision.permission, err)
 		}
 	}
 	if got := len(core1.rbacModel.rbac.Projection().Decisions()); got != 0 {
@@ -256,7 +248,7 @@ func TestChattoCore_RestartPreservesFullyClearedDefaultPermissions(t *testing.T)
 	if err != nil {
 		t.Fatalf("NewChattoCore restart: %v", err)
 	}
-	startCoreServices(t, core2)
+	startCoreServicesWithDefaults(t, core2)
 	if got := len(core2.rbacModel.rbac.Projection().Decisions()); got != 0 {
 		t.Fatalf("decisions after restart = %d, want 0", got)
 	}
@@ -278,12 +270,15 @@ func TestChattoCore_RestartPreservesClearedRoomDefaultPermission(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewChattoCore first startup: %v", err)
 	}
-	startCoreServices(t, core1)
+	startCoreServicesWithDefaults(t, core1)
 	room, err := core1.CreateRoom(ctx, SystemActorID, KindChannel, "", AnnouncementsRoomName, "", WithAnnouncementsRoomDefaults())
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if err := core1.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost); err != nil {
+	if got := core1.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePostInThread); got != DecisionAllow {
+		t.Fatalf("room decision before clear = %s, want %s", got, DecisionAllow)
+	}
+	if err := core1.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePostInThread); err != nil {
 		t.Fatalf("ClearRoomPermissionState: %v", err)
 	}
 
@@ -291,8 +286,8 @@ func TestChattoCore_RestartPreservesClearedRoomDefaultPermission(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewChattoCore restart: %v", err)
 	}
-	startCoreServices(t, core2)
-	if got := core2.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionNone {
+	startCoreServicesWithDefaults(t, core2)
+	if got := core2.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePostInThread); got != DecisionNone {
 		t.Fatalf("room decision after restart = %s, want %s", got, DecisionNone)
 	}
 }
@@ -620,10 +615,8 @@ func TestChattoCore_EveryoneFallback_AdminGrantWins(t *testing.T) {
 	if err := core.AssignAdminRole(ctx, userID); err != nil {
 		t.Fatalf("Failed to assign admin role: %v", err)
 	}
-
-	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermAdminUsersView); err != nil {
-		t.Fatalf("Failed to deny permission: %v", err)
-	}
+	// everyone has no setting for admin.view-users. Roles, everyone included,
+	// only grant (ADR-116).
 
 	t.Run("HasServerPermission allows from admin grant", func(t *testing.T) {
 		has, err := core.HasServerPermission(ctx, userID, PermAdminUsersView)
@@ -631,7 +624,7 @@ func TestChattoCore_EveryoneFallback_AdminGrantWins(t *testing.T) {
 			t.Fatalf("HasServerPermission error: %v", err)
 		}
 		if !has {
-			t.Error("Expected HasServerPermission to return true: admin grant should override everyone baseline deny")
+			t.Error("Expected HasServerPermission to return true: admin grant should apply without an everyone setting")
 		}
 	})
 
@@ -641,7 +634,7 @@ func TestChattoCore_EveryoneFallback_AdminGrantWins(t *testing.T) {
 			t.Fatalf("HasUserPermissionViaRoles error: %v", err)
 		}
 		if !has {
-			t.Error("Expected HasUserPermissionViaRoles to return true: admin grant should override everyone baseline deny")
+			t.Error("Expected HasUserPermissionViaRoles to return true: admin grant should apply without an everyone setting")
 		}
 	})
 
@@ -651,7 +644,7 @@ func TestChattoCore_EveryoneFallback_AdminGrantWins(t *testing.T) {
 			t.Fatalf("HasUserPermissionDeniedViaRoles error: %v", err)
 		}
 		if denied {
-			t.Error("Expected HasUserPermissionDeniedViaRoles to return false: ignored everyone baseline is not the effective decision")
+			t.Error("Expected HasUserPermissionDeniedViaRoles to return false: the admin grant is the effective decision")
 		}
 	})
 
@@ -667,17 +660,23 @@ func TestChattoCore_EveryoneFallback_AdminGrantWins(t *testing.T) {
 	})
 }
 
-func TestChattoCore_DenyWins_EveryoneDenyBlocksMember(t *testing.T) {
+func TestChattoCore_DenyWins_UserDenyBlocksMember(t *testing.T) {
 	t.Parallel()
 
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Regular user with no special roles — only has "everyone"
-	userID := "denywins-regular"
+	// Regular user with no special roles — only has "everyone", which allows
+	// message.post by default.
+	user, err := core.CreateUser(ctx, SystemActorID, "denywins-regular", "Regular", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+	userID := user.Id
 
-	// Deny space.create on the everyone role
-	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost); err != nil {
+	// Deny message.post for the user. Only a single user can be denied
+	// (ADR-116).
+	if err := core.DenyUserPermission(ctx, SystemActorID, userID, PermMessagePost); err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
 
@@ -687,7 +686,7 @@ func TestChattoCore_DenyWins_EveryoneDenyBlocksMember(t *testing.T) {
 			t.Fatalf("error: %v", err)
 		}
 		if has {
-			t.Error("Expected false: everyone deny should block member")
+			t.Error("Expected false: user deny should block member")
 		}
 	})
 
@@ -697,7 +696,7 @@ func TestChattoCore_DenyWins_EveryoneDenyBlocksMember(t *testing.T) {
 			t.Fatalf("error: %v", err)
 		}
 		if !denied {
-			t.Error("Expected true: everyone deny should block member")
+			t.Error("Expected true: user deny should block member")
 		}
 	})
 
@@ -708,7 +707,7 @@ func TestChattoCore_DenyWins_EveryoneDenyBlocksMember(t *testing.T) {
 		}
 		for _, p := range perms {
 			if p == PermMessagePost {
-				t.Error("Expected message.post NOT to be in permissions: everyone deny should block member")
+				t.Error("Expected message.post NOT to be in permissions: user deny should block member")
 			}
 		}
 	})
@@ -729,22 +728,19 @@ func TestChattoCore_OwnerOverride_BeatsEverythingElse(t *testing.T) {
 		t.Fatalf("Failed to assign owner role: %v", err)
 	}
 
-	// Deny admin.view-users on both admin and everyone roles
-	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermAdminUsersView); err != nil {
-		t.Fatalf("Failed to deny everyone: %v", err)
-	}
-	if err := core.DenyServerPermission(ctx, SystemActorID, RoleAdmin, PermAdminUsersView); err != nil {
-		t.Fatalf("Failed to deny admin: %v", err)
+	// Deny admin.view-users for the owner directly.
+	if err := core.DenyUserPermission(ctx, SystemActorID, owner.Id, PermAdminUsersView); err != nil {
+		t.Fatalf("Failed to deny owner: %v", err)
 	}
 	// Owner role still has admin.view-users granted
 
-	t.Run("owner grant beats admin and everyone deny", func(t *testing.T) {
+	t.Run("owner grant beats user deny", func(t *testing.T) {
 		has, err := core.HasUserPermissionViaRoles(ctx, owner.Id, PermAdminUsersView)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
 		if !has {
-			t.Error("Expected true: owner grant should beat admin+everyone deny")
+			t.Error("Expected true: owner grant should beat user deny")
 		}
 	})
 
@@ -754,7 +750,7 @@ func TestChattoCore_OwnerOverride_BeatsEverythingElse(t *testing.T) {
 			t.Fatalf("error: %v", err)
 		}
 		if denied {
-			t.Error("Expected false: owner grant should beat admin+everyone deny")
+			t.Error("Expected false: owner grant should beat user deny")
 		}
 	})
 }
@@ -1172,10 +1168,10 @@ func TestChattoCore_AssignServerRole_BoundedAuthority(t *testing.T) {
 		}
 	})
 
-	t.Run("admin can assign admin role when API gate permits the call", func(t *testing.T) {
+	t.Run("admin cannot assign the admin role, which does not rank below them", func(t *testing.T) {
 		err := core.AssignServerRole(ctx, admin.Id, target.Id, RoleAdmin)
-		if err != nil {
-			t.Fatalf("AssignServerRole: %v", err)
+		if !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AssignServerRole error = %v, want permission denied", err)
 		}
 	})
 
@@ -1207,7 +1203,7 @@ func TestChattoCore_AssignServerRole_BoundedAuthority(t *testing.T) {
 		}
 	})
 
-	t.Run("admin can assign moderator role to peer admin when API gate permits the call", func(t *testing.T) {
+	t.Run("admin cannot assign roles to a peer admin", func(t *testing.T) {
 		peerAdmin, err := core.CreateUser(ctx, SystemActorID, "assign-peer-admin", "Peer", "password123")
 		if err != nil {
 			t.Fatalf("Failed to create peer admin: %v", err)
@@ -1217,8 +1213,8 @@ func TestChattoCore_AssignServerRole_BoundedAuthority(t *testing.T) {
 		}
 
 		err = core.AssignServerRole(ctx, admin.Id, peerAdmin.Id, RoleModerator)
-		if err != nil {
-			t.Fatalf("AssignServerRole: %v", err)
+		if !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AssignServerRole error = %v, want permission denied", err)
 		}
 	})
 }
@@ -1272,10 +1268,10 @@ func TestChattoCore_RevokeServerRole_BoundedAuthority(t *testing.T) {
 		}
 	})
 
-	t.Run("admin can revoke another admin's role when API gate permits the call", func(t *testing.T) {
+	t.Run("admin cannot revoke a peer admin's role", func(t *testing.T) {
 		err := core.RevokeServerRole(ctx, admin.Id, otherAdmin.Id, RoleAdmin)
-		if err != nil {
-			t.Fatalf("RevokeServerRole: %v", err)
+		if !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("RevokeServerRole error = %v, want permission denied", err)
 		}
 	})
 
@@ -1309,114 +1305,125 @@ func TestChattoCore_RevokeServerRole_BoundedAuthority(t *testing.T) {
 // Instance Role Position and Reordering Tests
 // ============================================================================
 
-func TestChattoCore_ReorderServerRoles(t *testing.T) {
+func TestChattoCore_MoveServerRole(t *testing.T) {
 	t.Parallel()
 
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
-	t.Run("reorders custom roles", func(t *testing.T) {
-		// Create custom roles
-		_, err := core.CreateServerRole(ctx, SystemActorID, "alpha", "Alpha", "First custom role")
+	for _, name := range []string{"alpha", "beta"} {
+		if _, err := core.CreateServerRole(ctx, SystemActorID, name, name, ""); err != nil {
+			t.Fatalf("CreateServerRole %s: %v", name, err)
+		}
+	}
+	positions := func() map[string]int32 {
+		roles, err := core.ListServerRoles(ctx)
 		if err != nil {
-			t.Fatalf("Failed to create alpha role: %v", err)
+			t.Fatalf("ListServerRoles: %v", err)
 		}
-		_, err = core.CreateServerRole(ctx, SystemActorID, "beta", "Beta", "Second custom role")
-		if err != nil {
-			t.Fatalf("Failed to create beta role: %v", err)
+		result := make(map[string]int32, len(roles))
+		for _, role := range roles {
+			result[role.Name] = role.Position
 		}
+		return result
+	}
 
-		// Get initial positions
-		initialRoles, _ := core.ListServerRoles(ctx)
-		var alphaInitialPos, betaInitialPos int32
-		for _, r := range initialRoles {
-			if r.Name == "alpha" {
-				alphaInitialPos = r.Position
-			}
-			if r.Name == "beta" {
-				betaInitialPos = r.Position
-			}
+	t.Run("new roles start lowest", func(t *testing.T) {
+		got := positions()
+		if !(got[RoleEveryone] < got["beta"] && got["beta"] < got["alpha"] && got["alpha"] < got[RoleModerator]) {
+			t.Fatalf("positions = %v, want everyone < beta < alpha < moderator", got)
 		}
-		t.Logf("Initial positions: alpha=%d, beta=%d", alphaInitialPos, betaInitialPos)
+	})
 
-		// Reorder: put beta before alpha
-		reordered, err := core.ReorderServerRoles(ctx, SystemActorID, []string{"beta", "alpha"})
-		if err != nil {
-			t.Fatalf("Failed to reorder: %v", err)
-		}
-
-		// Find the new positions from the returned list
-		var alphaNowPos, betaNowPos int32
-		for _, r := range reordered {
-			if r.Name == "alpha" {
-				alphaNowPos = r.Position
-			}
-			if r.Name == "beta" {
-				betaNowPos = r.Position
+	t.Run("moves system and custom roles in one order", func(t *testing.T) {
+		// Start: beta < alpha < moderator < admin.
+		for _, move := range []struct{ role, before string }{
+			{RoleModerator, ""},      // moderator < beta < alpha < admin
+			{RoleAdmin, "beta"},      // moderator < beta < admin < alpha
+			{"alpha", RoleModerator}, // moderator < alpha < beta < admin
+		} {
+			if _, err := core.MoveServerRole(ctx, SystemActorID, move.role, move.before); err != nil {
+				t.Fatalf("MoveServerRole %s above %q: %v", move.role, move.before, err)
 			}
 		}
-
-		// Reorder semantics: the orderedNames argument goes from lower to
-		// higher display position, so beta should end up below alpha.
-		if betaNowPos >= alphaNowPos {
-			t.Errorf("After reorder, beta (position %d) should sort below alpha (position %d)", betaNowPos, alphaNowPos)
+		got := positions()
+		if !(got[RoleEveryone] < got[RoleModerator] && got[RoleModerator] < got["alpha"] && got["alpha"] < got["beta"] &&
+			got["beta"] < got[RoleAdmin] && got[RoleAdmin] < got[RoleOwner]) {
+			t.Fatalf("positions = %v, want everyone < moderator < alpha < beta < admin < owner", got)
+		}
+		if got[RoleEveryone] != PositionEveryone {
+			t.Fatalf("everyone position = %d, want %d", got[RoleEveryone], PositionEveryone)
 		}
 	})
 
-	t.Run("rejects system role reordering", func(t *testing.T) {
-		_, err := core.ReorderServerRoles(ctx, SystemActorID, []string{RoleAdmin, RoleModerator})
-		if err == nil {
-			t.Error("Expected error when trying to reorder system roles")
+	t.Run("a move that changes nothing succeeds", func(t *testing.T) {
+		before := positions()
+		if _, err := core.MoveServerRole(ctx, SystemActorID, "alpha", RoleModerator); err != nil {
+			t.Fatalf("MoveServerRole: %v", err)
+		}
+		if got := positions(); !mapsEqual(got, before) {
+			t.Fatalf("positions = %v, want unchanged %v", got, before)
 		}
 	})
 
-	t.Run("rejects incomplete custom role list", func(t *testing.T) {
-		_, err := core.ReorderServerRoles(ctx, SystemActorID, []string{"alpha"})
-		if err == nil {
-			t.Error("Expected error when reorder omits a custom role")
-		}
-	})
-
-	t.Run("rejects duplicate custom roles", func(t *testing.T) {
-		_, err := core.ReorderServerRoles(ctx, SystemActorID, []string{"alpha", "alpha"})
-		if err == nil {
-			t.Error("Expected error when reorder includes a duplicate role")
-		}
-	})
-
-	t.Run("rejects unknown custom role", func(t *testing.T) {
-		_, err := core.ReorderServerRoles(ctx, SystemActorID, []string{"alpha", "gamma"})
-		if !errors.Is(err, ErrRoleNotFound) {
-			t.Fatalf("Expected ErrRoleNotFound, got %v", err)
-		}
-	})
-
-	t.Run("preserves system role positions", func(t *testing.T) {
-		roles, _ := core.ListServerRoles(ctx)
-
-		var ownerPos, adminPos, modPos int32
-		for _, r := range roles {
-			switch r.Name {
-			case RoleOwner:
-				ownerPos = r.Position
-			case RoleAdmin:
-				adminPos = r.Position
-			case RoleModerator:
-				modPos = r.Position
+	for _, tt := range []struct {
+		name, role, before string
+		want               error
+	}{
+		{"rejects moving owner", RoleOwner, "", ErrInvalidArgument},
+		{"rejects moving everyone", RoleEveryone, "", ErrInvalidArgument},
+		{"rejects owner as anchor", "alpha", RoleOwner, ErrInvalidArgument},
+		{"rejects everyone as anchor", "alpha", RoleEveryone, ErrInvalidArgument},
+		{"rejects the role as its own anchor", "alpha", "alpha", ErrInvalidArgument},
+		{"rejects unknown roles", "gamma", "", ErrRoleNotFound},
+		{"rejects unknown anchors", "alpha", "gamma", ErrRoleNotFound},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := core.MoveServerRole(ctx, SystemActorID, tt.role, tt.before); !errors.Is(err, tt.want) {
+				t.Fatalf("MoveServerRole error = %v, want %v", err, tt.want)
 			}
-		}
+		})
+	}
+}
 
-		// System role positions: everyone=0, moderator=100, admin=900, owner=1000.
-		if ownerPos != PositionOwner {
-			t.Errorf("Expected owner position %d, got %d", PositionOwner, ownerPos)
+// A move names only two roles, so a role created at the same time does not
+// invalidate it: the RBAC OCC retry recomputes the move on the new order.
+func TestChattoCore_MoveServerRole_ConcurrentCreation(t *testing.T) {
+	t.Parallel()
+
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "mover", "Mover", ""); err != nil {
+		t.Fatalf("CreateServerRole mover: %v", err)
+	}
+	const rounds = 10
+	for i := range rounds {
+		// Alternate the anchor so that every move changes the order.
+		before := RoleAdmin
+		if i%2 == 1 {
+			before = ""
 		}
-		if adminPos != PositionAdmin {
-			t.Errorf("Expected admin position %d, got %d", PositionAdmin, adminPos)
+		var wg sync.WaitGroup
+		var moveErr, createErr error
+		wg.Go(func() { _, moveErr = core.MoveServerRole(ctx, SystemActorID, "mover", before) })
+		wg.Go(func() {
+			_, createErr = core.CreateServerRole(ctx, SystemActorID, fmt.Sprintf("concurrent-%d", i), "Concurrent", "")
+		})
+		wg.Wait()
+		if moveErr != nil || createErr != nil {
+			t.Fatalf("round %d: move error = %v, create error = %v", i, moveErr, createErr)
 		}
-		if modPos != PositionModerator {
-			t.Errorf("Expected moderator position %d, got %d", PositionModerator, modPos)
+		order := core.orderableRoleNames()
+		if len(order) != i+4 {
+			t.Fatalf("round %d: order = %v, want %d roles", i, order, i+4)
 		}
-	})
+		if before == RoleAdmin && order[len(order)-1] != "mover" {
+			t.Fatalf("round %d: order = %v, want mover directly above admin", i, order)
+		}
+		if before == "" && order[0] != "mover" && order[1] != "mover" {
+			// The concurrent creation can land below the moved role.
+			t.Fatalf("round %d: order = %v, want mover among the lowest roles", i, order)
+		}
+	}
 }
 
 func TestChattoCore_CreateServerRole_PositionAssignment(t *testing.T) {
@@ -2379,20 +2386,20 @@ func TestChattoCore_GrantRoomRolePermission(t *testing.T) {
 		t.Fatalf("Failed to grant room permission: %v", err)
 	}
 
-	// Verify via GetRoleRoomPermissions
-	grants, denials, err := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
+	// Verify via GetRoomRolePermissions
+	grants, err := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
 	if err != nil {
 		t.Fatalf("Failed to get room permissions: %v", err)
 	}
 	if len(grants) != 1 || grants[0] != PermMessagePost {
 		t.Errorf("Expected [message.post] grant, got %v", grants)
 	}
-	if len(denials) != 0 {
-		t.Errorf("Expected no denials, got %v", denials)
-	}
 }
 
-func TestChattoCore_DenyRoomRolePermission(t *testing.T) {
+// TestChattoCore_GetRoomRolePermissions_IgnoresStoredDeny checks that room
+// role permissions list only grants. Roles only grant, so a role deny that an
+// earlier version stored does not show (ADR-116).
+func TestChattoCore_GetRoomRolePermissions_IgnoresStoredDeny(t *testing.T) {
 	t.Parallel()
 
 	core, _ := setupTestCore(t)
@@ -2400,21 +2407,24 @@ func TestChattoCore_DenyRoomRolePermission(t *testing.T) {
 
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test channel")
 
-	// Deny message.post at room level
-	err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
-	if err != nil {
-		t.Fatalf("Failed to deny room permission: %v", err)
-	}
-
-	grants, denials, err := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
+	appendStoredRoleDeny(t, core, ctx, ScopeRoom, room.Id, RoleEveryone, PermMessagePost)
+	grants, err := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
 	if err != nil {
 		t.Fatalf("Failed to get room permissions: %v", err)
 	}
 	if len(grants) != 0 {
-		t.Errorf("Expected no grants, got %v", grants)
+		t.Errorf("Expected no grants with only a stored deny, got %v", grants)
 	}
-	if len(denials) != 1 || denials[0] != PermMessagePost {
-		t.Errorf("Expected [message.post] denial, got %v", denials)
+
+	if err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageAttach); err != nil {
+		t.Fatalf("Failed to grant room permission: %v", err)
+	}
+	grants, err = core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
+	if err != nil {
+		t.Fatalf("Failed to get room permissions: %v", err)
+	}
+	if len(grants) != 1 || grants[0] != PermMessageAttach {
+		t.Errorf("Expected only the [message.attach] grant, got %v", grants)
 	}
 }
 
@@ -2433,15 +2443,12 @@ func TestChattoCore_ClearRoomRolePermission(t *testing.T) {
 		t.Fatalf("Failed to clear room permission: %v", err)
 	}
 
-	grants, denials, err := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
+	grants, err := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
 	if err != nil {
 		t.Fatalf("Failed to get room permissions: %v", err)
 	}
 	if len(grants) != 0 {
 		t.Errorf("Expected no grants after clear, got %v", grants)
-	}
-	if len(denials) != 0 {
-		t.Errorf("Expected no denials after clear, got %v", denials)
 	}
 }
 
@@ -2469,22 +2476,21 @@ func TestChattoCore_RoomPermissions_PerRoomIsolation(t *testing.T) {
 	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-alpha", "Room Alpha")
 	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-beta", "Room Beta")
 
-	// Deny message.post only in room1
-	core.DenyRoomPermission(ctx, SystemActorID, room1.Id, RoleEveryone, PermMessagePost)
-
-	// Room1 should have the denial
-	grants1, denials1, _ := core.GetRoomRolePermissions(ctx, room1.Id, RoleEveryone)
-	if len(denials1) != 1 {
-		t.Errorf("Room1: expected 1 denial, got %d", len(denials1))
+	// Grant message.manage only in room1
+	if err := core.GrantRoomPermission(ctx, SystemActorID, room1.Id, RoleEveryone, PermMessageManage); err != nil {
+		t.Fatalf("GrantRoomPermission: %v", err)
 	}
-	if len(grants1) != 0 {
-		t.Errorf("Room1: expected 0 grants, got %d", len(grants1))
+
+	// Room1 should have the grant
+	grants1, _ := core.GetRoomRolePermissions(ctx, room1.Id, RoleEveryone)
+	if len(grants1) != 1 {
+		t.Errorf("Room1: expected 1 grant, got %d", len(grants1))
 	}
 
 	// Room2 should have no overrides
-	grants2, denials2, _ := core.GetRoomRolePermissions(ctx, room2.Id, RoleEveryone)
-	if len(grants2) != 0 || len(denials2) != 0 {
-		t.Errorf("Room2: expected no overrides, got grants=%v denials=%v", grants2, denials2)
+	grants2, _ := core.GetRoomRolePermissions(ctx, room2.Id, RoleEveryone)
+	if len(grants2) != 0 {
+		t.Errorf("Room2: expected no overrides, got grants=%v", grants2)
 	}
 }
 
@@ -2500,16 +2506,18 @@ func TestChattoCore_GrantRoomRolePermission_GrantClearsDenial(t *testing.T) {
 
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "General")
 
-	// Deny, then grant — should clear the denial
-	core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
-	core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
+	// A deny that an earlier version stored, then a grant, which replaces it.
+	appendStoredRoleDeny(t, core, ctx, ScopeRoom, room.Id, RoleEveryone, PermMessagePost)
+	if err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost); err != nil {
+		t.Fatalf("GrantRoomPermission: %v", err)
+	}
 
-	grants, denials, _ := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
+	grants, _ := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
 	if len(grants) != 1 || grants[0] != PermMessagePost {
 		t.Errorf("Expected [message.post] grant, got %v", grants)
 	}
-	if len(denials) != 0 {
-		t.Errorf("Expected no denials after grant, got %v", denials)
+	if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionAllow {
+		t.Errorf("stored decision after grant = %s, want %s", got, DecisionAllow)
 	}
 }
 
@@ -2630,13 +2638,13 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_DenyAlwaysWins(t *testing.T
 		t.Error("User should have room.create after grant")
 	}
 
-	// Deny room.create to everyone role
-	err = core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomCreate)
+	// Deny room.create to the user
+	err = core.DenyUserPermission(ctx, SystemActorID, user.Id, PermRoomCreate)
 	if err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
 
-	// Now user should NOT have room.create (deny wins)
+	// Now user should NOT have room.create (deny wins over the everyone allow)
 	perms2, err := core.GetUserEffectiveSpacePermissions(ctx, KindChannel, user.Id)
 	if err != nil {
 		t.Fatalf("GetUserEffectiveSpacePermissions failed: %v", err)
@@ -2650,7 +2658,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_DenyAlwaysWins(t *testing.T
 	}
 }
 
-func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *testing.T) {
+func TestChattoCore_GetUserEffectiveSpacePermissions_UserDenialInSpace(t *testing.T) {
 	t.Parallel()
 
 	core, _ := setupTestCore(t)
@@ -2677,13 +2685,13 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *
 		t.Fatalf("Failed to grant role permission: %v", err)
 	}
 
-	// Deny admin.view-users to moderator role.
-	err := core.DenyServerPermission(ctx, SystemActorID, RoleModerator, PermAdminUsersView)
+	// Deny admin.view-users to the user directly.
+	err := core.DenyUserPermission(ctx, SystemActorID, user.Id, PermAdminUsersView)
 	if err != nil {
-		t.Fatalf("Failed to deny role permission: %v", err)
+		t.Fatalf("Failed to deny user permission: %v", err)
 	}
 
-	// Now user should NOT have admin.view-users (role denial wins).
+	// Now user should NOT have admin.view-users (the user setting decides).
 	perms2, err := core.GetUserEffectiveSpacePermissions(ctx, KindChannel, user.Id)
 	if err != nil {
 		t.Fatalf("GetUserEffectiveSpacePermissions failed: %v", err)
@@ -2693,7 +2701,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *
 		permSet2[string(p)] = true
 	}
 	if permSet2["admin.view-users"] {
-		t.Error("User should NOT have admin.view-users after role denial")
+		t.Error("User should NOT have admin.view-users after a user denial")
 	}
 }
 
@@ -2784,49 +2792,35 @@ func TestChattoCore_RevokeRole_CannotDemoteSelf(t *testing.T) {
 	}
 }
 
-func TestChattoCore_RevokeRole_RemovingRoleAlsoRemovesAssignmentAuthority(t *testing.T) {
+func TestChattoCore_RevokeRole_PeersCannotRevokeEachOther(t *testing.T) {
 	t.Parallel()
 
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Setup two moderators
-	modA := "mod-a"
-	modB := "mod-b"
-	core.AssignServerRole(ctx, SystemActorID, modA, RoleModerator)
-	core.AssignServerRole(ctx, SystemActorID, modB, RoleModerator)
+	modA, modB := "mod-a", "mod-b"
+	for _, userID := range []string{modA, modB} {
+		if err := core.AssignServerRole(ctx, SystemActorID, userID, RoleModerator); err != nil {
+			t.Fatalf("AssignServerRole %s: %v", userID, err)
+		}
+	}
+	if err := core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermRoleAssign); err != nil {
+		t.Fatalf("GrantServerPermission role.assign: %v", err)
+	}
 
-	// Grant role assignment permission to moderators so the core API calls can
-	// be exercised as permission-only behavior.
-	core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermRoleAssign)
-
-	t.Run("moderator A can revoke moderator B's moderator role", func(t *testing.T) {
-		err := core.RevokeServerRole(ctx, modA, modB, RoleModerator)
+	for _, pair := range [][2]string{{modA, modB}, {modB, modA}} {
+		if err := core.RevokeServerRole(ctx, pair[0], pair[1], RoleModerator); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("%s revokes %s: error = %v, want permission denied", pair[0], pair[1], err)
+		}
+	}
+	for _, userID := range []string{modA, modB} {
+		roles, err := core.GetUserRoles(ctx, userID)
 		if err != nil {
-			t.Fatalf("RevokeServerRole: %v", err)
+			t.Fatalf("GetUserRoles %s: %v", userID, err)
 		}
-	})
-
-	t.Run("B cannot demote A after losing the granting role", func(t *testing.T) {
-		err := core.RevokeServerRole(ctx, modB, modA, RoleModerator)
-		if !errors.Is(err, ErrPermissionDenied) {
-			t.Fatalf("RevokeServerRole error = %v, want permission denied", err)
+		if !slices.Contains(roles, RoleModerator) {
+			t.Fatalf("%s lost the moderator role", userID)
 		}
-	})
-
-	// B lost the moderator role; A retained it because B no longer had authority.
-	rolesA, _ := core.GetUserRoles(ctx, modA)
-	rolesB, _ := core.GetUserRoles(ctx, modB)
-
-	hasMod := func(roles []string) bool {
-		return slices.Contains(roles, RoleModerator)
-	}
-
-	if !hasMod(rolesA) {
-		t.Error("Moderator A should retain moderator role")
-	}
-	if hasMod(rolesB) {
-		t.Error("Moderator B should no longer have moderator role")
 	}
 }
 
@@ -2985,17 +2979,19 @@ func TestChattoCore_CreateRole_PositionAssignment(t *testing.T) {
 		}
 	})
 
-	t.Run("roles can be reordered via ReorderServerRoles", func(t *testing.T) {
-		// Create multiple custom roles
-		core.CreateServerRole(ctx, SystemActorID, "alpha", "Alpha", "Alpha role")
-		core.CreateServerRole(ctx, SystemActorID, "beta", "Beta", "Beta role")
+	t.Run("roles can be moved via MoveServerRole", func(t *testing.T) {
+		// Create multiple custom roles. Each new role starts lowest, so beta
+		// ranks below alpha.
+		if _, err := core.CreateServerRole(ctx, SystemActorID, "alpha", "Alpha", "Alpha role"); err != nil {
+			t.Fatalf("CreateServerRole alpha: %v", err)
+		}
+		if _, err := core.CreateServerRole(ctx, SystemActorID, "beta", "Beta", "Beta role"); err != nil {
+			t.Fatalf("CreateServerRole beta: %v", err)
+		}
 
-		// Reorder all custom roles. ReorderServerRoles requires a complete
-		// custom-role list so clients cannot accidentally drop roles from the
-		// authoritative ordering event.
-		roles, err := core.ReorderServerRoles(ctx, SystemActorID, []string{"editor", "contributor", "beta", "alpha"})
+		roles, err := core.MoveServerRole(ctx, SystemActorID, "beta", "alpha")
 		if err != nil {
-			t.Fatalf("ReorderServerRoles failed: %v", err)
+			t.Fatalf("MoveServerRole failed: %v", err)
 		}
 
 		var alphaPos, betaPos int32
@@ -3008,8 +3004,8 @@ func TestChattoCore_CreateRole_PositionAssignment(t *testing.T) {
 			}
 		}
 
-		if betaPos >= alphaPos {
-			t.Errorf("After reorder: beta position (%d) should be < alpha position (%d)", betaPos, alphaPos)
+		if betaPos <= alphaPos {
+			t.Errorf("After move: beta position (%d) should be > alpha position (%d)", betaPos, alphaPos)
 		}
 	})
 }

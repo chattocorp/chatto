@@ -12,10 +12,11 @@ import "chatto/api/v1/pagination.proto";
 message AdminRole {
   // Public role metadata shared with ordinary role catalog reads.
   chatto.api.v1.Role role = 1;
-  // Permissions granted by this role.
+  // Permissions granted by this role at server scope. Roles only grant
+  // permissions.
   repeated string permissions = 2;
-  // Permissions denied by this role.
-  repeated string permission_denials = 3;
+  reserved 3;
+  reserved "permission_denials";
 }
 
 // Request the role catalog.
@@ -23,7 +24,7 @@ message ListRolesRequest {}
 
 // Finite role catalog snapshot plus viewer role-management capabilities.
 message ListRolesResponse {
-  // Roles sorted by position.
+  // Roles in role order, highest first.
   repeated AdminRole roles = 1;
   // Whether the caller may create/update/delete role definitions.
   bool viewer_can_manage_roles = 2;
@@ -120,21 +121,20 @@ message DeleteRoleResponse {
   reserved "deleted";
 }
 
-// Request to replace custom role order.
-message ReorderRolesRequest {
-  // Ordered custom role names. The list must include every custom role exactly
-  // once; system roles keep fixed positions and must not be included.
-  repeated string role_names = 1 [(buf.validate.field).repeated = {
-    max_items: 1000
-    items: {
-      string: {min_len: 1}
-    }
-  }];
+// Request to move one role in the role order. Role order is the
+// administrative rank; see ADR-115.
+message MoveRoleRequest {
+  // Required role to move. Owner and everyone cannot move.
+  string role_name = 1 [(buf.validate.field).string.min_len = 1];
+  // Role that follows the moved role in display order, which is highest
+  // first. The moved role then ranks directly above it. Omit to place the
+  // role lowest, directly above everyone.
+  optional string before_role_name = 2 [(buf.validate.field).string.min_len = 1];
 }
 
-// Result of replacing custom role order.
-message ReorderRolesResponse {
-  // Full role catalog after reordering.
+// Result of moving one role.
+message MoveRoleResponse {
+  // Full role catalog after the move, in role order, highest first.
   repeated AdminRole roles = 1;
 }
 
@@ -151,12 +151,17 @@ service AdminRoleService {
   // Lists explicit role members. Requires role.assign, without requiring
   // admin.view-users. Returns NOT_FOUND when the role does not exist.
   rpc ListMembers(AdminRoleServiceListMembersRequest) returns (AdminRoleServiceListMembersResponse);
-  // Creates a custom role. Requires role.manage.
+  // Creates a custom role. Requires role.manage. The new role ranks lowest.
   rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);
-  // Updates role metadata. Requires role.manage.
+  // Updates role metadata. Requires role.manage. Only owners can update the
+  // owner role.
   rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
-  // Deletes a custom role. Requires role.manage.
+  // Deletes a custom role. Requires role.manage. A caller who is not an owner
+  // must have every permission that the role allows, at the same scope;
+  // otherwise the call returns PERMISSION_DENIED.
   rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
-  // Replaces the custom role order. Requires role.manage.
-  rpc ReorderRoles(ReorderRolesRequest) returns (ReorderRolesResponse);
+  // Moves one role in the role order. Requires role.manage. The caller can
+  // move every role except owner and everyone, also above their own highest
+  // role.
+  rpc MoveRole(MoveRoleRequest) returns (MoveRoleResponse);
 }

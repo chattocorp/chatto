@@ -15,7 +15,11 @@ export interface BotDetailContext {
   readonly bot: Bot | null;
   /** True until the first bot read completes. */
   readonly isPending: boolean;
-  /** Owners and bot managers can manage credentials, webhooks, and permissions. */
+  /**
+   * Owners and bot managers can manage credentials, webhooks, and permissions.
+   * The server also requires a bot manager who is not the owner to outrank the
+   * bot's owner in the role order.
+   */
   readonly canOperateBot: boolean;
   /** Owners, bot managers, and account managers can edit the public identity. */
   readonly canEditIdentity: boolean;

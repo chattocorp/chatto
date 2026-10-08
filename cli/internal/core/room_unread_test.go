@@ -434,8 +434,8 @@ func TestChattoCore_ReadStateUsesLatestReadableInteractionRoot(t *testing.T) {
 			t.Fatalf("JoinRoom %s: %v", userID, err)
 		}
 	}
-	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.GetId(), RoleEveryone, PermMessageRead); err != nil {
-		t.Fatalf("DenyRoomPermission message.read: %v", err)
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
 	}
 	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageReadInteractions); err != nil {
 		t.Fatalf("GrantUserRoomPermission message.read-interactions: %v", err)

@@ -14,8 +14,8 @@ message Role {
   string description = 3;
   // Whether this is a built-in role.
   bool is_system = 4;
-  // Display/order position.
-  int32 position = 5;
+  reserved 5;
+  reserved "position";
   // Whether messages may notify users assigned to this role.
   bool pingable = 6;
 }
@@ -25,8 +25,19 @@ message ListRolesRequest {}
 
 // Snapshot of the role catalog visible to the authenticated viewer.
 message ListRolesResponse {
-  // Roles sorted by position.
+  // Roles in role order, highest first: owner first and everyone last. Role
+  // order is the administrative rank. It decides which accounts and roles a
+  // caller can manage; it does not change permission decisions.
   repeated Role roles = 1;
+  // Name of the role at which the caller ranks. This is owner for an owner
+  // of the server, the caller's highest assigned role otherwise, and
+  // everyone when the caller has no roles. A bot ranks at its
+  // owner's highest role. A non-owner caller can manage only accounts whose
+  // highest role comes after this role in roles. They can assign and revoke
+  // only roles that come after it; with role.manage, they can change every
+  // role except owner. Everyone ranks below every account. The caller also
+  // needs the permission for each action.
+  string viewer_highest_role = 2;
 }
 
 // Request one public role by stable role name.

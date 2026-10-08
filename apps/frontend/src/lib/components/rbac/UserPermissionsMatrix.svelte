@@ -11,7 +11,7 @@ rendering to `SubjectPermissionsMatrix`.
   import { Button } from '$lib/ui/form';
   import { ConfirmDialog, Hint } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { loadAccountMemberships } from './accountMemberships';
+  import { limitMembershipRemoval, loadAccountMemberships } from './accountMemberships';
   import { createRoomCommandAPI } from '@chatto/client/api/rooms';
   import { createPermissionAPI } from '@chatto/client/api/permissions';
   import { toast } from '$lib/ui/toast';
@@ -42,11 +42,19 @@ rendering to `SubjectPermissionsMatrix`.
 
   let {
     userId,
+    viewerOutranks = true,
     subjectKind = m('rbac.permissions.cell.user_subject'),
     ownerCapped = false,
     decisionMode = 'tri-state'
   }: {
     userId: string;
+    /**
+     * True when the role order lets the viewer act on this account: it is the
+     * viewer's own account, or it ranks below the viewer. Without it, the
+     * viewer cannot remove the account from rooms. Defaults to true; the
+     * server checks the role order for every removal.
+     */
+    viewerOutranks?: boolean;
     subjectKind?: string;
     ownerCapped?: boolean;
     decisionMode?: DecisionMode;
@@ -81,11 +89,12 @@ rendering to `SubjectPermissionsMatrix`.
     };
   });
 
-  const data = $derived<Matrix | null>(
-    mergePermissionPages(
+  const data = $derived.by<Matrix | null>(() => {
+    const merged = mergePermissionPages(
       (matrixQuery.data?.pages ?? []).filter((page): page is Matrix => page !== null)
-    )
-  );
+    );
+    return merged && limitMembershipRemoval(merged, viewerOutranks);
+  });
   const loading = $derived(matrixQuery.isPending);
   const loadError = $derived(matrixQuery.error ? errorMessage(matrixQuery.error) : null);
   let mutationError = $state<{ context: string; message: string } | null>(null);
@@ -239,6 +248,12 @@ rendering to `SubjectPermissionsMatrix`.
 
     if (result.update) {
       const decision = result.update.decision;
+      // Until the refetch, show the new setting as the result, as the role
+      // editor does. Binary cells do not show the result.
+      const optimistic =
+        decisionMode === 'binary'
+          ? { override: decision }
+          : { override: decision, effective: decision };
       queryClient.setQueryData<InfiniteData<Matrix | null, number>>(queryKey, (current) =>
         current
           ? {
@@ -249,7 +264,7 @@ rendering to `SubjectPermissionsMatrix`.
                       ...page,
                       cells: page.cells.map((cell) =>
                         cell.scopeId === scope.id && cell.permission === permission
-                          ? { ...cell, override: decision }
+                          ? { ...cell, ...optimistic }
                           : cell
                       )
                     }

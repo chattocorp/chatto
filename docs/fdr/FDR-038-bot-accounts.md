@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-27
+**Last reviewed:** 2026-10-08
 
 ## Overview
 
@@ -215,10 +215,13 @@ exercise more authority than its human owner currently possesses.
   the normal room-directory policy to both the bot owner and the managing
   caller. It exposes the complete directory group layout, including empty
   groups, so group-scoped permissions such as `room.create` remain usable.
-- A human user with `bot.manage` can manage any bot. Changes made by a global
-  bot manager remain bounded by that bot's owner's permission ceiling.
+- Bots cannot hold roles. A bot ranks like its owner (ADR-115), both when it
+  acts and when someone acts on it.
+- A human user with `bot.manage` can manage a bot when they rank above its
+  owner. Changes made by a global bot manager remain bounded by that bot's
+  owner's permission ceiling.
 - A human user with `bot.manage` can reassign a bot to another active human
-  account. Ownership alone does not authorize reassignment, and the recipient
+  account that ranks below them, unless that is their own account. Ownership alone does not authorize reassignment, and the recipient
   does not need to accept it or hold `bot.create`.
 - Reassignment preserves the bot's configured permission allowlist and active
   API keys. Effective permissions immediately use the new owner's permission
@@ -302,7 +305,8 @@ must show the owner's ceiling and explain unavailable cells.
 ### 5. Bot creation is administrative by default
 
 **Decision:** `bot.create` lets a human create bots, ownership lets them manage
-their existing bots, and `bot.manage` lets a human manage any bot. Fresh RBAC
+their existing bots, and `bot.manage` lets a human manage bots whose owners
+rank below them (ADR-115). Fresh RBAC
 state grants `bot.create` and `bot.manage` to `admin`. Effective owners receive
 both through the normal virtual owner override. Bots do not inherit `everyone`
 and cannot exercise either capability themselves. Upgraded 0.4 servers receive
@@ -460,8 +464,8 @@ edit. Retracted or inaccessible messages are not sent.
 ## Permissions
 
 - `bot.create` — create bot accounts and become their owner.
-- `bot.manage` — view and manage every bot on the server, including reassigning
-  its owner, while preserving the current owner's permission ceiling.
+- `bot.manage` — view every bot, and manage and reassign bots whose owners rank
+  below the caller, while preserving the current owner's permission ceiling.
 - `message.read` — give the bot broad message access in configured channel
   rooms or in DMs, subject to membership and the owner's effective broad-read
   authority at the same scope.
@@ -556,7 +560,7 @@ editor only when the server version is 0.5.0-beta.9 or later.
 
 ## Related
 
-- **ADRs:** ADR-113 (one-time upgrade grants for new permissions), ADR-100 (shared integration client), ADR-111 (client state layer in `@chatto/client`), ADR-098 (retained operational log), ADR-097 (best-effort outbound bot webhooks), ADR-007 (per-user encryption and crypto-shredding), ADR-033
+- **ADRs:** ADR-115 (role hierarchy for administration), ADR-113 (one-time upgrade grants for new permissions), ADR-100 (shared integration client), ADR-111 (client state layer in `@chatto/client`), ADR-098 (retained operational log), ADR-097 (best-effort outbound bot webhooks), ADR-007 (per-user encryption and crypto-shredding), ADR-033
   (event-sourced state), ADR-036 (runtime state), ADR-040 (permission-only RBAC
   with owner override), ADR-045 (public API stability tiers), ADR-046 (typed
   runtime credentials), ADR-052

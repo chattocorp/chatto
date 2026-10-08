@@ -247,8 +247,8 @@ func TestRealtimeRoomGroupEventsDoNotExposeHiddenRoomIDs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom hidden: %v", err)
 	}
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, hiddenRoom.GetId(), core.RoleEveryone, core.PermRoomList); err != nil {
-		t.Fatalf("DenyRoomPermission: %v", err)
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, hiddenRoom.GetId(), viewer.GetId(), core.PermRoomList); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
 
 	hiddenAdded := &evtv1.Event{Event: &evtv1.Event_RoomAddedToGroup{

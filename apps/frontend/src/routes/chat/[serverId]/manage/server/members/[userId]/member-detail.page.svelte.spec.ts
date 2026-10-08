@@ -59,7 +59,10 @@ function renderSection(section: Section) {
 }
 
 vi.mock('$lib/components/rbac', async () => ({
-  UserPermissionsMatrix: (await import('./MemberPermissionsMatrixMock.svelte')).default
+  UserPermissionsMatrix: (await import('./MemberPermissionsMatrixMock.svelte')).default,
+  MemberRoleAssignments: (await import('$lib/components/rbac/MemberRoleAssignments.svelte'))
+    .default,
+  roleOrderLocksRoles: (await import('$lib/components/rbac/roleAssignments')).roleOrderLocksRoles
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
@@ -102,16 +105,12 @@ function details(value: AdminMember): AdminMemberDetails {
       {
         name: 'everyone',
         displayName: 'Everyone',
-        position: 0,
-        permissions: [],
-        permissionDenials: []
+        permissions: []
       },
       {
         name: 'admin',
         displayName: 'Admin',
-        position: 1,
-        permissions: [],
-        permissionDenials: []
+        permissions: []
       }
     ],
     availablePermissions: [],
@@ -474,6 +473,44 @@ describe('server member detail queries', () => {
     expect(rendered.container.querySelector('nav[aria-label="Member sections"]')).toBeNull();
   });
 
+  it('keeps account controls from a manager who does not outrank the member', async () => {
+    routeUserId = 'bob';
+    server.setRoleOrder(['owner', 'admin'], 'admin');
+    api.getMember.mockResolvedValue(
+      details(member('bob', { roles: ['admin'], viewerCanDeleteAccount: false }))
+    );
+    const rendered = renderSection('account');
+    await settle();
+
+    expect(rendered.container.textContent).toContain(
+      'The role order does not let you change this account.'
+    );
+    expect(rendered.container.querySelector('#member-login')).toBeNull();
+    expect(sectionLinks(rendered.container).map((link) => link.label)).not.toContain('Account');
+  });
+
+  it('hides the avatar editor from a manager who does not outrank the member', async () => {
+    routeUserId = 'bob';
+    server.setRoleOrder(['owner', 'admin'], 'admin');
+    api.getMember.mockResolvedValue(details(member('bob', { roles: ['admin'] })));
+    const rendered = renderSection('profile');
+    await settle();
+
+    expect(rendered.container.textContent).toContain('BOB');
+    expect(rendered.container.textContent).not.toContain('Upload avatar');
+  });
+
+  it('lets an account manager change their own account without outranking it', async () => {
+    routeUserId = 'viewer';
+    server.setRoleOrder(['owner', 'admin'], 'admin');
+    api.getMember.mockResolvedValue(details(member('viewer', { roles: ['admin'] })));
+    const rendered = renderSection('account');
+    await settle();
+
+    expect(rendered.container.querySelector('#member-login')).not.toBeNull();
+    expect(rendered.container.textContent).not.toContain('The role order');
+  });
+
   it('shows the permissions matrix in the permissions section', async () => {
     const rendered = renderSection('permissions');
     await settle();
@@ -482,13 +519,16 @@ describe('server member detail queries', () => {
   });
 
   it('denies a section that the viewer cannot use', async () => {
-    api.getMember.mockResolvedValueOnce(details(member('helper_bot', { isBot: true })));
-    const rendered = renderSection('roles');
+    api.getMember.mockResolvedValueOnce({
+      ...details(member('helper_bot', { isBot: true })),
+      viewerCanManageUserPermissions: false
+    });
+    const rendered = renderSection('permissions');
     await settle();
 
     expect(rendered.container.textContent).toContain(
       'You do not have permission to access this page.'
     );
-    expect(rendered.container.textContent).not.toContain('Role Assignments');
+    expect(rendered.container.querySelector('[data-testid="user-permissions"]')).toBeNull();
   });
 });

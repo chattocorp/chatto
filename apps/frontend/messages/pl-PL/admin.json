@@ -11,7 +11,8 @@
       "event_log": "Dziennik zdarzeń",
       "system": "System",
       "back_to_server": "Wróć do serwera",
-      "invitations": "Linki z zaproszeniem"
+      "invitations": "Linki z zaproszeniem",
+      "roles": "Role"
     },
     "neighbors": {
       "title": "Sąsiedzi",
@@ -145,7 +146,8 @@
         "account": "Konto",
         "roles": "Role",
         "permissions": "Uprawnienia"
-      }
+      },
+      "role_beyond_viewer_permissions": "Nie możesz zmienić tego przypisania roli. Rola zezwala na uprawnienia, których nie masz."
     },
     "member_delete": {
       "title": "Usuń członka",
@@ -181,7 +183,6 @@
       "new_role_action": "+ Nowa rola",
       "creating_role": "Tworzenie...",
       "create_after_hint": "Po utworzeniu roli możesz przypisać do niej uprawnienia na stronie edycji.",
-      "back_to_permissions": "Powrót do uprawnień",
       "load_instance_failed": "Nie udało się załadować instancji",
       "need_manage_create": "Aby tworzyć role, potrzebujesz uprawnień role.manage.",
       "edit_role_title": "Edytuj rolę",
@@ -193,26 +194,52 @@
       "save_changes": "Zapisz zmiany",
       "delete_role_description": "Usunięcie tej roli spowoduje usunięcie jej ze wszystkich użytkowników, którzy mają ją przypisaną.",
       "owner_permissions_hint": "Właściciele zawsze otrzymują wszystkie uprawnienia. Macierz jest tylko do odczytu, ponieważ uprawnienia właściciela nie są przechowywane jako edytowalne uprawnienia lub odmowy.",
-      "role_permissions_hint": "Przyznaje i odmawia tej roli w każdym zakresie. W połączeniu z innymi rolami użytkownika w momencie rozwiązywania problemu — użyj macierzy poszczególnych użytkowników, aby zobaczyć, z czym zakończy się dany użytkownik.",
+      "role_permissions_hint": "Każda komórka pokazuje, co otrzymuje członek, który ma tylko tę rolę, razem z rolą everyone. Aby zobaczyć, co otrzymuje konkretny członek, otwórz uprawnienia tego członka.",
       "users_with_role": "Użytkownicy z tą rolą",
       "everyone_implicit": "Wszyscy członkowie serwera domyślnie mają rolę wszyscy.",
       "no_users_with_role": "Żaden użytkownik nie ma tej roli",
       "server_tier_intro": "Ta strona dotyczy uprawnień roli na poziomie serwera: ogólne ustawienia domyślne, które mają zastosowanie przed zastąpieniami specyficznymi dla pokoju.",
       "server_tier_rooms_hint": "Użyj Pokoi, aby zastąpić ustawienia na grupę i na pokój.",
-      "resolution_hint": "Dla każdego użytkownika lub nazwanej roli obowiązuje najbliższa wartość pokoju, grupy albo serwera. Odmowy mają między nimi pierwszeństwo. Zezwolenie zastępuje odmowę everyone tylko w tym samym lub bardziej szczegółowym zakresie.",
+      "resolution_hint": "Decyduje odmowa ustawiona dla użytkownika. W przeciwnym razie dostęp daje zezwolenie użytkownika, roli lub everyone. Bez zezwolenia nie ma dostępu.",
       "update_role_failed": "Nie udało się zaktualizować roli",
       "update_ping_failed": "Nie udało się zaktualizować ustawienia wzmianek roli",
-      "delete_role_failed": "Nie udało się usunąć roli"
+      "delete_role_failed": "Nie udało się usunąć roli",
+      "role_order": {
+        "title": "Kolejność ról",
+        "hint": "Kolejność ról decyduje, kto może kim zarządzać. Członek może zarządzać tylko kontami i rolami poniżej swojej najwyższej roli.",
+        "drag_role": "Przenieś {role}",
+        "always_highest": "Zawsze najwyższa",
+        "always_lowest": "Zawsze najniższa",
+        "saved": "Zapisano kolejność ról",
+        "save_failed": "Nie udało się zapisać kolejności ról",
+        "list_label": "Role, które możesz przenosić"
+      },
+      "back_to_roles": "Powrót do ról",
+      "roles_page": {
+        "title": "Role",
+        "subtitle": "Twórz, edytuj i porządkuj role tego serwera",
+        "edit_role": "Edytuj {role}",
+        "view_role": "Wyświetl {role}"
+      },
+      "role_tabs": {
+        "label": "Sekcje roli",
+        "general": "Ogólne",
+        "permissions": "Uprawnienia",
+        "members": "Członkowie"
+      },
+      "role_pings_on": "Pingowanie roli włączone",
+      "role_pings_off": "Pingowanie roli wyłączone",
+      "server_scope_warning": "Ustawienia na tej stronie obowiązują w każdym pokoju i każdej grupie pokojów na serwerze. Aby otworzyć tylko niektóre pokoje, ustaw uprawnienia tych pokojów lub grup pokojów."
     },
     "rooms_admin": {
       "title": "Pokoje",
       "subtitle": "Twórz, edytuj, organizuj i archiwizuj pokoje",
-      "group_permissions_subtitle": "Przyznawanie i odmawianie uprawnień roli dla poszczególnych grup",
+      "group_permissions_subtitle": "Przyznawanie uprawnień roli dla poszczególnych grup",
       "room_permissions_subtitle": "Zastąpienie uprawnień dla poszczególnych pomieszczeń (nałożone na grupę pomieszczeń)",
       "permissions_page_title": "Uprawnienia - {name}",
       "back_to_rooms": "Powrót do pokoi",
-      "group_permissions_hint": "Zastąpienie poszczególnych grup pomieszczeń kanałów w tej grupie. Wartości domyślne dziedziczone z zakresu serwera. Poszczególne pokoje mogą dodatkowo zastępować uprawnienia na własnej stronie uprawnień.",
-      "room_permissions_hint": "Te ustawienia obowiązują tylko w tym pokoju. Zastępują ustawienia grupy pokojów i serwera dla tej samej roli lub użytkownika. Aby tylko niektóre role mogły tu coś zrobić, ustaw Odmów dla everyone i Zezwól dla tych ról.",
+      "group_permissions_hint": "Ustawienia tutaj obowiązują w każdym pokoju w tej grupie pokojów. Pokój może zezwalać na więcej, ale nie może odebrać tego, na co zezwala grupa pokojów.",
+      "room_permissions_hint": "Te ustawienia obowiązują tylko w tym pokoju. Dodają się do zezwoleń ról z grupy pokojów i serwera. Aby tylko niektóre role mogły tu coś zrobić, nie zezwalaj na to dla everyone w szerszym zakresie. Następnie zezwól na to tutaj tym rolom.",
       "loading": "Ładowanie pokoi...",
       "empty_groups": "Nie ma jeszcze grup pokoi",
       "empty_groups_body": "Stwórz zestaw, aby rozpocząć porządkowanie pomieszczeń.",

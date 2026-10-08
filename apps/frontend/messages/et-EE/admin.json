@@ -11,7 +11,8 @@
       "event_log": "Sündmuste logi",
       "system": "Süsteem",
       "back_to_server": "Tagasi serverisse",
-      "invitations": "Kutselingid"
+      "invitations": "Kutselingid",
+      "roles": "Rollid"
     },
     "neighbors": {
       "title": "Naabrid",
@@ -145,7 +146,8 @@
         "account": "Konto",
         "roles": "Rollid",
         "permissions": "Load"
-      }
+      },
+      "role_beyond_viewer_permissions": "Te ei saa seda rollimäärangut muuta. Roll lubab õigusi, mida teil ei ole."
     },
     "member_delete": {
       "title": "Kustuta liige",
@@ -181,38 +183,63 @@
       "new_role_action": "+ Uus roll",
       "creating_role": "Loomine...",
       "create_after_hint": "Pärast rolli loomist saate redigeerimislehel määrata sellele õigused.",
-      "back_to_permissions": "Tagasi lubade juurde",
       "load_instance_failed": "Eksemplari laadimine ebaõnnestus",
-      "need_manage_create": "Rollide loomiseks vajate luba roles.manage.",
+      "need_manage_create": "Rollide loomiseks vajate luba role.manage.",
       "edit_role_title": "Redigeeri rolli",
       "loading_role": "Rolli laadimine...",
       "role_not_found": "Rolli ei leitud",
-      "need_manage_edit": "Rollide muutmiseks vajate luba roles.manage.",
+      "need_manage_edit": "Rollide muutmiseks vajate luba role.manage.",
       "system_metadata_locked": "Süsteemi rolli metaandmeid ei saa muuta.",
       "everyone_pingable_description": "Kasutage kogu ruumi kohaletoimetamiseks @all; igaüks ei ole rollipingi käepide.",
       "save_changes": "Salvesta muudatused",
       "delete_role_description": "Selle rolli kustutamisel eemaldatakse see kõigilt kasutajatelt, kellele see roll on määratud.",
       "owner_permissions_hint": "Omanikele antakse alati kõik load. Maatriks on kirjutuskaitstud, kuna omaniku õigusi ei salvestata redigeeritavate lubade või keeldudena.",
-      "role_permissions_hint": "Selle rolli toetused ja keeldumised igas ulatuses. Kombineerituna kasutaja muude rollidega lahenduse ajal – kasutage kasutajapõhist maatriksit, et näha, millega üksikkasutaja välja jõuab.",
+      "role_permissions_hint": "Iga lahter näitab, mida saab liige, kellel on ainult see roll, koos rolliga everyone. Konkreetse liikme õiguste nägemiseks avage selle liikme õigused.",
       "users_with_role": "Selle rolliga kasutajad",
       "everyone_implicit": "Kõigil serveriliikmetel on kaudselt igaühe roll.",
       "no_users_with_role": "Seda rolli ei ole ühelgi kasutajal",
       "server_tier_intro": "See leht on mõeldud serveritasandi rolliõiguste jaoks: üldised vaikeväärtused, mis rakenduvad enne ruumispetsiifilisi alistamisi.",
       "server_tier_rooms_hint": "Kasutage ruume rühma- ja ruumipõhiseks alistamiseks.",
-      "resolution_hint": "Iga kasutaja või nimega rolli puhul kehtib lähim ruumi, rühma või serveri väärtus. Eitab nende vahel võitu. Lubamine alistab kõik keelamise ainult samas või konkreetsemas ulatuses.",
+      "resolution_hint": "Otsustab kasutaja keeld. Vastasel juhul annab juurdepääsu kasutaja, rolli või everyone lubamine. Ilma lubamiseta juurdepääsu pole.",
       "update_role_failed": "Rolli uuendamine ebaõnnestus",
       "update_ping_failed": "Rolli mainimisseade uuendamine ebaõnnestus",
-      "delete_role_failed": "Rolli kustutamine ebaõnnestus"
+      "delete_role_failed": "Rolli kustutamine ebaõnnestus",
+      "role_order": {
+        "title": "Rollide järjekord",
+        "hint": "Rollide järjekord määrab, kes saab keda hallata. Liige saab hallata ainult kontosid ja rolle, mis on tema kõrgeimast rollist allpool.",
+        "drag_role": "Liiguta rolli {role}",
+        "always_highest": "Alati kõrgeim",
+        "always_lowest": "Alati madalaim",
+        "saved": "Rollide järjekord on salvestatud",
+        "save_failed": "Rollide järjekorra salvestamine ebaõnnestus",
+        "list_label": "Rollid, mida saate liigutada"
+      },
+      "back_to_roles": "Tagasi rollide juurde",
+      "roles_page": {
+        "title": "Rollid",
+        "subtitle": "Looge, muutke ja järjestage selle serveri rolle",
+        "edit_role": "Muuda rolli {role}",
+        "view_role": "Vaata rolli {role}"
+      },
+      "role_tabs": {
+        "label": "Rolli jaotised",
+        "general": "Üldine",
+        "permissions": "Load",
+        "members": "Liikmed"
+      },
+      "role_pings_on": "Rolli mainimine on sisse lülitatud",
+      "role_pings_off": "Rolli mainimine on välja lülitatud",
+      "server_scope_warning": "Sellel lehel olevad seaded kehtivad kõigi serveri ruumide ja ruumirühmade kohta. Kui soovite avada ainult mõned ruumid, määrake nende ruumide või ruumirühmade õigused."
     },
     "rooms_admin": {
       "title": "Toad",
       "subtitle": "Looge, redigeerige, korraldage ja arhiivige ruume",
-      "group_permissions_subtitle": "Grupipõhiste rollide lubade andmine ja keelamine",
+      "group_permissions_subtitle": "Grupipõhiste rollide lubade andmine",
       "room_permissions_subtitle": "Ruumipõhised alistamise load (kihina ruumi rühma peal)",
       "permissions_page_title": "Load – {name}",
       "back_to_rooms": "Tagasi tubadesse",
-      "group_permissions_hint": "Selle rühma kanaliruumide grupipõhised alistamised. Vaikeväärtused on päritud serveri ulatuselt. Üksikud ruumid saavad oma lubade lehel olevaid õigusi veelgi alistada.",
-      "room_permissions_hint": "Need seaded kehtivad ainult selles ruumis. Need asendavad sama rolli või kasutaja puhul ruumirühma ja serveri seaded. Kui soovite, et siin saaksid midagi teha ainult mõned rollid, määrake everyone jaoks Keela ja nende rollide jaoks Luba.",
+      "group_permissions_hint": "Siinsed seaded kehtivad kõigi selle ruumirühma ruumide kohta. Ruum võib lubada rohkem, kuid ei saa ära võtta seda, mida ruumirühm lubab.",
+      "room_permissions_hint": "Need seaded kehtivad ainult selles ruumis. Need lisanduvad ruumirühma ja serveri rollide lubadele. Kui soovite, et siin saaksid midagi teha ainult mõned rollid, ärge lubage seda everyone jaoks laiemas ulatuses. Seejärel lubage see siin nende rollide jaoks.",
       "loading": "Ruumide laadimine...",
       "empty_groups": "Ruumigruppe pole veel",
       "empty_groups_body": "Ruumide korraldamise alustamiseks looge komplekt.",

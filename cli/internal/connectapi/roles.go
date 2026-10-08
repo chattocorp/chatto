@@ -28,7 +28,8 @@ func (s *publicRoleService) ListRoles(ctx context.Context, _ *connect.Request[ap
 		return nil, err
 	}
 	return connect.NewResponse(&apiv1.ListRolesResponse{
-		Roles: publicAPIRoles(catalog.Roles),
+		Roles:             publicAPIRoles(catalog.Roles),
+		ViewerHighestRole: catalog.ViewerHighestRole,
 	}), nil
 }
 
@@ -156,16 +157,16 @@ func (s *roleService) DeleteRole(ctx context.Context, req *connect.Request[admin
 	return connect.NewResponse(&adminv1.DeleteRoleResponse{}), nil
 }
 
-func (s *roleService) ReorderRoles(ctx context.Context, req *connect.Request[adminv1.ReorderRolesRequest]) (*connect.Response[adminv1.ReorderRolesResponse], error) {
+func (s *roleService) MoveRole(ctx context.Context, req *connect.Request[adminv1.MoveRoleRequest]) (*connect.Response[adminv1.MoveRoleResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
-	roles, err := s.api.core.AdminReorderServerRoles(ctx, caller.UserID, req.Msg.GetRoleNames())
+	roles, err := s.api.core.AdminMoveServerRole(ctx, caller.UserID, req.Msg.GetRoleName(), req.Msg.GetBeforeRoleName())
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.ReorderRolesResponse{Roles: adminAPIRoles(roles)}), nil
+	return connect.NewResponse(&adminv1.MoveRoleResponse{Roles: adminAPIRoles(roles)}), nil
 }
 
 func publicAPIRoles(roles []core.RoleWithPermissions) []*apiv1.Role {
@@ -185,7 +186,6 @@ func publicAPIRole(role *core.RoleWithPermissions) *apiv1.Role {
 		DisplayName: role.DisplayName,
 		Description: role.Description,
 		IsSystem:    role.IsSystem,
-		Position:    role.Position,
 		Pingable:    role.Pingable,
 	}
 }
@@ -203,9 +203,8 @@ func adminAPIRole(role *core.RoleWithPermissions) *adminv1.AdminRole {
 		return nil
 	}
 	return &adminv1.AdminRole{
-		Role:              publicAPIRole(role),
-		Permissions:       corePermissionsToStrings(role.Permissions),
-		PermissionDenials: corePermissionsToStrings(role.PermissionDenials),
+		Role:        publicAPIRole(role),
+		Permissions: corePermissionsToStrings(role.Permissions),
 	}
 }
 

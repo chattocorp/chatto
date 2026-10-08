@@ -11,7 +11,8 @@
       "event_log": "事件日志",
       "system": "系统",
       "back_to_server": "返回服务器",
-      "invitations": "邀请链接"
+      "invitations": "邀请链接",
+      "roles": "角色"
     },
     "neighbors": {
       "title": "邻居",
@@ -145,7 +146,8 @@
         "account": "账号",
         "roles": "角色",
         "permissions": "权限"
-      }
+      },
+      "role_beyond_viewer_permissions": "你无法更改此角色分配。该角色允许你没有的权限。"
     },
     "member_delete": {
       "title": "删除成员",
@@ -181,38 +183,63 @@
       "new_role_action": "+ 添加角色",
       "creating_role": "正在创建...",
       "create_after_hint": "创建角色后，可在编辑页面为其分配权限。",
-      "back_to_permissions": "返回权限",
       "load_instance_failed": "加载实例失败",
-      "need_manage_create": "你需要 roles.manage 权限才能创建角色。",
+      "need_manage_create": "你需要 role.manage 权限才能创建角色。",
       "edit_role_title": "编辑角色",
       "loading_role": "正在加载角色...",
       "role_not_found": "未找到角色",
-      "need_manage_edit": "你需要 roles.manage 权限才能编辑角色。",
+      "need_manage_edit": "你需要 role.manage 权限才能编辑角色。",
       "system_metadata_locked": "无法修改系统角色的元数据。",
       "everyone_pingable_description": "使用 @all 将消息发送到整个聊天室；everyone 不是角色提及标识。",
       "save_changes": "保存更改",
       "delete_role_description": "删除此角色后，所有获分配此角色的用户都会失去该角色。",
       "owner_permissions_hint": "所有者始终拥有全部权限。由于所有者权限不会存储为可编辑的允许或拒绝项，因此此矩阵为只读。",
-      "role_permissions_hint": "此角色在各个作用域内的允许和拒绝项。解析权限时会与用户的其他角色合并；如需查看单个用户最终获得的权限，请使用用户权限矩阵。",
+      "role_permissions_hint": "每个单元格显示仅拥有此角色的成员连同 everyone 角色所获得的权限。如需查看某位成员获得的权限，请打开该成员的权限。",
       "users_with_role": "拥有此角色的用户",
       "everyone_implicit": "所有服务器成员都会自动拥有 everyone 角色。",
       "no_users_with_role": "没有用户拥有此角色",
       "server_tier_intro": "此页面用于设置服务器层级的角色权限，即应用聊天室特定覆盖项之前的通用默认值。",
       "server_tier_rooms_hint": "请前往“聊天室”设置各群组和聊天室的覆盖项。",
-      "resolution_hint": "对于每位用户或具名角色，会应用最近一级聊天室、群组或服务器的值。如有冲突，以拒绝为准。只有在相同或更具体的作用域内，允许项才能覆盖 everyone 的拒绝项。",
+      "resolution_hint": "用户上的拒绝项具有决定性。否则，用户、角色或 everyone 的允许项都会授予访问权限。没有允许项则没有访问权限。",
       "update_role_failed": "更新角色失败",
       "update_ping_failed": "更新角色提及设置失败",
-      "delete_role_failed": "删除角色失败"
+      "delete_role_failed": "删除角色失败",
+      "role_order": {
+        "title": "角色顺序",
+        "hint": "角色顺序决定谁可以管理谁。成员只能管理低于其最高角色的账号和角色。",
+        "drag_role": "移动 {role}",
+        "always_highest": "始终最高",
+        "always_lowest": "始终最低",
+        "saved": "角色顺序已保存",
+        "save_failed": "无法保存角色顺序",
+        "list_label": "你可以移动的角色"
+      },
+      "back_to_roles": "返回角色",
+      "roles_page": {
+        "title": "角色",
+        "subtitle": "创建、编辑和排列此服务器的角色",
+        "edit_role": "编辑 {role}",
+        "view_role": "查看 {role}"
+      },
+      "role_tabs": {
+        "label": "角色分区",
+        "general": "常规",
+        "permissions": "权限",
+        "members": "成员"
+      },
+      "role_pings_on": "已开启角色提及",
+      "role_pings_off": "已关闭角色提及",
+      "server_scope_warning": "此页面上的设置适用于服务器上的每个聊天室和每个聊天室分组。如果只想打开部分聊天室，请设置这些聊天室或聊天室分组的权限。"
     },
     "rooms_admin": {
       "title": "聊天室",
       "subtitle": "创建、编辑、整理和归档聊天室",
-      "group_permissions_subtitle": "各群组的角色权限允许和拒绝项",
+      "group_permissions_subtitle": "各群组的角色权限允许项",
       "room_permissions_subtitle": "各聊天室的覆盖权限（叠加在聊天室所属群组之上）",
       "permissions_page_title": "权限 - {name}",
       "back_to_rooms": "返回聊天室",
-      "group_permissions_hint": "此群组内频道聊天室的群组级覆盖项。默认值继承自服务器作用域。各聊天室可在自己的权限页面中进一步覆盖权限。",
-      "room_permissions_hint": "这些设置仅在此聊天室中生效。对于同一角色或用户，它们会取代聊天室分组和服务器的设置。如果只想让部分角色在这里执行某项操作，请为 everyone 设置“拒绝”，并为这些角色设置“允许”。",
+      "group_permissions_hint": "此处的设置适用于此聊天室分组中的每个聊天室。聊天室可以允许更多内容，但不能取消聊天室分组已允许的内容。",
+      "room_permissions_hint": "这些设置仅在此聊天室中生效。它们会添加到聊天室分组和服务器的角色允许项之上。如果只想让部分角色在这里执行某项操作，请不要在更大的作用域中为 everyone 设置“允许”，然后在这里为这些角色设置“允许”。",
       "loading": "正在加载聊天室...",
       "empty_groups": "暂无聊天室群组",
       "empty_groups_body": "创建一个群组以开始整理聊天室。",

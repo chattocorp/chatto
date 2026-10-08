@@ -12,7 +12,7 @@ Roles section of a human member: the server role assignments.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Hint } from '$lib/ui';
   import { FormError } from '$lib/ui/form';
-  import MemberRoleAssignments from '../../MemberRoleAssignments.svelte';
+  import { MemberRoleAssignments, roleOrderLocksRoles } from '$lib/components/rbac';
   import { useMemberDetail, type MemberMutationScope } from '../../memberDetailContext';
 
   const serverScope = useServerScope();
@@ -93,6 +93,10 @@ Roles section of a human member: the server role assignments.
 {:else}
   {#if visibleRoleError}
     <FormError error={visibleRoleError} />
+  {/if}
+  <!-- The layout explains the lock for accounts that the viewer does not outrank. -->
+  {#if detail.viewerOutranks && roleOrderLocksRoles(detail.details, detail.isSelf, detail.viewerOutranks)}
+    <Hint>{m('rbac.role_order.roles_locked')}</Hint>
   {/if}
   {#key detail.userId}
     <MemberRoleAssignments

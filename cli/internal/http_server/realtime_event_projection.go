@@ -36,6 +36,8 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 		target.Event = &realtimev1.RealtimeEvent_RoleDeleted{RoleDeleted: &realtimev1.RoleDeletedEvent{RoleName: e.RbacRoleDeleted.GetRoleName()}}
 	case *evtv1.Event_RbacRolesReordered:
 		target.Event = &realtimev1.RealtimeEvent_RolesReordered{RolesReordered: &realtimev1.RolesReorderedEvent{RoleNames: append([]string(nil), e.RbacRolesReordered.GetRoleNames()...)}}
+	case *evtv1.Event_RbacRoleMoved:
+		target.Event = &realtimev1.RealtimeEvent_RolesReordered{RolesReordered: &realtimev1.RolesReorderedEvent{RoleNames: []string{e.RbacRoleMoved.GetRoleName()}}}
 	case *evtv1.Event_RbacRoleAssigned:
 		v := e.RbacRoleAssigned
 		target.Event = &realtimev1.RealtimeEvent_RoleAssigned{RoleAssigned: &realtimev1.RoleAssignedEvent{UserId: v.GetUserId(), RoleName: v.GetRoleName()}}

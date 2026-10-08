@@ -5,10 +5,15 @@ import (
 	"fmt"
 )
 
+// RoleCatalog lists every role in role order, highest first, with the
+// viewer's role-management capabilities.
 type RoleCatalog struct {
 	Roles                []RoleWithPermissions
 	ViewerCanManageRoles bool
 	ViewerCanAssignRoles bool
+	// ViewerHighestRole is the role at which the viewer ranks (see
+	// ViewerHighestRole).
+	ViewerHighestRole string
 }
 
 type RoleDetails struct {
@@ -51,6 +56,7 @@ func (c *ChattoCore) ListServerRolesForUser(ctx context.Context, actorID string)
 		Roles:                roles,
 		ViewerCanManageRoles: canManage,
 		ViewerCanAssignRoles: canAssign,
+		ViewerHighestRole:    c.ViewerHighestRole(actorID),
 	}, nil
 }
 
@@ -127,14 +133,16 @@ func (c *ChattoCore) AdminDeleteServerRole(ctx context.Context, actorID, roleNam
 	return c.DeleteServerRole(ctx, actorID, roleName)
 }
 
-func (c *ChattoCore) AdminReorderServerRoles(ctx context.Context, actorID string, roleNames []string) ([]RoleWithPermissions, error) {
-	if err := c.requireCanManageAdminRoles(ctx, actorID); err != nil {
-		return nil, err
+// AdminMoveServerRole moves one role in the role order. Requires role.manage.
+// The role hierarchy does not limit moves (ADR-115).
+func (c *ChattoCore) AdminMoveServerRole(ctx context.Context, actorID, roleName, beforeRoleName string) ([]RoleWithPermissions, error) {
+	if actorID == "" || actorID == SystemActorID {
+		return nil, ErrNotAuthenticated
 	}
-	if roleNames == nil {
-		roleNames = []string{}
+	if roleName == "" {
+		return nil, fmt.Errorf("%w: role name is required", ErrInvalidArgument)
 	}
-	return c.ReorderServerRoles(ctx, actorID, roleNames)
+	return c.MoveServerRole(ctx, actorID, roleName, beforeRoleName)
 }
 
 func (c *ChattoCore) requireCanManageAdminRoles(ctx context.Context, actorID string) error {

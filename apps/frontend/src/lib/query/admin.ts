@@ -49,6 +49,18 @@ export const adminQueryKeys = {
   ) {
     return [...permissionTiersRoot(serverId, connection), { roomId, groupId }] as const;
   },
+  /**
+   * Access summary of a room or room group. It lives under the permission tier
+   * root, so every permission change that refreshes the tiers refreshes it.
+   */
+  accessSummary(
+    serverId: string,
+    connection: AdminQueryConnection,
+    roomId: string | null,
+    groupId: string | null
+  ) {
+    return [...permissionTiersRoot(serverId, connection), 'access', { roomId, groupId }] as const;
+  },
   rolePermissions(serverId: string, connection: AdminQueryConnection, roleName: string) {
     return [...adminRoot(serverId, connection), 'role-permissions', roleName] as const;
   },

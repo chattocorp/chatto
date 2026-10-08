@@ -59,9 +59,8 @@ const (
 
 	// PermRoomList allows seeing a room in the directory and elsewhere
 	// the server enumerates rooms (e.g. group "Join all" affordances).
-	// Default-granted at server scope so the directory works out of the
-	// box; deny it on a restricted room to keep it hidden from
-	// non-members.
+	// New servers grant it to everyone only on the seeded rooms; other
+	// rooms stay hidden until an operator allows it (ADR-116).
 	PermRoomList Permission = "room.list"
 
 	// PermRoomManage allows updating or deleting channel rooms.
@@ -98,9 +97,9 @@ const (
 	PermMessageReadInteractions Permission = "message.read-interactions"
 
 	// PermMessagePost allows posting root messages and thread replies. It includes
-	// PermMessagePostInThread and PermMessagePostInInteractions. Server-scope
-	// decisions act as global defaults/overrides; room or group denies can narrow
-	// that default where a room should be more restrictive.
+	// PermMessagePostInThread and PermMessagePostInInteractions. A server-scope
+	// allow reaches every room; allow it at room or group scope to open only
+	// some rooms.
 	PermMessagePost Permission = "message.post"
 
 	// PermMessagePostInThread allows posting messages in a thread (first or subsequent reply).
@@ -390,18 +389,42 @@ func PermissionsForCategory(category PermissionCategory) []PermissionMetadata {
 // Default Role Permissions
 // ============================================================================
 
-// DefaultEveryonePermissions returns server-scope permissions granted to every
-// authenticated user (the implicit everyone role). These defaults make normal
-// rooms usable out of the box; operators can deny the room/group permissions at
-// room or group scope where they need local restrictions.
+// DefaultEveryonePermissions returns the server-scope permissions that a new
+// server grants to every authenticated user (the implicit everyone role).
+// A server-scope allow reaches every room, so room access and room content
+// are not granted here: new rooms and room groups start closed, and operators
+// open them (ADR-116).
 func DefaultEveryonePermissions() []Permission {
+	return []Permission{PermUserDeleteSelf}
+}
+
+// DefaultEveryoneDMPermissions returns the Direct messages scope permissions
+// that a new server grants to everyone, so that people can use direct
+// messages. DM membership still limits them to the person's own DMs.
+func DefaultEveryoneDMPermissions() []Permission {
 	return []Permission{
-		PermUserDeleteSelf,
+		PermMessageRead,
+		PermMessagePost,
+		PermMessageAttach,
+		PermMessageReact,
+		PermMessageEcho,
+		PermCallStart,
+		PermCallJoin,
+		PermCallVoice,
+		PermCallCamera,
+		PermCallScreenShare,
+	}
+}
+
+// DefaultOpenRoomEveryonePermissions returns the room-scope allows that open
+// a seeded room to everyone: members can find, join, read, and post in it,
+// and use calls.
+func DefaultOpenRoomEveryonePermissions() []Permission {
+	return []Permission{
 		PermRoomList,
 		PermRoomJoin,
 		PermMessageRead,
 		PermMessagePost,
-		PermMessagePostInThread,
 		PermMessageAttach,
 		PermMessageReact,
 		PermMessageEcho,
@@ -425,15 +448,14 @@ func DefaultModeratorPermissions() []Permission {
 
 // DefaultAdminPermissions returns the server-scope permissions granted to
 // admins by default. Admins inherit the implicit everyone role at runtime, so
-// this list contains only admin-specific capabilities plus global room
-// administration defaults.
+// this list contains only admin-specific capabilities. It leaves out
+// room.list and room.join: a server-scope allow reaches every room, so admins
+// would see and join private rooms.
 func DefaultAdminPermissions() []Permission {
 	return []Permission{
 		PermServerManage,
 		PermUserInvite,
 		PermRoomCreate,
-		PermRoomJoin,
-		PermRoomList,
 		PermRoomManage,
 		PermRoomMemberRemove,
 		PermMessageManage,
@@ -454,17 +476,22 @@ func DefaultAdminPermissions() []Permission {
 // room whose creation-time permission facts differ from ordinary rooms.
 const AnnouncementsRoomName = "announcements"
 
-// DefaultAnnouncementsEveryoneDenials returns the room-scope denials for the
-// built-in announcements room. This blocks root posts unless a named role or
-// direct user has a room-local allow. Effective owners bypass the decision.
-func DefaultAnnouncementsEveryoneDenials() []Permission {
-	return []Permission{PermMessagePost}
+// DefaultAnnouncementsEveryonePermissions returns the room-scope allows for
+// the built-in announcements room. Members can find, join, and read it, react,
+// and reply in threads, but cannot post root messages.
+func DefaultAnnouncementsEveryonePermissions() []Permission {
+	return []Permission{
+		PermRoomList,
+		PermRoomJoin,
+		PermMessageRead,
+		PermMessageReact,
+		PermMessagePostInThread,
+	}
 }
 
 // DefaultAnnouncementsAdminPermissions returns the room-scope grants that let
-// admins publish announcements. Other ordinary content capabilities continue
-// to come from the everyone baseline, and moderators receive no announcement-
-// specific grant.
+// admins publish announcements. Their other abilities in the room come from
+// everyone, and moderators receive no announcement-specific grant.
 func DefaultAnnouncementsAdminPermissions() []Permission {
-	return []Permission{PermMessagePost}
+	return []Permission{PermMessagePost, PermMessageAttach}
 }

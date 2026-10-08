@@ -84,6 +84,7 @@ describe('admin role query invalidation', () => {
     expect(queryClient.getQueryData(roleDetailsKey)).toBeUndefined();
     expect(queryClient.getQueryData(membersKey)).toBeUndefined();
     expect(queryClient.getQueryState(tierKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(catalogKey)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(userKey)?.isInvalidated).toBe(true);
   });
 });

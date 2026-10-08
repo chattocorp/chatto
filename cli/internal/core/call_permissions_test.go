@@ -133,7 +133,9 @@ func TestCallPermissionDefaultsDoNotReturnAfterClear(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	require.NoError(t, c.RevokeServerPermission(ctx, SystemActorID, RoleEveryone, PermCallVoice))
-	require.NoError(t, c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermCallCamera))
+	// An earlier version could store a server-scope deny of everyone. It is a
+	// decision, so seeding must not grant the default again.
+	appendStoredRoleDeny(t, c, ctx, ScopeServer, "", RoleEveryone, PermCallCamera)
 	before, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.RBACSubjectFilter())
 	require.NoError(t, err)
 	require.NoError(t, c.seedUpgradePermissions(ctx))
@@ -243,8 +245,7 @@ func TestCallPermissionsDMScopeAndBotDelegation(t *testing.T) {
 	dm, _, err := c.roomCommands.StartDM(ctx, RoomStartDMInput{ActorID: owner.Id, ParticipantIDs: []string{other.Id}})
 	require.NoError(t, err)
 	require.NoError(t, c.JoinVoiceCall(ctx, owner.Id, dm.Id))
-	require.NoError(t, c.GrantUserPermission(ctx, SystemActorID, owner.Id, PermRoleManage))
-	require.NoError(t, c.SetRolePermissionState(ctx, owner.Id, RoleEveryone, PermissionTargetScope{Kind: MatrixScopeDM}, PermCallVoice, PermissionStateDeny))
+	setStoredUserDeny(t, c, ctx, ScopeDM, "", owner.Id, PermCallVoice, true)
 	permissions, err := c.AuthorizeCall(ctx, owner.Id, dm.Id, false)
 	require.NoError(t, err)
 	require.False(t, permissions.Voice)
@@ -364,7 +365,13 @@ func TestCallPermissionsScopeMatrix(t *testing.T) {
 					require.NoError(t, c.RevokeServerPermission(ctx, SystemActorID, RoleEveryone, tc.permission))
 					for _, state := range []PermissionState{PermissionStateAllow, PermissionStateDeny, PermissionStateNone} {
 						t.Run(string(state), func(t *testing.T) {
-							require.NoError(t, c.SetRolePermissionState(ctx, manager.Id, RoleEveryone, scope, tc.permission, state))
+							err := c.SetRolePermissionState(ctx, manager.Id, RoleEveryone, scope, tc.permission, state)
+							if state == PermissionStateDeny {
+								// Roles, everyone included, only grant (ADR-116).
+								require.ErrorIs(t, err, ErrInvalidArgument)
+								return
+							}
+							require.NoError(t, err)
 							expected := CallPermissions{Start: true, Join: true, Voice: true, Camera: true, ScreenShare: true}
 							if state != PermissionStateAllow {
 								tc.disable(&expected)
@@ -404,7 +411,7 @@ func TestCallPermissionReconciliationGatesOwnerOverride(t *testing.T) {
 	require.NoError(t, c.JoinVoiceCall(ctx, owner.Id, room.Id))
 	snapshot, err := c.GetCallSnapshot(room.Id)
 	require.NoError(t, err)
-	require.NoError(t, c.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermCallJoin))
+	require.NoError(t, c.DenyUserRoomPermission(ctx, SystemActorID, room.Id, owner.Id, PermCallJoin))
 
 	name := LiveKitRoomName("", KindChannel, room.Id, snapshot.Call.CallID)
 	scan := func(privilegedUntil time.Time) *callPermissionRoomService {

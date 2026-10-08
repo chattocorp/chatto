@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ExplainPermissionsRequest, ExplainPermissionsResponse, GetRolePermissionMatrixRequest, GetRolePermissionMatrixResponse, GetRolePermissionTierMatrixRequest, GetRolePermissionTierMatrixResponse, GetUserPermissionMatrixRequest, GetUserPermissionMatrixResponse, ListRolePermissionDecisionsRequest, ListRolePermissionDecisionsResponse, ListUserPermissionDecisionsRequest, ListUserPermissionDecisionsResponse, SetRolePermissionRequest, SetRolePermissionResponse, SetUserPermissionRequest, SetUserPermissionResponse } from "./permissions_pb.js";
+import { ExplainPermissionsRequest, ExplainPermissionsResponse, GetAccessSummaryRequest, GetAccessSummaryResponse, GetRolePermissionMatrixRequest, GetRolePermissionMatrixResponse, GetRolePermissionTierMatrixRequest, GetRolePermissionTierMatrixResponse, GetUserPermissionMatrixRequest, GetUserPermissionMatrixResponse, ListRolePermissionDecisionsRequest, ListRolePermissionDecisionsResponse, ListUserPermissionDecisionsRequest, ListUserPermissionDecisionsResponse, SetRolePermissionRequest, SetRolePermissionResponse, SetUserPermissionRequest, SetUserPermissionResponse } from "./permissions_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -31,6 +31,20 @@ export const AdminPermissionService = {
       name: "GetRolePermissionTierMatrix",
       I: GetRolePermissionTierMatrixRequest,
       O: GetRolePermissionTierMatrixResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Summarizes who can find and join a channel room or the rooms of a room
+     * group. New rooms and room groups start closed, so clients use it to warn
+     * operators. Requires role.manage or effective room.manage at the room or
+     * group. Only ROOM and GROUP scopes are accepted.
+     *
+     * @generated from rpc chatto.admin.v1.AdminPermissionService.GetAccessSummary
+     */
+    getAccessSummary: {
+      name: "GetAccessSummary",
+      I: GetAccessSummaryRequest,
+      O: GetAccessSummaryResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -97,6 +111,12 @@ export const AdminPermissionService = {
     /**
      * Sets one role permission decision. Server scope requires role.manage;
      * group and room scopes also accept effective room.manage at that resource.
+     * A caller with role.manage can change every role except owner. Other
+     * callers who are not owners can change only roles below their own highest
+     * role. Every caller who is not an owner must have the permission at the
+     * target scope; otherwise the call returns PERMISSION_DENIED. Everyone ranks
+     * below every account. Roles, everyone included, only grant: a deny for any
+     * role returns INVALID_ARGUMENT. Set a deny on a single user instead.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.SetRolePermission
      */
@@ -108,8 +128,12 @@ export const AdminPermissionService = {
     },
     /**
      * Sets one user permission decision. Human targets require
-     * user.manage-permissions; bot targets require ownership or bot.manage and
-     * accept only allow or clear within the bot owner's current authority.
+     * user.manage-permissions. A caller who is not an owner must also have the
+     * permission at the target scope and must outrank any other target;
+     * otherwise the call returns PERMISSION_DENIED. Bot targets require
+     * ownership, or bot.manage and a higher rank than the bot and its owner, and
+     * accept only allow or clear within the bot owner's current authority. A
+     * caller who does not own the bot must also have the permission they allow.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.SetUserPermission
      */

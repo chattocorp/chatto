@@ -16,6 +16,7 @@ func TestDelegatedRoleAssignmentCannotGrantBroaderAuthority(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser assigner: %v", err)
 	}
+	grantTestRank(t, core, ctx, assigner.Id)
 	target, err := core.CreateUser(ctx, SystemActorID, "bounded-role-target", "Bounded Role Target", "password")
 	if err != nil {
 		t.Fatalf("CreateUser target: %v", err)
@@ -60,15 +61,19 @@ func TestImplicitEveryoneRoleIsNeverAssignableOrRevocable(t *testing.T) {
 		t.Fatalf("GrantUserPermission role.assign: %v", err)
 	}
 
-	if can, err := core.CanAssignRole(ctx, actor.Id, RoleEveryone); err != nil || can {
-		t.Fatalf("CanAssignRole(everyone) = %v, %v; want false, nil", can, err)
+	target, err := core.CreateUser(ctx, SystemActorID, "implicit-role-target", "Implicit Role Target", "password")
+	if err != nil {
+		t.Fatalf("CreateUser target: %v", err)
 	}
-	if can, err := core.CanRevokeRole(ctx, actor.Id, RoleEveryone); err != nil || can {
-		t.Fatalf("CanRevokeRole(everyone) = %v, %v; want false, nil", can, err)
+	if can, err := core.CanAssignRoleToUser(ctx, actor.Id, target.Id, RoleEveryone); err != nil || can {
+		t.Fatalf("CanAssignRoleToUser(everyone) = %v, %v; want false, nil", can, err)
+	}
+	if can, err := core.CanRevokeRoleFromUser(ctx, actor.Id, target.Id, RoleEveryone); err != nil || can {
+		t.Fatalf("CanRevokeRoleFromUser(everyone) = %v, %v; want false, nil", can, err)
 	}
 }
 
-func TestDelegatedRoleRevocationCannotRemoveBroaderRestriction(t *testing.T) {
+func TestDelegatedRoleRevocationStaysWithinAuthority(t *testing.T) {
 	t.Parallel()
 
 	core, _ := setupTestCore(t)
@@ -77,6 +82,7 @@ func TestDelegatedRoleRevocationCannotRemoveBroaderRestriction(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser assigner: %v", err)
 	}
+	grantTestRank(t, core, ctx, assigner.Id)
 	target, err := core.CreateUser(ctx, SystemActorID, "bounded-role-revoke-target", "Bounded Role Revoke Target", "password")
 	if err != nil {
 		t.Fatalf("CreateUser target: %v", err)
@@ -84,8 +90,8 @@ func TestDelegatedRoleRevocationCannotRemoveBroaderRestriction(t *testing.T) {
 	if _, err := core.CreateServerRole(ctx, SystemActorID, "restricted", "Restricted", "", false); err != nil {
 		t.Fatalf("CreateServerRole restricted: %v", err)
 	}
-	if err := core.DenyServerPermission(ctx, SystemActorID, "restricted", PermRoomCreate); err != nil {
-		t.Fatalf("DenyServerPermission room.create: %v", err)
+	if err := core.GrantServerPermission(ctx, SystemActorID, "restricted", PermRoomCreate); err != nil {
+		t.Fatalf("GrantServerPermission room.create: %v", err)
 	}
 	if err := core.AssignServerRole(ctx, SystemActorID, target.Id, "restricted"); err != nil {
 		t.Fatalf("AssignServerRole restricted: %v", err)
@@ -95,13 +101,13 @@ func TestDelegatedRoleRevocationCannotRemoveBroaderRestriction(t *testing.T) {
 	}
 
 	if err := core.AdminRevokeServerRole(ctx, assigner.Id, target.Id, "restricted"); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("revoke restriction beyond authority error = %v, want permission denied", err)
+		t.Fatalf("revoke role beyond authority error = %v, want permission denied", err)
 	}
 	if err := core.GrantUserPermission(ctx, SystemActorID, assigner.Id, PermRoomCreate); err != nil {
 		t.Fatalf("GrantUserPermission room.create: %v", err)
 	}
 	if err := core.AdminRevokeServerRole(ctx, assigner.Id, target.Id, "restricted"); err != nil {
-		t.Fatalf("revoke restriction within authority: %v", err)
+		t.Fatalf("revoke role within authority: %v", err)
 	}
 }
 
@@ -114,6 +120,7 @@ func TestDelegatedRoleAssignmentChecksScopedAuthority(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser assigner: %v", err)
 	}
+	grantTestRank(t, core, ctx, assigner.Id)
 	target, err := core.CreateUser(ctx, SystemActorID, "scoped-role-target", "Scoped Role Target", "password")
 	if err != nil {
 		t.Fatalf("CreateUser target: %v", err)
@@ -163,6 +170,7 @@ func TestDelegatedRoleAssignmentChecksDirectMessageAuthority(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser assigner: %v", err)
 	}
+	grantTestRank(t, core, ctx, assigner.Id)
 	target, err := core.CreateUser(ctx, SystemActorID, "dm-role-target", "DM Role Target", "password")
 	if err != nil {
 		t.Fatalf("CreateUser target: %v", err)
@@ -198,6 +206,7 @@ func TestRoleAssignmentIgnoresUnrelatedChatTraffic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser assigner: %v", err)
 	}
+	grantTestRank(t, core, ctx, assigner.Id)
 	target, err := core.CreateUser(ctx, SystemActorID, "chat-independent-target", "Chat Independent Target", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser target: %v", err)

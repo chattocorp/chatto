@@ -79,9 +79,9 @@ permissions. Room membership remains a separate requirement.
   the interaction relationship.
 - The public API does not list or inspect interaction relationships. A thread
   read succeeds or fails after the server applies the current access rules.
-- Fresh servers grant only `message.read` to `everyone` at server scope when
-  they initialize an empty RBAC stream. That effective allow includes the
-  interaction permission.
+- Fresh servers grant only `message.read` to `everyone`, at Direct messages
+  scope and in the seeded rooms, when they initialize an empty RBAC stream.
+  That effective allow includes the interaction permission.
 - Existing servers receive no automatic grant. Operators must review and
   update existing RBAC state.
 - Bots do not inherit `everyone`. A bot needs an explicit grant for each read

@@ -130,7 +130,7 @@
   }
 
   // Create context-based state (must be synchronous, before children render)
-  createMentionRoles(() => stores.mentionRoles.roles);
+  createMentionRoles(() => stores.roleCatalog.roles);
   const roomMessageStore = $derived(stores.rooms.messages(roomId));
 
   const room = useRoomData(() => ({ roomId }));
@@ -146,7 +146,7 @@
 
   $effect(() => {
     if (!stores.isAuthenticated) return;
-    void stores.mentionRoles.refresh();
+    void stores.roleCatalog.refresh();
   });
 
   // Room permissions — derived reactively, no $effect needed

@@ -9,6 +9,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button } from '$lib/ui/form';
   import { AccessDenied, EmptyState, PaneContent, PaneHeader, PageTitle, Hint } from '$lib/ui';
+  import AccessSummary from '$lib/components/rbac/AccessSummary.svelte';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
   import { useProjectionEvent } from '$lib/hooks';
   import { toast } from '$lib/ui/toast';
@@ -186,6 +187,7 @@
         {/if}
 
         <div class="flex flex-col gap-4">
+          <AccessSummary {groupId} />
           <Hint>{m('admin.rooms_admin.group_permissions_hint')}</Hint>
           <Hint>{m('admin.permissions.resolution_hint')}</Hint>
           <PermissionMatrix

@@ -59,8 +59,13 @@ export class AdminPage {
   }
 
   /** Permissions link inside the dedicated admin sidebar. */
+  get permissionsLink(): Locator {
+    return this.sidebar.getByRole('link', { name: 'Permissions', exact: true });
+  }
+
+  /** Roles link inside the dedicated admin sidebar. */
   get rolesLink(): Locator {
-    return this.sidebar.getByRole('link', { name: 'Permissions' });
+    return this.sidebar.getByRole('link', { name: 'Roles', exact: true });
   }
 
   /** Back-to-chat affordance in the admin sidebar header. */
@@ -107,7 +112,7 @@ export class AdminPage {
   /**
    * Navigate to the admin permissions page.
    */
-  async gotoRoles(): Promise<void> {
+  async gotoPermissions(): Promise<void> {
     await this.page.goto(routes.serverAdminPermissions);
   }
 
@@ -141,7 +146,7 @@ export class AdminPage {
    * Navigate to a specific role's page.
    */
   async gotoRole(roleName: string): Promise<void> {
-    await this.page.goto(routes.serverAdminPermission(roleName));
+    await this.page.goto(routes.serverAdminRole(roleName));
   }
 
   async navigateToGeneral(): Promise<void> {
@@ -286,11 +291,9 @@ export class AdminPage {
 
   // --- Permissions Page ---
 
-  /**
-   * Get the Create role button.
-   */
-  get createRoleButton(): Locator {
-    return this.page.getByRole('button', { name: 'Create role' });
+  /** The Create role link on the Roles page. */
+  get createRoleLink(): Locator {
+    return this.page.getByRole('link', { name: 'Create role' });
   }
 
   /**
@@ -330,7 +333,7 @@ export class AdminPage {
   /**
    * Assert that the permissions page is visible.
    */
-  async expectRolesPageVisible(): Promise<void> {
+  async expectPermissionsPageVisible(): Promise<void> {
     await expect(
       this.page.getByRole('heading', { name: 'Permissions', exact: true, level: 1 })
     ).toBeVisible();
@@ -395,7 +398,7 @@ export class AdminPage {
       Rooms: this.roomsLink,
       System: this.systemLink,
       Roles: this.rolesLink,
-      Permissions: this.rolesLink
+      Permissions: this.permissionsLink
     };
     await expect(linkMap[linkName]).not.toBeVisible();
   }
@@ -412,7 +415,7 @@ export class AdminPage {
       Rooms: this.roomsLink,
       System: this.systemLink,
       Roles: this.rolesLink,
-      Permissions: this.rolesLink
+      Permissions: this.permissionsLink
     };
     await expect(linkMap[linkName]).toBeVisible();
   }
@@ -426,7 +429,7 @@ export class AdminPage {
       Rooms: this.roomsLink,
       System: this.systemLink,
       Roles: this.rolesLink,
-      Permissions: this.rolesLink
+      Permissions: this.permissionsLink
     };
     await expect(linkMap[linkName]).toHaveAttribute('aria-current', 'page');
   }
@@ -499,7 +502,7 @@ export class AdminPage {
    * Assert that the Create role button is NOT visible.
    */
   async expectCreateRoleNotVisible(): Promise<void> {
-    await expect(this.createRoleButton).not.toBeVisible();
+    await expect(this.createRoleLink).not.toBeVisible();
   }
 
   /**
