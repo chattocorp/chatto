@@ -4,7 +4,6 @@ package authentication
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -22,10 +21,6 @@ const (
 
 // ErrBusy indicates that this process has no password-verification capacity.
 var ErrBusy = errors.New("authentication capacity exhausted")
-
-type attemptCounter struct {
-	Count int `json:"count"`
-}
 
 type accountAuthenticator interface {
 	AuthenticateLocal(context.Context, string, string) (accounts.Account, error)
@@ -184,18 +179,11 @@ func (s *Service) acquirePasswordSlot(ctx context.Context) (func(), error) {
 }
 
 func (s *Service) readLimit(ctx context.Context, key string) (limitState, error) {
-	entry, err := s.kv.Get(ctx, key)
-	if storage.IsKeyAbsent(err) {
-		return limitState{key: key}, nil
-	}
+	count, revision, err := storage.ReadCounter(ctx, s.kv, key)
 	if err != nil {
 		return limitState{}, err
 	}
-	var counter attemptCounter
-	if json.Unmarshal(entry.Value(), &counter) != nil || counter.Count < 1 {
-		return limitState{}, fmt.Errorf("decode password attempt counter")
-	}
-	return limitState{key: key, revision: entry.Revision(), limited: counter.Count >= maxFailedAttempts}, nil
+	return limitState{key: key, revision: revision, limited: count >= maxFailedAttempts}, nil
 }
 
 // recordFailure counts one failed attempt. A counter at the limit stays

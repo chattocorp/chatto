@@ -268,13 +268,10 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 
 ### Image Cache
 
-<EnvVar name="CHATTO_CORE_ASSETS_CACHE_ENABLED" toml="core.assets.cache.enabled" default="false">
-  Enable caching for resized image transforms. Reduces CPU usage for repeated thumbnail generation.
-</EnvVar>
-
-<EnvVar name="CHATTO_CORE_ASSETS_CACHE_TTL" toml="core.assets.cache.ttl" default="7d">
-  Time-to-live for cached images. Supports durations like `7d`, `1w`, `168h`.
-</EnvVar>
+Chatto always caches resized images and Neighborhood images for seven days.
+Remove the obsolete `[core.assets.cache]` section and the
+`CHATTO_CORE_ASSETS_CACHE_ENABLED` and `CHATTO_CORE_ASSETS_CACHE_TTL`
+environment variables from your configuration. These settings no longer have an effect.
 
 ## NATS
 

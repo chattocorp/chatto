@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core/neighborhood"
 	cachestatev1 "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
 )
@@ -91,7 +92,7 @@ func newTestNeighborhoodDiscovery(t *testing.T) (*ChattoCore, *neighborhoodDisco
 	neighbors := []string{"https://a.example"}
 	discovery := &neighborhoodDiscovery{
 		kv:          core.storage.memoryCacheKV,
-		images:      core.storage.neighborhoodImages,
+		images:      core.storage.imageCacheStore,
 		fetcher:     fetcher,
 		selfOrigins: []string{neighborhoodTestSelf},
 		neighbors:   func() []string { return neighbors },
@@ -162,6 +163,67 @@ func TestNeighborhoodDiscoveryStoresDirectoryAndImages(t *testing.T) {
 	refreshed, err := core.NeighborhoodDirectory(ctx)
 	require.NoError(t, err)
 	require.Equal(t, first.GetLogo().GetObjectName(), refreshed.GetServers()[0].GetLogo().GetObjectName())
+}
+
+func TestNeighborhoodImageRenewalAndRegeneration(t *testing.T) {
+	t.Parallel()
+	core, discovery, fetcher, now := newTestNeighborhoodDiscovery(t)
+	ctx := testContext(t)
+	require.NoError(t, discovery.refreshIfDue(ctx))
+	directory, err := core.NeighborhoodDirectory(ctx)
+	require.NoError(t, err)
+	name := directory.GetServers()[0].GetLogo().GetObjectName()
+	key := neighborhoodImageKey(name)
+	before, err := discovery.images.GetInfo(ctx, key)
+	require.NoError(t, err)
+	_, images := fetcher.counts()
+	*now = before.ModTime.Add(neighborhoodImageRewriteAge + time.Second)
+	require.NoError(t, discovery.refreshIfDue(ctx))
+	after, err := discovery.images.GetInfo(ctx, key)
+	require.NoError(t, err)
+	require.True(t, after.ModTime.After(before.ModTime))
+	_, renewedImages := fetcher.counts()
+	require.Equal(t, images, renewedImages, "renewal must reuse stored bytes")
+
+	// A missing entry, including one removed by expiry, is fetched again.
+	require.NoError(t, discovery.images.Delete(ctx, key))
+	*now = now.Add(neighborhoodRefreshAge)
+	require.NoError(t, discovery.refreshIfDue(ctx))
+	_, err = discovery.images.GetInfo(ctx, key)
+	require.NoError(t, err)
+	_, regeneratedImages := fetcher.counts()
+	require.Greater(t, regeneratedImages, renewedImages)
+
+	resizeKey := ImageCacheKey(ServerAssetSignResource, "test-avatar", 64, 64, "cover")
+	require.NoError(t, core.StoreCachedResize(ctx, resizeKey, []byte("resize")))
+	count, err := core.mediaModel.DeleteCachedResizesForServerAsset(ctx, "test-avatar")
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+	_, err = discovery.images.GetInfo(ctx, key)
+	require.NoError(t, err, "resize cleanup must retain Neighborhood images")
+}
+
+func TestNeighborhoodImageExpiry(t *testing.T) {
+	t.Parallel()
+	core, discovery, _, _ := newTestNeighborhoodDiscovery(t)
+	ctx := testContext(t)
+	// Shorten only this test bucket's TTL to exercise actual NATS expiry.
+	cfg := assetCacheConfig(config.CoreConfig{})
+	cfg.TTL = time.Second
+	_, err := core.js.CreateOrUpdateObjectStore(ctx, cfg)
+	require.NoError(t, err)
+	require.NoError(t, discovery.refreshIfDue(ctx))
+	directory, err := core.NeighborhoodDirectory(ctx)
+	require.NoError(t, err)
+	name := directory.GetServers()[0].GetLogo().GetObjectName()
+	require.Eventually(t, func() bool {
+		reader, _, err := core.OpenNeighborhoodImage(ctx, name)
+		if reader != nil {
+			_ = reader.Close()
+		}
+		return errors.Is(err, ErrNeighborhoodImageNotFound)
+	}, 5*time.Second, 20*time.Millisecond)
+	require.False(t, discovery.keepImage(ctx, name))
 }
 
 func TestNeighborhoodDiscoveryPicksUpNeighborChanges(t *testing.T) {

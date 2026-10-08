@@ -745,7 +745,7 @@ func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transfo
 	}
 
 	// Store in cache (fire-and-forget, skip animated GIFs which are large)
-	if result.ContentType != "image/gif" && s.core.ImageCacheEnabled() {
+	if result.ContentType != "image/gif" {
 		go func() {
 			if err := s.core.StoreCachedResize(context.Background(), cacheKey, transformedData); err != nil {
 				s.logger.Warn("Failed to cache transformed image", "error", err, "cache_key", cacheKey)

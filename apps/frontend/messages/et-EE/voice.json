@@ -39,6 +39,8 @@
     "fullscreen_feed": "Täisekraani voog",
     "fullscreen_call": "Kõne täisekraanil",
     "exit_fullscreen_call": "Välju täisekraaniga kõnest",
+    "pin_to_stage": "Kinnita {name} lavale",
+    "unpin_from_stage": "Eemalda lavalt kinnitus",
     "locally_mute_participant": "Vaigista kohapeal",
     "locally_muted": "Lokaalselt vaigistatud",
     "unknown_device": "Tundmatu seade",

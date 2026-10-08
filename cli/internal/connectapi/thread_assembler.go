@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/parallel"
@@ -55,7 +54,7 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 		if err != nil {
 			// List responses omit resources that disappear between the core page
 			// snapshot and response hydration instead of failing the whole page.
-			if errors.Is(err, core.ErrNotFound) || errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+			if errors.Is(err, core.ErrNotFound) {
 				return nil, nil
 			}
 			return nil, err

@@ -55,6 +55,10 @@ authorization, live events, backup and restore, and backend tests.
   Connect codes through the `connectError` table; do not call `connectError`
   in handlers. Code or tests that call a handler directly and inspect the code
   must use `errorCode`, because direct calls skip the interceptor.
+- Core reports a missing resource with `core.ErrNotFound` or a more specific
+  core sentinel. Do not return a JetStream error such as
+  `jetstream.ErrKeyNotFound` for a missing resource. Check for
+  `jetstream.ErrKeyNotFound` only in the code that reads the key-value bucket.
 - Keep projected read hydration out of ConnectRPC handlers. Put per-response
   batching, bounded concurrency, include-map construction, and protobuf response
   assembly in small `*_assembler.go` helpers near the service that owns the
@@ -172,7 +176,8 @@ authorization, live events, backup and restore, and backend tests.
   - Give each key family one builder and a snake_case prefix. Derive watcher
     filters from the same prefix. Hash secret key input with the HMAC helpers
     in `core/runtime_token_keys.go`.
-  - Check for a missing key with `isKeyAbsent`.
+  - Check for a missing key with `errors.Is(err, jetstream.ErrKeyNotFound)`.
+    Reads never return `jetstream.ErrKeyDeleted`.
   - Add each new durable consumer to `durableWorkerDiagnosticSpecs`.
 - Projection snapshots are disposable acceleration data, never recovery data.
   Bind them to the durable EVT incarnation identity in stream metadata as well
@@ -429,7 +434,7 @@ authorization, live events, backup and restore, and backend tests.
 - `KV_ENCRYPTION_KEYS`/KEK material is intentionally separate from data backups.
   Use `chatto keys export`/`import` for built-in KMS key records.
 - When adding streams, KV buckets, or Object Stores, decide whether backup should
-  include or skip them and update `skipReason()` if needed.
+  include or skip them and record that policy in `internal/natsresources`.
 
 ## Backend Tests
 
@@ -470,6 +475,12 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
   `-parallel 4` to `-race` runs. The race detector makes tests much slower,
   and with more concurrent tests, tests that wait for background work can
   miss their deadlines.
+- A test helper that deletes a JetStream stream and then creates one with the
+  same name on the same server must also remove the stream's directories.
+  nats-server moves a deleted stream's directory aside and removes it in the
+  background. When an earlier removal is still running, the move fails and
+  the server ignores the error. The new stream then recovers the old
+  messages. `testutil.ResetChattoJetStream` shows how to remove them.
 - Treat fixture and setup errors as fatal before using returned values. Never
   discard an error from helpers such as `CreateRoom` or `CreateUser` and then
   dereference the result; fail the test at the setup call instead.

@@ -365,12 +365,60 @@ func TestMCPHandlerServesProtocol20260728OverRawHTTP(t *testing.T) {
 	}`)
 	var discovery struct {
 		Result struct {
-			SupportedVersions []string `json:"supportedVersions"`
+			SupportedVersions []string                   `json:"supportedVersions"`
+			Capabilities      map[string]json.RawMessage `json:"capabilities"`
 		} `json:"result"`
 	}
 	decodeMCPResponse(t, discover, &discovery)
 	if !slices.Contains(discovery.Result.SupportedVersions, "2026-07-28") {
 		t.Fatalf("supportedVersions = %v, want 2026-07-28", discovery.Result.SupportedVersions)
+	}
+	for _, capability := range []string{"prompts", "resources", "logging"} {
+		if _, ok := discovery.Result.Capabilities[capability]; ok {
+			t.Fatalf("unexpected capability %q", capability)
+		}
+	}
+	if tools := string(discovery.Result.Capabilities["tools"]); tools != "{}" {
+		t.Fatalf("tools capability = %s, want no catalog subscription", tools)
+	}
+	for _, method := range []string{"prompts/list", "prompts/get", "resources/list", "resources/read", "resources/templates/list", "completion/complete"} {
+		t.Run(method, func(t *testing.T) {
+			params := map[string]any{"_meta": map[string]any{
+				"io.modelcontextprotocol/protocolVersion":    "2026-07-28",
+				"io.modelcontextprotocol/clientCapabilities": map[string]any{},
+			}}
+			name := ""
+			if method == "prompts/get" {
+				name = "unused"
+				params["name"] = name
+			}
+			if method == "resources/read" {
+				name = "test:///unused"
+				params["uri"] = name
+			}
+			body, err := json.Marshal(map[string]any{
+				"jsonrpc": "2.0", "id": 17, "method": method,
+				"params": params,
+			})
+			if err != nil {
+				t.Fatalf("encode unsupported method: %v", err)
+			}
+			request := newRawMCPRequest(bot.APIKey, method, name, string(body))
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			var result struct {
+				ID    int `json:"id"`
+				Error struct {
+					Code int `json:"code"`
+				} `json:"error"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+				t.Fatalf("decode unsupported method: %v", err)
+			}
+			if response.Code != http.StatusNotFound || result.ID != 17 || result.Error.Code != -32601 {
+				t.Fatalf("unsupported method status/id/code = %d/%d/%d, want 404/17/-32601", response.Code, result.ID, result.Error.Code)
+			}
+		})
 	}
 
 	list := performRawMCPRequest(t, handler, bot.APIKey, "tools/list", "", `{
@@ -536,7 +584,7 @@ func TestMCPHandlerServesConfiguredAliasAndRejectsWrongHostAndCrossOriginBrowser
 	}
 }
 
-func TestMCPHandlerRejectsHumanBearerWithoutCompleteMCPGrant(t *testing.T) {
+func TestMCPHandlerRejectsHumanBearerWithoutValidMCPGrant(t *testing.T) {
 	_, nc := testutil.StartSharedNATS(t)
 	chattoCore, err := core.NewChattoCore(context.Background(), nc, config.CoreConfig{
 		SecretKey: "test-core-secret", Assets: config.AssetsConfig{SigningSecret: "test-signing-secret"},
@@ -562,12 +610,14 @@ func TestMCPHandlerRejectsHumanBearerWithoutCompleteMCPGrant(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentAuthGeneration: %v", err)
 	}
-	legacyGrant, err := chattoCore.CreateOAuthBearerSessionForClientGrant(ctx, viewer.GetId(), "https://agent.example/client.json", "https://chat.example/mcp", []string{config.MCPRoomsReadScope}, generation)
-	if err != nil {
-		t.Fatalf("CreateOAuthBearerSessionForClientGrant: %v", err)
-	}
-	if _, err := verifier(ctx, legacyGrant.AccessToken, nil); err == nil {
-		t.Fatal("resource-bound bearer without the complete current MCP grant was accepted")
+	for _, scopes := range [][]string{nil, {"unknown"}, {config.MCPRoomsReadScope, "unknown"}} {
+		grant, err := chattoCore.CreateOAuthBearerSessionForClientGrant(ctx, viewer.GetId(), "https://agent.example/client.json", "https://chat.example/mcp", scopes, generation)
+		if err != nil {
+			t.Fatalf("CreateOAuthBearerSessionForClientGrant: %v", err)
+		}
+		if _, err := verifier(ctx, grant.AccessToken, nil); err == nil {
+			t.Fatalf("resource-bound bearer with invalid scopes %v was accepted", scopes)
+		}
 	}
 }
 

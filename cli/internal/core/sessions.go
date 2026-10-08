@@ -138,7 +138,7 @@ func (c *ChattoCore) LoadCookieSessionValue(ctx context.Context, sessionID strin
 	// The returned revision fences later saves and deletes, so read the latest.
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
-		if isKeyAbsent(err) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return CookieSessionStoreEntry{}, ErrCookieSessionNotFound
 		}
 		return CookieSessionStoreEntry{}, fmt.Errorf("failed to load cookie session: %w", err)
@@ -170,7 +170,7 @@ func (c *ChattoCore) MigrateLegacyCookieSession(ctx context.Context, sessionID s
 	for range 8 {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
-			if isKeyAbsent(err) {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				return nil, ErrCookieSessionNotFound
 			}
 			return nil, fmt.Errorf("failed to get legacy cookie session: %w", err)
@@ -315,7 +315,7 @@ func (c *ChattoCore) RenewCookieSession(ctx context.Context, sessionID string, n
 	for range 8 {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
-			if isKeyAbsent(err) {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				return nil, false, ErrCookieSessionNotFound
 			}
 			return nil, false, fmt.Errorf("failed to get cookie session for renewal: %w", err)

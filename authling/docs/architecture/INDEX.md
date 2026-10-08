@@ -464,6 +464,11 @@ OCC prevents an identity mutation from committing after the request.
 
 A separate key-free erasure projection starts before the account projector. It
 records account key ownership, request and release positions, and completion.
+Its account index uses `events/intern.Table[accountIDKind]` and dense state
+records. Only accepted account creation allocates a handle. Reads and rejected
+events do not allocate IDs. Handles remain process-local; public state and
+persisted events keep string account IDs. The projection lock guards both the
+table and its records, and erasure tombstones retain their slots.
 It retains ownership history to reject key reuse and substitution. Account replay
 skips protected email decryption only with durable erasure evidence; it still
 validates structural account history. A failed key read repeats the erasure

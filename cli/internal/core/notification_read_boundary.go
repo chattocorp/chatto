@@ -76,7 +76,7 @@ func (m *NotificationOccurrenceModel) recordNotificationReadBoundary(ctx context
 	key := notificationReadBoundaryKey(userID, roomID, threadRootEventID)
 	for range maxNotificationStateWriteRetries {
 		current, err := m.kv.Get(ctx, key)
-		if isKeyAbsent(err) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			if revision, err := m.kv.Create(ctx, key, encodeNotificationReadBoundary(next), jetstream.KeyTTL(notificationTTL)); err == nil {
 				if err := m.core.notificationBoundaries.waitForRevision(ctx, key, revision); err != nil {
 					return notificationReadBoundary{}, err

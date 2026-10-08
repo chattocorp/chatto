@@ -144,8 +144,8 @@ repository skills as non-product infrastructure.
   - `internal/storage` declares the resource names and configurations.
   - Key prefixes use kebab-case. Build keys from secret or personal input
     with `storage.DigestKey`, which uses an unpadded base64url HMAC.
-  - Use `storage.IncrementCounter` for rate-limit counters and
-    `storage.IsKeyAbsent` for the "key is absent" check.
+  - Use `storage.IncrementCounter` and `storage.ReadCounter` for rate-limit
+    counters.
   - Known exceptions: runtime records and key-vault records are JSON. These
     shapes are persisted contracts.
   - Known gaps: no test pins the resource configurations, and Authling has

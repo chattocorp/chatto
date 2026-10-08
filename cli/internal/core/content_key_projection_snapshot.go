@@ -27,7 +27,7 @@ func (p *ContentKeyProjection) Snapshot() ([]byte, error) {
 	sort.Slice(ids, func(i, j int) bool {
 		a, b := ids[i], ids[j]
 		if a.user != b.user {
-			return p.users.id(a.user) < p.users.id(b.user)
+			return p.users.Resolve(a.user) < p.users.Resolve(b.user)
 		}
 		if a.purpose != b.purpose {
 			return a.purpose < b.purpose
@@ -35,7 +35,7 @@ func (p *ContentKeyProjection) Snapshot() ([]byte, error) {
 		return a.epoch < b.epoch
 	})
 	for _, id := range ids {
-		snapshot.Keys = append(snapshot.Keys, p.keys[id].event(p.users.id(id.user), id))
+		snapshot.Keys = append(snapshot.Keys, p.keys[id].event(p.users.Resolve(id.user), id))
 	}
 	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
 }

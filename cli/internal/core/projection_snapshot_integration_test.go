@@ -26,7 +26,7 @@ import (
 func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 	t.Parallel()
 
-	storeDir := t.TempDir()
+	storeDir := testutil.StoreDir(t)
 	ns, nc := startPersistentSnapshotNATS(t, storeDir)
 	t.Cleanup(func() { stopPersistentSnapshotNATS(ns, nc) })
 	ctx := testContext(t)
@@ -268,7 +268,7 @@ func TestMissingProjectionComponentColdReplaysCompleteView(t *testing.T) {
 func TestUserProfileSnapshotRestoresWhileAuthenticationColdReplays(t *testing.T) {
 	t.Parallel()
 
-	storeDir := t.TempDir()
+	storeDir := testutil.StoreDir(t)
 	ns, nc := startPersistentSnapshotNATS(t, storeDir)
 	t.Cleanup(func() { stopPersistentSnapshotNATS(ns, nc) })
 	ctx := testContext(t)

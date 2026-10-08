@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
@@ -337,7 +336,7 @@ func (s *roomService) apiRoomSuspension(ctx context.Context, ban core.RoomBan) (
 
 	room, err := s.api.core.GetRoom(ctx, core.KindChannel, ban.RoomID)
 	if err != nil {
-		if !errors.Is(err, core.ErrNotFound) && !errors.Is(err, jetstream.ErrKeyNotFound) {
+		if !errors.Is(err, core.ErrNotFound) {
 			return nil, err
 		}
 	} else {
@@ -346,7 +345,7 @@ func (s *roomService) apiRoomSuspension(ctx context.Context, ban core.RoomBan) (
 
 	user, err := s.api.core.GetUser(ctx, ban.UserID)
 	if err != nil {
-		if !errors.Is(err, core.ErrNotFound) && !errors.Is(err, jetstream.ErrKeyNotFound) {
+		if !errors.Is(err, core.ErrNotFound) {
 			return nil, err
 		}
 	} else {
@@ -359,7 +358,7 @@ func (s *roomService) apiRoomSuspension(ctx context.Context, ban core.RoomBan) (
 
 	moderator, err := s.api.core.GetUser(ctx, ban.ModeratorID)
 	if err != nil {
-		if !errors.Is(err, core.ErrNotFound) && !errors.Is(err, jetstream.ErrKeyNotFound) {
+		if !errors.Is(err, core.ErrNotFound) {
 			return nil, err
 		}
 	} else {

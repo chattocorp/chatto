@@ -55,6 +55,11 @@ describe('OAuth consent client identity', () => {
     await expect
       .element(getByText('It can read and send messages as you.'))
       .not.toBeInTheDocument();
+    await expect
+      .element(getByText('It can read messages in rooms you have joined.'))
+      .not.toBeInTheDocument();
+    await expect.element(getByText('It can send messages as you.')).not.toBeInTheDocument();
+    await expect.element(getByText('It can identify this server and your account.')).toBeVisible();
   });
 
   it('shows every capability in the complete MCP grant', async () => {
@@ -85,7 +90,44 @@ describe('OAuth consent client identity', () => {
       .element(getByText('It can list the rooms that are available to you.'))
       .toBeVisible();
     await expect.element(getByText('It can join and leave rooms as you.')).toBeVisible();
-    await expect.element(getByText('It can read and send messages as you.')).toBeVisible();
+    await expect.element(getByText('It can read messages in rooms you have joined.')).toBeVisible();
+    await expect.element(getByText('It can send messages as you.')).toBeVisible();
+    await expect.element(getByText('It can identify this server and your account.')).toBeVisible();
+  });
+
+  it.each([
+    [
+      'chatto:messages:read',
+      'It can read messages in rooms you have joined.',
+      'It can send messages as you.'
+    ],
+    [
+      'chatto:messages:write',
+      'It can send messages as you.',
+      'It can read messages in rooms you have joined.'
+    ]
+  ])('shows only the message capability granted by %s', async (scope, allowed, absent) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify(
+              consentResponse({
+                resource: 'https://chat.example/mcp',
+                scopes: [scope]
+              })
+            ),
+            { status: 200 }
+          )
+      )
+    );
+    const { getByText } = render(ConsentPage);
+    await expect.element(getByText(allowed)).toBeVisible();
+    await expect.element(getByText(absent)).not.toBeInTheDocument();
+    await expect
+      .element(getByText('It can read and send messages as you.'))
+      .not.toBeInTheDocument();
   });
 
   afterEach(() => {

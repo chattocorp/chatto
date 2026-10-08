@@ -8,7 +8,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/charmbracelet/log"
-	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/pkg/events"
 )
@@ -95,7 +94,6 @@ var connectErrorCodes = []struct {
 		core.ErrMessageAttachmentNotFound,
 		core.ErrMessageLinkPreviewNotFound,
 		core.ErrNeighborNotFound,
-		jetstream.ErrKeyNotFound,
 	}},
 	{connect.CodeInvalidArgument, []error{core.ErrMessageTooLong}},
 	{connect.CodeResourceExhausted, []error{

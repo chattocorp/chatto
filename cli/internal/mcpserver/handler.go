@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"slices"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/auth"
+	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
 	"golang.org/x/time/rate"
@@ -72,38 +72,44 @@ func newResourceHandler(chattoCore *core.ChattoCore, issuer, resource, version s
 			Name:    "Chatto",
 			Title:   chattoCore.ConfigModel().GetEffectiveServerName(),
 			Version: version,
-		}, &mcp.ServerOptions{Instructions: serverInstructions})
-		mcp.AddTool(server, &mcp.Tool{
+		}, &mcp.ServerOptions{
+			Instructions: serverInstructions,
+			// This descriptor is rebuilt per request. It has no logging or live
+			// catalog subscriptions, so do not advertise the SDK defaults.
+			Capabilities: &mcp.ServerCapabilities{Tools: &mcp.ToolCapabilities{}},
+		})
+		server.AddReceivingMiddleware(toolsOnlyMethods, scopedTools, structuredToolErrors)
+		addTool(server, &mcp.Tool{
 			Name:        "get_server_info",
 			Description: "Identify the one Chatto server connected through this MCP endpoint. Use this tool to match a server that the user names and to distinguish this connection from other Chatto servers. The result includes the configured name, canonical public URL, connected MCP URL, and software version.",
 			Annotations: readOnlyToolAnnotations("Get server information"),
 		}, getServerInfoHandler(chattoCore, issuer, resource, version))
-		mcp.AddTool(server, &mcp.Tool{
+		addTool(server, &mcp.Tool{
 			Name:        "get_current_user",
 			Description: "Identify the Chatto user or bot account that this MCP connection uses on the connected server.",
 			Annotations: readOnlyToolAnnotations("Get current user"),
 		}, getCurrentUserHandler(chattoCore))
-		mcp.AddTool(server, &mcp.Tool{
+		addTool(server, &mcp.Tool{
 			Name:        "list_rooms",
 			Description: "List one page of rooms visible to the authenticated account on the connected Chatto server. Use this tool as the source of truth for room lists and room counts. totalCount is the exact number of visible rooms. To retrieve every room record, pass nextAfterRoomId as after_room_id until nextAfterRoomId is absent.",
 			Annotations: readOnlyToolAnnotations("List rooms"),
 		}, listRoomsHandler(chattoCore))
-		mcp.AddTool(server, &mcp.Tool{
+		addTool(server, &mcp.Tool{
 			Name:        "list_room_messages",
 			Description: "List one page of recent messages in a joined room on the connected Chatto server. To retrieve older messages, pass nextBeforeEventId as before_event_id until nextBeforeEventId is absent.",
 			Annotations: readOnlyToolAnnotations("List room messages"),
 		}, listRoomMessagesHandler(chattoCore))
-		mcp.AddTool(server, &mcp.Tool{
+		addTool(server, &mcp.Tool{
 			Name:        "post_message",
 			Description: "Post one text message to a joined room on the connected Chatto server. This operation is not idempotent; do not retry it after an uncertain result.",
 			Annotations: mutationToolAnnotations("Post message", false, false),
 		}, postMessageHandler(chattoCore))
-		mcp.AddTool(server, &mcp.Tool{
+		addTool(server, &mcp.Tool{
 			Name:        "join_room",
 			Description: "Join one visible channel room on the connected Chatto server as the authenticated account.",
 			Annotations: mutationToolAnnotations("Join room", true, false),
 		}, joinRoomHandler(chattoCore))
-		mcp.AddTool(server, &mcp.Tool{
+		addTool(server, &mcp.Tool{
 			Name:        "leave_room",
 			Description: "Leave one joined channel room on the connected Chatto server as the authenticated account.",
 			Annotations: mutationToolAnnotations("Leave room", true, true),
@@ -119,22 +125,37 @@ func newResourceHandler(chattoCore *core.ChattoCore, issuer, resource, version s
 	})
 	protected := auth.RequireBearerToken(tokenVerifier(chattoCore, resource), &auth.RequireBearerTokenOptions{
 		ResourceMetadataURL:    metadataURL,
-		Scopes:                 config.MCPOAuthScopes(),
 		AllowMissingExpiration: true,
-	})(streamable)
+	})(requireToolScope(metadataURL, streamable))
 
 	mux := http.NewServeMux()
 	mcpHandler := http.NewCrossOriginProtection().Handler(withRequestDeadline(protected))
 	mcpHandler = withAdmissionLimit(limiter, mcpHandler)
 	mux.Handle("/mcp", mcpHandler)
 	mux.Handle("/.well-known/oauth-protected-resource/mcp", auth.ProtectedResourceMetadataHandler(&oauthex.ProtectedResourceMetadata{
-		Resource:               resource,
-		AuthorizationServers:   []string{issuer},
-		ScopesSupported:        config.MCPOAuthScopes(),
+		Resource:             resource,
+		AuthorizationServers: []string{issuer},
+		// Resource discovery asks for basic room reads. The issuer metadata
+		// lists every supported scope; writes need separate explicit consent.
+		ScopesSupported:        []string{config.MCPRoomsReadScope},
 		BearerMethodsSupported: []string{"header"},
 		ResourceName:           "Chatto MCP",
 	}))
 	return mux
+}
+
+// toolsOnlyMethods rejects catalog methods for primitives that Chatto does
+// not expose. The SDK otherwise answers empty lists for absent catalogs, which
+// conflicts with the capabilities advertised through server/discover.
+func toolsOnlyMethods(next mcp.MethodHandler) mcp.MethodHandler {
+	return func(ctx context.Context, method string, request mcp.Request) (mcp.Result, error) {
+		switch method {
+		case "prompts/list", "prompts/get", "resources/list", "resources/read", "resources/templates/list", "completion/complete":
+			return nil, &jsonrpc.Error{Code: jsonrpc.CodeMethodNotFound, Message: "method not found"}
+		default:
+			return next(ctx, method, request)
+		}
+	}
 }
 
 func requireConfiguredHost(handlers map[string]http.Handler) http.Handler {
@@ -152,7 +173,9 @@ func withAdmissionLimit(limiter *rate.Limiter, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !limiter.Allow() {
 			w.Header().Set("Retry-After", "1")
-			http.Error(w, "MCP request rate limit exceeded", http.StatusTooManyRequests)
+			f := failure("rate_limited", "MCP request rate limit exceeded. Wait before trying again.", "retry", "after_delay")
+			f.RetryAfterMs = 1000
+			writeHTTPFailure(w, http.StatusTooManyRequests, f)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -163,6 +186,18 @@ func withRequestDeadline(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), requestTimeout)
 		defer cancel()
+
+		// Context cancellation does not interrupt blocked HTTP reads or writes.
+		// Use the same deadline for I/O, including an earlier parent deadline.
+		// Clear it on exit so subsequent keep-alive requests can use the connection.
+		deadline, _ := ctx.Deadline()
+		controller := http.NewResponseController(w)
+		if controller.SetReadDeadline(deadline) == nil {
+			defer func() { _ = controller.SetReadDeadline(time.Time{}) }()
+		}
+		if controller.SetWriteDeadline(deadline) == nil {
+			defer func() { _ = controller.SetWriteDeadline(time.Time{}) }()
+		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -171,7 +206,7 @@ func tokenVerifier(chattoCore *core.ChattoCore, resource string) auth.TokenVerif
 	return func(ctx context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
 		credential, err := chattoCore.ValidatePresentedRuntimeCredential(ctx, token, core.AuthTokenPresentationResourceBearer)
 		if err == nil {
-			if credential.Kind != core.AuthTokenKindOAuthAccessToken || credential.Resource != resource || !hasAllScopes(credential.Scopes, config.MCPOAuthScopes()) {
+			if credential.Kind != core.AuthTokenKindOAuthAccessToken || credential.Resource != resource || !config.ValidMCPOAuthScopes(credential.Scopes) {
 				return nil, auth.ErrInvalidToken
 			}
 			return &auth.TokenInfo{Scopes: credential.Scopes, Expiration: credential.ExpiresAt, UserID: credential.UserID, Extra: runtimeCredentialExtra(authctx.RuntimeCredential{
@@ -210,15 +245,6 @@ const runtimeCredentialExtraKey = "chatto_runtime_credential"
 
 func runtimeCredentialExtra(credential authctx.RuntimeCredential) map[string]any {
 	return map[string]any{runtimeCredentialExtraKey: credential}
-}
-
-func hasAllScopes(granted, required []string) bool {
-	for _, scope := range required {
-		if !slices.Contains(granted, scope) {
-			return false
-		}
-	}
-	return true
 }
 
 func readOnlyToolAnnotations(title string) *mcp.ToolAnnotations {
@@ -288,10 +314,10 @@ func listRoomsHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[listRoomsI
 			limit = defaultListRoomsLimit
 		}
 		if limit < 1 || limit > maxListRoomsLimit {
-			return nil, listRoomsOutput{}, fmt.Errorf("limit must be between 1 and %d", maxListRoomsLimit)
+			return nil, listRoomsOutput{}, invalidToolArgument(fmt.Sprintf("limit must be between 1 and %d", maxListRoomsLimit))
 		}
 		if len(input.AfterRoomID) > 256 || strings.TrimSpace(input.AfterRoomID) != input.AfterRoomID {
-			return nil, listRoomsOutput{}, fmt.Errorf("after_room_id is invalid")
+			return nil, listRoomsOutput{}, invalidToolArgument("after_room_id is invalid")
 		}
 		rooms, err := chattoCore.RoomDirectoryReads().ListRooms(ctx, userID, core.RoomDirectoryListOptions{IncludeChannels: true, IncludeDMs: true})
 		if err != nil {

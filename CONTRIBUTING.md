@@ -22,6 +22,28 @@ machine-specific settings, and private prompts out of tracked files; use local
 settings such as `.conductor/settings.local.toml` or your tool's user-level
 configuration for those.
 
+## MCP Tool Proposals
+
+Chatto's MCP catalog serves demonstrated agent workflows. ConnectRPC API
+completeness and CRUD symmetry are not goals for this catalog. Use the
+[FDR-043 tool-admission checklist](docs/fdr/FDR-043-model-context-protocol-integration.md#tool-admission-policy)
+before adding or expanding a tool. Keep tool registration explicit; do not
+generate tools from protobuf services.
+
+In the PR, provide the workflow and the gap in the current catalog, cost and
+output limits, human effects, canonical application operations, authorization
+and privacy checks, retry/outcome rules, primitive choice, and compatibility
+review. Link repeatable real-host tester evidence and automated boundary
+checks. A new tool class requires host evidence before admission. Use only
+synthetic accounts and content; do not attach credentials or private data.
+
+Update FDR-043 and the
+[complete catalog review](docs/MCP-INTEROPERABILITY.md#catalog-admission-review).
+The MCP maintainer reviews each tool's disposition with every catalog change
+and before a stable Chatto release that includes MCP. Record limits and
+exceptions; do not present an unmeasured case as a passed check. A recorded tester
+exception does not waive the admission checklist for another tool.
+
 ## Local Development Stack
 
 The root pnpm workspace contains the JavaScript apps, examples, and libraries.

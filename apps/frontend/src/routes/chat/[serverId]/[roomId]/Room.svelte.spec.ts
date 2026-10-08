@@ -17,6 +17,8 @@ import { getToasts, toast } from '$lib/ui/toast';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { PendingHighlightStore } from '$lib/state/server/pendingHighlight';
 import { signal } from '@chatto/client/reactivity';
+import { Timestamp } from '@bufbuild/protobuf';
+import { ReadThroughTracker } from './readThroughTracker';
 
 const mocks = vi.hoisted(() => ({
   goto: vi.fn(),
@@ -895,48 +897,54 @@ describe('Room interaction bundles', () => {
 });
 
 describe('Room local message echo', () => {
-  it('anchors projected row replacements to the room timeline event ID', async () => {
-    render(Room, { props: { roomId: 'room-1' } });
-    await tick();
+  it.each(['system', 'test-user'])(
+    'marks a visible arrival by %s read through its event ID',
+    async (actorId) => {
+      render(Room, { props: { roomId: 'room-1' } });
+      await tick();
 
-    mocks.projectionEventHandler?.(
-      new RealtimeProjectionUpdate({
-        event: new PublicRealtimeEvent({
-          id: 'message-event-id',
-          actorId: 'system',
-          event: {
-            case: 'messagePosted',
-            value: new MessagePostedEvent({ roomId: 'room-1' })
-          }
+      mocks.projectionEventHandler?.(
+        new RealtimeProjectionUpdate({
+          event: new PublicRealtimeEvent({
+            id: 'message-event-id',
+            actorId,
+            event: {
+              case: 'messagePosted',
+              value: new MessagePostedEvent({ roomId: 'room-1' })
+            }
+          })
         })
-      })
-    );
+      );
 
-    expect(mocks.markRoomAsRead).toHaveBeenCalledWith('room-1', 'message-event-id');
-  });
+      expect(mocks.markRoomAsRead).toHaveBeenCalledWith('room-1', 'message-event-id');
+    }
+  );
 
-  it('leaves a message unread when it arrives while the viewer reads older history', async () => {
-    const { container } = render(Room, { props: { roomId: 'room-1' } });
-    await tick();
-    (q(container, '[data-testid="report-history-position"]') as HTMLButtonElement).click();
-    await tick();
+  it.each(['user-1', 'test-user'])(
+    'leaves an arrival by %s unread while viewing older history',
+    async (actorId) => {
+      const { container } = render(Room, { props: { roomId: 'room-1' } });
+      await tick();
+      (q(container, '[data-testid="report-history-position"]') as HTMLButtonElement).click();
+      await tick();
 
-    mocks.projectionEventHandler?.(
-      new RealtimeProjectionUpdate({
-        event: new PublicRealtimeEvent({
-          id: 'newer-event-id',
-          actorId: 'user-1',
-          event: {
-            case: 'messagePosted',
-            value: new MessagePostedEvent({ roomId: 'room-1' })
-          }
+      mocks.projectionEventHandler?.(
+        new RealtimeProjectionUpdate({
+          event: new PublicRealtimeEvent({
+            id: 'newer-event-id',
+            actorId,
+            event: {
+              case: 'messagePosted',
+              value: new MessagePostedEvent({ roomId: 'room-1' })
+            }
+          })
         })
-      })
-    );
+      );
 
-    expect(mocks.markRoomAsRead).not.toHaveBeenCalled();
-    expect(mocks.markArrivalWhileAway).not.toHaveBeenCalled();
-  });
+      expect(mocks.markRoomAsRead).not.toHaveBeenCalled();
+      expect(mocks.markArrivalWhileAway).not.toHaveBeenCalled();
+    }
+  );
 
   it('places the unread separator for a message that arrives while the viewer is away', async () => {
     mocks.appState.isPresent = false;
@@ -961,6 +969,7 @@ describe('Room local message echo', () => {
   });
 
   it('does not place the unread separator for the viewer own message while away', async () => {
+    const noteArrival = vi.spyOn(ReadThroughTracker.prototype, 'noteUnreadArrival');
     mocks.appState.isPresent = false;
     render(Room, { props: { roomId: 'room-1' } });
     await tick();
@@ -970,6 +979,7 @@ describe('Room local message echo', () => {
         event: new PublicRealtimeEvent({
           id: 'own-event-id',
           actorId: 'test-user',
+          createdAt: Timestamp.fromDate(new Date('2026-10-08T10:00:00Z')),
           event: {
             case: 'messagePosted',
             value: new MessagePostedEvent({ roomId: 'room-1' })
@@ -980,6 +990,8 @@ describe('Room local message echo', () => {
 
     expect(mocks.markArrivalWhileAway).not.toHaveBeenCalled();
     expect(mocks.markRoomAsRead).not.toHaveBeenCalled();
+    expect(noteArrival).toHaveBeenCalledWith(Date.parse('2026-10-08T10:00:00Z'));
+    noteArrival.mockRestore();
   });
 
   it('does not place the room unread separator for a thread reply while away', async () => {

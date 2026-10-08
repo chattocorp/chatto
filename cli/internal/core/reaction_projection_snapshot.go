@@ -20,20 +20,20 @@ func (p *ReactionProjection) Snapshot() ([]byte, error) {
 	for _, message := range sortedHandleKeys(p.messages, p.byMessage) {
 		reactions := slices.Clone(p.byMessage[message])
 		slices.SortFunc(reactions, func(a, b reactionProjectionEntry) int {
-			if byEmoji := strings.Compare(p.ids.id(a.emoji), p.ids.id(b.emoji)); byEmoji != 0 {
+			if byEmoji := strings.Compare(p.ids.Resolve(a.emoji), p.ids.Resolve(b.emoji)); byEmoji != 0 {
 				return byEmoji
 			}
-			return strings.Compare(p.ids.id(a.user), p.ids.id(b.user))
+			return strings.Compare(p.ids.Resolve(a.user), p.ids.Resolve(b.user))
 		})
-		row := &projectionv1.MessageReactionsSnapshot{MessageEventId: p.messages.id(message)}
+		row := &projectionv1.MessageReactionsSnapshot{MessageEventId: p.messages.Resolve(message)}
 		var group *projectionv1.EmojiReactionsSnapshot
 		for _, reaction := range reactions {
-			if emoji := p.ids.id(reaction.emoji); group == nil || group.Emoji != emoji {
+			if emoji := p.ids.Resolve(reaction.emoji); group == nil || group.Emoji != emoji {
 				group = &projectionv1.EmojiReactionsSnapshot{Emoji: emoji}
 				row.Emojis = append(row.Emojis, group)
 			}
 			group.Users = append(group.Users, &projectionv1.UserReactionSnapshot{
-				UserId: p.ids.id(reaction.user), AddedAtNanos: reaction.addedAtNanos, SourceEventId: reaction.source,
+				UserId: p.ids.Resolve(reaction.user), AddedAtNanos: reaction.addedAtNanos, SourceEventId: reaction.source,
 			})
 		}
 		snapshot.Messages = append(snapshot.Messages, row)
@@ -48,13 +48,13 @@ func (p *ReactionProjection) Snapshot() ([]byte, error) {
 	messageRooms := make([]*projectionv1.StringStringSnapshot, 0, len(p.messageRooms))
 	for i, room := range p.messageRooms {
 		if room != 0 {
-			messageRooms = append(messageRooms, &projectionv1.StringStringSnapshot{Key: p.messages.id(uint32(i + 1)), Value: p.ids.id(room)})
+			messageRooms = append(messageRooms, &projectionv1.StringStringSnapshot{Key: p.messages.Resolve(eventHandle(i + 1)), Value: p.ids.Resolve(room)})
 		}
 	}
 	snapshot.MessageRooms = sortedRows(messageRooms)
 	echoOriginals := make([]*projectionv1.StringStringSnapshot, 0, len(p.echoOriginal))
 	for echo, original := range p.echoOriginal {
-		echoOriginals = append(echoOriginals, &projectionv1.StringStringSnapshot{Key: p.messages.id(echo), Value: p.messages.id(original)})
+		echoOriginals = append(echoOriginals, &projectionv1.StringStringSnapshot{Key: p.messages.Resolve(echo), Value: p.messages.Resolve(original)})
 	}
 	snapshot.EchoOriginals = sortedRows(echoOriginals)
 	assetRooms := make([]*projectionv1.StringStringSnapshot, 0, len(p.assetRoom))
@@ -84,17 +84,17 @@ func (p *ReactionProjection) Restore(data []byte) error {
 		if message.GetMessageEventId() == "" {
 			return fmt.Errorf("reaction snapshot has empty message ID")
 		}
-		messageHandle := restored.messages.intern(message.GetMessageEventId())
+		messageHandle := restored.messages.Intern(message.GetMessageEventId())
 		if _, duplicate := restored.byMessage[messageHandle]; duplicate {
 			return fmt.Errorf("reaction snapshot repeats message %q", message.GetMessageEventId())
 		}
 		var reactions []reactionProjectionEntry
-		seenEmojis := make(map[uint32]struct{}, len(message.GetEmojis()))
+		seenEmojis := make(map[reactionHandle]struct{}, len(message.GetEmojis()))
 		for _, group := range message.GetEmojis() {
 			if group.GetEmoji() == "" {
 				return fmt.Errorf("reaction snapshot has empty emoji")
 			}
-			emoji := restored.ids.intern(group.GetEmoji())
+			emoji := restored.ids.Intern(group.GetEmoji())
 			if _, duplicate := seenEmojis[emoji]; duplicate {
 				return fmt.Errorf("reaction snapshot repeats emoji")
 			}
@@ -105,7 +105,7 @@ func (p *ReactionProjection) Restore(data []byte) error {
 				}
 				reactions = append(reactions, reactionProjectionEntry{
 					addedAtNanos: user.GetAddedAtNanos(), source: user.GetSourceEventId(),
-					emoji: emoji, user: restored.ids.intern(user.GetUserId()),
+					emoji: emoji, user: restored.ids.Intern(user.GetUserId()),
 				})
 			}
 		}
@@ -147,10 +147,10 @@ func (p *ReactionProjection) Restore(data []byte) error {
 		}
 	}
 	for _, row := range snapshot.GetMessageRooms() {
-		restored.messageRooms.set(restored.messages.intern(row.GetKey()), restored.ids.intern(row.GetValue()))
+		restored.messageRooms.set(restored.messages.Intern(row.GetKey()), restored.ids.Intern(row.GetValue()))
 	}
 	for _, row := range snapshot.GetEchoOriginals() {
-		restored.echoOriginal[restored.messages.intern(row.GetKey())] = restored.messages.intern(row.GetValue())
+		restored.echoOriginal[restored.messages.Intern(row.GetKey())] = restored.messages.Intern(row.GetValue())
 	}
 	for _, row := range snapshot.GetAssetRooms() {
 		restored.assetRoom[row.GetKey()] = row.GetValue()

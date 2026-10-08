@@ -39,6 +39,8 @@
     "fullscreen_feed": "Pilnekrāna plūsma",
     "fullscreen_call": "Pilnekrāna zvans",
     "exit_fullscreen_call": "Iziet no pilnekrāna zvana",
+    "pin_to_stage": "Piespraust {name} uz skatuves",
+    "unpin_from_stage": "Atspraust no skatuves",
     "locally_mute_participant": "Izslēgt skaņu lokāli",
     "locally_muted": "Lokāli izslēgts",
     "unknown_device": "Nezināma ierīce",

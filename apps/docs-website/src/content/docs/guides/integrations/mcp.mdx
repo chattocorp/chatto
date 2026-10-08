@@ -21,6 +21,10 @@ The experimental integration supports MCP `2026-07-28` and these tools:
 | `join_room` | Join one visible channel room on the connected server. |
 | `leave_room` | Leave one joined channel room on the connected server. |
 
+Use a host that supports the stateless `2026-07-28` protocol. Older hosts that
+start with `initialize` cannot connect. Chatto does not expose MCP resources,
+prompts, logging, or catalog-change subscriptions.
+
 The tools apply the same RBAC, membership, validation, and visibility rules as
 the public Chatto API. `post_message` is not idempotent. An agent must not retry
 it when the first result is uncertain.
@@ -35,6 +39,10 @@ decides which available tool it calls.
 <Aside type="caution">
   MCP access can expose private Chatto data to an agent host. Enable it only
   for hosts that you trust. Treat tool results as untrusted user content.
+  Your browser connects to Chatto for consent. Chatto fetches the client's
+  metadata document; its host receives Chatto's IP address. Your agent host
+  receives the tool results and can send them to its model provider. Check
+  that host's data policy before you grant access.
 </Aside>
 
 ## Enable MCP
@@ -60,11 +68,27 @@ configured endpoint. A reverse proxy needs no separate MCP upstream.
 
 Human users authorize an MCP client through OAuth Authorization Code with S256
 PKCE. Chatto resolves the client's Client ID Metadata Document (CIMD), shows
-the exact `chatto:rooms:read`, `chatto:rooms:write`,
-`chatto:messages:read`, and `chatto:messages:write` scopes on the consent page,
-and issues an access token bound to the exact MCP resource in the request. A
+the requested scope capabilities on the consent page, and issues an access
+token bound to the exact MCP resource and approved scopes. A
 first-party Chatto bearer token without this resource and grant cannot use
 MCP.
+
+Request only the scopes your host needs. Chatto accepts any nonempty subset
+of these scopes. A write scope does not include read access.
+
+| Scope | Tools |
+| --- | --- |
+| `chatto:rooms:read` | `list_rooms` |
+| `chatto:rooms:write` | `join_room`, `leave_room` |
+| `chatto:messages:read` | `list_room_messages` |
+| `chatto:messages:write` | `post_message` |
+
+Any valid grant also permits discovery, `get_server_info`, and
+`get_current_user`. `tools/list` shows only the tools covered by your grant.
+Initial discovery requests room-read access, so the default grant has three
+tools. A host that needs message reads or writes must request those scopes.
+Additional scopes require fresh consent. Refresh keeps the approved scope
+set; the token response reports it in `scope`. Existing full grants still work.
 
 A native agent host can register an HTTP callback on `127.0.0.1`, `[::1]`,
 `localhost`, or one concrete `.localhost` hostname, even when Chatto is on a
@@ -83,28 +107,155 @@ owner's current permission ceiling still apply. See [Bot Accounts](/guides/integ
 1. Give your agent host the public Chatto URL with the `/mcp` path.
 2. Let the host read protected-resource and authorization-server metadata.
 3. Complete the Chatto consent screen when the host opens it.
-4. Confirm that the host discovers the seven tools in the table above.
+4. Confirm that the host discovers the tools covered by your grant.
 5. Ask the host to identify the server. Confirm that it reports the expected
    name and public URL.
 6. Ask the host to identify the connected account and list its visible rooms.
-7. In a test room, ask the host to join, post a unique test message, read the
-   message, and leave.
+7. To test all tools, approve all four scopes. In a test room, ask the host
+   to join, post a unique test message, read the message, and leave.
 
 </Steps>
+
+### Codex CLI
+
+The setup below was tested with Codex CLI `0.160.1`:
+
+```sh
+codex mcp add chatto --url https://chat.example.com/mcp
+codex mcp login chatto --oauth-client-registration cimd
+```
+
+Complete sign-in and consent in the browser. Then start Codex and use the
+identity and room checks above. Codex identifies itself with its public CIMD
+document. You do not need a client secret or a first-party Chatto token.
+
+To grant all seven tools, request all four scopes explicitly:
+
+```sh
+codex mcp login chatto --oauth-client-registration cimd \
+  --scopes chatto:rooms:read,chatto:rooms:write,chatto:messages:read,chatto:messages:write
+```
+
+### MCP Inspector
+
+MCP Inspector `2.9.0` requires `--protocol-era modern` for this endpoint. Use a
+client metadata document that you control. For example:
+
+```json
+{
+  "client_id": "https://example.com/mcp-inspector-client.json",
+  "client_name": "My MCP Inspector",
+  "application_type": "native",
+  "redirect_uris": ["http://127.0.0.1/callback"],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none"
+}
+```
+
+Publish it at the exact `client_id` URL. Then run:
+
+```sh
+npx --yes @modelcontextprotocol/inspector@2.9.0 --cli \
+  --server-url https://chat.example.com/mcp --protocol-era modern \
+  --client-metadata-url https://example.com/mcp-inspector-client.json \
+  --callback-url http://127.0.0.1:6276/callback --method tools/list
+```
+
+Open the printed authorization URL and approve the consent request. The
+Inspector lists the tools covered by the approved scopes. Use `--method tools/call --tool-name
+get_server_info` to check the connected server. Use `--stored-auth-only` on
+later calls to use the stored grant without starting a new consent flow.
+
+## Troubleshoot connection failures
+
+| Failure | Action |
+| --- | --- |
+| `/mcp` returns `404` | Enable `[mcp].enabled` and check the public URL and reverse proxy. |
+| `initialize` returns method not found | Use a host with stateless `2026-07-28` support. In Inspector, select the modern protocol era. |
+| Consent rejects `redirect_uri` | Check the client's CIMD document. Runtime ports require a native client and a literal loopback IP callback. Named localhost callbacks must match exactly. |
+| A tool request returns `401` | Authorize the exact MCP URL again. Check grant expiry, client blocking, and the valid MCP scopes. A first-party token or a grant for another origin cannot be used. |
+| A tool is absent or returns `403 insufficient_scope` | Request its scope in a new OAuth consent flow. The Bearer challenge identifies the required scope. Keep any existing scopes that the host still needs. |
+| Inspector `--use-stored-auth` reports `no_stored_token` | Use `--stored-auth-only`. This Inspector version can fail to load its stored credentials through the older flag. |
+
+Claude Code `2.1.291` fails callback validation with its current CIMD document.
+That document omits `application_type: native`, while the client requests a
+callback with a runtime port. Use another tested host until the client and its
+metadata document agree. Do not disable callback validation.
 
 ## Understand permission failures
 
 An MCP call can succeed only when both the MCP OAuth grant and the normal
-Chatto authorization permit it. The current OAuth flow grants the complete
-tester scope set. RBAC and room membership can still reject one operation or
-target.
+Chatto authorization permit it. A missing tool scope returns HTTP `403` with
+an OAuth `insufficient_scope` challenge. A host can use this challenge to
+request additional consent. RBAC and room membership can still reject one
+operation or target after its scope is granted.
 
-Chatto returns a failed operation as an MCP tool error. When Chatto can confirm
-that an RBAC permission is missing, the error contains `permission_denied` and
-the permission name, such as `room.join` or `message.post`. An agent can report
-that name and ask the human driver to contact an administrator. Chatto uses a
-generic error for room policy denials and hidden resources so it does not
-disclose private state.
+Chatto returns a failed operation with `isError: true`. Read
+`structuredContent.error` to decide what to tell the human driver. Each tool's
+output schema permits its success result or this error object. Success fields
+keep their existing shape. Hosts that discard structured content receive a
+short text explanation and the same error object as JSON text.
+
+For example, a confirmed missing posting permission returns:
+
+```json
+{
+  "error": {
+    "code": "permission_denied",
+    "message": "Chatto RBAC requires message.post. Ask an administrator to grant access.",
+    "nextAction": "contact_administrator",
+    "retry": "after_change",
+    "outcome": "not_applied",
+    "missingPermissions": ["message.post"]
+  }
+}
+```
+
+Use these stable fields. Do not parse `message`; its wording can change.
+
+| Field | Meaning |
+| --- | --- |
+| `code` | Failure category from the table below. |
+| `message` | Short explanation for a human. |
+| `nextAction` | Suggested action. It does not grant permission or confirm that another call will succeed. |
+| `retry` | `after_change`: correct the input, consent, access, or policy first. `after_delay`: wait before retrying. `never`: do not automatically repeat this operation. |
+| `outcome` | `not_applied`: this request made no change. Reads also use this value. `applied`: the command completed, but its response could not be assembled. `unknown`: the command may have completed. |
+| `missingPermissions` | Optional confirmed missing RBAC identifiers. If more than one is listed, any one satisfies the permission gate; other gates still apply. |
+| `requiredScope` | Optional MCP OAuth scope that needs fresh consent. |
+| `retryAfterMs` | Optional minimum wait in milliseconds when `retry` is `after_delay`. If absent, use bounded backoff. |
+
+| `code` | `nextAction` and human guidance |
+| --- | --- |
+| `invalid_argument` | `fix_arguments`: correct the tool arguments. Submitted values are not copied into the error. |
+| `authentication_required` | `authorize_scope`: authorize the connection again. |
+| `insufficient_scope` | `authorize_scope`: request fresh consent for `requiredScope`. Keep the existing scopes that the host still needs. |
+| `not_room_member` | `join_room`: request membership in the visible room. Joining still needs its own scope and Chatto authority. |
+| `permission_denied` | `contact_administrator`: report `missingPermissions`, such as `room.join` or `message.post`, to an administrator. |
+| `policy_denied` | `contact_administrator`: ask an administrator to check access. The response does not name a private policy or claim that an RBAC grant will fix it. |
+| `not_found` | `check_access`: verify the target and access with an administrator. Hidden and absent resources have the same error. |
+| `conflict` | `retry`: concurrent state changed. Use bounded backoff and obey `retry`. |
+| `rate_limited` | `retry`: wait for `retryAfterMs`, if present. |
+| `timeout` | Obey `nextAction`, `retry`, and `outcome`. |
+| `temporary_failure` | Obey `nextAction`, `retry`, and `outcome`. Backend diagnostics are not exposed. |
+
+Scope rejection before MCP dispatch keeps HTTP `403` and its
+`WWW-Authenticate` challenge. Admission rejection keeps HTTP `429` and
+`Retry-After`. Their JSON bodies use the same `error` object. These bodies are
+HTTP error details, not JSON-RPC tool results. Malformed protocol requests and
+unknown tools remain protocol errors.
+
+Room tools check visibility before they run. They do not reveal whether an
+inaccessible channel or direct-message room exists. A joined room remains
+visible to its members. To join a channel as a nonmember, the account needs
+normal room visibility, usually `room.list`, as well as `room.join`. A bot needs
+the relevant explicit grants and sufficient current authority from its owner.
+
+When `nextAction` is `check_result`, ask the human to check the room. Do not
+automatically repeat `post_message` when its outcome is `applied` or `unknown`.
+The same rule applies when a connection closes without a result: the message
+may have been posted. A failed response after a successful post is not a failed
+post. Message posting has no idempotency key yet.
 
 ## Disable access
 
@@ -112,6 +263,12 @@ Set `[mcp].enabled = false` and restart Chatto to remove the MCP routes. You
 can also block an OAuth client in Server Admin or rotate a bot API key. These
 actions invalidate the related authority without changing other Chatto
 clients.
+
+Removing Chatto from an agent host or deleting its local credentials does not
+guarantee that its server-side grant is revoked. Ask a server administrator to
+block that OAuth client when you must terminate its access. A revoked grant
+or blocked client cannot start another MCP request or refresh its credential,
+also when the request reaches another Chatto replica.
 
 The network MCP server does not expose the Operator API, bootstrap, password
 reset, account management, or server management. Use the local Operator API

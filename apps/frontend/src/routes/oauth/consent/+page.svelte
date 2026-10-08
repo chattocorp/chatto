@@ -208,6 +208,13 @@
                 <span>{m('auth.oauth.allow_messages')}</span>
               </li>
             {:else}
+              <li class="flex gap-2">
+                <span
+                  aria-hidden="true"
+                  class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"
+                ></span>
+                <span>{m('auth.oauth.allow_mcp_identity')}</span>
+              </li>
               {#if request.scopes.includes('chatto:rooms:read')}
                 <li class="flex gap-2">
                   <span
@@ -226,13 +233,22 @@
                   <span>{m('auth.oauth.allow_rooms_write')}</span>
                 </li>
               {/if}
-              {#if request.scopes.includes('chatto:messages:read') || request.scopes.includes('chatto:messages:write')}
+              {#if request.scopes.includes('chatto:messages:read')}
                 <li class="flex gap-2">
                   <span
                     aria-hidden="true"
                     class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"
                   ></span>
-                  <span>{m('auth.oauth.allow_messages')}</span>
+                  <span>{m('auth.oauth.allow_messages_read')}</span>
+                </li>
+              {/if}
+              {#if request.scopes.includes('chatto:messages:write')}
+                <li class="flex gap-2">
+                  <span
+                    aria-hidden="true"
+                    class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"
+                  ></span>
+                  <span>{m('auth.oauth.allow_messages_write')}</span>
                 </li>
               {/if}
             {/if}

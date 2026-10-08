@@ -14,7 +14,6 @@ import (
 	"connectrpc.com/authn"
 	"connectrpc.com/connect"
 	"connectrpc.com/grpcreflect"
-	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 
@@ -549,7 +548,6 @@ func TestConnectErrorMapping(t *testing.T) {
 		{"message not found", core.ErrMessageNotFound, connect.CodeNotFound},
 		{"message attachment not found", core.ErrMessageAttachmentNotFound, connect.CodeNotFound},
 		{"message link preview not found", core.ErrMessageLinkPreviewNotFound, connect.CodeNotFound},
-		{"jetstream key not found", jetstream.ErrKeyNotFound, connect.CodeNotFound},
 		{"message too long", core.ErrMessageTooLong, connect.CodeInvalidArgument},
 		{"invalid argument", core.ErrInvalidArgument, connect.CodeInvalidArgument},
 		{"invalid permission", core.ErrInvalidPermission, connect.CodeInvalidArgument},

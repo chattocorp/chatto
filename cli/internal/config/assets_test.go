@@ -6,7 +6,19 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/pelletier/go-toml/v2"
 )
+
+func TestGeneratedConfigOmitsAssetCache(t *testing.T) {
+	data, err := toml.Marshal(ChattoConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "[core.assets.cache]") {
+		t.Fatal("generated configuration contains removed asset cache settings")
+	}
+}
 
 func TestReadConfig_CoreProjectionSnapshotsFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")

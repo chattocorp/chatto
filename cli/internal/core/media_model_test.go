@@ -255,9 +255,6 @@ func TestMediaModelCacheOperations(t *testing.T) {
 	ctx := testContext(t)
 	key := ImageCacheKey(AttachmentSignResource, "A-cache", 64, 64, "cover")
 
-	if !service.ImageCacheEnabled() {
-		t.Fatal("ImageCacheEnabled returned false")
-	}
 	if got, err := service.GetCachedResize(ctx, key); err != nil || got != nil {
 		t.Fatalf("initial GetCachedResize = %q, %v; want nil, nil", string(got), err)
 	}

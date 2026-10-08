@@ -171,7 +171,7 @@ func (m *NotificationOccurrenceModel) reconcileCoveredUnread(ctx context.Context
 		occurrences = m.projection.Projection().allOccurrences(m.now().UTC())
 	} else {
 		for _, scope := range scopes {
-			occurrences = append(occurrences, m.projection.Projection().scopeOccurrences(scope, m.now().UTC())...)
+			occurrences = append(occurrences, m.projection.Projection().unreadScopeOccurrences(scope, m.now().UTC())...)
 		}
 	}
 	matches := make([]*notificationv1.NotificationOccurrence, 0)
@@ -842,20 +842,15 @@ func (m *NotificationOccurrenceModel) publishNotificationInvalidations(ctx conte
 }
 
 func (m *NotificationOccurrenceModel) MarkCoveredRead(ctx context.Context, userID, roomID, threadRootEventID, targetEventID string) (int, error) {
-	occurrences, err := m.List(ctx, userID)
-	if err != nil {
-		return 0, err
-	}
+	occurrences := m.projection.Projection().unreadScopeOccurrences(notificationReadBoundaryScope{
+		userID: userID, roomID: roomID, threadRootEventID: threadRootEventID,
+	}, m.now().UTC())
 	boundary, err := m.recordNotificationReadBoundary(ctx, userID, roomID, threadRootEventID, targetEventID)
 	if err != nil {
 		return 0, err
 	}
 	matches := make([]*notificationv1.NotificationOccurrence, 0)
 	for _, occurrence := range occurrences {
-		message := notificationSignalMessage(occurrence.GetSignal())
-		if message == nil || message.GetRoomId() != roomID || message.GetThreadRootEventId() != threadRootEventID || occurrence.GetRead() {
-			continue
-		}
 		if !m.occurrenceCoveredByBoundary(occurrence, boundary) {
 			continue
 		}

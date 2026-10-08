@@ -302,7 +302,7 @@ cross-origin request.
 
 **Decision:** Each server runs Neighborhood discovery in the background with
 the mutual-hop rules and fixed request limits. It stores the latest result in
-`MEMORY_CACHE` and image copies in `NEIGHBORHOOD_IMAGES`. The public
+`MEMORY_CACHE` and image copies in `ASSET_CACHE`. The public
 `ListNeighborhoodServers` RPC returns only the cached result. The Server
 Directory merges the cached results of all registered servers and does not ask
 for consent. See ADR-106.

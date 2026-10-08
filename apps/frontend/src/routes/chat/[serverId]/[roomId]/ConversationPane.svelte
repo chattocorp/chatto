@@ -291,11 +291,10 @@ thread IDs can change while the pane stays mounted.
     onComposerInputConsumed?.(input);
   });
 
-  // Clear typing and mark the conversation read for messages from other users
-  // that arrive while the viewer is present at the latest message. While the
-  // viewer is away, show the unread separator above the first such message at
-  // once. A message that arrives while the viewer reads older history stays
-  // unread until the viewer scrolls to it.
+  // Mark arrivals from any author read while the viewer is present at the
+  // latest message. Own messages use this same path, not the send response.
+  // Only other users' arrivals place an away separator. Newer activity stays
+  // unread while the viewer reads older history.
   useProjectionEvent((projectionEvent) => {
     const semantic = projectionEvent.event?.event;
     if (semantic?.case !== 'messagePosted' || semantic.value.roomId !== roomId) return;
@@ -304,7 +303,7 @@ thread IDs can change while the pane stays mounted.
     const actorId = projectionEvent.event?.actorId;
     if (actorId) typingIndicator.removeTypingUser(actorId);
     const accountId = stores.accountId;
-    if (!accountId || actorId === accountId) return;
+    if (!accountId) return;
     const eventId = projectionEvent.event?.id ?? '';
     if (appState.isPresent && atLatest) {
       void unread.markAsRead(threadRootEventId ?? roomId, eventId);
@@ -312,7 +311,8 @@ thread IDs can change while the pane stays mounted.
     }
     const createdAt = projectionEvent.event?.createdAt;
     if (createdAt) currentReadThrough().noteUnreadArrival(createdAt.toDate().getTime());
-    if (!appState.isPresent && eventId) unread.markArrivalWhileAway(eventId);
+    if (!appState.isPresent && eventId && actorId !== accountId)
+      unread.markArrivalWhileAway(eventId);
   });
 
   let isDraggingFiles = $state(false);
@@ -415,8 +415,6 @@ thread IDs can change while the pane stays mounted.
         return;
       }
       messageStore.ingestEvent(event);
-      // A thread moves its read cursor to the viewer's own reply.
-      if (threadRootEventId) void unread.markAsRead(threadRootEventId, event.id);
     }}
     onThreadMessageSent={composer.onThreadMessageSent
       ? (rootEventId, event) => {

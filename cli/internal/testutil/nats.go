@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -30,7 +31,7 @@ func StartNATS(t testing.TB) (*server.Server, *nats.Conn) {
 	ns, err := server.NewServer(&server.Options{
 		JetStream:  true,
 		DontListen: true,
-		StoreDir:   t.TempDir(),
+		StoreDir:   StoreDir(t),
 		NoSigs:     true,
 	})
 	if err != nil {
@@ -56,6 +57,35 @@ func StartNATS(t testing.TB) (*server.Server, *nats.Conn) {
 	return ns, nc
 }
 
+// StoreDir returns a new temporary JetStream store directory for one test.
+// Unlike t.TempDir, its cleanup retries the removal. nats-server can still
+// write consumer state after Shutdown returns: a consumer store does not wait
+// for a flush in progress when its state is not dirty. A single removal then
+// fails with "directory not empty".
+func StoreDir(t testing.TB) string {
+	t.Helper()
+
+	dir, err := os.MkdirTemp("", "chatto-nats-*")
+	if err != nil {
+		t.Fatalf("create JetStream store directory: %v", err)
+	}
+	t.Cleanup(func() {
+		deadline := time.Now().Add(5 * time.Second)
+		for {
+			err := os.RemoveAll(dir)
+			if err == nil {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Errorf("remove JetStream store directory: %v", err)
+				return
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	})
+	return dir
+}
+
 // StartSharedNATS returns a fresh in-process connection to a package-shared
 // embedded NATS server. It removes Chatto's known JetStream resources before
 // returning so callers can create a fresh ChattoCore without paying per-test
@@ -74,7 +104,7 @@ func StartSharedNATS(t testing.TB) (*server.Server, *nats.Conn) {
 	}
 	t.Cleanup(nc.Close)
 
-	ResetChattoJetStream(t, nc)
+	ResetChattoJetStream(t, ns, nc)
 
 	return ns, nc
 }
@@ -103,7 +133,14 @@ func ShutdownSharedNATS() {
 // ResetChattoJetStream deletes every current Chatto resource in the
 // natsresources registry. It deliberately targets those names rather than
 // deleting every stream in the account, so ad-hoc test streams remain opt-in.
-func ResetChattoJetStream(t testing.TB, nc *nats.Conn) {
+//
+// nats-server moves a deleted stream's directory to a "."-prefixed name and
+// removes it in the background. If an earlier removal of that name is still
+// in progress, the move fails, the server ignores the error, and the old
+// message blocks stay in place. A stream created later with the same name
+// then recovers the old messages. Thus, the reset also removes both
+// directories itself before it returns.
+func ResetChattoJetStream(t testing.TB, ns *server.Server, nc *nats.Conn) {
 	t.Helper()
 
 	sharedNATSMu.Lock()
@@ -134,6 +171,29 @@ func ResetChattoJetStream(t testing.TB, nc *nats.Conn) {
 
 	if err := nc.FlushTimeout(2 * time.Second); err != nil {
 		t.Fatalf("flush after JetStream reset: %v", err)
+	}
+	removeDeletedStreamDirectories(t, ns)
+}
+
+// removeDeletedStreamDirectories removes the directories of every deleted
+// Chatto stream in every account.
+func removeDeletedStreamDirectories(t testing.TB, ns *server.Server) {
+	t.Helper()
+
+	accounts, err := filepath.Glob(filepath.Join(ns.JetStreamConfig().StoreDir, "*", "streams"))
+	if err != nil {
+		t.Fatalf("find JetStream stream directories: %v", err)
+	}
+	for _, streams := range accounts {
+		for _, resource := range natsresources.Current() {
+			for _, dir := range []string{resource.StreamName(), "." + resource.StreamName()} {
+				// The server can remove the same directory at the same time;
+				// os.RemoveAll then still succeeds.
+				if err := os.RemoveAll(filepath.Join(streams, dir)); err != nil {
+					t.Fatalf("remove deleted stream directory %s: %v", dir, err)
+				}
+			}
+		}
 	}
 }
 

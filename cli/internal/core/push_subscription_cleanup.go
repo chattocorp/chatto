@@ -185,7 +185,7 @@ func (m *pushSubscriptionCleanupModel) reconcileDeletedAccountPushState(ctx cont
 		if !remove {
 			continue
 		}
-		if err := m.core.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(ownerRevision)); err != nil && !isKeyAbsent(err) {
+		if err := m.core.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(ownerRevision)); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
@@ -224,7 +224,7 @@ func (m *pushSubscriptionCleanupModel) inspectPushEndpointOwner(
 	deletedAccounts map[string]bool,
 ) (userID string, revision uint64, remove bool, err error) {
 	entry, err := m.core.storage.runtimeStateKV.Get(ctx, key)
-	if isKeyAbsent(err) {
+	if errors.Is(err, jetstream.ErrKeyNotFound) {
 		return "", 0, false, nil
 	}
 	if err != nil {
@@ -244,7 +244,7 @@ func (m *pushSubscriptionCleanupModel) inspectPushEndpointOwner(
 	}
 	subscriptionKey := "push_subscription." + owner.UserID + "." + fullHash[:shortPushEndpointHashLength]
 	subscriptionEntry, err := m.core.storage.runtimeStateKV.Get(ctx, subscriptionKey)
-	if isKeyAbsent(err) {
+	if errors.Is(err, jetstream.ErrKeyNotFound) {
 		return owner.UserID, entry.Revision(), true, nil
 	}
 	if err != nil {

@@ -67,9 +67,11 @@ func NewSender(cfg config.PushConfig, logger *log.Logger) *Sender {
 
 // Payload represents the data sent in a push notification.
 type Payload struct {
-	Title          string `json:"title,omitempty"`
-	Body           string `json:"body,omitempty"`
-	Icon           string `json:"icon,omitempty"`
+	Title string `json:"title,omitempty"`
+	Body  string `json:"body,omitempty"`
+	// Icon is the colour image displayed beside the notification content.
+	Icon string `json:"icon,omitempty"`
+	// Badge is the transparent monochrome image masked by Android's status bar.
 	Badge          string `json:"badge,omitempty"`
 	Tag            string `json:"tag,omitempty"`
 	NotificationID string `json:"notificationId,omitempty"`
@@ -588,7 +590,7 @@ func buildPayloadFromOccurrence(
 		NotificationID: occurrence.GetId(),
 		RecipientID:    occurrence.GetRecipientId(),
 		Icon:           buildAppURL(serverBaseURL, []string{"icons", "icon-192.png"}, "", ""),
-		Badge:          buildAppURL(serverBaseURL, []string{"icons", "icon-192.png"}, "", ""), // Badge should be monochrome, but use same for now
+		Badge:          buildAppURL(serverBaseURL, []string{"icons", "notification-badge.png"}, "", ""),
 	}
 	switch occurrence.GetAttentionLevel() {
 	case notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT:

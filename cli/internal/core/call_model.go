@@ -923,7 +923,7 @@ func (s *CallModel) recordLiveKitListFailure(ctx context.Context) (int, error) {
 	for range callReconcileMaxRetries {
 		entry, err := s.memoryCacheKV.Get(ctx, liveKitReconcileFailureKey)
 		if err != nil {
-			if isKeyAbsent(err) {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				state := liveKitListFailureState{Count: 1, UpdatedAt: time.Now().UTC()}
 				data, err := json.Marshal(state)
 				if err != nil {
@@ -965,7 +965,7 @@ func (s *CallModel) resetLiveKitListFailures(ctx context.Context) error {
 	if s.memoryCacheKV == nil {
 		return nil
 	}
-	if err := s.memoryCacheKV.Delete(ctx, liveKitReconcileFailureKey); err != nil && !isKeyAbsent(err) {
+	if err := s.memoryCacheKV.Delete(ctx, liveKitReconcileFailureKey); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return err
 	}
 	return nil

@@ -187,7 +187,7 @@ func (c *ChattoCore) ExchangeAuthCodeForClientResourceSession(ctx context.Contex
 	// Atomically claim the code before validation and token issuance. A
 	// concurrent exchange that read the same revision must not also succeed.
 	if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil {
-		if isKeyAbsent(err) || jetstreamutil.IsSequenceConflict(err) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) || jetstreamutil.IsSequenceConflict(err) {
 			return BearerSessionCredentials{}, "", ErrAuthCodeNotFound
 		}
 		return BearerSessionCredentials{}, "", fmt.Errorf("failed to consume auth code: %w", err)

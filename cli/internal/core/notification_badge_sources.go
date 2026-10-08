@@ -105,14 +105,14 @@ type badgeMessage struct {
 	seq uint64
 	// createdAt is the post's compact creation time (see projectionTime).
 	createdAt int64
-	room      uint32
+	room      badgeHandle
 	// thread is the thread root handle, or zero for a root message.
-	thread uint32
+	thread eventHandle
 	// actor posted the message; a user's own activity never gives them Badge
 	// attention.
-	actor uint32
+	actor badgeHandle
 	// author receives replies to, and reactions on, this message.
-	author    uint32
+	author    badgeHandle
 	retracted bool
 	// source is false for echoes, historical imports, and posts without a
 	// creation time, which are never Badge sources. They stay indexed as
@@ -127,11 +127,11 @@ type badgeTargetedSource struct {
 	createdAt int64
 	// message is the eventIDs handle of the source message, or of the reaction
 	// target for a reaction.
-	message uint32
+	message eventHandle
 	// reactor and emoji identify a reaction so its removal drops this source.
 	// They are ids handles.
-	reactor uint32
-	emoji   uint32
+	reactor badgeHandle
+	emoji   badgeHandle
 	kind    badgeSourceKind
 }
 
@@ -140,11 +140,11 @@ type badgeTargetedSource struct {
 // latest append. Message and thread handles are eventIDs handles; user handles
 // are ids handles.
 type badgeRoomSources struct {
-	roots   []uint32
-	replies map[uint32][]uint32
+	roots   []eventHandle
+	replies map[eventHandle][]eventHandle
 	// targeted maps a user to their sources per scope: zero for the room, or
 	// a thread root handle.
-	targeted map[uint32]map[uint32][]badgeTargetedSource
+	targeted map[badgeHandle]map[eventHandle][]badgeTargetedSource
 	// appends counts appends since the room's last sweep of quiet lists.
 	appends int
 }
@@ -155,26 +155,26 @@ type badgeRoomSources struct {
 const badgeSweepInterval = 512
 
 type badgeMembershipKey struct {
-	user uint32
-	room uint32
+	user badgeHandle
+	room badgeHandle
 }
 
 type badgeReactionKey struct {
-	message uint32
-	reactor uint32
-	emoji   uint32
+	message eventHandle
+	reactor badgeHandle
+	emoji   badgeHandle
 }
 
 // badgeThreadKey identifies a thread by its ids room handle and eventIDs root
 // handle.
 type badgeThreadKey struct {
-	room   uint32
-	thread uint32
+	room   badgeHandle
+	thread eventHandle
 }
 
 // badgeFollowKey identifies one user's relationship with one thread.
 type badgeFollowKey struct {
-	user uint32
+	user badgeHandle
 	badgeThreadKey
 }
 
@@ -185,7 +185,7 @@ type badgeFollowKey struct {
 // the event ID table, which synchronizes itself because it can be shared.
 type notificationBadgeSources struct {
 	// ids interns user, room, and emoji IDs.
-	ids projectionIDTable
+	ids projectionIDTable[badgeIDKind]
 	// eventIDs interns message and thread-root event IDs. Production shares
 	// the process's event ID table with the ServerContentView; a standalone
 	// index owns a private table.
@@ -195,7 +195,7 @@ type notificationBadgeSources struct {
 	// eventIDs handle. Records are pointer-free and stay indexed after their
 	// sources expire, because later replies and reactions address them.
 	messages handleSlice[badgeMessage]
-	rooms    map[uint32]*badgeRoomSources
+	rooms    map[badgeHandle]*badgeRoomSources
 	// reactions holds the current indexed reactions. The reaction projection
 	// keeps the first of repeated adds; so does the index.
 	reactions map[badgeReactionKey]struct{}
@@ -204,18 +204,18 @@ type notificationBadgeSources struct {
 	memberSince map[badgeMembershipKey]uint64
 	// accountSince and universalSince bound implicit universal-room
 	// membership: it starts when both the account and universal access exist.
-	accountSince   map[uint32]uint64
-	universalSince map[uint32]uint64
+	accountSince   map[badgeHandle]uint64
+	universalSince map[badgeHandle]uint64
 	// follows maps a (user, room) pair to the threads that the user currently
 	// follows there, with the sequence of the follow.
-	follows map[badgeMembershipKey]map[uint32]uint64
+	follows map[badgeMembershipKey]map[eventHandle]uint64
 	// followStates holds the latest explicit follow state of each user and
 	// thread, including unfollows.
 	followStates map[badgeFollowKey]compactThreadFollowState
 	// followers holds the users who currently follow each thread.
-	followers map[badgeThreadKey][]uint32
+	followers map[badgeThreadKey][]badgeHandle
 	// replyCounts counts the posted replies of each thread root handle.
-	replyCounts map[uint32]uint64
+	replyCounts map[eventHandle]uint64
 	// latestCreatedAt is the creation time of the newest indexed source. The
 	// sweep and the snapshot drop sources that are expired relative to it.
 	latestCreatedAt int64
@@ -229,36 +229,35 @@ func newNotificationBadgeSources(eventIDs *eventIDTable) *notificationBadgeSourc
 		eventIDs = newEventIDTable()
 	}
 	return &notificationBadgeSources{
-		ids:            newProjectionIDTable(),
 		eventIDs:       eventIDs,
 		sharedEventIDs: shared,
-		rooms:          make(map[uint32]*badgeRoomSources),
+		rooms:          make(map[badgeHandle]*badgeRoomSources),
 		reactions:      make(map[badgeReactionKey]struct{}),
 		memberSince:    make(map[badgeMembershipKey]uint64),
-		accountSince:   make(map[uint32]uint64),
-		universalSince: make(map[uint32]uint64),
-		follows:        make(map[badgeMembershipKey]map[uint32]uint64),
+		accountSince:   make(map[badgeHandle]uint64),
+		universalSince: make(map[badgeHandle]uint64),
+		follows:        make(map[badgeMembershipKey]map[eventHandle]uint64),
 		followStates:   make(map[badgeFollowKey]compactThreadFollowState),
-		followers:      make(map[badgeThreadKey][]uint32),
-		replyCounts:    make(map[uint32]uint64),
+		followers:      make(map[badgeThreadKey][]badgeHandle),
+		replyCounts:    make(map[eventHandle]uint64),
 	}
 }
 
 // message returns the indexed record of a message handle.
-func (b *notificationBadgeSources) message(message uint32) (badgeMessage, bool) {
+func (b *notificationBadgeSources) message(message eventHandle) (badgeMessage, bool) {
 	return b.messages.get(message)
 }
 
 // messageRecord returns the record of a message handle, or a zero record.
-func (b *notificationBadgeSources) messageRecord(message uint32) badgeMessage {
+func (b *notificationBadgeSources) messageRecord(message eventHandle) badgeMessage {
 	record, _ := b.messages.get(message)
 	return record
 }
 
-func (b *notificationBadgeSources) room(room uint32) *badgeRoomSources {
+func (b *notificationBadgeSources) room(room badgeHandle) *badgeRoomSources {
 	sources := b.rooms[room]
 	if sources == nil {
-		sources = &badgeRoomSources{replies: make(map[uint32][]uint32), targeted: make(map[uint32]map[uint32][]badgeTargetedSource)}
+		sources = &badgeRoomSources{replies: make(map[eventHandle][]eventHandle), targeted: make(map[badgeHandle]map[eventHandle][]badgeTargetedSource)}
 		b.rooms[room] = sources
 	}
 	return sources
@@ -314,7 +313,7 @@ func expiredBefore(now int64) int64 {
 
 // appendMessage appends a message handle and drops expired handles from the
 // front of the list.
-func (b *notificationBadgeSources) appendMessage(list []uint32, message uint32, createdAt int64) []uint32 {
+func (b *notificationBadgeSources) appendMessage(list []eventHandle, message eventHandle, createdAt int64) []eventHandle {
 	cutoff := expiredBefore(createdAt)
 	drop := 0
 	for drop < len(list) && b.messageRecord(list[drop]).createdAt <= cutoff {
@@ -325,10 +324,10 @@ func (b *notificationBadgeSources) appendMessage(list []uint32, message uint32, 
 
 // addTargeted appends a targeted source and drops expired sources from the
 // front of the list, forgetting the reactions among them.
-func (b *notificationBadgeSources) addTargeted(sources *badgeRoomSources, user, scope uint32, source badgeTargetedSource) {
+func (b *notificationBadgeSources) addTargeted(sources *badgeRoomSources, user badgeHandle, scope eventHandle, source badgeTargetedSource) {
 	scopes := sources.targeted[user]
 	if scopes == nil {
-		scopes = make(map[uint32][]badgeTargetedSource)
+		scopes = make(map[eventHandle][]badgeTargetedSource)
 		sources.targeted[user] = scopes
 	}
 	list := scopes[scope]
@@ -349,13 +348,13 @@ func (b *notificationBadgeSources) apply(event *evtv1.Event, seq uint64) {
 	case *evtv1.Event_MessagePosted:
 		var replyCount uint64
 		if rootID := payload.MessagePosted.GetInThread(); rootID != "" {
-			thread := b.eventIDs.intern(rootID)
+			thread := b.eventIDs.Intern(rootID)
 			b.replyCounts[thread]++
 			replyCount = b.replyCounts[thread]
 		}
 		b.applyMessagePosted(event, payload.MessagePosted, seq, replyCount)
 	case *evtv1.Event_MessageRetracted:
-		if message, ok := b.eventIDs.lookup(payload.MessageRetracted.GetEventId()); ok {
+		if message, ok := b.eventIDs.Lookup(payload.MessageRetracted.GetEventId()); ok {
 			if record, exists := b.message(message); exists {
 				record.retracted = true
 				b.messages.set(message, record)
@@ -367,7 +366,7 @@ func (b *notificationBadgeSources) apply(event *evtv1.Event, seq uint64) {
 		b.applyReactionRemoved(event.GetActorId(), payload.ReactionRemoved)
 	case *evtv1.Event_UserJoinedRoom:
 		if event.GetActorId() != "" && payload.UserJoinedRoom.GetRoomId() != "" {
-			key := badgeMembershipKey{user: b.ids.intern(event.GetActorId()), room: b.ids.intern(payload.UserJoinedRoom.GetRoomId())}
+			key := badgeMembershipKey{user: b.ids.Intern(event.GetActorId()), room: b.ids.Intern(payload.UserJoinedRoom.GetRoomId())}
 			if _, member := b.memberSince[key]; !member {
 				b.memberSince[key] = seq
 			}
@@ -378,7 +377,7 @@ func (b *notificationBadgeSources) apply(event *evtv1.Event, seq uint64) {
 		b.endMembership(payload.RoomMemberBanned.GetUserId(), payload.RoomMemberBanned.GetRoomId())
 	case *evtv1.Event_RoomUniversalChanged:
 		if roomID := payload.RoomUniversalChanged.GetRoomId(); roomID != "" {
-			room := b.ids.intern(roomID)
+			room := b.ids.Intern(roomID)
 			if payload.RoomUniversalChanged.GetUniversal() {
 				if _, exists := b.universalSince[room]; !exists {
 					b.universalSince[room] = seq
@@ -389,18 +388,18 @@ func (b *notificationBadgeSources) apply(event *evtv1.Event, seq uint64) {
 		}
 	case *evtv1.Event_RoomCreated:
 		if room := payload.RoomCreated; room.GetUniversal() && room.GetRoomId() != "" {
-			b.universalSince[b.ids.intern(room.GetRoomId())] = seq
+			b.universalSince[b.ids.Intern(room.GetRoomId())] = seq
 		}
 	case *evtv1.Event_RoomDeleted:
-		if room, ok := b.ids.lookup(payload.RoomDeleted.GetRoomId()); ok {
+		if room, ok := b.ids.Lookup(payload.RoomDeleted.GetRoomId()); ok {
 			b.deleteRoom(room)
 		}
 	case *evtv1.Event_UserAccountCreated:
 		if userID := payload.UserAccountCreated.GetUserId(); userID != "" {
-			b.accountSince[b.ids.intern(userID)] = seq
+			b.accountSince[b.ids.Intern(userID)] = seq
 		}
 	case *evtv1.Event_UserAccountDeleted:
-		if user, ok := b.ids.lookup(payload.UserAccountDeleted.GetUserId()); ok {
+		if user, ok := b.ids.Lookup(payload.UserAccountDeleted.GetUserId()); ok {
 			b.deleteUser(user)
 		}
 	case *evtv1.Event_ThreadFollowed:
@@ -408,12 +407,12 @@ func (b *notificationBadgeSources) apply(event *evtv1.Event, seq uint64) {
 		if follow.GetUserId() == "" || follow.GetRoomId() == "" || follow.GetThreadRootEventId() == "" {
 			return
 		}
-		key := badgeFollowKey{user: b.ids.intern(follow.GetUserId()), badgeThreadKey: badgeThreadKey{room: b.ids.intern(follow.GetRoomId()), thread: b.eventIDs.intern(follow.GetThreadRootEventId())}}
+		key := badgeFollowKey{user: b.ids.Intern(follow.GetUserId()), badgeThreadKey: badgeThreadKey{room: b.ids.Intern(follow.GetRoomId()), thread: b.eventIDs.Intern(follow.GetThreadRootEventId())}}
 		b.setFollowState(key, compactThreadFollowFollowing)
 		membership := badgeMembershipKey{user: key.user, room: key.room}
 		threads := b.follows[membership]
 		if threads == nil {
-			threads = make(map[uint32]uint64)
+			threads = make(map[eventHandle]uint64)
 			b.follows[membership] = threads
 		}
 		if _, following := threads[key.thread]; !following {
@@ -424,7 +423,7 @@ func (b *notificationBadgeSources) apply(event *evtv1.Event, seq uint64) {
 		if unfollow.GetUserId() == "" || unfollow.GetRoomId() == "" || unfollow.GetThreadRootEventId() == "" {
 			return
 		}
-		key := badgeFollowKey{user: b.ids.intern(unfollow.GetUserId()), badgeThreadKey: badgeThreadKey{room: b.ids.intern(unfollow.GetRoomId()), thread: b.eventIDs.intern(unfollow.GetThreadRootEventId())}}
+		key := badgeFollowKey{user: b.ids.Intern(unfollow.GetUserId()), badgeThreadKey: badgeThreadKey{room: b.ids.Intern(unfollow.GetRoomId()), thread: b.eventIDs.Intern(unfollow.GetThreadRootEventId())}}
 		b.setFollowState(key, compactThreadFollowUnfollowed)
 		membership := badgeMembershipKey{user: key.user, room: key.room}
 		delete(b.follows[membership], key.thread)
@@ -438,7 +437,7 @@ func (b *notificationBadgeSources) apply(event *evtv1.Event, seq uint64) {
 // and maintains the thread's follower list.
 func (b *notificationBadgeSources) setFollowState(key badgeFollowKey, state compactThreadFollowState) {
 	if b.followStates[key] == compactThreadFollowFollowing {
-		followers := slices.DeleteFunc(b.followers[key.badgeThreadKey], func(user uint32) bool { return user == key.user })
+		followers := slices.DeleteFunc(b.followers[key.badgeThreadKey], func(user badgeHandle) bool { return user == key.user })
 		if len(followers) == 0 {
 			delete(b.followers, key.badgeThreadKey)
 		} else {
@@ -453,14 +452,14 @@ func (b *notificationBadgeSources) setFollowState(key badgeFollowKey, state comp
 
 // threadKey returns the handles of a thread without interning its IDs.
 func (b *notificationBadgeSources) threadKey(roomID, threadRootEventID string) (badgeThreadKey, bool) {
-	room, roomKnown := b.ids.lookup(roomID)
-	thread, threadKnown := b.eventIDs.lookup(threadRootEventID)
+	room, roomKnown := b.ids.Lookup(roomID)
+	thread, threadKnown := b.eventIDs.Lookup(threadRootEventID)
 	return badgeThreadKey{room: room, thread: thread}, roomKnown && threadKnown
 }
 
 // followState returns a user's latest explicit follow state for a thread.
 func (b *notificationBadgeSources) followState(userID, roomID, threadRootEventID string) ThreadFollowState {
-	user, userKnown := b.ids.lookup(userID)
+	user, userKnown := b.ids.Lookup(userID)
 	thread, threadKnown := b.threadKey(roomID, threadRootEventID)
 	if !userKnown || !threadKnown {
 		return ThreadFollowStateNone
@@ -477,7 +476,7 @@ func (b *notificationBadgeSources) followerIDs(roomID, threadRootEventID string)
 	followers := b.followers[thread]
 	userIDs := make([]string, len(followers))
 	for i, user := range followers {
-		userIDs[i] = b.ids.id(user)
+		userIDs[i] = b.ids.Resolve(user)
 	}
 	slices.Sort(userIDs)
 	return userIDs
@@ -485,7 +484,7 @@ func (b *notificationBadgeSources) followerIDs(roomID, threadRootEventID string)
 
 // replyCount returns the number of posted replies of a thread root.
 func (b *notificationBadgeSources) replyCount(threadRootEventID string) uint64 {
-	thread, ok := b.eventIDs.lookup(threadRootEventID)
+	thread, ok := b.eventIDs.Lookup(threadRootEventID)
 	if !ok {
 		return 0
 	}
@@ -493,8 +492,8 @@ func (b *notificationBadgeSources) replyCount(threadRootEventID string) uint64 {
 }
 
 func (b *notificationBadgeSources) endMembership(userID, roomID string) {
-	user, userKnown := b.ids.lookup(userID)
-	room, roomKnown := b.ids.lookup(roomID)
+	user, userKnown := b.ids.Lookup(userID)
+	room, roomKnown := b.ids.Lookup(roomID)
 	if userKnown && roomKnown {
 		delete(b.memberSince, badgeMembershipKey{user: user, room: room})
 	}
@@ -502,7 +501,7 @@ func (b *notificationBadgeSources) endMembership(userID, roomID string) {
 
 // deleteRoom drops every indexed fact of a deleted room. Interned IDs stay in
 // the append-only table.
-func (b *notificationBadgeSources) deleteRoom(room uint32) {
+func (b *notificationBadgeSources) deleteRoom(room badgeHandle) {
 	delete(b.rooms, room)
 	delete(b.universalSince, room)
 	for i, record := range b.messages {
@@ -529,7 +528,7 @@ func (b *notificationBadgeSources) deleteRoom(room uint32) {
 
 // deleteUser drops the state of a deleted account. Its messages stay indexed
 // as roots, replies, and reply parents for other users.
-func (b *notificationBadgeSources) deleteUser(user uint32) {
+func (b *notificationBadgeSources) deleteUser(user badgeHandle) {
 	delete(b.accountSince, user)
 	for _, sources := range b.rooms {
 		for _, targeted := range sources.targeted[user] {
@@ -557,17 +556,17 @@ func (b *notificationBadgeSources) applyMessagePosted(event *evtv1.Event, posted
 	if event.GetId() == "" || posted.GetRoomId() == "" {
 		return
 	}
-	message := b.eventIDs.intern(event.GetId())
+	message := b.eventIDs.Intern(event.GetId())
 	if _, exists := b.message(message); exists {
 		return
 	}
 	record := badgeMessage{
 		seq:       seq,
 		createdAt: eventCreatedNanos(event),
-		room:      b.ids.intern(posted.GetRoomId()),
-		thread:    b.eventIDs.intern(posted.GetInThread()),
-		actor:     b.ids.intern(event.GetActorId()),
-		author:    b.ids.intern(messageAuthorID(event)),
+		room:      b.ids.Intern(posted.GetRoomId()),
+		thread:    b.eventIDs.Intern(posted.GetInThread()),
+		actor:     b.ids.Intern(event.GetActorId()),
+		author:    b.ids.Intern(messageAuthorID(event)),
 	}
 	record.source = record.createdAt != 0 && posted.GetEchoOfEventId() == "" && !posted.GetHistoricalImport()
 	b.messages.set(message, record)
@@ -591,10 +590,10 @@ func (b *notificationBadgeSources) applyMessagePosted(event *evtv1.Event, posted
 		if kind == 0 || mention.GetUserId() == "" || mention.GetUserId() == event.GetActorId() {
 			continue
 		}
-		b.addTargeted(sources, b.ids.intern(mention.GetUserId()), record.thread, badgeTargetedSource{seq: seq, createdAt: record.createdAt, message: message, kind: kind})
+		b.addTargeted(sources, b.ids.Intern(mention.GetUserId()), record.thread, badgeTargetedSource{seq: seq, createdAt: record.createdAt, message: message, kind: kind})
 	}
 	if parentID := posted.GetInReplyTo(); parentID != "" {
-		if parent, ok := b.eventIDs.lookup(parentID); ok {
+		if parent, ok := b.eventIDs.Lookup(parentID); ok {
 			if parentRecord, exists := b.message(parent); exists && parentRecord.author != 0 && parentRecord.author != record.actor {
 				b.addTargeted(sources, parentRecord.author, record.thread, badgeTargetedSource{seq: seq, createdAt: record.createdAt, message: message, kind: badgeSourceReply})
 			}
@@ -603,7 +602,7 @@ func (b *notificationBadgeSources) applyMessagePosted(event *evtv1.Event, posted
 }
 
 func (b *notificationBadgeSources) applyReactionAdded(event *evtv1.Event, reaction *evtv1.ReactionAddedEvent, seq uint64) {
-	target, ok := b.eventIDs.lookup(reaction.GetMessageEventId())
+	target, ok := b.eventIDs.Lookup(reaction.GetMessageEventId())
 	createdAt := eventCreatedNanos(event)
 	if !ok || reaction.GetEmoji() == "" || event.GetActorId() == "" || createdAt == 0 {
 		return
@@ -612,11 +611,11 @@ func (b *notificationBadgeSources) applyReactionAdded(event *evtv1.Event, reacti
 	if !exists || record.author == 0 {
 		return
 	}
-	reactor := b.ids.intern(event.GetActorId())
+	reactor := b.ids.Intern(event.GetActorId())
 	if reactor == record.author {
 		return
 	}
-	key := badgeReactionKey{message: target, reactor: reactor, emoji: b.ids.intern(reaction.GetEmoji())}
+	key := badgeReactionKey{message: target, reactor: reactor, emoji: b.ids.Intern(reaction.GetEmoji())}
 	if _, exists := b.reactions[key]; exists {
 		return
 	}
@@ -629,9 +628,9 @@ func (b *notificationBadgeSources) applyReactionAdded(event *evtv1.Event, reacti
 }
 
 func (b *notificationBadgeSources) applyReactionRemoved(reactorID string, reaction *evtv1.ReactionRemovedEvent) {
-	target, targetKnown := b.eventIDs.lookup(reaction.GetMessageEventId())
-	reactor, reactorKnown := b.ids.lookup(reactorID)
-	emoji, emojiKnown := b.ids.lookup(reaction.GetEmoji())
+	target, targetKnown := b.eventIDs.Lookup(reaction.GetMessageEventId())
+	reactor, reactorKnown := b.ids.Lookup(reactorID)
+	emoji, emojiKnown := b.ids.Lookup(reaction.GetEmoji())
 	if !targetKnown || !reactorKnown || !emojiKnown {
 		return
 	}
@@ -669,7 +668,7 @@ type badgeQuery struct {
 	// unretracted names a message handle that counts as not retracted. A
 	// retraction compares attention with and without it to find the users
 	// whose state changed.
-	unretracted uint32
+	unretracted eventHandle
 }
 
 // hasBadgeAttention reports whether a current source gives the user Badge
@@ -688,7 +687,7 @@ func (s *notificationDecisionSnapshot) hasBadgeAttention(q badgeQuery) bool {
 	if _, active := s.activeUsers[q.userID]; !active {
 		return false
 	}
-	room, roomKnown := b.ids.lookup(q.roomID)
+	room, roomKnown := b.ids.Lookup(q.roomID)
 	sources := b.rooms[room]
 	if !roomKnown || sources == nil {
 		return false
@@ -702,16 +701,16 @@ func (s *notificationDecisionSnapshot) hasBadgeAttention(q badgeQuery) bool {
 	if !broad && !interaction {
 		return false
 	}
-	user, _ := b.ids.lookup(q.userID)
-	scopeThread := uint32(0)
+	user, _ := b.ids.Lookup(q.userID)
+	scopeThread := eventHandle(0)
 	if q.threadRootEventID != "" {
-		thread, ok := b.eventIDs.lookup(q.threadRootEventID)
+		thread, ok := b.eventIDs.Lookup(q.threadRootEventID)
 		if !ok {
 			return false
 		}
 		scopeThread = thread
 	}
-	includes := func(thread uint32) bool {
+	includes := func(thread eventHandle) bool {
 		return q.threadRootEventID == "" || thread == scopeThread
 	}
 	lower := s.badgeMembershipStart(user, room, q.userID, q.roomID)
@@ -720,15 +719,15 @@ func (s *notificationDecisionSnapshot) hasBadgeAttention(q badgeQuery) bool {
 	badge := func(cause badgeCause) bool {
 		return modes.badge(s, q.userID, q.roomID, cause)
 	}
-	readBoundary := func(thread uint32) (notificationReadBoundary, bool) {
+	readBoundary := func(thread eventHandle) (notificationReadBoundary, bool) {
 		if q.readBoundary == nil {
 			return notificationReadBoundary{}, false
 		}
-		return q.readBoundary(b.eventIDs.id(thread))
+		return q.readBoundary(b.eventIDs.Resolve(thread))
 	}
 	// floor returns the highest sequence at or below which a scope's messages
 	// do not count.
-	floor := func(thread uint32, since uint64) uint64 {
+	floor := func(thread eventHandle, since uint64) uint64 {
 		result := max(lower, since)
 		if boundary, ok := readBoundary(thread); ok {
 			result = max(result, boundary.targetSequence)
@@ -738,7 +737,7 @@ func (s *notificationDecisionSnapshot) hasBadgeAttention(q badgeQuery) bool {
 	excluded := func(seq uint64) bool { return q.before != 0 && seq >= q.before }
 	// newestMessage reports whether a message list has a qualifying message
 	// above the floor.
-	newestMessage := func(list []uint32, floor uint64) bool {
+	newestMessage := func(list []eventHandle, floor uint64) bool {
 		for _, messageIndex := range slices.Backward(list) {
 			message := b.messageRecord(messageIndex)
 			if message.seq <= floor || message.createdAt <= expired {
@@ -839,7 +838,7 @@ func (c *badgeModeCache) badge(s *notificationDecisionSnapshot, userID, roomID s
 // badgeMembershipStart returns the sequence at which the user's current
 // membership of the room began. Sources at or before it never give Badge
 // attention, so joining a room does not mark its history as unread.
-func (s *notificationDecisionSnapshot) badgeMembershipStart(user, room uint32, userID, roomID string) uint64 {
+func (s *notificationDecisionSnapshot) badgeMembershipStart(user, room badgeHandle, userID, roomID string) uint64 {
 	b := s.badges
 	if s.rooms.Membership.IsMember(roomID, userID) {
 		return b.memberSince[badgeMembershipKey{user: user, room: room}]
@@ -858,9 +857,9 @@ func (s *notificationDecisionSnapshot) badgeMembershipStart(user, room uint32, u
 // attention, and a snapshot restore drops it. Only users who can currently see
 // the room are returned, so the result never names a room to a user outside
 // it.
-func (s *notificationDecisionSnapshot) badgeAudience(messageEventID string) (roomID, threadRootEventID string, message uint32, userIDs []string) {
+func (s *notificationDecisionSnapshot) badgeAudience(messageEventID string) (roomID, threadRootEventID string, message eventHandle, userIDs []string) {
 	b := s.badges
-	message, ok := b.eventIDs.lookup(messageEventID)
+	message, ok := b.eventIDs.Lookup(messageEventID)
 	if !ok {
 		return "", "", 0, nil
 	}
@@ -868,7 +867,7 @@ func (s *notificationDecisionSnapshot) badgeAudience(messageEventID string) (roo
 	if !exists {
 		return "", "", 0, nil
 	}
-	roomID, threadRootEventID = b.ids.id(record.room), b.eventIDs.id(record.thread)
+	roomID, threadRootEventID = b.ids.Resolve(record.room), b.eventIDs.Resolve(record.thread)
 	users := make(map[string]struct{})
 	if record.thread == 0 {
 		for _, userID := range s.roomMemberIDs(roomID) {
@@ -879,7 +878,7 @@ func (s *notificationDecisionSnapshot) badgeAudience(messageEventID string) (roo
 			users[userID] = struct{}{}
 		}
 		if root, exists := b.message(record.thread); exists && root.author != 0 {
-			users[b.ids.id(root.author)] = struct{}{}
+			users[b.ids.Resolve(root.author)] = struct{}{}
 		}
 	}
 	if sources := b.rooms[record.room]; sources != nil {
@@ -888,7 +887,7 @@ func (s *notificationDecisionSnapshot) badgeAudience(messageEventID string) (roo
 			if slices.ContainsFunc(scopes[record.thread], func(source badgeTargetedSource) bool {
 				return source.message == message && source.createdAt > expired
 			}) {
-				users[b.ids.id(user)] = struct{}{}
+				users[b.ids.Resolve(user)] = struct{}{}
 			}
 		}
 	}
@@ -928,14 +927,14 @@ func (b *notificationBadgeSources) estimatedBytes() int64 {
 	// entry is the cost of one map entry with a key and value of these sizes.
 	entry := func(key, value uintptr) int64 { return projectionCompactMapEntryOverhead + int64(key+value) }
 	const (
-		handle   = unsafe.Sizeof(uint32(0))
+		handle   = unsafe.Sizeof(badgeHandle(0))
 		sequence = unsafe.Sizeof(uint64(0))
-		list     = unsafe.Sizeof([]uint32(nil))
-		table    = unsafe.Sizeof(map[uint32]uint64(nil))
+		list     = unsafe.Sizeof([]badgeHandle(nil))
+		table    = unsafe.Sizeof(map[badgeHandle]uint64(nil))
 	)
-	bytes := b.ids.estimatedBytes()
+	bytes := b.ids.EstimatedBytes()
 	if !b.sharedEventIDs {
-		bytes += b.eventIDs.estimatedBytes()
+		bytes += b.eventIDs.EstimatedBytes()
 	}
 	bytes += int64(cap(b.messages)) * int64(unsafe.Sizeof(badgeMessage{}))
 	bytes += int64(len(b.reactions)) * entry(unsafe.Sizeof(badgeReactionKey{}), 0)
@@ -971,18 +970,18 @@ func (b *notificationBadgeSources) estimatedBytes() int64 {
 func (b *notificationBadgeSources) snapshot() *projectionv1.NotificationBadgeSourcesSnapshot {
 	snapshot := &projectionv1.NotificationBadgeSourcesSnapshot{LatestCreatedAtUnixNanos: b.latestCreatedAt}
 	cutoff := expiredBefore(b.latestCreatedAt)
-	messages := make([]uint32, 0, len(b.messages))
+	messages := make([]eventHandle, 0, len(b.messages))
 	for i, record := range b.messages {
 		if record != (badgeMessage{}) {
-			messages = append(messages, uint32(i+1))
+			messages = append(messages, eventHandle(i+1))
 		}
 	}
-	slices.SortFunc(messages, func(a, c uint32) int { return cmp.Compare(b.messageRecord(a).seq, b.messageRecord(c).seq) })
+	slices.SortFunc(messages, func(a, c eventHandle) int { return cmp.Compare(b.messageRecord(a).seq, b.messageRecord(c).seq) })
 	for _, message := range messages {
 		record := b.messageRecord(message)
 		snapshot.Messages = append(snapshot.Messages, &projectionv1.NotificationBadgeMessageSnapshot{
-			EventId: b.eventIDs.id(message), RoomId: b.ids.id(record.room), ThreadRootEventId: b.eventIDs.id(record.thread),
-			ActorId: b.ids.id(record.actor), AuthorId: b.ids.id(record.author), Sequence: record.seq,
+			EventId: b.eventIDs.Resolve(message), RoomId: b.ids.Resolve(record.room), ThreadRootEventId: b.eventIDs.Resolve(record.thread),
+			ActorId: b.ids.Resolve(record.actor), AuthorId: b.ids.Resolve(record.author), Sequence: record.seq,
 			CreatedAtUnixNanos: record.createdAt, Retracted: record.retracted, Source: record.source,
 		})
 	}
@@ -995,9 +994,9 @@ func (b *notificationBadgeSources) snapshot() *projectionv1.NotificationBadgeSou
 						continue
 					}
 					snapshot.Targets = append(snapshot.Targets, &projectionv1.NotificationBadgeTargetSnapshot{
-						UserId: b.ids.id(user), RoomId: b.ids.id(room), MessageEventId: b.eventIDs.id(source.message),
+						UserId: b.ids.Resolve(user), RoomId: b.ids.Resolve(room), MessageEventId: b.eventIDs.Resolve(source.message),
 						Kind: uint32(source.kind), Sequence: source.seq, CreatedAtUnixNanos: source.createdAt,
-						ReactorId: b.ids.id(source.reactor), Emoji: b.ids.id(source.emoji),
+						ReactorId: b.ids.Resolve(source.reactor), Emoji: b.ids.Resolve(source.emoji),
 					})
 				}
 			}
@@ -1010,14 +1009,14 @@ func (b *notificationBadgeSources) snapshot() *projectionv1.NotificationBadgeSou
 	slices.SortFunc(memberships, b.compareMembershipKeys)
 	for _, key := range memberships {
 		snapshot.Memberships = append(snapshot.Memberships, &projectionv1.NotificationBadgeSinceSnapshot{
-			UserId: b.ids.id(key.user), RoomId: b.ids.id(key.room), Sequence: b.memberSince[key],
+			UserId: b.ids.Resolve(key.user), RoomId: b.ids.Resolve(key.room), Sequence: b.memberSince[key],
 		})
 	}
 	for _, user := range sortedHandleKeys(&b.ids, b.accountSince) {
-		snapshot.Accounts = append(snapshot.Accounts, &projectionv1.NotificationBadgeSinceSnapshot{UserId: b.ids.id(user), Sequence: b.accountSince[user]})
+		snapshot.Accounts = append(snapshot.Accounts, &projectionv1.NotificationBadgeSinceSnapshot{UserId: b.ids.Resolve(user), Sequence: b.accountSince[user]})
 	}
 	for _, room := range sortedHandleKeys(&b.ids, b.universalSince) {
-		snapshot.UniversalRooms = append(snapshot.UniversalRooms, &projectionv1.NotificationBadgeSinceSnapshot{RoomId: b.ids.id(room), Sequence: b.universalSince[room]})
+		snapshot.UniversalRooms = append(snapshot.UniversalRooms, &projectionv1.NotificationBadgeSinceSnapshot{RoomId: b.ids.Resolve(room), Sequence: b.universalSince[room]})
 	}
 	follows := make([]badgeMembershipKey, 0, len(b.follows))
 	for key := range b.follows {
@@ -1027,7 +1026,7 @@ func (b *notificationBadgeSources) snapshot() *projectionv1.NotificationBadgeSou
 	for _, key := range follows {
 		for _, thread := range sortedHandleKeys(b.eventIDs, b.follows[key]) {
 			snapshot.Follows = append(snapshot.Follows, &projectionv1.NotificationBadgeFollowSnapshot{
-				UserId: b.ids.id(key.user), RoomId: b.ids.id(key.room), ThreadRootEventId: b.eventIDs.id(thread), Sequence: b.follows[key][thread],
+				UserId: b.ids.Resolve(key.user), RoomId: b.ids.Resolve(key.room), ThreadRootEventId: b.eventIDs.Resolve(thread), Sequence: b.follows[key][thread],
 			})
 		}
 	}
@@ -1040,7 +1039,7 @@ func (b *notificationBadgeSources) threadStateSnapshot() ([]*projectionv1.Thread
 	follows := make([]*projectionv1.ThreadFollowSnapshot, 0, len(b.followStates))
 	for key, state := range b.followStates {
 		follows = append(follows, &projectionv1.ThreadFollowSnapshot{
-			UserId: b.ids.id(key.user), RoomId: b.ids.id(key.room), ThreadRootEventId: b.eventIDs.id(key.thread), State: string(state.public()),
+			UserId: b.ids.Resolve(key.user), RoomId: b.ids.Resolve(key.room), ThreadRootEventId: b.eventIDs.Resolve(key.thread), State: string(state.public()),
 		})
 	}
 	slices.SortFunc(follows, func(a, c *projectionv1.ThreadFollowSnapshot) int {
@@ -1048,16 +1047,16 @@ func (b *notificationBadgeSources) threadStateSnapshot() ([]*projectionv1.Thread
 	})
 	threads := make([]*projectionv1.NotificationThreadStateSnapshot, 0, len(b.replyCounts))
 	for _, thread := range sortedHandleKeys(b.eventIDs, b.replyCounts) {
-		threads = append(threads, &projectionv1.NotificationThreadStateSnapshot{ThreadRootEventId: b.eventIDs.id(thread), ReplyCount: b.replyCounts[thread]})
+		threads = append(threads, &projectionv1.NotificationThreadStateSnapshot{ThreadRootEventId: b.eventIDs.Resolve(thread), ReplyCount: b.replyCounts[thread]})
 	}
 	return follows, threads
 }
 
 func (b *notificationBadgeSources) compareMembershipKeys(a, c badgeMembershipKey) int {
-	if byUser := cmp.Compare(b.ids.id(a.user), b.ids.id(c.user)); byUser != 0 {
+	if byUser := cmp.Compare(b.ids.Resolve(a.user), b.ids.Resolve(c.user)); byUser != 0 {
 		return byUser
 	}
-	return cmp.Compare(b.ids.id(a.room), b.ids.id(c.room))
+	return cmp.Compare(b.ids.Resolve(a.room), b.ids.Resolve(c.room))
 }
 
 // restoreNotificationBadgeSources rebuilds the index from a snapshot. It
@@ -1071,11 +1070,11 @@ func restoreNotificationBadgeSources(snapshot *projectionv1.NotificationBadgeSou
 			return nil, fmt.Errorf("notification badge snapshot has an invalid message")
 		}
 		previous = row.GetSequence()
-		message := b.eventIDs.intern(row.GetEventId())
+		message := b.eventIDs.Intern(row.GetEventId())
 		record := badgeMessage{
 			seq: row.GetSequence(), createdAt: row.GetCreatedAtUnixNanos(),
-			room: b.ids.intern(row.GetRoomId()), thread: b.eventIDs.intern(row.GetThreadRootEventId()),
-			actor: b.ids.intern(row.GetActorId()), author: b.ids.intern(row.GetAuthorId()),
+			room: b.ids.Intern(row.GetRoomId()), thread: b.eventIDs.Intern(row.GetThreadRootEventId()),
+			actor: b.ids.Intern(row.GetActorId()), author: b.ids.Intern(row.GetAuthorId()),
 			retracted: row.GetRetracted(), source: row.GetSource(),
 		}
 		b.messages.set(message, record)
@@ -1091,47 +1090,47 @@ func restoreNotificationBadgeSources(snapshot *projectionv1.NotificationBadgeSou
 	}
 	for _, row := range snapshot.GetTargets() {
 		kind := badgeSourceKind(row.GetKind())
-		message, known := b.eventIDs.lookup(row.GetMessageEventId())
+		message, known := b.eventIDs.Lookup(row.GetMessageEventId())
 		record, exists := b.message(message)
 		if _, valid := kind.cause(); !valid || row.GetUserId() == "" || row.GetRoomId() == "" || !known || !exists {
 			return nil, fmt.Errorf("notification badge snapshot has an invalid targeted source")
 		}
 		source := badgeTargetedSource{
 			seq: row.GetSequence(), createdAt: row.GetCreatedAtUnixNanos(), message: message,
-			reactor: b.ids.intern(row.GetReactorId()), emoji: b.ids.intern(row.GetEmoji()), kind: kind,
+			reactor: b.ids.Intern(row.GetReactorId()), emoji: b.ids.Intern(row.GetEmoji()), kind: kind,
 		}
 		if kind == badgeSourceReaction {
 			b.reactions[badgeReactionKey{message: message, reactor: source.reactor, emoji: source.emoji}] = struct{}{}
 		}
-		b.addTargeted(b.room(b.ids.intern(row.GetRoomId())), b.ids.intern(row.GetUserId()), record.thread, source)
+		b.addTargeted(b.room(b.ids.Intern(row.GetRoomId())), b.ids.Intern(row.GetUserId()), record.thread, source)
 	}
 	for _, row := range snapshot.GetMemberships() {
 		if row.GetUserId() == "" || row.GetRoomId() == "" {
 			return nil, fmt.Errorf("notification badge snapshot has an invalid membership")
 		}
-		b.memberSince[badgeMembershipKey{user: b.ids.intern(row.GetUserId()), room: b.ids.intern(row.GetRoomId())}] = row.GetSequence()
+		b.memberSince[badgeMembershipKey{user: b.ids.Intern(row.GetUserId()), room: b.ids.Intern(row.GetRoomId())}] = row.GetSequence()
 	}
 	for _, row := range snapshot.GetAccounts() {
 		if row.GetUserId() == "" {
 			return nil, fmt.Errorf("notification badge snapshot has an invalid account")
 		}
-		b.accountSince[b.ids.intern(row.GetUserId())] = row.GetSequence()
+		b.accountSince[b.ids.Intern(row.GetUserId())] = row.GetSequence()
 	}
 	for _, row := range snapshot.GetUniversalRooms() {
 		if row.GetRoomId() == "" {
 			return nil, fmt.Errorf("notification badge snapshot has an invalid universal room")
 		}
-		b.universalSince[b.ids.intern(row.GetRoomId())] = row.GetSequence()
+		b.universalSince[b.ids.Intern(row.GetRoomId())] = row.GetSequence()
 	}
 	for _, row := range snapshot.GetFollows() {
 		if row.GetUserId() == "" || row.GetRoomId() == "" || row.GetThreadRootEventId() == "" {
 			return nil, fmt.Errorf("notification badge snapshot has an invalid follow")
 		}
-		key := badgeMembershipKey{user: b.ids.intern(row.GetUserId()), room: b.ids.intern(row.GetRoomId())}
+		key := badgeMembershipKey{user: b.ids.Intern(row.GetUserId()), room: b.ids.Intern(row.GetRoomId())}
 		if b.follows[key] == nil {
-			b.follows[key] = make(map[uint32]uint64)
+			b.follows[key] = make(map[eventHandle]uint64)
 		}
-		b.follows[key][b.eventIDs.intern(row.GetThreadRootEventId())] = row.GetSequence()
+		b.follows[key][b.eventIDs.Intern(row.GetThreadRootEventId())] = row.GetSequence()
 	}
 	return b, nil
 }
@@ -1145,15 +1144,15 @@ func (b *notificationBadgeSources) restoreThreadState(follows []*projectionv1.Th
 			return fmt.Errorf("notification decision snapshot has invalid thread follow")
 		}
 		b.setFollowState(badgeFollowKey{
-			user:           b.ids.intern(row.GetUserId()),
-			badgeThreadKey: badgeThreadKey{room: b.ids.intern(row.GetRoomId()), thread: b.eventIDs.intern(row.GetThreadRootEventId())},
+			user:           b.ids.Intern(row.GetUserId()),
+			badgeThreadKey: badgeThreadKey{room: b.ids.Intern(row.GetRoomId()), thread: b.eventIDs.Intern(row.GetThreadRootEventId())},
 		}, state)
 	}
 	for _, row := range threads {
 		if row.GetThreadRootEventId() == "" {
 			return fmt.Errorf("notification decision snapshot has empty thread root event ID")
 		}
-		b.replyCounts[b.eventIDs.intern(row.GetThreadRootEventId())] = row.GetReplyCount()
+		b.replyCounts[b.eventIDs.Intern(row.GetThreadRootEventId())] = row.GetReplyCount()
 	}
 	return nil
 }

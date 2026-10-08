@@ -200,8 +200,7 @@ no longer imported.
 
 | Bucket                 | Description                                                     |
 | ---------------------- | --------------------------------------------------------------- |
-| `ASSET_CACHE`          | Cached resized images (optional)                                |
-| `NEIGHBORHOOD_IMAGES`  | Re-encoded Neighborhood logos and banners with a seven-day TTL  |
+| `ASSET_CACHE`          | Resized images and Neighborhood images; seven-day TTL           |
 | `PROJECTION_SNAPSHOTS` | Encrypted projection snapshots with configurable TTL (optional) |
 | `SERVER_ASSETS`        | NATS-backed persisted asset binaries                            |
 
@@ -212,13 +211,13 @@ no longer imported.
 | `attachment-stable-v2.{attachmentId}.{paramsHash}` | Cached attachment derivative at specific bounds |
 | `server.{assetId}.{paramsHash}`                    | Cached transform of a server asset              |
 
-Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL for automatic expiration (default 7 days). Current cache entries for deleted assets are also evicted from the active attachment or server prefix during binary cleanup. Attachment cache namespaces are versioned when encoding changes so older bytes are not reused. `paramsHash` is first 16 hex chars of SHA256(`{width}x{height}_{fit}`). S2 compression enabled.
+Notes: Always created. Entries expire seven days after their latest write. Current cache entries for deleted assets are also evicted from the active attachment or server prefix during binary cleanup. Attachment cache namespaces are versioned when encoding changes so older bytes are not reused. `paramsHash` is first 16 hex chars of SHA256(`{width}x{height}_{fit}`). S2 compression enabled.
 
-**NEIGHBORHOOD_IMAGES keys:**
+**ASSET_CACHE Neighborhood keys:**
 
-| Key        | Description                                                                                                                                                                |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `{sha256}` | Lowercase hexadecimal SHA-256 of a WebP image that Neighborhood discovery re-encoded from a remote logo or banner. `GET /assets/neighborhood/{sha256}` serves it publicly. |
+| Key                           | Description                                                                                                                                                                |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `neighborhood_image.{sha256}` | Lowercase hexadecimal SHA-256 of a WebP image that Neighborhood discovery re-encoded from a remote logo or banner. `GET /assets/neighborhood/{sha256}` serves it publicly. |
 
 Notes: Backups skip this bucket. Discovery rewrites an image that the current directory still uses after three days, so only unused images reach the seven-day TTL. See [ADR-106](../adr/ADR-106-server-side-neighborhood-discovery.md).
 

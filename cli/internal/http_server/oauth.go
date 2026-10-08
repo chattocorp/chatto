@@ -450,13 +450,17 @@ type oauthTokenRequest struct {
 }
 
 func oauthBearerSessionResponse(credentials core.BearerSessionCredentials) gin.H {
-	return gin.H{
+	response := gin.H{
 		"access_token":             credentials.AccessToken,
 		"token_type":               "Bearer",
 		"expires_in":               bearerSessionLifetimeSeconds(credentials.AccessTokenExpiresAt),
 		"refresh_token":            credentials.RefreshToken,
 		"refresh_token_expires_in": bearerSessionLifetimeSeconds(credentials.SessionExpiresAt),
 	}
+	if len(credentials.Scopes) > 0 {
+		response["scope"] = strings.Join(credentials.Scopes, " ")
+	}
+	return response
 }
 
 func writeOAuthCodeExchangeError(c *gin.Context, err error, clientID string) {
@@ -736,7 +740,7 @@ func normalizeOAuthScopes(raw string) ([]string, error) {
 }
 
 func (s *HTTPServer) validOAuthGrant(resource string, scopes []string) bool {
-	return s.config.MCP.Enabled && slices.Contains(s.config.MCPResourceURLs(), resource) && slices.Equal(scopes, config.MCPOAuthScopes())
+	return s.config.MCP.Enabled && slices.Contains(s.config.MCPResourceURLs(), resource) && config.ValidMCPOAuthScopes(scopes)
 }
 
 // hasPendingOAuthAuthorize checks if the session has a pending OAuth authorize flow.

@@ -39,6 +39,8 @@
     "fullscreen_feed": "Feed im Vollbild",
     "fullscreen_call": "Anruf im Vollbild",
     "exit_fullscreen_call": "Anruf-Vollbild verlassen",
+    "pin_to_stage": "{name} auf der Bühne anheften",
+    "unpin_from_stage": "Von der Bühne lösen",
     "locally_mute_participant": "Lokal stummschalten",
     "locally_muted": "Lokal stummgeschaltet",
     "unknown_device": "Unbekanntes Gerät",

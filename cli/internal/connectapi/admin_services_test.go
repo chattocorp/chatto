@@ -875,6 +875,22 @@ func TestUserServiceGetUserReadsPublicUsers(t *testing.T) {
 	if roles := strings.Join(userRow.GetRoles(), ","); roles != "everyone,admin" {
 		t.Fatalf("GetUser roles = %q, want everyone,admin", roles)
 	}
+	// Batch reads use the presence watcher. The direct GetUser read above
+	// reads KV and does not guarantee that the batch snapshot has caught up.
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		statuses, err := env.core.GetUserPresences(env.ctx, []string{env.viewer.Id})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if statuses[env.viewer.Id] == core.PresenceStatusOnline {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("presence watcher did not catch up")
+		}
+		time.Sleep(time.Millisecond)
+	}
 	batchResp, err := env.users.BatchGetUsers(ctx, connect.NewRequest(&apiv1.BatchGetUsersRequest{
 		UserIds: []string{env.viewer.Id, "missing-user", env.viewer.Id},
 	}))

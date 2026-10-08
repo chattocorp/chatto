@@ -9,8 +9,6 @@ import (
 	"slices"
 	"sort"
 
-	"github.com/nats-io/nats.go/jetstream"
-
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
@@ -114,7 +112,7 @@ func (c *ChattoCore) FindDM(ctx context.Context, creatorID string, participantID
 		}
 		return room, true, nil
 	}
-	if !errors.Is(err, jetstream.ErrKeyNotFound) {
+	if !errors.Is(err, ErrNotFound) {
 		return nil, false, fmt.Errorf("failed to check existing DM: %w", err)
 	}
 	return nil, false, nil

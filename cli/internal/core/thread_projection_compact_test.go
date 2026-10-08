@@ -27,7 +27,7 @@ func TestThreadProjection_ParticipantPreviewKeepsFirstReplyOrder(t *testing.T) {
 	events = append(events, postedEvent(postedOpts{envelopeID: "REPLY-AGAIN", roomID: "R1", actorID: authors[0], inThread: "ROOT", at: 100}))
 	applyAll(t, p, events)
 
-	root, _ := p.eventIDs.lookup("ROOT")
+	root, _ := p.eventIDs.Lookup("ROOT")
 	if p.summaryByThread[root].participantIndex == nil {
 		t.Fatalf("summary with %d authors has no participant index", len(authors))
 	}

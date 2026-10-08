@@ -3,9 +3,12 @@ package core
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"image"
 	"image/png"
 	"io"
+	"slices"
 	"testing"
 	"time"
 
@@ -973,10 +976,6 @@ func setupTestCoreWithCache(t *testing.T) (*ChattoCore, *nats.Conn) {
 		SecretKey: "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
-			Cache: config.AssetsCacheConfig{
-				Enabled: true,
-				TTL:     config.Duration(7 * 24 * time.Hour),
-			},
 		},
 	}
 	core, err := NewChattoCore(ctx, nc, cfg)
@@ -994,11 +993,6 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 
 	core, _ := setupTestCoreWithCache(t)
 	ctx := testContext(t)
-
-	// Verify caching is enabled
-	if !core.ImageCacheEnabled() {
-		t.Fatal("Image cache should be enabled for this test")
-	}
 
 	// Setup: create space, room, and attachment
 
@@ -1246,20 +1240,63 @@ func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *
 	}
 }
 
-func TestChattoCore_DeleteCachedResizesForAttachment_NoCacheEnabled(t *testing.T) {
-	t.Parallel()
+// cacheCleanupStore records scans and deletions without background workers.
+type cacheCleanupStore struct {
+	jetstream.ObjectStore
+	objects []*jetstream.ObjectInfo
+	listed  int
+	deleted []string
+	failKey string
+	failure error
+}
 
-	// Use standard setup (no cache)
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
+func (s *cacheCleanupStore) List(context.Context, ...jetstream.ListObjectsOpt) ([]*jetstream.ObjectInfo, error) {
+	s.listed++
+	return s.objects, nil
+}
 
-	// Should not error when cache is disabled
-	deleted, err := core.mediaModel.DeleteCachedResizesForAttachment(ctx, "attachment")
-	if err != nil {
-		t.Errorf("Should not error when cache is disabled: %v", err)
+func (s *cacheCleanupStore) Delete(_ context.Context, name string) error {
+	s.deleted = append(s.deleted, name)
+	if name == s.failKey {
+		return s.failure
 	}
-	if deleted != 0 {
-		t.Errorf("Should return 0 deleted when cache is disabled, got %d", deleted)
+	return nil
+}
+
+func TestAttachmentCacheCleanupScansOnce(t *testing.T) {
+	t.Parallel()
+	for _, failDelete := range []bool{false, true} {
+		t.Run(fmt.Sprint(failDelete), func(t *testing.T) {
+			keys := []string{
+				ImageCacheKey(AttachmentDerivativeCacheResource, "asset", 64, 64, "cover"),
+				ImageCacheKey(AttachmentSignResource, "asset", 64, 64, "cover"),
+				ImageCacheKey(attachmentLegacyStableCacheResource, "asset", 64, 64, "cover"),
+			}
+			store := &cacheCleanupStore{}
+			for _, key := range append(slices.Clone(keys), neighborhoodImageKey("hash"), ImageCacheKey(AttachmentSignResource, "asset-other", 64, 64, "cover"), ImageCacheKey(ServerAssetSignResource, "asset", 64, 64, "cover")) {
+				store.objects = append(store.objects, &jetstream.ObjectInfo{ObjectMeta: jetstream.ObjectMeta{Name: key}})
+			}
+			wantCount := len(keys)
+			if failDelete {
+				store.failKey, store.failure = keys[0], errors.New("delete failed")
+				wantCount--
+			}
+			model := &MediaModel{ChattoCore: &ChattoCore{storage: &storage{imageCacheStore: store}}}
+			count, err := model.DeleteCachedResizesForAttachment(context.Background(), "asset")
+			if store.listed != 1 {
+				t.Errorf("cache scans = %d, want 1", store.listed)
+			}
+			if count != wantCount || !errors.Is(err, store.failure) {
+				t.Errorf("cleanup = %d, %v; want %d, %v", count, err, wantCount, store.failure)
+			}
+			if !slices.Equal(store.deleted, keys) {
+				t.Errorf("deleted keys = %v, want %v", store.deleted, keys)
+			}
+			store.listed = 0
+			if _, err := model.DeleteCachedResizesForAttachment(context.Background(), ""); err != nil || store.listed != 0 {
+				t.Fatalf("empty asset ID must not scan: scans=%d, err=%v", store.listed, err)
+			}
+		})
 	}
 }
 

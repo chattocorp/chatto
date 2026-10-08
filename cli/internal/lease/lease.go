@@ -168,7 +168,7 @@ func (l *Lease) TryAcquire(ctx context.Context) (bool, error) {
 
 	entry, err := l.kv.Get(ctx, l.key)
 	if err != nil {
-		if isMissingKey(err) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return false, nil
 		}
 		return false, fmt.Errorf("read lease %s: %w", l.name, err)
@@ -218,7 +218,7 @@ func (l *Lease) Release(ctx context.Context) error {
 		return err
 	}
 	if err := l.kv.Delete(ctx, l.key, jetstream.LastRevision(entry.Revision())); err != nil {
-		if isMissingKey(err) || jetstreamutil.IsSequenceConflict(err) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) || jetstreamutil.IsSequenceConflict(err) {
 			return nil
 		}
 		return fmt.Errorf("release lease %s: %w", l.name, err)
@@ -348,7 +348,7 @@ func (l *Lease) renewAtRevision(ctx context.Context, revision uint64, acquiredAt
 	// revision; lease safety depends on both. UpdateWithTTL does both.
 	_, err = l.kv.UpdateWithTTL(ctx, l.key, data, revision, l.ttl)
 	if err != nil {
-		if jetstreamutil.IsSequenceConflict(err) || isMissingKey(err) {
+		if jetstreamutil.IsSequenceConflict(err) || errors.Is(err, jetstream.ErrKeyNotFound) {
 			return ErrLost
 		}
 		return fmt.Errorf("renew lease %s: %w", l.name, err)
@@ -359,7 +359,7 @@ func (l *Lease) renewAtRevision(ctx context.Context, revision uint64, acquiredAt
 func (l *Lease) currentOwnedEntry(ctx context.Context) (jetstream.KeyValueEntry, Record, error) {
 	entry, err := l.kv.Get(ctx, l.key)
 	if err != nil {
-		if isMissingKey(err) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, Record{}, ErrLost
 		}
 		return nil, Record{}, fmt.Errorf("read lease %s: %w", l.name, err)
@@ -419,10 +419,6 @@ func (l *Lease) releaseBestEffort() {
 	if err := l.Release(ctx); err != nil {
 		l.logWarn("lease release failed", "error", err)
 	}
-}
-
-func isMissingKey(err error) bool {
-	return errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted)
 }
 
 func sleepContext(ctx context.Context, d time.Duration) error {

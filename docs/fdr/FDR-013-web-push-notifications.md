@@ -1,7 +1,7 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-10-07
+**Last reviewed:** 2026-10-08
 
 ## Overview
 
@@ -28,6 +28,10 @@ persistent notification system (see FDR-012).
 - An account can have up to 16 active subscriptions on each server. Every current subscription is attempted for pushes originating from that server. Once any endpoint accepts an occurrence, Chatto does not retry the complete device set only because another endpoint failed. This behavior prevents duplicate pushes on healthy devices.
 - Push payloads include a mutable declarative-compatible notification envelope with a title, a message preview truncated to at most 100 Unicode characters including its ellipsis and preferring a nearby word boundary, and a navigation URL. They do not include a numeric app badge. The legacy root fields remain present so older Chatto service workers can display the same notification during upgrades.
 - User-visible notification pushes request high-urgency delivery so mobile push services can wake sleeping devices promptly.
+- Android notifications use a separate monochrome Chatto cat-face icon in the
+  status bar. Its background and facial details are transparent, so the
+  system's mask preserves the shape. The larger notification icon keeps its
+  colours.
 - Notification pushes set the Web Push provider TTL to the remaining portion of the occurrence's immutable two-minute, source-time delivery window. The remaining TTL is calculated only after a bounded provider-request slot is acquired. Durable-consumer retry, backup restore, or local request contention cannot extend how long private content remains eligible at the provider.
 - Clicking a push notification navigates to the relevant room, thread, or DM.
 - If the subscription's client host matches one of the server's configured exact public origins, regular and test notifications use that origin's scheme and the local `/chat/-` route. This includes custom domains in `webserver.allowed_origins`. Other client hosts use the sending server's primary hostname in the route. Wildcard origins do not identify aliases. Subscriptions without a client host keep the primary URL fallback.

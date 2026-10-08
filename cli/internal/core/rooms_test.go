@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
@@ -47,6 +48,30 @@ func TestChattoCore_CreateRoom(t *testing.T) {
 
 	if retrievedRoom.Id != room.Id {
 		t.Errorf("Retrieved room ID = %s, want %s", retrievedRoom.Id, room.Id)
+	}
+}
+
+// TestChattoCore_GetRoomReportsMissesAsErrNotFound pins GetRoom's error
+// contract: a missing room and a room of another kind are core.ErrNotFound,
+// not a storage error.
+func TestChattoCore_GetRoomReportsMissesAsErrNotFound(t *testing.T) {
+	t.Parallel()
+
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+
+	for name, lookup := range map[string]func() error{
+		"missing room": func() error { _, err := core.GetRoom(ctx, KindChannel, "R-missing"); return err },
+		"other kind":   func() error { _, err := core.GetRoom(ctx, KindDM, room.Id); return err },
+	} {
+		err := lookup()
+		if !errors.Is(err, ErrNotFound) || errors.Is(err, jetstream.ErrKeyNotFound) {
+			t.Errorf("%s: GetRoom error = %v, want ErrNotFound and not jetstream.ErrKeyNotFound", name, err)
+		}
 	}
 }
 

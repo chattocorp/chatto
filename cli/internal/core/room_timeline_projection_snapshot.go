@@ -44,7 +44,7 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 	bodyIDs := make([]string, 0, len(p.bodyStates)+len(p.orphanBodyStates))
 	for _, entry := range p.entries {
 		if entry.bodyIndex != 0 && p.bodyStates[entry.bodyIndex-1].currentSequence != 0 {
-			bodyIDs = append(bodyIDs, p.eventIDs.id(entry.event))
+			bodyIDs = append(bodyIDs, p.eventIDs.Resolve(entry.event))
 		}
 	}
 	for id := range p.orphanBodyStates {
@@ -57,8 +57,8 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 			MessageEventId:      id,
 			BodyEventSequences:  appendBodySequences(nil, p.bodyHistoryLocked(id), state.currentSequence),
 			CurrentBodySequence: state.currentSequence,
-			CurrentBodyEventId:  p.bodyEventIDs.string(state.currentEventID),
-			AuthorId:            p.users.id(state.author),
+			CurrentBodyEventId:  p.bodyEventIDs.String(state.currentEventID),
+			AuthorId:            p.users.Resolve(state.author),
 			AttachmentCount:     state.attachmentCount(),
 			Active:              state.active(),
 		}
@@ -194,8 +194,8 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		}
 		restored.putBodyStateLocked(id, timelineBodyState{
 			currentSequence: row.GetCurrentBodySequence(),
-			currentEventID:  restored.bodyEventIDs.add(row.GetCurrentBodyEventId()),
-			author:          restored.users.intern(row.GetAuthorId()),
+			currentEventID:  restored.bodyEventIDs.Add(row.GetCurrentBodyEventId()),
+			author:          restored.users.Intern(row.GetAuthorId()),
 			flags:           flags,
 		})
 		restored.putBodyHistoryLocked(id, append([]uint64(nil), sequences[:len(sequences)-1]...))

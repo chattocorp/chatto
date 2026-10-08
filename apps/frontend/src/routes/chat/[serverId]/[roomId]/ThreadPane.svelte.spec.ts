@@ -103,7 +103,8 @@ vi.mock('$lib/hooks', () => ({
     void options.markAsRead(getTargetId(), undefined, new AbortController().signal);
     return {
       unreadMarkerEventId: mocks.unreadMarkerEventId,
-      markAsRead: options.markAsRead,
+      markAsRead: (targetId: string, upToEventId?: string) =>
+        options.markAsRead(targetId, upToEventId, new AbortController().signal),
       clearUnreadMarker: mocks.clearUnreadMarker,
       markArrivalWhileAway: mocks.markArrivalWhileAway
     };
@@ -245,6 +246,7 @@ describe('ThreadPane', () => {
     server = createTestServerScope({
       viewer: { id: 'test-user', login: 'testuser' },
       store: {
+        pendingHighlights: { has: () => false },
         realtimeSync: { isRecoveringSnapshot: false },
         readViews: { register: mocks.registerReadView },
         notifications: { markOccurrenceRead: mocks.markOccurrenceRead },
@@ -419,6 +421,63 @@ describe('ThreadPane', () => {
     }
   );
 
+  it.each(['user-1', 'test-user'])('marks a visible thread arrival by %s read', async (actorId) => {
+    render(ThreadPane, { props: threadProps });
+    await tick();
+    mocks.markThreadAsRead.mockClear();
+    mocks.projectionEventHandler?.(
+      new RealtimeProjectionUpdate({
+        event: new PublicRealtimeEvent({
+          id: 'visible-reply',
+          actorId,
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'room-1', threadRootEventId: 'thread-root' })
+          }
+        })
+      })
+    );
+    expect(mocks.markThreadAsRead).toHaveBeenCalledExactlyOnceWith(
+      { roomId: 'room-1', threadRootEventId: 'thread-root', upToEventId: 'visible-reply' },
+      { signal: expect.any(AbortSignal) }
+    );
+  });
+
+  it('does not mark a thread read merely because the send response arrived', async () => {
+    const { container } = render(ThreadPane, { props: threadProps });
+    await tick();
+    mocks.markThreadAsRead.mockClear();
+    (q(container, '[data-testid="thread-composer-send"]') as HTMLButtonElement).click();
+    await tick();
+    expect(mocks.ingestEvent).toHaveBeenCalledWith(expect.objectContaining({ id: 'sent-reply' }));
+    expect(mocks.markThreadAsRead).not.toHaveBeenCalled();
+  });
+
+  it.each(['user-1', 'test-user'])(
+    'leaves a thread arrival by %s unread in older history',
+    async (actorId) => {
+      const { container } = render(ThreadPane, { props: threadProps });
+      await tick();
+      (q(container, '[data-testid="report-history-position"]') as HTMLButtonElement).click();
+      await tick();
+      mocks.markThreadAsRead.mockClear();
+      mocks.projectionEventHandler?.(
+        new RealtimeProjectionUpdate({
+          event: new PublicRealtimeEvent({
+            id: 'newer-reply',
+            actorId,
+            event: {
+              case: 'messagePosted',
+              value: new MessagePostedEvent({ roomId: 'room-1', threadRootEventId: 'thread-root' })
+            }
+          })
+        })
+      );
+      expect(mocks.markThreadAsRead).not.toHaveBeenCalled();
+      expect(mocks.markArrivalWhileAway).not.toHaveBeenCalled();
+    }
+  );
+
   it('places the thread unread separator only for replies in this thread while away', async () => {
     mocks.appState.isPresent = false;
     render(ThreadPane, {
@@ -430,6 +489,7 @@ describe('ThreadPane', () => {
       }
     });
     await tick();
+    mocks.markThreadAsRead.mockClear();
 
     const post = (id: string, actorId: string, roomId: string, threadRootEventId: string) =>
       mocks.projectionEventHandler?.(
@@ -452,6 +512,7 @@ describe('ThreadPane', () => {
 
     post('reply-while-away', 'user-1', 'room-1', 'thread-root');
     expect(mocks.markArrivalWhileAway).toHaveBeenCalledExactlyOnceWith('reply-while-away');
+    expect(mocks.markThreadAsRead).not.toHaveBeenCalled();
   });
 
   it('resets jump state when the pane switches to another thread', async () => {
