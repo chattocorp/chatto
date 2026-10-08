@@ -40,38 +40,33 @@ message PermissionScope {
   string id = 2;
 }
 
-// Permission grants and denials at a single tier.
+// Explicit permission grants of a role at a single tier.
 message TierPermissions {
-  // Explicitly granted permissions.
+  reserved 2;
+  reserved "permission_denials";
+
+  // Explicitly granted permissions. Roles only grant, so a role has no
+  // explicit denies.
   repeated string permissions = 1;
-  // Explicitly denied permissions. Only the everyone role can deny, and only
-  // below the server tier; this is empty for other roles and at the server
-  // tier.
-  repeated string permission_denials = 2;
 }
 
 // One role's permission state at a single tier.
 message TierRole {
-  reserved 1 to 5;
-  reserved "role_name", "display_name", "description", "is_system", "position";
+  reserved 1 to 5, 8;
+  reserved "role_name", "display_name", "description", "is_system", "position", "inherited_denials";
 
   // Explicit state at this tier.
   TierPermissions override = 6;
   // Allows inherited from broader tiers.
   repeated string inherited_allows = 7;
-  // Denials inherited from broader tiers.
-  repeated string inherited_denials = 8;
   // Public role metadata.
   chatto.api.v1.Role role = 9;
   // Permissions that a member with only this role is allowed at this tier.
   // The server resolves them with the same rules as authorization: the
-  // everyone baseline, inclusion, and the scope rule. They do not include
-  // settings on single users, the owner override, or privileged mode.
+  // everyone baseline and inclusion. They do not include settings on single
+  // users, the owner override, or privileged mode. Other applicable
+  // permissions have no allow, which means no access.
   repeated string effective_allows = 10;
-  // Permissions that a member with only this role is denied at this tier,
-  // for example because everyone is denied at a more specific scope.
-  // Permissions in neither list have no setting, which also means no access.
-  repeated string effective_denials = 11;
 }
 
 // Role permission matrix for one tier.
@@ -343,7 +338,8 @@ message SetRolePermissionRequest {
   string role_name = 1 [(buf.validate.field).string.min_len = 1];
   // Permission identifier.
   string permission = 2 [(buf.validate.field).string.min_len = 1];
-  // New decision. NONE clears the explicit state.
+  // New decision. NONE clears the explicit state. Roles only
+  // grant, so DENY returns INVALID_ARGUMENT.
   PermissionDecision decision = 3 [(buf.validate.field).enum = {
     defined_only: true
     not_in: [0]
@@ -413,8 +409,8 @@ service AdminPermissionService {
   // callers who are not owners can change only roles below their own highest
   // role. Every caller who is not an owner must have the permission at the
   // target scope; otherwise the call returns PERMISSION_DENIED. Everyone ranks
-  // below every account. Roles only grant: a deny for any role except
-  // everyone, or for everyone at server scope, returns INVALID_ARGUMENT.
+  // below every account. Roles, everyone included, only grant: a deny for any
+  // role returns INVALID_ARGUMENT. Set a deny on a single user instead.
   rpc SetRolePermission(SetRolePermissionRequest) returns (SetRolePermissionResponse);
   // Sets one user permission decision. Human targets require
   // user.manage-permissions. A caller who is not an owner must also have the

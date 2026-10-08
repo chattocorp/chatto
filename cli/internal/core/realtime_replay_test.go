@@ -784,11 +784,11 @@ func TestPlanRealtimeReplayOmitsMessagesWithoutAReadMode(t *testing.T) {
 	ctx := testContext(t)
 	viewer, room, _ := setupReactionTest(t, chatto, ctx)
 
-	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
-		t.Fatalf("DenyRoomPermission message.read: %v", err)
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.Id, viewer.Id, PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
 	}
-	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReadInteractions); err != nil {
-		t.Fatalf("DenyRoomPermission message.read-interactions: %v", err)
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.Id, viewer.Id, PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read-interactions: %v", err)
 	}
 	boundary, err := chatto.PlanRealtimeReplay(ctx, viewer.Id, "")
 	if err != nil {

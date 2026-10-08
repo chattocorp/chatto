@@ -1404,6 +1404,7 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
 	}
 	roomManagerCtx := withCaller(env.ctx, roomManager)
+	// Roles only grant, also at room scope and also for everyone.
 	if _, err := env.permissions.SetRolePermission(roomManagerCtx, connect.NewRequest(&adminv1.SetRolePermissionRequest{
 		RoleName:   core.RoleEveryone,
 		Permission: string(core.PermMessageReact),
@@ -1412,8 +1413,19 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 			Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_ROOM,
 			Id:   room.Id,
 		},
+	})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("SetRolePermission room manager everyone deny code = %v, want invalid argument (err=%v)", errorCode(err), err)
+	}
+	if _, err := env.permissions.SetRolePermission(roomManagerCtx, connect.NewRequest(&adminv1.SetRolePermissionRequest{
+		RoleName:   core.RoleEveryone,
+		Permission: string(core.PermMessageReact),
+		Decision:   adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW,
+		Scope: &adminv1.PermissionScope{
+			Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_ROOM,
+			Id:   room.Id,
+		},
 	})); err != nil {
-		t.Fatalf("SetRolePermission room manager deny: %v", err)
+		t.Fatalf("SetRolePermission room manager allow: %v", err)
 	}
 	roomTierResp, err := env.permissions.GetRolePermissionTierMatrix(roomManagerCtx, connect.NewRequest(&adminv1.GetRolePermissionTierMatrixRequest{
 		Scope: &adminv1.PermissionScope{
@@ -1425,8 +1437,8 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 		t.Fatalf("GetRolePermissionTierMatrix room manager: %v", err)
 	}
 	everyone := findAPITierRole(roomTierResp.Msg.GetMatrix().GetRoles(), core.RoleEveryone)
-	if everyone == nil || !slices.Contains(everyone.GetOverride().GetPermissionDenials(), string(core.PermMessageReact)) {
-		t.Fatalf("everyone room override = %+v, want message.react denial", everyone)
+	if everyone == nil || !slices.Contains(everyone.GetOverride().GetPermissions(), string(core.PermMessageReact)) {
+		t.Fatalf("everyone room override = %+v, want message.react allow and no denial", everyone)
 	}
 	groupManager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "permission-group-manager", "Permission Group Manager", "password")
 	if err != nil {
@@ -1444,8 +1456,19 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 			Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_GROUP,
 			Id:   room.GetGroupId(),
 		},
+	})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("SetRolePermission group manager everyone deny code = %v, want invalid argument (err=%v)", errorCode(err), err)
+	}
+	if _, err := env.permissions.SetRolePermission(groupManagerCtx, connect.NewRequest(&adminv1.SetRolePermissionRequest{
+		RoleName:   core.RoleEveryone,
+		Permission: string(core.PermMessageReact),
+		Decision:   adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW,
+		Scope: &adminv1.PermissionScope{
+			Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_GROUP,
+			Id:   room.GetGroupId(),
+		},
 	})); err != nil {
-		t.Fatalf("SetRolePermission group manager deny: %v", err)
+		t.Fatalf("SetRolePermission group manager allow: %v", err)
 	}
 	if _, err := env.permissions.GetRolePermissionTierMatrix(groupManagerCtx, connect.NewRequest(&adminv1.GetRolePermissionTierMatrixRequest{
 		Scope: &adminv1.PermissionScope{
@@ -1819,12 +1842,12 @@ func TestAdminRoomLayoutServiceManagementReadsDoNotRequireDirectoryVisibility(t 
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomList); err != nil {
-		t.Fatalf("DenyRoomPermission room.list: %v", err)
-	}
 	roleManager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "private-role-manager", "Private Role Manager", "password")
 	if err != nil {
 		t.Fatalf("CreateUser role manager: %v", err)
+	}
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, roleManager.Id, core.PermRoomList); err != nil {
+		t.Fatalf("DenyUserRoomPermission room.list: %v", err)
 	}
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleManager.Id, core.PermRoleManage); err != nil {
 		t.Fatalf("GrantUserPermission role.manage: %v", err)

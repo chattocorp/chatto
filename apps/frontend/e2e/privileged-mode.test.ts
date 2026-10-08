@@ -1,6 +1,10 @@
 import { expect } from '@playwright/test';
 import { test } from './setup';
-import { loginAsAdminAndUsePrimaryServer } from './fixtures/testUser';
+import {
+  denyUserPermission,
+  getViewerUserId,
+  loginAsAdminAndUsePrimaryServer
+} from './fixtures/testUser';
 import {
   connectPost,
   createRoomViaConnect,
@@ -116,12 +120,13 @@ test('owner sees restricted rooms only while privileged mode is active', async (
     await getDefaultRoomGroupIdViaConnect(page)
   );
   await connectPost(page, 'chatto.api.v1.RoomService/LeaveRoom', { roomId });
+  // Roles only grant (ADR-116), so the owner denies these to themselves.
+  // Privileged mode overrides the deny.
+  const ownerId = await getViewerUserId(page);
   for (const permission of ['room.list', 'room.join', 'message.read']) {
-    await connectPost(page, 'chatto.admin.v1.AdminPermissionService/SetRolePermission', {
-      roleName: 'everyone',
-      permission,
-      decision: 'PERMISSION_DECISION_DENY',
-      scope: { kind: 'PERMISSION_SCOPE_KIND_ROOM', id: roomId }
+    await denyUserPermission(page, ownerId, permission, {
+      kind: 'PERMISSION_SCOPE_KIND_ROOM',
+      id: roomId
     });
   }
 

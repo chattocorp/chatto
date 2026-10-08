@@ -433,8 +433,8 @@ func TestPermissionResolver_PrivilegedModeGatesOwnerOverride(t *testing.T) {
 		t.Fatalf("CreateRoom restricted: %v", err)
 	}
 	for _, perm := range []Permission{PermRoomList, PermRoomJoin, PermMessageRead} {
-		if err := c.DenyRoomPermission(ctx, SystemActorID, restricted.Id, RoleEveryone, perm); err != nil {
-			t.Fatalf("DenyRoomPermission %s: %v", perm, err)
+		if err := c.DenyUserRoomPermission(ctx, SystemActorID, restricted.Id, owner.Id, perm); err != nil {
+			t.Fatalf("DenyUserRoomPermission %s: %v", perm, err)
 		}
 	}
 	dm, _, err := c.FindOrCreateDM(ctx, owner.Id, []string{other.Id})
@@ -516,8 +516,8 @@ func TestPermissionResolver_PrivilegedModeGatesOwnerOverride(t *testing.T) {
 				if explanation.State != DecisionAllow || explanation.DecidedByRole != RoleOwner {
 					t.Errorf("explanation = %s by %q; want allow by owner", explanation.State, explanation.DecidedByRole)
 				}
-			} else if explanation.State != DecisionDeny || explanation.DecidedByRole != RoleEveryone {
-				t.Errorf("explanation = %s by %q; want deny by everyone", explanation.State, explanation.DecidedByRole)
+			} else if explanation.State != DecisionDeny || explanation.DecidedByRole != owner.Id {
+				t.Errorf("explanation = %s by %q; want deny by the owner's own setting", explanation.State, explanation.DecidedByRole)
 			}
 
 			// Entitlement keeps the owner override for discovery and ceilings.

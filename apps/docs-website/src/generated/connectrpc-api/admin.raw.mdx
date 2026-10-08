@@ -1183,8 +1183,8 @@ A caller with role.manage can change every role except owner. Other
 callers who are not owners can change only roles below their own highest
 role. Every caller who is not an owner must have the permission at the
 target scope; otherwise the call returns PERMISSION_DENIED. Everyone ranks
-below every account. Roles only grant: a deny for any role except
-everyone, or for everyone at server scope, returns INVALID_ARGUMENT.
+below every account. Roles, everyone included, only grant: a deny for any
+role returns INVALID_ARGUMENT. Set a deny on a single user instead.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/SetRolePermission
@@ -1200,7 +1200,7 @@ Request to set one role permission state.
 | --- | --- | --- |
 | `role_name` | `string` | Role name. |
 | `permission` | `string` | Permission identifier. |
-| `decision` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | New decision. NONE clears the explicit state. |
+| `decision` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | New decision. NONE clears the explicit state. Roles only grant, so DENY returns INVALID_ARGUMENT. |
 | `scope` | [`PermissionScope`](#chatto-admin-v1-PermissionScope) | Target scope. Omit or use SERVER for server scope. |
 
 
@@ -2457,7 +2457,7 @@ Role metadata plus administrative permission state.
 | Field | Type | Description |
 | --- | --- | --- |
 | `role` | `chatto.api.v1.Role` | Public role metadata shared with ordinary role catalog reads. |
-| `permissions` | `repeated string` | Permissions granted by this role at server scope. A role cannot deny at server scope. |
+| `permissions` | `repeated string` | Permissions granted by this role at server scope. Roles only grant permissions. |
 
 
 
@@ -2632,12 +2632,11 @@ shape when building integrations that do not need matrix column joins.
 
 ### TierPermissions
 
-Permission grants and denials at a single tier.
+Explicit permission grants of a role at a single tier.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `permissions` | `repeated string` | Explicitly granted permissions. |
-| `permission_denials` | `repeated string` | Explicitly denied permissions. Only the everyone role can deny, and only below the server tier; this is empty for other roles and at the server tier. |
+| `permissions` | `repeated string` | Explicitly granted permissions. Roles only grant, so a role has no explicit denies. |
 
 
 
@@ -2651,10 +2650,8 @@ One role's permission state at a single tier.
 | --- | --- | --- |
 | `override` | [`TierPermissions`](#chatto-admin-v1-TierPermissions) | Explicit state at this tier. |
 | `inherited_allows` | `repeated string` | Allows inherited from broader tiers. |
-| `inherited_denials` | `repeated string` | Denials inherited from broader tiers. |
 | `role` | `chatto.api.v1.Role` | Public role metadata. |
-| `effective_allows` | `repeated string` | Permissions that a member with only this role is allowed at this tier. The server resolves them with the same rules as authorization: the everyone baseline, inclusion, and the scope rule. They do not include settings on single users, the owner override, or privileged mode. |
-| `effective_denials` | `repeated string` | Permissions that a member with only this role is denied at this tier, for example because everyone is denied at a more specific scope. Permissions in neither list have no setting, which also means no access. |
+| `effective_allows` | `repeated string` | Permissions that a member with only this role is allowed at this tier. The server resolves them with the same rules as authorization: the everyone baseline and inclusion. They do not include settings on single users, the owner override, or privileged mode. Other applicable permissions have no allow, which means no access. |
 
 
 

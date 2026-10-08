@@ -229,8 +229,8 @@ func TestRoomCommandModelManageRoomMembers(t *testing.T) {
 	if err := core.GrantUserRoomPermission(ctx, SystemActorID, room.Id, manager.Id, PermRoomManage); err != nil {
 		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
 	}
-	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin); err != nil {
-		t.Fatalf("DenyRoomPermission room.join: %v", err)
+	if err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, target.Id, PermRoomJoin); err != nil {
+		t.Fatalf("DenyUserRoomPermission room.join: %v", err)
 	}
 
 	if _, err := commands.AddMember(ctx, RoomUserInput{
@@ -491,7 +491,7 @@ func TestBotOwnerRoomMembership(t *testing.T) {
 	// permission is revoked; matrix directory visibility remains unchanged.
 	_, err = c.JoinRoom(ctx, owner.Id, KindChannel, owner.Id, room.Id)
 	require.NoError(t, err)
-	require.NoError(t, c.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin))
+	require.NoError(t, c.DenyUserRoomPermission(ctx, SystemActorID, room.Id, owner.Id, PermRoomJoin))
 	_, err = commands.AddMember(ctx, input)
 	require.ErrorIs(t, err, ErrPermissionDenied, "owner ceiling applies even to an existing member")
 	require.True(t, joined())
@@ -506,7 +506,7 @@ func TestBotOwnerRoomMembership(t *testing.T) {
 	}
 	_, err = commands.AddMember(ctx, input)
 	require.ErrorIs(t, err, ErrPermissionDenied)
-	require.NoError(t, c.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin))
+	require.NoError(t, c.ClearUserRoomPermissionState(ctx, SystemActorID, room.Id, owner.Id, PermRoomJoin))
 	_, err = commands.AddMember(ctx, input)
 	require.NoError(t, err)
 	_, err = c.ArchiveRoom(ctx, SystemActorID, KindChannel, room.Id)
@@ -657,7 +657,7 @@ func TestAccountMembershipManagerOverridesJoinPermission(t *testing.T) {
 				}
 				room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "managed-membership", "")
 				require.NoError(t, err)
-				require.NoError(t, c.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin))
+				require.NoError(t, c.DenyUserRoomPermission(ctx, SystemActorID, room.Id, target.Id, PermRoomJoin))
 				input := RoomUserInput{ActorID: manager.Id, RoomID: room.Id, UserID: target.Id}
 				_, err = c.RoomCommands().AddMember(ctx, input)
 				require.ErrorIs(t, err, ErrPermissionDenied)

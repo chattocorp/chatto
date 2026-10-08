@@ -307,8 +307,8 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermRoomManage); err != nil {
 		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
 	}
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomJoin); err != nil {
-		t.Fatalf("DenyRoomPermission room.join: %v", err)
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, addTarget.Id, core.PermRoomJoin); err != nil {
+		t.Fatalf("DenyUserRoomPermission target room.join: %v", err)
 	}
 	addResp, err := env.rooms.AddMember(ctx, connect.NewRequest(&apiv1.AddMemberRequest{
 		RoomId: room.Id,
@@ -946,8 +946,8 @@ func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom hidden: %v", err)
 	}
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, hidden.Id, core.RoleEveryone, core.PermRoomList); err != nil {
-		t.Fatalf("DenyRoomPermission hidden list: %v", err)
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, hidden.Id, caller.Id, core.PermRoomList); err != nil {
+		t.Fatalf("DenyUserRoomPermission hidden list: %v", err)
 	}
 
 	dm, _, err := env.core.FindOrCreateDM(env.ctx, caller.Id, []string{participant.Id})
@@ -1167,8 +1167,8 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 	if err != nil {
 		t.Fatalf("CreateRoom archived: %v", err)
 	}
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, hidden.Id, core.RoleEveryone, core.PermRoomList); err != nil {
-		t.Fatalf("DenyRoomPermission hidden list: %v", err)
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, hidden.Id, caller.Id, core.PermRoomList); err != nil {
+		t.Fatalf("DenyUserRoomPermission hidden list: %v", err)
 	}
 	if _, err := env.core.ArchiveRoom(env.ctx, env.viewer.Id, core.KindChannel, archived.Id); err != nil {
 		t.Fatalf("ArchiveRoom: %v", err)
@@ -1282,8 +1282,8 @@ func TestRoomServiceJoinRoomGroup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom restricted: %v", err)
 	}
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, restricted.Id, core.RoleEveryone, core.PermRoomJoin); err != nil {
-		t.Fatalf("DenyRoomPermission restricted join: %v", err)
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, restricted.Id, caller.Id, core.PermRoomJoin); err != nil {
+		t.Fatalf("DenyUserRoomPermission restricted join: %v", err)
 	}
 	archived, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, group.Id, "directory-join-archived", "")
 	if err != nil {
@@ -1555,17 +1555,17 @@ func TestRoomServiceMemberReadAuthorization(t *testing.T) {
 	if _, err := env.rooms.BatchGetMembers(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.BatchGetMembersRequest{RoomId: room.Id, UserIds: []string{member.Id}})); errorCode(err) != connect.CodePermissionDenied {
 		t.Fatalf("outsider BatchGetMembers code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomJoin); err != nil {
-		t.Fatalf("DenyRoomPermission room.join: %v", err)
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, outsider.Id, core.PermRoomJoin); err != nil {
+		t.Fatalf("DenyUserRoomPermission outsider room.join: %v", err)
 	}
 	if _, err := env.rooms.ListMembers(withCaller(env.ctx, outsider), req); errorCode(err) != connect.CodePermissionDenied {
 		t.Fatalf("join-denied outsider ListMembers code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
-	if err := env.core.ClearRoomPermissionState(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomJoin); err != nil {
-		t.Fatalf("ClearRoomPermissionState room.join: %v", err)
+	if err := env.core.ClearUserRoomPermissionState(env.ctx, core.SystemActorID, room.Id, outsider.Id, core.PermRoomJoin); err != nil {
+		t.Fatalf("ClearUserRoomPermissionState outsider room.join: %v", err)
 	}
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomList); err != nil {
-		t.Fatalf("DenyRoomPermission room.list: %v", err)
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, outsider.Id, core.PermRoomList); err != nil {
+		t.Fatalf("DenyUserRoomPermission outsider room.list: %v", err)
 	}
 	if _, err := env.rooms.ListMembers(withCaller(env.ctx, outsider), req); errorCode(err) != connect.CodePermissionDenied {
 		t.Fatalf("list-denied outsider ListMembers code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
@@ -2973,8 +2973,8 @@ func TestRoomDirectoryServiceArchiveFilters(t *testing.T) {
 		t.Fatalf("JoinRoom: %v", err)
 	}
 	for _, room := range []*evtv1.Room{memberOnly, hidden} {
-		if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomList); err != nil {
-			t.Fatalf("DenyRoomPermission: %v", err)
+		if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, caller.Id, core.PermRoomList); err != nil {
+			t.Fatalf("DenyUserRoomPermission: %v", err)
 		}
 	}
 	for _, room := range []*evtv1.Room{archived, memberOnly, hidden} {

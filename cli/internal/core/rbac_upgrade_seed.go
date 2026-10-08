@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/evtstream"
@@ -177,28 +179,69 @@ func rbacUpgradeDecision(event *evtv1.Event) (string, rbacDecisionKey, bool) {
 	return permission, key, ok
 }
 
-// warnIgnoredRoleDenies logs how many stored role denies have no effect.
-// Roles only grant permissions since 0.5 (ADR-116), so a deny on a named role,
-// for example from an earlier suspension recipe, is ignored. Call it after the
-// projections are current. The log names only a count.
+// ignoredRoleDenyLogLimit caps the room and room-group IDs that the startup
+// warning lists.
+const ignoredRoleDenyLogLimit = 50
+
+// warnIgnoredRoleDenies logs the stored role denies that have no effect.
+// Roles, everyone included, only grant permissions since 0.5 (ADR-116), so a
+// stored role deny, for example from an earlier suspension recipe or a
+// restricted room, is ignored. Call it after the projections are current. The
+// log names only a count and opaque room and room-group IDs.
 func (c *ChattoCore) warnIgnoredRoleDenies() {
-	if count := c.ignoredRoleDenyCount(); count > 0 && c.logger != nil {
-		c.logger.Warn("Role denies have no effect: roles only grant permissions. Set denies for everyone or for single users instead.", "ignored_role_denies", count)
+	denies := c.ignoredRoleDenies()
+	if denies.count == 0 || c.logger == nil {
+		return
 	}
+	roomIDs, moreRooms := capIDs(denies.roomIDs, ignoredRoleDenyLogLimit)
+	groupIDs, moreGroups := capIDs(denies.groupIDs, ignoredRoleDenyLogLimit)
+	c.logger.Warn("Role denies have no effect: roles only grant permissions. Review the affected rooms and room groups, and set denies on single users instead.",
+		"ignored_role_denies", denies.count,
+		"affected_room_ids", roomIDs,
+		"more_affected_rooms", moreRooms,
+		"affected_group_ids", groupIDs,
+		"more_affected_groups", moreGroups,
+	)
 }
 
-// ignoredRoleDenyCount counts the stored denies of named roles.
-func (c *ChattoCore) ignoredRoleDenyCount() int {
-	count := 0
+// ignoredRoleDenySummary describes the stored role denies.
+type ignoredRoleDenySummary struct {
+	// count is the number of stored role denies at all scopes.
+	count int
+	// roomIDs and groupIDs list, sorted and without duplicates, the rooms and
+	// room groups that have a stored role deny.
+	roomIDs, groupIDs []string
+}
+
+// ignoredRoleDenies summarizes the stored denies of all roles, everyone
+// included.
+func (c *ChattoCore) ignoredRoleDenies() ignoredRoleDenySummary {
+	var out ignoredRoleDenySummary
+	rooms := make(map[string]struct{})
+	groups := make(map[string]struct{})
 	for _, role := range c.rbacModel.roles() {
-		if role.GetName() == RoleEveryone {
-			continue
-		}
 		for _, decision := range c.rbacModel.rolePermissionDecisions(role.GetName()) {
-			if decision.Decision == DecisionDeny {
-				count++
+			if decision.Decision != DecisionDeny {
+				continue
+			}
+			out.count++
+			switch decision.Scope {
+			case ScopeRoom:
+				rooms[decision.ScopeID] = struct{}{}
+			case ScopeGroup:
+				groups[decision.ScopeID] = struct{}{}
 			}
 		}
 	}
-	return count
+	out.roomIDs = slices.Sorted(maps.Keys(rooms))
+	out.groupIDs = slices.Sorted(maps.Keys(groups))
+	return out
+}
+
+// capIDs returns at most limit IDs and the number of IDs left out.
+func capIDs(ids []string, limit int) ([]string, int) {
+	if len(ids) <= limit {
+		return ids, 0
+	}
+	return ids[:limit], len(ids) - limit
 }

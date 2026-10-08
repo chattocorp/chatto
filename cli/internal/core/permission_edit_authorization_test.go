@@ -171,7 +171,7 @@ func TestDelegatedRolePermissionEditsStayWithinAuthority(t *testing.T) {
 		{"role manager grants own management authority", roleManager, "edited", server, PermRoleManage, PermissionStateAllow, true},
 		{"room manager grants beyond authority", roomManager, "edited", room, PermMessageManage, PermissionStateAllow, false},
 		{"room manager grants held room authority", roomManager, "edited", room, PermRoomManage, PermissionStateAllow, true},
-		{"room manager denies a held permission for everyone", roomManager, RoleEveryone, room, PermMessagePost, PermissionStateDeny, true},
+		{"room manager grants a held permission to everyone", roomManager, RoleEveryone, room, PermMessagePost, PermissionStateAllow, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

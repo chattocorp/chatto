@@ -23,8 +23,8 @@ export class AdminRole extends Message<AdminRole> {
   role?: Role;
 
   /**
-   * Permissions granted by this role at server scope. A role cannot deny at
-   * server scope.
+   * Permissions granted by this role at server scope. Roles only grant
+   * permissions.
    *
    * @generated from field: repeated string permissions = 2;
    */

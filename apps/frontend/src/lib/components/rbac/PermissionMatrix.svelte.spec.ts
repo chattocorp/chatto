@@ -16,11 +16,9 @@ type TierRoles = {
     displayName: string;
     description: string;
     isSystem: boolean;
-    override: { permissions: string[]; permissionDenials: string[] };
+    override: { permissions: string[] };
     inheritedAllows: string[];
-    inheritedDenials: string[];
     effectiveAllows: string[];
-    effectiveDenials: string[];
   }>;
 };
 
@@ -33,33 +31,27 @@ const HAPPY_TIER_ROLES: TierRoles = {
       displayName: 'Owner',
       description: '',
       isSystem: true,
-      override: { permissions: [], permissionDenials: [] },
+      override: { permissions: [] },
       inheritedAllows: [],
-      inheritedDenials: [],
-      effectiveAllows: [],
-      effectiveDenials: []
+      effectiveAllows: []
     },
     {
       roleName: 'admin',
       displayName: 'Admin',
       description: '',
       isSystem: true,
-      override: { permissions: ['message.post'], permissionDenials: [] },
+      override: { permissions: ['message.post'] },
       inheritedAllows: [],
-      inheritedDenials: [],
-      effectiveAllows: ['message.post'],
-      effectiveDenials: []
+      effectiveAllows: ['message.post']
     },
     {
       roleName: 'moderator',
       displayName: 'Moderator',
       description: '',
       isSystem: true,
-      override: { permissions: [], permissionDenials: [] },
+      override: { permissions: [] },
       inheritedAllows: ['message.post'],
-      inheritedDenials: [],
-      effectiveAllows: ['message.post'],
-      effectiveDenials: []
+      effectiveAllows: ['message.post']
     }
   ]
 };
@@ -218,14 +210,9 @@ describe('PermissionMatrix', () => {
           displayName: 'Reader',
           description: '',
           isSystem: false,
-          override: {
-            permissions: ['message.read'],
-            permissionDenials: ['message.read-interactions']
-          },
+          override: { permissions: ['message.read'] },
           inheritedAllows: [],
-          inheritedDenials: [],
-          effectiveAllows: [],
-          effectiveDenials: []
+          effectiveAllows: ['message.read', 'message.read-interactions']
         }
       ]
     };
@@ -256,14 +243,9 @@ describe('PermissionMatrix', () => {
           displayName: 'Publisher',
           description: '',
           isSystem: false,
-          override: {
-            permissions: ['server.manage'],
-            permissionDenials: ['server.manage.neighbors', 'server.manage.neighbors.publish']
-          },
+          override: { permissions: ['server.manage'] },
           inheritedAllows: [],
-          inheritedDenials: [],
-          effectiveAllows: [],
-          effectiveDenials: []
+          effectiveAllows: ['server.manage']
         }
       ]
     };
@@ -274,7 +256,7 @@ describe('PermissionMatrix', () => {
       'td[data-role="publisher"][data-permission="server.manage.neighbors.publish"] button'
     );
     expect(cell?.title).not.toContain('Effective Allow');
-    expect(cell?.title).toContain('Deny');
+    expect(cell?.title).toContain('No decision');
   });
 
   it('filters permission names as the query changes', async () => {
@@ -525,9 +507,7 @@ describe('PermissionMatrix', () => {
     nextTierRoles = {
       ...HAPPY_TIER_ROLES,
       roles: HAPPY_TIER_ROLES.roles.map((role) =>
-        role.roleName === 'moderator'
-          ? { ...role, override: { permissions: [], permissionDenials: [] } }
-          : role
+        role.roleName === 'moderator' ? { ...role, override: { permissions: [] } } : role
       )
     };
     resolveUpdate?.();
@@ -644,24 +624,66 @@ describe('PermissionMatrix', () => {
     expect(ownerMessagePost?.querySelector('[class~="icon-[uil--check]"]')).not.toBeNull();
   });
 
-  it('shows the effective result when everyone is denied at a nearer scope', async () => {
+  it('shows the effective result when everyone grants what the role does not', async () => {
     nextTierRoles = {
       ...HAPPY_TIER_ROLES,
       roles: HAPPY_TIER_ROLES.roles.map((role) =>
-        role.roleName === 'moderator'
-          ? { ...role, effectiveAllows: [], effectiveDenials: ['message.post'] }
-          : role
+        role.roleName === 'moderator' ? { ...role, effectiveAllows: ['room.create'] } : role
       )
     };
     const { container } = render(PermissionMatrix, { props: {} });
     await settle();
 
     const cell = container.querySelector<HTMLButtonElement>(
-      'td[data-role="moderator"][data-permission="message.post"] button'
+      'td[data-role="moderator"][data-permission="room.create"] button'
     )!;
-    expect(cell.querySelector('span.iconify')?.className).toContain('icon-[uil--times]');
-    expect(cell.title).toContain('Effective Deny');
+    expect(cell.querySelector('span.iconify')?.className).toContain('icon-[uil--check]');
+    expect(cell.title).toContain('Effective Allow');
   });
+
+  it.each([{ roomId: 'room-1' }, { groupId: 'group-1' }, {}])(
+    'never offers deny to a role, everyone included (%o)',
+    async (scope) => {
+      nextTierRoles = {
+        applicablePermissions: ['message.post', 'room.create'],
+        viewerChangeablePermissions: ['message.post', 'room.create'],
+        roles: ['moderator', 'everyone'].map((roleName) => ({
+          roleName,
+          displayName: roleName,
+          description: '',
+          isSystem: true,
+          override: { permissions: ['message.post'] },
+          inheritedAllows: [],
+          effectiveAllows: ['message.post']
+        }))
+      };
+      const { container } = render(PermissionMatrix, { props: scope });
+      await settle();
+
+      for (const roleName of ['moderator', 'everyone']) {
+        const cell = (permission: string) =>
+          container.querySelector<HTMLButtonElement>(
+            `td[data-role="${roleName}"][data-permission="${permission}"] button`
+          )!;
+        // An allow cycles back to no decision, never on to deny.
+        cell('message.post').click();
+        await vi.waitFor(() =>
+          expect(permissionMocks.setRolePermission).toHaveBeenLastCalledWith(
+            expect.objectContaining({ roleName, permission: 'message.post', state: 'neutral' })
+          )
+        );
+        cell('room.create').click();
+        await vi.waitFor(() =>
+          expect(permissionMocks.setRolePermission).toHaveBeenLastCalledWith(
+            expect.objectContaining({ roleName, permission: 'room.create', state: 'allow' })
+          )
+        );
+      }
+      expect(permissionMocks.setRolePermission).not.toHaveBeenCalledWith(
+        expect.objectContaining({ state: 'deny' })
+      );
+    }
+  );
 
   it('keeps cells read-only for permissions that the viewer does not hold', async () => {
     nextTierRoles = { ...HAPPY_TIER_ROLES, viewerChangeablePermissions: ['message.post'] };

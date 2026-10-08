@@ -1,12 +1,14 @@
 package core
 
-import "testing"
+import (
+	"testing"
+)
 
 // TestCanCreateRoom_GroupTier covers the post-#330 group-tier `room.create`
 // behavior. Operators can grant room.create at server scope (acts as a global
 // "this role can create rooms anywhere") or at a specific group's scope (only
-// in that group). A group-scope deny on a role overrides a server-scope allow
-// on the same role.
+// in that group). Roles only grant (ADR-116): a group-scope deny of the user
+// overrides a server-scope allow of a role.
 func TestCanCreateRoom_GroupTier(t *testing.T) {
 	t.Parallel()
 
@@ -99,18 +101,16 @@ func TestCanCreateRoom_GroupTier(t *testing.T) {
 		}
 	})
 
-	t.Run("group-scope deny overrides server-scope allow", func(t *testing.T) {
+	t.Run("group-scope user deny overrides server-scope allow", func(t *testing.T) {
 		if err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomCreate); err != nil {
 			t.Fatalf("GrantServerPermission: %v", err)
 		}
 		t.Cleanup(func() {
 			_ = core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermRoomCreate)
 		})
-		if err := core.DenyGroupPermission(ctx, SystemActorID, primaryGroupID, RoleEveryone, PermRoomCreate); err != nil {
-			t.Fatalf("DenyGroupPermission: %v", err)
-		}
+		setStoredUserDeny(t, core, ctx, ScopeGroup, primaryGroupID, member.Id, PermRoomCreate, true)
 		t.Cleanup(func() {
-			_ = core.ClearGroupPermissionState(ctx, SystemActorID, primaryGroupID, RoleEveryone, PermRoomCreate)
+			setStoredUserDeny(t, core, ctx, ScopeGroup, primaryGroupID, member.Id, PermRoomCreate, false)
 		})
 
 		can, err := core.CanCreateRoom(ctx, member.Id, KindChannel, primaryGroupID)
@@ -118,11 +118,11 @@ func TestCanCreateRoom_GroupTier(t *testing.T) {
 			t.Fatalf("CanCreateRoom(primary group): %v", err)
 		}
 		if can {
-			t.Error("group-scope deny should override server-scope allow in that group")
+			t.Error("group-scope user deny should override server-scope allow in that group")
 		}
 
-		// Other group has no group-scope entry; server-scope allow still
-		// cascades through.
+		// Other group has no user deny; server-scope allow still cascades
+		// through.
 		can, err = core.CanCreateRoom(ctx, member.Id, KindChannel, otherGroup.Id)
 		if err != nil {
 			t.Fatalf("CanCreateRoom(other group): %v", err)
@@ -153,8 +153,8 @@ func TestCanCreateRoom_GroupTier(t *testing.T) {
 
 // TestServerTierCascadeIntoChannelRooms locks the post-revision behavior of
 // ADR-031: server-scope grants are the global default and cascade into channel
-// rooms when no group/room override exists. A group-scope decision still wins
-// over a server-scope decision (same role).
+// rooms when no group/room override exists. A group-scope deny of the user
+// still wins over a server-scope allow of a role (ADR-116).
 func TestServerTierCascadeIntoChannelRooms(t *testing.T) {
 	t.Parallel()
 
@@ -210,18 +210,16 @@ func TestServerTierCascadeIntoChannelRooms(t *testing.T) {
 		}
 	})
 
-	t.Run("group-scope deny overrides server-scope allow for the same role", func(t *testing.T) {
+	t.Run("group-scope user deny overrides server-scope role allow", func(t *testing.T) {
 		if err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, perm); err != nil {
 			t.Fatalf("GrantServerPermission: %v", err)
 		}
 		t.Cleanup(func() {
 			_ = core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, perm)
 		})
-		if err := core.DenyGroupPermission(ctx, SystemActorID, groupID, RoleEveryone, perm); err != nil {
-			t.Fatalf("DenyGroupPermission: %v", err)
-		}
+		setStoredUserDeny(t, core, ctx, ScopeGroup, groupID, member.Id, perm, true)
 		t.Cleanup(func() {
-			_ = core.ClearGroupPermissionState(ctx, SystemActorID, groupID, RoleEveryone, perm)
+			setStoredUserDeny(t, core, ctx, ScopeGroup, groupID, member.Id, perm, false)
 		})
 
 		has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindChannel, room.Id, perm)
@@ -229,7 +227,7 @@ func TestServerTierCascadeIntoChannelRooms(t *testing.T) {
 			t.Fatalf("HasRoomPermission: %v", err)
 		}
 		if has {
-			t.Error("group-scope deny should win over server-scope allow for the same role")
+			t.Error("group-scope user deny should win over server-scope role allow")
 		}
 	})
 }

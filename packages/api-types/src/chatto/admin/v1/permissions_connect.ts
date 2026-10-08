@@ -101,8 +101,8 @@ export const AdminPermissionService = {
      * callers who are not owners can change only roles below their own highest
      * role. Every caller who is not an owner must have the permission at the
      * target scope; otherwise the call returns PERMISSION_DENIED. Everyone ranks
-     * below every account. Roles only grant: a deny for any role except
-     * everyone, or for everyone at server scope, returns INVALID_ARGUMENT.
+     * below every account. Roles, everyone included, only grant: a deny for any
+     * role returns INVALID_ARGUMENT. Set a deny on a single user instead.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.SetRolePermission
      */

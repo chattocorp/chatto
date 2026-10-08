@@ -13,6 +13,8 @@ import (
 // ============================================================================
 //
 // These ChattoCore methods append scoped RBAC Grant / Deny / Clear facts.
+// Roles, everyone included, only grant permissions; only single users can be
+// denied (ADR-116).
 // They apply scope-validity checks (PermissionAppliesAtScope) and
 // permission-shape validation (ValidatePermission), then wait for the local
 // RBAC projection to catch up before returning.
@@ -43,20 +45,6 @@ func (c *ChattoCore) GrantServerPermission(ctx context.Context, actorID, roleNam
 		return nil
 	}
 	return err
-}
-
-// requireRoleCanDeny rejects a role deny at scope. Roles only grant
-// permissions; only everyone and single users can deny. A deny of everyone at
-// server scope means the same as no setting, so only narrower scopes accept
-// it (ADR-116).
-func requireRoleCanDeny(roleName string, scope PermissionScope) error {
-	if roleName != RoleEveryone {
-		return fmt.Errorf("%w: roles only grant permissions; set the deny for everyone or for a user", ErrInvalidArgument)
-	}
-	if scope == ScopeServer {
-		return fmt.Errorf("%w: everyone can deny only at room group, room, or direct-message scope; clear the server setting instead", ErrInvalidArgument)
-	}
-	return nil
 }
 
 // ClearServerPermissionState clears both grant and denial for a permission.
@@ -169,21 +157,6 @@ func (c *ChattoCore) GrantRoomPermission(ctx context.Context, actorID, roomID, r
 	}
 	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{
 		RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeRoom, roomID, roleName, perm),
-	}})
-	_, err := c.appendRBACEvent(ctx, event, nil)
-	return err
-}
-
-// DenyRoomPermission denies a permission for a role at a specific room.
-func (c *ChattoCore) DenyRoomPermission(ctx context.Context, actorID, roomID, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeRoom) {
-		return fmt.Errorf("permission %s does not apply at room scope", perm)
-	}
-	if err := requireRoleCanDeny(roleName, ScopeRoom); err != nil {
-		return err
-	}
-	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
-		RbacPermissionDenied: rbacRolePermissionDeniedEvent(ScopeRoom, roomID, roleName, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
 	return err

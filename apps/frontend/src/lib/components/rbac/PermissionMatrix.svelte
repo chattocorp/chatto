@@ -4,8 +4,8 @@
 Per-tier permission matrix. Rows are permissions, with category headers
 between the corresponding groups; columns are roles applicable at the
 requested scope. Each cell shows the override at this tier (saturated)
-layered over the inherited baseline from above (faded). Clicking a cell cycles
-`neutral → allow → deny → neutral`. Owner cells are read-only. Without `role.manage`, cells of
+layered over the inherited baseline from above (faded). Roles only grant
+(ADR-116), so clicking a cell cycles `neutral → allow → neutral`. Owner cells are read-only. Without `role.manage`, cells of
 roles that do not rank below the viewer's highest role (from the role
 catalogue) are read-only too.
 Roles appear in role order, highest first.
@@ -58,6 +58,8 @@ focusing a cell highlights its permission row and role column.
   import { invalidateRolePermissionDependents } from '$lib/query/adminInvalidation';
 
   type State = 'allow' | 'deny' | 'neutral';
+  /** Roles only grant (ADR-116): a role cell is allowed or has no decision. */
+  type GrantState = 'allow' | 'neutral';
   const CATEGORY_META: Record<string, { title: string; description: string }> = {
     space: {
       title: m('rbac.permissions.categories.space.title'),
@@ -108,7 +110,7 @@ focusing a cell highlights its permission row and role column.
     roomId?: string | null;
     /**
      * Set-scope editing (ADR-031). When provided, the matrix shows the
-     * set's grants/denials per role with no inheritance. Mutually
+     * set's grants per role with no inheritance. Mutually
      * exclusive with `roomId`.
      */
     groupId?: string | null;
@@ -134,9 +136,6 @@ focusing a cell highlights its permission row and role column.
     /** Use a contained vertical viewport instead of flowing with the owning page. */
     scrollContents?: boolean;
   } = $props();
-  // Only everyone can deny, and only below Server scope, where a deny takes
-  // away what everyone gets at a broader scope (ADR-116).
-  const belowServer = $derived(roomId != null || groupId != null);
 
   const serverScope = useServerScope();
 
@@ -226,39 +225,35 @@ focusing a cell highlights its permission row and role column.
 
   // ----- State accessors --------------------------------------------------
 
-  function overrideState(role: TierRole, permission: string): State {
-    if (role.override.permissions.includes(permission)) return 'allow';
-    if (role.override.permissionDenials.includes(permission)) return 'deny';
-    return 'neutral';
+  function overrideState(role: TierRole, permission: string): GrantState {
+    return role.override.permissions.includes(permission) ? 'allow' : 'neutral';
   }
 
-  function exactInheritedState(role: TierRole, permission: string): State {
-    if (role.inheritedAllows.includes(permission)) return 'allow';
-    if (role.inheritedDenials.includes(permission)) return 'deny';
-    return 'neutral';
+  function exactInheritedState(role: TierRole, permission: string): GrantState {
+    return role.inheritedAllows.includes(permission) ? 'allow' : 'neutral';
   }
 
+  /** Returns the broader permission that grants `permission` to the role, if any. */
   function includingPermission(role: TierRole, permission: string): string | null {
     for (const including of inclusionChains.get(permission) ?? []) {
-      const includingOverride = overrideState(role, including);
-      if (includingOverride === 'allow') return including;
-      if (includingOverride === 'neutral' && exactInheritedState(role, including) === 'allow') {
+      if (
+        overrideState(role, including) === 'allow' ||
+        exactInheritedState(role, including) === 'allow'
+      ) {
         return including;
       }
     }
     return null;
   }
 
-  function inheritedState(role: TierRole, permission: string): State {
+  function inheritedState(role: TierRole, permission: string): GrantState {
     if (includingPermission(role, permission)) return 'allow';
     return exactInheritedState(role, permission);
   }
 
   /** What a member with only this role gets here, as the server resolved it. */
-  function effectiveState(role: TierRole, permission: string): State {
-    if (role.effectiveAllows.includes(permission)) return 'allow';
-    if (role.effectiveDenials.includes(permission)) return 'deny';
-    return 'neutral';
+  function effectiveState(role: TierRole, permission: string): GrantState {
+    return role.effectiveAllows.includes(permission) ? 'allow' : 'neutral';
   }
 
   function roleIsVirtualOwner(role: TierRole): boolean {
@@ -359,23 +354,12 @@ focusing a cell highlights its permission row and role column.
         roles: old.roles.map((candidate) => {
           if (candidate.roleName !== role.roleName) return candidate;
           const permissions = candidate.override.permissions.filter((p) => p !== permission);
-          const permissionDenials = candidate.override.permissionDenials.filter(
-            (p) => p !== permission
-          );
           if (next === 'allow') permissions.push(permission);
-          if (next === 'deny') permissionDenials.push(permission);
-          // A setting at this tier decides for a member with only this role.
-          // After a clear, the refetch below supplies the inherited result.
+          // A grant at this tier allows a member with only this role. After a
+          // clear, the refetch below supplies the inherited result.
           const effectiveAllows = candidate.effectiveAllows.filter((p) => p !== permission);
-          const effectiveDenials = candidate.effectiveDenials.filter((p) => p !== permission);
           if (next === 'allow') effectiveAllows.push(permission);
-          if (next === 'deny') effectiveDenials.push(permission);
-          return {
-            ...candidate,
-            override: { permissions, permissionDenials },
-            effectiveAllows,
-            effectiveDenials
-          };
+          return { ...candidate, override: { permissions }, effectiveAllows };
         })
       };
     });
@@ -556,7 +540,7 @@ focusing a cell highlights its permission row and role column.
           effective={virtualOwner ? undefined : eff}
           updating={cellIsUpdating(`${role.roleName}::${permission}`)}
           disabled={virtualOwner || lockedByOrder || !viewerChangeable.has(permission)}
-          canDeny={role.roleName === 'everyone' && belowServer}
+          canDeny={false}
           {ariaLabel}
           title={titleParts.join(' · ')}
           onCycle={(next) => void cycle(role, permission, next)}

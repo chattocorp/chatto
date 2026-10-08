@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { browserAuthenticationHeaders } from './csrf';
 import {
   connectPost,
@@ -6,6 +6,7 @@ import {
   type E2EAdminRole,
   type E2EPermissionDecision,
   type E2EPermissionDecisionUpdateResponse,
+  type E2EPermissionScope,
   unwrapAdminRole
 } from './connectHelpers';
 import { unloadPageForIdentitySwitch } from './navigation';
@@ -233,56 +234,58 @@ export async function revokePermission(
   await setServerRolePermission(page, role, permission, 'PERMISSION_DECISION_NONE');
 }
 
-/**
- * Clears the permission state on a role (admin-only operation).
- * This removes the permission from both grants and denials (neutral state).
- * Must be called while logged in as an admin user.
- */
-export async function clearInstancePermissionState(
-  page: Page,
-  role: string,
-  permission: string
-): Promise<void> {
-  await setServerRolePermission(page, role, permission, 'PERMISSION_DECISION_NONE');
-}
-
-async function setUserServerPermission(
-  page: Page,
+async function setUserPermission(
+  client: Page | APIRequestContext,
   userId: string,
   permission: string,
-  decision: E2EPermissionDecision
+  decision: E2EPermissionDecision,
+  scope?: E2EPermissionScope
 ): Promise<void> {
   const data = await connectPost<E2EPermissionDecisionUpdateResponse>(
-    page,
+    client,
     'chatto.admin.v1.AdminPermissionService/SetUserPermission',
-    { userId, permission, decision }
+    { userId, permission, decision, ...(scope ? { scope } : {}) }
   );
-  expectPermissionDecisionUpdate(data, { permission, decision });
+  expectPermissionDecisionUpdate(data, { permission, decision, scope });
 }
 
 /**
- * Denies a permission for one user at server scope. Roles only grant
- * permissions, so the deny goes on the user.
- * Must be called while logged in as an admin user.
+ * Denies a permission for one user. Roles, `everyone` included, only grant
+ * permissions, so a test that needs a deny puts it on the user (ADR-116).
+ * Omit `scope` for server scope.
+ * `client` must be authenticated as an admin user.
  */
 export async function denyUserPermission(
-  page: Page,
+  client: Page | APIRequestContext,
   userId: string,
-  permission: string
+  permission: string,
+  scope?: E2EPermissionScope
 ): Promise<void> {
-  await setUserServerPermission(page, userId, permission, 'PERMISSION_DECISION_DENY');
+  await setUserPermission(client, userId, permission, 'PERMISSION_DECISION_DENY', scope);
 }
 
 /**
- * Clears a server-scope permission setting on one user.
- * Must be called while logged in as an admin user.
+ * Clears a permission setting on one user. Omit `scope` for server scope.
+ * `client` must be authenticated as an admin user.
  */
 export async function clearUserPermissionOverride(
-  page: Page,
+  client: Page | APIRequestContext,
   userId: string,
-  permission: string
+  permission: string,
+  scope?: E2EPermissionScope
 ): Promise<void> {
-  await setUserServerPermission(page, userId, permission, 'PERMISSION_DECISION_NONE');
+  await setUserPermission(client, userId, permission, 'PERMISSION_DECISION_NONE', scope);
+}
+
+/** Returns the user ID of the account that `page` is signed in as. */
+export async function getViewerUserId(page: Page): Promise<string> {
+  const viewer = await connectPost<{ user?: { profile?: { id?: string } } }>(
+    page,
+    'chatto.api.v1.ViewerService/GetViewer'
+  );
+  const userId = viewer.user?.profile?.id;
+  expect(userId).toBeTruthy();
+  return userId!;
 }
 
 /**

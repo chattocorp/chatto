@@ -184,11 +184,11 @@ func TestPinnedMessageCommandsAuthorizationIdempotenceAndDMRejection(t *testing.
 	if err != nil || len(page.Items) != 1 || page.Items[0].Event.GetId() != message.Id || page.LatestPinEventID != first.PinEventID {
 		t.Fatalf("ListPinnedMessages = %+v, %v", page, err)
 	}
-	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
-		t.Fatalf("DenyRoomPermission message.read: %v", err)
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.Id, manager.Id, PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
 	}
-	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReadInteractions); err != nil {
-		t.Fatalf("DenyRoomPermission message.read-interactions: %v", err)
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.Id, manager.Id, PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read-interactions: %v", err)
 	}
 	if _, err := chatto.RoomTimelineReads().ListPinnedMessages(ctx, PinnedMessageListInput{ActorID: manager.Id, RoomID: room.Id, Limit: 50}); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("ListPinnedMessages without message.read error = %v, want permission denied", err)

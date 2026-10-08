@@ -29,11 +29,9 @@ describe('createPermissionAPI', () => {
               isSystem: true,
               pingable: true
             },
-            override: { permissions: ['message.post'], permissionDenials: [] },
-            inheritedAllows: [],
-            inheritedDenials: ['message.react'],
-            effectiveAllows: ['message.post'],
-            effectiveDenials: []
+            override: { permissions: ['message.post'] },
+            inheritedAllows: ['message.react'],
+            effectiveAllows: ['message.post', 'message.react']
           }
         ],
         viewerChangeablePermissions: ['message.post']
@@ -56,11 +54,9 @@ describe('createPermissionAPI', () => {
           description: '',
           isSystem: true,
           pingable: true,
-          override: { permissions: ['message.post'], permissionDenials: [] },
-          inheritedAllows: [],
-          inheritedDenials: ['message.react'],
-          effectiveAllows: ['message.post'],
-          effectiveDenials: []
+          override: { permissions: ['message.post'] },
+          inheritedAllows: ['message.react'],
+          effectiveAllows: ['message.post', 'message.react']
         }
       ]
     });
@@ -70,7 +66,7 @@ describe('createPermissionAPI', () => {
     mocks.getRolePermissionTierMatrix.mockReturnValue({
       matrix: {
         applicablePermissions: ['message.post'],
-        roles: [{ override: { permissions: [], permissionDenials: [] } }]
+        roles: [{ override: { permissions: [] } }]
       }
     });
     const api = permissionAPI();
@@ -105,7 +101,7 @@ describe('createPermissionAPI', () => {
             permission: 'message.post',
             scopeId: 'server',
             override: PermissionDecision.ALLOW,
-            effective: PermissionDecision.DENY
+            effective: PermissionDecision.ALLOW
           }
         ]
       }
@@ -131,7 +127,7 @@ describe('createPermissionAPI', () => {
           permission: 'message.post',
           scopeId: 'server',
           override: 'ALLOW',
-          effective: 'DENY'
+          effective: 'ALLOW'
         }
       ]
     });
@@ -172,7 +168,7 @@ describe('createPermissionAPI', () => {
           permission: 'message.react',
           scope: { kind: PermissionScopeKind.ROOM, id: 'R1' },
           override: PermissionDecision.NONE,
-          effective: PermissionDecision.DENY
+          effective: PermissionDecision.NONE
         }
       ]
     });
@@ -199,7 +195,7 @@ describe('createPermissionAPI', () => {
           permission: 'message.react',
           scope: { tier: 'room', roomId: 'R1' },
           override: 'NONE',
-          effective: 'DENY'
+          effective: 'NONE'
         }
       ]
     });
@@ -288,14 +284,14 @@ describe('createPermissionAPI', () => {
       decision: {
         permission: 'message.post',
         scope: { kind: PermissionScopeKind.ROOM, id: 'R1' },
-        decision: PermissionDecision.DENY
+        decision: PermissionDecision.NONE
       }
     });
     mocks.setUserPermission.mockReturnValue({
       decision: {
         permission: 'room.create',
         scope: { kind: PermissionScopeKind.GROUP, id: 'G1' },
-        decision: PermissionDecision.NONE
+        decision: PermissionDecision.DENY
       }
     });
     const api = permissionAPI();
@@ -305,36 +301,36 @@ describe('createPermissionAPI', () => {
         roleName: 'admin',
         scope: { tier: 'room', roomId: 'R1' },
         permission: 'message.post',
-        state: 'deny'
+        state: 'neutral'
       })
     ).resolves.toEqual({
       permission: 'message.post',
       scope: { tier: 'room', roomId: 'R1' },
-      decision: 'DENY'
+      decision: 'NONE'
     });
     await expect(
       api.setUserPermission({
         userId: 'U1',
         scope: { tier: 'group', groupId: 'G1' },
         permission: 'room.create',
-        state: 'neutral'
+        state: 'deny'
       })
     ).resolves.toEqual({
       permission: 'room.create',
       scope: { tier: 'group', groupId: 'G1' },
-      decision: 'NONE'
+      decision: 'DENY'
     });
 
     expect(receivedRequest(mocks.setRolePermission)).toMatchObject({
       roleName: 'admin',
       permission: 'message.post',
-      decision: PermissionDecision.DENY,
+      decision: PermissionDecision.NONE,
       scope: { kind: PermissionScopeKind.ROOM, id: 'R1' }
     });
     expect(receivedRequest(mocks.setUserPermission)).toMatchObject({
       userId: 'U1',
       permission: 'room.create',
-      decision: PermissionDecision.NONE,
+      decision: PermissionDecision.DENY,
       scope: { kind: PermissionScopeKind.GROUP, id: 'G1' }
     });
   });

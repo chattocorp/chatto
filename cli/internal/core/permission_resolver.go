@@ -203,11 +203,10 @@ func (r *PermissionResolver) resolveForAccount(ctx context.Context, userID strin
 //  3. Effective owners are allowed everything while privileged mode is active,
 //     and in entitlement checks.
 //  4. An allow of an including permission allows the included permission.
-//  5. A deny on the user decides. Otherwise, an allow of the user or a role
-//     at the same scope as everyone's nearest setting, or a more specific
-//     one, allows. Otherwise, everyone's nearest setting decides. No setting
-//     means no access. Roles only grant: stored role denies and a stored
-//     server-scope deny of everyone have no effect (ADR-116).
+//  5. A deny as the user's nearest setting decides. Otherwise, any allow of
+//     the user, a role, or everyone at an applicable scope allows. No setting
+//     means no access. Roles, everyone included, only grant: stored role
+//     denies have no effect (ADR-116).
 //  6. An allow of an elevation-required permission needs active privileged
 //     mode, except in entitlement checks.
 //
@@ -424,31 +423,27 @@ type permissionScopeTarget struct {
 }
 
 // applicablePermissionDecisions holds the inputs of one resolution: the
-// nearest setting of the user, the nearest allow of each named role, and the
-// nearest setting of everyone.
+// nearest setting of the user, and the nearest allow of each role, with
+// everyone last.
 type applicablePermissionDecisions struct {
-	user     *TraceEntry
-	roles    []TraceEntry
-	everyone *TraceEntry
+	user  *TraceEntry
+	roles []TraceEntry
 }
 
-// trace lists the collected decisions: the user, then the roles, then everyone.
+// trace lists the collected decisions: the user, then the roles.
 func (d applicablePermissionDecisions) trace() []TraceEntry {
 	var out []TraceEntry
 	if d.user != nil {
 		out = append(out, *d.user)
 	}
-	out = append(out, d.roles...)
-	if d.everyone != nil {
-		out = append(out, *d.everyone)
-	}
-	return out
+	return append(out, d.roles...)
 }
 
 // collectApplicableDecisions collects the decisions that resolution uses from
 // decision, a lookup of stored decisions for one permission. scopes lists the
-// applicable scopes, most specific first. Named-role denies and a server-scope
-// deny of everyone are skipped (ADR-116).
+// applicable scopes, most specific first. It keeps the user's nearest setting
+// and the nearest allow of each role, everyone included. Role denies are
+// skipped, because roles only grant (ADR-116).
 func collectApplicableDecisions(decision func(scope PermissionScope, scopeID, subject string) DecisionKind, userID string, roles []string, scopes []permissionScopeTarget) applicablePermissionDecisions {
 	nearest := func(subject string, allowOnly bool) (TraceEntry, bool) {
 		if subject == "" {
@@ -459,11 +454,6 @@ func collectApplicableDecisions(decision func(scope PermissionScope, scopeID, su
 			if found == DecisionNone || (allowOnly && found != DecisionAllow) {
 				continue
 			}
-			// A stored deny of everyone at server scope means the same as no
-			// setting (ADR-116).
-			if subject == RoleEveryone && found == DecisionDeny && target.scope == ScopeServer {
-				continue
-			}
 			return TraceEntry{Level: target.level, RoleName: subject, Decision: found, ObjectID: target.objectID()}, true
 		}
 		return TraceEntry{}, false
@@ -472,20 +462,22 @@ func collectApplicableDecisions(decision func(scope PermissionScope, scopeID, su
 	if entry, ok := nearest(userID, false); ok {
 		out.user = &entry
 	}
-	for _, role := range roles {
-		if role == RoleEveryone {
-			continue
-		}
+	addRole := func(role string) {
 		if entry, ok := nearest(role, true); ok {
 			out.roles = append(out.roles, entry)
 		}
 	}
-	if entry, ok := nearest(RoleEveryone, false); ok {
-		out.everyone = &entry
+	for _, role := range roles {
+		if role != RoleEveryone {
+			addRole(role)
+		}
 	}
+	addRole(RoleEveryone)
 	return out
 }
 
+// nearestDecision returns the nearest stored decision of subject for perm
+// in scopes, most specific first.
 func (r *PermissionResolver) nearestDecision(subject string, perm Permission, scopes []permissionScopeTarget) (TraceEntry, bool) {
 	for _, target := range scopes {
 		decision := r.decisionFor(target.scope, target.id, subject, perm)
@@ -502,36 +494,34 @@ func (r *PermissionResolver) nearestDecision(subject string, perm Permission, sc
 	return TraceEntry{}, false
 }
 
-// resolveApplicablePermissionDecisions applies the subject rules: a deny on
-// the user decides. Otherwise, the most specific allow of the user or a role
-// wins when it is at the same scope as everyone's setting or a more specific
-// one. Otherwise, everyone's setting decides. It returns the winning entry.
-//
-// A user allow follows the same scope rule as a role allow, so a setting on
-// one user cannot open a room that denies everyone at a nearer scope.
+// resolveApplicablePermissionDecisions applies the subject rules: a deny as
+// the user's nearest setting decides. Otherwise, any allow of the user, a
+// role, or everyone allows. It returns the winning entry, the most specific
+// allow when there are several.
 func resolveApplicablePermissionDecisions(decisions applicablePermissionDecisions) (DecisionKind, TraceEntry, bool) {
 	if decisions.user != nil && decisions.user.Decision == DecisionDeny {
 		return DecisionDeny, *decisions.user, true
 	}
 	var allow *TraceEntry
-	if decisions.user != nil {
-		allow = decisions.user
-	}
-	for i := range decisions.roles {
-		if allow == nil || permissionLevelSpecificity(decisions.roles[i].Level) > permissionLevelSpecificity(allow.Level) {
-			allow = &decisions.roles[i]
+	consider := func(entry *TraceEntry) {
+		if allow == nil || permissionLevelSpecificity(entry.Level) > permissionLevelSpecificity(allow.Level) {
+			allow = entry
 		}
 	}
-	everyone := decisions.everyone
-	if allow != nil && (everyone == nil || permissionLevelSpecificity(allow.Level) >= permissionLevelSpecificity(everyone.Level)) {
-		return DecisionAllow, *allow, true
+	if decisions.user != nil {
+		consider(decisions.user)
 	}
-	if everyone != nil {
-		return everyone.Decision, *everyone, true
+	for i := range decisions.roles {
+		consider(&decisions.roles[i])
 	}
-	return DecisionNone, TraceEntry{}, false
+	if allow == nil {
+		return DecisionNone, TraceEntry{}, false
+	}
+	return DecisionAllow, *allow, true
 }
 
+// permissionLevelSpecificity orders scope levels, most specific highest. It
+// selects the reported winner among several allows.
 func permissionLevelSpecificity(level PermissionLevel) int {
 	switch level {
 	case LevelRoom:

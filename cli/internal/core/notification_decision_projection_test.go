@@ -244,7 +244,8 @@ func applyNotificationDecisionEvents(t *testing.T, projection *NotificationDecis
 }
 
 // Notification delivery is not bound to a privileged session, so owners get
-// the same visibility as any other member.
+// the same visibility as any other member. Only the member has a message.read
+// allow in the room, so only the member gets a decision.
 func TestNotificationDecisionDoesNotApplyOwnerOverride(t *testing.T) {
 	t.Parallel()
 
@@ -257,8 +258,6 @@ func TestNotificationDecisionDoesNotApplyOwnerOverride(t *testing.T) {
 	source := &evtv1.Event{Id: "source", ActorId: "author", CreatedAt: timestamppb.Now(), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID}}}
 	applyNotificationDecisionEvents(t, p, []*evtv1.Event{
 		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
-		{Id: "read", Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}},
-		{Id: "room-deny", Event: &evtv1.Event_RbacPermissionDenied{RbacPermissionDenied: rbacRolePermissionDeniedEvent(ScopeRoom, roomID, RoleEveryone, PermMessageRead)}},
 		{Id: "owner-user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: ownerID}}},
 		{Id: "member-user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: memberID}}},
 		{Id: "member-allow", Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacUserPermissionGrantedEvent(ScopeRoom, roomID, memberID, PermMessageRead)}},

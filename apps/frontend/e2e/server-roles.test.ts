@@ -131,7 +131,7 @@ async function grantPermission(
 }
 
 /**
- * Clears a role's server-scope setting. everyone cannot deny at server scope
+ * Clears a role's server-scope setting. Roles, everyone included, only grant
  * (ADR-116), so a cleared everyone allow is the way to remove a default.
  */
 async function clearPermission(
@@ -934,9 +934,7 @@ test.describe('Roles Management', () => {
     // The matrix gates role column-header clicks on
     // admin.manage-roles, so a non-admin server admin sees the header
     // as plain text — there's nothing to click. The
-    // unit specs cover the onRoleClick wiring; the navigation flow itself
-    // is exercised end-to-end by `admin can deny a permission on a role
-    // via UI and it persists` in admin.test.ts.
+    // unit specs cover the onRoleClick wiring.
   });
 
   test.describe('Role Permissions', () => {
@@ -961,14 +959,14 @@ test.describe('Roles Management', () => {
       await serverRolesPage.expectPermissionGranted('role.manage');
     });
 
-    test('everyone cannot be denied at server scope', async ({ serverRolesPage }) => {
+    test('the everyone role cannot be denied', async ({ serverRolesPage }) => {
       const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
 
-      // A server-scope deny of everyone means the same as no setting, so the
-      // cell changes only between allow and inherit.
+      // Roles, everyone included, only grant, so the cell changes only between
+      // allow and no setting.
       await serverRolesPage.gotoRoleDetail(server.id, 'everyone');
       await serverRolesPage.setPermissionState('message.echo', 'allow');
       await serverRolesPage.togglePermission('message.echo');

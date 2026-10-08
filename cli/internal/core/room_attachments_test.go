@@ -21,11 +21,11 @@ func TestAuthorizedRoomAttachmentReadsRequireMessageRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
-	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
-		t.Fatalf("DenyRoomPermission: %v", err)
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
-	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReadInteractions); err != nil {
-		t.Fatalf("DenyRoomPermission message.read-interactions: %v", err)
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read-interactions: %v", err)
 	}
 
 	reads := map[string]func() error{

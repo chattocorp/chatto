@@ -607,12 +607,15 @@ func TestSafeInternalErrorForLogRedactsSensitiveSubstrings(t *testing.T) {
 func TestAPIPermissionExplanationMarksWinningTraceFirst(t *testing.T) {
 	t.Parallel()
 
+	// Roles only grant, so a deny decides only as the user's own setting. The
+	// trace names a user setting by the user ID.
+	const userID = "user-1"
 	got := apiPermissionExplanation(core.PermissionExplanation{
 		Permission:    core.PermMessageReadInteractions,
 		IncludedBy:    core.PermMessageRead,
 		State:         core.DecisionDeny,
 		DecidedAt:     core.LevelRoom,
-		DecidedByRole: core.RoleEveryone,
+		DecidedByRole: userID,
 		Trace: []core.TraceEntry{
 			{
 				Level:    core.LevelServer,
@@ -621,7 +624,7 @@ func TestAPIPermissionExplanationMarksWinningTraceFirst(t *testing.T) {
 			},
 			{
 				Level:    core.LevelRoom,
-				RoleName: core.RoleEveryone,
+				RoleName: userID,
 				Decision: core.DecisionDeny,
 			},
 		},
@@ -637,7 +640,7 @@ func TestAPIPermissionExplanationMarksWinningTraceFirst(t *testing.T) {
 	if len(trace) != 2 {
 		t.Fatalf("trace length = %d, want 2", len(trace))
 	}
-	if trace[0].GetRoleName() != core.RoleEveryone || trace[0].GetDecision() != adminv1.PermissionDecision_PERMISSION_DECISION_DENY || !trace[0].GetApplied() {
+	if trace[0].GetRoleName() != userID || trace[0].GetDecision() != adminv1.PermissionDecision_PERMISSION_DECISION_DENY || !trace[0].GetApplied() {
 		t.Fatalf("first trace entry = %+v, want winning deny applied", trace[0])
 	}
 	if trace[1].GetApplied() {

@@ -258,8 +258,8 @@ A caller with role.manage can change every role except owner. Other
 callers who are not owners can change only roles below their own highest
 role. Every caller who is not an owner must have the permission at the
 target scope; otherwise the call returns PERMISSION_DENIED. Everyone ranks
-below every account. Roles only grant: a deny for any role except
-everyone, or for everyone at server scope, returns INVALID_ARGUMENT.
+below every account. Roles, everyone included, only grant: a deny for any
+role returns INVALID_ARGUMENT. Set a deny on a single user instead.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/SetRolePermission
@@ -275,7 +275,7 @@ Request to set one role permission state.
 | --- | --- | --- |
 | `role_name` | `string` | Role name. |
 | `permission` | `string` | Permission identifier. |
-| `decision` | [`PermissionDecision`](/reference/connectrpc-api/types/#chatto-admin-v1-PermissionDecision) | New decision. NONE clears the explicit state. |
+| `decision` | [`PermissionDecision`](/reference/connectrpc-api/types/#chatto-admin-v1-PermissionDecision) | New decision. NONE clears the explicit state. Roles only grant, so DENY returns INVALID_ARGUMENT. |
 | `scope` | [`PermissionScope`](/reference/connectrpc-api/types/#chatto-admin-v1-PermissionScope) | Target scope. Omit or use SERVER for server scope. |
 
 

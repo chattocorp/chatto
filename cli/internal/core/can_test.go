@@ -480,8 +480,8 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 		// Ensure space grants message.post
 		core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 
-		// Deny at room level
-		core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
+		// Deny the member at room level
+		core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, member.Id, PermMessagePost)
 
 		can, err := core.CanPostMessage(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
@@ -492,18 +492,18 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 		}
 
 		// Cleanup
-		core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
+		core.ClearUserRoomPermissionState(ctx, SystemActorID, room.Id, member.Id, PermMessagePost)
 	})
 
 	t.Run("CanPostInThread respects room-level denial", func(t *testing.T) {
-		if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost); err != nil {
+		if err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, member.Id, PermMessagePost); err != nil {
 			t.Fatal(err)
 		}
 		// Ensure space grants message.post-in-thread
 		core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePostInThread)
 
-		// Deny at room level
-		core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePostInThread)
+		// Deny the member at room level
+		core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, member.Id, PermMessagePostInThread)
 
 		can, err := core.CanPostInThread(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
@@ -514,8 +514,8 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 		}
 
 		// Cleanup
-		core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePostInThread)
-		core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
+		core.ClearUserRoomPermissionState(ctx, SystemActorID, room.Id, member.Id, PermMessagePostInThread)
+		core.ClearUserRoomPermissionState(ctx, SystemActorID, room.Id, member.Id, PermMessagePost)
 	})
 
 	t.Run("CanReactToMessage respects room-level grant", func(t *testing.T) {

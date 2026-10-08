@@ -302,9 +302,9 @@ export class ServerRolesPage {
 
   /**
    * Drive the matrix cell for the current role × permission to a target
-   * state (`allow` or `neutral`). Server cells cycle `neutral → allow →
-   * neutral`, because no role can deny at server scope; we click up to three
-   * times until the state lands.
+   * state (`allow` or `neutral`). Role cells cycle `neutral → allow →
+   * neutral`, because roles only grant; we click up to three times until the
+   * state lands.
    */
   async setPermissionState(permission: string, target: 'allow' | 'neutral'): Promise<void> {
     await this.ensureOnMatrix();
@@ -422,7 +422,7 @@ export class ServerRolesPage {
 
   /**
    * Assert the matrix cell for the current role × permission is NOT set to
-   * allow at this scope (it might be deny or neutral).
+   * allow at this scope.
    */
   async expectPermissionNotGranted(permission: string): Promise<void> {
     await this.ensureOnMatrix();
@@ -543,7 +543,8 @@ export class ServerRolesPage {
 
   /**
    * Assert the matrix cell for the current role × permission is NOT set
-   * to deny at this scope (it might be allow or neutral).
+   * to deny at this scope. Roles only grant, so a role cell is allow or
+   * neutral.
    */
   async expectPermissionNotDenied(permission: string): Promise<void> {
     await this.ensureOnMatrix();

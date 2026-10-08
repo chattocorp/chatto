@@ -12,7 +12,7 @@ export type ServerRole = {
   description: string;
   /**
    * Permissions that the role grants at server scope. Empty for public role
-   * reads. A role cannot deny at server scope (ADR-116).
+   * reads. Roles only grant permissions (ADR-116).
    */
   permissions: string[];
   isSystem: boolean;

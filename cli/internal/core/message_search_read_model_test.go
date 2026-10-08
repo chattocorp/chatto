@@ -34,8 +34,8 @@ func TestMessageSearchReadModelResolvesAuthorizedScope(t *testing.T) {
 	require.NoError(t, chattoCore.DenyUserRoomPermission(ctx, SystemActorID, dm.Id, viewer.Id, PermMessageRead))
 	_, err = chattoCore.ArchiveRoom(ctx, SystemActorID, KindChannel, archived.Id)
 	require.NoError(t, err)
-	require.NoError(t, chattoCore.DenyRoomPermission(ctx, SystemActorID, archived.Id, RoleEveryone, PermMessageRead))
-	require.NoError(t, chattoCore.DenyRoomPermission(ctx, SystemActorID, archived.Id, RoleEveryone, PermMessageReadInteractions))
+	require.NoError(t, chattoCore.DenyUserRoomPermission(ctx, SystemActorID, archived.Id, viewer.Id, PermMessageRead))
+	require.NoError(t, chattoCore.DenyUserRoomPermission(ctx, SystemActorID, archived.Id, viewer.Id, PermMessageReadInteractions))
 
 	scope, err := chattoCore.MessageSearchReads().ResolveScope(ctx, MessageSearchScopeInput{ActorID: viewer.Id})
 	require.NoError(t, err)

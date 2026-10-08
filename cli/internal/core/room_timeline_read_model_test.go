@@ -89,11 +89,11 @@ func TestRoomTimelineReadModelRequiresMessageReadWithoutGrantingWrite(t *testing
 	if err := chatto.ThreadFollows().FollowThread(ctx, member.Id, room.Id, message.Id); err != nil {
 		t.Fatalf("FollowThread before denial: %v", err)
 	}
-	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
-		t.Fatalf("DenyRoomPermission: %v", err)
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.Id, member.Id, PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
-	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReadInteractions); err != nil {
-		t.Fatalf("DenyRoomPermission message.read-interactions: %v", err)
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.Id, member.Id, PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read-interactions: %v", err)
 	}
 
 	for name, read := range map[string]func() error{

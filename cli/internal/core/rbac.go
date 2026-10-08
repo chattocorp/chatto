@@ -440,8 +440,7 @@ func (c *ChattoCore) RevokeServerPermission(ctx context.Context, actorID, roleNa
 }
 
 // GetServerRolePermissions returns all server-scope permissions granted to a
-// role. A role has no server-scope denies: named roles only grant, and a
-// server-scope deny of everyone has no effect (ADR-116).
+// role. Roles only grant, so stored role denies are not returned (ADR-116).
 // Note: Admin roles are NOT special-cased - permissions are materialized in the RBAC projection.
 func (c *ChattoCore) GetServerRolePermissions(ctx context.Context, roleName string) ([]Permission, error) {
 	if !c.rbacModel.roleExists(roleName) {
@@ -449,16 +448,6 @@ func (c *ChattoCore) GetServerRolePermissions(ctx context.Context, roleName stri
 	}
 	grants, _ := c.rbacModel.decisionsForRoleServer(roleName)
 	return grants, nil
-}
-
-// effectiveRoleDenials returns the denies that take effect for roleName at a
-// scope below server: the denies of everyone, and none for a named role
-// (ADR-116).
-func effectiveRoleDenials(roleName string, denials []Permission) []Permission {
-	if roleName != RoleEveryone {
-		return nil
-	}
-	return denials
 }
 
 // AllServerPermissions returns all defined server permissions.
@@ -818,26 +807,26 @@ func (c *ChattoCore) orderableRoleNames() []string {
 	return names
 }
 
-// GetRoomRolePermissions returns the per-room override grants and denials
-// for a role in a specific room. Reads ADR-031's room_allow / room_deny
-// key families. Only everyone has denials (effectiveRoleDenials).
-func (c *ChattoCore) GetRoomRolePermissions(ctx context.Context, roomID, roleName string) (grants []Permission, denials []Permission, err error) {
-	grants, denials = c.rbacModel.decisionsFor(ScopeRoom, roomID, roleName)
-	return grants, effectiveRoleDenials(roleName, denials), nil
+// GetRoomRolePermissions returns the room-scope grants of a role in a
+// specific room. Roles only grant, so stored role denies are not returned
+// (ADR-116).
+func (c *ChattoCore) GetRoomRolePermissions(ctx context.Context, roomID, roleName string) ([]Permission, error) {
+	grants, _ := c.rbacModel.decisionsFor(ScopeRoom, roomID, roleName)
+	return grants, nil
 }
 
-// GetGroupRolePermissions returns the set-scope grants and denials for a role
-// in a specific room group (ADR-031).
-func (c *ChattoCore) GetGroupRolePermissions(ctx context.Context, groupID, roleName string) (grants []Permission, denials []Permission, err error) {
-	grants, denials = c.rbacModel.decisionsFor(ScopeGroup, groupID, roleName)
-	return grants, effectiveRoleDenials(roleName, denials), nil
+// GetGroupRolePermissions returns the group-scope grants of a role in a
+// specific room group (ADR-031). Stored role denies are not returned.
+func (c *ChattoCore) GetGroupRolePermissions(ctx context.Context, groupID, roleName string) ([]Permission, error) {
+	grants, _ := c.rbacModel.decisionsFor(ScopeGroup, groupID, roleName)
+	return grants, nil
 }
 
-// GetDMRolePermissions returns the direct-message-scope grants and denials for
-// a role.
-func (c *ChattoCore) GetDMRolePermissions(ctx context.Context, roleName string) (grants []Permission, denials []Permission, err error) {
-	grants, denials = c.rbacModel.decisionsFor(ScopeDM, "", roleName)
-	return grants, effectiveRoleDenials(roleName, denials), nil
+// GetDMRolePermissions returns the direct-message-scope grants of a role.
+// Stored role denies are not returned.
+func (c *ChattoCore) GetDMRolePermissions(ctx context.Context, roleName string) ([]Permission, error) {
+	grants, _ := c.rbacModel.decisionsFor(ScopeDM, "", roleName)
+	return grants, nil
 }
 
 // GrantGroupPermission writes a group-scope grant for a role on a specific room group.
@@ -847,21 +836,6 @@ func (c *ChattoCore) GrantGroupPermission(ctx context.Context, actorID, groupID,
 	}
 	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{
 		RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeGroup, groupID, roleName, perm),
-	}})
-	_, err := c.appendRBACEvent(ctx, event, nil)
-	return err
-}
-
-// DenyGroupPermission writes a group-scope deny for a role on a specific room group.
-func (c *ChattoCore) DenyGroupPermission(ctx context.Context, actorID, groupID, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
-		return fmt.Errorf("permission %s does not apply at group scope", perm)
-	}
-	if err := requireRoleCanDeny(roleName, ScopeGroup); err != nil {
-		return err
-	}
-	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
-		RbacPermissionDenied: rbacRolePermissionDeniedEvent(ScopeGroup, groupID, roleName, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
 	return err

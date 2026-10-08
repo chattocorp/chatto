@@ -72,8 +72,8 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom hidden: %v", err)
 	}
-	if err := chattoCore.DenyRoomPermission(ctx, core.SystemActorID, hidden.GetId(), core.RoleEveryone, core.PermRoomList); err != nil {
-		t.Fatalf("DenyRoomPermission: %v", err)
+	if err := chattoCore.DenyUserRoomPermission(ctx, core.SystemActorID, hidden.GetId(), viewer.GetId(), core.PermRoomList); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
 	generation, err := chattoCore.CurrentAuthGeneration(ctx, viewer.GetId())
 	if err != nil {
@@ -682,8 +682,8 @@ func TestMCPHandlerAppliesOwnerPrivilegedModeGate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if err := chattoCore.DenyRoomPermission(ctx, core.SystemActorID, restricted.GetId(), core.RoleEveryone, core.PermRoomList); err != nil {
-		t.Fatalf("DenyRoomPermission: %v", err)
+	if err := chattoCore.DenyUserRoomPermission(ctx, core.SystemActorID, restricted.GetId(), owner.GetId(), core.PermRoomList); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
 	generation, err := chattoCore.CurrentAuthGeneration(ctx, owner.GetId())
 	if err != nil {

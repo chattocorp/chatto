@@ -25,6 +25,9 @@ import {
   type E2EAdminRole,
   type E2EPermissionDecision,
   type E2EPermissionDecisionUpdateResponse,
+  type E2EPermissionScope,
+  getDefaultRoomGroupIdViaConnect,
+  getRoomIdByNameViaConnect,
   unwrapAdminRole
 } from './fixtures/connectHelpers';
 
@@ -772,6 +775,35 @@ test.describe('Role permissions only grant', () => {
     expect(role.permissions ?? []).not.toContain('message.post');
 
     await deleteRoleViaConnect(page, roleName);
+  });
+
+  test('the API rejects a deny on everyone below server scope', async ({ page }) => {
+    await createAndLoginAdminUser(page);
+    const scopes: E2EPermissionScope[] = [
+      {
+        kind: 'PERMISSION_SCOPE_KIND_GROUP',
+        id: await getDefaultRoomGroupIdViaConnect(page)
+      },
+      {
+        kind: 'PERMISSION_SCOPE_KIND_ROOM',
+        id: await getRoomIdByNameViaConnect(page, 'general')
+      }
+    ];
+
+    for (const scope of scopes) {
+      const response = await connectPostResponse(
+        page,
+        'chatto.admin.v1.AdminPermissionService/SetRolePermission',
+        {
+          roleName: 'everyone',
+          permission: 'message.post',
+          decision: 'PERMISSION_DECISION_DENY',
+          scope
+        }
+      );
+      expect(response.status(), scope.kind).toBe(400);
+      expect(await response.text()).toContain('invalid_argument');
+    }
   });
 
   test('role cells cycle between allow and not set', async ({ page, adminPage }) => {

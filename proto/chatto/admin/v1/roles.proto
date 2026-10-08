@@ -12,8 +12,8 @@ import "chatto/api/v1/pagination.proto";
 message AdminRole {
   // Public role metadata shared with ordinary role catalog reads.
   chatto.api.v1.Role role = 1;
-  // Permissions granted by this role at server scope. A role cannot deny at
-  // server scope.
+  // Permissions granted by this role at server scope. Roles only grant
+  // permissions.
   repeated string permissions = 2;
   reserved 3;
   reserved "permission_denials";

@@ -1327,8 +1327,9 @@ func TestCanonicalUserPermissionMatrixForBotFiltersHiddenRoomsAndKeepsDirectoryG
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if err := c.DenyRoomPermission(ctx, SystemActorID, room.GetId(), RoleEveryone, PermRoomList); err != nil {
-		t.Fatalf("DenyRoomPermission: %v", err)
+	// The bot matrix shows only rooms that the owner (here also the caller) can see.
+	if err := c.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), owner.GetId(), PermRoomList); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
 
 	matrix, err := c.GetUserPermissionMatrix(ctx, owner.GetId(), bot.User.GetId())

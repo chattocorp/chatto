@@ -153,7 +153,10 @@ func TestSeedDefaultRooms(t *testing.T) {
 		}
 	})
 
-	t.Run("announcements room denies message.post to everyone", func(t *testing.T) {
+	// The seeded everyone deny of message.post is a role deny, so it has no
+	// effect: roles only grant (ADR-116). Members post through the everyone
+	// server allow.
+	t.Run("announcements room seed does not restrict members", func(t *testing.T) {
 		c, _ := setupTestCore(t)
 		ctx := testContext(t)
 
@@ -173,7 +176,7 @@ func TestSeedDefaultRooms(t *testing.T) {
 			t.Fatal("announcements room not found")
 		}
 
-		// Create a regular member and verify they cannot post root messages.
+		// Create a regular member and verify they can post root messages.
 		user, err := c.CreateUser(ctx, "system", "member", "Member", "password123")
 		if err != nil {
 			t.Fatalf("CreateUser failed: %v", err)
@@ -182,8 +185,8 @@ func TestSeedDefaultRooms(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CanPostMessage failed: %v", err)
 		}
-		if can {
-			t.Error("regular member should NOT be able to post root messages in announcements")
+		if !can {
+			t.Error("regular member should be able to post root messages in announcements: the everyone deny has no effect")
 		}
 
 		// And they CAN still post in threads.

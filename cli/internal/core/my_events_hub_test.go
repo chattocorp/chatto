@@ -711,8 +711,8 @@ func TestMyEventsHubSuppressesHiddenDirectoryInvalidations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList); err != nil {
-		t.Fatalf("DenyRoomPermission: %v", err)
+	if err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, viewer.Id, PermRoomList); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
 
 	model := NewMyEventsModel(core)
@@ -756,8 +756,8 @@ func TestMyEventsHubRemovesProjectionVisibilityAfterUniversalMembershipEnds(t *t
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList); err != nil {
-		t.Fatalf("DenyRoomPermission: %v", err)
+	if err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, viewer.Id, PermRoomList); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
 	if err := core.GrantUserRoomPermission(ctx, SystemActorID, room.Id, actor.Id, PermRoomManage); err != nil {
 		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
@@ -824,8 +824,8 @@ func TestMyEventsHubReconcilesVisibilityOnViewerLeave(t *testing.T) {
 	if _, err := core.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom: %v", err)
 	}
-	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList); err != nil {
-		t.Fatalf("DenyRoomPermission: %v", err)
+	if err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, viewer.Id, PermRoomList); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
 	if err := core.LeaveRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
 		t.Fatalf("LeaveRoom: %v", err)
@@ -922,8 +922,8 @@ func TestMyEventsHubSeparatesOwnerSessionsByPrivilegedMode(t *testing.T) {
 	restrict := func(roomID string) {
 		t.Helper()
 		for _, perm := range []Permission{PermRoomList, PermRoomJoin, PermMessageRead} {
-			if err := core.DenyRoomPermission(ctx, SystemActorID, roomID, RoleEveryone, perm); err != nil {
-				t.Fatalf("DenyRoomPermission %s: %v", perm, err)
+			if err := core.DenyUserRoomPermission(ctx, SystemActorID, roomID, owner.Id, perm); err != nil {
+				t.Fatalf("DenyUserRoomPermission %s: %v", perm, err)
 			}
 			if err := core.GrantUserRoomPermission(ctx, SystemActorID, roomID, author.Id, perm); err != nil {
 				t.Fatalf("GrantUserRoomPermission %s: %v", perm, err)

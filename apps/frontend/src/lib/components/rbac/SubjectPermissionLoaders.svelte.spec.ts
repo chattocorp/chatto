@@ -548,6 +548,49 @@ describe('subject permission loaders', () => {
     });
   });
 
+  it('never offers deny to the everyone role at any scope', async () => {
+    const scopes = [
+      { id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' },
+      { id: 'group:general', label: 'General', kind: 'GROUP', parentGroupId: '' },
+      { id: 'room:lobby', label: 'Lobby', kind: 'ROOM', parentGroupId: 'general' }
+    ];
+    permissionMocks.getRolePermissionMatrix.mockResolvedValue({
+      roleName: 'everyone',
+      page: { totalCount: scopes.length, hasMore: false },
+      applicablePermissions: ['message.post'],
+      scopes,
+      cells: scopes.map((scope) => ({
+        permission: 'message.post',
+        scopeId: scope.id,
+        override: 'ALLOW',
+        effective: 'ALLOW'
+      }))
+    });
+    const rendered = render(RolePermissionsMatrix, { props: { roleName: 'everyone' } });
+    await settle();
+    await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
+
+    for (const [scopeId, scope] of [
+      ['server', { tier: 'server', roleName: 'everyone' }],
+      ['group:general', { tier: 'group', roleName: 'everyone', groupId: 'general' }],
+      ['room:lobby', { tier: 'room', roleName: 'everyone', roomId: 'lobby' }]
+    ] as const) {
+      await vi.waitFor(() =>
+        expect(scopedCellButton(rendered.container, scopeId, 'message.post').disabled).toBe(false)
+      );
+      scopedCellButton(rendered.container, scopeId, 'message.post').click();
+      // An allow cycles back to no decision, never on to deny.
+      await vi.waitFor(() =>
+        expect(permissionMocks.setRolePermission).toHaveBeenLastCalledWith({
+          roleName: 'everyone',
+          permission: 'message.post',
+          scope,
+          state: 'neutral'
+        })
+      );
+    }
+  });
+
   it('invalidates cached user matrices after a role permission changes', async () => {
     const connection = { queryScope: 'permission-loader-test' };
     const userPermissionKey = adminQueryKeys.userPermissions('origin', connection, 'user-a');

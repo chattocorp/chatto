@@ -290,7 +290,7 @@ func TestRoleManagersManageEveryRoleButAssignOnlyLowerRoles(t *testing.T) {
 		if err := c.SetRolePermissionState(ctx, f.member, RoleModerator, room, PermMessageReact, PermissionStateAllow); !errors.Is(err, ErrPermissionDenied) {
 			t.Fatalf("room manager edits moderator: error = %v, want permission denied", err)
 		}
-		if err := c.SetRolePermissionState(ctx, f.member, RoleEveryone, room, PermMessageReact, PermissionStateDeny); err != nil {
+		if err := c.SetRolePermissionState(ctx, f.member, RoleEveryone, room, PermMessageReact, PermissionStateAllow); err != nil {
 			t.Fatalf("room manager edits everyone: %v", err)
 		}
 	})

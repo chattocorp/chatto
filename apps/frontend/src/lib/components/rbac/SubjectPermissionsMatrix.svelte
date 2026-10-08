@@ -79,7 +79,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     readOnly = false,
     loading = false,
     decisionMode = 'tri-state',
-    canDeny = () => true,
+    canDeny = true,
     onMembershipChange,
     hasMore = false,
     loadingMore = false,
@@ -104,10 +104,10 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     /** Use a grant-or-absent allowlist UI; inherited grants are read-only. */
     decisionMode?: DecisionMode;
     /**
-     * Whether a cell at the scope offers deny. Named roles only allow, and
-     * everyone denies only below Server scope (ADR-116).
+     * Whether cells offer deny. Role matrices pass `false` because roles only
+     * grant (ADR-116); user matrices can deny.
      */
-    canDeny?: (scope: MatrixScope) => boolean;
+    canDeny?: boolean;
     /** Enables the account membership row, separate from permission cells. */
     onMembershipChange?: (scope: MatrixScope, joined: boolean) => void;
   } = $props();
@@ -507,7 +507,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                 ceilingBlocked={cell.allowPermitted === false &&
                   (decisionMode === 'binary' ? binaryEnabled : ov === 'allow')}
                 {decisionMode}
-                canDeny={canDeny(scope)}
+                {canDeny}
                 ariaLabel={[
                   ariaLabel,
                   privilegedOnly ? m('rbac.permissions.cell.privileged_only') : null,

@@ -620,8 +620,8 @@ func TestChattoCore_EveryoneFallback_AdminGrantWins(t *testing.T) {
 	if err := core.AssignAdminRole(ctx, userID); err != nil {
 		t.Fatalf("Failed to assign admin role: %v", err)
 	}
-	// everyone has no setting for admin.view-users at server scope; a deny of
-	// everyone is not possible there (ADR-116).
+	// everyone has no setting for admin.view-users. Roles, everyone included,
+	// only grant (ADR-116).
 
 	t.Run("HasServerPermission allows from admin grant", func(t *testing.T) {
 		has, err := core.HasServerPermission(ctx, userID, PermAdminUsersView)
@@ -679,7 +679,7 @@ func TestChattoCore_DenyWins_UserDenyBlocksMember(t *testing.T) {
 	}
 	userID := user.Id
 
-	// Deny message.post for the user. everyone cannot deny at server scope
+	// Deny message.post for the user. Only a single user can be denied
 	// (ADR-116).
 	if err := core.DenyUserPermission(ctx, SystemActorID, userID, PermMessagePost); err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
@@ -2391,20 +2391,20 @@ func TestChattoCore_GrantRoomRolePermission(t *testing.T) {
 		t.Fatalf("Failed to grant room permission: %v", err)
 	}
 
-	// Verify via GetRoleRoomPermissions
-	grants, denials, err := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
+	// Verify via GetRoomRolePermissions
+	grants, err := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
 	if err != nil {
 		t.Fatalf("Failed to get room permissions: %v", err)
 	}
 	if len(grants) != 1 || grants[0] != PermMessagePost {
 		t.Errorf("Expected [message.post] grant, got %v", grants)
 	}
-	if len(denials) != 0 {
-		t.Errorf("Expected no denials, got %v", denials)
-	}
 }
 
-func TestChattoCore_DenyRoomRolePermission(t *testing.T) {
+// TestChattoCore_GetRoomRolePermissions_IgnoresStoredDeny checks that room
+// role permissions list only grants. Roles only grant, so a role deny that an
+// earlier version stored does not show (ADR-116).
+func TestChattoCore_GetRoomRolePermissions_IgnoresStoredDeny(t *testing.T) {
 	t.Parallel()
 
 	core, _ := setupTestCore(t)
@@ -2412,21 +2412,24 @@ func TestChattoCore_DenyRoomRolePermission(t *testing.T) {
 
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test channel")
 
-	// Deny message.post at room level
-	err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
-	if err != nil {
-		t.Fatalf("Failed to deny room permission: %v", err)
-	}
-
-	grants, denials, err := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
+	appendStoredRoleDeny(t, core, ctx, ScopeRoom, room.Id, RoleEveryone, PermMessagePost)
+	grants, err := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
 	if err != nil {
 		t.Fatalf("Failed to get room permissions: %v", err)
 	}
 	if len(grants) != 0 {
-		t.Errorf("Expected no grants, got %v", grants)
+		t.Errorf("Expected no grants with only a stored deny, got %v", grants)
 	}
-	if len(denials) != 1 || denials[0] != PermMessagePost {
-		t.Errorf("Expected [message.post] denial, got %v", denials)
+
+	if err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageAttach); err != nil {
+		t.Fatalf("Failed to grant room permission: %v", err)
+	}
+	grants, err = core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
+	if err != nil {
+		t.Fatalf("Failed to get room permissions: %v", err)
+	}
+	if len(grants) != 1 || grants[0] != PermMessageAttach {
+		t.Errorf("Expected only the [message.attach] grant, got %v", grants)
 	}
 }
 
@@ -2445,15 +2448,12 @@ func TestChattoCore_ClearRoomRolePermission(t *testing.T) {
 		t.Fatalf("Failed to clear room permission: %v", err)
 	}
 
-	grants, denials, err := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
+	grants, err := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
 	if err != nil {
 		t.Fatalf("Failed to get room permissions: %v", err)
 	}
 	if len(grants) != 0 {
 		t.Errorf("Expected no grants after clear, got %v", grants)
-	}
-	if len(denials) != 0 {
-		t.Errorf("Expected no denials after clear, got %v", denials)
 	}
 }
 
@@ -2481,22 +2481,21 @@ func TestChattoCore_RoomPermissions_PerRoomIsolation(t *testing.T) {
 	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-alpha", "Room Alpha")
 	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-beta", "Room Beta")
 
-	// Deny message.post only in room1
-	core.DenyRoomPermission(ctx, SystemActorID, room1.Id, RoleEveryone, PermMessagePost)
-
-	// Room1 should have the denial
-	grants1, denials1, _ := core.GetRoomRolePermissions(ctx, room1.Id, RoleEveryone)
-	if len(denials1) != 1 {
-		t.Errorf("Room1: expected 1 denial, got %d", len(denials1))
+	// Grant message.manage only in room1
+	if err := core.GrantRoomPermission(ctx, SystemActorID, room1.Id, RoleEveryone, PermMessageManage); err != nil {
+		t.Fatalf("GrantRoomPermission: %v", err)
 	}
-	if len(grants1) != 0 {
-		t.Errorf("Room1: expected 0 grants, got %d", len(grants1))
+
+	// Room1 should have the grant
+	grants1, _ := core.GetRoomRolePermissions(ctx, room1.Id, RoleEveryone)
+	if len(grants1) != 1 {
+		t.Errorf("Room1: expected 1 grant, got %d", len(grants1))
 	}
 
 	// Room2 should have no overrides
-	grants2, denials2, _ := core.GetRoomRolePermissions(ctx, room2.Id, RoleEveryone)
-	if len(grants2) != 0 || len(denials2) != 0 {
-		t.Errorf("Room2: expected no overrides, got grants=%v denials=%v", grants2, denials2)
+	grants2, _ := core.GetRoomRolePermissions(ctx, room2.Id, RoleEveryone)
+	if len(grants2) != 0 {
+		t.Errorf("Room2: expected no overrides, got grants=%v", grants2)
 	}
 }
 
@@ -2512,16 +2511,18 @@ func TestChattoCore_GrantRoomRolePermission_GrantClearsDenial(t *testing.T) {
 
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "General")
 
-	// Deny, then grant — should clear the denial
-	core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
-	core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
+	// A deny that an earlier version stored, then a grant, which replaces it.
+	appendStoredRoleDeny(t, core, ctx, ScopeRoom, room.Id, RoleEveryone, PermMessagePost)
+	if err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost); err != nil {
+		t.Fatalf("GrantRoomPermission: %v", err)
+	}
 
-	grants, denials, _ := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
+	grants, _ := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
 	if len(grants) != 1 || grants[0] != PermMessagePost {
 		t.Errorf("Expected [message.post] grant, got %v", grants)
 	}
-	if len(denials) != 0 {
-		t.Errorf("Expected no denials after grant, got %v", denials)
+	if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionAllow {
+		t.Errorf("stored decision after grant = %s, want %s", got, DecisionAllow)
 	}
 }
 

@@ -261,11 +261,9 @@ func apiTierRoles(matrix *core.TierRoles) *adminv1.TierRoles {
 	}
 	for _, role := range matrix.Roles {
 		out.Roles = append(out.Roles, &adminv1.TierRole{
-			Override:         apiTierPermissions(role.Override),
-			InheritedAllows:  append([]string(nil), role.InheritedAllows...),
-			InheritedDenials: append([]string(nil), role.InheritedDenials...),
-			EffectiveAllows:  append([]string(nil), role.EffectiveAllows...),
-			EffectiveDenials: append([]string(nil), role.EffectiveDenials...),
+			Override:        &adminv1.TierPermissions{Permissions: append([]string(nil), role.Override.Permissions...)},
+			InheritedAllows: append([]string(nil), role.InheritedAllows...),
+			EffectiveAllows: append([]string(nil), role.EffectiveAllows...),
 			Role: &apiv1.Role{
 				Name:        role.RoleName,
 				DisplayName: role.DisplayName,
@@ -276,13 +274,6 @@ func apiTierRoles(matrix *core.TierRoles) *adminv1.TierRoles {
 		})
 	}
 	return out
-}
-
-func apiTierPermissions(perms core.TierPermissions) *adminv1.TierPermissions {
-	return &adminv1.TierPermissions{
-		Permissions:       append([]string(nil), perms.Permissions...),
-		PermissionDenials: append([]string(nil), perms.PermissionDenials...),
-	}
 }
 
 func apiRolePermissionMatrix(matrix *core.RolePermissionMatrix) *adminv1.RolePermissionMatrix {

@@ -4,8 +4,6 @@ import (
 	"context"
 	"slices"
 	"testing"
-
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // ============================================================================
@@ -32,12 +30,7 @@ func TestGrantServerPermission(t *testing.T) {
 	t.Run("removes existing denial when granting", func(t *testing.T) {
 		// First store a deny, as an earlier version could. A server-scope deny
 		// of everyone is no longer accepted (ADR-116).
-		event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
-			RbacPermissionDenied: rbacRolePermissionDeniedEvent(ScopeServer, "", RoleEveryone, PermMessagePost),
-		}})
-		if _, err := core.appendRBACEvent(ctx, event, nil); err != nil {
-			t.Fatalf("append stored deny: %v", err)
-		}
+		appendStoredRoleDeny(t, core, ctx, ScopeServer, "", RoleEveryone, PermMessagePost)
 
 		// Now grant it - should remove the denial
 		err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
@@ -130,30 +123,6 @@ func TestGrantSpaceRolePermission(t *testing.T) {
 	})
 }
 
-func TestDenyGroupRolePermission(t *testing.T) {
-	t.Parallel()
-
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	groups, err := core.ListRoomGroupsOrdered(ctx, KindChannel)
-	if err != nil || len(groups) == 0 {
-		t.Fatalf("ListRoomGroupsOrdered: groups=%d err=%v", len(groups), err)
-	}
-	groupID := groups[0].GetId()
-
-	t.Run("creates deny decision for everyone in a room group", func(t *testing.T) {
-		err := core.DenyGroupPermission(ctx, SystemActorID, groupID, RoleEveryone, PermMessagePost)
-		if err != nil {
-			t.Fatalf("DenyGroupPermission() error = %v", err)
-		}
-
-		if got := core.rbacModel.decision(ScopeGroup, groupID, RoleEveryone, PermMessagePost); got != DecisionDeny {
-			t.Errorf("decision = %s, want %s", got, DecisionDeny)
-		}
-	})
-}
-
 func TestClearSpaceRolePermission(t *testing.T) {
 	t.Parallel()
 
@@ -162,7 +131,7 @@ func TestClearSpaceRolePermission(t *testing.T) {
 
 	_, _ = core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 
-	t.Run("clears both grant and denial at space level", func(t *testing.T) {
+	t.Run("clears a grant at space level", func(t *testing.T) {
 		// Grant then clear
 		_ = core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomJoin)
 
@@ -209,7 +178,9 @@ func TestGrantRoomRolePermission(t *testing.T) {
 	})
 }
 
-func TestDenyRoomRolePermission(t *testing.T) {
+// TestDenyUserRoomPermission covers room-level denies. Only a single user
+// can be denied (ADR-116).
+func TestDenyUserRoomPermission(t *testing.T) {
 	t.Parallel()
 
 	core, _ := setupTestCore(t)
@@ -219,18 +190,18 @@ func TestDenyRoomRolePermission(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "", "General", "General chat")
 
 	t.Run("creates deny decision at room level", func(t *testing.T) {
-		err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
+		err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermMessagePost)
 		if err != nil {
-			t.Fatalf("DenyRoomRolePermission() error = %v", err)
+			t.Fatalf("DenyUserRoomPermission() error = %v", err)
 		}
 
-		if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionDeny {
+		if got := core.rbacModel.decision(ScopeRoom, room.Id, user.Id, PermMessagePost); got != DecisionDeny {
 			t.Errorf("decision = %s, want %s", got, DecisionDeny)
 		}
 	})
 
 	t.Run("rejects permission that does not apply at room scope", func(t *testing.T) {
-		err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermAdminUsersView)
+		err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermAdminUsersView)
 		if err == nil {
 			t.Error("Expected error for permission that doesn't apply at room scope")
 		}
@@ -246,7 +217,7 @@ func TestClearRoomRolePermission(t *testing.T) {
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "", "General", "General chat")
 
-	t.Run("clears both grant and denial at room level", func(t *testing.T) {
+	t.Run("clears a grant at room level", func(t *testing.T) {
 		// Grant then clear
 		_ = core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin)
 
@@ -256,6 +227,23 @@ func TestClearRoomRolePermission(t *testing.T) {
 		}
 
 		if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermRoomJoin); got != DecisionNone {
+			t.Errorf("decision = %s, want %s", got, DecisionNone)
+		}
+	})
+
+	t.Run("clears a stored role deny at room level", func(t *testing.T) {
+		// Roles only grant, but an earlier version could store a role deny
+		// (ADR-116). Clearing removes it.
+		appendStoredRoleDeny(t, core, ctx, ScopeRoom, room.Id, RoleEveryone, PermMessagePost)
+		if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionDeny {
+			t.Fatalf("stored decision = %s, want %s", got, DecisionDeny)
+		}
+
+		if err := core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost); err != nil {
+			t.Fatalf("ClearRoomRolePermission() error = %v", err)
+		}
+
+		if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionNone {
 			t.Errorf("decision = %s, want %s", got, DecisionNone)
 		}
 	})
@@ -283,37 +271,38 @@ func TestPermissionOpsIdempotency(t *testing.T) {
 		}
 	})
 
-	// everyone can deny only below server scope (ADR-116).
+	// Only a single user can be denied (ADR-116).
 	roomID := createPermissionEditRoom(t, core, ctx, "idempotency-room")
+	userID := createPermissionEditUser(t, core, ctx, "idempotency-user")
 
 	t.Run("denying same permission twice succeeds", func(t *testing.T) {
-		err := core.DenyRoomPermission(ctx, SystemActorID, roomID, RoleEveryone, PermMessagePost)
+		err := core.DenyUserRoomPermission(ctx, SystemActorID, roomID, userID, PermMessagePost)
 		if err != nil {
 			t.Fatalf("First deny failed: %v", err)
 		}
 
-		err = core.DenyRoomPermission(ctx, SystemActorID, roomID, RoleEveryone, PermMessagePost)
+		err = core.DenyUserRoomPermission(ctx, SystemActorID, roomID, userID, PermMessagePost)
 		if err != nil {
 			t.Errorf("Second deny should succeed (idempotent), got: %v", err)
 		}
 	})
 
 	t.Run("denying after grant updates correctly", func(t *testing.T) {
-		perm := PermMessagePost
+		perm := PermMessageAttach
 
 		// Grant
-		err := core.GrantRoomPermission(ctx, SystemActorID, roomID, RoleEveryone, perm)
+		err := core.GrantUserRoomPermission(ctx, SystemActorID, roomID, userID, perm)
 		if err != nil {
 			t.Fatalf("Grant failed: %v", err)
 		}
 
 		// Now deny
-		err = core.DenyRoomPermission(ctx, SystemActorID, roomID, RoleEveryone, perm)
+		err = core.DenyUserRoomPermission(ctx, SystemActorID, roomID, userID, perm)
 		if err != nil {
 			t.Fatalf("Deny failed: %v", err)
 		}
 
-		if got := core.rbacModel.decision(ScopeRoom, roomID, RoleEveryone, perm); got != DecisionDeny {
+		if got := core.rbacModel.decision(ScopeRoom, roomID, userID, perm); got != DecisionDeny {
 			t.Errorf("decision = %s, want %s", got, DecisionDeny)
 		}
 	})
@@ -546,7 +535,10 @@ func TestDefaultChannelRoomPermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("owner and admin can post in announcements, moderator and regular member cannot", func(t *testing.T) {
+	// The seeded everyone deny of message.post in announcements is a role deny,
+	// so it has no effect: roles only grant (ADR-116). The everyone server
+	// allow lets every member post.
+	t.Run("owner, admin, moderator, and regular member can post in announcements", func(t *testing.T) {
 		// Owner should be able to post
 		canOwner, err := core.CanPostMessage(ctx, user.Id, KindChannel, annRoom.Id)
 		if err != nil {
@@ -582,8 +574,8 @@ func TestDefaultChannelRoomPermissions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CanPostMessage (moderator) failed: %v", err)
 		}
-		if canModerator {
-			t.Error("Moderator should not be able to post in announcements room")
+		if !canModerator {
+			t.Error("Moderator should be able to post in announcements room: the everyone deny has no effect")
 		}
 
 		// Create a regular member
@@ -596,13 +588,13 @@ func TestDefaultChannelRoomPermissions(t *testing.T) {
 			t.Fatalf("JoinRoom failed: %v", err)
 		}
 
-		// Regular member should NOT be able to post
+		// Regular member can post too: the everyone deny has no effect.
 		canMember, err := core.CanPostMessage(ctx, member.Id, KindChannel, annRoom.Id)
 		if err != nil {
 			t.Fatalf("CanPostMessage (member) failed: %v", err)
 		}
-		if canMember {
-			t.Error("Regular member should NOT be able to post in announcements room")
+		if !canMember {
+			t.Error("Regular member should be able to post in announcements room: the everyone deny has no effect")
 		}
 
 		// Regular member SHOULD be able to post in threads (default space permission)

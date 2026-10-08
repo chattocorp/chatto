@@ -2,7 +2,9 @@ import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import {
   activatePrivilegedMode,
+  clearUserPermissionOverride,
   createAndLoginTestUser,
+  denyUserPermission,
   logoutCurrentUser,
   loginAsAdminAndUsePrimaryServer,
   type TestUser
@@ -106,13 +108,33 @@ async function grantRoomPermission(
   await setRolePermission(page, role, permission, 'PERMISSION_DECISION_ALLOW', roomId);
 }
 
-async function denyRoomPermission(
+/**
+ * Denies a permission to one user in one room. Roles, `everyone` included,
+ * only grant permissions, so a room-scope deny targets the user (ADR-116).
+ */
+async function denyUserRoomPermission(
   page: Page,
   roomId: string,
-  role: string,
+  userId: string,
   permission: string
 ): Promise<void> {
-  await setRolePermission(page, role, permission, 'PERMISSION_DECISION_DENY', roomId);
+  await denyUserPermission(page, userId, permission, {
+    kind: 'PERMISSION_SCOPE_KIND_ROOM',
+    id: roomId
+  });
+}
+
+/** Clears the room-scope setting of a permission on one user. */
+async function clearUserRoomPermission(
+  page: Page,
+  roomId: string,
+  userId: string,
+  permission: string
+): Promise<void> {
+  await clearUserPermissionOverride(page, userId, permission, {
+    kind: 'PERMISSION_SCOPE_KIND_ROOM',
+    id: roomId
+  });
 }
 
 async function setRolePermission(
@@ -235,8 +257,8 @@ test.describe('Room-Level Permission Overrides', () => {
           .elementHandle();
         const initialConnections = connections;
 
-        await denyRoomPermission(page, roomId, 'everyone', 'message.read');
-        await denyRoomPermission(page, roomId, 'everyone', 'message.read-interactions');
+        await denyUserRoomPermission(page, roomId, member.id!, 'message.read');
+        await denyUserRoomPermission(page, roomId, member.id!, 'message.read-interactions');
 
         const denial = memberPage.getByText(
           'You do not have permission to read messages in this room.'
@@ -274,7 +296,8 @@ test.describe('Room-Level Permission Overrides', () => {
           timeout: TIMEOUTS.REALTIME_EVENT
         });
 
-        await grantRoomPermission(page, roomId, 'everyone', 'message.read');
+        // Clearing the user's deny restores the server-scope allow of everyone.
+        await clearUserRoomPermission(page, roomId, member.id!, 'message.read');
 
         await expect(denial).toHaveCount(0, { timeout: TIMEOUTS.REALTIME_EVENT });
         await expect(memberPage.getByText(visibleBody)).toBeVisible({
@@ -312,7 +335,7 @@ test.describe('Room-Level Permission Overrides', () => {
       const member = await createSecondTestUser(page);
       await withLoggedInServerWindow(browser, serverURL, member, async ({ page: memberPage }) => {
         await joinRoomViaAPI(memberPage, roomId);
-        await denyRoomPermission(page, roomId, 'everyone', 'message.read');
+        await denyUserRoomPermission(page, roomId, member.id!, 'message.read');
         await grantRoomPermission(page, roomId, 'everyone', 'message.read-interactions');
 
         type TimelineResponse = { page?: { events?: Array<{ id?: string }> } };
@@ -361,7 +384,7 @@ test.describe('Room-Level Permission Overrides', () => {
         await memberPage.goto(routes.room(roomId));
         await expect(memberPage.getByTestId('room-main-pane').getByText(rootBody)).toBeVisible();
         await expect(memberPage.getByText(unrelatedBody)).toHaveCount(0);
-        await grantRoomPermission(page, roomId, 'everyone', 'message.read');
+        await clearUserRoomPermission(page, roomId, member.id!, 'message.read');
         await expect(memberPage.getByText(unrelatedBody)).toBeVisible({
           timeout: TIMEOUTS.REALTIME_EVENT
         });
@@ -380,11 +403,11 @@ test.describe('Room-Level Permission Overrides', () => {
       const roomId = await createRoomViaAPI(page);
       await joinRoomViaAPI(page, roomId);
 
-      // Deny message.post at room level for everyone
-      await denyRoomPermission(page, roomId, 'everyone', 'message.post');
-
-      // Create second user, join the room
+      // Create second user and deny message.post to them at room level
       const member = await createSecondTestUser(page);
+      await denyUserRoomPermission(page, roomId, member.id!, 'message.post');
+
+      // The member joins the room
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
       await joinRoomViaAPI(page, roomId);
@@ -435,8 +458,8 @@ test.describe('Room-Level Permission Overrides', () => {
       const roomId = await createRoomViaAPI(page);
       await joinRoomViaAPI(page, roomId);
 
-      // Clear message.post at server level for everyone. everyone cannot deny
-      // at server scope (ADR-116).
+      // Clear message.post at server level for everyone. Roles only grant
+      // (ADR-116).
       await revokePermission(page, 'everyone', 'message.post');
 
       // Grant at room level for everyone. The nearest decision for that same
@@ -467,11 +490,11 @@ test.describe('Room-Level Permission Overrides', () => {
       await page.goto(routes.room(roomId));
       await roomPage.sendMessage('Test message for reactions');
 
-      // Deny message.react at room level for everyone
-      await denyRoomPermission(page, roomId, 'everyone', 'message.react');
-
-      // Create second user, join the room
+      // Create second user and deny message.react to them at room level
       const member = await createSecondTestUser(page);
+      await denyUserRoomPermission(page, roomId, member.id!, 'message.react');
+
+      // The member joins the room
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
       await joinRoomViaAPI(page, roomId);
@@ -570,11 +593,11 @@ test.describe('Room-Level Permission Overrides', () => {
       await joinRoomViaAPI(page, roomAId);
       await joinRoomViaAPI(page, roomBId);
 
-      // Deny message.post only in room A
-      await denyRoomPermission(page, roomAId, 'everyone', 'message.post');
-
-      // Create second user, join both rooms
+      // Create second user and deny message.post to them only in room A
       const member = await createSecondTestUser(page);
+      await denyUserRoomPermission(page, roomAId, member.id!, 'message.post');
+
+      // The member joins both rooms
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
       await joinRoomViaAPI(page, roomAId);
@@ -600,11 +623,11 @@ test.describe('Room-Level Permission Overrides', () => {
       const roomId = await createRoomViaAPI(page);
       await joinRoomViaAPI(page, roomId);
 
-      // Deny message.post at room level for everyone
-      await denyRoomPermission(page, roomId, 'everyone', 'message.post');
-
-      // Create second user, join the room
+      // Create second user and deny message.post to them at room level
       const member = await createSecondTestUser(page);
+      await denyUserRoomPermission(page, roomId, member.id!, 'message.post');
+
+      // The member joins the room
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
       await joinRoomViaAPI(page, roomId);
@@ -625,8 +648,8 @@ test.describe('Room-Level Permission Overrides', () => {
       const adminMsg = await postMessageViaAPI(page, roomId, 'React to this');
       expect(adminMsg).not.toBeNull();
 
-      // Clear message.react at server level for everyone. everyone cannot
-      // deny at server scope (ADR-116).
+      // Clear message.react at server level for everyone. Roles only grant
+      // (ADR-116).
       await revokePermission(page, 'everyone', 'message.react');
 
       // Grant message.react at room level. The room decision is nearest for
@@ -755,12 +778,7 @@ test.describe('Permission-only Resolution', () => {
       // Roles only grant, so the deny goes on the member (still authed as
       // e2eadmin from usePrimaryServerViaAPI).
       const member = await createSecondTestUser(page);
-      await connectPost(page, 'chatto.admin.v1.AdminPermissionService/SetUserPermission', {
-        userId: member.id!,
-        permission: 'message.post',
-        decision: 'PERMISSION_DECISION_DENY',
-        scope: { kind: 'PERMISSION_SCOPE_KIND_ROOM', id: generalRoomId }
-      });
+      await denyUserRoomPermission(page, generalRoomId, member.id!, 'message.post');
 
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
@@ -771,12 +789,12 @@ test.describe('Permission-only Resolution', () => {
     });
   });
 
-  test.describe('#announcements room - restricted posting', () => {
-    test('announcements room auto-configures permissions (owner can post, member cannot)', async ({
-      page,
-      roomPage
-    }) => {
-      // Owner loads the primary server - this auto-creates #announcements with restricted permissions
+  test.describe('#announcements room - posting', () => {
+    // The seeded room-scope deny of message.post for everyone has no effect,
+    // because roles, everyone included, only grant (ADR-116). Members keep
+    // the server-scope allow of everyone.
+    test('announcements room lets the owner and members post', async ({ page, roomPage }) => {
+      // Owner loads the primary server - this auto-creates #announcements
       const _owner = await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page, `Announcements Test ${Date.now()}`);
       const announcementsRoomId = await getRoomByName(page, 'announcements');
@@ -793,16 +811,14 @@ test.describe('Permission-only Resolution', () => {
       await loginUser(page, member.login, member.password);
       await joinRoomViaAPI(page, announcementsRoomId);
 
-      // Member should NOT be able to post
+      // Member can see the announcement and post
       await page.goto(routes.room(announcementsRoomId));
-      await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'false');
-
-      // But member can still see the announcement
       await expect(page.getByText('Important announcement from owner!')).toBeVisible();
+      await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'true');
     });
 
     test('admin can post root messages in announcements room', async ({ page }) => {
-      // Owner loads the primary server - this auto-creates #announcements with restricted permissions
+      // Owner loads the primary server - this auto-creates #announcements
       const _owner = await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page, `Admin Ann Test ${Date.now()}`);
       const announcementsRoomId = await getRoomByName(page, 'announcements');
@@ -820,26 +836,6 @@ test.describe('Permission-only Resolution', () => {
       const chatInput = page.getByTestId('message-input');
       await expect(chatInput).toHaveAttribute('contenteditable', 'true');
     });
-
-    test('moderator cannot post root messages in announcements room', async ({ page }) => {
-      // Owner loads the primary server - this auto-creates #announcements with restricted permissions
-      const _owner = await createAndLoginTestUser(page);
-      await usePrimaryServerViaAPI(page, `Mod Ann Test ${Date.now()}`);
-      const announcementsRoomId = await getRoomByName(page, 'announcements');
-
-      // Create member and assign moderator role
-      const mod = await createSecondTestUser(page);
-      await assignServerRole(page, mod.id!, 'moderator');
-
-      // Login as moderator
-      await logoutUser(page);
-      await loginUser(page, mod.login, mod.password);
-      await joinRoomViaAPI(page, announcementsRoomId);
-
-      await page.goto(routes.room(announcementsRoomId));
-      const chatInput = page.getByTestId('message-input');
-      await expect(chatInput).toHaveAttribute('contenteditable', 'false');
-    });
   });
 
   test.describe('message.post-in-thread — Posting in Threads', () => {
@@ -852,13 +848,13 @@ test.describe('Permission-only Resolution', () => {
       const rootMsg = await postMessageViaAPI(page, roomId, 'Root for post-in-thread test');
       expect(rootMsg).not.toBeNull();
 
-      // Deny message.post-in-thread at room level for everyone
-      await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-thread');
-      await denyRoomPermission(page, roomId, 'everyone', 'message.post');
-      await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-interactions');
-
-      // Create second user, join the room
+      // Create second user and deny every thread-reply path to them at room level
       const member = await createSecondTestUser(page);
+      await denyUserRoomPermission(page, roomId, member.id!, 'message.post-in-thread');
+      await denyUserRoomPermission(page, roomId, member.id!, 'message.post');
+      await denyUserRoomPermission(page, roomId, member.id!, 'message.post-in-interactions');
+
+      // The member joins the room
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
       await joinRoomViaAPI(page, roomId);
@@ -883,13 +879,13 @@ test.describe('Permission-only Resolution', () => {
       const rootMsg = await postMessageViaAPI(page, roomId, 'Root for post-in-thread API test');
       expect(rootMsg).not.toBeNull();
 
-      // Deny message.post-in-thread at room level for everyone
-      await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-thread');
-      await denyRoomPermission(page, roomId, 'everyone', 'message.post');
-      await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-interactions');
-
-      // Create second user, join the room
+      // Create second user and deny every thread-reply path to them at room level
       const member = await createSecondTestUser(page);
+      await denyUserRoomPermission(page, roomId, member.id!, 'message.post-in-thread');
+      await denyUserRoomPermission(page, roomId, member.id!, 'message.post');
+      await denyUserRoomPermission(page, roomId, member.id!, 'message.post-in-interactions');
+
+      // The member joins the room
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
       await joinRoomViaAPI(page, roomId);
@@ -908,11 +904,11 @@ test.describe('Permission-only Resolution', () => {
       const roomId = await createRoomViaAPI(page);
       await joinRoomViaAPI(page, roomId);
 
-      // Deny message.post-in-thread at room level for everyone
-      await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-thread');
-
-      // Create second user, join the room
+      // Create second user and deny message.post-in-thread to them at room level
       const member = await createSecondTestUser(page);
+      await denyUserRoomPermission(page, roomId, member.id!, 'message.post-in-thread');
+
+      // The member joins the room
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
       await joinRoomViaAPI(page, roomId);
@@ -934,7 +930,7 @@ test.describe('Permission-only Resolution', () => {
   });
 
   test.describe('message.post — Read-only rooms with open threads', () => {
-    test('a room can deny root posts and keep thread replies open', async ({ page }) => {
+    test('a room-scope deny of root posts can keep thread replies open', async ({ page }) => {
       // Admin creates server and room, posts a root message
       await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page);
@@ -943,13 +939,13 @@ test.describe('Permission-only Resolution', () => {
       const rootMsg = await postMessageViaAPI(page, roomId, 'Root for post-denied test');
       expect(rootMsg).not.toBeNull();
 
-      // Deny message.post at room level for everyone. It includes thread
-      // replies, so allow those explicitly.
-      await denyRoomPermission(page, roomId, 'everyone', 'message.post');
+      // Create second user and deny message.post to them at room level. It
+      // includes thread replies, so allow those explicitly for everyone.
+      const member = await createSecondTestUser(page);
+      await denyUserRoomPermission(page, roomId, member.id!, 'message.post');
       await grantRoomPermission(page, roomId, 'everyone', 'message.post-in-thread');
 
-      // Create second user, join the room
-      const member = await createSecondTestUser(page);
+      // The member joins the room
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
       await joinRoomViaAPI(page, roomId);
@@ -990,18 +986,18 @@ test.describe('Permission-only Resolution', () => {
     test('room with room.join denied at room scope still appears in the directory, with no Join button', async ({
       page
     }) => {
-      // Admin creates a room and denies `room.join` for everyone at room
+      // Admin creates a room and denies `room.join` to a second user at room
       // scope. `room.list` stays at its default (allow), so the room is
       // still discoverable.
       await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page);
       const roomId = await createRoomViaAPI(page, `restricted-${Date.now()}`);
-      await denyRoomPermission(page, roomId, 'everyone', 'room.join');
+      const member = await createSecondTestUser(page);
+      await denyUserRoomPermission(page, roomId, member.id!, 'room.join');
 
-      // A second user signs in. They haven't joined this room and never
+      // The second user signs in. They haven't joined this room and never
       // will be able to via the directory, but they should be able to see
       // it.
-      const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
       // Navigate to the Overview / room directory. /chat/- IS the
@@ -1034,9 +1030,9 @@ test.describe('Permission-only Resolution', () => {
         restrictedDescription
       );
       await joinRoomViaAPI(page, roomId);
-      await denyRoomPermission(page, roomId, 'everyone', 'room.join');
 
       const member = await createSecondTestUser(page);
+      await denyUserRoomPermission(page, roomId, member.id!, 'room.join');
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
 

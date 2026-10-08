@@ -43,10 +43,6 @@ func rbacRolePermissionGrantedEvent(scope PermissionScope, scopeID, roleName str
 	return rbacPermissionGrantedEvent(scope, scopeID, evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, roleName, perm)
 }
 
-func rbacRolePermissionDeniedEvent(scope PermissionScope, scopeID, roleName string, perm Permission) *evtv1.RbacPermissionDeniedEvent {
-	return rbacPermissionDeniedEvent(scope, scopeID, evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, roleName, perm)
-}
-
 func rbacRolePermissionClearedEvent(scope PermissionScope, scopeID, roleName string, perm Permission) *evtv1.RbacPermissionClearedEvent {
 	return rbacPermissionClearedEvent(scope, scopeID, evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, roleName, perm)
 }

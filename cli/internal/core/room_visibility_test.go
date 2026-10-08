@@ -33,15 +33,12 @@ func TestCanSeeRoom_VisibilityFollowsListPermission(t *testing.T) {
 		}
 	})
 
-	t.Run("room-scope deny of room.list on everyone: non-member loses visibility", func(t *testing.T) {
-		if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList); err != nil {
-			t.Fatalf("DenyRoomPermission: %v", err)
-		}
-		defer func() {
-			_ = core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList)
-		}()
-
+	t.Run("room-scope user deny of room.list: non-member loses visibility", func(t *testing.T) {
 		stranger, _ := core.CreateUser(ctx, SystemActorID, "vis-stranger-denied", "Stranger", "password123")
+		if err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, stranger.Id, PermRoomList); err != nil {
+			t.Fatalf("DenyUserRoomPermission: %v", err)
+		}
+
 		got, err := core.CanSeeRoom(ctx, stranger.Id, KindChannel, room.Id)
 		if err != nil {
 			t.Fatalf("CanSeeRoom: %v", err)
@@ -52,14 +49,11 @@ func TestCanSeeRoom_VisibilityFollowsListPermission(t *testing.T) {
 	})
 
 	t.Run("denying room.join does NOT affect visibility — separate gate", func(t *testing.T) {
-		if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin); err != nil {
-			t.Fatalf("DenyRoomPermission: %v", err)
-		}
-		defer func() {
-			_ = core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin)
-		}()
-
 		stranger, _ := core.CreateUser(ctx, SystemActorID, "vis-stranger-no-join", "Stranger", "password123")
+		if err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, stranger.Id, PermRoomJoin); err != nil {
+			t.Fatalf("DenyUserRoomPermission: %v", err)
+		}
+
 		got, err := core.CanSeeRoom(ctx, stranger.Id, KindChannel, room.Id)
 		if err != nil {
 			t.Fatalf("CanSeeRoom: %v", err)
@@ -69,17 +63,14 @@ func TestCanSeeRoom_VisibilityFollowsListPermission(t *testing.T) {
 		}
 	})
 
-	t.Run("existing member keeps visibility even when room.list is denied for everyone", func(t *testing.T) {
+	t.Run("existing member keeps visibility even when room.list is denied for them", func(t *testing.T) {
 		member, _ := core.CreateUser(ctx, SystemActorID, "vis-member", "Member", "password123")
 		if _, err := core.JoinRoom(ctx, member.Id, KindChannel, member.Id, room.Id); err != nil {
 			t.Fatalf("JoinRoom: %v", err)
 		}
-		if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList); err != nil {
-			t.Fatalf("DenyRoomPermission: %v", err)
+		if err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, member.Id, PermRoomList); err != nil {
+			t.Fatalf("DenyUserRoomPermission: %v", err)
 		}
-		defer func() {
-			_ = core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList)
-		}()
 
 		got, err := core.CanSeeRoom(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
@@ -101,6 +92,10 @@ func TestCanSeeRoom_VisibilityFollowsListPermission(t *testing.T) {
 	})
 }
 
+// Roles only grant, so a role-only room needs an everyone baseline without
+// room.list and room.join. The named role's room allow then gives access to
+// its holders. Other roles keep access through their own allows, such as
+// admin's default server-scope room.list and room.join.
 func TestCanSeeRoom_NamedRoleOverridesEveryoneBaseline(t *testing.T) {
 	t.Parallel()
 
@@ -123,14 +118,16 @@ func TestCanSeeRoom_NamedRoleOverridesEveryoneBaseline(t *testing.T) {
 	if err := core.AssignServerRole(ctx, SystemActorID, allowed.Id, "engineering"); err != nil {
 		t.Fatalf("AssignServerRole engineering: %v", err)
 	}
+	for _, perm := range []Permission{PermRoomList, PermRoomJoin} {
+		if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, perm); err != nil {
+			t.Fatalf("ClearServerPermissionState everyone/%s: %v", perm, err)
+		}
+	}
 
 	t.Run("non-universal room is visible only to the allowed role", func(t *testing.T) {
 		room, err := core.CreateRoom(ctx, owner.Id, KindChannel, "", "private-engineering", "")
 		if err != nil {
 			t.Fatalf("CreateRoom: %v", err)
-		}
-		if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList); err != nil {
-			t.Fatalf("DenyRoomPermission everyone: %v", err)
 		}
 		if err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, "engineering", PermRoomList); err != nil {
 			t.Fatalf("GrantRoomPermission engineering: %v", err)
@@ -142,8 +139,8 @@ func TestCanSeeRoom_NamedRoleOverridesEveryoneBaseline(t *testing.T) {
 		if visible, err := core.CanSeeRoom(ctx, stranger.Id, KindChannel, room.Id); err != nil || visible {
 			t.Fatalf("stranger visibility = %v, err = %v; want false", visible, err)
 		}
-		if visible, err := core.CanSeeRoom(ctx, admin.Id, KindChannel, room.Id); err != nil || visible {
-			t.Fatalf("admin visibility = %v, err = %v; want false without a room-specific named allow", visible, err)
+		if visible, err := core.CanSeeRoom(ctx, admin.Id, KindChannel, room.Id); err != nil || !visible {
+			t.Fatalf("admin visibility = %v, err = %v; want true through admin's server-scope room.list allow", visible, err)
 		}
 	})
 
@@ -153,9 +150,6 @@ func TestCanSeeRoom_NamedRoleOverridesEveryoneBaseline(t *testing.T) {
 			t.Fatalf("CreateRoom: %v", err)
 		}
 		for _, perm := range []Permission{PermRoomList, PermRoomJoin} {
-			if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, perm); err != nil {
-				t.Fatalf("DenyRoomPermission everyone/%s: %v", perm, err)
-			}
 			if err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, "engineering", perm); err != nil {
 				t.Fatalf("GrantRoomPermission engineering/%s: %v", perm, err)
 			}
@@ -167,8 +161,8 @@ func TestCanSeeRoom_NamedRoleOverridesEveryoneBaseline(t *testing.T) {
 		if member, err := core.RoomMembershipExists(ctx, KindChannel, stranger.Id, room.Id); err != nil || member {
 			t.Fatalf("stranger membership = %v, err = %v; want false", member, err)
 		}
-		if member, err := core.RoomMembershipExists(ctx, KindChannel, admin.Id, room.Id); err != nil || member {
-			t.Fatalf("admin membership = %v, err = %v; want false without a room-specific named allow", member, err)
+		if member, err := core.RoomMembershipExists(ctx, KindChannel, admin.Id, room.Id); err != nil || !member {
+			t.Fatalf("admin membership = %v, err = %v; want true through admin's server-scope room.join allow", member, err)
 		}
 	})
 }

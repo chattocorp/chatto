@@ -29,8 +29,8 @@ type AdminRole struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Public role metadata shared with ordinary role catalog reads.
 	Role *v1.Role `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
-	// Permissions granted by this role at server scope. A role cannot deny at
-	// server scope.
+	// Permissions granted by this role at server scope. Roles only grant
+	// permissions.
 	Permissions   []string `protobuf:"bytes,2,rep,name=permissions,proto3" json:"permissions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

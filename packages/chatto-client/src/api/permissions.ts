@@ -23,9 +23,9 @@ export type PermissionScope =
   | { tier: 'group'; groupId: string }
   | { tier: 'room'; roomId: string };
 
+/** Permissions that a role grants at one tier. Roles only grant; they never deny (ADR-116). */
 export type TierPermissions = {
   permissions: string[];
-  permissionDenials: string[];
 };
 
 export type TierRole = {
@@ -34,13 +34,12 @@ export type TierRole = {
   description: string;
   isSystem: boolean;
   pingable: boolean;
+  /** Permissions that this role grants directly at this tier. */
   override: TierPermissions;
+  /** Permissions that this role grants at a parent tier. */
   inheritedAllows: string[];
-  inheritedDenials: string[];
   /** What a member with only this role is allowed at this tier (from the server). */
   effectiveAllows: string[];
-  /** What a member with only this role is denied at this tier (from the server). */
-  effectiveDenials: string[];
 };
 
 export type TierRoles = {
@@ -283,13 +282,10 @@ function tierRole(role: APITierRole): TierRole {
     isSystem: apiRole.isSystem,
     pingable: apiRole.pingable,
     override: {
-      permissions: [...(role.override?.permissions ?? [])],
-      permissionDenials: [...(role.override?.permissionDenials ?? [])]
+      permissions: [...(role.override?.permissions ?? [])]
     },
     inheritedAllows: [...role.inheritedAllows],
-    inheritedDenials: [...role.inheritedDenials],
-    effectiveAllows: [...role.effectiveAllows],
-    effectiveDenials: [...role.effectiveDenials]
+    effectiveAllows: [...role.effectiveAllows]
   };
 }
 

@@ -506,8 +506,8 @@ func TestConfiguredOwnerRoleCannotDivergeFromEffectiveVisibility(t *testing.T) {
 		t.Fatalf("create room: %v", err)
 	}
 	setRoomUniversalForTest(t, ctx, core, otherOwner.Id, room.Id, true)
-	if err := core.DenyRoomPermission(ctx, otherOwner.Id, room.Id, RoleEveryone, PermRoomJoin); err != nil {
-		t.Fatalf("deny everyone room.join: %v", err)
+	if err := core.ClearServerPermissionState(ctx, otherOwner.Id, RoleEveryone, PermRoomJoin); err != nil {
+		t.Fatalf("clear everyone room.join: %v", err)
 	}
 	if visible, err := core.RoomMembershipExists(ctx, KindChannel, configuredOwner.Id, room.Id); err != nil || !visible {
 		t.Fatalf("configured owner visibility before revoke = (%v, %v), want true", visible, err)

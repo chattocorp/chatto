@@ -5,8 +5,10 @@ import (
 	"testing"
 )
 
-// A private group denies room.list and room.join to everyone at group scope,
-// then allows both for the chosen role so every room in the group inherits it.
+// Roles only grant, so a private group removes room.list and room.join from
+// everyone at server scope. It then allows both for everyone in the public
+// group and for the chosen role in the private group, so every room in each
+// group inherits the allow.
 func TestRBACScenario_RoleOnlyRoomGroup(t *testing.T) {
 	t.Parallel()
 
@@ -39,12 +41,19 @@ func TestRBACScenario_RoleOnlyRoomGroup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoomGroup private: %v", err)
 	}
+	publicGroup, err := core.CreateRoomGroup(ctx, SystemActorID, "Public Scenario", "")
+	if err != nil {
+		t.Fatalf("CreateRoomGroup public: %v", err)
+	}
 	for _, permission := range []Permission{PermRoomList, PermRoomJoin} {
-		if err := core.DenyGroupPermission(ctx, SystemActorID, privateGroup.Id, RoleEveryone, permission); err != nil {
-			t.Fatalf("DenyGroupPermission everyone/%s: %v", permission, err)
+		if err := core.GrantGroupPermission(ctx, SystemActorID, publicGroup.Id, RoleEveryone, permission); err != nil {
+			t.Fatalf("GrantGroupPermission everyone/%s: %v", permission, err)
 		}
 		if err := core.GrantGroupPermission(ctx, SystemActorID, privateGroup.Id, "engineering", permission); err != nil {
 			t.Fatalf("GrantGroupPermission engineering/%s: %v", permission, err)
+		}
+		if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, permission); err != nil {
+			t.Fatalf("ClearServerPermissionState everyone/%s: %v", permission, err)
 		}
 	}
 
@@ -57,19 +66,17 @@ func TestRBACScenario_RoleOnlyRoomGroup(t *testing.T) {
 		privateRoomIDs = append(privateRoomIDs, room.Id)
 	}
 
-	publicGroup, err := core.CreateRoomGroup(ctx, SystemActorID, "Public Scenario", "")
-	if err != nil {
-		t.Fatalf("CreateRoomGroup public: %v", err)
-	}
 	publicRoom, err := core.CreateRoom(ctx, SystemActorID, KindChannel, publicGroup.Id, "public-scenario-room", "")
 	if err != nil {
 		t.Fatalf("CreateRoom public: %v", err)
 	}
 
+	// Roles only grant: admin's default server-scope room.list and room.join
+	// allows apply in every room, so admin keeps access to the private group.
 	for _, roomID := range privateRoomIDs {
 		assertRoomAccessScenario(t, core, member.Id, roomID, true, true)
 		assertRoomAccessScenario(t, core, outsider.Id, roomID, false, false)
-		assertRoomAccessScenario(t, core, admin.Id, roomID, false, false)
+		assertRoomAccessScenario(t, core, admin.Id, roomID, true, true)
 	}
 	assertRoomAccessScenario(t, core, outsider.Id, publicRoom.Id, true, true)
 
@@ -79,13 +86,16 @@ func TestRBACScenario_RoleOnlyRoomGroup(t *testing.T) {
 	if _, err := core.RoomCommands().JoinRoom(ctx, RoomIDInput{ActorID: outsider.Id, RoomID: privateRoomIDs[0]}); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("outsider join error = %v, want ErrPermissionDenied", err)
 	}
-	if _, err := core.RoomCommands().JoinRoom(ctx, RoomIDInput{ActorID: admin.Id, RoomID: privateRoomIDs[0]}); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("admin join error = %v, want ErrPermissionDenied", err)
+	if _, err := core.RoomCommands().JoinRoom(ctx, RoomIDInput{ActorID: admin.Id, RoomID: privateRoomIDs[0]}); err != nil {
+		t.Fatalf("admin joins private room through its server allow: %v", err)
 	}
 }
 
-// A private room inside an otherwise public group needs room-local decisions:
-// deny room.list and room.join to everyone, then allow both for the chosen role.
+// A private room inside an otherwise public group needs room-local decisions.
+// Roles only grant, so the setup removes room.list and room.join from everyone
+// at server scope, allows both for everyone in each public room, and allows
+// both for the chosen role in the private room. A group allow for everyone
+// would also open the private room.
 func TestRBACScenario_RoleOnlySpecificRoom(t *testing.T) {
 	t.Parallel()
 
@@ -120,11 +130,14 @@ func TestRBACScenario_RoleOnlySpecificRoom(t *testing.T) {
 		t.Fatalf("CreateRoom public sibling: %v", err)
 	}
 	for _, permission := range []Permission{PermRoomList, PermRoomJoin} {
-		if err := core.DenyRoomPermission(ctx, SystemActorID, privateRoom.Id, RoleEveryone, permission); err != nil {
-			t.Fatalf("DenyRoomPermission everyone/%s: %v", permission, err)
+		if err := core.GrantRoomPermission(ctx, SystemActorID, publicSibling.Id, RoleEveryone, permission); err != nil {
+			t.Fatalf("GrantRoomPermission everyone/%s: %v", permission, err)
 		}
 		if err := core.GrantRoomPermission(ctx, SystemActorID, privateRoom.Id, "project-x", permission); err != nil {
 			t.Fatalf("GrantRoomPermission project-x/%s: %v", permission, err)
+		}
+		if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, permission); err != nil {
+			t.Fatalf("ClearServerPermissionState everyone/%s: %v", permission, err)
 		}
 	}
 
@@ -140,8 +153,10 @@ func TestRBACScenario_RoleOnlySpecificRoom(t *testing.T) {
 	}
 }
 
-// A discoverable but restricted room keeps the everyone room.list baseline,
-// denies room.join to everyone, and allows room.join for the chosen role.
+// A discoverable but restricted room keeps the everyone room.list baseline.
+// Roles only grant, so the setup removes room.join from everyone at server
+// scope and allows room.join for the chosen role in the room. Rooms that
+// everyone can join then need their own allow for everyone.
 func TestRBACScenario_VisibleRoomJoinableOnlyByRole(t *testing.T) {
 	t.Parallel()
 
@@ -167,11 +182,11 @@ func TestRBACScenario_VisibleRoomJoinableOnlyByRole(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin); err != nil {
-		t.Fatalf("DenyRoomPermission everyone/room.join: %v", err)
-	}
 	if err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, "event-attendee", PermRoomJoin); err != nil {
 		t.Fatalf("GrantRoomPermission event-attendee/room.join: %v", err)
+	}
+	if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermRoomJoin); err != nil {
+		t.Fatalf("ClearServerPermissionState everyone/room.join: %v", err)
 	}
 
 	assertRoomAccessScenario(t, core, member.Id, room.Id, true, true)

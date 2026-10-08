@@ -200,26 +200,18 @@ export class PermissionScope extends Message<PermissionScope> {
 }
 
 /**
- * Permission grants and denials at a single tier.
+ * Explicit permission grants of a role at a single tier.
  *
  * @generated from message chatto.admin.v1.TierPermissions
  */
 export class TierPermissions extends Message<TierPermissions> {
   /**
-   * Explicitly granted permissions.
+   * Explicitly granted permissions. Roles only grant, so a role has no
+   * explicit denies.
    *
    * @generated from field: repeated string permissions = 1;
    */
   permissions: string[] = [];
-
-  /**
-   * Explicitly denied permissions. Only the everyone role can deny, and only
-   * below the server tier; this is empty for other roles and at the server
-   * tier.
-   *
-   * @generated from field: repeated string permission_denials = 2;
-   */
-  permissionDenials: string[] = [];
 
   constructor(data?: PartialMessage<TierPermissions>) {
     super();
@@ -230,7 +222,6 @@ export class TierPermissions extends Message<TierPermissions> {
   static readonly typeName = "chatto.admin.v1.TierPermissions";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "permissions", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 2, name: "permission_denials", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TierPermissions {
@@ -271,13 +262,6 @@ export class TierRole extends Message<TierRole> {
   inheritedAllows: string[] = [];
 
   /**
-   * Denials inherited from broader tiers.
-   *
-   * @generated from field: repeated string inherited_denials = 8;
-   */
-  inheritedDenials: string[] = [];
-
-  /**
    * Public role metadata.
    *
    * @generated from field: chatto.api.v1.Role role = 9;
@@ -287,21 +271,13 @@ export class TierRole extends Message<TierRole> {
   /**
    * Permissions that a member with only this role is allowed at this tier.
    * The server resolves them with the same rules as authorization: the
-   * everyone baseline, inclusion, and the scope rule. They do not include
-   * settings on single users, the owner override, or privileged mode.
+   * everyone baseline and inclusion. They do not include settings on single
+   * users, the owner override, or privileged mode. Other applicable
+   * permissions have no allow, which means no access.
    *
    * @generated from field: repeated string effective_allows = 10;
    */
   effectiveAllows: string[] = [];
-
-  /**
-   * Permissions that a member with only this role is denied at this tier,
-   * for example because everyone is denied at a more specific scope.
-   * Permissions in neither list have no setting, which also means no access.
-   *
-   * @generated from field: repeated string effective_denials = 11;
-   */
-  effectiveDenials: string[] = [];
 
   constructor(data?: PartialMessage<TierRole>) {
     super();
@@ -313,10 +289,8 @@ export class TierRole extends Message<TierRole> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 6, name: "override", kind: "message", T: TierPermissions },
     { no: 7, name: "inherited_allows", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 8, name: "inherited_denials", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 9, name: "role", kind: "message", T: Role },
     { no: 10, name: "effective_allows", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 11, name: "effective_denials", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TierRole {
@@ -1653,7 +1627,8 @@ export class SetRolePermissionRequest extends Message<SetRolePermissionRequest> 
   permission = "";
 
   /**
-   * New decision. NONE clears the explicit state.
+   * New decision. NONE clears the explicit state. Roles only
+   * grant, so DENY returns INVALID_ARGUMENT.
    *
    * @generated from field: chatto.admin.v1.PermissionDecision decision = 3;
    */

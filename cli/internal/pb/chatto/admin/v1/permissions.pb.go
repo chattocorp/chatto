@@ -257,17 +257,14 @@ func (x *PermissionScope) GetId() string {
 	return ""
 }
 
-// Permission grants and denials at a single tier.
+// Explicit permission grants of a role at a single tier.
 type TierPermissions struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Explicitly granted permissions.
-	Permissions []string `protobuf:"bytes,1,rep,name=permissions,proto3" json:"permissions,omitempty"`
-	// Explicitly denied permissions. Only the everyone role can deny, and only
-	// below the server tier; this is empty for other roles and at the server
-	// tier.
-	PermissionDenials []string `protobuf:"bytes,2,rep,name=permission_denials,json=permissionDenials,proto3" json:"permission_denials,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Explicitly granted permissions. Roles only grant, so a role has no
+	// explicit denies.
+	Permissions   []string `protobuf:"bytes,1,rep,name=permissions,proto3" json:"permissions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TierPermissions) Reset() {
@@ -307,13 +304,6 @@ func (x *TierPermissions) GetPermissions() []string {
 	return nil
 }
 
-func (x *TierPermissions) GetPermissionDenials() []string {
-	if x != nil {
-		return x.PermissionDenials
-	}
-	return nil
-}
-
 // One role's permission state at a single tier.
 type TierRole struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -321,21 +311,16 @@ type TierRole struct {
 	Override *TierPermissions `protobuf:"bytes,6,opt,name=override,proto3" json:"override,omitempty"`
 	// Allows inherited from broader tiers.
 	InheritedAllows []string `protobuf:"bytes,7,rep,name=inherited_allows,json=inheritedAllows,proto3" json:"inherited_allows,omitempty"`
-	// Denials inherited from broader tiers.
-	InheritedDenials []string `protobuf:"bytes,8,rep,name=inherited_denials,json=inheritedDenials,proto3" json:"inherited_denials,omitempty"`
 	// Public role metadata.
 	Role *v1.Role `protobuf:"bytes,9,opt,name=role,proto3" json:"role,omitempty"`
 	// Permissions that a member with only this role is allowed at this tier.
 	// The server resolves them with the same rules as authorization: the
-	// everyone baseline, inclusion, and the scope rule. They do not include
-	// settings on single users, the owner override, or privileged mode.
+	// everyone baseline and inclusion. They do not include settings on single
+	// users, the owner override, or privileged mode. Other applicable
+	// permissions have no allow, which means no access.
 	EffectiveAllows []string `protobuf:"bytes,10,rep,name=effective_allows,json=effectiveAllows,proto3" json:"effective_allows,omitempty"`
-	// Permissions that a member with only this role is denied at this tier,
-	// for example because everyone is denied at a more specific scope.
-	// Permissions in neither list have no setting, which also means no access.
-	EffectiveDenials []string `protobuf:"bytes,11,rep,name=effective_denials,json=effectiveDenials,proto3" json:"effective_denials,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *TierRole) Reset() {
@@ -382,13 +367,6 @@ func (x *TierRole) GetInheritedAllows() []string {
 	return nil
 }
 
-func (x *TierRole) GetInheritedDenials() []string {
-	if x != nil {
-		return x.InheritedDenials
-	}
-	return nil
-}
-
 func (x *TierRole) GetRole() *v1.Role {
 	if x != nil {
 		return x.Role
@@ -399,13 +377,6 @@ func (x *TierRole) GetRole() *v1.Role {
 func (x *TierRole) GetEffectiveAllows() []string {
 	if x != nil {
 		return x.EffectiveAllows
-	}
-	return nil
-}
-
-func (x *TierRole) GetEffectiveDenials() []string {
-	if x != nil {
-		return x.EffectiveDenials
 	}
 	return nil
 }
@@ -1870,7 +1841,8 @@ type SetRolePermissionRequest struct {
 	RoleName string `protobuf:"bytes,1,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
 	// Permission identifier.
 	Permission string `protobuf:"bytes,2,opt,name=permission,proto3" json:"permission,omitempty"`
-	// New decision. NONE clears the explicit state.
+	// New decision. NONE clears the explicit state. Roles only
+	// grant, so DENY returns INVALID_ARGUMENT.
 	Decision PermissionDecision `protobuf:"varint,3,opt,name=decision,proto3,enum=chatto.admin.v1.PermissionDecision" json:"decision,omitempty"`
 	// Target scope. Omit or use SERVER for server scope.
 	Scope         *PermissionScope `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
@@ -2108,18 +2080,15 @@ const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"!chatto/admin/v1/permissions.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x1echatto/api/v1/pagination.proto\"e\n" +
 	"\x0fPermissionScope\x12B\n" +
 	"\x04kind\x18\x01 \x01(\x0e2$.chatto.admin.v1.PermissionScopeKindB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04kind\x12\x0e\n" +
-	"\x02id\x18\x02 \x01(\tR\x02id\"b\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\"M\n" +
 	"\x0fTierPermissions\x12 \n" +
-	"\vpermissions\x18\x01 \x03(\tR\vpermissions\x12-\n" +
-	"\x12permission_denials\x18\x02 \x03(\tR\x11permissionDenials\"\xe2\x02\n" +
+	"\vpermissions\x18\x01 \x03(\tR\vpermissionsJ\x04\b\x02\x10\x03R\x12permission_denials\"\xa1\x02\n" +
 	"\bTierRole\x12<\n" +
 	"\boverride\x18\x06 \x01(\v2 .chatto.admin.v1.TierPermissionsR\boverride\x12)\n" +
-	"\x10inherited_allows\x18\a \x03(\tR\x0finheritedAllows\x12+\n" +
-	"\x11inherited_denials\x18\b \x03(\tR\x10inheritedDenials\x12'\n" +
+	"\x10inherited_allows\x18\a \x03(\tR\x0finheritedAllows\x12'\n" +
 	"\x04role\x18\t \x01(\v2\x13.chatto.api.v1.RoleR\x04role\x12)\n" +
 	"\x10effective_allows\x18\n" +
-	" \x03(\tR\x0feffectiveAllows\x12+\n" +
-	"\x11effective_denials\x18\v \x03(\tR\x10effectiveDenialsJ\x04\b\x01\x10\x06R\trole_nameR\fdisplay_nameR\vdescriptionR\tis_systemR\bposition\"\xb7\x01\n" +
+	" \x03(\tR\x0feffectiveAllowsJ\x04\b\x01\x10\x06J\x04\b\b\x10\tR\trole_nameR\fdisplay_nameR\vdescriptionR\tis_systemR\bpositionR\x11inherited_denials\"\xb7\x01\n" +
 	"\tTierRoles\x125\n" +
 	"\x16applicable_permissions\x18\x01 \x03(\tR\x15applicablePermissions\x12/\n" +
 	"\x05roles\x18\x02 \x03(\v2\x19.chatto.admin.v1.TierRoleR\x05roles\x12B\n" +

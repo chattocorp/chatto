@@ -195,8 +195,8 @@ func TestAdminRelativeRoomLayoutMoves(t *testing.T) {
 		t.Fatalf("target order after intra-group move = %v, want %v", got, wantTargetOrder)
 	}
 
-	if err := core.DenyGroupPermission(ctx, SystemActorID, second.Id, RoleEveryone, PermRoomManage); err != nil {
-		t.Fatalf("DenyGroupPermission target room.manage: %v", err)
+	if err := core.ClearGroupPermissionState(ctx, SystemActorID, second.Id, RoleEveryone, PermRoomManage); err != nil {
+		t.Fatalf("ClearGroupPermissionState target room.manage: %v", err)
 	}
 	if _, err := core.AdminMoveSidebarItem(ctx, actor.Id, linkRef, second.Id, beforeSecond); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("no-op placement after authorization loss error = %v, want ErrPermissionDenied", err)

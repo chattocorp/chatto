@@ -215,7 +215,7 @@ func TestMCPGrantSubsets(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := c.DenyRoomPermission(ctx, core.SystemActorID, room.GetId(), core.RoleEveryone, core.PermRoomJoin); err != nil {
+		if err := c.DenyUserRoomPermission(ctx, core.SystemActorID, room.GetId(), user.GetId(), core.PermRoomJoin); err != nil {
 			t.Fatal(err)
 		}
 		handler, err := NewHandler(c, config.ChattoConfig{Webserver: config.WebserverConfig{URL: "https://chat.example"}, MCP: config.MCPConfig{Enabled: true}}, "scope-test")

@@ -109,7 +109,7 @@
   }}
 >
   <div class="max-w-4xl">
-    <SubjectPermissionsMatrix {data} subjectKind="role" onCycle={() => undefined} />
+    <SubjectPermissionsMatrix {data} subjectKind="user" onCycle={() => undefined} />
   </div>
 </Story>
 
@@ -136,6 +136,6 @@
   }}
 >
   <div class="w-80">
-    <SubjectPermissionsMatrix {data} subjectKind="role" onCycle={() => undefined} />
+    <SubjectPermissionsMatrix {data} subjectKind="user" onCycle={() => undefined} />
   </div>
 </Story>
