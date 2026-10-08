@@ -541,6 +541,16 @@ it.each(['sidebar', 'stage'] as const)(
   }
 );
 
+/** Rebuild every participant around the same tracks, as each LiveKit mute event does. */
+function rebuildParticipants() {
+  const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
+  call.participants = call.participants.map((participant) => ({
+    ...participant,
+    isMuted: !participant.isMuted
+  }));
+  flushSync();
+}
+
 it.each(['sidebar', 'stage'] as const)(
   'keeps %s videos attached when participant state changes without new tracks',
   async (layout) => {
@@ -550,24 +560,26 @@ it.each(['sidebar', 'stage'] as const)(
     // Harness tracks remove the poster on detach and set it again on attach.
     const changes: MutationRecord[] = [];
     const observer = new MutationObserver((records) => changes.push(...records));
-    observer.observe(screen.container, {
-      subtree: true,
-      childList: true,
-      attributeFilter: ['poster']
-    });
+    observer.observe(screen.container, { subtree: true, attributeFilter: ['poster'] });
     try {
-      const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
-      // Each LiveKit mute event rebuilds every participant around the same tracks.
-      call.participants = call.participants.map((participant) => ({
-        ...participant,
-        isMuted: !participant.isMuted
-      }));
-      flushSync();
+      rebuildParticipants();
       changes.push(...observer.takeRecords());
-      expect(changes.filter((change) => change.attributeName === 'poster')).toEqual([]);
-      expect(Array.from(screen.container.querySelectorAll('video'))).toEqual(videos);
+      expect(changes).toEqual([]);
+      const current = Array.from(screen.container.querySelectorAll('video'));
+      expect(current).toHaveLength(videos.length);
+      current.forEach((video, index) => expect(video).toBe(videos[index]));
     } finally {
       observer.disconnect();
     }
   }
 );
+
+it('keeps a picture-in-picture video in its tile when participant state changes', async () => {
+  const screen = renderCallPanelHarness({ scenario: 'camera' });
+  await expect.poll(() => mediaCards(screen.container).length).toBeGreaterThan(0);
+  const video = mediaCards(screen.container)[0].querySelector('video')!;
+  enterPictureInPicture(video);
+  rebuildParticipants();
+  expect(video.closest('[data-call-pip-host]')).toBeNull();
+  expect(mediaCards(screen.container)[0].querySelector('video')).toBe(video);
+});
