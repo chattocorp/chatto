@@ -221,8 +221,10 @@ func (c *ChattoCore) GetUserPermissionMatrixPage(ctx context.Context, actorID, u
 
 // SetRolePermissionState changes one role decision. Role managers may edit
 // every scope; room managers may edit the groups and rooms that they manage.
-// A non-owner may change only roles that rank below them, and only decisions
-// for permissions that they effectively hold at the target scope.
+// Holders of role.manage may change every role except owner; other editors
+// need the role to rank below them (requireRoleManageable). A non-owner may
+// change only decisions for permissions that they effectively hold at the
+// target scope.
 func (c *ChattoCore) SetRolePermissionState(ctx context.Context, actorID, roleName string, scope PermissionTargetScope, perm Permission, state PermissionState) error {
 	if roleName == RoleOwner {
 		return fmt.Errorf("%w: owner permissions are granted virtually and cannot be edited", ErrInvalidArgument)

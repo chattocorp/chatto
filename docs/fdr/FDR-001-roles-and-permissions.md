@@ -106,12 +106,13 @@ the backend permission catalog. Update both catalogs together.
 - Delegated role assignment is bounded by the assigner's own authority and rank. A non-owner may assign a role only when it ranks below them. They must also effectively possess every permission that the role explicitly allows at the same scope. To revoke the role, they must also have authority over each of its explicit denies. Only an effective owner may assign or revoke the `owner` role.
 - Permission editing is bounded by the editor's own authority and rank. To
   set, deny, or clear one role or direct-user decision, a non-owner must
-  effectively have that permission at the decision's scope. The role must
-  rank below them, or the user must rank below them unless it is their own
-  account. `everyone` ranks below every account. Room and room-group managers
-  follow the same rules at their scope. To delete a role, a non-owner must
-  outrank it and have every permission that the role allows or denies. Bot
-  decisions keep the bot rules in FDR-038.
+  effectively have that permission at the decision's scope. A holder of
+  `role.manage` may change every role except `owner`; other editors, such as
+  room and room-group managers, need the role to rank below them. A user must
+  rank below the editor unless it is their own account. `everyone` ranks
+  below every account. To delete a role, a non-owner needs `role.manage` and
+  every permission that the role allows or denies. Bot decisions keep the bot
+  rules in FDR-038.
 - Default permissions are creation-time state: fresh server defaults are seeded only into an empty RBAC stream, and channel-room defaults are committed atomically with room creation. Startup does not backfill missing or cleared decisions, except for the one-time upgrade grants in Design Decision 9.
 - Roles have a `pingable` setting that controls whether `@role` pings notify assigned room members. Fresh servers seed `moderator` as pingable and leave `owner`, `admin`, and `everyone` unpingable.
 - User-initiated RBAC writes carry the authenticated user's ID as the event actor. Synthetic `system` actors are reserved for bootstrap, seeding, migrations, and other non-user maintenance.
@@ -223,7 +224,7 @@ relationships in sync. Tests cover the current relationship.
 
 **Decision:** Role order ranks accounts for administration only. `owner` is fixed at the top and `everyone` at the bottom; the other roles share one order, and a new role starts lowest. An account ranks at its highest role; owners outrank every role, and `everyone` ranks below every account. A non-owner may act only on accounts that rank strictly below them and assign only roles that rank strictly below their highest role. A holder of `role.manage` may edit, delete, and move every role except `owner`; other editors of role decisions, such as room managers, may edit only roles below their highest role. Direct user decisions do not affect rank. Bots rank at their highest role but act with at most their owner's rank.
 **Why:** Delegated administration needs to protect accounts above the actor, and features need a user's highest role. Discord, Matrix, and Zulip use the same model. Keeping rank out of permission resolution keeps ADR-052's resolution rules intact. See ADR-114.
-**Tradeoff:** Two accounts with the same highest role cannot act on each other. A user with administrative direct permissions but no matching role ranks low. Denies win across roles, so a role manager can still restrict higher accounts through a lower role that they hold or through `everyone`. A restriction role placed above its managers raises the rank of the accounts it restricts. A holder of `role.manage` can change every role except `owner` and move their own role higher, so give `role.manage` only to administrators. Older replicas ignore role moves and lowest placement during a rolling upgrade.
+**Tradeoff:** Two accounts with the same highest role cannot act on each other. A user with administrative direct permissions but no matching role ranks low. Denies win across roles, so a holder of `role.manage` can restrict higher accounts through any role except `owner`, within the permissions that they hold. A restriction role placed above its managers raises the rank of the accounts it restricts. A holder of `role.manage` can change every role except `owner` and move their own role higher, so give `role.manage` only to administrators. Older replicas ignore role moves and lowest placement during a rolling upgrade.
 
 ## Permissions
 

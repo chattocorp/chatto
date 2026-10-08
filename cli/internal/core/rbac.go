@@ -591,7 +591,8 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, actorID, name, displa
 }
 
 // UpdateServerRole updates an existing role's metadata. The role name cannot
-// be changed. A non-owner actor may update only roles that rank below them.
+// be changed. Holders of role.manage may update every role except owner
+// (requireRoleManageable).
 func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displayName, description string, pingableValue ...bool) (*RoleWithPermissions, error) {
 	if err := validateRoleMetadata(displayName, description); err != nil {
 		return nil, err
@@ -739,8 +740,8 @@ func (c *ChattoCore) GetServerRole(ctx context.Context, name string) (*RoleWithP
 // This includes: the role definition, all permission grants, and all user assignments.
 // System roles (owner, admin, moderator, everyone) cannot be deleted. Deletion
 // revokes the role from every holder, so an actor who is not exempt from the
-// hierarchy needs the same authority as for revocation: the role must rank
-// below them, and they need every permission that the role allows or denies.
+// hierarchy must be able to manage the role (requireRoleManageable) and needs
+// every permission that the role allows or denies.
 func (c *ChattoCore) DeleteServerRole(ctx context.Context, actorID, name string) error {
 	if IsSystemRole(name) {
 		return ErrCannotDeleteSystemRole
