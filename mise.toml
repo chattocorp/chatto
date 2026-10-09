@@ -31,21 +31,22 @@ CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev"
 # ten ports. Tasks and scripts use these names, not offsets.
 CHATTO_DEV_PORT_BASE = "{% if env.CONDUCTOR_PORT | default(value='') == '' %}4000{% else %}{{env.CONDUCTOR_PORT}}{% endif %}"
 # Chatto with its embedded frontend (`mise dev`).
-# Paseo's dev launcher overrides this port, the public URL, and the NATS port.
-CHATTO_DEV_CHATTO_PORT = "{{env.CHATTO_DEV_CHATTO_PORT | default(value=env.CHATTO_DEV_PORT_BASE)}}"
+# Keep override inputs separate from resolved values inherited by nested mise.
+# Paseo supplies the overrides; Conductor can still select a new port block.
+CHATTO_DEV_CHATTO_PORT = "{{env.CHATTO_DEV_CHATTO_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE)}}"
 # Vite frontend development server (`mise dev-frontend`).
 CHATTO_DEV_VITE_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 1}}"
 CHATTO_DEV_AUTHLING_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 2}}"
 # Runling bot console.
 CHATTO_DEV_RUNLING_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 3}}"
 # Chatto embedded NATS.
-CHATTO_DEV_NATS_PORT = "{{env.CHATTO_DEV_NATS_PORT | default(value=env.CHATTO_DEV_PORT_BASE | int + 4)}}"
+CHATTO_DEV_NATS_PORT = "{{env.CHATTO_DEV_NATS_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE | int + 4)}}"
 # LiveKit HTTP and WebSocket signaling, then RTC over TCP and UDP.
 CHATTO_DEV_LIVEKIT_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 5}}"
 CHATTO_DEV_LIVEKIT_RTC_TCP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 6}}"
 CHATTO_DEV_LIVEKIT_RTC_UDP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 7}}"
 # Mailpit SMTP and web UI.
-CHATTO_DEV_SMTP_PORT = "{{env.CHATTO_DEV_SMTP_PORT | default(value=env.CHATTO_DEV_PORT_BASE | int + 8)}}"
+CHATTO_DEV_SMTP_PORT = "{{env.CHATTO_DEV_SMTP_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE | int + 8)}}"
 CHATTO_DEV_MAILPIT_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 9}}"
 # The development stack runs this pinned LiveKit server through `mise x`.
 CHATTO_DEV_LIVEKIT_SERVER = "go:github.com/livekit/livekit-server/cmd/server@v1.13.5"
@@ -59,8 +60,8 @@ CHATTO_DEV_LIVEKIT_SERVER = "go:github.com/livekit/livekit-server/cmd/server@v1.
 # label is `local`. The label must be a valid DNS label, and it keys the
 # Authling state directory. Set CHATTO_DEV_WORKSPACE to override it.
 CHATTO_DEV_WORKSPACE = "{% if env.CONDUCTOR_PORT is defined and env.CONDUCTOR_PORT != '' %}{% set default_workspace = 'ws' ~ env.CONDUCTOR_PORT %}{% else %}{% set default_workspace = 'local' %}{% endif %}{{env.CHATTO_DEV_WORKSPACE | default(value=default_workspace) | slugify}}"
-CHATTO_DEV_CHATTO_URL = "{{env.CHATTO_DEV_CHATTO_URL | default(value='http://chatto.' ~ env.CHATTO_DEV_WORKSPACE ~ '.localhost:' ~ env.CHATTO_DEV_CHATTO_PORT)}}"
-CHATTO_DEV_LIVEKIT_URL = "{{env.CHATTO_DEV_LIVEKIT_URL | default(value='ws://localhost:' ~ env.CHATTO_DEV_LIVEKIT_PORT)}}"
+CHATTO_DEV_CHATTO_URL = "{{env.CHATTO_DEV_CHATTO_URL_OVERRIDE | default(value='http://chatto.' ~ env.CHATTO_DEV_WORKSPACE ~ '.localhost:' ~ env.CHATTO_DEV_CHATTO_PORT)}}"
+CHATTO_DEV_LIVEKIT_URL = "{{env.CHATTO_DEV_LIVEKIT_URL_OVERRIDE | default(value='ws://localhost:' ~ env.CHATTO_DEV_LIVEKIT_PORT)}}"
 CHATTO_DEV_AUTHLING_URL = "http://authling.{{env.CHATTO_DEV_WORKSPACE}}.localhost:{{env.CHATTO_DEV_AUTHLING_PORT}}"
 # Chatto data of the development stack, and the TestBot API key that the
 # Runling bot reads. Set CHATTO_DEV_DATA_ROOT to an absolute path to use a

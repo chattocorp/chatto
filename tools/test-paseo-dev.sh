@@ -12,20 +12,22 @@ trap 'rm -rf "$scratch"' EXIT
 mkdir "$scratch/bin"
 
 # Check actual mise evaluation of defaults and launcher overrides.
-env -u CONDUCTOR_PORT -u CHATTO_DEV_CHATTO_PORT -u CHATTO_DEV_NATS_PORT \
-	-u CHATTO_DEV_SMTP_PORT -u CHATTO_DEV_LIVEKIT_URL \
-	-u CHATTO_DEV_CHATTO_URL -u CHATTO_DEV_WORKSPACE \
+env -u CONDUCTOR_PORT -u CHATTO_DEV_CHATTO_PORT_OVERRIDE -u CHATTO_DEV_NATS_PORT_OVERRIDE \
+	-u CHATTO_DEV_SMTP_PORT_OVERRIDE -u CHATTO_DEV_LIVEKIT_URL_OVERRIDE \
+	-u CHATTO_DEV_CHATTO_URL_OVERRIDE -u CHATTO_DEV_WORKSPACE \
 	mise env --json >"$scratch/default.json"
-env -u CHATTO_DEV_CHATTO_PORT -u CHATTO_DEV_NATS_PORT \
-	-u CHATTO_DEV_SMTP_PORT -u CHATTO_DEV_LIVEKIT_URL \
-	-u CHATTO_DEV_CHATTO_URL -u CHATTO_DEV_WORKSPACE CONDUCTOR_PORT=45000 \
+env -u CHATTO_DEV_CHATTO_PORT_OVERRIDE -u CHATTO_DEV_NATS_PORT_OVERRIDE \
+	-u CHATTO_DEV_SMTP_PORT_OVERRIDE -u CHATTO_DEV_LIVEKIT_URL_OVERRIDE \
+	-u CHATTO_DEV_CHATTO_URL_OVERRIDE -u CHATTO_DEV_WORKSPACE CONDUCTOR_PORT=45000 \
 	mise env --json >"$scratch/conductor.json"
-env CONDUCTOR_PORT=45000 CHATTO_DEV_CHATTO_PORT=53001 \
-	CHATTO_DEV_NATS_PORT=0 CHATTO_DEV_CHATTO_URL=https://dev--test.example.com \
-	CHATTO_DEV_SMTP_PORT=53009 CHATTO_DEV_LIVEKIT_URL=wss://livekit--test.example.com \
+env CONDUCTOR_PORT=45000 CHATTO_DEV_CHATTO_PORT_OVERRIDE=53001 \
+	CHATTO_DEV_NATS_PORT_OVERRIDE=0 CHATTO_DEV_CHATTO_URL_OVERRIDE=https://dev--test.example.com \
+	CHATTO_DEV_SMTP_PORT_OVERRIDE=53009 CHATTO_DEV_LIVEKIT_URL_OVERRIDE=wss://livekit--test.example.com \
 	mise env --json >"$scratch/paseo.json"
 python3 - "$scratch" <<'PY'
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -46,13 +48,19 @@ for name, port, nats, url in (
         base = 4000 if name == "default" else 45000
         assert data["CHATTO_DEV_SMTP_PORT"] == str(base + 8)
         assert data["CHATTO_DEV_LIVEKIT_URL"] == f"ws://localhost:{base + 5}"
+# Resolved values from a parent mise process must not override a new Conductor block.
+inherited = json.loads((root / "default.json").read_text())
+inherited.update(CONDUCTOR_PORT="45000", CHATTO_DEV_WORKSPACE="ws45000")
+resolved = json.loads(subprocess.check_output(["mise", "env", "--json"], env={**os.environ, **inherited}))
+for key in ("CHATTO_DEV_CHATTO_PORT", "CHATTO_DEV_CHATTO_URL", "CHATTO_DEV_NATS_PORT", "CHATTO_DEV_SMTP_PORT", "CHATTO_DEV_LIVEKIT_URL"):
+    assert resolved[key] == json.loads((root / "conductor.json").read_text())[key], key
 PY
 
 cat >"$scratch/bin/mise" <<'SH'
 #!/usr/bin/env bash
 set -eu
 [[ "$*" == dev ]]
-printf '%s\n' "$CHATTO_DEV_CHATTO_PORT" "$CHATTO_DEV_CHATTO_URL" "$CHATTO_DEV_NATS_PORT" "$CHATTO_WEBSERVER_BIND_ADDRESS"
+printf '%s\n' "$CHATTO_DEV_CHATTO_PORT_OVERRIDE" "$CHATTO_DEV_CHATTO_URL_OVERRIDE" "$CHATTO_DEV_NATS_PORT_OVERRIDE" "$CHATTO_WEBSERVER_BIND_ADDRESS"
 SH
 chmod +x "$scratch/bin/mise"
 launcher="$PWD/tools/paseo-dev.sh"

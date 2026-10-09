@@ -86,11 +86,13 @@ async function prepare() {
   const env = {
     CHATTO_PASEO_STACK: '1',
     CHATTO_DEV_CHATTO_PORT: service.port,
+    // Mailpit reads the resolved port directly; nested mise consumes the override.
     CHATTO_DEV_SMTP_PORT: smtpPort,
+    CHATTO_DEV_SMTP_PORT_OVERRIDE: smtpPort,
     CHATTO_SMTP_HOST: '127.0.0.1',
     CHATTO_SMTP_ENABLED: 'true',
     CHATTO_LIVEKIT_ENABLED: 'true',
-    CHATTO_DEV_LIVEKIT_URL: livekitURL.origin,
+    CHATTO_DEV_LIVEKIT_URL_OVERRIDE: livekitURL.origin,
     CHATTO_DEV_LIVEKIT_NODE_IP: address,
     CHATTO_LIVEKIT_API_KEY: 'workspace',
     CHATTO_LIVEKIT_API_SECRET: randomBytes(32).toString('hex')

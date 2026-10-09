@@ -16,11 +16,11 @@ if [[ "${CHATTO_PASEO_STACK:-}" != 1 ]] && compgen -G '.context/paseo-stack/*/en
   exit 1
 fi
 
-export CHATTO_DEV_CHATTO_PORT="$PASEO_PORT"
-export CHATTO_DEV_CHATTO_URL="$PASEO_URL"
+export CHATTO_DEV_CHATTO_PORT_OVERRIDE="$PASEO_PORT"
+export CHATTO_DEV_CHATTO_URL_OVERRIDE="$PASEO_URL"
 export CHATTO_WEBSERVER_BIND_ADDRESS=127.0.0.1
 # Paseo allocates one port, not a port block. Chatto connects to its embedded
 # NATS server in process, so this service needs no separate NATS TCP listener.
-export CHATTO_DEV_NATS_PORT=0
+export CHATTO_DEV_NATS_PORT_OVERRIDE=0
 
 exec mise dev

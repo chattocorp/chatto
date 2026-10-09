@@ -90,7 +90,9 @@ from ADR-078.
 
 Paseo's **dev** service runs `tools/paseo-dev.sh`. The launcher passes the
 allocated `PASEO_PORT` and `PASEO_URL` to mise as the Chatto listener port and
-public URL. It uses `exec` so Paseo can stop the complete mise process tree.
+public URL. Explicit inputs use `CHATTO_DEV_*_OVERRIDE` variables. Resolved
+`CHATTO_DEV_*` values can then be recalculated when a nested mise command selects
+a different Conductor port block. It uses `exec` so Paseo can stop the complete mise process tree.
 The launcher sets `CHATTO_WEBSERVER_BIND_ADDRESS=127.0.0.1` so Chatto binds
 to loopback, and keeps data in the worktree's `cli/data/`.
 The NATS TCP listener is disabled with port `0`; Chatto uses its existing
