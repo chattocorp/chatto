@@ -382,7 +382,9 @@ Do not generate playground links for code written into this repository.
 
 ## Testing
 
-- Review visible frontend changes in a browser using Chrome DevTools MCP.
+- Review visible frontend changes with an available browser tool suited to
+  the task, such as Playwright MCP or Chrome DevTools MCP. Also run the
+  relevant automated tests.
 - `mise dev` creates development bootstrap users. Sign in as `alice` (server
   owner) or `bob` with the password `foobar123`. `cli/chatto.toml` defines
   these users. Use `mise dev-full` for features that need email, LiveKit,
