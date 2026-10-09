@@ -22,8 +22,8 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 - Open a participant's user context menu with the three-dot button or a
   right-click anywhere on their card, including camera and screen-share video.
-  This also works on secondary stage tiles. Left-clicking sidebar or unpinned
-  featured video opens the user menu. Left-clicking a secondary stage tile pins
+  This also works on secondary stage tiles. Left-clicking sidebar video opens
+  the user menu. Left-clicking a secondary or unpinned featured stage tile pins
   it; clicking the pinned featured tile unpins it.
   Touch users can long-press the card, including its video. For remote
   participants in the active call, participant and camera card menus include

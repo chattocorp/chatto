@@ -558,7 +558,8 @@ it.each(['Bob', 'Chloe', "Dana's screen"])(
 
     // The media button is separate from the title bar's unpin action.
     const media = featured.element().querySelector<HTMLButtonElement>(':scope > button')!;
-    expect(media.getAttribute('aria-label')).toBe('Unpin from the stage');
+    expect(media.getAttribute('aria-label')).toBe(`Pin ${name} to the stage`);
+    expect(media.getAttribute('aria-pressed')).toBe('true');
     media.click();
 
     await expect.element(featured).toHaveTextContent("Dana's screen");
@@ -566,9 +567,26 @@ it.each(['Bob', 'Chloe', "Dana's screen"])(
     expect(document.querySelector('[data-testid="copy-user-id"]')).toBeNull();
     await expect
       .poll(() => document.activeElement?.getAttribute('data-testid'))
-      .toBe(name === "Dana's screen" ? 'call-participant-menu-button' : 'call-stage-pin-button');
+      .toBe('call-stage-pin-button');
   }
 );
+
+it('toggles the automatic featured tile with left-click and opens its menu with right-click', async () => {
+  const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'screen' });
+  const featured = screen.getByTestId('call-featured-stage-card');
+  const media = featured.getByRole('button', { name: "Pin Dana's screen to the stage" });
+  await expect.element(media).toHaveAttribute('aria-pressed', 'false');
+  await media.click();
+  await expect.element(media).toHaveAttribute('aria-pressed', 'true');
+  expect(document.querySelector('[data-testid="copy-user-id"]')).toBeNull();
+  await media.click();
+  await expect.element(media).toHaveAttribute('aria-pressed', 'false');
+  expect(document.querySelector('[data-testid="copy-user-id"]')).toBeNull();
+
+  media.element().dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+  await expect.poll(() => document.querySelector('[data-testid="copy-user-id"]')).not.toBeNull();
+  await expect.element(media).toHaveAttribute('aria-pressed', 'false');
+});
 
 it('keeps keyboard focus on the reversing control when pinning and unpinning', async () => {
   const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'screen' });
@@ -661,7 +679,7 @@ it('keeps focus on the stage when an unpinned source stays featured', async () =
   await expect.element(featured).toHaveTextContent('Bob');
   await expect
     .poll(() => document.activeElement?.getAttribute('data-testid'))
-    .toBe('call-participant-menu-button');
+    .toBe('call-stage-pin-button');
   expect(featured.element().contains(document.activeElement)).toBe(true);
 });
 
