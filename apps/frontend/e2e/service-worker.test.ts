@@ -1,155 +1,104 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './setup';
 
-type CacheSnapshot = {
-  cacheNames: string[];
-};
+/** Wait for a deliberately installed worker, without relying on app registration. */
+async function registerWorker(page: Page, scope: string) {
+  await page.evaluate(async (scope) => {
+    await navigator.serviceWorker.register('/service-worker.js', { scope });
+  }, scope);
+  await expect
+    .poll(() =>
+      page.evaluate(async (scope) => {
+        const registration = (await navigator.serviceWorker.getRegistrations()).find(
+          (entry) => entry.scope === new URL(scope, location.origin).href
+        );
+        return registration?.active?.state;
+      }, scope)
+    )
+    .toBe('activated');
+}
 
-type ServiceWorkerRegistrationSnapshot = {
-  scope: string;
-  scriptURL: string;
-};
+test('fresh visits do not register an offline shell or precache the build', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.name));
+  const workerRequests: string[] = [];
+  page.context().on('request', (request) => {
+    if (request.serviceWorker()) workerRequests.push(new URL(request.url()).pathname);
+  });
+  await page.goto('/login');
+  await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
 
-test('service worker caches the shell while leaving private requests on the network', async ({
+  // This wall-clock observation must outlast the retired seven-second registration
+  // timer. An immediate negative assertion would miss a background precache regression.
+  await page.waitForTimeout(8_000);
+
+  expect(
+    await page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).length)
+  ).toBe(0);
+  expect(await page.evaluate(() => caches.keys())).toEqual([]);
+  expect(workerRequests).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
+test('upgrades remove the root shell and retired caches while preserving scoped push workers', async ({
   page
 }) => {
-  await page.goto('/');
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.name));
+  await page.goto('/login');
   await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
 
-  const registration = await ensureServiceWorkerIsActive(page);
-
-  expect(registration.scope).toBe(`${new URL(page.url()).origin}/`);
-  expect(registration.scriptURL).toBe(`${new URL(page.url()).origin}/service-worker.js`);
-
-  await page.reload();
-  await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+  // Use real browser registrations and Cache Storage to reproduce an existing
+  // installation. Push subscription retention is covered by the lifecycle unit tests.
+  await registerWorker(page, '/');
+  await registerWorker(page, '/__chatto/push/fixture/');
   await expect
     .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
     .toBe(true);
+  await page.evaluate(async () => {
+    for (const name of [
+      'chatto-shell-previous-build',
+      'chatto-badge-state-v1',
+      'chatto-badge-state-v2',
+      'unrelated-cache'
+    ]) {
+      const cache = await caches.open(name);
+      await cache.put('/login', new Response('Retired offline shell'));
+    }
+  });
 
-  expect(
-    (await cacheSnapshot(page)).cacheNames.some((name) => name.startsWith('chatto-shell-'))
-  ).toBe(true);
-
-  await requestFrontendResource(page);
-  await requestNetworkOnlyPaths(page);
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => caches.keys())).toEqual(['unrelated-cache']);
+  await expect
+    .poll(() =>
+      page.evaluate(async () =>
+        (await navigator.serviceWorker.getRegistrations()).map(
+          (entry) => new URL(entry.scope).pathname
+        )
+      )
+    )
+    .toEqual(['/__chatto/push/fixture/']);
 
-  const cachedRequests = await page.evaluate(async () => {
-    const cache = await caches.open(
-      (await caches.keys()).find((name) => name.startsWith('chatto-shell-'))!
-    );
-    return (await cache.keys()).map((request) => new URL(request.url).pathname);
-  });
-  expect(cachedRequests).toContain('/login');
-  expect(
-    cachedRequests.some((path) => path.startsWith('/api/') || path.startsWith('/assets/'))
-  ).toBe(false);
+  // An unregistered worker can still control the current document. A new
+  // navigation releases that controller while keeping the scoped push worker.
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+  expect(await page.evaluate(() => navigator.serviceWorker.controller === null)).toBe(true);
 
   await page.context().setOffline(true);
   try {
-    await page.goto('/login');
-    await expect(
-      page.getByRole('heading', { name: 'Choose a server to get started' })
-    ).toBeVisible();
+    const offlineResult = await page.evaluate(async () => {
+      try {
+        await fetch('/login', { cache: 'no-store' });
+        return 'response';
+      } catch {
+        return 'network-error';
+      }
+    });
+    expect(offlineResult).toBe('network-error');
   } finally {
     await page.context().setOffline(false);
   }
+  expect(pageErrors).toEqual([]);
 });
-
-async function ensureServiceWorkerIsActive(page: Page): Promise<ServiceWorkerRegistrationSnapshot> {
-  const registration = await page.evaluate(async () => {
-    if (!('serviceWorker' in navigator)) {
-      throw new Error('Service workers are not available in this browser');
-    }
-
-    const registered = await waitForRegistration();
-    const active = registered.active ?? registered.waiting ?? registered.installing;
-    if (!active) {
-      throw new Error('Service worker registration did not expose a worker');
-    }
-
-    if (active.state !== 'activated') {
-      await new Promise<void>((resolve, reject) => {
-        const timeout = window.setTimeout(() => {
-          active.removeEventListener('statechange', onStateChange);
-          reject(new Error(`Service worker did not activate; final state: ${active.state}`));
-        }, 10_000);
-
-        function onStateChange() {
-          if (active.state === 'activated') {
-            window.clearTimeout(timeout);
-            active.removeEventListener('statechange', onStateChange);
-            resolve();
-          }
-        }
-
-        active.addEventListener('statechange', onStateChange);
-      });
-    }
-
-    return {
-      scope: registered.scope,
-      scriptURL: (registered.active ?? active).scriptURL
-    };
-
-    async function waitForRegistration(): Promise<ServiceWorkerRegistration> {
-      const existing = await navigator.serviceWorker.getRegistration('/');
-      if (existing) return existing;
-
-      return new Promise((resolve, reject) => {
-        const timeout = window.setTimeout(() => {
-          navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
-          reject(new Error('Chatto did not register the service worker'));
-        }, 20_000);
-
-        async function onControllerChange() {
-          const changed = await navigator.serviceWorker.getRegistration('/');
-          if (!changed) return;
-          window.clearTimeout(timeout);
-          navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
-          resolve(changed);
-        }
-
-        navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
-      });
-    }
-  });
-
-  return registration;
-}
-
-async function requestNetworkOnlyPaths(page: Page) {
-  await page.evaluate(async () => {
-    await Promise.allSettled([
-      fetch('/api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Connect-Protocol-Version': '1'
-        },
-        body: '{}'
-      }),
-      fetch('/api/connect'),
-      fetch('/assets/example.png')
-    ]);
-  });
-}
-
-async function cacheSnapshot(page: Page) {
-  return page.evaluate<CacheSnapshot>(async () => {
-    return {
-      cacheNames: await caches.keys()
-    };
-  });
-}
-
-async function requestFrontendResource(page: Page) {
-  await page.evaluate(async () => {
-    const response = await fetch('/robots.txt');
-    if (!response.ok) {
-      throw new Error(`robots.txt request failed with ${response.status}`);
-    }
-  });
-}

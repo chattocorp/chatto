@@ -5,6 +5,7 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { onMount } from 'svelte';
+  import { retireOfflineShell } from '$lib/pwa/retireOfflineShell';
   import { onNotificationClick } from '$lib/notifications/notificationClick';
   import { prepareUiForNotificationPath } from '$lib/notifications/notificationNavigationUi';
   import { setAuthServerInfo } from '$lib/components/authServerInfo';
@@ -29,14 +30,10 @@
   let { data, children } = $props();
   let modalContainerModule: Promise<typeof import('./chat/ModalContainer.svelte')> | null = null;
 
-  // Shell precaching fetches the full compiled build. Delay registration so
-  // those requests do not contend with the page's initial navigation.
   onMount(() => {
-    if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
-    const timer = setTimeout(() => {
-      void navigator.serviceWorker.register('/service-worker.js').catch(() => {});
-    }, 7_000);
-    return () => clearTimeout(timer);
+    // Best effort: blocked storage or an unavailable update must not stop startup.
+    // Each visit retries cleanup; fresh browsers never register a root worker.
+    void retireOfflineShell().catch(() => {});
   });
 
   function loadModalContainer() {

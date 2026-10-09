@@ -22,7 +22,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-010](FDR-010-typing-indicators.md)                     | Typing Indicators                     | Active       | 2026-09-23    |
 | [FDR-011](FDR-011-user-presence.md)                         | User Presence                         | Active       | 2026-09-19    |
 | [FDR-012](FDR-012-notifications.md)                         | Notifications                         | Experimental | 2026-10-04    |
-| [FDR-013](FDR-013-web-push-notifications.md)                | Web Push Notifications                | Active       | 2026-10-08    |
+| [FDR-013](FDR-013-web-push-notifications.md)                | Web Push Notifications                | Active       | 2026-10-09    |
 | [FDR-014](FDR-014-jump-to-present.md)                       | Jump to Present                       | Active       | 2026-09-25    |
 | [FDR-015](FDR-015-quick-switcher.md)                        | Quick Switcher (Cmd-K)                | Active       | 2026-09-21    |
 | [FDR-016](FDR-016-voice-calls.md)                           | Voice Calls                           | Active       | 2026-10-08    |
@@ -36,7 +36,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-024](FDR-024-permission-inspection-tool.md)            | Permission Inspection Tool            | Active       | 2026-08-27    |
 | [FDR-025](FDR-025-user-search-and-member-directory.md)      | User Search & Member Directory        | Active       | 2026-09-27    |
 | [FDR-026](FDR-026-last-room-memory.md)                      | Last-Room Memory                      | Active       | 2026-06-16    |
-| [FDR-027](FDR-027-pwa-and-service-worker.md)                | PWA & Service Worker                  | Active       | 2026-10-08    |
+| [FDR-027](FDR-027-pwa-and-service-worker.md)                | PWA & Service Worker                  | Active       | 2026-10-09    |
 | [FDR-028](FDR-028-operator-api-and-cli.md)                  | Operator API & CLI                    | Active       | 2026-10-08    |
 | [FDR-029](FDR-029-chatto-shields.md)                        | Chatto Shields                        | Active       | 2026-08-23    |
 | [FDR-030](FDR-030-inline-message-timestamps.md)             | Inline Message Timestamps             | Active       | 2026-07-12    |
