@@ -86,10 +86,94 @@ documentation website use their own default ports and select the next free port.
 This decision keeps the native processes and the Conductor port allocation
 from ADR-078.
 
+### Optional Paseo service proxy
+
+Paseo's **dev** service runs `tools/paseo-dev.sh`. The launcher passes the
+allocated `PASEO_PORT` and `PASEO_URL` to mise as the Chatto listener port and
+public URL. Explicit inputs use `CHATTO_DEV_*_OVERRIDE` variables. Resolved
+`CHATTO_DEV_*` values can then be recalculated when a nested mise command selects
+a different Conductor port block. It uses `exec` so Paseo can stop the complete mise process tree.
+The launcher sets `CHATTO_WEBSERVER_BIND_ADDRESS=127.0.0.1` so Chatto binds
+to loopback, and keeps data in the worktree's `cli/data/`.
+The NATS TCP listener is disabled with port `0`; Chatto uses its existing
+in-process NATS connection. No adjacent port reservation is required.
+
+An optional machine-level Traefik service provides HTTPS over a VPN. With
+settings in `~/.config/chatto/paseo-proxy.json`, `tools/paseo-proxy.mjs` writes
+one route file per service into a directory watched by Traefik. Each route
+forwards requests directly to the allocated loopback port. Public names use
+the service and worktree directory name. The launcher sets the service and peer
+URL environment values before starting the child. Branch and port changes do
+not change the URLs or Authling's issuer. Directory-name changes do change them.
+Credentials, domain names, and proxy configuration stay outside the repository.
+One wildcard certificate covers all service names.
+
+Each launch atomically publishes one complete file and refuses to replace an
+existing file. It removes that file when the child exits. The launcher forwards
+normal stop signals to a child in a separate process group. This prevents
+terminal interrupts from reaching mise both directly and through the launcher.
+mise retains process-tree ownership. Traefik applies
+route changes without a process restart. An integration test verifies that
+changes to one route do not close another route's WebSocket. Traefik restarts
+read the existing files; services do not need to register again. Connections
+through the restarted proxy still disconnect.
+
+This replaces runtime edits through Caddy's admin API. Those edits could close
+unrelated streams, and Caddyfile reloads discarded the temporary routes. A
+file provider removes the need for API retries or custom socket forwarding.
+After a forced kill, stop the service before removing its stale route file.
+Use a runtime directory that is cleared on reboot to prevent old routes from
+pointing at reused ports. No machine-configuration edit is needed per workspace.
+Paseo's UI continues to show its original URL. The same route file includes a
+temporary redirect from that URL to the stable URL, with the path and query
+preserved. The launcher also prints the stable URL. Without the optional machine file, services keep Paseo's original URLs.
+
+This setup also applies to **dev-full**, which runs Chatto with Mailpit and LiveKit.
+Authling and Runling are not part of **dev-full** in Paseo. Storybook, the docs
+website, and Authling are separate, on-demand Paseo services. Each binds to its
+allocated loopback port and gets its own proxy route. Authling's task stays in
+its own task catalog and keeps separate state for each public issuer URL.
+Normal terminal and Conductor starts keep their existing defaults.
+
+The **dev-full** service runs a mise task graph. Preparation checks that the
+workspace can start a new stack and writes private configuration. The main
+task starts the two support services through Paseo's CLI, waits for Paseo to
+report them healthy, and runs Chatto alongside a service-status check.
+mise stops parallel tasks on failure or a signal. Its `depends_post` task
+stops both Paseo services concurrently, even if one stop fails. This reduces
+shutdown time within Paseo's terminal grace period. It removes the
+configuration only after both services stop. Preparation is a
+dependency, so rejected starts do not stop an existing stack. Each service
+gets a separate route and port; Chatto uses LiveKit's public URL.
+There are no PID watchdogs or readiness files.
+All Paseo commands use `exec` to start the shared launcher, so its exit also
+ends the supervised terminal and removes Paseo's original route. **dev** and **dev-full** use the same worktree data and
+must not run together.
+
+Mailpit uses an OS-selected loopback SMTP port and its Paseo port for HTTP.
+LiveKit uses its Paseo port for loopback HTTP and, in the separate UDP port
+space, for media. Its built-in TURN/STUN server uses Mailpit's SMTP port number for
+UDP and can allocate relay ports in `49152–65535`. These UDP listeners bind to
+the local IPv4 address of the service hostname. An explicit
+`CHATTO_DEV_LIVEKIT_NODE_IP` can select another local interface for split DNS.
+TCP media is disabled because LiveKit does not restrict that listener to the
+selected interface. The local TURN/STUN service replaces LiveKit's default
+public STUN servers, so browser call setup does not need to contact Google.
+
+The stack generates LiveKit credentials for each run. Private runtime state
+stays in `.context/paseo-stack/<dev-full-port>/` and is removed on stop. Separate
+run directories prevent old cleanup from deleting a new run's configuration.
+After `SIGKILL`, developers must stop the services and remove stale configuration
+manually; the stack does not provide a second supervisor to recover from forced
+termination. Mailpit's inbox lasts
+only for that run. Traefik route files exist only for the service lifetime when
+the optional stable-hostname settings are present.
+
 ## Consequences
 
-- A backend or frontend restart cannot break a proxy route, because no proxy is
-  present.
+- Normal terminal and Conductor starts have no proxy route to maintain. Paseo
+  starts depend on its service proxy; stop and restart through Paseo to keep
+  the route and process lifecycle together.
 - Frontend changes in the default stack require a restart and a production
   build. `mise dev-frontend` provides hot module replacement when necessary.
 - The development stack has no development CA to trust.

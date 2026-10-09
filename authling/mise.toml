@@ -151,6 +151,23 @@ env = {
 }
 run = "exec bin/authling"
 
+[tasks.paseo]
+description = "Run standalone Authling behind Paseo's service proxy"
+depends = ["build"]
+run = '''
+set -eu
+: "${PASEO_PORT:?start authling through Paseo}" "${PASEO_URL:?}"
+export AUTHLING_HTTP_BIND_ADDRESS="127.0.0.1:$PASEO_PORT"
+export AUTHLING_HTTP_PUBLIC_URL="$PASEO_URL"
+export AUTHLING_HTTP_TRUST_PROXY_HEADERS=true
+export AUTHLING_SMTP_ENABLED="${AUTHLING_SMTP_ENABLED:-false}"
+# Issuers cannot change in an existing store. Keep data across allocated-port
+# changes, and select separate state when the workspace's public URL changes.
+issuer_id=$(node -p 'require("node:crypto").createHash("sha256").update(new URL(process.env.PASEO_URL).origin).digest("hex")')
+export AUTHLING_NATS_EMBEDDED_DATA_DIR="$PWD/.context/paseo/$issuer_id/nats"
+exec bin/authling run --config authling.toml
+'''
+
 [tasks.mailpit]
 description = "Run Mailpit for Authling development email"
 env = {

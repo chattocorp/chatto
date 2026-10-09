@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"sort"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -165,6 +167,100 @@ func (s staticProjectionDEKStore) Get(context.Context, string) (*runtimestatev1.
 		ContentKeyNonce:     []byte("nonce"),
 		WrappingKeyRef:      "test-key",
 	}, nil
+}
+
+// overlappingDEKStore blocks each read until want reads are in flight. A
+// sequential caller cannot reach the barrier and gets an error instead.
+type overlappingDEKStore struct {
+	want    int32
+	arrived atomic.Int32
+	ready   chan struct{}
+}
+
+func (s *overlappingDEKStore) Get(ctx context.Context, ref string) (*runtimestatev1.UserDataEncryptionKey, error) {
+	if s.arrived.Add(1) == s.want {
+		close(s.ready)
+	}
+	select {
+	case <-s.ready:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-time.After(5 * time.Second):
+		return nil, errors.New("DEK reads did not overlap")
+	}
+	return staticProjectionDEKStore{}.Get(ctx, ref)
+}
+
+// failingDEKStore fails reads for one content key reference.
+type failingDEKStore struct {
+	failRef string
+}
+
+func (s failingDEKStore) Get(ctx context.Context, ref string) (*runtimestatev1.UserDataEncryptionKey, error) {
+	if ref == s.failRef {
+		return nil, errors.New("DEK store unavailable")
+	}
+	return staticProjectionDEKStore{}.Get(ctx, ref)
+}
+
+// addHydratableTestUser adds an active user whose PII uses its own DEK record.
+func addHydratableTestUser(t *testing.T, p *UserProjection, key []byte, userID string) {
+	t.Helper()
+	eventID := "event-" + userID
+	contentKey := &messageContentKey{epoch: 1, purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
+	encryptedLogin, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, evtstream.EventUserAccountCreated, "login", userID)
+	require.NoError(t, err)
+	encryptedDisplayName, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, evtstream.EventUserAccountCreated, "display_name", "Name "+userID)
+	require.NoError(t, err)
+	p.users[userID] = &projectedUser{
+		user:        &evtv1.User{Id: userID},
+		login:       newProjectedUserPII(eventID, evtstream.EventUserAccountCreated, "login", encryptedLogin),
+		displayName: newProjectedUserPII(eventID, evtstream.EventUserAccountCreated, "display_name", encryptedDisplayName),
+	}
+	p.dekEvents[userID] = map[evtv1.UserDEKPurpose]map[int32]*evtv1.UserDEKGeneratedEvent{
+		evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII: {
+			1: {UserId: userID, Epoch: 1, Purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, ContentKeyRef: "dek." + userID},
+		},
+	}
+}
+
+func TestUserProjectionUsersContextHydratesConcurrently(t *testing.T) {
+	t.Parallel()
+
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	userIDs := []string{"U1", "U2", "U3", "U4"}
+	store := &overlappingDEKStore{want: int32(len(userIDs)), ready: make(chan struct{})}
+	p := NewUserProjection(staticProjectionKeyWrapper{key: key}, store)
+	for _, userID := range userIDs {
+		addHydratableTestUser(t, p, key, userID)
+	}
+
+	users, err := p.UsersContext(testContext(t))
+	require.NoError(t, err)
+	got := make([]string, 0, len(users))
+	for _, user := range users {
+		require.Equal(t, user.GetId(), user.GetLogin())
+		require.Equal(t, "Name "+user.GetId(), user.GetDisplayName())
+		got = append(got, user.GetId())
+	}
+	sort.Strings(got)
+	require.Equal(t, userIDs, got)
+}
+
+func TestUserProjectionUsersContextFailsClosedOnKeyError(t *testing.T) {
+	t.Parallel()
+
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	p := NewUserProjection(staticProjectionKeyWrapper{key: key}, failingDEKStore{failRef: "dek.U2"})
+	for _, userID := range []string{"U1", "U2", "U3"} {
+		addHydratableTestUser(t, p, key, userID)
+	}
+
+	users, err := p.UsersContext(testContext(t))
+	require.ErrorContains(t, err, "DEK store unavailable", "a key failure must not look like a missing user")
+	require.Nil(t, users)
 }
 
 func newEncryptedUserProjection(t *testing.T, userID string) (*UserProjection, *messageContentKey) {

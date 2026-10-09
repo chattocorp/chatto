@@ -3,13 +3,14 @@ package cmd
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/c2h5oh/datasize"
-	"github.com/charmbracelet/log"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 	"hmans.de/chatto/internal/config"
@@ -17,139 +18,275 @@ import (
 )
 
 var initConfigFile string
+var initWithLiveKit bool
+var initWithSearch bool
+var initInteractive bool
 
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initializes the chatto server and generates a configuration file",
 
-	Run: func(cmd *cobra.Command, args []string) {
-		configPath := initConfigFile
-		if configPath == "" {
-			configPath = "chatto.toml"
+	RunE: func(cmd *cobra.Command, args []string) error {
+		opts := defaultInitOptions()
+		opts.ConfigPath = initConfigFile
+		if opts.ConfigPath == "" {
+			opts.ConfigPath = "chatto.toml"
 		}
-
-		// Check if config file already exists
-		if _, err := os.Stat(configPath); err == nil {
-			log.Error("Config file already exists, aborting to prevent overwrite", "path", configPath)
-			os.Exit(1)
+		opts.WithLiveKit, opts.WithSearch = initWithLiveKit, initWithSearch
+		if initInteractive {
+			confirmed, err := promptInitOptions(cmd, &opts)
+			if err != nil {
+				return err
+			}
+			if !confirmed {
+				cmd.Println("Setup cancelled. No files were created.")
+				return nil
+			}
 		}
-
-		// Generate a random session signing secret (32 bytes = 256 bits)
-		sessionSecret := make([]byte, 32)
-		if _, err := rand.Read(sessionSecret); err != nil {
-			log.Fatal("Failed to generate session secret", "error", err)
+		if err := writeInitialConfig(cmd, opts); err != nil {
+			return err
 		}
-		sessionSecretString := hex.EncodeToString(sessionSecret)
-
-		// Generate a random session encryption secret (32 bytes = AES-256).
-		// Decoded back to raw bytes at server startup.
-		cookieEncryptionSecret := make([]byte, 32)
-		if _, err := rand.Read(cookieEncryptionSecret); err != nil {
-			log.Fatal("Failed to generate cookie encryption secret", "error", err)
+		if initInteractive {
+			printInitNextSteps(cmd, opts)
 		}
-		cookieEncryptionSecretString := hex.EncodeToString(cookieEncryptionSecret)
-
-		// Generate a random signing secret for assets (32 bytes = 256 bits)
-		signingSecret := make([]byte, 32)
-		if _, err := rand.Read(signingSecret); err != nil {
-			log.Fatal("Failed to generate signing secret", "error", err)
-		}
-		signingSecretString := hex.EncodeToString(signingSecret)
-
-		// Generate a random server-wide core secret for token verifiers.
-		coreSecret := make([]byte, 32)
-		if _, err := rand.Read(coreSecret); err != nil {
-			log.Fatal("Failed to generate core secret", "error", err)
-		}
-		coreSecretString := hex.EncodeToString(coreSecret)
-
-		// Generate a random auth token for NATS connections (32 bytes = 256 bits)
-		authToken := make([]byte, 32)
-		if _, err := rand.Read(authToken); err != nil {
-			log.Fatal("Failed to generate auth token", "error", err)
-		}
-		authTokenString := hex.EncodeToString(authToken)
-
-		// Build configuration
-		directRegistration := true
-		directLogin := true
-		unlimited := -1
-		cfg := config.ChattoConfig{
-			General: config.GeneralConfig{
-				LogLevel:  "info",
-				LogFormat: "auto",
-			},
-			Auth: config.AuthConfig{
-				DirectRegistration: &directRegistration,
-				DirectLogin:        &directLogin,
-				EmailOTP: config.EmailOTPConfig{
-					ThrottlingEnabled: &directRegistration,
-					TTL:               config.Duration(15 * time.Minute),
-					MaxDeliveredCodes: 10,
-					MaxWrongAttempts:  5,
-				},
-			},
-			Limits: config.LimitsConfig{
-				MaxUsers: &unlimited,
-			},
-			Webserver: config.WebserverConfig{
-				Port:                   4000,
-				URL:                    "http://localhost:4000",
-				CookieSigningSecret:    sessionSecretString,
-				CookieEncryptionSecret: cookieEncryptionSecretString,
-			},
-			Core: config.CoreConfig{
-				SecretKey: coreSecretString,
-				Assets: config.AssetsConfig{
-					SigningSecret:  signingSecretString,
-					MaxUploadSize:  25 * datasize.MB,
-					StorageBackend: config.StorageBackendNATS,
-				},
-			},
-			SMTP: config.SMTPConfig{
-				Enabled: false,
-				Port:    587,
-				TLS:     config.SMTPTLSMandatory,
-			},
-			Email: config.EmailConfig{
-				Transport: config.EmailTransportSMTP,
-			},
-			AssetProcessing: config.AssetProcessingConfig{
-				Enabled: true,
-			},
-			NATS: config.NATSConfig{
-				Replicas: 1,
-				Client: config.NATSClientConfig{
-					URL:        "nats://nats.example.com:4222",
-					AuthMethod: natsauth.AuthToken,
-					Token:      "replace-me",
-				},
-				Embedded: config.EmbeddedNATSConfig{
-					Enabled:      true,
-					Port:         4222,
-					BindAddress:  "127.0.0.1",
-					HTTPPort:     8222,
-					DataDir:      "./data",
-					SyncInterval: "always",
-					AuthToken:    authTokenString,
-				},
-			},
-		}
-
-		// Write config file
-		log.Info("Writing configuration", "path", configPath)
-		b, err := toml.Marshal(cfg)
-		if err != nil {
-			log.Fatal("Failed to marshal config", "error", err)
-		}
-		text := addAuthProviderExamples(string(b))
-		text = addEmailOTPDefaults(text)
-
-		if err := os.WriteFile(configPath, []byte(text), 0600); err != nil {
-			log.Fatal("Failed to write config file", "error", err)
-		}
-		fmt.Printf("Configuration written to %s\n", configPath)
+		return nil
 	},
+}
+
+// writeInitialConfig writes the selected configuration only after all prompts complete.
+// Both modes use this path for secret generation and exclusive file creation.
+func writeInitialConfig(cmd *cobra.Command, opts initOptions) error {
+	if err := validateInitAuth(opts); err != nil {
+		return err
+	}
+	configPath := opts.ConfigPath
+	liveKitPath := filepath.Join(filepath.Dir(configPath), "livekit.yaml")
+	paths := []string{configPath}
+	if opts.WithLiveKit {
+		if filepath.Clean(configPath) == liveKitPath {
+			return fmt.Errorf("Chatto config path must differ from LiveKit config path %s", liveKitPath)
+		}
+		paths = append(paths, liveKitPath)
+	}
+	for _, path := range paths {
+		if _, err := os.Lstat(path); err == nil {
+			return fmt.Errorf("config file already exists: %s", path)
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("check config path: %w", err)
+		}
+	}
+
+	// Generate a random session signing secret (32 bytes = 256 bits)
+	sessionSecret := make([]byte, 32)
+	if _, err := rand.Read(sessionSecret); err != nil {
+		return fmt.Errorf("generate session secret: %w", err)
+	}
+	sessionSecretString := hex.EncodeToString(sessionSecret)
+
+	// Generate a random session encryption secret (32 bytes = AES-256).
+	// Decoded back to raw bytes at server startup.
+	cookieEncryptionSecret := make([]byte, 32)
+	if _, err := rand.Read(cookieEncryptionSecret); err != nil {
+		return fmt.Errorf("generate cookie encryption secret: %w", err)
+	}
+	cookieEncryptionSecretString := hex.EncodeToString(cookieEncryptionSecret)
+
+	// Generate a random signing secret for assets (32 bytes = 256 bits)
+	signingSecret := make([]byte, 32)
+	if _, err := rand.Read(signingSecret); err != nil {
+		return fmt.Errorf("generate signing secret: %w", err)
+	}
+	signingSecretString := hex.EncodeToString(signingSecret)
+
+	// Generate a random server-wide core secret for token verifiers.
+	coreSecret := make([]byte, 32)
+	if _, err := rand.Read(coreSecret); err != nil {
+		return fmt.Errorf("generate core secret: %w", err)
+	}
+	coreSecretString := hex.EncodeToString(coreSecret)
+
+	// Generate a random auth token for NATS connections (32 bytes = 256 bits)
+	authToken := make([]byte, 32)
+	if _, err := rand.Read(authToken); err != nil {
+		return fmt.Errorf("generate auth token: %w", err)
+	}
+	authTokenString := hex.EncodeToString(authToken)
+
+	// Build configuration
+	directRegistration := opts.DirectRegistration
+	directLogin := opts.DirectLogin
+	unlimited := -1
+	cfg := config.ChattoConfig{
+		General: config.GeneralConfig{
+			LogLevel:  "info",
+			LogFormat: "auto",
+		},
+		Auth: config.AuthConfig{
+			DirectRegistration: &directRegistration,
+			DirectLogin:        &directLogin,
+			EmailOTP: config.EmailOTPConfig{
+				ThrottlingEnabled: new(true),
+				TTL:               config.Duration(15 * time.Minute),
+				MaxDeliveredCodes: 10,
+				MaxWrongAttempts:  5,
+			},
+		},
+		Limits: config.LimitsConfig{
+			MaxUsers: &unlimited,
+		},
+		Webserver: config.WebserverConfig{
+			Port:                   opts.Port,
+			URL:                    opts.PublicURL,
+			CookieSigningSecret:    sessionSecretString,
+			CookieEncryptionSecret: cookieEncryptionSecretString,
+		},
+		Core: config.CoreConfig{
+			SecretKey: coreSecretString,
+			Assets: config.AssetsConfig{
+				SigningSecret:  signingSecretString,
+				MaxUploadSize:  25 * datasize.MB,
+				StorageBackend: config.StorageBackendNATS,
+			},
+		},
+		SMTP: opts.SMTP,
+		Email: config.EmailConfig{
+			Transport: config.EmailTransportSMTP,
+		},
+		AssetProcessing: config.AssetProcessingConfig{
+			Enabled: true,
+		},
+		NATS: config.NATSConfig{
+			Replicas: 1,
+			Client: config.NATSClientConfig{
+				URL:        "nats://nats.example.com:4222",
+				AuthMethod: natsauth.AuthToken,
+				Token:      "replace-me",
+			},
+			Embedded: config.EmbeddedNATSConfig{
+				Enabled:      true,
+				Port:         4222,
+				BindAddress:  "127.0.0.1",
+				HTTPPort:     8222,
+				DataDir:      "./data",
+				SyncInterval: "always",
+				AuthToken:    authTokenString,
+			},
+		},
+	}
+
+	// Omit NATS here for external setups; its active client table is appended below.
+	type initBaseConfig struct {
+		config.ChattoConfig
+		NATS *config.NATSConfig `toml:"nats,omitempty"`
+		Auth any                `toml:"auth"`
+	}
+	baseConfig := initBaseConfig{ChattoConfig: cfg, Auth: initAuthConfig(opts, cfg.Auth)}
+	if opts.EmbeddedNATS {
+		baseConfig.NATS = &cfg.NATS
+	} else if err := validateInitNATSClient(opts.NATSClient); err != nil {
+		return err
+	}
+
+	// Write config file
+	// Override only explicitly enabled tables; retain commented examples for the others.
+	type searchInitConfig struct {
+		initBaseConfig
+		Search         config.SearchConfig         `toml:"search" comment:"Message search configuration."`
+		SearchProvider config.SearchProviderConfig `toml:"search_provider" comment:"Bundled Bleve message search provider."`
+	}
+	searchConfig := searchInitConfig{
+		initBaseConfig: baseConfig,
+		Search:         config.SearchConfig{Enabled: true},
+		SearchProvider: config.SearchProviderConfig{Enabled: true, Directory: "./data/search"},
+	}
+	var configDocument any = baseConfig
+	if opts.WithSearch {
+		configDocument = searchConfig
+	}
+	var liveKitConfig []byte
+	if opts.WithLiveKit {
+		apiKey := rand.Text()
+		// LiveKit requires an API secret of at least 32 characters.
+		secretBytes := make([]byte, 32)
+		if _, err := rand.Read(secretBytes); err != nil {
+			return fmt.Errorf("generate LiveKit API secret: %w", err)
+		}
+		apiSecret := hex.EncodeToString(secretBytes)
+		liveKitConfig = []byte(fmt.Sprintf(`# Local LiveKit server for Chatto. Configure public URLs and TLS before deployment.
+port: 7880
+rtc:
+  tcp_port: 7881
+  udp_port: 7882
+  use_external_ip: false
+  enable_loopback_candidate: true
+keys:
+  %q: %q
+webhook:
+  urls:
+    - %q
+  api_key: %q
+`, apiKey, apiSecret, strings.TrimRight(opts.PublicURL, "/")+"/webhooks/livekit", apiKey))
+		liveKit := config.LiveKitConfig{
+			Enabled:   true,
+			URL:       "ws://localhost:7880",
+			APIKey:    apiKey,
+			APISecret: apiSecret,
+		}
+		if opts.WithSearch {
+			configDocument = struct {
+				searchInitConfig
+				LiveKit config.LiveKitConfig `toml:"livekit" comment:"LiveKit voice and video call configuration. Credentials match the generated livekit.yaml."`
+			}{searchConfig, liveKit}
+		} else {
+			configDocument = struct {
+				initBaseConfig
+				LiveKit config.LiveKitConfig `toml:"livekit" comment:"LiveKit voice and video call configuration. Credentials match the generated livekit.yaml."`
+			}{baseConfig, liveKit}
+		}
+	}
+	b, err := toml.Marshal(configDocument)
+	if err != nil {
+		return fmt.Errorf("marshal config: %w", err)
+	}
+	if !opts.EmbeddedNATS {
+		natsConfig, err := marshalInitExternalNATS(opts.NATSClient)
+		if err != nil {
+			return fmt.Errorf("marshal external NATS config: %w", err)
+		}
+		b = append(append(b, '\n'), natsConfig...)
+	}
+	text := addAuthProviderExamples(string(b))
+	text = addEmailOTPDefaults(text)
+
+	if err := writeInitConfig(configPath, []byte(text)); err != nil {
+		return err
+	}
+	if opts.WithLiveKit {
+		if err := writeInitConfig(liveKitPath, liveKitConfig); err != nil {
+			// Remove only the Chatto config created by this invocation, so init can be retried.
+			if cleanupErr := os.Remove(configPath); cleanupErr != nil {
+				return fmt.Errorf("%w (remove partial Chatto config: %v)", err, cleanupErr)
+			}
+			return err
+		}
+		cmd.Printf("LiveKit configuration written to %s\n", liveKitPath)
+	}
+	cmd.Printf("Configuration written to %s\n", configPath)
+	return nil
+}
+
+// writeInitConfig creates a private configuration file without replacing an existing file.
+func writeInitConfig(path string, data []byte) error {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return fmt.Errorf("create config: %w", err)
+	}
+	_, writeErr := file.Write(data)
+	closeErr := file.Close()
+	if err := errors.Join(writeErr, closeErr); err != nil {
+		return errors.Join(fmt.Errorf("write config: %w", err), os.Remove(path))
+	}
+	return nil
 }
 
 func addAuthProviderExamples(tomlText string) string {
@@ -181,12 +318,12 @@ func addEmailOTPDefaults(tomlText string) string {
 		return tomlText
 	}
 
-	endMarker := "\n# Instance-wide resource limits."
-	end := strings.Index(tomlText[start:], endMarker)
-	if end == -1 {
-		return tomlText
+	// go-toml separates tables with a blank line. Stop at that boundary so
+	// provider tables and unrelated sections are preserved regardless of order.
+	end := len(tomlText)
+	if separator := strings.Index(tomlText[start:], "\n\n"); separator >= 0 {
+		end = start + separator + 1
 	}
-	end += start
 
 	defaultTTL := fmt.Sprintf("%dm", config.DefaultEmailOTPTTL/time.Minute)
 	emailOTPDefaults := fmt.Sprintf(`# Email OTP guardrails for registration and email verification.
@@ -206,5 +343,8 @@ throttling_enabled = true
 
 func init() {
 	rootCmd.AddCommand(initCmd)
+	initCmd.Flags().BoolVarP(&initInteractive, "interactive", "i", false, "configure your server with a guided terminal setup")
+	initCmd.Flags().BoolVar(&initWithSearch, "with-search", false, "enable message search and the bundled search provider")
 	initCmd.Flags().StringVarP(&initConfigFile, "config", "c", "", "path to configuration file (default: chatto.toml)")
+	initCmd.Flags().BoolVar(&initWithLiveKit, "with-livekit", false, "generate matching Chatto and livekit.yaml settings for a local LiveKit server")
 }

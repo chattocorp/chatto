@@ -10,6 +10,7 @@ describe('RoomNavigationState', () => {
     state.prepareThreadOpen('room-1', 'thread-1', {
       highlightEventId: 'highlight-1',
       quoteText: 'selected quote',
+      focusComposer: true,
       reply
     });
 
@@ -25,6 +26,7 @@ describe('RoomNavigationState', () => {
       roomId: 'room-1',
       threadRootEventId: 'thread-1',
       quote: 'selected quote',
+      focusComposer: true,
       reply
     });
     expect(state.highlightFor('room-1', null)).toBeNull();
@@ -34,6 +36,20 @@ describe('RoomNavigationState', () => {
     state.clearComposerInput(input!);
     expect(state.highlight).toBeNull();
     expect(state.composerInput).toBeNull();
+  });
+
+  it('keeps focus-only thread composer hand-offs', () => {
+    const state = new RoomNavigationState();
+
+    state.prepareThreadOpen('room-1', 'thread-1', { focusComposer: true });
+
+    expect(state.composerInputFor('room-1', 'thread-1')).toEqual({
+      roomId: 'room-1',
+      threadRootEventId: 'thread-1',
+      quote: undefined,
+      focusComposer: true,
+      reply: undefined
+    });
   });
 
   it('clears stale thread hand-offs when a later thread open omits them', () => {

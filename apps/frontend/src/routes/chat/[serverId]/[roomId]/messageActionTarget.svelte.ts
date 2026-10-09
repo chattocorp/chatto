@@ -202,7 +202,7 @@ export class MessageActionTarget {
       replyThread: canUseThread
         ? this.isEcho || disabled
           ? () => this.openThread()
-          : () => this.#startReplyInThread(this.#in.takeReplyQuote())
+          : () => this.#openThreadComposer(this.#in.takeReplyQuote())
         : undefined,
       secondaryReplyInRoomLabel: canSecondaryRoomReply
         ? m('room.message.actions.reply_room')
@@ -285,6 +285,14 @@ export class MessageActionTarget {
       this.actor ?? undefined
     );
     if (quote) this.#composer.quoteInsertionState.requestInsertQuote(quote);
+  }
+
+  #openThreadComposer(quote: QuoteInsertionContent | null): void {
+    const { onOpenThread, permalinkThreadRootEventId } = this.#in;
+    onOpenThread?.(permalinkThreadRootEventId ?? this.event.id, {
+      quoteText: quote ?? undefined,
+      focusComposer: true
+    });
   }
 
   #startReplyInThread(quote: QuoteInsertionContent | null): void {

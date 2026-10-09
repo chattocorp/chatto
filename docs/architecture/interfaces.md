@@ -53,6 +53,13 @@ fact append in one atomic batch of existing EVT events.
 
 ## Transport boundaries
 
+`webserver.bind_address` selects the address for the main HTTP or HTTPS
+listener and the optional ACME HTTP listener. An empty value listens on all
+interfaces. The configured address does not change the public URL or proxy
+trust policy. See [process configuration](../../cli/internal/config/process.go),
+[server startup](../../cli/cmd/run.go), and
+[HTTP listener lifecycle](../../cli/internal/http_server/server.go).
+
 The server recognizes the official mobile OAuth client
 `eu.chattocorp.chatto.mobile` with the exact callback
 `eu.chattocorp.chatto.mobile:/oauth/callback`. This built-in registration needs

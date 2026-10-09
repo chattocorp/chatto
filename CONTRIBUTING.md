@@ -99,7 +99,7 @@ LiveKit server. It does not build anything. Run it alone to prepare a checkout
 without starting the stack. These tasks trust the repository's `mise.toml`
 files automatically. They need mise 2026.8.9 or later.
 
-All services use plain HTTP. In Conductor, the base port is `$CONDUCTOR_PORT`
+By default, all services use plain HTTP. In Conductor, the base port is `$CONDUCTOR_PORT`
 and `<workspace>` is `ws` followed by this port, for example `ws55060`. Outside
 Conductor, `<workspace>` is `local` and the base port is `4000`. Set
 `CHATTO_DEV_WORKSPACE` to use a different `<workspace>`:
@@ -200,6 +200,137 @@ reads `.worktreeinclude` to copy gitignored local environment files, such as
 `.env` and `.env.*`, into new workspaces. Stopping the run command stops all
 child processes.
 
+## Local Development with Paseo
+
+Start the **dev** service in Paseo, or run `paseo script start dev` in a
+workspace. Open the service URL that Paseo shows, or the `Workspace URL` printed
+by the stable-hostname launcher described below. Stop it with Paseo's stop
+control or `paseo script stop dev`. Each worktree keeps its own data in
+`cli/data/`. Restart the service after source changes to rebuild Chatto.
+
+The launcher uses `PASEO_PORT` for Chatto's loopback listener and `PASEO_URL`
+for its public URL. It sets `CHATTO_WEBSERVER_BIND_ADDRESS=127.0.0.1`.
+Embedded NATS uses an in-process connection with no TCP
+listener. Paseo allocates one port per service, not a block of adjacent ports.
+The launcher requires Paseo's environment; use `mise dev` for a normal terminal
+start.
+
+Start **dev-full** in Paseo for Chatto with Mailpit and LiveKit. This service
+starts the **mailpit** and **livekit** services and shows their separate URLs
+in Paseo. Start and stop the stack through **dev-full**. If a support service
+stops, the stack stops too. Stop **dev** before starting **dev-full**: both use
+the same worktree data. Paseo's **dev-full** does not yet start Authling or
+Runling. The terminal command `mise dev-full` keeps the complete local stack.
+
+**storybook**, **docs-website**, and **authling** are separate, on-demand
+services. Start and stop each through Paseo, for example
+`paseo script start storybook`. They have their own HTTPS URLs and allocated
+loopback ports. They do not start with **dev-full**, and stopping **dev-full**
+does not stop them. Storybook and the docs website support live reload through
+the proxy. Authling keeps its own issuer-specific state and has email disabled
+unless you configure SMTP. See [Authling's development instructions](authling/README.md#paseo).
+
+Each workspace has its own Mailpit inbox and LiveKit process. Mailpit keeps
+messages only for the current run. Chatto submits email to Mailpit on a free
+loopback SMTP port. Mailpit does not send that email to external recipients.
+Its HTTPS inbox has no login; peers that can reach the proxy can read it.
+
+LiveKit signaling uses the **livekit** HTTPS URL over secure WebSocket. Media
+uses UDP directly to the local IPv4 address that the service hostname resolves
+to. For split DNS, set `CHATTO_DEV_LIVEKIT_NODE_IP` to a reachable local IPv4
+address in the machine's environment. The address must exist on this machine.
+The launcher binds HTTP and SMTP to loopback and media to that selected address.
+It uses new LiveKit credentials for each run.
+
+LiveKit's UDP media port has the same number as its allocated HTTP port. Its
+built-in TURN/STUN UDP port has the same number as Mailpit's loopback SMTP
+port. TCP and UDP have separate port spaces. If another process already owns
+one of these UDP ports, startup fails and the stack stops. TURN can allocate
+relay UDP ports in `49152–65535` on the selected address. Allow this traffic
+between development peers in the host firewall and VPN policy. This setup has
+no TCP media fallback. Clients must be able to reach the selected address over
+UDP. The local TURN/STUN service prevents LiveKit from giving browsers Google's
+default public STUN servers. Call signaling and media stay within the selected
+network.
+
+### Stable workspace HTTPS through Traefik
+
+The optional launcher uses
+`<service>--<worktree-directory>.<base-domain>`, for example
+`authling--calm-otter.dev.example.com`. Branch and port changes do not change
+these URLs. Renaming the worktree directory does change them. Concurrent
+worktrees must have different directory names; duplicate hostnames fail startup.
+
+Configure the daemon machine once:
+
+1. Point wildcard DNS at its VPN address. Run Traefik with an HTTPS entry point
+   bound to that address. Configure a wildcard certificate through DNS
+   validation. Keep the domain, DNS token, and machine configuration outside
+   this repository. DNS and certificate providers receive validation requests;
+   application traffic stays on the VPN.
+2. Enable Traefik's file provider with `directory` and `watch: true`. Use a
+   directory that the Paseo user can write and Traefik can read. Keep it outside
+   the repository. On Linux, use a directory under `/run` with a tmpfiles rule
+   to create it after each boot. Enable TLS on the entry point, so each route
+   uses the same wildcard certificate. Do not enable a catch-all route to the
+   Paseo daemon or its API.
+3. Keep Paseo's service proxy on loopback, for example `127.0.0.1:6768`. Set its
+   `publicBaseUrl` to the HTTPS base URL. Restart Paseo only if these settings
+   change. Paseo 0.11.1 also needs a daemon restart after adding services to a
+   workspace with a cached port plan.
+4. Create `~/.config/chatto/paseo-proxy.json` (`XDG_CONFIG_HOME` is respected):
+
+```json
+{
+  "routeDir": "/run/chatto-dev/routes",
+  "baseUrl": "https://dev.example.com"
+}
+```
+
+Set `CHATTO_PASEO_PROXY_CONFIG` to use a different configuration file.
+Without this machine file, services keep Paseo's original URLs. An explicitly
+selected missing file, an invalid configuration, or a route-file error stops
+startup. The launcher does not check whether Traefik is running.
+
+Each Paseo service writes one route file, sets `PASEO_URL` and all peer URLs,
+and prints `Workspace URL: https://...`. Paseo still displays its branch-based
+URL; the launcher adds a temporary redirect from that URL to the stable URL.
+The redirect preserves the request path and query. Traefik forwards requests directly to the service's
+allocated loopback port and preserves the hostname. No per-workspace DNS or
+machine-configuration edit is needed. Authling keeps its issuer-specific store
+through branch and port changes.
+
+The launcher publishes complete files atomically and refuses to replace an
+existing file. When its child exits, it removes its own file, including the redirect. mise manages
+child processes and receives stop signals through the launcher. Traefik watches
+for changes; its default update interval is two seconds. Proxy restarts read
+the existing files, so services do not need to register again. Active network
+connections still disconnect when the proxy process restarts.
+
+After a forced kill, stop the affected service before removing its stale file
+from `routeDir`. A stale route must not remain when another process can reuse
+its port. A reboot clears the route directory under `/run`. Paseo can still
+reject duplicate service/branch/project names through its own route registry,
+even when the stable hostnames differ.
+
+Run `mise test-dev-tooling` to check environment defaults, disabled NATS
+listeners, cleanup after failure, route ownership, and real Traefik routing.
+The routing test checks that changes to another route preserve a WebSocket,
+that proxy restarts restore routes, and that unknown or removed hosts return
+404. The lifecycle test runs the real mise task graph with test listeners. It
+checks that one stop closes all listeners and removes routes and runtime state
+within Paseo's shutdown deadline. This task also runs in CI and as part of
+`mise test`.
+
+Private configuration is in `.context/paseo-stack/<dev-full-port>/` and is
+removed on normal stop. Each service receives its own current port from Paseo;
+Chatto uses LiveKit's stable public URL. After a forced kill such as `SIGKILL`,
+stop all three services in Paseo and remove `.context/paseo-stack/` before
+starting again. No program can run its cleanup after `SIGKILL`.
+See [Paseo's service documentation](https://paseo.sh/docs/worktrees.md)
+for port allocation and [its configuration guide](https://paseo.sh/docs/configuration.md)
+for machine settings.
+
 ## Local Development with Codex
 
 The Codex desktop environment is in `.codex/environments/environment.toml`.
@@ -261,7 +392,9 @@ Tailwind plugin settings in `apps/frontend/.prettierrc`. Authling uses its own
 pnpm workspace and toolchain.
 
 `mise dev` and `mise dev-full` use Conductor's allocated port block and fall
-back to base port `4000` outside Conductor. `mise dev-frontend` uses the base port plus one.
+back to base port `4000` outside Conductor. Paseo's **dev** service overrides
+Chatto's port and public URL and disables the NATS TCP listener, as described
+above. `mise dev-frontend` uses the base port plus one.
 Storybook starts at port `6006` and the docs website at port `4321`. Both
 select the next free port when another workspace uses it. `mise dev` runs
 `mise run chatto run`, which you can also run directly.

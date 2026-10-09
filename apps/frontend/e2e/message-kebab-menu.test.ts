@@ -78,33 +78,26 @@ test.describe('Message hover toolbar', () => {
     await roomPage.expectThreadPaneVisible();
   });
 
-  test('context menu thread reply attributes the posted message to its target', async ({
+  test('context menu thread reply focuses the composer without root attribution', async ({
     page,
     chatPage,
     roomPage
   }) => {
-    const user = await createAndLoginTestUser(page);
+    await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const targetBody = `Thread reply target ${Date.now()}`;
-    const target = await roomPage.sendMessage(targetBody);
+    const target = await roomPage.sendMessage(`Thread reply target ${Date.now()}`);
     await target.replyInThread();
 
     await roomPage.expectThreadPaneVisible();
-    const indicator = roomPage.threadPane.getByTestId('reply-indicator');
-    await expect(indicator).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-    await expect(indicator).toContainText(targetBody);
+    await expect(roomPage.threadPane.getByTestId('reply-indicator')).not.toBeVisible();
     await expect(roomPage.threadReplyInput).toBeFocused({ timeout: TIMEOUTS.UI_STANDARD });
 
-    const replyBody = `Attributed thread reply ${Date.now()}`;
+    const replyBody = `Plain thread reply ${Date.now()}`;
     await roomPage.postThreadReply(replyBody);
-    const attribution = roomPage
-      .getThreadMessage(replyBody)
-      .locator.getByTestId('reply-attribution');
-    await expect(attribution).toContainText(targetBody);
-    await expect(attribution.getByTestId('reply-attribution-author')).toContainText(
-      user.displayName
-    );
+    await expect(
+      roomPage.getThreadMessage(replyBody).locator.getByTestId('reply-attribution')
+    ).toHaveCount(0);
   });
 });
