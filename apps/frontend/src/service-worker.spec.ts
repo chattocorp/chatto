@@ -145,6 +145,18 @@ describe('service worker notifications', () => {
     }
   );
 
+  it('still activates and displays push when storage denies retired-cache cleanup', async () => {
+    const cacheStorage = createMemoryCacheStorage();
+    cacheStorage.keys.mockRejectedValue(new Error('Storage access denied'));
+    const worker = await importServiceWorker(cacheStorage);
+
+    await worker.dispatch('activate');
+    await worker.dispatch('push', { data: { json: () => ({ title: 'Push' }) } });
+
+    expect(worker.clients.claim).toHaveBeenCalledOnce();
+    expect(worker.registration.showNotification).toHaveBeenCalledWith('Push', expect.any(Object));
+  });
+
   it.each(['legacy', 'declarative', 'event'])(
     'preserves cleanup identity from %s push payloads',
     async (format) => {

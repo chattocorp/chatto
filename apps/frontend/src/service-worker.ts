@@ -21,7 +21,9 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
-      await deleteRetiredCaches();
+      // Storage restrictions must not interrupt push activation. Page startup
+      // and later worker activations retry this non-sensitive cache cleanup.
+      await deleteRetiredCaches().catch(() => {});
       await self.clients.claim();
     })()
   );
