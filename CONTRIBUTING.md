@@ -203,7 +203,8 @@ child processes.
 ## Local Development with Paseo
 
 Start the **dev** service in Paseo, or run `paseo script start dev` in a
-workspace. Open the service URL that Paseo shows. Stop it with Paseo's stop
+workspace. Open the service URL that Paseo shows, or the `Workspace URL` printed
+by the stable-hostname launcher described below. Stop it with Paseo's stop
 control or `paseo script stop dev`. Each worktree keeps its own data in
 `cli/data/`. Restart the service after source changes to rebuild Chatto.
 
@@ -269,19 +270,68 @@ For HTTPS access through a VPN, configure the machine once:
    public URL. Paseo 0.11.1 also requires a daemon restart when new service
    entries are added to a workspace whose port plan is already cached.
 
-Paseo registers and removes routes when services start and stop. New workspaces
-need no Caddy or DNS changes. Its service names contain the script, branch,
-and project in one DNS label, so one wildcard certificate covers them. Branch
-changes can change the URL. Paseo rejects two services with the same name from
-different workspaces; use distinct branches for concurrent workspaces.
+### Stable workspace hostnames
+
+For URLs that survive branch changes, configure the optional Caddy launcher.
+It uses `<service>--<worktree-directory>.<base-domain>`, for example
+`authling--calm-otter.dev.example.com`. It reads the worktree root, not the
+current branch. Renaming or moving the worktree to a different directory name
+changes its URLs. Concurrent worktrees must have different directory names;
+a duplicate hostname fails startup instead of replacing another route.
+
+Create `~/.config/chatto/paseo-proxy.json` on the daemon machine (`XDG_CONFIG_HOME`
+is respected). For a different file, set `CHATTO_PASEO_PROXY_CONFIG` in the
+service environment. The file contains machine settings only:
+
+```json
+{
+  "admin": "http://127.0.0.1:2019",
+  "routesPath": "/config/apps/http/servers/srv0/routes/0/handle/0/routes",
+  "baseUrl": "https://dev.example.com"
+}
+```
+
+Select `routesPath` from your running Caddy configuration. It must identify the
+route array inside the wildcard site's subroute, before the existing fallback
+to Paseo. The example path matches the Caddyfile setup used here; other
+Caddyfiles can produce a different path. Keep the admin endpoint on loopback
+and set `persist_config off` in Caddy's global options. The wildcard certificate
+and VPN listener must already cover `baseUrl` and its subdomains.
+
+Each Paseo service runs the same launcher. It adds a host route directly to
+that service's loopback port, sets `PASEO_URL` and all peer URLs, and prints
+`Workspace URL: https://...`. Use that link: Paseo's displayed link still uses
+its branch-based name and can fail a service's hostname checks. Caddy preserves
+the stable request hostname. No per-workspace DNS or Caddyfile edit is needed.
+The launcher uses Caddy's ETag checks so concurrent starts and stops do not
+overwrite each other's routes. It removes only its own route when the child
+exits, fails, or receives a normal stop signal. mise still manages the stack's
+child processes.
+
+Without this machine file, services keep Paseo's original URLs. If an explicit
+configuration file is missing or Caddy rejects registration, startup fails.
+Authling's first start on the new hostname uses a new issuer-specific store;
+its old development store is retained. Later branch changes and port changes
+do not change the issuer or store.
+
+Caddy reloads and restarts clear these temporary routes. Restart the services
+to register them again. After a forced kill, stop the affected services before
+removing stale routes. To clear all temporary routes, stop all services that
+use this setup and reload Caddy from its Caddyfile. A stale route must not be
+left pointing at a port that another process can reuse.
+
+Paseo still creates its own branch-based routes and can reject duplicate
+service/branch/project names, even when the stable Caddy hostnames differ.
 
 Use `bash tools/test-paseo-dev.sh` to check the launcher, environment defaults,
 and disabled-listener port checks. Use
 `mise x -- node --test tools/paseo-stack.test.mjs` to check interface validation
-and safe environment serialization. mise runs the stack's tasks and its
+and safe environment serialization. Use
+`mise x -- node --test tools/paseo-proxy.test.mjs` to check stable names,
+concurrent route updates, and route cleanup. mise runs the stack's tasks and its
 `depends_post` cleanup after success, failure, or a stop signal. Paseo owns the
-service processes, routes, and health checks. A small helper prepares configuration
-and observes Paseo's service status. There is no separate process supervisor.
+service processes, its original routes, and health checks. A small helper prepares configuration
+and observes Paseo's service status. The optional Caddy launcher forwards signals to mise and removes its route.
 
 Private configuration is in `.context/paseo-stack/<dev-full-port>/` and is
 removed on normal stop. Each service receives its own current port from Paseo;

@@ -96,16 +96,30 @@ to loopback, and keeps data in the worktree's `cli/data/`.
 The NATS TCP listener is disabled with port `0`; Chatto uses its existing
 in-process NATS connection. No adjacent port reservation is required.
 
-An optional machine-level Caddy wildcard route provides HTTPS over a VPN and
-forwards requests to Paseo's loopback service proxy. Paseo owns route creation
-and removal. Caddy needs no changes when workspaces start or stop. The machine's
-Paseo configuration sets the HTTPS service base URL. Credentials, domain names,
-and proxy configuration stay outside the repository.
+An optional machine-level Caddy wildcard route provides HTTPS over a VPN.
+Without stable-hostname settings, it forwards requests to Paseo's loopback
+service proxy. Paseo's original URLs contain the service, branch, and project;
+branch changes can change them.
 
-Paseo names routes from the service, branch, and project. These names fit in
-one DNS label and work with a wildcard certificate. Branch changes can change
-the URL, and Paseo rejects concurrent routes with the same name. This setup
-also applies to **dev-full**, which runs Chatto with Mailpit and LiveKit.
+With machine settings in `~/.config/chatto/paseo-proxy.json`, the shared
+`tools/paseo-proxy.mjs` launcher registers a direct Caddy route to each allocated
+loopback port. Public names use the service and worktree directory name, not
+the branch. It sets the service and peer URL environment values before starting
+the child. Authling thus keeps the same issuer through branch and port changes.
+Directory-name changes still change the URL, and duplicate hostnames fail
+startup. Credentials, domain names, and Caddy configuration stay outside the
+repository. One wildcard certificate covers all service names.
+
+Caddy's local API and ETag checks serialize conflicting route-array edits.
+Each launch owns one route ID and removes only that route when its child exits.
+The launcher forwards normal stop signals; mise retains process-tree ownership.
+No additional daemon or Caddyfile edit is required per workspace. Paseo's UI
+continues to show its original URL; the launcher prints the stable URL.
+Caddy restarts and Caddyfile reloads discard temporary routes, so running
+services must be restarted. A forced kill requires stale-route cleanup before
+ports are reused. The Caddyfile disables configuration persistence.
+
+This setup also applies to **dev-full**, which runs Chatto with Mailpit and LiveKit.
 Authling and Runling are not part of **dev-full** in Paseo. Storybook, the docs
 website, and Authling are separate, on-demand Paseo services. Each binds to its
 allocated loopback port and gets its own proxy route. Authling's task stays in
@@ -121,8 +135,8 @@ stops the two Paseo services and removes the configuration. Preparation is a
 dependency, so rejected starts do not stop an existing stack. Each service
 gets a separate route and port; Chatto uses LiveKit's public URL.
 There are no custom process groups, PID watchdogs, or readiness files.
-All Paseo commands use `exec` so process exit also ends the supervised terminal
-and removes its route. **dev** and **dev-full** use the same worktree data and
+All Paseo commands use `exec` to start the shared launcher, so its exit also
+ends the supervised terminal and removes Paseo's original route. **dev** and **dev-full** use the same worktree data and
 must not run together.
 
 Mailpit uses an OS-selected loopback SMTP port and its Paseo port for HTTP.
@@ -141,7 +155,8 @@ run directories prevent old cleanup from deleting a new run's configuration.
 After `SIGKILL`, developers must stop the services and remove stale configuration
 manually; the stack does not provide a second supervisor to recover from forced
 termination. Mailpit's inbox lasts
-only for that run. Caddy needs no additional routes or configuration changes.
+only for that run. Caddy routes are registered through its API when the optional
+stable-hostname settings are present.
 
 ## Consequences
 

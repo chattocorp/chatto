@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 # Starts Chatto through Paseo's supervised dev service. Paseo owns the port,
-# proxy route, and process lifetime. Use exec so stop signals reach mise,
+# original proxy route, and process lifetime. Use exec so stop signals reach mise,
 # which stops all processes it starts. Data stays in this worktree's cli/data.
 set -euo pipefail
 
