@@ -697,7 +697,11 @@ Room sidebar panel for voice/video calls.
           'aspect-video items-center justify-center',
           !hasMedia && 'p-6'
         ]}
-        onclick={(e) => showUserMenu(participant, controls, e, isScreen)}
+        aria-label={tile.key === pinnedStageTileKey ? m('voice.unpin_from_stage') : undefined}
+        onclick={(e) =>
+          tile.key === pinnedStageTileKey
+            ? unpinStageTile(e)
+            : showUserMenu(participant, controls, e, isScreen)}
       >
         {#if hasMedia}
           {@render stageMedia(tile, true, controls)}

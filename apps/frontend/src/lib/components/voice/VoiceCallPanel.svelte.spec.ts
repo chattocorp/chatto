@@ -544,6 +544,32 @@ it('pins a filmstrip tile to the stage until the viewer unpins it or its source 
   await expect.element(featured).toHaveTextContent("Dana's screen");
 });
 
+it.each(['Bob', 'Chloe', "Dana's screen"])(
+  'unpins %s when the featured tile is clicked again',
+  async (name) => {
+    const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'screen' });
+    const featured = screen.getByTestId('call-featured-stage-card');
+    const strip = screen.getByTestId('call-secondary-stage-list');
+    if (name === "Dana's screen") {
+      await strip.getByRole('button', { name: 'Pin Bob to the stage' }).click();
+    }
+    await strip.getByRole('button', { name: `Pin ${name} to the stage` }).click();
+    await expect.element(featured).toHaveTextContent(name);
+
+    // The media button is separate from the title bar's unpin action.
+    const media = featured.element().querySelector<HTMLButtonElement>(':scope > button')!;
+    expect(media.getAttribute('aria-label')).toBe('Unpin from the stage');
+    media.click();
+
+    await expect.element(featured).toHaveTextContent("Dana's screen");
+    await expect.element(featured.getByTestId('call-stage-unpin-button')).not.toBeInTheDocument();
+    expect(document.querySelector('[data-testid="copy-user-id"]')).toBeNull();
+    await expect
+      .poll(() => document.activeElement?.getAttribute('data-testid'))
+      .toBe(name === "Dana's screen" ? 'call-participant-menu-button' : 'call-stage-pin-button');
+  }
+);
+
 it('keeps keyboard focus on the reversing control when pinning and unpinning', async () => {
   const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'screen' });
   const strip = screen.getByTestId('call-secondary-stage-list');
