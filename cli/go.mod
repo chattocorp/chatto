@@ -12,6 +12,10 @@ tool (
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.2
 	buf.build/go/protovalidate v1.4.0
+	charm.land/bubbles/v2 v2.0.0
+	charm.land/bubbletea/v2 v2.0.2
+	charm.land/huh/v2 v2.0.3
+	charm.land/lipgloss/v2 v2.0.1
 	connectrpc.com/authn v0.2.0
 	connectrpc.com/connect v1.21.0
 	connectrpc.com/grpcreflect v1.3.0
@@ -74,6 +78,18 @@ require (
 	hmans.de/chatto/pkg/jetstreamutil v0.0.0
 	hmans.de/chatto/pkg/natsruntime v0.0.0
 	mvdan.cc/xurls/v2 v2.6.0
+)
+
+require (
+	github.com/atotto/clipboard v0.1.4 // indirect
+	github.com/catppuccin/go v0.2.0 // indirect
+	github.com/charmbracelet/ultraviolet v0.0.0-20260205113103-524a6607adb8 // indirect
+	github.com/charmbracelet/x/exp/ordered v0.1.0 // indirect
+	github.com/charmbracelet/x/exp/strings v0.0.0-20240722160745-212f7b056ed0 // indirect
+	github.com/charmbracelet/x/termios v0.1.1 // indirect
+	github.com/charmbracelet/x/windows v0.2.2 // indirect
+	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
+	github.com/muesli/cancelreader v0.2.2 // indirect
 )
 
 require (
@@ -231,7 +247,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260921155816-b14227669459 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260921155816-b14227669459 // indirect
 	google.golang.org/grpc v1.84.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 replace hmans.de/chatto/pkg/events => ../pkg/events
