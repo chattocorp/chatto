@@ -18,6 +18,18 @@
     "livekit": {
       "type": "service",
       "command": "exec mise run paseo-livekit"
+    },
+    "storybook": {
+      "type": "service",
+      "command": "exec mise run paseo-storybook"
+    },
+    "docs-website": {
+      "type": "service",
+      "command": "exec mise run paseo-docs-website"
+    },
+    "authling": {
+      "type": "service",
+      "command": "exec mise --cd authling run paseo"
     }
   }
 }

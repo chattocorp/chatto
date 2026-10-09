@@ -221,6 +221,14 @@ stops, the stack stops too. Stop **dev** before starting **dev-full**: both use
 the same worktree data. Paseo's **dev-full** does not yet start Authling or
 Runling. The terminal command `mise dev-full` keeps the complete local stack.
 
+**storybook**, **docs-website**, and **authling** are separate, on-demand
+services. Start and stop each through Paseo, for example
+`paseo script start storybook`. They have their own HTTPS URLs and allocated
+loopback ports. They do not start with **dev-full**, and stopping **dev-full**
+does not stop them. Storybook and the docs website support live reload through
+the proxy. Authling keeps its own issuer-specific state and has email disabled
+unless you configure SMTP. See [Authling's development instructions](authling/README.md#paseo).
+
 Each workspace has its own Mailpit inbox and LiveKit process. Mailpit keeps
 messages only for the current run. Chatto submits email to Mailpit on a free
 loopback SMTP port. Mailpit does not send that email to external recipients.

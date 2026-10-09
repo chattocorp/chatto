@@ -106,8 +106,11 @@ Paseo names routes from the service, branch, and project. These names fit in
 one DNS label and work with a wildcard certificate. Branch changes can change
 the URL, and Paseo rejects concurrent routes with the same name. This setup
 also applies to **dev-full**, which runs Chatto with Mailpit and LiveKit.
-Authling and Runling are not yet part of the Paseo stack. Normal terminal and
-Conductor starts keep their existing defaults.
+Authling and Runling are not part of **dev-full** in Paseo. Storybook, the docs
+website, and Authling are separate, on-demand Paseo services. Each binds to its
+allocated loopback port and gets its own proxy route. Authling's task stays in
+its own task catalog and keeps separate state for each public issuer URL.
+Normal terminal and Conductor starts keep their existing defaults.
 
 The **dev-full** service runs a mise task graph. Preparation checks that the
 workspace can start a new stack and writes private configuration. The main

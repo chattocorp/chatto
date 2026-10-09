@@ -628,6 +628,29 @@ EOF
 exec mise x "$CHATTO_DEV_LIVEKIT_SERVER" -- server --config "$state/livekit.yaml"
 '''
 
+[tasks.paseo-storybook]
+hide = true
+depends = ["setup-frontend", "build-api-types"]
+dir = "apps/frontend"
+run = '''
+set -eu
+: "${PASEO_PORT:?start storybook through Paseo}" "${PASEO_URL:?}"
+export STORYBOOK_DISABLE_TELEMETRY=1
+exec pnpm exec storybook dev --host 127.0.0.1 --port "$PASEO_PORT" --exact-port --no-open --ci
+'''
+
+[tasks.paseo-docs-website]
+hide = true
+depends = ["setup-frontend"]
+dir = "apps/docs-website"
+run = '''
+set -eu
+: "${PASEO_PORT:?start docs-website through Paseo}" "${PASEO_URL:?}"
+allowed_host=$(node -p 'new URL(process.env.PASEO_URL).hostname')
+export ASTRO_TELEMETRY_DISABLED=1
+exec pnpm exec astro dev --host 127.0.0.1 --port "$PASEO_PORT" --allowedHosts "$allowed_host"
+'''
+
 [tasks.dev-frontend]
 description = "Run the Vite frontend development server against a Chatto server"
 depends = ["setup-frontend", "build-api-types", "build-lingua"]
