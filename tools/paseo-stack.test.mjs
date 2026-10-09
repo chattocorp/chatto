@@ -78,3 +78,68 @@ test('generated shell values remain data, including quotes and command syntax', 
   });
   assert.equal(actual, value);
 });
+
+test('cleanup attempts every service after a failed stop and retains configuration', async (t) => {
+  const cwd = await mkdtemp(resolve('.context/paseo-cleanup-test-'));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  await mkdir(`${cwd}/bin`);
+  const state = `${cwd}/.context/paseo-stack/53000`;
+  await mkdir(state, { recursive: true });
+  await writeFile(
+    `${cwd}/bin/paseo`,
+    `#!/usr/bin/env bash
+if [[ "$2" == ls ]]; then
+  printf '%s' '[{"scriptName":"mailpit","lifecycle":"running"},{"scriptName":"livekit","lifecycle":"running"}]'
+else
+  printf '%s\\n' "$3" >> attempts
+  [[ "$3" != mailpit ]]
+fi
+`,
+    { mode: 0o700 }
+  );
+  assert.throws(
+    () =>
+      execFileSync(process.execPath, [resolve('tools/paseo-stack.mjs'), 'cleanup'], {
+        cwd,
+        env: {
+          ...process.env,
+          PATH: `${cwd}/bin:${process.env.PATH}`,
+          PASEO_PORT: '53000',
+          PASEO_URL: 'https://dev.example.test'
+        },
+        stdio: 'pipe'
+      }),
+    /Could not stop mailpit/
+  );
+  assert.deepEqual((await readFile(`${cwd}/attempts`, 'utf8')).trim().split('\n').sort(), [
+    'livekit',
+    'mailpit'
+  ]);
+  await access(state);
+});
+
+test('watch stops the stack when a previously healthy Chatto exits', async (t) => {
+  const cwd = await mkdtemp(resolve('.context/paseo-watch-test-'));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  await mkdir(`${cwd}/bin`);
+  await writeFile(
+    `${cwd}/bin/paseo`,
+    `#!/usr/bin/env bash
+health=healthy
+[[ ! -e observed ]] || health=unhealthy
+touch observed
+printf '[{"scriptName":"dev-full","lifecycle":"running","health":"%s"},{"scriptName":"mailpit","lifecycle":"running","health":"healthy"},{"scriptName":"livekit","lifecycle":"running","health":"healthy"}]' "$health"
+`,
+    { mode: 0o700 }
+  );
+  assert.throws(
+    () =>
+      execFileSync(process.execPath, [resolve('tools/paseo-stack.mjs'), 'watch'], {
+        cwd,
+        env: { ...process.env, PATH: `${cwd}/bin:${process.env.PATH}` },
+        stdio: 'pipe',
+        timeout: 5000
+      }),
+    /Chatto stopped responding/
+  );
+});

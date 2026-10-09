@@ -238,6 +238,9 @@ jobs:
       - name: Check workflows and shell scripts
         run: mise lint-actions
 
+      - name: Test development launchers and routing
+        run: mise test-dev-tooling
+
   desktop:
     needs: changes
     if: ${{ needs.changes.outputs.desktop == 'true' }}

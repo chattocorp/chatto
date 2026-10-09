@@ -4,7 +4,8 @@
 /** Configure a Paseo stack and observe Paseo's status. mise owns all process
  * supervision and cleanup; this module never launches a background process.
  */
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
+import { promisify } from 'node:util';
 import { randomBytes } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
@@ -111,13 +112,19 @@ async function prepare() {
 async function observe(watch) {
   const deadline = Date.now() + 10 * 60_000;
   let ready = false;
+  let chattoReady = false;
   do {
     const status = scripts();
+    const chatto = status.find((s) => s.scriptName === 'dev-full');
+    chattoReady ||= chatto?.health === 'healthy';
+    if (watch && chattoReady && chatto?.health === 'unhealthy')
+      throw new Error('Chatto stopped responding; stopping the stack.');
     const peers = supportServices.map((name) => status.find((s) => s.scriptName === name));
     if (peers.some((s) => !s || s.lifecycle === 'stopped'))
       throw new Error('A support service stopped; stopping the stack.');
     ready ||= peers.every((s) => s.health === 'healthy');
-    if (!ready && Date.now() > deadline) throw new Error('Support services did not become ready.');
+    if ((!ready || (watch && !chattoReady)) && Date.now() > deadline)
+      throw new Error('Stack services did not become ready.');
     if (ready && !watch) return;
     await delay(1000);
   } while (true);
@@ -128,17 +135,29 @@ async function observe(watch) {
  */
 async function cleanup() {
   const { port } = serviceEnvironment(process.env);
-  for (const name of supportServices) {
-    if (scripts().find((s) => s.scriptName === name)?.lifecycle === 'stopped') continue;
-    try {
-      execFileSync('paseo', ['script', 'stop', name, '--cwd', process.cwd(), '--json'], {
-        timeout: 15_000
-      });
-    } catch (error) {
-      // A service can exit between listing it and stopping it.
-      if (scripts().find((s) => s.scriptName === name)?.lifecycle !== 'stopped') throw error;
-    }
-  }
+  const current = scripts();
+  // Paseo gives the terminal two seconds to stop. Stop independent support
+  // services concurrently so one CLI round trip does not delay the other.
+  const results = await Promise.allSettled(
+    supportServices.map(async (name) => {
+      if (current.find((s) => s.scriptName === name)?.lifecycle === 'stopped') return;
+      try {
+        await promisify(execFile)(
+          'paseo',
+          ['script', 'stop', name, '--cwd', process.cwd(), '--json'],
+          {
+            timeout: 15_000
+          }
+        );
+      } catch (error) {
+        // A service can exit between listing it and stopping it.
+        if (scripts().find((s) => s.scriptName === name)?.lifecycle !== 'stopped') throw error;
+      }
+    })
+  );
+  const failures = supportServices.filter((_, i) => results[i].status === 'rejected');
+  if (failures.length)
+    throw new Error(`Could not stop ${failures.join(', ')}; configuration retained.`);
   await rm(`.context/paseo-stack/${port}`, { recursive: true, force: true });
 }
 

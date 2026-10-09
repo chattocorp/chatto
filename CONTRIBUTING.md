@@ -253,85 +253,70 @@ UDP. The local TURN/STUN service prevents LiveKit from giving browsers Google's
 default public STUN servers. Call signaling and media stay within the selected
 network.
 
-For HTTPS access through a VPN, configure the machine once:
+### Stable workspace HTTPS through Traefik
 
-1. Set Paseo's `daemon.serviceProxy.listen` to a loopback address, for example
-   `127.0.0.1:6768`, and `daemon.serviceProxy.publicBaseUrl` to an HTTPS base
-   URL under a domain you own.
-2. Point wildcard DNS at the machine's VPN address. Configure Caddy to serve
-   that wildcard name and forward requests to Paseo's service proxy. Preserve
-   the request hostname. Bind Caddy to the VPN address.
-3. Use DNS validation for certificates when the service is private. Keep the
-   DNS token and machine configuration outside the repository. The DNS
-   provider and certificate authority receive validation requests from the
-   machine; application traffic stays on the VPN.
-4. Restart Paseo after changing its service proxy settings. This can interrupt
-   active sessions. Restart existing development services to give them the new
-   public URL. Paseo 0.11.1 also requires a daemon restart when new service
-   entries are added to a workspace whose port plan is already cached.
+The optional launcher uses
+`<service>--<worktree-directory>.<base-domain>`, for example
+`authling--calm-otter.dev.example.com`. Branch and port changes do not change
+these URLs. Renaming the worktree directory does change them. Concurrent
+worktrees must have different directory names; duplicate hostnames fail startup.
 
-### Stable workspace hostnames
+Configure the daemon machine once:
 
-For URLs that survive branch changes, configure the optional Caddy launcher.
-It uses `<service>--<worktree-directory>.<base-domain>`, for example
-`authling--calm-otter.dev.example.com`. It reads the worktree root, not the
-current branch. Renaming or moving the worktree to a different directory name
-changes its URLs. Concurrent worktrees must have different directory names;
-a duplicate hostname fails startup instead of replacing another route.
-
-Create `~/.config/chatto/paseo-proxy.json` on the daemon machine (`XDG_CONFIG_HOME`
-is respected). For a different file, set `CHATTO_PASEO_PROXY_CONFIG` in the
-service environment. The file contains machine settings only:
+1. Point wildcard DNS at its VPN address. Run Traefik with an HTTPS entry point
+   bound to that address. Configure a wildcard certificate through DNS
+   validation. Keep the domain, DNS token, and machine configuration outside
+   this repository. DNS and certificate providers receive validation requests;
+   application traffic stays on the VPN.
+2. Enable Traefik's file provider with `directory` and `watch: true`. Use a
+   directory that the Paseo user can write and Traefik can read. Keep it outside
+   the repository. On Linux, use a directory under `/run` with a tmpfiles rule
+   to create it after each boot. Enable TLS on the entry point, so each route
+   uses the same wildcard certificate. Do not enable a catch-all route to the
+   Paseo daemon or its API.
+3. Keep Paseo's service proxy on loopback, for example `127.0.0.1:6768`. Set its
+   `publicBaseUrl` to the HTTPS base URL. Restart Paseo only if these settings
+   change. Paseo 0.11.1 also needs a daemon restart after adding services to a
+   workspace with a cached port plan.
+4. Create `~/.config/chatto/paseo-proxy.json` (`XDG_CONFIG_HOME` is respected):
 
 ```json
 {
-  "admin": "http://127.0.0.1:2019",
-  "routesPath": "/config/apps/http/servers/srv0/routes/0/handle/0/routes",
+  "routeDir": "/run/chatto-dev/routes",
   "baseUrl": "https://dev.example.com"
 }
 ```
 
-Select `routesPath` from your running Caddy configuration. It must identify the
-route array inside the wildcard site's subroute, before the existing fallback
-to Paseo. The example path matches the Caddyfile setup used here; other
-Caddyfiles can produce a different path. Keep the admin endpoint on loopback
-and set `persist_config off` in Caddy's global options. The wildcard certificate
-and VPN listener must already cover `baseUrl` and its subdomains.
+Set `CHATTO_PASEO_PROXY_CONFIG` to use a different configuration file.
+Without this machine file, services keep Paseo's original URLs. An explicitly
+selected missing file, an invalid configuration, or a route-file error stops
+startup. The launcher does not check whether Traefik is running.
 
-Each Paseo service runs the same launcher. It adds a host route directly to
-that service's loopback port, sets `PASEO_URL` and all peer URLs, and prints
-`Workspace URL: https://...`. Use that link: Paseo's displayed link still uses
-its branch-based name and can fail a service's hostname checks. Caddy preserves
-the stable request hostname. No per-workspace DNS or Caddyfile edit is needed.
-The launcher uses Caddy's ETag checks so concurrent starts and stops do not
-overwrite each other's routes. It removes only its own route when the child
-exits, fails, or receives a normal stop signal. mise still manages the stack's
-child processes.
+Each Paseo service writes one route file, sets `PASEO_URL` and all peer URLs,
+and prints `Workspace URL: https://...`. Paseo still displays its branch-based
+URL; the launcher adds a temporary redirect from that URL to the stable URL.
+The redirect preserves the request path and query. Traefik forwards requests directly to the service's
+allocated loopback port and preserves the hostname. No per-workspace DNS or
+machine-configuration edit is needed. Authling keeps its issuer-specific store
+through branch and port changes.
 
-Without this machine file, services keep Paseo's original URLs. If an explicit
-configuration file is missing or Caddy rejects registration, startup fails.
-Authling's first start on the new hostname uses a new issuer-specific store;
-its old development store is retained. Later branch changes and port changes
-do not change the issuer or store.
+The launcher publishes complete files atomically and refuses to replace an
+existing file. When its child exits, it removes its own file, including the redirect. mise manages
+child processes and receives stop signals through the launcher. Traefik watches
+for changes; its default update interval is two seconds. Proxy restarts read
+the existing files, so services do not need to register again. Active network
+connections still disconnect when the proxy process restarts.
 
-Caddy reloads and restarts clear these temporary routes. Restart the services
-to register them again. After a forced kill, stop the affected services before
-removing stale routes. To clear all temporary routes, stop all services that
-use this setup and reload Caddy from its Caddyfile. A stale route must not be
-left pointing at a port that another process can reuse.
+After a forced kill, stop the affected service before removing its stale file
+from `routeDir`. A stale route must not remain when another process can reuse
+its port. A reboot clears the route directory under `/run`. Paseo can still
+reject duplicate service/branch/project names through its own route registry,
+even when the stable hostnames differ.
 
-Paseo still creates its own branch-based routes and can reject duplicate
-service/branch/project names, even when the stable Caddy hostnames differ.
-
-Use `bash tools/test-paseo-dev.sh` to check the launcher, environment defaults,
-and disabled-listener port checks. Use
-`mise x -- node --test tools/paseo-stack.test.mjs` to check interface validation
-and safe environment serialization. Use
-`mise x -- node --test tools/paseo-proxy.test.mjs` to check stable names,
-concurrent route updates, and route cleanup. mise runs the stack's tasks and its
-`depends_post` cleanup after success, failure, or a stop signal. Paseo owns the
-service processes, its original routes, and health checks. A small helper prepares configuration
-and observes Paseo's service status. The optional Caddy launcher forwards signals to mise and removes its route.
+Run `mise test-dev-tooling` to check environment defaults, disabled NATS
+listeners, cleanup after failure, route ownership, and real Traefik routing.
+The routing test checks that changes to another route preserve a WebSocket,
+that proxy restarts restore routes, and that unknown or removed hosts return 404. This task also runs in CI and as part of `mise test`.
 
 Private configuration is in `.context/paseo-stack/<dev-full-port>/` and is
 removed on normal stop. Each service receives its own current port from Paseo;

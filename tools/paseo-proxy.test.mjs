@@ -1,12 +1,11 @@
 // SPDX-FileCopyrightText: 2026 ChattoCorp GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-/** Exercise route ownership and lifecycle against a local Caddy API stand-in. */
+/** Exercise route ownership and lifecycle without a running proxy. */
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
-import { createServer } from 'node:http';
+import { mkdtemp, mkdir, writeFile, rm, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import test from 'node:test';
@@ -38,40 +37,13 @@ test('URLs use worktree names and rewrite every peer without branch or port depe
   assert.notEqual(long, hostname('docs-website', '/work/' + 'a'.repeat(89) + 'b', new URL(base)));
 });
 
-test('concurrent routes, duplicate rejection, stop, and child failure preserve unrelated routes', async () => {
+test('route file lifecycle preserves peers and refuses to replace an existing service', async () => {
   await mkdir('.context', { recursive: true });
   const dir = await mkdtemp(resolve('.context/proxy-test-'));
-  let routes = [{ '@id': 'operator-route', handle: [{ handler: 'static_response' }] }];
-  let version = 0;
-  let conflicts = 0;
-  const server = createServer(async (req, res) => {
-    if (req.method === 'GET') {
-      res.setHeader('ETag', `"${version}"`);
-      res.end(JSON.stringify(routes));
-      return;
-    }
-    const chunks = [];
-    for await (const chunk of req) chunks.push(chunk);
-    // Force one real optimistic-concurrency retry as well as any natural races.
-    if (conflicts === 0 || req.headers['if-match'] !== `"${version}"`) {
-      conflicts++;
-      res.writeHead(412).end();
-      return;
-    }
-    routes = JSON.parse(Buffer.concat(chunks));
-    version++;
-    res.end();
-  });
-  await new Promise((res) => server.listen(0, '127.0.0.1', res));
+  const routeDir = resolve(dir, 'routes');
+  await mkdir(routeDir);
   const configPath = resolve(dir, 'proxy.json');
-  await writeFile(
-    configPath,
-    JSON.stringify({
-      admin: `http://127.0.0.1:${server.address().port}`,
-      routesPath: '/config/apps/http/servers/test/routes',
-      baseUrl: 'https://dev.example.test'
-    })
-  );
+  await writeFile(configPath, JSON.stringify({ routeDir, baseUrl: 'https://dev.example.test' }));
   await writeFile(
     resolve(dir, 'paseo.json'),
     JSON.stringify({ scripts: { authling: { type: 'service' }, storybook: { type: 'service' } } })
@@ -96,7 +68,7 @@ test('concurrent routes, duplicate rejection, stop, and child failure preserve u
       output += s;
     });
     const done = once(child, 'exit');
-    children.push(child);
+    children.push({ child, done });
     return { child, done, output: () => output };
   }
   async function ready(child) {
@@ -112,25 +84,20 @@ test('concurrent routes, duplicate rejection, stop, and child failure preserve u
     const a = start('authling', code);
     const b = start('storybook', code, '23457');
     await Promise.all([ready(a), ready(b)]);
-    assert.equal(routes.length, 3);
-    assert(a.output().includes('https://authling--proxy-test-'));
+    assert.equal((await readdir(routeDir)).length, 2);
     const duplicate = start('authling', 'process.exit(0)');
     assert.equal((await duplicate.done)[0], 1);
-    assert.equal(routes.length, 3);
+    assert.equal((await readdir(routeDir)).length, 2);
     a.child.kill('SIGTERM');
     await a.done;
-    assert.equal(routes.length, 2);
+    assert.equal((await readdir(routeDir)).length, 1);
     assert.equal(b.child.exitCode, null);
     const failing = start('authling', 'process.exit(7)');
     assert.equal((await failing.done)[0], 7);
-    assert.equal(routes.length, 2);
+    assert.equal((await readdir(routeDir)).length, 1);
     b.child.kill('SIGTERM');
     await b.done;
-    assert.deepEqual(
-      routes.map((r) => r['@id']),
-      ['operator-route']
-    );
-    assert(conflicts > 0);
+    assert.deepEqual(await readdir(routeDir), []);
     const missing = start('authling', 'process.exit(0)', '23456', {
       CHATTO_PASEO_PROXY_CONFIG: resolve(dir, 'missing.json')
     });
@@ -143,9 +110,53 @@ test('concurrent routes, duplicate rejection, stop, and child failure preserve u
     assert.equal((await fallback.done)[0], 0);
     assert(fallback.output().includes('http://original.localhost:6767'));
   } finally {
-    for (const child of children)
+    for (const { child } of children)
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
-    await new Promise((res) => server.close(res));
+    await Promise.all(children.map(({ done }) => done));
     await rm(dir, { recursive: true, force: true });
+    await rm(routeDir, { recursive: true, force: true });
   }
 });
+
+test(
+  'a terminal process-group interrupt reaches the child only once',
+  { timeout: 10000 },
+  async () => {
+    await mkdir('.context', { recursive: true });
+    const dir = await mkdtemp(resolve('.context/proxy-signal-test-'));
+    const child = spawn(
+      process.execPath,
+      [
+        launcher,
+        'dev',
+        process.execPath,
+        '-e',
+        `
+    let signals = 0;
+    process.on('SIGINT', () => {
+      signals++;
+      setTimeout(() => process.exit(signals === 1 ? 0 : 42), 200);
+    });
+    console.log('READY');
+    setInterval(() => {}, 1000);
+  `
+      ],
+      {
+        detached: true,
+        env: { ...process.env, CHATTO_PASEO_PROXY_CONFIG: '', XDG_CONFIG_HOME: dir },
+        stdio: ['ignore', 'pipe', 'pipe']
+      }
+    );
+    const done = once(child, 'exit');
+    try {
+      await once(child.stdout, 'data');
+      // A terminal sends Ctrl-C to its whole foreground process group.
+      process.kill(-child.pid, 'SIGINT');
+      assert.equal((await done)[0], 0);
+    } finally {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
+      await done;
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+);

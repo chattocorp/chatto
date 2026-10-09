@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2026 ChattoCorp GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-/** Optional stable Caddy routes for Paseo services. The child (usually mise)
- * owns its process tree; this launcher forwards stop signals and owns one route.
+/** Optional stable Traefik routes for Paseo services. The child (usually mise)
+ * owns its process tree; this launcher forwards stop signals and owns one route file.
  */
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { readFile, realpath } from 'node:fs/promises';
+import { link, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -49,51 +49,52 @@ export function serviceEnv(env, service, workspace, baseUrl, names) {
   };
 }
 
-/** Edit only the configured route array. Caddy's ETag protects simultaneous
- * starts/stops and operator edits; retries always read the latest array.
+/** Publish a complete route atomically, without replacing another launch's file.
+ * An optional Paseo URL redirects to the stable URL. Traefik watches the
+ * directory; removing this file withdraws both routes.
+ * After a forced kill, stop the old service before removing its stale route file.
  */
-export async function editRoutes(config, change) {
-  const admin = new URL(config.admin);
-  if (
-    admin.protocol !== 'http:' ||
-    !['127.0.0.1', '[::1]', 'localhost'].includes(admin.hostname) ||
-    admin.username ||
-    admin.password
-  )
-    throw new Error('Caddy admin must be a loopback HTTP endpoint.');
-  if (
-    !/^\/config\/apps\/http\/servers\/[^/]+\/routes(?:\/\d+\/handle\/\d+\/routes)*$/.test(
-      config.routesPath
-    )
-  )
-    throw new Error('routesPath must select a Caddy HTTP route array.');
-  const url = new URL(config.routesPath, admin);
-  for (let attempt = 0; attempt < 10; attempt++) {
-    const response = await fetch(url, {
-      headers: { Origin: admin.origin },
-      signal: AbortSignal.timeout(5000)
-    });
-    if (!response.ok) throw new Error(`Cannot read Caddy routes: HTTP ${response.status}`);
-    const routes = await response.json();
-    const etag = response.headers.get('etag');
-    if (!Array.isArray(routes) || !etag)
-      throw new Error('Caddy must return a route array and ETag.');
-    const next = change(routes);
-    const result = await fetch(url, {
-      method: 'PATCH',
-      headers: { Origin: admin.origin, 'Content-Type': 'application/json', 'If-Match': etag },
-      body: JSON.stringify(next),
-      signal: AbortSignal.timeout(5000)
-    });
-    if (result.status === 412) continue;
-    if (!result.ok) throw new Error(`Cannot update Caddy routes: HTTP ${result.status}`);
-    return;
+export async function registerRoute(routeDir, host, port, redirect) {
+  const file = join(routeDir, `${host}.yaml`);
+  const pending = join(routeDir, `${randomUUID()}.pending`);
+  const config = {
+    http: {
+      routers: { [host]: { rule: `Host(\`${host}\`)`, service: host } },
+      services: { [host]: { loadBalancer: { servers: [{ url: `http://127.0.0.1:${port}` }] } } }
+    }
+  };
+  if (redirect && new URL(redirect.from).hostname !== host) {
+    const alias = `${host}-paseo`;
+    config.http.routers[alias] = {
+      rule: `Host(\`${new URL(redirect.from).hostname}\`)`,
+      service: host,
+      middlewares: [alias]
+    };
+    // Keep paths and queries, but always use the workspace's canonical origin.
+    // Temporary redirects avoid caching a branch URL after another workspace uses it.
+    config.http.middlewares = {
+      [alias]: {
+        redirectRegex: {
+          regex: '^https?://[^/]+(.*)$',
+          replacement: `${new URL(redirect.to).origin}\${1}`,
+          permanent: false
+        }
+      }
+    };
   }
-  throw new Error('Caddy routes changed too often; retry the service start.');
+  try {
+    // JSON is valid YAML. The provider ignores the incomplete .pending file.
+    await writeFile(pending, JSON.stringify(config), { flag: 'wx', mode: 0o640 });
+    await link(pending, file);
+  } finally {
+    await rm(pending, { force: true });
+  }
+  return () => rm(file);
 }
 
 /** Wait for the child to exit before removing its route. mise handles signals
- * for its descendants. No separate process groups or background watchdogs.
+ * for its descendants. Isolate the child from terminal signals so forwarding
+ * delivers each signal once, including while mise runs its cleanup tasks.
  */
 export async function runService(service, command, args) {
   const configPath =
@@ -116,8 +117,7 @@ export async function runService(service, command, args) {
     process.on(signal, handler);
     return handler;
   });
-  const id = `chatto-workspace-${randomUUID()}`;
-  let registered = false;
+  let removeRoute;
   try {
     let env = process.env;
     if (config) {
@@ -134,40 +134,25 @@ export async function runService(service, command, args) {
         config.baseUrl,
         Object.keys(scripts).filter((name) => scripts[name].type === 'service')
       );
-      const host = new URL(env.PASEO_URL).hostname;
-      registered = true; // Also clean up if the API accepted a write but its response was lost.
-      await editRoutes(config, (routes) => {
-        if (routes.some((route) => route.match?.some((match) => match.host?.includes(host))))
-          throw new Error(`A route already exists for ${host}; stop its owner before retrying.`);
-        return [
-          {
-            '@id': id,
-            match: [{ host: [host] }],
-            handle: [
-              {
-                handler: 'reverse_proxy',
-                // Route updates must not immediately close other services' WebSockets.
-                stream_close_delay: '5m',
-                upstreams: [{ dial: `127.0.0.1:${port}` }]
-              }
-            ],
-            terminal: true
-          },
-          ...routes
-        ];
-      });
+      if (!config.routeDir?.startsWith('/'))
+        throw new Error('Configure an absolute routeDir watched by Traefik.');
+      removeRoute = await registerRoute(
+        config.routeDir,
+        new URL(env.PASEO_URL).hostname,
+        port,
+        process.env.PASEO_URL ? { from: process.env.PASEO_URL, to: env.PASEO_URL } : undefined
+      );
       console.log(`Workspace URL: ${env.PASEO_URL}`);
     }
     if (stopped) return 1;
-    child = spawn(command, args, { env, stdio: 'inherit' });
+    child = spawn(command, args, { env, stdio: 'inherit', detached: true });
     return await new Promise((res, rej) => {
       child.once('error', rej);
       child.once('exit', (code) => res(code ?? 1));
     });
   } finally {
     try {
-      if (registered)
-        await editRoutes(config, (routes) => routes.filter((route) => route['@id'] !== id));
+      await removeRoute?.();
     } finally {
       signals.forEach((signal, i) => process.off(signal, handlers[i]));
     }

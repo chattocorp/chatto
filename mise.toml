@@ -572,9 +572,8 @@ run = '''
 set -eu
 node tools/paseo-stack.mjs ready
 . ".context/paseo-stack/${PASEO_PORT:?}/env"
-# Any Chatto exit must also stop the long-running status watcher.
-bash tools/paseo-dev.sh
-exit 1
+# Keep mise as the task process so shutdown waits for its descendants.
+exec bash tools/paseo-dev.sh
 '''
 
 [tasks.paseo-watch]
@@ -993,6 +992,14 @@ description = "Run frontend unit tests"
 depends = ["setup-frontend"]
 run = "pnpm run test:frontend"
 
+[tasks.test-dev-tooling]
+description = "Test Paseo launchers, stable routing, and development environment defaults"
+tools = { "github:traefik/traefik" = "3.7.14" }
+run = [
+    "node --test tools/paseo-proxy.test.mjs tools/paseo-routing.test.mjs tools/paseo-stack.test.mjs",
+    "bash tools/test-paseo-dev.sh",
+]
+
 [tasks.test-chatto-build]
 description = "Check that unchanged Chatto builds skip and missing assets are restored"
 run = "bash tools/test-chatto-build.sh"
@@ -1061,6 +1068,7 @@ run = [
     { task = "test-cli" },
     { task = "test-desktop" },
     { task = "test-chatto-build" },
+    { task = "test-dev-tooling" },
     { task = "test-workspace" },
     { task = "test-e2e" },
 ]
