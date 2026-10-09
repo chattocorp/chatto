@@ -26,6 +26,14 @@ describe('Panel inset structure', () => {
     });
     flat.container.classList.add('pane-content');
     const normal = renderPanel();
+    const inDialog = renderPanel();
+    inDialog.container.classList.add('pane-content');
+    const dialogShell = inDialog.container.firstElementChild as HTMLElement;
+    // Native dialogs remain DOM descendants of their declaring page.
+    const dialog = document.createElement('dialog');
+    dialog.open = true;
+    inDialog.container.append(dialog);
+    dialog.append(dialogShell);
     const shell = flat.container.firstElementChild as HTMLElement;
     const inset = shell.lastElementChild!.firstElementChild as HTMLElement;
     const heading = shell.querySelector('h2')!;
@@ -43,6 +51,8 @@ describe('Panel inset structure', () => {
         expect(getComputedStyle(shell).marginLeft).toBe('-16px');
         expect(getComputedStyle(heading).position).toBe('absolute');
         expect(getComputedStyle(normal.container.firstElementChild!).borderLeftWidth).toBe('1px');
+        expect(getComputedStyle(dialogShell).borderLeftWidth).toBe('1px');
+        expect(getComputedStyle(dialogShell).marginLeft).toBe('0px');
       }
       await page.viewport(768, 800);
       expect(getComputedStyle(shell).borderLeftWidth).toBe('1px');
