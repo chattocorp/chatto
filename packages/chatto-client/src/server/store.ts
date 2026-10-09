@@ -1331,12 +1331,18 @@ export class ServerStateStore {
       case 'roomSlowModeChanged':
       case 'roomThreadingModeChanged':
       case 'userJoinedRoom':
-        if (payload.case === 'roomUniversalChanged' && roomId)
+        if (payload.case === 'roomUniversalChanged' && roomId) {
           this.#rooms.loaded(roomId)?.members?.resetProjectionState();
+          // Effective membership can expose a call that started before access.
+          this.refreshRealtimeResource('activeCalls');
+        }
         if (payload.case === 'userJoinedRoom') {
           if (roomId && event.actorId) {
             this.updateRoomMembership(roomId, event.actorId, true);
             this.refreshRealtimeUsers([event.actorId]);
+            if (event.actorId === this.realtimeViewerId()) {
+              this.refreshRealtimeResource('activeCalls');
+            }
           }
           this.#timelines.refreshWindows(roomId, event.id || null);
         }
