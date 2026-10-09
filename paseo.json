@@ -5,11 +5,31 @@
   "scripts": {
     "dev": {
       "type": "service",
-      "command": "mise dev"
+      "command": "exec mise x -- node tools/paseo-proxy.mjs dev bash tools/paseo-dev.sh"
     },
     "dev-full": {
       "type": "service",
-      "command": "mise dev-full"
+      "command": "exec mise x -- node tools/paseo-proxy.mjs dev-full mise run paseo-stack"
+    },
+    "mailpit": {
+      "type": "service",
+      "command": "exec mise x -- node tools/paseo-proxy.mjs mailpit mise run paseo-mailpit"
+    },
+    "livekit": {
+      "type": "service",
+      "command": "exec mise x -- node tools/paseo-proxy.mjs livekit mise run paseo-livekit"
+    },
+    "storybook": {
+      "type": "service",
+      "command": "exec mise x -- node tools/paseo-proxy.mjs storybook mise run paseo-storybook"
+    },
+    "docs-website": {
+      "type": "service",
+      "command": "exec mise x -- node tools/paseo-proxy.mjs docs-website mise run paseo-docs-website"
+    },
+    "authling": {
+      "type": "service",
+      "command": "exec mise x -- node tools/paseo-proxy.mjs authling mise --cd authling run paseo"
     }
   }
 }

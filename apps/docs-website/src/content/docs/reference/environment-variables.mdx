@@ -27,6 +27,13 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
   Port to listen on.
 </EnvVar>
 
+<EnvVar name="CHATTO_WEBSERVER_BIND_ADDRESS" toml="webserver.bind_address">
+  Address to listen on, without a port. Empty binds all interfaces. Set this to
+  `127.0.0.1` to accept connections only from the same machine, for example through
+  a local reverse proxy. This also applies to the HTTP challenge and redirect
+  listener when built-in TLS is enabled.
+</EnvVar>
+
 <EnvVar name="CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET" toml="webserver.cookie_signing_secret" required>
   256-bit hex secret for signing browser-flow cookies and CSRF proofs. The opaque `chatto_auth_*` authentication cookies do not contain signed user data. Generate with `openssl rand -hex 32`.
 </EnvVar>

@@ -31,20 +31,22 @@ CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev"
 # ten ports. Tasks and scripts use these names, not offsets.
 CHATTO_DEV_PORT_BASE = "{% if env.CONDUCTOR_PORT | default(value='') == '' %}4000{% else %}{{env.CONDUCTOR_PORT}}{% endif %}"
 # Chatto with its embedded frontend (`mise dev`).
-CHATTO_DEV_CHATTO_PORT = "{{env.CHATTO_DEV_PORT_BASE}}"
+# Keep override inputs separate from resolved values inherited by nested mise.
+# Paseo supplies the overrides; Conductor can still select a new port block.
+CHATTO_DEV_CHATTO_PORT = "{{env.CHATTO_DEV_CHATTO_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE)}}"
 # Vite frontend development server (`mise dev-frontend`).
 CHATTO_DEV_VITE_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 1}}"
 CHATTO_DEV_AUTHLING_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 2}}"
 # Runling bot console.
 CHATTO_DEV_RUNLING_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 3}}"
 # Chatto embedded NATS.
-CHATTO_DEV_NATS_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 4}}"
+CHATTO_DEV_NATS_PORT = "{{env.CHATTO_DEV_NATS_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE | int + 4)}}"
 # LiveKit HTTP and WebSocket signaling, then RTC over TCP and UDP.
 CHATTO_DEV_LIVEKIT_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 5}}"
 CHATTO_DEV_LIVEKIT_RTC_TCP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 6}}"
 CHATTO_DEV_LIVEKIT_RTC_UDP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 7}}"
 # Mailpit SMTP and web UI.
-CHATTO_DEV_SMTP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 8}}"
+CHATTO_DEV_SMTP_PORT = "{{env.CHATTO_DEV_SMTP_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE | int + 8)}}"
 CHATTO_DEV_MAILPIT_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 9}}"
 # The development stack runs this pinned LiveKit server through `mise x`.
 CHATTO_DEV_LIVEKIT_SERVER = "go:github.com/livekit/livekit-server/cmd/server@v1.13.5"
@@ -58,7 +60,8 @@ CHATTO_DEV_LIVEKIT_SERVER = "go:github.com/livekit/livekit-server/cmd/server@v1.
 # label is `local`. The label must be a valid DNS label, and it keys the
 # Authling state directory. Set CHATTO_DEV_WORKSPACE to override it.
 CHATTO_DEV_WORKSPACE = "{% if env.CONDUCTOR_PORT is defined and env.CONDUCTOR_PORT != '' %}{% set default_workspace = 'ws' ~ env.CONDUCTOR_PORT %}{% else %}{% set default_workspace = 'local' %}{% endif %}{{env.CHATTO_DEV_WORKSPACE | default(value=default_workspace) | slugify}}"
-CHATTO_DEV_CHATTO_URL = "http://chatto.{{env.CHATTO_DEV_WORKSPACE}}.localhost:{{env.CHATTO_DEV_CHATTO_PORT}}"
+CHATTO_DEV_CHATTO_URL = "{{env.CHATTO_DEV_CHATTO_URL_OVERRIDE | default(value='http://chatto.' ~ env.CHATTO_DEV_WORKSPACE ~ '.localhost:' ~ env.CHATTO_DEV_CHATTO_PORT)}}"
+CHATTO_DEV_LIVEKIT_URL = "{{env.CHATTO_DEV_LIVEKIT_URL_OVERRIDE | default(value='ws://localhost:' ~ env.CHATTO_DEV_LIVEKIT_PORT)}}"
 CHATTO_DEV_AUTHLING_URL = "http://authling.{{env.CHATTO_DEV_WORKSPACE}}.localhost:{{env.CHATTO_DEV_AUTHLING_PORT}}"
 # Chatto data of the development stack, and the TestBot API key that the
 # Runling bot reads. Set CHATTO_DEV_DATA_ROOT to an absolute path to use a
@@ -546,6 +549,108 @@ run = [
   ] },
 ]
 
+# Paseo owns the three routes. mise owns startup order, parallel tasks, and
+# cleanup on success, failure, or a stop signal. Preparation is a dependency:
+# if it rejects an existing stack, this run must not execute cleanup.
+[tasks.paseo-stack]
+hide = true
+depends = ["paseo-prepare"]
+depends_post = ["paseo-cleanup"]
+run = [
+  "paseo script start mailpit --json",
+  "paseo script start livekit --json",
+  { tasks = ["paseo-chatto", "paseo-watch"] },
+]
+
+[tasks.paseo-prepare]
+hide = true
+depends = ["build-dev-cli"]
+run = "node tools/paseo-stack.mjs prepare"
+
+[tasks.paseo-chatto]
+hide = true
+run = '''
+set -eu
+node tools/paseo-stack.mjs ready
+. ".context/paseo-stack/${PASEO_PORT:?}/env"
+# Keep mise as the task process so shutdown waits for its descendants.
+exec bash tools/paseo-dev.sh
+'''
+
+[tasks.paseo-watch]
+hide = true
+run = "node tools/paseo-stack.mjs watch"
+
+[tasks.paseo-cleanup]
+hide = true
+run = "node tools/paseo-stack.mjs cleanup"
+
+[tasks.paseo-mailpit]
+hide = true
+run = '''
+set -eu
+. ".context/paseo-stack/${PASEO_SERVICE_DEV_FULL_PORT:?}/env"
+exec mailpit --smtp "127.0.0.1:$CHATTO_DEV_SMTP_PORT" --listen "127.0.0.1:$PASEO_PORT" --quiet
+'''
+
+[tasks.paseo-livekit]
+hide = true
+run = '''
+set -eu
+state=".context/paseo-stack/${PASEO_SERVICE_DEV_FULL_PORT:?}"
+. "$state/env"
+# HTTP stays on loopback; UDP stays on the selected interface. Local TURN/STUN
+# replaces LiveKit's default public STUN servers. TCP media is disabled because
+# LiveKit binds its TCP media listener on all interfaces.
+cat > "$state/livekit.yaml" <<EOF
+port: $PASEO_PORT
+bind_addresses: [127.0.0.1]
+rtc:
+  node_ip: $CHATTO_DEV_LIVEKIT_NODE_IP
+  tcp_port: 0
+  udp_port: $PASEO_PORT
+  use_external_ip: false
+  enable_loopback_candidate: true
+  ips: { includes: [$CHATTO_DEV_LIVEKIT_NODE_IP/32] }
+turn:
+  enabled: true
+  udp_port: $CHATTO_DEV_SMTP_PORT
+  bind_addresses: [$CHATTO_DEV_LIVEKIT_NODE_IP]
+  relay_range_start: 49152
+  relay_range_end: 65535
+  allow_restricted_peer_cidrs: [$CHATTO_DEV_LIVEKIT_NODE_IP/32]
+keys: { workspace: $CHATTO_LIVEKIT_API_SECRET }
+webhook:
+  urls: ["http://127.0.0.1:$CHATTO_DEV_CHATTO_PORT/webhooks/livekit"]
+  api_key: workspace
+logging: { level: error }
+EOF
+exec mise x "$CHATTO_DEV_LIVEKIT_SERVER" -- server --config "$state/livekit.yaml"
+'''
+
+[tasks.paseo-storybook]
+hide = true
+depends = ["setup-frontend", "build-api-types"]
+dir = "apps/frontend"
+run = '''
+set -eu
+: "${PASEO_PORT:?start storybook through Paseo}" "${PASEO_URL:?}"
+export STORYBOOK_DISABLE_TELEMETRY=1
+exec pnpm exec storybook dev --host 127.0.0.1 --port "$PASEO_PORT" --exact-port --no-open --ci
+'''
+
+[tasks.paseo-docs-website]
+hide = true
+depends = ["setup-frontend"]
+dir = "apps/docs-website"
+run = '''
+set -eu
+: "${PASEO_PORT:?start docs-website through Paseo}" "${PASEO_URL:?}"
+allowed_host=$(node -p 'new URL(process.env.PASEO_URL).hostname')
+export ASTRO_TELEMETRY_DISABLED=1
+exec pnpm exec astro dev --host 127.0.0.1 --port "$PASEO_PORT" --allowedHosts "$allowed_host"
+'''
+
 [tasks.dev-frontend]
 description = "Run the Vite frontend development server against a Chatto server"
 depends = ["setup-frontend", "build-api-types", "build-lingua"]
@@ -662,7 +767,7 @@ env = {
   CHATTO_SEARCH_PROVIDER_DIRECTORY = "{{env.CHATTO_DEV_DATA_ROOT}}/search",
   CHATTO_OPERATOR_API_SOCKET_PATH = "{{env.CHATTO_DEV_DATA_ROOT}}/operator/operator.sock",
   CHATTO_SMTP_PORT = "{{env.CHATTO_DEV_SMTP_PORT}}",
-  CHATTO_LIVEKIT_URL = "ws://localhost:{{env.CHATTO_DEV_LIVEKIT_PORT}}",
+  CHATTO_LIVEKIT_URL = "{{env.CHATTO_DEV_LIVEKIT_URL}}",
   CHATTO_BOOTSTRAP_BOTS_0_LOGIN = "test_bot",
   CHATTO_BOOTSTRAP_BOTS_0_DISPLAY_NAME = "TestBot",
   CHATTO_BOOTSTRAP_BOTS_0_BIO = "I'm **TestBot**, Chatto's development assistant. Mention `@test_bot` in a channel or send me a direct message.",
@@ -888,6 +993,14 @@ description = "Run frontend unit tests"
 depends = ["setup-frontend"]
 run = "pnpm run test:frontend"
 
+[tasks.test-dev-tooling]
+description = "Test Paseo launchers, stable routing, and development environment defaults"
+tools = { "github:traefik/traefik" = "3.7.14" }
+run = [
+    "node --test tools/paseo-proxy.test.mjs tools/paseo-routing.test.mjs tools/paseo-stack.test.mjs tools/paseo-lifecycle.test.mjs",
+    "bash tools/test-paseo-dev.sh",
+]
+
 [tasks.test-chatto-build]
 description = "Check that unchanged Chatto builds skip and missing assets are restored"
 run = "bash tools/test-chatto-build.sh"
@@ -956,6 +1069,7 @@ run = [
     { task = "test-cli" },
     { task = "test-desktop" },
     { task = "test-chatto-build" },
+    { task = "test-dev-tooling" },
     { task = "test-workspace" },
     { task = "test-e2e" },
 ]
