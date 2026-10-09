@@ -4056,13 +4056,94 @@ describe('ServerStateStore boundary events', () => {
 });
 
 describe('ServerStateStore realtime resource hints', () => {
+  it.each(['join', 'universal', 'rejoin'] as const)(
+    'discovers an existing call after gaining room membership through %s',
+    async (transition) => {
+      const store = makeStore(new FakeServerConnection([]));
+      const room = new Room({ id: 'R1', kind: RoomKind.CHANNEL });
+      const call = new ActiveCall({
+        room,
+        callId: 'existing-call',
+        participants: [new CallParticipant({ user: new User({ id: 'U2' }) })]
+      });
+      let isMember = transition === 'rejoin';
+      const rooms = () =>
+        roomResource([
+          new RoomWithViewerState({ room, viewerState: new RoomViewerState({ isMember }) })
+        ]);
+      store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ resource: rooms() }));
+      apiMocks.readRealtimeResource.mockImplementation(async (family) => {
+        if (family === 'rooms') return [rooms()];
+        if (family === 'activeCalls')
+          return [
+            new RealtimeResourceUpdate({
+              resource: {
+                case: 'activeCalls',
+                value: new ListActiveCallsResponse({ calls: [call] })
+              }
+            })
+          ];
+        return [];
+      });
+      if (transition === 'rejoin') {
+        store.projection.activeCalls = [call];
+        isMember = false;
+        store.realtimeProjectionHandler(userLeftRoom('R1', 'U1'));
+        await store.waitForRealtimeReconciliation();
+      }
+      expect(store.projection.activeCalls).toEqual([]);
+      isMember = true;
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({
+          cursor: 'membership-cursor',
+          event: new RealtimeEvent({
+            actorId: transition === 'universal' ? 'U2' : 'U1',
+            event:
+              transition === 'universal'
+                ? { case: 'roomUniversalChanged', value: { roomId: 'R1', universal: true } }
+                : { case: 'userJoinedRoom', value: { roomId: 'R1' } }
+          })
+        })
+      );
+      await store.waitForRealtimeReconciliation();
+      expect(store.projection.activeCalls).toEqual([call]);
+      expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith(
+        'activeCalls',
+        'membership-cursor'
+      );
+    }
+  );
+
+  it('keeps the current call when another user joins the room', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const call = new ActiveCall({
+      room: new Room({ id: 'R1' }),
+      callId: 'existing-call',
+      participants: [new CallParticipant({ user: new User({ id: 'U3' }) })]
+    });
+    store.projection.activeCalls = [call];
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          actorId: 'U2',
+          event: { case: 'userJoinedRoom', value: { roomId: 'R1' } }
+        })
+      })
+    );
+    await store.waitForRealtimeReconciliation();
+    expect(store.projection.activeCalls).toEqual([call]);
+    expect(apiMocks.readRealtimeResource.mock.calls.map(([family]) => family)).not.toContain(
+      'activeCalls'
+    );
+  });
+
   it.each([
     ['voiceCallParticipantJoined', { roomId: 'R1' }, ['activeCalls']],
     ['voiceCallParticipantLeft', { roomId: 'R1' }, ['activeCalls']],
     ['voiceCallStarted', { roomId: 'R1' }, ['activeCalls']],
     ['voiceCallEnded', { roomId: 'R1' }, ['activeCalls']],
     ['roomCreated', { roomId: 'R1' }, ['rooms', 'roomGroups']],
-    ['roomUniversalChanged', { roomId: 'R1' }, ['rooms', 'roomGroups']],
+    ['roomUniversalChanged', { roomId: 'R1' }, ['rooms', 'roomGroups', 'activeCalls']],
     ['roomThreadingModeChanged', { roomId: 'R1' }, ['rooms', 'roomGroups']],
     ['roomDeleted', { roomId: 'R1' }, ['rooms', 'roomGroups']],
     ['roomLayoutChanged', {}, ['roomGroups']],

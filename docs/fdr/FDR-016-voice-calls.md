@@ -1,13 +1,18 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-10-08
+**Last reviewed:** 2026-10-09
 
 ## Overview
 
 Rooms support real-time voice conversations with optional camera video and screen/window/tab sharing. Supported browsers can include audio from a shared browser tab. A phone tab in the room sidebar lets members start or join the room call; the call panel shows screen-share tiles first, then video-enabled participant cards, then compact voice-only participant cards, and provides mute, camera, screen-share, device-selection, and hang-up controls. Audio and video are routed through LiveKit (an external WebRTC service); Chatto only handles authorization, participant state, and the UI.
 
 ## Behavior
+
+- Members can see an ongoing call when they join or rejoin its room, including
+  when the room becomes universal. They do not need to reconnect or wait for
+  the call to restart. A new account can also see an existing call in a
+  universal room when it has permission to join that room.
 
 - **Connection quality** comes from LiveKit, independently of microphone activity.
   Participant cards and the current-user card show an amber network icon for a

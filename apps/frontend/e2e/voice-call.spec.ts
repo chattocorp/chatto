@@ -16,6 +16,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
+import { waitForRoomReady } from './fixtures/realtimeSync';
 import {
   connectPost,
   connectPostResponse,
@@ -516,7 +517,7 @@ test.describe('Voice calls', () => {
     });
   });
 
-  test('active call becomes visible when the viewer joins its room', async ({
+  test('a newly registered user sees an existing call after joining its room', async ({
     page,
     chatPage,
     browser,
@@ -528,12 +529,27 @@ test.describe('Voice calls', () => {
     await chatPage.createRoom(roomName);
     const { roomId } = await getIdsFromUrlViaConnect(page);
 
+    // Start the call before the second account exists, so it cannot receive
+    // the call-start event as a live update after joining the room.
+    await expect(joinCallViaConnect(page, roomId)).resolves.toBe(true);
+
     await withServerUser(browser!, serverURL, async ({ page: page2, chatPage: chatPage2 }) => {
+      // Complete the initial snapshot while still outside the call's room.
+      // Otherwise a late snapshot can include the call and mask a missing
+      // membership-triggered refresh.
+      await chatPage2.enterRoom('general');
+      await waitForRoomReady(page2);
+      let reconnects = 0;
+      let reloads = 0;
+      const errors: string[] = [];
+      page2.on('websocket', () => reconnects++);
+      page2.on('load', () => reloads++);
+      page2.on('pageerror', (error) => errors.push(error.message));
+
       const room = chatPage2.roomList.getByRole('link', { name: `# ${roomName}` });
       const callIcon = room.getByTestId('room-call-icon');
       await expect(callIcon).not.toBeVisible();
 
-      await expect(joinCallViaConnect(page, roomId)).resolves.toBe(true);
       await expect(listActiveCallRoomIdsViaConnect(page2)).resolves.toEqual([]);
 
       await joinRoomViaConnect(page2, roomId);
@@ -555,6 +571,9 @@ test.describe('Voice calls', () => {
       await expect(observerPanel).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await expect(observerPanel.getByTitle(alice.displayName, { exact: true })).toBeVisible();
       await expect(page2.getByTestId('call-join-button')).toHaveText('Join call');
+      expect(reconnects).toBe(0);
+      expect(reloads).toBe(0);
+      expect(errors).toEqual([]);
     });
   });
 
