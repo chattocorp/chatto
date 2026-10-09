@@ -1288,7 +1288,7 @@ func (p *UserProjection) LoginChangedAt(userID string) time.Time {
 
 // usersHydrationConcurrency bounds concurrent profile decryption in
 // UsersContext. Each user needs its own DEK record and KEK reads, so a
-// sequential scan costs two NATS round trips per user.
+// sequential scan costs at least two NATS round trips per user.
 const usersHydrationConcurrency = 16
 
 // UsersContext decrypts every active user profile. The result order is not
