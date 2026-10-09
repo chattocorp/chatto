@@ -36,6 +36,9 @@ can configure their Threading Mode. DMs always use Enabled behavior.
 - Clicking the avatar or name in the byline opens the user's context menu.
 - If the user selects text inside a message body before choosing Reply or Reply in thread, the target composer inserts that selected plain text as a Markdown blockquote while preserving any existing draft text.
 - On a thread root, **Reply in thread** opens the thread and focuses its composer without setting reply attribution. Selected text is still inserted as a Markdown blockquote. **Open thread** and thread badges only open the thread without focusing the composer. An explicit **Reply** action sets reply attribution.
+- The thread badge on the root message shows an orange dot for unread message
+  notifications in that thread. Emoji reactions do not activate this dot. They
+  remain in the notification list and notification counts.
 - A thread is a sequence of messages starting from a root message and continuing inside a dedicated thread pane. Threads can contain plain messages or reply-attributed messages; both are valid.
 - A root message with an attached thread does not group with adjacent messages
   from the same author. The root and the next message show a full author header.
