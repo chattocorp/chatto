@@ -613,6 +613,23 @@ jobs:
       - uses: ./.github/actions/setup-playwright
         with:
           working-directory: authling
+      - name: Configure Docker Hub mirror for conformance containers
+        # Compose pulls images through Docker, outside the BuildKit configuration.
+        run: |
+          sudo python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("/etc/docker/daemon.json")
+          config = json.loads(path.read_text()) if path.exists() else {}
+          mirrors = config.get("registry-mirrors", [])
+          config["registry-mirrors"] = ["https://mirror.gcr.io"] + [
+              mirror for mirror in mirrors if mirror != "https://mirror.gcr.io"
+          ]
+          path.parent.mkdir(parents=True, exist_ok=True)
+          path.write_text(json.dumps(config) + "\n")
+          PY
+          sudo systemctl restart docker
       - name: Run official provider and client checks
         run: mise test-oidc-conformance
       - name: Upload outcome summary only
