@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { testSnippet } from '$lib/test-utils';
 import Panel from './Panel.svelte';
+import { cdp, page } from 'vitest/browser';
+import '../../app.css';
 
 function renderPanel(noPadding = false) {
   return render(Panel, {
@@ -14,6 +16,46 @@ function renderPanel(noPadding = false) {
 }
 
 describe('Panel inset structure', () => {
+  it('flattens page panels on narrow touch and mouse screens while standalone panels keep their frames', async () => {
+    const flat = render(Panel, {
+      props: {
+        title: 'Search query',
+        titleHiddenOnNarrow: true,
+        children: testSnippet('<div>Search controls</div>')
+      }
+    });
+    flat.container.classList.add('pane-content');
+    const normal = renderPanel();
+    const shell = flat.container.firstElementChild as HTMLElement;
+    const inset = shell.lastElementChild!.firstElementChild as HTMLElement;
+    const heading = shell.querySelector('h2')!;
+    try {
+      for (const touch of [false, true]) {
+        await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
+        await page.viewport(390, 800);
+        expect(getComputedStyle(shell).borderLeftWidth).toBe('0px');
+        expect(getComputedStyle(shell).borderRadius).toBe('0px');
+        expect(getComputedStyle(shell).boxShadow).toBe('none');
+        expect(getComputedStyle(shell).backgroundImage).toBe('none');
+        expect(getComputedStyle(inset).boxShadow).toBe('none');
+        expect(getComputedStyle(inset).outlineStyle).toBe('none');
+        expect(getComputedStyle(inset).paddingLeft).toBe('16px');
+        expect(getComputedStyle(shell).marginLeft).toBe('-16px');
+        expect(getComputedStyle(heading).position).toBe('absolute');
+        expect(getComputedStyle(normal.container.firstElementChild!).borderLeftWidth).toBe('1px');
+      }
+      await page.viewport(768, 800);
+      expect(getComputedStyle(shell).borderLeftWidth).toBe('1px');
+      expect(getComputedStyle(shell).marginLeft).toBe('0px');
+      expect(getComputedStyle(shell).borderRadius).not.toBe('0px');
+      expect(getComputedStyle(inset).paddingLeft).toBe('20px');
+      expect(getComputedStyle(heading).position).toBe('static');
+    } finally {
+      await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+      await page.viewport(1280, 720);
+    }
+  });
+
   it('wraps padded content in the shared surface frame and rounded work plane', async () => {
     const { container } = renderPanel();
     const shell = container.querySelector('.panel-shell') as HTMLElement;

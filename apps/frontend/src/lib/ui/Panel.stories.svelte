@@ -3,6 +3,7 @@
   import { resolve } from '$app/paths';
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import Panel from './Panel.svelte';
+  import PaneContent from './PaneContent.svelte';
   import { Button } from '$lib/ui/form';
 
   const componentDescription = `
@@ -12,6 +13,8 @@
   and the shared \`panel-header\` treatment. A slim surface frame wraps its rounded
   background work plane so forms, tables, and dense lists share one geometry.
   A faint frame highlight and inner shadow give the content a recessed appearance.
+  Inside \`PaneContent\`, panels automatically become flat sections below 768px.
+  Standalone panels keep their frames at every width.
   `.trim();
 
   const { Story } = defineMeta({
@@ -33,6 +36,26 @@
     {#snippet titleContent()}<AccountName name="Assistant" identity={{ isBot: true }} />{/snippet}
     <p>Account details</p>
   </Panel>
+</Story>
+
+<Story name="Page section on narrow screens" asChild>
+  <PaneContent>
+    <Panel title="Recent activity" noPadding>
+      {#snippet actions()}<Button size="sm" variant="secondary">Dismiss read</Button>{/snippet}
+      <div class="px-4 py-3">
+        <p>Alex replied in a thread you follow in #release-planning.</p>
+        <p class="text-sm text-muted">Today · 12 minutes ago</p>
+      </div>
+    </Panel>
+  </PaneContent>
+</Story>
+
+<Story name="Title hidden on narrow screens" asChild>
+  <PaneContent>
+    <Panel title="Search query" titleHiddenOnNarrow>
+      <p>The title remains available to screen readers below 768px.</p>
+    </Panel>
+  </PaneContent>
 </Story>
 
 <Story

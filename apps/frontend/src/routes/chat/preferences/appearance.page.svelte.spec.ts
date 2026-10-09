@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
-import { userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
+import '../../../app.css';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 import AppearancePage from './+page.svelte';
 
@@ -15,6 +16,33 @@ async function settle() {
 }
 
 describe('App Preferences appearance page', () => {
+  it('uses flat page sections on narrow screens while theme controls keep their borders', async () => {
+    const screen = render(AppearancePage);
+    screen.container.style.cssText = 'display:flex;flex-direction:column;width:100%;height:700px';
+    const pane = screen.container.querySelector<HTMLElement>('.pane-content')!;
+    const panels = [...pane.querySelectorAll<HTMLElement>('[data-panel]')];
+    const choice = screen.getByRole('radio', { name: /^System/ }).element();
+    try {
+      for (const width of [320, 390, 767]) {
+        await page.viewport(width, 800);
+        for (const panel of panels) {
+          expect(getComputedStyle(panel).borderLeftWidth).toBe('0px');
+          expect(getComputedStyle(panel).boxShadow).toBe('none');
+          expect(panel.getBoundingClientRect().left).toBe(pane.getBoundingClientRect().left);
+          expect(panel.getBoundingClientRect().right).toBe(pane.getBoundingClientRect().right);
+        }
+        expect(getComputedStyle(choice).borderLeftWidth).toBe('1px');
+        expect(choice.getBoundingClientRect().left - pane.getBoundingClientRect().left).toBe(16);
+        expect(pane.scrollWidth).toBe(pane.clientWidth);
+      }
+      await page.viewport(768, 800);
+      expect(getComputedStyle(panels[0]).borderLeftWidth).toBe('1px');
+      expect(panels[0].getBoundingClientRect().left - pane.getBoundingClientRect().left).toBe(24);
+    } finally {
+      await page.viewport(1280, 720);
+    }
+  });
+
   beforeEach(() => {
     localStorage.clear();
     userPreferences.displayTheme = 'system';
@@ -134,7 +162,10 @@ describe('App Preferences appearance page', () => {
     await settle();
     const accents = screen.getByRole('group', { name: 'Accent colour' });
     expect(accents.element().querySelectorAll('input[type="radio"]')).toHaveLength(9);
-    await accents.getByRole('radio', { name: 'Violet', exact: true }).click();
+    // The visible swatch labels the hidden native radio and forwards focus to it.
+    await userEvent.click(
+      accents.getByRole('radio', { name: 'Violet', exact: true }).element().nextElementSibling!
+    );
     expect(userPreferences.accentColor).toBe('violet');
     expect(document.documentElement.dataset.accent).toBe('violet');
     await userEvent.keyboard('{ArrowRight}');
@@ -153,7 +184,9 @@ describe('App Preferences appearance page', () => {
     expect(screen.container.querySelectorAll('[data-tone-theme]')).toHaveLength(1);
     expect(tones.element().getAttribute('data-tone-theme')).toBe('light');
     await expect.element(tones.getByRole('radio', { name: 'Grey', exact: true })).toBeChecked();
-    await tones.getByRole('radio', { name: 'Forest', exact: true }).click();
+    await userEvent.click(
+      tones.getByRole('radio', { name: 'Forest', exact: true }).element().nextElementSibling!
+    );
     expect(userPreferences.lightSurfaceTone).toBe('forest');
 
     userPreferences.displayTheme = 'dark';
@@ -163,7 +196,9 @@ describe('App Preferences appearance page', () => {
     await expect
       .element(darkTones.getByRole('radio', { name: 'Neutral', exact: true }))
       .toBeChecked();
-    await darkTones.getByRole('radio', { name: 'Olive', exact: true }).click();
+    await userEvent.click(
+      darkTones.getByRole('radio', { name: 'Olive', exact: true }).element().nextElementSibling!
+    );
     await userEvent.keyboard('{ArrowRight}');
 
     expect(userPreferences.lightSurfaceTone).toBe('forest');

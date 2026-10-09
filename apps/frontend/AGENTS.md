@@ -301,6 +301,12 @@ Do not generate playground links for code written into this repository.
   share the standard pane-page composition. Put their content in `PaneContent`
   and frame each page-level form or control group with a titled, padded `Panel`;
   use `FormSection` only to subdivide one panel, never instead of its frame.
+- Below 768px viewport width, `PaneContent` makes its `Panel` sections flat
+  automatically, for both touch and mouse input. Panels extend to the page
+  edges; headings and padded bodies keep one 16px content gutter. Use
+  `noPadding` when rows or tables own that gutter. Free-standing page controls
+  keep the page gutter. Standalone panels, such as those in dialogs, keep
+  their frames. Do not add per-page flags or repeat responsive frame styles.
 - SvelteKit reuses resource pages when only a route parameter below the server
   changes. Tag async loads and saves with the resource ID, and add a load
   generation only when two loads for the same resource can race, so late

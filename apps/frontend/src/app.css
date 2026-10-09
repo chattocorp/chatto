@@ -886,6 +886,37 @@
   @apply shadow-sm;
 }
 
+/* Page sections are flat below 768px, for both mouse and touch input.
+ * PaneContent keeps one gutter for free-standing controls. Panel sections
+ * extend across that gutter, then give their titles and padded content the
+ * same inset. Only Panel's own frame changes; controls and standalone panels
+ * retain their borders and depth. */
+@utility pane-content {
+  @variant max-md {
+    & [data-panel] {
+      @apply -mx-4 rounded-none border-0 border-b border-border bg-transparent bg-none;
+      box-shadow: none;
+    }
+
+    & [data-panel] > .panel-header {
+      @apply flex-row flex-wrap items-center justify-between border-b-0 bg-transparent px-4;
+    }
+
+    & [data-panel] > [data-panel-frame] {
+      @apply p-0;
+    }
+
+    & [data-panel] > [data-panel-frame] > .panel-inset {
+      @apply rounded-none bg-transparent outline-none;
+      box-shadow: none;
+    }
+
+    & [data-panel] > [data-panel-frame] > .panel-inset:not(.panel-inset-flush) {
+      @apply p-4;
+    }
+  }
+}
+
 /* Concentric work plane inside a panel-shell surface frame. The owning
  * component supplies p-1 around this inset.
  */

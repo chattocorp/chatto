@@ -21,7 +21,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-009](FDR-009-link-previews.md)                         | Link Previews                         | Active       | 2026-08-27    |
 | [FDR-010](FDR-010-typing-indicators.md)                     | Typing Indicators                     | Active       | 2026-09-23    |
 | [FDR-011](FDR-011-user-presence.md)                         | User Presence                         | Active       | 2026-09-19    |
-| [FDR-012](FDR-012-notifications.md)                         | Notifications                         | Experimental | 2026-10-04    |
+| [FDR-012](FDR-012-notifications.md)                         | Notifications                         | Experimental | 2026-10-09    |
 | [FDR-013](FDR-013-web-push-notifications.md)                | Web Push Notifications                | Active       | 2026-10-09    |
 | [FDR-014](FDR-014-jump-to-present.md)                       | Jump to Present                       | Active       | 2026-09-25    |
 | [FDR-015](FDR-015-quick-switcher.md)                        | Quick Switcher (Cmd-K)                | Active       | 2026-09-21    |
@@ -42,7 +42,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-030](FDR-030-inline-message-timestamps.md)             | Inline Message Timestamps             | Active       | 2026-07-12    |
 | [FDR-031](FDR-031-client-server-compatibility-discovery.md) | Client–Server Compatibility Discovery | Experimental | 2026-09-23    |
 | [FDR-032](FDR-032-message-formatting.md)                    | Message Formatting                    | Active       | 2026-10-09    |
-| [FDR-033](FDR-033-message-search.md)                        | Message Search                        | Experimental | 2026-09-23    |
+| [FDR-033](FDR-033-message-search.md)                        | Message Search                        | Experimental | 2026-10-09    |
 | [FDR-034](FDR-034-chatto-desktop.md)                        | Chatto Desktop                        | Experimental | 2026-08-20    |
 | [FDR-035](FDR-035-slow-mode.md)                             | Slow Mode                             | Active       | 2026-08-30    |
 | [FDR-036](FDR-036-invite-links.md)                          | Invite Links                          | Active       | 2026-08-11    |

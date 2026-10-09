@@ -540,13 +540,13 @@
                         <span class="sr-only">{m('chat.notifications.unread')}</span>
                       {/if}
                       <span class="min-w-0 flex-1" data-testid="notification-content">
-                        <bdi class="block truncate font-medium" dir="auto">
+                        <bdi class="block font-medium max-md:wrap-anywhere md:truncate" dir="auto">
                           <AccountNameTokens
                             text={occurrenceSummary(item.group)}
                             accounts={summaryAccounts(item.group)}
                           />
                         </bdi>
-                        <span class="block truncate text-sm text-muted">
+                        <span class="block text-sm text-muted max-md:wrap-anywhere md:truncate">
                           {#if showServerHostname}{item.serverHostname}<span
                               class="mx-1.5"
                               aria-hidden="true">·</span

@@ -1,7 +1,7 @@
 # FDR-033: Message Search
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-23
+**Last reviewed:** 2026-10-09
 
 ## Overview
 
@@ -46,6 +46,10 @@ provider supplies results.
 - Search is available as a server-level page reached from the server sidebar
   between Overview and My Threads, and as a room-sidebar tab that searches only
   the current room or direct-message conversation.
+- Below 768px viewport width, the server-level page shows the query and sort
+  controls directly below the page title, followed by results without panel
+  frames. The query heading is visually hidden but remains accessible. Both
+  touch and mouse input use this layout; wider windows keep the panels.
 - Opening the room Search tab with its button or Cmd/Ctrl+/ puts focus in the
   query input. Restoring an open tab after reload or room navigation does not
   move focus to that input.
