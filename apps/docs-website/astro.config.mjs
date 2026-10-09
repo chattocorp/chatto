@@ -6,6 +6,8 @@ import { docsSiteUrl } from './src/docsMetadata.ts';
 // https://astro.build/config
 export default defineConfig({
   site: docsSiteUrl,
+  // Paseo's route points to one allocated port. Fail instead of switching ports.
+  vite: { server: { strictPort: Boolean(process.env.PASEO_PORT) } },
   redirects: {
     '/getting-started/overview': '/getting-started/introduction',
     '/guides/deployment-read-this-first': '/guides/deployment/read-this-first',

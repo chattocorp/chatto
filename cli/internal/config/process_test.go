@@ -324,7 +324,7 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	}
 }
 
-func TestReadConfig_TrustedProxiesFromTOMLAndEnv(t *testing.T) {
+func TestReadConfig_WebserverNetworkingFromTOMLAndEnv(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -340,6 +340,7 @@ func TestReadConfig_TrustedProxiesFromTOMLAndEnv(t *testing.T) {
 port = 5000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 trusted_proxies = ["127.0.0.1", "10.0.0.0/8"]
+bind_address = "127.0.0.1"
 
 [core]
 secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
@@ -358,14 +359,21 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	if got, want := strings.Join(cfg.Webserver.TrustedProxies, ","), "127.0.0.1,10.0.0.0/8"; got != want {
 		t.Fatalf("expected TOML trusted_proxies %q, got %q", want, got)
 	}
+	if cfg.Webserver.BindAddress != "127.0.0.1" {
+		t.Fatalf("expected TOML loopback bind address, got %q", cfg.Webserver.BindAddress)
+	}
 
 	t.Setenv("CHATTO_WEBSERVER_TRUSTED_PROXIES", "192.0.2.10,2001:db8::/32")
+	t.Setenv("CHATTO_WEBSERVER_BIND_ADDRESS", "::1")
 	cfg, err = ReadConfig("")
 	if err != nil {
 		t.Fatalf("ReadConfig() with env override failed: %v", err)
 	}
 	if got, want := strings.Join(cfg.Webserver.TrustedProxies, ","), "192.0.2.10,2001:db8::/32"; got != want {
 		t.Fatalf("expected env trusted_proxies %q, got %q", want, got)
+	}
+	if cfg.Webserver.BindAddress != "::1" {
+		t.Fatalf("expected environment IPv6 bind address, got %q", cfg.Webserver.BindAddress)
 	}
 }
 

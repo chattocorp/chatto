@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"net"
 	"os"
 	"os/signal"
 	"strings"
@@ -264,7 +265,7 @@ func runServer(configPath string) {
 	}
 
 	// Create and run HTTP server
-	addr := fmt.Sprintf(":%d", cfg.Webserver.EffectivePort())
+	addr := net.JoinHostPort(cfg.Webserver.BindAddress, fmt.Sprint(cfg.Webserver.EffectivePort()))
 	httpServer, err := http_server.NewHTTPServer(http_server.HTTPServerConfig{
 		Config:           cfg,
 		NC:               nc,
