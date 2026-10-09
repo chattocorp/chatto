@@ -495,13 +495,23 @@ export class MessagesStore {
 
     const previewGeneration = this.#previewGeneration;
     const roomId = this.roomId;
-    const promise = this.fetchEventById(eventId)
-      .then((event) => {
+    // A reply target can belong to an unopened thread. Room timeline reads
+    // exclude those messages, so previews use the message resource directly.
+    const promise = this.roomTimeline
+      .getMessage({ roomId, eventId })
+      .then((result) => {
         if (this.#previewGeneration !== previewGeneration || this.roomId !== roomId) return;
+        const event = result ? (this.unmaskEvents([result])[0] ?? null) : null;
         if (event) this.clearOptimisticVersionForEvent(event.id);
         this.previewEvents.set(key, event);
       })
       .catch((error: unknown) => {
+        if (isConnectCode(error, Code.NotFound) || isConnectCode(error, Code.PermissionDenied)) {
+          // An unavailable target stays absent until the preview cache is reset.
+          if (this.#previewGeneration !== previewGeneration || this.roomId !== roomId) return;
+          this.previewEvents.set(key, null);
+          return;
+        }
         console.error('MessagesStore: ensureEvent failed:', error);
       })
       .finally(() => {

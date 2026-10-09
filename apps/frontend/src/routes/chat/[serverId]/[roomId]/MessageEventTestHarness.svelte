@@ -2,6 +2,7 @@
   import { setServerUiForTests } from '$lib/state/server/serverUi';
   import { untrack } from 'svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+  import type { MessagesStore } from '@chatto/client/room/messages/MessagesStore';
   import type { ServerConnection } from '@chatto/client/server/serverConnection';
   import { provideServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerStateStore } from '@chatto/client/server/store';
@@ -26,6 +27,7 @@
   let {
     event,
     userStore,
+    messageStore: providedMessageStore,
     roomId = 'room-1',
     serverId = 'remote-server',
     permalinkThreadRootEventId = null,
@@ -43,6 +45,8 @@
   }: {
     event: TimelineEventView;
     userStore?: UserStore;
+    /** Use a real store to test lazy reply hydration. */
+    messageStore?: MessagesStore;
     roomId?: string;
     serverId?: string;
     permalinkThreadRootEventId?: string | null;
@@ -120,12 +124,14 @@
       untrack(() => actionOverlays.close());
   });
 
-  const messageStore = {
-    ensureEvent: () => undefined,
-    getEventById: () => undefined,
-    beginOptimisticThreadFollow: () => undefined,
-    setThreadRootFollowState: () => undefined
-  };
+  const messageStore = $derived(
+    providedMessageStore ?? {
+      ensureEvent: () => undefined,
+      getEventById: () => undefined,
+      beginOptimisticThreadFollow: () => undefined,
+      setThreadRootFollowState: () => undefined
+    }
+  );
 </script>
 
 {#if showMessage}

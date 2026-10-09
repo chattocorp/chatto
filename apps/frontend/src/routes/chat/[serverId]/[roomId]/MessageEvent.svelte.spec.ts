@@ -1,3 +1,10 @@
+import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
+import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
+import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
+import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
+import { MessagesStore } from '@chatto/client/room/messages/MessagesStore';
+import { mockService, receivedRequest } from '@chatto/client/testing/fakeServer';
+import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, tick } from 'svelte';
 import { render } from 'vitest-browser-svelte';
@@ -108,6 +115,83 @@ afterEach(() => {
 });
 
 describe('MessageEvent action model integration', () => {
+  it('lazily resolves an echo reply to a non-root message in an unopened thread', async () => {
+    const messages = mockService(MessageService);
+    const rooms = mockService(RoomService);
+    const threads = mockService(ThreadService);
+    const users = mockService(UserService);
+    rooms.getRoomEvents.mockReturnValue({});
+    let finishRead!: () => void;
+    messages.getMessage.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishRead = () =>
+            resolve({
+              message: {
+                id: 'thread-target',
+                roomId: 'room-1',
+                threadRootEventId: 'thread-root',
+                actorId: 'target-user',
+                body: 'The original thread reply'
+              }
+            });
+        })
+    );
+    users.batchGetUsers.mockReturnValue({
+      users: [{ user: { id: 'target-user', login: 'target', displayName: 'Target User' } }]
+    });
+    const server = createTestServerScope({
+      routes: (router) =>
+        router
+          .service(MessageService, messages)
+          .service(RoomService, rooms)
+          .service(ThreadService, threads)
+          .service(UserService, users)
+    });
+    const messageStore = new MessagesStore(server.scope.connection, () => null, {
+      roomId: 'room-1'
+    });
+    const echo = messageEvent({
+      id: 'echo',
+      echoOfEventId: 'echoed-reply',
+      echoFromThreadRootEventId: 'thread-root'
+    });
+    if (echo.event.kind !== TimelineEventKind.MessagePosted) throw new Error('Expected a message');
+    echo.event.inReplyTo = 'thread-target';
+    const onOpenThread = vi.fn();
+    const rendered = render(MessageEventTestHarness, {
+      props: { event: echo, messageStore, onOpenThread }
+    });
+    try {
+      await expect
+        .element(q(rendered.container, '[aria-label="in reply to a message"]'))
+        .toBeInTheDocument();
+      await vi.waitFor(() => expect(messages.getMessage).toHaveBeenCalledOnce());
+      finishRead();
+      await expect
+        .element(q(rendered.container, '[data-testid="reply-attribution"]'))
+        .toHaveTextContent('The original thread reply');
+      await expect
+        .element(q(rendered.container, '[data-testid="reply-attribution"]'))
+        .toHaveTextContent('Target User');
+      expect(receivedRequest(messages.getMessage)).toMatchObject({
+        roomId: 'room-1',
+        eventId: 'thread-target'
+      });
+      expect(rooms.getRoomEventsAround).not.toHaveBeenCalled();
+      expect(threads.getThreadEvents).not.toHaveBeenCalled();
+      expect(threads.getThreadEventsAround).not.toHaveBeenCalled();
+      expect(messageStore.events).toEqual([]);
+      q(rendered.container, '[aria-label="in reply to The original thread reply"]')!.click();
+      expect(onOpenThread).toHaveBeenCalledWith('thread-root', {
+        highlightEventId: 'thread-target'
+      });
+    } finally {
+      await rendered.unmount();
+      messageStore.dispose();
+    }
+  });
+
   it('opens the target user menu on a mention right-click', async () => {
     const rendered = render(MessageEventTestHarness, { props: { event: messageEvent() } });
     const body = q(rendered.container, '[data-testid="message-body"]')!;
