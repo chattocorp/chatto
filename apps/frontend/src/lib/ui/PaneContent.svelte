@@ -1,3 +1,7 @@
+<!-- @component
+Owns page width, scrolling, and responsive section layout. Below 768px,
+ordinary content has a 16px gutter and Panel sections extend to the page edges.
+-->
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import ScrollFader from './ScrollFader.svelte';
@@ -23,7 +27,7 @@
     data-page-reveal
     data-pane-content={wide ? 'wide' : undefined}
     class={[
-      'w-full p-6',
+      'pane-content w-full p-4 md:p-6',
       wide ? 'max-w-pane-wide' : 'max-w-pane',
       fillHeight && 'flex min-h-0 flex-1 basis-0 flex-col'
     ]}

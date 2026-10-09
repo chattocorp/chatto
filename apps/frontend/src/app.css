@@ -886,6 +886,44 @@
   @apply shadow-sm;
 }
 
+/* Page sections are flat below 768px, for both mouse and touch input.
+ * PaneContent keeps one gutter for free-standing controls. Panel sections
+ * extend across that gutter, then give their titles and padded content the
+ * same inset. Only Panel's own frame changes; controls and standalone panels
+ * retain their borders and depth. Native dialogs form a separate surface,
+ * even when their DOM remains inside the page. */
+@utility pane-content {
+  @variant max-md {
+    & [data-panel]:not(:where(dialog *)) {
+      margin-inline: calc(var(--spacing) * -4);
+      border-radius: 0;
+      border-width: 0 0 1px;
+      background: none;
+      box-shadow: none;
+
+      & > .panel-header {
+        @apply flex-row flex-wrap items-center justify-between px-4;
+        border-bottom-width: 0;
+      }
+
+      & > [data-panel-frame] {
+        padding: 0;
+      }
+
+      & > [data-panel-frame] > .panel-inset {
+        border-radius: 0;
+        background: none;
+        outline: none;
+        box-shadow: none;
+      }
+
+      & > [data-panel-frame] > .panel-inset:not(.panel-inset-flush) {
+        @apply p-4;
+      }
+    }
+  }
+}
+
 /* Concentric work plane inside a panel-shell surface frame. The owning
  * component supplies p-1 around this inset.
  */

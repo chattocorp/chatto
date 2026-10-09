@@ -334,8 +334,8 @@ store owns only optimistic join/leave state.
        right, filling shorter columns first. Works everywhere CSS Grid
        does — no dependency on the experimental masonry track. -->
   <div
-    class="grid gap-4"
-    style="grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); grid-auto-rows: 8px; grid-auto-flow: row dense;"
+    class="grid grid-cols-1 gap-4 md:grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))]"
+    style="grid-auto-rows: 8px; grid-auto-flow: row dense;"
   >
     {#each visibleSets as set (set.id)}
       {@render groupCard(set, getSetRooms(set))}
@@ -343,8 +343,8 @@ store owns only optimistic join/leave state.
   </div>
 {:else}
   <div
-    class="grid gap-4"
-    style="grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); grid-auto-rows: 8px; grid-auto-flow: row dense;"
+    class="grid grid-cols-1 gap-4 md:grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))]"
+    style="grid-auto-rows: 8px; grid-auto-flow: row dense;"
   >
     {@render groupCard(
       { id: 'all', name: m('common.rooms'), roomIds: filteredRooms.map((r) => r.id) },
