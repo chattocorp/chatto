@@ -19,6 +19,7 @@
     "open_link": "Ava link",
     "remove_link": "Eemalda link",
     "code_language": "Koodi keel",
+    "footnote_reference": "Minge allmärkuse {number} juurde",
     "placeholder": "Sisestage sõnum...",
     "editing_placeholder": "Sõnumi muutmine...",
     "drop_files_title": "Pukseerige failid siia",
@@ -54,6 +55,7 @@
       "ordered_list": "Nummerdatud loend",
       "blockquote": "Tsiteeri",
       "code_block": "Koodiplokk",
+      "footnote": "Lisage allmärkus",
       "outdent": "Vähenda taanet",
       "indent": "Suurenda taanet"
     },

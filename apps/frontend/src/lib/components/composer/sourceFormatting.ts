@@ -19,11 +19,24 @@ export function applySourceFormatting(
   selection: SourceSelection,
   command: ComposerFormattingCommand
 ): SourceFormattingResult {
+  if (command === 'footnote') return insertFootnote(text, selection);
   const delimiter = inlineDelimiters[command];
   if (delimiter) return toggleInline(text, selection, ...delimiter);
   if (command === 'codeBlock') return toggleFence(text, selection);
   if (isLineCommand(command)) return toggleLinePrefix(text, selection, command);
   return { text, ...selection };
+}
+
+/** Add a unique named marker and place the caret in its new definition. */
+function insertFootnote(text: string, selection: SourceSelection): SourceFormattingResult {
+  let number = 1;
+  while (text.includes(`[^${number}]`)) number++;
+  const marker = `[^${number}]`;
+  const position = Math.max(selection.anchor, selection.head);
+  const body = text.slice(0, position) + marker + text.slice(position);
+  const separator = body.endsWith('\n\n') ? '' : body.endsWith('\n') ? '\n' : '\n\n';
+  const result = `${body}${separator}${marker}: `;
+  return { text: result, anchor: result.length, head: result.length };
 }
 
 /** Compute the toolbar state from CodeMirror's parsed Markdown at the primary selection. */
@@ -98,7 +111,7 @@ function isLineCommand(
 function toggleLinePrefix(
   text: string,
   selection: SourceSelection,
-  command: Exclude<ComposerFormattingCommand, 'bold' | 'italic' | 'inlineCode' | 'codeBlock'>
+  command: 'heading' | 'bulletList' | 'orderedList' | 'blockquote'
 ): SourceFormattingResult {
   const range = selectedLineRange(text, selection);
   const lines = linesInRange(text, range.from, range.to);
@@ -154,9 +167,7 @@ function toggleFence(text: string, selection: SourceSelection): SourceFormatting
   };
 }
 
-function prefixMatcher(
-  command: Exclude<ComposerFormattingCommand, 'bold' | 'italic' | 'inlineCode' | 'codeBlock'>
-): RegExp {
+function prefixMatcher(command: 'heading' | 'bulletList' | 'orderedList' | 'blockquote'): RegExp {
   switch (command) {
     case 'heading':
       return /^(\s*)#{1,6}[ \t]+/;
@@ -170,7 +181,7 @@ function prefixMatcher(
 }
 
 function prefixFor(
-  command: Exclude<ComposerFormattingCommand, 'bold' | 'italic' | 'inlineCode' | 'codeBlock'>,
+  command: 'heading' | 'bulletList' | 'orderedList' | 'blockquote',
   orderedIndex: number
 ): string {
   switch (command) {

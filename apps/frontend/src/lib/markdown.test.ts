@@ -34,6 +34,86 @@ describe('renderInlineMarkdown', () => {
 });
 
 describe('renderMarkdown', () => {
+  describe('footnotes', () => {
+    it('numbers notes in reference order and returns to each repeated reference', async () => {
+      const html = await renderMarkdown(
+        'First[^later], second[^earlier], and first again[^later].\n\n' +
+          '[^earlier]: **Second** note.\n[^later]: First note.'
+      );
+
+      expect(html).toContain('<sup class="footnote-ref"><a href="#fn1" id="fnref1">[1]</a>');
+      expect(html).toContain('href="#fn2" id="fnref2">[2]</a>');
+      expect(html).toContain('href="#fn1" id="fnref1:1">[1:1]</a>');
+      expect(html).toContain('<section class="footnotes">');
+      expect(html).toContain('<li id="fn1" class="footnote-item" tabindex="-1"><p>First note.');
+      expect(html).toContain(
+        '<li id="fn2" class="footnote-item" tabindex="-1"><p><strong>Second</strong>'
+      );
+      expect(html).toContain('href="#fnref1" class="footnote-backref"');
+      expect(html).toContain('href="#fnref1:1" class="footnote-backref"');
+    });
+
+    it('renders paragraphs, lists, links, and code inside a note', async () => {
+      const html = await renderMarkdown(
+        'Details[^note].\n\n[^note]: First paragraph with `code`.\n\n' +
+          '    Second paragraph with [a link](https://example.com).\n\n' +
+          '    - One item\n    - Another item'
+      );
+
+      expect(html).toContain('<p>First paragraph with <code>code</code>.</p>');
+      expect(html).toContain('<p>Second paragraph with <a href="https://example.com"');
+      expect(html).toContain('<ul>');
+      expect(html).toContain('One item');
+      expect(html).toContain('rel="noopener noreferrer"');
+    });
+
+    it('leaves undefined references and footnote syntax in code literal', async () => {
+      const html = await renderMarkdown(
+        'Unknown[^missing] and `[^known]`.\n\n```text\n[^known]\n```\n\n[^known]: Unused note.'
+      );
+
+      expect(html).toContain('Unknown[^missing]');
+      expect(html).toContain('<code>[^known]</code>');
+      expect(html).toContain('<span class="line">[^known]</span>');
+      expect(html).not.toContain('class="footnotes"');
+      expect(html).not.toContain('Unused note.');
+    });
+
+    it('escapes note HTML and keeps unsafe destinations inactive', async () => {
+      const html = await renderMarkdown(
+        'Text[^<svg/onload=alert(1)>].\n\n' +
+          '[^<svg/onload=alert(1)>]: <img src=x onerror=alert(1)> [bad](javascript:alert(1))'
+      );
+
+      expect(html).toContain('class="footnote-ref"');
+      expect(html).toContain('&lt;img');
+      expect(html).not.toContain('<img');
+      expect(html).not.toContain('<svg');
+      expect(html).not.toContain('href="javascript:');
+      expect(html).not.toContain('id="<svg');
+    });
+
+    it('does not share note definitions or numbering between renders', async () => {
+      const [first, second] = await Promise.all([
+        renderMarkdown('Text[^note].\n\n[^note]: First document.'),
+        renderMarkdown('Text[^note].')
+      ]);
+      const third = await renderMarkdown('Text[^note].\n\n[^note]: Third document.');
+
+      expect(first).toContain('First document.');
+      expect(second).toContain('Text[^note].');
+      expect(second).not.toContain('class="footnotes"');
+      expect(third).toContain('href="#fn1"');
+      expect(third).not.toContain('First document.');
+    });
+
+    it('keeps inline-only rendering free of footnote markup', () => {
+      const html = renderInlineMarkdown('Text[^note] and ^[inline note].');
+
+      expect(html).toBe('Text[^note] and ^[inline note].');
+    });
+  });
+
   describe('GFM tables', () => {
     it('renders a pipe table with semantic sections', async () => {
       const html = await renderMarkdown('| Name | Role |\n| --- | --- |\n| Ada | Admin |');

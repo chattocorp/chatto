@@ -8,9 +8,13 @@ export type ComposerFormattingCommand =
   | 'bulletList'
   | 'orderedList'
   | 'blockquote'
-  | 'codeBlock';
+  | 'codeBlock'
+  | 'footnote';
 
-export type ComposerFormattingState = Record<ComposerFormattingCommand, boolean>;
+export type ComposerFormattingState = Record<
+  Exclude<ComposerFormattingCommand, 'footnote'>,
+  boolean
+>;
 
 export type ComposerIndentDirection = 'indent' | 'outdent';
 
@@ -45,7 +49,7 @@ export type ComposerEditorApi = {
   replaceTextBeforeCursor: (charCount: number, replacement: string) => void;
   /** Insert plain text at the current cursor position. */
   insertText: (text: string) => void;
-  /** Toggle a Markdown formatting command at the current selection. */
+  /** Toggle formatting or insert a footnote at the current selection. */
   toggleFormatting: (command: ComposerFormattingCommand) => void;
   /** Apply the editor's native indent or outdent action. */
   adjustIndent: (direction: ComposerIndentDirection) => boolean;

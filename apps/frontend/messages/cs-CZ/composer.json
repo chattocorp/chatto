@@ -19,6 +19,7 @@
     "open_link": "Otevřít odkaz",
     "remove_link": "Odebrat odkaz",
     "code_language": "Jazyk kódu",
+    "footnote_reference": "Přejít na poznámku pod čarou {number}",
     "placeholder": "Napište zprávu...",
     "editing_placeholder": "Úprava zprávy...",
     "drop_files_title": "Sem přetáhněte soubory",
@@ -54,6 +55,7 @@
       "ordered_list": "Číslovaný seznam",
       "blockquote": "Citace",
       "code_block": "Blok kódu",
+      "footnote": "Vložit poznámku pod čarou",
       "outdent": "Zmenšit odsazení",
       "indent": "Zvětšit odsazení"
     },

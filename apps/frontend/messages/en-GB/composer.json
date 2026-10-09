@@ -19,6 +19,7 @@
     "open_link": "Open link",
     "remove_link": "Remove link",
     "code_language": "Code language",
+    "footnote_reference": "Go to footnote {number}",
     "placeholder": "Type a message...",
     "editing_placeholder": "Editing message...",
     "drop_files_title": "Drop files here",
@@ -54,6 +55,7 @@
       "ordered_list": "Numbered list",
       "blockquote": "Quote",
       "code_block": "Code block",
+      "footnote": "Insert footnote",
       "outdent": "Outdent",
       "indent": "Indent"
     },

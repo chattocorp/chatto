@@ -33,7 +33,9 @@
     isInCodeBlock: () => false,
     replaceTextBeforeCursor: () => {},
     insertText: () => {},
-    toggleFormatting: (command) => (formattingState[command] = !formattingState[command]),
+    toggleFormatting: (command) => {
+      if (command !== 'footnote') formattingState[command] = !formattingState[command];
+    },
     adjustIndent: () => true,
     insertQuote: () => {}
   };

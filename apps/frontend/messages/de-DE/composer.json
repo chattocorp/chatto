@@ -19,6 +19,7 @@
     "open_link": "Link öffnen",
     "remove_link": "Link entfernen",
     "code_language": "Codesprache",
+    "footnote_reference": "Zu Fußnote {number}",
     "placeholder": "Nachricht schreiben...",
     "editing_placeholder": "Nachricht wird bearbeitet...",
     "drop_files_title": "Dateien hier ablegen",
@@ -54,6 +55,7 @@
       "ordered_list": "Nummerierte Liste",
       "blockquote": "Zitat",
       "code_block": "Codeblock",
+      "footnote": "Fußnote einfügen",
       "outdent": "Ausrücken",
       "indent": "Einrücken"
     },

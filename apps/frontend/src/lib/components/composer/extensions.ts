@@ -15,6 +15,7 @@ import { Markdown } from '@tiptap/markdown';
 import Placeholder from '@tiptap/extension-placeholder';
 import { lowlight } from '$lib/codeHighlighting';
 import { isDefaultEmptyDocument, isHttpMarkdownAutolink } from './markdown';
+import { FootnoteDefinition, FootnoteReference } from './footnotes';
 
 const markdownLinkInputRegex = /(^|\s)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)$/;
 const markdownAutolinkInputRegex = /(^|\s)<(https?:\/\/[^\s<>]+)>$/i;
@@ -504,6 +505,8 @@ export function createComposerExtensions(placeholder: string) {
         breaks: true
       }
     }),
+    FootnoteReference.configure(),
+    FootnoteDefinition.configure(),
     ComposerCodeBlockLowlight.configure({ lowlight }),
     SelectedTextInlineCodeShortcut.configure(),
     MarkdownLinkInputRule.configure(),
