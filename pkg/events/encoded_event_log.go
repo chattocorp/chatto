@@ -11,7 +11,6 @@ import (
 	"log/slog"
 	mrand "math/rand/v2"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -109,10 +108,7 @@ type EncodedBatchEntry struct {
 type EncodedEventLog struct {
 	js     jetstream.JetStream
 	stream jetstream.Stream
-	// streamMu prevents Stream.Info, which refreshes cached metadata in the
-	// nats.go stream handle, from racing with operations that read that cache.
-	streamMu sync.RWMutex
-	logger   *slog.Logger
+	logger *slog.Logger
 }
 
 // NewEncodedEventLog binds opaque event-log mechanics to one JetStream stream.
@@ -127,13 +123,13 @@ func NewEncodedEventLog(js jetstream.JetStream, stream jetstream.Stream, logger 
 // the message count, this remains a valid OCC token when messages have been
 // deleted or expired.
 func (l *EncodedEventLog) LastStreamSeq(ctx context.Context) (uint64, error) {
-	l.streamMu.Lock()
-	defer l.streamMu.Unlock()
-	info, err := l.stream.Info(ctx)
+	// Info replaces the SDK handle's cached metadata. Readers and other logs
+	// can share l.stream, so fetch fresh metadata through a separate handle.
+	stream, err := l.js.Stream(ctx, l.stream.CachedInfo().Config.Name)
 	if err != nil {
 		return 0, err
 	}
-	return info.State.LastSeq, nil
+	return stream.CachedInfo().State.LastSeq, nil
 }
 
 // maxByteBoundedPageFetch caps the records that one fetch of a byte-bounded
@@ -414,7 +410,6 @@ func (l *EncodedEventLog) SubjectRecordsAfterPage(
 		deliverPolicy = jetstream.DeliverByStartSequencePolicy
 		startSeq = afterSeq + 1
 	}
-	l.streamMu.RLock()
 	consumer, err := l.stream.CreateConsumer(ctx, jetstream.ConsumerConfig{
 		FilterSubjects:    []string{subject},
 		DeliverPolicy:     deliverPolicy,
@@ -423,13 +418,10 @@ func (l *EncodedEventLog) SubjectRecordsAfterPage(
 		MemoryStorage:     true,
 		InactiveThreshold: 30 * time.Second,
 	})
-	l.streamMu.RUnlock()
 	if err != nil {
 		return SubjectRecordPage{}, err
 	}
 	defer func() {
-		l.streamMu.RLock()
-		defer l.streamMu.RUnlock()
 		_ = l.stream.DeleteConsumer(context.Background(), consumer.CachedInfo().Name)
 	}()
 
@@ -521,8 +513,6 @@ func appendPageRecords(page *SubjectRecordPage, msgs jetstream.MessageBatch, max
 }
 
 func (l *EncodedEventLog) lastSubjectSeq(ctx context.Context, subject string) (uint64, error) {
-	l.streamMu.RLock()
-	defer l.streamMu.RUnlock()
 	msg, err := l.stream.GetLastMsgForSubject(ctx, subject)
 	if err == nil {
 		return msg.Sequence, nil

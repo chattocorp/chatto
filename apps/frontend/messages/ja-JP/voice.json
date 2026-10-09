@@ -37,7 +37,6 @@
     "microphone": "マイク",
     "speaker": "スピーカー",
     "camera": "カメラ",
-    "fullscreen_feed": "全画面フィード",
     "fullscreen_call": "全画面通話",
     "exit_fullscreen_call": "全画面通話を終了する",
     "pin_to_stage": "{name}をステージに固定します",

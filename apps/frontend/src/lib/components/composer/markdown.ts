@@ -1,6 +1,7 @@
 import type { Editor, JSONContent } from '@tiptap/core';
 import { Fragment, type Mark, type Node as ProseMirrorNode, type Schema } from '@tiptap/pm/model';
 import type { SelectedQuoteBlock } from '$lib/state/room';
+import { definedFootnoteLabels, normalizeFootnotesForEditor } from './footnotes';
 
 const markdownLinkPasteRegex = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g;
 const tiptapEscapedTextCharacter = /[\\`*_[\]~]/;
@@ -332,6 +333,7 @@ export function parseMarkdownForEditor(
   markdown: string,
   parse: (source: string) => JSONContent
 ): JSONContent {
+  const footnoteLabels = definedFootnoteLabels(markdown);
   let marker = '\uE000';
   while (markdown.includes(marker)) marker += '\uE000';
   const literals: string[] = [];
@@ -347,7 +349,11 @@ export function parseMarkdownForEditor(
       for (let index = 0; index < text.length; index++) {
         const entity =
           text[index] === '&' ? text.slice(index).match(/^&#(35|42|91|92|93|95|96|126);/) : null;
-        if (entity) {
+        const footnote = text[index] === '[' ? text.slice(index).match(/^\[\^([^\]\s]+)\]/) : null;
+        if (footnote && !footnoteLabels.has(footnote[1])) {
+          result += protect(footnote[0]);
+          index += footnote[0].length - 1;
+        } else if (entity) {
           result += protect(String.fromCharCode(Number(entity[1])));
           index += entity[0].length - 1;
         } else if (text[index] === '\\' && tiptapEscapedTextCharacter.test(text[index + 1] ?? '')) {
@@ -362,21 +368,26 @@ export function parseMarkdownForEditor(
     { skipLinkDestinations: true }
   );
   const parsed = parse(prepareMarkdownForEditor(protectedMarkdown));
-  if (literals.length === 0) return parsed;
+  if (literals.length === 0) return normalizeFootnotesForEditor(parsed);
 
+  const restoreLiteral = (text: string) =>
+    text.replace(
+      new RegExp(`${marker}(\\d+)\\uE001`, 'g'),
+      (_, index: string) => literals[Number(index)] ?? ''
+    );
   const restore = (node: JSONContent): JSONContent => ({
     ...node,
+    ...(typeof node.attrs?.label === 'string'
+      ? { attrs: { ...node.attrs, label: restoreLiteral(node.attrs.label) } }
+      : {}),
     ...(node.text
       ? {
-          text: node.text.replace(
-            new RegExp(`${marker}(\\d+)\\uE001`, 'g'),
-            (_, index: string) => literals[Number(index)] ?? ''
-          )
+          text: restoreLiteral(node.text)
         }
       : {}),
     ...(node.content ? { content: node.content.map(restore) } : {})
   });
-  return restore(parsed);
+  return normalizeFootnotesForEditor(restore(parsed));
 }
 
 function decodeSerializedMarkdownText(markdown: string): string {
@@ -420,13 +431,13 @@ function normalizeSerializedMarkdownText(markdown: string): string {
   });
 }
 
-function hasTrailingEmptyParagraph(e: Editor): boolean {
+function hasTrailingEmptyParagraph(e: Pick<Editor, 'state'>): boolean {
   if (e.state.doc.childCount <= 1) return false;
   const lastChild = e.state.doc.lastChild;
   return lastChild?.type.name === 'paragraph' && lastChild.content.size === 0;
 }
 
-function trimSerializedTrailingEmptyParagraph(markdown: string, e: Editor): string {
+function trimSerializedTrailingEmptyParagraph(markdown: string, e: Pick<Editor, 'state'>): string {
   if (!hasTrailingEmptyParagraph(e)) return markdown;
   return markdown.replace(/(?:\n\n(?:&nbsp;|\u00a0))+$/, '');
 }
@@ -473,7 +484,7 @@ function encodeSerializedHeadingClosingHashes(markdown: string): string {
   );
 }
 
-export function getSerializedMarkdown(e: Editor): string {
+export function getSerializedMarkdown(e: Pick<Editor, 'state' | 'getMarkdown'>): string {
   return normalizeSerializedHardBreaksBeforeLists(
     normalizeSerializedGfmTableHardBreaks(
       encodeSerializedHeadingClosingHashes(

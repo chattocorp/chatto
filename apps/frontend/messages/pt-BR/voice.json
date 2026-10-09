@@ -37,7 +37,6 @@
     "microphone": "Microfone",
     "speaker": "Palestrante",
     "camera": "Câmera",
-    "fullscreen_feed": "Feed em tela cheia",
     "fullscreen_call": "Chamada em tela cheia",
     "exit_fullscreen_call": "Sair da chamada em tela cheia",
     "pin_to_stage": "Fixar {name} no palco",

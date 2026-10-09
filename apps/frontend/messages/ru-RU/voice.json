@@ -37,7 +37,6 @@
     "microphone": "Микрофон",
     "speaker": "Спикер",
     "camera": "Камера",
-    "fullscreen_feed": "Полноэкранный канал",
     "fullscreen_call": "Полноэкранный вызов",
     "exit_fullscreen_call": "Выйти из полноэкранного вызова",
     "pin_to_stage": "Закрепить {name} на сцене",

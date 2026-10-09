@@ -29,6 +29,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   } from './editorTypes';
   import { emptyComposerIndentState } from './editorTypes';
   import { createComposerExtensions } from './extensions';
+  import { insertVisualFootnote } from './footnotes';
   import {
     applyDestinationMarks,
     buildQuoteContent,
@@ -409,6 +410,9 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
             chain.toggleCodeBlock().run();
             ensureEditorCodeLanguages(e);
             break;
+          case 'footnote':
+            chain.command(({ tr }) => insertVisualFootnote(tr)).run();
+            break;
         }
         tick().then(syncControls);
       },
@@ -470,6 +474,12 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
               ...(testid ? { 'data-testid': testid } : {})
             },
             handleKeyDown: (_view, event) => {
+              // A focused note marker handles activation before the send shortcut.
+              if (
+                event.target instanceof HTMLElement &&
+                event.target.matches('.composer-footnote-ref')
+              )
+                return false;
               if (replayingEnter && event.key === 'Enter') return false;
               return onKeyDown?.(event) ?? false;
             },
@@ -716,6 +726,34 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     text-decoration: underline;
     text-underline-offset: 2px;
     overflow-wrap: break-word;
+  }
+
+  :global(.tiptap-editor .ProseMirror .composer-footnote-ref) {
+    cursor: pointer;
+    color: var(--color-muted);
+    text-decoration: none;
+  }
+
+  :global(.tiptap-editor .ProseMirror .composer-footnote-ref:hover) {
+    color: var(--color-link-hover);
+  }
+
+  :global(.tiptap-editor .ProseMirror .composer-footnote) {
+    position: relative;
+    font-size: 0.875em;
+    color: var(--color-muted);
+    padding-inline-start: 1.5em;
+    margin-block: 0.75em;
+  }
+
+  :global(.tiptap-editor .ProseMirror .composer-footnote::before) {
+    content: attr(data-footnote-number) '.';
+    position: absolute;
+    inset-inline-start: 0;
+  }
+
+  :global(.tiptap-editor .ProseMirror .composer-footnote > * + *) {
+    margin-top: 0.5em;
   }
 
   :global(.tiptap-editor .ProseMirror ul),

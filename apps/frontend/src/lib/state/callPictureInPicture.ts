@@ -11,6 +11,24 @@ const videoTracks = new WeakMap<HTMLVideoElement, Track>();
 const pictureInPictureWindows = new WeakMap<HTMLVideoElement, PictureInPictureWindow>();
 const endedTracks = new WeakSet<Track>();
 const retained = new Map<Track, { video: HTMLVideoElement; dispose: () => void }>();
+const changes = new EventTarget();
+
+/** Broadcast changes to stream ownership, retained video, or pending PiP requests. */
+export function notifyCallVideoChange(): void {
+  changes.dispatchEvent(new Event('change'));
+}
+
+/** Subscribe call controls to ownership changes; return a cleanup for the mounted observer. */
+export function observeCallVideoChanges(onchange: () => void): () => void {
+  changes.addEventListener('change', onchange);
+  return () => changes.removeEventListener('change', onchange);
+}
+
+/** Return only the connected, call-owned track; ended streams cannot accept late PiP requests. */
+export function activeCallVideoTrack(video: HTMLVideoElement): Track | undefined {
+  const track = videoTracks.get(video);
+  return track && !endedTracks.has(track) && video.isConnected ? track : undefined;
+}
 
 /** Observe browser-menu entry as well as requests made by the tile button. */
 function rememberPictureInPictureWindow(event: PictureInPictureEvent): void {
@@ -30,6 +48,7 @@ function unregisterCallVideo(video: HTMLVideoElement): void {
   video.removeEventListener('leavepictureinpicture', forgetPictureInPictureWindow);
   pictureInPictureWindows.delete(video);
   videoTracks.delete(video);
+  notifyCallVideoChange();
 }
 
 /** Associate a tile video with its call-owned track without keeping either alive. */
@@ -38,6 +57,7 @@ export function registerCallVideo(track: Track, video: HTMLVideoElement): void {
   videoTracks.set(video, track);
   video.addEventListener('enterpictureinpicture', rememberPictureInPictureWindow);
   video.addEventListener('leavepictureinpicture', forgetPictureInPictureWindow);
+  notifyCallVideoChange();
 }
 
 /** Resolve a remounted tile to its original video while that video is in PiP. */
@@ -80,6 +100,8 @@ export function releaseCallVideo(track: Track, video: HTMLVideoElement): void {
     retained.delete(track);
     track.detach(video);
     host.remove();
+    // Remounted controls must now resolve their own video after browser closure.
+    notifyCallVideoChange();
   };
   retained.set(track, { video, dispose });
   video.addEventListener('leavepictureinpicture', dispose);
@@ -95,6 +117,7 @@ export function releaseCallVideo(track: Track, video: HTMLVideoElement): void {
 /** Call ownership, not tile visibility, determines when a video stream is no longer usable. */
 export function endCallVideo(track: Track): void {
   endedTracks.add(track);
+  notifyCallVideoChange();
   const active = typeof document === 'undefined' ? null : document.pictureInPictureElement;
   if (active && active instanceof HTMLVideoElement && videoTracks.get(active) === track) {
     void document.exitPictureInPicture().catch(() => {});

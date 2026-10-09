@@ -98,6 +98,95 @@ func TestEncodedEventLogConcurrentStreamAndSubjectPositions(t *testing.T) {
 	}
 }
 
+func TestEncodedEventLogConcurrentSharedStreamReaders(t *testing.T) {
+	js, stream := setupTestStream(t)
+	ctx := testContext(t)
+	first := NewEncodedEventLog(js, stream, testLogger())
+	second := NewEncodedEventLog(js, stream, testLogger())
+	reader, err := NewStreamMessageReader(stream, StreamMessageReaderOptions{})
+	if err != nil {
+		t.Fatalf("NewStreamMessageReader: %v", err)
+	}
+	const subject = "evt.compatibility.shared.created"
+	data := []byte("shared record")
+	seq, err := first.AppendEventually(ctx, subject, EncodedRecord{ID: "shared-1", Data: data})
+	if err != nil {
+		t.Fatalf("AppendEventually: %v", err)
+	}
+
+	// Both log instances and the uncached reader use the same SDK handle,
+	// as they do in application wiring. An instance-local lock cannot protect it.
+	start := make(chan struct{})
+	var workers sync.WaitGroup
+	for _, log := range []*EncodedEventLog{first, second} {
+		workers.Go(func() {
+			<-start
+			for range 100 {
+				if got, err := log.LastStreamSeq(ctx); err != nil || got != seq {
+					t.Errorf("LastStreamSeq = %d, %v; want %d, nil", got, err, seq)
+					return
+				}
+			}
+		})
+	}
+	for range 2 {
+		workers.Go(func() {
+			<-start
+			for range 100 {
+				record, err := reader.Message(ctx, seq)
+				if err != nil {
+					t.Errorf("Message: %v", err)
+					return
+				}
+				if record.Sequence != seq || record.Subject != subject || !bytes.Equal(record.Data, data) {
+					t.Errorf("Message = %+v; want sequence %d, subject %q, data %q", record, seq, subject, data)
+					return
+				}
+			}
+		})
+	}
+	close(start)
+	workers.Wait()
+}
+
+func TestEncodedEventLogLastStreamSeqFreshnessAndErrors(t *testing.T) {
+	js, stream := setupTestStream(t)
+	ctx := testContext(t)
+	log := NewEncodedEventLog(js, stream, testLogger())
+	assertTail := func(want uint64) {
+		t.Helper()
+		if got, err := log.LastStreamSeq(ctx); err != nil || got != want {
+			t.Fatalf("LastStreamSeq = %d, %v; want %d, nil", got, err, want)
+		}
+	}
+	assertTail(0)
+	for i := 1; i <= 2; i++ {
+		seq, err := log.AppendEventually(ctx, "evt.compatibility.tail", EncodedRecord{ID: fmt.Sprintf("tail-%d", i)})
+		if err != nil {
+			t.Fatalf("AppendEventually: %v", err)
+		}
+		assertTail(seq)
+	}
+	for seq := uint64(1); seq <= 2; seq++ {
+		if err := stream.DeleteMsg(ctx, seq); err != nil {
+			t.Fatalf("DeleteMsg(%d): %v", seq, err)
+		}
+	}
+	assertTail(2)
+
+	cancelled, cancel := context.WithCancel(ctx)
+	cancel()
+	if seq, err := log.LastStreamSeq(cancelled); seq != 0 || !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled LastStreamSeq = %d, %v; want 0, context.Canceled", seq, err)
+	}
+	if err := js.DeleteStream(ctx, stream.CachedInfo().Config.Name); err != nil {
+		t.Fatalf("DeleteStream: %v", err)
+	}
+	if seq, err := log.LastStreamSeq(ctx); seq != 0 || !errors.Is(err, jetstream.ErrStreamNotFound) {
+		t.Fatalf("missing LastStreamSeq = %d, %v; want 0, ErrStreamNotFound", seq, err)
+	}
+}
+
 func TestEncodedEventLogAppliesPerRecordTTL(t *testing.T) {
 	js, stream := setupTestStream(t)
 	eventLog := NewEncodedEventLog(js, stream, testLogger())

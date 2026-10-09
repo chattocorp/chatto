@@ -37,7 +37,6 @@
     "microphone": "Mikrofon",
     "speaker": "Høyttaler",
     "camera": "Kamera",
-    "fullscreen_feed": "Fullskjerm-feed",
     "fullscreen_call": "Fullskjermsamtale",
     "exit_fullscreen_call": "Avslutt samtale i fullskjerm",
     "pin_to_stage": "Fest {name} til scenen",

@@ -1,7 +1,7 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-10-08
+**Last reviewed:** 2026-10-09
 
 ## Overview
 
@@ -109,7 +109,7 @@ server and account metadata are not eligible for automatic cleanup.
 ### 8. One native push registration per server
 
 **Decision:** Every server, including the serving server, uses a registration of the same worker script under a stable narrow scope. This gives each server an independent browser subscription bound to its own VAPID key. Production registers the worker as a classic script. Earlier versions stored the serving server's subscription on the root registration; after the scoped subscription is saved, the client removes that old subscription from the browser and from the server. Sign-out and server removal also remove it. Every subscription records the URL host of the Chatto server that supplied the installed app with the subscription. If this host matches an exact configured server origin, the click route uses that origin's scheme and the local server route. Otherwise, the sending server combines the client host with its own primary hostname; production client hosts use HTTPS and loopback development hosts use HTTP.
-**Why:** Push subscriptions belong to service-worker registrations, not to an origin as a single undifferentiated slot. Separate scopes let one installed PWA receive direct pushes from multiple servers without sharing private VAPID keys or routing notifications through the server that hosted the frontend. Push registration does not depend on the root registration, which installs the offline application shell after a delay and can fail independently. A classic registration also works in browsers without module service workers. A host is enough to reconstruct Chatto's conventional route while avoiding storage of an arbitrary client-provided navigation URL. Per-subscription client context also supports the same server account from PWAs hosted at different origins.
+**Why:** Push subscriptions belong to service-worker registrations, not to an origin as a single undifferentiated slot. Separate scopes let one installed PWA receive direct pushes from multiple servers without sharing private VAPID keys or routing notifications through the server that hosted the frontend. Push registration does not depend on a root registration or an offline application shell. Upgrade cleanup keeps subscribed legacy root registrations until their push subscription has migrated. A classic registration also works in browsers without module service workers. A host is enough to reconstruct Chatto's conventional route while avoiding storage of an arbitrary client-provided navigation URL. Per-subscription client context also supports the same server account from PWAs hosted at different origins.
 **Tradeoff:** Each server consumes one of the account's 16 stored subscription slots for each installed client origin. Reconstructing the scheme assumes HTTPS outside loopback development, so an HTTP PWA on a non-loopback host is unsupported. This 0.5 behavior requires the 0.5 client and server subscription contract; no pre-0.5 mixed-version path is provided.
 
 ### 9. Declarative-compatible payloads with service-worker notification fallback

@@ -37,7 +37,6 @@
     "microphone": "Mikrofon",
     "speaker": "Kõlar",
     "camera": "Kaamera",
-    "fullscreen_feed": "Täisekraani voog",
     "fullscreen_call": "Kõne täisekraanil",
     "exit_fullscreen_call": "Välju täisekraaniga kõnest",
     "pin_to_stage": "Kinnita {name} lavale",

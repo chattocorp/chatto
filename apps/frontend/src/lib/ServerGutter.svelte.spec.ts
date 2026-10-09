@@ -78,43 +78,51 @@ describe('ServerGutter', () => {
     );
   }
 
-  it('keeps the origin first and applies the saved remote order', () => {
+  it('keeps the existing display order when saved order omits the formerly pinned origin', () => {
     register('a', 'b', 'origin', 'new');
     serverGutterOrder.save(['b', 'missing', 'b', 'a']);
     const { container } = render(ServerGutter);
     expect(entries(container)).toEqual(['origin', 'b', 'a', 'new']);
   });
 
+  it('applies the saved position of the origin within the shared server list', () => {
+    register('origin', 'a', 'b', 'new');
+    serverGutterOrder.save(['b', 'origin', 'a']);
+    const { container } = render(ServerGutter);
+    expect(entries(container)).toEqual(['b', 'origin', 'a', 'new']);
+  });
+
   it('updates on a storage event without remounting entries or writing back', async () => {
     register('origin', 'a', 'b');
     const { container } = render(ServerGutter);
     const original = [...container.querySelectorAll('[data-testid="server-entry"]')];
-    localStorage.setItem('chatto:serverGutterOrder', JSON.stringify(['b', 'a']));
+    localStorage.setItem('chatto:serverGutterOrder', JSON.stringify(['b', 'origin', 'a']));
     const write = vi.spyOn(Storage.prototype, 'setItem');
     window.dispatchEvent(
       new StorageEvent('storage', {
         key: 'chatto:serverGutterOrder',
         storageArea: localStorage,
-        newValue: JSON.stringify(['a', 'b']) // An older queued event must not win.
+        newValue: JSON.stringify(['origin', 'a', 'b']) // An older queued event must not win.
       })
     );
     await tick();
-    expect(entries(container)).toEqual(['origin', 'b', 'a']);
+    expect(entries(container)).toEqual(['b', 'origin', 'a']);
+    expect(container.querySelectorAll('[data-testid="server-entry"]')[1]).toBe(original[0]);
     expect(container.querySelectorAll('[data-testid="server-entry"]')[2]).toBe(original[1]);
     expect(write).not.toHaveBeenCalled();
     write.mockRestore();
   });
 
   it('keeps drag previews local and saves only a complete drop', async () => {
-    register('a', 'b');
+    register('origin', 'a');
     const { container } = render(ServerGutter);
-    const zone = container.querySelector('[data-testid="remote-server-list"]')!;
+    const zone = container.querySelector('[data-testid="server-list"]')!;
     await vi.waitFor(() => expect(zone.getAttribute('data-server-drag-ready')).toBe('true'));
-    const items = ['b', 'a'].map((id) => ({ id, serverId: id }));
-    const info = { id: 'b', source: SOURCES.POINTER, trigger: TRIGGERS.DRAG_STARTED };
+    const items = ['a', 'origin'].map((id) => ({ id, serverId: id }));
+    const info = { id: 'origin', source: SOURCES.POINTER, trigger: TRIGGERS.DRAG_STARTED };
     zone.dispatchEvent(new CustomEvent('consider', { detail: { items, info } }));
     await tick();
-    expect(entries(container)).toEqual(['b', 'a']);
+    expect(entries(container)).toEqual(['a', 'origin']);
     expect(JSON.parse(localStorage.getItem('chatto:serverGutterOrder')!)).toEqual([]);
     zone.dispatchEvent(
       new CustomEvent('finalize', {
@@ -122,18 +130,18 @@ describe('ServerGutter', () => {
       })
     );
     await tick();
-    expect(JSON.parse(localStorage.getItem('chatto:serverGutterOrder')!)).toEqual(['b', 'a']);
+    expect(JSON.parse(localStorage.getItem('chatto:serverGutterOrder')!)).toEqual(['a', 'origin']);
   });
 
   it('discards a drop after catalogue membership changes', async () => {
-    register('a', 'b');
+    register('origin', 'a');
     const { container } = render(ServerGutter);
-    const zone = container.querySelector('[data-testid="remote-server-list"]')!;
+    const zone = container.querySelector('[data-testid="server-list"]')!;
     await vi.waitFor(() => expect(zone.getAttribute('data-server-drag-ready')).toBe('true'));
-    const items = ['b', 'a'].map((id) => ({ id, serverId: id }));
-    const info = { id: 'b', source: SOURCES.POINTER, trigger: TRIGGERS.DRAG_STARTED };
+    const items = ['a', 'origin'].map((id) => ({ id, serverId: id }));
+    const info = { id: 'origin', source: SOURCES.POINTER, trigger: TRIGGERS.DRAG_STARTED };
     zone.dispatchEvent(new CustomEvent('consider', { detail: { items, info } }));
-    mocks.stores.delete('b');
+    mocks.stores.delete('a');
     await tick();
     zone.dispatchEvent(
       new CustomEvent('finalize', {
@@ -141,7 +149,7 @@ describe('ServerGutter', () => {
       })
     );
     await tick();
-    expect(entries(container)).toEqual(['a']);
+    expect(entries(container)).toEqual(['origin']);
     expect(JSON.parse(localStorage.getItem('chatto:serverGutterOrder')!)).toEqual([]);
   });
 

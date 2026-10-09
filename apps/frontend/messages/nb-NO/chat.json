@@ -53,7 +53,6 @@
       "copy_user_id": "Kopier bruker-ID"
     },
     "server_gutter": {
-      "home_server": "Hjemmeserver",
       "move_up": "Flytt opp",
       "move_down": "Flytt ned",
       "add_server": "Legg til server",

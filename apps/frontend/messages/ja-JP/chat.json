@@ -53,7 +53,6 @@
       "copy_user_id": "ユーザーIDをコピー"
     },
     "server_gutter": {
-      "home_server": "ホームサーバー",
       "move_up": "上に移動",
       "move_down": "下に移動",
       "add_server": "サーバーの追加",

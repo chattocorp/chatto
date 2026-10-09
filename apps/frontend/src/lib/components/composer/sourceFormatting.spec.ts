@@ -4,6 +4,13 @@ import { describe, expect, it } from 'vitest';
 import { applySourceFormatting, getSourceFormattingState } from './sourceFormatting';
 
 describe('applySourceFormatting', () => {
+  it('inserts a unique footnote after selected text and focuses its definition', () => {
+    const source = 'Hello[^1].\n\n[^1]: Existing note.';
+    const result = applySourceFormatting(source, { anchor: 0, head: 5 }, 'footnote');
+    expect(result.text).toBe('Hello[^2][^1].\n\n[^1]: Existing note.\n\n[^2]: ');
+    expect(result.anchor).toBe(result.text.length);
+    expect(result.head).toBe(result.anchor);
+  });
   it('wraps and unwraps inline selections', () => {
     const wrapped = applySourceFormatting('hello world', { anchor: 0, head: 5 }, 'bold');
     expect(wrapped).toEqual({ text: '**hello** world', anchor: 2, head: 7 });

@@ -1,4 +1,3 @@
-import type { Page } from '@playwright/test';
 import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import {
@@ -17,20 +16,6 @@ function remoteBaseURL(server: ServerInfo): string {
   return server.baseURL.replace('localhost', '127.0.0.1');
 }
 
-async function ensureServiceWorkerControlsPage(page: Page): Promise<void> {
-  await page.evaluate(async () => {
-    if (!('serviceWorker' in navigator)) {
-      throw new Error('Service workers are not available in this browser');
-    }
-    await navigator.serviceWorker.ready;
-  });
-
-  await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect
-    .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
-    .toBe(true);
-}
-
 test.describe('authorized remote asset URLs', () => {
   let remoteServer: ServerInfo | undefined;
 
@@ -47,7 +32,6 @@ test.describe('authorized remote asset URLs', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await ensureServiceWorkerControlsPage(page);
 
     remoteServer = await startSecondServer(test.info());
     const baseURL = remoteBaseURL(remoteServer);
