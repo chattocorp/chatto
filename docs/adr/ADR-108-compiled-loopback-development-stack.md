@@ -105,8 +105,32 @@ and proxy configuration stay outside the repository.
 Paseo names routes from the service, branch, and project. These names fit in
 one DNS label and work with a wildcard certificate. Branch changes can change
 the URL, and Paseo rejects concurrent routes with the same name. This setup
-applies only to **dev**, not **dev-full**. Normal terminal and Conductor starts
-keep their existing defaults.
+also applies to **dev-full**, which runs Chatto with Mailpit and LiveKit.
+Authling and Runling are not yet part of the Paseo stack. Normal terminal and
+Conductor starts keep their existing defaults.
+
+The **dev-full** launcher owns the two support services through Paseo's script
+API. Each service gets a separate route and port. The launcher reads their
+actual startup state instead of assuming that peer environment values remain
+valid after a service restart. It stops services that it started on normal
+exit, a signal, or failure. Support services stop if their owner disappears.
+All Paseo commands use `exec` so process exit also ends the supervised terminal
+and removes its route. **dev** and **dev-full** use the same worktree data and
+must not run together.
+
+Mailpit uses an OS-selected loopback SMTP port and its Paseo port for HTTP.
+LiveKit uses its Paseo port for loopback HTTP and, in the separate UDP port
+space, for media. Its built-in TURN/STUN server uses Mailpit's port number for
+UDP and can allocate relay ports in `49152–65535`. These UDP listeners bind to
+the local IPv4 address of the service hostname. An explicit
+`CHATTO_DEV_LIVEKIT_NODE_IP` can select another local interface for split DNS.
+TCP media is disabled because LiveKit does not restrict that listener to the
+selected interface. The local TURN/STUN service replaces LiveKit's default
+public STUN servers, so browser call setup does not need to contact Google.
+
+The stack generates LiveKit credentials for each run. Private runtime state
+stays in `.context/paseo-stack/` and is removed on stop. Mailpit's inbox lasts
+only for that run. Caddy needs no additional routes or configuration changes.
 
 ## Consequences
 

@@ -5,11 +5,19 @@
   "scripts": {
     "dev": {
       "type": "service",
-      "command": "bash tools/paseo-dev.sh"
+      "command": "exec bash tools/paseo-dev.sh"
     },
     "dev-full": {
       "type": "service",
-      "command": "mise dev-full"
+      "command": "exec mise x -- node tools/paseo-stack.mjs stack"
+    },
+    "mailpit": {
+      "type": "service",
+      "command": "exec mise x -- node tools/paseo-stack.mjs mailpit"
+    },
+    "livekit": {
+      "type": "service",
+      "command": "exec mise x -- node tools/paseo-stack.mjs livekit"
     }
   }
 }

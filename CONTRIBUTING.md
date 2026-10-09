@@ -212,8 +212,37 @@ for its public URL. It sets `CHATTO_WEBSERVER_BIND_ADDRESS=127.0.0.1`.
 Embedded NATS uses an in-process connection with no TCP
 listener. Paseo allocates one port per service, not a block of adjacent ports.
 The launcher requires Paseo's environment; use `mise dev` for a normal terminal
-start. The **dev-full** service still uses the standard development port block
-and is not part of this proxy integration.
+start.
+
+Start **dev-full** in Paseo for Chatto with Mailpit and LiveKit. This service
+starts the **mailpit** and **livekit** services and shows their separate URLs
+in Paseo. Start and stop the stack through **dev-full**. If a support service
+stops, the stack stops too. Stop **dev** before starting **dev-full**: both use
+the same worktree data. Paseo's **dev-full** does not yet start Authling or
+Runling. The terminal command `mise dev-full` keeps the complete local stack.
+
+Each workspace has its own Mailpit inbox and LiveKit process. Mailpit keeps
+messages only for the current run. Chatto submits email to Mailpit on a free
+loopback SMTP port. Mailpit does not send that email to external recipients.
+Its HTTPS inbox has no login; peers that can reach the proxy can read it.
+
+LiveKit signaling uses the **livekit** HTTPS URL over secure WebSocket. Media
+uses UDP directly to the local IPv4 address that the service hostname resolves
+to. For split DNS, set `CHATTO_DEV_LIVEKIT_NODE_IP` to a reachable local IPv4
+address in the machine's environment. The address must exist on this machine.
+The launcher binds HTTP and SMTP to loopback and media to that selected address.
+It uses new LiveKit credentials for each run.
+
+LiveKit's UDP media port has the same number as its allocated HTTP port. Its
+built-in TURN/STUN UDP port has the same number as Mailpit's allocated HTTP
+port. TCP and UDP have separate port spaces. If another process already owns
+one of these UDP ports, startup fails and the stack stops. TURN can allocate
+relay UDP ports in `49152–65535` on the selected address. Allow this traffic
+between development peers in the host firewall and VPN policy. This setup has
+no TCP media fallback. Clients must be able to reach the selected address over
+UDP. The local TURN/STUN service prevents LiveKit from giving browsers Google's
+default public STUN servers. Call signaling and media stay within the selected
+network.
 
 For HTTPS access through a VPN, configure the machine once:
 
@@ -229,7 +258,8 @@ For HTTPS access through a VPN, configure the machine once:
    machine; application traffic stays on the VPN.
 4. Restart Paseo after changing its service proxy settings. This can interrupt
    active sessions. Restart existing development services to give them the new
-   public URL.
+   public URL. Paseo 0.11.1 also requires a daemon restart when new service
+   entries are added to a workspace whose port plan is already cached.
 
 Paseo registers and removes routes when services start and stop. New workspaces
 need no Caddy or DNS changes. Its service names contain the script, branch,
@@ -238,9 +268,18 @@ changes can change the URL. Paseo rejects two services with the same name from
 different workspaces; use distinct branches for concurrent workspaces.
 
 Use `bash tools/test-paseo-dev.sh` to check the launcher, environment defaults,
-and disabled-listener port checks. See [Paseo's service documentation](https://paseo.sh/docs/worktrees.md)
+and disabled-listener port checks. Use
+`mise x -- node --test tools/paseo-stack.test.mjs` to check the media configuration
+and interface validation. Runtime state is private to
+`.context/paseo-stack/` and is removed on stop. The launcher reads actual service
+ports after startup because Paseo can change them on restart. See [Paseo's service documentation](https://paseo.sh/docs/worktrees.md)
 for port allocation and [its configuration guide](https://paseo.sh/docs/configuration.md)
 for machine settings.
+
+If a service exits before you can read its terminal, check
+`.context/paseo-stack-error.log`, `.context/paseo-mailpit-error.log`, or
+`.context/paseo-livekit-error.log`. These files contain the last failure, which
+can be from an earlier run.
 
 ## Local Development with Codex
 

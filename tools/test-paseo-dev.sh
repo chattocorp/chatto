@@ -13,13 +13,16 @@ mkdir "$scratch/bin"
 
 # Check actual mise evaluation of defaults and launcher overrides.
 env -u CONDUCTOR_PORT -u CHATTO_DEV_CHATTO_PORT -u CHATTO_DEV_NATS_PORT \
+	-u CHATTO_DEV_SMTP_PORT -u CHATTO_DEV_LIVEKIT_URL \
 	-u CHATTO_DEV_CHATTO_URL -u CHATTO_DEV_WORKSPACE \
 	mise env --json >"$scratch/default.json"
 env -u CHATTO_DEV_CHATTO_PORT -u CHATTO_DEV_NATS_PORT \
+	-u CHATTO_DEV_SMTP_PORT -u CHATTO_DEV_LIVEKIT_URL \
 	-u CHATTO_DEV_CHATTO_URL -u CHATTO_DEV_WORKSPACE CONDUCTOR_PORT=45000 \
 	mise env --json >"$scratch/conductor.json"
 env CONDUCTOR_PORT=45000 CHATTO_DEV_CHATTO_PORT=53001 \
 	CHATTO_DEV_NATS_PORT=0 CHATTO_DEV_CHATTO_URL=https://dev--test.example.com \
+	CHATTO_DEV_SMTP_PORT=53009 CHATTO_DEV_LIVEKIT_URL=wss://livekit--test.example.com \
 	mise env --json >"$scratch/paseo.json"
 python3 - "$scratch" <<'PY'
 import json
@@ -36,6 +39,13 @@ for name, port, nats, url in (
     assert data["CHATTO_DEV_CHATTO_PORT"] == port, name
     assert data["CHATTO_DEV_NATS_PORT"] == nats, name
     assert data["CHATTO_DEV_CHATTO_URL"] == url, name
+    if name == "paseo":
+        assert data["CHATTO_DEV_SMTP_PORT"] == "53009"
+        assert data["CHATTO_DEV_LIVEKIT_URL"] == "wss://livekit--test.example.com"
+    else:
+        base = 4000 if name == "default" else 45000
+        assert data["CHATTO_DEV_SMTP_PORT"] == str(base + 8)
+        assert data["CHATTO_DEV_LIVEKIT_URL"] == f"ws://localhost:{base + 5}"
 PY
 
 cat >"$scratch/bin/mise" <<'SH'
@@ -47,6 +57,20 @@ SH
 chmod +x "$scratch/bin/mise"
 actual=$(PATH="$scratch/bin:$PATH" PASEO_PORT=53001 \
 	PASEO_URL=https://dev--test.example.com bash tools/paseo-dev.sh)
+[[ "$actual" == $'53001\nhttps://dev--test.example.com\n0\n127.0.0.1' ]]
+
+# A separate dev start must not open the active stack's worktree data. The
+# owning dev-full process can still launch its own Chatto child.
+launcher="$PWD/tools/paseo-dev.sh"
+mkdir -p "$scratch/.context/paseo-stack"
+printf '%s' "$$" >"$scratch/.context/paseo-stack/owner"
+if (cd "$scratch" && PATH="$scratch/bin:$PATH" PASEO_PORT=53001 \
+	PASEO_URL=https://dev--test.example.com bash "$launcher" >blocked.log 2>&1); then
+	echo 'error: dev accepted an active dev-full owner' >&2
+	exit 1
+fi
+actual=$(cd "$scratch" && PATH="$scratch/bin:$PATH" PASEO_PORT=53001 \
+	PASEO_URL=https://dev--test.example.com CHATTO_PASEO_STACK_OWNER="$$" bash "$launcher")
 [[ "$actual" == $'53001\nhttps://dev--test.example.com\n0\n127.0.0.1' ]]
 for missing in PASEO_PORT PASEO_URL; do
 	if env PATH="$scratch/bin:$PATH" PASEO_PORT=53001 \
