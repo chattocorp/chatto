@@ -29,6 +29,16 @@
         "activity": "{actor} hat dir eine Benachrichtigung gesendet."
       }
     },
+    "home": {
+      "title": "Start",
+      "subtitle": "Was auf deinen Servern auf dich wartet",
+      "direct_messages_empty": "Noch keine Direktnachrichten",
+      "live_calls_title": "Laufende Anrufe",
+      "call_participants_count": {
+        "one": "{count} Teilnehmer",
+        "other": "{count} Teilnehmende"
+      }
+    },
     "sign_out": {
       "title": "Abmelden",
       "current_server": "Aktueller Server",
@@ -53,6 +63,7 @@
       "copy_user_id": "Benutzer-ID kopieren"
     },
     "server_gutter": {
+      "home": "Start",
       "move_up": "Nach oben verschieben",
       "move_down": "Nach unten verschieben",
       "add_server": "Server hinzufügen",

@@ -29,6 +29,16 @@
         "activity": "{actor} ti ha inviato una notifica."
       }
     },
+    "home": {
+      "title": "Home",
+      "subtitle": "Cosa ti aspetta su tutti i tuoi server",
+      "direct_messages_empty": "Ancora nessun messaggio diretto",
+      "live_calls_title": "Chiamate in corso",
+      "call_participants_count": {
+        "one": "{count} partecipante",
+        "other": "{count} partecipanti"
+      }
+    },
     "sign_out": {
       "title": "Esci",
       "current_server": "Server corrente",
@@ -53,6 +63,7 @@
       "copy_user_id": "Copia ID utente"
     },
     "server_gutter": {
+      "home": "Home",
       "move_up": "Sposta in alto",
       "move_down": "Sposta in basso",
       "add_server": "Aggiungi server",

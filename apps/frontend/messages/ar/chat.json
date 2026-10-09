@@ -29,6 +29,20 @@
         "activity": "أرسل إليك {actor} إشعارًا."
       }
     },
+    "home": {
+      "title": "الرئيسية",
+      "subtitle": "ما ينتظرك على جميع خوادمك",
+      "direct_messages_empty": "لا توجد رسائل مباشرة بعد",
+      "live_calls_title": "مكالمات جارية",
+      "call_participants_count": {
+        "zero": "{count} مشارك",
+        "one": "{count} مشارك",
+        "two": "{count} مشاركان",
+        "few": "{count} مشاركين",
+        "many": "{count} مشاركًا",
+        "other": "{count} مشارك"
+      }
+    },
     "sign_out": {
       "title": "تسجيل الخروج",
       "current_server": "الخادم الحالي",
@@ -53,6 +67,7 @@
       "copy_user_id": "نسخ معرّف المستخدم"
     },
     "server_gutter": {
+      "home": "الرئيسية",
       "move_up": "نقل لأعلى",
       "move_down": "نقل لأسفل",
       "add_server": "إضافة خادم",

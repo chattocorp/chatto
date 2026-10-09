@@ -47,6 +47,16 @@ export class ActiveCallRoomsState {
     this.#getCalls = getCalls;
   }
 
+  /** IDs of all rooms with an active call, including the viewer's own call. */
+  get roomIds(): string[] {
+    const ids = Object.keys(this.#serverRooms);
+    const voiceCall = this.#getVoiceCall();
+    if (voiceCall.connected && voiceCall.roomId && !ids.includes(voiceCall.roomId)) {
+      ids.push(voiceCall.roomId);
+    }
+    return ids;
+  }
+
   /**
    * Whether a room has an active call.
    * Checks both server state and local user's call state.

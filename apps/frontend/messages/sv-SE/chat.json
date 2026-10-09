@@ -29,6 +29,16 @@
         "activity": "{actor} skickade en avisering till dig."
       }
     },
+    "home": {
+      "title": "Hem",
+      "subtitle": "Det som väntar på dig på alla dina servrar",
+      "direct_messages_empty": "Inga direktmeddelanden än",
+      "live_calls_title": "Pågående samtal",
+      "call_participants_count": {
+        "one": "{count} deltagare",
+        "other": "{count} deltagare"
+      }
+    },
     "sign_out": {
       "title": "Logga ut",
       "current_server": "Aktuell server",
@@ -53,6 +63,7 @@
       "copy_user_id": "Kopiera användar-ID"
     },
     "server_gutter": {
+      "home": "Hem",
       "move_up": "Flytta upp",
       "move_down": "Flytta ned",
       "add_server": "Lägg till server",

@@ -29,6 +29,18 @@
         "activity": "От пользователя {actor} пришло уведомление."
       }
     },
+    "home": {
+      "title": "Главная",
+      "subtitle": "Что ждёт вас на всех ваших серверах",
+      "direct_messages_empty": "Пока нет личных сообщений",
+      "live_calls_title": "Текущие звонки",
+      "call_participants_count": {
+        "one": "{count} участник",
+        "few": "{count} участника",
+        "many": "{count} участников",
+        "other": "{count} участника"
+      }
+    },
     "sign_out": {
       "title": "Выйти",
       "current_server": "Текущий сервер",
@@ -53,6 +65,7 @@
       "copy_user_id": "Скопировать ID пользователя"
     },
     "server_gutter": {
+      "home": "Главная",
       "move_up": "Переместить вверх",
       "move_down": "Переместить вниз",
       "add_server": "Добавить сервер",

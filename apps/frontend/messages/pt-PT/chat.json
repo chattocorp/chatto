@@ -29,6 +29,16 @@
         "activity": "{actor} enviou-lhe uma notificação."
       }
     },
+    "home": {
+      "title": "Início",
+      "subtitle": "O que o aguarda em todos os seus servidores",
+      "direct_messages_empty": "Ainda não há mensagens diretas",
+      "live_calls_title": "Chamadas em curso",
+      "call_participants_count": {
+        "one": "{count} participante",
+        "other": "{count} participantes"
+      }
+    },
     "sign_out": {
       "title": "Sair",
       "current_server": "Servidor Atual",
@@ -53,6 +63,7 @@
       "copy_user_id": "Copiar ID do utilizador"
     },
     "server_gutter": {
+      "home": "Início",
       "move_up": "Mover para cima",
       "move_down": "Mover para baixo",
       "add_server": "Adicionar servidor",

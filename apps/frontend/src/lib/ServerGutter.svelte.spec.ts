@@ -192,6 +192,27 @@ describe('ServerGutter', () => {
     });
   });
 
+  it('pins the Home link above the servers', () => {
+    register('origin');
+    const { container } = render(ServerGutter);
+    const home = container.querySelector<HTMLAnchorElement>('[data-testid="server-gutter-home"]');
+    const origin = container.querySelector('[data-testid="server-entry"]');
+
+    expect(home?.getAttribute('href')).toBe('/chat/home');
+    expect(home?.getAttribute('aria-current')).toBeNull();
+    expect(home!.compareDocumentPosition(origin!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('marks the Home link active on the Home page', () => {
+    mocks.routeId = '/chat/home';
+
+    const { container } = render(ServerGutter);
+    const home = container.querySelector<HTMLAnchorElement>('[data-testid="server-gutter-home"]');
+
+    expect(home?.getAttribute('aria-current')).toBe('page');
+    expect(home?.className).toContain('server-gutter-item-active');
+  });
+
   it('links the add action to the full Server Directory page', () => {
     mocks.routeId = '/chat/servers';
 

@@ -166,6 +166,7 @@ test.describe('Route accessibility', () => {
     await dmPage.startConversation('e2eadmin');
     await settle(page);
     await expectNoAccessibilityViolations(page, 'direct message');
+    await scanRoute(page, 'home', '/chat/home');
   });
 
   test('settings pages meet WCAG A and AA rules', async ({ page }) => {

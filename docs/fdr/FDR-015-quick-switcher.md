@@ -1,12 +1,12 @@
 # FDR-015: Quick Switcher (Cmd-K)
 
 **Status:** Active
-**Last reviewed:** 2026-09-21
+**Last reviewed:** 2026-10-09
 
 ## Overview
 
 A keyboard-driven palette for moving between registered servers, joined rooms,
-visible DMs, and Notifications. It also searches messages.
+visible DMs, Home, and Notifications. It also searches messages.
 Users open it with `Cmd+K` on macOS or `Ctrl+K` on other platforms. It supports
 fuzzy matching and remembers recent destinations on the device.
 
@@ -15,7 +15,7 @@ fuzzy matching and remembers recent destinations on the device.
 - `Cmd+K` / `Ctrl+K` opens the palette from anywhere in the app. `Escape` or clicking outside closes it.
 - On open, the palette reads each registered server's current projected
   navigation state. The empty catalogue contains every registered server,
-  joined channel room, visible DM, and Notifications.
+  joined channel room, visible DM, Home, and Notifications.
 - Ordinary queries search the loaded navigation catalogue and users already
   known to each authenticated server's live client state. They do not request
   server member directories.

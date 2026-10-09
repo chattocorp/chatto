@@ -29,6 +29,16 @@
         "activity": "{actor} sent you a notification."
       }
     },
+    "home": {
+      "title": "Home",
+      "subtitle": "What needs you on all your servers",
+      "direct_messages_empty": "No direct messages yet",
+      "live_calls_title": "Calls in progress",
+      "call_participants_count": {
+        "one": "{count} participant",
+        "other": "{count} participants"
+      }
+    },
     "sign_out": {
       "title": "Sign Out",
       "current_server": "Current Server",
@@ -53,6 +63,7 @@
       "copy_user_id": "Copy User ID"
     },
     "server_gutter": {
+      "home": "Home",
       "move_up": "Move up",
       "move_down": "Move down",
       "add_server": "Add Server",

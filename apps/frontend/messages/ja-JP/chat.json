@@ -29,6 +29,16 @@
         "activity": "{actor}さんから通知が届きました。"
       }
     },
+    "home": {
+      "title": "ホーム",
+      "subtitle": "すべてのサーバーであなたを待っているもの",
+      "direct_messages_empty": "ダイレクトメッセージはまだありません",
+      "live_calls_title": "進行中の通話",
+      "call_participants_count": {
+        "one": "{count} 人が参加中",
+        "other": "{count} 人が参加中"
+      }
+    },
     "sign_out": {
       "title": "サインアウト",
       "current_server": "現在のサーバー",
@@ -53,6 +63,7 @@
       "copy_user_id": "ユーザーIDをコピー"
     },
     "server_gutter": {
+      "home": "ホーム",
       "move_up": "上に移動",
       "move_down": "下に移動",
       "add_server": "サーバーの追加",

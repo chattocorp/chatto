@@ -29,6 +29,16 @@
         "activity": "{actor} 向你发送了一条通知。"
       }
     },
+    "home": {
+      "title": "首页",
+      "subtitle": "你所有服务器上等你处理的事",
+      "direct_messages_empty": "还没有私信",
+      "live_calls_title": "进行中的通话",
+      "call_participants_count": {
+        "one": "{count} 位参与者",
+        "other": "{count} 位参与者"
+      }
+    },
     "sign_out": {
       "title": "退出登录",
       "current_server": "当前服务器",
@@ -53,6 +63,7 @@
       "copy_user_id": "复制用户 ID"
     },
     "server_gutter": {
+      "home": "首页",
       "move_up": "向上移动",
       "move_down": "向下移动",
       "add_server": "添加服务器",
