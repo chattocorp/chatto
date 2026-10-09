@@ -5,7 +5,7 @@
   "scripts": {
     "dev": {
       "type": "service",
-      "command": "mise dev"
+      "command": "bash tools/paseo-dev.sh"
     },
     "dev-full": {
       "type": "service",

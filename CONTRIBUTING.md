@@ -99,7 +99,7 @@ LiveKit server. It does not build anything. Run it alone to prepare a checkout
 without starting the stack. These tasks trust the repository's `mise.toml`
 files automatically. They need mise 2026.8.9 or later.
 
-All services use plain HTTP. In Conductor, the base port is `$CONDUCTOR_PORT`
+By default, all services use plain HTTP. In Conductor, the base port is `$CONDUCTOR_PORT`
 and `<workspace>` is `ws` followed by this port, for example `ws55060`. Outside
 Conductor, `<workspace>` is `local` and the base port is `4000`. Set
 `CHATTO_DEV_WORKSPACE` to use a different `<workspace>`:
@@ -200,6 +200,48 @@ reads `.worktreeinclude` to copy gitignored local environment files, such as
 `.env` and `.env.*`, into new workspaces. Stopping the run command stops all
 child processes.
 
+## Local Development with Paseo
+
+Start the **dev** service in Paseo, or run `paseo script start dev` in a
+workspace. Open the service URL that Paseo shows. Stop it with Paseo's stop
+control or `paseo script stop dev`. Each worktree keeps its own data in
+`cli/data/`. Restart the service after source changes to rebuild Chatto.
+
+The launcher uses `PASEO_PORT` for Chatto's loopback listener and `PASEO_URL`
+for its public URL. It sets `CHATTO_WEBSERVER_BIND_ADDRESS=127.0.0.1`.
+Embedded NATS uses an in-process connection with no TCP
+listener. Paseo allocates one port per service, not a block of adjacent ports.
+The launcher requires Paseo's environment; use `mise dev` for a normal terminal
+start. The **dev-full** service still uses the standard development port block
+and is not part of this proxy integration.
+
+For HTTPS access through a VPN, configure the machine once:
+
+1. Set Paseo's `daemon.serviceProxy.listen` to a loopback address, for example
+   `127.0.0.1:6768`, and `daemon.serviceProxy.publicBaseUrl` to an HTTPS base
+   URL under a domain you own.
+2. Point wildcard DNS at the machine's VPN address. Configure Caddy to serve
+   that wildcard name and forward requests to Paseo's service proxy. Preserve
+   the request hostname. Bind Caddy to the VPN address.
+3. Use DNS validation for certificates when the service is private. Keep the
+   DNS token and machine configuration outside the repository. The DNS
+   provider and certificate authority receive validation requests from the
+   machine; application traffic stays on the VPN.
+4. Restart Paseo after changing its service proxy settings. This can interrupt
+   active sessions. Restart existing development services to give them the new
+   public URL.
+
+Paseo registers and removes routes when services start and stop. New workspaces
+need no Caddy or DNS changes. Its service names contain the script, branch,
+and project in one DNS label, so one wildcard certificate covers them. Branch
+changes can change the URL. Paseo rejects two services with the same name from
+different workspaces; use distinct branches for concurrent workspaces.
+
+Use `bash tools/test-paseo-dev.sh` to check the launcher, environment defaults,
+and disabled-listener port checks. See [Paseo's service documentation](https://paseo.sh/docs/worktrees.md)
+for port allocation and [its configuration guide](https://paseo.sh/docs/configuration.md)
+for machine settings.
+
 ## Local Development with Codex
 
 The Codex desktop environment is in `.codex/environments/environment.toml`.
@@ -261,7 +303,9 @@ Tailwind plugin settings in `apps/frontend/.prettierrc`. Authling uses its own
 pnpm workspace and toolchain.
 
 `mise dev` and `mise dev-full` use Conductor's allocated port block and fall
-back to base port `4000` outside Conductor. `mise dev-frontend` uses the base port plus one.
+back to base port `4000` outside Conductor. Paseo's **dev** service overrides
+Chatto's port and public URL and disables the NATS TCP listener, as described
+above. `mise dev-frontend` uses the base port plus one.
 Storybook starts at port `6006` and the docs website at port `4321`. Both
 select the next free port when another workspace uses it. `mise dev` runs
 `mise run chatto run`, which you can also run directly.

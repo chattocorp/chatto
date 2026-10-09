@@ -86,10 +86,33 @@ documentation website use their own default ports and select the next free port.
 This decision keeps the native processes and the Conductor port allocation
 from ADR-078.
 
+### Optional Paseo service proxy
+
+Paseo's **dev** service runs `tools/paseo-dev.sh`. The launcher passes the
+allocated `PASEO_PORT` and `PASEO_URL` to mise as the Chatto listener port and
+public URL. It uses `exec` so Paseo can stop the complete mise process tree.
+The launcher sets `CHATTO_WEBSERVER_BIND_ADDRESS=127.0.0.1` so Chatto binds
+to loopback, and keeps data in the worktree's `cli/data/`.
+The NATS TCP listener is disabled with port `0`; Chatto uses its existing
+in-process NATS connection. No adjacent port reservation is required.
+
+An optional machine-level Caddy wildcard route provides HTTPS over a VPN and
+forwards requests to Paseo's loopback service proxy. Paseo owns route creation
+and removal. Caddy needs no changes when workspaces start or stop. The machine's
+Paseo configuration sets the HTTPS service base URL. Credentials, domain names,
+and proxy configuration stay outside the repository.
+
+Paseo names routes from the service, branch, and project. These names fit in
+one DNS label and work with a wildcard certificate. Branch changes can change
+the URL, and Paseo rejects concurrent routes with the same name. This setup
+applies only to **dev**, not **dev-full**. Normal terminal and Conductor starts
+keep their existing defaults.
+
 ## Consequences
 
-- A backend or frontend restart cannot break a proxy route, because no proxy is
-  present.
+- Normal terminal and Conductor starts have no proxy route to maintain. Paseo
+  starts depend on its service proxy; stop and restart through Paseo to keep
+  the route and process lifecycle together.
 - Frontend changes in the default stack require a restart and a production
   build. `mise dev-frontend` provides hot module replacement when necessary.
 - The development stack has no development CA to trust.

@@ -345,7 +345,7 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 		}
 
 		// HTTP server for ACME challenges and HTTPS redirect
-		httpAddr := fmt.Sprintf(":%d", tlsConfig.HTTPPortOrDefault())
+		httpAddr := net.JoinHostPort(s.config.Webserver.BindAddress, fmt.Sprint(tlsConfig.HTTPPortOrDefault()))
 		servers = append(servers, newHTTPServer(httpAddr, certManager.HTTPHandler(http.HandlerFunc(s.redirectToHTTPS))))
 	} else {
 		// Plain HTTP server
