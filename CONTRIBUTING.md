@@ -234,7 +234,7 @@ The launcher binds HTTP and SMTP to loopback and media to that selected address.
 It uses new LiveKit credentials for each run.
 
 LiveKit's UDP media port has the same number as its allocated HTTP port. Its
-built-in TURN/STUN UDP port has the same number as Mailpit's allocated HTTP
+built-in TURN/STUN UDP port has the same number as Mailpit's loopback SMTP
 port. TCP and UDP have separate port spaces. If another process already owns
 one of these UDP ports, startup fails and the stack stops. TURN can allocate
 relay UDP ports in `49152–65535` on the selected address. Allow this traffic
@@ -269,17 +269,20 @@ different workspaces; use distinct branches for concurrent workspaces.
 
 Use `bash tools/test-paseo-dev.sh` to check the launcher, environment defaults,
 and disabled-listener port checks. Use
-`mise x -- node --test tools/paseo-stack.test.mjs` to check the media configuration
-and interface validation. Runtime state is private to
-`.context/paseo-stack/` and is removed on stop. The launcher reads actual service
-ports after startup because Paseo can change them on restart. See [Paseo's service documentation](https://paseo.sh/docs/worktrees.md)
+`mise x -- node --test tools/paseo-stack.test.mjs` to check interface validation
+and safe environment serialization. mise runs the stack's tasks and its
+`depends_post` cleanup after success, failure, or a stop signal. Paseo owns the
+service processes, routes, and health checks. A small helper prepares configuration
+and observes Paseo's service status. There is no separate process supervisor.
+
+Private configuration is in `.context/paseo-stack/<dev-full-port>/` and is
+removed on normal stop. Each service receives its own current port from Paseo;
+Chatto uses LiveKit's stable public URL. After a forced kill such as `SIGKILL`,
+stop all three services in Paseo and remove `.context/paseo-stack/` before
+starting again. No program can run its cleanup after `SIGKILL`.
+See [Paseo's service documentation](https://paseo.sh/docs/worktrees.md)
 for port allocation and [its configuration guide](https://paseo.sh/docs/configuration.md)
 for machine settings.
-
-If a service exits before you can read its terminal, check
-`.context/paseo-stack-error.log`, `.context/paseo-mailpit-error.log`, or
-`.context/paseo-livekit-error.log`. These files contain the last failure, which
-can be from an earlier run.
 
 ## Local Development with Codex
 

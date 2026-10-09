@@ -4,55 +4,46 @@
 /** Check the networking boundary without starting Paseo or a development stack. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { spawn } from 'node:child_process';
-import { once } from 'node:events';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { mkdir, mkdtemp, writeFile, rm, readFile, access } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { setTimeout as delay } from 'node:timers/promises';
-import { livekitConfig, mediaAddress, serviceEnvironment } from './paseo-stack.mjs';
+import { mediaAddress, serviceEnvironment, shellQuote } from './paseo-stack.mjs';
 
-/** Run lifecycle rejection paths in an isolated worktree without a daemon. */
-async function isolatedRole(t, role, setup = async () => {}) {
+test('cleanup skips stopped services and tolerates an exit racing with stop', async (t) => {
   await mkdir('.context', { recursive: true });
-  const cwd = await mkdtemp(resolve('.context/paseo-stack-test-'));
-  await setup(cwd);
-  const child = spawn(process.execPath, [resolve('tools/paseo-stack.mjs'), role], {
+  const cwd = await mkdtemp(resolve('.context/paseo-cleanup-test-'));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  await mkdir(`${cwd}/bin`);
+  await mkdir(`${cwd}/.context/paseo-stack/53000`, { recursive: true });
+  // The failed stop models a service exiting after the list request. A repeat
+  // list must confirm that it stopped before the launcher removes configuration.
+  await writeFile(
+    `${cwd}/bin/paseo`,
+    `#!/usr/bin/env bash
+set -eu
+if [[ "$2" == ls ]]; then
+  status=running
+  [[ ! -e stopped ]] || status=stopped
+  printf '[{"scriptName":"mailpit","lifecycle":"stopped"},{"scriptName":"livekit","lifecycle":"%s"}]' "$status"
+else
+  printf '%s' "$3" > stopped
+  exit 1
+fi
+`,
+    { mode: 0o700 }
+  );
+  execFileSync(process.execPath, [resolve('tools/paseo-stack.mjs'), 'cleanup'], {
     cwd,
-    env: { ...process.env, PASEO_PORT: '53000', PASEO_URL: 'https://dev.example.test' },
-    stdio: 'ignore'
+    env: {
+      ...process.env,
+      PATH: `${cwd}/bin:${process.env.PATH}`,
+      PASEO_PORT: '53000',
+      PASEO_URL: 'https://dev.example.test'
+    },
+    timeout: 10_000
   });
-  const exited = once(child, 'exit');
-  t.after(async () => {
-    child.kill('SIGKILL');
-    await exited;
-    await rm(cwd, { recursive: true, force: true });
-  });
-  return { child, exited, cwd };
-}
-
-test('support services reject standalone starts with a persistent diagnostic', async (t) => {
-  const { cwd, exited } = await isolatedRole(t, 'mailpit');
-  assert.equal((await exited)[0], 1);
-  assert.match(
-    await readFile(resolve(cwd, '.context/paseo-mailpit-error.log'), 'utf8'),
-    /Start dev-full/
-  );
-});
-
-test('cancelled restart leaves the previous owner and its state intact', async (t) => {
-  const previous = { pid: process.pid, token: 'previous-run' };
-  const { child, exited, cwd } = await isolatedRole(t, 'stack', async (cwd) => {
-    await mkdir(resolve(cwd, '.context/paseo-stack'), { recursive: true });
-    await writeFile(resolve(cwd, '.context/paseo-stack/session.json'), JSON.stringify(previous));
-  });
-  // The real launcher waits for an existing owner before claiming its state.
-  await delay(300);
-  child.kill('SIGTERM');
-  assert.equal((await exited)[0], 0);
-  assert.deepEqual(
-    JSON.parse(await readFile(resolve(cwd, '.context/paseo-stack/session.json'), 'utf8')),
-    previous
-  );
+  assert.equal(await readFile(`${cwd}/stopped`, 'utf8'), 'livekit');
+  await assert.rejects(access(`${cwd}/.context/paseo-stack/53000`), { code: 'ENOENT' });
 });
 
 test('reject missing or unsafe Paseo service input before starting anything', () => {
@@ -80,27 +71,10 @@ test('media must use a local IPv4 interface', async () => {
   await assert.rejects(mediaAddress('https://split-dns.invalid', '::1'), /local IPv4/);
 });
 
-test('LiveKit separates loopback HTTP from UDP and uses only local TURN/STUN', () => {
-  const config = livekitConfig(
-    {
-      mediaAddress: '192.0.2.1',
-      port: 53000,
-      apiKey: 'test',
-      apiSecret: 'synthetic-test-secret'
-    },
-    54000,
-    55000
-  );
-  assert.deepEqual(config.bind_addresses, ['127.0.0.1']);
-  assert.equal(config.rtc.tcp_port, 0);
-  assert.equal(config.rtc.udp_port, 54000);
-  assert.equal(config.rtc.use_external_ip, false);
-  assert.equal(config.rtc.enable_loopback_candidate, false);
-  assert.deepEqual(config.rtc.ips.includes, ['192.0.2.1/32']);
-  assert.equal(config.turn.enabled, true);
-  assert.equal(config.turn.udp_port, 55000);
-  assert.deepEqual(config.turn.bind_addresses, ['192.0.2.1']);
-  assert.deepEqual(config.webhook.urls, ['http://127.0.0.1:53000/webhooks/livekit']);
-  assert.equal(config.webhook.api_key, 'test');
-  assert.equal(config.keys.test, 'synthetic-test-secret');
+test('generated shell values remain data, including quotes and command syntax', () => {
+  const value = "literal ' quote $(exit 99) `exit 98`\nnext line";
+  const actual = execFileSync('bash', ['-c', `value=${shellQuote(value)}; printf '%s' "$value"`], {
+    encoding: 'utf8'
+  });
+  assert.equal(actual, value);
 });

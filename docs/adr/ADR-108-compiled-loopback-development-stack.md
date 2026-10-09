@@ -109,18 +109,22 @@ also applies to **dev-full**, which runs Chatto with Mailpit and LiveKit.
 Authling and Runling are not yet part of the Paseo stack. Normal terminal and
 Conductor starts keep their existing defaults.
 
-The **dev-full** launcher owns the two support services through Paseo's script
-API. Each service gets a separate route and port. The launcher reads their
-actual startup state instead of assuming that peer environment values remain
-valid after a service restart. It stops services that it started on normal
-exit, a signal, or failure. Support services stop if their owner disappears.
+The **dev-full** service runs a mise task graph. Preparation checks that the
+workspace can start a new stack and writes private configuration. The main
+task starts the two support services through Paseo's CLI, waits for Paseo to
+report them healthy, and runs Chatto alongside a service-status check.
+mise stops parallel tasks on failure or a signal. Its `depends_post` task
+stops the two Paseo services and removes the configuration. Preparation is a
+dependency, so rejected starts do not stop an existing stack. Each service
+gets a separate route and port; Chatto uses LiveKit's public URL.
+There are no custom process groups, PID watchdogs, or readiness files.
 All Paseo commands use `exec` so process exit also ends the supervised terminal
 and removes its route. **dev** and **dev-full** use the same worktree data and
 must not run together.
 
 Mailpit uses an OS-selected loopback SMTP port and its Paseo port for HTTP.
 LiveKit uses its Paseo port for loopback HTTP and, in the separate UDP port
-space, for media. Its built-in TURN/STUN server uses Mailpit's port number for
+space, for media. Its built-in TURN/STUN server uses Mailpit's SMTP port number for
 UDP and can allocate relay ports in `49152–65535`. These UDP listeners bind to
 the local IPv4 address of the service hostname. An explicit
 `CHATTO_DEV_LIVEKIT_NODE_IP` can select another local interface for split DNS.
@@ -129,7 +133,11 @@ selected interface. The local TURN/STUN service replaces LiveKit's default
 public STUN servers, so browser call setup does not need to contact Google.
 
 The stack generates LiveKit credentials for each run. Private runtime state
-stays in `.context/paseo-stack/` and is removed on stop. Mailpit's inbox lasts
+stays in `.context/paseo-stack/<dev-full-port>/` and is removed on stop. Separate
+run directories prevent old cleanup from deleting a new run's configuration.
+After `SIGKILL`, developers must stop the services and remove stale configuration
+manually; the stack does not provide a second supervisor to recover from forced
+termination. Mailpit's inbox lasts
 only for that run. Caddy needs no additional routes or configuration changes.
 
 ## Consequences

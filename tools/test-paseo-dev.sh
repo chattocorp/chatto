@@ -55,22 +55,22 @@ set -eu
 printf '%s\n' "$CHATTO_DEV_CHATTO_PORT" "$CHATTO_DEV_CHATTO_URL" "$CHATTO_DEV_NATS_PORT" "$CHATTO_WEBSERVER_BIND_ADDRESS"
 SH
 chmod +x "$scratch/bin/mise"
-actual=$(PATH="$scratch/bin:$PATH" PASEO_PORT=53001 \
-	PASEO_URL=https://dev--test.example.com bash tools/paseo-dev.sh)
+launcher="$PWD/tools/paseo-dev.sh"
+actual=$(cd "$scratch" && PATH="$scratch/bin:$PATH" PASEO_PORT=53001 \
+	PASEO_URL=https://dev--test.example.com bash "$launcher")
 [[ "$actual" == $'53001\nhttps://dev--test.example.com\n0\n127.0.0.1' ]]
 
 # A separate dev start must not open the active stack's worktree data. The
 # owning dev-full process can still launch its own Chatto child.
-launcher="$PWD/tools/paseo-dev.sh"
-mkdir -p "$scratch/.context/paseo-stack"
-printf '%s' "$$" >"$scratch/.context/paseo-stack/owner"
+mkdir -p "$scratch/.context/paseo-stack/53001"
+touch "$scratch/.context/paseo-stack/53001/env"
 if (cd "$scratch" && PATH="$scratch/bin:$PATH" PASEO_PORT=53001 \
 	PASEO_URL=https://dev--test.example.com bash "$launcher" >blocked.log 2>&1); then
 	echo 'error: dev accepted an active dev-full owner' >&2
 	exit 1
 fi
 actual=$(cd "$scratch" && PATH="$scratch/bin:$PATH" PASEO_PORT=53001 \
-	PASEO_URL=https://dev--test.example.com CHATTO_PASEO_STACK_OWNER="$$" bash "$launcher")
+	PASEO_URL=https://dev--test.example.com CHATTO_PASEO_STACK=1 bash "$launcher")
 [[ "$actual" == $'53001\nhttps://dev--test.example.com\n0\n127.0.0.1' ]]
 for missing in PASEO_PORT PASEO_URL; do
 	if env PATH="$scratch/bin:$PATH" PASEO_PORT=53001 \

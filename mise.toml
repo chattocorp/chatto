@@ -548,6 +548,86 @@ run = [
   ] },
 ]
 
+# Paseo owns the three routes. mise owns startup order, parallel tasks, and
+# cleanup on success, failure, or a stop signal. Preparation is a dependency:
+# if it rejects an existing stack, this run must not execute cleanup.
+[tasks.paseo-stack]
+hide = true
+depends = ["paseo-prepare"]
+depends_post = ["paseo-cleanup"]
+run = [
+  "paseo script start mailpit --json",
+  "paseo script start livekit --json",
+  { tasks = ["paseo-chatto", "paseo-watch"] },
+]
+
+[tasks.paseo-prepare]
+hide = true
+depends = ["build-dev-cli"]
+run = "node tools/paseo-stack.mjs prepare"
+
+[tasks.paseo-chatto]
+hide = true
+run = '''
+set -eu
+node tools/paseo-stack.mjs ready
+. ".context/paseo-stack/${PASEO_PORT:?}/env"
+# Any Chatto exit must also stop the long-running status watcher.
+bash tools/paseo-dev.sh
+exit 1
+'''
+
+[tasks.paseo-watch]
+hide = true
+run = "node tools/paseo-stack.mjs watch"
+
+[tasks.paseo-cleanup]
+hide = true
+run = "node tools/paseo-stack.mjs cleanup"
+
+[tasks.paseo-mailpit]
+hide = true
+run = '''
+set -eu
+. ".context/paseo-stack/${PASEO_SERVICE_DEV_FULL_PORT:?}/env"
+exec mailpit --smtp "127.0.0.1:$CHATTO_DEV_SMTP_PORT" --listen "127.0.0.1:$PASEO_PORT" --quiet
+'''
+
+[tasks.paseo-livekit]
+hide = true
+run = '''
+set -eu
+state=".context/paseo-stack/${PASEO_SERVICE_DEV_FULL_PORT:?}"
+. "$state/env"
+# HTTP stays on loopback; UDP stays on the selected interface. Local TURN/STUN
+# replaces LiveKit's default public STUN servers. TCP media is disabled because
+# LiveKit binds its TCP media listener on all interfaces.
+cat > "$state/livekit.yaml" <<EOF
+port: $PASEO_PORT
+bind_addresses: [127.0.0.1]
+rtc:
+  node_ip: $CHATTO_DEV_LIVEKIT_NODE_IP
+  tcp_port: 0
+  udp_port: $PASEO_PORT
+  use_external_ip: false
+  enable_loopback_candidate: true
+  ips: { includes: [$CHATTO_DEV_LIVEKIT_NODE_IP/32] }
+turn:
+  enabled: true
+  udp_port: $CHATTO_DEV_SMTP_PORT
+  bind_addresses: [$CHATTO_DEV_LIVEKIT_NODE_IP]
+  relay_range_start: 49152
+  relay_range_end: 65535
+  allow_restricted_peer_cidrs: [$CHATTO_DEV_LIVEKIT_NODE_IP/32]
+keys: { workspace: $CHATTO_LIVEKIT_API_SECRET }
+webhook:
+  urls: ["http://127.0.0.1:$CHATTO_DEV_CHATTO_PORT/webhooks/livekit"]
+  api_key: workspace
+logging: { level: error }
+EOF
+exec mise x "$CHATTO_DEV_LIVEKIT_SERVER" -- server --config "$state/livekit.yaml"
+'''
+
 [tasks.dev-frontend]
 description = "Run the Vite frontend development server against a Chatto server"
 depends = ["setup-frontend", "build-api-types", "build-lingua"]

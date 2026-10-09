@@ -11,12 +11,9 @@ set -euo pipefail
 : "${PASEO_URL:?start the dev service through Paseo}"
 
 # Both launch modes use the same worktree data. Do not open it twice.
-if [[ -f .context/paseo-stack/owner ]]; then
-  owner=$(cat .context/paseo-stack/owner)
-  if [[ "$owner" != "${CHATTO_PASEO_STACK_OWNER:-}" ]] && kill -0 "$owner" 2>/dev/null; then
-    echo 'Stop dev-full before starting dev in this workspace.' >&2
-    exit 1
-  fi
+if [[ "${CHATTO_PASEO_STACK:-}" != 1 ]] && compgen -G '.context/paseo-stack/*/env' >/dev/null; then
+  echo 'Stop dev-full before starting dev in this workspace.' >&2
+  exit 1
 fi
 
 export CHATTO_DEV_CHATTO_PORT="$PASEO_PORT"

@@ -9,15 +9,15 @@
     },
     "dev-full": {
       "type": "service",
-      "command": "exec mise x -- node tools/paseo-stack.mjs stack"
+      "command": "exec mise run paseo-stack"
     },
     "mailpit": {
       "type": "service",
-      "command": "exec mise x -- node tools/paseo-stack.mjs mailpit"
+      "command": "exec mise run paseo-mailpit"
     },
     "livekit": {
       "type": "service",
-      "command": "exec mise x -- node tools/paseo-stack.mjs livekit"
+      "command": "exec mise run paseo-livekit"
     }
   }
 }
