@@ -2,11 +2,15 @@ package cmd
 
 import (
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
+	"gopkg.in/yaml.v3"
 	"hmans.de/chatto/internal/config"
 )
 
@@ -25,7 +29,9 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 	initConfigFile = ""
 	t.Cleanup(func() { initConfigFile = originalConfigFile })
 
-	initCmd.Run(initCmd, nil)
+	if err := initCmd.RunE(initCmd, nil); err != nil {
+		t.Fatalf("init: %v", err)
+	}
 
 	cfg, err := config.ReadConfig(filepath.Join(tmpDir, "chatto.toml"))
 	if err != nil {
@@ -174,5 +180,158 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 	}
 	if strings.Contains(rawText, "\n[nats.client]\n") {
 		t.Fatal("generated embedded config should not include an active [nats.client] table")
+	}
+}
+
+func TestInitWithLiveKit(t *testing.T) {
+	// Serial: the command flags use package variables.
+	originalConfigFile, originalWithLiveKit := initConfigFile, initWithLiveKit
+	t.Cleanup(func() {
+		initConfigFile, initWithLiveKit = originalConfigFile, originalWithLiveKit
+	})
+
+	for _, enabled := range []bool{false, true} {
+		t.Run(fmt.Sprintf("enabled=%v", enabled), func(t *testing.T) {
+			dir := t.TempDir()
+			initConfigFile = filepath.Join(dir, "custom.toml")
+			if err := initCmd.Flags().Set("with-livekit", strconv.FormatBool(enabled)); err != nil {
+				t.Fatal(err)
+			}
+			if err := initCmd.RunE(initCmd, nil); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := config.ReadConfig(initConfigFile)
+			if err != nil {
+				t.Fatal(err)
+			}
+			liveKitPath := filepath.Join(dir, "livekit.yaml")
+			if !enabled {
+				if cfg.LiveKit.Enabled {
+					t.Fatal("LiveKit must remain disabled without the flag")
+				}
+				if _, err := os.Stat(liveKitPath); !os.IsNotExist(err) {
+					t.Fatalf("unexpected LiveKit config: %v", err)
+				}
+				return
+			}
+			if !cfg.LiveKit.IsConfigured() || cfg.LiveKit.URL != "ws://localhost:7880" {
+				t.Fatal("generated config must enable local LiveKit")
+			}
+			if len(cfg.LiveKit.APISecret) < 32 || cfg.LiveKit.APIKey == cfg.LiveKit.APISecret {
+				t.Fatal("LiveKit must use separate random credentials")
+			}
+			raw, err := os.ReadFile(liveKitPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var liveKit struct {
+				Port    int               `yaml:"port"`
+				Keys    map[string]string `yaml:"keys"`
+				Webhook struct {
+					URLs   []string `yaml:"urls"`
+					APIKey string   `yaml:"api_key"`
+				} `yaml:"webhook"`
+			}
+			if err := yaml.Unmarshal(raw, &liveKit); err != nil {
+				t.Fatal(err)
+			}
+			if liveKit.Port != 7880 || liveKit.Keys[cfg.LiveKit.APIKey] != cfg.LiveKit.APISecret {
+				t.Fatal("LiveKit listener and credentials must match Chatto")
+			}
+			if liveKit.Webhook.APIKey != cfg.LiveKit.APIKey || len(liveKit.Webhook.URLs) != 1 || liveKit.Webhook.URLs[0] != cfg.LiveKit.WebhookURL {
+				t.Fatal("LiveKit webhooks must match Chatto")
+			}
+			for _, path := range []string{initConfigFile, liveKitPath} {
+				info, err := os.Stat(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if info.Mode().Perm() != 0600 {
+					t.Fatalf("config permissions = %o, want 600", info.Mode().Perm())
+				}
+			}
+		})
+	}
+}
+
+func TestInitRefusesExistingConfigs(t *testing.T) {
+	// Serial: the command flags use package variables.
+	originalConfigFile, originalWithLiveKit := initConfigFile, initWithLiveKit
+	t.Cleanup(func() {
+		initConfigFile, initWithLiveKit = originalConfigFile, originalWithLiveKit
+	})
+	initWithLiveKit = true
+	for _, existing := range []string{"chatto.toml", "livekit.yaml"} {
+		t.Run(existing, func(t *testing.T) {
+			dir := t.TempDir()
+			initConfigFile = filepath.Join(dir, "chatto.toml")
+			path := filepath.Join(dir, existing)
+			if err := os.WriteFile(path, []byte("keep me"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err := initCmd.RunE(initCmd, nil); err == nil {
+				t.Fatal("init must refuse existing configs")
+			}
+			data, err := os.ReadFile(path)
+			if err != nil || string(data) != "keep me" {
+				t.Fatal("init changed the existing config")
+			}
+			entries, err := os.ReadDir(dir)
+			if err != nil || len(entries) != 1 {
+				t.Fatal("init must not leave a partial configuration")
+			}
+		})
+	}
+}
+
+func TestInitWithSearch(t *testing.T) {
+	// Serial: the command flags use package variables.
+	originalConfigFile, originalWithSearch, originalWithLiveKit := initConfigFile, initWithSearch, initWithLiveKit
+	t.Cleanup(func() {
+		initConfigFile, initWithSearch, initWithLiveKit = originalConfigFile, originalWithSearch, originalWithLiveKit
+	})
+	for _, search := range []bool{false, true} {
+		for _, liveKit := range []bool{false, true} {
+			t.Run(fmt.Sprintf("search=%v/livekit=%v", search, liveKit), func(t *testing.T) {
+				initConfigFile = filepath.Join(t.TempDir(), "chatto.toml")
+				for name, enabled := range map[string]bool{"with-search": search, "with-livekit": liveKit} {
+					if err := initCmd.Flags().Set(name, strconv.FormatBool(enabled)); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if err := initCmd.RunE(initCmd, nil); err != nil {
+					t.Fatal(err)
+				}
+				cfg, err := config.ReadConfig(initConfigFile)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if cfg.Search.Enabled != search || cfg.SearchProvider.Enabled != search {
+					t.Fatalf("search and provider enabled = %v, %v; want %v", cfg.Search.Enabled, cfg.SearchProvider.Enabled, search)
+				}
+				if cfg.LiveKit.IsConfigured() != liveKit {
+					t.Fatal("search flag must compose with the LiveKit flag")
+				}
+				if cfg.SearchProvider.DirectoryOrDefault() != "./data/search" || !slices.Equal(cfg.SearchProvider.LanguagesOrDefault(), config.SupportedSearchProviderLanguages()) {
+					t.Fatal("generated config must preserve search storage and language defaults")
+				}
+				if !cfg.NATS.Embedded.Enabled || len(cfg.Core.SecretKey) != 64 || !cfg.AssetProcessing.Enabled {
+					t.Fatal("optional integrations must preserve the base config")
+				}
+				raw, err := os.ReadFile(initConfigFile)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, table := range []string{"search", "search_provider"} {
+					marker := "\n[" + table + "]\n"
+					if !search {
+						marker = "\n# [" + table + "]\n"
+					}
+					if !strings.Contains(string(raw), marker) {
+						t.Fatalf("generated config is missing %q", marker)
+					}
+				}
+			})
+		}
 	}
 }
