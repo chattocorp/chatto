@@ -157,7 +157,7 @@ export function isBrowserWebPushRuntime(): boolean {
  * Get the service worker registration that owns a server's push subscription.
  * Every server, including the origin server, uses a stable narrow scope. Each
  * scope binds a subscription to that server's own VAPID key, and push does not
- * depend on the root registration that owns the offline application shell.
+ * depend on a root registration. Older root subscriptions remain valid until migrated.
  */
 async function getServiceWorkerRegistration(
   serverId: string,

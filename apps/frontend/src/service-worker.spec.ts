@@ -1,26 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const serviceWorkerBuild = vi.hoisted(() => ({
-  build: ['/_app/immutable/entry.js'],
-  version: 'test-version'
-}));
-
-vi.mock('$service-worker', () => ({
-  get build() {
-    return serviceWorkerBuild.build;
-  },
-  get version() {
-    return serviceWorkerBuild.version;
-  }
-}));
-
-/** Returns the only installed shell cache. */
-async function openShellCache(cacheStorage: ReturnType<typeof createMemoryCacheStorage>) {
-  const names = (await cacheStorage.keys()).filter((name) => name.startsWith('chatto-shell-'));
-  expect(names).toHaveLength(1);
-  return cacheStorage.open(names[0]);
-}
-
 type ServiceWorkerHandler = (event: {
   data?: { json: () => unknown };
   notification?: {
@@ -58,29 +37,20 @@ function createWaitUntilEvent(extra: Record<string, unknown> = {}) {
 }
 
 function createMemoryCacheStorage() {
-  const caches = new Map<string, Map<string, { arrayBuffer: () => Promise<ArrayBuffer> }>>();
+  const names = new Set<string>();
   return {
     open: vi.fn(async (name: string) => {
-      let entries = caches.get(name);
-      if (!entries) {
-        entries = new Map();
-        caches.set(name, entries);
-      }
-      const cache = entries;
-      return {
-        addAll: vi.fn(async (urls: string[]) => {
-          for (const url of urls) cache.set(url, { arrayBuffer: async () => new ArrayBuffer(1) });
-        }),
-        keys: vi.fn(async () => [...cache.keys()]),
-        match: vi.fn(async (request: string) => cache.get(request))
-      };
+      names.add(name);
     }),
-    keys: vi.fn(async () => [...caches.keys()]),
-    delete: vi.fn(async (name: string) => caches.delete(name))
+    keys: vi.fn(async () => [...names]),
+    delete: vi.fn(async (name: string) => names.delete(name))
   };
 }
 
-async function importServiceWorker(cacheStorage = createMemoryCacheStorage()) {
+async function importServiceWorker(
+  cacheStorage = createMemoryCacheStorage(),
+  scope = 'https://chatto.example/'
+) {
   const handlers = new Map<string, ServiceWorkerHandler[]>();
   const registration = {
     getNotifications: vi.fn(
@@ -99,7 +69,7 @@ async function importServiceWorker(cacheStorage = createMemoryCacheStorage()) {
 
   vi.stubGlobal('self', {
     location: { origin: 'https://chatto.example' },
-    registration: { ...registration, scope: 'https://chatto.example/' },
+    registration: { ...registration, scope },
     clients,
     skipWaiting,
     addEventListener: vi.fn((type: string, handler: ServiceWorkerHandler) => {
@@ -141,137 +111,39 @@ describe('service worker notifications', () => {
     vi.unstubAllGlobals();
   });
 
-  it('installs the versioned shell and its fetch handler', async () => {
-    const worker = await importServiceWorker();
+  it('installs without fetching assets, opening caches, or intercepting requests', async () => {
+    const cacheStorage = createMemoryCacheStorage();
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    const worker = await importServiceWorker(cacheStorage);
 
     await worker.dispatch('install');
 
     expect(worker.skipWaiting).toHaveBeenCalledOnce();
-    expect(worker.handlers.has('fetch')).toBe(true);
+    expect(worker.handlers.has('fetch')).toBe(false);
+    expect(cacheStorage.open).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
-  async function navigate(
-    worker: Awaited<ReturnType<typeof importServiceWorker>>,
-    url = 'https://chatto.example/chat/-/R1'
-  ): Promise<unknown> {
-    let response: Promise<unknown> | undefined;
-    worker.handlers.get('fetch')?.[0]?.({
-      request: { url, method: 'GET', mode: 'navigate' },
-      respondWith: (pending: Promise<unknown>) => {
-        response = pending;
-      }
-    } as never);
-    expect(response).toBeDefined();
-    return response;
-  }
+  it.each(['/', '/__chatto/push/server/'])(
+    'deletes all retired Chatto caches on activation for scope %s',
+    async (scope) => {
+      const cacheStorage = createMemoryCacheStorage();
+      await cacheStorage.open('chatto-shell-old-version');
+      await cacheStorage.open('chatto-shell-another-version');
+      await cacheStorage.open('chatto-badge-state-v1');
+      await cacheStorage.open('chatto-badge-state-v2');
+      await cacheStorage.open('unrelated-cache');
+      const worker = await importServiceWorker(cacheStorage, `https://chatto.example${scope}`);
 
-  it('loads app navigations from the network so a reload gets a new deploy', async () => {
-    const worker = await importServiceWorker();
-    await worker.dispatch('install');
-    const networkDocument = { status: 200 };
-    const fetch = vi.fn(async () => networkDocument);
-    vi.stubGlobal('fetch', fetch);
-
-    expect(await navigate(worker)).toBe(networkDocument);
-    expect(fetch).toHaveBeenCalledOnce();
-  });
-
-  it.each([
-    ['a redirect', { type: 'opaqueredirect', status: 0 }],
-    ['a client error', { status: 404 }]
-  ])('passes %s from the network through to the page', async (_name, networkDocument) => {
-    const worker = await importServiceWorker();
-    await worker.dispatch('install');
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => networkDocument)
-    );
-
-    expect(await navigate(worker)).toBe(networkDocument);
-  });
-
-  it('serves the cached shell when the network is unreachable', async () => {
-    const cacheStorage = createMemoryCacheStorage();
-    const worker = await importServiceWorker(cacheStorage);
-    await worker.dispatch('install');
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        throw new TypeError('Failed to fetch');
-      })
-    );
-
-    expect(await navigate(worker)).toBe(await (await openShellCache(cacheStorage)).match('/login'));
-  });
-
-  it('serves the cached shell when the server fails', async () => {
-    const cacheStorage = createMemoryCacheStorage();
-    const worker = await importServiceWorker(cacheStorage);
-    await worker.dispatch('install');
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => ({ status: 502 }))
-    );
-
-    expect(await navigate(worker)).toBe(await (await openShellCache(cacheStorage)).match('/login'));
-  });
-
-  it('reports the network result when no shell is cached', async () => {
-    const worker = await importServiceWorker();
-    const failedDocument = { status: 503 };
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => failedDocument)
-    );
-    expect(await navigate(worker)).toBe(failedDocument);
-
-    const networkError = new TypeError('Failed to fetch');
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        throw networkError;
-      })
-    );
-    await expect(navigate(worker)).rejects.toBe(networkError);
-  });
-
-  it('deletes retired shell and foreground badge caches during activation', async () => {
-    const cacheStorage = createMemoryCacheStorage();
-    await cacheStorage.open('chatto-shell-old-version');
-    await cacheStorage.open('chatto-badge-state-v1');
-    await cacheStorage.open('chatto-badge-state-v2');
-    await cacheStorage.open('unrelated-cache');
-    const worker = await importServiceWorker(cacheStorage);
-
-    await worker.dispatch('install');
-    await worker.dispatch('activate');
-
-    const names = await cacheStorage.keys();
-    expect(names).toHaveLength(2);
-    expect(names[0]).toBe('unrelated-cache');
-    expect(names[1]).toMatch(/^chatto-shell-test-version-/);
-    expect(worker.clients.claim).toHaveBeenCalledOnce();
-  });
-
-  it('installs each build into its own cache when the version name repeats', async () => {
-    const cacheStorage = createMemoryCacheStorage();
-    const previousWorker = await importServiceWorker(cacheStorage);
-    await previousWorker.dispatch('install');
-    await previousWorker.dispatch('activate');
-
-    vi.resetModules();
-    serviceWorkerBuild.build = ['/_app/immutable/entry.next.js'];
-    try {
-      const worker = await importServiceWorker(cacheStorage);
       await worker.dispatch('install');
       await worker.dispatch('activate');
+      await worker.dispatch('activate');
 
-      const shell = await openShellCache(cacheStorage);
-      await expect(shell.keys()).resolves.toEqual(['/_app/immutable/entry.next.js', '/login']);
-    } finally {
-      serviceWorkerBuild.build = ['/_app/immutable/entry.js'];
+      expect(await cacheStorage.keys()).toEqual(['unrelated-cache']);
+      expect(worker.clients.claim).toHaveBeenCalledTimes(2);
     }
-  });
+  );
 
   it.each(['legacy', 'declarative', 'event'])(
     'preserves cleanup identity from %s push payloads',
