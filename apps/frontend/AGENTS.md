@@ -391,6 +391,10 @@ Do not generate playground links for code written into this repository.
   produce a broken SPA whose HTML and JavaScript use different startup
   identifiers. Run these commands in sequence. The build checks the adapted
   HTML and client payload identifiers before it can be cached or embedded.
+  This includes Playwright runs: their global setup can rebuild the frontend
+  before tests start. Wait for the run to finish before starting frontend
+  type checks. If commands overlap and generated types are missing, run the
+  checks again after the build finishes; do not suppress the diagnostics.
 - `mise test-frontend` runs the frontend suite.
 - The server, browser-component, and Storybook Vitest projects run sequentially
   to bound peak memory while still executing the complete suite.
