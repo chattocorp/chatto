@@ -6,6 +6,7 @@ import {
   type EventConnectionPage,
   type RoomTimelineAPI
 } from '../../api/roomTimeline.js';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Timestamp } from '@bufbuild/protobuf';
 import {
   RoomMessagePosted,
@@ -482,12 +483,27 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const deletedUserPreview = {
       ...preview,
       actorId: 'deleted-user',
-      actor: { id: 'deleted-user', displayName: 'Alice' },
+      actor: {
+        id: 'deleted-user',
+        login: 'alice',
+        displayName: 'Alice',
+        presenceStatus: PresenceStatus.OFFLINE
+      },
       event: {
         ...preview.event,
         threadParticipants: [
-          { id: 'deleted-user', displayName: 'Alice' },
-          { id: 'remaining-user', displayName: 'Bob' }
+          {
+            id: 'deleted-user',
+            login: 'alice',
+            displayName: 'Alice',
+            presenceStatus: PresenceStatus.OFFLINE
+          },
+          {
+            id: 'remaining-user',
+            login: 'bob',
+            displayName: 'Bob',
+            presenceStatus: PresenceStatus.OFFLINE
+          }
         ],
         reactions: [
           {
@@ -503,7 +519,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
       }
     };
     const timeline = fakeTimelineAPI({
-      getRoomEventsAround: vi.fn(async () => pageFromEvent(deletedUserPreview))
+      getMessage: vi.fn(async () => deletedUserPreview)
     });
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
@@ -533,10 +549,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
   });
 
   it('rejects an in-flight preview captured before deleted-user scrubbing', async () => {
-    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
-    const pendingRead = deferred<AroundPage>();
+    type PreviewMessage = Awaited<ReturnType<RoomTimelineAPI['getMessage']>>;
+    const pendingRead = deferred<PreviewMessage>();
     const timeline = fakeTimelineAPI({
-      getRoomEventsAround: vi.fn(() => pendingRead.promise)
+      getMessage: vi.fn(() => pendingRead.promise)
     });
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
@@ -548,13 +564,16 @@ describe('MessagesStore — room lifecycle ownership', () => {
 
     const loading = store.ensureEvent('preview');
     store.scrubUserReferences('deleted-user');
-    pendingRead.resolve(
-      pageFromEvent({
-        ...threadMessageEvent('preview'),
-        actorId: 'deleted-user',
-        actor: { id: 'deleted-user', displayName: 'Alice' }
-      })
-    );
+    pendingRead.resolve({
+      ...threadMessageEvent('preview'),
+      actorId: 'deleted-user',
+      actor: {
+        id: 'deleted-user',
+        login: 'alice',
+        displayName: 'Alice',
+        presenceStatus: PresenceStatus.OFFLINE
+      }
+    });
     await loading;
 
     expect(store.getEventById('preview')).toBeUndefined();
@@ -576,7 +595,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
       users: [deletedReactionUser]
     });
     const timeline = fakeTimelineAPI({
-      getRoomEventsAround: vi.fn(async () => pageFromEvent(previewEvent))
+      getMessage: vi.fn(async () => previewEvent)
     });
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
@@ -1915,6 +1934,145 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('keeps an unopened thread reply in the preview cache without changing the room timeline', async () => {
+    const target = threadMessageEvent('target', 'root');
+    const timeline = fakeTimelineAPI({ getMessage: vi.fn(async () => target) });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
+    await settle();
+    const echo = threadMessageEvent('echo');
+    store.events = [
+      {
+        ...echo,
+        event: {
+          ...echo.event,
+          echoOfEventId: 'reply',
+          echoFromThreadRootEventId: 'root',
+          inReplyTo: 'target'
+        }
+      }
+    ];
+
+    await Promise.all([store.ensureEvent('target'), store.ensureEvent('target')]);
+    await store.ensureEvent('target');
+
+    expect(store.getEventById('target')).toEqual(target);
+    expect(store.events.map((event) => event.id)).toEqual(['echo']);
+    expect(timeline.getMessage).toHaveBeenCalledExactlyOnceWith({
+      roomId: 'room-1',
+      eventId: 'target'
+    });
+    expect(timeline.getRoomEventsAround).not.toHaveBeenCalled();
+    expect(timeline.getThreadEvents).not.toHaveBeenCalled();
+    expect(timeline.getThreadEventsAround).not.toHaveBeenCalled();
+    store.dispose();
+  });
+
+  it('caches an absent preview without adding a timeline row', async () => {
+    const timeline = fakeTimelineAPI();
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
+    await settle();
+    await store.ensureEvent('missing');
+    await store.ensureEvent('missing');
+    expect(store.getEventById('missing')).toBeNull();
+    expect(store.events).toEqual([]);
+    expect(timeline.getMessage).toHaveBeenCalledOnce();
+    store.dispose();
+  });
+
+  describe.each([Code.NotFound, Code.PermissionDenied])('unavailable preview (%s)', (code) => {
+    it('caches an unavailable preview without logging and fetches again after reset', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const target = threadMessageEvent('target', 'root');
+      const getMessage = vi
+        .fn<RoomTimelineAPI['getMessage']>()
+        .mockRejectedValue(new ConnectError('Unavailable target', code));
+      const store = new MessagesStore(
+        new FakeQueryClient() as unknown as ServerConnection,
+        () => null,
+        { roomId: 'room-1' },
+        fakeTimelineAPI({ getMessage })
+      );
+      try {
+        await settle();
+        await Promise.all([store.ensureEvent('target'), store.ensureEvent('target')]);
+        await store.ensureEvent('target');
+
+        expect(getMessage).toHaveBeenCalledOnce();
+        expect(store.getEventById('target')).toBeNull();
+        expect(store.events).toEqual([]);
+        expect(errorSpy).not.toHaveBeenCalled();
+
+        store.resetProjectionState();
+        getMessage.mockResolvedValue(target);
+        await store.ensureEvent('target');
+
+        expect(getMessage).toHaveBeenCalledTimes(2);
+        expect(store.getEventById('target')).toEqual(target);
+        expect(store.events).toEqual([]);
+      } finally {
+        store.dispose();
+        errorSpy.mockRestore();
+      }
+    });
+
+    it.each(['reset', 'revocation', 'replacement'] as const)(
+      'discards an unavailable preview response after %s',
+      async (boundary) => {
+        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const pendingRead = deferred<TimelineEventView | null>();
+        const target = threadMessageEvent('target', 'root');
+        const getMessage = vi
+          .fn<RoomTimelineAPI['getMessage']>()
+          .mockImplementationOnce(() => pendingRead.promise)
+          .mockResolvedValue(target);
+        const store = new MessagesStore(
+          new FakeQueryClient() as unknown as ServerConnection,
+          () => null,
+          { roomId: 'room-1' },
+          fakeTimelineAPI({ getMessage })
+        );
+        try {
+          await settle();
+          const loading = store.ensureEvent('target');
+          if (boundary === 'revocation') store.clearForAccessRevocation();
+          else store.resetProjectionState();
+          if (boundary === 'replacement') await store.ensureEvent('target');
+
+          pendingRead.reject(new ConnectError('Unavailable target', code));
+          await loading;
+
+          expect(errorSpy).not.toHaveBeenCalled();
+          if (boundary === 'replacement') {
+            expect(store.getEventById('target')).toEqual(target);
+          } else {
+            expect(store.getEventById('target')).toBeUndefined();
+            if (boundary === 'revocation') {
+              expect(store.ensureEvent('target')).toBeUndefined();
+              expect(getMessage).toHaveBeenCalledOnce();
+              store.restoreAfterAccessGrant();
+            }
+            await store.ensureEvent('target');
+            expect(store.getEventById('target')).toEqual(target);
+          }
+          expect(getMessage).toHaveBeenCalledTimes(2);
+        } finally {
+          store.dispose();
+          errorSpy.mockRestore();
+        }
+      }
+    );
+  });
+
   it('deduplicates concurrent off-window event fetches', async () => {
     const target = threadMessageEvent('target');
     const fake = new FakeQueryClient([
@@ -1945,14 +2103,14 @@ describe('MessagesStore — room lifecycle ownership', () => {
   });
 
   it('rejects an in-flight preview from before reset without losing its replacement request', async () => {
-    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
-    const staleRead = deferred<AroundPage>();
-    const replacementRead = deferred<AroundPage>();
-    const getRoomEventsAround = vi
-      .fn<RoomTimelineAPI['getRoomEventsAround']>()
+    type PreviewMessage = Awaited<ReturnType<RoomTimelineAPI['getMessage']>>;
+    const staleRead = deferred<PreviewMessage>();
+    const replacementRead = deferred<PreviewMessage>();
+    const getMessage = vi
+      .fn<RoomTimelineAPI['getMessage']>()
       .mockImplementationOnce(() => staleRead.promise)
       .mockImplementationOnce(() => replacementRead.promise);
-    const timeline = fakeTimelineAPI({ getRoomEventsAround });
+    const timeline = fakeTimelineAPI({ getMessage });
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
@@ -1964,28 +2122,24 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const stale = store.ensureEvent('preview');
     store.resetProjectionState();
     const replacement = store.ensureEvent('preview');
-    staleRead.resolve(pageFromEvent(threadMessageEvent('preview')));
+    staleRead.resolve(threadMessageEvent('preview'));
     await stale;
 
     expect(store.getEventById('preview')).toBeUndefined();
     expect(store.ensureEvent('preview')).toBe(replacement);
 
-    replacementRead.resolve(
-      pageFromEvent({ ...threadMessageEvent('preview'), actorId: 'current' })
-    );
+    replacementRead.resolve({ ...threadMessageEvent('preview'), actorId: 'current' });
     await replacement;
     expect(store.getEventById('preview')).toMatchObject({ id: 'preview', actorId: 'current' });
-    expect(getRoomEventsAround).toHaveBeenCalledTimes(2);
+    expect(getMessage).toHaveBeenCalledTimes(2);
     store.dispose();
   });
 
   it('rejects an in-flight preview after access revocation and blocks new preview reads', async () => {
-    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
-    const revokedRead = deferred<AroundPage>();
-    const getRoomEventsAround = vi.fn<RoomTimelineAPI['getRoomEventsAround']>(
-      () => revokedRead.promise
-    );
-    const timeline = fakeTimelineAPI({ getRoomEventsAround });
+    type PreviewMessage = Awaited<ReturnType<RoomTimelineAPI['getMessage']>>;
+    const revokedRead = deferred<PreviewMessage>();
+    const getMessage = vi.fn<RoomTimelineAPI['getMessage']>(() => revokedRead.promise);
+    const timeline = fakeTimelineAPI({ getMessage });
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
@@ -1997,19 +2151,19 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const loading = store.ensureEvent('preview');
     store.clearForAccessRevocation();
     expect(store.ensureEvent('another-preview')).toBeUndefined();
-    revokedRead.resolve(pageFromEvent(threadMessageEvent('preview')));
+    revokedRead.resolve(threadMessageEvent('preview'));
     await loading;
 
     expect(store.getEventById('preview')).toBeUndefined();
-    expect(getRoomEventsAround).toHaveBeenCalledOnce();
+    expect(getMessage).toHaveBeenCalledOnce();
     store.dispose();
   });
 
   it('rejects an in-flight preview after its message is deleted', async () => {
-    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
-    const pendingRead = deferred<AroundPage>();
+    type PreviewMessage = Awaited<ReturnType<RoomTimelineAPI['getMessage']>>;
+    const pendingRead = deferred<PreviewMessage>();
     const timeline = fakeTimelineAPI({
-      getRoomEventsAround: vi.fn(() => pendingRead.promise)
+      getMessage: vi.fn(() => pendingRead.promise)
     });
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
@@ -2021,7 +2175,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
 
     const loading = store.ensureEvent('preview');
     store.upsertRoomProjectionEvent('room-1', deletedTimelineEvent('preview'), undefined);
-    pendingRead.resolve(pageFromEvent(threadMessageEvent('preview')));
+    pendingRead.resolve(threadMessageEvent('preview'));
     await loading;
 
     expect(store.getEventById('preview')).toBeUndefined();
@@ -2062,8 +2216,8 @@ describe('MessagesStore — room lifecycle ownership', () => {
       event: { ...threadMessageEvent('echo').event, echoOfEventId: 'original' }
     };
     const timeline = fakeTimelineAPI({
-      getRoomEventsAround: vi.fn(async ({ eventId }) =>
-        pageFromEvent(eventId === 'echo' ? linkedEcho : threadMessageEvent(eventId))
+      getMessage: vi.fn(async ({ eventId }) =>
+        eventId === 'echo' ? linkedEcho : threadMessageEvent(eventId)
       )
     });
     const store = new MessagesStore(
@@ -2594,7 +2748,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
   it('patches and rolls back optimistic reactions in the preview cache', async () => {
     const fake = new FakeQueryClient();
     const timeline = fakeTimelineAPI({
-      getRoomEventsAround: vi.fn(async () => pageFromEvent(messageWithReaction('preview', 'heart')))
+      getMessage: vi.fn(async () => messageWithReaction('preview', 'heart'))
     });
     const store = new MessagesStore(
       fake as unknown as ServerConnection,

@@ -14,6 +14,7 @@
     ontouchmove,
     ontouchcancel,
     bodyElement = $bindable(),
+    prelude,
     afterBody,
     actions
   }: {
@@ -29,6 +30,7 @@
     ontouchmove?: (event: TouchEvent) => void;
     ontouchcancel?: (event: TouchEvent) => void;
     bodyElement?: HTMLElement;
+    prelude?: Snippet;
     afterBody?: Snippet;
     actions?: Snippet;
   } = $props();
@@ -48,6 +50,7 @@
   {ontouchmove}
   {ontouchcancel}
 >
+  {@render prelude?.()}
   <span data-testid="message-body" bind:this={bodyElement}>{body}</span>
   {#if echoedToChannel}
     <span class="echoed-to-channel-marker" role="img" aria-label="Also sent to channel"></span>
