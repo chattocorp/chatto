@@ -1,4 +1,5 @@
 import MarkdownIt from 'markdown-it';
+import footnotePlugin from 'markdown-it-footnote';
 import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
 import type StateCore from 'markdown-it/lib/rules_core/state_core.mjs';
 import type StateBlock from 'markdown-it/lib/rules_block/state_block.mjs';
@@ -457,6 +458,18 @@ function initialize(): void {
 
   // Disable unwanted syntax - only keep what we explicitly want
   md.disable([...DISABLED_RULES]);
+
+  // Named footnotes share the normal block and inline formatting rules.
+  // Keep Pandoc's inline-note extension disabled so renderInlineMarkdown
+  // cannot emit references without a corresponding footnote section.
+  md.use(footnotePlugin);
+  md.disable('footnote_inline');
+  const renderFootnoteOpen = md.renderer.rules.footnote_open!;
+  md.renderer.rules.footnote_open = (tokens, idx, options, env, self) =>
+    renderFootnoteOpen(tokens, idx, options, env, self).replace(
+      'class="footnote-item"',
+      'class="footnote-item" tabindex="-1"'
+    );
 
   // Restrict `*` and `_` emphasis to word boundaries. Prevents intraword
   // emphasis (e.g. `snake_case`, `foo*bar*baz`) and emphasis between

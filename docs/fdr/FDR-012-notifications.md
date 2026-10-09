@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-04
+**Last reviewed:** 2026-10-09
 
 ## Overview
 
@@ -47,6 +47,9 @@ targets, unread counts, read state, or deletion semantics.
   using the preferred time zone of the account on each server.
 - Rows use concise, full localized sentences without message previews.
   Reaction rows show the emoji that were given.
+- Below 768px viewport width, the list fills the page width without a panel
+  frame. Summaries and metadata wrap so the activity remains readable. This
+  layout applies to both touch and mouse input; wider windows keep the panel.
 - Opening a row navigates to the selected occurrence's exact room, thread, and
   event. The occurrence is marked Read only after the target is visible and
   highlighted. An interrupted load keeps the selected target until navigation

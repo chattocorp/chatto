@@ -22,6 +22,10 @@ Server and CLI Go Components:
 - Buf Protovalidate and generated protocol buffer tooling
   (https://protovalidate.com/, https://buf.build/) - Apache License 2.0
 - caarlos0/env (https://github.com/caarlos0/env) - MIT License
+- Charmbracelet Bubble Tea terminal framework (https://github.com/charmbracelet/bubbletea) - MIT License
+- Charmbracelet Bubbles terminal components (https://github.com/charmbracelet/bubbles) - MIT License
+- Charmbracelet Huh terminal forms (https://github.com/charmbracelet/huh) - MIT License
+- Charmbracelet Lip Gloss terminal styling (https://github.com/charmbracelet/lipgloss) - MIT License
 - Charmbracelet log (https://github.com/charmbracelet/log) - MIT License
 - ConnectRPC, Connect Authn, Connect validation, and Connect gRPC reflection packages
   (https://connectrpc.com/) - Apache License 2.0
@@ -94,6 +98,7 @@ Frontend, Examples, and Documentation Components:
 - lowlight (https://github.com/wooorm/lowlight) - MIT License
 - machina (https://github.com/ifandelse/machina.js) - MIT License
 - markdown-it (https://github.com/markdown-it/markdown-it) - MIT License
+- markdown-it-footnote (https://github.com/markdown-it/markdown-it-footnote) - MIT License
 - node-semver (https://github.com/npm/node-semver) - ISC License
 - Parcel watcher (https://github.com/parcel-bundler/watcher) - MIT License
 - Undici, used by the Runling bot for address-pinned web requests (https://github.com/nodejs/undici) - MIT License

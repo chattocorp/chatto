@@ -2,7 +2,9 @@
 @component
 
 The standard durable content frame. It provides a title band and an inset work
-plane for forms, summaries, record tables, and dense matrices.
+plane for forms, summaries, record tables, and dense matrices. Inside
+PaneContent, it becomes a flat section below 768px. Standalone panels keep
+their frames.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -16,7 +18,8 @@ plane for forms, summaries, record tables, and dense matrices.
     children,
     actions,
     noPadding = false,
-    fillHeight = false
+    fillHeight = false,
+    titleHiddenOnNarrow = false
   }: {
     title?: string;
     /** Optional rich title content, with title kept as a plain-text fallback. */
@@ -29,10 +32,13 @@ plane for forms, summaries, record tables, and dense matrices.
     noPadding?: boolean;
     /** Let a dense child, such as a matrix, fill a flex page's remaining height. */
     fillHeight?: boolean;
+    /** Visually hide the title below 768px while retaining its accessible heading. */
+    titleHiddenOnNarrow?: boolean;
   } = $props();
 </script>
 
 <div
+  data-panel
   class={[
     'overflow-hidden panel-shell panel-shell-raised',
     fillHeight ? 'flex min-h-0 flex-1 flex-col' : 'shrink-0'
@@ -40,10 +46,18 @@ plane for forms, summaries, record tables, and dense matrices.
 >
   {#if title}
     <div
-      class="flex flex-col items-stretch gap-3 panel-header px-6 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+      class={[
+        'flex flex-col items-stretch gap-3 panel-header px-6 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4',
+        titleHiddenOnNarrow && !subtitle && !actions && 'max-md:py-0'
+      ]}
     >
       <div class="min-w-0">
-        <h2 class="flex items-center gap-2 text-base font-semibold text-text-top">
+        <h2
+          class={[
+            'flex items-center gap-2 text-base font-semibold text-text-top',
+            titleHiddenOnNarrow && 'max-md:sr-only'
+          ]}
+        >
           {#if icon}
             <span aria-hidden="true" class={icon}></span>
           {/if}
@@ -70,6 +84,7 @@ plane for forms, summaries, record tables, and dense matrices.
     </div>
   {/if}
   <div
+    data-panel-frame
     class={[title || noPadding ? 'px-1 pb-1' : 'p-1', fillHeight && 'flex min-h-0 flex-1 flex-col']}
   >
     <div

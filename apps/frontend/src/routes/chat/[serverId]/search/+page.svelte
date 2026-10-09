@@ -84,7 +84,7 @@ in the active server store so browser Back can restore the current search.
   <PaneHeader title={m('search.title')} />
 
   <PaneContent fillHeight>
-    <div class="flex min-h-0 flex-1 flex-col gap-6">
+    <div class="flex min-h-0 flex-1 flex-col md:gap-6">
       <SearchAvailability
         state={store.status.state}
         checking={store.statusLoading && !store.statusLoaded}
@@ -95,9 +95,9 @@ in the active server store so browser Back can restore the current search.
         {#snippet frame(content)}
           <Panel>{@render content()}</Panel>
         {/snippet}
-        <Panel title={m('search.query.label')}>
+        <Panel title={m('search.query.label')} titleHiddenOnNarrow>
           <form class="flex flex-wrap items-stretch gap-2" onsubmit={submit}>
-            <div class="min-w-64 flex-1">
+            <div class="min-w-0 basis-full md:min-w-64 md:flex-1">
               <TextInput
                 label={m('search.query.label')}
                 labelHidden

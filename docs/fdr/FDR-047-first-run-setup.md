@@ -1,7 +1,7 @@
 # FDR-047: First-Run Setup
 
 **Status:** Active
-**Last reviewed:** 2026-09-10
+**Last reviewed:** 2026-10-09
 
 ## Summary
 
@@ -11,6 +11,47 @@ a username, display name, and password. Email delivery is not required. Existing
 default rooms remain in place. After setup, the installer signs in normally.
 
 ## Decisions
+
+### Terminal setup prepares the configuration
+
+`chatto init --interactive` opens a fullscreen wizard for the listen port,
+public URL, access policy, optional OpenID Connect SSO, embedded or external
+NATS, search, local LiveKit, and optional SMTP settings. The output path comes from `--config`
+or defaults to `chatto.toml`. An existing target file is rejected before the
+wizard opens. Existing feature flags set the initial choices. The
+welcome page explains the setup process before the first question. The
+layout uses the terminal height, keeps navigation in a fixed footer, and
+resizes the form viewport with the terminal. In a terminal smaller than
+48 columns or 16 rows, setup shows resize guidance and pauses input.
+The operator can use vertical arrows or Tab/Shift+Tab to move between questions,
+and horizontal arrows to change choices. Each page has an explicit Continue
+button. External NATS connection and authentication pages appear only when
+external NATS is selected. Email pages appear only when SMTP is enabled.
+The Server page groups the listen port and public URL, with guidance about
+HTTPS reverse proxies. The Access page controls local registration, password
+login, and SSO. Optional SSO pages collect the issuer URL, button label, client
+credentials, and account-creation policy. They show the redirect URI to register
+with the provider. SSO account creation is separate from local registration.
+The final review lists the settings and files to create.
+Moving down on the final question does not submit the form.
+Cancellation creates no files. Existing files are never replaced.
+
+The form masks SSO, SMTP, and NATS secrets and omits credentials from the review. It
+makes no external connections. It explains that the search index contains
+decrypted text, that call participants connect to LiveKit, and that the email
+provider receives recipient addresses and email content. It also explains that
+the SSO provider receives user IP addresses and sign-in requests, and that Chatto
+receives provider identities.
+
+The terminal flow writes private configuration files and shows startup
+commands. Server naming and owner-account creation remain in the browser
+wizard. First-run owner setup requires password login. If the operator selects
+SSO-only login, the review and startup instructions explain how to temporarily
+enable password login, create the owner, link SSO, and disable password login.
+The form rejects a configuration with no login method. This keeps account creation in the existing atomic setup operation.
+Plain `chatto init` remains suitable for scripts and does not ask questions.
+The wizard does not edit existing files: the configuration serializer cannot
+preserve their comments and settings outside the wizard's scope.
 
 ### Setup is enabled by default
 

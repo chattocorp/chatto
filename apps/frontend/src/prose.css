@@ -248,6 +248,33 @@
     margin: 1.5em 0;
   }
 
+  /* Footnotes retain the shared ordered-list layout and native scrolling. */
+  & hr.footnotes-sep {
+    margin-block: 0.75em;
+  }
+
+  & .footnotes {
+    @apply text-muted;
+    font-size: 0.875em;
+  }
+
+  & .footnote-ref > a,
+  & a.footnote-backref {
+    @apply text-muted no-underline;
+
+    &:hover {
+      color: var(--color-link-hover);
+    }
+  }
+
+  & .footnote-item > * + * {
+    margin-top: 0.5em;
+  }
+
+  & .footnote-item + .footnote-item {
+    margin-top: 0.75em;
+  }
+
   /* Strong and emphasis */
   & strong {
     font-weight: 600;

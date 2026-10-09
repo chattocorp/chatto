@@ -248,4 +248,5 @@ Persisted-event and recovery changes require relevant malformed-event,
 historical replay or restart, OCC conflict, enumeration-resistance, and
 PII/recovery-material leakage tests. Regenerate and commit derived protobuf or
 templ output after changing its source. Review visible Authling browser changes
-with Chrome DevTools MCP in addition to running the relevant automated tests.
+with an available browser tool suited to the task, such as Playwright MCP or
+Chrome DevTools MCP, in addition to running the relevant automated tests.

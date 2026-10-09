@@ -19,6 +19,7 @@
     "open_link": "打开链接",
     "remove_link": "移除链接",
     "code_language": "代码语言",
+    "footnote_reference": "转到脚注 {number}",
     "placeholder": "输入消息...",
     "editing_placeholder": "编辑消息...",
     "drop_files_title": "将文件拖放到此处",
@@ -54,6 +55,7 @@
       "ordered_list": "编号列表",
       "blockquote": "引用",
       "code_block": "代码块",
+      "footnote": "插入脚注",
       "outdent": "减少缩进",
       "indent": "增加缩进"
     },

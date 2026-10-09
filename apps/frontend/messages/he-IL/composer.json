@@ -19,6 +19,7 @@
     "open_link": "פתח קישור",
     "remove_link": "הסר קישור",
     "code_language": "שפת קוד",
+    "footnote_reference": "עבור להערת שוליים {number}",
     "placeholder": "הקלד הודעה...",
     "editing_placeholder": "עריכת הודעה...",
     "drop_files_title": "שחרר קבצים כאן",
@@ -54,6 +55,7 @@
       "ordered_list": "רשימה ממוספרת",
       "blockquote": "ציטוט",
       "code_block": "בלוק קוד",
+      "footnote": "הוסף הערת שוליים",
       "outdent": "הקטנת הזחה",
       "indent": "הגדלת הזחה"
     },

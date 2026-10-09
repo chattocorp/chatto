@@ -19,6 +19,7 @@
     "open_link": "Link openen",
     "remove_link": "Link verwijderen",
     "code_language": "Codetaal",
+    "footnote_reference": "Ga naar voetnoot {number}",
     "placeholder": "Typ een bericht...",
     "editing_placeholder": "Bericht bewerken...",
     "drop_files_title": "Zet bestanden hier neer",
@@ -54,6 +55,7 @@
       "ordered_list": "Genummerde lijst",
       "blockquote": "Citaat",
       "code_block": "Codeblok",
+      "footnote": "Voetnoot invoegen",
       "outdent": "Minder inspringen",
       "indent": "Meer inspringen"
     },

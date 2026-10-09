@@ -16,7 +16,9 @@ const routes = [
     // growth and build variation; eager-loading guards below remain independent.
     // Theme customisation (surface tones, palette fades, first-paint colours)
     // added about 3.6 KiB of global CSS and preference code.
-    budgetKiB: 337,
+    // Shared narrow-page panel styles add a small global CSS payload.
+    // CI measured 337.1 KiB; retain allowance for build variation.
+    budgetKiB: 337.5,
     components: ['src/routes/+layout.svelte', 'src/routes/login/+page.svelte']
   },
   {
@@ -24,7 +26,8 @@ const routes = [
     // CI baseline: 340.3 KiB, with roughly 10% headroom. Theme customisation
     // added about 3.7 KiB of global CSS and preference code.
     // Server gutter ordering adds about 1.7 KiB; drag code stays lazy.
-    budgetKiB: 380,
+    // Footnote layout and local navigation add about 0.6 KiB in CI.
+    budgetKiB: 381,
     components: [
       'src/routes/+layout.svelte',
       'src/routes/chat/+layout.svelte',

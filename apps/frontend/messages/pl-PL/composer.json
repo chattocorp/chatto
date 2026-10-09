@@ -19,6 +19,7 @@
     "open_link": "Otwórz link",
     "remove_link": "Usuń link",
     "code_language": "Język kodu",
+    "footnote_reference": "Przejdź do przypisu {number}",
     "placeholder": "Wpisz wiadomość...",
     "editing_placeholder": "Edytowanie wiadomości...",
     "drop_files_title": "Upuść pliki tutaj",
@@ -54,6 +55,7 @@
       "ordered_list": "Lista numerowana",
       "blockquote": "Cytat",
       "code_block": "Blok kodu",
+      "footnote": "Wstaw przypis",
       "outdent": "Zmniejsz wcięcie",
       "indent": "Zwiększ wcięcie"
     },
