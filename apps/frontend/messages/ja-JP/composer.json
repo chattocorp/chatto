@@ -19,6 +19,7 @@
     "open_link": "リンクを開く",
     "remove_link": "リンクを削除",
     "code_language": "コード言語",
+    "footnote_reference": "脚注 {number} に移動",
     "placeholder": "メッセージを入力してください...",
     "editing_placeholder": "メッセージを編集中...",
     "drop_files_title": "ここにファイルをドロップします",
@@ -56,6 +57,7 @@
       "ordered_list": "番号付きリスト",
       "blockquote": "引用",
       "code_block": "コードブロック",
+      "footnote": "脚注を挿入",
       "outdent": "インデントを減らす",
       "indent": "インデントを増やす"
     },

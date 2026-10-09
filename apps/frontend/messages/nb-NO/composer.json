@@ -19,6 +19,7 @@
     "open_link": "Åpne lenken",
     "remove_link": "Fjern lenken",
     "code_language": "Kodespråk",
+    "footnote_reference": "Gå til fotnote {number}",
     "placeholder": "Skriv inn en melding...",
     "editing_placeholder": "Redigerer melding...",
     "drop_files_title": "Slipp filer her",
@@ -56,6 +57,7 @@
       "ordered_list": "Nummerert liste",
       "blockquote": "Sitat",
       "code_block": "Kodeblokk",
+      "footnote": "Sett inn fotnote",
       "outdent": "Reduser innrykk",
       "indent": "Øk innrykk"
     },

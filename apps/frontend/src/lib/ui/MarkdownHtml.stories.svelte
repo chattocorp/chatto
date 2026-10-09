@@ -26,6 +26,13 @@
     `Short list\n\n${shortOrderedList}\n\nLong list\n\n${longOrderedList}`
   );
   const codeHtml = renderMarkdown('```js\nconst answer = 42;\n```\n\n    Indented code');
+  const footnoteHtml =
+    renderMarkdown(`The release is ready[^checks]. Read the deployment note[^deploy]. The checks are complete[^checks].
+
+[^checks]: **All checks passed**, including the browser tests.
+[^deploy]: Deploy after the backup completes.
+
+    Keep the previous backup until the final check is complete.`);
 </script>
 
 <Story name="GFM table" asChild>
@@ -37,6 +44,23 @@
         <MarkdownHtml {html} />
       {/await}
     </div>
+  </div>
+</Story>
+
+<Story name="Footnotes" asChild>
+  <div class="flex max-w-3xl flex-wrap gap-4">
+    {#await footnoteHtml}
+      <span class="text-muted">Rendering footnotes…</span>
+    {:then html}
+      {#each ['Message', 'Markdown attachment'] as label (label)}
+        <div class="w-80 rounded-md border border-border bg-surface p-3">
+          <p class="mb-3 font-semibold">{label}</p>
+          <div class="prose max-w-none min-w-0">
+            <MarkdownHtml {html} />
+          </div>
+        </div>
+      {/each}
+    {/await}
   </div>
 </Story>
 

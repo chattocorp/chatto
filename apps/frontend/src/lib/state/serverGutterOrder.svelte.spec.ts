@@ -21,6 +21,24 @@ describe('ServerGutterOrder', () => {
     expect(new ServerGutterOrder().ordered(['a', 'b'])).toEqual(['a', 'b']);
   });
 
+  it('keeps the formerly pinned origin first until a complete order is saved', () => {
+    localStorage.setItem(key, JSON.stringify(['b', 'a']));
+    const order = new ServerGutterOrder();
+    expect(order.ordered(['a', 'origin', 'b'], 'origin')).toEqual(['origin', 'b', 'a']);
+    order.move('origin', 1, ['a', 'origin', 'b'], 'origin');
+    expect(JSON.parse(localStorage.getItem(key)!)).toEqual(['b', 'origin', 'a']);
+    expect(new ServerGutterOrder().ordered(['a', 'origin', 'b'], 'origin')).toEqual([
+      'b',
+      'origin',
+      'a'
+    ]);
+  });
+
+  it('does not insert an unknown origin into a standalone frontend order', () => {
+    localStorage.setItem(key, JSON.stringify(['b', 'a']));
+    expect(new ServerGutterOrder().ordered(['a', 'b'], 'origin')).toEqual(['b', 'a']);
+  });
+
   it('persists menu moves and keeps boundary moves unchanged', () => {
     const order = new ServerGutterOrder();
     order.move('b', -1, ['a', 'b', 'c']);
@@ -65,7 +83,7 @@ describe('ServerGutterOrder', () => {
     expect(order.ordered(['a', 'b'])).toEqual(['b', 'a']);
   });
 
-  it('clears the remote order when another tab clears storage', () => {
+  it('clears the server order when another tab clears storage', () => {
     const order = new ServerGutterOrder();
     order.save(['b', 'a']);
     stop = order.listen();

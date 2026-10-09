@@ -16,9 +16,9 @@ Rooms support real-time voice conversations with optional camera video and scree
   warning. Recovery removes the warning and closes its explanation.
 
 - Open a participant's user context menu with the three-dot button or a
-  right-click on their card outside the video. Right-clicking a camera or
-  screen-share video opens the browser's native video menu, so browser media
-  features remain available. Left-clicking the video opens the user menu.
+  right-click anywhere on their card, including camera and screen-share video.
+  This also works on secondary stage tiles. Left-clicking sidebar or featured
+  video opens the user menu; left-clicking a secondary stage tile pins it.
   Touch users can long-press the card, including its video. For remote
   participants in the active call, participant and camera card menus include
   **Voice volume** alongside profile actions. This control is also available
@@ -138,23 +138,26 @@ Rooms support real-time voice conversations with optional camera video and scree
 - The pane header shows maximize and fullscreen controls only while the viewer is connected to that room's call. An active call alone does not show these controls.
 - On desktop, an active call sidebar can be maximized from the pane header. Maximized mode keeps the app's left navigation sidebars visible, hides the room timeline/content area, and turns the call panel into a stage layout.
 - The stage layout features one source in the largest 16:9 card that fits the stage, so very wide or tall screens do not crop camera feeds or stretch the card. A remote screen share comes first, then the viewer's own screen share, then the remote active speaker, then a remote camera, then the viewer's own camera. The active speaker counts only while at least one camera is on, and is featured with or without a camera of their own. All other screen shares, cameras, and participants show as equal tiles. The tiles go in one row below the featured source, which scrolls horizontally when the tiles do not fit, or beside it when that gives the featured source a larger card, as on ultrawide screens. Beside the featured source, the tiles fill the remaining width in a near-square grid that starts at the top edge of the featured card.
-- The viewer can select one of these tiles to pin it to the featured area. The featured card then shows an unpin button. A pin is local to the viewer and lasts for the session. When the pinned source ends or the viewer leaves the call, the pin clears and the stage selects a source automatically again.
+- The viewer can select one of these tiles to pin it to the featured area. The featured card then offers an unpin action. A pin is local to the viewer and lasts for the session. When the pinned source ends or the viewer leaves the call, the pin clears and the stage selects a source automatically again.
 - When no participant shares a screen or a camera and nothing is pinned, the stage layout shows all participants as equal tiles in a balanced grid.
 - The active speaker comes from LiveKit's server-side active speaker updates. The viewer never counts as the active speaker. The last speaker stays the active speaker during silence. A new speaker replaces the current one only after staying the loudest remote speaker for 3 seconds without interruption, so short interjections do not move the stage. The first speaker, and the next speaker after the current one leaves, apply at once.
 - An active call pane can be placed into browser fullscreen from the pane header, whether it is in the normal sidebar width or maximized across the chat route. This is separate from maximizing the pane inside the chat route. Fullscreen always uses the stage layout and hides the pane header and the resize handle. The call controls then include an exit-fullscreen button. Fullscreen ends when the call controls leave the pane, for example when the viewer leaves the call or opens a profile from the call user menu.
-- Camera and screen-share tiles expose a compact fullscreen button in their header. In the stage layout, only the featured source has these media buttons; the other tiles show mute and menu controls, and the viewer pins a tile to get its media buttons. Joined participant cards expose a compact mute button directly in the header; remote cards keep volume controls in their three-dot menu. Voice cards use the same height for local and remote participants. In a wide sidebar with a screen share or multiple video feeds, participant cards use equal-width columns; screen shares span the full row. Narrow sidebars use one column. Fullscreen is local to the viewer's browser. Remote participant mute is also local to the viewer and does not change server state or other participants' audio. The local participant card controls the viewer's own microphone.
+- Fullscreen applies to the complete call pane. Individual camera and screen-share tiles use picture-in-picture for a separate video window. Joined participant cards offer mute. Cards narrower than 20rem put unpin and mute in their three-dot menu. Wider cards show these actions and picture-in-picture in their header. The card width selects the layout independently of the window width. Names, usernames, connection warnings, and mute status stay visible. Mute keeps the menu open; unpin closes it. Remote cards keep volume controls in their menu. Voice cards use the same height for local and remote participants. In a wide sidebar with a screen share or multiple video feeds, participant cards use equal-width columns; screen shares span the full row. Narrow sidebars use one column. Remote participant mute is local to the viewer and does not change server state or other participants' audio. The local participant card controls the viewer's own microphone.
 - Call controls form one joined pill with separators at the bottom of the call pane. Its height and rounded corners match the composer and other bottom-row controls. Participant content scrolls above it.
-- Camera and screen-share tiles show a picture-in-picture toggle beside
-  fullscreen when the browser supports requests from the page. The toggle is
-  available in the sidebar layout and on the featured stage source once video is ready. It opens or closes
+- Camera and screen-share tile menus include **Picture-in-picture** when the
+  browser supports requests from the page, including secondary stage tiles.
+  Wide cards also show the toggle in the sidebar and featured stage headers.
+  Both controls show the selected video's active state and become available
+  once video is ready. They open or close
   that tile's video; selecting another tile switches the picture-in-picture video.
   Closing the browser's picture-in-picture window resets the toggle. Closing
   the sidebar or switching rooms or servers keeps the selected video in
   picture-in-picture while the call and stream remain active. Ending the call
   or removing the selected stream closes its picture-in-picture window.
-  Failed requests show an error
-  without interrupting the call. Browsers without this toggle retain their native
-  video menu, which can offer picture-in-picture independently.
+  A successful menu toggle closes that menu. Resizing a card or closing its
+  menu keeps picture-in-picture active. Failed requests show an error without
+  interrupting the call. Browsers without page-controlled picture-in-picture
+  still show the user menu, with this action omitted.
 - While the viewer is in a call, a compact joined pill above the lower-left current-user card provides the active call room link plus mute, camera, screen-share, and leave controls. It matches the user card width and remains visible when the call sidebar is open. Both toolbars place the microphone before the camera.
 - While the viewer is connected to a call, supported browsers request a screen wake lock so the display does not automatically dim or lock. The lock is released when the call ends and requested again when the app returns to the foreground. Browsers that do not support or grant wake locks continue the call without this enhancement; a wake lock does not prevent mobile operating systems from suspending an app that the user backgrounds or manually locks.
 - Other rooms with an active call replace the normal room/DM icon with the same accent phone icon and animated pulse twin used by the call tab so members know there's a conversation happening; clicking that icon opens the room with the call tab selected.
@@ -235,8 +238,8 @@ volume measurement. Only users who joined the call receive this feedback.
 
 ### 8. Fullscreen and local mute are viewer-local controls
 
-**Decision:** Fullscreen controls use the browser Fullscreen API on either an individual media tile or the desktop call pane. Local mute changes only this viewer's local audio: remote participants are muted through LiveKit remote participant volume, and local participant tiles reuse the viewer's microphone mute.
-**Why:** Fullscreen and "I don't want to hear this feed/user right now" are personal presentation choices. They should not create durable call facts, alter room state, or surprise other participants.
+**Decision:** The fullscreen control uses the browser Fullscreen API on the complete call pane. Individual videos have a picture-in-picture control. Local mute changes only this viewer's local audio: remote participants are muted through LiveKit remote participant volume, and local participant tiles reuse the viewer's microphone mute.
+**Why:** One fullscreen mode avoids conflicts between an individual tile and the complete call pane. Fullscreen and local mute are personal presentation choices. They should not create durable call facts, alter room state, or surprise other participants.
 **Tradeoff:** Local mute is intentionally not visible to other participants and does not change the remote participant's published mute state. Users need to distinguish it from the normal microphone mute indicator.
 
 ### 9. Test endpoints bypass webhook validation in build-tag mode

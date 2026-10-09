@@ -19,6 +19,7 @@
     "open_link": "Открыть ссылку",
     "remove_link": "Удалить ссылку",
     "code_language": "Язык кода",
+    "footnote_reference": "Перейти к сноске {number}",
     "placeholder": "Введите сообщение...",
     "editing_placeholder": "Редактирование сообщения...",
     "drop_files_title": "Перетащите сюда файлы",
@@ -56,6 +57,7 @@
       "ordered_list": "Нумерованный список",
       "blockquote": "Цитата",
       "code_block": "Кодовый блок",
+      "footnote": "Вставить сноску",
       "outdent": "Уменьшить отступ",
       "indent": "Увеличить отступ"
     },

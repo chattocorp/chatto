@@ -19,6 +19,7 @@
     "open_link": "Abrir enlace",
     "remove_link": "Eliminar enlace",
     "code_language": "Lenguaje de código",
+    "footnote_reference": "Ir a la nota al pie {number}",
     "placeholder": "Escribe un mensaje...",
     "editing_placeholder": "Editando mensaje...",
     "drop_files_title": "Suelta archivos aquí",
@@ -56,6 +57,7 @@
       "ordered_list": "Lista numerada",
       "blockquote": "Cita",
       "code_block": "Bloque de código",
+      "footnote": "Insertar nota al pie",
       "outdent": "Reducir sangría",
       "indent": "Aumentar sangría"
     },

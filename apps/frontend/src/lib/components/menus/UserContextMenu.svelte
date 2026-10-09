@@ -19,6 +19,7 @@ keep the compact menu without a navigation action.
 - `banningFromRoom` - Whether the room removal action is currently running
 - `onBanFromRoom` - Callback when "Remove from room" is clicked
 - `onOpenProfile` - Optional callback that opens the full room-sidebar profile
+- `extraActions` - Optional host actions, rendered before profile actions
 - `viewerSettings` - Optional viewer preferences for the user's local-time display
 - `onClose` - Callback to close the popover/sheet
 -->
@@ -48,6 +49,7 @@ keep the compact menu without a navigation action.
   import type { CustomUserStatus } from '@chatto/client/api/userSummary';
   import { m } from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
+  import type { Snippet } from 'svelte';
   import {
     formatMessageTime,
     timeFormatSettingsFor,
@@ -64,6 +66,7 @@ keep the compact menu without a navigation action.
     banningFromRoom = false,
     viewerSettings,
     audioSource = 'voiceVolume',
+    extraActions,
     onSendMessage,
     onBanFromRoom,
     onOpenProfile,
@@ -92,6 +95,8 @@ keep the compact menu without a navigation action.
     viewerSettings?: ViewerTimeSettings | null;
     /** Defaults to microphone controls; screen-share cards select streamVolume. */
     audioSource?: ParticipantVolumeControl;
+    /** Host-owned actions rendered before profile actions, within this menu's context. */
+    extraActions?: Snippet;
     onSendMessage?: () => void;
     onBanFromRoom?: () => void;
     onOpenProfile?: (userId: string) => void;
@@ -220,6 +225,8 @@ keep the compact menu without a navigation action.
     </div>
     <Interval milliseconds={60_000} ontick={() => (now = Date.now())} />
   {/if}
+
+  {@render extraActions?.()}
 
   {#if canSendMessage || onOpenProfile || manageBotHref || adminUserHref || canBanFromRoom}
     <MenuSection>

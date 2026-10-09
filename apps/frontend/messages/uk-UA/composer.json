@@ -19,6 +19,7 @@
     "open_link": "Відкрити посилання",
     "remove_link": "Видалити посилання",
     "code_language": "Мова коду",
+    "footnote_reference": "Перейти до примітки {number}",
     "placeholder": "Введіть повідомлення...",
     "editing_placeholder": "Редагування повідомлення...",
     "drop_files_title": "Перетягніть файли сюди",
@@ -56,6 +57,7 @@
       "ordered_list": "Нумерований список",
       "blockquote": "Цитата",
       "code_block": "Блок коду",
+      "footnote": "Вставити примітку",
       "outdent": "Зменшити відступ",
       "indent": "Збільшити відступ"
     },

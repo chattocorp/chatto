@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "Toimingud kasutajale {name}",
     "picture_in_picture": "Pilt pildis",
     "picture_in_picture_failed": "Pilt pildis režiimi ei saanud muuta.",
     "connection_lost": "Ühendus katkes",
@@ -36,7 +37,6 @@
     "microphone": "Mikrofon",
     "speaker": "Kõlar",
     "camera": "Kaamera",
-    "fullscreen_feed": "Täisekraani voog",
     "fullscreen_call": "Kõne täisekraanil",
     "exit_fullscreen_call": "Välju täisekraaniga kõnest",
     "pin_to_stage": "Kinnita {name} lavale",

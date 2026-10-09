@@ -193,7 +193,11 @@ func (d *neighborhoodDiscovery) refresh(ctx context.Context, sources []string, f
 	if _, err := d.kv.Put(ctx, neighborhoodDirectoryKey, data); err != nil {
 		return fmt.Errorf("store Neighborhood directory: %w", err)
 	}
-	d.logger.Info("Neighborhood discovery completed",
+	logCompleted := d.logger.Info
+	if len(sources) == 0 {
+		logCompleted = d.logger.Debug
+	}
+	logCompleted("Neighborhood discovery completed",
 		"sources", len(sources),
 		"servers", len(directory.GetServers()),
 		"directory_requests", result.DirectoryRequests,

@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "Azioni per {name}",
     "picture_in_picture": "Immagine nell’immagine",
     "picture_in_picture_failed": "Impossibile cambiare la modalità immagine nell’immagine.",
     "connection_lost": "Connessione persa",
@@ -36,7 +37,6 @@
     "microphone": "Microfono",
     "speaker": "Altoparlante",
     "camera": "Fotocamera",
-    "fullscreen_feed": "Alimentazione a schermo intero",
     "fullscreen_call": "Chiamata a schermo intero",
     "exit_fullscreen_call": "Esci dalla chiamata a schermo intero",
     "pin_to_stage": "Fissa {name} sul palco",

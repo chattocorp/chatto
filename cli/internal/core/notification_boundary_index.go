@@ -74,7 +74,6 @@ func newNotificationBoundaryIndex(kv jetstream.KeyValue, logger *log.Logger) *no
 // run watches notification boundary keys until ctx is cancelled.
 func (i *notificationBoundaryIndex) run(ctx context.Context) error {
 	if i.logger != nil {
-		i.logger.Debug("Notification boundary index started")
 		defer i.logger.Debug("Notification boundary index stopped")
 	}
 

@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "Aktionen für {name}",
     "picture_in_picture": "Bild-in-Bild",
     "picture_in_picture_failed": "Der Bild-in-Bild-Modus konnte nicht geändert werden.",
     "connection_lost": "Verbindung verloren",
@@ -36,7 +37,6 @@
     "microphone": "Mikrofon",
     "speaker": "Lautsprecher",
     "camera": "Kamera",
-    "fullscreen_feed": "Feed im Vollbild",
     "fullscreen_call": "Anruf im Vollbild",
     "exit_fullscreen_call": "Anruf-Vollbild verlassen",
     "pin_to_stage": "{name} auf der Bühne anheften",

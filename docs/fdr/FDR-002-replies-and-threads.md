@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-09-23
+**Last reviewed:** 2026-10-09
 
 ## Overview
 
@@ -35,7 +35,7 @@ can configure their Threading Mode. DMs always use Enabled behavior.
 - Clicking the byline transports the user to the referenced message and briefly highlights it.
 - Clicking the avatar or name in the byline opens the user's context menu.
 - If the user selects text inside a message body before choosing Reply or Reply in thread, the target composer inserts that selected plain text as a Markdown blockquote while preserving any existing draft text.
-- **Reply in thread** opens the selected message's thread and sets that message as the reply target. **Open thread** and thread badges only open the thread.
+- On a thread root, **Reply in thread** opens the thread and focuses its composer without setting reply attribution. Selected text is still inserted as a Markdown blockquote. **Open thread** and thread badges only open the thread without focusing the composer. An explicit **Reply** action sets reply attribution.
 - A thread is a sequence of messages starting from a root message and continuing inside a dedicated thread pane. Threads can contain plain messages or reply-attributed messages; both are valid.
 - A root message with an attached thread does not group with adjacent messages
   from the same author. The root and the next message show a full author header.
@@ -49,8 +49,8 @@ can configure their Threading Mode. DMs always use Enabled behavior.
   follow that thread when the recipient has no prior follow state. For a root
   mention, the root message ID identifies the thread for future replies.
 - Every channel room has a Threading Mode:
-  - **Required** — every new root atomically establishes its thread. The room composer keeps **Post as thread** visible, selected, and locked so the policy is explicit without presenting a false choice. The standard **Reply** action and adjacent **Reply in thread** action keep their usual order; both open the root's thread with reply attribution. Inside the thread, **Reply** creates attribution in that thread. The server rejects replies to roots unless they are placed in that root's thread. Automatic root-thread creation needs `message.post`, which also includes reply authority.
-  - **Encouraged** — both flat and threaded conversation remain valid. The standard **Reply** action opens the root's thread with reply attribution, while the adjacent **Reply in thread** action keeps its usual position. **Reply in room** remains available as a secondary expanded-menu action. **Post as thread** starts selected for each new root draft, but the author may turn it off.
+  - **Required** — every new root atomically establishes its thread. The room composer keeps **Post as thread** visible, selected, and locked so the policy is explicit without presenting a false choice. The standard **Reply** action opens the root's thread with reply attribution. The adjacent **Reply in thread** action opens the same thread without attribution. Inside the thread, **Reply** creates attribution in that thread. The server rejects replies to roots unless they are placed in that root's thread. Automatic root-thread creation needs `message.post`, which also includes reply authority.
+  - **Encouraged** — both flat and threaded conversation remain valid. The standard **Reply** action opens the root's thread with reply attribution. The adjacent **Reply in thread** action opens it without attribution, and **Reply in room** remains available as a secondary expanded-menu action. **Post as thread** starts selected for each new root draft, but the author may turn it off.
   - **Enabled** — the default and unrestricted behavior. Authors may opt into **Post as thread**, and other members may start a thread later.
   - **Disabled** — the server rejects new threads, thread replies, thread typing
     indicators, and new channel echoes from historical thread replies. Ordinary

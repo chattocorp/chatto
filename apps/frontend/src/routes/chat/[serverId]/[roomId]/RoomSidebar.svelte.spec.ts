@@ -1035,15 +1035,17 @@ describe('RoomSidebar', () => {
       participantCards[1],
       '[data-testid="call-participant-menu-button"]'
     ) as HTMLButtonElement;
+    participantCards[1].style.width = '280px';
+    await expect
+      .poll(() => q(participantCards[1], '[data-testid="call-feed-local-mute-button"]'))
+      .toBeNull();
     await userEvent.click(participantMenuButton);
-    const voiceLocalMuteButton = q(
-      participantCards[1],
-      '[data-testid="call-feed-local-mute-button"]'
-    ) as HTMLButtonElement;
     expect(mutedIndicator).toBeTruthy();
     expect(q(participantCards[1], '[data-testid="voice-activity"]')).toBeTruthy();
     expect(q(participantCards[1], '[data-testid="call-speaking-indicator"]')).toBeFalsy();
-    await expect.element(voiceLocalMuteButton).toBeVisible();
+    await expect
+      .element(page.getByRole('button', { name: 'Mute locally', exact: true }))
+      .toBeVisible();
     await expect
       .element(page.getByRole('slider', { name: /Voice volume/ }))
       .toHaveAttribute('max', '200');
@@ -1075,7 +1077,7 @@ describe('RoomSidebar', () => {
     muteButton.click();
     cameraButton.click();
     screenShareButton.click();
-    voiceLocalMuteButton.click();
+    await page.getByRole('button', { name: 'Mute locally', exact: true }).click();
     leaveButton.click();
     await tick();
 
@@ -1366,14 +1368,7 @@ describe('RoomSidebar', () => {
     expect(secondaryCards[2].textContent).toContain('Carol');
   });
 
-  it('shows fullscreen and local mute controls on call media tiles', async () => {
-    const fullscreenTargets: Element[] = [];
-    const requestFullscreen = vi
-      .spyOn(HTMLElement.prototype, 'requestFullscreen')
-      .mockImplementation(function (this: HTMLElement) {
-        fullscreenTargets.push(this);
-        return Promise.resolve();
-      });
+  it('shows local mute controls without individual tile fullscreen', () => {
     const cameraTrack = {
       attach: vi.fn(),
       detach: vi.fn()
@@ -1421,22 +1416,21 @@ describe('RoomSidebar', () => {
     });
 
     const featured = q(container, '[data-testid="call-featured-stage-card"]')!;
-    const fullscreenButton = q(
+    const localMuteButton = q(
       featured,
-      '[data-testid="call-feed-fullscreen-button"]'
+      '[data-testid="call-feed-local-mute-button"]'
     ) as HTMLButtonElement;
     const participantMenuButton = q(
       featured,
       '[data-testid="call-participant-menu-button"]'
     ) as HTMLButtonElement;
 
-    const mediaActions = fullscreenButton.closest('.pill-button-group')!;
+    const mediaActions = localMuteButton.closest('.pill-button-group')!;
     expect(mediaActions.className).toContain('pill-button-group-compact');
     expect(mediaActions.className).not.toContain('absolute');
-    expect(fullscreenButton).toBeTruthy();
-    expect(fullscreenButton.className).toContain('pill-button');
-    expect(fullscreenButton.className).not.toContain('bg-black');
-    expect(fullscreenButton.querySelector('[class~="icon-[mdi--monitor-share]"]')).toBeTruthy();
+    expect(q(featured, '[data-testid="call-feed-fullscreen-button"]')).toBeNull();
+    expect(localMuteButton.className).toContain('pill-button');
+    expect(localMuteButton.className).not.toContain('bg-black');
     expect(participantMenuButton).toBeTruthy();
     expect(q(featured, '[data-testid="call-locally-muted-indicator"]')).toBeNull();
     expect(
@@ -1446,22 +1440,10 @@ describe('RoomSidebar', () => {
       q(featured, '[data-testid="call-feed-local-mute-button"]')?.getAttribute('aria-pressed')
     ).toBe('true');
 
-    fullscreenButton.click();
-    await Promise.resolve();
-
-    expect(requestFullscreen).toHaveBeenCalledOnce();
-    expect(fullscreenTargets[0]).toBe(featured);
-
-    const localMuteButton = q(
-      featured,
-      '[data-testid="call-feed-local-mute-button"]'
-    ) as HTMLButtonElement;
     expect(localMuteButton.getAttribute('aria-label')).toBe('Mute locally');
     localMuteButton.click();
 
     expect(callStore.voiceCall.toggleParticipantLocalMute).toHaveBeenCalledWith('user-2');
-
-    requestFullscreen.mockRestore();
   });
 
   it('falls back to a camera participant for the maximized call stage', async () => {
@@ -2219,15 +2201,6 @@ describe('RoomSidebar', () => {
       expect(container.querySelector('[aria-label="Resize room extras pane"]')).toBeFalsy();
       expect(q(container, '[data-testid="call-stage-grid"]')).toBeTruthy();
       expect(q(container, '[data-testid="call-participants-list"]')).toBeFalsy();
-
-      // A media card fullscreened on top of the pane keeps the pane in the
-      // fullscreen stack, so the pane must keep its stage layout.
-      const card = q(container, '[data-testid="call-stage-tile"]') as HTMLElement;
-      fullscreenElement.mockReturnValue(card);
-      document.dispatchEvent(new Event('fullscreenchange'));
-      await tick();
-      expect(q(container, '[data-testid="call-stage-grid"]')).toBeTruthy();
-      expect(container.querySelector('[aria-label="Hide room extras"]')).toBeFalsy();
 
       (q(container, '[data-testid="call-exit-fullscreen-button"]') as HTMLButtonElement).click();
       await Promise.resolve();

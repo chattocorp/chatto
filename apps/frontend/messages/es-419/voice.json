@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "Acciones para {name}",
     "picture_in_picture": "Imagen en imagen",
     "picture_in_picture_failed": "No se pudo cambiar el modo de imagen en imagen.",
     "connection_lost": "Conexión perdida",
@@ -36,7 +37,6 @@
     "microphone": "Micrófono",
     "speaker": "Altavoz",
     "camera": "Cámara",
-    "fullscreen_feed": "Feed en pantalla completa",
     "fullscreen_call": "Llamada en pantalla completa",
     "exit_fullscreen_call": "Salir de la llamada en pantalla completa",
     "pin_to_stage": "Fijar {name} en el escenario",

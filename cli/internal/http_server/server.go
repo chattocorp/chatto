@@ -36,6 +36,9 @@ type HTTPServerConfig struct {
 	Core    *core.ChattoCore
 	Addr    string
 	Version string
+	// StartupStartedAt includes core boot in the readiness duration. Zero uses
+	// the time Run starts. Optional runtime units do not gate HTTP readiness.
+	StartupStartedAt time.Time
 }
 
 // HTTPServer serves the HTTP APIs and static frontend.
@@ -49,6 +52,7 @@ type HTTPServer struct {
 	mockMailer          *email.MockSender // Non-nil when test email endpoint is enabled
 	addr                string
 	version             string
+	startupStartedAt    time.Time
 	logger              *log.Logger
 	metrics             *processMetrics
 	realtimeCatchUps    *realtimeCatchUpAdmission
@@ -158,6 +162,7 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 		mockMailer:       mockMailer,
 		addr:             cfg.Addr,
 		version:          cfg.Version,
+		startupStartedAt: cfg.StartupStartedAt,
 		logger:           logger,
 		metrics:          newProcessMetrics(),
 		realtimeCatchUps: newRealtimeCatchUpAdmission(),
@@ -301,9 +306,13 @@ func (s *HTTPServer) setupRoutes() error {
 
 // Run starts the HTTP server(s) and blocks until ctx is cancelled or an error occurs.
 func (s *HTTPServer) Run(ctx context.Context) error {
-
+	started := s.startupStartedAt
+	if started.IsZero() {
+		started = time.Now()
+	}
 	var servers []*http.Server
 	var tlsServer *http.Server
+	var appServer *http.Server
 	var metricsServer *http.Server
 	var operatorServer *http.Server
 	var operatorListener net.Listener
@@ -327,8 +336,9 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 			Email:      tlsConfig.Email,
 		}
 
-		// HTTPS server (started separately with ListenAndServeTLS)
+		// HTTPS uses the same bind-before-serve lifecycle as the other listeners.
 		tlsServer = newAppHTTPServer(s.addr, s.router)
+		appServer = tlsServer
 		tlsServer.TLSConfig = &tls.Config{
 			GetCertificate: certManager.GetCertificate,
 			MinVersion:     tls.VersionTLS12,
@@ -339,7 +349,8 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 		servers = append(servers, newHTTPServer(httpAddr, certManager.HTTPHandler(http.HandlerFunc(s.redirectToHTTPS))))
 	} else {
 		// Plain HTTP server
-		servers = append(servers, newAppHTTPServer(s.addr, s.router))
+		appServer = newAppHTTPServer(s.addr, s.router)
+		servers = append(servers, appServer)
 	}
 
 	if s.config.Metrics.Enabled {
@@ -359,26 +370,56 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 			return err
 		}
 		defer s.cleanupOperatorAPISocket(operatorSocketInfo)
+		defer operatorListener.Close()
 		servers = append(servers, operatorServer)
 	}
 
-	serverErr := make(chan error, len(servers)+1)
+	if tlsServer != nil {
+		servers = append(servers, tlsServer)
+	}
+	// Bind every listener before reporting readiness or serving requests. A
+	// partial bind failure closes all listeners that were already opened.
+	listeners := make(map[*http.Server]net.Listener, len(servers))
+	for _, srv := range servers {
+		listener := operatorListener
+		if srv != operatorServer {
+			var lc net.ListenConfig
+			var err error
+			listener, err = lc.Listen(ctx, "tcp", srv.Addr)
+			if err != nil {
+				return fmt.Errorf("listen on %s: %w", srv.Addr, err)
+			}
+			defer listener.Close()
+		}
+		listeners[srv] = listener
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	defer func() {
+		for _, srv := range servers {
+			if err := s.shutdownServer(srv); err != nil {
+				s.logger.Error("Server shutdown error", "addr", srv.Addr, "error", err)
+			}
+		}
+	}()
+	serverErr := make(chan error, len(servers))
 
 	// Start HTTP servers
 	for _, srv := range servers {
 		if srv == metricsServer {
-			s.logger.Info("Starting metrics server", "url", metricsServerURL(srv.Addr, s.config.Metrics.PathOrDefault()))
+			s.logger.Debug("Starting metrics server", "url", metricsServerURL(srv.Addr, s.config.Metrics.PathOrDefault()))
 		} else if srv == operatorServer {
-			s.logger.Info("Starting operator API server", "socket", srv.Addr)
-		} else {
-			s.logger.Info("Starting HTTP server", "addr", srv.Addr, "url", s.config.Webserver.URL)
+			s.logger.Debug("Starting operator API server", "socket", srv.Addr)
+		} else if srv == tlsServer {
+			s.logger.Debug("Starting HTTPS server with Let's Encrypt", "addr", tlsServer.Addr, "domain", s.config.Webserver.TLS.Domain)
 		}
 		go func(srv *http.Server) {
 			var err error
-			if srv == operatorServer {
-				err = srv.Serve(operatorListener)
+			if srv == tlsServer {
+				err = srv.ServeTLS(listeners[srv], "", "")
 			} else {
-				err = srv.ListenAndServe()
+				err = srv.Serve(listeners[srv])
 			}
 			if err != nil && err != http.ErrServerClosed {
 				serverErr <- err
@@ -386,32 +427,14 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 		}(srv)
 	}
 
-	// Start HTTPS server if TLS is enabled
-	if tlsServer != nil {
-		s.logger.Info("Starting HTTPS server with Let's Encrypt", "addr", tlsServer.Addr, "domain", s.config.Webserver.TLS.Domain)
-		go func() {
-			if err := tlsServer.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
-				serverErr <- err
-			}
-		}()
-	}
+	s.logger.Info("Server ready", "version", s.version,
+		"duration", time.Since(started).Round(time.Millisecond), "addr", listeners[appServer].Addr().String(), "url", s.config.Webserver.URL)
 
 	// Wait for context cancellation or server error
 	select {
 	case err := <-serverErr:
 		return err
 	case <-ctx.Done():
-		// Shutdown all servers gracefully
-		for _, srv := range servers {
-			if err := s.shutdownServer(srv); err != nil {
-				s.logger.Error("Server shutdown error", "addr", srv.Addr, "error", err)
-			}
-		}
-		if tlsServer != nil {
-			if err := s.shutdownServer(tlsServer); err != nil {
-				s.logger.Error("Server shutdown error", "addr", tlsServer.Addr, "error", err)
-			}
-		}
 		return nil
 	}
 }

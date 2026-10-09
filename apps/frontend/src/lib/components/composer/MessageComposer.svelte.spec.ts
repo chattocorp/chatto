@@ -1126,6 +1126,28 @@ describe('MessageComposer', () => {
       await expect.element(editor).toHaveTextContent('**kept** draft');
     });
 
+    it('preserves editable footnotes when switching modes and sending the message', async () => {
+      const { container } = renderMessageComposer({ roomId: 'footnote-switch' });
+      let editor = await findEditor(container);
+      await typeEditorKeys(editor, 'Message[[^note].{Enter}{Enter}[[^note]: A short note.');
+      userPreferences.composerEditor = 'visual';
+      await vi.waitFor(() => expect(q(container, '.composer-footnote')).toBeTruthy());
+      await userEvent.click(q(container, '.composer-footnote-ref')!);
+      await userEvent.keyboard('Edited ');
+      userPreferences.composerEditor = 'markdown';
+      await vi.waitFor(() =>
+        expect(q(container, '[data-composer-editor="markdown"]')).toBeTruthy()
+      );
+      editor = await findEditor(container);
+      await expect.element(editor).toHaveTextContent('[^note]: Edited A short note.');
+      await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      const body = mutationMock.mock.calls[0][1].input.body;
+      expect(body).toContain('Message[^note].');
+      expect(body).toContain('[^note]: Edited A short note.');
+      expect(await renderMarkdown(body)).toContain('class="footnote-item"');
+    });
+
     it('uses normal newlines and Ctrl+Enter to send', async () => {
       const { container, roomId } = renderMessageComposer({ roomId: 'markdown-shortcut' });
       const editor = await findEditor(container);

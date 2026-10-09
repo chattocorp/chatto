@@ -53,6 +53,7 @@ Chatto formats:
 - inline code, fenced code blocks, and indented code blocks;
 - blockquotes;
 - ordered and unordered lists;
+- named footnotes;
 - GFM pipe tables, including column alignment and escaped pipes; and
 - Chatto timestamp tokens inserted from the composer toolbar.
 
@@ -77,6 +78,22 @@ Select **Copy to clipboard** on a rendered code block to copy its code without t
 Right-click a link in a message to open the message menu. Select **Copy Link** to copy that URL, or **Copy Message Link** to copy a link to the message.
 
 Right-click an image attachment in a message and select **Copy Image** to paste the image into another app. Use **Download** in the attachment viewer to save the original file.
+
+### Footnotes
+
+Use `[^note]` to refer to a note. Add its definition on a separate line:
+
+```md
+The release is ready[^checks].
+
+[^checks]: All checks passed.
+```
+
+Chatto numbers notes in reference order and puts them after the text. Select a note number to go to the note. Select its return link to go back to the reference. You can refer to the same note more than once. Each reference has a return link.
+
+In either editor, open **Formatting options** and select **Insert footnote**. The editor adds a reference and moves the cursor to its note. In the visual editor, you can also type `[^note]` to create a note or refer to an existing note with that name. Select a numbered marker to edit its note. Notes retain their text and formatting when you switch editor modes.
+
+Footnotes also work in server welcome messages and Markdown attachment previews.
 
 ## Prevent a link preview
 

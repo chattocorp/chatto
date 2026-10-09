@@ -53,7 +53,6 @@
       "copy_user_id": "Kullanıcı kimliğini kopyala"
     },
     "server_gutter": {
-      "home_server": "Ana sunucu",
       "move_up": "Yukarı taşıyın",
       "move_down": "Aşağı taşıyın",
       "add_server": "Sunucu Ekle",

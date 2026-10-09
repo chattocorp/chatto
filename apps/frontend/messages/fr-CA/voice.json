@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "Actions pour {name}",
     "picture_in_picture": "Image dans l’image",
     "picture_in_picture_failed": "Impossible de modifier le mode image dans l’image.",
     "connection_lost": "Connexion perdue",
@@ -36,7 +37,6 @@
     "microphone": "Micro",
     "speaker": "Haut-parleur",
     "camera": "Caméra",
-    "fullscreen_feed": "Flux plein écran",
     "fullscreen_call": "Appel en plein écran",
     "exit_fullscreen_call": "Sortir de l'appel en mode plein écran",
     "pin_to_stage": "Épingler {name} sur la scène",

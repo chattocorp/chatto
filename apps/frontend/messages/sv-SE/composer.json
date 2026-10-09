@@ -19,6 +19,7 @@
     "open_link": "Öppna länken",
     "remove_link": "Ta bort länken",
     "code_language": "Kodspråk",
+    "footnote_reference": "Gå till fotnot {number}",
     "placeholder": "Skriv ett meddelande...",
     "editing_placeholder": "Redigerar meddelande...",
     "drop_files_title": "Släpp filer här",
@@ -56,6 +57,7 @@
       "ordered_list": "Numrerad lista",
       "blockquote": "Citat",
       "code_block": "Kodblock",
+      "footnote": "Infoga fotnot",
       "outdent": "Minska indrag",
       "indent": "Öka indrag"
     },

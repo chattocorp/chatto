@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "Handlinger for {name}",
     "picture_in_picture": "Bilde-i-bilde",
     "picture_in_picture_failed": "Kunne ikke endre bilde-i-bilde-modus.",
     "connection_lost": "Tilkoblingen er brutt",
@@ -36,7 +37,6 @@
     "microphone": "Mikrofon",
     "speaker": "Høyttaler",
     "camera": "Kamera",
-    "fullscreen_feed": "Fullskjerm-feed",
     "fullscreen_call": "Fullskjermsamtale",
     "exit_fullscreen_call": "Avslutt samtale i fullskjerm",
     "pin_to_stage": "Fest {name} til scenen",

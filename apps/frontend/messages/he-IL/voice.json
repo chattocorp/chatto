@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "פעולות עבור {name}",
     "picture_in_picture": "תמונה בתוך תמונה",
     "picture_in_picture_failed": "לא ניתן לשנות את מצב תמונה בתוך תמונה.",
     "connection_lost": "החיבור אבד",
@@ -36,7 +37,6 @@
     "microphone": "מיקרופון",
     "speaker": "רמקול",
     "camera": "מצלמה",
-    "fullscreen_feed": "תצוגה במסך מלא",
     "fullscreen_call": "שיחה במסך מלא",
     "exit_fullscreen_call": "צא משיחת מסך מלא",
     "pin_to_stage": "הצמד את {name} לבמה",

@@ -19,6 +19,7 @@
     "open_link": "Malfermu ligilon",
     "remove_link": "Forigi ligilon",
     "code_language": "Kodlingvo",
+    "footnote_reference": "Iru al piednoto {number}",
     "placeholder": "Tajpu mesaĝon...",
     "editing_placeholder": "Redaktante mesaĝon...",
     "drop_files_title": "Forigu dosierojn ĉi tie",
@@ -56,6 +57,7 @@
       "ordered_list": "Numerita listo",
       "blockquote": "Citaĵo",
       "code_block": "Kodbloko",
+      "footnote": "Enmeti piednoton",
       "outdent": "Malpligrandigi deŝovon",
       "indent": "Pligrandigi deŝovon"
     },

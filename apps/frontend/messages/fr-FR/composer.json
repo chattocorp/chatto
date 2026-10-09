@@ -19,6 +19,7 @@
     "open_link": "Ouvrir le lien",
     "remove_link": "Supprimer le lien",
     "code_language": "Langage des codes",
+    "footnote_reference": "Aller à la note de bas de page {number}",
     "placeholder": "Saisissez un message...",
     "editing_placeholder": "Modification du message...",
     "drop_files_title": "Déposez les fichiers ici",
@@ -56,6 +57,7 @@
       "ordered_list": "Liste numérotée",
       "blockquote": "Citation",
       "code_block": "Bloc de code",
+      "footnote": "Insérer une note de bas de page",
       "outdent": "Diminuer le retrait",
       "indent": "Augmenter le retrait"
     },

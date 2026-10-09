@@ -1,11 +1,102 @@
 package events
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"log/slog"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/nats-io/nats.go/jetstream"
 )
+
+type failedStartupSnapshotSource struct{ err error }
+
+func (s failedStartupSnapshotSource) LoadProjectionSnapshot(context.Context, ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
+	return ProjectionSnapshot{}, s.err
+}
+
+type startupSnapshotProjection struct{ startupCompletionProjection }
+
+func (*startupSnapshotProjection) SnapshotContractID() string { return "test-v1" }
+func (*startupSnapshotProjection) Snapshot() ([]byte, error)  { return nil, nil }
+func (*startupSnapshotProjection) Restore([]byte) error       { return nil }
+
+func TestSnapshotAbsenceIsQuietAndFailuresWarn(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		err   error
+		level string
+	}{
+		{"absent", fmt.Errorf("load: %w", ErrProjectionSnapshotNotFound), ""},
+		{"failed", errors.New("storage unavailable"), "WARN"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			js := must(jetstream.New(startTestNATS(t)))
+			stream := must(js.CreateStream(t.Context(), jetstream.StreamConfig{Name: "TEST", Subjects: []string{"evt.>"}}))
+			var output bytes.Buffer
+			p := must(NewDecodedProjector(js, stream, &startupSnapshotProjection{}, func([]byte) (DecodedEvent[struct{}], error) { return DecodedEvent[struct{}]{}, nil }, ProjectorOptions{
+				Logger:    slog.New(slog.NewJSONHandler(&output, &slog.HandlerOptions{Level: slog.LevelDebug})),
+				Snapshots: &SnapshotOptions{Key: "test", Source: failedStartupSnapshotSource{err: tc.err}, ResolveStreamIdentity: func(*jetstream.StreamInfo) (string, error) { return "test-stream", nil }},
+			}))
+			if err := p.restoreForRun(t.Context(), 0); err != nil {
+				t.Fatal(err)
+			}
+			if tc.level == "" {
+				if output.Len() != 0 {
+					t.Fatalf("expected absence produced a log: %s", output.String())
+				}
+				return
+			}
+			var record map[string]any
+			if err := json.Unmarshal(output.Bytes(), &record); err != nil {
+				t.Fatal(err)
+			}
+			if record["level"] != tc.level {
+				t.Fatalf("restore log = %v, want %s", record, tc.level)
+			}
+		})
+	}
+}
+
+func TestProjectorStartupLogSummary(t *testing.T) {
+	for _, restore := range []string{"none", "snapshot", "checkpoint"} {
+		t.Run(restore, func(t *testing.T) {
+			var output bytes.Buffer
+			p := &Projector{
+				proj:    &startupCompletionProjection{},
+				logger:  slog.New(slog.NewJSONHandler(&output, nil)),
+				started: true, startupCh: make(chan struct{}),
+				startupStartedAt:   time.Now().Add(-time.Second),
+				snapshotRestored:   restore == "snapshot",
+				checkpointRestored: restore == "checkpoint",
+			}
+			p.maybeCompleteStartup(time.Now())
+			var record map[string]any
+			if err := json.Unmarshal(output.Bytes(), &record); err != nil {
+				t.Fatal(err)
+			}
+			if record["projection"] != "events.startupCompletionProjection" || record["restore"] != restore {
+				t.Fatalf("unexpected summary: %v", record)
+			}
+			for _, field := range []string{"subjects", "target_seq", "messages_per_second"} {
+				if _, ok := record[field]; ok {
+					t.Errorf("INFO summary contains %s", field)
+				}
+			}
+			output.Reset()
+			p.logger = slog.New(slog.NewJSONHandler(&output, &slog.HandlerOptions{Level: slog.LevelDebug}))
+			p.logStartupComplete(startupSummary{projectionKey: "named", restore: restore})
+			if strings.Count(output.String(), "\n") != 1 || strings.Contains(output.String(), "subjects") {
+				t.Fatalf("DEBUG must keep one compact completion record: %s", output.String())
+			}
+		})
+	}
+}
 
 type startupCompletionProjection struct {
 	completions int

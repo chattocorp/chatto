@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "Akce pro {name}",
     "picture_in_picture": "Obraz v obraze",
     "picture_in_picture_failed": "Režim obrazu v obraze se nepodařilo změnit.",
     "connection_lost": "Spojení ztraceno",
@@ -36,7 +37,6 @@
     "microphone": "Mikrofon",
     "speaker": "Mluvčí",
     "camera": "Fotoaparát",
-    "fullscreen_feed": "Informační kanál na celou obrazovku",
     "fullscreen_call": "Celoobrazovkový hovor",
     "exit_fullscreen_call": "Ukončit celoobrazovkový hovor",
     "pin_to_stage": "Připnout {name} na pódium",

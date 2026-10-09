@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "Darbības lietotājam {name}",
     "picture_in_picture": "Attēls attēlā",
     "picture_in_picture_failed": "Neizdevās mainīt režīmu attēls attēlā.",
     "connection_lost": "Savienojums zaudēts",
@@ -36,7 +37,6 @@
     "microphone": "Mikrofons",
     "speaker": "Skaļrunis",
     "camera": "Kamera",
-    "fullscreen_feed": "Pilnekrāna plūsma",
     "fullscreen_call": "Pilnekrāna zvans",
     "exit_fullscreen_call": "Iziet no pilnekrāna zvana",
     "pin_to_stage": "Piespraust {name} uz skatuves",

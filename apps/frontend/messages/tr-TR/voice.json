@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "{name} için işlemler",
     "picture_in_picture": "Resim içinde resim",
     "picture_in_picture_failed": "Resim içinde resim modu değiştirilemedi.",
     "connection_lost": "Bağlantı kesildi",
@@ -36,7 +37,6 @@
     "microphone": "Mikrofon",
     "speaker": "Hoparlör",
     "camera": "Kamera",
-    "fullscreen_feed": "Tam ekran feed'i",
     "fullscreen_call": "Tam ekran arama",
     "exit_fullscreen_call": "Tam ekran aramadan çık",
     "pin_to_stage": "{name} öğesini sahneye sabitleyin",

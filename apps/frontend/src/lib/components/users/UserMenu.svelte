@@ -4,6 +4,7 @@
 Lazy renderer for a host's user menu. The controller owns placement and
 dismissal; the host supplies live user data, permissions, and available actions.
 One renderer can serve a complete list without one menu instance per row.
+The optional extraActions snippet passes host-owned commands into the menu.
 -->
 <script module lang="ts">
   export type UserContextMenuLoader = () => Promise<

@@ -7,6 +7,177 @@ import MarkdownEditor from './MarkdownEditor.svelte';
 import type { ComposerEditorApi } from './editorTypes';
 import { renderInlineMarkdown } from '$lib/markdown';
 
+describe('Composer footnote editing', () => {
+  it.each([
+    { content: '- First item\n    - Second item', expected: '- Edited First item' },
+    { content: '> Quoted text', expected: '> Edited Quoted text' },
+    {
+      content: '| Name | Value |\n    | --- | --- |\n    | Answer | 42 |',
+      expected: 'Edited '
+    }
+  ])('focuses editable text without replacing a note that starts with $content', async (note) => {
+    const readyApis: ComposerEditorApi[] = [];
+    const updates: string[] = [];
+    const { container } = render(TipTapEditor, {
+      props: {
+        placeholder: 'Footnote editor',
+        onReady: (api: ComposerEditorApi) => readyApis.push(api),
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+    api.setContent(`Message[^note].\n\n[^note]: ${note.content}`);
+    await userEvent.click(container.querySelector('.composer-footnote-ref')!);
+    api.insertText('Edited ');
+    await vi.waitFor(() => expect(updates.at(-1)).toContain(note.expected));
+    expect(updates.at(-1)).toContain('Message[^note].');
+    if (note.content.startsWith('|')) {
+      expect(updates.at(-1)).toContain('| Answer | 42 |');
+    }
+  });
+
+  it('retains footnote definitions when copying and pasting editor text', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    const updates: string[] = [];
+    const { container } = render(TipTapEditor, {
+      props: {
+        placeholder: 'Footnote editor',
+        onReady: (api: ComposerEditorApi) => readyApis.push(api),
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+    api.setContent('Copy[^note].\n\n[^note]: **Keep** this note.');
+    const copiedText = api.getText();
+    expect(copiedText).toContain('[^note]: **Keep** this note.');
+    api.setContent('');
+    api.focus('end');
+    const clipboardData = new DataTransfer();
+    clipboardData.setData('text/plain', copiedText);
+    page
+      .getByRole('textbox', { name: 'Footnote editor' })
+      .element()
+      .dispatchEvent(
+        new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData })
+      );
+    await vi.waitFor(() => expect(updates.at(-1)).toContain('[^note]: **Keep** this note.'));
+    expect(container.querySelector('.composer-footnote-ref')?.textContent).toBe('[1]');
+  });
+  it.each([TipTapEditor, MarkdownEditor])(
+    'inserts and edits a footnote through the shared toolbar command (%#)',
+    async (Component) => {
+      const readyApis: ComposerEditorApi[] = [];
+      const updates: string[] = [];
+      const { container } = render(Component, {
+        props: {
+          placeholder: 'Footnote editor',
+          onReady: (api: ComposerEditorApi) => readyApis.push(api),
+          onUpdate: (markdown: string) => updates.push(markdown)
+        }
+      });
+      await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+      const api = readyApis[0]!;
+      api.setContent('A message.');
+      api.focus('end');
+      api.toggleFormatting('footnote');
+      api.insertText('A short note.');
+      await vi.waitFor(() => {
+        expect(updates.at(-1)).toContain('A message.[^1]');
+        expect(updates.at(-1)).toContain('[^1]: A short note.');
+      });
+      if (Component === TipTapEditor) {
+        expect(container.querySelector('.composer-footnote-ref')?.textContent).toBe('[1]');
+        expect(container.querySelector('.composer-footnote')?.textContent).toBe('A short note.');
+      }
+    }
+  );
+
+  it.each(['mouse', 'keyboard'])(
+    'loads repeated references and lets a marker focus its editable note with %s',
+    async (navigation) => {
+      const readyApis: ComposerEditorApi[] = [];
+      const updates: string[] = [];
+      const { container } = render(TipTapEditor, {
+        props: {
+          placeholder: 'Footnote editor',
+          onReady: (api: ComposerEditorApi) => readyApis.push(api),
+          onUpdate: (markdown: string) => updates.push(markdown)
+        }
+      });
+      await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+      const api = readyApis[0]!;
+      api.setContent('One[^one], two[^two], one again[^one].\n\n[^two]: Second.\n[^one]: First.');
+      await vi.waitFor(() =>
+        expect(container.querySelectorAll('.composer-footnote')).toHaveLength(2)
+      );
+      const references = container.querySelectorAll('.composer-footnote-ref');
+      expect([...references].map((node) => node.textContent)).toEqual(['[1]', '[2]', '[1]']);
+      if (navigation === 'mouse') {
+        await userEvent.click(references[2]!);
+      } else {
+        (references[2] as HTMLElement).focus();
+        await userEvent.keyboard('{Enter}');
+      }
+      api.insertText('Changed ');
+      await vi.waitFor(() => expect(updates.at(-1)).toContain('[^one]: Changed First.'));
+      expect(updates.at(-1)).toContain('one again[^one]');
+      expect(updates.at(-1)).toContain('[^two]: Second.');
+    }
+  );
+
+  it('undoes marker insertion and its new definition together', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    const { container } = render(TipTapEditor, {
+      props: {
+        placeholder: 'Footnote editor',
+        onReady: (api: ComposerEditorApi) => readyApis.push(api)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+    api.setContent('Message.');
+    api.focus('end');
+    api.toggleFormatting('footnote');
+    await expect.element(page.getByRole('textbox', { name: 'Footnote editor' })).toHaveFocus();
+    await userEvent.keyboard(
+      navigator.platform.startsWith('Mac') ? '{Meta>}z{/Meta}' : '{Control>}z{/Control}'
+    );
+    await vi.waitFor(() => expect(container.querySelector('.composer-footnote')).toBeNull());
+    expect(container.querySelector('.composer-footnote-ref')).toBeNull();
+    expect(api.getText()).toBe('Message.');
+  });
+
+  it('creates a note from typed syntax and renumbers later references', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    const updates: string[] = [];
+    const { container } = render(TipTapEditor, {
+      props: {
+        placeholder: 'Footnote editor',
+        onReady: (api: ComposerEditorApi) => readyApis.push(api),
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+    api.setContent('Existing[^old].\n\n[^old]: Old note.');
+    api.focus('start');
+    const editor = page.getByRole('textbox', { name: 'Footnote editor' });
+    await userEvent.type(editor, 'New[[^new]');
+    await userEvent.keyboard('New note.');
+    await vi.waitFor(() => expect(updates.at(-1)).toContain('[^new]: New note.'));
+    expect(
+      [...container.querySelectorAll('.composer-footnote-ref')].map((node) => node.textContent)
+    ).toEqual(['[1]', '[2]']);
+    expect(
+      [...container.querySelectorAll('.composer-footnote')].map((node) =>
+        node.getAttribute('data-footnote-number')
+      )
+    ).toEqual(['1', '2']);
+  });
+});
+
 function selectEditorContents(editor: Element) {
   editor.dispatchEvent(
     new KeyboardEvent('keydown', {

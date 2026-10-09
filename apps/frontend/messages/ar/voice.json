@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "إجراءات {name}",
     "picture_in_picture": "صورة داخل صورة",
     "picture_in_picture_failed": "تعذّر تغيير وضع الصورة داخل صورة.",
     "connection_lost": "فُقد الاتصال",
@@ -36,7 +37,6 @@
     "microphone": "الميكروفون",
     "speaker": "مكبر الصوت",
     "camera": "الكاميرا",
-    "fullscreen_feed": "عرض بملء الشاشة",
     "fullscreen_call": "مكالمة بملء الشاشة",
     "exit_fullscreen_call": "قم بالخروج من المكالمة بملء الشاشة",
     "pin_to_stage": "تثبيت {name} في المنصة",

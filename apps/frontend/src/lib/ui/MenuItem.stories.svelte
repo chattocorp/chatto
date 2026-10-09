@@ -3,6 +3,7 @@
 
   import MenuItem from './MenuItem.svelte';
   import MenuSection from './MenuSection.svelte';
+  import ContextMenu from './ContextMenu.svelte';
 
   const { Story } = defineMeta({
     title: 'UI/MenuItem',
@@ -12,7 +13,7 @@
       docs: {
         description: {
           component:
-            'Standard command entry for context menus and action sheets. Supports buttons, links, optional or custom leading content, trailing content, destructive tone, disabled state, wrapped labels, and RTL icon mirroring.'
+            'Standard command entry for context menus and action sheets. Supports buttons, links, optional or custom leading content, trailing content, destructive tone, disabled state, pressed toggle buttons, wrapped labels, and RTL icon mirroring.'
         }
       }
     }
@@ -26,6 +27,7 @@
     presentation: () => 'floating',
     containerRole: () => 'menu'
   });
+  let pressed = $state(false);
 </script>
 
 <Story name="Common states" asChild>
@@ -38,6 +40,29 @@
       <MenuItem icon="icon-[uil--lock]" disabled>Unavailable</MenuItem>
     </MenuSection>
   </div>
+</Story>
+
+<Story name="Dialog toggle" asChild>
+  <ContextMenu
+    role="dialog"
+    ariaLabel="Video actions"
+    presentation="floating"
+    position={{ x: 24, y: 32 }}
+    onclose={() => {}}
+  >
+    <MenuSection>
+      <MenuItem
+        icon="icon-[mdi--picture-in-picture-bottom-right]"
+        {pressed}
+        onclick={() => (pressed = !pressed)}
+      >
+        Picture-in-picture
+        {#snippet trailing()}
+          {#if pressed}<span class="iconify icon-[uil--check]" aria-hidden="true"></span>{/if}
+        {/snippet}
+      </MenuItem>
+    </MenuSection>
+  </ContextMenu>
 </Story>
 
 <Story name="Wrapped and selected" asChild>

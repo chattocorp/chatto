@@ -3,8 +3,26 @@ import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { testSnippet } from '$lib/test-utils';
 import PaneContent from './PaneContent.svelte';
+import { page } from 'vitest/browser';
 
 describe('PaneContent', () => {
+  it('keeps one narrow page gutter for content outside panels', async () => {
+    const rendered = render(PaneContent, {
+      props: { children: testSnippet('<div>Content</div>') }
+    });
+    const content = rendered.container.querySelector('[data-page-reveal]')!;
+    try {
+      await page.viewport(390, 800);
+      expect(getComputedStyle(content).paddingLeft).toBe('16px');
+      expect(getComputedStyle(content).paddingTop).toBe('16px');
+      await page.viewport(768, 800);
+      expect(getComputedStyle(content).paddingLeft).toBe('24px');
+      expect(getComputedStyle(content).paddingTop).toBe('24px');
+    } finally {
+      await page.viewport(1280, 720);
+    }
+  });
+
   it('provides one readable-width, scrollable pane column', () => {
     const { container } = render(PaneContent, {
       props: { children: testSnippet('<div data-testid="content">Content</div>') }

@@ -1,7 +1,7 @@
 # FDR-049: Server Gutter
 
 **Status:** Active
-**Last reviewed:** 2026-10-08
+**Last reviewed:** 2026-10-09
 
 ## Overview
 
@@ -10,19 +10,19 @@ frontend. The order belongs to this browser or app installation.
 
 ## Behavior
 
-- The server that hosts the frontend is first and has a small home badge.
-  It scrolls with the list and cannot be moved. A standalone frontend has no
-  home server.
-- Users can drag remote server icons with a mouse. The server menu also has
+- All servers share one list and can be moved, including the server that
+  hosts the frontend. There is no home badge.
+- Users can drag server icons with a mouse. The server menu also has
   **Move up** and **Move down** actions, with unavailable moves disabled.
   Touch input uses the menu, including on devices with a mouse or trackpad.
   Taps select servers and swipes scroll the list.
-- New servers appear after the existing remote servers. Signed-out and
+- New servers appear after the existing servers. Signed-out and
   unavailable servers can be moved. Moving a server does not select it.
 - Removing a server clears its saved position. Adding it again puts it after
   the retained servers.
 - Completed moves are saved on this device. Other open tabs on the same
   frontend origin update without a reload or a request to a server.
+- Existing saved layouts keep their positions until the user makes a move.
 - Drag previews stay in the tab that owns the drag. The last saved order wins
   when tabs make concurrent moves. Changes to list membership cancel a drag.
 - A tab reads the saved order again when it gains focus or resumes. Separate
@@ -33,11 +33,12 @@ frontend. The order belongs to this browser or app installation.
 
 ## Design Decisions
 
-### 1. Keep the home server first
+### 1. Use the same ordering rules for every server
 
-**Decision:** Mark the server that hosts the frontend and keep it first.
-**Why:** Its place stays clear when the user adds or moves remote servers.
-**Tradeoff:** Users cannot place a remote server before it.
+**Decision:** Let users move every server and omit the home badge.
+**Why:** The server that hosts the frontend is not a special navigation item.
+The same controls should apply to every server in the list.
+**Tradeoff:** Users choose how to identify and position their servers.
 
 ### 2. Share saved order through browser storage
 

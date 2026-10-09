@@ -161,7 +161,6 @@ func (h *PresenceHub) GetUserPresences(ctx context.Context, userIDs []string) (m
 // Run starts the KV watcher and fans out updates to subscribers.
 // Blocks until ctx is cancelled. Should be started in an errgroup.
 func (h *PresenceHub) Run(ctx context.Context) error {
-	h.logger.Debug("Presence hub started")
 	defer h.logger.Debug("Presence hub stopped")
 
 	var pendingResync chan error

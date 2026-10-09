@@ -18,7 +18,7 @@ import { catalogSections, isPublicCatalogSection } from './src/lib/i18n/catalogS
 const backendTarget =
   process.env.CHATTO_BACKEND_URL ||
   `http://localhost:${process.env.CHATTO_WEBSERVER_PORT || '4000'}`;
-const tiptapDeps = ['@tiptap/pm/state'];
+const tiptapDeps = ['@tiptap/pm/state', '@tiptap/pm/history'];
 const highlightLanguageMetadataModule = 'virtual:chatto-highlight-language-metadata';
 const resolvedHighlightLanguageMetadataModule = `\0${highlightLanguageMetadataModule}`;
 

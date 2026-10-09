@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "{name}的操作",
     "picture_in_picture": "画中画",
     "picture_in_picture_failed": "无法更改画中画模式。",
     "connection_lost": "连接已断开",
@@ -36,7 +37,6 @@
     "microphone": "麦克风",
     "speaker": "扬声器",
     "camera": "摄像头",
-    "fullscreen_feed": "全屏显示画面",
     "fullscreen_call": "全屏显示通话",
     "exit_fullscreen_call": "退出全屏通话",
     "pin_to_stage": "将 {name} 固定到舞台",

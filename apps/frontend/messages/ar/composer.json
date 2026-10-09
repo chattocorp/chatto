@@ -19,6 +19,7 @@
     "open_link": "افتح الرابط",
     "remove_link": "إزالة الرابط",
     "code_language": "لغة الشفرة",
+    "footnote_reference": "انتقل إلى الحاشية {number}",
     "placeholder": "اكتب رسالة...",
     "editing_placeholder": "تحرير الرسالة...",
     "drop_files_title": "قم بإسقاط الملفات هنا",
@@ -56,6 +57,7 @@
       "ordered_list": "قائمة مرقمة",
       "blockquote": "اقتباس",
       "code_block": "كتلة التعليمات البرمجية",
+      "footnote": "أدرج حاشية",
       "outdent": "تقليل المسافة البادئة",
       "indent": "زيادة المسافة البادئة"
     },

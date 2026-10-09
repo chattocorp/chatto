@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "Действия для {name}",
     "picture_in_picture": "Картинка в картинке",
     "picture_in_picture_failed": "Не удалось изменить режим картинки в картинке.",
     "connection_lost": "Соединение потеряно",
@@ -36,7 +37,6 @@
     "microphone": "Микрофон",
     "speaker": "Спикер",
     "camera": "Камера",
-    "fullscreen_feed": "Полноэкранный канал",
     "fullscreen_call": "Полноэкранный вызов",
     "exit_fullscreen_call": "Выйти из полноэкранного вызова",
     "pin_to_stage": "Закрепить {name} на сцене",

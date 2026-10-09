@@ -19,6 +19,7 @@
     "open_link": "Apri collegamento",
     "remove_link": "Rimuovi collegamento",
     "code_language": "Linguaggio del codice",
+    "footnote_reference": "Vai alla nota a piè di pagina {number}",
     "placeholder": "Digita un messaggio...",
     "editing_placeholder": "Modifica messaggio...",
     "drop_files_title": "Rilascia i file qui",
@@ -56,6 +57,7 @@
       "ordered_list": "Elenco numerato",
       "blockquote": "Citazione",
       "code_block": "Blocco di codice",
+      "footnote": "Inserisci nota a piè di pagina",
       "outdent": "Riduci rientro",
       "indent": "Aumenta rientro"
     },

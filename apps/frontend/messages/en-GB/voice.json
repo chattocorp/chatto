@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "Actions for {name}",
     "picture_in_picture": "Picture-in-picture",
     "picture_in_picture_failed": "Could not change picture-in-picture mode.",
     "connection_lost": "Connection lost",
@@ -36,7 +37,6 @@
     "microphone": "Microphone",
     "speaker": "Speaker",
     "camera": "Camera",
-    "fullscreen_feed": "Fullscreen feed",
     "fullscreen_call": "Fullscreen call",
     "exit_fullscreen_call": "Exit fullscreen call",
     "pin_to_stage": "Pin {name} to the stage",

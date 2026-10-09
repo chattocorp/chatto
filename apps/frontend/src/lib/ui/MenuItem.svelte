@@ -29,6 +29,7 @@ three for a text-only entry.
     busy = false,
     role,
     checked,
+    pressed,
     ariaLabel,
     title,
     dataTestid,
@@ -50,6 +51,8 @@ three for a text-only entry.
     role?: MenuItemRole;
     /** Checked state for checkbox and radio menu items. */
     checked?: boolean;
+    /** Toggle state for a button in a dialog or action sheet; keep its label stable. */
+    pressed?: boolean;
     ariaLabel?: string;
     title?: string;
     dataTestid?: string;
@@ -127,6 +130,7 @@ three for a text-only entry.
     class={itemClasses}
     role={effectiveRole}
     aria-checked={checked}
+    aria-pressed={pressed}
     aria-busy={busy || undefined}
     aria-label={ariaLabel}
     {title}

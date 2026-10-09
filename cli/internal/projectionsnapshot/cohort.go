@@ -106,7 +106,6 @@ func (r *Repository) SaveCohort(ctx context.Context, input SaveCohortInput) (Loa
 		}
 	}
 
-	started := time.Now()
 	createdAt := r.now().UTC()
 	manifest := &projectionv1.ProjectionSnapshotCohortManifest{}
 	writtenKeys := make([]string, 0, len(input.Components)+1)
@@ -176,9 +175,6 @@ func (r *Repository) SaveCohort(ctx context.Context, input SaveCohortInput) (Loa
 	if droppedID != "" && droppedID != pointer.GetPreviousGenerationId() {
 		r.deleteCohortGeneration(ctx, input.ProjectionKey, input.ContractID, input.StreamName, droppedIdentity, droppedCutoff, droppedID)
 	}
-	r.logInfo("Projection snapshot cohort published", input.ProjectionKey, "publish", nil,
-		"generation_id", manifestGeneration.GenerationID, "cutoff_seq", input.CutoffSequence,
-		"components", len(input.Components), "duration", time.Since(started))
 	return LoadedCohort{
 		GenerationID: manifestGeneration.GenerationID, CutoffSequence: input.CutoffSequence,
 		StreamIdentity: input.StreamIdentity, Components: cloneCohortComponents(input.Components),
@@ -218,9 +214,6 @@ func (r *Repository) LoadCohortForComponents(
 		}
 		loaded, err := r.loadCohortGeneration(ctx, generationID, projectionKey, contractID, streamName, streamIdentity, maxCutoff, contracts)
 		if err == nil {
-			r.logInfo("Projection snapshot cohort loaded", projectionKey, "restore", nil,
-				"generation_id", generationID, "cutoff_seq", loaded.CutoffSequence,
-				"pointer_slot", index, "components", len(loaded.Components))
 			return loaded, nil
 		}
 		failures = append(failures, fmt.Errorf("generation %s: %w", generationID, err))

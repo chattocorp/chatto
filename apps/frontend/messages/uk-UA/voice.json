@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "Дії для {name}",
     "picture_in_picture": "Зображення в зображенні",
     "picture_in_picture_failed": "Не вдалося змінити режим зображення в зображенні.",
     "connection_lost": "З’єднання втрачено",
@@ -36,7 +37,6 @@
     "microphone": "Мікрофон",
     "speaker": "Доповідач",
     "camera": "Камера",
-    "fullscreen_feed": "Повноекранний канал",
     "fullscreen_call": "Дзвінок на весь екран",
     "exit_fullscreen_call": "Вийти з повноекранного виклику",
     "pin_to_stage": "Закріпити {name} на сцені",

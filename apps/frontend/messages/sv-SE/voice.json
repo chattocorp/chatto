@@ -1,5 +1,6 @@
 {
   "voice": {
+    "participant_actions": "Åtgärder för {name}",
     "picture_in_picture": "Bild-i-bild",
     "picture_in_picture_failed": "Det gick inte att ändra bild-i-bild-läget.",
     "connection_lost": "Anslutningen bröts",
@@ -36,7 +37,6 @@
     "microphone": "Mikrofon",
     "speaker": "Högtalare",
     "camera": "Kamera",
-    "fullscreen_feed": "Helskärmsflöde",
     "fullscreen_call": "Helskärmssamtal",
     "exit_fullscreen_call": "Avsluta helskärmssamtal",
     "pin_to_stage": "Fäst {name} på scenen",

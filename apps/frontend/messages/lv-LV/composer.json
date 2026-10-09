@@ -19,6 +19,7 @@
     "open_link": "Atvērt saiti",
     "remove_link": "Noņemt saiti",
     "code_language": "Koda valoda",
+    "footnote_reference": "Pārejiet uz zemsvītras piezīmi {number}",
     "placeholder": "Ierakstiet ziņojumu...",
     "editing_placeholder": "Notiek ziņojuma rediģēšana...",
     "drop_files_title": "Nometiet failus šeit",
@@ -56,6 +57,7 @@
       "ordered_list": "Numurēts saraksts",
       "blockquote": "Citāts",
       "code_block": "Koda bloks",
+      "footnote": "Ievietot zemsvītras piezīmi",
       "outdent": "Samazināt atkāpi",
       "indent": "Palielināt atkāpi"
     },
