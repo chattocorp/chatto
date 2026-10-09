@@ -1329,6 +1329,11 @@ func TestChattoCore_PostMessage_DirectMentionAutoFollowsThread(t *testing.T) {
 	core.JoinRoom(ctx, rootAuthor.Id, KindChannel, rootAuthor.Id, room.Id)
 	core.JoinRoom(ctx, replyAuthor.Id, KindChannel, replyAuthor.Id, room.Id)
 	core.JoinRoom(ctx, mentioned.Id, KindChannel, mentioned.Id, room.Id)
+	// Isolate mention delivery from current-state thread-activity delivery.
+	// The direct-mention policy must still cause the automatic follow.
+	_, err := core.NotificationPolicy().SetServerNotificationMode(ctx, mentioned.Id,
+		notificationTestSignalFollowedThread, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF)
+	require.NoError(t, err)
 
 	rootMsg, err := core.PostMessage(ctx, KindChannel, room.Id, rootAuthor.Id, "Root", nil, "", "", nil, false)
 	if err != nil {
@@ -1739,6 +1744,11 @@ func TestChattoCore_PostMessage_EchoMentionNotification(t *testing.T) {
 	target, _ := core.CreateUser(ctx, "system", "mention-target", "Target", "password123")
 	core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id)
 	core.JoinRoom(ctx, target.Id, KindChannel, target.Id, room.Id)
+	// Isolate the mention cause so current thread-follow state cannot add a
+	// valid thread-activity occurrence to the exact-count assertions below.
+	_, err := core.NotificationPolicy().SetServerNotificationMode(ctx, target.Id,
+		notificationTestSignalFollowedThread, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF)
+	require.NoError(t, err)
 
 	t.Run("echo with mention produces exactly one notification", func(t *testing.T) {
 		// Subscribe to occurrence invalidations for the target user.
@@ -1757,7 +1767,9 @@ func TestChattoCore_PostMessage_EchoMentionNotification(t *testing.T) {
 			t.Fatalf("Failed to post root: %v", err)
 		}
 
-		// Post thread reply with echo, mentioning the target user
+		// Make thread activity eligible before posting to exercise the policy.
+		require.NoError(t, core.FollowThread(ctx, KindChannel, target.Id, room.Id, rootEvent.Id))
+		// Post thread reply with echo, mentioning the target user.
 		reply, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "Hey @mention-target check this out", nil, rootEvent.Id, rootEvent.Id, nil, true)
 		if err != nil {
 			t.Fatalf("Failed to post echo reply with mention: %v", err)
