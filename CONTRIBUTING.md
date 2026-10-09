@@ -316,7 +316,11 @@ even when the stable hostnames differ.
 Run `mise test-dev-tooling` to check environment defaults, disabled NATS
 listeners, cleanup after failure, route ownership, and real Traefik routing.
 The routing test checks that changes to another route preserve a WebSocket,
-that proxy restarts restore routes, and that unknown or removed hosts return 404. This task also runs in CI and as part of `mise test`.
+that proxy restarts restore routes, and that unknown or removed hosts return
+404. The lifecycle test runs the real mise task graph with test listeners. It
+checks that one stop closes all listeners and removes routes and runtime state
+within Paseo's shutdown deadline. This task also runs in CI and as part of
+`mise test`.
 
 Private configuration is in `.context/paseo-stack/<dev-full-port>/` and is
 removed on normal stop. Each service receives its own current port from Paseo;

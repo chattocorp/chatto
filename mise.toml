@@ -996,7 +996,7 @@ run = "pnpm run test:frontend"
 description = "Test Paseo launchers, stable routing, and development environment defaults"
 tools = { "github:traefik/traefik" = "3.7.14" }
 run = [
-    "node --test tools/paseo-proxy.test.mjs tools/paseo-routing.test.mjs tools/paseo-stack.test.mjs",
+    "node --test tools/paseo-proxy.test.mjs tools/paseo-routing.test.mjs tools/paseo-stack.test.mjs tools/paseo-lifecycle.test.mjs",
     "bash tools/test-paseo-dev.sh",
 ]
 
