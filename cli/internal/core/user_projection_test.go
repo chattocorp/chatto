@@ -259,7 +259,7 @@ func TestUserProjectionUsersContextFailsClosedOnKeyError(t *testing.T) {
 	}
 
 	users, err := p.UsersContext(testContext(t))
-	require.Error(t, err, "a key failure must not look like a missing user")
+	require.ErrorContains(t, err, "DEK store unavailable", "a key failure must not look like a missing user")
 	require.Nil(t, users)
 }
 
