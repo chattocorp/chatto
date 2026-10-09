@@ -42,6 +42,30 @@ The quickest and easiest way to give Chatto a try is to just download the execut
    chatto init
    ```
 
+   For fullscreen terminal setup, run `chatto init --interactive` (or `-i`).
+   Press Enter on the welcome page to begin. Use
+   ↑/↓ or Tab/Shift+Tab to move between questions, and ←/→ to change choices.
+   Press Enter on Continue to open the next page. The wizard asks for the
+   port and public URL on the Server page. The Access page controls registration,
+   password login, and optional OpenID Connect single sign-on (SSO). Other pages
+   configure embedded or external NATS, search, calls, and optional SMTP settings. Review your choices before you create the files. Cancel or
+   press Ctrl+C to exit without creating files.
+
+   The output path is `chatto.toml`, or the path you supply with `--config`.
+   If that file exists, setup exits before opening the wizard. It does not
+   edit existing configurations. `--with-search` and `--with-livekit` set the
+   initial feature choices. Interactive setup requires a terminal. For scripts, use
+   `chatto init` without `--interactive`.
+
+   For SSO, enter your provider’s issuer URL and client credentials, then register
+   the redirect URI shown by the wizard with your provider. SSO account creation
+   has a separate switch from password registration. Keep password login enabled
+   for first-run owner setup. To use SSO-only login, link the owner account to SSO
+   before you disable `auth.direct_login` and restart Chatto.
+
+   Embedded NATS stores data in `./data`. For external NATS, enable JetStream
+   on your server and supply its connection and authentication settings.
+
    This creates a `chatto.toml` with random secrets for cookie signing, cookie encryption, runtime-token verifiers, asset signing, and NATS authentication.
 
    To include a local LiveKit server configuration for calls, use `chatto init --with-livekit`. See [voice and video calls](/guides/infrastructure/voice-calls/) for startup and deployment instructions.
