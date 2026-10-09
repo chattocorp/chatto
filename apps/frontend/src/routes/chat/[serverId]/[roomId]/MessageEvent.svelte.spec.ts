@@ -460,7 +460,7 @@ describe('MessageEvent action model integration', () => {
   });
 
   it.each([RoomThreadingMode.ENABLED, RoomThreadingMode.ENCOURAGED, RoomThreadingMode.REQUIRED])(
-    'starts an attributed thread reply from the context menu in %s mode',
+    'opens and focuses the thread without root attribution from the context menu in %s mode',
     async (threadingMode) => {
       const onOpenThread = vi.fn();
       const event = messageEvent({ id: 'reply-target', body: 'Selected thread quote' });
@@ -477,17 +477,10 @@ describe('MessageEvent action model integration', () => {
       await openContextMenu(container);
       menuButton(container, 'Reply in thread')!.click();
 
-      expect(onOpenThread).toHaveBeenCalledWith(
-        event.id,
-        expect.objectContaining({
-          quoteText: 'Selected thread quote',
-          reply: expect.objectContaining({
-            eventId: event.id,
-            actorDisplayName: 'viewer',
-            excerpt: 'Selected thread quote'
-          })
-        })
-      );
+      expect(onOpenThread).toHaveBeenCalledWith(event.id, {
+        quoteText: 'Selected thread quote',
+        focusComposer: true
+      });
     }
   );
 
@@ -523,23 +516,17 @@ describe('MessageEvent action model integration', () => {
     );
   });
 
-  it('starts an attributed thread reply with the full excerpt from the hover toolbar', () => {
+  it('opens and focuses the thread without root attribution from the hover toolbar', () => {
     const onOpenThread = vi.fn();
-    const body = 'A reply preview should use all available space. '.repeat(5);
-    const event = messageEvent({ id: 'toolbar-target', body });
+    const event = messageEvent({ id: 'toolbar-target' });
     const { container } = render(MessageEventTestHarness, { props: { event, onOpenThread } });
 
     (q(container, 'button[aria-label="Reply in thread"]') as HTMLButtonElement).click();
 
-    expect(onOpenThread).toHaveBeenCalledWith(
-      event.id,
-      expect.objectContaining({
-        reply: expect.objectContaining({ eventId: event.id, excerpt: body })
-      })
-    );
+    expect(onOpenThread).toHaveBeenCalledWith(event.id, { focusComposer: true });
   });
 
-  it('starts an attributed thread reply from the touch sheet', async () => {
+  it('opens and focuses the thread without root attribution from the touch sheet', async () => {
     const onOpenThread = vi.fn();
     const event = messageEvent({ id: 'touch-target' });
     const { container } = render(MessageEventTestHarness, { props: { event, onOpenThread } });
@@ -554,10 +541,7 @@ describe('MessageEvent action model integration', () => {
     await vi.waitFor(() => expect(actionSheetButton(container, 'Reply in thread')).toBeTruthy());
     actionSheetButton(container, 'Reply in thread')!.click();
 
-    expect(onOpenThread).toHaveBeenCalledWith(
-      event.id,
-      expect.objectContaining({ reply: expect.objectContaining({ eventId: event.id }) })
-    );
+    expect(onOpenThread).toHaveBeenCalledWith(event.id, { focusComposer: true });
   });
 
   it('opens Disabled threads, thread badges, and echoes without a reply target', async () => {

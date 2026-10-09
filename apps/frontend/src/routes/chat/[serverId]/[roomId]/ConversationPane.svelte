@@ -286,8 +286,8 @@ thread IDs can change while the pane stays mounted.
         reply.excerpt,
         reply.actorIdentity
       );
-      api.focus();
     }
+    if (input.focusComposer || input.reply) api.focus();
     onComposerInputConsumed?.(input);
   });
 

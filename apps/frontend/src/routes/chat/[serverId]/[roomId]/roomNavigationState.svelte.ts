@@ -9,6 +9,8 @@ export type PendingComposerInput = {
   roomId: string;
   threadRootEventId: string;
   quote?: QuoteInsertionContent;
+  /** Focus the composer after the target thread pane is ready. */
+  focusComposer?: boolean;
   reply?: PendingThreadReply;
 };
 
@@ -46,8 +48,14 @@ export class RoomNavigationState {
       this.highlights.complete(this.highlight);
     }
     this.composerInput =
-      options.quoteText || options.reply
-        ? { roomId, threadRootEventId, quote: options.quoteText, reply: options.reply }
+      options.quoteText || options.focusComposer || options.reply
+        ? {
+            roomId,
+            threadRootEventId,
+            quote: options.quoteText,
+            focusComposer: options.focusComposer,
+            reply: options.reply
+          }
         : null;
   }
 
