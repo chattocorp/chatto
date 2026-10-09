@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { testSnippet } from '$lib/test-utils';
 import Panel from './Panel.svelte';
+import PaneContent from './PaneContent.svelte';
 import { cdp, page } from 'vitest/browser';
 import '../../app.css';
 
@@ -24,10 +25,12 @@ describe('Panel inset structure', () => {
         children: testSnippet('<div>Search controls</div>')
       }
     });
-    flat.container.classList.add('pane-content');
+    const pageContent = render(PaneContent, { props: { children: testSnippet('<div></div>') } });
+    const pane = pageContent.container.querySelector('.pane-content')!;
+    pane.append(flat.container);
     const normal = renderPanel();
     const inDialog = renderPanel();
-    inDialog.container.classList.add('pane-content');
+    pane.append(inDialog.container);
     const dialogShell = inDialog.container.firstElementChild as HTMLElement;
     // Native dialogs remain DOM descendants of their declaring page.
     const dialog = document.createElement('dialog');

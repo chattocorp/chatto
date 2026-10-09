@@ -895,19 +895,25 @@
 @utility pane-content {
   @variant max-md {
     & [data-panel]:not(:where(dialog *)) {
-      @apply -mx-4 rounded-none border-0 border-b border-border bg-transparent bg-none;
+      margin-inline: calc(var(--spacing) * -4);
+      border-radius: 0;
+      border-width: 0 0 1px;
+      background: none;
       box-shadow: none;
 
       & > .panel-header {
-        @apply flex-row flex-wrap items-center justify-between border-b-0 bg-transparent px-4;
+        @apply flex-row flex-wrap items-center justify-between px-4;
+        border-bottom-width: 0;
       }
 
       & > [data-panel-frame] {
-        @apply p-0;
+        padding: 0;
       }
 
       & > [data-panel-frame] > .panel-inset {
-        @apply rounded-none bg-transparent outline-none;
+        border-radius: 0;
+        background: none;
+        outline: none;
         box-shadow: none;
       }
 
