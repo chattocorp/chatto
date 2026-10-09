@@ -109,9 +109,11 @@ frontends use it. See ADR-111.
 
 `mise` manages tools. Prefer its tasks when they are available.
 
-Use Chrome DevTools MCP only to inspect and verify Chatto or Authling browser
-behavior. Do not use it for general web research or public documentation
-research. Use the available web or document research tools for those tasks.
+Use an available browser tool suited to the task to inspect and verify Chatto
+or Authling browser behavior. Playwright MCP and Chrome DevTools MCP are
+examples. Do not use browser tools for general web research or public
+documentation research. Use the available web or document research tools for
+those tasks.
 
 Run Authling's unprefixed tasks from `authling/`; its nested `mise.toml` owns
 the Authling toolchain and workflow.

@@ -521,8 +521,9 @@ server.
 
 - Start a server only after the servers that it contacts at boot are
   listening. Otherwise its first background pass can fail.
-- Sign in as the bootstrap user in Chrome DevTools MCP to verify client
-  behavior. Use the network request list to verify which origins the client
+- Sign in as the bootstrap user with an available browser tool suited to the
+  task, such as Playwright MCP or Chrome DevTools MCP, to verify client
+  behavior. Inspect network requests to verify which origins the client
   contacts.
 - Stop every server process before you hand control back to the user.
 
