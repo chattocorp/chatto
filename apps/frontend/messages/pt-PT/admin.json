@@ -533,7 +533,7 @@
         "summary_unreachable": "O Chatto não consegue ligar-se ao URL do LiveKit. Confirme que o LiveKit está em execução e que este servidor consegue aceder ao URL.",
         "summary_unauthorized": "O LiveKit rejeitou a chave API ou o segredo. Confirme que correspondem a um par de chaves na configuração do LiveKit.",
         "summary_error": "O servidor no URL do LiveKit enviou uma resposta inesperada. Confirme que o URL aponta para o LiveKit.",
-        "insecure_url": "O URL do LiveKit usa ws://, que não está encriptado. Os navegadores não conseguem ligar-se a ele a partir de uma página HTTPS. Utilize wss:// em produção.",
+        "insecure_url": "O URL do LiveKit usa ws:// ou http://, que não está encriptado. Os navegadores numa página HTTPS não conseguem ligar-se a ele. Utilize wss:// quando outros computadores usarem este servidor.",
         "webhooks_rejected": "O último webhook do LiveKit tinha uma assinatura inválida. Confirme que o LiveKit assina os webhooks com a mesma chave API e o mesmo segredo que o Chatto.",
         "no_webhooks": "Este servidor não recebeu nenhum webhook do LiveKit desde que foi iniciado. O LiveKit só envia webhooks quando as chamadas começam ou mudam. Se houve chamadas durante este período, confirme que o LiveKit envia webhooks para o URL de webhook abaixo.",
         "url": "URL do LiveKit",

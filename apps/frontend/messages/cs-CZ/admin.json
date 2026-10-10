@@ -555,7 +555,7 @@
         "summary_unreachable": "Chatto se nemůže připojit k URL LiveKit. Ověřte, že LiveKit běží a že tento server může URL dosáhnout.",
         "summary_unauthorized": "LiveKit odmítl klíč API nebo tajný klíč. Ověřte, že odpovídají páru klíčů v konfiguraci LiveKit.",
         "summary_error": "Server na URL LiveKit poslal neočekávanou odpověď. Ověřte, že URL odkazuje na LiveKit.",
-        "insecure_url": "URL LiveKit používá ws://, které není šifrované. Prohlížeče se k ní nemohou připojit ze stránky HTTPS. V produkci používejte wss://.",
+        "insecure_url": "URL LiveKit používá ws:// nebo http://, které není šifrované. Prohlížeče na stránce HTTPS se k ní nemohou připojit. Používejte wss://, když tento server používají jiné počítače.",
         "webhooks_rejected": "Poslední webhook z LiveKit měl neplatný podpis. Ověřte, že LiveKit podepisuje webhooky stejným klíčem API a tajným klíčem jako Chatto.",
         "no_webhooks": "Tento server od svého spuštění nepřijal žádný webhook z LiveKit. LiveKit posílá webhooky jen tehdy, když hovory začnou nebo se změní. Pokud v této době probíhaly hovory, ověřte, že LiveKit posílá webhooky na URL webhooku níže.",
         "url": "URL LiveKit",

@@ -367,7 +367,7 @@ export class AdminLiveKitStatus extends Message<AdminLiveKitStatus> {
   connectionError = "";
 
   /**
-   * True when `url` uses unencrypted `ws://` or `http://` and the public server URL is not a local address.
+   * True when `url` uses unencrypted `ws://` or `http://` and the public server URL host is not a loopback address or a `.localhost` name.
    *
    * @generated from field: bool insecure_url = 9;
    */

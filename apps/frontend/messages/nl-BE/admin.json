@@ -533,7 +533,7 @@
         "summary_unreachable": "Chatto kan geen verbinding maken met de LiveKit-URL. Controleer of LiveKit draait en of deze server de URL kan bereiken.",
         "summary_unauthorized": "LiveKit heeft de API-sleutel of het geheim geweigerd. Controleer of ze overeenkomen met een sleutelpaar in de LiveKit-configuratie.",
         "summary_error": "De server op de LiveKit-URL stuurde een onverwacht antwoord. Controleer of de URL naar LiveKit verwijst.",
-        "insecure_url": "De LiveKit-URL gebruikt ws://, wat niet versleuteld is. Browsers kunnen er vanaf een HTTPS-pagina geen verbinding mee maken. Gebruik wss:// in productie.",
+        "insecure_url": "De LiveKit-URL gebruikt ws:// of http://, wat niet versleuteld is. Browsers op een HTTPS-pagina kunnen er geen verbinding mee maken. Gebruik wss:// als andere computers deze server gebruiken.",
         "webhooks_rejected": "De laatste webhook van LiveKit had een ongeldige handtekening. Controleer of LiveKit webhooks ondertekent met dezelfde API-sleutel en hetzelfde geheim als Chatto.",
         "no_webhooks": "Deze server heeft sinds de start geen webhook van LiveKit ontvangen. LiveKit stuurt alleen webhooks wanneer oproepen starten of veranderen. Als er in deze tijd oproepen waren, controleer dan of LiveKit webhooks naar de webhook-URL hieronder stuurt.",
         "url": "LiveKit-URL",

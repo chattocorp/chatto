@@ -522,7 +522,7 @@
         "summary_unreachable": "Chatto 無法連線至 LiveKit URL。請確認 LiveKit 正在執行，且此伺服器可以連線至該 URL。",
         "summary_unauthorized": "LiveKit 拒絕了 API 金鑰或 Secret。請確認它們與 LiveKit 設定中的某個金鑰組相符。",
         "summary_error": "LiveKit URL 上的伺服器傳回了非預期的回應。請確認該 URL 指向 LiveKit。",
-        "insecure_url": "LiveKit URL 使用未加密的 ws://。瀏覽器無法從 HTTPS 頁面連線至它。請在正式環境中使用 wss://。",
+        "insecure_url": "LiveKit URL 使用未加密的 ws:// 或 http://。HTTPS 頁面上的瀏覽器無法連線至它。當其他電腦使用此伺服器時，請使用 wss://。",
         "webhooks_rejected": "LiveKit 傳來的最後一個 webhook 簽章無效。請確認 LiveKit 使用與 Chatto 相同的 API 金鑰和 Secret 簽署 webhook。",
         "no_webhooks": "此伺服器自啟動以來未收到來自 LiveKit 的 webhook。LiveKit 只會在通話開始或變更時傳送 webhook。如果在此期間有通話，請確認 LiveKit 將 webhook 傳送至下方的 webhook 位址。",
         "url": "LiveKit 位址",

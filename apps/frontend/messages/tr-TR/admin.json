@@ -533,7 +533,7 @@
         "summary_unreachable": "Chatto, LiveKit URL'sine bağlanamıyor. LiveKit'in çalıştığından ve bu sunucunun URL'ye ulaşabildiğinden emin olun.",
         "summary_unauthorized": "LiveKit API anahtarını veya gizli anahtarı reddetti. Bunların LiveKit yapılandırmasındaki bir anahtar çiftiyle eşleştiğinden emin olun.",
         "summary_error": "LiveKit URL'sindeki sunucu beklenmeyen bir yanıt gönderdi. URL'nin LiveKit'i gösterdiğinden emin olun.",
-        "insecure_url": "LiveKit URL'si şifreli olmayan ws:// kullanıyor. Tarayıcılar bir HTTPS sayfasından buna bağlanamaz. Üretimde wss:// kullanın.",
+        "insecure_url": "LiveKit URL'si şifreli olmayan ws:// veya http:// kullanıyor. HTTPS sayfasındaki tarayıcılar buna bağlanamaz. Bu sunucuyu başka bilgisayarlar kullanıyorsa wss:// kullanın.",
         "webhooks_rejected": "LiveKit'ten gelen son webhook'un imzası geçersizdi. LiveKit'in webhook'ları Chatto ile aynı API anahtarı ve gizli anahtarla imzaladığından emin olun.",
         "no_webhooks": "Bu sunucu başladığından beri LiveKit'ten hiç webhook almadı. LiveKit, webhook'ları yalnızca aramalar başladığında veya değiştiğinde gönderir. Bu süre içinde aramalar yapıldıysa LiveKit'in webhook'ları aşağıdaki webhook URL'sine gönderdiğinden emin olun.",
         "url": "LiveKit URL'si",

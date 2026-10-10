@@ -2258,7 +2258,7 @@ restarts, and other servers in a cluster keep their own times.
 | `webhook_url` | `string` | URL that LiveKit must send webhooks to. Empty when the public server URL is not set. |
 | `connection_state` | [`AdminLiveKitConnectionState`](#chatto-admin-v1-AdminLiveKitConnectionState) | Result of the LiveKit server API check. |
 | `connection_error` | `string` | Error detail when the check fails. Never contains secrets. |
-| `insecure_url` | `bool` | True when `url` uses unencrypted `ws://` or `http://` and the public server URL is not a local address. |
+| `insecure_url` | `bool` | True when `url` uses unencrypted `ws://` or `http://` and the public server URL host is not a loopback address or a `.localhost` name. |
 | `last_webhook_at` | `google.protobuf.Timestamp` | Time of the last webhook with a valid signature that this server received. |
 | `last_rejected_webhook_at` | `google.protobuf.Timestamp` | Time of the last webhook that this server rejected because of an invalid signature. |
 

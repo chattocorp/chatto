@@ -544,7 +544,7 @@
         "summary_unreachable": "Chatto לא מצליח להתחבר לכתובת ה-URL של LiveKit. ודא ש-LiveKit פועל ושהשרת הזה יכול להגיע לכתובת.",
         "summary_unauthorized": "LiveKit דחה את מפתח ה-API או את הסוד. ודא שהם תואמים לזוג מפתחות בהגדרות של LiveKit.",
         "summary_error": "השרת בכתובת ה-URL של LiveKit שלח תגובה לא צפויה. ודא שהכתובת מפנה ל-LiveKit.",
-        "insecure_url": "כתובת ה-URL של LiveKit משתמשת ב-ws://, שאינו מוצפן. דפדפנים לא יכולים להתחבר אליה מדף HTTPS. השתמש ב-wss:// בסביבת ייצור.",
+        "insecure_url": "כתובת ה-URL של LiveKit משתמשת ב-ws:// או ב-http://, שאינם מוצפנים. דפדפנים בדף HTTPS לא יכולים להתחבר אליה. השתמש ב-wss:// כשמחשבים אחרים משתמשים בשרת הזה.",
         "webhooks_rejected": "ל-webhook האחרון מ-LiveKit הייתה חתימה לא תקינה. ודא ש-LiveKit חותם על webhooks עם אותו מפתח API ואותו סוד כמו Chatto.",
         "no_webhooks": "השרת הזה לא קיבל webhook מ-LiveKit מאז שהופעל. LiveKit שולח webhooks רק כששיחות מתחילות או משתנות. אם התקיימו שיחות בזמן הזה, ודא ש-LiveKit שולח webhooks לכתובת ה-webhook שלמטה.",
         "url": "כתובת ה-URL של LiveKit",

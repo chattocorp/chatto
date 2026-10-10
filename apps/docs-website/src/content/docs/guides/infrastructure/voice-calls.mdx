@@ -241,9 +241,10 @@ results:
 
 The panel also shows these warnings:
 
-- **The LiveKit URL is not encrypted.** The URL uses `ws://` and the Chatto
-  URL is not a local address. Browsers cannot connect to `ws://` from an HTTPS
-  page. Use `wss://`.
+- **The LiveKit URL is not encrypted.** The URL uses `ws://` or `http://`, and
+  the Chatto URL is not `localhost`, a `.localhost` name, or a loopback address.
+  Browsers cannot connect to an unencrypted URL from an HTTPS page. Use
+  `wss://`.
 - **The last webhook had a signature that is not valid.** LiveKit signs
   webhooks with a key that Chatto does not accept. Set `webhook.api_key` in
   `livekit.yaml` to the Chatto API key, or set `livekit.webhook_api_key` and

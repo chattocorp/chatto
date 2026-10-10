@@ -522,7 +522,7 @@
         "summary_unreachable": "Chatto は LiveKit の URL に接続できません。LiveKit が実行中で、このサーバーから URL に到達できることを確認してください。",
         "summary_unauthorized": "LiveKit が API キーまたはシークレットを拒否しました。LiveKit の設定にあるキーペアと一致していることを確認してください。",
         "summary_error": "LiveKit の URL にあるサーバーが予期しない応答を返しました。URL が LiveKit を指していることを確認してください。",
-        "insecure_url": "LiveKit の URL は暗号化されていない ws:// を使用しています。ブラウザは HTTPS ページからこの URL に接続できません。本番環境では wss:// を使用してください。",
+        "insecure_url": "LiveKit の URL は暗号化されていない ws:// または http:// を使用しています。HTTPS ページ上のブラウザはこの URL に接続できません。他のコンピューターがこのサーバーを使用する場合は wss:// を使用してください。",
         "webhooks_rejected": "LiveKit からの最後の Webhook の署名が無効でした。LiveKit が Chatto と同じ API キーとシークレットで Webhook に署名していることを確認してください。",
         "no_webhooks": "このサーバーは起動後、LiveKit から Webhook を受信していません。LiveKit は通話の開始時または変更時にのみ Webhook を送信します。この期間に通話があった場合は、LiveKit が下記の Webhook URL に Webhook を送信していることを確認してください。",
         "url": "LiveKit の URL",

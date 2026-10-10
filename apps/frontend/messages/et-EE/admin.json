@@ -533,7 +533,7 @@
         "summary_unreachable": "Chatto ei saa LiveKiti URL-iga ühendust. Veenduge, et LiveKit töötab ja et see server pääseb URL-ile ligi.",
         "summary_unauthorized": "LiveKit lükkas API-võtme või saladuse tagasi. Veenduge, et need vastavad LiveKiti seadistuse võtmepaarile.",
         "summary_error": "LiveKiti URL-il olev server saatis ootamatu vastuse. Veenduge, et URL osutab LiveKitile.",
-        "insecure_url": "LiveKiti URL kasutab ws://, mis ei ole krüpteeritud. Brauserid ei saa sellega HTTPS-lehelt ühendust luua. Kasutage tootmises wss://.",
+        "insecure_url": "LiveKiti URL kasutab ws:// või http://, mis ei ole krüpteeritud. HTTPS-lehel olevad brauserid ei saa sellega ühendust luua. Kasutage wss://, kui seda serverit kasutavad teised arvutid.",
         "webhooks_rejected": "LiveKiti viimasel webhookil oli kehtetu allkiri. Veenduge, et LiveKit allkirjastab webhookid sama API-võtme ja saladusega nagu Chatto.",
         "no_webhooks": "See server ei ole pärast käivitumist LiveKitilt ühtegi webhooki saanud. LiveKit saadab webhooke ainult siis, kui kõned algavad või muutuvad. Kui selle aja jooksul toimus kõnesid, veenduge, et LiveKit saadab webhookid allolevale webhooki URL-ile.",
         "url": "LiveKiti URL",

@@ -373,7 +373,7 @@ type AdminLiveKitStatus struct {
 	ConnectionState AdminLiveKitConnectionState `protobuf:"varint,7,opt,name=connection_state,json=connectionState,proto3,enum=chatto.admin.v1.AdminLiveKitConnectionState" json:"connection_state,omitempty"`
 	// Error detail when the check fails. Never contains secrets.
 	ConnectionError string `protobuf:"bytes,8,opt,name=connection_error,json=connectionError,proto3" json:"connection_error,omitempty"`
-	// True when `url` uses unencrypted `ws://` or `http://` and the public server URL is not a local address.
+	// True when `url` uses unencrypted `ws://` or `http://` and the public server URL host is not a loopback address or a `.localhost` name.
 	InsecureUrl bool `protobuf:"varint,9,opt,name=insecure_url,json=insecureUrl,proto3" json:"insecure_url,omitempty"`
 	// Time of the last webhook with a valid signature that this server received.
 	LastWebhookAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=last_webhook_at,json=lastWebhookAt,proto3" json:"last_webhook_at,omitempty"`

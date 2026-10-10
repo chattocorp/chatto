@@ -48,7 +48,7 @@ message AdminLiveKitStatus {
   AdminLiveKitConnectionState connection_state = 7;
   // Error detail when the check fails. Never contains secrets.
   string connection_error = 8;
-  // True when `url` uses unencrypted `ws://` or `http://` and the public server URL is not a local address.
+  // True when `url` uses unencrypted `ws://` or `http://` and the public server URL host is not a loopback address or a `.localhost` name.
   bool insecure_url = 9;
   // Time of the last webhook with a valid signature that this server received.
   google.protobuf.Timestamp last_webhook_at = 10;
