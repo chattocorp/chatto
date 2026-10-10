@@ -18,7 +18,8 @@ import (
 
 // fakeLiveKitServer answers ListRooms like LiveKit: it verifies the
 // bearer token against the expected key and secret and requires the
-// RoomList grant.
+// RoomList grant. Like LiveKit, it rejects bad credentials with a plain-text
+// 401 rather than a twirp error body.
 func fakeLiveKitServer(t *testing.T, apiKey, apiSecret string) *httptest.Server {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -28,12 +29,12 @@ func fakeLiveKitServer(t *testing.T, apiKey, apiSecret string) *httptest.Server 
 		}
 		token, err := lkauth.ParseAPIToken(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
 		if err != nil || token.APIKey() != apiKey {
-			writeTwirpError(w, http.StatusUnauthorized, "unauthenticated", "invalid API key")
+			http.Error(w, "invalid API key", http.StatusUnauthorized)
 			return
 		}
 		_, claims, err := token.Verify(apiSecret)
 		if err != nil {
-			writeTwirpError(w, http.StatusUnauthorized, "unauthenticated", "invalid token")
+			http.Error(w, "invalid token", http.StatusUnauthorized)
 			return
 		}
 		if claims.Video == nil || !claims.Video.RoomList {
@@ -82,6 +83,10 @@ func TestLiveKitAdminStatus(t *testing.T) {
 	liveKitURL := strings.Replace(liveKit.URL, "http://", "ws://", 1)
 	notLiveKit := httptest.NewServer(http.NotFoundHandler())
 	t.Cleanup(notLiveKit.Close)
+	badGateway := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "bad gateway", http.StatusBadGateway)
+	}))
+	t.Cleanup(badGateway.Close)
 
 	tests := []struct {
 		name           string
@@ -120,6 +125,12 @@ func TestLiveKitAdminStatus(t *testing.T) {
 		{
 			name:           "unreachable",
 			cfg:            config.LiveKitConfig{Enabled: true, URL: closedLocalURL(t), APIKey: apiKey, APISecret: apiSecret},
+			wantConfigured: true,
+			wantState:      LiveKitConnectionUnreachable,
+		},
+		{
+			name:           "proxy without a running LiveKit",
+			cfg:            config.LiveKitConfig{Enabled: true, URL: badGateway.URL, APIKey: apiKey, APISecret: apiSecret},
 			wantConfigured: true,
 			wantState:      LiveKitConnectionUnreachable,
 		},

@@ -138,7 +138,11 @@ func (c *ChattoCore) liveKitAdminStatus(ctx context.Context) LiveKitAdminStatus 
 
 // classifyLiveKitProbeError maps a LiveKit RoomService error to a connection
 // state. Transport failures arrive as twirp internal errors that wrap the
-// network or context error.
+// network or context error. Every transport failure, including DNS and TLS
+// errors, counts as unreachable. A reverse proxy in front of a stopped
+// LiveKit replies 502, 503, or 504, which twirp reports as unavailable or
+// deadline exceeded. LiveKit answers bad credentials with a plain 401, which
+// twirp reports as unauthenticated.
 func classifyLiveKitProbeError(err error) LiveKitConnectionState {
 	if err == nil {
 		return LiveKitConnectionOK
@@ -150,6 +154,8 @@ func classifyLiveKitProbeError(err error) LiveKitConnectionState {
 		switch twerr.Code() {
 		case twirp.Unauthenticated, twirp.PermissionDenied:
 			return LiveKitConnectionUnauthorized
+		case twirp.Unavailable, twirp.DeadlineExceeded:
+			return LiveKitConnectionUnreachable
 		}
 	}
 	return LiveKitConnectionError
