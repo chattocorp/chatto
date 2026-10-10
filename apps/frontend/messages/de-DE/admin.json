@@ -348,6 +348,14 @@
     "system": {
       "title": "System",
       "subtitle": "Broker, JetStream-Speicher, Consumer und Projektionszustand",
+      "tabs": {
+        "label": "Systembereiche",
+        "overview": "Übersicht",
+        "streams": "Streams",
+        "projections": "Projektionen",
+        "workers": "Worker",
+        "livekit": "LiveKit"
+      },
       "loading": "Systeminformationen werden geladen...",
       "broker": "NATS-Broker",
       "connected": "Verbunden",
@@ -444,7 +452,7 @@
         "overall_critical": "Probleme gefunden",
         "overall_ok_summary": "Alle Prüfungen waren beim Erstellen dieser Momentaufnahme erfolgreich.",
         "overall_partial_summary": "Keine Probleme gefunden. Für einige Prüfungen liegen keine Daten vor.",
-        "overall_problem_summary": "Sieh dir die Prüfungen unten an. Die Abschnitte weiter unten zeigen die Details.",
+        "overall_problem_summary": "Sieh dir die Prüfungen unten an. Einige Prüfungen verlinken auf einen Tab mit mehr Details.",
         "broker": "Broker-Verbindung",
         "projections": "Projektionen",
         "workers": "Hintergrund-Worker",
@@ -547,7 +555,8 @@
         "webhook_none": "Keiner seit dem Start",
         "scope_help": "Die Webhook-Zeiten stammen von der Chatto-Instanz, die diese Anfrage bearbeitet hat. Chatto kann TURN-Relays nicht prüfen.",
         "turn_guide": "Mehr über TURN für Netzwerke erfahren, die Anrufe blockieren"
-      }
+      },
+      "livekit_unavailable": "LiveKit-Details sind nicht verfügbar."
     },
     "event_log": {
       "title": "Event-Log",

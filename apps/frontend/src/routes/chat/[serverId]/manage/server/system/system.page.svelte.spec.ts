@@ -4,10 +4,24 @@ import { flushSync } from 'svelte';
 import { queryClient } from '$lib/query/client';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
-import SystemPage from './+page.svelte';
+import SystemTestHarness from './SystemTestHarness.svelte';
+import type { SystemSection } from './systemSections';
 
 const mocks = vi.hoisted(() => ({
   getAdminSystemInfo: vi.fn()
+}));
+
+let routeId = '/chat/[serverId]/manage/server/system';
+
+vi.mock('$app/state', () => ({
+  page: {
+    get params() {
+      return { serverId: 'origin' };
+    },
+    get route() {
+      return { id: routeId };
+    }
+  }
 }));
 
 // Page titles are tested separately from this page's partial route/server fixtures.
@@ -105,6 +119,19 @@ async function settle() {
   flushSync();
 }
 
+const routeIds: Record<SystemSection, string> = {
+  overview: '/chat/[serverId]/manage/server/system',
+  streams: '/chat/[serverId]/manage/server/system/streams',
+  projections: '/chat/[serverId]/manage/server/system/projections',
+  workers: '/chat/[serverId]/manage/server/system/workers',
+  livekit: '/chat/[serverId]/manage/server/system/livekit'
+};
+
+function renderSection(section: SystemSection = 'overview') {
+  routeId = routeIds[section];
+  return render(SystemTestHarness, { props: { section } });
+}
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((resolvePromise) => {
@@ -124,7 +151,7 @@ describe('server admin system diagnostics', () => {
   afterEach(() => queryClient.clear());
 
   it('passes query cancellation through and reuses a fresh cached snapshot', async () => {
-    const first = render(SystemPage);
+    const first = renderSection();
     await settle();
 
     expect(mocks.getAdminSystemInfo).toHaveBeenCalledWith(
@@ -134,7 +161,7 @@ describe('server admin system diagnostics', () => {
     expect(first.container.textContent).toContain('test-server');
 
     first.unmount();
-    const second = render(SystemPage);
+    const second = renderSection();
     await settle();
 
     expect(second.container.textContent).toContain('test-server');
@@ -146,7 +173,7 @@ describe('server admin system diagnostics', () => {
     mocks.getAdminSystemInfo
       .mockResolvedValueOnce(systemInfo)
       .mockReturnValueOnce(refreshed.promise);
-    const { container } = render(SystemPage);
+    const { container } = renderSection();
     await settle();
     expect(container.textContent).toContain('test-server');
 
@@ -166,7 +193,7 @@ describe('server admin system diagnostics', () => {
       ...systemInfo,
       account: { ...systemInfo.account, storageUsed: 1600 }
     });
-    const { container } = render(SystemPage);
+    const { container } = renderSection();
     await settle();
 
     expect(container.textContent).toContain('Needs attention');
@@ -181,7 +208,7 @@ describe('server admin system diagnostics', () => {
       ...systemInfo,
       connection: { ...systemInfo.connection, connected: false }
     });
-    const { container } = render(SystemPage);
+    const { container } = renderSection();
     await settle();
 
     expect(container.textContent).toContain('Problems found');
@@ -192,7 +219,7 @@ describe('server admin system diagnostics', () => {
   });
 
   it('reads a new snapshot when the refresh action is used', async () => {
-    const screen = render(SystemPage);
+    const screen = renderSection();
     await settle();
     expect(mocks.getAdminSystemInfo).toHaveBeenCalledOnce();
 
@@ -202,25 +229,158 @@ describe('server admin system diagnostics', () => {
 
   it('keeps unrelated diagnostics visible when JetStream telemetry is unavailable', async () => {
     mocks.getAdminSystemInfo.mockResolvedValue({ ...systemInfo, natsAvailable: false });
-    const { container } = render(SystemPage);
+    const overview = renderSection();
     await settle();
 
-    expect(container.textContent).toContain('test-server');
-    expect(container.textContent).toContain('Stream and consumer details are not available.');
-    expect(container.textContent).toContain('No problems found. Some checks have no data.');
-    expect(container.textContent).toContain('Projection Summary');
-    expect(container.textContent).not.toContain('Stored Data');
+    expect(overview.container.textContent).toContain('test-server');
+    expect(overview.container.textContent).toContain(
+      'No problems found. Some checks have no data.'
+    );
+    expect(overview.container.textContent).not.toContain('Stored Data');
+    overview.unmount();
+
+    const streams = renderSection('streams');
+    await settle();
+    expect(streams.container.textContent).toContain(
+      'Stream and consumer details are not available.'
+    );
+    streams.unmount();
+
+    const projections = renderSection('projections');
+    await settle();
+    expect(projections.container.textContent).toContain('Projection Summary');
+  });
+
+  it('shows one tab per section and marks the current one', async () => {
+    const screen = renderSection('workers');
+    await settle();
+
+    const nav = screen.getByRole('navigation', { name: 'System sections' });
+    for (const name of ['Overview', 'Streams', 'Projections', 'Workers', 'LiveKit']) {
+      await expect.element(nav.getByRole('link', { name, exact: true })).toBeVisible();
+    }
+    await expect
+      .element(nav.getByRole('link', { name: 'Projections', exact: true }))
+      .toHaveAttribute('href', '/chat/-/manage/server/system/projections');
+    await expect
+      .element(nav.getByRole('link', { name: 'Workers', exact: true }))
+      .toHaveAttribute('aria-current', 'page');
+    expect(screen.container.textContent).toContain('Background Workers');
+  });
+
+  it('hides the LiveKit tab when the server does not report LiveKit status', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({
+      ...systemInfo,
+      livekit: { ...systemInfo.livekit, connectionState: 'unavailable' }
+    });
+    const screen = renderSection();
+    await settle();
+
+    const nav = screen.getByRole('navigation', { name: 'System sections' });
+    await expect.element(nav.getByRole('link', { name: 'Workers', exact: true })).toBeVisible();
+    expect(nav.getByRole('link', { name: 'LiveKit' }).query()).toBeNull();
+  });
+
+  it('marks the tab of a failing section and links the check to it', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({
+      ...systemInfo,
+      projections: [
+        {
+          key: 'rooms',
+          name: 'rooms',
+          subjects: [],
+          streamLastSequence: '9',
+          metrics: [],
+          started: true,
+          failed: true,
+          failure: 'boom',
+          failedSequence: '7',
+          lastAppliedSequence: '6',
+          matchingStreamSequence: '9',
+          lag: 3,
+          entryCount: 1,
+          estimatedBytes: 10,
+          averageEntryBytes: 10,
+          startupDurationSeconds: 0.5
+        }
+      ]
+    });
+    const screen = renderSection();
+    await settle();
+
+    const nav = screen.getByRole('navigation', { name: 'System sections' });
+    await expect.element(nav.getByRole('link', { name: 'Projections Problem' })).toBeVisible();
+    expect(screen.container.querySelectorAll('[data-tab-status]')).toHaveLength(1);
+
+    const health = screen.container.querySelector('[data-health="critical"]');
+    expect(health?.querySelector('a')?.getAttribute('href')).toBe(
+      '/chat/-/manage/server/system/projections'
+    );
+  });
+
+  it('links checks on other tabs and keeps Overview checks as plain text', async () => {
+    const screen = renderSection();
+    await settle();
+
+    await expect
+      .element(screen.getByRole('link', { name: 'Backlog' }))
+      .toHaveAttribute('href', '/chat/-/manage/server/system/streams');
+    expect(screen.getByRole('link', { name: 'Broker connection' }).query()).toBeNull();
+    expect(screen.getByRole('link', { name: 'Account limits' }).query()).toBeNull();
+    await expect
+      .element(
+        screen
+          .getByRole('navigation', { name: 'System sections' })
+          .getByRole('link', { name: 'Overview', exact: true })
+      )
+      .toHaveAttribute('aria-current', 'page');
+  });
+
+  it('shows a warning dot on the tab of a section with a warning', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({
+      ...systemInfo,
+      account: { ...systemInfo.account, storageUsed: 1600 }
+    });
+    const screen = renderSection('streams');
+    await settle();
+
+    const nav = screen.getByRole('navigation', { name: 'System sections' });
+    await expect.element(nav.getByRole('link', { name: 'Overview Warning' })).toBeVisible();
+    expect(screen.container.querySelectorAll('[data-tab-status="warning"]')).toHaveLength(1);
+  });
+
+  it('keeps the LiveKit tab and shows a hint on a direct visit without LiveKit status', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({
+      ...systemInfo,
+      livekit: { ...systemInfo.livekit, connectionState: 'unavailable' }
+    });
+    const screen = renderSection('livekit');
+    await settle();
+
+    expect(screen.container.textContent).toContain('LiveKit details are not available.');
+    expect(screen.container.querySelector('[data-testid="livekit-panel"]')).toBeNull();
+    await expect
+      .element(
+        screen
+          .getByRole('navigation', { name: 'System sections' })
+          .getByRole('link', { name: 'LiveKit', exact: true })
+      )
+      .toHaveAttribute('aria-current', 'page');
   });
 
   it('shows that LiveKit is not configured without setup details', async () => {
-    const { container } = render(SystemPage);
+    const overview = renderSection();
     await settle();
 
+    expect(overview.container.querySelectorAll('[data-health]')).toHaveLength(5);
+    expect(overview.container.textContent).toContain('Everything is running normally');
+    overview.unmount();
+
+    const { container } = renderSection('livekit');
+    await settle();
     const panel = container.querySelector('[data-testid="livekit-panel"]');
     expect(panel?.textContent).toContain('Not configured');
     expect(panel?.textContent).not.toContain('Webhook URL');
-    expect(container.querySelectorAll('[data-health]')).toHaveLength(5);
-    expect(container.textContent).toContain('Everything is running normally');
   });
 
   it('reports a LiveKit setup problem in the health summary and the LiveKit panel', async () => {
@@ -237,11 +397,15 @@ describe('server admin system diagnostics', () => {
         webhookUrl: 'https://chat.example/webhooks/livekit'
       }
     });
-    const { container } = render(SystemPage);
+    const overview = renderSection();
     await settle();
 
-    expect(container.textContent).toContain('Problems found');
-    expect(container.textContent).toContain('LiveKit rejected the API key');
+    expect(overview.container.textContent).toContain('Problems found');
+    expect(overview.container.textContent).toContain('LiveKit rejected the API key');
+    overview.unmount();
+
+    const { container } = renderSection('livekit');
+    await settle();
     const panel = container.querySelector('[data-testid="livekit-panel"]');
     expect(panel?.textContent).toContain('Credentials rejected');
     expect(panel?.textContent).toContain('twirp error unauthenticated: invalid token');
@@ -263,11 +427,15 @@ describe('server admin system diagnostics', () => {
         lastRejectedWebhookAt: new Date('2026-07-10T12:00:00Z')
       }
     });
-    const { container } = render(SystemPage);
+    const overview = renderSection();
     await settle();
 
-    expect(container.textContent).toContain('Needs attention');
-    expect(container.textContent).toContain('LiveKit webhooks rejected');
+    expect(overview.container.textContent).toContain('Needs attention');
+    expect(overview.container.textContent).toContain('LiveKit webhooks rejected');
+    overview.unmount();
+
+    const { container } = renderSection('livekit');
+    await settle();
     expect(container.textContent).toContain('signature that is not valid');
   });
 });

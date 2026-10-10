@@ -348,6 +348,14 @@
     "system": {
       "title": "Systém",
       "subtitle": "Broker, úložiště JetStream, spotřebitelé a zdraví projekce",
+      "tabs": {
+        "label": "Sekce systému",
+        "overview": "Přehled",
+        "streams": "Proudy",
+        "projections": "Projekce",
+        "workers": "Úlohy",
+        "livekit": "LiveKit"
+      },
       "loading": "Načítání systémových informací...",
       "broker": "Broker NATS",
       "connected": "Připojeno",
@@ -444,7 +452,7 @@
         "overall_critical": "Nalezeny problémy",
         "overall_ok_summary": "Všechny kontroly při pořízení tohoto snímku prošly.",
         "overall_partial_summary": "Nebyly nalezeny žádné problémy. Některé kontroly nemají data.",
-        "overall_problem_summary": "Zkontrolujte kontroly níže. Podrobnosti najdete v následujících sekcích.",
+        "overall_problem_summary": "Zkontrolujte níže uvedené kontroly. Některé kontroly odkazují na kartu s dalšími podrobnostmi.",
         "broker": "Připojení k brokeru",
         "projections": "Projekce",
         "workers": "Pracovníci na pozadí",
@@ -569,7 +577,8 @@
         "webhook_none": "Žádný od spuštění",
         "scope_help": "Časy webhooků pocházejí z instance Chatto, která zpracovala tento požadavek. Chatto nemůže kontrolovat relay servery TURN.",
         "turn_guide": "Přečtěte si o TURN pro sítě, které blokují hovory"
-      }
+      },
+      "livekit_unavailable": "Podrobnosti o LiveKit nejsou k dispozici."
     },
     "event_log": {
       "title": "Protokol událostí",

@@ -348,6 +348,14 @@
     "system": {
       "title": "מערכת",
       "subtitle": "ברוקר, אחסון JetStream, צרכנים ובריאות הקרנה",
+      "tabs": {
+        "label": "חלקי המערכת",
+        "overview": "סקירה כללית",
+        "streams": "זרמים",
+        "projections": "הטלות",
+        "workers": "תהליכי רקע",
+        "livekit": "LiveKit"
+      },
       "loading": "טוען מידע מערכת...",
       "broker": "ברוקר NATS",
       "connected": "מחובר",
@@ -444,7 +452,7 @@
         "overall_critical": "נמצאו בעיות",
         "overall_ok_summary": "כל הבדיקות עברו בעת יצירת תמונת מצב זו.",
         "overall_partial_summary": "לא נמצאו בעיות. לחלק מהבדיקות אין נתונים.",
-        "overall_problem_summary": "עיין בבדיקות שלמטה. הקטעים הבאים מציגים את הפרטים.",
+        "overall_problem_summary": "עבור על הבדיקות שלהלן. חלק מהבדיקות מקשרות ללשונית עם פרטים נוספים.",
         "broker": "חיבור לברוקר",
         "projections": "הטלות",
         "workers": "עובדי רקע",
@@ -558,7 +566,8 @@
         "webhook_none": "אין מאז ההפעלה",
         "scope_help": "זמני ה-webhook מגיעים ממופע Chatto שטיפל בבקשה הזו. Chatto לא יכול לבדוק ממסרי TURN.",
         "turn_guide": "קרא על TURN עבור רשתות שחוסמות שיחות"
-      }
+      },
+      "livekit_unavailable": "פרטי LiveKit אינם זמינים."
     },
     "event_log": {
       "title": "יומן אירועים",

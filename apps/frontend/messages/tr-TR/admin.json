@@ -348,6 +348,14 @@
     "system": {
       "title": "Sistem",
       "subtitle": "Aracı, JetStream depolama, tüketiciler ve projeksiyon sağlığı",
+      "tabs": {
+        "label": "Sistem bölümleri",
+        "overview": "Genel bakış",
+        "streams": "Akışlar",
+        "projections": "Projeksiyonlar",
+        "workers": "Çalışanlar",
+        "livekit": "LiveKit"
+      },
       "loading": "Sistem bilgileri yükleniyor...",
       "broker": "NATS Brokerı",
       "connected": "Bağlı",
@@ -444,7 +452,7 @@
         "overall_critical": "Sorunlar bulundu",
         "overall_ok_summary": "Bu anlık görüntü alındığında tüm kontroller başarılı oldu.",
         "overall_partial_summary": "Sorun bulunamadı. Bazı kontrollerin verisi yok.",
-        "overall_problem_summary": "Aşağıdaki kontrolleri inceleyin. Ayrıntılar alttaki bölümlerde gösterilir.",
+        "overall_problem_summary": "Aşağıdaki denetimleri inceleyin. Bazı denetimler daha fazla ayrıntı içeren bir sekmeye bağlantı verir.",
         "broker": "Broker bağlantısı",
         "projections": "Projeksiyonlar",
         "workers": "Arka plan çalışanları",
@@ -547,7 +555,8 @@
         "webhook_none": "Başlangıçtan beri yok",
         "scope_help": "Webhook zamanları bu isteği işleyen Chatto örneğinden gelir. Chatto, TURN aktarıcılarını denetleyemez.",
         "turn_guide": "Aramaları engelleyen ağlar için TURN hakkında bilgi edinin"
-      }
+      },
+      "livekit_unavailable": "LiveKit ayrıntıları kullanılamıyor."
     },
     "event_log": {
       "title": "Olay Günlüğü",

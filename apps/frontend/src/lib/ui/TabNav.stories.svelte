@@ -27,6 +27,12 @@
       current: false
     }
   ];
+
+  const itemsWithStatus = [
+    items[0],
+    { ...items[1], status: { tone: 'warning' as const, label: 'Warning' } },
+    { ...items[2], status: { tone: 'danger' as const, label: 'Problem' } }
+  ];
 </script>
 
 <Story name="Wide pane header" asChild>
@@ -44,6 +50,16 @@
     <PaneHeader title="Helper Bot" subtitle="@helper_bot" backHref="#">
       {#snippet tabs()}
         <TabNav label="Bot sections" {items} />
+      {/snippet}
+    </PaneHeader>
+  </div>
+</Story>
+
+<Story name="Section status" asChild>
+  <div class="w-[960px] rounded-md border border-border">
+    <PaneHeader title="Helper Bot" subtitle="@helper_bot" backHref="#">
+      {#snippet tabs()}
+        <TabNav label="Bot sections" items={itemsWithStatus} />
       {/snippet}
     </PaneHeader>
   </div>

@@ -348,6 +348,14 @@
     "system": {
       "title": "Система",
       "subtitle": "Посередник, сховище JetStream, споживачі та стан проектування",
+      "tabs": {
+        "label": "Розділи системи",
+        "overview": "Огляд",
+        "streams": "Потоки",
+        "projections": "Проекції",
+        "workers": "Обробники",
+        "livekit": "LiveKit"
+      },
       "loading": "Завантаження системної інформації...",
       "broker": "Брокер NATS",
       "connected": "Підключено",
@@ -365,7 +373,7 @@
       "events": "Події",
       "average_message_size": "{size} середній",
       "largest_stream": "Найбільший потік",
-      "projection_summary": "Підсумок прогнозу",
+      "projection_summary": "Підсумок проекцій",
       "average_entry_size": "Середній вхід",
       "average_entry_value": "{size} середній",
       "no_streams": "Потоки не зареєстровані.",
@@ -391,7 +399,7 @@
       "push": "Натисніть",
       "bound": "Прив’язаний",
       "unbound": "Без зв’язку",
-      "projections": "Прогнози",
+      "projections": "Проекції",
       "projection_memory": "Пам'ять проекцій",
       "projection_failures": "Помилки проекції",
       "projection_lag": "Затримка проекції",
@@ -444,7 +452,7 @@
         "overall_critical": "Виявлено проблеми",
         "overall_ok_summary": "Усі перевірки пройдено на момент створення цього знімка.",
         "overall_partial_summary": "Проблем не знайдено. Для деяких перевірок немає даних.",
-        "overall_problem_summary": "Перегляньте перевірки нижче. Подробиці наведено в розділах нижче.",
+        "overall_problem_summary": "Перегляньте перевірки нижче. Деякі перевірки ведуть на вкладку з подробицями.",
         "broker": "З’єднання з брокером",
         "projections": "Проекції",
         "workers": "Фонові обробники",
@@ -569,7 +577,8 @@
         "webhook_none": "Немає від запуску",
         "scope_help": "Час вебхуків надходить від екземпляра Chatto, який обробив цей запит. Chatto не може перевірити TURN-ретранслятори.",
         "turn_guide": "Дізнайтеся про TURN для мереж, які блокують дзвінки"
-      }
+      },
+      "livekit_unavailable": "Відомості про LiveKit недоступні."
     },
     "event_log": {
       "title": "Журнал подій",

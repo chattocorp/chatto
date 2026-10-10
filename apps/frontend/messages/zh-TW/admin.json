@@ -348,6 +348,14 @@
     "system": {
       "title": "系統",
       "subtitle": "Broker、JetStream 儲存空間、consumer 與 projection 健康狀態",
+      "tabs": {
+        "label": "系統區段",
+        "overview": "概覽",
+        "streams": "Stream",
+        "projections": "Projection",
+        "workers": "Worker",
+        "livekit": "LiveKit"
+      },
       "loading": "正在載入系統資訊...",
       "broker": "NATS Broker",
       "connected": "已連線",
@@ -444,7 +452,7 @@
         "overall_critical": "發現問題",
         "overall_ok_summary": "產生此快照時，所有檢查皆已通過。",
         "overall_partial_summary": "未發現問題。部分檢查沒有資料。",
-        "overall_problem_summary": "請查看下方的檢查項目。更下方的區段會顯示詳細資料。",
+        "overall_problem_summary": "請查看下方的檢查。部分檢查會連結到含有更多詳細資訊的分頁。",
         "broker": "Broker 連線",
         "projections": "Projection",
         "workers": "背景 worker",
@@ -536,7 +544,8 @@
         "webhook_none": "啟動以來無",
         "scope_help": "Webhook 時間來自處理此請求的 Chatto 執行個體。Chatto 無法檢查 TURN 中繼。",
         "turn_guide": "閱讀 TURN 說明，以因應會封鎖通話的網路"
-      }
+      },
+      "livekit_unavailable": "LiveKit 詳細資訊無法使用。"
     },
     "event_log": {
       "title": "事件記錄",

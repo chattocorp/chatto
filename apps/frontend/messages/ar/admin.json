@@ -348,6 +348,14 @@
     "system": {
       "title": "النظام",
       "subtitle": "وسيط NATS وتخزين JetStream والمستهلكون وسلامة الإسقاطات",
+      "tabs": {
+        "label": "أقسام النظام",
+        "overview": "نظرة عامة",
+        "streams": "التدفقات",
+        "projections": "الإسقاطات",
+        "workers": "العمال",
+        "livekit": "LiveKit"
+      },
       "loading": "جارٍ تحميل معلومات النظام...",
       "broker": "وسيط ناتس",
       "connected": "متصل",
@@ -444,7 +452,7 @@
         "overall_critical": "تم العثور على مشكلات",
         "overall_ok_summary": "اجتازت جميع الفحوصات عند التقاط هذه اللقطة.",
         "overall_partial_summary": "لم يتم العثور على مشكلات. لا توجد بيانات لبعض الفحوصات.",
-        "overall_problem_summary": "راجع الفحوصات أدناه. تعرض الأقسام التالية التفاصيل.",
+        "overall_problem_summary": "راجع الفحوصات أدناه. ترتبط بعض الفحوصات بعلامة تبويب فيها تفاصيل أكثر.",
         "broker": "اتصال الوسيط",
         "projections": "الإسقاطات",
         "workers": "عمال الخلفية",
@@ -591,7 +599,8 @@
         "webhook_none": "لا شيء منذ بدء التشغيل",
         "scope_help": "تأتي أوقات خطافات الويب من نسخة Chatto التي عالجت هذا الطلب. لا يستطيع Chatto فحص مرحّلات TURN.",
         "turn_guide": "اقرأ عن TURN للشبكات التي تحظر المكالمات"
-      }
+      },
+      "livekit_unavailable": "تفاصيل LiveKit غير متاحة."
     },
     "event_log": {
       "title": "سجل الأحداث",

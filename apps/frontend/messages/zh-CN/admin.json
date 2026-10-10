@@ -348,6 +348,14 @@
     "system": {
       "title": "系统",
       "subtitle": "Broker、JetStream 存储、consumer 和 projection 健康状态",
+      "tabs": {
+        "label": "系统分区",
+        "overview": "概览",
+        "streams": "Stream",
+        "projections": "Projection",
+        "workers": "Worker",
+        "livekit": "LiveKit"
+      },
       "loading": "正在加载系统信息...",
       "broker": "NATS Broker",
       "connected": "已连接",
@@ -444,7 +452,7 @@
         "overall_critical": "发现问题",
         "overall_ok_summary": "生成此快照时，所有检查均已通过。",
         "overall_partial_summary": "未发现问题。部分检查没有数据。",
-        "overall_problem_summary": "请查看下方的检查项。更下方的部分显示详细信息。",
+        "overall_problem_summary": "请查看下面的检查。部分检查链接到包含更多详细信息的标签页。",
         "broker": "Broker 连接",
         "projections": "Projection",
         "workers": "后台 worker",
@@ -536,7 +544,8 @@
         "webhook_none": "启动以来无",
         "scope_help": "Webhook 时间来自处理此请求的 Chatto 实例。Chatto 无法检查 TURN 中继。",
         "turn_guide": "阅读 TURN 说明，以应对会阻止通话的网络"
-      }
+      },
+      "livekit_unavailable": "LiveKit 详细信息不可用。"
     },
     "event_log": {
       "title": "事件日志",

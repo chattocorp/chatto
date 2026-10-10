@@ -348,6 +348,14 @@
     "system": {
       "title": "Sistēma",
       "subtitle": "Brokeris, JetStream krātuve, patērētāji un projekcijas veselība",
+      "tabs": {
+        "label": "Sistēmas sadaļas",
+        "overview": "Pārskats",
+        "streams": "Straumes",
+        "projections": "Projekcijas",
+        "workers": "Fona procesi",
+        "livekit": "LiveKit"
+      },
       "loading": "Notiek sistēmas informācijas ielāde...",
       "broker": "NATS brokeris",
       "connected": "Savienots",
@@ -391,11 +399,11 @@
       "push": "Spiediet",
       "bound": "Saistīts",
       "unbound": "Nav saistību",
-      "projections": "Prognozes",
+      "projections": "Projekcijas",
       "projection_memory": "Projekcijas atmiņa",
       "projection_failures": "Projekcijas kļūmes",
       "projection_lag": "Projekcijas nobīde",
-      "no_projections": "Prognozes nav reģistrētas.",
+      "no_projections": "Projekcijas nav reģistrētas.",
       "projection": "Projekcija",
       "state": "valsts",
       "startup": "Startēšana",
@@ -444,7 +452,7 @@
         "overall_critical": "Konstatētas problēmas",
         "overall_ok_summary": "Visas pārbaudes bija sekmīgas, kad tika izveidots šis momentuzņēmums.",
         "overall_partial_summary": "Problēmas netika atrastas. Dažām pārbaudēm nav datu.",
-        "overall_problem_summary": "Pārskatiet tālāk norādītās pārbaudes. Sīkāka informācija ir zemāk esošajās sadaļās.",
+        "overall_problem_summary": "Pārskatiet tālāk norādītās pārbaudes. Dažas pārbaudes ved uz cilni ar plašāku informāciju.",
         "broker": "Brokera savienojums",
         "projections": "Projekcijas",
         "workers": "Fona darbinieki",
@@ -558,7 +566,8 @@
         "webhook_none": "Neviena kopš palaišanas",
         "scope_help": "Tīmekļa āķu laiki nāk no Chatto instances, kas apstrādāja šo pieprasījumu. Chatto nevar pārbaudīt TURN releju serverus.",
         "turn_guide": "Lasiet par TURN tīkliem, kas bloķē zvanus"
-      }
+      },
+      "livekit_unavailable": "LiveKit informācija nav pieejama."
     },
     "event_log": {
       "title": "Notikumu žurnāls",

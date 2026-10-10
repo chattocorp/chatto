@@ -348,6 +348,14 @@
     "system": {
       "title": "Sistema",
       "subtitle": "Broker, storage JetStream, consumatori e integrità della proiezione",
+      "tabs": {
+        "label": "Sezioni di sistema",
+        "overview": "Panoramica",
+        "streams": "Flussi",
+        "projections": "Proiezioni",
+        "workers": "Processi",
+        "livekit": "LiveKit"
+      },
       "loading": "Caricamento informazioni di sistema...",
       "broker": "Intermediario NAT",
       "connected": "Connesso",
@@ -444,7 +452,7 @@
         "overall_critical": "Sono stati rilevati problemi",
         "overall_ok_summary": "Tutti i controlli sono stati superati al momento di questo snapshot.",
         "overall_partial_summary": "Nessun problema trovato. Alcuni controlli non hanno dati.",
-        "overall_problem_summary": "Controlla le verifiche qui sotto. Le sezioni successive mostrano i dettagli.",
+        "overall_problem_summary": "Controlla le verifiche qui sotto. Alcune verifiche rimandano a una scheda con più dettagli.",
         "broker": "Connessione al broker",
         "projections": "Proiezioni",
         "workers": "Processi in background",
@@ -547,7 +555,8 @@
         "webhook_none": "Nessuno dall'avvio",
         "scope_help": "Gli orari dei webhook provengono dall'istanza di Chatto che ha gestito questa richiesta. Chatto non può verificare i relay TURN.",
         "turn_guide": "Scopri di più su TURN per le reti che bloccano le chiamate"
-      }
+      },
+      "livekit_unavailable": "I dettagli di LiveKit non sono disponibili."
     },
     "event_log": {
       "title": "Registro eventi",

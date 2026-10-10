@@ -348,6 +348,14 @@
     "system": {
       "title": "System",
       "subtitle": "Broker, pamięć masowa JetStream, konsumenci i kondycja projekcji",
+      "tabs": {
+        "label": "Sekcje systemu",
+        "overview": "Przegląd",
+        "streams": "Strumienie",
+        "projections": "Projekcje",
+        "workers": "Procesy",
+        "livekit": "LiveKit"
+      },
       "loading": "Ładowanie informacji o systemie...",
       "broker": "Broker NATS",
       "connected": "Połączono",
@@ -444,7 +452,7 @@
         "overall_critical": "Znaleziono problemy",
         "overall_ok_summary": "Wszystkie kontrole zakończyły się powodzeniem w chwili wykonania tej migawki.",
         "overall_partial_summary": "Nie znaleziono problemów. Część kontroli nie ma danych.",
-        "overall_problem_summary": "Sprawdź poniższe kontrole. Szczegóły znajdziesz w kolejnych sekcjach.",
+        "overall_problem_summary": "Przejrzyj poniższe testy. Niektóre testy prowadzą do karty z dodatkowymi szczegółami.",
         "broker": "Połączenie z brokerem",
         "projections": "Projekcje",
         "workers": "Pracownicy w tle",
@@ -569,7 +577,8 @@
         "webhook_none": "Brak od uruchomienia",
         "scope_help": "Czasy webhooków pochodzą z instancji Chatto, która obsłużyła to żądanie. Chatto nie może sprawdzić przekaźników TURN.",
         "turn_guide": "Przeczytaj o TURN dla sieci, które blokują rozmowy"
-      }
+      },
+      "livekit_unavailable": "Szczegóły LiveKit są niedostępne."
     },
     "event_log": {
       "title": "Dziennik zdarzeń",

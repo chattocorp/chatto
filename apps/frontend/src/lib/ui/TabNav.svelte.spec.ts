@@ -38,6 +38,21 @@ describe('TabNav', () => {
       .not.toHaveAttribute('aria-current');
   });
 
+  it('names the status of a section that needs attention', async () => {
+    const { container } = render(TabNav, {
+      props: {
+        label: 'Bot sections',
+        items: [items[0], { ...items[1], status: { tone: 'danger', label: 'Problem' } }]
+      }
+    });
+
+    await expect.element(page.getByRole('link', { name: 'Permissions Problem' })).toBeVisible();
+    await expect
+      .element(page.getByRole('link', { name: 'Permissions Problem' }))
+      .toHaveAttribute('title', 'Permissions · Problem');
+    expect(container.querySelectorAll('[data-tab-status="danger"]')).toHaveLength(1);
+  });
+
   it('renders nothing when only one section is available', async () => {
     const { container } = render(TabNav, {
       props: { label: 'Bot sections', items: items.slice(0, 1) }

@@ -348,6 +348,14 @@
     "system": {
       "title": "System",
       "subtitle": "Broker, JetStream storage, consumers, and projection health",
+      "tabs": {
+        "label": "System sections",
+        "overview": "Overview",
+        "streams": "Streams",
+        "projections": "Projections",
+        "workers": "Workers",
+        "livekit": "LiveKit"
+      },
       "loading": "Loading system information...",
       "broker": "NATS Broker",
       "connected": "Connected",
@@ -444,7 +452,7 @@
         "overall_critical": "Problems found",
         "overall_ok_summary": "All checks passed when this snapshot was taken.",
         "overall_partial_summary": "No problems found. Some checks have no data.",
-        "overall_problem_summary": "Review the checks below. The sections further down show the details.",
+        "overall_problem_summary": "Review the checks below. Some checks link to a tab with more details.",
         "broker": "Broker connection",
         "projections": "Projections",
         "workers": "Background workers",
@@ -547,7 +555,8 @@
         "webhook_none": "None since start",
         "scope_help": "Webhook times come from the Chatto instance that handled this request. Chatto cannot check TURN relays.",
         "turn_guide": "Read about TURN for networks that block calls"
-      }
+      },
+      "livekit_unavailable": "LiveKit details are not available."
     },
     "event_log": {
       "title": "Event Log",

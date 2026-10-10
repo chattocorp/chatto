@@ -348,6 +348,14 @@
     "system": {
       "title": "System",
       "subtitle": "Megler, JetStream lagring, forbrukere og projeksjonshelse",
+      "tabs": {
+        "label": "Systemseksjoner",
+        "overview": "Oversikt",
+        "streams": "Strømmer",
+        "projections": "Projeksjoner",
+        "workers": "Arbeidere",
+        "livekit": "LiveKit"
+      },
       "loading": "Laster inn systeminformasjon...",
       "broker": "NATS megler",
       "connected": "Tilkoblet",
@@ -391,11 +399,11 @@
       "push": "Trykk",
       "bound": "Bundet",
       "unbound": "Ubundet",
-      "projections": "Anslag",
+      "projections": "Projeksjoner",
       "projection_memory": "Projeksjonsminne",
       "projection_failures": "Projeksjonsfeil",
       "projection_lag": "Projeksjonsforsinkelse",
-      "no_projections": "Ingen anslag er registrert.",
+      "no_projections": "Ingen projeksjoner er registrert.",
       "projection": "Projeksjon",
       "state": "Tilstand",
       "startup": "Oppstart",
@@ -444,9 +452,9 @@
         "overall_critical": "Problemer funnet",
         "overall_ok_summary": "Alle kontroller var vellykkede da dette øyeblikksbildet ble tatt.",
         "overall_partial_summary": "Fant ingen problemer. Noen kontroller har ingen data.",
-        "overall_problem_summary": "Se gjennom kontrollene nedenfor. Delene lenger ned viser detaljene.",
+        "overall_problem_summary": "Se gjennom kontrollene nedenfor. Noen kontroller lenker til en fane med flere detaljer.",
         "broker": "Megler-tilkobling",
-        "projections": "Anslag",
+        "projections": "Projeksjoner",
         "workers": "Bakgrunnsarbeidere",
         "backlog": "Etterslep",
         "storage": "Kontogrenser",
@@ -547,7 +555,8 @@
         "webhook_none": "Ingen siden start",
         "scope_help": "Webhook-tidene kommer fra Chatto-instansen som behandlet denne forespørselen. Chatto kan ikke kontrollere TURN-reléer.",
         "turn_guide": "Les om TURN for nettverk som blokkerer samtaler"
-      }
+      },
+      "livekit_unavailable": "LiveKit-detaljer er ikke tilgjengelige."
     },
     "event_log": {
       "title": "Hendelseslogg",

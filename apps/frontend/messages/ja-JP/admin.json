@@ -348,6 +348,14 @@
     "system": {
       "title": "システム",
       "subtitle": "ブローカー、JetStream ストレージ、コンシューマー、およびプロジェクションの健全性",
+      "tabs": {
+        "label": "システムのセクション",
+        "overview": "概要",
+        "streams": "ストリーム",
+        "projections": "プロジェクション",
+        "workers": "ワーカー",
+        "livekit": "LiveKit"
+      },
       "loading": "システム情報を読み込み中...",
       "broker": "NATS ブローカー",
       "connected": "接続しました",
@@ -365,7 +373,7 @@
       "events": "イベント",
       "average_message_size": "{size} 平均",
       "largest_stream": "最大のストリーム",
-      "projection_summary": "予測の概要",
+      "projection_summary": "プロジェクションの概要",
       "average_entry_size": "平均エントリー数",
       "average_entry_value": "{size} 平均",
       "no_streams": "ストリームが登録されていません。",
@@ -391,7 +399,7 @@
       "push": "プッシュ",
       "bound": "バウンド",
       "unbound": "アンバウンド",
-      "projections": "予測",
+      "projections": "プロジェクション",
       "projection_memory": "プロジェクションメモリー",
       "projection_failures": "投影の失敗",
       "projection_lag": "投影ラグ",
@@ -444,7 +452,7 @@
         "overall_critical": "問題が見つかりました",
         "overall_ok_summary": "このスナップショットの取得時点で、すべてのチェックに合格しました。",
         "overall_partial_summary": "問題は見つかりませんでした。一部のチェックにはデータがありません。",
-        "overall_problem_summary": "以下のチェックを確認してください。詳細は下のセクションに表示されます。",
+        "overall_problem_summary": "以下のチェックを確認してください。一部のチェックから詳細のタブに移動できます。",
         "broker": "ブローカー接続",
         "projections": "プロジェクション",
         "workers": "バックグラウンドワーカー",
@@ -536,7 +544,8 @@
         "webhook_none": "起動後なし",
         "scope_help": "Webhook の時刻は、このリクエストを処理した Chatto インスタンスのものです。Chatto は TURN リレーを確認できません。",
         "turn_guide": "通話をブロックするネットワーク向けの TURN について読む"
-      }
+      },
+      "livekit_unavailable": "LiveKit の詳細は利用できません。"
     },
     "event_log": {
       "title": "イベントログ",

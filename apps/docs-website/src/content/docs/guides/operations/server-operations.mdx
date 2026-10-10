@@ -68,10 +68,12 @@ configuration. Explicit TOML values remain valid, and
 ## Admin Dashboard
 
 Owners and administrators use the admin UI for daily operations. Their
-permissions control which pages they see. The **System** tab starts with a
-health summary. It shows a lost broker connection, failed projections, stalled
-background workers, and JetStream usage near an account limit. Below the
-summary, the tab shows the details.
+permissions control which pages they see. The **System** page has tabs. The
+Overview tab starts with a health summary. It shows a lost broker connection,
+failed projections, stalled background workers, and JetStream usage near an
+account limit. The Streams, Projections, Workers, and LiveKit tabs show the
+details. Some checks link to the tab with their details. A dot on a tab shows a
+warning or a problem.
 
 The system pages show operational metadata, not message content. This is an
 application boundary. A person who controls the process, the storage, and the
