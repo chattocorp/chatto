@@ -502,6 +502,22 @@ func TestLiveKitWebhookRecordsSignatureOutcomeForDiagnostics(t *testing.T) {
 		return diagnostics.LiveKit
 	}
 
+	// Requests without a LiveKit token are scans, not signing-key mismatches.
+	for _, authorization := range []string{"", "not-a-token"} {
+		req := httptest.NewRequest(http.MethodPost, "/webhooks/livekit", strings.NewReader("{}"))
+		if authorization != "" {
+			req.Header.Set("Authorization", authorization)
+		}
+		recorder := httptest.NewRecorder()
+		s.router.ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusUnauthorized {
+			t.Fatalf("unauthenticated webhook %q status = %d", authorization, recorder.Code)
+		}
+	}
+	if status := liveKitStatus(); !status.LastRejectedWebhookAt.IsZero() {
+		t.Fatalf("unauthenticated webhooks recorded a rejection: %+v", status)
+	}
+
 	event := &livekit.WebhookEvent{Event: webhook.EventRoomStarted}
 	recorder := httptest.NewRecorder()
 	s.router.ServeHTTP(recorder, signedLiveKitWebhookRequest(t, apiKey, "wrong-secret", event))
