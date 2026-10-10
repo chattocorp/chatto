@@ -21,7 +21,6 @@ Room sidebar panel for voice/video calls.
 - `roomId` - The room ID
 - `livekitUrl` - The LiveKit server WebSocket URL (needed for joining)
 - `layout` - `sidebar` (default) or `stage`
-- `onExitFullscreen` - Set while the pane is fullscreen; adds an exit control
 -->
 <script lang="ts">
   import { Button } from '$lib/ui/form';
@@ -71,17 +70,11 @@ Room sidebar panel for voice/video calls.
     roomId,
     livekitUrl,
     layout = 'sidebar',
-    onExitFullscreen,
     onOpenProfile
   }: {
     roomId: string;
     livekitUrl: string;
     layout?: 'sidebar' | 'stage';
-    /**
-     * Set while the call pane is in browser fullscreen. The pane header is
-     * hidden there, so the call controls show an exit button that calls this.
-     */
-    onExitFullscreen?: () => void;
     onOpenProfile?: (userId: string) => void;
   } = $props();
 
@@ -883,17 +876,6 @@ Room sidebar panel for voice/video calls.
               testId="call-screen-share-toggle"
               iconClass="text-lg"
             />
-
-            {#if onExitFullscreen}
-              <VoiceCallControlButton
-                class={controlButtonClass}
-                label={m('voice.exit_fullscreen_call')}
-                testId="call-exit-fullscreen-button"
-                icon="icon-[mdi--fullscreen-exit]"
-                iconClass="text-lg"
-                onclick={onExitFullscreen}
-              />
-            {/if}
 
             <VoiceCallControlButton
               class={dangerControlButtonClass}

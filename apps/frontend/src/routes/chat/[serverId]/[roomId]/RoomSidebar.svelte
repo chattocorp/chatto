@@ -157,7 +157,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   const canStartDMs = $derived(serverScope.store.permissions.canStartDMs);
   let sidebarElement = $state<HTMLElement | null>(null);
   /**
-   * The call pane uses the stage layout and hides its chrome in fullscreen.
+   * The call pane uses the stage layout and keeps its header in fullscreen.
    */
   let isCallFullscreen = $state(false);
 
@@ -364,9 +364,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
     void membersStore.setSearch('');
   }
 
-  // Leave fullscreen when the call controls go away, because the pane header
-  // is hidden in fullscreen. This happens when the call ends for the viewer
-  // or when the pane switches to a profile from the call user menu.
+  // Leave fullscreen when the viewer leaves the call or opens a profile
+  // from the call user menu.
   $effect(() => {
     if (isCallFullscreen && !showCallFullscreenButton)
       document.exitFullscreen().catch(() => undefined);
@@ -414,37 +413,35 @@ calls, and similar room-specific panels can plug into the same shell. See the
       label={m('room.sidebar.resize')}
     />
   {/if}
-  {#if !isCallFullscreen}
-    <PaneHeader
-      {title}
-      onBack={activeProfileUserId ? onBackToMembers : undefined}
-      backLabel={m('room.sidebar.members')}
-    >
-      {#snippet actions()}
-        {#if showMaximizeButton}
-          <HeaderIconButton
-            icon={maximized ? 'icon-[mdi--arrow-collapse-right]' : 'icon-[mdi--arrow-expand-left]'}
-            mirrorInRtl
-            label={maximized ? m('room.sidebar.minimize_call') : m('room.sidebar.maximize_call')}
-            onclick={() => onToggleMaximized?.()}
-          />
-        {/if}
-        {#if showCallFullscreenButton}
-          <HeaderIconButton
-            icon="icon-[mdi--monitor-share]"
-            label={m('voice.fullscreen_call')}
-            onclick={() => void toggleCallFullscreen()}
-          />
-        {/if}
+  <PaneHeader
+    {title}
+    onBack={activeProfileUserId ? onBackToMembers : undefined}
+    backLabel={m('room.sidebar.members')}
+  >
+    {#snippet actions()}
+      {#if showMaximizeButton && !isCallFullscreen}
         <HeaderIconButton
-          icon="icon-[uil--times]"
-          label={m('room.sidebar.hide')}
-          iconSize="lg"
-          onclick={() => onClose?.()}
+          icon={maximized ? 'icon-[mdi--arrow-collapse-right]' : 'icon-[mdi--arrow-expand-left]'}
+          mirrorInRtl
+          label={maximized ? m('room.sidebar.minimize_call') : m('room.sidebar.maximize_call')}
+          onclick={() => onToggleMaximized?.()}
         />
-      {/snippet}
-    </PaneHeader>
-  {/if}
+      {/if}
+      {#if showCallFullscreenButton && !isCallFullscreen}
+        <HeaderIconButton
+          icon="icon-[mdi--monitor-share]"
+          label={m('voice.fullscreen_call')}
+          onclick={() => void toggleCallFullscreen()}
+        />
+      {/if}
+      <HeaderIconButton
+        icon="icon-[uil--times]"
+        label={isCallFullscreen ? m('voice.exit_fullscreen_call') : m('room.sidebar.hide')}
+        iconSize="lg"
+        onclick={() => (isCallFullscreen ? void toggleCallFullscreen() : onClose?.())}
+      />
+    {/snippet}
+  </PaneHeader>
 
   {#if activeProfileUserId}
     <!-- A new profile gets a fresh view, so no open menu carries over to it. -->
@@ -544,7 +541,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
         {roomId}
         {livekitUrl}
         layout={maximized || isCallFullscreen ? 'stage' : 'sidebar'}
-        onExitFullscreen={isCallFullscreen ? () => void toggleCallFullscreen() : undefined}
         {onOpenProfile}
       />
     {:else}

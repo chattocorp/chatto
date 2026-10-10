@@ -150,3 +150,10 @@
     <VoiceCallPanelStoryHarness layout="sidebar" scenario="camera" activeSpeaker="bob" />
   </div>
 </Story>
+
+<Story name="Fullscreen pane header" asChild>
+  <p class="mb-2">Open fullscreen from the pane header. Close it to return to the call pane.</p>
+  <div class="flex h-[720px] w-full overflow-hidden rounded-md border border-border bg-background">
+    <VoiceCallPanelStoryHarness withPaneHeader scenario="screen" />
+  </div>
+</Story>
