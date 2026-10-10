@@ -471,9 +471,6 @@ func TestChattoConfig_ApplyDefaultsAndNormalize(t *testing.T) {
 	if cfg.LiveKit.ServerID != "legacy-server-id" {
 		t.Fatalf("LiveKit server ID = %q", cfg.LiveKit.ServerID)
 	}
-	if cfg.LiveKit.WebhookURL != "https://chat.example/webhooks/livekit" {
-		t.Fatalf("LiveKit webhook URL = %q", cfg.LiveKit.WebhookURL)
-	}
 	if cfg.Core.Assets.S3.PathPrefix != "tenant/chatto" {
 		t.Fatalf("normalized S3 prefix = %q", cfg.Core.Assets.S3.PathPrefix)
 	}
@@ -508,9 +505,6 @@ func TestChattoConfig_ValidateDoesNotMutate(t *testing.T) {
 
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate() unexpected error = %v", err)
-	}
-	if cfg.LiveKit.WebhookURL != "" {
-		t.Fatalf("Validate() mutated LiveKit webhook URL to %q", cfg.LiveKit.WebhookURL)
 	}
 	if cfg.Core.Assets.S3.PathPrefix != "/tenant/chatto/" {
 		t.Fatalf("Validate() mutated S3 path prefix to %q", cfg.Core.Assets.S3.PathPrefix)

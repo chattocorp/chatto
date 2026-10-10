@@ -60,9 +60,6 @@ func (c *ChattoConfig) ApplyDefaults() {
 	if c.LiveKit.ServerID == "" {
 		c.LiveKit.ServerID = c.LiveKit.InstanceID
 	}
-	if c.LiveKit.Enabled && c.LiveKit.WebhookURL == "" && c.Webserver.URL != "" {
-		c.LiveKit.WebhookURL = strings.TrimRight(c.Webserver.URL, "/") + "/webhooks/livekit"
-	}
 
 	for i := range c.Bootstrap.Users {
 		if c.Bootstrap.Users[i].ServerRole == "" {
