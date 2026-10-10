@@ -695,6 +695,23 @@ Room sidebar panel for voice/video calls.
   {/if}
 {/snippet}
 
+<!-- Shared hover and keyboard-focus affordance for a tile's next pin action. -->
+{#snippet pinOverlay(pinned: boolean)}
+  <span
+    class="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md bg-black/40 opacity-0 transition-opacity group-hover/pin:opacity-100 group-focus-visible/pin:opacity-100"
+    aria-hidden="true"
+    data-testid="call-pin-overlay"
+  >
+    <span
+      class={[
+        'iconify text-2xl text-white',
+        pinned ? 'icon-[mdi--pin-off-outline]' : 'icon-[mdi--pin-outline]'
+      ]}
+      aria-hidden="true"
+    ></span>
+  </span>
+{/snippet}
+
 {#snippet featuredStageCard(tile: StageTile)}
   {@const participant = tile.participant}
   {@const isScreen = tile.kind === 'screen'}
@@ -723,7 +740,7 @@ Room sidebar panel for voice/video calls.
         type="button"
         class={[
           callTileMediaButtonClass,
-          'relative aspect-video min-h-0 items-center justify-center',
+          'group/pin relative aspect-video min-h-0 items-center justify-center',
           !hasMedia && 'p-6'
         ]}
         aria-label={m('voice.pin_to_stage', { name: stageTileLabel(tile) })}
@@ -746,6 +763,7 @@ Room sidebar panel for voice/video calls.
             />
           </div>
         {/if}
+        {@render pinOverlay(tile.key === pinnedStageTileKey)}
       </button>
     {/snippet}
   </CallCard>
@@ -799,13 +817,7 @@ Room sidebar panel for voice/video calls.
           {@render stageMedia(tile, false, controls)}
         {/if}
         {#if selectAction === 'pin'}
-          <span
-            class="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md bg-black/40 opacity-0 transition-opacity group-hover/pin:opacity-100 group-focus-visible/pin:opacity-100"
-            aria-hidden="true"
-          >
-            <span class="iconify icon-[mdi--pin-outline] text-2xl text-white" aria-hidden="true"
-            ></span>
-          </span>
+          {@render pinOverlay(false)}
         {/if}
       </button>
     {/snippet}
