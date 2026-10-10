@@ -3,6 +3,31 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.14](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.13...v0.5.0-beta.14) (2026-10-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* **config:** remove LiveKit webhook URL and provider options ([#2911](https://github.com/chattocorp/chatto/issues/2911))
+
+### Features
+
+* **admin:** add LiveKit setup diagnostics ([#2922](https://github.com/chattocorp/chatto/issues/2922)) ([54e9c43](https://github.com/chattocorp/chatto/commit/54e9c436887c4a10e5bbe3a58bb49fe2d3bbc0a1))
+* **frontend:** split the admin System page into tabs ([#2926](https://github.com/chattocorp/chatto/issues/2926)) ([a757502](https://github.com/chattocorp/chatto/commit/a757502fc328ef6ce3dbbbddc3e012be47a4357b))
+* **metrics:** expose projection snapshot lifecycle and storage metrics ([#2920](https://github.com/chattocorp/chatto/issues/2920)) ([1c16b47](https://github.com/chattocorp/chatto/commit/1c16b47c23622c4b716ba229575a88fe5e264b3e))
+* **permissions:** fill matrix height and keep sidebar column order ([#2915](https://github.com/chattocorp/chatto/issues/2915)) ([106408b](https://github.com/chattocorp/chatto/commit/106408b7c3d9294505bb01c233a0edc3ac26725f))
+
+
+### Bug Fixes
+
+* **config:** align defaults and add strict configuration checks ([#2921](https://github.com/chattocorp/chatto/issues/2921)) ([0c63122](https://github.com/chattocorp/chatto/commit/0c63122e62675f38f665acdef76189423bf39b8e))
+* **frontend:** keep typing indicator off message content ([#2923](https://github.com/chattocorp/chatto/issues/2923)) ([8efcbc7](https://github.com/chattocorp/chatto/commit/8efcbc7188d4d895a15cacbc7660b95badb523c1))
+
+
+### Code Refactoring
+
+* **config:** remove LiveKit webhook URL and provider options ([#2911](https://github.com/chattocorp/chatto/issues/2911)) ([e3faf60](https://github.com/chattocorp/chatto/commit/e3faf60face3280c36b5be12d5203c23269361b2))
+
 ## [0.5.0-beta.13](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.12...v0.5.0-beta.13) (2026-10-10)
 
 
