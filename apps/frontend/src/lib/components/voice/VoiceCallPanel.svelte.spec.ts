@@ -1,6 +1,7 @@
 import '../../../app.css';
 import { afterEach, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
+import { userEvent } from 'vitest/browser';
 import { serverRegistry } from '$lib/client';
 import { serverUi } from '$lib/state/server/serverUi';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
@@ -894,5 +895,44 @@ it.each(['sidebar', 'stage'] as const)(
     await expect
       .element(featured.getByTestId('call-stage-pin-button'))
       .toHaveAttribute('aria-pressed', 'true');
+  }
+);
+
+it.each(['sidebar', 'stage'] as const)(
+  'shows the featured %s pin action on keyboard focus and updates it after toggling',
+  async (layout) => {
+    const screen = renderCallPanelHarness({ layout, scenario: 'camera' });
+    if (layout === 'sidebar') {
+      Object.assign(screen.container.style, { display: 'flex', width: '360px', height: '600px' });
+    }
+    const media = screen
+      .getByTestId('call-featured-stage-card')
+      .getByTestId('call-stage-pin-button');
+    await expect.element(media).toHaveAttribute('aria-pressed', 'false');
+    const overlay = media.element().querySelector<HTMLElement>('[data-testid="call-pin-overlay"]');
+    expect(overlay).not.toBeNull();
+    expect(overlay!.getAttribute('aria-hidden')).toBe('true');
+    expect(getComputedStyle(overlay!).pointerEvents).toBe('none');
+    await userEvent.hover(screen.getByTestId('call-controls-bar'));
+    await expect.poll(() => getComputedStyle(overlay!).opacity).toBe('0');
+
+    media.element().focus();
+    await userEvent.keyboard('{Shift}');
+    await expect.poll(() => getComputedStyle(overlay!).opacity).toBe('1');
+    expect(overlay!.firstElementChild!.classList.contains('icon-[mdi--pin-outline]')).toBe(true);
+
+    await userEvent.keyboard('{Enter}');
+    await expect.element(media).toHaveAttribute('aria-pressed', 'true');
+    media.element().focus();
+    await userEvent.keyboard('{Shift}');
+    await expect.poll(() => getComputedStyle(overlay!).opacity).toBe('1');
+    expect(overlay!.firstElementChild!.classList.contains('icon-[mdi--pin-off-outline]')).toBe(
+      true
+    );
+
+    await userEvent.keyboard('{Enter}');
+    await expect.element(media).toHaveAttribute('aria-pressed', 'false');
+    expect(overlay!.firstElementChild!.classList.contains('icon-[mdi--pin-outline]')).toBe(true);
+    expect(media.element().getAttribute('aria-label')).toBe('Pin Alice to the stage');
   }
 );
