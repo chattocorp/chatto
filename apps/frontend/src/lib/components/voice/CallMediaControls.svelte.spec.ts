@@ -241,6 +241,14 @@ it.each([false, true])(
 it.each(['sidebar', 'stage'] as const)(
   'toggles the selected video from its menu and synchronizes header state in %s',
   async (layout) => {
+    // The browser can update PiP before the request resolves and the menu closes.
+    vi.spyOn(HTMLVideoElement.prototype, 'requestPictureInPicture').mockImplementation(
+      async function (this: HTMLVideoElement) {
+        const pipWindow = enterPictureInPicture(this);
+        await new Promise(requestAnimationFrame);
+        return pipWindow;
+      }
+    );
     const screen = renderCallPanelHarness({ scenario: 'screen', layout, playableMedia: true });
     const tileVideo = (index: number) =>
       screen.container.querySelectorAll<HTMLVideoElement>('video')[index];
@@ -269,10 +277,17 @@ it.each(['sidebar', 'stage'] as const)(
     const nextFirstVideo = tileVideo(0);
     activeMenu.click();
     await expect.poll(() => currentVideo).toBe(nextFirstVideo);
+    // PiP changes before the async action closes its menu. Wait before opening another menu.
+    await expect
+      .poll(() => document.querySelector('[data-testid="call-menu-pip-button"]'))
+      .toBeNull();
 
     const secondVideo = tileVideo(1);
     (await openVideoMenu(tileVideo(1))).click();
     await expect.poll(() => currentVideo).toBe(secondVideo);
+    await expect
+      .poll(() => document.querySelector('[data-testid="call-menu-pip-button"]'))
+      .toBeNull();
     expect(pipButton(mediaCards(screen.container)[0]).getAttribute('aria-pressed')).toBe('false');
     (await openVideoMenu(tileVideo(1))).click();
     await expect.poll(() => currentVideo).toBeNull();
