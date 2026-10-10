@@ -69,7 +69,12 @@ the backend permission catalog. Update both catalogs together.
   filter. Each scope includes its applicable decisions, with inheritance from
   broader scopes even when those scopes are outside the page. The editors load
   more columns at the horizontal scroll edge. This bounds each calculation
-  while allowing large servers to expose their full configuration.
+  while allowing large servers to expose their full configuration. Group and
+  channel columns follow the sidebar order across page boundaries. Realtime
+  layout updates refresh the loaded matrix pages without a full UI reload.
+
+- Account permission matrices fill the available page height. Permission rows
+  scroll inside the matrix, while the filter and column headings stay visible.
 
 - Role details and assigned members are separate reads. Member lists load in
   bounded pages so large roles do not require every user profile at once.

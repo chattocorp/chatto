@@ -44,12 +44,15 @@ rendering to `SubjectPermissionsMatrix`.
     userId,
     subjectKind = m('rbac.permissions.cell.user_subject'),
     ownerCapped = false,
-    decisionMode = 'tri-state'
+    decisionMode = 'tri-state',
+    fillHeight = false
   }: {
     userId: string;
     subjectKind?: string;
     ownerCapped?: boolean;
     decisionMode?: DecisionMode;
+    /** Fill the parent pane with an internally scrolling permission matrix. */
+    fillHeight?: boolean;
   } = $props();
 
   const serverScope = useServerScope();
@@ -291,6 +294,7 @@ rendering to `SubjectPermissionsMatrix`.
   <SubjectPermissionsMatrix
     data={data ?? { applicablePermissions: [], scopes: [], cells: [] }}
     {loading}
+    {fillHeight}
     hasMore={matrixQuery.hasNextPage && !matrixQuery.isFetchNextPageError}
     loadingMore={matrixQuery.isFetching}
     onLoadMore={() => matrixQuery.fetchNextPage()}

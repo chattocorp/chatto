@@ -141,11 +141,13 @@ Permissions pages through `botDetailContext`.
     {/snippet}
   </PaneHeader>
 
-  <PaneContent>
+  <PaneContent fillHeight={page.route.id?.endsWith('/permissions')}>
     {#if botQuery.error}
       <Hint tone="danger">{errorMessage(botQuery.error)}</Hint>
     {:else}
-      <div class="flex flex-col gap-6">
+      <div
+        class={['flex flex-col gap-6', page.route.id?.endsWith('/permissions') && 'min-h-0 flex-1']}
+      >
         {@render children()}
       </div>
     {/if}
