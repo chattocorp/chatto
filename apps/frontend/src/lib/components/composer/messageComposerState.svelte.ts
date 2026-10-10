@@ -1,4 +1,4 @@
-import { tick, untrack } from 'svelte';
+import { tick, untrack, type Snippet } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
 import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
 import type {
@@ -77,6 +77,13 @@ export type MessageComposerProps = {
   mentionPriorityUserIds?: ReadonlySet<string>;
   getRecentThreadRootCandidate?: () => RecentThreadRootCandidate | null;
   onThreadMessageSent?: (threadRootEventId: string, event: TimelineEventView | null) => void;
+  /**
+   * Status content, such as the typing indicator, rendered next to the input
+   * surface. A wrapper with the same box as the surface is its containing
+   * block, so the content can position itself on the surface edge without
+   * shifting the layout. The disabled-input dimming does not apply to it.
+   */
+  inputStatus?: Snippet;
 };
 
 type MessageComposerDependencies = {

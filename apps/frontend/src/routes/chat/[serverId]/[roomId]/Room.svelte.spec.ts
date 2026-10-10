@@ -47,6 +47,7 @@ const mocks = vi.hoisted(() => ({
   dmParticipantIds: ['test-user', 'user-1'] as string[],
   threadingMode: 3,
   canReadMessages: true as boolean | null,
+  typingUserIds: [] as string[],
   canPostMessage: true,
   hasLimitedMessageAccess: false,
   canPostInThread: true,
@@ -173,7 +174,9 @@ vi.mock('$lib/hooks', () => ({
   // ConversationPane uses this only for thread timelines.
   useUnreadMarker: vi.fn(),
   createTypingIndicator: () => ({
-    userIds: [],
+    get userIds() {
+      return mocks.typingUserIds;
+    },
     sendTypingIndicator: vi.fn(),
     resetDebounce: mocks.resetTypingDebounce,
     removeTypingUser: vi.fn()
@@ -206,6 +209,8 @@ vi.mock('$lib/state/globals.svelte', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
+  getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback,
   getLiveBotOwnerUserId: (_userId: string, fallback: string | null) => fallback,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback
 }));
@@ -464,6 +469,7 @@ beforeEach(() => {
   mocks.dmParticipantIds = ['test-user', 'user-1'];
   mocks.threadingMode = RoomThreadingMode.ENABLED;
   mocks.canReadMessages = true;
+  mocks.typingUserIds = [];
   mocks.canPostMessage = true;
   mocks.hasLimitedMessageAccess = false;
   mocks.canPostInThread = true;
@@ -579,6 +585,24 @@ describe('Room interaction bundles', () => {
     await expect.element(q(container, '[data-testid="room-event-ids"]')).not.toBeInTheDocument();
     await expect.element(q(container, '[data-testid="emit-returned-post"]')).toBeInTheDocument();
     expect(mocks.restoreProjectedRoomWindow).not.toHaveBeenCalled();
+  });
+
+  it('shows typing users on the composer only when the viewer can read messages', async () => {
+    mocks.typingUserIds = ['user-1'];
+
+    const readable = render(Room, { props: { roomId: 'room-1' } });
+    await expect
+      .element(q(readable.container, '[data-testid="typing-indicator"]'))
+      .toBeInTheDocument();
+    readable.unmount();
+
+    mocks.canReadMessages = false;
+    const unreadable = render(Room, { props: { roomId: 'room-1' } });
+    await expect
+      .element(unreadable.container)
+      .toHaveTextContent('You do not have permission to read messages in this room.');
+    expect(q(unreadable.container, '[data-testid="typing-indicator"]')).toBeNull();
+    expect(q(unreadable.container, '[role="status"][aria-live="polite"]')).toBeNull();
   });
 
   it('shows the limited-access timeline without a conversation start marker', async () => {

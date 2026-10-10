@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { cdp, page, userEvent } from 'vitest/browser';
 import type {} from '@vitest/browser-playwright';
 import { render } from 'vitest-browser-svelte';
-import { tick, type ComponentProps } from 'svelte';
+import { createRawSnippet, tick, type ComponentProps } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import MessageComposer, { type MessageComposerApi } from './MessageComposer.svelte';
 import { q } from '$lib/test-utils';
@@ -2341,6 +2341,32 @@ describe('MessageComposer', () => {
 
       expect(updateMessageConnectMock).not.toHaveBeenCalled();
       expect(getToasts().map(({ message }) => message)).toContain('Message cannot be empty');
+    });
+
+    it('renders input status on the input edge without the disabled dimming', async () => {
+      const inputStatus = createRawSnippet(() => ({
+        render: () => '<div data-testid="input-status" class="absolute inset-0"></div>'
+      }));
+      const { container } = renderMessageComposer({
+        roomId: 'room_456',
+        canPost: false,
+        inputStatus
+      });
+
+      const status = await vi.waitFor(() => {
+        const element = q(container, '[data-testid="input-status"]');
+        expect(element).not.toBeNull();
+        return element!;
+      });
+      const surface = q(container, '[data-testid="composer-input-surface"]')!;
+
+      expect(surface).toHaveClass('opacity-50');
+      expect(surface.contains(status)).toBe(false);
+      expect(status.closest('.opacity-50')).toBeNull();
+      // The status uses a containing block with the same box as the surface.
+      expect(status.getBoundingClientRect().toJSON()).toEqual(
+        surface.getBoundingClientRect().toJSON()
+      );
     });
 
     it('keeps an existing message editable when new posting is unavailable', async () => {

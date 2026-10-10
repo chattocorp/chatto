@@ -1,7 +1,7 @@
 # FDR-010: Typing Indicators
 
 **Status:** Active
-**Last reviewed:** 2026-09-23
+**Last reviewed:** 2026-10-10
 
 ## Overview
 
@@ -16,7 +16,7 @@ When a user composes a message, others see avatars, names, and animated dots in 
 - Current clients refresh typing state through ConnectRPC
   `RoomService.RefreshTypingIndicator`.
 - The bundled client shows up to three avatars and two names. Larger groups show the two names and a count of the other people. If a typing user's profile is missing, the client loads it and replaces the translated unknown-user label when the name arrives. The unknown user still counts toward the group size. A missing display name falls back to the login.
-- The indicator floats at the lower inline-end edge of its pane. The complete block fades and scales between 96% and 100% over 150 ms with easing. Long labels truncate to fit the pane without moving messages. The complete label stays available to assistive technology.
+- The indicator is a pill on the top edge of the composer input, at the inline-end side. It shows only when the reader can read the messages of the room or thread. It does not cover messages, and it does not move the messages or the composer when it appears or disappears. The complete block fades and scales between 96% and 100% over 150 ms with easing. Long labels truncate to fit the composer width. The complete label stays available to assistive technology.
 - A bright dot moves clockwise around a 3×3 grid with a fading trail beside the label. A persistent polite status region announces text changes. Avatars and dots are decorative. Reduced motion disables the fade, scale, and dot animation.
 - The indicator is removed immediately when the user actually posts a message.
 - Room typing and thread typing are tracked separately. The room view only shows indicators for users typing in the room timeline (not in any thread). A thread pane only shows indicators for users typing in that specific thread.
@@ -46,6 +46,12 @@ When a user composes a message, others see avatars, names, and animated dots in 
 **Decision:** A user typing in a thread does not appear as "typing" in the room timeline, and vice versa.
 **Why:** Otherwise the room timeline would show typing indicators for every active thread inside it, which would be noisy. Each location only shows the people typing _there_.
 **Tradeoff:** A user typing in a thread isn't visible to people who haven't opened the thread. Matches expectations.
+
+### 5. The indicator sits on the composer edge
+
+**Decision:** The indicator is positioned absolutely on the top edge of the composer input. It is not an overlay on the message viewport, and it does not have reserved space.
+**Why:** An overlay on the message viewport covered the newest message, mostly in narrow thread panes (#2798). Reserved space adds a permanent empty gap. Space that appears only during typing moves the messages. An indicator in the input row makes the draft narrower, or it must hide the names in narrow panes. The composer edge does not show message content.
+**Tradeoff:** The pill can cover the lower edge of the row above the input, such as the formatting toolbar, a composer hint, or a link preview. These controls stay usable because the pill does not receive pointer input.
 
 ## Permissions
 

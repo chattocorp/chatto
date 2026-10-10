@@ -30,7 +30,6 @@
   import SystemEventGroup from './SystemEventGroup.svelte';
   import DaySeparator from '$lib/components/DaySeparator.svelte';
   import UnreadSeparator from './UnreadSeparator.svelte';
-  import TypingIndicator from './TypingIndicator.svelte';
   import { computeEventMetadata } from './messageGrouping';
   import { buildVirtualItems, type VirtualItem } from './virtualItems';
   import {
@@ -70,9 +69,6 @@
     emptyMessage = m('room.message.empty'),
     // Event ID of the first unread message (for showing the unread separator)
     unreadAfterEventId = null,
-    // Typing indicator
-    typingUserIds = [],
-    typingMembers = [],
     onScrollToEventComplete,
     onReachedBottom,
     onJumpToPresent,
@@ -97,9 +93,6 @@
     // Event ID of the first unread message (for showing the unread separator).
     // The timeline lands on it once per entry unless the user moves first.
     unreadAfterEventId?: string | null;
-    // Typing indicator
-    typingUserIds?: string[];
-    typingMembers?: RoomMember[];
     /** Reports whether a jump-to-message request found and highlighted its target. */
     onScrollToEventComplete?: (
       landed: boolean,
@@ -1040,8 +1033,6 @@
       {/if}
     </div>
   </ScrollFader>
-
-  <TypingIndicator {typingUserIds} members={typingMembers} profiles={stores.projection.users} />
 
   {#if !viewport.shouldScrollToBottom}
     <button
