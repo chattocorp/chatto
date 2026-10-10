@@ -2176,7 +2176,7 @@ describe('RoomSidebar', () => {
     requestFullscreen.mockRestore();
   });
 
-  it('uses the stage layout without pane chrome while the call pane is fullscreen', async () => {
+  it('keeps a header close button that exits fullscreen without closing the call', async () => {
     callStore.voiceCall.connected = true;
     callStore.voiceCall.roomId = 'room-1';
     const exitFullscreen = vi.spyOn(document, 'exitFullscreen').mockResolvedValue();
@@ -2185,7 +2185,8 @@ describe('RoomSidebar', () => {
       hasActiveCall: true,
       livekitUrl: 'wss://livekit.example.test',
       roomData: roomData([member(1)], 1, false),
-      onToggleMaximized: vi.fn()
+      onToggleMaximized: vi.fn(),
+      onClose: vi.fn()
     };
     const { container, rerender } = render(RoomSidebarTestHarness, { props });
     const sidebar = container.querySelector<HTMLElement>('[aria-label="Room extras"]')!;
@@ -2205,11 +2206,20 @@ describe('RoomSidebar', () => {
       expect(q(container, '[data-testid="call-stage-grid"]')).toBeTruthy();
       expect(q(container, '[data-testid="call-participants-list"]')).toBeFalsy();
 
-      (q(container, '[data-testid="call-exit-fullscreen-button"]') as HTMLButtonElement).click();
+      expect(container.querySelector('[aria-label="Fullscreen call"]')).toBeFalsy();
+      expect(q(container, '[data-testid="call-exit-fullscreen-button"]')).toBeNull();
+      const close = container.querySelector<HTMLButtonElement>(
+        '[aria-label="Exit fullscreen call"]'
+      )!;
+      expect(close.closest('[data-page-reveal]')?.textContent).toContain('Call');
+      expect(close.querySelector('[class~="icon-[uil--times]"]')).toBeTruthy();
+      close.click();
       await Promise.resolve();
       expect(exitFullscreen).toHaveBeenCalledOnce();
+      expect(props.onClose).not.toHaveBeenCalled();
+      expect(callStore.voiceCall.connected).toBe(true);
 
-      // Ending the call removes the exit control, so fullscreen ends as well.
+      // Ending the call also ends fullscreen.
       await rerender({ ...props, hasActiveCall: false });
       expect(exitFullscreen).toHaveBeenCalledTimes(2);
     } finally {

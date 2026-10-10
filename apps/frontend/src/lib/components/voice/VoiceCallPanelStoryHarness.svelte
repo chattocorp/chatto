@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { RoomMembersStore } from '$lib/state/room';
   import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
   import type { Component } from 'svelte';
   import type { Track } from 'livekit-client';
@@ -18,6 +19,7 @@
 
   let {
     layout = 'stage',
+    withPaneHeader = false,
     scenario = 'screen',
     animateVoice = false,
     initiallyMuted = false,
@@ -26,6 +28,8 @@
     extraParticipants = 0
   }: {
     layout?: 'sidebar' | 'stage';
+    /** Render the actual room pane to exercise its fullscreen header. */
+    withPaneHeader?: boolean;
     scenario?: 'screen' | 'screen-voice' | 'screen-single-secondary' | 'camera' | 'voice' | 'idle';
     animateVoice?: boolean;
     initiallyMuted?: boolean;
@@ -55,6 +59,11 @@
   });
   let Panel = $state<Component<VoiceCallPanelProps> | null>(null);
   let panelVisible = $state(true);
+  let Sidebar = $state<
+    typeof import('../../../routes/chat/[serverId]/[roomId]/RoomSidebar.svelte').default | null
+  >(null);
+  let membersStore = $state<RoomMembersStore | null>(null);
+  let maximized = $state(false);
 
   function posterTrack(svg: string): Track {
     const poster = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -277,7 +286,16 @@
 
   onMount(async () => {
     seedStore();
-    Panel = (await import('./VoiceCallPanel.svelte')).default as Component<VoiceCallPanelProps>;
+    if (withPaneHeader) {
+      membersStore = new RoomMembersStore(
+        roomId,
+        serverConnectionManager.getClient(getScopedServerId())
+      );
+      Sidebar = (await import('../../../routes/chat/[serverId]/[roomId]/RoomSidebar.svelte'))
+        .default;
+    } else {
+      Panel = (await import('./VoiceCallPanel.svelte')).default as Component<VoiceCallPanelProps>;
+    }
   });
 
   onMount(() => {
@@ -323,4 +341,17 @@
 {/if}
 {#if Panel && panelVisible}
   <Panel {roomId} livekitUrl="wss://livekit.invalid" {layout} />
+{/if}
+
+{#if Sidebar && membersStore && panelVisible}
+  <Sidebar
+    {roomId}
+    {membersStore}
+    activePanel="call"
+    hasActiveCall
+    livekitUrl="wss://livekit.invalid"
+    {maximized}
+    onToggleMaximized={() => (maximized = !maximized)}
+    onClose={() => (panelVisible = false)}
+  />
 {/if}
