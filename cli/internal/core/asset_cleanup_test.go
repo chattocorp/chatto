@@ -130,13 +130,13 @@ func TestAssetCleanupReplaysDeletionAndIsIdempotent(t *testing.T) {
 func TestAssetCleanupReconcilesHLSChildrenMissedByOlderReplica(t *testing.T) {
 	t.Parallel()
 
-	core, _ := setupTestCore(t)
+	// Keep cleanup under test control: a running current-version worker can
+	// reconcile the source deletion before we inspect the older replica's state.
+	core, _ := newTestCore(t)
+	startAssetProjectionForCleanupTest(t, core.assetModel)
 	ctx := testContext(t)
-	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "asset-cleanup-hls-version-skew", "HLS version skew")
-	if err != nil {
-		t.Fatalf("CreateRoom: %v", err)
-	}
-	original, err := core.mediaModel.UploadAttachment(ctx, SystemActorID, room.GetId(), "clip.mp4", "video/mp4", bytes.NewReader([]byte("original")))
+	const roomID = "R-hls-version-skew"
+	original, err := core.mediaModel.UploadAttachment(ctx, SystemActorID, roomID, "clip.mp4", "video/mp4", bytes.NewReader([]byte("original")))
 	if err != nil {
 		t.Fatalf("UploadAttachment: %v", err)
 	}
@@ -146,7 +146,7 @@ func TestAssetCleanupReconcilesHLSChildrenMissedByOlderReplica(t *testing.T) {
 			ctx,
 			original.GetId(),
 			role,
-			room.GetId(),
+			roomID,
 			filename,
 			contentType,
 			bytes.NewReader([]byte(filename)),
@@ -165,7 +165,7 @@ func TestAssetCleanupReconcilesHLSChildrenMissedByOlderReplica(t *testing.T) {
 	if err := core.assetModel.RecordAssetProcessedWithHLS(
 		ctx,
 		SystemActorID,
-		room.GetId(),
+		roomID,
 		"E-message",
 		original.GetId(),
 		2_000,
@@ -180,7 +180,7 @@ func TestAssetCleanupReconcilesHLSChildrenMissedByOlderReplica(t *testing.T) {
 
 	// Simulate an HLS-unaware replica: it tombstones only the source because
 	// the additive HLS manifest field is unknown to its cleanup code.
-	if err := core.assetModel.RecordAssetDeleted(ctx, SystemActorID, room.GetId(), original.GetId()); err != nil {
+	if err := core.assetModel.RecordAssetDeleted(ctx, SystemActorID, roomID, original.GetId()); err != nil {
 		t.Fatalf("RecordAssetDeleted source: %v", err)
 	}
 	for _, derivative := range []*evtv1.Attachment{segment} {
