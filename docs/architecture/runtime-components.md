@@ -358,7 +358,6 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   [snapshot collector](../../cli/internal/core/projection_snapshot_metrics.go)
   reads memory without storage requests. Counters and success timestamps reset
   with the process; they do not represent work done by another replica.
-
 - **Credential usage recorder**
   ([`credential_usage.go`](../../cli/internal/core/credential_usage.go)):
   Best-effort in-process intake and coalesced `RUNTIME_STATE` persistence for

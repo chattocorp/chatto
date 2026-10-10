@@ -9,21 +9,23 @@ import (
 type collector struct {
 	server *Server
 
-	buildInfo                                                *prometheus.Desc
-	ready                                                    *prometheus.Desc
-	replayComplete                                           *prometheus.Desc
-	scrapeError                                              *prometheus.Desc
-	users                                                    *prometheus.Desc
-	presence                                                 *prometheus.Desc
-	rooms                                                    *prometheus.Desc
-	messages                                                 *prometheus.Desc
-	assets                                                   *prometheus.Desc
-	snapshotObjects, snapshotBytes, snapshotInventorySuccess *prometheus.Desc
-	s3Objects                                                *prometheus.Desc
-	s3Bytes                                                  *prometheus.Desc
-	s3Success                                                *prometheus.Desc
-	s3Duration                                               *prometheus.Desc
-	s3LastRefresh                                            *prometheus.Desc
+	buildInfo                *prometheus.Desc
+	ready                    *prometheus.Desc
+	replayComplete           *prometheus.Desc
+	scrapeError              *prometheus.Desc
+	users                    *prometheus.Desc
+	presence                 *prometheus.Desc
+	rooms                    *prometheus.Desc
+	messages                 *prometheus.Desc
+	assets                   *prometheus.Desc
+	snapshotObjects          *prometheus.Desc
+	snapshotBytes            *prometheus.Desc
+	snapshotInventorySuccess *prometheus.Desc
+	s3Objects                *prometheus.Desc
+	s3Bytes                  *prometheus.Desc
+	s3Success                *prometheus.Desc
+	s3Duration               *prometheus.Desc
+	s3LastRefresh            *prometheus.Desc
 }
 
 func newCollector(server *Server) *collector {

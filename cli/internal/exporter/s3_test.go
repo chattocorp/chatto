@@ -4,16 +4,16 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/expfmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/expfmt"
 	"github.com/stretchr/testify/require"
 
 	"hmans.de/chatto/internal/config"
@@ -140,17 +140,22 @@ func TestS3ScannerDefaultsToPathStyleForCustomEndpoint(t *testing.T) {
 // One listing supplies both bucket and snapshot totals. Versioned totals include
 // old versions and delete markers, which must not disappear from storage metrics.
 func TestSnapshotInventoryPaginationAndUnavailableMetrics(t *testing.T) {
-	for _, fail := range []bool{false, true} {
-		t.Run(fmt.Sprint(fail), func(t *testing.T) {
+	for _, failure := range []string{"none", "current", "versions", "pagination"} {
+		t.Run(failure, func(t *testing.T) {
 			requests := 0
 			provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				requests++
 				w.Header().Set("Content-Type", "application/xml")
-				if r.URL.Query().Has("versions") {
+				if r.URL.Query().Has("versions") && failure == "versions" {
+					w.WriteHeader(http.StatusForbidden)
+					fmt.Fprint(w, `<Error><Code>AccessDenied</Code></Error>`)
+				} else if r.URL.Query().Has("versions") {
 					fmt.Fprint(w, `<ListVersionsResult><IsTruncated>false</IsTruncated><Version><Key>tenant/internal/projection-snapshots/a</Key><Size>5</Size></Version><Version><Key>tenant/internal/projection-snapshots/a</Key><Size>3</Size></Version><DeleteMarker><Key>tenant/internal/projection-snapshots/old</Key></DeleteMarker></ListVersionsResult>`)
 				} else if r.URL.Query().Get("continuation-token") == "" {
 					fmt.Fprint(w, `<ListBucketResult><IsTruncated>true</IsTruncated><NextContinuationToken>next</NextContinuationToken><Contents><Key>tenant/asset</Key><Size>100</Size></Contents></ListBucketResult>`)
-				} else if fail {
+				} else if failure == "pagination" {
+					fmt.Fprint(w, `<ListBucketResult><IsTruncated>true</IsTruncated><NextContinuationToken>next</NextContinuationToken></ListBucketResult>`)
+				} else if failure == "current" {
 					w.WriteHeader(http.StatusForbidden)
 					fmt.Fprint(w, `<Error><Code>AccessDenied</Code></Error>`)
 				} else {
@@ -167,7 +172,7 @@ func TestSnapshotInventoryPaginationAndUnavailableMetrics(t *testing.T) {
 			before := requests
 			output := snapshotInventoryText(t, collector)
 			require.Equal(t, before, requests)
-			if fail {
+			if failure != "none" {
 				require.False(t, scanner.snapshot().LastSuccess)
 				require.Contains(t, output, `chatto_projection_snapshot_storage_refresh_success{backend="s3"} 0`)
 				require.NotContains(t, output, "chatto_projection_snapshot_storage_objects{")

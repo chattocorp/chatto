@@ -103,3 +103,28 @@ func TestSnapshotRestoreMetricsUseFinalProjectorDecision(t *testing.T) {
 		break
 	}
 }
+
+func TestSnapshotPublicationMetricsRecordLeaseLoss(t *testing.T) {
+	c, _ := setupTestCore(t)
+	// Lease loss after capture prevents storage work but still counts as an
+	// attempted generation. Use a real repository to retain its backend label.
+	repository, err := projectionsnapshot.NewRepository(natsSnapshotBlobStore{}, projectionsnapshot.RepositoryOptions{
+		Pointers:  natsSnapshotPointerStore{kv: c.storage.runtimeStateKV},
+		SecretHex: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := &projectionSnapshotWorker{logger: testCoreLogger(), lease: &snapshotMetricsLostLease{}}
+	job := projectionSnapshotJob{projector: registeredProjector(t, c, "server_content_view"), projectionKey: "server_content_view", repository: repository}
+	if err := w.generateJob(context.Background(), job, true); err == nil {
+		t.Fatal("publication succeeded after lease loss")
+	}
+	requireSnapshotMetric(t, &ChattoCore{projectionSnapshotWorker: w}, `chatto_projection_snapshot_publications_total{backend="nats",projection="server_content_view",result="error"} 1`)
+}
+
+type snapshotMetricsLostLease struct{ fakeSnapshotWorkerLease }
+
+func (*snapshotMetricsLostLease) CheckOwnership(context.Context) error {
+	return errors.New("lease lost")
+}
