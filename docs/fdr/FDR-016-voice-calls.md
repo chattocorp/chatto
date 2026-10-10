@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-10-09
+**Last reviewed:** 2026-10-10
 
 ## Overview
 
@@ -22,8 +22,9 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 - Open a participant's user context menu with the three-dot button or a
   right-click anywhere on their card, including camera and screen-share video.
-  This also works on secondary stage tiles. Left-clicking sidebar or featured
-  video opens the user menu; left-clicking a secondary stage tile pins it.
+  This also works on secondary stage tiles. Left-clicking sidebar video opens
+  the user menu. Left-clicking a secondary or unpinned featured stage tile pins
+  it; clicking the pinned featured tile unpins it.
   Touch users can long-press the card, including its video. For remote
   participants in the active call, participant and camera card menus include
   **Voice volume** alongside profile actions. This control is also available
@@ -143,7 +144,7 @@ Rooms support real-time voice conversations with optional camera video and scree
 - The pane header shows maximize and fullscreen controls only while the viewer is connected to that room's call. An active call alone does not show these controls.
 - On desktop, an active call sidebar can be maximized from the pane header. Maximized mode keeps the app's left navigation sidebars visible, hides the room timeline/content area, and turns the call panel into a stage layout.
 - The stage layout features one source in the largest 16:9 card that fits the stage, so very wide or tall screens do not crop camera feeds or stretch the card. A remote screen share comes first, then the viewer's own screen share, then the remote active speaker, then a remote camera, then the viewer's own camera. The active speaker counts only while at least one camera is on, and is featured with or without a camera of their own. All other screen shares, cameras, and participants show as equal tiles. The tiles go in one row below the featured source, which scrolls horizontally when the tiles do not fit, or beside it when that gives the featured source a larger card, as on ultrawide screens. Beside the featured source, the tiles fill the remaining width in a near-square grid that starts at the top edge of the featured card.
-- The viewer can select one of these tiles to pin it to the featured area. The featured card then offers an unpin action. A pin is local to the viewer and lasts for the session. When the pinned source ends or the viewer leaves the call, the pin clears and the stage selects a source automatically again.
+- The viewer can select one of these tiles to pin it to the featured area. Clicking the pinned tile again unpins it. The featured card also offers an unpin action. A pin is local to the viewer and lasts for the session. When the pinned source ends or the viewer leaves the call, the pin clears and the stage selects a source automatically again.
 - When no participant shares a screen or a camera and nothing is pinned, the stage layout shows all participants as equal tiles in a balanced grid.
 - The active speaker comes from LiveKit's server-side active speaker updates. The viewer never counts as the active speaker. The last speaker stays the active speaker during silence. A new speaker replaces the current one only after staying the loudest remote speaker for 3 seconds without interruption, so short interjections do not move the stage. The first speaker, and the next speaker after the current one leaves, apply at once.
 - An active call pane can be placed into browser fullscreen from the pane header, whether it is in the normal sidebar width or maximized across the chat route. This is separate from maximizing the pane inside the chat route. Fullscreen always uses the stage layout and hides the pane header and the resize handle. The call controls then include an exit-fullscreen button. Fullscreen ends when the call controls leave the pane, for example when the viewer leaves the call or opens a profile from the call user menu.
