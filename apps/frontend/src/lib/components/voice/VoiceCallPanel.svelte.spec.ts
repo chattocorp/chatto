@@ -386,11 +386,7 @@ it.each(['sidebar', 'stage'] as const)(
       .spyOn(call, 'getAudioLevel')
       .mockReturnValue({ isSpeaking: true, audioLevel: 0.5 });
     const stream = vi.spyOn(call, 'getScreenShareAudioLevel').mockReturnValue(0);
-    const tile = screen.container.querySelector(
-      layout === 'stage'
-        ? '[data-testid="call-featured-stage-card"]'
-        : '[data-testid="call-screen-share-card"]'
-    )!;
+    const tile = screen.container.querySelector('[data-testid="call-featured-stage-card"]')!;
     const canvas = tile.querySelector<HTMLCanvasElement>('[data-testid="voice-activity"]')!;
     await expect.poll(() => stream.mock.calls.length).toBeGreaterThan(1);
     expect(canvas.dataset.active).toBe('false');
@@ -492,7 +488,9 @@ it('keeps voice columns equal below a single screen share and stacks in a narrow
   const list = screen.container.querySelector<HTMLElement>(
     '[data-testid="call-participants-list"]'
   )!;
-  const share = list.querySelector<HTMLElement>('[data-call-media-card]')!;
+  const share = screen.container.querySelector<HTMLElement>(
+    '[data-testid="call-sidebar-featured"]'
+  )!;
   await expect
     .poll(() =>
       Math.abs(cards[0].getBoundingClientRect().width - cards[1].getBoundingClientRect().width)
@@ -525,7 +523,7 @@ it('pins a filmstrip tile to the stage until the viewer unpins it or its source 
   await expect.element(strip).not.toHaveTextContent('Bob');
 
   await featured.getByTestId('call-stage-unpin-button').click();
-  await expect.element(featured).toHaveTextContent("Dana's screen");
+  await expect.element(featured).toHaveTextContent('Bob');
 
   await strip.getByRole('button', { name: 'Pin Chloe to the stage' }).click();
   await expect.element(featured).toHaveTextContent('Chloe');
@@ -534,14 +532,14 @@ it('pins a filmstrip tile to the stage until the viewer unpins it or its source 
   flushSync(() => {
     call.participants = call.participants.filter((p) => p.identity !== 'chloe');
   });
-  await expect.element(featured).toHaveTextContent("Dana's screen");
+  await expect.element(featured).toHaveTextContent('Bob');
 
   // The ended source's pin is cleared, so a returning participant stays in the strip.
   flushSync(() => {
     call.participants = [...call.participants, chloe];
   });
   await expect.element(strip).toHaveTextContent('Chloe');
-  await expect.element(featured).toHaveTextContent("Dana's screen");
+  await expect.element(featured).toHaveTextContent('Bob');
 });
 
 it.each(['Bob', 'Chloe', "Dana's screen"])(
@@ -562,7 +560,7 @@ it.each(['Bob', 'Chloe', "Dana's screen"])(
     expect(media.getAttribute('aria-pressed')).toBe('true');
     media.click();
 
-    await expect.element(featured).toHaveTextContent("Dana's screen");
+    await expect.element(featured).toHaveTextContent('Bob');
     await expect.element(featured.getByTestId('call-stage-unpin-button')).not.toBeInTheDocument();
     expect(document.querySelector('[data-testid="copy-user-id"]')).toBeNull();
     await expect
@@ -572,9 +570,9 @@ it.each(['Bob', 'Chloe', "Dana's screen"])(
 );
 
 it('toggles the automatic featured tile with left-click and opens its menu with right-click', async () => {
-  const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'screen' });
+  const screen = renderCallPanelHarness({ layout: 'stage', scenario: 'camera' });
   const featured = screen.getByTestId('call-featured-stage-card');
-  const media = featured.getByRole('button', { name: "Pin Dana's screen to the stage" });
+  const media = featured.getByRole('button', { name: 'Pin Alice to the stage' });
   await expect.element(media).toHaveAttribute('aria-pressed', 'false');
   await media.click();
   await expect.element(media).toHaveAttribute('aria-pressed', 'true');
@@ -742,4 +740,139 @@ it('features the remote active speaker over another remote camera', async () => 
     call.participants = call.participants.filter((p) => p.identity !== 'chloe');
   });
   await expect.element(featured).toHaveTextContent('Bob');
+});
+
+it.each(['sidebar', 'stage'] as const)(
+  'acquires only new screen shares when the %s pin is empty',
+  async (layout) => {
+    const screen = renderCallPanelHarness({ layout, scenario: 'screen', activeSpeaker: 'chloe' });
+    const featured = screen.getByTestId('call-featured-stage-card');
+    await expect.element(featured).toHaveTextContent("Dana's screen");
+    const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
+    const dana = call.participants.find((p) => p.identity === 'dana')!;
+
+    // Unpin is a viewer choice. Ordinary participant and speaker updates must respect it.
+    await featured.getByTestId('call-stage-pin-button').click();
+    await expect.element(featured).toHaveTextContent('Chloe');
+    flushSync(() => {
+      call.activeSpeakerIdentity = 'bob';
+      call.participants = call.participants.map((p) => ({ ...p, connectionQuality: 'good' }));
+    });
+    await expect.element(featured).toHaveTextContent('Bob');
+    expect(
+      featured.element().querySelector('[aria-pressed="true"][data-testid="call-stage-pin-button"]')
+    ).toBeNull();
+
+    // A second share is new and acquires the empty pin.
+    flushSync(() => {
+      call.participants = call.participants.map((p) =>
+        p.identity === 'chloe'
+          ? { ...p, isScreenShareEnabled: true, screenShareTrack: dana.screenShareTrack }
+          : p
+      );
+    });
+    await expect.element(featured).toHaveTextContent("Chloe's screen");
+
+    // Ending that source returns to the speaker, not the older share.
+    flushSync(() => {
+      call.participants = call.participants.map((p) =>
+        p.identity === 'chloe' ? { ...p, isScreenShareEnabled: false, screenShareTrack: null } : p
+      );
+    });
+    await expect.element(featured).toHaveTextContent('Bob');
+
+    // A stopped share can acquire the pin when it starts again.
+    flushSync(() => {
+      call.participants = call.participants.filter((p) => p.identity !== 'dana');
+    });
+    flushSync(() => {
+      call.participants = [...call.participants, dana];
+    });
+    await expect.element(featured).toHaveTextContent("Dana's screen");
+  }
+);
+
+it.each(['sidebar', 'stage'] as const)(
+  'preserves a camera pin against new shares in %s and clears it when the camera stops',
+  async (layout) => {
+    const screen = renderCallPanelHarness({ layout, scenario: 'screen', activeSpeaker: 'chloe' });
+    const featured = screen.getByTestId('call-featured-stage-card');
+    await screen.getByRole('button', { name: 'Pin Bob to the stage' }).click();
+    const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
+    const dana = call.participants.find((p) => p.identity === 'dana')!;
+    flushSync(() => {
+      call.participants = call.participants.map((p) =>
+        p.identity === 'chloe'
+          ? { ...p, isScreenShareEnabled: true, screenShareTrack: dana.screenShareTrack }
+          : p
+      );
+    });
+    await expect.element(featured).toHaveTextContent('Bob');
+    flushSync(() => {
+      call.participants = call.participants.map((p) =>
+        p.identity === 'bob' ? { ...p, isCameraEnabled: false, videoTrack: null } : p
+      );
+    });
+    await expect.element(featured).toHaveTextContent('Chloe');
+    expect(
+      featured
+        .element()
+        .querySelector('[data-testid="call-stage-pin-button"]')
+        ?.getAttribute('aria-pressed')
+    ).toBe('false');
+  }
+);
+
+it('keeps a newly shared screen and call controls visible while the sidebar list is scrolled', async () => {
+  const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'screen' });
+  Object.assign(screen.container.style, { display: 'flex', width: '360px', height: '600px' });
+  const featured = screen.getByTestId('call-featured-stage-card');
+  await expect.element(featured).toHaveTextContent("Dana's screen");
+  const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
+  const dana = call.participants.find((p) => p.identity === 'dana')!;
+  const bob = call.participants.find((p) => p.identity === 'bob')!;
+  flushSync(() => {
+    call.participants = [
+      ...call.participants.filter((p) => p.identity !== 'dana'),
+      ...Array.from({ length: 20 }, (_, i) => ({
+        ...bob,
+        identity: `guest-${i}`,
+        name: `Guest ${i}`
+      }))
+    ];
+  });
+  const scroller = screen.getByTestId('call-sidebar-participants').element() as HTMLElement;
+  await expect.poll(() => scroller.scrollHeight > scroller.clientHeight).toBe(true);
+  scroller.scrollTop = scroller.scrollHeight;
+  const top = featured.element().getBoundingClientRect().top;
+  flushSync(() => {
+    call.participants = [...call.participants, dana];
+  });
+  await expect.element(featured).toHaveTextContent("Dana's screen");
+  expect(scroller.scrollTop).toBeGreaterThan(0);
+  expect(featured.element().getBoundingClientRect().top).toBe(top);
+  const pane = screen.getByTestId('call-participant-panel').element().getBoundingClientRect();
+  const card = featured.element().getBoundingClientRect();
+  const controls = screen.getByTestId('call-controls-bar').element().getBoundingClientRect();
+  expect(card.top).toBeGreaterThanOrEqual(pane.top);
+  expect(card.bottom).toBeLessThanOrEqual(controls.top);
+  expect(controls.bottom).toBeLessThanOrEqual(pane.bottom);
+
+  await screen.getByRole('button', { name: 'Pin Bob to the stage' }).click();
+  await screen.rerender({ layout: 'stage' });
+  await expect.element(featured).toHaveTextContent('Bob');
+  await screen.rerender({ layout: 'sidebar' });
+  await expect.element(featured).toHaveTextContent('Bob');
+});
+
+it('leaves room for participants and controls in a short wide sidebar', async () => {
+  const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'screen' });
+  Object.assign(screen.container.style, { display: 'flex', width: '600px', height: '300px' });
+  await expect.element(screen.getByTestId('call-featured-stage-card')).toBeInTheDocument();
+  const scroller = screen.getByTestId('call-sidebar-participants').element();
+  await expect.poll(() => scroller.clientHeight).toBeGreaterThan(48);
+  const featured = screen.getByTestId('call-featured-stage-card').element().getBoundingClientRect();
+  expect(featured.bottom).toBeLessThanOrEqual(scroller.getBoundingClientRect().top);
+  const controls = screen.getByTestId('call-controls-bar').element().getBoundingClientRect();
+  expect(controls.bottom).toBeLessThanOrEqual(screen.container.getBoundingClientRect().bottom);
 });

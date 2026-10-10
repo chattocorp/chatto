@@ -1028,7 +1028,9 @@ describe('RoomSidebar', () => {
       container.querySelectorAll<HTMLElement>('[data-testid="call-participant-card"]')
     );
     expect(participantCards).toHaveLength(2);
-    expect(participantCards[0].className).toContain('participant-card-video');
+    expect(participantCards[0].className).toContain('participant-card-compact');
+    expect(q(container, '[data-testid="call-featured-stage-card"] video')).toBeTruthy();
+    expect(participantCards[0].querySelector('video')).toBeNull();
     expect(participantCards[1].className).toContain('participant-card-compact');
     const mutedIndicator = q(participantCards[1], '[data-testid="call-muted-indicator"]');
     const participantMenuButton = q(
@@ -1198,7 +1200,7 @@ describe('RoomSidebar', () => {
     expect(participantList!.className).not.toContain('@min-[368px]:grid-cols-2');
   });
 
-  it('pins screen-share tiles before camera and voice participant cards', async () => {
+  it('features screen shares outside the scrolling participant list', async () => {
     const screenShareTrack = {
       attach: vi.fn(),
       detach: vi.fn()
@@ -1263,16 +1265,17 @@ describe('RoomSidebar', () => {
     const participantList = q(container, '[data-testid="call-participants-list"]');
     expect(participantList).toBeTruthy();
     const cards = Array.from(participantList!.children);
-    expect(cards[0].getAttribute('data-testid')).toBe('call-screen-share-card');
-    expect(cards[0].textContent).toContain("Alice's screen");
-    expect(cards[0].querySelector('video')?.className).toContain('object-contain');
+    const featured = q(container, '[data-testid="call-featured-stage-card"]')!;
+    expect(featured.textContent).toContain("Alice's screen");
+    expect(featured.querySelector('video')?.className).toContain('object-contain');
+    expect(participantList!.contains(featured)).toBe(false);
+    expect(cards[0].getAttribute('data-testid')).toBe('call-participant-card');
+    expect(cards[0].textContent).toContain('Bob');
+    expect(cards[0].querySelector('video')?.className).toContain('object-cover');
     expect(cards[1].getAttribute('data-testid')).toBe('call-participant-card');
-    expect(cards[1].textContent).toContain('Bob');
-    expect(cards[1].querySelector('video')?.className).toContain('object-cover');
+    expect(cards[1].textContent).toContain('Alice');
     expect(cards[2].getAttribute('data-testid')).toBe('call-participant-card');
-    expect(cards[2].textContent).toContain('Alice');
-    expect(cards[3].getAttribute('data-testid')).toBe('call-participant-card');
-    expect(cards[3].textContent).toContain('Carol');
+    expect(cards[2].textContent).toContain('Carol');
     expect(participantList!.className).toContain('@min-[368px]:grid-cols-2');
   });
 

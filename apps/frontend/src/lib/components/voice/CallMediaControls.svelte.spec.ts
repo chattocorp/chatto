@@ -506,8 +506,9 @@ it.each([
         .toBeInTheDocument();
     }
   }
+  // Choosing a featured source closes the menu before its card moves.
   mediaCards(screen.container)[0].querySelector('video')!.click();
-  await expect.poll(() => document.querySelector('[data-testid="copy-user-id"]')).not.toBeNull();
+  await expect.poll(() => document.querySelector('[data-testid="copy-user-id"]')).toBeNull();
 });
 
 it('preserves touch long-press and suppresses its duplicate native menu', async () => {

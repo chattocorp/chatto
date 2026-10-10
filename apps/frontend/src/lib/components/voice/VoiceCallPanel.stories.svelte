@@ -134,3 +134,19 @@
     <VoiceCallPanelStoryHarness layout="sidebar" scenario="voice" initiallyMuted />
   </div>
 </Story>
+
+<Story name="Sidebar with many cameras" asChild>
+  <div
+    class="flex h-[600px] w-[360px] overflow-hidden rounded-md border border-border bg-background"
+  >
+    <VoiceCallPanelStoryHarness layout="sidebar" scenario="screen" extraParticipants={16} />
+  </div>
+</Story>
+
+<Story name="Sidebar speaker following" asChild>
+  <div
+    class="flex h-[600px] w-[280px] overflow-hidden rounded-md border border-border bg-background"
+  >
+    <VoiceCallPanelStoryHarness layout="sidebar" scenario="camera" activeSpeaker="bob" />
+  </div>
+</Story>
