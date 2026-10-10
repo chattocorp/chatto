@@ -15,11 +15,11 @@ Checks on 2026-10-10 used an isolated local Chatto development server on Linux,
 synthetic accounts, and the seeded general channel. Browser sign-in and consent
 used Playwright. Codex calls used the app-server API without a model turn.
 
-| Client | Version | Result |
-| --- | --- | --- |
-| Codex CLI | `0.162.0` | Protected-resource and issuer discovery, public CIMD, browser consent, S256 PKCE exchange, seven-tool discovery, and all seven tool calls succeeded. Calls after a two-second access lifetime succeeded without new consent. |
-| MCP Inspector CLI | `2.9.0`, modern protocol era | The same flow and tools succeeded with a locally served native CIMD document. Calls after access expiry and a server restart succeeded with `--stored-auth-only`. |
-| Claude Code | `2.1.295` | Discovery produced the resource and scopes, and the client requested S256 PKCE. Chatto rejected its localhost callback with `400 invalid_request` before consent. No token was issued. |
+| Client            | Version                      | Result                                                                                                                                                                                                                       |
+| ----------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Codex CLI         | `0.162.0`                    | Protected-resource and issuer discovery, public CIMD, browser consent, S256 PKCE exchange, seven-tool discovery, and all seven tool calls succeeded. Calls after a two-second access lifetime succeeded without new consent. |
+| MCP Inspector CLI | `2.9.0`, modern protocol era | The same flow and tools succeeded with a locally served native CIMD document. Calls after access expiry and a server restart succeeded with `--stored-auth-only`.                                                            |
+| Claude Code       | `2.1.295`                    | Discovery produced the resource and scopes, and the client requested S256 PKCE. Chatto rejected its localhost callback with `400 invalid_request` before consent. No token was issued.                                       |
 
 Inspector's default room-read grant exposed only three tools. The full-catalog
 repeat set all four scopes in the session config's `oauth.scopes` string.
@@ -102,9 +102,9 @@ points to an everything-server, and the
 builds `conformance/everything-server`. Selecting a protocol requirement set
 does not adapt these fixtures to Chatto's catalog.
 
-For a full-suite diagnostic run, add `CHATTO_MCP_FULL_SUITE=1` to the command
-above. This selects the frozen `2026-07-28` requirement set and preserves its
-failure exit status. Do not combine it with `CHATTO_MCP_SCENARIO`. Neither mode
+For a full-suite diagnostic run, set `CHATTO_MCP_FULL_SUITE=1` with the URL and
+credential-file variables, and leave `CHATTO_MCP_SCENARIO` unset. This selects
+the frozen `2026-07-28` requirement set and preserves its failure exit status. Neither mode
 uses an expected-failure baseline. A full-suite failure caused by absent test
 fixtures is not evidence of a Chatto defect.
 
