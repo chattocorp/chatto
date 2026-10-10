@@ -46,7 +46,10 @@ describe('TabNav', () => {
       }
     });
 
-    await expect.element(page.getByRole('link', { name: 'Permissions (Problem)' })).toBeVisible();
+    await expect.element(page.getByRole('link', { name: 'Permissions Problem' })).toBeVisible();
+    await expect
+      .element(page.getByRole('link', { name: 'Permissions Problem' }))
+      .toHaveAttribute('title', 'Permissions · Problem');
     expect(container.querySelectorAll('[data-tab-status="danger"]')).toHaveLength(1);
   });
 

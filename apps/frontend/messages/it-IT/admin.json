@@ -452,7 +452,7 @@
         "overall_critical": "Sono stati rilevati problemi",
         "overall_ok_summary": "Tutti i controlli sono stati superati al momento di questo snapshot.",
         "overall_partial_summary": "Nessun problema trovato. Alcuni controlli non hanno dati.",
-        "overall_problem_summary": "Controlla le verifiche qui sotto. Seleziona una verifica per vederne i dettagli.",
+        "overall_problem_summary": "Controlla le verifiche qui sotto. Alcune verifiche rimandano a una scheda con più dettagli.",
         "broker": "Connessione al broker",
         "projections": "Proiezioni",
         "workers": "Processi in background",

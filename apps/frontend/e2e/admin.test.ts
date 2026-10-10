@@ -261,6 +261,9 @@ test.describe('Admin System Page', () => {
 
     // Should see the health summary, stat cards, and usage panel
     await adminPage.expectSystemStatsVisible();
+
+    // The other tabs show the streams, projections, and workers
+    await adminPage.expectSystemSectionTabsWork();
   });
 });
 

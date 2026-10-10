@@ -474,8 +474,8 @@ export class AdminPage {
   }
 
   /**
-   * Assert that the health summary, stat cards, usage panel, and projection
-   * summary of the System page are visible.
+   * Assert that the health summary, stat cards, and usage panel of the System
+   * Overview tab are visible.
    */
   async expectSystemStatsVisible(): Promise<void> {
     await expect(this.mainContent.getByTestId('system-health-overall')).toBeVisible();
@@ -483,7 +483,26 @@ export class AdminPage {
     await expect(this.mainContent.getByText('JetStream Usage', { exact: true })).toBeVisible();
     await expect(this.mainContent.getByText('File Storage', { exact: true })).toBeVisible();
     await expect(this.mainContent.getByText('Memory Storage', { exact: true })).toBeVisible();
-    await expect(this.mainContent.getByText('Projection Summary')).toBeVisible();
+  }
+
+  /**
+   * Open the Streams, Projections, and Workers tabs of the System page and
+   * assert that each tab shows its details.
+   */
+  async expectSystemSectionTabsWork(): Promise<void> {
+    const tabs = this.page.getByRole('navigation', { name: 'System sections' });
+
+    await tabs.getByRole('link', { name: /^Streams/ }).click();
+    await expect(this.page).toHaveURL(/\/manage\/server\/system\/streams$/);
+    await expect(this.page.getByRole('columnheader', { name: 'Stream' })).toBeVisible();
+
+    await tabs.getByRole('link', { name: /^Projections/ }).click();
+    await expect(this.page).toHaveURL(/\/manage\/server\/system\/projections$/);
+    await expect(this.page.getByText('Projection Summary')).toBeVisible();
+
+    await tabs.getByRole('link', { name: /^Workers/ }).click();
+    await expect(this.page).toHaveURL(/\/manage\/server\/system\/workers$/);
+    await expect(this.page.getByText('Background Workers')).toBeVisible();
   }
 
   /**

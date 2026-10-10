@@ -353,7 +353,7 @@
         "overview": "概覽",
         "streams": "Stream",
         "projections": "Projection",
-        "workers": "工作程序",
+        "workers": "worker",
         "livekit": "LiveKit"
       },
       "loading": "正在載入系統資訊...",
@@ -452,7 +452,7 @@
         "overall_critical": "發現問題",
         "overall_ok_summary": "產生此快照時，所有檢查皆已通過。",
         "overall_partial_summary": "未發現問題。部分檢查沒有資料。",
-        "overall_problem_summary": "請查看下方的檢查。選擇一項檢查以查看其詳細資訊。",
+        "overall_problem_summary": "請查看下方的檢查。部分檢查會連結到含有更多詳細資訊的分頁。",
         "broker": "Broker 連線",
         "projections": "Projection",
         "workers": "背景 worker",

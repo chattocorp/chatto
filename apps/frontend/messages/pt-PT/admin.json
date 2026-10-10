@@ -352,7 +352,7 @@
         "label": "Secções do sistema",
         "overview": "Visão geral",
         "streams": "Transmissões",
-        "projections": "Projecções",
+        "projections": "Projeções",
         "workers": "Processos",
         "livekit": "LiveKit"
       },
@@ -452,7 +452,7 @@
         "overall_critical": "Foram encontrados problemas",
         "overall_ok_summary": "Todas as verificações passaram quando este instantâneo foi criado.",
         "overall_partial_summary": "Nenhum problema encontrado. Algumas verificações não têm dados.",
-        "overall_problem_summary": "Reveja as verificações abaixo. Selecione uma verificação para ver os detalhes.",
+        "overall_problem_summary": "Reveja as verificações abaixo. Algumas verificações levam a um separador com mais detalhes.",
         "broker": "Ligação ao corretor",
         "projections": "Projeções",
         "workers": "Trabalhadores em segundo plano",

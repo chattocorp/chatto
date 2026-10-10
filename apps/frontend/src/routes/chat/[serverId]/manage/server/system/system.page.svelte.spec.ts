@@ -309,13 +309,63 @@ describe('server admin system diagnostics', () => {
     await settle();
 
     const nav = screen.getByRole('navigation', { name: 'System sections' });
-    await expect.element(nav.getByRole('link', { name: 'Projections (Problem)' })).toBeVisible();
+    await expect.element(nav.getByRole('link', { name: 'Projections Problem' })).toBeVisible();
     expect(screen.container.querySelectorAll('[data-tab-status]')).toHaveLength(1);
 
     const health = screen.container.querySelector('[data-health="critical"]');
     expect(health?.querySelector('a')?.getAttribute('href')).toBe(
       '/chat/-/manage/server/system/projections'
     );
+  });
+
+  it('links checks on other tabs and keeps Overview checks as plain text', async () => {
+    const screen = renderSection();
+    await settle();
+
+    await expect
+      .element(screen.getByRole('link', { name: 'Backlog' }))
+      .toHaveAttribute('href', '/chat/-/manage/server/system/streams');
+    expect(screen.getByRole('link', { name: 'Broker connection' }).query()).toBeNull();
+    expect(screen.getByRole('link', { name: 'Account limits' }).query()).toBeNull();
+    await expect
+      .element(
+        screen
+          .getByRole('navigation', { name: 'System sections' })
+          .getByRole('link', { name: 'Overview', exact: true })
+      )
+      .toHaveAttribute('aria-current', 'page');
+  });
+
+  it('shows a warning dot on the tab of a section with a warning', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({
+      ...systemInfo,
+      account: { ...systemInfo.account, storageUsed: 1600 }
+    });
+    const screen = renderSection('streams');
+    await settle();
+
+    const nav = screen.getByRole('navigation', { name: 'System sections' });
+    await expect.element(nav.getByRole('link', { name: 'Overview Warning' })).toBeVisible();
+    expect(screen.container.querySelectorAll('[data-tab-status="warning"]')).toHaveLength(1);
+  });
+
+  it('keeps the LiveKit tab and shows a hint on a direct visit without LiveKit status', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({
+      ...systemInfo,
+      livekit: { ...systemInfo.livekit, connectionState: 'unavailable' }
+    });
+    const screen = renderSection('livekit');
+    await settle();
+
+    expect(screen.container.textContent).toContain('LiveKit details are not available.');
+    expect(screen.container.querySelector('[data-testid="livekit-panel"]')).toBeNull();
+    await expect
+      .element(
+        screen
+          .getByRole('navigation', { name: 'System sections' })
+          .getByRole('link', { name: 'LiveKit', exact: true })
+      )
+      .toHaveAttribute('aria-current', 'page');
   });
 
   it('shows that LiveKit is not configured without setup details', async () => {

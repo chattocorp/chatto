@@ -452,7 +452,7 @@
         "overall_critical": "Problems found",
         "overall_ok_summary": "All checks passed when this snapshot was taken.",
         "overall_partial_summary": "No problems found. Some checks have no data.",
-        "overall_problem_summary": "Review the checks below. Select a check to see its details.",
+        "overall_problem_summary": "Review the checks below. Some checks link to a tab with more details.",
         "broker": "Broker connection",
         "projections": "Projections",
         "workers": "Background workers",

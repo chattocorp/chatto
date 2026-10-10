@@ -452,7 +452,7 @@
         "overall_critical": "Nalezeny problémy",
         "overall_ok_summary": "Všechny kontroly při pořízení tohoto snímku prošly.",
         "overall_partial_summary": "Nebyly nalezeny žádné problémy. Některé kontroly nemají data.",
-        "overall_problem_summary": "Zkontrolujte níže uvedené kontroly. Vyberte kontrolu a zobrazte její podrobnosti.",
+        "overall_problem_summary": "Zkontrolujte níže uvedené kontroly. Některé kontroly odkazují na kartu s dalšími podrobnostmi.",
         "broker": "Připojení k brokeru",
         "projections": "Projekce",
         "workers": "Pracovníci na pozadí",

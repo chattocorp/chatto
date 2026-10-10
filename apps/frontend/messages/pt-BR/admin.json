@@ -452,7 +452,7 @@
         "overall_critical": "Problemas encontrados",
         "overall_ok_summary": "Todas as verificações passaram quando este instantâneo foi criado.",
         "overall_partial_summary": "Nenhum problema encontrado. Algumas verificações não têm dados.",
-        "overall_problem_summary": "Revise as verificações abaixo. Selecione uma verificação para ver os detalhes.",
+        "overall_problem_summary": "Revise as verificações abaixo. Algumas verificações levam a uma aba com mais detalhes.",
         "broker": "Conexão com o corretor",
         "projections": "Projeções",
         "workers": "Trabalhadores em segundo plano",

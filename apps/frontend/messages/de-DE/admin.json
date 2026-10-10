@@ -452,7 +452,7 @@
         "overall_critical": "Probleme gefunden",
         "overall_ok_summary": "Alle Prüfungen waren beim Erstellen dieser Momentaufnahme erfolgreich.",
         "overall_partial_summary": "Keine Probleme gefunden. Für einige Prüfungen liegen keine Daten vor.",
-        "overall_problem_summary": "Sieh dir die Prüfungen unten an. Wähle eine Prüfung aus, um ihre Details zu sehen.",
+        "overall_problem_summary": "Sieh dir die Prüfungen unten an. Einige Prüfungen verlinken auf einen Tab mit mehr Details.",
         "broker": "Broker-Verbindung",
         "projections": "Projektionen",
         "workers": "Hintergrund-Worker",

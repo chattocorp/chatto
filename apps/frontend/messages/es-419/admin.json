@@ -452,7 +452,7 @@
         "overall_critical": "Se encontraron problemas",
         "overall_ok_summary": "Todas las comprobaciones se superaron cuando se tomó esta instantánea.",
         "overall_partial_summary": "No se encontraron problemas. Algunas comprobaciones no tienen datos.",
-        "overall_problem_summary": "Revisa las comprobaciones de abajo. Selecciona una comprobación para ver sus detalles.",
+        "overall_problem_summary": "Revisa las comprobaciones de abajo. Algunas comprobaciones enlazan a una pestaña con más detalles.",
         "broker": "Conexión con el corredor",
         "projections": "Proyecciones",
         "workers": "Procesos en segundo plano",

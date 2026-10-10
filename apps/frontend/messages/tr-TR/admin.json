@@ -452,7 +452,7 @@
         "overall_critical": "Sorunlar bulundu",
         "overall_ok_summary": "Bu anlık görüntü alındığında tüm kontroller başarılı oldu.",
         "overall_partial_summary": "Sorun bulunamadı. Bazı kontrollerin verisi yok.",
-        "overall_problem_summary": "Aşağıdaki denetimleri inceleyin. Ayrıntılarını görmek için bir denetim seçin.",
+        "overall_problem_summary": "Aşağıdaki denetimleri inceleyin. Bazı denetimler daha fazla ayrıntı içeren bir sekmeye bağlantı verir.",
         "broker": "Broker bağlantısı",
         "projections": "Projeksiyonlar",
         "workers": "Arka plan çalışanları",

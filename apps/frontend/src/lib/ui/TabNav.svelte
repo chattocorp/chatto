@@ -49,7 +49,7 @@ available.
     {#each items as item (item.href)}
       <a
         href={item.href}
-        title={item.label}
+        title={item.status ? `${item.label} · ${item.status.label}` : item.label}
         aria-current={item.current ? 'page' : undefined}
         class={[
           'relative pane-header-label-button',
@@ -67,7 +67,7 @@ available.
             aria-hidden="true"
             data-tab-status={item.status.tone}
           ></span>
-          <span class="sr-only">({item.status.label})</span>
+          <span class="sr-only">{item.status.label}</span>
         {/if}
       </a>
     {/each}

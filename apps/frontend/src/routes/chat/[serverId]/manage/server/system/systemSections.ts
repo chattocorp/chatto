@@ -30,11 +30,17 @@ export const healthCheckSection: Record<HealthCheckId, SystemSection> = {
 
 /**
  * Returns the sections that the System page shows as tabs, in tab order. The
- * LiveKit section is absent when the server does not report LiveKit status.
+ * LiveKit section is absent when the server does not report LiveKit status,
+ * unless it is the current section, so the current page always has a tab.
  */
-export function visibleSystemSections(info: AdminSystemInfo | null): SystemSection[] {
+export function visibleSystemSections(
+  info: AdminSystemInfo | null,
+  current: SystemSection | null = null
+): SystemSection[] {
   const sections: SystemSection[] = ['overview', 'streams', 'projections', 'workers'];
-  if (info && info.livekit.connectionState !== 'unavailable') sections.push('livekit');
+  if ((info && info.livekit.connectionState !== 'unavailable') || current === 'livekit') {
+    sections.push('livekit');
+  }
   return sections;
 }
 

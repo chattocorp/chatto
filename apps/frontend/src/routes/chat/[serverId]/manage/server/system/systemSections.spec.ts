@@ -30,4 +30,8 @@ describe('visibleSystemSections', () => {
     expect(visibleSystemSections(withLiveKit('unavailable'))).not.toContain('livekit');
     expect(visibleSystemSections(null)).toEqual(['overview', 'streams', 'projections', 'workers']);
   });
+
+  it('keeps the LiveKit tab when it is the current section', () => {
+    expect(visibleSystemSections(withLiveKit('unavailable'), 'livekit')).toContain('livekit');
+  });
 });

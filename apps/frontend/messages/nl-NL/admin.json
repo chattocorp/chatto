@@ -452,7 +452,7 @@
         "overall_critical": "Problemen gevonden",
         "overall_ok_summary": "Alle controles waren geslaagd toen deze momentopname werd gemaakt.",
         "overall_partial_summary": "Geen problemen gevonden. Voor sommige controles zijn geen gegevens beschikbaar.",
-        "overall_problem_summary": "Bekijk de controles hieronder. Kies een controle om de details te zien.",
+        "overall_problem_summary": "Bekijk de controles hieronder. Sommige controles linken naar een tabblad met meer details.",
         "broker": "Makelaarverbinding",
         "projections": "Projecties",
         "workers": "Achtergrondwerkers",

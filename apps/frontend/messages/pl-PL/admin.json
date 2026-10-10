@@ -452,7 +452,7 @@
         "overall_critical": "Znaleziono problemy",
         "overall_ok_summary": "Wszystkie kontrole zakończyły się powodzeniem w chwili wykonania tej migawki.",
         "overall_partial_summary": "Nie znaleziono problemów. Część kontroli nie ma danych.",
-        "overall_problem_summary": "Przejrzyj poniższe testy. Wybierz test, aby zobaczyć jego szczegóły.",
+        "overall_problem_summary": "Przejrzyj poniższe testy. Niektóre testy prowadzą do karty z dodatkowymi szczegółami.",
         "broker": "Połączenie z brokerem",
         "projections": "Projekcje",
         "workers": "Pracownicy w tle",

@@ -77,15 +77,21 @@ its section explains reports a warning or a problem.
     livekit: 'icon-[uil--video]'
   };
 
+  const currentSection = $derived(
+    (Object.keys(systemSectionRoutes) as SystemSection[]).find(
+      (section) => systemSectionRoutes[section] === page.route.id
+    ) ?? null
+  );
+
   const sectionTabs = $derived.by<TabNavItem[]>(() => {
     const checks = systemInfo ? systemHealthChecks(systemInfo) : [];
-    return visibleSystemSections(systemInfo).map((section) => {
+    return visibleSystemSections(systemInfo, currentSection).map((section) => {
       const status = systemSectionStatus(checks, section);
       return {
         href: resolve(systemSectionRoutes[section], { serverId: serverSegment }),
         label: sectionLabel[section],
         icon: sectionIcon[section],
-        current: page.route.id === systemSectionRoutes[section],
+        current: section === currentSection,
         status: status
           ? status === 'critical'
             ? { tone: 'danger', label: m('admin.system.health.status_critical') }

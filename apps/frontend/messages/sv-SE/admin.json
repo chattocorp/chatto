@@ -452,7 +452,7 @@
         "overall_critical": "Problem hittades",
         "overall_ok_summary": "Alla kontroller godkändes när den här ögonblicksbilden togs.",
         "overall_partial_summary": "Inga problem hittades. Vissa kontroller saknar data.",
-        "overall_problem_summary": "Granska kontrollerna nedan. Välj en kontroll för att se detaljerna.",
+        "overall_problem_summary": "Granska kontrollerna nedan. Vissa kontroller länkar till en flik med fler detaljer.",
         "broker": "Mäklaranslutning",
         "projections": "Projektioner",
         "workers": "Bakgrundsarbetare",

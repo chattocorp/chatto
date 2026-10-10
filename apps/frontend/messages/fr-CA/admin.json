@@ -452,7 +452,7 @@
         "overall_critical": "Des problèmes ont été détectés",
         "overall_ok_summary": "Toutes les vérifications ont réussi au moment de cet instantané.",
         "overall_partial_summary": "Aucun problème détecté. Certaines vérifications n'ont pas de données.",
-        "overall_problem_summary": "Examinez les vérifications ci-dessous. Sélectionnez une vérification pour en voir les détails.",
+        "overall_problem_summary": "Examinez les vérifications ci-dessous. Certaines vérifications mènent à un onglet avec plus de détails.",
         "broker": "Connexion au courtier",
         "projections": "Projections",
         "workers": "Tâches d'arrière-plan",
