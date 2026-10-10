@@ -22,7 +22,8 @@
     animateVoice = false,
     initiallyMuted = false,
     playableMedia = false,
-    activeSpeaker = null
+    activeSpeaker = null,
+    extraParticipants = 0
   }: {
     layout?: 'sidebar' | 'stage';
     scenario?: 'screen' | 'screen-voice' | 'screen-single-secondary' | 'camera' | 'voice' | 'idle';
@@ -32,6 +33,8 @@
     playableMedia?: boolean;
     /** Identity that the call reports as the remote active speaker. */
     activeSpeaker?: string | null;
+    /** Extra camera participants for scrolling and constrained pane stories. */
+    extraParticipants?: number;
   } = $props();
 
   const roomId = 'storybook-call-room';
@@ -187,7 +190,13 @@
         }),
         viewer,
         bob,
-        chloe
+        chloe,
+        ...Array.from({ length: extraParticipants }, (_, index) =>
+          participant(`guest-${index}`, `Guest ${index + 1}`, {
+            isCameraEnabled: true,
+            videoTrack: cameraTrack
+          })
+        )
       ];
     }
 

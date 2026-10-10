@@ -10,7 +10,8 @@ Room sidebar panel for voice/video calls.
   mute toggle, camera/screen-share controls, preferences shortcut, and hang-up button.
 
 **Layouts:**
-- **Sidebar**: Participant cards in one or two columns for the narrow pane.
+- **Sidebar**: A featured source above a separate scrolling participant list.
+  Participant cards use one or two columns for the narrow pane.
 - **Stage**: For the maximized or fullscreen pane. One featured source in a
   16:9 card, with equal tiles below it, or beside it on wide screens. The
   viewer can pin a tile to the featured area. Without a pin, a call without
@@ -50,7 +51,7 @@ Room sidebar panel for voice/video calls.
   import CallPictureInPictureButton from './CallPictureInPictureButton.svelte';
   import CallCard, { type CallCardControls } from './CallCard.svelte';
   import ConnectionQualityHint from './ConnectionQualityHint.svelte';
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
@@ -208,18 +209,34 @@ Room sidebar panel for voice/video calls.
   );
   let stageTiles = $derived([...screenShareTiles, ...participantTiles]);
 
-  /**
-   * Stage tile that the viewer pinned to the featured area. Session-only and
-   * local to this viewer. The pin clears when its source ends or the viewer
-   * leaves the call, so the stage returns to automatic selection and a
-   * returning participant does not take over the stage again.
-   */
+  /** Viewer-local pin shared by all layouts; never persisted or sent to LiveKit. */
   let pinnedStageTileKey = $state<string | null>(null);
+  let pinnedStageTileKind: StageTile['kind'] | null = null;
   let pinnedStageTile = $derived(stageTiles.find((tile) => tile.key === pinnedStageTileKey));
+
+  // Observe share starts, not the absence of a pin. Unpinning must not acquire
+  // an existing share again. A stopped and restarted share is a new start.
+  let previousScreenKeys = new Set<string>();
   $effect(() => {
-    if (pinnedStageTileKey !== null && (!isInThisCall || !pinnedStageTile)) {
-      pinnedStageTileKey = null;
-    }
+    const joined = isInThisCall;
+    const tiles = stageTiles;
+    const screens = screenShareTiles;
+    untrack(() => {
+      const pinned = tiles.find((tile) => tile.key === pinnedStageTileKey);
+      if (!joined || !pinned || (pinnedStageTileKind === 'video' && pinned.kind !== 'video')) {
+        pinnedStageTileKey = null;
+        pinnedStageTileKind = null;
+      }
+      const newScreens = screens.filter((tile) => !previousScreenKeys.has(tile.key));
+      if (joined && pinnedStageTileKey === null) {
+        const next = newScreens.find((tile) => !tile.participant.isLocal) ?? newScreens[0];
+        if (next) {
+          pinnedStageTileKey = next.key;
+          pinnedStageTileKind = next.kind;
+        }
+      }
+      previousScreenKeys = new Set(joined ? screens.map((tile) => tile.key) : []);
+    });
   });
   /**
    * The remote active speaker, with or without a camera, while any camera is
@@ -236,24 +253,22 @@ Room sidebar panel for voice/video calls.
       : undefined
   );
   /**
-   * Screens first, then the active speaker, then cameras. Remote media comes
-   * before the viewer's own media.
+   * Without a pin, follow the active speaker, then fall back to a camera.
+   * Existing screen shares do not regain a pin after the viewer unpins them.
    */
   let automaticStageTile = $derived(
-    screenShareTiles.find((tile) => !tile.participant.isLocal) ??
-      screenShareTiles[0] ??
-      activeSpeakerStageTile ??
+    activeSpeakerStageTile ??
       participantTiles.find((tile) => tile.kind === 'video' && !tile.participant.isLocal) ??
       participantTiles.find((tile) => tile.kind === 'video')
   );
-  /** Without a pin or any media, the stage shows an equal grid instead. */
+  /** Without a pin or camera, the stage keeps every source in an equal grid. */
   let featuredStageTile = $derived(pinnedStageTile ?? automaticStageTile);
   let secondaryStageTiles = $derived(
     featuredStageTile ? stageTiles.filter((tile) => tile.key !== featuredStageTile.key) : []
   );
 
-  /** Near-square voice grid: 2 columns for 2-4 participants, 3 for 5-9. */
-  let voiceGridColumns = $derived(Math.max(1, Math.ceil(Math.sqrt(participantTiles.length))));
+  /** Near-square fallback grid, including screen shares the viewer unpinned. */
+  let stageGridColumns = $derived(Math.max(1, Math.ceil(Math.sqrt(stageTiles.length))));
 
   /**
    * Largest card whose 16:9 media area fits the featured stage container. The
@@ -319,7 +334,9 @@ Room sidebar panel for voice/video calls.
   // example when it stays featured or the stage switches to the grid.
   async function pinStageTile(tile: StageTile, event: MouseEvent): Promise<void> {
     event.stopPropagation();
+    userMenu.close();
     pinnedStageTileKey = tile.key;
+    pinnedStageTileKind = tile.kind;
     await tick();
     (
       panelElement?.querySelector<HTMLElement>('[data-testid="call-stage-unpin-button"]') ??
@@ -332,7 +349,9 @@ Room sidebar panel for voice/video calls.
   async function unpinStageTile(event: MouseEvent): Promise<void> {
     event.stopPropagation();
     const key = pinnedStageTileKey;
+    userMenu.close();
     pinnedStageTileKey = null;
+    pinnedStageTileKind = null;
     await tick();
     if (key === null || !panelElement) return;
     const tile = `[data-stage-tile-key="${CSS.escape(key)}"]`;
@@ -575,6 +594,7 @@ Room sidebar panel for voice/video calls.
     ]}
     title={formatAccountName(participant.displayName, participant.avatarUser)}
     data-testid="call-participant-card"
+    data-stage-tile-key={`${participant.key}:person`}
     data-call-tile
     data-call-media-card={showVideo ? true : undefined}
   >
@@ -588,7 +608,10 @@ Room sidebar panel for voice/video calls.
         <button
           type="button"
           class={callTileMediaButtonClass}
-          onclick={(e) => showUserMenu(participant, controls, e)}
+          aria-label={m('voice.pin_to_stage', { name: participant.displayName })}
+          data-testid="call-stage-pin-button"
+          onclick={(e) =>
+            pinStageTile({ key: `${participant.key}:person`, kind: 'video', participant }, e)}
         >
           <VideoThumbnail
             track={participant.videoTrack!}
@@ -614,6 +637,7 @@ Room sidebar panel for voice/video calls.
       name: formatAccountName(participant.displayName, participant.avatarUser)
     })}
     data-testid="call-screen-share-card"
+    data-stage-tile-key={`${participant.key}:screen`}
     data-call-tile
     data-call-media-card
   >
@@ -627,7 +651,12 @@ Room sidebar panel for voice/video calls.
       <button
         type="button"
         class={callTileMediaButtonClass}
-        onclick={(e) => showUserMenu(participant, controls, e, true)}
+        aria-label={m('voice.pin_to_stage', {
+          name: m('voice.screen_title', { name: participant.displayName })
+        })}
+        data-testid="call-stage-pin-button"
+        onclick={(e) =>
+          pinStageTile({ key: `${participant.key}:screen`, kind: 'screen', participant }, e)}
       >
         <VideoThumbnail
           track={participant.screenShareTrack!}
@@ -675,8 +704,8 @@ Room sidebar panel for voice/video calls.
     target={() => cardMenuTarget(participant.key, isScreen)}
     focusFallback={cardFocusFallback}
     focusScope={() => panelElement}
-    class={[callTileCardClass, 'participant-card-video']}
-    style={`width: ${featuredStageCardWidth}`}
+    class={[callTileCardClass, 'participant-card-video min-h-0']}
+    style={isStageLayout ? `width: ${featuredStageCardWidth}` : undefined}
     title={stageTileTitle(tile)}
     data-testid="call-featured-stage-card"
     data-call-tile
@@ -694,7 +723,7 @@ Room sidebar panel for voice/video calls.
         type="button"
         class={[
           callTileMediaButtonClass,
-          'aspect-video items-center justify-center',
+          'relative aspect-video min-h-0 items-center justify-center',
           !hasMedia && 'p-6'
         ]}
         aria-label={m('voice.pin_to_stage', { name: stageTileLabel(tile) })}
@@ -704,7 +733,9 @@ Room sidebar panel for voice/video calls.
           tile.key === pinnedStageTileKey ? unpinStageTile(e) : pinStageTile(tile, e)}
       >
         {#if hasMedia}
-          {@render stageMedia(tile, true, controls)}
+          <div class="absolute inset-0">
+            {@render stageMedia(tile, true, controls)}
+          </div>
         {:else}
           <div class="flex min-w-0 flex-col items-center gap-4">
             <UserAvatar user={participant.avatarUser} size="xl" showPresence={false} />
@@ -893,7 +924,7 @@ Room sidebar panel for voice/video calls.
     class={[
       'flex min-h-0 flex-1 flex-col gap-5',
       isStageLayout ? 'p-4' : 'px-2 py-3',
-      isStageLayout ? 'overflow-hidden' : 'overflow-y-auto'
+      'overflow-hidden'
     ]}
   >
     {#if !isIdle}
@@ -950,20 +981,32 @@ Room sidebar panel for voice/video calls.
         >
           <div
             class="m-auto flex w-full flex-wrap justify-center gap-3"
-            style:max-width="{voiceGridColumns * 24}rem"
+            style:max-width="{stageGridColumns * 24}rem"
           >
-            {#each participantTiles as tile (tile.key)}
+            {#each stageTiles as tile (tile.key)}
               <div
                 class="min-w-0"
-                style:width="calc((100% - {voiceGridColumns - 1} * 0.75rem) / {voiceGridColumns})"
+                style:width="calc((100% - {stageGridColumns - 1} * 0.75rem) / {stageGridColumns})"
               >
-                {@render stageTileCard(tile, 'menu')}
+                {@render stageTileCard(tile, tile.kind === 'voice' ? 'menu' : 'pin')}
               </div>
             {/each}
           </div>
         </section>
       {:else}
-        <section class="@container flex flex-col gap-2" aria-label={m('voice.participants')}>
+        {#if isInThisCall && featuredStageTile}
+          <div
+            class="flex max-h-[60%] min-h-0 shrink-0 flex-col"
+            data-testid="call-sidebar-featured"
+          >
+            {@render featuredStageCard(featuredStageTile)}
+          </div>
+        {/if}
+        <section
+          class="@container min-h-0 flex-1 overflow-y-auto"
+          aria-label={m('voice.participants')}
+          data-testid="call-sidebar-participants"
+        >
           <div
             class={[
               'grid grid-cols-1 gap-3',
@@ -974,14 +1017,18 @@ Room sidebar panel for voice/video calls.
             data-testid="call-participants-list"
           >
             {#each screenShareParticipants as participant (`${participant.key}:screen`)}
-              {#if hasScreenShare(participant)}
+              {#if hasScreenShare(participant) && featuredStageTile?.key !== `${participant.key}:screen`}
                 {@render screenShareCard(participant)}
               {/if}
             {/each}
             {#each sortedParticipants as participant (participant.key)}
               {@render participantCard(
                 participant,
-                isInThisCall && hasVideo(participant) ? 'video' : 'compact'
+                isInThisCall &&
+                  hasVideo(participant) &&
+                  featuredStageTile?.key !== `${participant.key}:person`
+                  ? 'video'
+                  : 'compact'
               )}
             {/each}
           </div>
@@ -997,10 +1044,11 @@ Room sidebar panel for voice/video calls.
 
 {#if userMenu.target && menuParticipant}
   {@const selection = userMenu.target}
+  {@const selectedParticipant = menuParticipant}
   <UserMenu
     state={userMenu}
     audioSource={userMenu.target.screen ? 'streamVolume' : 'voiceVolume'}
-    user={menuParticipant.avatarUser}
+    user={selectedParticipant.avatarUser}
     canSendMessage={canStartDMs}
     viewerSettings={serverScope.store.currentUser.user?.settings}
     onSendMessage={() => startDMWith(activeServerId, userMenu.target!.participant.avatarUser.id)}
