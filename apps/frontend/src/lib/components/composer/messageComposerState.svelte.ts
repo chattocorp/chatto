@@ -1,4 +1,4 @@
-import { tick, untrack } from 'svelte';
+import { tick, untrack, type Snippet } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
 import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
 import type {
@@ -77,6 +77,12 @@ export type MessageComposerProps = {
   mentionPriorityUserIds?: ReadonlySet<string>;
   getRecentThreadRootCandidate?: () => RecentThreadRootCandidate | null;
   onThreadMessageSent?: (threadRootEventId: string, event: TimelineEventView | null) => void;
+  /**
+   * Status content, such as the typing indicator, rendered inside the input
+   * surface. The input surface is its containing block, so the content can
+   * position itself on the surface edge without shifting the layout.
+   */
+  inputStatus?: Snippet;
 };
 
 type MessageComposerDependencies = {

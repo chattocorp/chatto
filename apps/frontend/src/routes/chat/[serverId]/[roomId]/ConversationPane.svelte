@@ -55,6 +55,7 @@ thread IDs can change while the pane stays mounted.
   import { EmptyState } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import EventList from './EventList.svelte';
+  import TypingIndicator from './TypingIndicator.svelte';
   import HighlightJump from './HighlightJump.svelte';
   import type { PendingComposerInput, PendingHighlight } from './roomNavigationState.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
@@ -372,8 +373,6 @@ thread IDs can change while the pane stays mounted.
         if (highlight) onHighlightComplete?.(highlight);
       }}
       onReadPosition={handleReadPosition}
-      typingUserIds={typingIndicator.userIds}
-      typingMembers={members}
       pendingHighlightId={highlight?.eventId ?? null}
       highlightRequest={highlight}
       onScrollToEventComplete={(landed, eventId, request) => {
@@ -407,6 +406,7 @@ thread IDs can change while the pane stays mounted.
     {canPost}
     {canAttach}
     onReady={(api) => (composerApi = api)}
+    inputStatus={typingStatus}
     onTyping={canPost ? () => typingIndicator.sendTypingIndicator() : undefined}
     onMessageSent={(event) => {
       typingIndicator.resetDebounce();
@@ -424,3 +424,11 @@ thread IDs can change while the pane stays mounted.
       : undefined}
   />
 </div>
+
+{#snippet typingStatus()}
+  <TypingIndicator
+    typingUserIds={typingIndicator.userIds}
+    {members}
+    profiles={stores.projection.users}
+  />
+{/snippet}

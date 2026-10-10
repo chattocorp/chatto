@@ -69,7 +69,8 @@
     createThreadDefault = false,
     getRecentThreadRootCandidate = () => null,
     threadsEncouraged = false,
-    mentionPriorityUserIds
+    mentionPriorityUserIds,
+    inputStatus
   }: MessageComposerProps = $props();
 
   const clock = new SvelteDate();
@@ -284,6 +285,7 @@
     class="relative chat-input-surface min-w-0 px-2.5 py-1.5"
     class:opacity-50={composer.inputDisabled}
   >
+    {@render inputStatus?.()}
     <ComposerModeIndicators
       inReplyTo={replyState.messageEventId ?? undefined}
       replyDisplayName={replyState.actorDisplayName || undefined}

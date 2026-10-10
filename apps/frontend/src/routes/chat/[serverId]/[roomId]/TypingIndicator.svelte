@@ -1,13 +1,14 @@
 <!--
 @component
 
-Floating typing indicator that appears in the lower inline-end corner of a room
-or thread pane. Shows avatars of typing users together with a compact textual
+Typing indicator for the message composer of a room or thread pane. Shows
+avatars of typing users together with a compact textual
 label that names up to two people and aggregates larger groups
 ("A, B and 3 others are typing").
 
-The indicator is positioned absolutely so its appearance never shifts the
-message list layout, and it announces changes politely to screen readers via a
+The indicator straddles the top edge of the composer input surface, so it never
+covers messages. It is positioned absolutely, so its appearance never shifts
+layout. It announces changes politely to screen readers via a
 `role="status"` region.
 
 **Props:**
@@ -98,12 +99,12 @@ message list layout, and it announces changes politely to screen readers via a
   role="status"
   aria-live="polite"
   aria-atomic="true"
-  class="pointer-events-none absolute inset-x-2 bottom-0 z-10 flex justify-end"
+  class="pointer-events-none absolute inset-x-3 bottom-full z-10 mb-1 flex min-w-0 translate-y-1/2 justify-end"
 >
   {#if activeUserIds.length > 0}
     <div
       data-testid="typing-indicator"
-      class="flex max-w-full min-w-0 items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 shadow-md"
+      class="flex max-w-full min-w-0 items-center gap-1.5 rounded-full border border-border bg-background py-0.5 ps-0.5 pe-2 text-xs shadow-sm"
       transition:scale={{
         duration: prefersReducedMotion.current ? 0 : 150,
         easing: cubicOut,
@@ -112,12 +113,16 @@ message list layout, and it announces changes politely to screen readers via a
       }}
     >
       {#each visibleMembers as member (member.id)}
-        <span class="flex shrink-0 items-center" aria-hidden="true" data-testid="typing-avatar">
+        <span
+          class="flex shrink-0 items-center not-first:-ms-1"
+          aria-hidden="true"
+          data-testid="typing-avatar"
+        >
           <UserAvatar user={member} size="xs" useLiveProfile={false} />
         </span>
       {/each}
       {#if label}
-        <span class="typing-label ms-0.5 max-w-64 min-w-0 truncate text-muted">
+        <span class="typing-label max-w-64 min-w-0 truncate text-muted">
           <AccountNameTokens text={label} accounts={labelAccounts} />
         </span>
       {/if}
