@@ -26,35 +26,44 @@ handled the request.
     timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
   );
 
-  const tone = $derived(
-    status.connectionState === 'ok'
-      ? 'success'
-      : status.connectionState === 'not_configured'
-        ? 'muted'
-        : 'danger'
-  );
-  const stateLabel = $derived(
-    status.connectionState === 'ok'
-      ? m('admin.system.livekit.state_ok')
-      : status.connectionState === 'not_configured'
-        ? m('admin.system.livekit.state_not_configured')
-        : status.connectionState === 'unreachable'
-          ? m('admin.system.livekit.state_unreachable')
-          : status.connectionState === 'unauthorized'
-            ? m('admin.system.livekit.state_unauthorized')
-            : m('admin.system.livekit.state_error')
-  );
-  const summary = $derived(
-    status.connectionState === 'ok'
-      ? m('admin.system.livekit.summary_ok')
-      : status.connectionState === 'not_configured'
-        ? m('admin.system.livekit.summary_not_configured')
-        : status.connectionState === 'unreachable'
-          ? m('admin.system.livekit.summary_unreachable')
-          : status.connectionState === 'unauthorized'
-            ? m('admin.system.livekit.summary_unauthorized')
-            : m('admin.system.livekit.summary_error')
-  );
+  /** Returns the pill tone, label, and summary for a LiveKit check result. */
+  function describeState(state: AdminLiveKitStatus['connectionState']) {
+    switch (state) {
+      case 'ok':
+        return {
+          tone: 'success' as const,
+          label: m('admin.system.livekit.state_ok'),
+          summary: m('admin.system.livekit.summary_ok')
+        };
+      case 'not_configured':
+        return {
+          tone: 'muted' as const,
+          label: m('admin.system.livekit.state_not_configured'),
+          summary: m('admin.system.livekit.summary_not_configured')
+        };
+      case 'unreachable':
+        return {
+          tone: 'danger' as const,
+          label: m('admin.system.livekit.state_unreachable'),
+          summary: m('admin.system.livekit.summary_unreachable')
+        };
+      case 'unauthorized':
+        return {
+          tone: 'danger' as const,
+          label: m('admin.system.livekit.state_unauthorized'),
+          summary: m('admin.system.livekit.summary_unauthorized')
+        };
+      case 'error':
+      case 'unavailable':
+        return {
+          tone: 'danger' as const,
+          label: m('admin.system.livekit.state_error'),
+          summary: m('admin.system.livekit.summary_error')
+        };
+    }
+  }
+
+  const described = $derived(describeState(status.connectionState));
   const webhooksRejected = $derived(liveKitWebhooksRejected(status));
 
   function formatTimestamp(value: Date | null): string {
@@ -69,9 +78,9 @@ handled the request.
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div class="min-w-0">
         <div class="text-sm text-muted">{m('admin.common.status')}</div>
-        <div class="mt-1"><Pill {tone}>{stateLabel}</Pill></div>
+        <div class="mt-1"><Pill tone={described.tone}>{described.label}</Pill></div>
       </div>
-      <div class="max-w-2xl text-sm text-muted">{summary}</div>
+      <div class="max-w-2xl text-sm text-muted">{described.summary}</div>
     </div>
 
     {#if status.connectionError}
