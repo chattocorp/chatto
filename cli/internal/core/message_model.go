@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
@@ -23,6 +25,12 @@ type MessagePostInput struct {
 	AlsoSendToChannel       bool
 	CreateThread            bool
 	LinkPreview             *evtv1.LinkPreview
+	// LinkPreviewToken is resolved only when a new write is needed. Exact
+	// retries remain valid after the original preview token expires.
+	LinkPreviewToken string
+	// IdempotencyKey is an optional account-scoped caller UUID. It reserves a
+	// server-generated message identity for 30 minutes without entering EVT.
+	IdempotencyKey          string
 	automaticThreadCreation bool
 }
 
@@ -150,6 +158,47 @@ type MessageModel struct {
 // requires message.post. Echoing a thread reply additionally
 // requires message.echo and message.post.
 func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) (*MessagePostResult, error) {
+	claim, err := s.claimMessagePost(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	if claim != nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithDeadline(ctx, claim.expiresAt)
+		defer cancel()
+		if event, err := s.claimedMessage(ctx, input, claim); event != nil || err != nil {
+			return messagePostResult(event), err
+		}
+	}
+	result, err := s.postMessage(ctx, input, claim)
+	if err != nil && claim != nil && ctx.Err() == nil {
+		// Another attempt can commit between our absence check and validation,
+		// or our own publish can commit despite a lost acknowledgement. Resolve
+		// that identity before treating a mutable validation failure as a reject.
+		if event, readErr := s.claimedMessage(ctx, input, claim); event != nil || readErr != nil {
+			return messagePostResult(event), readErr
+		}
+	}
+	return result, err
+}
+
+func messagePostResult(event *evtv1.Event) *MessagePostResult {
+	if event == nil {
+		return nil
+	}
+	return &MessagePostResult{Event: event}
+}
+
+func (s *MessageModel) postMessage(ctx context.Context, input MessagePostInput, claim *messagePostClaim) (*MessagePostResult, error) {
+	if input.LinkPreviewToken != "" {
+		preview, err := s.core.ResolveLinkPreviewToken(ctx, input.LinkPreviewToken)
+		if err != nil {
+			return nil, err
+		}
+		input.LinkPreview = preview
+	} else if input.LinkPreview != nil {
+		input.LinkPreview = proto.Clone(input.LinkPreview).(*evtv1.LinkPreview)
+	}
 	preparedInput, err := s.applyAutomaticThreadCreation(ctx, input)
 	if err != nil {
 		return nil, err
@@ -163,6 +212,9 @@ func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) 
 	kind := preflight.Authorization.Kind
 
 	options := make([]PostMessageOption, 0, 2)
+	if claim != nil {
+		options = append(options, func(options *postMessageOptions) { options.claim = claim })
+	}
 	descriptions, err := normalizeAttachmentDescriptionInputs(input.AttachmentAssetIDs, input.AttachmentDescriptions)
 	if err != nil {
 		return nil, err

@@ -45,6 +45,7 @@ var connectErrorCodes = []struct {
 		core.ErrNeighborMatchesServerOrigin,
 	}},
 	{connect.CodeAlreadyExists, []error{
+		core.ErrMessageIdempotencyConflict,
 		core.ErrRoomNameExists,
 		core.ErrLoginAlreadyTaken,
 		core.ErrEmailAlreadyVerified,

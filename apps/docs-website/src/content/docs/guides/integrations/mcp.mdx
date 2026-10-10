@@ -26,8 +26,12 @@ start with `initialize` cannot connect. Chatto does not expose MCP resources,
 prompts, logging, or catalog-change subscriptions.
 
 The tools apply the same RBAC, membership, validation, and visibility rules as
-the public Chatto API. `post_message` is not idempotent. An agent must not retry
-it when the first result is uncertain.
+the public Chatto API. For retry safety, give `post_message` a caller-generated
+UUID in `idempotency_key`. Keep that key and all arguments unchanged for retries
+within 30 minutes of the first attempt. Exact retries return the same message
+ID; changed arguments fail. Retries do not extend the window. After expiry, a
+key can create another message. Without a key, check an uncertain result before
+posting again. The tool's idempotent hint stays false because the key is optional.
 
 The MCP instructions tell an agent host to use these tools as the source of
 truth for Chatto application data on the connected server. They tell the host
@@ -224,6 +228,7 @@ Use these stable fields. Do not parse `message`; its wording can change.
 | `missingPermissions` | Optional confirmed missing RBAC identifiers. If more than one is listed, any one satisfies the permission gate; other gates still apply. |
 | `requiredScope` | Optional MCP OAuth scope that needs fresh consent. |
 | `retryAfterMs` | Optional minimum wait in milliseconds when `retry` is `after_delay`. If absent, use bounded backoff. |
+| `retrySameRequest` | When true, retry with the original key and exact arguments within the 30-minute window. Do not allocate a new key for this retry. |
 
 | `code` | `nextAction` and human guidance |
 | --- | --- |
@@ -235,6 +240,7 @@ Use these stable fields. Do not parse `message`; its wording can change.
 | `policy_denied` | `contact_administrator`: ask an administrator to check access. The response does not name a private policy or claim that an RBAC grant will fix it. |
 | `not_found` | `check_access`: verify the target and access with an administrator. Hidden and absent resources have the same error. |
 | `conflict` | `retry`: concurrent state changed. Use bounded backoff and obey `retry`. |
+| `idempotency_conflict` | `check_result`: the key belongs to different arguments. Check the original send before starting another operation. |
 | `rate_limited` | `retry`: wait for `retryAfterMs`, if present. |
 | `timeout` | Obey `nextAction`, `retry`, and `outcome`. |
 | `temporary_failure` | Obey `nextAction`, `retry`, and `outcome`. Backend diagnostics are not exposed. |
@@ -252,10 +258,12 @@ normal room visibility, usually `room.list`, as well as `room.join`. A bot needs
 the relevant explicit grants and sufficient current authority from its owner.
 
 When `nextAction` is `check_result`, ask the human to check the room. Do not
-automatically repeat `post_message` when its outcome is `applied` or `unknown`.
-The same rule applies when a connection closes without a result: the message
-may have been posted. A failed response after a successful post is not a failed
-post. Message posting has no idempotency key yet.
+automatically repeat an unkeyed `post_message` when its outcome is `applied` or
+`unknown`, or when the connection closes without a result. A keyed call can be
+repeated with the exact original request within its window, including after a
+lost response. Current read access still controls the returned result. Stop
+retries before the window ends and check the original send before starting a
+new one. Retry safety requires all serving replicas to support this contract.
 
 ## Disable access
 

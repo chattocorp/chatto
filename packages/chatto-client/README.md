@@ -117,26 +117,45 @@ the server rejects the key or does not support this client, and, without
 ### Requests
 
 A server and a stateless `Api` have the same request helpers. Each
-request has a ten-second timeout and is never retried; a failed write can
+request has a ten-second timeout and is not automatically retried; a failed write can
 still have reached the server.
 
-| Helper                                            | Does                                                      |
-| ------------------------------------------------- | --------------------------------------------------------- |
-| `getMessage({ roomId, messageId })`               | Reads one message                                         |
-| `createMessage(destination, body, { inReplyTo })` | Sends one message; returns its `id`                       |
-| `postMessage(destination, body)`                  | Sends text of any length, in parts of 8000 code points    |
-| `reply(message, body)`                            | Posts in the message's thread with a reference to it      |
-| `readThread(location, { after, limit })`          | Reads a thread; `after` reads only newer messages         |
-| `readAttachment({ roomId, attachmentId }, opts)`  | Reads a file; `maxImageSize` resizes images on the server |
-| `refreshTyping(destination)`                      | Refreshes the typing indicator once                       |
-| `withTyping(destination, work)`                   | Shows the typing indicator while `work` runs              |
-| `addReaction({ roomId, messageId }, emoji)`       | Reacts to a message                                       |
-| `addressedMessage(event, { reasons })`            | Recognizes an event as a message to the viewer            |
+| Helper                                             | Does                                                      |
+| -------------------------------------------------- | --------------------------------------------------------- |
+| `getMessage({ roomId, messageId })`                | Reads one message                                         |
+| `createMessage(destination, body, { inReplyTo })`  | Sends one message; returns its `id`                       |
+| `prepareMessage(destination, body, { inReplyTo })` | Prepares one logical send for explicit retries            |
+| `postMessage(destination, body)`                   | Sends text of any length, in parts of 8000 code points    |
+| `reply(message, body)`                             | Posts in the message's thread with a reference to it      |
+| `readThread(location, { after, limit })`           | Reads a thread; `after` reads only newer messages         |
+| `readAttachment({ roomId, attachmentId }, opts)`   | Reads a file; `maxImageSize` resizes images on the server |
+| `refreshTyping(destination)`                       | Refreshes the typing indicator once                       |
+| `withTyping(destination, work)`                    | Shows the typing indicator while `work` runs              |
+| `addReaction({ roomId, messageId }, emoji)`        | Reacts to a message                                       |
+| `addressedMessage(event, { reasons })`             | Recognizes an event as a message to the viewer            |
 
-Every helper takes `{ signal }` as its last argument. `postMessage`, `reply`,
+Request helpers take `{ signal }` as their last argument. A prepared operation
+takes it in `send({ signal })`. `postMessage`, `reply`,
 and `ctx.reply` return the `ids` of the new messages. Other helpers are
 `conversationKey`, `replyDestination`, `withTyping` and `startTyping` for
 custom typing updates, and `createDeliveryTracker` for replay filters.
+
+For a send that needs retry safety, retain the prepared operation:
+
+```ts
+const send = server.prepareMessage(destination, 'Hello');
+const { id } = await send.send({ signal });
+// After a lost response, call send.send() again with the same operation.
+```
+
+Each prepared send allocates one UUID. Exact retries use that key and the same
+arguments. The UI message API also exposes `prepareMessage(input)` and retains
+uploaded attachment IDs. Prepared sends stay in memory. They stop retries at
+30 minutes from the first post attempt and throw `MessageSendExpiredError`.
+Check the original result before starting a new send. Retry safety requires
+all serving replicas to support message-create idempotency; older servers can
+ignore the key. `postMessage` and `reply` can send multiple parts; retrying the
+whole helper starts new sends for those parts.
 
 For any other request, `service(Service)` creates a typed Connect client with
 the server's authentication. `@chatto/client/types` has the protocol's

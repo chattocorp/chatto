@@ -25,6 +25,8 @@
     "drop_files_title": "Pukseerige failid siia",
     "drop_files_subtitle": "Teie sõnumile lisatakse pildid ja videod",
     "send_failed": "Sõnumi saatmine ebaõnnestus",
+    "send_retry_expired": "Saatmise korduskatse aeg on möödas. Enne uuesti saatmist kontrollige, kas teie sõnum jõudis kohale.",
+    "send_retry_reset": "Ühendus lähtestati. Enne uuesti saatmist kontrollige, kas teie sõnum jõudis kohale.",
     "slow_mode_ready": "Aeglane režiim: üks sõnum iga {interval} järel.",
     "slow_mode_waiting": "Aeglane režiim: saada uuesti {countdown} pärast.",
     "slow_mode_bypassed": "Aeglane režiim: {interval} (sina oled piirangust vabastatud).",

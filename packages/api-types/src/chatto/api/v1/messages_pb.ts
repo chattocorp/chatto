@@ -133,6 +133,17 @@ export class CreateMessageRequest extends Message<CreateMessageRequest> {
    */
   attachmentDescriptions: MessageAttachmentDescriptionInput[] = [];
 
+  /**
+   * Optional caller-generated UUID for this send. Reuse it with the same room
+   * and request when a response is lost. For 30 minutes after first acceptance,
+   * an exact retry returns the same message ID; changed arguments are rejected.
+   * Retries do not extend this period. After expiry, the key can be used again.
+   * Omit the key for ordinary posting without duplicate protection.
+   *
+   * @generated from field: optional string idempotency_key = 13;
+   */
+  idempotencyKey?: string;
+
   constructor(data?: PartialMessage<CreateMessageRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -150,6 +161,7 @@ export class CreateMessageRequest extends Message<CreateMessageRequest> {
     { no: 10, name: "link_preview_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 11, name: "create_thread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 12, name: "attachment_descriptions", kind: "message", T: MessageAttachmentDescriptionInput, repeated: true },
+    { no: 13, name: "idempotency_key", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateMessageRequest {

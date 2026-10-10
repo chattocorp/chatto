@@ -28,6 +28,7 @@ type postMessageOptions struct {
 	createThread            bool
 	commitAuthorize         func(context.Context, string) error
 	messageAttemptPrepared  func(context.Context) error
+	claim                   *messagePostClaim
 }
 
 func withAttachmentDescriptions(descriptions map[string]string) PostMessageOption {
@@ -361,7 +362,7 @@ func (c *ChattoCore) prepareMessageRetractionAttempt(
 	return roomFilter, roomSeq, nil
 }
 
-func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstream.Aggregate, bodyEvent, messageEvent, threadCreatedEvent, threadFollowedEvent *evtv1.Event, assetAttachedEvents, processingEvents []*evtv1.Event, authorize func(context.Context) error, prepareMessageAttempt func(context.Context) error) (uint64, error) {
+func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstream.Aggregate, bodyEvent, messageEvent, threadCreatedEvent, threadFollowedEvent *evtv1.Event, assetAttachedEvents, processingEvents []*evtv1.Event, authorize func(context.Context) error, prepareMessageAttempt func(context.Context) error, claim *messagePostClaim) (uint64, error) {
 	messageSubject := agg.SubjectFor(messageEvent)
 	bodySubject := agg.SubjectFor(bodyEvent)
 	var lastErr error
@@ -370,6 +371,9 @@ func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstr
 		guard, err := c.prepareMessageAppendAttempt(ctx, agg, authorize)
 		if err != nil {
 			return 0, err
+		}
+		if claim != nil && claim.committed != nil {
+			return claim.committed.Sequence, nil
 		}
 		if prepareMessageAttempt != nil {
 			if err := prepareMessageAttempt(ctx); err != nil {
@@ -468,6 +472,7 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 	processingEvents []*evtv1.Event,
 	authorize func(context.Context) error,
 	prepareMessageAttempt func(context.Context) error,
+	claim *messagePostClaim,
 ) (uint64, error) {
 	bodySubject := agg.SubjectFor(bodyEvent)
 	messageSubject := agg.SubjectFor(messageEvent)
@@ -478,6 +483,9 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 		guard, err := c.prepareMessageAppendAttempt(ctx, agg, authorize)
 		if err != nil {
 			return 0, err
+		}
+		if claim != nil && claim.committed != nil {
+			return claim.committed.Sequence, nil
 		}
 		if prepareMessageAttempt != nil {
 			if err := prepareMessageAttempt(ctx); err != nil {
@@ -686,8 +694,16 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		}
 	}
 	var commitAuthorize func(context.Context) error
-	if options.commitAuthorize != nil || (alsoSendToChannel && inThread != "" && kind == KindChannel) {
+	if options.claim != nil || options.commitAuthorize != nil || (alsoSendToChannel && inThread != "" && kind == KindChannel) {
 		commitAuthorize = func(ctx context.Context) error {
+			if options.claim != nil {
+				if err := c.lookupClaimedMessage(ctx, user_id, room_id, options.claim); err != nil {
+					return err
+				}
+				if options.claim.committed != nil {
+					return nil
+				}
+			}
 			// The low-level helper also protects requested echoes from a policy
 			// change between preparation and commit. Public callers additionally
 			// repeat the complete permission and posting-policy decision below.
@@ -736,6 +752,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	}
 
 	eventID := NewEventID()
+	if options.claim != nil {
+		eventID = options.claim.messageID
+	}
 	bodyEventID := NewEventID()
 	messageBody := &evtv1.MessageBody{
 		CreatedAt:   timestamppb.New(now),
@@ -876,12 +895,16 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	}
 	var sequenceID uint64
 	if options.createThread {
-		sequenceID, err = c.appendRootMessageWithThread(ctx, agg, bodyEventEvent, event, threadCreatedEvent, rootThreadFollowedEvent, assetAttachedEvents, processingEvents, commitAuthorize, prepareMessageAttempt)
+		sequenceID, err = c.appendRootMessageWithThread(ctx, agg, bodyEventEvent, event, threadCreatedEvent, rootThreadFollowedEvent, assetAttachedEvents, processingEvents, commitAuthorize, prepareMessageAttempt, options.claim)
 	} else {
-		sequenceID, err = c.appendMessageWithOptionalThreadCreated(ctx, agg, bodyEventEvent, event, threadCreatedEvent, inThread, inThread != "" && alsoSendToChannel, assetAttachedEvents, processingEvents, commitAuthorize, prepareMessageAttempt)
+		sequenceID, err = c.appendMessageWithOptionalThreadCreated(ctx, agg, bodyEventEvent, event, threadCreatedEvent, inThread, inThread != "" && alsoSendToChannel, assetAttachedEvents, processingEvents, commitAuthorize, prepareMessageAttempt, options.claim)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish message event: %w", err)
+	}
+	if options.claim != nil && options.claim.committed != nil {
+		// Replays return before post-commit subscription and notification hints.
+		return options.claim.committed.Event, nil
 	}
 
 	c.logger.Debug("Message posted", "kind", kind, "room_id", room_id, "event_id", event.Id, "sequence_id", sequenceID, "user_id", user_id)

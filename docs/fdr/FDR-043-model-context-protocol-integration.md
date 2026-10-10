@@ -120,10 +120,10 @@ primitive.
   nonparticipant direct-message room has the same failure as an absent room.
   Joined rooms remain visible to their members.
 - Failure details state whether a write did not occur, completed, or has an
-  unknown outcome. A host must not automatically repeat a message post after
-  a completed or uncertain result, also when the connection closes without a
-  result. Known input, access, and policy rejections need a change before
-  retry. Safe temporary failures permit bounded retry.
+  unknown outcome. A host can retry a post with its original optional UUID and
+  exact arguments within 30 minutes. Without a key, a completed or uncertain
+  result needs a result check, also when the connection closes without a result.
+  Known input, access, and policy rejections need a change before retry.
 - A tool returns only the data needed for its declared operation. It does not
   add related private resources for agent convenience.
 - User-controlled Chatto content is untrusted data. It cannot change tool
@@ -164,8 +164,8 @@ administration, resources, or prompts.
 pagination, RBAC, membership, reads, and writes in a real agent host. API
 completeness and CRUD symmetry are not MCP goals. A public ConnectRPC method
 alone is not a reason to add a tool.
-**Tradeoff:** Message posting changes state and is not idempotent. An agent
-must not retry it after an uncertain result. Read access can disclose
+**Tradeoff:** The key is optional, so the message tool's idempotent hint stays
+false. Without a key, an agent must check an uncertain result. Read access can disclose
 sensitive content and needs full authorization. Some agent workflows must use
 ConnectRPC until there is evidence for a suitable MCP tool.
 
@@ -273,8 +273,10 @@ disclosing missing RBAC identifiers. Preserve standard OAuth scope challenges.
 without parsing prose, disclosing a hidden room, or repeating an uncertain
 message post.
 **Tradeoff:** Generic policy errors need human investigation. A completed
-write can still have a failed response, so an agent must check the result
-instead of assuming the write failed.
+write can still have a failed response. A keyed retry keeps the same message
+identity; an unkeyed post needs a result check. See
+[FDR-050](FDR-050-message-send-retries.md) and
+[ADR-115](../adr/ADR-115-message-post-idempotency.md).
 
 ## Tool Admission Policy
 
@@ -366,11 +368,11 @@ relationships. The operation remains the source of truth.
   ADR-044 (ConnectRPC service conventions), ADR-045 (public API stability
   tiers), ADR-071 (CIMD-identified OAuth clients), ADR-079 (renewable bearer
   sessions), ADR-080 (message-read permission), ADR-085 (user-scoped MCP
-  integration)
+  integration), ADR-115 (message-post idempotency)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-023 (Authentication & Sessions),
   FDR-028 (Operator API & CLI), FDR-031 (Client–Server Compatibility
   Discovery), FDR-033 (Message Search), FDR-038 (Bot Accounts), FDR-039
-  (Message Access & Interactions)
+  (Message Access & Interactions), FDR-050 (Message Send Retries)
 
 ## Open Questions
 

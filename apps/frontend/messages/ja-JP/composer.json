@@ -25,6 +25,8 @@
     "drop_files_title": "ここにファイルをドロップします",
     "drop_files_subtitle": "画像と動画がメッセージに追加されます",
     "send_failed": "メッセージの送信に失敗しました",
+    "send_retry_expired": "再送信できる期間が終了しました。もう一度送信する前に、メッセージが届いているか確認してください。",
+    "send_retry_reset": "接続がリセットされました。もう一度送信する前に、メッセージが届いているか確認してください。",
     "slow_mode_ready": "低速モード：{interval}ごとに1件のメッセージ。",
     "slow_mode_waiting": "低速モード：あと{countdown}で再送信できます。",
     "slow_mode_bypassed": "低速モード：{interval}（あなたは対象外です）。",

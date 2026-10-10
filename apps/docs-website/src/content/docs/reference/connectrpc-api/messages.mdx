@@ -127,6 +127,7 @@ Request to create a message in a room or thread.
 | `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
 | `create_thread` | `bool` | True to establish the new root message as a thread immediately. Requires message.post (which includes thread posting). Cannot be combined with thread_root_event_id. |
 | `attachment_descriptions` | repeated [`MessageAttachmentDescriptionInput`](/reference/connectrpc-api/types/#chatto-api-v1-MessageAttachmentDescriptionInput) | Optional descriptions for assets in attachment_asset_ids. Asset IDs must be unique in this list. At most one description can target each asset. |
+| `idempotency_key` | `optional string` | Optional caller-generated UUID for this send. Reuse it with the same room and request when a response is lost. For 30 minutes after first acceptance, an exact retry returns the same message ID; changed arguments are rejected. Retries do not extend this period. After expiry, the key can be used again. Omit the key for ordinary posting without duplicate protection. |
 
 
 <a id="chatto-api-v1-CreateMessageResponse"></a>
