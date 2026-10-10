@@ -2,14 +2,14 @@
 @component
 
 Typing indicator for the message composer of a room or thread pane. Shows
-avatars of typing users together with a compact textual
-label that names up to two people and aggregates larger groups
-("A, B and 3 others are typing").
+avatars of typing users together with a compact textual label that names up to
+two people and aggregates larger groups ("A, B and 3 others are typing").
 
 The indicator straddles the top edge of the composer input surface, so it never
 covers messages. It is positioned absolutely, so its appearance never shifts
-layout. It announces changes politely to screen readers via a
-`role="status"` region.
+layout. The parent must be a positioned element with the same box as the input
+surface; `MessageComposer` supplies one through its `inputStatus` snippet. It
+announces changes politely to screen readers via a `role="status"` region.
 
 **Props:**
 - `typingUserIds` - Array of user IDs currently typing

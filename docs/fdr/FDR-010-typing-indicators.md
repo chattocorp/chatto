@@ -16,7 +16,7 @@ When a user composes a message, others see avatars, names, and animated dots in 
 - Current clients refresh typing state through ConnectRPC
   `RoomService.RefreshTypingIndicator`.
 - The bundled client shows up to three avatars and two names. Larger groups show the two names and a count of the other people. If a typing user's profile is missing, the client loads it and replaces the translated unknown-user label when the name arrives. The unknown user still counts toward the group size. A missing display name falls back to the login.
-- The indicator is a pill on the top edge of the composer input, at the inline-end side. It does not cover messages, and it does not move the messages or the composer when it appears or disappears. The complete block fades and scales between 96% and 100% over 150 ms with easing. Long labels truncate to fit the composer width. The complete label stays available to assistive technology.
+- The indicator is a pill on the top edge of the composer input, at the inline-end side. It shows only when the reader can read the messages of the room or thread. It does not cover messages, and it does not move the messages or the composer when it appears or disappears. The complete block fades and scales between 96% and 100% over 150 ms with easing. Long labels truncate to fit the composer width. The complete label stays available to assistive technology.
 - A bright dot moves clockwise around a 3×3 grid with a fading trail beside the label. A persistent polite status region announces text changes. Avatars and dots are decorative. Reduced motion disables the fade, scale, and dot animation.
 - The indicator is removed immediately when the user actually posts a message.
 - Room typing and thread typing are tracked separately. The room view only shows indicators for users typing in the room timeline (not in any thread). A thread pane only shows indicators for users typing in that specific thread.
@@ -50,8 +50,8 @@ When a user composes a message, others see avatars, names, and animated dots in 
 ### 5. The indicator sits on the composer edge
 
 **Decision:** The indicator is positioned absolutely on the top edge of the composer input. It is not an overlay on the message viewport, and it does not have reserved space.
-**Why:** An overlay on the message viewport covered the newest message, mostly in narrow thread panes (#2798). Reserved space adds a permanent empty gap. Space that appears only during typing moves the messages. An indicator in the input row makes the draft narrower, or it must hide the names in narrow panes. The composer edge is chrome, so the indicator covers no content there.
-**Tradeoff:** The pill can cover the lower edge of content above the input, such as a link preview or attachment previews.
+**Why:** An overlay on the message viewport covered the newest message, mostly in narrow thread panes (#2798). Reserved space adds a permanent empty gap. Space that appears only during typing moves the messages. An indicator in the input row makes the draft narrower, or it must hide the names in narrow panes. The composer edge does not show message content.
+**Tradeoff:** The pill can cover the lower edge of the row above the input, such as the formatting toolbar, a composer hint, or a link preview. These controls stay usable because the pill does not receive pointer input.
 
 ## Permissions
 
