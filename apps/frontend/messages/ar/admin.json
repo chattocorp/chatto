@@ -511,7 +511,14 @@
         },
         "backlog_clear": "لا توجد رسائل في الانتظار",
         "storage_used": "تم استخدام {percent}% من أقرب حد",
-        "storage_unlimited": "لم يتم ضبط أي حدود"
+        "storage_unlimited": "لم يتم ضبط أي حدود",
+        "voice_calls": "المكالمات",
+        "livekit_connected": "متصل بـ LiveKit",
+        "livekit_unreachable": "تعذّر الوصول إلى LiveKit",
+        "livekit_unauthorized": "رفض LiveKit مفتاح API",
+        "livekit_error": "فشل فحص LiveKit",
+        "livekit_insecure_url": "عنوان URL لـ LiveKit غير مشفّر",
+        "livekit_webhooks_rejected": "رُفضت خطافات الويب من LiveKit"
       },
       "overview": {
         "users": "المستخدمون",
@@ -557,6 +564,33 @@
           "many": "{count} رسالة",
           "other": "{count} رسالة"
         }
+      },
+      "livekit": {
+        "title": "المكالمات (LiveKit)",
+        "state_ok": "متصل",
+        "state_not_configured": "غير مضبوط",
+        "state_unreachable": "يتعذّر الوصول",
+        "state_unauthorized": "رُفضت بيانات الاعتماد",
+        "state_error": "خطأ",
+        "summary_ok": "يستطيع Chatto الوصول إلى خادم LiveKit، ويقبل LiveKit مفتاح API والسر.",
+        "summary_not_configured": "لم يتم ضبط LiveKit، لذلك المكالمات الصوتية والمرئية متوقفة.",
+        "summary_unreachable": "لا يستطيع Chatto الاتصال بعنوان URL الخاص بـ LiveKit. تأكد من أن LiveKit يعمل وأن هذا الخادم يستطيع الوصول إلى العنوان.",
+        "summary_unauthorized": "رفض LiveKit مفتاح API أو السر. تأكد من أنهما يطابقان زوج مفاتيح في إعدادات LiveKit.",
+        "summary_error": "أرسل الخادم الموجود على عنوان URL الخاص بـ LiveKit ردًا غير متوقع. تأكد من أن العنوان يشير إلى LiveKit.",
+        "insecure_url": "يستخدم عنوان URL الخاص بـ LiveKit البروتوكول ws:// أو http://، وهو غير مشفّر. لا تستطيع المتصفحات في صفحة HTTPS الاتصال به. استخدم wss:// عندما تستخدم أجهزة كمبيوتر أخرى هذا الخادم.",
+        "webhooks_rejected": "كان لآخر خطاف ويب من LiveKit توقيع غير صالح. تأكد من أن LiveKit يوقّع خطافات الويب بمفتاح API والسر نفسيهما اللذين يستخدمهما Chatto.",
+        "no_webhooks": "لم يستلم هذا الخادم أي خطاف ويب من LiveKit منذ بدء تشغيله. يرسل LiveKit خطافات الويب فقط عند بدء المكالمات أو تغيّرها. إذا جرت مكالمات خلال هذه المدة، فتأكد من أن LiveKit يرسل خطافات الويب إلى عنوان URL لخطاف الويب أدناه.",
+        "url": "عنوان URL لـ LiveKit",
+        "api_key": "مفتاح API",
+        "webhook_url": "عنوان URL لخطاف الويب",
+        "webhook_key": "مفتاح توقيع خطافات الويب",
+        "webhook_key_same": "مثل مفتاح API",
+        "webhook_key_separate": "مفتاح منفصل",
+        "last_webhook": "آخر خطاف ويب مقبول",
+        "last_rejected_webhook": "آخر خطاف ويب مرفوض",
+        "webhook_none": "لا شيء منذ بدء التشغيل",
+        "scope_help": "تأتي أوقات خطافات الويب من نسخة Chatto التي عالجت هذا الطلب. لا يستطيع Chatto فحص مرحّلات TURN.",
+        "turn_guide": "اقرأ عن TURN للشبكات التي تحظر المكالمات"
       }
     },
     "event_log": {

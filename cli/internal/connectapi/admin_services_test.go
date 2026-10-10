@@ -1492,6 +1492,38 @@ func TestAdminDiagnosticsServiceGetSystemInfoRequiresOwner(t *testing.T) {
 	if len(resp.Msg.GetDurableWorkers()) != 8 {
 		t.Fatalf("DurableWorkers len = %d, want 8", len(resp.Msg.GetDurableWorkers()))
 	}
+	if got := resp.Msg.GetLivekit().GetConnectionState(); got != adminv1.AdminLiveKitConnectionState_ADMIN_LIVE_KIT_CONNECTION_STATE_NOT_CONFIGURED {
+		t.Fatalf("Livekit.ConnectionState = %v, want not configured", got)
+	}
+}
+
+func TestAdminLiveKitStatusMapping(t *testing.T) {
+	t.Parallel()
+
+	webhookAt := time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC)
+	mapped := adminLiveKitStatus(core.LiveKitAdminStatus{
+		Enabled:            true,
+		Configured:         true,
+		URL:                "ws://livekit.example",
+		APIKey:             "key",
+		SeparateWebhookKey: true,
+		WebhookURL:         "https://chat.example/webhooks/livekit",
+		ConnectionState:    core.LiveKitConnectionUnauthorized,
+		ConnectionError:    "twirp error unauthenticated: invalid token",
+		InsecureURL:        true,
+		LastWebhookAt:      webhookAt,
+	})
+	if !mapped.GetEnabled() || !mapped.GetConfigured() || mapped.GetUrl() != "ws://livekit.example" || mapped.GetApiKey() != "key" ||
+		!mapped.GetSeparateWebhookKey() || mapped.GetWebhookUrl() != "https://chat.example/webhooks/livekit" ||
+		mapped.GetConnectionError() == "" || !mapped.GetInsecureUrl() {
+		t.Fatalf("mapped = %+v", mapped)
+	}
+	if mapped.GetConnectionState() != adminv1.AdminLiveKitConnectionState_ADMIN_LIVE_KIT_CONNECTION_STATE_UNAUTHORIZED {
+		t.Fatalf("ConnectionState = %v", mapped.GetConnectionState())
+	}
+	if !mapped.GetLastWebhookAt().AsTime().Equal(webhookAt) || mapped.LastRejectedWebhookAt != nil {
+		t.Fatalf("webhook times = %v, %v", mapped.GetLastWebhookAt(), mapped.LastRejectedWebhookAt)
+	}
 }
 
 func TestAdminDurableWorkerStatusMapping(t *testing.T) {

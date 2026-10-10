@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/livekit/protocol/auth"
 	"github.com/livekit/protocol/livekit"
+	"github.com/livekit/protocol/utils/protojson"
 	"github.com/livekit/protocol/webhook"
 	"hmans.de/chatto/internal/core"
 )
@@ -114,12 +115,26 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 
 	webhookKey, webhookSecret := s.config.LiveKit.WebhookKeyPair()
 	provider := auth.NewSimpleKeyProvider(webhookKey, webhookSecret)
-	event, err := webhook.ReceiveWebhookEvent(c.Request, provider)
+	// Only a request that carries a LiveKit API token counts as a rejected
+	// webhook in owner diagnostics, so unauthenticated scans of this public
+	// route cannot report a signing-key mismatch.
+	_, tokenErr := auth.ParseAPIToken(c.GetHeader("Authorization"))
+	data, err := webhook.Receive(c.Request, provider)
 	if err != nil {
 		logger.Warn("Webhook validation failed", "error", err)
+		if tokenErr == nil {
+			s.core.RecordLiveKitWebhook(false)
+		}
 		c.Status(http.StatusUnauthorized)
 		return
 	}
+	event := &livekit.WebhookEvent{}
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true, AllowPartial: true}).Unmarshal(data, event); err != nil {
+		logger.Warn("Webhook payload is not valid", "error", err)
+		c.Status(http.StatusBadRequest)
+		return
+	}
+	s.core.RecordLiveKitWebhook(true)
 
 	// Parse the legacy LiveKit room name at the integration boundary.
 	if event.Room == nil {

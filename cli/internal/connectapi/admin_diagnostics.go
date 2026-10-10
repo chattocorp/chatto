@@ -32,7 +32,41 @@ func (s *adminDiagnosticsService) GetSystemInfo(ctx context.Context, _ *connect.
 		AssetCleanup:         adminAssetCleanupStatus(diagnostics.AssetCleanup),
 		DurableWorkers:       adminDurableWorkerStatuses(diagnostics.DurableWorkers),
 		ProjectionsAvailable: new(diagnostics.ProjectionsAvailable),
+		Livekit:              adminLiveKitStatus(diagnostics.LiveKit),
 	}), nil
+}
+
+func adminLiveKitStatus(status core.LiveKitAdminStatus) *adminv1.AdminLiveKitStatus {
+	return &adminv1.AdminLiveKitStatus{
+		Enabled:               status.Enabled,
+		Configured:            status.Configured,
+		Url:                   status.URL,
+		ApiKey:                status.APIKey,
+		SeparateWebhookKey:    status.SeparateWebhookKey,
+		WebhookUrl:            status.WebhookURL,
+		ConnectionState:       adminLiveKitConnectionState(status.ConnectionState),
+		ConnectionError:       status.ConnectionError,
+		InsecureUrl:           status.InsecureURL,
+		LastWebhookAt:         optionalTimestamp(status.LastWebhookAt),
+		LastRejectedWebhookAt: optionalTimestamp(status.LastRejectedWebhookAt),
+	}
+}
+
+func adminLiveKitConnectionState(state core.LiveKitConnectionState) adminv1.AdminLiveKitConnectionState {
+	switch state {
+	case core.LiveKitConnectionNotConfigured:
+		return adminv1.AdminLiveKitConnectionState_ADMIN_LIVE_KIT_CONNECTION_STATE_NOT_CONFIGURED
+	case core.LiveKitConnectionOK:
+		return adminv1.AdminLiveKitConnectionState_ADMIN_LIVE_KIT_CONNECTION_STATE_OK
+	case core.LiveKitConnectionUnreachable:
+		return adminv1.AdminLiveKitConnectionState_ADMIN_LIVE_KIT_CONNECTION_STATE_UNREACHABLE
+	case core.LiveKitConnectionUnauthorized:
+		return adminv1.AdminLiveKitConnectionState_ADMIN_LIVE_KIT_CONNECTION_STATE_UNAUTHORIZED
+	case core.LiveKitConnectionError:
+		return adminv1.AdminLiveKitConnectionState_ADMIN_LIVE_KIT_CONNECTION_STATE_ERROR
+	default:
+		return adminv1.AdminLiveKitConnectionState_ADMIN_LIVE_KIT_CONNECTION_STATE_UNSPECIFIED
+	}
 }
 
 func adminDurableWorkerStatuses(statuses []core.DurableWorkerAdminStatus) []*adminv1.AdminDurableWorkerStatus {

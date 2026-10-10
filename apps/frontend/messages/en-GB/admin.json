@@ -483,7 +483,14 @@
         },
         "backlog_clear": "No messages waiting",
         "storage_used": "{percent}% of the nearest limit used",
-        "storage_unlimited": "No limits configured"
+        "storage_unlimited": "No limits configured",
+        "voice_calls": "Calls",
+        "livekit_connected": "Connected to LiveKit",
+        "livekit_unreachable": "Cannot reach LiveKit",
+        "livekit_unauthorized": "LiveKit rejected the API key",
+        "livekit_error": "LiveKit check failed",
+        "livekit_insecure_url": "LiveKit URL is not encrypted",
+        "livekit_webhooks_rejected": "LiveKit webhooks rejected"
       },
       "overview": {
         "users": "Users",
@@ -513,6 +520,33 @@
           "one": "{count} message",
           "other": "{count} messages"
         }
+      },
+      "livekit": {
+        "title": "Calls (LiveKit)",
+        "state_ok": "Connected",
+        "state_not_configured": "Not configured",
+        "state_unreachable": "Unreachable",
+        "state_unauthorized": "Credentials rejected",
+        "state_error": "Error",
+        "summary_ok": "Chatto can reach the LiveKit server, and LiveKit accepts the API key and secret.",
+        "summary_not_configured": "LiveKit is not configured, so voice and video calls are off.",
+        "summary_unreachable": "Chatto cannot connect to the LiveKit URL. Make sure that LiveKit runs and that this server can reach the URL.",
+        "summary_unauthorized": "LiveKit rejected the API key or secret. Make sure that they match a key pair in the LiveKit configuration.",
+        "summary_error": "The server at the LiveKit URL sent an unexpected reply. Make sure that the URL points to LiveKit.",
+        "insecure_url": "The LiveKit URL uses ws:// or http://, which is not encrypted. Browsers on an HTTPS page cannot connect to it. Use wss:// when other computers use this server.",
+        "webhooks_rejected": "The last webhook from LiveKit had a signature that is not valid. Make sure that LiveKit signs webhooks with the same API key and secret as Chatto.",
+        "no_webhooks": "This server has not received a webhook from LiveKit since it started. LiveKit sends webhooks only when calls start or change. If calls ran during this time, make sure that LiveKit sends webhooks to the webhook URL below.",
+        "url": "LiveKit URL",
+        "api_key": "API key",
+        "webhook_url": "Webhook URL",
+        "webhook_key": "Webhook signing key",
+        "webhook_key_same": "Same as the API key",
+        "webhook_key_separate": "Separate key",
+        "last_webhook": "Last accepted webhook",
+        "last_rejected_webhook": "Last rejected webhook",
+        "webhook_none": "None since start",
+        "scope_help": "Webhook times come from the Chatto instance that handled this request. Chatto cannot check TURN relays.",
+        "turn_guide": "Read about TURN for networks that block calls"
       }
     },
     "event_log": {

@@ -483,7 +483,14 @@
         },
         "backlog_clear": "Geen wachtende berichten",
         "storage_used": "{percent}% van de dichtstbijzijnde limiet gebruikt",
-        "storage_unlimited": "Geen limieten ingesteld"
+        "storage_unlimited": "Geen limieten ingesteld",
+        "voice_calls": "Oproepen",
+        "livekit_connected": "Verbonden met LiveKit",
+        "livekit_unreachable": "LiveKit is niet bereikbaar",
+        "livekit_unauthorized": "LiveKit heeft de API-sleutel geweigerd",
+        "livekit_error": "LiveKit-controle mislukt",
+        "livekit_insecure_url": "LiveKit-URL is niet versleuteld",
+        "livekit_webhooks_rejected": "LiveKit-webhooks geweigerd"
       },
       "overview": {
         "users": "Gebruikers",
@@ -513,6 +520,33 @@
           "one": "{count} bericht",
           "other": "{count} berichten"
         }
+      },
+      "livekit": {
+        "title": "Oproepen (LiveKit)",
+        "state_ok": "Verbonden",
+        "state_not_configured": "Niet ingesteld",
+        "state_unreachable": "Niet bereikbaar",
+        "state_unauthorized": "Inloggegevens geweigerd",
+        "state_error": "Fout",
+        "summary_ok": "Chatto kan de LiveKit-server bereiken en LiveKit accepteert de API-sleutel en het geheim.",
+        "summary_not_configured": "LiveKit is niet ingesteld, dus spraak- en videogesprekken staan uit.",
+        "summary_unreachable": "Chatto kan geen verbinding maken met de LiveKit-URL. Controleer of LiveKit draait en of deze server de URL kan bereiken.",
+        "summary_unauthorized": "LiveKit heeft de API-sleutel of het geheim geweigerd. Controleer of ze overeenkomen met een sleutelpaar in de LiveKit-configuratie.",
+        "summary_error": "De server op de LiveKit-URL stuurde een onverwacht antwoord. Controleer of de URL naar LiveKit verwijst.",
+        "insecure_url": "De LiveKit-URL gebruikt ws:// of http://, wat niet versleuteld is. Browsers op een HTTPS-pagina kunnen er geen verbinding mee maken. Gebruik wss:// als andere computers deze server gebruiken.",
+        "webhooks_rejected": "De laatste webhook van LiveKit had een ongeldige handtekening. Controleer of LiveKit webhooks ondertekent met dezelfde API-sleutel en hetzelfde geheim als Chatto.",
+        "no_webhooks": "Deze server heeft sinds de start geen webhook van LiveKit ontvangen. LiveKit stuurt alleen webhooks wanneer oproepen starten of veranderen. Als er in deze tijd oproepen waren, controleer dan of LiveKit webhooks naar de webhook-URL hieronder stuurt.",
+        "url": "LiveKit-URL",
+        "api_key": "API-sleutel",
+        "webhook_url": "Webhook-URL",
+        "webhook_key": "Ondertekeningssleutel voor webhooks",
+        "webhook_key_same": "Zelfde als de API-sleutel",
+        "webhook_key_separate": "Aparte sleutel",
+        "last_webhook": "Laatst geaccepteerde webhook",
+        "last_rejected_webhook": "Laatst geweigerde webhook",
+        "webhook_none": "Geen sinds de start",
+        "scope_help": "Webhooktijden komen van de Chatto-instantie die dit verzoek heeft verwerkt. Chatto kan TURN-relays niet controleren.",
+        "turn_guide": "Lees meer over TURN voor netwerken die oproepen blokkeren"
       }
     },
     "event_log": {

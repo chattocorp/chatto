@@ -7,6 +7,64 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 
 /**
+ * Result of the LiveKit server API check.
+ *
+ * @generated from enum chatto.admin.v1.AdminLiveKitConnectionState
+ */
+export enum AdminLiveKitConnectionState {
+  /**
+   * Unknown state.
+   *
+   * @generated from enum value: ADMIN_LIVE_KIT_CONNECTION_STATE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * LiveKit is not configured, so Chatto did not do the check.
+   *
+   * @generated from enum value: ADMIN_LIVE_KIT_CONNECTION_STATE_NOT_CONFIGURED = 1;
+   */
+  NOT_CONFIGURED = 1,
+
+  /**
+   * LiveKit accepted the API call with the configured key and secret.
+   *
+   * @generated from enum value: ADMIN_LIVE_KIT_CONNECTION_STATE_OK = 2;
+   */
+  OK = 2,
+
+  /**
+   * Chatto could not connect to the LiveKit server URL.
+   *
+   * @generated from enum value: ADMIN_LIVE_KIT_CONNECTION_STATE_UNREACHABLE = 3;
+   */
+  UNREACHABLE = 3,
+
+  /**
+   * LiveKit rejected the configured API key or secret.
+   *
+   * @generated from enum value: ADMIN_LIVE_KIT_CONNECTION_STATE_UNAUTHORIZED = 4;
+   */
+  UNAUTHORIZED = 4,
+
+  /**
+   * The server at the URL replied with an unexpected error.
+   *
+   * @generated from enum value: ADMIN_LIVE_KIT_CONNECTION_STATE_ERROR = 5;
+   */
+  ERROR = 5,
+}
+// Retrieve enum metadata with: proto3.getEnumType(AdminLiveKitConnectionState)
+proto3.util.setEnumType(AdminLiveKitConnectionState, "chatto.admin.v1.AdminLiveKitConnectionState", [
+  { no: 0, name: "ADMIN_LIVE_KIT_CONNECTION_STATE_UNSPECIFIED" },
+  { no: 1, name: "ADMIN_LIVE_KIT_CONNECTION_STATE_NOT_CONFIGURED" },
+  { no: 2, name: "ADMIN_LIVE_KIT_CONNECTION_STATE_OK" },
+  { no: 3, name: "ADMIN_LIVE_KIT_CONNECTION_STATE_UNREACHABLE" },
+  { no: 4, name: "ADMIN_LIVE_KIT_CONNECTION_STATE_UNAUTHORIZED" },
+  { no: 5, name: "ADMIN_LIVE_KIT_CONNECTION_STATE_ERROR" },
+]);
+
+/**
  * Operator-facing state derived from a durable consumer.
  *
  * @generated from enum chatto.admin.v1.AdminDurableWorkerHealth
@@ -199,6 +257,13 @@ export class GetSystemInfoResponse extends Message<GetSystemInfoResponse> {
    */
   projectionsAvailable?: boolean;
 
+  /**
+   * LiveKit voice and video call setup diagnostics.
+   *
+   * @generated from field: chatto.admin.v1.AdminLiveKitStatus livekit = 6;
+   */
+  livekit?: AdminLiveKitStatus;
+
   constructor(data?: PartialMessage<GetSystemInfoResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -212,6 +277,7 @@ export class GetSystemInfoResponse extends Message<GetSystemInfoResponse> {
     { no: 3, name: "asset_cleanup", kind: "message", T: AdminAssetCleanupStatus },
     { no: 4, name: "durable_workers", kind: "message", T: AdminDurableWorkerStatus, repeated: true },
     { no: 5, name: "projections_available", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 6, name: "livekit", kind: "message", T: AdminLiveKitStatus },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSystemInfoResponse {
@@ -228,6 +294,134 @@ export class GetSystemInfoResponse extends Message<GetSystemInfoResponse> {
 
   static equals(a: GetSystemInfoResponse | PlainMessage<GetSystemInfoResponse> | undefined, b: GetSystemInfoResponse | PlainMessage<GetSystemInfoResponse> | undefined): boolean {
     return proto3.util.equals(GetSystemInfoResponse, a, b);
+  }
+}
+
+/**
+ * LiveKit voice and video call setup as seen by the Chatto server that
+ * handled the request. The response never includes the API secret or the
+ * webhook signing secret.
+ *
+ * Chatto calls the LiveKit server API once for each request to check
+ * reachability and credentials. Webhook times come from the memory of the
+ * Chatto server that handled the request. They reset when that server
+ * restarts, and other servers in a cluster keep their own times.
+ *
+ * @generated from message chatto.admin.v1.AdminLiveKitStatus
+ */
+export class AdminLiveKitStatus extends Message<AdminLiveKitStatus> {
+  /**
+   * Whether `livekit.enabled` is set.
+   *
+   * @generated from field: bool enabled = 1;
+   */
+  enabled = false;
+
+  /**
+   * Whether LiveKit is enabled and the URL, API key, and API secret are all set.
+   *
+   * @generated from field: bool configured = 2;
+   */
+  configured = false;
+
+  /**
+   * Configured LiveKit server URL that clients connect to.
+   *
+   * @generated from field: string url = 3;
+   */
+  url = "";
+
+  /**
+   * Configured LiveKit API key. This is an identifier, not a secret.
+   *
+   * @generated from field: string api_key = 4;
+   */
+  apiKey = "";
+
+  /**
+   * Whether webhooks use a signing key that differs from `api_key`.
+   *
+   * @generated from field: bool separate_webhook_key = 5;
+   */
+  separateWebhookKey = false;
+
+  /**
+   * URL that LiveKit must send webhooks to. Empty when the public server URL is not set.
+   *
+   * @generated from field: string webhook_url = 6;
+   */
+  webhookUrl = "";
+
+  /**
+   * Result of the LiveKit server API check.
+   *
+   * @generated from field: chatto.admin.v1.AdminLiveKitConnectionState connection_state = 7;
+   */
+  connectionState = AdminLiveKitConnectionState.UNSPECIFIED;
+
+  /**
+   * Error detail when the check fails. Never contains secrets.
+   *
+   * @generated from field: string connection_error = 8;
+   */
+  connectionError = "";
+
+  /**
+   * True when `url` uses unencrypted `ws://` or `http://` and the public server URL host is not a loopback address or a `.localhost` name.
+   *
+   * @generated from field: bool insecure_url = 9;
+   */
+  insecureUrl = false;
+
+  /**
+   * Time of the last webhook with a valid signature that this server received.
+   *
+   * @generated from field: google.protobuf.Timestamp last_webhook_at = 10;
+   */
+  lastWebhookAt?: Timestamp;
+
+  /**
+   * Time of the last webhook that this server rejected because of an invalid signature.
+   *
+   * @generated from field: google.protobuf.Timestamp last_rejected_webhook_at = 11;
+   */
+  lastRejectedWebhookAt?: Timestamp;
+
+  constructor(data?: PartialMessage<AdminLiveKitStatus>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.AdminLiveKitStatus";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "configured", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "api_key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "separate_webhook_key", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "webhook_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "connection_state", kind: "enum", T: proto3.getEnumType(AdminLiveKitConnectionState) },
+    { no: 8, name: "connection_error", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 9, name: "insecure_url", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 10, name: "last_webhook_at", kind: "message", T: Timestamp },
+    { no: 11, name: "last_rejected_webhook_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminLiveKitStatus {
+    return new AdminLiveKitStatus().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminLiveKitStatus {
+    return new AdminLiveKitStatus().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminLiveKitStatus {
+    return new AdminLiveKitStatus().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AdminLiveKitStatus | PlainMessage<AdminLiveKitStatus> | undefined, b: AdminLiveKitStatus | PlainMessage<AdminLiveKitStatus> | undefined): boolean {
+    return proto3.util.equals(AdminLiveKitStatus, a, b);
   }
 }
 

@@ -476,7 +476,14 @@
         },
         "backlog_clear": "待機中のメッセージはありません",
         "storage_used": "最も近い上限の {percent}% を使用中",
-        "storage_unlimited": "上限は設定されていません"
+        "storage_unlimited": "上限は設定されていません",
+        "voice_calls": "通話",
+        "livekit_connected": "LiveKit に接続済み",
+        "livekit_unreachable": "LiveKit に到達できません",
+        "livekit_unauthorized": "LiveKit が API キーを拒否しました",
+        "livekit_error": "LiveKit のチェックに失敗しました",
+        "livekit_insecure_url": "LiveKit の URL が暗号化されていません",
+        "livekit_webhooks_rejected": "LiveKit の Webhook が拒否されました"
       },
       "overview": {
         "users": "ユーザー",
@@ -502,6 +509,33 @@
         "messages_count": {
           "other": "{count} 件のメッセージ"
         }
+      },
+      "livekit": {
+        "title": "通話（LiveKit）",
+        "state_ok": "接続済み",
+        "state_not_configured": "未設定",
+        "state_unreachable": "到達不可",
+        "state_unauthorized": "認証情報が拒否されました",
+        "state_error": "エラー",
+        "summary_ok": "Chatto は LiveKit サーバーに到達でき、LiveKit は API キーとシークレットを受け入れています。",
+        "summary_not_configured": "LiveKit が設定されていないため、音声通話とビデオ通話はオフです。",
+        "summary_unreachable": "Chatto は LiveKit の URL に接続できません。LiveKit が実行中で、このサーバーから URL に到達できることを確認してください。",
+        "summary_unauthorized": "LiveKit が API キーまたはシークレットを拒否しました。LiveKit の設定にあるキーペアと一致していることを確認してください。",
+        "summary_error": "LiveKit の URL にあるサーバーが予期しない応答を返しました。URL が LiveKit を指していることを確認してください。",
+        "insecure_url": "LiveKit の URL は暗号化されていない ws:// または http:// を使用しています。HTTPS ページ上のブラウザはこの URL に接続できません。他のコンピューターがこのサーバーを使用する場合は wss:// を使用してください。",
+        "webhooks_rejected": "LiveKit からの最後の Webhook の署名が無効でした。LiveKit が Chatto と同じ API キーとシークレットで Webhook に署名していることを確認してください。",
+        "no_webhooks": "このサーバーは起動後、LiveKit から Webhook を受信していません。LiveKit は通話の開始時または変更時にのみ Webhook を送信します。この期間に通話があった場合は、LiveKit が下記の Webhook URL に Webhook を送信していることを確認してください。",
+        "url": "LiveKit の URL",
+        "api_key": "API キー",
+        "webhook_url": "Webhook の URL",
+        "webhook_key": "Webhook 署名キー",
+        "webhook_key_same": "API キーと同じ",
+        "webhook_key_separate": "個別のキー",
+        "last_webhook": "最後に受け付けた Webhook",
+        "last_rejected_webhook": "最後に拒否した Webhook",
+        "webhook_none": "起動後なし",
+        "scope_help": "Webhook の時刻は、このリクエストを処理した Chatto インスタンスのものです。Chatto は TURN リレーを確認できません。",
+        "turn_guide": "通話をブロックするネットワーク向けの TURN について読む"
       }
     },
     "event_log": {

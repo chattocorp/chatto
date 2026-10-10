@@ -490,7 +490,14 @@
         },
         "backlog_clear": "Nav gaidošu ziņojumu",
         "storage_used": "Izmantoti {percent}% no tuvākā ierobežojuma",
-        "storage_unlimited": "Ierobežojumi nav iestatīti"
+        "storage_unlimited": "Ierobežojumi nav iestatīti",
+        "voice_calls": "Zvani",
+        "livekit_connected": "Savienots ar LiveKit",
+        "livekit_unreachable": "Nevar sasniegt LiveKit",
+        "livekit_unauthorized": "LiveKit noraidīja API atslēgu",
+        "livekit_error": "LiveKit pārbaude neizdevās",
+        "livekit_insecure_url": "LiveKit URL adrese nav šifrēta",
+        "livekit_webhooks_rejected": "LiveKit tīmekļa āķi noraidīti"
       },
       "overview": {
         "users": "Lietotāji",
@@ -524,6 +531,33 @@
           "one": "{count} ziņojums",
           "other": "{count} ziņojumi"
         }
+      },
+      "livekit": {
+        "title": "Zvani (LiveKit)",
+        "state_ok": "Savienots",
+        "state_not_configured": "Nav konfigurēts",
+        "state_unreachable": "Nav sasniedzams",
+        "state_unauthorized": "Akreditācijas dati noraidīti",
+        "state_error": "Kļūda",
+        "summary_ok": "Chatto var sasniegt LiveKit serveri, un LiveKit pieņem API atslēgu un noslēpumu.",
+        "summary_not_configured": "LiveKit nav konfigurēts, tāpēc balss un video zvani ir izslēgti.",
+        "summary_unreachable": "Chatto nevar izveidot savienojumu ar LiveKit URL adresi. Pārliecinieties, ka LiveKit darbojas un šis serveris var sasniegt šo adresi.",
+        "summary_unauthorized": "LiveKit noraidīja API atslēgu vai noslēpumu. Pārliecinieties, ka tie atbilst atslēgu pārim LiveKit konfigurācijā.",
+        "summary_error": "Serveris LiveKit URL adresē nosūtīja negaidītu atbildi. Pārliecinieties, ka URL adrese norāda uz LiveKit.",
+        "insecure_url": "LiveKit URL adrese izmanto ws:// vai http://, kas nav šifrēts. Pārlūki HTTPS lapā nevar ar to izveidot savienojumu. Izmantojiet wss://, ja šo serveri izmanto citi datori.",
+        "webhooks_rejected": "Pēdējam tīmekļa āķim no LiveKit bija nederīgs paraksts. Pārliecinieties, ka LiveKit paraksta tīmekļa āķus ar to pašu API atslēgu un noslēpumu kā Chatto.",
+        "no_webhooks": "Kopš palaišanas šis serveris nav saņēmis nevienu tīmekļa āķi no LiveKit. LiveKit sūta tīmekļa āķus tikai tad, kad zvani sākas vai mainās. Ja šajā laikā notika zvani, pārliecinieties, ka LiveKit sūta tīmekļa āķus uz tālāk norādīto tīmekļa āķa URL adresi.",
+        "url": "LiveKit URL adrese",
+        "api_key": "API atslēga",
+        "webhook_url": "Tīmekļa āķa URL adrese",
+        "webhook_key": "Tīmekļa āķu parakstīšanas atslēga",
+        "webhook_key_same": "Tāda pati kā API atslēga",
+        "webhook_key_separate": "Atsevišķa atslēga",
+        "last_webhook": "Pēdējais pieņemtais tīmekļa āķis",
+        "last_rejected_webhook": "Pēdējais noraidītais tīmekļa āķis",
+        "webhook_none": "Neviena kopš palaišanas",
+        "scope_help": "Tīmekļa āķu laiki nāk no Chatto instances, kas apstrādāja šo pieprasījumu. Chatto nevar pārbaudīt TURN releju serverus.",
+        "turn_guide": "Lasiet par TURN tīkliem, kas bloķē zvanus"
       }
     },
     "event_log": {

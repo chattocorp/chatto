@@ -22,6 +22,7 @@
   import BrokerPanel from './BrokerPanel.svelte';
   import DurableWorkersPanel from './DurableWorkersPanel.svelte';
   import JetStreamUsagePanel from './JetStreamUsagePanel.svelte';
+  import LiveKitPanel from './LiveKitPanel.svelte';
   import SystemHealthPanel from './SystemHealthPanel.svelte';
 
   const serverScope = useServerScope();
@@ -380,6 +381,9 @@
 
         <DurableWorkersPanel workers={systemInfo.durableWorkers} />
         <AssetCleanupPanel status={systemInfo.assetCleanup} />
+        {#if systemInfo.livekit.connectionState !== 'unavailable'}
+          <LiveKitPanel status={systemInfo.livekit} />
+        {/if}
       {/if}
     </div>
   </PaneContent>

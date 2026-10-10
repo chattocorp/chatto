@@ -190,6 +190,7 @@ func runServer(configPath string) {
 		chattoCore.VideoUploadsEnabled = true
 	}
 
+	chattoCore.ConfigureLiveKitDiagnostics(cfg.LiveKit, cfg.Webserver.URL)
 	if err := chattoCore.EnableLiveKitCallReconciliation(cfg.LiveKit); err != nil {
 		log.Error("Failed to configure LiveKit call-state reconciliation", "error", err)
 		exitCode = 1

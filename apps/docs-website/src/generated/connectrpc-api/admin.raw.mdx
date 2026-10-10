@@ -24,8 +24,9 @@ Provides server diagnostics for the admin system page.
 
 ### GetSystemInfo
 
-Returns broker, JetStream, and projection diagnostics. Requires the
-server owner role.
+Returns broker, JetStream, projection, and LiveKit diagnostics. Requires
+the server owner role. The call checks the LiveKit server API, so it can
+take up to five seconds when LiveKit does not reply.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminDiagnosticsService/GetSystemInfo
@@ -51,6 +52,7 @@ Owner-only operational diagnostics for the Chatto server.
 | `asset_cleanup` | [`AdminAssetCleanupStatus`](#chatto-admin-v1-AdminAssetCleanupStatus) | Recoverable physical deletion worker health. |
 | `durable_workers` | repeated [`AdminDurableWorkerStatus`](#chatto-admin-v1-AdminDurableWorkerStatus) | Known durable worker queues and their current broker-derived health. |
 | `projections_available` | `optional bool` | Whether projection diagnostics were collected successfully. |
+| `livekit` | [`AdminLiveKitStatus`](#chatto-admin-v1-AdminLiveKitStatus) | LiveKit voice and video call setup diagnostics. |
 
 
 <a id="chatto-admin-v1-AdminEventLogService"></a>
@@ -2233,6 +2235,35 @@ Broker-derived health for one known durable worker queue.
 
 
 
+<a id="chatto-admin-v1-AdminLiveKitStatus"></a>
+
+### AdminLiveKitStatus
+
+LiveKit voice and video call setup as seen by the Chatto server that
+handled the request. The response never includes the API secret or the
+webhook signing secret.
+
+Chatto calls the LiveKit server API once for each request to check
+reachability and credentials. Webhook times come from the memory of the
+Chatto server that handled the request. They reset when that server
+restarts, and other servers in a cluster keep their own times.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `enabled` | `bool` | Whether `livekit.enabled` is set. |
+| `configured` | `bool` | Whether LiveKit is enabled and the URL, API key, and API secret are all set. |
+| `url` | `string` | Configured LiveKit server URL that clients connect to. |
+| `api_key` | `string` | Configured LiveKit API key. This is an identifier, not a secret. |
+| `separate_webhook_key` | `bool` | Whether webhooks use a signing key that differs from `api_key`. |
+| `webhook_url` | `string` | URL that LiveKit must send webhooks to. Empty when the public server URL is not set. |
+| `connection_state` | [`AdminLiveKitConnectionState`](#chatto-admin-v1-AdminLiveKitConnectionState) | Result of the LiveKit server API check. |
+| `connection_error` | `string` | Error detail when the check fails. Never contains secrets. |
+| `insecure_url` | `bool` | True when `url` uses unencrypted `ws://` or `http://` and the public server URL host is not a loopback address or a `.localhost` name. |
+| `last_webhook_at` | `google.protobuf.Timestamp` | Time of the last webhook with a valid signature that this server received. |
+| `last_rejected_webhook_at` | `google.protobuf.Timestamp` | Time of the last webhook that this server rejected because of an invalid signature. |
+
+
+
 <a id="chatto-admin-v1-AdminNatsConsumerInfo"></a>
 
 ### AdminNatsConsumerInfo
@@ -2766,6 +2797,22 @@ Operator-facing state derived from a durable consumer.
 | `ADMIN_DURABLE_WORKER_HEALTH_UNCONFIRMED` | `4` | An acknowledgement is pending, but broker state cannot prove whether a handler is active or the delivery is awaiting recovery after a crash. |
 | `ADMIN_DURABLE_WORKER_HEALTH_STALLED` | `5` | The consumer exists but has neither a waiting pull nor an ack-pending delivery. |
 | `ADMIN_DURABLE_WORKER_HEALTH_UNAVAILABLE` | `6` | The required consumer is unavailable. |
+
+
+<a id="chatto-admin-v1-AdminLiveKitConnectionState"></a>
+
+### AdminLiveKitConnectionState
+
+Result of the LiveKit server API check.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ADMIN_LIVE_KIT_CONNECTION_STATE_UNSPECIFIED` | `0` | Unknown state. |
+| `ADMIN_LIVE_KIT_CONNECTION_STATE_NOT_CONFIGURED` | `1` | LiveKit is not configured, so Chatto did not do the check. |
+| `ADMIN_LIVE_KIT_CONNECTION_STATE_OK` | `2` | LiveKit accepted the API call with the configured key and secret. |
+| `ADMIN_LIVE_KIT_CONNECTION_STATE_UNREACHABLE` | `3` | Chatto could not connect to the LiveKit server URL. |
+| `ADMIN_LIVE_KIT_CONNECTION_STATE_UNAUTHORIZED` | `4` | LiveKit rejected the configured API key or secret. |
+| `ADMIN_LIVE_KIT_CONNECTION_STATE_ERROR` | `5` | The server at the URL replied with an unexpected error. |
 
 
 <a id="chatto-admin-v1-InviteLinkStatus"></a>

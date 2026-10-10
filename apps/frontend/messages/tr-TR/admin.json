@@ -483,7 +483,14 @@
         },
         "backlog_clear": "Bekleyen mesaj yok",
         "storage_used": "En yakın sınırın %{percent} kadarı kullanıldı",
-        "storage_unlimited": "Yapılandırılmış sınır yok"
+        "storage_unlimited": "Yapılandırılmış sınır yok",
+        "voice_calls": "Aramalar",
+        "livekit_connected": "LiveKit'e bağlandı",
+        "livekit_unreachable": "LiveKit'e ulaşılamıyor",
+        "livekit_unauthorized": "LiveKit API anahtarını reddetti",
+        "livekit_error": "LiveKit denetimi başarısız oldu",
+        "livekit_insecure_url": "LiveKit URL'si şifreli değil",
+        "livekit_webhooks_rejected": "LiveKit webhook'ları reddedildi"
       },
       "overview": {
         "users": "Kullanıcılar",
@@ -513,6 +520,33 @@
           "one": "{count} mesaj",
           "other": "{count} mesaj"
         }
+      },
+      "livekit": {
+        "title": "Aramalar (LiveKit)",
+        "state_ok": "Bağlı",
+        "state_not_configured": "Yapılandırılmamış",
+        "state_unreachable": "Ulaşılamıyor",
+        "state_unauthorized": "Kimlik bilgileri reddedildi",
+        "state_error": "Hata",
+        "summary_ok": "Chatto, LiveKit sunucusuna ulaşabiliyor ve LiveKit API anahtarını ve gizli anahtarı kabul ediyor.",
+        "summary_not_configured": "LiveKit yapılandırılmamış, bu nedenle sesli ve görüntülü aramalar kapalı.",
+        "summary_unreachable": "Chatto, LiveKit URL'sine bağlanamıyor. LiveKit'in çalıştığından ve bu sunucunun URL'ye ulaşabildiğinden emin olun.",
+        "summary_unauthorized": "LiveKit API anahtarını veya gizli anahtarı reddetti. Bunların LiveKit yapılandırmasındaki bir anahtar çiftiyle eşleştiğinden emin olun.",
+        "summary_error": "LiveKit URL'sindeki sunucu beklenmeyen bir yanıt gönderdi. URL'nin LiveKit'i gösterdiğinden emin olun.",
+        "insecure_url": "LiveKit URL'si şifreli olmayan ws:// veya http:// kullanıyor. HTTPS sayfasındaki tarayıcılar buna bağlanamaz. Bu sunucuyu başka bilgisayarlar kullanıyorsa wss:// kullanın.",
+        "webhooks_rejected": "LiveKit'ten gelen son webhook'un imzası geçersizdi. LiveKit'in webhook'ları Chatto ile aynı API anahtarı ve gizli anahtarla imzaladığından emin olun.",
+        "no_webhooks": "Bu sunucu başladığından beri LiveKit'ten hiç webhook almadı. LiveKit, webhook'ları yalnızca aramalar başladığında veya değiştiğinde gönderir. Bu süre içinde aramalar yapıldıysa LiveKit'in webhook'ları aşağıdaki webhook URL'sine gönderdiğinden emin olun.",
+        "url": "LiveKit URL'si",
+        "api_key": "API anahtarı",
+        "webhook_url": "Webhook URL'si",
+        "webhook_key": "Webhook imzalama anahtarı",
+        "webhook_key_same": "API anahtarıyla aynı",
+        "webhook_key_separate": "Ayrı anahtar",
+        "last_webhook": "Son kabul edilen webhook",
+        "last_rejected_webhook": "Son reddedilen webhook",
+        "webhook_none": "Başlangıçtan beri yok",
+        "scope_help": "Webhook zamanları bu isteği işleyen Chatto örneğinden gelir. Chatto, TURN aktarıcılarını denetleyemez.",
+        "turn_guide": "Aramaları engelleyen ağlar için TURN hakkında bilgi edinin"
       }
     },
     "event_log": {
