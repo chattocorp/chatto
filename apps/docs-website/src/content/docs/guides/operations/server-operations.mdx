@@ -69,6 +69,53 @@ CHATTO_METRICS_PATH=/metrics
 Keep the metrics listener private. Enable `metrics.pprof` only while you
 profile, and only on localhost or a trusted internal network.
 
+### Projection snapshots
+
+Use these metrics to check snapshot restore, publication, and cleanup. The
+metrics listener reports each replica separately. Counters reset on restart.
+
+| Metric | Type | Labels |
+| --- | --- | --- |
+| `chatto_projection_snapshot_restore_info` | Gauge | `projection`, `source`, `reason` |
+| `chatto_projection_snapshot_publications_total` | Counter | `projection`, `backend`, `result` |
+| `chatto_projection_snapshot_publication_duration_seconds` | Histogram | `projection`, `backend` |
+| `chatto_projection_snapshot_last_publication_timestamp_seconds` | Gauge | `projection`, `backend` |
+| `chatto_projection_snapshot_cleanup_runs_total` | Counter | `backend`, `result` |
+| `chatto_projection_snapshot_cleanup_deleted_objects_total` | Counter | `backend` |
+| `chatto_projection_snapshot_cleanup_deleted_bytes_total` | Counter | `backend` |
+| `chatto_projection_snapshot_cleanup_last_success_timestamp_seconds` | Gauge | `backend` |
+
+The restore gauge has value `1` after initial replay completes. Its `source`
+is `current`, `previous`, or `cold`. Its `reason` is `none`, `disabled`,
+`missing`, `rejected`, or `unavailable`. `disabled` also applies to projections
+that always use cold replay. For `previous`, the reason describes why the
+current generation was not used. If both generations fail, `unavailable`
+takes precedence over `rejected`, and `rejected` over `missing`.
+
+Compare the restore result with `chatto_projection_startup_duration_seconds`
+and `chatto_projection_startup_messages` for the same replica and projection.
+The duration and message count describe that process's initial replay.
+
+Publication and cleanup results are `success` or `error`. A skipped publication
+or a lease held by another replica does not count as an attempt. Publication
+duration includes capture, encoding, and storage work for completed attempts,
+including failures. Cleanup deletion counters include work completed before a
+cleanup failure. NATS uses Object Store TTL, so these cleanup metrics measure
+Chatto's S3 cleanup only.
+
+Operation metrics are absent until the first completed attempt. Success
+timestamps are absent until this replica completes successful work. They do
+not advance when another replica publishes or cleans up. To check the latest
+observed success across replicas, take the maximum timestamp within one server
+deployment. A restarted replica does not retain its previous timestamps.
+
+For example, this query selects replicas that used cold replay because snapshot
+storage was unavailable:
+
+```promql
+chatto_projection_snapshot_restore_info{source="cold",reason="unavailable"} == 1
+```
+
 ## Exporter
 
 The exporter gives metrics for the full deployment. On a single process, run
@@ -85,6 +132,27 @@ path = "/metrics"
 With more than one replica, enable the embedded exporter on one replica only.
 Alternatively, run `chatto exporter` as a separate process against external
 NATS or the TCP listener of embedded NATS.
+
+### Snapshot storage totals
+
+For S3 storage, the exporter reports
+`chatto_projection_snapshot_storage_objects` and
+`chatto_projection_snapshot_storage_bytes`. Both have `backend="s3"` and a
+`scope` label: `current`, `non_current`, or `all_versions`. These scopes refer
+to S3 object versions, not the current and previous snapshot generations.
+Object counts for `all_versions` include delete markers; markers add no bytes.
+
+The totals cover the private snapshot namespace under the configured S3 path
+prefix, including old contracts and encryption epochs. They exclude assets.
+The exporter counts keys without downloading or decrypting objects. These
+listings are periodic; totals can change while a listing is in progress.
+
+`chatto_projection_snapshot_storage_refresh_success{backend="s3"}` is `1`
+only when the latest inventory completed. It is `0` before the first inventory
+or after a failure; snapshot totals are absent in those cases. Use
+`chatto_s3_bucket_last_refresh_timestamp_seconds` and
+`chatto_s3_bucket_refresh_duration_seconds` to check the shared inventory's
+attempt time and duration. Reading metrics does not start an S3 listing.
 
 ## Backups
 

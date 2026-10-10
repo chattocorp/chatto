@@ -57,6 +57,8 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("snapshot worker did not publish the projection cohort")
 	}
+	requireSnapshotMetric(t, first, `chatto_projection_snapshot_restore_info{projection="server_content_view",reason="missing",source="cold"} 1`)
+	requireSnapshotMetric(t, first, `chatto_projection_snapshot_publications_total{backend="nats",projection="server_content_view",result="success"} 1`)
 	firstSnapshotObjects := projectionSnapshotObjectNames(t, ctx, first)
 	if len(firstSnapshotObjects) < 2 {
 		t.Fatalf("snapshot worker published only %d objects", len(firstSnapshotObjects))
@@ -122,6 +124,10 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 	case <-second.projectionSnapshotWorker.done:
 	case <-time.After(5 * time.Second):
 		t.Fatal("snapshot worker did not finish its initial eligibility pass")
+	}
+	requireSnapshotMetric(t, second, `chatto_projection_snapshot_restore_info{projection="server_content_view",reason="none",source="current"} 1`)
+	if strings.Contains(snapshotMetricsText(t, second), `chatto_projection_snapshot_publications_total{backend="nats",projection="server_content_view"`) {
+		t.Fatal("fresh restore counted a skipped publication")
 	}
 	stopSecond()
 	refreshedObjects := projectionSnapshotObjectNames(t, ctx, second)
@@ -655,6 +661,7 @@ func TestProjectionSnapshotInitializationFailureDoesNotPreventCoreStartup(t *tes
 		t.Fatal("snapshot worker enabled after repository initialization failure")
 	}
 	stop := startSnapshotTestCore(t, core)
+	requireSnapshotMetric(t, core, `chatto_projection_snapshot_restore_info{projection="server_content_view",reason="unavailable",source="cold"} 1`)
 	stop()
 }
 

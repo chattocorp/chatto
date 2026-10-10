@@ -39,6 +39,7 @@ type projectionSnapshotJob struct {
 }
 
 type projectionSnapshotWorker struct {
+	metrics       snapshotOperationMetrics
 	jobs          []projectionSnapshotJob
 	lease         projectionSnapshotLease
 	expiryLease   projectionSnapshotExpiryLease
@@ -159,6 +160,7 @@ func (w *projectionSnapshotWorker) expire(ctx context.Context) error {
 	result, err := w.expirer.Expire(expireCtx, projectionsnapshot.ExpireOptions{
 		Retention: w.retention, MaxDeletes: projectionSnapshotExpiryMaxDeletes, MaxDeleteBytes: projectionSnapshotExpiryMaxBytes,
 	})
+	w.metrics.expiry(w.expirer.Backend(), result, time.Now(), err)
 	if err != nil {
 		w.logger.Warn("Projection snapshot S3 expiry pass failed",
 			"backend", w.expirer.Backend(), "stage", "expire", "error", err,
@@ -187,7 +189,7 @@ func waitForProjectionSnapshotPass(ctx context.Context, delay time.Duration) err
 	}
 }
 
-func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projectionSnapshotJob, publishReplayDelta bool) error {
+func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projectionSnapshotJob, publishReplayDelta bool) (resultErr error) {
 	now := w.now
 	if now == nil {
 		now = time.Now
@@ -210,11 +212,18 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 			"refresh_age", projectionSnapshotRefreshAge)
 		return nil
 	}
+	attempted := true
+	defer func() {
+		if attempted {
+			w.metrics.publication(job.projectionKey, job.repository.Backend(), now().Sub(started), now(), resultErr)
+		}
+	}()
 	captured, err := job.projector.CaptureSnapshot(ctx)
 	if err != nil {
 		return fmt.Errorf("capture projection snapshot: %w", err)
 	}
 	if job.allowPublication != nil && !job.allowPublication(captured.CutoffSequence) {
+		attempted = false
 		w.logger.Debug("Projection snapshot generation deferred behind a durable worker boundary",
 			"projection", job.projectionKey,
 			"stage", "generate_skip",
@@ -226,6 +235,7 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 	}
 	published, err := saveProjectionSnapshot(ctx, job, captured)
 	if errors.Is(err, projectionsnapshot.ErrSnapshotFresh) {
+		attempted = false
 		job.projector.RecordSnapshotPublication(published.cutoffSequence, published.createdAt)
 		w.logger.Debug("Projection snapshot generation skipped after a fresh publication",
 			"projection", job.projectionKey,
@@ -235,6 +245,7 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 		return nil
 	}
 	if errors.Is(err, projectionsnapshot.ErrSnapshotRegressed) {
+		attempted = false
 		w.logger.Debug("Projection snapshot generation skipped after a newer publication",
 			"projection", job.projectionKey,
 			"backend", job.repository.Backend(),

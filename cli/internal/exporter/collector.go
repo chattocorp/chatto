@@ -9,25 +9,29 @@ import (
 type collector struct {
 	server *Server
 
-	buildInfo      *prometheus.Desc
-	ready          *prometheus.Desc
-	replayComplete *prometheus.Desc
-	scrapeError    *prometheus.Desc
-	users          *prometheus.Desc
-	presence       *prometheus.Desc
-	rooms          *prometheus.Desc
-	messages       *prometheus.Desc
-	assets         *prometheus.Desc
-	s3Objects      *prometheus.Desc
-	s3Bytes        *prometheus.Desc
-	s3Success      *prometheus.Desc
-	s3Duration     *prometheus.Desc
-	s3LastRefresh  *prometheus.Desc
+	buildInfo                                                *prometheus.Desc
+	ready                                                    *prometheus.Desc
+	replayComplete                                           *prometheus.Desc
+	scrapeError                                              *prometheus.Desc
+	users                                                    *prometheus.Desc
+	presence                                                 *prometheus.Desc
+	rooms                                                    *prometheus.Desc
+	messages                                                 *prometheus.Desc
+	assets                                                   *prometheus.Desc
+	snapshotObjects, snapshotBytes, snapshotInventorySuccess *prometheus.Desc
+	s3Objects                                                *prometheus.Desc
+	s3Bytes                                                  *prometheus.Desc
+	s3Success                                                *prometheus.Desc
+	s3Duration                                               *prometheus.Desc
+	s3LastRefresh                                            *prometheus.Desc
 }
 
 func newCollector(server *Server) *collector {
 	return &collector{
-		server: server,
+		server:                   server,
+		snapshotObjects:          prometheus.NewDesc("chatto_projection_snapshot_storage_objects", "Snapshot namespace object count from the last complete S3 inventory; absent when inventory is unavailable.", []string{"backend", "scope"}, nil),
+		snapshotBytes:            prometheus.NewDesc("chatto_projection_snapshot_storage_bytes", "Snapshot namespace bytes from the last complete S3 inventory; absent when inventory is unavailable.", []string{"backend", "scope"}, nil),
+		snapshotInventorySuccess: prometheus.NewDesc("chatto_projection_snapshot_storage_refresh_success", "Whether the latest S3 snapshot inventory completed successfully; zero before the first completion.", []string{"backend"}, nil),
 		buildInfo: prometheus.NewDesc(
 			"chatto_exporter_build_info",
 			"Build information for this Chatto exporter.",
@@ -125,6 +129,9 @@ func (c *collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.rooms
 	ch <- c.messages
 	ch <- c.assets
+	ch <- c.snapshotObjects
+	ch <- c.snapshotBytes
+	ch <- c.snapshotInventorySuccess
 	ch <- c.s3Objects
 	ch <- c.s3Bytes
 	ch <- c.s3Success
@@ -175,6 +182,20 @@ func (c *collector) collectS3(ch chan<- prometheus.Metric) {
 	stats := c.server.s3.snapshot()
 	if !stats.Configured {
 		return
+	}
+	ch <- prometheus.MustNewConstMetric(c.snapshotInventorySuccess, prometheus.GaugeValue, boolMetric(stats.LastSuccess), "s3")
+	if stats.LastSuccess {
+		for _, value := range []struct {
+			scope          string
+			objects, bytes int64
+		}{
+			{"current", stats.SnapshotCurrentObjects, stats.SnapshotCurrentBytes},
+			{"non_current", maxInt64(0, stats.SnapshotAllObjects-stats.SnapshotCurrentObjects), maxInt64(0, stats.SnapshotAllBytes-stats.SnapshotCurrentBytes)},
+			{"all_versions", stats.SnapshotAllObjects, stats.SnapshotAllBytes},
+		} {
+			ch <- prometheus.MustNewConstMetric(c.snapshotObjects, prometheus.GaugeValue, float64(value.objects), "s3", value.scope)
+			ch <- prometheus.MustNewConstMetric(c.snapshotBytes, prometheus.GaugeValue, float64(value.bytes), "s3", value.scope)
+		}
 	}
 	ch <- prometheus.MustNewConstMetric(c.s3Objects, prometheus.GaugeValue, float64(stats.CurrentObjects), "current")
 	ch <- prometheus.MustNewConstMetric(c.s3Bytes, prometheus.GaugeValue, float64(stats.CurrentBytes), "current")

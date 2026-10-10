@@ -154,6 +154,9 @@ func TestMetricsServerUsesProjectionAndModelKeys(t *testing.T) {
 	}
 	text := string(body)
 
+	if !strings.Contains(text, `chatto_projection_snapshot_restore_info{projection="server_content_view",reason="disabled",source="cold"} 1`) {
+		t.Fatalf("missing restore metric: %s", text)
+	}
 	if !strings.Contains(text, `chatto_projection_lag_events{projection="server_content_view"}`) {
 		t.Fatalf("metrics body missing server_content_view projection label\n%s", text)
 	}
