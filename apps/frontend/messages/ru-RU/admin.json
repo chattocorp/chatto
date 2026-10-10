@@ -497,7 +497,14 @@
         },
         "backlog_clear": "Нет ожидающих сообщений",
         "storage_used": "Использовано {percent}% ближайшего лимита",
-        "storage_unlimited": "Лимиты не настроены"
+        "storage_unlimited": "Лимиты не настроены",
+        "voice_calls": "Звонки",
+        "livekit_connected": "Подключено к LiveKit",
+        "livekit_unreachable": "LiveKit недоступен",
+        "livekit_unauthorized": "LiveKit отклонил ключ API",
+        "livekit_error": "Ошибка проверки LiveKit",
+        "livekit_insecure_url": "URL LiveKit не зашифрован",
+        "livekit_webhooks_rejected": "Вебхуки LiveKit отклонены"
       },
       "overview": {
         "users": "Пользователи",
@@ -535,6 +542,33 @@
           "many": "{count} сообщений",
           "other": "{count} сообщения"
         }
+      },
+      "livekit": {
+        "title": "Звонки (LiveKit)",
+        "state_ok": "Подключено",
+        "state_not_configured": "Не настроено",
+        "state_unreachable": "Недоступен",
+        "state_unauthorized": "Учётные данные отклонены",
+        "state_error": "Ошибка",
+        "summary_ok": "Chatto может подключиться к серверу LiveKit, и LiveKit принимает ключ API и секрет.",
+        "summary_not_configured": "LiveKit не настроен, поэтому голосовые и видеозвонки отключены.",
+        "summary_unreachable": "Chatto не может подключиться к URL LiveKit. Убедитесь, что LiveKit запущен и этот сервер может получить доступ к URL.",
+        "summary_unauthorized": "LiveKit отклонил ключ API или секрет. Убедитесь, что они соответствуют паре ключей в конфигурации LiveKit.",
+        "summary_error": "Сервер по URL LiveKit отправил неожиданный ответ. Убедитесь, что URL указывает на LiveKit.",
+        "insecure_url": "URL LiveKit использует ws://, который не шифруется. Браузеры не могут подключиться к нему со страницы HTTPS. В рабочей среде используйте wss://.",
+        "webhooks_rejected": "Последний вебхук от LiveKit имел недействительную подпись. Убедитесь, что LiveKit подписывает вебхуки тем же ключом API и секретом, что и Chatto.",
+        "no_webhooks": "С момента запуска этот сервер не получил ни одного вебхука от LiveKit. LiveKit отправляет вебхуки, только когда звонки начинаются или меняются. Если в это время были звонки, убедитесь, что LiveKit отправляет вебхуки на URL вебхука ниже.",
+        "url": "URL LiveKit",
+        "api_key": "Ключ API",
+        "webhook_url": "URL вебхука",
+        "webhook_key": "Ключ подписи вебхуков",
+        "webhook_key_same": "Тот же, что и ключ API",
+        "webhook_key_separate": "Отдельный ключ",
+        "last_webhook": "Последний принятый вебхук",
+        "last_rejected_webhook": "Последний отклонённый вебхук",
+        "webhook_none": "Нет с момента запуска",
+        "scope_help": "Время вебхуков получено от экземпляра Chatto, который обработал этот запрос. Chatto не может проверить TURN-ретрансляторы.",
+        "turn_guide": "Подробнее о TURN для сетей, которые блокируют звонки"
       }
     },
     "event_log": {

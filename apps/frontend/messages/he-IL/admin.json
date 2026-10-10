@@ -490,7 +490,14 @@
         },
         "backlog_clear": "אין הודעות ממתינות",
         "storage_used": "נעשה שימוש ב-{percent}% מהמגבלה הקרובה ביותר",
-        "storage_unlimited": "לא הוגדרו מגבלות"
+        "storage_unlimited": "לא הוגדרו מגבלות",
+        "voice_calls": "שיחות",
+        "livekit_connected": "מחובר ל-LiveKit",
+        "livekit_unreachable": "אין גישה ל-LiveKit",
+        "livekit_unauthorized": "LiveKit דחה את מפתח ה-API",
+        "livekit_error": "בדיקת LiveKit נכשלה",
+        "livekit_insecure_url": "כתובת ה-URL של LiveKit אינה מוצפנת",
+        "livekit_webhooks_rejected": "Webhooks של LiveKit נדחו"
       },
       "overview": {
         "users": "משתמשים",
@@ -524,6 +531,33 @@
           "two": "{count} הודעות",
           "other": "{count} הודעות"
         }
+      },
+      "livekit": {
+        "title": "שיחות (LiveKit)",
+        "state_ok": "מחובר",
+        "state_not_configured": "לא מוגדר",
+        "state_unreachable": "לא נגיש",
+        "state_unauthorized": "פרטי הגישה נדחו",
+        "state_error": "שגיאה",
+        "summary_ok": "Chatto יכול להגיע לשרת LiveKit, ו-LiveKit מקבל את מפתח ה-API ואת הסוד.",
+        "summary_not_configured": "LiveKit אינו מוגדר, ולכן שיחות קול ווידאו כבויות.",
+        "summary_unreachable": "Chatto לא מצליח להתחבר לכתובת ה-URL של LiveKit. ודא ש-LiveKit פועל ושהשרת הזה יכול להגיע לכתובת.",
+        "summary_unauthorized": "LiveKit דחה את מפתח ה-API או את הסוד. ודא שהם תואמים לזוג מפתחות בהגדרות של LiveKit.",
+        "summary_error": "השרת בכתובת ה-URL של LiveKit שלח תגובה לא צפויה. ודא שהכתובת מפנה ל-LiveKit.",
+        "insecure_url": "כתובת ה-URL של LiveKit משתמשת ב-ws://, שאינו מוצפן. דפדפנים לא יכולים להתחבר אליה מדף HTTPS. השתמש ב-wss:// בסביבת ייצור.",
+        "webhooks_rejected": "ל-webhook האחרון מ-LiveKit הייתה חתימה לא תקינה. ודא ש-LiveKit חותם על webhooks עם אותו מפתח API ואותו סוד כמו Chatto.",
+        "no_webhooks": "השרת הזה לא קיבל webhook מ-LiveKit מאז שהופעל. LiveKit שולח webhooks רק כששיחות מתחילות או משתנות. אם התקיימו שיחות בזמן הזה, ודא ש-LiveKit שולח webhooks לכתובת ה-webhook שלמטה.",
+        "url": "כתובת ה-URL של LiveKit",
+        "api_key": "מפתח API",
+        "webhook_url": "כתובת ה-webhook",
+        "webhook_key": "מפתח חתימה של webhooks",
+        "webhook_key_same": "זהה למפתח ה-API",
+        "webhook_key_separate": "מפתח נפרד",
+        "last_webhook": "ה-webhook האחרון שהתקבל",
+        "last_rejected_webhook": "ה-webhook האחרון שנדחה",
+        "webhook_none": "אין מאז ההפעלה",
+        "scope_help": "זמני ה-webhook מגיעים ממופע Chatto שטיפל בבקשה הזו. Chatto לא יכול לבדוק ממסרי TURN.",
+        "turn_guide": "קרא על TURN עבור רשתות שחוסמות שיחות"
       }
     },
     "event_log": {

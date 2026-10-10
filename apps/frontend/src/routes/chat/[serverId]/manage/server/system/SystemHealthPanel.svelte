@@ -63,7 +63,8 @@ health checks. See `systemHealth.ts` for the rules behind each status.
     projections: m('admin.system.health.projections'),
     workers: m('admin.system.health.workers'),
     backlog: m('admin.system.health.backlog'),
-    storage: m('admin.system.health.storage')
+    storage: m('admin.system.health.storage'),
+    voice_calls: m('admin.system.health.voice_calls')
   });
 
   function checkDetail({ detail }: HealthCheck): string {
@@ -94,6 +95,18 @@ health checks. See `systemHealth.ts` for the rules behind each status.
         return m('admin.system.health.storage_used', { percent: detail.percent });
       case 'storage_unlimited':
         return m('admin.system.health.storage_unlimited');
+      case 'livekit_connected':
+        return m('admin.system.health.livekit_connected');
+      case 'livekit_unreachable':
+        return m('admin.system.health.livekit_unreachable');
+      case 'livekit_unauthorized':
+        return m('admin.system.health.livekit_unauthorized');
+      case 'livekit_error':
+        return m('admin.system.health.livekit_error');
+      case 'livekit_insecure_url':
+        return m('admin.system.health.livekit_insecure_url');
+      case 'livekit_webhooks_rejected':
+        return m('admin.system.health.livekit_webhooks_rejected');
     }
   }
 </script>

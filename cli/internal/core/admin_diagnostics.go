@@ -14,6 +14,7 @@ type AdminDiagnostics struct {
 	ProjectionsAvailable bool
 	AssetCleanup         AssetCleanupAdminStatus
 	DurableWorkers       []DurableWorkerAdminStatus
+	LiveKit              LiveKitAdminStatus
 }
 
 func (c *ChattoCore) GetAdminDiagnostics(ctx context.Context, actorID string) (*AdminDiagnostics, error) {
@@ -64,5 +65,6 @@ func (c *ChattoCore) GetAdminDiagnostics(ctx context.Context, actorID string) (*
 		ProjectionsAvailable: projectionsAvailable,
 		AssetCleanup:         assetCleanup,
 		DurableWorkers:       durableWorkerAdminStatuses(jetStreamStats, c.VideoUploadsEnabled),
+		LiveKit:              c.liveKitAdminStatus(ctx),
 	}, nil
 }

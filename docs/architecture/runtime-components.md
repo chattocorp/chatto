@@ -297,7 +297,10 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   call-state projection reads and readiness; generation-consistent participant
   snapshots and call ID/E2EE access material; durable LiveKit call
   lifecycle/participant facts and elected LiveKit reconciliation, including
-  current call permission enforcement.
+  current call permission enforcement. Owner diagnostics
+  ([`livekit_diagnostics.go`](../../cli/internal/core/livekit_diagnostics.go))
+  check LiveKit with one `ListRooms` call per request and report process-local
+  webhook times.
 - **`MediaModel`** ([`media_model.go`](../../cli/internal/core/media_model.go),
   [`attachments.go`](../../cli/internal/core/attachments.go)): Eagerly wired
   attachment/media binary storage, signed asset and origin-scoped HLS URLs,

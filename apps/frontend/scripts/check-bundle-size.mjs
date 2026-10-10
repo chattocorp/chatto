@@ -18,7 +18,9 @@ const routes = [
     // added about 3.6 KiB of global CSS and preference code.
     // Shared narrow-page panel styles add a small global CSS payload.
     // CI measured 337.1 KiB; retain allowance for build variation.
-    budgetKiB: 337.5,
+    // LiveKit diagnostics strings in the bundled en-GB fallback catalog add
+    // about 0.7 KiB.
+    budgetKiB: 338.5,
     components: ['src/routes/+layout.svelte', 'src/routes/login/+page.svelte']
   },
   {
@@ -27,7 +29,9 @@ const routes = [
     // added about 3.7 KiB of global CSS and preference code.
     // Server gutter ordering adds about 1.7 KiB; drag code stays lazy.
     // Footnote layout and local navigation add about 0.6 KiB in CI.
-    budgetKiB: 381,
+    // LiveKit diagnostics strings in the bundled en-GB fallback catalog add
+    // about 0.7 KiB.
+    budgetKiB: 382,
     components: [
       'src/routes/+layout.svelte',
       'src/routes/chat/+layout.svelte',

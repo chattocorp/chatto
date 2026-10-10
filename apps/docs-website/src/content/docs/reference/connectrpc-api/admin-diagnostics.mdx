@@ -51,3 +51,4 @@ Owner-only operational diagnostics for the Chatto server.
 | `asset_cleanup` | [`AdminAssetCleanupStatus`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminAssetCleanupStatus) | Recoverable physical deletion worker health. |
 | `durable_workers` | repeated [`AdminDurableWorkerStatus`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminDurableWorkerStatus) | Known durable worker queues and their current broker-derived health. |
 | `projections_available` | `optional bool` | Whether projection diagnostics were collected successfully. |
+| `livekit` | [`AdminLiveKitStatus`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminLiveKitStatus) | LiveKit voice and video call setup diagnostics. |

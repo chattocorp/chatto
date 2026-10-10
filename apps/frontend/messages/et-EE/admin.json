@@ -483,7 +483,14 @@
         },
         "backlog_clear": "Ühtegi sõnumit ei oota",
         "storage_used": "{percent}% lähimast piirangust on kasutatud",
-        "storage_unlimited": "Piiranguid pole seadistatud"
+        "storage_unlimited": "Piiranguid pole seadistatud",
+        "voice_calls": "Kõned",
+        "livekit_connected": "Ühendatud LiveKitiga",
+        "livekit_unreachable": "LiveKitiga ei saa ühendust",
+        "livekit_unauthorized": "LiveKit lükkas API-võtme tagasi",
+        "livekit_error": "LiveKiti kontroll ebaõnnestus",
+        "livekit_insecure_url": "LiveKiti URL ei ole krüpteeritud",
+        "livekit_webhooks_rejected": "LiveKiti webhookid lükati tagasi"
       },
       "overview": {
         "users": "Kasutajad",
@@ -513,6 +520,33 @@
           "one": "{count} sõnum",
           "other": "{count} sõnumit"
         }
+      },
+      "livekit": {
+        "title": "Kõned (LiveKit)",
+        "state_ok": "Ühendatud",
+        "state_not_configured": "Seadistamata",
+        "state_unreachable": "Pole kättesaadav",
+        "state_unauthorized": "Mandaadid lükati tagasi",
+        "state_error": "Viga",
+        "summary_ok": "Chatto saab LiveKiti serveriga ühenduse ja LiveKit aktsepteerib API-võtit ja saladust.",
+        "summary_not_configured": "LiveKit ei ole seadistatud, seega on hääl- ja videokõned välja lülitatud.",
+        "summary_unreachable": "Chatto ei saa LiveKiti URL-iga ühendust. Veenduge, et LiveKit töötab ja et see server pääseb URL-ile ligi.",
+        "summary_unauthorized": "LiveKit lükkas API-võtme või saladuse tagasi. Veenduge, et need vastavad LiveKiti seadistuse võtmepaarile.",
+        "summary_error": "LiveKiti URL-il olev server saatis ootamatu vastuse. Veenduge, et URL osutab LiveKitile.",
+        "insecure_url": "LiveKiti URL kasutab ws://, mis ei ole krüpteeritud. Brauserid ei saa sellega HTTPS-lehelt ühendust luua. Kasutage tootmises wss://.",
+        "webhooks_rejected": "LiveKiti viimasel webhookil oli kehtetu allkiri. Veenduge, et LiveKit allkirjastab webhookid sama API-võtme ja saladusega nagu Chatto.",
+        "no_webhooks": "See server ei ole pärast käivitumist LiveKitilt ühtegi webhooki saanud. LiveKit saadab webhooke ainult siis, kui kõned algavad või muutuvad. Kui selle aja jooksul toimus kõnesid, veenduge, et LiveKit saadab webhookid allolevale webhooki URL-ile.",
+        "url": "LiveKiti URL",
+        "api_key": "API-võti",
+        "webhook_url": "Webhooki URL",
+        "webhook_key": "Webhookide allkirjastamisvõti",
+        "webhook_key_same": "Sama mis API-võti",
+        "webhook_key_separate": "Eraldi võti",
+        "last_webhook": "Viimane vastu võetud webhook",
+        "last_rejected_webhook": "Viimane tagasi lükatud webhook",
+        "webhook_none": "Käivitumisest saadik puudub",
+        "scope_help": "Webhookide ajad pärinevad Chatto eksemplarilt, mis selle päringu töötles. Chatto ei saa TURN-releesid kontrollida.",
+        "turn_guide": "Lugege TURN-ist võrkude jaoks, mis kõnesid blokeerivad"
       }
     },
     "event_log": {

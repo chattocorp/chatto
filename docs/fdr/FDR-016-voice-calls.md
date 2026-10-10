@@ -272,6 +272,12 @@ volume measurement. Only users who joined the call receive this feedback.
 **Why:** Preventing automatic display sleep reduces avoidable call interruption and friction on mobile devices while respecting the browser's power and permission policy.
 **Tradeoff:** The API can keep a visible screen awake, but it cannot guarantee background execution or override manual device locking, operating-system power policy, or browser suspension. Keeping the display on also uses more battery.
 
+### 13. Owners check the LiveKit setup on the System page
+
+**Decision:** The owner-only `AdminDiagnosticsService.GetSystemInfo` response includes LiveKit setup diagnostics. It reports whether LiveKit is enabled and configured, the LiveKit URL, the API key, whether webhooks use a separate signing key, and the webhook URL that LiveKit must call (`{webserver.url}/webhooks/livekit`). For each request, Chatto calls LiveKit `ListRooms` once with a `RoomList` grant and a five-second limit, and classifies the result as connected, unreachable, unauthorized, or error. It flags a `ws://` or `http://` LiveKit URL when the public server URL is not a loopback address. Each server process records the time of its last accepted and last rejected LiveKit webhook in memory. The System page shows a Calls health check only when LiveKit is configured, and a Calls (LiveKit) panel with the details. The response never contains the API secret or the webhook signing secret.
+**Why:** Most self-hosted call failures are setup errors: an unreachable URL, wrong credentials, missing or badly signed webhooks, or an unencrypted URL. Operators can find these errors without a test call. A live API call proves reachability and credentials in one step.
+**Tradeoff:** Each page load or refresh makes one LiveKit API call and can take up to five seconds when LiveKit does not reply. Webhook times are per process and reset on restart, so a replica that did not receive webhooks shows none even when another replica did. Chatto cannot inspect TURN or LiveKit media network settings, so the page links to the TURN guide.
+
 ## Permissions
 
 All five permissions support Server, Room group, Room, and Direct messages

@@ -326,6 +326,12 @@ credentials. Shutdown discards this state. The shared EVT source consumer
 retains progress only until handoff, not until HTTP completion. See
 [NATS resources](nats-resources.md) and [effects](durable-effects.md).
 
+## LiveKit webhook diagnostics
+
+Each server process keeps the times of the last accepted and the last rejected
+LiveKit webhook in memory. Owner-only admin diagnostics report them. They use
+no KV keys, are not shared between replicas, and reset on restart.
+
 ## Operational diagnostic history
 
 LOG stores retained records, not latest-value runtime state. It has no KV or

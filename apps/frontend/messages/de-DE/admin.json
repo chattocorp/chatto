@@ -483,7 +483,14 @@
         },
         "backlog_clear": "Keine wartenden Nachrichten",
         "storage_used": "{percent} % des nächsten Limits genutzt",
-        "storage_unlimited": "Keine Limits konfiguriert"
+        "storage_unlimited": "Keine Limits konfiguriert",
+        "voice_calls": "Anrufe",
+        "livekit_connected": "Mit LiveKit verbunden",
+        "livekit_unreachable": "LiveKit nicht erreichbar",
+        "livekit_unauthorized": "LiveKit hat den API-Schlüssel abgelehnt",
+        "livekit_error": "LiveKit-Prüfung fehlgeschlagen",
+        "livekit_insecure_url": "LiveKit-URL ist nicht verschlüsselt",
+        "livekit_webhooks_rejected": "LiveKit-Webhooks abgelehnt"
       },
       "overview": {
         "users": "Benutzer",
@@ -513,6 +520,33 @@
           "one": "{count} Nachricht",
           "other": "{count} Nachrichten"
         }
+      },
+      "livekit": {
+        "title": "Anrufe (LiveKit)",
+        "state_ok": "Verbunden",
+        "state_not_configured": "Nicht konfiguriert",
+        "state_unreachable": "Nicht erreichbar",
+        "state_unauthorized": "Zugangsdaten abgelehnt",
+        "state_error": "Fehler",
+        "summary_ok": "Chatto erreicht den LiveKit-Server, und LiveKit akzeptiert den API-Schlüssel und das Secret.",
+        "summary_not_configured": "LiveKit ist nicht konfiguriert, daher sind Sprach- und Videoanrufe deaktiviert.",
+        "summary_unreachable": "Chatto kann keine Verbindung zur LiveKit-URL herstellen. Stelle sicher, dass LiveKit läuft und dieser Server die URL erreichen kann.",
+        "summary_unauthorized": "LiveKit hat den API-Schlüssel oder das Secret abgelehnt. Stelle sicher, dass sie zu einem Schlüsselpaar in der LiveKit-Konfiguration passen.",
+        "summary_error": "Der Server unter der LiveKit-URL hat eine unerwartete Antwort gesendet. Stelle sicher, dass die URL auf LiveKit zeigt.",
+        "insecure_url": "Die LiveKit-URL verwendet ws://, das nicht verschlüsselt ist. Browser können sich von einer HTTPS-Seite aus nicht damit verbinden. Verwende wss:// im Produktivbetrieb.",
+        "webhooks_rejected": "Der letzte Webhook von LiveKit hatte eine ungültige Signatur. Stelle sicher, dass LiveKit Webhooks mit demselben API-Schlüssel und Secret signiert wie Chatto.",
+        "no_webhooks": "Dieser Server hat seit seinem Start keinen Webhook von LiveKit empfangen. LiveKit sendet Webhooks nur, wenn Anrufe beginnen oder sich ändern. Wenn in dieser Zeit Anrufe stattfanden, stelle sicher, dass LiveKit Webhooks an die unten stehende Webhook-URL sendet.",
+        "url": "LiveKit-URL",
+        "api_key": "API-Schlüssel",
+        "webhook_url": "Webhook-URL",
+        "webhook_key": "Webhook-Signaturschlüssel",
+        "webhook_key_same": "Wie der API-Schlüssel",
+        "webhook_key_separate": "Separater Schlüssel",
+        "last_webhook": "Letzter akzeptierter Webhook",
+        "last_rejected_webhook": "Letzter abgelehnter Webhook",
+        "webhook_none": "Keiner seit dem Start",
+        "scope_help": "Die Webhook-Zeiten stammen von der Chatto-Instanz, die diese Anfrage bearbeitet hat. Chatto kann TURN-Relays nicht prüfen.",
+        "turn_guide": "Mehr über TURN für Netzwerke erfahren, die Anrufe blockieren"
       }
     },
     "event_log": {

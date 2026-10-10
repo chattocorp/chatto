@@ -483,7 +483,14 @@
         },
         "backlog_clear": "Neniuj mesaĝoj atendas",
         "storage_used": "{percent}% de la plej proksima limo uzita",
-        "storage_unlimited": "Neniuj limoj estas agordita"
+        "storage_unlimited": "Neniuj limoj estas agordita",
+        "voice_calls": "Vokoj",
+        "livekit_connected": "Konektita al LiveKit",
+        "livekit_unreachable": "Ne eblas atingi LiveKit",
+        "livekit_unauthorized": "LiveKit rifuzis la API-ŝlosilon",
+        "livekit_error": "Kontrolo de LiveKit malsukcesis",
+        "livekit_insecure_url": "La URL de LiveKit ne estas ĉifrita",
+        "livekit_webhooks_rejected": "Rifuzitaj webhook-oj de LiveKit"
       },
       "overview": {
         "users": "Uzantoj",
@@ -513,6 +520,33 @@
           "one": "{count} mesaĝo",
           "other": "{count} mesaĝoj"
         }
+      },
+      "livekit": {
+        "title": "Vokoj (LiveKit)",
+        "state_ok": "Konektita",
+        "state_not_configured": "Ne agordita",
+        "state_unreachable": "Neatingebla",
+        "state_unauthorized": "Akreditaĵoj rifuzitaj",
+        "state_error": "Eraro",
+        "summary_ok": "Chatto povas atingi la LiveKit-servilon, kaj LiveKit akceptas la API-ŝlosilon kaj la sekreton.",
+        "summary_not_configured": "LiveKit ne estas agordita, do voĉaj kaj videaj vokoj estas malŝaltitaj.",
+        "summary_unreachable": "Chatto ne povas konektiĝi al la URL de LiveKit. Certigu, ke LiveKit funkcias kaj ke ĉi tiu servilo povas atingi la URL-on.",
+        "summary_unauthorized": "LiveKit rifuzis la API-ŝlosilon aŭ la sekreton. Certigu, ke ili kongruas kun ŝlosilparo en la agordo de LiveKit.",
+        "summary_error": "La servilo ĉe la URL de LiveKit sendis neatenditan respondon. Certigu, ke la URL montras al LiveKit.",
+        "insecure_url": "La URL de LiveKit uzas ws://, kiu ne estas ĉifrita. Retumiloj ne povas konektiĝi al ĝi el HTTPS-paĝo. Uzu wss:// en produktado.",
+        "webhooks_rejected": "La lasta webhook de LiveKit havis nevalidan subskribon. Certigu, ke LiveKit subskribas webhook-ojn per la sama API-ŝlosilo kaj sekreto kiel Chatto.",
+        "no_webhooks": "Ĉi tiu servilo ne ricevis webhook-on de LiveKit ekde sia starto. LiveKit sendas webhook-ojn nur kiam vokoj komenciĝas aŭ ŝanĝiĝas. Se vokoj okazis dum ĉi tiu tempo, certigu, ke LiveKit sendas webhook-ojn al la suba webhook-URL.",
+        "url": "URL de LiveKit",
+        "api_key": "API-ŝlosilo",
+        "webhook_url": "Webhook-URL",
+        "webhook_key": "Subskriba ŝlosilo de webhook-oj",
+        "webhook_key_same": "Same kiel la API-ŝlosilo",
+        "webhook_key_separate": "Aparta ŝlosilo",
+        "last_webhook": "Lasta akceptita webhook",
+        "last_rejected_webhook": "Lasta rifuzita webhook",
+        "webhook_none": "Neniu ekde starto",
+        "scope_help": "La tempoj de webhook-oj venas de la Chatto-instanco, kiu traktis ĉi tiun peton. Chatto ne povas kontroli TURN-relajsojn.",
+        "turn_guide": "Legu pri TURN por retoj, kiuj blokas vokojn"
       }
     },
     "event_log": {

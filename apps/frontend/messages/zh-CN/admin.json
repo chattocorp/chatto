@@ -476,7 +476,14 @@
         },
         "backlog_clear": "没有等待中的消息",
         "storage_used": "已使用最近限制的 {percent}%",
-        "storage_unlimited": "未配置任何限制"
+        "storage_unlimited": "未配置任何限制",
+        "voice_calls": "通话",
+        "livekit_connected": "已连接到 LiveKit",
+        "livekit_unreachable": "无法访问 LiveKit",
+        "livekit_unauthorized": "LiveKit 拒绝了 API 密钥",
+        "livekit_error": "LiveKit 检查失败",
+        "livekit_insecure_url": "LiveKit URL 未加密",
+        "livekit_webhooks_rejected": "LiveKit webhook 被拒绝"
       },
       "overview": {
         "users": "用户",
@@ -502,6 +509,33 @@
         "messages_count": {
           "other": "{count} 条消息"
         }
+      },
+      "livekit": {
+        "title": "通话（LiveKit）",
+        "state_ok": "已连接",
+        "state_not_configured": "未配置",
+        "state_unreachable": "无法访问",
+        "state_unauthorized": "凭据被拒绝",
+        "state_error": "错误",
+        "summary_ok": "Chatto 可以访问 LiveKit 服务器，且 LiveKit 接受 API 密钥和 Secret。",
+        "summary_not_configured": "LiveKit 未配置，因此语音和视频通话已关闭。",
+        "summary_unreachable": "Chatto 无法连接到 LiveKit URL。请确保 LiveKit 正在运行，并且此服务器可以访问该 URL。",
+        "summary_unauthorized": "LiveKit 拒绝了 API 密钥或 Secret。请确保它们与 LiveKit 配置中的某个密钥对匹配。",
+        "summary_error": "LiveKit URL 上的服务器返回了意外的响应。请确保该 URL 指向 LiveKit。",
+        "insecure_url": "LiveKit URL 使用未加密的 ws://。浏览器无法从 HTTPS 页面连接到它。请在生产环境中使用 wss://。",
+        "webhooks_rejected": "LiveKit 发来的最后一个 webhook 签名无效。请确保 LiveKit 使用与 Chatto 相同的 API 密钥和 Secret 对 webhook 签名。",
+        "no_webhooks": "此服务器自启动以来未收到来自 LiveKit 的 webhook。LiveKit 仅在通话开始或变化时发送 webhook。如果在此期间有通话，请确保 LiveKit 将 webhook 发送到下方的 webhook 地址。",
+        "url": "LiveKit 地址",
+        "api_key": "API 密钥",
+        "webhook_url": "Webhook 地址",
+        "webhook_key": "Webhook 签名密钥",
+        "webhook_key_same": "与 API 密钥相同",
+        "webhook_key_separate": "单独的密钥",
+        "last_webhook": "最后接受的 webhook",
+        "last_rejected_webhook": "最后拒绝的 webhook",
+        "webhook_none": "启动以来无",
+        "scope_help": "Webhook 时间来自处理此请求的 Chatto 实例。Chatto 无法检查 TURN 中继。",
+        "turn_guide": "阅读 TURN 说明，以应对会阻止通话的网络"
       }
     },
     "event_log": {

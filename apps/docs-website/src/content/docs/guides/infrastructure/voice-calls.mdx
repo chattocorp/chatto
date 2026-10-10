@@ -214,7 +214,51 @@ For an existing installation, follow these steps:
 
    Calls will be available immediately. Call controls appear in room headers when LiveKit is configured.
 
+5. **Check the setup**
+
+   Open **Manage Server → System** and examine the **Calls (LiveKit)** panel. See [Check the setup](#check-the-setup).
+
 </Steps>
+
+## Check the setup
+
+Server owners can check the LiveKit setup without a test call. Open **Manage
+Server → System**. The **Health** panel shows a **Calls** check when LiveKit
+is configured. The **Calls (LiveKit)** panel shows the details.
+Chatto never shows the API secret or the webhook signing secret.
+
+Each time you open or refresh the page, Chatto calls the LiveKit server API
+once with the configured API key and secret. The panel shows one of these
+results:
+
+| Status | Meaning | What to do |
+| --- | --- | --- |
+| Connected | LiveKit accepted the API key and secret. | Nothing. |
+| Not configured | LiveKit is not enabled, or a required setting is empty. | Configure the `[livekit]` section. |
+| Unreachable | Chatto cannot connect to the LiveKit URL. | Make sure that LiveKit runs and that the Chatto server can reach `livekit.url`. Check DNS, firewalls, and TLS certificates. |
+| Credentials rejected | LiveKit rejected the API key or secret. | Make sure that `api_key` and `api_secret` match a key pair in `livekit.yaml`. |
+| Error | The server at the URL sent an unexpected reply. | Make sure that `livekit.url` points to LiveKit, not to a different service or proxy page. |
+
+The panel also shows these warnings:
+
+- **The LiveKit URL is not encrypted.** The URL uses `ws://` and the Chatto
+  URL is not a local address. Browsers cannot connect to `ws://` from an HTTPS
+  page. Use `wss://`.
+- **The last webhook had a signature that is not valid.** LiveKit signs
+  webhooks with a key that Chatto does not accept. Set `webhook.api_key` in
+  `livekit.yaml` to the Chatto API key, or set `livekit.webhook_api_key` and
+  `livekit.webhook_api_secret` in Chatto.
+- **No webhook since the server started.** LiveKit sends webhooks only when
+  calls start or change, so this is normal after a restart. If calls ran and
+  this message stays, make sure that `webhook.urls` in `livekit.yaml` contains
+  the **Webhook URL** that the panel shows.
+
+Webhook times come from the server process that handled the page request.
+They reset when that process restarts. If you run more than one replica, each
+replica shows only the webhooks that it received.
+
+Chatto cannot check TURN relays. If calls fail only on some networks, see
+[TURN for Restrictive Networks](#turn-for-restrictive-networks).
 
 ## Production Considerations
 

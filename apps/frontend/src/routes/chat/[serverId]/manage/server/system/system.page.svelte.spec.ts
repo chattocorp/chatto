@@ -80,7 +80,20 @@ const systemInfo = {
     lastInspectedSequence: '0',
     latestDeletionSequence: '0'
   },
-  durableWorkers: []
+  durableWorkers: [],
+  livekit: {
+    connectionState: 'not_configured',
+    connectionError: '',
+    enabled: false,
+    configured: false,
+    url: '',
+    apiKey: '',
+    separateWebhookKey: false,
+    webhookUrl: '',
+    insecureUrl: false,
+    lastWebhookAt: null as Date | null,
+    lastRejectedWebhookAt: null as Date | null
+  }
 };
 
 async function settle() {
@@ -197,5 +210,64 @@ describe('server admin system diagnostics', () => {
     expect(container.textContent).toContain('No problems found. Some checks have no data.');
     expect(container.textContent).toContain('Projection Summary');
     expect(container.textContent).not.toContain('Stored Data');
+  });
+
+  it('shows that LiveKit is not configured without setup details', async () => {
+    const { container } = render(SystemPage);
+    await settle();
+
+    const panel = container.querySelector('[data-testid="livekit-panel"]');
+    expect(panel?.textContent).toContain('Not configured');
+    expect(panel?.textContent).not.toContain('Webhook URL');
+    expect(container.querySelectorAll('[data-health]')).toHaveLength(5);
+    expect(container.textContent).toContain('Everything is running normally');
+  });
+
+  it('reports a LiveKit setup problem in the health summary and the LiveKit panel', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({
+      ...systemInfo,
+      livekit: {
+        ...systemInfo.livekit,
+        connectionState: 'unauthorized',
+        connectionError: 'twirp error unauthenticated: invalid token',
+        enabled: true,
+        configured: true,
+        url: 'wss://livekit.example',
+        apiKey: 'APIkey123',
+        webhookUrl: 'https://chat.example/webhooks/livekit'
+      }
+    });
+    const { container } = render(SystemPage);
+    await settle();
+
+    expect(container.textContent).toContain('Problems found');
+    expect(container.textContent).toContain('LiveKit rejected the API key');
+    const panel = container.querySelector('[data-testid="livekit-panel"]');
+    expect(panel?.textContent).toContain('Credentials rejected');
+    expect(panel?.textContent).toContain('twirp error unauthenticated: invalid token');
+    expect(panel?.textContent).toContain('https://chat.example/webhooks/livekit');
+    expect(panel?.textContent).toContain('APIkey123');
+    expect(panel?.textContent).toContain('has not received a webhook from LiveKit');
+  });
+
+  it('warns about a rejected LiveKit webhook signature', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({
+      ...systemInfo,
+      livekit: {
+        ...systemInfo.livekit,
+        connectionState: 'ok',
+        enabled: true,
+        configured: true,
+        url: 'wss://livekit.example',
+        lastWebhookAt: new Date('2026-07-10T11:00:00Z'),
+        lastRejectedWebhookAt: new Date('2026-07-10T12:00:00Z')
+      }
+    });
+    const { container } = render(SystemPage);
+    await settle();
+
+    expect(container.textContent).toContain('Needs attention');
+    expect(container.textContent).toContain('LiveKit webhooks rejected');
+    expect(container.textContent).toContain('signature that is not valid');
   });
 });

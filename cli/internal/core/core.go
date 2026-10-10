@@ -63,6 +63,7 @@ type ChattoCore struct {
 	presenceModel             *PresenceModel
 	mediaModel                *MediaModel
 	callModel                 *CallModel
+	liveKitDiagnostics        liveKitDiagnostics
 	assetModel                *AssetModel
 	assetUploadModel          *AssetUploadModel
 	keyShredding              *UserKeyShreddingModel

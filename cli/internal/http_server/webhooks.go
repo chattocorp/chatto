@@ -117,9 +117,11 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 	event, err := webhook.ReceiveWebhookEvent(c.Request, provider)
 	if err != nil {
 		logger.Warn("Webhook validation failed", "error", err)
+		s.core.RecordLiveKitWebhook(false)
 		c.Status(http.StatusUnauthorized)
 		return
 	}
+	s.core.RecordLiveKitWebhook(true)
 
 	// Parse the legacy LiveKit room name at the integration boundary.
 	if event.Room == nil {

@@ -483,7 +483,14 @@
         },
         "backlog_clear": "Inga meddelanden väntar",
         "storage_used": "{percent} % av närmaste gräns används",
-        "storage_unlimited": "Inga gränser har ställts in"
+        "storage_unlimited": "Inga gränser har ställts in",
+        "voice_calls": "Samtal",
+        "livekit_connected": "Ansluten till LiveKit",
+        "livekit_unreachable": "Kan inte nå LiveKit",
+        "livekit_unauthorized": "LiveKit avvisade API-nyckeln",
+        "livekit_error": "LiveKit-kontrollen misslyckades",
+        "livekit_insecure_url": "LiveKit-URL:en är inte krypterad",
+        "livekit_webhooks_rejected": "LiveKit-webhooks avvisades"
       },
       "overview": {
         "users": "Användare",
@@ -513,6 +520,33 @@
           "one": "{count} meddelande",
           "other": "{count} meddelanden"
         }
+      },
+      "livekit": {
+        "title": "Samtal (LiveKit)",
+        "state_ok": "Ansluten",
+        "state_not_configured": "Inte konfigurerad",
+        "state_unreachable": "Kan inte nås",
+        "state_unauthorized": "Inloggningsuppgifter avvisades",
+        "state_error": "Fel",
+        "summary_ok": "Chatto kan nå LiveKit-servern, och LiveKit godkänner API-nyckeln och hemligheten.",
+        "summary_not_configured": "LiveKit är inte konfigurerat, så röst- och videosamtal är avstängda.",
+        "summary_unreachable": "Chatto kan inte ansluta till LiveKit-URL:en. Kontrollera att LiveKit körs och att den här servern kan nå URL:en.",
+        "summary_unauthorized": "LiveKit avvisade API-nyckeln eller hemligheten. Kontrollera att de matchar ett nyckelpar i LiveKit-konfigurationen.",
+        "summary_error": "Servern på LiveKit-URL:en skickade ett oväntat svar. Kontrollera att URL:en pekar på LiveKit.",
+        "insecure_url": "LiveKit-URL:en använder ws://, som inte är krypterat. Webbläsare kan inte ansluta till den från en HTTPS-sida. Använd wss:// i produktion.",
+        "webhooks_rejected": "Den senaste webhooken från LiveKit hade en ogiltig signatur. Kontrollera att LiveKit signerar webhooks med samma API-nyckel och hemlighet som Chatto.",
+        "no_webhooks": "Den här servern har inte tagit emot någon webhook från LiveKit sedan den startade. LiveKit skickar webhooks bara när samtal startar eller ändras. Om samtal pågick under den här tiden, kontrollera att LiveKit skickar webhooks till webhook-URL:en nedan.",
+        "url": "LiveKit-URL",
+        "api_key": "API-nyckel",
+        "webhook_url": "Webhook-URL",
+        "webhook_key": "Signeringsnyckel för webhooks",
+        "webhook_key_same": "Samma som API-nyckeln",
+        "webhook_key_separate": "Separat nyckel",
+        "last_webhook": "Senast godkända webhook",
+        "last_rejected_webhook": "Senast avvisade webhook",
+        "webhook_none": "Ingen sedan start",
+        "scope_help": "Webhook-tiderna kommer från den Chatto-instans som hanterade den här begäran. Chatto kan inte kontrollera TURN-reläer.",
+        "turn_guide": "Läs om TURN för nätverk som blockerar samtal"
       }
     },
     "event_log": {

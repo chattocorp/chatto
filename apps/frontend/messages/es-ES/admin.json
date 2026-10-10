@@ -483,7 +483,14 @@
         },
         "backlog_clear": "Ningún mensaje en espera",
         "storage_used": "{percent} % del límite más cercano en uso",
-        "storage_unlimited": "No hay límites configurados"
+        "storage_unlimited": "No hay límites configurados",
+        "voice_calls": "Llamadas",
+        "livekit_connected": "Conectado a LiveKit",
+        "livekit_unreachable": "No se puede acceder a LiveKit",
+        "livekit_unauthorized": "LiveKit ha rechazado la clave API",
+        "livekit_error": "Error al comprobar LiveKit",
+        "livekit_insecure_url": "La URL de LiveKit no está cifrada",
+        "livekit_webhooks_rejected": "Webhooks de LiveKit rechazados"
       },
       "overview": {
         "users": "Usuarios",
@@ -513,6 +520,33 @@
           "one": "{count} mensaje",
           "other": "{count} mensajes"
         }
+      },
+      "livekit": {
+        "title": "Llamadas (LiveKit)",
+        "state_ok": "Conectado",
+        "state_not_configured": "Sin configurar",
+        "state_unreachable": "Inaccesible",
+        "state_unauthorized": "Credenciales rechazadas",
+        "state_error": "Error",
+        "summary_ok": "Chatto puede acceder al servidor de LiveKit, y LiveKit acepta la clave API y el secreto.",
+        "summary_not_configured": "LiveKit no está configurado, por lo que las llamadas de voz y vídeo están desactivadas.",
+        "summary_unreachable": "Chatto no puede conectarse a la URL de LiveKit. Asegúrate de que LiveKit esté en ejecución y de que este servidor pueda acceder a la URL.",
+        "summary_unauthorized": "LiveKit ha rechazado la clave API o el secreto. Asegúrate de que coincidan con un par de claves de la configuración de LiveKit.",
+        "summary_error": "El servidor de la URL de LiveKit ha enviado una respuesta inesperada. Asegúrate de que la URL apunte a LiveKit.",
+        "insecure_url": "La URL de LiveKit usa ws://, que no está cifrado. Los navegadores no pueden conectarse a ella desde una página HTTPS. Usa wss:// en producción.",
+        "webhooks_rejected": "El último webhook de LiveKit tenía una firma no válida. Asegúrate de que LiveKit firme los webhooks con la misma clave API y el mismo secreto que Chatto.",
+        "no_webhooks": "Este servidor no ha recibido ningún webhook de LiveKit desde que se inició. LiveKit solo envía webhooks cuando las llamadas empiezan o cambian. Si hubo llamadas durante este tiempo, asegúrate de que LiveKit envíe los webhooks a la URL de webhook que aparece abajo.",
+        "url": "URL de LiveKit",
+        "api_key": "Clave API",
+        "webhook_url": "URL de webhook",
+        "webhook_key": "Clave de firma de webhooks",
+        "webhook_key_same": "Igual que la clave API",
+        "webhook_key_separate": "Clave independiente",
+        "last_webhook": "Último webhook aceptado",
+        "last_rejected_webhook": "Último webhook rechazado",
+        "webhook_none": "Ninguno desde el inicio",
+        "scope_help": "Las horas de los webhooks proceden de la instancia de Chatto que gestionó esta solicitud. Chatto no puede comprobar los relés TURN.",
+        "turn_guide": "Más información sobre TURN para redes que bloquean las llamadas"
       }
     },
     "event_log": {

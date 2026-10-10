@@ -497,7 +497,14 @@
         },
         "backlog_clear": "Žádné zprávy nečekají",
         "storage_used": "Využito {percent} % nejbližšího limitu",
-        "storage_unlimited": "Nejsou nastaveny žádné limity"
+        "storage_unlimited": "Nejsou nastaveny žádné limity",
+        "voice_calls": "Hovory",
+        "livekit_connected": "Připojeno k LiveKit",
+        "livekit_unreachable": "LiveKit není dostupný",
+        "livekit_unauthorized": "LiveKit odmítl klíč API",
+        "livekit_error": "Kontrola LiveKit selhala",
+        "livekit_insecure_url": "URL LiveKit není šifrovaná",
+        "livekit_webhooks_rejected": "Webhooky LiveKit byly odmítnuty"
       },
       "overview": {
         "users": "Uživatelé",
@@ -535,6 +542,33 @@
           "many": "{count} zprávy",
           "other": "{count} zpráv"
         }
+      },
+      "livekit": {
+        "title": "Hovory (LiveKit)",
+        "state_ok": "Připojeno",
+        "state_not_configured": "Nenastaveno",
+        "state_unreachable": "Nedostupné",
+        "state_unauthorized": "Přihlašovací údaje odmítnuty",
+        "state_error": "Chyba",
+        "summary_ok": "Chatto se může připojit k serveru LiveKit a LiveKit přijímá klíč API a tajný klíč.",
+        "summary_not_configured": "LiveKit není nastaven, takže hlasové a video hovory jsou vypnuté.",
+        "summary_unreachable": "Chatto se nemůže připojit k URL LiveKit. Ověřte, že LiveKit běží a že tento server může URL dosáhnout.",
+        "summary_unauthorized": "LiveKit odmítl klíč API nebo tajný klíč. Ověřte, že odpovídají páru klíčů v konfiguraci LiveKit.",
+        "summary_error": "Server na URL LiveKit poslal neočekávanou odpověď. Ověřte, že URL odkazuje na LiveKit.",
+        "insecure_url": "URL LiveKit používá ws://, které není šifrované. Prohlížeče se k ní nemohou připojit ze stránky HTTPS. V produkci používejte wss://.",
+        "webhooks_rejected": "Poslední webhook z LiveKit měl neplatný podpis. Ověřte, že LiveKit podepisuje webhooky stejným klíčem API a tajným klíčem jako Chatto.",
+        "no_webhooks": "Tento server od svého spuštění nepřijal žádný webhook z LiveKit. LiveKit posílá webhooky jen tehdy, když hovory začnou nebo se změní. Pokud v této době probíhaly hovory, ověřte, že LiveKit posílá webhooky na URL webhooku níže.",
+        "url": "URL LiveKit",
+        "api_key": "Klíč API",
+        "webhook_url": "URL webhooku",
+        "webhook_key": "Podpisový klíč webhooků",
+        "webhook_key_same": "Stejný jako klíč API",
+        "webhook_key_separate": "Samostatný klíč",
+        "last_webhook": "Poslední přijatý webhook",
+        "last_rejected_webhook": "Poslední odmítnutý webhook",
+        "webhook_none": "Žádný od spuštění",
+        "scope_help": "Časy webhooků pocházejí z instance Chatto, která zpracovala tento požadavek. Chatto nemůže kontrolovat relay servery TURN.",
+        "turn_guide": "Přečtěte si o TURN pro sítě, které blokují hovory"
       }
     },
     "event_log": {
