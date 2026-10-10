@@ -14,6 +14,7 @@ current runtime in `docs/architecture/`.
 
 - [ ] Establish canonical identity, relying-party, client, and account terminology
 - [ ] Add standalone diagnostics and backup behavior
+- [ ] Make startup return runtime failures while waiting for projection readiness, and test failed inventory startup
 
 ## Later account and authentication work
 
