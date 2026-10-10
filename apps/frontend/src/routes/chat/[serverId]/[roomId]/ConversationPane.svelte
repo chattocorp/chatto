@@ -406,7 +406,7 @@ thread IDs can change while the pane stays mounted.
     {canPost}
     {canAttach}
     onReady={(api) => (composerApi = api)}
-    inputStatus={typingStatus}
+    inputStatus={canReadMessages ? typingStatus : undefined}
     onTyping={canPost ? () => typingIndicator.sendTypingIndicator() : undefined}
     onMessageSent={(event) => {
       typingIndicator.resetDebounce();
