@@ -348,6 +348,14 @@
     "system": {
       "title": "Système",
       "subtitle": "Courtier, stockage JetStream, consommateurs et intégrité de la projection",
+      "tabs": {
+        "label": "Sections du système",
+        "overview": "Vue d’ensemble",
+        "streams": "Flux",
+        "projections": "Projections",
+        "workers": "Tâches",
+        "livekit": "LiveKit"
+      },
       "loading": "Chargement des informations système...",
       "broker": "Courtier NATS",
       "connected": "Connecté",
@@ -444,7 +452,7 @@
         "overall_critical": "Des problèmes ont été détectés",
         "overall_ok_summary": "Toutes les vérifications ont réussi au moment de cet instantané.",
         "overall_partial_summary": "Aucun problème détecté. Certaines vérifications n'ont pas de données.",
-        "overall_problem_summary": "Examinez les vérifications ci-dessous. Les sections suivantes présentent les détails.",
+        "overall_problem_summary": "Examinez les vérifications ci-dessous. Sélectionnez une vérification pour en voir les détails.",
         "broker": "Connexion au courtier",
         "projections": "Projections",
         "workers": "Tâches d'arrière-plan",
@@ -547,7 +555,8 @@
         "webhook_none": "Aucun depuis le démarrage",
         "scope_help": "Les heures des webhooks proviennent de l'instance Chatto qui a traité cette requête. Chatto ne peut pas vérifier les relais TURN.",
         "turn_guide": "En savoir plus sur TURN pour les réseaux qui bloquent les appels"
-      }
+      },
+      "livekit_unavailable": "Les détails de LiveKit ne sont pas disponibles."
     },
     "event_log": {
       "title": "Journal des événements",

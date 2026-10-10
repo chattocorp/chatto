@@ -348,6 +348,14 @@
     "system": {
       "title": "Süsteem",
       "subtitle": "Maakler, JetStreami salvestusruum, tarbijad ja projektsiooni tervis",
+      "tabs": {
+        "label": "Süsteemi jaotised",
+        "overview": "Ülevaade",
+        "streams": "Vood",
+        "projections": "Prognoosid",
+        "workers": "Taustatöötajad",
+        "livekit": "LiveKit"
+      },
       "loading": "Süsteemi teabe laadimine...",
       "broker": "NATSi maakler",
       "connected": "Ühendatud",
@@ -444,7 +452,7 @@
         "overall_critical": "Leiti probleeme",
         "overall_ok_summary": "Kõik kontrollid läbiti selle hetktõmmise tegemise ajal.",
         "overall_partial_summary": "Probleeme ei leitud. Mõne kontrolli kohta puuduvad andmed.",
-        "overall_problem_summary": "Vaadake allolevad kontrollid üle. Üksikasjad on allpool olevates jaotistes.",
+        "overall_problem_summary": "Vaadake allolevaid kontrolle üle. Valige kontroll, et näha selle üksikasju.",
         "broker": "Ühendus maakleriga",
         "projections": "Projektsioonid",
         "workers": "Taustatöötajad",
@@ -547,7 +555,8 @@
         "webhook_none": "Käivitumisest saadik puudub",
         "scope_help": "Webhookide ajad pärinevad Chatto eksemplarilt, mis selle päringu töötles. Chatto ei saa TURN-releesid kontrollida.",
         "turn_guide": "Lugege TURN-ist võrkude jaoks, mis kõnesid blokeerivad"
-      }
+      },
+      "livekit_unavailable": "LiveKiti üksikasjad pole saadaval."
     },
     "event_log": {
       "title": "Sündmuste logi",

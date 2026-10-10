@@ -348,6 +348,14 @@
     "system": {
       "title": "System",
       "subtitle": "Mäklare, JetStream lagring, konsumenter och projektionshälsa",
+      "tabs": {
+        "label": "Systemavsnitt",
+        "overview": "Översikt",
+        "streams": "Strömmar",
+        "projections": "Projektioner",
+        "workers": "Arbetare",
+        "livekit": "LiveKit"
+      },
       "loading": "Laddar systeminformation...",
       "broker": "NATS Mäklare",
       "connected": "Ansluten",
@@ -444,7 +452,7 @@
         "overall_critical": "Problem hittades",
         "overall_ok_summary": "Alla kontroller godkändes när den här ögonblicksbilden togs.",
         "overall_partial_summary": "Inga problem hittades. Vissa kontroller saknar data.",
-        "overall_problem_summary": "Granska kontrollerna nedan. Avsnitten längre ned visar detaljerna.",
+        "overall_problem_summary": "Granska kontrollerna nedan. Välj en kontroll för att se detaljerna.",
         "broker": "Mäklaranslutning",
         "projections": "Projektioner",
         "workers": "Bakgrundsarbetare",
@@ -547,7 +555,8 @@
         "webhook_none": "Ingen sedan start",
         "scope_help": "Webhook-tiderna kommer från den Chatto-instans som hanterade den här begäran. Chatto kan inte kontrollera TURN-reläer.",
         "turn_guide": "Läs om TURN för nätverk som blockerar samtal"
-      }
+      },
+      "livekit_unavailable": "LiveKit-information är inte tillgänglig."
     },
     "event_log": {
       "title": "Händelselogg",

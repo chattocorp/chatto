@@ -24,6 +24,11 @@ available.
     icon: string;
     /** True when the section is the current page. */
     current: boolean;
+    /**
+     * Optional status dot for a section that needs attention. The label is the
+     * accessible text of the dot, for example "Problem".
+     */
+    status?: { tone: 'warning' | 'danger'; label: string };
   }
 </script>
 
@@ -46,10 +51,24 @@ available.
         href={item.href}
         title={item.label}
         aria-current={item.current ? 'page' : undefined}
-        class={['pane-header-label-button', item.current && 'pane-header-icon-button-active']}
+        class={[
+          'relative pane-header-label-button',
+          item.current && 'pane-header-icon-button-active'
+        ]}
       >
         <span class={['pane-header-icon-glyph', item.icon]} aria-hidden="true"></span>
         <span class="sr-only @min-[48rem]/pane-header:not-sr-only">{item.label}</span>
+        {#if item.status}
+          <span
+            class={[
+              'absolute end-1.5 top-1.5 size-2 rounded-full',
+              item.status.tone === 'danger' ? 'bg-danger' : 'bg-warning'
+            ]}
+            aria-hidden="true"
+            data-tab-status={item.status.tone}
+          ></span>
+          <span class="sr-only">({item.status.label})</span>
+        {/if}
       </a>
     {/each}
   </nav>

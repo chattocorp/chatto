@@ -348,6 +348,14 @@
     "system": {
       "title": "Sistema",
       "subtitle": "Broker, armazenamento JetStream, consumidores e integridade da projeção",
+      "tabs": {
+        "label": "Seções do sistema",
+        "overview": "Visão geral",
+        "streams": "Transmissões",
+        "projections": "Projeções",
+        "workers": "Processos",
+        "livekit": "LiveKit"
+      },
       "loading": "Carregando informações do sistema...",
       "broker": "Corretor NATS",
       "connected": "Conectado",
@@ -444,7 +452,7 @@
         "overall_critical": "Problemas encontrados",
         "overall_ok_summary": "Todas as verificações passaram quando este instantâneo foi criado.",
         "overall_partial_summary": "Nenhum problema encontrado. Algumas verificações não têm dados.",
-        "overall_problem_summary": "Revise as verificações abaixo. As seções seguintes mostram os detalhes.",
+        "overall_problem_summary": "Revise as verificações abaixo. Selecione uma verificação para ver os detalhes.",
         "broker": "Conexão com o corretor",
         "projections": "Projeções",
         "workers": "Trabalhadores em segundo plano",
@@ -547,7 +555,8 @@
         "webhook_none": "Nenhum desde o início",
         "scope_help": "Os horários dos webhooks vêm da instância do Chatto que processou esta solicitação. O Chatto não consegue verificar relays TURN.",
         "turn_guide": "Saiba mais sobre TURN para redes que bloqueiam chamadas"
-      }
+      },
+      "livekit_unavailable": "Os detalhes do LiveKit não estão disponíveis."
     },
     "event_log": {
       "title": "Registro de eventos",

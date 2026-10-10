@@ -1,7 +1,7 @@
 # FDR-021: Admin Dashboard & System Monitoring
 
 **Status:** Active
-**Last reviewed:** 2026-10-08
+**Last reviewed:** 2026-10-10
 
 ## Overview
 
@@ -19,7 +19,8 @@ The server-management section gives owners and admins visibility into the server
   profiles, assign roles, suspend, or delete users when they hold the relevant
   permission.
 - **System Info page** — owner-only page showing backing message-broker connection status, storage account limits and current usage, stream/consumer health, known durable-worker queue health, projection health (lag, entry counts, and rough memory estimates), and `AdminDiagnosticsService.GetSystemInfo` stats (user count, channel room count, DM room count).
-- The System Info page starts with a health summary: one overall status and one row for each check (broker connection, projections, background workers, backlog, and account limits). Below it are the user, room, event, and stored-data counts, account usage against each limit, and the broker connection. A refresh action in the page header reads a new snapshot.
+- The System Info page has five tabs, each with its own route: Overview, Streams, Projections, Workers, and LiveKit. The LiveKit tab is hidden when the server does not report LiveKit status. All tabs use one diagnostics snapshot. A refresh action in the page header reads a new snapshot.
+- The Overview tab starts with a health summary: one overall status and one row for each check (broker connection, projections, background workers, backlog, and account limits). Below it are the user, room, event, and stored-data counts, account usage against each limit, and the broker connection. A check whose details are on a different tab links to that tab. A tab shows a status dot when one of its checks reports a warning or a problem, so a problem stays visible from every tab.
 - **Audit log page** — chronological diagnostic event-log view for forensic review, grouped by event creation date. The list view uses `AdminEventLogService.ListEvents`; the detail view uses `AdminEventLogService.GetEvent` to show sanitized payload JSON for human inspection. Password verifiers are omitted.
 - The audit log UI can be filtered by exact event type and exact actor ID. Event type suggestions come from the admin event-log API; the actor field reuses the server member lookup but still accepts synthetic actor IDs such as `system:bootstrap`. The API also supports inclusive created-at bounds for callers, but the server-management page does not expose time-range controls.
 - The audit/event-log API returns `totalCount` as a 64-bit value because it reflects retained stream message counts, which can exceed 32-bit integer range on long-running servers.
