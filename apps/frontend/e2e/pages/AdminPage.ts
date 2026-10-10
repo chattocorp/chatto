@@ -494,15 +494,17 @@ export class AdminPage {
 
     await tabs.getByRole('link', { name: /^Streams/ }).click();
     await expect(this.page).toHaveURL(/\/manage\/server\/system\/streams$/);
-    await expect(this.page.getByRole('columnheader', { name: 'Stream' })).toBeVisible();
+    await expect(
+      this.page.getByRole('columnheader', { name: 'Stream', exact: true })
+    ).toBeVisible();
 
     await tabs.getByRole('link', { name: /^Projections/ }).click();
     await expect(this.page).toHaveURL(/\/manage\/server\/system\/projections$/);
-    await expect(this.page.getByText('Projection Summary')).toBeVisible();
+    await expect(this.page.getByText('Projection Summary', { exact: true })).toBeVisible();
 
     await tabs.getByRole('link', { name: /^Workers/ }).click();
     await expect(this.page).toHaveURL(/\/manage\/server\/system\/workers$/);
-    await expect(this.page.getByText('Background Workers')).toBeVisible();
+    await expect(this.page.getByText('Background Workers', { exact: true })).toBeVisible();
   }
 
   /**

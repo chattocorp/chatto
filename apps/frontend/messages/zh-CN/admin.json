@@ -353,7 +353,7 @@
         "overview": "概览",
         "streams": "Stream",
         "projections": "Projection",
-        "workers": "worker",
+        "workers": "Worker",
         "livekit": "LiveKit"
       },
       "loading": "正在加载系统信息...",

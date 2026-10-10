@@ -403,7 +403,7 @@
       "projection_memory": "Projektsioonimälu",
       "projection_failures": "Projektsiooni tõrked",
       "projection_lag": "Projektsiooni viivitus",
-      "no_projections": "Prognoose ei registreerita.",
+      "no_projections": "Projektsioone ei registreeritud.",
       "projection": "Projektsioon",
       "state": "osariik",
       "startup": "Käivitamine",

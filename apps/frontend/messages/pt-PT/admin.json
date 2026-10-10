@@ -399,7 +399,7 @@
       "push": "Empurrar",
       "bound": "Vinculado",
       "unbound": "Não consolidado",
-      "projections": "Projecções",
+      "projections": "Projeções",
       "projection_memory": "Memória de projeção",
       "projection_failures": "Falhas de projeção",
       "projection_lag": "Atraso de projeção",

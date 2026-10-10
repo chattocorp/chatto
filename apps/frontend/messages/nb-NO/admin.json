@@ -403,7 +403,7 @@
       "projection_memory": "Projeksjonsminne",
       "projection_failures": "Projeksjonsfeil",
       "projection_lag": "Projeksjonsforsinkelse",
-      "no_projections": "Ingen anslag er registrert.",
+      "no_projections": "Ingen projeksjoner er registrert.",
       "projection": "Projeksjon",
       "state": "Tilstand",
       "startup": "Oppstart",

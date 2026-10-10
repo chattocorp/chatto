@@ -403,7 +403,7 @@
       "projection_memory": "Проекционная память",
       "projection_failures": "Сбои проекции",
       "projection_lag": "Задержка проекции",
-      "no_projections": "Никаких прогнозов не зарегистрировано.",
+      "no_projections": "Проекции не зарегистрированы.",
       "projection": "Проекция",
       "state": "Государство",
       "startup": "Стартап",
