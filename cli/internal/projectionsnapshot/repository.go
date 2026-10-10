@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
@@ -55,14 +56,16 @@ const (
 )
 
 var (
-	ErrBlobNotFound      = errors.New("projection snapshot blob not found")
-	ErrPointerNotFound   = errors.New("projection snapshot pointer not found")
-	ErrPointerConflict   = errors.New("projection snapshot pointer revision conflict")
-	ErrSnapshotNotFound  = events.ErrProjectionSnapshotNotFound
-	ErrSnapshotRegressed = errors.New("projection snapshot cutoff regresses the current generation")
-	ErrSnapshotFresh     = errors.New("projection snapshot is already fresh")
-	ErrIncompatible      = errors.New("incompatible projection snapshot")
-	errInvalidPointer    = errors.New("invalid projection snapshot pointer")
+	// ErrStorageUnavailable marks provider or pointer-store read failures.
+	ErrStorageUnavailable = errors.New("snapshot storage unavailable")
+	ErrBlobNotFound       = errors.New("projection snapshot blob not found")
+	ErrPointerNotFound    = errors.New("projection snapshot pointer not found")
+	ErrPointerConflict    = errors.New("projection snapshot pointer revision conflict")
+	ErrSnapshotNotFound   = events.ErrProjectionSnapshotNotFound
+	ErrSnapshotRegressed  = errors.New("projection snapshot cutoff regresses the current generation")
+	ErrSnapshotFresh      = errors.New("projection snapshot is already fresh")
+	ErrIncompatible       = errors.New("incompatible projection snapshot")
+	errInvalidPointer     = errors.New("invalid projection snapshot pointer")
 )
 
 type Logger interface {
@@ -136,6 +139,9 @@ type SaveInput struct {
 }
 
 type LoadedSnapshot struct {
+	// RestoreSource and RestoreReason describe Load results only; they are not persisted.
+	RestoreSource   string
+	RestoreReason   string
 	GenerationID    string
 	CutoffSequence  uint64
 	StreamIdentity  string
@@ -307,6 +313,12 @@ func (r *Repository) Load(ctx context.Context, projectionKey, contractID, stream
 		}
 		loaded, err := r.loadGeneration(ctx, generationID, projectionKey, contractID, streamName, streamIdentity, maxCutoff)
 		if err == nil {
+			loaded.RestoreSource = "current"
+			loaded.RestoreReason = "none"
+			if index == 1 {
+				loaded.RestoreSource = "previous"
+				loaded.RestoreReason = RestoreFailureReason(errors.Join(failures...))
+			}
 			return loaded, nil
 		}
 		failures = append(failures, fmt.Errorf("generation %s: %w", generationID, err))
@@ -325,6 +337,9 @@ func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, cont
 	}
 	sealed, err := r.blobs.Get(ctx, r.generationObjectKey(projectionKey, contractID, id), maxEncryptedSize)
 	if err != nil {
+		if !errors.Is(err, ErrBlobNotFound) && !errors.Is(err, ErrInvalidEnvelope) {
+			err = errors.Join(ErrStorageUnavailable, err)
+		}
 		return LoadedSnapshot{}, err
 	}
 	envelopeID, compressed, err := r.codec.open(sealed)
@@ -390,7 +405,7 @@ func (r *Repository) loadPointerAtRevision(ctx context.Context, projectionKey, c
 		if errors.Is(err, ErrPointerNotFound) {
 			return nil, 0, ErrSnapshotNotFound
 		}
-		return nil, 0, err
+		return nil, 0, errors.Join(ErrStorageUnavailable, err)
 	}
 	if int64(len(sealed)) > maxEncryptedSize {
 		return nil, revision, fmt.Errorf("%w: pointer exceeds %d bytes", errInvalidPointer, maxEncryptedSize)
@@ -548,3 +563,35 @@ func (r *Repository) logWarn(message, projection, stage string, err error, extra
 	}
 	r.logger.Warn(message, r.logFields(projection, stage, err, extra...)...)
 }
+
+// RestoreFailureReason returns a bounded, non-sensitive diagnostic label.
+// For multiple failed generations, unavailable takes precedence over rejection,
+// and rejection takes precedence over absence.
+func RestoreFailureReason(err error) string {
+	if err == nil {
+		return "none"
+	}
+	if errors.Is(err, ErrStorageUnavailable) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return "unavailable"
+	}
+	if joined, ok := err.(interface{ Unwrap() []error }); ok {
+		reason := "missing"
+		for _, child := range joined.Unwrap() {
+			if RestoreFailureReason(child) != "missing" {
+				reason = "rejected"
+			}
+		}
+		return reason
+	}
+	if wrapped, ok := err.(interface{ Unwrap() error }); ok {
+		return RestoreFailureReason(wrapped.Unwrap())
+	}
+	if errors.Is(err, ErrSnapshotNotFound) || errors.Is(err, ErrBlobNotFound) || errors.Is(err, ErrPointerNotFound) {
+		return "missing"
+	}
+	return "rejected"
+}
+
+// IsSnapshotObject reports whether a logical object key belongs to the private
+// snapshot namespace, including old contracts and encryption epochs.
+func IsSnapshotObject(key string) bool { return strings.HasPrefix(key, objectRootPrefix) }

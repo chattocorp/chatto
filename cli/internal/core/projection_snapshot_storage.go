@@ -21,12 +21,14 @@ import (
 // that the framework requests.
 type projectionSnapshotSource struct {
 	repository *projectionsnapshot.Repository
+	outcome    *snapshotRestoreObservation
 }
 
 // projectionSnapshotCohortSource loads a componentized projection snapshot
 // from the repository's cohort storage.
 type projectionSnapshotCohortSource struct {
 	repository *projectionsnapshot.Repository
+	outcome    *snapshotRestoreObservation
 }
 
 func (s projectionSnapshotCohortSource) LoadProjectionSnapshot(ctx context.Context, request events.ProjectionSnapshotLoadRequest) (events.ProjectionSnapshot, error) {
@@ -40,6 +42,7 @@ func (s projectionSnapshotCohortSource) LoadProjectionSnapshot(ctx context.Conte
 		ctx, request.ProjectionKey, request.ContractID, request.StreamName,
 		request.StreamIdentity, request.MaxCutoff, contracts,
 	)
+	s.outcome.record(loaded.RestoreSource, loaded.RestoreReason, err)
 	if err != nil {
 		return events.ProjectionSnapshot{}, err
 	}
@@ -103,6 +106,7 @@ func (s projectionSnapshotSource) LoadProjectionSnapshot(ctx context.Context, re
 		return events.ProjectionSnapshot{}, fmt.Errorf("single-payload snapshot request has %d components, want 1", len(request.Components))
 	}
 	loaded, err := s.repository.Load(ctx, request.ProjectionKey, request.ContractID, request.StreamName, request.StreamIdentity, request.MaxCutoff)
+	s.outcome.record(loaded.RestoreSource, loaded.RestoreReason, err)
 	if err != nil {
 		return events.ProjectionSnapshot{}, err
 	}
@@ -236,7 +240,7 @@ func (s s3SnapshotBlobStore) Get(ctx context.Context, key string, maxBytes int64
 	}
 	defer reader.Close()
 	if info.Size > maxBytes {
-		return nil, fmt.Errorf("S3 snapshot object exceeds %d bytes", maxBytes)
+		return nil, fmt.Errorf("%w: S3 snapshot object exceeds %d bytes", projectionsnapshot.ErrInvalidEnvelope, maxBytes)
 	}
 	return readSnapshotBlob(reader, maxBytes)
 }
@@ -275,7 +279,7 @@ func readSnapshotBlob(reader io.Reader, maxBytes int64) ([]byte, error) {
 		return nil, fmt.Errorf("read snapshot object: %w", err)
 	}
 	if int64(len(data)) > maxBytes {
-		return nil, fmt.Errorf("snapshot object exceeds %d bytes", maxBytes)
+		return nil, fmt.Errorf("%w: snapshot object exceeds %d bytes", projectionsnapshot.ErrInvalidEnvelope, maxBytes)
 	}
 	return data, nil
 }

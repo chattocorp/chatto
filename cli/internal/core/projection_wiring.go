@@ -80,9 +80,9 @@ func (r *projectionRegistrar) projectorOptions(
 	if r.infra.snapshotRepository == nil || snapshotPolicy == coldReplayOnly {
 		return opts
 	}
-	var source events.ProjectionSnapshotSource = projectionSnapshotSource{repository: r.infra.snapshotRepository}
+	var source events.ProjectionSnapshotSource = projectionSnapshotSource{repository: r.infra.snapshotRepository, outcome: &snapshotRestoreObservation{}}
 	if _, componentized := projection.(events.ComponentSnapshotProjection); componentized {
-		source = projectionSnapshotCohortSource{repository: r.infra.snapshotRepository}
+		source = projectionSnapshotCohortSource{repository: r.infra.snapshotRepository, outcome: &snapshotRestoreObservation{}}
 	}
 	opts.Snapshots = &events.SnapshotOptions{Key: key, Source: source, ResolveStreamIdentity: identityResolver}
 	return opts
@@ -109,6 +109,7 @@ func (r *projectionRegistrar) register(
 		subjects:           slices.Clone(projection.Subjects()),
 		snapshotPolicy:     snapshotPolicy,
 		snapshotEnabled:    opts.Snapshots != nil,
+		snapshotOutcome:    snapshotOutcomeFromOptions(opts),
 		componentSnapshots: componentSnapshots,
 		streamName:         streamName,
 		identityResolver:   identityResolver,

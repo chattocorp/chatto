@@ -80,7 +80,9 @@ operations do not duplicate these outcomes.
   `chatto run` using the same unit implementations as standalone commands.
 - **`exporter.Unit`** ([`unit.go`](../../cli/internal/exporter/unit.go)):
   Optional export runtime started by `[exporter].enabled` under `chatto run` or
-  directly by its standalone command.
+  directly by its standalone command. Its periodic S3 inventory also counts
+  snapshot namespace objects and bytes by object-version scope. Scrapes read
+  cached totals; failed inventories expose unavailable totals.
 - **`bleve.Unit`** ([`unit.go`](../../cli/internal/search/bleve/unit.go),
   [`search_provider.go`](../../cli/cmd/search_provider.go)): Bundled
   message-search provider with the runtime diagnostic identity
@@ -351,6 +353,11 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   generations and complete `ServerContentView` projection snapshot cohorts; a
   separate cluster-wide cooldown limits bounded S3 age expiry when Chatto owns
   lifecycle cleanup.
+  Process-local snapshot metrics record final startup restore outcomes,
+  publication attempts and durations, and cleanup results. The
+  [snapshot collector](../../cli/internal/core/projection_snapshot_metrics.go)
+  reads memory without storage requests. Counters and success timestamps reset
+  with the process; they do not represent work done by another replica.
 - **Credential usage recorder**
   ([`credential_usage.go`](../../cli/internal/core/credential_usage.go)):
   Best-effort in-process intake and coalesced `RUNTIME_STATE` persistence for

@@ -126,6 +126,9 @@ func TestRepositoryCohortFallsBackWhenCurrentPartIsMissing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if loaded.RestoreSource != "previous" || loaded.RestoreReason != "missing" {
+		t.Fatalf("restore outcome = %s/%s", loaded.RestoreSource, loaded.RestoreReason)
+	}
 	if loaded.CutoffSequence != 10 || string(loaded.Components[0].Parts[0].Payload) != "rooms-previous" {
 		t.Fatalf("fallback cohort = %#v", loaded)
 	}

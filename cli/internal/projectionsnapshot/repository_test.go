@@ -614,6 +614,9 @@ func TestRepositoryFallsBackToPreviousGeneration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if loaded.RestoreSource != "previous" || loaded.RestoreReason != "rejected" {
+		t.Fatalf("restore outcome = %s/%s", loaded.RestoreSource, loaded.RestoreReason)
+	}
 	if loaded.GenerationID != first.GenerationID || string(loaded.Payload) != "first" {
 		t.Fatalf("fallback loaded = %#v", loaded)
 	}
@@ -873,5 +876,42 @@ func TestRepositoryDoesNotDuplicateSnapshotSuccessLogs(t *testing.T) {
 
 	if len(logger.logs) != 0 {
 		t.Fatalf("repository duplicated caller outcomes: %+v", logger.logs)
+	}
+}
+
+func TestRestoreFailureReasonPrecedence(t *testing.T) {
+	for _, test := range []struct {
+		err  error
+		want string
+	}{
+		{ErrSnapshotNotFound, "missing"},
+		{errors.Join(ErrBlobNotFound, ErrIncompatible), "rejected"},
+		{errors.Join(ErrBlobNotFound, ErrInvalidEnvelope), "rejected"},
+		{errors.Join(ErrIncompatible, ErrStorageUnavailable), "unavailable"},
+		{context.DeadlineExceeded, "unavailable"},
+	} {
+		if got := RestoreFailureReason(test.err); got != test.want {
+			t.Errorf("reason = %s, want %s", got, test.want)
+		}
+	}
+}
+
+func TestRepositoryRestoreReportsUnavailableStorage(t *testing.T) {
+	blobs := newMemoryBlobStore()
+	repository := newTestRepository(t, blobs, testSecret)
+	_, err := repository.Save(context.Background(), testSaveInput(1, []byte("state")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, location := range []string{"generation", "pointer"} {
+		t.Run(location, func(t *testing.T) {
+			blobs.failGet = func(key string) bool {
+				return strings.HasPrefix(key, "projection_snapshot_pointer.") == (location == "pointer")
+			}
+			_, err := repository.Load(context.Background(), "threads", testContractID, "EVT", testStreamIdentity, 1)
+			if RestoreFailureReason(err) != "unavailable" {
+				t.Fatalf("reason for %v = %s", err, RestoreFailureReason(err))
+			}
+		})
 	}
 }

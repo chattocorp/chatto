@@ -77,6 +77,10 @@ func (s *HTTPServer) newMetricsServer() (*http.Server, error) {
 		newChattoCollector(s),
 	)
 
+	if s.core != nil {
+		registry.MustRegister(s.core.ProjectionSnapshotMetrics())
+	}
+
 	mux := http.NewServeMux()
 	mux.Handle(s.config.Metrics.PathOrDefault(), promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 	if s.config.Metrics.Pprof {
@@ -339,6 +343,7 @@ func (c *chattoCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.natsReconnects
 	ch <- c.projectionStarted
 	ch <- c.projectionStartup
+	ch <- c.projectionStartupMsgs
 	ch <- c.projectionFailed
 	ch <- c.projectionLastApplied
 	ch <- c.projectionTarget

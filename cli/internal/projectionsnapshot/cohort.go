@@ -59,6 +59,9 @@ type SaveCohortInput struct {
 
 // LoadedCohort is one complete compatible projection snapshot cohort.
 type LoadedCohort struct {
+	// RestoreSource and RestoreReason describe Load results only; they are not persisted.
+	RestoreSource   string
+	RestoreReason   string
 	GenerationID    string
 	CutoffSequence  uint64
 	StreamIdentity  string
@@ -214,6 +217,12 @@ func (r *Repository) LoadCohortForComponents(
 		}
 		loaded, err := r.loadCohortGeneration(ctx, generationID, projectionKey, contractID, streamName, streamIdentity, maxCutoff, contracts)
 		if err == nil {
+			loaded.RestoreSource = "current"
+			loaded.RestoreReason = "none"
+			if index == 1 {
+				loaded.RestoreSource = "previous"
+				loaded.RestoreReason = RestoreFailureReason(errors.Join(failures...))
+			}
 			return loaded, nil
 		}
 		failures = append(failures, fmt.Errorf("generation %s: %w", generationID, err))

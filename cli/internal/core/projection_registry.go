@@ -15,6 +15,7 @@ type projectionRegistration struct {
 	subjects        []string
 	snapshotPolicy  projectionSnapshotPolicy
 	snapshotEnabled bool
+	snapshotOutcome *snapshotRestoreObservation
 	// componentSnapshots is true when the projection snapshots as several
 	// components. Its snapshots then use cohort storage.
 	componentSnapshots bool
