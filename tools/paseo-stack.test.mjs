@@ -117,29 +117,3 @@ fi
   ]);
   await access(state);
 });
-
-test('watch stops the stack when a previously healthy Chatto exits', async (t) => {
-  const cwd = await mkdtemp(resolve('.context/paseo-watch-test-'));
-  t.after(() => rm(cwd, { recursive: true, force: true }));
-  await mkdir(`${cwd}/bin`);
-  await writeFile(
-    `${cwd}/bin/paseo`,
-    `#!/usr/bin/env bash
-health=healthy
-[[ ! -e observed ]] || health=unhealthy
-touch observed
-printf '[{"scriptName":"dev-full","lifecycle":"running","health":"%s"},{"scriptName":"mailpit","lifecycle":"running","health":"healthy"},{"scriptName":"livekit","lifecycle":"running","health":"healthy"}]' "$health"
-`,
-    { mode: 0o700 }
-  );
-  assert.throws(
-    () =>
-      execFileSync(process.execPath, [resolve('tools/paseo-stack.mjs'), 'watch'], {
-        cwd,
-        env: { ...process.env, PATH: `${cwd}/bin:${process.env.PATH}` },
-        stdio: 'pipe',
-        timeout: 5000
-      }),
-    /Chatto stopped responding/
-  );
-});

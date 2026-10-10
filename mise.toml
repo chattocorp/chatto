@@ -549,7 +549,7 @@ run = [
   ] },
 ]
 
-# Paseo owns the three routes. mise owns startup order, parallel tasks, and
+# Paseo owns the three routes. mise owns startup order and
 # cleanup on success, failure, or a stop signal. Preparation is a dependency:
 # if it rejects an existing stack, this run must not execute cleanup.
 [tasks.paseo-stack]
@@ -559,7 +559,7 @@ depends_post = ["paseo-cleanup"]
 run = [
   "paseo script start mailpit --json",
   "paseo script start livekit --json",
-  { tasks = ["paseo-chatto", "paseo-watch"] },
+  { task = "paseo-chatto" },
 ]
 
 [tasks.paseo-prepare]
@@ -571,15 +571,10 @@ run = "node tools/paseo-stack.mjs prepare"
 hide = true
 run = '''
 set -eu
-node tools/paseo-stack.mjs ready
 . ".context/paseo-stack/${PASEO_PORT:?}/env"
 # Keep mise as the task process so shutdown waits for its descendants.
 exec bash tools/paseo-dev.sh
 '''
-
-[tasks.paseo-watch]
-hide = true
-run = "node tools/paseo-stack.mjs watch"
 
 [tasks.paseo-cleanup]
 hide = true

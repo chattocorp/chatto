@@ -137,9 +137,10 @@ Normal terminal and Conductor starts keep their existing defaults.
 
 The **dev-full** service runs a mise task graph. Preparation checks that the
 workspace can start a new stack and writes private configuration. The main
-task starts the two support services through Paseo's CLI, waits for Paseo to
-report them healthy, and runs Chatto alongside a service-status check.
-mise stops parallel tasks on failure or a signal. Its `depends_post` task
+task starts the two support services through Paseo's CLI and runs Chatto
+without waiting for service health checks. After startup, support service failures
+do not stop Chatto. Paseo reports each service status. When Chatto exits or the
+stack receives a stop signal, the `depends_post` task
 stops both Paseo services concurrently, even if one stop fails. This reduces
 shutdown time within Paseo's terminal grace period. It removes the
 configuration only after both services stop. Preparation is a
