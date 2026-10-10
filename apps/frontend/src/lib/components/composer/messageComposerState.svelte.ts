@@ -78,9 +78,10 @@ export type MessageComposerProps = {
   getRecentThreadRootCandidate?: () => RecentThreadRootCandidate | null;
   onThreadMessageSent?: (threadRootEventId: string, event: TimelineEventView | null) => void;
   /**
-   * Status content, such as the typing indicator, rendered inside the input
-   * surface. The input surface is its containing block, so the content can
-   * position itself on the surface edge without shifting the layout.
+   * Status content, such as the typing indicator, rendered next to the input
+   * surface. A wrapper with the same box as the surface is its containing
+   * block, so the content can position itself on the surface edge without
+   * shifting the layout. The disabled-input dimming does not apply to it.
    */
   inputStatus?: Snippet;
 };
