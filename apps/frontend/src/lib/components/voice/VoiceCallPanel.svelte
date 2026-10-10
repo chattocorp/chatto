@@ -261,14 +261,14 @@ Room sidebar panel for voice/video calls.
       participantTiles.find((tile) => tile.kind === 'video' && !tile.participant.isLocal) ??
       participantTiles.find((tile) => tile.kind === 'video')
   );
-  /** Without a pin or any media, the stage shows an equal grid instead. */
+  /** Without a pin or camera, the stage keeps every source in an equal grid. */
   let featuredStageTile = $derived(pinnedStageTile ?? automaticStageTile);
   let secondaryStageTiles = $derived(
     featuredStageTile ? stageTiles.filter((tile) => tile.key !== featuredStageTile.key) : []
   );
 
-  /** Near-square voice grid: 2 columns for 2-4 participants, 3 for 5-9. */
-  let voiceGridColumns = $derived(Math.max(1, Math.ceil(Math.sqrt(participantTiles.length))));
+  /** Near-square fallback grid, including screen shares the viewer unpinned. */
+  let stageGridColumns = $derived(Math.max(1, Math.ceil(Math.sqrt(stageTiles.length))));
 
   /**
    * Largest card whose 16:9 media area fits the featured stage container. The
@@ -981,14 +981,14 @@ Room sidebar panel for voice/video calls.
         >
           <div
             class="m-auto flex w-full flex-wrap justify-center gap-3"
-            style:max-width="{voiceGridColumns * 24}rem"
+            style:max-width="{stageGridColumns * 24}rem"
           >
-            {#each participantTiles as tile (tile.key)}
+            {#each stageTiles as tile (tile.key)}
               <div
                 class="min-w-0"
-                style:width="calc((100% - {voiceGridColumns - 1} * 0.75rem) / {voiceGridColumns})"
+                style:width="calc((100% - {stageGridColumns - 1} * 0.75rem) / {stageGridColumns})"
               >
-                {@render stageTileCard(tile, 'menu')}
+                {@render stageTileCard(tile, tile.kind === 'voice' ? 'menu' : 'pin')}
               </div>
             {/each}
           </div>

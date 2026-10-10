@@ -876,3 +876,23 @@ it('leaves room for participants and controls in a short wide sidebar', async ()
   const controls = screen.getByTestId('call-controls-bar').element().getBoundingClientRect();
   expect(controls.bottom).toBeLessThanOrEqual(screen.container.getBoundingClientRect().bottom);
 });
+
+it.each(['sidebar', 'stage'] as const)(
+  'keeps a screen share available after unpinning in a camera-free %s call',
+  async (layout) => {
+    const screen = renderCallPanelHarness({ layout, scenario: 'screen-voice' });
+    const featured = screen.getByTestId('call-featured-stage-card');
+    await featured.getByTestId('call-stage-pin-button').click();
+    await expect.element(featured).not.toBeInTheDocument();
+    const share = screen.getByRole('button', {
+      name: "Pin Bob's screen to the stage",
+      exact: true
+    });
+    await expect.element(share).toBeInTheDocument();
+    await share.click();
+    await expect.element(featured).toHaveTextContent("Bob's screen");
+    await expect
+      .element(featured.getByTestId('call-stage-pin-button'))
+      .toHaveAttribute('aria-pressed', 'true');
+  }
+);
