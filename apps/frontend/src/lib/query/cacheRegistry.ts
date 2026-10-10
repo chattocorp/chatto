@@ -30,7 +30,7 @@ export type ServerQueryCache = {
   refreshRoles(serverId: string): void;
   /** Remove admin snapshots that can retain a removed user's private data. */
   removeAdminUser(serverId: string, userId: string): void;
-  /** Reconcile cached room groups with the visible groups of the projection. */
+  /** Reconcile visible room groups and refresh matrix columns after layout changes. */
   reconcileAdminRoomGroups(serverId: string, visibleGroupIds: readonly string[]): void;
 };
 

@@ -139,3 +139,9 @@
     <SubjectPermissionsMatrix {data} subjectKind="role" onCycle={() => undefined} />
   </div>
 </Story>
+
+<Story name="Fill available height" asChild>
+  <div class="flex h-96 max-w-4xl flex-col">
+    <SubjectPermissionsMatrix {data} fillHeight subjectKind="user" onCycle={() => undefined} />
+  </div>
+</Story>

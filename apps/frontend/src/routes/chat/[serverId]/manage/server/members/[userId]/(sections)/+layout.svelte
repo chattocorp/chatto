@@ -212,8 +212,10 @@ deletion page is outside this route group and has its own frame.
     {/snippet}
   </PaneHeader>
 
-  <PaneContent>
-    <div class="flex flex-col gap-6">
+  <PaneContent fillHeight={page.route.id?.endsWith('/permissions')}>
+    <div
+      class={['flex flex-col gap-6', page.route.id?.endsWith('/permissions') && 'min-h-0 flex-1']}
+    >
       {#if loading}
         <LoadingFog class="h-40 w-full" label={m('admin.members.loading_member')} />
       {:else if !details || !member}

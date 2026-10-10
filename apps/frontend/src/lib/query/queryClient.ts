@@ -253,11 +253,20 @@ function permissionTierScope(key: QueryKey): { roomId?: unknown; groupId?: unkno
   return scope && typeof scope === 'object' ? scope : null;
 }
 
-/** Invalidate visible groups and purge snapshots no longer present in the viewer projection. */
+/** Refresh group details and matrix scope order; purge groups removed from the viewer projection. */
 export function reconcileAdminRoomGroupQueries(
   serverId: string,
   visibleGroupIds: readonly string[]
 ): void {
+  // Matrices contain paginated scope columns in sidebar order. Cancel older
+  // reads before refreshing every loaded page, including a pending first load.
+  const matrices = {
+    predicate: (query: { queryKey: QueryKey }) =>
+      isAdminQueryForServer(query.queryKey, serverId) &&
+      ['user-permissions', 'role-permissions'].includes(String(query.queryKey[5]))
+  };
+  void queryClient.cancelQueries(matrices).then(() => queryClient.invalidateQueries(matrices));
+
   const visible = new Set(visibleGroupIds);
   const isRemovedGroupPermissions = (key: QueryKey): boolean => {
     if (!isAdminQueryForServer(key, serverId)) return false;

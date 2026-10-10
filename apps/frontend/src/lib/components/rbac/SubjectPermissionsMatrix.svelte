@@ -13,8 +13,8 @@ Cell semantics:
 
 A missing cell renders as an empty placeholder (the permission doesn't
 apply at that scope's tier). Hovering or focusing an available cell highlights
-its permission row and scope column. The surrounding pane owns vertical
-scrolling; the table only scrolls horizontally when its columns overflow.
+its permission row and scope column. With `fillHeight`, the matrix fills its
+parent and scrolls internally with a sticky column header.
 -->
 <script lang="ts">
   import type { Attachment } from 'svelte/attachments';
@@ -74,6 +74,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     forceAllow = false,
     readOnly = false,
     loading = false,
+    fillHeight = false,
     decisionMode = 'tri-state',
     onMembershipChange,
     hasMore = false,
@@ -96,6 +97,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     readOnly?: boolean;
     /** Keep the panel and its geometry mounted while private data is reloaded. */
     loading?: boolean;
+    /** Fill the parent pane and keep column headings visible during scrolling. */
+    fillHeight?: boolean;
     /** Use a grant-or-absent allowlist UI; inherited grants are read-only. */
     decisionMode?: DecisionMode;
     /** Enables the account membership row, separate from permission cells. */
@@ -257,13 +260,14 @@ scrolling; the table only scrolls horizontally when its columns overflow.
 <div
   data-testid="subject-permissions-matrix"
   aria-busy={loading}
-  style:min-height={loading && contentHeight ? `${contentHeight}px` : undefined}
+  class={fillHeight ? 'flex min-h-0 flex-1 flex-col' : undefined}
+  style:min-height={!fillHeight && loading && contentHeight ? `${contentHeight}px` : undefined}
 >
-  <div {@attach measureContent}>
+  <div class={fillHeight ? 'flex min-h-0 flex-1 flex-col' : undefined} {@attach measureContent}>
     {#if !loading && orderedScopes.length === 0}
       <Hint tone="info">{m('rbac.permissions.cell.no_scopes', { subject: subjectKind })}</Hint>
     {:else}
-      <Panel title={m('admin.permissions.title')} noPadding>
+      <Panel title={m('admin.permissions.title')} {fillHeight} noPadding>
         {#snippet actions()}
           <div class="w-48 sm:w-64">
             <ShortcutTextInput
@@ -292,6 +296,9 @@ scrolling; the table only scrolls horizontally when its columns overflow.
           {loading}
           emptyMessage={m('rbac.permissions.no_filter_matches')}
           compact
+          {fillHeight}
+          stickyHeader={fillHeight}
+          stickyHeaderFadeOffset="top-40"
           columnHeaderHeight="10rem"
           columnClass={(scope) => scopeColumnClass(scope.kind)}
           columnAttributes={(scope) => ({ 'data-scope': scope.id })}

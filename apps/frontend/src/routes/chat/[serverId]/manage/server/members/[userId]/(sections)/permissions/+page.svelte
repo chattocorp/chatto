@@ -14,7 +14,7 @@ Permissions section of a human member: the direct permission grants.
 
 {#if !detail.isBot && detail.details.viewerCanManageUserPermissions}
   <Hint>{m('admin.permissions.resolution_hint')}</Hint>
-  <UserPermissionsMatrix userId={detail.userId} />
+  <UserPermissionsMatrix fillHeight userId={detail.userId} />
 {:else}
   <Hint tone="danger">{m('ui.access_denied.message')}</Hint>
 {/if}

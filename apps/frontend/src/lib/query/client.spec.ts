@@ -11,7 +11,7 @@ import {
   registerServerQueryCacheRemovalListener
 } from '$lib/query/cacheRegistry';
 import { queryClient } from './queryClient';
-import { onlineManager, QueryObserver } from '@tanstack/svelte-query';
+import { InfiniteQueryObserver, onlineManager, QueryObserver } from '@tanstack/svelte-query';
 
 describe('server query cache', () => {
   it('refreshes a shared active dependency once before its parent uses the result', async () => {
@@ -603,6 +603,82 @@ describe('server query cache', () => {
     expect(queryClient.getQueryData(removedGroup)).toBeNull();
     expect(queryClient.getQueryData(removedPermissions)).toBeUndefined();
     expect(queryClient.getQueryData(orphanedPermissions)).toBeUndefined();
+  });
+
+  it.each(['user-permissions', 'role-permissions'])(
+    'refreshes loaded %s pages in sidebar order and marks inactive matrices stale',
+    async (kind) => {
+      const key = ['server', 'one', 'session', 'scope', 'admin', kind, 'subject'];
+      const inactiveKey = [...key.slice(0, -1), 'inactive'];
+      const otherServerKey = ['server', 'two', ...key.slice(2)];
+      const unrelatedKey = ['server', 'one', 'session', 'scope', 'admin', 'member', 'subject'];
+      let order = ['server', 'group:B', 'room:2', 'room:1', 'group:A'];
+      const read = vi.fn(async ({ pageParam }: { pageParam: number }) =>
+        order.slice(pageParam, pageParam + 2)
+      );
+      const observer = new InfiniteQueryObserver(queryClient, {
+        queryKey: key,
+        queryFn: read,
+        initialPageParam: 0,
+        getNextPageParam: (_last, pages) =>
+          pages.length * 2 < order.length ? pages.length * 2 : undefined,
+        staleTime: Infinity
+      });
+      const unsubscribe = observer.subscribe(() => {});
+      try {
+        await vi.waitFor(() => expect(observer.getCurrentResult().isSuccess).toBe(true));
+        await observer.fetchNextPage();
+        await observer.fetchNextPage();
+        const cached = observer.getCurrentResult().data;
+        queryClient.setQueryData(inactiveKey, cached);
+        queryClient.setQueryData(otherServerKey, cached);
+        queryClient.setQueryData(unrelatedKey, 'member');
+        read.mockClear();
+        order = ['server', 'group:A', 'group:B', 'room:1', 'room:2'];
+
+        queryCaches.server!.reconcileAdminRoomGroups('one', ['A', 'B']);
+
+        await vi.waitFor(() =>
+          expect(observer.getCurrentResult().data?.pages.flat()).toEqual(order)
+        );
+        expect(read.mock.calls.map(([input]) => input.pageParam)).toEqual([0, 2, 4]);
+        expect(queryClient.getQueryState(inactiveKey)?.isInvalidated).toBe(true);
+        expect(queryClient.getQueryState(otherServerKey)?.isInvalidated).toBe(false);
+        expect(queryClient.getQueryData(otherServerKey)).toEqual(cached);
+        expect(queryClient.getQueryState(unrelatedKey)?.isInvalidated).toBe(false);
+      } finally {
+        unsubscribe();
+      }
+    }
+  );
+
+  it('discards a matrix first load started before a room-layout update', async () => {
+    const key = ['server', 'one', 'session', 'scope', 'admin', 'user-permissions', 'subject'];
+    let finishOld!: (value: string[]) => void;
+    const read = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<string[]>((resolve) => {
+            finishOld = resolve;
+          })
+      )
+      .mockResolvedValue(['room:2', 'room:1']);
+    const observer = new QueryObserver(queryClient, { queryKey: key, queryFn: read });
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+      queryCaches.server!.reconcileAdminRoomGroups('one', ['G1']);
+      await vi.waitFor(() =>
+        expect(observer.getCurrentResult().data).toEqual(['room:2', 'room:1'])
+      );
+      finishOld(['room:1', 'room:2']);
+      await Promise.resolve();
+      expect(observer.getCurrentResult().data).toEqual(['room:2', 'room:1']);
+      expect(read).toHaveBeenCalledTimes(2);
+    } finally {
+      unsubscribe();
+    }
   });
 
   it.each([Code.FailedPrecondition, Code.PermissionDenied, Code.Unauthenticated])(

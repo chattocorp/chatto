@@ -471,3 +471,28 @@ it('localizes tri-state cell labels, titles, and scope headings', async () => {
   expect(container.querySelector('span[title="DMs (DM)"]')).not.toBeNull();
   expect(container.textContent).toContain('Berechtigung');
 });
+
+it('fills the parent and keeps column headings visible while permission rows scroll', async () => {
+  const { container } = render(SubjectPermissionsMatrix, {
+    props: { data, fillHeight: true, onCycle: vi.fn() }
+  });
+  container.style.cssText = 'display: flex; flex-direction: column; height: 300px; width: 900px;';
+  const matrix = container.querySelector<HTMLElement>(
+    '[data-testid="subject-permissions-matrix"]'
+  )!;
+  const viewport = container.querySelector<HTMLElement>('.data-table-viewport > [role="region"]')!;
+  const header = container.querySelector('thead')!;
+  await vi.waitFor(() => {
+    expect(Math.round(matrix.getBoundingClientRect().height)).toBe(300);
+    expect(viewport.scrollHeight).toBeGreaterThan(viewport.clientHeight);
+  });
+  const top = header.getBoundingClientRect().top;
+  viewport.scrollTop = 100;
+  await vi.waitFor(() => {
+    expect(viewport.scrollTop).toBeGreaterThan(0);
+    expect(header.getBoundingClientRect().top).toBeCloseTo(top, 0);
+  });
+  expect(matrix.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+    container.getBoundingClientRect().bottom
+  );
+});

@@ -868,8 +868,7 @@ func (c *ChattoCore) buildMatrixScopesVisibleTo(ctx context.Context, includeDM b
 			Label: group.Name,
 			Kind:  MatrixScopeGroup,
 		})
-	}
-	for _, group := range groups {
+		// Keep each group next to its rooms in sidebar order before pagination.
 		for _, room := range roomsByGroup[group.Id] {
 			scopes = append(scopes, PermissionMatrixScope{
 				ID:            "room:" + room.ID,
