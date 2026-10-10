@@ -136,18 +136,6 @@ func applyAuthProviderEnvField(provider *AuthProviderConfig, name, field, value 
 		}
 		provider.AutoProvision = &autoProvision
 	default:
-		const providerOptionsPrefix = "PROVIDER_OPTIONS_"
-		if after, ok := strings.CutPrefix(field, providerOptionsPrefix); ok {
-			optionName := strings.ToLower(after)
-			if optionName == "" {
-				return fmt.Errorf("%s must include a provider option name", name)
-			}
-			if provider.ProviderOptions == nil {
-				provider.ProviderOptions = make(map[string]string)
-			}
-			provider.ProviderOptions[optionName] = value
-			return nil
-		}
 		return fmt.Errorf("%s uses unknown auth provider field %q", name, field)
 	}
 	return nil

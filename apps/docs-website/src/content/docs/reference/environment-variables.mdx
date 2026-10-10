@@ -398,7 +398,7 @@ External login providers are configured as repeated `[[auth.providers]]` tables 
 Supported provider types are `oidc`, `github`, `gitlab`, `google`, and `discord`.
 
 <EnvVar name="CHATTO_AUTH_PROVIDERS_<index>_<field>" toml="auth.providers">
-  Counted environment-variable equivalent of repeated `[[auth.providers]]` tables. Indexes start at `0` and must not have gaps. Supported fields are `ID`, `TYPE`, `LABEL`, `CLIENT_ID`, `CLIENT_SECRET`, `TOKEN_ENDPOINT_AUTH_METHOD`, `ISSUER_URL`, `SCOPES`, `REQUEST_EMAIL`, `AUTO_PROVISION`, and `PROVIDER_OPTIONS_<KEY>`. `CLIENT_SECRET` is optional only for public OIDC clients; OAuth provider types still require it.
+  Counted environment-variable equivalent of repeated `[[auth.providers]]` tables. Indexes start at `0` and must not have gaps. Supported fields are `ID`, `TYPE`, `LABEL`, `CLIENT_ID`, `CLIENT_SECRET`, `TOKEN_ENDPOINT_AUTH_METHOD`, `ISSUER_URL`, `SCOPES`, `REQUEST_EMAIL`, and `AUTO_PROVISION`. `CLIENT_SECRET` is optional only for public OIDC clients; OAuth provider types still require it.
 </EnvVar>
 
 For compatibility with older single-provider OIDC deployments, Chatto also accepts `CHATTO_AUTH_OIDC_ENABLED`, `CHATTO_AUTH_OIDC_ISSUER_URL`, `CHATTO_AUTH_OIDC_CLIENT_ID`, `CHATTO_AUTH_OIDC_CLIENT_SECRET`, and optional `CHATTO_AUTH_OIDC_LABEL`. These create one `oidc` provider with `id = "oidc"`. Do not combine them with counted `CHATTO_AUTH_PROVIDERS_<index>_*` variables.
@@ -568,10 +568,6 @@ SMTP is the default transactional email transport. Set `email.transport = "jmap"
 
 <EnvVar name="CHATTO_LIVEKIT_API_SECRET" toml="livekit.api_secret">
   LiveKit API secret for signing JWT tokens. Keep this confidential.
-</EnvVar>
-
-<EnvVar name="CHATTO_LIVEKIT_WEBHOOK_URL" toml="livekit.webhook_url">
-  URL where LiveKit sends webhook events. Defaults to `{webserver.url}/webhooks/livekit`.
 </EnvVar>
 
 <EnvVar name="CHATTO_LIVEKIT_SERVER_ID" toml="livekit.server_id">

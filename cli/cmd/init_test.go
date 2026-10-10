@@ -238,7 +238,7 @@ func TestInitWithLiveKit(t *testing.T) {
 			if liveKit.Port != 7880 || liveKit.Keys[cfg.LiveKit.APIKey] != cfg.LiveKit.APISecret {
 				t.Fatal("LiveKit listener and credentials must match Chatto")
 			}
-			if liveKit.Webhook.APIKey != cfg.LiveKit.APIKey || len(liveKit.Webhook.URLs) != 1 || liveKit.Webhook.URLs[0] != cfg.LiveKit.WebhookURL {
+			if liveKit.Webhook.APIKey != cfg.LiveKit.APIKey || len(liveKit.Webhook.URLs) != 1 || liveKit.Webhook.URLs[0] != strings.TrimRight(cfg.Webserver.URL, "/")+"/webhooks/livekit" {
 				t.Fatal("LiveKit webhooks must match Chatto")
 			}
 			for _, path := range []string{initConfigFile, liveKitPath} {
