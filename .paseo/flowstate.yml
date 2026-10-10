@@ -1,0 +1,120 @@
+# SPDX-FileCopyrightText: 2026 ChattoCorp GmbH
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+initial: planning
+
+actions:
+  - label: Make a commit
+    icon: GitCommitHorizontal
+    when: git.dirty
+    prompt: |
+      Review the diff and verification results. Commit the agreed changes with
+      a Conventional Commit message. Preserve unrelated work. Do not change
+      workflow state for a routine commit.
+
+states:
+  planning:
+    label: Planning
+    icon: NotebookPen
+    actions:
+      - label: Plan the work
+        prompt: |
+          Read root and applicable nested AGENTS.md files and relevant skills.
+          Identify whether the task affects Chatto, Authling, Runling, or shared
+          framework modules. Preserve their product and license boundaries.
+          Inspect the source and development tasks. Define a concise plan,
+          acceptance criteria, and checks for the changed area. A clear user
+          request is sufficient agreement; ask only about material gaps.
+          If Questlog tools are available, read the shared outline and reuse or
+          add tasks for this scope. Preserve unrelated and completed tasks.
+          Once scope is clear, transition to implementing.
+          Before the transition, call workflow_get_state, then workflow_transition
+          with target, returned state as expectedState, revision as
+          expectedRevision, and definitionVersion unchanged. On conflicts,
+          read again and reassess. Never edit saved state files.
+    transitions: [implementing]
+
+  implementing:
+    label: Implementing
+    icon: Code
+    actions:
+      - label: Implement the plan
+        prompt: |
+          Implement the agreed scope under the applicable AGENTS.md and skills.
+          Keep relevant tests and internal records current. Change public docs
+          only when readers must learn or do something differently.
+          Select checks for the affected area from the current mise tasks:
+          - Chatto backend: mise test-cli and mise lint-cli.
+          - Bundled frontend: mise lint-frontend and mise test-frontend;
+            use browser verification and relevant mise test-e2e coverage for UI changes.
+          - TypeScript packages: mise check-workspace, or use mise x -- pnpm
+            turbo run check --filter=<package>... for the package and dependents;
+            run the affected package tests through Turbo.
+          - Runling: mise check-runling and mise test-runling; use
+            mise test-runling-package for package or release changes.
+          - Authling: run mise test and mise lint from authling/;
+            run its mise test-e2e when browser behavior changes.
+          - Shared Go modules: use the matching root mise test-<module> and
+            mise lint-<module> tasks for standalone and workspace checks.
+          Follow nested instructions for additional checks. Run mise license-check
+          for new files or license changes. Validate workflow edits with
+          workflow_validate and fix all errors.
+          Do not run mise codegen-proto concurrently with tasks that read
+          packages/api-types/dist. Use mise dev or mise dev-full for browser
+          checks, and stop the stack before handing control back to the user.
+          If Questlog is available, keep the existing scope current and mark
+          only verified work complete. Report failed or unavailable checks.
+          When implementation and relevant checks pass, transition to reviewing.
+          If scope must change, explain why and transition to planning.
+          Before each transition, call workflow_get_state, then workflow_transition
+          with target, returned state as expectedState, revision as
+          expectedRevision, and definitionVersion unchanged. On conflicts,
+          read again and reassess. Never edit saved state files.
+    transitions: [planning, reviewing]
+
+  reviewing:
+    label: Reviewing
+    icon: ScanEye
+    actions:
+      - label: Review changes
+        prompt: |
+          Review the complete diff against the agreed scope and acceptance
+          criteria. Check correctness, regressions, product boundaries,
+          privacy, protocol and persisted-data compatibility, documentation,
+          and license metadata as applicable. Check that verification covers
+          the changed behavior; report its limits accurately.
+          If fixes or missing checks remain, transition to implementing.
+          Otherwise summarize the changes and verification, update the relevant
+          Questlog tasks if available, and transition to done. Mark only
+          verified work complete and preserve unrelated tasks.
+          Completion does not require a commit or PR unless the task asks for one.
+          When opening a PR, apply chatto-pr-checklist for Chatto and use a
+          Conventional Commit title. Create a ready-for-review PR unless the
+          user explicitly requests a draft.
+          Before each transition, call workflow_get_state, then workflow_transition
+          with target, returned state as expectedState, revision as
+          expectedRevision, and definitionVersion unchanged. On conflicts,
+          read again and reassess. Never edit saved state files.
+    transitions: [implementing, done]
+
+  done:
+    label: Done
+    icon: CircleCheck
+    actions:
+      - label: Start next task
+        prompt: |
+          Establish the next task's scope from the user's request. Preserve
+          completed work. If Questlog is available, read it and reuse or add
+          tasks for the new scope without changing unrelated tasks.
+          Transition to planning. First call workflow_get_state, then
+          workflow_transition with target, returned state as expectedState,
+          revision as expectedRevision, and definitionVersion unchanged.
+          On conflicts, read again and reassess. Never edit saved state files.
+      - label: Archive workspace
+        icon: Archive
+        operation: workspace.archive
+        when:
+          all:
+            - github.pr.merged
+            - not: git.dirty
+    transitions: [planning]
