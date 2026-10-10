@@ -45,10 +45,11 @@ if (command === 'serve') {
   await writeFile(`${action}.listener`, String(process.pid));
 } else if (command === 'script' && action === 'ls') {
   const status = await Promise.all(
-    Object.entries(config.ports).map(async ([scriptName, port]) => ({
+    Object.keys(config.ports).map(async (scriptName) => ({
       scriptName,
       lifecycle: (await exists(route(scriptName))) ? 'running' : 'stopped',
-      health: (await listening(port)) ? 'healthy' : 'unhealthy'
+      // Startup must not depend on Paseo reporting healthy services.
+      health: 'unhealthy'
     }))
   );
   console.log(JSON.stringify(status));

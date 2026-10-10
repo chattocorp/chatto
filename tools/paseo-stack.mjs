@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 ChattoCorp GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-/** Configure a Paseo stack and observe Paseo's status. mise owns all process
+/** Configure a Paseo stack. mise owns process
  * supervision and cleanup; this module never launches a background process.
  */
 import { execFile, execFileSync } from 'node:child_process';
@@ -12,7 +12,6 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { networkInterfaces } from 'node:os';
 import { resolve } from 'node:path';
-import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 
 const supportServices = ['mailpit', 'livekit'];
@@ -108,30 +107,6 @@ async function prepare() {
   );
 }
 
-/** Wait for Paseo readiness, then optionally fail the mise task if a service
- * stops. This delegates health checks and process tracking to Paseo itself.
- */
-async function observe(watch) {
-  const deadline = Date.now() + 10 * 60_000;
-  let ready = false;
-  let chattoReady = false;
-  do {
-    const status = scripts();
-    const chatto = status.find((s) => s.scriptName === 'dev-full');
-    chattoReady ||= chatto?.health === 'healthy';
-    if (watch && chattoReady && chatto?.health === 'unhealthy')
-      throw new Error('Chatto stopped responding; stopping the stack.');
-    const peers = supportServices.map((name) => status.find((s) => s.scriptName === name));
-    if (peers.some((s) => !s || s.lifecycle === 'stopped'))
-      throw new Error('A support service stopped; stopping the stack.');
-    ready ||= peers.every((s) => s.health === 'healthy');
-    if ((!ready || (watch && !chattoReady)) && Date.now() > deadline)
-      throw new Error('Stack services did not become ready.');
-    if (ready && !watch) return;
-    await delay(1000);
-  } while (true);
-}
-
 /** Stop only still-running support services; a failed service is already
  * stopped in Paseo. Keep configuration if the daemon cannot complete cleanup.
  */
@@ -168,8 +143,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     const command = process.argv[2];
     if (command === 'prepare') await prepare();
     else if (command === 'cleanup') await cleanup();
-    else if (command === 'ready' || command === 'watch') await observe(command === 'watch');
-    else throw new Error('Expected prepare, ready, watch, or cleanup.');
+    else throw new Error('Expected prepare or cleanup.');
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;

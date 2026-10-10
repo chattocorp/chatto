@@ -6,13 +6,14 @@
  * The fixture never starts or stops a user's real Paseo services.
  */
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { createServer, createConnection } from 'node:net';
 import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import test from 'node:test';
+import { promisify } from 'node:util';
 
 async function listening(port) {
   return new Promise((resolve) => {
@@ -63,13 +64,7 @@ test(
       );
       // Copy the checked-in task definitions so a lifecycle regression in mise.toml fails this test.
       const source = await readFile('mise.toml', 'utf8');
-      const tasks = [
-        'paseo-stack',
-        'paseo-prepare',
-        'paseo-chatto',
-        'paseo-watch',
-        'paseo-cleanup'
-      ];
+      const tasks = ['paseo-stack', 'paseo-prepare', 'paseo-chatto', 'paseo-cleanup'];
       let toml = tasks
         .map((name) => {
           const start = source.indexOf(`[tasks.${name}]\n`);
@@ -123,6 +118,15 @@ test(
         await delay(50);
       }
       assert((await Promise.all(Object.values(ports).map(listening))).every(Boolean), output);
+      // Once startup is complete, losing a support service must leave Chatto running.
+      await promisify(execFile)(`${dir}/bin/paseo`, ['script', 'stop', 'mailpit'], {
+        cwd: dir,
+        env
+      });
+      await delay(1500);
+      assert.equal(child.exitCode, null, output);
+      assert.equal(await listening(ports['dev-full']), true, output);
+      assert.equal(await listening(ports.mailpit), false, output);
       child.kill('SIGHUP');
       // Paseo forcibly kills the launcher after two seconds. A deadline miss must fail,
       // even if a detached child later finishes and makes the socket assertion pass.
