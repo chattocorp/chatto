@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.0-alpha.3](https://github.com/chattocorp/chatto/compare/chatto-desktop/v0.1.0-alpha.2...chatto-desktop/v0.1.0-alpha.3) (2026-10-10)
+
+
+### Bug Fixes
+
+* **desktop:** combine macOS window controls with app header ([#2509](https://github.com/chattocorp/chatto/issues/2509)) ([c803f82](https://github.com/chattocorp/chatto/commit/c803f82aabe854c3a26ec9e94e024050ffc5a657))
+* **dev:** keep Authling state per port, reset it, and document client placement ([#2764](https://github.com/chattocorp/chatto/issues/2764)) ([d49c2b5](https://github.com/chattocorp/chatto/commit/d49c2b5c32f909f34a86f1bf857ea58616defe64))
+* **frontend:** open auth windows on a launch page for Firefox Android PWAs ([#2762](https://github.com/chattocorp/chatto/issues/2762)) ([ca2d13b](https://github.com/chattocorp/chatto/commit/ca2d13b8f8536da32190c84fc14b719b22cabc37))
+
 ## [0.1.0-alpha.2](https://github.com/chattocorp/chatto/compare/chatto-desktop/v0.1.0-alpha.1...chatto-desktop/v0.1.0-alpha.2) (2026-08-13)
 
 ### ⚠ BREAKING CHANGES
