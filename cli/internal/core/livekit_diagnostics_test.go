@@ -208,10 +208,17 @@ func TestLiveKitAdminStatusReportsWebhookSetup(t *testing.T) {
 		t.Errorf("LastRejectedWebhookAt = %v, want after %v", status.LastRejectedWebhookAt, before)
 	}
 
-	// A webhook key pair that matches the API key, or is incomplete, is not separate.
+	// An incomplete webhook key pair falls back to the API key pair.
 	c.ConfigureLiveKitDiagnostics(config.LiveKitConfig{APIKey: "key", APISecret: "secret", WebhookAPIKey: "webhook-key"}, "")
 	if c.liveKitAdminStatus(context.Background()).SeparateWebhookKey {
 		t.Error("SeparateWebhookKey = true for incomplete webhook key pair")
+	}
+	// The same key ID with a different secret still validates webhooks differently.
+	c.ConfigureLiveKitDiagnostics(config.LiveKitConfig{
+		APIKey: "key", APISecret: "secret", WebhookAPIKey: "key", WebhookAPISecret: "other-secret",
+	}, "")
+	if !c.liveKitAdminStatus(context.Background()).SeparateWebhookKey {
+		t.Error("SeparateWebhookKey = false for a webhook key pair with a different secret")
 	}
 }
 

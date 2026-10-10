@@ -106,8 +106,8 @@ func (c *ChattoCore) liveKitAdminStatus(ctx context.Context) LiveKitAdminStatus 
 	status.Configured = cfg.IsConfigured()
 	status.URL = cfg.URL
 	status.APIKey = cfg.APIKey
-	webhookKey, _ := cfg.WebhookKeyPair()
-	status.SeparateWebhookKey = webhookKey != "" && webhookKey != cfg.APIKey
+	webhookKey, webhookSecret := cfg.WebhookKeyPair()
+	status.SeparateWebhookKey = webhookKey != cfg.APIKey || webhookSecret != cfg.APISecret
 	if publicURL != "" {
 		status.WebhookURL = strings.TrimRight(publicURL, "/") + "/webhooks/livekit"
 	}
