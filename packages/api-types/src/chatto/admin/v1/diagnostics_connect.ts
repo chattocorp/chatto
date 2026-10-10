@@ -15,8 +15,9 @@ export const AdminDiagnosticsService = {
   typeName: "chatto.admin.v1.AdminDiagnosticsService",
   methods: {
     /**
-     * Returns broker, JetStream, and projection diagnostics. Requires the
-     * server owner role.
+     * Returns broker, JetStream, projection, and LiveKit diagnostics. Requires
+     * the server owner role. The call checks the LiveKit server API, so it can
+     * take up to five seconds when LiveKit does not reply.
      *
      * @generated from rpc chatto.admin.v1.AdminDiagnosticsService.GetSystemInfo
      */

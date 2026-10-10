@@ -123,7 +123,7 @@ func (c *ChattoCore) liveKitAdminStatus(ctx context.Context) LiveKitAdminStatus 
 		status.ConnectionError = err.Error()
 		return status
 	}
-	service := livekit.NewRoomServiceProtobufClient(httpURL, &http.Client{Timeout: liveKitProbeTimeout})
+	service := livekit.NewRoomServiceProtobufClient(httpURL, &http.Client{})
 	client := &liveKitRoomClient{service: service, apiKey: cfg.APIKey, apiSecret: cfg.APISecret}
 
 	probeCtx, cancel := context.WithTimeout(ctx, liveKitProbeTimeout)

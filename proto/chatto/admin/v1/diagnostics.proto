@@ -330,7 +330,8 @@ message AdminProjectionMetric {
 
 // Provides server diagnostics for the admin system page.
 service AdminDiagnosticsService {
-  // Returns broker, JetStream, and projection diagnostics. Requires the
-  // server owner role.
+  // Returns broker, JetStream, projection, and LiveKit diagnostics. Requires
+  // the server owner role. The call checks the LiveKit server API, so it can
+  // take up to five seconds when LiveKit does not reply.
   rpc GetSystemInfo(GetSystemInfoRequest) returns (GetSystemInfoResponse);
 }

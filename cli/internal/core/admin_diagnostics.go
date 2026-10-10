@@ -29,6 +29,11 @@ func (c *ChattoCore) GetAdminDiagnostics(ctx context.Context, actorID string) (*
 		return nil, ErrPermissionDenied
 	}
 
+	// The LiveKit check waits for a remote server, so it runs while the other
+	// diagnostics are collected.
+	liveKitStatus := make(chan LiveKitAdminStatus, 1)
+	go func() { liveKitStatus <- c.liveKitAdminStatus(ctx) }()
+
 	accountInfo, err := c.GetAccountInfo(ctx)
 	if err != nil {
 		c.logger.Warn("Failed to read JetStream account diagnostics", "error", err)
@@ -65,6 +70,6 @@ func (c *ChattoCore) GetAdminDiagnostics(ctx context.Context, actorID string) (*
 		ProjectionsAvailable: projectionsAvailable,
 		AssetCleanup:         assetCleanup,
 		DurableWorkers:       durableWorkerAdminStatuses(jetStreamStats, c.VideoUploadsEnabled),
-		LiveKit:              c.liveKitAdminStatus(ctx),
+		LiveKit:              <-liveKitStatus,
 	}, nil
 }
