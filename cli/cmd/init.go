@@ -126,7 +126,7 @@ func writeInitialConfig(cmd *cobra.Command, opts initOptions) error {
 			DirectLogin:        &directLogin,
 			EmailOTP: config.EmailOTPConfig{
 				ThrottlingEnabled: new(true),
-				TTL:               config.Duration(15 * time.Minute),
+				TTL:               config.Duration(config.DefaultEmailOTPTTL),
 				MaxDeliveredCodes: 10,
 				MaxWrongAttempts:  5,
 			},

@@ -5,7 +5,16 @@ description: All environment variables for configuring Chatto.
 
 import EnvVar from '../../../components/EnvVar.astro';
 
-Every `chatto.toml` setting can be overridden with an environment variable. The naming pattern is `CHATTO_{SECTION}_{KEY}` in uppercase.
+Environment variables override the corresponding `chatto.toml` settings. Use the
+names listed here; not every name follows the same section pattern. Check for
+unknown or deprecated names with `chatto config check --config chatto.toml`.
+See [Check configuration](/guides/operations/server-operations/#check-configuration).
+
+Defaults below apply when a setting is omitted. `chatto init` also writes setup
+choices: port `4000`, URL `http://localhost:4000`, embedded NATS enabled with data
+directory `./data`, the asset worker enabled, SMTP port `587`, and random secrets.
+Set the same choices and provide secrets for an equivalent ENV-only deployment.
+Commented values are examples; they do not override runtime defaults.
 
 ## General
 
@@ -23,8 +32,9 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
   Public URL of the server, used for absolute links, public API asset URLs, and OAuth redirects. Set this to the external HTTPS origin when Chatto runs behind a reverse proxy; forwarded proxy headers are not trusted for public URL generation.
 </EnvVar>
 
-<EnvVar name="CHATTO_WEBSERVER_PORT" toml="webserver.port" default="4000">
-  Port to listen on.
+<EnvVar name="CHATTO_WEBSERVER_PORT" toml="webserver.port">
+  Port to listen on. Required without built-in TLS. With TLS, an omitted port uses
+  `443`. `chatto init` writes `4000`.
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_BIND_ADDRESS" toml="webserver.bind_address">
@@ -288,8 +298,8 @@ environment variables from your configuration. These settings no longer have an 
 
 ### Embedded Server
 
-<EnvVar name="CHATTO_NATS_EMBEDDED_ENABLED" toml="nats.embedded.enabled" default="true">
-  Enable the embedded NATS server. Set to `false` when connecting to an external NATS server.
+<EnvVar name="CHATTO_NATS_EMBEDDED_ENABLED" toml="nats.embedded.enabled" default="false">
+  Enable the embedded NATS server. `chatto init` writes `true`. Set to `false` when connecting to an external NATS server.
 </EnvVar>
 
 <EnvVar name="CHATTO_NATS_EMBEDDED_PORT" toml="nats.embedded.port" default="0">
@@ -304,8 +314,9 @@ environment variables from your configuration. These settings no longer have an 
   NATS monitoring/stats HTTP port. Set to `0` to disable. Useful for debugging with the NATS dashboard.
 </EnvVar>
 
-<EnvVar name="CHATTO_NATS_EMBEDDED_DATA_DIR" toml="nats.embedded.data_dir" default="./data">
-  JetStream data directory for the embedded server.
+<EnvVar name="CHATTO_NATS_EMBEDDED_DATA_DIR" toml="nats.embedded.data_dir">
+  JetStream data directory for the embedded server. Set an explicit persistent
+  directory. `chatto init` writes `./data`.
 </EnvVar>
 
 <EnvVar name="CHATTO_NATS_EMBEDDED_SYNC_INTERVAL" toml="nats.embedded.sync_interval" default="NATS default">
