@@ -18,6 +18,53 @@ backups, and know which tool repairs an account or a deployment.
 | Operator CLI | Local recovery and bootstrap over a Unix socket. |
 | Backups | Disaster recovery, migration tests, and upgrade safety. |
 
+## Check configuration
+
+Before deployment, run the check with the same environment as the server:
+
+```sh
+chatto config check --config /etc/chatto/chatto.toml
+```
+
+The command returns a nonzero exit status for unknown or deprecated TOML keys
+or `CHATTO_` environment names. It then checks decoding and normal configuration
+validation. It does not start the server or contact external services. A successful
+check does not test network access, credentials with a provider, or storage access.
+
+The check includes nested tables, repeated provider tables, fixed ENV names, and
+indexed provider and development bootstrap ENV names. Indexes must start at `0`
+and have no gaps. Names outside `CHATTO_` are ignored. Run the check in the server
+environment: development-task or test variables with that prefix are not server
+configuration and are reported as unknown.
+
+Diagnostics show key names and migration instructions, never setting values.
+Syntax, decoding, and value-validation errors omit details that could contain
+secrets or personal data. Check required fields and value formats in the
+[configuration reference](/reference/environment-variables/) if you get a value
+error.
+
+Without `--config`, the command uses `chatto.toml` in the current directory.
+If that file is absent, it checks ENV-only configuration. An explicitly selected
+file must exist.
+
+Normal startup keeps its upgrade-compatible loading policy. It still ignores
+unknown TOML keys and ordinary unknown ENV names. Supported aliases still work,
+but the explicit check rejects them so you can migrate before deployment:
+
+| Old setting | Action |
+| --- | --- |
+| `livekit.instance_id`, `CHATTO_LIVEKIT_INSTANCE_ID` | Use `livekit.server_id`, `CHATTO_LIVEKIT_SERVER_ID`. |
+| `bootstrap.instance` | Use `bootstrap.server`. |
+| `bootstrap.users[].instance_role` | Use `bootstrap.users[].server_role`. |
+| `CHATTO_AUTH_OIDC_*` | Use the [indexed provider variables](/reference/environment-variables/#authentication). |
+| `operator_api.socket_mode`, `CHATTO_OPERATOR_API_SOCKET_MODE` | Remove the setting. The socket always uses mode `0600`. |
+| `livekit.webhook_url`, `CHATTO_LIVEKIT_WEBHOOK_URL` | Remove the unused setting. Set `webhook.urls` in LiveKit. |
+| `auth.providers[].provider_options` | Remove the unused setting. Use documented provider fields. |
+
+Email OTP codes use a `30m` default in generated, omitted-setting, and ENV-only
+configuration. Explicit TOML values remain valid, and
+`CHATTO_AUTH_EMAIL_OTP_TTL` overrides them.
+
 ## Admin Dashboard
 
 Owners and administrators use the admin UI for daily operations. Their

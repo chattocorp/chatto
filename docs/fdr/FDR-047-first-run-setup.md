@@ -1,7 +1,7 @@
 # FDR-047: First-Run Setup
 
 **Status:** Active
-**Last reviewed:** 2026-10-09
+**Last reviewed:** 2026-10-10
 
 ## Summary
 
@@ -52,6 +52,23 @@ The form rejects a configuration with no login method. This keeps account creati
 Plain `chatto init` remains suitable for scripts and does not ask questions.
 The wizard does not edit existing files: the configuration serializer cannot
 preserve their comments and settings outside the wizard's scope.
+
+### Configuration checks are explicit
+
+`chatto config check` checks TOML keys and Chatto environment names before normal
+configuration decoding and validation. It includes indexed provider and bootstrap
+fields. It rejects unknown names and deprecated aliases, with replacement
+instructions. Normal startup retains its existing compatibility policy and
+supported aliases. This lets operators find mistakes before deployment without
+making an upgrade reject previously accepted files. The command makes no network
+connections and reports no setting values. Value errors omit details because
+parser and validation messages can contain secrets or personal data.
+
+Email OTP uses the existing runtime default of 30 minutes in generated examples,
+omitted settings, and ENV-only configuration. Keeping this value avoids changing
+code lifetimes for existing deployments. Explicit values and ENV overrides still
+apply. Generated setup choices, such as enabling embedded NATS and the asset
+worker, remain explicit; they are not defaults for omitted settings.
 
 ### Setup is enabled by default
 
