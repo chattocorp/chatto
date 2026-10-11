@@ -14,7 +14,25 @@ test.afterAll(async () => {
   await ogServer?.close();
 });
 
-test.describe('Bare-domain auto-linking', () => {
+test.describe('Automatic URL links', () => {
+  test('filenames and bare domains stay plain in posted messages', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const messageText = 'Files agents.md readme.md foo.py and example.com';
+    await roomPage.sendMessage(messageText);
+
+    const message = page.locator('[role="article"]', { hasText: messageText });
+    await expect(message).toBeVisible();
+    await expect(message.getByText(messageText, { exact: true }).locator('a')).toHaveCount(0);
+    await expect(message.getByTestId('link-preview-card')).toHaveCount(0);
+  });
+
   test('www-prefixed bare domain is auto-linked in posted message', async ({
     page,
     chatPage,
@@ -29,14 +47,14 @@ test.describe('Bare-domain auto-linking', () => {
 
     // The message should be rendered with the bare domain as a clickable link
     const message = page.locator('[role="article"]', { hasText: messageText });
-    const link = message.locator('a[href="http://www.example.com"]');
+    const link = message.locator('a[href="https://www.example.com"]');
     await expect(link).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     await expect(link).toHaveText('www.example.com');
     await expect(link).toHaveAttribute('target', '_blank');
     await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
-  test('bare domain with .dev TLD is auto-linked', async ({ page, chatPage, roomPage }) => {
+  test('www URL with .dev TLD is auto-linked', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
@@ -44,7 +62,7 @@ test.describe('Bare-domain auto-linking', () => {
     await roomPage.sendMessage('Check www.hmans.dev');
 
     const message = page.locator('[role="article"]', { hasText: 'Check www.hmans.dev' });
-    const link = message.locator('a[href="http://www.hmans.dev"]');
+    const link = message.locator('a[href="https://www.hmans.dev"]');
     await expect(link).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     await expect(link).toHaveText('www.hmans.dev');
   });
