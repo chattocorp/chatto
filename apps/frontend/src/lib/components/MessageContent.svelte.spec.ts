@@ -910,3 +910,20 @@ describe('MessageContent component', () => {
     });
   });
 });
+
+it('hands explicit mailto links to the browser mail handler', async () => {
+  const href = 'mailto:foo@bar.com';
+  const { container } = renderMessage(href);
+  await expect.poll(() => container.querySelector('a')?.getAttribute('href')).toBe(href);
+  const anchor = container.querySelector('a')!;
+  expect(anchor.hasAttribute('target')).toBe(false);
+  let preventedByMessage = true;
+  const intercept = (event: MouseEvent) => {
+    preventedByMessage = event.defaultPrevented;
+    event.preventDefault(); // Avoid launching a mail application during the test.
+  };
+  document.addEventListener('click', intercept, { once: true });
+  await userEvent.click(anchor);
+  expect(preventedByMessage).toBe(false);
+  expect(window.open).not.toHaveBeenCalled();
+});

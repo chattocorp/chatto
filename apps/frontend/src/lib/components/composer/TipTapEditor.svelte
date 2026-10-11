@@ -268,7 +268,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   function normalizeHref(href: string) {
     const trimmed = href.trim();
     if (!trimmed) return '';
-    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    if (/^(?:https?:\/\/|mailto:)/i.test(trimmed)) return trimmed;
     return `https://${trimmed}`;
   }
 

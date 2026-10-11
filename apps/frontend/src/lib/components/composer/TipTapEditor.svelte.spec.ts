@@ -693,28 +693,59 @@ describe('TipTapEditor Markdown autolinks', () => {
     expect(editor.querySelector('a')?.getAttribute('href')).toBe('https://example.com/pasted');
   });
 
-  it('uses a regular Markdown link after its destination changes', async () => {
-    const readyApis: ComposerEditorApi[] = [];
-    const updates: string[] = [];
-    render(TipTapEditor, {
-      props: {
-        placeholder: 'Write a message',
-        onReady: (api: ComposerEditorApi) => readyApis.push(api),
-        onUpdate: (markdown: string) => updates.push(markdown)
-      }
+  it.each(['https://example.com/changed', 'mailto:foo@bar.com'])(
+    'uses a regular Markdown link after its destination changes to %s',
+    async (destination) => {
+      const readyApis: ComposerEditorApi[] = [];
+      const updates: string[] = [];
+      render(TipTapEditor, {
+        props: {
+          placeholder: 'Write a message',
+          onReady: (api: ComposerEditorApi) => readyApis.push(api),
+          onUpdate: (markdown: string) => updates.push(markdown)
+        }
+      });
+      await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+      const api = readyApis[0]!;
+
+      api.setContent('<https://example.com/original>');
+      api.focus('end');
+      const linkInput = page.getByRole('textbox', { name: 'Link URL' });
+      await expect.element(linkInput).toBeVisible();
+      await userEvent.fill(linkInput, destination);
+      await userEvent.tab();
+
+      await vi.waitFor(() =>
+        expect(updates.at(-1)).toBe(`[https://example.com/original](${destination})`)
+      );
+    }
+  );
+});
+
+describe('visual editor bare email addresses', () => {
+  it('keeps typed, pasted, and restored email addresses plain', async () => {
+    const apis: ComposerEditorApi[] = [];
+    const { container } = render(TipTapEditor, {
+      props: { placeholder: 'Email editor', onReady: (api) => apis.push(api) }
     });
-    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
-    const api = readyApis[0]!;
-
-    api.setContent('<https://example.com/original>');
-    api.focus('end');
-    const linkInput = page.getByRole('textbox', { name: 'Link URL' });
-    await expect.element(linkInput).toBeVisible();
-    await userEvent.fill(linkInput, 'https://example.com/changed');
-    await userEvent.tab();
-
-    await vi.waitFor(() =>
-      expect(updates.at(-1)).toBe('[https://example.com/original](https://example.com/changed)')
+    await vi.waitFor(() => expect(apis).toHaveLength(1));
+    const textbox = page.getByRole('textbox', { name: 'Email editor' });
+    await textbox.fill('foo@bar.com');
+    await userEvent.keyboard(' ');
+    expect(container.querySelector('.tiptap a')).toBeNull();
+    apis[0].setContent('foo@bar.com');
+    expect(container.querySelector('.tiptap a')).toBeNull();
+    apis[0].setContent('');
+    const transfer = new DataTransfer();
+    transfer.setData('text/plain', 'foo@bar.com');
+    textbox.element().dispatchEvent(
+      new ClipboardEvent('paste', {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: transfer
+      })
     );
+    await vi.waitFor(() => expect(textbox.element().textContent).toContain('foo@bar.com'));
+    expect(container.querySelector('.tiptap a')).toBeNull();
   });
 });

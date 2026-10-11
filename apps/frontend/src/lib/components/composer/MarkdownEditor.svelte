@@ -23,7 +23,8 @@ the same API as the visual editor while keeping the stored Markdown visible.
   import { Compartment, EditorSelection, EditorState, Prec, Transaction } from '@codemirror/state';
   import { EditorView, keymap, placeholder as editorPlaceholder } from '@codemirror/view';
   import { tags } from '@lezer/highlight';
-  import { Autolink, Table } from '@lezer/markdown';
+  import { Table } from '@lezer/markdown';
+  import { sourceAutolinks } from './sourceAutolinks';
   import { m } from '$lib/i18n/messages';
   import { codeFenceHighlighting } from './codeFenceHighlighting';
   import type {
@@ -211,7 +212,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
           ]),
           markdown({
             base: commonmarkLanguage,
-            extensions: [Table, Autolink],
+            extensions: [Table, sourceAutolinks],
             completeHTMLTags: false,
             pasteURLAsLink: true
           }),

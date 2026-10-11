@@ -509,12 +509,14 @@ function initialize(): void {
     const token = tokens[idx];
     const hrefIndex = token.attrIndex('href');
     let allowedSameTabChatLink = false;
+    let mailLink = false;
 
     if (hrefIndex >= 0) {
       const href = token.attrs![hrefIndex][1];
 
-      // Only allow http and https URLs
-      if (!href.startsWith('http://') && !href.startsWith('https://')) {
+      mailLink = /^mailto:/i.test(href);
+      // Allow web URLs and explicit email links; reject other protocols.
+      if (!mailLink && !href.startsWith('http://') && !href.startsWith('https://')) {
         // Replace dangerous URLs with empty href
         token.attrs![hrefIndex][1] = '#';
       } else {
@@ -524,7 +526,7 @@ function initialize(): void {
 
     // External and non-allow-listed links open out-of-band. Known same-origin
     // chat routes intentionally keep normal same-tab navigation semantics.
-    if (!allowedSameTabChatLink) {
+    if (!allowedSameTabChatLink && !mailLink) {
       token.attrSet('target', '_blank');
       token.attrSet('rel', 'noopener noreferrer');
     }

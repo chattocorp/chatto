@@ -179,6 +179,8 @@
     // other same-origin URLs stay out-of-band to avoid message-link abuse.
     const anchor = target.closest('a');
     if (anchor?.href) {
+      // Let the browser hand email links to the configured mail application.
+      if (anchor.protocol === 'mailto:') return;
       event.preventDefault();
 
       const chatLink = classifyMessageBodyChatLink(anchor.href);
