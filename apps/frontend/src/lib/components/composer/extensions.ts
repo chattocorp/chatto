@@ -1,3 +1,4 @@
+import { hasAutoLinkPrefix } from '$lib/markdownLinks';
 import {
   Extension,
   InputRule,
@@ -66,6 +67,11 @@ export const ComposerLink = Link.extend({
   },
 
   parseMarkdown(token: MarkdownToken, helpers: MarkdownParseHelpers) {
+    // Marked also detects bare domains and email addresses when restoring Markdown.
+    const raw = token.raw ?? '';
+    if (!raw.startsWith('[') && !raw.startsWith('<') && !hasAutoLinkPrefix(raw)) {
+      return helpers.parseInline(token.tokens ?? []);
+    }
     return helpers.applyMark('link', helpers.parseInline(token.tokens ?? []), {
       href: token.href,
       title: token.title || null,
@@ -496,6 +502,7 @@ export function createComposerExtensions(placeholder: string) {
     }),
     ComposerLink.configure({
       autolink: true,
+      shouldAutoLink: hasAutoLinkPrefix,
       linkOnPaste: true,
       openOnClick: false,
       enableClickSelection: true

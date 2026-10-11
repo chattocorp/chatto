@@ -479,3 +479,40 @@ describe('renderMarkdown', () => {
     });
   });
 });
+
+describe('automatic links', () => {
+  it.each([
+    'path/www.example.com',
+    '@www.example.com',
+    'agents.md',
+    'readme.md',
+    'foo.py',
+    'example.com',
+    'app.example.io',
+    '//example.com',
+    'user@example.com'
+  ])('keeps %s as plain text', async (text) => {
+    expect(await renderMarkdown(text)).not.toContain('<a ');
+    expect(renderInlineMarkdown(text)).not.toContain('<a ');
+  });
+
+  it.each([
+    'https://example.com',
+    'http://example.com',
+    'ftp://example.com/file',
+    'mailto:user@example.com',
+    'www.example.com',
+    'WWW.example.dev/path?q=1'
+  ])('links %s', async (text) => {
+    expect(await renderMarkdown(text)).toContain('<a ');
+    expect(renderInlineMarkdown(text)).toContain('<a ');
+  });
+
+  it('keeps explicit Markdown links and safe angle autolinks', async () => {
+    const html = await renderMarkdown(
+      '[agents.md](https://example.com/agents.md) <https://example.com>'
+    );
+    expect(html).toContain('href="https://example.com/agents.md"');
+    expect(html).toContain('href="https://example.com"');
+  });
+});

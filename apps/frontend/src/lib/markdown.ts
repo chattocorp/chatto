@@ -4,7 +4,7 @@ import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
 import type StateCore from 'markdown-it/lib/rules_core/state_core.mjs';
 import type StateBlock from 'markdown-it/lib/rules_block/state_block.mjs';
 import type Token from 'markdown-it/lib/token.mjs';
-import tlds from 'tlds';
+import { configureMarkdownLinks } from './markdownLinks';
 import { classifyMessageBodyChatLink } from '$lib/messageLinks';
 import { collectMentionHandles, MENTIONS_ENV_KEY, mentionPlugin } from '$lib/markdownMentions';
 import { m } from '$lib/i18n/messages';
@@ -440,9 +440,7 @@ function initialize(): void {
     highlight: renderCodeFence
   });
 
-  // Update linkify-it's TLD list so bare-domain URLs with newer TLDs
-  // (.dev, .app, .io, etc.) are auto-linked
-  md.linkify.tlds(tlds);
+  configureMarkdownLinks(md.linkify);
 
   // markdown-it pads short table rows to the header width. Without a guard, a
   // tiny table source can therefore expand into hundreds of thousands of DOM

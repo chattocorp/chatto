@@ -9,6 +9,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 
 ## Behavior
 
+- Automatic links require `www.` or a supported protocol, such as `https://`, `http://`, `ftp://`, or `mailto:`. Bare domains, filenames, email addresses without `mailto:`, and protocol-relative URLs stay plain text. Explicit Markdown links still work. This rule prevents filenames such as `agents.md` and `foo.py` from becoming links.
 - Messages support paragraphs, ATX headings, emphasis, links and autolinks, inline code, fenced and indented code blocks, blockquotes, and ordered and unordered lists.
 - Messages support GFM pipe tables with a header delimiter row, optional outer pipes, left/centre/right column alignment, inline formatting, and escaped pipes inside cells.
 - Messages, server welcome messages, and Markdown attachment previews support named footnotes. Notes are numbered in reference order and appear after the text. Each reference links to its note, and each note has a return link for every reference. These links stay inside the current message or preview.
