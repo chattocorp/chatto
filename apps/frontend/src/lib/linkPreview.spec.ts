@@ -224,3 +224,19 @@ describe('parseYouTubeVideoID', () => {
     expect(isYouTubeURL('https://example.com/watch?v=dQw4w9WgXcQ')).toBe(false);
   });
 });
+
+it.each([
+  'ftp://example.com/file',
+  'ftps://example.com/file',
+  'ssh://example.com',
+  'tel:+123456789',
+  'sms:+123456789',
+  'vscode://file/test',
+  'file:///etc/passwd',
+  'data:text/html,test',
+  'javascript:alert(1)',
+  'blob:https://example.com/id',
+  'mailto:foo@example.com'
+])('never fetches previews for %s', (url) => {
+  expect(extractURLs(`${url} [label](${url})`, 10)).toEqual([]);
+});

@@ -693,33 +693,39 @@ describe('TipTapEditor Markdown autolinks', () => {
     expect(editor.querySelector('a')?.getAttribute('href')).toBe('https://example.com/pasted');
   });
 
-  it.each(['https://example.com/changed', 'mailto:foo@bar.com'])(
-    'uses a regular Markdown link after its destination changes to %s',
-    async (destination) => {
-      const readyApis: ComposerEditorApi[] = [];
-      const updates: string[] = [];
-      render(TipTapEditor, {
-        props: {
-          placeholder: 'Write a message',
-          onReady: (api: ComposerEditorApi) => readyApis.push(api),
-          onUpdate: (markdown: string) => updates.push(markdown)
-        }
-      });
-      await vi.waitFor(() => expect(readyApis).toHaveLength(1));
-      const api = readyApis[0]!;
+  it.each([
+    'https://example.com/changed',
+    'mailto:foo@bar.com',
+    'ftp://example.com/file',
+    'javascript:alert(1)'
+  ])('uses a regular Markdown link after its destination changes to %s', async (destination) => {
+    const readyApis: ComposerEditorApi[] = [];
+    const updates: string[] = [];
+    render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a message',
+        onReady: (api: ComposerEditorApi) => readyApis.push(api),
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
 
-      api.setContent('<https://example.com/original>');
-      api.focus('end');
-      const linkInput = page.getByRole('textbox', { name: 'Link URL' });
-      await expect.element(linkInput).toBeVisible();
-      await userEvent.fill(linkInput, destination);
-      await userEvent.tab();
+    api.setContent('<https://example.com/original>');
+    api.focus('end');
+    const linkInput = page.getByRole('textbox', { name: 'Link URL' });
+    await expect.element(linkInput).toBeVisible();
+    await userEvent.fill(linkInput, destination);
+    await userEvent.tab();
 
-      await vi.waitFor(() =>
-        expect(updates.at(-1)).toBe(`[https://example.com/original](${destination})`)
-      );
-    }
-  );
+    await vi.waitFor(() =>
+      expect(updates.at(-1)).toBe(
+        /^(?:https:|mailto:)/.test(destination)
+          ? `[https://example.com/original](${destination})`
+          : 'https://example.com/original'
+      )
+    );
+  });
 });
 
 describe('visual editor bare email addresses', () => {

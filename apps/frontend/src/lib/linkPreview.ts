@@ -6,14 +6,14 @@
  */
 
 import MarkdownIt from 'markdown-it';
-import { configureMarkdownLinks } from './markdownLinks';
+import { configureMarkdownLinks, isPreviewURL } from './markdownLinks';
 
 const markdown = new MarkdownIt({
   html: false,
   linkify: true,
   breaks: true
 });
-configureMarkdownLinks(markdown.linkify);
+configureMarkdownLinks(markdown);
 markdown.disable(['escape']);
 
 function endsWithUnescapedOpeningAngle(text: string): boolean {
@@ -39,7 +39,7 @@ export function extractURLs(text: string, maxURLs = 1): string[] {
   const result: string[] = [];
 
   const addURL = (url: string) => {
-    if (result.length >= maxURLs || !/^https?:\/\//i.test(url)) return;
+    if (result.length >= maxURLs || !isPreviewURL(url)) return;
 
     const normalized = normalizeURL(url);
 
@@ -66,7 +66,7 @@ export function extractURLs(text: string, maxURLs = 1): string[] {
     const children = token.children ?? [];
     for (let i = 0; i < children.length; i++) {
       const child = children[i];
-      if (child.type !== 'link_open') continue;
+      if (child.type !== 'link_open' || child.hidden) continue;
       if (child.markup === 'autolink') continue;
 
       const href = child.attrGet('href');

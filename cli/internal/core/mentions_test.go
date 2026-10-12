@@ -62,6 +62,7 @@ func TestLinkifiedURLRanges(t *testing.T) {
 		{"bare domain with IANA TLD", "see social.5f9.de/@alice", nil},
 		{"bare domain with pseudo TLD", "see social.example/@alice", nil},
 		{"unsupported scheme", "ssh://example.com/@alice", nil},
+		{"unsupported FTP scheme", "ftp://example.com/@alice", nil},
 		{"bare domain after at sign", "@alice.dev/@bob", nil},
 		{"bare domain after slash", "either/example.com", nil},
 		{"email address", "user@example.com", nil},

@@ -26,9 +26,8 @@ var (
 	// scheme. mailto: is the only linkified scheme without "//".
 	mentionURLSchemeRegexp = regexp.MustCompile(`^(?i:([a-z][a-z0-9+.\-]*://)|mailto:)`)
 
-	// mentionLinkifySchemes holds the "//" schemes that linkify-it links by
-	// default.
-	mentionLinkifySchemes = map[string]bool{"http://": true, "https://": true, "ftp://": true}
+	// mentionLinkifySchemes mirrors the web protocols allowed by the frontend.
+	mentionLinkifySchemes = map[string]bool{"http://": true, "https://": true}
 
 	// mentionLinkifyTLDs holds the top-level domains that linkify-it accepts
 	// without a scheme. The frontend loads the full IANA list from the `tlds`

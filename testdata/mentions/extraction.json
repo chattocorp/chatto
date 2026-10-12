@@ -223,9 +223,19 @@
       "mentions": []
     },
     {
+      "name": "handle in unsupported explicit link label",
+      "body": "[@alice](ftp://example.com/file)",
+      "mentions": []
+    },
+    {
+      "name": "handle in nested unsupported URL",
+      "body": "blob:https://example.com/@alice",
+      "mentions": []
+    },
+    {
       "name": "handle in ftp URL",
       "body": "ftp://example.com/@alice",
-      "mentions": []
+      "mentions": ["alice"]
     },
     {
       "name": "handle after an unsupported scheme",

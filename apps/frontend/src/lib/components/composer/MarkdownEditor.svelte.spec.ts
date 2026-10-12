@@ -319,6 +319,10 @@ describe('MarkdownEditor', () => {
 
 it.each([
   { text: 'foo@bar.com', linked: false },
+  { text: 'ftp://example.com/file', linked: false },
+  { text: 'ssh://example.com', linked: false },
+  { text: 'blob:https://example.com/id', linked: false },
+  { text: 'tel:+123456789', linked: false },
   { text: 'agents.md readme.md foo.py', linked: false },
   { text: 'mailto:foo@bar.com', linked: true },
   { text: 'https://example.com', linked: true },

@@ -440,7 +440,7 @@ function initialize(): void {
     highlight: renderCodeFence
   });
 
-  configureMarkdownLinks(md.linkify);
+  configureMarkdownLinks(md);
 
   // markdown-it pads short table rows to the header width. Without a guard, a
   // tiny table source can therefore expand into hundreds of thousands of DOM
@@ -515,13 +515,7 @@ function initialize(): void {
       const href = token.attrs![hrefIndex][1];
 
       mailLink = /^mailto:/i.test(href);
-      // Allow web URLs and explicit email links; reject other protocols.
-      if (!mailLink && !href.startsWith('http://') && !href.startsWith('https://')) {
-        // Replace dangerous URLs with empty href
-        token.attrs![hrefIndex][1] = '#';
-      } else {
-        allowedSameTabChatLink = classifyMessageBodyChatLink(href) !== null;
-      }
+      allowedSameTabChatLink = classifyMessageBodyChatLink(href) !== null;
     }
 
     // External and non-allow-listed links open out-of-band. Known same-origin
