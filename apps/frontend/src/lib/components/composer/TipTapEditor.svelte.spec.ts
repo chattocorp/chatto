@@ -698,7 +698,7 @@ describe('TipTapEditor Markdown autolinks', () => {
     'mailto:foo@bar.com',
     'ftp://example.com/file',
     'javascript:alert(1)'
-  ])('uses a regular Markdown link after its destination changes to %s', async (destination) => {
+  ])('applies the protocol policy when its destination changes to %s', async (destination) => {
     const readyApis: ComposerEditorApi[] = [];
     const updates: string[] = [];
     render(TipTapEditor, {
@@ -713,6 +713,8 @@ describe('TipTapEditor Markdown autolinks', () => {
 
     api.setContent('<https://example.com/original>');
     api.focus('end');
+    // TipTap focuses on the next animation frame; wait before editing another input.
+    await expect.element(page.getByRole('textbox', { name: 'Write a message' })).toHaveFocus();
     const linkInput = page.getByRole('textbox', { name: 'Link URL' });
     await expect.element(linkInput).toBeVisible();
     await userEvent.fill(linkInput, destination);
