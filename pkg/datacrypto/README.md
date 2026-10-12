@@ -1,7 +1,7 @@
 # Data Cryptography
 
-`github.com/chattocorp/chatto/pkg/datacrypto` provides small, application-neutral
-cryptographic primitives for protected data:
+`github.com/chattocorp/chatto/pkg/datacrypto` provides small,
+application-neutral cryptographic primitives for protected data:
 
 - cryptographically random 256-bit keys;
 - XChaCha20-Poly1305 authenticated encryption; and

@@ -11,8 +11,8 @@ option, cleaned up partial startup, and shut the server down. Chatto's restore
 command contained a third copy of most of that lifecycle.
 
 The duplication is application-neutral, but it does not belong in the
-`github.com/chattocorp/chatto/pkg/events` module from ADR-056. Embedded server process
-management is useful without event sourcing and requires the production
+`github.com/chattocorp/chatto/pkg/events` module from ADR-056. Embedded server
+process management is useful without event sourcing and requires the production
 `nats-server` dependency that the events framework deliberately excludes.
 
 Authling must also remain independently buildable and movable to another

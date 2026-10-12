@@ -205,8 +205,9 @@ products prove their boundaries:
 - bounded unwrapped-key resolution and cache invalidation.
 
 Envelope-neutral durable consumption and retry mechanics are already provided
-by `github.com/chattocorp/chatto/pkg/events`. Authling's account-erasure worker uses them;
-Authling retains ownership of the erasure events and key-destruction policy.
+by `github.com/chattocorp/chatto/pkg/events`. Authling's account-erasure worker
+uses them; Authling retains ownership of the erasure events and key-destruction
+policy.
 
 The extracted layer must not know Authling or Chatto user IDs, data purposes,
 protobuf messages, NATS resource names, AAD formats, backup policy, or erasure

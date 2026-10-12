@@ -92,8 +92,8 @@ JetStream resources use one replica by default. Explicit replica counts may be
 one, three, or five.
 
 The application-neutral embedded server lifecycle comes from
-`github.com/chattocorp/chatto/pkg/natsruntime`; Authling retains its private-listener,
-storage-path, logging, and deployment policy.
+`github.com/chattocorp/chatto/pkg/natsruntime`; Authling retains its
+private-listener, storage-path, logging, and deployment policy.
 
 ## NATS and JetStream
 
@@ -110,14 +110,14 @@ restore boundary.
 Both KV buckets allow direct gets, so any replica can answer a plain `Get`. A
 follower can lag behind a committed write and return an older revision or no
 entry. `storage.OpenStores` binds both buckets through
-`github.com/chattocorp/chatto/pkg/jetstreamutil`, so `Get` reads through the stream leader
-and observes every committed write. Watchers and key listings still read from
-any replica. The bucket's `Create` also checks for a delete marker on any
-replica. Revision-checked counter updates treat both JetStream conflict codes
-as a conflict and read the counter again: a replicated stream reports a
-conflict with a write in progress as a different code. Startup tries stream
-and bucket provisioning up to three times when JetStream reports a transient
-error, for example while a cluster elects a leader.
+`github.com/chattocorp/chatto/pkg/jetstreamutil`, so `Get` reads through the
+stream leader and observes every committed write. Watchers and key listings
+still read from any replica. The bucket's `Create` also checks for a delete
+marker on any replica. Revision-checked counter updates treat both JetStream
+conflict codes as a conflict and read the counter again: a replicated stream
+reports a conflict with a write in progress as a different code. Startup tries
+stream and bucket provisioning up to three times when JetStream reports a
+transient error, for example while a cluster elects a leader.
 
 Credential provisioning writes an opaque operation record before creating its
 user and data keys, then removes the marker after the referencing event

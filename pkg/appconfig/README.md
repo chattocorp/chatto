@@ -1,8 +1,8 @@
 # Application Configuration
 
-`github.com/chattocorp/chatto/pkg/appconfig` loads application-owned Go configuration
-structs from TOML files and then applies struct-tagged environment-variable
-overrides.
+`github.com/chattocorp/chatto/pkg/appconfig` loads application-owned Go
+configuration structs from TOML files and then applies struct-tagged
+environment-variable overrides.
 
 The caller selects its explicit and default file paths and whether an explicit
 file is required or unknown TOML fields are rejected. Applications retain

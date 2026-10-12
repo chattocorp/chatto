@@ -28,15 +28,15 @@ Authling is a separate product and executable. It owns its configuration,
 application composition, HTTP surface, lifecycle, and NATS credentials. It
 must not import Chatto domain packages or any package beneath Chatto's
 `internal` directories. Reusable event-sourcing mechanics live behind the
-independently versioned but unstable `github.com/chattocorp/chatto/pkg/events` module
-boundary described by ADR-056. Reusable embedded NATS lifecycle mechanics live
-in the separate `github.com/chattocorp/chatto/pkg/natsruntime` module described by ADR-058.
-Reusable authenticated-encryption primitives live in the separate
-`github.com/chattocorp/chatto/pkg/datacrypto` module described by ADR-060.
-Reusable TOML and environment configuration loading lives in the separate
-`github.com/chattocorp/chatto/pkg/appconfig` module described by ADR-061.
-Authling should consume shared modules only when a concrete use case needs
-them.
+independently versioned but unstable `github.com/chattocorp/chatto/pkg/events`
+module boundary described by ADR-056. Reusable embedded NATS lifecycle mechanics
+live in the separate `github.com/chattocorp/chatto/pkg/natsruntime` module
+described by ADR-058. Reusable authenticated-encryption primitives live in the
+separate `github.com/chattocorp/chatto/pkg/datacrypto` module described by
+ADR-060. Reusable TOML and environment configuration loading lives in the
+separate `github.com/chattocorp/chatto/pkg/appconfig` module described by
+ADR-061. Authling should consume shared modules only when a concrete use case
+needs them.
 
 Authling always operates through a dedicated NATS account. A future embedding
 adapter may let another process construct and mount Authling's runtime, but the
