@@ -71,13 +71,7 @@
       aria-expanded={sidebarNav.isOpen}
       title={m('ui.toggle_sidebar')}
     >
-      <span
-        aria-hidden="true"
-        class={[
-          'iconify text-xl rtl:-scale-x-100',
-          sidebarNav.isOpen ? 'icon-[lucide--panel-left-close]' : 'icon-[lucide--panel-left-open]'
-        ]}
-      ></span>
+      <span aria-hidden="true" class="iconify icon-[uil--bars] text-xl"></span>
     </button>
 
     {#if hasInstances}
