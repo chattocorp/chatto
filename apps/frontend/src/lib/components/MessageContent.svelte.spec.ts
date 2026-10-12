@@ -216,19 +216,19 @@ describe('renderMarkdown', () => {
 
     it('auto-links www-prefixed bare domains', async () => {
       const html = await renderMarkdown('Visit www.example.com today');
-      expect(html).toContain('href="http://www.example.com"');
+      expect(html).toContain('href="https://www.example.com"');
       expect(html).toContain('>www.example.com</a>');
     });
 
-    it('auto-links bare domains with .dev TLD', async () => {
+    it('auto-links www URLs with .dev TLD', async () => {
       const html = await renderMarkdown('Check www.hmans.dev');
-      expect(html).toContain('href="http://www.hmans.dev"');
+      expect(html).toContain('href="https://www.hmans.dev"');
       expect(html).toContain('>www.hmans.dev</a>');
     });
 
-    it('auto-links bare domains with .io TLD', async () => {
+    it('keeps bare domains with .io TLD as plain text', async () => {
       const html = await renderMarkdown('Try app.example.io');
-      expect(html).toContain('href="http://app.example.io"');
+      expect(html).toBe('<p>Try app.example.io</p>\n');
     });
 
     it('applies security attributes to bare-domain auto-links', async () => {
@@ -909,4 +909,21 @@ describe('MessageContent component', () => {
       expect(span.getAttribute('data-role-name')).toBe('admin');
     });
   });
+});
+
+it('hands explicit mailto links to the browser mail handler', async () => {
+  const href = 'mailto:foo@bar.com';
+  const { container } = renderMessage(href);
+  await expect.poll(() => container.querySelector('a')?.getAttribute('href')).toBe(href);
+  const anchor = container.querySelector('a')!;
+  expect(anchor.hasAttribute('target')).toBe(false);
+  let preventedByMessage = true;
+  const intercept = (event: MouseEvent) => {
+    preventedByMessage = event.defaultPrevented;
+    event.preventDefault(); // Avoid launching a mail application during the test.
+  };
+  document.addEventListener('click', intercept, { once: true });
+  await userEvent.click(anchor);
+  expect(preventedByMessage).toBe(false);
+  expect(window.open).not.toHaveBeenCalled();
 });

@@ -95,6 +95,20 @@ In either editor, open **Formatting options** and select **Insert footnote**. Th
 
 Footnotes also work in server welcome messages and Markdown attachment previews.
 
+## Automatic links
+
+Start a web URL with `www.`, `https://`, or `http://` to make it a link.
+Bare domains and filenames such as `agents.md`, `readme.md`, and `foo.py` stay
+plain text and do not trigger link previews. You can still write an explicit
+Markdown link, such as `[website](https://example.com)`.
+
+An email address such as `foo@example.com` stays plain text. Use
+`mailto:foo@example.com` to make an email link. Select the link to open your
+configured mail application.
+
+Message links support only HTTP, HTTPS, and `mailto:`. Other protocols, such as
+`ftp:` and `file:`, stay unlinked, including in explicit Markdown links.
+
 ## Prevent a link preview
 
 Put a complete HTTP or HTTPS URL in angle brackets to keep the link clickable without a preview attachment:

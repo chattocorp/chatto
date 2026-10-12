@@ -316,3 +316,27 @@ describe('MarkdownEditor', () => {
     expect(api.getText()).toBe('');
   });
 });
+
+it.each([
+  { text: 'foo@bar.com', linked: false },
+  { text: 'ftp://example.com/file', linked: false },
+  { text: 'ssh://example.com', linked: false },
+  { text: 'blob:https://example.com/id', linked: false },
+  { text: 'tel:+123456789', linked: false },
+  { text: 'agents.md readme.md foo.py', linked: false },
+  { text: 'mailto:foo@bar.com', linked: true },
+  { text: 'https://example.com', linked: true },
+  { text: 'www.example.com', linked: true }
+])('uses prefix rules for source highlighting: $text', async ({ text, linked }) => {
+  await renderEditor();
+  const textbox = page.getByRole('textbox', { name: 'Write Markdown' });
+  await textbox.fill(text);
+  await expect
+    .poll(() => {
+      const spans = textbox.element().querySelectorAll('span');
+      return [...spans].some((span) =>
+        getComputedStyle(span).textDecorationLine.includes('underline')
+      );
+    })
+    .toBe(linked);
+});

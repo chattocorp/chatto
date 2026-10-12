@@ -2,23 +2,18 @@
  * URL detection utilities for link previews.
  *
  * Uses linkify-it (same library as markdown-it's auto-linker) with the full
- * IANA TLD list so that bare-domain URLs like www.hmans.dev are detected.
+ * IANA TLD list and requires a protocol or www. prefix.
  */
 
-import LinkifyIt from 'linkify-it';
 import MarkdownIt from 'markdown-it';
-import tlds from 'tlds';
-
-/** Shared linkify-it instance configured with the full IANA TLD list. */
-export const linkify = new LinkifyIt();
-linkify.tlds(tlds);
+import { configureMarkdownLinks, isPreviewURL } from './markdownLinks';
 
 const markdown = new MarkdownIt({
   html: false,
   linkify: true,
   breaks: true
 });
-markdown.linkify.tlds(tlds);
+configureMarkdownLinks(markdown);
 markdown.disable(['escape']);
 
 function endsWithUnescapedOpeningAngle(text: string): boolean {
@@ -33,9 +28,9 @@ function endsWithUnescapedOpeningAngle(text: string): boolean {
 }
 
 /**
- * Extracts unique URLs from text, including bare-domain URLs (e.g. www.hmans.dev).
+ * Extracts unique URLs from text, including www. URLs (e.g. www.example.com).
  * Returns at most maxURLs URLs, in the order they appear.
- * Bare-domain URLs are normalized to https://.
+ * www. URLs are normalized to https://.
  */
 export function extractURLs(text: string, maxURLs = 1): string[] {
   if (maxURLs <= 0 || !text) return [];
@@ -43,16 +38,8 @@ export function extractURLs(text: string, maxURLs = 1): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
 
-  const addURL = (rawUrl: string, rawText = '') => {
-    if (result.length >= maxURLs) return;
-
-    let url = rawUrl;
-    if (rawText && !/^[a-z][a-z0-9+.-]*:/i.test(rawText) && /^http:\/\//i.test(url)) {
-      // linkify-it adds http:// to bare domains; upgrade those to https://.
-      url = url.replace(/^http:\/\//i, 'https://');
-    }
-
-    if (!/^https?:\/\//i.test(url)) return;
+  const addURL = (url: string) => {
+    if (result.length >= maxURLs || !isPreviewURL(url)) return;
 
     const normalized = normalizeURL(url);
 
@@ -79,7 +66,7 @@ export function extractURLs(text: string, maxURLs = 1): string[] {
     const children = token.children ?? [];
     for (let i = 0; i < children.length; i++) {
       const child = children[i];
-      if (child.type !== 'link_open') continue;
+      if (child.type !== 'link_open' || child.hidden) continue;
       if (child.markup === 'autolink') continue;
 
       const href = child.attrGet('href');
@@ -92,8 +79,7 @@ export function extractURLs(text: string, maxURLs = 1): string[] {
         linkText === href;
       if (hasUnclosedAutolinkPrefix) continue;
 
-      const rawText = child.markup === 'linkify' ? linkText : '';
-      addURL(href, rawText);
+      addURL(href);
     }
   }
 

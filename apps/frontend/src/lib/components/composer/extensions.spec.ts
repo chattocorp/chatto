@@ -9,6 +9,7 @@ describe('createComposerExtensions', () => {
       'starterKit',
       'link',
       'markdown',
+      'unsupportedLinkProtocol',
       'footnoteReference',
       'footnoteDefinition',
       'codeBlock',

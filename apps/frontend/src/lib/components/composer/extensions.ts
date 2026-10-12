@@ -1,3 +1,4 @@
+import { hasAutoLinkPrefix, hasAllowedLinkProtocol } from '$lib/markdownLinks';
 import {
   Extension,
   InputRule,
@@ -52,6 +53,23 @@ function isMarkdownAutolinkToken(token: MarkdownToken): boolean {
   return isHttpMarkdownAutolink(raw) && raw.slice(1, -1) === (token.href ?? '');
 }
 
+/** Consume unsupported URIs as text before Marked can link a nested web URL. */
+const UnsupportedLinkProtocol = Extension.create({
+  name: 'unsupportedLinkProtocol',
+  markdownTokenizer: {
+    name: 'unsupportedLinkProtocol',
+    level: 'inline',
+    start: (source) => source.search(/[a-z][a-z0-9+.-]*:/i),
+    tokenize(source) {
+      const raw = source.match(/^[a-z][a-z0-9+.-]*:(?:https?:\/\/|www\.)[^\s<>]*/i)?.[0];
+      if (raw && !hasAllowedLinkProtocol(raw)) {
+        return { type: 'unsupportedLinkProtocol', raw };
+      }
+    }
+  },
+  parseMarkdown: (token) => ({ type: 'text', text: token.raw ?? '' })
+});
+
 export const ComposerLink = Link.extend({
   inclusive: false,
 
@@ -66,6 +84,14 @@ export const ComposerLink = Link.extend({
   },
 
   parseMarkdown(token: MarkdownToken, helpers: MarkdownParseHelpers) {
+    // Marked also detects bare domains and email addresses when restoring Markdown.
+    const raw = token.raw ?? '';
+    if (
+      !hasAllowedLinkProtocol(token.href ?? '') ||
+      (!raw.startsWith('[') && !raw.startsWith('<') && !hasAutoLinkPrefix(raw))
+    ) {
+      return helpers.parseInline(token.tokens ?? []);
+    }
     return helpers.applyMark('link', helpers.parseInline(token.tokens ?? []), {
       href: token.href,
       title: token.title || null,
@@ -496,6 +522,8 @@ export function createComposerExtensions(placeholder: string) {
     }),
     ComposerLink.configure({
       autolink: true,
+      shouldAutoLink: hasAutoLinkPrefix,
+      isAllowedUri: (url, { defaultValidate }) => hasAutoLinkPrefix(url) && defaultValidate(url),
       linkOnPaste: true,
       openOnClick: false,
       enableClickSelection: true
@@ -505,6 +533,7 @@ export function createComposerExtensions(placeholder: string) {
         breaks: true
       }
     }),
+    UnsupportedLinkProtocol.configure(),
     FootnoteReference.configure(),
     FootnoteDefinition.configure(),
     ComposerCodeBlockLowlight.configure({ lowlight }),
