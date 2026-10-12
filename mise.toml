@@ -1143,5 +1143,5 @@ description = "Check Authling and Chatto against the official OIDC suite"
 run = "bash tools/test-oidc-conformance.sh"
 
 [tasks.test-mcp-conformance]
-description = "Check an authenticated Chatto endpoint with the pinned official MCP suite"
+description = "Run selected official MCP application protocol checks (not full conformance)"
 run = "node tools/test-mcp-conformance.mjs"
