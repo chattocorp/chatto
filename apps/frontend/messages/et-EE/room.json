@@ -255,6 +255,9 @@
     "jump_to_present": "Hüppa oleviku juurde",
     "jump_failed": "Selle sõnumi juurde ei saanud hüpata.",
     "unread_separator": "Uued sõnumid",
-    "close_extras": "Sule ruumi lisad"
+    "close_extras": "Sule ruumi lisad",
+    "dm": {
+      "deleted_user_notice": "Teine kasutaja on kustutatud."
+    }
   }
 }

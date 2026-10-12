@@ -259,6 +259,9 @@
     "jump_to_present": "קפוץ להצגה",
     "jump_failed": "לא ניתן לקפוץ להודעה זו.",
     "unread_separator": "הודעות חדשות",
-    "close_extras": "סגור את תוספות החדר"
+    "close_extras": "סגור את תוספות החדר",
+    "dm": {
+      "deleted_user_notice": "המשתמש השני נמחק."
+    }
   }
 }

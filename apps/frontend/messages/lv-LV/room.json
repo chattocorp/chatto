@@ -255,6 +255,9 @@
     "jump_to_present": "Pāriet uz klāt",
     "jump_failed": "Nevarēja pāriet uz šo ziņojumu.",
     "unread_separator": "Jaunas ziņas",
-    "close_extras": "Aizvērt telpas ekstras"
+    "close_extras": "Aizvērt telpas ekstras",
+    "dm": {
+      "deleted_user_notice": "Otrs lietotājs ir dzēsts."
+    }
   }
 }

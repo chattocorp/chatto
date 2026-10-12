@@ -45,6 +45,7 @@ const mocks = vi.hoisted(() => ({
   livekitUrl: null as string | null,
   roomKind: 1,
   dmParticipantIds: ['test-user', 'user-1'] as string[],
+  deletedPartner: false,
   threadingMode: 3,
   canReadMessages: true as boolean | null,
   typingUserIds: [] as string[],
@@ -151,9 +152,10 @@ vi.mock('$lib/hooks', () => ({
                 id: 'user-1',
                 login: 'userone',
                 displayName: 'User One',
+                deleted: mocks.deletedPartner,
                 presenceStatus: 1
               }
-            ],
+            ].filter((participant) => mocks.dmParticipantIds.includes(participant.id)),
             currentUserId: 'test-user'
           }
         : null,
@@ -467,6 +469,7 @@ beforeEach(() => {
     return store;
   });
   mocks.dmParticipantIds = ['test-user', 'user-1'];
+  mocks.deletedPartner = false;
   mocks.threadingMode = RoomThreadingMode.ENABLED;
   mocks.canReadMessages = true;
   mocks.typingUserIds = [];
@@ -497,6 +500,28 @@ afterEach(async () => {
 });
 
 describe('Room interaction bundles', () => {
+  it.each([
+    [RoomKind.DM, true, ['test-user', 'user-1'], true],
+    [RoomKind.DM, false, ['test-user', 'user-1'], false],
+    [RoomKind.CHANNEL, true, ['test-user', 'user-1'], false],
+    [RoomKind.DM, true, ['test-user'], false],
+    [RoomKind.DM, true, ['test-user', 'unresolved'], false]
+  ])(
+    'shows deleted-partner state only in a deleted-user DM (%s, %s)',
+    async (kind, deleted, participants, visible) => {
+      mocks.roomKind = kind;
+      mocks.deletedPartner = deleted;
+      mocks.dmParticipantIds = participants;
+      const view = render(Room, { props: { roomId: 'room-1' } });
+      await expect
+        .element(view.getByTestId('event-list-show-tombstones'))
+        .toHaveTextContent(String(visible));
+      const notice = view.getByText('The other user has been deleted.', { exact: true });
+      if (visible) await expect.element(notice).toBeVisible();
+      else await expect.element(notice).not.toBeInTheDocument();
+    }
+  );
+
   it('loads channel membership through the canonical member directory', async () => {
     const ensureLoaded = vi
       .spyOn(RoomMembersStore.prototype, 'ensureLoaded')

@@ -1,7 +1,7 @@
 # FDR-018: Account Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-09-27
+**Last reviewed:** 2026-10-12
 
 ## Overview
 
@@ -68,7 +68,7 @@ This FDR covers human accounts from registration through deletion: signup, email
 - Account deletion confirmation-token issuance is recorded in the EVT audit log with expiry and safe request metadata; the raw token is not recorded.
 - The account deletion confirmation token itself lives in `RUNTIME_STATE` under an HMAC-derived key with a 15-minute per-key TTL.
 - On deletion, the server: records `UserKeyShreddingRequestedEvent` with the complete opaque key coordinates, immediately tombstones the user's profile, authentication, search, and authored message state, then idempotently shreds app-owned DEK refs from `RUNTIME_STATE` and KMS wrapping-key refs from `ENCRYPTION_KEYS`. `UserKeyShreddedEvent` records physical completion. Durable workers retry unfinished key shredding and current message-owned asset deletion facts across crashes and replicas.
-- After deletion, all messages the user ever posted are tombstoned by projection before decryption and cryptographically unreadable. Timeline clients apply the normal deleted-message retention rule, so placeholders without current attachments, previews, reactions, or thread replies disappear immediately.
+- After deletion, all messages the user ever posted are tombstoned by projection before decryption and cryptographically unreadable. Timeline clients apply the normal deleted-message retention rule, so placeholders without current attachments, previews, reactions, or thread replies disappear immediately. A DM with a deleted participant keeps these placeholders and shows a notice that the other user has been deleted (FDR-007).
 - Deleting an account removes its notification list, notification read and
   visibility boundaries, and push subscriptions. Push-credential cleanup
   retries from the durable account-deletion fact across crashes and partial

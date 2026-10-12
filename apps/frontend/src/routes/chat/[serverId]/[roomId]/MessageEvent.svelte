@@ -274,7 +274,8 @@
 
   // Message is "deleted" if it has no body AND no attachments.
   // Deleted rows that reach this component have visible context and render as
-  // tombstones. EventList omits context-free tombstones before rendering.
+  // tombstones. EventList usually omits context-free tombstones, but keeps them
+  // in a DM whose other participant was deleted.
   const isDeleted = $derived(msg ? isDeletedMessage(msg) : true);
 
   const replyTarget = $derived.by(() => {

@@ -255,6 +255,9 @@
     "jump_to_present": "Vai al presente",
     "jump_failed": "Impossibile passare a quel messaggio.",
     "unread_separator": "Nuovi messaggi",
-    "close_extras": "Chiudi gli extra della camera"
+    "close_extras": "Chiudi gli extra della camera",
+    "dm": {
+      "deleted_user_notice": "L’altro utente è stato eliminato."
+    }
   }
 }

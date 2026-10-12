@@ -255,6 +255,9 @@
     "jump_to_present": "跳转到最新消息",
     "jump_failed": "无法跳转到该消息。",
     "unread_separator": "新消息",
-    "close_extras": "关闭聊天室附加内容"
+    "close_extras": "关闭聊天室附加内容",
+    "dm": {
+      "deleted_user_notice": "对方用户已被删除。"
+    }
   }
 }
