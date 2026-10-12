@@ -235,7 +235,7 @@
       "unpin_prompt": "Möchtest du den Pin dieser Nachricht wirklich entfernen?",
       "loading": "Angepinnte Nachrichten werden geladen...",
       "empty_title": "Keine angepinnten Nachrichten",
-      "empty_description": "Raumverwalter können hier wichtige Nachrichten anpinnen.",
+      "empty_description": "Angeheftete Nachrichten erscheinen hier.",
       "error_title": "Angepinnte Nachrichten nicht verfügbar",
       "error_description": "Angepinnte Nachrichten konnten nicht geladen werden. Versuche es gleich noch einmal.",
       "update_failed": "Angepinnte Nachricht konnte nicht aktualisiert werden"

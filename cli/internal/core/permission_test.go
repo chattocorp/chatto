@@ -200,6 +200,10 @@ func TestPermissionAppliesAtScope(t *testing.T) {
 		{"room.remove-member at server", PermRoomMemberRemove, ScopeServer, true},
 		{"room.remove-member at room", PermRoomMemberRemove, ScopeRoom, true},
 		{"message.manage at room", PermMessageManage, ScopeRoom, true},
+		{"message.pin at server", PermMessagePin, ScopeServer, true},
+		{"message.pin at group", PermMessagePin, ScopeGroup, true},
+		{"message.pin at room", PermMessagePin, ScopeRoom, true},
+		{"message.pin at DM", PermMessagePin, ScopeDM, false},
 		{"room.create at server", PermRoomCreate, ScopeServer, true},
 		{"room.create at group", PermRoomCreate, ScopeGroup, true},
 
@@ -442,6 +446,7 @@ func TestDefaultModeratorPermissions(t *testing.T) {
 
 	want := []Permission{
 		PermMessageManage,
+		PermMessagePin,
 		PermRoomMemberRemove,
 	}
 	if !slices.Equal(DefaultModeratorPermissions(), want) {
@@ -519,6 +524,7 @@ func TestPermissionConsistency(t *testing.T) {
 			PermRoomManage,
 			PermRoomMemberRemove,
 			PermMessageManage,
+			PermMessagePin,
 			PermRoleManage,
 			PermRoleAssign,
 			PermAdminUsersView,

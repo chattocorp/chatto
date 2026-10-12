@@ -255,7 +255,7 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Pins a current message. The caller must have room.manage and must be able
+     * Pins a current message. The caller must have message.pin and must be able
      * to read the message. Repeating an existing pin is idempotent. Direct-message
      * rooms are rejected.
      *
@@ -268,7 +268,7 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Removes a current pin. The caller must have room.manage. Removing a
+     * Removes a current pin. The caller must have message.pin. Removing a
      * missing pin is idempotent. Direct-message rooms are rejected.
      *
      * @generated from rpc chatto.api.v1.RoomService.DeletePinnedMessage

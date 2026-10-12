@@ -5,7 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
@@ -146,17 +148,26 @@ func TestPinnedMessageCommandsAuthorizationIdempotenceAndDMRejection(t *testing.
 		t.Fatalf("PostMessage: %v", err)
 	}
 	input := PinnedMessageMutationInput{ActorID: manager.Id, RoomID: room.Id, MessageEventID: message.Id}
-	if _, err := chatto.RoomCommands().CreatePinnedMessage(ctx, input); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("CreatePinnedMessage without room.manage error = %v", err)
-	}
 	if err := chatto.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomManage); err != nil {
+		t.Fatalf("GrantRoomPermission room.manage: %v", err)
+	}
+	if _, err := chatto.RoomCommands().CreatePinnedMessage(ctx, input); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("CreatePinnedMessage with only room.manage error = %v", err)
+	}
+	if _, err := chatto.RoomCommands().DeletePinnedMessage(ctx, input); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("DeletePinnedMessage with only room.manage error = %v", err)
+	}
+	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomManage); err != nil {
+		t.Fatalf("DenyRoomPermission room.manage: %v", err)
+	}
+	if err := chatto.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePin); err != nil {
 		t.Fatalf("GrantRoomPermission: %v", err)
 	}
 	outsider, err := chatto.CreateUser(ctx, SystemActorID, "pin-outsider", "Pin Outsider", "password")
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if err := chatto.GrantUserPermission(ctx, SystemActorID, outsider.Id, PermRoomManage); err != nil {
+	if err := chatto.GrantUserPermission(ctx, SystemActorID, outsider.Id, PermMessagePin); err != nil {
 		t.Fatalf("GrantUserPermission outsider: %v", err)
 	}
 	outsiderInput := PinnedMessageMutationInput{ActorID: outsider.Id, RoomID: room.Id, MessageEventID: message.Id}
@@ -230,6 +241,52 @@ func TestPinnedMessageCommandsAuthorizationIdempotenceAndDMRejection(t *testing.
 	}
 }
 
+// Pin delegation must work for ordinary human sessions at every supported scope.
+func TestPinnedMessagePermissionScopes(t *testing.T) {
+	t.Parallel()
+	for _, scope := range []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom} {
+		t.Run(string(scope), func(t *testing.T) {
+			t.Parallel()
+			c, _ := setupTestCore(t)
+			ctx := testContext(t)
+			member, err := c.CreateUser(ctx, SystemActorID, "pin-delegate", "Pin Delegate", "password")
+			require.NoError(t, err)
+			group, err := c.CreateRoomGroup(ctx, SystemActorID, "pin-group", "")
+			require.NoError(t, err)
+			room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, group.Id, "pin-room", "")
+			require.NoError(t, err)
+			_, err = c.JoinRoom(ctx, member.Id, KindChannel, member.Id, room.Id)
+			require.NoError(t, err)
+			message, err := c.PostMessage(ctx, KindChannel, room.Id, member.Id, "pin target", nil, "", "", nil, false)
+			require.NoError(t, err)
+			switch scope {
+			case ScopeServer:
+				err = c.GrantUserPermission(ctx, SystemActorID, member.Id, PermMessagePin)
+			case ScopeGroup:
+				err = c.GrantUserGroupPermission(ctx, SystemActorID, group.Id, member.Id, PermMessagePin)
+			case ScopeRoom:
+				err = c.GrantUserRoomPermission(ctx, SystemActorID, room.Id, member.Id, PermMessagePin)
+			}
+			require.NoError(t, err)
+			session := authctx.WithCredential(ctx, authctx.RuntimeCredential{
+				Handle: "pin-session", Kind: authctx.RuntimeCredentialKindBearerToken, UserID: member.Id,
+			})
+			input := PinnedMessageMutationInput{ActorID: member.Id, RoomID: room.Id, MessageEventID: message.Id}
+			_, err = c.RoomCommands().CreatePinnedMessage(session, input)
+			require.NoError(t, err)
+			_, err = c.RoomCommands().DeletePinnedMessage(session, input)
+			require.NoError(t, err)
+			_, err = c.RoomCommands().CreatePinnedMessage(session, input)
+			require.NoError(t, err)
+			require.NoError(t, c.DenyUserRoomPermission(ctx, SystemActorID, room.Id, member.Id, PermMessagePin))
+			_, err = c.RoomCommands().CreatePinnedMessage(session, input)
+			require.ErrorIs(t, err, ErrPermissionDenied)
+			_, err = c.RoomCommands().DeletePinnedMessage(session, input)
+			require.ErrorIs(t, err, ErrPermissionDenied)
+		})
+	}
+}
+
 func TestPinnedMessagesAndReactionsUseThreadInteractions(t *testing.T) {
 	t.Parallel()
 
@@ -252,8 +309,8 @@ func TestPinnedMessagesAndReactionsUseThreadInteractions(t *testing.T) {
 			t.Fatalf("JoinRoom %s: %v", userID, err)
 		}
 	}
-	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), author.GetId(), PermRoomManage); err != nil {
-		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
+	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), author.GetId(), PermMessagePin); err != nil {
+		t.Fatalf("GrantUserRoomPermission message.pin: %v", err)
 	}
 	visibleRoot, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "visible pin root", nil, "", "", nil, false)
 	if err != nil {

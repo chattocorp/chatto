@@ -235,7 +235,7 @@
       "unpin_prompt": "Opravdu chcete tuto zprávu odepnout?",
       "loading": "Načítání připnutých zpráv...",
       "empty_title": "Žádné připnuté zprávy",
-      "empty_description": "Správci místnosti zde mohou připnout důležité zprávy.",
+      "empty_description": "Zde se zobrazují připnuté zprávy.",
       "error_title": "Připnuté zprávy nejsou dostupné",
       "error_description": "Připnuté zprávy se nepodařilo načíst. Zkuste to za chvíli znovu.",
       "update_failed": "Připnutou zprávu se nepodařilo aktualizovat"

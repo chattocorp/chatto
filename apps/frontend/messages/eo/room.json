@@ -235,7 +235,7 @@
       "unpin_prompt": "Ĉu vi certas, ke vi volas forigi ĉi tiun alpinglon?",
       "loading": "Ŝargante alpinglitajn mesaĝojn...",
       "empty_title": "Neniuj alpinglitaj mesaĝoj",
-      "empty_description": "Ĉambroadministrantoj povas alpingli gravajn mesaĝojn ĉi tie.",
+      "empty_description": "Alpinglitaj mesaĝoj aperas ĉi tie.",
       "error_title": "Alpinglitaj mesaĝoj ne disponeblas",
       "error_description": "Ne eblis ŝargi alpinglitajn mesaĝojn. Provu denove post momento.",
       "update_failed": "Ne eblis ĝisdatigi la alpinglitan mesaĝon"

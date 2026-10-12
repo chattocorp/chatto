@@ -37,6 +37,8 @@ export type DirectoryRoomDetails = DirectoryRoomSummary & {
   canAttach: boolean;
   canReact: boolean;
   canEchoMessage: boolean;
+  /** Server-authorized pin mutations; pinning also requires access to the message. */
+  canPinMessages: boolean;
   canManageOthersMessage: boolean;
   canBanRoomMembers: boolean;
 };
@@ -77,6 +79,7 @@ const RoomPermission = {
   BanMember: 'room.remove-member',
   CreateRoom: 'room.create',
   EchoMessage: 'message.echo',
+  PinMessages: 'message.pin',
   JoinRoom: 'room.join',
   ManageMessage: 'message.manage',
   ManageRoom: 'room.manage',
@@ -168,6 +171,7 @@ export function mapDirectoryRoomDetails(
     canAttach: hasRoomPermission(entry.viewerState, RoomPermission.Attach),
     canReact: hasRoomPermission(entry.viewerState, RoomPermission.React),
     canEchoMessage: hasRoomPermission(entry.viewerState, RoomPermission.EchoMessage),
+    canPinMessages: hasRoomPermission(entry.viewerState, RoomPermission.PinMessages),
     canManageOthersMessage: hasRoomPermission(entry.viewerState, RoomPermission.ManageMessage),
     canManageRoom: hasRoomPermission(entry.viewerState, RoomPermission.ManageRoom),
     canBanRoomMembers: hasRoomPermission(entry.viewerState, RoomPermission.BanMember)

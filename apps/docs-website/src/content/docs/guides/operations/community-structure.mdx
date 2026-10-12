@@ -120,13 +120,18 @@ Pin messages that members need again, such as announcements, frequent answers,
 or decisions.
 
 - To pin or unpin, open the action menu of a message and select
-  **Pin message** or **Unpin message**. You need `room.manage`. There is no
-  separate pin permission.
+  **Pin message** or **Unpin message**. You need `message.pin`. To pin a
+  message, you must also be able to read it. This permission does not require
+  privileged mode or room management access.
 - To see pins, select the pin icon in the room header. The **Pins** sidebar
   shows the full messages, newest pin first. Select a pin to open the
   original message.
 - A dot on the pin icon shows a new pin since you last opened the sidebar in
   this browser.
+
+Grant `message.pin` at server, room-group, or room scope to the roles or
+accounts that need it. New servers grant it to Admin and Moderator. On an
+existing server, grant it explicitly; `room.manage` no longer grants pin access.
 
 Edits to a message show in its pin. When you delete a message, Chatto removes
 its pin. Direct messages have no pins. Archived rooms keep their pins, but you

@@ -235,7 +235,7 @@
       "unpin_prompt": "Tem certeza de que deseja remover esta mensagem fixada?",
       "loading": "Carregando mensagens fixadas...",
       "empty_title": "Nenhuma mensagem fixada",
-      "empty_description": "Os gestores da sala podem fixar mensagens importantes aqui.",
+      "empty_description": "As mensagens fixadas aparecem aqui.",
       "error_title": "Mensagens fixadas indisponíveis",
       "error_description": "Não foi possível carregar as mensagens fixadas. Tente novamente daqui a pouco.",
       "update_failed": "Não foi possível atualizar a mensagem fixada"

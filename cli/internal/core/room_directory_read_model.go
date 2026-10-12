@@ -76,6 +76,7 @@ type DirectoryRoomViewerState struct {
 	CanAttach              bool
 	CanReact               bool
 	CanEchoMessage         bool
+	CanPinMessages         bool // Pin mutations in an active channel where the viewer is a member.
 	CanManageOthersMessage bool
 	CanManageRoom          bool
 	CanBanRoomMembers      bool
@@ -548,6 +549,10 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 	if err != nil {
 		return DirectoryRoomViewerState{}, err
 	}
+	canPin, err := s.permissions.HasRoomPermission(ctx, actorID, kind, room.Id, PermMessagePin)
+	if err != nil {
+		return DirectoryRoomViewerState{}, err
+	}
 	canManageRoom, err := s.permissions.HasRoomPermission(ctx, actorID, kind, room.Id, PermRoomManage)
 	if err != nil {
 		return DirectoryRoomViewerState{}, err
@@ -596,6 +601,7 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 		CanAttach:              canAttach,
 		CanReact:               canReact,
 		CanEchoMessage:         canEcho,
+		CanPinMessages:         canPin && messageActionsEnabled && kind == KindChannel,
 		CanManageOthersMessage: canManageOthersMessage,
 		CanManageRoom:          canManageRoom,
 		CanBanRoomMembers:      canBanRoomMembers,

@@ -235,7 +235,7 @@
       "unpin_prompt": "Bu mesajın sabitlemesini kaldırmak istediğinizden emin misiniz?",
       "loading": "Sabitlenmiş mesajlar yükleniyor...",
       "empty_title": "Sabitlenmiş mesaj yok",
-      "empty_description": "Oda yöneticileri önemli mesajları buraya sabitleyebilir.",
+      "empty_description": "Sabitlenmiş mesajlar burada görünür.",
       "error_title": "Sabitlenmiş mesajlar kullanılamıyor",
       "error_description": "Sabitlenmiş mesajlar yüklenemedi. Biraz sonra tekrar deneyin.",
       "update_failed": "Sabitlenmiş mesaj güncellenemedi"

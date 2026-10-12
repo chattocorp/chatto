@@ -118,6 +118,10 @@ const (
 	// NOT need this permission; it is always allowed.
 	PermMessageManage Permission = "message.manage"
 
+	// PermMessagePin allows pinning and unpinning messages in channel rooms.
+	// It does not grant room management or message read access.
+	PermMessagePin Permission = "message.pin"
+
 	// PermMessageReact allows adding/removing reactions to messages.
 	PermMessageReact Permission = "message.react"
 
@@ -223,6 +227,7 @@ var allPermissions = []PermissionMetadata{
 	{Permission: PermMessagePostInInteractions, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
 	{Permission: PermMessageAttach, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
 	{Permission: PermMessageManage, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}, RequiresPrivilegedMode: true},
+	{Permission: PermMessagePin, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{Permission: PermMessageReact, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
 	{Permission: PermMessageEcho, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
 
@@ -419,6 +424,7 @@ func DefaultEveryonePermissions() []Permission {
 func DefaultModeratorPermissions() []Permission {
 	return []Permission{
 		PermMessageManage,
+		PermMessagePin,
 		PermRoomMemberRemove,
 	}
 }
@@ -437,6 +443,7 @@ func DefaultAdminPermissions() []Permission {
 		PermRoomManage,
 		PermRoomMemberRemove,
 		PermMessageManage,
+		PermMessagePin,
 		PermRoleManage,
 		PermRoleAssign,
 		PermAdminUsersView,

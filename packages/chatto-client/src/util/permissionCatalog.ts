@@ -138,6 +138,10 @@ export const PERMISSION_DEFINITIONS: Readonly<Record<string, PermissionDefinitio
     scopes: ['server', 'group', 'room', 'dm'],
     privileged: true
   },
+  'message.pin': {
+    category: 'message',
+    scopes: ['server', 'group', 'room']
+  },
   'message.react': {
     category: 'message',
     scopes: ['server', 'group', 'room', 'dm']

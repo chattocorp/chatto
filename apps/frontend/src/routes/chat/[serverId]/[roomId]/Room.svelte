@@ -158,7 +158,7 @@
       !room.isDM &&
       !room.roomData?.room.archived &&
       Boolean(roomPinsStore) &&
-      Boolean(room.roomData?.canManageRoom)
+      Boolean(room.roomData?.canPinMessages)
   });
   let composerCanAttach = $derived(room.roomData === undefined ? true : permissions.canAttach);
   let threadingMode = $derived(room.roomData?.room.threadingMode ?? RoomThreadingMode.ENABLED);

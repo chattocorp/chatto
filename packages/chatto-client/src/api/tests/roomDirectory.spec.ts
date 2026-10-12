@@ -12,6 +12,7 @@ const Permission = {
   BanMember: 'room.remove-member',
   CreateRoom: 'room.create',
   EchoMessage: 'message.echo',
+  PinMessages: 'message.pin',
   JoinRoom: 'room.join',
   ManageMessage: 'message.manage',
   ManageRoom: 'room.manage',
@@ -185,9 +186,28 @@ describe('createRoomDirectoryAPI', () => {
       canAttach: false,
       canReact: true,
       canEchoMessage: true,
+      canPinMessages: false,
       canManageOthersMessage: false,
       canManageRoom: true,
       canBanRoomMembers: false
+    });
+  });
+
+  it('maps pin permission independently of room management', async () => {
+    mocks.getRoom.mockReturnValue({
+      room: {
+        room: { id: 'room-1', kind: RoomKind.CHANNEL },
+        viewerState: roomViewerState({
+          isMember: true,
+          [Permission.PinMessages]: true,
+          hasUnread: false,
+          [Permission.ManageRoom]: false
+        })
+      }
+    });
+    expect(await directoryAPI().getRoom('room-1')).toMatchObject({
+      canPinMessages: true,
+      canManageRoom: false
     });
   });
 

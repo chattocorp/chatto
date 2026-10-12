@@ -235,7 +235,7 @@
       "unpin_prompt": "Weet je zeker dat je deze vastzetting wilt verwijderen?",
       "loading": "Vastgezette berichten laden...",
       "empty_title": "Geen vastgezette berichten",
-      "empty_description": "Kamerbeheerders kunnen hier belangrijke berichten vastzetten.",
+      "empty_description": "Vastgemaakte berichten verschijnen hier.",
       "error_title": "Vastgezette berichten niet beschikbaar",
       "error_description": "Vastgezette berichten konden niet worden geladen. Probeer het zo opnieuw.",
       "update_failed": "Kon het vastgezette bericht niet bijwerken"

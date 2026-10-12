@@ -206,10 +206,14 @@ func TestRoomServicePinnedMessages(t *testing.T) {
 	}
 	message := messageResponse.Msg.GetMessage()
 	if _, err := env.rooms.CreatePinnedMessage(ctx, connect.NewRequest(&apiv1.CreatePinnedMessageRequest{RoomId: room.Id, MessageEventId: message.GetId()})); errorCode(err) != connect.CodePermissionDenied {
-		t.Fatalf("CreatePinnedMessage without room.manage code = %v", errorCode(err))
+		t.Fatalf("CreatePinnedMessage without message.pin code = %v", errorCode(err))
 	}
-	if err := env.core.GrantRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomManage); err != nil {
+	if err := env.core.GrantRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePin); err != nil {
 		t.Fatalf("GrantRoomPermission: %v", err)
+	}
+	directoryRoom, err := env.directory.GetRoom(ctx, connect.NewRequest(&apiv1.GetRoomRequest{RoomId: room.Id}))
+	if err != nil || !apiRoomPermissionGranted(directoryRoom.Msg.GetRoom(), core.PermMessagePin) {
+		t.Fatalf("GetRoom message.pin grant = %v, %v", directoryRoom, err)
 	}
 	created, err := env.rooms.CreatePinnedMessage(ctx, connect.NewRequest(&apiv1.CreatePinnedMessageRequest{RoomId: room.Id, MessageEventId: message.GetId()}))
 	if err != nil {
@@ -231,6 +235,15 @@ func TestRoomServicePinnedMessages(t *testing.T) {
 	}))
 	if err != nil || len(batch.Msg.GetMessages()) != 1 || batch.Msg.GetMessages()[0].GetId() != message.GetId() || !batch.Msg.GetMessages()[0].GetPinned() {
 		t.Fatalf("BatchGetMessages pinned state = %+v, %v", batch.Msg, err)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePin); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
+	}
+	if _, err := env.rooms.DeletePinnedMessage(ctx, connect.NewRequest(&apiv1.DeletePinnedMessageRequest{RoomId: room.Id, MessageEventId: message.GetId()})); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("DeletePinnedMessage after revocation code = %v", errorCode(err))
+	}
+	if err := env.core.GrantRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePin); err != nil {
+		t.Fatalf("GrantRoomPermission after revocation: %v", err)
 	}
 	if _, err := env.rooms.DeletePinnedMessage(ctx, connect.NewRequest(&apiv1.DeletePinnedMessageRequest{RoomId: room.Id, MessageEventId: message.GetId()})); err != nil {
 		t.Fatalf("DeletePinnedMessage: %v", err)
@@ -1075,6 +1088,7 @@ func TestRoomDirectoryServiceViewerStateMatchesWritePreconditions(t *testing.T) 
 			core.PermMessageAttach,
 			core.PermMessageReact,
 			core.PermMessageEcho,
+			core.PermMessagePin,
 			core.PermMessageManage,
 		} {
 			if err := env.core.GrantRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, perm); err != nil {
@@ -1111,6 +1125,7 @@ func TestRoomDirectoryServiceViewerStateMatchesWritePreconditions(t *testing.T) 
 		apiRoomPermissionGranted(visibleRoom, core.PermMessageAttach) ||
 		apiRoomPermissionGranted(visibleRoom, core.PermMessageReact) ||
 		apiRoomPermissionGranted(visibleRoom, core.PermMessageEcho) ||
+		apiRoomPermissionGranted(visibleRoom, core.PermMessagePin) ||
 		apiRoomPermissionGranted(visibleRoom, core.PermMessageManage) {
 		t.Fatalf("visible non-member exposes member-only actions: %+v", visibleRoom)
 	}
@@ -1142,7 +1157,8 @@ func TestRoomDirectoryServiceViewerStateMatchesWritePreconditions(t *testing.T) 
 		apiRoomPermissionGranted(archivedRoom, core.PermMessagePostInThread) ||
 		apiRoomPermissionGranted(archivedRoom, core.PermMessageAttach) ||
 		apiRoomPermissionGranted(archivedRoom, core.PermMessageReact) ||
-		apiRoomPermissionGranted(archivedRoom, core.PermMessageEcho) {
+		apiRoomPermissionGranted(archivedRoom, core.PermMessageEcho) ||
+		apiRoomPermissionGranted(archivedRoom, core.PermMessagePin) {
 		t.Fatalf("archived room exposes unavailable actions: %+v", archivedRoom)
 	}
 	if !apiRoomPermissionGranted(archivedRoom, core.PermMessageManage) {
