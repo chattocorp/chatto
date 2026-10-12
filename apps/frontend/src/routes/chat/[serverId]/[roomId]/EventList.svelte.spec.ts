@@ -26,6 +26,9 @@ beforeEach(() => {
     connection: {
       get showConnectionLostIcon() {
         return connection.showConnectionLostIcon;
+      },
+      get realtimeUnsupported() {
+        return connection.realtimeUnsupported;
       }
     }
   });
@@ -118,6 +121,30 @@ describe('EventList reconnection', () => {
       .element(page.getByRole('status', { name: 'Loading messages...' }))
       .toBeInTheDocument();
     await expect.element(page.getByRole('status', { name: indicatorName })).not.toBeInTheDocument();
+  });
+
+  it('removes the dots when the server does not support the realtime protocol', async () => {
+    render(EventListTestHarness, {
+      props: { eventIds: ['retained-message'], scrollToEventId: null }
+    });
+    const indicator = page.getByRole('status', { name: indicatorName });
+    connection.setRealtimeConnectionStatus('disconnected', 1);
+    await expect.element(indicator).toBeInTheDocument();
+
+    connection.markRealtimeUnsupported();
+    await expect.element(indicator).not.toBeInTheDocument();
+  });
+
+  it('removes the dots when a forced reconnect starts a fresh attempt', async () => {
+    render(EventListTestHarness, {
+      props: { eventIds: ['retained-message'], scrollToEventId: null }
+    });
+    const indicator = page.getByRole('status', { name: indicatorName });
+    connection.setRealtimeConnectionStatus('disconnected', 1);
+    await expect.element(indicator).toBeInTheDocument();
+
+    connection.forceReconnect('tab resumed');
+    await expect.element(indicator).not.toBeInTheDocument();
   });
 
   it('does not show pending dots for a dormant connection', async () => {

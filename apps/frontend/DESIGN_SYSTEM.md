@@ -374,11 +374,11 @@ Follow these defaults:
   `LoadingFog`. The dots appear after a short delay, so fast loads do not
   show them. When the user requests less motion, the dots stay still.
   When a loaded room or thread loses its connection, keep its messages visible.
-  When a reconnection attempt fails, the app header shows the connection-lost
-  icon. Show the same dots below the scroll area, above the composer, at the
-  same time. Remove the dots when the connection finishes catching up. Do not
-  show the dots for a brief reconnection that succeeds on its first attempt,
-  for a dormant connection, or while the first page loads.
+  When a reconnection attempt fails, the server shows its connection-lost
+  warning. Show the same dots below the scroll area, above the composer, while
+  the warning shows. Remove the dots when the connection finishes catching up.
+  Do not show the dots while the first attempt is in progress, while the first
+  page loads, or when the server does not support the realtime protocol.
 - Use `fillHeight` on both `PaneContent` and the single primary `Panel` when a
   dense table or editor should consume the remaining pane height. Ordinary
   forms and document-like pages should remain content-sized.

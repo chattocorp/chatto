@@ -154,9 +154,14 @@
   const hasReachedEnd = $derived(jumpState.hasReachedEnd);
   const scrollToEventId = $derived(jumpState.scrollToEventId);
   const serverScope = useServerScope();
-  // Follow the app header's connection-lost icon: a brief reconnect that
-  // succeeds on its first attempt shows nothing.
-  const isReconnecting = $derived(!isLoading && serverScope.connection.showConnectionLostIcon);
+  // Follow the server's connection-lost warning, which the server sidebar icon
+  // also shows: nothing while the first reconnection attempt is in progress.
+  // An unsupported protocol stops reconnection, so do not claim to reconnect.
+  const isReconnecting = $derived(
+    !isLoading &&
+      serverScope.connection.showConnectionLostIcon &&
+      !serverScope.connection.realtimeUnsupported
+  );
   const stores = serverScope.store;
   const currentUser = $derived(stores.currentUser);
   const serverInfo = $derived(stores.serverInfo);
