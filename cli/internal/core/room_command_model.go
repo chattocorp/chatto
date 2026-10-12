@@ -26,17 +26,17 @@ func (c *ChattoCore) RoomCommands() *RoomCommandModel {
 // projection owners keep lifecycle, update and pin consistency inside this model.
 // Explicit capabilities supply the remaining policy and low-level mutations.
 type RoomCommandModel struct {
-	pins           roomPinOperations
-	rooms          *RoomModel
-	permissions    *PermissionResolver
-	publisher      *evtstream.Publisher
-	users          *UserModel
-	authorization  roomCommandAuthorization
-	memberships    roomCommandMemberships
-	directMessages roomCommandDirectMessages
-	rbac           *RBACModel
-	logger         *log.Logger
-	accounts       roomCommandAccounts
+	pins          roomPinOperations
+	rooms         *RoomModel
+	permissions   *PermissionResolver
+	publisher     *evtstream.Publisher
+	users         *UserModel
+	authorization roomCommandAuthorization
+	memberships   roomCommandMemberships
+	readState     *ReadStateModel
+	rbac          *RBACModel
+	logger        *log.Logger
+	accounts      roomCommandAccounts
 }
 
 type RoomCreateInput struct {
@@ -374,7 +374,7 @@ func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) 
 	if isBot {
 		return nil, false, ErrPermissionDenied
 	}
-	room, found, err := s.directMessages.FindDM(ctx, input.ActorID, input.ParticipantIDs)
+	room, found, err := s.findDM(ctx, input.ActorID, input.ParticipantIDs)
 	if err != nil {
 		return nil, false, err
 	}
@@ -388,7 +388,7 @@ func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) 
 	if !can {
 		return nil, false, ErrPermissionDenied
 	}
-	return s.directMessages.FindOrCreateDM(ctx, input.ActorID, input.ParticipantIDs)
+	return s.findOrCreateDM(ctx, input.ActorID, input.ParticipantIDs)
 }
 
 // RemoveUser removes a current member and optionally prevents rejoining.
@@ -542,12 +542,6 @@ type roomCommandMemberships interface {
 	ListActiveRoomBans(_ context.Context, roomID *string) ([]RoomBan, error)
 	JoinRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) (*evtv1.RoomMembership, error)
 	LeaveRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) error
-}
-
-// roomCommandDirectMessages supplies DM coordination used by the room model.
-type roomCommandDirectMessages interface {
-	FindDM(ctx context.Context, creatorID string, participantIDs []string) (*evtv1.Room, bool, error)
-	FindOrCreateDM(ctx context.Context, creatorID string, participantIDs []string) (*evtv1.Room, bool, error)
 }
 
 // roomCommandAccounts supplies account reads used by the room model.

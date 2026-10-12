@@ -226,7 +226,10 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   in [`room_lifecycle_commands.go`](../../cli/internal/core/room_lifecycle_commands.go),
   including creation batches and conflict retries, and the projection waits for
   all three operations. Core entry points delegate these writes to the model.
-  It also owns group joins and pin commands. Explicit dependencies supply
+  It also owns DM lookup and atomic creation in
+  [`room_dm_commands.go`](../../cli/internal/core/room_dm_commands.go), group
+  joins and pin commands. DM creation uses the membership dependency for access
+  checks and `ReadStateModel` for initial read markers. Explicit dependencies supply
   room reads, publication, users, permissions, and the
   remaining core policy and mutation helpers. Those helpers still run on
   `ChattoCore`, exposed through consumer-specific interfaces.
@@ -251,7 +254,8 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   [`threads.go`](../../cli/internal/core/threads.go)): Operation-level
   room/thread Message Read Cursor API plus one process-wide filtered
   `RUNTIME_STATE` watcher; initial-sync readiness, in-memory reads, KV OCC
-  writes, revision barriers, and sync events. The room cursor places the New
+  writes, revision barriers, and sync events. It owns initial room-marker writes
+  that preserve markers set by concurrent callers. The room cursor places the New
   messages separator. It does not create Badge attention.
 - **`ThreadFollowModel`**
   ([`thread_follow_model.go`](../../cli/internal/core/thread_follow_model.go),
