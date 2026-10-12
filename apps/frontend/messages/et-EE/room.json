@@ -235,7 +235,7 @@
       "unpin_prompt": "Kas soovid kindlasti selle sõnumi kinnituse eemaldada?",
       "loading": "Kinnitatud sõnumite laadimine...",
       "empty_title": "Kinnitatud sõnumeid pole",
-      "empty_description": "Ruumi haldurid saavad siin olulisi sõnumeid kinnitada.",
+      "empty_description": "Kinnitatud sõnumid kuvatakse siin.",
       "error_title": "Kinnitatud sõnumid pole saadaval",
       "error_description": "Kinnitatud sõnumeid ei saanud laadida. Proovi hetke pärast uuesti.",
       "update_failed": "Kinnitatud sõnumit ei saanud värskendada"

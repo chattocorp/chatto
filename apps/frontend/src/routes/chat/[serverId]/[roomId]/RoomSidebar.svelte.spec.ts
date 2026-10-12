@@ -312,6 +312,7 @@ function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): 
     canReact: true,
     canManageOthersMessage: false,
     canEchoMessage: false,
+    canPinMessages: false,
     canManageRoom: false,
     canBanRoomMembers: false,
     slowModeNextPostAt: null

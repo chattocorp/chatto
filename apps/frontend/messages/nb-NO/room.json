@@ -235,7 +235,7 @@
       "unpin_prompt": "Er du sikker på at du vil løsne denne meldingen?",
       "loading": "Laster festede meldinger...",
       "empty_title": "Ingen festede meldinger",
-      "empty_description": "Romadministratorer kan feste viktige meldinger her.",
+      "empty_description": "Festede meldinger vises her.",
       "error_title": "Festede meldinger er ikke tilgjengelige",
       "error_description": "Kunne ikke laste festede meldinger. Prøv igjen om litt.",
       "update_failed": "Kunne ikke oppdatere den festede meldingen"

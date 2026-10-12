@@ -235,7 +235,7 @@
       "unpin_prompt": "¿Seguro que quieres quitar este mensaje fijado?",
       "loading": "Cargando mensajes fijados...",
       "empty_title": "No hay mensajes fijados",
-      "empty_description": "Los administradores de la sala pueden fijar mensajes importantes aquí.",
+      "empty_description": "Los mensajes fijados aparecen aquí.",
       "error_title": "Mensajes fijados no disponibles",
       "error_description": "No se pudieron cargar los mensajes fijados. Inténtalo de nuevo en un momento.",
       "update_failed": "No se pudo actualizar el mensaje fijado"

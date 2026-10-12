@@ -36,6 +36,9 @@ func TestDelegatedRoleAssignmentCannotGrantBroaderAuthority(t *testing.T) {
 	if err := core.GrantUserPermission(ctx, SystemActorID, assigner.Id, PermRoomMemberRemove); err != nil {
 		t.Fatalf("GrantUserPermission room.remove-member: %v", err)
 	}
+	if err := core.GrantUserPermission(ctx, SystemActorID, assigner.Id, PermMessagePin); err != nil {
+		t.Fatalf("GrantUserPermission message.pin: %v", err)
+	}
 	if err := core.AdminAssignServerRole(ctx, assigner.Id, target.Id, RoleModerator); err != nil {
 		t.Fatalf("assign moderator within authority: %v", err)
 	}
@@ -213,7 +216,7 @@ func TestRoleAssignmentIgnoresUnrelatedChatTraffic(t *testing.T) {
 	if _, err := core.JoinRoom(ctx, assigner.Id, KindChannel, assigner.Id, room.GetId()); err != nil {
 		t.Fatalf("JoinRoom: %v", err)
 	}
-	for _, permission := range []Permission{PermRoleAssign, PermMessageManage, PermRoomMemberRemove} {
+	for _, permission := range []Permission{PermRoleAssign, PermMessageManage, PermMessagePin, PermRoomMemberRemove} {
 		if err := core.GrantUserPermission(ctx, SystemActorID, assigner.Id, permission); err != nil {
 			t.Fatalf("GrantUserPermission %s: %v", permission, err)
 		}

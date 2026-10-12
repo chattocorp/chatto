@@ -129,7 +129,8 @@ func TestDMScopeAppliesOnlyToMessageAndCallPermissions(t *testing.T) {
 	t.Parallel()
 
 	for _, metadata := range AllPermissions() {
-		want := metadata.Category == CategoryMessage || metadata.Category == CategoryCall
+		// Pins are channel-only; the other message and call permissions support DMs.
+		want := (metadata.Category == CategoryMessage && metadata.Permission != PermMessagePin) || metadata.Category == CategoryCall
 		if got := PermissionAppliesAtScope(metadata.Permission, ScopeDM); got != want {
 			t.Errorf("PermissionAppliesAtScope(%s, DM) = %v, want %v", metadata.Permission, got, want)
 		}

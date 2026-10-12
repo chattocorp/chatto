@@ -242,7 +242,7 @@
       "unpin_prompt": "Czy na pewno chcesz usunąć przypięcie tej wiadomości?",
       "loading": "Ładowanie przypiętych wiadomości...",
       "empty_title": "Brak przypiętych wiadomości",
-      "empty_description": "Zarządzający pokojem mogą przypinać tutaj ważne wiadomości.",
+      "empty_description": "Przypięte wiadomości pojawiają się tutaj.",
       "error_title": "Przypięte wiadomości są niedostępne",
       "error_description": "Nie udało się załadować przypiętych wiadomości. Spróbuj ponownie za chwilę.",
       "update_failed": "Nie udało się zaktualizować przypiętej wiadomości"

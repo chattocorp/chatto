@@ -52,8 +52,8 @@ roles does not change which setting wins.
 | Role | Defaults on a new server (Server scope) |
 | ---- | --------------------------------------- |
 | `everyone` | `room.list`, `room.join`, `message.read`, `message.post`, `message.post-in-thread`, `message.attach`, `message.react`, `message.echo`, all `call.*` permissions, `user.delete-self` |
-| `moderator` | `message.manage`, `room.remove-member` |
-| `admin` | `server.manage`, `room.create`, `room.manage`, `room.remove-member`, `message.manage`, `role.manage`, `role.assign`, `admin.view-users`, `admin.view-audit`, `user.invite`, `user.manage-accounts`, `user.manage-permissions`, `user.delete-any`, `bot.create`, `bot.manage` |
+| `moderator` | `message.manage`, `message.pin`, `room.remove-member` |
+| `admin` | `server.manage`, `room.create`, `room.manage`, `room.remove-member`, `message.manage`, `message.pin`, `role.manage`, `role.assign`, `admin.view-users`, `admin.view-audit`, `user.invite`, `user.manage-accounts`, `user.manage-permissions`, `user.delete-any`, `bot.create`, `bot.manage` |
 | `owner` | Every permission while privileged mode is active. You cannot edit these settings. |
 
 Moderators and admins get their member permissions from `everyone`. A new
@@ -120,6 +120,7 @@ Scopes: **S** Server, **G** Room group, **R** Room, **DM** Direct messages.
 | `message.attach` | All | | Attach files to new messages. |
 | `message.react` | All | | Add and remove reactions. |
 | `message.echo` | All | | Echo a thread reply to the room. |
+| `message.pin` | Server, Room group, Room | | Pin and unpin channel messages. Pinning also requires read access to the message. |
 | `message.manage` | All | Yes | Edit or delete messages from other accounts. Remove a thread reply's room echo through the edit checkbox. Adding an echo remains author-only. |
 | `call.start` | All | | Start a call. Also needs `call.join`. |
 | `call.join` | All | | Join a call, also as a listener. |

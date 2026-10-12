@@ -25,6 +25,7 @@ function roomData(overrides: Partial<RoomData> = {}): RoomData {
     canReact: true,
     canManageOthersMessage: false,
     canEchoMessage: true,
+    canPinMessages: false,
     canManageRoom: false,
     canBanRoomMembers: false,
     slowModeNextPostAt: null,

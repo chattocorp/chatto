@@ -117,7 +117,7 @@ retroactively cancel an already-authorized, conflict-free reaction attempt;
 subsequent requests observe the changed authorization state.
 
 Pinned-message add/remove validates stable request-time authorization inputs,
-captures the full room aggregate tail, and reruns `room.manage` plus message
+captures the full room aggregate tail, and reruns `message.pin` plus message
 lifecycle checks before a room-OCC append. A concurrent room change forces a
 complete retry. Pins reference the canonical message ID; Room Timeline removes
 an active association when that message is retracted.

@@ -484,11 +484,11 @@ service RoomService {
   // pins from threads that the caller cannot read. Direct-message rooms do not
   // support pins.
   rpc ListPinnedMessages(ListPinnedMessagesRequest) returns (ListPinnedMessagesResponse);
-  // Pins a current message. The caller must have room.manage and must be able
+  // Pins a current message. The caller must have message.pin and must be able
   // to read the message. Repeating an existing pin is idempotent. Direct-message
   // rooms are rejected.
   rpc CreatePinnedMessage(CreatePinnedMessageRequest) returns (CreatePinnedMessageResponse);
-  // Removes a current pin. The caller must have room.manage. Removing a
+  // Removes a current pin. The caller must have message.pin. Removing a
   // missing pin is idempotent. Direct-message rooms are rejected.
   rpc DeletePinnedMessage(DeletePinnedMessageRequest) returns (DeletePinnedMessageResponse);
   // Refreshes the current user's live-only typing indicator for a room or

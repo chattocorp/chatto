@@ -24,6 +24,7 @@ export type RoomData = {
   canReact: boolean;
   canManageOthersMessage: boolean;
   canEchoMessage: boolean;
+  canPinMessages: boolean;
   canManageRoom: boolean;
   canBanRoomMembers: boolean;
   slowModeNextPostAt: string | null;
@@ -84,6 +85,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
       canReact: room.canReact,
       canManageOthersMessage: room.canManageOthersMessage,
       canEchoMessage: room.canEchoMessage,
+      canPinMessages: room.canPinMessages,
       canManageRoom: room.canManageRoom,
       canBanRoomMembers: room.canBanRoomMembers,
       slowModeNextPostAt: room.slowModeNextPostAt

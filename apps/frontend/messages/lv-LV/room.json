@@ -235,7 +235,7 @@
       "unpin_prompt": "Vai tiešām vēlaties noņemt šīs ziņas piespraudi?",
       "loading": "Ielādē piespraustās ziņas...",
       "empty_title": "Nav piespraustu ziņu",
-      "empty_description": "Telpas pārvaldnieki šeit var piespraust svarīgas ziņas.",
+      "empty_description": "Šeit tiek parādīti piespraustie ziņojumi.",
       "error_title": "Piespraustās ziņas nav pieejamas",
       "error_description": "Neizdevās ielādēt piespraustās ziņas. Mēģiniet vēlreiz pēc brīža.",
       "update_failed": "Neizdevās atjaunināt piesprausto ziņu"

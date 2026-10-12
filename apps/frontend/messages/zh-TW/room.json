@@ -235,7 +235,7 @@
       "unpin_prompt": "確定要取消釘選這則訊息嗎？",
       "loading": "正在載入已釘選訊息...",
       "empty_title": "沒有已釘選訊息",
-      "empty_description": "聊天室管理員可在此釘選重要訊息。",
+      "empty_description": "釘選的訊息會顯示在這裡。",
       "error_title": "已釘選訊息無法使用",
       "error_description": "無法載入已釘選訊息。請稍後再試。",
       "update_failed": "無法更新已釘選訊息"

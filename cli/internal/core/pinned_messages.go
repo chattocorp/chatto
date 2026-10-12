@@ -115,7 +115,7 @@ func (s *RoomTimelineReadModel) ListPinnedMessages(ctx context.Context, input Pi
 }
 
 // CreatePinnedMessage adds a canonical message to a channel's current pin set.
-// The operation is idempotent and rechecks room.manage in each OCC attempt.
+// The operation is idempotent and rechecks message.pin in each OCC attempt.
 func (s *RoomCommandModel) CreatePinnedMessage(ctx context.Context, input PinnedMessageMutationInput) (PinnedMessageState, error) {
 	return s.mutatePinnedMessage(ctx, input, true)
 }
@@ -147,13 +147,16 @@ func (s *RoomCommandModel) mutatePinnedMessage(ctx context.Context, input Pinned
 			if memberErr != nil {
 				return memberErr
 			}
-			var authorizeErr error
-			kind, authorizeErr = s.authorizeRoomManage(ctx, input.ActorID, input.RoomID)
-			if authorizeErr != nil {
-				return authorizeErr
+			kind = memberKind
+			if kind == KindDM {
+				return invalidArgument("DM rooms do not support pinned messages")
 			}
-			if kind != memberKind {
-				return ErrNotRoomMember
+			canPin, err := s.permissions.HasRoomPermission(ctx, input.ActorID, kind, input.RoomID, PermMessagePin)
+			if err != nil {
+				return err
+			}
+			if !canPin {
+				return ErrPermissionDenied
 			}
 			if room.GetArchived() {
 				return ErrRoomArchived

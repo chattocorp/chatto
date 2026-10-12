@@ -22,6 +22,7 @@ describe('PERMISSION_DEFINITIONS', () => {
       'message.attach',
       'message.echo',
       'message.manage',
+      'message.pin',
       'message.post',
       'message.post-in-interactions',
       'message.post-in-thread',

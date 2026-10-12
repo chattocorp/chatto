@@ -235,7 +235,7 @@
       "unpin_prompt": "Vuoi davvero rimuovere questo messaggio fissato?",
       "loading": "Caricamento dei messaggi fissati...",
       "empty_title": "Nessun messaggio fissato",
-      "empty_description": "I gestori della stanza possono fissare qui i messaggi importanti.",
+      "empty_description": "I messaggi fissati vengono mostrati qui.",
       "error_title": "Messaggi fissati non disponibili",
       "error_description": "Impossibile caricare i messaggi fissati. Riprova tra poco.",
       "update_failed": "Impossibile aggiornare il messaggio fissato"

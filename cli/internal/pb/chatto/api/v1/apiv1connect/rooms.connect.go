@@ -174,11 +174,11 @@ type RoomServiceClient interface {
 	// pins from threads that the caller cannot read. Direct-message rooms do not
 	// support pins.
 	ListPinnedMessages(context.Context, *connect.Request[v1.ListPinnedMessagesRequest]) (*connect.Response[v1.ListPinnedMessagesResponse], error)
-	// Pins a current message. The caller must have room.manage and must be able
+	// Pins a current message. The caller must have message.pin and must be able
 	// to read the message. Repeating an existing pin is idempotent. Direct-message
 	// rooms are rejected.
 	CreatePinnedMessage(context.Context, *connect.Request[v1.CreatePinnedMessageRequest]) (*connect.Response[v1.CreatePinnedMessageResponse], error)
-	// Removes a current pin. The caller must have room.manage. Removing a
+	// Removes a current pin. The caller must have message.pin. Removing a
 	// missing pin is idempotent. Direct-message rooms are rejected.
 	DeletePinnedMessage(context.Context, *connect.Request[v1.DeletePinnedMessageRequest]) (*connect.Response[v1.DeletePinnedMessageResponse], error)
 	// Refreshes the current user's live-only typing indicator for a room or
@@ -616,11 +616,11 @@ type RoomServiceHandler interface {
 	// pins from threads that the caller cannot read. Direct-message rooms do not
 	// support pins.
 	ListPinnedMessages(context.Context, *connect.Request[v1.ListPinnedMessagesRequest]) (*connect.Response[v1.ListPinnedMessagesResponse], error)
-	// Pins a current message. The caller must have room.manage and must be able
+	// Pins a current message. The caller must have message.pin and must be able
 	// to read the message. Repeating an existing pin is idempotent. Direct-message
 	// rooms are rejected.
 	CreatePinnedMessage(context.Context, *connect.Request[v1.CreatePinnedMessageRequest]) (*connect.Response[v1.CreatePinnedMessageResponse], error)
-	// Removes a current pin. The caller must have room.manage. Removing a
+	// Removes a current pin. The caller must have message.pin. Removing a
 	// missing pin is idempotent. Direct-message rooms are rejected.
 	DeletePinnedMessage(context.Context, *connect.Request[v1.DeletePinnedMessageRequest]) (*connect.Response[v1.DeletePinnedMessageResponse], error)
 	// Refreshes the current user's live-only typing indicator for a room or

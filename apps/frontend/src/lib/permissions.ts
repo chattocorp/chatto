@@ -119,6 +119,10 @@ const PERMISSION_TEXT: Record<string, PermissionText> = {
     description: () => m('rbac.permission_descriptions.message_echo'),
     help: () => m('rbac.permission_help.message_echo')
   },
+  'message.pin': {
+    description: () => m('rbac.permission_descriptions.message_pin'),
+    help: () => m('rbac.permission_help.message_pin')
+  },
   'message.manage': {
     description: () => m('rbac.permission_descriptions.message_manage'),
     help: () => m('rbac.permission_help.message_manage')
