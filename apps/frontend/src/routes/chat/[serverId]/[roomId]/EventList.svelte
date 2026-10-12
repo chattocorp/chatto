@@ -154,7 +154,9 @@
   const hasReachedEnd = $derived(jumpState.hasReachedEnd);
   const scrollToEventId = $derived(jumpState.scrollToEventId);
   const serverScope = useServerScope();
-  const isReconnecting = $derived(!isLoading && serverScope.connection.status === 'connecting');
+  // Follow the app header's connection-lost icon: a brief reconnect that
+  // succeeds on its first attempt shows nothing.
+  const isReconnecting = $derived(!isLoading && serverScope.connection.showConnectionLostIcon);
   const stores = serverScope.store;
   const currentUser = $derived(stores.currentUser);
   const serverInfo = $derived(stores.serverInfo);

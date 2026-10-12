@@ -17,15 +17,15 @@ import { ServerConnection } from '@chatto/client/server/serverConnection';
 let connection: ServerConnection;
 beforeEach(() => {
   connection = new ServerConnection({ serverUrl: 'https://server.example.test', token: null });
-  connection.status = 'connected';
+  connection.setRealtimeConnectionStatus('connected');
   createTestServerScope({
     viewer: { id: 'test-user' },
     serverInfo: { messageEditWindowSeconds: 300 },
     store: { realtimeSync: { isRecoveringSnapshot: false } },
     ui: { activeCallRooms: { getCallId: () => null } },
     connection: {
-      get status() {
-        return connection.status;
+      get showConnectionLostIcon() {
+        return connection.showConnectionLostIcon;
       }
     }
   });
@@ -77,52 +77,57 @@ vi.mock('$lib/hooks/useTabResumeCallback.svelte', () => ({
 }));
 
 describe('EventList reconnection', () => {
-  it('keeps messages visible while reconnecting and removes the dots after catch-up', async () => {
+  const indicatorName = 'Real-time updates paused. Reconnecting...';
+
+  it('shows no dots while the first reconnection attempt is in progress', async () => {
     render(EventListTestHarness, {
       props: { eventIds: ['retained-message'], scrollToEventId: null }
     });
-    const indicator = page.getByRole('status', {
-      name: 'Real-time updates paused. Reconnecting...'
+    connection.setRealtimeConnectionStatus('connecting');
+    await tick();
+    await expect.element(page.getByRole('status', { name: indicatorName })).not.toBeInTheDocument();
+  });
+
+  it('keeps messages visible after a failed attempt and removes the dots after catch-up', async () => {
+    render(EventListTestHarness, {
+      props: { eventIds: ['retained-message'], scrollToEventId: null }
     });
+    const indicator = page.getByRole('status', { name: indicatorName });
     await expect.element(indicator).not.toBeInTheDocument();
 
-    connection.status = 'connecting';
+    connection.setRealtimeConnectionStatus('disconnected', 1);
+    await expect.element(indicator).toBeInTheDocument();
+    connection.setRealtimeConnectionStatus('connecting', 1);
     await expect.element(indicator).toBeInTheDocument();
     await expect.element(page.getByText('retained-message', { exact: true })).toBeVisible();
     expect(page.getByTestId('messages-container').element().contains(indicator.element())).toBe(
       false
     );
 
-    connection.status = 'connected';
+    connection.setRealtimeConnectionStatus('connected');
     await expect.element(indicator).not.toBeInTheDocument();
     await expect.element(page.getByText('retained-message', { exact: true })).toBeVisible();
   });
 
   it('uses only the initial loader before the first page arrives', async () => {
-    connection.status = 'connecting';
+    connection.setRealtimeConnectionStatus('disconnected', 1);
     render(EventListTestHarness, {
       props: { eventIds: [], scrollToEventId: null, isLoading: true }
     });
     await expect
       .element(page.getByRole('status', { name: 'Loading messages...' }))
       .toBeInTheDocument();
-    await expect
-      .element(page.getByRole('status', { name: 'Real-time updates paused. Reconnecting...' }))
-      .not.toBeInTheDocument();
+    await expect.element(page.getByRole('status', { name: indicatorName })).not.toBeInTheDocument();
   });
 
-  it.each(['dormant', 'disconnected'] as const)(
-    'does not show pending dots when %s',
-    async (status) => {
-      connection.status = status;
-      render(EventListTestHarness, {
-        props: { eventIds: ['retained-message'], scrollToEventId: null }
-      });
-      await expect
-        .element(page.getByRole('status', { name: 'Real-time updates paused. Reconnecting...' }))
-        .not.toBeInTheDocument();
-    }
-  );
+  it('does not show pending dots for a dormant connection', async () => {
+    connection.setRealtimeConnectionStatus('disconnected', 1);
+    connection.setRealtimeConnectionStatus('dormant');
+    render(EventListTestHarness, {
+      props: { eventIds: ['retained-message'], scrollToEventId: null }
+    });
+    await expect.element(page.getByRole('status', { name: indicatorName })).not.toBeInTheDocument();
+  });
 });
 
 describe('EventList read position', () => {
