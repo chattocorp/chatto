@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 func requireAuthenticatedActor(actorID string) error {

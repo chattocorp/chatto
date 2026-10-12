@@ -547,8 +547,8 @@ const file_chatto_api_v1_presence_proto_rawDesc = "" +
 	"\x16PRESENCE_STATUS_ONLINE\x10\x01\x12\x18\n" +
 	"\x14PRESENCE_STATUS_AWAY\x10\x02\x12\"\n" +
 	"\x1ePRESENCE_STATUS_DO_NOT_DISTURB\x10\x03\x12\x1b\n" +
-	"\x17PRESENCE_STATUS_OFFLINE\x10\x04B\xa9\x01\n" +
-	"\x11com.chatto.api.v1B\rPresenceProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
+	"\x17PRESENCE_STATUS_OFFLINE\x10\x04B\xba\x01\n" +
+	"\x11com.chatto.api.v1B\rPresenceProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
 	file_chatto_api_v1_presence_proto_rawDescOnce sync.Once

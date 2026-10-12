@@ -611,8 +611,8 @@ const file_chatto_search_v1_search_proto_rawDesc = "" +
 	"\x17PROVIDER_STATE_INDEXING\x10\x02\x12\x18\n" +
 	"\x14PROVIDER_STATE_READY\x10\x03\x12\x1b\n" +
 	"\x17PROVIDER_STATE_DEGRADED\x10\x04\x12\x1e\n" +
-	"\x1aPROVIDER_STATE_UNAVAILABLE\x10\x05B\xbc\x01\n" +
-	"\x14com.chatto.search.v1B\vSearchProtoP\x01Z5hmans.de/chatto/internal/pb/chatto/search/v1;searchv1\xa2\x02\x03CSX\xaa\x02\x10Chatto.Search.V1\xca\x02\x10Chatto\\Search\\V1\xe2\x02\x1cChatto\\Search\\V1\\GPBMetadata\xea\x02\x12Chatto::Search::V1b\x06proto3"
+	"\x1aPROVIDER_STATE_UNAVAILABLE\x10\x05B\xcd\x01\n" +
+	"\x14com.chatto.search.v1B\vSearchProtoP\x01ZFgithub.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1;searchv1\xa2\x02\x03CSX\xaa\x02\x10Chatto.Search.V1\xca\x02\x10Chatto\\Search\\V1\xe2\x02\x1cChatto\\Search\\V1\\GPBMetadata\xea\x02\x12Chatto::Search::V1b\x06proto3"
 
 var (
 	file_chatto_search_v1_search_proto_rawDescOnce sync.Once

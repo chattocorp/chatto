@@ -1,4 +1,4 @@
-module hmans.de/chatto/pkg/events
+module github.com/chattocorp/chatto/pkg/events
 
 go 1.26.0
 

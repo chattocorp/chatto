@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/config"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/authling/internal/config"
 )
 
 // failingCreateKeyValue fails every Create with an error that is not an OCC

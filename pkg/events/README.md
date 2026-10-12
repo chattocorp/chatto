@@ -1,6 +1,6 @@
 # Events
 
-`hmans.de/chatto/pkg/events` supplies the core reusable mechanics for the
+`github.com/chattocorp/chatto/pkg/events` supplies the core reusable mechanics for the
 repository-wide [Loom Architecture](../../docs/adr/ADR-073-define-the-loom-architecture.md).
 It is an envelope-neutral event-sourcing framework for NATS JetStream,
 providing optimistic-concurrency-controlled publication, ordered projection
@@ -277,7 +277,7 @@ GOWORK=off go test ./...
 ```
 
 The package-level API documentation is available through `go doc
-hmans.de/chatto/pkg/events`.
+github.com/chattocorp/chatto/pkg/events`.
 
 ## License
 

@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"hmans.de/chatto/pkg/datacrypto"
+	"github.com/chattocorp/chatto/pkg/datacrypto"
 )
 
 // FieldNames selects an existing envelope spelling. This affects writes only;

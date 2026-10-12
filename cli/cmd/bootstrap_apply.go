@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 
 	"github.com/charmbracelet/log"
-	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
+	configv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/config/v1"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
 )
 
 // applyBootstrap applies the [bootstrap] section from chatto.toml to an empty

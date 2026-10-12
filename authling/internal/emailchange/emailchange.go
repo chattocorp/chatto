@@ -12,12 +12,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/accounts"
+	"github.com/chattocorp/chatto/authling/internal/authentication"
+	"github.com/chattocorp/chatto/authling/internal/email"
+	"github.com/chattocorp/chatto/authling/internal/runtimejson"
+	"github.com/chattocorp/chatto/authling/internal/storage"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/authling/internal/accounts"
-	"hmans.de/authling/internal/authentication"
-	"hmans.de/authling/internal/email"
-	"hmans.de/authling/internal/runtimejson"
-	"hmans.de/authling/internal/storage"
 )
 
 const FlowTTL = 15 * time.Minute

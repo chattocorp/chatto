@@ -1,4 +1,4 @@
-module hmans.de/authling
+module github.com/chattocorp/chatto/authling
 
 go 1.26.0
 
@@ -16,11 +16,11 @@ require (
 	golang.org/x/sync v0.23.0
 	golang.org/x/text v0.42.0
 	google.golang.org/protobuf v1.36.12
-	hmans.de/chatto/pkg/appconfig v0.0.0
-	hmans.de/chatto/pkg/datacrypto v0.0.0
-	hmans.de/chatto/pkg/events v0.0.0
-	hmans.de/chatto/pkg/jetstreamutil v0.0.0
-	hmans.de/chatto/pkg/natsruntime v0.0.0
+	github.com/chattocorp/chatto/pkg/appconfig v0.0.0
+	github.com/chattocorp/chatto/pkg/datacrypto v0.0.0
+	github.com/chattocorp/chatto/pkg/events v0.0.0
+	github.com/chattocorp/chatto/pkg/jetstreamutil v0.0.0
+	github.com/chattocorp/chatto/pkg/natsruntime v0.0.0
 )
 
 tool github.com/a-h/templ/cmd/templ
@@ -66,12 +66,12 @@ require (
 	golang.org/x/tools v0.49.0 // indirect
 )
 
-replace hmans.de/chatto/pkg/events => ../pkg/events
+replace github.com/chattocorp/chatto/pkg/events => ../pkg/events
 
-replace hmans.de/chatto/pkg/jetstreamutil => ../pkg/jetstreamutil
+replace github.com/chattocorp/chatto/pkg/jetstreamutil => ../pkg/jetstreamutil
 
-replace hmans.de/chatto/pkg/appconfig => ../pkg/appconfig
+replace github.com/chattocorp/chatto/pkg/appconfig => ../pkg/appconfig
 
-replace hmans.de/chatto/pkg/datacrypto => ../pkg/datacrypto
+replace github.com/chattocorp/chatto/pkg/datacrypto => ../pkg/datacrypto
 
-replace hmans.de/chatto/pkg/natsruntime => ../pkg/natsruntime
+replace github.com/chattocorp/chatto/pkg/natsruntime => ../pkg/natsruntime

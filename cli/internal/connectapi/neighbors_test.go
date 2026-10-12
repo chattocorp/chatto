@@ -13,12 +13,12 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/core/neighborhood"
-	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
-	cachestatev1 "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
-	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/core/neighborhood"
+	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
+	cachestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/cache_state/v1"
+	discoveryv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1"
 )
 
 func TestAdminServerServiceNeighborCRUDAndPublicDiscovery(t *testing.T) {

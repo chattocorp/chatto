@@ -784,8 +784,8 @@ const file_chatto_api_v1_asset_uploads_proto_rawDesc = "" +
 	"\vUploadChunk\x12!.chatto.api.v1.UploadChunkRequest\x1a\".chatto.api.v1.UploadChunkResponse\x12N\n" +
 	"\tGetUpload\x12\x1f.chatto.api.v1.GetUploadRequest\x1a .chatto.api.v1.GetUploadResponse\x12]\n" +
 	"\x0eCompleteUpload\x12$.chatto.api.v1.CompleteUploadRequest\x1a%.chatto.api.v1.CompleteUploadResponse\x12W\n" +
-	"\fCancelUpload\x12\".chatto.api.v1.CancelUploadRequest\x1a#.chatto.api.v1.CancelUploadResponseB\xad\x01\n" +
-	"\x11com.chatto.api.v1B\x11AssetUploadsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
+	"\fCancelUpload\x12\".chatto.api.v1.CancelUploadRequest\x1a#.chatto.api.v1.CancelUploadResponseB\xbe\x01\n" +
+	"\x11com.chatto.api.v1B\x11AssetUploadsProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
 	file_chatto_api_v1_asset_uploads_proto_rawDescOnce sync.Once

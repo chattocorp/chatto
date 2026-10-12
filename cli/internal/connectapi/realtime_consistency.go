@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	"hmans.de/chatto/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/core"
 )
 
 // RealtimeMinimumCursorHeader asks any authenticated unary ConnectRPC procedure

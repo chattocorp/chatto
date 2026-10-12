@@ -279,8 +279,8 @@ const file_chatto_core_evt_v1_oauth_client_events_proto_rawDesc = "" +
 	"\x1fOAUTH_CLIENT_POLICY_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bOAUTH_CLIENT_POLICY_DEFAULT\x10\x01\x12\x1f\n" +
 	"\x1bOAUTH_CLIENT_POLICY_TRUSTED\x10\x02\x12\x1f\n" +
-	"\x1bOAUTH_CLIENT_POLICY_BLOCKED\x10\x03B\xd1\x01\n" +
-	"\x16com.chatto.core.evt.v1B\x16OauthClientEventsProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
+	"\x1bOAUTH_CLIENT_POLICY_BLOCKED\x10\x03B\xe2\x01\n" +
+	"\x16com.chatto.core.evt.v1B\x16OauthClientEventsProtoP\x01ZEgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
 var (
 	file_chatto_core_evt_v1_oauth_client_events_proto_rawDescOnce sync.Once

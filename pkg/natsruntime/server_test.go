@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/pkg/natsruntime"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/pkg/natsruntime"
 )
 
 func TestServerPersistsJetStreamAcrossRestart(t *testing.T) {

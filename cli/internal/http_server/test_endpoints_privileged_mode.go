@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/gin-gonic/gin"
-	"hmans.de/chatto/internal/core"
 )
 
 // registerPrivilegedModeDeadlineEndpoint lets E2E tests use the real server and

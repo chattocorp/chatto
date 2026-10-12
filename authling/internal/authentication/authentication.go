@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/accounts"
+	"github.com/chattocorp/chatto/authling/internal/storage"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/authling/internal/accounts"
-	"hmans.de/authling/internal/storage"
 )
 
 const (

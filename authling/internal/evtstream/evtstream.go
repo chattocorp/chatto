@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"strings"
 
+	corev1 "github.com/chattocorp/chatto/authling/internal/pb/authling/core/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 	"google.golang.org/protobuf/proto"
-	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
-	"hmans.de/chatto/pkg/events"
 )
 
 const (

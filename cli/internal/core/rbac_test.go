@@ -7,8 +7,8 @@ import (
 	"sync"
 	"testing"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/testutil"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 // ============================================================================

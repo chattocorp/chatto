@@ -8,14 +8,14 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/evtstream"
+	"github.com/chattocorp/chatto/authling/internal/ids"
+	"github.com/chattocorp/chatto/authling/internal/keyvault"
+	corev1 "github.com/chattocorp/chatto/authling/internal/pb/authling/core/v1"
+	"github.com/chattocorp/chatto/pkg/events"
+	"github.com/chattocorp/chatto/pkg/events/intern"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/authling/internal/evtstream"
-	"hmans.de/authling/internal/ids"
-	"hmans.de/authling/internal/keyvault"
-	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
-	"hmans.de/chatto/pkg/events"
-	"hmans.de/chatto/pkg/events/intern"
 )
 
 // State is non-secret erasure evidence. A non-empty RequestID denies access;

@@ -784,8 +784,8 @@ const file_chatto_api_v1_message_search_proto_rawDesc = "" +
 	" MESSAGE_SEARCH_STATE_UNAVAILABLE\x10\x062\xc5\x01\n" +
 	"\x14MessageSearchService\x12N\n" +
 	"\tGetStatus\x12\x1f.chatto.api.v1.GetStatusRequest\x1a .chatto.api.v1.GetStatusResponse\x12]\n" +
-	"\x0eSearchMessages\x12$.chatto.api.v1.SearchMessagesRequest\x1a%.chatto.api.v1.SearchMessagesResponseB\xae\x01\n" +
-	"\x11com.chatto.api.v1B\x12MessageSearchProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
+	"\x0eSearchMessages\x12$.chatto.api.v1.SearchMessagesRequest\x1a%.chatto.api.v1.SearchMessagesResponseB\xbf\x01\n" +
+	"\x11com.chatto.api.v1B\x12MessageSearchProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
 	file_chatto_api_v1_message_search_proto_rawDescOnce sync.Once

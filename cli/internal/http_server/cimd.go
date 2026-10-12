@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/gin-gonic/gin"
-	"hmans.de/chatto/internal/config"
 )
 
 const cimdPath = "/oauth/client-metadata.json"

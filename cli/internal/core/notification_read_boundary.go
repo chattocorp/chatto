@@ -6,11 +6,11 @@ import (
 	"errors"
 	"fmt"
 
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/pkg/jetstreamutil"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 )
 
 const notificationReadBoundaryKeyPrefix = "notification_read_boundary."

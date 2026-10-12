@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-const frameworkImportPath = "hmans.de/chatto/pkg/events"
+const frameworkImportPath = "github.com/chattocorp/chatto/pkg/events"
 
 func TestPackageDependenciesArePortable(t *testing.T) {
 	directory, err := os.Getwd()
@@ -76,7 +76,7 @@ func TestFrameworkConsumerUsesOnlyPublicFrameworkPackage(t *testing.T) {
 		if importPath == frameworkImportPath {
 			importsFramework = true
 		}
-		if strings.HasPrefix(importPath, "hmans.de/chatto/") &&
+		if strings.HasPrefix(importPath, "github.com/chattocorp/chatto/cli/") &&
 			importPath != frameworkImportPath {
 			t.Errorf("external consumer imports Chatto package %q", importPath)
 		}

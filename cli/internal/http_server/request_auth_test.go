@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/gin-gonic/gin"
-	"hmans.de/chatto/internal/authctx"
 )
 
 func TestBrowserCookieAuthenticationIsSameOriginOnly(t *testing.T) {

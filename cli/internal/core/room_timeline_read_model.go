@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"hmans.de/chatto/internal/encryption"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/encryption"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // RoomTimelineReads returns the operation-level model for user-facing room

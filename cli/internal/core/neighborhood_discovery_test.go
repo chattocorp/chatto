@@ -20,9 +20,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core/neighborhood"
-	cachestatev1 "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core/neighborhood"
+	cachestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/cache_state/v1"
 )
 
 const neighborhoodTestSelf = "https://self.example"

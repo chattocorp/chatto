@@ -1,6 +1,6 @@
 # Data Cryptography
 
-`hmans.de/chatto/pkg/datacrypto` provides small, application-neutral
+`github.com/chattocorp/chatto/pkg/datacrypto` provides small, application-neutral
 cryptographic primitives for protected data:
 
 - cryptographically random 256-bit keys;

@@ -117,8 +117,8 @@ const file_chatto_config_v1_config_proto_rawDesc = "" +
 	"serverName\x12\x12\n" +
 	"\x04motd\x18\x03 \x01(\tR\x04motd\x12+\n" +
 	"\x11blocked_usernames\x18\x04 \x01(\tR\x10blockedUsernames\x12 \n" +
-	"\vdescription\x18\a \x01(\tR\vdescriptionJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\bog_titleR\x0eog_descriptionB\xbc\x01\n" +
-	"\x14com.chatto.config.v1B\vConfigProtoP\x01Z5hmans.de/chatto/internal/pb/chatto/config/v1;configv1\xa2\x02\x03CCX\xaa\x02\x10Chatto.Config.V1\xca\x02\x10Chatto\\Config\\V1\xe2\x02\x1cChatto\\Config\\V1\\GPBMetadata\xea\x02\x12Chatto::Config::V1b\x06proto3"
+	"\vdescription\x18\a \x01(\tR\vdescriptionJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\bog_titleR\x0eog_descriptionB\xcd\x01\n" +
+	"\x14com.chatto.config.v1B\vConfigProtoP\x01ZFgithub.com/chattocorp/chatto/cli/internal/pb/chatto/config/v1;configv1\xa2\x02\x03CCX\xaa\x02\x10Chatto.Config.V1\xca\x02\x10Chatto\\Config\\V1\xe2\x02\x1cChatto\\Config\\V1\\GPBMetadata\xea\x02\x12Chatto::Config::V1b\x06proto3"
 
 var (
 	file_chatto_config_v1_config_proto_rawDescOnce sync.Once

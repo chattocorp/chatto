@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/pkg/natsruntime"
 	"github.com/nats-io/nats-server/v2/server"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/pkg/natsruntime"
 )
 
 // StartServer creates and starts the embedded NATS server.

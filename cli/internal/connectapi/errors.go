@@ -8,8 +8,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/charmbracelet/log"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 var (

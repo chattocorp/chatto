@@ -2548,9 +2548,9 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\x0eMarkRoomAsRead\x12$.chatto.api.v1.MarkRoomAsReadRequest\x1a%.chatto.api.v1.MarkRoomAsReadResponse\x12Q\n" +
 	"\n" +
 	"RemoveUser\x12 .chatto.api.v1.RemoveUserRequest\x1a!.chatto.api.v1.RemoveUserResponse\x12]\n" +
-	"\x0eLiftSuspension\x12$.chatto.api.v1.LiftSuspensionRequest\x1a%.chatto.api.v1.LiftSuspensionResponseB\xa6\x01\n" +
+	"\x0eLiftSuspension\x12$.chatto.api.v1.LiftSuspensionRequest\x1a%.chatto.api.v1.LiftSuspensionResponseB\xb7\x01\n" +
 	"\x11com.chatto.api.v1B\n" +
-	"RoomsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
+	"RoomsProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
 	file_chatto_api_v1_rooms_proto_rawDescOnce sync.Once

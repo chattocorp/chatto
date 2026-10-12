@@ -292,8 +292,8 @@ const file_chatto_core_cache_state_v1_neighborhood_proto_rawDesc = "" +
 	"\n" +
 	"source_url\x18\x01 \x01(\tR\tsourceUrl\x12\x1f\n" +
 	"\vobject_name\x18\x02 \x01(\tR\n" +
-	"objectNameB\xff\x01\n" +
-	"\x1ecom.chatto.core.cache_state.v1B\x11NeighborhoodProtoP\x01ZChmans.de/chatto/internal/pb/chatto/core/cache_state/v1;cachestatev1\xa2\x02\x03CCC\xaa\x02\x19Chatto.Core.CacheState.V1\xca\x02\x19Chatto\\Core\\CacheState\\V1\xe2\x02%Chatto\\Core\\CacheState\\V1\\GPBMetadata\xea\x02\x1cChatto::Core::CacheState::V1b\x06proto3"
+	"objectNameB\x90\x02\n" +
+	"\x1ecom.chatto.core.cache_state.v1B\x11NeighborhoodProtoP\x01ZTgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/cache_state/v1;cachestatev1\xa2\x02\x03CCC\xaa\x02\x19Chatto.Core.CacheState.V1\xca\x02\x19Chatto\\Core\\CacheState\\V1\xe2\x02%Chatto\\Core\\CacheState\\V1\\GPBMetadata\xea\x02\x1cChatto::Core::CacheState::V1b\x06proto3"
 
 var (
 	file_chatto_core_cache_state_v1_neighborhood_proto_rawDescOnce sync.Once

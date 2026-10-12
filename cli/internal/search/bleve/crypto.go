@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/kms"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/encryption"
+	"github.com/chattocorp/chatto/cli/internal/kms"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 func (p *Projection) decryptBodyWithDEKs(ctx context.Context, eventID, roomID string, body *evtv1.MessageBody, deks map[string]*evtv1.UserDEKGeneratedEvent) ([]byte, error) {

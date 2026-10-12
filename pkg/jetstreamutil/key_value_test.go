@@ -9,7 +9,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
-	. "hmans.de/chatto/pkg/jetstreamutil"
+	. "github.com/chattocorp/chatto/pkg/jetstreamutil"
 )
 
 // laggingBucket answers Get as a DirectGet served by a follower that has not

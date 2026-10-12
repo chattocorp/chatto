@@ -20,12 +20,12 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/assets"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core/linkpreview"
-	"hmans.de/chatto/internal/core/neighborhood"
-	"hmans.de/chatto/internal/parallel"
-	cachestatev1 "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
+	"github.com/chattocorp/chatto/cli/internal/assets"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core/linkpreview"
+	"github.com/chattocorp/chatto/cli/internal/core/neighborhood"
+	"github.com/chattocorp/chatto/cli/internal/parallel"
+	cachestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/cache_state/v1"
 )
 
 const (

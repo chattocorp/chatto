@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"hmans.de/chatto/pkg/natsauth"
+	"github.com/chattocorp/chatto/cli/pkg/natsauth"
 )
 
 func TestChattoConfig_Validate_NATSClientTokenMatchesEmbedded(t *testing.T) {

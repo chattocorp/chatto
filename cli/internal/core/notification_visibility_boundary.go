@@ -8,7 +8,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/pkg/jetstreamutil"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 )
 
 const notificationVisibilityKeyPrefix = "notification_visibility_boundary."

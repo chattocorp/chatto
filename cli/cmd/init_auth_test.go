@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
-	"hmans.de/chatto/internal/config"
 )
 
 func TestInitSSOConfiguration(t *testing.T) {

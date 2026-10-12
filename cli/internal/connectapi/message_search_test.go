@@ -8,15 +8,15 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	searchv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1"
+	searchsvc "github.com/chattocorp/chatto/cli/internal/search"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/evtstream"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
-	searchsvc "hmans.de/chatto/internal/search"
 )
 
 type fakeMessageSearchProvider struct {

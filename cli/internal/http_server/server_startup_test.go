@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
-	"hmans.de/chatto/internal/config"
 )
 
 // startupLogWriter transfers complete records without sharing a buffer between

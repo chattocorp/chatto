@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 func roomCreatedEvent(roomID, name, description string, kind evtv1.RoomKind) *evtv1.Event {

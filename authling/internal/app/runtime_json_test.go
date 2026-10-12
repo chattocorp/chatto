@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/keyvault"
+	"github.com/chattocorp/chatto/authling/internal/storage"
+	"github.com/chattocorp/chatto/pkg/datacrypto"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/authling/internal/keyvault"
-	"hmans.de/authling/internal/storage"
-	"hmans.de/chatto/pkg/datacrypto"
 )
 
 // This test uses the pre-codec envelope and primitive directly. It checks both

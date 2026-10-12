@@ -296,8 +296,8 @@ const file_chatto_core_evt_v1_thread_events_proto_rawDesc = "" +
 	"!THREAD_FOLLOW_SOURCE_POSTED_REPLY\x10\x02\x12$\n" +
 	" THREAD_FOLLOW_SOURCE_ROOT_AUTHOR\x10\x03\x12'\n" +
 	"#THREAD_FOLLOW_SOURCE_DIRECT_MENTION\x10\x04\x12,\n" +
-	"(THREAD_FOLLOW_SOURCE_ROOT_AUTHOR_CREATED\x10\x05B\xcc\x01\n" +
-	"\x16com.chatto.core.evt.v1B\x11ThreadEventsProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
+	"(THREAD_FOLLOW_SOURCE_ROOT_AUTHOR_CREATED\x10\x05B\xdd\x01\n" +
+	"\x16com.chatto.core.evt.v1B\x11ThreadEventsProtoP\x01ZEgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
 var (
 	file_chatto_core_evt_v1_thread_events_proto_rawDescOnce sync.Once

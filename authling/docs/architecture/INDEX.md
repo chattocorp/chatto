@@ -92,7 +92,7 @@ JetStream resources use one replica by default. Explicit replica counts may be
 one, three, or five.
 
 The application-neutral embedded server lifecycle comes from
-`hmans.de/chatto/pkg/natsruntime`; Authling retains its private-listener,
+`github.com/chattocorp/chatto/pkg/natsruntime`; Authling retains its private-listener,
 storage-path, logging, and deployment policy.
 
 ## NATS and JetStream
@@ -110,7 +110,7 @@ restore boundary.
 Both KV buckets allow direct gets, so any replica can answer a plain `Get`. A
 follower can lag behind a committed write and return an older revision or no
 entry. `storage.OpenStores` binds both buckets through
-`hmans.de/chatto/pkg/jetstreamutil`, so `Get` reads through the stream leader
+`github.com/chattocorp/chatto/pkg/jetstreamutil`, so `Get` reads through the stream leader
 and observes every committed write. Watchers and key listings still read from
 any replica. The bucket's `Create` also checks for a delete marker on any
 replica. Revision-checked counter updates treat both JetStream conflict codes

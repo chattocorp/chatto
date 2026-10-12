@@ -4,7 +4,7 @@ package chatto.core.notification.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "hmans.de/chatto/internal/pb/chatto/core/notification/v1;notificationv1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1;notificationv1";
 
 // Notification is the retained Notifications 1.0 storage contract. Current
 // code does not write or read it; do not reuse it for Notifications 2.0.

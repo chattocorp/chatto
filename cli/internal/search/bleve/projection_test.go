@@ -11,19 +11,19 @@ import (
 	"testing"
 	"time"
 
-	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 
 	blevesearch "github.com/blevesearch/bleve/v2"
 	"github.com/charmbracelet/log"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/kms"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/encryption"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/kms"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	searchv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 type staticLegacyKeys struct{ key []byte }

@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/config"
+	"github.com/chattocorp/chatto/authling/internal/natsruntime"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/authling/internal/config"
-	"hmans.de/authling/internal/natsruntime"
-	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 func openDeliveryStore(t *testing.T, cfg config.NATSConfig) (*natsruntime.Connection, jetstream.JetStream, *jetstreamutil.KeyValue) {

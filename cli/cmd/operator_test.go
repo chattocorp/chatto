@@ -11,14 +11,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/connectapi"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/connectapi"
-	"hmans.de/chatto/internal/core"
-	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	"hmans.de/chatto/internal/testutil"
 )
 
 func TestRootDoesNotPrintUsageOnError(t *testing.T) {

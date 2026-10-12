@@ -6,8 +6,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/chattocorp/chatto/pkg/datacrypto"
 	"golang.org/x/crypto/chacha20poly1305"
-	"hmans.de/chatto/pkg/datacrypto"
 )
 
 // legacyRecord reproduces the pre-codec wire format using a fixed test nonce

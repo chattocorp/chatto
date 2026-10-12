@@ -10,15 +10,15 @@ import (
 
 	"github.com/charmbracelet/log"
 
-	"hmans.de/chatto/internal/logbridge"
-	"hmans.de/chatto/internal/natsresources"
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/cli/internal/logbridge"
+	"github.com/chattocorp/chatto/cli/internal/natsresources"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/streamidentity"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/streamidentity"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 const (

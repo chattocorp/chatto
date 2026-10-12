@@ -50,7 +50,7 @@ read model with another projection's replay frontier.
 ## Decision
 
 Treat the nested `pkg/events/` module, imported as
-`hmans.de/chatto/pkg/events`, as the incubator for a small Event Sourcing on
+`github.com/chattocorp/chatto/pkg/events`, as the incubator for a small Event Sourcing on
 NATS framework that may later move to a standalone repository.
 
 Framework-owned responsibilities are:
@@ -194,7 +194,7 @@ bound to that projector run alongside its state and cutoff; application
 publication does not maintain a second identity value.
 
 The framework is exposed as the independently versioned incubation module
-`hmans.de/chatto/pkg/events`, so code outside Chatto's module can compile and
+`github.com/chattocorp/chatto/pkg/events`, so code outside Chatto's module can compile and
 test against the same exported surface Chatto uses. The module remains pre-1.0
 and does not promise API stability. Its repository path is `pkg/events/`, and
 its release tags use `pkg/events/v<version>`. ADR-059 licenses the complete

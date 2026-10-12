@@ -14,8 +14,8 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
-	"hmans.de/chatto/internal/testutil"
+	searchv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 type testProvider struct {

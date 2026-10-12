@@ -4,7 +4,7 @@ package chatto.core.runtime_state.v1;
 
 import "chatto/api/v1/presence.proto";
 
-option go_package = "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
 
 // Latest choice at presence.{userId} in the existing RUNTIME_STATE bucket.
 // History is one value; updates replace the previous choice. No expiry.

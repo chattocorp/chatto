@@ -13,7 +13,7 @@ import (
 	"strings"
 
 	"github.com/brianvoe/gofakeit/v7"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // SeedVersion identifies the deterministic content and relationship generator.

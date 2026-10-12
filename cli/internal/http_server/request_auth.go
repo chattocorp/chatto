@@ -9,10 +9,10 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/authctx"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/gin-gonic/gin"
-	"hmans.de/chatto/internal/authctx"
-	"hmans.de/chatto/internal/core"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type authenticationValidationErrorKey struct{}

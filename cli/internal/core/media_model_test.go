@@ -3,7 +3,7 @@ package core
 import (
 	"bytes"
 	"context"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"io"
 	"net/url"
 	"os"
@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
-	"hmans.de/chatto/pkg/signedurl"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/pkg/signedurl"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 func TestNewMediaModelWiresCore(t *testing.T) {

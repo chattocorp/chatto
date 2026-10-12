@@ -9,11 +9,11 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
-	"hmans.de/chatto/internal/config"
 )
 
 func TestOIDCTokenAuthenticationSelection(t *testing.T) {

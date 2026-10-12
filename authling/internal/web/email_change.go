@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"net/url"
 
-	"hmans.de/authling/internal/accounts"
-	"hmans.de/authling/internal/emailchange"
-	"hmans.de/authling/internal/sessions"
+	"github.com/chattocorp/chatto/authling/internal/accounts"
+	"github.com/chattocorp/chatto/authling/internal/emailchange"
+	"github.com/chattocorp/chatto/authling/internal/sessions"
 )
 
 // mountEmailChange registers signed-in email verification and replacement.

@@ -1,6 +1,6 @@
 # Application Configuration
 
-`hmans.de/chatto/pkg/appconfig` loads application-owned Go configuration
+`github.com/chattocorp/chatto/pkg/appconfig` loads application-owned Go configuration
 structs from TOML files and then applies struct-tagged environment-variable
 overrides.
 

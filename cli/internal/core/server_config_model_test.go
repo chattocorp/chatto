@@ -9,7 +9,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
+	configv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/config/v1"
 )
 
 // ============================================================================

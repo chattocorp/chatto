@@ -689,8 +689,8 @@ const file_chatto_core_evt_v1_room_group_events_proto_rawDesc = "" +
 	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12?\n" +
 	"\aentries\x18\x02 \x03(\v2%.chatto.core.evt.v1.SidebarGroupEntryR\aentries\"7\n" +
 	"\x18RoomGroupsReorderedEvent\x12\x1b\n" +
-	"\tgroup_ids\x18\x01 \x03(\tR\bgroupIdsB\xcf\x01\n" +
-	"\x16com.chatto.core.evt.v1B\x14RoomGroupEventsProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
+	"\tgroup_ids\x18\x01 \x03(\tR\bgroupIdsB\xe0\x01\n" +
+	"\x16com.chatto.core.evt.v1B\x14RoomGroupEventsProtoP\x01ZEgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
 var (
 	file_chatto_core_evt_v1_room_group_events_proto_rawDescOnce sync.Once

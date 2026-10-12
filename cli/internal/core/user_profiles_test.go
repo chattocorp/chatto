@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
 )
 
 // TestChattoCore_CreateUser_DisplayNameTooLong tests that oversized display names are rejected.

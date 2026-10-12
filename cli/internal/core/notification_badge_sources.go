@@ -7,9 +7,9 @@ import (
 	"time"
 	"unsafe"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 )
 
 // badgeCause is one notification cause that can resolve to Badge.

@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"hmans.de/chatto/internal/authctx"
-	"hmans.de/chatto/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/authctx"
+	"github.com/chattocorp/chatto/cli/internal/core"
 )
 
 // requireFreshCredentialOrPassword accepts password proof for this operation

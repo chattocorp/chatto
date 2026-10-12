@@ -193,7 +193,7 @@ unavailability fails closed.
 ### Extraction boundary
 
 ADR-060 extracts the first application-neutral mechanics into
-`hmans.de/chatto/pkg/datacrypto`:
+`github.com/chattocorp/chatto/pkg/datacrypto`:
 
 - authenticated-encryption and key-wrapping primitives.
 
@@ -205,7 +205,7 @@ products prove their boundaries:
 - bounded unwrapped-key resolution and cache invalidation.
 
 Envelope-neutral durable consumption and retry mechanics are already provided
-by `hmans.de/chatto/pkg/events`. Authling's account-erasure worker uses them;
+by `github.com/chattocorp/chatto/pkg/events`. Authling's account-erasure worker uses them;
 Authling retains ownership of the erasure events and key-destruction policy.
 
 The extracted layer must not know Authling or Chatto user IDs, data purposes,

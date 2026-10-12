@@ -19,7 +19,7 @@ as implemented runtime behavior.
 
 ## Decision
 
-Create the independently versioned `hmans.de/chatto/pkg/datacrypto` module. It
+Create the independently versioned `github.com/chattocorp/chatto/pkg/datacrypto` module. It
 owns only:
 
 - cryptographically random 256-bit key generation;

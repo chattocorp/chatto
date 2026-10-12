@@ -674,8 +674,8 @@ const file_chatto_api_v1_threads_proto_rawDesc = "" +
 	"\x0eUnfollowThread\x12$.chatto.api.v1.UnfollowThreadRequest\x1a%.chatto.api.v1.UnfollowThreadResponse\x12`\n" +
 	"\x0fGetThreadEvents\x12%.chatto.api.v1.GetThreadEventsRequest\x1a&.chatto.api.v1.GetThreadEventsResponse\x12r\n" +
 	"\x15GetThreadEventsAround\x12+.chatto.api.v1.GetThreadEventsAroundRequest\x1a,.chatto.api.v1.GetThreadEventsAroundResponse\x12c\n" +
-	"\x10MarkThreadAsRead\x12&.chatto.api.v1.MarkThreadAsReadRequest\x1a'.chatto.api.v1.MarkThreadAsReadResponseB\xa8\x01\n" +
-	"\x11com.chatto.api.v1B\fThreadsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
+	"\x10MarkThreadAsRead\x12&.chatto.api.v1.MarkThreadAsReadRequest\x1a'.chatto.api.v1.MarkThreadAsReadResponseB\xb9\x01\n" +
+	"\x11com.chatto.api.v1B\fThreadsProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
 	file_chatto_api_v1_threads_proto_rawDescOnce sync.Once

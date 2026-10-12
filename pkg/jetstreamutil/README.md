@@ -1,6 +1,6 @@
 # JetStream Utilities
 
-`hmans.de/chatto/pkg/jetstreamutil` provides small, application-neutral helpers
+`github.com/chattocorp/chatto/pkg/jetstreamutil` provides small, application-neutral helpers
 for NATS JetStream clients:
 
 - key-value reads through the stream leader, so that a read sees every

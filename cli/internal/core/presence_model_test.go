@@ -2,14 +2,14 @@ package core
 
 import (
 	"context"
-	"hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/cache_state/v1"
 	"testing"
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/testutil"
 )
 
 func newTestPresenceModel(t *testing.T) (*PresenceModel, jetstream.KeyValue, *log.Logger) {

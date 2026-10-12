@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"hmans.de/chatto/internal/testutil"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 func TestMain(m *testing.M) {

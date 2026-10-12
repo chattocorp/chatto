@@ -5,10 +5,10 @@ package http_server
 import (
 	"connectrpc.com/connect"
 	"context"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1/operatorv1connect"
 	"github.com/stretchr/testify/require"
-	"hmans.de/chatto/internal/config"
-	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
-	"hmans.de/chatto/internal/pb/chatto/operator/v1/operatorv1connect"
 	"testing"
 )
 

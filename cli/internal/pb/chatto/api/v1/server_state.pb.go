@@ -399,8 +399,8 @@ const file_chatto_api_v1_server_state_proto_rawDesc = "" +
 	"\rServerService\x12c\n" +
 	"\x10GetServerProfile\x12&.chatto.api.v1.GetServerProfileRequest\x1a'.chatto.api.v1.GetServerProfileResponse\x12H\n" +
 	"\aGetMotd\x12\x1d.chatto.api.v1.GetMotdRequest\x1a\x1e.chatto.api.v1.GetMotdResponse\x12c\n" +
-	"\x10GetRuntimeConfig\x12&.chatto.api.v1.GetRuntimeConfigRequest\x1a'.chatto.api.v1.GetRuntimeConfigResponseB\xac\x01\n" +
-	"\x11com.chatto.api.v1B\x10ServerStateProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
+	"\x10GetRuntimeConfig\x12&.chatto.api.v1.GetRuntimeConfigRequest\x1a'.chatto.api.v1.GetRuntimeConfigResponseB\xbd\x01\n" +
+	"\x11com.chatto.api.v1B\x10ServerStateProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
 	file_chatto_api_v1_server_state_proto_rawDescOnce sync.Once

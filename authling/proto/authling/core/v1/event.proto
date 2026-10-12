@@ -4,7 +4,7 @@ package authling.core.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "hmans.de/authling/internal/pb/authling/core/v1;corev1";
+option go_package = "github.com/chattocorp/chatto/authling/internal/pb/authling/core/v1;corev1";
 
 // Event is Authling's persisted envelope for durable domain facts.
 //

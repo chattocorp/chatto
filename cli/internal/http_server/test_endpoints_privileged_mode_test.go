@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/core"
 )
 
 func TestPrivilegedModeDeadlineEndpoint(t *testing.T) {

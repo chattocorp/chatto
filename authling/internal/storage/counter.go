@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // counterRecord is the stored value of a runtime-state counter.

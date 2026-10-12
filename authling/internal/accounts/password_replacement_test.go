@@ -5,10 +5,10 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/chattocorp/chatto/authling/internal/evtstream"
+	corev1 "github.com/chattocorp/chatto/authling/internal/pb/authling/core/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 	"google.golang.org/protobuf/proto"
-	"hmans.de/authling/internal/evtstream"
-	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
-	"hmans.de/chatto/pkg/events"
 )
 
 type passwordPublicationFault struct {

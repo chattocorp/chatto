@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
 )
 
 func (s *operatorUserService) ListUserExternalIdentities(ctx context.Context, req *connect.Request[operatorv1.ListUserExternalIdentitiesRequest]) (*connect.Response[operatorv1.ListUserExternalIdentitiesResponse], error) {

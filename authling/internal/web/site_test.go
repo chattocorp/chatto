@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"github.com/a-h/templ"
-	"hmans.de/authling/internal/accounts"
-	"hmans.de/authling/internal/config"
-	"hmans.de/authling/internal/oidcprovider"
+	"github.com/chattocorp/chatto/authling/internal/accounts"
+	"github.com/chattocorp/chatto/authling/internal/config"
+	"github.com/chattocorp/chatto/authling/internal/oidcprovider"
 )
 
 func TestSiteSettingsAreLocalToEachHandler(t *testing.T) {

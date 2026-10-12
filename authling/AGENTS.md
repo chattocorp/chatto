@@ -49,18 +49,18 @@ shared boundary is stable for normal versioned use.
 
 ## Code And Dependency Boundaries
 
-- Authling must not import `hmans.de/chatto/internal/...`, Chatto domain
+- Authling must not import `github.com/chattocorp/chatto/cli/internal/...`, Chatto domain
   packages, Chatto protobuf event envelopes, or Chatto application
   configuration.
 - Do not copy Chatto subjects, stream or bucket names, event types, aggregate
   boundaries, runtime-state keys, or diagnostic identities into Authling.
 - Reusable mechanics must move behind explicitly application-neutral shared
-  package boundaries. The unstable `hmans.de/chatto/pkg/events` module owns
-  generic event-sourcing mechanics, `hmans.de/chatto/pkg/jetstreamutil` owns
+  package boundaries. The unstable `github.com/chattocorp/chatto/pkg/events` module owns
+  generic event-sourcing mechanics, `github.com/chattocorp/chatto/pkg/jetstreamutil` owns
   JetStream client helpers such as key-value reads through the stream leader,
-  `hmans.de/chatto/pkg/natsruntime` owns embedded NATS lifecycle mechanics, and
-  `hmans.de/chatto/pkg/datacrypto` owns raw XChaCha20-Poly1305 and 256-bit key
-  wrapping primitives. `hmans.de/chatto/pkg/appconfig` owns TOML and
+  `github.com/chattocorp/chatto/pkg/natsruntime` owns embedded NATS lifecycle mechanics, and
+  `github.com/chattocorp/chatto/pkg/datacrypto` owns raw XChaCha20-Poly1305 and 256-bit key
+  wrapping primitives. `github.com/chattocorp/chatto/pkg/appconfig` owns TOML and
   environment loading mechanics. Authling owns its associated data, key
   hierarchy, configuration schema, environment names, defaults, and
   validation.

@@ -9,7 +9,7 @@ import (
 	"io"
 	"testing"
 
-	"hmans.de/chatto/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
 )
 
 func TestRequireCanManageUserIdentityAuthorizationMatrix(t *testing.T) {

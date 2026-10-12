@@ -8,9 +8,9 @@ package authv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	v1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -667,8 +667,8 @@ const file_chatto_auth_v1_external_identity_auth_proto_rawDesc = "" +
 	"\x1aGetPendingExternalIdentity\x121.chatto.auth.v1.GetPendingExternalIdentityRequest\x1a2.chatto.auth.v1.GetPendingExternalIdentityResponse\x12\x8c\x01\n" +
 	"\x1dCreateExternalIdentityAccount\x124.chatto.auth.v1.CreateExternalIdentityAccountRequest\x1a5.chatto.auth.v1.CreateExternalIdentityAccountResponse\x12\x86\x01\n" +
 	"\x1bConfirmExternalIdentityLink\x122.chatto.auth.v1.ConfirmExternalIdentityLinkRequest\x1a3.chatto.auth.v1.ConfirmExternalIdentityLinkResponse\x12\x83\x01\n" +
-	"\x1aCancelExternalIdentityFlow\x121.chatto.auth.v1.CancelExternalIdentityFlowRequest\x1a2.chatto.auth.v1.CancelExternalIdentityFlowResponseB\xbc\x01\n" +
-	"\x12com.chatto.auth.v1B\x19ExternalIdentityAuthProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/auth/v1;authv1\xa2\x02\x03CAX\xaa\x02\x0eChatto.Auth.V1\xca\x02\x0eChatto\\Auth\\V1\xe2\x02\x1aChatto\\Auth\\V1\\GPBMetadata\xea\x02\x10Chatto::Auth::V1b\x06proto3"
+	"\x1aCancelExternalIdentityFlow\x121.chatto.auth.v1.CancelExternalIdentityFlowRequest\x1a2.chatto.auth.v1.CancelExternalIdentityFlowResponseB\xcd\x01\n" +
+	"\x12com.chatto.auth.v1B\x19ExternalIdentityAuthProtoP\x01ZBgithub.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1;authv1\xa2\x02\x03CAX\xaa\x02\x0eChatto.Auth.V1\xca\x02\x0eChatto\\Auth\\V1\xe2\x02\x1aChatto\\Auth\\V1\\GPBMetadata\xea\x02\x10Chatto::Auth::V1b\x06proto3"
 
 var (
 	file_chatto_auth_v1_external_identity_auth_proto_rawDescOnce sync.Once

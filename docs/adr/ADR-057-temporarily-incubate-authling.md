@@ -28,13 +28,13 @@ Authling is a separate product and executable. It owns its configuration,
 application composition, HTTP surface, lifecycle, and NATS credentials. It
 must not import Chatto domain packages or any package beneath Chatto's
 `internal` directories. Reusable event-sourcing mechanics live behind the
-independently versioned but unstable `hmans.de/chatto/pkg/events` module
+independently versioned but unstable `github.com/chattocorp/chatto/pkg/events` module
 boundary described by ADR-056. Reusable embedded NATS lifecycle mechanics live
-in the separate `hmans.de/chatto/pkg/natsruntime` module described by ADR-058.
+in the separate `github.com/chattocorp/chatto/pkg/natsruntime` module described by ADR-058.
 Reusable authenticated-encryption primitives live in the separate
-`hmans.de/chatto/pkg/datacrypto` module described by ADR-060.
+`github.com/chattocorp/chatto/pkg/datacrypto` module described by ADR-060.
 Reusable TOML and environment configuration loading lives in the separate
-`hmans.de/chatto/pkg/appconfig` module described by ADR-061.
+`github.com/chattocorp/chatto/pkg/appconfig` module described by ADR-061.
 Authling should consume shared modules only when a concrete use case needs
 them.
 
@@ -72,9 +72,11 @@ change to a shared module that requires a new Chatto or Authling version must
 also update that consumer's module dependency or another file under the
 consumer's component, making its release explicit.
 
-Authling uses its intended standalone module identity, `hmans.de/authling`,
-while incubating here. Its module path must not inherit Chatto's namespace;
-moving repositories must not require an import-path migration.
+Authling uses the module path `github.com/chattocorp/chatto/authling` while it
+is in this repository. All Go module paths match their repository location, so
+the Go toolchain can fetch them without a vanity-domain service. When Authling
+moves to its own repository, change its module path to the new repository
+location. Authling has no external Go consumers, so this change is internal.
 
 Co-location ends when all of the following are true:
 

@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/config"
+	sharednatsruntime "github.com/chattocorp/chatto/pkg/natsruntime"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
-	"hmans.de/authling/internal/config"
-	sharednatsruntime "hmans.de/chatto/pkg/natsruntime"
 )
 
 // Connection is an Authling NATS client and any private embedded server that

@@ -8,9 +8,9 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/spf13/cobra"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/runtimeunit"
-	"hmans.de/chatto/internal/video"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
+	"github.com/chattocorp/chatto/cli/internal/video"
 )
 
 var assetProcessingConfigFile string

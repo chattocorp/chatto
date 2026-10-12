@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"time"
 
-	"hmans.de/authling/internal/accounts"
-	"hmans.de/authling/internal/registration"
+	"github.com/chattocorp/chatto/authling/internal/accounts"
+	"github.com/chattocorp/chatto/authling/internal/registration"
 )
 
 // mountRegistration registers verified-email signup.

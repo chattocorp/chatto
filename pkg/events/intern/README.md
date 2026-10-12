@@ -1,6 +1,6 @@
 # ID interning
 
-`hmans.de/chatto/pkg/events/intern` stores opaque strings behind compact
+`github.com/chattocorp/chatto/pkg/events/intern` stores opaque strings behind compact
 `ID[Kind]` handles backed by `uint32`. It is an optional projection utility with only standard
 library imports. It does not import the parent `events` package or NATS.
 

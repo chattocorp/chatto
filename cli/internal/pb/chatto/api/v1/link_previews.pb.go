@@ -676,8 +676,8 @@ const file_chatto_api_v1_link_previews_proto_rawDesc = "" +
 	"\x0f_image_asset_id\"u\n" +
 	"\x18FetchLinkPreviewResponse\x124\n" +
 	"\apreview\x18\x01 \x01(\v2\x1a.chatto.api.v1.LinkPreviewR\apreview\x12#\n" +
-	"\rpreview_token\x18\x02 \x01(\tR\fpreviewTokenB\xad\x01\n" +
-	"\x11com.chatto.api.v1B\x11LinkPreviewsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
+	"\rpreview_token\x18\x02 \x01(\tR\fpreviewTokenB\xbe\x01\n" +
+	"\x11com.chatto.api.v1B\x11LinkPreviewsProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
 	file_chatto_api_v1_link_previews_proto_rawDescOnce sync.Once

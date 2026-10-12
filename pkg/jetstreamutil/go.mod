@@ -1,4 +1,4 @@
-module hmans.de/chatto/pkg/jetstreamutil
+module github.com/chattocorp/chatto/pkg/jetstreamutil
 
 go 1.26.0
 

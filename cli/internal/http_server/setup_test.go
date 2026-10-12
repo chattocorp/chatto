@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"hmans.de/chatto/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/config"
 )
 
 func TestSetupBlocksRegistrationBeforeValidationAndMail(t *testing.T) {

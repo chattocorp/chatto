@@ -8,8 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"io"
 	"net"
 	"net/url"
@@ -23,8 +23,8 @@ import (
 	"github.com/charmbracelet/log"
 	"golang.org/x/net/idna"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/pushendpoint"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/pushendpoint"
 )
 
 // Sender sends Web Push notifications.

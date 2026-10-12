@@ -20,7 +20,7 @@ import "chatto/core/evt/v1/invitation_events.proto";
 import "chatto/core/evt/v1/oauth_client_events.proto";
 import "chatto/core/evt/v1/bot_webhook_events.proto";
 
-option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1";
 
 /*
    Event is the wire-format envelope for durable domain facts. New writes

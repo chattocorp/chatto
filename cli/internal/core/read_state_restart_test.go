@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 	"github.com/stretchr/testify/require"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 )
 
 // A fresh core must finish a read whose durable boundary was saved before

@@ -16,17 +16,17 @@ import (
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/connectapi"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/email"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/search"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/nats-io/nats.go"
 	"golang.org/x/crypto/acme/autocert"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/connectapi"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/email"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/internal/search"
 )
 
 // HTTPServerConfig holds configuration for creating an HTTPServer.

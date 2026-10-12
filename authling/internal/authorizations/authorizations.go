@@ -13,14 +13,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/evtstream"
+	"github.com/chattocorp/chatto/authling/internal/ids"
+	"github.com/chattocorp/chatto/authling/internal/keyvault"
+	corev1 "github.com/chattocorp/chatto/authling/internal/pb/authling/core/v1"
+	"github.com/chattocorp/chatto/pkg/datacrypto"
+	"github.com/chattocorp/chatto/pkg/events"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/authling/internal/evtstream"
-	"hmans.de/authling/internal/ids"
-	"hmans.de/authling/internal/keyvault"
-	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
-	"hmans.de/chatto/pkg/datacrypto"
-	"hmans.de/chatto/pkg/events"
 )
 
 // ConsentVersion identifies scope-gated subject, profile, and verified email disclosure.

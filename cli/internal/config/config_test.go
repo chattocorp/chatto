@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/pkg/natsauth"
+	"github.com/chattocorp/chatto/cli/pkg/natsauth"
 )
 
 func TestLocalDevelopmentConfig(t *testing.T) {

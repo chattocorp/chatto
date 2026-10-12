@@ -343,8 +343,8 @@ const file_chatto_api_v1_push_notifications_proto_rawDesc = "" +
 	"\x17PushNotificationService\x12N\n" +
 	"\tSubscribe\x12\x1f.chatto.api.v1.SubscribeRequest\x1a .chatto.api.v1.SubscribeResponse\x12Y\n" +
 	"\vUnsubscribe\x12!.chatto.api.v1.UnsubscribeRequest\x1a\".chatto.api.v1.UnsubscribeResponse\"\x03\x90\x02\x02\x12o\n" +
-	"\x14SendTestNotification\x12*.chatto.api.v1.SendTestNotificationRequest\x1a+.chatto.api.v1.SendTestNotificationResponseB\xb2\x01\n" +
-	"\x11com.chatto.api.v1B\x16PushNotificationsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
+	"\x14SendTestNotification\x12*.chatto.api.v1.SendTestNotificationRequest\x1a+.chatto.api.v1.SendTestNotificationResponseB\xc3\x01\n" +
+	"\x11com.chatto.api.v1B\x16PushNotificationsProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
 	file_chatto_api_v1_push_notifications_proto_rawDescOnce sync.Once

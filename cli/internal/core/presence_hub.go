@@ -3,13 +3,13 @@ package core
 import (
 	"context"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/cache_state/v1"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"

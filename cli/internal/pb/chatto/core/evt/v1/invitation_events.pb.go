@@ -197,8 +197,8 @@ const file_chatto_core_evt_v1_invitation_events_proto_rawDesc = "" +
 	"\rinvitation_id\x18\x01 \x01(\tR\finvitationId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\"=\n" +
 	"\x16InvitationRevokedEvent\x12#\n" +
-	"\rinvitation_id\x18\x01 \x01(\tR\finvitationIdB\xd0\x01\n" +
-	"\x16com.chatto.core.evt.v1B\x15InvitationEventsProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
+	"\rinvitation_id\x18\x01 \x01(\tR\finvitationIdB\xe1\x01\n" +
+	"\x16com.chatto.core.evt.v1B\x15InvitationEventsProtoP\x01ZEgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
 var (
 	file_chatto_core_evt_v1_invitation_events_proto_rawDescOnce sync.Once

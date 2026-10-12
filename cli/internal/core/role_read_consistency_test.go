@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/config"
 )
 
 func TestRoleReadsWaitForAnotherReplica(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
+	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
 )
 
 func TestAdminMemberBatchAvoidsPresenceKVReads(t *testing.T) {

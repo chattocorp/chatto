@@ -11,10 +11,10 @@ import (
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	authv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1"
 )
 
 type externalIdentityAuthService struct {

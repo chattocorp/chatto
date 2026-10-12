@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/kms"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/kms"
 )
 
 func TestChattoCore_CreateUser(t *testing.T) {

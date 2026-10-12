@@ -15,10 +15,10 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"golang.org/x/oauth2"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
-	"hmans.de/chatto/internal/testutil"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	configv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/config/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 type staticOAuthHandler struct{ token string }

@@ -13,9 +13,9 @@ import (
 	"io"
 	"time"
 
+	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 )
 
 const (

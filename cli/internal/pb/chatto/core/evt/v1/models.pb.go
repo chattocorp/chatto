@@ -2185,8 +2185,8 @@ const file_chatto_core_evt_v1_models_proto_rawDesc = "" +
 	"\x1cROOM_THREADING_MODE_REQUIRED\x10\x01\x12\"\n" +
 	"\x1eROOM_THREADING_MODE_ENCOURAGED\x10\x02\x12\x1f\n" +
 	"\x1bROOM_THREADING_MODE_ENABLED\x10\x03\x12 \n" +
-	"\x1cROOM_THREADING_MODE_DISABLED\x10\x04B\xc6\x01\n" +
-	"\x16com.chatto.core.evt.v1B\vModelsProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
+	"\x1cROOM_THREADING_MODE_DISABLED\x10\x04B\xd7\x01\n" +
+	"\x16com.chatto.core.evt.v1B\vModelsProtoP\x01ZEgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
 var (
 	file_chatto_core_evt_v1_models_proto_rawDescOnce sync.Once

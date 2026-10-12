@@ -17,14 +17,14 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
-	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
-	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
-	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1/adminv1connect"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1/apiv1connect"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1/authv1connect"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1/discoveryv1connect"
 )
 
 func TestAPIHandlers(t *testing.T) {

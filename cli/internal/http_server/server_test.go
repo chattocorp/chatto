@@ -22,16 +22,16 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/connectapi"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/email"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	configv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/config/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/connectapi"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/email"
-	"hmans.de/chatto/internal/evtstream"
-	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
-	"hmans.de/chatto/internal/testutil"
 )
 
 func TestEnsureAutocertCacheDir(t *testing.T) {
