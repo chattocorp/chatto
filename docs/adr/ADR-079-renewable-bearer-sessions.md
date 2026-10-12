@@ -281,7 +281,9 @@ sign-in and coordinated-upgrade requirement.
   instead of revoking the session. When the attacker and the legitimate client
   both use their pairs, the next refresh of the older pair revokes the session.
   An attacker that makes its uses and refreshes alternate exactly with those
-  of the legitimate client can keep both pairs active. Each lost-response
+  of the legitimate client can keep both pairs active. A client that only
+  keeps a realtime socket open after a rotation does not mark its generation
+  until its next request or refresh, so it makes this period longer. Each lost-response
   rotation writes a log entry that contains no credential or identity.
 - Correctness across replicas comes from one JetStream KV revision boundary;
   browser locks improve contention but are not a security primitive.
