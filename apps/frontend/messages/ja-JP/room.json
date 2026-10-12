@@ -255,6 +255,9 @@
     "jump_to_present": "現在へジャンプ",
     "jump_failed": "そのメッセージにジャンプできませんでした。",
     "unread_separator": "新しいメッセージ",
-    "close_extras": "密室エクストラ"
+    "close_extras": "密室エクストラ",
+    "dm": {
+      "deleted_user_notice": "相手のユーザーは削除されました。"
+    }
   }
 }

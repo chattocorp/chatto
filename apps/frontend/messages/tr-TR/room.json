@@ -255,6 +255,9 @@
     "jump_to_present": "Sun'a Atla",
     "jump_failed": "Bu mesaja atlanamadı.",
     "unread_separator": "Yeni mesajlar",
-    "close_extras": "Oda ekstralarını kapat"
+    "close_extras": "Oda ekstralarını kapat",
+    "dm": {
+      "deleted_user_notice": "Diğer kullanıcı silindi."
+    }
   }
 }

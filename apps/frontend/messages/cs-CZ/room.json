@@ -255,6 +255,9 @@
     "jump_to_present": "Přejít na současnost",
     "jump_failed": "Na tuto zprávu nelze přejít.",
     "unread_separator": "Nové zprávy",
-    "close_extras": "Zavřít doplňky pokoje"
+    "close_extras": "Zavřít doplňky pokoje",
+    "dm": {
+      "deleted_user_notice": "Druhý uživatel byl smazán."
+    }
   }
 }

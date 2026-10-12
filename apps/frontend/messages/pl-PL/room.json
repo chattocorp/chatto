@@ -262,6 +262,9 @@
     "jump_to_present": "Przejdź do prezentacji",
     "jump_failed": "Nie można przejść do tej wiadomości.",
     "unread_separator": "Nowe wiadomości",
-    "close_extras": "Zamknij dodatki do pokoju"
+    "close_extras": "Zamknij dodatki do pokoju",
+    "dm": {
+      "deleted_user_notice": "Drugi użytkownik został usunięty."
+    }
   }
 }

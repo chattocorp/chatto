@@ -255,6 +255,9 @@
     "jump_to_present": "Hoppa till Present",
     "jump_failed": "Det gick inte att hoppa till det meddelandet.",
     "unread_separator": "Nya meddelanden",
-    "close_extras": "Stäng extra rum"
+    "close_extras": "Stäng extra rum",
+    "dm": {
+      "deleted_user_notice": "Den andra användaren har raderats."
+    }
   }
 }

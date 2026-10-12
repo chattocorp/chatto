@@ -255,6 +255,9 @@
     "jump_to_present": "Saltu al Prezentaro",
     "jump_failed": "Ne eblis salti al tiu mesaĝo.",
     "unread_separator": "Novaj mesaĝoj",
-    "close_extras": "Fermu ĉambrajn kromaĵojn"
+    "close_extras": "Fermu ĉambrajn kromaĵojn",
+    "dm": {
+      "deleted_user_notice": "La alia uzanto estis forigita."
+    }
   }
 }

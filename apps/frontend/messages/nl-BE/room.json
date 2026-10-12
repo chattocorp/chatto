@@ -255,6 +255,9 @@
     "jump_to_present": "Ga naar heden",
     "jump_failed": "Kan niet naar dat bericht springen.",
     "unread_separator": "Nieuwe berichten",
-    "close_extras": "Kamerextra's sluiten"
+    "close_extras": "Kamerextra's sluiten",
+    "dm": {
+      "deleted_user_notice": "De andere gebruiker is verwijderd."
+    }
   }
 }

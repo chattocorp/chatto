@@ -255,6 +255,9 @@
     "jump_to_present": "前往最新訊息",
     "jump_failed": "無法前往該訊息。",
     "unread_separator": "新訊息",
-    "close_extras": "關閉聊天室資訊"
+    "close_extras": "關閉聊天室資訊",
+    "dm": {
+      "deleted_user_notice": "對方使用者已被刪除。"
+    }
   }
 }

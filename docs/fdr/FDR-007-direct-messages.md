@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-09-27
+**Last reviewed:** 2026-10-12
 
 ## Overview
 
@@ -32,7 +32,9 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
   participant. The other participant keeps the conversation and sees the
   deleted participant as **[deleted user]** with a deleted-user avatar. The DM
   is never shown as a self-DM and has no **You** badge. Posting rules do not
-  change.
+  change. The timeline keeps deleted-message placeholders, including those
+  without attachments, previews, reactions, or thread replies. A notice above
+  the timeline states that the other user has been deleted.
 - Active DM navigation uses message history to include and order DMs for their
   participants. Exhaustive authenticated state also retains membership-derived
   room metadata for routing.

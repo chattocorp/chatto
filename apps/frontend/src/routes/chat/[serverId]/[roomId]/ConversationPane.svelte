@@ -45,6 +45,7 @@ thread IDs can change while the pane stays mounted.
     createTypingIndicator,
     useProjectionEvent,
     useRoomUnread,
+    useRoomData,
     useUnreadMarker
   } from '$lib/hooks';
   import { m } from '$lib/i18n/messages';
@@ -52,7 +53,7 @@ thread IDs can change while the pane stays mounted.
   import { appState } from '$lib/state/globals.svelte';
   import { createComposerContext, getRoomMembers, type MessagesStore } from '$lib/state/room';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { EmptyState } from '$lib/ui';
+  import { EmptyState, Hint } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import EventList from './EventList.svelte';
   import TypingIndicator from './TypingIndicator.svelte';
@@ -114,6 +115,13 @@ thread IDs can change while the pane stays mounted.
   const serverScope = useServerScope();
   const stores = serverScope.store;
   const members = $derived(getRoomMembers());
+  const room = useRoomData(() => ({ roomId }));
+  // Missing profiles are unresolved, not evidence of account deletion.
+  const hasDeletedPartner = $derived(
+    room.dmData?.participants.some(
+      (participant) => participant.id !== room.dmData?.currentUserId && participant.deleted
+    ) ?? false
+  );
   const isThread = untrack(() => threadRootEventId !== null);
 
   // The composer and the timeline below share this pane's context. A thread
@@ -349,8 +357,15 @@ thread IDs can change while the pane stays mounted.
   <DropZoneOverlay visible={isDraggingFiles} />
   {@render header?.()}
 
+  {#if hasDeletedPartner && !isThread}
+    <div class="px-4 pt-4" role="status">
+      <Hint>{m('room.dm.deleted_user_notice')}</Hint>
+    </div>
+  {/if}
+
   {#if canReadMessages}
     <EventList
+      showTombstones={hasDeletedPartner}
       {roomId}
       permalinkThreadRootEventId={threadRootEventId}
       {messageStore}

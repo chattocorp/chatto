@@ -271,6 +271,9 @@
     "jump_to_present": "انتقل إلى الحاضر",
     "jump_failed": "تعذر الانتقال إلى تلك الرسالة.",
     "unread_separator": "رسائل جديدة",
-    "close_extras": "إغلاق إضافات الغرفة"
+    "close_extras": "إغلاق إضافات الغرفة",
+    "dm": {
+      "deleted_user_notice": "تم حذف المستخدم الآخر."
+    }
   }
 }

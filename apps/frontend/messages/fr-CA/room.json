@@ -255,6 +255,9 @@
     "jump_to_present": "Passer au présent",
     "jump_failed": "Impossible d'accéder à ce message.",
     "unread_separator": "Nouveaux messages",
-    "close_extras": "Fermer les extras de la salle"
+    "close_extras": "Fermer les extras de la salle",
+    "dm": {
+      "deleted_user_notice": "L’autre utilisateur a été supprimé."
+    }
   }
 }

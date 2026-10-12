@@ -255,6 +255,9 @@
     "jump_to_present": "Gå til presentasjon",
     "jump_failed": "Kunne ikke hoppe til den meldingen.",
     "unread_separator": "Nye meldinger",
-    "close_extras": "Lukk romtillegg"
+    "close_extras": "Lukk romtillegg",
+    "dm": {
+      "deleted_user_notice": "Den andre brukeren er slettet."
+    }
   }
 }

@@ -60,6 +60,7 @@
     messageStore,
     events,
     showStartMarker = true,
+    showTombstones = false,
     // Threading - only root messages can open threads
     onOpenThread,
     onOpenCall,
@@ -83,6 +84,8 @@
     messageStore: MessagesStore;
     events: TimelineEventView[];
     showStartMarker?: boolean;
+    /** Keep empty deleted-message rows when the DM partner was deleted. */
+    showTombstones?: boolean;
     // Threading
     onOpenThread?: OpenThreadHandler;
     onOpenCall?: () => void;
@@ -198,7 +201,9 @@
       return true;
     })
   );
-  let filteredEvents = $derived(visibleTombstoneEvents(timelineEvents));
+  let filteredEvents = $derived(
+    showTombstones ? timelineEvents : visibleTombstoneEvents(timelineEvents)
+  );
   // The message that owns the open action overlay, while the timeline shows it as a message.
   const actionOverlayEvent = $derived.by(() => {
     const eventId = actionOverlays.current?.eventId;

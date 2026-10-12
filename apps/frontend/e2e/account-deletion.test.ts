@@ -192,7 +192,7 @@ test.describe('Account Deletion', () => {
       );
     });
 
-    test('a DM with a deleted partner shows the deleted user, not a self-DM', async ({
+    test('a DM with a deleted partner keeps tombstones and shows a notice', async ({
       page,
       browser,
       serverURL
@@ -201,11 +201,18 @@ test.describe('Account Deletion', () => {
 
       await withServerUser(browser!, serverURL, async ({ page: pageB, user: userB }) => {
         const roomB = await new DMPage(pageB).startConversation(userA.login);
-        await roomB.sendMessage(`Goodbye from ${userB.login} at ${Date.now()}`);
+        const body = `Goodbye at ${Date.now()}`;
+        const sent = await roomB.sendMessage(body);
+        const eventId = await sent.getEventId();
+        expect(eventId).not.toBeNull();
 
         const dmA = new DMPage(page);
         await dmA.goto();
         await dmA.expectConversationVisible(userB.displayName);
+        const roomA = await dmA.openConversation(userB.displayName);
+        await roomA.expectMessageVisible(body);
+        const notice = page.getByText('The other user has been deleted.', { exact: true });
+        await expect(notice).toHaveCount(0);
 
         const accountPage = new AccountPage(pageB);
         await accountPage.goto();
@@ -217,12 +224,19 @@ test.describe('Account Deletion', () => {
         await expect(deletedRow.getByTestId('you-badge')).toHaveCount(0);
         await expect(dmA.getConversation(userB.displayName)).not.toBeVisible();
 
+        const tombstone = roomA.getMessageByEventId(eventId!).locator;
+        await expect(tombstone).toContainText('This message has been deleted.');
+        await expect(tombstone).not.toContainText(body);
+        await expect(notice).toBeVisible();
+
         // A fresh snapshot keeps the same presentation.
         await page.reload();
         await expect(dmA.getConversation('[deleted user]')).toBeVisible({
           timeout: TIMEOUTS.UI_STANDARD
         });
         await expect(page.locator('nav a.sidebar-item [data-testid="you-badge"]')).toHaveCount(0);
+        await expect(tombstone).toContainText('This message has been deleted.');
+        await expect(notice).toBeVisible();
       });
     });
 

@@ -255,6 +255,9 @@
     "jump_to_present": "Ir para o presente",
     "jump_failed": "Não foi possível saltar para esta mensagem.",
     "unread_separator": "Novas mensagens",
-    "close_extras": "Fechar extras do quarto"
+    "close_extras": "Fechar extras do quarto",
+    "dm": {
+      "deleted_user_notice": "O outro utilizador foi eliminado."
+    }
   }
 }

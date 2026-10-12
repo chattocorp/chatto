@@ -255,6 +255,9 @@
     "jump_to_present": "Zur Gegenwart springen",
     "jump_failed": "Zu dieser Nachricht konnte nicht gesprungen werden.",
     "unread_separator": "Neue Nachrichten",
-    "close_extras": "Raumdetails schließen"
+    "close_extras": "Raumdetails schließen",
+    "dm": {
+      "deleted_user_notice": "Der andere Benutzer wurde gelöscht."
+    }
   }
 }
