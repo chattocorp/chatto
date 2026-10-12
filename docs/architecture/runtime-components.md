@@ -222,8 +222,12 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   ([`room_command_model.go`](../../cli/internal/core/room_command_model.go)):
   Operation-level room lifecycle, Slow Mode and Threading Mode configuration,
   membership, moderation, and DM commands with public API authorization and
-  room-kind preconditions. It also owns group joins and pin commands. Explicit
-  dependencies supply room reads, publication, users, permissions, and the
+  room-kind preconditions. It owns room creation, archive and unarchive writes
+  in [`room_lifecycle_commands.go`](../../cli/internal/core/room_lifecycle_commands.go),
+  including creation batches and conflict retries, and the projection waits for
+  all three operations. Core entry points delegate these writes to the model.
+  It also owns group joins and pin commands. Explicit dependencies supply
+  room reads, publication, users, permissions, and the
   remaining core policy and mutation helpers. Those helpers still run on
   `ChattoCore`, exposed through consumer-specific interfaces.
 - **`RoomDirectoryReadModel`**
