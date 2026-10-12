@@ -1687,15 +1687,28 @@ func TestCallState_RoomLeaveQueuesCommittedKeyCleanupAfterImmediateFailure(t *te
 	}
 
 	core.callModel.callKeys = workingKeys
-	info, err := core.callModel.keyCleanupConsumer.Info(ctx)
-	if err != nil {
-		t.Fatalf("call-key cleanup consumer: %v", err)
-	}
-	if info.NumPending+uint64(info.NumAckPending) == 0 {
-		t.Fatalf("call-key cleanup consumer = %+v; want durable retry work", info)
-	}
+	waitForCallKeyCleanupWork(t, ctx, core)
 	if exists, err := workingKeys.CallKeyExists(ctx, session.E2EEKeyRef); err != nil || !exists {
 		t.Fatalf("CallKeyExists before durable retry = %v, %v; want true, nil", exists, err)
+	}
+}
+
+// waitForCallKeyCleanupWork waits until the durable call-key cleanup consumer
+// reports pending or unacknowledged work. nats-server updates a consumer's
+// pending count asynchronously after it acknowledges a publish, so an
+// immediate Info call can still report zero.
+func waitForCallKeyCleanupWork(t *testing.T, ctx context.Context, core *ChattoCore) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		info, err := core.callModel.keyCleanupConsumer.Info(ctx)
+		if err == nil && info.NumPending+uint64(info.NumAckPending) > 0 {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("call-key cleanup consumer = %+v, %v; want pending work", info, err)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
@@ -1726,10 +1739,7 @@ func TestCallState_DurableWorkerDiscoversLaterReplicaKeyCleanup(t *testing.T) {
 	if exists, err := workingKeys.CallKeyExists(ctx, keyRef); err != nil || !exists {
 		t.Fatalf("CallKeyExists after replica failure = %v, %v; want true, nil", exists, err)
 	}
-	info, err := core.callModel.keyCleanupConsumer.Info(ctx)
-	if err != nil || info.NumPending == 0 {
-		t.Fatalf("call-key cleanup queue before worker = %+v, %v; want pending work", info, err)
-	}
+	waitForCallKeyCleanupWork(t, ctx, core)
 
 	workerCtx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
@@ -1810,13 +1820,7 @@ func TestCallState_ReconciliationCleansHistoricalMembershipOnlyLeave(t *testing.
 	}
 
 	core.callModel.callKeys = workingKeys
-	info, err := core.callModel.keyCleanupConsumer.Info(ctx)
-	if err != nil {
-		t.Fatalf("call-key cleanup consumer: %v", err)
-	}
-	if info.NumPending+uint64(info.NumAckPending) == 0 {
-		t.Fatalf("call-key cleanup consumer = %+v; want durable retry work", info)
-	}
+	waitForCallKeyCleanupWork(t, ctx, core)
 }
 
 func TestCallState_ReconciliationCorrectsProjection(t *testing.T) {
