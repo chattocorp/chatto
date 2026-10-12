@@ -367,6 +367,8 @@ Follow these defaults:
   and the block has an accessible busy state. It fades in briefly and leaves as
   soon as content is ready. When the user requests less motion, the highlight
   stops and the fade is removed.
+- Use `LoadingDots` in the centre of the server sidebar while its first view
+  loads. Keep the server header and current-user footer in place.
 - A conversation timeline grows from the bottom and has no stable size to
   reserve. Use `LoadingDots` at the bottom of a pending timeline instead of
   `LoadingFog`. The dots appear after a short delay, so fast loads do not
