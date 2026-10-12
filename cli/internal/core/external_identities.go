@@ -376,9 +376,6 @@ func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, us
 	if actorID == "" {
 		return ErrNotAuthenticated
 	}
-	if err := c.requireHumanUser(ctx, userID); err != nil {
-		return err
-	}
 	userID = strings.TrimSpace(userID)
 	subjectHash = strings.TrimSpace(subjectHash)
 	if userID == "" || subjectHash == "" {
@@ -391,13 +388,11 @@ func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, us
 			PreserveExistingCredentials: true,
 		},
 	}})
+	// Check the account inside the OCC loop, after the projection wait, so a
+	// replica that has not yet applied the user's creation does not reject it.
 	_, err := c.appendUserEvent(ctx, userID, event, evtstream.UserSubjectFilter(), func() error {
-		_, ok, err := c.userModel.user(ctx, userID)
-		if err != nil {
+		if err := c.requireHumanUser(ctx, userID); err != nil {
 			return err
-		}
-		if !ok {
-			return ErrNotFound
 		}
 		identities := c.userModel.externalIdentities(userID)
 		found := false
