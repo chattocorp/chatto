@@ -1,3 +1,4 @@
+import type { DMData } from '$lib/hooks/useRoomData.svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
@@ -17,6 +18,7 @@ import { signal } from '@chatto/client/reactivity';
 const { mocks } = vi.hoisted(() => {
   return {
     mocks: {
+      dmData: null as DMData | null,
       markThreadAsRead: vi.fn(),
       registerReadView: vi.fn(() => vi.fn()),
       reconcileThreadRead: vi.fn(),
@@ -83,6 +85,7 @@ vi.mock('@chatto/client/api/threads', () => ({
 }));
 
 vi.mock('$lib/hooks', () => ({
+  useRoomData: () => ({ dmData: mocks.dmData }),
   useProjectionEvent: (handler: (event: RealtimeProjectionUpdate) => void) => {
     mocks.projectionEventHandler = handler;
   },
@@ -234,6 +237,7 @@ const threadProps = {
 describe('ThreadPane', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.dmData = null;
     localStorage.clear();
     threadPaneWidth.reset();
     mocks.threadStore = new ThreadPaneTestStore();
@@ -548,6 +552,21 @@ describe('ThreadPane', () => {
     });
     pane.unmount();
     expect(release).toHaveBeenCalledOnce();
+  });
+
+  it('keeps deleted-partner tombstones in threads without repeating the room notice', async () => {
+    mocks.dmData = {
+      currentUserId: 'test-user',
+      participantIds: ['test-user', 'deleted-user'],
+      participants: [
+        { id: 'deleted-user', login: '', displayName: '', deleted: true, presenceStatus: 0 }
+      ]
+    };
+    const view = render(ThreadPane, { props: threadProps });
+    await expect.element(view.getByTestId('event-list-show-tombstones')).toHaveTextContent('true');
+    await expect
+      .element(view.getByText('The other user has been deleted.'))
+      .not.toBeInTheDocument();
   });
 
   it('forwards unread marker state and bottom arrival to EventList', () => {
