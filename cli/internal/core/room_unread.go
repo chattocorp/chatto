@@ -217,23 +217,7 @@ func (c *ChattoCore) SetLastReadEventID(ctx context.Context, kind RoomKind, user
 // replacing a marker already written by another replica or a concurrent
 // user-facing read operation.
 func (c *ChattoCore) initializeLastReadEventID(ctx context.Context, userID, roomID, eventID string) error {
-	bucket := c.storage.runtimeStateKV
-	key := roomReadEventKey(userID, roomID)
-	revision, err := bucket.Create(ctx, key, []byte(eventID))
-	if err != nil {
-		if !jetstreamutil.IsSequenceConflict(err) {
-			return fmt.Errorf("failed to initialize read marker: %w", err)
-		}
-		current, getErr := bucket.Get(ctx, key)
-		if getErr != nil {
-			return fmt.Errorf("re-read concurrently initialized read marker: %w", getErr)
-		}
-		revision = current.Revision()
-	}
-	if err := c.readStateModel.index.waitForRevision(ctx, key, revision); err != nil {
-		return fmt.Errorf("wait for initialized read marker: %w", err)
-	}
-	return nil
+	return c.readStateModel.initializeLastReadEventID(ctx, userID, roomID, eventID)
 }
 
 // AdvanceLastReadEventID stores eventID as the user's room read marker only if

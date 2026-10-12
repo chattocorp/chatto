@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // MarkRoomAsReadResult describes the timestamp response for a room-level read
@@ -274,4 +276,27 @@ func (s *ReadStateModel) readMarker(ctx context.Context, kind RoomKind, roomID, 
 		return nil, err
 	}
 	return &ReadMarker{EventID: eventID, LastReadAt: at}, nil
+}
+
+// initializeLastReadEventID creates the member's initial room marker without
+// replacing a marker already written by another replica or a concurrent
+// user-facing read operation.
+func (s *ReadStateModel) initializeLastReadEventID(ctx context.Context, userID, roomID, eventID string) error {
+	bucket := s.index.kv
+	key := roomReadEventKey(userID, roomID)
+	revision, err := bucket.Create(ctx, key, []byte(eventID))
+	if err != nil {
+		if !jetstreamutil.IsSequenceConflict(err) {
+			return fmt.Errorf("failed to initialize read marker: %w", err)
+		}
+		current, getErr := bucket.Get(ctx, key)
+		if getErr != nil {
+			return fmt.Errorf("re-read concurrently initialized read marker: %w", getErr)
+		}
+		revision = current.Revision()
+	}
+	if err := s.index.waitForRevision(ctx, key, revision); err != nil {
+		return fmt.Errorf("wait for initialized read marker: %w", err)
+	}
+	return nil
 }

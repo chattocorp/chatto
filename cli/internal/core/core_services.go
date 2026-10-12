@@ -120,11 +120,15 @@ func initializeCoreServices(
 	// The resolver is constructed before room models capture it. It performs no
 	// reads until the fully assembled core starts serving operations.
 	core.permissionResolver = NewPermissionResolver(core)
+	core.readStateModel = &ReadStateModel{
+		core:  core,
+		index: NewReadStateIndex(infra.storage.runtimeStateKV, logger.WithPrefix("core.ReadStateIndex")),
+	}
 	core.roomCommands = &RoomCommandModel{
 		rooms: core.roomModel, permissions: core.permissionResolver,
 		publisher: infra.eventPublisher, users: core.userModel,
-		rbac: core.rbacModel, logger: core.logger,
-		authorization: core, memberships: core, directMessages: core, accounts: core, pins: core,
+		rbac: core.rbacModel, logger: core.logger, readState: core.readStateModel,
+		authorization: core, memberships: core, accounts: core, pins: core,
 	}
 	core.messageModel = &MessageModel{core: core}
 	core.roomDirectoryReads = &RoomDirectoryReadModel{
@@ -136,10 +140,6 @@ func initializeCoreServices(
 	core.roomTimelineReads = &RoomTimelineReadModel{
 		core:  core,
 		rooms: core.roomModel,
-	}
-	core.readStateModel = &ReadStateModel{
-		core:  core,
-		index: NewReadStateIndex(infra.storage.runtimeStateKV, logger.WithPrefix("core.ReadStateIndex")),
 	}
 	core.notificationBoundaries = newNotificationBoundaryIndex(
 		infra.storage.runtimeStateKV,
