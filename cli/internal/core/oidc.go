@@ -73,9 +73,6 @@ func (c *ChattoCore) LinkExternalIdentityAs(ctx context.Context, actorID, provid
 			return ExternalIdentity{}, ErrInvalidArgument
 		}
 	}
-	if err := c.requireHumanUser(ctx, userID); err != nil {
-		return ExternalIdentity{}, err
-	}
 	identity := ExternalIdentity{ProviderID: providerID, ProviderType: providerType, Issuer: issuer, Subject: subject, SubjectHash: externalIdentityHash(issuer, subject)}
 	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserExternalIdentityLinked{
 		UserExternalIdentityLinked: &evtv1.UserExternalIdentityLinkedEvent{
@@ -87,13 +84,11 @@ func (c *ChattoCore) LinkExternalIdentityAs(ctx context.Context, actorID, provid
 			ProviderType: providerType,
 		},
 	}})
+	// Check the account after appendUserEvent's projection wait, so a replica
+	// that has not yet applied the user's creation does not reject it.
 	_, err := c.appendUserEvent(ctx, userID, event, evtstream.UserSubjectFilter(), func() error {
-		_, ok, err := c.userModel.user(ctx, userID)
-		if err != nil {
+		if err := c.requireHumanUser(ctx, userID); err != nil {
 			return err
-		}
-		if !ok {
-			return ErrNotFound
 		}
 		existingUserID, claimed := c.userModel.externalIdentityOwnerID(issuer, subject)
 		if claimed && existingUserID != userID {
