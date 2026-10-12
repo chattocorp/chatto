@@ -21,6 +21,7 @@ type AuthorizationModel struct {
 	messages    authorizationMessages
 }
 
+// resolveCallPermissions reads all media grants in the caller's content-view transaction.
 func (a *AuthorizationModel) resolveCallPermissions(ctx context.Context, actorID string, kind RoomKind, roomID string) (CallPermissions, error) {
 	var result CallPermissions
 	for i, target := range []*bool{&result.Start, &result.Join, &result.Voice, &result.Camera, &result.ScreenShare} {
@@ -32,6 +33,8 @@ func (a *AuthorizationModel) resolveCallPermissions(ctx context.Context, actorID
 	}
 	return result, nil
 }
+
+// requireBotManager admits the human owner or a caller with bot management authority.
 func (a *AuthorizationModel) requireBotManager(ctx context.Context, actorID, botID string) (*evtv1.User, error) {
 	if err := a.requireHumanUser(ctx, actorID); err != nil {
 		return nil, err
@@ -55,6 +58,7 @@ func (a *AuthorizationModel) requireBotManager(ctx context.Context, actorID, bot
 	}
 	return bot, nil
 }
+
 func (a *AuthorizationModel) requireHumanUser(ctx context.Context, userID string) error {
 	if userID == "" {
 		return ErrNotAuthenticated
