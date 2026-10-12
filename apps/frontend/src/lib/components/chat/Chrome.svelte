@@ -6,7 +6,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import ServerSidebar from '$lib/components/ServerSidebar.svelte';
-  import { LoadingFog, ScrollFader } from '$lib/ui';
+  import { LoadingDots, ScrollFader } from '$lib/ui';
   import RoomList from '$lib/RoomList.svelte';
   import ServerHeader from './ServerHeader.svelte';
   import ServerBanner from './ServerBanner.svelte';
@@ -208,7 +208,7 @@
     />
   {:else if !serverData}
     <ServerHeader serverName={activeStore.serverInfo.name} />
-    <LoadingFog class="m-3 min-h-0 flex-1" />
+    <LoadingDots class="min-h-0 flex-1 items-center" />
   {:else}
     <!-- Server header - fixed at top -->
     <ServerHeader serverName={serverName ?? ''} />
