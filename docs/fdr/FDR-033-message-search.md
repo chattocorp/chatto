@@ -206,7 +206,7 @@ result where the viewer does not have current read authority.
   (public API stability tiers), ADR-053 (versioned NATS service namespaces),
   ADR-054 (optional projection persistence), ADR-055 (pluggable message search
   over NATS), ADR-080 (explicit message-read permissions), ADR-082 (derived
-  thread interactions)
+  thread interactions), [ADR-115](../adr/ADR-115-in-process-domain-services.md) (in-process domain services)
 - **FDRs:** FDR-004 (Message Editing & Deletion), FDR-014 (Jump to Present),
   FDR-015 (Quick Switcher), FDR-019 (Room Lifecycle), FDR-032 (Message
   Formatting), FDR-039 (Message Access & Interactions)

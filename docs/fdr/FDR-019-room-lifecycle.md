@@ -166,5 +166,5 @@ not contain a client revision.
 
 ## Related
 
-- **ADRs:** ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state with projections), ADR-035 (per-aggregate phased migration), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-086 (atomic room-layout structural mutations), ADR-091 (semantic realtime events), ADR-095 (DM permission scope and threads)
+- **ADRs:** ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state with projections), ADR-035 (per-aggregate phased migration), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-086 (atomic room-layout structural mutations), ADR-091 (semantic realtime events), ADR-095 (DM permission scope and threads), [ADR-115](../adr/ADR-115-in-process-domain-services.md) (in-process domain services)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-007 (Direct Messages), FDR-012 (Notifications), FDR-017 (Room Groups & Sidebar Layout), FDR-045 (Realtime Event Stream)

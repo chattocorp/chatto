@@ -257,12 +257,8 @@ func isValidSidebarLinkURL(rawURL string) bool {
 // GetRoomGroup reads a single group through RoomModel.
 // Returns ErrRoomGroupNotFound if no RoomGroupCreatedEvent for the
 // ID has been observed.
-func (c *ChattoCore) GetRoomGroup(_ context.Context, groupID string) (*evtv1.RoomGroup, error) {
-	g, ok := c.roomModel.roomGroup(groupID)
-	if !ok {
-		return nil, ErrRoomGroupNotFound
-	}
-	return g, nil
+func (c *ChattoCore) GetRoomGroup(ctx context.Context, groupID string) (*evtv1.RoomGroup, error) {
+	return c.roomModel.GetRoomGroup(ctx, groupID)
 }
 
 func (c *ChattoCore) sidebarLinkGroup(ctx context.Context, linkID string) (string, error) {
@@ -1338,43 +1334,8 @@ func sidebarEntryKey(entry *evtv1.SidebarGroupEntry) string {
 //
 // `kind` is preserved on the signature for symmetry with other room
 // APIs; only KindChannel participates in the layout today.
-func (c *ChattoCore) ListRoomGroupsOrdered(_ context.Context, kind RoomKind) ([]*evtv1.RoomGroup, error) {
-	if kind != KindChannel {
-		return nil, nil
-	}
-
-	order := c.roomModel.roomLayoutOrder()
-	all := c.roomModel.roomGroups()
-	docs := make(map[string]*evtv1.RoomGroup, len(all))
-	for _, g := range all {
-		docs[g.Id] = g
-	}
-
-	out := make([]*evtv1.RoomGroup, 0, len(docs))
-	used := make(map[string]struct{}, len(order))
-	for _, id := range order {
-		if _, dup := used[id]; dup {
-			continue
-		}
-		g, ok := docs[id]
-		if !ok {
-			continue
-		}
-		out = append(out, g)
-		used[id] = struct{}{}
-	}
-
-	var orphans []string
-	for id := range docs {
-		if _, ok := used[id]; !ok {
-			orphans = append(orphans, id)
-		}
-	}
-	slices.Sort(orphans)
-	for _, id := range orphans {
-		out = append(out, docs[id])
-	}
-	return out, nil
+func (c *ChattoCore) ListRoomGroupsOrdered(ctx context.Context, kind RoomKind) ([]*evtv1.RoomGroup, error) {
+	return c.roomModel.ListRoomGroupsOrdered(ctx, kind)
 }
 
 // ----------------------------------------------------------------------

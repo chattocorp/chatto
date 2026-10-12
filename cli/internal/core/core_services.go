@@ -70,8 +70,9 @@ func assembleCore(
 	}
 }
 
-// initializeCoreServices attaches models and workers that require the complete
-// ChattoCore facade. It preserves the final construction phase before Run.
+// initializeCoreServices wires operation models and workers before Run. Room
+// models receive explicit dependencies; core still supplies shared policy and
+// low-level mutation capabilities through their consumer interfaces.
 func initializeCoreServices(
 	ctx context.Context,
 	core *ChattoCore,
@@ -116,9 +117,19 @@ func initializeCoreServices(
 		logger.WithPrefix("core.CredentialUsage"),
 		core.credentialUsageIsActive,
 	)
-	core.roomCommands = &RoomCommandModel{core: core}
-	core.roomDirectoryReads = &RoomDirectoryReadModel{core: core}
+	// The resolver is constructed before room models capture it. It performs no
+	// reads until the fully assembled core starts serving operations.
+	core.permissionResolver = NewPermissionResolver(core)
+	core.roomCommands = &RoomCommandModel{
+		rooms: core.roomModel, permissions: core.permissionResolver,
+		publisher: infra.eventPublisher, users: core.userModel,
+		authorization: core, memberships: core, lifecycle: core, accounts: core, pins: core,
+	}
 	core.messageModel = &MessageModel{core: core}
+	core.roomDirectoryReads = &RoomDirectoryReadModel{
+		rooms: core.roomModel, permissions: core.permissionResolver,
+		messages: core.messageModel, authorization: core, membership: core, unread: core,
+	}
 	core.messageSearchReads = &MessageSearchReadModel{core: core}
 	core.notificationPolicy = &NotificationPolicyModel{core: core}
 	core.roomTimelineReads = &RoomTimelineReadModel{
@@ -184,7 +195,6 @@ func initializeCoreServices(
 		return fmt.Errorf("failed to initialize notification alert delivery: %w", err)
 	}
 
-	core.permissionResolver = NewPermissionResolver(core)
 	core.linkPreviewCache = linkpreview.NewCache(infra.storage.runtimeStateKV)
 	assetsConfig := core.AssetsConfig()
 	core.linkPreviewFetcher = linkpreview.NewFetcher(&assetsConfig, NewAssetID, core.storeLinkPreviewImage)

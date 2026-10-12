@@ -142,8 +142,8 @@ func (s *RoomCommandModel) mutatePinnedMessage(ctx context.Context, input Pinned
 
 	for range maxPinnedMessageMutationAttempts {
 		var kind RoomKind
-		prepared, err := s.core.prepareMessageAppendAttempt(ctx, aggregate, func(ctx context.Context) error {
-			room, memberKind, memberErr := s.core.requireRoomMember(ctx, input.ActorID, input.RoomID)
+		prepared, err := s.pins.prepareMessageAppendAttempt(ctx, aggregate, func(ctx context.Context) error {
+			room, memberKind, memberErr := s.pins.requireRoomMember(ctx, input.ActorID, input.RoomID)
 			if memberErr != nil {
 				return memberErr
 			}
@@ -159,7 +159,7 @@ func (s *RoomCommandModel) mutatePinnedMessage(ctx context.Context, input Pinned
 				return ErrRoomArchived
 			}
 			if create {
-				canRead, readErr := s.core.CanReadMessage(ctx, input.ActorID, memberKind, room.GetId(), input.MessageEventID)
+				canRead, readErr := s.pins.CanReadMessage(ctx, input.ActorID, memberKind, room.GetId(), input.MessageEventID)
 				if readErr != nil {
 					return readErr
 				}
@@ -173,7 +173,7 @@ func (s *RoomCommandModel) mutatePinnedMessage(ctx context.Context, input Pinned
 			return PinnedMessageState{}, err
 		}
 
-		canonicalID, err := s.core.canonicalReactionMessageEventID(input.RoomID, input.MessageEventID)
+		canonicalID, err := s.pins.canonicalReactionMessageEventID(input.RoomID, input.MessageEventID)
 		if err != nil {
 			return PinnedMessageState{}, err
 		}
@@ -185,13 +185,13 @@ func (s *RoomCommandModel) mutatePinnedMessage(ctx context.Context, input Pinned
 		} else {
 			event.GetMessageUnpinned().MessageEventId = canonicalID
 		}
-		current, exists := s.core.roomModel.pinnedMessage(input.RoomID, canonicalID)
+		current, exists := s.rooms.pinnedMessage(input.RoomID, canonicalID)
 		if create {
-			entry, ok := s.core.roomModel.timelineEntry(canonicalID)
+			entry, ok := s.rooms.timelineEntry(canonicalID)
 			if !ok || entry == nil || !entry.IsMessagePost() {
 				return PinnedMessageState{}, ErrMessageNotFound
 			}
-			if body, retracted, ok := s.core.roomModel.timeline.Projection().LatestBodyReference(canonicalID); !ok || retracted || body.StreamSeq == 0 {
+			if body, retracted, ok := s.rooms.latestBodyReference(canonicalID); !ok || retracted || body.StreamSeq == 0 {
 				return PinnedMessageState{}, ErrMessageNotFound
 			}
 			if exists {
@@ -201,7 +201,7 @@ func (s *RoomCommandModel) mutatePinnedMessage(ctx context.Context, input Pinned
 			return PinnedMessageState{}, nil
 		}
 
-		sequences, err := s.core.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
+		sequences, err := s.publisher.AppendBatch(ctx, []evtstream.BatchEntry{{
 			Subject: aggregate.SubjectFor(event),
 			Event:   event,
 			Expect:  events.ExpectFilterSeq(filter, prepared.roomSeq),
@@ -215,7 +215,7 @@ func (s *RoomCommandModel) mutatePinnedMessage(ctx context.Context, input Pinned
 		if len(sequences) < 1 {
 			return PinnedMessageState{}, errors.New("pinned message mutation committed no domain event")
 		}
-		if err := s.core.roomModel.waitForTimeline(ctx, events.SubjectPosition(aggregate.SubjectFor(event), sequences[0])); err != nil {
+		if err := s.rooms.waitForTimeline(ctx, events.SubjectPosition(aggregate.SubjectFor(event), sequences[0])); err != nil {
 			return PinnedMessageState{}, fmt.Errorf("wait for pinned message projection: %w", err)
 		}
 		if create {
