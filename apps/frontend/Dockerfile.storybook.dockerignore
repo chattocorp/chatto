@@ -6,6 +6,8 @@
 !package.json
 !pnpm-lock.yaml
 !pnpm-workspace.yaml
+!patches/
+!patches/**
 !LICENSES/
 !LICENSES/Apache-2.0.txt
 !LICENSES/MIT.txt
