@@ -26,6 +26,13 @@ const (
 	resourceRefreshTokenPrefix = "cht_RRT_"
 	accessTokenPrefix          = "cht_AT"
 	refreshRecoveryClockSkew   = time.Minute
+	// generationUseGrace is the time after an access token's issue during
+	// which its use does not mark the generation as used. Browsers write
+	// device storage to disk in batches, a few seconds after a script stores
+	// a value. A client that uses a new pair at once and is then ended by the
+	// operating system can restart with the previous pair. Inside this grace
+	// the server still treats that previous pair as a lost response.
+	generationUseGrace = 30 * time.Second
 )
 
 var refreshRequestIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
@@ -495,7 +502,7 @@ func (c *ChattoCore) refreshBearerSessionAt(ctx context.Context, refreshToken, r
 			// the newer rotations. This happens when a mobile browser suspends
 			// or ends the page after the server committed a rotation, or loses
 			// the stored response before it reaches disk. Rotate again from
-			// the presented generation. The previous newer pair stays unused;
+			// the current generation. The previous newer pair stays unused;
 			// whichever pair a client uses first makes the other one stale.
 			lostResponse = presentedGeneration < session.CurrentGeneration &&
 				session.UsedGeneration != nil && *session.UsedGeneration <= presentedGeneration
@@ -564,13 +571,22 @@ func maxUsedGeneration(used *uint64, generation uint64) *uint64 {
 }
 
 // markRenewableSessionGenerationUsed records that a client used the access
-// token of generation. Access-token validation calls it with a session from
+// token of generation, issued at issuedAt. A use inside generationUseGrace
+// does not count yet; a later use of the same token records it. Access-token
+// validation calls it with a session from
 // a possibly lagging replica, so it writes only when that copy does not show
 // the mark yet, and then decides again through the stream leader. Refresh
 // relies on the mark to tell a lost rotation response from a copied refresh
 // credential, so a failed write fails the request instead of being ignored.
-func (c *ChattoCore) markRenewableSessionGenerationUsed(ctx context.Context, sessionID string, observed RenewableSession, generation uint64, now time.Time) error {
+func (c *ChattoCore) markRenewableSessionGenerationUsed(ctx context.Context, sessionID string, observed RenewableSession, generation uint64, issuedAt, now time.Time) error {
 	if observed.UsedGeneration != nil && *observed.UsedGeneration >= generation {
+		return nil
+	}
+	grace := generationUseGrace
+	if c.generationUseGraceOverride != nil {
+		grace = *c.generationUseGraceOverride
+	}
+	if now.Sub(issuedAt) < grace {
 		return nil
 	}
 	for range 8 {

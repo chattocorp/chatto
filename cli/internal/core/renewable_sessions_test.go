@@ -18,6 +18,13 @@ const (
 	testRefreshRequestIDC = "00000000-0000-4000-8000-000000000003"
 )
 
+// withoutGenerationUseGrace makes every access-token use count at once, so a
+// test does not have to wait for generationUseGrace.
+func withoutGenerationUseGrace(c *ChattoCore) {
+	grace := time.Duration(0)
+	c.generationUseGraceOverride = &grace
+}
+
 func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testing.T) {
 	t.Parallel()
 
@@ -429,6 +436,7 @@ func TestChattoCore_RefreshBearerSessionReuseRevokesSession(t *testing.T) {
 	t.Parallel()
 
 	chattoCore, _ := setupTestCore(t)
+	withoutGenerationUseGrace(chattoCore)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "reuse-user", "Reuse User", "password123")
 	if err != nil {
@@ -533,6 +541,8 @@ func TestChattoCore_ConcurrentRefreshAcrossReplicasRevokesOnceBothChainsAreUsed(
 		t.Fatalf("NewChattoCore replica: %v", err)
 	}
 	startCoreServices(t, second)
+	withoutGenerationUseGrace(first)
+	withoutGenerationUseGrace(second)
 
 	start := make(chan struct{})
 	errorsByReplica := make([]error, 2)
@@ -661,6 +671,7 @@ func TestChattoCore_LostResponsesWithoutRequestIDRecoverUntilNewerUse(t *testing
 	t.Parallel()
 
 	chattoCore, _ := setupTestCore(t)
+	withoutGenerationUseGrace(chattoCore)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "lost-storage-user", "Lost Storage User", "password123")
 	if err != nil {
@@ -740,5 +751,70 @@ func TestChattoCore_StaleRefreshWithoutUsageMarkerRevokes(t *testing.T) {
 
 	if _, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDB, ""); !errors.Is(err, ErrRefreshTokenReused) {
 		t.Fatalf("stale refresh without marker = %v, want ErrRefreshTokenReused", err)
+	}
+}
+
+func TestChattoCore_UseInsideGraceKeepsLostResponseRecovery(t *testing.T) {
+	t.Parallel()
+
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "use-grace-user", "Use Grace User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	initial, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	rotated, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDA, "")
+	if err != nil {
+		t.Fatalf("RefreshBearerSession: %v", err)
+	}
+	// The client uses the new pair at once, and the operating system then
+	// ends the browser before the pair reaches disk.
+	if _, err := chattoCore.ValidateAuthToken(ctx, rotated.AccessToken); err != nil {
+		t.Fatalf("ValidateAuthToken rotated: %v", err)
+	}
+	if _, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDB, ""); err != nil {
+		t.Fatalf("refresh with previous pair after use inside grace: %v", err)
+	}
+}
+
+func TestChattoCore_UseAfterGraceMarksGeneration(t *testing.T) {
+	t.Parallel()
+
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "use-after-grace-user", "Use After Grace User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	initial, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	sessionID, generation, _ := chattoCore.parseRefreshToken(initial.RefreshToken)
+	issuedAt := initial.AccessTokenExpiresAt.Add(-chattoCore.bearerAccessTokenTTL())
+
+	usedGeneration := func() *uint64 {
+		t.Helper()
+		session, _, err := chattoCore.loadRenewableSession(ctx, sessionID)
+		if err != nil {
+			t.Fatalf("loadRenewableSession: %v", err)
+		}
+		return session.UsedGeneration
+	}
+	if err := chattoCore.markRenewableSessionGenerationUsed(ctx, sessionID, RenewableSession{}, generation, issuedAt, issuedAt.Add(generationUseGrace-time.Second)); err != nil {
+		t.Fatalf("mark inside grace: %v", err)
+	}
+	if used := usedGeneration(); used != nil {
+		t.Fatalf("used generation inside grace = %d, want unset", *used)
+	}
+	if err := chattoCore.markRenewableSessionGenerationUsed(ctx, sessionID, RenewableSession{}, generation, issuedAt, issuedAt.Add(generationUseGrace)); err != nil {
+		t.Fatalf("mark after grace: %v", err)
+	}
+	if used := usedGeneration(); used == nil || *used != generation {
+		t.Fatalf("used generation after grace = %v, want %d", used, generation)
 	}
 }

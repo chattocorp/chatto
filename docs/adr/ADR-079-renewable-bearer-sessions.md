@@ -142,9 +142,13 @@ credential pair. This also recovers a process failure between committing the
 stable rotation and creating its access record.
 
 The stable record also stores the highest **used generation**. A generation
-is used when its access token passes validation or its refresh credential
-rotates successfully. Validation writes this value with the exact KV revision
-the first time a generation is used, and only after it reads the record
+is used when its refresh credential rotates successfully, or when its access
+token passes validation 30 seconds or more after the token was issued.
+Browsers write device storage to disk in batches, some seconds after a script
+stores a value. A client can use a new pair at once and then restart with the
+previous pair when the operating system ends the browser. The 30-second grace
+keeps that restart recoverable. Validation writes this value with the exact KV
+revision the first time a generation is used, and only after it reads the record
 through the stream leader. If the write fails, the request fails with a server
 error; it does not continue with an unrecorded use.
 
@@ -153,7 +157,7 @@ example, a mobile browser can freeze or end a page after the server commits a
 rotation, or lose recent device-storage writes when the operating system ends
 the browser. The client then presents an older refresh generation that is
 equal to or newer than the used generation. No client has used a newer
-generation, so this is a lost response and not a copied credential. The server
+generation, so the server treats this as a lost response. The server
 rotates again from the current generation, records the presented generation as
 used, and returns a new pair. The unused newer pairs remain valid until the
 first use of a different pair makes them stale.
@@ -266,11 +270,19 @@ sign-in and coordinated-upgrade requirement.
 - Inactive sessions expire after one complete renewal window. Normal
   background refresh keeps an active session signed in.
 - Refresh reuse turns suspicious concurrency into whole-session revocation for
-  subsequent requests and reconnects. Lost responses are recoverable through the exact persisted
-  request ID, or by a new rotation while no newer generation is used. A
-  client that used the newer pair and then lost it, for example to a device-storage
-  write that did not complete, must sign in again. An established realtime socket
+  subsequent requests and reconnects. Lost responses are recoverable through
+  the exact persisted request ID, or by a new rotation while no newer
+  generation is used. A client that used the newer pair after the 30-second
+  grace and then lost it must sign in again. An established realtime socket
   cannot outlive the access token that authenticated it.
+- Reuse detection is later than before. The server cannot tell a copied
+  refresh credential from a lost response until a client uses a newer
+  generation. Until then, a copy that an attacker presents gets its own pair
+  instead of revoking the session. When the attacker and the legitimate client
+  both use their pairs, the next refresh of the older pair revokes the session.
+  An attacker that makes its uses and refreshes alternate exactly with those
+  of the legitimate client can keep both pairs active. Each lost-response
+  rotation writes a log entry that contains no credential or identity.
 - Correctness across replicas comes from one JetStream KV revision boundary;
   browser locks improve contention but are not a security primitive.
 - `RUNTIME_STATE` gains one stable record per renewable bearer session plus

@@ -270,7 +270,7 @@ func (c *ChattoCore) validateRuntimeCredential(ctx context.Context, handle strin
 		if session.UserID != tokenData.UserID || session.ClientID != tokenData.ClientID || session.Resource != tokenData.Resource || !slices.Equal(session.Scopes, tokenData.Scopes) || session.Kind != tokenData.kindOrDefault() || session.AuthGeneration != tokenData.AuthGeneration || tokenData.AccessGeneration > session.CurrentGeneration {
 			return reject()
 		}
-		if err := c.markRenewableSessionGenerationUsed(ctx, tokenData.RenewableSessionID, session, tokenData.AccessGeneration, now); err != nil {
+		if err := c.markRenewableSessionGenerationUsed(ctx, tokenData.RenewableSessionID, session, tokenData.AccessGeneration, tokenData.CreatedAt, now); err != nil {
 			if errors.Is(err, ErrRefreshTokenNotFound) {
 				return reject()
 			}

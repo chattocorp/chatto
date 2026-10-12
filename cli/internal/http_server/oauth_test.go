@@ -1448,8 +1448,9 @@ func testOAuthMCPGrant(t *testing.T, scopes []string) {
 		t.Fatalf("standard refresh status = %d: %s", refreshW.Code, refreshW.Body.String())
 	}
 	var refreshed struct {
-		AccessToken string `json:"access_token"`
-		Scope       string `json:"scope"`
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		Scope        string `json:"scope"`
 	}
 	if err := json.Unmarshal(refreshW.Body.Bytes(), &refreshed); err != nil {
 		t.Fatalf("decode refresh response: %v", err)
@@ -1460,6 +1461,11 @@ func testOAuthMCPGrant(t *testing.T, scopes []string) {
 	}
 	if refreshedCredential.Resource != resource || !slices.Equal(refreshedCredential.Scopes, scopes) || refreshed.Scope != strings.Join(scopes, " ") {
 		t.Fatalf("refreshed grant = resource %q, scopes %v", refreshedCredential.Resource, refreshedCredential.Scopes)
+	}
+	// Rotating the newer pair proves that the client received it, so a retry
+	// of the older refresh credential is reuse.
+	if _, err := s.core.RefreshBearerSession(context.Background(), refreshed.RefreshToken, "00000000-0000-4000-8000-000000000001", testOAuthClientID); err != nil {
+		t.Fatalf("rotate refreshed pair: %v", err)
 	}
 	if retryW := refresh(); retryW.Code != http.StatusBadRequest {
 		t.Fatalf("standard refresh retry status = %d, want 400: %s", retryW.Code, retryW.Body.String())
@@ -1775,10 +1781,10 @@ func TestOAuthToken_RefreshGrantRotatesAndRecoversRetry(t *testing.T) {
 		t.Fatalf("same-request retry status/body = %d, %v; first = %v", status, retry, first)
 	}
 
-	// Once the client uses the rotated pair, the old refresh credential under
+	// Once the client rotates the newer pair, the old refresh credential under
 	// another request ID is a copy and revokes the session.
-	if _, err := s.core.ValidateAuthToken(ctx, first["access_token"].(string)); err != nil {
-		t.Fatalf("ValidateAuthToken rotated: %v", err)
+	if _, err := s.core.RefreshBearerSession(ctx, first["refresh_token"].(string), "00000000-0000-4000-8000-000000000003", ""); err != nil {
+		t.Fatalf("RefreshBearerSession rotated: %v", err)
 	}
 	status, reused, _ := exchange("00000000-0000-4000-8000-000000000002")
 	if status != http.StatusBadRequest || reused["error"] != "invalid_grant" {
