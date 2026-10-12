@@ -273,8 +273,8 @@
   const hasVisualEmbed = $derived(hasAttachments || !!msg?.linkPreview || messageLinks.length > 0);
 
   // Message is "deleted" if it has no body AND no attachments.
-  // Deleted rows that reach this component have visible context and render as
-  // tombstones. EventList usually omits context-free tombstones, but keeps them
+  // Deleted rows render as tombstones. EventList usually omits context-free
+  // tombstones, but keeps them
   // in a DM whose other participant was deleted.
   const isDeleted = $derived(msg ? isDeletedMessage(msg) : true);
 
