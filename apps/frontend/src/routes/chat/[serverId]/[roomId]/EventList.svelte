@@ -154,7 +154,6 @@
   const hasReachedEnd = $derived(jumpState.hasReachedEnd);
   const scrollToEventId = $derived(jumpState.scrollToEventId);
   const serverScope = useServerScope();
-  const isReconnecting = $derived(!isLoading && serverScope.connection.status === 'connecting');
   const stores = serverScope.store;
   const currentUser = $derived(stores.currentUser);
   const serverInfo = $derived(stores.serverInfo);
@@ -1040,19 +1039,12 @@
     </div>
   </ScrollFader>
 
-  {#if isReconnecting}
-    <LoadingDots class="shrink-0 py-4" label={m('ui.realtime_paused')} />
-  {/if}
-
   {#if !viewport.shouldScrollToBottom}
     <button
       transition:fade={{ duration: 150 }}
       onclick={isJumpedMode ? handleJumpToPresentClick : scrollToBottom}
       data-testid="jump-to-present"
-      class={[
-        'absolute left-1/2 z-40 -translate-x-1/2 cursor-pointer menu whitespace-nowrap',
-        isReconnecting ? 'bottom-14' : 'bottom-4'
-      ]}
+      class="absolute bottom-4 left-1/2 z-40 -translate-x-1/2 cursor-pointer menu whitespace-nowrap"
     >
       <div class="flex items-center gap-2 menu-section px-3 py-1">
         {#if firstVisibleDate}
