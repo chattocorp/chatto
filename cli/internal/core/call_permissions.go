@@ -25,15 +25,7 @@ func callPermissionIDs() []Permission {
 
 // resolveCallPermissions runs inside the caller's content-view read boundary.
 func (c *ChattoCore) resolveCallPermissions(ctx context.Context, actorID string, kind RoomKind, roomID string) (CallPermissions, error) {
-	var result CallPermissions
-	for i, target := range []*bool{&result.Start, &result.Join, &result.Voice, &result.Camera, &result.ScreenShare} {
-		allowed, err := c.PermResolver().HasRoomPermission(ctx, actorID, kind, roomID, callPermissionIDs()[i])
-		if err != nil {
-			return CallPermissions{}, err
-		}
-		*target = allowed
-	}
-	return result, nil
+	return c.authorization.resolveCallPermissions(ctx, actorID, kind, roomID)
 }
 
 // AuthorizeCall checks current membership and permissions at stable authority

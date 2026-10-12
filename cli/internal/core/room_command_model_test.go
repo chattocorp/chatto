@@ -588,7 +588,7 @@ func TestBotManagerMembershipAndAuthorizationRetry(t *testing.T) {
 	// The second authorization call follows room catch-up. Change that room's
 	// tail to force OCC failure, then reject the next authorization decision.
 	calls := 0
-	_, err = c.addMember(ctx, manager.Id, KindChannel, room.Id, bot.User.Id, func() error {
+	_, err = c.roomMemberships.addMember(ctx, manager.Id, KindChannel, room.Id, bot.User.Id, func() error {
 		calls++
 		if calls > 2 {
 			return ErrPermissionDenied
@@ -624,7 +624,7 @@ func TestRoomRemovalRejectsUniversalChangeDuringRetry(t *testing.T) {
 	require.NoError(t, err)
 
 	calls := 0
-	err = c.removeUserWithoutSuspension(ctx, moderator.Id, KindChannel, room.Id, target.Id, "test removal", func() error {
+	err = c.roomMemberships.removeUserWithoutSuspension(ctx, moderator.Id, KindChannel, room.Id, target.Id, "test removal", func() error {
 		calls++
 		if calls == 2 {
 			universal := true

@@ -125,7 +125,7 @@ func TestAuthorizedGroupMutationRechecksAfterPermissionRevocation(t *testing.T) 
 		return core.requireCanManageRoomGroup(ctx, actor.Id, group.GetId())
 	}
 
-	if _, err := core.appendGroupLayoutMutation(ctx, evtstream.GroupAggregate(group.GetId()), event, authorize); !errors.Is(err, ErrPermissionDenied) {
+	if _, err := core.roomLayout.appendGroupLayoutMutation(ctx, evtstream.GroupAggregate(group.GetId()), event, authorize); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("appendGroupLayoutMutation error = %v, want ErrPermissionDenied", err)
 	}
 	updated, err := core.GetRoomGroup(ctx, group.GetId())

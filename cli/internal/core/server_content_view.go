@@ -161,19 +161,7 @@ func (c *ChattoCore) ReadServerContentView(
 	ctx context.Context,
 	read func(context.Context, uint64) error,
 ) error {
-	if c.contentView == nil {
-		return read(ctx, 0)
-	}
-	if active, ok := ctx.Value(serverContentViewReadContextKey{}).(serverContentViewReadContext); ok && active.view == c.contentView {
-		return read(ctx, active.sequence)
-	}
-	return c.contentView.Read(func(sequence uint64) error {
-		readCtx := context.WithValue(ctx, serverContentViewReadContextKey{}, serverContentViewReadContext{
-			view:     c.contentView,
-			sequence: sequence,
-		})
-		return read(readCtx, sequence)
-	})
+	return c.contentView.ReadContext(ctx, read)
 }
 
 // adminProjectionEstimate adds the estimates of every component and of the
@@ -214,4 +202,24 @@ func (v *ServerContentView) adminProjectionEstimate(eventIDs *eventIDTable, comp
 		metrics = append(metrics, componentMetrics...)
 	}
 	return entries, estimatedBytes, metrics
+}
+
+// ReadContext runs a bounded read in this view and reuses nested read transactions.
+func (v *ServerContentView) ReadContext(
+	ctx context.Context,
+	read func(context.Context, uint64) error,
+) error {
+	if v == nil {
+		return read(ctx, 0)
+	}
+	if active, ok := ctx.Value(serverContentViewReadContextKey{}).(serverContentViewReadContext); ok && active.view == v {
+		return read(ctx, active.sequence)
+	}
+	return v.Read(func(sequence uint64) error {
+		readCtx := context.WithValue(ctx, serverContentViewReadContextKey{}, serverContentViewReadContext{
+			view:     v,
+			sequence: sequence,
+		})
+		return read(readCtx, sequence)
+	})
 }

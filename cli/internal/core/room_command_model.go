@@ -522,6 +522,8 @@ func validateRoomRemovalReason(reason string) error {
 
 // roomCommandAuthorization supplies authorization operations used by the room model.
 type roomCommandAuthorization interface {
+	requireRoomMember(context.Context, string, string) (*evtv1.Room, RoomKind, error)
+	CanReadMessage(context.Context, string, RoomKind, string, string) (bool, error)
 	CanCreateRoom(ctx context.Context, userID string, kind RoomKind, groupID string) (bool, error)
 	authorizeAtStableInputs(ctx context.Context, check func() error) error
 	CanJoinRoomAt(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error)
@@ -553,8 +555,6 @@ type roomCommandAccounts interface {
 // pin writes. The command owns the event batch and projection wait.
 type roomPinOperations interface {
 	prepareMessageAppendAttempt(context.Context, evtstream.Aggregate, func(context.Context) error) (messageAppendAttempt, error)
-	requireRoomMember(context.Context, string, string) (*evtv1.Room, RoomKind, error)
-	CanReadMessage(context.Context, string, RoomKind, string, string) (bool, error)
 	canonicalReactionMessageEventID(string, string) (string, error)
 }
 

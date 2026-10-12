@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/livekit/protocol/livekit"
 	"github.com/twitchtv/twirp"
 	"hmans.de/chatto/internal/config"
@@ -896,8 +896,8 @@ func TestWaitForRoomLeaveTail_PropagatesCallProjectionReadinessFailure(t *testin
 	directoryProjection := NewRoomDirectoryProjection()
 	directoryProjector := harness.projector(directoryProjection)
 	startTestProjector(t, directoryProjector)
-	core := &ChattoCore{
-		roomModel: newTestRoomModel(t,
+	model := &RoomMembershipModel{
+		rooms: newTestRoomModel(t,
 			directoryProjection,
 			directoryProjector,
 			nil,
@@ -909,10 +909,10 @@ func TestWaitForRoomLeaveTail_PropagatesCallProjectionReadinessFailure(t *testin
 			nil,
 			nil,
 		),
-		callModel: &CallModel{},
+		calls: &CallModel{},
 	}
 
-	if err := core.waitForRoomLeaveTail(ctx, subject, seq); err == nil {
+	if err := model.waitForRoomLeaveTail(ctx, subject, seq); err == nil {
 		t.Fatal("waitForRoomLeaveTail() error = nil, want call projection readiness error")
 	}
 }

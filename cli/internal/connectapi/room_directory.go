@@ -205,7 +205,7 @@ func (a *API) apiRoomWithViewerState(ctx context.Context, userID string, room *c
 
 	// DM participants include deleted accounts; clients show them as deleted
 	// users.
-	result.MemberUserIds, err = a.core.ListRoomMemberIDsForList(ctx, userID, room.Room.GetId())
+	result.MemberUserIds, err = a.core.RoomMemberships().ListRoomMemberIDsForList(ctx, userID, room.Room.GetId())
 	if err != nil {
 		return nil, err
 	}

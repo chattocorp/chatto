@@ -496,12 +496,8 @@ func TestMoveRoomToSet_FromSourceRejectsChangedSourceAfterOCCRetry(t *testing.T)
 
 	groupLayout := NewRoomGroupLayoutProjection()
 	groupLayoutProjector := harness.projector(groupLayout)
-	core := &ChattoCore{
-		nc:             harness.nc,
-		logger:         testCoreLogger(),
-		EventPublisher: harness.publisher,
-	}
-	core.roomModel = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+	model := &RoomLayoutModel{logger: testCoreLogger(), publisher: harness.publisher, policy: &AuthorizationModel{}}
+	model.rooms = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
 	eventsToAppend := []*evtv1.Event{
 		newEvent("actor", groupCreatedEvent("G-source", "Source", "")),
@@ -523,13 +519,13 @@ func TestMoveRoomToSet_FromSourceRejectsChangedSourceAfterOCCRetry(t *testing.T)
 			}
 		}
 	}
-	if got := core.roomModel.roomGroupForRoom("R1"); got != "G-source" {
+	if got := model.rooms.roomGroupForRoom("R1"); got != "G-source" {
 		t.Fatalf("test setup source group = %q, want stale G-source", got)
 	}
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- core.MoveRoomToGroupFromSource(ctx, "actor", "R1", "G-source", "G-target")
+		errCh <- model.MoveRoomToGroupFromSource(ctx, "actor", "R1", "G-source", "G-target")
 	}()
 
 	select {
@@ -542,10 +538,10 @@ func TestMoveRoomToSet_FromSourceRejectsChangedSourceAfterOCCRetry(t *testing.T)
 	if err := <-errCh; !errors.Is(err, ErrRoomMoveSourceChanged) {
 		t.Fatalf("MoveRoomToGroupFromSource after OCC retry err = %v, want ErrRoomMoveSourceChanged", err)
 	}
-	if got := core.roomModel.roomGroupForRoom("R1"); got != "G-other" {
+	if got := model.rooms.roomGroupForRoom("R1"); got != "G-other" {
 		t.Fatalf("room source after rejected move = %q, want G-other", got)
 	}
-	target, ok := core.roomModel.roomGroup("G-target")
+	target, ok := model.rooms.roomGroup("G-target")
 	if !ok {
 		t.Fatal("target group missing after catch-up")
 	}
@@ -562,12 +558,8 @@ func TestMoveRoomToSet_TargetCreatedBeforeProjectionCatchup(t *testing.T) {
 
 	groupLayout := NewRoomGroupLayoutProjection()
 	groupLayoutProjector := harness.projector(groupLayout)
-	core := &ChattoCore{
-		nc:             harness.nc,
-		logger:         testCoreLogger(),
-		EventPublisher: harness.publisher,
-	}
-	core.roomModel = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+	model := &RoomLayoutModel{logger: testCoreLogger(), publisher: harness.publisher, policy: &AuthorizationModel{}}
+	model.rooms = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
 	created := newEvent("actor", &evtv1.Event{
 		Event: &evtv1.Event_RoomGroupCreated{
@@ -577,13 +569,13 @@ func TestMoveRoomToSet_TargetCreatedBeforeProjectionCatchup(t *testing.T) {
 	if _, err := harness.publisher.AppendEventually(ctx, evtstream.GroupAggregate("G-late").SubjectFor(created), created); err != nil {
 		t.Fatalf("append group-created event: %v", err)
 	}
-	if _, ok := core.roomModel.roomGroup("G-late"); ok {
+	if _, ok := model.rooms.roomGroup("G-late"); ok {
 		t.Fatal("test setup expected group projection to start stale")
 	}
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- core.MoveRoomToGroup(ctx, "actor", "R-late", "G-late")
+		errCh <- model.MoveRoomToGroup(ctx, "actor", "R-late", "G-late")
 	}()
 
 	select {
@@ -597,7 +589,7 @@ func TestMoveRoomToSet_TargetCreatedBeforeProjectionCatchup(t *testing.T) {
 		t.Fatalf("MoveRoomToGroup after projection catch-up: %v", err)
 	}
 
-	group, ok := core.roomModel.roomGroup("G-late")
+	group, ok := model.rooms.roomGroup("G-late")
 	if !ok {
 		t.Fatal("target group missing after catch-up")
 	}
@@ -614,12 +606,8 @@ func TestMoveRoomToSet_IdempotentNoopRefreshesStaleSnapshot(t *testing.T) {
 
 	groupLayout := NewRoomGroupLayoutProjection()
 	groupLayoutProjector := harness.projector(groupLayout)
-	core := &ChattoCore{
-		nc:             harness.nc,
-		logger:         testCoreLogger(),
-		EventPublisher: harness.publisher,
-	}
-	core.roomModel = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+	model := &RoomLayoutModel{logger: testCoreLogger(), publisher: harness.publisher, policy: &AuthorizationModel{}}
+	model.rooms = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
 	eventsToAppend := []*evtv1.Event{
 		newEvent("actor", groupCreatedEvent("G-target", "Target", "")),
@@ -640,13 +628,13 @@ func TestMoveRoomToSet_IdempotentNoopRefreshesStaleSnapshot(t *testing.T) {
 			}
 		}
 	}
-	if got := core.roomModel.roomGroupForRoom("R1"); got != "G-target" {
+	if got := model.rooms.roomGroupForRoom("R1"); got != "G-target" {
 		t.Fatalf("test setup source group = %q, want stale G-target", got)
 	}
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- core.MoveRoomToGroup(ctx, "actor", "R1", "G-target")
+		errCh <- model.MoveRoomToGroup(ctx, "actor", "R1", "G-target")
 	}()
 
 	select {
@@ -660,14 +648,14 @@ func TestMoveRoomToSet_IdempotentNoopRefreshesStaleSnapshot(t *testing.T) {
 		t.Fatalf("MoveRoomToGroup after stale no-op catch-up: %v", err)
 	}
 
-	target, ok := core.roomModel.roomGroup("G-target")
+	target, ok := model.rooms.roomGroup("G-target")
 	if !ok {
 		t.Fatal("target group missing after catch-up")
 	}
 	if len(target.RoomIds) != 1 || target.RoomIds[0] != "R1" {
 		t.Fatalf("target room IDs = %v, want [R1]", target.RoomIds)
 	}
-	other, ok := core.roomModel.roomGroup("G-other")
+	other, ok := model.rooms.roomGroup("G-other")
 	if !ok {
 		t.Fatal("other group missing after catch-up")
 	}

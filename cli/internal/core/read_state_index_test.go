@@ -477,7 +477,7 @@ func newReadStateReplica(t *testing.T, source *ChattoCore) *ChattoCore {
 		storage:   source.storage,
 		roomModel: source.roomModel,
 	}
-	replica.readStateModel = &ReadStateModel{core: replica, index: index}
+	replica.readStateModel = &ReadStateModel{index: index, rooms: replica.roomModel, policy: source.authorization, timeline: replica, effects: replica, logger: replica.logger}
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)

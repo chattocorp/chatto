@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+
 	"slices"
 	"sync"
 	"time"
@@ -792,4 +793,10 @@ func (m *NotificationMaterializer) badgeTransitions(ctx context.Context, inputs 
 		return nil, fmt.Errorf("derive Badge transitions: %w", err)
 	}
 	return invalidations, nil
+}
+
+// waitForDecisions waits before follow changes publish an unread-state hint.
+// The durable decision worker remains the only owner of decision persistence.
+func (m *NotificationMaterializer) waitForDecisions(ctx context.Context) error {
+	return m.decisions.Projector().WaitForCurrent(ctx)
 }

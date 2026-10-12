@@ -33,7 +33,7 @@ type ThreadSearchPage struct {
 // Empty must be handled by the caller as no matches, never unrestricted search.
 func (s *MessageSearchReadModel) FollowedSearchRoots(scope *MessageSearchScope, actorID string) []string {
 	var roots []string
-	for _, ref := range s.core.roomModel.followedThreadsForUser(actorID) {
+	for _, ref := range s.rooms.followedThreadsForUser(actorID) {
 		if scope.rooms[ref.roomID] != nil {
 			roots = append(roots, ref.threadRootEventID)
 		}
@@ -46,7 +46,7 @@ func (s *MessageSearchReadModel) FollowedSearchRoots(scope *MessageSearchScope, 
 func (s *MessageSearchReadModel) FilterFollowedSearchResults(ctx context.Context, actorID string, results []MessageSearchResult) ([]MessageSearchResult, error) {
 	filtered := make([]MessageSearchResult, 0, len(results))
 	for _, result := range results {
-		following, err := s.core.IsFollowingThread(ctx, result.Kind, actorID, result.Event.GetMessagePosted().GetRoomId(), searchResultRoot(result))
+		following, err := s.follows.IsFollowingThread(ctx, result.Kind, actorID, result.Event.GetMessagePosted().GetRoomId(), searchResultRoot(result))
 		if err != nil {
 			return nil, err
 		}
@@ -156,35 +156,35 @@ func (s *MessageSearchReadModel) SearchThreadGroups(ctx context.Context, actorID
 			return nil, err
 		}
 		room := match.Event.GetMessagePosted().GetRoomId()
-		allowed, err := s.core.CanReadThreadMessages(ctx, actorID, match.Kind, room, root)
+		allowed, err := s.authorization.CanReadThreadMessages(ctx, actorID, match.Kind, room, root)
 		if err != nil {
 			return nil, err
 		}
-		member, err := s.core.RoomMembershipExists(ctx, match.Kind, actorID, room)
+		member, err := s.memberships.RoomMembershipExists(ctx, match.Kind, actorID, room)
 		if err != nil {
 			return nil, err
 		}
 		if !allowed || !member {
 			continue
 		}
-		following, err := s.core.IsFollowingThread(ctx, match.Kind, actorID, room, root)
+		following, err := s.follows.IsFollowingThread(ctx, match.Kind, actorID, room, root)
 		if err != nil {
 			return nil, err
 		}
 		if followedOnly && !following {
 			continue
 		}
-		metadata, err := s.core.GetThreadMetadata(ctx, match.Kind, room, root)
+		metadata, err := s.events.GetThreadMetadata(ctx, match.Kind, room, root)
 		if err != nil {
 			return nil, err
 		}
 		activity := metadata.LastReplyAt
 		if activity == nil {
-			entry, ok := s.core.roomModel.timelineEntry(root)
+			entry, ok := s.rooms.timelineEntry(root)
 			if !ok || entry.RoomID != room {
 				continue
 			}
-			rootEvent, err := s.core.GetRoomEventByEventID(ctx, match.Kind, room, root)
+			rootEvent, err := s.events.GetRoomEventByEventID(ctx, match.Kind, room, root)
 			if err != nil {
 				return nil, err
 			}
@@ -224,7 +224,7 @@ func (s *MessageSearchReadModel) SearchThreadGroups(ctx context.Context, actorID
 	end := min(start+limit, total)
 	page := threads[start:end]
 	for _, result := range page {
-		if err := s.core.hydrateFollowedThreadViewerStates(ctx, actorID, []*FollowedThread{result.Metadata}); err != nil {
+		if err := s.follows.hydrateFollowedThreadViewerStates(ctx, actorID, []*FollowedThread{result.Metadata}); err != nil {
 			return nil, err
 		}
 	}

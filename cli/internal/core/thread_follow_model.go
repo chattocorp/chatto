@@ -2,6 +2,10 @@ package core
 
 import (
 	"context"
+
+	"github.com/charmbracelet/log"
+
+	"hmans.de/chatto/internal/evtstream"
 )
 
 // ThreadFollows returns the operation-level model for user-facing thread
@@ -11,10 +15,18 @@ func (c *ChattoCore) ThreadFollows() *ThreadFollowModel {
 }
 
 // ThreadFollowModel owns public thread follow/unfollow mutations. It keeps
-// membership and thread-root validation alongside the operation, while the
-// lower-level KV helpers remain available for trusted/internal call sites.
+// membership and thread-root validation alongside durable EVT writes and
+// projection waits. Trusted internal callers can also request automatic follows.
 type ThreadFollowModel struct {
-	core *ChattoCore
+	rooms        *RoomModel
+	memberships  *RoomMembershipModel
+	readState    *ReadStateModel
+	publisher    *evtstream.Publisher
+	policy       *AuthorizationModel
+	timeline     threadFollowModelTimeline
+	effects      threadFollowModelEffects
+	materializer *NotificationMaterializer
+	logger       *log.Logger
 }
 
 // ListFollowedThreads returns one page of the actor's followed threads. When
@@ -28,37 +40,37 @@ func (s *ThreadFollowModel) ListFollowedThreads(ctx context.Context, actorID str
 	if includeDM {
 		spaceIDs = append(spaceIDs, LegacySpaceIDForRoomKind(KindDM))
 	}
-	return s.core.ListFollowedThreadsPage(ctx, actorID, spaceIDs, unreadOnly, limit, offset)
+	return s.ListFollowedThreadsPage(ctx, actorID, spaceIDs, unreadOnly, limit, offset)
 }
 
 func (s *ThreadFollowModel) HasUnreadFollowedThreads(ctx context.Context, actorID string) (bool, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return false, err
 	}
-	return s.core.HasUnreadFollowedThreads(ctx, actorID, []string{
+	return s.hasUnreadFollowedThreads(ctx, actorID, []string{
 		LegacySpaceIDForRoomKind(KindChannel),
 		LegacySpaceIDForRoomKind(KindDM),
 	})
 }
 
 func (s *ThreadFollowModel) FollowThread(ctx context.Context, actorID, roomID, threadRootEventID string) error {
-	room, kind, err := s.core.requireThreadMessageReader(ctx, actorID, roomID, threadRootEventID)
+	room, kind, err := s.policy.requireThreadMessageReader(ctx, actorID, roomID, threadRootEventID)
 	if err != nil {
 		return err
 	}
-	if _, err := s.core.requireThreadRoot(ctx, kind, room.Id, threadRootEventID); err != nil {
+	if _, err := s.policy.requireThreadRoot(ctx, kind, room.Id, threadRootEventID); err != nil {
 		return err
 	}
-	return s.core.FollowThread(ctx, kind, actorID, room.Id, threadRootEventID)
+	return s.followThread(ctx, kind, actorID, room.Id, threadRootEventID)
 }
 
 func (s *ThreadFollowModel) UnfollowThread(ctx context.Context, actorID, roomID, threadRootEventID string) error {
-	room, kind, err := s.core.requireThreadMessageReader(ctx, actorID, roomID, threadRootEventID)
+	room, kind, err := s.policy.requireThreadMessageReader(ctx, actorID, roomID, threadRootEventID)
 	if err != nil {
 		return err
 	}
-	if _, err := s.core.requireThreadRoot(ctx, kind, room.Id, threadRootEventID); err != nil {
+	if _, err := s.policy.requireThreadRoot(ctx, kind, room.Id, threadRootEventID); err != nil {
 		return err
 	}
-	return s.core.UnfollowThread(ctx, kind, actorID, room.Id, threadRootEventID)
+	return s.unfollowThread(ctx, kind, actorID, room.Id, threadRootEventID)
 }

@@ -172,7 +172,7 @@ func (a *API) realtimeSnapshotRoom(ctx context.Context, userID string, room *cor
 	}
 	result.HasMessageHistory = &exists
 	var err error
-	result.MemberUserIds, err = a.core.ListRoomMemberIDsForList(ctx, userID, room.Room.GetId())
+	result.MemberUserIds, err = a.core.RoomMemberships().ListRoomMemberIDsForList(ctx, userID, room.Room.GetId())
 	return result, err
 }
 

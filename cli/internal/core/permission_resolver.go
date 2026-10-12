@@ -33,12 +33,15 @@ import (
 // Scope specificity is evaluated independently for each subject, so a room
 // decision replaces that subject's group/server decision for the room.
 type PermissionResolver struct {
-	core *ChattoCore
+	rooms *RoomModel
+	users *UserModel
+	rbac  *RBACModel
+	view  *ServerContentView
 }
 
 // NewPermissionResolver creates a new permission resolver.
-func NewPermissionResolver(core *ChattoCore) *PermissionResolver {
-	return &PermissionResolver{core: core}
+func NewPermissionResolver(rooms *RoomModel, users *UserModel, rbac *RBACModel, view *ServerContentView) *PermissionResolver {
+	return &PermissionResolver{rooms: rooms, users: users, rbac: rbac, view: view}
 }
 
 // PermissionLevel identifies the level at which a permission decision was reached.
@@ -100,11 +103,11 @@ func (r *PermissionResolver) ResolveGroup(ctx context.Context, userID string, ki
 }
 
 func (r *PermissionResolver) resolveInContentView(ctx context.Context, resolve func(context.Context) (DecisionKind, error)) (DecisionKind, error) {
-	if r.core.contentView == nil {
+	if r.view == nil {
 		return resolve(ctx)
 	}
 	decision := DecisionNone
-	err := r.core.ReadServerContentView(ctx, func(readCtx context.Context, _ uint64) error {
+	err := r.view.ReadContext(ctx, func(readCtx context.Context, _ uint64) error {
 		var resolveErr error
 		decision, resolveErr = resolve(readCtx)
 		return resolveErr
@@ -118,7 +121,7 @@ func (r *PermissionResolver) resolveInContentView(ctx context.Context, resolve f
 // grants, named roles, and the everyone baseline like any other human.
 func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
 	// A bot subject has no human session to arm, including during inspection.
-	if isBot, ownerUserID, exists := r.core.userModel.isBotAndOwner(userID); exists && isBot {
+	if isBot, ownerUserID, exists := r.users.isBotAndOwner(userID); exists && isBot {
 		return r.resolveBotWithGroup(ctx, userID, ownerUserID, kind, roomID, explicitGroupID, perm)
 	}
 	privileged := privilegedModeAllows(ctx, userID, time.Now())
@@ -202,7 +205,7 @@ func (r *PermissionResolver) resolveEntitlement(ctx context.Context, userID stri
 // human-session privileged-mode gate. Use it only for permission discovery,
 // delegation ceilings, and other checks that must describe assigned authority.
 func (r *PermissionResolver) resolveEntitlementWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
-	isBot, ownerUserID, accountExists := r.core.userModel.isBotAndOwner(userID)
+	isBot, ownerUserID, accountExists := r.users.isBotAndOwner(userID)
 	if accountExists && isBot {
 		return r.resolveBotWithGroup(ctx, userID, ownerUserID, kind, roomID, explicitGroupID, perm)
 	}
@@ -217,7 +220,7 @@ func (r *PermissionResolver) resolveHumanWithGroup(ctx context.Context, userID s
 		if kind == KindDM && !PermissionAppliesAtScope(perm, ScopeDM) {
 			return DecisionDeny, nil
 		}
-		if ownerOverride && r.core.isServerOwner(userID) {
+		if ownerOverride && r.rbac.hasRole(userID, RoleOwner) {
 			return DecisionAllow, nil
 		}
 	}
@@ -226,7 +229,7 @@ func (r *PermissionResolver) resolveHumanWithGroup(ctx context.Context, userID s
 	// once so the decision collector can include group-scope decisions.
 	groupID := explicitGroupID
 	if kind == KindChannel && roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom) && groupID == "" {
-		if room, err := r.core.GetRoom(ctx, KindChannel, roomID); err == nil && room != nil {
+		if room, err := r.rooms.GetRoom(ctx, KindChannel, roomID); err == nil && room != nil {
 			groupID = room.GroupId
 		}
 	}
@@ -248,14 +251,14 @@ func (r *PermissionResolver) resolveBotWithGroup(ctx context.Context, botUserID,
 	if kind == KindDM && !PermissionAppliesAtScope(perm, ScopeDM) {
 		return DecisionDeny, nil
 	}
-	ownerIsBot, _, ownerExists := r.core.userModel.isBotAndOwner(ownerUserID)
+	ownerIsBot, _, ownerExists := r.users.isBotAndOwner(ownerUserID)
 	if !ownerExists || ownerIsBot {
 		return DecisionDeny, nil
 	}
 
 	groupID := explicitGroupID
 	if kind == KindChannel && roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom) && groupID == "" {
-		if room, err := r.core.GetRoom(ctx, KindChannel, roomID); err == nil && room != nil {
+		if room, err := r.rooms.GetRoom(ctx, KindChannel, roomID); err == nil && room != nil {
 			groupID = room.GroupId
 		}
 	}
@@ -380,7 +383,7 @@ func (r *PermissionResolver) applicableDecisions(
 	if len(scopes) == 0 {
 		return out, nil
 	}
-	roles, err := r.core.GetUserRoles(ctx, userID)
+	roles, err := r.rbac.GetUserRoles(ctx, userID)
 	if err != nil {
 		return out, fmt.Errorf("failed to get user roles: %w", err)
 	}
@@ -510,5 +513,5 @@ func (r *PermissionResolver) decisionFor(scope PermissionScope, scopeID, subject
 	if _, known := GetPermissionMetadata(perm); !known {
 		return DecisionNone
 	}
-	return r.core.rbacModel.decision(scope, scopeID, subject, perm)
+	return r.rbac.decision(scope, scopeID, subject, perm)
 }

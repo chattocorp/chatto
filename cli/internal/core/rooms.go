@@ -18,14 +18,6 @@ import (
 	"hmans.de/chatto/pkg/events"
 )
 
-// getRoomLastRootEntry returns the most recent ordinary root message entry
-// (excluding thread replies and historical imports) in a room, or nil if none have been
-// projected yet. Bounded O(walk-until-found) via the projection's
-// LastVisibleRoomEntry helper.
-func (c *ChattoCore) getRoomLastRootEntry(roomID string) *TimelineEntry {
-	return c.roomModel.getRoomLastRootEntry(roomID)
-}
-
 // GetRoomLastMessageAt returns the timestamp of the last ordinary message in a
 // room, including thread replies but excluding historical imports. Reads from the in-memory room
 // timeline projection.
@@ -232,7 +224,7 @@ func defaultAnnouncementsRoomDecisions(roomID string) []rbacSeedDecision {
 // channel room in a group, RoomRemovedFromGroupEvent per ADR-086. Historical
 // room events are retained in EVT; the legacy KV room record is no longer
 // touched here.
-func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKind, room_id string) error {
+func (m *RoomCommandModel) DeleteRoom(ctx context.Context, actorID string, kind RoomKind, room_id string) error {
 	agg := evtstream.RoomAggregate(room_id)
 	filter := agg.AllEventsFilter()
 	var deletedSubject string
@@ -240,29 +232,29 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 	var groupRemovedSubject string
 	var groupRemovedSeq uint64
 	for attempt := range maxJoinRoomRetries {
-		streamSeq, err := c.EventPublisher.LastStreamSeq(ctx)
+		streamSeq, err := m.publisher.LastStreamSeq(ctx)
 		if err != nil {
 			return fmt.Errorf("read stream OCC tail before room deletion: %w", err)
 		}
-		roomPosition, err := c.EventPublisher.LastSubjectPosition(ctx, filter)
+		roomPosition, err := m.publisher.LastSubjectPosition(ctx, filter)
 		if err != nil {
 			return fmt.Errorf("read room deletion OCC tail: %w", err)
 		}
-		groupPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.GroupSubjectFilter())
+		groupPosition, err := m.publisher.LastSubjectPosition(ctx, evtstream.GroupSubjectFilter())
 		if err != nil {
 			return fmt.Errorf("read room-group OCC tail before room deletion: %w", err)
 		}
 		if !roomPosition.IsZero() {
-			if err := c.roomModel.waitForDirectory(ctx, roomPosition); err != nil {
+			if err := m.rooms.waitForDirectory(ctx, roomPosition); err != nil {
 				return fmt.Errorf("wait for room before deletion: %w", err)
 			}
 		}
 		if !groupPosition.IsZero() {
-			if err := c.roomModel.waitForGroupLayout(ctx, groupPosition); err != nil {
+			if err := m.rooms.waitForGroupLayout(ctx, groupPosition); err != nil {
 				return fmt.Errorf("wait for room-group layout before room deletion: %w", err)
 			}
 		}
-		room, err := c.GetRoom(ctx, kind, room_id)
+		room, err := m.rooms.GetRoom(ctx, kind, room_id)
 		if err != nil {
 			return err
 		}
@@ -296,7 +288,7 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 			// move from adding the room to a group after this decision.
 			entries[0].Expect = entries[0].Expect.AndStreamSeq(streamSeq)
 		}
-		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+		seqs, err := m.publisher.AppendBatch(ctx, entries)
 		if errors.Is(err, events.ErrConflict) {
 			select {
 			case <-ctx.Done():
@@ -321,15 +313,15 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 		return fmt.Errorf("publish room deletion retry exhausted after %d attempts: %w", maxJoinRoomRetries, events.ErrConflict)
 	}
 
-	c.logger.Info("Room deleted", "kind", kind, "room_id", room_id)
+	m.logger.Info("Room deleted", "kind", kind, "room_id", room_id)
 
 	// Read-your-writes: every projection that needs to drop state
 	// must have applied its event before we return.
-	if err := c.roomModel.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(deletedSubject, deletedSeq)); err != nil {
+	if err := m.rooms.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(deletedSubject, deletedSeq)); err != nil {
 		return err
 	}
 	if groupRemovedSeq > 0 {
-		if err := c.roomModel.waitForGroupLayout(ctx, events.SubjectPosition(groupRemovedSubject, groupRemovedSeq)); err != nil {
+		if err := m.rooms.waitForGroupLayout(ctx, events.SubjectPosition(groupRemovedSubject, groupRemovedSeq)); err != nil {
 			return err
 		}
 	}
@@ -402,8 +394,8 @@ type MemberRoomListOptions struct {
 // ListMemberRooms retrieves rooms of the given kind that the user participates
 // in. It is the shared room-list primitive for member-scoped room surfaces;
 // callers layer product policy on top with MemberRoomListOptions.
-func (c *ChattoCore) ListMemberRooms(ctx context.Context, kind RoomKind, userID string, opts MemberRoomListOptions) ([]*evtv1.Room, error) {
-	roomIDs := c.roomModel.explicitRoomIDsForUser(userID)
+func (m *RoomMembershipModel) ListMemberRooms(ctx context.Context, kind RoomKind, userID string, opts MemberRoomListOptions) ([]*evtv1.Room, error) {
+	roomIDs := m.rooms.explicitRoomIDsForUser(userID)
 	seen := make(map[string]struct{}, len(roomIDs))
 
 	type listedRoom struct {
@@ -413,7 +405,7 @@ func (c *ChattoCore) ListMemberRooms(ctx context.Context, kind RoomKind, userID 
 	listed := make([]listedRoom, 0, len(roomIDs))
 
 	for _, roomID := range roomIDs {
-		room, err := c.GetRoom(ctx, kind, roomID)
+		room, err := m.rooms.GetRoom(ctx, kind, roomID)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				continue
@@ -423,7 +415,7 @@ func (c *ChattoCore) ListMemberRooms(ctx context.Context, kind RoomKind, userID 
 
 		var lastMessageAt time.Time
 		if opts.RequireLastMessage || opts.SortByLastMessageDesc {
-			lastMessageAt, err = c.GetRoomLastMessageAt(ctx, kind, room.Id)
+			lastMessageAt, err = m.rooms.GetRoomLastMessageAt(ctx, kind, room.Id)
 			if err != nil {
 				return nil, fmt.Errorf("lookup last message for room %s: %w", room.Id, err)
 			}
@@ -437,7 +429,7 @@ func (c *ChattoCore) ListMemberRooms(ctx context.Context, kind RoomKind, userID 
 	}
 
 	if kind == KindChannel {
-		all, err := c.ListRooms(ctx, kind)
+		all, err := m.rooms.ListRooms(ctx, kind)
 		if err != nil {
 			return nil, err
 		}
@@ -448,7 +440,7 @@ func (c *ChattoCore) ListMemberRooms(ctx context.Context, kind RoomKind, userID 
 			if _, ok := seen[room.Id]; ok {
 				continue
 			}
-			canJoin, err := c.CanJoinRoomAt(ctx, userID, kind, room.Id)
+			canJoin, err := m.policy.CanJoinRoomAt(ctx, userID, kind, room.Id)
 			if err != nil {
 				return nil, err
 			}
@@ -458,7 +450,7 @@ func (c *ChattoCore) ListMemberRooms(ctx context.Context, kind RoomKind, userID 
 
 			var lastMessageAt time.Time
 			if opts.RequireLastMessage || opts.SortByLastMessageDesc {
-				lastMessageAt, err = c.GetRoomLastMessageAt(ctx, kind, room.Id)
+				lastMessageAt, err = m.rooms.GetRoomLastMessageAt(ctx, kind, room.Id)
 				if err != nil {
 					return nil, fmt.Errorf("lookup last message for room %s: %w", room.Id, err)
 				}

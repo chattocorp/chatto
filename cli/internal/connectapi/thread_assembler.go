@@ -97,7 +97,7 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 		if kind == core.KindDM {
 			// Deleted participants stay DM members and hydrate as deleted-user
 			// references, so the label never turns into a self-DM.
-			memberIDs, err := api.core.ListRoomMemberIDsForList(ctx, viewerID, thread.RoomID)
+			memberIDs, err := api.core.RoomMemberships().ListRoomMemberIDsForList(ctx, viewerID, thread.RoomID)
 			if err != nil {
 				return nil, err
 			}
