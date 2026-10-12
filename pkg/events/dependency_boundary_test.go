@@ -76,9 +76,9 @@ func TestFrameworkConsumerUsesOnlyPublicFrameworkPackage(t *testing.T) {
 		if importPath == frameworkImportPath {
 			importsFramework = true
 		}
-		if strings.HasPrefix(importPath, "github.com/chattocorp/chatto/cli/") &&
+		if strings.HasPrefix(importPath, "github.com/chattocorp/chatto/") &&
 			importPath != frameworkImportPath {
-			t.Errorf("external consumer imports Chatto package %q", importPath)
+			t.Errorf("external consumer imports repository package %q", importPath)
 		}
 	}
 	if !importsFramework {
