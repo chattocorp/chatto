@@ -84,8 +84,8 @@ func (c *ChattoCore) LinkExternalIdentityAs(ctx context.Context, actorID, provid
 			ProviderType: providerType,
 		},
 	}})
-	// Check the account inside the OCC loop: appendUserEvent first waits for
-	// this replica's projection, so a user created on another replica exists.
+	// Check the account after appendUserEvent's projection wait, so a replica
+	// that has not yet applied the user's creation does not reject it.
 	_, err := c.appendUserEvent(ctx, userID, event, evtstream.UserSubjectFilter(), func() error {
 		if err := c.requireHumanUser(ctx, userID); err != nil {
 			return err

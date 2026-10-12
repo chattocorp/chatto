@@ -331,10 +331,13 @@ func (c *ChattoCore) ConfirmPendingExternalIdentityLink(ctx context.Context, flo
 // authentication projections. The raw issuer and subject require an account-
 // owner or operator response boundary; they must not be logged.
 func (c *ChattoCore) ExternalIdentitiesForUser(ctx context.Context, userID string) ([]ExternalIdentity, error) {
-	if err := c.requireHumanUser(ctx, userID); err != nil {
+	// Wait before the account check, so a replica that has not yet applied the
+	// user's creation does not reject it. The fixed filter keeps the unvalidated
+	// user ID out of the subject.
+	if err := c.userModel.waitForUsersCurrent(ctx, "external identities", evtstream.UserSubjectFilter()); err != nil {
 		return nil, err
 	}
-	if err := c.userModel.waitForUsersCurrent(ctx, "external identities", evtstream.UserAggregate(userID).AllEventsFilter()); err != nil {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
 		return nil, err
 	}
 	return c.userModel.externalIdentities(userID), nil
@@ -388,8 +391,8 @@ func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, us
 			PreserveExistingCredentials: true,
 		},
 	}})
-	// Check the account inside the OCC loop, after the projection wait, so a
-	// replica that has not yet applied the user's creation does not reject it.
+	// Check the account after appendUserEvent's projection wait, so a replica
+	// that has not yet applied the user's creation does not reject it.
 	_, err := c.appendUserEvent(ctx, userID, event, evtstream.UserSubjectFilter(), func() error {
 		if err := c.requireHumanUser(ctx, userID); err != nil {
 			return err
