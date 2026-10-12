@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
@@ -11,6 +11,25 @@ import {
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import type { JumpToMessageState } from '$lib/state/room';
+import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
+import { ServerConnection } from '@chatto/client/server/serverConnection';
+
+let connection: ServerConnection;
+beforeEach(() => {
+  connection = new ServerConnection({ serverUrl: 'https://server.example.test', token: null });
+  connection.status = 'connected';
+  createTestServerScope({
+    viewer: { id: 'test-user' },
+    serverInfo: { messageEditWindowSeconds: 300 },
+    store: { realtimeSync: { isRecoveringSnapshot: false } },
+    ui: { activeCallRooms: { getCallId: () => null } },
+    connection: {
+      get status() {
+        return connection.status;
+      }
+    }
+  });
+});
 
 const resumeCallbacks = vi.hoisted(() => [] as Array<() => void>);
 
@@ -39,18 +58,10 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'server-1'
 }));
 
-vi.mock('$lib/state/server/scope.svelte', async () => {
-  const { serverRegistry } = await import('$lib/client');
-  return {
-    useServerScope: () => ({
-      serverId: 'server-1',
-      connection: {},
-      get store() {
-        return serverRegistry.getStore('server-1');
-      }
-    })
-  };
-});
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveBotOwnerUserId: (_userId: string, fallback: string | null) => fallback,
@@ -64,6 +75,55 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
 vi.mock('$lib/hooks/useTabResumeCallback.svelte', () => ({
   useTabResumeCallback: (callback: () => void) => resumeCallbacks.push(callback)
 }));
+
+describe('EventList reconnection', () => {
+  it('keeps messages visible while reconnecting and removes the dots after catch-up', async () => {
+    render(EventListTestHarness, {
+      props: { eventIds: ['retained-message'], scrollToEventId: null }
+    });
+    const indicator = page.getByRole('status', {
+      name: 'Real-time updates paused. Reconnecting...'
+    });
+    await expect.element(indicator).not.toBeInTheDocument();
+
+    connection.status = 'connecting';
+    await expect.element(indicator).toBeInTheDocument();
+    await expect.element(page.getByText('retained-message', { exact: true })).toBeVisible();
+    expect(page.getByTestId('messages-container').element().contains(indicator.element())).toBe(
+      false
+    );
+
+    connection.status = 'connected';
+    await expect.element(indicator).not.toBeInTheDocument();
+    await expect.element(page.getByText('retained-message', { exact: true })).toBeVisible();
+  });
+
+  it('uses only the initial loader before the first page arrives', async () => {
+    connection.status = 'connecting';
+    render(EventListTestHarness, {
+      props: { eventIds: [], scrollToEventId: null, isLoading: true }
+    });
+    await expect
+      .element(page.getByRole('status', { name: 'Loading messages...' }))
+      .toBeInTheDocument();
+    await expect
+      .element(page.getByRole('status', { name: 'Real-time updates paused. Reconnecting...' }))
+      .not.toBeInTheDocument();
+  });
+
+  it.each(['dormant', 'disconnected'] as const)(
+    'does not show pending dots when %s',
+    async (status) => {
+      connection.status = status;
+      render(EventListTestHarness, {
+        props: { eventIds: ['retained-message'], scrollToEventId: null }
+      });
+      await expect
+        .element(page.getByRole('status', { name: 'Real-time updates paused. Reconnecting...' }))
+        .not.toBeInTheDocument();
+    }
+  );
+});
 
 describe('EventList read position', () => {
   it('reports the newest message while the timeline follows the bottom', async () => {
