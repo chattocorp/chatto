@@ -133,7 +133,7 @@ func (s *roomService) JoinRoomGroup(ctx context.Context, req *connect.Request[ap
 		return nil, err
 	}
 
-	joined, err := s.api.core.RoomDirectoryReads().JoinGroup(ctx, caller.UserID, req.Msg.GetGroupId())
+	joined, err := s.api.core.RoomCommands().JoinGroup(ctx, caller.UserID, req.Msg.GetGroupId())
 	if err != nil {
 		return nil, err
 	}

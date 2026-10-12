@@ -222,11 +222,16 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   ([`room_command_model.go`](../../cli/internal/core/room_command_model.go)):
   Operation-level room lifecycle, Slow Mode and Threading Mode configuration,
   membership, moderation, and DM commands with public API authorization and
-  room-kind preconditions.
+  room-kind preconditions. It also owns group joins and pin commands. Explicit
+  dependencies supply room reads, publication, users, permissions, and the
+  remaining core policy and mutation helpers. Those helpers still run on
+  `ChattoCore`, exposed through consumer-specific interfaces.
 - **`RoomDirectoryReadModel`**
   ([`room_directory_read_model.go`](../../cli/internal/core/room_directory_read_model.go)):
   Operation-level room directory and sidebar reads, viewer capability and Slow
-  Mode deadline hydration, and directory-adjacent join commands.
+  Mode deadline hydration. It receives `RoomModel`, message policy, permission
+  resolution, membership, authorization, and unread dependencies. Group joins
+  belong to `RoomCommandModel`.
 - **`RoomTimelineReadModel`**
   ([`room_timeline_read_model.go`](../../cli/internal/core/room_timeline_read_model.go),
   [`room_events.go`](../../cli/internal/core/room_events.go),
@@ -256,7 +261,10 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   [`pinned_messages.go`](../../cli/internal/core/pinned_messages.go)): Eagerly
   wired room-derived projection readiness and narrow reads for room catalog,
   membership, layout, timeline, threads, reactions, and pinned messages;
-  supplies projection snapshots and readiness to atomic room and room-group
+  owns catalog and group reads in
+  [`room_catalog_reads.go`](../../cli/internal/core/room_catalog_reads.go), with
+  forwarding methods on `ChattoCore` for existing callers; supplies projection
+  snapshots and readiness to atomic room and room-group
   structural batches and room-OCC pin mutations.
 - **`UserModel`** ([`user_model.go`](../../cli/internal/core/user_model.go)):
   Sole core owner of user profile, cold-replayed authentication, and content-key

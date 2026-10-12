@@ -23,36 +23,14 @@ import (
 // projected yet. Bounded O(walk-until-found) via the projection's
 // LastVisibleRoomEntry helper.
 func (c *ChattoCore) getRoomLastRootEntry(roomID string) *TimelineEntry {
-	entry, ok := c.roomModel.lastVisibleRoomEntry(roomID, func(entry *TimelineEntry) bool {
-		return entry != nil && entry.IsMessagePost() && entry.InThreadEventID == "" && !entry.HistoricalImport
-	})
-	if !ok {
-		return nil
-	}
-	return entry
-}
-
-// getRoomLastMessageEntry returns the most recent ordinary message entry
-// of any kind (root or thread reply) in a room, or nil. It uses the
-// projection's message-post index because thread replies are not part of the
-// visible room timeline.
-func (c *ChattoCore) getRoomLastMessageEntry(roomID string) *TimelineEntry {
-	entry, ok := c.roomModel.lastRoomMessageEntry(roomID)
-	if !ok {
-		return nil
-	}
-	return entry
+	return c.roomModel.getRoomLastRootEntry(roomID)
 }
 
 // GetRoomLastMessageAt returns the timestamp of the last ordinary message in a
 // room, including thread replies but excluding historical imports. Reads from the in-memory room
 // timeline projection.
 func (c *ChattoCore) GetRoomLastMessageAt(ctx context.Context, kind RoomKind, roomID string) (time.Time, error) {
-	entry := c.getRoomLastMessageEntry(roomID)
-	if entry == nil {
-		return time.Time{}, nil
-	}
-	return entry.CreatedAt, nil
+	return c.roomModel.GetRoomLastMessageAt(ctx, kind, roomID)
 }
 
 // Room name validation constants
@@ -637,14 +615,7 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 // keeping the "the wrong kind is not found" semantic so callers
 // don't accidentally read a DM via a channel-kind probe.
 func (c *ChattoCore) GetRoom(ctx context.Context, kind RoomKind, room_id string) (*evtv1.Room, error) {
-	room, ok := c.roomModel.room(room_id)
-	if !ok || room.Kind != ProtoKindForRoomKind(kind) {
-		return nil, fmt.Errorf("room %s: %w", room_id, ErrNotFound)
-	}
-	if gid := c.roomModel.roomGroupForRoom(room_id); gid != "" {
-		room.GroupId = gid
-	}
-	return room, nil
+	return c.roomModel.GetRoom(ctx, kind, room_id)
 }
 
 // FindRoomByID resolves a room from its ID alone (no kind probe).
@@ -655,38 +626,21 @@ func (c *ChattoCore) GetRoom(ctx context.Context, kind RoomKind, room_id string)
 // this to recover both the room and the kind context (via
 // KindOfRoom on the result).
 func (c *ChattoCore) FindRoomByID(ctx context.Context, room_id string) (*evtv1.Room, error) {
-	room, ok := c.roomModel.room(room_id)
-	if !ok {
-		return nil, ErrNotFound
-	}
-	if gid := c.roomModel.roomGroupForRoom(room_id); gid != "" {
-		room.GroupId = gid
-	}
-	return room, nil
+	return c.roomModel.FindRoomByID(ctx, room_id)
 }
 
 // FindRoomKind is a thin wrapper around FindRoomByID for callers that
 // only need the kind. The room load is paid either way; the wrapper is
 // just there for ergonomics.
 func (c *ChattoCore) FindRoomKind(ctx context.Context, room_id string) (RoomKind, error) {
-	room, err := c.FindRoomByID(ctx, room_id)
-	if err != nil {
-		return "", err
-	}
-	return KindOfRoom(room), nil
+	return c.roomModel.FindRoomKind(ctx, room_id)
 }
 
 // ListRooms retrieves all rooms of the given kind from the
 // RoomModel's room catalog, composed with its group-layout state for the
 // group_id field.
 func (c *ChattoCore) ListRooms(ctx context.Context, kind RoomKind) ([]*evtv1.Room, error) {
-	rooms := c.roomModel.roomsByKind(ProtoKindForRoomKind(kind))
-	for _, r := range rooms {
-		if gid := c.roomModel.roomGroupForRoom(r.Id); gid != "" {
-			r.GroupId = gid
-		}
-	}
-	return rooms, nil
+	return c.roomModel.ListRooms(ctx, kind)
 }
 
 // MemberRoomListOptions controls optional filtering/sorting for ListMemberRooms.

@@ -85,7 +85,7 @@ func TestRoomDirectoryReadModelVisibilityAndJoinGroup(t *testing.T) {
 		t.Fatalf("BatchGetRoomGroups = %+v, want single group %s", batchGroups, group.Id)
 	}
 
-	joined, err := reads.JoinGroup(ctx, actor.Id, group.Id)
+	joined, err := core.RoomCommands().JoinGroup(ctx, actor.Id, group.Id)
 	if err != nil {
 		t.Fatalf("JoinGroup: %v", err)
 	}
