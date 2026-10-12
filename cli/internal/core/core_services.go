@@ -123,7 +123,8 @@ func initializeCoreServices(
 	core.roomCommands = &RoomCommandModel{
 		rooms: core.roomModel, permissions: core.permissionResolver,
 		publisher: infra.eventPublisher, users: core.userModel,
-		authorization: core, memberships: core, lifecycle: core, accounts: core, pins: core,
+		rbac: core.rbacModel, logger: core.logger,
+		authorization: core, memberships: core, directMessages: core, accounts: core, pins: core,
 	}
 	core.messageModel = &MessageModel{core: core}
 	core.roomDirectoryReads = &RoomDirectoryReadModel{

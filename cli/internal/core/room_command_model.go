@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/log"
+
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
@@ -21,18 +23,20 @@ func (c *ChattoCore) RoomCommands() *RoomCommandModel {
 // RoomCommandModel owns user-facing room commands. Lower-level room helpers are
 // still available to trusted internal callers, while this model centralizes
 // public API authorization and DM/channel preconditions. The publisher and
-// projection owner keep update and pin consistency inside this model; explicit
-// capabilities supply the remaining policy and low-level mutations.
+// projection owners keep lifecycle, update and pin consistency inside this model.
+// Explicit capabilities supply the remaining policy and low-level mutations.
 type RoomCommandModel struct {
-	pins          roomPinOperations
-	rooms         *RoomModel
-	permissions   *PermissionResolver
-	publisher     *evtstream.Publisher
-	users         *UserModel
-	authorization roomCommandAuthorization
-	memberships   roomCommandMemberships
-	lifecycle     roomCommandLifecycle
-	accounts      roomCommandAccounts
+	pins           roomPinOperations
+	rooms          *RoomModel
+	permissions    *PermissionResolver
+	publisher      *evtstream.Publisher
+	users          *UserModel
+	authorization  roomCommandAuthorization
+	memberships    roomCommandMemberships
+	directMessages roomCommandDirectMessages
+	rbac           *RBACModel
+	logger         *log.Logger
+	accounts       roomCommandAccounts
 }
 
 type RoomCreateInput struct {
@@ -110,7 +114,7 @@ func (s *RoomCommandModel) CreateRoom(ctx context.Context, input RoomCreateInput
 	if input.ThreadingMode != evtv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED && !IsValidRoomThreadingMode(input.ThreadingMode) {
 		return nil, invalidArgument("invalid room threading mode")
 	}
-	return s.lifecycle.CreateRoom(ctx, input.ActorID, KindChannel, input.GroupID, input.Name, input.Description,
+	return s.createRoom(ctx, input.ActorID, KindChannel, input.GroupID, input.Name, input.Description,
 		WithUniversalRoom(input.Universal), WithRoomThreadingMode(input.ThreadingMode))
 }
 
@@ -220,7 +224,7 @@ func (s *RoomCommandModel) ArchiveRoom(ctx context.Context, input RoomIDInput) (
 	if err != nil {
 		return nil, err
 	}
-	return s.lifecycle.ArchiveRoom(ctx, input.ActorID, kind, input.RoomID)
+	return s.archiveRoom(ctx, input.ActorID, kind, input.RoomID)
 }
 
 func (s *RoomCommandModel) UnarchiveRoom(ctx context.Context, input RoomIDInput) (*evtv1.Room, error) {
@@ -228,7 +232,7 @@ func (s *RoomCommandModel) UnarchiveRoom(ctx context.Context, input RoomIDInput)
 	if err != nil {
 		return nil, err
 	}
-	return s.lifecycle.UnarchiveRoom(ctx, input.ActorID, kind, input.RoomID)
+	return s.unarchiveRoom(ctx, input.ActorID, kind, input.RoomID)
 }
 
 func (s *RoomCommandModel) JoinRoom(ctx context.Context, input RoomIDInput) (*evtv1.Room, error) {
@@ -370,7 +374,7 @@ func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) 
 	if isBot {
 		return nil, false, ErrPermissionDenied
 	}
-	room, found, err := s.lifecycle.FindDM(ctx, input.ActorID, input.ParticipantIDs)
+	room, found, err := s.directMessages.FindDM(ctx, input.ActorID, input.ParticipantIDs)
 	if err != nil {
 		return nil, false, err
 	}
@@ -384,7 +388,7 @@ func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) 
 	if !can {
 		return nil, false, ErrPermissionDenied
 	}
-	return s.lifecycle.FindOrCreateDM(ctx, input.ActorID, input.ParticipantIDs)
+	return s.directMessages.FindOrCreateDM(ctx, input.ActorID, input.ParticipantIDs)
 }
 
 // RemoveUser removes a current member and optionally prevents rejoining.
@@ -540,11 +544,8 @@ type roomCommandMemberships interface {
 	LeaveRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) error
 }
 
-// roomCommandLifecycle supplies lifecycle operations used by the room model.
-type roomCommandLifecycle interface {
-	CreateRoom(ctx context.Context, actorID string, kind RoomKind, groupID, name, description string, opts ...CreateRoomOption) (*evtv1.Room, error)
-	ArchiveRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (*evtv1.Room, error)
-	UnarchiveRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (*evtv1.Room, error)
+// roomCommandDirectMessages supplies DM coordination used by the room model.
+type roomCommandDirectMessages interface {
 	FindDM(ctx context.Context, creatorID string, participantIDs []string) (*evtv1.Room, bool, error)
 	FindOrCreateDM(ctx context.Context, creatorID string, participantIDs []string) (*evtv1.Room, bool, error)
 }
