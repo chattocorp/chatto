@@ -7,9 +7,10 @@
 Chatto runtime units already share one NATS account and can run either inside
 `chatto run` or as separate processes. Search is the first runtime unit that
 needs a request/reply contract: the main app exposes an authenticated public
-API, while a replaceable provider answers searches over NATS. Future work is
-also expected to expose selected Chatto Core operations to trusted server-side
-integrations through NATS.
+API, while a replaceable provider answers searches over NATS. Selected Chatto
+Core operations may use NATS for a concrete trusted integration need.
+[ADR-115](ADR-115-in-process-domain-services.md) keeps internal core calls in
+process; this record defines conventions for NATS contracts when needed.
 
 Without a namespace and versioning convention, service subjects would grow
 ad hoc. Core-owned operations and replaceable extension points would be hard to
@@ -29,10 +30,12 @@ The initial serving-authority roots are:
 - `svc.chatto_ext.>` for extension contracts implemented by replaceable
   providers, including implementations bundled with Chatto.
 
-For example, a future Core room lookup may use
+As a namespace example, a Core room lookup could use
 `svc.chatto.rooms.v1.get`, while the message-search extension uses
 `svc.chatto_ext.search.v1.query`. The distinction describes which side serves
-the request, not who authored or distributed the implementation.
+the request, not who authored or distributed the implementation. The room
+lookup is an example, not a planned endpoint or a requirement to expose core
+services over NATS.
 
 Each service contract uses protobuf request and response messages. Its subject
 major version corresponds to the protobuf contract's major wire version, so an
