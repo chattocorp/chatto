@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/email"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/email"
 )
 
 func TestMailer_SMTPUTF8Usage(t *testing.T) {

@@ -1,4 +1,4 @@
-module hmans.de/chatto/pkg/appconfig
+module github.com/chattocorp/chatto/pkg/appconfig
 
 go 1.26.0
 

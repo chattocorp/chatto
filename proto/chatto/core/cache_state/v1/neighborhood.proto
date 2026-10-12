@@ -4,7 +4,7 @@ package chatto.core.cache_state.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1;cachestatev1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/cache_state/v1;cachestatev1";
 
 // NeighborhoodDirectory is the latest Neighborhood discovery result stored
 // under neighborhood.directory in MEMORY_CACHE. Discovery replaces the complete

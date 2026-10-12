@@ -7,9 +7,9 @@ import (
 	"slices"
 	"time"
 
+	searchv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1"
+	searchsvc "github.com/chattocorp/chatto/cli/internal/search"
 	"google.golang.org/protobuf/proto"
-	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
-	searchsvc "hmans.de/chatto/internal/search"
 )
 
 // ThreadSearchQuery queries the optional provider. Hits are untrusted until hydration.

@@ -1,6 +1,6 @@
 package core
 
-import "hmans.de/chatto/pkg/events/intern"
+import "github.com/chattocorp/chatto/pkg/events/intern"
 
 // eventIDTable is shared by independently replayed Chatto projections.
 // Core wiring owns its lifetime and chooses which models share it.

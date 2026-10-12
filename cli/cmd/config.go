@@ -1,8 +1,8 @@
 package cmd
 
 import (
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/spf13/cobra"
-	"hmans.de/chatto/internal/config"
 )
 
 // newConfigCommand creates the offline configuration checker without shared

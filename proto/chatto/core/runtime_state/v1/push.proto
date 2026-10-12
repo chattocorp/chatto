@@ -4,7 +4,7 @@ package chatto.core.runtime_state.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
 
 /*
    PushSubscription stores the Web Push subscription data for a user's browser.

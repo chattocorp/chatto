@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"hmans.de/authling"
+	"github.com/chattocorp/chatto/authling"
 )
 
 func TestRunVersion(t *testing.T) {

@@ -8,9 +8,9 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/spf13/cobra"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/runtimeunit"
-	searchbleve "hmans.de/chatto/internal/search/bleve"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
+	searchbleve "github.com/chattocorp/chatto/cli/internal/search/bleve"
 )
 
 var searchProviderConfigFile string

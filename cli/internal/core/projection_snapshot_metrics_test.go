@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/projectionsnapshot"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
-	"hmans.de/chatto/internal/projectionsnapshot"
 )
 
 func snapshotMetricsText(t *testing.T, c *ChattoCore) string {

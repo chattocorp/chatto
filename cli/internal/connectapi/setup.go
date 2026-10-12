@@ -5,8 +5,8 @@ import (
 	"errors"
 
 	"connectrpc.com/connect"
-	"hmans.de/chatto/internal/core"
-	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	authv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1"
 )
 
 type serverSetupService struct{ api *API }

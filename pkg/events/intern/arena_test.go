@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"hmans.de/chatto/pkg/events/intern"
+	"github.com/chattocorp/chatto/pkg/events/intern"
 )
 
 func TestArenaRetainsLocationsAcrossGrowth(t *testing.T) {

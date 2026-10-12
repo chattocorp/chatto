@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	corev1 "github.com/chattocorp/chatto/authling/internal/pb/authling/core/v1"
+	"github.com/chattocorp/chatto/pkg/datacrypto"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
-	"hmans.de/chatto/pkg/datacrypto"
 )
 
 func TestPreferredUsernameFromEmail(t *testing.T) {

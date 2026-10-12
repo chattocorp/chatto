@@ -13,16 +13,16 @@ import (
 
 	"filippo.io/age"
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/kms"
+	"github.com/chattocorp/chatto/cli/internal/natsresources"
+	"github.com/chattocorp/chatto/cli/pkg/natsauth"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/kms"
-	"hmans.de/chatto/internal/natsresources"
-	"hmans.de/chatto/pkg/jetstreamutil"
-	"hmans.de/chatto/pkg/natsauth"
 )
 
 // KeyExport is the plaintext format inside age-encrypted key export files.

@@ -1,8 +1,8 @@
 # NATS Runtime
 
-`hmans.de/chatto/pkg/natsruntime` provides application-neutral lifecycle
-mechanics for an embedded NATS server: creation, startup readiness, failure
-cleanup, in-process client connections, and orderly shutdown.
+`github.com/chattocorp/chatto/pkg/natsruntime` provides application-neutral
+lifecycle mechanics for an embedded NATS server: creation, startup readiness,
+failure cleanup, in-process client connections, and orderly shutdown.
 
 Applications pass native `nats-server` options and retain ownership of
 configuration, listeners, authentication, monitoring, logging, storage paths,

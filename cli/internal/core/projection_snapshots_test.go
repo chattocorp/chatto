@@ -6,19 +6,19 @@ import (
 	"testing"
 	"time"
 
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/chattocorp/chatto/cli/internal/encryption"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/chatto/internal/encryption"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 type snapshotProjection interface {

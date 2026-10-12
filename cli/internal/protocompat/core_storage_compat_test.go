@@ -10,18 +10,18 @@ import (
 	"strings"
 	"testing"
 
+	_ "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/cache_state/v1"
+	_ "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	_ "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/key_material/v1"
+	_ "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	_ "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
+	_ "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/dynamicpb"
-	_ "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
-	_ "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	_ "hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
-	_ "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	_ "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
-	_ "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 )
 
 //go:embed testdata/*.binpb

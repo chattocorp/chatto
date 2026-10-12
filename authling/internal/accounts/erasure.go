@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/evtstream"
+	"github.com/chattocorp/chatto/authling/internal/ids"
+	corev1 "github.com/chattocorp/chatto/authling/internal/pb/authling/core/v1"
+	"github.com/chattocorp/chatto/pkg/datacrypto"
+	"github.com/chattocorp/chatto/pkg/events"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/authling/internal/evtstream"
-	"hmans.de/authling/internal/ids"
-	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
-	"hmans.de/chatto/pkg/datacrypto"
-	"hmans.de/chatto/pkg/events"
 )
 
 // SetErasureChecker configures the key-free replay barrier before Run starts.

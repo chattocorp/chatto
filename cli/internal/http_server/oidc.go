@@ -16,6 +16,8 @@ import (
 	"sync"
 
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -25,8 +27,6 @@ import (
 	"github.com/markbates/goth/providers/gitlab"
 	"github.com/markbates/goth/providers/google"
 	"golang.org/x/oauth2"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
 )
 
 // oidcProvider holds the lazily-initialized OIDC provider, oauth2 config, and

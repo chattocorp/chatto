@@ -14,16 +14,16 @@ import (
 
 	"connectrpc.com/connect"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/evtstream"
-	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
-	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
-	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	authv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	discoveryv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1/discoveryv1connect"
+	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
 )
 
 func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {

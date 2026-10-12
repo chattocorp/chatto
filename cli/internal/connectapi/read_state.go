@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 )
 
 func (s *roomService) MarkRoomAsRead(ctx context.Context, req *connect.Request[apiv1.MarkRoomAsReadRequest]) (*connect.Response[apiv1.MarkRoomAsReadResponse], error) {

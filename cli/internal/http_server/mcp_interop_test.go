@@ -15,12 +15,12 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/gin-gonic/gin"
 	"github.com/nats-io/nats.go"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/internal/testutil"
 )
 
 // TestMCPCredentialsAcrossReplicas uses real HTTP listeners and a shared NATS

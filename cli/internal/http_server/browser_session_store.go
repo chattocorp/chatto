@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/alexedwards/scs/v2"
+	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/gin-gonic/gin"
-	"hmans.de/chatto/internal/core"
 )
 
 const (

@@ -2,7 +2,7 @@ package core
 
 import (
 	"errors"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 	"testing"
 	"time"
 
@@ -10,9 +10,9 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/core/subjects"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	"github.com/chattocorp/chatto/cli/internal/core/subjects"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
 )
 
 func subscribeRoomReadPubSubEvents(t *testing.T, nc *nats.Conn, userID string) *nats.Subscription {

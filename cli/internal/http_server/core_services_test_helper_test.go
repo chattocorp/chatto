@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/core"
 )
 
 // startCoreServices runs ChattoCore's background services (PresenceHub +

@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/pkg/natsauth"
+	"github.com/chattocorp/chatto/cli/pkg/natsauth"
 )
 
 func TestConnectOptions(t *testing.T) {

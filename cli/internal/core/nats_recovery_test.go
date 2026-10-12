@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/nats-io/nats-server/v2/server"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/runtimeunit"
-	"hmans.de/chatto/internal/testutil"
 )
 
 func TestChattoCoreRecoversAfterExternalNATSRestart(t *testing.T) {

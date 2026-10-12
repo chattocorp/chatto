@@ -988,8 +988,8 @@ const file_chatto_core_evt_v1_room_events_proto_rawDesc = "" +
 	")CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"CALL_PARTICIPANT_EVENT_SOURCE_USER\x10\x01\x12)\n" +
 	"%CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT\x10\x02\x120\n" +
-	",CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION\x10\x03B\xca\x01\n" +
-	"\x16com.chatto.core.evt.v1B\x0fRoomEventsProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
+	",CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION\x10\x03B\xdb\x01\n" +
+	"\x16com.chatto.core.evt.v1B\x0fRoomEventsProtoP\x01ZEgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
 var (
 	file_chatto_core_evt_v1_room_events_proto_rawDescOnce sync.Once

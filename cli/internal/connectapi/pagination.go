@@ -1,6 +1,6 @@
 package connectapi
 
-import apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+import apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 
 func apiPagination(page *apiv1.PageRequest, defaultLimit, maxLimit int) (int, int) {
 	limitVal := defaultLimit

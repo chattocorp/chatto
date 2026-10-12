@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"hmans.de/authling/internal/config"
-	"hmans.de/authling/internal/email"
+	"github.com/chattocorp/chatto/authling/internal/config"
+	"github.com/chattocorp/chatto/authling/internal/email"
 )
 
 func TestMailerErrorsOmitAddresses(t *testing.T) {

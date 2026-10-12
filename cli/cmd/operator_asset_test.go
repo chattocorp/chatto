@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
 	"google.golang.org/protobuf/encoding/protojson"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/evtstream"
-	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
 )
 
 func TestOperatorAssetUploadLocalImage(t *testing.T) {

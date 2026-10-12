@@ -1,4 +1,4 @@
-module hmans.de/chatto/pkg/natsruntime
+module github.com/chattocorp/chatto/pkg/natsruntime
 
 go 1.26.0
 

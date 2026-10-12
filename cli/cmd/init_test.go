@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"gopkg.in/yaml.v3"
-	"hmans.de/chatto/internal/config"
 )
 
 func TestInitGeneratesCoreSecret(t *testing.T) {

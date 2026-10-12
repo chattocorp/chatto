@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/parallel"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/parallel"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 )
 
 func followedThreadsResponse(ctx context.Context, api *API, viewerID string, page *core.FollowedThreadsPage) (*apiv1.ListFollowedThreadsResponse, error) {

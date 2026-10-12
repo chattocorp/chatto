@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/pkg/natsauth"
 	"github.com/nats-io/nkeys"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/pkg/natsauth"
 )
 
 func TestInitExternalNATS(t *testing.T) {

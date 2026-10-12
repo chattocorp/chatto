@@ -919,8 +919,8 @@ const file_chatto_api_v1_read_state_proto_rawDesc = "" +
 	"\x06states\x18\x01 \x03(\v2\x1e.chatto.api.v1.ThreadReadStateR\x06states\"s\n" +
 	"\x15ThreadReadStateTarget\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x128\n" +
-	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventIdB\xaa\x01\n" +
-	"\x11com.chatto.api.v1B\x0eReadStateProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
+	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventIdB\xbb\x01\n" +
+	"\x11com.chatto.api.v1B\x0eReadStateProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
 	file_chatto_api_v1_read_state_proto_rawDescOnce sync.Once

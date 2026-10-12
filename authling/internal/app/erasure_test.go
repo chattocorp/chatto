@@ -12,12 +12,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/accounts"
+	"github.com/chattocorp/chatto/authling/internal/authorizations"
+	"github.com/chattocorp/chatto/authling/internal/config"
+	"github.com/chattocorp/chatto/authling/internal/storage"
+	"github.com/chattocorp/chatto/authling/internal/web"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/authling/internal/accounts"
-	"hmans.de/authling/internal/authorizations"
-	"hmans.de/authling/internal/config"
-	"hmans.de/authling/internal/storage"
-	"hmans.de/authling/internal/web"
 )
 
 func TestAccountErasureDeniesAccessReleasesEmailAndReplaysWithoutKeys(t *testing.T) {

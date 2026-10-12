@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // ErrDeliveryLimited means a delivery budget has no remaining allowance.

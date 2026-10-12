@@ -147,8 +147,8 @@ const file_chatto_core_runtime_state_v1_push_proto_rawDesc = "" +
 	"user_agent\x18\x05 \x01(\tR\tuserAgent\x12\x1f\n" +
 	"\vclient_host\x18\x06 \x01(\tR\n" +
 	"clientHost\x12#\n" +
-	"\rcleanup_token\x18\a \x01(\tR\fcleanupTokenB\x85\x02\n" +
-	" com.chatto.core.runtime_state.v1B\tPushProtoP\x01ZGhmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
+	"\rcleanup_token\x18\a \x01(\tR\fcleanupTokenB\x96\x02\n" +
+	" com.chatto.core.runtime_state.v1B\tPushProtoP\x01ZXgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
 
 var (
 	file_chatto_core_runtime_state_v1_push_proto_rawDescOnce sync.Once

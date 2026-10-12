@@ -3,7 +3,7 @@ package natsruntime
 import (
 	"testing"
 
-	"hmans.de/authling/internal/config"
+	"github.com/chattocorp/chatto/authling/internal/config"
 )
 
 func TestOpenEmbeddedNATS(t *testing.T) {

@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/config"
 	liboidc "github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
-	"hmans.de/authling/internal/config"
 )
 
 func TestAccessTokenCryptoAcceptsLegacyTokensAndUsesStableKey(t *testing.T) {

@@ -1,13 +1,14 @@
 # Events
 
-`hmans.de/chatto/pkg/events` supplies the core reusable mechanics for the
-repository-wide [Loom Architecture](../../docs/adr/ADR-073-define-the-loom-architecture.md).
-It is an envelope-neutral event-sourcing framework for NATS JetStream,
-providing optimistic-concurrency-controlled publication, ordered projection
-replay, startup and read-your-writes barriers, optional snapshot or checkpoint
-restore, exact stream-message reads with optional process-local caching,
-bounded subject reads, and bounded durable pull-worker execution. Key-value
-reads through the stream leader and retried resource provisioning are in
+`github.com/chattocorp/chatto/pkg/events` supplies the core reusable mechanics
+for the repository-wide
+[Loom Architecture](../../docs/adr/ADR-073-define-the-loom-architecture.md). It
+is an envelope-neutral event-sourcing framework for NATS JetStream, providing
+optimistic-concurrency-controlled publication, ordered projection replay,
+startup and read-your-writes barriers, optional snapshot or checkpoint restore,
+exact stream-message reads with optional process-local caching, bounded subject
+reads, and bounded durable pull-worker execution. Key-value reads through the
+stream leader and retried resource provisioning are in
 [`pkg/jetstreamutil`](../jetstreamutil/README.md).
 
 The intended reader is an application integrator. This module owns ordering,
@@ -277,7 +278,7 @@ GOWORK=off go test ./...
 ```
 
 The package-level API documentation is available through `go doc
-hmans.de/chatto/pkg/events`.
+github.com/chattocorp/chatto/pkg/events`.
 
 ## License
 

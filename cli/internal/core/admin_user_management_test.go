@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"hmans.de/chatto/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
 )
 
 func TestChattoCore_AdminMemberReads(t *testing.T) {

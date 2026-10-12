@@ -18,8 +18,8 @@ silently break existing deployments.
 
 ## Decision
 
-Create the independently versioned `hmans.de/chatto/pkg/appconfig` module. It
-owns only:
+Create the independently versioned `github.com/chattocorp/chatto/pkg/appconfig`
+module. It owns only:
 
 - selecting an explicit configuration path or an application-supplied default;
 - optionally requiring an explicitly selected file to exist;

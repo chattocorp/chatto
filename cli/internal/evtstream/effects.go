@@ -17,8 +17,8 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/logbridge"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/logbridge"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 // EffectConsumerConfig describes one durable effect consumer's persisted

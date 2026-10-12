@@ -7,15 +7,15 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	"hmans.de/chatto/internal/dekstore"
-	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/kms"
-	"hmans.de/chatto/internal/logbridge"
-	"hmans.de/chatto/internal/natsresources"
-	"hmans.de/chatto/internal/runtimeunit"
-	"hmans.de/chatto/internal/search"
-	"hmans.de/chatto/pkg/events"
-	"hmans.de/chatto/pkg/jetstreamutil"
+	"github.com/chattocorp/chatto/cli/internal/dekstore"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/kms"
+	"github.com/chattocorp/chatto/cli/internal/logbridge"
+	"github.com/chattocorp/chatto/cli/internal/natsresources"
+	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
+	"github.com/chattocorp/chatto/cli/internal/search"
+	"github.com/chattocorp/chatto/pkg/events"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 )
 
 const (

@@ -10,9 +10,9 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
-	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	discoveryv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1/discoveryv1connect"
 )
 
 type discoveryStub struct {

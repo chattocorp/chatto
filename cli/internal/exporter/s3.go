@@ -11,8 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/projectionsnapshot"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/projectionsnapshot"
 )
 
 type s3Scanner struct {

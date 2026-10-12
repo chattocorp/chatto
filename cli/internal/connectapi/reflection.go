@@ -7,14 +7,14 @@ import (
 
 	"connectrpc.com/connect"
 	"connectrpc.com/grpcreflect"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1/adminv1connect"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1/apiv1connect"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1/authv1connect"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1/discoveryv1connect"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
-	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
-	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
-	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
-	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
 )
 
 var publicReflectionServiceNames = []string{

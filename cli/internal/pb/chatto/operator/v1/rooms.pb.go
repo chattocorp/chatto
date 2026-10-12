@@ -8,9 +8,9 @@ package operatorv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	v1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -380,9 +380,9 @@ const file_chatto_operator_v1_rooms_proto_rawDesc = "" +
 	"\tListRooms\x12$.chatto.operator.v1.ListRoomsRequest\x1a%.chatto.operator.v1.ListRoomsResponse\x12[\n" +
 	"\n" +
 	"CreateRoom\x12%.chatto.operator.v1.CreateRoomRequest\x1a&.chatto.operator.v1.CreateRoomResponse\x12X\n" +
-	"\tAddMember\x12$.chatto.operator.v1.AddMemberRequest\x1a%.chatto.operator.v1.AddMemberResponseB\xc9\x01\n" +
+	"\tAddMember\x12$.chatto.operator.v1.AddMemberRequest\x1a%.chatto.operator.v1.AddMemberResponseB\xda\x01\n" +
 	"\x16com.chatto.operator.v1B\n" +
-	"RoomsProtoP\x01Z9hmans.de/chatto/internal/pb/chatto/operator/v1;operatorv1\xa2\x02\x03COX\xaa\x02\x12Chatto.Operator.V1\xca\x02\x12Chatto\\Operator\\V1\xe2\x02\x1eChatto\\Operator\\V1\\GPBMetadata\xea\x02\x14Chatto::Operator::V1b\x06proto3"
+	"RoomsProtoP\x01ZJgithub.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1;operatorv1\xa2\x02\x03COX\xaa\x02\x12Chatto.Operator.V1\xca\x02\x12Chatto\\Operator\\V1\xe2\x02\x1eChatto\\Operator\\V1\\GPBMetadata\xea\x02\x14Chatto::Operator::V1b\x06proto3"
 
 var (
 	file_chatto_operator_v1_rooms_proto_rawDescOnce sync.Once

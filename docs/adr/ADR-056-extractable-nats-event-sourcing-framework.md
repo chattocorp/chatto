@@ -50,8 +50,8 @@ read model with another projection's replay frontier.
 ## Decision
 
 Treat the nested `pkg/events/` module, imported as
-`hmans.de/chatto/pkg/events`, as the incubator for a small Event Sourcing on
-NATS framework that may later move to a standalone repository.
+`github.com/chattocorp/chatto/pkg/events`, as the incubator for a small Event
+Sourcing on NATS framework that may later move to a standalone repository.
 
 Framework-owned responsibilities are:
 
@@ -194,13 +194,13 @@ bound to that projector run alongside its state and cutoff; application
 publication does not maintain a second identity value.
 
 The framework is exposed as the independently versioned incubation module
-`hmans.de/chatto/pkg/events`, so code outside Chatto's module can compile and
-test against the same exported surface Chatto uses. The module remains pre-1.0
-and does not promise API stability. Its repository path is `pkg/events/`, and
-its release tags use `pkg/events/v<version>`. ADR-059 licenses the complete
-shared module under Apache-2.0 without changing its pre-1.0 stability status.
-A future repository move should preserve the module identity unless a
-deliberate rename justifies an import migration.
+`github.com/chattocorp/chatto/pkg/events`, so code outside Chatto's module can
+compile and test against the same exported surface Chatto uses. The module
+remains pre-1.0 and does not promise API stability. Its repository path is
+`pkg/events/`, and its release tags use `pkg/events/v<version>`. ADR-059
+licenses the complete shared module under Apache-2.0 without changing its
+pre-1.0 stability status. A future repository move should preserve the module
+identity unless a deliberate rename justifies an import migration.
 
 Chatto declares the module dependency explicitly and uses a repository-local
 `replace` while the framework is co-developed here. This keeps `GOWORK=off`

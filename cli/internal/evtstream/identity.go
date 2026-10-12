@@ -6,7 +6,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/streamidentity"
+	"github.com/chattocorp/chatto/cli/internal/streamidentity"
 )
 
 const (

@@ -3,7 +3,7 @@ package encryption
 import (
 	"errors"
 
-	"hmans.de/chatto/pkg/datacrypto"
+	"github.com/chattocorp/chatto/pkg/datacrypto"
 )
 
 var (

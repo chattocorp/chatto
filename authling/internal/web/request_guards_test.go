@@ -6,14 +6,14 @@ import (
 	"strings"
 	"testing"
 
-	"hmans.de/authling/internal/accounts"
-	"hmans.de/authling/internal/authentication"
-	"hmans.de/authling/internal/authorizations"
-	"hmans.de/authling/internal/emailchange"
-	"hmans.de/authling/internal/oidcprovider"
-	"hmans.de/authling/internal/passwordreset"
-	"hmans.de/authling/internal/registration"
-	"hmans.de/authling/internal/sessions"
+	"github.com/chattocorp/chatto/authling/internal/accounts"
+	"github.com/chattocorp/chatto/authling/internal/authentication"
+	"github.com/chattocorp/chatto/authling/internal/authorizations"
+	"github.com/chattocorp/chatto/authling/internal/emailchange"
+	"github.com/chattocorp/chatto/authling/internal/oidcprovider"
+	"github.com/chattocorp/chatto/authling/internal/passwordreset"
+	"github.com/chattocorp/chatto/authling/internal/registration"
+	"github.com/chattocorp/chatto/authling/internal/sessions"
 )
 
 func TestBrowserMutationsRejectOriginBeforeReadingBody(t *testing.T) {

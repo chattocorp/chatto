@@ -3,7 +3,7 @@ package core
 import (
 	"testing"
 
-	cachestatev1 "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
+	cachestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/cache_state/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 )

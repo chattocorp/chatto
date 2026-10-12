@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"time"
 
-	"hmans.de/authling/internal/accounts"
+	"github.com/chattocorp/chatto/authling/internal/accounts"
 )
 
 // mountLogin registers local login and its OIDC return handling.

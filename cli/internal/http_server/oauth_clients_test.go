@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/config"
 )
 
 type oauthRoundTripFunc func(*http.Request) (*http.Response, error)

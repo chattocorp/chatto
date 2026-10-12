@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
-	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
+	authv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1"
 )
 
 type pushSubscriptionCleanupService struct {

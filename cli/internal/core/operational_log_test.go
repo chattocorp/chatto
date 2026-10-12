@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
+	logv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/log/v1"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	logv1 "hmans.de/chatto/internal/pb/chatto/core/log/v1"
 )
 
 func appendTestLog(t *testing.T, c *ChattoCore, bot, webhook, id string) {

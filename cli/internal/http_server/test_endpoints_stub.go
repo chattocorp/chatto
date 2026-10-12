@@ -3,9 +3,9 @@
 package http_server
 
 import (
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/email"
 	"github.com/gin-gonic/gin"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/email"
 )
 
 // createMailer creates the configured transactional email sender for production builds.

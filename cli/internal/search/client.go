@@ -10,7 +10,7 @@ import (
 	"github.com/nats-io/nats.go/micro"
 	"google.golang.org/protobuf/proto"
 
-	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
+	searchv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1"
 )
 
 const defaultProviderRequestTimeout = 10 * time.Second

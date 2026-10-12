@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"context"
-	"hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/key_material/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,7 +13,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/kms"
+	"github.com/chattocorp/chatto/cli/internal/kms"
 )
 
 func TestEncryptDecryptKeysRoundTrip(t *testing.T) {

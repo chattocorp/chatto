@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package chatto.config.v1;
 
-option go_package = "hmans.de/chatto/internal/pb/chatto/config/v1;configv1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/config/v1;configv1";
 
 // ServerConfig stores runtime-editable server settings.
 // Stored in INSTANCE_CONFIG KV bucket with key "config.instance" (legacy

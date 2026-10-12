@@ -1910,8 +1910,8 @@ const file_chatto_admin_v1_diagnostics_proto_rawDesc = "" +
 	"\"ADMIN_ASSET_CLEANUP_HEALTH_STALLED\x10\x05\x12*\n" +
 	"&ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE\x10\x062y\n" +
 	"\x17AdminDiagnosticsService\x12^\n" +
-	"\rGetSystemInfo\x12%.chatto.admin.v1.GetSystemInfoRequest\x1a&.chatto.admin.v1.GetSystemInfoResponseB\xba\x01\n" +
-	"\x13com.chatto.admin.v1B\x10DiagnosticsProtoP\x01Z3hmans.de/chatto/internal/pb/chatto/admin/v1;adminv1\xa2\x02\x03CAX\xaa\x02\x0fChatto.Admin.V1\xca\x02\x0fChatto\\Admin\\V1\xe2\x02\x1bChatto\\Admin\\V1\\GPBMetadata\xea\x02\x11Chatto::Admin::V1b\x06proto3"
+	"\rGetSystemInfo\x12%.chatto.admin.v1.GetSystemInfoRequest\x1a&.chatto.admin.v1.GetSystemInfoResponseB\xcb\x01\n" +
+	"\x13com.chatto.admin.v1B\x10DiagnosticsProtoP\x01ZDgithub.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1;adminv1\xa2\x02\x03CAX\xaa\x02\x0fChatto.Admin.V1\xca\x02\x0fChatto\\Admin\\V1\xe2\x02\x1bChatto\\Admin\\V1\\GPBMetadata\xea\x02\x11Chatto::Admin::V1b\x06proto3"
 
 var (
 	file_chatto_admin_v1_diagnostics_proto_rawDescOnce sync.Once

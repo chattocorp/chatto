@@ -29,7 +29,7 @@ func TestPackageDependenciesAreApplicationNeutral(t *testing.T) {
 				}
 				if isStandardLibraryImport(importPath, directory) ||
 					strings.HasPrefix(importPath, "golang.org/x/crypto/") ||
-					strings.HasSuffix(sourceName, "_test.go") && importPath == "hmans.de/chatto/pkg/datacrypto" {
+					strings.HasSuffix(sourceName, "_test.go") && importPath == "github.com/chattocorp/chatto/pkg/datacrypto" {
 					continue
 				}
 				t.Errorf("%s imports non-portable dependency %q", sourceName, importPath)

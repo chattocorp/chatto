@@ -251,8 +251,8 @@ const file_chatto_core_evt_v1_notification_policy_proto_rawDesc = "" +
 	".NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION\x10\x02\x12(\n" +
 	" NOTIFICATION_DELIVERY_MODE_ALERT\x10\x03\x1a\x02\b\x01\x120\n" +
 	",NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION\x10\x03\x12+\n" +
-	"'NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE\x10\x04\x1a\x02\x10\x01B\xd2\x01\n" +
-	"\x16com.chatto.core.evt.v1B\x17NotificationPolicyProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
+	"'NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE\x10\x04\x1a\x02\x10\x01B\xe3\x01\n" +
+	"\x16com.chatto.core.evt.v1B\x17NotificationPolicyProtoP\x01ZEgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
 var (
 	file_chatto_core_evt_v1_notification_policy_proto_rawDescOnce sync.Once

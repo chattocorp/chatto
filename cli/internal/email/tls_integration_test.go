@@ -19,8 +19,8 @@ import (
 
 	smtpmock "github.com/mocktools/go-smtp-mock/v2"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/email"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/email"
 )
 
 // selfSignedCertificate returns a certificate for 127.0.0.1 that no system

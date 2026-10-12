@@ -154,9 +154,9 @@ const file_chatto_auth_v1_setup_proto_rawDesc = "" +
 	"\bpassword\x18\x05 \x01(\tR\bpassword\"\x17\n" +
 	"\x15CompleteSetupResponse2r\n" +
 	"\x12ServerSetupService\x12\\\n" +
-	"\rCompleteSetup\x12$.chatto.auth.v1.CompleteSetupRequest\x1a%.chatto.auth.v1.CompleteSetupResponseB\xad\x01\n" +
+	"\rCompleteSetup\x12$.chatto.auth.v1.CompleteSetupRequest\x1a%.chatto.auth.v1.CompleteSetupResponseB\xbe\x01\n" +
 	"\x12com.chatto.auth.v1B\n" +
-	"SetupProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/auth/v1;authv1\xa2\x02\x03CAX\xaa\x02\x0eChatto.Auth.V1\xca\x02\x0eChatto\\Auth\\V1\xe2\x02\x1aChatto\\Auth\\V1\\GPBMetadata\xea\x02\x10Chatto::Auth::V1b\x06proto3"
+	"SetupProtoP\x01ZBgithub.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1;authv1\xa2\x02\x03CAX\xaa\x02\x0eChatto.Auth.V1\xca\x02\x0eChatto\\Auth\\V1\xe2\x02\x1aChatto\\Auth\\V1\\GPBMetadata\xea\x02\x10Chatto::Auth::V1b\x06proto3"
 
 var (
 	file_chatto_auth_v1_setup_proto_rawDescOnce sync.Once

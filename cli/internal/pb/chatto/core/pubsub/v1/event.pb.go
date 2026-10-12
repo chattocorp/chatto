@@ -7,10 +7,10 @@
 package pubsubv1
 
 import (
+	v1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/realtime/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
-	v1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -312,9 +312,9 @@ const file_chatto_core_pubsub_v1_event_proto_rawDesc = "" +
 	"\"viewer_presence_preference_changed\x18\x11 \x01(\v28.chatto.realtime.v1.ViewerPresencePreferenceChangedEventH\x00R\x1fviewerPresencePreferenceChangedB\a\n" +
 	"\x05event\"0\n" +
 	"\x16SessionTerminatedEvent\x12\x16\n" +
-	"\x06reason\x18\x01 \x01(\tR\x06reasonB\xda\x01\n" +
+	"\x06reason\x18\x01 \x01(\tR\x06reasonB\xeb\x01\n" +
 	"\x19com.chatto.core.pubsub.v1B\n" +
-	"EventProtoP\x01Z:hmans.de/chatto/internal/pb/chatto/core/pubsub/v1;pubsubv1\xa2\x02\x03CCP\xaa\x02\x15Chatto.Core.Pubsub.V1\xca\x02\x15Chatto\\Core\\Pubsub\\V1\xe2\x02!Chatto\\Core\\Pubsub\\V1\\GPBMetadata\xea\x02\x18Chatto::Core::Pubsub::V1b\x06proto3"
+	"EventProtoP\x01ZKgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1;pubsubv1\xa2\x02\x03CCP\xaa\x02\x15Chatto.Core.Pubsub.V1\xca\x02\x15Chatto\\Core\\Pubsub\\V1\xe2\x02!Chatto\\Core\\Pubsub\\V1\\GPBMetadata\xea\x02\x18Chatto::Core::Pubsub::V1b\x06proto3"
 
 var (
 	file_chatto_core_pubsub_v1_event_proto_rawDescOnce sync.Once

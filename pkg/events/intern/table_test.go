@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"hmans.de/chatto/pkg/events/intern"
+	"github.com/chattocorp/chatto/pkg/events/intern"
 )
 
 // The same public contract applies to a local table and a shared table.

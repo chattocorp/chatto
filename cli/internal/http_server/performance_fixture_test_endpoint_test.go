@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"testing"
 
-	"hmans.de/chatto/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/core"
 )
 
 func TestPerformanceFixtureEndpointSeedsEncryptedLargeState(t *testing.T) {

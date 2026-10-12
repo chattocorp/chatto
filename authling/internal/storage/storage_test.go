@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/config"
+	"github.com/chattocorp/chatto/authling/internal/natsruntime"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/authling/internal/config"
-	"hmans.de/authling/internal/natsruntime"
 )
 
 // JetStream documents that Update resets an existing per-key TTL. This is a

@@ -12,11 +12,11 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"hmans.de/chatto/internal/core/linkpreview"
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	logv1 "hmans.de/chatto/internal/pb/chatto/core/log/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/core/linkpreview"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	logv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/log/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 // BotOutboundWebhook exposes the saved destination only to bot managers.

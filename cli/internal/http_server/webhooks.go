@@ -8,12 +8,12 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/gin-gonic/gin"
 	"github.com/livekit/protocol/auth"
 	"github.com/livekit/protocol/livekit"
 	"github.com/livekit/protocol/utils/protojson"
 	"github.com/livekit/protocol/webhook"
-	"hmans.de/chatto/internal/core"
 )
 
 func (s *HTTPServer) setupWebhookRoutes() {

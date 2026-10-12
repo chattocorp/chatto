@@ -9,7 +9,7 @@ import (
 
 	"github.com/wneessen/go-mail"
 
-	"hmans.de/chatto/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/config"
 )
 
 // ErrEmailDisabled is returned when no transactional email transport is enabled.

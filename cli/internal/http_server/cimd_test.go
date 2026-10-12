@@ -6,9 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
-	"hmans.de/chatto/internal/config"
 )
 
 func TestCIMDDocumentForConfiguredPublicOIDCClient(t *testing.T) {

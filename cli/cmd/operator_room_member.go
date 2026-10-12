@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
 	"github.com/spf13/cobra"
-	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
 )
 
 var operatorRoomMemberCmd = &cobra.Command{

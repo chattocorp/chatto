@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/nats-io/nats.go/jetstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestChattoCore_WorkflowTokensUseRuntimeState(t *testing.T) {

@@ -8,7 +8,7 @@ managed:
       path: chatto/core
   override:
     - file_option: go_package_prefix
-      value: hmans.de/chatto/internal/pb
+      value: github.com/chattocorp/chatto/cli/internal/pb
 plugins:
   - local: ['go', 'tool', '-C', '../cli', 'protoc-gen-go']
     out: ../cli/internal/pb

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/charmbracelet/log"
-	"hmans.de/chatto/pkg/jetstreamutil"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 )
 
 // PresenceModel owns live presence state and the per-process presence hub.

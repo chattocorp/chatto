@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/internal/config"
 )
 
 const (

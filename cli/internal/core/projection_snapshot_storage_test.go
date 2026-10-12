@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/projectionsnapshot"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
+	"github.com/chattocorp/chatto/cli/internal/testutil/fakes3"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/projectionsnapshot"
-	"hmans.de/chatto/internal/testutil"
-	"hmans.de/chatto/internal/testutil/fakes3"
 )
 
 func TestS3ProjectionSnapshotBlobStoreRoundTrip(t *testing.T) {

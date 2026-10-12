@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/runtimejson"
+	"github.com/chattocorp/chatto/authling/internal/storage"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/authling/internal/runtimejson"
-	"hmans.de/authling/internal/storage"
 )
 
 const (

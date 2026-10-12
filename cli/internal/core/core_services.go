@@ -7,9 +7,9 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core/linkpreview"
-	"hmans.de/chatto/internal/lease"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core/linkpreview"
+	"github.com/chattocorp/chatto/cli/internal/lease"
 )
 
 // assembleCore installs already-constructed infrastructure, projections, and
