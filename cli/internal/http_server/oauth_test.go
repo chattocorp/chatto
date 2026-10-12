@@ -1775,6 +1775,11 @@ func TestOAuthToken_RefreshGrantRotatesAndRecoversRetry(t *testing.T) {
 		t.Fatalf("same-request retry status/body = %d, %v; first = %v", status, retry, first)
 	}
 
+	// Once the client uses the rotated pair, the old refresh credential under
+	// another request ID is a copy and revokes the session.
+	if _, err := s.core.ValidateAuthToken(ctx, first["access_token"].(string)); err != nil {
+		t.Fatalf("ValidateAuthToken rotated: %v", err)
+	}
 	status, reused, _ := exchange("00000000-0000-4000-8000-000000000002")
 	if status != http.StatusBadRequest || reused["error"] != "invalid_grant" {
 		t.Fatalf("reuse status/body = %d, %v", status, reused)

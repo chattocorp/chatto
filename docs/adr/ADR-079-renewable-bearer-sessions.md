@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-22
 
-**Updated:** 2026-09-23
+**Updated:** 2026-10-12
 
 **Status:** Partially superseded
 
@@ -67,8 +67,8 @@ window. See [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md) and
   session. Its JSON value contains the user, optional OAuth client ID,
   credential kind and source, safe audit request metadata, creation and
   current window expiry, user auth generation, current rotation generation,
-  previous refresh-request verifier and rotation time, and authoritative
-  fresh-auth metadata. The verifier is a purpose-separated HMAC of the raw
+  previous refresh-request verifier and rotation time, the highest used
+  generation, and authoritative fresh-auth metadata. The verifier is a purpose-separated HMAC of the raw
   recovery nonce. Each revision preserves or advances its explicit expiry and
   sets its per-message TTL to the remaining lifetime. A loopback-client
   revision can instead shorten its expiry to the fixed loopback window.
@@ -141,13 +141,31 @@ token's useful lifetime recreates or returns the exact same deterministic
 credential pair. This also recovers a process failure between committing the
 stable rotation and creating its access record.
 
+The stable record also stores the highest **used generation**. A generation
+is used when its access token passes validation or its refresh credential
+rotates successfully. Validation writes this value with the exact KV revision
+the first time a generation is used, and only after it reads the record
+through the stream leader. If the write fails, the request fails with a server
+error; it does not continue with an unrecorded use.
+
+A client can lose more than one response, or lose its stored request ID. For
+example, a mobile browser can freeze or end a page after the server commits a
+rotation, or lose recent device-storage writes when the operating system ends
+the browser. The client then presents an older refresh generation that is
+equal to or newer than the used generation. No client has used a newer
+generation, so this is a lost response and not a copied credential. The server
+rotates again from the current generation, records the presented generation as
+used, and returns a new pair. The unused newer pairs remain valid until the
+first use of a different pair makes them stale.
+
 Any other presentation of an older generation is refresh-credential reuse.
 The server first deletes the stable renewable-session key, invalidating the
 winner and every outstanding access token for that session. It then records
 the revocation audit fact as a best-effort action. An audit outage cannot keep
 the credential active. Two concurrent refresh attempts with different
-request IDs therefore produce at most one temporary winner and then revoke the
-session when the loser observes reuse. Clients must serialize refreshes; the
+request IDs therefore produce two pairs of different generations. When both
+pairs are used, the next refresh of the older pair revokes the session.
+Clients must serialize refreshes; the
 bundled frontend coalesces same-tab work and uses a per-server Web Lock so tabs
 on the same browser profile adopt one persisted rotation. Server-side OCC and
 reuse detection remain authoritative for clients without Web Locks.
@@ -176,7 +194,11 @@ record. Combined catalogue compatibility writes merge those authoritative
 fields instead of copying one tab's in-memory credential snapshot.
 
 It refreshes shortly before access expiry, including when access expiry reaches
-the end of the current session window. A successful refresh in the final
+the end of the current session window. The background renewal timer does not
+start a refresh while the page is hidden. It renews when the page is visible
+again. This decreases the number of rotations that a frozen page does not
+receive. API requests and realtime reconnects in a hidden page still renew when
+they need a new access token. A successful refresh in the final
 quarter advances that window without user action. The client also retries one
 unary ConnectRPC request after an `Unauthenticated` response when forced
 renewal succeeds. This renewal hook also applies to the initial remote viewer
@@ -209,6 +231,15 @@ pre-renewal servers do not identify a renewable session and are rejected;
 affected users sign in once to obtain a credential pair. There is no legacy
 bearer fallback and no capability-negotiated dual mode.
 
+A record without a used generation, which a server without this tracking
+wrote, keeps the strict rule: every stale generation outside exact recovery is
+reuse. Validation adds the value at the next access-token use, and a rotation
+adds it at the next refresh. During a rolling upgrade, a replica without this
+tracking does not record access-token use and drops the value when it rewrites
+the record. In that window, a copied older refresh credential can rotate the
+session without revocation. Detection starts again when an upgraded replica
+records the use of a newer generation.
+
 Upgrade all serving replicas and bundled clients together. An older replica
 would treat a new short-lived access record as a sliding bearer record and
 could extend it beyond its intended expiry. Rolling back to a pre-renewal
@@ -235,8 +266,10 @@ sign-in and coordinated-upgrade requirement.
 - Inactive sessions expire after one complete renewal window. Normal
   background refresh keeps an active session signed in.
 - Refresh reuse turns suspicious concurrency into whole-session revocation for
-  subsequent requests and reconnects. Benign lost responses remain recoverable
-  only through the exact persisted request ID; an established realtime socket
+  subsequent requests and reconnects. Lost responses are recoverable through the exact persisted
+  request ID, or by a new rotation while no newer generation is used. A
+  client that used the newer pair and then lost it, for example to a device-storage
+  write that did not complete, must sign in again. An established realtime socket
   cannot outlive the access token that authenticated it.
 - Correctness across replicas comes from one JetStream KV revision boundary;
   browser locks improve contention but are not a security primitive.
@@ -270,7 +303,11 @@ sign-in and coordinated-upgrade requirement.
   credentials.
 - **Accept the previous refresh token for a grace period without a request
   ID:** hides lost responses but also makes intentional replay
-  indistinguishable from recovery and weakens reuse detection.
+  indistinguishable from recovery and weakens reuse detection. The used
+  generation instead accepts a stale credential only while no client has used
+  a newer one, without a time limit.
+- **Extend only the exact-recovery window:** does not help a client that lost
+  its persisted request ID with the response.
 - **Replace the protocol with a general OAuth server package:** packages such
   as Fosite use transactional storage operations for authorization and token
   sessions. Chatto's public refresh contract also requires deterministic
