@@ -3,7 +3,7 @@ package intern_test
 import (
 	"fmt"
 
-	"hmans.de/chatto/pkg/events/intern"
+	"github.com/chattocorp/chatto/pkg/events/intern"
 )
 
 func ExampleTable() {

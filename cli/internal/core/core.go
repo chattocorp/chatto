@@ -7,16 +7,16 @@ import (
 	"sync/atomic"
 	"time"
 
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/sync/errgroup"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core/linkpreview"
-	"hmans.de/chatto/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core/linkpreview"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
 )
 
 // ============================================================================

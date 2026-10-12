@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil/fakes3"
 	"github.com/stretchr/testify/require"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/internal/testutil/fakes3"
 )
 
 // setupFakeS3Server creates an in-memory S3 server for testing.

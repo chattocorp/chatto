@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"hmans.de/chatto/pkg/appconfig"
-	"hmans.de/chatto/pkg/natsauth"
+	"github.com/chattocorp/chatto/cli/pkg/natsauth"
+	"github.com/chattocorp/chatto/pkg/appconfig"
 )
 
 // ChattoConfig is the canonical aggregate configuration decoded from TOML and

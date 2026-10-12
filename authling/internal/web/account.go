@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"net/url"
 
-	"hmans.de/authling/internal/authorizations"
-	"hmans.de/authling/internal/sessions"
+	"github.com/chattocorp/chatto/authling/internal/authorizations"
+	"github.com/chattocorp/chatto/authling/internal/sessions"
 )
 
 // mountAccount registers the account overview and grant/session management.

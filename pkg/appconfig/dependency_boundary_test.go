@@ -30,7 +30,7 @@ func TestPackageDependenciesAreApplicationNeutral(t *testing.T) {
 				if isStandardLibraryImport(importPath, directory) ||
 					importPath == "github.com/caarlos0/env/v11" ||
 					strings.HasPrefix(importPath, "github.com/pelletier/go-toml/v2") ||
-					strings.HasSuffix(sourceName, "_test.go") && importPath == "hmans.de/chatto/pkg/appconfig" {
+					strings.HasSuffix(sourceName, "_test.go") && importPath == "github.com/chattocorp/chatto/pkg/appconfig" {
 					continue
 				}
 				t.Errorf("%s imports non-portable dependency %q", sourceName, importPath)

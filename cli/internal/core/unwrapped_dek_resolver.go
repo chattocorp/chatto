@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"sync"
 
-	"hmans.de/chatto/internal/dekstore"
-	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/kms"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/dekstore"
+	"github.com/chattocorp/chatto/cli/internal/encryption"
+	"github.com/chattocorp/chatto/cli/internal/kms"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 type unwrappedDEKCacheKey struct {

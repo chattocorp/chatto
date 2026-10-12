@@ -7,7 +7,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	. "hmans.de/chatto/pkg/events"
+	. "github.com/chattocorp/chatto/pkg/events"
 )
 
 func TestExecuteSingleRecordMutationWithoutAtomicPublish(t *testing.T) {

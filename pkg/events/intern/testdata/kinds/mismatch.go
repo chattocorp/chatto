@@ -1,6 +1,6 @@
 package mismatch
 
-import "hmans.de/chatto/pkg/events/intern"
+import "github.com/chattocorp/chatto/pkg/events/intern"
 
 type userKind struct{}
 type roomKind struct{}

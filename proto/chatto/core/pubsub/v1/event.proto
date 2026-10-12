@@ -5,7 +5,7 @@ package chatto.core.pubsub.v1;
 import "chatto/realtime/v1/events.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1;pubsubv1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1;pubsubv1";
 
 // ============================================================================
 // PUBSUB EVENT DEFINITIONS

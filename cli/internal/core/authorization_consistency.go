@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 const maxStableAuthorizationAttempts = 5

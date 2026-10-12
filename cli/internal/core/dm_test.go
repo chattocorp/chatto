@@ -10,11 +10,11 @@ import (
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/core/subjects"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 func TestRoomKindFromLegacySpaceID(t *testing.T) {

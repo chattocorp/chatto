@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"hmans.de/chatto/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/config"
 )
 
 func TestSetupMCPRoutesHonorsEnabled(t *testing.T) {

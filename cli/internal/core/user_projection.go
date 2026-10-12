@@ -12,13 +12,13 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/dekstore"
-	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/kms"
-	"hmans.de/chatto/internal/parallel"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/dekstore"
+	"github.com/chattocorp/chatto/cli/internal/encryption"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/kms"
+	"github.com/chattocorp/chatto/cli/internal/parallel"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 // UserProjection derives current account/profile/auth lookup state from

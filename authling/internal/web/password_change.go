@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"time"
 
-	"hmans.de/authling/internal/accounts"
-	"hmans.de/authling/internal/sessions"
+	"github.com/chattocorp/chatto/authling/internal/accounts"
+	"github.com/chattocorp/chatto/authling/internal/sessions"
 )
 
 // mountPasswordChange registers signed-in password replacement.

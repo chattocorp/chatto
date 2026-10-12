@@ -6,8 +6,8 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 
-	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 )
 
 func TestMessageServiceModeratorEchoRemoval(t *testing.T) {

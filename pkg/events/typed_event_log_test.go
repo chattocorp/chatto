@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	. "hmans.de/chatto/pkg/events"
+	. "github.com/chattocorp/chatto/pkg/events"
 )
 
 // typedTestEvent is a minimal application event for exercising the typed

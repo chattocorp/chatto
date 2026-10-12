@@ -7,7 +7,7 @@ import (
 	"testing"
 	"unsafe"
 
-	"hmans.de/chatto/pkg/events/intern"
+	"github.com/chattocorp/chatto/pkg/events/intern"
 )
 
 func TestIDKeepsCompactRepresentation(t *testing.T) {

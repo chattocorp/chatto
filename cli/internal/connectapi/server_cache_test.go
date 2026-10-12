@@ -5,11 +5,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1/apiv1connect"
+	discoveryv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
-	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
 )
 
 func TestPublicRPCIdempotencyLevels(t *testing.T) {

@@ -12,9 +12,9 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/stretchr/testify/require"
 
-	"hmans.de/chatto/internal/encryption"
-	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/encryption"
+	searchv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 func TestProjectionRebuildRetainsIntentUntilReplacementIsDurable(t *testing.T) {

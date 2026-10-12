@@ -1,4 +1,4 @@
-module hmans.de/chatto
+module github.com/chattocorp/chatto/cli
 
 go 1.26.0
 
@@ -72,11 +72,11 @@ require (
 	golang.org/x/text v0.42.0
 	golang.org/x/time v0.16.0
 	google.golang.org/protobuf v1.36.12
-	hmans.de/chatto/pkg/appconfig v0.0.0
-	hmans.de/chatto/pkg/datacrypto v0.0.0
-	hmans.de/chatto/pkg/events v0.0.0
-	hmans.de/chatto/pkg/jetstreamutil v0.0.0
-	hmans.de/chatto/pkg/natsruntime v0.0.0
+	github.com/chattocorp/chatto/pkg/appconfig v0.0.0
+	github.com/chattocorp/chatto/pkg/datacrypto v0.0.0
+	github.com/chattocorp/chatto/pkg/events v0.0.0
+	github.com/chattocorp/chatto/pkg/jetstreamutil v0.0.0
+	github.com/chattocorp/chatto/pkg/natsruntime v0.0.0
 	mvdan.cc/xurls/v2 v2.6.0
 )
 
@@ -250,12 +250,12 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-replace hmans.de/chatto/pkg/events => ../pkg/events
+replace github.com/chattocorp/chatto/pkg/events => ../pkg/events
 
-replace hmans.de/chatto/pkg/jetstreamutil => ../pkg/jetstreamutil
+replace github.com/chattocorp/chatto/pkg/jetstreamutil => ../pkg/jetstreamutil
 
-replace hmans.de/chatto/pkg/appconfig => ../pkg/appconfig
+replace github.com/chattocorp/chatto/pkg/appconfig => ../pkg/appconfig
 
-replace hmans.de/chatto/pkg/datacrypto => ../pkg/datacrypto
+replace github.com/chattocorp/chatto/pkg/datacrypto => ../pkg/datacrypto
 
-replace hmans.de/chatto/pkg/natsruntime => ../pkg/natsruntime
+replace github.com/chattocorp/chatto/pkg/natsruntime => ../pkg/natsruntime

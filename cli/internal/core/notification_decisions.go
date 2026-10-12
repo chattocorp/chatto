@@ -1,12 +1,12 @@
 package core
 
 import (
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 	"sort"
 
 	"google.golang.org/protobuf/proto"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // notificationRecipientDecision is one processing-time policy result. A

@@ -2466,8 +2466,8 @@ const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\x0fRevokeBotApiKey\x12%.chatto.api.v1.RevokeBotApiKeyRequest\x1a&.chatto.api.v1.RevokeBotApiKeyResponse\"\x03\x90\x02\x02\x12{\n" +
 	"\x18CreateBotIncomingWebhook\x12..chatto.api.v1.CreateBotIncomingWebhookRequest\x1a/.chatto.api.v1.CreateBotIncomingWebhookResponse\x12\x80\x01\n" +
 	"\x18RevokeBotIncomingWebhook\x12..chatto.api.v1.RevokeBotIncomingWebhookRequest\x1a/.chatto.api.v1.RevokeBotIncomingWebhookResponse\"\x03\x90\x02\x02\x12h\n" +
-	"\x10ReassignBotOwner\x12&.chatto.api.v1.ReassignBotOwnerRequest\x1a'.chatto.api.v1.ReassignBotOwnerResponse\"\x03\x90\x02\x02B\xa5\x01\n" +
-	"\x11com.chatto.api.v1B\tBotsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
+	"\x10ReassignBotOwner\x12&.chatto.api.v1.ReassignBotOwnerRequest\x1a'.chatto.api.v1.ReassignBotOwnerResponse\"\x03\x90\x02\x02B\xb6\x01\n" +
+	"\x11com.chatto.api.v1B\tBotsProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
 	file_chatto_api_v1_bots_proto_rawDescOnce sync.Once

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/authctx"
+	"github.com/chattocorp/chatto/cli/internal/authctx"
 )
 
 func TestPermissionResolver_PrivilegedModeGatesElevatedHumanPermissions(t *testing.T) {

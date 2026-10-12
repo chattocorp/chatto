@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-const runtimeImportPath = "hmans.de/chatto/pkg/natsruntime"
+const runtimeImportPath = "github.com/chattocorp/chatto/pkg/natsruntime"
 
 func TestPackageDependenciesAreApplicationNeutral(t *testing.T) {
 	directory, err := os.Getwd()

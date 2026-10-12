@@ -7,15 +7,15 @@ import (
 
 	"connectrpc.com/connect"
 	"connectrpc.com/validate"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/email"
-	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
-	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
-	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
-	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
-	"hmans.de/chatto/internal/pb/chatto/operator/v1/operatorv1connect"
-	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/email"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1/adminv1connect"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1/apiv1connect"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1/authv1connect"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1/discoveryv1connect"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1/operatorv1connect"
+	searchv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1"
 )
 
 // Prefix is the HTTP mount point for Chatto's ConnectRPC public API.

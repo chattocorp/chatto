@@ -140,8 +140,8 @@ const file_chatto_auth_v1_push_subscription_cleanup_proto_rawDesc = "" +
 	"\xbaH\ar\x05\x10 \x18\x80\x01R\fcleanupToken\"-\n" +
 	"\x1aDeleteSubscriptionResponseJ\x04\b\x01\x10\x02R\tcompleted2\x92\x01\n" +
 	"\x1ePushSubscriptionCleanupService\x12p\n" +
-	"\x12DeleteSubscription\x12).chatto.auth.v1.DeleteSubscriptionRequest\x1a*.chatto.auth.v1.DeleteSubscriptionResponse\"\x03\x90\x02\x02B\xbf\x01\n" +
-	"\x12com.chatto.auth.v1B\x1cPushSubscriptionCleanupProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/auth/v1;authv1\xa2\x02\x03CAX\xaa\x02\x0eChatto.Auth.V1\xca\x02\x0eChatto\\Auth\\V1\xe2\x02\x1aChatto\\Auth\\V1\\GPBMetadata\xea\x02\x10Chatto::Auth::V1b\x06proto3"
+	"\x12DeleteSubscription\x12).chatto.auth.v1.DeleteSubscriptionRequest\x1a*.chatto.auth.v1.DeleteSubscriptionResponse\"\x03\x90\x02\x02B\xd0\x01\n" +
+	"\x12com.chatto.auth.v1B\x1cPushSubscriptionCleanupProtoP\x01ZBgithub.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1;authv1\xa2\x02\x03CAX\xaa\x02\x0eChatto.Auth.V1\xca\x02\x0eChatto\\Auth\\V1\xe2\x02\x1aChatto\\Auth\\V1\\GPBMetadata\xea\x02\x10Chatto::Auth::V1b\x06proto3"
 
 var (
 	file_chatto_auth_v1_push_subscription_cleanup_proto_rawDescOnce sync.Once

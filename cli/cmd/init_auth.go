@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"strings"
 
-	"hmans.de/chatto/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/config"
 )
 
 func validateInitIssuer(value string) error {

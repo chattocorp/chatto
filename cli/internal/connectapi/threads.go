@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 )
 
 const (

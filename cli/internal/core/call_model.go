@@ -18,13 +18,13 @@ import (
 	"github.com/twitchtv/twirp"
 	"golang.org/x/sync/errgroup"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/kms"
-	"hmans.de/chatto/internal/lease"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
-	"hmans.de/chatto/pkg/jetstreamutil"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/kms"
+	"github.com/chattocorp/chatto/cli/internal/lease"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/pkg/events"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 )
 
 const (

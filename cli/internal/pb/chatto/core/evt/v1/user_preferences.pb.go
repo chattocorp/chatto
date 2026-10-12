@@ -320,8 +320,8 @@ const file_chatto_core_evt_v1_user_preferences_proto_rawDesc = "" +
 	"\x1eNOTIFICATION_LEVEL_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18NOTIFICATION_LEVEL_MUTED\x10\x01\x12\x1d\n" +
 	"\x19NOTIFICATION_LEVEL_NORMAL\x10\x02\x12#\n" +
-	"\x1fNOTIFICATION_LEVEL_ALL_MESSAGES\x10\x03B\xcf\x01\n" +
-	"\x16com.chatto.core.evt.v1B\x14UserPreferencesProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
+	"\x1fNOTIFICATION_LEVEL_ALL_MESSAGES\x10\x03B\xe0\x01\n" +
+	"\x16com.chatto.core.evt.v1B\x14UserPreferencesProtoP\x01ZEgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
 var (
 	file_chatto_core_evt_v1_user_preferences_proto_rawDescOnce sync.Once

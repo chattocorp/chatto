@@ -8,7 +8,7 @@ import (
 	"io"
 	"testing"
 
-	"hmans.de/chatto/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
 )
 
 func TestOperatorAssetUploadOwnershipAndPublicIsolation(t *testing.T) {

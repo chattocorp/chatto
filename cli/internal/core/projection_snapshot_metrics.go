@@ -4,9 +4,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/projectionsnapshot"
+	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/prometheus/client_golang/prometheus"
-	"hmans.de/chatto/internal/projectionsnapshot"
-	"hmans.de/chatto/pkg/events"
 )
 
 // snapshotRestoreObservation records repository selection separately from the

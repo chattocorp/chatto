@@ -13,9 +13,9 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/pkg/natsauth"
-	"hmans.de/chatto/pkg/natsruntime"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/pkg/natsauth"
+	"github.com/chattocorp/chatto/pkg/natsruntime"
 )
 
 // Unit is a Chatto runtime unit that can run either as its own process or

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"sort"
 	"sync/atomic"
 	"testing"
@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/kms"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/encryption"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/kms"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 func TestUserAuthProjectionUnlinkCredentialReplay(t *testing.T) {

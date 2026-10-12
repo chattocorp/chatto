@@ -12,14 +12,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
+	"github.com/chattocorp/chatto/cli/internal/testutil/fakes3"
+	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/internal/testutil"
-	"hmans.de/chatto/internal/testutil/fakes3"
-	"hmans.de/chatto/pkg/events"
 )
 
 // createTestPNG creates a simple PNG image for testing

@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/encryption"
-	keymaterialv1 "hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
-	"hmans.de/chatto/internal/testutil"
-	"hmans.de/chatto/pkg/jetstreamutil"
+	"github.com/chattocorp/chatto/cli/internal/encryption"
+	keymaterialv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/key_material/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 )
 
 // getOverrideKV injects read results while retaining real KV writes in lifecycle tests.

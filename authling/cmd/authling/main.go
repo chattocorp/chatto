@@ -11,9 +11,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"hmans.de/authling"
-	"hmans.de/authling/internal/app"
-	"hmans.de/authling/internal/config"
+	"github.com/chattocorp/chatto/authling"
+	"github.com/chattocorp/chatto/authling/internal/app"
+	"github.com/chattocorp/chatto/authling/internal/config"
 )
 
 func main() {

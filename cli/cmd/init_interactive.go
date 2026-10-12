@@ -15,10 +15,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/pkg/natsauth"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/pkg/natsauth"
 )
 
 // initOptions contains the choices shared by scripted and interactive setup.

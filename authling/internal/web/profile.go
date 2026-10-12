@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"net/url"
 
-	"hmans.de/authling/internal/accounts"
-	"hmans.de/authling/internal/sessions"
+	"github.com/chattocorp/chatto/authling/internal/accounts"
+	"github.com/chattocorp/chatto/authling/internal/sessions"
 )
 
 // mountProfile registers account profile forms.

@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func (s *accountService) SetCustomStatus(ctx context.Context, req *connect.Request[apiv1.SetCustomStatusRequest]) (*connect.Response[apiv1.SetCustomStatusResponse], error) {

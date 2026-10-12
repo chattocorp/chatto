@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/gin-gonic/gin"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
 )
 
 func TestShieldsDisabledReturnsNotFound(t *testing.T) {

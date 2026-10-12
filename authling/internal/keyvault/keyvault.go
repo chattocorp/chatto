@@ -14,10 +14,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/ids"
+	"github.com/chattocorp/chatto/pkg/datacrypto"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/authling/internal/ids"
-	"hmans.de/chatto/pkg/datacrypto"
-	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 const (

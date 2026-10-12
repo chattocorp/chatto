@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"strings"
 
+	logv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/log/v1"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
-	logv1 "hmans.de/chatto/internal/pb/chatto/core/log/v1"
 )
 
 // logToken accepts opaque identifiers, never NATS wildcard or delimiter syntax.

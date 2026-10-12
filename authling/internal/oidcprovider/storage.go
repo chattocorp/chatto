@@ -10,14 +10,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/ids"
+	"github.com/chattocorp/chatto/authling/internal/issuer"
+	"github.com/chattocorp/chatto/authling/internal/runtimejson"
+	"github.com/chattocorp/chatto/authling/internal/storage"
 	jose "github.com/go-jose/go-jose/v4"
 	"github.com/nats-io/nats.go/jetstream"
 	liboidc "github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
-	"hmans.de/authling/internal/ids"
-	"hmans.de/authling/internal/issuer"
-	"hmans.de/authling/internal/runtimejson"
-	"hmans.de/authling/internal/storage"
 )
 
 const (

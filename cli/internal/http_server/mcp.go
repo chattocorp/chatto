@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/chattocorp/chatto/cli/internal/mcpserver"
 	"github.com/gin-gonic/gin"
-	"hmans.de/chatto/internal/mcpserver"
 )
 
 const (

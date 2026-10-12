@@ -16,7 +16,7 @@ import (
 
 	"github.com/charmbracelet/log"
 
-	"hmans.de/chatto/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/config"
 )
 
 const (

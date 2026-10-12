@@ -9,7 +9,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/testutil"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 func newFilteredWatchTestKV(t *testing.T) jetstream.KeyValue {

@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/chattocorp/chatto/authling/internal/keyvault"
+	"github.com/chattocorp/chatto/authling/internal/sessions"
+	"github.com/chattocorp/chatto/authling/internal/storage"
+	"github.com/chattocorp/chatto/authling/internal/web"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/authling/internal/keyvault"
-	"hmans.de/authling/internal/sessions"
-	"hmans.de/authling/internal/storage"
-	"hmans.de/authling/internal/web"
 )
 
 func TestBrowserAuthenticationCannotUpgradeStaleGeneration(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"hmans.de/chatto/pkg/appconfig"
+	"github.com/chattocorp/chatto/pkg/appconfig"
 )
 
 type testConfig struct {

@@ -7,9 +7,9 @@ import (
 
 	"google.golang.org/protobuf/types/known/durationpb"
 
-	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
-	"hmans.de/chatto/internal/search"
-	"hmans.de/chatto/pkg/events"
+	searchv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1"
+	"github.com/chattocorp/chatto/cli/internal/search"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 // Provider exposes a projection through the provider-neutral NATS contract.

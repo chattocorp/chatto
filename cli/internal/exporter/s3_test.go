@@ -16,8 +16,8 @@ import (
 	"github.com/prometheus/common/expfmt"
 	"github.com/stretchr/testify/require"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/testutil/fakes3"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/testutil/fakes3"
 )
 
 func TestS3NonCurrentStats(t *testing.T) {

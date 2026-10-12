@@ -738,8 +738,8 @@ const file_chatto_api_v1_user_service_proto_rawDesc = "" +
 	"\rBatchGetUsers\x12#.chatto.api.v1.BatchGetUsersRequest\x1a$.chatto.api.v1.BatchGetUsersResponse\x12f\n" +
 	"\x11UpdateUserProfile\x12'.chatto.api.v1.UpdateUserProfileRequest\x1a(.chatto.api.v1.UpdateUserProfileResponse\x12W\n" +
 	"\fUploadAvatar\x12\".chatto.api.v1.UploadAvatarRequest\x1a#.chatto.api.v1.UploadAvatarResponse\x12\\\n" +
-	"\fDeleteAvatar\x12\".chatto.api.v1.DeleteAvatarRequest\x1a#.chatto.api.v1.DeleteAvatarResponse\"\x03\x90\x02\x02B\xac\x01\n" +
-	"\x11com.chatto.api.v1B\x10UserServiceProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
+	"\fDeleteAvatar\x12\".chatto.api.v1.DeleteAvatarRequest\x1a#.chatto.api.v1.DeleteAvatarResponse\"\x03\x90\x02\x02B\xbd\x01\n" +
+	"\x11com.chatto.api.v1B\x10UserServiceProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
 	file_chatto_api_v1_user_service_proto_rawDescOnce sync.Once

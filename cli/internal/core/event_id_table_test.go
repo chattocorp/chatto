@@ -5,7 +5,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // TestSharedEventIDTable_ComponentsShareHandlesAcrossRestore verifies that the

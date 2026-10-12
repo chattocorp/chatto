@@ -9,14 +9,14 @@ import (
 	"strings"
 	"testing"
 
-	"hmans.de/authling/internal/authorizations"
-	"hmans.de/authling/internal/config"
-	"hmans.de/authling/internal/evtstream"
-	"hmans.de/authling/internal/keyvault"
-	"hmans.de/authling/internal/storage"
-	"hmans.de/authling/internal/web"
-	"hmans.de/chatto/pkg/datacrypto"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/authling/internal/authorizations"
+	"github.com/chattocorp/chatto/authling/internal/config"
+	"github.com/chattocorp/chatto/authling/internal/evtstream"
+	"github.com/chattocorp/chatto/authling/internal/keyvault"
+	"github.com/chattocorp/chatto/authling/internal/storage"
+	"github.com/chattocorp/chatto/authling/internal/web"
+	"github.com/chattocorp/chatto/pkg/datacrypto"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 func TestOIDCScopeClaimsAndCurrentEmail(t *testing.T) {

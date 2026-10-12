@@ -10,10 +10,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
 	lkauth "github.com/livekit/protocol/auth"
 	"github.com/livekit/protocol/livekit"
 	"github.com/twitchtv/twirp"
-	"hmans.de/chatto/internal/config"
 )
 
 // liveKitProbeTimeout bounds the LiveKit server API check so an unreachable

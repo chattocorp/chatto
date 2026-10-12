@@ -3,8 +3,8 @@ package core
 import (
 	"context"
 
+	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
 	"github.com/nats-io/nats.go"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 )
 
 // filterPubSubEvent applies the live sync delivery rules to one recipient.

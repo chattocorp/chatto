@@ -3,7 +3,7 @@ package exporter
 import (
 	"context"
 
-	"hmans.de/chatto/internal/runtimeunit"
+	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
 )
 
 // Unit runs the deployment-wide Prometheus exporter as a Chatto runtime unit.

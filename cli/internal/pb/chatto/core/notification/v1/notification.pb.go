@@ -1888,8 +1888,8 @@ const file_chatto_core_notification_v1_notification_proto_rawDesc = "" +
 	"\x1aNotificationAttentionLevel\x12,\n" +
 	"(NOTIFICATION_ATTENTION_LEVEL_UNSPECIFIED\x10\x00\x12(\n" +
 	"$NOTIFICATION_ATTENTION_LEVEL_AMBIENT\x10\x01\x12*\n" +
-	"&NOTIFICATION_ATTENTION_LEVEL_IMPORTANT\x10\x02B\x8b\x02\n" +
-	"\x1fcom.chatto.core.notification.v1B\x11NotificationProtoP\x01ZFhmans.de/chatto/internal/pb/chatto/core/notification/v1;notificationv1\xa2\x02\x03CCN\xaa\x02\x1bChatto.Core.Notification.V1\xca\x02\x1bChatto\\Core\\Notification\\V1\xe2\x02'Chatto\\Core\\Notification\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::Notification::V1b\x06proto3"
+	"&NOTIFICATION_ATTENTION_LEVEL_IMPORTANT\x10\x02B\x9c\x02\n" +
+	"\x1fcom.chatto.core.notification.v1B\x11NotificationProtoP\x01ZWgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1;notificationv1\xa2\x02\x03CCN\xaa\x02\x1bChatto.Core.Notification.V1\xca\x02\x1bChatto\\Core\\Notification\\V1\xe2\x02'Chatto\\Core\\Notification\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::Notification::V1b\x06proto3"
 
 var (
 	file_chatto_core_notification_v1_notification_proto_rawDescOnce sync.Once

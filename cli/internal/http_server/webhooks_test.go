@@ -11,14 +11,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/livekit/protocol/auth"
 	"github.com/livekit/protocol/livekit"
 	"github.com/livekit/protocol/webhook"
 	"google.golang.org/protobuf/encoding/protojson"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestIncomingWebhookPostsThroughBotPermissionsAndSupportsExistingDMs(t *testing.T) {

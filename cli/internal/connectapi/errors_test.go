@@ -11,8 +11,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/core"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"hmans.de/chatto/internal/core"
 )
 
 // This test does not call t.Parallel: it replaces the process-wide default

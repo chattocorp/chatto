@@ -9,7 +9,7 @@ import (
 
 	"github.com/charmbracelet/log"
 
-	"hmans.de/chatto/pkg/jetstreamutil"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 )
 
 // MarkRoomAsReadResult describes the timestamp response for a room-level read

@@ -8,15 +8,15 @@ import (
 	"fmt"
 	"strings"
 
-	keymaterialv1 "hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
+	keymaterialv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/key_material/v1"
 
 	"github.com/charmbracelet/log"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/pkg/jetstreamutil"
+	"github.com/chattocorp/chatto/cli/internal/encryption"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 )
 
 const (

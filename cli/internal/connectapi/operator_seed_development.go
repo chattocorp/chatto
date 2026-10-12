@@ -6,9 +6,9 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
-	"hmans.de/chatto/internal/core"
-	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
-	"hmans.de/chatto/internal/pb/chatto/operator/v1/operatorv1connect"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1/operatorv1connect"
 )
 
 func (a *API) operatorSeedHandlers(options []connect.HandlerOption) []Handler {

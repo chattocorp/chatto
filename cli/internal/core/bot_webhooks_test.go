@@ -15,14 +15,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	logv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/log/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	logv1 "hmans.de/chatto/internal/pb/chatto/core/log/v1"
-	"hmans.de/chatto/pkg/events"
 )
 
 func webhookTestBot(t *testing.T, c *ChattoCore) (string, string, string) {

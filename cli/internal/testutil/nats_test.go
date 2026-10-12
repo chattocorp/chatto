@@ -9,7 +9,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/natsresources"
+	"github.com/chattocorp/chatto/cli/internal/natsresources"
 )
 
 // TestResetChattoJetStreamRemovesDataWhenServerDeletionLeavesIt simulates a

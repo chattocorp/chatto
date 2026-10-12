@@ -102,8 +102,8 @@ const file_chatto_core_evt_v1_setup_events_proto_rawDesc = "" +
 	"\n" +
 	"%chatto/core/evt/v1/setup_events.proto\x12\x12chatto.core.evt.v1\"\x19\n" +
 	"\x17ServerSetupOfferedEvent\"\x18\n" +
-	"\x16ServerInitializedEventB\xcb\x01\n" +
-	"\x16com.chatto.core.evt.v1B\x10SetupEventsProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
+	"\x16ServerInitializedEventB\xdc\x01\n" +
+	"\x16com.chatto.core.evt.v1B\x10SetupEventsProtoP\x01ZEgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
 var (
 	file_chatto_core_evt_v1_setup_events_proto_rawDescOnce sync.Once

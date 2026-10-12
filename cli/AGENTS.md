@@ -195,8 +195,8 @@ authorization, live events, backup and restore, and backend tests.
   Check identity immediately before and after the capture barrier; never hold
   the projection apply barrier across NATS or other external I/O.
 - Keep the package dependency direction application/core code ->
-  `internal/evtstream` -> the `hmans.de/chatto/pkg/events` shared module.
-  Chatto's `evtv1.Event` codec,
+  `internal/evtstream` -> the `github.com/chattocorp/chatto/pkg/events` shared
+  module. Chatto's `evtv1.Event` codec,
   aggregate subjects, event tokens, typed publisher/projector constructors, and
   envelope-aware effect consumers belong in `internal/evtstream`.
   The framework lives in the independently versioned `../pkg/events` module.
@@ -210,22 +210,23 @@ authorization, live events, backup and restore, and backend tests.
   contracts with non-Chatto envelopes. Do not add generic framework surface
   merely to shorten Chatto wiring.
 - Keep embedded NATS process mechanics behind the independently versioned
-  `hmans.de/chatto/pkg/natsruntime` module from ADR-058. Chatto retains its
-  configuration, listener, authentication, monitoring, logging, storage, and
-  deployment policy in `internal/embedded_nats`; the shared module must not
-  import Chatto packages.
+  `github.com/chattocorp/chatto/pkg/natsruntime` module from ADR-058. Chatto
+  retains its configuration, listener, authentication, monitoring, logging,
+  storage, and deployment policy in `internal/embedded_nats`; the shared module
+  must not import Chatto packages.
 - Keep raw XChaCha20-Poly1305 and 256-bit key-wrapping primitives behind the
-  independently versioned `hmans.de/chatto/pkg/datacrypto` module from
-  ADR-060. Chatto retains its associated-data formats, legacy cipher path,
+  independently versioned `github.com/chattocorp/chatto/pkg/datacrypto` module
+  from ADR-060. Chatto retains its associated-data formats, legacy cipher path,
   key references and hierarchy, envelope serialization, storage, KMS, cache,
   rotation, and cryptographic-erasure policy in `internal/encryption`; the
   shared module must not import Chatto packages.
 - Keep TOML file loading and struct-tagged environment overrides behind the
-  independently versioned `hmans.de/chatto/pkg/appconfig` module from ADR-061.
-  Chatto retains its configuration schema, environment names, compatibility
-  aliases, defaults, normalization, validation, generated examples, and CLI
-  flag policy in `internal/config` and `cmd`; the shared module must not import
-  Chatto packages or tighten existing configuration compatibility implicitly.
+  independently versioned `github.com/chattocorp/chatto/pkg/appconfig` module
+  from ADR-061. Chatto retains its configuration schema, environment names,
+  compatibility aliases, defaults, normalization, validation, generated
+  examples, and CLI flag policy in `internal/config` and `cmd`; the shared
+  module must not import Chatto packages or tighten existing configuration
+  compatibility implicitly.
 - Snapshot restore codecs must be transactional on error and must account for
   compatibility state preloaded before projector startup. Privacy-review every
   persisted field: do not snapshot decrypted bodies, raw PII, credentials,

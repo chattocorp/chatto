@@ -11,10 +11,10 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 const (

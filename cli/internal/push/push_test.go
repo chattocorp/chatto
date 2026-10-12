@@ -17,15 +17,15 @@ import (
 	"time"
 	"unicode/utf8"
 
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/charmbracelet/log"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/pushendpoint"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/pushendpoint"
 )
 
 type contextBlockingHTTPClient struct {

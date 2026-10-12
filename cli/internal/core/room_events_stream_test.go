@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/internal/testutil"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 func TestChattoCore_StreamRoomEventsLive(t *testing.T) {

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 func TestBotAPIKeyFormatIsCompactAndAcceptsLegacySecrets(t *testing.T) {

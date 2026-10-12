@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
-	"hmans.de/chatto/internal/config"
 )
 
 func TestInteractiveOptionsGenerateMatchingConfigs(t *testing.T) {

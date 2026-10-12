@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
+	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 	"google.golang.org/protobuf/proto"
-	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 )
 
 func testCohortInput(sequence uint64, suffix string) SaveCohortInput {

@@ -11,12 +11,12 @@ import (
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/evtstream"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/realtime/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 const (

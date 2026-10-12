@@ -5,14 +5,14 @@ import (
 	"errors"
 	"fmt"
 
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
+	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
+	realtimev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/realtime/v1"
+	"github.com/chattocorp/chatto/pkg/events"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
-	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
-	"hmans.de/chatto/pkg/events"
-	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // syncPreference reads only the latest RUNTIME_STATE choice before a privacy

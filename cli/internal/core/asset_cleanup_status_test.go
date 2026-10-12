@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/config"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/internal/testutil"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 func TestAssetCleanupAdminStatusUsesSharedDurableConsumer(t *testing.T) {

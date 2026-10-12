@@ -16,14 +16,14 @@ import (
 
 	"filippo.io/age"
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/natsresources"
+	"github.com/chattocorp/chatto/cli/pkg/natsauth"
 	"github.com/nats-io/jsm.go"
 	"github.com/nats-io/jsm.go/api"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/spf13/cobra"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/natsresources"
-	"hmans.de/chatto/pkg/natsauth"
 )
 
 // BackupManifest contains metadata about a backup

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
-	"hmans.de/chatto/pkg/jetstreamutil"
+	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/realtime/v1"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 )
 
 // NotifyRoomMarkedAsRead publishes a live event to notify the user that they marked

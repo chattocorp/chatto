@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	"hmans.de/chatto/internal/projectionsnapshot"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/projectionsnapshot"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 // Keep the original lease name so mixed-version replicas coordinate snapshot

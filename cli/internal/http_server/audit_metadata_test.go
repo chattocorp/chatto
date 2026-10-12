@@ -8,7 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"hmans.de/chatto/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/config"
 )
 
 func TestAuditRequestMetadataUsesForwardedIPAndCapsUserAgent(t *testing.T) {

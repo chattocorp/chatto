@@ -9,8 +9,8 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/core/subjects"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	"github.com/chattocorp/chatto/cli/internal/core/subjects"
+	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
 )
 
 // sharedMentionCases are the mention extraction cases that the server and the

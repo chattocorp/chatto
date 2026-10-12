@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
-	"hmans.de/chatto/internal/core"
-	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 type adminRoomLayoutService struct {

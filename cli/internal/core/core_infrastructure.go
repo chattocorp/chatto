@@ -9,14 +9,14 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/dekstore"
-	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/kms"
-	"hmans.de/chatto/internal/logbridge"
-	"hmans.de/chatto/internal/notificationstream"
-	"hmans.de/chatto/internal/projectionsnapshot"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/dekstore"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/kms"
+	"github.com/chattocorp/chatto/cli/internal/logbridge"
+	"github.com/chattocorp/chatto/cli/internal/notificationstream"
+	"github.com/chattocorp/chatto/cli/internal/projectionsnapshot"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 // coreInfrastructure contains the storage and event-sourcing primitives that

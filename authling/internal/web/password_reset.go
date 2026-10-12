@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"time"
 
-	"hmans.de/authling/internal/accounts"
-	"hmans.de/authling/internal/passwordreset"
+	"github.com/chattocorp/chatto/authling/internal/accounts"
+	"github.com/chattocorp/chatto/authling/internal/passwordreset"
 )
 
 // mountPasswordReset registers email verification and password recovery.

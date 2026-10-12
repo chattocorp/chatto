@@ -9,11 +9,11 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/natsresources"
-	"hmans.de/chatto/internal/notificationstream"
-	"hmans.de/chatto/pkg/jetstreamutil"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/natsresources"
+	"github.com/chattocorp/chatto/cli/internal/notificationstream"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 )
 
 // ============================================================================

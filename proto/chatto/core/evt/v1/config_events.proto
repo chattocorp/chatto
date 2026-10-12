@@ -6,7 +6,7 @@ import "chatto/core/evt/v1/models.proto";
 import "chatto/core/evt/v1/notification_policy.proto";
 import "chatto/core/evt/v1/user_preferences.proto";
 
-option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1";
 
 // ============================================================================
 // CONFIG EVENTS

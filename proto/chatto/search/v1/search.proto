@@ -5,7 +5,7 @@ package chatto.search.v1;
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "hmans.de/chatto/internal/pb/chatto/search/v1;searchv1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1;searchv1";
 
 // SearchOrder selects the provider-neutral ordering of message hits.
 enum SearchOrder {

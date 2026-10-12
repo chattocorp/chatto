@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
 	lkauth "github.com/livekit/protocol/auth"
 	"github.com/livekit/protocol/livekit"
 	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/config"
 )
 
 // fakeLiveKitServer answers ListRooms like LiveKit: it verifies the

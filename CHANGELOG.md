@@ -3,6 +3,40 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.14](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.13...v0.5.0-beta.14) (2026-10-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **permissions:** add dedicated message.pin permission ([#2938](https://github.com/chattocorp/chatto/issues/2938))
+* **config:** remove LiveKit webhook URL and provider options ([#2911](https://github.com/chattocorp/chatto/issues/2911))
+
+### Features
+
+* **admin:** add LiveKit setup diagnostics ([#2922](https://github.com/chattocorp/chatto/issues/2922)) ([54e9c43](https://github.com/chattocorp/chatto/commit/54e9c436887c4a10e5bbe3a58bb49fe2d3bbc0a1))
+* **frontend:** show loading dots while rooms reconnect ([#2930](https://github.com/chattocorp/chatto/issues/2930)) ([6d91994](https://github.com/chattocorp/chatto/commit/6d91994173cc1aa4c67856581094510e81b8db8b))
+* **frontend:** split the admin System page into tabs ([#2926](https://github.com/chattocorp/chatto/issues/2926)) ([a757502](https://github.com/chattocorp/chatto/commit/a757502fc328ef6ce3dbbbddc3e012be47a4357b))
+* **metrics:** expose projection snapshot lifecycle and storage metrics ([#2920](https://github.com/chattocorp/chatto/issues/2920)) ([1c16b47](https://github.com/chattocorp/chatto/commit/1c16b47c23622c4b716ba229575a88fe5e264b3e))
+* **permissions:** add dedicated message.pin permission ([#2938](https://github.com/chattocorp/chatto/issues/2938)) ([6530141](https://github.com/chattocorp/chatto/commit/65301416c702580ff49acd7bd9e7d5a7bf75f2ca))
+* **permissions:** fill matrix height and keep sidebar column order ([#2915](https://github.com/chattocorp/chatto/issues/2915)) ([106408b](https://github.com/chattocorp/chatto/commit/106408b7c3d9294505bb01c233a0edc3ac26725f))
+
+
+### Bug Fixes
+
+* **config:** align defaults and add strict configuration checks ([#2921](https://github.com/chattocorp/chatto/issues/2921)) ([0c63122](https://github.com/chattocorp/chatto/commit/0c63122e62675f38f665acdef76189423bf39b8e))
+* **frontend:** keep typing indicator off message content ([#2923](https://github.com/chattocorp/chatto/issues/2923)) ([8efcbc7](https://github.com/chattocorp/chatto/commit/8efcbc7188d4d895a15cacbc7660b95badb523c1))
+* **frontend:** replace sidebar skeleton with loading dots ([#2934](https://github.com/chattocorp/chatto/issues/2934)) ([a6c6cf7](https://github.com/chattocorp/chatto/commit/a6c6cf78bde5ce85ef265abfea328d214c0b13d7))
+* **frontend:** require explicit prefixes for automatic links ([#2927](https://github.com/chattocorp/chatto/issues/2927)) ([00e97b7](https://github.com/chattocorp/chatto/commit/00e97b7e390175293b2af1dd244c36a4148d9a1f))
+* **frontend:** restore hamburger sidebar toggle icon ([#2928](https://github.com/chattocorp/chatto/issues/2928)) ([5b288af](https://github.com/chattocorp/chatto/commit/5b288afd644d8f17d159ba9a3e753e52f620426d))
+* **frontend:** retain tombstones in deleted-user direct messages ([#2936](https://github.com/chattocorp/chatto/issues/2936)) ([a2ad48d](https://github.com/chattocorp/chatto/commit/a2ad48de08086efa3417fbcbaac73af0bbb56e65))
+* **frontend:** update virtua and preserve retained timeline rows ([#2931](https://github.com/chattocorp/chatto/issues/2931)) ([0165875](https://github.com/chattocorp/chatto/commit/0165875497c8ceb8014a41c6fd583e96c0f46607))
+* **mcp:** run application protocol checks against Chatto ([#2925](https://github.com/chattocorp/chatto/issues/2925)) ([8b46254](https://github.com/chattocorp/chatto/commit/8b462547d12a4d15a77d69c62a86232bcf089e26))
+
+
+### Code Refactoring
+
+* **config:** remove LiveKit webhook URL and provider options ([#2911](https://github.com/chattocorp/chatto/issues/2911)) ([e3faf60](https://github.com/chattocorp/chatto/commit/e3faf60face3280c36b5be12d5203c23269361b2))
+
 ## [0.5.0-beta.13](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.12...v0.5.0-beta.13) (2026-10-10)
 
 

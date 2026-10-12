@@ -6,9 +6,9 @@ import (
 	"net/url"
 	"strconv"
 
-	"hmans.de/authling/internal/authorizations"
-	"hmans.de/authling/internal/oidcprovider"
-	"hmans.de/authling/internal/sessions"
+	"github.com/chattocorp/chatto/authling/internal/authorizations"
+	"github.com/chattocorp/chatto/authling/internal/oidcprovider"
+	"github.com/chattocorp/chatto/authling/internal/sessions"
 )
 
 // mountConsent registers browser approval and denial of OIDC requests.

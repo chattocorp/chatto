@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
-	"hmans.de/chatto/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/core"
 )
 
 func TestRootRegistersOperatorUserCommands(t *testing.T) {

@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
+	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/internal/testutil"
-	"hmans.de/chatto/pkg/events"
 )
 
 type testEventHarness struct {

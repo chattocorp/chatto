@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/config"
 )
 
 // TestOIDCConformance drives the production login and callback handlers against

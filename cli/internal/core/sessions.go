@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
-	"hmans.de/chatto/pkg/jetstreamutil"
+	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
+	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"

@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/config"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/authling/internal/config"
-	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // replicatedConflictJS rejects its first publish with the conflict code that a

@@ -9,8 +9,8 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/encryption"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/encryption"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // DecryptedMessageBody is the public view of a message body with

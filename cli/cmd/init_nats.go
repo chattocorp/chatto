@@ -6,10 +6,10 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/pkg/natsauth"
 	"github.com/nats-io/nkeys"
 	"github.com/pelletier/go-toml/v2"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/pkg/natsauth"
 )
 
 func validateInitNATSURL(value string) error {

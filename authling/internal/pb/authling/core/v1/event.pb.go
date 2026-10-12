@@ -1941,7 +1941,7 @@ const file_authling_core_v1_event_proto_rawDesc = "" +
 	"\x12PasswordChangeKind\x12$\n" +
 	" PASSWORD_CHANGE_KIND_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dPASSWORD_CHANGE_KIND_RECOVERY\x10\x01\x12\"\n" +
-	"\x1ePASSWORD_CHANGE_KIND_SIGNED_IN\x10\x02B7Z5hmans.de/authling/internal/pb/authling/core/v1;corev1b\x06proto3"
+	"\x1ePASSWORD_CHANGE_KIND_SIGNED_IN\x10\x02BKZIgithub.com/chattocorp/chatto/authling/internal/pb/authling/core/v1;corev1b\x06proto3"
 
 var (
 	file_authling_core_v1_event_proto_rawDescOnce sync.Once

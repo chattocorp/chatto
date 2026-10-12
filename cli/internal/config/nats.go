@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"hmans.de/chatto/pkg/natsauth"
+	"github.com/chattocorp/chatto/cli/pkg/natsauth"
 )
 
 type EmbeddedNATSConfig struct {

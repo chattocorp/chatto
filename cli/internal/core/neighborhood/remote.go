@@ -11,8 +11,8 @@ import (
 
 	"connectrpc.com/connect"
 
-	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
-	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
+	discoveryv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1/discoveryv1connect"
 )
 
 const (

@@ -7,9 +7,9 @@
 package runtimestatev1
 
 import (
+	v1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	v1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -103,8 +103,8 @@ const file_chatto_core_runtime_state_v1_notification_unread_marker_proto_rawDesc
 	"\x0fsource_event_id\x18\x01 \x01(\tR\rsourceEventId\x12\x19\n" +
 	"\bactor_id\x18\x02 \x01(\tR\aactorId\x12G\n" +
 	"\x06signal\x18\x03 \x01(\v2/.chatto.core.notification.v1.NotificationSignalR\x06signal\x124\n" +
-	"\x16source_stream_sequence\x18\x04 \x01(\x04R\x14sourceStreamSequenceB\x99\x02\n" +
-	" com.chatto.core.runtime_state.v1B\x1dNotificationUnreadMarkerProtoP\x01ZGhmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
+	"\x16source_stream_sequence\x18\x04 \x01(\x04R\x14sourceStreamSequenceB\xaa\x02\n" +
+	" com.chatto.core.runtime_state.v1B\x1dNotificationUnreadMarkerProtoP\x01ZXgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
 
 var (
 	file_chatto_core_runtime_state_v1_notification_unread_marker_proto_rawDescOnce sync.Once

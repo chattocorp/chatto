@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/config"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 )
 
 func TestNeighborConcurrentDuplicateAcrossReplicas(t *testing.T) {

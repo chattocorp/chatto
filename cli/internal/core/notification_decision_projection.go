@@ -2,8 +2,8 @@ package core
 
 import (
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 	"sort"
 	"sync"
 	"time"
@@ -11,8 +11,8 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 var notificationDecisionSnapshotContractID = snapshotContractID("v2", &projectionv1.NotificationDecisionProjectionSnapshot{})

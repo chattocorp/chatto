@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/config"
 	liboidc "github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
-	"hmans.de/authling/internal/config"
 )
 
 const consentPath = "/oidc/consent"

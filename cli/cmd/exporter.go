@@ -8,9 +8,9 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/spf13/cobra"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/exporter"
-	"hmans.de/chatto/internal/runtimeunit"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/exporter"
+	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
 )
 
 var exporterConfigFile string

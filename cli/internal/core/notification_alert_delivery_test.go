@@ -3,15 +3,15 @@ package core
 import (
 	"context"
 	"errors"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 	"testing"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
-	"hmans.de/chatto/internal/notificationstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/notificationstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 func TestNotificationStreamAndAlertConsumerConfiguration(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/pkg/signedurl"
+	"github.com/chattocorp/chatto/cli/pkg/signedurl"
 )
 
 func TestSignedTransformPath(t *testing.T) {

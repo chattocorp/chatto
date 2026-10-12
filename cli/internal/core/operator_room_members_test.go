@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"hmans.de/chatto/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
 )
 
 func TestOperatorRoomMemberAddAcrossReplicasAndReplay(t *testing.T) {

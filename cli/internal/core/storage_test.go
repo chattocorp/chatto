@@ -8,9 +8,9 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/natsresources"
-	"hmans.de/chatto/internal/testutil"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/natsresources"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 // TestStorageConfigsArePinned fails on every change to a resource

@@ -3,8 +3,8 @@ package core
 import (
 	"context"
 
-	"hmans.de/chatto/internal/dekstore"
-	"hmans.de/chatto/internal/kms"
+	"github.com/chattocorp/chatto/cli/internal/dekstore"
+	"github.com/chattocorp/chatto/cli/internal/kms"
 )
 
 // encryptionManager handles message body encryption/decryption.

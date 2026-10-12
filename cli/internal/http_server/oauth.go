@@ -14,12 +14,12 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/net/idna"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // The signed browser session carries only an opaque handle. Validated request

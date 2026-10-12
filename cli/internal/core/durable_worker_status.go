@@ -1,8 +1,8 @@
 package core
 
 import (
-	"hmans.de/chatto/internal/natsresources"
-	"hmans.de/chatto/internal/notificationstream"
+	"github.com/chattocorp/chatto/cli/internal/natsresources"
+	"github.com/chattocorp/chatto/cli/internal/notificationstream"
 )
 
 // AssetProcessingConsumerName is the durable EVT consumer of the

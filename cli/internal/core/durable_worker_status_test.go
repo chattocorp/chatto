@@ -3,8 +3,8 @@ package core
 import (
 	"testing"
 
-	"hmans.de/chatto/internal/natsresources"
-	"hmans.de/chatto/internal/notificationstream"
+	"github.com/chattocorp/chatto/cli/internal/natsresources"
+	"github.com/chattocorp/chatto/cli/internal/notificationstream"
 )
 
 func TestDurableWorkerAdminStatusesDeriveAvailabilityAndWork(t *testing.T) {

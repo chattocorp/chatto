@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"strings"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // Subject roots for the event log. The durable stream stores events on

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package chatto.core.evt.v1;
 
-option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1";
 
 // NotificationDeliveryMode controls whether qualifying activity is omitted,
 // represented by neutral unread attention, recorded as an in-app notification,

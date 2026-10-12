@@ -14,14 +14,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/authorizations"
+	"github.com/chattocorp/chatto/authling/internal/config"
+	"github.com/chattocorp/chatto/authling/internal/issuer"
+	"github.com/chattocorp/chatto/authling/internal/keyvault"
+	"github.com/chattocorp/chatto/authling/internal/storage"
 	"github.com/rs/cors"
 	liboidc "github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
-	"hmans.de/authling/internal/authorizations"
-	"hmans.de/authling/internal/config"
-	"hmans.de/authling/internal/issuer"
-	"hmans.de/authling/internal/keyvault"
-	"hmans.de/authling/internal/storage"
 )
 
 // Service owns Authling's OIDC protocol handler and user-consent operations.

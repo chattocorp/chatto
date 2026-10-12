@@ -10,14 +10,14 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/authctx"
+	"github.com/chattocorp/chatto/cli/internal/connectapi"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/email"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
-	"hmans.de/chatto/internal/authctx"
-	"hmans.de/chatto/internal/connectapi"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/email"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // Pre-compiled regexes for login validation

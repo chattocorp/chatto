@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
-	"hmans.de/chatto/pkg/events"
+	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"

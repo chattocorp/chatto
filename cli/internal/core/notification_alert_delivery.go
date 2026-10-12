@@ -4,17 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/notificationstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/notificationstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 // ErrNotificationAlertSuppressed tells the durable worker that a last-moment

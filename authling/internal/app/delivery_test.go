@@ -7,10 +7,10 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/chattocorp/chatto/authling/internal/email"
+	"github.com/chattocorp/chatto/authling/internal/keyvault"
+	"github.com/chattocorp/chatto/authling/internal/storage"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/authling/internal/email"
-	"hmans.de/authling/internal/keyvault"
-	"hmans.de/authling/internal/storage"
 )
 
 func TestWorkflowDeliveryFailureRefundsExistingBudgetKeys(t *testing.T) {

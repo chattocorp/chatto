@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"hmans.de/chatto/internal/core"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
 )
 
 type operatorMessageService struct {

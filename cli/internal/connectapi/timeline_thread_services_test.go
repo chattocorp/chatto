@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"slices"
 	"strings"
 	"testing"
@@ -15,11 +15,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/evtstream"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/encryption"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 func TestTimelineIncludesDistinguishMissingAndDeletedUsers(t *testing.T) {

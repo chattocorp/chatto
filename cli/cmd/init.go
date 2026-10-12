@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/c2h5oh/datasize"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/pkg/natsauth"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/pkg/natsauth"
 )
 
 var initConfigFile string

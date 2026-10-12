@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/gin-gonic/gin"
-	"hmans.de/chatto/internal/core"
 )
 
 const (

@@ -5,7 +5,7 @@ import (
 
 	"github.com/charmbracelet/log"
 
-	"hmans.de/chatto/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
 )
 
 // ThreadFollows returns the operation-level model for user-facing thread

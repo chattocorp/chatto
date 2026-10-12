@@ -2,7 +2,7 @@ package core
 
 import (
 	"github.com/charmbracelet/log"
-	"hmans.de/chatto/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
 )
 
 // RoomMembershipModel owns explicit and effective membership reads, membership

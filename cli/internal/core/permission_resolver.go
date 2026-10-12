@@ -6,7 +6,7 @@ import (
 	"slices"
 	"time"
 
-	"hmans.de/chatto/internal/authctx"
+	"github.com/chattocorp/chatto/cli/internal/authctx"
 )
 
 // PermissionResolver handles permission resolution using a deliberately small

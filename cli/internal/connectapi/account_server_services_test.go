@@ -12,14 +12,14 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/authctx"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/email"
-	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/authctx"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/email"
+	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	configv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/config/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {

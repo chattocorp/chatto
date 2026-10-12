@@ -11,9 +11,9 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
-	"hmans.de/chatto/internal/config"
 )
 
 func TestHandlerOptionsForWebserver_ResponseCompression(t *testing.T) {

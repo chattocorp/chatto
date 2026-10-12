@@ -1300,8 +1300,8 @@ const file_chatto_api_v1_room_timeline_proto_rawDesc = "" +
 	"\x05limit\x18\x04 \x01(\x05R\x05limit\"w\n" +
 	"\x1dGetThreadEventsAroundResponse\x123\n" +
 	"\x04page\x18\x01 \x01(\v2\x1f.chatto.api.v1.RoomTimelinePageR\x04page\x12!\n" +
-	"\ftarget_index\x18\x02 \x01(\x05R\vtargetIndexB\xad\x01\n" +
-	"\x11com.chatto.api.v1B\x11RoomTimelineProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
+	"\ftarget_index\x18\x02 \x01(\x05R\vtargetIndexB\xbe\x01\n" +
+	"\x11com.chatto.api.v1B\x11RoomTimelineProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
 	file_chatto_api_v1_room_timeline_proto_rawDescOnce sync.Once

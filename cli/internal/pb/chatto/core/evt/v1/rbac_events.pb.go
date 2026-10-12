@@ -901,8 +901,8 @@ const file_chatto_core_evt_v1_rbac_events_proto_rawDesc = "" +
 	"\x19RbacPermissionSubjectKind\x12,\n" +
 	"(RBAC_PERMISSION_SUBJECT_KIND_UNSPECIFIED\x10\x00\x12%\n" +
 	"!RBAC_PERMISSION_SUBJECT_KIND_ROLE\x10\x01\x12%\n" +
-	"!RBAC_PERMISSION_SUBJECT_KIND_USER\x10\x02B\xca\x01\n" +
-	"\x16com.chatto.core.evt.v1B\x0fRbacEventsProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
+	"!RBAC_PERMISSION_SUBJECT_KIND_USER\x10\x02B\xdb\x01\n" +
+	"\x16com.chatto.core.evt.v1B\x0fRbacEventsProtoP\x01ZEgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
 var (
 	file_chatto_core_evt_v1_rbac_events_proto_rawDescOnce sync.Once

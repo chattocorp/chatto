@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"hmans.de/chatto/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
 )
 
 type AssetCleanupHealth int

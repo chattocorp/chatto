@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/core"
+	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1/operatorv1connect"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/chatto/internal/core"
-	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
-	"hmans.de/chatto/internal/pb/chatto/operator/v1/operatorv1connect"
 )
 
 var operatorMessageCmd = &cobra.Command{Use: "message", Short: "Manage historical messages"}
