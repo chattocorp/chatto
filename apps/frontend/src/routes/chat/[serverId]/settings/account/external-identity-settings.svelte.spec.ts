@@ -568,6 +568,29 @@ describe('identity link popup and continuation', () => {
     }
   );
 
+  it.each([
+    [
+      'provider_access_denied',
+      'Your account at that sign-in provider is not allowed to sign in to this server.'
+    ],
+    [
+      'external_identity_conflict',
+      'That provider identity is already linked to a different account.'
+    ],
+    ['provider_failed', 'Failed to link sign-on provider']
+  ])('shows a link callback error in the popup: %s', async (errorCode, message) => {
+    const close = vi.spyOn(window, 'close').mockImplementation(() => {});
+    continuation();
+    mocks.url.searchParams.set('link_complete', '1');
+    mocks.url.searchParams.set('error', errorCode);
+    mocks.list.mockResolvedValue(unlinkedIdentityList());
+    renderSettings();
+    await expect.element(browserPage.getByText(message, { exact: false })).toBeVisible();
+    expect(close).not.toHaveBeenCalled();
+    expect(mocks.startLink).not.toHaveBeenCalled();
+    expect(mocks.url.search).toBe('');
+  });
+
   it('opens the password dialog ready for input', async () => {
     // A field that renders disabled and enables a tick later can lose typing
     // that starts in between.

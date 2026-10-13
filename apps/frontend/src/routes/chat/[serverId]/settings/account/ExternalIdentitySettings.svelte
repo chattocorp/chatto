@@ -179,9 +179,25 @@
     else void startProviderLink(provider);
   }
 
-  function completeProviderLink(providerId: string, userId: string) {
+  function linkErrorMessage(errorCode: string): string {
+    switch (errorCode) {
+      case 'provider_access_denied':
+        return m('auth.login.error.provider_access_denied');
+      case 'external_identity_conflict':
+        return m('auth.login.error.external_identity_conflict');
+      default:
+        return m('settings.account.sso.link_failed');
+    }
+  }
+
+  function completeProviderLink(providerId: string, userId: string, errorCode: string) {
     if (!userId || userId !== accountId) {
       actionError = m('settings.account.sso.account_mismatch');
+      return;
+    }
+    // The provider callback returns here with an error when it did not link.
+    if (errorCode) {
+      actionError = linkErrorMessage(errorCode);
       return;
     }
     if (providers.some((provider) => provider.id === providerId && provider.linked)) {
