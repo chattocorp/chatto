@@ -34,8 +34,10 @@ message search results:
 - Use `selectable-list` on non-table collections and `selectable-list-item` on
   each navigable, draggable, or directly actionable record.
 - Use `ActivityListRow` for newest-first activity records that have one primary
-  open action and optional row actions. It owns the shared read-state styling,
-  important fill, pending state, and hover-reveal action shell.
+  open action and optional row actions. It owns the important fill, pending
+  state, and hover-reveal action shell. Put `ActivityAvatar` in its `leading`
+  snippet and `ActivityRowText` in its body: `ActivityRowText` shows unread
+  activity in bold and keeps read activity in the normal text color.
 - Rows rest transparently on the owning `background` work plane. Hover and
   keyboard focus rise exactly one level to `surface`; do not introduce ruled
   separators or a stronger surface jump.
@@ -382,7 +384,10 @@ Follow these defaults:
 Panel titles are structural navigation, not decorative headings. Do not omit
 them merely because the page header already names the overall feature: the
 page title answers “where am I?”, while panel titles answer “what is in this
-section?”.
+section?”. One exception applies: when a page has one primary list panel that
+is the whole feature, such as the notification list or My Threads, the panel
+can omit its title. Put list controls in a toolbar inside the panel or in
+`PaneHeader` actions.
 
 ### Settings And Preferences
 

@@ -11,7 +11,6 @@
     disabled = false,
     interactive = true,
     pending = false,
-    dimmed = false,
     important = false,
     rowAttributes = {}
   }: {
@@ -22,7 +21,6 @@
     disabled?: boolean;
     interactive?: boolean;
     pending?: boolean;
-    dimmed?: boolean;
     important?: boolean;
     rowAttributes?: HTMLAttributes<HTMLDivElement>;
   } = $props();
@@ -42,8 +40,7 @@
     class={[
       'flex min-w-0 flex-1 items-center gap-3 rounded-md text-start focus-visible:outline-2 focus-visible:outline-action',
       interactive ? 'cursor-pointer' : 'cursor-default',
-      pending && 'cursor-wait',
-      dimmed && 'text-muted'
+      pending && 'cursor-wait'
     ]}
     {disabled}
     {onclick}
