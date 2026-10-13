@@ -584,10 +584,8 @@ func (r *authProviderRuntime) resolveIdentity(c *gin.Context, session sessions.S
 }
 
 func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessions.Session) (resolvedProviderIdentity, error) {
+	// The callback calls ensureOIDC first, so discovery has succeeded.
 	discovery := r.oidc.discovery.Load()
-	if discovery == nil {
-		return resolvedProviderIdentity{}, errors.New("OIDC provider is not initialized")
-	}
 	ctx := oidc.ClientContext(c.Request.Context(), r.httpClient)
 	codeVerifier, _ := session.Get(providerSessionKey(r.config.ID, "code_verifier")).(string)
 	if codeVerifier == "" {
