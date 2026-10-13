@@ -75,6 +75,15 @@ func (c AuthProviderConfig) AutoProvisionOrDefault() bool {
 	return *c.AutoProvision
 }
 
+// emailScopes names the scope that makes each provider type return a verified
+// email address. GitLab has none because it reports no email verification.
+var emailScopes = map[string]string{
+	AuthProviderTypeOpenIDConnect: "email",
+	AuthProviderTypeGoogle:        "email",
+	AuthProviderTypeGitHub:        "user:email",
+	AuthProviderTypeDiscord:       "email",
+}
+
 // isPlainEmailDomain accepts the domain part of an email address, such as
 // example.com. It rejects addresses, wildcards, and leading or trailing dots.
 func isPlainEmailDomain(domain string) bool {

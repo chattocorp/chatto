@@ -353,6 +353,10 @@ func (c *ChattoConfig) Validate() error {
 			if provider.Type == AuthProviderTypeGitLab {
 				errs = append(errs, prefix+".allowed_email_domains is not supported for gitlab, which does not report email verification; use type = 'oidc' with the GitLab issuer")
 			}
+			// Custom scopes replace the defaults that request_email adds.
+			if scope := emailScopes[provider.Type]; len(provider.Scopes) > 0 && scope != "" && !slices.Contains(provider.Scopes, scope) {
+				errs = append(errs, fmt.Sprintf("%s.scopes must include %q for allowed_email_domains", prefix, scope))
+			}
 			if slices.ContainsFunc(provider.AllowedEmailDomains, func(domain string) bool { return !isPlainEmailDomain(domain) }) {
 				errs = append(errs, prefix+".allowed_email_domains entries must be domain names such as example.com")
 			}
