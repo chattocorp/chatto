@@ -16,6 +16,7 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/markbates/goth/providers/discord"
 	"golang.org/x/oauth2"
 )
 
@@ -289,6 +290,9 @@ func TestOIDCDiscoveryTimeoutIsSharedByConcurrentSignIns(t *testing.T) {
 	if elapsed := time.Since(started); elapsed > 3*runtime.httpClient.Timeout {
 		t.Fatalf("concurrent discovery took %s", elapsed)
 	}
+	if issuer.blockedRequests.Load() != 1 {
+		t.Fatalf("discovery requests = %d, want one shared attempt", issuer.blockedRequests.Load())
+	}
 	if runtime.oidc.isReady() {
 		t.Fatal("failed discovery marked the provider ready")
 	}
@@ -304,6 +308,56 @@ func TestOAuthProvidersUseBoundedHTTPClient(t *testing.T) {
 		if client != runtime.httpClient || client.Timeout != providerHTTPTimeout {
 			t.Fatalf("%s provider uses an unbounded HTTP client", providerType)
 		}
+	}
+}
+
+func TestDiscordCodeExchangeTimesOut(t *testing.T) {
+	release := make(chan struct{})
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { <-release }))
+	defer tokenServer.Close()
+	defer close(release)
+	runtime, err := newAuthProviderRuntime(config.AuthProviderConfig{ID: "discord", Type: config.AuthProviderTypeDiscord, ClientID: "id", ClientSecret: "secret"}, "http://chat.example/callback")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime.discordOAuth2.Endpoint.TokenURL = tokenServer.URL
+	runtime.httpClient.Timeout = 100 * time.Millisecond
+	session, err := runtime.goth.UnmarshalSession(`{"AuthURL":"https://discord.com/api/oauth2/authorize"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := time.Now()
+	if err := runtime.authorizeGothSession(t.Context(), session, url.Values{"code": {"code"}}); err == nil {
+		t.Fatal("exchange succeeded against an unanswered token endpoint")
+	}
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		t.Fatalf("exchange took %s", elapsed)
+	}
+}
+
+func TestDiscordCodeExchangeAuthorizesSession(t *testing.T) {
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil || r.Form.Get("code") != "code" || r.Form.Get("redirect_uri") != "http://chat.example/callback" {
+			t.Error("unexpected token request")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"access","refresh_token":"refresh","token_type":"Bearer","expires_in":3600}`))
+	}))
+	defer tokenServer.Close()
+	runtime, err := newAuthProviderRuntime(config.AuthProviderConfig{ID: "discord", Type: config.AuthProviderTypeDiscord, ClientID: "id", ClientSecret: "secret"}, "http://chat.example/callback")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime.discordOAuth2.Endpoint.TokenURL = tokenServer.URL
+	session, err := runtime.goth.UnmarshalSession(`{}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.authorizeGothSession(t.Context(), session, url.Values{"code": {"code"}}); err != nil {
+		t.Fatal(err)
+	}
+	if discordSession := session.(*discord.Session); discordSession.AccessToken != "access" || discordSession.RefreshToken != "refresh" || discordSession.ExpiresAt.IsZero() {
+		t.Fatalf("session not authorized: %+v", discordSession)
 	}
 }
 

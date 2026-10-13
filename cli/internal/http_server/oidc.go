@@ -32,6 +32,12 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
+// Discord OAuth endpoints, as used by Goth's Discord provider.
+const (
+	discordAuthURL  = "https://discord.com/api/oauth2/authorize"
+	discordTokenURL = "https://discord.com/api/oauth2/token"
+)
+
 // providerHTTPTimeout bounds each outbound request to an external login
 // provider, including the response body. Without it, a provider that accepts a
 // connection and never answers would hold sign-in requests indefinitely.
@@ -455,6 +461,9 @@ type authProviderRuntime struct {
 	httpClient *http.Client
 	oidc       *oidcProvider
 	goth       goth.Provider
+	// discordOAuth2 exchanges Discord codes. Goth's Discord session ignores
+	// the provider client and would use http.DefaultClient without a timeout.
+	discordOAuth2 *oauth2.Config
 }
 
 type resolvedProviderIdentity struct {
@@ -489,6 +498,12 @@ func newAuthProviderRuntime(providerConfig config.AuthProviderConfig, callbackUR
 		provider := discord.New(providerConfig.ClientID, providerConfig.ClientSecret, callbackURL, scopes...)
 		provider.HTTPClient = httpClient
 		runtime.goth = provider
+		runtime.discordOAuth2 = &oauth2.Config{
+			ClientID:     providerConfig.ClientID,
+			ClientSecret: providerConfig.ClientSecret,
+			RedirectURL:  callbackURL,
+			Endpoint:     oauth2.Endpoint{AuthURL: discordAuthURL, TokenURL: discordTokenURL},
+		}
 	default:
 		return nil, fmt.Errorf("unsupported auth provider type %q", providerConfig.Type)
 	}
@@ -685,7 +700,7 @@ func (r *authProviderRuntime) resolveGothIdentity(c *gin.Context, session sessio
 	if err != nil {
 		return resolvedProviderIdentity{}, fmt.Errorf("unmarshal provider session: %w", err)
 	}
-	if _, err := gothSession.Authorize(r.goth, c.Request.URL.Query()); err != nil {
+	if err := r.authorizeGothSession(c.Request.Context(), gothSession, c.Request.URL.Query()); err != nil {
 		return resolvedProviderIdentity{}, fmt.Errorf("authorize provider session: %w", err)
 	}
 	gothUser, err := r.goth.FetchUser(gothSession)
@@ -703,6 +718,24 @@ func (r *authProviderRuntime) resolveGothIdentity(c *gin.Context, session sessio
 		loginHint:       loginHintFromParts(gothUser.NickName, gothUser.Email, gothUser.Name),
 		displayNameHint: displayNameHintFromParts(gothUser.Name, gothUser.NickName, gothUser.Email),
 	}, nil
+}
+
+// authorizeGothSession exchanges the provider code with the bounded client.
+func (r *authProviderRuntime) authorizeGothSession(ctx context.Context, session goth.Session, params url.Values) error {
+	discordSession, ok := session.(*discord.Session)
+	if !ok || r.discordOAuth2 == nil {
+		_, err := session.Authorize(r.goth, params)
+		return err
+	}
+	token, err := r.discordOAuth2.Exchange(context.WithValue(ctx, oauth2.HTTPClient, r.httpClient), params.Get("code"))
+	if err != nil {
+		return err
+	}
+	if !token.Valid() {
+		return errors.New("invalid token received from provider")
+	}
+	discordSession.AccessToken, discordSession.RefreshToken, discordSession.ExpiresAt = token.AccessToken, token.RefreshToken, token.Expiry
+	return nil
 }
 
 func (r *authProviderRuntime) verifiedEmailFromGothUser(ctx context.Context, gothUser goth.User) string {
