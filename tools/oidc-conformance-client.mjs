@@ -59,6 +59,7 @@ export async function runClientChecks({ api, run, suite, state, env, signal, fai
   for (const [name, reject] of [
     ['oidcc-client-test', false],
     ['oidcc-client-test-client-secret-basic', false],
+    ['oidcc-client-test-nonce-invalid', true],
     ['oidcc-client-test-invalid-iss', true],
     ['oidcc-client-test-invalid-aud', true],
     ['oidcc-client-test-invalid-sig-rs256', true],
