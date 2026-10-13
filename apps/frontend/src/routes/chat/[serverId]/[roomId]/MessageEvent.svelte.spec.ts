@@ -115,6 +115,56 @@ afterEach(() => {
 });
 
 describe('MessageEvent action model integration', () => {
+  it('shows an image label after lazily loading an image-only reply target', async () => {
+    const messages = mockService(MessageService);
+    const rooms = mockService(RoomService);
+    const users = mockService(UserService);
+    rooms.getRoomEvents.mockReturnValue({});
+    messages.getMessage.mockReturnValue({
+      message: {
+        id: 'image-target',
+        roomId: 'room-1',
+        actorId: 'viewer',
+        body: '',
+        attachments: [{ id: 'image-attachment', filename: 'upload.png', contentType: 'image/png' }]
+      }
+    });
+    users.batchGetUsers.mockReturnValue({
+      users: [{ user: { id: 'viewer', login: 'isotopp', displayName: 'Isotopp' } }]
+    });
+    const server = createTestServerScope({
+      routes: (router) =>
+        router
+          .service(MessageService, messages)
+          .service(RoomService, rooms)
+          .service(UserService, users)
+    });
+    const messageStore = new MessagesStore(server.scope.connection, () => null, {
+      roomId: 'room-1'
+    });
+    const reply = messageEvent({ id: 'image-reply' });
+    if (reply.event.kind !== TimelineEventKind.MessagePosted) throw new Error('Expected a message');
+    reply.event.inReplyTo = 'image-target';
+    const rendered = render(MessageEventTestHarness, { props: { event: reply, messageStore } });
+    try {
+      await expect
+        .element(rendered.getByRole('button', { name: 'in reply to Image', exact: true }))
+        .toBeInTheDocument();
+      await expect
+        .element(q(rendered.container, '[data-testid="reply-attribution"]'))
+        .toHaveTextContent('Isotopp');
+      expect(messages.getMessage).toHaveBeenCalledOnce();
+      expect(receivedRequest(messages.getMessage)).toMatchObject({
+        roomId: 'room-1',
+        eventId: 'image-target'
+      });
+      expect(q(rendered.container, '[data-testid="reply-attribution"] img')).toBeNull();
+    } finally {
+      await rendered.unmount();
+      messageStore.dispose();
+    }
+  });
+
   it('lazily resolves an echo reply to a non-root message in an unopened thread', async () => {
     const messages = mockService(MessageService);
     const rooms = mockService(RoomService);
