@@ -123,6 +123,10 @@ type ChattoCore struct {
 	// during startup — most notably SeedDefaultRooms in cmd/run.go —
 	// block on this via WaitForBoot.
 	bootDone chan struct{}
+
+	// generationUseGraceOverride replaces generationUseGrace when it is not
+	// nil. Only tests set it.
+	generationUseGraceOverride *time.Duration
 }
 
 // Run starts every background component owned by the core, including

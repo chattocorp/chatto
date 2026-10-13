@@ -251,10 +251,11 @@ To make a refresh safe to retry, add an optional `refresh_request_id`:
 3. If the network fails or the server returns `5xx`, retry immediately with
    the same ID. Stop when you have saved the complete response.
 
-An exact retry recovers only the immediately previous rotation, and only
-during the lifetime of the access token from that rotation. A retry after that
-is stale reuse and revokes the session. An `invalid_grant` response means that
-the user must sign in again.
+An exact retry during the lifetime of the access token from that rotation
+returns the same token pair. If you did not use a token from a newer pair, a
+later retry with the previous refresh token gets a new pair. If you used a newer
+pair, an older refresh token is stale reuse and revokes the session. An
+`invalid_grant` response means that the user must sign in again.
 
 ## Realtime Delivery
 
