@@ -23,6 +23,8 @@ provider supplies results.
   available registered server and merge their top results by provider score.
 - Plain words are combined as required terms. Quoted text searches for an exact
   phrase, and an explicit `AND` is accepted between terms.
+- Unicode whitespace, including non-breaking spaces in pasted text, separates
+  terms and filters. Whitespace inside quoted text does not split tokens.
 - Relevance favours literal word matches while adding lower-ranked recall from
   the operator-selected Bleve language analyzers, CJK token matching when its
   analyzer is selected, and conservative one-character spelling mistakes in
