@@ -118,4 +118,16 @@ describe('standalone server selection', () => {
     await expect.element(getByLabelText('Password')).not.toBeInTheDocument();
     await expect.element(getByRole('link', { name: 'Forgot password?' })).not.toBeInTheDocument();
   });
+
+  it('explains provider restriction denials without naming the rule', async () => {
+    const { getByText } = render(LoginPage, {
+      props: { data: { ...standaloneData, loginErrorCode: 'provider_access_denied' } }
+    });
+
+    await expect
+      .element(
+        getByText('Your account at that sign-in provider is not allowed to sign in to this server.')
+      )
+      .toBeVisible();
+  });
 });
