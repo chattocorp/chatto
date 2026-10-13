@@ -48,8 +48,7 @@ func TestSeedDataCreatesReadableReproducibleState(t *testing.T) {
 		if replies[message.ID] == 0 {
 			continue
 		}
-		metadata, err := c.GetThreadMetadata(ctx, KindChannel, message.RoomID, message.ID)
-		require.NoError(t, err)
+		metadata := c.GetThreadMetadata(message.ID)
 		require.EqualValues(t, replies[message.ID], metadata.ReplyCount)
 	}
 	otherCore, _ := setupTestCore(t)

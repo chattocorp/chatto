@@ -1075,3 +1075,18 @@ func (s *CallModel) reconcileBestEffort(ctx context.Context) error {
 	}
 	return nil
 }
+
+// cleanupMembershipEndedCallKey performs the immediate cleanup attempt after a
+// committed membership batch. The durable call cleanup worker still owns retry.
+func (s *CallModel) cleanupMembershipEndedCallKey(ctx context.Context, keyRef string) error {
+	if keyRef == "" {
+		return nil
+	}
+	if s == nil || s.callKeys == nil {
+		return fmt.Errorf("call key store is not initialized")
+	}
+	if err := s.cleanupQueuedCallKey(ctx, keyRef); err != nil {
+		return fmt.Errorf("shred ended call key: %w", err)
+	}
+	return nil
+}

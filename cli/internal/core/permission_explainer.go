@@ -84,7 +84,7 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 	if _, known := GetPermissionMetadata(perm); !known {
 		return nil
 	}
-	if isBot, ownerUserID, exists := r.core.userModel.isBotAndOwner(userID); exists && isBot {
+	if isBot, ownerUserID, exists := r.users.isBotAndOwner(userID); exists && isBot {
 		return r.collectBotFullTrace(ctx, userID, ownerUserID, kind, roomID, perm, exp)
 	}
 	return r.collectHumanFullTrace(ctx, userID, kind, roomID, perm, exp, privilegedModeAllows(ctx, userID, time.Now()))
@@ -98,7 +98,7 @@ func (r *PermissionResolver) collectHumanFullTrace(ctx context.Context, userID s
 			exp.applyDMApplicabilityDeny(LevelDM)
 			return nil
 		}
-		if ownerOverride && r.core.isServerOwner(userID) {
+		if ownerOverride && r.rbac.hasRole(userID, RoleOwner) {
 			exp.State = DecisionAllow
 			exp.DecidedAt = LevelServer
 			exp.DecidedByRole = RoleOwner
@@ -114,7 +114,7 @@ func (r *PermissionResolver) collectHumanFullTrace(ctx context.Context, userID s
 
 	groupID := ""
 	if kind == KindChannel && roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom) {
-		if room, err := r.core.GetRoom(ctx, KindChannel, roomID); err == nil && room != nil {
+		if room, err := r.rooms.GetRoom(ctx, KindChannel, roomID); err == nil && room != nil {
 			groupID = room.GroupId
 		}
 	}
@@ -144,7 +144,7 @@ func (r *PermissionResolver) collectBotFullTrace(ctx context.Context, botUserID,
 		exp.applyDMApplicabilityDeny(LevelDM)
 		return nil
 	}
-	ownerIsBot, _, ownerExists := r.core.userModel.isBotAndOwner(ownerUserID)
+	ownerIsBot, _, ownerExists := r.users.isBotAndOwner(ownerUserID)
 	if !ownerExists || ownerIsBot {
 		exp.applyBotPolicyDeny(roomID, "@bot-owner-ceiling")
 		return nil
@@ -152,7 +152,7 @@ func (r *PermissionResolver) collectBotFullTrace(ctx context.Context, botUserID,
 
 	groupID := ""
 	if kind == KindChannel && roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom) {
-		if room, err := r.core.GetRoom(ctx, KindChannel, roomID); err == nil && room != nil {
+		if room, err := r.rooms.GetRoom(ctx, KindChannel, roomID); err == nil && room != nil {
 			groupID = room.GroupId
 		}
 	}
@@ -238,11 +238,11 @@ func (r *PermissionResolver) collectFullTraceExact(ctx context.Context, userID s
 //
 // roomID without kind is invalid and returns an error.
 func (r *PermissionResolver) ExplainAllPermissions(ctx context.Context, userID string, kind RoomKind, roomID string) ([]PermissionExplanation, error) {
-	if r.core.contentView == nil {
+	if r.view == nil {
 		return r.explainAllPermissions(ctx, userID, kind, roomID)
 	}
 	var explanations []PermissionExplanation
-	err := r.core.ReadServerContentView(ctx, func(readCtx context.Context, _ uint64) error {
+	err := r.view.ReadContext(ctx, func(readCtx context.Context, _ uint64) error {
 		var explainErr error
 		explanations, explainErr = r.explainAllPermissions(readCtx, userID, kind, roomID)
 		return explainErr
@@ -287,11 +287,11 @@ func (r *PermissionResolver) explainAllPermissions(ctx context.Context, userID s
 }
 
 func (r *PermissionResolver) explainInContentView(ctx context.Context, explain func(context.Context) (PermissionExplanation, error)) (PermissionExplanation, error) {
-	if r.core.contentView == nil {
+	if r.view == nil {
 		return explain(ctx)
 	}
 	var explanation PermissionExplanation
-	err := r.core.ReadServerContentView(ctx, func(readCtx context.Context, _ uint64) error {
+	err := r.view.ReadContext(ctx, func(readCtx context.Context, _ uint64) error {
 		var explainErr error
 		explanation, explainErr = explain(readCtx)
 		return explainErr

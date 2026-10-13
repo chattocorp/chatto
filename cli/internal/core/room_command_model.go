@@ -36,7 +36,28 @@ type RoomCommandModel struct {
 	readState     *ReadStateModel
 	rbac          *RBACModel
 	logger        *log.Logger
-	accounts      roomCommandAccounts
+}
+
+// newRoomCommandModel returns a RoomCommandModel with all collaborators.
+// Isolated tests may build the struct directly with fakes for the interface
+// dependencies.
+func newRoomCommandModel(
+	rooms *RoomModel,
+	permissions *PermissionResolver,
+	publisher *evtstream.Publisher,
+	users *UserModel,
+	rbac *RBACModel,
+	readState *ReadStateModel,
+	authorization roomCommandAuthorization,
+	memberships roomCommandMemberships,
+	pins roomPinOperations,
+	logger *log.Logger,
+) *RoomCommandModel {
+	return &RoomCommandModel{
+		rooms: rooms, permissions: permissions, publisher: publisher, users: users,
+		rbac: rbac, readState: readState, authorization: authorization,
+		memberships: memberships, pins: pins, logger: logger,
+	}
 }
 
 type RoomCreateInput struct {
@@ -309,7 +330,7 @@ func (s *RoomCommandModel) authorizeMembershipChange(ctx context.Context, input 
 	} else if kind == KindDM {
 		return invalidArgument("DM room participants cannot be managed through RoomService")
 	}
-	user, err := s.accounts.GetUser(ctx, input.UserID)
+	user, err := s.users.GetUser(ctx, input.UserID)
 	if err != nil {
 		// Preserve the room-manager gate before disclosing a missing target.
 		if _, gateErr := s.authorizeRoomManage(ctx, input.ActorID, input.RoomID); gateErr != nil {
@@ -522,6 +543,8 @@ func validateRoomRemovalReason(reason string) error {
 
 // roomCommandAuthorization supplies authorization operations used by the room model.
 type roomCommandAuthorization interface {
+	requireRoomMember(context.Context, string, string) (*evtv1.Room, RoomKind, error)
+	CanReadMessage(context.Context, string, RoomKind, string, string) (bool, error)
 	CanCreateRoom(ctx context.Context, userID string, kind RoomKind, groupID string) (bool, error)
 	authorizeAtStableInputs(ctx context.Context, check func() error) error
 	CanJoinRoomAt(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error)
@@ -544,17 +567,10 @@ type roomCommandMemberships interface {
 	LeaveRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) error
 }
 
-// roomCommandAccounts supplies account reads used by the room model.
-type roomCommandAccounts interface {
-	GetUser(ctx context.Context, userID string) (*evtv1.User, error)
-}
-
 // roomPinOperations supplies message identity and consistent authorization for
 // pin writes. The command owns the event batch and projection wait.
 type roomPinOperations interface {
 	prepareMessageAppendAttempt(context.Context, evtstream.Aggregate, func(context.Context) error) (messageAppendAttempt, error)
-	requireRoomMember(context.Context, string, string) (*evtv1.Room, RoomKind, error)
-	CanReadMessage(context.Context, string, RoomKind, string, string) (bool, error)
 	canonicalReactionMessageEventID(string, string) (string, error)
 }
 

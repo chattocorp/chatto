@@ -143,7 +143,7 @@ func (s *RoomCommandModel) mutatePinnedMessage(ctx context.Context, input Pinned
 	for range maxPinnedMessageMutationAttempts {
 		var kind RoomKind
 		prepared, err := s.pins.prepareMessageAppendAttempt(ctx, aggregate, func(ctx context.Context) error {
-			room, memberKind, memberErr := s.pins.requireRoomMember(ctx, input.ActorID, input.RoomID)
+			room, memberKind, memberErr := s.authorization.requireRoomMember(ctx, input.ActorID, input.RoomID)
 			if memberErr != nil {
 				return memberErr
 			}
@@ -162,7 +162,7 @@ func (s *RoomCommandModel) mutatePinnedMessage(ctx context.Context, input Pinned
 				return ErrRoomArchived
 			}
 			if create {
-				canRead, readErr := s.pins.CanReadMessage(ctx, input.ActorID, memberKind, room.GetId(), input.MessageEventID)
+				canRead, readErr := s.authorization.CanReadMessage(ctx, input.ActorID, memberKind, room.GetId(), input.MessageEventID)
 				if readErr != nil {
 					return readErr
 				}

@@ -19,7 +19,7 @@ func TestRoomDirectoryReadModelVisibilityAndJoinGroup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser actor: %v", err)
 	}
-	group, err := core.CreateRoomGroup(ctx, SystemActorID, "Directory Read", "")
+	group, err := core.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Directory Read", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}

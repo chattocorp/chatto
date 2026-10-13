@@ -61,9 +61,9 @@ func TestNotificationReadRepairAfterCoreRestart(t *testing.T) {
 			covered, coveredOccurrence := create("seen before interruption")
 			_, newerOccurrence := create("not seen")
 			if thread {
-				_, err = first.SetThreadLastReadEventID(ctx, KindChannel, reader.Id, room.Id, threadID, covered.Id)
+				_, err = first.readStateModel.SetThreadLastReadEventID(ctx, KindChannel, reader.Id, room.Id, threadID, covered.Id)
 			} else {
-				_, err = first.AdvanceLastReadEventID(ctx, KindChannel, reader.Id, room.Id, covered.Id)
+				_, err = first.readStateModel.AdvanceLastReadEventID(ctx, KindChannel, reader.Id, room.Id, covered.Id)
 			}
 			require.NoError(t, err)
 			entry, ok := first.roomModel.timelineEntry(covered.Id)
@@ -94,7 +94,7 @@ func TestNotificationReadRepairAfterCoreRestart(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, covered.CreatedAt.AsTime(), marker)
 			} else {
-				marker, _, err := second.PeekLastReadEventID(ctx, reader.Id, room.Id)
+				marker, _, err := second.readStateModel.PeekLastReadEventID(ctx, reader.Id, room.Id)
 				require.NoError(t, err)
 				require.Equal(t, covered.Id, marker)
 			}

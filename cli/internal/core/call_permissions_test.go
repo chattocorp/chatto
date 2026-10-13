@@ -333,9 +333,9 @@ func TestCallPermissionsScopeMatrix(t *testing.T) {
 			scope := PermissionTargetScope{Kind: scopeKind}
 			switch scopeKind {
 			case MatrixScopeGroup:
-				group, err := c.CreateRoomGroup(ctx, SystemActorID, "Call matrix", "")
+				group, err := c.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Call matrix", "")
 				require.NoError(t, err)
-				require.NoError(t, c.MoveRoomToGroup(ctx, SystemActorID, room.Id, group.Id))
+				require.NoError(t, c.roomLayout.MoveRoomToGroup(ctx, SystemActorID, room.Id, group.Id))
 				scope.ID = group.Id
 			case MatrixScopeRoom:
 				scope.ID = room.Id

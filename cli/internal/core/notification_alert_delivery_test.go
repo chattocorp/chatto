@@ -172,7 +172,7 @@ func TestNotificationAlertWorkerUsesRoomGroupPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser author: %v", err)
 	}
-	group, err := chattoCore.CreateRoomGroup(ctx, SystemActorID, "Group Alerts", "")
+	group, err := chattoCore.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Group Alerts", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}

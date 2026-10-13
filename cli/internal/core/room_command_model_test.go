@@ -408,7 +408,7 @@ func TestRoomCommandModelManageRoomMembersRejectsInvalidTargets(t *testing.T) {
 	if _, err := core.JoinRoom(ctx, banned.Id, KindChannel, banned.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom banned target: %v", err)
 	}
-	if _, err := core.BanMember(ctx, manager.Id, KindChannel, room.Id, banned.Id, "test ban", nil); err != nil {
+	if _, err := core.roomMemberships.BanMember(ctx, manager.Id, KindChannel, room.Id, banned.Id, "test ban", nil); err != nil {
 		t.Fatalf("BanMember: %v", err)
 	}
 	if _, err := commands.AddMember(ctx, RoomUserInput{
@@ -448,7 +448,7 @@ func TestBotOwnerRoomMembership(t *testing.T) {
 	}
 	canJoin := func() bool {
 		t.Helper()
-		allowed, err := c.CanJoinRoomAt(ctx, bot.User.Id, KindChannel, room.Id)
+		allowed, err := c.authorization.CanJoinRoomAt(ctx, bot.User.Id, KindChannel, room.Id)
 		require.NoError(t, err)
 		return allowed
 	}
@@ -523,7 +523,7 @@ func TestBotOwnerRoomMembership(t *testing.T) {
 	require.NoError(t, err)
 	_, err = commands.AddMember(ctx, input)
 	require.NoError(t, err)
-	_, err = c.BanMember(ctx, SystemActorID, KindChannel, room.Id, bot.User.Id, "membership test", nil)
+	_, err = c.roomMemberships.BanMember(ctx, SystemActorID, KindChannel, room.Id, bot.User.Id, "membership test", nil)
 	require.NoError(t, err)
 	_, err = commands.AddMember(ctx, input)
 	require.ErrorIs(t, err, ErrPermissionDenied)
@@ -588,7 +588,7 @@ func TestBotManagerMembershipAndAuthorizationRetry(t *testing.T) {
 	// The second authorization call follows room catch-up. Change that room's
 	// tail to force OCC failure, then reject the next authorization decision.
 	calls := 0
-	_, err = c.addMember(ctx, manager.Id, KindChannel, room.Id, bot.User.Id, func() error {
+	_, err = c.roomMemberships.addMember(ctx, manager.Id, KindChannel, room.Id, bot.User.Id, func() error {
 		calls++
 		if calls > 2 {
 			return ErrPermissionDenied
@@ -624,7 +624,7 @@ func TestRoomRemovalRejectsUniversalChangeDuringRetry(t *testing.T) {
 	require.NoError(t, err)
 
 	calls := 0
-	err = c.removeUserWithoutSuspension(ctx, moderator.Id, KindChannel, room.Id, target.Id, "test removal", func() error {
+	err = c.roomMemberships.removeUserWithoutSuspension(ctx, moderator.Id, KindChannel, room.Id, target.Id, "test removal", func() error {
 		calls++
 		if calls == 2 {
 			universal := true
@@ -676,10 +676,10 @@ func TestAccountMembershipManagerOverridesJoinPermission(t *testing.T) {
 				require.Equal(t, manager.Id, addEvents[0].GetActorId(), "EVT must identify the manager who overrides room.join")
 				require.Equal(t, target.Id, addEvents[0].GetRoomMemberAdded().GetUserId())
 
-				allowed, err := c.CanJoinRoomAt(ctx, target.Id, KindChannel, room.Id)
+				allowed, err := c.authorization.CanJoinRoomAt(ctx, target.Id, KindChannel, room.Id)
 				require.NoError(t, err)
 				require.False(t, allowed, "adding membership must not change permission grants")
-				members, err := c.GetRoomMemberReferencesForLookup(ctx, manager.Id, room.Id, []string{target.Id})
+				members, err := c.roomMemberships.GetRoomMemberReferencesForLookup(ctx, manager.Id, room.Id, []string{target.Id})
 				require.NoError(t, err)
 				require.Len(t, members, 1, "account managers need not join to inspect membership")
 				if authority == PermRoomManage {
@@ -704,7 +704,7 @@ func TestAccountMembershipManagerOverridesJoinPermission(t *testing.T) {
 				require.NoError(t, err)
 				_, err = c.RoomCommands().AddMember(ctx, input)
 				require.NoError(t, err)
-				_, err = c.BanMember(ctx, SystemActorID, KindChannel, room.Id, target.Id, "test", nil)
+				_, err = c.roomMemberships.BanMember(ctx, SystemActorID, KindChannel, room.Id, target.Id, "test", nil)
 				require.NoError(t, err)
 				_, err = c.RoomCommands().AddMember(ctx, input)
 				require.ErrorIs(t, err, ErrPermissionDenied, "a join override must not override a ban")

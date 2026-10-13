@@ -37,10 +37,10 @@ func TestRoomMemberReadOperationsRequireMembership(t *testing.T) {
 		t.Fatalf("JoinRoom member: %v", err)
 	}
 
-	if _, err := core.ListRoomMemberReferences(ctx, outsider.Id, room.Id); !errors.Is(err, ErrNotRoomMember) {
+	if _, err := core.roomMemberships.ListRoomMemberReferences(ctx, outsider.Id, room.Id); !errors.Is(err, ErrNotRoomMember) {
 		t.Fatalf("ListRoomMemberReferences outsider error = %v, want ErrNotRoomMember", err)
 	}
-	listableMembers, err := core.ListRoomMemberReferencesForList(ctx, outsider.Id, room.Id)
+	listableMembers, err := core.roomMemberships.ListRoomMemberReferencesForList(ctx, outsider.Id, room.Id)
 	if err != nil {
 		t.Fatalf("ListRoomMemberReferencesForList joinable outsider: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestRoomMemberReadOperationsRequireMembership(t *testing.T) {
 	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin); err != nil {
 		t.Fatalf("DenyRoomPermission room.join: %v", err)
 	}
-	if _, err := core.ListRoomMemberReferencesForList(ctx, outsider.Id, room.Id); !errors.Is(err, ErrPermissionDenied) {
+	if _, err := core.roomMemberships.ListRoomMemberReferencesForList(ctx, outsider.Id, room.Id); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("join-denied ListRoomMemberReferencesForList error = %v, want ErrPermissionDenied", err)
 	}
 	if err := core.GrantUserRoomPermission(ctx, SystemActorID, room.Id, manager.Id, PermRoomManage); err != nil {
@@ -62,44 +62,44 @@ func TestRoomMemberReadOperationsRequireMembership(t *testing.T) {
 	if err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, manager.Id, PermRoomJoin); err != nil {
 		t.Fatalf("DenyUserRoomPermission room.join: %v", err)
 	}
-	managerMembers, err := core.ListRoomMemberReferencesForList(ctx, manager.Id, room.Id)
+	managerMembers, err := core.roomMemberships.ListRoomMemberReferencesForList(ctx, manager.Id, room.Id)
 	if err != nil {
 		t.Fatalf("manager ListRoomMemberReferencesForList: %v", err)
 	}
 	if !userRefsContain(managerMembers, member.Id) {
 		t.Fatalf("manager list member references = %+v, want member %s", managerMembers, member.Id)
 	}
-	managerLookups, err := core.ListRoomMemberReferencesForLookup(ctx, manager.Id, room.Id)
+	managerLookups, err := core.roomMemberships.ListRoomMemberReferencesForLookup(ctx, manager.Id, room.Id)
 	if err != nil {
 		t.Fatalf("manager ListRoomMemberReferencesForLookup: %v", err)
 	}
 	if !userRefsContain(managerLookups, member.Id) {
 		t.Fatalf("manager lookup member references = %+v, want member %s", managerLookups, member.Id)
 	}
-	members, err := core.ListRoomMemberReferences(ctx, member.Id, room.Id)
+	members, err := core.roomMemberships.ListRoomMemberReferences(ctx, member.Id, room.Id)
 	if err != nil {
 		t.Fatalf("ListRoomMemberReferences member: %v", err)
 	}
 	if !userRefsContain(members, member.Id) {
 		t.Fatalf("room member references = %+v, want member %s", members, member.Id)
 	}
-	if _, err := core.ListRoomMemberReferencesForList(ctx, member.Id, room.Id); err != nil {
+	if _, err := core.roomMemberships.ListRoomMemberReferencesForList(ctx, member.Id, room.Id); err != nil {
 		t.Fatalf("join-denied member ListRoomMemberReferencesForList: %v", err)
 	}
 	dm, _, err := core.FindOrCreateDM(ctx, member.Id, []string{actor.Id})
 	if err != nil {
 		t.Fatalf("FindOrCreateDM: %v", err)
 	}
-	if _, err := core.ListRoomMemberReferencesForList(ctx, outsider.Id, dm.Id); !errors.Is(err, ErrNotRoomMember) {
+	if _, err := core.roomMemberships.ListRoomMemberReferencesForList(ctx, outsider.Id, dm.Id); !errors.Is(err, ErrNotRoomMember) {
 		t.Fatalf("DM outsider ListRoomMemberReferencesForList error = %v, want ErrNotRoomMember", err)
 	}
 	if err := core.GrantUserRoomPermission(ctx, SystemActorID, dm.Id, outsider.Id, PermRoomManage); err != nil {
 		t.Fatalf("GrantUserRoomPermission DM room.manage: %v", err)
 	}
-	if _, err := core.ListRoomMemberReferencesForList(ctx, outsider.Id, dm.Id); !errors.Is(err, ErrNotRoomMember) {
+	if _, err := core.roomMemberships.ListRoomMemberReferencesForList(ctx, outsider.Id, dm.Id); !errors.Is(err, ErrNotRoomMember) {
 		t.Fatalf("DM manager ListRoomMemberReferencesForList error = %v, want ErrNotRoomMember", err)
 	}
-	if _, err := core.ListRoomMemberReferencesForLookup(ctx, outsider.Id, dm.Id); !errors.Is(err, ErrNotRoomMember) {
+	if _, err := core.roomMemberships.ListRoomMemberReferencesForLookup(ctx, outsider.Id, dm.Id); !errors.Is(err, ErrNotRoomMember) {
 		t.Fatalf("DM manager ListRoomMemberReferencesForLookup error = %v, want ErrNotRoomMember", err)
 	}
 	archivedRoom, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "room-read-archived", "")
@@ -109,16 +109,16 @@ func TestRoomMemberReadOperationsRequireMembership(t *testing.T) {
 	if _, err := core.ArchiveRoom(ctx, SystemActorID, KindChannel, archivedRoom.Id); err != nil {
 		t.Fatalf("ArchiveRoom: %v", err)
 	}
-	if _, err := core.ListRoomMemberReferencesForList(ctx, outsider.Id, archivedRoom.Id); !errors.Is(err, ErrNotRoomMember) {
+	if _, err := core.roomMemberships.ListRoomMemberReferencesForList(ctx, outsider.Id, archivedRoom.Id); !errors.Is(err, ErrNotRoomMember) {
 		t.Fatalf("archived outsider ListRoomMemberReferencesForList error = %v, want ErrNotRoomMember", err)
 	}
 	if err := core.GrantUserRoomPermission(ctx, SystemActorID, archivedRoom.Id, manager.Id, PermRoomManage); err != nil {
 		t.Fatalf("GrantUserRoomPermission archived room.manage: %v", err)
 	}
-	if _, err := core.ListRoomMemberReferencesForList(ctx, manager.Id, archivedRoom.Id); err != nil {
+	if _, err := core.roomMemberships.ListRoomMemberReferencesForList(ctx, manager.Id, archivedRoom.Id); err != nil {
 		t.Fatalf("archived manager ListRoomMemberReferencesForList: %v", err)
 	}
-	if _, err := core.ListRoomMemberReferencesForLookup(ctx, manager.Id, archivedRoom.Id); err != nil {
+	if _, err := core.roomMemberships.ListRoomMemberReferencesForLookup(ctx, manager.Id, archivedRoom.Id); err != nil {
 		t.Fatalf("archived manager ListRoomMemberReferencesForLookup: %v", err)
 	}
 
@@ -165,13 +165,13 @@ func TestRoomMemberReferenceReadsOmitDeletedUsers(t *testing.T) {
 		read func() ([]*evtv1.User, error)
 	}{
 		{"member", func() ([]*evtv1.User, error) {
-			return core.ListRoomMemberReferences(ctx, viewer.Id, room.Id)
+			return core.roomMemberships.ListRoomMemberReferences(ctx, viewer.Id, room.Id)
 		}},
 		{"list", func() ([]*evtv1.User, error) {
-			return core.ListRoomMemberReferencesForList(ctx, viewer.Id, room.Id)
+			return core.roomMemberships.ListRoomMemberReferencesForList(ctx, viewer.Id, room.Id)
 		}},
 		{"lookup", func() ([]*evtv1.User, error) {
-			return core.ListRoomMemberReferencesForLookup(ctx, viewer.Id, room.Id)
+			return core.roomMemberships.ListRoomMemberReferencesForLookup(ctx, viewer.Id, room.Id)
 		}},
 	}
 	for _, tc := range reads {

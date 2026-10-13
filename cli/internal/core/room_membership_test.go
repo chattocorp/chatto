@@ -43,7 +43,7 @@ func TestListActiveRoomMemberIDsDoesNotReadProfiles(t *testing.T) {
 			if _, err := c.GetUser(ctx, user.Id); err == nil {
 				t.Fatal("corrupt profile unexpectedly hydrated")
 			}
-			ids, err := c.ListActiveRoomMemberIDs(ctx, user.Id, room.Id)
+			ids, err := c.roomMemberships.ListActiveRoomMemberIDs(ctx, user.Id, room.Id)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -85,7 +85,7 @@ func TestRoomMemberships_CreateOrUpdate(t *testing.T) {
 	}
 
 	// Verify we can retrieve the membership
-	retrieved, err := core.GetRoomMembership(ctx, KindChannel, user.Id, room.Id)
+	retrieved, err := core.roomMemberships.GetRoomMembership(ctx, KindChannel, user.Id, room.Id)
 	if err != nil {
 		t.Fatalf("Failed to get room membership: %v", err)
 	}
@@ -184,7 +184,7 @@ func TestRoomMemberships_Get_NotFound(t *testing.T) {
 
 	// Setup space (required for per-space bucket)
 
-	_, err := core.GetRoomMembership(ctx, KindChannel, "nonexistent-user", "nonexistent-room")
+	_, err := core.roomMemberships.GetRoomMembership(ctx, KindChannel, "nonexistent-user", "nonexistent-room")
 	if err == nil {
 		t.Error("Expected error when getting nonexistent membership")
 	}
@@ -310,7 +310,7 @@ func TestRoomMemberships_GetForUser(t *testing.T) {
 	}
 
 	// Retrieve all rooms for the user
-	memberships, err := core.GetUserRoomMemberships(ctx, KindChannel, user.Id)
+	memberships, err := core.roomMemberships.GetUserRoomMemberships(ctx, KindChannel, user.Id)
 	if err != nil {
 		t.Fatalf("Failed to get rooms for user: %v", err)
 	}
@@ -351,7 +351,7 @@ func TestRoomMemberships_GetForUser_NoRooms(t *testing.T) {
 	user, _ := core.CreateUser(ctx, "actor1", "testuser", "Test User", "password")
 
 	// Get rooms for a user with no memberships
-	memberships, err := core.GetUserRoomMemberships(ctx, KindChannel, user.Id)
+	memberships, err := core.roomMemberships.GetUserRoomMemberships(ctx, KindChannel, user.Id)
 	if err != nil {
 		t.Fatalf("Failed to get rooms for user with no memberships: %v", err)
 	}
@@ -586,7 +586,7 @@ func TestRoomMemberships_Integration_CompleteLifecycle(t *testing.T) {
 	}
 
 	// 4. Get and verify data persisted correctly
-	retrieved, err := core.GetRoomMembership(ctx, KindChannel, user.Id, room.Id)
+	retrieved, err := core.roomMemberships.GetRoomMembership(ctx, KindChannel, user.Id, room.Id)
 	if err != nil {
 		t.Fatalf("Get after creation failed: %v", err)
 	}
@@ -610,7 +610,7 @@ func TestRoomMemberships_Integration_CompleteLifecycle(t *testing.T) {
 	}
 
 	// 7. Get should fail
-	_, err = core.GetRoomMembership(ctx, KindChannel, user.Id, room.Id)
+	_, err = core.roomMemberships.GetRoomMembership(ctx, KindChannel, user.Id, room.Id)
 	if err == nil {
 		t.Error("Get should fail after deletion")
 	}

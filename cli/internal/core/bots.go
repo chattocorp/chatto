@@ -285,41 +285,11 @@ func (c *ChattoCore) WatchBotAPIKeyInvalidated(botID string, verifier []byte) (<
 }
 
 func (c *ChattoCore) requireHumanUser(ctx context.Context, userID string) error {
-	if userID == "" {
-		return ErrNotAuthenticated
-	}
-	user, err := c.GetUser(ctx, userID)
-	if err != nil {
-		return err
-	}
-	if user.GetIsBot() {
-		return ErrHumanAccountRequired
-	}
-	return nil
+	return c.authorization.requireHumanUser(ctx, userID)
 }
 
 func (c *ChattoCore) requireBotManager(ctx context.Context, actorID, botID string) (*evtv1.User, error) {
-	if err := c.requireHumanUser(ctx, actorID); err != nil {
-		return nil, err
-	}
-	bot, err := c.GetUser(ctx, botID)
-	if err != nil {
-		return nil, err
-	}
-	if !bot.GetIsBot() {
-		return nil, ErrNotFound
-	}
-	if bot.GetBotOwnerUserId() == actorID {
-		return bot, nil
-	}
-	allowed, err := c.CanManageBots(ctx, actorID)
-	if err != nil {
-		return nil, err
-	}
-	if !allowed {
-		return nil, ErrPermissionDenied
-	}
-	return bot, nil
+	return c.authorization.requireBotManager(ctx, actorID, botID)
 }
 
 // requireBotViewer permits bot owners, bot managers, and account managers to

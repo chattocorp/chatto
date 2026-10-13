@@ -698,7 +698,7 @@ func TestRoomAndThreadServicesMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.
 	}
 
 	e1 := env.post(room.Id, env.viewer.Id, "one", "")
-	if err := env.core.SetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id, e1.Id); err != nil {
+	if err := env.core.ReadState().SetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id, e1.Id); err != nil {
 		t.Fatalf("seed read marker: %v", err)
 	}
 	e2 := env.post(room.Id, env.viewer.Id, "two", "")
@@ -721,7 +721,7 @@ func TestRoomAndThreadServicesMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.
 	if resp.Msg.LastReadAt == nil || resp.Msg.PreviousLastReadAt == nil {
 		t.Fatalf("timestamps = last %v previous %v, want both set", resp.Msg.LastReadAt, resp.Msg.PreviousLastReadAt)
 	}
-	if got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
+	if got, err := env.core.ReadState().GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
 		t.Fatalf("marker after e2 = %q, %v; want %s", got, err, e2.Id)
 	}
 	assertAPINotificationStates(t, env, ctx,
@@ -735,7 +735,7 @@ func TestRoomAndThreadServicesMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.
 	})); err != nil {
 		t.Fatalf("MarkRoomAsRead stale e1: %v", err)
 	}
-	if got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
+	if got, err := env.core.ReadState().GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
 		t.Fatalf("marker after stale e1 = %q, %v; want %s", got, err, e2.Id)
 	}
 	assertAPINotificationStates(t, env, ctx,
@@ -750,7 +750,7 @@ func TestRoomAndThreadServicesMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.
 	})); errorCode(err) != connect.CodeInvalidArgument {
 		t.Fatalf("MarkRoomAsRead reply anchor code = %v, want %v", errorCode(err), connect.CodeInvalidArgument)
 	}
-	if got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
+	if got, err := env.core.ReadState().GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
 		t.Fatalf("marker after reply anchor = %q, %v; want %s", got, err, e2.Id)
 	}
 
@@ -760,7 +760,7 @@ func TestRoomAndThreadServicesMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.
 	})); errorCode(err) != connect.CodeNotFound {
 		t.Fatalf("MarkRoomAsRead missing event code = %v, want %v", errorCode(err), connect.CodeNotFound)
 	}
-	if got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
+	if got, err := env.core.ReadState().GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
 		t.Fatalf("marker after missing event = %q, %v; want %s", got, err, e2.Id)
 	}
 
@@ -769,7 +769,7 @@ func TestRoomAndThreadServicesMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.
 	})); err != nil {
 		t.Fatalf("MarkRoomAsRead omitted anchor: %v", err)
 	}
-	if got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != threadRoot.Id {
+	if got, err := env.core.ReadState().GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != threadRoot.Id {
 		t.Fatalf("marker after omitted anchor = %q, %v; want %s", got, err, threadRoot.Id)
 	}
 	assertAPINotificationStates(t, env, ctx,
@@ -796,7 +796,7 @@ func TestRoomAndThreadServicesMarkRoomAsReadRejectsMissingAnchorWithoutLazyMarke
 
 	e1 := env.post(room.Id, env.viewer.Id, "one", "")
 	e2 := env.post(room.Id, env.viewer.Id, "two", "")
-	if marker, exists, err := env.core.PeekLastReadEventID(env.ctx, reader.Id, room.Id); err != nil || exists || marker != "" {
+	if marker, exists, err := env.core.ReadState().PeekLastReadEventID(env.ctx, reader.Id, room.Id); err != nil || exists || marker != "" {
 		t.Fatalf("reader marker before request = %q exists=%v err=%v, want absent", marker, exists, err)
 	}
 
@@ -807,7 +807,7 @@ func TestRoomAndThreadServicesMarkRoomAsReadRejectsMissingAnchorWithoutLazyMarke
 	})); errorCode(err) != connect.CodeNotFound {
 		t.Fatalf("MarkRoomAsRead missing event code = %v, want %v", errorCode(err), connect.CodeNotFound)
 	}
-	if marker, exists, err := env.core.PeekLastReadEventID(env.ctx, reader.Id, room.Id); err != nil || exists || marker != "" {
+	if marker, exists, err := env.core.ReadState().PeekLastReadEventID(env.ctx, reader.Id, room.Id); err != nil || exists || marker != "" {
 		t.Fatalf("reader marker after rejected request = %q exists=%v err=%v, want absent", marker, exists, err)
 	}
 
@@ -821,7 +821,7 @@ func TestRoomAndThreadServicesMarkRoomAsReadRejectsMissingAnchorWithoutLazyMarke
 	if resp.Msg.PreviousLastReadAt != nil {
 		t.Fatalf("PreviousLastReadAt after missing marker = %v, want nil", resp.Msg.PreviousLastReadAt)
 	}
-	if got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e1.Id {
+	if got, err := env.core.ReadState().GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e1.Id {
 		t.Fatalf("marker after valid e1 = %q, %v; want %s", got, err, e1.Id)
 	}
 	if e2.Id == e1.Id {
@@ -1161,7 +1161,7 @@ func TestThreadServiceListFollowedThreadsUnreadOnly(t *testing.T) {
 		roots = append(roots, root.Id)
 	}
 	for _, rootID := range []string{roots[0], roots[2]} {
-		if _, err := env.core.SetThreadLastOpened(env.ctx, core.KindChannel, env.viewer.Id, room.Id, rootID); err != nil {
+		if _, err := env.core.ReadState().SetThreadLastOpened(env.ctx, core.KindChannel, env.viewer.Id, room.Id, rootID); err != nil {
 			t.Fatalf("SetThreadLastOpened: %v", err)
 		}
 	}

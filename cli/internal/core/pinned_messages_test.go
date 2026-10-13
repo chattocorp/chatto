@@ -251,7 +251,7 @@ func TestPinnedMessagePermissionScopes(t *testing.T) {
 			ctx := testContext(t)
 			member, err := c.CreateUser(ctx, SystemActorID, "pin-delegate", "Pin Delegate", "password")
 			require.NoError(t, err)
-			group, err := c.CreateRoomGroup(ctx, SystemActorID, "pin-group", "")
+			group, err := c.roomLayout.CreateRoomGroup(ctx, SystemActorID, "pin-group", "")
 			require.NoError(t, err)
 			room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, group.Id, "pin-room", "")
 			require.NoError(t, err)

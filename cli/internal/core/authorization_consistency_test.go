@@ -64,7 +64,7 @@ func TestAuthorityChangesDoNotWriteLegacyFence(t *testing.T) {
 	if err := chattoCore.GrantUserPermission(ctx, SystemActorID, user.GetId(), PermMessagePost); err != nil {
 		t.Fatalf("GrantUserPermission: %v", err)
 	}
-	group, err := chattoCore.CreateRoomGroup(ctx, SystemActorID, "No Legacy Fence Group", "")
+	group, err := chattoCore.roomLayout.CreateRoomGroup(ctx, SystemActorID, "No Legacy Fence Group", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestAuthorityChangesDoNotWriteLegacyFence(t *testing.T) {
 	if _, err := chattoCore.JoinRoom(ctx, user.GetId(), KindChannel, user.GetId(), room.GetId()); err != nil {
 		t.Fatalf("JoinRoom: %v", err)
 	}
-	if removed, err := chattoCore.RemoveMember(ctx, SystemActorID, KindChannel, room.GetId(), user.GetId()); err != nil || !removed {
+	if removed, err := chattoCore.roomMemberships.RemoveMember(ctx, SystemActorID, KindChannel, room.GetId(), user.GetId()); err != nil || !removed {
 		t.Fatalf("RemoveMember removed=%v error=%v", removed, err)
 	}
 
@@ -122,10 +122,10 @@ func TestAuthorizedGroupMutationRechecksAfterPermissionRevocation(t *testing.T) 
 			}
 			return nil
 		}
-		return core.requireCanManageRoomGroup(ctx, actor.Id, group.GetId())
+		return core.authorization.requireCanManageRoomGroup(ctx, actor.Id, group.GetId())
 	}
 
-	if _, err := core.appendGroupLayoutMutation(ctx, evtstream.GroupAggregate(group.GetId()), event, authorize); !errors.Is(err, ErrPermissionDenied) {
+	if _, err := core.roomLayout.appendGroupLayoutMutation(ctx, evtstream.GroupAggregate(group.GetId()), event, authorize); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("appendGroupLayoutMutation error = %v, want ErrPermissionDenied", err)
 	}
 	updated, err := core.GetRoomGroup(ctx, group.GetId())

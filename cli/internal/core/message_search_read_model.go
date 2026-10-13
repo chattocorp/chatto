@@ -18,7 +18,28 @@ func (c *ChattoCore) MessageSearchReads() *MessageSearchReadModel {
 // MessageSearchReadModel keeps the full-text provider outside Chatto's
 // authorization boundary. Provider hits are candidates, never readable facts.
 type MessageSearchReadModel struct {
-	core *ChattoCore
+	rooms         *RoomModel
+	users         *UserModel
+	memberships   *RoomMembershipModel
+	authorization *AuthorizationModel
+	timeline      *RoomTimelineReadModel
+	follows       *ThreadFollowModel
+}
+
+// newMessageSearchReadModel returns a MessageSearchReadModel with all
+// collaborators.
+func newMessageSearchReadModel(
+	rooms *RoomModel,
+	users *UserModel,
+	memberships *RoomMembershipModel,
+	authorization *AuthorizationModel,
+	timeline *RoomTimelineReadModel,
+	follows *ThreadFollowModel,
+) *MessageSearchReadModel {
+	return &MessageSearchReadModel{
+		rooms: rooms, users: users, memberships: memberships,
+		authorization: authorization, timeline: timeline, follows: follows,
+	}
 }
 
 // MessageSearchScopeInput combines explicit public request filters with
@@ -64,7 +85,7 @@ func (s *MessageSearchReadModel) ResolveScope(ctx context.Context, input Message
 	}
 	rooms := make(map[string]*evtv1.Room)
 	for _, kind := range []RoomKind{KindChannel, KindDM} {
-		memberRooms, err := s.core.ListMemberRooms(ctx, kind, input.ActorID, MemberRoomListOptions{})
+		memberRooms, err := s.memberships.ListMemberRooms(ctx, kind, input.ActorID, MemberRoomListOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +93,7 @@ func (s *MessageSearchReadModel) ResolveScope(ctx context.Context, input Message
 			if room == nil {
 				continue
 			}
-			allowed, err := s.core.CanAccessRoomMessages(ctx, input.ActorID, KindOfRoom(room), room.GetId())
+			allowed, err := s.authorization.CanAccessRoomMessages(ctx, input.ActorID, KindOfRoom(room), room.GetId())
 			if err != nil {
 				return nil, err
 			}
@@ -134,7 +155,7 @@ func (s *MessageSearchReadModel) HydrateHits(ctx context.Context, actorID string
 	}
 	current := make(map[string]hydrated)
 	for roomID, messageIDs := range byRoom {
-		read, err := s.core.RoomTimelineReads().BatchGetMessages(ctx, actorID, roomID, messageIDs)
+		read, err := s.timeline.BatchGetMessages(ctx, actorID, roomID, messageIDs)
 		if err != nil {
 			if errors.Is(err, ErrNotRoomMember) || errors.Is(err, ErrNotFound) || errors.Is(err, ErrPermissionDenied) {
 				continue
@@ -159,7 +180,7 @@ func (s *MessageSearchReadModel) HydrateHits(ctx context.Context, actorID string
 		if !ok {
 			continue
 		}
-		body, retracted, bodyKnown := s.core.roomModel.latestBodyReference(hit.MessageID)
+		body, retracted, bodyKnown := s.rooms.latestBodyReference(hit.MessageID)
 		if !bodyKnown || retracted || body.StreamSeq == 0 || body.BodyEventID != hit.BodyEventID {
 			continue
 		}
@@ -172,9 +193,9 @@ func (s *MessageSearchReadModel) HydrateHits(ctx context.Context, actorID string
 func (s *MessageSearchReadModel) resolveAuthorSelectors(ctx context.Context, selectors []string) ([]string, error) {
 	ids := make([]string, 0, len(selectors))
 	for _, selector := range selectors {
-		user, err := s.core.GetUser(ctx, selector)
+		user, err := s.users.GetUser(ctx, selector)
 		if err != nil && errors.Is(err, ErrNotFound) {
-			user, err = s.core.GetUserByLogin(ctx, selector)
+			user, err = s.users.GetUserByLogin(ctx, selector)
 		}
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {

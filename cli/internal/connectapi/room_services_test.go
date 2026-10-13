@@ -1194,7 +1194,7 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 	if _, err := env.core.ArchiveRoom(env.ctx, env.viewer.Id, core.KindChannel, archived.Id); err != nil {
 		t.Fatalf("ArchiveRoom: %v", err)
 	}
-	link, err := env.core.CreateSidebarLink(env.ctx, env.viewer.Id, groupID, "Docs", "/docs")
+	link, err := env.core.RoomLayout().CreateSidebarLink(env.ctx, env.viewer.Id, groupID, "Docs", "/docs")
 	if err != nil {
 		t.Fatalf("CreateSidebarLink: %v", err)
 	}
@@ -1291,7 +1291,7 @@ func TestRoomServiceJoinRoomGroup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser caller: %v", err)
 	}
-	group, err := env.core.CreateRoomGroup(env.ctx, env.viewer.Id, "Directory Join", "")
+	group, err := env.core.RoomLayout().CreateRoomGroup(env.ctx, env.viewer.Id, "Directory Join", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}

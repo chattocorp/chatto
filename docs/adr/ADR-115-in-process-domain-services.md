@@ -71,10 +71,53 @@ replica, without a service routing policy for that call.
 Core services share a process failure boundary and deploy together. Independent
 service scaling and arbitrary persistence replacement are not promised.
 
-The current room refactor is an initial step: catalog reads belong to
-`RoomModel`, and group joins belong to room commands. Shared policies and some
-low-level mutations still run on `ChattoCore` through explicit interfaces.
-Further extraction must improve ownership, rather than only add interfaces.
+Room catalog reads belong to `RoomModel`. Room commands own lifecycle writes,
+DM coordination, deletion, and pin writes. Membership and moderation belong to
+`RoomMembershipModel`; group and sidebar mutations belong to `RoomLayoutModel`.
+`ReadStateModel` owns room/thread markers and unread calculations.
+`ThreadFollowModel` owns follow persistence and queries. Shared authorization
+belongs to `AuthorizationModel` and `PermissionResolver`. `AuthorizationModel`
+also owns the effective-membership check, because a universal channel derives
+membership from join authority. Thus, authorization depends on no domain
+operation model; it uses core only for message hydration. Each owner gets
+all its collaborators when it is constructed. Search reads use these owners and the timeline read model.
+
+The following integration boundaries remain deliberate. Their removal is not a
+condition of this decision:
+
+- **Message writes and pins:** `MessageModel` and the message append helpers
+  coordinate encrypted bodies, assets, automatic follows, notifications, and
+  room OCC. Pin writes reuse that append preparation and canonical message
+  identity. Keep one append protocol while these domains commit atomic facts.
+- **Timeline reads:** `RoomTimelineReadModel` and core hydration helpers combine
+  compact timeline entries, current bodies, encryption, echoes, and assets.
+  Read-state, follows, search, and authorization use those reads. A separate
+  body-hydration owner is useful only if it can keep current-body checks and
+  retries together; an interface around every helper would not achieve that.
+- **Reactions:** `ReactionModel` owns its mutation protocol. Shared message
+  identity and current authorization remain collaborators. Do not create a
+  second identity resolver for reactions.
+- **Realtime:** `MyEventsModel` combines domain facts, current authorization,
+  projection readiness, and transient delivery. This is an integration owner;
+  its core dependency is not a reason to split the shared content view.
+- **Notifications:** Policy, decision materialization, occurrences, and delivery
+  keep their existing workers and recovery protocol. Membership calls the
+  materializer to record a visibility cutoff; follow changes wait for decisions
+  before sending unread hints. These calls do not transfer persistence ownership
+  to the caller.
+- **Assets, uploads, and media:** These models still share core configuration,
+  storage, encryption, and message attachment helpers. Keep their existing
+  upload-session and durable cleanup protocols together. Extract a resource
+  owner when work on this domain can test upload expiry, partial storage writes,
+  attachment commits, and cleanup recovery as one boundary.
+- **Calls:** Membership loss commits call leave/end facts in the same room
+  batch. `CallModel` owns key cleanup, participant eviction, and reconciliation.
+  Keep this collaboration so a process failure does not lose the durable effect.
+
+These are current limits, not claims that all core helpers have been extracted.
+The [runtime inventory](../architecture/runtime-components.md) records the
+concrete owners. Future extraction must improve ownership and carry its own
+concurrency and recovery tests.
 
 The decision does not change public APIs, persisted data formats, or existing
 extension contracts. It requires no client or data migration.

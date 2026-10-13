@@ -76,13 +76,6 @@ func DMRoomID(participantIDs []string) string {
 // DM Room Management
 // ============================================================================
 
-// FindDM returns the existing DM for the caller and participant set.
-// The caller is automatically included in the participant set. A missing DM
-// returns (nil, false, nil). The caller must be a member of a found DM.
-func (c *ChattoCore) FindDM(ctx context.Context, creatorID string, participantIDs []string) (*evtv1.Room, bool, error) {
-	return c.roomCommands.findDM(ctx, creatorID, participantIDs)
-}
-
 // FindOrCreateDM finds an existing DM conversation or creates a new one.
 // The caller (creatorID) is automatically included in the participant list.
 // Returns the room and a boolean indicating whether it was newly created.

@@ -15,7 +15,7 @@ import (
 
 func TestOperatorRoomList(t *testing.T) {
 	env := newOperatorCLITestEnv(t)
-	group, err := env.core.CreateRoomGroup(env.ctx, core.SystemActorID, "Import Test", "")
+	group, err := env.core.RoomLayout().CreateRoomGroup(env.ctx, core.SystemActorID, "Import Test", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestOperatorRoomCreate(t *testing.T) {
 			t.Fatalf("invalid command %v succeeded", args)
 		}
 	}
-	group, err := env.core.CreateRoomGroup(env.ctx, core.SystemActorID, "Explicit import group", "")
+	group, err := env.core.RoomLayout().CreateRoomGroup(env.ctx, core.SystemActorID, "Explicit import group", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}

@@ -74,12 +74,8 @@ func (a *roomTimelineAssembler) hydrateEvents(ctx context.Context, viewerID stri
 		if posted == nil || posted.GetInThread() != "" {
 			continue
 		}
-		metadata, err := a.api.core.GetThreadMetadata(ctx, kind, posted.GetRoomId(), event.Id)
-		if err != nil && !errors.Is(err, core.ErrNotFound) {
-			return nil, nil, err
-		}
 		key := timelineThreadKey(posted.GetRoomId(), event.Id)
-		threadMetadata[key] = metadata
+		threadMetadata[key] = a.api.core.GetThreadMetadata(event.Id)
 	}
 
 	reactionsByMessageID, err := a.api.core.GetReactionsBatch(ctx, messageIDs)
@@ -292,11 +288,7 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 		key := timelineThreadKey(payload.GetRoomId(), event.Id)
 		metadata, metadataKnown := h.threadMetadata[key]
 		if !metadataKnown {
-			var err error
-			metadata, err = h.api.core.GetThreadMetadata(ctx, h.kind, payload.GetRoomId(), event.Id)
-			if err != nil && !errors.Is(err, core.ErrNotFound) {
-				return nil, err
-			}
+			metadata = h.api.core.GetThreadMetadata(event.Id)
 		}
 		if metadata != nil && metadata.Exists {
 			thread := &apiv1.ThreadSummary{

@@ -310,7 +310,7 @@ func TestChattoCore_AssignAdminRole(t *testing.T) {
 	userID := "test-user-123"
 
 	// Initially not an admin
-	isAdmin, err := core.IsServerAdmin(ctx, userID)
+	isAdmin, err := core.authorization.IsServerAdmin(ctx, userID)
 	if err != nil {
 		t.Fatalf("Failed to check admin: %v", err)
 	}
@@ -324,7 +324,7 @@ func TestChattoCore_AssignAdminRole(t *testing.T) {
 	}
 
 	// Now should be admin
-	isAdmin, err = core.IsServerAdmin(ctx, userID)
+	isAdmin, err = core.authorization.IsServerAdmin(ctx, userID)
 	if err != nil {
 		t.Fatalf("Failed to check admin: %v", err)
 	}
@@ -347,7 +347,7 @@ func TestChattoCore_RevokeAdminRole(t *testing.T) {
 	}
 
 	// Verify is admin
-	isAdmin, _ := core.IsServerAdmin(ctx, userID)
+	isAdmin, _ := core.authorization.IsServerAdmin(ctx, userID)
 	if !isAdmin {
 		t.Fatal("Expected user to be admin")
 	}
@@ -358,7 +358,7 @@ func TestChattoCore_RevokeAdminRole(t *testing.T) {
 	}
 
 	// Should no longer be admin
-	isAdmin, err := core.IsServerAdmin(ctx, userID)
+	isAdmin, err := core.authorization.IsServerAdmin(ctx, userID)
 	if err != nil {
 		t.Fatalf("Failed to check admin: %v", err)
 	}
@@ -912,7 +912,7 @@ func TestChattoCore_AssignServerRole(t *testing.T) {
 		}
 
 		// Verify via IsServerAdmin
-		isAdmin, _ := core.IsServerAdmin(ctx, userID)
+		isAdmin, _ := core.authorization.IsServerAdmin(ctx, userID)
 		if !isAdmin {
 			t.Error("Expected user to be admin after assignment")
 		}
@@ -972,7 +972,7 @@ func TestChattoCore_RevokeServerRole(t *testing.T) {
 		core.AssignServerRole(ctx, SystemActorID, userID, RoleAdmin)
 
 		// Verify assigned
-		isAdmin, _ := core.IsServerAdmin(ctx, userID)
+		isAdmin, _ := core.authorization.IsServerAdmin(ctx, userID)
 		if !isAdmin {
 			t.Fatal("Expected user to be admin")
 		}
@@ -983,7 +983,7 @@ func TestChattoCore_RevokeServerRole(t *testing.T) {
 		}
 
 		// Verify revoked
-		isAdmin, _ = core.IsServerAdmin(ctx, userID)
+		isAdmin, _ = core.authorization.IsServerAdmin(ctx, userID)
 		if isAdmin {
 			t.Error("Expected user to not be admin after revocation")
 		}
@@ -2251,7 +2251,7 @@ func TestChattoCore_hasSpacePermission(t *testing.T) {
 	core.AssignServerRole(ctx, SystemActorID, "user123", "testmod")
 
 	// User should have the permission
-	has, err := core.hasServerPermission(ctx, "user123", PermRoleAssign)
+	has, err := core.authorization.hasServerPermission(ctx, "user123", PermRoleAssign)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
@@ -2260,7 +2260,7 @@ func TestChattoCore_hasSpacePermission(t *testing.T) {
 	}
 
 	// User should NOT have a permission not granted
-	has, err = core.hasServerPermission(ctx, "user123", PermServerManage)
+	has, err = core.authorization.hasServerPermission(ctx, "user123", PermServerManage)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
@@ -2287,12 +2287,12 @@ func TestChattoCore_hasSpacePermission_MultipleRoles(t *testing.T) {
 	core.AssignServerRole(ctx, SystemActorID, "user123", "admin")
 
 	// User should have permissions from both roles
-	has, _ := core.hasServerPermission(ctx, "user123", PermRoleAssign)
+	has, _ := core.authorization.hasServerPermission(ctx, "user123", PermRoleAssign)
 	if !has {
 		t.Error("Expected user to have PermRoleAssign from testmod role")
 	}
 
-	has, _ = core.hasServerPermission(ctx, "user123", PermServerManage)
+	has, _ = core.authorization.hasServerPermission(ctx, "user123", PermServerManage)
 	if !has {
 		t.Error("Expected user to have PermServerManage from admin role")
 	}
@@ -2329,7 +2329,7 @@ func TestChattoCore_CreateDefaultRoles(t *testing.T) {
 	// Spot-check a few permissions to verify owner has them all
 	ownerPermsToCheck := []Permission{PermServerManage, PermRoleManage, PermRoleAssign}
 	for _, perm := range ownerPermsToCheck {
-		has, err := core.hasServerPermission(ctx, "test-user", perm)
+		has, err := core.authorization.hasServerPermission(ctx, "test-user", perm)
 		if err != nil {
 			t.Fatalf("Failed to check admin permission %s: %v", perm, err)
 		}

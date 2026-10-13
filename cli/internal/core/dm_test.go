@@ -146,7 +146,7 @@ func TestDMRoomPermissionDefaults(t *testing.T) {
 	userID := "test-user"
 
 	t.Run("CanJoinRoom returns true for DM rooms", func(t *testing.T) {
-		can, err := core.CanJoinRoom(ctx, userID, KindDM)
+		can, err := core.authorization.CanJoinRoom(ctx, userID, KindDM)
 		if err != nil {
 			t.Fatalf("CanJoinRoom error: %v", err)
 		}
@@ -782,10 +782,10 @@ func TestDMRoomMembersCannotBeBannedAtCoreLayer(t *testing.T) {
 		t.Fatalf("FindOrCreateDM: %v", err)
 	}
 
-	if _, err := core.BanMember(ctx, user1.Id, KindDM, room.Id, user2.Id, "not allowed", nil); !errors.Is(err, ErrCannotRemoveDMRoomMember) {
+	if _, err := core.roomMemberships.BanMember(ctx, user1.Id, KindDM, room.Id, user2.Id, "not allowed", nil); !errors.Is(err, ErrCannotRemoveDMRoomMember) {
 		t.Fatalf("expected ErrCannotRemoveDMRoomMember from BanMember, got %v", err)
 	}
-	if err := core.UnbanMember(ctx, user1.Id, KindDM, room.Id, user2.Id, "not allowed"); !errors.Is(err, ErrCannotRemoveDMRoomMember) {
+	if err := core.roomMemberships.UnbanMember(ctx, user1.Id, KindDM, room.Id, user2.Id, "not allowed"); !errors.Is(err, ErrCannotRemoveDMRoomMember) {
 		t.Fatalf("expected ErrCannotRemoveDMRoomMember from UnbanMember, got %v", err)
 	}
 
@@ -1055,8 +1055,8 @@ func TestDMThreads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PostMessage DM thread creation: %v", err)
 	}
-	if metadata, err := core.GetThreadMetadata(ctx, KindDM, room.Id, createdRoot.Event.Id); err != nil || !metadata.Exists {
-		t.Fatalf("created DM thread metadata = %#v, %v", metadata, err)
+	if metadata := core.GetThreadMetadata(createdRoot.Event.Id); !metadata.Exists {
+		t.Fatalf("created DM thread metadata = %#v", metadata)
 	}
 	if _, err := core.Messages().PreflightPost(ctx, MessagePostInput{
 		ActorID:               owner.Id,

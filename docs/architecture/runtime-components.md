@@ -212,7 +212,10 @@ stable machine-readable keys such as `config_model`, `message_model`, and
 - **`MessageSearchReadModel`**
   ([`message_search_read_model.go`](../../cli/internal/core/message_search_read_model.go)):
   Resolves provider queries to current member-room scopes and re-authorizes thin
-  provider hits against current room membership and message state.
+  provider hits against current room membership and message state. Explicit
+  dependencies supply room and account reads, membership, shared authorization,
+  timeline hydration, and thread-follow state. The search provider remains a
+  separate NATS extension contract.
 - **`ReactionModel`**
   ([`reaction_model.go`](../../cli/internal/core/reaction_model.go),
   [`reactions.go`](../../cli/internal/core/reactions.go)): Sole reaction
@@ -230,9 +233,41 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   [`room_dm_commands.go`](../../cli/internal/core/room_dm_commands.go), group
   joins and pin commands. DM creation uses the membership dependency for access
   checks and `ReadStateModel` for initial read markers. Explicit dependencies supply
-  room reads, publication, users, permissions, and the
-  remaining core policy and mutation helpers. Those helpers still run on
-  `ChattoCore`, exposed through consumer-specific interfaces.
+  room reads, publication, accounts, and shared authorization. It also owns
+  atomic room deletion and group removal in
+  [`rooms.go`](../../cli/internal/core/rooms.go). Membership and moderation writes
+  use `RoomMembershipModel`. Pin authorization uses `AuthorizationModel`;
+  message append preparation and canonical message identity still use core
+  helpers.
+- **`RoomMembershipModel`**
+  ([`room_service_models.go`](../../cli/internal/core/room_service_models.go),
+  [`room_membership.go`](../../cli/internal/core/room_membership.go),
+  [`room_bans.go`](../../cli/internal/core/room_bans.go)): Owns explicit
+  membership reads, member lists, join/leave, and moderation writes. Effective
+  membership checks use `AuthorizationModel`.
+  It keeps room OCC retries, authorization callbacks, and projection waits
+  with the operation. Membership loss batches include call facts. The call
+  model owns key cleanup and LiveKit effects; the notification materializer
+  owns visibility cutoffs. Initial read markers use `ReadStateModel`.
+- **`RoomLayoutModel`**
+  ([`room_groups.go`](../../cli/internal/core/room_groups.go),
+  [`admin_room_layout_management.go`](../../cli/internal/core/admin_room_layout_management.go)):
+  Owns group and sidebar mutations, including admin request validation,
+  source/target authorization, atomic move batches, conflict retries, and
+  layout projection waits. It reads the existing `RoomModel` projections.
+- **`AuthorizationModel`**
+  ([`authorization_model.go`](../../cli/internal/core/authorization_model.go),
+  [`can.go`](../../cli/internal/core/can.go),
+  [`operation_auth.go`](../../cli/internal/core/operation_auth.go),
+  [`authorization_consistency.go`](../../cli/internal/core/authorization_consistency.go)):
+  Owns shared permission decisions, effective room membership, operation
+  guards, bot-manager policy, call permission aggregation, and stable-input
+  checks. A universal channel derives effective membership from join
+  authority. Thus, this model owns the check and depends on no domain operation
+  model. It uses core only for message hydration. `PermissionResolver`
+  reads room, account, and RBAC owners under the same `ServerContentView`
+  transaction. Neither component starts a projector or keeps a second
+  authorization cache.
 - **`RoomDirectoryReadModel`**
   ([`room_directory_read_model.go`](../../cli/internal/core/room_directory_read_model.go)):
   Operation-level room directory and sidebar reads, viewer capability and Slow
@@ -250,19 +285,22 @@ stable machine-readable keys such as `config_model`, `message_model`, and
 - **`ReadStateModel`**
   ([`read_state_model.go`](../../cli/internal/core/read_state_model.go),
   [`read_state_index.go`](../../cli/internal/core/read_state_index.go),
-  [`room_unread.go`](../../cli/internal/core/room_unread.go),
-  [`threads.go`](../../cli/internal/core/threads.go)): Operation-level
+  [`room_unread_state.go`](../../cli/internal/core/room_unread_state.go),
+  [`threads_state.go`](../../cli/internal/core/threads_state.go)): Operation-level
   room/thread Message Read Cursor API plus one process-wide filtered
   `RUNTIME_STATE` watcher; initial-sync readiness, in-memory reads, KV OCC
-  writes, revision barriers, and sync events. It owns initial room-marker writes
-  that preserve markers set by concurrent callers. The room cursor places the New
+  writes, revision barriers, and sync events. It owns marker creation, advancement,
+  reset, and unread calculations. Initial writes preserve markers set by
+  concurrent callers. The room cursor places the New
   messages separator. It does not create Badge attention.
 - **`ThreadFollowModel`**
   ([`thread_follow_model.go`](../../cli/internal/core/thread_follow_model.go),
-  [`threads.go`](../../cli/internal/core/threads.go)): Operation-level thread
+  [`threads_follows.go`](../../cli/internal/core/threads_follows.go)): Operation-level thread
   follow/unfollow API plus current-account interaction discovery; revalidates
   membership and read permission, validates thread roots, writes durable follow
-  state, waits for projections, and publishes sync events.
+  state, waits for projections, and publishes sync events. Follow queries use
+  shared authorization for membership and read access, and the read-state
+  owner for markers.
 - **`RoomModel`** ([`room_model.go`](../../cli/internal/core/room_model.go),
   [`rooms.go`](../../cli/internal/core/rooms.go),
   [`room_groups.go`](../../cli/internal/core/room_groups.go),

@@ -134,7 +134,8 @@ history while keeping the raw key show-once. Incoming webhook lifecycle facts
 also remain in `EVT`. Only their optional, approximate last-use telemetry is in
 `RUNTIME_STATE`.
 
-`ReadStateModel` mirrors both `read.*` key families through one KV watcher
+`ReadStateModel` owns room/thread marker reads, initialization, advancement,
+reset, and unread calculations. It mirrors both `read.*` key families through one KV watcher
 with the single filter `read.>` per Chatto process. The initial latest-value
 watch delivery is a startup readiness barrier; subsequent local and remote
 revisions update the same in-memory index. Request and realtime reconciliation reads use that index

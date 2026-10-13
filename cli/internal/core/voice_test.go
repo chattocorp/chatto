@@ -17,7 +17,7 @@ import (
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/chattocorp/chatto/pkg/events"
-	"github.com/golang-jwt/jwt/v5"
+	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/livekit/protocol/livekit"
 	"github.com/twitchtv/twirp"
 )
@@ -896,8 +896,8 @@ func TestWaitForRoomLeaveTail_PropagatesCallProjectionReadinessFailure(t *testin
 	directoryProjection := NewRoomDirectoryProjection()
 	directoryProjector := harness.projector(directoryProjection)
 	startTestProjector(t, directoryProjector)
-	core := &ChattoCore{
-		roomModel: newTestRoomModel(t,
+	model := &RoomMembershipModel{
+		rooms: newTestRoomModel(t,
 			directoryProjection,
 			directoryProjector,
 			nil,
@@ -909,10 +909,10 @@ func TestWaitForRoomLeaveTail_PropagatesCallProjectionReadinessFailure(t *testin
 			nil,
 			nil,
 		),
-		callModel: &CallModel{},
+		calls: &CallModel{},
 	}
 
-	if err := core.waitForRoomLeaveTail(ctx, subject, seq); err == nil {
+	if err := model.waitForRoomLeaveTail(ctx, subject, seq); err == nil {
 		t.Fatal("waitForRoomLeaveTail() error = nil, want call projection readiness error")
 	}
 }
@@ -1518,7 +1518,7 @@ func TestCallState_RemoveMemberRemovesOnlyTargetFromCall(t *testing.T) {
 	recorder := &recordingLiveKitParticipantClient{}
 	core.callModel.livekit = recorder
 
-	removed, err := core.RemoveMember(ctx, manager.Id, KindChannel, room.Id, target.Id)
+	removed, err := core.roomMemberships.RemoveMember(ctx, manager.Id, KindChannel, room.Id, target.Id)
 	if err != nil {
 		t.Fatalf("RemoveMember: %v", err)
 	}
@@ -1566,7 +1566,7 @@ func TestCallState_BanMemberRemovesTargetFromCall(t *testing.T) {
 	recorder := &recordingLiveKitParticipantClient{}
 	core.callModel.livekit = recorder
 
-	if _, err := core.BanMember(ctx, moderator.Id, KindChannel, room.Id, target.Id, "moderation test", nil); err != nil {
+	if _, err := core.roomMemberships.BanMember(ctx, moderator.Id, KindChannel, room.Id, target.Id, "moderation test", nil); err != nil {
 		t.Fatalf("BanMember: %v", err)
 	}
 

@@ -58,7 +58,7 @@ func TestNotificationPolicyServiceScopesAndBatch(t *testing.T) {
 
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
-	group, err := env.core.CreateRoomGroup(ctx, core.SystemActorID, "Policy Group", "")
+	group, err := env.core.RoomLayout().CreateRoomGroup(ctx, core.SystemActorID, "Policy Group", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}

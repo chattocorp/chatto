@@ -28,7 +28,7 @@ func TestCanCreateRoom_GroupTier(t *testing.T) {
 	}
 	primaryGroupID := groups[0].Id
 
-	otherGroup, err := core.CreateRoomGroup(ctx, SystemActorID, "Other", "")
+	otherGroup, err := core.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Other", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}

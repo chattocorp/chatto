@@ -56,7 +56,7 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	group, err := chattoCore.CreateRoomGroup(ctx, core.SystemActorID, "MCP Rooms", "")
+	group, err := chattoCore.RoomLayout().CreateRoomGroup(ctx, core.SystemActorID, "MCP Rooms", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}
@@ -305,7 +305,7 @@ func TestMCPHandlerServesProtocol20260728OverRawHTTP(t *testing.T) {
 	if err := chattoCore.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), core.PermissionTargetScope{Kind: core.MatrixScopeServer}, core.PermRoomList, core.PermissionStateAllow); err != nil {
 		t.Fatalf("grant bot room.list: %v", err)
 	}
-	group, err := chattoCore.CreateRoomGroup(ctx, core.SystemActorID, "Raw MCP Rooms", "")
+	group, err := chattoCore.RoomLayout().CreateRoomGroup(ctx, core.SystemActorID, "Raw MCP Rooms", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}
@@ -670,7 +670,7 @@ func TestMCPHandlerAppliesOwnerPrivilegedModeGate(t *testing.T) {
 	if err := chattoCore.AssignOwnerRole(ctx, owner.GetId()); err != nil {
 		t.Fatalf("AssignOwnerRole: %v", err)
 	}
-	group, err := chattoCore.CreateRoomGroup(ctx, core.SystemActorID, "MCP Owner Rooms", "")
+	group, err := chattoCore.RoomLayout().CreateRoomGroup(ctx, core.SystemActorID, "MCP Owner Rooms", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 	"slices"
 	"sync"
 	"time"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 	"github.com/chattocorp/chatto/pkg/events"
 )
 
@@ -792,4 +792,10 @@ func (m *NotificationMaterializer) badgeTransitions(ctx context.Context, inputs 
 		return nil, fmt.Errorf("derive Badge transitions: %w", err)
 	}
 	return invalidations, nil
+}
+
+// waitForDecisions waits before follow changes publish an unread-state hint.
+// The durable decision worker remains the only owner of decision persistence.
+func (m *NotificationMaterializer) waitForDecisions(ctx context.Context) error {
+	return m.decisions.Projector().WaitForCurrent(ctx)
 }

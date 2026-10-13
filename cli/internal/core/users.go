@@ -419,14 +419,7 @@ func (c *ChattoCore) rollbackUserCreation(ctx context.Context, user *evtv1.User)
 
 // GetUser retrieves a user from the user projection.
 func (c *ChattoCore) GetUser(ctx context.Context, userID string) (*evtv1.User, error) {
-	user, ok, err := c.userModel.user(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	if ok {
-		return user, nil
-	}
-	return nil, ErrNotFound
+	return c.userModel.GetUser(ctx, userID)
 }
 
 // GetUserReference retrieves a public user reference. Deleted or crypto-shredded
@@ -450,14 +443,7 @@ func (c *ChattoCore) GetUserReferences(ctx context.Context, userIDs []string) ([
 
 // GetUserByLogin retrieves a user by their login name using the login index.
 func (c *ChattoCore) GetUserByLogin(ctx context.Context, login string) (*evtv1.User, error) {
-	user, ok, err := c.userModel.userByLogin(ctx, login)
-	if err != nil {
-		return nil, err
-	}
-	if ok {
-		return user, nil
-	}
-	return nil, ErrNotFound
+	return c.userModel.GetUserByLogin(ctx, login)
 }
 
 // ListUsers retrieves all users from the user projection.

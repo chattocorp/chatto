@@ -39,6 +39,9 @@ type ChattoCore struct {
 	eventReader               *evtstream.Reader
 	configModel               *ConfigModel
 	roomModel                 *RoomModel
+	authorization             *AuthorizationModel
+	roomMemberships           *RoomMembershipModel
+	roomLayout                *RoomLayoutModel
 	roomCommands              *RoomCommandModel
 	roomDirectoryReads        *RoomDirectoryReadModel
 	messageModel              *MessageModel

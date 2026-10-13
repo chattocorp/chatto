@@ -74,15 +74,7 @@ func (c *ChattoCore) CreateDefaultRoles(ctx context.Context) error {
 // Note: Config-based admin check (owners.emails) should be done separately
 // by the caller before calling this function.
 func (c *ChattoCore) HasServerPermission(ctx context.Context, userID string, perm Permission) (bool, error) {
-	return c.permissionResolver.HasServerPermission(ctx, userID, perm)
-}
-
-// IsServerAdmin checks if a user has the admin role via RBAC.
-// Does NOT check config fallback (owners.emails) - caller should check that separately.
-func (c *ChattoCore) IsServerAdmin(ctx context.Context, userID string) (bool, error) {
-	return c.readContentBool(ctx, func(context.Context) bool {
-		return c.rbacModel.hasRole(userID, RoleAdmin)
-	})
+	return c.authorization.HasServerPermission(ctx, userID, perm)
 }
 
 // IsServerOwner checks whether a user has the durable owner role. Configured
@@ -90,32 +82,7 @@ func (c *ChattoCore) IsServerAdmin(ctx context.Context, userID string) (bool, er
 // durable notification-effects worker after email verification, so live and
 // event-time authorization cannot diverge.
 func (c *ChattoCore) IsServerOwner(ctx context.Context, userID string) (bool, error) {
-	return c.readContentBool(ctx, func(context.Context) bool {
-		return c.isServerOwner(userID)
-	})
-}
-
-func (c *ChattoCore) isServerOwner(userID string) bool {
-	return c.rbacModel.hasRole(userID, RoleOwner)
-}
-
-func (c *ChattoCore) readContentBool(ctx context.Context, read func(context.Context) bool) (bool, error) {
-	return c.readContentDecision(ctx, func(readCtx context.Context) (bool, error) {
-		return read(readCtx), nil
-	})
-}
-
-func (c *ChattoCore) readContentDecision(ctx context.Context, read func(context.Context) (bool, error)) (bool, error) {
-	if c.contentView == nil {
-		return read(ctx)
-	}
-	var result bool
-	err := c.ReadServerContentView(ctx, func(readCtx context.Context, _ uint64) error {
-		var readErr error
-		result, readErr = read(readCtx)
-		return readErr
-	})
-	return result, err
+	return c.authorization.IsServerOwner(ctx, userID)
 }
 
 func (c *ChattoCore) isConfiguredOwner(ctx context.Context, userID string) (bool, error) {
@@ -139,7 +106,7 @@ func (c *ChattoCore) isConfiguredOwner(ctx context.Context, userID string) (bool
 // authorizer and the inspector. Pass roomID="" with KindDM to resolve the
 // singleton direct-message scope before the server scope.
 func (c *ChattoCore) ResolveUserPermission(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (DecisionKind, error) {
-	return c.permissionResolver.Resolve(ctx, userID, kind, roomID, perm)
+	return c.authorization.ResolveUserPermission(ctx, userID, kind, roomID, perm)
 }
 
 // HasUserPermissionViaRoles is a bool wrapper around ResolveUserPermission
@@ -159,25 +126,12 @@ func (c *ChattoCore) HasUserPermissionDeniedViaRoles(ctx context.Context, userID
 	return decision == DecisionDeny, err
 }
 
-// hasServerPermission checks a server-wide permission via the unified
-// permission resolver. Internal building block — use the Can* helpers
-// in can.go for authorization checks.
-func (c *ChattoCore) hasServerPermission(ctx context.Context, userID string, perm Permission) (bool, error) {
-	return c.permissionResolver.HasSpacePermission(ctx, userID, KindChannel, perm)
-}
-
-// hasKindPermission is the kind-sensitive variant of hasServerPermission.
-// For KindDM, the resolver uses the direct-message scope before Server.
-func (c *ChattoCore) hasKindPermission(ctx context.Context, kind RoomKind, userID string, perm Permission) (bool, error) {
-	return c.permissionResolver.HasSpacePermission(ctx, userID, kind, perm)
-}
-
 // hasRoomPermission checks a permission at the room level. Each direct user or
 // named role contributes its nearest room/group/server decision; named denies
 // win across those subjects. Everyone supplies a scoped baseline: a named allow
 // overrides its deny only at the same or a nearer scope.
 func (c *ChattoCore) hasRoomPermission(ctx context.Context, kind RoomKind, roomID, userID string, perm Permission) (bool, error) {
-	return c.permissionResolver.HasRoomPermission(ctx, userID, kind, roomID, perm)
+	return c.authorization.hasRoomPermission(ctx, kind, roomID, userID, perm)
 }
 
 // hasGroupPermission checks a permission at the room-group level (no room
@@ -185,11 +139,7 @@ func (c *ChattoCore) hasRoomPermission(ctx context.Context, kind RoomKind, roomI
 // permissions that are also ScopeServer, the resolver falls back to the
 // server tier when no group decision exists.
 func (c *ChattoCore) hasGroupPermission(ctx context.Context, kind RoomKind, groupID, userID string, perm Permission) (bool, error) {
-	decision, err := c.permissionResolver.ResolveGroup(ctx, userID, kind, groupID, perm)
-	if err != nil {
-		return false, err
-	}
-	return decision == DecisionAllow, nil
+	return c.authorization.hasGroupPermission(ctx, kind, groupID, userID, perm)
 }
 
 // ============================================================================
@@ -394,15 +344,7 @@ func (c *ChattoCore) GetRoleUsers(ctx context.Context, roleName string) ([]strin
 // `everyone` role is omitted — callers that need it can prepend it themselves
 // based on the relevant scope (e.g. space membership).
 func (c *ChattoCore) GetUserRoles(ctx context.Context, userID string) ([]string, error) {
-	assignedRoles := c.rbacModel.userRoles(userID)
-	result := make([]string, 0, len(assignedRoles))
-	for _, role := range assignedRoles {
-		if role != RoleEveryone {
-			result = append(result, role)
-		}
-	}
-
-	return result, nil
+	return c.rbacModel.GetUserRoles(ctx, userID)
 }
 
 // ============================================================================

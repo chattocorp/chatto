@@ -562,7 +562,7 @@ func TestDefaultChannelRoomPermissions(t *testing.T) {
 	})
 
 	t.Run("room groups store no default permission decisions", func(t *testing.T) {
-		group, err := core.CreateRoomGroup(ctx, user.Id, "Default matrix", "")
+		group, err := core.roomLayout.CreateRoomGroup(ctx, user.Id, "Default matrix", "")
 		if err != nil {
 			t.Fatalf("CreateRoomGroup: %v", err)
 		}
