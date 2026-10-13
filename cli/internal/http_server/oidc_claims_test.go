@@ -3,6 +3,7 @@ package http_server
 import (
 	"bytes"
 	"encoding/json"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -368,13 +369,8 @@ func TestDiscordCodeExchangeAuthorizesSession(t *testing.T) {
 func TestOIDCGroupsClaim(t *testing.T) {
 	names := map[string]any{"name": "Full Name", "preferred_username": "handle"}
 	withNames := func(extra map[string]any) map[string]any {
-		claims := map[string]any{}
-		for key, value := range names {
-			claims[key] = value
-		}
-		for key, value := range extra {
-			claims[key] = value
-		}
+		claims := maps.Clone(names)
+		maps.Copy(claims, extra)
 		return claims
 	}
 	for _, tc := range []struct {
