@@ -121,8 +121,10 @@
       "release-type": "go",
       "package-name": "events",
       "component": "pkg/events",
+      "versioning": "default",
+      "prerelease": false,
       "changelog-path": "CHANGELOG.md",
-      "initial-version": "0.1.0-alpha.1",
+      "initial-version": "0.1.0",
       "draft": false,
       "include-component-in-tag": true,
       "tag-separator": "/"
