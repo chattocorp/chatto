@@ -49,9 +49,19 @@ export type MessageEventReferences = {
   threadRootEventId: string | null;
 };
 
+/** Attachment metadata for a reply label. No asset URLs are needed. */
+export type MessageReplyAttachmentSummary = {
+  kind: 'image' | 'video' | 'audio' | 'file' | 'attachments';
+  count: number;
+};
+
+/** The author and content shown in a posted message's reply attribution. */
 export type MessageReplyPreview = {
   name: string;
+  /** Original text, or null when the body is empty or contains only whitespace. */
   body: string | null;
+  /** Attachment label metadata when the target has no text. */
+  attachmentSummary: MessageReplyAttachmentSummary | null;
   actor: RoomMember | null;
   deleted: boolean;
 };
@@ -104,6 +114,7 @@ export function isDeletedMessage(message: MessagePostedPayload): boolean {
   return !message.body && message.attachments.length === 0;
 }
 
+/** Build a reply preview from the timeline's loaded target, without extra requests. */
 export function buildMessageReplyPreview({
   target,
   missingName,
@@ -116,15 +127,29 @@ export function buildMessageReplyPreview({
   getDisplayName: (member: RoomMember) => string;
 }): MessageReplyPreview {
   if (!target) {
-    return { name: missingName, body: null, actor: null, deleted: false };
+    return { name: missingName, body: null, attachmentSummary: null, actor: null, deleted: false };
   }
 
   const targetActor = target.actor ?? null;
   const activeActor = targetActor && !targetActor.deleted ? targetActor : null;
+  const message = isMessagePostedEvent(target.event) ? target.event : null;
+  const body = message?.body?.trim() ? message.body : null;
+  let attachmentSummary: MessageReplyAttachmentSummary | null = null;
+  if (!body && message && message.attachments.length > 0) {
+    const count = message.attachments.length;
+    const contentType = message.attachments[0].contentType;
+    let kind: MessageReplyAttachmentSummary['kind'] = 'file';
+    if (count > 1) kind = 'attachments';
+    else if (contentType.startsWith('image/')) kind = 'image';
+    else if (contentType.startsWith('video/')) kind = 'video';
+    else if (contentType.startsWith('audio/')) kind = 'audio';
+    attachmentSummary = { kind, count };
+  }
 
   return {
     name: activeActor ? getDisplayName(activeActor) : deletedName,
-    body: isMessagePostedEvent(target.event) ? (target.event.body ?? null) : null,
+    body,
+    attachmentSummary,
     actor: activeActor,
     deleted: !activeActor
   };

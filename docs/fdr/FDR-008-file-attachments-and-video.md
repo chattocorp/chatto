@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-10-08
+**Last reviewed:** 2026-10-13
 
 ## Overview
 
@@ -9,6 +9,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 
 ## Behavior
 
+- Reply attribution shows the original message text when it has non-whitespace text. Otherwise, one attachment shows an icon and its translated type label (Image, Video, Audio, or File). Multiple attachments show a paperclip icon and the translated attachment count. The label uses loaded message metadata and does not load thumbnails.
 - PDF attachments open automatically in the browser's native PDF viewer when the browser reports inline PDF support. The file type must be PDF; a `.pdf` filename alone does not enable the preview. Browsers without this capability show the download fallback without loading the document. Native controls vary by browser. Download stays available when a document cannot render because the browser does not reliably report these failures to Chatto. Preview requests use the attachment server and its configured storage, with no external document-viewer service.
 - The composer accepts files via drag-and-drop, paste, and a file picker button when the viewer has `message.attach`.
 - Draft attachments persist across room switches inside the same session.

@@ -1,3 +1,4 @@
+<!-- @component Shows a reply target's author and text or attachment label. -->
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -20,8 +21,28 @@
     onAuthorClick?: (event: MouseEvent) => void;
   } = $props();
 
+  const attachmentLabel = $derived.by(() => {
+    switch (preview.attachmentSummary?.kind) {
+      case 'image':
+        return { text: m('message_preview.attachment_image'), icon: 'icon-[uil--image]' };
+      case 'video':
+        return { text: m('message_preview.attachment_video'), icon: 'icon-[uil--video]' };
+      case 'audio':
+        return { text: m('message_preview.attachment_audio'), icon: 'icon-[uil--volume]' };
+      case 'file':
+        return { text: m('message_preview.attachment_file'), icon: 'icon-[uil--file]' };
+      case 'attachments':
+        return {
+          text: m('message_preview.attachments_count', { count: preview.attachmentSummary.count }),
+          icon: 'icon-[uil--paperclip]'
+        };
+      default:
+        return null;
+    }
+  });
   const jumpText = $derived(
     preview.body ??
+      attachmentLabel?.text ??
       (preview.actor || preview.deleted
         ? m('room.message.meta.reply_preview_fallback')
         : preview.name)
@@ -89,10 +110,13 @@
 
   <button
     type="button"
-    class="min-w-0 flex-1 cursor-pointer truncate text-start opacity-75 hover:text-text"
+    class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 text-start opacity-75 hover:text-text"
     aria-label={jumpLabel}
     title={jumpLabel}
   >
-    {jumpText}
+    {#if attachmentLabel}
+      <span aria-hidden="true" class={['iconify shrink-0', attachmentLabel.icon]}></span>
+    {/if}
+    <span class="min-w-0 truncate">{jumpText}</span>
   </button>
 </div>
