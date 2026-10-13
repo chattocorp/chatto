@@ -16,8 +16,9 @@ find replies that they have not read.
 - Each row shows the room, root message, latest visible reply when one exists,
   last activity, reply count, and a participant preview. The latest message is
   on the first line with the time at its end. The room, the root message, and
-  the reply count are on the second line. The participant preview is one
-  avatar with a second participant in a small badge.
+  the reply count are on the second line. The participant preview shows the
+  author of the latest message as the avatar and one other participant in a
+  small badge.
 - A thread with unread replies shows its first line in bold. Read threads use
   regular weight and the normal text color.
 - A DM row uses participant names and avatars instead of a channel name. It

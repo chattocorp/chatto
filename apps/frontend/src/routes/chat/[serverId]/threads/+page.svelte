@@ -28,6 +28,7 @@
   import { createReadStateAPI } from '@chatto/client/api/readState';
   import DaySeparator from '$lib/components/DaySeparator.svelte';
   import ThreadRow from './ThreadRow.svelte';
+  import { threadRowActors } from './threadRowActors';
   import { createInfiniteQuery, queryClient } from '$lib/query/client';
   import {
     flattenFollowedThreads,
@@ -275,19 +276,17 @@
     return actor ? getLiveDisplayName(actor.id, actor.displayName || actor.login) : '';
   }
 
+  /** Participant preview for a row; see `threadRowActors`. */
   function rowActors(thread: FollowedThread): FollowedThread['participants'] {
-    if (thread.isDirectMessage) {
-      return buildDirectMessagePresentation(
-        thread.directMessageParticipants,
-        serverStore.viewerId,
-        directMessageLabels(),
-        getLiveDisplayName
-      ).visibleParticipants;
-    }
-    const participants = thread.participants.slice(0, 2);
-    if (participants.length > 0) return participants;
-    const actor = thread.latestReply?.actor ?? thread.rootMessage?.actor;
-    return actor ? [actor] : [];
+    const others = thread.isDirectMessage
+      ? buildDirectMessagePresentation(
+          thread.directMessageParticipants,
+          serverStore.viewerId,
+          directMessageLabels(),
+          getLiveDisplayName
+        ).visibleParticipants
+      : thread.participants;
+    return threadRowActors(primaryEvent(thread)?.actor, others, thread.rootMessage?.actor);
   }
 
   function roomLabel(thread: FollowedThread): string {

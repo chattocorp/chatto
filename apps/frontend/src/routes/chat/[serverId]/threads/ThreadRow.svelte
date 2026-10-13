@@ -29,7 +29,10 @@
     onmarkread,
     onunfollow
   }: {
-    /** Participant preview. The first is the avatar; the second is its badge. */
+    /**
+     * Participant preview: the author of `latest` first, shown as the avatar,
+     * then optionally one other participant, shown in its badge.
+     */
     participants: readonly UserAvatarUserView[];
     /** Latest reply, or the root message when the thread has no reply. */
     latest: MessageLine;
@@ -116,17 +119,18 @@
   </ActivityRowText>
 
   {#snippet actions()}
-    <!-- Always present, so every row reserves the same action width and times align. -->
-    <button
-      type="button"
-      class={['icon-action', !canMarkRead && 'invisible']}
-      disabled={pending || !canMarkRead}
-      onclick={onmarkread}
-      title={m('room_list.mark_as_read')}
-      aria-label={m('room_list.mark_as_read')}
-    >
-      <span class="iconify icon-[uil--check] text-base" aria-hidden="true"></span>
-    </button>
+    {#if canMarkRead}
+      <button
+        type="button"
+        class="icon-action"
+        disabled={pending}
+        onclick={onmarkread}
+        title={m('room_list.mark_as_read')}
+        aria-label={m('room_list.mark_as_read')}
+      >
+        <span class="iconify icon-[uil--check] text-base" aria-hidden="true"></span>
+      </button>
+    {/if}
     <button
       type="button"
       class="icon-action"
