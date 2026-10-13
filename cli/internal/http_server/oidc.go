@@ -14,7 +14,7 @@ import (
 	"net/url"
 	"slices"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -44,63 +44,63 @@ func newProviderHTTPClient() *http.Client {
 	return &http.Client{Timeout: providerHTTPTimeout}
 }
 
-// oidcProvider holds the lazily-initialized OIDC provider, oauth2 config, and
-// token verifier. Initialized on first login attempt. Retries on failure.
-// Fields after mu are written once, under mu, before ready becomes true.
+// oidcProvider discovers its issuer on the first sign-in and tries again after
+// a failed attempt.
 type oidcProvider struct {
 	// httpClient makes discovery, token, UserInfo, and key-set requests.
 	httpClient *http.Client
-	// initFlight shares one initialization attempt among concurrent sign-ins.
-	initFlight   singleflight.Group
-	mu           sync.Mutex
+	// initFlight shares one discovery attempt among concurrent sign-ins.
+	initFlight singleflight.Group
+	// discovery is nil until discovery succeeds. It does not change after that.
+	discovery atomic.Pointer[oidcDiscovery]
+}
+
+// oidcDiscovery is the result of one successful discovery. It is not changed.
+type oidcDiscovery struct {
 	provider     *oidc.Provider
 	oauth2Config oauth2.Config
 	verifier     *oidc.IDTokenVerifier
-	ready        bool
 	authMethod   string
 }
 
 const accountInvitationSessionKey = "account_invitation_id"
 
-func (o *oidcProvider) isReady() bool {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-	return o.ready
-}
-
 // init discovers the issuer once. Concurrent callers share one attempt, so an
 // unavailable issuer delays each sign-in by at most one request timeout.
-func (o *oidcProvider) init(issuerURL, clientID, clientSecret, redirectURL string, scopes []string, authMethod string) error {
-	if o.isReady() {
-		return nil
+func (o *oidcProvider) init(issuerURL, clientID, clientSecret, redirectURL string, scopes []string, authMethod string) (*oidcDiscovery, error) {
+	if discovery := o.discovery.Load(); discovery != nil {
+		return discovery, nil
 	}
-	_, err, _ := o.initFlight.Do("", func() (any, error) {
-		return nil, o.discover(issuerURL, clientID, clientSecret, redirectURL, scopes, authMethod)
+	discovery, err, _ := o.initFlight.Do("", func() (any, error) {
+		// An earlier attempt can finish between the check above and this one.
+		if discovery := o.discovery.Load(); discovery != nil {
+			return discovery, nil
+		}
+		return o.discover(issuerURL, clientID, clientSecret, redirectURL, scopes, authMethod)
 	})
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return discovery.(*oidcDiscovery), nil
 }
 
-func (o *oidcProvider) discover(issuerURL, clientID, clientSecret, redirectURL string, scopes []string, authMethod string) error {
-	// An earlier attempt can finish between the ready check and this attempt.
-	if o.isReady() {
-		return nil
-	}
+func (o *oidcProvider) discover(issuerURL, clientID, clientSecret, redirectURL string, scopes []string, authMethod string) (*oidcDiscovery, error) {
 	// The provider and key set keep this context for later requests, so it must
 	// not be a browser request context. The client timeout bounds each request.
 	ctx := oidc.ClientContext(context.Background(), o.httpClient)
 	provider, err := oidc.NewProvider(ctx, issuerURL)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var metadata struct {
 		Methods json.RawMessage `json:"token_endpoint_auth_methods_supported"`
 	}
 	if err := provider.Claims(&metadata); err != nil {
-		return err
+		return nil, err
 	}
 	method, style, err := selectOIDCTokenAuth(authMethod, clientSecret, metadata.Methods)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	oauth2Config := oauth2.Config{
@@ -118,15 +118,16 @@ func (o *oidcProvider) discover(issuerURL, clientID, clientSecret, redirectURL s
 	// timeout matters: go-oidc shares one key-set request among verifications,
 	// so a request that never ends would block every later verification.
 	keyClient := &http.Client{Timeout: o.httpClient.Timeout, Transport: oidcKeyTransport{base: http.DefaultTransport}}
-	verifier := provider.VerifierContext(oidc.ClientContext(ctx, keyClient), &oidc.Config{ClientID: clientID})
-
-	o.mu.Lock()
-	o.provider, o.oauth2Config, o.verifier, o.authMethod = provider, oauth2Config, verifier, method
-	o.ready = true
-	o.mu.Unlock()
+	discovery := &oidcDiscovery{
+		provider:     provider,
+		oauth2Config: oauth2Config,
+		verifier:     provider.VerifierContext(oidc.ClientContext(ctx, keyClient), &oidc.Config{ClientID: clientID}),
+		authMethod:   method,
+	}
+	o.discovery.Store(discovery)
 
 	log.Info("OIDC provider initialized", "issuer", issuerURL)
-	return nil
+	return discovery, nil
 }
 
 // selectOIDCTokenAuth gives explicit configuration precedence over discovery.
@@ -319,7 +320,7 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 		session.Set(providerSessionKey(providerRuntime.config.ID, "code_verifier"), codeVerifier)
 		session.Set(providerSessionKey(providerRuntime.config.ID, "nonce"), nonce)
 		codeChallenge := s256Challenge(codeVerifier)
-		authURL = providerRuntime.oidc.oauth2Config.AuthCodeURL(state,
+		authURL = providerRuntime.oidc.discovery.Load().oauth2Config.AuthCodeURL(state,
 			oauth2.SetAuthURLParam("code_challenge", codeChallenge),
 			oauth2.SetAuthURLParam("code_challenge_method", "S256"),
 			oidc.Nonce(nonce),
@@ -567,7 +568,7 @@ func (r *authProviderRuntime) ensureOIDC(c *gin.Context) bool {
 	if r.oidc == nil {
 		return true
 	}
-	if err := r.oidc.init(r.config.IssuerURL, r.config.ClientID, r.config.ClientSecret, r.callbackURL, providerScopes(r.config), r.config.TokenEndpointAuthMethod); err != nil {
+	if _, err := r.oidc.init(r.config.IssuerURL, r.config.ClientID, r.config.ClientSecret, r.callbackURL, providerScopes(r.config), r.config.TokenEndpointAuthMethod); err != nil {
 		log.Error("OIDC provider not available", "provider_id", r.config.ID)
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
 		return false
@@ -583,6 +584,10 @@ func (r *authProviderRuntime) resolveIdentity(c *gin.Context, session sessions.S
 }
 
 func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessions.Session) (resolvedProviderIdentity, error) {
+	discovery := r.oidc.discovery.Load()
+	if discovery == nil {
+		return resolvedProviderIdentity{}, errors.New("OIDC provider is not initialized")
+	}
 	ctx := oidc.ClientContext(c.Request.Context(), r.httpClient)
 	codeVerifier, _ := session.Get(providerSessionKey(r.config.ID, "code_verifier")).(string)
 	if codeVerifier == "" {
@@ -596,7 +601,7 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 	}
 
 	// Exchange authorization code for tokens
-	token, err := r.oidc.oauth2Config.Exchange(ctx, c.Query("code"),
+	token, err := discovery.oauth2Config.Exchange(ctx, c.Query("code"),
 		oauth2.SetAuthURLParam("code_verifier", codeVerifier),
 	)
 	if err != nil {
@@ -607,7 +612,7 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 			}
 			code = safeOAuthError(responseError.ErrorCode)
 		}
-		log.Warn("OIDC token exchange failed", "provider_id", r.config.ID, "auth_method", r.oidc.authMethod, "http_status", status, "oauth_error", code)
+		log.Warn("OIDC token exchange failed", "provider_id", r.config.ID, "auth_method", discovery.authMethod, "http_status", status, "oauth_error", code)
 		return resolvedProviderIdentity{}, errors.New("token exchange failed")
 	}
 
@@ -617,7 +622,7 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 		return resolvedProviderIdentity{}, fmt.Errorf("token response missing id_token")
 	}
 
-	idToken, err := r.oidc.verifier.Verify(ctx, rawIDToken)
+	idToken, err := discovery.verifier.Verify(ctx, rawIDToken)
 	if err != nil {
 		return resolvedProviderIdentity{}, fmt.Errorf("id token verification failed: %w", err)
 	}
@@ -643,8 +648,8 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 	log.Info("OIDC token verified", "provider_id", r.config.ID, "issuer", idToken.Issuer)
 
 	// UserInfo can supply names even when the ID token already has email.
-	if claims.PreferredUser == "" || claims.Name == "" || (claims.Email == "" && slices.Contains(r.oidc.oauth2Config.Scopes, "email")) {
-		userInfo, err := r.oidc.provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
+	if claims.PreferredUser == "" || claims.Name == "" || (claims.Email == "" && slices.Contains(discovery.oauth2Config.Scopes, "email")) {
+		userInfo, err := discovery.provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
 		if err != nil {
 			log.Warn("OIDC userinfo fallback failed", "provider_id", r.config.ID)
 		} else {
@@ -718,7 +723,7 @@ func (r *authProviderRuntime) resolveGothIdentity(c *gin.Context, session sessio
 // authorizeGothSession exchanges the provider code with the bounded client.
 func (r *authProviderRuntime) authorizeGothSession(ctx context.Context, session goth.Session, params url.Values) error {
 	discordSession, ok := session.(*discord.Session)
-	if !ok || r.discordOAuth2 == nil {
+	if !ok {
 		_, err := session.Authorize(r.goth, params)
 		return err
 	}

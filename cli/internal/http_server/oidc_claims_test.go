@@ -200,7 +200,7 @@ func TestOIDCNonceBindsIDTokenToAuthorization(t *testing.T) {
 			issuer := newNoEmailOIDCIssuer(t, "client-id")
 			defer issuer.Close()
 			issuer.nonce = tc.tokenNonce
-			_, err := resolveTestOIDCWithNonce(t, issuer, "none", "", false, tc.sessionNonce)
+			_, err := resolveTestOIDCRuntime(t, newTestOIDCRuntime(t, issuer, "none", "", false), tc.sessionNonce)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("resolve error = %v, want error %v", err, tc.wantErr)
 			}
@@ -278,7 +278,8 @@ func TestOIDCDiscoveryTimeoutIsSharedByConcurrentSignIns(t *testing.T) {
 	errs := make(chan error, 5)
 	for range 5 {
 		wg.Go(func() {
-			errs <- runtime.oidc.init(issuer.URL(), "client-id", "", runtime.callbackURL, []string{"openid"}, "")
+			_, err := runtime.oidc.init(issuer.URL(), "client-id", "", runtime.callbackURL, []string{"openid"}, "")
+			errs <- err
 		})
 	}
 	wg.Wait()
@@ -295,7 +296,7 @@ func TestOIDCDiscoveryTimeoutIsSharedByConcurrentSignIns(t *testing.T) {
 	if issuer.blockedRequests.Load() != 1 {
 		t.Fatalf("discovery requests = %d, want one shared attempt", issuer.blockedRequests.Load())
 	}
-	if runtime.oidc.isReady() {
+	if runtime.oidc.discovery.Load() != nil {
 		t.Fatal("failed discovery marked the provider ready")
 	}
 }
@@ -365,14 +366,7 @@ func TestDiscordCodeExchangeAuthorizesSession(t *testing.T) {
 
 func resolveTestOIDC(t *testing.T, issuer *noEmailOIDCIssuer, method, secret string, email bool) (resolvedProviderIdentity, error) {
 	t.Helper()
-	return resolveTestOIDCWithNonce(t, issuer, method, secret, email, "test-nonce")
-}
-
-// resolveTestOIDCWithNonce resolves a callback whose browser session stores
-// sessionNonce. An empty value stores no nonce.
-func resolveTestOIDCWithNonce(t *testing.T, issuer *noEmailOIDCIssuer, method, secret string, email bool, sessionNonce string) (resolvedProviderIdentity, error) {
-	t.Helper()
-	return resolveTestOIDCRuntime(t, newTestOIDCRuntime(t, issuer, method, secret, email), sessionNonce)
+	return resolveTestOIDCRuntime(t, newTestOIDCRuntime(t, issuer, method, secret, email), "test-nonce")
 }
 
 func newTestOIDCRuntime(t *testing.T, issuer *noEmailOIDCIssuer, method, secret string, email bool) *authProviderRuntime {
@@ -384,6 +378,8 @@ func newTestOIDCRuntime(t *testing.T, issuer *noEmailOIDCIssuer, method, secret 
 	return runtime
 }
 
+// resolveTestOIDCRuntime resolves a callback whose browser session stores
+// sessionNonce. An empty value stores no nonce.
 func resolveTestOIDCRuntime(t *testing.T, runtime *authProviderRuntime, sessionNonce string) (resolvedProviderIdentity, error) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
