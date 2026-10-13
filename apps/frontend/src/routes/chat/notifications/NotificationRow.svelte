@@ -1,0 +1,124 @@
+<!-- @component One consolidated notification group in the notifications list. Presentational only: the page resolves summaries, targets, and mutations. -->
+<script lang="ts">
+  import type { AccountNameIdentity } from '@chatto/client/timeline/accountName';
+  import { NotificationSignalKind, type NotificationActor } from '@chatto/client/api/notifications';
+  import { ActivityListRow } from '$lib/ui';
+  import ActivityRowText from '$lib/components/ActivityRowText.svelte';
+  import ActivityAvatar from '$lib/components/ActivityAvatar.svelte';
+  import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
+  import { m } from '$lib/i18n/messages';
+
+  let {
+    summary,
+    summaryAccounts,
+    actor,
+    signalKind,
+    reactionEmoji = null,
+    roomName,
+    time,
+    unread,
+    important,
+    interactive = true,
+    pending = false,
+    server = null,
+    onopen,
+    ondismiss
+  }: {
+    /** Localized summary containing account tokens made by `accountNameToken`. */
+    summary: string;
+    summaryAccounts: readonly { name: string; identity?: AccountNameIdentity | null }[];
+    /** Actor shown as the avatar; null when the actor is no longer visible. */
+    actor: NotificationActor | null;
+    signalKind: NotificationSignalKind | undefined;
+    /** Rendered reaction emoji for the cause badge of a reaction group. */
+    reactionEmoji?: string | null;
+    roomName: string | null;
+    /** Formatted relative time of the newest occurrence. */
+    time: string;
+    unread: boolean;
+    /** Unread Important attention; adds the notification tint. */
+    important: boolean;
+    /** False when this client cannot open the notification target. */
+    interactive?: boolean;
+    /** A mutation for this row is in flight. */
+    pending?: boolean;
+    /** Server marker, set only when more than one server is signed in. */
+    server?: { name: string; hostname: string; logoUrl: string | null } | null;
+    onopen: () => void;
+    ondismiss: () => void;
+  } = $props();
+
+  /** Icon that identifies the notification cause on the avatar badge. */
+  function signalIcon(kind: NotificationSignalKind | undefined): string {
+    switch (kind) {
+      case NotificationSignalKind.DIRECT_MESSAGE:
+        return 'icon-[uil--envelope]';
+      case NotificationSignalKind.REPLY:
+      case NotificationSignalKind.FOLLOWED_THREAD:
+        return 'icon-[uil--comments]';
+      case NotificationSignalKind.DIRECT_MENTION:
+      case NotificationSignalKind.ROLE_MENTION:
+      case NotificationSignalKind.HERE:
+      case NotificationSignalKind.ALL:
+        return 'icon-[uil--at]';
+      case NotificationSignalKind.ROOM_MESSAGE:
+      case NotificationSignalKind.FOLLOWED_ROOM:
+        return 'icon-[uil--comment-alt-lines]';
+      default:
+        return 'icon-[uil--bell]';
+    }
+  }
+</script>
+
+{#snippet room()}#{roomName}{/snippet}
+
+<ActivityListRow
+  {interactive}
+  {pending}
+  disabled={pending || !interactive}
+  {important}
+  onclick={onopen}
+  rowAttributes={{
+    'data-testid': 'notification-group',
+    'data-notification-state': unread ? 'unread' : 'read',
+    'data-notification-attention': unread ? (important ? 'important' : 'ambient') : 'none'
+  }}
+>
+  {#snippet leading()}
+    <ActivityAvatar {actor} {server}>
+      {#snippet badge()}
+        {#if reactionEmoji}
+          <span class="leading-none">{reactionEmoji}</span>
+        {:else}
+          <span class="iconify {signalIcon(signalKind)}" aria-hidden="true"></span>
+        {/if}
+      {/snippet}
+    </ActivityAvatar>
+  {/snippet}
+  {#if unread}
+    <span class="sr-only">{m('chat.notifications.unread')}</span>
+  {/if}
+  <ActivityRowText
+    {time}
+    emphasized={unread}
+    wrapOnNarrow
+    subtitle={roomName ? room : undefined}
+    testId="notification-content"
+  >
+    {#snippet title()}
+      <AccountNameTokens text={summary} accounts={summaryAccounts} />
+    {/snippet}
+  </ActivityRowText>
+  {#snippet actions()}
+    <button
+      type="button"
+      class="icon-action icon-action-danger"
+      disabled={pending}
+      aria-label={m('common.delete')}
+      title={m('common.delete')}
+      onclick={ondismiss}
+    >
+      <span class="iconify icon-[uil--trash-alt] text-base" aria-hidden="true"></span>
+    </button>
+  {/snippet}
+</ActivityListRow>

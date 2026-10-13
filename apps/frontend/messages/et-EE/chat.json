@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Märguanded",
       "subtitle": "Siin on, mis on uut",
-      "list_title": "Hiljutine tegevus",
       "clear_read": "Kustuta loetud",
       "empty_title": "Märguandeid pole",
       "empty_body": "Olete kõik kinni!",
@@ -19,14 +18,14 @@
       "unread": "Lugemata",
       "activity": "Uus tegevus",
       "summary": {
-        "direct_message": "{actor} saatis sulle otsesõnumi.",
-        "reaction": "{actor} reageeris emotikoniga „{emoji}” sinu sõnumile kanalis {channel}.",
-        "reaction_group": "{actor} ja teised reageerisid emotikoniga „{emoji}” sinu sõnumile kanalis {channel}.",
-        "reply": "{actor} vastas sinu sõnumile.",
-        "mention": "{actor} mainis sind.",
-        "followed_thread": "{actor} vastas lõimes, mida jälgid.",
-        "new_message": "{actor} postitas uue sõnumi.",
-        "activity": "{actor} saatis sulle teavituse."
+        "direct_message": "{actor} saatis sulle otsesõnumi",
+        "reaction": "{actor} reageeris emotikoniga {emoji} sinu sõnumile",
+        "reaction_group": "{actor} ja teised reageerisid emotikoniga {emoji} sinu sõnumile",
+        "reply": "{actor} vastas sinu sõnumile",
+        "mention": "{actor} mainis sind",
+        "followed_thread": "{actor} vastas lõimes, mida jälgid",
+        "new_message": "{actor} postitas uue sõnumi",
+        "activity": "{actor} saatis sulle teavituse"
       }
     },
     "sign_out": {
@@ -92,7 +91,6 @@
     "threads": {
       "title": "Minu lõimed",
       "subtitle": "Lõimed, mida jälgite",
-      "list_title": "Jälgitavad lõimed",
       "filter_label": "Filtreeri niidid",
       "filter_all": "Kõik",
       "filter_unread": "Lugemata",

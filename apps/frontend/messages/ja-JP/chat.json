@@ -8,7 +8,6 @@
     "notifications": {
       "title": "通知",
       "subtitle": "新機能はこちら",
-      "list_title": "最近のアクティビティ",
       "clear_read": "既読を削除",
       "empty_title": "通知はありません",
       "empty_body": "みんなも追いつきました！",
@@ -19,14 +18,14 @@
       "unread": "未読",
       "activity": "新しいアクティビティ",
       "summary": {
-        "direct_message": "{actor}さんからダイレクトメッセージが届きました。",
-        "reaction": "{actor}さんが{channel}であなたのメッセージに「{emoji}」でリアクションしました。",
-        "reaction_group": "{actor}さんと他のユーザーが{channel}であなたのメッセージに「{emoji}」でリアクションしました。",
-        "reply": "{actor}さんがあなたのメッセージに返信しました。",
-        "mention": "{actor}さんがあなたをメンションしました。",
-        "followed_thread": "{actor}さんがフォロー中のスレッドに返信しました。",
-        "new_message": "{actor}さんが新しいメッセージを投稿しました。",
-        "activity": "{actor}さんから通知が届きました。"
+        "direct_message": "{actor}さんからダイレクトメッセージが届きました",
+        "reaction": "{actor}さんがあなたのメッセージに{emoji}でリアクションしました",
+        "reaction_group": "{actor}さんと他のユーザーがあなたのメッセージに{emoji}でリアクションしました",
+        "reply": "{actor}さんがあなたのメッセージに返信しました",
+        "mention": "{actor}さんがあなたをメンションしました",
+        "followed_thread": "{actor}さんがフォロー中のスレッドに返信しました",
+        "new_message": "{actor}さんが新しいメッセージを投稿しました",
+        "activity": "{actor}さんから通知が届きました"
       }
     },
     "sign_out": {
@@ -92,7 +91,6 @@
     "threads": {
       "title": "私のスレッド",
       "subtitle": "あなたがフォローしているスレッド",
-      "list_title": "フォロー中のスレッド",
       "filter_label": "スレッドのフィルタリング",
       "filter_all": "全て",
       "filter_unread": "未読",

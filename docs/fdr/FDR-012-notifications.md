@@ -23,8 +23,9 @@ targets, unread counts, read state, or deletion semantics.
 - The notification page is one newest-activity-first chronological list that
   contains both Unread and Read activity. Unread reactions are Ambient and use
   a neutral treatment. Every other current cause is Important and uses Chatto's
-  notification orange. Read rows are visually muted while remaining fully
-  interactive. The list does not use a separate unread dot on each row.
+  notification orange. Unread rows show their summary in bold. Read rows use
+  regular weight and remain fully interactive. The list does not use a
+  separate unread dot on each row.
 - Badge activity does not add a row to the notification page. It adds a neutral
   unread dot to the applicable room. A thread-scoped Badge contributes to its
   parent room. An orange notification indicator takes priority when both types
@@ -45,8 +46,14 @@ targets, unread counts, read state, or deletion semantics.
   name. The Important count is a prefix, for example `(3) #general · Chatto HQ`.
 - The list is divided into Today, Yesterday, This Week, and month sections
   using the preferred time zone of the account on each server.
-- Rows use concise, full localized sentences without message previews.
-  Reaction rows show the emoji that were given.
+- Rows use short localized summaries without message previews. Reaction rows
+  show the emoji that were given. The time is at the end of the summary line.
+  The room name is on a second line for every cause. A badge on the actor
+  avatar shows the cause: the first reaction emoji, or an icon for direct
+  messages, mentions, replies, and room messages.
+- When more than one server is signed in, a small server logo before the
+  actor avatar identifies the server of each row. Screen readers announce the
+  server name. The hover text adds the host.
 - Below 768px viewport width, the list fills the page width without a panel
   frame. Summaries and metadata wrap so the activity remains readable. This
   layout applies to both touch and mouse input; wider windows keep the panel.

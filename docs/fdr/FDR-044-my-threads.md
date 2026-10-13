@@ -14,12 +14,18 @@ find replies that they have not read.
 - My Threads lists followed threads in newest-activity-first order and groups
   them by activity date.
 - Each row shows the room, root message, latest visible reply when one exists,
-  last activity, reply count, and a participant preview.
+  last activity, reply count, and a participant preview. The latest message is
+  on the first line with the time at its end. The room, the root message, and
+  the reply count are on the second line. The participant preview is one
+  avatar with a second participant in a small badge.
+- A thread with unread replies shows its first line in bold. Read threads use
+  regular weight and the normal text color.
 - A DM row uses participant names and avatars instead of a channel name. It
   does not show a `#` channel prefix.
 - The Unread filter includes only threads with replies after the user's thread
   read cursor. The server applies this filter before pagination, so the first
   page shows unread threads or confirms that none exist.
+- The search input and the All/Unread filter share one toolbar above the list.
 - When server search is enabled, a search input filters followed threads by
   their root messages and all replies, including replies outside the current
   list preview. Each matching thread appears once in activity order.

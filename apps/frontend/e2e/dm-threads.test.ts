@@ -66,7 +66,7 @@ test.describe('Direct-message threads', () => {
       await notificationsPage.goto();
       await notificationsPage.expectNotificationCount(1, TIMEOUTS.REALTIME_EVENT);
       await expect(
-        notificationsPage.getNotificationBySummary('replied in a thread you follow.')
+        notificationsPage.getNotificationBySummary('replied in a thread you follow')
       ).toBeVisible();
     });
   });

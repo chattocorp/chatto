@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Meldingen",
       "subtitle": "Dit is wat er nieuw is",
-      "list_title": "Recente activiteit",
       "clear_read": "Gelezen wissen",
       "empty_title": "Geen meldingen",
       "empty_body": "Jullie zijn helemaal in beslag genomen!",
@@ -19,14 +18,14 @@
       "unread": "Ongelezen",
       "activity": "Nieuwe activiteit",
       "summary": {
-        "direct_message": "{actor} heeft je een direct bericht gestuurd.",
-        "reaction": "{actor} heeft met ‘{emoji}’ op je bericht in {channel} gereageerd.",
-        "reaction_group": "{actor} en anderen hebben met ‘{emoji}’ op je bericht in {channel} gereageerd.",
-        "reply": "{actor} heeft op je bericht geantwoord.",
-        "mention": "{actor} heeft je genoemd.",
-        "followed_thread": "{actor} heeft geantwoord in een gesprek dat je volgt.",
-        "new_message": "{actor} heeft een nieuw bericht geplaatst.",
-        "activity": "{actor} heeft je een melding gestuurd."
+        "direct_message": "{actor} heeft je een direct bericht gestuurd",
+        "reaction": "{actor} heeft met {emoji} op je bericht gereageerd",
+        "reaction_group": "{actor} en anderen hebben met {emoji} op je bericht gereageerd",
+        "reply": "{actor} heeft op je bericht geantwoord",
+        "mention": "{actor} heeft je genoemd",
+        "followed_thread": "{actor} heeft geantwoord in een gesprek dat je volgt",
+        "new_message": "{actor} heeft een nieuw bericht geplaatst",
+        "activity": "{actor} heeft je een melding gestuurd"
       }
     },
     "sign_out": {
@@ -92,7 +91,6 @@
     "threads": {
       "title": "Mijn discussies",
       "subtitle": "Discussies die je volgt",
-      "list_title": "Gevolgde discussies",
       "filter_label": "Discussies filteren",
       "filter_all": "Allemaal",
       "filter_unread": "Ongelezen",

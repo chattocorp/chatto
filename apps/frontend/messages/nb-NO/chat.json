@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Varsler",
       "subtitle": "Her er hva som er nytt",
-      "list_title": "Nylig aktivitet",
       "clear_read": "Fjern leste",
       "empty_title": "Ingen varsler",
       "empty_body": "Dere er helt fanget!",
@@ -19,14 +18,14 @@
       "unread": "Ulest",
       "activity": "Ny aktivitet",
       "summary": {
-        "direct_message": "{actor} har sendt deg en direktemelding.",
-        "reaction": "{actor} reagerte med «{emoji}» på meldingen din i {channel}.",
-        "reaction_group": "{actor} og andre reagerte med «{emoji}» på meldingen din i {channel}.",
-        "reply": "{actor} svarte på meldingen din.",
-        "mention": "{actor} nevnte deg.",
-        "followed_thread": "{actor} svarte i en tråd du følger.",
-        "new_message": "{actor} la ut en ny melding.",
-        "activity": "{actor} sendte deg et varsel."
+        "direct_message": "{actor} har sendt deg en direktemelding",
+        "reaction": "{actor} reagerte med {emoji} på meldingen din",
+        "reaction_group": "{actor} og andre reagerte med {emoji} på meldingen din",
+        "reply": "{actor} svarte på meldingen din",
+        "mention": "{actor} nevnte deg",
+        "followed_thread": "{actor} svarte i en tråd du følger",
+        "new_message": "{actor} la ut en ny melding",
+        "activity": "{actor} sendte deg et varsel"
       }
     },
     "sign_out": {
@@ -92,7 +91,6 @@
     "threads": {
       "title": "Mine tråder",
       "subtitle": "Tråder du følger",
-      "list_title": "Fulgte tråder",
       "filter_label": "Filtertråder",
       "filter_all": "Alle",
       "filter_unread": "Ulest",

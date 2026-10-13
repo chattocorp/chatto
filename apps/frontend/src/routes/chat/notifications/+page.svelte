@@ -1,13 +1,12 @@
 <script lang="ts">
   import { accountNameToken } from '@chatto/client/timeline/accountName';
   import { serverUi } from '$lib/state/server/serverUi';
-  import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import {
-    ActivityListRow,
     EmptyState,
+    HeaderIconButton,
     LoadingFog,
     PageTitle,
     PaneContent,
@@ -30,8 +29,9 @@
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import { serverRegistry } from '$lib/client';
   import { serverIdToSegment } from '$lib/navigation';
-  import UserAvatarStack from '$lib/components/UserAvatarStack.svelte';
+  import { serverDisplayName } from '@chatto/client/server/state';
   import DaySeparator from '$lib/components/DaySeparator.svelte';
+  import NotificationRow from './NotificationRow.svelte';
   import {
     formatRelativeTime,
     groupByActivityDate,
@@ -44,7 +44,8 @@
 
   type ServerGroup = {
     serverId: string;
-    serverHostname: string;
+    /** Server marker data for multi-server mode. */
+    server: { name: string; hostname: string; logoUrl: string | null };
     timeFormatSettings: TimeFormatSettings;
     group: NotificationGroupItem;
   };
@@ -210,6 +211,13 @@
         } catch {
           hostname = instance.url;
         }
+        const server = {
+          name: stores.serverInfo
+            ? serverDisplayName(stores.serverInfo, instance.name)
+            : (instance.name ?? hostname),
+          hostname,
+          logoUrl: stores.serverInfo?.iconUrl ?? instance.iconUrl ?? null
+        };
         return groupNotificationOccurrences(
           visibleOccurrencesForServer(instance.id, stores.notifications.occurrences).filter(
             (occurrence) =>
@@ -217,7 +225,7 @@
           )
         ).map((group): ServerGroup => ({
           serverId: instance.id,
-          serverHostname: hostname,
+          server,
           timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
           group
         }));
@@ -315,9 +323,8 @@
         )
       ];
       const emoji = emojis.join(' ');
-      const channel = reactionOccurrence.room?.name ?? occurrence.room?.name;
-      if (emoji && channel) {
-        const values = { actor: reactionActor, emoji, channel: `#${channel}` };
+      if (emoji) {
+        const values = { actor: reactionActor, emoji };
         const participants = new Set(
           group.occurrences.map((item) => item.actor?.id ?? 'deleted-user')
         );
@@ -363,12 +370,28 @@
     return actor ? [{ name: actor.displayName, identity: actor }] : [];
   }
 
-  function notificationActors(group: NotificationGroupItem): NotificationActor[] {
-    const actors = new SvelteMap<string, NotificationActor>();
-    for (const occurrence of group.occurrences) {
-      if (occurrence.actor) actors.set(occurrence.actor.id, occurrence.actor);
+  /** The actor shown as the row avatar: the summary's named actor, when still visible. */
+  function primaryActor(group: NotificationGroupItem): NotificationActor | null {
+    const occurrence = group.openTarget;
+    if (occurrence?.signalKind === NotificationSignalKind.REACTION) {
+      return group.occurrences.find((item) => item.actor)?.actor ?? null;
     }
-    return [...actors.values()].slice(0, 3);
+    return occurrence?.actor ?? null;
+  }
+
+  /** Room shown on the metadata line, for every cause. */
+  function groupRoomName(group: NotificationGroupItem): string | null {
+    return (
+      group.openTarget?.room?.name ??
+      group.occurrences.find((item) => item.room)?.room?.name ??
+      null
+    );
+  }
+
+  /** First reaction emoji of a reaction group, for the avatar badge. */
+  function badgeEmoji(group: NotificationGroupItem): string | null {
+    const name = group.occurrences.find((item) => item.reactionEmoji)?.reactionEmoji;
+    return name ? (getEmojiByName(name) ?? name) : null;
   }
 
   async function openGroup(item: ServerGroup) {
@@ -473,24 +496,21 @@
 <PageTitle title={m('chat.notifications.title')} />
 
 <div class="pane-page">
-  <PaneHeader title={m('chat.notifications.title')} subtitle={m('chat.notifications.subtitle')} />
+  <PaneHeader title={m('chat.notifications.title')} subtitle={m('chat.notifications.subtitle')}>
+    {#snippet actions()}
+      {#if readOccurrenceBatches.length > 0 || hasMore || dismissingRead}
+        <HeaderIconButton
+          icon="icon-[uil--trash-alt]"
+          label={m('chat.notifications.clear_read')}
+          disabled={dismissingRead || loadingMore || hasPendingMutation}
+          onclick={dismissRead}
+        />
+      {/if}
+    {/snippet}
+  </PaneHeader>
 
   <PaneContent fillHeight>
-    <Panel title={m('chat.notifications.list_title')} noPadding fillHeight>
-      {#snippet actions()}
-        {#if readOccurrenceBatches.length > 0 || hasMore || dismissingRead}
-          <Button
-            variant="danger-secondary"
-            size="sm"
-            disabled={dismissingRead || loadingMore || hasPendingMutation}
-            label={m('chat.notifications.clear_read')}
-            onclick={dismissRead}
-          >
-            <span class="iconify icon-[uil--trash-alt] text-base" aria-hidden="true"></span>
-            <span>{m('chat.notifications.clear_read')}</span>
-          </Button>
-        {/if}
-      {/snippet}
+    <Panel noPadding fillHeight>
       <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
         <div class="flex min-h-full flex-col">
           {#if pageError && groups.length === 0}
@@ -512,71 +532,32 @@
                     {@const occurrence = item.group.openTarget}
                     {@const targetSupported = occurrence?.targetSupported !== false}
                     {@const isReaction = occurrence?.signalKind === NotificationSignalKind.REACTION}
-                    {@const actors = notificationActors(item.group)}
+                    {@const actor = primaryActor(item.group)}
+                    {@const emoji = isReaction ? badgeEmoji(item.group) : null}
+                    {@const roomName = groupRoomName(item.group)}
                     {@const mutationPending =
                       dismissingRead || pendingMutationKeys.has(mutationKey(item))}
-                    <ActivityListRow
-                      interactive={targetSupported}
-                      pending={mutationPending}
-                      disabled={mutationPending || !targetSupported}
-                      dimmed={!item.group.unread}
+                    <NotificationRow
+                      summary={occurrenceSummary(item.group)}
+                      summaryAccounts={summaryAccounts(item.group)}
+                      {actor}
+                      signalKind={occurrence?.signalKind}
+                      reactionEmoji={emoji}
+                      {roomName}
+                      time={formatRelativeTime(
+                        item.group.latestAt,
+                        item.timeFormatSettings,
+                        activeLocale
+                      )}
+                      unread={item.group.unread}
                       important={item.group.unread &&
                         item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT}
-                      onclick={() => openGroup(item)}
-                      rowAttributes={{
-                        'data-testid': 'notification-group',
-                        'data-notification-state': item.group.unread ? 'unread' : 'read',
-                        'data-notification-attention': item.group.unread
-                          ? item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT
-                            ? 'important'
-                            : 'ambient'
-                          : 'none'
-                      }}
-                    >
-                      {#snippet leading()}
-                        <UserAvatarStack users={actors} testId="notification-actor-stack" />
-                      {/snippet}
-                      {#if item.group.unread}
-                        <span class="sr-only">{m('chat.notifications.unread')}</span>
-                      {/if}
-                      <span class="min-w-0 flex-1" data-testid="notification-content">
-                        <bdi class="block font-medium max-md:wrap-anywhere md:truncate" dir="auto">
-                          <AccountNameTokens
-                            text={occurrenceSummary(item.group)}
-                            accounts={summaryAccounts(item.group)}
-                          />
-                        </bdi>
-                        <span class="block text-sm text-muted max-md:wrap-anywhere md:truncate">
-                          {#if showServerHostname}{item.serverHostname}<span
-                              class="mx-1.5"
-                              aria-hidden="true">·</span
-                            >{/if}
-                          {#if occurrence?.room?.name && !isReaction}
-                            <bdi dir="auto">#{occurrence.room.name}</bdi><span
-                              class="mx-1.5"
-                              aria-hidden="true">·</span
-                            >
-                          {/if}{formatRelativeTime(
-                            item.group.latestAt,
-                            item.timeFormatSettings,
-                            activeLocale
-                          )}
-                        </span>
-                      </span>
-                      {#snippet actions()}
-                        <button
-                          type="button"
-                          class="icon-action icon-action-danger"
-                          disabled={mutationPending}
-                          aria-label={m('common.delete')}
-                          title={m('common.delete')}
-                          onclick={() => dismiss(item)}
-                        >
-                          <span class="iconify icon-[uil--trash-alt] text-base" aria-hidden="true"
-                          ></span>
-                        </button>
-                      {/snippet}
-                    </ActivityListRow>
+                      interactive={targetSupported}
+                      pending={mutationPending}
+                      server={showServerHostname ? item.server : null}
+                      onopen={() => openGroup(item)}
+                      ondismiss={() => dismiss(item)}
+                    />
                   {/each}
                 </section>
               {/each}
