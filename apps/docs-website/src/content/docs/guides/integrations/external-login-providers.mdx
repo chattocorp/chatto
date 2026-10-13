@@ -227,16 +227,21 @@ provider again. Sessions that already exist stay valid until they end. The user
 sees a general message that does not tell which restriction failed.
 
 Some providers send groups only when Chatto requests a groups scope. Add it
-with `scopes`. A `scopes` list replaces the default scopes, so also include
-`email` if you use `allowed_email_domains`:
+with `scopes`. A `scopes` list replaces the default scopes. With
+`allowed_email_domains`, the list must also include the email scope: `email`,
+or `user:email` for GitHub.
 
 ```toml
 scopes = ["openid", "profile", "email", "groups"]
 ```
 
 A domain restriction allows each user who has a verified address at that
-domain. For Google, this includes personal Google accounts that use a company
-address. It does not prove that Google Workspace manages the account.
+domain. The provider verified the address at some time in the past. Thus a
+former employee can keep a verified company address on a GitHub or Discord
+account. For Google, the restriction also allows personal Google accounts that
+use a company address. It does not prove that Google Workspace manages the
+account. For company accounts, prefer an OIDC provider that your organization
+manages, and use `allowed_groups`.
 
 ## Account matching
 
