@@ -138,6 +138,8 @@ export class ServerConnection {
   #accessTokenExpiresAt: number | null;
   readonly #renewable: boolean;
   #renewalTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The renewal timer fired while the page was hidden and must run on return. */
+  #renewalDeferredWhileHidden = false;
   #browserRenewal: Promise<boolean> | null = null;
   #browserRenewalTimer: ReturnType<typeof setTimeout> | null = null;
   #browserRenewAfter: number | null = null;
@@ -432,6 +434,7 @@ export class ServerConnection {
   }
 
   #scheduleRenewal(retryDelayMs?: number): void {
+    this.#renewalDeferredWhileHidden = false;
     if (this.#renewalTimer !== null) {
       clearTimeout(this.#renewalTimer);
       this.#renewalTimer = null;
@@ -442,6 +445,14 @@ export class ServerConnection {
     const delay = retryDelayMs ?? Math.max(0, remaining - refreshLead);
     this.#renewalTimer = setTimeout(() => {
       this.#renewalTimer = null;
+      // A mobile browser can freeze or end a hidden page while the refresh
+      // request is in flight. The server then commits a rotation that the
+      // client never stores. Renew when the page is visible again instead.
+      // Requests and realtime reconnects still renew on demand.
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        this.#renewalDeferredWhileHidden = true;
+        return;
+      }
       void this.#registry.renewServerAuthentication(this.#serverId!, true).catch((error) => {
         console.warn('[auth:%s] background bearer renewal failed', this.#host, error);
         const retryRemaining = this.#accessTokenExpiresAt
@@ -485,6 +496,7 @@ export class ServerConnection {
 
           this.#lastVisibleAt = Date.now();
           this.#maintainBrowserSessionIfDue();
+          if (this.#renewalDeferredWhileHidden) this.#scheduleRenewal();
           if (hiddenDuration >= HIDDEN_RECONNECT_AFTER_MS) {
             this.forceReconnect(`tab visible after ${Math.round(hiddenDuration / 1000)}s hidden`);
           }
