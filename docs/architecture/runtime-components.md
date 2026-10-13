@@ -264,7 +264,7 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   guards, bot-manager policy, call permission aggregation, and stable-input
   checks. A universal channel derives effective membership from join
   authority. Thus, this model owns the check and depends on no domain operation
-  model. `PermissionResolver`
+  model. It uses core only for message hydration. `PermissionResolver`
   reads room, account, and RBAC owners under the same `ServerContentView`
   transaction. Neither component starts a projector or keeps a second
   authorization cache.

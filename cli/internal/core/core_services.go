@@ -124,8 +124,10 @@ func initializeCoreServices(
 		core.roomModel, core.userModel, core.rbacModel, core.permissionResolver,
 		core.EventPublisher, core.contentView, core,
 	)
-	// Notification models only capture core here. The owner models below need
-	// them as constructor arguments, so they are constructed first.
+	// The owner models below take the notification models as constructor
+	// arguments, so they are constructed first. The occurrence model and the
+	// materializer only capture core here. Alert delivery reads the
+	// materializer, so it must follow it.
 	core.notificationBoundaries = newNotificationBoundaryIndex(
 		infra.storage.runtimeStateKV,
 		logger.WithPrefix("core.NotificationBoundaryIndex"),

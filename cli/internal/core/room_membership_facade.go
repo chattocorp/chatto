@@ -6,9 +6,10 @@ import (
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
-// RoomMembershipExists delegates to the owning RoomMembershipModel.
+// RoomMembershipExists delegates to AuthorizationModel, which owns the
+// effective-membership check.
 func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, user_id, room_id string) (bool, error) {
-	return c.roomMemberships.RoomMembershipExists(ctx, kind, user_id, room_id)
+	return c.authorization.RoomMembershipExists(ctx, kind, user_id, room_id)
 }
 
 // JoinRoom delegates to the owning RoomMembershipModel.

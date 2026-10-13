@@ -79,8 +79,8 @@ DM coordination, deletion, and pin writes. Membership and moderation belong to
 belongs to `AuthorizationModel` and `PermissionResolver`. `AuthorizationModel`
 also owns the effective-membership check, because a universal channel derives
 membership from join authority. Thus, authorization depends on no domain
-operation model, and each owner gets all its collaborators when it is
-constructed. Search reads use these owners and the timeline read model.
+operation model; it uses core only for message hydration. Each owner gets
+all its collaborators when it is constructed. Search reads use these owners and the timeline read model.
 
 The following integration boundaries remain deliberate. Their removal is not a
 condition of this decision:

@@ -29,7 +29,8 @@ func (m *RoomMembershipModel) GetRoomMembership(ctx context.Context, kind RoomKi
 
 // RoomMembershipExists checks if a user is an effective member of a room.
 // AuthorizationModel owns this read because universal channels derive
-// membership from join authority.
+// membership from join authority. This method is a convenience for
+// consumers that already depend on the membership model; it adds no logic.
 func (m *RoomMembershipModel) RoomMembershipExists(ctx context.Context, kind RoomKind, user_id, room_id string) (bool, error) {
 	return m.policy.RoomMembershipExists(ctx, kind, user_id, room_id)
 }
