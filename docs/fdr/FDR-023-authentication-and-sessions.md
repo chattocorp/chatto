@@ -1,7 +1,7 @@
 # FDR-023: Authentication & Sessions
 
 **Status:** Active
-**Last reviewed:** 2026-09-24
+**Last reviewed:** 2026-10-13
 
 ## Overview
 
@@ -22,6 +22,14 @@ providers, and a bootstrap path for first-boot operator setup.
   method. Without an override, confidential clients prefer advertised Basic,
   then POST; omitted metadata defaults to Basic. Unsupported advertised methods
   fail before exchange. Each code is submitted once, with PKCE.
+- Each OIDC sign-in sends a new random nonce. Chatto rejects an ID token that
+  does not contain the same nonce. If a sign-in started on a server version
+  without this check, its callback fails once, and the user starts again.
+- Each request to an external provider has a 10-second limit. This includes
+  OIDC discovery, token exchange, UserInfo, and key-set requests, and the
+  requests of OAuth-only providers. Concurrent sign-ins share one discovery
+  attempt. Thus an unavailable provider delays a sign-in by a limited time and
+  does not hold later sign-ins.
 - UserInfo fills missing names or requested email only after its subject matches
   the verified ID token. Populated ID-token claims win, and email verification
   stays paired with its address. An unavailable or malformed UserInfo response

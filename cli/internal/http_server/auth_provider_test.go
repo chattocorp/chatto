@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -143,7 +144,7 @@ func TestFetchGitHubVerifiedPrimaryEmail(t *testing.T) {
 	gothgithub.EmailURL = server.URL
 	t.Cleanup(func() { gothgithub.EmailURL = oldEmailURL })
 
-	email, err := fetchGitHubVerifiedPrimaryEmail(t.Context(), "token-1")
+	email, err := fetchGitHubVerifiedPrimaryEmail(t.Context(), newProviderHTTPClient(), "token-1")
 	if err != nil {
 		t.Fatalf("fetchGitHubVerifiedPrimaryEmail: %v", err)
 	}
@@ -660,6 +661,15 @@ func startNoEmailOIDC(t *testing.T, client *http.Client, baseURL, providerID str
 	if scope := authURL.Query().Get("scope"); scope != "openid profile" {
 		t.Fatalf("provider start scope = %q, want openid profile", scope)
 	}
+	if authURL.Query().Get("nonce") == "" {
+		t.Fatalf("provider start Location = %q, missing nonce", location)
+	}
+	// Visit the issuer as the browser would, so it binds the nonce to the code.
+	authorizeResp, err := client.Get(location)
+	if err != nil {
+		t.Fatalf("GET issuer authorization: %v", err)
+	}
+	authorizeResp.Body.Close()
 	return location
 }
 
@@ -716,6 +726,12 @@ type noEmailOIDCIssuer struct {
 	tokenCheck       func(*http.Request) bool
 	extraKeys        []any
 	omitSigningKey   bool
+	// nonce is the ID-token nonce. Authorization requests replace it.
+	nonce string
+	// blockPath names an endpoint that does not answer before Close.
+	blockPath       string
+	blockedRequests atomic.Int32
+	release         chan struct{}
 }
 
 func newNoEmailOIDCIssuer(t *testing.T, clientID string) *noEmailOIDCIssuer {
@@ -728,12 +744,15 @@ func newNoEmailOIDCIssuer(t *testing.T, clientID string) *noEmailOIDCIssuer {
 		key:      key,
 		clientID: clientID,
 		subject:  "subject",
+		nonce:    "test-nonce",
+		release:  make(chan struct{}),
 	}
 	issuer.server = httptest.NewServer(http.HandlerFunc(issuer.ServeHTTP))
 	return issuer
 }
 
 func (i *noEmailOIDCIssuer) Close() {
+	close(i.release)
 	i.server.Close()
 }
 
@@ -750,6 +769,11 @@ func (i *noEmailOIDCIssuer) UserInfoRequests() int {
 }
 
 func (i *noEmailOIDCIssuer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if i.blockPath != "" && r.URL.Path == i.blockPath {
+		i.blockedRequests.Add(1)
+		<-i.release
+		return
+	}
 	switch r.URL.Path {
 	case "/.well-known/openid-configuration":
 		w.Header().Set("Content-Type", "application/json")
@@ -765,6 +789,7 @@ func (i *noEmailOIDCIssuer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = json.NewEncoder(w).Encode(metadata)
 	case "/authorize":
+		i.nonce = r.URL.Query().Get("nonce")
 		http.Redirect(w, r, r.URL.Query().Get("redirect_uri")+"?state="+url.QueryEscape(r.URL.Query().Get("state"))+"&code=test-code", http.StatusTemporaryRedirect)
 	case "/token":
 		i.tokenRequests++
@@ -834,7 +859,11 @@ func (i *noEmailOIDCIssuer) idToken(_ context.Context) string {
 	if profileClaims == nil {
 		profileClaims = map[string]any{"name": "No Email User", "preferred_username": "no-email-user"}
 	}
-	raw, err := josejwt.Signed(signer).Claims(claims).Claims(profileClaims).Serialize()
+	builder := josejwt.Signed(signer).Claims(claims).Claims(profileClaims)
+	if i.nonce != "" {
+		builder = builder.Claims(map[string]any{"nonce": i.nonce})
+	}
+	raw, err := builder.Serialize()
 	if err != nil {
 		panic(err)
 	}
