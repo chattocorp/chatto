@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -14,6 +15,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/chattocorp/chatto/cli/internal/config"
@@ -27,11 +29,28 @@ import (
 	"github.com/markbates/goth/providers/gitlab"
 	"github.com/markbates/goth/providers/google"
 	"golang.org/x/oauth2"
+	"golang.org/x/sync/singleflight"
 )
+
+// providerHTTPTimeout bounds each outbound request to an external login
+// provider, including the response body. Without it, a provider that accepts a
+// connection and never answers would hold sign-in requests indefinitely.
+const providerHTTPTimeout = 10 * time.Second
+
+// newProviderHTTPClient returns the client for all outbound requests of one
+// provider. It has no fixed transport, so it uses http.DefaultTransport.
+func newProviderHTTPClient() *http.Client {
+	return &http.Client{Timeout: providerHTTPTimeout}
+}
 
 // oidcProvider holds the lazily-initialized OIDC provider, oauth2 config, and
 // token verifier. Initialized on first login attempt. Retries on failure.
+// Fields after mu are written once, under mu, before ready becomes true.
 type oidcProvider struct {
+	// httpClient makes discovery, token, UserInfo, and key-set requests.
+	httpClient *http.Client
+	// initFlight shares one initialization attempt among concurrent sign-ins.
+	initFlight   singleflight.Group
 	mu           sync.Mutex
 	provider     *oidc.Provider
 	oauth2Config oauth2.Config
@@ -42,15 +61,32 @@ type oidcProvider struct {
 
 const accountInvitationSessionKey = "account_invitation_id"
 
-func (o *oidcProvider) init(issuerURL, clientID, clientSecret, redirectURL string, scopes []string, authMethod string) error {
+func (o *oidcProvider) isReady() bool {
 	o.mu.Lock()
 	defer o.mu.Unlock()
+	return o.ready
+}
 
-	if o.ready {
+// init discovers the issuer once. Concurrent callers share one attempt, so an
+// unavailable issuer delays each sign-in by at most one request timeout.
+func (o *oidcProvider) init(issuerURL, clientID, clientSecret, redirectURL string, scopes []string, authMethod string) error {
+	if o.isReady() {
 		return nil
 	}
+	_, err, _ := o.initFlight.Do("", func() (any, error) {
+		return nil, o.discover(issuerURL, clientID, clientSecret, redirectURL, scopes, authMethod)
+	})
+	return err
+}
 
-	ctx := context.Background()
+func (o *oidcProvider) discover(issuerURL, clientID, clientSecret, redirectURL string, scopes []string, authMethod string) error {
+	// An earlier attempt can finish between the ready check and this attempt.
+	if o.isReady() {
+		return nil
+	}
+	// The provider and key set keep this context for later requests, so it must
+	// not be a browser request context. The client timeout bounds each request.
+	ctx := oidc.ClientContext(context.Background(), o.httpClient)
 	provider, err := oidc.NewProvider(ctx, issuerURL)
 	if err != nil {
 		return err
@@ -66,8 +102,7 @@ func (o *oidcProvider) init(issuerURL, clientID, clientSecret, redirectURL strin
 		return err
 	}
 
-	o.provider = provider
-	o.oauth2Config = oauth2.Config{
+	oauth2Config := oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		Endpoint:     provider.Endpoint(),
@@ -76,13 +111,18 @@ func (o *oidcProvider) init(issuerURL, clientID, clientSecret, redirectURL strin
 	}
 	// Set a concrete style before exchange. Auto-detection can consume a code
 	// with the wrong method and then submit the same code a second time.
-	o.oauth2Config.Endpoint.AuthStyle = style
-	o.authMethod = method
+	oauth2Config.Endpoint.AuthStyle = style
 	// Keep the library's signature verification and rotating-key cache while
-	// ignoring unsupported JWK types/curves in mixed provider key sets.
-	keyClient := &http.Client{Transport: oidcKeyTransport{base: http.DefaultTransport}}
-	o.verifier = provider.VerifierContext(oidc.ClientContext(ctx, keyClient), &oidc.Config{ClientID: clientID})
+	// ignoring unsupported JWK types/curves in mixed provider key sets. The
+	// timeout matters: go-oidc shares one key-set request among verifications,
+	// so a request that never ends would block every later verification.
+	keyClient := &http.Client{Timeout: o.httpClient.Timeout, Transport: oidcKeyTransport{base: http.DefaultTransport}}
+	verifier := provider.VerifierContext(oidc.ClientContext(ctx, keyClient), &oidc.Config{ClientID: clientID})
+
+	o.mu.Lock()
+	o.provider, o.oauth2Config, o.verifier, o.authMethod = provider, oauth2Config, verifier, method
 	o.ready = true
+	o.mu.Unlock()
 
 	log.Info("OIDC provider initialized", "issuer", issuerURL)
 	return nil
@@ -269,11 +309,19 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 			c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
 			return
 		}
+		nonce, err := randomString(32)
+		if err != nil {
+			log.Error("Failed to generate OIDC nonce", "provider_id", providerRuntime.config.ID, "error", err)
+			c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
+			return
+		}
 		session.Set(providerSessionKey(providerRuntime.config.ID, "code_verifier"), codeVerifier)
+		session.Set(providerSessionKey(providerRuntime.config.ID, "nonce"), nonce)
 		codeChallenge := s256Challenge(codeVerifier)
 		authURL = providerRuntime.oidc.oauth2Config.AuthCodeURL(state,
 			oauth2.SetAuthURLParam("code_challenge", codeChallenge),
 			oauth2.SetAuthURLParam("code_challenge_method", "S256"),
+			oidc.Nonce(nonce),
 		)
 	} else {
 		gothSession, err := providerRuntime.goth.BeginAuth(state)
@@ -309,8 +357,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	if expectedState == "" || c.Query("state") != expectedState {
 		log.Warn("Provider callback state mismatch", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type)
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "state"))
-		session.Delete(providerSessionKey(providerRuntime.config.ID, "code_verifier"))
-		session.Delete(providerSessionKey(providerRuntime.config.ID, "session"))
+		deleteProviderExchangeState(session, providerRuntime.config.ID)
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "invitation_id"))
 		_ = session.Save()
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
@@ -328,8 +375,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	// Check for error from provider
 	if errCode := c.Query("error"); errCode != "" {
 		log.Warn("Provider returned auth error", "provider_id", providerRuntime.config.ID, "error", safeOAuthError(errCode))
-		session.Delete(providerSessionKey(providerRuntime.config.ID, "code_verifier"))
-		session.Delete(providerSessionKey(providerRuntime.config.ID, "session"))
+		deleteProviderExchangeState(session, providerRuntime.config.ID)
 		_ = session.Save()
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_denied")
 		return
@@ -344,14 +390,12 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	identity, err := providerRuntime.resolveIdentity(c, session)
 	if err != nil {
 		log.Error("Provider callback failed", "provider_id", providerRuntime.config.ID)
-		session.Delete(providerSessionKey(providerRuntime.config.ID, "code_verifier"))
-		session.Delete(providerSessionKey(providerRuntime.config.ID, "session"))
+		deleteProviderExchangeState(session, providerRuntime.config.ID)
 		_ = session.Save()
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
 		return
 	}
-	session.Delete(providerSessionKey(providerRuntime.config.ID, "code_verifier"))
-	session.Delete(providerSessionKey(providerRuntime.config.ID, "session"))
+	deleteProviderExchangeState(session, providerRuntime.config.ID)
 	_ = session.Save()
 
 	// The authenticated link-start handoff already records consent and binds the
@@ -407,8 +451,10 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 type authProviderRuntime struct {
 	config      config.AuthProviderConfig
 	callbackURL string
-	oidc        *oidcProvider
-	goth        goth.Provider
+	// httpClient makes every outbound request to this provider.
+	httpClient *http.Client
+	oidc       *oidcProvider
+	goth       goth.Provider
 }
 
 type resolvedProviderIdentity struct {
@@ -421,19 +467,28 @@ type resolvedProviderIdentity struct {
 }
 
 func newAuthProviderRuntime(providerConfig config.AuthProviderConfig, callbackURL string) (*authProviderRuntime, error) {
-	runtime := &authProviderRuntime{config: providerConfig, callbackURL: callbackURL}
+	httpClient := newProviderHTTPClient()
+	runtime := &authProviderRuntime{config: providerConfig, callbackURL: callbackURL, httpClient: httpClient}
 	scopes := providerScopes(providerConfig)
 	switch providerConfig.Type {
 	case config.AuthProviderTypeOpenIDConnect:
-		runtime.oidc = &oidcProvider{}
+		runtime.oidc = &oidcProvider{httpClient: httpClient}
 	case config.AuthProviderTypeGitHub:
-		runtime.goth = github.New(providerConfig.ClientID, providerConfig.ClientSecret, callbackURL, scopes...)
+		provider := github.New(providerConfig.ClientID, providerConfig.ClientSecret, callbackURL, scopes...)
+		provider.HTTPClient = httpClient
+		runtime.goth = provider
 	case config.AuthProviderTypeGitLab:
-		runtime.goth = gitlab.New(providerConfig.ClientID, providerConfig.ClientSecret, callbackURL, scopes...)
+		provider := gitlab.New(providerConfig.ClientID, providerConfig.ClientSecret, callbackURL, scopes...)
+		provider.HTTPClient = httpClient
+		runtime.goth = provider
 	case config.AuthProviderTypeGoogle:
-		runtime.goth = google.New(providerConfig.ClientID, providerConfig.ClientSecret, callbackURL, scopes...)
+		provider := google.New(providerConfig.ClientID, providerConfig.ClientSecret, callbackURL, scopes...)
+		provider.HTTPClient = httpClient
+		runtime.goth = provider
 	case config.AuthProviderTypeDiscord:
-		runtime.goth = discord.New(providerConfig.ClientID, providerConfig.ClientSecret, callbackURL, scopes...)
+		provider := discord.New(providerConfig.ClientID, providerConfig.ClientSecret, callbackURL, scopes...)
+		provider.HTTPClient = httpClient
+		runtime.goth = provider
 	default:
 		return nil, fmt.Errorf("unsupported auth provider type %q", providerConfig.Type)
 	}
@@ -490,6 +545,14 @@ func providerSessionKey(providerID, name string) string {
 	return "provider_" + providerID + "_" + name
 }
 
+// deleteProviderExchangeState removes the single-use values that bind one
+// provider authorization to its callback. The caller saves the session.
+func deleteProviderExchangeState(session sessions.Session, providerID string) {
+	session.Delete(providerSessionKey(providerID, "code_verifier"))
+	session.Delete(providerSessionKey(providerID, "nonce"))
+	session.Delete(providerSessionKey(providerID, "session"))
+}
+
 func (r *authProviderRuntime) ensureOIDC(c *gin.Context) bool {
 	if r.oidc == nil {
 		return true
@@ -510,10 +573,16 @@ func (r *authProviderRuntime) resolveIdentity(c *gin.Context, session sessions.S
 }
 
 func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessions.Session) (resolvedProviderIdentity, error) {
-	ctx := c.Request.Context()
+	ctx := oidc.ClientContext(c.Request.Context(), r.httpClient)
 	codeVerifier, _ := session.Get(providerSessionKey(r.config.ID, "code_verifier")).(string)
 	if codeVerifier == "" {
 		return resolvedProviderIdentity{}, fmt.Errorf("missing code verifier")
+	}
+	// A sign-in started before the nonce was introduced fails once; the user
+	// starts again.
+	nonce, _ := session.Get(providerSessionKey(r.config.ID, "nonce")).(string)
+	if nonce == "" {
+		return resolvedProviderIdentity{}, fmt.Errorf("missing nonce")
 	}
 
 	// Exchange authorization code for tokens
@@ -541,6 +610,11 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 	idToken, err := r.oidc.verifier.Verify(ctx, rawIDToken)
 	if err != nil {
 		return resolvedProviderIdentity{}, fmt.Errorf("id token verification failed: %w", err)
+	}
+	// go-oidc does not check the nonce. It binds the ID token to this browser's
+	// authorization request, so an ID token issued for another request fails.
+	if subtle.ConstantTimeCompare([]byte(idToken.Nonce), []byte(nonce)) != 1 {
+		return resolvedProviderIdentity{}, errors.New("id token nonce mismatch")
 	}
 
 	// Extract claims from the ID token first
@@ -642,7 +716,7 @@ func (r *authProviderRuntime) verifiedEmailFromGothUser(ctx context.Context, got
 			return normalizeProviderEmail(gothUser.Email)
 		}
 	case config.AuthProviderTypeGitHub:
-		email, err := fetchGitHubVerifiedPrimaryEmail(ctx, gothUser.AccessToken)
+		email, err := fetchGitHubVerifiedPrimaryEmail(ctx, r.httpClient, gothUser.AccessToken)
 		if err == nil {
 			return email
 		}
@@ -676,7 +750,7 @@ func normalizeProviderEmail(email string) string {
 	return email
 }
 
-func fetchGitHubVerifiedPrimaryEmail(ctx context.Context, accessToken string) (string, error) {
+func fetchGitHubVerifiedPrimaryEmail(ctx context.Context, client *http.Client, accessToken string) (string, error) {
 	if strings.TrimSpace(accessToken) == "" {
 		return "", fmt.Errorf("missing github access token")
 	}
@@ -686,7 +760,7 @@ func fetchGitHubVerifiedPrimaryEmail(ctx context.Context, accessToken string) (s
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("Authorization", "Bearer "+accessToken)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
 	}

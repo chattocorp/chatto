@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/chattocorp/chatto/cli/internal/config"
@@ -182,13 +185,152 @@ func TestOIDCUserInfoMergesMissingClaims(t *testing.T) {
 	}
 }
 
+func TestOIDCNonceBindsIDTokenToAuthorization(t *testing.T) {
+	for _, tc := range []struct {
+		name, sessionNonce, tokenNonce string
+		wantErr                        bool
+	}{
+		{"matching", "test-nonce", "test-nonce", false},
+		{"different", "test-nonce", "other-nonce", true},
+		{"absent from ID token", "test-nonce", "", true},
+		{"absent from session", "", "test-nonce", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			issuer := newNoEmailOIDCIssuer(t, "client-id")
+			defer issuer.Close()
+			issuer.nonce = tc.tokenNonce
+			_, err := resolveTestOIDCWithNonce(t, issuer, "none", "", false, tc.sessionNonce)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("resolve error = %v, want error %v", err, tc.wantErr)
+			}
+			// Without a stored nonce, the single-use code stays unused.
+			if tc.sessionNonce == "" && issuer.tokenRequests != 0 {
+				t.Fatal("code exchanged without a stored nonce")
+			}
+		})
+	}
+}
+
+func TestOIDCProviderStartSendsFreshNonce(t *testing.T) {
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	ts, client, _ := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Webserver.URL = "http://chat.example"
+		s.config.Auth.Providers = []config.AuthProviderConfig{{ID: "test", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: issuer.URL(), ClientID: "client-id"}}
+		s.setupOIDCRoutes()
+	})
+	nonces := map[string]bool{}
+	for range 2 {
+		location := startNoEmailOIDC(t, client, ts.URL, "test", nil)
+		authURL, _ := url.Parse(location)
+		nonces[authURL.Query().Get("nonce")] = true
+	}
+	if len(nonces) != 2 {
+		t.Fatal("provider starts reused a nonce")
+	}
+}
+
+// Each provider endpoint in turn accepts the request and never answers.
+// Only an unavailable UserInfo endpoint still permits sign-in.
+func TestOIDCProviderRequestsTimeOut(t *testing.T) {
+	for _, tc := range []struct {
+		path    string
+		wantErr bool
+	}{
+		{"/token", true},
+		{"/keys", true},
+		{"/userinfo", false},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			issuer := newNoEmailOIDCIssuer(t, "client-id")
+			defer issuer.Close()
+			issuer.blockPath = tc.path
+			runtime := newTestOIDCRuntime(t, issuer, "none", "", false)
+			runtime.httpClient.Timeout = 100 * time.Millisecond
+			// The ID token lacks names, so Chatto asks UserInfo.
+			issuer.tokenClaims = map[string]any{}
+			started := time.Now()
+			_, err := resolveTestOIDCRuntime(t, runtime, "test-nonce")
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("resolve error = %v, want error %v", err, tc.wantErr)
+			}
+			if issuer.blockedRequests.Load() != 1 {
+				t.Fatalf("blocked endpoint requests = %d, want 1", issuer.blockedRequests.Load())
+			}
+			if elapsed := time.Since(started); elapsed > 5*time.Second {
+				t.Fatalf("resolve took %s", elapsed)
+			}
+		})
+	}
+}
+
+func TestOIDCDiscoveryTimeoutIsSharedByConcurrentSignIns(t *testing.T) {
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	issuer.blockPath = "/.well-known/openid-configuration"
+	runtime := newTestOIDCRuntime(t, issuer, "none", "", false)
+	runtime.httpClient.Timeout = 200 * time.Millisecond
+	started := time.Now()
+	var wg sync.WaitGroup
+	errs := make(chan error, 5)
+	for range 5 {
+		wg.Go(func() {
+			errs <- runtime.oidc.init(issuer.URL(), "client-id", "", runtime.callbackURL, []string{"openid"}, "")
+		})
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err == nil {
+			t.Fatal("discovery succeeded against an unanswered issuer")
+		}
+	}
+	// Serial attempts would take at least one timeout per waiting sign-in.
+	if elapsed := time.Since(started); elapsed > 3*runtime.httpClient.Timeout {
+		t.Fatalf("concurrent discovery took %s", elapsed)
+	}
+	if runtime.oidc.isReady() {
+		t.Fatal("failed discovery marked the provider ready")
+	}
+}
+
+func TestOAuthProvidersUseBoundedHTTPClient(t *testing.T) {
+	for _, providerType := range []string{config.AuthProviderTypeGitHub, config.AuthProviderTypeGitLab, config.AuthProviderTypeGoogle, config.AuthProviderTypeDiscord} {
+		runtime, err := newAuthProviderRuntime(config.AuthProviderConfig{ID: providerType, Type: providerType, ClientID: "id", ClientSecret: "secret"}, "http://chat.example/callback")
+		if err != nil {
+			t.Fatal(err)
+		}
+		client := runtime.goth.(interface{ Client() *http.Client }).Client()
+		if client != runtime.httpClient || client.Timeout != providerHTTPTimeout {
+			t.Fatalf("%s provider uses an unbounded HTTP client", providerType)
+		}
+	}
+}
+
 func resolveTestOIDC(t *testing.T, issuer *noEmailOIDCIssuer, method, secret string, email bool) (resolvedProviderIdentity, error) {
 	t.Helper()
-	gin.SetMode(gin.TestMode)
+	return resolveTestOIDCWithNonce(t, issuer, method, secret, email, "test-nonce")
+}
+
+// resolveTestOIDCWithNonce resolves a callback whose browser session stores
+// sessionNonce. An empty value stores no nonce.
+func resolveTestOIDCWithNonce(t *testing.T, issuer *noEmailOIDCIssuer, method, secret string, email bool, sessionNonce string) (resolvedProviderIdentity, error) {
+	t.Helper()
+	return resolveTestOIDCRuntime(t, newTestOIDCRuntime(t, issuer, method, secret, email), sessionNonce)
+}
+
+func newTestOIDCRuntime(t *testing.T, issuer *noEmailOIDCIssuer, method, secret string, email bool) *authProviderRuntime {
+	t.Helper()
 	runtime, err := newAuthProviderRuntime(config.AuthProviderConfig{ID: "test", Type: "oidc", IssuerURL: issuer.URL(), ClientID: "client-id", ClientSecret: secret, TokenEndpointAuthMethod: method, RequestEmail: &email}, "http://client.example/callback")
 	if err != nil {
 		t.Fatal(err)
 	}
+	return runtime
+}
+
+func resolveTestOIDCRuntime(t *testing.T, runtime *authProviderRuntime, sessionNonce string) (resolvedProviderIdentity, error) {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
 	var identity resolvedProviderIdentity
 	var resolveErr error
 	router := gin.New()
@@ -200,6 +342,9 @@ func resolveTestOIDC(t *testing.T, issuer *noEmailOIDCIssuer, method, secret str
 		}
 		session := sessions.Default(c)
 		session.Set(providerSessionKey("test", "code_verifier"), "test-verifier")
+		if sessionNonce != "" {
+			session.Set(providerSessionKey("test", "nonce"), sessionNonce)
+		}
 		identity, resolveErr = runtime.resolveOIDCIdentity(c, session)
 	})
 	router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/callback?code=single-use-code", nil))

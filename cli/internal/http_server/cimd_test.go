@@ -271,7 +271,7 @@ func TestPublicOIDCClientUsesTokenRequestParameters(t *testing.T) {
 	issuer := newNoEmailOIDCIssuer(t, "https://chat.example"+cimdPath)
 	defer issuer.Close()
 
-	var provider oidcProvider
+	provider := oidcProvider{httpClient: newProviderHTTPClient()}
 	if err := provider.init(issuer.URL(), "https://chat.example"+cimdPath, "", "https://chat.example/callback", []string{"openid"}, ""); err != nil {
 		t.Fatal(err)
 	}
