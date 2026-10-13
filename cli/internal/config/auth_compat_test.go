@@ -155,6 +155,26 @@ func TestReadConfig_InvalidAuthProvidersEnvField(t *testing.T) {
 	}
 }
 
+func TestReadConfig_EmptyAuthProviderRestrictionEnv(t *testing.T) {
+	for _, field := range []string{"ALLOWED_EMAIL_DOMAINS", "ALLOWED_GROUPS"} {
+		t.Run(field, func(t *testing.T) {
+			t.Chdir(t.TempDir())
+			t.Setenv("CHATTO_WEBSERVER_URL", "https://chat.example")
+			t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+			t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+			t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+			t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
+			t.Setenv("CHATTO_AUTH_PROVIDERS_0_ID", "hub")
+			t.Setenv("CHATTO_AUTH_PROVIDERS_0_"+field, " , ")
+
+			_, err := ReadConfig("")
+			if err == nil || !strings.Contains(err.Error(), "must list at least one value") {
+				t.Fatalf("ReadConfig() error = %v, want empty restriction error", err)
+			}
+		})
+	}
+}
+
 func TestReadConfig_InvalidAuthProvidersEnvIndexGap(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, err := os.Getwd()

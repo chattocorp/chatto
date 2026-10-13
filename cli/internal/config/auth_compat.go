@@ -129,10 +129,18 @@ func applyAuthProviderEnvField(provider *AuthProviderConfig, name, field, value 
 			return fmt.Errorf("%s must be a boolean: %w", name, err)
 		}
 		provider.RequestEmail = &requestEmail
-	case "ALLOWED_EMAIL_DOMAINS":
-		provider.AllowedEmailDomains = splitCommaSeparatedEnv(value)
-	case "ALLOWED_GROUPS":
-		provider.AllowedGroups = splitCommaSeparatedEnv(value)
+	case "ALLOWED_EMAIL_DOMAINS", "ALLOWED_GROUPS":
+		// An empty value, for example from an unset deployment template value,
+		// would remove the restriction and allow every provider user.
+		values := splitCommaSeparatedEnv(value)
+		if len(values) == 0 {
+			return fmt.Errorf("%s must list at least one value", name)
+		}
+		if field == "ALLOWED_GROUPS" {
+			provider.AllowedGroups = values
+		} else {
+			provider.AllowedEmailDomains = values
+		}
 	case "GROUPS_CLAIM":
 		provider.GroupsClaim = value
 	case "AUTO_PROVISION":
