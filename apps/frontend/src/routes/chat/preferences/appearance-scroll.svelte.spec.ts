@@ -13,11 +13,11 @@ async function settle() {
 
 /**
  * Waits until web fonts are loaded and the scroller geometry stays the same
- * for several frames. A late font swap rewraps the text above the swatches,
- * and scroll anchoring then changes `scrollTop` without any user action.
+ * for several frames. A late web-font swap can change the layout, and scroll
+ * anchoring or clamping then changes `scrollTop` without any user action.
  */
 async function settleLayout(scroll: HTMLElement) {
-  const geometry = () => `${document.fonts.status} ${scroll.scrollHeight} ${scroll.scrollTop}`;
+  const geometry = () => `${scroll.scrollHeight} ${scroll.scrollTop}`;
   let stableFrames = 0;
   let previous = geometry();
   for (let frame = 0; frame < 300 && stableFrames < 5; frame++) {
