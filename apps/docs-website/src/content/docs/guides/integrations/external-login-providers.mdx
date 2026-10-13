@@ -215,7 +215,9 @@ allowed_groups = ["chat-users"]
 - `groups_claim`: OIDC only. The claim that contains the groups of the user.
   Chatto reads it from the ID token. If the ID token does not contain it,
   Chatto reads it from UserInfo. The claim can be a string or a list of
-  strings.
+  strings. It must be a top-level claim. Chatto does not read nested claims
+  such as `realm_access.roles` in Keycloak. Configure the provider to send the
+  groups in a top-level claim.
 
 If you set both lists, a user must match both. Chatto denies the sign-in if
 the email address or the groups claim is missing.
