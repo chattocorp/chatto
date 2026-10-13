@@ -10,6 +10,11 @@ text always lines up. Optional parts:
   cause icon, an emoji, or a second participant's avatar.
 - `indicator`: content at the top end corner, for example an `UnreadDot`.
 -->
+<script module lang="ts">
+  /** Server marker data for app-wide lists that combine several servers. */
+  export type ActivityServer = { name: string; hostname: string; logoUrl: string | null };
+</script>
+
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import type { UserAvatarUserView } from '@chatto/client/timeline/users';
@@ -24,7 +29,7 @@ text always lines up. Optional parts:
   }: {
     /** The actor to show; null shows a neutral placeholder. */
     actor: UserAvatarUserView | null;
-    server?: { name: string; hostname: string; logoUrl: string | null } | null;
+    server?: ActivityServer | null;
     badge?: Snippet;
     indicator?: Snippet;
   } = $props();

@@ -32,6 +32,7 @@
   import { serverDisplayName } from '@chatto/client/server/state';
   import DaySeparator from '$lib/components/DaySeparator.svelte';
   import NotificationRow from './NotificationRow.svelte';
+  import type { ActivityServer } from '$lib/components/ActivityAvatar.svelte';
   import {
     formatRelativeTime,
     groupByActivityDate,
@@ -45,7 +46,7 @@
   type ServerGroup = {
     serverId: string;
     /** Server marker data for multi-server mode. */
-    server: { name: string; hostname: string; logoUrl: string | null };
+    server: ActivityServer;
     timeFormatSettings: TimeFormatSettings;
     group: NotificationGroupItem;
   };
@@ -81,7 +82,7 @@
         return stores.isAuthenticated && stores.notifications.error !== null;
       })
   );
-  const showServerHostname = $derived(
+  const showServerMarker = $derived(
     serverRegistry.servers.filter(
       (instance) => serverRegistry.getStore(instance.id).isAuthenticated
     ).length > 1
@@ -212,11 +213,9 @@
           hostname = instance.url;
         }
         const server = {
-          name: stores.serverInfo
-            ? serverDisplayName(stores.serverInfo, instance.name)
-            : (instance.name ?? hostname),
+          name: serverDisplayName(stores.serverInfo, instance.name),
           hostname,
-          logoUrl: stores.serverInfo?.iconUrl ?? instance.iconUrl ?? null
+          logoUrl: stores.serverInfo.iconUrl ?? instance.iconUrl ?? null
         };
         return groupNotificationOccurrences(
           visibleOccurrencesForServer(instance.id, stores.notifications.occurrences).filter(
@@ -319,7 +318,7 @@
           group.occurrences
             .map((item) => item.reactionEmoji)
             .filter((emoji): emoji is string => Boolean(emoji))
-            .map((emoji) => getEmojiByName(emoji) ?? emoji)
+            .map(renderEmoji)
         )
       ];
       const emoji = emojis.join(' ');
@@ -362,11 +361,7 @@
   }
 
   function summaryAccounts(group: NotificationGroupItem) {
-    const occurrence = group.openTarget;
-    const actor =
-      occurrence?.signalKind === NotificationSignalKind.REACTION
-        ? (group.occurrences.find((item) => item.actor)?.actor ?? occurrence.actor)
-        : occurrence?.actor;
+    const actor = primaryActor(group);
     return actor ? [{ name: actor.displayName, identity: actor }] : [];
   }
 
@@ -391,7 +386,12 @@
   /** First reaction emoji of a reaction group, for the avatar badge. */
   function badgeEmoji(group: NotificationGroupItem): string | null {
     const name = group.occurrences.find((item) => item.reactionEmoji)?.reactionEmoji;
-    return name ? (getEmojiByName(name) ?? name) : null;
+    return name ? renderEmoji(name) : null;
+  }
+
+  /** Stored reaction emoji names render as their emoji when known. */
+  function renderEmoji(name: string): string {
+    return getEmojiByName(name) ?? name;
   }
 
   async function openGroup(item: ServerGroup) {
@@ -501,6 +501,7 @@
       {#if readOccurrenceBatches.length > 0 || hasMore || dismissingRead}
         <HeaderIconButton
           icon="icon-[uil--trash-alt]"
+          tone="danger"
           label={m('chat.notifications.clear_read')}
           disabled={dismissingRead || loadingMore || hasPendingMutation}
           onclick={dismissRead}
@@ -554,7 +555,7 @@
                         item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT}
                       interactive={targetSupported}
                       pending={mutationPending}
-                      server={showServerHostname ? item.server : null}
+                      server={showServerMarker ? item.server : null}
                       onopen={() => openGroup(item)}
                       ondismiss={() => dismiss(item)}
                     />

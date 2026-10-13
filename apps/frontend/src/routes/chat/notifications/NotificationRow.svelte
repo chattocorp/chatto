@@ -4,7 +4,7 @@
   import { NotificationSignalKind, type NotificationActor } from '@chatto/client/api/notifications';
   import { ActivityListRow } from '$lib/ui';
   import ActivityRowText from '$lib/components/ActivityRowText.svelte';
-  import ActivityAvatar from '$lib/components/ActivityAvatar.svelte';
+  import ActivityAvatar, { type ActivityServer } from '$lib/components/ActivityAvatar.svelte';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import { m } from '$lib/i18n/messages';
 
@@ -43,7 +43,7 @@
     /** A mutation for this row is in flight. */
     pending?: boolean;
     /** Server marker, set only when more than one server is signed in. */
-    server?: { name: string; hostname: string; logoUrl: string | null } | null;
+    server?: ActivityServer | null;
     onopen: () => void;
     ondismiss: () => void;
   } = $props();
