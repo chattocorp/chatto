@@ -29,13 +29,8 @@ import (
 	"github.com/markbates/goth/providers/gitlab"
 	"github.com/markbates/goth/providers/google"
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/endpoints"
 	"golang.org/x/sync/singleflight"
-)
-
-// Discord OAuth endpoints, as used by Goth's Discord provider.
-const (
-	discordAuthURL  = "https://discord.com/api/oauth2/authorize"
-	discordTokenURL = "https://discord.com/api/oauth2/token"
 )
 
 // providerHTTPTimeout bounds each outbound request to an external login
@@ -502,7 +497,7 @@ func newAuthProviderRuntime(providerConfig config.AuthProviderConfig, callbackUR
 			ClientID:     providerConfig.ClientID,
 			ClientSecret: providerConfig.ClientSecret,
 			RedirectURL:  callbackURL,
-			Endpoint:     oauth2.Endpoint{AuthURL: discordAuthURL, TokenURL: discordTokenURL},
+			Endpoint:     endpoints.Discord,
 		}
 	default:
 		return nil, fmt.Errorf("unsupported auth provider type %q", providerConfig.Type)
