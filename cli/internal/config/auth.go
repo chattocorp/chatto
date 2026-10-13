@@ -1,6 +1,8 @@
 package config
 
 import (
+	"slices"
+	"strings"
 	"time"
 )
 
@@ -41,6 +43,11 @@ type AuthProviderConfig struct {
 	Scopes                  []string `toml:"scopes,commented" comment:"Optional OAuth scopes. Defaults are provider-specific."`
 	RequestEmail            *bool    `toml:"request_email,commented" comment:"Whether to request email scopes for providers that support it. Default: false. Chatto still matches by provider subject without an email claim."`
 	AutoProvision           *bool    `toml:"auto_provision,commented" comment:"Whether unlinked external identities may create a new passwordless account after explicit confirmation. Default: false. The linked provider identity counts as a verified sign-in factor."`
+	// AllowedEmailDomains, AllowedGroups, and GroupsClaim restrict every
+	// sign-in and identity link through this provider. See AdmitsIdentity.
+	AllowedEmailDomains []string `toml:"allowed_email_domains,commented" comment:"Allow only users whose provider-verified email address is at one of these domains, for example ['example.com']. Subdomains do not match. Requires request_email = true. Not supported for gitlab."`
+	AllowedGroups       []string `toml:"allowed_groups,commented" comment:"OIDC only. Allow only users who are in at least one of these groups. Names must match exactly."`
+	GroupsClaim         string   `toml:"groups_claim,commented" comment:"OIDC only. Top-level ID token or UserInfo claim that contains the user's groups. Default: groups."`
 }
 
 // LabelOrDefault returns the configured label, or a provider-specific default.
@@ -66,6 +73,45 @@ func (c AuthProviderConfig) AutoProvisionOrDefault() bool {
 		return false
 	}
 	return *c.AutoProvision
+}
+
+// isPlainEmailDomain accepts the domain part of an email address, such as
+// example.com. It rejects addresses, wildcards, and leading or trailing dots.
+func isPlainEmailDomain(domain string) bool {
+	return strings.Contains(domain, ".") &&
+		!strings.ContainsAny(domain, "@*/ \t") &&
+		!strings.HasPrefix(domain, ".") &&
+		!strings.HasSuffix(domain, ".")
+}
+
+// GroupsClaimOrDefault returns the claim that contains a user's groups.
+func (c AuthProviderConfig) GroupsClaimOrDefault() string {
+	if c.GroupsClaim == "" {
+		return "groups"
+	}
+	return c.GroupsClaim
+}
+
+// AdmitsIdentity reports whether the provider restrictions allow a sign-in.
+// verifiedEmail must be an address that the provider verified, or empty.
+// groups are the values of the groups claim. A user must match each
+// configured list; one matching entry is sufficient within a list. Domains
+// match without case, and group names match exactly.
+func (c AuthProviderConfig) AdmitsIdentity(verifiedEmail string, groups []string) bool {
+	if len(c.AllowedEmailDomains) > 0 {
+		at := strings.LastIndex(verifiedEmail, "@")
+		if at < 0 {
+			return false
+		}
+		domain := verifiedEmail[at+1:]
+		if !slices.ContainsFunc(c.AllowedEmailDomains, func(allowed string) bool { return strings.EqualFold(allowed, domain) }) {
+			return false
+		}
+	}
+	if len(c.AllowedGroups) > 0 && !slices.ContainsFunc(groups, func(group string) bool { return slices.Contains(c.AllowedGroups, group) }) {
+		return false
+	}
+	return true
 }
 
 func IsAllowedAuthProviderType(providerType string) bool {

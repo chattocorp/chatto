@@ -129,6 +129,12 @@ func applyAuthProviderEnvField(provider *AuthProviderConfig, name, field, value 
 			return fmt.Errorf("%s must be a boolean: %w", name, err)
 		}
 		provider.RequestEmail = &requestEmail
+	case "ALLOWED_EMAIL_DOMAINS":
+		provider.AllowedEmailDomains = splitCommaSeparatedEnv(value)
+	case "ALLOWED_GROUPS":
+		provider.AllowedGroups = splitCommaSeparatedEnv(value)
+	case "GROUPS_CLAIM":
+		provider.GroupsClaim = value
 	case "AUTO_PROVISION":
 		autoProvision, err := strconv.ParseBool(value)
 		if err != nil {

@@ -33,6 +33,10 @@ func TestReadConfig_AuthProvidersFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_SCOPES", "openid, profile, groups")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_REQUEST_EMAIL", "false")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION", "true")
+	t.Setenv("CHATTO_AUTH_PROVIDERS_0_ALLOWED_GROUPS", "chat-users, admins")
+	t.Setenv("CHATTO_AUTH_PROVIDERS_0_GROUPS_CLAIM", "roles")
+	t.Setenv("CHATTO_AUTH_PROVIDERS_1_REQUEST_EMAIL", "true")
+	t.Setenv("CHATTO_AUTH_PROVIDERS_1_ALLOWED_EMAIL_DOMAINS", "example.com,example.org")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_1_ID", "github-main")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_1_TYPE", "github")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_1_CLIENT_ID", "github-id")
@@ -59,6 +63,12 @@ func TestReadConfig_AuthProvidersFromEnv(t *testing.T) {
 	}
 	if got := strings.Join(cfg.Auth.Providers[0].Scopes, ","); got != "openid,profile,groups" {
 		t.Fatalf("Auth.Providers[0].Scopes = %q", got)
+	}
+	if got := cfg.Auth.Providers[0]; strings.Join(got.AllowedGroups, ",") != "chat-users,admins" || got.GroupsClaim != "roles" {
+		t.Fatalf("Auth.Providers[0] group restriction = %v from %q", got.AllowedGroups, got.GroupsClaim)
+	}
+	if got := strings.Join(cfg.Auth.Providers[1].AllowedEmailDomains, ","); got != "example.com,example.org" {
+		t.Fatalf("Auth.Providers[1].AllowedEmailDomains = %q", got)
 	}
 	if got := cfg.Auth.Providers[1]; got.ID != "github-main" || got.Type != AuthProviderTypeGitHub || got.ClientID != "github-id" || got.ClientSecret != "github-secret" {
 		t.Fatalf("Auth.Providers[1] = %+v", got)

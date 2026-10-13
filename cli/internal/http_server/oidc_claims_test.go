@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -361,6 +362,57 @@ func TestDiscordCodeExchangeAuthorizesSession(t *testing.T) {
 	}
 	if discordSession := session.(*discord.Session); discordSession.AccessToken != "access" || discordSession.RefreshToken != "refresh" || discordSession.ExpiresAt.IsZero() {
 		t.Fatalf("session not authorized: %+v", discordSession)
+	}
+}
+
+func TestOIDCGroupsClaim(t *testing.T) {
+	names := map[string]any{"name": "Full Name", "preferred_username": "handle"}
+	withNames := func(extra map[string]any) map[string]any {
+		claims := map[string]any{}
+		for key, value := range names {
+			claims[key] = value
+		}
+		for key, value := range extra {
+			claims[key] = value
+		}
+		return claims
+	}
+	for _, tc := range []struct {
+		name         string
+		claim        string
+		id, info     map[string]any
+		want         []string
+		userInfoUsed bool
+	}{
+		{"list in ID token", "", withNames(map[string]any{"groups": []any{"chat-users", 7, "admins"}}), nil, []string{"chat-users", "admins"}, false},
+		{"string in ID token", "", withNames(map[string]any{"groups": "chat-users"}), nil, []string{"chat-users"}, false},
+		{"custom claim", "roles", withNames(map[string]any{"groups": []any{"ignored"}, "roles": []any{"chat-users"}}), nil, []string{"chat-users"}, false},
+		{"ID token wins", "", withNames(map[string]any{"groups": []any{"from-token"}}), map[string]any{"groups": []any{"from-userinfo"}}, []string{"from-token"}, false},
+		{"UserInfo fallback", "", withNames(nil), map[string]any{"groups": []any{"chat-users"}}, []string{"chat-users"}, true},
+		{"other shape", "", withNames(map[string]any{"groups": 7}), map[string]any{"groups": map[string]any{"a": 1}}, nil, true},
+		{"absent", "", withNames(nil), map[string]any{}, nil, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			issuer := newNoEmailOIDCIssuer(t, "client-id")
+			defer issuer.Close()
+			issuer.tokenClaims = tc.id
+			if tc.info != nil {
+				tc.info["sub"] = issuer.subject
+				issuer.userInfoClaims = tc.info
+			}
+			runtime := newTestOIDCRuntime(t, issuer, "none", "", false)
+			runtime.config.AllowedGroups, runtime.config.GroupsClaim = []string{"chat-users"}, tc.claim
+			identity, err := resolveTestOIDCRuntime(t, runtime, "test-nonce")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(identity.groups, tc.want) {
+				t.Fatalf("groups = %v, want %v", identity.groups, tc.want)
+			}
+			if (issuer.UserInfoRequests() == 1) != tc.userInfoUsed {
+				t.Fatalf("UserInfo requests = %d", issuer.UserInfoRequests())
+			}
+		})
 	}
 }
 

@@ -524,6 +524,72 @@ func TestOIDCProviderWithoutEmailIgnoresUserInfoFailure(t *testing.T) {
 	}
 }
 
+// Restrictions apply to new identities, to linked accounts at each sign-in,
+// and to identity links.
+func TestProviderRestrictionsApplyToEverySignInAndLink(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Webserver.URL = "http://chat.example"
+		s.config.Auth.Providers = []config.AuthProviderConfig{{
+			ID: "restricted", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: issuer.URL(),
+			ClientID: "client-id", ClientSecret: "client-secret", AutoProvision: new(true),
+			AllowedGroups: []string{"chat-users"},
+		}}
+		s.setupOIDCRoutes()
+	})
+	inGroup := func(group string) {
+		issuer.tokenClaims = map[string]any{"name": "Restricted User", "preferred_username": "restricted", "groups": []any{group}}
+	}
+	const denied = "/login?error=provider_access_denied"
+
+	issuer.SetSubject("restricted-new")
+	inGroup("other")
+	if location := completeNoEmailOIDCLogin(t, client, ts.URL, "restricted", "/chat"); location != denied {
+		t.Fatalf("new identity outside group Location = %q, want %q", location, denied)
+	}
+	inGroup("chat-users")
+	if location := completeNoEmailOIDCLogin(t, client, ts.URL, "restricted", "/chat"); !strings.HasPrefix(location, "/sso/confirm?") {
+		t.Fatalf("new identity in group Location = %q, want account confirmation", location)
+	}
+
+	linked, err := chattoCore.CreateUser(t.Context(), core.SystemActorID, "restricted-linked", "Restricted Linked", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := chattoCore.LinkExternalIdentity(t.Context(), "restricted", config.AuthProviderTypeOpenIDConnect, issuer.URL(), "restricted-linked", linked.Id); err != nil {
+		t.Fatal(err)
+	}
+	issuer.SetSubject("restricted-linked")
+	inGroup("other")
+	if location := completeNoEmailOIDCLogin(t, client, ts.URL, "restricted", "/chat"); location != denied {
+		t.Fatalf("linked account outside group Location = %q, want %q", location, denied)
+	}
+	inGroup("chat-users")
+	if location := completeNoEmailOIDCLogin(t, client, ts.URL, "restricted", "/chat"); location != "/chat" {
+		t.Fatalf("linked account in group Location = %q, want /chat", location)
+	}
+
+	target, err := chattoCore.CreateUser(t.Context(), core.SystemActorID, "restricted-target", "Restricted Target", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	linkStart, err := chattoCore.CreatePendingExternalIdentityLinkStart(t.Context(), "restricted", "/chat/-/settings/account", target.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	issuer.SetSubject("restricted-link")
+	inGroup("other")
+	linkLocation := startNoEmailOIDC(t, client, ts.URL, "restricted", url.Values{"intent": {"link"}, "link_start": {linkStart}})
+	if location := finishNoEmailOIDCCallback(t, client, ts.URL, "restricted", authStateFromLocation(t, linkLocation)); location != "/chat/-/settings/account?error=provider_access_denied" {
+		t.Fatalf("link outside group Location = %q, want account settings error", location)
+	}
+	if identities, err := chattoCore.ExternalIdentitiesForUser(t.Context(), target.Id); err != nil || len(identities) != 0 {
+		t.Fatalf("ExternalIdentitiesForUser = %v, %v; want no link", identities, err)
+	}
+}
+
 func TestLegacyOIDCRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
