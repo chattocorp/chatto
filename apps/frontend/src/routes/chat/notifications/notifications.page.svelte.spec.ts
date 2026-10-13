@@ -536,7 +536,6 @@ describe('notifications page', () => {
       expect(container.querySelector('[role="alert"]')).not.toBeNull();
     });
     expect(container.textContent).toContain('Network error. Please try again.');
-    expect(serverHosts(container)).toContain('chat.example.test');
     const serverMarker = q(container, '[data-testid="activity-server"]') as HTMLElement;
     expect(serverMarker.title).toBe('Example Chat (chat.example.test)');
   });
@@ -1021,8 +1020,8 @@ describe('notifications page', () => {
       expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(0);
       expect(getToasts().at(-1)?.message).toBe('Network error. Please try again.');
     });
-    expect(serverHosts(container)).not.toContain('remote.example.test');
-    expect(serverHosts(container)).not.toContain('chat.example.test');
+    expect(container.textContent).not.toContain('remote.example.test');
+    expect(container.textContent).not.toContain('chat.example.test');
     expect(mocks.store.notifications.deleteOccurrences).toHaveBeenCalledTimes(1);
     expect(remoteStore.notifications.deleteOccurrences).toHaveBeenCalledTimes(1);
   });
@@ -1057,8 +1056,8 @@ describe('notifications page', () => {
       expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(0);
       expect(getToasts().at(-1)?.message).toBe('Network error. Please try again.');
     });
-    expect(serverHosts(container)).not.toContain('chat.example.test');
-    expect(serverHosts(container)).not.toContain('remote.example.test');
+    expect(container.textContent).not.toContain('chat.example.test');
+    expect(container.textContent).not.toContain('remote.example.test');
   });
 
   it('loads the next page from each server independently', async () => {
