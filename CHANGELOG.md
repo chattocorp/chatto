@@ -3,6 +3,15 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.15](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.14...v0.5.0-beta.15) (2026-10-13)
+
+
+### Bug Fixes
+
+* **auth:** recover bearer sessions after lost refresh responses ([#2941](https://github.com/chattocorp/chatto/issues/2941)) ([93e76ee](https://github.com/chattocorp/chatto/commit/93e76ee346b6d80ad06dab2c43338230db9dad29))
+* **core:** resolve flaky cross-replica identity and call-key cleanup tests ([#2944](https://github.com/chattocorp/chatto/issues/2944)) ([2608468](https://github.com/chattocorp/chatto/commit/26084686309341e13290bdf8809f2d55acbd86e8))
+* **frontend:** remove reconnect dots from loaded rooms ([#2945](https://github.com/chattocorp/chatto/issues/2945)) ([3575db6](https://github.com/chattocorp/chatto/commit/3575db666798dbc4be605e42b4dfa07e5f16600a))
+
 ## [0.5.0-beta.14](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.13...v0.5.0-beta.14) (2026-10-12)
 
 
