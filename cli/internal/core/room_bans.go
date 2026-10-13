@@ -38,7 +38,7 @@ func (m *RoomMembershipModel) banMember(ctx context.Context, actorID string, kin
 	if _, err := m.rooms.GetRoom(ctx, kind, roomID); err != nil {
 		return nil, err
 	}
-	if _, err := m.accounts.GetUser(ctx, targetUserID); err != nil {
+	if _, err := m.users.GetUser(ctx, targetUserID); err != nil {
 		return nil, err
 	}
 
@@ -126,7 +126,7 @@ func (m *RoomMembershipModel) removeUserWithoutSuspension(ctx context.Context, a
 	if room.GetUniversal() {
 		return invalidArgument("universal room removal requires a suspension")
 	}
-	if _, err := m.accounts.GetUser(ctx, targetUserID); err != nil {
+	if _, err := m.users.GetUser(ctx, targetUserID); err != nil {
 		return err
 	}
 

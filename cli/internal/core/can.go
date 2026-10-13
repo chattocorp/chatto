@@ -459,7 +459,7 @@ func (a *AuthorizationModel) CanReplyInThread(ctx context.Context, userID string
 		if room.Archived || EffectiveRoomThreadingMode(room) == evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED {
 			return false, nil
 		}
-		member, err := a.memberships.RoomMembershipExists(readCtx, kind, userID, roomID)
+		member, err := a.roomMembershipExists(readCtx, kind, userID, roomID)
 		if err != nil || !member {
 			return false, err
 		}

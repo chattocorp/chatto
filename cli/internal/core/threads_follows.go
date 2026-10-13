@@ -109,6 +109,13 @@ func (s *ThreadFollowModel) followThread(ctx context.Context, kind RoomKind, use
 	return err
 }
 
+// FollowThreadWithSource records a follow with an explicit source for trusted
+// internal callers, such as the automatic follow when a user posts a reply. It
+// replaces any earlier follow state, including an explicit unfollow, and is a
+// no-op when the user already follows the thread. Unlike a manual follow, it
+// does not send a Badge hint to the user's clients. It does not check
+// membership or read access. Use FollowThreadIfNeverSet to keep an earlier
+// user choice.
 func (s *ThreadFollowModel) FollowThreadWithSource(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string, source evtv1.ThreadFollowSource) error {
 	_, err := s.appendThreadFollowStateEvent(ctx, kind, userID, roomID, threadRootEventID, ThreadFollowStateFollowing, source, false)
 	return err
@@ -132,7 +139,7 @@ func (s *ThreadFollowModel) hintBadgeThread(ctx context.Context, userID, roomID,
 		s.logger.Warn("Failed to wait for notification decisions after a follow change", "error", err)
 		return
 	}
-	s.effects.NotifyNotificationUnreadStateChanged(ctx, userID, userID, roomID, threadRootEventID)
+	s.integration.NotifyNotificationUnreadStateChanged(ctx, userID, userID, roomID, threadRootEventID)
 }
 
 // FollowThreadIfNeverSet follows a thread only when the user has no prior
@@ -288,7 +295,7 @@ func (s *ThreadFollowModel) listFollowedThreadsInSpace(ctx context.Context, user
 			continue
 		}
 
-		isMember, err := s.memberships.RoomMembershipExists(ctx, kind, userID, roomID)
+		isMember, err := s.policy.RoomMembershipExists(ctx, kind, userID, roomID)
 		if err != nil {
 			s.logger.Warn("Failed to check room membership for followed thread", "error", err, "room_id", roomID, "thread_root_event_id", threadRootEventID)
 			continue
@@ -305,37 +312,20 @@ func (s *ThreadFollowModel) listFollowedThreadsInSpace(ctx context.Context, user
 			continue
 		}
 
-		// Get thread metadata (reply count, last reply, participants)
-		metadata, err := s.timeline.GetThreadMetadata(ctx, kind, roomID, threadRootEventID)
-		if err != nil {
-			s.logger.Warn("Failed to get thread metadata for followed thread", "error", err, "room_id", roomID, "thread_root_event_id", threadRootEventID)
-			continue
-		}
-		activityAt := metadata.LastReplyAt
-		if activityAt == nil {
-			root, err := s.timeline.GetRoomEventByEventID(ctx, kind, roomID, threadRootEventID)
+		metadata := s.rooms.threadMetadata(threadRootEventID)
+		var rootCreatedAt *time.Time
+		if metadata.LastReplyAt == nil {
+			root, err := s.integration.GetRoomEventByEventID(ctx, kind, roomID, threadRootEventID)
 			if err != nil {
 				s.logger.Warn("Failed to get root activity for followed thread", "error", err, "room_id", roomID, "thread_root_event_id", threadRootEventID)
 				continue
 			}
 			if root != nil && root.GetCreatedAt() != nil {
 				at := root.GetCreatedAt().AsTime()
-				activityAt = &at
+				rootCreatedAt = &at
 			}
 		}
-
-		result = append(result, &FollowedThread{
-			SpaceID:            LegacySpaceIDForRoomKind(kind),
-			RoomID:             roomID,
-			ThreadRootEventID:  threadRootEventID,
-			Exists:             metadata.Exists,
-			ReplyCount:         metadata.ReplyCount,
-			LastReplyAt:        metadata.LastReplyAt,
-			ActivityAt:         activityAt,
-			LatestReplyEventID: metadata.LatestReplyEventID,
-			ParticipantIDs:     metadata.ParticipantIDs,
-			ParticipantCount:   metadata.ParticipantCount,
-		})
+		result = append(result, newFollowedThread(kind, roomID, threadRootEventID, metadata, rootCreatedAt))
 	}
 
 	return result, nil

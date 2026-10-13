@@ -33,13 +33,6 @@ type LastReadEventIDAdvance struct {
 	Updated         bool
 }
 
-// NotifyRoomMarkedAsRead publishes a live event to notify the user that they marked
-// a room as read. This enables real-time updates to space unread indicators.
-// This is best-effort - failures are logged but don't affect the mark-as-read operation.
-func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID string, kind RoomKind, roomID string) {
-	c.readStateModel.NotifyRoomMarkedAsRead(ctx, userID, kind, roomID)
-}
-
 // GetRoomLastEvent returns the last root message's event ID and proto-level
 // `created_at` timestamp for a room. Excludes thread replies — only root
 // messages affect room-level unread tracking. exists is false if the room
@@ -52,55 +45,10 @@ func (c *ChattoCore) GetRoomLastEvent(ctx context.Context, kind RoomKind, roomID
 	return c.readStateModel.GetRoomLastEvent(ctx, kind, roomID)
 }
 
-// GetRoomLastReadableEvent returns the most recent room-visible message that
-// userID can currently read. Channel echoes use the interaction relationship
-// of their canonical thread root.
-func (c *ChattoCore) GetRoomLastReadableEvent(ctx context.Context, kind RoomKind, userID, roomID string) (eventID string, ts time.Time, exists bool, err error) {
-	return c.readStateModel.GetRoomLastReadableEvent(ctx, kind, userID, roomID)
-}
-
 // roomReadEventKey returns the RUNTIME_STATE key for tracking the user's
 // last-read root event ID in a room.
 func roomReadEventKey(userID, roomID string) string {
 	return fmt.Sprintf("read.room.%s.%s", userID, roomID)
-}
-
-// GetLastReadEventID returns the user's last-read root-message event ID for a
-// room. If no marker exists yet, it lazy-initializes the marker to the room's
-// current last root event ("caught up at deploy time"); if the room has no
-// messages, it returns "".
-func (c *ChattoCore) GetLastReadEventID(ctx context.Context, kind RoomKind, userID, roomID string) (string, error) {
-	return c.readStateModel.GetLastReadEventID(ctx, kind, userID, roomID)
-}
-
-// PeekLastReadEventID returns the stored read marker for a room without lazy
-// initialization. exists is false when no marker has been written yet.
-func (c *ChattoCore) PeekLastReadEventID(ctx context.Context, userID, roomID string) (eventID string, exists bool, err error) {
-	return c.readStateModel.PeekLastReadEventID(ctx, userID, roomID)
-}
-
-// SetLastReadEventID stores the user's last-read root-message event ID.
-//
-// Callers MUST pass either a root message event ID or the empty string. Thread
-// reply event IDs are tracked separately by the thread read marker; using one
-// here would make room-level unread comparisons point at the wrong timeline.
-func (c *ChattoCore) SetLastReadEventID(ctx context.Context, kind RoomKind, userID, roomID, eventID string) error {
-	return c.readStateModel.SetLastReadEventID(ctx, kind, userID, roomID, eventID)
-}
-
-// initializeLastReadEventID creates the member's initial room marker without
-// replacing a marker already written by another replica or a concurrent
-// user-facing read operation.
-func (c *ChattoCore) initializeLastReadEventID(ctx context.Context, userID, roomID, eventID string) error {
-	return c.readStateModel.initializeLastReadEventID(ctx, userID, roomID, eventID)
-}
-
-// AdvanceLastReadEventID stores eventID as the user's room read marker only if
-// it is newer than the marker already in RUNTIME_STATE. The compare-and-write
-// loop uses KV revisions so concurrent replicas cannot move the marker
-// backwards after seeing stale state.
-func (c *ChattoCore) AdvanceLastReadEventID(ctx context.Context, kind RoomKind, userID, roomID, eventID string) (*LastReadEventIDAdvance, error) {
-	return c.readStateModel.AdvanceLastReadEventID(ctx, kind, userID, roomID, eventID)
 }
 
 func shouldAdvanceReadMarker(currentEventID string, currentTime time.Time, nextEventID string, nextTime time.Time) bool {
@@ -114,17 +62,6 @@ func shouldAdvanceReadMarker(currentEventID string, currentTime time.Time, nextE
 		return true
 	}
 	return nextTime.After(currentTime)
-}
-
-// GetEventTimestamp returns the proto-level `created_at` timestamp for a
-// root message event ID in a room. Returns zero time if the event ID is
-// empty or the message doesn't exist (e.g. deleted or never published).
-//
-// Reads from the proto payload rather than JetStream's stored time so the
-// value stays correct after #354 phase 4d (which re-publishes with fresh
-// JetStream timestamps but preserves the proto payload).
-func (c *ChattoCore) GetEventTimestamp(ctx context.Context, kind RoomKind, roomID, eventID string) (time.Time, error) {
-	return c.readStateModel.GetEventTimestamp(ctx, kind, roomID, eventID)
 }
 
 // HasUnread reports whether a room has active Badge attention for a user.

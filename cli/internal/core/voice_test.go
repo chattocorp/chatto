@@ -1518,7 +1518,7 @@ func TestCallState_RemoveMemberRemovesOnlyTargetFromCall(t *testing.T) {
 	recorder := &recordingLiveKitParticipantClient{}
 	core.callModel.livekit = recorder
 
-	removed, err := core.RemoveMember(ctx, manager.Id, KindChannel, room.Id, target.Id)
+	removed, err := core.roomMemberships.RemoveMember(ctx, manager.Id, KindChannel, room.Id, target.Id)
 	if err != nil {
 		t.Fatalf("RemoveMember: %v", err)
 	}
@@ -1566,7 +1566,7 @@ func TestCallState_BanMemberRemovesTargetFromCall(t *testing.T) {
 	recorder := &recordingLiveKitParticipantClient{}
 	core.callModel.livekit = recorder
 
-	if _, err := core.BanMember(ctx, moderator.Id, KindChannel, room.Id, target.Id, "moderation test", nil); err != nil {
+	if _, err := core.roomMemberships.BanMember(ctx, moderator.Id, KindChannel, room.Id, target.Id, "moderation test", nil); err != nil {
 		t.Fatalf("BanMember: %v", err)
 	}
 

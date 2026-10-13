@@ -31,7 +31,7 @@ func TestOperatorRoomMemberAdd(t *testing.T) {
 	if added.GetRoomId() != room.GetId() || added.GetMember().GetUser().GetId() != user.GetId() {
 		t.Fatalf("add result = %+v", &added)
 	}
-	if _, err := env.core.GetRoomMembership(env.ctx, core.KindChannel, user.GetId(), room.GetId()); err != nil {
+	if _, err := env.core.RoomMemberships().GetRoomMembership(env.ctx, core.KindChannel, user.GetId(), room.GetId()); err != nil {
 		t.Fatalf("GetRoomMembership: %v", err)
 	}
 
@@ -95,7 +95,7 @@ func TestOperatorRoomMemberAddRejectsInvalidTargets(t *testing.T) {
 	if _, err := env.core.AddMember(env.ctx, core.SystemActorID, core.KindChannel, banned.GetId(), user.GetId()); err != nil {
 		t.Fatalf("AddMember before ban: %v", err)
 	}
-	if _, err := env.core.BanMember(env.ctx, core.SystemActorID, core.KindChannel, banned.GetId(), user.GetId(), "test ban", nil); err != nil {
+	if _, err := env.core.RoomMemberships().BanMember(env.ctx, core.SystemActorID, core.KindChannel, banned.GetId(), user.GetId(), "test ban", nil); err != nil {
 		t.Fatalf("BanMember: %v", err)
 	}
 

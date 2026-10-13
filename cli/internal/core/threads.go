@@ -37,6 +37,28 @@ type FollowedThread struct {
 	HasUnreadReplies   bool
 }
 
+// newFollowedThread builds a thread row from projected metadata. ActivityAt is
+// the last reply time. For a thread without replies, it is rootCreatedAt,
+// which can be nil when the root time is unknown.
+func newFollowedThread(kind RoomKind, roomID, rootEventID string, metadata *ThreadMetadata, rootCreatedAt *time.Time) *FollowedThread {
+	activityAt := metadata.LastReplyAt
+	if activityAt == nil {
+		activityAt = rootCreatedAt
+	}
+	return &FollowedThread{
+		SpaceID:            LegacySpaceIDForRoomKind(kind),
+		RoomID:             roomID,
+		ThreadRootEventID:  rootEventID,
+		Exists:             metadata.Exists,
+		ReplyCount:         metadata.ReplyCount,
+		LastReplyAt:        metadata.LastReplyAt,
+		ActivityAt:         activityAt,
+		LatestReplyEventID: metadata.LatestReplyEventID,
+		ParticipantIDs:     metadata.ParticipantIDs,
+		ParticipantCount:   metadata.ParticipantCount,
+	}
+}
+
 // FollowedThreadsPage is a paginated set of followed threads with the total
 // count before pagination.
 type FollowedThreadsPage struct {
@@ -263,9 +285,11 @@ func setRoomEventsResultCursors(result *RoomEventsResult) {
 }
 
 // GetThreadMetadata returns existence, reply count, last reply timestamp, and
-// participants for a thread root message. Derived from ThreadProjection.
-func (c *ChattoCore) GetThreadMetadata(ctx context.Context, kind RoomKind, roomID string, rootEventId string) (*ThreadMetadata, error) {
-	return c.roomModel.threadMetadata(rootEventId), nil
+// participants for a thread root message. Derived from ThreadProjection. Root
+// event IDs are globally unique, so no room scope is needed. The result is
+// never nil; Exists is false for an unknown root.
+func (c *ChattoCore) GetThreadMetadata(rootEventID string) *ThreadMetadata {
+	return c.roomModel.threadMetadata(rootEventID)
 }
 
 // threadLastOpenedKey returns the RUNTIME_STATE key for tracking the latest
@@ -282,26 +306,6 @@ func threadLastOpenedKey(userID, roomID, threadRootEventID string) string {
 // are decoded here so existing read state survives the rollout.
 func (c *ChattoCore) GetThreadLastOpened(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) (time.Time, error) {
 	return c.readStateModel.GetThreadLastOpened(ctx, kind, userID, roomID, threadRootEventID)
-}
-
-// SetThreadLastReadEventID stores eventID as the latest thread message the user
-// has seen, but only if it is newer than the existing marker (advance-only).
-// Returns the previous marker time (zero if never opened before).
-func (c *ChattoCore) SetThreadLastReadEventID(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID, eventID string) (time.Time, error) {
-	return c.readStateModel.SetThreadLastReadEventID(ctx, kind, userID, roomID, threadRootEventID, eventID)
-}
-
-// SetThreadLastOpenedAt is retained for timestamp-based callers/tests. It
-// stores a legacy timestamp marker in RUNTIME_STATE and should not be used for
-// new code when a concrete event ID is available.
-func (c *ChattoCore) SetThreadLastOpenedAt(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string, ts time.Time) (time.Time, error) {
-	return c.readStateModel.SetThreadLastOpenedAt(ctx, kind, userID, roomID, threadRootEventID, ts)
-}
-
-// SetThreadLastOpened records the latest current reply in the thread as read.
-// Returns the previous marker time (zero if never opened before).
-func (c *ChattoCore) SetThreadLastOpened(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) (time.Time, error) {
-	return c.readStateModel.SetThreadLastOpened(ctx, kind, userID, roomID, threadRootEventID)
 }
 
 // FollowThread marks a user as following a thread so they receive reply notifications.
@@ -331,33 +335,6 @@ func (c *ChattoCore) FollowThreadIfNeverSet(ctx context.Context, kind RoomKind, 
 // IsFollowingThread checks if a user is following a thread.
 func (c *ChattoCore) IsFollowingThread(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) (bool, error) {
 	return c.threadFollows.IsFollowingThread(ctx, kind, userID, roomID, threadRootEventID)
-}
-
-// GetThreadFollowers returns all user IDs following a specific thread.
-func (c *ChattoCore) GetThreadFollowers(ctx context.Context, kind RoomKind, roomID, threadRootEventID string) ([]string, error) {
-	return c.threadFollows.GetThreadFollowers(ctx, kind, roomID, threadRootEventID)
-}
-
-// ListFollowedThreads returns all threads followed by the user in the given
-// spaces, sorted by last activity (newest first).
-// The result includes only rooms where the user is still a member and has
-// applicable message-read authority.
-func (c *ChattoCore) ListFollowedThreads(ctx context.Context, userID string, spaceIDs []string) ([]*FollowedThread, error) {
-	return c.threadFollows.listFollowedThreads(ctx, userID, spaceIDs)
-}
-
-// ListFollowedThreadsPage returns followed threads for the user in the given
-// spaces, sorted by last activity (newest first), with pagination applied before
-// per-thread read-marker lookups.
-//
-// When unreadOnly is set, the function reads the markers of all followed
-// threads, keeps only threads with unread replies, and then applies
-// pagination. TotalCount then counts only unread threads.
-//
-// The result includes only rooms where the user is still a member and has
-// applicable message-read authority.
-func (c *ChattoCore) ListFollowedThreadsPage(ctx context.Context, userID string, spaceIDs []string, unreadOnly bool, limit, offset int) (*FollowedThreadsPage, error) {
-	return c.threadFollows.ListFollowedThreadsPage(ctx, userID, spaceIDs, unreadOnly, limit, offset)
 }
 
 func followedThreadSortKey(thread *FollowedThread) string {

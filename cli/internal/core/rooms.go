@@ -18,13 +18,6 @@ import (
 	"github.com/chattocorp/chatto/pkg/events"
 )
 
-// GetRoomLastMessageAt returns the timestamp of the last ordinary message in a
-// room, including thread replies but excluding historical imports. Reads from the in-memory room
-// timeline projection.
-func (c *ChattoCore) GetRoomLastMessageAt(ctx context.Context, kind RoomKind, roomID string) (time.Time, error) {
-	return c.roomModel.GetRoomLastMessageAt(ctx, kind, roomID)
-}
-
 // Room name validation constants
 const (
 	RoomNameMinLength        = 1

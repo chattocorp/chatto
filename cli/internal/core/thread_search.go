@@ -174,17 +174,12 @@ func (s *MessageSearchReadModel) SearchThreadGroups(ctx context.Context, actorID
 		if followedOnly && !following {
 			continue
 		}
-		metadata, err := s.events.GetThreadMetadata(ctx, match.Kind, room, root)
-		if err != nil {
-			return nil, err
-		}
-		activity := metadata.LastReplyAt
-		if activity == nil {
-			entry, ok := s.rooms.timelineEntry(root)
-			if !ok || entry.RoomID != room {
-				continue
-			}
-			rootEvent, err := s.events.GetRoomEventByEventID(ctx, match.Kind, room, root)
+		metadata := s.rooms.threadMetadata(root)
+		var rootCreatedAt *time.Time
+		if metadata.LastReplyAt == nil {
+			// Activity ordering needs a time, so a thread without replies and
+			// without a visible root is not a result.
+			rootEvent, err := s.timeline.roomEvent(ctx, match.Kind, room, root)
 			if err != nil {
 				return nil, err
 			}
@@ -192,11 +187,9 @@ func (s *MessageSearchReadModel) SearchThreadGroups(ctx context.Context, actorID
 				continue
 			}
 			at := rootEvent.GetCreatedAt().AsTime()
-			activity = &at
+			rootCreatedAt = &at
 		}
-		row := &FollowedThread{SpaceID: LegacySpaceIDForRoomKind(match.Kind), RoomID: room, ThreadRootEventID: root,
-			Exists: metadata.Exists, ReplyCount: metadata.ReplyCount, LastReplyAt: metadata.LastReplyAt, ActivityAt: activity,
-			LatestReplyEventID: metadata.LatestReplyEventID, ParticipantIDs: metadata.ParticipantIDs, ParticipantCount: metadata.ParticipantCount}
+		row := newFollowedThread(match.Kind, room, root, metadata, rootCreatedAt)
 		threads = append(threads, ThreadSearchResult{Metadata: row, Match: match, Following: following})
 	}
 	slices.SortFunc(threads, func(a, b ThreadSearchResult) int {

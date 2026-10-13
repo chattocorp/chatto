@@ -93,7 +93,7 @@ func TestMCPGrantSubsets(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Keep expected policy independent of the implementation's scope lookup.
-	group, err := c.CreateRoomGroup(ctx, core.SystemActorID, "Scope Rooms", "")
+	group, err := c.RoomLayout().CreateRoomGroup(ctx, core.SystemActorID, "Scope Rooms", "")
 	if err != nil {
 		t.Fatal(err)
 	}

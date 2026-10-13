@@ -85,8 +85,7 @@ func TestRequiredThreadingCreatesRootsAndRoutesRootReplies(t *testing.T) {
 		ActorID: user.Id, RoomID: room.Id, Body: "automatic required thread",
 	})
 	require.NoError(t, err, "automatic required roots need only message.post")
-	metadata, err := chatto.GetThreadMetadata(ctx, KindChannel, room.Id, root.Event.Id)
-	require.NoError(t, err)
+	metadata := chatto.GetThreadMetadata(root.Event.Id)
 	require.True(t, metadata.Exists)
 
 	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{
@@ -136,8 +135,7 @@ func TestEncouragedAndDisabledThreadingPolicy(t *testing.T) {
 
 	root, err := chatto.Messages().PostMessage(ctx, MessagePostInput{ActorID: user.Id, RoomID: room.Id, Body: "ordinary encouraged root"})
 	require.NoError(t, err)
-	metadata, err := chatto.GetThreadMetadata(ctx, KindChannel, room.Id, root.Event.Id)
-	require.NoError(t, err)
+	metadata := chatto.GetThreadMetadata(root.Event.Id)
 	require.False(t, metadata.Exists, "encouraged must not create a thread for every quick root post")
 	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{
 		ActorID: user.Id, RoomID: room.Id, Body: "allowed flat reply", InReplyTo: root.Event.Id,

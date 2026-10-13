@@ -96,16 +96,6 @@ func (c *ChattoCore) CanCreateRoom(ctx context.Context, userID string, kind Room
 	return c.authorization.CanCreateRoom(ctx, userID, kind, groupID)
 }
 
-// CanJoinRoom delegates to shared authorization policy.
-func (c *ChattoCore) CanJoinRoom(ctx context.Context, userID string, kind RoomKind) (bool, error) {
-	return c.authorization.CanJoinRoom(ctx, userID, kind)
-}
-
-// CanJoinRoomAt delegates to shared authorization policy.
-func (c *ChattoCore) CanJoinRoomAt(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
-	return c.authorization.CanJoinRoomAt(ctx, userID, kind, roomID)
-}
-
 // CanReadMessages delegates to shared authorization policy.
 func (c *ChattoCore) CanReadMessages(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
 	return c.authorization.CanReadMessages(ctx, userID, kind, roomID)

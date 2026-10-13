@@ -23,7 +23,7 @@ func TestPermissionMatricesExcludeArchivedChannels(t *testing.T) {
 	allowBotCreation(t, env.ctx, env.core, env.viewer.Id)
 	bot, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "archive_bot", DisplayName: "Archive Bot"}))
 	require.NoError(t, err)
-	group, err := env.core.CreateRoomGroup(env.ctx, core.SystemActorID, "Archive matrix", "")
+	group, err := env.core.RoomLayout().CreateRoomGroup(env.ctx, core.SystemActorID, "Archive matrix", "")
 	require.NoError(t, err)
 	archived, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, group.Id, "archive-matrix-room", "")
 	require.NoError(t, err)

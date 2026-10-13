@@ -41,7 +41,7 @@ func TestMCPToolErrorContracts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	group, err := c.CreateRoomGroup(ctx, core.SystemActorID, "Errors Rooms", "")
+	group, err := c.RoomLayout().CreateRoomGroup(ctx, core.SystemActorID, "Errors Rooms", "")
 	if err != nil {
 		t.Fatal(err)
 	}

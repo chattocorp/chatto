@@ -217,7 +217,7 @@ func TestReadStateReplicaRacesConvergeWithoutRegression(t *testing.T) {
 	replica := newReadStateReplica(t, core)
 	for n := range 10 {
 		userID := fmt.Sprintf("Uroom-race-%d", n)
-		if err := core.SetLastReadEventID(ctx, KindChannel, userID, room.Id, first.Id); err != nil {
+		if err := core.readStateModel.SetLastReadEventID(ctx, KindChannel, userID, room.Id, first.Id); err != nil {
 			t.Fatalf("seed room marker %d: %v", n, err)
 		}
 		roomKey := roomReadEventKey(userID, room.Id)
@@ -231,11 +231,11 @@ func TestReadStateReplicaRacesConvergeWithoutRegression(t *testing.T) {
 
 		runConcurrentWrites(t,
 			func() error {
-				_, err := core.AdvanceLastReadEventID(ctx, KindChannel, userID, room.Id, second.Id)
+				_, err := core.readStateModel.AdvanceLastReadEventID(ctx, KindChannel, userID, room.Id, second.Id)
 				return err
 			},
 			func() error {
-				_, err := replica.AdvanceLastReadEventID(ctx, KindChannel, userID, room.Id, third.Id)
+				_, err := replica.readStateModel.AdvanceLastReadEventID(ctx, KindChannel, userID, room.Id, third.Id)
 				return err
 			},
 		)
@@ -246,11 +246,11 @@ func TestReadStateReplicaRacesConvergeWithoutRegression(t *testing.T) {
 		threadUserID := fmt.Sprintf("Uthread-race-%d", n)
 		runConcurrentWrites(t,
 			func() error {
-				_, err := core.SetThreadLastReadEventID(ctx, KindChannel, threadUserID, room.Id, first.Id, reply1.Id)
+				_, err := core.readStateModel.SetThreadLastReadEventID(ctx, KindChannel, threadUserID, room.Id, first.Id, reply1.Id)
 				return err
 			},
 			func() error {
-				_, err := replica.SetThreadLastReadEventID(ctx, KindChannel, threadUserID, room.Id, first.Id, reply2.Id)
+				_, err := replica.readStateModel.SetThreadLastReadEventID(ctx, KindChannel, threadUserID, room.Id, first.Id, reply2.Id)
 				return err
 			},
 		)
@@ -274,10 +274,10 @@ func TestReadStateWritesAreImmediatelyVisibleAndInitializationDoesNotOverwrite(t
 		currentEvent = "Ecurrent-marker"
 		staleEvent   = "Estale-initializer"
 	)
-	if err := core.SetLastReadEventID(ctx, KindChannel, userID, roomID, currentEvent); err != nil {
+	if err := core.readStateModel.SetLastReadEventID(ctx, KindChannel, userID, roomID, currentEvent); err != nil {
 		t.Fatalf("SetLastReadEventID: %v", err)
 	}
-	got, exists, err := core.PeekLastReadEventID(ctx, userID, roomID)
+	got, exists, err := core.readStateModel.PeekLastReadEventID(ctx, userID, roomID)
 	if err != nil {
 		t.Fatalf("PeekLastReadEventID after write: %v", err)
 	}
@@ -285,10 +285,10 @@ func TestReadStateWritesAreImmediatelyVisibleAndInitializationDoesNotOverwrite(t
 		t.Fatalf("local room marker = (%q, %v), want (%q, true)", got, exists, currentEvent)
 	}
 
-	if err := replica.initializeLastReadEventID(ctx, userID, roomID, staleEvent); err != nil {
+	if err := replica.readStateModel.initializeLastReadEventID(ctx, userID, roomID, staleEvent); err != nil {
 		t.Fatalf("initializeLastReadEventID after concurrent write: %v", err)
 	}
-	got, exists, err = replica.PeekLastReadEventID(ctx, userID, roomID)
+	got, exists, err = replica.readStateModel.PeekLastReadEventID(ctx, userID, roomID)
 	if err != nil {
 		t.Fatalf("replica PeekLastReadEventID after initialization: %v", err)
 	}
@@ -324,7 +324,7 @@ func TestRoomReadMarkerReadsDoNotHitKVPerRoom(t *testing.T) {
 	leaderReads, directReads := countKeyValueReads(t, nc, "RUNTIME_STATE", userID)
 	kvReads := func() int64 { return leaderReads() + directReads() }
 	for _, roomID := range keys {
-		got, exists, err := core.PeekLastReadEventID(ctx, userID, roomID)
+		got, exists, err := core.readStateModel.PeekLastReadEventID(ctx, userID, roomID)
 		if err != nil {
 			t.Fatalf("read indexed marker %q: %v", roomID, err)
 		}
@@ -477,7 +477,7 @@ func newReadStateReplica(t *testing.T, source *ChattoCore) *ChattoCore {
 		storage:   source.storage,
 		roomModel: source.roomModel,
 	}
-	replica.readStateModel = &ReadStateModel{index: index, rooms: replica.roomModel, policy: source.authorization, timeline: replica, effects: replica, logger: replica.logger}
+	replica.readStateModel = newReadStateModel(index, replica.roomModel, source.authorization, replica, source.notificationOccurrences, replica.logger)
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)

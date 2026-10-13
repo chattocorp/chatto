@@ -19,14 +19,28 @@ func (c *ChattoCore) ThreadFollows() *ThreadFollowModel {
 // projection waits. Trusted internal callers can also request automatic follows.
 type ThreadFollowModel struct {
 	rooms        *RoomModel
-	memberships  *RoomMembershipModel
 	readState    *ReadStateModel
 	publisher    *evtstream.Publisher
 	policy       *AuthorizationModel
-	timeline     threadFollowModelTimeline
-	effects      threadFollowModelEffects
+	integration  threadFollowIntegration
 	materializer *NotificationMaterializer
 	logger       *log.Logger
+}
+
+// newThreadFollowModel returns a ThreadFollowModel with all collaborators.
+func newThreadFollowModel(
+	rooms *RoomModel,
+	readState *ReadStateModel,
+	publisher *evtstream.Publisher,
+	policy *AuthorizationModel,
+	integration threadFollowIntegration,
+	materializer *NotificationMaterializer,
+	logger *log.Logger,
+) *ThreadFollowModel {
+	return &ThreadFollowModel{
+		rooms: rooms, readState: readState, publisher: publisher, policy: policy,
+		integration: integration, materializer: materializer, logger: logger,
+	}
 }
 
 // ListFollowedThreads returns one page of the actor's followed threads. When

@@ -35,7 +35,7 @@ func TestRBACScenario_RoleOnlyRoomGroup(t *testing.T) {
 		t.Fatalf("AssignServerRole engineering: %v", err)
 	}
 
-	privateGroup, err := core.CreateRoomGroup(ctx, SystemActorID, "Private Engineering", "")
+	privateGroup, err := core.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Private Engineering", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup private: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestRBACScenario_RoleOnlyRoomGroup(t *testing.T) {
 		privateRoomIDs = append(privateRoomIDs, room.Id)
 	}
 
-	publicGroup, err := core.CreateRoomGroup(ctx, SystemActorID, "Public Scenario", "")
+	publicGroup, err := core.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Public Scenario", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup public: %v", err)
 	}
@@ -107,7 +107,7 @@ func TestRBACScenario_RoleOnlySpecificRoom(t *testing.T) {
 		t.Fatalf("AssignServerRole project-x: %v", err)
 	}
 
-	group, err := core.CreateRoomGroup(ctx, SystemActorID, "Mixed Access", "")
+	group, err := core.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Mixed Access", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}
@@ -197,7 +197,7 @@ func assertRoomAccessScenario(t *testing.T, core *ChattoCore, userID, roomID str
 		t.Errorf("CanSeeRoom(user=%s, room=%s) = %v, want %v", userID, roomID, visible, wantVisible)
 	}
 
-	joinable, err := core.CanJoinRoomAt(ctx, userID, KindChannel, roomID)
+	joinable, err := core.authorization.CanJoinRoomAt(ctx, userID, KindChannel, roomID)
 	if err != nil {
 		t.Fatalf("CanJoinRoomAt(user=%s, room=%s): %v", userID, roomID, err)
 	}

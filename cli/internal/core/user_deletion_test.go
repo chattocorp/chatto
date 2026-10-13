@@ -376,7 +376,7 @@ func TestChattoCore_DeleteUser_KeepsDMMembership(t *testing.T) {
 
 	// DM membership is fixed at creation, so the deleted account stays a
 	// participant and the DM does not turn into a self-DM.
-	ids, err := core.ListRoomMemberIDsForList(ctx, remaining.Id, dm.Id)
+	ids, err := core.roomMemberships.ListRoomMemberIDsForList(ctx, remaining.Id, dm.Id)
 	if err != nil {
 		t.Fatalf("ListRoomMemberIDsForList: %v", err)
 	}

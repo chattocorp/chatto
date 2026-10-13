@@ -77,12 +77,6 @@ func (c *ChattoCore) HasServerPermission(ctx context.Context, userID string, per
 	return c.authorization.HasServerPermission(ctx, userID, perm)
 }
 
-// IsServerAdmin checks if a user has the admin role via RBAC.
-// Does NOT check config fallback (owners.emails) - caller should check that separately.
-func (c *ChattoCore) IsServerAdmin(ctx context.Context, userID string) (bool, error) {
-	return c.authorization.IsServerAdmin(ctx, userID)
-}
-
 // IsServerOwner checks whether a user has the durable owner role. Configured
 // owners.emails entries are materialized into that role at boot and by the
 // durable notification-effects worker after email verification, so live and
@@ -130,13 +124,6 @@ func (c *ChattoCore) HasUserPermissionViaRoles(ctx context.Context, userID strin
 func (c *ChattoCore) HasUserPermissionDeniedViaRoles(ctx context.Context, userID string, perm Permission) (bool, error) {
 	decision, err := c.ResolveUserPermission(ctx, userID, KindChannel, "", perm)
 	return decision == DecisionDeny, err
-}
-
-// hasServerPermission checks a server-wide permission via the unified
-// permission resolver. Internal building block — use the Can* helpers
-// in can.go for authorization checks.
-func (c *ChattoCore) hasServerPermission(ctx context.Context, userID string, perm Permission) (bool, error) {
-	return c.authorization.hasServerPermission(ctx, userID, perm)
 }
 
 // hasRoomPermission checks a permission at the room level. Each direct user or

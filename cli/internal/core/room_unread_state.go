@@ -22,7 +22,7 @@ func (s *ReadStateModel) NotifyRoomMarkedAsRead(ctx context.Context, userID stri
 		},
 	})
 
-	if err := s.effects.publishUserPubSubEvent(ctx, userID, event); err != nil {
+	if err := s.integration.publishUserPubSubEvent(ctx, userID, event); err != nil {
 		s.logger.Warn("Failed to publish room marked as read event",
 			"user_id", userID,
 			"kind", kind,
@@ -288,7 +288,7 @@ func (s *ReadStateModel) GetEventTimestamp(ctx context.Context, kind RoomKind, r
 // Thread Badge attention rolls up into the parent room. The result is independent
 // of the user's last-read cursor and false when the user cannot see the room.
 func (s *ReadStateModel) HasUnread(ctx context.Context, kind RoomKind, userID, roomID string) (bool, error) {
-	isMember, err := s.memberships.RoomMembershipExists(ctx, kind, userID, roomID)
+	isMember, err := s.policy.RoomMembershipExists(ctx, kind, userID, roomID)
 	if err != nil {
 		return false, fmt.Errorf("failed to check room membership: %w", err)
 	}

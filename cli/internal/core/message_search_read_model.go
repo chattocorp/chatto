@@ -24,7 +24,22 @@ type MessageSearchReadModel struct {
 	authorization *AuthorizationModel
 	timeline      *RoomTimelineReadModel
 	follows       *ThreadFollowModel
-	events        threadFollowModelTimeline
+}
+
+// newMessageSearchReadModel returns a MessageSearchReadModel with all
+// collaborators.
+func newMessageSearchReadModel(
+	rooms *RoomModel,
+	users *UserModel,
+	memberships *RoomMembershipModel,
+	authorization *AuthorizationModel,
+	timeline *RoomTimelineReadModel,
+	follows *ThreadFollowModel,
+) *MessageSearchReadModel {
+	return &MessageSearchReadModel{
+		rooms: rooms, users: users, memberships: memberships,
+		authorization: authorization, timeline: timeline, follows: follows,
+	}
 }
 
 // MessageSearchScopeInput combines explicit public request filters with

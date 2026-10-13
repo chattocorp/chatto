@@ -154,7 +154,7 @@ func TestMyEventsHubDeliversRoomGroupFactAfterProjection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("StreamMyEvents: %v", err)
 	}
-	group, err := core.CreateRoomGroup(ctx, viewer.Id, "Engineering", "Product engineering")
+	group, err := core.roomLayout.CreateRoomGroup(ctx, viewer.Id, "Engineering", "Product engineering")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}

@@ -27,33 +27,11 @@ func (m *RoomMembershipModel) GetRoomMembership(ctx context.Context, kind RoomKi
 	}, nil
 }
 
-// RoomMembershipExists checks if a user is a member of a room.
-// Reads explicit membership through RoomModel (ADR-035 phase 5 cutover).
-//
-// Channel rooms marked universal grant effective membership to every server
-// member who is currently eligible to join the room. Explicit memberships
-// remain the durable state; universal membership is derived at read time.
+// RoomMembershipExists checks if a user is an effective member of a room.
+// AuthorizationModel owns this read because universal channels derive
+// membership from join authority.
 func (m *RoomMembershipModel) RoomMembershipExists(ctx context.Context, kind RoomKind, user_id, room_id string) (bool, error) {
-	return m.policy.readContentDecision(ctx, func(readCtx context.Context) (bool, error) {
-		return m.roomMembershipExists(readCtx, kind, user_id, room_id)
-	})
-}
-
-func (m *RoomMembershipModel) roomMembershipExists(ctx context.Context, kind RoomKind, user_id, room_id string) (bool, error) {
-	if m.rooms.hasExplicitRoomMembership(room_id, user_id) {
-		return true, nil
-	}
-	if kind != KindChannel {
-		return false, nil
-	}
-	room, err := m.rooms.GetRoom(ctx, kind, room_id)
-	if err != nil {
-		return false, err
-	}
-	if !room.GetUniversal() {
-		return false, nil
-	}
-	return m.policy.canJoinRoomAt(ctx, user_id, kind, room_id)
+	return m.policy.RoomMembershipExists(ctx, kind, user_id, room_id)
 }
 
 // JoinRoom creates a room membership for a user.
@@ -170,7 +148,7 @@ func (m *RoomMembershipModel) addMember(ctx context.Context, actorID string, kin
 	if room.GetArchived() {
 		return nil, ErrRoomArchived
 	}
-	if _, err := m.accounts.GetUser(ctx, targetUserID); err != nil {
+	if _, err := m.users.GetUser(ctx, targetUserID); err != nil {
 		return nil, err
 	}
 
@@ -330,7 +308,7 @@ func (m *RoomMembershipModel) removeMember(ctx context.Context, actorID string, 
 	if authorize == nil && room.GetArchived() {
 		return false, ErrRoomArchived
 	}
-	if _, err := m.accounts.GetUser(ctx, targetUserID); err != nil {
+	if _, err := m.users.GetUser(ctx, targetUserID); err != nil {
 		return false, err
 	}
 	agg := evtstream.RoomAggregate(roomID)

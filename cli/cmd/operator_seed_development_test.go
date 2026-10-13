@@ -29,7 +29,7 @@ func TestSeedCLIUsesOperatorSocket(t *testing.T) {
 	require.Len(t, result.Messages, 4)
 	require.NotEmpty(t, result.Rooms[0].MemberIds)
 	for _, userID := range result.Rooms[0].MemberIds {
-		member, err := env.core.GetRoomMembership(env.ctx, core.KindChannel, userID, result.Rooms[0].Id)
+		member, err := env.core.RoomMemberships().GetRoomMembership(env.ctx, core.KindChannel, userID, result.Rooms[0].Id)
 		require.NoError(t, err)
 		require.Equal(t, userID, member.UserId)
 	}

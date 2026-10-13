@@ -41,12 +41,27 @@ func (c *ChattoCore) ReadState() *ReadStateModel {
 type ReadStateModel struct {
 	index         *ReadStateIndex
 	rooms         *RoomModel
-	memberships   *RoomMembershipModel
 	policy        *AuthorizationModel
-	timeline      readStateModelTimeline
-	effects       readStateModelEffects
+	integration   readStateIntegration
 	notifications *NotificationOccurrenceModel
 	logger        *log.Logger
+}
+
+// newReadStateModel returns a ReadStateModel with all collaborators.
+// Membership checks use policy, so this model does not depend on
+// RoomMembershipModel, which depends on it.
+func newReadStateModel(
+	index *ReadStateIndex,
+	rooms *RoomModel,
+	policy *AuthorizationModel,
+	integration readStateIntegration,
+	notifications *NotificationOccurrenceModel,
+	logger *log.Logger,
+) *ReadStateModel {
+	return &ReadStateModel{
+		index: index, rooms: rooms, policy: policy, integration: integration,
+		notifications: notifications, logger: logger,
+	}
 }
 
 // Run maintains the process-wide read marker index until ctx is cancelled.
@@ -156,7 +171,7 @@ func (s *ReadStateModel) MarkThreadAsRead(ctx context.Context, actorID, roomID, 
 		}
 		markerEventID = eventID
 	} else {
-		events, err := s.timeline.GetThreadEvents(ctx, kind, room.Id, threadRootEventID)
+		events, err := s.integration.GetThreadEvents(ctx, kind, room.Id, threadRootEventID)
 		if err != nil {
 			return nil, err
 		}
@@ -176,7 +191,7 @@ func (s *ReadStateModel) MarkThreadAsRead(ctx context.Context, actorID, roomID, 
 		if _, err := s.notifications.MarkCoveredRead(ctx, actorID, room.Id, threadRootEventID, markerEventID); err != nil {
 			return nil, fmt.Errorf("reconcile thread read state with notifications: %w", err)
 		}
-		s.effects.NotifyNotificationUnreadStateChanged(ctx, actorID, actorID, room.Id, threadRootEventID)
+		s.integration.NotifyNotificationUnreadStateChanged(ctx, actorID, actorID, room.Id, threadRootEventID)
 	}
 	return result, nil
 }
@@ -185,7 +200,7 @@ func (s *ReadStateModel) roomReadAnchor(ctx context.Context, actorID string, kin
 	if strings.TrimSpace(eventID) == "" {
 		return "", time.Time{}, false, nil
 	}
-	event, err := s.timeline.GetRoomEventByEventID(ctx, kind, roomID, eventID)
+	event, err := s.integration.GetRoomEventByEventID(ctx, kind, roomID, eventID)
 	if err != nil {
 		return "", time.Time{}, false, err
 	}
@@ -213,7 +228,7 @@ func (s *ReadStateModel) threadReadAnchor(ctx context.Context, kind RoomKind, ro
 	if strings.TrimSpace(eventID) == "" {
 		return "", nil
 	}
-	event, err := s.timeline.GetRoomEventByEventID(ctx, kind, roomID, eventID)
+	event, err := s.integration.GetRoomEventByEventID(ctx, kind, roomID, eventID)
 	if err != nil {
 		return "", err
 	}

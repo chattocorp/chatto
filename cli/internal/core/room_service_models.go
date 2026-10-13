@@ -13,11 +13,29 @@ type RoomMembershipModel struct {
 	users         *UserModel
 	publisher     *evtstream.Publisher
 	policy        *AuthorizationModel
-	accounts      roomCommandAccounts
 	readState     *ReadStateModel
 	calls         *CallModel
 	notifications *NotificationMaterializer
 	logger        *log.Logger
+}
+
+// newRoomMembershipModel returns a RoomMembershipModel with all collaborators.
+// Production wiring constructs it after the authorization, read-state, call
+// and notification models, so no dependency is assigned later.
+func newRoomMembershipModel(
+	rooms *RoomModel,
+	users *UserModel,
+	publisher *evtstream.Publisher,
+	policy *AuthorizationModel,
+	readState *ReadStateModel,
+	calls *CallModel,
+	notifications *NotificationMaterializer,
+	logger *log.Logger,
+) *RoomMembershipModel {
+	return &RoomMembershipModel{
+		rooms: rooms, users: users, publisher: publisher, policy: policy,
+		readState: readState, calls: calls, notifications: notifications, logger: logger,
+	}
 }
 
 // RoomLayoutModel owns room-group and sidebar mutations. It keeps authorization,
@@ -27,6 +45,11 @@ type RoomLayoutModel struct {
 	publisher *evtstream.Publisher
 	policy    *AuthorizationModel
 	logger    *log.Logger
+}
+
+// newRoomLayoutModel returns a RoomLayoutModel with all collaborators.
+func newRoomLayoutModel(rooms *RoomModel, publisher *evtstream.Publisher, policy *AuthorizationModel, logger *log.Logger) *RoomLayoutModel {
+	return &RoomLayoutModel{rooms: rooms, publisher: publisher, policy: policy, logger: logger}
 }
 
 // RoomMemberships returns the owner of membership reads and trusted mutations.

@@ -88,7 +88,7 @@ func TestReadStateModel_MarkRoomAsReadSkipsPubSubEventWhenCursorUnchanged(t *tes
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
-	if err := core.SetLastReadEventID(ctx, KindChannel, reader.Id, room.Id, posted.Id); err != nil {
+	if err := core.readStateModel.SetLastReadEventID(ctx, KindChannel, reader.Id, room.Id, posted.Id); err != nil {
 		t.Fatalf("SetLastReadEventID: %v", err)
 	}
 
@@ -120,7 +120,7 @@ func TestReadStateModel_MarkRoomAsReadPublishesPubSubEventWhenCursorAdvances(t *
 	if err != nil {
 		t.Fatalf("PostMessage first: %v", err)
 	}
-	if err := core.SetLastReadEventID(ctx, KindChannel, reader.Id, room.Id, first.Id); err != nil {
+	if err := core.readStateModel.SetLastReadEventID(ctx, KindChannel, reader.Id, room.Id, first.Id); err != nil {
 		t.Fatalf("SetLastReadEventID: %v", err)
 	}
 	if _, err := core.PostMessage(ctx, KindChannel, room.Id, poster.Id, "second", nil, "", "", nil, false); err != nil {
@@ -159,7 +159,7 @@ func TestReadStateModel_MarkRoomAsReadPublishesPubSubEventWhenOccurrencesBecomeR
 	if err != nil {
 		t.Fatalf("PostMessage second: %v", err)
 	}
-	if err := core.SetLastReadEventID(ctx, KindChannel, reader.Id, room.Id, second.Id); err != nil {
+	if err := core.readStateModel.SetLastReadEventID(ctx, KindChannel, reader.Id, room.Id, second.Id); err != nil {
 		t.Fatalf("SetLastReadEventID: %v", err)
 	}
 	firstEntry, ok := core.roomModel.timelineEntry(first.Id)

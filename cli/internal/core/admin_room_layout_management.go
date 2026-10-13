@@ -244,7 +244,3 @@ func (m *RoomLayoutModel) AdminMoveSidebarLinkToGroup(ctx context.Context, actor
 	}
 	return link, nil
 }
-
-func (c *ChattoCore) requireCanManageRoomGroup(ctx context.Context, actorID, groupID string) error {
-	return c.authorization.requireCanManageRoomGroup(ctx, actorID, groupID)
-}

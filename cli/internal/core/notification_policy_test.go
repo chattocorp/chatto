@@ -295,11 +295,11 @@ func TestNotificationPolicyInheritsThroughRoomGroupAndFollowsRoomMoves(t *testin
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	groupA, err := chattoCore.CreateRoomGroup(ctx, SystemActorID, "Group A", "")
+	groupA, err := chattoCore.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Group A", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup A: %v", err)
 	}
-	groupB, err := chattoCore.CreateRoomGroup(ctx, SystemActorID, "Group B", "")
+	groupB, err := chattoCore.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Group B", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup B: %v", err)
 	}
@@ -341,7 +341,7 @@ func TestNotificationPolicyInheritsThroughRoomGroupAndFollowsRoomMoves(t *testin
 		t.Fatalf("group A inherited mode = %v, want PUSH_NOTIFICATION", got)
 	}
 
-	if err := chattoCore.MoveRoomToGroup(ctx, SystemActorID, room.Id, groupB.Id); err != nil {
+	if err := chattoCore.roomLayout.MoveRoomToGroup(ctx, SystemActorID, room.Id, groupB.Id); err != nil {
 		t.Fatalf("MoveRoomToGroup: %v", err)
 	}
 	policy, err = model.GetScopedNotificationPolicy(ctx, user.Id, roomScope)
@@ -379,7 +379,7 @@ func TestDeletedRoomGroupNotificationPolicyBecomesInert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	group, err := chattoCore.CreateRoomGroup(ctx, SystemActorID, "Temporary", "")
+	group, err := chattoCore.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Temporary", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}
@@ -390,7 +390,7 @@ func TestDeletedRoomGroupNotificationPolicyBecomesInert(t *testing.T) {
 	); err != nil {
 		t.Fatalf("UpdateScopedNotificationPolicy: %v", err)
 	}
-	if err := chattoCore.DeleteRoomGroup(ctx, SystemActorID, group.Id); err != nil {
+	if err := chattoCore.roomLayout.DeleteRoomGroup(ctx, SystemActorID, group.Id); err != nil {
 		t.Fatalf("DeleteRoomGroup: %v", err)
 	}
 	if _, err := chattoCore.NotificationPolicy().GetScopedNotificationPolicy(ctx, user.Id, scope); !errors.Is(err, ErrRoomGroupNotFound) {
@@ -418,7 +418,7 @@ func TestDirectMessageNotificationPolicySkipsRoomGroupTier(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FindOrCreateDM: %v", err)
 	}
-	group, err := chattoCore.CreateRoomGroup(ctx, SystemActorID, "Unrelated Group", "")
+	group, err := chattoCore.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Unrelated Group", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}

@@ -78,8 +78,8 @@ func TestIncomingWebhookPostsThroughBotPermissionsAndSupportsExistingDMs(t *test
 	if body, err := s.core.GetMessageBody(ctx, events[0].GetId()); err != nil || body != "  from Slack  " {
 		t.Fatalf("message body = %q, %v", body, err)
 	}
-	if metadata, err := s.core.GetThreadMetadata(ctx, core.KindChannel, room.GetId(), events[0].GetId()); err != nil || !metadata.Exists {
-		t.Fatalf("thread metadata = %+v, %v", metadata, err)
+	if metadata := s.core.GetThreadMetadata(events[0].GetId()); !metadata.Exists {
+		t.Fatalf("thread metadata = %+v", metadata)
 	}
 
 	dm, _, err := s.core.RoomCommands().StartDM(ctx, core.RoomStartDMInput{ActorID: owner.GetId(), ParticipantIDs: []string{bot.User.GetId()}})

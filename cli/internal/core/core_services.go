@@ -120,35 +120,12 @@ func initializeCoreServices(
 	// The resolver is constructed before room models capture it. It performs no
 	// reads until the fully assembled core starts serving operations.
 	core.permissionResolver = NewPermissionResolver(core.roomModel, core.userModel, core.rbacModel, core.contentView)
-	core.authorization = &AuthorizationModel{rooms: core.roomModel, users: core.userModel, rbac: core.rbacModel, resolver: core.permissionResolver, publisher: core.EventPublisher, view: core.contentView, messages: core}
-	core.readStateModel = &ReadStateModel{
-		rooms: core.roomModel, policy: core.authorization, timeline: core, effects: core, logger: core.logger,
-		index: NewReadStateIndex(infra.storage.runtimeStateKV, logger.WithPrefix("core.ReadStateIndex")),
-	}
-	core.roomMemberships = &RoomMembershipModel{
-		rooms: core.roomModel, users: core.userModel, publisher: core.EventPublisher,
-		policy: core.authorization, accounts: core.userModel, readState: core.readStateModel, calls: core.callModel, logger: core.logger,
-	}
-	core.readStateModel.memberships = core.roomMemberships
-	core.authorization.memberships = core.roomMemberships
-	core.roomLayout = &RoomLayoutModel{rooms: core.roomModel, publisher: core.EventPublisher, policy: core.authorization, logger: core.logger}
-	core.roomCommands = &RoomCommandModel{
-		rooms: core.roomModel, permissions: core.permissionResolver,
-		publisher: infra.eventPublisher, users: core.userModel,
-		rbac: core.rbacModel, logger: core.logger, readState: core.readStateModel,
-		authorization: core.authorization, memberships: core.roomMemberships, accounts: core.userModel, pins: core,
-	}
-	core.messageModel = &MessageModel{core: core}
-	core.roomDirectoryReads = &RoomDirectoryReadModel{
-		rooms: core.roomModel, permissions: core.permissionResolver,
-		messages: core.messageModel, authorization: core.authorization, membership: core.roomMemberships, unread: core.readStateModel,
-	}
-	core.notificationPolicy = &NotificationPolicyModel{core: core}
-	core.roomTimelineReads = &RoomTimelineReadModel{
-		core:  core,
-		rooms: core.roomModel,
-	}
-	core.messageSearchReads = &MessageSearchReadModel{rooms: core.roomModel, users: core.userModel, memberships: core.roomMemberships, authorization: core.authorization, timeline: core.roomTimelineReads, events: core}
+	core.authorization = newAuthorizationModel(
+		core.roomModel, core.userModel, core.rbacModel, core.permissionResolver,
+		core.EventPublisher, core.contentView, core,
+	)
+	// Notification models only capture core here. The owner models below need
+	// them as constructor arguments, so they are constructed first.
 	core.notificationBoundaries = newNotificationBoundaryIndex(
 		infra.storage.runtimeStateKV,
 		logger.WithPrefix("core.NotificationBoundaryIndex"),
@@ -162,8 +139,38 @@ func initializeCoreServices(
 		logger.WithPrefix("core.NotificationOccurrences"),
 	)
 	core.notificationMaterializer = NewNotificationMaterializer(core, projections.notificationDecisions)
-	core.roomMemberships.notifications = core.notificationMaterializer
 	core.notificationAlertDelivery = newNotificationAlertDelivery(core)
+	// Owner models receive every collaborator through their constructors, in
+	// dependency order. None of them is assigned a dependency later.
+	core.readStateModel = newReadStateModel(
+		NewReadStateIndex(infra.storage.runtimeStateKV, logger.WithPrefix("core.ReadStateIndex")),
+		core.roomModel, core.authorization, core, core.notificationOccurrences, core.logger,
+	)
+	core.roomMemberships = newRoomMembershipModel(
+		core.roomModel, core.userModel, core.EventPublisher, core.authorization,
+		core.readStateModel, core.callModel, core.notificationMaterializer, core.logger,
+	)
+	core.roomLayout = newRoomLayoutModel(core.roomModel, core.EventPublisher, core.authorization, core.logger)
+	core.roomCommands = newRoomCommandModel(
+		core.roomModel, core.permissionResolver, infra.eventPublisher, core.userModel,
+		core.rbacModel, core.readStateModel, core.authorization, core.roomMemberships,
+		core, core.logger,
+	)
+	core.messageModel = &MessageModel{core: core}
+	core.roomDirectoryReads = newRoomDirectoryReadModel(
+		core.roomModel, core.permissionResolver, core.messageModel,
+		core.authorization, core.roomMemberships, core.readStateModel,
+	)
+	core.notificationPolicy = &NotificationPolicyModel{core: core}
+	core.roomTimelineReads = newRoomTimelineReadModel(core, core.roomModel)
+	core.threadFollows = newThreadFollowModel(
+		core.roomModel, core.readStateModel, core.EventPublisher, core.authorization,
+		core, core.notificationMaterializer, core.logger,
+	)
+	core.messageSearchReads = newMessageSearchReadModel(
+		core.roomModel, core.userModel, core.roomMemberships, core.authorization,
+		core.roomTimelineReads, core.threadFollows,
+	)
 	core.botWebhooks = newBotWebhookModel(core, projections.botWebhooks)
 	if err := core.botWebhooks.initialize(ctx); err != nil {
 		return fmt.Errorf("initialize bot webhooks: %w", err)
@@ -185,13 +192,6 @@ func initializeCoreServices(
 	if err != nil {
 		return fmt.Errorf("failed to initialize push-subscription cleanup: %w", err)
 	}
-	core.readStateModel.notifications = core.notificationOccurrences
-	core.threadFollows = &ThreadFollowModel{
-		rooms: core.roomModel, memberships: core.roomMemberships, readState: core.readStateModel,
-		publisher: core.EventPublisher, policy: core.authorization, timeline: core, effects: core,
-		materializer: core.notificationMaterializer, logger: core.logger,
-	}
-	core.messageSearchReads.follows = core.threadFollows
 	core.reactionModel = &ReactionModel{core: core, mutations: core.EventPublisher}
 	core.keyShredding, err = newUserKeyShreddingModel(ctx, core, logger.WithPrefix("core.UserKeyShredding"))
 	if err != nil {

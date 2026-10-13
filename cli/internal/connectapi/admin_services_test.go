@@ -1708,7 +1708,7 @@ func TestRoomDirectoryServiceListRoomGroupsIncludesSidebarItems(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	groupID := env.defaultRoomGroupID(t)
 	room := env.createJoinedRoom("layout-room")
-	link, err := env.core.CreateSidebarLink(env.ctx, core.SystemActorID, groupID, "Docs", "/docs")
+	link, err := env.core.RoomLayout().CreateSidebarLink(env.ctx, core.SystemActorID, groupID, "Docs", "/docs")
 	if err != nil {
 		t.Fatalf("CreateSidebarLink: %v", err)
 	}

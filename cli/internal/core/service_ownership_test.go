@@ -16,19 +16,17 @@ func TestRoomOwnersShareProjectedState(t *testing.T) {
 	require.NoError(t, err)
 	room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "owned-room", "")
 	require.NoError(t, err)
-	policy := &AuthorizationModel{
-		rooms: c.roomModel, users: c.userModel, rbac: c.rbacModel,
-		resolver:  NewPermissionResolver(c.roomModel, c.userModel, c.rbacModel, c.contentView),
-		publisher: c.EventPublisher, view: c.contentView,
-	}
-	readState := &ReadStateModel{index: c.readStateModel.index, rooms: c.roomModel, logger: c.logger}
-	memberships := &RoomMembershipModel{
-		rooms: c.roomModel, users: c.userModel, publisher: c.EventPublisher,
-		policy: policy, accounts: c.userModel, readState: readState,
-		calls: c.callModel, notifications: c.notificationMaterializer, logger: c.logger,
-	}
-	policy.memberships = memberships
-	layout := &RoomLayoutModel{rooms: c.roomModel, publisher: c.EventPublisher, policy: policy, logger: c.logger}
+	policy := newAuthorizationModel(
+		c.roomModel, c.userModel, c.rbacModel,
+		NewPermissionResolver(c.roomModel, c.userModel, c.rbacModel, c.contentView),
+		c.EventPublisher, c.contentView, c,
+	)
+	readState := newReadStateModel(c.readStateModel.index, c.roomModel, policy, c, c.notificationOccurrences, c.logger)
+	memberships := newRoomMembershipModel(
+		c.roomModel, c.userModel, c.EventPublisher, policy,
+		readState, c.callModel, c.notificationMaterializer, c.logger,
+	)
+	layout := newRoomLayoutModel(c.roomModel, c.EventPublisher, policy, c.logger)
 
 	_, err = memberships.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 	require.NoError(t, err)

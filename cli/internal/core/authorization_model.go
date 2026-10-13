@@ -7,25 +7,77 @@ import (
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
-// AuthorizationModel owns shared permission decisions, authenticated operation
-// guards and stable-input checks. It uses the same content-view transaction as
-// the domain models; it does not create another projection or authorization cache.
+// AuthorizationModel owns shared permission decisions, effective room
+// membership, authenticated operation guards and stable-input checks. It uses
+// the same content-view transaction as the domain models; it does not create
+// another projection or authorization cache.
+//
+// Effective membership belongs here, not in RoomMembershipModel, because a
+// universal channel derives it from join authority. Domain models depend on
+// this model; this model depends on no domain operation model.
 type AuthorizationModel struct {
-	rooms       *RoomModel
-	users       *UserModel
-	rbac        *RBACModel
-	resolver    *PermissionResolver
-	memberships *RoomMembershipModel
-	publisher   *evtstream.Publisher
-	view        *ServerContentView
-	messages    authorizationMessages
+	rooms     *RoomModel
+	users     *UserModel
+	rbac      *RBACModel
+	resolver  *PermissionResolver
+	publisher *evtstream.Publisher
+	view      *ServerContentView
+	messages  authorizationMessages
+}
+
+// newAuthorizationModel returns an AuthorizationModel with all collaborators.
+// view may be nil in isolated tests; decisions then read without a
+// content-view transaction.
+func newAuthorizationModel(
+	rooms *RoomModel,
+	users *UserModel,
+	rbac *RBACModel,
+	resolver *PermissionResolver,
+	publisher *evtstream.Publisher,
+	view *ServerContentView,
+	messages authorizationMessages,
+) *AuthorizationModel {
+	return &AuthorizationModel{
+		rooms: rooms, users: users, rbac: rbac, resolver: resolver,
+		publisher: publisher, view: view, messages: messages,
+	}
+}
+
+// RoomMembershipExists reports whether userID is an effective member of
+// roomID. Explicit memberships are the durable state. A universal channel also
+// grants effective membership to every server member who can currently join
+// it; this membership is derived at read time.
+func (a *AuthorizationModel) RoomMembershipExists(ctx context.Context, kind RoomKind, userID, roomID string) (bool, error) {
+	return a.readContentDecision(ctx, func(readCtx context.Context) (bool, error) {
+		return a.roomMembershipExists(readCtx, kind, userID, roomID)
+	})
+}
+
+// roomMembershipExists is RoomMembershipExists inside the caller's
+// content-view transaction.
+func (a *AuthorizationModel) roomMembershipExists(ctx context.Context, kind RoomKind, userID, roomID string) (bool, error) {
+	if a.rooms.hasExplicitRoomMembership(roomID, userID) {
+		return true, nil
+	}
+	if kind != KindChannel {
+		return false, nil
+	}
+	room, err := a.rooms.GetRoom(ctx, kind, roomID)
+	if err != nil {
+		return false, err
+	}
+	if !room.GetUniversal() {
+		return false, nil
+	}
+	return a.canJoinRoomAt(ctx, userID, kind, roomID)
 }
 
 // resolveCallPermissions reads all media grants in the caller's content-view transaction.
 func (a *AuthorizationModel) resolveCallPermissions(ctx context.Context, actorID string, kind RoomKind, roomID string) (CallPermissions, error) {
 	var result CallPermissions
+	ids := callPermissionIDs()
 	for i, target := range []*bool{&result.Start, &result.Join, &result.Voice, &result.Camera, &result.ScreenShare} {
-		allowed, err := a.resolver.HasRoomPermission(ctx, actorID, kind, roomID, callPermissionIDs()[i])
+		allowed, err := a.resolver.HasRoomPermission(ctx, actorID, kind, roomID, ids[i])
 		if err != nil {
 			return CallPermissions{}, err
 		}

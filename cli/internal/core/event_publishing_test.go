@@ -147,7 +147,7 @@ func TestRoomMutationsDoNotWriteServerEvents(t *testing.T) {
 	if _, _, err := core.FindOrCreateDM(ctx, user.Id, []string{other.Id}); err != nil {
 		t.Fatalf("FindOrCreateDM: %v", err)
 	}
-	if err := core.DeleteRoom(ctx, user.Id, KindChannel, room.Id); err != nil {
+	if err := core.roomCommands.DeleteRoom(ctx, user.Id, KindChannel, room.Id); err != nil {
 		t.Fatalf("DeleteRoom: %v", err)
 	}
 

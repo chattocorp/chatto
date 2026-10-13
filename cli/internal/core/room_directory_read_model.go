@@ -26,6 +26,22 @@ type RoomDirectoryReadModel struct {
 	unread        roomDirectoryUnread
 }
 
+// newRoomDirectoryReadModel returns a RoomDirectoryReadModel with all
+// collaborators.
+func newRoomDirectoryReadModel(
+	rooms *RoomModel,
+	permissions *PermissionResolver,
+	messages *MessageModel,
+	authorization roomDirectoryAuthorization,
+	membership roomDirectoryMembership,
+	unread roomDirectoryUnread,
+) *RoomDirectoryReadModel {
+	return &RoomDirectoryReadModel{
+		rooms: rooms, permissions: permissions, messages: messages,
+		authorization: authorization, membership: membership, unread: unread,
+	}
+}
+
 // RoomArchiveFilter selects room archive state without changing visibility.
 type RoomArchiveFilter int
 

@@ -1315,7 +1315,7 @@ func TestCanonicalUserPermissionMatrixForBotFiltersHiddenRoomsAndKeepsDirectoryG
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
 	}
-	group, err := c.CreateRoomGroup(ctx, SystemActorID, "Hidden Operations", "")
+	group, err := c.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Hidden Operations", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}
@@ -1354,7 +1354,7 @@ func TestCanonicalUserPermissionMatrixForBotFiltersHiddenRoomsAndKeepsDirectoryG
 		t.Fatal("directory-visible group missing from bot matrix")
 	}
 
-	empty, err := c.CreateRoomGroup(ctx, SystemActorID, "Empty Automation", "")
+	empty, err := c.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Empty Automation", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup empty: %v", err)
 	}
@@ -1438,11 +1438,11 @@ func TestSetUserPermissionUsesCurrentRoomGroupForBotOwnerCeiling(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
 	}
-	oldGroup, err := c.CreateRoomGroup(ctx, SystemActorID, "Old Group", "")
+	oldGroup, err := c.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Old Group", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup old: %v", err)
 	}
-	newGroup, err := c.CreateRoomGroup(ctx, SystemActorID, "New Group", "")
+	newGroup, err := c.roomLayout.CreateRoomGroup(ctx, SystemActorID, "New Group", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup new: %v", err)
 	}
@@ -1453,7 +1453,7 @@ func TestSetUserPermissionUsesCurrentRoomGroupForBotOwnerCeiling(t *testing.T) {
 	if err := c.GrantUserGroupPermission(ctx, SystemActorID, oldGroup.GetId(), owner.GetId(), PermRoomManage); err != nil {
 		t.Fatalf("GrantUserGroupPermission old group: %v", err)
 	}
-	if err := c.MoveRoomToGroup(ctx, SystemActorID, room.GetId(), newGroup.GetId()); err != nil {
+	if err := c.roomLayout.MoveRoomToGroup(ctx, SystemActorID, room.GetId(), newGroup.GetId()); err != nil {
 		t.Fatalf("MoveRoomToGroup: %v", err)
 	}
 

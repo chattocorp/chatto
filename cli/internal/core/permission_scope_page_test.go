@@ -51,13 +51,13 @@ func TestPermissionScopePagesFollowSidebarOrder(t *testing.T) {
 	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
-	group, err := c.CreateRoomGroup(ctx, SystemActorID, "Matrix group", "")
+	group, err := c.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Matrix group", "")
 	require.NoError(t, err)
 	first, err := c.CreateRoom(ctx, SystemActorID, KindChannel, group.Id, "first", "")
 	require.NoError(t, err)
 	second, err := c.CreateRoom(ctx, SystemActorID, KindChannel, group.Id, "second", "")
 	require.NoError(t, err)
-	require.NoError(t, c.ReorderRoomsInGroup(ctx, SystemActorID, group.Id, []string{second.Id, first.Id}))
+	require.NoError(t, c.roomLayout.ReorderRoomsInGroup(ctx, SystemActorID, group.Id, []string{second.Id, first.Id}))
 	groups, err := c.ListRoomGroupsOrdered(ctx, KindChannel)
 	require.NoError(t, err)
 	groupIDs := []string{group.Id}
@@ -66,7 +66,7 @@ func TestPermissionScopePagesFollowSidebarOrder(t *testing.T) {
 			groupIDs = append(groupIDs, other.Id)
 		}
 	}
-	require.NoError(t, c.ReorderRoomGroups(ctx, SystemActorID, groupIDs))
+	require.NoError(t, c.roomLayout.ReorderRoomGroups(ctx, SystemActorID, groupIDs))
 	scopes, err := c.buildMatrixScopes(ctx, true)
 	require.NoError(t, err)
 	groups, err = c.ListRoomGroupsOrdered(ctx, KindChannel)

@@ -242,8 +242,9 @@ stable machine-readable keys such as `config_model`, `message_model`, and
 - **`RoomMembershipModel`**
   ([`room_service_models.go`](../../cli/internal/core/room_service_models.go),
   [`room_membership.go`](../../cli/internal/core/room_membership.go),
-  [`room_bans.go`](../../cli/internal/core/room_bans.go)): Owns explicit and
-  effective membership reads, member lists, join/leave, and moderation writes.
+  [`room_bans.go`](../../cli/internal/core/room_bans.go)): Owns explicit
+  membership reads, member lists, join/leave, and moderation writes. Effective
+  membership checks use `AuthorizationModel`.
   It keeps room OCC retries, authorization callbacks, and projection waits
   with the operation. Membership loss batches include call facts. The call
   model owns key cleanup and LiveKit effects; the notification materializer
@@ -259,8 +260,11 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   [`can.go`](../../cli/internal/core/can.go),
   [`operation_auth.go`](../../cli/internal/core/operation_auth.go),
   [`authorization_consistency.go`](../../cli/internal/core/authorization_consistency.go)):
-  Owns shared permission decisions, operation guards, bot-manager policy,
-  call permission aggregation, and stable-input checks. `PermissionResolver`
+  Owns shared permission decisions, effective room membership, operation
+  guards, bot-manager policy, call permission aggregation, and stable-input
+  checks. A universal channel derives effective membership from join
+  authority. Thus, this model owns the check and depends on no domain operation
+  model. `PermissionResolver`
   reads room, account, and RBAC owners under the same `ServerContentView`
   transaction. Neither component starts a projector or keeps a second
   authorization cache.
@@ -295,7 +299,8 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   follow/unfollow API plus current-account interaction discovery; revalidates
   membership and read permission, validates thread roots, writes durable follow
   state, waits for projections, and publishes sync events. Follow queries use
-  membership, shared authorization, and read-state owners.
+  shared authorization for membership and read access, and the read-state
+  owner for markers.
 - **`RoomModel`** ([`room_model.go`](../../cli/internal/core/room_model.go),
   [`rooms.go`](../../cli/internal/core/rooms.go),
   [`room_groups.go`](../../cli/internal/core/room_groups.go),

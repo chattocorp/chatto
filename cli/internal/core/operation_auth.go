@@ -42,7 +42,7 @@ func (a *AuthorizationModel) requireRoomMemberInView(ctx context.Context, actorI
 		return nil, KindChannel, err
 	}
 	kind := KindOfRoom(room)
-	isMember, err := a.memberships.roomMembershipExists(ctx, kind, actorID, room.Id)
+	isMember, err := a.roomMembershipExists(ctx, kind, actorID, room.Id)
 	if err != nil {
 		return nil, KindChannel, err
 	}

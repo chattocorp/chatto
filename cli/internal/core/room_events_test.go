@@ -179,7 +179,7 @@ func TestChattoCore_GetRoomEvents_RoomLifecycleCommandsAreImmediatelyVisible(t *
 		return unarchived != nil && unarchived.RoomId == room.Id
 	})
 
-	if err := core.DeleteRoom(ctx, "test-user", KindChannel, room.Id); err != nil {
+	if err := core.roomCommands.DeleteRoom(ctx, "test-user", KindChannel, room.Id); err != nil {
 		t.Fatalf("Failed to delete room: %v", err)
 	}
 	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *evtv1.Event) bool {

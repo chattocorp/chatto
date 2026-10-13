@@ -227,7 +227,7 @@ func (s *ReadStateModel) publishThreadViewerStateChangedEvent(ctx context.Contex
 		},
 	})
 
-	if err := s.effects.publishUserPubSubEvent(ctx, userID, event); err != nil {
+	if err := s.integration.publishUserPubSubEvent(ctx, userID, event); err != nil {
 		s.logger.Warn("Failed to publish thread follow changed event", "error", err, "user_id", userID, "thread_root_event_id", threadRootEventID)
 	}
 }

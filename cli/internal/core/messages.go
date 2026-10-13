@@ -913,10 +913,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		// We check the reply count (already updated above): if 1, this is the first reply.
 		// On subsequent replies, we don't re-add the root author — they can unfollow freely.
 		if rootAuthorID != "" && rootAuthorID != user_id {
-			threadMeta, err := c.GetThreadMetadata(ctx, kind, room_id, inThread)
-			if err != nil {
-				c.logger.Warn("Failed to get thread metadata for root author auto-follow", "error", err, "thread_root_event_id", inThread)
-			} else if threadMeta.ReplyCount == 1 {
+			if c.GetThreadMetadata(inThread).ReplyCount == 1 {
 				if _, err := c.FollowThreadIfNeverSet(ctx, kind, rootAuthorID, room_id, inThread, evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_ROOT_AUTHOR); err != nil {
 					c.logger.Warn("Failed to auto-follow thread for root author", "error", err, "thread_root_event_id", inThread)
 				}

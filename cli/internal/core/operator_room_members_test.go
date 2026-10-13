@@ -80,7 +80,7 @@ func TestAddMemberRechecksRoomAfterConcurrentArchive(t *testing.T) {
 		return nil
 	})
 	require.ErrorIs(t, err, ErrRoomArchived)
-	_, err = c.GetRoomMembership(ctx, KindChannel, user.GetId(), room.GetId())
+	_, err = c.roomMemberships.GetRoomMembership(ctx, KindChannel, user.GetId(), room.GetId())
 	require.Error(t, err)
 	for _, eventType := range []string{evtstream.EventRoomMemberAdded, evtstream.EventUserJoinedRoom} {
 		events, _, eventErr := c.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.GetId()).Subject(eventType))

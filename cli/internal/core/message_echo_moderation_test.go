@@ -19,7 +19,7 @@ func TestModeratorEchoRemovalReauthorizes(t *testing.T) {
 			return c.DenyUserRoomPermission(ctx, SystemActorID, roomID, actorID, PermMessageManage)
 		}},
 		{name: "membership removed", wantErr: ErrNotRoomMember, change: func(ctx context.Context, c *ChattoCore, roomID, actorID string) error {
-			_, err := c.RemoveMember(ctx, SystemActorID, KindChannel, roomID, actorID)
+			_, err := c.roomMemberships.RemoveMember(ctx, SystemActorID, KindChannel, roomID, actorID)
 			return err
 		}},
 		{name: "room conflict", change: func(ctx context.Context, c *ChattoCore, roomID, actorID string) error {

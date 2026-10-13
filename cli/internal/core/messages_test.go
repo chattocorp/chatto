@@ -93,8 +93,7 @@ func TestMessageModelPostMessageCreatesEmptyThreadAndFollowsAuthor(t *testing.T)
 	require.NotNil(t, result.Event)
 	require.Empty(t, result.Event.GetMessagePosted().GetInThread())
 
-	metadata, err := chatto.GetThreadMetadata(ctx, KindChannel, room.Id, result.Event.Id)
-	require.NoError(t, err)
+	metadata := chatto.GetThreadMetadata(result.Event.Id)
 	require.True(t, metadata.Exists)
 	require.Zero(t, metadata.ReplyCount)
 	following, err := chatto.IsFollowingThread(ctx, KindChannel, user.Id, room.Id, result.Event.Id)
@@ -1181,7 +1180,7 @@ func TestEditMessageReauthorizesAfterMemberRemoval(t *testing.T) {
 		withEditMessageAuthorization(),
 		withEditMessageCommitAuthorization(func(attemptCtx context.Context) error {
 			checks++
-			removed, err := core.RemoveMember(attemptCtx, SystemActorID, KindChannel, room.Id, author.Id)
+			removed, err := core.roomMemberships.RemoveMember(attemptCtx, SystemActorID, KindChannel, room.Id, author.Id)
 			if err != nil {
 				return err
 			}
@@ -1393,7 +1392,7 @@ func TestDeleteMessageReauthorizesAfterMemberRemoval(t *testing.T) {
 				return err
 			}
 			checks++
-			removed, err := core.RemoveMember(attemptCtx, SystemActorID, KindChannel, room.Id, author.Id)
+			removed, err := core.roomMemberships.RemoveMember(attemptCtx, SystemActorID, KindChannel, room.Id, author.Id)
 			if err != nil {
 				return err
 			}
@@ -1643,7 +1642,7 @@ func TestEditMessageEchoRemovalSharesParentRoomOCC(t *testing.T) {
 		WithMessageChannelEcho(disabled),
 		withEditMessageAuthorization(),
 		withEditMessageCommitAuthorization(func(attemptCtx context.Context) error {
-			removed, err := core.RemoveMember(attemptCtx, SystemActorID, KindChannel, room.Id, author.Id)
+			removed, err := core.roomMemberships.RemoveMember(attemptCtx, SystemActorID, KindChannel, room.Id, author.Id)
 			if err != nil {
 				return err
 			}
@@ -1676,7 +1675,7 @@ func TestPartialMessageEditReauthorizesAfterMemberRemoval(t *testing.T) {
 	err = core.editEmbeddedBody(ctx, author.Id, KindChannel, room.Id, message.Id,
 		messageMutationAuthorization{authorOnly: true},
 		func(attemptCtx context.Context) error {
-			removed, err := core.RemoveMember(attemptCtx, SystemActorID, KindChannel, room.Id, author.Id)
+			removed, err := core.roomMemberships.RemoveMember(attemptCtx, SystemActorID, KindChannel, room.Id, author.Id)
 			if err != nil {
 				return err
 			}
@@ -1767,7 +1766,7 @@ func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterMemberRemoval(t *t
 			return err
 		}
 		if attempts == 1 {
-			removed, err := core.RemoveMember(attemptCtx, SystemActorID, KindChannel, room.Id, user.Id)
+			removed, err := core.roomMemberships.RemoveMember(attemptCtx, SystemActorID, KindChannel, room.Id, user.Id)
 			if err != nil {
 				return fmt.Errorf("remove member between authorization and append: %w", err)
 			}
@@ -1917,9 +1916,9 @@ func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRoomGroupChange(t 
 
 	user, err := core.CreateUser(ctx, SystemActorID, "post-group-race", "Post Group Race", "password123")
 	require.NoError(t, err)
-	sourceGroup, err := core.CreateRoomGroup(ctx, SystemActorID, "Post Source", "")
+	sourceGroup, err := core.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Post Source", "")
 	require.NoError(t, err)
-	targetGroup, err := core.CreateRoomGroup(ctx, SystemActorID, "Post Denied", "")
+	targetGroup, err := core.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Post Denied", "")
 	require.NoError(t, err)
 	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, sourceGroup.Id, "post-group-race", "")
 	require.NoError(t, err)
@@ -1946,7 +1945,7 @@ func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRoomGroupChange(t 
 			return err
 		}
 		if attempts == 1 {
-			if err := core.MoveRoomToGroup(attemptCtx, SystemActorID, room.Id, targetGroup.Id); err != nil {
+			if err := core.roomLayout.MoveRoomToGroup(attemptCtx, SystemActorID, room.Id, targetGroup.Id); err != nil {
 				return fmt.Errorf("move room between authorization and append: %w", err)
 			}
 		}
