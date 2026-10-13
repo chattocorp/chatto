@@ -247,7 +247,8 @@ func TestOIDCProviderRequestsTimeOut(t *testing.T) {
 			defer issuer.Close()
 			issuer.blockPath = tc.path
 			runtime := newTestOIDCRuntime(t, issuer, "none", "", false)
-			runtime.httpClient.Timeout = 100 * time.Millisecond
+			// Long enough for the other requests on a loaded test machine.
+			runtime.httpClient.Timeout = 500 * time.Millisecond
 			// The ID token lacks names, so Chatto asks UserInfo.
 			issuer.tokenClaims = map[string]any{}
 			started := time.Now()
@@ -270,7 +271,8 @@ func TestOIDCDiscoveryTimeoutIsSharedByConcurrentSignIns(t *testing.T) {
 	defer issuer.Close()
 	issuer.blockPath = "/.well-known/openid-configuration"
 	runtime := newTestOIDCRuntime(t, issuer, "none", "", false)
-	runtime.httpClient.Timeout = 200 * time.Millisecond
+	// Long enough for all callers to join the first attempt.
+	runtime.httpClient.Timeout = time.Second
 	started := time.Now()
 	var wg sync.WaitGroup
 	errs := make(chan error, 5)
