@@ -7,7 +7,8 @@ import (
 )
 
 // Map runs fn for each item with bounded concurrency and returns results in
-// input order. The first error cancels the worker context.
+// input order. The first error cancels the worker context. Each worker skips
+// fn if its context is already cancelled.
 func Map[T any, R any](ctx context.Context, limit int, items []T, fn func(context.Context, int, T) (R, error)) ([]R, error) {
 	out := make([]R, len(items))
 	if len(items) == 0 {
@@ -22,6 +23,9 @@ func Map[T any, R any](ctx context.Context, limit int, items []T, fn func(contex
 
 	for i, item := range items {
 		g.Go(func() error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			result, err := fn(ctx, i, item)
 			if err != nil {
 				return err
