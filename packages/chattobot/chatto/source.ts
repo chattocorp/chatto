@@ -96,11 +96,10 @@ async function consume(
     // Each generation starts from a new snapshot; the previous one is closed.
     console.warn('ChattoBot reloaded: messages sent during the reload are not replayed.');
   }
-  const post = async (...[destination, body, signal]: Parameters<typeof api.postMessage>) => {
-    await api.postMessage(destination, body, signal);
-  };
   const conversation = createConversation(conversationSettings, {
-    post: (destination, body, signal) => post(destination, body, { signal }),
+    post: async (destination, body, signal) => {
+      await api.postMessage(destination, body, { signal });
+    },
     typing: (destination, signal) => api.refreshTyping(destination, { signal }),
     acknowledge: createEyesReaction(api),
     readThread: createThreadReader(api),
@@ -109,8 +108,7 @@ async function consume(
   const route = createChattoRouter({
     botId,
     conversation,
-    state: session.state,
-    post: (destination, body, signal) => post(destination, body, { signal })
+    state: session.state
   });
 
   await server.consumeEvents({
@@ -123,7 +121,7 @@ async function consume(
       else log.info(`Chatto realtime: ${status.state}`);
     },
     async onEvent(event) {
-      // Disallowed senders cannot start, continue, or cancel a conversation.
+      // Disallowed senders cannot start or continue a conversation.
       if (allowedUserId && event.actorId !== allowedUserId) return;
       const message = await server.addressedMessage(event, { signal: ctx.signal }).catch(() => {
         ctx.signal.throwIfAborted();

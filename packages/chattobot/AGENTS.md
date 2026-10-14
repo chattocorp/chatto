@@ -22,8 +22,10 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
 ## Host text
 
 The model writes the replies. Host code writes text only when the model cannot:
-the notice after a failed turn in `conversation.ts` and the `/cancel`
-confirmation in `chatto/router.ts`. Do not add new host text without discussion.
+the notice after a failed turn in `conversation.ts`. Do not add new host text
+without discussion.
+
+Do not add slash commands. People talk to the bot in plain language.
 
 ## Permissions
 

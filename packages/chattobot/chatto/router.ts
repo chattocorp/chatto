@@ -2,7 +2,7 @@
 import { createDeliveryTracker } from '@chatto/client';
 import { log, type Task, type TSchema } from 'runling';
 import type { RunHandle, WebhookRouter } from 'runling/web';
-import { replyTo, IncomingMessage } from './message.ts';
+import { IncomingMessage } from './message.ts';
 
 /** A conversation ends when nobody writes to the bot in its thread for this long. A later
  * message starts a new conversation, which reads the thread again. */
@@ -24,25 +24,17 @@ export interface RouterOptions {
   /** The conversation task. Its input and messages are `IncomingMessage`. */
   conversation: Task<typeof IncomingMessage, TSchema, typeof IncomingMessage>;
   state: RouterState;
-  /** Post host text, such as the confirmation of `/cancel`. */
-  post: (
-    destination: ReturnType<typeof replyTo>,
-    body: string,
-    signal: AbortSignal
-  ) => Promise<void>;
   idleMs?: number;
 }
 
 /**
  * Send each message to the run of its thread, or start one. Everyone who addresses the bot in a
- * thread shares its conversation; the conversation checks permissions per turn. `/cancel` stops
- * the thread's run.
+ * thread shares its conversation; the conversation checks permissions per turn.
  */
 export function createChattoRouter({
   botId,
   conversation,
   state,
-  post,
   idleMs = IDLE_MS
 }: RouterOptions): WebhookRouter<IncomingMessage> {
   const { threads } = state;
@@ -71,15 +63,6 @@ export function createChattoRouter({
     deliveries.accept(delivery);
     const key = JSON.stringify([botId, message.roomId, message.threadRootId]);
     const thread = threads.get(key);
-
-    if (message.body.trim() === '/cancel') {
-      if (!thread) return;
-      forget(key, thread.run);
-      thread.run.cancel();
-      // Host text: the cancelled conversation cannot answer.
-      await post(replyTo(message), 'Cancelled.', AbortSignal.timeout(10_000)).catch(() => {});
-      return;
-    }
 
     if (thread) {
       try {

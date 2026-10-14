@@ -23,17 +23,14 @@ function harness({ send }: { send?: (message: unknown) => Promise<void> } = {}) 
     input: unknown;
     sent: unknown[];
     closed: boolean;
-    cancelled: boolean;
     finish: () => void;
   }[] = [];
-  const posts: string[] = [];
   const start: WebhookContext['start'] = async (_task, { input }) => {
     const finished = Promise.withResolvers<void>();
     const run = {
       input,
       sent: [] as unknown[],
       closed: false,
-      cancelled: false,
       finish: () => finished.resolve()
     };
     runs.push(run);
@@ -44,7 +41,7 @@ function harness({ send }: { send?: (message: unknown) => Promise<void> } = {}) 
         run.sent.push(value);
       },
       closeInput: () => void (run.closed = true),
-      cancel: () => void (run.cancelled = true),
+      cancel: () => {},
       finished: finished.promise
     };
     return handle as never;
@@ -53,10 +50,9 @@ function harness({ send }: { send?: (message: unknown) => Promise<void> } = {}) 
     botId: 'bot',
     conversation,
     state: createRouterState(),
-    post: async (_destination, body) => void posts.push(body),
     idleMs: 1000
   });
-  return { route: (incoming: IncomingMessage) => route({ start }, incoming), runs, posts };
+  return { route: (incoming: IncomingMessage) => route({ start }, incoming), runs };
 }
 
 afterEach(() => vi.useRealTimers());
@@ -97,18 +93,6 @@ test('forgets a finished run', async () => {
   await router.route(message('one'));
   router.runs[0]!.finish();
   await new Promise((resolve) => setTimeout(resolve));
-  await router.route(message('two'));
-  expect(router.runs).toHaveLength(2);
-});
-
-test('/cancel cancels the thread run and confirms it', async () => {
-  const router = harness();
-  await router.route(message('cancel-before', '/cancel'));
-  expect(router.posts).toEqual([]);
-  await router.route(message('one'));
-  await router.route(message('cancel', ' /cancel '));
-  expect(router.runs[0]).toMatchObject({ cancelled: true, sent: [] });
-  expect(router.posts).toEqual(['Cancelled.']);
   await router.route(message('two'));
   expect(router.runs).toHaveLength(2);
 });

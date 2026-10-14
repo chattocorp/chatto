@@ -24,8 +24,6 @@ A conversation ends after one hour without messages to the bot. The next
 message starts a new conversation, which reads the thread again. A restart of
 the bot also ends all conversations.
 
-Write `/cancel` in a thread to stop its conversation.
-
 ## Tools
 
 | Tool             | Who can use it | What it does                                                   |
