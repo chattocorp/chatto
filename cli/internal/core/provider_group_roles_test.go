@@ -8,6 +8,9 @@ import (
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
+// testIssuers are the identity issuers of the test providers.
+var testIssuers = map[string]string{"company": "https://id.example", "other": "https://other.example"}
+
 // testGroupRoles maps the groups of two test providers to roles. The owner
 // pair and the unknown role exercise the defensive skips.
 var testGroupRoles = map[string]string{
@@ -25,6 +28,22 @@ func setupGroupRolesCore(t *testing.T) *ChattoCore {
 	return core
 }
 
+// newGroupMember creates a user with an identity of each test provider.
+func newGroupMember(t *testing.T, core *ChattoCore, login string) *evtv1.User {
+	t.Helper()
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, login, login, "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for providerID, issuer := range testIssuers {
+		if err := core.LinkExternalIdentity(ctx, providerID, config.AuthProviderTypeOpenIDConnect, issuer, login, user.Id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return user
+}
+
 func syncGroups(t *testing.T, core *ChattoCore, userID, providerID string, groups ...string) {
 	t.Helper()
 	syncGroupsWith(t, core, userID, providerID, testGroupRoles[providerID], groups...)
@@ -36,7 +55,8 @@ func syncGroupsWith(t *testing.T, core *ChattoCore, userID, providerID, groupRol
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := core.SyncProviderGroupRoles(testContext(t), userID, providerID, mappings, ProviderGroups{Groups: groups, Known: true}); err != nil {
+	source := ProviderRoleSource{ProviderID: providerID, Issuer: testIssuers[providerID]}
+	if err := core.SyncProviderGroupRoles(testContext(t), userID, source, mappings, ProviderGroups{Groups: groups, Known: true}); err != nil {
 		t.Fatalf("SyncProviderGroupRoles(%v): %v", groups, err)
 	}
 }
@@ -54,15 +74,12 @@ func TestSyncProviderGroupRolesGrantsAndRevokesProviderAssignments(t *testing.T)
 	t.Parallel()
 	core := setupGroupRolesCore(t)
 	ctx := testContext(t)
-	user, err := core.CreateUser(ctx, SystemActorID, "group-member", "Group Member", "password123")
-	if err != nil {
-		t.Fatal(err)
-	}
+	user := newGroupMember(t, core, "group-member")
 
 	syncGroups(t, core, user.Id, "company", "chat-mods", "it-ops", "admins")
 	requireRoles(t, core, user.Id, map[string]bool{RoleModerator: true, "helper": true, RoleOwner: false})
-	if owner, _ := core.rbacModel.assignmentProvider(user.Id, RoleModerator); owner != "company" {
-		t.Fatalf("moderator owner = %q, want company", owner)
+	if owner, _ := core.rbacModel.assignmentOwner(user.Id, RoleModerator); owner != testIssuers["company"] {
+		t.Fatalf("moderator owner = %q, want company issuer", owner)
 	}
 
 	// helper stays while one of its groups matches.
@@ -83,7 +100,8 @@ func TestSyncProviderGroupRolesGrantsAndRevokesProviderAssignments(t *testing.T)
 		if event.GetRbacRoleAssigned().GetUserId() != user.Id {
 			continue
 		}
-		if event.GetRbacRoleAssigned().GetReason().GetProviderGroups().GetProviderId() != "company" || event.GetActorId() != SystemActorID {
+		reason := event.GetRbacRoleAssigned().GetReason().GetProviderGroups()
+		if reason.GetProviderId() != "company" || reason.GetIssuer() != testIssuers["company"] || event.GetActorId() != SystemActorID {
 			t.Fatalf("provider assignment reason or actor = %v / %q", event.GetRbacRoleAssigned().GetReason(), event.GetActorId())
 		}
 		providerAssignments++
@@ -97,10 +115,7 @@ func TestSyncProviderGroupRolesKeepsAdminAssignments(t *testing.T) {
 	t.Parallel()
 	core := setupGroupRolesCore(t)
 	ctx := testContext(t)
-	user, err := core.CreateUser(ctx, SystemActorID, "admin-assigned", "Admin Assigned", "password123")
-	if err != nil {
-		t.Fatal(err)
-	}
+	user := newGroupMember(t, core, "admin-assigned")
 	if err := core.AssignServerRole(ctx, SystemActorID, user.Id, RoleModerator); err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +124,7 @@ func TestSyncProviderGroupRolesKeepsAdminAssignments(t *testing.T) {
 	syncGroups(t, core, user.Id, "company", "chat-mods")
 	syncGroups(t, core, user.Id, "company")
 	requireRoles(t, core, user.Id, map[string]bool{RoleModerator: true})
-	if owner, _ := core.rbacModel.assignmentProvider(user.Id, RoleModerator); owner != "" {
+	if owner, _ := core.rbacModel.assignmentOwner(user.Id, RoleModerator); owner != "" {
 		t.Fatalf("moderator owner = %q, want admin", owner)
 	}
 }
@@ -118,10 +133,7 @@ func TestSyncProviderGroupRolesGrantsAgainAfterAdminRevoke(t *testing.T) {
 	t.Parallel()
 	core := setupGroupRolesCore(t)
 	ctx := testContext(t)
-	user, err := core.CreateUser(ctx, SystemActorID, "revoked-member", "Revoked Member", "password123")
-	if err != nil {
-		t.Fatal(err)
-	}
+	user := newGroupMember(t, core, "revoked-member")
 	syncGroups(t, core, user.Id, "company", "chat-mods")
 	if err := core.RevokeServerRole(ctx, SystemActorID, user.Id, RoleModerator); err != nil {
 		t.Fatal(err)
@@ -135,13 +147,10 @@ func TestSyncProviderGroupRolesChangesNothingWithoutClaim(t *testing.T) {
 	t.Parallel()
 	core := setupGroupRolesCore(t)
 	ctx := testContext(t)
-	user, err := core.CreateUser(ctx, SystemActorID, "unknown-groups", "Unknown Groups", "password123")
-	if err != nil {
-		t.Fatal(err)
-	}
+	user := newGroupMember(t, core, "unknown-groups")
 	syncGroups(t, core, user.Id, "company", "chat-mods")
 	mappings, _ := config.ParseGroupRoles(testGroupRoles["company"])
-	if err := core.SyncProviderGroupRoles(ctx, user.Id, "company", mappings, ProviderGroups{}); err != nil {
+	if err := core.SyncProviderGroupRoles(ctx, user.Id, ProviderRoleSource{ProviderID: "company", Issuer: testIssuers["company"]}, mappings, ProviderGroups{}); err != nil {
 		t.Fatal(err)
 	}
 	requireRoles(t, core, user.Id, map[string]bool{RoleModerator: true})
@@ -154,17 +163,14 @@ func TestSyncProviderGroupRolesRevokesOnlyOwnProviderAssignments(t *testing.T) {
 	if _, err := core.CreateServerRole(ctx, SystemActorID, "other-role", "Other Role", ""); err != nil {
 		t.Fatal(err)
 	}
-	user, err := core.CreateUser(ctx, SystemActorID, "two-providers", "Two Providers", "password123")
-	if err != nil {
-		t.Fatal(err)
-	}
+	user := newGroupMember(t, core, "two-providers")
 	syncGroups(t, core, user.Id, "other", "other-mods")
 	// The mapping for the role moves to company. Company does not own the
 	// assignment that other created, so it does not revoke it.
 	syncGroupsWith(t, core, user.Id, "company", "other-mods:other-role")
 	requireRoles(t, core, user.Id, map[string]bool{"other-role": true})
-	if owner, _ := core.rbacModel.assignmentProvider(user.Id, "other-role"); owner != "other" {
-		t.Fatalf("other-role owner = %q, want other", owner)
+	if owner, _ := core.rbacModel.assignmentOwner(user.Id, "other-role"); owner != testIssuers["other"] {
+		t.Fatalf("other-role owner = %q, want other issuer", owner)
 	}
 }
 
@@ -172,15 +178,12 @@ func TestSyncProviderGroupRolesConcurrentSyncsAssignOnce(t *testing.T) {
 	t.Parallel()
 	core := setupGroupRolesCore(t)
 	ctx := testContext(t)
-	user, err := core.CreateUser(ctx, SystemActorID, "concurrent-member", "Concurrent Member", "password123")
-	if err != nil {
-		t.Fatal(err)
-	}
+	user := newGroupMember(t, core, "concurrent-member")
 	mappings, _ := config.ParseGroupRoles(testGroupRoles["company"])
 	var wg sync.WaitGroup
 	for range 4 {
 		wg.Go(func() {
-			if err := core.SyncProviderGroupRoles(ctx, user.Id, "company", mappings, ProviderGroups{Groups: []string{"chat-mods"}, Known: true}); err != nil {
+			if err := core.SyncProviderGroupRoles(ctx, user.Id, ProviderRoleSource{ProviderID: "company", Issuer: testIssuers["company"]}, mappings, ProviderGroups{Groups: []string{"chat-mods"}, Known: true}); err != nil {
 				t.Error(err)
 			}
 		})
@@ -229,7 +232,7 @@ func TestAssignConfiguredOwnerRoleRecordsReason(t *testing.T) {
 func TestRBACProjectionKeepsFirstAssignmentOwner(t *testing.T) {
 	t.Parallel()
 	projection := NewRBACProjection()
-	provider := &evtv1.RbacRoleChangeReason{Reason: &evtv1.RbacRoleChangeReason_ProviderGroups{ProviderGroups: &evtv1.RbacProviderGroupsReason{ProviderId: "company"}}}
+	provider := &evtv1.RbacRoleChangeReason{Reason: &evtv1.RbacRoleChangeReason_ProviderGroups{ProviderGroups: &evtv1.RbacProviderGroupsReason{ProviderId: "company", Issuer: "https://id.example"}}}
 	apply := func(seq uint64, reason *evtv1.RbacRoleChangeReason) {
 		t.Helper()
 		event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleAssigned{RbacRoleAssigned: &evtv1.RbacRoleAssignedEvent{UserId: "U1", RoleName: "moderator", Reason: reason}}})
@@ -239,7 +242,7 @@ func TestRBACProjectionKeepsFirstAssignmentOwner(t *testing.T) {
 	}
 	apply(1, nil)
 	apply(2, provider)
-	if owner, assigned := projection.AssignmentProvider("U1", "moderator"); !assigned || owner != "" {
+	if owner, assigned := projection.AssignmentOwner("U1", "moderator"); !assigned || owner != "" {
 		t.Fatalf("owner = %q, %v; want admin assignment", owner, assigned)
 	}
 
@@ -256,8 +259,8 @@ func TestRBACProjectionKeepsFirstAssignmentOwner(t *testing.T) {
 	if err := restored.Restore(data); err != nil {
 		t.Fatal(err)
 	}
-	if owner, assigned := restored.AssignmentProvider("U2", "helper"); !assigned || owner != "company" {
-		t.Fatalf("restored owner = %q, %v; want company", owner, assigned)
+	if owner, assigned := restored.AssignmentOwner("U2", "helper"); !assigned || owner != "https://id.example" {
+		t.Fatalf("restored owner = %q, %v; want company issuer", owner, assigned)
 	}
 }
 
@@ -316,10 +319,7 @@ func TestAdminReassignmentAfterRevokeIsAdminOwned(t *testing.T) {
 	t.Parallel()
 	core := setupGroupRolesCore(t)
 	ctx := testContext(t)
-	user, err := core.CreateUser(ctx, SystemActorID, "reassigned-member", "Reassigned Member", "password123")
-	if err != nil {
-		t.Fatal(err)
-	}
+	user := newGroupMember(t, core, "reassigned-member")
 	syncGroups(t, core, user.Id, "company", "chat-mods")
 	if err := core.RevokeServerRole(ctx, SystemActorID, user.Id, RoleModerator); err != nil {
 		t.Fatal(err)
@@ -334,7 +334,7 @@ func TestAdminReassignmentAfterRevokeIsAdminOwned(t *testing.T) {
 func TestRBACProjectionRoleDeletionClearsAssignmentOwner(t *testing.T) {
 	t.Parallel()
 	projection := NewRBACProjection()
-	provider := &evtv1.RbacRoleChangeReason{Reason: &evtv1.RbacRoleChangeReason_ProviderGroups{ProviderGroups: &evtv1.RbacProviderGroupsReason{ProviderId: "company"}}}
+	provider := &evtv1.RbacRoleChangeReason{Reason: &evtv1.RbacRoleChangeReason_ProviderGroups{ProviderGroups: &evtv1.RbacProviderGroupsReason{ProviderId: "company", Issuer: "https://id.example"}}}
 	events := []*evtv1.Event{
 		{Event: &evtv1.Event_RbacRoleCreated{RbacRoleCreated: &evtv1.RbacRoleCreatedEvent{RoleName: "helper"}}},
 		{Event: &evtv1.Event_RbacRoleAssigned{RbacRoleAssigned: &evtv1.RbacRoleAssignedEvent{UserId: "U1", RoleName: "helper", Reason: provider}}},
@@ -347,7 +347,57 @@ func TestRBACProjectionRoleDeletionClearsAssignmentOwner(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if owner, assigned := projection.AssignmentProvider("U1", "helper"); !assigned || owner != "" {
+	if owner, assigned := projection.AssignmentOwner("U1", "helper"); !assigned || owner != "" {
 		t.Fatalf("owner = %q, %v; want admin assignment after recreation", owner, assigned)
+	}
+}
+
+// An identity linked under an older provider ID still owns the roles that the
+// provider gives under its current ID, because ownership follows the issuer.
+// Admin assignments never match.
+func TestUnlinkingLegacyProviderIDIdentityRevokesOnlyProviderRoles(t *testing.T) {
+	t.Parallel()
+	core := setupGroupRolesCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "legacy-member", "Legacy Member", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Links from before provider IDs used the issuer URL as their ID.
+	if err := core.LinkExternalIdentity(ctx, testIssuers["company"], config.AuthProviderTypeOpenIDConnect, testIssuers["company"], "legacy", user.Id); err != nil {
+		t.Fatal(err)
+	}
+	if err := core.AssignServerRole(ctx, SystemActorID, user.Id, "helper"); err != nil {
+		t.Fatal(err)
+	}
+	syncGroups(t, core, user.Id, "company", "chat-mods")
+	if err := core.DisconnectExternalIdentity(ctx, user.Id, externalIdentityHash(testIssuers["company"], "legacy")); err != nil {
+		t.Fatal(err)
+	}
+	requireRoles(t, core, user.Id, map[string]bool{RoleModerator: false, "helper": true})
+}
+
+// A sync that grants a role after the identity was unlinked revokes it again.
+func TestSyncProviderGroupRolesWithoutIdentityRevokesGrant(t *testing.T) {
+	t.Parallel()
+	core := setupGroupRolesCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "unlinked-sync", "Unlinked Sync", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	syncGroups(t, core, user.Id, "company", "chat-mods")
+	requireRoles(t, core, user.Id, map[string]bool{RoleModerator: false})
+}
+
+func TestRBACProjectionEmptyIssuerOwnsNothing(t *testing.T) {
+	t.Parallel()
+	projection := NewRBACProjection()
+	event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleAssigned{RbacRoleAssigned: &evtv1.RbacRoleAssignedEvent{UserId: "U1", RoleName: "admin"}}})
+	if err := projection.Apply(event, 1); err != nil {
+		t.Fatal(err)
+	}
+	if roles := projection.ProviderAssignments("U1", ""); len(roles) != 0 {
+		t.Fatalf("ProviderAssignments with empty issuer = %v, want none", roles)
 	}
 }

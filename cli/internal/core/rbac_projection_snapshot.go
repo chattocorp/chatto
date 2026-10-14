@@ -24,8 +24,8 @@ func (p *RBACProjection) Snapshot() ([]byte, error) {
 	for _, userID := range sortedMapKeys(p.assignments) {
 		row := &projectionv1.RBACAssignmentSnapshot{UserId: userID, RoleNames: sortedMapKeys(p.assignments[userID])}
 		for _, roleName := range row.RoleNames {
-			if providerID := p.assignments[userID][roleName]; providerID != "" {
-				row.ProviderAssignments = append(row.ProviderAssignments, &projectionv1.RBACProviderAssignmentSnapshot{RoleName: roleName, ProviderId: providerID})
+			if issuer := p.assignments[userID][roleName]; issuer != "" {
+				row.ProviderAssignments = append(row.ProviderAssignments, &projectionv1.RBACProviderAssignmentSnapshot{RoleName: roleName, Issuer: issuer})
 			}
 		}
 		snapshot.Assignments = append(snapshot.Assignments, row)
@@ -96,11 +96,11 @@ func (p *RBACProjection) Restore(data []byte) error {
 			set[roleName] = ""
 		}
 		for _, owned := range assignment.GetProviderAssignments() {
-			providerID, assigned := set[owned.GetRoleName()]
-			if !assigned || owned.GetProviderId() == "" || providerID != "" {
+			owner, assigned := set[owned.GetRoleName()]
+			if !assigned || owned.GetIssuer() == "" || owner != "" {
 				return fmt.Errorf("RBAC snapshot has invalid provider assignment for role %q", owned.GetRoleName())
 			}
-			set[owned.GetRoleName()] = owned.GetProviderId()
+			set[owned.GetRoleName()] = owned.GetIssuer()
 		}
 		assignments[assignment.GetUserId()] = set
 	}

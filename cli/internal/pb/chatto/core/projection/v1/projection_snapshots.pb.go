@@ -2332,9 +2332,10 @@ func (x *RBACAssignmentSnapshot) GetProviderAssignments() []*RBACProviderAssignm
 }
 
 type RBACProviderAssignmentSnapshot struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoleName      string                 `protobuf:"bytes,1,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
-	ProviderId    string                 `protobuf:"bytes,2,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	RoleName string                 `protobuf:"bytes,1,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	// Identity issuer of the owning provider.
+	Issuer        string `protobuf:"bytes,2,opt,name=issuer,proto3" json:"issuer,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2376,9 +2377,9 @@ func (x *RBACProviderAssignmentSnapshot) GetRoleName() string {
 	return ""
 }
 
-func (x *RBACProviderAssignmentSnapshot) GetProviderId() string {
+func (x *RBACProviderAssignmentSnapshot) GetIssuer() string {
 	if x != nil {
-		return x.ProviderId
+		return x.Issuer
 	}
 	return ""
 }
@@ -4769,11 +4770,10 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1d\n" +
 	"\n" +
 	"role_names\x18\x02 \x03(\tR\troleNames\x12l\n" +
-	"\x14provider_assignments\x18\x03 \x03(\v29.chatto.core.projection.v1.RBACProviderAssignmentSnapshotR\x13providerAssignments\"^\n" +
+	"\x14provider_assignments\x18\x03 \x03(\v29.chatto.core.projection.v1.RBACProviderAssignmentSnapshotR\x13providerAssignments\"U\n" +
 	"\x1eRBACProviderAssignmentSnapshot\x12\x1b\n" +
-	"\trole_name\x18\x01 \x01(\tR\broleName\x12\x1f\n" +
-	"\vprovider_id\x18\x02 \x01(\tR\n" +
-	"providerId\"\xef\x01\n" +
+	"\trole_name\x18\x01 \x01(\tR\broleName\x12\x16\n" +
+	"\x06issuer\x18\x02 \x01(\tR\x06issuer\"\xef\x01\n" +
 	"\x14RBACDecisionSnapshot\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x19\n" +
 	"\bscope_id\x18\x02 \x01(\tR\ascopeId\x12P\n" +

@@ -40,12 +40,12 @@ func (m *RBACModel) hasRole(userID, roleName string) bool {
 	return m.rbac.Projection().HasRole(userID, roleName)
 }
 
-func (m *RBACModel) assignmentProvider(userID, roleName string) (string, bool) {
-	return m.rbac.Projection().AssignmentProvider(userID, roleName)
+func (m *RBACModel) assignmentOwner(userID, roleName string) (string, bool) {
+	return m.rbac.Projection().AssignmentOwner(userID, roleName)
 }
 
-func (m *RBACModel) providerAssignments(userID, providerID string) []string {
-	return m.rbac.Projection().ProviderAssignments(userID, providerID)
+func (m *RBACModel) providerAssignments(userID, issuer string) []string {
+	return m.rbac.Projection().ProviderAssignments(userID, issuer)
 }
 
 func (m *RBACModel) roleUsers(roleName string) []string {

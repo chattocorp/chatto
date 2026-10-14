@@ -403,6 +403,7 @@ func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, us
 	// The unlink and the revocation of the group roles that its provider gave
 	// commit in one atomic batch with user and RBAC OCC. A failure therefore
 	// cannot leave an unlinked account with the provider's roles.
+	var source ProviderRoleSource
 	for attempt := range maxUserMutationRetries {
 		userSeq, err := c.EventPublisher.LastSubjectSeq(ctx, userFilter)
 		if err != nil {
@@ -429,11 +430,12 @@ func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, us
 		}
 
 		entries := []evtstream.BatchEntry{{Subject: unlinkSubject, Event: unlink, Expect: events.ExpectFilterSeq(userFilter, userSeq)}}
-		// Another identity of the provider keeps the account under that
+		// Another identity with the same issuer keeps the account under that
 		// provider's group role sync, so its roles stay.
-		if !hasOtherProviderIdentity(c.userModel.externalIdentities(userID), unlinked) {
-			for _, roleName := range c.rbacModel.providerAssignments(userID, unlinked.ProviderID) {
-				entries = append(entries, providerRoleRevokedEntry(userID, roleName, unlinked.ProviderID))
+		source = ProviderRoleSource{ProviderID: unlinked.ProviderID, Issuer: unlinked.Issuer}
+		if !hasOtherIssuerIdentity(c.userModel.externalIdentities(userID), unlinked) {
+			for _, roleName := range c.rbacModel.providerAssignments(userID, unlinked.Issuer) {
+				entries = append(entries, source.revokedEntry(userID, roleName))
 			}
 		}
 		if len(entries) > 1 {
@@ -453,7 +455,9 @@ func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, us
 					return fmt.Errorf("wait for RBAC projection: %w", err)
 				}
 			}
-			return nil
+			// A concurrent group role sync can commit a grant after the batch
+			// read the RBAC state. Check again now that the unlink is visible.
+			return c.revokeProviderGroupRolesWithoutIdentity(ctx, userID, source)
 		}
 		if !errors.Is(err, events.ErrConflict) {
 			return err
@@ -497,10 +501,11 @@ func (c *ChattoCore) checkExternalIdentityDisconnect(ctx context.Context, userID
 	return unlinked, nil
 }
 
-// hasOtherProviderIdentity reports whether identities contain another
-// identity of the same provider as identity.
-func hasOtherProviderIdentity(identities []ExternalIdentity, identity ExternalIdentity) bool {
+// hasOtherIssuerIdentity reports whether identities contain another identity
+// with the same issuer as identity. The issuer is the identity namespace of a
+// provider, also for links made under an older provider ID.
+func hasOtherIssuerIdentity(identities []ExternalIdentity, identity ExternalIdentity) bool {
 	return slices.ContainsFunc(identities, func(other ExternalIdentity) bool {
-		return other.ProviderID == identity.ProviderID && other.SubjectHash != identity.SubjectHash
+		return other.Issuer == identity.Issuer && other.SubjectHash != identity.SubjectHash
 	})
 }

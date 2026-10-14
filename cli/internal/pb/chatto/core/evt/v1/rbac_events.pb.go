@@ -658,8 +658,12 @@ func (*RbacRoleChangeReason_ConfiguredOwner) isRbacRoleChangeReason_Reason() {}
 // created and can later revoke it.
 type RbacProviderGroupsReason struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Configured auth provider ID.
-	ProviderId    string `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	// Configured auth provider ID at the time of the change.
+	ProviderId string `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	// Identity namespace of the provider: the verified OIDC issuer URL. It
+	// identifies the owner of an assignment, so a changed provider ID keeps the
+	// ownership, like identity links do.
+	Issuer        string `protobuf:"bytes,2,opt,name=issuer,proto3" json:"issuer,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -697,6 +701,13 @@ func (*RbacProviderGroupsReason) Descriptor() ([]byte, []int) {
 func (x *RbacProviderGroupsReason) GetProviderId() string {
 	if x != nil {
 		return x.ProviderId
+	}
+	return ""
+}
+
+func (x *RbacProviderGroupsReason) GetIssuer() string {
+	if x != nil {
+		return x.Issuer
 	}
 	return ""
 }
@@ -1063,10 +1074,11 @@ const file_chatto_core_evt_v1_rbac_events_proto_rawDesc = "" +
 	"\x14RbacRoleChangeReason\x12W\n" +
 	"\x0fprovider_groups\x18\x01 \x01(\v2,.chatto.core.evt.v1.RbacProviderGroupsReasonH\x00R\x0eproviderGroups\x12Z\n" +
 	"\x10configured_owner\x18\x02 \x01(\v2-.chatto.core.evt.v1.RbacConfiguredOwnerReasonH\x00R\x0fconfiguredOwnerB\b\n" +
-	"\x06reason\";\n" +
+	"\x06reason\"S\n" +
 	"\x18RbacProviderGroupsReason\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
-	"providerId\"\x1b\n" +
+	"providerId\x12\x16\n" +
+	"\x06issuer\x18\x02 \x01(\tR\x06issuer\"\x1b\n" +
 	"\x19RbacConfiguredOwnerReason\"f\n" +
 	"\x13RbacPermissionScope\x12?\n" +
 	"\x04kind\x18\x01 \x01(\x0e2+.chatto.core.evt.v1.RbacPermissionScopeKindR\x04kind\x12\x0e\n" +

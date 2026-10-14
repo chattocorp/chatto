@@ -78,7 +78,7 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 	// The account is committed. A failed sync is repeated at the next sign-in.
 	if provider, ok := s.api.authProvider(flow.ProviderID); ok {
 		groups := core.ProviderGroups{Groups: flow.Groups, Known: flow.GroupsKnown}
-		if err := s.api.core.SyncProviderGroupRoles(ctx, user.GetId(), provider.ID, provider.GroupRoleMappings(), groups); err != nil {
+		if err := s.api.core.SyncProviderGroupRoles(ctx, user.GetId(), core.ProviderRoleSource{ProviderID: provider.ID, Issuer: flow.Issuer}, provider.GroupRoleMappings(), groups); err != nil {
 			log.Warn("Provider group role sync failed after account creation", "provider_id", provider.ID, "user_id", user.GetId(), "error", err)
 		}
 	}
