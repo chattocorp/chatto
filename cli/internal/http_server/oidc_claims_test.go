@@ -388,27 +388,36 @@ func TestOIDCGroupsClaim(t *testing.T) {
 		{"other shape", "", withNames(map[string]any{"groups": 7}), map[string]any{"groups": map[string]any{"a": 1}}, nil, true},
 		{"absent", "", withNames(nil), map[string]any{}, nil, true},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			issuer := newNoEmailOIDCIssuer(t, "client-id")
-			defer issuer.Close()
-			issuer.tokenClaims = tc.id
-			if tc.info != nil {
-				tc.info["sub"] = issuer.subject
-				issuer.userInfoClaims = tc.info
-			}
-			runtime := newTestOIDCRuntime(t, issuer, "none", "", false)
-			runtime.config.AllowedGroups, runtime.config.GroupsClaim = []string{"chat-users"}, tc.claim
-			identity, err := resolveTestOIDCRuntime(t, runtime, "test-nonce")
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !slices.Equal(identity.groups, tc.want) {
-				t.Fatalf("groups = %v, want %v", identity.groups, tc.want)
-			}
-			if (issuer.UserInfoRequests() == 1) != tc.userInfoUsed {
-				t.Fatalf("UserInfo requests = %d", issuer.UserInfoRequests())
-			}
-		})
+		// Both group features read the claim, also on their own.
+		for _, feature := range []string{"allowed_groups", "group_roles"} {
+			t.Run(tc.name+"/"+feature, func(t *testing.T) {
+				issuer := newNoEmailOIDCIssuer(t, "client-id")
+				defer issuer.Close()
+				issuer.tokenClaims = tc.id
+				if tc.info != nil {
+					info := maps.Clone(tc.info)
+					info["sub"] = issuer.subject
+					issuer.userInfoClaims = info
+				}
+				runtime := newTestOIDCRuntime(t, issuer, "none", "", false)
+				runtime.config.GroupsClaim = tc.claim
+				if feature == "allowed_groups" {
+					runtime.config.AllowedGroups = []string{"chat-users"}
+				} else {
+					runtime.config.GroupRoles = "chat-users:moderator"
+				}
+				identity, err := resolveTestOIDCRuntime(t, runtime, "test-nonce")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !slices.Equal(identity.groups.Groups, tc.want) || identity.groups.Known != (tc.want != nil) {
+					t.Fatalf("groups = %+v, want %v", identity.groups, tc.want)
+				}
+				if (issuer.UserInfoRequests() == 1) != tc.userInfoUsed {
+					t.Fatalf("UserInfo requests = %d", issuer.UserInfoRequests())
+				}
+			})
+		}
 	}
 }
 

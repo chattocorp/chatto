@@ -16,8 +16,12 @@ import (
 // explicit permission decisions from durable evt.rbac.> events.
 type RBACProjection struct {
 	events.MemoryProjection
-	roles       map[string]*evtv1.Role
-	assignments map[string]map[string]struct{} // userID -> roleName set
+	roles map[string]*evtv1.Role
+	// assignments maps userID -> roleName -> owner. The owner is the ID of the
+	// auth provider whose group_roles mapping created the assignment, or empty
+	// for an admin or configuration assignment. Only the owning provider
+	// revokes an assignment during group role sync (FDR-050).
+	assignments map[string]map[string]string
 	decisions   map[rbacDecisionKey]DecisionKind
 	replayGuard projectionReplayGuard
 }
@@ -43,7 +47,7 @@ type ScopedRolePermissionDecision struct {
 func NewRBACProjection() *RBACProjection {
 	return &RBACProjection{
 		roles:       make(map[string]*evtv1.Role),
-		assignments: make(map[string]map[string]struct{}),
+		assignments: make(map[string]map[string]string),
 		decisions:   make(map[rbacDecisionKey]DecisionKind),
 		replayGuard: newProjectionReplayGuard(),
 	}
@@ -77,7 +81,7 @@ func (p *RBACProjection) Apply(event *evtv1.Event, seq uint64) error {
 	case *evtv1.Event_RbacRolesReordered:
 		p.applyRolesReordered(e.RbacRolesReordered.GetRoleNames())
 	case *evtv1.Event_RbacRoleAssigned:
-		p.applyRoleAssigned(e.RbacRoleAssigned.GetUserId(), e.RbacRoleAssigned.GetRoleName())
+		p.applyRoleAssigned(e.RbacRoleAssigned.GetUserId(), e.RbacRoleAssigned.GetRoleName(), e.RbacRoleAssigned.GetReason().GetProviderGroups().GetProviderId())
 	case *evtv1.Event_RbacRoleRevoked:
 		p.applyRoleRevoked(e.RbacRoleRevoked.GetUserId(), e.RbacRoleRevoked.GetRoleName())
 	case *evtv1.Event_RbacPermissionGranted:
@@ -207,14 +211,19 @@ func (p *RBACProjection) applyRoleDeleted(roleName string) {
 	}
 }
 
-func (p *RBACProjection) applyRoleAssigned(userID, roleName string) {
+// applyRoleAssigned records an assignment and its owner. A repeated
+// assignment keeps the owner of the assignment that already exists.
+func (p *RBACProjection) applyRoleAssigned(userID, roleName, providerID string) {
 	if userID == "" || roleName == "" {
 		return
 	}
 	if p.assignments[userID] == nil {
-		p.assignments[userID] = make(map[string]struct{})
+		p.assignments[userID] = make(map[string]string)
 	}
-	p.assignments[userID][roleName] = struct{}{}
+	if _, assigned := p.assignments[userID][roleName]; assigned {
+		return
+	}
+	p.assignments[userID][roleName] = providerID
 }
 
 func (p *RBACProjection) applyRoleRevoked(userID, roleName string) {
@@ -425,6 +434,16 @@ func (p *RBACProjection) HasRole(userID, roleName string) bool {
 	defer p.RUnlock()
 	_, ok := p.assignments[userID][roleName]
 	return ok
+}
+
+// AssignmentProvider returns the ID of the auth provider that owns the user's
+// assignment of roleName. It is empty for an admin or configuration
+// assignment. assigned is false when the user does not have the role.
+func (p *RBACProjection) AssignmentProvider(userID, roleName string) (providerID string, assigned bool) {
+	p.RLock()
+	defer p.RUnlock()
+	providerID, assigned = p.assignments[userID][roleName]
+	return providerID, assigned
 }
 
 func (p *RBACProjection) GetRoleUsers(roleName string) []string {

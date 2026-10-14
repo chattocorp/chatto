@@ -35,6 +35,7 @@ func TestReadConfig_AuthProvidersFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION", "true")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_ALLOWED_GROUPS", "chat-users, admins")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_GROUPS_CLAIM", "roles")
+	t.Setenv("CHATTO_AUTH_PROVIDERS_0_GROUP_ROLES", "chat-mods:moderator it-ops:admin")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_1_ID", "github-main")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_1_TYPE", "github")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_1_CLIENT_ID", "github-id")
@@ -61,6 +62,9 @@ func TestReadConfig_AuthProvidersFromEnv(t *testing.T) {
 	}
 	if got := strings.Join(cfg.Auth.Providers[0].Scopes, ","); got != "openid,profile,groups" {
 		t.Fatalf("Auth.Providers[0].Scopes = %q", got)
+	}
+	if got := cfg.Auth.Providers[0].GroupRoles; got != "chat-mods:moderator it-ops:admin" {
+		t.Fatalf("Auth.Providers[0].GroupRoles = %q", got)
 	}
 	if got := cfg.Auth.Providers[0]; strings.Join(got.AllowedGroups, ",") != "chat-users,admins" || got.GroupsClaim != "roles" {
 		t.Fatalf("Auth.Providers[0] group restriction = %v from %q", got.AllowedGroups, got.GroupsClaim)

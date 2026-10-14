@@ -22,7 +22,13 @@ func (p *RBACProjection) Snapshot() ([]byte, error) {
 		snapshot.Roles = append(snapshot.Roles, proto.Clone(p.roles[roleName]).(*evtv1.Role))
 	}
 	for _, userID := range sortedMapKeys(p.assignments) {
-		snapshot.Assignments = append(snapshot.Assignments, &projectionv1.RBACAssignmentSnapshot{UserId: userID, RoleNames: sortedMapKeys(p.assignments[userID])})
+		row := &projectionv1.RBACAssignmentSnapshot{UserId: userID, RoleNames: sortedMapKeys(p.assignments[userID])}
+		for _, roleName := range row.RoleNames {
+			if providerID := p.assignments[userID][roleName]; providerID != "" {
+				row.ProviderAssignments = append(row.ProviderAssignments, &projectionv1.RBACProviderAssignmentSnapshot{RoleName: roleName, ProviderId: providerID})
+			}
+		}
+		snapshot.Assignments = append(snapshot.Assignments, row)
 	}
 	keys := make([]rbacDecisionKey, 0, len(p.decisions))
 	for key := range p.decisions {
@@ -71,7 +77,7 @@ func (p *RBACProjection) Restore(data []byte) error {
 		}
 		roles[role.GetName()] = proto.Clone(role).(*evtv1.Role)
 	}
-	assignments := make(map[string]map[string]struct{}, len(snapshot.GetAssignments()))
+	assignments := make(map[string]map[string]string, len(snapshot.GetAssignments()))
 	for _, assignment := range snapshot.GetAssignments() {
 		if assignment.GetUserId() == "" {
 			return fmt.Errorf("RBAC snapshot has empty assignment user ID")
@@ -79,7 +85,7 @@ func (p *RBACProjection) Restore(data []byte) error {
 		if _, duplicate := assignments[assignment.GetUserId()]; duplicate {
 			return fmt.Errorf("RBAC snapshot repeats assignments for user %q", assignment.GetUserId())
 		}
-		set := make(map[string]struct{}, len(assignment.GetRoleNames()))
+		set := make(map[string]string, len(assignment.GetRoleNames()))
 		for _, roleName := range assignment.GetRoleNames() {
 			if roleName == "" {
 				return fmt.Errorf("RBAC snapshot has empty assigned role")
@@ -87,7 +93,14 @@ func (p *RBACProjection) Restore(data []byte) error {
 			if _, duplicate := set[roleName]; duplicate {
 				return fmt.Errorf("RBAC snapshot repeats assigned role %q", roleName)
 			}
-			set[roleName] = struct{}{}
+			set[roleName] = ""
+		}
+		for _, owned := range assignment.GetProviderAssignments() {
+			providerID, assigned := set[owned.GetRoleName()]
+			if !assigned || owned.GetProviderId() == "" || providerID != "" {
+				return fmt.Errorf("RBAC snapshot has invalid provider assignment for role %q", owned.GetRoleName())
+			}
+			set[owned.GetRoleName()] = owned.GetProviderId()
 		}
 		assignments[assignment.GetUserId()] = set
 	}

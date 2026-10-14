@@ -277,6 +277,21 @@ func (c *ChattoCore) appendRBACBatch(ctx context.Context, entries []evtstream.Ba
 	if len(entries) == 0 {
 		return 0, nil
 	}
+	return c.appendComputedRBACBatch(ctx, func() ([]evtstream.BatchEntry, error) {
+		if check != nil {
+			if err := check(); err != nil {
+				return nil, err
+			}
+		}
+		return entries, nil
+	})
+}
+
+// appendComputedRBACBatch appends the entries that build returns, with RBAC
+// OCC. It calls build again after each conflict, at the current projection
+// state, so build can compute changes from the RBAC state. An empty result
+// appends nothing and returns 0.
+func (c *ChattoCore) appendComputedRBACBatch(ctx context.Context, build func() ([]evtstream.BatchEntry, error)) (uint64, error) {
 	filter := evtstream.RBACSubjectFilter()
 
 	for attempt := range maxRBACMutationRetries {
@@ -287,8 +302,16 @@ func (c *ChattoCore) appendRBACBatch(ctx context.Context, entries []evtstream.Ba
 		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
 			return 0, fmt.Errorf("wait for RBAC projection: %w", err)
 		}
-		if err := c.authorizeAtStableInputs(ctx, check); err != nil {
+		var entries []evtstream.BatchEntry
+		if err := c.authorizeAtStableInputs(ctx, func() error {
+			var err error
+			entries, err = build()
+			return err
+		}); err != nil {
 			return 0, err
+		}
+		if len(entries) == 0 {
+			return 0, nil
 		}
 
 		chunk := append([]evtstream.BatchEntry(nil), entries...)

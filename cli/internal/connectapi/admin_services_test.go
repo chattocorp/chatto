@@ -182,6 +182,35 @@ func TestOpenExternalIdentityAccountCreationDoesNotRedeemCapturedInvitation(t *t
 	}
 }
 
+func TestExternalIdentityAccountCreationSyncsGroupRoles(t *testing.T) {
+	t.Parallel()
+
+	env := newConnectAPITestEnv(t)
+	env.api.config.Auth.Providers = []config.AuthProviderConfig{
+		{ID: "company", Type: config.AuthProviderTypeOpenIDConnect, Label: "Company", GroupRoles: "chat-mods:moderator"},
+	}
+	token, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
+		ProviderID: "company", ProviderType: config.AuthProviderTypeOpenIDConnect, ProviderLabel: "Company",
+		Issuer: "https://id.example", Subject: "group-member", Groups: []string{"chat-mods"}, GroupsKnown: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, err := env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{
+		Token: token, Login: "group-member", DisplayName: "Group Member",
+	}))
+	if err != nil {
+		t.Fatalf("CreateExternalIdentityAccount: %v", err)
+	}
+	roles, err := env.core.GetUserRoles(env.ctx, created.Msg.GetUserId())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(roles, core.RoleModerator) {
+		t.Fatalf("roles = %v, want moderator from group_roles", roles)
+	}
+}
+
 func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 	t.Parallel()
 

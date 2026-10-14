@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -461,6 +462,13 @@ func TestChattoConfig_Validate_AuthProviders(t *testing.T) {
 		provider AuthProviderConfig
 		wantErr  string
 	}{
+		{"group roles", AuthProviderConfig{Type: AuthProviderTypeOpenIDConnect, GroupRoles: "chat-mods:moderator urn:corp:it:admin"}, ""},
+		{"group roles on github", AuthProviderConfig{Type: AuthProviderTypeGitHub, GroupRoles: "chat-mods:moderator"}, "only supported for OIDC"},
+		{"group roles without role", AuthProviderConfig{Type: AuthProviderTypeOpenIDConnect, GroupRoles: "chat-mods:"}, "must use group:role"},
+		{"group roles without colon", AuthProviderConfig{Type: AuthProviderTypeOpenIDConnect, GroupRoles: "chat-mods"}, "must use group:role"},
+		{"repeated group role", AuthProviderConfig{Type: AuthProviderTypeOpenIDConnect, GroupRoles: "a:moderator a:moderator"}, "repeats"},
+		{"group role owner", AuthProviderConfig{Type: AuthProviderTypeOpenIDConnect, GroupRoles: "admins:owner"}, "must not map to the owner role"},
+		{"group role everyone", AuthProviderConfig{Type: AuthProviderTypeOpenIDConnect, GroupRoles: "all:everyone"}, "must not map to the everyone role"},
 		{"oidc groups", AuthProviderConfig{Type: AuthProviderTypeOpenIDConnect, AllowedGroups: []string{"chat-users"}, GroupsClaim: "roles"}, ""},
 		{"groups on github", AuthProviderConfig{Type: AuthProviderTypeGitHub, AllowedGroups: []string{"chat-users"}}, "only supported for OIDC"},
 		{"groups claim on discord", AuthProviderConfig{Type: AuthProviderTypeDiscord, GroupsClaim: "groups"}, "only supported for OIDC"},
@@ -529,5 +537,34 @@ func TestAuthProviderConfig_GroupsClaimDefault(t *testing.T) {
 	}
 	if got := (AuthProviderConfig{GroupsClaim: "roles"}).GroupsClaimOrDefault(); got != "roles" {
 		t.Fatalf("GroupsClaimOrDefault() = %q, want roles", got)
+	}
+}
+
+func TestParseGroupRoles(t *testing.T) {
+	got, err := ParseGroupRoles(" chat-mods:moderator\n urn:corp:it:admin  helpers:moderator ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []GroupRole{{"chat-mods", "moderator"}, {"urn:corp:it", "admin"}, {"helpers", "moderator"}}
+	if !slices.Equal(got, want) {
+		t.Fatalf("ParseGroupRoles() = %v, want %v", got, want)
+	}
+	if mappings, err := ParseGroupRoles(""); err != nil || len(mappings) != 0 {
+		t.Fatalf("ParseGroupRoles(empty) = %v, %v", mappings, err)
+	}
+}
+
+func TestChattoConfig_Validate_GroupRolesAcrossProviders(t *testing.T) {
+	cfg := ChattoConfig{
+		Webserver: WebserverConfig{URL: "https://chat.example", Port: 4000, CookieSigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
+		Core:      CoreConfig{SecretKey: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789", Assets: AssetsConfig{SigningSecret: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"}},
+	}
+	cfg.Auth.Providers = []AuthProviderConfig{
+		{ID: "a", Type: AuthProviderTypeOpenIDConnect, ClientID: "id", IssuerURL: "https://a.example", GroupRoles: "mods:moderator helpers:moderator"},
+		{ID: "b", Type: AuthProviderTypeOpenIDConnect, ClientID: "id", IssuerURL: "https://b.example", GroupRoles: "staff:moderator"},
+	}
+	err := cfg.Validate()
+	if err == nil || !strings.Contains(err.Error(), `maps role "moderator", which provider "a" also maps`) {
+		t.Fatalf("Validate() error = %v, want cross-provider role error", err)
 	}
 }

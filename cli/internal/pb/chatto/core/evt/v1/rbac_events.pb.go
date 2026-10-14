@@ -446,9 +446,12 @@ func (x *RbacRolesReorderedEvent) GetRoleNames() []string {
 }
 
 type RbacRoleAssignedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	RoleName      string                 `protobuf:"bytes,2,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	UserId   string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RoleName string                 `protobuf:"bytes,2,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	// Why the role was assigned. Absent for admin assignments and for events
+	// from older server versions.
+	Reason        *RbacRoleChangeReason `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -497,10 +500,20 @@ func (x *RbacRoleAssignedEvent) GetRoleName() string {
 	return ""
 }
 
+func (x *RbacRoleAssignedEvent) GetReason() *RbacRoleChangeReason {
+	if x != nil {
+		return x.Reason
+	}
+	return nil
+}
+
 type RbacRoleRevokedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	RoleName      string                 `protobuf:"bytes,2,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	UserId   string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RoleName string                 `protobuf:"bytes,2,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	// Why the role was revoked. Absent for admin revocations and for events
+	// from older server versions.
+	Reason        *RbacRoleChangeReason `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -549,6 +562,183 @@ func (x *RbacRoleRevokedEvent) GetRoleName() string {
 	return ""
 }
 
+func (x *RbacRoleRevokedEvent) GetReason() *RbacRoleChangeReason {
+	if x != nil {
+		return x.Reason
+	}
+	return nil
+}
+
+// RbacRoleChangeReason records an automatic cause of a role assignment or
+// revocation. Each kind carries only its own data.
+type RbacRoleChangeReason struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Reason:
+	//
+	//	*RbacRoleChangeReason_ProviderGroups
+	//	*RbacRoleChangeReason_ConfiguredOwner
+	Reason        isRbacRoleChangeReason_Reason `protobuf_oneof:"reason"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RbacRoleChangeReason) Reset() {
+	*x = RbacRoleChangeReason{}
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RbacRoleChangeReason) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RbacRoleChangeReason) ProtoMessage() {}
+
+func (x *RbacRoleChangeReason) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RbacRoleChangeReason.ProtoReflect.Descriptor instead.
+func (*RbacRoleChangeReason) Descriptor() ([]byte, []int) {
+	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *RbacRoleChangeReason) GetReason() isRbacRoleChangeReason_Reason {
+	if x != nil {
+		return x.Reason
+	}
+	return nil
+}
+
+func (x *RbacRoleChangeReason) GetProviderGroups() *RbacProviderGroupsReason {
+	if x != nil {
+		if x, ok := x.Reason.(*RbacRoleChangeReason_ProviderGroups); ok {
+			return x.ProviderGroups
+		}
+	}
+	return nil
+}
+
+func (x *RbacRoleChangeReason) GetConfiguredOwner() *RbacConfiguredOwnerReason {
+	if x != nil {
+		if x, ok := x.Reason.(*RbacRoleChangeReason_ConfiguredOwner); ok {
+			return x.ConfiguredOwner
+		}
+	}
+	return nil
+}
+
+type isRbacRoleChangeReason_Reason interface {
+	isRbacRoleChangeReason_Reason()
+}
+
+type RbacRoleChangeReason_ProviderGroups struct {
+	ProviderGroups *RbacProviderGroupsReason `protobuf:"bytes,1,opt,name=provider_groups,json=providerGroups,proto3,oneof"`
+}
+
+type RbacRoleChangeReason_ConfiguredOwner struct {
+	ConfiguredOwner *RbacConfiguredOwnerReason `protobuf:"bytes,2,opt,name=configured_owner,json=configuredOwner,proto3,oneof"`
+}
+
+func (*RbacRoleChangeReason_ProviderGroups) isRbacRoleChangeReason_Reason() {}
+
+func (*RbacRoleChangeReason_ConfiguredOwner) isRbacRoleChangeReason_Reason() {}
+
+// RbacProviderGroupsReason means that the group_roles mapping of an external
+// login provider caused the change. The provider owns an assignment that it
+// created and can later revoke it.
+type RbacProviderGroupsReason struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Configured auth provider ID.
+	ProviderId    string `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RbacProviderGroupsReason) Reset() {
+	*x = RbacProviderGroupsReason{}
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RbacProviderGroupsReason) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RbacProviderGroupsReason) ProtoMessage() {}
+
+func (x *RbacProviderGroupsReason) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RbacProviderGroupsReason.ProtoReflect.Descriptor instead.
+func (*RbacProviderGroupsReason) Descriptor() ([]byte, []int) {
+	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *RbacProviderGroupsReason) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+// RbacConfiguredOwnerReason means that owners.emails in the server
+// configuration caused an owner assignment.
+type RbacConfiguredOwnerReason struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RbacConfiguredOwnerReason) Reset() {
+	*x = RbacConfiguredOwnerReason{}
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RbacConfiguredOwnerReason) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RbacConfiguredOwnerReason) ProtoMessage() {}
+
+func (x *RbacConfiguredOwnerReason) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RbacConfiguredOwnerReason.ProtoReflect.Descriptor instead.
+func (*RbacConfiguredOwnerReason) Descriptor() ([]byte, []int) {
+	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{10}
+}
+
 type RbacPermissionScope struct {
 	state protoimpl.MessageState  `protogen:"open.v1"`
 	Kind  RbacPermissionScopeKind `protobuf:"varint,1,opt,name=kind,proto3,enum=chatto.core.evt.v1.RbacPermissionScopeKind" json:"kind,omitempty"`
@@ -561,7 +751,7 @@ type RbacPermissionScope struct {
 
 func (x *RbacPermissionScope) Reset() {
 	*x = RbacPermissionScope{}
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[8]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -573,7 +763,7 @@ func (x *RbacPermissionScope) String() string {
 func (*RbacPermissionScope) ProtoMessage() {}
 
 func (x *RbacPermissionScope) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[8]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -586,7 +776,7 @@ func (x *RbacPermissionScope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RbacPermissionScope.ProtoReflect.Descriptor instead.
 func (*RbacPermissionScope) Descriptor() ([]byte, []int) {
-	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{8}
+	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RbacPermissionScope) GetKind() RbacPermissionScopeKind {
@@ -614,7 +804,7 @@ type RbacPermissionSubject struct {
 
 func (x *RbacPermissionSubject) Reset() {
 	*x = RbacPermissionSubject{}
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[9]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -626,7 +816,7 @@ func (x *RbacPermissionSubject) String() string {
 func (*RbacPermissionSubject) ProtoMessage() {}
 
 func (x *RbacPermissionSubject) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[9]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -639,7 +829,7 @@ func (x *RbacPermissionSubject) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RbacPermissionSubject.ProtoReflect.Descriptor instead.
 func (*RbacPermissionSubject) Descriptor() ([]byte, []int) {
-	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{9}
+	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RbacPermissionSubject) GetKind() RbacPermissionSubjectKind {
@@ -667,7 +857,7 @@ type RbacPermissionGrantedEvent struct {
 
 func (x *RbacPermissionGrantedEvent) Reset() {
 	*x = RbacPermissionGrantedEvent{}
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[10]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -679,7 +869,7 @@ func (x *RbacPermissionGrantedEvent) String() string {
 func (*RbacPermissionGrantedEvent) ProtoMessage() {}
 
 func (x *RbacPermissionGrantedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[10]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -692,7 +882,7 @@ func (x *RbacPermissionGrantedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RbacPermissionGrantedEvent.ProtoReflect.Descriptor instead.
 func (*RbacPermissionGrantedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{10}
+	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *RbacPermissionGrantedEvent) GetPermission() string {
@@ -727,7 +917,7 @@ type RbacPermissionDeniedEvent struct {
 
 func (x *RbacPermissionDeniedEvent) Reset() {
 	*x = RbacPermissionDeniedEvent{}
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[11]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -739,7 +929,7 @@ func (x *RbacPermissionDeniedEvent) String() string {
 func (*RbacPermissionDeniedEvent) ProtoMessage() {}
 
 func (x *RbacPermissionDeniedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[11]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -752,7 +942,7 @@ func (x *RbacPermissionDeniedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RbacPermissionDeniedEvent.ProtoReflect.Descriptor instead.
 func (*RbacPermissionDeniedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{11}
+	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *RbacPermissionDeniedEvent) GetPermission() string {
@@ -788,7 +978,7 @@ type RbacPermissionClearedEvent struct {
 
 func (x *RbacPermissionClearedEvent) Reset() {
 	*x = RbacPermissionClearedEvent{}
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[12]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -800,7 +990,7 @@ func (x *RbacPermissionClearedEvent) String() string {
 func (*RbacPermissionClearedEvent) ProtoMessage() {}
 
 func (x *RbacPermissionClearedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[12]
+	mi := &file_chatto_core_evt_v1_rbac_events_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -813,7 +1003,7 @@ func (x *RbacPermissionClearedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RbacPermissionClearedEvent.ProtoReflect.Descriptor instead.
 func (*RbacPermissionClearedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{12}
+	return file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *RbacPermissionClearedEvent) GetPermission() string {
@@ -861,13 +1051,23 @@ const file_chatto_core_evt_v1_rbac_events_proto_rawDesc = "" +
 	"\trole_name\x18\x01 \x01(\tR\broleName\"8\n" +
 	"\x17RbacRolesReorderedEvent\x12\x1d\n" +
 	"\n" +
-	"role_names\x18\x01 \x03(\tR\troleNames\"M\n" +
+	"role_names\x18\x01 \x03(\tR\troleNames\"\x8f\x01\n" +
 	"\x15RbacRoleAssignedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
-	"\trole_name\x18\x02 \x01(\tR\broleName\"L\n" +
+	"\trole_name\x18\x02 \x01(\tR\broleName\x12@\n" +
+	"\x06reason\x18\x03 \x01(\v2(.chatto.core.evt.v1.RbacRoleChangeReasonR\x06reason\"\x8e\x01\n" +
 	"\x14RbacRoleRevokedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
-	"\trole_name\x18\x02 \x01(\tR\broleName\"f\n" +
+	"\trole_name\x18\x02 \x01(\tR\broleName\x12@\n" +
+	"\x06reason\x18\x03 \x01(\v2(.chatto.core.evt.v1.RbacRoleChangeReasonR\x06reason\"\xd5\x01\n" +
+	"\x14RbacRoleChangeReason\x12W\n" +
+	"\x0fprovider_groups\x18\x01 \x01(\v2,.chatto.core.evt.v1.RbacProviderGroupsReasonH\x00R\x0eproviderGroups\x12Z\n" +
+	"\x10configured_owner\x18\x02 \x01(\v2-.chatto.core.evt.v1.RbacConfiguredOwnerReasonH\x00R\x0fconfiguredOwnerB\b\n" +
+	"\x06reason\";\n" +
+	"\x18RbacProviderGroupsReason\x12\x1f\n" +
+	"\vprovider_id\x18\x01 \x01(\tR\n" +
+	"providerId\"\x1b\n" +
+	"\x19RbacConfiguredOwnerReason\"f\n" +
 	"\x13RbacPermissionScope\x12?\n" +
 	"\x04kind\x18\x01 \x01(\x0e2+.chatto.core.evt.v1.RbacPermissionScopeKindR\x04kind\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\"j\n" +
@@ -917,7 +1117,7 @@ func file_chatto_core_evt_v1_rbac_events_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_core_evt_v1_rbac_events_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_chatto_core_evt_v1_rbac_events_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_chatto_core_evt_v1_rbac_events_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_chatto_core_evt_v1_rbac_events_proto_goTypes = []any{
 	(RbacPermissionScopeKind)(0),            // 0: chatto.core.evt.v1.RbacPermissionScopeKind
 	(RbacPermissionSubjectKind)(0),          // 1: chatto.core.evt.v1.RbacPermissionSubjectKind
@@ -929,26 +1129,33 @@ var file_chatto_core_evt_v1_rbac_events_proto_goTypes = []any{
 	(*RbacRolesReorderedEvent)(nil),         // 7: chatto.core.evt.v1.RbacRolesReorderedEvent
 	(*RbacRoleAssignedEvent)(nil),           // 8: chatto.core.evt.v1.RbacRoleAssignedEvent
 	(*RbacRoleRevokedEvent)(nil),            // 9: chatto.core.evt.v1.RbacRoleRevokedEvent
-	(*RbacPermissionScope)(nil),             // 10: chatto.core.evt.v1.RbacPermissionScope
-	(*RbacPermissionSubject)(nil),           // 11: chatto.core.evt.v1.RbacPermissionSubject
-	(*RbacPermissionGrantedEvent)(nil),      // 12: chatto.core.evt.v1.RbacPermissionGrantedEvent
-	(*RbacPermissionDeniedEvent)(nil),       // 13: chatto.core.evt.v1.RbacPermissionDeniedEvent
-	(*RbacPermissionClearedEvent)(nil),      // 14: chatto.core.evt.v1.RbacPermissionClearedEvent
+	(*RbacRoleChangeReason)(nil),            // 10: chatto.core.evt.v1.RbacRoleChangeReason
+	(*RbacProviderGroupsReason)(nil),        // 11: chatto.core.evt.v1.RbacProviderGroupsReason
+	(*RbacConfiguredOwnerReason)(nil),       // 12: chatto.core.evt.v1.RbacConfiguredOwnerReason
+	(*RbacPermissionScope)(nil),             // 13: chatto.core.evt.v1.RbacPermissionScope
+	(*RbacPermissionSubject)(nil),           // 14: chatto.core.evt.v1.RbacPermissionSubject
+	(*RbacPermissionGrantedEvent)(nil),      // 15: chatto.core.evt.v1.RbacPermissionGrantedEvent
+	(*RbacPermissionDeniedEvent)(nil),       // 16: chatto.core.evt.v1.RbacPermissionDeniedEvent
+	(*RbacPermissionClearedEvent)(nil),      // 17: chatto.core.evt.v1.RbacPermissionClearedEvent
 }
 var file_chatto_core_evt_v1_rbac_events_proto_depIdxs = []int32{
-	0,  // 0: chatto.core.evt.v1.RbacPermissionScope.kind:type_name -> chatto.core.evt.v1.RbacPermissionScopeKind
-	1,  // 1: chatto.core.evt.v1.RbacPermissionSubject.kind:type_name -> chatto.core.evt.v1.RbacPermissionSubjectKind
-	10, // 2: chatto.core.evt.v1.RbacPermissionGrantedEvent.scope:type_name -> chatto.core.evt.v1.RbacPermissionScope
-	11, // 3: chatto.core.evt.v1.RbacPermissionGrantedEvent.subject:type_name -> chatto.core.evt.v1.RbacPermissionSubject
-	10, // 4: chatto.core.evt.v1.RbacPermissionDeniedEvent.scope:type_name -> chatto.core.evt.v1.RbacPermissionScope
-	11, // 5: chatto.core.evt.v1.RbacPermissionDeniedEvent.subject:type_name -> chatto.core.evt.v1.RbacPermissionSubject
-	10, // 6: chatto.core.evt.v1.RbacPermissionClearedEvent.scope:type_name -> chatto.core.evt.v1.RbacPermissionScope
-	11, // 7: chatto.core.evt.v1.RbacPermissionClearedEvent.subject:type_name -> chatto.core.evt.v1.RbacPermissionSubject
-	8,  // [8:8] is the sub-list for method output_type
-	8,  // [8:8] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	10, // 0: chatto.core.evt.v1.RbacRoleAssignedEvent.reason:type_name -> chatto.core.evt.v1.RbacRoleChangeReason
+	10, // 1: chatto.core.evt.v1.RbacRoleRevokedEvent.reason:type_name -> chatto.core.evt.v1.RbacRoleChangeReason
+	11, // 2: chatto.core.evt.v1.RbacRoleChangeReason.provider_groups:type_name -> chatto.core.evt.v1.RbacProviderGroupsReason
+	12, // 3: chatto.core.evt.v1.RbacRoleChangeReason.configured_owner:type_name -> chatto.core.evt.v1.RbacConfiguredOwnerReason
+	0,  // 4: chatto.core.evt.v1.RbacPermissionScope.kind:type_name -> chatto.core.evt.v1.RbacPermissionScopeKind
+	1,  // 5: chatto.core.evt.v1.RbacPermissionSubject.kind:type_name -> chatto.core.evt.v1.RbacPermissionSubjectKind
+	13, // 6: chatto.core.evt.v1.RbacPermissionGrantedEvent.scope:type_name -> chatto.core.evt.v1.RbacPermissionScope
+	14, // 7: chatto.core.evt.v1.RbacPermissionGrantedEvent.subject:type_name -> chatto.core.evt.v1.RbacPermissionSubject
+	13, // 8: chatto.core.evt.v1.RbacPermissionDeniedEvent.scope:type_name -> chatto.core.evt.v1.RbacPermissionScope
+	14, // 9: chatto.core.evt.v1.RbacPermissionDeniedEvent.subject:type_name -> chatto.core.evt.v1.RbacPermissionSubject
+	13, // 10: chatto.core.evt.v1.RbacPermissionClearedEvent.scope:type_name -> chatto.core.evt.v1.RbacPermissionScope
+	14, // 11: chatto.core.evt.v1.RbacPermissionClearedEvent.subject:type_name -> chatto.core.evt.v1.RbacPermissionSubject
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_evt_v1_rbac_events_proto_init() }
@@ -956,13 +1163,17 @@ func file_chatto_core_evt_v1_rbac_events_proto_init() {
 	if File_chatto_core_evt_v1_rbac_events_proto != nil {
 		return
 	}
+	file_chatto_core_evt_v1_rbac_events_proto_msgTypes[8].OneofWrappers = []any{
+		(*RbacRoleChangeReason_ProviderGroups)(nil),
+		(*RbacRoleChangeReason_ConfiguredOwner)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_evt_v1_rbac_events_proto_rawDesc), len(file_chatto_core_evt_v1_rbac_events_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   13,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

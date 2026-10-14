@@ -53,7 +53,7 @@ func NewNotificationMaterializer(core *ChattoCore, decisions events.ProjectionHa
 		core:      core,
 		decisions: decisions,
 		assignConfiguredOwnerRole: func(ctx context.Context, userID string) error {
-			return core.AssignServerRoleToExistingUser(ctx, SystemActorID, userID, RoleOwner)
+			return core.AssignConfiguredOwnerRole(ctx, userID)
 		},
 		ready: make(chan struct{}),
 	}

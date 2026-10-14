@@ -65,6 +65,10 @@ type PendingExternalIdentityFlow struct {
 	BoundUserID     string    `json:"bound_user_id,omitempty"`
 	CreatedAt       time.Time `json:"created_at"`
 	InvitationID    string    `json:"invitation_id,omitempty"`
+	// Groups and GroupsKnown carry the provider groups claim to account
+	// creation for group role sync. Flows from older versions have neither.
+	Groups      []string `json:"groups,omitempty"`
+	GroupsKnown bool     `json:"groups_known,omitempty"`
 }
 
 func (c *ChattoCore) externalIdentityCreateTokenKey(token string) string {
