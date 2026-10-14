@@ -60,3 +60,11 @@ test('cancellation rejects a waiting request', async () => {
   controller.abort(new Error('Stopped'));
   await expect(decision).rejects.toThrow('Stopped');
 });
+
+test('refuses a request that does not fit in one message', async () => {
+  const { instance, posts } = approvals();
+  await expect(
+    instance.request('x'.repeat(8_000), thread, new AbortController().signal)
+  ).rejects.toThrow('too long to show in one approval request');
+  expect(posts).toEqual([]);
+});

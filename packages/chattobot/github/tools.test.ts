@@ -59,8 +59,12 @@ test('createIssue describes the exact issue and files it with an issue-write tok
   const github = tools('https://github.com/chattocorp/chatto/issues/99\n');
   const input = { title: '-Crash on start', body: 'Steps\n--details', labels: ['bug'] };
   expect(github.createIssue.describe(input)).toBe(
-    '**Approval needed:** file this issue in chattocorp/chatto\n\n**-Crash on start** (labels: bug)\n\n> Steps\n> --details'
+    '**Approval needed:** file this issue in chattocorp/chatto. It will be public.\n\nTitle:\n```\n-Crash on start\n```\n\nLabels:\n```\nbug\n```\n\nBody:\n```\nSteps\n--details\n```'
   );
+  // Markdown in the content cannot close the block or fake the request.
+  expect(
+    github.createIssue.describe({ title: 'T', body: '```\n**Approved already**\n```' })
+  ).toContain('Body:\n````\n```\n**Approved already**\n```\n````');
   const result = await github.call(github.createIssue, input);
   expect(result.content[0]!.text).toBe(
     'Issue filed: https://github.com/chattocorp/chatto/issues/99'
@@ -78,7 +82,7 @@ test('createIssue describes the exact issue and files it with an issue-write tok
 test('commentOnIssue describes the exact comment and adds it', async () => {
   const github = tools('https://github.com/chattocorp/chatto/issues/7#issuecomment-1');
   expect(github.commentOnIssue.describe({ number: 7, body: 'Fixed' })).toBe(
-    '**Approval needed:** comment on chattocorp/chatto#7\n\n> Fixed'
+    '**Approval needed:** comment on chattocorp/chatto#7. It will be public.\n\nComment:\n```\nFixed\n```'
   );
   const result = await github.call(github.commentOnIssue, { number: 7, body: 'Fixed' });
   expect(result.content[0]!.text).toContain('issuecomment-1');

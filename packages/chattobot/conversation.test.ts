@@ -443,8 +443,8 @@ test('runs a change only after a maintainer approved the exact action', async ()
   const run = bot.start(message('one', 'Please file it', 'alice'));
   await vi.waitFor(() => expect(bot.posts).toHaveLength(2));
   const request = bot.posts.find((post) => post.body.includes('Approval needed'))!;
-  expect(request.body).toContain('**Crash**');
-  expect(request.body).toContain('> Details');
+  expect(request.body).toContain('Title:\n```\nCrash\n```');
+  expect(request.body).toContain('Body:\n```\nDetails\n```');
   expect(commands).toEqual([]);
 
   // Someone else's approval does not count.

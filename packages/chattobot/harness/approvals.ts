@@ -28,6 +28,9 @@ export interface ApprovalOptions {
   timeoutMs?: number;
 }
 
+/** The longest request, in characters: one Chatto message holds 8,000. */
+const MAX_REQUEST = 7_500;
+
 /** Requests wait at most this long by default. */
 const TIMEOUT_MS = 60 * 60_000;
 
@@ -40,10 +43,12 @@ export class Approvals {
   async request(text: string, replyTo: Destination, signal: AbortSignal): Promise<Decision> {
     if (!this.options.approvers.size) return 'declined';
     // Host text: the request must show the exact action, not words that the model chose.
-    const messageId = await this.options.post(
-      replyTo,
-      `${text}\n\nA maintainer can approve this with ✅ or decline it with ❌.`
-    );
+    const request = `${text}\n\nA maintainer can approve this with ✅ or decline it with ❌.`;
+    // Chatto splits a longer text into several messages, and approvers must see all of it in
+    // the message that they react to.
+    if ([...request].length > MAX_REQUEST)
+      throw new Error('The action is too long to show in one approval request. Shorten it.');
+    const messageId = await this.options.post(replyTo, request);
     if (!messageId) throw new Error('Could not post the approval request');
     // The conversation can end while the request is posted.
     signal.throwIfAborted();

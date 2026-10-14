@@ -32,12 +32,14 @@ const text = (value: string) => ({
   details: {}
 });
 
-/** Quote Markdown so that it shows as a block in the approval request. */
-const quote = (markdown: string) =>
-  markdown
-    .split('\n')
-    .map((line) => `> ${line}`)
-    .join('\n');
+/** Show text verbatim in a fenced code block, so that Markdown in it cannot change what the
+ * approvers see. The fence is longer than any run of backticks in the text. */
+const verbatim = (text: string) => {
+  const fence = '`'.repeat(
+    Math.max(3, ...[...text.matchAll(/`+/g)].map(([run]) => run.length + 1))
+  );
+  return `${fence}\n${text}\n${fence}`;
+};
 
 /** The GitHub tools: `gh` for reads, and the approvable tools that change GitHub. */
 export function githubTools({ settings, tokens, run = runGh }: GitHubToolOptions): {
@@ -81,7 +83,7 @@ export function githubTools({ settings, tokens, run = runGh }: GitHubToolOptions
     description: `File an issue in ${settings.repository}. Search for duplicates with gh first. Returns the issue URL.`,
     parameters: Type.Object({
       title: Type.String({ minLength: 1, maxLength: 256 }),
-      body: Type.String({ minLength: 1, maxLength: 60_000, description: 'Markdown' }),
+      body: Type.String({ minLength: 1, maxLength: 6_000, description: 'Markdown' }),
       labels: Type.Optional(
         Type.Array(Type.String({ minLength: 1, maxLength: 50 }), { maxItems: 10 })
       )
@@ -107,9 +109,10 @@ export function githubTools({ settings, tokens, run = runGh }: GitHubToolOptions
     ...(createIssueTool as AgentTool),
     describe: ({ title, body, labels = [] }: { title: string; body: string; labels?: string[] }) =>
       [
-        `**Approval needed:** file this issue in ${settings.repository}`,
-        `**${title}**${labels.length ? ` (labels: ${labels.join(', ')})` : ''}`,
-        quote(body)
+        `**Approval needed:** file this issue in ${settings.repository}. It will be public.`,
+        `Title:\n${verbatim(title)}`,
+        ...(labels.length ? [`Labels:\n${verbatim(labels.join(', '))}`] : []),
+        `Body:\n${verbatim(body)}`
       ].join('\n\n')
   };
 
@@ -119,7 +122,7 @@ export function githubTools({ settings, tokens, run = runGh }: GitHubToolOptions
     description: `Add a comment to an issue in ${settings.repository}. Returns the comment URL.`,
     parameters: Type.Object({
       number: Type.Integer({ minimum: 1 }),
-      body: Type.String({ minLength: 1, maxLength: 60_000, description: 'Markdown' })
+      body: Type.String({ minLength: 1, maxLength: 6_000, description: 'Markdown' })
     }),
     async execute(_id, { number, body }, signal) {
       const output = await gh(
@@ -134,7 +137,10 @@ export function githubTools({ settings, tokens, run = runGh }: GitHubToolOptions
   const commentOnIssue: ApprovableTool = {
     ...(commentOnIssueTool as AgentTool),
     describe: ({ number, body }: { number: number; body: string }) =>
-      [`**Approval needed:** comment on ${settings.repository}#${number}`, quote(body)].join('\n\n')
+      [
+        `**Approval needed:** comment on ${settings.repository}#${number}. It will be public.`,
+        `Comment:\n${verbatim(body)}`
+      ].join('\n\n')
   };
 
   return { read: read as AgentTool, writes: [createIssue, commentOnIssue] };
