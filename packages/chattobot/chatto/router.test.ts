@@ -1,11 +1,16 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { task, Type } from 'runling';
 import type { RunHandle, WebhookContext } from 'runling/web';
-import { IncomingMessage } from './message.ts';
-import { createChattoRouter, createRouterState } from './router.ts';
+import { ConversationInput, IncomingMessage } from './message.ts';
+import { createChattoRouter, createRouterState, forwardReaction } from './router.ts';
 
 const conversation = task(
-  { name: 'Conversation', input: IncomingMessage, output: Type.Null(), receives: IncomingMessage },
+  {
+    name: 'Conversation',
+    input: IncomingMessage,
+    output: Type.Null(),
+    receives: ConversationInput
+  },
   async () => null
 );
 
@@ -46,13 +51,9 @@ function harness({ send }: { send?: (message: unknown) => Promise<void> } = {}) 
     };
     return handle as never;
   };
-  const route = createChattoRouter({
-    botId: 'bot',
-    conversation,
-    state: createRouterState(),
-    idleMs: 1000
-  });
-  return { route: (incoming: IncomingMessage) => route({ start }, incoming), runs };
+  const state = createRouterState();
+  const route = createChattoRouter({ botId: 'bot', conversation, state, idleMs: 1000 });
+  return { route: (incoming: IncomingMessage) => route({ start }, incoming), runs, state };
 }
 
 afterEach(() => vi.useRealTimers());
@@ -109,4 +110,20 @@ test('closes the input of a thread run after a quiet period', async () => {
   expect(router.runs[0]!.closed).toBe(true);
   await router.route(message('three'));
   expect(router.runs).toHaveLength(2);
+});
+
+test('forwards a reaction to the run of its thread, and never starts a run for it', async () => {
+  const router = harness();
+  const reaction = {
+    kind: 'reaction' as const,
+    messageId: 'm',
+    emoji: 'white_check_mark',
+    authorId: 'a'
+  };
+  await forwardReaction(router.state, 'bot', { roomId: 'room', threadRootId: 'root' }, reaction);
+  expect(router.runs).toHaveLength(0);
+  await router.route(message('one'));
+  await forwardReaction(router.state, 'bot', { roomId: 'room', threadRootId: 'root' }, reaction);
+  await forwardReaction(router.state, 'bot', { roomId: 'room', threadRootId: 'other' }, reaction);
+  expect(router.runs[0]!.sent).toEqual([reaction]);
 });

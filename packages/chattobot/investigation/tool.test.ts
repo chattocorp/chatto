@@ -1,13 +1,10 @@
 import { expect, test, vi } from 'vitest';
 import { createTaskContext, Type, task, type AgentExtensionAPI } from 'runling';
-import {
-  investigateExtension,
-  MAX_RUNNING,
-  type Investigation,
-  type InvestigationOutcome
-} from './tool.ts';
+import { Jobs, type Job, type JobOutcome } from '../harness/jobs.ts';
+import { investigateExtension, MAX_RUNNING, type Investigation } from './tool.ts';
 
 type Tool = { execute(id: string, input: unknown, signal?: AbortSignal): Promise<any> };
+const thread = { roomId: 'room', threadRootId: 'root' };
 
 /** The tool over a fake investigator that emits two updates, then waits for `release`. */
 async function tool({ repository, fail }: { repository?: string; fail?: boolean } = {}) {
@@ -15,12 +12,7 @@ async function tool({ repository, fail }: { repository?: string; fail?: boolean 
   const scopes: string[] = [];
   const release = Promise.withResolvers<void>();
   const investigate = task(
-    {
-      name: 'Investigate',
-      input: Type.Any(),
-      output: Type.Any(),
-      emits: Type.String()
-    },
+    { name: 'Investigate', input: Type.Any(), output: Type.Any(), emits: Type.String() },
     async (ctx, input) => {
       inputs.push(input);
       await ctx.emit('Reading src/a.ts');
@@ -35,9 +27,12 @@ async function tool({ repository, fail }: { repository?: string; fail?: boolean 
       };
     }
   ) as unknown as ReturnType<Investigation['investigator']>;
-  const running = new Set<string>();
   const progress: [string, string[]][] = [];
-  const finished: [string, InvestigationOutcome][] = [];
+  const finished: [Job, JobOutcome][] = [];
+  const jobs = new Jobs({
+    progress: (job, updates) => void progress.push([job.id, updates]),
+    finished: (job, outcome) => void finished.push([job, outcome])
+  });
   let budget = 2;
   const extension = investigateExtension(
     createTaskContext(),
@@ -49,18 +44,7 @@ async function tool({ repository, fail }: { repository?: string; fail?: boolean 
       },
       ...(repository ? { repository } : {})
     },
-    {
-      take: () => budget-- > 0,
-      scope: 'thread-1',
-      running: () => running.size,
-      isRunning: (id) => running.has(id),
-      started: (id) => void running.add(id),
-      progress: (id, updates) => void progress.push([id, updates]),
-      finished: (id, outcome) => {
-        running.delete(id);
-        finished.push([id, outcome]);
-      }
-    }
+    { jobs, take: () => budget-- > 0, scope: 'thread-1', replyTo: () => thread }
   );
   const tools = new Map<string, Tool>();
   const factory = typeof extension === 'function' ? extension : extension.factory;
@@ -74,32 +58,33 @@ async function tool({ repository, fail }: { repository?: string; fail?: boolean 
     scopes,
     progress,
     finished,
-    running,
+    jobs,
     release: release.resolve
   };
 }
 
-test('starts an investigation in the background and returns at once', async () => {
+test('starts an investigation as a background job and returns at once', async () => {
   const bot = await tool({ repository: 'org/repo' });
   const result = await bot.investigate.execute('1', { question: 'Where?' });
-  const [id] = bot.running;
-  expect(result.content[0].text).toContain(`Investigation ${id} started in the background`);
+  const [job] = bot.jobs.list();
+  expect(job).toMatchObject({
+    kind: 'investigation',
+    label: 'Investigation: Where?',
+    replyTo: thread
+  });
+  expect(result.content[0].text).toContain(`Investigation ${job!.id} started in the background`);
   expect(bot.scopes).toEqual(['thread-1']);
   await vi.waitFor(() =>
-    expect(bot.inputs).toEqual([{ directory: '/repo', question: 'Where?', id }])
+    expect(bot.inputs).toEqual([{ directory: '/repo', question: 'Where?', id: job!.id }])
   );
-  expect(bot.finished).toEqual([]);
 
   bot.release();
   await vi.waitFor(() => expect(bot.finished).toHaveLength(1));
-  expect(bot.progress).toEqual([[id, ['Reading src/a.ts', 'Reading src/b.ts']]]);
-  expect(bot.finished[0]).toEqual([
-    id,
-    {
-      answer:
-        '(Code at commit abcdef012.)\n\nSee [`src/a.ts:2`](https://github.com/org/repo/blob/abcdef0123456789/src/a.ts#L2).'
-    }
-  ]);
+  expect(bot.progress).toEqual([[job!.id, ['Reading src/a.ts', 'Reading src/b.ts']]]);
+  const outcome = bot.finished[0]![1];
+  expect('result' in outcome && outcome.result).toContain(
+    'See [`src/a.ts:2`](https://github.com/org/repo/blob/abcdef0123456789/src/a.ts#L2).'
+  );
 });
 
 test('resumes a finished investigation, but not a running one', async () => {
@@ -130,7 +115,9 @@ test('reports a failed investigation and keeps the limits', async () => {
 
 test(`refuses more than ${MAX_RUNNING} running investigations`, async () => {
   const bot = await tool();
-  for (const id of ['a', 'b', 'c']) bot.running.add(id);
+  const forever = new Promise<string>(() => {});
+  for (const id of ['a', 'b', 'c'])
+    bot.jobs.start({ id, kind: 'investigation', label: id, replyTo: thread }, () => forever);
   await expect(bot.investigate.execute('1', { question: 'Four' })).rejects.toThrow(
     `${MAX_RUNNING} investigations are running`
   );

@@ -12,7 +12,14 @@ import {
 } from 'runling';
 import type { Destination } from '@chatto/client';
 import type { IncomingMessage } from './chatto/message.ts';
-import { createConversation, type ChattoAccess } from './conversation.ts';
+import {
+  createConversation,
+  type ChattoAccess,
+  type ConversationSettings
+} from './conversation.ts';
+import type { WebSettings } from './web.ts';
+import { APPROVE } from './harness/approvals.ts';
+import { generateKeyPairSync } from 'node:crypto';
 import type { ThreadMessage } from './thread.ts';
 import type { Investigation } from './investigation/tool.ts';
 
@@ -43,10 +50,12 @@ function harness({
   thread = [] as ThreadMessage[][],
   maintainers = [] as string[],
   web,
+  github,
   investigation,
   turn
 }: {
-  web?: { tavilyApiKey: string };
+  web?: WebSettings;
+  github?: ConversationSettings['github'];
   investigation?: Investigation;
   /** Text answers are delivered as messages; several texts are several messages in one turn. */
   answer?: (prompt: string) => string | string[] | AgentResult;
@@ -62,7 +71,10 @@ function harness({
   let options!: AgentOptions;
   let disposed = false;
   const chatto: ChattoAccess = {
-    post: async (destination, body) => void posts.push({ destination, body }),
+    post: async (destination, body) => {
+      posts.push({ destination, body });
+      return `post-${posts.length}`;
+    },
     typing: async () => {},
     acknowledge: async (incoming) => void reactions.push(incoming.id),
     readThread: async (_thread, _signal, after) => {
@@ -109,6 +121,7 @@ function harness({
       model: 'test/model',
       maintainers: new Set(maintainers),
       ...(web ? { web } : {}),
+      ...(github ? { github } : {}),
       ...(investigation ? { investigation } : {})
     },
     chatto,
@@ -274,7 +287,10 @@ test('cancellation stops the conversation without a notice', async () => {
   const conversation = createConversation(
     { model: 'test/model', maintainers: new Set() },
     {
-      post: async (destination, body) => void bot.posts.push({ destination, body }),
+      post: async (destination, body) => {
+        bot.posts.push({ destination, body });
+        return `post-${bot.posts.length}`;
+      },
       typing: async () => {},
       acknowledge: async () => {},
       readThread: async () => ({ messages: [], olderOmitted: false }),
@@ -291,16 +307,25 @@ test('cancellation stops the conversation without a notice', async () => {
   expect(bot.posts).toEqual([]);
 });
 
-test('the web tools refuse turns that are not from maintainers', async () => {
-  const fetch = vi.spyOn(globalThis, 'fetch');
-  const bot = harness({ web: { tavilyApiKey: 'key' }, maintainers: ['maintainer'] });
-  const run = bot.start(message('one', 'Search the web', 'alice'));
+test('the page reader follows only links from people and searches', async () => {
+  const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(
+    async () =>
+      new Response(JSON.stringify({ success: true, result: 'Page text' }), {
+        headers: { 'content-type': 'application/json' }
+      })
+  );
+  const bot = harness({
+    web: { cloudflare: { accountId: 'a'.repeat(32), apiToken: 'token' } }
+  });
+  const run = bot.start(message('one', 'Read https://example.com/post please'));
   await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
-  await expect(bot.tools.get('webSearch')!.execute('1', { query: 'chatto' })).rejects.toThrow(
-    'Only maintainers can ask you to search or read the web'
+  const browse = bot.tools.get('browsePage')!;
+  await expect(browse.execute('1', { url: 'https://evil.example/?q=secret' })).rejects.toThrow(
+    'You can only read pages from search results or links that people posted'
   );
   expect(fetch).not.toHaveBeenCalled();
-  expect(bot.options().systemPrompt).toContain('Only maintainers can ask you to search');
+  const page = await browse.execute('2', { url: 'https://example.com/post' });
+  expect(JSON.parse(page.content[0].text)).toMatchObject({ text: 'Page text' });
   bot.messages.close();
   await run;
   fetch.mockRestore();
@@ -364,30 +389,83 @@ test('runs investigations in the background and stays available while they run',
           : 'I started an investigation.'
   });
   const run = bot.start(message('one', 'images are gone'));
-  // Progress is posted in batches about a second apart.
-  await vi.waitFor(() => expect(bot.posts).toHaveLength(2), { timeout: 3000 });
-  expect(bot.posts.map((post) => post.body)).toEqual([
-    'I started an investigation.',
-    '[investigation] Reading src/a.ts'
-  ]);
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+  expect(bot.posts[0]!.body).toBe('I started an investigation.');
+  // Progress is kept in batches about a second apart. It is not posted (#2787).
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+  expect(bot.posts).toHaveLength(1);
 
   // The investigation still runs, and the conversation answers a new message at once.
   await bot.messages.send(message('two', 'How is it going?'));
-  await vi.waitFor(() => expect(bot.posts).toHaveLength(3));
-  expect(bot.posts[2]!.body).toBe('Still looking: it is reading src/a.ts.');
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(2));
+  expect(bot.posts[1]!.body).toBe('Still looking: it is reading src/a.ts.');
   expect(bot.prompts[1]).toMatch(
-    /still running:\n- [0-9a-f-]{36}, for 1 min: Why are images gone\? \(latest step: Reading src\/a\.ts\)/
+    /still running:\n- [0-9a-f-]{36}, for 1 min: Investigation: Why are images gone\? \(latest step: Reading src\/a\.ts\)/
   );
 
   // The input can close while the investigation runs; its answer still arrives.
   bot.messages.close();
   release.resolve();
   expect(await run).toMatchObject({ ok: true });
-  expect(bot.posts[3]).toEqual({
+  expect(bot.posts[2]).toEqual({
     destination: { roomId: 'room', threadRootId: 'root', inReplyTo: 'one' },
     body: 'Found it: the renderer drops images.'
   });
-  expect(bot.prompts[2]).toContain('finished. The question was: Why are images gone?');
+  expect(bot.prompts[2]).toContain('finished (Investigation: Why are images gone?)');
   expect(bot.prompts[2]).toContain('The renderer drops images.');
   expect(bot.reactions).toEqual(['one', 'two']);
+});
+
+test('runs a change only after a maintainer approved the exact action', async () => {
+  const commands: (readonly string[])[] = [];
+  const bot: ReturnType<typeof harness> = harness({
+    maintainers: ['maintainer'],
+    github: {
+      settings: {
+        clientId: 'Iv23liExample1',
+        privateKey: generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey,
+        repository: 'org/repo'
+      },
+      tokens: async () => 'token',
+      run: async (args) => {
+        commands.push(args);
+        return { ok: true, output: 'https://github.com/org/repo/issues/5' };
+      }
+    },
+    turn: async (prompt) => {
+      if (prompt.includes('file it'))
+        await bot.tools.get('createIssue')!.execute('1', { title: 'Crash', body: 'Details' });
+    },
+    answer: (prompt) =>
+      prompt.includes('approved and done') ? 'Filed as #5.' : 'It waits for approval.'
+  });
+  // Anyone can ask; the change still waits for a maintainer.
+  const run = bot.start(message('one', 'Please file it', 'alice'));
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(2));
+  const request = bot.posts.find((post) => post.body.includes('Approval needed'))!;
+  expect(request.body).toContain('**Crash**');
+  expect(request.body).toContain('> Details');
+  expect(commands).toEqual([]);
+
+  // Someone else's approval does not count.
+  const requestId = `post-${bot.posts.indexOf(request) + 1}`;
+  await bot.messages.send({
+    kind: 'reaction',
+    messageId: requestId,
+    emoji: APPROVE,
+    authorId: 'alice'
+  });
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  expect(commands).toEqual([]);
+
+  await bot.messages.send({
+    kind: 'reaction',
+    messageId: requestId,
+    emoji: APPROVE,
+    authorId: 'maintainer'
+  });
+  await vi.waitFor(() => expect(bot.posts.at(-1)!.body).toBe('Filed as #5.'));
+  expect(commands[0]).toEqual(['issue', 'create', '--title=Crash', '--body=Details']);
+  bot.messages.close();
+  await run;
 });

@@ -12,6 +12,7 @@ import {
   type AgentSessionEvent,
   type ExtensionAPI,
   type InlineExtension,
+  type ToolDefinition,
   ModelRuntime,
   SessionManager,
   SettingsManager
@@ -92,6 +93,10 @@ export type AgentResult = AgentReport & {
 export type CompletedAgentReport = AgentResult & { outcome: 'completed' };
 /** A named or anonymous pi extension instantiated for one agent session. */
 export type AgentExtension = InlineExtension;
+/** A tool that an agent extension registers. */
+export type AgentTool = ToolDefinition;
+/** Define an agent tool and keep the type of its parameters for `execute`. */
+export const defineAgentTool = defineTool;
 /** The API available while configuring an agent-local extension. */
 export type AgentExtensionAPI = ExtensionAPI;
 

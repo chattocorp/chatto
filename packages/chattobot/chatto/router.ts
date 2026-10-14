@@ -2,14 +2,14 @@
 import { createDeliveryTracker } from '@chatto/client';
 import { log, type Task, type TSchema } from 'runling';
 import type { RunHandle, WebhookRouter } from 'runling/web';
-import { IncomingMessage } from './message.ts';
+import { ConversationInput, IncomingMessage, type IncomingReaction } from './message.ts';
 
 /** A conversation ends when nobody writes to the bot in its thread for this long. A later
  * message starts a new conversation, which reads the thread again. */
 export const IDLE_MS = 60 * 60_000;
 
 interface Thread {
-  run: RunHandle<IncomingMessage>;
+  run: RunHandle<ConversationInput>;
   idle?: ReturnType<typeof setTimeout>;
 }
 
@@ -22,7 +22,7 @@ export type RouterState = ReturnType<typeof createRouterState>;
 export interface RouterOptions {
   botId: string;
   /** The conversation task. Its input and messages are `IncomingMessage`. */
-  conversation: Task<typeof IncomingMessage, TSchema, typeof IncomingMessage>;
+  conversation: Task<typeof IncomingMessage, TSchema, typeof ConversationInput>;
   state: RouterState;
   idleMs?: number;
 }
@@ -40,7 +40,7 @@ export function createChattoRouter({
   const { threads } = state;
   const deliveries = createDeliveryTracker({ accepted: state.accepted });
 
-  const forget = (key: string, run: RunHandle<IncomingMessage>) => {
+  const forget = (key: string, run: RunHandle<ConversationInput>) => {
     const thread = threads.get(key);
     if (thread?.run !== run) return;
     clearTimeout(thread.idle);
@@ -83,4 +83,21 @@ export function createChattoRouter({
   };
   route.label = 'Chatto conversation';
   return route;
+}
+
+/** Send a reaction to one of the bot's messages to the conversation of its thread, if one
+ * runs. A reaction never starts a conversation. */
+export async function forwardReaction(
+  state: RouterState,
+  botId: string,
+  thread: { roomId: string; threadRootId: string },
+  reaction: IncomingReaction
+): Promise<void> {
+  const key = JSON.stringify([botId, thread.roomId, thread.threadRootId]);
+  await state.threads
+    .get(key)
+    ?.run.send(reaction)
+    .catch(() => {
+      // The conversation has ended; the reaction has nothing to decide.
+    });
 }

@@ -13,6 +13,16 @@ export const IncomingMessage = Type.Object({
 });
 export type IncomingMessage = Static<typeof IncomingMessage>;
 
+/** A reaction to one of the bot's messages in the thread, such as an approval. */
+export const IncomingReaction = Type.Object({
+  kind: Type.Literal('reaction'),
+  messageId: Type.String(),
+  emoji: Type.String(),
+  /** The server-authenticated author of the reaction. */
+  authorId: Type.String()
+});
+export type IncomingReaction = Static<typeof IncomingReaction>;
+
 /** Convert an addressed message from the realtime client. */
 export function incomingMessage(message: AddressedMessage): IncomingMessage {
   return {
@@ -35,3 +45,7 @@ export const replyTo = (message: IncomingMessage): Destination => ({
   ...threadOf(message),
   inReplyTo: message.id
 });
+
+/** What the router sends to a running conversation: messages and reactions. */
+export const ConversationInput = Type.Union([IncomingMessage, IncomingReaction]);
+export type ConversationInput = Static<typeof ConversationInput>;

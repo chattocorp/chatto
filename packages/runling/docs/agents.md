@@ -1,7 +1,7 @@
 # Agents
 
 Import the agent APIs from `runling`: `agent`, `runAgent`,
-`defineAgentExtension`, `taskTool`, and their types.
+`defineAgentExtension`, `defineAgentTool`, `taskTool`, and their types.
 
 - `agent(options)` creates a Pi agent session. Call `run()` or `runOutcome()`
   for each turn. Dispose of the agent when you do not need it.
@@ -203,3 +203,11 @@ export default task(
 A parent that waits for a long child does not read its own inbox during the
 wait, unless its code does so. Decide what to do with new messages, for example
 send them to the child or reply that the work continues.
+
+## Agent tools
+
+`defineAgentTool({ name, label, description, parameters, execute })` defines a
+tool for `pi.registerTool` in an agent extension. It keeps the type of the
+TypeBox parameters for `execute`. `AgentTool` is the type of a defined tool, so
+a host can wrap tools, for example to add an approval step, before it registers
+them.

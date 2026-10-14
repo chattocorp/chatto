@@ -13,7 +13,13 @@ import { createAttachmentReader, createThreadReader } from '../thread.ts';
 import { webSettings } from '../web.ts';
 import { createInvestigator, investigatorSettings } from '../investigation/investigate.ts';
 import { incomingMessage } from './message.ts';
-import { createChattoRouter, createRouterState, type RouterState } from './router.ts';
+import {
+  createChattoRouter,
+  createRouterState,
+  forwardReaction,
+  type RouterState
+} from './router.ts';
+import { APPROVE, DECLINE } from '../harness/approvals.ts';
 
 /** Parse maintainer Chatto user IDs, separated by commas or spaces. They are matched against
  * server-authenticated message authors, never display names. */
@@ -117,9 +123,8 @@ async function consume(
     console.warn('ChattoBot reloaded: messages sent during the reload are not replayed.');
   }
   const conversation = createConversation(conversationSettings, {
-    post: async (destination, body, signal) => {
-      await api.postMessage(destination, body, { signal });
-    },
+    post: async (destination, body, signal) =>
+      (await api.postMessage(destination, body, { signal })).ids[0],
     typing: (destination, signal) => api.refreshTyping(destination, { signal }),
     acknowledge: createEyesReaction(api),
     readThread: createThreadReader(api),
@@ -141,8 +146,24 @@ async function consume(
       else log.info(`Chatto realtime: ${status.state}`);
     },
     async onEvent(event) {
-      // Disallowed senders cannot start or continue a conversation.
+      // Disallowed senders cannot start or continue a conversation, or decide an approval.
       if (allowedUserId && event.actorId !== allowedUserId) return;
+      if (event.event.case === 'reactionAdded') {
+        const { roomId, messageEventId: messageId, emoji } = event.event.value;
+        // Only approval decisions on the bot's own messages matter.
+        if (![APPROVE, DECLINE].includes(emoji) || !event.actorId) return;
+        const target = await api
+          .getMessage({ roomId, messageId }, { signal: ctx.signal })
+          .catch(() => undefined);
+        if (target?.authorId !== botId) return;
+        await forwardReaction(
+          session.state,
+          botId,
+          { roomId, threadRootId: target.threadRootId ?? target.id },
+          { kind: 'reaction', messageId, emoji, authorId: event.actorId }
+        );
+        return;
+      }
       const message = await server.addressedMessage(event, { signal: ctx.signal }).catch(() => {
         ctx.signal.throwIfAborted();
         console.warn('ChattoBot could not verify a reply target; ignoring the message.');

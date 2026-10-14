@@ -26,33 +26,51 @@ the bot also ends all conversations.
 
 ## Tools
 
-| Tool             | Who can use it | What it does                                                          |
-| ---------------- | -------------- | --------------------------------------------------------------------- |
-| `fetchPage`      | Everyone       | Reads the Chatto documentation and the Awesome Chatto list.           |
-| `readThread`     | Everyone       | Reads the newest messages of the thread.                              |
-| `viewAttachment` | Everyone       | Looks at an image or a small text file in the thread.                 |
-| `webSearch`      | Maintainers    | Searches the web with Tavily, when configured.                        |
-| `browsePage`     | Maintainers    | Reads a web page with Cloudflare Browser Run, when configured.        |
-| `gh`             | Everyone       | Runs read-only GitHub CLI commands, when GitHub is configured.        |
-| `createIssue`    | Maintainers    | Files an issue in the configured repository.                          |
-| `commentOnIssue` | Maintainers    | Adds a comment to an issue in the configured repository.              |
-| `investigate`    | Everyone       | Asks an investigator subagent about the source code, when configured. |
+| Tool             | What it does                                                          |
+| ---------------- | --------------------------------------------------------------------- |
+| `fetchPage`      | Reads the Chatto documentation and the Awesome Chatto list.           |
+| `readThread`     | Reads the newest messages of the thread.                              |
+| `viewAttachment` | Looks at an image or a small text file in the thread.                 |
+| `webSearch`      | Searches the web with Tavily, when configured.                        |
+| `browsePage`     | Reads a web page with Cloudflare Browser Run, when configured.        |
+| `gh`             | Runs read-only GitHub CLI commands, when GitHub is configured.        |
+| `createIssue`    | Files an issue, after a maintainer approved it.                       |
+| `commentOnIssue` | Adds a comment to an issue, after a maintainer approved it.           |
+| `investigate`    | Starts an investigator subagent for the source code, when configured. |
 
-A tool for maintainers runs only when maintainers wrote every message of the
-current turn.
+Everyone who can address the bot can use every tool. These rules keep that
+safe:
+
+- **Changes need approval.** A tool that changes something outside the thread
+  never runs on the model's word. The bot posts the exact action, for example
+  the complete issue, and a maintainer approves it with ✅ or declines it with
+  ❌. The outcome reaches the bot in a later turn. Without
+  `CHATTO_MAINTAINER_USER_IDS`, the bot offers no tools that change something.
+- **The page reader follows links only.** `browsePage` reads only pages from
+  search results or links that people posted, so the bot cannot send thread
+  content to an address that it put together.
+- **Reads stay in the thread.** Read tools return their results to the bot,
+  which answers in the same thread.
+
+## Background jobs
+
+Long work runs in the background, like subagents in an agent harness: an
+investigation, or a change that waits for approval. The tool returns at once,
+and the bot keeps talking. Its turns list the running jobs with their latest
+step, so it can answer status questions. When a job finishes, its result
+reaches the bot as a new turn, and the bot replies to the person who asked.
+
+The steps of a job are not posted to the thread yet. They will show as the bot's
+temporary status in the thread when Chatto supports it (#2787).
 
 ## Investigations
 
-`investigate` works like a background subagent in an agent harness. The bot
-gives a question to an investigator agent, which reads the source checkout, its
-documentation, and its Git history, and answers with file references. The bot
-keeps talking while the investigator works: it posts the investigator's steps
-as `[investigation]` messages, answers status questions, and passes on the
-answer when the investigation finishes. At most three investigations run at
-the same time in one thread. The
-investigator can only read. The bot checks each `path:line` reference against
-the checkout and, when GitHub is configured, links it to the lines on GitHub at
-the investigated commit.
+`investigate` gives a question to an investigator agent, which reads the
+source checkout, its documentation, and its Git history, and answers with file
+references. At most three investigations run at the same time in one thread.
+The investigator can only read. The bot checks each `path:line` reference
+against the checkout and, when GitHub is configured, links it to the lines on
+GitHub at the investigated commit.
 
 Each investigation keeps its agent session in `.runling/subagents/investigate/`.
 The bot can resume an investigation with a follow-up question, also after the

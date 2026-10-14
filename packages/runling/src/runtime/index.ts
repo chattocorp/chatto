@@ -36,6 +36,8 @@ export {
   type AgentRunOptions,
   type CompletedAgentReport,
   defineAgentExtension,
+  defineAgentTool,
+  type AgentTool,
   type RunlingAgent,
   runAgent,
   type RunAgentOptions,
