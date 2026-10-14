@@ -384,10 +384,10 @@ Follow these defaults:
 Panel titles are structural navigation, not decorative headings. Do not omit
 them merely because the page header already names the overall feature: the
 page title answers “where am I?”, while panel titles answer “what is in this
-section?”. One exception applies: when a page has one primary list panel that
-is the whole feature, such as the notification list or My Threads, the panel
-can omit its title. Put list controls in a toolbar inside the panel or in
-`PaneHeader` actions.
+section?”. One exception applies: an activity list page whose list is the
+whole feature, such as the notification list or My Threads, renders the list
+directly in `PaneContent` without a `Panel`. Put its controls in a toolbar
+above the list or in `PaneHeader` actions.
 
 ### Settings And Preferences
 

@@ -18,7 +18,6 @@
     Hint,
     PaneContent,
     PaneHeader,
-    Panel,
     ScrollFader,
     SegmentedControl,
     PageTitle
@@ -322,129 +321,123 @@
   <PaneHeader title={m('chat.threads.title')} subtitle={m('chat.threads.subtitle')} />
 
   <PaneContent fillHeight>
-    <Panel noPadding fillHeight>
-      <div class="flex flex-col gap-3 border-b border-border p-3">
-        <div class="flex flex-wrap items-center gap-3">
-          {#if searchEnabled}
-            <div class="min-w-0 flex-1 basis-56">
-              <ChatSearchInput
-                appearance="bordered"
-                label={m('search.in_threads')}
-                placeholder={m('search.query.placeholder')}
-                testid="my-threads-search"
-                focusOnMount
-                value={rawQuery}
-                clearLabel={m('common.clear')}
-                oninput={(event) => scheduleSearch((event.currentTarget as HTMLInputElement).value)}
-                onclear={() => scheduleSearch('')}
-                onsubmit={submitSearch}
-              />
-            </div>
-          {/if}
-          <div class="ms-auto">
-            <SegmentedControl
-              label={m('chat.threads.filter_label')}
-              options={filterOptions}
-              value={filter}
-              onchange={setFilter}
+    <div class="flex flex-col gap-3 pb-3">
+      <div class="flex flex-wrap items-center gap-3">
+        {#if searchEnabled}
+          <div class="min-w-0 flex-1 basis-56">
+            <ChatSearchInput
+              appearance="bordered"
+              label={m('search.in_threads')}
+              placeholder={m('search.query.placeholder')}
+              testid="my-threads-search"
+              focusOnMount
+              value={rawQuery}
+              clearLabel={m('common.clear')}
+              oninput={(event) => scheduleSearch((event.currentTarget as HTMLInputElement).value)}
+              onclear={() => scheduleSearch('')}
+              onsubmit={submitSearch}
             />
           </div>
-        </div>
-        {#if searchEnabled && searchStatus.status.state === MessageSearchState.DEGRADED}
-          <Hint tone="warning">{m('search.degraded')}</Hint>
         {/if}
+        <div class="ms-auto">
+          <SegmentedControl
+            label={m('chat.threads.filter_label')}
+            options={filterOptions}
+            value={filter}
+            onchange={setFilter}
+          />
+        </div>
       </div>
-      <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
-        <div class="flex min-h-full flex-col">
-          {#if searchQuery && !searchStatus.available}
-            <SearchAvailability
-              state={searchStatus.status.state}
-              checking={searchStatus.statusLoading && !searchStatus.statusLoaded}
-              error={searchStatus.statusError}
-              onRetry={() => void searchStatus.refreshStatus()}
-              checkingClass="p-6 text-muted"
-            >
-              <LoadingFog class="m-6 h-32" label={m('search.checking')} />
-            </SearchAvailability>
-          {:else if waitingForSearch || (loading && threads.length === 0)}
-            <LoadingFog class="m-6 h-48" />
-          {:else if error}
-            <div class="m-6">
-              <Hint tone="danger">{error}</Hint>
-            </div>
-          {:else if searchQuery && threads.length === 0}
-            <EmptyState icon="icon-[uil--search]" title={m('search.no_threads')}>
-              {m('search.no_results.description')}
-            </EmptyState>
-          {:else if threads.length === 0 && filter === 'all'}
-            <EmptyState icon="icon-[uil--comment-lines]" title={m('chat.threads.empty_title')}>
-              {m('chat.threads.empty_body')}
-            </EmptyState>
-          {:else if filteredThreads.length === 0 && hasMore}
-            <LoadingFog class="m-6 h-48" />
-          {:else if filteredThreads.length === 0}
-            <EmptyState icon="icon-[uil--comment-check]" title={m('chat.threads.all_caught_up')}>
-              {m('chat.threads.no_unread')}
-            </EmptyState>
-          {:else}
-            <div class="selectable-list pb-3" aria-busy={loadingMore}>
-              {#each dateSections as section (section.key)}
-                <section aria-labelledby={`thread-date-${section.key}`}>
-                  <DaySeparator id={`thread-date-${section.key}`} label={section.label} />
-                  {#each section.items as thread (thread.threadRootEventId)}
-                    {@const actors = rowActors(thread)}
-                    {@const primary = primaryEvent(thread)}
-                    {@const hasUnreadAttention =
-                      thread.hasUnreadReplies &&
-                      !serverUi(serverStore).readViews.covers(
-                        thread.roomId,
-                        thread.threadRootEventId
-                      )}
-                    {@const attention = notificationAttentionForThread(
-                      serverUi(serverStore).attention.occurrences,
+      {#if searchEnabled && searchStatus.status.state === MessageSearchState.DEGRADED}
+        <Hint tone="warning">{m('search.degraded')}</Hint>
+      {/if}
+    </div>
+    <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
+      <div class="flex min-h-full flex-col">
+        {#if searchQuery && !searchStatus.available}
+          <SearchAvailability
+            state={searchStatus.status.state}
+            checking={searchStatus.statusLoading && !searchStatus.statusLoaded}
+            error={searchStatus.statusError}
+            onRetry={() => void searchStatus.refreshStatus()}
+            checkingClass="p-6 text-muted"
+          >
+            <LoadingFog class="m-6 h-32" label={m('search.checking')} />
+          </SearchAvailability>
+        {:else if waitingForSearch || (loading && threads.length === 0)}
+          <LoadingFog class="m-6 h-48" />
+        {:else if error}
+          <div class="m-6">
+            <Hint tone="danger">{error}</Hint>
+          </div>
+        {:else if searchQuery && threads.length === 0}
+          <EmptyState icon="icon-[uil--search]" title={m('search.no_threads')}>
+            {m('search.no_results.description')}
+          </EmptyState>
+        {:else if threads.length === 0 && filter === 'all'}
+          <EmptyState icon="icon-[uil--comment-lines]" title={m('chat.threads.empty_title')}>
+            {m('chat.threads.empty_body')}
+          </EmptyState>
+        {:else if filteredThreads.length === 0 && hasMore}
+          <LoadingFog class="m-6 h-48" />
+        {:else if filteredThreads.length === 0}
+          <EmptyState icon="icon-[uil--comment-check]" title={m('chat.threads.all_caught_up')}>
+            {m('chat.threads.no_unread')}
+          </EmptyState>
+        {:else}
+          <div class="selectable-list pb-3" aria-busy={loadingMore}>
+            {#each dateSections as section (section.key)}
+              <section aria-labelledby={`thread-date-${section.key}`}>
+                <DaySeparator id={`thread-date-${section.key}`} label={section.label} />
+                {#each section.items as thread (thread.threadRootEventId)}
+                  {@const actors = rowActors(thread)}
+                  {@const primary = primaryEvent(thread)}
+                  {@const hasUnreadAttention =
+                    thread.hasUnreadReplies &&
+                    !serverUi(serverStore).readViews.covers(
                       thread.roomId,
                       thread.threadRootEventId
                     )}
-                    <ThreadRow
-                      participants={actors}
-                      latest={messageLine(primary)}
-                      root={thread.latestReply ? messageLine(thread.rootMessage) : null}
-                      time={formatRelativeTime(
-                        threadActivityAt(thread),
-                        userSettings,
-                        activeLocale
-                      )}
-                      replyCount={replyCountLabel(thread.replyCount)}
-                      unread={hasUnreadAttention}
-                      {attention}
-                      pending={actionThreadId === thread.threadRootEventId}
-                      canMarkRead={thread.hasUnreadReplies && thread.latestReply !== null}
-                      onopen={() => navigateToThread(thread)}
-                      onmarkread={() => void markThreadRead(thread)}
-                      onunfollow={() => void unfollowThread(thread)}
-                    >
-                      {#snippet room()}
-                        {#if thread.isDirectMessage}
-                          <DirectMessageName
-                            participants={thread.directMessageParticipants}
-                            currentUserId={serverStore.viewerId}
-                            getDisplayName={getLiveDisplayName}
-                          />
-                        {:else}{roomLabel(thread)}{/if}
-                      {/snippet}
-                    </ThreadRow>
-                  {/each}
-                </section>
-              {/each}
-              {#if hasMore}
-                <div class="flex min-h-14 justify-center p-4" {@attach loadMoreWhenVisible}>
-                  {#if loadingMore}<LoadingFog class="h-10 w-full" />{/if}
-                </div>
-              {/if}
-            </div>
-          {/if}
-        </div>
-      </ScrollFader>
-    </Panel>
+                  {@const attention = notificationAttentionForThread(
+                    serverUi(serverStore).attention.occurrences,
+                    thread.roomId,
+                    thread.threadRootEventId
+                  )}
+                  <ThreadRow
+                    participants={actors}
+                    latest={messageLine(primary)}
+                    root={thread.latestReply ? messageLine(thread.rootMessage) : null}
+                    time={formatRelativeTime(threadActivityAt(thread), userSettings, activeLocale)}
+                    replyCount={replyCountLabel(thread.replyCount)}
+                    unread={hasUnreadAttention}
+                    {attention}
+                    pending={actionThreadId === thread.threadRootEventId}
+                    canMarkRead={thread.hasUnreadReplies && thread.latestReply !== null}
+                    onopen={() => navigateToThread(thread)}
+                    onmarkread={() => void markThreadRead(thread)}
+                    onunfollow={() => void unfollowThread(thread)}
+                  >
+                    {#snippet room()}
+                      {#if thread.isDirectMessage}
+                        <DirectMessageName
+                          participants={thread.directMessageParticipants}
+                          currentUserId={serverStore.viewerId}
+                          getDisplayName={getLiveDisplayName}
+                        />
+                      {:else}{roomLabel(thread)}{/if}
+                    {/snippet}
+                  </ThreadRow>
+                {/each}
+              </section>
+            {/each}
+            {#if hasMore}
+              <div class="flex min-h-14 justify-center p-4" {@attach loadMoreWhenVisible}>
+                {#if loadingMore}<LoadingFog class="h-10 w-full" />{/if}
+              </div>
+            {/if}
+          </div>
+        {/if}
+      </div>
+    </ScrollFader>
   </PaneContent>
 </div>

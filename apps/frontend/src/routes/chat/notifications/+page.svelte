@@ -11,7 +11,6 @@
     PageTitle,
     PaneContent,
     PaneHeader,
-    Panel,
     ScrollFader
   } from '$lib/ui';
   import { Button } from '$lib/ui/form';
@@ -511,80 +510,78 @@
   </PaneHeader>
 
   <PaneContent fillHeight>
-    <Panel noPadding fillHeight>
-      <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
-        <div class="flex min-h-full flex-col">
-          {#if pageError && groups.length === 0}
-            <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('common.error.network')}>
-              <Button variant="secondary" label={m('common.retry')} onclick={retryNotifications}
-                >{m('common.retry')}</Button
-              >
-            </EmptyState>
-          {:else if visibleGroups.length > 0}
-            <div class="selectable-list pb-3" aria-busy={loadingMore}>
-              {#each dateSections as section (section.key)}
-                <section aria-labelledby={`notification-date-${section.key}`}>
-                  <DaySeparator
-                    id={`notification-date-${section.key}`}
-                    label={section.label}
-                    testId="notification-date-heading"
+    <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
+      <div class="flex min-h-full flex-col">
+        {#if pageError && groups.length === 0}
+          <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('common.error.network')}>
+            <Button variant="secondary" label={m('common.retry')} onclick={retryNotifications}
+              >{m('common.retry')}</Button
+            >
+          </EmptyState>
+        {:else if visibleGroups.length > 0}
+          <div class="selectable-list pb-3" aria-busy={loadingMore}>
+            {#each dateSections as section (section.key)}
+              <section aria-labelledby={`notification-date-${section.key}`}>
+                <DaySeparator
+                  id={`notification-date-${section.key}`}
+                  label={section.label}
+                  testId="notification-date-heading"
+                />
+                {#each section.items as item (rowKey(item))}
+                  {@const occurrence = item.group.openTarget}
+                  {@const targetSupported = occurrence?.targetSupported !== false}
+                  {@const isReaction = occurrence?.signalKind === NotificationSignalKind.REACTION}
+                  {@const actor = primaryActor(item.group)}
+                  {@const emoji = isReaction ? badgeEmoji(item.group) : null}
+                  {@const roomName = groupRoomName(item.group)}
+                  {@const mutationPending =
+                    dismissingRead || pendingMutationKeys.has(mutationKey(item))}
+                  <NotificationRow
+                    summary={occurrenceSummary(item.group)}
+                    summaryAccounts={summaryAccounts(item.group)}
+                    {actor}
+                    signalKind={occurrence?.signalKind}
+                    reactionEmoji={emoji}
+                    {roomName}
+                    time={formatRelativeTime(
+                      item.group.latestAt,
+                      item.timeFormatSettings,
+                      activeLocale
+                    )}
+                    unread={item.group.unread}
+                    important={item.group.unread &&
+                      item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT}
+                    interactive={targetSupported}
+                    pending={mutationPending}
+                    server={showServerMarker ? item.server : null}
+                    onopen={() => openGroup(item)}
+                    ondismiss={() => dismiss(item)}
                   />
-                  {#each section.items as item (rowKey(item))}
-                    {@const occurrence = item.group.openTarget}
-                    {@const targetSupported = occurrence?.targetSupported !== false}
-                    {@const isReaction = occurrence?.signalKind === NotificationSignalKind.REACTION}
-                    {@const actor = primaryActor(item.group)}
-                    {@const emoji = isReaction ? badgeEmoji(item.group) : null}
-                    {@const roomName = groupRoomName(item.group)}
-                    {@const mutationPending =
-                      dismissingRead || pendingMutationKeys.has(mutationKey(item))}
-                    <NotificationRow
-                      summary={occurrenceSummary(item.group)}
-                      summaryAccounts={summaryAccounts(item.group)}
-                      {actor}
-                      signalKind={occurrence?.signalKind}
-                      reactionEmoji={emoji}
-                      {roomName}
-                      time={formatRelativeTime(
-                        item.group.latestAt,
-                        item.timeFormatSettings,
-                        activeLocale
-                      )}
-                      unread={item.group.unread}
-                      important={item.group.unread &&
-                        item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT}
-                      interactive={targetSupported}
-                      pending={mutationPending}
-                      server={showServerMarker ? item.server : null}
-                      onopen={() => openGroup(item)}
-                      ondismiss={() => dismiss(item)}
-                    />
-                  {/each}
-                </section>
-              {/each}
-              {#if pageError}
-                <div
-                  class="flex min-h-14 items-center justify-center gap-3 p-4 text-muted"
-                  role="alert"
+                {/each}
+              </section>
+            {/each}
+            {#if pageError}
+              <div
+                class="flex min-h-14 items-center justify-center gap-3 p-4 text-muted"
+                role="alert"
+              >
+                <span>{m('common.error.network')}</span>
+                <Button variant="secondary" size="sm" label={m('common.retry')} onclick={loadMore}
+                  >{m('common.retry')}</Button
                 >
-                  <span>{m('common.error.network')}</span>
-                  <Button variant="secondary" size="sm" label={m('common.retry')} onclick={loadMore}
-                    >{m('common.retry')}</Button
-                  >
-                </div>
-              {:else if hasMore}
-                <div class="min-h-14" {@attach loadMoreWhenVisible}></div>
-              {/if}
-            </div>
-          {:else if loading}
-            <LoadingFog class="m-3 min-h-32 flex-1" />
-          {:else}
-            <EmptyState icon="icon-[uil--bell-slash]" title={m('chat.notifications.empty_title')}>
-              {m('chat.notifications.empty_body')}
-            </EmptyState>
-          {/if}
-        </div>
-      </ScrollFader>
-    </Panel>
+              </div>
+            {:else if hasMore}
+              <div class="min-h-14" {@attach loadMoreWhenVisible}></div>
+            {/if}
+          </div>
+        {:else if loading}
+          <LoadingFog class="m-3 min-h-32 flex-1" />
+        {:else}
+          <EmptyState icon="icon-[uil--bell-slash]" title={m('chat.notifications.empty_title')}>
+            {m('chat.notifications.empty_body')}
+          </EmptyState>
+        {/if}
+      </div>
+    </ScrollFader>
   </PaneContent>
 </div>
