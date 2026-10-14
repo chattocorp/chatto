@@ -11,6 +11,7 @@ import (
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/nats-io/nats.go/jetstream"
 )
 
@@ -388,78 +389,112 @@ func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, us
 	if userID == "" || subjectHash == "" {
 		return ErrInvalidArgument
 	}
-	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserExternalIdentityUnlinked{
+	unlink := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserExternalIdentityUnlinked{
 		UserExternalIdentityUnlinked: &evtv1.UserExternalIdentityUnlinkedEvent{
 			UserId:                      userID,
 			SubjectHash:                 subjectHash,
 			PreserveExistingCredentials: true,
 		},
 	}})
-	// Revoke the provider's group roles before the unlink when it removes the
-	// last identity of that provider. A failure then leaves the link in place
-	// for a retry. The check after the unlink catches a concurrent sign-in
-	// that gave a role again. If the unlink is then refused, the next sign-in
-	// through the provider gives the roles again.
-	for _, identity := range c.userModel.externalIdentities(userID) {
-		if identity.SubjectHash == subjectHash && !hasOtherProviderIdentity(c.userModel.externalIdentities(userID), identity) {
-			if err := c.RevokeProviderGroupRoles(ctx, userID, identity.ProviderID); err != nil {
-				return fmt.Errorf("revoke group roles of unlinked provider: %w", err)
-			}
+	unlinkSubject := evtstream.UserAggregate(userID).SubjectFor(unlink)
+	userFilter := evtstream.UserSubjectFilter()
+	rbacFilter := evtstream.RBACSubjectFilter()
+
+	// The unlink and the revocation of the group roles that its provider gave
+	// commit in one atomic batch with user and RBAC OCC. A failure therefore
+	// cannot leave an unlinked account with the provider's roles.
+	for attempt := range maxUserMutationRetries {
+		userSeq, err := c.EventPublisher.LastSubjectSeq(ctx, userFilter)
+		if err != nil {
+			return fmt.Errorf("read user OCC filter seq: %w", err)
 		}
-	}
-	// Check the account after appendUserEvent's projection wait, so a replica
-	// that has not yet applied the user's creation does not reject it.
-	var unlinked ExternalIdentity
-	_, err := c.appendUserEvent(ctx, userID, event, evtstream.UserSubjectFilter(), func() error {
-		if err := c.requireHumanUser(ctx, userID); err != nil {
+		rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, rbacFilter)
+		if err != nil {
+			return fmt.Errorf("read RBAC OCC filter seq: %w", err)
+		}
+		if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(userFilter, userSeq)); err != nil {
+			return fmt.Errorf("wait for user projection: %w", err)
+		}
+		if err := c.userModel.waitForUserAuthCurrent(ctx, "user mutation"); err != nil {
+			return fmt.Errorf("wait for user auth projection: %w", err)
+		}
+		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(rbacFilter, rbacSeq)); err != nil {
+			return fmt.Errorf("wait for RBAC projection: %w", err)
+		}
+		// Check the account after the projection wait, so a replica that has
+		// not yet applied the user's creation does not reject it.
+		unlinked, err := c.checkExternalIdentityDisconnect(ctx, userID, subjectHash, policy)
+		if err != nil {
 			return err
 		}
-		identities := c.userModel.externalIdentities(userID)
-		found := false
-		remainingIdentity := false
-		for _, identity := range identities {
-			if identity.SubjectHash == subjectHash {
-				found = true
-				unlinked = identity
-				continue
-			}
-			if policy == nil || policy.AllowsIdentity(identity) {
-				remainingIdentity = true
-			}
-		}
-		if !found {
-			return ErrExternalIdentityNotFound
-		}
-		_, hasPassword := c.userModel.passwordHash(userID)
-		passwordAvailable := hasPassword && (policy == nil || policy.PasswordLoginEnabled)
-		if !passwordAvailable && !remainingIdentity {
-			return ErrExternalIdentityLastMethod
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	return c.revokeRolesOfUnlinkedProvider(ctx, userID, unlinked.ProviderID)
-}
 
-// revokeRolesOfUnlinkedProvider revokes the group roles that providerID gave
-// the user when the user has no other identity of that provider. Otherwise
-// the account could keep the roles after its identity moved to another
-// account, and later group changes at the provider would never reach it.
-func (c *ChattoCore) revokeRolesOfUnlinkedProvider(ctx context.Context, userID, providerID string) error {
-	if providerID == "" {
-		return nil
-	}
-	for _, identity := range c.userModel.externalIdentities(userID) {
-		if identity.ProviderID == providerID {
+		entries := []evtstream.BatchEntry{{Subject: unlinkSubject, Event: unlink, Expect: events.ExpectFilterSeq(userFilter, userSeq)}}
+		// Another identity of the provider keeps the account under that
+		// provider's group role sync, so its roles stay.
+		if !hasOtherProviderIdentity(c.userModel.externalIdentities(userID), unlinked) {
+			for _, roleName := range c.rbacModel.providerAssignments(userID, unlinked.ProviderID) {
+				entries = append(entries, providerRoleRevokedEntry(userID, roleName, unlinked.ProviderID))
+			}
+		}
+		if len(entries) > 1 {
+			entries[1].Expect = events.ExpectFilterSeq(rbacFilter, rbacSeq)
+		}
+
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+		if err == nil {
+			if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(unlinkSubject, seqs[0])); err != nil {
+				return fmt.Errorf("wait for user projection: %w", err)
+			}
+			if err := c.userModel.waitForUserAuth(ctx, events.SubjectPosition(unlinkSubject, seqs[0])); err != nil {
+				return fmt.Errorf("wait for user auth projection: %w", err)
+			}
+			if last := len(entries) - 1; last > 0 {
+				if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(entries[last].Subject, seqs[last])); err != nil {
+					return fmt.Errorf("wait for RBAC projection: %w", err)
+				}
+			}
 			return nil
 		}
+		if !errors.Is(err, events.ErrConflict) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
 	}
-	if err := c.RevokeProviderGroupRoles(ctx, userID, providerID); err != nil {
-		return fmt.Errorf("revoke group roles of unlinked provider: %w", err)
+	return fmt.Errorf("external identity unlink OCC retry exhausted after %d attempts: %w", maxUserMutationRetries, events.ErrConflict)
+}
+
+// checkExternalIdentityDisconnect returns the identity to unlink. It refuses
+// removal when no sign-in method that policy enables would remain.
+func (c *ChattoCore) checkExternalIdentityDisconnect(ctx context.Context, userID, subjectHash string, policy *ExternalIdentitySignInPolicy) (ExternalIdentity, error) {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return ExternalIdentity{}, err
 	}
-	return nil
+	var unlinked ExternalIdentity
+	found := false
+	remainingIdentity := false
+	for _, identity := range c.userModel.externalIdentities(userID) {
+		if identity.SubjectHash == subjectHash {
+			found = true
+			unlinked = identity
+			continue
+		}
+		if policy == nil || policy.AllowsIdentity(identity) {
+			remainingIdentity = true
+		}
+	}
+	if !found {
+		return ExternalIdentity{}, ErrExternalIdentityNotFound
+	}
+	_, hasPassword := c.userModel.passwordHash(userID)
+	passwordAvailable := hasPassword && (policy == nil || policy.PasswordLoginEnabled)
+	if !passwordAvailable && !remainingIdentity {
+		return ExternalIdentity{}, ErrExternalIdentityLastMethod
+	}
+	return unlinked, nil
 }
 
 // hasOtherProviderIdentity reports whether identities contain another
