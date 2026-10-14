@@ -42,6 +42,12 @@ const Input = Type.Object({
   )
 });
 
+/** An event of the investigator's agent session. */
+type AgentEvent = Parameters<NonNullable<AgentOptions['onEvent']>>[0];
+
+/** A progress update: what the investigator does now, such as "Reading src/a.ts". */
+const Update = Type.String();
+
 const Output = Type.Object({
   /** Pass it as `session` to continue this investigation. */
   session: Type.String(),
@@ -70,60 +76,68 @@ export function createInvestigator(
   settings: InvestigatorSettings,
   createAgent: (options: AgentOptions) => Promise<RunlingAgent> = agent
 ) {
-  return task({ name: 'Investigate', input: Input, output: Output }, async (ctx, input) => {
-    const directory = resolve(input.directory);
-    if (!(await stat(directory).catch(() => undefined))?.isDirectory())
-      throw new Error('The directory to investigate does not exist');
-    await mkdir(settings.sessions, { recursive: true, mode: 0o700 });
-    const session = input.session ?? crypto.randomUUID();
-    const sessionFile = resolve(settings.sessions, `${session}.jsonl`);
-    if (input.session && !(await stat(sessionFile).catch(() => undefined)))
-      throw new Error(`There is no investigation ${input.session}`);
-    if (active.has(session))
-      throw new Error(`Investigation ${session} is answering another question. Wait for it.`);
-    active.add(session);
-    try {
-      await using investigator = await createAgent({
-        label: 'investigate',
-        model: settings.model,
-        thinkingLevel: settings.thinkingLevel ?? 'medium',
-        output: 'text',
-        cwd: directory,
-        sessionFile,
-        tools: ['read', 'grep', 'find', 'ls', ...GIT_TOOLS],
-        extensions: [confineExtension(directory), gitExtension(directory)],
-        // Repository instructions help; host extensions and skills do not belong here.
-        resources: { extensions: false, skills: false, promptTemplates: false, themes: false },
-        instructions: INSTRUCTIONS
-      });
-      let answer = await answerOf(investigator, ctx, input.question);
-      let checked = await checkCitations(directory, findCitations(answer));
-      const problems = checked.flatMap((citation) => citation.problem ?? []);
-      // One chance to correct invalid references; the answer is kept either way.
-      if (problems.length) {
-        answer = await answerOf(
-          investigator,
-          ctx,
-          `Some references in your answer are wrong:\n${problems.map((problem) => `- ${problem}`).join('\n')}\nCheck them, then write your complete answer again with correct references.`
+  return task(
+    { name: 'Investigate', input: Input, output: Output, emits: Update },
+    async (ctx, input) => {
+      const directory = resolve(input.directory);
+      if (!(await stat(directory).catch(() => undefined))?.isDirectory())
+        throw new Error('The directory to investigate does not exist');
+      await mkdir(settings.sessions, { recursive: true, mode: 0o700 });
+      const session = input.session ?? crypto.randomUUID();
+      const sessionFile = resolve(settings.sessions, `${session}.jsonl`);
+      if (input.session && !(await stat(sessionFile).catch(() => undefined)))
+        throw new Error(`There is no investigation ${input.session}`);
+      if (active.has(session))
+        throw new Error(`Investigation ${session} is answering another question. Wait for it.`);
+      active.add(session);
+      try {
+        await using investigator = await createAgent({
+          label: 'investigate',
+          model: settings.model,
+          thinkingLevel: settings.thinkingLevel ?? 'medium',
+          output: 'text',
+          cwd: directory,
+          sessionFile,
+          tools: ['read', 'grep', 'find', 'ls', ...GIT_TOOLS],
+          extensions: [confineExtension(directory), gitExtension(directory)],
+          // Repository instructions help; host extensions and skills do not belong here.
+          resources: { extensions: false, skills: false, promptTemplates: false, themes: false },
+          instructions: INSTRUCTIONS,
+          // Progress for the caller. A caller that does not read updates must not stop the work.
+          onEvent: (event) => {
+            const update = describeEvent(event);
+            if (update) void ctx.emit(update).catch(() => {});
+          }
+        });
+        let answer = await answerOf(investigator, ctx, input.question);
+        let checked = await checkCitations(directory, findCitations(answer));
+        const problems = checked.flatMap((citation) => citation.problem ?? []);
+        // One chance to correct invalid references; the answer is kept either way.
+        if (problems.length) {
+          answer = await answerOf(
+            investigator,
+            ctx,
+            `Some references in your answer are wrong:\n${problems.map((problem) => `- ${problem}`).join('\n')}\nCheck them, then write your complete answer again with correct references.`
+          );
+          checked = await checkCitations(directory, findCitations(answer));
+        }
+        const commit = await runGit(directory, ['rev-parse', 'HEAD'], ctx.signal).then(
+          (output) => output.trim(),
+          () => undefined
         );
-        checked = await checkCitations(directory, findCitations(answer));
+        return {
+          session,
+          answer,
+          ...(commit ? { commit } : {}),
+          citations: checked
+            .filter((citation) => !citation.problem)
+            .map(({ path, start, end }) => ({ path, start, end }))
+        };
+      } finally {
+        active.delete(session);
       }
-      const commit = await runGit(directory, ['rev-parse', 'HEAD'], ctx.signal).then(
-        (output) => output.trim(),
-        () => undefined
-      );
-      return {
-        session,
-        answer,
-        ...(commit ? { commit } : {}),
-        citations: checked
-          .filter((citation) => !citation.problem)
-          .map(({ path, start, end }) => ({ path, start, end }))
-      };
-    } finally {
-      active.delete(session);
     }
-  });
+  );
 }
 
 async function answerOf(investigator: RunlingAgent, ctx: TaskContext<any, any>, prompt: string) {
@@ -145,6 +159,47 @@ export function investigatorSettings(): InvestigatorSettings {
 }
 
 /** The investigator with settings from the environment, for `runling run`. */
-export default task({ name: 'Investigate code', input: Input, output: Output }, (ctx, input) =>
-  createInvestigator(investigatorSettings())(ctx, input)
+export default task(
+  { name: 'Investigate code', input: Input, output: Output, emits: Update },
+  async (ctx, input) => {
+    const investigation = ctx.start(createInvestigator(investigatorSettings()), input);
+    for await (const update of investigation.updates) await ctx.emit(update);
+    return investigation.result;
+  }
 );
+
+/** A short progress line for an agent event: a tool call or a reasoning step. Tool calls inside
+ * a tool are left out, and so is everything else. */
+export function describeEvent(event: AgentEvent): string | undefined {
+  if (event.type === 'tool_execution_start' && !event.parentToolCallId) {
+    const args = (event.args ?? {}) as Record<string, unknown>;
+    const text = (value: unknown) => String(value ?? '').slice(0, 200);
+    switch (event.toolName) {
+      case 'read':
+        return `Reading ${text(args.path)}${Number(args.offset) > 1 ? ` from line ${text(args.offset)}` : ''}`;
+      case 'grep':
+        return `Searching for ${JSON.stringify(text(args.pattern))}${args.path ? ` in ${text(args.path)}` : ''}`;
+      case 'find':
+        return `Finding files: ${text(args.pattern)}${args.path ? ` in ${text(args.path)}` : ''}`;
+      case 'ls':
+        return `Listing ${text(args.path ?? '.')}`;
+      case 'gitLog':
+        return `Reading the Git log${args.path ? ` of ${text(args.path)}` : ''}${args.added ? ` for ${JSON.stringify(text(args.added))}` : ''}`;
+      case 'gitBlame':
+        return `Reading the Git blame of ${text(args.path)}:${text(args.start)}-${text(args.end)}`;
+      case 'gitShow':
+        return `Reading commit ${text(args.revision)}${args.path ? ` for ${text(args.path)}` : ''}`;
+      default:
+        return `Using ${event.toolName}`;
+    }
+  }
+  if (event.type === 'message_end' && event.message.role === 'assistant') {
+    // Reasoning summaries start with a short heading, such as "**Checking the renderer**".
+    const heading = event.message.content
+      .flatMap((part) => (part.type === 'thinking' && !part.redacted ? [part.thinking] : []))
+      .map((thinking) => thinking.trim().split('\n', 1)[0]!.replace(/\*\*/g, '').trim())
+      .find(Boolean);
+    return heading ? `Thinking: ${heading.slice(0, 200)}` : undefined;
+  }
+  return undefined;
+}

@@ -27,6 +27,11 @@ The model writes the replies. Host code writes text only when the model cannot:
 the notice after a failed turn in `conversation.ts`. Do not add new host text
 without discussion.
 
+Subagent progress, such as the `[investigation]` lines, is posted as messages
+for now. It will move to the bot's temporary status in the thread (#2787), so
+keep it out of the conversation agent's context and do not let replies depend
+on it.
+
 Do not add slash commands. People talk to the bot in plain language.
 
 ## Permissions

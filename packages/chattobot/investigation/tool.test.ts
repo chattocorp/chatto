@@ -7,6 +7,7 @@ type Tool = { execute(id: string, input: unknown, signal?: AbortSignal): Promise
 /** The tool over a fake investigator that records its inputs. */
 async function tool(views = 2, repository?: string) {
   const inputs: unknown[] = [];
+  const progress: string[][] = [];
   const scopes: string[] = [];
   const investigate = task(
     {
@@ -16,10 +17,13 @@ async function tool(views = 2, repository?: string) {
         question: Type.String(),
         session: Type.Optional(Type.String())
       }),
-      output: Type.Any()
+      output: Type.Any(),
+      emits: Type.String()
     },
-    async (_ctx, input) => {
+    async (ctx, input) => {
       inputs.push(input);
+      await ctx.emit('Reading src/a.ts');
+      await ctx.emit('Reading src/b.ts');
       return {
         session: input.session ?? '11111111-1111-1111-1111-111111111111',
         answer: 'See `src/a.ts:2`.',
@@ -39,7 +43,11 @@ async function tool(views = 2, repository?: string) {
       },
       ...(repository ? { repository } : {})
     },
-    { take: () => left-- > 0, scope: 'thread-1' }
+    {
+      take: () => left-- > 0,
+      scope: 'thread-1',
+      onProgress: (updates) => void progress.push(updates)
+    }
   );
   const tools = new Map<string, Tool>();
   const factory = typeof extension === 'function' ? extension : extension.factory;
@@ -47,7 +55,7 @@ async function tool(views = 2, repository?: string) {
     registerTool: (registered: { name: string }) =>
       void tools.set(registered.name, registered as never)
   } as unknown as AgentExtensionAPI);
-  return { investigate: tools.get('investigate')!, inputs, scopes };
+  return { investigate: tools.get('investigate')!, inputs, scopes, progress };
 }
 
 test('starts an investigation in the configured directory and links its references', async () => {
@@ -77,4 +85,10 @@ test('refuses investigations over the turn budget', async () => {
     'limit of investigations'
   );
   expect(inputs).toHaveLength(1);
+});
+
+test('passes progress updates on in one batch before the result', async () => {
+  const { investigate, progress } = await tool();
+  await investigate.execute('1', { question: 'Where?' });
+  expect(progress).toEqual([['Reading src/a.ts', 'Reading src/b.ts']]);
 });

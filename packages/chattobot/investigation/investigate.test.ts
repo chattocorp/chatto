@@ -9,7 +9,7 @@ import {
   type AgentResult,
   type RunlingAgent
 } from 'runling';
-import { createInvestigator } from './investigate.ts';
+import { createInvestigator, describeEvent } from './investigate.ts';
 
 async function setup(answers: (string | AgentResult)[]) {
   const directory = await mkdtemp(join(tmpdir(), 'repo-'));
@@ -25,6 +25,12 @@ async function setup(answers: (string | AgentResult)[]) {
     return {
       async runOutcome(_ctx: unknown, prompt: string) {
         prompts.push(prompt);
+        agentOptions.onEvent?.({
+          type: 'tool_execution_start',
+          toolCallId: 't',
+          toolName: 'read',
+          args: { path: 'src/a.ts' }
+        } as never);
         const answer = answers.shift()!;
         return typeof answer === 'string'
           ? { outcome: 'completed', summary: answer, usage: emptyTokenUsage() }
@@ -97,4 +103,39 @@ test('fails when the agent cannot answer or the directory is missing', async () 
   await expect(
     investigate(createTaskContext(), { directory: join(directory, 'nope'), question: 'Q?' })
   ).rejects.toThrow('The directory to investigate does not exist');
+});
+
+test('reports its tool calls and reasoning steps as updates', async () => {
+  const { directory, investigate } = await setup(['See src/a.ts:1.']);
+  const investigation = createTaskContext().start(investigate, { directory, question: 'Q?' });
+  const updates: unknown[] = [];
+  for await (const update of investigation.updates) updates.push(update);
+  await investigation.result;
+  expect(updates).toEqual(['Reading src/a.ts']);
+});
+
+test('describes tool calls and reasoning, but not nested calls', () => {
+  const tool = (toolName: string, args: object, parentToolCallId?: string) =>
+    describeEvent({
+      type: 'tool_execution_start',
+      toolCallId: 't',
+      toolName,
+      args,
+      ...(parentToolCallId ? { parentToolCallId } : {})
+    } as never);
+  expect(tool('grep', { pattern: 'author', path: 'apps' })).toBe('Searching for "author" in apps');
+  expect(tool('gitBlame', { path: 'a.go', start: 1, end: 9 })).toBe(
+    'Reading the Git blame of a.go:1-9'
+  );
+  expect(tool('gitShow', { revision: 'abc' })).toBe('Reading commit abc');
+  expect(tool('read', { path: 'x' }, 'parent')).toBeUndefined();
+  expect(
+    describeEvent({
+      type: 'message_end',
+      message: {
+        role: 'assistant',
+        content: [{ type: 'thinking', thinking: '**Checking the renderer**\n\nDetails' }]
+      }
+    } as never)
+  ).toBe('Thinking: Checking the renderer');
 });

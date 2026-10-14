@@ -19,12 +19,18 @@ export interface InvestigateToolOptions {
   take: () => boolean;
   /** The scope of the investigations, such as the thread. */
   scope: string;
+  /** Receives the investigator's progress, in batches of updates that arrived close together.
+   * All updates of an investigation arrive before its tool call returns. */
+  onProgress?: (updates: string[]) => void;
 }
+
+/** Updates within this time go into one batch, such as the reads of one model step. */
+const BATCH_MS = 1000;
 
 export function investigateExtension(
   ctx: TaskContext<any, any>,
   { directory, investigator, repository }: Investigation,
-  { take, scope }: InvestigateToolOptions
+  { take, scope, onProgress }: InvestigateToolOptions
 ) {
   const investigate = investigator(scope);
   return defineAgentExtension((pi) => {
@@ -50,11 +56,34 @@ export function investigateExtension(
             'You reached the limit of investigations for this turn. Answer with what you found.'
           );
         const toolCtx = signal ? { ...ctx, signal: AbortSignal.any([ctx.signal, signal]) } : ctx;
-        const result = await investigate(toolCtx, {
+        const investigation = toolCtx.start(investigate, {
           directory,
           question,
           ...(resume ? { session: resume } : {})
         });
+        investigation.closeInput();
+        let batch: string[] = [];
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const flush = () => {
+          clearTimeout(timer);
+          timer = undefined;
+          if (batch.length) onProgress?.(batch.splice(0));
+        };
+        const progress = (async () => {
+          for await (const update of investigation.updates) {
+            batch.push(update);
+            timer ??= setTimeout(flush, BATCH_MS);
+          }
+        })();
+        // A failed investigation also fails its updates; its result reports the failure.
+        void progress.catch(() => {});
+        let result: Awaited<typeof investigation.result>;
+        try {
+          result = await investigation.result;
+          await progress;
+        } finally {
+          flush();
+        }
         const answer =
           repository && result.commit
             ? linkCitations(result.answer, result.citations, { repository, commit: result.commit })

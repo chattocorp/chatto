@@ -3,6 +3,8 @@ import {
   createChannel,
   emptyTokenUsage,
   runWorkflow,
+  task,
+  Type,
   type AgentExtensionAPI,
   type AgentOptions,
   type AgentResult,
@@ -336,4 +338,30 @@ test('posts each message of a turn in order, such as a note before a long tool c
     'Here is what I found.'
   ]);
   expect(bot.posts.every((post) => post.destination.inReplyTo === 'one')).toBe(true);
+});
+
+test('posts investigation progress with a prefix, in order with the answer', async () => {
+  const investigator = task(
+    { name: 'Investigate', input: Type.Any(), output: Type.Any(), emits: Type.String() },
+    async (ctx) => {
+      await ctx.emit('Reading src/a.ts');
+      await ctx.emit('Thinking: Checking the renderer');
+      return { session: 's', answer: 'Found it.', citations: [] };
+    }
+  );
+  const bot: ReturnType<typeof harness> = harness({
+    investigation: { directory: '/repo', investigator: () => investigator as never },
+    turn: async () => {
+      await bot.tools.get('investigate')!.execute('1', { question: 'Why?' });
+    },
+    answer: () => 'It is fixed in main.'
+  });
+  const run = bot.start(message('one'));
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(2));
+  bot.messages.close();
+  await run;
+  expect(bot.posts.map((post) => post.body)).toEqual([
+    '[investigation] Reading src/a.ts\n[investigation] Thinking: Checking the renderer',
+    'It is fixed in main.'
+  ]);
 });
