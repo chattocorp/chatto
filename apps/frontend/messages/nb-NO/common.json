@@ -1,5 +1,6 @@
 {
   "common": {
+    "copy_failed": "Kunne ikke kopiere til utklippstavlen. Marker teksten og kopier den manuelt.",
     "cancel": "Avbryt",
     "close_sidebar": "Lukk sidefeltet",
     "or": "eller",

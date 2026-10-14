@@ -1,5 +1,6 @@
 {
   "common": {
+    "copy_failed": "Panoya kopyalanamadı. Metni seçin ve elle kopyalayın.",
     "cancel": "İptal",
     "close_sidebar": "Kenar çubuğunu kapat",
     "or": "veya",

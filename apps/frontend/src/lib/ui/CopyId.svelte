@@ -1,13 +1,18 @@
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
+  import { toastError } from '$lib/utils/errorMessage';
 
   let { value }: { value: string } = $props();
 
   async function copy(event: MouseEvent) {
     event.stopPropagation();
-    await navigator.clipboard.writeText(value);
-    toast.success(m('common.copied_to_clipboard'));
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(m('common.copied_to_clipboard'));
+    } catch {
+      toastError(undefined, m('common.copy_failed'));
+    }
   }
 </script>
 

@@ -4,6 +4,7 @@
   import { Button } from '$lib/ui/form';
   import { Dialog, Hint } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
+  import { toastError } from '$lib/utils/errorMessage';
 
   let {
     visible = $bindable(false),
@@ -28,8 +29,12 @@
   });
 
   async function copyCredential() {
-    await navigator.clipboard.writeText(value);
-    toast.success(copiedMessage);
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(copiedMessage);
+    } catch {
+      toastError(undefined, m('common.copy_failed'));
+    }
   }
 
   function close() {

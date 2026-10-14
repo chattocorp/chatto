@@ -1,5 +1,6 @@
 {
   "common": {
+    "copy_failed": "Could not copy to clipboard. Select the text and copy it manually.",
     "cancel": "Cancel",
     "close_sidebar": "Close sidebar",
     "or": "or",

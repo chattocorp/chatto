@@ -1,6 +1,7 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import CopyId from './CopyId.svelte';
+  import ToastContainer from './toast/ToastContainer.svelte';
 
   const componentDescription = `
   Inline admin helper for displaying opaque identifiers with a copy action.
@@ -37,4 +38,5 @@
   <div class="inline-flex surface-box p-3">
     <CopyId value="USR-7Q9M2N" />
   </div>
+  <ToastContainer />
 </Story>
