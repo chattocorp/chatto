@@ -62,8 +62,7 @@ an i18n compiler or include generated locale JavaScript in Vite's module graph.
 Adding or editing a translation is a JSON-only change. Catalog sections remain
 independent source and loading units, while production users pay at most one
 public-shell request and one authenticated-application request per selected
-locale. Non-base translations stay outside initial route bundles. The production
-bundle check enforces both properties.
+locale. Non-base translations stay outside initial route bundles.
 
 Message keys are not statically checked at each call site. Complete-catalog
 shape tests, placeholder validation, missing-key markers, and focused runtime

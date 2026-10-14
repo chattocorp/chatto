@@ -1,6 +1,7 @@
 /** Lazily loaded mouse drag behavior for the server gutter. */
-import { fromAction } from 'svelte/attachments';
-import { dndzone, type DndEvent } from 'svelte-dnd-action';
+import { untrack } from 'svelte';
+import type { ActionReturn } from 'svelte/action';
+import { dndzone, type DndEvent, type Options } from 'svelte-dnd-action';
 
 /** A drag item retains the server ID when the library changes its shadow ID. */
 export type GutterItem = { id: string; serverId: string; isDndShadowItem?: boolean };
@@ -20,6 +21,7 @@ export function attachServerGutterDrag(
   return $effect.root(() => {
     let dragging = false;
     let suppressClickUntil = 0;
+    let zone: ActionReturn<Options<GutterItem>> | undefined;
     const consider = (event: Event) => {
       if (event.target !== node) return;
       dragging = true;
@@ -61,17 +63,29 @@ export function attachServerGutterDrag(
     node.addEventListener('click', click, true);
     node.addEventListener('mousedown', mouseDown, true);
     node.addEventListener('touchstart', touchStart, { capture: true, passive: true });
-    const detachZone = fromAction(dndzone, () => ({
-      items: options.items(),
-      type: 'server-gutter',
-      dropFromOthersDisabled: true,
-      flipDurationMs: 0,
-      dropTargetStyle: {},
-      autoAriaDisabled: true,
-      zoneTabIndex: -1,
-      zoneItemTabIndex: -1
-    }))(node);
-    node.dataset.serverDragReady = 'true';
+    // dndzone maps DOM children to item indices on every update. Run after
+    // Svelte renders the new order, so the next drag selects the right item.
+    $effect(() => {
+      const config = {
+        items: options.items(),
+        type: 'server-gutter',
+        dropFromOthersDisabled: true,
+        flipDurationMs: 0,
+        dropTargetStyle: {},
+        autoAriaDisabled: true,
+        zoneTabIndex: -1,
+        zoneItemTabIndex: -1
+      };
+      // Library callbacks must not add dependencies to this effect.
+      untrack(() => {
+        if (zone) {
+          zone.update?.(config);
+        } else {
+          zone = dndzone(node, config);
+          node.dataset.serverDragReady = 'true';
+        }
+      });
+    });
     return () => {
       delete node.dataset.serverDragReady;
       node.removeEventListener('consider', consider);
@@ -79,7 +93,7 @@ export function attachServerGutterDrag(
       node.removeEventListener('click', click, true);
       node.removeEventListener('mousedown', mouseDown, true);
       node.removeEventListener('touchstart', touchStart, true);
-      detachZone?.();
+      zone?.destroy?.();
     };
   });
 }

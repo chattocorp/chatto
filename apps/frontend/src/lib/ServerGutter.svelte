@@ -26,16 +26,31 @@ is connected to, plus the add-server button pinned to the bottom. See the
     servers.filter((server) => serverRegistry.tryGetStore(server.id)).map((server) => server.id)
   );
   const membership = $derived([...serverIds].sort().join('\0'));
+  const dragEnabled = $derived(!touchOnly.current && serverIds.length >= 2);
   const orderedItems: GutterItem[] = $derived(
     serverGutterOrder.ordered(serverIds, originId).map((id) => ({ id, serverId: id }))
   );
   let preview = $state.raw<GutterItem[] | null>(null);
   const items: GutterItem[] = $derived(preview ?? orderedItems);
   const syncOrder: Attachment = () => serverGutterOrder.listen();
+
+  /** A preview must contain each current server once, with at most one drag shadow. */
+  function validPreview(candidate: GutterItem[]): boolean {
+    return (
+      candidate.length === serverIds.length &&
+      new Set(candidate.map((item) => item.id)).size === candidate.length &&
+      new Set(candidate.map((item) => item.serverId)).size === candidate.length &&
+      candidate.every((item) => serverIds.includes(item.serverId)) &&
+      candidate.filter((item) => item.isDndShadowItem).length <= 1
+    );
+  }
+
   /** Restart the drag action when membership changes, cancelling stale drops. */
   const dragServers: Attachment<HTMLDivElement> = (node) => {
     const initialMembership = membership;
-    if (touchOnly.current || serverIds.length < 2) return;
+    // Depend on the enabled state, not the server array. Replacing a same-ID
+    // store must not restart the action or clear an active preview.
+    if (!dragEnabled) return;
     let disposed = false;
     let detach: (() => void) | undefined;
     // Public pages import the gutter. Keep drag code outside their initial graph.
@@ -44,7 +59,11 @@ is connected to, plus the add-server button pinned to the bottom. See the
       detach = attachServerGutterDrag(node, {
         items: () => items,
         consider: (detail) => {
-          if (membership === initialMembership) preview = detail.items;
+          if (membership === initialMembership && validPreview(detail.items)) {
+            // The library changes shadow IDs in place. Keep rendered keys in
+            // our own snapshot, and retain the last valid preview on bad input.
+            preview = detail.items.map((item) => ({ ...item }));
+          }
         },
         finalize: ({ items: dropped, info }) => {
           const ids = dropped.filter((item) => !item.isDndShadowItem).map((item) => item.serverId);

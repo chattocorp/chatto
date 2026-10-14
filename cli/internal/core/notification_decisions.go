@@ -84,7 +84,6 @@ func buildMessageNotificationDecisions(
 	snapshot *notificationDecisionSnapshot,
 	source *evtv1.Event,
 	parentActorID string,
-	threadRootActorID string,
 ) []notificationRecipientDecision {
 	message := source.GetMessagePosted()
 	if message == nil || message.GetEchoOfEventId() != "" {
@@ -148,14 +147,11 @@ func buildMessageNotificationDecisions(
 		add(parentActorID, &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_ReplyReceived{ReplyReceived: &notificationv1.ReplyReceived{Message: proto.Clone(reference).(*notificationv1.NotificationMessageReference)}}})
 	}
 
-	if threadRootEventID := message.GetInThread(); threadRootEventID != "" {
-		for _, userID := range snapshot.threadFollowerIDs(roomID, threadRootEventID) {
+	if message.GetInThread() != "" {
+		// The snapshot can already contain facts after this message, such as
+		// the follows that it caused. The recipients do not depend on them.
+		for _, userID := range snapshot.followedThreadRecipientIDs(source.GetId()) {
 			add(userID, &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &notificationv1.FollowedThreadActivity{Message: proto.Clone(reference).(*notificationv1.NotificationMessageReference)}}})
-		}
-		if snapshot.threadReplyCount(threadRootEventID) == 1 {
-			if threadRootActorID != "" && snapshot.threadFollowState(threadRootActorID, roomID, threadRootEventID) == ThreadFollowStateNone {
-				add(threadRootActorID, &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &notificationv1.FollowedThreadActivity{Message: proto.Clone(reference).(*notificationv1.NotificationMessageReference)}}})
-			}
 		}
 	}
 

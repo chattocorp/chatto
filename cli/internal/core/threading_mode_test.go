@@ -9,6 +9,7 @@ import (
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 func TestRoomThreadingModeConfigurationAndLegacyDefault(t *testing.T) {
@@ -203,7 +204,8 @@ func TestEncouragedAndDisabledThreadingPolicy(t *testing.T) {
 func TestThreadReplyEchoRevalidatesThreadingModeAfterOCCConflict(t *testing.T) {
 	t.Parallel()
 
-	chatto, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	chatto := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "echo-policy-race-user", "Echo Policy Race User", "password123")
 	require.NoError(t, err)
@@ -217,9 +219,7 @@ func TestThreadReplyEchoRevalidatesThreadingModeAfterOCCConflict(t *testing.T) {
 		ActorID: user.Id, RoomID: room.Id, Body: "thread root", CreateThread: true,
 	})
 	require.NoError(t, err)
-	replica, err := NewChattoCore(ctx, nc, chatto.config)
-	require.NoError(t, err)
-	startCoreServices(t, replica)
+	replica := startReplica(t, ns, chatto.config)
 
 	echoAttempts := 0
 	reply, err := chatto.PostMessage(

@@ -449,17 +449,17 @@ func TestAssetCleanupDeletesS3ObjectFromDurableFacts(t *testing.T) {
 func TestAssetCleanupDurableConsumerProcessesAcrossReplicas(t *testing.T) {
 	t.Parallel()
 
-	_, nc := testutil.StartNATS(t)
+	ns, _ := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{
 		SecretKey: "test-core-secret",
 		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
 	}
-	first, err := NewChattoCore(ctx, nc, cfg)
+	first, err := NewChattoCore(ctx, newReplicaConn(t, ns), cfg)
 	if err != nil {
 		t.Fatalf("first core: %v", err)
 	}
-	second, err := NewChattoCore(ctx, nc, cfg)
+	second, err := NewChattoCore(ctx, newReplicaConn(t, ns), cfg)
 	if err != nil {
 		t.Fatalf("second core: %v", err)
 	}

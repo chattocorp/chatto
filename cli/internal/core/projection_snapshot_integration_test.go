@@ -371,7 +371,14 @@ func TestProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
 		}
 	}
 	stopFirst := startSnapshotTestCore(t, first)
-	waitForSnapshotObjects(t, ctx, first, 1)
+	select {
+	case <-first.projectionSnapshotWorker.done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("snapshot worker did not finish its initial pass")
+	}
+	if len(projectionSnapshotObjectNames(t, ctx, first)) == 0 {
+		t.Fatal("snapshot objects were not published")
+	}
 	firstIdentity, err := evtstream.Identity(first.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
@@ -689,27 +696,11 @@ func startSnapshotTestCore(t *testing.T, core *ChattoCore) func() {
 	}
 }
 
-func waitForSnapshotObjects(t *testing.T, ctx context.Context, core *ChattoCore, minimum int) {
-	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		objects, err := projectionSnapshotObjectStore(t, ctx, core).List(ctx)
-		if err == nil {
-			count := 0
-			for _, object := range objects {
-				if strings.HasPrefix(object.Name, "internal/projection-snapshots/") {
-					count++
-				}
-			}
-			if count >= minimum {
-				return
-			}
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Fatal("snapshot objects were not published")
-}
-
+// projectionSnapshotObjectNames lists the published snapshot objects. Call it
+// only when no snapshot pass runs. An object store List uses an ordered
+// consumer. When a concurrent Put or Delete replaces an entry that the
+// consumer has not received yet, nats-server can stop the delivery until the
+// next idle heartbeat, after 5 seconds.
 func projectionSnapshotObjectNames(t *testing.T, ctx context.Context, core *ChattoCore) []string {
 	t.Helper()
 	objects, err := projectionSnapshotObjectStore(t, ctx, core).List(ctx)

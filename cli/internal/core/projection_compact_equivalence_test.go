@@ -591,11 +591,11 @@ func (c *compactProjections) digest(t *testing.T, h *compactHistory) string {
 		for _, roomID := range h.rooms {
 			scopes := append([]string{""}, h.roots[roomID]...)
 			for _, scope := range scopes {
-				line("decision thread %s %s: followers=%v replies=%d", roomID, scope, s.threadFollowerIDs(roomID, scope), s.threadReplyCount(scope))
+				line("decision thread %s %s: followers=%v replies=%d", roomID, scope, s.threadFollowerIDs(roomID, scope), s.badges.replyCount(scope))
 				for _, userID := range h.users {
 					line("decision badge %s %s %s: %v follow=%q", userID, roomID, scope, s.hasBadgeAttention(badgeQuery{
 						userID: userID, roomID: roomID, threadRootEventID: scope, now: now,
-					}), s.threadFollowState(userID, roomID, scope))
+					}), s.badges.followState(userID, roomID, scope))
 				}
 			}
 		}

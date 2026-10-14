@@ -338,9 +338,7 @@ test.describe('Server Roles Management', () => {
     });
   }
 
-  test('permission matrix loads scope pages at the horizontal edge', async ({
-    serverRolesPage
-  }) => {
+  test('permission matrix loads all columns in one request', async ({ serverRolesPage }) => {
     const { page } = serverRolesPage;
     const server = await usePrimaryServerViaAPI(page);
     const otherGroup = await connectPost<{ group: { id: string } }>(
@@ -350,8 +348,8 @@ test.describe('Server Roles Management', () => {
     );
     const groupId = [await getDefaultRoomGroupId(page), otherGroup.group.id].sort()[0];
     for (let i = 0; i < 24; i++)
-      await createRoomViaConnect(page, `paged-permissions-${i}`, groupId);
-    const offsets: number[] = [];
+      await createRoomViaConnect(page, `matrix-permissions-${i}`, groupId);
+    const requests: GetRolePermissionMatrixRequest[] = [];
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
     page.on('request', (request) => {
@@ -359,7 +357,7 @@ test.describe('Server Roles Management', () => {
         request.url().endsWith('/chatto.admin.v1.AdminPermissionService/GetRolePermissionMatrix')
       ) {
         const body = request.postDataBuffer();
-        if (body) offsets.push(GetRolePermissionMatrixRequest.fromBinary(body).page?.offset ?? 0);
+        if (body) requests.push(GetRolePermissionMatrixRequest.fromBinary(body));
       }
     });
     await page.setViewportSize({ width: 1000, height: 800 });
@@ -368,18 +366,17 @@ test.describe('Server Roles Management', () => {
     const viewport = page
       .locator('.data-table-viewport')
       .filter({ has: page.locator('th[data-scope]') });
-    await expect(viewport.locator('th[data-scope]')).toHaveCount(20);
+    await expect.poll(() => viewport.locator('th[data-scope]').count()).toBeGreaterThan(24);
     const initialColumns = await viewport
       .locator('th[data-scope]')
       .evaluateAll((heads) => heads.map((head) => head.getAttribute('data-scope')));
     await viewport.hover();
     await page.mouse.wheel(3000, 0);
-    await expect.poll(() => offsets.includes(20)).toBe(true);
-    await expect.poll(() => viewport.locator('th[data-scope]').count()).toBeGreaterThan(20);
     const allColumns = await viewport
       .locator('th[data-scope]')
       .evaluateAll((heads) => heads.map((head) => head.getAttribute('data-scope')));
-    expect(allColumns.slice(0, initialColumns.length)).toEqual(initialColumns);
+    expect(allColumns).toEqual(initialColumns);
+    expect(requests).toHaveLength(1);
     expect(errors).toEqual([]);
   });
 

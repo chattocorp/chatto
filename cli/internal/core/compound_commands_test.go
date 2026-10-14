@@ -11,6 +11,7 @@ import (
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 // limitCompoundBatch leaves space for only a prefix of a command. JetStream
@@ -73,7 +74,8 @@ func TestCompoundRoomUpdateRetriesAcrossReplicas(t *testing.T) {
 
 	for _, scenario := range []string{"omitted-name", "name-collision", "permission-revoked"} {
 		t.Run(scenario, func(t *testing.T) {
-			first, nc := setupTestCore(t)
+			ns, _ := testutil.StartNATS(t)
+			first := startReplica(t, ns, testCoreConfig())
 			ctx := testContext(t)
 			actor, err := first.CreateUser(ctx, SystemActorID, "compound-manager", "Manager", "password123")
 			require.NoError(t, err)
@@ -81,9 +83,7 @@ func TestCompoundRoomUpdateRetriesAcrossReplicas(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, first.GrantUserRoomPermission(ctx, SystemActorID, room.Id, actor.Id, PermRoomManage))
 			concurrentManagerID := newRoomManagerForTest(t, ctx, first, "compound-concurrent-manager", room.Id)
-			second, err := NewChattoCore(ctx, nc, first.config)
-			require.NoError(t, err)
-			startCoreServices(t, second)
+			second := startReplica(t, ns, first.config)
 			input := RoomUpdateInput{ActorID: actor.Id, RoomID: room.Id, Description: new("after"),
 				Universal: new(true), SlowModeSeconds: proto.Uint32(30),
 				ThreadingMode: evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED.Enum()}
@@ -222,7 +222,8 @@ func TestCompoundReplyEchoRetriesAcrossReplicas(t *testing.T) {
 
 	for _, revoke := range []bool{false, true} {
 		t.Run(fmt.Sprintf("revoke=%t", revoke), func(t *testing.T) {
-			first, nc := setupTestCore(t)
+			ns, _ := testutil.StartNATS(t)
+			first := startReplica(t, ns, testCoreConfig())
 			ctx := testContext(t)
 			actor, err := first.CreateUser(ctx, SystemActorID, "compound-author", "Author", "password123")
 			require.NoError(t, err)
@@ -233,9 +234,7 @@ func TestCompoundReplyEchoRetriesAcrossReplicas(t *testing.T) {
 			require.NoError(t, first.GrantUserRoomPermission(ctx, SystemActorID, room.Id, actor.Id, PermMessageEcho))
 			root, err := first.Messages().PostMessage(ctx, MessagePostInput{ActorID: actor.Id, RoomID: room.Id, Body: "root"})
 			require.NoError(t, err)
-			second, err := NewChattoCore(ctx, nc, first.config)
-			require.NoError(t, err)
-			startCoreServices(t, second)
+			second := startReplica(t, ns, first.config)
 			input := MessagePostInput{ActorID: actor.Id, RoomID: room.Id, Body: "reply", ThreadRootEventID: root.Event.Id, AlsoSendToChannel: true}
 			attempts := 0
 			reply, postErr := first.PostMessage(ctx, KindChannel, room.Id, actor.Id, input.Body, nil, root.Event.Id, "", nil, true,

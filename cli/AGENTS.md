@@ -469,6 +469,25 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
   background. When an earlier removal is still running, the move fails and
   the server ignores the error. The new stream then recovers the old
   messages. `testutil.ResetChattoJetStream` shows how to remove them.
+- Prevent timing races in tests that use background work:
+  - Wait for the condition that you assert, for example with `WaitCurrent` on
+    the owning projection or materializer. Do not use `time.Sleep` to wait for
+    background work.
+  - A wait helper must return only on the expected result. Fail on every other
+    error. A helper that accepts any error as success can hide a context
+    deadline.
+  - Start a `testContext(t)` deadline after slow fixture setup. Otherwise the
+    setup uses the deadline of the operation under test.
+  - Do not count all subscriptions on a connection. Durable workers open and
+    close an inbox subscription for each JetStream pull. Count only the
+    subjects that the test is about.
+  - Give each simulated replica its own connection with `newReplicaConn` or
+    `startReplica`, as in production. Replicas that share one connection seldom
+    lag each other, and a stopped core's pull can stay open for a short time.
+  - Do not let a running worker and the test process the same facts. Use a
+    core without that worker when the test does the work itself.
+  - Do not poll an object store `List` while writers change the store. A
+    concurrent replacement can stop the listing for 5 seconds.
 - Treat fixture and setup errors as fatal before using returned values. Never
   discard an error from helpers such as `CreateRoom` or `CreateUser` and then
   dereference the result; fail the test at the setup call instead.

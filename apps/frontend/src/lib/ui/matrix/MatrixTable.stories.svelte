@@ -1,6 +1,7 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import MatrixTable from './MatrixTable.svelte';
+  import Panel from '../Panel.svelte';
 
   type Row = { id: string; label: string };
   type Column = { id: string; label: string; kind: 'server' | 'group' | 'room' };
@@ -17,6 +18,11 @@
     { id: 'support', label: '#support', kind: 'room' },
     { id: 'design', label: '#design', kind: 'room' }
   ];
+  const manyColumns: Column[] = Array.from({ length: 205 }, (_, index) => ({
+    id: `room-${index}`,
+    label: `Room ${index + 1}`,
+    kind: 'room'
+  }));
 
   const componentDescription = `
   Domain-neutral matrix geometry for settings and administration. Consumers
@@ -162,26 +168,6 @@
   </div>
 </Story>
 
-<Story name="Scope columns loading" asChild>
-  <div class="max-w-3xl rounded-lg bg-background p-4">
-    <MatrixTable
-      {rows}
-      {columns}
-      getRowKey={(row) => row.id}
-      getColumnKey={(column) => column.id}
-      {columnClass}
-      emptyMessage="No rows"
-      leadingHeader={activityHeader}
-      rowHeader={labelRow}
-      columnHeader={labelColumn}
-      cell={interactiveCell}
-      hasMore
-      loadingMore
-      onLoadMore={() => undefined}
-    />
-  </div>
-</Story>
-
 <Story name="Narrow pane" asChild>
   <div class="w-80 max-w-full bg-background">
     <MatrixTable
@@ -203,6 +189,32 @@
     >
       {#snippet group()}Permissions{/snippet}
     </MatrixTable>
+  </div>
+</Story>
+
+<!-- Keep the full layout fixture. Its automatic axe scan took 12.65 seconds
+     in CI. The other matrix stories retain automatic scans; this story can
+     still be scanned manually in the Accessibility panel. -->
+<Story name="Many columns" asChild parameters={{ a11y: { test: 'off' } }}>
+  <div class="flex w-full max-w-5xl flex-col gap-3">
+    <p class="text-muted">{manyColumns.length} rooms. Scroll horizontally to see every column.</p>
+    <div class="flex h-[32rem] min-h-0 flex-col">
+      <Panel noPadding fillHeight>
+        <MatrixTable
+          {rows}
+          columns={manyColumns}
+          getRowKey={(row) => row.id}
+          getColumnKey={(column) => column.id}
+          stickyHeader
+          fillHeight
+          emptyMessage="No rows"
+          leadingHeader={activityHeader}
+          rowHeader={labelRow}
+          columnHeader={labelColumn}
+          cell={interactiveCell}
+        />
+      </Panel>
+    </div>
   </div>
 </Story>
 

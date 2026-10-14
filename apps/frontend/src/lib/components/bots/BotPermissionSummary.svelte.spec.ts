@@ -118,8 +118,7 @@ it('reads unavailable grants separately for the owner and hides them on ownershi
   mocks.getUserPermissionMatrix.mockResolvedValue({
     applicablePermissions: ['message.manage'],
     scopes: [{ id: 'dm', kind: 'DM', label: 'Direct messages', parentGroupId: '' }],
-    cells: [{ permission: 'message.manage', scopeId: 'dm', override: 'ALLOW', effective: 'NONE' }],
-    page: { hasMore: false }
+    cells: [{ permission: 'message.manage', scopeId: 'dm', override: 'ALLOW', effective: 'NONE' }]
   });
   view = render(BotPermissionSummary, { botId: 'bot', botOwnerId: 'viewer' });
   await expect.element(page.getByText('Inactive grants')).toBeVisible();
