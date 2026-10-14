@@ -1986,6 +1986,12 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 	if err := env.core.DeleteMessage(env.ctx, actor.Id, core.KindDM, dm.Id, posted.Id); err != nil {
 		t.Fatalf("DeleteMessage: %v", err)
 	}
+	// The materializer removes occurrences for the retracted target when it
+	// processes the retraction. Wait for that cleanup, so the occurrences below
+	// model ones that the cleanup missed instead of racing with it.
+	if err := env.core.NotificationOccurrences().WaitCurrent(env.ctx); err != nil {
+		t.Fatalf("WaitCurrent after retraction: %v", err)
+	}
 	createStale := func(sourceID string) *notificationv1.NotificationOccurrence {
 		t.Helper()
 		occurrence, created, err := env.core.NotificationOccurrences().Create(env.ctx, core.CreateNotificationOccurrenceInput{
@@ -2123,6 +2129,12 @@ func TestNotificationServiceDeleteRejectsOccurrenceAfterAccessLoss(t *testing.T)
 	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermRoomJoin); err != nil {
 		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
+	// The materializer removes the viewer's older occurrences in the room when
+	// it processes the access loss. Wait for that cleanup, so the occurrence
+	// below models one that the cleanup missed instead of racing with it.
+	if err := env.core.NotificationOccurrences().WaitCurrent(env.ctx); err != nil {
+		t.Fatalf("WaitCurrent after access loss: %v", err)
+	}
 	input := core.CreateNotificationOccurrenceInput{
 		RecipientID:          env.viewer.Id,
 		SourceEventID:        "notification-access-loss-source",
@@ -2182,6 +2194,11 @@ func TestNotificationServiceVisibilityFilteringFillsOffsetPages(t *testing.T) {
 		if index == 0 {
 			if err := env.core.DeleteMessage(env.ctx, actor.Id, core.KindChannel, room.Id, posted.Id); err != nil {
 				t.Fatalf("DeleteMessage: %v", err)
+			}
+			// Let the materializer finish its retraction cleanup, so it cannot
+			// remove the stale occurrence below before the list filters it.
+			if err := env.core.NotificationOccurrences().WaitCurrent(env.ctx); err != nil {
+				t.Fatalf("WaitCurrent after retraction: %v", err)
 			}
 		}
 		occurrence, wasCreated, err := env.core.NotificationOccurrences().Create(env.ctx, core.CreateNotificationOccurrenceInput{

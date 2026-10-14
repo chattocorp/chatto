@@ -45,6 +45,20 @@ func startAssetProjectionForCleanupTest(t *testing.T, model *AssetModel) {
 	}
 }
 
+// newManualAssetCleanupTestCore returns a core whose asset projection runs but
+// whose durable cleanup worker does not. Tests that call
+// consumeAssetCleanupForTest use it so that only the test cleans up. A running
+// worker cleans up the same deletion facts at the same time: the test then
+// cannot show that its own cleanup did the work, and the worker's object-store
+// deletes can make the test's cache listing wait until the next consumer
+// heartbeat (5 seconds).
+func newManualAssetCleanupTestCore(t *testing.T) *ChattoCore {
+	t.Helper()
+	core, _ := newTestCore(t)
+	startAssetProjectionForCleanupTest(t, core.assetModel)
+	return core
+}
+
 func consumeAssetCleanupForTest(ctx context.Context, model *AssetModel) error {
 	events, _, err := model.EventPublisher.SubjectEventsWithSubjectsAfter(ctx, evtstream.AssetEventTypeFilter(evtstream.EventAssetDeleted), 0)
 	if err != nil {
@@ -92,13 +106,10 @@ func TestAssetCleanupDeliveryWaitsForProjectionBoundary(t *testing.T) {
 func TestAssetCleanupReplaysDeletionAndIsIdempotent(t *testing.T) {
 	t.Parallel()
 
-	core, _ := setupTestCoreWithCache(t)
+	core := newManualAssetCleanupTestCore(t)
 	ctx := testContext(t)
-	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "asset-cleanup-replay", "Asset cleanup replay")
-	if err != nil {
-		t.Fatalf("CreateRoom: %v", err)
-	}
-	attachment, err := core.mediaModel.UploadAttachment(ctx, SystemActorID, room.GetId(), "replay.txt", "text/plain", bytes.NewReader([]byte("replay")))
+	const roomID = "R-asset-cleanup-replay"
+	attachment, err := core.mediaModel.UploadAttachment(ctx, SystemActorID, roomID, "replay.txt", "text/plain", bytes.NewReader([]byte("replay")))
 	if err != nil {
 		t.Fatalf("UploadAttachment: %v", err)
 	}
@@ -106,7 +117,7 @@ func TestAssetCleanupReplaysDeletionAndIsIdempotent(t *testing.T) {
 	if err := core.mediaModel.StoreCachedResize(ctx, cacheKey, []byte("cached")); err != nil {
 		t.Fatalf("StoreCachedResize: %v", err)
 	}
-	if err := core.assetModel.RecordAssetDeleted(ctx, SystemActorID, room.GetId(), attachment.GetId()); err != nil {
+	if err := core.assetModel.RecordAssetDeleted(ctx, SystemActorID, roomID, attachment.GetId()); err != nil {
 		t.Fatalf("RecordAssetDeleted: %v", err)
 	}
 
@@ -132,8 +143,7 @@ func TestAssetCleanupReconcilesHLSChildrenMissedByOlderReplica(t *testing.T) {
 
 	// Keep cleanup under test control: a running current-version worker can
 	// reconcile the source deletion before we inspect the older replica's state.
-	core, _ := newTestCore(t)
-	startAssetProjectionForCleanupTest(t, core.assetModel)
+	core := newManualAssetCleanupTestCore(t)
 	ctx := testContext(t)
 	const roomID = "R-hls-version-skew"
 	original, err := core.mediaModel.UploadAttachment(ctx, SystemActorID, roomID, "clip.mp4", "video/mp4", bytes.NewReader([]byte("original")))
@@ -256,17 +266,14 @@ func TestAssetCleanupFailureDoesNotBlockLaterDeletion(t *testing.T) {
 func TestAssetCleanupDoesNotDeleteUnrelatedAssetOrCache(t *testing.T) {
 	t.Parallel()
 
-	core, _ := setupTestCoreWithCache(t)
+	core := newManualAssetCleanupTestCore(t)
 	ctx := testContext(t)
-	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "asset-cleanup-isolation", "Asset cleanup isolation")
-	if err != nil {
-		t.Fatalf("CreateRoom: %v", err)
-	}
-	deletedAsset, err := core.mediaModel.UploadAttachment(ctx, SystemActorID, room.GetId(), "deleted.txt", "text/plain", bytes.NewReader([]byte("deleted")))
+	const roomID = "R-asset-cleanup-isolation"
+	deletedAsset, err := core.mediaModel.UploadAttachment(ctx, SystemActorID, roomID, "deleted.txt", "text/plain", bytes.NewReader([]byte("deleted")))
 	if err != nil {
 		t.Fatalf("UploadAttachment deleted asset: %v", err)
 	}
-	survivingAsset, err := core.mediaModel.UploadAttachment(ctx, SystemActorID, room.GetId(), "surviving.txt", "text/plain", bytes.NewReader([]byte("surviving")))
+	survivingAsset, err := core.mediaModel.UploadAttachment(ctx, SystemActorID, roomID, "surviving.txt", "text/plain", bytes.NewReader([]byte("surviving")))
 	if err != nil {
 		t.Fatalf("UploadAttachment surviving asset: %v", err)
 	}
@@ -278,7 +285,7 @@ func TestAssetCleanupDoesNotDeleteUnrelatedAssetOrCache(t *testing.T) {
 	if err := core.mediaModel.StoreCachedResize(ctx, survivingCacheKey, []byte("surviving-cache")); err != nil {
 		t.Fatalf("StoreCachedResize surviving asset: %v", err)
 	}
-	if err := core.assetModel.RecordAssetDeleted(ctx, SystemActorID, room.GetId(), deletedAsset.GetId()); err != nil {
+	if err := core.assetModel.RecordAssetDeleted(ctx, SystemActorID, roomID, deletedAsset.GetId()); err != nil {
 		t.Fatalf("RecordAssetDeleted: %v", err)
 	}
 
@@ -511,13 +518,21 @@ func appendNATSAssetDeletionTestFacts(t *testing.T, ctx context.Context, core *C
 	appendAssetDeletionTestEvent(t, ctx, core, &evtv1.AssetDeletedEvent{AssetId: assetID})
 }
 
+// waitForAssetObjectDeleted polls object metadata, not content. A content read
+// that runs during the deletion can read the metadata before the delete and
+// then wait for chunks that the delete removes. That read stops only at the
+// context deadline.
 func waitForAssetObjectDeleted(t *testing.T, ctx context.Context, store jetstream.ObjectStore, assetID string) {
 	t.Helper()
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
 	for {
-		if _, err := store.GetBytes(ctx, assetID); err != nil {
+		_, err := store.GetInfo(ctx, assetID)
+		if errors.Is(err, jetstream.ErrObjectNotFound) {
 			return
+		}
+		if err != nil {
+			t.Fatalf("read asset %s metadata while waiting for deletion: %v", assetID, err)
 		}
 		select {
 		case <-ctx.Done():

@@ -83,8 +83,11 @@ func TestNotificationVisibleOccurrencesFiltersMixedBatchInOrder(t *testing.T) {
 	t.Parallel()
 
 	chattoCore, _ := setupTestCore(t)
-	ctx := testContext(t)
 	reader, poster, occurrences := setupNotificationVisibilityFixture(t, chattoCore, notificationVisibilityChunkSize+44)
+	// Start the deadline after the fixture. The fixture posts hundreds of
+	// messages, and under a loaded test run it alone can use most of the
+	// deadline.
+	ctx := testContext(t)
 	leftRoom := NotificationOccurrenceMessageReference(occurrences[0]).GetRoomId()
 	require.NoError(t, chattoCore.LeaveRoom(ctx, reader, KindChannel, reader, leftRoom))
 

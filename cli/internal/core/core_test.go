@@ -90,20 +90,25 @@ func newTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 
 	ctx := testContext(t)
 
-	// Create ChattoCore
-	cfg := config.CoreConfig{
+	core, err := NewChattoCore(ctx, nc, testCoreConfig())
+	if err != nil {
+		t.Fatalf("Failed to create ChattoCore: %v", err)
+	}
+
+	return core, nc
+}
+
+// testCoreConfig returns the configuration of the cores that newTestCore
+// creates. Tests that build their own cores, for example simulated replicas,
+// use it to get the same configuration.
+func testCoreConfig() config.CoreConfig {
+	return config.CoreConfig{
 		SkipSetupWizard: true,
 		SecretKey:       "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 		},
 	}
-	core, err := NewChattoCore(ctx, nc, cfg)
-	if err != nil {
-		t.Fatalf("Failed to create ChattoCore: %v", err)
-	}
-
-	return core, nc
 }
 
 // startCoreServices runs ChattoCore's background services (PresenceHub +

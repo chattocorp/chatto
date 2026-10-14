@@ -129,6 +129,19 @@ function deferred<T = void>() {
   return { promise, resolve, reject };
 }
 
+/**
+ * Gives the origin server its own `subscribe` mock. Other servers keep
+ * `mocks.subscribePush`. Servers register concurrently, so tests must not
+ * depend on the call order of one shared mock to tell them apart.
+ */
+function useOriginSubscribe(originSubscribe: ReturnType<typeof vi.fn>) {
+  mocks.createPushNotificationAPI.mockImplementation((config: { baseUrl: string }) => ({
+    subscribe: config.baseUrl.includes('origin') ? originSubscribe : mocks.subscribePush,
+    unsubscribe: mocks.unsubscribePush,
+    deleteByCapability: mocks.deleteByCapabilityPush
+  }));
+}
+
 function makeSubscription(endpoint: string): TestPushSubscription {
   return {
     endpoint,
@@ -928,9 +941,8 @@ describe('pushNotifications.ensureRegistered', () => {
         }
       })
     });
-    mocks.subscribePush
-      .mockResolvedValueOnce({ subscribed: true })
-      .mockResolvedValueOnce({ subscribed: false });
+    useOriginSubscribe(vi.fn().mockResolvedValue({ subscribed: true }));
+    mocks.subscribePush.mockResolvedValue({ subscribed: false });
 
     const result = await enablePushOnAllServers();
     expect(result.registrations).toEqual([
@@ -1253,11 +1265,7 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
       .fn()
       .mockRejectedValueOnce(new Error('rejected'))
       .mockResolvedValue({ subscribed: true });
-    mocks.createPushNotificationAPI.mockImplementation((config: { baseUrl: string }) => ({
-      subscribe: config.baseUrl.includes('origin') ? originSubscribe : mocks.subscribePush,
-      unsubscribe: mocks.unsubscribePush,
-      deleteByCapability: mocks.deleteByCapabilityPush
-    }));
+    useOriginSubscribe(originSubscribe);
     vi.setSystemTime(start.getTime() + PUSH_REGISTRATION_REFRESH_INTERVAL_MS);
 
     await refreshPushSubscriptions();
@@ -1277,11 +1285,7 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
       .fn()
       .mockRejectedValueOnce(new Error('unavailable'))
       .mockResolvedValue({ subscribed: true });
-    mocks.createPushNotificationAPI.mockImplementation((config: { baseUrl: string }) => ({
-      subscribe: config.baseUrl.includes('origin') ? originSubscribe : mocks.subscribePush,
-      unsubscribe: mocks.unsubscribePush,
-      deleteByCapability: mocks.deleteByCapabilityPush
-    }));
+    useOriginSubscribe(originSubscribe);
     vi.setSystemTime(start.getTime() + PUSH_REGISTRATION_REFRESH_INTERVAL_MS);
 
     await refreshPushSubscriptions();
