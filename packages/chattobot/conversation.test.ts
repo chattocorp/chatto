@@ -46,7 +46,8 @@ function harness({
 }: {
   web?: { tavilyApiKey: string };
   investigation?: Investigation;
-  answer?: (prompt: string) => string | AgentResult;
+  /** Text answers are delivered as messages; several texts are several messages in one turn. */
+  answer?: (prompt: string) => string | string[] | AgentResult;
   thread?: ThreadMessage[][];
   maintainers?: string[];
   turn?: () => Promise<void>;
@@ -83,13 +84,14 @@ function harness({
     }
     return {
       id: 'agent',
-      async runOutcome(_ctx, prompt) {
+      async runOutcome(_ctx, prompt, runOptions) {
         prompts.push(prompt);
         await turn?.();
         const result = answer(prompt);
-        return typeof result === 'string'
-          ? { outcome: 'completed', summary: result, usage: emptyTokenUsage() }
-          : result;
+        if (typeof result === 'object' && !Array.isArray(result)) return result;
+        const texts = typeof result === 'string' ? [result] : result;
+        for (const text of texts) runOptions?.onText?.(text);
+        return { outcome: 'completed', summary: texts.at(-1)!, usage: emptyTokenUsage() };
       },
       run: () => Promise.reject(new Error('unused')),
       steer: async () => false,
@@ -319,4 +321,19 @@ test('offers investigate with a scope for the thread when investigation is set u
   expect(await run).toMatchObject({ ok: true });
   expect(bot.options().tools).toContain('investigate');
   expect(scopes).toEqual([expect.stringMatching(/^[0-9a-f]{32}$/)]);
+});
+
+test('posts each message of a turn in order, such as a note before a long tool call', async () => {
+  const bot = harness({
+    answer: () => ['I will ask an investigator to look into it.', 'Here is what I found.']
+  });
+  const run = bot.start(message('one', 'Why is this broken?'));
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(2));
+  bot.messages.close();
+  await run;
+  expect(bot.posts.map((post) => post.body)).toEqual([
+    'I will ask an investigator to look into it.',
+    'Here is what I found.'
+  ]);
+  expect(bot.posts.every((post) => post.destination.inReplyTo === 'one')).toBe(true);
 });

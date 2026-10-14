@@ -1792,6 +1792,55 @@ test('tool events exclude raw arguments and results', async () => {
   expect(JSON.stringify(tools)).not.toMatch(/private|secret/);
 });
 
+test('a provider retry stays one interaction and does not deliver the failed text', async () => {
+  const events: RunlingEvent[] = [];
+  promptImplementation = async () => {
+    eventHandler?.({ type: 'agent_start' });
+    eventHandler?.({
+      type: 'message_end',
+      message: {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'Partial answer' }],
+        stopReason: 'error',
+        errorMessage: 'WebSocket error',
+        usage: emptyUsage
+      }
+    });
+    eventHandler?.({
+      type: 'auto_retry_start',
+      attempt: 1,
+      maxAttempts: 3,
+      delayMs: 2000,
+      errorMessage: 'WebSocket error'
+    });
+    // Pi starts its agent loop again for the retry.
+    eventHandler?.({ type: 'agent_start' });
+    eventHandler?.({ type: 'auto_retry_end', success: true, attempt: 1 });
+    eventHandler?.({
+      type: 'message_end',
+      message: {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'Full answer' }],
+        stopReason: 'stop',
+        usage: emptyUsage
+      }
+    });
+  };
+  const onText = vi.fn();
+  await using instance = await agent({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5',
+    output: 'text'
+  });
+  const result = await observeRunlingEvents(
+    (event) => events.push(event),
+    () => instance.runOutcome(createTaskContext(), 'Investigate', { onText })
+  );
+  expect(result).toMatchObject({ outcome: 'completed', summary: 'Full answer' });
+  expect(onText.mock.calls).toEqual([['Full answer']]);
+  expect(events.filter((event) => event.type === 'agent.started')).toHaveLength(1);
+});
+
 test('a successful provider retry can still produce a valid report', async () => {
   promptImplementation = async () => {
     eventHandler?.({

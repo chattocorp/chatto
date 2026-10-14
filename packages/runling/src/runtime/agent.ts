@@ -543,6 +543,8 @@ async function createRunlingAgent(
     let finalTextError: string | undefined;
     const usage = emptyTokenUsage();
     let turn = 0;
+    // Pi starts its agent loop again after a provider retry. It is still the same interaction.
+    let started = false;
     let lastTextUpdate = -Infinity;
     let preparingReport = false;
     const toolStartedAt = new Map<string, number>();
@@ -600,7 +602,8 @@ async function createRunlingAgent(
           }
         }
 
-        if (event.type === 'agent_start') {
+        if (event.type === 'agent_start' && !started) {
+          started = true;
           emitRunlingEvent({
             type: 'agent.started',
             agentId,
@@ -725,7 +728,8 @@ async function createRunlingAgent(
           ctx.recordUsage(event.message.usage);
           emitRunlingEvent({ type: 'agent.usage', agentId, usage: { ...usage } });
           agentLog.debug(`Tokens: ${formatTokenUsage(usage)}`);
-          if (finalText.trim()) onText?.(finalText);
+          // A message that failed or was aborted can hold partial text; a retry follows.
+          if (finalText.trim() && !finalTextError) onText?.(finalText);
         }
       })
     );
