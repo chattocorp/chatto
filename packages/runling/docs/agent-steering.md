@@ -24,9 +24,17 @@ interaction or fork. Keep them in the caller's inbox if they are still needed.
 Delivery invalidates an earlier outcome report, so the agent must report again
 after receiving steering. Token usage stays in the active interaction's context.
 
-Use `runOutcome(ctx, prompt, { onText })` (or `run`) to observe completed assistant
-text messages while the interaction runs. This callback excludes reasoning and
-tool output. It is synchronous; callers that start asynchronous sends must handle
-and await those sends themselves.
+Use `runOutcome(ctx, prompt, { onText })` (or `run`) to see completed assistant
+text messages while the interaction runs. This callback does not get reasoning
+or tool output. It is synchronous. If it starts an asynchronous send, the caller
+must handle and wait for that send.
 
-See [agent connections](agents.md) to steer an agent from a task inbox.
+## Steer from a task inbox
+
+An agent task can give the messages from its parent to the running agent. Read
+`ctx.inbox` while the turn runs, and call `steer()` for each message. Keep each
+message for which `steer()` resolves to `false`, and use it in the next turn.
+`ctx.inbox` has one reader only, so the same code must read the inbox for all
+turns. A failed or cancelled task makes the inbox reader reject; handle that
+rejection. See [agents](agents.md) and
+[task invocations and messages](task-channels.md).

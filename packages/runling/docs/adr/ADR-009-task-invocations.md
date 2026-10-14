@@ -49,12 +49,16 @@ Runling has five primitives.
 5. **Routers start workflow runs.** Event sources and webhook routes are
    routers. A task cannot start a workflow run. If a task must cause a different
    run, it uses an external mechanism, for example an HTTP request to a webhook
-   route.
+   route. A router gets a handle for each run that it starts. It can
+   keep the handle and use it later to send messages to the run, to close the
+   run's input, or to cancel the run. For example, a chat router sends each new
+   message in a thread to the run of that thread.
 
 The host is the parent of the top-level task. The CLI, the web console, and a
 router use the same channels as a parent task. The host shows the updates of
 the top-level task. The host can send messages to a running workflow. This
-replaces `onText`, `onInput`, and `input()`.
+replaces `onText`, `onInput`, and `input()`. When a task waits for a message,
+the journal records the wait, and the console shows it.
 
 An agent is a task. It receives steering messages and emits its turns and
 messages. `taskTool` makes a task available as a tool of an agent.
@@ -65,7 +69,8 @@ caller can set a timeout. The web console must show a long wait clearly.
 
 These items are not primitives:
 
-- `step()` and usage accounting continue as internal infrastructure.
+- `step()` continues as a helper that shows a named part of a task in the log
+  and on the timeline. It has no schemas and no messages.
 - `ctx.publishState`, the normalization of `WorkflowResult`, and the
   synchronous schema mode are removed.
 - The agent supervision layer is removed: `observeAgentTasks`,

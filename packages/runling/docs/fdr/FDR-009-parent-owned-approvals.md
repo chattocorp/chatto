@@ -1,7 +1,9 @@
 # FDR-009: Parent-owned approvals
 
-**Status:** Experimental
-**Last reviewed:** 2026-10-03
+**Status:** Retired
+**Last reviewed:** 2026-10-14
+
+> **Retired.** [ADR-009](../adr/ADR-009-task-invocations.md) removed this feature. Runling no longer has the approval queue or its tool gate. This record keeps the prior design for reference. Applications can implement this policy with tasks and messages.
 
 ## Overview
 
@@ -43,4 +45,3 @@ permission to avoid repeated decisions.
 - [ADR-006: Parent-child communication](../adr/ADR-006-parent-child-communication.md)
 - [FDR-002: Background agent tasks](FDR-002-background-tasks.md)
 - [FDR-007: Authorization classifier](FDR-007-authorization-classifier.md)
-- [Approval API guide](../approvals.md)
