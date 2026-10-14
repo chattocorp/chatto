@@ -457,16 +457,6 @@ func (b *notificationBadgeSources) threadKey(roomID, threadRootEventID string) (
 	return badgeThreadKey{room: room, thread: thread}, roomKnown && threadKnown
 }
 
-// followState returns a user's latest explicit follow state for a thread.
-func (b *notificationBadgeSources) followState(userID, roomID, threadRootEventID string) ThreadFollowState {
-	user, userKnown := b.ids.Lookup(userID)
-	thread, threadKnown := b.threadKey(roomID, threadRootEventID)
-	if !userKnown || !threadKnown {
-		return ThreadFollowStateNone
-	}
-	return b.followStates[badgeFollowKey{user: user, badgeThreadKey: thread}].public()
-}
-
 // followerIDs returns the users who currently follow a thread, sorted.
 func (b *notificationBadgeSources) followerIDs(roomID, threadRootEventID string) []string {
 	thread, known := b.threadKey(roomID, threadRootEventID)
@@ -482,57 +472,37 @@ func (b *notificationBadgeSources) followerIDs(roomID, threadRootEventID string)
 	return userIDs
 }
 
-// followerIDsBefore returns the users who follow a thread with a follow that
-// began before seq, sorted. A follow that a message causes, such as the
-// automatic follow of a mentioned user, begins after that message, so the
-// message does not count as activity in a followed thread for that user.
-func (b *notificationBadgeSources) followerIDsBefore(roomID, threadRootEventID string, seq uint64) []string {
-	thread, known := b.threadKey(roomID, threadRootEventID)
-	if !known {
-		return []string{}
-	}
-	userIDs := make([]string, 0, len(b.followers[thread]))
-	for _, user := range b.followers[thread] {
-		// A follow without a known start counts, as it did before follow
-		// sequences were indexed.
-		if since, known := b.follows[badgeMembershipKey{user: user, room: thread.room}][thread.thread]; known && since >= seq {
-			continue
-		}
-		userIDs = append(userIDs, b.ids.Resolve(user))
-	}
-	slices.Sort(userIDs)
-	return userIDs
-}
-
-// isFirstThreadReply reports whether a message was the first reply of its
-// thread when the index applied it. Unlike the current reply count, the answer
-// does not change when later replies are indexed.
-func (b *notificationBadgeSources) isFirstThreadReply(messageEventID string) bool {
+// followedThreadRecipientIDs returns the users for whom a thread reply is
+// followed-thread activity, sorted: the users whose follow began before the
+// reply, and for the first reply, the root author unless they unfollowed the
+// thread. A follow that the reply causes, such as the automatic follow of a
+// mentioned user or of the root author, begins after the reply. Thus facts
+// that the index applies after the reply do not add recipients.
+func (b *notificationBadgeSources) followedThreadRecipientIDs(messageEventID string) []string {
 	message, ok := b.eventIDs.Lookup(messageEventID)
 	if !ok {
-		return false
+		return nil
 	}
 	record, exists := b.message(message)
 	if !exists || record.thread == 0 {
-		return false
+		return nil
 	}
-	root, exists := b.message(record.thread)
-	sources := b.rooms[record.room]
-	if !exists || sources == nil {
-		return false
+	thread := badgeThreadKey{room: record.room, thread: record.thread}
+	var userIDs []string
+	for _, user := range b.followers[thread] {
+		if b.follows[badgeMembershipKey{user: user, room: record.room}][record.thread] < record.seq {
+			userIDs = append(userIDs, b.ids.Resolve(user))
+		}
 	}
-	return slices.ContainsFunc(sources.targeted[root.author][record.thread], func(source badgeTargetedSource) bool {
-		return source.kind == badgeSourceFirstThreadReply && source.message == message
-	})
-}
-
-// replyCount returns the number of posted replies of a thread root.
-func (b *notificationBadgeSources) replyCount(threadRootEventID string) uint64 {
-	thread, ok := b.eventIDs.Lookup(threadRootEventID)
-	if !ok {
-		return 0
+	if root, exists := b.message(record.thread); exists && b.followStates[badgeFollowKey{user: root.author, badgeThreadKey: thread}] != compactThreadFollowUnfollowed {
+		if sources := b.rooms[record.room]; sources != nil && slices.ContainsFunc(sources.targeted[root.author][record.thread], func(source badgeTargetedSource) bool {
+			return source.kind == badgeSourceFirstThreadReply && source.message == message
+		}) {
+			userIDs = append(userIDs, b.ids.Resolve(root.author))
+		}
 	}
-	return b.replyCounts[thread]
+	slices.Sort(userIDs)
+	return slices.Compact(userIDs)
 }
 
 func (b *notificationBadgeSources) endMembership(userID, roomID string) {

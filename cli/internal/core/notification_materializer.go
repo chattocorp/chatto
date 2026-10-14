@@ -626,27 +626,17 @@ func (m *NotificationMaterializer) materializeMessage(ctx context.Context, event
 	if err != nil {
 		return fmt.Errorf("resolve notification source room: %w", err)
 	}
-	resolveActor := func(eventID string) (string, error) {
-		if eventID == "" {
-			return "", nil
-		}
-		target, err := m.core.GetRoomEventByEventID(ctx, KindOfRoom(room), room.GetId(), eventID)
+	var parentActorID string
+	if parentEventID := message.GetInReplyTo(); parentEventID != "" {
+		parent, err := m.core.GetRoomEventByEventID(ctx, KindOfRoom(room), room.GetId(), parentEventID)
 		if err != nil {
-			return "", err
+			return fmt.Errorf("resolve notification reply target: %w", err)
 		}
-		return messageAuthorID(target), nil
-	}
-	parentActorID, err := resolveActor(message.GetInReplyTo())
-	if err != nil {
-		return fmt.Errorf("resolve notification reply target: %w", err)
-	}
-	threadRootActorID, err := resolveActor(message.GetInThread())
-	if err != nil {
-		return fmt.Errorf("resolve notification thread root: %w", err)
+		parentActorID = messageAuthorID(parent)
 	}
 	var decisions []notificationRecipientDecision
 	if err := m.decisions.Projection().withCurrent(evaluatedAt, func(snapshot *notificationDecisionSnapshot) error {
-		decisions = buildMessageNotificationDecisions(snapshot, event, streamSequence, parentActorID, threadRootActorID)
+		decisions = buildMessageNotificationDecisions(snapshot, event, parentActorID)
 		return nil
 	}); err != nil {
 		return fmt.Errorf("derive current message notification decisions: %w", err)

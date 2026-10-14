@@ -595,7 +595,7 @@ func (c *compactProjections) digest(t *testing.T, h *compactHistory) string {
 				for _, userID := range h.users {
 					line("decision badge %s %s %s: %v follow=%q", userID, roomID, scope, s.hasBadgeAttention(badgeQuery{
 						userID: userID, roomID: roomID, threadRootEventID: scope, now: now,
-					}), s.threadFollowState(userID, roomID, scope))
+					}), s.badges.followState(userID, roomID, scope))
 				}
 			}
 		}

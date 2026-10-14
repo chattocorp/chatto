@@ -43,11 +43,11 @@ func TestNotificationDecisionUsesCurrentPolicyAfterSourceEvent(t *testing.T) {
 			UserId: recipientID, RoomId: &roomScope, Overrides: &evtv1.NotificationDeliveryModes{DirectMentions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()},
 		}}},
 	}
-	sequences := applyNotificationDecisionEvents(t, p, events)
+	applyNotificationDecisionEvents(t, p, events)
 
 	var decisions []notificationRecipientDecision
 	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
-		decisions = buildMessageNotificationDecisions(snapshot, source, sequences[source.GetId()], "", "")
+		decisions = buildMessageNotificationDecisions(snapshot, source, "")
 		return nil
 	}); err != nil {
 		t.Fatalf("withCurrent: %v", err)
@@ -77,11 +77,11 @@ func TestNotificationDecisionUsesCurrentMembershipAfterSourceEvent(t *testing.T)
 		{Id: "old-leave", ActorId: oldID, Event: &evtv1.Event_UserLeftRoom{UserLeftRoom: &evtv1.UserLeftRoomEvent{RoomId: roomID}}},
 		{Id: "new-join", ActorId: newID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID}}},
 	}
-	sequences := applyNotificationDecisionEvents(t, p, events)
+	applyNotificationDecisionEvents(t, p, events)
 
 	var decisions []notificationRecipientDecision
 	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
-		decisions = buildMessageNotificationDecisions(snapshot, source, sequences[source.GetId()], "", "")
+		decisions = buildMessageNotificationDecisions(snapshot, source, "")
 		return nil
 	}); err != nil {
 		t.Fatalf("withCurrent: %v", err)
@@ -103,7 +103,7 @@ func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
 		Id: "source", ActorId: "U2", CreatedAt: timestamppb.Now(),
 		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID, MentionedUserIds: []string{recipientID}}},
 	}
-	sequences := applyNotificationDecisionEvents(t, p, []*evtv1.Event{
+	applyNotificationDecisionEvents(t, p, []*evtv1.Event{
 		{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: recipientID}}},
 		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
 		{Id: "read", Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}},
@@ -113,7 +113,7 @@ func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
 
 	var decisions []notificationRecipientDecision
 	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
-		decisions = buildMessageNotificationDecisions(snapshot, source, sequences[source.GetId()], "", "")
+		decisions = buildMessageNotificationDecisions(snapshot, source, "")
 		return nil
 	}); err != nil {
 		t.Fatalf("withCurrent: %v", err)
@@ -141,7 +141,7 @@ func TestDirectMentionAllowsCurrentInteractionScopedVisibility(t *testing.T) {
 			}},
 		}},
 	}
-	sequences := applyNotificationDecisionEvents(t, p, []*evtv1.Event{
+	applyNotificationDecisionEvents(t, p, []*evtv1.Event{
 		{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: recipientID}}},
 		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
 		{Id: "interaction-read", Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacUserPermissionGrantedEvent(ScopeRoom, roomID, recipientID, PermMessageReadInteractions)}},
@@ -151,7 +151,7 @@ func TestDirectMentionAllowsCurrentInteractionScopedVisibility(t *testing.T) {
 
 	var decisions []notificationRecipientDecision
 	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
-		decisions = buildMessageNotificationDecisions(snapshot, source, sequences[source.GetId()], "", "")
+		decisions = buildMessageNotificationDecisions(snapshot, source, "")
 		return nil
 	}); err != nil {
 		t.Fatalf("withCurrent: %v", err)
@@ -166,7 +166,7 @@ func TestThreadMessageDoesNotProduceRoomMessageSignal(t *testing.T) {
 
 	p := NewNotificationDecisionProjection()
 	source := &evtv1.Event{Id: "reply", ActorId: "author", CreatedAt: timestamppb.Now(), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1", InThread: "root"}}}
-	sequences := applyNotificationDecisionEvents(t, p, []*evtv1.Event{
+	applyNotificationDecisionEvents(t, p, []*evtv1.Event{
 		{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: "recipient"}}},
 		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
 		{Id: "read", Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}},
@@ -176,7 +176,7 @@ func TestThreadMessageDoesNotProduceRoomMessageSignal(t *testing.T) {
 
 	var decisions []notificationRecipientDecision
 	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
-		decisions = buildMessageNotificationDecisions(snapshot, source, sequences[source.GetId()], "", "")
+		decisions = buildMessageNotificationDecisions(snapshot, source, "")
 		return nil
 	}); err != nil {
 		t.Fatalf("withCurrent: %v", err)
@@ -234,18 +234,13 @@ func TestNotificationOccurrenceInputRetainsRoleMentionNames(t *testing.T) {
 	}
 }
 
-// applyNotificationDecisionEvents applies events at sequences 1, 2, and so on,
-// and returns the sequence of each event by event ID.
-func applyNotificationDecisionEvents(t *testing.T, projection *NotificationDecisionProjection, events []*evtv1.Event) map[string]uint64 {
+func applyNotificationDecisionEvents(t *testing.T, projection *NotificationDecisionProjection, events []*evtv1.Event) {
 	t.Helper()
-	sequences := make(map[string]uint64, len(events))
 	for index, event := range events {
 		if err := projection.Apply(event, uint64(index+1)); err != nil {
 			t.Fatalf("Apply sequence %d: %v", index+1, err)
 		}
-		sequences[event.GetId()] = uint64(index + 1)
 	}
-	return sequences
 }
 
 // Notification delivery is not bound to a privileged session, so owners get
@@ -260,7 +255,7 @@ func TestNotificationDecisionDoesNotApplyOwnerOverride(t *testing.T) {
 		memberID = "U-member"
 	)
 	source := &evtv1.Event{Id: "source", ActorId: "author", CreatedAt: timestamppb.Now(), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID}}}
-	sequences := applyNotificationDecisionEvents(t, p, []*evtv1.Event{
+	applyNotificationDecisionEvents(t, p, []*evtv1.Event{
 		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
 		{Id: "read", Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}},
 		{Id: "room-deny", Event: &evtv1.Event_RbacPermissionDenied{RbacPermissionDenied: rbacRolePermissionDeniedEvent(ScopeRoom, roomID, RoleEveryone, PermMessageRead)}},
@@ -275,7 +270,7 @@ func TestNotificationDecisionDoesNotApplyOwnerOverride(t *testing.T) {
 
 	var decisions []notificationRecipientDecision
 	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
-		decisions = buildMessageNotificationDecisions(snapshot, source, sequences[source.GetId()], "", "")
+		decisions = buildMessageNotificationDecisions(snapshot, source, "")
 		return nil
 	}); err != nil {
 		t.Fatalf("withCurrent: %v", err)
@@ -341,10 +336,10 @@ func TestThreadReplyDecisionsDoNotDependOnLaterFacts(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			p := NewNotificationDecisionProjection()
-			sequences := applyNotificationDecisionEvents(t, p, append(slices.Clone(history), tc.later...))
+			applyNotificationDecisionEvents(t, p, append(slices.Clone(history), tc.later...))
 			var got []string
 			if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
-				for _, decision := range buildMessageNotificationDecisions(snapshot, source, sequences[source.GetId()], "", rootAuthor) {
+				for _, decision := range buildMessageNotificationDecisions(snapshot, source, "") {
 					got = append(got, decision.recipientID+"/"+notificationSignalIdentity(decision.signal))
 				}
 				return nil

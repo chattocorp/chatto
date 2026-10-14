@@ -83,9 +83,7 @@ func sortedUniqueStrings(values []string) []string {
 func buildMessageNotificationDecisions(
 	snapshot *notificationDecisionSnapshot,
 	source *evtv1.Event,
-	streamSequence uint64,
 	parentActorID string,
-	threadRootActorID string,
 ) []notificationRecipientDecision {
 	message := source.GetMessagePosted()
 	if message == nil || message.GetEchoOfEventId() != "" {
@@ -149,17 +147,11 @@ func buildMessageNotificationDecisions(
 		add(parentActorID, &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_ReplyReceived{ReplyReceived: &notificationv1.ReplyReceived{Message: proto.Clone(reference).(*notificationv1.NotificationMessageReference)}}})
 	}
 
-	if threadRootEventID := message.GetInThread(); threadRootEventID != "" {
-		// The snapshot can already contain follows that this message caused,
-		// such as the automatic follow of a mentioned user. Only follows that
-		// began before the message make it followed-thread activity.
-		for _, userID := range snapshot.threadFollowerIDsBefore(roomID, threadRootEventID, streamSequence) {
+	if message.GetInThread() != "" {
+		// The snapshot can already contain facts after this message, such as
+		// the follows that it caused. The recipients do not depend on them.
+		for _, userID := range snapshot.followedThreadRecipientIDs(source.GetId()) {
 			add(userID, &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &notificationv1.FollowedThreadActivity{Message: proto.Clone(reference).(*notificationv1.NotificationMessageReference)}}})
-		}
-		// The first reply follows the root author only after the reply. It
-		// reaches the root author unless they have unfollowed the thread.
-		if threadRootActorID != "" && snapshot.isFirstThreadReply(source.GetId()) && snapshot.threadFollowState(threadRootActorID, roomID, threadRootEventID) != ThreadFollowStateUnfollowed {
-			add(threadRootActorID, &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &notificationv1.FollowedThreadActivity{Message: proto.Clone(reference).(*notificationv1.NotificationMessageReference)}}})
 		}
 	}
 
