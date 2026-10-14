@@ -408,6 +408,14 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/", "provider_access_denied"))
 			return
 		}
+		// A user who may not sign in through the provider must not keep the
+		// roles that it gave. The sync with no groups revokes them and grants
+		// nothing. The sign-in stays denied, also when this fails.
+		if user, err := s.core.GetUserByExternalIdentity(ctx, identity.issuer, identity.subject); err == nil && user != nil {
+			if err := s.core.SyncProviderGroupRoles(ctx, user.Id, providerRuntime.config.ID, providerRuntime.config.GroupRoleMappings(), core.ProviderGroups{Known: true}); err != nil {
+				log.Error("Provider group role revocation failed after denied sign-in", "provider_id", providerRuntime.config.ID, "userId", user.Id, "error", err)
+			}
+		}
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_access_denied")
 		return
 	}

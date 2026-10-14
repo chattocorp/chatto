@@ -665,6 +665,47 @@ func TestProviderGroupRolesSyncAtSignInAndLink(t *testing.T) {
 	}
 }
 
+// A denied sign-in revokes the roles that the provider gave and grants none.
+func TestProviderGroupRolesRevokedWhenSignInDenied(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Webserver.URL = "http://chat.example"
+		s.config.Auth.Providers = []config.AuthProviderConfig{{
+			ID: "company", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: issuer.URL(),
+			ClientID: "client-id", ClientSecret: "client-secret",
+			AllowedGroups: []string{"chat-users"}, GroupRoles: "chat-mods:moderator",
+		}}
+		s.setupOIDCRoutes()
+	})
+	user, err := chattoCore.CreateUser(t.Context(), core.SystemActorID, "denied-member", "Denied Member", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := chattoCore.LinkExternalIdentity(t.Context(), "company", config.AuthProviderTypeOpenIDConnect, issuer.URL(), "denied-member", user.Id); err != nil {
+		t.Fatal(err)
+	}
+	issuer.SetSubject("denied-member")
+	hasModerator := func() bool {
+		t.Helper()
+		roles, err := chattoCore.GetUserRoles(t.Context(), user.Id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return slices.Contains(roles, core.RoleModerator)
+	}
+	issuer.tokenClaims = map[string]any{"name": "Denied", "preferred_username": "denied", "groups": []any{"chat-users", "chat-mods"}}
+	if location := completeNoEmailOIDCLogin(t, client, ts.URL, "company", "/chat"); location != "/chat" || !hasModerator() {
+		t.Fatalf("allowed sign-in Location = %q, moderator = %v", location, hasModerator())
+	}
+	// Still in the mapped group, but no longer allowed to sign in.
+	issuer.tokenClaims = map[string]any{"name": "Denied", "preferred_username": "denied", "groups": []any{"chat-mods"}}
+	if location := completeNoEmailOIDCLogin(t, client, ts.URL, "company", "/chat"); location != "/login?error=provider_access_denied" || hasModerator() {
+		t.Fatalf("denied sign-in Location = %q, moderator = %v", location, hasModerator())
+	}
+}
+
 func TestLegacyOIDCRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
