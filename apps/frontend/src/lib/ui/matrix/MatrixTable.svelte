@@ -25,11 +25,13 @@ provide all domain labels and cell content with snippets.
   // into the same ResizeObserver delivery cycle.
   const measureWidth: Attachment<HTMLDivElement> = (element) => {
     let frame = 0;
-    availableWidth = element.clientWidth;
-    const observer = new ResizeObserver(() => {
+    // Keep fractional widths so stacked labels do not exceed the viewport
+    // and shift at the far end of horizontal scrolling.
+    availableWidth = element.getBoundingClientRect().width;
+    const observer = new ResizeObserver(([entry]) => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        availableWidth = element.clientWidth;
+        availableWidth = entry.contentRect.width;
       });
     });
     observer.observe(element);
@@ -109,14 +111,6 @@ provide all domain labels and cell content with snippets.
 
   function columnHighlighted(column: TColumn): boolean {
     return highlightedCell?.column === getColumnKey(column);
-  }
-
-  function cellClass(row: TRow, column: TColumn): string {
-    const rowActive = rowHighlighted(row);
-    const columnActive = columnHighlighted(column);
-    if (rowActive && columnActive) return 'bg-action/15';
-    if (rowActive || columnActive) return 'bg-action/8';
-    return columnClass?.(column) ?? '';
   }
 
   function setHovered(row: TRow, column: TColumn, event: MouseEvent) {
@@ -209,6 +203,7 @@ provide all domain labels and cell content with snippets.
       </div>
     {/snippet}
     {#snippet beforeRow(row)}
+      {@const rowActive = rowHighlighted(row)}
       {#if stacked}
         <tr>
           <th
@@ -220,7 +215,7 @@ provide all domain labels and cell content with snippets.
               class="sticky start-0 box-border px-3 pt-3 pb-1 break-words whitespace-normal [&_*]:break-words [&_*]:whitespace-normal"
               style:width={`${availableWidth}px`}
             >
-              {@render rowHeader(row, rowHighlighted(row))}
+              {@render rowHeader(row, rowActive)}
             </div>
           </th>
         </tr>
@@ -239,6 +234,7 @@ provide all domain labels and cell content with snippets.
         </th>
       {/if}
       {#each columns as column (getColumnKey(column))}
+        {@const columnActive = columnHighlighted(column)}
         <th
           id={columnId(column)}
           scope="col"
@@ -246,9 +242,7 @@ provide all domain labels and cell content with snippets.
             compact
               ? 'px-0 py-2 text-center align-bottom font-medium'
               : 'px-0 py-3 text-center align-bottom font-medium',
-            columnHighlighted(column)
-              ? 'bg-action/10 text-action'
-              : (columnClass?.(column) ?? 'bg-background')
+            columnActive ? 'bg-action/10 text-action' : (columnClass?.(column) ?? 'bg-background')
           ]}
           style="width: 2rem; min-width: 2rem"
           style:height={columnHeaderHeight}
@@ -256,7 +250,7 @@ provide all domain labels and cell content with snippets.
           {...columnAttributes?.(column) ?? {}}
         >
           <MatrixColumnHeading>
-            {@render columnHeader(column, columnHighlighted(column))}
+            {@render columnHeader(column, columnActive)}
           </MatrixColumnHeading>
         </th>
       {/each}
@@ -264,6 +258,9 @@ provide all domain labels and cell content with snippets.
       <th class="w-full bg-background p-0" aria-hidden="true"></th>
     {/snippet}
     {#snippet row(row)}
+      <!-- Derived booleans keep cells whose axes did not change from updating
+           their DOM effects when the pointer or keyboard focus moves. -->
+      {@const rowActive = rowHighlighted(row)}
       {#if !stacked}
         <th
           id={rowId(row)}
@@ -271,19 +268,24 @@ provide all domain labels and cell content with snippets.
           class={[
             'sticky start-0 z-10 text-start font-normal whitespace-nowrap',
             compact ? 'px-3 py-0.5' : 'px-4 py-2',
-            rowHighlighted(row) ? 'bg-action/8' : 'bg-background'
+            rowActive ? 'bg-action/8' : 'bg-background'
           ]}
         >
-          {@render rowHeader(row, rowHighlighted(row))}
+          {@render rowHeader(row, rowActive)}
         </th>
       {/if}
       {#each columns as column (getColumnKey(column))}
         {@const interactive = isCellInteractive(row, column)}
+        {@const columnActive = columnHighlighted(column)}
         <td
           headers={`${rowId(row)} ${columnId(column)}`}
           class={[
             compact ? 'px-0 py-0.5 text-center' : 'px-0 py-2 text-center',
-            cellClass(row, column)
+            rowActive && columnActive
+              ? 'bg-action/15'
+              : rowActive || columnActive
+                ? 'bg-action/8'
+                : (columnClass?.(column) ?? '')
           ]}
           style="width: 2.5rem; min-width: 2.5rem"
           data-matrix-column={getColumnKey(column)}
