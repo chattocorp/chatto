@@ -53,7 +53,7 @@ async function runCli(
       .mockImplementation((message: string) => stderr.push(stripVTControlCharacters(message)))
   ];
   try {
-    await runRunling(path, prompt, { json: false, log: false, verbose: false, ...options });
+    await runRunling(path, prompt, { json: false, verbose: false, ...options });
     const runs = join(directory, '.runling/runs');
     const [journal] = await readdir(runs).catch(() => []);
     const records: RunRecord[] = journal

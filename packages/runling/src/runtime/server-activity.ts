@@ -4,7 +4,7 @@ import { serverLog, terminalRunLog } from './server-log.ts';
 
 /** Log one live server run. The log file gets safe summaries: task numbers are local to the run,
  * and prompts, task labels, commands, arguments, results, and arbitrary logs are never written.
- * Agent labels and explicit task activity are public host-owned metadata. Successful tool calls
+ * Agent labels are public host-owned metadata. Successful tool calls
  * are summarized at most every 30 seconds per agent.
  *
  * With `detailed` (the default unless `RUNLING_QUIET_LOG` is `1`), the terminal shows the run's

@@ -262,6 +262,7 @@ export class RunStore {
       completion,
       send: (message) => this.send(id, message),
       closeInput: () => this.closeInput(id),
+      cancel: () => void this.cancel(id),
       finished: completion.then(
         () => {},
         () => {}

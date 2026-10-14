@@ -30,6 +30,7 @@ const handle = (id: string, finished: Promise<unknown> = Promise.resolve()): Run
   id,
   send: async () => {},
   closeInput: () => {},
+  cancel: () => {},
   finished: finished.then(
     () => {},
     () => {}

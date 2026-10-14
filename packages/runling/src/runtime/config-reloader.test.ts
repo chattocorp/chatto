@@ -133,6 +133,7 @@ test('runling imports share the host runtime across config reloads', async () =>
               id: 'probe',
               send: async () => {},
               closeInput: () => {},
+              cancel: () => {},
               finished: Promise.resolve()
             };
           }

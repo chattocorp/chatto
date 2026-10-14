@@ -14,6 +14,8 @@ export interface RunHandle<Receives = unknown> extends StartedRun {
   send(message: Receives): Promise<void>;
   /** Tell the top-level task that no more messages come. */
   closeInput(): void;
+  /** Cancel the run. Its tasks receive the abort signal and finish their cleanup. */
+  cancel(): void;
   /** Resolves when the run has finished, whatever its result. */
   readonly finished: Promise<void>;
 }

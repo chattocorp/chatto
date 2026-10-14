@@ -16,6 +16,7 @@ const runHandle = (id: string, sent: unknown[] = []): RunHandle => ({
     sent.push(message);
   },
   closeInput: () => {},
+  cancel: () => {},
   finished: Promise.resolve()
 });
 
