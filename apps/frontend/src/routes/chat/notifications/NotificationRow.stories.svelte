@@ -15,7 +15,7 @@
       docs: {
         description: {
           component:
-            'One notification group: cause badge on the actor avatar, short summary, time, and room. A server logo appears before the avatar when more than one server is signed in.'
+            'One notification group: cause badge on the actor avatar, short summary, time, and room. When more than one server is signed in, a server logo appears before the avatar and the server name after the room.'
         }
       }
     }
