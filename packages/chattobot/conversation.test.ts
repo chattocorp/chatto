@@ -12,6 +12,7 @@ import type { Destination } from '@chatto/client';
 import type { IncomingMessage } from './chatto/message.ts';
 import { createConversation, type ChattoAccess } from './conversation.ts';
 import type { ThreadMessage } from './thread.ts';
+import type { Investigation } from './investigation/tool.ts';
 
 const message = (id: string, body = id, authorId = 'alice'): IncomingMessage => ({
   id,
@@ -40,9 +41,11 @@ function harness({
   thread = [] as ThreadMessage[][],
   maintainers = [] as string[],
   web,
+  investigation,
   turn
 }: {
   web?: { tavilyApiKey: string };
+  investigation?: Investigation;
   answer?: (prompt: string) => string | AgentResult;
   thread?: ThreadMessage[][];
   maintainers?: string[];
@@ -98,7 +101,12 @@ function harness({
     } as RunlingAgent;
   });
   const conversation = createConversation(
-    { model: 'test/model', maintainers: new Set(maintainers), ...(web ? { web } : {}) },
+    {
+      model: 'test/model',
+      maintainers: new Set(maintainers),
+      ...(web ? { web } : {}),
+      ...(investigation ? { investigation } : {})
+    },
     chatto,
     createAgent
   );
@@ -292,4 +300,23 @@ test('the web tools refuse turns that are not from maintainers', async () => {
   bot.messages.close();
   await run;
   fetch.mockRestore();
+});
+
+test('offers investigate with a scope for the thread when investigation is set up', async () => {
+  const scopes: string[] = [];
+  const bot = harness({
+    investigation: {
+      directory: '/repo',
+      investigator: (scope) => {
+        scopes.push(scope);
+        return (async () => ({ session: 's', answer: 'a', citations: [] })) as never;
+      }
+    }
+  });
+  const run = bot.start(message('one'));
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+  bot.messages.close();
+  expect(await run).toMatchObject({ ok: true });
+  expect(bot.options().tools).toContain('investigate');
+  expect(scopes).toEqual([expect.stringMatching(/^[0-9a-f]{32}$/)]);
 });

@@ -84,7 +84,7 @@ export function createConversation(
       receives: IncomingMessage
     },
     async (ctx, first) => {
-      const conversation = new Conversation(ctx, settings, chatto);
+      const conversation = new Conversation(ctx, settings, chatto, threadOf(first));
       await using bot = await createAgent(await conversation.agentOptions());
       const mailbox = new Mailbox(ctx.inbox);
       for (let batch: IncomingMessage[] | undefined = [first]; batch; batch = await mailbox.take())
@@ -134,7 +134,9 @@ class Conversation {
   constructor(
     private ctx: TaskContext<IncomingMessage, unknown>,
     private settings: ConversationSettings,
-    private chatto: ChattoAccess
+    private chatto: ChattoAccess,
+    /** The thread of this conversation. Every message that the router sends is in it. */
+    private thread: ReturnType<typeof threadOf>
   ) {}
 
   /** True when maintainers wrote every message of the current turn. */
@@ -144,7 +146,7 @@ class Conversation {
 
   async agentOptions(): Promise<AgentOptions> {
     const { web, github, maintainers, investigation } = this.settings;
-    const thread = () => threadOf(this.batch[0]!);
+    const thread = () => this.thread;
     return {
       label: 'ChattoBot',
       model: this.settings.model,
@@ -249,7 +251,7 @@ class Conversation {
    * the bot. The first turn includes the thread so far. */
   private async prompt(batch: IncomingMessage[]): Promise<string> {
     const read = await this.chatto.readThread(
-      threadOf(batch[0]!),
+      this.thread,
       AbortSignal.any([this.ctx.signal, AbortSignal.timeout(30_000)]),
       this.cursor
     );
