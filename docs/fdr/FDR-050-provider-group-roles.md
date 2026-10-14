@@ -30,7 +30,8 @@ management in Chatto.
   from the ID token first and then from UserInfo.
 - **When roles change** — Chatto applies the mapping when a user signs in
   through the provider, when a user links the provider to an account, and when
-  a user creates an account through the provider. It applies the mapping after
+  a user creates an account through the provider. Until the user confirms a
+  new account, Chatto keeps only the groups that `group_roles` names. It applies the mapping after
   the `allowed_groups` check. When that check denies the sign-in of a linked
   account, Chatto removes the roles that the provider gave and gives no roles.
   A user who may not sign in through the provider thus keeps no authority from
@@ -65,7 +66,8 @@ management in Chatto.
   the owner of each assignment that the provider created, the same value that
   identity links use. A change of the provider `id` keeps the ownership. After
   a change of the issuer URL, the provider no longer removes the assignments of
-  the old issuer; admins remove them by hand.
+  the old issuer; admins remove them by hand. Two provider entries with the
+  same issuer share the ownership.
 - **Older identity links** — some accounts from early server versions have
   identity links without the issuer. At the first group role sync, Chatto
   completes such a link with the verified issuer and subject, so the link keeps

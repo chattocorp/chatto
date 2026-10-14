@@ -618,9 +618,9 @@ func TestProviderGroupRolesSyncAtSignInAndLink(t *testing.T) {
 		return slices.Contains(roles, core.RoleModerator)
 	}
 
-	// A new identity carries its groups to account creation.
+	// A new identity carries its mapped groups, and no others, to account creation.
 	issuer.SetSubject("group-new")
-	inGroups("chat-mods")
+	inGroups("chat-mods", "unmapped-team")
 	location := completeNoEmailOIDCLogin(t, client, ts.URL, "company", "/chat")
 	confirmURL, err := url.Parse(location)
 	if err != nil || confirmURL.Path != "/sso/confirm" {

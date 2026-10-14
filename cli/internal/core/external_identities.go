@@ -457,7 +457,11 @@ func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, us
 			}
 			// A concurrent group role sync can commit a grant after the batch
 			// read the RBAC state. Check again now that the unlink is visible.
-			return c.revokeProviderGroupRolesWithoutIdentity(ctx, userID, source)
+			// The unlink is committed, so a failed check is logged, not returned.
+			if err := c.revokeProviderGroupRolesWithoutIdentity(ctx, userID, source); err != nil {
+				c.logger.Error("Provider group role check after unlink failed", "provider_id", source.ProviderID, "user_id", userID, "error", err)
+			}
+			return nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
 			return err

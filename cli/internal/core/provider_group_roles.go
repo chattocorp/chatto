@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"time"
 
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
@@ -136,11 +137,19 @@ func (c *ChattoCore) SyncProviderGroupRoles(ctx context.Context, userID string, 
 	return nil
 }
 
+// providerRoleRecheckTimeout bounds the identity check after a group role
+// sync or an unlink commits.
+const providerRoleRecheckTimeout = 10 * time.Second
+
 // revokeProviderGroupRolesWithoutIdentity revokes the provider's assignments
 // when the user has no identity with the provider's issuer. Group role sync
 // and identity unlinks both call it after they commit. The second of two
-// concurrent writes therefore sees the effect of the first.
+// concurrent writes therefore sees the effect of the first. The check runs to
+// its end also when the request is cancelled, because the write it checks is
+// already committed.
 func (c *ChattoCore) revokeProviderGroupRolesWithoutIdentity(ctx context.Context, userID string, source ProviderRoleSource) error {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), providerRoleRecheckTimeout)
+	defer cancel()
 	if err := c.userModel.waitForUserAuthCurrent(ctx, "provider group roles"); err != nil {
 		return err
 	}

@@ -738,6 +738,18 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 	}, nil
 }
 
+// mappedGroups returns the groups that group_roles names. Pending account
+// creation stores only these, so it keeps no other group data of the user.
+func mappedGroups(mappings []config.GroupRole, groups []string) []string {
+	var mapped []string
+	for _, group := range groups {
+		if slices.ContainsFunc(mappings, func(mapping config.GroupRole) bool { return mapping.Group == group }) && !slices.Contains(mapped, group) {
+			mapped = append(mapped, group)
+		}
+	}
+	return mapped
+}
+
 // groupsFromClaims reads a groups claim that holds a string or a list of
 // strings. It ignores list items that are not strings. Another shape, or a
 // missing claim, returns false.
@@ -907,7 +919,7 @@ func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session ses
 		AvatarURL:       identity.avatarURL,
 		LoginHint:       identity.loginHint,
 		DisplayNameHint: identity.displayNameHint,
-		Groups:          identity.groups.Groups,
+		Groups:          mappedGroups(providerConfig.GroupRoleMappings(), identity.groups.Groups),
 		GroupsKnown:     identity.groups.Known,
 		RedirectPath:    providerReturnPath(session, "/"),
 	}
