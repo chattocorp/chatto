@@ -186,13 +186,18 @@
   </div>
 </Story>
 
-<!-- Keep the accessibility scan representative and bounded. The permission
-     loader component tests cover 205 columns and scrolling to the last one. -->
-<Story name="Many columns" asChild>
+<!-- Run every accessibility rule on all 205 columns. Keep full node details
+     for violations and incomplete checks; axe needs only a sample for passes.
+     Reporting every passing node took about 1.2 seconds locally. -->
+<Story
+  name="Many columns"
+  asChild
+  parameters={{ a11y: { options: { resultTypes: ['violations', 'incomplete'] } } }}
+>
   <div class="flex h-96 w-[319.5px] flex-col bg-background">
     <MatrixTable
       {rows}
-      columns={Array.from({ length: 24 }, (_, index) => ({
+      columns={Array.from({ length: 205 }, (_, index) => ({
         id: `room-${index}`,
         label: `Room ${index + 1}`,
         kind: 'room' as const
