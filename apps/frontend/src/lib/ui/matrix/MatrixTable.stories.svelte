@@ -186,11 +186,13 @@
   </div>
 </Story>
 
+<!-- Keep the accessibility scan representative and bounded. The permission
+     loader component tests cover 205 columns and scrolling to the last one. -->
 <Story name="Many columns" asChild>
   <div class="flex h-96 w-[319.5px] flex-col bg-background">
     <MatrixTable
       {rows}
-      columns={Array.from({ length: 205 }, (_, index) => ({
+      columns={Array.from({ length: 24 }, (_, index) => ({
         id: `room-${index}`,
         label: `Room ${index + 1}`,
         kind: 'room' as const
