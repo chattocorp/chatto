@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-10-12
+**Last reviewed:** 2026-10-14
 
 ## Overview
 
@@ -24,6 +24,13 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
 - The bundled web client starts DMs through ConnectRPC `RoomService.StartDM`, which delegates to the shared core DM model.
 - Selecting **Send message** or a quick-switcher user result first opens that recipient's DM destination. The destination creates or finds the room, shows a loading state until room data is available, and then opens the conversation. A failed attempt stays at the destination with a retry action. Opening a user menu does not create a room.
 - DM rooms appear in the per-server room sidebar with their participants' names and avatars rather than a room name.
+- Right-click or touch long-press on a one-to-one DM sidebar row opens the
+  other participant's user menu. A self-DM opens the current user's menu.
+  These menus offer **Copy User ID**, with no room actions. **Send Message**
+  opens the selected conversation when the viewer can start DMs. A deleted
+  partner is shown as **[deleted user]**, with no **Send Message** action.
+  Group DMs keep the conversation menu. If participant data is not ready,
+  the row keeps the conversation menu until the user can be identified.
 - The sidebar, room header, My Threads, and Quick Switcher show a self-DM
   with the current account's display name and a localized **You** badge when
   participant data is available. The badge uses the account ID, so text in

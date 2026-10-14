@@ -41,6 +41,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   } from '@chatto/client/timeline/users';
   import { directMessageLabels } from '$lib/render/directMessageLabels';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import UserMenu from '$lib/components/users/UserMenu.svelte';
+  import { UserMenuState } from '$lib/components/users/UserMenuState.svelte';
   import { notificationTarget } from '@chatto/client/server/notifications';
   import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
@@ -121,6 +123,17 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     position: { x: number; y: number; alignRight: boolean };
   } | null>(null);
 
+  const dmUserMenu = new UserMenuState<string>(closeSidebarMenus);
+
+  /** Keep the sidebar's action surfaces mutually exclusive. */
+  function closeSidebarMenus(): void {
+    dmUserMenu.close();
+    roomContextMenu = null;
+    groupContextMenu = null;
+    linkContextMenu = null;
+    creationMenu = null;
+  }
+
   const creationGroup = $derived(
     navigation.roomGroups.find((group) => group.id === creationMenu?.groupId)
   );
@@ -134,9 +147,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     event.stopPropagation();
     const trigger = event.currentTarget as HTMLButtonElement;
     const rect = trigger.getBoundingClientRect();
-    roomContextMenu = null;
-    groupContextMenu = null;
-    linkContextMenu = null;
+    closeSidebarMenus();
     creationMenu = {
       groupId: group.id,
       trigger,
@@ -199,7 +210,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const linkUrlIsValid = $derived(sidebarLinkTarget(linkUrl, activeServerBaseURL).valid);
 
   function roomMenuTrigger(room: RoomsListItem) {
+    if (dmContextUser(room)) return dmUserMenu.trigger(() => room.id);
     return contextMenuTrigger((details) => {
+      closeSidebarMenus();
       roomContextMenu = { ...details, room };
     });
   }
@@ -207,6 +220,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   function groupMenuTrigger(group: RoomsListGroup) {
     if (!group.viewerCanManageGroup && !group.viewerCanCreateRoom) return undefined;
     return contextMenuTrigger((details) => {
+      closeSidebarMenus();
       groupContextMenu = { ...details, group };
     });
   }
@@ -346,6 +360,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   function linkMenuTrigger(group: RoomsListGroup, item: RoomsListGroupItem) {
     if (!group.viewerCanManageGroup || item.type !== 'link') return undefined;
     return contextMenuTrigger((details) => {
+      closeSidebarMenus();
       linkContextMenu = { ...details, group, item };
     });
   }
@@ -551,6 +566,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   let roomMap = $derived(new Map(navigation.rooms.map((r) => [r.id, r])));
   let channelMap = $derived(new Map(channels.map((r) => [r.id, r])));
+  const dmMenuRoom = $derived(roomMap.get(dmUserMenu.target ?? ''));
+  const dmMenuUser = $derived(dmMenuRoom ? dmContextUser(dmMenuRoom) : null);
 
   type NavigationSection = {
     id: string;
@@ -716,6 +733,30 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       stores.projectionViewerId,
       directMessageLabels(),
       getLiveDisplayName
+    );
+  }
+
+  /**
+   * Resolve a one-to-one or self-DM from complete participant IDs. A missing
+   * profile must not turn a group DM or a two-person DM into a self-DM.
+   */
+  function dmContextUser(room: RoomsListItem): UserAvatarUserView | null {
+    if (room.type !== RoomKind.DM) return null;
+    const viewerId = stores.projectionViewerId;
+    const participantIds = stores.projection.rooms.get(room.id)?.memberUserIds;
+    if (!viewerId || !participantIds?.includes(viewerId)) return null;
+    const otherIds = participantIds.filter((id) => id !== viewerId);
+    if (otherIds.length > 1) return null;
+    const targetId = otherIds[0] ?? viewerId;
+    const user = room.members.find((member) => member.id === targetId);
+    if (!user) return null;
+    return user.deleted ? { ...user, displayName: directMessageLabels().deletedUser } : user;
+  }
+
+  function openSelectedDM(): void {
+    if (!dmMenuRoom) return;
+    void goto(
+      resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: dmMenuRoom.id })
     );
   }
 
@@ -1236,6 +1277,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {/each}
   </nav>
 {/if}
+
+<UserMenu
+  state={dmUserMenu}
+  user={dmMenuUser}
+  viewerSettings={stores.currentUser.user?.settings}
+  canSendMessage={stores.permissions.canStartDMs && !!dmMenuUser && !dmMenuUser.deleted}
+  onSendMessage={openSelectedDM}
+/>
 
 {#if canShowCreationMenu && creationMenu && creationGroup}
   <ContextMenu

@@ -4,19 +4,23 @@ import { RoomListView } from '@chatto/client/server/rooms';
 import { RoomGroup, RoomGroupViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { userEvent } from 'vitest/browser';
+import { page as browserPage, userEvent } from 'vitest/browser';
 import { SvelteMap } from 'svelte/reactivity';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
-import { deletedDirectMessageParticipant } from '@chatto/client/timeline/users';
+import {
+  deletedDirectMessageParticipant,
+  type UserAvatarUserView
+} from '@chatto/client/timeline/users';
 import { sidebarNav } from '$lib/state/globals.svelte';
 import '../app.css';
 
 import { NotificationSignalKind } from '@chatto/client/api/notifications';
-import type { RoomsListGroup } from '$lib/state/server/navigation';
+import type { RoomsListGroup, RoomsListItem } from '$lib/state/server/navigation';
 import { getToasts, toast } from '$lib/ui/toast';
 import { TOUCH_ONLY_QUERY } from '$lib/utils/inputMediaQueries';
 
@@ -52,6 +56,15 @@ const { mocks } = vi.hoisted(() => ({
     },
     store: {
       currentUser: { user: { id: 'me' } },
+      accountId: 'me',
+      permissions: {
+        loaded: true,
+        canStartDMs: true,
+        canManageBots: false,
+        canAdminManageAccounts: false,
+        canAdminViewUsers: false
+      },
+      projection: { rooms: new Map<string, { memberUserIds: string[] }>() },
       notifications: {
         hasDMRoomNotification: vi.fn().mockReturnValue(false),
         hasRoomNotification: vi.fn().mockReturnValue(false),
@@ -156,6 +169,8 @@ vi.mock('$app/paths', () => ({
       .replace('[serverId]', params?.serverId ?? '')
       .replace('[roomId]', params?.roomId ?? '')
       .replace('[groupId]', params?.groupId ?? '')
+      .replace('[botId]', params?.botId ?? '')
+      .replace('[userId]', params?.userId ?? '')
 }));
 
 vi.mock('$lib/navigation', () => ({
@@ -182,6 +197,7 @@ vi.mock('$lib/state/appUi.svelte', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveLogin: (_userId: string, fallback: string) => fallback,
   getLiveBotOwnerUserId: (_userId: string, fallback: string | null) => fallback,
   getLiveBio: () => null,
   getLiveTimezone: () => null,
@@ -217,7 +233,7 @@ function user(id: string, login: string, displayName: string) {
     login,
     displayName,
     avatarUrl: null,
-    presenceStatus: 'ONLINE'
+    presenceStatus: PresenceStatus.ONLINE
   };
 }
 
@@ -284,6 +300,33 @@ function setRooms() {
       members: [user('me', 'me', 'Me'), user('river', 'river', 'River')]
     }
   ] as never;
+  mocks.store.projection.rooms.clear();
+  for (const room of mocks.store.navigation.rooms as RoomsListItem[]) {
+    mocks.store.projection.rooms.set(room.id, {
+      memberUserIds: room.members.map((member) => member.id)
+    });
+  }
+}
+
+function setDMParticipants(participants: UserAvatarUserView[], participantIds?: string[]): void {
+  const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
+    (room) => room.id === 'dm-with-participants'
+  )!;
+  room.members = participants;
+  mocks.store.projection.rooms.set(room.id, {
+    memberUserIds: participantIds ?? participants.map((member) => member.id)
+  });
+}
+
+async function openDMMenu(container: HTMLElement): Promise<HTMLElement> {
+  const row = q(container, '[href="/chat/-/dm-with-participants"]')!;
+  row.dispatchEvent(
+    new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 60 })
+  );
+  await expect
+    .element(browserPage.getByRole('dialog', { name: 'User profile', exact: true }))
+    .toBeVisible();
+  return q(document.body, '[role="dialog"][aria-label="User profile"]')!;
 }
 
 function setRoomNotificationCount(roomId: string, count: number, importantCount = count) {
@@ -317,6 +360,9 @@ beforeEach(() => {
   mocks.store.navigation.roomGroups = [];
   mocks.store.navigation.isInitialLoading = false;
   mocks.store.navigation.currentUserId = 'me';
+  mocks.store.permissions.canStartDMs = true;
+  mocks.store.permissions.canManageBots = false;
+  mocks.store.permissions.canAdminViewUsers = false;
   setRooms();
   vi.clearAllMocks();
   Object.defineProperty(navigator, 'clipboard', {
@@ -691,16 +737,151 @@ describe('RoomList', () => {
     vi.useRealTimers();
   });
 
-  it('does not offer leave for direct-message rooms', async () => {
+  it('opens the other user menu for a DM and copies the user ID', async () => {
+    // Participant order must not determine whose profile opens.
+    setDMParticipants([user('teal', 'teal', 'Teal'), user('me', 'me', 'Me')]);
     const { container } = render(RoomList);
-    const row = q(container, '[href="/chat/-/dm-with-participants"]') as HTMLAnchorElement;
-    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
-    await vi.waitFor(() => expect(document.body.textContent).toContain('Mark as read'));
+    const menu = await openDMMenu(container);
+    expect(menu.textContent).toContain('Teal');
+    expect(menu.textContent).toContain('@teal');
+    expect(menu.textContent).not.toContain('Mark as read');
+    expect(menu.textContent).not.toContain('Copy Room ID');
+    expect(menu.textContent).not.toContain('Leave room');
+    q(menu, '[data-testid="copy-user-id"]')!.click();
+    await vi.waitFor(() => expect(mocks.writeClipboardText).toHaveBeenCalledWith('teal'));
+    await expect.element(menu).not.toBeInTheDocument();
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
 
-    const leave = Array.from(document.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Leave room'
+  it('opens the viewer menu for a self-DM', async () => {
+    setDMParticipants([user('me', 'me', 'Me')]);
+    const { container } = render(RoomList);
+    const menu = await openDMMenu(container);
+    expect(menu.textContent).toContain('@me');
+    q(menu, '[data-testid="copy-user-id"]')!.click();
+    await vi.waitFor(() => expect(mocks.writeClipboardText).toHaveBeenCalledWith('me'));
+  });
+
+  it('shows a deleted DM partner without a messaging action', async () => {
+    setDMParticipants([user('me', 'me', 'Me'), deletedDirectMessageParticipant('deleted-peer')]);
+    const { container } = render(RoomList);
+    const menu = await openDMMenu(container);
+    expect(menu.textContent).toContain('[deleted user]');
+    expect(menu.textContent).not.toContain('Send Message');
+    q(menu, '[data-testid="copy-user-id"]')!.click();
+    await vi.waitFor(() => expect(mocks.writeClipboardText).toHaveBeenCalledWith('deleted-peer'));
+  });
+
+  it.each([
+    ['group DM', ['me', 'teal', 'river']],
+    ['unresolved partner', ['me', 'missing']],
+    ['group DM with an unresolved participant', ['me', 'teal', 'missing']],
+    ['unresolved participant IDs', []]
+  ])('keeps the conversation menu for %s', async (_name, participantIds) => {
+    setDMParticipants([user('me', 'me', 'Me'), user('teal', 'teal', 'Teal')], participantIds);
+    const { container } = render(RoomList);
+    q(container, '[href="/chat/-/dm-with-participants"]')!.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
     );
-    expect(leave).toBeUndefined();
+    await expect.element(browserPage.getByTestId('copy-room-id')).toBeVisible();
+    expect(document.querySelector('[aria-label="User profile"]')).toBeNull();
+    expect(document.body.textContent).not.toContain('Leave room');
+  });
+
+  it('does not treat a loading DM partner as a self-DM', async () => {
+    setDMParticipants([user('me', 'me', 'Me')], ['me', 'teal']);
+    const { container } = render(RoomList);
+    q(container, '[href="/chat/-/dm-with-participants"]')!.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+    );
+    await expect.element(browserPage.getByTestId('copy-room-id')).toBeVisible();
+    expect(document.querySelector('[aria-label="User profile"]')).toBeNull();
+  });
+
+  it.each([true, false])('gates the DM messaging action with permission=%s', async (allowed) => {
+    mocks.store.permissions.canStartDMs = allowed;
+    const { container } = render(RoomList);
+    const menu = await openDMMenu(container);
+    const send = Array.from(menu.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Send Message'
+    );
+    expect(!!send).toBe(allowed);
+    if (send) {
+      send.click();
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-with-participants');
+      await expect.element(menu).not.toBeInTheDocument();
+    }
+  });
+
+  it.each([true, false])(
+    'preserves the bot management action with permission=%s',
+    async (allowed) => {
+      mocks.store.permissions.canManageBots = allowed;
+      setDMParticipants([user('me', 'me', 'Me'), { ...user('teal', 'teal', 'Teal'), isBot: true }]);
+      const { container } = render(RoomList);
+      const menu = await openDMMenu(container);
+      expect(!!menu.querySelector('[data-testid="manage-bot"]')).toBe(allowed);
+    }
+  );
+
+  it('dismisses the DM user menu and replaces it with channel actions', async () => {
+    const { container } = render(RoomList);
+    const menu = await openDMMenu(container);
+    await userEvent.keyboard('{Escape}');
+    await expect.element(menu).not.toBeInTheDocument();
+    const reopened = await openDMMenu(container);
+    q(container, '[href="/chat/-/channel-1"]')!.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+    );
+    await expect.element(browserPage.getByTestId('copy-room-id')).toBeVisible();
+    await expect.element(reopened).not.toBeInTheDocument();
+  });
+
+  it('opens the DM user menu as a sheet after long-press without navigating', async () => {
+    vi.useFakeTimers();
+    mocks.activeCallRoomIds.add('dm-with-participants');
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/dm-with-participants"]')!;
+    const callIcon = q(row, '[data-testid="room-call-icon"]')!;
+    callIcon.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        pointerId: 4,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: 20,
+        clientY: 30
+      })
+    );
+    await vi.advanceTimersByTimeAsync(500);
+    vi.useRealTimers();
+    await expect
+      .element(browserPage.getByRole('dialog', { name: 'User profile', exact: true }))
+      .toBeVisible();
+    expect(document.querySelector('dialog.bottom-sheet[aria-label="User profile"]')).not.toBeNull();
+    callIcon.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 20,
+        clientY: 30
+      })
+    );
+    callIcon.dispatchEvent(
+      new PointerEvent('pointerup', {
+        bubbles: true,
+        pointerId: 4,
+        pointerType: 'touch',
+        isPrimary: true
+      })
+    );
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+    callIcon.dispatchEvent(click);
+    expect(click.defaultPrevented).toBe(true);
+    expect(mocks.goto).not.toHaveBeenCalled();
+    expect(
+      document.querySelectorAll('dialog.bottom-sheet[aria-label="User profile"]')
+    ).toHaveLength(1);
   });
 
   it('opens the existing leave-room confirmation flow from room actions', async () => {

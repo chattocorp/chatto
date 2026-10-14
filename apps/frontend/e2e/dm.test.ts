@@ -24,6 +24,36 @@ import { TIMEOUTS } from './constants';
  */
 
 test.describe('Direct Messages (room-shaped)', () => {
+  test('right-clicking a DM sidebar row opens the partner user menu', async ({
+    page,
+    browser,
+    serverURL,
+    chatPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await withServerUser(browser, serverURL, async ({ user: partner }) => {
+      const dmPage = new DMPage(page);
+      const conversation = await dmPage.startConversation(partner.login);
+      await conversation.sendMessage('Sidebar user menu regression');
+      const row = dmPage.getConversation(partner.displayName);
+      await expect(row).toBeVisible();
+      const conversationURL = page.url();
+      await row.click({ button: 'right' });
+
+      const profile = page.getByRole('dialog', { name: 'User profile' });
+      await expect(profile).toBeVisible();
+      await expect(profile.getByText(partner.displayName, { exact: true })).toBeVisible();
+      await expect(profile.getByText(`@${partner.login}`, { exact: true })).toBeVisible();
+      await expect(profile.getByTestId('copy-user-id')).toBeVisible();
+      await expect(page.getByTestId('copy-room-id')).toHaveCount(0);
+      await expect(profile.getByRole('button', { name: 'Mark as read' })).toHaveCount(0);
+      await expect(page).toHaveURL(conversationURL);
+      await page.keyboard.press('Escape');
+      await expect(profile).not.toBeVisible();
+    });
+  });
+
   test('Send message navigates before creating a hidden DM and delivers its first message', async ({
     page,
     chatPage,
