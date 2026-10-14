@@ -363,8 +363,8 @@ func TestUnlinkingLegacyProviderIDIdentityRevokesOnlyProviderRoles(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Links from before provider IDs used the issuer URL as their ID.
-	if err := core.LinkExternalIdentity(ctx, testIssuers["company"], config.AuthProviderTypeOpenIDConnect, testIssuers["company"], "legacy", user.Id); err != nil {
+	// The legacy single-provider OIDC configuration linked identities as "oidc".
+	if err := core.LinkExternalIdentity(ctx, "oidc", config.AuthProviderTypeOpenIDConnect, testIssuers["company"], "legacy", user.Id); err != nil {
 		t.Fatal(err)
 	}
 	if err := core.AssignServerRole(ctx, SystemActorID, user.Id, "helper"); err != nil {
