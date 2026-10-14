@@ -1,5 +1,6 @@
 {
   "common": {
+    "copy_failed": "Kopiëren naar het klembord is mislukt. Selecteer de tekst en kopieer deze handmatig.",
     "cancel": "Annuleren",
     "close_sidebar": "Zijbalk sluiten",
     "or": "of",

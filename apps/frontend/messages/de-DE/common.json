@@ -1,5 +1,6 @@
 {
   "common": {
+    "copy_failed": "Kopieren in die Zwischenablage fehlgeschlagen. Markiere den Text und kopiere ihn manuell.",
     "cancel": "Abbrechen",
     "close_sidebar": "Seitenleiste schließen",
     "or": "oder",

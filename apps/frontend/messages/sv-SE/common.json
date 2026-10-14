@@ -1,5 +1,6 @@
 {
   "common": {
+    "copy_failed": "Det gick inte att kopiera till urklipp. Markera texten och kopiera den manuellt.",
     "cancel": "Avbryt",
     "close_sidebar": "Stäng sidofältet",
     "or": "eller",

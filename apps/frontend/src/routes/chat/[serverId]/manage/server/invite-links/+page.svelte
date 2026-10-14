@@ -92,8 +92,12 @@
   }
 
   async function copyInvitation(invitation: InviteLink) {
-    await navigator.clipboard.writeText(invitation.link);
-    toast.success(m('admin.invitations.copied'));
+    try {
+      await navigator.clipboard.writeText(invitation.link);
+      toast.success(m('admin.invitations.copied'));
+    } catch {
+      toastError(undefined, m('room.message.actions.copy_link_failed'));
+    }
   }
 
   function formatTimestamp(value: string): string {

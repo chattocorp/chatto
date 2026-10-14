@@ -1,5 +1,6 @@
 {
   "common": {
+    "copy_failed": "Ne eblis kopii al la tondujo. Elektu la tekston kaj kopiu ĝin permane.",
     "cancel": "Nuligi",
     "close_sidebar": "Fermu flankbreton",
     "or": "aŭ",
