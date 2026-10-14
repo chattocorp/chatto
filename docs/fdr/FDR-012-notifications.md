@@ -52,11 +52,11 @@ targets, unread counts, read state, or deletion semantics.
   avatar shows the cause: the first reaction emoji, or an icon for direct
   messages, mentions, replies, and room messages.
 - When more than one server is signed in, a small server logo before the
-  actor avatar identifies the server of each row. Screen readers announce the
-  server name. The hover text adds the host.
-- Below 768px viewport width, the list fills the page width without a panel
-  frame. Summaries and metadata wrap so the activity remains readable. This
-  layout applies to both touch and mouse input; wider windows keep the panel.
+  actor avatar and the server name after the room name identify the server of
+  each row. The hover text of the logo adds the host.
+- The list has no panel frame. Below 768px viewport width, summaries and
+  metadata wrap so the activity remains readable. This layout applies to both
+  touch and mouse input.
 - Opening a row navigates to the selected occurrence's exact room, thread, and
   event. The occurrence is marked Read only after the target is visible and
   highlighted. An interrupted load keeps the selected target until navigation

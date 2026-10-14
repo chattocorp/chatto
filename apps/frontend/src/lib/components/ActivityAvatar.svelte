@@ -5,7 +5,8 @@ Leading visual for an activity-list row: one fixed-size actor avatar, so row
 text always lines up. Optional parts:
 
 - `server`: a small server logo before the avatar, which the avatar overlaps
-  slightly. Use it for app-wide lists that combine several servers.
+  slightly. Use it for app-wide lists that combine several servers. The logo
+  is decorative: also show the server name as text in the row.
 - `badge`: content in a small circle at the bottom end corner, for example a
   cause icon, an emoji, or a second participant's avatar.
 - `indicator`: content at the top end corner, for example an `UnreadDot`.
@@ -37,18 +38,16 @@ text always lines up. Optional parts:
 
 <span class="flex shrink-0 items-center">
   {#if server}
+    <!-- Shrink the gutter logo here: ServerLogo is in the initial bundle. -->
     <span
-      class="flex shrink-0"
+      class="flex size-7 shrink-0 [&>div]:rounded-lg [&>div]:text-sm"
       title={server.name === server.hostname
         ? server.hostname
         : `${server.name} (${server.hostname})`}
+      aria-hidden="true"
       data-testid="activity-server"
     >
-      <span class="sr-only">{server.name}</span>
-      <!-- Shrink the gutter logo here: ServerLogo is in the initial bundle. -->
-      <span class="flex size-7 [&>div]:rounded-lg [&>div]:text-sm" aria-hidden="true">
-        <ServerLogo {server} fill />
-      </span>
+      <ServerLogo {server} fill />
     </span>
   {/if}
   <span class={['relative flex size-10 shrink-0', server && '-ms-1']} aria-hidden="true">

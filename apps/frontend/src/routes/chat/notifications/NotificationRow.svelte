@@ -70,7 +70,11 @@
   }
 </script>
 
-{#snippet room()}#{roomName}{/snippet}
+{#snippet location()}
+  {#if roomName}<bdi dir="auto">#{roomName}</bdi>{/if}
+  {#if roomName && server}<span aria-hidden="true">·</span>{/if}
+  {#if server}<bdi dir="auto" data-testid="notification-server-name">{server.name}</bdi>{/if}
+{/snippet}
 
 <ActivityListRow
   {interactive}
@@ -102,7 +106,7 @@
     {time}
     emphasized={unread}
     wrapOnNarrow
-    subtitle={roomName ? room : undefined}
+    subtitle={roomName || server ? location : undefined}
     testId="notification-content"
   >
     {#snippet title()}

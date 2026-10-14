@@ -276,6 +276,7 @@ describe('notifications page', () => {
     expect(readContent.querySelectorAll(':scope > *')).toHaveLength(2);
     expect(unreadContent.querySelectorAll(':scope > *')).toHaveLength(2);
     expect(q(container, '[data-testid="activity-server"]')).toBeNull();
+    expect(q(container, '[data-testid="notification-server-name"]')).toBeNull();
   });
 
   it('renders a retained occurrence projection without refetching it', async () => {
@@ -538,6 +539,8 @@ describe('notifications page', () => {
     expect(container.textContent).toContain('Network error. Please try again.');
     const serverMarker = q(container, '[data-testid="activity-server"]') as HTMLElement;
     expect(serverMarker.title).toBe('Example Chat (chat.example.test)');
+    const row = q(container, '[data-testid="notification-content"]') as HTMLElement;
+    expect(row.textContent?.replace(/\s+/g, ' ')).toContain('#general · Example Chat');
   });
 
   it('does not render a stale notification page for a room behind a privacy boundary', async () => {
