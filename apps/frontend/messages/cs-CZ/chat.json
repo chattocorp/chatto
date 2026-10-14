@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Oznámení",
       "subtitle": "Zde je novinka",
-      "list_title": "Nedávná aktivita",
       "clear_read": "Odstranit přečtené",
       "empty_title": "Žádná upozornění",
       "empty_body": "Už jste všichni chyceni!",
@@ -19,14 +18,14 @@
       "unread": "Nepřečtené",
       "activity": "Nová aktivita",
       "summary": {
-        "direct_message": "Od uživatele {actor} máte novou přímou zprávu.",
-        "reaction": "Uživatel {actor} reagoval pomocí „{emoji}“ na vaši zprávu v kanálu {channel}.",
-        "reaction_group": "Uživatel {actor} a další reagovali pomocí „{emoji}“ na vaši zprávu v kanálu {channel}.",
-        "reply": "Uživatel {actor} odpověděl na vaši zprávu.",
-        "mention": "Uživatel {actor} vás zmínil.",
-        "followed_thread": "Uživatel {actor} odpověděl ve vlákně, které sledujete.",
-        "new_message": "Uživatel {actor} zveřejnil novou zprávu.",
-        "activity": "Uživatel {actor} vám poslal oznámení."
+        "direct_message": "Od uživatele {actor} máte novou přímou zprávu",
+        "reaction": "Uživatel {actor} reagoval pomocí {emoji} na vaši zprávu",
+        "reaction_group": "Uživatel {actor} a další reagovali pomocí {emoji} na vaši zprávu",
+        "reply": "Uživatel {actor} odpověděl na vaši zprávu",
+        "mention": "Uživatel {actor} vás zmínil",
+        "followed_thread": "Uživatel {actor} odpověděl ve vlákně, které sledujete",
+        "new_message": "Uživatel {actor} zveřejnil novou zprávu",
+        "activity": "Uživatel {actor} vám poslal oznámení"
       }
     },
     "sign_out": {
@@ -92,7 +91,6 @@
     "threads": {
       "title": "Moje vlákna",
       "subtitle": "Vlákna, která sledujete",
-      "list_title": "Sledovaná vlákna",
       "filter_label": "Filtrační závity",
       "filter_all": "všechny",
       "filter_unread": "Nepřečteno",

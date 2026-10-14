@@ -20,7 +20,8 @@ const routes = [
     // CI measured 337.1 KiB; retain allowance for build variation.
     // LiveKit diagnostics strings in the bundled en-GB fallback catalog add
     // about 0.7 KiB.
-    budgetKiB: 338.5,
+    // Activity list row layout adds about 0.15 KiB of global CSS.
+    budgetKiB: 339,
     components: ['src/routes/+layout.svelte', 'src/routes/login/+page.svelte']
   },
   {
@@ -31,7 +32,8 @@ const routes = [
     // Footnote layout and local navigation add about 0.6 KiB in CI.
     // LiveKit diagnostics strings in the bundled en-GB fallback catalog add
     // about 0.7 KiB.
-    budgetKiB: 382,
+    // Activity list row layout adds about 0.15 KiB of global CSS.
+    budgetKiB: 382.5,
     components: [
       'src/routes/+layout.svelte',
       'src/routes/chat/+layout.svelte',

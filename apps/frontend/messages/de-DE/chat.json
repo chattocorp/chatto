@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Benachrichtigungen",
       "subtitle": "Das ist neu",
-      "list_title": "Letzte Aktivität",
       "clear_read": "Gelesene löschen",
       "empty_title": "Keine Benachrichtigungen",
       "empty_body": "Du bist auf dem neuesten Stand!",
@@ -19,14 +18,14 @@
       "unread": "Ungelesen",
       "activity": "Neue Aktivität",
       "summary": {
-        "direct_message": "{actor} hat dir eine Direktnachricht gesendet.",
-        "reaction": "{actor} hat mit „{emoji}“ auf deine Nachricht in {channel} reagiert.",
-        "reaction_group": "{actor} und andere haben mit „{emoji}“ auf deine Nachricht in {channel} reagiert.",
-        "reply": "{actor} hat auf deine Nachricht geantwortet.",
-        "mention": "{actor} hat dich erwähnt.",
-        "followed_thread": "{actor} hat in einem Thread geantwortet, dem du folgst.",
-        "new_message": "{actor} hat eine neue Nachricht gepostet.",
-        "activity": "{actor} hat dir eine Benachrichtigung gesendet."
+        "direct_message": "{actor} hat dir eine Direktnachricht gesendet",
+        "reaction": "{actor} hat mit {emoji} auf deine Nachricht reagiert",
+        "reaction_group": "{actor} und andere haben mit {emoji} auf deine Nachricht reagiert",
+        "reply": "{actor} hat auf deine Nachricht geantwortet",
+        "mention": "{actor} hat dich erwähnt",
+        "followed_thread": "{actor} hat in einem Thread geantwortet, dem du folgst",
+        "new_message": "{actor} hat eine neue Nachricht gepostet",
+        "activity": "{actor} hat dir eine Benachrichtigung gesendet"
       }
     },
     "sign_out": {
@@ -92,7 +91,6 @@
     "threads": {
       "title": "Meine Threads",
       "subtitle": "Threads, denen du folgst",
-      "list_title": "Gefolgte Threads",
       "filter_label": "Threads filtern",
       "filter_all": "Alle",
       "filter_unread": "Ungelesen",

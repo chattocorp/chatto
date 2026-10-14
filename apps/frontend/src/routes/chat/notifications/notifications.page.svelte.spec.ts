@@ -32,6 +32,7 @@ const { mocks } = vi.hoisted(() => ({
     },
     store: {
       isAuthenticated: true,
+      serverInfo: { name: 'Example Chat', iconUrl: null as string | null },
       currentUser: {
         user: {
           settings: null as {
@@ -117,6 +118,13 @@ function page(
     hasMore,
     nextExpiryAt: null
   };
+}
+
+/** Hover titles of the multi-server markers, which name each row's server host. */
+function serverHosts(container: HTMLElement): string {
+  return [...container.querySelectorAll<HTMLElement>('[data-testid="activity-server"]')]
+    .map((marker) => marker.title)
+    .join(' ');
 }
 
 function retainProjection(
@@ -260,10 +268,15 @@ describe('notifications page', () => {
     expect(readRow.classList.contains('bg-attention/5')).toBe(false);
     expect(q(readRow, '[data-testid="notification-unread-dot"]')).toBeNull();
     expect(q(unreadRow, '[data-testid="notification-unread-dot"]')).toBeNull();
-    expect(readTarget.classList.contains('text-muted')).toBe(true);
+    // Read rows stay readable; unread rows stand out through a bold summary.
+    expect(readTarget.classList.contains('text-muted')).toBe(false);
     expect(unreadTarget.classList.contains('text-muted')).toBe(false);
+    expect(q(readContent, 'bdi')?.classList.contains('font-semibold')).toBe(false);
+    expect(q(unreadContent, 'bdi')?.classList.contains('font-semibold')).toBe(true);
     expect(readContent.querySelectorAll(':scope > *')).toHaveLength(2);
     expect(unreadContent.querySelectorAll(':scope > *')).toHaveLength(2);
+    expect(q(container, '[data-testid="activity-server"]')).toBeNull();
+    expect(q(container, '[data-testid="notification-server-name"]')).toBeNull();
   });
 
   it('renders a retained occurrence projection without refetching it', async () => {
@@ -350,7 +363,7 @@ describe('notifications page', () => {
       return element as HTMLElement;
     });
 
-    expect(row.textContent).toContain('Alice replied in a thread you follow.');
+    expect(row.textContent).toContain('Alice replied in a thread you follow');
     expect(row.textContent).not.toContain('Followed threads');
     expect(row.textContent).not.toMatch(/·\s*1\s*·/);
   });
@@ -416,14 +429,12 @@ describe('notifications page', () => {
       return rows[0] as HTMLElement;
     });
 
-    expect(row.textContent).toContain(
-      "Alice and others reacted with '👍 ❤️' to your message in #general."
-    );
+    expect(row.textContent).toContain('Alice and others reacted with 👍 ❤️ to your message');
     expect(row.textContent?.match(/#general/g)).toHaveLength(1);
     expect(row.dataset.notificationAttention).toBe('ambient');
     expect(row.classList.contains('bg-attention/5')).toBe(false);
     expect(q(row, '[data-testid="notification-unread-dot"]')).toBeNull();
-    expect(q(row, '[data-testid="notification-actor-stack"]')?.children).toHaveLength(2);
+    expect(q(row, '[data-testid="activity-badge"]')?.textContent?.trim()).toBe('👍');
   });
 
   it('renders a single reaction as a sentence', async () => {
@@ -454,7 +465,7 @@ describe('notifications page', () => {
       return element as HTMLElement;
     });
 
-    expect(row.textContent).toContain("Bob reacted with '❤️' to your message in #general.");
+    expect(row.textContent).toContain('Bob reacted with ❤️ to your message');
     expect(row.textContent?.match(/#general/g)).toHaveLength(1);
   });
 
@@ -498,9 +509,7 @@ describe('notifications page', () => {
       return element as HTMLElement;
     });
 
-    expect(row.textContent).toContain(
-      "Alice and others reacted with '❤️ 👍' to your message in #general."
-    );
+    expect(row.textContent).toContain('Alice and others reacted with ❤️ 👍 to your message');
     expect(row.textContent).not.toContain('[deleted user] and others');
   });
 
@@ -528,7 +537,10 @@ describe('notifications page', () => {
       expect(container.querySelector('[role="alert"]')).not.toBeNull();
     });
     expect(container.textContent).toContain('Network error. Please try again.');
-    expect(container.textContent).toContain('chat.example.test');
+    const serverMarker = q(container, '[data-testid="activity-server"]') as HTMLElement;
+    expect(serverMarker.title).toBe('Example Chat (chat.example.test)');
+    const row = q(container, '[data-testid="notification-content"]') as HTMLElement;
+    expect(row.textContent?.replace(/\s+/g, ' ')).toContain('#general · Example Chat');
   });
 
   it('does not render a stale notification page for a room behind a privacy boundary', async () => {
@@ -612,7 +624,7 @@ describe('notifications page', () => {
       await vi.waitFor(() => {
         expect(rendered.container.textContent).not.toContain('Alice Example');
         expect(rendered.container.textContent).toContain(
-          "[deleted user] reacted with '❤️' to your message in #general."
+          '[deleted user] reacted with ❤️ to your message'
         );
       });
     } finally {
@@ -968,7 +980,7 @@ describe('notifications page', () => {
     await vi.waitFor(() => {
       expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
     });
-    expect(container.textContent).toContain('chat.example.test');
+    expect(serverHosts(container)).toContain('chat.example.test');
     expect(mocks.store.notifications.deleteOccurrences).toHaveBeenCalledWith(['origin-read'], {
       unread: 0,
       importantUnread: 0

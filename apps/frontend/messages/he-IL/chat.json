@@ -8,7 +8,6 @@
     "notifications": {
       "title": "התראות",
       "subtitle": "הנה מה חדש",
-      "list_title": "פעילות אחרונה",
       "clear_read": "מחיקת הודעות שנקראו",
       "empty_title": "אין התראות",
       "empty_body": "כולכם מדורגים!",
@@ -19,14 +18,14 @@
       "unread": "לא נקרא",
       "activity": "פעילות חדשה",
       "summary": {
-        "direct_message": "קיבלת הודעה ישירה מאת {actor}.",
-        "reaction": "נוספה תגובת „{emoji}” מאת {actor} להודעה שלך ב־{channel}.",
-        "reaction_group": "נוספו תגובות „{emoji}” מאת {actor} ואחרים להודעה שלך ב־{channel}.",
-        "reply": "נוספה תשובה מאת {actor} להודעה שלך.",
-        "mention": "קיבלת אזכור מאת {actor}.",
-        "followed_thread": "נוספה תשובה מאת {actor} בשרשור שבמעקב שלך.",
-        "new_message": "נוספה הודעה חדשה מאת {actor}.",
-        "activity": "קיבלת התראה מאת {actor}."
+        "direct_message": "קיבלת הודעה ישירה מאת {actor}",
+        "reaction": "נוספה תגובת {emoji} מאת {actor} להודעה שלך",
+        "reaction_group": "נוספו תגובות {emoji} מאת {actor} ואחרים להודעה שלך",
+        "reply": "נוספה תשובה מאת {actor} להודעה שלך",
+        "mention": "קיבלת אזכור מאת {actor}",
+        "followed_thread": "נוספה תשובה מאת {actor} בשרשור שבמעקב שלך",
+        "new_message": "נוספה הודעה חדשה מאת {actor}",
+        "activity": "קיבלת התראה מאת {actor}"
       }
     },
     "sign_out": {
@@ -94,7 +93,6 @@
     "threads": {
       "title": "השרשורים שלי",
       "subtitle": "שרשורים שאתה עוקב אחריהם",
-      "list_title": "שרשורים במעקב",
       "filter_label": "חוטי סינון",
       "filter_all": "הכל",
       "filter_unread": "לא נקרא",

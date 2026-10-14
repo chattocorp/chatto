@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Notifications",
       "subtitle": "Here's what's new",
-      "list_title": "Recent activity",
       "clear_read": "Dismiss read",
       "empty_title": "No notifications",
       "empty_body": "You're all caught up!",
@@ -19,14 +18,14 @@
       "unread": "Unread",
       "activity": "New activity",
       "summary": {
-        "direct_message": "{actor} has sent you a direct message.",
-        "reaction": "{actor} reacted with '{emoji}' to your message in {channel}.",
-        "reaction_group": "{actor} and others reacted with '{emoji}' to your message in {channel}.",
-        "reply": "{actor} replied to your message.",
-        "mention": "{actor} mentioned you.",
-        "followed_thread": "{actor} replied in a thread you follow.",
-        "new_message": "{actor} posted a new message.",
-        "activity": "{actor} sent you a notification."
+        "direct_message": "{actor} sent you a direct message",
+        "reaction": "{actor} reacted with {emoji} to your message",
+        "reaction_group": "{actor} and others reacted with {emoji} to your message",
+        "reply": "{actor} replied to your message",
+        "mention": "{actor} mentioned you",
+        "followed_thread": "{actor} replied in a thread you follow",
+        "new_message": "{actor} posted a new message",
+        "activity": "{actor} sent you a notification"
       }
     },
     "sign_out": {
@@ -92,7 +91,6 @@
     "threads": {
       "title": "My Threads",
       "subtitle": "Threads you're following",
-      "list_title": "Followed threads",
       "filter_label": "Filter threads",
       "filter_all": "All",
       "filter_unread": "Unread",

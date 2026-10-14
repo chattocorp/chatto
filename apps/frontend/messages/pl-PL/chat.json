@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Powiadomienia",
       "subtitle": "Oto nowości",
-      "list_title": "Ostatnia aktywność",
       "clear_read": "Usuń przeczytane",
       "empty_title": "Brak powiadomień",
       "empty_body": "Wszyscy jesteście zajęci!",
@@ -19,14 +18,14 @@
       "unread": "Nieprzeczytane",
       "activity": "Nowa aktywność",
       "summary": {
-        "direct_message": "Masz nową wiadomość bezpośrednią od {actor}.",
-        "reaction": "Osoba {actor} zareagowała „{emoji}” na Twoją wiadomość w {channel}.",
-        "reaction_group": "Osoba {actor} i inni zareagowali „{emoji}” na Twoją wiadomość w {channel}.",
-        "reply": "Osoba {actor} odpowiedziała na Twoją wiadomość.",
-        "mention": "Osoba {actor} wspomniała o Tobie.",
-        "followed_thread": "Osoba {actor} odpowiedziała w obserwowanym przez Ciebie wątku.",
-        "new_message": "Osoba {actor} opublikowała nową wiadomość.",
-        "activity": "Masz nowe powiadomienie od {actor}."
+        "direct_message": "Masz nową wiadomość bezpośrednią od {actor}",
+        "reaction": "Osoba {actor} zareagowała {emoji} na Twoją wiadomość",
+        "reaction_group": "Osoba {actor} i inni zareagowali {emoji} na Twoją wiadomość",
+        "reply": "Osoba {actor} odpowiedziała na Twoją wiadomość",
+        "mention": "Osoba {actor} wspomniała o Tobie",
+        "followed_thread": "Osoba {actor} odpowiedziała w obserwowanym przez Ciebie wątku",
+        "new_message": "Osoba {actor} opublikowała nową wiadomość",
+        "activity": "Masz nowe powiadomienie od {actor}"
       }
     },
     "sign_out": {
@@ -96,7 +95,6 @@
     "threads": {
       "title": "Moje wątki",
       "subtitle": "Wątki, które obserwujesz",
-      "list_title": "Obserwowane wątki",
       "filter_label": "Filtruj wątki",
       "filter_all": "Wszystko",
       "filter_unread": "Nieprzeczytane",

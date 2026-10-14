@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Sciigoj",
       "subtitle": "Jen kio estas nova",
-      "list_title": "Lasta aktiveco",
       "clear_read": "Forigi legitajn",
       "empty_title": "Neniuj sciigoj",
       "empty_body": "Vi ĉiuj estas kaptitaj!",
@@ -19,14 +18,14 @@
       "unread": "Nelegite",
       "activity": "Nova aktiveco",
       "summary": {
-        "direct_message": "{actor} sendis al vi rektan mesaĝon.",
-        "reaction": "{actor} reagis per «{emoji}» al via mesaĝo en {channel}.",
-        "reaction_group": "{actor} kaj aliaj reagis per «{emoji}» al via mesaĝo en {channel}.",
-        "reply": "{actor} respondis al via mesaĝo.",
-        "mention": "{actor} menciis vin.",
-        "followed_thread": "{actor} respondis en fadeno, kiun vi sekvas.",
-        "new_message": "{actor} afiŝis novan mesaĝon.",
-        "activity": "{actor} sendis al vi sciigon."
+        "direct_message": "{actor} sendis al vi rektan mesaĝon",
+        "reaction": "{actor} reagis per {emoji} al via mesaĝo",
+        "reaction_group": "{actor} kaj aliaj reagis per {emoji} al via mesaĝo",
+        "reply": "{actor} respondis al via mesaĝo",
+        "mention": "{actor} menciis vin",
+        "followed_thread": "{actor} respondis en fadeno, kiun vi sekvas",
+        "new_message": "{actor} afiŝis novan mesaĝon",
+        "activity": "{actor} sendis al vi sciigon"
       }
     },
     "sign_out": {
@@ -92,7 +91,6 @@
     "threads": {
       "title": "Miaj Fadenoj",
       "subtitle": "Fadenoj, kiujn vi sekvas",
-      "list_title": "Sekvataj fadenoj",
       "filter_label": "Filtri fadenojn",
       "filter_all": "Ĉiuj",
       "filter_unread": "Nelegita",

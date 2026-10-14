@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Notificaciones",
       "subtitle": "Esto es lo nuevo",
-      "list_title": "Actividad reciente",
       "clear_read": "Borrar leídas",
       "empty_title": "Sin notificaciones",
       "empty_body": "¡Están todos atrapados!",
@@ -19,14 +18,14 @@
       "unread": "No leído",
       "activity": "Actividad nueva",
       "summary": {
-        "direct_message": "{actor} te ha enviado un mensaje directo.",
-        "reaction": "{actor} ha reaccionado con «{emoji}» a tu mensaje en {channel}.",
-        "reaction_group": "{actor} y otras personas han reaccionado con «{emoji}» a tu mensaje en {channel}.",
-        "reply": "{actor} ha respondido a tu mensaje.",
-        "mention": "{actor} te ha mencionado.",
-        "followed_thread": "{actor} ha respondido en un hilo que sigues.",
-        "new_message": "{actor} ha publicado un mensaje nuevo.",
-        "activity": "{actor} te ha enviado una notificación."
+        "direct_message": "{actor} te ha enviado un mensaje directo",
+        "reaction": "{actor} ha reaccionado con {emoji} a tu mensaje",
+        "reaction_group": "{actor} y otras personas han reaccionado con {emoji} a tu mensaje",
+        "reply": "{actor} ha respondido a tu mensaje",
+        "mention": "{actor} te ha mencionado",
+        "followed_thread": "{actor} ha respondido en un hilo que sigues",
+        "new_message": "{actor} ha publicado un mensaje nuevo",
+        "activity": "{actor} te ha enviado una notificación"
       }
     },
     "sign_out": {
@@ -92,7 +91,6 @@
     "threads": {
       "title": "Mis hilos",
       "subtitle": "Temas que estás siguiendo",
-      "list_title": "Hilos seguidos",
       "filter_label": "Filtrar hilos",
       "filter_all": "Todos",
       "filter_unread": "No leído",
