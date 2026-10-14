@@ -401,3 +401,34 @@ func TestRBACProjectionEmptyIssuerOwnsNothing(t *testing.T) {
 		t.Fatalf("ProviderAssignments with empty issuer = %v, want none", roles)
 	}
 }
+
+// A legacy link with only a subject hash gets its issuer at the first sync,
+// so it keeps the provider roles and an unlink revokes them.
+func TestSyncProviderGroupRolesCompletesLegacyHashOnlyLink(t *testing.T) {
+	t.Parallel()
+	core := setupGroupRolesCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "hash-only", "Hash Only", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash := externalIdentityHash(testIssuers["company"], "hash-only")
+	legacy := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_UserOidcSubjectLinked{
+		UserOidcSubjectLinked: &evtv1.UserOIDCSubjectLinkedEvent{UserId: user.Id, SubjectHash: hash},
+	}})
+	if _, err := core.appendUserEvent(ctx, user.Id, legacy, "", nil); err != nil {
+		t.Fatal(err)
+	}
+	mappings, _ := config.ParseGroupRoles(testGroupRoles["company"])
+	source := ProviderRoleSource{ProviderID: "company", Issuer: testIssuers["company"], Subject: "hash-only"}
+	for range 2 {
+		if err := core.SyncProviderGroupRoles(ctx, user.Id, source, mappings, ProviderGroups{Groups: []string{"chat-mods"}, Known: true}); err != nil {
+			t.Fatal(err)
+		}
+		requireRoles(t, core, user.Id, map[string]bool{RoleModerator: true})
+	}
+	if err := core.DisconnectExternalIdentity(ctx, user.Id, hash); err != nil {
+		t.Fatal(err)
+	}
+	requireRoles(t, core, user.Id, map[string]bool{RoleModerator: false})
+}

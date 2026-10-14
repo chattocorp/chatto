@@ -410,7 +410,10 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 		}
 		// A user who may not sign in through the provider must not keep the
 		// roles that it gave. The sign-in stays denied, also when this fails.
-		if user, err := s.core.GetUserByExternalIdentity(ctx, identity.issuer, identity.subject); err == nil && user != nil {
+		user, err := s.core.GetUserByExternalIdentity(ctx, identity.issuer, identity.subject)
+		if err != nil {
+			log.Error("Failed to lookup user for provider group role revocation", "provider_id", providerRuntime.config.ID, "error", err)
+		} else if user != nil {
 			if err := s.core.RevokeProviderGroupRoles(ctx, user.Id, core.ProviderRoleSource{ProviderID: providerRuntime.config.ID, Issuer: identity.issuer}); err != nil {
 				log.Error("Provider group role revocation failed after denied sign-in", "provider_id", providerRuntime.config.ID, "userId", user.Id, "error", err)
 			}
@@ -436,7 +439,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 			return
 		}
 		// The link is committed. A failed sync is repeated at the next sign-in.
-		if err := s.core.SyncProviderGroupRoles(ctx, linkUserID, core.ProviderRoleSource{ProviderID: providerRuntime.config.ID, Issuer: identity.issuer}, providerRuntime.config.GroupRoleMappings(), identity.groups); err != nil {
+		if err := s.core.SyncProviderGroupRoles(ctx, linkUserID, core.ProviderRoleSource{ProviderID: providerRuntime.config.ID, Issuer: identity.issuer, Subject: identity.subject}, providerRuntime.config.GroupRoleMappings(), identity.groups); err != nil {
 			log.Warn("Provider group role sync failed after link", "provider_id", providerRuntime.config.ID, "userId", linkUserID, "error", err)
 		}
 		c.Redirect(http.StatusTemporaryRedirect, providerReturnPath(session, "/"))
@@ -459,7 +462,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 
 	// Sync before the session exists, so a failed revocation cannot leave a
 	// signed-in user with a role that the provider removed.
-	if err := s.core.SyncProviderGroupRoles(ctx, user.Id, core.ProviderRoleSource{ProviderID: providerRuntime.config.ID, Issuer: identity.issuer}, providerRuntime.config.GroupRoleMappings(), identity.groups); err != nil {
+	if err := s.core.SyncProviderGroupRoles(ctx, user.Id, core.ProviderRoleSource{ProviderID: providerRuntime.config.ID, Issuer: identity.issuer, Subject: identity.subject}, providerRuntime.config.GroupRoleMappings(), identity.groups); err != nil {
 		log.Error("Provider group role sync failed", "provider_id", providerRuntime.config.ID, "userId", user.Id, "error", err)
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
 		return
