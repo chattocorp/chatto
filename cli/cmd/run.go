@@ -103,6 +103,9 @@ func runServer(configPath string) {
 	}
 
 	configureLogging(cfg.General)
+	if cfg.Video.MaxUploadSize > 0 {
+		log.Warn("video.max_upload_size / CHATTO_VIDEO_MAX_UPLOAD_SIZE is deprecated; the larger upload limit now applies to all files. Set core.assets.max_upload_size / CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE and remove the video size setting")
+	}
 	log.Info("Starting Chatto", "version", Version)
 	if shouldPrintBanner(cfg.General.LogFormat, isLogOutputTerminal()) {
 		printBanner()
@@ -184,11 +187,7 @@ func runServer(configPath string) {
 		exitCode = 1
 		return
 	}
-	// Set video upload limit if video processing is enabled
-	if cfg.Video.Enabled {
-		chattoCore.VideoMaxUploadSize = int64(cfg.Video.MaxUploadSizeOrDefault())
-		chattoCore.VideoUploadsEnabled = true
-	}
+	chattoCore.VideoUploadsEnabled = cfg.Video.Enabled
 
 	chattoCore.ConfigureLiveKitDiagnostics(cfg.LiveKit, cfg.Webserver.URL)
 	if err := chattoCore.EnableLiveKitCallReconciliation(cfg.LiveKit); err != nil {

@@ -27,8 +27,7 @@ describe('AttachmentsState', () => {
   beforeEach(() => {
     limits = {
       videoProcessingEnabled: false,
-      maxUploadSize: 25 * 1024 * 1024,
-      maxVideoUploadSize: 25 * 1024 * 1024
+      maxUploadSize: 25 * 1024 * 1024
     };
     state = new AttachmentsState(() => limits);
     toast.clear();
@@ -111,10 +110,9 @@ describe('AttachmentsState', () => {
     expect(prepareFilesMock).not.toHaveBeenCalled();
   });
 
-  it('uses the video-specific upload limit for videos', async () => {
+  it('uses the general upload limit for videos', async () => {
     limits.videoProcessingEnabled = true;
-    limits.maxUploadSize = 10;
-    limits.maxVideoUploadSize = 1;
+    limits.maxUploadSize = 1;
 
     await state.stageFiles([videoFile('too-large.mp4', 2)]);
 
@@ -125,6 +123,18 @@ describe('AttachmentsState', () => {
     ).toContain('too-large.mp4 is too large');
     expect(state.filesWithUrls).toEqual([]);
     expect(prepareFilesMock).not.toHaveBeenCalled();
+  });
+
+  it('accepts GIFs and videos at the same limit and rejects both above it', () => {
+    limits.videoProcessingEnabled = true;
+    limits.maxUploadSize = 10;
+    const gif = new File([new Uint8Array(10)], 'animation.gif', { type: 'image/gif' });
+    const video = videoFile('clip.mp4', 10);
+    const largeGif = new File([new Uint8Array(11)], 'large.gif', { type: 'image/gif' });
+    const largeVideo = videoFile('large.mp4', 11);
+
+    expect(state.validateFiles([gif, video, largeGif, largeVideo])).toEqual([gif, video]);
+    expect(getToasts()).toHaveLength(2);
   });
 
   it('clears staged object URLs', async () => {

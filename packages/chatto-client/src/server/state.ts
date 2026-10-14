@@ -151,16 +151,15 @@ export class ServerInfoState {
     return this.#runtime?.videoProcessingEnabled ?? false;
   }
 
-  /** Largest upload in bytes. Default: 25 MB. */
+  /** Largest upload in bytes for all files, including GIFs and videos. Default: 25 MB. */
   get maxUploadSize(): number {
     const runtime = this.#runtime;
     return runtime ? Number(runtime.maxUploadSize) : DEFAULT_MAX_UPLOAD_SIZE;
   }
 
-  /** Largest video upload in bytes. Default: 25 MB. */
+  /** @deprecated Use maxUploadSize. This alias has the same value. */
   get maxVideoUploadSize(): number {
-    const runtime = this.#runtime;
-    return runtime ? Number(runtime.maxVideoUploadSize) : DEFAULT_MAX_UPLOAD_SIZE;
+    return this.maxUploadSize;
   }
 
   /** How long after posting a message can be edited. Default: 3 hours. */

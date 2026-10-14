@@ -1320,8 +1320,8 @@ Authenticated server runtime settings used by clients.
 | `vapid_public_key` | `optional string` | Optional VAPID public key for Web Push registration. |
 | `livekit_url` | `optional string` | Optional LiveKit URL for voice and video calls. |
 | `video_processing_enabled` | `bool` | Whether video processing is enabled. |
-| `max_upload_size` | `int64` | Maximum general upload size in bytes. |
-| `max_video_upload_size` | `int64` | Maximum video upload size in bytes. |
+| `max_upload_size` | `int64` | Maximum upload size in bytes for all files, including GIFs and videos. |
+| `max_video_upload_size` | `int64` | **Deprecated.** Deprecated alias of max_upload_size. Both fields have the same value. |
 | `message_edit_window_seconds` | `int32` | Message edit window in seconds. |
 
 <a id="chatto-api-v1-FollowedThread"></a>

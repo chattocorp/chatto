@@ -8,8 +8,55 @@ import (
 	"testing"
 	"time"
 
+	"github.com/c2h5oh/datasize"
 	"github.com/pelletier/go-toml/v2"
 )
+
+func TestReadConfigUnifiedUploadLimit(t *testing.T) {
+	for _, tc := range []struct {
+		name, toml, generalEnv, videoEnv string
+		want                             datasize.ByteSize
+		videoEnabled                     bool
+	}{
+		{name: "new default", want: 0},
+		{name: "enabled video has no separate default", toml: "[video]\nenabled=true", want: 0, videoEnabled: true},
+		{name: "general only", generalEnv: "10MB", want: 10 * datasize.MB},
+		{name: "legacy larger", generalEnv: "10MB", videoEnv: "100MB", want: 100 * datasize.MB},
+		{name: "general larger", generalEnv: "200MB", videoEnv: "100MB", want: 200 * datasize.MB},
+		{name: "legacy with absent general", videoEnv: "100MB", want: 100 * datasize.MB},
+		{name: "legacy below default", videoEnv: "1MB", want: 25 * 1024 * 1024},
+		{name: "TOML legacy", toml: "[core.assets]\nmax_upload_size='10MB'\n[video]\nenabled=true\nmax_upload_size='100MB'", want: 100 * datasize.MB, videoEnabled: true},
+		{name: "ENV overrides legacy TOML", toml: "[video]\nmax_upload_size='100MB'", generalEnv: "10MB", videoEnv: "50MB", want: 50 * datasize.MB},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			validCheckEnvironment(t)
+			t.Chdir(t.TempDir())
+			if err := os.WriteFile("chatto.toml", []byte(tc.toml), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if tc.generalEnv != "" {
+				t.Setenv("CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE", tc.generalEnv)
+			}
+			if tc.videoEnv != "" {
+				t.Setenv("CHATTO_VIDEO_MAX_UPLOAD_SIZE", tc.videoEnv)
+			}
+			cfg, err := ReadConfig("")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cfg.Core.Assets.MaxUploadSize != tc.want {
+				t.Fatalf("upload limit = %d, want %d", cfg.Core.Assets.MaxUploadSize, tc.want)
+			}
+			if cfg.Video.Enabled != tc.videoEnabled {
+				t.Fatalf("video enabled = %v, want %v", cfg.Video.Enabled, tc.videoEnabled)
+			}
+			cfg.ApplyDefaults()
+			if cfg.Core.Assets.MaxUploadSize != tc.want {
+				t.Fatal("defaults changed the limit on a second call")
+			}
+		})
+	}
+}
 
 func TestReadConfig_ShieldsEnabledFromEnv(t *testing.T) {
 	tmpDir := t.TempDir()

@@ -198,9 +198,11 @@ type ServerRuntimeConfig struct {
 	LivekitUrl *string `protobuf:"bytes,3,opt,name=livekit_url,json=livekitUrl,proto3,oneof" json:"livekit_url,omitempty"`
 	// Whether video processing is enabled.
 	VideoProcessingEnabled bool `protobuf:"varint,5,opt,name=video_processing_enabled,json=videoProcessingEnabled,proto3" json:"video_processing_enabled,omitempty"`
-	// Maximum general upload size in bytes.
+	// Maximum upload size in bytes for all files, including GIFs and videos.
 	MaxUploadSize int64 `protobuf:"varint,6,opt,name=max_upload_size,json=maxUploadSize,proto3" json:"max_upload_size,omitempty"`
-	// Maximum video upload size in bytes.
+	// Deprecated alias of max_upload_size. Both fields have the same value.
+	//
+	// Deprecated: Marked as deprecated in chatto/api/v1/server_state.proto.
 	MaxVideoUploadSize int64 `protobuf:"varint,7,opt,name=max_video_upload_size,json=maxVideoUploadSize,proto3" json:"max_video_upload_size,omitempty"`
 	// Message edit window in seconds.
 	MessageEditWindowSeconds int32 `protobuf:"varint,8,opt,name=message_edit_window_seconds,json=messageEditWindowSeconds,proto3" json:"message_edit_window_seconds,omitempty"`
@@ -273,6 +275,7 @@ func (x *ServerRuntimeConfig) GetMaxUploadSize() int64 {
 	return 0
 }
 
+// Deprecated: Marked as deprecated in chatto/api/v1/server_state.proto.
 func (x *ServerRuntimeConfig) GetMaxVideoUploadSize() int64 {
 	if x != nil {
 		return x.MaxVideoUploadSize
@@ -381,15 +384,15 @@ const file_chatto_api_v1_server_state_proto_rawDesc = "" +
 	"\x0eGetMotdRequest\"3\n" +
 	"\x0fGetMotdResponse\x12\x17\n" +
 	"\x04motd\x18\x01 \x01(\tH\x00R\x04motd\x88\x01\x01B\a\n" +
-	"\x05_motd\"\xc4\x03\n" +
+	"\x05_motd\"\xc8\x03\n" +
 	"\x13ServerRuntimeConfig\x12<\n" +
 	"\x1apush_notifications_enabled\x18\x01 \x01(\bR\x18pushNotificationsEnabled\x12-\n" +
 	"\x10vapid_public_key\x18\x02 \x01(\tH\x00R\x0evapidPublicKey\x88\x01\x01\x12$\n" +
 	"\vlivekit_url\x18\x03 \x01(\tH\x01R\n" +
 	"livekitUrl\x88\x01\x01\x128\n" +
 	"\x18video_processing_enabled\x18\x05 \x01(\bR\x16videoProcessingEnabled\x12&\n" +
-	"\x0fmax_upload_size\x18\x06 \x01(\x03R\rmaxUploadSize\x121\n" +
-	"\x15max_video_upload_size\x18\a \x01(\x03R\x12maxVideoUploadSize\x12=\n" +
+	"\x0fmax_upload_size\x18\x06 \x01(\x03R\rmaxUploadSize\x125\n" +
+	"\x15max_video_upload_size\x18\a \x01(\x03B\x02\x18\x01R\x12maxVideoUploadSize\x12=\n" +
 	"\x1bmessage_edit_window_seconds\x18\b \x01(\x05R\x18messageEditWindowSecondsB\x13\n" +
 	"\x11_vapid_public_keyB\x0e\n" +
 	"\f_livekit_urlJ\x04\b\x04\x10\x05R\x1bdirect_registration_enabled\"\x19\n" +

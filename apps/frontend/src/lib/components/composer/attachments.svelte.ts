@@ -1,14 +1,14 @@
 import { toast } from '$lib/ui/toast';
 import { m } from '$lib/i18n/messages';
 import { prepareFiles } from '$lib/attachments/prepareFiles';
+import {
+  attachmentUploadRejection,
+  type AttachmentUploadLimits
+} from '@chatto/client/util/attachmentUpload';
 
 export type FileWithUrl = { file: File; url: string; description: string };
 
-export type AttachmentLimits = {
-  videoProcessingEnabled: boolean;
-  maxUploadSize: number;
-  maxVideoUploadSize: number;
-};
+export type AttachmentLimits = AttachmentUploadLimits;
 
 export function formatFileSize(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
@@ -40,14 +40,14 @@ export class AttachmentsState {
     const limits = this.getLimits();
     const accepted: File[] = [];
     for (const file of files) {
-      const isVideo = file.type.startsWith('video/');
-      if (isVideo && !limits.videoProcessingEnabled) {
+      const rejection = attachmentUploadRejection(file, limits);
+      if (rejection === 'video_disabled') {
         toast.error(m('composer.upload.video_disabled'));
         continue;
       }
 
-      const limit = isVideo ? limits.maxVideoUploadSize : limits.maxUploadSize;
-      if (file.size > limit) {
+      const limit = limits.maxUploadSize;
+      if (rejection === 'too_large') {
         toast.error(
           m('composer.upload.too_large', {
             filename: file.name,

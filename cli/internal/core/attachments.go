@@ -144,9 +144,6 @@ func (c *MediaModel) uploadAttachmentBinary(
 	} else {
 		assetsCfg := c.AssetsConfig()
 		maxSize := assetsCfg.MaxUploadSize
-		if strings.HasPrefix(contentType, "video/") && c.VideoMaxUploadSize > 0 {
-			maxSize = c.VideoMaxUploadSize
-		}
 		var err error
 		content, err = io.ReadAll(io.LimitReader(reader, maxSize+1))
 		if err != nil {

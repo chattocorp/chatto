@@ -54,15 +54,11 @@ func (s *serverService) GetRuntimeConfig(ctx context.Context, _ *connect.Request
 
 func serverRuntimeConfig(api *API) *apiv1.ServerRuntimeConfig {
 	maxUploadSize := api.core.AssetsConfig().MaxUploadSize
-	maxVideoUploadSize := maxUploadSize
-	if api.config.Video.Enabled {
-		maxVideoUploadSize = int64(api.config.Video.MaxUploadSizeOrDefault())
-	}
 	runtime := &apiv1.ServerRuntimeConfig{
 		PushNotificationsEnabled: api.config.Push.IsConfigured(),
 		VideoProcessingEnabled:   api.config.Video.Enabled,
 		MaxUploadSize:            maxUploadSize,
-		MaxVideoUploadSize:       maxVideoUploadSize,
+		MaxVideoUploadSize:       maxUploadSize,
 		MessageEditWindowSeconds: int32(core.MessageEditWindow / time.Second),
 	}
 	if api.config.Push.IsConfigured() {

@@ -82,11 +82,6 @@ type ChattoCore struct {
 	natsRecoveryStartedAt     atomic.Int64
 	natsRecoveredReconnects   atomic.Uint64
 
-	// VideoMaxUploadSize is the maximum size for video uploads in bytes.
-	// When set (> 0), video attachments use this limit instead of the asset limit.
-	// Set this after ChattoCore is created, from VideoConfig.
-	VideoMaxUploadSize int64
-
 	// VideoUploadsEnabled makes message commits enqueue durable processing work
 	// for accepted video-shaped attachments. Worker placement is configured
 	// independently; the main process does not hand work to a local callback.
