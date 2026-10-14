@@ -56,9 +56,19 @@ management in Chatto.
   it and logs a warning with only the provider ID and the role name.
 - **Configuration changes** — a changed mapping takes effect for each user at
   their next sign-in through the provider. When an operator removes a role from
-  the mapping, the role becomes an ordinary role, and its current members keep
-  it. Assignments that existed before a role was mapped count as admin
-  assignments, so the provider never removes them.
+  the mapping, sync no longer changes that role, and its current members keep
+  it. Chatto still remembers which assignments the provider created. If the
+  operator maps the role again, or the user's sign-in is denied, those
+  assignments can still be removed. Assignments that existed before a role was
+  mapped count as admin assignments, so the provider never removes them.
+- **Provider ID** — Chatto records the provider `id` as the owner of each
+  assignment that the provider created. Keep the `id` stable. After a change of
+  the `id`, the provider no longer removes the assignments of the old `id`;
+  admins remove them by hand.
+- **Unlinking** — when a user unlinks the last identity of a provider from
+  their account, Chatto removes the roles that the provider gave. Otherwise the
+  account could keep them after the identity moves to another account, and
+  later group changes would never reach it. Admin assignments stay.
 - **Revocation delay** — Chatto learns about group changes only at sign-in.
   When the identity provider removes a user from a group, the user keeps the
   role until their next sign-in through the provider. Existing sessions keep
