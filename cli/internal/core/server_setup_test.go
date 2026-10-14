@@ -63,14 +63,11 @@ func TestServerSetupLifecycle(t *testing.T) {
 func TestServerSetupConcurrentReplicas(t *testing.T) {
 	t.Parallel()
 
-	first, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	first := startReplica(t, ns, testCoreConfig())
 	first.config.SkipSetupWizard = false
 	ctx := testContext(t)
-	second, err := NewChattoCore(ctx, nc, first.config)
-	if err != nil {
-		t.Fatal(err)
-	}
-	startCoreServices(t, second)
+	second := startReplica(t, ns, first.config)
 	var wg sync.WaitGroup
 	results := make(chan error, 2)
 	for i, c := range []*ChattoCore{first, second} {

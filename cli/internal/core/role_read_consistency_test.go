@@ -7,12 +7,14 @@ import (
 	"time"
 
 	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 func TestRoleReadsWaitForAnotherReplica(t *testing.T) {
 	t.Parallel()
 
-	primary, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	primary := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
 	if _, err := primary.CreateServerRole(ctx, SystemActorID, "helper", "Fresh name", ""); err != nil {
 		t.Fatal(err)
@@ -24,7 +26,7 @@ func TestRoleReadsWaitForAnotherReplica(t *testing.T) {
 	if err := primary.AssignServerRole(ctx, SystemActorID, viewer.Id, "helper"); err != nil {
 		t.Fatal(err)
 	}
-	replica, err := NewChattoCore(ctx, nc, config.CoreConfig{
+	replica, err := NewChattoCore(ctx, newReplicaConn(t, ns), config.CoreConfig{
 		SecretKey: "test-core-secret",
 		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
 	})
