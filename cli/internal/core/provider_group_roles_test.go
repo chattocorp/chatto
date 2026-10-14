@@ -268,3 +268,86 @@ func TestReservedGroupRolesMatchCoreRoles(t *testing.T) {
 		t.Fatal("config reserved group roles do not match core role names")
 	}
 }
+
+func TestUnlinkingLastProviderIdentityRevokesProviderRoles(t *testing.T) {
+	t.Parallel()
+	for _, admin := range []bool{false, true} {
+		t.Run(map[bool]string{false: "self", true: "operator"}[admin], func(t *testing.T) {
+			t.Parallel()
+			core := setupGroupRolesCore(t)
+			ctx := testContext(t)
+			user, err := core.CreateUser(ctx, SystemActorID, "unlinking-member", "Unlinking Member", "password123")
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, subject := range []string{"first", "second"} {
+				if err := core.LinkExternalIdentity(ctx, "company", config.AuthProviderTypeOpenIDConnect, "https://id.example", subject, user.Id); err != nil {
+					t.Fatal(err)
+				}
+			}
+			syncGroups(t, core, user.Id, "company", "chat-mods")
+			if err := core.AssignServerRole(ctx, SystemActorID, user.Id, "helper"); err != nil {
+				t.Fatal(err)
+			}
+			unlink := func(subject string) {
+				t.Helper()
+				hash := externalIdentityHash("https://id.example", subject)
+				var err error
+				if admin {
+					err = core.DisconnectExternalIdentityAs(ctx, SystemActorID, user.Id, hash, ExternalIdentitySignInPolicy{PasswordLoginEnabled: true})
+				} else {
+					err = core.DisconnectExternalIdentity(ctx, user.Id, hash)
+				}
+				if err != nil {
+					t.Fatalf("unlink %s: %v", subject, err)
+				}
+			}
+			// Another identity of the provider remains, so the role stays.
+			unlink("first")
+			requireRoles(t, core, user.Id, map[string]bool{RoleModerator: true, "helper": true})
+			// The last identity goes, so the provider role goes. The admin role stays.
+			unlink("second")
+			requireRoles(t, core, user.Id, map[string]bool{RoleModerator: false, "helper": true})
+		})
+	}
+}
+
+func TestAdminReassignmentAfterRevokeIsAdminOwned(t *testing.T) {
+	t.Parallel()
+	core := setupGroupRolesCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "reassigned-member", "Reassigned Member", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	syncGroups(t, core, user.Id, "company", "chat-mods")
+	if err := core.RevokeServerRole(ctx, SystemActorID, user.Id, RoleModerator); err != nil {
+		t.Fatal(err)
+	}
+	if err := core.AssignServerRole(ctx, SystemActorID, user.Id, RoleModerator); err != nil {
+		t.Fatal(err)
+	}
+	syncGroups(t, core, user.Id, "company")
+	requireRoles(t, core, user.Id, map[string]bool{RoleModerator: true})
+}
+
+func TestRBACProjectionRoleDeletionClearsAssignmentOwner(t *testing.T) {
+	t.Parallel()
+	projection := NewRBACProjection()
+	provider := &evtv1.RbacRoleChangeReason{Reason: &evtv1.RbacRoleChangeReason_ProviderGroups{ProviderGroups: &evtv1.RbacProviderGroupsReason{ProviderId: "company"}}}
+	events := []*evtv1.Event{
+		{Event: &evtv1.Event_RbacRoleCreated{RbacRoleCreated: &evtv1.RbacRoleCreatedEvent{RoleName: "helper"}}},
+		{Event: &evtv1.Event_RbacRoleAssigned{RbacRoleAssigned: &evtv1.RbacRoleAssignedEvent{UserId: "U1", RoleName: "helper", Reason: provider}}},
+		{Event: &evtv1.Event_RbacRoleDeleted{RbacRoleDeleted: &evtv1.RbacRoleDeletedEvent{RoleName: "helper"}}},
+		{Event: &evtv1.Event_RbacRoleCreated{RbacRoleCreated: &evtv1.RbacRoleCreatedEvent{RoleName: "helper"}}},
+		{Event: &evtv1.Event_RbacRoleAssigned{RbacRoleAssigned: &evtv1.RbacRoleAssignedEvent{UserId: "U1", RoleName: "helper"}}},
+	}
+	for i, event := range events {
+		if err := projection.Apply(newEvent(SystemActorID, event), uint64(i+1)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if owner, assigned := projection.AssignmentProvider("U1", "helper"); !assigned || owner != "" {
+		t.Fatalf("owner = %q, %v; want admin assignment after recreation", owner, assigned)
+	}
+}

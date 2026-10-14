@@ -395,8 +395,21 @@ func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, us
 			PreserveExistingCredentials: true,
 		},
 	}})
+	// Revoke the provider's group roles before the unlink when it removes the
+	// last identity of that provider. A failure then leaves the link in place
+	// for a retry. The check after the unlink catches a concurrent sign-in
+	// that gave a role again. If the unlink is then refused, the next sign-in
+	// through the provider gives the roles again.
+	for _, identity := range c.userModel.externalIdentities(userID) {
+		if identity.SubjectHash == subjectHash && !hasOtherProviderIdentity(c.userModel.externalIdentities(userID), identity) {
+			if err := c.RevokeProviderGroupRoles(ctx, userID, identity.ProviderID); err != nil {
+				return fmt.Errorf("revoke group roles of unlinked provider: %w", err)
+			}
+		}
+	}
 	// Check the account after appendUserEvent's projection wait, so a replica
 	// that has not yet applied the user's creation does not reject it.
+	var unlinked ExternalIdentity
 	_, err := c.appendUserEvent(ctx, userID, event, evtstream.UserSubjectFilter(), func() error {
 		if err := c.requireHumanUser(ctx, userID); err != nil {
 			return err
@@ -407,6 +420,7 @@ func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, us
 		for _, identity := range identities {
 			if identity.SubjectHash == subjectHash {
 				found = true
+				unlinked = identity
 				continue
 			}
 			if policy == nil || policy.AllowsIdentity(identity) {
@@ -426,5 +440,32 @@ func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, us
 	if err != nil {
 		return err
 	}
+	return c.revokeRolesOfUnlinkedProvider(ctx, userID, unlinked.ProviderID)
+}
+
+// revokeRolesOfUnlinkedProvider revokes the group roles that providerID gave
+// the user when the user has no other identity of that provider. Otherwise
+// the account could keep the roles after its identity moved to another
+// account, and later group changes at the provider would never reach it.
+func (c *ChattoCore) revokeRolesOfUnlinkedProvider(ctx context.Context, userID, providerID string) error {
+	if providerID == "" {
+		return nil
+	}
+	for _, identity := range c.userModel.externalIdentities(userID) {
+		if identity.ProviderID == providerID {
+			return nil
+		}
+	}
+	if err := c.RevokeProviderGroupRoles(ctx, userID, providerID); err != nil {
+		return fmt.Errorf("revoke group roles of unlinked provider: %w", err)
+	}
 	return nil
+}
+
+// hasOtherProviderIdentity reports whether identities contain another
+// identity of the same provider as identity.
+func hasOtherProviderIdentity(identities []ExternalIdentity, identity ExternalIdentity) bool {
+	return slices.ContainsFunc(identities, func(other ExternalIdentity) bool {
+		return other.ProviderID == identity.ProviderID && other.SubjectHash != identity.SubjectHash
+	})
 }

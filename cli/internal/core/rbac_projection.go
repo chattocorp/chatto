@@ -436,6 +436,21 @@ func (p *RBACProjection) HasRole(userID, roleName string) bool {
 	return ok
 }
 
+// ProviderAssignments returns the sorted role names of the user's assignments
+// that the auth provider providerID owns.
+func (p *RBACProjection) ProviderAssignments(userID, providerID string) []string {
+	p.RLock()
+	defer p.RUnlock()
+	var roleNames []string
+	for roleName, owner := range p.assignments[userID] {
+		if owner == providerID {
+			roleNames = append(roleNames, roleName)
+		}
+	}
+	sort.Strings(roleNames)
+	return roleNames
+}
+
 // AssignmentProvider returns the ID of the auth provider that owns the user's
 // assignment of roleName. It is empty for an admin or configuration
 // assignment. assigned is false when the user does not have the role.

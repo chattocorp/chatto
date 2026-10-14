@@ -44,6 +44,10 @@ func (m *RBACModel) assignmentProvider(userID, roleName string) (string, bool) {
 	return m.rbac.Projection().AssignmentProvider(userID, roleName)
 }
 
+func (m *RBACModel) providerAssignments(userID, providerID string) []string {
+	return m.rbac.Projection().ProviderAssignments(userID, providerID)
+}
+
 func (m *RBACModel) roleUsers(roleName string) []string {
 	return m.rbac.Projection().GetRoleUsers(roleName)
 }

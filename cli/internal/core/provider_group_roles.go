@@ -17,6 +17,37 @@ type ProviderGroups struct {
 	Known  bool
 }
 
+// providerGroupsReason is the change reason for group role sync by providerID.
+func providerGroupsReason(providerID string) *evtv1.RbacRoleChangeReason {
+	return &evtv1.RbacRoleChangeReason{Reason: &evtv1.RbacRoleChangeReason_ProviderGroups{
+		ProviderGroups: &evtv1.RbacProviderGroupsReason{ProviderId: providerID},
+	}}
+}
+
+// providerRoleRevokedEntry returns a revocation of a provider-owned role.
+func providerRoleRevokedEntry(userID, roleName, providerID string) evtstream.BatchEntry {
+	event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleRevoked{
+		RbacRoleRevoked: &evtv1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName, Reason: providerGroupsReason(providerID)},
+	}})
+	return evtstream.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event}
+}
+
+// RevokeProviderGroupRoles revokes every assignment of the user that the auth
+// provider providerID owns, whatever its current mapping. Chatto calls it when
+// the user may no longer sign in through the provider, or no longer has an
+// identity of it, so the user keeps no authority from the provider (FDR-050).
+// Admin and configuration assignments stay.
+func (c *ChattoCore) RevokeProviderGroupRoles(ctx context.Context, userID, providerID string) error {
+	_, err := c.appendComputedRBACBatch(ctx, func() ([]evtstream.BatchEntry, error) {
+		var entries []evtstream.BatchEntry
+		for _, roleName := range c.rbacModel.providerAssignments(userID, providerID) {
+			entries = append(entries, providerRoleRevokedEntry(userID, roleName, providerID))
+		}
+		return entries, nil
+	})
+	return err
+}
+
 // SyncProviderGroupRoles applies mappings, the group_roles mapping of the
 // provider providerID, to a user after a verified sign-in, identity link, or account creation through
 // that provider (FDR-050). It assigns each mapped role that the user's groups
@@ -39,9 +70,7 @@ func (c *ChattoCore) SyncProviderGroupRoles(ctx context.Context, userID, provide
 		wanted[mapping.Role] = wanted[mapping.Role] || slices.Contains(groups.Groups, mapping.Group)
 	}
 	roleNames := sortedMapKeys(wanted)
-	reason := &evtv1.RbacRoleChangeReason{Reason: &evtv1.RbacRoleChangeReason_ProviderGroups{
-		ProviderGroups: &evtv1.RbacProviderGroupsReason{ProviderId: providerID},
-	}}
+	reason := providerGroupsReason(providerID)
 
 	var missingRoles []string
 	if _, err := c.appendComputedRBACBatch(ctx, func() ([]evtstream.BatchEntry, error) {
@@ -59,20 +88,15 @@ func (c *ChattoCore) SyncProviderGroupRoles(ctx context.Context, userID, provide
 				continue
 			}
 			owner, assigned := c.rbacModel.assignmentProvider(userID, roleName)
-			var event *evtv1.Event
 			switch {
 			case wanted[roleName] && !assigned:
-				event = newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleAssigned{
+				event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleAssigned{
 					RbacRoleAssigned: &evtv1.RbacRoleAssignedEvent{UserId: userID, RoleName: roleName, Reason: reason},
 				}})
+				entries = append(entries, evtstream.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
 			case !wanted[roleName] && assigned && owner == providerID:
-				event = newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleRevoked{
-					RbacRoleRevoked: &evtv1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName, Reason: reason},
-				}})
-			default:
-				continue
+				entries = append(entries, providerRoleRevokedEntry(userID, roleName, providerID))
 			}
-			entries = append(entries, evtstream.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
 		}
 		return entries, nil
 	}); err != nil {
