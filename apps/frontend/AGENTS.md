@@ -65,9 +65,6 @@ Do not generate playground links for code written into this repository.
   Introduce custom Rolldown chunk groups only for a measured need, and verify
   that they do not pull lazy dependencies into representative initial route
   graphs; Rolldown groups matched modules' dependencies recursively by default.
-- When a frontend change alters imports of interaction components guarded by
-  the production bundle check, run `mise build-frontend`; lint and component
-  tests do not exercise the production route graph.
 - When a host can improve a browser operation, expose a narrow optional
   capability through a focused `$lib/desktop` adapter and feature-detect that
   capability at the point of use. Keep the browser implementation as the
@@ -269,8 +266,8 @@ Do not generate playground links for code written into this repository.
   loads own the coarse non-base catalog boundaries: the root layout loads the
   public shell and `/chat` loads the complete selected locale. Catalog loading
   must not block a global navigation hook. Production builds coalesce the
-  section imports into at most a public and chat payload per non-base locale;
-  keep the bundle check enforcing that request boundary. Keys ending in
+  section imports into at most a public and chat payload per non-base locale.
+  Keys ending in
   `_count` or `.count` contain CLDR plural objects and receive `{ count }`. Keys
   ending in `_html` or `.html` are only rendered through the reviewed sanitizing
   HTML boundary.
