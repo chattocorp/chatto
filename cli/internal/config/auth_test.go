@@ -465,9 +465,10 @@ func TestChattoConfig_Validate_AuthProviders(t *testing.T) {
 		{"groups on github", AuthProviderConfig{Type: AuthProviderTypeGitHub, AllowedGroups: []string{"chat-users"}}, "only supported for OIDC"},
 		{"groups claim on discord", AuthProviderConfig{Type: AuthProviderTypeDiscord, GroupsClaim: "groups"}, "only supported for OIDC"},
 		{"empty group", AuthProviderConfig{Type: AuthProviderTypeOpenIDConnect, AllowedGroups: []string{""}}, "must not be empty"},
+		{"padded group", AuthProviderConfig{Type: AuthProviderTypeOpenIDConnect, AllowedGroups: []string{" chat-users"}}, "leading or trailing spaces"},
 		{"padded groups claim", AuthProviderConfig{Type: AuthProviderTypeOpenIDConnect, GroupsClaim: " groups"}, "leading or trailing spaces"},
 	} {
-		t.Run("restrictions/"+tc.name, func(t *testing.T) {
+		t.Run("groups/"+tc.name, func(t *testing.T) {
 			cfg := baseConfig()
 			provider := tc.provider
 			provider.ID, provider.ClientID, provider.ClientSecret, provider.IssuerURL = "test", "id", "secret", "https://issuer.example"

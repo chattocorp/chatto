@@ -352,6 +352,10 @@ func (c *ChattoConfig) Validate() error {
 		if slices.Contains(provider.AllowedGroups, "") {
 			errs = append(errs, prefix+".allowed_groups entries must not be empty")
 		}
+		// A padded entry can never match an exact group name.
+		if slices.ContainsFunc(provider.AllowedGroups, func(group string) bool { return strings.TrimSpace(group) != group }) {
+			errs = append(errs, prefix+".allowed_groups entries must not contain leading or trailing spaces")
+		}
 		if provider.GroupsClaim != "" && strings.TrimSpace(provider.GroupsClaim) != provider.GroupsClaim {
 			errs = append(errs, prefix+".groups_claim must not contain leading or trailing spaces")
 		}

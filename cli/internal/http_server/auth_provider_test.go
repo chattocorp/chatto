@@ -524,9 +524,9 @@ func TestOIDCProviderWithoutEmailIgnoresUserInfoFailure(t *testing.T) {
 	}
 }
 
-// Restrictions apply to new identities, to linked accounts at each sign-in,
-// and to identity links.
-func TestProviderRestrictionsApplyToEverySignInAndLink(t *testing.T) {
+// The group restriction applies to new identities, to linked accounts at each
+// sign-in, and to identity links.
+func TestProviderGroupRestrictionAppliesToEverySignInAndLink(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	issuer := newNoEmailOIDCIssuer(t, "client-id")
 	defer issuer.Close()
