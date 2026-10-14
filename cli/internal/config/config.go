@@ -6,6 +6,7 @@ import (
 	"net/mail"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/c2h5oh/datasize"
@@ -344,6 +345,19 @@ func (c *ChattoConfig) Validate() error {
 			default:
 				errs = append(errs, prefix+".token_endpoint_auth_method must be client_secret_basic, client_secret_post, or none")
 			}
+		}
+		if provider.Type != AuthProviderTypeOpenIDConnect && (len(provider.AllowedGroups) > 0 || provider.GroupsClaim != "") {
+			errs = append(errs, prefix+".allowed_groups and groups_claim are only supported for OIDC")
+		}
+		if slices.Contains(provider.AllowedGroups, "") {
+			errs = append(errs, prefix+".allowed_groups entries must not be empty")
+		}
+		// A padded entry can never match an exact group name.
+		if slices.ContainsFunc(provider.AllowedGroups, func(group string) bool { return strings.TrimSpace(group) != group }) {
+			errs = append(errs, prefix+".allowed_groups entries must not contain leading or trailing spaces")
+		}
+		if provider.GroupsClaim != "" && strings.TrimSpace(provider.GroupsClaim) != provider.GroupsClaim {
+			errs = append(errs, prefix+".groups_claim must not contain leading or trailing spaces")
 		}
 		if provider.Type == AuthProviderTypeOpenIDConnect && provider.IssuerURL == "" {
 			errs = append(errs, prefix+".issuer_url is required when type = 'oidc'")

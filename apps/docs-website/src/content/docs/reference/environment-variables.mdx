@@ -409,7 +409,7 @@ External login providers are configured as repeated `[[auth.providers]]` tables 
 Supported provider types are `oidc`, `github`, `gitlab`, `google`, and `discord`.
 
 <EnvVar name="CHATTO_AUTH_PROVIDERS_<index>_<field>" toml="auth.providers">
-  Counted environment-variable equivalent of repeated `[[auth.providers]]` tables. Indexes start at `0` and must not have gaps. Supported fields are `ID`, `TYPE`, `LABEL`, `CLIENT_ID`, `CLIENT_SECRET`, `TOKEN_ENDPOINT_AUTH_METHOD`, `ISSUER_URL`, `SCOPES`, `REQUEST_EMAIL`, and `AUTO_PROVISION`. `CLIENT_SECRET` is optional only for public OIDC clients; OAuth provider types still require it.
+  Counted environment-variable equivalent of repeated `[[auth.providers]]` tables. Indexes start at `0` and must not have gaps. Supported fields are `ID`, `TYPE`, `LABEL`, `CLIENT_ID`, `CLIENT_SECRET`, `TOKEN_ENDPOINT_AUTH_METHOD`, `ISSUER_URL`, `SCOPES`, `REQUEST_EMAIL`, `AUTO_PROVISION`, `ALLOWED_GROUPS`, and `GROUPS_CLAIM`. `SCOPES` and `ALLOWED_GROUPS` take comma-separated lists. An empty `ALLOWED_GROUPS` value is an error. Use `chatto.toml` for group names that contain commas. `CLIENT_SECRET` is optional only for public OIDC clients; OAuth provider types still require it.
 </EnvVar>
 
 For compatibility with older single-provider OIDC deployments, Chatto also accepts `CHATTO_AUTH_OIDC_ENABLED`, `CHATTO_AUTH_OIDC_ISSUER_URL`, `CHATTO_AUTH_OIDC_CLIENT_ID`, `CHATTO_AUTH_OIDC_CLIENT_SECRET`, and optional `CHATTO_AUTH_OIDC_LABEL`. These create one `oidc` provider with `id = "oidc"`. Do not combine them with counted `CHATTO_AUTH_PROVIDERS_<index>_*` variables.
@@ -436,6 +436,8 @@ to use public-client authentication without a secret, or discovery-selected
 Basic/POST with a secret. See [token authentication configuration](/guides/integrations/external-login-providers/#configuration).
 
 For a CIMD-capable OIDC provider, set `CHATTO_AUTH_PROVIDERS_<index>_CLIENT_ID` to `{webserver.url}/oauth/client-metadata.json` and omit `CHATTO_AUTH_PROVIDERS_<index>_CLIENT_SECRET`. Chatto then publishes the public client metadata at that URL. See the [External Login Providers guide](/guides/integrations/external-login-providers/#cimd-public-clients) for an example.
+
+To allow only the members of some groups of an OIDC provider, set `allowed_groups`. See [Restrict who can sign in](/guides/integrations/external-login-providers/#restrict-who-can-sign-in).
 
 Set `auto_provision = true` only for providers whose users should be allowed to create accounts. Unlinked identities from providers without auto-provisioning can still be linked by existing signed-in users from account settings.
 

@@ -400,6 +400,18 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	deleteProviderExchangeState(session, providerRuntime.config.ID)
 	_ = session.Save()
 
+	// The group restriction applies to every sign-in and link, also for linked
+	// accounts. The error does not name the restriction.
+	if !providerRuntime.config.AdmitsGroups(identity.groups) {
+		log.Warn("Provider sign-in denied by group restriction", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type)
+		if intent == "link" {
+			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/", "provider_access_denied"))
+			return
+		}
+		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_access_denied")
+		return
+	}
+
 	// The authenticated link-start handoff already records consent and binds the
 	// target account. Complete it only after the provider identity is verified;
 	// linking must never replace the browser's current login session.
@@ -469,6 +481,8 @@ type resolvedProviderIdentity struct {
 	avatarURL       string
 	loginHint       string
 	displayNameHint string
+	// groups holds the OIDC groups claim when a group restriction needs it.
+	groups []string
 }
 
 func newAuthProviderRuntime(providerConfig config.AuthProviderConfig, callbackURL string) (*authProviderRuntime, error) {
@@ -645,14 +659,26 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 
 	log.Info("OIDC token verified", "provider_id", r.config.ID, "issuer", idToken.Issuer)
 
+	// Chatto reads groups only for a group restriction. A groups claim in the
+	// ID token wins over UserInfo, like the profile claims.
+	needGroups := len(r.config.AllowedGroups) > 0
+	var groups []string
+	groupsFound := false
+	if needGroups {
+		groups, groupsFound = groupsFromClaims(idToken.Claims, r.config.GroupsClaimOrDefault())
+	}
+
 	// UserInfo can supply names even when the ID token already has email.
-	if claims.PreferredUser == "" || claims.Name == "" || (claims.Email == "" && slices.Contains(discovery.oauth2Config.Scopes, "email")) {
+	if claims.PreferredUser == "" || claims.Name == "" || (claims.Email == "" && slices.Contains(discovery.oauth2Config.Scopes, "email")) || (needGroups && !groupsFound) {
 		userInfo, err := discovery.provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
 		if err != nil {
 			log.Warn("OIDC userinfo fallback failed", "provider_id", r.config.ID)
 		} else {
 			if userInfo.Subject != idToken.Subject {
 				return resolvedProviderIdentity{}, errors.New("userinfo subject mismatch")
+			}
+			if needGroups && !groupsFound {
+				groups, _ = groupsFromClaims(userInfo.Claims, r.config.GroupsClaimOrDefault())
 			}
 			var supplemental profileClaims
 			if err := userInfo.Claims(&supplemental); err != nil {
@@ -686,7 +712,32 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 		avatarURL:       claims.Picture,
 		loginHint:       loginHintFromParts(claims.PreferredUser, verifiedEmail, claims.Name),
 		displayNameHint: displayNameHintFromParts(claims.Name, claims.PreferredUser, verifiedEmail),
+		groups:          groups,
 	}, nil
+}
+
+// groupsFromClaims reads a groups claim that holds a string or a list of
+// strings. It ignores list items that are not strings. Another shape, or a
+// missing claim, returns false.
+func groupsFromClaims(decode func(any) error, name string) ([]string, bool) {
+	var claims map[string]any
+	if err := decode(&claims); err != nil {
+		return nil, false
+	}
+	switch value := claims[name].(type) {
+	case string:
+		return []string{value}, true
+	case []any:
+		groups := make([]string, 0, len(value))
+		for _, item := range value {
+			if group, ok := item.(string); ok {
+				groups = append(groups, group)
+			}
+		}
+		return groups, true
+	default:
+		return nil, false
+	}
 }
 
 func (r *authProviderRuntime) resolveGothIdentity(c *gin.Context, session sessions.Session) (resolvedProviderIdentity, error) {

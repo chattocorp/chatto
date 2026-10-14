@@ -33,6 +33,8 @@ func TestReadConfig_AuthProvidersFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_SCOPES", "openid, profile, groups")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_REQUEST_EMAIL", "false")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION", "true")
+	t.Setenv("CHATTO_AUTH_PROVIDERS_0_ALLOWED_GROUPS", "chat-users, admins")
+	t.Setenv("CHATTO_AUTH_PROVIDERS_0_GROUPS_CLAIM", "roles")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_1_ID", "github-main")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_1_TYPE", "github")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_1_CLIENT_ID", "github-id")
@@ -59,6 +61,9 @@ func TestReadConfig_AuthProvidersFromEnv(t *testing.T) {
 	}
 	if got := strings.Join(cfg.Auth.Providers[0].Scopes, ","); got != "openid,profile,groups" {
 		t.Fatalf("Auth.Providers[0].Scopes = %q", got)
+	}
+	if got := cfg.Auth.Providers[0]; strings.Join(got.AllowedGroups, ",") != "chat-users,admins" || got.GroupsClaim != "roles" {
+		t.Fatalf("Auth.Providers[0] group restriction = %v from %q", got.AllowedGroups, got.GroupsClaim)
 	}
 	if got := cfg.Auth.Providers[1]; got.ID != "github-main" || got.Type != AuthProviderTypeGitHub || got.ClientID != "github-id" || got.ClientSecret != "github-secret" {
 		t.Fatalf("Auth.Providers[1] = %+v", got)
@@ -142,6 +147,22 @@ func TestReadConfig_InvalidAuthProvidersEnvField(t *testing.T) {
 	_, err = ReadConfig("")
 	if err == nil || !strings.Contains(err.Error(), "unknown auth provider field") {
 		t.Fatalf("ReadConfig() error = %v, want unknown auth provider field error", err)
+	}
+}
+
+func TestReadConfig_EmptyAuthProviderAllowedGroupsEnv(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("CHATTO_WEBSERVER_URL", "https://chat.example")
+	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
+	t.Setenv("CHATTO_AUTH_PROVIDERS_0_ID", "hub")
+	t.Setenv("CHATTO_AUTH_PROVIDERS_0_ALLOWED_GROUPS", " , ")
+
+	_, err := ReadConfig("")
+	if err == nil || !strings.Contains(err.Error(), "must list at least one value") {
+		t.Fatalf("ReadConfig() error = %v, want empty restriction error", err)
 	}
 }
 

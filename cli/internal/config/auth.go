@@ -1,6 +1,7 @@
 package config
 
 import (
+	"slices"
 	"time"
 )
 
@@ -41,6 +42,10 @@ type AuthProviderConfig struct {
 	Scopes                  []string `toml:"scopes,commented" comment:"Optional OAuth scopes. Defaults are provider-specific."`
 	RequestEmail            *bool    `toml:"request_email,commented" comment:"Whether to request email scopes for providers that support it. Default: false. Chatto still matches by provider subject without an email claim."`
 	AutoProvision           *bool    `toml:"auto_provision,commented" comment:"Whether unlinked external identities may create a new passwordless account after explicit confirmation. Default: false. The linked provider identity counts as a verified sign-in factor."`
+	// AllowedGroups and GroupsClaim restrict every sign-in and identity link
+	// through this provider. See AdmitsGroups.
+	AllowedGroups []string `toml:"allowed_groups,commented" comment:"OIDC only. Allow only users who are in at least one of these groups. Names must match exactly."`
+	GroupsClaim   string   `toml:"groups_claim,commented" comment:"OIDC only. Top-level ID token or UserInfo claim that contains the user's groups. Default: groups."`
 }
 
 // LabelOrDefault returns the configured label, or a provider-specific default.
@@ -66,6 +71,21 @@ func (c AuthProviderConfig) AutoProvisionOrDefault() bool {
 		return false
 	}
 	return *c.AutoProvision
+}
+
+// GroupsClaimOrDefault returns the claim that contains a user's groups.
+func (c AuthProviderConfig) GroupsClaimOrDefault() string {
+	if c.GroupsClaim == "" {
+		return "groups"
+	}
+	return c.GroupsClaim
+}
+
+// AdmitsGroups reports whether the group restriction allows a sign-in. groups
+// are the values of the groups claim. One exact match is sufficient. Without
+// allowed_groups, every user is allowed.
+func (c AuthProviderConfig) AdmitsGroups(groups []string) bool {
+	return len(c.AllowedGroups) == 0 || slices.ContainsFunc(groups, func(group string) bool { return slices.Contains(c.AllowedGroups, group) })
 }
 
 func IsAllowedAuthProviderType(providerType string) bool {
