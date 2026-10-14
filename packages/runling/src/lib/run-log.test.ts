@@ -19,10 +19,11 @@ test('shows recorded logs and task milestones in order', () => {
     },
     { type: 'task.linked', taskId: 'task', channelId: 'channel', timestamp: 45 },
     {
-      type: 'task.activity',
+      type: 'message.sent',
+      id: 'message',
       channelId: 'channel',
-      message: 'Validation failed',
-      level: 'error',
+      direction: 'input',
+      payload: 'Check again',
       timestamp: 50
     },
     {
@@ -55,9 +56,9 @@ test('shows recorded logs and task milestones in order', () => {
       activity: { id: 'task', reference: 'task-1', embedded: true },
       event: {
         type: 'log',
-        level: 'error',
-        message: 'task-1 · Validation failed',
-        depth: 1,
+        level: 'info',
+        message: 'Message to task-1 · Check again',
+        depth: 0,
         color: 'dodgerblue',
         source: 'step',
         timestamp: 50
@@ -85,13 +86,11 @@ test('keeps nested task milestones at the depth of their parent task', () => {
   const events: RunlingEvent[] = [
     { type: 'step.started', id: 'root', label: 'Root', timestamp: 0 },
     { type: 'step.started', id: 'child', label: 'Child', activityId: 'root', timestamp: 1 },
-    { type: 'task.linked', taskId: 'child', channelId: 'channel', timestamp: 2 },
-    { type: 'task.activity', channelId: 'channel', message: 'Working', timestamp: 3 },
     { type: 'step.finished', id: 'child', status: 'completed', durationMs: 3, timestamp: 4 },
     { type: 'step.finished', id: 'root', status: 'completed', durationMs: 5, timestamp: 5 }
   ];
   const rows = runLogRows(events);
-  expect(rows.map((row) => row.event.depth)).toEqual([0, 1, 2, 1, 0]);
+  expect(rows.map((row) => row.event.depth)).toEqual([0, 1, 1, 0]);
   expect(
     logTreeRows(rows).map(({ depth, joinsAbove, continuesBelow }) => ({
       depth,
@@ -101,10 +100,49 @@ test('keeps nested task milestones at the depth of their parent task', () => {
   ).toEqual([
     { depth: 0, joinsAbove: false, continuesBelow: true },
     { depth: 1, joinsAbove: false, continuesBelow: true },
-    { depth: 2, joinsAbove: false, continuesBelow: false },
     { depth: 1, joinsAbove: true, continuesBelow: false },
     { depth: 0, joinsAbove: true, continuesBelow: false }
   ]);
+});
+
+test('shows messages between the host and the top-level task, not between tasks', () => {
+  const events: RunlingEvent[] = [
+    { type: 'step.started', id: 'root', label: 'Root', timestamp: 0 },
+    { type: 'task.linked', taskId: 'root', channelId: 'host', timestamp: 0 },
+    {
+      type: 'message.sent',
+      id: 'in',
+      channelId: 'host',
+      direction: 'input',
+      payload: '{"text":"Hello"}',
+      timestamp: 1
+    },
+    { type: 'step.started', id: 'child', label: 'Child', activityId: 'root', timestamp: 2 },
+    { type: 'task.linked', taskId: 'child', channelId: 'child', activityId: 'root', timestamp: 2 },
+    {
+      type: 'message.sent',
+      id: 'between',
+      channelId: 'child',
+      direction: 'input',
+      payload: 'Private',
+      activityId: 'root',
+      timestamp: 3
+    },
+    {
+      type: 'message.sent',
+      id: 'out',
+      channelId: 'host',
+      direction: 'update',
+      payload: 'x'.repeat(2100),
+      timestamp: 4
+    }
+  ];
+  const rows = runLogRows(events).filter((row) => row.event.message.includes(' · '));
+  expect(rows.map((row) => row.event.message)).toEqual([
+    'Message to task-1 · {"text":"Hello"}',
+    `Update from task-1 · ${'x'.repeat(2000)}…`
+  ]);
+  expect(rows[0]!.activity).toEqual({ id: 'root', reference: 'task-1', embedded: true });
 });
 
 test('links log lines to the task that owns their activity', () => {

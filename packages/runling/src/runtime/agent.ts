@@ -1,4 +1,4 @@
-import type { WorkflowContext } from './context.ts';
+import type { TaskContext } from './context.ts';
 import { requireDirectory } from './directory.ts';
 import { stripVTControlCharacters } from 'node:util';
 import { dirname } from 'node:path';
@@ -116,27 +116,13 @@ export interface AgentResourceOptions {
  */
 export type ThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
-/** Safe provider lifecycle information; excludes upstream errors and request content. */
-export type AgentStatus =
-  | { type: 'retrying'; attempt: number; maxAttempts: number; delayMs: number }
-  | { type: 'blocked'; reason: 'provider_error' }
-  | { type: 'working' };
+/** A tool operation category for journal events. */
+type ToolOperation = 'read' | 'search' | 'edit' | 'command' | 'other';
+/** A safe tool failure category. Unknown means the tool did not provide a recognized cause. */
+type ToolFailure = 'not_found' | 'permission_denied' | 'invalid_arguments' | 'timeout' | 'unknown';
 
-/** Tool lifecycle facts without arguments, paths, commands, or tool output. */
-export interface AgentActivity {
-  type: 'tool';
-  /** Registered tool identifier; no arguments or output. */
-  toolName?: string;
-  operation: 'read' | 'search' | 'edit' | 'command' | 'other';
-  phase: 'started' | 'succeeded' | 'failed';
-  /** Failures since this operation last succeeded, within the current interaction. */
-  failures: number;
-  /** Safe failure category. Unknown means the tool did not provide a recognized cause. */
-  error?: 'not_found' | 'permission_denied' | 'invalid_arguments' | 'timeout' | 'unknown';
-}
-
-/** Categorize errors locally; never forward raw tool output to the supervisor. */
-export function toolFailureCategory(result: unknown): NonNullable<AgentActivity['error']> {
+/** Categorize tool errors for logs without their raw output. */
+export function toolFailureCategory(result: unknown): ToolFailure {
   const value = result as
     { content?: Array<{ type?: string; text?: string }>; details?: { code?: string } } | undefined;
   const message = [
@@ -183,18 +169,9 @@ export interface RunAgentOptions {
   /** Replace Pi's default coding-agent prompt. Instructions and Runling outcome rules still apply. */
   systemPrompt?: string;
   cwd: string;
-  /** Text agents finish naturally; report agents must call report_outcome (default). */
+  /** Text agents finish naturally and return their final text; report agents must call
+   * report_outcome (default). */
   output?: 'text' | 'report';
-  /** Deliver only normally stopped assistant messages, excluding tool-call preambles.
-   * Defaults to all completed assistant messages. Logs retain intermediate text. */
-  textDelivery?: 'all' | 'final';
-  /** Text mode only: end the interaction after a successful direct call to one of these tools, without another
-   * provider request. The current tool batch finishes first. Text agents accept an empty result;
-   * applications can deliver structured tool results themselves. Use sequential execution on a
-   * terminal tool when later calls in the same batch must observe application completion gates. */
-  terminalTools?: readonly string[];
-  /** Text mode only: accept a normally stopped assistant turn with no text. Provider errors still fail. */
-  allowEmptyResponse?: boolean;
   /** Built-in and extension tools to expose. `report_outcome` is added in report mode. */
   tools?: readonly string[];
   resources?: AgentResourceOptions;
@@ -202,10 +179,6 @@ export interface RunAgentOptions {
   extensions?: readonly AgentExtension[];
   /** Observe the raw pi event stream for this agent session. */
   onEvent?: (event: AgentSessionEvent) => void;
-  /** Observe provider retries and recovery without parsing raw provider errors. */
-  onStatus?: (status: AgentStatus) => void;
-  /** Observe safe tool activity independently of model-authored progress. */
-  onActivity?: (activity: AgentActivity) => void;
   /** Abort an active model turn. */
   signal?: AbortSignal;
   /** Block selected tools after untrusted content enters this agent's context. */
@@ -242,13 +215,13 @@ export interface RunlingAgent extends AsyncDisposable {
   readonly id: string;
   /** Run one turn and require it to complete successfully. */
   run(
-    ctx: WorkflowContext<unknown>,
+    ctx: TaskContext<any, any>,
     prompt: string,
     options?: AgentRunOptions
   ): Promise<CompletedAgentReport>;
   /** Run one turn and return any reported outcome. */
   runOutcome(
-    ctx: WorkflowContext<unknown>,
+    ctx: TaskContext<any, any>,
     prompt: string,
     options?: AgentRunOptions
   ): Promise<AgentResult>;
@@ -293,7 +266,7 @@ function highlightToolAction(tool: string, description: string): string {
 }
 
 export async function runAgent(
-  ctx: WorkflowContext<unknown>,
+  ctx: TaskContext<any, any>,
   prompt: string,
   options: RunAgentOptions
 ): Promise<AgentResult> {
@@ -352,8 +325,6 @@ async function createRunlingAgent(
   history: Parameters<typeof convertToLlm>[0] = [],
   inheritedUntrusted = false
 ): Promise<RunlingAgent> {
-  if (options.terminalTools?.length && options.output !== 'text')
-    throw new Error('terminalTools requires text output mode');
   const inheritedMessages = convertToLlm(structuredClone(history));
   const agentId = randomId();
   const color = takeAgentColor();
@@ -388,8 +359,6 @@ async function createRunlingAgent(
     info: (message: string) => writeAgentLog('info', message),
     success: (message: string) => writeAgentLog('success', message)
   };
-  let terminalToolCompleted = false;
-  const terminalTools = new Set(options.terminalTools ?? []);
   let activeReport: AgentReport | undefined;
   let reports: AgentReport[] = [];
 
@@ -551,15 +520,6 @@ async function createRunlingAgent(
     for (const file of codemodeFiles) void rm(file, { force: true }).catch(() => {});
   };
 
-  // Pi's tool-result terminate hint applies only when every result in a batch is terminal.
-  // An application completion tool must also end a mixed batch, after all results are recorded.
-  const finishBatch = session.agent.finishTurn;
-  session.agent.finishTurn = async (turn, signal) => {
-    const decision = await finishBatch?.(turn, signal);
-    if (terminalToolCompleted) return { action: 'end' };
-    return decision ?? undefined;
-  };
-
   const runOutcome: RunlingAgent['runOutcome'] = async (
     ctx,
     prompt,
@@ -578,20 +538,16 @@ async function createRunlingAgent(
     interactionSignal = signal;
     acceptingSteering = true;
     activeReport = undefined;
-    terminalToolCompleted = false;
     reports = [];
     let finalText: string | undefined;
     let finalTextError: string | undefined;
-    let reportedProviderBlock = false;
-    let finalTextStopped = false;
     const usage = emptyTokenUsage();
     let turn = 0;
     let lastTextUpdate = -Infinity;
     let preparingReport = false;
     const toolStartedAt = new Map<string, number>();
-    const failures = new Map<AgentActivity['operation'], number>();
-    const activity = (tool: string, phase: AgentActivity['phase'], result?: unknown) => {
-      const operation: AgentActivity['operation'] =
+    const activity = (tool: string, phase: 'started' | 'succeeded' | 'failed') => {
+      const operation: ToolOperation =
         tool === 'read'
           ? 'read'
           : ['grep', 'find', 'ls'].includes(tool)
@@ -601,18 +557,8 @@ async function createRunlingAgent(
               : tool === 'bash'
                 ? 'command'
                 : 'other';
-      if (phase === 'failed') failures.set(operation, (failures.get(operation) ?? 0) + 1);
-      if (phase === 'succeeded') failures.set(operation, 0);
       const toolName = /^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(tool) ? tool : undefined;
       emitRunlingEvent({ type: 'agent.tool', agentId, operation, phase, toolName });
-      options.onActivity?.({
-        type: 'tool',
-        operation,
-        phase,
-        toolName,
-        failures: failures.get(operation) ?? 0,
-        ...(phase === 'failed' ? { error: toolFailureCategory(result) } : {})
-      });
     };
 
     const unsubscribe = session.subscribe(
@@ -624,17 +570,9 @@ async function createRunlingAgent(
           steering.delete(event.message);
           activeReport = undefined;
           finalText = undefined;
-          finalTextStopped = false;
           preparingReport = false;
           delivered(true);
         }
-        if (
-          event.type === 'tool_execution_end' &&
-          !event.isError &&
-          !event.parentToolCallId &&
-          terminalTools.has(event.toolName)
-        )
-          terminalToolCompleted = true;
         options.onEvent?.(event);
 
         if (event.type === 'message_update') {
@@ -696,7 +634,7 @@ async function createRunlingAgent(
           const startedAt = toolStartedAt.get(event.toolCallId);
           toolStartedAt.delete(event.toolCallId);
           if (!event.parentToolCallId)
-            activity(event.toolName, event.isError ? 'failed' : 'succeeded', event.result);
+            activity(event.toolName, event.isError ? 'failed' : 'succeeded');
           const duration =
             startedAt === undefined ? '' : ` in ${formatDuration(performance.now() - startedAt)}`;
 
@@ -750,12 +688,6 @@ async function createRunlingAgent(
         }
 
         if (event.type === 'auto_retry_start') {
-          options.onStatus?.({
-            type: 'retrying',
-            attempt: event.attempt,
-            maxAttempts: event.maxAttempts,
-            delayMs: event.delayMs
-          });
           agentLog.info(
             `Retrying agent in ${formatDelay(event.delayMs)} ` +
               `(attempt ${event.attempt}/${event.maxAttempts}): ${toSingleLine(event.errorMessage)}`
@@ -765,13 +697,9 @@ async function createRunlingAgent(
         if (event.type === 'auto_retry_end') {
           if (event.success) {
             finalTextError = undefined;
-            reportedProviderBlock = false;
-            options.onStatus?.({ type: 'working' });
             agentLog.success(`Agent recovered after ${formatAttempts(event.attempt)}`);
           } else {
             finalTextError = 'Agent provider failed after retries';
-            reportedProviderBlock = true;
-            options.onStatus?.({ type: 'blocked', reason: 'provider_error' });
             agentLog.error(
               `Agent retry failed after ${formatAttempts(event.attempt)}: ${toSingleLine(event.finalError ?? 'Unknown error')}`
             );
@@ -779,7 +707,6 @@ async function createRunlingAgent(
         }
 
         if (event.type === 'message_end' && event.message.role === 'assistant') {
-          finalTextStopped = event.message.stopReason === 'stop';
           finalTextError =
             event.message.stopReason === 'error' || event.message.stopReason === 'aborted'
               ? event.message.errorMessage || 'Agent response failed'
@@ -798,12 +725,7 @@ async function createRunlingAgent(
           ctx.recordUsage(event.message.usage);
           emitRunlingEvent({ type: 'agent.usage', agentId, usage: { ...usage } });
           agentLog.debug(`Tokens: ${formatTokenUsage(usage)}`);
-          if (
-            finalText.trim() &&
-            (options.textDelivery !== 'final' ||
-              (finalTextStopped && !event.message.content.some((part) => part.type === 'toolCall')))
-          )
-            onText?.(finalText);
+          if (finalText.trim()) onText?.(finalText);
         }
       })
     );
@@ -822,8 +744,6 @@ async function createRunlingAgent(
         // A transport failure is not a report-format error. Do not start a new
         // model request after the provider has exhausted its retry budget.
         if (finalTextError) {
-          if (!reportedProviderBlock)
-            options.onStatus?.({ type: 'blocked', reason: 'provider_error' });
           return {
             outcome: 'failed',
             failureReason: 'provider_error',
@@ -831,16 +751,10 @@ async function createRunlingAgent(
             usage
           };
         }
-        if (textOutput && terminalToolCompleted)
-          return { outcome: 'completed', summary: '', usage };
         if (textOutput) {
-          // Text delivery happens through onText. The result is for the caller,
-          // not a second message to send to the user.
-          if (!finalText?.trim()) {
-            if (options.allowEmptyResponse && finalTextStopped)
-              return { outcome: 'completed', summary: '', usage };
+          // The final text is the result. onText already delivered it during the turn.
+          if (!finalText?.trim())
             return { outcome: 'failed', summary: 'Agent finished without a text response', usage };
-          }
           return { outcome: 'completed', summary: finalText, usage };
         }
 
@@ -857,8 +771,6 @@ async function createRunlingAgent(
           );
           signal?.throwIfAborted();
           if (finalTextError) {
-            if (!reportedProviderBlock)
-              options.onStatus?.({ type: 'blocked', reason: 'provider_error' });
             return {
               outcome: 'failed',
               failureReason: 'provider_error',

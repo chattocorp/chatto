@@ -1,10 +1,10 @@
-import { createWorkflowContext, type WorkflowContext } from './context.ts';
+import { createTaskContext, type TaskContext } from './context.ts';
 import { describe, expect, expectTypeOf, test } from 'vitest';
 import { z } from 'zod';
 import * as v from 'valibot';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { Type } from 'typebox';
-import { task, isSchemaTask } from './workflow.ts';
+import { task } from './task.ts';
 import { isWorkflowSchema, validateSchema } from './schema.ts';
 import { observeRunlingEvents, type RunlingEvent } from './events.ts';
 import { runWorkflow } from './runner.ts';
@@ -22,10 +22,9 @@ describe('Standard Schema tasks', () => {
         return input;
       }
     );
-    expectTypeOf<Parameters<typeof length>>().toEqualTypeOf<[WorkflowContext, string]>();
+    expectTypeOf<Parameters<typeof length>>().toEqualTypeOf<[TaskContext<any, any>, string]>();
     expectTypeOf<ReturnType<typeof length>>().toEqualTypeOf<Promise<{ length: number }>>();
-    expect(isSchemaTask(length)).toBe(true);
-    await expect(length(createWorkflowContext(), 'hello')).resolves.toEqual({ length: 5 });
+    await expect(length(createTaskContext(), 'hello')).resolves.toEqual({ length: 5 });
     const execution = await runWorkflow(length, { input: 'hello' });
     expect(execution.ok).toBe(true);
     expect(execution.output).toEqual({ length: 5 });
@@ -46,10 +45,10 @@ describe('Standard Schema tasks', () => {
         return value;
       }
     );
-    expectTypeOf<Parameters<typeof length>>().toEqualTypeOf<[WorkflowContext, string]>();
+    expectTypeOf<Parameters<typeof length>>().toEqualTypeOf<[TaskContext<any, any>, string]>();
     expectTypeOf<ReturnType<typeof length>>().toEqualTypeOf<Promise<number>>();
-    await expect(length(createWorkflowContext(), 'hello')).resolves.toBe(5);
-    await expect(length(createWorkflowContext(), 42 as never)).rejects.toThrow(
+    await expect(length(createTaskContext(), 'hello')).resolves.toBe(5);
+    await expect(length(createTaskContext(), 42 as never)).rejects.toThrow(
       'Task "Length" input is invalid'
     );
   });
@@ -65,29 +64,35 @@ describe('Standard Schema tasks', () => {
     );
     expectTypeOf<ReturnType<typeof first>>().toEqualTypeOf<Promise<string>>();
     expectTypeOf<ReturnType<typeof second>>().toEqualTypeOf<Promise<string>>();
-    await expect(first(createWorkflowContext(), 'one')).resolves.toBe('one');
-    await expect(second(createWorkflowContext(), 'two')).resolves.toBe('two');
+    await expect(first(createTaskContext(), 'one')).resolves.toBe('one');
+    await expect(second(createTaskContext(), 'two')).resolves.toBe('two');
   });
 
-  test('waits for async input validation before starting an activity', async () => {
+  test('waits for async input validation before calling the implementation', async () => {
     const events: RunlingEvent[] = [];
+    let calls = 0;
     const echo = task(
       {
         name: 'Async',
         input: z.string().refine(async (value) => value === 'ok', 'Expected ok'),
         output: z.string()
       },
-      (ctx, value) => value
+      (ctx, value) => {
+        calls++;
+        return value;
+      }
     );
     await observeRunlingEvents(
       (event) => events.push(event),
       async () => {
-        await expect(echo(createWorkflowContext(), 'bad')).rejects.toThrow('Expected ok');
-        expect(events).toEqual([]);
-        await expect(echo(createWorkflowContext(), 'ok')).resolves.toBe('ok');
+        await expect(echo(createTaskContext(), 'bad')).rejects.toThrow('Expected ok');
+        expect(calls).toBe(0);
+        await expect(echo(createTaskContext(), 'ok')).resolves.toBe('ok');
       }
     );
+    expect(calls).toBe(1);
     expect(events.filter((event) => event.type === 'step.finished')).toMatchObject([
+      { status: 'failed' },
       { status: 'completed' }
     ]);
   });
@@ -105,7 +110,7 @@ describe('Standard Schema tasks', () => {
     await observeRunlingEvents(
       (event) => events.push(event),
       async () => {
-        await expect(echo(createWorkflowContext(), 'hello')).rejects.toThrow(
+        await expect(echo(createTaskContext(), 'hello')).rejects.toThrow(
           'Task "Async output" output is invalid'
         );
       }
@@ -115,19 +120,14 @@ describe('Standard Schema tasks', () => {
     ]);
   });
 
-  test('preserves implementation errors and this', async () => {
+  test('preserves implementation errors', async () => {
     const error = new Error('failed');
-    const echo = task(
-      { name: 'Echo', input: z.string(), output: z.string() },
-      function (this: { fail: boolean }, ctx, value) {
-        if (this.fail) throw error;
-        return value;
-      }
-    );
-    await expect(echo.call({ fail: true }, createWorkflowContext(), 'hello')).rejects.toBe(error);
-    await expect(echo.call({ fail: false }, createWorkflowContext(), 'hello')).resolves.toBe(
-      'hello'
-    );
+    const echo = task({ name: 'Echo', input: z.string(), output: z.string() }, (ctx, value) => {
+      if (value === 'fail') throw error;
+      return value;
+    });
+    await expect(echo(createTaskContext(), 'fail')).rejects.toBe(error);
+    await expect(echo(createTaskContext(), 'hello')).resolves.toBe('hello');
   });
 
   test('normalizes issue paths and accepts callable schema objects', async () => {
@@ -158,8 +158,8 @@ describe('Standard Schema tasks', () => {
   });
 });
 
-test('does not start a task aborted during asynchronous schema validation', async () => {
-  const ctx = createWorkflowContext();
+test('does not call a task aborted during asynchronous schema validation', async () => {
+  const ctx = createTaskContext();
   const started = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
   const events: RunlingEvent[] = [];
@@ -192,5 +192,7 @@ test('does not start a task aborted during asynchronous schema validation', asyn
     }
   );
   expect(called).toBe(false);
-  expect(events).toEqual([]);
+  expect(events.filter((event) => event.type === 'step.finished')).toMatchObject([
+    { status: 'failed' }
+  ]);
 });

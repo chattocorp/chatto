@@ -1,35 +1,36 @@
 /** Define the journal events shared by workflows, the server, and the console. */
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { TokenUsage } from './usage.ts';
-import type { JsonValue } from './runtime.ts';
 
 export type RunlingEventPayload =
-  | { type: 'workflow.resumed'; attempt: number }
-  | { type: 'conversation.started' }
+  /** Links a task invocation's message channel to the step that runs the task. */
   | { type: 'task.linked'; channelId: string; taskId: string }
-  | { type: 'task.state'; taskId: string; state: { [key: string]: JsonValue } }
   | {
-      type: 'task.activity';
-      channelId: string;
-      message: string;
-      level?: 'info' | 'success' | 'error';
-    }
-  | {
+      /** A message between a parent and a task. `input` goes to the task, `update` comes from it. */
       type: 'message.sent';
       id: string;
       channelId: string;
       direction: 'input' | 'update';
       payload: string;
     }
+  /** The task read the message from its inbox, or the parent read the update. */
   | { type: 'message.read'; id: string }
-  | { type: 'message.receipt'; id: string; consumed: boolean }
+  /** A task waits for a message from its parent: its inbox is empty. */
+  | { type: 'wait.started'; id: string; channelId: string }
+  /** The wait ended: a message arrived, or the input closed or failed. */
+  | {
+      type: 'wait.finished';
+      id: string;
+      status: 'received' | 'closed';
+      durationMs: number;
+    }
   | {
       type: 'log';
       level: 'debug' | 'info' | 'success' | 'error';
       message: string;
       depth: number;
       color: string;
-      source?: 'step' | 'agent' | 'command' | 'input';
+      source?: 'step' | 'agent' | 'command';
       sourceId?: string;
     }
   | {
@@ -59,26 +60,6 @@ export type RunlingEventPayload =
         stdout: string;
         stderr: string;
       };
-    }
-  | {
-      type: 'input.requested';
-      id: string;
-      message: string;
-      defaultValue?: string;
-    }
-  | {
-      type: 'input.finished';
-      id: string;
-      status: 'answered';
-      value: string;
-      durationMs: number;
-    }
-  | {
-      type: 'input.finished';
-      id: string;
-      status: 'failed';
-      reason?: 'timeout' | 'cancelled';
-      durationMs: number;
     }
   | {
       type: 'agent.started';

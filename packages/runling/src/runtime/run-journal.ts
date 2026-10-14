@@ -18,9 +18,6 @@ export interface RunSummary {
   id: string;
   /** Human-readable, journal-local reference. Older journals use their UUID. */
   reference?: string;
-  /** Read-only compatibility with journals written by the removed resume feature. */
-  recovery?: { name: string; version: number };
-  attempt?: number;
   /** Webhook or source name; `cli` for command-line runs. */
   webhook: string;
   workflow: string;
@@ -48,7 +45,6 @@ export interface RunDetail extends RunSummary {
  * since the run started. */
 export type RunRecord =
   | { type: 'started'; run: RunDetail }
-  | { type: 'resumed'; attempt: number; resumedAt: number }
   | { type: 'event'; event: RunlingEvent }
   | {
       type: 'finished';

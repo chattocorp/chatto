@@ -1,5 +1,6 @@
 /** Persist web runs and bridge their lifecycle to live console subscribers. */
-import type { WebhookTask } from 'runling/web';
+import type { RunHandle } from 'runling/web';
+import { parseBoundary } from '../../runtime/schema.ts';
 import { serverLog } from '../../runtime/server-log.ts';
 import { createServerActivityLog } from '../../runtime/server-activity.ts';
 import { mkdir, readdir, appendFile, truncate } from 'node:fs/promises';
@@ -14,7 +15,13 @@ import {
   runOwnerAlive,
   type RunJournal
 } from '../../runtime/run-journal.ts';
-import { runWorkflow, type WorkflowExecution } from 'runling';
+import {
+  createChannel,
+  runWorkflow,
+  type AnyTask,
+  type Channel,
+  type WorkflowExecution
+} from 'runling';
 import { type RunDetail, type RunRecord, type RunSummary } from '../runs.ts';
 
 import { summarizeRunActivity } from '../run-activity.ts';
@@ -29,21 +36,7 @@ function summary(run: RunDetail): RunSummary {
 
 // Server-owned event arrays can grow in place. Browser state uses applyRecord.
 function applyStoredRecord(run: RunDetail, record: RunRecord, includeDetails = true) {
-  if (record.type === 'resumed') {
-    if (includeDetails)
-      run.events.push({
-        type: 'workflow.resumed',
-        attempt: record.attempt,
-        timestamp: run.durationMs ?? 0
-      });
-    Object.assign(run, {
-      status: 'running',
-      attempt: record.attempt,
-      finishedAt: undefined,
-      error: null,
-      output: null
-    });
-  } else if (record.type === 'event') {
+  if (record.type === 'event') {
     if (includeDetails) run.events.push(record.event);
     if (record.event.type === 'usage.updated') run.usage = record.event.usage;
   } else if (record.type === 'finished') {
@@ -60,6 +53,8 @@ export class RunStore {
   private details = new Map<string, RunDetail>();
   private journals = new Map<string, RunJournal>();
   private controllers = new Map<string, AbortController>();
+  /** Messages from the host to each active run's top-level task. */
+  private inboxes = new Map<string, { task: AnyTask; channel: Channel<unknown> }>();
   private executions = new Set<Promise<WorkflowExecution>>();
   private listeners = new Set<Listener>();
   private references = new Set<string>();
@@ -118,6 +113,20 @@ export class RunStore {
   async get(id: string): Promise<RunDetail | undefined> {
     if (!validId.test(id) || !this.runs.has(id)) return undefined;
     return this.details.get(id) ?? (await this.read(id, true)).run;
+  }
+
+  /** Validate a message and queue it for an active run's top-level task. */
+  async send(id: string, message: unknown): Promise<void> {
+    const inbox = this.inboxes.get(id);
+    // A cancelled run's inbox fails with the cancellation reason; report the run state instead.
+    if (!inbox || this.controllers.get(id)?.signal.aborted) throw new RunNotActiveError();
+    await parseBoundary(inbox.task.name, 'message', inbox.task.receives, message);
+    await inbox.channel.send(message);
+  }
+
+  /** Tell an active run's top-level task that no more messages come. */
+  closeInput(id: string): void {
+    this.inboxes.get(id)?.channel.close();
   }
 
   cancel(id: string): boolean {
@@ -193,12 +202,13 @@ export class RunStore {
       });
   }
 
-  async start<Input, Output>(
+  /** Register and start a run. Resolves after registration, with a handle for its messages. */
+  async start(
     webhook: string,
-    workflow: WebhookTask<Input, Output>,
-    input: Input,
+    workflow: AnyTask,
+    input: unknown,
     source: 'webhook' | 'web' | 'source'
-  ) {
+  ): Promise<RunHandle & { completion: Promise<WorkflowExecution> }> {
     if (this.closing) throw new Error('Run store is stopping');
     // Reserve before the first await so concurrent starts cannot share a reference.
     let reference: string | undefined;
@@ -228,6 +238,7 @@ export class RunStore {
     this.details.set(id, run);
     const controller = new AbortController();
     this.controllers.set(id, controller);
+    this.inboxes.set(id, { task: workflow, channel: createChannel({ signal: controller.signal }) });
     this.publish(id, started);
     serverLog('info', 'run.started', {
       runId: id,
@@ -246,13 +257,22 @@ export class RunStore {
     void completion.catch((cause) =>
       serverLog('error', 'run.error', { runId: id, runReference: run.reference, error: cause })
     );
-    return { id, completion };
+    return {
+      id,
+      completion,
+      send: (message) => this.send(id, message),
+      closeInput: () => this.closeInput(id),
+      finished: completion.then(
+        () => {},
+        () => {}
+      )
+    };
   }
 
-  private async execute<Input, Output>(
+  private async execute(
     id: string,
-    workflow: WebhookTask<Input, Output>,
-    input: Input,
+    workflow: AnyTask,
+    input: unknown,
     signal: AbortSignal
   ): Promise<WorkflowExecution> {
     const base = performance.now();
@@ -260,6 +280,7 @@ export class RunStore {
     const execution = await runWorkflow(workflow, {
       input,
       signal,
+      messages: this.inboxes.get(id)!.channel,
       run: { id, reference: this.runs.get(id)?.reference },
       onEvent: (event) => {
         activityLog(event);
@@ -268,6 +289,8 @@ export class RunStore {
       }
     }).finally(() => activityLog.dispose());
     this.controllers.delete(id);
+    this.inboxes.get(id)?.channel.close();
+    this.inboxes.delete(id);
     const status = signal.aborted
       ? signal.reason === this.shutdownReason
         ? 'interrupted'
@@ -336,4 +359,12 @@ export function getRunStore(): Promise<RunStore> {
     return store;
   })();
   return state.__runlingRunStore;
+}
+
+/** The run has finished, or this server does not run it. */
+export class RunNotActiveError extends Error {
+  constructor() {
+    super('This run is not running.');
+    this.name = 'RunNotActiveError';
+  }
 }

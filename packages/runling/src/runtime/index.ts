@@ -1,13 +1,28 @@
 export { createChannel, ChannelClosedError, ChannelFullError, type Channel } from './channel.ts';
-export { spawn, type Run, type TaskHandle } from './spawn.ts';
 export { TimeoutError, validateTimeout } from './timeout.ts';
 export {
-  createWorkflowContext,
+  createTaskContext,
   WorkflowAbortError,
   type RunIdentity,
-  type TextHandler,
-  type WorkflowContext
+  type TaskContext
 } from './context.ts';
+export {
+  isTask,
+  task,
+  type AnyTask,
+  type MessageInput,
+  type MessageOutput,
+  type Task,
+  type TaskDefinition,
+  type TaskEmits,
+  type TaskImplementation,
+  type TaskInput,
+  type TaskInvocation,
+  type TaskOutput,
+  type TaskReceives
+} from './task.ts';
+export { type Invocation } from './invocation.ts';
+export { taskTool, type TaskToolOptions } from './task-tool.ts';
 export {
   agent,
   type AgentExtension,
@@ -23,20 +38,11 @@ export {
   defineAgentExtension,
   type RunlingAgent,
   runAgent,
-  type RunAgentOptions
+  type RunAgentOptions,
+  type ThinkingLevel
 } from './agent.ts';
-export { getPwd, WorkingDirectory, workingTreeHash } from './git.ts';
+export { WorkingDirectory, workingTreeHash } from './git.ts';
 export type { RunlingEvent, RunlingEventListener, RunlingEventPayload } from './events.ts';
-export { randomId } from './id.ts';
-export {
-  input,
-  createInput,
-  InputUnavailableError,
-  type Input,
-  type InputHandler,
-  type InputOptions,
-  type InputRequest
-} from './input.ts';
 export { log, type LogLevel } from './log.ts';
 export { step, type StepWork } from './step.ts';
 export {
@@ -52,14 +58,6 @@ export {
   type Shell
 } from './shell.ts';
 export { concat, type ConcatPart } from './utils.ts';
-export {
-  isTask,
-  isSchemaTask,
-  task,
-  type Task,
-  type TaskDefinition,
-  type TaskFunction
-} from './workflow.ts';
 export { Type, type Static, type TSchema } from 'typebox';
 export {
   isWorkflowSchema,
@@ -72,7 +70,7 @@ export {
   type SchemaResult
 } from './schema.ts';
 export type { StandardSchemaV1, StandardJSONSchemaV1 } from '@standard-schema/spec';
-export { type JsonValue, type WorkflowResult, type WorkflowReturn } from './runtime.ts';
+export { type JsonValue } from './runtime.ts';
 export { runWorkflow, type RunWorkflowOptions, type WorkflowExecution } from './runner.ts';
 export {
   accumulateTokenUsage,

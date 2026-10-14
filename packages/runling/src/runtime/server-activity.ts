@@ -84,11 +84,6 @@ export function createServerActivityLog(
       case 'task.linked':
         channels.set(event.channelId, event.taskId);
         return;
-      case 'task.activity':
-        taskId = channels.get(event.channelId);
-        activity = event.message;
-        if (event.level === 'error') level = 'error';
-        break;
       case 'step.started':
         taskId = event.id;
         activity = 'Task started';
@@ -148,16 +143,12 @@ export function createServerActivityLog(
         activity = `Command ${event.status} · ${Math.round(event.durationMs)} ms`;
         if (event.status === 'failed') level = 'error';
         break;
-      case 'input.requested':
-        activity = 'Waiting for input';
+      // Message content never reaches the server log, only the fact of a wait.
+      case 'wait.started':
+        activity = 'Waiting for a message';
         break;
-      case 'input.finished':
-        activity =
-          event.status === 'answered' ? 'Input received' : `Input ${event.reason ?? 'failed'}`;
-        if (event.status === 'failed') level = 'warn';
-        break;
-      case 'conversation.started':
-        activity = 'Conversation ready';
+      case 'wait.finished':
+        activity = event.status === 'received' ? 'Message received' : 'Input closed';
         break;
       default:
         return;
@@ -169,7 +160,6 @@ export function createServerActivityLog(
         runId,
         runReference,
         activity,
-        ...(event.type === 'task.activity' && event.level ? { activityLevel: event.level } : {}),
         ...(taskId && taskLabels.has(taskId) ? { agentLabel: taskLabels.get(taskId) } : {}),
         ...(taskId ? { taskId, taskReference: taskReference(taskId) } : {}),
         ...(agentId

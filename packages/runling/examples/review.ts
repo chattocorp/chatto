@@ -25,15 +25,11 @@ export const review = task(
       directory: Type.String({ minLength: 1 }),
       prompt: Type.String({ description: 'Optional review focus' })
     }),
-    output: Type.Object({
-      summary: Type.String(),
-      details: Type.Optional(Type.String()),
-      outputs: Type.Optional(Type.Object({ review: Type.String() }))
-    })
+    output: Type.String({ description: 'The review in Markdown' })
   },
   async (ctx, { directory, prompt: input }) => {
     const status = await exec`git status --short`.cwd(directory).text();
-    if (status.trim() === '') return { summary: 'No changes to review' };
+    if (status.trim() === '') return 'No changes to review';
 
     const diff = await exec`git diff HEAD --stat --patch --no-ext-diff`.cwd(directory).text();
 
@@ -102,11 +98,7 @@ export const review = task(
       )
     );
 
-    return {
-      summary: report.summary,
-      details: report.details,
-      outputs: { review: report.details ?? report.summary }
-    };
+    return report.details ?? report.summary;
   }
 );
 

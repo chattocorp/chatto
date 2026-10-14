@@ -1,23 +1,23 @@
-import { createWorkflowContext } from './context.ts';
-import { log } from './log.ts';
+import { createChannel } from './channel.ts';
+import { createTaskContext, type TaskContext } from './context.ts';
 import { stripVTControlCharacters } from 'node:util';
-import { afterEach, describe, expect, expectTypeOf, test } from 'vitest';
+import { afterEach, describe, expect, expectTypeOf, test, vi } from 'vitest';
 import {
-  executeWorkflow,
   formatDuration,
-  formatWorkflowDetails,
-  normalizeWorkflowResult,
+  formatWorkflowOutput,
+  logUpdate,
+  runRunling,
   runWorkflow
 } from './runner.ts';
-import type { RunlingEvent } from './events.ts';
-import type { InputRequest } from './input.ts';
-import { input as askInput } from './input.ts';
+import type { RunOptions } from './cli.ts';
+import { observeRunlingEvents, type RunlingEvent } from './events.ts';
 import { Type } from 'typebox';
-import { task } from './workflow.ts';
-import { createRunJournal, newRun } from './run-journal.ts';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { task } from './task.ts';
+import type { RunRecord } from './run-journal.ts';
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const initialExitCode = process.exitCode;
 
@@ -25,267 +25,195 @@ afterEach(() => {
   process.exitCode = initialExitCode ?? 0;
 });
 
-describe('executeWorkflow', () => {
-  test('supplies an explicit context to the workflow', async () => {
-    const execution = await executeWorkflow(function (...args) {
-      expect(args).toHaveLength(1);
-      expect(args[0]?.usage).toEqual({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
-      expect(args[0]?.recordUsage).toBeTypeOf('function');
-      return 'done';
-    });
-    expect(execution.output).toBe('done');
+const runlingModule = fileURLToPath(new URL('./index.ts', import.meta.url));
+
+/**
+ * Run a workflow file with `runling run` in a temporary working directory. The file imports
+ * `task`, `Type`, and `log` from this runtime, so it shares the test's event runtime.
+ */
+async function runCli(
+  source: string,
+  { prompt = '', ...options }: Partial<RunOptions> & { prompt?: string; path?: string } = {}
+) {
+  const directory = await mkdtemp(join(tmpdir(), 'runling-run-'));
+  const path = options.path ?? join(directory, 'workflow.ts');
+  await writeFile(
+    join(directory, 'workflow.ts'),
+    `import { task, Type, log } from ${JSON.stringify(runlingModule)};\n${source}\n`
+  );
+  const stdout: string[] = [];
+  const stderr: string[] = [];
+  const spies = [
+    vi.spyOn(process, 'cwd').mockReturnValue(directory),
+    vi
+      .spyOn(console, 'log')
+      .mockImplementation((message: string) => stdout.push(stripVTControlCharacters(message))),
+    vi
+      .spyOn(console, 'error')
+      .mockImplementation((message: string) => stderr.push(stripVTControlCharacters(message)))
+  ];
+  try {
+    await runRunling(path, prompt, { json: false, log: false, verbose: false, ...options });
+    const runs = join(directory, '.runling/runs');
+    const [journal] = await readdir(runs).catch(() => []);
+    const records: RunRecord[] = journal
+      ? (await readFile(join(runs, journal), 'utf8'))
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line))
+      : [];
+    return { stdout, stderr, records };
+  } finally {
+    for (const spy of spies) spy.mockRestore();
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+const done = (body: string) =>
+  `export default task({ name: 'Demo', input: Type.String(), output: Type.Unknown() }, async (ctx, input) => {\n${body}\n});`;
+
+describe('runRunling', () => {
+  test('prints string output after the log and indents workflow logs below the greeting', async () => {
+    const { stdout } = await runCli(
+      done(`log.info('inside the workflow'); return 'Made the change';`)
+    );
+
+    const greeting = stdout.find((line) => line.includes('Runling starting'));
+    const inside = stdout.find((line) => line.includes('inside the workflow'));
+    const finished = stdout.find((line) => line.includes('Finished in '));
+    expect(greeting).not.toMatch(/^\s/);
+    expect(inside).toMatch(/^ {2}/);
+    expect(stdout).toContain('\nMade the change\n');
+    expect(finished).not.toMatch(/^\s/);
+    expect(process.exitCode ?? 0).toBe(0);
   });
 
-  test('logs a workflow summary', async () => {
-    const logs: string[] = [];
-    const originalLog = console.log;
-    console.log = (message: string) => logs.push(message);
-
-    try {
-      await executeWorkflow(async (ctx) => 'Made the change');
-    } finally {
-      console.log = originalLog;
-    }
-
-    expect(logs.some((line) => line.includes('Made the change'))).toBe(true);
+  test('prints structured output as JSON', async () => {
+    const { stdout } = await runCli(done(`return { branchName: 'fix', count: 2 };`));
+    expect(stdout).toContain(`\n${JSON.stringify({ branchName: 'fix', count: 2 }, null, 2)}\n`);
   });
 
-  test('accepts structured workflow results', async () => {
-    const execution = await executeWorkflow(async () => ({
-      summary: 'Opened the pull request',
-      details: '## Summary\n\nImplemented the requested change.',
-      outputs: { pullRequestUrl: 'https://example.com/pull/1' }
-    }));
-
-    expect(execution.ok).toBe(true);
-    expect(execution.result).toEqual({
-      summary: 'Opened the pull request',
-      details: '## Summary\n\nImplemented the requested change.',
-      outputs: { pullRequestUrl: 'https://example.com/pull/1' }
-    });
+  test('passes the prompt or JSON input to the task', async () => {
+    const workflow = `export default task({ name: 'Echo', input: Type.Unknown(), output: Type.Unknown() }, (ctx, input) => ({ input }));`;
+    const prompt = await runCli(workflow, { prompt: 'hello', json: true });
+    expect(JSON.parse(prompt.stdout[0]!).output).toEqual({ input: 'hello' });
+    const structured = await runCli(workflow, { input: '{"a":1}', json: true });
+    expect(JSON.parse(structured.stdout[0]!).output).toEqual({ input: { a: 1 } });
   });
 
-  test('preserves raw result details when stdout is not interactive', async () => {
-    const logs: string[] = [];
-    const originalLog = console.log;
-    console.log = (message: string) => logs.push(message);
-
-    try {
-      await executeWorkflow(
-        async () => ({
-          summary: 'Review complete',
-          details: '## Findings\n\nSomething worth reading.'
-        }),
-        { terminal: { isTTY: false, columns: 80 } }
-      );
-    } finally {
-      console.log = originalLog;
-    }
-
-    expect(logs).toContain('\n## Findings\n\nSomething worth reading.\n');
+  test('logs the updates of the top-level task', async () => {
+    const { stdout } = await runCli(
+      done(`
+        await ctx.emit('Plain progress');
+        await ctx.emit('  ');
+        await ctx.emit({ type: 'finding', text: 'Validation passed' });
+        await ctx.emit('First line\\nSecond line');
+        return 'done';`)
+    );
+    const updates = stdout.filter((line) => line.startsWith('  ●') && !line.includes('Demo'));
+    expect(updates).toEqual([
+      '  ● Plain progress',
+      '  ● {"type":"finding","text":"Validation passed"}',
+      '  ● First line\n    Second line'
+    ]);
   });
 
-  test('renders result details when stdout is interactive', async () => {
-    const logs: string[] = [];
-    const originalLog = console.log;
-    console.log = (message: string) => logs.push(message);
-
-    try {
-      await executeWorkflow(
-        async () => ({
-          summary: 'Review complete',
-          details: '## Findings\n\nSomething worth reading.'
-        }),
-        { terminal: { isTTY: true, columns: 80 } }
-      );
-    } finally {
-      console.log = originalLog;
-    }
-
-    const details = logs.find((line) => line.includes('Findings'));
-    expect(details).toBeDefined();
-    expect(details).toContain('\x1b[');
-    expect(stripVTControlCharacters(details ?? '')).not.toContain('##');
-  });
-
-  test('emits only the execution document to stdout in JSON mode', async () => {
+  test('writes only the execution document to stdout in JSON mode', async () => {
     const markdown = '## Details\n\n**Still raw.**';
-    const output: string[] = [];
-    const errors: string[] = [];
-    const originalLog = console.log;
-    const originalError = console.error;
-    console.log = (message: string) => output.push(message);
-    console.error = (message: string) => errors.push(message);
-
-    try {
-      await executeWorkflow(
-        async () => ({
-          summary: 'Done',
-          details: markdown,
-          outputs: { count: 2 }
-        }),
-        { json: true, terminal: { isTTY: true, columns: 80 } }
-      );
-    } finally {
-      console.log = originalLog;
-      console.error = originalError;
-    }
-
-    expect(output).toHaveLength(1);
-    expect(JSON.parse(output[0] ?? '')).toMatchObject({
+    const { stdout, stderr } = await runCli(done(`return ${JSON.stringify(markdown)};`), {
+      json: true
+    });
+    expect(stdout).toHaveLength(1);
+    expect(JSON.parse(stdout[0]!)).toEqual({
       ok: true,
       error: null,
-      result: { summary: 'Done', details: markdown, outputs: { count: 2 } }
+      output: markdown,
+      durationMs: expect.any(Number),
+      usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
     });
-    expect(output[0]).not.toContain('\x1b[');
-    expect(errors.some((line) => line.includes('Runling starting'))).toBe(true);
-    expect(errors.some((line) => line.includes('Finished in '))).toBe(true);
-  });
-
-  test('indents workflow log output below the runling greeting', async () => {
-    const logs: string[] = [];
-    const originalLog = console.log;
-    console.log = (message: string) => logs.push(message);
-
-    try {
-      await executeWorkflow(async (ctx) => {
-        log.info('inside the workflow');
-        return 'Made the change';
-      });
-    } finally {
-      console.log = originalLog;
-    }
-
-    const greeting = logs.find((line) => line.includes('Runling starting'));
-    const inside = logs.find((line) => line.includes('inside the workflow'));
-    const summary = logs.find((line) => line.includes('Made the change'));
-    const finished = logs.find((line) => line.includes('Finished in '));
-
-    expect(greeting).toBeDefined();
-    expect(greeting).not.toMatch(/^\s/);
-    expect(inside).toBeDefined();
-    expect(inside).toMatch(/^ {2}/);
-    expect(summary).toBeDefined();
-    expect(summary).not.toMatch(/^\s/);
-    expect(finished).not.toMatch(/^\s/);
+    expect(stderr.some((line) => line.includes('Runling starting'))).toBe(true);
+    expect(stderr.some((line) => line.includes('Finished in '))).toBe(true);
   });
 
   test('logs failures and applies a nonzero exit code', async () => {
-    const errors: string[] = [];
-    const originalError = console.error;
-    console.error = (message: string) => errors.push(message);
-
-    try {
-      await executeWorkflow(async (ctx) => {
-        throw 'Tests failed';
-      });
-    } finally {
-      console.error = originalError;
-    }
-
-    expect(errors.some((line) => line.includes('Tests failed'))).toBe(true);
+    const { stdout, stderr } = await runCli(done(`throw 'Tests failed';`));
+    expect(stderr.some((line) => line.includes('Tests failed'))).toBe(true);
+    expect(stdout.some((line) => line.includes('Finished in '))).toBe(true);
     expect(process.exitCode).toBe(1);
   });
 
-  test('logs the elapsed time after a successful run', async () => {
-    const logs: string[] = [];
-    const originalLog = console.log;
-    console.log = (message: string) => logs.push(message);
-
-    try {
-      await executeWorkflow(async (ctx) => undefined);
-    } finally {
-      console.log = originalLog;
-    }
-
-    expect(logs.some((line) => line.includes('Finished in '))).toBe(true);
+  test.each([
+    {
+      name: 'a missing workflow file',
+      options: { path: 'missing-workflow.ts' },
+      error: 'missing-workflow.ts'
+    },
+    { name: 'malformed JSON input', options: { input: '{' }, error: 'JSON' }
+  ])('reports $name as a failed execution document in JSON mode', async ({ options, error }) => {
+    const { stdout, stderr } = await runCli(done(`return 'unused';`), { json: true, ...options });
+    expect(stdout).toHaveLength(1);
+    expect(JSON.parse(stdout[0]!)).toMatchObject({
+      ok: false,
+      output: null,
+      error: expect.stringContaining(error)
+    });
+    expect(stderr.some((line) => line.includes(error))).toBe(true);
+    expect(process.exitCode).toBe(1);
   });
 
-  test('logs the elapsed time after a failed run', async () => {
-    const logs: string[] = [];
-    const originalLog = console.log;
-    console.log = (message: string) => logs.push(message);
-
-    try {
-      await executeWorkflow(async (ctx) => {
-        throw 'Tests failed';
-      });
-    } finally {
-      console.log = originalLog;
-    }
-
-    expect(logs.some((line) => line.includes('Finished in '))).toBe(true);
-  });
-
-  test('logs accumulated token usage from agent interactions', async () => {
-    const logs: string[] = [];
-    const originalLog = console.log;
-    console.log = (message: string) => logs.push(message);
-
-    try {
-      await executeWorkflow(async (ctx) => {
+  test('logs accumulated token usage and omits the line without usage', async () => {
+    const used = await runCli(
+      done(`
         ctx.recordUsage({ input: 100, output: 20, cacheRead: 500, cacheWrite: 10 });
         ctx.recordUsage({ input: 50, output: 25, cacheRead: 550, cacheWrite: 15 });
-      });
-    } finally {
-      console.log = originalLog;
-    }
-
-    expect(
-      logs.some((line) =>
-        line.includes('Total token usage: in 150, out 45, cache read 1,050, cache write 25')
-      )
-    ).toBe(true);
-    expect(logs.some((line) => line.includes('Finished in '))).toBe(true);
+        return 'done';`)
+    );
+    expect(used.stdout).toContainEqual(
+      expect.stringContaining('Total token usage: in 150, out 45, cache read 1,050, cache write 25')
+    );
+    const unused = await runCli(done(`return 'done';`));
+    expect(unused.stdout.some((line) => line.includes('Total token usage'))).toBe(false);
   });
 
-  test('omits the token usage line when no tokens were recorded', async () => {
-    const logs: string[] = [];
-    const originalLog = console.log;
-    console.log = (message: string) => logs.push(message);
-
-    try {
-      await executeWorkflow(async (ctx) => undefined);
-    } finally {
-      console.log = originalLog;
-    }
-
-    expect(logs.some((line) => line.includes('Total token usage'))).toBe(false);
-  });
-
-  test('resets token usage totals between executions', async () => {
-    createWorkflowContext().recordUsage({
-      input: 999,
-      output: 999,
-      cacheRead: 999,
-      cacheWrite: 999
+  test('records the start, every event, and the output in the run journal', async () => {
+    const { stdout, records } = await runCli(
+      done(`await ctx.emit('Opened the pull request'); return 'done';`),
+      { input: JSON.stringify('Fix') }
+    );
+    const started = records[0];
+    expect(started).toMatchObject({
+      type: 'started',
+      run: { source: 'cli', pid: process.pid, input: 'Fix', status: 'running' }
     });
-    const logs: string[] = [];
-    const originalLog = console.log;
-    console.log = (message: string) => logs.push(message);
-
-    try {
-      await executeWorkflow(async (ctx) => {
-        ctx.recordUsage({ input: 10, output: 5, cacheRead: 0, cacheWrite: 0 });
-      });
-    } finally {
-      console.log = originalLog;
-    }
-
-    expect(logs.some((line) => line.includes('Total token usage: in 10, out 5'))).toBe(true);
-    expect(logs.some((line) => line.includes('999'))).toBe(false);
+    const run = started?.type === 'started' ? started.run : undefined;
+    expect(records).toContainEqual(
+      expect.objectContaining({
+        type: 'event',
+        event: expect.objectContaining({ type: 'message.sent', payload: 'Opened the pull request' })
+      })
+    );
+    expect(records).toContainEqual(
+      expect.objectContaining({
+        type: 'event',
+        event: expect.objectContaining({ type: 'log', message: 'Opened the pull request' })
+      })
+    );
+    expect(records.at(-1)).toMatchObject({ type: 'finished', status: 'completed', output: 'done' });
+    expect(stdout[0]).toContain(`run ${run?.reference}`);
+    expect(stdout.at(-1)).toContain(`${run?.id}.jsonl`);
   });
 });
 
 describe('runWorkflow', () => {
-  test("preserves the task's resolved output type", async () => {
+  test("preserves the task's output type", async () => {
     const done = task(
-      { name: 'Done', input: Type.String(), output: Type.String() },
-      (ctx) => 'done' as const
+      { name: 'Done', input: Type.String(), output: Type.Literal('done') },
+      () => 'done' as const
     );
     const execution = await runWorkflow(done, { input: 'input' });
 
     expectTypeOf(execution.output).toEqualTypeOf<'done' | null>();
+    expect(execution).toMatchObject({ ok: true, error: null, output: 'done' });
   });
 
   test('does not use the removed prompt option as workflow input', async () => {
@@ -304,68 +232,102 @@ describe('runWorkflow', () => {
     expect(started).toBe(false);
     expect(await runWorkflow(echo, { input: '' })).toMatchObject({ ok: true, output: '' });
   });
-  test('runs headlessly with host-provided input and event handling', async () => {
-    const events: RunlingEvent[] = [];
-    const requested = Promise.withResolvers<InputRequest>();
-    const answer = Promise.withResolvers<string>();
-    const joke = task(
-      {
-        name: 'Tell joke',
-        input: Type.String(),
-        output: Type.String()
-      },
-      async (ctx, input) => {
-        expect(input).toBe('Make me laugh');
-        const topic = await askInput(ctx, 'What is the topic?');
-        return `A joke about ${topic}`;
-      }
-    );
-    const running = runWorkflow(joke, {
-      input: 'Make me laugh',
-      onInput: (request) => {
-        requested.resolve(request);
-        return answer.promise;
-      },
-      onEvent: (event) => events.push(event)
-    });
-
-    expect((await requested.promise).message).toBe('What is the topic?');
-    answer.resolve('robots');
-    const execution = await running;
-
-    expect(execution).toMatchObject({
-      ok: true,
-      error: null,
-      output: 'A joke about robots',
-      result: { summary: 'A joke about robots' }
-    });
-    expect(events).toContainEqual(
-      expect.objectContaining({
-        type: 'input.finished',
-        status: 'answered',
-        value: 'robots'
-      })
-    );
-  });
 
   test('captures failures without changing the process exit code', async () => {
     const exitCode = process.exitCode;
     const failing = task(
       { name: 'Fail', input: Type.String(), output: Type.String() },
-      async (ctx) => {
+      async () => {
         throw new Error('Nope');
       }
     );
     const execution = await runWorkflow(failing, { input: '' });
 
-    expect(execution).toMatchObject({ ok: false, error: 'Nope', result: null });
+    expect(execution).toMatchObject({ ok: false, error: 'Nope', output: null });
     expect(process.exitCode).toBe(exitCode);
+  });
+
+  test('exchanges messages between the host and the top-level task', async () => {
+    const chat = task(
+      {
+        name: 'Chat',
+        input: Type.Null(),
+        output: Type.Number(),
+        receives: Type.String(),
+        emits: Type.String()
+      },
+      async (ctx) => {
+        let count = 0;
+        for await (const message of ctx.inbox) {
+          count++;
+          await ctx.emit(`Reply to ${message}`);
+        }
+        return count;
+      }
+    );
+    const messages = createChannel<unknown>();
+    const updates: unknown[] = [];
+    const events: RunlingEvent[] = [];
+    const running = runWorkflow(chat, {
+      input: null,
+      messages,
+      onUpdate: async (update) => {
+        updates.push(update);
+        if (updates.length === 1) {
+          // The host reacts to an update while the task runs. An invalid message is dropped.
+          await messages.send(42);
+          await messages.send('second');
+          messages.close();
+        }
+      },
+      onEvent: (event) => events.push(event)
+    });
+    await messages.send('first');
+    const execution = await running;
+
+    expect(execution).toMatchObject({ ok: true, output: 2 });
+    expect(updates).toEqual(['Reply to first', 'Reply to second']);
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'log',
+        level: 'error',
+        message: expect.stringContaining('Message not delivered: Task "Chat" message is invalid')
+      })
+    );
+  });
+
+  test('closes the input of the top-level task without host messages', async () => {
+    const drain = task(
+      { name: 'Drain', input: Type.Null(), output: Type.Number() },
+      async (ctx) => {
+        let count = 0;
+        for await (const _ of ctx.inbox) count++;
+        // Nobody reads these updates, so they must not fill a buffer.
+        for (let i = 0; i < 100; i++) await ctx.emit(i);
+        return count;
+      }
+    );
+    expect(await runWorkflow(drain, { input: null })).toMatchObject({ ok: true, output: 0 });
+  });
+
+  test('fails the run when the update handler fails', async () => {
+    const emit = task({ name: 'Emit', input: Type.Null(), output: Type.Null() }, async (ctx) => {
+      await ctx.emit('update');
+      return null;
+    });
+    const execution = await runWorkflow(emit, {
+      input: null,
+      onUpdate: () => {
+        throw new Error('delivery failed');
+      }
+    });
+    expect(execution).toMatchObject({ ok: false, error: 'delivery failed' });
   });
 });
 
-describe('formatWorkflowDetails', () => {
-  test('renders Markdown for an interactive terminal', () => {
-    const formatted = formatWorkflowDetails('## Findings\n\n**Important**', {
+describe('formatWorkflowOutput', () => {
+  test('renders text as Markdown for an interactive terminal', () => {
+    const formatted = formatWorkflowOutput('## Findings\n\n**Important**', {
       isTTY: true,
       columns: 80
     });
@@ -376,155 +338,30 @@ describe('formatWorkflowDetails', () => {
   });
 
   test('preserves Markdown for redirected output', () => {
-    expect(
-      formatWorkflowDetails('## Findings\n\n**Important**', {
-        isTTY: false,
-        columns: 80
-      })
-    ).toBe('## Findings\n\n**Important**');
-  });
-});
-
-describe('root workflow updates', () => {
-  const captureLog = async (work: () => Promise<unknown>) => {
-    const lines: string[] = [];
-    const originalLog = console.log;
-    console.log = (message: string) => lines.push(stripVTControlCharacters(message));
-    try {
-      await work();
-    } finally {
-      console.log = originalLog;
-    }
-    return lines;
-  };
-
-  test('are logged: findings, replies, and each new state activity once', async () => {
-    const lines = await captureLog(() =>
-      executeWorkflow(async (ctx) => {
-        await ctx.emit('Plain progress');
-        await ctx.emit({ type: 'finding', text: 'Validation passed' });
-        await ctx.emit({ type: 'state', value: {}, activity: 'Waiting for checks' });
-        await ctx.emit({ type: 'state', value: { polls: 2 }, activity: 'Waiting for checks' });
-        await ctx.emit({ type: 'state', value: {} });
-        await ctx.emit({
-          type: 'state',
-          value: {},
-          activity: 'Checks passed',
-          activityLevel: 'success'
-        });
-        await ctx.emit({ type: 'output', text: 'Repeated agent text' });
-        await ctx.emit({ type: 'tool', operation: 'read', phase: 'started' });
-        await ctx.emit({ type: 'reply', text: 'Answer', replyTo: 'q' });
-        return 'done';
-      })
+    expect(formatWorkflowOutput('## Findings\n\n**Important**', { isTTY: false })).toBe(
+      '## Findings\n\n**Important**'
     );
-    const updates = lines.filter((line) => !/Runling starting|done|Finished in/.test(line));
-    expect(updates).toEqual([
-      '  ● Plain progress',
-      '  ● Validation passed',
-      '  ● Waiting for checks',
-      '  ✓ Checks passed',
-      '  ● Answer'
-    ]);
   });
 
-  test('multi-line messages keep their indentation', async () => {
-    const lines = await captureLog(() =>
-      executeWorkflow(async (ctx) => {
-        await ctx.emit('First line\nSecond line');
-        return 'done';
-      })
-    );
-    expect(lines).toContain('  ● First line\n    Second line');
+  test('formats other values as JSON', () => {
+    expect(formatWorkflowOutput({ count: 2 }, { isTTY: true })).toBe('{\n  "count": 2\n}');
+    expect(formatWorkflowOutput(null, { isTTY: false })).toBe('null');
   });
 });
 
-describe('run journals', () => {
-  test('record the start, every event, and the result of a command-line run', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'runling-journal-'));
-    const originalLog = console.log;
-    const lines: string[] = [];
-    console.log = (message: string) => lines.push(stripVTControlCharacters(message));
-    try {
-      const run = newRun({
-        webhook: 'cli',
-        workflow: 'workflows/demo.ts',
-        source: 'cli',
-        input: { request: 'Fix' }
-      });
-      const writer = await createRunJournal(directory, run);
-      await executeWorkflow(
-        async (ctx) => {
-          await ctx.emit({ type: 'finding', text: 'Opened the pull request' });
-          return 'done';
-        },
-        { journal: { run, writer } }
-      );
-      const records = (await readFile(writer.path, 'utf8'))
-        .trim()
-        .split('\n')
-        .map((line) => JSON.parse(line));
-      expect(writer.path).toBe(join(directory, `${run.id}.jsonl`));
-      expect(records[0]).toMatchObject({
-        type: 'started',
-        run: {
-          id: run.id,
-          reference: run.reference,
-          workflow: 'workflows/demo.ts',
-          source: 'cli',
-          pid: process.pid,
-          input: { request: 'Fix' },
-          status: 'running'
-        }
-      });
-      expect(records).toContainEqual(
-        expect.objectContaining({
-          type: 'event',
-          event: expect.objectContaining({ type: 'log', message: 'Opened the pull request' })
-        })
-      );
-      expect(records.at(-1)).toMatchObject({
-        type: 'finished',
-        status: 'completed',
-        output: 'done'
-      });
-      expect(lines[0]).toContain(`run ${run.reference}`);
-      expect(lines.at(-1)).toContain(`${run.id}.jsonl`);
-    } finally {
-      console.log = originalLog;
-      await rm(directory, { recursive: true, force: true });
+test('logUpdate logs text as it is, other values as JSON, and skips blank text', () => {
+  const events: RunlingEvent[] = [];
+  observeRunlingEvents(
+    (event) => events.push(event),
+    () => {
+      for (const update of ['Progress', ' ', { type: 'finding' }, 3]) logUpdate(update);
     }
-  });
-});
-
-describe('normalizeWorkflowResult', () => {
-  test('rejects non-JSON values even when a summary is present', () => {
-    const circular: Record<string, unknown> = { summary: 'Invalid' };
-    circular.self = circular;
-    for (const output of [
-      circular,
-      { summary: 'Invalid', extra: 1n },
-      { summary: 'Invalid', extra: () => 'value' },
-      { values: [undefined] }
-    ]) {
-      expect(() => normalizeWorkflowResult(output)).toThrow('Workflow output must be valid JSON');
-    }
-  });
-
-  test('keeps string-returning workflows compatible', () => {
-    expect(normalizeWorkflowResult('Made the change')).toEqual({
-      summary: 'Made the change'
-    });
-  });
-
-  test('rejects outputs that cannot be represented as JSON', () => {
-    expect(() =>
-      normalizeWorkflowResult({
-        summary: 'Invalid',
-        outputs: { value: Number.NaN }
-      })
-    ).toThrow('Workflow output must be valid JSON');
-  });
+  );
+  expect(events.flatMap((event) => (event.type === 'log' ? [event.message] : []))).toEqual([
+    'Progress',
+    '{"type":"finding"}',
+    '3'
+  ]);
 });
 
 describe('formatDuration', () => {
@@ -559,16 +396,19 @@ describe('formatDuration', () => {
 test('isolates workflow contexts and usage events across concurrent executions', async () => {
   const seen: unknown[] = [];
   const events: RunlingEvent[][] = [[], []];
-  const run = task(async (ctx, count: number) => {
-    seen.push(ctx);
-    await Promise.all(
-      [1, 2].map(async () => {
-        await Promise.resolve();
-        ctx.recordUsage({ input: count, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0.5 });
-      })
-    );
-    return count;
-  });
+  const run = task(
+    { name: 'Count', input: Type.Number(), output: Type.Number() },
+    async (ctx, count) => {
+      seen.push(ctx);
+      await Promise.all(
+        [1, 2].map(async () => {
+          await Promise.resolve();
+          ctx.recordUsage({ input: count, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0.5 });
+        })
+      );
+      return count;
+    }
+  );
   const [first, second] = await Promise.all([
     runWorkflow(run, { input: 10, onEvent: (event) => events[0]!.push(event) }),
     runWorkflow(run, { input: 100, onEvent: (event) => events[1]!.push(event) })
@@ -585,23 +425,25 @@ test('isolates workflow contexts and usage events across concurrent executions',
   ]);
 });
 
+const Nothing = { input: Type.Null(), output: Type.Unknown() };
+
 test('keeps parent accounting independent of a failed nested workflow execution', async () => {
-  const parent = task(async (ctx) => {
+  const parent = task({ name: 'Parent', ...Nothing }, async (ctx) => {
     ctx.recordUsage({ input: 10, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0.5 });
     const child = await runWorkflow(
-      task((inner) => {
-        expect(inner).not.toBe(ctx);
+      task({ name: 'Child', ...Nothing }, (inner) => {
+        expect(inner.usage).not.toBe(ctx.usage);
         inner.recordUsage({ input: 100, output: 0, cacheRead: 0, cacheWrite: 0, cost: 5 });
         throw new Error('Child failed');
       }),
-      { input: undefined }
+      { input: null }
     );
     expect(child.ok).toBe(false);
     expect(child.usage.input).toBe(100);
     expect(ctx.usage.input).toBe(10);
     throw new Error('Parent failed');
   });
-  const result = await runWorkflow(parent, { input: undefined });
+  const result = await runWorkflow(parent, { input: null });
   expect(result.error).toBe('Parent failed');
   expect(result.usage.input).toBe(10);
 });
@@ -612,13 +454,13 @@ test('emits context usage updates from callbacks created outside the run', async
   const events: RunlingEvent[] = [];
   try {
     const execution = await runWorkflow(
-      task((ctx) => {
+      task({ name: 'Usage', ...Nothing }, (ctx) => {
         resource.runInAsyncScope(() => {
           ctx.recordUsage({ input: 10, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0.25 });
         });
         return 'done';
       }),
-      { input: undefined, onEvent: (event) => events.push(event) }
+      { input: null, onEvent: (event) => events.push(event) }
     );
     expect(execution.usage.input).toBe(10);
     expect(
@@ -631,45 +473,43 @@ test('emits context usage updates from callbacks created outside the run', async
 
 test('aborts nested tasks, runs cleanup, and preserves recorded usage', async () => {
   const calls: string[] = [];
-  const child = task((ctx) => {
+  const child = task({ name: 'Child', ...Nothing }, (ctx) => {
     ctx.recordUsage({ input: 10, output: 2, cacheRead: 0, cacheWrite: 0, cost: 0.25 });
     ctx.abort('Budget exceeded');
-    calls.push('unreachable');
   });
-  const parent = task(async (ctx) => {
+  const parent = task({ name: 'Parent', ...Nothing }, async (ctx) => {
     try {
-      child(ctx);
+      await child(ctx, null);
       calls.push('continued');
     } finally {
       calls.push('cleanup');
     }
   });
-  const execution = await runWorkflow(parent, { input: undefined });
+  const execution = await runWorkflow(parent, { input: null });
   expect(calls).toEqual(['cleanup']);
   expect(execution).toMatchObject({
     ok: false,
     error: 'Budget exceeded',
     output: null,
-    result: null,
     usage: { input: 10, output: 2, cost: 0.25 }
   });
 });
 
 test('cannot turn a caught abort into a successful run', async () => {
-  const run = task((ctx) => {
+  const run = task({ name: 'Catch', ...Nothing }, (ctx) => {
     try {
       ctx.abort('Stop');
     } catch {}
     return 'success';
   });
-  const execution = await runWorkflow(run, { input: undefined });
-  expect(execution).toMatchObject({ ok: false, error: 'Stop', output: null, result: null });
+  const execution = await runWorkflow(run, { input: null });
+  expect(execution).toMatchObject({ ok: false, error: 'Stop', output: null });
 });
 
 test('cancels cooperative parallel work without cancelling another run', async () => {
   const started = Promise.withResolvers<void>();
   let cleanedUp = false;
-  const waiting = task(async (ctx) => {
+  const waiting = task({ name: 'Waiting', ...Nothing }, async (ctx) => {
     try {
       await new Promise<void>((resolve) => {
         ctx.signal.addEventListener('abort', () => resolve(), { once: true });
@@ -679,8 +519,8 @@ test('cancels cooperative parallel work without cancelling another run', async (
       cleanedUp = true;
     }
   });
-  const parent = task(async (ctx) => {
-    const pending = waiting(ctx);
+  const parent = task({ name: 'Parent', ...Nothing }, async (ctx) => {
+    const pending = waiting(ctx, null).catch(() => {});
     await started.promise;
     try {
       ctx.abort('Stop siblings');
@@ -689,13 +529,13 @@ test('cancels cooperative parallel work without cancelling another run', async (
     }
   });
   const [aborted, successful] = await Promise.all([
-    runWorkflow(parent, { input: undefined }),
+    runWorkflow(parent, { input: null }),
     runWorkflow(
-      task((ctx) => {
+      task({ name: 'Other', ...Nothing }, (ctx) => {
         expect(ctx.signal.aborted).toBe(false);
         return 'done';
       }),
-      { input: undefined }
+      { input: null }
     )
   ]);
   expect(cleanedUp).toBe(true);
@@ -703,34 +543,15 @@ test('cancels cooperative parallel work without cancelling another run', async (
   expect(successful).toMatchObject({ ok: true, output: 'done' });
 });
 
-test('host handlers can be overridden by child contexts without changing the parent', async () => {
-  const child = task(async (ctx) => {
-    ctx.recordUsage({ input: 3, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0.25 });
-    return askInput(ctx, 'child question');
-  });
-  const workflow = task(async (ctx) => {
-    const override = { ...ctx, onInput: async () => 'child answer' };
-    const answers = await Promise.all([child(override), askInput(ctx, 'parent question')]);
-    expect(override.usage).toBe(ctx.usage);
-    return answers;
-  });
-  const result = await runWorkflow(workflow, {
-    input: undefined,
-    onInput: async () => 'host answer'
-  });
-  expect(result.output).toEqual(['child answer', 'host answer']);
-  expect(result.usage.input).toBe(3);
-});
-
 test('completed executions retain usage snapshots after the context changes', async () => {
-  const contexts: ReturnType<typeof createWorkflowContext>[] = [];
+  const contexts: TaskContext[] = [];
   const result = await runWorkflow(
-    task((ctx) => {
+    task({ name: 'Usage', ...Nothing }, (ctx) => {
       contexts.push(ctx);
       ctx.recordUsage({ input: 1, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0.25 });
       return 'done';
     }),
-    { input: undefined }
+    { input: null }
   );
   contexts[0]!.recordUsage({ input: 2, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0.5 });
   expect(result.usage.input).toBe(1);
@@ -738,92 +559,53 @@ test('completed executions retain usage snapshots after the context changes', as
   expect(contexts[0]!.usage.input).toBe(3);
 });
 
-test('passes text handlers through nested tasks and isolates concurrent runs', async () => {
-  const first: string[] = [];
-  const second: string[] = [];
-  const leaf = task(async (ctx, text: string) => {
-    await ctx.onText?.(text);
-  });
-  const root = task(async (ctx) => {
-    await Promise.all([leaf(ctx, 'one'), leaf(ctx, 'two')]);
-    const parent = ctx.onText;
-    await leaf(
-      {
-        ...ctx,
-        onText: async (text) => {
-          await parent?.(`child: ${text}`);
-        }
-      },
-      'three'
-    );
-    await leaf(ctx, 'four');
-  });
-  const results = await Promise.all([
-    runWorkflow(root, {
-      input: undefined,
-      onText: async (text) => {
-        first.push(text);
-      }
-    }),
-    runWorkflow(root, {
-      input: undefined,
-      onText: (text) => {
-        second.push(text);
-      }
-    })
-  ]);
-  expect(results.every((result) => result.ok)).toBe(true);
-  expect(first).toEqual(['one', 'two', 'child: three', 'four']);
-  expect(second).toEqual(first);
-  expect((await runWorkflow(root, { input: undefined })).ok).toBe(true);
-});
-
-test('awaits text delivery and reports handler failures through normal task errors', async () => {
-  let release!: () => void;
-  const delivered = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  let finished = false;
-  const root = task(async (ctx) => {
-    await ctx.onText?.('hello');
-    finished = true;
-  });
-  const execution = runWorkflow(root, { input: undefined, onText: () => delivered });
-  expect(finished).toBe(false);
-  release();
-  expect((await execution).ok).toBe(true);
-  expect(finished).toBe(true);
-  const failure = await runWorkflow(root, {
-    input: undefined,
-    onText: async () => {
-      throw new Error('delivery failed');
-    }
-  });
-  expect(failure.ok).toBe(false);
-  expect(failure.error).toContain('delivery failed');
-});
-
 test('does not start a workflow when the host signal is already aborted', async () => {
   let called = false;
   const execution = await runWorkflow(
-    () => {
+    task({ name: 'Never', ...Nothing }, () => {
       called = true;
-    },
-    {
-      input: undefined,
-      signal: AbortSignal.abort(new Error('Cancelled by host'))
-    }
+    }),
+    { input: null, signal: AbortSignal.abort(new Error('Cancelled by host')) }
   );
   expect(called).toBe(false);
   expect(execution).toMatchObject({ ok: false, error: 'Cancelled by host' });
 });
 
-test('ctx.run identifies the run in the workflow and its spawned tasks', async () => {
+test('ctx.run identifies the run in the workflow and its started tasks', async () => {
   const run = { id: 'run-id', reference: 'funky-comics-8426' };
+  const child = task({ name: 'Child', ...Nothing }, (ctx) => ctx.run);
   const execution = await runWorkflow(
-    async (ctx) => [ctx.run, await ctx.spawn((child) => child.run).result],
-    { input: undefined, run }
+    task({ name: 'Root', ...Nothing }, async (ctx) => [
+      ctx.run,
+      await ctx.start(child, null).result,
+      await child(ctx, null)
+    ]),
+    { input: null, run }
   );
-  expect(execution.output).toEqual([run, run]);
-  expect(createWorkflowContext().run).toBeUndefined();
+  expect(execution.output).toEqual([run, run, run]);
+  expect(createTaskContext().run).toBeUndefined();
+});
+
+test('waits for the cooperative cleanup of a cancelled top-level task', async () => {
+  const host = new AbortController();
+  const started = Promise.withResolvers<void>();
+  const calls: string[] = [];
+  const running = runWorkflow(
+    task({ name: 'Cleanup', ...Nothing }, async (ctx) => {
+      try {
+        started.resolve();
+        await new Promise((resolve) =>
+          ctx.signal.addEventListener('abort', resolve, { once: true })
+        );
+      } finally {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        calls.push('cleaned up');
+      }
+    }),
+    { input: null, signal: host.signal }
+  );
+  await started.promise;
+  host.abort(new Error('Stopped by host'));
+  expect(await running).toMatchObject({ ok: false, error: 'Stopped by host' });
+  expect(calls).toEqual(['cleaned up']);
 });

@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import ConversationSegments from './ConversationSegments.svelte';
   import ColumnResizer from './ColumnResizer.svelte';
   import Usage from './Usage.svelte';
   import AnsiText from './AnsiText.svelte';
@@ -450,7 +449,7 @@
                     ><Usage usage={node.usage} compact /></span
                   >{:else}<small
                     class={['text-xs leading-3 text-base-content/60', rowHeight < 32 && 'hidden']}
-                    >{node.kind === 'input' ? activityStatus(node) : node.kind}</small
+                    >{node.kind === 'wait' ? activityStatus(node) : node.kind}</small
                   >{/if}</button
               >
             </div>
@@ -488,23 +487,20 @@
                 <button
                   class={[
                     'absolute min-w-1.5 flex items-center gap-2 overflow-hidden rounded-field border text-left hover:brightness-105',
-                    !node.segments &&
-                      'inset-shadow-2xs inset-shadow-white/10 bg-linear-to-b from-white/5 to-black/5',
+                    'inset-shadow-2xs inset-shadow-white/10 bg-linear-to-b from-white/5 to-black/5',
                     'inset-y-2',
                     dragging ? 'cursor-grabbing' : 'cursor-pointer',
-                    node.segments
-                      ? 'bg-base-200 border-base-300 text-base-content'
-                      : node.status === 'failed' || node.status === 'blocked'
-                        ? 'bg-error border-error text-error-content light:bg-rose-100 light:border-rose-200 light:text-rose-950'
-                        : node.status === 'interrupted'
-                          ? 'bg-neutral border-neutral text-neutral-content border-dashed light:bg-slate-100 light:border-slate-300 light:text-slate-800'
-                          : node.kind === 'agent'
-                            ? 'bg-secondary border-secondary text-secondary-content light:bg-violet-100 light:border-violet-200 light:text-violet-950'
-                            : node.kind === 'command'
-                              ? 'bg-accent border-accent text-accent-content light:bg-teal-100 light:border-teal-200 light:text-teal-950'
-                              : node.kind === 'input'
-                                ? 'bg-base-300 border-base-content/15 text-base-content/60'
-                                : 'bg-primary border-primary text-primary-content light:bg-blue-100 light:border-blue-200 light:text-blue-950',
+                    node.status === 'failed' || node.status === 'blocked'
+                      ? 'bg-error border-error text-error-content light:bg-rose-100 light:border-rose-200 light:text-rose-950'
+                      : node.status === 'interrupted'
+                        ? 'bg-neutral border-neutral text-neutral-content border-dashed light:bg-slate-100 light:border-slate-300 light:text-slate-800'
+                        : node.kind === 'agent'
+                          ? 'bg-secondary border-secondary text-secondary-content light:bg-violet-100 light:border-violet-200 light:text-violet-950'
+                          : node.kind === 'command'
+                            ? 'bg-accent border-accent text-accent-content light:bg-teal-100 light:border-teal-200 light:text-teal-950'
+                            : node.kind === 'wait'
+                              ? 'bg-base-300 border-base-content/15 text-base-content/60'
+                              : 'bg-primary border-primary text-primary-content light:bg-blue-100 light:border-blue-200 light:text-blue-950',
                     selected === node.id && 'outline-2 outline-base-content -outline-offset-2 z-2',
                     bar.clippedStart && 'rounded-l-none border-l-0 pl-5',
                     bar.clippedEnd && 'rounded-r-none border-r-0 pr-5'
@@ -517,16 +513,6 @@
                   onclick={() => onselect(node.id)}
                   title={`${node.label}\n${activityStatus(node)} · ${duration(end - node.startedAt)}\nStart: ${duration(node.startedAt)}${node.preview ? `\n${node.preview}` : ''}`}
                 >
-                  {#if node.segments}
-                    <ConversationSegments
-                      segments={node.segments}
-                      start={node.startedAt}
-                      {end}
-                      {elapsed}
-                      {view}
-                      width={plotWidth}
-                    />
-                  {/if}
                   {#if isActivityActive(node)}
                     <span class="relative ml-2 flex shrink-0 items-center" title="Active task">
                       <ActivityIndicator />
@@ -538,26 +524,24 @@
                       aria-hidden="true">‹‹</span
                     >
                   {/if}
-                  {#if !node.segments}
-                    <span
-                      class="relative z-1 text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis min-w-0 flex-1"
-                      class:pl-2={!isActivityActive(node)}
-                      >{node.kind === 'agent' && node.preview
-                        ? node.preview
-                        : bar.clippedStart
-                          ? ''
-                          : node.label}</span
+                  <span
+                    class="relative z-1 text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis min-w-0 flex-1"
+                    class:pl-2={!isActivityActive(node)}
+                    >{node.kind === 'agent' && node.preview
+                      ? node.preview
+                      : bar.clippedStart
+                        ? ''
+                        : node.label}</span
+                  >
+                  {#if !bar.clippedEnd}
+                    <span class="relative z-1 pr-2 text-xs whitespace-nowrap opacity-90"
+                      >{duration(end - node.startedAt)}</span
                     >
-                    {#if !bar.clippedEnd}
-                      <span class="relative z-1 pr-2 text-xs whitespace-nowrap opacity-90"
-                        >{duration(end - node.startedAt)}</span
-                      >
-                    {:else}
-                      <span
-                        class="absolute top-0 bottom-0 w-5 grid place-items-center bg-black/20 text-lg leading-none tracking-tighter pointer-events-none z-1 right-0 border-l border-l-current/40 border-dashed"
-                        aria-hidden="true">››</span
-                      >
-                    {/if}
+                  {:else}
+                    <span
+                      class="absolute top-0 bottom-0 w-5 grid place-items-center bg-black/20 text-lg leading-none tracking-tighter pointer-events-none z-1 right-0 border-l border-l-current/40 border-dashed"
+                      aria-hidden="true">››</span
+                    >
                   {/if}
                 </button>
               {/if}

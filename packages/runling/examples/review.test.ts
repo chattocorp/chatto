@@ -1,4 +1,4 @@
-import { createWorkflowContext } from 'runling';
+import { createTaskContext } from 'runling';
 import { vi, describe, expect, test } from 'vitest';
 import type { RunlingAgent, Exec } from 'runling';
 import { review } from './review.ts';
@@ -110,15 +110,11 @@ describe('review workflow', () => {
     mocks.current = f;
 
     await expect(
-      review(createWorkflowContext(), {
+      review(createTaskContext(), {
         directory: f.cwd ?? '/project',
         prompt: 'Review the current change'
       })
-    ).resolves.toEqual({
-      summary: 'Found two issues',
-      details: '## Findings\n\nTwo actionable issues.',
-      outputs: { review: '## Findings\n\nTwo actionable issues.' }
-    });
+    ).resolves.toBe('## Findings\n\nTwo actionable issues.');
 
     expect(agentOptions).toMatchObject({
       model: 'openai-codex/gpt-5.6-sol',
@@ -203,7 +199,7 @@ describe('review workflow', () => {
     mocks.current = f;
 
     await expect(
-      review(createWorkflowContext(), {
+      review(createTaskContext(), {
         directory: f.cwd ?? '/project',
         prompt: 'Review the current change'
       })
@@ -224,10 +220,8 @@ describe('review workflow', () => {
     mocks.current = f;
 
     await expect(
-      review(createWorkflowContext(), { directory: f.cwd ?? '/project', prompt: '' })
-    ).resolves.toEqual({
-      summary: 'No changes to review'
-    });
+      review(createTaskContext(), { directory: f.cwd ?? '/project', prompt: '' })
+    ).resolves.toBe('No changes to review');
   });
 });
 
@@ -238,7 +232,6 @@ vi.mock('runling', async (importOriginal) => {
     ...actual,
     agent: (options: unknown) => mocks.current.agent(options),
     runAgent: (_ctx: unknown, ...args: unknown[]) => mocks.current.runAgent(...args),
-    input: (_ctx: unknown, ...args: unknown[]) => mocks.current.input(...args),
     step: (name: string, work: () => unknown) => mocks.current.step(name, work),
     log: { info: (message: string) => mocks.current.log?.info(message) },
     exec: (...args: unknown[]) => {

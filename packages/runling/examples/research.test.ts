@@ -1,4 +1,4 @@
-import { createWorkflowContext } from 'runling';
+import { createTaskContext } from 'runling';
 import { vi, describe, expect, test } from 'vitest';
 
 import { research } from './research.ts';
@@ -17,9 +17,6 @@ describe('research workflow', () => {
     const steps: string[] = [];
     const f = {
       prompt: 'The Bun JavaScript runtime',
-      input: () => {
-        throw new Error('input should not be requested');
-      },
       runAgent: async (prompt: string, agentOptions: Record<string, unknown>) => {
         prompts.push(prompt);
         options.push(agentOptions);
@@ -33,15 +30,11 @@ describe('research workflow', () => {
     mocks.current = f;
 
     await expect(
-      research(createWorkflowContext(), {
+      research(createTaskContext(), {
         directory: f.cwd ?? '/project',
         prompt: 'The Bun JavaScript runtime'
       })
-    ).resolves.toEqual({
-      summary: completedReport.summary,
-      details: completedReport.details,
-      outputs: { research: completedReport.details }
-    });
+    ).resolves.toBe(completedReport.details);
     expect(steps).toEqual(['Researching topic']);
     expect(prompts[0]).toContain('The Bun JavaScript runtime');
     expect(prompts[0]).toContain('multiple relevant sources');
@@ -52,27 +45,25 @@ describe('research workflow', () => {
     });
   });
 
-  test('asks for a topic when the CLI prompt is empty', async () => {
-    const questions: string[] = [];
-    const prompts: string[] = [];
-    const f = {
-      prompt: '  ',
-      input: async (question: string) => {
-        questions.push(question);
-        return 'Agentic software factories';
-      },
-      runAgent: async (prompt: string) => {
-        prompts.push(prompt);
-        return completedReport;
-      },
+  test('requires a topic', async () => {
+    const runAgent = vi.fn();
+    mocks.current = { runAgent, step: <T>(_name: string, work: () => T) => work() };
+
+    await expect(
+      research(createTaskContext(), { directory: '/project', prompt: '' })
+    ).rejects.toThrow('Task "Research topic" input is invalid');
+    expect(runAgent).not.toHaveBeenCalled();
+  });
+
+  test('returns the summary when the report has no details', async () => {
+    mocks.current = {
+      runAgent: async () => ({ ...completedReport, details: undefined }),
       step: <T>(_name: string, work: () => T) => work()
-    } as Record<string, any>;
-    mocks.current = f;
+    };
 
-    await research(createWorkflowContext(), { directory: f.cwd ?? '/project', prompt: '  ' });
-
-    expect(questions).toEqual(['What topic should I research?']);
-    expect(prompts[0]).toContain('Agentic software factories');
+    await expect(
+      research(createTaskContext(), { directory: '/project', prompt: 'Bun' })
+    ).resolves.toBe(completedReport.summary);
   });
 });
 
@@ -83,7 +74,6 @@ vi.mock('runling', async (importOriginal) => {
     ...actual,
     agent: (options: unknown) => mocks.current.agent(options),
     runAgent: (_ctx: unknown, ...args: unknown[]) => mocks.current.runAgent(...args),
-    input: (_ctx: unknown, ...args: unknown[]) => mocks.current.input(...args),
     step: (name: string, work: () => unknown) => mocks.current.step(name, work),
     log: { info: (message: string) => mocks.current.log?.info(message) },
     exec: (...args: unknown[]) => {

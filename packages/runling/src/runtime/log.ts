@@ -31,7 +31,7 @@ const depthStorage = new AsyncLocalStorage<number>();
 const colorStorage = new AsyncLocalStorage<string>();
 type LogDestination = 'stdout' | 'stderr' | 'silent';
 interface LogSource {
-  type: 'agent' | 'command' | 'input';
+  type: 'agent' | 'command';
   id: string;
 }
 
@@ -83,9 +83,6 @@ export const logStep = (message: string): void => write('info', message, 'dodger
 
 export const logCommand = (id: string, message: string): void =>
   withLogSource({ type: 'command', id }, () => log.info(message));
-
-export const logInput = (id: string, level: 'info' | 'success' | 'error', message: string): void =>
-  withLogSource({ type: 'input', id }, () => log[level](message));
 
 export const withLogSource = <T>(source: LogSource, work: LoggedWork<T>): T =>
   sourceStorage.run(source, work);

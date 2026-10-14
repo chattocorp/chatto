@@ -1,6 +1,6 @@
-import { createWorkflowContext } from 'runling';
+import { createTaskContext } from 'runling';
 import { vi, describe, expect, test } from 'vitest';
-import type { Exec, WorkflowResult } from 'runling';
+import type { Exec } from 'runling';
 import { createWorktree, describePullRequest, postReview } from './make-pr.ts';
 
 describe('make-pr workflow', () => {
@@ -74,7 +74,7 @@ describe('make-pr workflow', () => {
 
     await expect(
       describePullRequest(
-        createWorkflowContext(),
+        createTaskContext(),
         f.cwd ?? '/project',
         'Changed the behavior to fix the bug',
         'commit abc123\n\ndiff --git a/foo.ts b/foo.ts'
@@ -108,37 +108,17 @@ describe('make-pr workflow', () => {
       step: <T>(_label: string, work: () => T) => work()
     } as Record<string, any>;
     mocks.current = f;
-    const result: WorkflowResult = {
-      summary: 'Found one issue',
-      details: '## Findings\n\nFix the race.'
-    };
-
-    await postReview(f.cwd ?? '/project', 'https://github.com/example/project/pull/42', result);
+    await postReview(
+      f.cwd ?? '/project',
+      'https://github.com/example/project/pull/42',
+      '## Findings\n\nFix the race.'
+    );
 
     expect(command?.join('_argument_')).toBe('gh pr comment _argument_ --body _argument_');
     expect(expressions).toEqual([
       'https://github.com/example/project/pull/42',
       '## Findings\n\nFix the race.'
     ]);
-  });
-
-  test('uses the review summary when it has no details', async () => {
-    let body: unknown;
-    const exec = ((_strings: TemplateStringsArray, ...values: unknown[]) => {
-      body = values[1];
-      return Promise.resolve();
-    }) as unknown as Exec;
-    const f = {
-      exec,
-      step: <T>(_label: string, work: () => T) => work()
-    } as Record<string, any>;
-    mocks.current = f;
-
-    await postReview(f.cwd ?? '/project', 'https://github.com/example/project/pull/42', {
-      summary: 'No issues found'
-    });
-
-    expect(body).toBe('No issues found');
   });
 });
 
@@ -149,7 +129,6 @@ vi.mock('runling', async (importOriginal) => {
     ...actual,
     agent: (options: unknown) => mocks.current.agent(options),
     runAgent: (_ctx: unknown, ...args: unknown[]) => mocks.current.runAgent(...args),
-    input: (_ctx: unknown, ...args: unknown[]) => mocks.current.input(...args),
     step: (name: string, work: () => unknown) => mocks.current.step(name, work),
     log: { info: (message: string) => mocks.current.log?.info(message) },
     exec: (...args: unknown[]) => {
