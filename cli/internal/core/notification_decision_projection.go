@@ -389,13 +389,10 @@ func (s *notificationDecisionSnapshot) threadFollowerIDs(roomID, threadRootEvent
 	return s.badges.followerIDs(roomID, threadRootEventID)
 }
 
-func (s *notificationDecisionSnapshot) threadFollowState(userID, roomID, threadRootEventID string) ThreadFollowState {
-	return s.badges.followState(userID, roomID, threadRootEventID)
-}
-
-// threadReplyCount returns the number of posted replies of a thread root.
-func (s *notificationDecisionSnapshot) threadReplyCount(threadRootEventID string) uint64 {
-	return s.badges.replyCount(threadRootEventID)
+// followedThreadRecipientIDs returns the users for whom a thread reply is
+// followed-thread activity.
+func (s *notificationDecisionSnapshot) followedThreadRecipientIDs(messageEventID string) []string {
+	return s.badges.followedThreadRecipientIDs(messageEventID)
 }
 
 func (s *notificationDecisionSnapshot) effectiveNotificationMode(userID, roomID string, signal *notificationv1.NotificationSignal) evtv1.NotificationDeliveryMode {

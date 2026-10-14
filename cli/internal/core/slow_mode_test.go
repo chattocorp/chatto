@@ -10,6 +10,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -172,7 +173,8 @@ func TestMessageSlowModeCountsAttachmentOnlyPostsButNotAttachmentStaging(t *test
 func TestMessageSlowModeConcurrentPostsUseRoomOCC(t *testing.T) {
 	t.Parallel()
 
-	chatto, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	chatto := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "slow-mode-race", "Slow Mode Race", "password123")
 	require.NoError(t, err)
@@ -182,12 +184,10 @@ func TestMessageSlowModeConcurrentPostsUseRoomOCC(t *testing.T) {
 	require.NoError(t, err)
 	managerID := newRoomManagerForTest(t, ctx, chatto, "slow-mode-room-manager", room.Id)
 	setRoomSlowModeForTest(t, ctx, chatto, managerID, room.Id, 60)
-	replica, err := NewChattoCore(ctx, nc, config.CoreConfig{
+	replica := startReplica(t, ns, config.CoreConfig{
 		SecretKey: "test-core-secret",
 		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
 	})
-	require.NoError(t, err)
-	startCoreServices(t, replica)
 	replicaRoom, err := replica.GetRoom(ctx, KindChannel, room.Id)
 	require.NoError(t, err)
 	require.Equal(t, uint32(60), replicaRoom.GetSlowModeSeconds())

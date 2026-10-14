@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/nats-io/nats.go/jetstream"
 )
 
@@ -28,7 +29,8 @@ func withoutGenerationUseGrace(c *ChattoCore) {
 func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testing.T) {
 	t.Parallel()
 
-	first, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	first := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
 	user, err := first.CreateUser(ctx, SystemActorID, "renewable-user", "Renewable User", "password123")
 	if err != nil {
@@ -45,14 +47,10 @@ func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testin
 	sessionKey := first.renewableSessionKey(sessionID)
 	assertRuntimeKVHasTTL(t, first, sessionKey)
 
-	second, err := NewChattoCore(ctx, nc, config.CoreConfig{
+	second := startReplica(t, ns, config.CoreConfig{
 		SecretKey: "test-core-secret",
 		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
 	})
-	if err != nil {
-		t.Fatalf("NewChattoCore replica: %v", err)
-	}
-	startCoreServices(t, second)
 
 	const requestID = testRefreshRequestIDA
 	rotated, err := first.RefreshBearerSession(ctx, initial.RefreshToken, requestID, "")
@@ -523,7 +521,8 @@ func TestChattoCore_FreshAuthSurvivesConcurrentAccessRotation(t *testing.T) {
 func TestChattoCore_ConcurrentRefreshAcrossReplicasRevokesOnceBothChainsAreUsed(t *testing.T) {
 	t.Parallel()
 
-	first, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	first := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
 	user, err := first.CreateUser(ctx, SystemActorID, "replica-refresh-user", "Replica Refresh User", "password123")
 	if err != nil {
@@ -533,14 +532,10 @@ func TestChattoCore_ConcurrentRefreshAcrossReplicasRevokesOnceBothChainsAreUsed(
 	if err != nil {
 		t.Fatalf("CreateBearerSessionWithSource: %v", err)
 	}
-	second, err := NewChattoCore(ctx, nc, config.CoreConfig{
+	second := startReplica(t, ns, config.CoreConfig{
 		SecretKey: "test-core-secret",
 		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
 	})
-	if err != nil {
-		t.Fatalf("NewChattoCore replica: %v", err)
-	}
-	startCoreServices(t, second)
 	withoutGenerationUseGrace(first)
 	withoutGenerationUseGrace(second)
 

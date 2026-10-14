@@ -4,8 +4,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/nats-io/nats.go"
-
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
@@ -40,26 +38,8 @@ func TestOperatorIdentityConcurrentClaimsAndRemovalsAcrossReplicas(t *testing.T)
 	t.Parallel()
 	ns, _ := testutil.StartNATS(t)
 	ctx := testContext(t)
-	// Give each replica its own connection, as in production. Replicas that
-	// share one connection get EVT messages through one read loop, so they
-	// seldom lag each other. This can hide a read that does not wait for the
-	// projection.
-	newReplica := func() *ChattoCore {
-		t.Helper()
-		nc, err := nats.Connect(nats.DefaultURL, nats.InProcessServer(ns))
-		if err != nil {
-			t.Fatalf("connect replica to NATS: %v", err)
-		}
-		t.Cleanup(nc.Close)
-		replica, err := NewChattoCore(ctx, nc, testCoreConfig())
-		if err != nil {
-			t.Fatalf("create replica: %v", err)
-		}
-		startCoreServices(t, replica)
-		return replica
-	}
-	first := newReplica()
-	second := newReplica()
+	first := startReplica(t, ns, testCoreConfig())
+	second := startReplica(t, ns, testCoreConfig())
 	users := make([]string, 2)
 	for i, login := range []string{"claim-first", "claim-second"} {
 		user, err := first.CreateUser(ctx, SystemActorID, login, login, "")
@@ -133,7 +113,7 @@ func TestOperatorIdentityConcurrentClaimsAndRemovalsAcrossReplicas(t *testing.T)
 		t.Fatalf("unlink outcomes = %d successes, %d protected", successes, conflicts)
 	}
 	// A fresh replica cold-replays the facts and retains exactly one method.
-	replayed := newReplica()
+	replayed := startReplica(t, ns, testCoreConfig())
 	identities, err := replayed.ExternalIdentitiesForUser(ctx, owner.Id)
 	if err != nil || len(identities) != 1 {
 		t.Fatalf("replayed identities = %v, %v", identities, err)

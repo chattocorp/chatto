@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -14,7 +13,6 @@ import (
 	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/chattocorp/chatto/pkg/events"
-	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
@@ -1721,14 +1719,14 @@ func TestChattoCore_PostMessage_EchoMentionNotification(t *testing.T) {
 
 	t.Run("echo with mention produces exactly one notification", func(t *testing.T) {
 		// Subscribe to occurrence invalidations for the target user.
-		var mentionCount atomic.Int64
-		sub, err := nc.Subscribe(subjects.LiveSyncUserEvent(target.Id, "notification_v2"), func(msg *nats.Msg) {
-			mentionCount.Add(1)
-		})
+		sub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(target.Id, "notification_v2"))
 		if err != nil {
 			t.Fatalf("Failed to subscribe: %v", err)
 		}
 		defer sub.Unsubscribe()
+		if err := nc.Flush(); err != nil {
+			t.Fatalf("Flush subscription: %v", err)
+		}
 
 		// Post root message
 		rootEvent, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "Thread root", nil, "", "", nil, false)
@@ -1763,18 +1761,22 @@ func TestChattoCore_PostMessage_EchoMentionNotification(t *testing.T) {
 		require.Equal(t, reply.GetMessagePosted().GetMentionedUserIds(), hydrated.GetMentionedUserIds())
 		require.Len(t, hydrated.GetMentions(), len(reply.GetMessagePosted().GetMentions()))
 
-		// Wait for async notifications to be delivered
-		nc.Flush()
-		time.Sleep(500 * time.Millisecond)
-
-		// Should have received exactly one occurrence creation (not one per echo).
-		if got := mentionCount.Load(); got != 1 {
-			t.Errorf("Expected exactly 1 live mention event, got %d", got)
-		}
-
+		// The materializer is current after this, so every occurrence of the
+		// reply and its echo exists.
 		occurrences := testNotificationOccurrences(t, core, target.Id)
 		if len(occurrences) != 1 || !testOccurrenceHasKind(occurrences[0], notificationTestSignalDirectMention) {
 			t.Errorf("Expected exactly one persistent mention occurrence, got %+v", occurrences)
+		}
+
+		// Should have received exactly one occurrence creation (not one per echo).
+		if _, err := sub.NextMsgWithContext(ctx); err != nil {
+			t.Fatalf("wait for live mention event: %v", err)
+		}
+		if err := nc.Flush(); err != nil {
+			t.Fatalf("Flush: %v", err)
+		}
+		if pending, _, _ := sub.Pending(); pending != 0 {
+			t.Errorf("Expected exactly 1 live mention event, got %d more", pending)
 		}
 	})
 }

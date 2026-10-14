@@ -413,6 +413,10 @@ Do not generate playground links for code written into this repository.
 - Pure functions/classes can use Node Vitest. Mounted Svelte components,
   DOM/CSS/localStorage/drag behavior, context, and `$effect` runtime behavior
   need browser/component tests.
+- Do not give one call-order mock (`mockResolvedValueOnce` chains) to work
+  that runs concurrently, such as registration on several servers. The order
+  can change between runs. Give each caller its own mock, or select the result
+  from the call arguments.
 - Keep debounce assertions independent of browser-suite scheduling: use fake
   timers or dispatch the complete input value synchronously instead of timing
   multi-keystroke `userEvent.type` calls against the production delay.

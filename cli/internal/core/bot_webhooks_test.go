@@ -19,6 +19,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	logv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/log/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
@@ -304,7 +305,10 @@ func TestBotOutboundWebhookExpiryAndRevocation(t *testing.T) {
 func TestBotOutboundWebhookRestartDiscardsRetryState(t *testing.T) {
 	t.Parallel()
 
-	c, nc := newTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	firstNC := newReplicaConn(t, ns)
+	c, err := NewChattoCore(testContext(t), firstNC, testCoreConfig())
+	require.NoError(t, err)
 	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 2, RetryDelay: config.Duration(time.Second)}
 	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls.Add(1); w.WriteHeader(503) }))
@@ -317,7 +321,7 @@ func TestBotOutboundWebhookRestartDiscardsRetryState(t *testing.T) {
 	require.NoError(t, c.WaitForBoot(testContext(t)))
 	owner, bot, room := webhookTestBot(t, c)
 	ctx := testContext(t)
-	_, _, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Test endpoint", strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
+	_, _, err = c.CreateBotOutboundWebhook(ctx, owner, bot, "Test endpoint", strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
 	require.NoError(t, err)
 	_, err = c.PostMessage(ctx, KindDM, room, owner, "Hello", nil, "", "", nil, false)
 	require.NoError(t, err)
@@ -333,9 +337,9 @@ func TestBotOutboundWebhookRestartDiscardsRetryState(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("core did not stop")
 	}
-	replica, err := NewChattoCore(ctx, nc, c.config)
-	require.NoError(t, err)
-	startCoreServices(t, replica)
+	// Close the connection of the stopped core, as a process exit does.
+	firstNC.Close()
+	replica := startReplica(t, ns, c.config)
 	waitWebhookDeliveriesDrained(t, replica)
 	require.Never(t, func() bool { return calls.Load() != 1 }, 1200*time.Millisecond, 10*time.Millisecond)
 	requireNoWebhookOutcomes(t, replica)
@@ -378,7 +382,9 @@ func TestBotOutboundWebhookRedirectDoesNotForwardSecrets(t *testing.T) {
 func TestBotOutboundWebhookFanoutAcrossReplicas(t *testing.T) {
 	t.Parallel()
 
-	c, nc := newTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	c, err := NewChattoCore(testContext(t), newReplicaConn(t, ns), testCoreConfig())
+	require.NoError(t, err)
 	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 2, RetryDelay: config.Duration(10 * time.Millisecond)}
 	var good, bad atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -393,9 +399,7 @@ func TestBotOutboundWebhookFanoutAcrossReplicas(t *testing.T) {
 	defer server.Close()
 	c.botWebhooks.client = newBotWebhookModel(c, c.botWebhooks.projection).client
 	startCoreServices(t, c)
-	replica, err := NewChattoCore(testContext(t), nc, c.config)
-	require.NoError(t, err)
-	startCoreServices(t, replica)
+	replica := startReplica(t, ns, c.config)
 	owner, first, _ := webhookTestBot(t, c)
 	ctx := testContext(t)
 	allowBotCreation(t, ctx, c, owner)
@@ -805,11 +809,10 @@ func TestBotOutboundWebhookPauseResumeCancelsOldRetry(t *testing.T) {
 func TestBotOutboundWebhookLimitAcrossReplicas(t *testing.T) {
 	t.Parallel()
 
-	c, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	c := startReplica(t, ns, testCoreConfig())
+	replica := startReplica(t, ns, c.config)
 	ctx := testContext(t)
-	replica, err := NewChattoCore(ctx, nc, c.config)
-	require.NoError(t, err)
-	startCoreServices(t, replica)
 	owner, bot, _ := webhookTestBot(t, c)
 	for range 19 {
 		_, _, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Endpoint", "https://example.com/hook", "", false)
@@ -992,11 +995,10 @@ func TestBotOutboundWebhookEditCancelsOldRetry(t *testing.T) {
 func TestBotOutboundWebhookConcurrentEditsMergeAcrossReplicas(t *testing.T) {
 	t.Parallel()
 
-	c, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	c := startReplica(t, ns, testCoreConfig())
+	replica := startReplica(t, ns, c.config)
 	ctx := testContext(t)
-	replica, err := NewChattoCore(ctx, nc, c.config)
-	require.NoError(t, err)
-	startCoreServices(t, replica)
 	owner, bot, _ := webhookTestBot(t, c)
 	endpoint, secret, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Endpoint", "https://example.com/old", "", false)
 	require.NoError(t, err)

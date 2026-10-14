@@ -6,6 +6,7 @@ import (
 
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,7 +21,10 @@ func TestNotificationReadRepairAfterCoreRestart(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			ctx := testContext(t)
-			first, nc := newTestCore(t)
+			ns, _ := testutil.StartNATS(t)
+			firstNC := newReplicaConn(t, ns)
+			first, err := NewChattoCore(ctx, firstNC, testCoreConfig())
+			require.NoError(t, err)
 			stop := startSnapshotTestCore(t, first)
 			t.Cleanup(stop)
 			room, err := first.CreateRoom(ctx, SystemActorID, KindChannel, "", "Read recovery", "")
@@ -78,7 +82,9 @@ func TestNotificationReadRepairAfterCoreRestart(t *testing.T) {
 			require.NoError(t, err)
 			require.False(t, stored.GetRead())
 
-			second, err := NewChattoCore(ctx, nc, first.config)
+			// Close the connection of the stopped core, as a process exit does.
+			firstNC.Close()
+			second, err := NewChattoCore(ctx, newReplicaConn(t, ns), first.config)
 			require.NoError(t, err)
 			stopSecond := startSnapshotTestCore(t, second)
 			defer stopSecond()

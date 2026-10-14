@@ -7,20 +7,20 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 func TestOperatorRoomMemberAddAcrossReplicasAndReplay(t *testing.T) {
 	t.Parallel()
 
-	first, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	first := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
 	user, err := first.CreateUser(ctx, SystemActorID, "operator-replica-member", "Operator Replica Member", "password")
 	require.NoError(t, err)
 	room, err := first.CreateRoom(ctx, SystemActorID, KindChannel, "", "operator-replica-room", "")
 	require.NoError(t, err)
-	second, err := NewChattoCore(ctx, nc, first.config)
-	require.NoError(t, err)
-	startCoreServices(t, second)
+	second := startReplica(t, ns, first.config)
 
 	type result struct {
 		roomID string
@@ -46,9 +46,7 @@ func TestOperatorRoomMemberAddAcrossReplicasAndReplay(t *testing.T) {
 		require.Equal(t, user.GetId(), result.userID)
 	}
 
-	replayed, err := NewChattoCore(ctx, nc, first.config)
-	require.NoError(t, err)
-	startCoreServices(t, replayed)
+	replayed := startReplica(t, ns, first.config)
 	membership, err := replayed.AddMember(ctx, SystemActorID, KindChannel, room.GetId(), user.GetId())
 	require.NoError(t, err)
 	require.Equal(t, room.GetId(), membership.GetRoomId())

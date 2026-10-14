@@ -8,6 +8,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/config"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
@@ -15,14 +16,13 @@ import (
 func TestNeighborConcurrentDuplicateAcrossReplicas(t *testing.T) {
 	t.Parallel()
 
-	first, nc := setupTestCore(t)
-	ctx := testContext(t)
-	second, err := NewChattoCore(ctx, nc, config.CoreConfig{
+	ns, _ := testutil.StartNATS(t)
+	first := startReplica(t, ns, testCoreConfig())
+	second := startReplica(t, ns, config.CoreConfig{
 		SecretKey: "test-core-secret",
 		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
 	})
-	require.NoError(t, err)
-	startCoreServices(t, second)
+	ctx := testContext(t)
 
 	actor, err := first.CreateUser(ctx, SystemActorID, "neighbor-replica-manager", "Neighbor Replica Manager", "password123")
 	require.NoError(t, err)
@@ -53,14 +53,13 @@ func TestNeighborConcurrentDuplicateAcrossReplicas(t *testing.T) {
 func TestNeighborConcurrentUpdatesAcrossReplicas(t *testing.T) {
 	t.Parallel()
 
-	first, nc := setupTestCore(t)
-	ctx := testContext(t)
-	second, err := NewChattoCore(ctx, nc, config.CoreConfig{
+	ns, _ := testutil.StartNATS(t)
+	first := startReplica(t, ns, testCoreConfig())
+	second := startReplica(t, ns, config.CoreConfig{
 		SecretKey: "test-core-secret",
 		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
 	})
-	require.NoError(t, err)
-	startCoreServices(t, second)
+	ctx := testContext(t)
 
 	actor, err := first.CreateUser(ctx, SystemActorID, "neighbor-update-manager", "Neighbor Update Manager", "password123")
 	require.NoError(t, err)

@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-09
+**Last reviewed:** 2026-10-14
 
 ## Overview
 
@@ -234,7 +234,14 @@ it cannot change another user's state or grant access to the deleted scope.
 asynchronously from committed domain facts and the current projected state when
 the durable materializer processes them. Membership, preference, room-group,
 authorization, and thread-follow changes that are already visible can affect
-the decision.
+the decision. One exception applies: a thread follow makes a reply followed
+thread activity only when the follow began before the reply. A follow that
+starts after the reply, such as the automatic follow of a mentioned user or of
+the root author, does not add an occurrence for that reply. The first reply of
+a thread reaches the root author unless the root author unfollowed the thread.
+A later reply in the projection does not change this. Thus the decisions for a
+reply do not depend on how far the projection advanced before the materializer
+processed the reply.
 A user's own activity does not notify them. One source activity produces at
 most one delivery decision per recipient and cause. For example, a root
 message that contains `@all` and a direct mention can produce room-message,
