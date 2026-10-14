@@ -15,7 +15,7 @@ export async function loadAccountMemberships(
   isBot: boolean,
   canManageAccounts: boolean,
   signal: AbortSignal
-): Promise<MatrixData & Pick<UserPermissionMatrix, 'userId' | 'page'>> {
+): Promise<MatrixData & Pick<UserPermissionMatrix, 'userId'>> {
   const scopes: MatrixScope[] = matrix.scopes.map((scope) => ({ ...scope }));
   const roomScopes = scopes.filter((scope) => scope.kind === 'ROOM');
   const joinableScopes = new Set(

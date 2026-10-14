@@ -27,18 +27,14 @@ rendering to `SubjectPermissionsMatrix`.
     type CellState,
     type DecisionMode
   } from './SubjectPermissionsMatrix.svelte';
-  import { type InfiniteData } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { createInfiniteQuery, queryClient } from '$lib/query/client';
+  import { createQuery, queryClient } from '$lib/query/client';
   import {
     registerQueryCacheRemovalListener,
     registerServerQueryCacheRemovalListener
   } from '$lib/query/cacheRegistry';
 
-  import { mergePermissionPages } from './permissionPages';
-  import type { PermissionScopePage } from '@chatto/client/api/permissions';
-
-  type Matrix = MatrixData & { page: PermissionScopePage; userId: string };
+  type Matrix = MatrixData & { userId: string };
 
   let {
     userId,
@@ -57,38 +53,26 @@ rendering to `SubjectPermissionsMatrix`.
 
   const serverScope = useServerScope();
 
-  const matrixQuery = createInfiniteQuery(() => {
+  const matrixQuery = createQuery(() => {
     const serverId = serverScope.serverId;
     const activeConnection = serverScope.connection;
     const activeUserId = userId;
     const isBot = ownerCapped;
     return {
       queryKey: adminQueryKeys.userPermissions(serverId, activeConnection, activeUserId),
-      initialPageParam: 0,
-      getNextPageParam: (last: Matrix | null, pages: (Matrix | null)[]) =>
-        last?.page.hasMore
-          ? pages.reduce((count, page) => count + (page?.scopes.length ?? 0), 0)
-          : undefined,
-      queryFn: async ({ signal, pageParam }) => {
+      queryFn: async ({ signal }) => {
         // Cache refreshes can run before reactive query options update.
         const canManageAccounts = serverScope.store.permissions.canAdminManageAccounts;
         const matrix = await activeConnection
           .getAPI(createPermissionAPI)
-          .getUserPermissionMatrix(activeUserId, {
-            signal,
-            page: { limit: 20, offset: pageParam }
-          });
+          .getUserPermissionMatrix(activeUserId, { signal });
         if (!matrix) return null;
         return loadAccountMemberships(activeConnection, matrix, isBot, canManageAccounts, signal);
       }
     };
   });
 
-  const data = $derived<Matrix | null>(
-    mergePermissionPages(
-      (matrixQuery.data?.pages ?? []).filter((page): page is Matrix => page !== null)
-    )
-  );
+  const data = $derived<Matrix | null>(matrixQuery.data ?? null);
   const loading = $derived(matrixQuery.isPending);
   const loadError = $derived(matrixQuery.error ? errorMessage(matrixQuery.error) : null);
   let mutationError = $state<{ context: string; message: string } | null>(null);
@@ -242,21 +226,14 @@ rendering to `SubjectPermissionsMatrix`.
 
     if (result.update) {
       const decision = result.update.decision;
-      queryClient.setQueryData<InfiniteData<Matrix | null, number>>(queryKey, (current) =>
+      queryClient.setQueryData<Matrix | null>(queryKey, (current) =>
         current
           ? {
               ...current,
-              pages: current.pages.map((page) =>
-                page
-                  ? {
-                      ...page,
-                      cells: page.cells.map((cell) =>
-                        cell.scopeId === scope.id && cell.permission === permission
-                          ? { ...cell, override: decision }
-                          : cell
-                      )
-                    }
-                  : page
+              cells: current.cells.map((cell) =>
+                cell.scopeId === scope.id && cell.permission === permission
+                  ? { ...cell, override: decision }
+                  : cell
               )
             }
           : current
@@ -282,10 +259,8 @@ rendering to `SubjectPermissionsMatrix`.
   <Hint tone="danger">{visibleMutationError ?? loadError}</Hint>
 {/if}
 
-{#if matrixQuery.isFetchNextPageError}
-  <Button variant="secondary" onclick={() => matrixQuery.fetchNextPage()}
-    >{m('common.retry')}</Button
-  >
+{#if matrixQuery.isError}
+  <Button variant="secondary" onclick={() => matrixQuery.refetch()}>{m('common.retry')}</Button>
 {/if}
 
 {#if !loading && !data}
@@ -295,9 +270,6 @@ rendering to `SubjectPermissionsMatrix`.
     data={data ?? { applicablePermissions: [], scopes: [], cells: [] }}
     {loading}
     {fillHeight}
-    hasMore={matrixQuery.hasNextPage && !matrixQuery.isFetchNextPageError}
-    loadingMore={matrixQuery.isFetching}
-    onLoadMore={() => matrixQuery.fetchNextPage()}
     updatingKey={visibleUpdatingKey}
     onCycle={handleCycle}
     {subjectKind}

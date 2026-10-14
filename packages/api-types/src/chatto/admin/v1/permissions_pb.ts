@@ -584,7 +584,7 @@ export class PermissionMatrixCell extends Message<PermissionMatrixCell> {
 }
 
 /**
- * Permission matrix for one role within a scope page.
+ * Complete permission matrix for one role at the matching scopes.
  *
  * @generated from message chatto.admin.v1.RolePermissionMatrix
  */
@@ -670,14 +670,7 @@ export class GetRolePermissionMatrixRequest extends Message<GetRolePermissionMat
   includeDirectMessageScope = false;
 
   /**
-   * Scope page. Default 20 scopes, maximum 100. Offsets count scopes, not decisions.
-   *
-   * @generated from field: chatto.api.v1.PageRequest page = 3;
-   */
-  page?: PageRequest;
-
-  /**
-   * Optional exact scope filter. Missing or inaccessible scopes produce an empty page.
+   * Optional exact scope filter. Omit to read all scopes. Missing or inaccessible scopes produce an empty matrix.
    * SERVER and DM require an empty ID; GROUP and ROOM require an ID.
    *
    * @generated from field: chatto.admin.v1.PermissionScope scope = 4;
@@ -694,7 +687,6 @@ export class GetRolePermissionMatrixRequest extends Message<GetRolePermissionMat
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "role_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "include_direct_message_scope", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 3, name: "page", kind: "message", T: PageRequest },
     { no: 4, name: "scope", kind: "message", T: PermissionScope },
   ]);
 
@@ -728,13 +720,6 @@ export class GetRolePermissionMatrixResponse extends Message<GetRolePermissionMa
    */
   matrix?: RolePermissionMatrix;
 
-  /**
-   * Total matching scopes and whether another scope page exists.
-   *
-   * @generated from field: chatto.api.v1.PageInfo page = 2;
-   */
-  page?: PageInfo;
-
   constructor(data?: PartialMessage<GetRolePermissionMatrixResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -744,7 +729,6 @@ export class GetRolePermissionMatrixResponse extends Message<GetRolePermissionMa
   static readonly typeName = "chatto.admin.v1.GetRolePermissionMatrixResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "matrix", kind: "message", T: RolePermissionMatrix },
-    { no: 2, name: "page", kind: "message", T: PageInfo },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRolePermissionMatrixResponse {
@@ -765,7 +749,7 @@ export class GetRolePermissionMatrixResponse extends Message<GetRolePermissionMa
 }
 
 /**
- * Permission matrix for one user within a scope page.
+ * Complete permission matrix for one user at the matching scopes.
  *
  * @generated from message chatto.admin.v1.UserPermissionMatrix
  */
@@ -1485,14 +1469,7 @@ export class GetUserPermissionMatrixRequest extends Message<GetUserPermissionMat
   includeDirectMessageScope = false;
 
   /**
-   * Scope page. Default 20 scopes, maximum 100. Offsets count scopes, not decisions.
-   *
-   * @generated from field: chatto.api.v1.PageRequest page = 3;
-   */
-  page?: PageRequest;
-
-  /**
-   * Optional exact scope filter. Missing or inaccessible scopes produce an empty page.
+   * Optional exact scope filter. Omit to read all scopes. Missing or inaccessible scopes produce an empty matrix.
    * SERVER and DM require an empty ID; GROUP and ROOM require an ID.
    *
    * @generated from field: chatto.admin.v1.PermissionScope scope = 4;
@@ -1509,7 +1486,6 @@ export class GetUserPermissionMatrixRequest extends Message<GetUserPermissionMat
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "include_direct_message_scope", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 3, name: "page", kind: "message", T: PageRequest },
     { no: 4, name: "scope", kind: "message", T: PermissionScope },
   ]);
 
@@ -1543,13 +1519,6 @@ export class GetUserPermissionMatrixResponse extends Message<GetUserPermissionMa
    */
   matrix?: UserPermissionMatrix;
 
-  /**
-   * Total matching scopes and whether another scope page exists.
-   *
-   * @generated from field: chatto.api.v1.PageInfo page = 2;
-   */
-  page?: PageInfo;
-
   constructor(data?: PartialMessage<GetUserPermissionMatrixResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1559,7 +1528,6 @@ export class GetUserPermissionMatrixResponse extends Message<GetUserPermissionMa
   static readonly typeName = "chatto.admin.v1.GetUserPermissionMatrixResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "matrix", kind: "message", T: UserPermissionMatrix },
-    { no: 2, name: "page", kind: "message", T: PageInfo },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetUserPermissionMatrixResponse {

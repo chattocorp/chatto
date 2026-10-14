@@ -1,7 +1,7 @@
 <!-- @component Public bot permissions. The query refreshes every 30 seconds
 while mounted and discards cached data when the profile closes. -->
 <script lang="ts">
-  import { createPermissionAPI, type MatrixData } from '@chatto/client/api/permissions';
+  import { createPermissionAPI } from '@chatto/client/api/permissions';
   import { createEffectivePermissionAPI } from '@chatto/client/api/effectivePermissions';
   import { m } from '$lib/i18n/messages';
   import { createQuery } from '$lib/query/client';
@@ -56,22 +56,8 @@ while mounted and discards cached data when the profile closes. -->
     enabled: canManage,
     queryFn: async ({ signal }) => {
       const api = scope.connection.getAPI(createPermissionAPI);
-      const matrix: MatrixData = { applicablePermissions: [], scopes: [], cells: [] };
-      let offset = 0;
-      while (true) {
-        const page = await api.getUserPermissionMatrix(botId, {
-          signal,
-          page: { limit: 100, offset }
-        });
-        if (!page) throw new Error('Missing bot permission configuration');
-        matrix.applicablePermissions.push(...page.applicablePermissions);
-        matrix.scopes.push(...page.scopes);
-        matrix.cells.push(...page.cells);
-        if (!page.page.hasMore) break;
-        if (!page.scopes.length) throw new Error('Empty bot configuration scope page');
-        offset += page.scopes.length;
-      }
-      matrix.applicablePermissions = [...new Set(matrix.applicablePermissions)];
+      const matrix = await api.getUserPermissionMatrix(botId, { signal });
+      if (!matrix) throw new Error('Missing bot permission configuration');
       return matrix;
     },
     refetchInterval: 30_000,

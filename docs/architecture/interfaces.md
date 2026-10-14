@@ -210,11 +210,12 @@ another account. These operations validate stable request-time authorization
 inputs, use OCC on the target user aggregate, and then return the ready user
 projection.
 
-`AdminPermissionService` uses the same scope pagination for role/user matrix
-and decision reads. The core selects at most 100 scopes before cell evaluation
-and loads parent-group rules independently of the page. Scope enumeration still
-scans the directory. Bot reads filter room visibility before pagination and
-counts. See [permission scope selection](../../cli/internal/core/permission_scope_page.go).
+`AdminPermissionService` returns complete role and user permission matrices in
+one response. Decision lists select at most 100 scopes before cell evaluation.
+Both forms support an exact scope filter and load parent-group rules outside
+that filter. Scope enumeration scans the directory. Bot reads filter room
+visibility before scope selection and counts. See
+[permission scope selection](../../cli/internal/core/permission_scope_page.go).
 
 `RoomService.ListMembers` returns active membership IDs in stable ID order.
 An empty search reads lifecycle and membership metadata without profile

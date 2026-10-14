@@ -22,6 +22,8 @@ func TestPermissionScopePagination(t *testing.T) {
 		more         bool
 	}{
 		{"default", PermissionScopeQuery{}, 20, 112, true},
+		{"complete matrix", PermissionScopeQuery{All: true}, 112, 112, false},
+		{"complete filtered matrix", PermissionScopeQuery{All: true, Scope: &PermissionTargetScope{Kind: MatrixScopeRoom, ID: "009"}}, 1, 1, false},
 		{"cap", PermissionScopeQuery{Limit: 500}, 100, 112, true},
 		{"last", PermissionScopeQuery{Offset: 100}, 12, 112, false},
 		{"past end", PermissionScopeQuery{Offset: int(^uint(0) >> 1)}, 0, 112, false},

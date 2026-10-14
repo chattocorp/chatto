@@ -76,12 +76,10 @@ export type PermissionReadOptions = {
 
 export type RolePermissionMatrix = MatrixData & {
   roleName: string;
-  page: PermissionScopePage;
 };
 
 export type UserPermissionMatrix = MatrixData & {
   userId: string;
-  page: PermissionScopePage;
 };
 
 export type PermissionDecisionEntry = {
@@ -131,22 +129,20 @@ export function createPermissionAPI(config: ConnectAPIConfig) {
       return response.matrix ? tierRoles(response.matrix) : null;
     },
 
+    /** Read all matching role scopes and their permission cells in one request. */
     async getRolePermissionMatrix(
       roleName: string,
-      options: PermissionReadOptions = {}
+      options: Omit<PermissionReadOptions, 'page'> = {}
     ): Promise<RolePermissionMatrix | null> {
       const response = await client.getRolePermissionMatrix(
         {
           roleName,
           includeDirectMessageScope: true,
-          page: options.page,
           scope: options.scope ? apiScope(options.scope) : undefined
         },
         { signal: options.signal }
       );
-      return response.matrix
-        ? { ...rolePermissionMatrix(response.matrix), page: scopePage(response.page) }
-        : null;
+      return response.matrix ? rolePermissionMatrix(response.matrix) : null;
     },
 
     async listRolePermissionDecisions(
@@ -170,22 +166,20 @@ export function createPermissionAPI(config: ConnectAPIConfig) {
       };
     },
 
+    /** Read all matching account scopes and their permission cells in one request. */
     async getUserPermissionMatrix(
       userId: string,
-      options: PermissionReadOptions = {}
+      options: Omit<PermissionReadOptions, 'page'> = {}
     ): Promise<UserPermissionMatrix | null> {
       const response = await client.getUserPermissionMatrix(
         {
           userId,
           includeDirectMessageScope: true,
-          page: options.page,
           scope: options.scope ? apiScope(options.scope) : undefined
         },
         { signal: options.signal }
       );
-      return response.matrix
-        ? { ...userPermissionMatrix(response.matrix), page: scopePage(response.page) }
-        : null;
+      return response.matrix ? userPermissionMatrix(response.matrix) : null;
     },
 
     async listUserPermissionDecisions(
@@ -271,7 +265,7 @@ function tierRole(role: APITierRole): TierRole {
   };
 }
 
-function rolePermissionMatrix(matrix: APIRolePermissionMatrix): Omit<RolePermissionMatrix, 'page'> {
+function rolePermissionMatrix(matrix: APIRolePermissionMatrix): RolePermissionMatrix {
   return {
     roleName: matrix.roleName,
     applicablePermissions: [...matrix.applicablePermissions],
@@ -280,7 +274,7 @@ function rolePermissionMatrix(matrix: APIRolePermissionMatrix): Omit<RolePermiss
   };
 }
 
-function userPermissionMatrix(matrix: APIUserPermissionMatrix): Omit<UserPermissionMatrix, 'page'> {
+function userPermissionMatrix(matrix: APIUserPermissionMatrix): UserPermissionMatrix {
   return {
     userId: matrix.userId,
     applicablePermissions: [...matrix.applicablePermissions],

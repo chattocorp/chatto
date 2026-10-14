@@ -4,12 +4,15 @@ import (
 	"fmt"
 )
 
-// PermissionScopeQuery selects a live page of scopes before permission evaluation.
-// Scope is an optional exact filter. Limit and Offset count scopes, not cells.
+// PermissionScopeQuery selects matching scopes before permission evaluation.
+// All selects a complete matrix; otherwise Limit and Offset count scopes, not cells.
+// Scope is an optional exact filter in both modes.
 type PermissionScopeQuery struct {
 	Scope  *PermissionTargetScope
 	Limit  int
 	Offset int
+	// All returns every matching scope for a complete matrix. Decision lists use pages.
+	All bool
 }
 
 // PermissionScopePage describes the matching visible scope collection.
@@ -23,7 +26,8 @@ func (q PermissionScopeQuery) includesDM() bool {
 }
 
 // selectPermissionScopes preserves the sidebar order from buildMatrixScopesVisibleTo.
-// Enumeration can still scale with the directory; permission evaluation and result size are bounded.
+// Enumeration scales with the directory. Decision lists bound evaluation and
+// result size; complete matrices evaluate every matching scope.
 func selectPermissionScopes(scopes []PermissionMatrixScope, q PermissionScopeQuery) ([]PermissionMatrixScope, PermissionScopePage, error) {
 	if q.Limit < 0 || q.Offset < 0 {
 		return nil, PermissionScopePage{}, fmt.Errorf("%w: negative scope page", ErrInvalidArgument)
@@ -61,6 +65,9 @@ func selectPermissionScopes(scopes []PermissionMatrixScope, q PermissionScopeQue
 		scopes = filtered
 	}
 	page := PermissionScopePage{TotalCount: len(scopes)}
+	if q.All {
+		return scopes, page, nil
+	}
 	if q.Offset >= len(scopes) {
 		return []PermissionMatrixScope{}, page, nil
 	}

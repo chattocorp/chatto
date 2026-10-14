@@ -45,15 +45,16 @@ func (s *permissionService) GetRolePermissionMatrix(ctx context.Context, req *co
 	if err != nil {
 		return nil, err
 	}
-	query, err := permissionScopeQuery(req.Msg.GetPage(), req.Msg.GetScope())
+	query, err := permissionScopeQuery(nil, req.Msg.GetScope())
 	if err != nil {
 		return nil, err
 	}
+	query.All = true
 	matrix, err := s.api.core.GetRolePermissionMatrixPage(ctx, caller.UserID, req.Msg.GetRoleName(), req.Msg.GetIncludeDirectMessageScope(), query)
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.GetRolePermissionMatrixResponse{Matrix: apiRolePermissionMatrix(matrix), Page: apiPermissionScopePage(matrix.Page)}), nil
+	return connect.NewResponse(&adminv1.GetRolePermissionMatrixResponse{Matrix: apiRolePermissionMatrix(matrix)}), nil
 }
 
 func (s *permissionService) ListRolePermissionDecisions(ctx context.Context, req *connect.Request[adminv1.ListRolePermissionDecisionsRequest]) (*connect.Response[adminv1.ListRolePermissionDecisionsResponse], error) {
@@ -82,15 +83,16 @@ func (s *permissionService) GetUserPermissionMatrix(ctx context.Context, req *co
 	if err != nil {
 		return nil, err
 	}
-	query, err := permissionScopeQuery(req.Msg.GetPage(), req.Msg.GetScope())
+	query, err := permissionScopeQuery(nil, req.Msg.GetScope())
 	if err != nil {
 		return nil, err
 	}
+	query.All = true
 	matrix, err := s.api.core.GetUserPermissionMatrixPage(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetIncludeDirectMessageScope(), query)
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.GetUserPermissionMatrixResponse{Matrix: apiUserPermissionMatrix(matrix), Page: apiPermissionScopePage(matrix.Page)}), nil
+	return connect.NewResponse(&adminv1.GetUserPermissionMatrixResponse{Matrix: apiUserPermissionMatrix(matrix)}), nil
 }
 
 func (s *permissionService) ListUserPermissionDecisions(ctx context.Context, req *connect.Request[adminv1.ListUserPermissionDecisionsRequest]) (*connect.Response[adminv1.ListUserPermissionDecisionsResponse], error) {
