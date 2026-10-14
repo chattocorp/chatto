@@ -1,6 +1,6 @@
 # ADR-002: Explicit agent connections and child ownership
 
-**Status:** Accepted
+**Status:** Accepted. [ADR-009](ADR-009-task-invocations.md) removes agent supervision and the adoption of runs.
 **Date:** 2026-09-22
 
 ## Context
