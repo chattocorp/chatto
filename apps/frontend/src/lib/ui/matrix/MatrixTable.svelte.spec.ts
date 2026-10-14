@@ -61,6 +61,26 @@ describe('MatrixTable', () => {
     }
   );
 
+  it('uses the pane width before the first resize callback in a scaled preview', () => {
+    const host = document.createElement('div');
+    host.style.width = '600px';
+    host.style.transform = 'scale(1.25)';
+    host.style.transformOrigin = 'top left';
+    document.body.append(host);
+    try {
+      const { container } = render(MatrixTableTestHarness, { target: host });
+      flushSync();
+
+      expect(container.querySelectorAll('tbody tr')).toHaveLength(4);
+      const label = container.querySelector<HTMLElement>('[data-test-row-heading="mentions"]')!;
+      expect(label.parentElement!.getBoundingClientRect().width).toBeCloseTo(
+        host.getBoundingClientRect().width
+      );
+    } finally {
+      host.remove();
+    }
+  });
+
   it.each(['ltr', 'rtl'])(
     'keeps a complete 205-column matrix usable in a fractional-width pane in %s',
     async (direction) => {

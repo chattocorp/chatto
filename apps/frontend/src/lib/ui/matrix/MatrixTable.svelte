@@ -25,9 +25,9 @@ provide all domain labels and cell content with snippets.
   // into the same ResizeObserver delivery cycle.
   const measureWidth: Attachment<HTMLDivElement> = (element) => {
     let frame = 0;
-    // Keep fractional widths so stacked labels do not exceed the viewport
-    // and shift at the far end of horizontal scrolling.
-    availableWidth = element.getBoundingClientRect().width;
+    // Use CSS pixels so transforms do not change the layout breakpoint.
+    // Keep fractional widths so stacked labels stay inside the viewport.
+    availableWidth = Number.parseFloat(getComputedStyle(element).width);
     const observer = new ResizeObserver(([entry]) => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
