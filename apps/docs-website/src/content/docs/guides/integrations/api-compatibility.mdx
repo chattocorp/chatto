@@ -16,6 +16,12 @@ the realtime protocol in ways that require client changes.
 
 ## Compatibility policy
 
+Use `ServerRuntimeConfig.max_upload_size` to validate the size of every
+attachment, including GIFs and videos. The deprecated `max_video_upload_size`
+field now reports the same value. Video upload enablement remains a separate
+check. In `@chatto/client`, use `maxUploadSize`; `maxVideoUploadSize` is a
+deprecated alias of it.
+
 The public API has these tiers:
 
 | Tier           | Package                                 | Contents                                                                    |

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/c2h5oh/datasize"
+	"github.com/chattocorp/chatto/cli/internal/assets"
 	"github.com/chattocorp/chatto/cli/pkg/natsauth"
 	"github.com/chattocorp/chatto/pkg/appconfig"
 )
@@ -41,6 +43,15 @@ type ChattoConfig struct {
 // ApplyDefaults fills derived config values that are safe to compute from other
 // fields. Keep validation separate so Validate can remain a pure check.
 func (c *ChattoConfig) ApplyDefaults() {
+	// Older operators set two limits. Use their maximum for every attachment
+	// until the operator removes the deprecated video setting.
+	if c.Video.MaxUploadSize > 0 {
+		generalLimit := c.Core.Assets.MaxUploadSize
+		if generalLimit == 0 {
+			generalLimit = datasize.ByteSize(assets.DefaultMaxUploadSize)
+		}
+		c.Core.Assets.MaxUploadSize = max(generalLimit, c.Video.MaxUploadSize)
+	}
 	if c.NATS.Embedded.Enabled && c.NATS.Embedded.Port > 0 {
 		if c.NATS.Client.URL == "" {
 			c.NATS.Client.URL = embeddedNATSClientURL(c.NATS.Embedded)

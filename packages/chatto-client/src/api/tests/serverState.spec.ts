@@ -112,7 +112,7 @@ describe('getAuthenticatedServerState', () => {
       livekitUrl: 'wss://livekit',
       videoProcessingEnabled: true,
       maxUploadSize: 123,
-      maxVideoUploadSize: 456,
+      maxVideoUploadSize: 123,
       messageEditWindowSeconds: 7200,
       viewerPermissions: {
         'admin.view-audit': true,

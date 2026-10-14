@@ -240,7 +240,7 @@ See [Enabling Search](/guides/operations/search/) for a complete setup guide, an
 </EnvVar>
 
 <EnvVar name="CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE" toml="core.assets.max_upload_size" default="25 MB">
-  Max upload size for images and non-video files (e.g., `25MB`, `25 MiB`). Videos use a separate limit — see `CHATTO_VIDEO_MAX_UPLOAD_SIZE`.
+  Maximum upload size for all files, including images, GIFs, and videos (e.g., `25MB`, `25 MiB`). Video upload enablement does not change this limit.
 </EnvVar>
 
 <EnvVar name="CHATTO_CORE_ASSETS_STORAGE_BACKEND" toml="core.assets.storage_backend" default="nats">
@@ -559,8 +559,8 @@ SMTP is the default transactional email transport. Set `email.transport = "jmap"
   Allow video uploads and enqueue their derivative processing. At least one embedded or standalone asset-processing worker must have `ffmpeg` and `ffprobe` available.
 </EnvVar>
 
-<EnvVar name="CHATTO_VIDEO_MAX_UPLOAD_SIZE" toml="video.max_upload_size" default="100 MB">
-  Max upload size for video files (e.g., `100MB`, `200 MiB`). Only applies when video uploads are enabled. Non-video files use `CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE` instead.
+<EnvVar name="CHATTO_VIDEO_MAX_UPLOAD_SIZE" toml="video.max_upload_size" default="unset">
+  Deprecated. Set `CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE` to the desired limit for all files, then remove this setting. While this setting is present, the larger of it and the general limit applies to all files, even when video uploads are disabled. An absent general limit uses its 25 MB default. The old implicit 100 MB video default no longer applies.
 </EnvVar>
 
 ## LiveKit (Voice & Video Calls)

@@ -23,8 +23,28 @@ files, use S3-compatible storage.
 
 | Limit | Default | Setting |
 | ----- | ------- | ------- |
-| Images and other files | 25 MB | `core.assets.max_upload_size` |
-| Videos | 100 MB | `video.max_upload_size` |
+| All uploaded files, including GIFs and videos | 25 MB | `core.assets.max_upload_size` |
+
+Set one limit for all files:
+
+```toml
+[core.assets]
+max_upload_size = "100MB"
+```
+
+If you use `video.max_upload_size` or `CHATTO_VIDEO_MAX_UPLOAD_SIZE`, set the
+desired limit in `core.assets.max_upload_size` or
+`CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE`, then remove the old video size setting.
+Until you remove it, the larger of the two limits applies to all files. If the
+general limit is absent, its 25 MB default participates in this comparison.
+The old implicit 100 MB video default no longer applies. Set the general limit
+to `100MB` to keep that allowance. Video upload enablement remains a separate
+setting.
+
+For operator-managed servers, set `spec.assets.maxUploadSize` to the desired
+limit and remove `spec.assets.maxVideoUploadSize` when the operator supports
+this migration. To keep one policy during a server rollout, set both fields to
+the desired limit before you upgrade the server.
 
 Browsers upload message attachments in chunks of up to 10 MiB. If your reverse
 proxy limits the request body size, allow at least 11 MiB for each request.
@@ -207,7 +227,7 @@ CHATTO_ASSET_PROCESSING_MAX_CONCURRENT_JOBS=2
 | Setting | Default | Description |
 | ------- | ------- | ----------- |
 | `video.enabled` | `false` | Accept video uploads and queue processing |
-| `video.max_upload_size` | `100 MB` | Maximum video file size |
+| `core.assets.max_upload_size` | `25 MB` | Maximum size for all uploaded files |
 | `asset_processing.enabled` | `false` | Start the worker inside `chatto run` |
 | `asset_processing.ffmpeg_path` | from `PATH` | Path to `ffmpeg` |
 | `asset_processing.ffprobe_path` | from `PATH` | Path to `ffprobe` |

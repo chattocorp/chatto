@@ -1384,8 +1384,8 @@ func TestServerServiceGetMotdAndRuntimeConfig(t *testing.T) {
 	if runtime.GetLivekitUrl() != "wss://livekit.example.test" {
 		t.Fatalf("LivekitUrl = %q, want configured URL", runtime.GetLivekitUrl())
 	}
-	if runtime.GetMaxUploadSize() <= 0 || runtime.GetMaxVideoUploadSize() <= 0 {
-		t.Fatalf("upload sizes = %d/%d, want positive values", runtime.GetMaxUploadSize(), runtime.GetMaxVideoUploadSize())
+	if runtime.GetMaxUploadSize() <= 0 || runtime.GetMaxVideoUploadSize() != runtime.GetMaxUploadSize() {
+		t.Fatalf("upload sizes = %d/%d, want equal positive values", runtime.GetMaxUploadSize(), runtime.GetMaxVideoUploadSize())
 	}
 	if runtime.GetMessageEditWindowSeconds() != int32(core.MessageEditWindow/time.Second) {
 		t.Fatalf("MessageEditWindowSeconds = %d, want %d", runtime.GetMessageEditWindowSeconds(), int32(core.MessageEditWindow/time.Second))

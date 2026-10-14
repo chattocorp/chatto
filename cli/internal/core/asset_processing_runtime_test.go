@@ -11,7 +11,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
-func TestAssetProcessingRuntimeDoesNotUseVideoUploadLimit(t *testing.T) {
+func TestAssetProcessingRuntimeDoesNotEnableVideoUploads(t *testing.T) {
 	t.Parallel()
 
 	_, nc := testutil.StartNATS(t)
@@ -35,7 +35,7 @@ func TestAssetProcessingRuntimeDoesNotUseVideoUploadLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if runtime.Core().VideoMaxUploadSize != 0 {
-		t.Fatal("asset processing runtime must not apply user video upload limits")
+	if runtime.Core().VideoUploadsEnabled {
+		t.Fatal("asset processing runtime must not enable user video uploads")
 	}
 }

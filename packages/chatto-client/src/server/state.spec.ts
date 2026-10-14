@@ -202,7 +202,7 @@ describe('ServerInfoState.init()', () => {
     expect(state.livekitUrl).toBe('wss://livekit.acme.test');
     expect(state.videoProcessingEnabled).toBe(true);
     expect(state.maxUploadSize).toBe(1024);
-    expect(state.maxVideoUploadSize).toBe(2048);
+    expect(state.maxVideoUploadSize).toBe(1024);
     expect(state.messageEditWindowSeconds).toBe(60);
 
     // A projection reset clears the settings again.

@@ -47,6 +47,7 @@ func CheckConfig(path string) error {
 // Retired settings are listed even when absent from the schema so operators get
 // migration instructions instead of a generic unknown-name message.
 var deprecatedTOML = map[string]string{
+	"video.max_upload_size":             "set core.assets.max_upload_size to the desired limit for all files and remove video.max_upload_size",
 	"livekit.instance_id":               "use livekit.server_id",
 	"livekit.webhook_url":               "remove this unused setting; configure webhook.urls in LiveKit",
 	"auth.providers[].provider_options": "remove this unused setting; use documented auth.providers fields",
@@ -130,6 +131,7 @@ func checkEnvNames(environ []string) []string {
 	names := map[string]bool{"CHATTO_BOOTSTRAP_SERVER_NAME": true, "CHATTO_BOOTSTRAP_SERVER_ROOMS": true}
 	taggedEnvNames(reflect.TypeFor[ChattoConfig](), names)
 	deprecated := map[string]string{
+		"CHATTO_VIDEO_MAX_UPLOAD_SIZE":    "set CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE to the desired limit for all files and remove CHATTO_VIDEO_MAX_UPLOAD_SIZE",
 		"CHATTO_LIVEKIT_INSTANCE_ID":      "use CHATTO_LIVEKIT_SERVER_ID",
 		"CHATTO_LIVEKIT_WEBHOOK_URL":      "remove this unused setting; configure webhook.urls in LiveKit",
 		"CHATTO_OPERATOR_API_SOCKET_MODE": "remove this setting; the socket always uses mode 0600",

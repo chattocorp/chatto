@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-10-13
+**Last reviewed:** 2026-10-14
 
 ## Overview
 
@@ -20,7 +20,9 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Message authors can change attachment descriptions during the message-edit window. Effective `message.manage` permission bypasses the time limit and permits changes to other members' descriptions. A change marks the message as edited and refreshes current message views through the existing bodyless message-edited signal.
 - In messages, hovering over an image, video, audio player, or file card shows its description in a native browser tooltip when a description exists. Attachment action buttons keep their action labels. Keyboard and touch users can read descriptions in the attachment viewer.
 - Image descriptions are alt text, with the filename as fallback. In the shared attachment viewer, static images have a Details panel that starts closed to give the image more space. The panel shows the selected image's description, type, and size beside the image on desktop and below it on smaller screens. The description remains available to assistive technology while the panel is closed. Other file descriptions stay visible beside or below the preview, including before HTML preview consent. Long descriptions scroll without hiding Download or Close. Video, audio, and file controls expose descriptions to assistive technology.
-- Default upload size limits: 25 MB for general files, 100 MB for videos when video processing is enabled.
+- One upload size limit applies to all files, including GIFs and videos. The default is 25 MB, set with `core.assets.max_upload_size`. Video upload enablement is independent of this limit.
+- The deprecated `video.max_upload_size` setting is a migration input. When set, the larger of that value and the general limit applies to all files. If the general limit is absent, its 25 MB default participates in this comparison. Operators must set the desired general limit and remove the deprecated setting. The old implicit 100 MB video default no longer applies.
+- `ServerRuntimeConfig.max_upload_size` reports the effective limit. Its deprecated `max_video_upload_size` alias reports the same value. Client upload validation uses the general limit for all file types.
 - Video uploads require server-side video processing to be enabled. When it is disabled, the composer rejects `video/*` files immediately and the message-post API rejects them before storage.
 - Images are inspected for dimensions at upload time and can be resized at render time via URL parameters (width, height, fit mode). Public attachment and avatar APIs expose transform parameters; public server branding images expose canonical URLs only.
 - The room timeline loads attachment images within 960×400 bounds, while the lightbox loads a separate derivative within 2048×2048 bounds. The untouched upload remains available through the viewer’s Download action.

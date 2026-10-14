@@ -17,7 +17,9 @@ export type AuthenticatedServerState = {
   vapidPublicKey: string | null;
   livekitUrl: string | null;
   videoProcessingEnabled: boolean;
+  /** Maximum upload size in bytes for all files, including GIFs and videos. */
   maxUploadSize: number;
+  /** @deprecated Use maxUploadSize. This alias has the same value. */
   maxVideoUploadSize: number;
   messageEditWindowSeconds: number;
   viewerPermissions: Record<string, boolean>;
@@ -117,7 +119,7 @@ export async function getAuthenticatedServerState(
     livekitUrl: runtime?.livekitUrl ?? null,
     videoProcessingEnabled: runtime?.videoProcessingEnabled ?? false,
     maxUploadSize: Number(runtime?.maxUploadSize ?? 0),
-    maxVideoUploadSize: Number(runtime?.maxVideoUploadSize ?? 0),
+    maxVideoUploadSize: Number(runtime?.maxUploadSize ?? 0),
     messageEditWindowSeconds: runtime?.messageEditWindowSeconds ?? 0,
     viewerPermissions,
     viewerCanManageServer: can('server.manage'),

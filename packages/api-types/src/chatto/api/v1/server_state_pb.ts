@@ -190,16 +190,17 @@ export class ServerRuntimeConfig extends Message<ServerRuntimeConfig> {
   videoProcessingEnabled = false;
 
   /**
-   * Maximum general upload size in bytes.
+   * Maximum upload size in bytes for all files, including GIFs and videos.
    *
    * @generated from field: int64 max_upload_size = 6;
    */
   maxUploadSize = protoInt64.zero;
 
   /**
-   * Maximum video upload size in bytes.
+   * Deprecated alias of max_upload_size. Both fields have the same value.
    *
-   * @generated from field: int64 max_video_upload_size = 7;
+   * @generated from field: int64 max_video_upload_size = 7 [deprecated = true];
+   * @deprecated
    */
   maxVideoUploadSize = protoInt64.zero;
 

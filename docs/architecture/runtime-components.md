@@ -59,6 +59,9 @@ operations do not duplicate these outcomes.
   facade and composition root; staged resource initialization, six registered
   projector lifecycles, API-facing operations, and only production-consumed read
   models and cross-package adapters.
+  User uploads use one byte limit from `core.assets.max_upload_size` for all
+  file types. Config loading takes the larger general and explicitly set legacy
+  video limit during migration. Video upload enablement remains independent.
 - **NATS recovery gate**
   ([`nats_recovery.go`](../../cli/internal/core/nats_recovery.go),
   [`health.go`](../../cli/internal/http_server/health.go)): Marks the replica
@@ -93,6 +96,7 @@ operations do not duplicate these outcomes.
 - **`video.Unit`** ([`unit.go`](../../cli/internal/video/unit.go),
   [`asset_processing.go`](../../cli/cmd/asset_processing.go),
   [`asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go)):
+  Generated derivatives bypass this user upload limit.
   Durable asset-processing worker started by `[asset_processing].enabled` under
   `chatto run` or explicitly as `chatto asset-processing`; `[asset_processing]`
   also owns its ffmpeg paths, temporary directory, and per-process concurrency;
