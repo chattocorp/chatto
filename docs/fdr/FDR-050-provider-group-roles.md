@@ -66,6 +66,10 @@ management in Chatto.
   identity links use. A change of the provider `id` keeps the ownership. After
   a change of the issuer URL, the provider no longer removes the assignments of
   the old issuer; admins remove them by hand.
+- **Older identity links** — some accounts from early server versions have
+  identity links without the issuer. At the first group role sync, Chatto
+  completes such a link with the verified issuer and subject, so the link keeps
+  the provider roles and an unlink can remove them.
 - **Unlinking** — when a user unlinks the last identity of a provider from
   their account, Chatto removes the roles that the provider gave, in the same
   change as the unlink. Otherwise the
@@ -76,8 +80,8 @@ management in Chatto.
   role until their next sign-in through the provider. Existing sessions keep
   the role during that time.
 - **Audit** — role assignment and role removal events record why they
-  happened. A change by the provider records the provider ID and uses the
-  system actor. An `owners.emails` owner assignment records that the server
+  happened. A change by the provider records the provider ID and issuer and
+  uses the system actor. An `owners.emails` owner assignment records that the server
   configuration caused it. A change without a reason is an admin change or an
   event from an older server version. The audit log shows the reason in the
   event details ([FDR-021](FDR-021-admin-dashboard.md)).
