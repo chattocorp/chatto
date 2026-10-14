@@ -246,6 +246,67 @@ test.describe('Server gutter on hybrid-input devices', () => {
     expect(page.url()).toBe(initialURL);
     expect(pageErrors).toEqual([]);
   });
+
+  test('repeated mouse drags keep every icon and save the displayed order', async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+    const zone = page.getByTestId('server-list');
+    const icons = zone.getByTestId('server-icon');
+    const hrefs = () =>
+      icons.evaluateAll((links) => links.map((link) => link.getAttribute('href')));
+    const initialOrder = await hrefs();
+    const initialURL = page.url();
+    expect(initialOrder).toHaveLength(21);
+    const movedOrder = [...initialOrder];
+    [movedOrder[0], movedOrder[1]] = [movedOrder[1], movedOrder[0]];
+
+    // Reuse the rendered positions after each drop, as a user does. A stale
+    // item-to-DOM index map can select a different server on the next drag.
+    for (let move = 0; move < 5; move += 1) {
+      const sourceIndex = move % 2 === 0 ? 0 : 1;
+      const targetIndex = sourceIndex === 0 ? 1 : 0;
+      const source = await icons.nth(sourceIndex).boundingBox();
+      expect(source).not.toBeNull();
+      const x = source!.x + source!.width / 2;
+      const y = source!.y + source!.height / 2;
+      await page.mouse.move(x, y);
+      await page.mouse.down();
+      await page.mouse.move(x + 8, y, { steps: 2 });
+      await expect(page.locator('#dnd-action-dragged-el')).toBeVisible();
+      await expect(zone.locator('[data-is-dnd-shadow-item-hint]')).toHaveCount(1);
+
+      // Also exercise leaving and re-entering the gutter during a drag.
+      if (move === 2) {
+        await page.mouse.move(x + 160, y, { steps: 6 });
+        await expect(icons).toHaveCount(initialOrder.length);
+        await expect(zone.locator('[data-is-dnd-shadow-item-hint]')).toHaveCount(1);
+        await page.mouse.move(x, y, { steps: 6 });
+      }
+      const target = await icons.nth(targetIndex).boundingBox();
+      expect(target).not.toBeNull();
+      await page.mouse.move(x, target!.y + target!.height / 2, { steps: 6 });
+      await page.mouse.up();
+      await expect(page.locator('#dnd-action-dragged-el')).toHaveCount(0);
+      await expect(zone.locator('[data-is-dnd-shadow-item-hint]')).toHaveCount(0);
+      await expect.poll(hrefs).toEqual(move % 2 === 0 ? movedOrder : initialOrder);
+      expect(page.url()).toBe(initialURL);
+      expect(pageErrors).toEqual([]);
+    }
+
+    const savedHrefs = await page.evaluate(() => {
+      const saved: string[] = JSON.parse(localStorage.getItem('chatto:serverGutterOrder') ?? '[]');
+      const servers: { id: string; url: string }[] = JSON.parse(
+        localStorage.getItem('chatto:instances') ?? '[]'
+      );
+      const originId = servers.find((server) => new URL(server.url).origin === location.origin)?.id;
+      return saved.map((id) => (id === originId ? '/chat/-' : `/chat/${id}`));
+    });
+    expect(savedHrefs).toEqual(movedOrder);
+    await page.reload();
+    await expect.poll(hrefs).toEqual(movedOrder);
+    expect(page.url()).toBe(initialURL);
+    expect(pageErrors).toEqual([]);
+  });
 });
 
 test.describe('Leave Server', () => {
