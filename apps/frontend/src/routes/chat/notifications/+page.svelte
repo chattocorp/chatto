@@ -510,7 +510,8 @@
   </PaneHeader>
 
   <PaneContent fillHeight>
-    <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
+    <!-- Rows bring their own inset; cancel the page gutter so it is not doubled. -->
+    <ScrollFader top bottom keyboardFocusable={false} class="-mx-1 min-h-0 flex-1 max-md:-mx-4">
       <div class="flex min-h-full flex-col">
         {#if pageError && groups.length === 0}
           <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('common.error.network')}>
