@@ -13,11 +13,15 @@
       { id: 'server', label: 'Example server', kind: 'server' },
       { id: 'general', label: 'General', kind: 'group' }
     ],
-    interactive = true
+    interactive = true,
+    stickyHeader = false,
+    fillHeight = false
   }: {
     rows?: Row[];
     columns?: Column[];
     interactive?: boolean;
+    stickyHeader?: boolean;
+    fillHeight?: boolean;
   } = $props();
 
   function columnClass(column: Column): string {
@@ -38,6 +42,8 @@
     'data-test-cell': `${row.id}:${column.id}`
   })}
   isCellInteractive={() => interactive}
+  {stickyHeader}
+  {fillHeight}
   emptyMessage="No matrix rows"
 >
   {#snippet leadingHeader()}
