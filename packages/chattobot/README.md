@@ -33,8 +33,8 @@ Write `/cancel` in a thread to stop its conversation.
 | `fetchPage`      | Everyone       | Reads the Chatto documentation and the Awesome Chatto list.    |
 | `readThread`     | Everyone       | Reads the newest messages of the thread.                       |
 | `viewAttachment` | Everyone       | Looks at an image or a small text file in the thread.          |
-| `webSearch`      | Everyone       | Searches the web with Tavily, when configured.                 |
-| `browsePage`     | Everyone       | Reads a web page with Cloudflare Browser Run, when configured. |
+| `webSearch`      | Maintainers    | Searches the web with Tavily, when configured.                 |
+| `browsePage`     | Maintainers    | Reads a web page with Cloudflare Browser Run, when configured. |
 | `gh`             | Everyone       | Runs read-only GitHub CLI commands, when GitHub is configured. |
 | `createIssue`    | Maintainers    | Files an issue in the configured repository.                   |
 | `commentOnIssue` | Maintainers    | Adds a comment to an issue in the configured repository.       |

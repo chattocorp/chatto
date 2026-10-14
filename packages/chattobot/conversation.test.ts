@@ -39,8 +39,10 @@ function harness({
   answer = (prompt: string) => `Reply ${prompt.length}`,
   thread = [] as ThreadMessage[][],
   maintainers = [] as string[],
+  web,
   turn
 }: {
+  web?: { tavilyApiKey: string };
   answer?: (prompt: string) => string | AgentResult;
   thread?: ThreadMessage[][];
   maintainers?: string[];
@@ -96,7 +98,7 @@ function harness({
     } as RunlingAgent;
   });
   const conversation = createConversation(
-    { model: 'test/model', maintainers: new Set(maintainers) },
+    { model: 'test/model', maintainers: new Set(maintainers), ...(web ? { web } : {}) },
     chatto,
     createAgent
   );
@@ -275,4 +277,19 @@ test('cancellation stops the conversation without a notice', async () => {
   controller.abort(new Error('Cancelled'));
   expect(await run).toMatchObject({ ok: false, error: 'Cancelled' });
   expect(bot.posts).toEqual([]);
+});
+
+test('the web tools refuse turns that are not from maintainers', async () => {
+  const fetch = vi.spyOn(globalThis, 'fetch');
+  const bot = harness({ web: { tavilyApiKey: 'key' }, maintainers: ['maintainer'] });
+  const run = bot.start(message('one', 'Search the web', 'alice'));
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+  await expect(bot.tools.get('webSearch')!.execute('1', { query: 'chatto' })).rejects.toThrow(
+    'Only maintainers can ask you to search or read the web'
+  );
+  expect(fetch).not.toHaveBeenCalled();
+  expect(bot.options().systemPrompt).toContain('Only maintainers can ask you to search');
+  bot.messages.close();
+  await run;
+  fetch.mockRestore();
 });

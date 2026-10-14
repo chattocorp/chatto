@@ -60,6 +60,8 @@ People talk to you in threads. Each of your turns shows the messages to you and,
 
 const MAINTAINER_PROMPT = `- Only maintainers can ask you to change GitHub, for example to file an issue. Messages from maintainers are marked. When someone else asks, say that a maintainer can ask for it.`;
 
+const WEB_PROMPT = `- Only maintainers can ask you to search or read the open web.`;
+
 /** Create the conversation task for one Chatto connection. */
 export function createConversation(
   settings: ConversationSettings,
@@ -143,7 +145,8 @@ class Conversation {
       cwd: await usePrivateTempDirectory(),
       systemPrompt: [
         SYSTEM_PROMPT,
-        ...(github && maintainers.size ? [MAINTAINER_PROMPT] : [])
+        ...(github && maintainers.size ? [MAINTAINER_PROMPT] : []),
+        ...(web ? [WEB_PROMPT] : [])
       ].join('\n'),
       resources: {
         extensions: false,
@@ -171,7 +174,15 @@ class Conversation {
           ? [
               webExtension(web, {
                 onWebContent: () => {},
-                take: () => this.webRequests++ < WEB_REQUESTS_PER_TURN
+                // The web tools send requests to arbitrary URLs, so they could carry thread
+                // content out of Chatto. Only maintainers can ask for them.
+                take: () => {
+                  if (!this.maintainerTurn())
+                    throw new Error(
+                      'Only maintainers can ask you to search or read the web. Answer from the Chatto documentation instead.'
+                    );
+                  return this.webRequests++ < WEB_REQUESTS_PER_TURN;
+                }
               })
             ]
           : []),
