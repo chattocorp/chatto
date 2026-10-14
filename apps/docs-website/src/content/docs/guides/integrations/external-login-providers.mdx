@@ -189,27 +189,19 @@ new accounts also need an invite link.
 
 ## Restrict who can sign in
 
-By default, every user of a provider can sign in through it. To allow only
-some users, add restrictions to the provider:
+By default, every user of a provider can sign in through it. To allow only the
+members of some groups of an OIDC provider, add `allowed_groups`:
 
 ```toml
 [[auth.providers]]
 id = "company"
 type = "oidc"
 # ...
-request_email = true
-allowed_email_domains = ["example.com"]
 allowed_groups = ["chat-users"]
 # Optional. The default is "groups".
 # groups_claim = "groups"
 ```
 
-- `allowed_email_domains`: the provider-verified email address must be at one
-  of these domains. The match ignores case. Subdomains do not match, so
-  `example.com` does not allow `mail.example.com`. This option needs
-  `request_email = true`. GitLab does not report email verification, so this
-  option is not available for `type = "gitlab"`. Use `type = "oidc"` with the
-  GitLab issuer instead.
 - `allowed_groups`: OIDC only. The user must be in at least one of these
   groups. Group names must match exactly.
 - `groups_claim`: OIDC only. The claim that contains the groups of the user.
@@ -219,31 +211,20 @@ allowed_groups = ["chat-users"]
   such as `realm_access.roles` in Keycloak. Configure the provider to send the
   groups in a top-level claim.
 
-If you set both lists, a user must match both. Chatto denies the sign-in if
-the email address or the groups claim is missing.
+If the groups claim is missing, Chatto denies the sign-in.
 
-Chatto checks the restrictions at each sign-in and each time a user links the
+Chatto checks the groups at each sign-in and each time a user links the
 provider to an account. This also applies to accounts that already exist. When
-you remove a user from an allowed group, that user cannot sign in through the
+you remove a user from all allowed groups, that user cannot sign in through the
 provider again. Sessions that already exist stay valid until they end. The user
-sees a general message that does not tell which restriction failed.
+sees a general message that does not tell why Chatto denied the sign-in.
 
 Some providers send groups only when Chatto requests a groups scope. Add it
-with `scopes`. A `scopes` list replaces the default scopes. With
-`allowed_email_domains`, the list must also include the email scope: `email`,
-or `user:email` for GitHub.
+with `scopes`. A `scopes` list replaces the default scopes:
 
 ```toml
-scopes = ["openid", "profile", "email", "groups"]
+scopes = ["openid", "profile", "groups"]
 ```
-
-A domain restriction allows each user who has a verified address at that
-domain. The provider verified the address at some time in the past. Thus a
-former employee can keep a verified company address on a GitHub or Discord
-account. For Google, the restriction also allows personal Google accounts that
-use a company address. It does not prove that Google Workspace manages the
-account. For company accounts, prefer an OIDC provider that your organization
-manages, and use `allowed_groups`.
 
 ## Account matching
 
@@ -377,4 +358,4 @@ stores the address only when Pocket ID also returns `email_verified = true`.
 | Pocket ID says that the user is not allowed | Select **Allowed User Groups**, or select **Unrestrict**. |
 | Chatto does not create an account | Set `auto_provision = true`, or sign in to an existing account and link the provider first. |
 | Links stopped working after a change | Restore the original provider `id` and its callback URL. |
-| Users see "not allowed to sign in to this server" | The provider restrictions denied the sign-in. Make sure that the provider sends the verified email address or the groups claim. For groups, check `groups_claim` and whether the provider needs a groups scope. |
+| Users see "not allowed to sign in to this server" | The user is not in an allowed group, or the provider does not send the groups claim. Check `allowed_groups`, `groups_claim`, and whether the provider needs a groups scope. |

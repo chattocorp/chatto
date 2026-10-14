@@ -346,21 +346,6 @@ func (c *ChattoConfig) Validate() error {
 				errs = append(errs, prefix+".token_endpoint_auth_method must be client_secret_basic, client_secret_post, or none")
 			}
 		}
-		if len(provider.AllowedEmailDomains) > 0 {
-			if !provider.RequestEmailOrDefault() {
-				errs = append(errs, prefix+".allowed_email_domains requires request_email = true")
-			}
-			if provider.Type == AuthProviderTypeGitLab {
-				errs = append(errs, prefix+".allowed_email_domains is not supported for gitlab, which does not report email verification; use type = 'oidc' with the GitLab issuer")
-			}
-			// Custom scopes replace the defaults that request_email adds.
-			if scope := emailScopes[provider.Type]; len(provider.Scopes) > 0 && scope != "" && !slices.Contains(provider.Scopes, scope) {
-				errs = append(errs, fmt.Sprintf("%s.scopes must include %q for allowed_email_domains", prefix, scope))
-			}
-			if slices.ContainsFunc(provider.AllowedEmailDomains, func(domain string) bool { return !isPlainEmailDomain(domain) }) {
-				errs = append(errs, prefix+".allowed_email_domains entries must be domain names such as example.com")
-			}
-		}
 		if provider.Type != AuthProviderTypeOpenIDConnect && (len(provider.AllowedGroups) > 0 || provider.GroupsClaim != "") {
 			errs = append(errs, prefix+".allowed_groups and groups_claim are only supported for OIDC")
 		}

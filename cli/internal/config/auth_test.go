@@ -461,16 +461,6 @@ func TestChattoConfig_Validate_AuthProviders(t *testing.T) {
 		provider AuthProviderConfig
 		wantErr  string
 	}{
-		{"domains with email", AuthProviderConfig{Type: AuthProviderTypeGitHub, RequestEmail: new(true), AllowedEmailDomains: []string{"example.com", "Corp.Example.org"}}, ""},
-		{"domains without email", AuthProviderConfig{Type: AuthProviderTypeGitHub, AllowedEmailDomains: []string{"example.com"}}, "requires request_email = true"},
-		{"domains on gitlab", AuthProviderConfig{Type: AuthProviderTypeGitLab, RequestEmail: new(true), AllowedEmailDomains: []string{"example.com"}}, "not supported for gitlab"},
-		{"address as domain", AuthProviderConfig{Type: AuthProviderTypeGoogle, RequestEmail: new(true), AllowedEmailDomains: []string{"user@example.com"}}, "domain names such as example.com"},
-		{"wildcard domain", AuthProviderConfig{Type: AuthProviderTypeGoogle, RequestEmail: new(true), AllowedEmailDomains: []string{"*.example.com"}}, "domain names such as example.com"},
-		{"leading dot", AuthProviderConfig{Type: AuthProviderTypeGoogle, RequestEmail: new(true), AllowedEmailDomains: []string{".example.com"}}, "domain names such as example.com"},
-		{"single label", AuthProviderConfig{Type: AuthProviderTypeGoogle, RequestEmail: new(true), AllowedEmailDomains: []string{"localhost"}}, "domain names such as example.com"},
-		{"custom scopes with email", AuthProviderConfig{Type: AuthProviderTypeOpenIDConnect, RequestEmail: new(true), Scopes: []string{"openid", "email"}, AllowedEmailDomains: []string{"example.com"}}, ""},
-		{"custom scopes without email", AuthProviderConfig{Type: AuthProviderTypeOpenIDConnect, RequestEmail: new(true), Scopes: []string{"openid", "profile"}, AllowedEmailDomains: []string{"example.com"}}, `scopes must include "email"`},
-		{"github scopes without email", AuthProviderConfig{Type: AuthProviderTypeGitHub, RequestEmail: new(true), Scopes: []string{"read:user"}, AllowedEmailDomains: []string{"example.com"}}, `scopes must include "user:email"`},
 		{"oidc groups", AuthProviderConfig{Type: AuthProviderTypeOpenIDConnect, AllowedGroups: []string{"chat-users"}, GroupsClaim: "roles"}, ""},
 		{"groups on github", AuthProviderConfig{Type: AuthProviderTypeGitHub, AllowedGroups: []string{"chat-users"}}, "only supported for OIDC"},
 		{"groups claim on discord", AuthProviderConfig{Type: AuthProviderTypeDiscord, GroupsClaim: "groups"}, "only supported for OIDC"},
@@ -511,32 +501,22 @@ func TestChattoConfig_Validate_AuthProviders(t *testing.T) {
 	})
 }
 
-func TestAuthProviderConfig_AdmitsIdentity(t *testing.T) {
-	domains := AuthProviderConfig{AllowedEmailDomains: []string{"Example.com"}}
-	groups := AuthProviderConfig{AllowedGroups: []string{"chat-users", "admins"}}
-	both := AuthProviderConfig{AllowedEmailDomains: []string{"example.com"}, AllowedGroups: []string{"chat-users"}}
+func TestAuthProviderConfig_AdmitsGroups(t *testing.T) {
+	restricted := AuthProviderConfig{AllowedGroups: []string{"chat-users", "admins"}}
 	for _, tc := range []struct {
 		name     string
 		provider AuthProviderConfig
-		email    string
 		groups   []string
 		want     bool
 	}{
-		{"no restrictions", AuthProviderConfig{}, "", nil, true},
-		{"domain match ignores case", domains, "user@example.COM", nil, true},
-		{"subdomain does not match", domains, "user@mail.example.com", nil, false},
-		{"other domain", domains, "user@example.org", nil, false},
-		{"missing email", domains, "", nil, false},
-		{"one group matches", groups, "", []string{"other", "admins"}, true},
-		{"group names match exactly", groups, "", []string{"Chat-Users"}, false},
-		{"missing groups", groups, "", nil, false},
-		{"both match", both, "user@example.com", []string{"chat-users"}, true},
-		{"only domain matches", both, "user@example.com", []string{"other"}, false},
-		{"only group matches", both, "user@example.org", []string{"chat-users"}, false},
+		{"no restriction", AuthProviderConfig{}, nil, true},
+		{"one group matches", restricted, []string{"other", "admins"}, true},
+		{"group names match exactly", restricted, []string{"Chat-Users"}, false},
+		{"missing groups", restricted, nil, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := tc.provider.AdmitsIdentity(tc.email, tc.groups); got != tc.want {
-				t.Fatalf("AdmitsIdentity(%q, %v) = %v, want %v", tc.email, tc.groups, got, tc.want)
+			if got := tc.provider.AdmitsGroups(tc.groups); got != tc.want {
+				t.Fatalf("AdmitsGroups(%v) = %v, want %v", tc.groups, got, tc.want)
 			}
 		})
 	}

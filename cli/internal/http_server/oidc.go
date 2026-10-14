@@ -400,10 +400,10 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	deleteProviderExchangeState(session, providerRuntime.config.ID)
 	_ = session.Save()
 
-	// Restrictions apply to every sign-in and link, also for linked accounts.
-	// The error does not tell the user which restriction failed.
-	if !providerRuntime.config.AdmitsIdentity(identity.verifiedEmail, identity.groups) {
-		log.Warn("Provider sign-in denied by provider restrictions", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type)
+	// The group restriction applies to every sign-in and link, also for linked
+	// accounts. The error does not name the restriction.
+	if !providerRuntime.config.AdmitsGroups(identity.groups) {
+		log.Warn("Provider sign-in denied by group restriction", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type)
 		if intent == "link" {
 			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/", "provider_access_denied"))
 			return
