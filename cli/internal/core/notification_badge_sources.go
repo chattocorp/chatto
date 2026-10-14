@@ -482,6 +482,50 @@ func (b *notificationBadgeSources) followerIDs(roomID, threadRootEventID string)
 	return userIDs
 }
 
+// followerIDsBefore returns the users who follow a thread with a follow that
+// began before seq, sorted. A follow that a message causes, such as the
+// automatic follow of a mentioned user, begins after that message, so the
+// message does not count as activity in a followed thread for that user.
+func (b *notificationBadgeSources) followerIDsBefore(roomID, threadRootEventID string, seq uint64) []string {
+	thread, known := b.threadKey(roomID, threadRootEventID)
+	if !known {
+		return []string{}
+	}
+	userIDs := make([]string, 0, len(b.followers[thread]))
+	for _, user := range b.followers[thread] {
+		// A follow without a known start counts, as it did before follow
+		// sequences were indexed.
+		if since, known := b.follows[badgeMembershipKey{user: user, room: thread.room}][thread.thread]; known && since >= seq {
+			continue
+		}
+		userIDs = append(userIDs, b.ids.Resolve(user))
+	}
+	slices.Sort(userIDs)
+	return userIDs
+}
+
+// isFirstThreadReply reports whether a message was the first reply of its
+// thread when the index applied it. Unlike the current reply count, the answer
+// does not change when later replies are indexed.
+func (b *notificationBadgeSources) isFirstThreadReply(messageEventID string) bool {
+	message, ok := b.eventIDs.Lookup(messageEventID)
+	if !ok {
+		return false
+	}
+	record, exists := b.message(message)
+	if !exists || record.thread == 0 {
+		return false
+	}
+	root, exists := b.message(record.thread)
+	sources := b.rooms[record.room]
+	if !exists || sources == nil {
+		return false
+	}
+	return slices.ContainsFunc(sources.targeted[root.author][record.thread], func(source badgeTargetedSource) bool {
+		return source.kind == badgeSourceFirstThreadReply && source.message == message
+	})
+}
+
 // replyCount returns the number of posted replies of a thread root.
 func (b *notificationBadgeSources) replyCount(threadRootEventID string) uint64 {
 	thread, ok := b.eventIDs.Lookup(threadRootEventID)

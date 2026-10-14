@@ -447,7 +447,7 @@ func threadState(t *testing.T, p *NotificationDecisionProjection, userID string)
 	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
 		state = snapshot.threadFollowState(userID, "R1", "ROOT")
 		followers = snapshot.threadFollowerIDs("R1", "ROOT")
-		replies = snapshot.threadReplyCount("ROOT")
+		replies = snapshot.badges.replyCount("ROOT")
 		return nil
 	}); err != nil {
 		t.Fatalf("withCurrent: %v", err)

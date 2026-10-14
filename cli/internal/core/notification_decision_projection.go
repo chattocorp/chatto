@@ -389,13 +389,20 @@ func (s *notificationDecisionSnapshot) threadFollowerIDs(roomID, threadRootEvent
 	return s.badges.followerIDs(roomID, threadRootEventID)
 }
 
-func (s *notificationDecisionSnapshot) threadFollowState(userID, roomID, threadRootEventID string) ThreadFollowState {
-	return s.badges.followState(userID, roomID, threadRootEventID)
+// threadFollowerIDsBefore returns the users whose follow of a thread began
+// before seq.
+func (s *notificationDecisionSnapshot) threadFollowerIDsBefore(roomID, threadRootEventID string, seq uint64) []string {
+	return s.badges.followerIDsBefore(roomID, threadRootEventID, seq)
 }
 
-// threadReplyCount returns the number of posted replies of a thread root.
-func (s *notificationDecisionSnapshot) threadReplyCount(threadRootEventID string) uint64 {
-	return s.badges.replyCount(threadRootEventID)
+// isFirstThreadReply reports whether a message was the first reply of its
+// thread.
+func (s *notificationDecisionSnapshot) isFirstThreadReply(messageEventID string) bool {
+	return s.badges.isFirstThreadReply(messageEventID)
+}
+
+func (s *notificationDecisionSnapshot) threadFollowState(userID, roomID, threadRootEventID string) ThreadFollowState {
+	return s.badges.followState(userID, roomID, threadRootEventID)
 }
 
 func (s *notificationDecisionSnapshot) effectiveNotificationMode(userID, roomID string, signal *notificationv1.NotificationSignal) evtv1.NotificationDeliveryMode {

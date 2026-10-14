@@ -646,7 +646,7 @@ func (m *NotificationMaterializer) materializeMessage(ctx context.Context, event
 	}
 	var decisions []notificationRecipientDecision
 	if err := m.decisions.Projection().withCurrent(evaluatedAt, func(snapshot *notificationDecisionSnapshot) error {
-		decisions = buildMessageNotificationDecisions(snapshot, event, parentActorID, threadRootActorID)
+		decisions = buildMessageNotificationDecisions(snapshot, event, streamSequence, parentActorID, threadRootActorID)
 		return nil
 	}); err != nil {
 		return fmt.Errorf("derive current message notification decisions: %w", err)
