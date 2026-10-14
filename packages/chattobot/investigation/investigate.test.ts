@@ -51,7 +51,7 @@ test('answers with checked references in a read-only agent in the directory', as
   expect(options[0]).toMatchObject({
     cwd: directory,
     output: 'text',
-    tools: ['read', 'grep', 'find', 'ls', 'git'],
+    tools: ['read', 'grep', 'find', 'ls', 'gitLog', 'gitBlame', 'gitShow'],
     sessionFile: expect.stringContaining(`${result.session}.jsonl`)
   });
 });

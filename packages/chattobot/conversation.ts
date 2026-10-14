@@ -23,6 +23,7 @@ import { docsExtension, DOCS_HOME, DEV_DOCS_HOME } from './docs.ts';
 import { webExtension, webTools, type WebSettings } from './web.ts';
 import { githubExtension, GITHUB_TOOLS } from './github/tools.ts';
 import type { GitHubSettings, TokenSource } from './github/app.ts';
+import { createHash } from 'node:crypto';
 import { usePrivateTempDirectory } from './private-temp.ts';
 import { investigateExtension, type Investigation } from './investigation/tool.ts';
 
@@ -200,7 +201,8 @@ class Conversation {
         ...(investigation
           ? [
               investigateExtension(this.ctx, investigation, {
-                take: () => this.investigations++ < INVESTIGATIONS_PER_TURN
+                take: () => this.investigations++ < INVESTIGATIONS_PER_TURN,
+                scope: threadScope(thread())
               })
             ]
           : [])
@@ -331,3 +333,10 @@ class Conversation {
     });
   }
 }
+
+/** A stable file-name-safe key for a thread, without its IDs in plain text. */
+const threadScope = ({ roomId, threadRootId }: { roomId: string; threadRootId: string }) =>
+  createHash('sha256')
+    .update(JSON.stringify([roomId, threadRootId]))
+    .digest('hex')
+    .slice(0, 32);

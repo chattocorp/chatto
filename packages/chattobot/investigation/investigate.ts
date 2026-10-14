@@ -20,7 +20,8 @@ import {
 } from 'runling';
 import { ConfigurationError, setting, thinkingSetting } from '../settings.ts';
 import { checkCitations, findCitations } from './citations.ts';
-import { gitExtension, runGit } from './git.ts';
+import { confineExtension } from './confine.ts';
+import { GIT_TOOLS, gitExtension, runGit } from './git.ts';
 
 export interface InvestigatorSettings {
   model: string;
@@ -54,8 +55,8 @@ const Output = Type.Object({
 });
 
 const INSTRUCTIONS = [
-  'You investigate the repository in your working directory to answer questions from another agent. You can only read: you cannot change files or run programs.',
-  'Start from what the repository documents about itself where it exists: AGENTS.md files, architecture and decision-record indexes, and the glossary. Then read the code that the question is about. Use git to see when and why code changed.',
+  'You investigate the repository in your working directory to answer questions from another agent. You can only read the files and history of the repository: you cannot change files, run programs, or read files outside the repository or ignored by Git.',
+  'Start from what the repository documents about itself where it exists: AGENTS.md files, architecture and decision-record indexes, and the glossary. Then read the code that the question is about. Use the git tools to see when and why code changed.',
   'Answer the question directly. Support each claim with a reference to lines that you read, as `path:line` or `path:start-end` with the full path relative to the repository root, also when you cite the same file again. Say which statements are inferences.',
   'End with "Checked:" (what you read) and "Not checked:" (what could change the answer). If you cannot answer from the code, say so.',
   'Be concise. The reader is an agent that will summarize your answer.'
@@ -89,8 +90,8 @@ export function createInvestigator(
         output: 'text',
         cwd: directory,
         sessionFile,
-        tools: ['read', 'grep', 'find', 'ls', 'git'],
-        extensions: [gitExtension(directory)],
+        tools: ['read', 'grep', 'find', 'ls', ...GIT_TOOLS],
+        extensions: [confineExtension(directory), gitExtension(directory)],
         // Repository instructions help; host extensions and skills do not belong here.
         resources: { extensions: false, skills: false, promptTemplates: false, themes: false },
         instructions: INSTRUCTIONS

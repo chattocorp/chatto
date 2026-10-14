@@ -7,6 +7,7 @@ type Tool = { execute(id: string, input: unknown, signal?: AbortSignal): Promise
 /** The tool over a fake investigator that records its inputs. */
 async function tool(views = 2, repository?: string) {
   const inputs: unknown[] = [];
+  const scopes: string[] = [];
   const investigate = task(
     {
       name: 'Investigate',
@@ -26,12 +27,19 @@ async function tool(views = 2, repository?: string) {
         citations: [{ path: 'src/a.ts', start: 2, end: 2 }]
       };
     }
-  ) as unknown as Investigation['investigate'];
+  ) as unknown as ReturnType<Investigation['investigator']>;
   let left = views;
   const extension = investigateExtension(
     createTaskContext(),
-    { directory: '/repo', investigate, ...(repository ? { repository } : {}) },
-    { take: () => left-- > 0 }
+    {
+      directory: '/repo',
+      investigator: (scope) => {
+        scopes.push(scope);
+        return investigate;
+      },
+      ...(repository ? { repository } : {})
+    },
+    { take: () => left-- > 0, scope: 'thread-1' }
   );
   const tools = new Map<string, Tool>();
   const factory = typeof extension === 'function' ? extension : extension.factory;
@@ -39,12 +47,13 @@ async function tool(views = 2, repository?: string) {
     registerTool: (registered: { name: string }) =>
       void tools.set(registered.name, registered as never)
   } as unknown as AgentExtensionAPI);
-  return { investigate: tools.get('investigate')!, inputs };
+  return { investigate: tools.get('investigate')!, inputs, scopes };
 }
 
 test('starts an investigation in the configured directory and links its references', async () => {
-  const { investigate, inputs } = await tool(2, 'org/repo');
+  const { investigate, inputs, scopes } = await tool(2, 'org/repo');
   const result = await investigate.execute('1', { question: 'Where?' });
+  expect(scopes).toEqual(['thread-1']);
   expect(inputs).toEqual([{ directory: '/repo', question: 'Where?' }]);
   expect(result.content[0].text).toBe(
     'Investigation 11111111-1111-1111-1111-111111111111 (code at commit abcdef012):\n\nSee [`src/a.ts:2`](https://github.com/org/repo/blob/abcdef0123456789/src/a.ts#L2).\n\nFor a follow-up question on this topic, call investigate with resume: "11111111-1111-1111-1111-111111111111". This investigator remembers what it read.'

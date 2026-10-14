@@ -7,7 +7,9 @@ import type { createInvestigator } from './investigate.ts';
 export interface Investigation {
   /** The checkout to investigate. The operator keeps it current. */
   directory: string;
-  investigate: ReturnType<typeof createInvestigator>;
+  /** The investigator for one conversation scope, such as a thread. An investigation can be
+   * resumed only in the scope that started it, so its questions stay in that thread. */
+  investigator: (scope: string) => ReturnType<typeof createInvestigator>;
   /** The GitHub repository of the checkout, `owner/repo`, for links to cited lines. */
   repository?: string;
 }
@@ -15,13 +17,16 @@ export interface Investigation {
 export interface InvestigateToolOptions {
   /** Take one investigation from the turn's budget; false when none are left. */
   take: () => boolean;
+  /** The scope of the investigations, such as the thread. */
+  scope: string;
 }
 
 export function investigateExtension(
   ctx: TaskContext<any, any>,
-  { directory, investigate, repository }: Investigation,
-  { take }: InvestigateToolOptions
+  { directory, investigator, repository }: Investigation,
+  { take, scope }: InvestigateToolOptions
 ) {
+  const investigate = investigator(scope);
   return defineAgentExtension((pi) => {
     pi.registerTool({
       name: 'investigate',

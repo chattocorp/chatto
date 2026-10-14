@@ -45,6 +45,7 @@ export function sourceSettings() {
     const source = setting('CHATTO_SOURCE_DIRECTORY');
     if (source && !statSync(resolve(source), { throwIfNoEntry: false })?.isDirectory())
       throw new ConfigurationError('CHATTO_SOURCE_DIRECTORY must name a directory');
+    const investigator = source ? investigatorSettings() : undefined;
     const conversation: ConversationSettings = {
       model,
       thinkingLevel: thinkingSetting('CHATTO_AGENT_THINKING', 'medium'),
@@ -56,7 +57,11 @@ export function sourceSettings() {
         ? {
             investigation: {
               directory: resolve(source),
-              investigate: createInvestigator(investigatorSettings()),
+              investigator: (scope: string) =>
+                createInvestigator({
+                  ...investigator!,
+                  sessions: resolve(investigator!.sessions, scope)
+                }),
               ...(github ? { repository: github.repository } : {})
             }
           }
