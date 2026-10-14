@@ -19,10 +19,10 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 ## AdminPermissionService
 
 Provides permission reads and admin permission writes.
-Matrix and decision pages use the same scope order: SERVER, DM, then each GROUP
-followed by its ROOM scopes. Groups and rooms within each group use ascending
-resource IDs. Only requested scopes are evaluated.
-Pages are live reads; layout or visibility changes can shift offsets. Keep the
+Matrices return all matching scopes. Decision lists return scope pages.
+Both use the order SERVER, DM, then each GROUP followed by its ROOM scopes.
+Groups and rooms follow the configured sidebar order. Only matching scopes are evaluated.
+Decision pages are live reads; layout or visibility changes can shift offsets. Keep the
 same filters on each request and advance by the number of returned scopes.
 A scope filter of DM selects DM even when include_direct_message_scope is false.
 
@@ -64,7 +64,7 @@ Response containing a role-permission tier matrix.
 
 ### GetRolePermissionMatrix
 
-Gets one page of a role's permission matrix. Requires role.manage. Returns
+Gets a complete role permission matrix. Requires role.manage. Returns
 NOT_FOUND when the role does not exist.
 
 ```http
@@ -81,8 +81,7 @@ Request one role's permission matrix.
 | --- | --- | --- |
 | `role_name` | `string` | Stable role name. |
 | `include_direct_message_scope` | `bool` | Include the direct-message scope column. Defaults to false so an older client does not receive a scope kind that it cannot interpret. |
-| `page` | [`chatto.api.v1.PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Scope page. Default 20 scopes, maximum 100. Offsets count scopes, not decisions. |
-| `scope` | [`PermissionScope`](/reference/connectrpc-api/types/#chatto-admin-v1-PermissionScope) | Optional exact scope filter. Missing or inaccessible scopes produce an empty page. SERVER and DM require an empty ID; GROUP and ROOM require an ID. |
+| `scope` | [`PermissionScope`](/reference/connectrpc-api/types/#chatto-admin-v1-PermissionScope) | Optional exact scope filter. Omit to read all scopes. Missing or inaccessible scopes produce an empty matrix. SERVER and DM require an empty ID; GROUP and ROOM require an ID. |
 
 
 <a id="chatto-admin-v1-GetRolePermissionMatrixResponse"></a>
@@ -94,7 +93,6 @@ Response containing one role's permission matrix.
 | Field | Type | Description |
 | --- | --- | --- |
 | `matrix` | [`RolePermissionMatrix`](/reference/connectrpc-api/types/#chatto-admin-v1-RolePermissionMatrix) | Requested matrix. |
-| `page` | [`chatto.api.v1.PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Total matching scopes and whether another scope page exists. |
 
 
 <a id="chatto-admin-v1-AdminPermissionService-ListRolePermissionDecisions"></a>
@@ -140,7 +138,7 @@ Resource-oriented permission decisions for one role.
 
 ### GetUserPermissionMatrix
 
-Gets one page of a user's permission matrix. Human targets require
+Gets a complete user permission matrix. Human targets require
 user.manage-permissions; bot targets require ownership or bot.manage.
 Returns NOT_FOUND when the user does not exist.
 
@@ -158,8 +156,7 @@ Request one user's permission matrix.
 | --- | --- | --- |
 | `user_id` | `string` | User ID. |
 | `include_direct_message_scope` | `bool` | Include the direct-message scope column. Defaults to false so an older client does not receive a scope kind that it cannot interpret. |
-| `page` | [`chatto.api.v1.PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Scope page. Default 20 scopes, maximum 100. Offsets count scopes, not decisions. |
-| `scope` | [`PermissionScope`](/reference/connectrpc-api/types/#chatto-admin-v1-PermissionScope) | Optional exact scope filter. Missing or inaccessible scopes produce an empty page. SERVER and DM require an empty ID; GROUP and ROOM require an ID. |
+| `scope` | [`PermissionScope`](/reference/connectrpc-api/types/#chatto-admin-v1-PermissionScope) | Optional exact scope filter. Omit to read all scopes. Missing or inaccessible scopes produce an empty matrix. SERVER and DM require an empty ID; GROUP and ROOM require an ID. |
 
 
 <a id="chatto-admin-v1-GetUserPermissionMatrixResponse"></a>
@@ -171,7 +168,6 @@ Response containing one user's permission matrix.
 | Field | Type | Description |
 | --- | --- | --- |
 | `matrix` | [`UserPermissionMatrix`](/reference/connectrpc-api/types/#chatto-admin-v1-UserPermissionMatrix) | Requested matrix. |
-| `page` | [`chatto.api.v1.PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Total matching scopes and whether another scope page exists. |
 
 
 <a id="chatto-admin-v1-AdminPermissionService-ListUserPermissionDecisions"></a>

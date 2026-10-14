@@ -76,16 +76,9 @@ parent and scrolls internally with a sticky column header.
     loading = false,
     fillHeight = false,
     decisionMode = 'tri-state',
-    onMembershipChange,
-    hasMore = false,
-    loadingMore = false,
-    onLoadMore
+    onMembershipChange
   }: {
     data: MatrixData;
-    /** Load scope columns as the horizontal edge becomes visible. */
-    hasMore?: boolean;
-    loadingMore?: boolean;
-    onLoadMore?: () => unknown;
     /** `${scopeId}::${permission}` of the cell whose mutation is in flight. */
     updatingKey?: string | null;
     onCycle: (scope: MatrixScope, permission: string, next: CellState) => void;
@@ -120,8 +113,7 @@ parent and scrolls internally with a sticky column header.
   // ----- Column layout ----------------------------------------------------
 
   // Order columns: server first, then each group followed by its rooms.
-  // The API uses this order too, so new pages append columns. Keep grouping
-  // here for local fixtures and callers that supply an unordered matrix.
+  // Keep grouping here for local fixtures and callers that supply an unordered matrix.
   const orderedScopes = $derived.by<MatrixScope[]>(() => {
     const server = data.scopes.filter((s) => s.kind === 'SERVER');
     const dm = data.scopes.filter((s) => s.kind === 'DM');
@@ -285,9 +277,6 @@ parent and scrolls internally with a sticky column header.
         {/snippet}
         <MatrixTable
           {rows}
-          {hasMore}
-          {loadingMore}
-          {onLoadMore}
           columns={matrixScopes}
           getRowKey={(permission) => permission}
           getColumnKey={(scope) => scope.id}

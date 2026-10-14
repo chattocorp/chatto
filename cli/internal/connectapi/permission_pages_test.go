@@ -40,20 +40,20 @@ func TestPermissionMatricesExcludeArchivedChannels(t *testing.T) {
 		{"role", ""}, {"human", env.viewer.Id}, {"bot", bot.Msg.Bot.User.Id},
 	} {
 		t.Run(subject.name, func(t *testing.T) {
-			fetch := func(page *apiv1.PageRequest, scope *adminv1.PermissionScope) (matrixView, *apiv1.PageInfo) {
+			fetch := func(scope *adminv1.PermissionScope) matrixView {
 				t.Helper()
 				if subject.name == "role" {
 					res, err := env.permissions.GetRolePermissionMatrix(ctx, connect.NewRequest(&adminv1.GetRolePermissionMatrixRequest{
-						RoleName: core.RoleModerator, IncludeDirectMessageScope: true, Page: page, Scope: scope,
+						RoleName: core.RoleModerator, IncludeDirectMessageScope: true, Scope: scope,
 					}))
 					require.NoError(t, err)
-					return res.Msg.Matrix, res.Msg.Page
+					return res.Msg.Matrix
 				}
 				res, err := env.permissions.GetUserPermissionMatrix(ctx, connect.NewRequest(&adminv1.GetUserPermissionMatrixRequest{
-					UserId: subject.userID, IncludeDirectMessageScope: true, Page: page, Scope: scope,
+					UserId: subject.userID, IncludeDirectMessageScope: true, Scope: scope,
 				}))
 				require.NoError(t, err)
-				return res.Msg.Matrix, res.Msg.Page
+				return res.Msg.Matrix
 			}
 			if subject.name == "role" {
 				_, err := env.permissions.SetRolePermission(ctx, connect.NewRequest(&adminv1.SetRolePermissionRequest{
@@ -68,7 +68,7 @@ func TestPermissionMatricesExcludeArchivedChannels(t *testing.T) {
 				}))
 				require.NoError(t, err)
 			}
-			before, beforePage := fetch(&apiv1.PageRequest{Limit: 100}, nil)
+			before := fetch(nil)
 			scopeIDs := func(matrix matrixView) []string {
 				ids := make([]string, 0, len(matrix.GetScopes()))
 				for _, scope := range matrix.GetScopes() {
@@ -79,7 +79,7 @@ func TestPermissionMatricesExcludeArchivedChannels(t *testing.T) {
 			require.Contains(t, scopeIDs(before), "room:"+archived.Id)
 			_, err := env.core.ArchiveRoom(env.ctx, core.SystemActorID, core.KindChannel, archived.Id)
 			require.NoError(t, err)
-			after, afterPage := fetch(&apiv1.PageRequest{Limit: 100}, nil)
+			after := fetch(nil)
 			ids := scopeIDs(after)
 			require.NotContains(t, ids, "room:"+archived.Id)
 			for _, id := range []string{"server", "dm", "group:" + group.Id, "room:" + active.Id} {
@@ -88,28 +88,15 @@ func TestPermissionMatricesExcludeArchivedChannels(t *testing.T) {
 			for _, cell := range after.GetCells() {
 				require.NotEqual(t, "room:"+archived.Id, cell.ScopeId)
 			}
-			require.Equal(t, beforePage.TotalCount-1, afterPage.TotalCount)
-			require.False(t, afterPage.HasMore)
-			for offset, id := range ids {
-				matrix, page := fetch(&apiv1.PageRequest{Limit: 1, Offset: int32(offset)}, nil)
-				require.Equal(t, []string{id}, scopeIDs(matrix))
-				require.Equal(t, afterPage.TotalCount, page.TotalCount)
-				require.Equal(t, offset < len(ids)-1, page.HasMore)
-			}
-			end, endPage := fetch(&apiv1.PageRequest{Limit: 1, Offset: int32(len(ids))}, nil)
-			require.Empty(t, end.GetScopes())
-			require.False(t, endPage.HasMore)
-			exact, exactPage := fetch(nil, target)
+			require.Len(t, after.GetScopes(), len(before.GetScopes())-1)
+			exact := fetch(target)
 			require.Empty(t, exact.GetScopes())
 			require.Empty(t, exact.GetCells())
-			require.Zero(t, exactPage.TotalCount)
-			require.False(t, exactPage.HasMore)
 
 			_, err = env.core.UnarchiveRoom(env.ctx, core.SystemActorID, core.KindChannel, archived.Id)
 			require.NoError(t, err)
-			restored, restoredPage := fetch(nil, target)
+			restored := fetch(target)
 			require.Equal(t, []string{"room:" + archived.Id}, scopeIDs(restored))
-			require.EqualValues(t, 1, restoredPage.TotalCount)
 			cell := findAPIPermissionCell(restored.GetCells(), "room:"+archived.Id, string(core.PermMessagePost))
 			require.NotNil(t, cell)
 			require.Equal(t, adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW, cell.Override)
@@ -129,7 +116,7 @@ func TestPermissionScopePagesAndInheritance(t *testing.T) {
 	ctx := withCaller(env.ctx, env.viewer)
 	groupID := env.defaultRoomGroupID(t)
 	var roomID string
-	for i := range 24 {
+	for i := range 104 {
 		room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, groupID, fmt.Sprintf("scope-page-%d", i), "Scope page")
 		if err != nil {
 			t.Fatal(err)
@@ -147,22 +134,21 @@ func TestPermissionScopePagesAndInheritance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(first.Msg.Matrix.Scopes) != 20 || !first.Msg.Page.HasMore {
-		t.Fatalf("first scope count=%d page=%v", len(first.Msg.Matrix.Scopes), first.Msg.Page)
-	}
-	second, err := env.permissions.ListRolePermissionDecisions(ctx, connect.NewRequest(&adminv1.ListRolePermissionDecisionsRequest{RoleName: core.RoleModerator, Page: &apiv1.PageRequest{Offset: 20}}))
+	require.GreaterOrEqual(t, len(first.Msg.Matrix.Scopes), 104)
+	second, err := env.permissions.ListRolePermissionDecisions(ctx, connect.NewRequest(&adminv1.ListRolePermissionDecisionsRequest{RoleName: core.RoleModerator, Page: &apiv1.PageRequest{Offset: 100}}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if int(first.Msg.Page.TotalCount) != 20+len(second.Msg.Scopes) || second.Msg.Page.HasMore {
+	if len(first.Msg.Matrix.Scopes) != 100+len(second.Msg.Scopes) || second.Msg.Page.HasMore {
 		t.Fatal("scope page counts disagree")
 	}
+	require.EqualValues(t, len(first.Msg.Matrix.Scopes), second.Msg.Page.TotalCount)
 	target := &adminv1.PermissionScope{Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_ROOM, Id: roomID}
 	exact, err := env.permissions.GetRolePermissionMatrix(ctx, connect.NewRequest(&adminv1.GetRolePermissionMatrixRequest{RoleName: core.RoleModerator, Scope: target}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(exact.Msg.Matrix.Scopes) != 1 || exact.Msg.Page.TotalCount != 1 {
+	if len(exact.Msg.Matrix.Scopes) != 1 {
 		t.Fatal("exact filter did not restrict scopes")
 	}
 	cell := findAPIPermissionCell(exact.Msg.Matrix.Cells, "room:"+roomID, string(core.PermMessagePost))
@@ -176,13 +162,11 @@ func TestPermissionScopePagesAndInheritance(t *testing.T) {
 	if len(users.Msg.Scopes) != 1 || users.Msg.Page.TotalCount != 1 {
 		t.Fatal("user decisions did not filter scopes")
 	}
-	matrix, err := env.permissions.GetUserPermissionMatrix(ctx, connect.NewRequest(&adminv1.GetUserPermissionMatrixRequest{UserId: env.viewer.Id, Page: &apiv1.PageRequest{Limit: 1, Offset: 1}}))
+	matrix, err := env.permissions.GetUserPermissionMatrix(ctx, connect.NewRequest(&adminv1.GetUserPermissionMatrixRequest{UserId: env.viewer.Id}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(matrix.Msg.Matrix.Scopes) != 1 || !matrix.Msg.Page.HasMore {
-		t.Fatal("user matrix did not page")
-	}
+	require.Len(t, matrix.Msg.Matrix.Scopes, len(first.Msg.Matrix.Scopes))
 	dm, err := env.permissions.ListRolePermissionDecisions(ctx, connect.NewRequest(&adminv1.ListRolePermissionDecisionsRequest{RoleName: core.RoleModerator, Scope: &adminv1.PermissionScope{Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_DM}}))
 	if err != nil || len(dm.Msg.Scopes) != 1 || dm.Msg.Scopes[0].Kind != adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_DM {
 		t.Fatalf("explicit DM: %v", err)

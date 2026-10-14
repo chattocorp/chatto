@@ -162,26 +162,6 @@
   </div>
 </Story>
 
-<Story name="Scope columns loading" asChild>
-  <div class="max-w-3xl rounded-lg bg-background p-4">
-    <MatrixTable
-      {rows}
-      {columns}
-      getRowKey={(row) => row.id}
-      getColumnKey={(column) => column.id}
-      {columnClass}
-      emptyMessage="No rows"
-      leadingHeader={activityHeader}
-      rowHeader={labelRow}
-      columnHeader={labelColumn}
-      cell={interactiveCell}
-      hasMore
-      loadingMore
-      onLoadMore={() => undefined}
-    />
-  </div>
-</Story>
-
 <Story name="Narrow pane" asChild>
   <div class="w-80 max-w-full bg-background">
     <MatrixTable
@@ -203,6 +183,28 @@
     >
       {#snippet group()}Permissions{/snippet}
     </MatrixTable>
+  </div>
+</Story>
+
+<Story name="Many columns" asChild>
+  <div class="flex h-96 w-[319.5px] flex-col bg-background">
+    <MatrixTable
+      {rows}
+      columns={Array.from({ length: 205 }, (_, index) => ({
+        id: `room-${index}`,
+        label: `Room ${index + 1}`,
+        kind: 'room' as const
+      }))}
+      getRowKey={(row) => row.id}
+      getColumnKey={(column) => column.id}
+      stickyHeader
+      fillHeight
+      emptyMessage="No rows"
+      leadingHeader={activityHeader}
+      rowHeader={labelRow}
+      columnHeader={labelColumn}
+      cell={interactiveCell}
+    />
   </div>
 </Story>
 
