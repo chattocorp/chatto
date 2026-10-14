@@ -270,9 +270,9 @@ Chatto removes a role only if the provider gave it:
 - If the provider sends no groups claim and you do not use `allowed_groups`,
   Chatto does not change any role.
 
-Chatto records which provider `id` gave each role. Do not change the `id`
-after you map roles. The provider does not remove roles that it gave under an
-old `id`.
+Chatto records which provider gave each role by its issuer URL, as for
+account links. You can change the provider `id`. If the issuer URL changes, the
+provider does not remove roles that it gave under the old issuer.
 
 Chatto learns about group changes only at sign-in. Until a user signs in
 again through the provider, they keep the roles from their last sign-in, also

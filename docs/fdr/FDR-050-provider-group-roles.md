@@ -61,12 +61,14 @@ management in Chatto.
   operator maps the role again, or the user's sign-in is denied, those
   assignments can still be removed. Assignments that existed before a role was
   mapped count as admin assignments, so the provider never removes them.
-- **Provider ID** — Chatto records the provider `id` as the owner of each
-  assignment that the provider created. Keep the `id` stable. After a change of
-  the `id`, the provider no longer removes the assignments of the old `id`;
-  admins remove them by hand.
+- **Owner of an assignment** — Chatto records the issuer of the provider as
+  the owner of each assignment that the provider created, the same value that
+  identity links use. A change of the provider `id` keeps the ownership. After
+  a change of the issuer URL, the provider no longer removes the assignments of
+  the old issuer; admins remove them by hand.
 - **Unlinking** — when a user unlinks the last identity of a provider from
-  their account, Chatto removes the roles that the provider gave. Otherwise the
+  their account, Chatto removes the roles that the provider gave, in the same
+  change as the unlink. Otherwise the
   account could keep them after the identity moves to another account, and
   later group changes would never reach it. Admin assignments stay.
 - **Revocation delay** — Chatto learns about group changes only at sign-in.
@@ -125,12 +127,13 @@ removed by the provider.
 
 **Decision:** Role assignment and removal events get an optional reason. The
 reason is one of a fixed set of kinds, and each kind holds only its own data:
-the provider ID for a provider group change, and nothing for a server
+the provider ID and issuer for a provider group change, and nothing for a server
 configuration owner. Events without a reason are admin changes or older
 events.
 **Why:** The RBAC projection uses the reason of the event that created the
 current assignment to decide ownership (decision 3), so no separate state is
-needed. The audit log can explain why a role changed. The same reason lets
+needed. Ownership uses the issuer, because the provider ID can change and older
+identity links can carry another provider ID. The audit log can explain why a role changed. The same reason lets
 Chatto recognize `owners.emails` owner assignments and tell them apart from
 manual ones (see [FDR-001](FDR-001-roles-and-permissions.md) decision 5). A typed reason holds no free text, so it cannot carry
 personal data.
