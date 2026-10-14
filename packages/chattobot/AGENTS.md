@@ -15,6 +15,10 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   own agent, write it as a Runling task that can also run on its own, like
   `investigation/investigate.ts`, and give it to the agent as a tool. A task
   returns its result to the agent; it does not post to Chatto itself.
+- A long subagent runs in the background, as in agent harnesses: its tool
+  returns at once, the conversation keeps answering messages, and the result
+  reaches the agent in a later turn. A turn with only results never counts as
+  a maintainer turn.
 - A subagent keeps its agent session in a file, so the conversation can resume
   it with a follow-up question. The caller chooses its working directory.
 - Do not add host code that corrects or replaces the model's replies. If the
@@ -28,9 +32,9 @@ the notice after a failed turn in `conversation.ts`. Do not add new host text
 without discussion.
 
 Subagent progress, such as the `[investigation]` lines, is posted as messages
-for now. It will move to the bot's temporary status in the thread (#2787), so
-keep it out of the conversation agent's context and do not let replies depend
-on it.
+for now. It will move to the bot's temporary status in the thread (#2787). The
+agent sees only the latest step of each running subagent, to answer status
+questions; do not let its replies depend on the posted lines.
 
 Do not add slash commands. People talk to the bot in plain language.
 

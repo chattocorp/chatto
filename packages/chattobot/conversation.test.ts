@@ -52,7 +52,7 @@ function harness({
   answer?: (prompt: string) => string | string[] | AgentResult;
   thread?: ThreadMessage[][];
   maintainers?: string[];
-  turn?: () => Promise<void>;
+  turn?: (prompt: string) => Promise<void>;
 } = {}) {
   const prompts: string[] = [];
   const posts: { destination: Destination; body: string }[] = [];
@@ -88,7 +88,7 @@ function harness({
       id: 'agent',
       async runOutcome(_ctx, prompt, runOptions) {
         prompts.push(prompt);
-        await turn?.();
+        await turn?.(prompt);
         const result = answer(prompt);
         if (typeof result === 'object' && !Array.isArray(result)) return result;
         const texts = typeof result === 'string' ? [result] : result;
@@ -340,28 +340,54 @@ test('posts each message of a turn in order, such as a note before a long tool c
   expect(bot.posts.every((post) => post.destination.inReplyTo === 'one')).toBe(true);
 });
 
-test('posts investigation progress with a prefix, in order with the answer', async () => {
+test('runs investigations in the background and stays available while they run', async () => {
+  const release = Promise.withResolvers<void>();
   const investigator = task(
     { name: 'Investigate', input: Type.Any(), output: Type.Any(), emits: Type.String() },
-    async (ctx) => {
+    async (ctx, input) => {
       await ctx.emit('Reading src/a.ts');
-      await ctx.emit('Thinking: Checking the renderer');
-      return { session: 's', answer: 'Found it.', citations: [] };
+      await release.promise;
+      return { session: input.id, answer: 'The renderer drops images.', citations: [] };
     }
   );
   const bot: ReturnType<typeof harness> = harness({
     investigation: { directory: '/repo', investigator: () => investigator as never },
-    turn: async () => {
-      await bot.tools.get('investigate')!.execute('1', { question: 'Why?' });
+    turn: async (prompt) => {
+      if (prompt.includes('images are gone'))
+        await bot.tools.get('investigate')!.execute('1', { question: 'Why are images gone?' });
     },
-    answer: () => 'It is fixed in main.'
+    answer: (prompt) =>
+      prompt.includes('finished')
+        ? 'Found it: the renderer drops images.'
+        : prompt.includes('still running')
+          ? 'Still looking: it is reading src/a.ts.'
+          : 'I started an investigation.'
   });
-  const run = bot.start(message('one'));
-  await vi.waitFor(() => expect(bot.posts).toHaveLength(2));
-  bot.messages.close();
-  await run;
+  const run = bot.start(message('one', 'images are gone'));
+  // Progress is posted in batches about a second apart.
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(2), { timeout: 3000 });
   expect(bot.posts.map((post) => post.body)).toEqual([
-    '[investigation] Reading src/a.ts\n[investigation] Thinking: Checking the renderer',
-    'It is fixed in main.'
+    'I started an investigation.',
+    '[investigation] Reading src/a.ts'
   ]);
+
+  // The investigation still runs, and the conversation answers a new message at once.
+  await bot.messages.send(message('two', 'How is it going?'));
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(3));
+  expect(bot.posts[2]!.body).toBe('Still looking: it is reading src/a.ts.');
+  expect(bot.prompts[1]).toMatch(
+    /still running:\n- [0-9a-f-]{36}, for 1 min: Why are images gone\? \(latest step: Reading src\/a\.ts\)/
+  );
+
+  // The input can close while the investigation runs; its answer still arrives.
+  bot.messages.close();
+  release.resolve();
+  expect(await run).toMatchObject({ ok: true });
+  expect(bot.posts[3]).toEqual({
+    destination: { roomId: 'room', threadRootId: 'root', inReplyTo: 'one' },
+    body: 'Found it: the renderer drops images.'
+  });
+  expect(bot.prompts[2]).toContain('finished. The question was: Why are images gone?');
+  expect(bot.prompts[2]).toContain('The renderer drops images.');
+  expect(bot.reactions).toEqual(['one', 'two']);
 });

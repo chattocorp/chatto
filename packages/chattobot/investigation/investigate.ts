@@ -39,6 +39,12 @@ const Input = Type.Object({
       pattern: '^[0-9a-f-]{36}$',
       description: 'The ID of an earlier investigation to continue'
     })
+  ),
+  id: Type.Optional(
+    Type.String({
+      pattern: '^[0-9a-f-]{36}$',
+      description: 'The ID for a new investigation, so the caller knows it before it ends'
+    })
   )
 });
 
@@ -83,10 +89,13 @@ export function createInvestigator(
       if (!(await stat(directory).catch(() => undefined))?.isDirectory())
         throw new Error('The directory to investigate does not exist');
       await mkdir(settings.sessions, { recursive: true, mode: 0o700 });
-      const session = input.session ?? crypto.randomUUID();
+      if (input.session && input.id)
+        throw new Error('Give either the ID of an earlier investigation or a new ID, not both');
+      const session = input.session ?? input.id ?? crypto.randomUUID();
       const sessionFile = resolve(settings.sessions, `${session}.jsonl`);
-      if (input.session && !(await stat(sessionFile).catch(() => undefined)))
-        throw new Error(`There is no investigation ${input.session}`);
+      const exists = !!(await stat(sessionFile).catch(() => undefined));
+      if (input.session && !exists) throw new Error(`There is no investigation ${input.session}`);
+      if (input.id && exists) throw new Error(`Investigation ${input.id} exists already`);
       if (active.has(session))
         throw new Error(`Investigation ${session} is answering another question. Wait for it.`);
       active.add(session);

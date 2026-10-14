@@ -139,3 +139,17 @@ test('describes tool calls and reasoning, but not nested calls', () => {
     } as never)
   ).toBe('Thinking: Checking the renderer');
 });
+
+test('starts a new investigation with an ID that the caller chose', async () => {
+  const { directory, investigate } = await setup(['First.', 'Second.']);
+  const id = '11111111-2222-3333-4444-555555555555';
+  expect((await investigate(createTaskContext(), { directory, question: 'Q?', id })).session).toBe(
+    id
+  );
+  await expect(investigate(createTaskContext(), { directory, question: 'Q?', id })).rejects.toThrow(
+    `Investigation ${id} exists already`
+  );
+  await expect(
+    investigate(createTaskContext(), { directory, question: 'Q?', id, session: id })
+  ).rejects.toThrow('not both');
+});

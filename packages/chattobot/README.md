@@ -43,9 +43,13 @@ current turn.
 
 ## Investigations
 
-`investigate` works like a subagent in an agent harness. The bot gives a
-question to an investigator agent, which reads the source checkout, its
-documentation, and its Git history, and answers with file references. The
+`investigate` works like a background subagent in an agent harness. The bot
+gives a question to an investigator agent, which reads the source checkout, its
+documentation, and its Git history, and answers with file references. The bot
+keeps talking while the investigator works: it posts the investigator's steps
+as `[investigation]` messages, answers status questions, and passes on the
+answer when the investigation finishes. At most three investigations run at
+the same time in one thread. The
 investigator can only read. The bot checks each `path:line` reference against
 the checkout and, when GitHub is configured, links it to the lines on GitHub at
 the investigated commit.
