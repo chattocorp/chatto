@@ -2,44 +2,40 @@
 
 These rules apply to `packages/chattobot/`. The root `AGENTS.md` rules also apply.
 
-## Talking to users
+## Shape
 
-- Only the supervisor task talks to the user. Other tasks, such as implementation
-  and investigation, report to their parent task only (Runling ADR-006). Do not
-  pass callbacks into a child task that post to Chatto.
-- Do not hardcode user-facing message text in host code. The supervisor model
-  writes every message in the user's language and its own words. A task reports
-  facts: milestones and progress as `notice` updates with structured `data`, and
-  its result. Text in notices and results describes the facts for the model; it
-  is not shown to the user.
-- Host code may guard facts, but not phrase messages. Example: when a reply
-  leaves out a new pull request or issue URL, the host appends the bare URL.
-- Current exceptions are host fallbacks for when the model must not or cannot
-  answer: the maintainer and untrusted-content refusals and the duplicate-implementation
-  refusal (a blocked tool must never be described as started work), the notice
-  for a malformed model reply, and the reply failure message in
-  `chatto/routing.ts`. Do not add new exceptions without discussion.
+ChattoBot is one agent session per Chatto thread. Keep it that way:
 
-## Adding an implementation stage
+- `chatto/source.ts` connects to Chatto. `chatto/router.ts` sends each message
+  that addresses the bot to the run of its thread, or starts one.
+- `conversation.ts` is the conversation task. It owns the agent, the prompt of
+  each turn, and the only posts to the thread. The agent's final text is the
+  reply.
+- Add a capability as a tool of that agent. When the work is long or needs its
+  own agent, write it as a Runling task and give it to the agent with
+  `taskTool`. A task returns its result to the agent; it does not post to
+  Chatto itself.
+- Do not add host code that corrects or replaces the model's replies. If the
+  model behaves badly, change the prompt, the tools, or the model, and add a
+  test or an evaluation that shows the problem.
 
-Report a new stage, such as planning or review, as a milestone notice from the
-implementation task, with its facts in `data`. When the supervisor must relay a
-specific fact, such as a URL, add the milestone to `noticeReport` in
-`workflows/task-context.ts`. Name the milestone in the README. Do not add a host
-message template.
+## Host text
 
-## Adding a way to call tools
+The model writes the replies. Host code writes text only when the model cannot:
+the notice after a failed turn in `conversation.ts` and the `/cancel`
+confirmation in `chatto/router.ts`. Do not add new host text without discussion.
 
-Codemode lets the model call tools from a script. MCP and similar features add
-other paths. Every path must keep these protections in place:
+## Permissions
 
-- The maintainer gate and the authorization checks in `workflows/chat.ts`. They
-  read the latest message, so a path that can wait, such as a script, must not
-  reach maintainer-only tools.
-- Per-message budgets and limits, such as the research and attachment limits
-  and the finding limit. Check that parallel calls cannot pass them.
-- The block after untrusted content.
-- The private temporary directory (`private-temp.ts`) for any output that
-  is written to disk.
-
-Have an adversarial review check each new path against this list before merge.
+- Read tools are available to everyone who can address the bot.
+- Tools that change something outside the thread, such as `createIssue`, run
+  only when maintainers (`CHATTO_MAINTAINER_USER_IDS`) wrote every message of
+  the current turn. Check this in the tool, with the server-authenticated
+  author ID, never with names or model text.
+- A maintainer's turn can still contain text that another person wrote earlier
+  in the thread. Keep write tools narrow, and give each one only the GitHub
+  permissions that it needs.
+- Keep per-turn limits, such as the attachment and web limits, in the
+  conversation, and make sure that parallel tool calls cannot pass them.
+- Write temporary files only to the private temporary directory
+  (`private-temp.ts`).

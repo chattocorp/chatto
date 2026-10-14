@@ -74,7 +74,7 @@ frontends use it. See ADR-111.
   framework-neutral Chatto client: what belongs in it, stores, realtime
   projection, sessions, reactivity, and its Svelte adapter.
 - [packages/chattobot/AGENTS.md](packages/chattobot/AGENTS.md) — ChattoBot rules:
-  only the supervisor talks to users, with no hardcoded user-facing text.
+  one agent session per thread, capabilities as tools, and maintainer-only changes.
 - [authling/AGENTS.md](authling/AGENTS.md) — mandatory Authling product,
   architecture, documentation, security, and testing rules.
 - [authling/docs/README.md](authling/docs/README.md) — Authling-owned ADR, FDR,

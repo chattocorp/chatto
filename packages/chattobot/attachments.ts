@@ -1,13 +1,13 @@
-/** The supervisor's `viewAttachment` tool: it shows an image or a small text file that is
+/** The `viewAttachment` tool: it shows an image or a small text file that is
  * attached to a message in the conversation's thread. Content goes to the model provider only
- * when the supervisor views it, and the host never logs it. */
+ * when the agent views it, and the host never logs it. */
 import type {
   AttachmentContent,
   AttachmentReadOptions,
   MessageAttachmentInfo
 } from '@chatto/client';
 import { Type } from 'runling';
-import { defineAgentExtension } from 'runling/agents';
+import { defineAgentExtension } from 'runling';
 
 /** Longest side of an image as the model receives it. Chatto resizes it on the server. */
 const IMAGE_SIZE = 1600;

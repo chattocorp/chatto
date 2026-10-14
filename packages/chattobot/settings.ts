@@ -1,5 +1,5 @@
 /** Host configuration helpers. Chat messages never select these values. */
-import type { ThinkingLevel } from 'runling/agents';
+import type { ThinkingLevel } from 'runling';
 
 /** A host configuration value is missing or invalid. Its message names settings, never their values. */
 export class ConfigurationError extends Error {

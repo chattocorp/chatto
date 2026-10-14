@@ -1,7 +1,7 @@
 /** Opt-in open-web search (Tavily) and page reading (Cloudflare Browser Run). */
 import { setTimeout } from 'node:timers/promises';
 import { Type } from 'runling';
-import { defineAgentExtension } from 'runling/agents';
+import { defineAgentExtension } from 'runling';
 import { ConfigurationError, setting } from './settings.ts';
 
 /** Host-owned web access credentials. Each capability is enabled only when its credentials are set. */
