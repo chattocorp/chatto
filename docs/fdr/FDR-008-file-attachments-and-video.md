@@ -147,6 +147,12 @@ already in the cache and newly posted attachments are inserted directly.
 **Why:** Every file needs an accessible download action and consistent dismissal. A shared shell keeps mobile layout and keyboard behavior consistent while preserving image galleries and HTML privacy controls.
 **Tradeoff:** Images in one message form a gallery; other attachments open individually. PDF previews depend on native browser support. Plain text, archives, and other unsupported formats have no built-in preview. PDF support adds no document parser, external service, protocol field, or stored-data migration.
 
+### 15. All attachments share one upload size limit
+
+**Decision:** GIFs, images, videos, and other files share one configured byte limit. Video upload enablement and processing limits remain separate controls. During migration, an explicitly set legacy video limit can raise the common limit; remove it after setting the desired general limit.
+**Why:** Users should not need to convert an animation to another file format to get a larger upload allowance. One setting gives operators and clients one clear policy.
+**Tradeoff:** A larger allowance also permits larger documents and images. Image dimensions, frame counts, and processing time still have independent bounds. Operators who relied on the old implicit 100 MB video default must set the general limit explicitly to keep that allowance.
+
 ## Permissions
 
 Posting an attachment requires room membership, the relevant message-posting permission (`message.post` or `message.post-in-thread`), and `message.attach`. The `message.attach` permission is configurable at server, group, and room scope and only gates message attachments; server branding uploads, user avatars, link previews, and attachment deletion use their existing checks.
