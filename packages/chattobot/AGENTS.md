@@ -12,9 +12,11 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   each turn, and the only posts to the thread. The agent's final text is the
   reply.
 - Add a capability as a tool of that agent. When the work is long or needs its
-  own agent, write it as a Runling task and give it to the agent with
-  `taskTool`. A task returns its result to the agent; it does not post to
-  Chatto itself.
+  own agent, write it as a Runling task that can also run on its own, like
+  `investigation/investigate.ts`, and give it to the agent as a tool. A task
+  returns its result to the agent; it does not post to Chatto itself.
+- A subagent keeps its agent session in a file, so the conversation can resume
+  it with a follow-up question. The caller chooses its working directory.
 - Do not add host code that corrects or replaces the model's replies. If the
   model behaves badly, change the prompt, the tools, or the model, and add a
   test or an evaluation that shows the problem.

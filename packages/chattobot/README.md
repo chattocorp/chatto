@@ -26,19 +26,39 @@ the bot also ends all conversations.
 
 ## Tools
 
-| Tool             | Who can use it | What it does                                                   |
-| ---------------- | -------------- | -------------------------------------------------------------- |
-| `fetchPage`      | Everyone       | Reads the Chatto documentation and the Awesome Chatto list.    |
-| `readThread`     | Everyone       | Reads the newest messages of the thread.                       |
-| `viewAttachment` | Everyone       | Looks at an image or a small text file in the thread.          |
-| `webSearch`      | Maintainers    | Searches the web with Tavily, when configured.                 |
-| `browsePage`     | Maintainers    | Reads a web page with Cloudflare Browser Run, when configured. |
-| `gh`             | Everyone       | Runs read-only GitHub CLI commands, when GitHub is configured. |
-| `createIssue`    | Maintainers    | Files an issue in the configured repository.                   |
-| `commentOnIssue` | Maintainers    | Adds a comment to an issue in the configured repository.       |
+| Tool             | Who can use it | What it does                                                          |
+| ---------------- | -------------- | --------------------------------------------------------------------- |
+| `fetchPage`      | Everyone       | Reads the Chatto documentation and the Awesome Chatto list.           |
+| `readThread`     | Everyone       | Reads the newest messages of the thread.                              |
+| `viewAttachment` | Everyone       | Looks at an image or a small text file in the thread.                 |
+| `webSearch`      | Maintainers    | Searches the web with Tavily, when configured.                        |
+| `browsePage`     | Maintainers    | Reads a web page with Cloudflare Browser Run, when configured.        |
+| `gh`             | Everyone       | Runs read-only GitHub CLI commands, when GitHub is configured.        |
+| `createIssue`    | Maintainers    | Files an issue in the configured repository.                          |
+| `commentOnIssue` | Maintainers    | Adds a comment to an issue in the configured repository.              |
+| `investigate`    | Everyone       | Asks an investigator subagent about the source code, when configured. |
 
 A tool for maintainers runs only when maintainers wrote every message of the
 current turn.
+
+## Investigations
+
+`investigate` works like a subagent in an agent harness. The bot gives a
+question to an investigator agent, which reads the source checkout, its
+documentation, and its Git history, and answers with file references. The
+investigator can only read. The bot checks each `path:line` reference against
+the checkout and, when GitHub is configured, links it to the lines on GitHub at
+the investigated commit.
+
+Each investigation keeps its agent session in `.runling/subagents/investigate/`.
+The bot can resume an investigation with a follow-up question, also after the
+investigation ended. You can also run the investigator on its own:
+
+```sh
+runling run investigation/investigate.ts --input '{"directory": "/path/to/chatto", "question": "..."}'
+```
+
+Add `"session": "<id>"` to the input to continue an investigation.
 
 ## Run it
 
@@ -51,16 +71,18 @@ where that account can.
 
 ## Settings
 
-| Setting                                                                                         | Description                                                                               |
-| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `CHATTO_URL`, `CHATTO_API_KEY`                                                                  | The Chatto server and the bot account's API key. Required.                                |
-| `CHATTO_AGENT_MODEL`                                                                            | The model, as `provider/model`, for example `openrouter/openai/gpt-5.5`. Required.        |
-| `CHATTO_AGENT_THINKING`                                                                         | Reasoning effort: `off`, `minimal`, `low`, `medium` (default), `high`, `xhigh`, or `max`. |
-| `CHATTO_ALLOWED_USER_ID`                                                                        | Answer only this Chatto user ID. Use it for tests on a shared server.                     |
-| `CHATTO_MAINTAINER_USER_IDS`                                                                    | Chatto user IDs of maintainers, separated by commas.                                      |
-| `CHATTO_GITHUB_APP_CLIENT_ID`, `CHATTO_GITHUB_APP_PRIVATE_KEY_FILE`, `CHATTO_GITHUB_REPOSITORY` | GitHub access through a GitHub App, for one repository (`owner/repo`).                    |
-| `CHATTO_TAVILY_API_KEY`                                                                         | Enables `webSearch`.                                                                      |
-| `CHATTO_CLOUDFLARE_ACCOUNT_ID`, `CHATTO_CLOUDFLARE_API_TOKEN`                                   | Enables `browsePage`.                                                                     |
+| Setting                                                                                         | Description                                                                                                    |
+| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `CHATTO_URL`, `CHATTO_API_KEY`                                                                  | The Chatto server and the bot account's API key. Required.                                                     |
+| `CHATTO_AGENT_MODEL`                                                                            | The model, as `provider/model`, for example `openrouter/openai/gpt-5.5`. Required.                             |
+| `CHATTO_AGENT_THINKING`                                                                         | Reasoning effort: `off`, `minimal`, `low`, `medium` (default), `high`, `xhigh`, or `max`.                      |
+| `CHATTO_ALLOWED_USER_ID`                                                                        | Answer only this Chatto user ID. Use it for tests on a shared server.                                          |
+| `CHATTO_MAINTAINER_USER_IDS`                                                                    | Chatto user IDs of maintainers, separated by commas.                                                           |
+| `CHATTO_GITHUB_APP_CLIENT_ID`, `CHATTO_GITHUB_APP_PRIVATE_KEY_FILE`, `CHATTO_GITHUB_REPOSITORY` | GitHub access through a GitHub App, for one repository (`owner/repo`).                                         |
+| `CHATTO_TAVILY_API_KEY`                                                                         | Enables `webSearch`.                                                                                           |
+| `CHATTO_SOURCE_DIRECTORY`                                                                       | A checkout of the Chatto source. Enables `investigate`. Keep it current yourself, for example with `git pull`. |
+| `CHATTO_INVESTIGATION_MODEL`, `CHATTO_INVESTIGATION_THINKING`                                   | The investigator's model (default: `CHATTO_AGENT_MODEL`) and reasoning effort (default: `medium`).             |
+| `CHATTO_CLOUDFLARE_ACCOUNT_ID`, `CHATTO_CLOUDFLARE_API_TOKEN`                                   | Enables `browsePage`.                                                                                          |
 
 Model providers use their own settings, for example `OPENROUTER_API_KEY`, or a
 Pi login on the bot host.
@@ -86,8 +108,12 @@ ChattoBot sends these data to other systems:
   bot host's IP address.
 - **Tavily** receives search queries, and **Cloudflare** receives page URLs,
   when they are configured.
+- **The model provider** of the investigator receives the questions and the
+  source code that the investigator reads.
 
 The Runling run journals in `.runling/runs/` contain the messages and replies.
+The investigation sessions in `.runling/subagents/` contain the questions and
+the code that the investigators read.
 Keep that directory private.
 
 ## Develop

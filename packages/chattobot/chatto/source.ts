@@ -1,4 +1,6 @@
 /** The realtime Chatto source: connect as the bot and route each message that addresses it. */
+import { statSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { createApi, createClient, type Server } from '@chatto/client';
 import { parseServerUrl } from '@chatto/client/util/serverUrl';
 import { log } from 'runling';
@@ -9,6 +11,7 @@ import { createEyesReaction } from '../reaction.ts';
 import { ConfigurationError, setting, thinkingSetting } from '../settings.ts';
 import { createAttachmentReader, createThreadReader } from '../thread.ts';
 import { webSettings } from '../web.ts';
+import { createInvestigator, investigatorSettings } from '../investigation/investigate.ts';
 import { incomingMessage } from './message.ts';
 import { createChattoRouter, createRouterState, type RouterState } from './router.ts';
 
@@ -39,13 +42,25 @@ export function sourceSettings() {
     const model = setting('CHATTO_AGENT_MODEL');
     if (!model) throw new ConfigurationError('Set CHATTO_AGENT_MODEL');
     const github = githubSettings();
+    const source = setting('CHATTO_SOURCE_DIRECTORY');
+    if (source && !statSync(resolve(source), { throwIfNoEntry: false })?.isDirectory())
+      throw new ConfigurationError('CHATTO_SOURCE_DIRECTORY must name a directory');
     const conversation: ConversationSettings = {
       model,
       thinkingLevel: thinkingSetting('CHATTO_AGENT_THINKING', 'medium'),
       maintainers: maintainerIds(),
       web: webSettings(),
       // One token source per generation, so conversations share cached installation tokens.
-      github: github && { settings: github, tokens: createTokenSource(github) }
+      github: github && { settings: github, tokens: createTokenSource(github) },
+      ...(source
+        ? {
+            investigation: {
+              directory: resolve(source),
+              investigate: createInvestigator(investigatorSettings()),
+              ...(github ? { repository: github.repository } : {})
+            }
+          }
+        : {})
     };
     return {
       serverUrl,

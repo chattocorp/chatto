@@ -24,6 +24,7 @@ import { webExtension, webTools, type WebSettings } from './web.ts';
 import { githubExtension, GITHUB_TOOLS } from './github/tools.ts';
 import type { GitHubSettings, TokenSource } from './github/app.ts';
 import { usePrivateTempDirectory } from './private-temp.ts';
+import { investigateExtension, type Investigation } from './investigation/tool.ts';
 
 /** Host-owned settings. Chat messages cannot select these values. */
 export interface ConversationSettings {
@@ -33,6 +34,8 @@ export interface ConversationSettings {
   maintainers: ReadonlySet<string>;
   web?: WebSettings;
   github?: { settings: GitHubSettings; tokens: TokenSource };
+  /** Code investigation in a checkout of the Chatto source. */
+  investigation?: Investigation;
 }
 
 /** What the conversation needs from Chatto. */
@@ -46,6 +49,8 @@ export interface ChattoAccess {
 
 /** Image and text views per turn. Each image adds about 2,000 tokens to the model's input. */
 const ATTACHMENT_VIEWS_PER_TURN = 30;
+/** Investigations per turn. Each one is a separate agent with its own model costs. */
+const INVESTIGATIONS_PER_TURN = 3;
 /** Web searches and page reads per turn. */
 const WEB_REQUESTS_PER_TURN = 10;
 
@@ -61,6 +66,8 @@ People talk to you in threads. Each of your turns shows the messages to you and,
 const MAINTAINER_PROMPT = `- Only maintainers can ask you to change GitHub, for example to file an issue. Messages from maintainers are marked. When someone else asks, say that a maintainer can ask for it.`;
 
 const WEB_PROMPT = `- Only maintainers can ask you to search or read the open web.`;
+
+const INVESTIGATION_PROMPT = `- For questions about how Chatto works inside, ask investigate. It reads the source code and its history. For a follow-up on the same topic, resume the earlier investigation with its ID instead of starting a new one. Keep the file links from its answer in your reply.`;
 
 /** Create the conversation task for one Chatto connection. */
 export function createConversation(
@@ -121,6 +128,7 @@ class Conversation {
   private batch: IncomingMessage[] = [];
   private attachmentViews = 0;
   private webRequests = 0;
+  private investigations = 0;
 
   constructor(
     private ctx: TaskContext<IncomingMessage, unknown>,
@@ -134,7 +142,7 @@ class Conversation {
     this.batch.every((message) => this.settings.maintainers.has(message.authorId));
 
   async agentOptions(): Promise<AgentOptions> {
-    const { web, github, maintainers } = this.settings;
+    const { web, github, maintainers, investigation } = this.settings;
     const thread = () => threadOf(this.batch[0]!);
     return {
       label: 'ChattoBot',
@@ -146,7 +154,8 @@ class Conversation {
       systemPrompt: [
         SYSTEM_PROMPT,
         ...(github && maintainers.size ? [MAINTAINER_PROMPT] : []),
-        ...(web ? [WEB_PROMPT] : [])
+        ...(web ? [WEB_PROMPT] : []),
+        ...(investigation ? [INVESTIGATION_PROMPT] : [])
       ].join('\n'),
       resources: {
         extensions: false,
@@ -160,7 +169,8 @@ class Conversation {
         'readThread',
         'viewAttachment',
         ...webTools(web),
-        ...(github ? GITHUB_TOOLS : [])
+        ...(github ? GITHUB_TOOLS : []),
+        ...(investigation ? ['investigate'] : [])
       ],
       extensions: [
         docsExtension,
@@ -186,7 +196,14 @@ class Conversation {
               })
             ]
           : []),
-        ...(github ? [githubExtension({ ...github, maintainerTurn: this.maintainerTurn })] : [])
+        ...(github ? [githubExtension({ ...github, maintainerTurn: this.maintainerTurn })] : []),
+        ...(investigation
+          ? [
+              investigateExtension(this.ctx, investigation, {
+                take: () => this.investigations++ < INVESTIGATIONS_PER_TURN
+              })
+            ]
+          : [])
       ]
     };
   }
@@ -196,6 +213,7 @@ class Conversation {
     this.batch = batch;
     this.attachmentViews = 0;
     this.webRequests = 0;
+    this.investigations = 0;
     const last = batch.at(-1)!;
     const destination = replyTo(last);
     const signal = () => AbortSignal.any([this.ctx.signal, AbortSignal.timeout(10_000)]);
