@@ -89,7 +89,8 @@ because reads only ask whether a relationship exists. Its v3 snapshot contract
 records DM membership; the schema fingerprint selects a new cache namespace
 when this shape changes. The
 RBAC component snapshot contract is v2 and retains decisions from the
-`evt.rbac.dm` singleton lane. Membership, message, thread, reaction, asset, realtime, room-group OCC,
+`evt.rbac.dm` singleton lane. It also records the auth provider that created
+each provider-owned role assignment (FDR-050). Membership, message, thread, reaction, asset, realtime, room-group OCC,
 and sidebar-ordering paths use focused `RoomModel` operations instead of
 projection fields on `ChattoCore`. Raw membership reads are named as explicit
 membership so they remain distinct from policy-derived Universal-room access.

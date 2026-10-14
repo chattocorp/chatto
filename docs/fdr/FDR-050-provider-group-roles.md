@@ -1,6 +1,6 @@
 # FDR-050: Provider Group Roles
 
-**Status:** Planned
+**Status:** Active
 **Last reviewed:** 2026-10-14
 
 ## Overview
@@ -31,7 +31,10 @@ management in Chatto.
 - **When roles change** — Chatto applies the mapping when a user signs in
   through the provider, when a user links the provider to an account, and when
   a user creates an account through the provider. It applies the mapping after
-  the `allowed_groups` check. A denied sign-in changes no roles.
+  the `allowed_groups` check. When that check denies the sign-in of a linked
+  account, Chatto removes the roles that the provider gave and gives no roles.
+  A user who may not sign in through the provider thus keeps no authority from
+  it.
 - **Giving roles** — for each mapped role, if the user is in a matching group
   and does not have the role, Chatto assigns it. If the user already has the
   role, Chatto changes nothing.
@@ -45,8 +48,10 @@ management in Chatto.
   matching group. An admin who assigns a role that the user already has
   changes nothing, as for any other assignment.
 - **Missing groups** — if the provider sends no readable groups claim, Chatto
-  changes no roles for that sign-in. A groups claim that is present but empty
-  is real data, so Chatto removes the roles that the provider gave.
+  changes no roles for that sign-in. With `allowed_groups`, a missing claim
+  denies the sign-in, so the rule for denied sign-ins applies instead. A groups
+  claim that is present but empty is real data, so Chatto removes the roles
+  that the provider gave.
 - **Missing roles** — if a mapped role does not exist in Chatto, Chatto skips
   it and logs a warning with only the provider ID and the role name.
 - **Configuration changes** — a changed mapping takes effect for each user at
@@ -138,12 +143,17 @@ here.
 ### 6. A missing groups claim changes nothing
 
 **Decision:** If the provider sends no readable groups claim, Chatto keeps the
-current roles. An empty claim that is present removes provider-given roles.
+current roles. An empty claim that is present removes provider-given roles. A
+sign-in that `allowed_groups` denies always removes provider-given roles,
+also when the claim is missing.
 **Why:** A temporary UserInfo failure or a provider configuration error must
 not remove the roles of every user who signs in. An empty list is a clear
-statement from the provider.
+statement from the provider. A user who may not sign in through the provider
+must not keep authority from it.
 **Tradeoff:** A provider that stops sending the claim leaves provider-given
-roles in place until the operator corrects the provider configuration.
+roles in place until the operator corrects the provider configuration. With
+`allowed_groups`, a temporary UserInfo failure denies the sign-in and removes
+provider-given roles until the next successful sign-in.
 
 ## Gates
 
