@@ -1,16 +1,14 @@
 /**
- * Conversation URL grammar, local routes, and share URLs.
- * Only registered-server conversation links qualify for navigation in this SPA.
+ * Chatto route rewriting, strict conversation URL grammar, and share URLs.
+ * Only registered-server Chatto routes qualify for navigation in this SPA.
  */
 import { resolve } from '$app/paths';
 import type { ResolvedPathname } from '$app/types';
 import { serverRegistry } from '$lib/client';
 import { serverIdToSegment, segmentToServerId } from '$lib/navigation';
 
-/** The four supported conversation destinations. */
+/** Message destinations supported by previews and local message links. */
 type ChatDestination =
-  | { kind: 'room'; roomId: string }
-  | { kind: 'thread'; roomId: string; threadRootEventId: string }
   | { kind: 'message'; roomId: string; messageId: string }
   | { kind: 'thread-message'; roomId: string; threadRootEventId: string; messageId: string };
 
@@ -24,33 +22,11 @@ export interface MessageLink {
   messageId: string;
 }
 
-export type MessageBodyChatLink = ChatDestination & {
-  serverSegment: string;
-  serverId: string;
-  path: ResolvedPathname;
-};
-
-export interface MessageBodyChatLinkOptions {
-  origin?: string;
-  resolveServerSegment?: (segment: string) => string | null;
-  resolveUrlOrigin?: (origin: string) => string | null;
-  serverSegmentForId?: (serverId: string) => string;
-}
-
 const roomIdPattern = /^(?:R[a-zA-Z0-9]{14}|[a-f0-9]{14})$/;
 const eventIdPattern = /^E[a-zA-Z0-9]{14}$/;
 
-/** Parse syntax without consulting the server registry or loading remote data. */
-function parseChatLink(
-  input: string,
-  origin: string
-): {
-  url: URL;
-  /** True when the URL belongs to this frontend's origin. */
-  sameOrigin: boolean;
-  serverSegment: string;
-  destination: ChatDestination;
-} | null {
+/** Parse the shared server-route prefix without consulting the catalogue. */
+function parseChatURL(input: string, origin: string) {
   let url: URL;
   let sameOrigin: boolean;
   let parts: string[];
@@ -67,14 +43,20 @@ function parseChatLink(
   } catch {
     return null;
   }
-  const [prefix, serverSegment, roomId, fourth, fifth, sixth] = parts;
-  if (prefix !== 'chat' || !serverSegment || !roomIdPattern.test(roomId)) return null;
+  const [prefix, serverSegment] = parts;
+  if (prefix !== 'chat' || !serverSegment || serverSegment.includes('/')) return null;
+  return { url, sameOrigin, serverSegment, parts };
+}
+
+/** Strict message grammar used for previews. General routes do not need message IDs. */
+function parseChatLink(input: string, origin: string) {
+  const parsed = parseChatURL(input, origin);
+  if (!parsed) return null;
+  const { parts } = parsed;
+  const [, , roomId, fourth, fifth, sixth] = parts;
+  if (!roomIdPattern.test(roomId)) return null;
   let destination: ChatDestination;
-  if (parts.length === 3) {
-    destination = { kind: 'room', roomId };
-  } else if (parts.length === 4 && eventIdPattern.test(fourth)) {
-    destination = { kind: 'thread', roomId, threadRootEventId: fourth };
-  } else if (parts.length === 5 && fourth === 'm' && eventIdPattern.test(fifth)) {
+  if (parts.length === 5 && fourth === 'm' && eventIdPattern.test(fifth)) {
     destination = { kind: 'message', roomId, messageId: fifth };
   } else if (
     parts.length === 6 &&
@@ -86,19 +68,39 @@ function parseChatLink(
   } else {
     return null;
   }
-  return { url, sameOrigin, serverSegment, destination };
+  return { ...parsed, destination };
+}
+
+/**
+ * Rewrite any registered server's /chat/<server>/... route into this frontend.
+ * The remaining path, query, and fragment are preserved. Preview parsing stays strict.
+ */
+export function resolveChatRoute(input: string): ResolvedPathname | null {
+  if (typeof window === 'undefined') return null;
+  const parsed = parseChatURL(input, window.location.origin);
+  if (!parsed) return null;
+  const serverId = resolveChatLinkServerId(parsed);
+  if (!serverId) return null;
+  const prefix = resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) });
+  const suffix = parsed.url.pathname.split('/').slice(3).join('/');
+  const trailingPath = parsed.url.pathname.split('/').length > 3 ? `/${suffix}` : '';
+  return `${prefix}${trailingPath}${parsed.url.search}${parsed.url.hash}` as ResolvedPathname;
 }
 
 /** Unknown URL origins remain external, even when their path names a known server. */
-function resolveChatLinkServerId(
-  { url, sameOrigin, serverSegment }: { url: URL; sameOrigin: boolean; serverSegment: string },
-  options: MessageBodyChatLinkOptions
-): string | null {
-  const resolveSegment = options.resolveServerSegment ?? segmentToServerId;
-  if (sameOrigin) return resolveSegment(serverSegment);
-  const originServerId = (options.resolveUrlOrigin ?? serverIdForUrlOrigin)(url.origin);
+function resolveChatLinkServerId({
+  url,
+  sameOrigin,
+  serverSegment
+}: {
+  url: URL;
+  sameOrigin: boolean;
+  serverSegment: string;
+}): string | null {
+  if (sameOrigin) return segmentToServerId(serverSegment);
+  const originServerId = serverIdForUrlOrigin(url.origin);
   if (!originServerId) return null;
-  return serverSegment === '-' ? originServerId : resolveSegment(serverSegment);
+  return serverSegment === '-' ? originServerId : segmentToServerId(serverSegment);
 }
 
 /** Server hostnames identify registered destinations, independent of scheme and port. */
@@ -118,13 +120,6 @@ function serverIdForUrlOrigin(origin: string): string | null {
 function destinationPath(serverSegment: string, destination: ChatDestination): ResolvedPathname {
   const params = { serverId: serverSegment, roomId: destination.roomId };
   switch (destination.kind) {
-    case 'room':
-      return resolve('/chat/[serverId]/[roomId]', params);
-    case 'thread':
-      return resolve('/chat/[serverId]/[roomId]/[threadId]', {
-        ...params,
-        threadId: destination.threadRootEventId
-      });
     case 'message':
       return resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
         ...params,
@@ -182,35 +177,12 @@ export function buildMessageLinkURL(
   );
 }
 
-/** Resolve only valid conversation links to registered servers for same-tab navigation. */
-export function classifyMessageBodyChatLink(
-  input: string,
-  options: MessageBodyChatLinkOptions = {}
-): MessageBodyChatLink | null {
-  const origin =
-    options.origin ?? (typeof window !== 'undefined' ? window.location.origin : undefined);
-  if (!origin) return null;
-  const parsed = parseChatLink(input, origin);
-  if (!parsed) return null;
-  const serverId = resolveChatLinkServerId(parsed, options);
-  if (!serverId) return null;
-  const serverSegment = options.serverSegmentForId?.(serverId) ?? serverIdToSegment(serverId);
-  return {
-    ...parsed.destination,
-    serverId,
-    serverSegment,
-    path: (destinationPath(serverSegment, parsed.destination) +
-      parsed.url.search +
-      parsed.url.hash) as ResolvedPathname
-  };
-}
-
 /** Recognize message links for previews, retaining valid links to unknown servers. */
 export function parseMessageLink(input: string): MessageLink | null {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://_';
   const parsed = parseChatLink(input, origin);
-  if (!parsed || !('messageId' in parsed.destination)) return null;
-  const serverId = resolveChatLinkServerId(parsed, {});
+  if (!parsed) return null;
+  const serverId = resolveChatLinkServerId(parsed);
   return {
     serverId,
     serverSegment: serverId

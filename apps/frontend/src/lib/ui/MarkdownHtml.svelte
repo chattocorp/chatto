@@ -56,7 +56,7 @@ targets are unique to each component, including when callers reuse rendered HTML
     const button = target.closest<HTMLButtonElement>('button[data-markdown-copy]');
     if (!button) {
       const anchor = target.closest('a');
-      if (anchor?.href) handleRenderedLinkClick(event, anchor.href);
+      if (anchor?.href) handleRenderedLinkClick(event, anchor.dataset.contentHref ?? anchor.href);
       return;
     }
 
@@ -77,7 +77,22 @@ targets are unique to each component, including when callers reuse rendered HTML
   // delegated listener on this component's DOM root.
   function attachMarkdownActions(element: HTMLDivElement) {
     element.addEventListener('click', handleClick);
-    return () => element.removeEventListener('click', handleClick);
+    const handleAuxClick = (event: MouseEvent) => {
+      if (event.button !== 1 || !(event.target instanceof Element)) return;
+      const anchor = event.target.closest('a');
+      if (
+        anchor?.href &&
+        !anchor.closest('.footnote-ref') &&
+        !anchor.classList.contains('footnote-backref')
+      ) {
+        handleRenderedLinkClick(event, anchor.dataset.contentHref ?? anchor.href);
+      }
+    };
+    element.addEventListener('auxclick', handleAuxClick);
+    return () => {
+      element.removeEventListener('click', handleClick);
+      element.removeEventListener('auxclick', handleAuxClick);
+    };
   }
 </script>
 

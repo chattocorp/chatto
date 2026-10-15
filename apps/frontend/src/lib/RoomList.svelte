@@ -1111,6 +1111,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         if (!target.valid) event.preventDefault();
         else handleRenderedLinkClick(event, target.href);
       }}
+      onauxclick={(event) => {
+        if (!target.valid) event.preventDefault();
+        else handleRenderedLinkClick(event, target.href);
+      }}
     >
       <span class="relative flex shrink-0" data-testid="sidebar-link-leading-icon">
         <span

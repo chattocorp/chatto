@@ -6,6 +6,32 @@ import TipTapEditor from './TipTapEditor.svelte';
 import MarkdownEditor from './MarkdownEditor.svelte';
 import type { ComposerEditorApi } from './editorTypes';
 import { renderInlineMarkdown } from '$lib/markdown';
+const navigation = vi.hoisted(() => ({ goto: vi.fn() }));
+vi.mock('$app/navigation', () => ({ goto: navigation.goto, pushState: vi.fn() }));
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    servers: [{ id: 'remote', url: 'https://bar.com' }],
+    isOriginServer: () => false,
+    getServer: () => ({ id: 'remote', url: 'https://bar.com' })
+  }
+}));
+
+it('opens a registered Chatto link from the composer through local routing', async () => {
+  const readyApis: ComposerEditorApi[] = [];
+  render(TipTapEditor, {
+    props: {
+      placeholder: 'Write a message',
+      onReady: (api: ComposerEditorApi) => readyApis.push(api)
+    }
+  });
+  await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+  readyApis[0].setContent('<https://bar.com/chat/-/overview>');
+  readyApis[0].focus('end');
+  await expect.element(page.getByRole('button', { name: 'Open link', exact: true })).toBeVisible();
+  await userEvent.click(page.getByRole('button', { name: 'Open link', exact: true }));
+  expect(navigation.goto).toHaveBeenCalledWith('/chat/bar.com/overview');
+});
 
 describe('Composer footnote editing', () => {
   it.each([

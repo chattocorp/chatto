@@ -246,7 +246,7 @@ describe('renderMarkdown', () => {
     });
 
     it('keeps new-window attributes on non-allow-listed same-origin URLs', async () => {
-      const href = `${window.location.origin}/chat/-/settings`;
+      const href = `${window.location.origin}/settings`;
       const html = await renderMarkdown(`[settings](${href})`);
       expect(html).toContain(`href="${href}"`);
       expect(html).toContain('target="_blank"');
@@ -744,7 +744,7 @@ describe('MessageContent component', () => {
   });
 
   it('opens same-origin non-allow-listed links in a new window', async () => {
-    const href = `${window.location.origin}/chat/-/settings`;
+    const href = `${window.location.origin}/settings`;
     const { container } = renderMessage(`[settings](${href})`);
 
     await expect.poll(() => q(container, 'a')).toBeTruthy();

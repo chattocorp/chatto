@@ -512,6 +512,7 @@ function initialize(): void {
       const href = token.attrs![hrefIndex][1];
       if (!/^mailto:/i.test(href)) {
         const target = renderedLinkTarget(href);
+        token.attrSet('data-content-href', href);
         token.attrSet('href', target.href);
         if (target.target) token.attrSet('target', target.target);
         if (target.rel) token.attrSet('rel', target.rel);

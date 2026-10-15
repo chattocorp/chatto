@@ -5,12 +5,14 @@ import '../../app.css';
 import { renderMarkdown } from '$lib/markdown';
 
 const toastMocks = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
-const navigationMocks = vi.hoisted(() => ({ goto: vi.fn() }));
+const navigationMocks = vi.hoisted(() => ({ goto: vi.fn(), registered: true }));
 vi.mock('$app/navigation', () => ({ goto: navigationMocks.goto }));
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
-    servers: [{ id: 'remote', url: 'https://bar.com' }],
+    get servers() {
+      return navigationMocks.registered ? [{ id: 'remote', url: 'https://bar.com' }] : [];
+    },
     originServer: { id: 'origin' },
     isOriginServer: (id: string) => id === 'origin',
     getServer: () => ({ id: 'remote', url: 'https://bar.com' })
@@ -26,6 +28,7 @@ const writeText = vi.fn<(_: string) => Promise<void>>();
 
 beforeEach(() => {
   navigationMocks.goto.mockReset();
+  navigationMocks.registered = true;
   originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
   Object.defineProperty(navigator, 'clipboard', {
     configurable: true,
@@ -37,6 +40,36 @@ beforeEach(() => {
 });
 
 describe('MarkdownHtml link navigation', () => {
+  it.each(['overview', 'search?q=hello#results', 'threads', 'settings/appearance', 'manage/rooms'])(
+    'rewrites general Chatto routes: %s',
+    async (suffix) => {
+      const { container } = render(MarkdownHtml, {
+        html: await renderMarkdown(`[Go](https://bar.com/chat/-/${suffix})`)
+      });
+      await userEvent.click(container.querySelector('a')!);
+      expect(navigationMocks.goto).toHaveBeenCalledWith(`/chat/bar.com/${suffix}`);
+    }
+  );
+
+  it.each([true, false])(
+    'resolves middle-click with the current registration after rendering (initially %s)',
+    async (registered) => {
+      navigationMocks.registered = registered;
+      const url = 'https://bar.com/chat/-/overview';
+      const { container } = render(MarkdownHtml, { html: await renderMarkdown(`[Go](${url})`) });
+      navigationMocks.registered = !registered;
+      const open = vi.spyOn(window, 'open').mockReturnValue(null);
+      container
+        .querySelector('a')!
+        .dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true, cancelable: true }));
+      expect(open).toHaveBeenCalledWith(
+        registered ? url : '/chat/bar.com/overview',
+        '_blank',
+        'noopener,noreferrer'
+      );
+      expect(navigationMocks.goto).not.toHaveBeenCalled();
+    }
+  );
   it.each([
     ['https://bar.com/chat/-/R123456789abcde', '/chat/bar.com/R123456789abcde'],
     [

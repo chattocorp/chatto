@@ -1,28 +1,30 @@
 /** Shared navigation for links supplied through Markdown and sidebar content. */
 import { goto } from '$app/navigation';
-import { classifyMessageBodyChatLink } from '$lib/chatLinks';
+import { resolveChatRoute } from '$lib/chatLinks';
 
-/** Rewrite known conversation links; keep all other web destinations external. */
+/** Rewrite registered Chatto routes; keep other web destinations external. */
 export function renderedLinkTarget(href: string) {
-  const chatLink = classifyMessageBodyChatLink(href);
-  return chatLink
-    ? { href: chatLink.path }
+  const path = resolveChatRoute(href);
+  return path
+    ? { href: path }
     : { href, target: '_blank' as const, rel: 'noopener noreferrer' as const };
+}
+
+/** Open a content URL with the current catalogue, also for menu and composer actions. */
+export function openRenderedLink(href: string, newWindow = false): void {
+  const path = resolveChatRoute(href);
+  if (path !== null && !newWindow) {
+    // Keep a non-null ResolvedPathname binding for navigation's type-aware lint rule.
+    const localPath = path;
+    void goto(localPath);
+  } else {
+    window.open(path ?? href, '_blank', 'noopener,noreferrer');
+  }
 }
 
 /** Navigate with the current catalogue, including links rendered before registration. */
 export function handleRenderedLinkClick(event: MouseEvent, href: string): void {
-  if (event.defaultPrevented || /^mailto:/i.test(href)) return;
+  if (event.defaultPrevented || event.button > 1 || /^mailto:/i.test(href)) return;
   event.preventDefault();
-  const chatLink = classifyMessageBodyChatLink(href);
-  if (chatLink) {
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1) {
-      window.open(chatLink.path, '_blank', 'noopener,noreferrer');
-    } else {
-      void goto(chatLink.path);
-    }
-    return;
-  }
-  // Explicit opening also keeps same-origin non-chat URLs outside a PWA.
-  window.open(href, '_blank', 'noopener,noreferrer');
+  openRenderedLink(href, event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1);
 }
