@@ -432,3 +432,83 @@ func TestSyncProviderGroupRolesCompletesLegacyHashOnlyLink(t *testing.T) {
 	}
 	requireRoles(t, core, user.Id, map[string]bool{RoleModerator: false})
 }
+
+// Roles that existed before an upgrade to provider group roles have
+// reason-less assignment events. No provider path removes them: not a sync
+// without mappings, not a sync with a known claim that matches no group, not
+// a denied sign-in, and not an unlink of the last provider identity. This
+// covers servers that already use OIDC, also with legacy hash-only links.
+func TestProviderGroupRolesKeepPreUpgradeAssignments(t *testing.T) {
+	t.Parallel()
+	for _, legacyLink := range []bool{false, true} {
+		t.Run(map[bool]string{false: "issuer link", true: "hash-only link"}[legacyLink], func(t *testing.T) {
+			t.Parallel()
+			core := setupGroupRolesCore(t)
+			ctx := testContext(t)
+			user, err := core.CreateUser(ctx, SystemActorID, "pre-upgrade", "Pre Upgrade", "password123")
+			if err != nil {
+				t.Fatal(err)
+			}
+			issuer := testIssuers["company"]
+			hash := externalIdentityHash(issuer, "pre-upgrade")
+			if legacyLink {
+				legacy := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_UserOidcSubjectLinked{
+					UserOidcSubjectLinked: &evtv1.UserOIDCSubjectLinkedEvent{UserId: user.Id, SubjectHash: hash},
+				}})
+				if _, err := core.appendUserEvent(ctx, user.Id, legacy, "", nil); err != nil {
+					t.Fatal(err)
+				}
+			} else if err := core.LinkExternalIdentity(ctx, "company", config.AuthProviderTypeOpenIDConnect, issuer, "pre-upgrade", user.Id); err != nil {
+				t.Fatal(err)
+			}
+			// Assignment events in the shape that older server versions wrote.
+			for _, roleName := range []string{RoleModerator, "helper"} {
+				event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleAssigned{
+					RbacRoleAssigned: &evtv1.RbacRoleAssignedEvent{UserId: user.Id, RoleName: roleName},
+				}})
+				if _, err := core.appendRoleAssignmentEvent(ctx, user.Id, true, event, nil); err != nil {
+					t.Fatal(err)
+				}
+			}
+			preUpgrade := map[string]bool{RoleModerator: true, "helper": true}
+			requireRoles(t, core, user.Id, preUpgrade)
+
+			source := ProviderRoleSource{ProviderID: "company", Issuer: issuer, Subject: "pre-upgrade"}
+			mappings, err := config.ParseGroupRoles(testGroupRoles["company"])
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, step := range []struct {
+				name     string
+				mappings []config.GroupRole
+				groups   ProviderGroups
+			}{
+				{"sign-in without group_roles", nil, ProviderGroups{Known: true}},
+				{"sign-in in no mapped group", mappings, ProviderGroups{Known: true}},
+				{"sign-in in mapped groups", mappings, ProviderGroups{Groups: []string{"chat-mods", "helpers"}, Known: true}},
+				{"sign-in after leaving mapped groups", mappings, ProviderGroups{Groups: []string{"unrelated"}, Known: true}},
+			} {
+				if err := core.SyncProviderGroupRoles(ctx, user.Id, source, step.mappings, step.groups); err != nil {
+					t.Fatalf("%s: %v", step.name, err)
+				}
+				requireRoles(t, core, user.Id, preUpgrade)
+			}
+			for _, roleName := range []string{RoleModerator, "helper"} {
+				if owner, _ := core.rbacModel.assignmentOwner(user.Id, roleName); owner != "" {
+					t.Fatalf("%s owner = %q, want admin", roleName, owner)
+				}
+			}
+
+			// allowed_groups denies a sign-in.
+			if err := core.RevokeProviderGroupRoles(ctx, user.Id, source); err != nil {
+				t.Fatal(err)
+			}
+			requireRoles(t, core, user.Id, preUpgrade)
+
+			if err := core.DisconnectExternalIdentity(ctx, user.Id, hash); err != nil {
+				t.Fatal(err)
+			}
+			requireRoles(t, core, user.Id, preUpgrade)
+		})
+	}
+}
