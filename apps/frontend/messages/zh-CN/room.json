@@ -33,8 +33,8 @@
       "access_denied": "你没有权限加入此聊天室。"
     },
     "leave": {
-      "title": "退出聊天室",
-      "action": "退出聊天室",
+      "title": "离开聊天室",
+      "action": "离开聊天室",
       "prompt": "确定要退出 #{room} 吗？之后可以重新加入。",
       "failed": "退出聊天室失败"
     },
@@ -106,7 +106,8 @@
         "message_link_copied": "消息链接已复制",
         "copy_link_failed": "无法复制链接",
         "image_copied": "图片已复制",
-        "copy_image_failed": "无法复制图片"
+        "copy_image_failed": "无法复制图片",
+        "view_reactions": "查看回应"
       },
       "meta": {
         "echo": "回声",

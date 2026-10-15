@@ -28,6 +28,8 @@
     "add_to_group": "Agregar a {group}",
     "group_settings": "Configuración de {group}",
     "server_actions": "Acciones para {server}",
-    "room_actions": "Acciones para #{room}"
+    "room_actions": "Acciones para #{room}",
+    "open_group_settings": "Abrir configuración del grupo",
+    "open_room_settings": "Abrir configuración de la sala"
   }
 }

@@ -1050,6 +1050,32 @@ Safe summary of one recorded outbound webhook failure.
 | `completed_at` | `google.protobuf.Timestamp` | Time the retained failure was recorded. |
 | `source_event_id` | `string` | Source message ID associated with this delivery. |
 
+<a id="chatto-api-v1-FollowedThread"></a>
+
+### FollowedThread
+
+One followed thread for the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `root_message` | [`Message`](#chatto-api-v1-Message) | Renderable root message, when the root is still visible. |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the thread. |
+| `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state. |
+| `latest_reply` | [`Message`](#chatto-api-v1-Message) | Most recent visible reply, when the thread has one. |
+| `direct_message_participant_user_ids` | `repeated string` | User IDs used to derive a direct-message conversation label. Empty for channel rooms. |
+
+<a id="chatto-api-v1-ThreadFollowState"></a>
+
+### ThreadFollowState
+
+Current follow state for one thread and viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the thread. |
+| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
+| `following` | `bool` | True when the current user follows the thread. |
+
 <a id="chatto-api-v1-MessageSearchResult"></a>
 
 ### MessageSearchResult
@@ -1323,32 +1349,6 @@ Authenticated server runtime settings used by clients.
 | `max_upload_size` | `int64` | Maximum upload size in bytes for all files, including GIFs and videos. |
 | `max_video_upload_size` | `int64` | **Deprecated.** Deprecated alias of max_upload_size. Both fields have the same value. |
 | `message_edit_window_seconds` | `int32` | Message edit window in seconds. |
-
-<a id="chatto-api-v1-FollowedThread"></a>
-
-### FollowedThread
-
-One followed thread for the current user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `root_message` | [`Message`](#chatto-api-v1-Message) | Renderable root message, when the root is still visible. |
-| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the thread. |
-| `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state. |
-| `latest_reply` | [`Message`](#chatto-api-v1-Message) | Most recent visible reply, when the thread has one. |
-| `direct_message_participant_user_ids` | `repeated string` | User IDs used to derive a direct-message conversation label. Empty for channel rooms. |
-
-<a id="chatto-api-v1-ThreadFollowState"></a>
-
-### ThreadFollowState
-
-Current follow state for one thread and viewer.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room containing the thread. |
-| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
-| `following` | `bool` | True when the current user follows the thread. |
 
 <a id="chatto-api-v1-ActiveCall"></a>
 
@@ -2085,6 +2085,18 @@ Availability of best-effort credential last-use telemetry.
 | `CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED` | `1` | The server has no recorded use for the credential. |
 | `CREDENTIAL_LAST_USED_STATE_RECORDED` | `2` | last_used_at contains the most recent recorded authentication time. |
 | `CREDENTIAL_LAST_USED_STATE_UNAVAILABLE` | `3` | Last-use telemetry is temporarily unavailable. |
+
+<a id="chatto-api-v1-ThreadRootAuthorFilter"></a>
+
+### ThreadRootAuthorFilter
+
+Selects threads by the author of their root message, not their replies.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `THREAD_ROOT_AUTHOR_FILTER_UNSPECIFIED` | `0` | Include all root authors. |
+| `THREAD_ROOT_AUTHOR_FILTER_VIEWER` | `1` | Include only roots authored by the authenticated viewer. |
+| `THREAD_ROOT_AUTHOR_FILTER_OTHERS` | `2` | Include only roots authored by other users. |
 
 <a id="chatto-api-v1-MessageSearchGroupBy"></a>
 

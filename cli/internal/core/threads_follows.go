@@ -178,7 +178,7 @@ func (s *ThreadFollowModel) GetThreadFollowers(ctx context.Context, kind RoomKin
 // The result includes only rooms where the user is still a member and has
 // applicable message-read authority.
 func (s *ThreadFollowModel) listFollowedThreads(ctx context.Context, userID string, spaceIDs []string) ([]*FollowedThread, error) {
-	page, err := s.ListFollowedThreadsPage(ctx, userID, spaceIDs, false, 0, 0)
+	page, err := s.ListFollowedThreadsPage(ctx, userID, spaceIDs, false, 0, 0, ThreadRootAuthorAll)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +195,10 @@ func (s *ThreadFollowModel) listFollowedThreads(ctx context.Context, userID stri
 //
 // The result includes only rooms where the user is still a member and has
 // applicable message-read authority.
-func (s *ThreadFollowModel) ListFollowedThreadsPage(ctx context.Context, userID string, spaceIDs []string, unreadOnly bool, limit, offset int) (*FollowedThreadsPage, error) {
+func (s *ThreadFollowModel) ListFollowedThreadsPage(ctx context.Context, userID string, spaceIDs []string, unreadOnly bool, limit, offset int, rootAuthor ThreadRootAuthorFilter) (*FollowedThreadsPage, error) {
+	if err := rootAuthor.Validate(); err != nil {
+		return nil, err
+	}
 	var allThreads []*FollowedThread
 
 	for _, spaceID := range spaceIDs {
@@ -205,6 +208,20 @@ func (s *ThreadFollowModel) ListFollowedThreadsPage(ctx context.Context, userID 
 			continue
 		}
 		allThreads = append(allThreads, threads...)
+	}
+
+	if rootAuthor != ThreadRootAuthorAll {
+		filtered := allThreads[:0]
+		for _, thread := range allThreads {
+			matches, err := s.matchesRootAuthor(ctx, userID, thread.RoomID, thread.ThreadRootEventID, rootAuthor)
+			if err != nil {
+				return nil, err
+			}
+			if matches {
+				filtered = append(filtered, thread)
+			}
+		}
+		allThreads = filtered
 	}
 
 	// Sort by displayed activity descending. A root without replies is still

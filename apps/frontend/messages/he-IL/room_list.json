@@ -22,12 +22,14 @@
     "mark_as_read": "סמן כנקראו",
     "remove_server": "הסר שרת",
     "leave_room": "עזוב את החדר",
-    "copy_room_id": "העתקת מזהה החדר",
-    "copy_server_hostname": "העתקת שם המארח של השרת",
+    "copy_room_id": "העתק מזהה חדר",
+    "copy_server_hostname": "העתק שם מארח של השרת",
     "room_settings": "הגדרות החדר",
     "add_to_group": "הוספה אל {group}",
     "group_settings": "הגדרות עבור {group}",
     "server_actions": "פעולות עבור {server}",
-    "room_actions": "פעולות עבור #{room}"
+    "room_actions": "פעולות עבור #{room}",
+    "open_group_settings": "פתח את הגדרות הקבוצה",
+    "open_room_settings": "פתח את הגדרות החדר"
   }
 }

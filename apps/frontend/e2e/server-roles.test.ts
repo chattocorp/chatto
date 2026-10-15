@@ -960,8 +960,8 @@ test.describe('Server Permission Enforcement', () => {
       // Navigate to admin rooms page
       await page.goto(routes.serverAdminRooms);
 
-      // Should see the "New Room" button
-      const newRoomButton = page.getByRole('button', { name: 'New Room' });
+      // Should see the "Create room" button
+      const newRoomButton = page.getByRole('button', { name: 'Create room' });
       await expect(newRoomButton).toBeVisible();
 
       // Click to create room - modal should appear

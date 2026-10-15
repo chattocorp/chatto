@@ -22,6 +22,59 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Selects threads by the author of their root message, not their replies.
+type ThreadRootAuthorFilter int32
+
+const (
+	// Include all root authors.
+	ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_UNSPECIFIED ThreadRootAuthorFilter = 0
+	// Include only roots authored by the authenticated viewer.
+	ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_VIEWER ThreadRootAuthorFilter = 1
+	// Include only roots authored by other users.
+	ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_OTHERS ThreadRootAuthorFilter = 2
+)
+
+// Enum value maps for ThreadRootAuthorFilter.
+var (
+	ThreadRootAuthorFilter_name = map[int32]string{
+		0: "THREAD_ROOT_AUTHOR_FILTER_UNSPECIFIED",
+		1: "THREAD_ROOT_AUTHOR_FILTER_VIEWER",
+		2: "THREAD_ROOT_AUTHOR_FILTER_OTHERS",
+	}
+	ThreadRootAuthorFilter_value = map[string]int32{
+		"THREAD_ROOT_AUTHOR_FILTER_UNSPECIFIED": 0,
+		"THREAD_ROOT_AUTHOR_FILTER_VIEWER":      1,
+		"THREAD_ROOT_AUTHOR_FILTER_OTHERS":      2,
+	}
+)
+
+func (x ThreadRootAuthorFilter) Enum() *ThreadRootAuthorFilter {
+	p := new(ThreadRootAuthorFilter)
+	*p = x
+	return p
+}
+
+func (x ThreadRootAuthorFilter) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ThreadRootAuthorFilter) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_api_v1_threads_proto_enumTypes[0].Descriptor()
+}
+
+func (ThreadRootAuthorFilter) Type() protoreflect.EnumType {
+	return &file_chatto_api_v1_threads_proto_enumTypes[0]
+}
+
+func (x ThreadRootAuthorFilter) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ThreadRootAuthorFilter.Descriptor instead.
+func (ThreadRootAuthorFilter) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_api_v1_threads_proto_rawDescGZIP(), []int{0}
+}
+
 // Current follow state for one thread and viewer.
 type ThreadFollowState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -382,9 +435,12 @@ type ListFollowedThreadsRequest struct {
 	// Return only threads with replies that the viewer has not read. The page
 	// total then counts only these threads. Older servers ignore this field and
 	// return all followed threads.
-	UnreadOnly    bool `protobuf:"varint,5,opt,name=unread_only,json=unreadOnly,proto3" json:"unread_only,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	UnreadOnly bool `protobuf:"varint,5,opt,name=unread_only,json=unreadOnly,proto3" json:"unread_only,omitempty"`
+	// Filter root authors before pagination and total counts. Threads whose
+	// root author is unavailable are omitted when a filter is selected.
+	RootAuthorFilter ThreadRootAuthorFilter `protobuf:"varint,6,opt,name=root_author_filter,json=rootAuthorFilter,proto3,enum=chatto.api.v1.ThreadRootAuthorFilter" json:"root_author_filter,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ListFollowedThreadsRequest) Reset() {
@@ -436,6 +492,13 @@ func (x *ListFollowedThreadsRequest) GetUnreadOnly() bool {
 		return x.UnreadOnly
 	}
 	return false
+}
+
+func (x *ListFollowedThreadsRequest) GetRootAuthorFilter() ThreadRootAuthorFilter {
+	if x != nil {
+		return x.RootAuthorFilter
+	}
+	return ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_UNSPECIFIED
 }
 
 // Response containing one followed-thread page.
@@ -648,12 +711,13 @@ const file_chatto_api_v1_threads_proto_rawDesc = "" +
 	"\flatest_reply\x18\n" +
 	" \x01(\v2\x16.chatto.api.v1.MessageR\vlatestReply\x12L\n" +
 	"#direct_message_participant_user_ids\x18\v \x03(\tR\x1fdirectMessageParticipantUserIdsJ\x04\b\x01\x10\x04J\x04\b\x05\x10\bR\aroom_idR\troom_nameR\x14thread_root_event_idR\vreply_countR\rlast_reply_atR\n" +
-	"has_unread\"\xcd\x01\n" +
+	"has_unread\"\xac\x02\n" +
 	"\x1aListFollowedThreadsRequest\x12.\n" +
 	"\x04page\x18\x03 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\x12C\n" +
 	"\x1einclude_direct_message_threads\x18\x04 \x01(\bR\x1bincludeDirectMessageThreads\x12\x1f\n" +
 	"\vunread_only\x18\x05 \x01(\bR\n" +
-	"unreadOnlyJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x05limitR\x06offset\"\xe7\x01\n" +
+	"unreadOnly\x12]\n" +
+	"\x12root_author_filter\x18\x06 \x01(\x0e2%.chatto.api.v1.ThreadRootAuthorFilterB\b\xbaH\x05\x82\x01\x02\x10\x01R\x10rootAuthorFilterJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x05limitR\x06offset\"\xe7\x01\n" +
 	"\x1bListFollowedThreadsResponse\x127\n" +
 	"\athreads\x18\x01 \x03(\v2\x1d.chatto.api.v1.FollowedThreadR\athreads\x12?\n" +
 	"\bincludes\x18\x04 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludes\x12+\n" +
@@ -664,7 +728,11 @@ const file_chatto_api_v1_threads_proto_rawDesc = "" +
 	"\x04page\x18\x03 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"h\n" +
 	"\x1eListThreadParticipantsResponse\x12\x19\n" +
 	"\buser_ids\x18\x01 \x03(\tR\auserIds\x12+\n" +
-	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page2\xcf\a\n" +
+	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page*\x8f\x01\n" +
+	"\x16ThreadRootAuthorFilter\x12)\n" +
+	"%THREAD_ROOT_AUTHOR_FILTER_UNSPECIFIED\x10\x00\x12$\n" +
+	" THREAD_ROOT_AUTHOR_FILTER_VIEWER\x10\x01\x12$\n" +
+	" THREAD_ROOT_AUTHOR_FILTER_OTHERS\x10\x022\xcf\a\n" +
 	"\rThreadService\x12i\n" +
 	"\x12GetThreadReadState\x12(.chatto.api.v1.GetThreadReadStateRequest\x1a).chatto.api.v1.GetThreadReadStateResponse\x12{\n" +
 	"\x18BatchGetThreadReadStates\x12..chatto.api.v1.BatchGetThreadReadStatesRequest\x1a/.chatto.api.v1.BatchGetThreadReadStatesResponse\x12u\n" +
@@ -689,71 +757,74 @@ func file_chatto_api_v1_threads_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_threads_proto_rawDescData
 }
 
+var file_chatto_api_v1_threads_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_chatto_api_v1_threads_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_chatto_api_v1_threads_proto_goTypes = []any{
-	(*ThreadFollowState)(nil),                // 0: chatto.api.v1.ThreadFollowState
-	(*FollowThreadRequest)(nil),              // 1: chatto.api.v1.FollowThreadRequest
-	(*FollowThreadResponse)(nil),             // 2: chatto.api.v1.FollowThreadResponse
-	(*UnfollowThreadRequest)(nil),            // 3: chatto.api.v1.UnfollowThreadRequest
-	(*UnfollowThreadResponse)(nil),           // 4: chatto.api.v1.UnfollowThreadResponse
-	(*FollowedThread)(nil),                   // 5: chatto.api.v1.FollowedThread
-	(*ListFollowedThreadsRequest)(nil),       // 6: chatto.api.v1.ListFollowedThreadsRequest
-	(*ListFollowedThreadsResponse)(nil),      // 7: chatto.api.v1.ListFollowedThreadsResponse
-	(*ListThreadParticipantsRequest)(nil),    // 8: chatto.api.v1.ListThreadParticipantsRequest
-	(*ListThreadParticipantsResponse)(nil),   // 9: chatto.api.v1.ListThreadParticipantsResponse
-	(*Message)(nil),                          // 10: chatto.api.v1.Message
-	(*RoomSummary)(nil),                      // 11: chatto.api.v1.RoomSummary
-	(*ThreadSummary)(nil),                    // 12: chatto.api.v1.ThreadSummary
-	(*PageRequest)(nil),                      // 13: chatto.api.v1.PageRequest
-	(*RoomTimelineIncludes)(nil),             // 14: chatto.api.v1.RoomTimelineIncludes
-	(*PageInfo)(nil),                         // 15: chatto.api.v1.PageInfo
-	(*GetThreadReadStateRequest)(nil),        // 16: chatto.api.v1.GetThreadReadStateRequest
-	(*BatchGetThreadReadStatesRequest)(nil),  // 17: chatto.api.v1.BatchGetThreadReadStatesRequest
-	(*GetThreadEventsRequest)(nil),           // 18: chatto.api.v1.GetThreadEventsRequest
-	(*GetThreadEventsAroundRequest)(nil),     // 19: chatto.api.v1.GetThreadEventsAroundRequest
-	(*MarkThreadAsReadRequest)(nil),          // 20: chatto.api.v1.MarkThreadAsReadRequest
-	(*GetThreadReadStateResponse)(nil),       // 21: chatto.api.v1.GetThreadReadStateResponse
-	(*BatchGetThreadReadStatesResponse)(nil), // 22: chatto.api.v1.BatchGetThreadReadStatesResponse
-	(*GetThreadEventsResponse)(nil),          // 23: chatto.api.v1.GetThreadEventsResponse
-	(*GetThreadEventsAroundResponse)(nil),    // 24: chatto.api.v1.GetThreadEventsAroundResponse
-	(*MarkThreadAsReadResponse)(nil),         // 25: chatto.api.v1.MarkThreadAsReadResponse
+	(ThreadRootAuthorFilter)(0),              // 0: chatto.api.v1.ThreadRootAuthorFilter
+	(*ThreadFollowState)(nil),                // 1: chatto.api.v1.ThreadFollowState
+	(*FollowThreadRequest)(nil),              // 2: chatto.api.v1.FollowThreadRequest
+	(*FollowThreadResponse)(nil),             // 3: chatto.api.v1.FollowThreadResponse
+	(*UnfollowThreadRequest)(nil),            // 4: chatto.api.v1.UnfollowThreadRequest
+	(*UnfollowThreadResponse)(nil),           // 5: chatto.api.v1.UnfollowThreadResponse
+	(*FollowedThread)(nil),                   // 6: chatto.api.v1.FollowedThread
+	(*ListFollowedThreadsRequest)(nil),       // 7: chatto.api.v1.ListFollowedThreadsRequest
+	(*ListFollowedThreadsResponse)(nil),      // 8: chatto.api.v1.ListFollowedThreadsResponse
+	(*ListThreadParticipantsRequest)(nil),    // 9: chatto.api.v1.ListThreadParticipantsRequest
+	(*ListThreadParticipantsResponse)(nil),   // 10: chatto.api.v1.ListThreadParticipantsResponse
+	(*Message)(nil),                          // 11: chatto.api.v1.Message
+	(*RoomSummary)(nil),                      // 12: chatto.api.v1.RoomSummary
+	(*ThreadSummary)(nil),                    // 13: chatto.api.v1.ThreadSummary
+	(*PageRequest)(nil),                      // 14: chatto.api.v1.PageRequest
+	(*RoomTimelineIncludes)(nil),             // 15: chatto.api.v1.RoomTimelineIncludes
+	(*PageInfo)(nil),                         // 16: chatto.api.v1.PageInfo
+	(*GetThreadReadStateRequest)(nil),        // 17: chatto.api.v1.GetThreadReadStateRequest
+	(*BatchGetThreadReadStatesRequest)(nil),  // 18: chatto.api.v1.BatchGetThreadReadStatesRequest
+	(*GetThreadEventsRequest)(nil),           // 19: chatto.api.v1.GetThreadEventsRequest
+	(*GetThreadEventsAroundRequest)(nil),     // 20: chatto.api.v1.GetThreadEventsAroundRequest
+	(*MarkThreadAsReadRequest)(nil),          // 21: chatto.api.v1.MarkThreadAsReadRequest
+	(*GetThreadReadStateResponse)(nil),       // 22: chatto.api.v1.GetThreadReadStateResponse
+	(*BatchGetThreadReadStatesResponse)(nil), // 23: chatto.api.v1.BatchGetThreadReadStatesResponse
+	(*GetThreadEventsResponse)(nil),          // 24: chatto.api.v1.GetThreadEventsResponse
+	(*GetThreadEventsAroundResponse)(nil),    // 25: chatto.api.v1.GetThreadEventsAroundResponse
+	(*MarkThreadAsReadResponse)(nil),         // 26: chatto.api.v1.MarkThreadAsReadResponse
 }
 var file_chatto_api_v1_threads_proto_depIdxs = []int32{
-	0,  // 0: chatto.api.v1.FollowThreadResponse.state:type_name -> chatto.api.v1.ThreadFollowState
-	0,  // 1: chatto.api.v1.UnfollowThreadResponse.state:type_name -> chatto.api.v1.ThreadFollowState
-	10, // 2: chatto.api.v1.FollowedThread.root_message:type_name -> chatto.api.v1.Message
-	11, // 3: chatto.api.v1.FollowedThread.room:type_name -> chatto.api.v1.RoomSummary
-	12, // 4: chatto.api.v1.FollowedThread.thread:type_name -> chatto.api.v1.ThreadSummary
-	10, // 5: chatto.api.v1.FollowedThread.latest_reply:type_name -> chatto.api.v1.Message
-	13, // 6: chatto.api.v1.ListFollowedThreadsRequest.page:type_name -> chatto.api.v1.PageRequest
-	5,  // 7: chatto.api.v1.ListFollowedThreadsResponse.threads:type_name -> chatto.api.v1.FollowedThread
-	14, // 8: chatto.api.v1.ListFollowedThreadsResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
-	15, // 9: chatto.api.v1.ListFollowedThreadsResponse.page:type_name -> chatto.api.v1.PageInfo
-	13, // 10: chatto.api.v1.ListThreadParticipantsRequest.page:type_name -> chatto.api.v1.PageRequest
-	15, // 11: chatto.api.v1.ListThreadParticipantsResponse.page:type_name -> chatto.api.v1.PageInfo
-	16, // 12: chatto.api.v1.ThreadService.GetThreadReadState:input_type -> chatto.api.v1.GetThreadReadStateRequest
-	17, // 13: chatto.api.v1.ThreadService.BatchGetThreadReadStates:input_type -> chatto.api.v1.BatchGetThreadReadStatesRequest
-	8,  // 14: chatto.api.v1.ThreadService.ListThreadParticipants:input_type -> chatto.api.v1.ListThreadParticipantsRequest
-	6,  // 15: chatto.api.v1.ThreadService.ListFollowedThreads:input_type -> chatto.api.v1.ListFollowedThreadsRequest
-	1,  // 16: chatto.api.v1.ThreadService.FollowThread:input_type -> chatto.api.v1.FollowThreadRequest
-	3,  // 17: chatto.api.v1.ThreadService.UnfollowThread:input_type -> chatto.api.v1.UnfollowThreadRequest
-	18, // 18: chatto.api.v1.ThreadService.GetThreadEvents:input_type -> chatto.api.v1.GetThreadEventsRequest
-	19, // 19: chatto.api.v1.ThreadService.GetThreadEventsAround:input_type -> chatto.api.v1.GetThreadEventsAroundRequest
-	20, // 20: chatto.api.v1.ThreadService.MarkThreadAsRead:input_type -> chatto.api.v1.MarkThreadAsReadRequest
-	21, // 21: chatto.api.v1.ThreadService.GetThreadReadState:output_type -> chatto.api.v1.GetThreadReadStateResponse
-	22, // 22: chatto.api.v1.ThreadService.BatchGetThreadReadStates:output_type -> chatto.api.v1.BatchGetThreadReadStatesResponse
-	9,  // 23: chatto.api.v1.ThreadService.ListThreadParticipants:output_type -> chatto.api.v1.ListThreadParticipantsResponse
-	7,  // 24: chatto.api.v1.ThreadService.ListFollowedThreads:output_type -> chatto.api.v1.ListFollowedThreadsResponse
-	2,  // 25: chatto.api.v1.ThreadService.FollowThread:output_type -> chatto.api.v1.FollowThreadResponse
-	4,  // 26: chatto.api.v1.ThreadService.UnfollowThread:output_type -> chatto.api.v1.UnfollowThreadResponse
-	23, // 27: chatto.api.v1.ThreadService.GetThreadEvents:output_type -> chatto.api.v1.GetThreadEventsResponse
-	24, // 28: chatto.api.v1.ThreadService.GetThreadEventsAround:output_type -> chatto.api.v1.GetThreadEventsAroundResponse
-	25, // 29: chatto.api.v1.ThreadService.MarkThreadAsRead:output_type -> chatto.api.v1.MarkThreadAsReadResponse
-	21, // [21:30] is the sub-list for method output_type
-	12, // [12:21] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	1,  // 0: chatto.api.v1.FollowThreadResponse.state:type_name -> chatto.api.v1.ThreadFollowState
+	1,  // 1: chatto.api.v1.UnfollowThreadResponse.state:type_name -> chatto.api.v1.ThreadFollowState
+	11, // 2: chatto.api.v1.FollowedThread.root_message:type_name -> chatto.api.v1.Message
+	12, // 3: chatto.api.v1.FollowedThread.room:type_name -> chatto.api.v1.RoomSummary
+	13, // 4: chatto.api.v1.FollowedThread.thread:type_name -> chatto.api.v1.ThreadSummary
+	11, // 5: chatto.api.v1.FollowedThread.latest_reply:type_name -> chatto.api.v1.Message
+	14, // 6: chatto.api.v1.ListFollowedThreadsRequest.page:type_name -> chatto.api.v1.PageRequest
+	0,  // 7: chatto.api.v1.ListFollowedThreadsRequest.root_author_filter:type_name -> chatto.api.v1.ThreadRootAuthorFilter
+	6,  // 8: chatto.api.v1.ListFollowedThreadsResponse.threads:type_name -> chatto.api.v1.FollowedThread
+	15, // 9: chatto.api.v1.ListFollowedThreadsResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
+	16, // 10: chatto.api.v1.ListFollowedThreadsResponse.page:type_name -> chatto.api.v1.PageInfo
+	14, // 11: chatto.api.v1.ListThreadParticipantsRequest.page:type_name -> chatto.api.v1.PageRequest
+	16, // 12: chatto.api.v1.ListThreadParticipantsResponse.page:type_name -> chatto.api.v1.PageInfo
+	17, // 13: chatto.api.v1.ThreadService.GetThreadReadState:input_type -> chatto.api.v1.GetThreadReadStateRequest
+	18, // 14: chatto.api.v1.ThreadService.BatchGetThreadReadStates:input_type -> chatto.api.v1.BatchGetThreadReadStatesRequest
+	9,  // 15: chatto.api.v1.ThreadService.ListThreadParticipants:input_type -> chatto.api.v1.ListThreadParticipantsRequest
+	7,  // 16: chatto.api.v1.ThreadService.ListFollowedThreads:input_type -> chatto.api.v1.ListFollowedThreadsRequest
+	2,  // 17: chatto.api.v1.ThreadService.FollowThread:input_type -> chatto.api.v1.FollowThreadRequest
+	4,  // 18: chatto.api.v1.ThreadService.UnfollowThread:input_type -> chatto.api.v1.UnfollowThreadRequest
+	19, // 19: chatto.api.v1.ThreadService.GetThreadEvents:input_type -> chatto.api.v1.GetThreadEventsRequest
+	20, // 20: chatto.api.v1.ThreadService.GetThreadEventsAround:input_type -> chatto.api.v1.GetThreadEventsAroundRequest
+	21, // 21: chatto.api.v1.ThreadService.MarkThreadAsRead:input_type -> chatto.api.v1.MarkThreadAsReadRequest
+	22, // 22: chatto.api.v1.ThreadService.GetThreadReadState:output_type -> chatto.api.v1.GetThreadReadStateResponse
+	23, // 23: chatto.api.v1.ThreadService.BatchGetThreadReadStates:output_type -> chatto.api.v1.BatchGetThreadReadStatesResponse
+	10, // 24: chatto.api.v1.ThreadService.ListThreadParticipants:output_type -> chatto.api.v1.ListThreadParticipantsResponse
+	8,  // 25: chatto.api.v1.ThreadService.ListFollowedThreads:output_type -> chatto.api.v1.ListFollowedThreadsResponse
+	3,  // 26: chatto.api.v1.ThreadService.FollowThread:output_type -> chatto.api.v1.FollowThreadResponse
+	5,  // 27: chatto.api.v1.ThreadService.UnfollowThread:output_type -> chatto.api.v1.UnfollowThreadResponse
+	24, // 28: chatto.api.v1.ThreadService.GetThreadEvents:output_type -> chatto.api.v1.GetThreadEventsResponse
+	25, // 29: chatto.api.v1.ThreadService.GetThreadEventsAround:output_type -> chatto.api.v1.GetThreadEventsAroundResponse
+	26, // 30: chatto.api.v1.ThreadService.MarkThreadAsRead:output_type -> chatto.api.v1.MarkThreadAsReadResponse
+	22, // [22:31] is the sub-list for method output_type
+	13, // [13:22] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_threads_proto_init() }
@@ -771,13 +842,14 @@ func file_chatto_api_v1_threads_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_threads_proto_rawDesc), len(file_chatto_api_v1_threads_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_chatto_api_v1_threads_proto_goTypes,
 		DependencyIndexes: file_chatto_api_v1_threads_proto_depIdxs,
+		EnumInfos:         file_chatto_api_v1_threads_proto_enumTypes,
 		MessageInfos:      file_chatto_api_v1_threads_proto_msgTypes,
 	}.Build()
 	File_chatto_api_v1_threads_proto = out.File

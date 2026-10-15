@@ -33,8 +33,8 @@
       "access_denied": "このルームに参加する権限がありません。"
     },
     "leave": {
-      "title": "退室",
-      "action": "退室",
+      "title": "ルームから退出",
+      "action": "ルームから退出",
       "prompt": "#{room} を退会してもよろしいですか?後で再参加できます。",
       "failed": "ルームから退出できませんでした"
     },
@@ -106,7 +106,8 @@
         "message_link_copied": "メッセージのリンクをコピーしました",
         "copy_link_failed": "リンクをコピーできませんでした",
         "image_copied": "画像をコピーしました",
-        "copy_image_failed": "画像をコピーできませんでした"
+        "copy_image_failed": "画像をコピーできませんでした",
+        "view_reactions": "リアクションを表示"
       },
       "meta": {
         "echo": "エコー",

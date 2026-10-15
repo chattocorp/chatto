@@ -106,7 +106,8 @@
         "message_link_copied": "Nachrichtenlink kopiert",
         "copy_link_failed": "Link konnte nicht kopiert werden",
         "image_copied": "Bild kopiert",
-        "copy_image_failed": "Bild konnte nicht kopiert werden"
+        "copy_image_failed": "Bild konnte nicht kopiert werden",
+        "view_reactions": "Reaktionen anzeigen"
       },
       "meta": {
         "echo": "Echo",

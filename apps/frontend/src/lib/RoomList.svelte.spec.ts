@@ -564,7 +564,7 @@ describe('RoomList', () => {
     await expect.element(action).not.toBeInTheDocument();
   });
 
-  it('shows Copy Room ID as the final context-menu row and copies the ID', async () => {
+  it('shows Copy room ID as the final context-menu row and copies the ID', async () => {
     const { container } = render(RoomList);
     const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
 
@@ -574,7 +574,7 @@ describe('RoomList', () => {
     );
 
     const copyRoomId = q(document.body, '[data-testid="copy-room-id"]') as HTMLButtonElement;
-    await expect.element(copyRoomId).toHaveTextContent('Copy Room ID');
+    await expect.element(copyRoomId).toHaveTextContent('Copy room ID');
     const menuItems = copyRoomId.closest('[role="menu"]')?.querySelectorAll('[role="menuitem"]');
     expect(menuItems?.item((menuItems?.length ?? 0) - 1)).toBe(copyRoomId);
 
@@ -593,10 +593,10 @@ describe('RoomList', () => {
     const row = q(container, '[href="/chat/-/joinable-channel"]') as HTMLAnchorElement;
 
     row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
-    await vi.waitFor(() => expect(document.body.textContent).toContain('Join Room'));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Join room'));
 
     const join = Array.from(document.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Join Room'
+      (button) => button.textContent?.trim() === 'Join room'
     );
     const markRead = Array.from(document.querySelectorAll('button')).find(
       (button) => button.textContent?.trim() === 'Mark as read'
@@ -630,13 +630,13 @@ describe('RoomList', () => {
     );
     const row = q(container, '[href="/chat/-/joinable-channel"]') as HTMLAnchorElement;
     row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
-    await vi.waitFor(() => expect(document.body.textContent).toContain('Room settings'));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Open room settings'));
 
     const join = Array.from(document.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Join Room'
+      (button) => button.textContent?.trim() === 'Join room'
     );
     const settings = Array.from(document.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Room settings'
+      (button) => button.textContent?.trim() === 'Open room settings'
     );
     await expect.element(join ?? null).toBeEnabled();
     await expect.element(settings ?? null).toBeInTheDocument();
@@ -654,10 +654,10 @@ describe('RoomList', () => {
     const row = q(container, '[href="/chat/-/restricted-channel"]') as HTMLAnchorElement;
 
     row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
-    await vi.waitFor(() => expect(document.body.textContent).toContain('Join Room'));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Join room'));
 
     const join = Array.from(document.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Join Room'
+      (button) => button.textContent?.trim() === 'Join room'
     );
     await expect.element(join ?? null).toBeDisabled();
   });
@@ -767,7 +767,7 @@ describe('RoomList', () => {
     expect(menu.textContent).toContain('Teal');
     expect(menu.textContent).toContain('@teal');
     expect(menu.textContent).not.toContain('Mark as read');
-    expect(menu.textContent).not.toContain('Copy Room ID');
+    expect(menu.textContent).not.toContain('Copy room ID');
     expect(menu.textContent).not.toContain('Leave room');
     q(menu, '[data-testid="copy-user-id"]')!.click();
     await vi.waitFor(() => expect(mocks.writeClipboardText).toHaveBeenCalledWith('teal'));
@@ -789,7 +789,7 @@ describe('RoomList', () => {
     const { container } = render(RoomList);
     const menu = await openDMMenu(container);
     expect(menu.textContent).toContain('[deleted user]');
-    expect(menu.textContent).not.toContain('Send Message');
+    expect(menu.textContent).not.toContain('Open conversation');
     q(menu, '[data-testid="copy-user-id"]')!.click();
     await vi.waitFor(() => expect(mocks.writeClipboardText).toHaveBeenCalledWith('deleted-peer'));
   });
@@ -825,7 +825,7 @@ describe('RoomList', () => {
     const { container } = render(RoomList);
     const menu = await openDMMenu(container);
     const send = Array.from(menu.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Send Message'
+      (button) => button.textContent?.trim() === 'Open conversation'
     );
     expect(!!send).toBe(allowed);
     if (send) {
@@ -926,10 +926,10 @@ describe('RoomList', () => {
     const { container } = render(RoomList);
     const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
     row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
-    await vi.waitFor(() => expect(document.body.textContent).toContain('Room settings'));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Open room settings'));
 
     const settings = Array.from(document.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Room settings'
+      (button) => button.textContent?.trim() === 'Open room settings'
     );
     settings!.click();
 
@@ -940,17 +940,17 @@ describe('RoomList', () => {
     const { container } = render(RoomList);
     const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
     row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
-    await vi.waitFor(() => expect(document.body.textContent).toContain('Archive Room'));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Archive room'));
 
     const archiveMenuItem = Array.from(document.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Archive Room'
+      (button) => button.textContent?.trim() === 'Archive room'
     );
     archiveMenuItem!.click();
     await vi.waitFor(() => {
       expect(document.body.textContent).toContain('Are you sure you want to archive #general?');
     });
     const archiveButtons = Array.from(document.querySelectorAll('button')).filter(
-      (button) => button.textContent?.trim() === 'Archive Room'
+      (button) => button.textContent?.trim() === 'Archive room'
     );
     archiveButtons.at(-1)!.click();
 
@@ -973,7 +973,7 @@ describe('RoomList', () => {
     await vi.waitFor(() => expect(document.body.textContent).toContain('Leave room'));
 
     const settings = Array.from(document.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Room settings'
+      (button) => button.textContent?.trim() === 'Open room settings'
     );
     expect(settings).toBeUndefined();
   });
@@ -1560,9 +1560,9 @@ describe('RoomList', () => {
   });
 
   it.each([
-    [true, true, ['New Room', 'New Link']],
-    [true, false, ['New Room']],
-    [false, true, ['New Link']],
+    [true, true, ['Create room', 'Create link']],
+    [true, false, ['Create room']],
+    [false, true, ['Create link']],
     [false, false, []]
   ] as const)(
     'gates the creation menu with room=%s and manage=%s',
@@ -1645,7 +1645,7 @@ describe('RoomList', () => {
           Array.from(document.querySelectorAll('[role="menuitem"]')).map((item) =>
             item.textContent?.trim()
           )
-        ).toEqual(['New Link'])
+        ).toEqual(['Create link'])
       );
       setPermissions(false, false);
       await vi.waitFor(() => {
@@ -1712,7 +1712,7 @@ describe('RoomList', () => {
     await userEvent.click(trigger);
     const newRoom = Array.from(
       document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
-    ).find((item) => item.textContent?.trim() === 'New Room')!;
+    ).find((item) => item.textContent?.trim() === 'Create room')!;
     await userEvent.click(newRoom);
     await vi.waitFor(() => expect(document.querySelector('#room-name')).not.toBeNull());
     const input = document.querySelector<HTMLInputElement>('#room-name')!;
@@ -1773,7 +1773,7 @@ describe('RoomList', () => {
         );
       }
       const newLink = Array.from(document.querySelectorAll('button')).find(
-        (button) => button.textContent?.trim() === 'New Link'
+        (button) => button.textContent?.trim() === 'Create link'
       );
       newLink!.click();
 
@@ -1786,7 +1786,7 @@ describe('RoomList', () => {
       url.dispatchEvent(new Event('input', { bubbles: true }));
 
       const submit = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(
-        (button) => button.type === 'submit' && button.textContent?.trim() === 'Create Link'
+        (button) => button.type === 'submit' && button.textContent?.trim() === 'Create link'
       );
       await expect.element(submit ?? null).toBeEnabled();
       submit!.click();
@@ -1831,13 +1831,13 @@ describe('RoomList', () => {
     );
 
     const settings = Array.from(document.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Settings'
+      (button) => button.textContent?.trim() === 'Open group settings'
     );
     await expect.element(settings ?? null).toBeInTheDocument();
     await expect
       .element(
         Array.from(document.querySelectorAll('button')).find(
-          (button) => button.textContent?.trim() === 'Delete Group'
+          (button) => button.textContent?.trim() === 'Delete group'
         ) ?? null
       )
       .toBeInTheDocument();
@@ -1878,7 +1878,7 @@ describe('RoomList', () => {
       ).not.toBeNull()
     );
     const deleteGroup = Array.from(document.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Delete Group'
+      (button) => button.textContent?.trim() === 'Delete group'
     );
     await expect.element(deleteGroup ?? null).toBeDisabled();
     deleteGroup!.click();
@@ -1910,7 +1910,7 @@ describe('RoomList', () => {
       ).not.toBeNull()
     );
     const deleteGroup = Array.from(document.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Delete Group'
+      (button) => button.textContent?.trim() === 'Delete group'
     );
     await expect.element(deleteGroup ?? null).toBeDisabled();
   });

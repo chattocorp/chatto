@@ -56,7 +56,7 @@ describe('ServerSignedOut', () => {
     mocks.startRemoteReauthentication.mockResolvedValue(undefined);
     render(ServerSignedOut, { props: { registration } });
 
-    await page.getByRole('button', { name: 'Log in to this server' }).click();
+    await page.getByRole('button', { name: 'Log in to server' }).click();
 
     expect(mocks.startRemoteReauthentication).toHaveBeenCalledExactlyOnceWith(registration);
     expect(toastError).not.toHaveBeenCalled();
@@ -66,10 +66,10 @@ describe('ServerSignedOut', () => {
     mocks.startRemoteReauthentication.mockRejectedValue(new Error('blocked'));
     render(ServerSignedOut, { props: { registration } });
 
-    await page.getByRole('button', { name: 'Log in to this server' }).click();
+    await page.getByRole('button', { name: 'Log in to server' }).click();
 
     await vi.waitFor(() => expect(toastError).toHaveBeenCalledOnce());
-    await expect.element(page.getByRole('button', { name: 'Log in to this server' })).toBeEnabled();
+    await expect.element(page.getByRole('button', { name: 'Log in to server' })).toBeEnabled();
   });
 
   it('opens the remove-server confirmation', async () => {

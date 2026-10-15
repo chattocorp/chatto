@@ -44,19 +44,19 @@
     },
     "user_menu": {
       "profile": "פרופיל משתמש",
-      "send_message": "שלח הודעה",
+      "send_message": "פתח שיחה",
       "view_profile": "הצגת פרופיל",
       "profile_requires_direct_message": "נדרשת הודעה ישירה כדי להציג את הפרופיל הזה.",
       "manage_bot": "ניהול הבוט",
       "view_in_admin": "הצגה בניהול השרת",
-      "copy_user_id": "העתקת מזהה המשתמש"
+      "copy_user_id": "העתק מזהה משתמש"
     },
     "server_gutter": {
       "move_up": "העבר למעלה",
       "move_down": "העבר למטה",
       "add_server": "הוסף שרת",
-      "log_in": "התחברות לשרת הזה",
-      "sign_out": "התנתקות מהשרת הזה",
+      "log_in": "התחבר לשרת",
+      "sign_out": "התנתק מהשרת",
       "version": "גרסה {version}",
       "unreachable": "לא ניתן להגיע לשרת",
       "connection_unavailable": "החיבור אינו זמין",
@@ -91,8 +91,14 @@
       "body": "התחבר כדי לקרוא ולשלוח הודעות בשרת הזה."
     },
     "threads": {
-      "title": "השרשורים שלי",
-      "subtitle": "שרשורים שאתה עוקב אחריהם",
+      "tab_started": "שלי",
+      "tab_followed": "במעקב",
+      "tab_label": "תצוגת שרשורים",
+      "empty_mine_title": "לא התחלת שרשורים",
+      "empty_mine_body": "שרשורים שתתחיל ותעקוב אחריהם יופיעו כאן.",
+      "empty_followed_body": "שרשורים שאחרים התחילו ושאתה עוקב אחריהם יופיעו כאן.",
+      "title": "שרשורים",
+      "subtitle": "פעילות חדשה בשרשורים שלך",
       "filter_label": "חוטי סינון",
       "filter_all": "הכל",
       "filter_unread": "לא נקרא",

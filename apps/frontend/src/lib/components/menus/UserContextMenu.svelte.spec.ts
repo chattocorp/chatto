@@ -252,13 +252,15 @@ describe('UserContextMenu', () => {
     expect(container.textContent).toContain('Out for lunch');
   });
 
-  it('shows Send Message only when allowed', async () => {
+  it('shows Open conversation only when allowed', async () => {
     const hidden = renderMenu({ canSendMessage: false });
-    expect(hidden.container.textContent).not.toContain('Send Message');
+    expect(hidden.container.textContent).not.toContain('Open conversation');
     hidden.unmount();
 
     const visible = renderMenu({ canSendMessage: true });
-    await expect.element(buttonWithText(visible.container, 'Send Message')).toBeInTheDocument();
+    await expect
+      .element(buttonWithText(visible.container, 'Open conversation'))
+      .toBeInTheDocument();
   });
 
   it('shows the selected user admin page only when its permission is loaded and granted', async () => {
@@ -312,7 +314,7 @@ describe('UserContextMenu', () => {
     expect(sections).toHaveLength(3);
     expect(sections[0]?.textContent).toContain('Alice Example');
     expect(actionLabels).toEqual([
-      'Send Message',
+      'Open conversation',
       'View profile',
       'View in Server Admin',
       'Remove from room'
@@ -329,19 +331,19 @@ describe('UserContextMenu', () => {
       'icon-[uil--user-minus]',
       'icon-[uil--copy]'
     ]);
-    expect(sections[2]?.textContent).toContain('Copy User ID');
+    expect(sections[2]?.textContent).toContain('Copy user ID');
     expect(sections[0]?.parentElement).toBe(sections[1]?.parentElement);
     expect(sections[1]?.parentElement).toBe(sections[2]?.parentElement);
     expect(dialog.querySelector('[class~="border-t"], [role="separator"]')).toBeNull();
   });
 
-  it('shows Copy User ID last and copies the exact user ID', async () => {
+  it('shows Copy user ID last and copies the exact user ID', async () => {
     const onClose = vi.fn();
     const { container } = renderMenu({ onClose });
     const copyUserId = q(container, '[data-testid="copy-user-id"]') as HTMLButtonElement;
     const dialogButtons = q(container, '[role="dialog"]')?.querySelectorAll('button');
 
-    await expect.element(copyUserId).toHaveTextContent('Copy User ID');
+    await expect.element(copyUserId).toHaveTextContent('Copy user ID');
     expect(dialogButtons?.item((dialogButtons?.length ?? 0) - 1)).toBe(copyUserId);
 
     copyUserId.click();
@@ -359,7 +361,7 @@ describe('UserContextMenu', () => {
     const onClose = vi.fn();
     const { container } = renderMenu({ canSendMessage: true, onSendMessage, onClose });
 
-    buttonWithText(container, 'Send Message')?.click();
+    buttonWithText(container, 'Open conversation')?.click();
 
     expect(onSendMessage).toHaveBeenCalledOnce();
     expect(onClose).toHaveBeenCalledOnce();

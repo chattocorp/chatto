@@ -16,8 +16,8 @@
       "submit_and_configure": "Create and configure"
     },
     "join": {
-      "title": "Join Room",
-      "action": "Join Room",
+      "title": "Join room",
+      "action": "Join room",
       "prompt": "Join #{room} to read and participate in this room.",
       "inline_prompt": "Join this room to read and participate.",
       "group_label": "In {group}",
@@ -33,8 +33,8 @@
       "access_denied": "You do not have permission to join this room."
     },
     "leave": {
-      "title": "Leave Room",
-      "action": "Leave Room",
+      "title": "Leave room",
+      "action": "Leave room",
       "prompt": "Are you sure you want to leave #{room}? You can rejoin later.",
       "failed": "Failed to leave room"
     },
@@ -106,7 +106,8 @@
         "message_link_copied": "Message link copied",
         "copy_link_failed": "Failed to copy link",
         "image_copied": "Image copied",
-        "copy_image_failed": "Failed to copy image"
+        "copy_image_failed": "Failed to copy image",
+        "view_reactions": "View reactions"
       },
       "meta": {
         "echo": "Echo",

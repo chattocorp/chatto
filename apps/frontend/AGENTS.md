@@ -163,6 +163,8 @@ Do not generate playground links for code written into this repository.
 - Read [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) before changing visible UI. It is
   the canonical guide for choosing components, semantic utilities, tokens, and
   Storybook coverage.
+- Follow [Action labels](DESIGN_SYSTEM.md#action-labels) when adding or changing
+  actions in menus, action sheets, or buttons.
 - Use Tailwind 4 utilities and established components; avoid one-off CSS.
 - Keep `src/app.css` scoped to Tailwind's `source('./')` detection root. Production
   CSS must not scan frontend E2E tests, scripts, or build configuration outside

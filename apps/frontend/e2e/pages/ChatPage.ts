@@ -137,7 +137,7 @@ export class ChatPage {
   /** The submit button in the room creation dialog footer. */
   get roomFormSubmitButton(): Locator {
     return this.page
-      .getByRole('dialog', { name: 'Create Room' })
+      .getByRole('dialog', { name: 'Create room' })
       .getByRole('button', { name: 'Create and configure' });
   }
 
@@ -150,7 +150,7 @@ export class ChatPage {
 
   /**
    * Open the room creation modal on the admin rooms page.
-   * Navigates to the admin rooms page and clicks "New Room".
+   * Navigates to the admin rooms page and clicks "Create room".
    *
    * Issue #330 / ADR-027: with auto-join, the test user lands as a regular
    * member of the bootstrap server and the admin route 403s. Logout then
@@ -163,7 +163,7 @@ export class ChatPage {
     await loginAsAdmin(this.page);
     await this.page.goto(routes.serverAdminRooms);
     await expect(this.page).toHaveURL(/\/manage\/rooms/);
-    await this.page.getByRole('button', { name: 'New Room' }).click();
+    await this.page.getByRole('button', { name: 'Create room' }).click();
     await expect(this.roomNameInput).toBeVisible();
   }
 

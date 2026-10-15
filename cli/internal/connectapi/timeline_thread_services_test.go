@@ -1069,6 +1069,57 @@ func TestThreadServiceRequiresMembershipAndTogglesFollowState(t *testing.T) {
 	}
 }
 
+func TestThreadServiceListFollowedThreadsRootAuthorFilter(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	room := env.createJoinedRoom("root-author-filter")
+	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "root-author", "Other Author", "password")
+	require.NoError(t, err)
+	_, err = env.core.JoinRoom(env.ctx, other.Id, core.KindChannel, other.Id, room.Id)
+	require.NoError(t, err)
+	mine := env.post(room.Id, env.viewer.Id, "my root", "")
+	env.post(room.Id, other.Id, "reply by someone else", mine.Id)
+	theirs := env.post(room.Id, other.Id, "their root", "")
+	env.post(room.Id, env.viewer.Id, "my reply", theirs.Id)
+	manual := env.post(room.Id, other.Id, "manually followed root", "")
+	require.NoError(t, env.core.FollowThread(ctx, core.KindChannel, env.viewer.Id, room.Id, manual.Id))
+	list := func(filter apiv1.ThreadRootAuthorFilter, offset int32, unread bool) *apiv1.ListFollowedThreadsResponse {
+		t.Helper()
+		response, err := env.threads.ListFollowedThreads(ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
+			RootAuthorFilter: filter, UnreadOnly: unread, Page: &apiv1.PageRequest{Limit: 1, Offset: offset},
+		}))
+		require.NoError(t, err)
+		return response.Msg
+	}
+	viewer := apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_VIEWER
+	others := apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_OTHERS
+	// The viewer's root is behind both other roots in the unfiltered feed.
+	page := list(viewer, 0, false)
+	require.EqualValues(t, 1, page.Page.TotalCount)
+	require.Len(t, page.Threads, 1)
+	require.Equal(t, mine.Id, page.Threads[0].Thread.ThreadRootEventId)
+	require.False(t, page.Page.HasMore)
+	require.Empty(t, list(viewer, 1, false).Threads)
+	require.Equal(t, mine.Id, list(viewer, 0, true).Threads[0].Thread.ThreadRootEventId)
+	page = list(others, 0, false)
+	require.EqualValues(t, 2, page.Page.TotalCount)
+	require.True(t, page.Page.HasMore)
+	require.Equal(t, manual.Id, page.Threads[0].Thread.ThreadRootEventId)
+	require.Equal(t, theirs.Id, list(others, 1, false).Threads[0].Thread.ThreadRootEventId)
+	require.EqualValues(t, 3, list(apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_UNSPECIFIED, 0, false).Page.TotalCount)
+	for _, root := range []string{mine.Id, theirs.Id, manual.Id} {
+		require.NoError(t, env.core.UnfollowThread(ctx, core.KindChannel, env.viewer.Id, room.Id, root))
+	}
+	require.Empty(t, list(viewer, 0, false).Threads)
+	require.Empty(t, list(others, 0, false).Threads)
+	_, err = env.threads.ListFollowedThreads(ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{RootAuthorFilter: 99}))
+	require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
+	require.NoError(t, env.core.FollowThread(ctx, core.KindChannel, env.viewer.Id, room.Id, mine.Id))
+	require.NoError(t, env.core.LeaveRoom(ctx, env.viewer.Id, core.KindChannel, env.viewer.Id, room.Id))
+	require.Empty(t, list(viewer, 0, false).Threads)
+}
+
 func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 	t.Parallel()
 
@@ -1283,6 +1334,21 @@ func TestThreadServiceListFollowedThreadsRequiresDMOptIn(t *testing.T) {
 	}
 	if got := thread.GetDirectMessageParticipantUserIds(); len(got) != 2 {
 		t.Fatalf("DM participant IDs = %v, want two participants", got)
+	}
+	for _, filter := range []apiv1.ThreadRootAuthorFilter{
+		apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_VIEWER,
+		apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_OTHERS,
+	} {
+		response, err := env.threads.ListFollowedThreads(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
+			IncludeDirectMessageThreads: true, RootAuthorFilter: filter,
+		}))
+		require.NoError(t, err)
+		if filter == apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_VIEWER {
+			require.Len(t, response.Msg.Threads, 1)
+			require.Equal(t, root.Id, response.Msg.Threads[0].Thread.ThreadRootEventId)
+		} else {
+			require.Empty(t, response.Msg.Threads)
+		}
 	}
 }
 

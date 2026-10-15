@@ -315,7 +315,7 @@ describe('room route layout access handling', () => {
     await vi.waitFor(() => {
       expect(q(container, '[aria-label="Room members"]')?.textContent).toContain('0 members');
     });
-    await expect.element(q(container, 'button')).toHaveTextContent('Join Room');
+    await expect.element(q(container, 'button')).toHaveTextContent('Join room');
   });
 
   it('clears the pending room preview after a best-effort miss', async () => {
@@ -333,7 +333,7 @@ describe('room route layout access handling', () => {
     expect(q(container, '[aria-label="Room members"] .skeleton')).toBeNull();
     resolvePreview(null);
     await vi.waitFor(() => expect(q(container, '[aria-label="Room members"]')).toBeNull());
-    await expect.element(q(container, 'button')).toHaveTextContent('Join Room');
+    await expect.element(q(container, 'button')).toHaveTextContent('Join room');
   });
 
   it('joins a nonmember room inline and waits for projected membership without changing URLs', async () => {

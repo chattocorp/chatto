@@ -33,8 +33,8 @@
       "access_denied": "Du har ikke tillatelse til å bli med i dette rommet."
     },
     "leave": {
-      "title": "Forlat rommet",
-      "action": "Forlat rommet",
+      "title": "Forlat rom",
+      "action": "Forlat rom",
       "prompt": "Er du sikker på at du vil forlate #{room}? Du kan bli med igjen senere.",
       "failed": "Kunne ikke forlate rommet"
     },
@@ -106,7 +106,8 @@
         "message_link_copied": "Meldingslenken er kopiert",
         "copy_link_failed": "Kunne ikke kopiere lenken",
         "image_copied": "Bildet er kopiert",
-        "copy_image_failed": "Kunne ikke kopiere bildet"
+        "copy_image_failed": "Kunne ikke kopiere bildet",
+        "view_reactions": "Vis reaksjoner"
       },
       "meta": {
         "echo": "Ekko",

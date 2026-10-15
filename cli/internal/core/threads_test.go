@@ -913,7 +913,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 	})
 
 	t.Run("returns a paged followed thread list", func(t *testing.T) {
-		page, err := core.threadFollows.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, false, 1, 0)
+		page, err := core.threadFollows.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, false, 1, 0, ThreadRootAuthorAll)
 		if err != nil {
 			t.Fatalf("Failed to list followed thread page: %v", err)
 		}
@@ -930,7 +930,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 			t.Errorf("first page root = %q, want %q", page.Threads[0].ThreadRootEventID, rootMsg2.Id)
 		}
 
-		page, err = core.threadFollows.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, false, 1, 1)
+		page, err = core.threadFollows.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, false, 1, 1, ThreadRootAuthorAll)
 		if err != nil {
 			t.Fatalf("Failed to list followed thread second page: %v", err)
 		}
@@ -1011,7 +1011,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 
 	t.Run("unread-only page counts and returns only unread threads", func(t *testing.T) {
 		// Thread 2 was opened in the previous subtest; thread 1 remains unread.
-		page, err := core.threadFollows.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, true, 1, 0)
+		page, err := core.threadFollows.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, true, 1, 0, ThreadRootAuthorAll)
 		if err != nil {
 			t.Fatalf("Failed to list unread followed thread page: %v", err)
 		}
@@ -1028,7 +1028,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 			t.Error("HasUnreadReplies = false, want true")
 		}
 
-		page, err = core.threadFollows.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, false, 0, 0)
+		page, err = core.threadFollows.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, false, 0, 0, ThreadRootAuthorAll)
 		if err != nil {
 			t.Fatalf("Failed to list all followed threads: %v", err)
 		}

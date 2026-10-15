@@ -45,8 +45,8 @@ func newThreadFollowModel(
 
 // ListFollowedThreads returns one page of the actor's followed threads. When
 // unreadOnly is set, the page and its total include only threads with unread
-// replies.
-func (s *ThreadFollowModel) ListFollowedThreads(ctx context.Context, actorID string, includeDM, unreadOnly bool, limit, offset int) (*FollowedThreadsPage, error) {
+// replies. rootAuthor selects root authors before pagination and total counts.
+func (s *ThreadFollowModel) ListFollowedThreads(ctx context.Context, actorID string, includeDM, unreadOnly bool, limit, offset int, rootAuthor ThreadRootAuthorFilter) (*FollowedThreadsPage, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (s *ThreadFollowModel) ListFollowedThreads(ctx context.Context, actorID str
 	if includeDM {
 		spaceIDs = append(spaceIDs, LegacySpaceIDForRoomKind(KindDM))
 	}
-	return s.ListFollowedThreadsPage(ctx, actorID, spaceIDs, unreadOnly, limit, offset)
+	return s.ListFollowedThreadsPage(ctx, actorID, spaceIDs, unreadOnly, limit, offset, rootAuthor)
 }
 
 func (s *ThreadFollowModel) HasUnreadFollowedThreads(ctx context.Context, actorID string) (bool, error) {

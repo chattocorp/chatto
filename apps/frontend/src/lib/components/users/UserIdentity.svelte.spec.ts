@@ -108,7 +108,7 @@ describe('UserIdentity', () => {
     button.click();
     await tick();
     const send = [...container.querySelectorAll('button')].find(
-      (item) => item.textContent?.trim() === 'Send Message'
+      (item) => item.textContent?.trim() === 'Open conversation'
     );
     expect(send).toBeTruthy();
     send!.click();

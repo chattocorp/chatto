@@ -50,7 +50,7 @@ presentation-only.
 
     {#if canConfigure && onConfigure}
       <MenuItem icon="icon-[uil--setting]" onclick={onConfigure}>
-        {m('room_list.room_settings')}
+        {m('room_list.open_room_settings')}
       </MenuItem>
     {/if}
   </MenuSection>

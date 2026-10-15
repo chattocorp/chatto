@@ -106,7 +106,8 @@
         "message_link_copied": "Link da mensagem copiado",
         "copy_link_failed": "Não foi possível copiar o link",
         "image_copied": "Imagem copiada",
-        "copy_image_failed": "Não foi possível copiar a imagem"
+        "copy_image_failed": "Não foi possível copiar a imagem",
+        "view_reactions": "Ver reações"
       },
       "meta": {
         "echo": "Eco",

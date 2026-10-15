@@ -956,7 +956,7 @@ test.describe('Room unread separator', () => {
         // message room event — it does NOT advance the server's root-message
         // read cursor.
         await page.getByTitle('Leave room').click();
-        await page.getByRole('dialog').getByRole('button', { name: 'Leave Room' }).click();
+        await page.getByRole('dialog').getByRole('button', { name: 'Leave room' }).click();
 
         // User B (still hidden) receives the leave event over the live
         // subscription, but the separator should not render while hidden.

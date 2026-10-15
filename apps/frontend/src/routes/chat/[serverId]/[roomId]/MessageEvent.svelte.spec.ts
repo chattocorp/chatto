@@ -303,7 +303,7 @@ describe('MessageEvent action model integration', () => {
     const rendered = render(MessageEventTestHarness, { props: { event: messageEvent() } });
 
     await openContextMenu(rendered.container);
-    menuButton(rendered.container, 'Reactions')!.click();
+    menuButton(rendered.container, 'View reactions')!.click();
 
     await vi.waitFor(() =>
       expect(document.querySelector('dialog[open]')?.querySelector('[role="tablist"]')).toBeTruthy()
