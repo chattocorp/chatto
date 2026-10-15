@@ -1,7 +1,7 @@
 # FDR-009: Link Previews
 
 **Status:** Active
-**Last reviewed:** 2026-10-05
+**Last reviewed:** 2026-10-15
 
 ## Overview
 
@@ -45,9 +45,23 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 
 ### 4. SSRF-safe fetcher with connection-time IP validation
 
-**Decision:** All URL fetches go through an HTTP client that blocks private/loopback IP ranges. The IP check happens at connection time, not pre-check, to prevent DNS rebinding.
-**Why:** Without these protections, a maliciously crafted URL could make the server fetch internal services. A pre-fetch DNS lookup is bypassable via rebinding; connection-time enforcement is not.
-**Tradeoff:** Some legitimate internal-network use cases (preview an intranet wiki page) don't work. Operators who need that can disable previews entirely.
+**Decision:** Page and image fetches block private, loopback, shared-address, and
+special-use destinations. The policy includes `100.64.0.0/10`, documentation,
+benchmark, multicast, and reserved ranges. Standard NAT64 ranges
+(`64:ff9b::/96` and `64:ff9b:1::/48`), Teredo, and 6to4 are blocked in full.
+IPv4-mapped IPv6 addresses use the IPv4 policy. Each new connection checks all
+DNS answers and rejects the destination if any answer is blocked. Connections
+use the checked IP directly. Redirects use the same checks.
+
+**Why:** A URL must not let a user make the server contact an internal service.
+Connection-time checks and direct IP dialing prevent a second DNS lookup from
+changing the destination. Translation ranges are blocked because an IPv6
+address in those ranges can lead to a private IPv4 destination.
+
+**Tradeoff:** Intranet previews and previews reached only through standard
+NAT64 translation do not work. Deployment-specific translation routes still
+need network egress controls. Existing cached previews and posted cards keep
+their normal lifetimes; this policy controls new network connections.
 
 ### 5. Preview images are downloaded, resized, and stored as persisted assets
 
