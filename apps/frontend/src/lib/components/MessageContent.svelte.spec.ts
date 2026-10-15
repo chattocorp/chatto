@@ -36,8 +36,7 @@ vi.mock('$app/navigation', () => ({
   goto: mocks.goto
 }));
 
-vi.mock('$lib/navigation', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('$lib/navigation')>()),
+vi.mock('$lib/navigation', () => ({
   serverIdToSegment: (serverId: string) =>
     serverId === 'origin' ? '-' : serverId === 'chatto-run' ? 'chat.chatto.run' : serverId,
   segmentToServerId: mocks.segmentToServerId

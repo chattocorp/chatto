@@ -5,7 +5,8 @@
 import { resolve } from '$app/paths';
 import type { ResolvedPathname } from '$app/types';
 import { serverRegistry } from '$lib/client';
-import { serverIdToSegment, segmentToServerId, serverIdForHostname } from '$lib/navigation';
+import { serverIdToSegment, segmentToServerId } from '$lib/navigation';
+import { serverIdForHostname } from '$lib/navigation/serverHostname';
 
 export interface MessageLink {
   /** Null for unknown servers; these links cannot load a preview. */
