@@ -14,10 +14,11 @@ export function startSourceHost() {
       await config.close();
       throw error;
     });
-    const manager = new SourceManager((name) => async (task, { input }) => {
-      const { id } = await store.start(name, task, input, 'source');
-      return { id };
-    });
+    const manager = new SourceManager(
+      (name) =>
+        (task, { input }) =>
+          store.start(name, task, input, 'source')
+    );
     let revision = -1;
     const reload = async () => {
       const next = await config.load();

@@ -1,6 +1,6 @@
 # ADR-005: Block tools after untrusted context
 
-**Status:** Accepted
+**Status:** Accepted. The trust extension and the `trust` agent option remain after [ADR-009](ADR-009-task-invocations.md). [ADR-007](ADR-007-authorization-classifier.md), which this record cites, is withdrawn.
 **Date:** 2026-09-27
 
 ## Context

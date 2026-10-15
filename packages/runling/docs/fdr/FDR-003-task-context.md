@@ -1,7 +1,9 @@
 # FDR-003: Task context snapshots
 
-**Status:** Experimental
-**Last reviewed:** 2026-09-22
+**Status:** Retired
+**Last reviewed:** 2026-10-14
+
+> **Retired.** [ADR-009](../adr/ADR-009-task-invocations.md) removed this feature. Runling no longer keeps task state or output buffers for a supervisor. This record keeps the prior design for reference. Applications can implement this policy with tasks and messages.
 
 ## Overview
 

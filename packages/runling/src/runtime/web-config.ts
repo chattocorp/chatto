@@ -1,19 +1,31 @@
-import { isSchemaTask, type Task } from './workflow.ts';
-import type { WorkflowContext } from './context.ts';
+import type { AnyTask, Task, TaskInput, TaskReceives } from './task.ts';
 import { toJsonSchema, isWorkflowSchema, type WorkflowSchema } from './schema.ts';
 
-export type WebhookTask<Input, Output> = (ctx: WorkflowContext, input: Input) => Output;
-
+/** The ID of a run that a delivery started. */
 export interface StartedRun {
   id: string;
 }
 
+/** A run that a router started. The router can keep it and send it more messages later, for
+ * example the next message of a chat conversation. */
+export interface RunHandle<Receives = unknown> extends StartedRun {
+  /** Validate a message and queue it for the run's top-level task. Rejects when the run has
+   * finished or the message is invalid. */
+  send(message: Receives): Promise<void>;
+  /** Tell the top-level task that no more messages come. */
+  closeInput(): void;
+  /** Cancel the run. Its tasks receive the abort signal and finish their cleanup. */
+  cancel(): void;
+  /** Resolves when the run has finished, whatever its result. */
+  readonly finished: Promise<void>;
+}
+
 /** Host services for one delivery. Starting a run waits only for registration. */
 export interface WebhookContext {
-  start<Input, Output>(
-    task: WebhookTask<Input, Output>,
-    options: { input: Input }
-  ): Promise<StartedRun>;
+  start<T extends AnyTask>(
+    task: T,
+    options: { input: TaskInput<T> }
+  ): Promise<RunHandle<TaskReceives<T>>>;
 }
 
 /** A route may start any number of workflows or handle the delivery itself. */
@@ -26,18 +38,14 @@ export type WebhookRouter<Input = unknown> = ((ctx: WebhookContext, input: Input
 };
 
 /** Always register one run with this task as its root. */
-export function startWorkflow<Input, Output>(
-  rootTask: WebhookTask<Input, Output>
-): WebhookRouter<Input> {
-  const route: WebhookRouter<Input> = async (ctx, input) => {
+export function startWorkflow<T extends AnyTask>(rootTask: T): WebhookRouter<TaskInput<T>> {
+  const route: WebhookRouter<TaskInput<T>> = async (ctx, input) => {
     await ctx.start(rootTask, { input });
   };
 
   route.label = rootTask.name;
-  if (isSchemaTask(rootTask)) {
-    route.input = rootTask.input;
-    route.output = rootTask.output;
-  }
+  route.input = rootTask.input;
+  route.output = rootTask.output;
   return route;
 }
 

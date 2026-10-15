@@ -1,43 +1,49 @@
 # Timeouts
 
-Use `timeout` in seconds. Omit it to wait without a deadline.
+Runs and task invocations have no default timeout. A run can be active for a
+long time, for example while a task waits for a message or a parent waits for a
+long child. The console shows "Waiting for a message" when a task waits.
+
+## Workflow timeout
+
+`runWorkflow()` accepts `timeout` in seconds. Omit it to wait without a
+deadline.
 
 ```ts
-import { input, runWorkflow, task, TimeoutError } from 'runling';
+import { runWorkflow } from 'runling';
 
-const review = task(async (ctx) => {
-  try {
-    return await input(ctx, 'Approve the change?', { timeout: 300 });
-  } catch (error) {
-    if (error instanceof TimeoutError) return 'No answer received';
-    throw error;
-  }
-});
-
-await runWorkflow(review, {
-  input: undefined,
-  timeout: 3600,
-  onInput: async (request) => {
-    // The host supplies the answer and uses request.signal for cancellation.
-    return 'Approved';
-  }
-});
+const execution = await runWorkflow(review, { input, timeout: 3600 });
+if (!execution.ok) console.error(execution.error); // "Workflow timed out after 3600 seconds"
 ```
 
-An input timeout rejects only that question. Concurrent questions have separate
-deadlines. The host receives a signal that combines the question deadline,
-workflow cancellation, and any signal supplied to `input()`.
+When the deadline expires, Runling cancels `ctx.signal` with a `TimeoutError`.
+The execution result is failed, also when the task catches the cancellation.
+The timeout includes the time that tasks wait for messages.
 
-A workflow timeout includes time spent waiting for input. It cancels `ctx.signal`
-and produces a failed execution result, even if the task catches the cancellation.
-Cancellation is cooperative: Runling waits for the workflow to settle. Operations
-that ignore the signal can continue; a timer cannot interrupt synchronous JavaScript.
+Cancellation is cooperative. Runling waits for the task and its cleanup to
+finish. Operations that ignore the signal can continue, and a timer cannot
+interrupt synchronous JavaScript.
 
-Zero expires before user work starts. Values must be finite, non-negative, and at
-most 2147483.647 seconds (the timer limit). Fractions round up to milliseconds.
-Invalid options reject with `RangeError`. Timers are cleared when work settles.
+Zero expires before the task starts. Values must be finite, not negative, and
+at most 2147483.647 seconds (the timer limit). Runling rounds fractions up to
+whole milliseconds. An invalid value rejects with `RangeError`. Runling clears
+the timer when the work finishes.
 
-The web console shows the number of pending inputs. Each question has its own
-timeline entry with its wait duration and answer, timeout, or cancellation.
-Other branches can continue while inputs are pending. Hosts still choose how to
-ask questions and route replies; this feature adds no restart recovery.
+`runling run` and `runling serve` do not set a timeout. Stop a run with Ctrl-C
+or with the cancel button of the console.
+
+## Timeout for a child task
+
+`ctx.start()` has no timeout option. To limit a child, cancel its invocation:
+
+```ts
+await using child = ctx.start(investigate, question);
+const timer = setTimeout(() => child.cancel(new Error('Investigation took too long')), 600_000);
+try {
+  return await child.result;
+} finally {
+  clearTimeout(timer);
+}
+```
+
+`cancel()` cancels the child and its children. It does not cancel the parent.

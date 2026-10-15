@@ -1,26 +1,25 @@
-import { agent, input as askInput, concat, task, Type } from 'runling';
+import { createAgentSession, concat, task, Type } from 'runling';
 
 const model = 'openai-codex/gpt-5.6-sol';
 const thinkingLevel = 'medium';
 
+/** Interview the human through workflow messages: each question is an update, and the next
+ * message from the host is the answer. Use a host that displays updates, such as the web console. */
 export const plan = task(
   {
     name: 'Plan change',
     input: Type.Object({
       directory: Type.String({ minLength: 1 }),
-      prompt: Type.String({ description: 'The change to plan' })
+      prompt: Type.String({ minLength: 1, description: 'The change to plan' })
     }),
-    output: Type.Object({
-      summary: Type.String(),
-      details: Type.Optional(Type.String()),
-      outputs: Type.Object({ plan: Type.String() })
-    })
+    output: Type.String({ description: 'The implementation plan in Markdown' }),
+    receives: Type.String({ description: 'An answer to the latest question' }),
+    emits: Type.String({ description: 'A question for the human' })
   },
-  async (ctx, { directory, prompt: input }) => {
-    const request =
-      input.trim() === '' ? await askInput(ctx, 'What would you like to build or change?') : input;
+  async (ctx, { directory, prompt: request }) => {
+    const answers = ctx.inbox[Symbol.asyncIterator]();
 
-    await using planner = await agent({
+    await using planner = await createAgentSession({
       cwd: directory,
       model,
       thinkingLevel,
@@ -47,23 +46,15 @@ export const plan = task(
     while (true) {
       const report = await planner.runOutcome(ctx, message);
 
-      if (report.outcome === 'completed') {
-        const completedPlan = report.details ?? report.summary;
-        return {
-          summary: report.summary,
-          details: report.details,
-          outputs: { plan: completedPlan }
-        };
-      }
+      if (report.outcome === 'completed') return report.details ?? report.summary;
+      if (report.outcome === 'failed') throw new Error(`Planning failed: ${report.summary}`);
 
-      if (report.outcome === 'failed') {
-        throw new Error(`Planning failed: ${report.summary}`);
-      }
-
-      const answer = await askInput(ctx, report.summary);
+      await ctx.emit(report.summary);
+      const answer = await answers.next();
+      if (answer.done) throw new Error('The planning interview ended without an answer');
       message = concat(
         'The human answered your question:',
-        answer,
+        answer.value,
         '',
         'Continue the interview. Ask the next material question, or complete the plan if the request is now sufficiently specified.'
       );

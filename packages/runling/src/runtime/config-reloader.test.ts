@@ -108,20 +108,18 @@ test('rejects an existing invalid config and missing imports', async () => {
   }
 });
 
-test('agent subpath imports share the host runtime across config reloads', async () => {
-  const { agent, connectAgent } = await import('./agents/index.ts');
-  const { createWorkflowContext } = await import('./context.ts');
+test('runling imports share the host runtime across config reloads', async () => {
+  const { agent, taskTool, createTaskContext } = await import('./index.ts');
 
   await fixture(async (loader, path) => {
     await writeFile(
       path,
       `
-      import { task, Type } from "runling";
-      import { agent, connectAgent } from "runling/agents";
+      import { agent, task, taskTool, Type } from "runling";
       import { startWorkflow } from "runling/web";
       export default { webhooks: {
         probe: startWorkflow(task({ name: "Probe", input: Type.Null(), output: Type.Any() },
-          () => ({ agent, connectAgent })))
+          () => ({ agent, taskTool })))
       }};
     `
     );
@@ -130,13 +128,19 @@ test('agent subpath imports share the host runtime across config reloads', async
       await config.webhooks.probe!(
         {
           start: async (task, { input }) => {
-            result = await task(createWorkflowContext(), input);
-            return { id: 'probe' };
+            result = await task(createTaskContext(), input);
+            return {
+              id: 'probe',
+              send: async () => {},
+              closeInput: () => {},
+              cancel: () => {},
+              finished: Promise.resolve()
+            };
           }
         },
         null
       );
-      expect(result).toEqual({ agent, connectAgent });
+      expect(result).toEqual({ agent, taskTool });
     }
   });
 });

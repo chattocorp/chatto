@@ -1,6 +1,6 @@
 import { parseHTML } from 'linkedom';
 import { Type } from 'runling';
-import { defineAgentExtension } from 'runling/agents';
+import { defineAgentExtension } from 'runling';
 
 /** A public reference the agent can read. Requests are limited to URLs under `prefix`. */
 interface ReferenceSource {

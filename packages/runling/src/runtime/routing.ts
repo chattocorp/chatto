@@ -1,4 +1,4 @@
-import type { StartedRun, WebhookContext, WebhookRouter } from './web-config.ts';
+import type { RunHandle, StartedRun, WebhookContext, WebhookRouter } from './web-config.ts';
 
 /** Preserve partial registration results for HTTP responses and source failure handling. */
 export class RoutingError extends Error {
@@ -16,14 +16,14 @@ export async function dispatchRoute<Input>(
   input: Input,
   start: WebhookContext['start']
 ): Promise<StartedRun[]> {
-  const pending: Promise<StartedRun>[] = [];
+  const pending: Promise<RunHandle>[] = [];
   let accepting = true;
   let failure: unknown;
   let failed = false;
   const ctx: WebhookContext = {
-    start(task, options) {
+    start: (task, options) => {
       if (!accepting) {
-        const rejection = Promise.reject<StartedRun>(new Error('Webhook routing has finished'));
+        const rejection = Promise.reject<RunHandle>(new Error('Webhook routing has finished'));
         void rejection.catch(() => {});
         return rejection;
       }

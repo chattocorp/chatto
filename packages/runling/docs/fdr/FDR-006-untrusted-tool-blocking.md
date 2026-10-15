@@ -1,7 +1,7 @@
 # FDR-006: Tool blocking after untrusted content
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-27
+**Last reviewed:** 2026-10-14
 
 ## Overview
 
@@ -20,8 +20,10 @@ lifetime.
   show their own message, so the model does not describe the refusal. A failure in
   this callback writes an agent log line with the tool name only, and the block
   still applies.
-- The mark lasts for the agent's lifetime and is copied to forks. User messages and
-  notifications do not remove it.
+- The mark lasts for the agent's lifetime and is copied to forks. User messages
+  and steering messages do not remove it.
+- An agent with a trust policy cannot use a session file, because Runling keeps
+  the mark only in memory.
 - Each block writes an agent log line with the tool name. The line contains no
   arguments or content.
 - Without a policy, Runling installs no hook and tool behavior is unchanged.
@@ -52,7 +54,6 @@ return untrusted content in other ways.
 
 - [ADR-005: Block tools after untrusted context](../adr/ADR-005-untrusted-context.md)
 - [ADR-002: Agent ownership](../adr/ADR-002-agent-ownership.md)
-- [FDR-007: Authorization classifier](FDR-007-authorization-classifier.md)
 - [FDR-008: Codemode](FDR-008-codemode.md)
 - [Agent API guide](../agents.md)
 

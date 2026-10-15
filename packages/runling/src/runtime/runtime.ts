@@ -23,12 +23,3 @@ export function isJsonValue(value: unknown, ancestors = new Set<object>()): valu
 export function isJsonObject(value: unknown): value is { [key: string]: JsonValue } {
   return value !== null && typeof value === 'object' && !Array.isArray(value) && isJsonValue(value);
 }
-
-export interface WorkflowResult {
-  summary: string;
-  /** Human-readable Markdown shown after the summary in interactive mode. */
-  details?: string;
-  outputs?: Record<string, JsonValue>;
-}
-
-export type WorkflowReturn = WorkflowResult | JsonValue | undefined | void;

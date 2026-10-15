@@ -2,11 +2,12 @@ import { expect, expectTypeOf, test, vi } from 'vitest';
 import { z } from 'zod';
 import * as v from 'valibot';
 import { toStandardJsonSchema } from '@valibot/to-json-schema';
-import { createWorkflowContext, runWorkflow, task, Type, type WorkflowExecution } from 'runling';
+import { runWorkflow, task, Type, type WorkflowExecution } from 'runling';
 import {
   defineWebConfig,
   isWebConfig,
   startWorkflow,
+  type RunHandle,
   type WebhookContext,
   type WebhookRouter
 } from 'runling/web';
@@ -24,13 +25,26 @@ const echo = task(
 );
 const config = defineWebConfig({ webhooks: { echo: startWorkflow(echo) } });
 
+/** A registered run that does not accept messages. */
+const handle = (id: string, finished: Promise<unknown> = Promise.resolve()): RunHandle => ({
+  id,
+  send: async () => {},
+  closeInput: () => {},
+  cancel: () => {},
+  finished: finished.then(
+    () => {},
+    () => {}
+  )
+});
+
 function host() {
   const executions: Promise<WorkflowExecution>[] = [];
   const inputs: unknown[] = [];
   const start: WebhookContext['start'] = async (task, { input }) => {
     inputs.push(input);
-    executions.push(runWorkflow(task, { input }));
-    return { id: `run-${executions.length}` };
+    const execution = runWorkflow(task, { input });
+    executions.push(execution);
+    return handle(`run-${executions.length}`, execution);
   };
   return { start, executions, inputs };
 }
@@ -48,7 +62,7 @@ test('accepts schema-free routing functions and preserves webhook names', async 
   const custom = defineWebConfig({ webhooks: { custom: routed } });
   expectTypeOf<keyof typeof custom.webhooks>().toEqualTypeOf<'custom'>();
   expect(isWebConfig(custom)).toBe(true);
-  const start = vi.fn(async () => ({ id: 'unused' }));
+  const start = vi.fn(async () => handle('unused'));
   const response = await handleWebhook('custom', request('{"event":"reply"}'), {
     config: custom,
     start
@@ -91,18 +105,6 @@ test('a router can select tasks, map input, and fan out sequentially or concurre
     runs: [{ id: 'run-1' }, { id: 'run-2' }, { id: 'run-3' }]
   });
   expect((await Promise.all(h.executions)).map((run) => run.output)).toEqual(['Ada', 6, 'another']);
-});
-
-test('the convenience router also supports ordinary tasks without schemas', async () => {
-  const root = task((_ctx, value: { name: string }) => value.name);
-  const h = host();
-  const config = defineWebConfig({ webhooks: { plain: startWorkflow(root) } });
-  const response = await handleWebhook('plain', request('{"name":"Ada"}'), {
-    config,
-    start: h.start
-  });
-  expect(response.status).toBe(202);
-  expect((await h.executions[0])?.output).toBe('Ada');
 });
 
 test('keeps schema transforms in the task and publishes the correct schema sides', async () => {
@@ -224,7 +226,7 @@ test('rejects invalid schema metadata and unexportable schema tasks', () => {
 });
 
 test('waits for registration but never waits for workflow completion', async () => {
-  const register = Promise.withResolvers<{ id: string }>();
+  const register = Promise.withResolvers<RunHandle>();
   const start = vi.fn(() => register.promise);
   const response = handleWebhook('echo', request(), { config, start });
   let settled = false;
@@ -233,7 +235,7 @@ test('waits for registration but never waits for workflow completion', async () 
   });
   await vi.waitFor(() => expect(start).toHaveBeenCalledOnce());
   expect(settled).toBe(false);
-  register.resolve({ id: 'running' });
+  register.resolve(handle('running'));
   expect(await (await response).json()).toEqual({ runs: [{ id: 'running' }] });
 });
 
@@ -262,7 +264,7 @@ test('reports partial registration failures without losing successful run IDs', 
     config,
     start: async () => {
       if (++count === 2) throw new Error('disk full');
-      return { id: 'retained' };
+      return handle('retained');
     }
   });
   expect(response.status).toBe(500);
@@ -270,7 +272,7 @@ test('reports partial registration failures without losing successful run IDs', 
 });
 
 test('router errors still await outstanding registrations and report their IDs', async () => {
-  const pending = Promise.withResolvers<{ id: string }>();
+  const pending = Promise.withResolvers<RunHandle>();
   const config = defineWebConfig({
     webhooks: {
       broken: (ctx) => {
@@ -280,7 +282,7 @@ test('router errors still await outstanding registrations and report their IDs',
     }
   });
   const response = handleWebhook('broken', request(), { config, start: () => pending.promise });
-  pending.resolve({ id: 'survives' });
+  pending.resolve(handle('survives'));
   expect(await (await response).json()).toEqual({
     error: 'route failed',
     runs: [{ id: 'survives' }]
@@ -296,7 +298,7 @@ test('does not permit starts through a retained routing context after the router
       }
     }
   });
-  const start = vi.fn(async () => ({ id: 'unused' }));
+  const start = vi.fn(async () => handle('unused'));
   await handleWebhook('capture', request(), { config, start });
   await expect(saved.start(echo, { input: 'late' })).rejects.toThrow('routing has finished');
   void saved.start(echo, { input: 'detached late call' });

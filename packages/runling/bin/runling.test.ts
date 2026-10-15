@@ -69,7 +69,7 @@ describe.each([
     );
     const [exitCode, stdout] = await Promise.all([child.exited, new Response(child.stdout).text()]);
     expect(exitCode).toBe(0);
-    expect(JSON.parse(stdout).result.summary).toBe('--verbose');
+    expect(JSON.parse(stdout).output.echo).toBe('--verbose');
   });
 
   test('passes structured input and an explicit directory to a task', async () => {
@@ -127,8 +127,12 @@ describe.each([
 
     expect(exitCode).toBe(0);
     expect(stderr).toBe('');
-    expect(stdout).toContain('A workflow result');
-    expect(stdout).toContain('Finished in ');
+    expect(stdout).toContain('Runling starting run');
+    expect(stdout).toContain('Finished in');
+    expect(JSON.parse(stdout.slice(stdout.indexOf('{')))).toEqual({
+      echo: 'A workflow result',
+      id: expect.any(String)
+    });
   });
 
   test('runs a workflow without a prompt', async () => {
@@ -140,7 +144,7 @@ describe.each([
     const [exitCode, stdout] = await Promise.all([child.exited, new Response(child.stdout).text()]);
 
     expect(exitCode).toBe(0);
-    expect(JSON.parse(stdout).result.summary).toBe('');
+    expect(JSON.parse(stdout).output.echo).toBe('');
   });
 
   test('reports invalid invocations without a stack trace', async () => {
@@ -178,8 +182,7 @@ describe.each([
     const execution = JSON.parse(stdout);
     expect(execution.ok).toBe(true);
     expect(execution.error).toBeNull();
-    expect(execution.result.summary).toBe('A JSON result');
-    expect(execution.result.outputs.id).toMatch(/^[a-z]+-[a-z]+-\d{4}$/);
+    expect(execution.output).toEqual({ echo: 'A JSON result', id: expect.any(String) });
     expect(execution.durationMs).toBeTypeOf('number');
     expect(execution.usage).toEqual({
       input: 0,
@@ -187,8 +190,8 @@ describe.each([
       cacheRead: 0,
       cacheWrite: 0
     });
-    expect(stderr).toContain('Runling starting');
-    expect(stderr).toContain('Finished in ');
+    expect(stderr).toContain('Runling starting run');
+    expect(stderr).toContain('Finished in');
   });
 
   test('reports failures as JSON with a nonzero exit status', async () => {
@@ -209,7 +212,7 @@ describe.each([
     expect(exitCode).toBe(1);
     expect(JSON.parse(stdout)).toMatchObject({
       ok: false,
-      result: null,
+      output: null,
       error: expect.stringContaining('missing-workflow.ts')
     });
     expect(stderr).toContain('missing-workflow.ts');

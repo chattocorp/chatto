@@ -3,7 +3,6 @@
   import { duration } from '$lib/runs.ts';
   import AnsiText from './AnsiText.svelte';
   import Usage from './Usage.svelte';
-  import RunValue from './RunValue.svelte';
 
   let {
     activity,
@@ -29,7 +28,7 @@
         <span>{activityStatus(activity)}</span>
         <span>Started at {duration(activity.startedAt)}</span>
         <span
-          >{activity.kind === 'input' ? 'Wait' : 'Duration'}
+          >{activity.kind === 'wait' ? 'Wait' : 'Duration'}
           {duration(activity.durationMs ?? Math.max(0, elapsed - activity.startedAt))}</span
         >
       </p>
@@ -44,14 +43,6 @@
   </header>
   <div class="min-h-0 space-y-5 overflow-auto px-5 py-5">
     {#if activity.usage}<Usage usage={activity.usage} detail />{/if}
-    {#if activity.state !== undefined}
-      <div>
-        <RunValue value={activity.state} kind="state" />
-        <p class="mt-2 text-xs text-base-content/60">
-          Latest snapshot at {duration(activity.stateAt ?? 0)}
-        </p>
-      </div>
-    {/if}
     <div>
       <h3 class="mb-3 text-sm font-medium">Activity logs</h3>
       <pre class="m-0 whitespace-pre-wrap font-mono text-xs leading-relaxed wrap-anywhere"><AnsiText
