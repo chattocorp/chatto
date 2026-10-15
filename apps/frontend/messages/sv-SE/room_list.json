@@ -28,6 +28,8 @@
     "add_to_group": "Lägg till i {group}",
     "group_settings": "Inställningar för {group}",
     "server_actions": "Åtgärder för {server}",
-    "room_actions": "Åtgärder för #{room}"
+    "room_actions": "Åtgärder för #{room}",
+    "open_group_settings": "Öppna gruppinställningar",
+    "open_room_settings": "Öppna rumsinställningar"
   }
 }

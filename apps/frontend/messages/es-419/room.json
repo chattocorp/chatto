@@ -33,8 +33,8 @@
       "access_denied": "No tienes permiso para unirte a esta sala."
     },
     "leave": {
-      "title": "Salir de la habitación",
-      "action": "Salir de la habitación",
+      "title": "Salir de la sala",
+      "action": "Salir de la sala",
       "prompt": "¿Estás seguro de que quieres salir de #{room}? Puedes volver a unirte más tarde.",
       "failed": "No se pudo salir de la habitación"
     },
@@ -106,7 +106,8 @@
         "message_link_copied": "Enlace del mensaje copiado",
         "copy_link_failed": "No se pudo copiar el enlace",
         "image_copied": "Imagen copiada",
-        "copy_image_failed": "No se pudo copiar la imagen"
+        "copy_image_failed": "No se pudo copiar la imagen",
+        "view_reactions": "Ver reacciones"
       },
       "meta": {
         "echo": "Eco",

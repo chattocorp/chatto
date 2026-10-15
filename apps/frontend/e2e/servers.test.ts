@@ -378,7 +378,7 @@ test.describe('Leave Server', () => {
       .locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`)
       .first();
     await remoteSidebarIcon.click({ button: 'right' });
-    await page.getByRole('menuitem', { name: 'Sign out of this server' }).click();
+    await page.getByRole('menuitem', { name: 'Sign out of server' }).click();
 
     await expect(page).toHaveURL(/\/chat\/-/);
     await expect(remoteSidebarIcon).toHaveAttribute('title', /needs sign-in/, {
@@ -398,10 +398,10 @@ test.describe('Leave Server', () => {
     await page.waitForURL(new RegExp(`/chat/${remoteHostname.replace(/\./g, '\\.')}`));
     const signedOutView = page.getByTestId('server-signed-out');
     await expect(signedOutView).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: 'Log in to this server' })).toHaveCount(0);
+    await expect(page.getByRole('menuitem', { name: 'Log in to server' })).toHaveCount(0);
     expect(openedPopups).toBe(0);
     const popupPromise = page.waitForEvent('popup');
-    await signedOutView.getByRole('button', { name: 'Log in to this server' }).click();
+    await signedOutView.getByRole('button', { name: 'Log in to server' }).click();
     const popup = await popupPromise;
     expect(openedPopups).toBe(1);
     await popup.close();
@@ -434,7 +434,7 @@ test.describe('Leave Server', () => {
     await page.goto(routes.serverOverview);
     await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
     await page.locator('[data-testid="server-icon"][href$="/chat/-"]').click({ button: 'right' });
-    await page.getByRole('menuitem', { name: 'Sign out of this server' }).click();
+    await page.getByRole('menuitem', { name: 'Sign out of server' }).click();
 
     const remoteHostnameEsc = remoteHostname.replace(/\./g, '\\.');
     await page.waitForURL(new RegExp(`/chat/${remoteHostnameEsc}(/|$)`), {
@@ -490,7 +490,7 @@ test.describe('Origin Server', () => {
     // On origin: the leave-server affordance should not be present.
     await expect(page.getByTitle('Leave server')).not.toBeVisible();
     await page.locator('[data-testid="server-icon"][href$="/chat/-"]').click({ button: 'right' });
-    await expect(page.getByRole('menuitem', { name: 'Sign out of this server' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Sign out of server' })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: 'Remove server' })).toHaveCount(0);
   });
 });

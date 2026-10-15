@@ -21,13 +21,15 @@
     "empty_suffix": "per sfogliare la directory ed iscriverti a quelli che ti interessano.",
     "mark_as_read": "Segna come letto",
     "remove_server": "Rimuovi server",
-    "leave_room": "Lascia spazio",
+    "leave_room": "Lascia stanza",
     "copy_room_id": "Copia ID stanza",
     "copy_server_hostname": "Copia nome host del server",
     "room_settings": "Impostazioni della stanza",
     "add_to_group": "Aggiungi a {group}",
     "group_settings": "Impostazioni per {group}",
     "server_actions": "Azioni per {server}",
-    "room_actions": "Azioni per #{room}"
+    "room_actions": "Azioni per #{room}",
+    "open_group_settings": "Apri impostazioni del gruppo",
+    "open_room_settings": "Apri impostazioni della stanza"
   }
 }

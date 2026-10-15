@@ -640,7 +640,7 @@ describe('ModalContainer leave room modal', () => {
     };
 
     const { container } = render(ModalContainer);
-    clickButton(container, 'Leave Room');
+    clickButton(container, 'Leave room');
 
     await vi.waitFor(() => {
       expect(mocks.leaveRoom).toHaveBeenCalledWith('room-1');

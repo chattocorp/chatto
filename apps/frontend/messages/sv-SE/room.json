@@ -33,8 +33,8 @@
       "access_denied": "Du har inte behörighet att gå med i det här rummet."
     },
     "leave": {
-      "title": "Lämna rummet",
-      "action": "Lämna rummet",
+      "title": "Lämna rum",
+      "action": "Lämna rum",
       "prompt": "Är du säker på att du vill lämna #{room}? Du kan gå med igen senare.",
       "failed": "Det gick inte att lämna rummet"
     },
@@ -106,7 +106,8 @@
         "message_link_copied": "Meddelandelänken har kopierats",
         "copy_link_failed": "Det gick inte att kopiera länken",
         "image_copied": "Bilden har kopierats",
-        "copy_image_failed": "Det gick inte att kopiera bilden"
+        "copy_image_failed": "Det gick inte att kopiera bilden",
+        "view_reactions": "Visa reaktioner"
       },
       "meta": {
         "echo": "Eko",

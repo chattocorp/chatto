@@ -28,6 +28,8 @@
     "add_to_group": "Aldoni al {group}",
     "group_settings": "Agordoj por {group}",
     "server_actions": "Agoj por {server}",
-    "room_actions": "Agoj por #{room}"
+    "room_actions": "Agoj por #{room}",
+    "open_group_settings": "Malfermi agordojn de grupo",
+    "open_room_settings": "Malfermi agordojn de ĉambro"
   }
 }

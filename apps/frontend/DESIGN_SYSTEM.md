@@ -721,7 +721,6 @@ in the component explaining why Tailwind or a semantic utility is insufficient.
 - Treat each settings panel as one action scope. Its recommended committing
   action uses `action`, whether it submits a form or starts an immediate upload.
   A page can contain one recommended action in each independent panel.
-- Use sentence case for action labels, such as "Save changes" and "Upload logo".
 - Use `danger-secondary` for a quiet destructive action beside a recommended
   action. Do not apply a local danger text colour to `secondary` or `ghost`.
 
@@ -750,6 +749,27 @@ accepts the trigger attachment through `menu.attachment`.
 The supported variants are `action`, `neutral`, `secondary`, `ghost`,
 `warning`, `danger`, and `danger-secondary`. Use the variant whose meaning
 matches the action.
+
+## Action labels
+
+Apply these rules to actions in context menus, other menus, action sheets, and
+buttons:
+
+- Use sentence case for English labels. Capitalize the first word, proper
+  names, and acronyms: "Save changes", "Copy user ID", and "Copy server hostname".
+- Start with an action verb. Keep labels short, but include enough context to
+  identify the action: "Leave room", "View profile", and "Mark as read". Remove
+  unnecessary words, such as "this" in "Sign out of this server".
+- Use the same label for the same action across menus, action sheets, and
+  buttons.
+- Describe the action's result. For example, use "Open conversation" when an
+  action opens a conversation without sending a message.
+- Do not add terminal punctuation. Use an ellipsis (…)
+  only when the user must provide more input before the action can proceed.
+  Opening a view or asking for confirmation does not by itself need an ellipsis.
+- Write labels explicitly in the translation catalogs. Follow each language's
+  capitalization and grammar rules; English sentence case does not override
+  them. Do not change capitalization through CSS or runtime text conversion.
 
 ## Shape, Type, And Motion
 

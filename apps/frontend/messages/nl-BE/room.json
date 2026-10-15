@@ -33,8 +33,8 @@
       "access_denied": "Je hebt geen toestemming om deel te nemen aan deze chatruimte."
     },
     "leave": {
-      "title": "Verlaat de kamer",
-      "action": "Verlaat de kamer",
+      "title": "Ruimte verlaten",
+      "action": "Ruimte verlaten",
       "prompt": "Weet je zeker dat je #{room} wilt verlaten? Je kunt later weer meedoen.",
       "failed": "Kan de kamer niet verlaten"
     },
@@ -106,7 +106,8 @@
         "message_link_copied": "Berichtlink gekopieerd",
         "copy_link_failed": "Kan link niet kopiëren",
         "image_copied": "Afbeelding gekopieerd",
-        "copy_image_failed": "Kan afbeelding niet kopiëren"
+        "copy_image_failed": "Kan afbeelding niet kopiëren",
+        "view_reactions": "Reacties bekijken"
       },
       "meta": {
         "echo": "Echo",

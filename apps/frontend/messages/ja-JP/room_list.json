@@ -28,6 +28,8 @@
     "add_to_group": "{group}に追加",
     "group_settings": "{group}の設定",
     "server_actions": "{server}のアクション",
-    "room_actions": "#{room}のアクション"
+    "room_actions": "#{room}のアクション",
+    "open_group_settings": "グループ設定を開く",
+    "open_room_settings": "ルーム設定を開く"
   }
 }

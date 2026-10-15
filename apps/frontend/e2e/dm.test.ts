@@ -91,7 +91,7 @@ test.describe('Direct Messages (room-shaped)', () => {
           const profile = page.getByRole('dialog', { name: 'User profile' });
           await expect(profile).toBeVisible();
           expect(requestedAt).toBe('');
-          await profile.getByRole('button', { name: 'Send Message', exact: true }).click();
+          await profile.getByRole('button', { name: 'Open conversation', exact: true }).click();
           await expect(page).toHaveURL(new RegExp(`/chat/-/dm/${userB.id}$`));
           await expect.poll(() => requestedAt).toBe(`/chat/-/dm/${userB.id}`);
           await expect(page.getByRole('status', { name: 'Loading...', exact: true })).toBeVisible();

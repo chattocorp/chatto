@@ -111,7 +111,7 @@ test('can leave room immediately after creating it', async ({ page, chatPage }) 
   await expect(page.getByText(`Are you sure you want to leave`)).toBeVisible();
 
   // Confirm leave
-  await page.getByRole('dialog').getByRole('button', { name: 'Leave Room' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Leave room' }).click();
 
   // Should navigate away from the room to a different URL
   // Use a function predicate to wait for URL to change from the current room

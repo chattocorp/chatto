@@ -179,7 +179,7 @@ test.describe('message search', () => {
 
       const roomURL = page.url();
       await page.getByTitle('Leave room').click();
-      await page.getByRole('dialog').getByRole('button', { name: 'Leave Room' }).click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Leave room' }).click();
       await page.waitForURL((url) => url.href !== roomURL, {
         timeout: TIMEOUTS.REALTIME_EVENT
       });

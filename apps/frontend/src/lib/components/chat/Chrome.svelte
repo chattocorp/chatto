@@ -156,7 +156,7 @@
                 serverId: serverSegment,
                 roomId: managedRoom.id
               }),
-              label: m('room_list.room_settings'),
+              label: m('room_list.open_room_settings'),
               icon: 'iconify icon-[uil--setting]'
             }
           ]

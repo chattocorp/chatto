@@ -90,7 +90,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await cancelledPopupClosed;
     const logIn = page
       .getByTestId('server-signed-out')
-      .getByRole('button', { name: 'Log in to this server' });
+      .getByRole('button', { name: 'Log in to server' });
     await expect(logIn).toBeEnabled();
     const retryPopupPromise = page.waitForEvent('popup');
     await logIn.click();

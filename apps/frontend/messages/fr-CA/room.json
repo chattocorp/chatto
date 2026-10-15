@@ -33,8 +33,8 @@
       "access_denied": "Vous n'êtes pas autorisé à vous joindre à cette salle."
     },
     "leave": {
-      "title": "Sortir de la salle",
-      "action": "Sortir de la salle",
+      "title": "Quitter le salon",
+      "action": "Quitter le salon",
       "prompt": "Êtes-vous certain de vouloir quitter #{room} ? Vous pourrez vous joindre plus tard.",
       "failed": "Impossible de quitter la salle"
     },
@@ -106,7 +106,8 @@
         "message_link_copied": "Lien du message copié",
         "copy_link_failed": "Impossible de copier le lien",
         "image_copied": "Image copiée",
-        "copy_image_failed": "Impossible de copier l’image"
+        "copy_image_failed": "Impossible de copier l’image",
+        "view_reactions": "Voir les réactions"
       },
       "meta": {
         "echo": "Écho",

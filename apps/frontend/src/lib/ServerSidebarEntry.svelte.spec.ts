@@ -462,7 +462,7 @@ describe('ServerSidebarEntry', () => {
       .toHaveAttribute('aria-label', 'Actions for Loaded Remote');
   });
 
-  it('shows Copy Server Hostname last and copies the displayed host', async () => {
+  it('shows Copy server hostname last and copies the displayed host', async () => {
     mocks.server.url = 'https://remote.example.com:8443/chat';
     const { container } = render(ServerSidebarEntry, {
       props: { serverId: 'remote' }
@@ -478,7 +478,7 @@ describe('ServerSidebarEntry', () => {
       document.body,
       '[data-testid="copy-server-hostname"]'
     ) as HTMLButtonElement;
-    await expect.element(copyHostname).toHaveTextContent('Copy Server Hostname');
+    await expect.element(copyHostname).toHaveTextContent('Copy server hostname');
     const menuItems = copyHostname.closest('[role="menu"]')?.querySelectorAll('[role="menuitem"]');
     expect(menuItems?.item((menuItems?.length ?? 0) - 1)).toBe(copyHostname);
 
@@ -788,7 +788,7 @@ describe('ServerSidebarEntry', () => {
     openServerMenu(icon);
 
     await vi.waitFor(() => {
-      expect(document.body.textContent).toContain('Log in to this server');
+      expect(document.body.textContent).toContain('Log in to server');
     });
     const logIn = q(document.body, '[data-testid="server-log-in"]');
     const removeServer = Array.from(document.body.querySelectorAll('[role="menuitem"]')).find(
