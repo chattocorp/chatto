@@ -141,7 +141,10 @@ vi.mock('$lib/client', async () => ({
     isOriginServer: vi.fn(() => true),
     getServer: vi.fn(() => ({ id: 'origin', url: 'https://chat.example.test' })),
     originServer: { id: 'origin' },
-    servers: [{ id: 'origin', url: 'https://chat.example.test' }]
+    servers: [
+      { id: 'origin', url: 'https://chat.example.test' },
+      { id: 'remote', url: 'https://remote.example.test' }
+    ]
   }
 }));
 
@@ -2352,34 +2355,37 @@ describe('RoomList', () => {
     });
   });
 
-  it('renders active-server host sidebar links as same-tab anchors', async () => {
-    mocks.store.navigation.roomGroups = [
-      {
-        id: 'g1',
-        name: 'Links',
-        viewerCanManageGroup: false,
-        roomIds: [],
-        items: [
-          {
-            id: 'link:admin',
-            type: 'link',
-            link: {
-              id: 'admin',
-              label: 'Admin',
-              url: 'https://chat.example.test/admin'
+  it.each(['https://chat.example.test/admin', 'http://remote.example.test:8080/admin'])(
+    'renders registered-server hostname sidebar links as same-tab anchors: %s',
+    async (url) => {
+      mocks.store.navigation.roomGroups = [
+        {
+          id: 'g1',
+          name: 'Links',
+          viewerCanManageGroup: false,
+          roomIds: [],
+          items: [
+            {
+              id: 'link:admin',
+              type: 'link',
+              link: {
+                id: 'admin',
+                label: 'Admin',
+                url
+              }
             }
-          }
-        ]
-      }
-    ];
+          ]
+        }
+      ];
 
-    const { container } = render(RoomList);
+      const { container } = render(RoomList);
 
-    const link = q(container, '[href="https://chat.example.test/admin"]') as HTMLAnchorElement;
-    await expect.element(link).toBeInTheDocument();
-    expect(link.getAttribute('target')).toBeNull();
-    expect(link.getAttribute('rel')).toBeNull();
-  });
+      const link = q(container, `[href="${url}"]`) as HTMLAnchorElement;
+      await expect.element(link).toBeInTheDocument();
+      expect(link.getAttribute('target')).toBeNull();
+      expect(link.getAttribute('rel')).toBeNull();
+    }
+  );
 
   it('renders external sidebar links as new-tab anchors', async () => {
     mocks.store.navigation.roomGroups = [

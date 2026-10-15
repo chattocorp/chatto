@@ -1,3 +1,5 @@
+import { serverRegistry } from '$lib/client';
+
 export type SidebarLinkTarget =
   | {
       valid: true;
@@ -44,6 +46,11 @@ export function normalizeSidebarLinkURL(rawURL: string): string {
   return `https://${value}`;
 }
 
+/**
+ * Resolve server-local paths against the active server. Absolute HTTP(S) links
+ * stay in the current tab when their hostname belongs to a registered server.
+ * Registration is sufficient; the server does not need an active session.
+ */
 export function sidebarLinkTarget(
   rawURL: string,
   serverBaseURL: string | null | undefined
@@ -75,7 +82,11 @@ export function sidebarLinkTarget(
     return invalidSidebarLinkTarget();
   }
 
-  if (serverURL && parsed.origin === serverURL.origin) {
+  if (
+    serverRegistry.servers.some(
+      (server) => parseServerBaseURL(server.url)?.hostname === parsed.hostname
+    )
+  ) {
     return { valid: true, href: parsed.toString() };
   }
 

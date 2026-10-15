@@ -1,11 +1,53 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { normalizeSidebarLinkURL, sidebarLinkTarget } from './sidebarLinkTarget';
 
+const { registeredURLs } = vi.hoisted(() => ({ registeredURLs: [] as string[] }));
+
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    get servers() {
+      return registeredURLs.map((url) => ({ url }));
+    }
+  }
+}));
+
+beforeEach(() => {
+  registeredURLs.splice(
+    0,
+    registeredURLs.length,
+    'https://remote.example.test',
+    'http://localhost:4000'
+  );
+});
+
 describe('sidebarLinkTarget', () => {
-  it('opens a different scheme on the same host in a new tab', () => {
+  it.each(['https://remote.example.test/docs', 'http://remote.example.test:8080/docs'])(
+    'opens a registered hostname in the current tab even when another server is active: %s',
+    (url) => {
+      expect(sidebarLinkTarget(url, 'https://active.example.test')).toEqual({
+        valid: true,
+        href: url
+      });
+    }
+  );
+
+  it('requires registration even when the hostname matches the active server URL', () => {
     expect(
-      sidebarLinkTarget('http://remote.example.test/docs', 'https://remote.example.test')
+      sidebarLinkTarget('https://unknown.example.test/docs', 'https://unknown.example.test')
     ).toMatchObject({ target: '_blank', rel: 'noopener noreferrer' });
+  });
+
+  it('uses the current catalogue and ignores invalid server URLs', () => {
+    registeredURLs.unshift('not a URL');
+    expect(sidebarLinkTarget('https://remote.example.test/docs', null)).toEqual({
+      valid: true,
+      href: 'https://remote.example.test/docs'
+    });
+    registeredURLs.splice(0);
+    expect(sidebarLinkTarget('https://remote.example.test/docs', null)).toMatchObject({
+      target: '_blank'
+    });
   });
   it('resolves server-local paths against the active server base URL', () => {
     expect(sidebarLinkTarget('/docs', 'https://remote.example.test')).toEqual({
@@ -23,16 +65,14 @@ describe('sidebarLinkTarget', () => {
     });
   });
 
-  it('compares hosts with ports intact', () => {
+  it('matches hostnames independently of ports', () => {
     expect(sidebarLinkTarget('http://localhost:4000/docs', 'http://localhost:4000')).toEqual({
       valid: true,
       href: 'http://localhost:4000/docs'
     });
     expect(sidebarLinkTarget('http://localhost:4001/docs', 'http://localhost:4000')).toEqual({
       valid: true,
-      href: 'http://localhost:4001/docs',
-      target: '_blank',
-      rel: 'noopener noreferrer'
+      href: 'http://localhost:4001/docs'
     });
   });
 
