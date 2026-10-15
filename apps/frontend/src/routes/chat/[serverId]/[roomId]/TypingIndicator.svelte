@@ -92,7 +92,7 @@ announces changes politely to screen readers via a `role="status"` region.
 </script>
 
 <!-- Keep the live region mounted before text arrives so updates can be announced. -->
-<div role="status" aria-live="polite" aria-atomic="true" class="flex min-w-0 empty:hidden">
+<div role="status" aria-live="polite" aria-atomic="true" class="flex min-w-0">
   {#if activeUserIds.length > 0}
     <ComposerStatusBadge data-testid="typing-indicator" avatarPadding animate>
       {#each visibleMembers as member (member.id)}

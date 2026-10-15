@@ -5,6 +5,13 @@ import ComposerStatusRowMock from './ComposerStatusRowMock.svelte';
 import '../../../app.css';
 
 describe('Composer status badges', () => {
+  it('keeps the empty typing live region available before activity starts', () => {
+    const view = render(ComposerStatusRowMock, { typing: false });
+    const region = view.container.querySelector('[role="status"]')!;
+    expect(getComputedStyle(region).display).not.toBe('none');
+    expect(region.textContent?.trim()).toBe('');
+  });
+
   it('keeps slow mode visible beside long typing labels in both directions', async () => {
     const view = render(ComposerStatusRowMock, { remaining: 23 });
     for (const direction of ['ltr', 'rtl'] as const) {
