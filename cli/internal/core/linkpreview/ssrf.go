@@ -6,35 +6,12 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/netip"
 	"strings"
 	"time"
+
+	"github.com/chattocorp/chatto/cli/internal/ssrf"
 )
-
-// privateIPBlocks contains CIDR ranges for private/reserved IP addresses.
-var privateIPBlocks []*net.IPNet
-
-func init() {
-	// Initialize private IP blocks
-	cidrs := []string{
-		"0.0.0.0/8",      // "This network" (RFC1122) - routes to localhost on Linux
-		"127.0.0.0/8",    // IPv4 loopback
-		"10.0.0.0/8",     // RFC1918
-		"172.16.0.0/12",  // RFC1918
-		"192.168.0.0/16", // RFC1918
-		"169.254.0.0/16", // RFC3927 link-local
-		"::1/128",        // IPv6 loopback
-		"fe80::/10",      // IPv6 link-local
-		"fc00::/7",       // IPv6 unique local
-	}
-
-	for _, cidr := range cidrs {
-		_, block, err := net.ParseCIDR(cidr)
-		if err != nil {
-			panic(fmt.Sprintf("failed to parse CIDR %s: %v", cidr, err))
-		}
-		privateIPBlocks = append(privateIPBlocks, block)
-	}
-}
 
 // allowLocalhost can be set to true to permit loopback addresses (e.g. for e2e tests
 // that use a local mock HTTP server). This is set via init() in ssrf_testing.go when
@@ -45,21 +22,14 @@ type ipResolver interface {
 	LookupIP(context.Context, string, string) ([]net.IP, error)
 }
 
-// isPrivateIP checks if an IP address is in a private/reserved range.
+// isPrivateIP applies the shared outbound address policy, with the loopback-only
+// exception used by test builds. Invalid addresses fail closed.
 func isPrivateIP(ip net.IP) bool {
 	if ip.IsLoopback() {
 		return !allowLocalhost
 	}
-	if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
-		return true
-	}
-
-	for _, block := range privateIPBlocks {
-		if block.Contains(ip) {
-			return true
-		}
-	}
-	return false
+	address, ok := netip.AddrFromSlice(ip)
+	return !ok || ssrf.BlockedAddress(address)
 }
 
 // ssrfSafeDialContext returns a DialContext function that validates resolved IPs
@@ -76,6 +46,13 @@ func ssrfSafeDialContextWithResolver(timeout time.Duration, resolver ipResolver)
 
 // The localhost exception is host-scoped and never permits other private IPs.
 func ssrfSafeDialContextWithPolicy(timeout time.Duration, resolver ipResolver, localhost bool) func(context.Context, string, string) (net.Conn, error) {
+	dialer := &net.Dialer{Timeout: timeout, KeepAlive: 30 * time.Second}
+	return ssrfSafeDialContextWithDialer(timeout, resolver, localhost, dialer.DialContext)
+}
+
+// ssrfSafeDialContextWithDialer validates all results before calling dial. The
+// dial function receives IP literals only, with a per-attempt deadline.
+func ssrfSafeDialContextWithDialer(timeout time.Duration, resolver ipResolver, localhost bool, dial func(context.Context, string, string) (net.Conn, error)) func(context.Context, string, string) (net.Conn, error) {
 	return func(ctx context.Context, network, addr string) (net.Conn, error) {
 		host, port, err := net.SplitHostPort(addr)
 		if err != nil {
@@ -109,7 +86,7 @@ func ssrfSafeDialContextWithPolicy(timeout time.Duration, resolver ipResolver, l
 				}
 			}
 			if blocked {
-				return nil, fmt.Errorf("ssrf: blocked request to %s (resolves to private IP %s)", host, ip)
+				return nil, fmt.Errorf("ssrf: destination resolves to a blocked address")
 			}
 		}
 
@@ -122,11 +99,9 @@ func ssrfSafeDialContextWithPolicy(timeout time.Duration, resolver ipResolver, l
 		}
 		var dialErrors []error
 		for _, ip := range ips {
-			dialer := &net.Dialer{
-				Timeout:   attemptTimeout,
-				KeepAlive: 30 * time.Second,
-			}
-			conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+			attemptCtx, cancel := context.WithTimeout(ctx, attemptTimeout)
+			conn, err := dial(attemptCtx, network, net.JoinHostPort(ip.String(), port))
+			cancel()
 			if err == nil {
 				return conn, nil
 			}

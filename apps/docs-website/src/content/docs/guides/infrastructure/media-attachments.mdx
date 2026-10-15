@@ -92,8 +92,11 @@ or attachment is deleted. The panel has no search or filter.
 
 When a member writes a message with a URL, the Chatto server fetches the page
 metadata and preview image. The linked site sees the server's IP address, not
-the member's. The fetcher blocks private network addresses and caches results
-for a limited time. You do not need a separate worker.
+the member's. The fetcher blocks private and special-use network addresses,
+including shared-address space (`100.64.0.0/10`) and standard NAT64 ranges
+(`64:ff9b::/96` and `64:ff9b:1::/48`). If your server uses only NAT64 to reach
+a linked site, provide native IPv4 or IPv6 connectivity for previews. Results
+are cached for a limited time. You do not need a separate worker.
 
 Public Bluesky and Mastodon posts show as native cards with the author, text,
 images, and one quoted post. Mastodon content warnings stay closed until the
