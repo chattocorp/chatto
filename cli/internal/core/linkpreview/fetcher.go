@@ -100,11 +100,11 @@ type FetchResult struct {
 
 // Fetch fetches link preview metadata for a URL.
 func (f *Fetcher) Fetch(ctx context.Context, rawURL string) (*FetchResult, error) {
-	f.logger.Debug("Fetching link preview", "url", rawURL)
+	f.logger.Debug("Fetching link preview")
 
 	// Check for YouTube first - we can extract the video ID without fetching
 	if videoID := ParseYouTubeVideoID(rawURL); videoID != "" {
-		f.logger.Debug("Detected YouTube URL", "video_id", videoID)
+		f.logger.Debug("Detected YouTube URL")
 		return &FetchResult{
 			Title:     "YouTube Video",
 			EmbedType: "youtube",
@@ -122,7 +122,7 @@ func (f *Fetcher) Fetch(ctx context.Context, rawURL string) (*FetchResult, error
 		if errors.Is(err, errProviderModeration) {
 			return nil, fmt.Errorf("%w: provider moderation prevents preview", ErrUnavailable)
 		}
-		f.logger.Warn("Failed to fetch Bluesky oEmbed metadata", "url", rawURL, "error", err)
+		f.logger.Warn("Failed to fetch Bluesky oEmbed metadata", "error_kind", LogErrorKind(err))
 	}
 
 	// Mastodon status URLs are instance-local, so discovery and status data are
@@ -135,7 +135,7 @@ func (f *Fetcher) Fetch(ctx context.Context, rawURL string) (*FetchResult, error
 		if errors.Is(err, errProviderModeration) {
 			return nil, fmt.Errorf("%w: provider visibility prevents preview", ErrUnavailable)
 		}
-		f.logger.Warn("Failed to fetch Mastodon status metadata", "url", rawURL, "error", err)
+		f.logger.Warn("Failed to fetch Mastodon status metadata", "error_kind", LogErrorKind(err))
 	}
 
 	// Fetch the page with a size limit to prevent memory exhaustion
@@ -148,7 +148,7 @@ func (f *Fetcher) Fetch(ctx context.Context, rawURL string) (*FetchResult, error
 
 	resp, err := f.httpClient.Do(req)
 	if err != nil {
-		f.logger.Warn("Failed to fetch page", "url", rawURL, "error", err)
+		f.logger.Warn("Failed to fetch page", "error_kind", LogErrorKind(err))
 		return nil, fmt.Errorf("%w: fetch page: %v", ErrUnavailable, err)
 	}
 	defer resp.Body.Close()
@@ -165,24 +165,15 @@ func (f *Fetcher) Fetch(ctx context.Context, rawURL string) (*FetchResult, error
 	// Parse OG metadata with a size-limited reader
 	og := opengraph.New(rawURL)
 	if err := og.Parse(io.LimitReader(resp.Body, MaxPageSize)); err != nil {
-		f.logger.Warn("Failed to parse OG metadata", "url", rawURL, "error", err)
+		f.logger.Warn("Failed to parse OG metadata", "error_kind", LogErrorKind(err))
 		return nil, fmt.Errorf("%w: parse metadata: %v", ErrUnavailable, err)
 	}
 
 	// Convert relative URLs to absolute
 	og.ToAbs()
 
-	var imageURL string
-	if len(og.Image) > 0 {
-		imageURL = og.Image[0].URL
-	}
 	f.logger.Debug("Fetched OG metadata",
-		"url", rawURL,
-		"title", og.Title,
-		"description", truncate(og.Description, 50),
-		"site_name", og.SiteName,
 		"image_count", len(og.Image),
-		"image_url", imageURL,
 	)
 
 	result := &FetchResult{
@@ -204,17 +195,17 @@ func (f *Fetcher) Fetch(ctx context.Context, rawURL string) (*FetchResult, error
 	// Download and store the preview image if available
 	if len(og.Image) > 0 && og.Image[0].URL != "" {
 		imageURL := og.Image[0].URL
-		f.logger.Debug("Attempting to download preview image", "image_url", imageURL)
+		f.logger.Debug("Attempting to download preview image")
 		asset, err := f.downloadAndStoreImage(ctx, imageURL)
 		if err != nil {
-			f.logger.Warn("Failed to download preview image", "url", imageURL, "error", err)
+			f.logger.Warn("Failed to download preview image", "error_kind", LogErrorKind(err))
 			// Continue without image - don't fail the whole preview
 		} else {
 			f.logger.Debug("Successfully stored preview image", "asset_id", asset.GetId())
 			result.ImageAsset = asset
 		}
 	} else {
-		f.logger.Debug("No preview image found", "url", rawURL)
+		f.logger.Debug("No preview image found")
 	}
 
 	return result, nil
@@ -567,7 +558,7 @@ func (f *Fetcher) downloadSocialPostImage(ctx context.Context, imageURL string, 
 	asset, consumed, err := f.downloadAndStoreImageWithLimit(ctx, imageURL, maxBytes)
 	budget.bytesRemaining -= min(consumed, budget.bytesRemaining)
 	if err != nil {
-		f.logger.Warn("Failed to persist social-post image", "url", imageURL, "error", err)
+		f.logger.Warn("Failed to persist social-post image", "error_kind", LogErrorKind(err))
 		return nil
 	}
 	return asset
@@ -628,14 +619,6 @@ var (
 	validBlueskyRecordKey = regexp.MustCompile(`^[A-Za-z0-9._:~-]+$`)
 )
 
-// truncate truncates a string to maxLen characters, adding "..." if truncated.
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "..."
-}
-
 // downloadAndStoreImage downloads an image and stores it as an server asset.
 func (f *Fetcher) downloadAndStoreImage(ctx context.Context, imageURL string) (*evtv1.AssetRecord, error) {
 	asset, _, err := f.downloadAndStoreImageWithLimit(ctx, imageURL, int64(MaxImageSize))
@@ -658,10 +641,8 @@ func (f *Fetcher) downloadAndStoreImageWithLimit(ctx context.Context, imageURL s
 	defer resp.Body.Close()
 
 	f.logger.Debug("Image fetch response",
-		"url", imageURL,
 		"status", resp.StatusCode,
-		"content_type", resp.Header.Get("Content-Type"),
-		"content_length", resp.Header.Get("Content-Length"),
+		"content_length", resp.ContentLength,
 	)
 
 	if resp.StatusCode != http.StatusOK {
