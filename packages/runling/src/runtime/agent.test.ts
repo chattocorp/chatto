@@ -1754,14 +1754,15 @@ test('expired provider login returns a safe actionable failure without report re
 test.each(['root', 'child', 'report'])(
   'the CLI keeps run details and only prints the root answer with a %s agent',
   async (kind) => {
-    const { mkdtemp, readFile, readdir, rm, writeFile } = await import('node:fs/promises');
+    const { mkdir, mkdtemp, readFile, readdir, rm, writeFile } = await import('node:fs/promises');
     const { fileURLToPath } = await import('node:url');
     const { join } = await import('node:path');
     const { runRunling } = await import('./runner.ts');
     const { step } = await import('./step.ts');
-    const directory = await mkdtemp(
-      fileURLToPath(new URL('../../../../.context/agent-cli-', import.meta.url))
-    );
+    const scratch = fileURLToPath(new URL('../../../../.context/', import.meta.url));
+    // A clean checkout, including CI, does not have the gitignored scratch directory yet.
+    await mkdir(scratch, { recursive: true });
+    const directory = await mkdtemp(join(scratch, 'agent-cli-'));
     const runtime = fileURLToPath(new URL('./index.ts', import.meta.url));
     const workflow = join(directory, 'workflow.ts');
     const markdown = '## Answer once\n\n1. **First issue**\n2. Second issue';
