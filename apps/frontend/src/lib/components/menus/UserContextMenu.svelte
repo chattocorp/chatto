@@ -13,8 +13,8 @@ keep the compact menu without a navigation action.
 - `anchorRect` - Bounding rect of the trigger element (used for desktop positioning)
 - `position` - Viewport point used by right-click and long-press triggers
 - `presentation` - Optional floating/sheet presentation selected by the trigger
-- `canSendMessage` - Whether to show the "Send Message" button
-- `onSendMessage` - Callback when "Send Message" is clicked
+- `canSendMessage` - Whether to show the "Open conversation" button
+- `onSendMessage` - Callback when "Open conversation" is clicked
 - `canBanFromRoom` - Whether to show the room removal action
 - `banningFromRoom` - Whether the room removal action is currently running
 - `onBanFromRoom` - Callback when "Remove from room" is clicked
