@@ -3,6 +3,18 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.17](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.16...v0.5.0-beta.17) (2026-10-15)
+
+
+### Features
+
+* **client:** allow best-effort access to older remote servers ([#3008](https://github.com/chattocorp/chatto/issues/3008)) ([af103a3](https://github.com/chattocorp/chatto/commit/af103a36c9c592fbeef20d5f1b16334b670f3ac7))
+
+
+### Bug Fixes
+
+* **frontend:** default timestamp picker to current time ([#3009](https://github.com/chattocorp/chatto/issues/3009)) ([b6d14f4](https://github.com/chattocorp/chatto/commit/b6d14f469583a8fa65bdab17aff343d419f67ed1))
+
 ## [0.5.0-beta.16](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.15...v0.5.0-beta.16) (2026-10-15)
 
 
