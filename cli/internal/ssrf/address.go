@@ -38,10 +38,13 @@ var specialUsePrefixes = []netip.Prefix{
 	netip.MustParsePrefix("192.88.99.0/24"), netip.MustParsePrefix("192.175.48.0/24"),
 	netip.MustParsePrefix("198.18.0.0/15"), netip.MustParsePrefix("198.51.100.0/24"),
 	netip.MustParsePrefix("203.0.113.0/24"), netip.MustParsePrefix("240.0.0.0/4"),
-	netip.MustParsePrefix("::/96"),
+	// Legacy IPv4-compatible and IPv4-translated ranges (RFC 2765).
+	netip.MustParsePrefix("::/96"), netip.MustParsePrefix("::ffff:0:0:0/96"),
 	netip.MustParsePrefix("64:ff9b::/96"), netip.MustParsePrefix("64:ff9b:1::/48"),
 	netip.MustParsePrefix("100::/64"), netip.MustParsePrefix("100:0:0:1::/64"),
 	netip.MustParsePrefix("2001::/23"), netip.MustParsePrefix("2001:db8::/32"),
 	netip.MustParsePrefix("2002::/16"), netip.MustParsePrefix("2620:4f:8000::/48"),
 	netip.MustParsePrefix("3fff::/20"), netip.MustParsePrefix("5f00::/16"),
+	// Deprecated IPv6 site-local addresses (RFC 3879).
+	netip.MustParsePrefix("fec0::/10"),
 }
