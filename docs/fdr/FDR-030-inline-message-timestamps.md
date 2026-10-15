@@ -1,7 +1,7 @@
 # FDR-030: Inline Message Timestamps
 
 **Status:** Active
-**Last reviewed:** 2026-07-12
+**Last reviewed:** 2026-10-15
 
 ## Overview
 
@@ -14,6 +14,8 @@ events or reminders.
 
 - The bundled composer includes a timestamp picker with a date/time field and
   IANA timezone field.
+- Each time the picker opens, it shows the current browser time in the user's
+  preferred timezone, or the browser timezone if no preference is set.
 - Inserting a timestamp writes a stable text token into the message body:
   `<t:UNIX_SECONDS:F>`.
 - Rendered messages replace valid timestamp tokens with localized date-time
