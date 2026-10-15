@@ -13,7 +13,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
   import {
-    LoadingFog,
+    LoadingDots,
     EmptyState,
     Hint,
     PaneContent,
@@ -23,7 +23,11 @@
     PageTitle
   } from '$lib/ui';
 
-  import { createThreadAPI, type FollowedThread } from '@chatto/client/api/threads';
+  import {
+    createThreadAPI,
+    ThreadRootAuthorFilter,
+    type FollowedThread
+  } from '@chatto/client/api/threads';
   import { createReadStateAPI } from '@chatto/client/api/readState';
   import DaySeparator from '$lib/components/DaySeparator.svelte';
   import ThreadRow from './ThreadRow.svelte';
@@ -92,6 +96,18 @@
   }
 
   const filter = $derived(page.state.threadFilter ?? 'all');
+  const tab = $derived(page.state.threadTab ?? 'followed');
+  const rootAuthorFilter = $derived(
+    tab === 'mine' ? ThreadRootAuthorFilter.VIEWER : ThreadRootAuthorFilter.OTHERS
+  );
+  const tabOptions = $derived([
+    { value: 'followed' as const, label: m('chat.threads.tab_followed') },
+    { value: 'mine' as const, label: m('chat.threads.tab_started') }
+  ]);
+
+  function setTab(value: 'mine' | 'followed') {
+    replaceState('', { ...page.state, threadTab: value });
+  }
   const filterOptions = $derived([
     { value: 'all' as const, label: m('chat.threads.filter_all') },
     { value: 'unread' as const, label: m('chat.threads.filter_unread') }
@@ -105,10 +121,15 @@
     const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     const query = searchQuery;
+    const authorFilter = rootAuthorFilter;
     // Search results are filtered locally below.
     const unreadOnly = !query && filter === 'unread';
     return {
-      queryKey: threadQueryKeys.followed(serverId, connection, { query, unreadOnly }),
+      queryKey: threadQueryKeys.followed(serverId, connection, {
+        query,
+        unreadOnly,
+        rootAuthorFilter: authorFilter
+      }),
       enabled: !query || searchStatus.available,
       queryFn: async ({ pageParam, signal }) => {
         const result = await connection.getAPI(createThreadAPI).listFollowedThreads(
@@ -117,6 +138,7 @@
             offset: typeof pageParam === 'number' ? pageParam : 0,
             cursor: typeof pageParam === 'string' ? pageParam : undefined,
             query,
+            rootAuthorFilter: authorFilter,
             unreadOnly
           },
           { signal }
@@ -339,7 +361,13 @@
             />
           </div>
         {/if}
-        <div class="ms-auto">
+        <div class="ms-auto flex max-w-full shrink-0 flex-wrap items-center gap-3">
+          <SegmentedControl
+            label={m('chat.threads.tab_label')}
+            options={tabOptions}
+            value={tab}
+            onchange={setTab}
+          />
           <SegmentedControl
             label={m('chat.threads.filter_label')}
             options={filterOptions}
@@ -363,10 +391,10 @@
             onRetry={() => void searchStatus.refreshStatus()}
             checkingClass="p-6 text-muted"
           >
-            <LoadingFog class="m-6 h-32" label={m('search.checking')} />
+            <LoadingDots class="py-6" label={m('search.checking')} />
           </SearchAvailability>
         {:else if waitingForSearch || (loading && threads.length === 0)}
-          <LoadingFog class="m-6 h-48" />
+          <LoadingDots class="py-6" />
         {:else if error}
           <div class="m-6">
             <Hint tone="danger">{error}</Hint>
@@ -376,11 +404,18 @@
             {m('search.no_results.description')}
           </EmptyState>
         {:else if threads.length === 0 && filter === 'all'}
-          <EmptyState icon="icon-[uil--comment-lines]" title={m('chat.threads.empty_title')}>
-            {m('chat.threads.empty_body')}
+          <EmptyState
+            icon="icon-[uil--comment-lines]"
+            title={tab === 'mine'
+              ? m('chat.threads.empty_mine_title')
+              : m('chat.threads.empty_title')}
+          >
+            {tab === 'mine'
+              ? m('chat.threads.empty_mine_body')
+              : m('chat.threads.empty_followed_body')}
           </EmptyState>
         {:else if filteredThreads.length === 0 && hasMore}
-          <LoadingFog class="m-6 h-48" />
+          <LoadingDots class="py-6" />
         {:else if filteredThreads.length === 0}
           <EmptyState icon="icon-[uil--comment-check]" title={m('chat.threads.all_caught_up')}>
             {m('chat.threads.no_unread')}
@@ -433,7 +468,7 @@
             {/each}
             {#if hasMore}
               <div class="flex min-h-14 justify-center p-4" {@attach loadMoreWhenVisible}>
-                {#if loadingMore}<LoadingFog class="h-10 w-full" />{/if}
+                {#if loadingMore}<LoadingDots />{/if}
               </div>
             {/if}
           </div>

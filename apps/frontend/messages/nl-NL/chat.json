@@ -89,8 +89,14 @@
       "body": "Meld je aan om berichten op deze server te lezen en te versturen."
     },
     "threads": {
-      "title": "Mijn discussies",
-      "subtitle": "Discussies die je volgt",
+      "tab_started": "Van mij",
+      "tab_followed": "Gevolgd",
+      "tab_label": "Threadweergave",
+      "empty_mine_title": "Geen door jou gestarte threads",
+      "empty_mine_body": "Threads die je start en volgt, verschijnen hier.",
+      "empty_followed_body": "Threads van anderen die je volgt, verschijnen hier.",
+      "title": "Discussies",
+      "subtitle": "Nieuwe activiteit in je discussies",
       "filter_label": "Discussies filteren",
       "filter_all": "Allemaal",
       "filter_unread": "Ongelezen",

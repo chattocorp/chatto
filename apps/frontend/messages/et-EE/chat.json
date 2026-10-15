@@ -89,8 +89,14 @@
       "body": "Logige sisse, et selles serveris sõnumeid lugeda ja saata."
     },
     "threads": {
-      "title": "Minu lõimed",
-      "subtitle": "Lõimed, mida jälgite",
+      "tab_started": "Minu",
+      "tab_followed": "Jälgitavad",
+      "tab_label": "Lõimede vaade",
+      "empty_mine_title": "Te pole lõimesid alustanud",
+      "empty_mine_body": "Siin kuvatakse lõimed, mille olete alustanud ja mida jälgite.",
+      "empty_followed_body": "Siin kuvatakse teiste alustatud lõimed, mida jälgite.",
+      "title": "Lõimed",
+      "subtitle": "Uus tegevus teie lõimedes",
       "filter_label": "Filtreeri niidid",
       "filter_all": "Kõik",
       "filter_unread": "Lugemata",

@@ -83,8 +83,18 @@ func (s *messageSearchService) SearchMessages(ctx context.Context, req *connect.
 	}
 	providerRequest.Cursor = providerCursor
 	followedOnly := req.Msg.GetScope() == apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS
+	rootAuthor := core.ThreadRootAuthorFilter(req.Msg.GetRootAuthorFilter())
+	if err := rootAuthor.Validate(); err != nil {
+		return nil, err
+	}
+	if !followedOnly && rootAuthor != core.ThreadRootAuthorAll {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("root author filter requires followed-thread scope"))
+	}
 	if followedOnly {
-		providerRequest.ThreadRootIds = s.api.core.MessageSearchReads().FollowedSearchRoots(scope, caller.UserID)
+		providerRequest.ThreadRootIds, err = s.api.core.MessageSearchReads().FollowedSearchRoots(ctx, scope, caller.UserID, rootAuthor)
+		if err != nil {
+			return nil, err
+		}
 		if len(providerRequest.ThreadRootIds) == 0 {
 			scope.NoMatches = true
 		}

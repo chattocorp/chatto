@@ -13,17 +13,73 @@ import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import * as routes from './routes';
 
 test.describe('My Threads', () => {
+  test('separates root authors and retains unread selection when switching tabs', async ({
+    page,
+    chatPage,
+    browser,
+    serverURL
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
+    const mineText = `My conversation ${Date.now()}`;
+    const theirsText = `Their conversation ${Date.now()}`;
+    const mine = await postMessageViaConnect(page, roomId, mineText);
+    await withServerUser(browser, serverURL, async (other) => {
+      await other.chatPage.enterRoom('general');
+      const theirs = await postMessageViaConnect(other.page, roomId, theirsText);
+      await postThreadReplyViaConnect(page, roomId, 'Join their conversation', theirs);
+      await postThreadReplyViaConnect(other.page, roomId, 'Reply to my conversation', mine);
+      await postThreadReplyViaConnect(
+        other.page,
+        roomId,
+        'Unread reply in their conversation',
+        theirs
+      );
+    });
+    const myThreads = new MyThreadsPage(page);
+    await myThreads.goto();
+    await expect(page.getByRole('radio', { name: 'Followed', exact: true })).toBeChecked();
+    await expect(page.getByRole('radio').first()).toHaveAccessibleName('Followed');
+    await expect(myThreads.threadItems).toContainText(theirsText);
+    await page.getByRole('radio', { name: 'Mine', exact: true }).check();
+    await expect(myThreads.threadItems).toHaveCount(1);
+    await expect(myThreads.threadItems).toContainText(mineText);
+    await page.getByRole('radio', { name: 'Unread', exact: true }).check();
+    const mineTab = page.getByRole('radio', { name: 'Mine', exact: true });
+    await mineTab.focus();
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.getByRole('radio', { name: 'Followed', exact: true })).toBeChecked();
+    await expect(page.getByRole('radio', { name: 'Unread', exact: true })).toBeChecked();
+    await expect(myThreads.threadItems).toHaveCount(1);
+    await expect(myThreads.threadItems).toContainText(theirsText);
+    await myThreads.threadItems.hover();
+    await myThreads.threadItems
+      .getByRole('button', { name: 'Unfollow thread', exact: true })
+      .click();
+    await expect(myThreads.threadItems).toHaveCount(0);
+    await mineTab.check();
+    await expect(myThreads.threadItems).toHaveCount(1);
+    await expect(myThreads.threadItems).toContainText(mineText);
+  });
+
   test('shows empty state when no threads are followed', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
     const myThreads = new MyThreadsPage(page);
 
-    await myThreads.goto();
+    await myThreads.goto('mine');
 
     // Should show empty state
+    await expect(page.getByText('No threads started by you')).toBeVisible();
+    await expect(page.getByText('Threads you start and follow will appear here.')).toBeVisible();
+    await page.getByRole('radio', { name: 'Followed', exact: true }).check();
     await expect(page.getByText('No followed threads')).toBeVisible();
-    await expect(page.getByText('Threads you follow will appear here')).toBeVisible();
+    await expect(
+      page.getByText('Threads started by others that you follow will appear here.')
+    ).toBeVisible();
   });
 
   test('followed thread appears in My Threads list', async ({ page, chatPage, roomPage }) => {
@@ -41,7 +97,7 @@ test.describe('My Threads', () => {
     await roomPage.postThreadReply(`Reply ${Date.now()}`);
     await roomPage.closeThread();
 
-    await myThreads.goto();
+    await myThreads.goto('mine');
 
     // Thread should appear with room name, root message preview, and reply count
     await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
@@ -71,7 +127,7 @@ test.describe('My Threads', () => {
     await roomPage.closeThread();
 
     const myThreads = new MyThreadsPage(page);
-    await myThreads.goto();
+    await myThreads.goto('mine');
 
     const threadItem = myThreads.threadItems;
     await expect(threadItem).toBeVisible();
@@ -101,7 +157,7 @@ test.describe('My Threads', () => {
     await roomPage.postThreadReply(`Reply ${Date.now()}`);
     await roomPage.closeThread();
 
-    await myThreads.goto();
+    await myThreads.goto('mine');
 
     // Click the thread entry
     await myThreads.threadItems.click();
@@ -130,10 +186,10 @@ test.describe('My Threads', () => {
     await rootMsg.toggleThreadFollow();
     await rootMsg.expectNotFollowingThread();
 
-    await myThreads.goto();
+    await myThreads.goto('mine');
 
     // Thread should not appear
-    await expect(page.getByText('No followed threads')).toBeVisible();
+    await expect(page.getByText('No threads started by you')).toBeVisible();
   });
 
   test('new reply updates reply count in real-time', async ({
@@ -157,7 +213,7 @@ test.describe('My Threads', () => {
     await roomPage.postThreadReply(`Reply from A ${Date.now()}`);
     await roomPage.closeThread();
 
-    await myThreads.goto();
+    await myThreads.goto('mine');
 
     // Verify 1 reply shown
     await expect(page.getByText('1 reply')).toBeVisible();
@@ -165,7 +221,8 @@ test.describe('My Threads', () => {
     // Reload on My Threads so the source room timeline is not retained. Reply
     // activity must still refresh the query-backed conversation summary.
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'My Threads' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Threads', exact: true })).toBeVisible();
+    await page.getByRole('radio', { name: 'Mine', exact: true }).check();
     await expect(page.getByText('1 reply')).toBeVisible();
 
     // User B opens the thread and posts a reply
@@ -203,7 +260,7 @@ test.describe('My Threads', () => {
     await roomPage.postThreadReply(`Reply from A ${Date.now()}`);
     await roomPage.closeThread();
 
-    await myThreads.goto();
+    await myThreads.goto('mine');
 
     // Initially there is no mark-read action (we just replied, so it is read).
     // Use toPass() to allow subscriptions to settle before asserting absence
@@ -270,7 +327,7 @@ test.describe('My Threads', () => {
 
     // Navigate to My Threads — sidebar indicator should still be visible (visiting the list
     // doesn't mark threads as read; you need to open each thread individually)
-    await myThreads.goto();
+    await myThreads.goto('mine');
     await expect(myThreads.sidebarUnreadIndicator).toBeVisible();
   });
 
@@ -318,7 +375,7 @@ test.describe('My Threads', () => {
       await expect(myThreads.sidebarUnreadIndicator).not.toBeVisible();
     }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
 
-    await myThreads.goto();
+    await myThreads.goto('mine');
     await page.getByRole('radio', { name: 'Unread' }).click();
     await expect(page.getByText('All caught up')).toBeVisible();
     await expect(myThreads.myThreadsLink.locator('[data-testid]')).toHaveCount(0);
@@ -358,7 +415,7 @@ test.describe('My Threads', () => {
       await postThreadReplyFromServerUser(browser!, serverURL, rootText, replyText);
 
       const myThreads = new MyThreadsPage(page);
-      await myThreads.goto();
+      await myThreads.goto('mine');
       await page.getByRole('radio', { name: 'Unread' }).click();
       const threadItem = myThreads.threadItems;
       await expect(threadItem).toHaveCount(1);
@@ -378,7 +435,7 @@ test.describe('My Threads', () => {
     });
   }
 
-  test('manually following a thread from room view shows it in My Threads', async ({
+  test('manually following another author shows the thread in Followed', async ({
     page,
     chatPage,
     roomPage,
@@ -420,8 +477,10 @@ test.describe('My Threads', () => {
     await rootMsg.toggleThreadFollow();
     await rootMsg.expectFollowingThread();
 
-    // Navigate to My Threads — the manually followed thread should appear
-    await myThreads.goto();
+    // Other authors appear only in Followed.
+    await myThreads.goto('mine');
+    await expect(myThreads.threadItems).toHaveCount(0);
+    await page.getByRole('radio', { name: 'Followed', exact: true }).check();
 
     const threadItem = myThreads.threadItems;
     await expect(threadItem).toBeVisible();
@@ -447,7 +506,7 @@ test.describe('My Threads', () => {
     await roomPage.postThreadReply(`Reply ${Date.now()}`);
     await roomPage.closeThread();
 
-    await myThreads.goto();
+    await myThreads.goto('mine');
 
     // Default filter is "All" — thread is visible
     await expect(myThreads.threadItems).toBeVisible();
@@ -500,7 +559,7 @@ test.describe('My Threads', () => {
       `Reply from B ${Date.now()}`
     );
 
-    await myThreads.goto();
+    await myThreads.goto('mine');
 
     // "All" shows both threads
     await expect(myThreads.threadItems).toHaveCount(2, {
@@ -529,7 +588,7 @@ test.describe('My Threads', () => {
     await roomPage.postThreadReply(`Reply ${Date.now()}`);
     await roomPage.closeThread();
 
-    await myThreads.goto();
+    await myThreads.goto('mine');
 
     // Switch to "Unread" filter
     await page.getByRole('radio', { name: 'Unread' }).click();
@@ -580,7 +639,7 @@ test.describe('My Threads', () => {
     page.on('pageerror', (err) => pageErrors.push(err.message));
 
     // Navigate to My Threads
-    await myThreads.goto();
+    await myThreads.goto('mine');
     await expect(myThreads.threadItems).toBeVisible();
 
     // Click the thread — opens room with thread pane
@@ -635,7 +694,7 @@ test.describe('My Threads', () => {
     await roomPage.postThreadReply(`Reply to second ${Date.now()}`);
     await roomPage.closeThread();
 
-    await myThreads.goto();
+    await myThreads.goto('mine');
 
     // Both threads should be visible
     const items = myThreads.threadItems;

@@ -1,7 +1,7 @@
 # FDR-031: Client–Server Compatibility Discovery
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-29
+**Last reviewed:** 2026-10-15
 
 ## Overview
 
@@ -19,7 +19,7 @@ Chatto's pre-1.0 API remains experimental.
   and provides a final action that copies that exact host, including a
   non-default port, to the clipboard.
 - A warning marker appears when the server predates the oldest version
-  supported by the current client. The 0.5 client supports `0.5.0-beta.9` and
+  supported by the current client. The 0.5 client supports `0.5.0-beta.16` and
   newer. It classifies older servers as unsupported and does not open their
   realtime stream.
 - Servers with non-standard or unparseable versions remain explicitly unknown.

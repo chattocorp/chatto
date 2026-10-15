@@ -89,8 +89,14 @@
       "body": "Logg inn for å lese og sende meldinger på denne serveren."
     },
     "threads": {
-      "title": "Mine tråder",
-      "subtitle": "Tråder du følger",
+      "tab_started": "Mine",
+      "tab_followed": "Fulgte",
+      "tab_label": "Trådvisning",
+      "empty_mine_title": "Ingen tråder startet av deg",
+      "empty_mine_body": "Tråder du starter og følger, vises her.",
+      "empty_followed_body": "Tråder andre starter og som du følger, vises her.",
+      "title": "Tråder",
+      "subtitle": "Ny aktivitet i trådene dine",
       "filter_label": "Filtertråder",
       "filter_all": "Alle",
       "filter_unread": "Ulest",

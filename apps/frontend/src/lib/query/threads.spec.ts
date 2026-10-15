@@ -1,6 +1,7 @@
 import { InfiniteQueryObserver } from '@tanstack/svelte-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FollowedThread, FollowedThreadsPage } from '@chatto/client/api/threads';
+import { ThreadRootAuthorFilter } from '@chatto/client/api/threads';
 import { queryCaches } from './cacheRegistry';
 import { queryClient } from './queryClient';
 import {
@@ -41,6 +42,30 @@ function data(...pages: FollowedThreadsPage[]): FollowedThreadsData {
 
 describe('followed thread query helpers', () => {
   afterEach(() => queryClient.clear());
+
+  it('isolates author feeds and clears every tab on access loss and reset', () => {
+    const connection = { queryScope: 'session-1' };
+    const keys = [ThreadRootAuthorFilter.VIEWER, ThreadRootAuthorFilter.OTHERS].flatMap(
+      (rootAuthorFilter) => [
+        threadQueryKeys.followed('origin', connection, { rootAuthorFilter }),
+        threadQueryKeys.followed('origin', connection, { rootAuthorFilter, unreadOnly: true }),
+        threadQueryKeys.followed('origin', connection, { rootAuthorFilter, query: 'needle' })
+      ]
+    );
+    expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(6);
+    for (const key of keys) {
+      queryClient.setQueryData(
+        key,
+        data({ threads: [thread('root')], totalCount: 1, hasMore: false })
+      );
+    }
+    queryCaches.followedThreads!.scrubRoom('origin', 'room-1');
+    for (const key of keys)
+      expect(flattenFollowedThreads(queryClient.getQueryData(key))).toEqual([]);
+    queryCaches.followedThreads!.reset('origin');
+    for (const key of keys)
+      expect(queryClient.getQueryData(key)).toEqual({ pages: [], pageParams: [] });
+  });
 
   it('flattens pages without duplicating a thread returned across page boundaries', () => {
     const first = thread('root-1');

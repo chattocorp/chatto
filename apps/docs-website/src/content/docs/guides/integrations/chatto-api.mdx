@@ -342,6 +342,11 @@ options. Results are live, so start pagination again after changes.
 - `NEWEST` orders by the newest matching message. `THREAD_ACTIVITY` orders by
   the latest thread activity and requires thread grouping.
 - Room, author, date, and attachment filters apply in all modes.
+- Within `FOLLOWED_THREADS`, set `rootAuthorFilter` to
+  `THREAD_ROOT_AUTHOR_FILTER_VIEWER` or `THREAD_ROOT_AUTHOR_FILTER_OTHERS`
+  to select who started the threads. Omit it to include all followed threads.
+  This filter also applies to `ThreadService.ListFollowedThreads`. Search
+  still checks roots and replies; `from:` selects matching message authors.
 
 See the [search API reference](/reference/connectrpc-api/message-search/).
 

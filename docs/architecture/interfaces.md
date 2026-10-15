@@ -382,7 +382,11 @@ the continuation and bind it to the viewer and complete public request.
 `MessageSearchService.SearchMessages` accepts independent `FOLLOWED_THREADS`
 scope and `THREAD` grouping. Message search retains its defaults. All modes
 share parsing, structured filters, availability, and cursor sealing.
-`MessageSearchReadModel` sends the complete followed-root set when requested.
+`MessageSearchReadModel` sends the followed-root set when requested, restricted
+by `root_author_filter` when selected. `ThreadService.ListFollowedThreads`
+applies the same root-author filter before pagination and total counts. Both
+paths read the root message author from the timeline projection; unspecified preserves the combined
+feed. Search cursors bind the filter with the rest of the request.
 For groups it validates matching body revisions, excludes resolved roots on
 subsequent queries, and restarts the provider cursor when exclusions change.
 This avoids scanning every matching reply. Provider pages contain at most 100

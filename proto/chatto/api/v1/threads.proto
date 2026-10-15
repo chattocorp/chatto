@@ -9,6 +9,16 @@ import "chatto/api/v1/read_state.proto";
 import "chatto/api/v1/room_timeline.proto";
 import "chatto/api/v1/rooms.proto";
 
+// Selects threads by the author of their root message, not their replies.
+enum ThreadRootAuthorFilter {
+  // Include all root authors.
+  THREAD_ROOT_AUTHOR_FILTER_UNSPECIFIED = 0;
+  // Include only roots authored by the authenticated viewer.
+  THREAD_ROOT_AUTHOR_FILTER_VIEWER = 1;
+  // Include only roots authored by other users.
+  THREAD_ROOT_AUTHOR_FILTER_OTHERS = 2;
+}
+
 // Current follow state for one thread and viewer.
 message ThreadFollowState {
   // Room containing the thread.
@@ -83,6 +93,9 @@ message ListFollowedThreadsRequest {
   // total then counts only these threads. Older servers ignore this field and
   // return all followed threads.
   bool unread_only = 5;
+  // Filter root authors before pagination and total counts. Threads whose
+  // root author is unavailable are omitted when a filter is selected.
+  ThreadRootAuthorFilter root_author_filter = 6 [(buf.validate.field).enum.defined_only = true];
 }
 
 // Response containing one followed-thread page.

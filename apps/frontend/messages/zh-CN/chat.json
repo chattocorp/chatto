@@ -89,8 +89,14 @@
       "body": "登录后即可在此服务器上阅读和发送消息。"
     },
     "threads": {
-      "title": "我的话题串",
-      "subtitle": "你关注的话题串",
+      "tab_started": "我的",
+      "tab_followed": "已关注",
+      "tab_label": "话题视图",
+      "empty_mine_title": "你尚未发起话题",
+      "empty_mine_body": "你发起并关注的话题将显示在这里。",
+      "empty_followed_body": "你关注的其他人发起的话题将显示在这里。",
+      "title": "话题串",
+      "subtitle": "你的话题串中的新动态",
       "filter_label": "筛选话题串",
       "filter_all": "全部",
       "filter_unread": "未读",

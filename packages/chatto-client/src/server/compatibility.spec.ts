@@ -81,7 +81,8 @@ describe('server compatibility evaluation', () => {
   });
 
   it('reports supported versions only for parseable releases at or above the minimum', () => {
-    expect(isSupportedServerVersion('0.5.0-beta.9')).toBe(true);
+    expect(isSupportedServerVersion('0.5.0-beta.16')).toBe(true);
+    expect(isSupportedServerVersion('0.5.0-beta.15')).toBe(false);
     expect(isSupportedServerVersion('0.5.0-dev')).toBe(true);
     expect(isSupportedServerVersion('0.5.0')).toBe(true);
     expect(isSupportedServerVersion('0.5.0-beta.8')).toBe(false);

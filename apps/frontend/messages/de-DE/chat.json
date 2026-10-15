@@ -89,8 +89,14 @@
       "body": "Melde dich an, um auf diesem Server Nachrichten zu lesen und zu senden."
     },
     "threads": {
-      "title": "Meine Threads",
-      "subtitle": "Threads, denen du folgst",
+      "tab_started": "Meine",
+      "tab_followed": "Gefolgt",
+      "tab_label": "Thread-Ansicht",
+      "empty_mine_title": "Keine von dir gestarteten Threads",
+      "empty_mine_body": "Threads, die du startest und denen du folgst, erscheinen hier.",
+      "empty_followed_body": "Threads von anderen, denen du folgst, erscheinen hier.",
+      "title": "Threads",
+      "subtitle": "Neue Aktivitäten in deinen Threads",
       "filter_label": "Threads filtern",
       "filter_all": "Alle",
       "filter_unread": "Ungelesen",
