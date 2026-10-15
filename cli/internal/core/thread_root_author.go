@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"fmt"
+
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
 )
 
 // ThreadRootAuthorFilter selects followed threads by their root author.
@@ -25,18 +27,23 @@ func (f ThreadRootAuthorFilter) Validate() error {
 	return nil
 }
 
-// matchesRootAuthor reads the root's authoritative actor, independently of
-// matching replies and participant previews. Missing roots cannot be classified.
-func (s *ThreadFollowModel) matchesRootAuthor(ctx context.Context, actorID string, kind RoomKind, roomID, rootID string, filter ThreadRootAuthorFilter) (bool, error) {
+// matchesRootAuthor reads the root's recorded message author, including imported
+// authors, from the timeline projection without loading message bodies.
+// Missing roots and hidden echoes cannot be classified.
+func (s *ThreadFollowModel) matchesRootAuthor(ctx context.Context, actorID string, roomID, rootID string, filter ThreadRootAuthorFilter) (bool, error) {
 	if filter == ThreadRootAuthorAll {
 		return true, nil
 	}
-	root, err := s.integration.GetRoomEventByEventID(ctx, kind, roomID, rootID)
-	if err != nil {
+	if err := ctx.Err(); err != nil {
 		return false, err
 	}
-	if root == nil || root.GetMessagePosted() == nil || root.GetActorId() == "" {
+	root, ok := s.rooms.timelineEntry(rootID)
+	if !ok || root.RoomID != roomID || root.EventType != evtstream.EventMessagePosted || root.InThreadEventID != "" || s.rooms.isHiddenEcho(rootID) {
 		return false, nil
 	}
-	return (root.GetActorId() == actorID) == (filter == ThreadRootAuthorViewer), nil
+	authorID := timelineEntryMessageAuthorID(root)
+	if authorID == "" {
+		return false, nil
+	}
+	return (authorID == actorID) == (filter == ThreadRootAuthorViewer), nil
 }

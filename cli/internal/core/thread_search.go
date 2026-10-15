@@ -38,8 +38,8 @@ func (s *MessageSearchReadModel) FollowedSearchRoots(ctx context.Context, scope 
 	}
 	var roots []string
 	for _, ref := range s.rooms.followedThreadsForUser(actorID) {
-		if room := scope.rooms[ref.roomID]; room != nil {
-			matches, err := s.follows.matchesRootAuthor(ctx, actorID, KindOfRoom(room), ref.roomID, ref.threadRootEventID, rootAuthor)
+		if scope.rooms[ref.roomID] != nil {
+			matches, err := s.follows.matchesRootAuthor(ctx, actorID, ref.roomID, ref.threadRootEventID, rootAuthor)
 			if err != nil {
 				return nil, err
 			}

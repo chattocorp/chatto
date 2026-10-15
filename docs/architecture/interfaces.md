@@ -385,7 +385,7 @@ share parsing, structured filters, availability, and cursor sealing.
 `MessageSearchReadModel` sends the followed-root set when requested, restricted
 by `root_author_filter` when selected. `ThreadService.ListFollowedThreads`
 applies the same root-author filter before pagination and total counts. Both
-paths read the authoritative root actor; unspecified preserves the combined
+paths read the root message author from the timeline projection; unspecified preserves the combined
 feed. Search cursors bind the filter with the rest of the request.
 For groups it validates matching body revisions, excludes resolved roots on
 subsequent queries, and restarts the provider cursor when exclusions change.

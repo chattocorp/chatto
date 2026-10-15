@@ -213,7 +213,7 @@ func (s *ThreadFollowModel) ListFollowedThreadsPage(ctx context.Context, userID 
 	if rootAuthor != ThreadRootAuthorAll {
 		filtered := allThreads[:0]
 		for _, thread := range allThreads {
-			matches, err := s.matchesRootAuthor(ctx, userID, RoomKindFromLegacySpaceID(thread.SpaceID), thread.RoomID, thread.ThreadRootEventID, rootAuthor)
+			matches, err := s.matchesRootAuthor(ctx, userID, thread.RoomID, thread.ThreadRootEventID, rootAuthor)
 			if err != nil {
 				return nil, err
 			}

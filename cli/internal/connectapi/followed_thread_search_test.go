@@ -25,10 +25,21 @@ func TestSearchFollowedThreadsRootAuthorFilter(t *testing.T) {
 	require.NoError(t, err)
 	_, err = env.core.JoinRoom(ctx, other.Id, core.KindChannel, other.Id, room.Id)
 	require.NoError(t, err)
-	mine := env.post(room.Id, env.viewer.Id, "my root", "")
+	// Imported roots retain the operator as actor, but belong to their message author.
+	mine, err := env.core.ImportHistoricalMessage(ctx, core.HistoricalMessageInput{
+		RoomID: room.Id, AuthorID: env.viewer.Id, CreatedAt: time.Now().Add(-time.Hour), Body: "my root",
+	})
+	require.NoError(t, err)
+	require.NoError(t, env.core.FollowThread(ctx, core.KindChannel, env.viewer.Id, room.Id, mine.Id))
 	reply := env.post(room.Id, other.Id, "needle reply", mine.Id)
 	theirs := env.post(room.Id, other.Id, "needle their root", "")
 	env.post(room.Id, env.viewer.Id, "my reply", theirs.Id)
+	listed, err := env.threads.ListFollowedThreads(ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
+		RootAuthorFilter: apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_VIEWER,
+	}))
+	require.NoError(t, err)
+	require.Len(t, listed.Msg.Threads, 1)
+	require.Equal(t, mine.Id, listed.Msg.Threads[0].Thread.ThreadRootEventId)
 	for _, tc := range []struct {
 		filter      apiv1.ThreadRootAuthorFilter
 		root, match string
