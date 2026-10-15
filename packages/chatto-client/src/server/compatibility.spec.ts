@@ -2,10 +2,44 @@ import { describe, expect, it } from 'vitest';
 import {
   compareReleaseVersions,
   evaluateServerCompatibility,
-  isSupportedServerVersion
+  isSupportedServerVersion,
+  isConnectableServerVersion,
+  normalizeServerVersion,
+  MINIMUM_CONNECTABLE_SERVER_VERSION,
+  MINIMUM_SUPPORTED_SERVER_VERSION
 } from './compatibility.js';
 
 describe('server compatibility evaluation', () => {
+  it.each([
+    ['0.6.1-my-customization', '0.6.1'],
+    ['0.6.1+my-customization', '0.6.1'],
+    ['0.6.1-beta.2-my-customization', '0.6.1-beta.2'],
+    ['0.6.1-beta.2', '0.6.1-beta.2'],
+    [' v0.6.1-rc.3-custom+build.4 ', '0.6.1-rc.3'],
+    ['0.6.1-alpha.2-custom', '0.6.1-alpha.2'],
+    ['dev', null],
+    ['0.6', null],
+    ['0.6.1-beta.02', null],
+    ['0.6.1-custom garbage', null]
+  ])('normalizes %s to %s', (input, expected) => {
+    expect(normalizeServerVersion(input!)).toBe(expected);
+  });
+
+  it('separates the connection floor from full support', () => {
+    expect(
+      compareReleaseVersions(MINIMUM_CONNECTABLE_SERVER_VERSION, MINIMUM_SUPPORTED_SERVER_VERSION)
+    ).toBe(-1);
+    expect(isConnectableServerVersion('0.5.0-beta.8-custom')).toBe(false);
+    expect(isConnectableServerVersion(MINIMUM_CONNECTABLE_SERVER_VERSION)).toBe(true);
+    expect(isConnectableServerVersion('dev')).toBe(true);
+    expect(
+      evaluateServerCompatibility({ serverVersion: MINIMUM_CONNECTABLE_SERVER_VERSION })
+    ).toEqual({ status: 'limited', reason: 'server-too-old' });
+    expect(evaluateServerCompatibility({ serverVersion: '0.5.0-beta.15' }).status).toBe('limited');
+    expect(
+      evaluateServerCompatibility({ serverVersion: MINIMUM_SUPPORTED_SERVER_VERSION }).status
+    ).toBe('supported');
+  });
   it('uses full SemVer prerelease precedence', () => {
     expect(compareReleaseVersions('v0.5.0', '0.4.12')).toBe(1);
     expect(compareReleaseVersions('0.5.0-beta.1', '0.5.0-beta.2')).toBe(-1);

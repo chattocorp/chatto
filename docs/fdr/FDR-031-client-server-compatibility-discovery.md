@@ -18,15 +18,22 @@ Chatto's pre-1.0 API remains experimental.
 - A registered server's context menu or touch sheet shows its configured host
   and provides a final action that copies that exact host, including a
   non-default port, to the clipboard.
-- A warning marker appears when the server predates the oldest version
-  supported by the current client. The 0.5 client supports `0.5.0-beta.16` and
-  newer. It classifies older servers as unsupported and does not open their
-  realtime stream.
-- Servers with non-standard or unparseable versions remain explicitly unknown.
+- Remote servers have two version thresholds. Full feature support requires
+  `0.5.0-beta.16`. The minimum connectable release is `0.5.0-beta.9`.
+  Between these thresholds, the client attempts the normal UI and realtime
+  connection and shows a warning that some features may not work. Below the
+  connection threshold, it blocks the server route and realtime connection.
+- The origin server serves its own frontend and has no version check.
+- Custom suffixes do not affect comparison. For example,
+  `0.6.1-my-customization` compares as `0.6.1`, and
+  `0.6.1-beta.2-my-customization` compares as `0.6.1-beta.2`. Alpha, beta,
+  and rc stages retain their order. Build metadata is ignored. The UI shows
+  the original version string. Unparseable versions remain unknown; the
+  client attempts a connection and shows a warning.
 - An unreachable server remains registered and is reported as unreachable
   rather than being assigned a healthy or compatible state.
 - A server icon in the gutter has two states: normal and warning. The warning
-  appears when a problem prevents the client from using the server: a required
+  appears for a connection problem or compatibility warning: a required
   sign-in, an unreachable server, an unsupported or unknown server version, or
   a failed connection. The icon is not dimmed.
 - Only the result of an attempt changes the state. A failed attempt shows the
@@ -36,15 +43,18 @@ Chatto's pre-1.0 API remains experimental.
   state, because results from before the wake are out of date.
 - The server context menu and touch sheet explain the problem. When more than
   one problem applies, they show the first problem in the order above.
-- When discovery finds an unsupported or unknown server version, or cannot
+- When discovery finds a remote version below the connection threshold, or cannot
   reach the server, the server route shows an explanation screen instead of
   the server sidebar and its pages. The screen names the server and its host,
   explains the problem, shows the server version and the required version
   when they apply, and has a Check Again action. Check Again runs discovery
-  again. When the result is a supported version, the server opens normally.
+  again. When the result allows a connection, the server opens normally.
   The screen stays visible while a new attempt runs. For a remote server, the
   screen also offers **Remove server**, with the same confirmation as the
   gutter menu. The origin server cannot be removed.
+- The Server Directory allows users to add limited and unknown versions when
+  sign-in is available. Versions below the connection threshold still link to
+  their own client.
 - Third-party clients own and test their own minimum supported server release.
 - The `chatto.realtime.v1` protobuf namespace uses behavioral protocol version
   4 for the public event stream. The alpha server rejects older and unknown
@@ -52,36 +62,35 @@ Chatto's pre-1.0 API remains experimental.
 
 ## Design Decisions
 
-### 1. The bundled client has one minimum server version
+### 1. Separate full support from the connection threshold
 
-**Decision:** The bundled client records one minimum supported server release.
-Every feature that the client uses exists in that release, so the client does
-not gate individual features by server version. Increase this minimum only as
+**Decision:** The bundled client records a full-support release and a minimum
+connectable release. It does not gate individual features by server version.
+Increase the connection threshold only as
 a last resort, including during alpha and beta releases. First consider a
 compatible API design, use of the existing server contract, or deferring the
 new dependency. If an increase is necessary, record the exact incompatibility,
 why reasonable alternatives are insufficient, and the required upgrade action.
 Use the oldest server release that meets the requirement.
-**Why:** Per-feature version gates make each screen keep a second code path for
-servers that are already unsupported. Exposing implementation-level protocol
-flags would also turn internal rollout details into a public contract. One
-minimum keeps version knowledge in one place. Increasing it prevents users
-from connecting to older servers, so a new release or simpler implementation
-alone does not justify an increase.
-**Tradeoff:** A client cannot use a newer feature on new servers while it still
-supports older servers. Forks and builds with non-standard version strings
-cannot declare support independently; the client treats them as unknown and
-does not open their realtime stream.
+**Why:** A new optional feature must not block otherwise usable chat. The
+connection threshold keeps the previous full-support baseline, beta.9. The
+beta.16 increase added separate followed and own thread views, while the
+authentication and realtime handshake contracts remained unchanged. Earlier
+releases need separate verification before the connection threshold can be
+lowered. See changes #2710 and #2983.
+**Tradeoff:** Some operations can fail between the two thresholds. Unknown
+custom builds can also fail at runtime. The client keeps normal authentication,
+permission, operation-error, and realtime protocol-rejection handling.
 
 ### 2. The client owns compatibility policy
 
 **Decision:** Unauthenticated discovery reports the server software version.
-Each client owns its minimum supported server release and compares that policy
+Each client owns its server version thresholds and compares that policy
 with the discovered version before connecting.
 **Why:** Future clients know which older server contracts they still implement;
 the server cannot predict the requirements of clients that do not exist yet.
 This also avoids turning client release policy into public server metadata.
-**Tradeoff:** A client update must keep its minimum version accurate and
+**Tradeoff:** A client update must keep its version thresholds accurate and
 cannot rely on a server to reject it on the client's behalf.
 
 ### 3. Registration data does not cache compatibility conclusions

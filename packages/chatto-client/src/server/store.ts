@@ -340,7 +340,8 @@ export class ServerStateStore {
     this.serverInfo = new ServerInfoState(
       registration.url,
       publicServerInfoLoader,
-      () => this.projection.serverState
+      () => this.projection.serverState,
+      originServer
     );
     this.notifications = new NotificationStore(notificationAPI);
     this.roomList = new RoomListView(this.projection, this.realtimeSync);

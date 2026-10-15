@@ -79,6 +79,12 @@ const { mocks } = vi.hoisted(() => {
         },
         pendingHighlights: { set: vi.fn() },
         serverInfo: {
+          get canConnect() {
+            return (
+              this.compatibility.status !== 'unsupported' &&
+              this.compatibility.status !== 'unreachable'
+            );
+          },
           name: 'Chatto',
           iconUrl: null as string | null,
           loading: false,
@@ -638,7 +644,7 @@ describe('ServerSidebarEntry', () => {
       .element(icon)
       .toHaveAttribute(
         'title',
-        'Loaded Remote — This server must be upgraded to Chatto 0.5 or newer before this app can connect.'
+        'Loaded Remote — This server must be upgraded to Chatto 0.5.0-beta.9 or newer before this app can connect.'
       );
     icon.dispatchEvent(
       new MouseEvent('contextmenu', {
@@ -651,7 +657,7 @@ describe('ServerSidebarEntry', () => {
 
     await vi.waitFor(() =>
       expect(document.body.textContent).toContain(
-        'This server must be upgraded to Chatto 0.5 or newer before this app can connect.'
+        'This server must be upgraded to Chatto 0.5.0-beta.9 or newer before this app can connect.'
       )
     );
     expect(document.body.textContent).toContain('Version 0.4.12');
@@ -696,6 +702,31 @@ describe('ServerSidebarEntry', () => {
       )
     );
     expect(document.body.textContent).toContain('Version custom-build');
+  });
+
+  it('keeps normal actions and explains limited feature support', async () => {
+    mocks.store.serverInfo.version = '0.5.0-beta.9-custom';
+    mocks.store.serverInfo.compatibility = { status: 'limited', reason: 'server-too-old' };
+    const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
+    await expect.element(q(container, '[data-testid="server-warning"]')).toBeInTheDocument();
+    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+    icon.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 24, clientY: 36 })
+    );
+    await vi.waitFor(() =>
+      expect(document.body.textContent).toContain(
+        'Some features may not work with this server version.'
+      )
+    );
+    expect(document.body.textContent).toContain('Version 0.5.0-beta.9-custom');
+    expect(document.body.textContent).not.toContain('before this app can connect');
+    const markRead = [...document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')].find(
+      (item) => item.textContent?.includes('Mark as read')
+    );
+    expect(markRead).toBeDefined();
+    expect(markRead!.disabled).toBe(false);
+    markRead!.click();
+    await vi.waitFor(() => expect(mocks.markNavigationServerAsRead).toHaveBeenCalled());
   });
 
   it('does not warn while server discovery is still loading', async () => {

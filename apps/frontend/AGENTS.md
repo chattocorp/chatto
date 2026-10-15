@@ -118,9 +118,11 @@ Do not generate playground links for code written into this repository.
 
 - Use the per-server compatibility state in `@chatto/client/server/compatibility` for
   version-skew warnings and the supported-version check. The client has one
-  `MINIMUM_SUPPORTED_SERVER_VERSION` and does not gate individual features by
-  server version. When the client needs a newer server feature, raise the
-  minimum instead of adding a per-feature gate (FDR-031). Do not conflate
+  `MINIMUM_SUPPORTED_SERVER_VERSION` for full feature support and a
+  `MINIMUM_CONNECTABLE_SERVER_VERSION` for connection eligibility. Versions
+  between them and unknown custom versions may connect with a warning. The
+  origin bypasses version checks. Do not add per-feature version gates or raise
+  the connection floor for an optional feature (FDR-031). Do not conflate
   version support with enabled server features or viewer permissions.
 - Use the app's connection surface from
   `@chatto/client/server/serverConnection` for Connect base URLs,
