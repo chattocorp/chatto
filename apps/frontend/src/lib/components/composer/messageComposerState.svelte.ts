@@ -78,10 +78,10 @@ export type MessageComposerProps = {
   getRecentThreadRootCandidate?: () => RecentThreadRootCandidate | null;
   onThreadMessageSent?: (threadRootEventId: string, event: TimelineEventView | null) => void;
   /**
-   * Status content, such as the typing indicator, rendered next to the input
-   * surface. A wrapper with the same box as the surface is its containing
-   * block, so the content can position itself on the surface edge without
-   * shifting the layout. The disabled-input dimming does not apply to it.
+   * Inline status badges, such as the typing indicator. The composer places
+   * them before slow mode in a shared row on the input edge. Content must
+   * shrink to fit; it must not position itself absolutely. The disabled-input
+   * dimming does not apply to this row.
    */
   inputStatus?: Snippet;
 };

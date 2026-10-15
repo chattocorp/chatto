@@ -1237,7 +1237,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(document.activeElement).toBe(editor));
       await expect
         .element(q(container, '[data-testid="slow-mode-status"]'))
-        .toHaveTextContent('Slow Mode: one message every 30 seconds.');
+        .not.toBeInTheDocument();
       await vi.waitFor(() => expect(fetchLinkPreviewConnectMock).toHaveBeenCalled());
       await vi.waitFor(() => expect(container.textContent).toContain('Example'));
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
@@ -1289,11 +1289,11 @@ describe('MessageComposer', () => {
   });
 
   describe('Slow Mode', () => {
-    it('shows ready, waiting, and bypassed status', async () => {
+    it('shows only the waiting status, not ready or bypassed status', async () => {
       const ready = renderMessageComposer({ roomId: 'room-ready', slowModeSeconds: 30 });
       await expect
         .element(q(ready.container, '[data-testid="slow-mode-status"]'))
-        .toHaveTextContent('Slow Mode: one message every 30 seconds.');
+        .not.toBeInTheDocument();
 
       const nextPostAt = new Date(Date.now() + 65_000).toISOString();
       const waiting = renderMessageComposer({
@@ -1303,7 +1303,7 @@ describe('MessageComposer', () => {
       });
       await expect
         .element(q(waiting.container, '[data-testid="slow-mode-status"]'))
-        .toHaveTextContent('Slow Mode: send again in 1:05.');
+        .toHaveTextContent('1:05');
 
       const bypassed = renderMessageComposer({
         roomId: 'room-bypassed',
@@ -1313,7 +1313,7 @@ describe('MessageComposer', () => {
       });
       await expect
         .element(q(bypassed.container, '[data-testid="slow-mode-status"]'))
-        .toHaveTextContent("Slow Mode: 1 minute (you're exempt).");
+        .not.toBeInTheDocument();
     });
 
     it('keeps a waiting draft editable while blocking the keyboard send shortcut', async () => {
@@ -1348,9 +1348,7 @@ describe('MessageComposer', () => {
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() =>
-        expect(q(container, '[data-testid="slow-mode-status"]')?.textContent).toContain(
-          'Slow Mode: send again in 0:30.'
-        )
+        expect(q(container, '[data-testid="slow-mode-status"]')?.textContent).toContain('0:30')
       );
     });
 
@@ -1375,9 +1373,7 @@ describe('MessageComposer', () => {
 
       await vi.waitFor(() => expect(onMessageSent).toHaveBeenCalledOnce());
       await tick();
-      expect(q(container, '[data-testid="slow-mode-status"]')?.textContent).toContain(
-        'Slow Mode: send again in 0:30.'
-      );
+      expect(q(container, '[data-testid="slow-mode-status"]')?.textContent).toContain('0:30');
     });
 
     it('preserves the draft and shows a Slow Mode error after a server race', async () => {
@@ -2434,7 +2430,7 @@ describe('MessageComposer', () => {
 
     it('renders input status on the input edge without the disabled dimming', async () => {
       const inputStatus = createRawSnippet(() => ({
-        render: () => '<div data-testid="input-status" class="absolute inset-0"></div>'
+        render: () => '<div data-testid="input-status">Typing</div>'
       }));
       const { container } = renderMessageComposer({
         roomId: 'room_456',
@@ -2452,10 +2448,11 @@ describe('MessageComposer', () => {
       expect(surface).toHaveClass('opacity-50');
       expect(surface.contains(status)).toBe(false);
       expect(status.closest('.opacity-50')).toBeNull();
-      // The status uses a containing block with the same box as the surface.
-      expect(status.getBoundingClientRect().toJSON()).toEqual(
-        surface.getBoundingClientRect().toJSON()
-      );
+      const bounds = status.getBoundingClientRect();
+      const inputBounds = surface.getBoundingClientRect();
+      expect(bounds.top).toBeLessThan(inputBounds.top);
+      expect(bounds.bottom).toBeGreaterThan(inputBounds.top);
+      expect(bounds.right).toBeLessThanOrEqual(inputBounds.right);
     });
 
     it('keeps an existing message editable when new posting is unavailable', async () => {

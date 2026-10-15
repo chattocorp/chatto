@@ -1,6 +1,7 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import TypingIndicator from './TypingIndicator.svelte';
+  import ComposerStatusRow from '$lib/components/composer/ComposerStatusRow.svelte';
   import type { RoomMember } from '$lib/state/room';
   import { Button } from '$lib/ui/form';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -62,7 +63,9 @@
     ]}
   >
     <div class="relative flex chat-input-surface min-w-0 items-center gap-2 px-2.5 py-1.5">
-      <TypingIndicator {typingUserIds} members={storyMembers} />
+      <ComposerStatusRow>
+        <TypingIndicator {typingUserIds} members={storyMembers} />
+      </ComposerStatusRow>
       <span class="min-w-0 flex-1 truncate text-muted">Type a message…</span>
       <span aria-hidden="true" class="iconify icon-[uil--telegram-alt] shrink-0 text-muted"></span>
     </div>
