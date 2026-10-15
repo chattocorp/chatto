@@ -8,7 +8,7 @@ const navigation = vi.hoisted(() => ({
   pushState: vi.fn()
 }));
 
-vi.mock('$app/navigation', () => navigation);
+vi.mock('$app/navigation', () => ({ ...navigation, goto: vi.fn() }));
 
 beforeEach(() => {
   vi.clearAllMocks();

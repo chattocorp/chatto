@@ -42,7 +42,7 @@ vi.mock('$app/state', () => ({
   }
 }));
 
-vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
+vi.mock('$app/navigation', () => ({ pushState: mocks.pushState, goto: vi.fn() }));
 
 vi.mock('./ServerSidebarEntry.svelte', async () => ({
   default: (await import('./ServerGutterEntryMock.svelte')).default

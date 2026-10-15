@@ -64,7 +64,7 @@ vi.mock('$lib/serverCatalogue', () => ({
     mocks.servers.find((server) => mocks.authenticated[server.id])?.id
 }));
 
-vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
+vi.mock('$app/navigation', () => ({ pushState: mocks.pushState, goto: vi.fn() }));
 vi.mock('$app/paths', () => ({
   base: '',
   assets: '',

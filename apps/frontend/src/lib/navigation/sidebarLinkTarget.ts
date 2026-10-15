@@ -1,4 +1,4 @@
-import { serverRegistry } from '$lib/client';
+import { renderedLinkTarget } from './renderedLink';
 
 export type SidebarLinkTarget =
   | {
@@ -47,9 +47,8 @@ export function normalizeSidebarLinkURL(rawURL: string): string {
 }
 
 /**
- * Resolve server-local paths against the active server. Absolute HTTP(S) links
- * stay in the current tab when their hostname belongs to a registered server.
- * Registration is sufficient; the server does not need an active session.
+ * Resolve server-local paths against the active server, then apply the shared
+ * conversation-link navigation policy.
  */
 export function sidebarLinkTarget(
   rawURL: string,
@@ -65,7 +64,7 @@ export function sidebarLinkTarget(
       return invalidSidebarLinkTarget();
     }
     try {
-      return { valid: true, href: new URL(value, serverURL).toString() };
+      return { valid: true, ...renderedLinkTarget(new URL(value, serverURL).toString()) };
     } catch {
       return invalidSidebarLinkTarget();
     }
@@ -82,20 +81,7 @@ export function sidebarLinkTarget(
     return invalidSidebarLinkTarget();
   }
 
-  if (
-    serverRegistry.servers.some(
-      (server) => parseServerBaseURL(server.url)?.hostname === parsed.hostname
-    )
-  ) {
-    return { valid: true, href: parsed.toString() };
-  }
-
-  return {
-    valid: true,
-    href: parsed.toString(),
-    target: '_blank',
-    rel: 'noopener noreferrer'
-  };
+  return { valid: true, ...renderedLinkTarget(parsed.toString()) };
 }
 
 export function sidebarLinkAnchorAttributes(

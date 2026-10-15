@@ -5,6 +5,17 @@ import '../../app.css';
 import { renderMarkdown } from '$lib/markdown';
 
 const toastMocks = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+const navigationMocks = vi.hoisted(() => ({ goto: vi.fn() }));
+vi.mock('$app/navigation', () => ({ goto: navigationMocks.goto }));
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    servers: [{ id: 'remote', url: 'https://bar.com' }],
+    originServer: { id: 'origin' },
+    isOriginServer: (id: string) => id === 'origin',
+    getServer: () => ({ id: 'remote', url: 'https://bar.com' })
+  }
+}));
 
 vi.mock('$lib/ui/toast', () => ({ toast: toastMocks }));
 
@@ -14,6 +25,7 @@ let originalClipboard: PropertyDescriptor | undefined;
 const writeText = vi.fn<(_: string) => Promise<void>>();
 
 beforeEach(() => {
+  navigationMocks.goto.mockReset();
   originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
   Object.defineProperty(navigator, 'clipboard', {
     configurable: true,
@@ -22,6 +34,36 @@ beforeEach(() => {
   writeText.mockReset().mockResolvedValue(undefined);
   toastMocks.success.mockReset();
   toastMocks.error.mockReset();
+});
+
+describe('MarkdownHtml link navigation', () => {
+  it.each([
+    ['https://bar.com/chat/-/R123456789abcde', '/chat/bar.com/R123456789abcde'],
+    [
+      'http://bar.com:8080/chat/bar.com/R123456789abcde/m/Eabc123DEF456gh',
+      '/chat/bar.com/R123456789abcde/m/Eabc123DEF456gh'
+    ]
+  ])('rewrites and navigates registered conversation links: %s', async (url, path) => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const { container } = render(MarkdownHtml, { html: await renderMarkdown(`[Go](${url})`) });
+    const anchor = container.querySelector('a')!;
+    expect(anchor.getAttribute('href')).toBe(path);
+    await userEvent.click(anchor);
+    expect(navigationMocks.goto).toHaveBeenCalledWith(path);
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    'https://bar.com/docs',
+    'https://unknown.com/chat/-/R123456789abcde',
+    'https://bar.com/chat/unknown.com/R123456789abcde'
+  ])('opens other destinations externally: %s', async (url) => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const { container } = render(MarkdownHtml, { html: await renderMarkdown(`[Go](${url})`) });
+    await userEvent.click(container.querySelector('a')!);
+    expect(navigationMocks.goto).not.toHaveBeenCalled();
+    expect(open).toHaveBeenCalledWith(url, '_blank', 'noopener,noreferrer');
+  });
 });
 
 afterEach(() => {

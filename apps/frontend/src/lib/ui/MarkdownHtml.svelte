@@ -8,13 +8,14 @@ The markdown renderer disables source HTML and owns every tag/attribute it emits
 Keep all rendered markdown HTML flowing through this component so raw HTML usage
 does not spread into feature components. Callers may pass only markdown renderer
 output, plus the mention and edited-marker post-processing in the message path.
-This component also owns code copy actions and footnote navigation. Footnote
+This component also owns link navigation, code copy actions, and footnote navigation. Footnote
 targets are unique to each component, including when callers reuse rendered HTML.
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
   import { trustedMarkdownHtml } from '$lib/security/trustedHtml';
   import { toast } from '$lib/ui/toast';
+  import { handleRenderedLinkClick } from '$lib/navigation/renderedLink';
 
   let {
     html
@@ -53,7 +54,11 @@ targets are unique to each component, including when callers reuse rendered HTML
     }
 
     const button = target.closest<HTMLButtonElement>('button[data-markdown-copy]');
-    if (!button) return;
+    if (!button) {
+      const anchor = target.closest('a');
+      if (anchor?.href) handleRenderedLinkClick(event, anchor.href);
+      return;
+    }
 
     event.preventDefault();
     event.stopPropagation();

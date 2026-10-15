@@ -177,8 +177,9 @@ vi.mock('$app/paths', () => ({
 }));
 
 vi.mock('$lib/navigation', () => ({
-  serverIdToSegment: () => '-',
-  segmentToServerId: () => 'origin'
+  serverIdToSegment: (id: string) => (id === 'remote' ? 'remote.example.test' : '-'),
+  segmentToServerId: (segment: string) =>
+    segment === 'remote.example.test' ? 'remote' : segment === '-' ? 'origin' : null
 }));
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
@@ -1533,7 +1534,7 @@ describe('RoomList', () => {
     expect(container.querySelector('[href="/chat/-/joinable-channel"]')).toBeNull();
   });
 
-  it('renders server-local sidebar links as same-tab anchors resolved against the active server', async () => {
+  it('resolves server-local non-chat sidebar links against the active server and opens externally', async () => {
     mocks.store.navigation.roomGroups = [
       {
         id: 'g1',
@@ -1555,8 +1556,8 @@ describe('RoomList', () => {
     const link = q(container, '[href="https://chat.example.test/docs"]') as HTMLAnchorElement;
     await expect.element(link).toBeInTheDocument();
     expect(link.textContent).toContain('Docs');
-    expect(link.getAttribute('target')).toBeNull();
-    expect(link.getAttribute('rel')).toBeNull();
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
   });
 
   it.each([
@@ -2355,8 +2356,41 @@ describe('RoomList', () => {
     });
   });
 
+  it('rewrites remote conversation sidebar links and navigates locally', async () => {
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'g1',
+        name: 'Links',
+        viewerCanManageGroup: false,
+        roomIds: [],
+        items: [
+          {
+            id: 'link:chat',
+            type: 'link',
+            link: {
+              id: 'chat',
+              label: 'Chat',
+              url: 'https://remote.example.test/chat/-/R123456789abcde'
+            }
+          }
+        ]
+      }
+    ];
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const { container } = render(RoomList);
+    const link = q(
+      container,
+      '[href="/chat/remote.example.test/R123456789abcde"]'
+    ) as HTMLAnchorElement;
+    await expect.element(link).toBeInTheDocument();
+    link.click();
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/remote.example.test/R123456789abcde');
+    expect(open).not.toHaveBeenCalled();
+    open.mockRestore();
+  });
+
   it.each(['https://chat.example.test/admin', 'http://remote.example.test:8080/admin'])(
-    'renders registered-server hostname sidebar links as same-tab anchors: %s',
+    'renders non-chat links on registered servers as external anchors: %s',
     async (url) => {
       mocks.store.navigation.roomGroups = [
         {
@@ -2382,8 +2416,8 @@ describe('RoomList', () => {
 
       const link = q(container, `[href="${url}"]`) as HTMLAnchorElement;
       await expect.element(link).toBeInTheDocument();
-      expect(link.getAttribute('target')).toBeNull();
-      expect(link.getAttribute('rel')).toBeNull();
+      expect(link.getAttribute('target')).toBe('_blank');
+      expect(link.getAttribute('rel')).toBe('noopener noreferrer');
     }
   );
 

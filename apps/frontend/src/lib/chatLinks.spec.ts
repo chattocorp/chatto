@@ -332,11 +332,13 @@ describe('parseMessageLink', () => {
   });
 
   it.each(['http://remote.example.test', 'https://remote.example.test:8443'])(
-    'does not confuse a different origin with a known server: %s',
+    'resolves registered hostnames independently of scheme and port: %s',
     (urlOrigin) => {
       const url = `${urlOrigin}/chat/-/${channelRoomId}/m/${messageId}`;
-      expect(parseMessageLink(url)?.serverId).toBeNull();
-      expect(classifyMessageBodyChatLink(url)).toBeNull();
+      expect(parseMessageLink(url)?.serverId).toBe('remote');
+      expect(classifyMessageBodyChatLink(url)?.path).toBe(
+        `/chat/remote.example.test/${channelRoomId}/m/${messageId}`
+      );
     }
   );
 

@@ -6,7 +6,7 @@ import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 const mocks = vi.hoisted(() => ({ pushState: vi.fn() }));
 
-vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
+vi.mock('$app/navigation', () => ({ pushState: mocks.pushState, goto: vi.fn() }));
 
 vi.mock(
   '$lib/state/server/scope.svelte',

@@ -101,11 +101,12 @@ function resolveChatLinkServerId(
   return serverSegment === '-' ? originServerId : resolveSegment(serverSegment);
 }
 
-/** Absolute links must match a registered origin, including its scheme and port. */
+/** Server hostnames identify registered destinations, independent of scheme and port. */
 function serverIdForUrlOrigin(origin: string): string | null {
+  const hostname = new URL(origin).hostname;
   for (const server of serverRegistry.servers) {
     try {
-      if (new URL(server.url).origin === origin) return server.id;
+      if (new URL(server.url).hostname === hostname) return server.id;
     } catch {
       continue;
     }
