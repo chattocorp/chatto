@@ -15,6 +15,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 - `onReady` - Called with editor API when editor is initialized
 -->
 <script lang="ts">
+  import { openRenderedLink } from '$lib/navigation/renderedLink';
   import { isAllowedMarkdownLink } from '$lib/markdownLinks';
   import { tick, untrack } from 'svelte';
   import { Editor } from '@tiptap/core';
@@ -317,7 +318,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     const href = normalizeHref(activeLinkHref ?? '');
     if (!href) return;
 
-    window.open(href, '_blank', 'noopener,noreferrer');
+    openRenderedLink(href);
   }
 
   function buildApi(e: Editor): ComposerEditorApi {

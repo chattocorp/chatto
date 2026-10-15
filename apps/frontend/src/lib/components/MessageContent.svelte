@@ -4,10 +4,8 @@
 </script>
 
 <script lang="ts">
-  import { goto } from '$app/navigation';
   import { renderMarkdown as renderMd } from '$lib/markdown';
   import { MarkdownHtml, ContextMenu } from '$lib/ui';
-  import { classifyMessageBodyChatLink } from '$lib/messageLinks';
   import { resolveRenderedMentions, type RoomMember } from '$lib/mentions';
   import { formatRelativeMessageTimestamp, wrapMessageTimestamps } from '$lib/messageTimestamps';
   import { parseTrustedMarkdownHtml } from '$lib/security/trustedHtml';
@@ -145,7 +143,7 @@
       : withTimestamps;
   }
 
-  // Handle clicks on links (open in system browser) and mentions (trigger callback).
+  // Message-specific actions; MarkdownHtml owns link navigation and code copy.
   function handleContentClick(event: MouseEvent) {
     const target = event.target as HTMLElement;
 
@@ -173,27 +171,6 @@
         onMentionClick(userId, mention.getBoundingClientRect());
       }
       return;
-    }
-
-    // Handle link clicks. Only allow-listed Chatto chat routes navigate in-app;
-    // other same-origin URLs stay out-of-band to avoid message-link abuse.
-    const anchor = target.closest('a');
-    if (anchor?.href) {
-      // Let the browser hand email links to the configured mail application.
-      if (anchor.protocol === 'mailto:') return;
-      event.preventDefault();
-
-      const chatLink = classifyMessageBodyChatLink(anchor.href);
-      if (chatLink) {
-        // eslint-disable-next-line svelte/no-navigation-without-resolve -- classifyMessageBodyChatLink returns an allow-listed resolved app path.
-        goto(chatLink.path);
-        return;
-      }
-
-      // External or non-allow-listed link → force opening in system browser.
-      // target="_blank" alone is ignored by PWAs for same-origin URLs.
-      // window.open() with features forces a new browser window.
-      window.open(anchor.href, '_blank', 'noopener,noreferrer');
     }
   }
 </script>

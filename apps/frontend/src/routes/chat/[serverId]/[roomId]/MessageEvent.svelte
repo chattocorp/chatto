@@ -26,7 +26,7 @@
   import { prefersTouchActions, supportsHoverActions } from '$lib/utils/inputCapabilities';
   import { formatMessageTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
-  import { copyMessageLinkToClipboard } from '$lib/messageLinks';
+  import { copyMessageLinkToClipboard } from '$lib/copyChatLink';
   import { serverIdToSegment } from '$lib/navigation';
   import LazyMessagePreviewCard from '$lib/components/LazyMessagePreviewCard.svelte';
   import { shouldHighlightCurrentUserMention } from './messageMentionHighlight';

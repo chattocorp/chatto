@@ -1,3 +1,4 @@
+import { copyMessageLinkToClipboard, copyRoomLinkToClipboard } from './copyChatLink';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getToasts, toast } from '$lib/ui/toast';
 import { serverRegistry } from '$lib/client';
@@ -5,14 +6,11 @@ import { type RegisteredServer } from '@chatto/client/server/registry';
 import {
   buildMessageLinkURL,
   buildRoomLinkURL,
-  classifyMessageBodyChatLink,
-  copyMessageLinkToClipboard,
-  copyRoomLinkToClipboard,
+  resolveChatRoute,
   parseMessageLink
-} from './messageLinks';
+} from './chatLinks';
 
 const origin = 'https://chat.example.test';
-const registeredRemoteOrigin = 'https://chat.chatto.run';
 const channelRoomId = 'R123456789abcde';
 const dmRoomId = 'abcdef12345678';
 const messageId = 'Eabc123DEF456gh';
@@ -31,33 +29,6 @@ const remoteServer: RegisteredServer = {
   reauthRequiredAt: null,
   addedAt: 1
 };
-
-function resolveServerSegment(segment: string): string | null {
-  if (segment === '-') return 'origin';
-  if (segment === 'remote.example.test') return 'remote';
-  return null;
-}
-
-function resolveUrlOrigin(urlOrigin: string): string | null {
-  if (urlOrigin === registeredRemoteOrigin) return 'chatto-run';
-  return null;
-}
-
-function serverSegmentForId(serverId: string): string {
-  if (serverId === 'origin') return '-';
-  if (serverId === 'remote') return 'remote.example.test';
-  if (serverId === 'chatto-run') return 'chat.chatto.run';
-  return serverId;
-}
-
-function classify(input: string) {
-  return classifyMessageBodyChatLink(input, {
-    origin,
-    resolveServerSegment,
-    resolveUrlOrigin,
-    serverSegmentForId
-  });
-}
 
 describe('copied chat URLs', () => {
   beforeEach(() => {
@@ -180,131 +151,6 @@ describe('copyMessageLinkToClipboard', () => {
   });
 });
 
-describe('classifyMessageBodyChatLink', () => {
-  it('accepts same-origin room URLs with channel room IDs', () => {
-    expect(classify(`${origin}/chat/-/${channelRoomId}`)).toMatchObject({
-      kind: 'room',
-      serverId: 'origin',
-      roomId: channelRoomId,
-      path: `/chat/-/${channelRoomId}`
-    });
-  });
-
-  it('accepts same-origin room URLs with DM room IDs', () => {
-    expect(classify(`${origin}/chat/-/${dmRoomId}`)).toMatchObject({
-      kind: 'room',
-      roomId: dmRoomId,
-      path: `/chat/-/${dmRoomId}`
-    });
-  });
-
-  it('accepts same-origin thread URLs', () => {
-    expect(classify(`${origin}/chat/-/${channelRoomId}/${threadRootEventId}`)).toMatchObject({
-      kind: 'thread',
-      roomId: channelRoomId,
-      threadRootEventId,
-      path: `/chat/-/${channelRoomId}/${threadRootEventId}`
-    });
-  });
-
-  it('accepts same-origin message URLs', () => {
-    expect(classify(`${origin}/chat/-/${channelRoomId}/m/${messageId}`)).toMatchObject({
-      kind: 'message',
-      roomId: channelRoomId,
-      messageId,
-      path: `/chat/-/${channelRoomId}/m/${messageId}`
-    });
-  });
-
-  it('accepts same-origin thread message URLs', () => {
-    expect(
-      classify(
-        `${origin}/chat/-/${channelRoomId}/${threadRootEventId}/m/${messageId}?focus=1#message`
-      )
-    ).toMatchObject({
-      kind: 'thread-message',
-      roomId: channelRoomId,
-      threadRootEventId,
-      messageId,
-      path: `/chat/-/${channelRoomId}/${threadRootEventId}/m/${messageId}?focus=1#message`
-    });
-  });
-
-  it('accepts known remote server segments on the same origin', () => {
-    expect(classify(`${origin}/chat/remote.example.test/${channelRoomId}`)).toMatchObject({
-      kind: 'room',
-      serverId: 'remote',
-      serverSegment: 'remote.example.test'
-    });
-  });
-
-  it('maps registered-server absolute room URLs back to local app routes', () => {
-    expect(classify(`${registeredRemoteOrigin}/chat/-/${channelRoomId}`)).toMatchObject({
-      kind: 'room',
-      serverId: 'chatto-run',
-      serverSegment: 'chat.chatto.run',
-      roomId: channelRoomId,
-      path: `/chat/chat.chatto.run/${channelRoomId}`
-    });
-  });
-
-  it('maps registered-server absolute message URLs back to local app routes', () => {
-    expect(
-      classify(`${registeredRemoteOrigin}/chat/-/${channelRoomId}/m/${messageId}`)
-    ).toMatchObject({
-      kind: 'message',
-      serverId: 'chatto-run',
-      serverSegment: 'chat.chatto.run',
-      roomId: channelRoomId,
-      messageId,
-      path: `/chat/chat.chatto.run/${channelRoomId}/m/${messageId}`
-    });
-  });
-
-  it('preserves search and hash when mapping registered-server links', () => {
-    expect(classify(`${registeredRemoteOrigin}/chat/-/${channelRoomId}?a=1#bottom`)).toMatchObject({
-      path: `/chat/chat.chatto.run/${channelRoomId}?a=1#bottom`
-    });
-  });
-
-  it('rejects same-origin non-chat and reserved chat URLs', () => {
-    const rejected = [
-      `${origin}/chat/-/settings`,
-      `${origin}/chat/-/overview`,
-      `${origin}/chat/-/threads`,
-      `${origin}/chat/-/manage/server/general`,
-      `${origin}/chat/notifications`,
-      `${origin}/login`
-    ];
-
-    for (const url of rejected) {
-      expect(classify(url)).toBeNull();
-    }
-  });
-
-  it('rejects malformed room and event IDs', () => {
-    const rejected = [
-      `${origin}/chat/-/room-1`,
-      `${origin}/chat/-/R123/m/${messageId}`,
-      `${origin}/chat/-/${channelRoomId}/m/message-1`,
-      `${origin}/chat/-/${channelRoomId}/thread-1`,
-      `${origin}/chat/-/${channelRoomId}/${threadRootEventId}/m/message-1`
-    ];
-
-    for (const url of rejected) {
-      expect(classify(url)).toBeNull();
-    }
-  });
-
-  it('rejects unknown server segments', () => {
-    expect(classify(`${origin}/chat/unknown.example.test/${channelRoomId}`)).toBeNull();
-  });
-
-  it('rejects unregistered cross-origin URLs', () => {
-    expect(classify(`https://other.example.test/chat/-/${channelRoomId}`)).toBeNull();
-  });
-});
-
 describe('parseMessageLink', () => {
   beforeEach(() => {
     vi.stubGlobal('window', { location: { origin } });
@@ -326,25 +172,83 @@ describe('parseMessageLink', () => {
       messageId,
       threadRootEventId
     });
-    expect(classifyMessageBodyChatLink(url)).toMatchObject({
-      serverId: 'remote',
-      path: `/chat/remote.example.test/${channelRoomId}/${threadRootEventId}/m/${messageId}`
-    });
+    expect(resolveChatRoute(url)).toBe(
+      `/chat/remote.example.test/${channelRoomId}/${threadRootEventId}/m/${messageId}`
+    );
   });
 
   it.each(['http://remote.example.test', 'https://remote.example.test:8443'])(
-    'does not confuse a different origin with a known server: %s',
+    'resolves registered hostnames independently of scheme and port: %s',
     (urlOrigin) => {
       const url = `${urlOrigin}/chat/-/${channelRoomId}/m/${messageId}`;
-      expect(parseMessageLink(url)?.serverId).toBeNull();
-      expect(classifyMessageBodyChatLink(url)).toBeNull();
+      expect(parseMessageLink(url)?.serverId).toBe('remote');
+      expect(resolveChatRoute(url)).toBe(
+        `/chat/remote.example.test/${channelRoomId}/m/${messageId}`
+      );
     }
   );
 
   it('keeps old frontend-hosted links to a remote server readable', () => {
     const url = `${origin}/chat/remote.example.test/${channelRoomId}/m/${messageId}`;
     expect(parseMessageLink(url)?.serverId).toBe('remote');
-    expect(classifyMessageBodyChatLink(url)?.serverId).toBe('remote');
+    expect(resolveChatRoute(url)).toBe(`/chat/remote.example.test/${channelRoomId}/m/${messageId}`);
+  });
+
+  it.each([
+    '',
+    '/',
+    '/overview',
+    '/search?q=hello#results',
+    '/threads',
+    '/settings/appearance',
+    '/manage/rooms',
+    `/${channelRoomId}`,
+    `/${dmRoomId}`,
+    `/${channelRoomId}/${threadRootEventId}`
+  ])('rewrites general server routes without treating them as message previews: %s', (suffix) => {
+    const url = `https://remote.example.test/chat/-${suffix}`;
+    expect(resolveChatRoute(url)).toBe(`/chat/remote.example.test${suffix}`);
+    expect(parseMessageLink(url)).toBeNull();
+  });
+
+  it.each([
+    'https://unknown.test/chat/-/overview',
+    'https://remote.example.test/chat/unknown.test/overview',
+    'https://remote.example.test/docs',
+    'https://remote.example.test/chat/%2F/overview',
+    'https://remote.example.test/chat/-/%broken'
+  ])('keeps unresolvable routes external: %s', (url) => {
+    expect(resolveChatRoute(url)).toBeNull();
+  });
+
+  it('does not trust an unknown origin even when its path names a known server', () => {
+    const url = `https://unknown.test/chat/remote.example.test/${channelRoomId}/m/${messageId}`;
+    expect(resolveChatRoute(url)).toBeNull();
+    expect(parseMessageLink(url)).toMatchObject({
+      serverId: null,
+      roomId: channelRoomId,
+      messageId
+    });
+  });
+
+  it('accepts root-relative links on the desktop app origin', () => {
+    vi.stubGlobal('window', { location: { origin: 'chatto://desktop' } });
+    const path = `/chat/remote.example.test/${channelRoomId}/m/${messageId}`;
+    expect(resolveChatRoute(path)).toBe(path);
+    expect(parseMessageLink(path)?.serverId).toBe('remote');
+    expect(parseMessageLink(`chatto://other${path}`)).toBeNull();
+  });
+
+  it('decodes valid IDs and keeps query and hash when producing a local route', () => {
+    const url = `${remoteServer.url}/chat/-/%52${channelRoomId.slice(1)}/m/${messageId}/?focus=1#target`;
+    expect(resolveChatRoute(url)).toBe(
+      `/chat/remote.example.test/%52${channelRoomId.slice(1)}/m/${messageId}/?focus=1#target`
+    );
+    expect(parseMessageLink(url)).toMatchObject({
+      serverId: 'remote',
+      roomId: channelRoomId,
+      messageId
+    });
   });
 
   it('preserves the thread root from a nested message link', () => {
@@ -355,5 +259,32 @@ describe('parseMessageLink', () => {
       threadRootEventId,
       messageId
     });
+  });
+
+  it.each(['https://remote.example.test:8443', 'http://remote.example.test', 'http://[::1]:8080'])(
+    'maps an owning-origin share URL to a hostname-only local route: %s',
+    (url) => {
+      const server = { ...remoteServer, url };
+      vi.mocked(serverRegistry.getServer).mockReturnValue(server);
+      vi.spyOn(serverRegistry, 'servers', 'get').mockReturnValue([server]);
+      const local = `/chat/${new URL(url).hostname}/${channelRoomId}/m/${messageId}`;
+      const shared = buildMessageLinkURL('remote', channelRoomId, messageId);
+      expect(resolveChatRoute(shared)).toBe(local);
+      expect(resolveChatRoute(local)).toBe(local);
+      expect(parseMessageLink(local)?.serverId).toBe('remote');
+    }
+  );
+
+  it.each([
+    '/chat/-/room-1/m/Eabc123DEF456gh',
+    '/chat/-/R123456789abcde/m/message-1',
+    '/chat//-/R123456789abcde/m/Eabc123DEF456gh',
+    '/chat/-/R123456789abcde/m/Eabc123DEF456gh/extra',
+    '/chat/-/R123456789abcde/m/%broken',
+    '/chat/-/R123456789abcde/m/Eabc123DEF456gh%2F',
+    'ftp://remote.example.test/chat/-/R123456789abcde/m/Eabc123DEF456gh',
+    'https://user:password@remote.example.test/chat/-/R123456789abcde/m/Eabc123DEF456gh'
+  ])('rejects malformed message previews: %s', (input) => {
+    expect(parseMessageLink(input)).toBeNull();
   });
 });

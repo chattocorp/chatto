@@ -1,4 +1,5 @@
 import { serverRegistry } from '$lib/client';
+import { serverIdForHostname } from '$lib/navigation/serverHostname';
 
 /** URL segment used for the home (origin) server. */
 const HOME_SEGMENT = '-';
@@ -29,16 +30,5 @@ export function segmentToServerId(segment: string): string | null {
     return serverRegistry.originServer?.id ?? null;
   }
 
-  // Find the server whose URL hostname matches the segment
-  for (const server of serverRegistry.servers) {
-    try {
-      if (new URL(server.url).hostname === segment) {
-        return server.id;
-      }
-    } catch {
-      continue;
-    }
-  }
-
-  return null;
+  return serverIdForHostname(segment);
 }

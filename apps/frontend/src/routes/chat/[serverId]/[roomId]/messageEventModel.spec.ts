@@ -103,15 +103,15 @@ describe('embeddedMessageLinks', () => {
   it('keeps only the first five Chatto message links', () => {
     const body = Array.from(
       { length: 7 },
-      (_, index) => `https://chat.example.test/chat/server/room/m/message-${index}`
+      (_, index) => `https://chat.example.test/chat/server/R123456789abcde/m/E123456789abcd${index}`
     ).join(' ');
 
     expect(embeddedMessageLinks(body).map((link) => link.messageId)).toEqual([
-      'message-0',
-      'message-1',
-      'message-2',
-      'message-3',
-      'message-4'
+      'E123456789abcd0',
+      'E123456789abcd1',
+      'E123456789abcd2',
+      'E123456789abcd3',
+      'E123456789abcd4'
     ]);
   });
 });

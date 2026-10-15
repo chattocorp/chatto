@@ -20,6 +20,11 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
   import { m } from '$lib/i18n/messages';
   import { ContextMenu, MenuItem, MenuSection, LoadingFog } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
+  import {
+    renderedLinkTarget,
+    handleRenderedLinkClick,
+    openRenderedLink
+  } from '$lib/navigation/renderedLink';
   import YouTubeEmbed from './YouTubeEmbed.svelte';
   import SocialPostEmbed from './SocialPostEmbed.svelte';
 
@@ -76,7 +81,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
   }
 
   function handleOpenLink() {
-    window.open(preview.url, '_blank', 'noopener,noreferrer');
+    openRenderedLink(preview.url);
     contextMenuPos = null;
   }
 
@@ -104,11 +109,10 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     onDelete={canDelete ? openDeleteConfirmation : undefined}
   />
 {:else if preview.imageUrl || preview.title || preview.description || preview.siteName}
-  <!-- eslint-disable svelte/no-navigation-without-resolve -- preview.url is a third-party URL, not an internal SvelteKit route -->
   <a
-    href={preview.url}
-    target="_blank"
-    rel="noopener noreferrer"
+    {...renderedLinkTarget(preview.url)}
+    onclick={(event) => handleRenderedLinkClick(event, preview.url)}
+    onauxclick={(event) => handleRenderedLinkClick(event, preview.url)}
     data-testid="link-preview-card"
     class="group/preview relative embed-frame flex w-full max-w-md flex-col"
     oncontextmenu={handleContextMenu}
@@ -173,7 +177,6 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
       </button>
     {/if}
   </a>
-  <!-- eslint-enable svelte/no-navigation-without-resolve -->
 {/if}
 
 <!-- Context menu (posted message mode only) -->

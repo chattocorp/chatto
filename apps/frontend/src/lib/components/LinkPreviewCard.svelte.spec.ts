@@ -5,10 +5,19 @@ import type { LinkPreviewView } from '@chatto/client/timeline/linkPreviews';
 import LinkPreviewCard from './LinkPreviewCard.svelte';
 
 const navigation = vi.hoisted(() => ({
-  pushState: vi.fn()
+  pushState: vi.fn(),
+  goto: vi.fn()
 }));
 
 vi.mock('$app/navigation', () => navigation);
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    servers: [{ id: 'remote', url: 'https://bar.com' }],
+    isOriginServer: () => false,
+    getServer: () => ({ id: 'remote', url: 'https://bar.com' })
+  }
+}));
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -49,6 +58,42 @@ async function menuButton(label: string): Promise<HTMLButtonElement> {
 }
 
 describe('LinkPreviewCard', () => {
+  it('rewrites Chatto links embedded in social previews', () => {
+    const { container } = render(LinkPreviewCard, {
+      props: {
+        preview: preview({
+          socialPost: {
+            provider: 'mastodon',
+            text: 'Read more',
+            images: [],
+            externalLink: { url: 'https://bar.com/chat/-/search?q=hello', title: 'Search' }
+          }
+        })
+      }
+    });
+    const anchor = container.querySelector<HTMLAnchorElement>(
+      '[href="/chat/bar.com/search?q=hello"]'
+    )!;
+    expect(anchor).not.toBeNull();
+    anchor.click();
+    expect(navigation.goto).toHaveBeenCalledWith('/chat/bar.com/search?q=hello');
+  });
+  it('uses local routing for both preview clicks and Open link', async () => {
+    const { container } = render(LinkPreviewCard, {
+      props: {
+        preview: preview({ url: 'https://bar.com/chat/-/overview', title: 'Overview' }),
+        canDelete: true
+      }
+    });
+    const card = container.querySelector<HTMLAnchorElement>('[data-testid="link-preview-card"]')!;
+    expect(card.getAttribute('href')).toBe('/chat/bar.com/overview');
+    card.click();
+    expect(navigation.goto).toHaveBeenCalledWith('/chat/bar.com/overview');
+    navigation.goto.mockClear();
+    openContextMenu(container, '[data-testid="link-preview-card"]');
+    (await menuButton('Open link')).click();
+    expect(navigation.goto).toHaveBeenCalledWith('/chat/bar.com/overview');
+  });
   it('renders nothing when no metadata is available', () => {
     const { container } = render(LinkPreviewCard, {
       props: { preview: preview() }

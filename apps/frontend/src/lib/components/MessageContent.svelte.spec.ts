@@ -10,7 +10,7 @@ import type { TimeFormatSettings } from '$lib/utils/formatTime';
 
 const mocks = vi.hoisted(() => ({
   goto: vi.fn(),
-  segmentToServerId: vi.fn((segment: string) => (segment === '-' ? 'origin' : null))
+  segmentToServerId: vi.fn((segment: string): string | null => (segment === '-' ? 'origin' : null))
 }));
 
 vi.mock('$lib/client', async () => ({
@@ -101,7 +101,7 @@ beforeEach(() => {
   mocks.goto.mockReset();
   mocks.segmentToServerId.mockReset();
   mocks.segmentToServerId.mockImplementation((segment: string) =>
-    segment === '-' ? 'origin' : null
+    segment === '-' ? 'origin' : segment === 'chat.chatto.run' ? 'chatto-run' : null
   );
   vi.spyOn(window, 'open').mockImplementation(() => null);
 });
@@ -240,13 +240,13 @@ describe('renderMarkdown', () => {
     it('does not add new-window attributes to allow-listed same-origin chat URLs', async () => {
       const href = `${window.location.origin}/chat/-/${channelRoomId}`;
       const html = await renderMarkdown(`[room](${href})`);
-      expect(html).toContain(`href="${href}"`);
+      expect(html).toContain(`href="/chat/-/${channelRoomId}"`);
       expect(html).not.toContain('target="_blank"');
       expect(html).not.toContain('rel="noopener noreferrer"');
     });
 
     it('keeps new-window attributes on non-allow-listed same-origin URLs', async () => {
-      const href = `${window.location.origin}/chat/-/settings`;
+      const href = `${window.location.origin}/settings`;
       const html = await renderMarkdown(`[settings](${href})`);
       expect(html).toContain(`href="${href}"`);
       expect(html).toContain('target="_blank"');
@@ -744,7 +744,7 @@ describe('MessageContent component', () => {
   });
 
   it('opens same-origin non-allow-listed links in a new window', async () => {
-    const href = `${window.location.origin}/chat/-/settings`;
+    const href = `${window.location.origin}/settings`;
     const { container } = renderMessage(`[settings](${href})`);
 
     await expect.poll(() => q(container, 'a')).toBeTruthy();
