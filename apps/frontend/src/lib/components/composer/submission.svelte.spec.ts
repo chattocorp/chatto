@@ -23,7 +23,6 @@ describe('ComposerSubmissionState', () => {
   const updateMessage = vi.fn();
   const loadMentionRoles = vi.fn();
   const onPostSuccess = vi.fn();
-  const onEditSuccess = vi.fn();
   let mentionRoleStatus: MentionRolesStatus;
   let mentionRoleNames: string[];
   let state: ComposerSubmissionState;
@@ -36,7 +35,6 @@ describe('ComposerSubmissionState', () => {
     loadMentionRoles.mockReset();
     loadMentionRoles.mockResolvedValue(true);
     onPostSuccess.mockReset();
-    onEditSuccess.mockReset();
     mentionRoleStatus = 'ready';
     mentionRoleNames = [];
     toast.clear();
@@ -46,8 +44,7 @@ describe('ComposerSubmissionState', () => {
       getMentionRoleStatus: () => mentionRoleStatus,
       loadMentionRoles,
       getMentionRoleNames: () => mentionRoleNames,
-      onPostSuccess,
-      onEditSuccess
+      onPostSuccess
     });
   });
 
@@ -103,15 +100,22 @@ describe('ComposerSubmissionState', () => {
   });
 
   it('updates messages and reports failures without leaking loading state', async () => {
-    await state.editMessage({ roomId: 'room_1', eventId: 'event_1', body: 'Updated' });
-    expect(onEditSuccess).toHaveBeenCalledExactlyOnceWith({
+    const saved = await state.editMessage({
+      roomId: 'room_1',
+      eventId: 'event_1',
+      body: 'Updated'
+    });
+    expect(saved).toBe(true);
+    expect(state.loading).toBe(false);
+    expect(updateMessage).toHaveBeenCalledExactlyOnceWith({
       roomId: 'room_1',
       eventId: 'event_1',
       body: 'Updated'
     });
 
     updateMessage.mockRejectedValueOnce(new Error('edit failed'));
-    await state.editMessage({ roomId: 'room_1', eventId: 'event_1', body: 'Again' });
+    const failed = await state.editMessage({ roomId: 'room_1', eventId: 'event_1', body: 'Again' });
+    expect(failed).toBe(false);
 
     expect(getToasts().map(({ message }) => message)).toContain('edit failed');
     expect(state.loading).toBe(false);

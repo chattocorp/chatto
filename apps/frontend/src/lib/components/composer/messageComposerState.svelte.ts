@@ -179,8 +179,7 @@ export class MessageComposerState {
       loadMentionRoles: () => dependencies.mentionRolesStore.load(),
       getMentionRoleNames: () => this.mentionRoles.map((role) => role.name),
       onPostSuccess: (post, event) => this.#handlePostSuccess(post, event),
-      onPostError: dependencies.onPostError,
-      onEditSuccess: (input) => this.#handleEditSuccess(input)
+      onPostError: dependencies.onPostError
     });
 
     void dependencies.mentionRolesStore.load();
@@ -593,14 +592,6 @@ export class MessageComposerState {
     this.editState.cancelEdit();
   }
 
-  #handleEditSuccess(input: UpdateMessageInput): void {
-    // A room or thread switch can cancel the edit while its save is in flight.
-    // The composer then shows another draft or edit, so keep it.
-    if (this.editState.eventId !== input.eventId) return;
-    this.#resetEditor();
-    this.editState.cancelEdit();
-  }
-
   async #createMessage(): Promise<void> {
     const bodyToSend = bodyForSend(this.message);
     const filesToSend = this.hasSendableAttachments ? [...this.attachments.selectedFiles] : null;
@@ -651,7 +642,17 @@ export class MessageComposerState {
     if (body) input.body = body;
     // Omit unchanged placement so text edits do not request echo authority.
     if (echoStateChanged) input.alsoSendToChannel = this.alsoSendToChannel;
-    await this.submission.editMessage(input);
+    const api = this.editorApi;
+    const draftKey = this.draftKey;
+    const saved = await this.submission.editMessage(input);
+    // A room or thread switch can cancel the edit while its save is in flight.
+    // Keep any draft or edit that has since taken its place.
+    if (!saved || this.draftKey !== draftKey || this.editState.eventId !== eventId) return;
+    this.cancelEdit();
+    // Submission has cleared loading and the editor is editable again.
+    if (api && this.editorApi === api && !this.inputDisabled) {
+      api.focus();
+    }
   }
 
   #handleEnter(event: KeyboardEvent): boolean {
