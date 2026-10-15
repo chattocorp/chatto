@@ -62,6 +62,17 @@ frontends use it. See ADR-111.
   compatibility with earlier versions is not a priority for this release.
   Preserve upgrades from pre-0.5 servers. Keep persisted protobufs backward
   compatible where feasible.
+- Increase Chatto's minimum supported server version only as a **last resort**,
+  including during alpha and beta releases. A new release, API change, or
+  simpler implementation alone does not justify an increase. First consider
+  a compatible API design, use of the existing server contract, or deferring
+  the new dependency. Do not add complex compatibility layers merely to avoid
+  an increase.
+- Before increasing the minimum, document the exact incompatibility, why
+  reasonable alternatives are insufficient, and the oldest server release
+  that meets the requirement. Include this evidence and the required upgrade
+  action in the PR. Set the minimum to that release, not automatically to the
+  current release. See [FDR-031](docs/fdr/FDR-031-client-server-compatibility-discovery.md).
 
 ## Additional Agent Rules & Context
 
@@ -208,4 +219,3 @@ Never leave a dev stack running in a detached or yielded terminal session.
 - Always create pull requests as full, ready-for-review PRs. Create a draft PR only when the user explicitly asks for a draft.
 - PR bodies should use clean Markup and summarize changes and link relevant FDRs, ADRs, glossary terms, and issues.
 - If a PR closes an issue, include a GitHub closing keyword such as `Closes #123.` in the body.
-
