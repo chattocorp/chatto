@@ -127,7 +127,7 @@ vi.mock('runling', async (importOriginal) => {
   const actual = await importOriginal<typeof import('runling')>();
   return {
     ...actual,
-    agent: (options: unknown) => mocks.current.agent(options),
+    createAgentSession: (options: unknown) => mocks.current.agent(options),
     runAgent: (_ctx: unknown, ...args: unknown[]) => mocks.current.runAgent(...args),
     step: (name: string, work: () => unknown) => mocks.current.step(name, work),
     log: { info: (message: string) => mocks.current.log?.info(message) },

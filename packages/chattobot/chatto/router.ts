@@ -2,7 +2,7 @@
 import { createDeliveryTracker } from '@chatto/client';
 import { log, type Task, type TSchema } from 'runling';
 import type { RunHandle, WebhookRouter } from 'runling/web';
-import { ConversationInput, IncomingMessage, type IncomingReaction } from './message.ts';
+import { ConversationInput, IncomingMessage } from './message.ts';
 
 /** A conversation ends when nobody writes to the bot in its thread for this long. A later
  * message starts a new conversation, which reads the thread again. */
@@ -29,7 +29,7 @@ export interface RouterOptions {
 
 /**
  * Send each message to the run of its thread, or start one. Everyone who addresses the bot in a
- * thread shares its conversation; the conversation checks permissions per turn.
+ * thread shares its conversation; the conversation checks each GitHub request's author.
  */
 export function createChattoRouter({
   botId,
@@ -83,21 +83,4 @@ export function createChattoRouter({
   };
   route.label = 'Chatto conversation';
   return route;
-}
-
-/** Send a reaction to one of the bot's messages to the conversation of its thread, if one
- * runs. A reaction never starts a conversation. */
-export async function forwardReaction(
-  state: RouterState,
-  botId: string,
-  thread: { roomId: string; threadRootId: string },
-  reaction: IncomingReaction
-): Promise<void> {
-  const key = JSON.stringify([botId, thread.roomId, thread.threadRootId]);
-  await state.threads
-    .get(key)
-    ?.run.send(reaction)
-    .catch(() => {
-      // The conversation has ended; the reaction has nothing to decide.
-    });
 }

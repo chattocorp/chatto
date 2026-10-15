@@ -113,10 +113,11 @@ export default task({ name: "Consumer echo", input: z.object({ topic: z.string()
   );
   await writeFile(
     resolve(project, 'cli.ts'),
-    `import { task, Type, exec, step, log, agent, runAgent, defineAgentExtension, taskTool, createTaskContext } from "runling";
+    `import { task, Type, exec, step, log, agent, createAgentSession, isTask, runAgent, defineAgentExtension, taskTool, createTaskContext } from "runling";
 import * as git from "runling/git";
 import { createTrustExtension } from "runling/extensions/trust";
-if ([agent, runAgent, defineAgentExtension, taskTool, createTrustExtension].some(value => typeof value !== "function")) throw new Error("Missing agent exports");
+if ([agent, createAgentSession, runAgent, defineAgentExtension, taskTool, createTrustExtension].some(value => typeof value !== "function")) throw new Error("Missing agent exports");
+if (!isTask(agent({ name: "Consumer agent", model: "test/model", cwd: "." }))) throw new Error("An agent must be a task");
 export default task({ name: "CLI echo", input: Type.String(), output: Type.String() }, async (ctx, input) => {
   if (typeof git.getPwd !== "function" || typeof git.workingTreeHash !== "function" || typeof git.WorkingDirectory.create !== "function") throw new Error("Git helpers were not exported");
   if (process.env.RUNLING_PACKAGE_TEST_ENV !== "loaded") throw new Error("Project .env was not loaded");

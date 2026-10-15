@@ -1,15 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import {
-  agent,
-  exec,
-  log,
-  step,
-  concat,
-  task,
-  Type,
-  type TaskContext
-} from 'runling';
+import { createAgentSession, exec, log, step, concat, task, Type, type TaskContext } from 'runling';
 import { implement } from './implement.ts';
 import { review } from './review.ts';
 
@@ -25,7 +16,7 @@ export const describePullRequest = (
   committedChange: string
 ) =>
   step('Describe pull request', async () => {
-    await using writer = await agent({
+    await using writer = await createAgentSession({
       cwd: directory,
       model,
       thinkingLevel,

@@ -1,16 +1,28 @@
 # FDR-001: Agent interactions and steering
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-14
+**Last reviewed:** 2026-10-15
 
 ## Overview
 
-Runling supports conversational agents and specialist agents with structured
-outcomes. An agent is the implementation of a task. The task gives messages
-from its parent to the agent and emits the replies of the agent.
+Runling supports agent tasks and explicit sessions for custom conversation
+loops and structured outcomes. `agent()` defines a task. Each invocation owns
+one session, gives parent messages to it, and emits its completed replies.
 
 ## Behavior
 
+- Agent task definitions are reusable and do not start a session at definition
+  time. Each invocation owns setup, execution, cancellation, and disposal.
+- Agent tasks accept string prompts by default. A typed input schema requires
+  a prompt function. Optional async setup receives the validated input and the
+  invocation context.
+- Agent tasks return final text and emit completed assistant replies. They use
+  steering during an active turn. Read messages that were not delivered become
+  later turns in the same session. Open input does not keep an idle task alive.
+- `runling run` records assistant replies and emitted messages in its journal.
+  Terminal display follows [FDR-011](FDR-011-cli-output.md).
+- `createAgentSession()` exposes explicit session ownership for custom loops,
+  report outcomes, and forks. `runAgent()` runs one explicit interaction.
 - Text mode lets the agent finish its turn naturally. The final text of the
   agent is the summary of the result. Applications can also see each completed
   assistant text message during the turn. These messages do not include private
@@ -19,6 +31,11 @@ from its parent to the agent and emits the replies of the agent.
   Provider failure and a missing report are host failures, distinct from a model
   reporting that it is blocked.
 - An empty text response or a provider error gives a failed outcome.
+- With live logging enabled, reasoning summaries and, outside `runling run`,
+  agent replies appear as Markdown
+  blocks below their agent ID. Text wraps to the available width after task
+  indentation. Journals and pipes keep the original Markdown. `NO_COLOR`
+  disables terminal colors, including in the final workflow output.
 - Steering enters before a subsequent model call. A positive delivery result
   does not mean the model followed the instruction. The caller keeps the
   messages that the agent did not get, for example for the next turn.
@@ -74,7 +91,7 @@ approvals implement them with tasks and messages.
 
 - **ADRs:** [ADR-002](../adr/ADR-002-agent-ownership.md),
   [ADR-009](../adr/ADR-009-task-invocations.md)
-- **FDRs:** [FDR-010](FDR-010-host-messages.md)
+- **FDRs:** [FDR-010](FDR-010-host-messages.md), [FDR-011](FDR-011-cli-output.md)
 - [Agent API guide](../agents.md) and [steering guide](../agent-steering.md)
 
 ## Open Questions

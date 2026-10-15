@@ -1,26 +1,86 @@
 # Agents
 
-Import the agent APIs from `runling`: `agent`, `runAgent`,
-`defineAgentExtension`, `defineAgentTool`, `taskTool`, and their types.
-
-- `agent(options)` creates a Pi agent session. Call `run()` or `runOutcome()`
-  for each turn. Dispose of the agent when you do not need it.
-- `runAgent(ctx, prompt, options)` creates an agent, runs one turn, and disposes
-  of the agent.
+`agent(options)` defines a task. It does not create a live session until the
+task runs. The default input is a string prompt. The output is the final text
+of the agent.
 
 ```ts
-import { runAgent } from 'runling';
+import { agent } from 'runling';
 
-const report = await runAgent(ctx, 'Find the cause of the failing test', {
-  cwd: directory,
+export default agent({
+  name: 'Repository assistant',
+  cwd: '.',
   model: 'openai-codex/gpt-5.6-sol',
   tools: ['read', 'grep', 'find', 'ls']
 });
 ```
 
-## Output modes
+Save this as `assistant.ts`, then run:
 
-The default, `output: "report"`, is for coding and specialist tasks. The agent
+```sh
+runling run assistant.ts "Find the cause of the failing test"
+```
+
+An agent task works with the same APIs as any other task:
+
+```ts
+const answer = await assistant(ctx, 'Explain this repository');
+await using work = ctx.start(assistant, 'Investigate a failure');
+await work.send('Also check the integration tests');
+for await (const reply of work.updates) console.log(reply);
+const result = await work.result;
+```
+
+Each invocation owns one session. Runling disposes it on success, failure, or
+cancellation. It forwards completed assistant messages through `ctx.emit` and
+returns the last reply. Reasoning and tool output are not emitted messages.
+An unsuccessful outcome throws `AgentOutcomeError`.
+
+Messages sent to an active invocation steer its session. A message that Runling
+has read but that cannot enter the active turn becomes a subsequent turn in the
+same session. The task finishes when its work ends; an open input does not keep
+it alive. Closing input does not cancel an active turn. See
+[agent steering](agent-steering.md). As with other tasks, a successful `send`
+means queued, not processed; do not send more work after the task completes.
+
+## Typed input and invocation setup
+
+Give `input` and `prompt` to accept structured input. Runling validates and
+transforms input before it calls `setup` or `prompt`. `prompt` must return a
+string. Both functions can be asynchronous.
+
+Use `setup(ctx, input)` instead of static session options when the invocation
+needs its own working directory, tools, credentials, or session path:
+
+```ts
+import { agent, Type } from 'runling';
+
+const inspect = agent({
+  name: 'Inspect repository',
+  input: Type.Object({ directory: Type.String(), question: Type.String() }),
+  prompt: ({ question }) => question,
+  setup: async (_ctx, { directory }) => ({
+    cwd: directory,
+    model: 'openai-codex/gpt-5.6-sol',
+    tools: ['read', 'grep', 'find', 'ls']
+  })
+});
+```
+
+Use `ctx.signal` for cancellable setup work. Runling checks cancellation before
+it creates the session and before it starts the first turn. Concurrent
+invocations have separate sessions. If you set `sessionFile`, give concurrent
+invocations distinct paths.
+
+## Explicit sessions and output modes
+
+Use `createAgentSession(options)` when you need a custom conversation loop,
+report outcomes, or session forks. Call `run()` or `runOutcome()` for each turn
+and dispose of the session when you finish. `runAgent(ctx, prompt, options)`
+remains a convenience for one interaction and returns its outcome.
+
+For these session APIs, the default `output: "report"` is for coding and
+specialist tasks. The agent
 must call `report_outcome` with an outcome (`completed`, `blocked`, or
 `failed`), a one-line `summary`, and optional `details`. If the agent does not
 report, Runling asks it one more time.
@@ -47,16 +107,27 @@ also adds its outcome rules.
 
 Use `run(ctx, prompt, { onText })` or `runOutcome()` with `onText` to see each
 completed assistant text message during a turn. The callback does not get
-reasoning or tool output.
+reasoning or tool output. Agent tasks use this callback to emit replies.
+`runling run` records those replies in the journal and prints only the root
+task's final output.
 
-## An agent as a task
+When live logging is enabled, Runling shows reasoning summaries and, outside
+`runling run`, assistant text as Markdown
+blocks below the agent ID. It wraps these blocks to the available width.
+Journals and pipes keep the original Markdown. Set `NO_COLOR` to disable colors.
+Steps inside agent tools use the same agent ID prefix as the agent's other log lines.
+See [FDR-011](fdr/FDR-011-cli-output.md) for the CLI display contract.
+The final workflow output is separate: a task can return an agent reply, combine
+several replies, or return a different result.
 
-An agent is the implementation of a task. The task receives messages from its
-parent and emits the replies of the agent. This conversational task answers each
-message from its parent:
+## A custom conversation loop
+
+An agent task finishes when its current work ends. For a conversation that waits
+for new messages between turns, own the session in a task. This example answers
+each message until its parent closes input:
 
 ```ts
-import { agent, task, Type } from 'runling';
+import { createAgentSession, task, Type } from 'runling';
 
 export default task(
   {
@@ -67,7 +138,7 @@ export default task(
     emits: Type.String()
   },
   async (ctx, message) => {
-    await using bot = await agent({ cwd: '.', model, output: 'text' });
+    await using bot = await createAgentSession({ cwd: '.', model, output: 'text' });
     const inbox = ctx.inbox[Symbol.asyncIterator]();
     while (true) {
       const { summary } = await bot.run(ctx, message);
@@ -80,8 +151,9 @@ export default task(
 );
 ```
 
-Run it with `runling run chat.ts "Hello"` and type the next messages. A message
-that arrives during a turn waits in the inbox until the turn ends. To give the
+Use a host that displays updates, such as the web console, for this conversation.
+The CLI records replies but prints only the result after the conversation ends.
+A message that arrives during a turn waits in the inbox until the turn ends. To give the
 message to the agent during the turn, use [steering](agent-steering.md).
 
 ## Continue a conversation
@@ -94,14 +166,14 @@ cancellation or a restart. When the file does not exist, the agent starts a new
 conversation in it. Pi writes the file after the first model reply.
 
 ```ts
-const worker = await agent({ model, cwd, sessionFile: join(artifactDirectory, 'worker.jsonl') });
+await using worker = await createAgentSession({ model, cwd, sessionFile: join(artifactDirectory, 'worker.jsonl') });
 ```
 
 The file contains the complete model context: prompts, tool results, and
 replies. Keep it private, as other workflow data. `sessionFile` cannot be
 combined with `trust`, because Runling keeps the untrusted mark only in memory.
 
-`agent.fork()` creates an independent agent in memory with a copy of the
+`session.fork()` creates an independent agent in memory with a copy of the
 conversation. A fork does not use the session file of its source.
 
 ## Untrusted content
@@ -110,7 +182,7 @@ Set `trust` when an agent can read content that other people control, such as we
 pages, and also has tools that must not act on that content:
 
 ```ts
-await using owner = await agent({
+await using owner = await createAgentSession({
   cwd: '.',
   model,
   tools: ['researchWeb', 'publishChange'],
@@ -139,7 +211,7 @@ of the agent. Only the output of the script reaches the model. Thus a script can
 run several calls in parallel and filter large results first:
 
 ```ts
-await using owner = await agent({
+await using owner = await createAgentSession({
   cwd: '.',
   model,
   tools: ['readIssue', 'searchIssues'],
@@ -162,8 +234,8 @@ as a call from the model, so `trust` and other extension gates apply. See
 ## Tasks as agent tools
 
 `taskTool(ctx, task, { name, description, label? })` gives a task to an agent as
-a tool. Create the tool inside the task that runs the agent, so the tool uses
-the context of that task:
+a tool. Agent tasks also work as tools. Create each tool in `setup` or in the
+task that owns an explicit session, so it uses the context of that invocation:
 
 ```ts
 import { agent, defineAgentExtension, task, taskTool, Type } from 'runling';
@@ -173,19 +245,18 @@ const greet = task(
   async (_ctx, { name }) => `Hello, ${name}`
 );
 
-export default task(
-  { name: 'Greeter', input: Type.Null(), output: Type.String() },
-  async (ctx) => {
+export default agent({
+  name: 'Greeter',
+  setup: async (ctx) => {
     const tools = defineAgentExtension((pi) => {
       pi.registerTool(
         taskTool(ctx, greet, { name: 'greet', description: 'Return a greeting for a name.' })
       );
     });
 
-    await using worker = await agent({ cwd: '.', model, tools: ['greet'], extensions: [tools] });
-    return (await worker.run(ctx, 'Greet Ada.')).summary;
+    return { cwd: '.', model, tools: ['greet'], extensions: [tools] };
   }
-);
+});
 ```
 
 - The tool parameters are the input schema of the task. The input schema must
@@ -211,3 +282,16 @@ tool for `pi.registerTool` in an agent extension. It keeps the type of the
 TypeBox parameters for `execute`. `AgentTool` is the type of a defined tool, so
 a host can wrap tools, for example to add an approval step, before it registers
 them.
+
+## Migration from session-returning `agent()`
+
+`agent()` now returns a task synchronously. For code that used
+`await agent(options)` and then called `.run()`, `.runOutcome()`, `.steer()`, or
+`.fork()`, replace the constructor with `await createAgentSession(options)`.
+The session methods and `AgentOptions` type are unchanged.
+
+For a task that only created a text session, ran a prompt, and returned its
+summary, use `agent({ name, ... })` directly. Remove manual run and disposal
+code. Move per-invocation configuration into `setup`, and use `input` plus
+`prompt` for structured input. Agent tasks always use text mode; use an explicit
+session or `runAgent` when the application needs a structured report outcome.

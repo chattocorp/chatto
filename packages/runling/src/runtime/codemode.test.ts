@@ -14,7 +14,7 @@ import {
 } from '@earendil-works/pi-ai';
 import { Type } from 'typebox';
 import { createTaskContext } from './context.ts';
-import { agent, defineAgentExtension, type AgentOptions } from './agent.ts';
+import { createAgentSession, defineAgentExtension, type AgentOptions } from './agent.ts';
 import { observeRunlingEvents, type RunlingEvent } from './events.ts';
 import { validateScriptMaxCalls, validateScriptTimeout, withScriptDeadline } from './codemode.ts';
 
@@ -79,7 +79,7 @@ function recordingTool(name: string, calls: string[], text: string) {
 
 async function runScript(code: string, options: Partial<AgentOptions>, steps: FauxResponseStep[]) {
   faux.setResponses([fauxAssistantMessage(fauxToolCall('codemode', { code })), ...steps]);
-  const instance = await agent({
+  const instance = await createAgentSession({
     cwd: directory,
     model: 'faux/model',
     output: 'text',
@@ -406,7 +406,7 @@ test('a script without a unique tool call ID does not run', async () => {
       return fauxAssistantMessage('done');
     }
   ]);
-  const instance = await agent({
+  const instance = await createAgentSession({
     cwd: directory,
     model: 'faux/model',
     output: 'text',
@@ -446,7 +446,7 @@ test('a provider can reuse a tool call ID in a later turn after a refused script
       fauxToolCall('codemode', { code: 'return await tools.first({});' }, { id })
     );
   faux.setResponses([script('call_0'), script('call_0'), fauxAssistantMessage('done')]);
-  const instance = await agent({
+  const instance = await createAgentSession({
     cwd: directory,
     model: 'faux/model',
     output: 'text',

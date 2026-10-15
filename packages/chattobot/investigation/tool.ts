@@ -5,7 +5,7 @@ import type { Destination } from '@chatto/client';
 import { defineAgentExtension, Type, type TaskContext } from 'runling';
 import type { Jobs } from '../harness/jobs.ts';
 import { linkCitations } from './citations.ts';
-import type { createInvestigator } from './investigate.ts';
+import type { createInvestigator } from '../tasks/investigate.ts';
 
 /** What the conversation needs for code investigations. */
 export interface Investigation {

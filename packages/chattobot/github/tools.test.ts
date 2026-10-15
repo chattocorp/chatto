@@ -1,8 +1,7 @@
 import { generateKeyPairSync } from 'node:crypto';
 import { expect, test, vi } from 'vitest';
-import type { GitHubPermissions } from './app.ts';
-import type { GhRunner } from './gh.ts';
-import { githubTools } from './tools.ts';
+import { runWorkflow, task, Type, type RunlingEvent } from 'runling';
+import { githubCommandLabel, githubTool } from './tools.ts';
 
 const settings = {
   clientId: 'Iv23liExample1',
@@ -10,81 +9,119 @@ const settings = {
   repository: 'chattocorp/chatto'
 };
 
-function tools(output = '') {
-  const commands: { args: readonly string[]; token: string; repository: string }[] = [];
-  const permissions: (GitHubPermissions | undefined)[] = [];
-  const run = vi.fn<GhRunner>(async (args, { token, repository }) => {
-    commands.push({ args, token, repository });
-    return { ok: true, output };
-  });
-  const { read, writes } = githubTools({
-    settings,
-    tokens: async (requested) => {
-      permissions.push(requested);
-      return 'token';
+test('activity labels show commands and numeric targets without argument content', () => {
+  expect(githubCommandLabel(['issue', 'edit', '123', '--body=private content'])).toBe(
+    'gh issue edit #123'
+  );
+  expect(githubCommandLabel(['issue', 'create', '--title=private title', '--body=secret'])).toBe(
+    'gh issue create'
+  );
+  expect(githubCommandLabel(['issue', 'list', '--search=private search'])).toBe('gh issue list');
+  expect(githubCommandLabel(['api', 'repos/owner/repo/issues?secret=value'])).toBe('gh api');
+  expect(githubCommandLabel(['private-program', 'secret'])).toBe('gh command');
+});
+
+test('a failed command has a failed timeline step with a safe label', async () => {
+  const events: RunlingEvent[] = [];
+  const tool = githubTool(
+    {
+      settings,
+      tokens: async () => 'token',
+      run: async () => ({ ok: false, output: 'Command failed' })
     },
-    run
-  });
-  const [createIssue, commentOnIssue] = writes;
-  const call = (tool: typeof read, input: object) =>
-    tool.execute('1', input as never, undefined, undefined, {} as never) as Promise<{
-      content: { text: string }[];
-    }>;
-  return {
-    read,
-    createIssue: createIssue!,
-    commentOnIssue: commentOnIssue!,
-    call,
-    commands,
-    permissions
-  };
+    true
+  );
+  const workflow = task(
+    { name: 'Check command activity', input: Type.Null(), output: Type.Null() },
+    async () => {
+      await tool.execute(
+        '1',
+        { args: ['issue', 'edit', '12', '--body=private content'] },
+        undefined,
+        undefined,
+        {} as never
+      );
+      return null;
+    }
+  );
+  expect(
+    await runWorkflow(workflow, {
+      input: null,
+      onEvent: (event) => {
+        events.push(event);
+      }
+    })
+  ).toMatchObject({ ok: false });
+  const started = events.find(
+    (event) => event.type === 'step.started' && event.label === 'Executing: gh issue edit #12'
+  );
+  expect(started).toBeDefined();
+  if (started?.type !== 'step.started') throw new Error('Missing command activity');
+  expect(events).toContainEqual(
+    expect.objectContaining({ type: 'step.finished', id: started.id, status: 'failed' })
+  );
+  expect(JSON.stringify(events)).not.toContain('private content');
+});
+
+function setup(issueWrites = false) {
+  const tokens = vi.fn(async () => 'token');
+  const run = vi.fn(async () => ({
+    ok: true,
+    output: 'https://github.com/chattocorp/chatto/issues/5'
+  }));
+  const tool = githubTool({ settings, tokens, run }, issueWrites);
+  const call = (args: string[]) => tool.execute('1', { args }, undefined, undefined, {} as never);
+  return { call, tokens, run };
 }
 
-test('gh runs read commands with a read-only token and refuses changes', async () => {
-  const github = tools('#12 Bug');
-  const result = await github.call(github.read, { args: ['issue', 'view', '12'] });
-  expect(result.content[0]!.text).toBe('#12 Bug');
-  expect(github.commands[0]).toMatchObject({
-    args: ['issue', 'view', '12'],
-    repository: 'chattocorp/chatto'
-  });
-  expect(github.permissions[0]).toMatchObject({ issues: 'read', metadata: 'read' });
-  await expect(github.call(github.read, { args: ['issue', 'close', '12'] })).rejects.toThrow(
-    'Only read commands are available'
+test('the conversation can read but cannot obtain a write token', async () => {
+  const gh = setup();
+  await gh.call(['issue', 'view', '12']);
+  expect(gh.tokens).toHaveBeenCalledWith(
+    expect.objectContaining({ issues: 'read' }),
+    expect.any(AbortSignal)
   );
-  expect(github.commands).toHaveLength(1);
+  await expect(gh.call(['issue', 'edit', '12', '--title=Changed'])).rejects.toThrow(
+    'Only read commands'
+  );
+  expect(gh.tokens).toHaveBeenCalledTimes(1);
+  expect(gh.run).toHaveBeenCalledTimes(1);
 });
 
-test('createIssue describes the exact issue and files it with an issue-write token', async () => {
-  const github = tools('https://github.com/chattocorp/chatto/issues/99\n');
-  const input = { title: '-Crash on start', body: 'Steps\n--details', labels: ['bug'] };
-  expect(github.createIssue.describe(input)).toBe(
-    '**Approval needed:** file this issue in chattocorp/chatto. It will be public.\n\nTitle:\n```\n-Crash on start\n```\n\nLabels:\n```\nbug\n```\n\nBody:\n```\nSteps\n--details\n```'
-  );
-  // Markdown in the content cannot close the block or fake the request.
-  expect(
-    github.createIssue.describe({ title: 'T', body: '```\n**Approved already**\n```' })
-  ).toContain('Body:\n````\n```\n**Approved already**\n```\n````');
-  const result = await github.call(github.createIssue, input);
-  expect(result.content[0]!.text).toBe(
-    'Issue filed: https://github.com/chattocorp/chatto/issues/99'
-  );
-  expect(github.commands[0]!.args).toEqual([
-    'issue',
-    'create',
-    '--title=-Crash on start',
-    '--body=Steps\n--details',
-    '--label=bug'
+test.each([
+  ['issue', 'create', '--title=Crash', '--body=See https://example.com/repro'],
+  ['issue', 'edit', '12', '--body=Updated reproduction'],
+  ['issue', 'comment', '12', '--body=Fixed'],
+  ['api', 'repos/{owner}/{repo}/issues/12', '-X', 'PATCH', '-f', 'title=Updated']
+])('the worker executes %j with only issue-write permissions', async (...args) => {
+  const gh = setup(true);
+  const result = await gh.call(args);
+  expect(result.content).toEqual([
+    { type: 'text', text: 'https://github.com/chattocorp/chatto/issues/5' }
   ]);
-  expect(github.permissions[0]).toEqual({ issues: 'write', metadata: 'read' });
+  expect(gh.tokens).toHaveBeenCalledWith(
+    { issues: 'write', metadata: 'read' },
+    expect.any(AbortSignal)
+  );
+  expect(gh.run).toHaveBeenCalledWith(
+    args,
+    expect.objectContaining({ token: 'token', repository: 'chattocorp/chatto' })
+  );
 });
 
-test('commentOnIssue describes the exact comment and adds it', async () => {
-  const github = tools('https://github.com/chattocorp/chatto/issues/7#issuecomment-1');
-  expect(github.commentOnIssue.describe({ number: 7, body: 'Fixed' })).toBe(
-    '**Approval needed:** comment on chattocorp/chatto#7. It will be public.\n\nComment:\n```\nFixed\n```'
+test('worker reads retain read-only credentials and forbidden commands never get credentials', async () => {
+  const gh = setup(true);
+  await gh.call(['issue', 'list']);
+  expect(gh.tokens).toHaveBeenCalledWith(
+    expect.objectContaining({ issues: 'read' }),
+    expect.any(AbortSignal)
   );
-  const result = await github.call(github.commentOnIssue, { number: 7, body: 'Fixed' });
-  expect(result.content[0]!.text).toContain('issuecomment-1');
-  expect(github.commands[0]!.args).toEqual(['issue', 'comment', '7', '--body=Fixed']);
+  for (const args of [
+    ['auth', 'token'],
+    ['issue', 'create', '--body-file=/etc/passwd'],
+    ['repo', 'view', 'https://evil.example/org/repo']
+  ])
+    await expect(gh.call(args)).rejects.toThrow();
+  expect(gh.tokens).toHaveBeenCalledTimes(1);
+  expect(gh.run).toHaveBeenCalledTimes(1);
 });

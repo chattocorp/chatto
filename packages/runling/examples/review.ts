@@ -1,4 +1,4 @@
-import { agent, exec, step, concat, task, Type } from 'runling';
+import { createAgentSession, exec, step, concat, task, Type } from 'runling';
 
 const model = 'openai-codex/gpt-5.6-sol';
 const thinkingLevel = 'medium';
@@ -33,7 +33,7 @@ export const review = task(
 
     const diff = await exec`git diff HEAD --stat --patch --no-ext-diff`.cwd(directory).text();
 
-    await using orchestrator = await agent({
+    await using orchestrator = await createAgentSession({
       cwd: directory,
       model,
       thinkingLevel,

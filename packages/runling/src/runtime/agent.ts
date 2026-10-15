@@ -1,10 +1,11 @@
 import type { TaskContext } from './context.ts';
 import { requireDirectory } from './directory.ts';
+import { executionServices } from './execution.ts';
 import { stripVTControlCharacters } from 'node:util';
 import { dirname } from 'node:path';
 import { rm } from 'node:fs/promises';
 import {
-  createAgentSession,
+  createAgentSession as createPiAgentSession,
   convertToLlm,
   DefaultResourceLoader,
   defineTool,
@@ -29,7 +30,7 @@ import {
 import { createTrustExtension, type TrustPolicy } from '../../extensions/trust.ts';
 import { bindRunlingContext, emitRunlingEvent } from './events.ts';
 import { randomId } from './id.ts';
-import { log, withLogSource } from './log.ts';
+import { log, logMarkdown, withLogSource } from './log.ts';
 import { parseModelReference } from './model.ts';
 import { displayPath, displayText } from './paths.ts';
 import { RUNLING_SYSTEM_PROMPT, formatAgentInstructions } from './system-prompt.ts';
@@ -209,7 +210,7 @@ export interface RunAgentOptions {
 export type AgentOptions = Omit<RunAgentOptions, 'signal'>;
 
 export interface AgentRunOptions {
-  /** Observe completed assistant text messages during this interaction (not reasoning or tool output). */
+  /** Receive completed assistant text during this interaction (not reasoning or tool output). */
   onText?: (text: string) => void;
   /** Abort this model turn without disposing the agent. */
   signal?: AbortSignal;
@@ -278,7 +279,7 @@ export async function runAgent(
   const { signal, ...createOptions } = options;
   ctx.signal.throwIfAborted();
   signal?.throwIfAborted();
-  const instance = await agent(createOptions);
+  const instance = await createAgentSession(createOptions);
 
   try {
     return await instance.runOutcome(ctx, prompt, { signal });
@@ -321,7 +322,8 @@ function commentaryText(content: readonly ContentPart[]): string {
     .join('\n');
 }
 
-export async function agent(options: AgentOptions): Promise<RunlingAgent> {
+/** Create a live agent session for a custom conversation loop. The caller owns disposal. */
+export async function createAgentSession(options: AgentOptions): Promise<RunlingAgent> {
   return createRunlingAgent(options);
 }
 
@@ -344,7 +346,8 @@ async function createRunlingAgent(
   const writeAgentLog = (
     level: 'debug' | 'error' | 'info' | 'success',
     message: string,
-    showProgress = true
+    showProgress = true,
+    markdown = false
   ) => {
     if (showProgress && level !== 'debug') progress(message);
     if (level !== 'debug' || log.level === 'debug') {
@@ -355,14 +358,23 @@ async function createRunlingAgent(
       });
     }
     withLogSource({ type: 'agent', id: agentId }, () =>
-      log.withColor(color, () => log[level](prefixLog(message)))
+      log.withColor(color, () =>
+        markdown ? logMarkdown(prefixLog('').trimEnd(), message) : log[level](prefixLog(message))
+      )
     );
   };
   const agentLog = {
     debug: (message: string) => writeAgentLog('debug', message),
     error: (message: string) => writeAgentLog('error', message),
     info: (message: string) => writeAgentLog('info', message),
+    markdown: (message: string) => writeAgentLog('info', message, true, true),
     success: (message: string) => writeAgentLog('success', message)
+  };
+  // Preserve reply events for journals and observers even when the host owns their display.
+  const logReply = (message: string, markdown = false) => {
+    const write = () => writeAgentLog('info', message, true, markdown);
+    if (executionServices()?.printAgentReplies === false) log.withDestination('silent', write);
+    else write();
   };
   let activeReport: AgentReport | undefined;
   let reports: AgentReport[] = [];
@@ -481,7 +493,7 @@ async function createRunlingAgent(
   for (const message of inheritedMessages) {
     sessionManager.appendMessage(message);
   }
-  const { session } = await createAgentSession({
+  const { session } = await createPiAgentSession({
     cwd,
     model,
     thinkingLevel: options.thinkingLevel,
@@ -726,8 +738,8 @@ async function createRunlingAgent(
           // Reasoning summaries are often the only account of what the agent is doing.
           for (const part of event.message.content)
             if (part.type === 'thinking' && !part.redacted && part.thinking.trim())
-              agentLog.info(`${log.highlight('Thinking')} ${part.thinking.trim()}`);
-          if (finalText.trim()) agentLog.info(finalText);
+              agentLog.markdown(`**Thinking**\n\n${part.thinking.trim()}`);
+          if (finalText.trim()) logReply(finalText, true);
 
           accumulateTokenUsage(usage, event.message.usage);
           ctx.recordUsage(event.message.usage);
@@ -745,40 +757,14 @@ async function createRunlingAgent(
     let result: AgentResult | undefined;
 
     try {
-      result = await log.withColor(color, async (): Promise<AgentResult> => {
-        signal?.throwIfAborted();
-        await session.prompt(prompt);
-        signal?.throwIfAborted();
-
-        // A transport failure is not a report-format error. Do not start a new
-        // model request after the provider has exhausted its retry budget.
-        if (finalTextError) {
-          return {
-            outcome: 'failed',
-            failureReason: 'provider_error',
-            summary: providerFailureSummary(finalTextError),
-            usage
-          };
-        }
-        if (textOutput) {
-          // The final text is the result. onText already delivered it during the turn.
-          if (!finalText?.trim())
-            return { outcome: 'failed', summary: 'Agent finished without a text response', usage };
-          return { outcome: 'completed', summary: finalText, usage };
-        }
-
-        if (activeReport === undefined) {
-          agentLog.info(
-            finalText !== undefined && containsMalformedToolCall(finalText)
-              ? 'Retrying malformed outcome report'
-              : 'Retrying missing outcome report'
-          );
-          finalText = undefined;
-          acceptingSteering = true;
-          await session.prompt(
-            'Finish the original task by calling report_outcome with the truthful outcome. Use native tool calling; do not respond with plain text.'
-          );
+      result = await withLogSource({ type: 'agent', id: agentId }, () =>
+        log.withColor(color, async (): Promise<AgentResult> => {
           signal?.throwIfAborted();
+          await session.prompt(prompt);
+          signal?.throwIfAborted();
+
+          // A transport failure is not a report-format error. Do not start a new
+          // model request after the provider has exhausted its retry budget.
           if (finalTextError) {
             return {
               outcome: 'failed',
@@ -787,43 +773,75 @@ async function createRunlingAgent(
               usage
             };
           }
-        }
-
-        if (activeReport !== undefined) {
-          // Steering can reopen an interaction after a valid report. Preserve
-          // that evidence even if the next report only refers back to it.
-          let details = activeReport.details;
-          if (reports.length > 1) {
-            details = reports
-              .map((report, index) => {
-                const label =
-                  index === reports.length - 1
-                    ? 'latest; supersedes earlier conclusions'
-                    : 'earlier findings';
-                const body = report.details
-                  ? `${report.summary}\n\n${report.details}`
-                  : report.summary;
-
-                return `Report ${index + 1} (${label}):\n${body}`;
-              })
-              .join('\n\n');
+          if (textOutput) {
+            // The final text is the result. onText already delivered it during the turn.
+            if (!finalText?.trim())
+              return {
+                outcome: 'failed',
+                summary: 'Agent finished without a text response',
+                usage
+              };
+            return { outcome: 'completed', summary: finalText, usage };
           }
 
-          agentLog.info(details?.trim() || activeReport.summary);
-          return { ...activeReport, ...(details !== undefined ? { details } : {}), usage };
-        }
+          if (activeReport === undefined) {
+            agentLog.info(
+              finalText !== undefined && containsMalformedToolCall(finalText)
+                ? 'Retrying malformed outcome report'
+                : 'Retrying missing outcome report'
+            );
+            finalText = undefined;
+            acceptingSteering = true;
+            await session.prompt(
+              'Finish the original task by calling report_outcome with the truthful outcome. Use native tool calling; do not respond with plain text.'
+            );
+            signal?.throwIfAborted();
+            if (finalTextError) {
+              return {
+                outcome: 'failed',
+                failureReason: 'provider_error',
+                summary: providerFailureSummary(finalTextError),
+                usage
+              };
+            }
+          }
 
-        if (finalText !== undefined && finalText.trim() !== '') {
-          agentLog.debug(`Discarding unreported final text: ${toSingleLine(finalText)}`);
-        }
+          if (activeReport !== undefined) {
+            // Steering can reopen an interaction after a valid report. Preserve
+            // that evidence even if the next report only refers back to it.
+            let details = activeReport.details;
+            if (reports.length > 1) {
+              details = reports
+                .map((report, index) => {
+                  const label =
+                    index === reports.length - 1
+                      ? 'latest; supersedes earlier conclusions'
+                      : 'earlier findings';
+                  const body = report.details
+                    ? `${report.summary}\n\n${report.details}`
+                    : report.summary;
 
-        return {
-          outcome: 'failed',
-          summary: 'Agent finished without a valid outcome report',
-          failureReason: 'missing_outcome',
-          usage
-        };
-      });
+                  return `Report ${index + 1} (${label}):\n${body}`;
+                })
+                .join('\n\n');
+            }
+
+            logReply(details?.trim() || activeReport.summary);
+            return { ...activeReport, ...(details !== undefined ? { details } : {}), usage };
+          }
+
+          if (finalText !== undefined && finalText.trim() !== '') {
+            agentLog.debug(`Discarding unreported final text: ${toSingleLine(finalText)}`);
+          }
+
+          return {
+            outcome: 'failed',
+            summary: 'Agent finished without a valid outcome report',
+            failureReason: 'missing_outcome',
+            usage
+          };
+        })
+      );
       return result;
     } finally {
       signal?.removeEventListener('abort', abort);

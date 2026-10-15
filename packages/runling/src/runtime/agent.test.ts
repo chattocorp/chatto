@@ -101,8 +101,14 @@ vi.doMock('@earendil-works/pi-coding-agent', async () => {
   };
 });
 
-const { agent, AgentOutcomeError, answerText, describeTool, runAgent, toolFailureCategory } =
-  await import('./agent.ts');
+const {
+  createAgentSession,
+  AgentOutcomeError,
+  answerText,
+  describeTool,
+  runAgent,
+  toolFailureCategory
+} = await import('./agent.ts');
 
 test.each([
   ['ENOENT: private path', 'not_found'],
@@ -597,14 +603,18 @@ describe('runAgent', () => {
     expect(resourceOptions.settingsManager).toBe(sessionOptions.settingsManager);
   });
 
-  test('a session file keeps the conversation for a later agent, but not for a fork', async () => {
+  test('a session file keeps the conversation for a later createAgentSession, but not for a fork', async () => {
     const { mkdtemp, readFile, rm } = await import('node:fs/promises');
     const { tmpdir } = await import('node:os');
     const { join } = await import('node:path');
     const directory = await mkdtemp(join(tmpdir(), 'runling-session-'));
     const sessionFile = join(directory, 'worker.jsonl');
     try {
-      const first = await agent({ model: 'anthropic/claude-opus-4-5', cwd: '.', sessionFile });
+      const first = await createAgentSession({
+        model: 'anthropic/claude-opus-4-5',
+        cwd: '.',
+        sessionFile
+      });
       const manager = sessionOptions.sessionManager;
       manager.appendMessage({ role: 'user', content: 'Add /shrug', timestamp: 1 });
       manager.appendMessage({
@@ -624,7 +634,11 @@ describe('runAgent', () => {
       first.dispose();
       expect(await readFile(sessionFile, 'utf8')).toContain('Reading the composer.');
 
-      const resumed = await agent({ model: 'anthropic/claude-opus-4-5', cwd: '.', sessionFile });
+      const resumed = await createAgentSession({
+        model: 'anthropic/claude-opus-4-5',
+        cwd: '.',
+        sessionFile
+      });
       expect(
         sessionOptions.sessionManager
           .buildSessionContext()
@@ -635,7 +649,7 @@ describe('runAgent', () => {
       fork.dispose();
       resumed.dispose();
       await expect(
-        agent({
+        createAgentSession({
           model: 'anthropic/claude-opus-4-5',
           cwd: '.',
           sessionFile,
@@ -1079,7 +1093,7 @@ describe('runAgent', () => {
 
 describe('agent', () => {
   test('forks the current conversation into an independent session', async () => {
-    const instance = await agent({
+    const instance = await createAgentSession({
       cwd: '/project',
       model: 'anthropic/claude-opus-4-5',
       tools: ['read']
@@ -1127,7 +1141,7 @@ describe('agent', () => {
           handlers.get('tool_result')!({ type: 'tool_result', toolName, isError, content: [] })
       };
     };
-    const instance = await agent({
+    const instance = await createAgentSession({
       cwd: '/project',
       model: 'anthropic/claude-opus-4-5',
       tools: ['search', 'implement', 'read'],
@@ -1178,7 +1192,10 @@ describe('agent', () => {
   });
 
   test('does not install the trust extension without a policy', async () => {
-    const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+    const instance = await createAgentSession({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5'
+    });
     try {
       expect(
         resourceOptions.extensionFactories.some(
@@ -1191,7 +1208,10 @@ describe('agent', () => {
   });
 
   test('keeps inherited summaries in Pi history across further compaction', async () => {
-    const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+    const instance = await createAgentSession({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5'
+    });
     createdSessions[0].agent.state.messages = [
       {
         role: 'compactionSummary',
@@ -1222,12 +1242,12 @@ describe('agent', () => {
   });
 
   test('does not fork a running or disposed agent', async () => {
-    let instance: Awaited<ReturnType<typeof agent>>;
+    let instance: Awaited<ReturnType<typeof createAgentSession>>;
     promptImplementation = async () => {
       await expect(instance.fork()).rejects.toThrow('already running');
       await reportOutcome({ outcome: 'completed', summary: 'Done' });
     };
-    instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+    instance = await createAgentSession({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
 
     await instance.run(createTaskContext(), 'Work');
     instance.dispose();
@@ -1239,7 +1259,10 @@ describe('agent', () => {
     promptImplementation = async (prompt) => {
       await reportOutcome({ outcome: 'completed', summary: prompt });
     };
-    const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+    const instance = await createAgentSession({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5'
+    });
 
     try {
       expect(instance.id).toMatch(/^[a-z]+-[a-z]+-\d{4}$/);
@@ -1270,7 +1293,10 @@ describe('agent', () => {
           : { outcome: 'blocked', summary: 'Second result' }
       );
     };
-    const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+    const instance = await createAgentSession({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5'
+    });
 
     try {
       await expect(instance.run(createTaskContext(), 'First')).resolves.toMatchObject({
@@ -1294,7 +1320,10 @@ describe('agent', () => {
       });
       await reportOutcome({ outcome: 'completed', summary: 'Done' });
     };
-    const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+    const instance = await createAgentSession({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5'
+    });
 
     try {
       const first = instance.run(createTaskContext(), 'First');
@@ -1307,7 +1336,10 @@ describe('agent', () => {
   });
 
   test('rejects runs after disposal', async () => {
-    const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+    const instance = await createAgentSession({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5'
+    });
     instance.dispose();
 
     await expect(instance.run(createTaskContext(), 'Too late')).rejects.toThrow(
@@ -1318,7 +1350,10 @@ describe('agent', () => {
   test('can run again after an aborted turn', async () => {
     const controller = new AbortController();
     promptImplementation = async () => controller.abort('Stopped');
-    const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+    const instance = await createAgentSession({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5'
+    });
 
     try {
       await expect(
@@ -1340,7 +1375,10 @@ describe('agent', () => {
 
   test('supports automatic disposal', async () => {
     {
-      await using instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+      await using instance = await createAgentSession({
+        cwd: '/project',
+        model: 'anthropic/claude-opus-4-5'
+      });
       expect(disposed).toBe(false);
       expect(instance.id).toBeTypeOf('string');
     }
@@ -1352,7 +1390,10 @@ describe('agent', () => {
     promptImplementation = async () => {
       await reportOutcome({ outcome: 'blocked', summary: 'Need input' });
     };
-    await using instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+    await using instance = await createAgentSession({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5'
+    });
 
     try {
       await instance.run(createTaskContext(), 'Do the thing');
@@ -1371,10 +1412,10 @@ describe('agent', () => {
 
 test('requires an explicit directory before creating an agent', async () => {
   // @ts-expect-error Agents require an explicit directory.
-  await expect(agent({ model: 'anthropic/claude-opus-4-5' })).rejects.toThrow(
+  await expect(createAgentSession({ model: 'anthropic/claude-opus-4-5' })).rejects.toThrow(
     'An explicit directory is required'
   );
-  await expect(agent({ model: 'anthropic/claude-opus-4-5', cwd: '' })).rejects.toThrow(
+  await expect(createAgentSession({ model: 'anthropic/claude-opus-4-5', cwd: '' })).rejects.toThrow(
     'An explicit directory is required'
   );
 });
@@ -1386,7 +1427,10 @@ test('attributes each reusable agent interaction to its supplied context', async
     emitAssistantUsage({ ...emptyUsage, input: 10, cost: { total: 0.25 } });
     await reportOutcome({ outcome: 'completed', summary: 'Done' });
   };
-  const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+  const instance = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
   try {
     const one = await instance.run(first, 'First');
     const two = await instance.runOutcome(second, 'Second');
@@ -1409,7 +1453,10 @@ test('records fork usage only in the context passed to the fork interaction', as
     emitAssistantUsage({ ...emptyUsage, input: 10, cost: { total: 0.25 } });
     await reportOutcome({ outcome: 'completed', summary: 'Done' });
   };
-  const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+  const instance = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
   try {
     await instance.run(parentContext, 'Investigate');
     const fork = await instance.fork();
@@ -1485,7 +1532,10 @@ test('does not create an agent for an aborted context', async () => {
 test('reusable agents reject an aborted context but accept a fresh context', async () => {
   const stopped = createTaskContext();
   const fresh = createTaskContext();
-  const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+  const instance = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
   try {
     promptImplementation = async () => {
       try {
@@ -1532,7 +1582,10 @@ test('steers an active interaction and invalidates its earlier report on deliver
       await reportOutcome({ outcome: 'completed', summary: 'Revised plan' });
     }
   };
-  const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+  const instance = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
   expect(await instance.steer('idle')).toBe(false);
   const run = instance.runOutcome(createTaskContext(), 'Plan');
   await vi.waitFor(() => expect(promptCalls).toBe(1));
@@ -1554,7 +1607,10 @@ test('returns undelivered steering at completion and does not carry it to anothe
     await gate.promise;
     await reportOutcome({ outcome: 'completed', summary: 'Done' });
   };
-  const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+  const instance = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
   const run = instance.runOutcome(createTaskContext(), 'First');
   const queued = instance.steer('Late feedback');
   eventHandler?.({ type: 'agent_end', messages: [] });
@@ -1571,7 +1627,10 @@ test('returns undelivered steering at completion and does not carry it to anothe
 test('settles pending steering on disposal and refuses steering after cancellation', async () => {
   const gate = Promise.withResolvers<void>();
   promptImplementation = () => gate.promise;
-  const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+  const instance = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
   const ctx = createTaskContext();
   const run = instance.runOutcome(ctx, 'Plan');
   const rejected = expect(run).rejects.toThrow('stop');
@@ -1594,7 +1653,10 @@ test('forwards completed assistant text during the interaction, excluding reason
     await gate.promise;
     await reportOutcome({ outcome: 'completed', summary: 'Done' });
   };
-  const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+  const instance = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
   const onText = vi.fn();
   const run = instance.runOutcome(createTaskContext(), 'Plan', { onText });
   eventHandler?.({
@@ -1630,7 +1692,10 @@ test('retains earlier findings when a later report refers back to them, without 
     });
     await reportOutcome({ outcome: 'completed', summary: 'See the preceding outcome.' });
   };
-  await using worker = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+  await using worker = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
   const result = await worker.runOutcome(createTaskContext(), 'Investigate');
   expect(result.summary).toBe('See the preceding outcome.');
   expect(result.details).toContain('Edit locales.ts and messages/bar.json.');
@@ -1644,7 +1709,7 @@ test('retains earlier findings when a later report refers back to them, without 
 });
 
 test('custom system prompt replaces the coding persona and retains workflow instructions', async () => {
-  await using instance = await agent({
+  await using instance = await createAgentSession({
     cwd: '/project',
     model: 'anthropic/claude-opus-4-5',
     systemPrompt: 'You are a chat assistant.',
@@ -1671,7 +1736,10 @@ test('expired provider login returns a safe actionable failure without report re
       }
     });
   };
-  await using instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+  await using instance = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
   const result = await instance.runOutcome(createTaskContext(), 'Work');
   expect(result).toMatchObject({
     outcome: 'failed',
@@ -1683,12 +1751,142 @@ test('expired provider login returns a safe actionable failure without report re
   expect(JSON.stringify(result)).not.toContain('private credential');
 });
 
+test.each(['root', 'child', 'report'])(
+  'the CLI keeps run details and only prints the root answer with a %s agent',
+  async (kind) => {
+    const { mkdtemp, readFile, readdir, rm, writeFile } = await import('node:fs/promises');
+    const { fileURLToPath } = await import('node:url');
+    const { join } = await import('node:path');
+    const { runRunling } = await import('./runner.ts');
+    const { step } = await import('./step.ts');
+    const directory = await mkdtemp(
+      fileURLToPath(new URL('../../../../.context/agent-cli-', import.meta.url))
+    );
+    const runtime = fileURLToPath(new URL('./index.ts', import.meta.url));
+    const workflow = join(directory, 'workflow.ts');
+    const markdown = '## Answer once\n\n1. **First issue**\n2. Second issue';
+    const reply = kind === 'root' ? markdown : 'Intermediate agent answer';
+    const options = `{ name: 'Test agent', cwd: '.', model: 'anthropic/claude-opus-4-5' }`;
+    await writeFile(
+      workflow,
+      `import { agent, createAgentSession, task, Type } from ${JSON.stringify(runtime)};
+    export default ${
+      kind === 'root'
+        ? `agent(${options})`
+        : `task({ name: 'Root', input: Type.String(), output: Type.String() }, async (ctx, input) => {
+      ${kind === 'child' ? `await agent(${options})(ctx, input);` : `await using session = await createAgentSession(${options}); await session.runOutcome(ctx, input);`}
+      return ${JSON.stringify(markdown)};
+    })`
+    };`
+    );
+    promptImplementation = async () => {
+      eventHandler?.({
+        type: 'tool_execution_start',
+        toolName: 'gh',
+        toolCallId: 'gh-call',
+        args: {}
+      });
+      await step('Executing: gh api', async () => {});
+      if (kind === 'report') await reportOutcome({ outcome: 'completed', summary: reply });
+      else emitAssistantText(reply);
+    };
+    const print = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const cwd = vi.spyOn(process, 'cwd').mockReturnValue(directory);
+    const stdout = process.stdout;
+    const terminal = vi.spyOn(process, 'stdout', 'get').mockReturnValue(
+      new Proxy(stdout, {
+        get(target, key, receiver) {
+          if (key === 'isTTY') return true;
+          if (key === 'columns') return 80;
+          return Reflect.get(target, key, receiver);
+        }
+      })
+    );
+    const exitCode = process.exitCode;
+    try {
+      await runRunling(workflow, 'List issues', { json: false, verbose: false });
+      const output = print.mock.calls.map(([line]) => stripAnsi(line)).join('\n');
+      const answers = print.mock.calls
+        .map(([line]) => stripAnsi(line))
+        .filter((line) => line.includes('Answer once'));
+      expect(answers).toHaveLength(1);
+      expect(answers[0]).toMatch(/^Answer once/);
+      expect(stripAnsi(print.mock.calls.at(-1)![0])).toBe(answers[0]);
+      expect(print.mock.calls.at(-2)![0]).toBe('');
+      expect(output).toContain('Runling starting run');
+      expect(output).toContain(kind === 'report' ? 'Root' : 'Test agent');
+      expect(output).toContain('Token usage:');
+      expect(output).toContain('Using gh');
+      const agentId = output.match(/\[([^\]]+)\] Using gh/)?.[1];
+      expect(agentId).toBeDefined();
+      expect(output).toContain(`[${agentId}] Executing: gh api`);
+      expect(output).toContain('Finished in');
+      expect(output).toContain('journal: .runling/runs/');
+      expect(output).toContain('First issue');
+      expect(output).not.toContain('**');
+      expect(output).not.toContain('Type a line');
+      expect(output).not.toContain('Intermediate agent answer');
+      const [journal] = await readdir(join(directory, '.runling/runs'));
+      const records = (await readFile(join(directory, '.runling/runs', journal!), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      expect(records.at(-1)).toMatchObject({
+        type: 'finished',
+        status: 'completed',
+        output: markdown
+      });
+      expect(records).toContainEqual(
+        expect.objectContaining({
+          type: 'event',
+          event: expect.objectContaining({
+            type: 'log',
+            source: 'agent',
+            message: expect.stringContaining(reply)
+          })
+        })
+      );
+      expect(disposed).toBe(true);
+    } finally {
+      process.exitCode = exitCode;
+      terminal.mockRestore();
+      cwd.mockRestore();
+      print.mockRestore();
+      await rm(directory, { recursive: true, force: true });
+    }
+  }
+);
+
+test('the agent task uses the session API and disposes it after forwarding text', async () => {
+  const { agent } = await import('./agent-task.ts');
+  const { runWorkflow } = await import('./runner.ts');
+  promptImplementation = async () => {
+    emitAssistantText('Task answer');
+  };
+  const worker = agent({
+    name: 'Direct agent',
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
+  const replies: unknown[] = [];
+  const result = await runWorkflow(worker, {
+    input: 'Hello',
+    onUpdate: (reply) => {
+      replies.push(reply);
+    }
+  });
+  expect(result).toMatchObject({ ok: true, output: 'Task answer' });
+  expect(replies).toEqual(['Task answer']);
+  expect(sessionOptions.customTools).toEqual([]);
+  expect(disposed).toBe(true);
+});
+
 test('text mode delivers a natural response once without report tools or retries', async () => {
   const text = vi.fn();
   promptImplementation = async () => {
     emitAssistantText('Hello!');
   };
-  const bot = await agent({
+  const bot = await createAgentSession({
     cwd: '/project',
     model: 'anthropic/claude-opus-4-5',
     tools: [],
@@ -1707,13 +1905,63 @@ test('text mode delivers a natural response once without report tools or retries
   }
 });
 
+test('renders assistant replies as terminal Markdown without changing the result or journal', async () => {
+  const stdout = process.stdout;
+  const stream = vi.spyOn(process, 'stdout', 'get').mockReturnValue(
+    new Proxy(stdout, {
+      get(target, key, receiver) {
+        if (key === 'isTTY') return true;
+        if (key === 'columns') return 60;
+        return Reflect.get(target, key, receiver);
+      }
+    })
+  );
+  const print = vi.spyOn(console, 'log').mockImplementation(() => {});
+  const markdown = '## Latest issues\n\n1. **Fix reconnect**';
+  const events: RunlingEvent[] = [];
+  promptImplementation = async () => emitAssistantText(markdown);
+  try {
+    const result = await observeRunlingEvents(
+      (event) => events.push(event),
+      () =>
+        runAgent(createTaskContext(), 'List issues', {
+          cwd: '/project',
+          model: 'anthropic/claude-opus-4-5',
+          output: 'text'
+        })
+    );
+    expect(result.summary).toBe(markdown);
+    const reply = print.mock.calls
+      .map(([line]) => stripAnsi(line))
+      .find((line) => line.includes('Latest issues'));
+    expect(reply).toMatch(/^● \[[^\]]+\]\n/);
+    expect(reply).toContain('Fix reconnect');
+    expect(reply).not.toContain('##');
+    expect(reply).not.toContain('**');
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'log',
+        source: 'agent',
+        message: expect.stringContaining(markdown)
+      })
+    );
+  } finally {
+    print.mockRestore();
+    stream.mockRestore();
+  }
+});
+
 test('text mode keeps progress delivery but returns only the final response', async () => {
   const text = vi.fn();
   promptImplementation = async () => {
     emitAssistantText('Checking the page.');
     emitAssistantText('Here is the answer.');
   };
-  const bot = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5', output: 'text' });
+  const bot = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5',
+    output: 'text'
+  });
   try {
     expect((await bot.run(createTaskContext(), 'Look it up', { onText: text })).summary).toBe(
       'Here is the answer.'
@@ -1827,7 +2075,7 @@ test('a provider retry stays one interaction and does not deliver the failed tex
     });
   };
   const onText = vi.fn();
-  await using instance = await agent({
+  await using instance = await createAgentSession({
     cwd: '/project',
     model: 'anthropic/claude-opus-4-5',
     output: 'text'
@@ -1894,7 +2142,11 @@ test.each(['error', 'aborted', 'empty'])(
 
 test('text mode retains usage accounting and resets response state between turns', async () => {
   const ctx = createTaskContext();
-  const bot = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5', output: 'text' });
+  const bot = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5',
+    output: 'text'
+  });
   promptImplementation = async () => {
     eventHandler?.({
       type: 'message_end',

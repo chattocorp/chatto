@@ -1,10 +1,10 @@
-import { agent, concat, task, Type } from 'runling';
+import { createAgentSession, concat, task, Type } from 'runling';
 
 const model = 'openai-codex/gpt-5.6-sol';
 const thinkingLevel = 'medium';
 
 /** Interview the human through workflow messages: each question is an update, and the next
- * message from the host is the answer. Run it with `runling run`, then type the answers. */
+ * message from the host is the answer. Use a host that displays updates, such as the web console. */
 export const plan = task(
   {
     name: 'Plan change',
@@ -19,7 +19,7 @@ export const plan = task(
   async (ctx, { directory, prompt: request }) => {
     const answers = ctx.inbox[Symbol.asyncIterator]();
 
-    await using planner = await agent({
+    await using planner = await createAgentSession({
       cwd: directory,
       model,
       thinkingLevel,

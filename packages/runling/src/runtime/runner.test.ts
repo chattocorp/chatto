@@ -2,13 +2,7 @@ import { createChannel } from './channel.ts';
 import { createTaskContext, type TaskContext } from './context.ts';
 import { stripVTControlCharacters } from 'node:util';
 import { afterEach, describe, expect, expectTypeOf, test, vi } from 'vitest';
-import {
-  formatDuration,
-  formatWorkflowOutput,
-  logUpdate,
-  runRunling,
-  runWorkflow
-} from './runner.ts';
+import { formatDuration, formatWorkflowOutput, runRunling, runWorkflow } from './runner.ts';
 import type { RunOptions } from './cli.ts';
 import { observeRunlingEvents, type RunlingEvent } from './events.ts';
 import { Type } from 'typebox';
@@ -39,7 +33,7 @@ async function runCli(
   const path = options.path ?? join(directory, 'workflow.ts');
   await writeFile(
     join(directory, 'workflow.ts'),
-    `import { task, Type, log } from ${JSON.stringify(runlingModule)};\n${source}\n`
+    `import { task, Type, log, agent } from ${JSON.stringify(runlingModule)};\n${source}\n`
   );
   const stdout: string[] = [];
   const stderr: string[] = [];
@@ -73,24 +67,127 @@ const done = (body: string) =>
   `export default task({ name: 'Demo', input: Type.String(), output: Type.Unknown() }, async (ctx, input) => {\n${body}\n});`;
 
 describe('runRunling', () => {
-  test('prints string output after the log and indents workflow logs below the greeting', async () => {
-    const { stdout } = await runCli(
+  test('loads an agent task directly as the default export', async () => {
+    const { stdout, records } = await runCli(
+      `
+      export default agent({ name: 'Direct agent', model: 'test/model', cwd: '.' }, async () => ({
+        id: 'fake',
+        async runOutcome(ctx, prompt, options) {
+          options.onText('Working');
+          return { outcome: 'completed', summary: 'Answer: ' + prompt, usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } };
+        },
+        async steer() { return false; },
+        async [Symbol.asyncDispose]() {}
+      }));
+    `,
+      { prompt: 'Hello', json: true }
+    );
+    expect(JSON.parse(stdout.join(''))).toMatchObject({ ok: true, output: 'Answer: Hello' });
+    expect(
+      records.filter((record) => record.type === 'event' && record.event.type === 'step.started')
+    ).toHaveLength(1);
+  });
+
+  test('shows run details and prints the root output last without indentation', async () => {
+    const { stdout, stderr, records } = await runCli(
       done(`log.info('inside the workflow'); return 'Made the change';`)
     );
 
-    const greeting = stdout.find((line) => line.includes('Runling starting'));
-    const inside = stdout.find((line) => line.includes('inside the workflow'));
-    const finished = stdout.find((line) => line.includes('Finished in '));
-    expect(greeting).not.toMatch(/^\s/);
-    expect(inside).toMatch(/^ {2}/);
-    expect(stdout).toContain('\nMade the change\n');
-    expect(finished).not.toMatch(/^\s/);
+    expect(stdout.at(-1)).toBe('Made the change');
+    expect(stdout.at(-2)).toBe('');
+    expect(stdout.join('\n')).toContain('Runling starting run');
+    expect(stdout.join('\n')).toContain('inside the workflow');
+    expect(stdout.join('\n')).toContain('Demo');
+    expect(stdout.join('\n')).toContain('Finished in');
+    expect(stdout.join('\n')).toContain('journal: .runling/runs/');
+    expect(stderr).toEqual([]);
+    expect(records).toContainEqual(
+      expect.objectContaining({
+        type: 'event',
+        event: expect.objectContaining({ type: 'log', message: 'inside the workflow' })
+      })
+    );
     expect(process.exitCode ?? 0).toBe(0);
   });
 
   test('prints structured output as JSON', async () => {
     const { stdout } = await runCli(done(`return { branchName: 'fix', count: 2 };`));
-    expect(stdout).toContain(`\n${JSON.stringify({ branchName: 'fix', count: 2 }, null, 2)}\n`);
+    expect(stdout.at(-1)).toBe(JSON.stringify({ branchName: 'fix', count: 2 }, null, 2));
+  });
+
+  test.each([false, true])(
+    'only prints the root result with verbose=%s, including nested tasks',
+    async (verbose) => {
+      const { stdout, stderr, records } = await runCli(
+        `
+      const child = task({ name: 'Child', input: Type.String(), output: Type.String() }, async (ctx) => {
+        log.info('Child progress');
+        log.debug('Child debug');
+        await ctx.emit('Child update');
+        return 'Child answer';
+      });
+      export default task({ name: 'Root', input: Type.String(), output: Type.String() }, async (ctx) => {
+        const answer = await child(ctx, 'Start');
+        await ctx.emit(answer);
+        return 'Root answer';
+      });
+    `,
+        { verbose }
+      );
+      expect(stdout.at(-1)).toBe('Root answer');
+      expect(stdout.join('\n')).toContain('Child progress');
+      expect(stdout.join('\n').includes('Child debug')).toBe(verbose);
+      expect(stdout.join('\n')).not.toContain('Child answer');
+      expect(stdout.join('\n')).not.toContain('Child update');
+      expect(stderr).toEqual([]);
+      expect(records).toContainEqual(
+        expect.objectContaining({
+          type: 'event',
+          event: expect.objectContaining({ type: 'log', message: 'Child progress' })
+        })
+      );
+      const debug = records.some(
+        (record) =>
+          record.type === 'event' &&
+          record.event.type === 'log' &&
+          record.event.message === 'Child debug'
+      );
+      expect(debug).toBe(verbose);
+    }
+  );
+
+  test('prints an emitted answer once while retaining the final journal output', async () => {
+    const { stdout, records } = await runCli(
+      done(`await ctx.emit('Answer once'); return 'Answer once';`)
+    );
+    expect(stdout.filter((line) => line.includes('Answer once'))).toEqual(['Answer once']);
+    expect(records.at(-1)).toMatchObject({ type: 'finished', output: 'Answer once' });
+  });
+
+  test('prints a final answer when it differs from the last update', async () => {
+    const { stdout } = await runCli(done(`await ctx.emit('Progress'); return 'Final answer';`));
+    expect(stdout.at(-1)).toBe('Final answer');
+    expect(stdout.join('\n')).not.toContain('Progress');
+  });
+
+  test('ignored empty updates do not make an answer print twice', async () => {
+    const { stdout } = await runCli(
+      done(
+        `await ctx.emit('Answer once'); await ctx.emit('  '); await ctx.emit(undefined); return 'Answer once';`
+      )
+    );
+    expect(stdout.filter((line) => line.includes('Answer once'))).toHaveLength(1);
+  });
+
+  test('JSON output retains the answer even when it was emitted as an update', async () => {
+    const { stdout, stderr } = await runCli(
+      done(`await ctx.emit('Answer once'); return 'Answer once';`),
+      { json: true }
+    );
+    expect(stdout).toHaveLength(1);
+    expect(JSON.parse(stdout[0]!)).toMatchObject({ ok: true, output: 'Answer once' });
+    expect(stderr.join('\n')).toContain('Finished in');
+    expect(stderr.join('\n')).not.toContain('Answer once');
   });
 
   test('passes the prompt or JSON input to the task', async () => {
@@ -101,8 +198,8 @@ describe('runRunling', () => {
     expect(JSON.parse(structured.stdout[0]!).output).toEqual({ input: { a: 1 } });
   });
 
-  test('logs the updates of the top-level task', async () => {
-    const { stdout } = await runCli(
+  test('records root updates without printing them', async () => {
+    const { stdout, stderr, records } = await runCli(
       done(`
         await ctx.emit('Plain progress');
         await ctx.emit('  ');
@@ -110,11 +207,19 @@ describe('runRunling', () => {
         await ctx.emit('First line\\nSecond line');
         return 'done';`)
     );
-    const updates = stdout.filter((line) => line.startsWith('  ●') && !line.includes('Demo'));
+    expect(stdout.at(-1)).toBe('done');
+    expect(stdout.join('\n')).not.toMatch(
+      /Plain progress|Validation passed|First line|Second line/
+    );
+    expect(stderr).toEqual([]);
+    const updates = records.flatMap((record) =>
+      record.type === 'event' && record.event.type === 'message.sent' ? [record.event.payload] : []
+    );
     expect(updates).toEqual([
-      '  ● Plain progress',
-      '  ● {"type":"finding","text":"Validation passed"}',
-      '  ● First line\n    Second line'
+      'Plain progress',
+      '  ',
+      '{"type":"finding","text":"Validation passed"}',
+      'First line\nSecond line'
     ]);
   });
 
@@ -131,14 +236,16 @@ describe('runRunling', () => {
       durationMs: expect.any(Number),
       usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
     });
-    expect(stderr.some((line) => line.includes('Runling starting'))).toBe(true);
-    expect(stderr.some((line) => line.includes('Finished in '))).toBe(true);
+    expect(stderr.join('\n')).toContain('Runling starting run');
+    expect(stderr.join('\n')).toContain('Finished in');
+    expect(stderr.join('\n')).not.toContain('Still raw');
   });
 
   test('logs failures and applies a nonzero exit code', async () => {
     const { stdout, stderr } = await runCli(done(`throw 'Tests failed';`));
     expect(stderr.some((line) => line.includes('Tests failed'))).toBe(true);
-    expect(stdout.some((line) => line.includes('Finished in '))).toBe(true);
+    expect(stdout.join('\n')).toContain('Finished in');
+    expect(stdout.at(-1)).toContain('journal:');
     expect(process.exitCode).toBe(1);
   });
 
@@ -161,18 +268,19 @@ describe('runRunling', () => {
     expect(process.exitCode).toBe(1);
   });
 
-  test('logs accumulated token usage and omits the line without usage', async () => {
+  test('prints and records accumulated token usage', async () => {
     const used = await runCli(
       done(`
         ctx.recordUsage({ input: 100, output: 20, cacheRead: 500, cacheWrite: 10 });
         ctx.recordUsage({ input: 50, output: 25, cacheRead: 550, cacheWrite: 15 });
         return 'done';`)
     );
-    expect(used.stdout).toContainEqual(
-      expect.stringContaining('Total token usage: in 150, out 45, cache read 1,050, cache write 25')
-    );
-    const unused = await runCli(done(`return 'done';`));
-    expect(unused.stdout.some((line) => line.includes('Total token usage'))).toBe(false);
+    expect(used.stdout.at(-1)).toBe('done');
+    expect(used.stdout.join('\n')).toContain('Total token usage:');
+    expect(used.records.at(-1)).toMatchObject({
+      type: 'finished',
+      usage: { input: 150, output: 45, cacheRead: 1050, cacheWrite: 25 }
+    });
   });
 
   test('records the start, every event, and the output in the run journal', async () => {
@@ -185,22 +293,15 @@ describe('runRunling', () => {
       type: 'started',
       run: { source: 'cli', pid: process.pid, input: 'Fix', status: 'running' }
     });
-    const run = started?.type === 'started' ? started.run : undefined;
     expect(records).toContainEqual(
       expect.objectContaining({
         type: 'event',
         event: expect.objectContaining({ type: 'message.sent', payload: 'Opened the pull request' })
       })
     );
-    expect(records).toContainEqual(
-      expect.objectContaining({
-        type: 'event',
-        event: expect.objectContaining({ type: 'log', message: 'Opened the pull request' })
-      })
-    );
     expect(records.at(-1)).toMatchObject({ type: 'finished', status: 'completed', output: 'done' });
-    expect(stdout[0]).toContain(`run ${run?.reference}`);
-    expect(stdout.at(-1)).toContain(`${run?.id}.jsonl`);
+    expect(stdout.at(-1)).toBe('done');
+    expect(stdout.join('\n')).toContain('journal: .runling/runs/');
   });
 });
 
@@ -327,6 +428,8 @@ describe('runWorkflow', () => {
 
 describe('formatWorkflowOutput', () => {
   test('renders text as Markdown for an interactive terminal', () => {
+    vi.stubEnv('NO_COLOR', undefined);
+    vi.stubEnv('FORCE_COLOR', undefined);
     const formatted = formatWorkflowOutput('## Findings\n\n**Important**', {
       isTTY: true,
       columns: 80
@@ -335,6 +438,16 @@ describe('formatWorkflowOutput', () => {
     expect(formatted).toContain('\x1b[');
     expect(stripVTControlCharacters(formatted)).not.toContain('##');
     expect(stripVTControlCharacters(formatted)).not.toContain('**');
+    vi.unstubAllEnvs();
+  });
+
+  test.each(['NO_COLOR', 'FORCE_COLOR'])('respects %s in the final result', (flag) => {
+    vi.stubEnv(flag, flag === 'NO_COLOR' ? '1' : '0');
+    try {
+      expect(formatWorkflowOutput('**Answer**', { isTTY: true })).toBe('Answer');
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   test('preserves Markdown for redirected output', () => {
@@ -347,21 +460,6 @@ describe('formatWorkflowOutput', () => {
     expect(formatWorkflowOutput({ count: 2 }, { isTTY: true })).toBe('{\n  "count": 2\n}');
     expect(formatWorkflowOutput(null, { isTTY: false })).toBe('null');
   });
-});
-
-test('logUpdate logs text as it is, other values as JSON, and skips blank text', () => {
-  const events: RunlingEvent[] = [];
-  observeRunlingEvents(
-    (event) => events.push(event),
-    () => {
-      for (const update of ['Progress', ' ', { type: 'finding' }, 3]) logUpdate(update);
-    }
-  );
-  expect(events.flatMap((event) => (event.type === 'log' ? [event.message] : []))).toEqual([
-    'Progress',
-    '{"type":"finding"}',
-    '3'
-  ]);
 });
 
 describe('formatDuration', () => {

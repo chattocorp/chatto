@@ -1,5 +1,5 @@
 /**
- * Background jobs of a conversation, such as investigations and actions that wait for approval.
+ * Background jobs of a conversation, such as investigations and GitHub work.
  * A job starts from a tool call and returns at once, so the agent can keep talking. The job
  * reports progress while it runs, and its result reaches the agent in a later turn.
  */
@@ -10,7 +10,7 @@ export type JobOutcome = { result: string } | { error: string };
 
 export interface Job {
   id: string;
-  /** The kind of job, such as `investigation` or `approval`. Progress lines show it. */
+  /** The kind of job, such as `investigation` or `github`. Progress lines show it. */
   kind: string;
   /** What the job does, for the agent and the progress lines, such as "Investigation: …". */
   label: string;

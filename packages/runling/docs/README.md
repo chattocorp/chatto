@@ -10,6 +10,10 @@ to Runling, including when applications such as ChattoBot use its APIs.
 - [Feature Decision Records](fdr/INDEX.md) describe feature behavior, rationale,
   and open questions.
 
+For terminal behavior, [FDR-011](fdr/FDR-011-cli-output.md) defines the CLI
+contract: live run details, one final root result, spacing, agent prefixes,
+and JSON output. Read it before changing terminal output.
+
 Both collections use independent numbering. Chatto and Authling records with the
 same numbers describe different decisions. Root records apply to Runling only
 when they explicitly describe a repository-wide decision.

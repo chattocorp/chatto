@@ -6,9 +6,10 @@ Structured JSON records go to `.runling/logs/server.jsonl`, relative to the
 directory that contains the Runling config file. `NO_COLOR` disables terminal
 colors.
 
-By default, the terminal shows each run's detailed log, the same lines as
-`runling run`: agent reasoning, tool use, agent messages, and the errors of
-failed tasks.
+By default, the server terminal shows each run's detailed log: agent reasoning,
+tool use, agent messages, and the errors of failed tasks. `runling run` also shows
+run details, but keeps intermediate agent replies and task updates in its journal.
+It prints the root task's final output once at the end, without indentation.
 
 ```text
 10:32:01 [bright-waves-1234] ● Chat

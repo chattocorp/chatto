@@ -127,8 +127,12 @@ describe.each([
 
     expect(exitCode).toBe(0);
     expect(stderr).toBe('');
-    expect(stdout).toContain('A workflow result');
-    expect(stdout).toContain('Finished in ');
+    expect(stdout).toContain('Runling starting run');
+    expect(stdout).toContain('Finished in');
+    expect(JSON.parse(stdout.slice(stdout.indexOf('{')))).toEqual({
+      echo: 'A workflow result',
+      id: expect.any(String)
+    });
   });
 
   test('runs a workflow without a prompt', async () => {
@@ -186,8 +190,8 @@ describe.each([
       cacheRead: 0,
       cacheWrite: 0
     });
-    expect(stderr).toContain('Runling starting');
-    expect(stderr).toContain('Finished in ');
+    expect(stderr).toContain('Runling starting run');
+    expect(stderr).toContain('Finished in');
   });
 
   test('reports failures as JSON with a nonzero exit status', async () => {

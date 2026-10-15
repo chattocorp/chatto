@@ -1,7 +1,7 @@
 # FDR-010: Messages between hosts, tasks, and runs
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-14
+**Last reviewed:** 2026-10-15
 
 ## Overview
 
@@ -25,7 +25,8 @@ workflow in the same way as a parent task talks to a child.
   Runling does not wait for free space and does not drop messages without an
   error.
 - `runling run` on an interactive terminal sends each typed line to the
-  top-level task, logs each update of the task, and prints the output at the end.
+  top-level task and records updates in its journal. Terminal display follows
+  [FDR-011](FDR-011-cli-output.md).
 - The web console shows a message composer for a running run. Text that is
   valid JSON is sent as JSON. Other text is sent as a string. The Log view shows
   the messages between the host and the top-level task.
@@ -91,7 +92,7 @@ until a person or a router cancels it, or the process stops.
   [ADR-006](../adr/ADR-006-parent-child-communication.md),
   [ADR-009](../adr/ADR-009-task-invocations.md)
 - **FDRs:** [FDR-001](FDR-001-agent-interactions.md),
-  [FDR-004](FDR-004-event-sources.md)
+  [FDR-004](FDR-004-event-sources.md), [FDR-011](FDR-011-cli-output.md)
 - Guides: [task invocations and messages](../task-channels.md),
   [workflow messages and output](../workflow-messages.md),
   [webhook routing](../webhook-routing.md)

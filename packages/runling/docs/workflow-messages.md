@@ -11,13 +11,40 @@ The result of a run is the output of its top-level task. Runling validates the
 output with the output schema of the task. It does not change the shape of the
 output.
 
-- `runling run` prints the output at the end. On a terminal, it shows a string
+- `runling run` prints only the root task's output, once at the end, without
+  a log prefix or task indentation, with a blank line before it.
+  On a terminal, it shows a string
   as Markdown. It shows other values as JSON. With `--json`, it prints one JSON
-  document: `{ durationMs, usage, output, error, ok }`.
+  document: `{ durationMs, usage, output, error, ok }`. The journal and JSON
+  document retain the output. Run details show the reference, task progress,
+  tool activity, token usage, duration, and journal path. With `--json`, these
+  details go to stderr. Child replies and updates stay in the journal.
+  `--verbose` shows debug logs. Failures are
+  reported on stderr with a nonzero exit code.
 - The web console shows the output in the run details. `GET /api/runs/:id`
   returns it.
 - `runWorkflow()` returns `{ durationMs, usage, output, error, ok }`. When the
   run fails, `output` is `null` and `error` contains the error message.
+
+[FDR-011](fdr/FDR-011-cli-output.md) defines the CLI display requirements and
+their rationale. For example, a task that checks a repository can show:
+
+```text
+● Runling starting run bright-waves-1234
+  ● Check repository
+    ● [calm-birds-5678] Using bash
+    ● [calm-birds-5678] Executing: git status
+    ● [calm-birds-5678] Token usage: in 100, out 20
+● Total token usage: in 100, out 20
+● Finished in 1.2s
+● Run bright-waves-1234 journal: .runling/runs/<id>.jsonl
+
+The working tree is clean.
+```
+
+The tool supplies the `Executing: git status` step label in this example.
+Runling preserves its agent prefix. The final sentence is the root result;
+it appears once after the run details.
 
 ## Send messages to a run
 
@@ -25,10 +52,10 @@ Each message must agree with the `receives` schema of the top-level task. If
 the task has no `receives` schema, it accepts any message.
 
 - **CLI.** On an interactive terminal, `runling run` sends each line that you
-  type as a string message. If the task cannot accept a message, the log shows
-  an error, and Runling discards the message. When standard input closes, the
+  type as a string message. If the task cannot accept a message, Runling shows
+  and records an error, then discards the message. When standard input closes, the
   input of the task closes. Without a terminal, the input is closed from the
-  start.
+  start. Sending messages does not require a flag or an input hint.
 - **Web console.** A running run has a message composer below its log. Text
   that is valid JSON is sent as a JSON value. Other text is sent as a string.
 - **HTTP.** Send `POST /api/runs/:id/messages` with the body
@@ -49,8 +76,8 @@ not mean that the task read the message.
 
 ## Updates from a run
 
-- `runling run` writes each update of the top-level task to its log. It writes
-  a string as it is and other values as JSON.
+- `runling run` records updates in the journal without printing them. Only
+  the root task's final output is printed.
 - The web console Log view shows each message between the host and the
   top-level task. The timeline shows the messages between tasks.
 - `runWorkflow()` gives each update to its `onUpdate` callback. Without

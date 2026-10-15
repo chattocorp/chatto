@@ -14,7 +14,7 @@ export type GitHubPermissions = Partial<
   >
 >;
 
-/** Read access for every command that is not an approved write. A command that the host
+/** Read access for every command classified as a read. A command that the host
  * classifies wrongly as a read then fails at GitHub instead of changing anything. */
 export const READ_PERMISSIONS: GitHubPermissions = {
   issues: 'read',

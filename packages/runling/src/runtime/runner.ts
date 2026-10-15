@@ -2,7 +2,7 @@ import { createTimeout } from './timeout.ts';
 import { createChannel } from './channel.ts';
 import { createRootContext, type RunIdentity } from './context.ts';
 import { withExecutionServices } from './execution.ts';
-import { resolve } from 'node:path';
+import { relative, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { pathToFileURL } from 'node:url';
 import type { RunOptions } from './cli.ts';
@@ -14,6 +14,8 @@ import {
 } from './events.ts';
 import { log } from './log.ts';
 import { renderMarkdown } from './markdown.ts';
+import { terminalColors } from './ansi.ts';
+import { stripVTControlCharacters } from 'node:util';
 import {
   createRunJournal,
   eventRecord,
@@ -22,9 +24,8 @@ import {
   type RunDetail,
   type RunJournal
 } from './run-journal.ts';
-import { relative } from 'node:path';
 import { isTask, type AnyTask, type TaskInput, type TaskOutput } from './task.ts';
-import { emptyTokenUsage, formatTokenUsage, type TokenUsage, totalTokens } from './usage.ts';
+import { emptyTokenUsage, formatTokenUsage, totalTokens, type TokenUsage } from './usage.ts';
 
 export function formatDuration(ms: number): string {
   if (ms < 1000) {
@@ -88,7 +89,9 @@ export function formatWorkflowOutput(
   terminal: TerminalCapabilities = process.stdout
 ): string {
   if (typeof output !== 'string') return JSON.stringify(output, null, 2);
-  return terminal.isTTY ? renderMarkdown(output, terminal.columns ?? 80) : output;
+  if (!terminal.isTTY) return output;
+  const rendered = renderMarkdown(stripVTControlCharacters(output), terminal.columns ?? 80);
+  return terminalColors(terminal) ? rendered : stripVTControlCharacters(rendered);
 }
 
 /** Run a workflow: one top-level invocation of a task, with the host as its parent. This does not
@@ -113,12 +116,6 @@ export async function runWorkflow<T extends AnyTask>(
       )
     )
   ) as Promise<WorkflowExecution<TaskOutput<T>>>;
-}
-
-/** Write a top-level task's updates to the log: text as it is, other values as JSON. */
-export function logUpdate(update: unknown): void {
-  const text = typeof update === 'string' ? update : JSON.stringify(update);
-  if (text?.trim()) log.info(text);
 }
 
 async function captureExecution(
@@ -238,7 +235,8 @@ function terminalMessages(signal: AbortSignal): AsyncIterable<string> & { close(
   };
 }
 
-/** `runling run`: run a workflow file in this process, log its progress, and write its journal. */
+/** `runling run`: show run progress and print the root task's final output once, without
+ * indentation. Agent replies and task updates remain in the journal. */
 export async function runRunling(workflowPath: string, prompt: string, options: RunOptions) {
   const { json, verbose } = options;
   // The first interrupt cancels the workflow so that its cleanup runs; a second one exits.
@@ -264,22 +262,22 @@ export async function runRunling(workflowPath: string, prompt: string, options: 
           writer: await createRunJournal(await runJournalDirectory(process.cwd()), run)
         };
       } catch (cause) {
-        log.error(`Cannot create a run journal: ${String(cause)}`);
+        log.withDestination('stderr', () =>
+          log.error(`Cannot create a run journal: ${String(cause)}`)
+        );
       }
       log.info(
         journal
           ? `Runling starting run ${log.highlight(journal.run.reference!)}`
           : 'Runling starting'
       );
-      if (terminal) log.info('Type a line and press Enter to send a message to the workflow.');
       const base = performance.now();
       const execute = () =>
-        withExecutionServices({ verbose }, () =>
+        withExecutionServices({ verbose, printAgentReplies: false }, () =>
           log.indented(() =>
             captureExecution(task, input, {
               signal: controller.signal,
               messages: terminal,
-              onUpdate: logUpdate,
               identity: journal && { id: journal.run.id, reference: journal.run.reference }
             })
           )
@@ -293,17 +291,14 @@ export async function runRunling(workflowPath: string, prompt: string, options: 
         : execute());
 
       if (execution.error !== null) {
-        log.error(execution.error);
+        log.withDestination('stderr', () => log.error(execution.error!));
         process.exitCode = 1;
-      } else if (!json && execution.output !== null) {
-        console.log(`\n${formatWorkflowOutput(execution.output)}\n`);
       }
       if (totalTokens(execution.usage) > 0) {
         log.info(`Total token usage: ${formatTokenUsage(execution.usage)}`);
       }
       log.info(`Finished in ${formatDuration(execution.durationMs)}`);
       if (journal) {
-        const path = relative(process.cwd(), journal.writer.path);
         try {
           await journal.writer.append({
             type: 'finished',
@@ -314,12 +309,20 @@ export async function runRunling(workflowPath: string, prompt: string, options: 
             output: execution.output,
             error: execution.error
           });
-          log.info(`Run ${journal.run.reference} journal: ${path}`);
+          log.info(
+            `Run ${journal.run.reference} journal: ${relative(process.cwd(), journal.writer.path)}`
+          );
         } catch (cause) {
-          log.error(`Cannot save the run journal ${path}: ${String(cause)}`);
+          log.withDestination('stderr', () =>
+            log.error(`Cannot save the run journal ${journal.writer.path}: ${String(cause)}`)
+          );
         }
       }
       if (json) console.log(JSON.stringify(execution));
+      else if (execution.ok && execution.output !== null) {
+        console.log('');
+        console.log(formatWorkflowOutput(execution.output));
+      }
     });
   } catch (cause) {
     const error = cause instanceof Error ? cause.message : String(cause);

@@ -25,6 +25,13 @@ export { type Invocation } from './invocation.ts';
 export { taskTool, type TaskToolOptions } from './task-tool.ts';
 export {
   agent,
+  type AgentTaskOptions,
+  type TextAgentTaskOptions,
+  type AgentTaskSessionOptions,
+  type AgentSessionFactory
+} from './agent-task.ts';
+export {
+  createAgentSession,
   type AgentExtension,
   type AgentExtensionAPI,
   AgentOutcomeError,

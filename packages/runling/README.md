@@ -87,7 +87,7 @@ task waits for a message, the console shows "Waiting for a message". See
 
 ## Features
 
-- Runs single workflows from the terminal with a readable log
+- Runs single workflows from the terminal and prints their final output
 - Listens to webhooks (and other triggers) to execute workflows
 - Workflows are TypeScript functions with input and output schemas
 - Embeds the Pi SDK for easy peasy agent/LLM integration
@@ -142,11 +142,16 @@ import { z } from 'zod';
 export default task({ name: 'Echo', input: z.string(), output: z.string() }, (ctx, input) => input);
 ```
 
-Run it with `pnpm runling run workflows/echo.ts "hello"`. The command writes a
-log: agent reasoning, tool use, agent messages, and the updates of the top-level
-task. At the end, it prints the output of the task. On a terminal, it shows a
+Run it with `pnpm runling run workflows/echo.ts "hello"`. The command shows the
+run reference, task progress, tool activity, token usage, duration, and journal
+path. It then prints the root task's final output once, without a log prefix or
+task indentation. Intermediate replies and updates stay in the run journal.
+The [CLI output contract](docs/fdr/FDR-011-cli-output.md) defines the display
+requirements and their rationale.
+Use `--verbose` to show debug logs. On a terminal, the command shows a
 string as Markdown. It shows other values as JSON. Use `--json` to print one
-JSON document with the output, the error, the duration, and the token usage. Use
+JSON document with the output, the error, the duration, and the token usage;
+run details go to stderr. Use
 `--input <json>` to give a JSON input instead of a prompt string.
 
 On an interactive terminal, each line that you type is a message to the
@@ -154,8 +159,7 @@ top-level task. The first Ctrl-C cancels the workflow and lets its cleanup run.
 A second Ctrl-C exits at once.
 
 Each run writes its journal to `.runling/runs/<id>.jsonl` in the working
-directory, through the same code as `runling serve`. The log names the run and,
-at the end, the journal path. A server started in that directory shows these
+directory, through the same code as `runling serve`. A server started in that directory shows these
 runs in its history. It reads them when it starts, and it does not mark a run
 interrupted while the process that writes it is still alive.
 
@@ -235,10 +239,13 @@ needs a TypeBox input schema.
 
 ## Agents
 
-`agent()` creates a Pi agent session, and `runAgent()` runs one prompt with a
-new agent. An agent can be the implementation of a task: the task sends
-steering messages to the agent and emits its replies. `taskTool()` gives a task
-to an agent as a tool. See [agents](docs/agents.md).
+`agent()` defines a task that owns an agent session per invocation. It accepts
+a prompt, returns the final text, receives steering messages, and emits completed
+replies. It can be a CLI workflow, a child task, or an agent tool through
+`taskTool()`. Use `createAgentSession()` for a custom conversation loop and
+`runAgent()` for one explicit interaction with an outcome report.
+See [agents](docs/agents.md), including the
+[migration from session-returning `agent()`](docs/agents.md#migration-from-session-returning-agent).
 
 ## Monorepo development and releases
 

@@ -2,7 +2,7 @@ import { afterEach, expect, test, vi } from 'vitest';
 import { task, Type } from 'runling';
 import type { RunHandle, WebhookContext } from 'runling/web';
 import { ConversationInput, IncomingMessage } from './message.ts';
-import { createChattoRouter, createRouterState, forwardReaction } from './router.ts';
+import { createChattoRouter, createRouterState } from './router.ts';
 
 const conversation = task(
   {
@@ -110,20 +110,4 @@ test('closes the input of a thread run after a quiet period', async () => {
   expect(router.runs[0]!.closed).toBe(true);
   await router.route(message('three'));
   expect(router.runs).toHaveLength(2);
-});
-
-test('forwards a reaction to the run of its thread, and never starts a run for it', async () => {
-  const router = harness();
-  const reaction = {
-    kind: 'reaction' as const,
-    messageId: 'm',
-    emoji: 'white_check_mark',
-    authorId: 'a'
-  };
-  await forwardReaction(router.state, 'bot', { roomId: 'room', threadRootId: 'root' }, reaction);
-  expect(router.runs).toHaveLength(0);
-  await router.route(message('one'));
-  await forwardReaction(router.state, 'bot', { roomId: 'room', threadRootId: 'root' }, reaction);
-  await forwardReaction(router.state, 'bot', { roomId: 'room', threadRootId: 'other' }, reaction);
-  expect(router.runs[0]!.sent).toEqual([reaction]);
 });

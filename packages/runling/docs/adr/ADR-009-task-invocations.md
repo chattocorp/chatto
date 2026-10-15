@@ -55,13 +55,26 @@ Runling has five primitives.
    message in a thread to the run of that thread.
 
 The host is the parent of the top-level task. The CLI, the web console, and a
-router use the same channels as a parent task. The host shows the updates of
-the top-level task. The host can send messages to a running workflow. This
-replaces `onText`, `onInput`, and `input()`. When a task waits for a message,
+router use the same channels as a parent task. The host chooses which updates
+of the top-level task to display. The host can send messages to a running
+workflow. This replaces `onText`, `onInput`, and `input()`. When a task waits for a message,
 the journal records the wait, and the console shows it.
 
 An agent is a task. It receives steering messages and emits its turns and
 messages. `taskTool` makes a task available as a tool of an agent.
+
+`agent()` defines that task without starting a model session. Each invocation
+creates one session and owns its cancellation and disposal. Agent tasks return
+their final text. They accept string steering messages and emit completed
+assistant replies. Messages read but not delivered in the active turn become
+subsequent turns. The task finishes when its current work ends, even if its
+input is still open. Async setup resolves resources per invocation after input
+validation.
+
+`createAgentSession()` exposes the lower-level session API for custom
+conversation loops, report outcomes, and forks. This replaces the old
+session-returning `agent()` API. A live session is stateful and cannot run two
+turns at once; a task definition is reusable across concurrent invocations.
 
 A run can be active for a long time, as an agent harness session can. A parent
 can wait for a child for hours. Runs and invocations have no default timeout. A

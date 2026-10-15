@@ -68,6 +68,8 @@ frontends use it. See ADR-111.
 - [README.md](README.md) — general project overview.
 - [packages/runling/README.md](packages/runling/README.md) — Runling APIs,
   development commands, and release setup.
+- [packages/runling/AGENTS.md](packages/runling/AGENTS.md) — Runling instructions
+  and the feature requirements to read before changing behavior.
 - [packages/runling/docs/README.md](packages/runling/docs/README.md) — Runling-owned
   ADRs, FDRs, and API guides. Runling records have their own numbering.
 - [packages/chatto-client/AGENTS.md](packages/chatto-client/AGENTS.md) — the
@@ -209,4 +211,3 @@ Never leave a dev stack running in a detached or yielded terminal session.
 - Always create pull requests as full, ready-for-review PRs. Create a draft PR only when the user explicitly asks for a draft.
 - PR bodies should use clean Markup and summarize changes and link relevant FDRs, ADRs, glossary terms, and issues.
 - If a PR closes an issue, include a GitHub closing keyword such as `Closes #123.` in the body.
-

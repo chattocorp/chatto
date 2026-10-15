@@ -1,8 +1,8 @@
 /** Command policy for ChattoBot's gh tools. The policy protects the bot host only: it blocks gh
  * features that run programs, read or write local files, open a browser or an editor, handle
  * credentials, or contact another host. What ChattoBot may do on GitHub is set by the GitHub
- * App's permissions: read commands run with a read-only token, and every other command runs,
- * after the authorization check, with the permissions of the App installation. */
+ * token permissions: read commands run with a read-only token. The maintainer-only worker
+ * gets an issue-write token for changes; the conversation cannot run changes. */
 
 /** A read runs with the read-only token; anything else is a change. */
 export type GhCommand = { access: 'read' | 'write' };
@@ -109,11 +109,11 @@ const TEXT_VALUE_FLAGS = new Set([
 /** True when gh could contact a host other than github.com because of this argument: a URL to
  * another host anywhere in it, an scp-style `git@host:path`, or a `HOST/OWNER/REPO` with three
  * or more segments. `text` marks the value of a flag in TEXT_VALUE_FLAGS, which gh does not read
- * as a repository; only the URL check applies to it. */
+ * as a repository or contact as a URL. */
 function namesOtherHost(arg: string, text: boolean): boolean {
+  if (text) return false;
   for (const [url] of arg.matchAll(/[a-z][a-z0-9+.-]*:\/\/\S*/gi))
     if (!/^https:\/\/github\.com\//i.test(url)) return true;
-  if (text) return false;
   const value = arg.trimStart();
   if (/^https:\/\/github\.com\//i.test(value)) return false;
   // gh treats a `git@` prefix as an scp address and splits other values on `/`, whatever they
@@ -152,7 +152,7 @@ function checkFlags(args: readonly string[]) {
       const text = value !== undefined && TEXT_VALUE_FLAGS.has(name);
       if (namesOtherHost(value ?? arg, text))
         throw new GhPolicyError(
-          'Arguments can name only OWNER/REPO or https://github.com/ addresses. Write a branch name with slashes as --flag=value, for example --head=a/b/c, and put text with links to other sites in the body parameter of ghWrite.'
+          'Arguments can name only OWNER/REPO or https://github.com/ addresses. Write text and branch names as --flag=value, for example --body=Details or --head=a/b/c.'
         );
     }
   // Check every argument, including flag values: a value can hide a flag from a simple parser.

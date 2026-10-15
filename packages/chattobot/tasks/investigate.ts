@@ -4,13 +4,13 @@
  * follow-up question, also after the investigation ended. The caller chooses the directory, for
  * example a checkout or a worktree.
  *
- * Run it on its own: `runling run investigation/investigate.ts --input '{"directory":
+ * Run it on its own: `runling run tasks/investigate.ts --input '{"directory":
  * "/path/to/repo", "question": "..."}'`.
  */
 import { mkdir, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
-  agent,
+  createAgentSession,
   task,
   Type,
   type AgentOptions,
@@ -19,9 +19,9 @@ import {
   type ThinkingLevel
 } from 'runling';
 import { ConfigurationError, setting, thinkingSetting } from '../settings.ts';
-import { checkCitations, findCitations } from './citations.ts';
-import { confineExtension } from './confine.ts';
-import { GIT_TOOLS, gitExtension, runGit } from './git.ts';
+import { checkCitations, findCitations } from '../investigation/citations.ts';
+import { confineExtension } from '../investigation/confine.ts';
+import { GIT_TOOLS, gitExtension, runGit } from '../investigation/git.ts';
 
 export interface InvestigatorSettings {
   model: string;
@@ -80,7 +80,7 @@ const active = new Set<string>();
 /** Create the investigator task. `createAgent` is injectable for tests. */
 export function createInvestigator(
   settings: InvestigatorSettings,
-  createAgent: (options: AgentOptions) => Promise<RunlingAgent> = agent
+  createAgent: (options: AgentOptions) => Promise<RunlingAgent> = createAgentSession
 ) {
   return task(
     { name: 'Investigate', input: Input, output: Output, emits: Update },
