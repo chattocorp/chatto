@@ -10,7 +10,7 @@ export class MyThreadsPage {
 
   /** The My Threads sidebar navigation link */
   get myThreadsLink(): Locator {
-    return this.page.getByRole('link', { name: 'My Threads' });
+    return this.page.getByRole('link', { name: /^Threads\b/ });
   }
 
   /** All thread items in the list */
@@ -24,8 +24,16 @@ export class MyThreadsPage {
   }
 
   /** Navigate to My Threads and wait for the page to load */
-  async goto(): Promise<void> {
+  async goto(tab?: 'mine' | 'followed'): Promise<void> {
     await this.myThreadsLink.click();
     await this.page.waitForURL(routes.threads);
+    if (tab) {
+      await this.page
+        .getByRole('radio', {
+          name: tab === 'mine' ? 'Mine' : 'Followed',
+          exact: true
+        })
+        .check();
+    }
   }
 }

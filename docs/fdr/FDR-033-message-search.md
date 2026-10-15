@@ -1,7 +1,7 @@
 # FDR-033: Message Search
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-09
+**Last reviewed:** 2026-10-15
 
 ## Overview
 
@@ -37,8 +37,9 @@ provider supplies results.
   or after a date, and messages with attachments. Any recognized filter can be
   used on its own without an additional word or phrase.
 - My Threads uses the same query syntax to search only accessible followed
-  threads, including DM threads. It returns one row per matching thread in
-  activity order. Both views use one search API, with message results as the
+  threads within the selected root-author tab, including DM threads. Root-author
+  selection does not restrict the authors of matching replies. It returns one
+  row per matching thread in activity order. Both views use one search API, with message results as the
   default and explicit thread scope and grouping for My Threads. Scope and
   grouping are independent: integrations can group all accessible matches or
   request individual matches within followed threads. Grouped relevance uses

@@ -6,7 +6,7 @@ import valid from 'semver/functions/valid.js';
  * exists in this release, so the client does not gate individual features by
  * server version. Raise it when the client starts to depend on a newer server.
  */
-export const MINIMUM_SUPPORTED_SERVER_VERSION = '0.5.0-beta.9';
+export const MINIMUM_SUPPORTED_SERVER_VERSION = '0.5.0-beta.16';
 
 export type ServerCompatibilityStatus = 'supported' | 'unsupported' | 'unknown' | 'unreachable';
 

@@ -9,6 +9,7 @@ declare global {
     // interface PageData {}
     interface PageState {
       threadFilter?: 'all' | 'unread';
+      threadTab?: 'mine' | 'followed';
       welcome?: boolean;
       modal?: ChatModal;
     }

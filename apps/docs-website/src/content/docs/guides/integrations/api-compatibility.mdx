@@ -58,6 +58,10 @@ migration. They are not a complete compatibility report.
 
 ## Check the server version
 
+The bundled client requires Chatto `0.5.0-beta.16` or newer. This version adds
+root-author filters for the Mine and Followed tabs. Existing API callers
+that omit the filter still receive the combined followed-thread feed.
+
 Call `ServerDiscoveryService.GetServer` before sign-in. `profile.version`
 contains the server software version:
 

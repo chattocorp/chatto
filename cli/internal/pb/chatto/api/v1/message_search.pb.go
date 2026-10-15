@@ -284,9 +284,13 @@ type SearchMessagesRequest struct {
 	// Candidate scope. Followed threads are selected before result pagination.
 	Scope MessageSearchScope `protobuf:"varint,10,opt,name=scope,proto3,enum=chatto.api.v1.MessageSearchScope" json:"scope,omitempty"`
 	// Result grouping. The server deduplicates threads before pagination.
-	GroupBy       MessageSearchGroupBy `protobuf:"varint,11,opt,name=group_by,json=groupBy,proto3,enum=chatto.api.v1.MessageSearchGroupBy" json:"group_by,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	GroupBy MessageSearchGroupBy `protobuf:"varint,11,opt,name=group_by,json=groupBy,proto3,enum=chatto.api.v1.MessageSearchGroupBy" json:"group_by,omitempty"`
+	// Select root authors within FOLLOWED_THREADS before search and pagination.
+	// Other scopes require UNSPECIFIED. This does not restrict reply authors;
+	// author_id and from: still select the authors of matching messages.
+	RootAuthorFilter ThreadRootAuthorFilter `protobuf:"varint,12,opt,name=root_author_filter,json=rootAuthorFilter,proto3,enum=chatto.api.v1.ThreadRootAuthorFilter" json:"root_author_filter,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *SearchMessagesRequest) Reset() {
@@ -394,6 +398,13 @@ func (x *SearchMessagesRequest) GetGroupBy() MessageSearchGroupBy {
 		return x.GroupBy
 	}
 	return MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_UNSPECIFIED
+}
+
+func (x *SearchMessagesRequest) GetRootAuthorFilter() ThreadRootAuthorFilter {
+	if x != nil {
+		return x.RootAuthorFilter
+	}
+	return ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_UNSPECIFIED
 }
 
 // One current, authorized match. With thread grouping, each result represents
@@ -720,7 +731,7 @@ var File_chatto_api_v1_message_search_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_message_search_proto_rawDesc = "" +
 	"\n" +
-	"\"chatto/api/v1/message_search.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/message_types.proto\x1a!chatto/api/v1/room_timeline.proto\x1a\x19chatto/api/v1/rooms.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf0\x04\n" +
+	"\"chatto/api/v1/message_search.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/message_types.proto\x1a!chatto/api/v1/room_timeline.proto\x1a\x19chatto/api/v1/rooms.proto\x1a\x1bchatto/api/v1/threads.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcf\x05\n" +
 	"\x15SearchMessagesRequest\x12 \n" +
 	"\x05query\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01(\x80\bR\x05query\x12(\n" +
@@ -736,7 +747,8 @@ const file_chatto_api_v1_message_search_proto_rawDesc = "" +
 	"\x06cursor\x18\t \x01(\tB\b\xbaH\x05r\x03(\x80@R\x06cursor\x12A\n" +
 	"\x05scope\x18\n" +
 	" \x01(\x0e2!.chatto.api.v1.MessageSearchScopeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05scope\x12H\n" +
-	"\bgroup_by\x18\v \x01(\x0e2#.chatto.api.v1.MessageSearchGroupByB\b\xbaH\x05\x82\x01\x02\x10\x01R\agroupByB\n" +
+	"\bgroup_by\x18\v \x01(\x0e2#.chatto.api.v1.MessageSearchGroupByB\b\xbaH\x05\x82\x01\x02\x10\x01R\agroupBy\x12]\n" +
+	"\x12root_author_filter\x18\f \x01(\x0e2%.chatto.api.v1.ThreadRootAuthorFilterB\b\xbaH\x05\x82\x01\x02\x10\x01R\x10rootAuthorFilterB\n" +
 	"\n" +
 	"\b_room_idB\f\n" +
 	"\n" +
@@ -813,11 +825,12 @@ var file_chatto_api_v1_message_search_proto_goTypes = []any{
 	(*GetStatusRequest)(nil),       // 8: chatto.api.v1.GetStatusRequest
 	(*GetStatusResponse)(nil),      // 9: chatto.api.v1.GetStatusResponse
 	(*timestamppb.Timestamp)(nil),  // 10: google.protobuf.Timestamp
-	(*Message)(nil),                // 11: chatto.api.v1.Message
-	(*RoomTimelineIncludes)(nil),   // 12: chatto.api.v1.RoomTimelineIncludes
-	(*RoomSummary)(nil),            // 13: chatto.api.v1.RoomSummary
-	(*ThreadSummary)(nil),          // 14: chatto.api.v1.ThreadSummary
-	(*durationpb.Duration)(nil),    // 15: google.protobuf.Duration
+	(ThreadRootAuthorFilter)(0),    // 11: chatto.api.v1.ThreadRootAuthorFilter
+	(*Message)(nil),                // 12: chatto.api.v1.Message
+	(*RoomTimelineIncludes)(nil),   // 13: chatto.api.v1.RoomTimelineIncludes
+	(*RoomSummary)(nil),            // 14: chatto.api.v1.RoomSummary
+	(*ThreadSummary)(nil),          // 15: chatto.api.v1.ThreadSummary
+	(*durationpb.Duration)(nil),    // 16: google.protobuf.Duration
 }
 var file_chatto_api_v1_message_search_proto_depIdxs = []int32{
 	10, // 0: chatto.api.v1.SearchMessagesRequest.created_after:type_name -> google.protobuf.Timestamp
@@ -825,25 +838,26 @@ var file_chatto_api_v1_message_search_proto_depIdxs = []int32{
 	0,  // 2: chatto.api.v1.SearchMessagesRequest.order:type_name -> chatto.api.v1.MessageSearchOrder
 	1,  // 3: chatto.api.v1.SearchMessagesRequest.scope:type_name -> chatto.api.v1.MessageSearchScope
 	2,  // 4: chatto.api.v1.SearchMessagesRequest.group_by:type_name -> chatto.api.v1.MessageSearchGroupBy
-	11, // 5: chatto.api.v1.MessageSearchResult.message:type_name -> chatto.api.v1.Message
-	7,  // 6: chatto.api.v1.MessageSearchResult.thread_context:type_name -> chatto.api.v1.ThreadSearchContext
-	5,  // 7: chatto.api.v1.SearchMessagesResponse.results:type_name -> chatto.api.v1.MessageSearchResult
-	12, // 8: chatto.api.v1.SearchMessagesResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
-	11, // 9: chatto.api.v1.ThreadSearchContext.root_message:type_name -> chatto.api.v1.Message
-	13, // 10: chatto.api.v1.ThreadSearchContext.room:type_name -> chatto.api.v1.RoomSummary
-	14, // 11: chatto.api.v1.ThreadSearchContext.thread:type_name -> chatto.api.v1.ThreadSummary
-	11, // 12: chatto.api.v1.ThreadSearchContext.latest_reply:type_name -> chatto.api.v1.Message
-	3,  // 13: chatto.api.v1.GetStatusResponse.state:type_name -> chatto.api.v1.MessageSearchState
-	15, // 14: chatto.api.v1.GetStatusResponse.retry_after:type_name -> google.protobuf.Duration
-	8,  // 15: chatto.api.v1.MessageSearchService.GetStatus:input_type -> chatto.api.v1.GetStatusRequest
-	4,  // 16: chatto.api.v1.MessageSearchService.SearchMessages:input_type -> chatto.api.v1.SearchMessagesRequest
-	9,  // 17: chatto.api.v1.MessageSearchService.GetStatus:output_type -> chatto.api.v1.GetStatusResponse
-	6,  // 18: chatto.api.v1.MessageSearchService.SearchMessages:output_type -> chatto.api.v1.SearchMessagesResponse
-	17, // [17:19] is the sub-list for method output_type
-	15, // [15:17] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	11, // 5: chatto.api.v1.SearchMessagesRequest.root_author_filter:type_name -> chatto.api.v1.ThreadRootAuthorFilter
+	12, // 6: chatto.api.v1.MessageSearchResult.message:type_name -> chatto.api.v1.Message
+	7,  // 7: chatto.api.v1.MessageSearchResult.thread_context:type_name -> chatto.api.v1.ThreadSearchContext
+	5,  // 8: chatto.api.v1.SearchMessagesResponse.results:type_name -> chatto.api.v1.MessageSearchResult
+	13, // 9: chatto.api.v1.SearchMessagesResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
+	12, // 10: chatto.api.v1.ThreadSearchContext.root_message:type_name -> chatto.api.v1.Message
+	14, // 11: chatto.api.v1.ThreadSearchContext.room:type_name -> chatto.api.v1.RoomSummary
+	15, // 12: chatto.api.v1.ThreadSearchContext.thread:type_name -> chatto.api.v1.ThreadSummary
+	12, // 13: chatto.api.v1.ThreadSearchContext.latest_reply:type_name -> chatto.api.v1.Message
+	3,  // 14: chatto.api.v1.GetStatusResponse.state:type_name -> chatto.api.v1.MessageSearchState
+	16, // 15: chatto.api.v1.GetStatusResponse.retry_after:type_name -> google.protobuf.Duration
+	8,  // 16: chatto.api.v1.MessageSearchService.GetStatus:input_type -> chatto.api.v1.GetStatusRequest
+	4,  // 17: chatto.api.v1.MessageSearchService.SearchMessages:input_type -> chatto.api.v1.SearchMessagesRequest
+	9,  // 18: chatto.api.v1.MessageSearchService.GetStatus:output_type -> chatto.api.v1.GetStatusResponse
+	6,  // 19: chatto.api.v1.MessageSearchService.SearchMessages:output_type -> chatto.api.v1.SearchMessagesResponse
+	18, // [18:20] is the sub-list for method output_type
+	16, // [16:18] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_message_search_proto_init() }
@@ -854,6 +868,7 @@ func file_chatto_api_v1_message_search_proto_init() {
 	file_chatto_api_v1_message_types_proto_init()
 	file_chatto_api_v1_room_timeline_proto_init()
 	file_chatto_api_v1_rooms_proto_init()
+	file_chatto_api_v1_threads_proto_init()
 	file_chatto_api_v1_message_search_proto_msgTypes[0].OneofWrappers = []any{}
 	file_chatto_api_v1_message_search_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}

@@ -1,6 +1,6 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createThreadAPI } from '../threads.js';
+import { createThreadAPI, ThreadRootAuthorFilter } from '../threads.js';
 import { Timestamp } from '@bufbuild/protobuf';
 import { Message, ThreadSummary } from '@chatto/api-types/api/v1/message_types_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
@@ -110,6 +110,22 @@ describe('createThreadAPI', () => {
       hasMore: true
     });
   });
+
+  it.each([ThreadRootAuthorFilter.VIEWER, ThreadRootAuthorFilter.OTHERS])(
+    'uses root-author filter %s for lists and searches',
+    async (rootAuthorFilter) => {
+      threads.listFollowedThreads.mockReturnValue({ threads: [], page: {} });
+      search.searchMessages.mockReturnValue({ results: [] });
+      const api = threadAPI();
+      await api.listFollowedThreads({ limit: 1, offset: 2, rootAuthorFilter });
+      expect(receivedRequest(threads.listFollowedThreads)).toMatchObject({ rootAuthorFilter });
+      await api.listFollowedThreads({ limit: 1, offset: 0, rootAuthorFilter, query: 'from:alice' });
+      expect(receivedRequest(search.searchMessages)).toMatchObject({
+        rootAuthorFilter,
+        query: 'from:alice'
+      });
+    }
+  );
 
   it('maps grouped search context while keeping the matching reply separate', async () => {
     search.searchMessages.mockReturnValue({

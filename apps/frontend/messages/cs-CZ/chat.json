@@ -89,8 +89,14 @@
       "body": "Přihlaste se, abyste mohli na tomto serveru číst a posílat zprávy."
     },
     "threads": {
-      "title": "Moje vlákna",
-      "subtitle": "Vlákna, která sledujete",
+      "tab_started": "Moje",
+      "tab_followed": "Sledovaná",
+      "tab_label": "Zobrazení vláken",
+      "empty_mine_title": "Žádná vámi založená vlákna",
+      "empty_mine_body": "Zde se zobrazí vlákna, která založíte a sledujete.",
+      "empty_followed_body": "Zde se zobrazí vlákna ostatních uživatelů, která sledujete.",
+      "title": "Vlákna",
+      "subtitle": "Nová aktivita ve vašich vláknech",
       "filter_label": "Filtrační závity",
       "filter_all": "všechny",
       "filter_unread": "Nepřečteno",

@@ -89,8 +89,14 @@
       "body": "Logga in för att läsa och skicka meddelanden på den här servern."
     },
     "threads": {
-      "title": "Mina trådar",
-      "subtitle": "Trådar du följer",
+      "tab_started": "Mina",
+      "tab_followed": "Följda",
+      "tab_label": "Trådvy",
+      "empty_mine_title": "Inga trådar startade av dig",
+      "empty_mine_body": "Trådar som du startar och följer visas här.",
+      "empty_followed_body": "Trådar som andra startar och som du följer visas här.",
+      "title": "Trådar",
+      "subtitle": "Ny aktivitet i dina trådar",
       "filter_label": "Filtertrådar",
       "filter_all": "Alla",
       "filter_unread": "Oläst",

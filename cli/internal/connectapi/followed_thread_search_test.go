@@ -15,6 +15,67 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+func TestSearchFollowedThreadsRootAuthorFilter(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	env.api.config.Search.Enabled = true
+	ctx := withCaller(env.ctx, env.viewer)
+	room := env.createJoinedRoom("root-author-search")
+	other, err := env.core.CreateUser(ctx, core.SystemActorID, "rootsearcher", "Other Author", "password")
+	require.NoError(t, err)
+	_, err = env.core.JoinRoom(ctx, other.Id, core.KindChannel, other.Id, room.Id)
+	require.NoError(t, err)
+	mine := env.post(room.Id, env.viewer.Id, "my root", "")
+	reply := env.post(room.Id, other.Id, "needle reply", mine.Id)
+	theirs := env.post(room.Id, other.Id, "needle their root", "")
+	env.post(room.Id, env.viewer.Id, "my reply", theirs.Id)
+	for _, tc := range []struct {
+		filter      apiv1.ThreadRootAuthorFilter
+		root, match string
+	}{
+		{apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_VIEWER, mine.Id, reply.Id},
+		{apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_OTHERS, theirs.Id, theirs.Id},
+	} {
+		t.Run(tc.filter.String(), func(t *testing.T) {
+			env.api.searchProvider = &fakeMessageSearchProvider{query: func(req *searchv1.QueryRequest) (*searchv1.QueryResponse, error) {
+				require.Equal(t, []string{tc.root}, req.ThreadRootIds)
+				require.Equal(t, []string{other.Id}, req.AuthorIds)
+				return &searchv1.QueryResponse{ThreadScopeApplied: true, Hits: []*searchv1.QueryHit{
+					{MessageId: tc.match, RoomId: room.Id, BodyEventId: currentMessageBodyEventID(t, env, room.Id, tc.match)},
+				}}, nil
+			}}
+			response, err := (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(&apiv1.SearchMessagesRequest{
+				Query: "needle from:rootsearcher", RootAuthorFilter: tc.filter,
+				Scope:   apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS,
+				GroupBy: apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_THREAD,
+			}))
+			require.NoError(t, err)
+			require.Len(t, response.Msg.Results, 1)
+			require.Equal(t, tc.root, response.Msg.Results[0].ThreadContext.Thread.ThreadRootEventId)
+			require.EqualValues(t, 1, response.Msg.GetThreadTotalCount())
+		})
+	}
+	for _, request := range []*apiv1.SearchMessagesRequest{
+		{Query: "needle", RootAuthorFilter: apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_VIEWER},
+		{Query: "needle", Scope: apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS, RootAuthorFilter: 99},
+	} {
+		_, err := (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(request))
+		require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
+	}
+	require.NoError(t, env.core.UnfollowThread(ctx, core.KindChannel, env.viewer.Id, room.Id, mine.Id))
+	env.api.searchProvider = &fakeMessageSearchProvider{query: func(*searchv1.QueryRequest) (*searchv1.QueryResponse, error) {
+		t.Fatal("empty author scope must not query the provider")
+		return nil, nil
+	}}
+	response, err := (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(&apiv1.SearchMessagesRequest{
+		Query: "needle", RootAuthorFilter: apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_VIEWER,
+		Scope:   apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS,
+		GroupBy: apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_THREAD,
+	}))
+	require.NoError(t, err)
+	require.Empty(t, response.Msg.Results)
+}
+
 func TestSearchFollowedThreadsRequiresFromFilterForAuthors(t *testing.T) {
 	t.Parallel()
 
@@ -315,6 +376,9 @@ func TestSearchFollowedThreadsScopesDeduplicatesAndPagesByActivity(t *testing.T)
 				func(r *apiv1.SearchMessagesRequest) { r.RoomId = new(room.Id) },
 				func(r *apiv1.SearchMessagesRequest) { r.AuthorId = new(env.viewer.Id) },
 				func(r *apiv1.SearchMessagesRequest) { r.HasAttachments = true },
+				func(r *apiv1.SearchMessagesRequest) {
+					r.RootAuthorFilter = apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_OTHERS
+				},
 				func(r *apiv1.SearchMessagesRequest) { r.Scope = 0; r.GroupBy = 0 },
 			} {
 				changed := proto.Clone(request).(*apiv1.SearchMessagesRequest)

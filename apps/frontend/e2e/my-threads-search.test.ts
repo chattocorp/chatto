@@ -32,10 +32,11 @@ test('My Threads searches older replies, deduplicates threads, and clears the fi
   await roomPage.closeThread();
   const myThreads = new MyThreadsPage(page);
   await myThreads.goto();
-  await expect(myThreads.threadItems).toHaveCount(2);
   const input = page.getByRole('searchbox', { name: 'Search my threads' });
   await expect(input).toBeVisible();
   await expect(input).toBeFocused();
+  await page.getByRole('radio', { name: 'Mine', exact: true }).check();
+  await expect(myThreads.threadItems).toHaveCount(2);
   // Typing submits automatically. Enter retries while the provider catches up.
   await input.fill(needle);
   await expect(async () => {

@@ -89,8 +89,14 @@
       "body": "Log in to read and send messages on this server."
     },
     "threads": {
-      "title": "My Threads",
-      "subtitle": "Threads you're following",
+      "tab_started": "Mine",
+      "tab_followed": "Followed",
+      "tab_label": "Thread view",
+      "empty_mine_title": "No threads started by you",
+      "empty_mine_body": "Threads you start and follow will appear here.",
+      "empty_followed_body": "Threads started by others that you follow will appear here.",
+      "title": "Threads",
+      "subtitle": "New activity in your threads",
       "filter_label": "Filter threads",
       "filter_all": "All",
       "filter_unread": "Unread",

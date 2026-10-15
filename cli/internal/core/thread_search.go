@@ -29,17 +29,27 @@ type ThreadSearchPage struct {
 	HasMore    bool
 }
 
-// FollowedSearchRoots returns the complete followed-root scope in authorized rooms.
+// FollowedSearchRoots returns the followed-root scope in authorized rooms,
+// restricted by root author when requested.
 // Empty must be handled by the caller as no matches, never unrestricted search.
-func (s *MessageSearchReadModel) FollowedSearchRoots(scope *MessageSearchScope, actorID string) []string {
+func (s *MessageSearchReadModel) FollowedSearchRoots(ctx context.Context, scope *MessageSearchScope, actorID string, rootAuthor ThreadRootAuthorFilter) ([]string, error) {
+	if err := rootAuthor.Validate(); err != nil {
+		return nil, err
+	}
 	var roots []string
 	for _, ref := range s.rooms.followedThreadsForUser(actorID) {
-		if scope.rooms[ref.roomID] != nil {
-			roots = append(roots, ref.threadRootEventID)
+		if room := scope.rooms[ref.roomID]; room != nil {
+			matches, err := s.follows.matchesRootAuthor(ctx, actorID, KindOfRoom(room), ref.roomID, ref.threadRootEventID, rootAuthor)
+			if err != nil {
+				return nil, err
+			}
+			if matches {
+				roots = append(roots, ref.threadRootEventID)
+			}
 		}
 	}
 	slices.Sort(roots)
-	return roots
+	return roots, nil
 }
 
 // FilterFollowedSearchResults rechecks follow state after provider work.

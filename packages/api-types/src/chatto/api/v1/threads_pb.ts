@@ -11,6 +11,40 @@ import { PageInfo, PageRequest } from "./pagination_pb.js";
 import { RoomTimelineIncludes } from "./room_timeline_pb.js";
 
 /**
+ * Selects threads by the author of their root message, not their replies.
+ *
+ * @generated from enum chatto.api.v1.ThreadRootAuthorFilter
+ */
+export enum ThreadRootAuthorFilter {
+  /**
+   * Include all root authors.
+   *
+   * @generated from enum value: THREAD_ROOT_AUTHOR_FILTER_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Include only roots authored by the authenticated viewer.
+   *
+   * @generated from enum value: THREAD_ROOT_AUTHOR_FILTER_VIEWER = 1;
+   */
+  VIEWER = 1,
+
+  /**
+   * Include only roots authored by other users.
+   *
+   * @generated from enum value: THREAD_ROOT_AUTHOR_FILTER_OTHERS = 2;
+   */
+  OTHERS = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(ThreadRootAuthorFilter)
+proto3.util.setEnumType(ThreadRootAuthorFilter, "chatto.api.v1.ThreadRootAuthorFilter", [
+  { no: 0, name: "THREAD_ROOT_AUTHOR_FILTER_UNSPECIFIED" },
+  { no: 1, name: "THREAD_ROOT_AUTHOR_FILTER_VIEWER" },
+  { no: 2, name: "THREAD_ROOT_AUTHOR_FILTER_OTHERS" },
+]);
+
+/**
  * Current follow state for one thread and viewer.
  *
  * @generated from message chatto.api.v1.ThreadFollowState
@@ -351,6 +385,14 @@ export class ListFollowedThreadsRequest extends Message<ListFollowedThreadsReque
    */
   unreadOnly = false;
 
+  /**
+   * Filter root authors before pagination and total counts. Threads whose
+   * root author is unavailable are omitted when a filter is selected.
+   *
+   * @generated from field: chatto.api.v1.ThreadRootAuthorFilter root_author_filter = 6;
+   */
+  rootAuthorFilter = ThreadRootAuthorFilter.UNSPECIFIED;
+
   constructor(data?: PartialMessage<ListFollowedThreadsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -362,6 +404,7 @@ export class ListFollowedThreadsRequest extends Message<ListFollowedThreadsReque
     { no: 3, name: "page", kind: "message", T: PageRequest },
     { no: 4, name: "include_direct_message_threads", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 5, name: "unread_only", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "root_author_filter", kind: "enum", T: proto3.getEnumType(ThreadRootAuthorFilter) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListFollowedThreadsRequest {
