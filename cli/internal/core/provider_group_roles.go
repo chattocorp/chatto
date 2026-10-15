@@ -97,7 +97,7 @@ func (c *ChattoCore) SyncProviderGroupRoles(ctx context.Context, userID string, 
 
 	var missingRoles []string
 	granted := false
-	if _, err := c.appendComputedRBACBatch(ctx, func() ([]evtstream.BatchEntry, error) {
+	_, err := c.appendComputedRBACBatch(ctx, func() ([]evtstream.BatchEntry, error) {
 		if err := c.requireHumanUser(ctx, userID); err != nil {
 			return nil, err
 		}
@@ -125,14 +125,20 @@ func (c *ChattoCore) SyncProviderGroupRoles(ctx context.Context, userID string, 
 			}
 		}
 		return entries, nil
-	}); err != nil {
+	})
+	// A grant can commit although the append reports an error, for example
+	// when the request ends during the projection wait after the commit. The
+	// check is harmless when nothing committed, so it runs in both cases.
+	if granted {
+		if checkErr := c.revokeProviderGroupRolesWithoutIdentity(ctx, userID, source); err == nil {
+			err = checkErr
+		}
+	}
+	if err != nil {
 		return err
 	}
 	for _, roleName := range missingRoles {
 		c.logger.Warn("Provider group role does not exist", "provider_id", source.ProviderID, "role", roleName)
-	}
-	if granted {
-		return c.revokeProviderGroupRolesWithoutIdentity(ctx, userID, source)
 	}
 	return nil
 }

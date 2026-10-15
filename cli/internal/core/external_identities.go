@@ -444,6 +444,14 @@ func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, us
 
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
+			// A concurrent group role sync can commit a grant after the batch
+			// read the RBAC state. Check again; the check waits until the
+			// unlink is visible. It runs before the waits below, which end with
+			// the request. The unlink is committed, so a failed check is
+			// logged, not returned.
+			if err := c.revokeProviderGroupRolesWithoutIdentity(ctx, userID, source); err != nil {
+				c.logger.Error("Provider group role check after unlink failed", "provider_id", source.ProviderID, "user_id", userID, "error", err)
+			}
 			if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(unlinkSubject, seqs[0])); err != nil {
 				return fmt.Errorf("wait for user projection: %w", err)
 			}
@@ -454,12 +462,6 @@ func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, us
 				if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(entries[last].Subject, seqs[last])); err != nil {
 					return fmt.Errorf("wait for RBAC projection: %w", err)
 				}
-			}
-			// A concurrent group role sync can commit a grant after the batch
-			// read the RBAC state. Check again now that the unlink is visible.
-			// The unlink is committed, so a failed check is logged, not returned.
-			if err := c.revokeProviderGroupRolesWithoutIdentity(ctx, userID, source); err != nil {
-				c.logger.Error("Provider group role check after unlink failed", "provider_id", source.ProviderID, "user_id", userID, "error", err)
 			}
 			return nil
 		}
