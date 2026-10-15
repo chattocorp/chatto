@@ -542,6 +542,25 @@ describe('RoomList', () => {
     expect(mocks.markNavigationRoomAsRead).toHaveBeenCalledWith('origin', 'channel-1');
   });
 
+  it.each([false, true])('copies the room link and reports clipboard failure=%s', async (fails) => {
+    if (fails) mocks.writeClipboardText.mockRejectedValue(new Error('denied'));
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    const action = browserPage.getByTestId('copy-room-link');
+    await expect.element(action).toHaveTextContent('Copy Link');
+    await action.click();
+    expect(mocks.writeClipboardText).toHaveBeenCalledWith(
+      'https://chat.example.test/chat/-/channel-1'
+    );
+    await vi.waitFor(() =>
+      expect(getToasts().map((item) => item.message)).toContain(
+        fails ? 'Failed to copy link' : 'Room link copied'
+      )
+    );
+    await expect.element(action).not.toBeInTheDocument();
+  });
+
   it('shows Copy Room ID as the final context-menu row and copies the ID', async () => {
     const { container } = render(RoomList);
     const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;

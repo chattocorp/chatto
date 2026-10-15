@@ -22,6 +22,8 @@
     "remove_server": "Remove server",
     "leave_room": "Leave room",
     "copy_room_id": "Copy Room ID",
+    "copy_link": "Copy Link",
+    "room_link_copied": "Room link copied",
     "copy_server_hostname": "Copy Server Hostname",
     "room_settings": "Room settings",
     "add_to_group": "Add to {group}",

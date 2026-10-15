@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-10-09
+**Last reviewed:** 2026-10-15
 
 ## Overview
 
@@ -11,6 +11,11 @@ can configure their Threading Mode. DMs always use Enabled behavior.
 
 ## Behavior
 
+- Copied message and thread-message links use the owning server's full origin,
+  including its scheme and port, with the home-server path. They do not depend
+  on the sender's frontend address. Links copied with the frontend address and
+  a remote-server path remain supported. Selecting a link in a message opens
+  known servers in the current client; unknown servers open externally.
 - Following a message link opens the target's thread when it is a thread reply
   or has an existing thread, including a thread with no replies. The linked
   message is highlighted in the thread pane. A message without a thread opens

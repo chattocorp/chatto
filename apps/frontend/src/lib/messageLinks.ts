@@ -172,23 +172,40 @@ export function buildMessageLinkPath(
   return messagePath(serverId, roomId, messageId, '', {}, threadRootEventId);
 }
 
-/**
- * Absolute URL for clipboard copy, anchored to the server hosting the SPA.
- * Remote servers are identified by their hostname in the generated path.
- */
+/** Build a shareable frontend URL on the owning server, independent of this SPA. */
+function buildChatLinkURL(serverId: string, segments: string[]): string {
+  const server = serverRegistry.getServer(serverId);
+  if (!server) throw new Error('Cannot copy a link for an unknown server');
+  const origin = new URL(server.url).origin;
+  return new URL(`/chat/-/${segments.map(encodeURIComponent).join('/')}`, origin).href;
+}
+
+/** Absolute room URL on the owning server. Throws if the server is unknown. */
+export function buildRoomLinkURL(serverId: string, roomId: string): string {
+  return buildChatLinkURL(serverId, [roomId]);
+}
+
+/** Copy a room URL and report clipboard or URL-generation failures to the user. */
+export async function copyRoomLinkToClipboard(serverId: string, roomId: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(buildRoomLinkURL(serverId, roomId));
+    toast.success(m('room_list.room_link_copied'));
+  } catch {
+    toast.error(m('room.message.actions.copy_link_failed'));
+  }
+}
+
+/** Absolute message URL on the owning server. Throws if the server is unknown. */
 export function buildMessageLinkURL(
   serverId: string,
   roomId: string,
   messageId: string,
   threadRootEventId?: string | null
 ): string {
-  const path = buildMessageLinkPath(serverId, roomId, messageId, threadRootEventId);
-
-  if (typeof window !== 'undefined') {
-    return new URL(path, window.location.origin).toString();
-  }
-
-  return path;
+  return buildChatLinkURL(
+    serverId,
+    threadRootEventId ? [roomId, threadRootEventId, 'm', messageId] : [roomId, 'm', messageId]
+  );
 }
 
 export async function copyMessageLinkToClipboard(
@@ -305,23 +322,16 @@ export function classifyMessageBodyChatLink(
  * caller can tell whether the link points at a known (reachable) server.
  */
 export function parseMessageLink(input: string): MessageLink | null {
-  let pathname: string;
-  let hostnameSegment: string | null = null;
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://_';
+  let url: URL;
 
   try {
-    const url = new URL(
-      input,
-      typeof window !== 'undefined' ? window.location.origin : 'https://_'
-    );
-    pathname = url.pathname;
-    if (typeof window !== 'undefined' && url.host !== window.location.host) {
-      hostnameSegment = url.hostname;
-    }
+    url = new URL(input, origin);
   } catch {
     return null;
   }
 
-  const parts = pathname.split('/').filter(Boolean);
+  const parts = url.pathname.split('/').filter(Boolean);
   // Expected room link: ['chat', serverSegment, roomId, 'm', messageId]
   // Expected thread link: ['chat', serverSegment, roomId, threadRootEventId, 'm', messageId]
   if (parts.length !== 5 && parts.length !== 6) return null;
@@ -332,11 +342,16 @@ export function parseMessageLink(input: string): MessageLink | null {
   const marker = parts.length === 6 ? parts[4] : parts[3];
   const messageId = parts.length === 6 ? parts[5] : parts[4];
   if (marker !== 'm' || !messageId) return null;
-  const effectiveSegment = hostnameSegment ?? serverSegment;
+  const serverId = resolveChatLinkServerId(url, serverSegment, origin, {});
+  const effectiveSegment = serverId
+    ? serverIdToSegment(serverId)
+    : url.origin === origin
+      ? serverSegment
+      : url.host;
 
   return {
     serverSegment: effectiveSegment,
-    serverId: segmentToServerId(effectiveSegment),
+    serverId,
     roomId,
     threadRootEventId,
     messageId

@@ -4,8 +4,10 @@ import { serverRegistry } from '$lib/client';
 import { type RegisteredServer } from '@chatto/client/server/registry';
 import {
   buildMessageLinkURL,
+  buildRoomLinkURL,
   classifyMessageBodyChatLink,
   copyMessageLinkToClipboard,
+  copyRoomLinkToClipboard,
   parseMessageLink
 } from './messageLinks';
 
@@ -57,9 +59,10 @@ function classify(input: string) {
   });
 }
 
-describe('buildMessageLinkURL', () => {
+describe('copied chat URLs', () => {
   beforeEach(() => {
     vi.stubGlobal('window', { location: { origin } });
+    vi.spyOn(serverRegistry, 'getServer').mockReturnValue(remoteServer);
   });
 
   afterEach(() => {
@@ -67,29 +70,49 @@ describe('buildMessageLinkURL', () => {
     vi.unstubAllGlobals();
   });
 
-  it('uses the SPA origin and home segment for an origin-server message', () => {
-    vi.spyOn(serverRegistry, 'isOriginServer').mockReturnValue(true);
+  it('uses the owning origin and home segment for an origin-server message', () => {
+    vi.mocked(serverRegistry.getServer).mockReturnValue({ ...remoteServer, url: origin });
 
     expect(buildMessageLinkURL('origin', 'room-1', 'message-1')).toBe(
       `${origin}/chat/-/room-1/m/message-1`
     );
   });
 
-  it('uses the SPA origin and remote hostname for a remote-server message', () => {
-    vi.spyOn(serverRegistry, 'isOriginServer').mockReturnValue(false);
-    vi.spyOn(serverRegistry, 'getServer').mockReturnValue(remoteServer);
-
+  it('uses the remote origin and home segment for a remote-server message', () => {
     expect(buildMessageLinkURL('remote', 'room-1', 'message-1')).toBe(
-      `${origin}/chat/remote.example.test/room-1/m/message-1`
+      `${remoteServer.url}/chat/-/room-1/m/message-1`
     );
   });
 
   it('preserves the thread root in a remote-server message link', () => {
-    vi.spyOn(serverRegistry, 'isOriginServer').mockReturnValue(false);
-    vi.spyOn(serverRegistry, 'getServer').mockReturnValue(remoteServer);
-
     expect(buildMessageLinkURL('remote', 'room-1', 'message-1', 'thread-root-1')).toBe(
-      `${origin}/chat/remote.example.test/room-1/thread-root-1/m/message-1`
+      `${remoteServer.url}/chat/-/room-1/thread-root-1/m/message-1`
+    );
+  });
+
+  it.each(['https://remote.example.test:8443', 'http://localhost:8080'])(
+    'preserves the owning server scheme and port: %s',
+    (url) => {
+      vi.mocked(serverRegistry.getServer).mockReturnValue({ ...remoteServer, url });
+      expect(buildRoomLinkURL('remote', channelRoomId)).toBe(`${url}/chat/-/${channelRoomId}`);
+      expect(buildMessageLinkURL('remote', channelRoomId, messageId)).toBe(
+        `${url}/chat/-/${channelRoomId}/m/${messageId}`
+      );
+    }
+  );
+
+  it('builds absolute links without a browser', () => {
+    vi.stubGlobal('window', undefined);
+    expect(buildRoomLinkURL('remote', channelRoomId)).toBe(
+      `${remoteServer.url}/chat/-/${channelRoomId}`
+    );
+  });
+
+  it('does not substitute the frontend when the owning server is missing', () => {
+    vi.mocked(serverRegistry.getServer).mockReturnValue(undefined);
+    expect(() => buildRoomLinkURL('missing', channelRoomId)).toThrow('unknown server');
+    expect(() => buildMessageLinkURL('missing', channelRoomId, messageId)).toThrow(
+      'unknown server'
     );
   });
 });
@@ -98,12 +121,35 @@ describe('copyMessageLinkToClipboard', () => {
   const writeText = vi.fn();
 
   beforeEach(() => {
+    vi.spyOn(serverRegistry, 'getServer').mockReturnValue(remoteServer);
     toast.clear();
     writeText.mockReset();
     Object.defineProperty(navigator, 'clipboard', {
       value: { writeText },
       configurable: true
     });
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('copies a room link on the owning server', async () => {
+    await copyRoomLinkToClipboard('remote', channelRoomId);
+    expect(writeText).toHaveBeenCalledWith(`${remoteServer.url}/chat/-/${channelRoomId}`);
+    expect(getToasts().map((t) => t.message)).toContain('Room link copied');
+  });
+
+  it('reports room clipboard failures', async () => {
+    writeText.mockRejectedValue(new Error('denied'));
+    await copyRoomLinkToClipboard('remote', channelRoomId);
+    expect(getToasts().map((t) => t.message)).toContain('Failed to copy link');
+  });
+
+  it('reports a missing owning server without copying a fallback URL', async () => {
+    vi.mocked(serverRegistry.getServer).mockReturnValue(undefined);
+    await copyRoomLinkToClipboard('missing', channelRoomId);
+    await copyMessageLinkToClipboard('missing', channelRoomId, messageId);
+    expect(writeText).not.toHaveBeenCalled();
+    expect(getToasts().map((t) => t.message)).toContain('Failed to copy link');
   });
 
   it('copies the message link and shows a success toast', async () => {
@@ -260,6 +306,47 @@ describe('classifyMessageBodyChatLink', () => {
 });
 
 describe('parseMessageLink', () => {
+  beforeEach(() => {
+    vi.stubGlobal('window', { location: { origin } });
+    vi.spyOn(serverRegistry, 'servers', 'get').mockReturnValue([remoteServer]);
+    vi.spyOn(serverRegistry, 'getServer').mockReturnValue(remoteServer);
+    vi.spyOn(serverRegistry, 'isOriginServer').mockReturnValue(false);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('resolves copied message links by their full registered origin', () => {
+    const url = buildMessageLinkURL('remote', channelRoomId, messageId, threadRootEventId);
+    expect(parseMessageLink(url)).toMatchObject({
+      serverId: 'remote',
+      roomId: channelRoomId,
+      messageId,
+      threadRootEventId
+    });
+    expect(classifyMessageBodyChatLink(url)).toMatchObject({
+      serverId: 'remote',
+      path: `/chat/remote.example.test/${channelRoomId}/${threadRootEventId}/m/${messageId}`
+    });
+  });
+
+  it.each(['http://remote.example.test', 'https://remote.example.test:8443'])(
+    'does not confuse a different origin with a known server: %s',
+    (urlOrigin) => {
+      const url = `${urlOrigin}/chat/-/${channelRoomId}/m/${messageId}`;
+      expect(parseMessageLink(url)?.serverId).toBeNull();
+      expect(classifyMessageBodyChatLink(url)).toBeNull();
+    }
+  );
+
+  it('keeps old frontend-hosted links to a remote server readable', () => {
+    const url = `${origin}/chat/remote.example.test/${channelRoomId}/m/${messageId}`;
+    expect(parseMessageLink(url)?.serverId).toBe('remote');
+    expect(classifyMessageBodyChatLink(url)?.serverId).toBe('remote');
+  });
+
   it('preserves the thread root from a nested message link', () => {
     expect(
       parseMessageLink(`/chat/-/${channelRoomId}/${threadRootEventId}/m/${messageId}`)

@@ -14,6 +14,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
+  import { copyRoomLinkToClipboard } from '$lib/messageLinks';
   import { m } from '$lib/i18n/messages';
   import {
     normalizeSidebarLinkURL,
@@ -517,6 +518,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     } catch {
       toast.error(m('common.error.generic'));
     }
+  }
+
+  function handleCopyRoomLink(roomId: string): void {
+    roomContextMenu = null;
+    void copyRoomLinkToClipboard(activeServerId, roomId);
   }
 
   function handleLeaveRoom(room: RoomsListItem): void {
@@ -1359,6 +1365,13 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       </MenuSection>
     {/if}
     <MenuSection>
+      <MenuItem
+        icon="icon-[uil--link]"
+        onclick={() => handleCopyRoomLink(contextRoom.id)}
+        dataTestid="copy-room-link"
+      >
+        {m('room_list.copy_link')}
+      </MenuItem>
       <MenuItem
         icon="icon-[uil--copy]"
         onclick={() => void handleCopyRoomId(contextRoom.id)}
