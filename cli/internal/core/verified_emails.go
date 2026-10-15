@@ -430,7 +430,7 @@ func (c *ChattoCore) applyConfigOwners(ctx context.Context) error {
 			if c.rbacModel.hasRole(userID, RoleOwner) {
 				break
 			}
-			if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, userID, RoleOwner); err != nil {
+			if err := c.AssignConfiguredOwnerRole(ctx, userID); err != nil {
 				return fmt.Errorf("assign owner role to %s: %w", userID, err)
 			}
 			promoted++

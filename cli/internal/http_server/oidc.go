@@ -402,11 +402,21 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 
 	// The group restriction applies to every sign-in and link, also for linked
 	// accounts. The error does not name the restriction.
-	if !providerRuntime.config.AdmitsGroups(identity.groups) {
+	if !providerRuntime.config.AdmitsGroups(identity.groups.Groups) {
 		log.Warn("Provider sign-in denied by group restriction", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type)
 		if intent == "link" {
 			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/", "provider_access_denied"))
 			return
+		}
+		// A user who may not sign in through the provider must not keep the
+		// roles that it gave. The sign-in stays denied, also when this fails.
+		user, err := s.core.GetUserByExternalIdentity(ctx, identity.issuer, identity.subject)
+		if err != nil {
+			log.Error("Failed to lookup user for provider group role revocation", "provider_id", providerRuntime.config.ID, "error", err)
+		} else if user != nil {
+			if err := s.core.RevokeProviderGroupRoles(ctx, user.Id, core.ProviderRoleSource{ProviderID: providerRuntime.config.ID, Issuer: identity.issuer}); err != nil {
+				log.Error("Provider group role revocation failed after denied sign-in", "provider_id", providerRuntime.config.ID, "userId", user.Id, "error", err)
+			}
 		}
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_access_denied")
 		return
@@ -428,6 +438,10 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/", errorCode))
 			return
 		}
+		// The link is committed. A failed sync is repeated at the next sign-in.
+		if err := s.core.SyncProviderGroupRoles(ctx, linkUserID, core.ProviderRoleSource{ProviderID: providerRuntime.config.ID, Issuer: identity.issuer, Subject: identity.subject}, providerRuntime.config.GroupRoleMappings(), identity.groups); err != nil {
+			log.Warn("Provider group role sync failed after link", "provider_id", providerRuntime.config.ID, "userId", linkUserID, "error", err)
+		}
 		c.Redirect(http.StatusTemporaryRedirect, providerReturnPath(session, "/"))
 		return
 	}
@@ -445,6 +459,14 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	}
 
 	log.Info("Provider login matched by external identity", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type, "userId", user.Id)
+
+	// Sync before the session exists, so a failed revocation cannot leave a
+	// signed-in user with a role that the provider removed.
+	if err := s.core.SyncProviderGroupRoles(ctx, user.Id, core.ProviderRoleSource{ProviderID: providerRuntime.config.ID, Issuer: identity.issuer, Subject: identity.subject}, providerRuntime.config.GroupRoleMappings(), identity.groups); err != nil {
+		log.Error("Provider group role sync failed", "provider_id", providerRuntime.config.ID, "userId", user.Id, "error", err)
+		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
+		return
+	}
 
 	if identity.avatarURL != "" {
 		existingAvatar, _ := s.core.GetUserAvatar(ctx, user.Id)
@@ -481,8 +503,9 @@ type resolvedProviderIdentity struct {
 	avatarURL       string
 	loginHint       string
 	displayNameHint string
-	// groups holds the OIDC groups claim when a group restriction needs it.
-	groups []string
+	// groups holds the OIDC groups claim when allowed_groups or group_roles
+	// needs it.
+	groups core.ProviderGroups
 }
 
 func newAuthProviderRuntime(providerConfig config.AuthProviderConfig, callbackURL string) (*authProviderRuntime, error) {
@@ -659,17 +682,16 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 
 	log.Info("OIDC token verified", "provider_id", r.config.ID, "issuer", idToken.Issuer)
 
-	// Chatto reads groups only for a group restriction. A groups claim in the
-	// ID token wins over UserInfo, like the profile claims.
-	needGroups := len(r.config.AllowedGroups) > 0
-	var groups []string
-	groupsFound := false
+	// Chatto reads groups only for allowed_groups or group_roles. A groups
+	// claim in the ID token wins over UserInfo, like the profile claims.
+	needGroups := len(r.config.AllowedGroups) > 0 || len(r.config.GroupRoleMappings()) > 0
+	var groups core.ProviderGroups
 	if needGroups {
-		groups, groupsFound = groupsFromClaims(idToken.Claims, r.config.GroupsClaimOrDefault())
+		groups.Groups, groups.Known = groupsFromClaims(idToken.Claims, r.config.GroupsClaimOrDefault())
 	}
 
 	// UserInfo can supply names even when the ID token already has email.
-	if claims.PreferredUser == "" || claims.Name == "" || (claims.Email == "" && slices.Contains(discovery.oauth2Config.Scopes, "email")) || (needGroups && !groupsFound) {
+	if claims.PreferredUser == "" || claims.Name == "" || (claims.Email == "" && slices.Contains(discovery.oauth2Config.Scopes, "email")) || (needGroups && !groups.Known) {
 		userInfo, err := discovery.provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
 		if err != nil {
 			log.Warn("OIDC userinfo fallback failed", "provider_id", r.config.ID)
@@ -677,8 +699,8 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 			if userInfo.Subject != idToken.Subject {
 				return resolvedProviderIdentity{}, errors.New("userinfo subject mismatch")
 			}
-			if needGroups && !groupsFound {
-				groups, _ = groupsFromClaims(userInfo.Claims, r.config.GroupsClaimOrDefault())
+			if needGroups && !groups.Known {
+				groups.Groups, groups.Known = groupsFromClaims(userInfo.Claims, r.config.GroupsClaimOrDefault())
 			}
 			var supplemental profileClaims
 			if err := userInfo.Claims(&supplemental); err != nil {
@@ -714,6 +736,18 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 		displayNameHint: displayNameHintFromParts(claims.Name, claims.PreferredUser, verifiedEmail),
 		groups:          groups,
 	}, nil
+}
+
+// mappedGroups returns the groups that group_roles names. Pending account
+// creation stores only these, so it keeps no other group data of the user.
+func mappedGroups(mappings []config.GroupRole, groups []string) []string {
+	var mapped []string
+	for _, group := range groups {
+		if slices.ContainsFunc(mappings, func(mapping config.GroupRole) bool { return mapping.Group == group }) && !slices.Contains(mapped, group) {
+			mapped = append(mapped, group)
+		}
+	}
+	return mapped
 }
 
 // groupsFromClaims reads a groups claim that holds a string or a list of
@@ -885,6 +919,8 @@ func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session ses
 		AvatarURL:       identity.avatarURL,
 		LoginHint:       identity.loginHint,
 		DisplayNameHint: identity.displayNameHint,
+		Groups:          mappedGroups(providerConfig.GroupRoleMappings(), identity.groups.Groups),
+		GroupsKnown:     identity.groups.Known,
 		RedirectPath:    providerReturnPath(session, "/"),
 	}
 

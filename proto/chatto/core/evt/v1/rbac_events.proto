@@ -48,12 +48,43 @@ message RbacRolesReorderedEvent {
 message RbacRoleAssignedEvent {
   string user_id = 1;
   string role_name = 2;
+  // Why the role was assigned. Absent for admin assignments and for events
+  // from older server versions.
+  RbacRoleChangeReason reason = 3;
 }
 
 message RbacRoleRevokedEvent {
   string user_id = 1;
   string role_name = 2;
+  // Why the role was revoked. Absent for admin revocations and for events
+  // from older server versions.
+  RbacRoleChangeReason reason = 3;
 }
+
+// RbacRoleChangeReason records an automatic cause of a role assignment or
+// revocation. Each kind carries only its own data.
+message RbacRoleChangeReason {
+  oneof reason {
+    RbacProviderGroupsReason provider_groups = 1;
+    RbacConfiguredOwnerReason configured_owner = 2;
+  }
+}
+
+// RbacProviderGroupsReason means that the group_roles mapping of an external
+// login provider caused the change. The provider owns an assignment that it
+// created and can later revoke it.
+message RbacProviderGroupsReason {
+  // Configured auth provider ID at the time of the change.
+  string provider_id = 1;
+  // Identity namespace of the provider: the verified OIDC issuer URL. It
+  // identifies the owner of an assignment, so a changed provider ID keeps the
+  // ownership, like identity links do.
+  string issuer = 2;
+}
+
+// RbacConfiguredOwnerReason means that owners.emails in the server
+// configuration caused an owner assignment.
+message RbacConfiguredOwnerReason {}
 
 enum RbacPermissionScopeKind {
   RBAC_PERMISSION_SCOPE_KIND_UNSPECIFIED = 0;

@@ -139,6 +139,8 @@ func applyAuthProviderEnvField(provider *AuthProviderConfig, name, field, value 
 		provider.AllowedGroups = groups
 	case "GROUPS_CLAIM":
 		provider.GroupsClaim = value
+	case "GROUP_ROLES":
+		provider.GroupRoles = value
 	case "AUTO_PROVISION":
 		autoProvision, err := strconv.ParseBool(value)
 		if err != nil {

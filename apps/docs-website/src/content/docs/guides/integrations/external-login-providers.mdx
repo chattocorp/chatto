@@ -226,6 +226,58 @@ with `scopes`. A `scopes` list replaces the default scopes:
 scopes = ["openid", "profile", "groups"]
 ```
 
+## Map groups to roles
+
+An OIDC provider can give Chatto roles to the members of its groups. Add
+`group_roles` with `group:role` pairs, separated by spaces:
+
+```toml
+[[auth.providers]]
+id = "company"
+type = "oidc"
+# ...
+group_roles = "chat-mods:moderator it-ops:admin it-leads:admin"
+```
+
+- A user who is in a group gets the role when they sign in through the
+  provider, link the provider to their account, or create an account through
+  it.
+- A role can have more than one group. Any one of them gives the role.
+- Chatto reads the groups from the same claim as `allowed_groups`. See
+  `groups_claim` in [Restrict who can sign in](#restrict-who-can-sign-in).
+- Use role names, not display names. Chatto skips a role that does not exist
+  and writes a warning to the log.
+- You cannot map the `owner` and `everyone` roles. Only one provider can map a
+  role.
+- Group names cannot contain spaces. Use group IDs or other claim values
+  without spaces. A group name can contain colons, because Chatto splits each
+  pair at its last colon.
+
+Chatto removes a role only if the provider gave it:
+
+- When a user leaves all groups of a role, Chatto removes the role at their
+  next sign-in through the provider.
+- A role that an admin assigned stays. This also applies when the user later
+  joins or leaves a mapped group, and to assignments that existed before you
+  added the mapping.
+- Admins can still assign and remove each role. If an admin removes a role that
+  the provider gave, the provider gives it again at the next sign-in while the
+  user is in a matching group.
+- If `allowed_groups` denies the sign-in, Chatto removes the roles that the
+  provider gave.
+- If a user unlinks the provider from their account, Chatto removes the roles
+  that the provider gave.
+- If the provider sends no groups claim and you do not use `allowed_groups`,
+  Chatto does not change any role.
+
+Chatto records which provider gave each role by its issuer URL, as for
+account links. You can change the provider `id`. If the issuer URL changes, the
+provider does not remove roles that it gave under the old issuer.
+
+Chatto learns about group changes only at sign-in. Until a user signs in
+again through the provider, they keep the roles from their last sign-in, also
+in sessions that already exist.
+
 ## Account matching
 
 Chatto matches a login by provider identity, never by email address:

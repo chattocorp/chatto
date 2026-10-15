@@ -359,7 +359,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		{"rbac", func() snapshotProjection { return NewRBACProjection() }, func(raw snapshotProjection) {
 			p := raw.(*RBACProjection)
 			p.roles["member"] = &evtv1.Role{Name: "member", DisplayName: "Member"}
-			p.assignments["U1"] = map[string]struct{}{"member": {}}
+			p.assignments["U1"] = map[string]string{"member": "", "moderator": "company"}
 			p.decisions[rbacDecisionKey{scope: ScopeServer, subjectKind: evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, subject: "member", permission: PermMessagePost}] = DecisionAllow
 			p.decisions[rbacDecisionKey{scope: ScopeDM, subjectKind: evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, subject: "member", permission: PermMessageRead}] = DecisionDeny
 			p.replayGuard.highestSeq = 41

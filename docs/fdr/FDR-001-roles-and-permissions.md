@@ -106,6 +106,7 @@ the backend permission catalog. Update both catalogs together.
 - RBAC editor and inspection APIs are exposed through ConnectRPC admin services. Admin entry is authenticated, and individual operations keep narrower gates such as `role.manage`, `role.assign`, `user.manage-accounts`, `user.manage-permissions`, or `room.manage`.
 - Delegated role assignment is bounded by the assigner's own authority. A non-owner may assign a role only when they effectively possess every permission that role explicitly allows at the same scope, and may revoke it only when they have authority over all of its explicit allow and deny decisions. Only an effective owner may assign or revoke the `owner` role.
 - Default permissions are creation-time state: fresh server defaults are seeded only into an empty RBAC stream, and channel-room defaults are committed atomically with room creation. Startup does not backfill missing or cleared decisions, except for the one-time upgrade grants in Design Decision 9.
+- Role assignment and revocation events can record a reason: an auth provider's `group_roles` mapping, or `owners.emails`. An event without a reason is an admin change or an event from an older version. Chatto remembers which provider created each current assignment. Chatto revokes a provider-owned assignment automatically only for that provider ([FDR-050](FDR-050-provider-group-roles.md)); admins can revoke every assignment.
 - Roles have a `pingable` setting that controls whether `@role` pings notify assigned room members. Fresh servers seed `moderator` as pingable and leave `owner`, `admin`, and `everyone` unpingable.
 - User-initiated RBAC writes carry the authenticated user's ID as the event actor. Synthetic `system` actors are reserved for bootstrap, seeding, migrations, and other non-user maintenance.
 - Losing effective room visibility through membership, room-group layout, or
@@ -154,7 +155,7 @@ ADR-052, and ADR-091.
 notification visibility, and recovery behavior consistent. A transient role
 append failure remains pending for redelivery instead of creating a live-only
 owner that notification cleanup cannot recognize.
-**Tradeoff:** A transient materialization failure can delay completion of email verification. Removing an email from `owners.emails` does not automatically revoke an already materialized owner role, because the server cannot distinguish config-created assignments from manual ones; operators may revoke it after updating configuration.
+**Tradeoff:** A transient materialization failure can delay completion of email verification. Removing an email from `owners.emails` does not automatically revoke an already materialized owner role; operators may revoke it after updating configuration. New owner assignments record the configuration as their reason, so they can be told apart from manual ones. Assignments from older versions have no reason.
 
 ### 6. Target-user mutations are permission-gated and role assignment is bounded
 

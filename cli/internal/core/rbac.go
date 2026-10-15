@@ -210,12 +210,24 @@ func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, role
 // loop so operator APIs cannot report NotFound after persisting a role fact for
 // a user that was already deleted.
 func (c *ChattoCore) AssignServerRoleToExistingUser(ctx context.Context, actorID, userID, roleName string) error {
+	return c.assignServerRoleToExistingUser(ctx, actorID, userID, roleName, nil)
+}
+
+// AssignConfiguredOwnerRole assigns the owner role because owners.emails in
+// the server configuration names a verified email of the user. The event
+// records that reason.
+func (c *ChattoCore) AssignConfiguredOwnerRole(ctx context.Context, userID string) error {
+	reason := &evtv1.RbacRoleChangeReason{Reason: &evtv1.RbacRoleChangeReason_ConfiguredOwner{ConfiguredOwner: &evtv1.RbacConfiguredOwnerReason{}}}
+	return c.assignServerRoleToExistingUser(ctx, SystemActorID, userID, RoleOwner, reason)
+}
+
+func (c *ChattoCore) assignServerRoleToExistingUser(ctx context.Context, actorID, userID, roleName string, reason *evtv1.RbacRoleChangeReason) error {
 	if roleName == RoleEveryone {
 		return ErrImplicitRole
 	}
 
 	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleAssigned{
-		RbacRoleAssigned: &evtv1.RbacRoleAssignedEvent{UserId: userID, RoleName: roleName},
+		RbacRoleAssigned: &evtv1.RbacRoleAssignedEvent{UserId: userID, RoleName: roleName, Reason: reason},
 	}})
 
 	if _, err := c.appendRoleAssignmentEvent(ctx, userID, true, event, func() error {

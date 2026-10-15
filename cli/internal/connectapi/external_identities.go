@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
+	"github.com/charmbracelet/log"
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
@@ -73,6 +74,13 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 	user, err := s.api.core.CreateUserForExternalIdentity(ctx, req.Msg.GetLogin(), displayName, flow)
 	if err != nil {
 		return nil, err
+	}
+	// The account is committed. A failed sync is repeated at the next sign-in.
+	if provider, ok := s.api.authProvider(flow.ProviderID); ok {
+		groups := core.ProviderGroups{Groups: flow.Groups, Known: flow.GroupsKnown}
+		if err := s.api.core.SyncProviderGroupRoles(ctx, user.GetId(), core.ProviderRoleSource{ProviderID: provider.ID, Issuer: flow.Issuer, Subject: flow.Subject}, provider.GroupRoleMappings(), groups); err != nil {
+			log.Warn("Provider group role sync failed after account creation", "provider_id", provider.ID, "user_id", user.GetId(), "error", err)
+		}
 	}
 	cookieOnly := strings.EqualFold(
 		strings.TrimSpace(req.Header().Get(BrowserAuthenticationModeHeader)),
