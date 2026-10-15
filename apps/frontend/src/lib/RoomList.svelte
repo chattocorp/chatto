@@ -1370,7 +1370,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         onclick={() => handleCopyRoomLink(contextRoom.id)}
         dataTestid="copy-room-link"
       >
-        {m('room.message.actions.copy_link')}
+        {m('room_list.copy_room_link')}
       </MenuItem>
       <MenuItem
         icon="icon-[uil--copy]"

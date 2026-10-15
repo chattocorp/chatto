@@ -548,7 +548,7 @@ describe('RoomList', () => {
     const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
     row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     const action = browserPage.getByTestId('copy-room-link');
-    await expect.element(action).toHaveTextContent('Copy link');
+    await expect.element(action).toHaveTextContent('Copy room link');
     await action.click();
     expect(mocks.writeClipboardText).toHaveBeenCalledWith(
       'https://chat.example.test/chat/-/channel-1'

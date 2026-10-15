@@ -25,7 +25,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 - ConnectRPC `RoomDirectoryService.ListRoomGroups` exposes the same ordered sidebar structure for protobuf-first clients, filtering room entries to non-archived channel rooms visible to the viewer, preserving sidebar links, and reporting effective `room.create` and `room.manage` group capabilities in viewer state.
 - Unjoined channel rooms are hidden by default in each expanded group. A compact "+ N more" row at the end of the group reveals them in their configured order. Select "Show less" to hide them again. The control appears even when only one unjoined room remains. Joined rooms, sidebar links, and the current room stay visible. The same rule applies to the alphabetical fallback. Expansion is independent for each group and resets when the sidebar is remounted. This control does not contact an external service.
 - Joined channel rooms behave as normal navigation entries. Listable channel rooms the viewer has not joined yet are shown slightly faded; selecting a joinable room asks for confirmation before joining, while selecting a non-joinable room explains that access is not currently available.
-- Channel and group-DM sidebar rows expose a conversation menu with **Copy Link** and a final
+- Channel and group-DM sidebar rows expose a conversation menu with **Copy room link** and a final
   **Copy Room ID** action. A one-to-one DM opens the other participant's user
   menu; a self-DM opens the current user's menu. These user menus offer
   **Copy User ID**, with no room actions (FDR-007). If participant data is not
@@ -34,7 +34,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
   actions where applicable. Non-member channels offer **Join**, disabled when
   the viewer lacks `room.join`. Effective room `room.manage` holders also
   receive a settings action for channel rooms.
-- **Copy Link** copies a full URL on the server that owns the room, including
+- **Copy room link** copies a full URL on the server that owns the room, including
   its scheme and port. It does not use the frontend's address. The link does
   not grant access or join the recipient to the room. When selected in a
   message, a link to a known server opens in the current client. Unknown
