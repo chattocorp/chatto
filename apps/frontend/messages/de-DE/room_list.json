@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_room_link": "Raumlink kopieren",
     "show_rooms_in_group": "{count} weitere Räume in {group} anzeigen",
     "hide_rooms_in_group": "Weitere Räume in {group} ausblenden",
     "more_rooms": "{count} weitere",

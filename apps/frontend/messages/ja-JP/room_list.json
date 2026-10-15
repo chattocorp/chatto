@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_room_link": "ルームのリンクをコピー",
     "show_rooms_in_group": "{group} の他のルームを表示（{count}）",
     "hide_rooms_in_group": "{group} の未参加ルームを非表示",
     "more_rooms": "他 {count} 件",
