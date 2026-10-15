@@ -1,0 +1,12 @@
+{
+  "invite_links": {
+    "invite_people": "Kutsu inimesi",
+    "own": "Teie kutselingid",
+    "all": "Kõik kutselingid",
+    "creator": "Looja",
+    "create_permission": "Loo kutselinke",
+    "manage_permission": "Halda kõiki kutselinke",
+    "create_help": "Looge linke uute kontode jaoks. Selle õiguse eemaldamine ei tühista olemasolevaid linke.",
+    "manage_help": "Vaadake, kopeerige ja tühistage kõigi kasutajate linke. Nõuab kilbirežiimi; ei luba linke luua."
+  }
+}

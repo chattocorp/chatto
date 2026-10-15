@@ -9,7 +9,8 @@ import (
 	"github.com/chattocorp/chatto/pkg/events"
 )
 
-// InvitationState is the durable, administrator-visible state derived for one invitation.
+// InvitationState is the durable state of a link, visible to its creator and
+// callers with effective invite-link.manage authority.
 type InvitationState struct {
 	ID        string
 	CreatedBy string

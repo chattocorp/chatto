@@ -1,6 +1,12 @@
 <script lang="ts">
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
-  import { createInviteLinkAPI, type InviteLink } from '$lib/api/invitations';
+  import { createInviteLinkAPI, type InviteLink } from '@chatto/client/api/invitations';
+  import { createUserAPI } from '@chatto/client/api/users';
+  import AccountName from '$lib/components/users/AccountName.svelte';
+  import { SvelteSet } from 'svelte/reactivity';
+  import { onMount } from 'svelte';
+  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
+  import { createSessionGuard } from '$lib/state/server/sessionGuard.svelte';
   import {
     Panel,
     DataTable,
@@ -12,11 +18,11 @@
     PageTitle
   } from '$lib/ui';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { createInfiniteQuery, createMutation, queryClient } from '$lib/query/client';
+  import { createInfiniteQuery, createMutation, createQuery, queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
-  import { Button, Checkbox, Select, TextInput } from '$lib/ui/form';
+  import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
 
@@ -27,16 +33,30 @@
   );
   const activeLocale = $derived(getLocale());
   let scrollContainer = $state<HTMLDivElement>();
-  let maxUses = $state('1');
-  let unlimitedUses = $state(false);
-  let expiry = $state('7d');
   let revokeTarget = $state<InviteLink | null>(null);
+  let authorityGeneration = $state(0);
+  const guard = createSessionGuard(serverScope);
+  const manageAll = $derived(serverScope.store.permissions.canManageInviteLinks);
+  const title = $derived(manageAll ? m('invite_links.all') : m('invite_links.own'));
+
+  onMount(() =>
+    registerQueryCacheRemovalListener((serverId) => {
+      if (serverId !== serverScope.serverId) return;
+      // A late list or open confirmation must not retain another creator's link.
+      authorityGeneration++;
+      revokeTarget = null;
+    })
+  );
 
   const invitationsQuery = createInfiniteQuery(() => {
     const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     return {
-      queryKey: adminQueryKeys.invitations(serverId, connection),
+      queryKey: [
+        ...adminQueryKeys.invitations(serverId, connection),
+        manageAll,
+        authorityGeneration
+      ],
       queryFn: ({ pageParam, signal }) =>
         connection.getAPI(createInviteLinkAPI).list(pageParam, PAGE_SIZE, { signal }),
       initialPageParam: 0,
@@ -50,33 +70,43 @@
   const invitations = $derived(
     (invitationsQuery.data?.pages ?? []).flatMap((page) => page.inviteLinks)
   );
+  const creatorIds = $derived([...new SvelteSet(invitations.map((link) => link.createdBy))]);
+  const creatorsQuery = createQuery(() => {
+    const ids = creatorIds;
+    return {
+      queryKey: [
+        ...adminQueryKeys.invitations(serverScope.serverId, serverScope.connection),
+        'creators',
+        manageAll,
+        authorityGeneration,
+        ids
+      ],
+      enabled: manageAll && ids.length > 0,
+      queryFn: async ({ signal }) => {
+        const api = serverScope.connection.getAPI(createUserAPI);
+        const batches = [];
+        for (let offset = 0; offset < ids.length; offset += 100) {
+          batches.push(api.batchGetUsers(ids.slice(offset, offset + 100)));
+        }
+        const users = (await Promise.all(batches)).flat();
+        signal.throwIfAborted();
+        return users;
+      }
+    };
+  });
+  const creators = $derived(new Map((creatorsQuery.data ?? []).map((user) => [user.id, user])));
   const loading = $derived(invitationsQuery.isPending);
   const loadingMore = $derived(invitationsQuery.isFetchingNextPage);
   const hasMore = $derived(invitationsQuery.hasNextPage);
-  const maxUsesValue = $derived(unlimitedUses ? null : Number.parseInt(maxUses, 10));
-  const maxUsesInvalid = $derived(
-    !unlimitedUses && (!Number.isInteger(maxUsesValue) || (maxUsesValue ?? 0) < 1)
-  );
-
-  const createInvitationMutation = createMutation(() => ({
-    mutationFn: () =>
-      serverScope.connection.getAPI(createInviteLinkAPI).create({
-        maxUses: maxUsesValue,
-        expiresAt: expiryDate(expiry)
-      }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: adminQueryKeys.invitations(serverScope.serverId, serverScope.connection)
-      });
-      toast.success(m('admin.invitations.created'));
-    },
-    onError: (error) => toastError(error)
-  }));
 
   const revokeMutation = createMutation(() => ({
-    mutationFn: (invitation: InviteLink) =>
-      serverScope.connection.getAPI(createInviteLinkAPI).revoke(invitation.id),
-    onSuccess: async () => {
+    mutationFn: async (invitation: InviteLink) => {
+      const snapshot = guard.snapshot();
+      await serverScope.connection.getAPI(createInviteLinkAPI).revoke(invitation.id);
+      return snapshot;
+    },
+    onSuccess: async (snapshot) => {
+      if (!guard.isCurrent(snapshot)) return;
       revokeTarget = null;
       await queryClient.invalidateQueries({
         queryKey: adminQueryKeys.invitations(serverScope.serverId, serverScope.connection)
@@ -85,11 +115,6 @@
     },
     onError: (error) => toastError(error)
   }));
-
-  function expiryDate(value: string): string | null {
-    const days = value === '1d' ? 1 : value === '30d' ? 30 : value === 'never' ? 0 : 7;
-    return days === 0 ? null : new Date(Date.now() + days * 86_400_000).toISOString();
-  }
 
   async function copyInvitation(invitation: InviteLink) {
     try {
@@ -113,70 +138,20 @@
   }
 </script>
 
-<PageTitle
-  title={m('admin.common.server_admin_page_title', { title: m('admin.invitations.title') })}
-/>
+<PageTitle {title} />
 
 <div class="pane-page">
-  <PaneHeader title={m('admin.invitations.title')} subtitle={m('admin.invitations.subtitle')} />
+  <PaneHeader {title} />
 
   <PaneContent bind:scrollContainer>
     <div class="flex flex-col gap-6">
-      <Panel title={m('admin.invitations.create_title')} icon="iconify icon-[uil--envelope-share]">
-        <form
-          class="flex flex-col gap-4"
-          onsubmit={(event) => {
-            event.preventDefault();
-            if (!maxUsesInvalid) createInvitationMutation.mutate();
-          }}
-        >
-          <div class="grid gap-4 sm:grid-cols-2">
-            <TextInput
-              id="invitation-max-uses"
-              label={m('admin.invitations.max_uses')}
-              bind:value={maxUses}
-              disabled={unlimitedUses || createInvitationMutation.isPending}
-              error={maxUsesInvalid ? m('admin.invitations.max_uses_error') : undefined}
-            />
-            <Select
-              id="invitation-expiry"
-              label={m('admin.invitations.expiry')}
-              bind:value={expiry}
-              disabled={createInvitationMutation.isPending}
-              options={[
-                { value: '1d', label: m('admin.invitations.expiry_1d') },
-                { value: '7d', label: m('admin.invitations.expiry_7d') },
-                { value: '30d', label: m('admin.invitations.expiry_30d') },
-                { value: 'never', label: m('admin.invitations.expiry_never') }
-              ]}
-            />
-          </div>
-          <Checkbox
-            id="invitation-unlimited-uses"
-            bind:checked={unlimitedUses}
-            label={m('admin.invitations.unlimited_uses')}
-            disabled={createInvitationMutation.isPending}
-          />
-          <div>
-            <Button
-              type="submit"
-              loading={createInvitationMutation.isPending}
-              disabled={maxUsesInvalid}
-            >
-              <span aria-hidden="true" class="iconify icon-[uil--plus]"></span>
-              {m('admin.invitations.create')}
-            </Button>
-          </div>
-        </form>
-      </Panel>
-
       <Panel title={m('admin.invitations.list_title')} noPadding>
         {#if invitationsQuery.error}
           <div class="p-5"><Hint tone="danger">{errorMessage(invitationsQuery.error)}</Hint></div>
         {/if}
         <DataTable
           items={invitations}
-          columns={5}
+          columns={manageAll ? 6 : 5}
           loading={loading && invitations.length === 0}
           emptyMessage={m('admin.invitations.empty')}
           {hasMore}
@@ -186,6 +161,7 @@
           loadingMoreMessage={m('admin.common.loading')}
         >
           {#snippet header()}
+            {#if manageAll}<th class="table-header-cell">{m('invite_links.creator')}</th>{/if}
             <th class="table-header-cell">{m('admin.common.status')}</th>
             <th class="table-header-cell">{m('admin.invitations.uses')}</th>
             <th class="table-header-cell">{m('admin.common.expires')}</th>
@@ -193,6 +169,15 @@
             <th class="table-header-cell text-end">{m('admin.invitations.actions')}</th>
           {/snippet}
           {#snippet row(invitation)}
+            {#if manageAll}
+              {@const creator = creators.get(invitation.createdBy)}
+              <td class="px-4 py-3"
+                ><AccountName
+                  name={creator?.displayName || creator?.login || invitation.createdBy}
+                  identity={creator}
+                /></td
+              >
+            {/if}
             <td class="px-4 py-3"
               ><Pill tone={statusTone(invitation.status)}
                 >{m(`admin.invitations.status.${invitation.status}`)}</Pill

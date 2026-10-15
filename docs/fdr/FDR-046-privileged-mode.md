@@ -1,7 +1,7 @@
 # FDR-046: Privileged Mode
 
 **Status:** Active
-**Last reviewed:** 2026-10-07
+**Last reviewed:** 2026-10-15
 
 ## Overview
 
@@ -81,7 +81,7 @@ The initial catalog requires privileged mode for these permissions:
 - `message.manage`
 - `role.manage` and `role.assign`
 - `admin.view-users` and `admin.view-audit`
-- `user.invite`, `user.delete-any`, `user.manage-accounts`, and
+- `invite-link.manage`, `user.delete-any`, `user.manage-accounts`, and
   `user.manage-permissions`
 - `bot.manage`
 - owner-only system diagnostics

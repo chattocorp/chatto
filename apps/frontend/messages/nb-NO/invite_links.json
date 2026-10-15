@@ -1,0 +1,12 @@
+{
+  "invite_links": {
+    "invite_people": "Inviter personer",
+    "own": "Dine invitasjonslenker",
+    "all": "Alle invitasjonslenker",
+    "creator": "Opprettet av",
+    "create_permission": "Opprett invitasjonslenker",
+    "manage_permission": "Administrer alle invitasjonslenker",
+    "create_help": "Opprett lenker for nye kontoer. Hvis tillatelsen fjernes, blir eksisterende lenker ikke tilbakekalt.",
+    "manage_help": "Vis, kopier og tilbakekall alles lenker. Krever skjoldmodus; tillater ikke opprettelse."
+  }
+}

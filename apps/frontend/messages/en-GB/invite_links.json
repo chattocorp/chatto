@@ -1,0 +1,12 @@
+{
+  "invite_links": {
+    "invite_people": "Invite people",
+    "own": "Your invite links",
+    "all": "All invite links",
+    "creator": "Created by",
+    "create_permission": "Create invite links",
+    "manage_permission": "Manage all invite links",
+    "create_help": "Create links that admit new accounts. Removing this permission does not revoke existing links.",
+    "manage_help": "View, copy, and revoke anyone's invite links. Requires shield mode; does not permit creation."
+  }
+}

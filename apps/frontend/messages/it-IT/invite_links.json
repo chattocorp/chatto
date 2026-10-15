@@ -1,0 +1,12 @@
+{
+  "invite_links": {
+    "invite_people": "Invita persone",
+    "own": "I tuoi link di invito",
+    "all": "Tutti i link di invito",
+    "creator": "Creato da",
+    "create_permission": "Crea link di invito",
+    "manage_permission": "Gestisci tutti i link di invito",
+    "create_help": "Crea link per nuovi account. Rimuovere questo permesso non revoca i link esistenti.",
+    "manage_help": "Visualizza, copia e revoca i link di chiunque. Richiede la modalità scudo; non consente la creazione."
+  }
+}

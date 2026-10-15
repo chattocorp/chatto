@@ -22,6 +22,18 @@ field now reports the same value. Video upload enablement remains a separate
 check. In `@chatto/client`, use `maxUploadSize`; `maxVideoUploadSize` is a
 deprecated alias of it.
 
+Invite-link clients use `chatto.api.v1.InviteLinkService`. It replaces
+`chatto.admin.v1.AdminInviteLinkService`; regenerate clients and change the
+service import. List results and counts include owned links, or all links with
+effective `invite-link.manage`. Missing and inaccessible links return
+`NOT_FOUND` from get and revoke. Clear cached links when session or authority
+changes, including shield-mode expiry.
+
+The former `user.invite` permission grants no authority. Operators must grant
+`invite-link.create` for creation and `invite-link.manage` for global
+management. Existing links remain valid and creators retain management of
+their own links. No stored invitation data needs conversion.
+
 The public API has these tiers:
 
 | Tier           | Package                                 | Contents                                                                    |

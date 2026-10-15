@@ -8,8 +8,6 @@ export * from '@chatto/api-types/admin/v1/diagnostics_connect';
 export * from '@chatto/api-types/admin/v1/diagnostics_pb';
 export * from '@chatto/api-types/admin/v1/event_log_connect';
 export * from '@chatto/api-types/admin/v1/event_log_pb';
-export * from '@chatto/api-types/admin/v1/invitations_connect';
-export * from '@chatto/api-types/admin/v1/invitations_pb';
 export * from '@chatto/api-types/admin/v1/members_connect';
 export * from '@chatto/api-types/admin/v1/members_pb';
 export * from '@chatto/api-types/admin/v1/oauth_clients_connect';

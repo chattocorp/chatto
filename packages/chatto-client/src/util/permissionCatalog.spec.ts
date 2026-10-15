@@ -19,6 +19,8 @@ describe('PERMISSION_DEFINITIONS', () => {
       'call.screenshare',
       'call.start',
       'call.voice',
+      'invite-link.create',
+      'invite-link.manage',
       'message.attach',
       'message.echo',
       'message.manage',
@@ -40,7 +42,6 @@ describe('PERMISSION_DEFINITIONS', () => {
       'server.manage-neighbors',
       'user.delete-any',
       'user.delete-self',
-      'user.invite',
       'user.manage-accounts',
       'user.manage-permissions'
     ]);
@@ -56,6 +57,7 @@ describe('PERMISSION_DEFINITIONS', () => {
       'admin.view-audit',
       'admin.view-users',
       'bot.manage',
+      'invite-link.manage',
       'message.manage',
       'role.assign',
       'role.manage',
@@ -65,7 +67,6 @@ describe('PERMISSION_DEFINITIONS', () => {
       'server.manage',
       'server.manage-neighbors',
       'user.delete-any',
-      'user.invite',
       'user.manage-accounts',
       'user.manage-permissions'
     ]);

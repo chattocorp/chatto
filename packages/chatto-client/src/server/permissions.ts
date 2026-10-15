@@ -8,6 +8,10 @@ import type { ViewerCapabilities, ViewerState } from '../api/viewer.js';
 export type ServerPermissions = ViewerCapabilities & {
   /** False until the store has the viewer projection for the accepted account. */
   loaded: boolean;
+  /** Effective invite-link.create; human sessions do not need privileged mode. */
+  canCreateInviteLinks: boolean;
+  /** Effective invite-link.manage; includes the human privileged-mode gate. */
+  canManageInviteLinks: boolean;
   /** Effective server-wide `server.manage`. */
   canManageServer: boolean;
   /** Effective server-wide `server.manage-neighbors`. */
@@ -25,6 +29,8 @@ export type ServerPermissions = ViewerCapabilities & {
 /** Permissions before the viewer projection loads, or after it is cleared. */
 export const NO_SERVER_PERMISSIONS: ServerPermissions = Object.freeze({
   loaded: false,
+  canCreateInviteLinks: false,
+  canManageInviteLinks: false,
   canViewAdmin: false,
   canStartDMs: false,
   canAdminViewUsers: false,
@@ -49,6 +55,8 @@ export function serverPermissionsFromViewer(viewer: ViewerState): ServerPermissi
   const can = (permission: string) => viewer.viewerPermissions[permission] ?? false;
   return {
     loaded: true,
+    canCreateInviteLinks: can('invite-link.create'),
+    canManageInviteLinks: can('invite-link.manage'),
     canViewAdmin: viewer.canViewAdmin,
     canStartDMs: viewer.canStartDMs,
     canAdminViewUsers: viewer.canAdminViewUsers,

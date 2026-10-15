@@ -1,0 +1,12 @@
+{
+  "invite_links": {
+    "invite_people": "Convidar pessoas",
+    "own": "Seus links de convite",
+    "all": "Todos os links de convite",
+    "creator": "Criado por",
+    "create_permission": "Criar links de convite",
+    "manage_permission": "Gerenciar todos os links de convite",
+    "create_help": "Crie links para novas contas. Remover esta permissão não revoga os links existentes.",
+    "manage_help": "Veja, copie e revogue os links de qualquer pessoa. Requer o modo escudo; não permite criar links."
+  }
+}

@@ -29,6 +29,7 @@ parent and scrolls internally with a sticky column header.
   import { MatrixTable } from '$lib/ui/matrix';
   import { Button, ShortcutTextInput } from '$lib/ui/form';
   import {
+    comparePermissionRows,
     getIncludingPermissions,
     getPermissionCategory,
     getPermissionCategoryLabel,
@@ -136,7 +137,7 @@ parent and scrolls internally with a sticky column header.
 
   // ----- Row layout -------------------------------------------------------
 
-  const permissions = $derived([...data.applicablePermissions].sort());
+  const permissions = $derived([...data.applicablePermissions].sort(comparePermissionRows));
   const inclusionChains = $derived.by(() => {
     // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Map is ephemeral within derived computation
     const chains = new Map<string, string[]>();

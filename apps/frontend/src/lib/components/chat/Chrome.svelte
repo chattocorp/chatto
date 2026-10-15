@@ -240,6 +240,15 @@
           </a>
         {/if}
         <MyThreadsNavItem active={isMyThreadsActive} />
+        {#if activeStore.permissions.canCreateInviteLinks}
+          <a
+            href={resolve('/chat/[serverId]/invite', { serverId: serverSegment })}
+            class="sidebar-item"
+          >
+            <span class="iconify sidebar-icon icon-[uil--envelope-share]" aria-hidden="true"></span>
+            {m('invite_links.invite_people')}
+          </a>
+        {/if}
       </nav>
 
       <hr class="border-border" />

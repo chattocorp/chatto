@@ -1,0 +1,12 @@
+{
+  "invite_links": {
+    "invite_people": "Uzaicināt cilvēkus",
+    "own": "Jūsu uzaicinājumu saites",
+    "all": "Visas uzaicinājumu saites",
+    "creator": "Izveidoja",
+    "create_permission": "Izveidot uzaicinājumu saites",
+    "manage_permission": "Pārvaldīt visas uzaicinājumu saites",
+    "create_help": "Izveidojiet saites jauniem kontiem. Šīs atļaujas noņemšana neatsauc esošās saites.",
+    "manage_help": "Skatiet, kopējiet un atsauciet visu lietotāju saites. Nepieciešams vairoga režīms; izveide nav atļauta."
+  }
+}

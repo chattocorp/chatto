@@ -1,0 +1,12 @@
+{
+  "invite_links": {
+    "invite_people": "Inviter des personnes",
+    "own": "Vos liens d’invitation",
+    "all": "Tous les liens d’invitation",
+    "creator": "Créé par",
+    "create_permission": "Créer des liens d’invitation",
+    "manage_permission": "Gérer tous les liens d’invitation",
+    "create_help": "Créez des liens pour de nouveaux comptes. Retirer cette permission ne révoque pas les liens existants.",
+    "manage_help": "Consultez, copiez et révoquez les liens de tous les membres. Nécessite le mode bouclier ; ne permet pas la création."
+  }
+}

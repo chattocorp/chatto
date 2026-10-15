@@ -9,7 +9,6 @@ export type AdminNavPermissions = Pick<
   | 'canManageServer'
   | 'canManageNeighbors'
   | 'canAdminViewUsers'
-  | 'canManageInvites'
   | 'canManageRooms'
   | 'canModerateRooms'
   | 'canAdminManageRoles'
@@ -67,13 +66,12 @@ export function getAdminNavItems({
     icon: 'iconify icon-[uil--robot]'
   });
 
-  if (permissions.canManageInvites) {
-    items.push({
-      href: resolve('/chat/[serverId]/manage/server/invite-links', { serverId: serverSegment }),
-      label: m('admin.nav.invitations'),
-      icon: 'iconify icon-[uil--envelope-share]'
-    });
-  }
+  // Ownership permits management even without create or global manage rights.
+  items.push({
+    href: resolve('/chat/[serverId]/manage/server/invite-links', { serverId: serverSegment }),
+    label: m('admin.nav.invitations'),
+    icon: 'iconify icon-[uil--envelope-share]'
+  });
 
   if (permissions.canManageRooms) {
     items.push({

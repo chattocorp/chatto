@@ -1,0 +1,12 @@
+{
+  "invite_links": {
+    "invite_people": "Pozvat lidi",
+    "own": "Vaše odkazy s pozvánkou",
+    "all": "Všechny odkazy s pozvánkou",
+    "creator": "Vytvořil",
+    "create_permission": "Vytvářet odkazy s pozvánkou",
+    "manage_permission": "Spravovat všechny odkazy s pozvánkou",
+    "create_help": "Vytvářejte odkazy pro nové účty. Odebrání tohoto oprávnění nezruší existující odkazy.",
+    "manage_help": "Zobrazujte, kopírujte a rušte odkazy všech uživatelů. Vyžaduje režim štítu; nepovoluje vytváření."
+  }
+}

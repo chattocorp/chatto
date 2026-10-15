@@ -1,0 +1,12 @@
+{
+  "invite_links": {
+    "invite_people": "Personen einladen",
+    "own": "Deine Einladungslinks",
+    "all": "Alle Einladungslinks",
+    "creator": "Erstellt von",
+    "create_permission": "Einladungslinks erstellen",
+    "manage_permission": "Alle Einladungslinks verwalten",
+    "create_help": "Erstelle Links für neue Konten. Der Entzug dieser Berechtigung widerruft bestehende Links nicht.",
+    "manage_help": "Zeige, kopiere und widerrufe die Einladungslinks aller Personen. Erfordert den Schutzmodus; erlaubt keine Erstellung."
+  }
+}

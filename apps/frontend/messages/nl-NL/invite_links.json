@@ -1,0 +1,12 @@
+{
+  "invite_links": {
+    "invite_people": "Mensen uitnodigen",
+    "own": "Je uitnodigingslinks",
+    "all": "Alle uitnodigingslinks",
+    "creator": "Gemaakt door",
+    "create_permission": "Uitnodigingslinks maken",
+    "manage_permission": "Alle uitnodigingslinks beheren",
+    "create_help": "Maak links voor nieuwe accounts. Het intrekken van deze toestemming trekt bestaande links niet in.",
+    "manage_help": "Bekijk, kopieer en trek links van iedereen in. Vereist schildmodus; staat het maken van links niet toe."
+  }
+}

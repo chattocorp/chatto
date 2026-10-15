@@ -1,0 +1,12 @@
+{
+  "invite_links": {
+    "invite_people": "Inviti homojn",
+    "own": "Viaj invitligiloj",
+    "all": "Ĉiuj invitligiloj",
+    "creator": "Kreinto",
+    "create_permission": "Krei invitligilojn",
+    "manage_permission": "Administri ĉiujn invitligilojn",
+    "create_help": "Kreu ligilojn por novaj kontoj. Forigo de ĉi tiu permeso ne nuligas ekzistantajn ligilojn.",
+    "manage_help": "Vidu, kopiu kaj nuligu la ligilojn de iu ajn. Postulas ŝildan reĝimon; ne permesas kreadon."
+  }
+}

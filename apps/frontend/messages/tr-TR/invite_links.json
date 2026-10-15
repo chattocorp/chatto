@@ -1,0 +1,12 @@
+{
+  "invite_links": {
+    "invite_people": "Kişileri davet et",
+    "own": "Davet bağlantılarınız",
+    "all": "Tüm davet bağlantıları",
+    "creator": "Oluşturan",
+    "create_permission": "Davet bağlantıları oluştur",
+    "manage_permission": "Tüm davet bağlantılarını yönet",
+    "create_help": "Yeni hesaplar için bağlantılar oluşturun. Bu iznin kaldırılması mevcut bağlantıları iptal etmez.",
+    "manage_help": "Herkesin bağlantılarını görüntüleyin, kopyalayın ve iptal edin. Kalkan modu gerektirir; oluşturmaya izin vermez."
+  }
+}

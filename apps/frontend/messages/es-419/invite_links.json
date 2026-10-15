@@ -1,0 +1,12 @@
+{
+  "invite_links": {
+    "invite_people": "Invitar a personas",
+    "own": "Tus enlaces de invitación",
+    "all": "Todos los enlaces de invitación",
+    "creator": "Creado por",
+    "create_permission": "Crear enlaces de invitación",
+    "manage_permission": "Gestionar todos los enlaces de invitación",
+    "create_help": "Crea enlaces para nuevas cuentas. Retirar este permiso no revoca los enlaces existentes.",
+    "manage_help": "Consulta, copia y revoca los enlaces de cualquier persona. Requiere el modo escudo; no permite crearlos."
+  }
+}

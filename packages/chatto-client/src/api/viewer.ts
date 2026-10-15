@@ -122,7 +122,7 @@ const capabilityKeys = {
   adminViewSystem: 'admin.view-system',
   adminViewAudit: 'admin.view-audit',
   manageUserPermissions: 'user.manage-permissions',
-  manageInvites: 'user.invite'
+  manageInvites: 'invite-link.manage'
 } as const;
 
 /**

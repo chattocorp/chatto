@@ -2838,6 +2838,149 @@ permission allowlist are unchanged.
 | `bot` | [`Bot`](#chatto-api-v1-Bot) | Reassigned bot. |
 
 
+<a id="chatto-api-v1-InviteLinkService"></a>
+
+## InviteLinkService
+
+Creates and manages links for invite-only account admission. Creators can
+read and revoke their own links without a permission or privileged mode.
+Effective invite-link.manage permits reads and revocation of any link and
+requires privileged mode for human sessions. It does not permit creation.
+Removing creation permission does not invalidate existing links.
+
+<a id="chatto-api-v1-InviteLinkService-ListInviteLinks"></a>
+
+### ListInviteLinks
+
+Lists visible links. Filters by authorization before pagination and counts.
+
+```http
+POST /api/connect/chatto.api.v1.InviteLinkService/ListInviteLinks
+```
+
+<a id="chatto-api-v1-ListInviteLinksRequest"></a>
+
+#### Input: ListInviteLinksRequest
+
+Requests a page of owned invite links, newest first. Effective
+invite-link.manage expands the result to all links. Counts include only
+visible links. Refresh and clear cached links when authority changes.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 20 results when absent or limit is zero. Maximum: 100. |
+
+
+<a id="chatto-api-v1-ListInviteLinksResponse"></a>
+
+#### Result: ListInviteLinksResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_links` | repeated [`InviteLink`](#chatto-api-v1-InviteLink) | No field description provided. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | No field description provided. |
+
+
+<a id="chatto-api-v1-InviteLinkService-GetInviteLink"></a>
+
+### GetInviteLink
+
+Gets a visible link. Missing and inaccessible links both return NOT_FOUND.
+
+```http
+POST /api/connect/chatto.api.v1.InviteLinkService/GetInviteLink
+```
+
+<a id="chatto-api-v1-GetInviteLinkRequest"></a>
+
+#### Input: GetInviteLinkRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-GetInviteLinkResponse"></a>
+
+#### Result: GetInviteLinkResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_link` | [`InviteLink`](#chatto-api-v1-InviteLink) | No field description provided. |
+
+
+<a id="chatto-api-v1-InviteLinkService-CreateInviteLink"></a>
+
+### CreateInviteLink
+
+Creates a link. Requires invite-link.create, without privileged mode.
+
+```http
+POST /api/connect/chatto.api.v1.InviteLinkService/CreateInviteLink
+```
+
+<a id="chatto-api-v1-CreateInviteLinkRequest"></a>
+
+#### Input: CreateInviteLinkRequest
+
+Creates an invite link. Absent constraints mean unlimited uses and no expiry.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `max_uses` | `optional uint32` | No field description provided. |
+| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
+
+
+<a id="chatto-api-v1-CreateInviteLinkResponse"></a>
+
+#### Result: CreateInviteLinkResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_link` | [`InviteLink`](#chatto-api-v1-InviteLink) | No field description provided. |
+
+
+<a id="chatto-api-v1-InviteLinkService-RevokeInviteLink"></a>
+
+### RevokeInviteLink
+
+Permanently revokes a visible link and retains its history. Repeated calls
+return the revoked link. Missing and inaccessible links return NOT_FOUND.
+
+```http
+POST /api/connect/chatto.api.v1.InviteLinkService/RevokeInviteLink
+```
+
+<a id="chatto-api-v1-RevokeInviteLinkRequest"></a>
+
+#### Input: RevokeInviteLinkRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-RevokeInviteLinkResponse"></a>
+
+#### Result: RevokeInviteLinkResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_link` | [`InviteLink`](#chatto-api-v1-InviteLink) | No field description provided. |
+
+
 <a id="chatto-api-v1-ThreadService"></a>
 
 ## ThreadService
@@ -4958,7 +5101,8 @@ Built-in keys currently include:
 - dm.start
 - admin.view-users
 - user.manage-accounts
-- user.invite
+- invite-link.create
+- invite-link.manage
 - role.assign
 - role.view
 - role.manage
@@ -5985,6 +6129,28 @@ Safe summary of one recorded outbound webhook failure.
 
 
 
+<a id="chatto-api-v1-InviteLink"></a>
+
+### InviteLink
+
+An invite link visible to its creator or a caller with effective
+invite-link.manage. The link is a bearer capability: anyone who has it can
+create an account while the link is active and admission requires an invite.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Identifier used to read or revoke the link. |
+| `link` | `string` | Fully qualified bearer URL. Anyone who has it can use the link while active. |
+| `created_by` | `string` | No field description provided. |
+| `created_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `max_uses` | `optional uint32` | No field description provided. |
+| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `use_count` | `uint32` | No field description provided. |
+| `status` | [`InviteLinkStatus`](#chatto-api-v1-InviteLinkStatus) | No field description provided. |
+| `revoked_at` | `google.protobuf.Timestamp` | No field description provided. |
+
+
+
 <a id="chatto-api-v1-FollowedThread"></a>
 
 ### FollowedThread
@@ -6535,6 +6701,21 @@ Availability of best-effort credential last-use telemetry.
 | `CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED` | `1` | The server has no recorded use for the credential. |
 | `CREDENTIAL_LAST_USED_STATE_RECORDED` | `2` | last_used_at contains the most recent recorded authentication time. |
 | `CREDENTIAL_LAST_USED_STATE_UNAVAILABLE` | `3` | Last-use telemetry is temporarily unavailable. |
+
+
+<a id="chatto-api-v1-InviteLinkStatus"></a>
+
+### InviteLinkStatus
+
+Current lifecycle state of an invite link.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `INVITE_LINK_STATUS_UNSPECIFIED` | `0` | No value description provided. |
+| `INVITE_LINK_STATUS_ACTIVE` | `1` | No value description provided. |
+| `INVITE_LINK_STATUS_EXPIRED` | `2` | No value description provided. |
+| `INVITE_LINK_STATUS_EXHAUSTED` | `3` | No value description provided. |
+| `INVITE_LINK_STATUS_REVOKED` | `4` | No value description provided. |
 
 
 <a id="chatto-api-v1-ThreadRootAuthorFilter"></a>

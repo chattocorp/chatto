@@ -192,10 +192,16 @@ email/password registration and to provider auto-provisioning. Existing users
 can still sign in and link providers. Accounts that operators create are not
 affected.
 
-Administrators with the `user.invite` permission create and revoke links under
-**Server Admin → Invite links**. By default, a link has one use and expires
-after seven days. You can set a different use limit, unlimited uses, a
-different expiry, or no expiry. You can copy an active link again later.
+Grant `invite-link.create` to the roles that may invite people. Members use
+**Invite people** in the server sidebar or server menu, without shield mode.
+By default, a link has one use and expires after seven days. You can set a
+different use limit, unlimited uses, a different expiry, or no expiry.
+
+Under **Settings → Invite links**, members can copy and revoke their own
+links without shield mode. Members with `invite-link.manage` can manage all
+links while shield mode is active. This permission does not permit creation.
+Removing creation permission does not revoke existing links or prevent their
+creators from managing them.
 
 People join through the `/invite/{token}` URL of the link. An invite link gives
 admission, not identity: Chatto still verifies the email address, and the

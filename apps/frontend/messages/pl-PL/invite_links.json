@@ -1,0 +1,12 @@
+{
+  "invite_links": {
+    "invite_people": "Zaproś osoby",
+    "own": "Twoje linki z zaproszeniem",
+    "all": "Wszystkie linki z zaproszeniem",
+    "creator": "Utworzony przez",
+    "create_permission": "Twórz linki z zaproszeniem",
+    "manage_permission": "Zarządzaj wszystkimi linkami z zaproszeniem",
+    "create_help": "Twórz linki dla nowych kont. Odebranie tego uprawnienia nie unieważnia istniejących linków.",
+    "manage_help": "Przeglądaj, kopiuj i unieważniaj linki wszystkich osób. Wymaga trybu tarczy; nie pozwala tworzyć linków."
+  }
+}

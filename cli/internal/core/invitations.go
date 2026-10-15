@@ -140,10 +140,9 @@ func (c *ChattoCore) InvitationLinkPath(id string) string {
 	return "/invite/" + c.invitationModel.LinkToken(id)
 }
 
+// GetInvitation returns an owned link or a link visible to a global manager.
+// Missing and inaccessible links have the same result.
 func (c *ChattoCore) GetInvitation(ctx context.Context, actorID, id string) (InvitationState, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermUserInvite); err != nil {
-		return InvitationState{}, err
-	}
 	if err := c.invitationModel.projection.Projector().WaitForCurrent(ctx); err != nil {
 		return InvitationState{}, err
 	}
@@ -151,21 +150,39 @@ func (c *ChattoCore) GetInvitation(ctx context.Context, actorID, id string) (Inv
 	if !ok {
 		return InvitationState{}, ErrNotFound
 	}
+	if err := c.requireInvitationManager(ctx, actorID, state); err != nil {
+		return InvitationState{}, err
+	}
 	return state, nil
 }
 
+// ListInvitations filters by ownership before the caller paginates or counts.
+// Effective invite-link.manage permits reads of every invitation.
 func (c *ChattoCore) ListInvitations(ctx context.Context, actorID string) ([]InvitationState, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermUserInvite); err != nil {
+	manageAll, err := c.HasServerPermission(ctx, actorID, PermInviteLinkManage)
+	if err != nil {
 		return nil, err
 	}
 	if err := c.invitationModel.projection.Projector().WaitForCurrent(ctx); err != nil {
 		return nil, err
 	}
-	return c.invitationModel.projection.Projection().all(), nil
+	states := c.invitationModel.projection.Projection().all()
+	if manageAll {
+		return states, nil
+	}
+	owned := make([]InvitationState, 0)
+	for _, state := range states {
+		if actorID != "" && state.CreatedBy == actorID {
+			owned = append(owned, state)
+		}
+	}
+	return owned, nil
 }
 
+// CreateInvitation checks creation authority only. Link validity is independent
+// of the creator's later permissions and session elevation.
 func (c *ChattoCore) CreateInvitation(ctx context.Context, actorID string, maxUses *uint32, expiresAt *time.Time) (InvitationState, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermUserInvite); err != nil {
+	if err := c.requireServerPermission(ctx, actorID, PermInviteLinkCreate); err != nil {
 		return InvitationState{}, err
 	}
 	if maxUses != nil && *maxUses == 0 {
@@ -195,10 +212,9 @@ func (c *ChattoCore) CreateInvitation(ctx context.Context, actorID string, maxUs
 	return state, nil
 }
 
+// RevokeInvitation permanently revokes an owned link or a link managed through
+// invite-link.manage. Authorization is checked even for an already revoked link.
 func (c *ChattoCore) RevokeInvitation(ctx context.Context, actorID, id string) (InvitationState, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermUserInvite); err != nil {
-		return InvitationState{}, err
-	}
 	agg := evtstream.InvitationAggregate(id)
 	for range 5 {
 		seq, err := c.EventPublisher.LastSubjectSeq(ctx, agg.AllEventsFilter())
@@ -211,6 +227,9 @@ func (c *ChattoCore) RevokeInvitation(ctx context.Context, actorID, id string) (
 		state, ok := c.invitationModel.projection.Projection().get(id)
 		if !ok {
 			return InvitationState{}, ErrNotFound
+		}
+		if err := c.requireInvitationManager(ctx, actorID, state); err != nil {
+			return InvitationState{}, err
 		}
 		if state.RevokedAt != nil {
 			return state, nil
@@ -230,6 +249,22 @@ func (c *ChattoCore) RevokeInvitation(ctx context.Context, actorID, id string) (
 		return state, nil
 	}
 	return InvitationState{}, errInvitationMutationRetryExhausted
+}
+
+// Ownership permits cleanup after creation authority is withdrawn. Global
+// management uses effective authorization, including privileged mode.
+func (c *ChattoCore) requireInvitationManager(ctx context.Context, actorID string, state InvitationState) error {
+	if actorID != "" && state.CreatedBy == actorID {
+		return nil
+	}
+	allowed, err := c.HasServerPermission(ctx, actorID, PermInviteLinkManage)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (c *ChattoCore) requireServerPermission(ctx context.Context, actorID string, permission Permission) error {

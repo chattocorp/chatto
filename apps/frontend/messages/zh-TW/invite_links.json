@@ -1,0 +1,12 @@
+{
+  "invite_links": {
+    "invite_people": "邀請使用者",
+    "own": "你的邀請連結",
+    "all": "所有邀請連結",
+    "creator": "建立者",
+    "create_permission": "建立邀請連結",
+    "manage_permission": "管理所有邀請連結",
+    "create_help": "建立用於註冊新帳號的連結。移除此權限不會撤銷現有連結。",
+    "manage_help": "檢視、複製及撤銷任何人的邀請連結。需要護盾模式；不允許建立連結。"
+  }
+}

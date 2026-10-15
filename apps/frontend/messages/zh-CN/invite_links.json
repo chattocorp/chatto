@@ -1,0 +1,12 @@
+{
+  "invite_links": {
+    "invite_people": "邀请用户",
+    "own": "你的邀请链接",
+    "all": "所有邀请链接",
+    "creator": "创建者",
+    "create_permission": "创建邀请链接",
+    "manage_permission": "管理所有邀请链接",
+    "create_help": "创建用于注册新账户的链接。移除此权限不会撤销现有链接。",
+    "manage_help": "查看、复制和撤销任何人的邀请链接。需要护盾模式；不允许创建链接。"
+  }
+}

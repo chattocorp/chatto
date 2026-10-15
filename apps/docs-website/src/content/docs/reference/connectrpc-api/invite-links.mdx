@@ -1,0 +1,157 @@
+---
+title: InviteLinkService
+description: Invite-link creation and ownership-based management RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-InviteLinkService"></a>
+
+## InviteLinkService
+
+Creates and manages links for invite-only account admission. Creators can
+read and revoke their own links without a permission or privileged mode.
+Effective invite-link.manage permits reads and revocation of any link and
+requires privileged mode for human sessions. It does not permit creation.
+Removing creation permission does not invalidate existing links.
+
+<a id="chatto-api-v1-InviteLinkService-ListInviteLinks"></a>
+
+### ListInviteLinks
+
+Lists visible links. Filters by authorization before pagination and counts.
+
+```http
+POST /api/connect/chatto.api.v1.InviteLinkService/ListInviteLinks
+```
+
+<a id="chatto-api-v1-ListInviteLinksRequest"></a>
+
+#### Input: ListInviteLinksRequest
+
+Requests a page of owned invite links, newest first. Effective
+invite-link.manage expands the result to all links. Counts include only
+visible links. Refresh and clear cached links when authority changes.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Defaults to 20 results when absent or limit is zero. Maximum: 100. |
+
+
+<a id="chatto-api-v1-ListInviteLinksResponse"></a>
+
+#### Result: ListInviteLinksResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_links` | repeated [`InviteLink`](/reference/connectrpc-api/types/#chatto-api-v1-InviteLink) | No field description provided. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | No field description provided. |
+
+
+<a id="chatto-api-v1-InviteLinkService-GetInviteLink"></a>
+
+### GetInviteLink
+
+Gets a visible link. Missing and inaccessible links both return NOT_FOUND.
+
+```http
+POST /api/connect/chatto.api.v1.InviteLinkService/GetInviteLink
+```
+
+<a id="chatto-api-v1-GetInviteLinkRequest"></a>
+
+#### Input: GetInviteLinkRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-GetInviteLinkResponse"></a>
+
+#### Result: GetInviteLinkResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_link` | [`InviteLink`](/reference/connectrpc-api/types/#chatto-api-v1-InviteLink) | No field description provided. |
+
+
+<a id="chatto-api-v1-InviteLinkService-CreateInviteLink"></a>
+
+### CreateInviteLink
+
+Creates a link. Requires invite-link.create, without privileged mode.
+
+```http
+POST /api/connect/chatto.api.v1.InviteLinkService/CreateInviteLink
+```
+
+<a id="chatto-api-v1-CreateInviteLinkRequest"></a>
+
+#### Input: CreateInviteLinkRequest
+
+Creates an invite link. Absent constraints mean unlimited uses and no expiry.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `max_uses` | `optional uint32` | No field description provided. |
+| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
+
+
+<a id="chatto-api-v1-CreateInviteLinkResponse"></a>
+
+#### Result: CreateInviteLinkResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_link` | [`InviteLink`](/reference/connectrpc-api/types/#chatto-api-v1-InviteLink) | No field description provided. |
+
+
+<a id="chatto-api-v1-InviteLinkService-RevokeInviteLink"></a>
+
+### RevokeInviteLink
+
+Permanently revokes a visible link and retains its history. Repeated calls
+return the revoked link. Missing and inaccessible links return NOT_FOUND.
+
+```http
+POST /api/connect/chatto.api.v1.InviteLinkService/RevokeInviteLink
+```
+
+<a id="chatto-api-v1-RevokeInviteLinkRequest"></a>
+
+#### Input: RevokeInviteLinkRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-RevokeInviteLinkResponse"></a>
+
+#### Result: RevokeInviteLinkResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_link` | [`InviteLink`](/reference/connectrpc-api/types/#chatto-api-v1-InviteLink) | No field description provided. |

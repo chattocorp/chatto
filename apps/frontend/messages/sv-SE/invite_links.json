@@ -1,0 +1,12 @@
+{
+  "invite_links": {
+    "invite_people": "Bjud in personer",
+    "own": "Dina inbjudningslänkar",
+    "all": "Alla inbjudningslänkar",
+    "creator": "Skapad av",
+    "create_permission": "Skapa inbjudningslänkar",
+    "manage_permission": "Hantera alla inbjudningslänkar",
+    "create_help": "Skapa länkar för nya konton. Om behörigheten tas bort återkallas inte befintliga länkar.",
+    "manage_help": "Visa, kopiera och återkalla allas länkar. Kräver sköldläge; tillåter inte att skapa länkar."
+  }
+}
