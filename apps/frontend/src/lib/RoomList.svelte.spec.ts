@@ -176,7 +176,8 @@ vi.mock('$app/paths', () => ({
       .replace('[userId]', params?.userId ?? '')
 }));
 
-vi.mock('$lib/navigation', () => ({
+vi.mock('$lib/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$lib/navigation')>()),
   serverIdToSegment: (id: string) => (id === 'remote' ? 'remote.example.test' : '-'),
   segmentToServerId: (segment: string) =>
     segment === 'remote.example.test' ? 'remote' : segment === '-' ? 'origin' : null

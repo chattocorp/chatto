@@ -29,10 +29,14 @@ export function segmentToServerId(segment: string): string | null {
     return serverRegistry.originServer?.id ?? null;
   }
 
-  // Find the server whose URL hostname matches the segment
+  return serverIdForHostname(segment);
+}
+
+/** Find a registered server by hostname, independent of scheme and port. */
+export function serverIdForHostname(hostname: string): string | null {
   for (const server of serverRegistry.servers) {
     try {
-      if (new URL(server.url).hostname === segment) {
+      if (new URL(server.url).hostname === hostname) {
         return server.id;
       }
     } catch {

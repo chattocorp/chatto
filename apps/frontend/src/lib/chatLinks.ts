@@ -5,16 +5,9 @@
 import { resolve } from '$app/paths';
 import type { ResolvedPathname } from '$app/types';
 import { serverRegistry } from '$lib/client';
-import { serverIdToSegment, segmentToServerId } from '$lib/navigation';
-
-/** Message destinations supported by previews and local message links. */
-type ChatDestination =
-  | { kind: 'message'; roomId: string; messageId: string }
-  | { kind: 'thread-message'; roomId: string; threadRootEventId: string; messageId: string };
+import { serverIdToSegment, segmentToServerId, serverIdForHostname } from '$lib/navigation';
 
 export interface MessageLink {
-  /** Local server segment when resolved; otherwise the original segment or URL host. */
-  serverSegment: string;
   /** Null for unknown servers; these links cannot load a preview. */
   serverId: string | null;
   roomId: string;
@@ -55,16 +48,16 @@ function parseChatLink(input: string, origin: string) {
   const { parts } = parsed;
   const [, , roomId, fourth, fifth, sixth] = parts;
   if (!roomIdPattern.test(roomId)) return null;
-  let destination: ChatDestination;
+  let destination: Omit<MessageLink, 'serverId'>;
   if (parts.length === 5 && fourth === 'm' && eventIdPattern.test(fifth)) {
-    destination = { kind: 'message', roomId, messageId: fifth };
+    destination = { roomId, messageId: fifth };
   } else if (
     parts.length === 6 &&
     eventIdPattern.test(fourth) &&
     fifth === 'm' &&
     eventIdPattern.test(sixth)
   ) {
-    destination = { kind: 'thread-message', roomId, threadRootEventId: fourth, messageId: sixth };
+    destination = { roomId, threadRootEventId: fourth, messageId: sixth };
   } else {
     return null;
   }
@@ -98,40 +91,9 @@ function resolveChatLinkServerId({
   serverSegment: string;
 }): string | null {
   if (sameOrigin) return segmentToServerId(serverSegment);
-  const originServerId = serverIdForUrlOrigin(url.origin);
+  const originServerId = serverIdForHostname(url.hostname);
   if (!originServerId) return null;
   return serverSegment === '-' ? originServerId : segmentToServerId(serverSegment);
-}
-
-/** Server hostnames identify registered destinations, independent of scheme and port. */
-function serverIdForUrlOrigin(origin: string): string | null {
-  const hostname = new URL(origin).hostname;
-  for (const server of serverRegistry.servers) {
-    try {
-      if (new URL(server.url).hostname === hostname) return server.id;
-    } catch {
-      continue;
-    }
-  }
-  return null;
-}
-
-/** Build a SvelteKit route from a home or remote-hostname server segment. */
-function destinationPath(serverSegment: string, destination: ChatDestination): ResolvedPathname {
-  const params = { serverId: serverSegment, roomId: destination.roomId };
-  switch (destination.kind) {
-    case 'message':
-      return resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-        ...params,
-        messageId: destination.messageId
-      });
-    case 'thread-message':
-      return resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
-        ...params,
-        threadId: destination.threadRootEventId,
-        messageId: destination.messageId
-      });
-  }
 }
 
 /** Build the local message route, including its thread when supplied. */
@@ -141,12 +103,13 @@ export function buildMessageLinkPath(
   messageId: string,
   threadRootEventId?: string | null
 ): ResolvedPathname {
-  return destinationPath(
-    serverIdToSegment(serverId),
-    threadRootEventId
-      ? { kind: 'thread-message', roomId, messageId, threadRootEventId }
-      : { kind: 'message', roomId, messageId }
-  );
+  const params = { serverId: serverIdToSegment(serverId), roomId, messageId };
+  return threadRootEventId
+    ? resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
+        ...params,
+        threadId: threadRootEventId
+      })
+    : resolve('/chat/[serverId]/[roomId]/m/[messageId]', params);
 }
 
 /** Share URLs belong to the owning server, independent of this frontend's origin. */
@@ -185,14 +148,8 @@ export function parseMessageLink(input: string): MessageLink | null {
   const serverId = resolveChatLinkServerId(parsed);
   return {
     serverId,
-    serverSegment: serverId
-      ? serverIdToSegment(serverId)
-      : parsed.sameOrigin
-        ? parsed.serverSegment
-        : parsed.url.host,
     roomId: parsed.destination.roomId,
     messageId: parsed.destination.messageId,
-    threadRootEventId:
-      'threadRootEventId' in parsed.destination ? parsed.destination.threadRootEventId : undefined
+    threadRootEventId: parsed.destination.threadRootEventId
   };
 }

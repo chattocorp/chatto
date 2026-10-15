@@ -86,7 +86,6 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 
 function link(): MessageLink {
   return {
-    serverSegment: '-',
     serverId: 'server_1',
     roomId: 'room_1',
     messageId: 'event_1'
