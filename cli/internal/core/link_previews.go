@@ -25,12 +25,12 @@ func (c *ChattoCore) GetLinkPreview(ctx context.Context, url string) (*evtv1.Lin
 		return nil, nil
 	}
 	if err != nil {
-		c.logger.Warn("Failed to get cached link preview", "url", url, "error", err)
+		c.logger.Warn("Failed to get cached link preview", "error_kind", linkpreview.LogErrorKind(err))
 		// Continue to fetch - don't fail on cache errors
 	}
 	if cached != nil {
 		if err := c.markCachedLegacyLinkPreviewPublic(ctx, cached); err != nil {
-			c.logger.Warn("Failed to preserve cached legacy link-preview image", "asset_id", cached.GetImageAssetId(), "error", err)
+			c.logger.Warn("Failed to preserve cached legacy link-preview image", "asset_id", cached.GetImageAssetId(), "error_kind", linkpreview.LogErrorKind(err))
 		}
 		return cached, nil
 	}
@@ -49,13 +49,13 @@ func (c *ChattoCore) GetLinkPreview(ctx context.Context, url string) (*evtv1.Lin
 	preview := result.ToProto(url)
 	if err := validateLinkPreview(preview); err != nil {
 		_ = c.linkPreviewCache.SetFailure(ctx, url, err.Error())
-		c.logger.Warn("Discarding invalid fetched link preview", "url", url, "error", err)
+		c.logger.Warn("Discarding invalid fetched link preview", "error_kind", linkpreview.LogErrorKind(err))
 		return nil, nil
 	}
 
 	// Cache the result
 	if err := c.linkPreviewCache.Set(ctx, url, preview); err != nil {
-		c.logger.Warn("Failed to cache link preview", "url", url, "error", err)
+		c.logger.Warn("Failed to cache link preview", "error_kind", linkpreview.LogErrorKind(err))
 	}
 
 	return preview, nil
@@ -160,7 +160,7 @@ func (c *ChattoCore) HydrateLinkPreviewImageAsset(ctx context.Context, preview *
 			return nil
 		}
 	} else if err != nil && !errors.Is(err, linkpreview.ErrCachedFailure) {
-		c.logger.Debug("Failed to hydrate link preview image asset from cache", "url", preview.GetUrl(), "error", err)
+		c.logger.Debug("Failed to hydrate link preview image asset from cache", "error_kind", linkpreview.LogErrorKind(err))
 	}
 
 	asset, err := c.ServerAssetRecordFromAnyBackend(ctx, imageAssetID, "link-preview.webp")
