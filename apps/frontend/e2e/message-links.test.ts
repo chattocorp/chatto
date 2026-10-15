@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { GetRoomEventsAroundRequest } from '@chatto/api-types/api/v1/room_timeline_pb';
+import { GetMessageRequest } from '@chatto/api-types/api/v1/messages_pb';
 import { seedData, loginSeededUser } from './fixtures/seed';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
@@ -16,6 +16,33 @@ import { withServerUser } from './fixtures/serverUser';
 
 test.describe('Message links', () => {
   test.describe.configure({ timeout: 60_000 });
+
+  test('Markdown links to thread replies show composer and posted previews', async ({
+    page,
+    chatPage,
+    roomPage,
+    serverURL
+  }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    const { roomId } = await getIdsFromUrlViaConnect(page);
+    const rootId = await postMessageViaConnect(page, roomId, 'Preview regression thread');
+    const body = `Linked thread reply ${Date.now()}`;
+    const replyId = await postThreadReplyViaConnect(page, roomId, body, rootId);
+    const url = `${serverURL}/chat/-/${roomId}/${rootId}/m/${replyId}`;
+    await roomPage.composer.fill(`[Eh](${url})`);
+    await expect(page.getByTestId('message-preview-card')).toContainText(body);
+    await page.getByRole('button', { name: 'Send message', exact: true }).click();
+    await roomPage.recentThreadConfirmationDialog
+      .getByRole('button', { name: 'Post as new message' })
+      .click();
+    const posted = page.locator('[role="article"]', { hasText: 'Eh' });
+    await expect(posted.getByTestId('message-preview-card')).toContainText(body);
+    expect(errors).toEqual([]);
+  });
 
   test('thread message preview stays mounted across local and remote reactions', async ({
     page,
@@ -55,8 +82,8 @@ test.describe('Message links', () => {
     const previewRequests: string[] = [];
     page.on('request', (request) => {
       if (
-        request.url().endsWith('/GetRoomEventsAround') &&
-        GetRoomEventsAroundRequest.fromBinary(request.postDataBuffer()!).eventId === targetId
+        request.url().endsWith('/GetMessage') &&
+        GetMessageRequest.fromBinary(request.postDataBuffer()!).eventId === targetId
       ) {
         previewRequests.push(request.url());
       }

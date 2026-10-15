@@ -62,6 +62,8 @@ export type RoomTimelineAPI = {
     input: {
       roomId: string;
       eventId: string;
+      /** Cancels the read when its consumer no longer needs the message. */
+      signal?: AbortSignal;
     } & RealtimeBoundedRead
   ): Promise<TimelineEventView | null>;
   getThreadEvents(
@@ -132,8 +134,12 @@ export function createRoomTimelineAPI(config: ConnectAPIConfig): RoomTimelineAPI
       if (!response.page) return emptyEventConnectionPage();
       return roomTimelinePageToEventConnectionPage(response.page);
     },
-    async getMessage({ roomId, eventId, minimumCursor }) {
-      const response = await messages.getMessage({ roomId, eventId }, options(minimumCursor));
+    async getMessage({ roomId, eventId, minimumCursor, signal }) {
+      const response = await messages.getMessage(
+        { roomId, eventId },
+        options(minimumCursor, signal)
+      );
+      signal?.throwIfAborted();
       // A failed author lookup must not synthesize a deleted account.
       // The realtime row keeps its body and reports the unresolved identity.
       const users = await batchTimelineUsers(
@@ -142,6 +148,7 @@ export function createRoomTimelineAPI(config: ConnectAPIConfig): RoomTimelineAPI
         minimumCursor,
         true
       );
+      signal?.throwIfAborted();
       return response.message ? messageToTimelineEvent(response.message, users) : null;
     },
     async getThreadEvents({ roomId, threadRootEventId, limit, before, after, minimumCursor }) {
