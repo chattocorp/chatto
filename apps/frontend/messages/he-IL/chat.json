@@ -92,12 +92,14 @@
       "body": "התחבר כדי לקרוא ולשלוח הודעות בשרת הזה."
     },
     "threads": {
+      "sort_label": "מיון שרשורים",
+      "sort_activity": "פעילות",
+      "sort_created": "גיל",
       "tab_started": "שלי",
       "tab_followed": "במעקב",
       "tab_label": "תצוגת שרשורים",
       "empty_mine_title": "לא התחלת שרשורים",
       "empty_mine_body": "שרשורים שתתחיל ותעקוב אחריהם יופיעו כאן.",
-      "empty_followed_body": "שרשורים שאחרים התחילו ושאתה עוקב אחריהם יופיעו כאן.",
       "title": "שרשורים",
       "subtitle": "פעילות חדשה בשרשורים שלך",
       "filter_label": "חוטי סינון",

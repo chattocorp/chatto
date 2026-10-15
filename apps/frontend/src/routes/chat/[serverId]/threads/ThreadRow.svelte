@@ -93,11 +93,11 @@
   {#snippet leading()}
     <ActivityAvatar actor={participants[0] ?? null} badge={second ? secondAvatar : undefined}>
       {#snippet indicator()}
-        {#if hasAttention}
+        {#if hasAttention || unread}
           <UnreadDot
             color={attention === NotificationAttentionLevel.IMPORTANT ? 'warning' : 'ambient'}
             overlay
-            testid="thread-attention-dot"
+            testid={hasAttention ? 'thread-attention-dot' : 'thread-unread-dot'}
           />
         {/if}
       {/snippet}
@@ -119,27 +119,30 @@
   </ActivityRowText>
 
   {#snippet actions()}
-    {#if canMarkRead}
+    <!-- Keep metadata aligned when Mark as read is unavailable. -->
+    <div class="flex w-20 justify-end">
+      {#if canMarkRead}
+        <button
+          type="button"
+          class="icon-action"
+          disabled={pending}
+          onclick={onmarkread}
+          title={m('room_list.mark_as_read')}
+          aria-label={m('room_list.mark_as_read')}
+        >
+          <span class="iconify icon-[uil--check] text-base" aria-hidden="true"></span>
+        </button>
+      {/if}
       <button
         type="button"
         class="icon-action"
         disabled={pending}
-        onclick={onmarkread}
-        title={m('room_list.mark_as_read')}
-        aria-label={m('room_list.mark_as_read')}
+        onclick={onunfollow}
+        title={m('room.message.meta.unfollow_thread')}
+        aria-label={m('room.message.meta.unfollow_thread')}
       >
-        <span class="iconify icon-[uil--check] text-base" aria-hidden="true"></span>
+        <span class="iconify icon-[uil--bell-slash] text-base" aria-hidden="true"></span>
       </button>
-    {/if}
-    <button
-      type="button"
-      class="icon-action"
-      disabled={pending}
-      onclick={onunfollow}
-      title={m('room.message.meta.unfollow_thread')}
-      aria-label={m('room.message.meta.unfollow_thread')}
-    >
-      <span class="iconify icon-[uil--bell-slash] text-base" aria-hidden="true"></span>
-    </button>
+    </div>
   {/snippet}
 </ActivityListRow>

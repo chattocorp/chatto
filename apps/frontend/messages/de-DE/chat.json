@@ -90,12 +90,14 @@
       "body": "Melde dich an, um auf diesem Server Nachrichten zu lesen und zu senden."
     },
     "threads": {
+      "sort_label": "Threads sortieren",
+      "sort_activity": "Aktivität",
+      "sort_created": "Alter",
       "tab_started": "Meine",
       "tab_followed": "Gefolgt",
       "tab_label": "Thread-Ansicht",
       "empty_mine_title": "Keine von dir gestarteten Threads",
       "empty_mine_body": "Threads, die du startest und denen du folgst, erscheinen hier.",
-      "empty_followed_body": "Threads von anderen, denen du folgst, erscheinen hier.",
       "title": "Threads",
       "subtitle": "Neue Aktivitäten in deinen Threads",
       "filter_label": "Threads filtern",

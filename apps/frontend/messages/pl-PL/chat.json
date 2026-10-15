@@ -94,12 +94,14 @@
       "body": "Zaloguj się, aby czytać i wysyłać wiadomości na tym serwerze."
     },
     "threads": {
+      "sort_label": "Sortuj wątki",
+      "sort_activity": "Aktywność",
+      "sort_created": "Wiek",
       "tab_started": "Moje",
       "tab_followed": "Obserwowane",
       "tab_label": "Widok wątków",
       "empty_mine_title": "Nie masz rozpoczętych wątków",
       "empty_mine_body": "Tutaj pojawią się wątki, które rozpoczniesz i obserwujesz.",
-      "empty_followed_body": "Tutaj pojawią się obserwowane przez ciebie wątki innych osób.",
       "title": "Wątki",
       "subtitle": "Nowa aktywność w twoich wątkach",
       "filter_label": "Filtruj wątki",

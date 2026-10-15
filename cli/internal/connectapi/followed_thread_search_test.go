@@ -210,10 +210,10 @@ func TestThreadSearchIndependentScopeGroupingAndOrder(t *testing.T) {
 	}}
 	for _, scope := range []apiv1.MessageSearchScope{0, apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS} {
 		for _, grouping := range []apiv1.MessageSearchGroupBy{0, apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_THREAD} {
-			for _, order := range []apiv1.MessageSearchOrder{0, apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_RELEVANCE, apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_NEWEST, apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY} {
+			for _, order := range []apiv1.MessageSearchOrder{0, apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_RELEVANCE, apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_NEWEST, apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY, apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_CREATED} {
 				t.Run(fmt.Sprintf("scope=%v/group=%v/order=%v", scope, grouping, order), func(t *testing.T) {
 					response, err := (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(&apiv1.SearchMessagesRequest{Query: "needle", Scope: scope, GroupBy: grouping, Order: order}))
-					if grouping == 0 && order == apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY {
+					if grouping == 0 && (order == apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY || order == apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_CREATED) {
 						require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
 						return
 					}
@@ -367,36 +367,45 @@ func TestSearchFollowedThreadsScopesDeduplicatesAndPagesByActivity(t *testing.T)
 		return &searchv1.QueryResponse{ThreadScopeApplied: true, Hits: []*searchv1.QueryHit{newHit, oldHit, oldHit, excludedHit}}, nil
 	}}
 	env.api.searchProvider = provider
-	cursor := ""
-	for offset, expected := range []string{oldRoot.Id, newRoot.Id} {
-		request := &apiv1.SearchMessagesRequest{Scope: apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS, GroupBy: apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_THREAD,
-			Query: "needle", PageSize: 1, Cursor: cursor, Order: apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY,
-		}
-		response, err := (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(request))
-		require.NoError(t, err)
-		require.Len(t, response.Msg.Results, 1)
-		require.Equal(t, expected, response.Msg.Results[0].ThreadContext.Thread.ThreadRootEventId)
-		require.EqualValues(t, 2, response.Msg.GetThreadTotalCount())
-		require.Equal(t, offset == 0, response.Msg.NextCursor != "")
-		require.NotNil(t, response.Msg.Results[0].ThreadContext)
-		cursor = response.Msg.NextCursor
-		if offset == 0 {
-			for _, mutate := range []func(*apiv1.SearchMessagesRequest){
-				func(r *apiv1.SearchMessagesRequest) { r.Query = "changed" },
-				func(r *apiv1.SearchMessagesRequest) { r.PageSize = 2 },
-				func(r *apiv1.SearchMessagesRequest) { r.RoomId = new(room.Id) },
-				func(r *apiv1.SearchMessagesRequest) { r.AuthorId = new(env.viewer.Id) },
-				func(r *apiv1.SearchMessagesRequest) { r.HasAttachments = true },
-				func(r *apiv1.SearchMessagesRequest) {
-					r.RootAuthorFilter = apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_OTHERS
-				},
-				func(r *apiv1.SearchMessagesRequest) { r.Scope = 0; r.GroupBy = 0 },
-			} {
-				changed := proto.Clone(request).(*apiv1.SearchMessagesRequest)
-				changed.Cursor = cursor
-				mutate(changed)
-				_, err := (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(changed))
-				require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
+	for _, test := range []struct {
+		order apiv1.MessageSearchOrder
+		roots []string
+	}{
+		{apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY, []string{oldRoot.Id, newRoot.Id}},
+		{apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_CREATED, []string{newRoot.Id, oldRoot.Id}},
+	} {
+		cursor := ""
+		for offset, expected := range test.roots {
+			request := &apiv1.SearchMessagesRequest{Scope: apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS, GroupBy: apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_THREAD,
+				Query: "needle", PageSize: 1, Cursor: cursor, Order: test.order,
+			}
+			response, err := (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(request))
+			require.NoError(t, err)
+			require.Len(t, response.Msg.Results, 1)
+			require.Equal(t, expected, response.Msg.Results[0].ThreadContext.Thread.ThreadRootEventId)
+			require.EqualValues(t, 2, response.Msg.GetThreadTotalCount())
+			require.Equal(t, offset == 0, response.Msg.NextCursor != "")
+			require.NotNil(t, response.Msg.Results[0].ThreadContext)
+			cursor = response.Msg.NextCursor
+			if offset == 0 {
+				for _, mutate := range []func(*apiv1.SearchMessagesRequest){
+					func(r *apiv1.SearchMessagesRequest) { r.Query = "changed" },
+					func(r *apiv1.SearchMessagesRequest) { r.PageSize = 2 },
+					func(r *apiv1.SearchMessagesRequest) { r.Order = apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_NEWEST },
+					func(r *apiv1.SearchMessagesRequest) { r.RoomId = new(room.Id) },
+					func(r *apiv1.SearchMessagesRequest) { r.AuthorId = new(env.viewer.Id) },
+					func(r *apiv1.SearchMessagesRequest) { r.HasAttachments = true },
+					func(r *apiv1.SearchMessagesRequest) {
+						r.RootAuthorFilter = apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_OTHERS
+					},
+					func(r *apiv1.SearchMessagesRequest) { r.Scope = 0; r.GroupBy = 0 },
+				} {
+					changed := proto.Clone(request).(*apiv1.SearchMessagesRequest)
+					changed.Cursor = cursor
+					mutate(changed)
+					_, err := (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(changed))
+					require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
+				}
 			}
 		}
 	}

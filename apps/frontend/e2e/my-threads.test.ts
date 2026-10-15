@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { ListFollowedThreadsResponse } from '@chatto/api-types/api/v1/threads_pb';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { postThreadReplyFromServerUser, withServerUser } from './fixtures/serverUser';
 import {
@@ -13,7 +14,49 @@ import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import * as routes from './routes';
 
 test.describe('My Threads', () => {
-  test('separates root authors and retains unread selection when switching tabs', async ({
+  test('refreshes cached threads when switching tabs and returning to the page', async ({
+    page,
+    chatPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
+    const root = await postMessageViaConnect(page, roomId, 'Refresh cached thread');
+    await postThreadReplyViaConnect(page, roomId, 'First reply', root);
+
+    // Simulate server snapshots changing without a realtime notification.
+    // Returning to a cached view must still read the new snapshot.
+    let replyCount = 1;
+    await page.route('**/chatto.api.v1.ThreadService/ListFollowedThreads', async (route) => {
+      const response = await route.fetch();
+      const body = ListFollowedThreadsResponse.fromBinary(await response.body());
+      for (const thread of body.threads ?? []) {
+        if (thread.thread?.threadRootEventId === root) thread.thread.replyCount = replyCount;
+      }
+      await route.fulfill({ response, body: Buffer.from(body.toBinary()) });
+    });
+
+    const myThreads = new MyThreadsPage(page);
+    await myThreads.goto();
+    await expect(myThreads.threadItems).toContainText('1 reply');
+    await page.getByRole('radio', { name: 'Mine', exact: true }).check();
+    await expect(myThreads.threadItems).toContainText('1 reply');
+
+    replyCount = 2;
+    await page.getByRole('radio', { name: 'Followed', exact: true }).check();
+    await expect(myThreads.threadItems).toContainText('2 replies');
+    replyCount = 3;
+    await page.getByRole('radio', { name: 'Mine', exact: true }).check();
+    await expect(myThreads.threadItems).toContainText('3 replies');
+
+    await page.getByRole('link', { name: 'Overview', exact: true }).click();
+    replyCount = 4;
+    await myThreads.goto();
+    await expect(myThreads.threadItems).toContainText('4 replies');
+  });
+
+  test('includes own threads in Followed and narrows Mine while retaining unread selection', async ({
     page,
     chatPage,
     browser,
@@ -42,7 +85,9 @@ test.describe('My Threads', () => {
     await myThreads.goto();
     await expect(page.getByRole('radio', { name: 'Followed', exact: true })).toBeChecked();
     await expect(page.getByRole('radio').first()).toHaveAccessibleName('Followed');
-    await expect(myThreads.threadItems).toContainText(theirsText);
+    await expect(myThreads.threadItems).toHaveCount(2);
+    await expect(myThreads.threadItems.filter({ hasText: mineText })).toBeVisible();
+    await expect(myThreads.threadItems.filter({ hasText: theirsText })).toBeVisible();
     await page.getByRole('radio', { name: 'Mine', exact: true }).check();
     await expect(myThreads.threadItems).toHaveCount(1);
     await expect(myThreads.threadItems).toContainText(mineText);
@@ -52,13 +97,13 @@ test.describe('My Threads', () => {
     await page.keyboard.press('ArrowLeft');
     await expect(page.getByRole('radio', { name: 'Followed', exact: true })).toBeChecked();
     await expect(page.getByRole('radio', { name: 'Unread', exact: true })).toBeChecked();
+    await expect(myThreads.threadItems).toHaveCount(2);
+    await expect(myThreads.threadItems.filter({ hasText: mineText })).toBeVisible();
+    const theirThread = myThreads.threadItems.filter({ hasText: theirsText });
+    await theirThread.hover();
+    await theirThread.getByRole('button', { name: 'Unfollow thread', exact: true }).click();
     await expect(myThreads.threadItems).toHaveCount(1);
-    await expect(myThreads.threadItems).toContainText(theirsText);
-    await myThreads.threadItems.hover();
-    await myThreads.threadItems
-      .getByRole('button', { name: 'Unfollow thread', exact: true })
-      .click();
-    await expect(myThreads.threadItems).toHaveCount(0);
+    await expect(myThreads.threadItems).toContainText(mineText);
     await mineTab.check();
     await expect(myThreads.threadItems).toHaveCount(1);
     await expect(myThreads.threadItems).toContainText(mineText);
@@ -78,7 +123,9 @@ test.describe('My Threads', () => {
     await page.getByRole('radio', { name: 'Followed', exact: true }).check();
     await expect(page.getByText('No followed threads')).toBeVisible();
     await expect(
-      page.getByText('Threads started by others that you follow will appear here.')
+      page.getByText(
+        'Threads you follow will appear here. You automatically follow threads you participate in.'
+      )
     ).toBeVisible();
   });
 

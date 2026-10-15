@@ -187,9 +187,9 @@ func providerSearchRequest(request *apiv1.SearchMessagesRequest, parsed searchsv
 	case apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_UNSPECIFIED, apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_RELEVANCE:
 	case apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_NEWEST:
 		order = searchv1.SearchOrder_SEARCH_ORDER_NEWEST
-	case apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY:
+	case apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY, apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_CREATED:
 		if !threadGroups {
-			return nil, fmt.Errorf("thread activity order requires thread grouping")
+			return nil, fmt.Errorf("thread date order requires thread grouping")
 		}
 		order = searchv1.SearchOrder_SEARCH_ORDER_NEWEST
 	default:
@@ -225,9 +225,16 @@ func (s *messageSearchService) searchThreadGroups(ctx context.Context, viewerID 
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid thread search cursor"))
 		}
 	}
+	threadOrder := core.ThreadOrderDefault
+	switch request.GetOrder() {
+	case apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY:
+		threadOrder = core.ThreadOrderActivity
+	case apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_CREATED:
+		threadOrder = core.ThreadOrderCreated
+	}
 	page, err := s.api.core.MessageSearchReads().SearchThreadGroups(ctx, viewerID, int(normalized.PageSize), offset, scope, normalized,
 		request.GetScope() == apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS,
-		request.GetOrder() == apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY, s.api.searchProvider.Query)
+		threadOrder, s.api.searchProvider.Query)
 	if err != nil {
 		var providerError *searchsvc.ServiceError
 		if errors.Is(err, searchsvc.ErrUnavailable) || errors.Is(err, searchsvc.ErrProviderNotReady) || errors.Is(err, searchsvc.ErrInvalidResponse) || errors.As(err, &providerError) {

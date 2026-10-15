@@ -90,12 +90,14 @@
       "body": "Bu sunucuda mesaj okumak ve göndermek için oturum açın."
     },
     "threads": {
+      "sort_label": "Konuları sırala",
+      "sort_activity": "Etkinlik",
+      "sort_created": "Yaş",
       "tab_started": "Benim",
       "tab_followed": "Takip edilenler",
       "tab_label": "Konu görünümü",
       "empty_mine_title": "Başlattığınız konu yok",
       "empty_mine_body": "Başlattığınız ve takip ettiğiniz konular burada görünür.",
-      "empty_followed_body": "Başkalarının başlattığı ve takip ettiğiniz konular burada görünür.",
       "title": "Konular",
       "subtitle": "Konularınızdaki yeni etkinlikler",
       "filter_label": "Konuları filtrele",

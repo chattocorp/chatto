@@ -92,12 +92,14 @@
       "body": "Piesakieties, lai šajā serverī lasītu un sūtītu ziņojumus."
     },
     "threads": {
+      "sort_label": "Kārtot pavedienus",
+      "sort_activity": "Aktivitāte",
+      "sort_created": "Vecums",
       "tab_started": "Mani",
       "tab_followed": "Sekotās",
       "tab_label": "Pavedienu skats",
       "empty_mine_title": "Nav jūsu sāktu pavedienu",
       "empty_mine_body": "Šeit parādīsies pavedieni, kurus sākat un kuriem sekojat.",
-      "empty_followed_body": "Šeit parādīsies citu sākti pavedieni, kuriem sekojat.",
       "title": "Pavedieni",
       "subtitle": "Jauna aktivitāte jūsu pavedienos",
       "filter_label": "Filtru pavedieni",

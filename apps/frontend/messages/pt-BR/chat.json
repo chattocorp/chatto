@@ -90,12 +90,14 @@
       "body": "Entre para ler e enviar mensagens neste servidor."
     },
     "threads": {
+      "sort_label": "Ordenar conversas",
+      "sort_activity": "Atividade",
+      "sort_created": "Idade",
       "tab_started": "Meus",
       "tab_followed": "Seguidos",
       "tab_label": "Visualização de conversas",
       "empty_mine_title": "Você não iniciou nenhuma conversa",
       "empty_mine_body": "As conversas que você iniciar e seguir aparecerão aqui.",
-      "empty_followed_body": "As conversas de outras pessoas que você seguir aparecerão aqui.",
       "title": "Tópicos",
       "subtitle": "Nova atividade nos seus tópicos",
       "filter_label": "Filtrar tópicos",

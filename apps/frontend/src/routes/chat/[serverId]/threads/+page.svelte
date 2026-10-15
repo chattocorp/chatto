@@ -25,6 +25,7 @@
 
   import {
     createThreadAPI,
+    ThreadOrder,
     ThreadRootAuthorFilter,
     type FollowedThread
   } from '@chatto/client/api/threads';
@@ -97,8 +98,17 @@
 
   const filter = $derived(page.state.threadFilter ?? 'all');
   const tab = $derived(page.state.threadTab ?? 'followed');
+  const order = $derived(page.state.threadOrder ?? 'activity');
+  const orderOptions = $derived([
+    { value: 'activity' as const, label: m('chat.threads.sort_activity') },
+    { value: 'created' as const, label: m('chat.threads.sort_created') }
+  ]);
+
+  function setOrder(value: 'activity' | 'created') {
+    replaceState('', { ...page.state, threadOrder: value });
+  }
   const rootAuthorFilter = $derived(
-    tab === 'mine' ? ThreadRootAuthorFilter.VIEWER : ThreadRootAuthorFilter.OTHERS
+    tab === 'mine' ? ThreadRootAuthorFilter.VIEWER : ThreadRootAuthorFilter.UNSPECIFIED
   );
   const tabOptions = $derived([
     { value: 'followed' as const, label: m('chat.threads.tab_followed') },
@@ -122,15 +132,20 @@
     const connection = serverScope.connection;
     const query = searchQuery;
     const authorFilter = rootAuthorFilter;
+    const selectedOrder = order;
     // Search results are filtered locally below.
     const unreadOnly = !query && filter === 'unread';
     return {
       queryKey: threadQueryKeys.followed(serverId, connection, {
         query,
         unreadOnly,
-        rootAuthorFilter: authorFilter
+        rootAuthorFilter: authorFilter,
+        order: selectedOrder
       }),
       enabled: !query || searchStatus.available,
+      // Inbox state can change while this page or tab is inactive. Keep cached
+      // rows for display, but refresh them whenever this query becomes active.
+      staleTime: 0,
       queryFn: async ({ pageParam, signal }) => {
         const result = await connection.getAPI(createThreadAPI).listFollowedThreads(
           {
@@ -139,6 +154,7 @@
             cursor: typeof pageParam === 'string' ? pageParam : undefined,
             query,
             rootAuthorFilter: authorFilter,
+            order: selectedOrder === 'created' ? ThreadOrder.CREATED : ThreadOrder.ACTIVITY,
             unreadOnly
           },
           { signal }
@@ -175,15 +191,21 @@
   const filteredThreads = $derived(
     filter === 'unread' ? threads.filter((t) => t.hasUnreadReplies) : threads
   );
-  const dateSections = $derived.by(() =>
-    groupByActivityDate(
+  const dateSections = $derived.by(() => {
+    const sortDate = (thread: FollowedThread) =>
+      order === 'created' ? (thread.rootMessage?.createdAt ?? null) : threadActivityAt(thread);
+    const sections = groupByActivityDate(
       filteredThreads,
-      threadActivityAt,
+      sortDate,
       () => userSettings,
       new Date(),
       activeLocale
-    )
-  );
+    );
+    const undated = filteredThreads.filter((thread) => !sortDate(thread));
+    if (undated.length)
+      sections.push({ key: 'unknown', label: m('common.unknown'), items: undated });
+    return sections;
+  });
 
   // Locally filtered pages without a match leave no scroll edge to observe, so
   // load the next page directly until a match appears or the feed ends.
@@ -374,6 +396,12 @@
             value={filter}
             onchange={setFilter}
           />
+          <SegmentedControl
+            label={m('chat.threads.sort_label')}
+            options={orderOptions}
+            value={order}
+            onchange={setOrder}
+          />
         </div>
       </div>
       {#if searchEnabled && searchStatus.status.state === MessageSearchState.DEGRADED}
@@ -410,9 +438,7 @@
               ? m('chat.threads.empty_mine_title')
               : m('chat.threads.empty_title')}
           >
-            {tab === 'mine'
-              ? m('chat.threads.empty_mine_body')
-              : m('chat.threads.empty_followed_body')}
+            {tab === 'mine' ? m('chat.threads.empty_mine_body') : m('chat.threads.empty_body')}
           </EmptyState>
         {:else if filteredThreads.length === 0 && hasMore}
           <LoadingDots class="py-6" />

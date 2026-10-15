@@ -36,6 +36,9 @@ const (
 	MessageSearchOrder_MESSAGE_SEARCH_ORDER_NEWEST MessageSearchOrder = 2
 	// Return threads with the most recent activity first. Requires thread grouping.
 	MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY MessageSearchOrder = 3
+	// Newest root-message creation first, with unknown dates last. Requires thread
+	// grouping. Older servers can reject this order.
+	MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_CREATED MessageSearchOrder = 4
 )
 
 // Enum value maps for MessageSearchOrder.
@@ -45,12 +48,14 @@ var (
 		1: "MESSAGE_SEARCH_ORDER_RELEVANCE",
 		2: "MESSAGE_SEARCH_ORDER_NEWEST",
 		3: "MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY",
+		4: "MESSAGE_SEARCH_ORDER_THREAD_CREATED",
 	}
 	MessageSearchOrder_value = map[string]int32{
 		"MESSAGE_SEARCH_ORDER_UNSPECIFIED":     0,
 		"MESSAGE_SEARCH_ORDER_RELEVANCE":       1,
 		"MESSAGE_SEARCH_ORDER_NEWEST":          2,
 		"MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY": 3,
+		"MESSAGE_SEARCH_ORDER_THREAD_CREATED":  4,
 	}
 )
 
@@ -774,12 +779,13 @@ const file_chatto_api_v1_message_search_proto_rawDesc = "" +
 	"\x11GetStatusResponse\x127\n" +
 	"\x05state\x18\x01 \x01(\x0e2!.chatto.api.v1.MessageSearchStateR\x05state\x12:\n" +
 	"\vretry_after\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\n" +
-	"retryAfterJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x13indexed_event_countR\x12target_event_count*\xa9\x01\n" +
+	"retryAfterJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x13indexed_event_countR\x12target_event_count*\xd2\x01\n" +
 	"\x12MessageSearchOrder\x12$\n" +
 	" MESSAGE_SEARCH_ORDER_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eMESSAGE_SEARCH_ORDER_RELEVANCE\x10\x01\x12\x1f\n" +
 	"\x1bMESSAGE_SEARCH_ORDER_NEWEST\x10\x02\x12(\n" +
-	"$MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY\x10\x03*e\n" +
+	"$MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY\x10\x03\x12'\n" +
+	"#MESSAGE_SEARCH_ORDER_THREAD_CREATED\x10\x04*e\n" +
 	"\x12MessageSearchScope\x12$\n" +
 	" MESSAGE_SEARCH_SCOPE_UNSPECIFIED\x10\x00\x12)\n" +
 	"%MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS\x10\x01*c\n" +

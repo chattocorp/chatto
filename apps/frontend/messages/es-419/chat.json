@@ -90,12 +90,14 @@
       "body": "Inicia sesión para leer y enviar mensajes en este servidor."
     },
     "threads": {
+      "sort_label": "Ordenar hilos",
+      "sort_activity": "Actividad",
+      "sort_created": "Antigüedad",
       "tab_started": "Míos",
       "tab_followed": "Seguidos",
       "tab_label": "Vista de hilos",
       "empty_mine_title": "No has iniciado ningún hilo",
       "empty_mine_body": "Aquí aparecerán los hilos que inicies y sigas.",
-      "empty_followed_body": "Aquí aparecerán los hilos de otras personas que sigas.",
       "title": "Temas",
       "subtitle": "Nueva actividad en tus temas",
       "filter_label": "Filtrar hilos",

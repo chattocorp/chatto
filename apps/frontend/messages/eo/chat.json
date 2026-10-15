@@ -90,12 +90,14 @@
       "body": "Ensalutu por legi kaj sendi mesaĝojn en ĉi tiu servilo."
     },
     "threads": {
+      "sort_label": "Ordigi fadenojn",
+      "sort_activity": "Aktiveco",
+      "sort_created": "Aĝo",
       "tab_started": "Miaj",
       "tab_followed": "Sekvataj",
       "tab_label": "Vido de fadenoj",
       "empty_mine_title": "Neniuj fadenoj komencitaj de vi",
       "empty_mine_body": "Fadenoj, kiujn vi komencas kaj sekvas, aperos ĉi tie.",
-      "empty_followed_body": "Fadenoj komencitaj de aliaj, kiujn vi sekvas, aperos ĉi tie.",
       "title": "Fadenoj",
       "subtitle": "Nova agado en viaj fadenoj",
       "filter_label": "Filtri fadenojn",

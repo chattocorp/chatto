@@ -45,6 +45,40 @@ proto3.util.setEnumType(ThreadRootAuthorFilter, "chatto.api.v1.ThreadRootAuthorF
 ]);
 
 /**
+ * Ordering for followed threads. Equal dates use a stable thread identity order.
+ *
+ * @generated from enum chatto.api.v1.ThreadOrder
+ */
+export enum ThreadOrder {
+  /**
+   * Use newest activity first.
+   *
+   * @generated from enum value: THREAD_ORDER_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Use newest activity first.
+   *
+   * @generated from enum value: THREAD_ORDER_ACTIVITY = 1;
+   */
+  ACTIVITY = 1,
+
+  /**
+   * Use newest root-message creation first. Unknown creation dates come last.
+   *
+   * @generated from enum value: THREAD_ORDER_CREATED = 2;
+   */
+  CREATED = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(ThreadOrder)
+proto3.util.setEnumType(ThreadOrder, "chatto.api.v1.ThreadOrder", [
+  { no: 0, name: "THREAD_ORDER_UNSPECIFIED" },
+  { no: 1, name: "THREAD_ORDER_ACTIVITY" },
+  { no: 2, name: "THREAD_ORDER_CREATED" },
+]);
+
+/**
  * Current follow state for one thread and viewer.
  *
  * @generated from message chatto.api.v1.ThreadFollowState
@@ -393,6 +427,13 @@ export class ListFollowedThreadsRequest extends Message<ListFollowedThreadsReque
    */
   rootAuthorFilter = ThreadRootAuthorFilter.UNSPECIFIED;
 
+  /**
+   * Sort before pagination. Older servers ignore this field and use activity order.
+   *
+   * @generated from field: chatto.api.v1.ThreadOrder order = 7;
+   */
+  order = ThreadOrder.UNSPECIFIED;
+
   constructor(data?: PartialMessage<ListFollowedThreadsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -405,6 +446,7 @@ export class ListFollowedThreadsRequest extends Message<ListFollowedThreadsReque
     { no: 4, name: "include_direct_message_threads", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 5, name: "unread_only", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 6, name: "root_author_filter", kind: "enum", T: proto3.getEnumType(ThreadRootAuthorFilter) },
+    { no: 7, name: "order", kind: "enum", T: proto3.getEnumType(ThreadOrder) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListFollowedThreadsRequest {
@@ -431,7 +473,7 @@ export class ListFollowedThreadsRequest extends Message<ListFollowedThreadsReque
  */
 export class ListFollowedThreadsResponse extends Message<ListFollowedThreadsResponse> {
   /**
-   * Followed threads in newest-activity-first order.
+   * Followed threads in the requested order; newest activity first by default.
    *
    * @generated from field: repeated chatto.api.v1.FollowedThread threads = 1;
    */
