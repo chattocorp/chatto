@@ -141,10 +141,18 @@ export function gitExtension(directory: string) {
       name: 'gitShow',
       label: 'Read Git commit',
       description:
-        'Show a commit: its message and its changes, optionally only for one path. Use it to see why and how code changed.',
+        'Show a commit message and diff, optionally filtered to one path. This does not return a historical file snapshot. Pass revision and path separately; revision:path syntax is unsupported. Use gitBlame with a revision and line range to inspect historical file content.',
       parameters: Type.Object({
-        revision: Type.String(),
-        path: Type.Optional(Type.String({ description: 'Only the changes to this path' })),
+        revision: Type.String({
+          description:
+            'A commit hash, branch, or tag, such as HEAD~1 or v0.4.3; never revision:path'
+        }),
+        path: Type.Optional(
+          Type.String({
+            description:
+              'Filter the commit diff to this repository-relative path; not a file snapshot'
+          })
+        ),
         stat: Type.Optional(
           Type.Boolean({ description: 'Only list the changed files, without the changes' })
         )

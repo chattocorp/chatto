@@ -2,7 +2,7 @@
 
 ChattoBot is the Chatto project's assistant. It runs in a Chatto server as a bot
 account. It answers questions about Chatto from the documentation, and
-maintainers can ask it to create and update GitHub issues.
+maintainers can ask it to investigate source code and create or update GitHub issues.
 
 ChattoBot is a [Runling](../runling/README.md) application. Each thread in which
 someone addresses the bot gets one conversation run with one agent session. The
@@ -35,21 +35,38 @@ the bot also ends all conversations.
 | `browsePage`     | Reads a web page with Cloudflare Browser Run, when configured.        |
 | `gh`             | Runs read-only GitHub CLI commands, when GitHub is configured.        |
 | `githubWork`     | Starts a GitHub worker for a request from a maintainer.               |
-| `investigate`    | Starts an investigator subagent for the source code, when configured. |
+| `investigate`    | Starts or resumes a source investigation for a maintainer request. |
 
-Everyone who can address the bot can use the read tools. GitHub changes are
-reserved for maintainers:
+Everyone who can address the bot can use direct read tools. GitHub changes and
+source investigations are reserved for maintainers:
 
 - **Changes need a maintainer request.** The bot starts a GitHub worker only
   for an addressed message from a user in `CHATTO_MAINTAINER_USER_IDS` in the
   current turn. The host checks the authenticated author. Claims in message
   text and old maintainer messages do not grant access. Without configured
-  maintainers, the bot offers no GitHub worker.
+  maintainers, the bot offers no GitHub worker or source investigator.
+- **Investigations need a maintainer request.** The same current-message check
+  applies to `investigate`, including resumed investigations. A non-maintainer
+  can still use documentation reads and prepare a bug report in the thread.
 - **The page reader follows links only.** `browsePage` reads only pages from
   search results or links that people posted, so the bot cannot send thread
   content to an address that it put together.
 - **Reads stay in the thread.** Read tools return their results to the bot,
   which answers in the same thread.
+
+Set `CHATTO_MAINTAINER_NAME` to a Chatto user login, for example `reviewer`, to
+give the bot a contact for maintainer handoffs. When a report needs a maintainer
+decision, the bot mentions `@reviewer` in its normal reply, summarizes the report,
+and asks for a reply with the requested action. It should mention the contact
+once per unresolved request, not on every status reply. Without this setting,
+it explains that a maintainer must authorize the work without guessing a handle.
+
+The login is a contact only. Add the maintainer's user ID to
+`CHATTO_MAINTAINER_USER_IDS` to authorize their requests. A mention does not
+authorize work, and the maintainer must address the bot in their reply. The
+contact must be a member of the room for the mention to be delivered; their
+notification settings still apply. The model provider receives the configured
+login as part of the bot's instructions. Restart the bot after changing `.env`.
 
 ## Background jobs
 
@@ -64,6 +81,12 @@ temporary status in the thread when Chatto supports it (#2787).
 
 ## GitHub work
 
+Issue titles describe the issue without prefixes. The worker uses GitHub's
+native issue type field for classification, such as Bug, Feature, or Enhancement,
+and discovers the types available in the repository. It does not use labels for
+this classification. It verifies the saved type. If no suitable type is available,
+it stops before creating or reclassifying the issue and reports the limitation.
+
 A maintainer can ask the bot to create an issue, update its text or labels, or
 add a comment. The conversation starts `tasks/github.ts` as a Runling child task
 through `githubWork`. The worker uses the same model and reasoning effort as
@@ -71,10 +94,23 @@ the conversation. It receives the original request and context from the
 conversation, uses one `gh` tool, and returns its result to the conversation.
 The conversation posts the reply.
 
+For background work, the supervisor acknowledges the accepted request once,
+then sends the result when it arrives. Delegation context preserves the
+requested scope and distinguishes reported behavior from observed evidence.
+An issue that was not reproduced says so. Closing an issue does not imply
+adding a comment; withdrawn reports close as not planned. The worker reads
+back changes to verify them.
+
+The existing delegation gate logs allowed or denied decisions with a fixed
+reason and the current message ID. Unknown request IDs appear as `not-current`;
+model-supplied IDs, message bodies, and author details are not copied into
+these decision entries. The entries appear in the Runling journal with the
+other activity of the conversation.
+
 When a request does not identify work to do, the worker asks for clarification
 before using tools. For a clear request, it can read GitHub to resolve details.
 The CLI runs the agent task directly and shows one GitHub worker. Command steps
-show names and numeric issue or PR targets, such as `gh issue edit #12`;
+show names and numeric issue or PR targets, such as `Executing: gh issue edit #12`;
 titles, bodies, search terms, and API paths are omitted from those labels.
 
 Each message can start one worker, and one GitHub worker can run at a time in
@@ -105,7 +141,7 @@ conversation delegates work; a local invocation uses the operator's authority.
 
 ## Investigations
 
-`investigate` gives a question to an investigator agent, which reads the
+For a current maintainer request, `investigate` gives a question to an investigator agent, which reads the
 source checkout, its documentation, and its Git history, and answers with file
 references. At most three investigations run at the same time in one thread.
 The investigator can only read. The bot checks each `path:line` reference
@@ -140,6 +176,7 @@ where that account can.
 | `CHATTO_AGENT_THINKING`                                                                         | Reasoning effort: `off`, `minimal`, `low`, `medium` (default), `high`, `xhigh`, or `max`.                      |
 | `CHATTO_ALLOWED_USER_ID`                                                                        | Answer only this Chatto user ID. Use it for tests on a shared server.                                          |
 | `CHATTO_MAINTAINER_USER_IDS`                                                                    | Chatto user IDs of maintainers, separated by commas.                                                           |
+| `CHATTO_MAINTAINER_NAME` | Optional Chatto user login to mention for maintainer input. Grants no permissions. |
 | `CHATTO_GITHUB_APP_CLIENT_ID`, `CHATTO_GITHUB_APP_PRIVATE_KEY_FILE`, `CHATTO_GITHUB_REPOSITORY` | GitHub access through a GitHub App, for one repository (`owner/repo`).                                         |
 | `CHATTO_TAVILY_API_KEY`                                                                         | Enables `webSearch`.                                                                                           |
 | `CHATTO_SOURCE_DIRECTORY`                                                                       | A checkout of the Chatto source. Enables `investigate`. Keep it current yourself, for example with `git pull`. |
@@ -192,6 +229,7 @@ From `packages/chattobot/`, run:
 ```sh
 pnpm eval:github
 pnpm eval:github ambiguous-moo
+pnpm eval:github language-report-withdrawal
 ```
 
 These opt-in evaluations use `CHATTO_AGENT_MODEL` and
@@ -203,10 +241,18 @@ and do not load GitHub App credentials.
 Worker cases cover ambiguous input, explicit searches, issue creation and
 edits, instructions hidden in issue content, and a lost response after a
 successful write. Supervisor cases cover maintainer and member requests,
-including both authors in one turn and an unrelated maintainer message.
+including both authors in one turn and an unrelated maintainer message. They
+also cover investigation authorization, report intake, and acknowledgments
+that must not claim completed work.
 They check commands, changed issue state, and delegation targets. They do not
-require exact reply wording. The supervisor cases use a fake child worker;
+require exact reply wording. The supervisor cases use fake GitHub workers and investigators;
 the worker cases use the real worker agent.
+
+The language-report-withdrawal case uses both the real supervisor and real
+worker agents. It replays a language complaint, an explicit request to file
+it, and a request to close it as a joke. It checks acknowledgment counts,
+uncertainty in the report, closure without an extra comment, the closure
+reason, and reads that verify changes.
 
 Each case runs once, with a two-minute deadline and a limit of 16 fixture
 commands. A failed assertion or an unsupported fixture command fails the run.

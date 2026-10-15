@@ -1,6 +1,6 @@
 /** Delegate a current maintainer message to the GitHub worker as a background job. Identity
  * comes from host-owned messages, not from the supervisor's arguments or thread text. */
-import { defineAgentExtension, Type, type TaskContext } from 'runling';
+import { defineAgentExtension, log, Type, type TaskContext } from 'runling';
 import { replyTo, type IncomingMessage } from '../chatto/message.ts';
 import type { Jobs } from '../harness/jobs.ts';
 import type { createGitHubWorker } from '../tasks/github.ts';
@@ -31,14 +31,25 @@ export function githubWorkExtension(
       }),
       async execute(_id, { requestId, context }) {
         const request = messages().find((message) => message.id === requestId);
+        // Only a host-owned message ID enters the log; unknown model input can contain secrets.
+        const deny = (reason: string, error: string): never => {
+          log.info(
+            `GitHub authorization denied: request=${request?.id ?? 'not-current'}; reason=${reason}`
+          );
+          throw new Error(error);
+        };
         if (!request || !maintainers.has(request.authorId))
-          throw new Error('GitHub work requires a message from a maintainer in this turn.');
+          return deny(
+            request ? 'not-maintainer' : 'no-current-message',
+            'GitHub work requires a message from a maintainer in this turn.'
+          );
         ctx.signal.throwIfAborted();
         if (started.has(requestId))
-          throw new Error('GitHub work already started for this message.');
+          deny('already-started', 'GitHub work already started for this message.');
         if (jobs.list().some((job) => job.kind === 'github'))
-          throw new Error('A GitHub worker is still running. Wait for its result.');
+          deny('worker-running', 'A GitHub worker is still running. Wait for its result.');
         started.add(requestId);
+        log.info(`GitHub authorization allowed: request=${request.id}; reason=current-maintainer`);
         const job = jobs.start(
           { kind: 'github', label: 'GitHub work', replyTo: replyTo(request) },
           () => worker(ctx, { request: request.body, context })
@@ -47,7 +58,7 @@ export function githubWorkExtension(
           content: [
             {
               type: 'text',
-              text: `GitHub worker ${job.id} started. Its result reaches you in a later turn. Tell the maintainer briefly, then keep answering messages.`
+              text: `GitHub worker ${job.id} started. The requested change has not been confirmed. Its result reaches you in a later turn. Acknowledge once with ongoing language such as "I'm filing the report", never "I've filed it". Do not claim completion or invent an issue link. Omit worker or job details, then end this turn.`
             }
           ],
           details: {}

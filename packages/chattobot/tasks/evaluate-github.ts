@@ -9,6 +9,7 @@ import { createGitHubWorker } from './github.ts';
 import { ConfigurationError, setting, thinkingSetting } from '../settings.ts';
 import { FakeGitHub } from '../evaluations/fake-github.ts';
 import { supervisorCases, workerCases, type SupervisorCase } from '../evaluations/github-cases.ts';
+import { languageReport } from '../evaluations/language-report.ts';
 
 interface CaseResult {
   name: string;
@@ -29,6 +30,8 @@ async function supervisor(
   const github = new FakeGitHub();
   const requests: string[] = [];
   const attempts: { requestId?: unknown; context?: unknown }[] = [];
+  const investigationAttempts: { requestId?: unknown }[] = [];
+  const investigations: string[] = [];
   const posts: string[] = [];
   const warmed = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
@@ -37,7 +40,28 @@ async function supervisor(
       model,
       thinkingLevel: thinkingSetting('CHATTO_AGENT_THINKING', 'medium'),
       maintainers: new Set(['maintainer']),
-      github: github.settings()
+      maintainerLogin: scenario.maintainerLogin,
+      github: github.settings(),
+      investigation: {
+        directory: '/evaluation/fixture',
+        investigator: () =>
+          task(
+            {
+              name: 'Fixture investigation',
+              input: Type.Any(),
+              output: Type.Any(),
+              emits: Type.String()
+            },
+            async (_ctx, input) => {
+              investigations.push(input.question);
+              return {
+                session: input.id ?? input.session,
+                answer: 'Fixture investigation found no confirmed cause.',
+                citations: []
+              };
+            }
+          ) as never
+      }
     },
     {
       post: async (_destination, body) => {
@@ -55,10 +79,12 @@ async function supervisor(
       const bot = await createAgentSession({
         ...options,
         // Other production tools cannot contact their real services during this evaluation.
-        tools: ['gh', 'githubWork'],
+        tools: ['gh', 'githubWork', 'investigate'],
         onEvent(event) {
           if (event.type === 'tool_execution_start' && event.toolName === 'githubWork')
             attempts.push(event.args as { requestId?: unknown; context?: unknown });
+          if (event.type === 'tool_execution_start' && event.toolName === 'investigate')
+            investigationAttempts.push(event.args as { requestId?: unknown });
         }
       });
       const run = bot.runOutcome.bind(bot);
@@ -108,7 +134,14 @@ async function supervisor(
   invocation.closeInput();
   release.resolve();
   await invocation.result;
-  return { requests, attempts, posts: posts.slice(1), commands: github.commands };
+  return {
+    requests,
+    attempts,
+    investigations,
+    investigationAttempts,
+    posts: posts.slice(1),
+    commands: github.commands
+  };
 }
 
 export default task(
@@ -121,9 +154,10 @@ export default task(
     const model = setting('CHATTO_AGENT_MODEL');
     if (!model) throw new ConfigurationError('Set CHATTO_AGENT_MODEL for evaluations');
     const selected = (name: string) => !filter || filter === 'all' || name === filter;
-    if (![...workerCases, ...supervisorCases].some((scenario) => selected(scenario.name)))
+    const cases = [...workerCases, ...supervisorCases, { name: 'language-report-withdrawal' }];
+    if (!cases.some((scenario) => selected(scenario.name)))
       throw new Error(
-        `Unknown evaluation case. Choose: ${[...workerCases, ...supervisorCases].map((scenario) => scenario.name).join(', ')}`
+        `Unknown evaluation case. Choose: ${cases.map((scenario) => scenario.name).join(', ')}`
       );
     const directory = resolve('.runling/evaluations', `github-${crypto.randomUUID()}`);
     await mkdir(directory, { recursive: true, mode: 0o700 });
@@ -178,7 +212,10 @@ export default task(
           thinkingLevel: thinkingSetting('CHATTO_AGENT_THINKING', 'medium'),
           sessions: resolve(directory, 'sessions')
         });
-        record.answer = await worker(context, { request: scenario.request, context: '' });
+        record.answer = await worker(context, {
+          request: scenario.request,
+          context: scenario.context ?? ''
+        });
         assert(
           github.commands.every((command) => command.supported),
           'Fixture encountered an unsupported command; inspect the report'
@@ -204,11 +241,31 @@ export default task(
           'Supervisor attempted to delegate the wrong message'
         );
         assert(result.posts.length > 0, 'Supervisor did not answer');
+        assert.deepEqual(
+          result.investigationAttempts.map((attempt) => attempt.requestId),
+          scenario.expectedInvestigation ? [scenario.expectedInvestigation] : [],
+          'Supervisor attempted to investigate without the correct maintainer request'
+        );
+        assert.equal(result.investigations.length, scenario.expectedInvestigation ? 1 : 0);
+        if (expected || scenario.expectedInvestigation) {
+          assert.equal(result.posts.length, 2, 'Expected one acknowledgment and one result');
+          assert.doesNotMatch(
+            result.posts[0]!,
+            /\b(filed|created|completed|finished|done)\b/i,
+            'Acknowledgment must not claim completed work'
+          );
+        }
         assert(
           result.commands.every((command) => command.access === 'read'),
           'Supervisor attempted a direct write'
         );
+        scenario.check?.(result.posts, result.commands);
       });
+    }
+    if (selected('language-report-withdrawal')) {
+      await evaluate('language-report-withdrawal', (context, evidence) =>
+        languageReport(context, model, directory, evidence)
+      );
     }
     const passed = results.filter((result) => result.passed).length;
     const report = resolve(directory, 'report.json');

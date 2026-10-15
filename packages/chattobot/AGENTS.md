@@ -26,6 +26,12 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
 - Do not add host code that corrects or replaces the model's replies. If the
   model behaves badly, change the prompt, the tools, or the model, and add a
   test or an evaluation that shows the problem.
+- Background work gets one acknowledgment after delegation succeeds and one
+  result reply. Delegation must preserve requested scope and uncertainty.
+  Keep these behaviors in agent instructions and model evaluations.
+- GitHub issue titles are plain descriptions without prefixes. Classify issues
+  with GitHub's native issue type field, not labels or Conventional Commit titles.
+  Discover available repository types and verify the saved type after writing.
 
 ## Host text
 
@@ -41,14 +47,20 @@ Do not add slash commands. People talk to the bot in plain language.
 
 ## Permissions
 
-GitHub work from Chatto has a maintainer gate before delegation:
+GitHub work and source investigations from Chatto have a maintainer gate before delegation:
 
-- Read tools are available to everyone who can address the bot. Their results
-  stay in the thread.
+- Direct read tools are available to everyone who can address the bot. Their
+  results stay in the thread. Starting or resuming a source investigation requires
+  a current maintainer message, even though the investigator only reads.
 - The conversation's `gh` tool can only read. Its `githubWork` tool starts the
   agent-driven task in `tasks/github.ts` for a maintainer request. The host checks
   the referenced message in the current turn against `CHATTO_MAINTAINER_USER_IDS`.
   Never accept an author or role supplied by the model as proof of permission.
+- Apply the same host-owned current-message check to `investigate`, including
+  resumes. Without configured maintainers, offer neither delegation tool.
+- `CHATTO_MAINTAINER_NAME` supplies a contact for an in-thread mention when
+  maintainer input is needed. Keep the handoff in the agent's normal reply.
+  Mentioning that login does not grant authorization or replace the user-ID gate.
 - The worker task also runs from the CLI with the local operator's configured
   GitHub App credentials. It accepts request text, not a Chatto identity. Keep
   the maintainer check in the Chatto delegation tool.
@@ -58,6 +70,9 @@ GitHub work from Chatto has a maintainer gate before delegation:
 - This first gate checks identity, not whether each command matches the request.
   The agents interpret the request. There is no classifier or per-action approval
   yet. Do not describe this as command-level authorization.
+- Keep authorization decisions in ordinary Runling log entries at the existing
+  gate. Use fixed reasons and host-owned message IDs; omit unknown model input,
+  message bodies, and author details. Do not add a separate approval subsystem.
 - A tool that sends requests to other systems must not let the model choose
   where data goes. For example, `browsePage` follows only links from searches
   and people.

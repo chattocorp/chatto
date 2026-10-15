@@ -10,7 +10,11 @@ export interface Issue {
   title: string;
   body: string;
   labels: string[];
+  /** GitHub's native issue type, independent of labels. */
+  issueType?: { id: number; name: string };
   state: 'OPEN' | 'CLOSED';
+  stateReason?: 'completed' | 'not planned';
+  comments?: string[];
   url: string;
 }
 
@@ -53,7 +57,14 @@ export class FakeGitHub {
   readonly issues: Issue[];
   private lostResponse: boolean;
 
-  constructor(issues: Issue[] = [], loseCreateResponse = false) {
+  constructor(
+    issues: Issue[] = [],
+    loseCreateResponse = false,
+    readonly issueTypes = ['Bug', 'Feature', 'Enhancement'].map((name, index) => ({
+      id: index + 1,
+      name
+    }))
+  ) {
     this.issues = structuredClone(issues);
     this.lostResponse = loseCreateResponse;
   }
@@ -73,9 +84,30 @@ export class FakeGitHub {
     try {
       const { operation, target, fields } = this.parse(args);
       command.operation = operation;
-      if (!['list', 'labels', 'view', 'create', 'edit', 'close'].includes(operation))
+      if (
+        ![
+          'list',
+          'labels',
+          'types',
+          'repository',
+          'view',
+          'create',
+          'edit',
+          'close',
+          'comment'
+        ].includes(operation)
+      )
         throw new Error('Unsupported fixture command');
       command.supported = true;
+      if (operation === 'repository')
+        return { ok: true, output: JSON.stringify({ nameWithOwner: REPOSITORY }) };
+      if (operation === 'types') return { ok: true, output: JSON.stringify(this.issueTypes) };
+      const issueType =
+        fields.type === undefined
+          ? undefined
+          : this.issueTypes.find((type) => type.name === fields.type);
+      if (fields.type !== undefined && !issueType)
+        return { ok: false, output: 'Issue type not found' };
       if (operation === 'labels')
         return {
           ok: true,
@@ -95,6 +127,7 @@ export class FakeGitHub {
           title: fields.title,
           body: fields.body,
           labels: fields.addLabel?.split(',') ?? [],
+          ...(issueType ? { issueType } : {}),
           state: 'OPEN',
           url: issueUrl(number)
         };
@@ -110,9 +143,22 @@ export class FakeGitHub {
         return { ok: true, output: created.url };
       }
       if (!issue) return { ok: false, output: 'Issue not found' };
-      if (operation === 'close') issue.state = 'CLOSED';
+      if (operation === 'comment') {
+        if (!fields.body) throw new Error('Comment needs a body');
+        (issue.comments ??= []).push(fields.body);
+        return { ok: true, output: `${issue.url}#issuecomment-${issue.comments.length}` };
+      }
+      if (operation === 'close') {
+        const reason = fields.reason ?? 'completed';
+        if (reason !== 'completed' && reason !== 'not planned')
+          throw new Error('Unsupported closure reason');
+        issue.state = 'CLOSED';
+        issue.stateReason = reason;
+        if (fields.comment) (issue.comments ??= []).push(fields.comment);
+      }
       if (fields.title !== undefined) issue.title = fields.title;
       if (fields.body !== undefined) issue.body = fields.body;
+      if (issueType) issue.issueType = issueType;
       if (fields.addLabel)
         issue.labels = [...new Set([...issue.labels, ...fields.addLabel.split(',')])];
       return { ok: true, output: issue.url };
@@ -149,11 +195,19 @@ export class FakeGitHub {
   private parse(args: readonly string[]): {
     operation: string;
     target?: number;
-    fields: { title?: string; body?: string; addLabel?: string };
+    fields: {
+      title?: string;
+      body?: string;
+      type?: string;
+      addLabel?: string;
+      reason?: string;
+      comment?: string;
+    };
   } {
     if (args[0] === 'issue') {
       const allowed = new Set([
         '--title',
+        '--type',
         '-t',
         '--body',
         '-b',
@@ -170,7 +224,10 @@ export class FakeGitHub {
         '--limit',
         '-L',
         '--comments',
-        '--reason'
+        '--reason',
+        '-r',
+        '--comment',
+        '-c'
       ]);
       for (let i = 2; i < args.length; i++) {
         const arg = args[i]!;
@@ -185,18 +242,29 @@ export class FakeGitHub {
         target: target === undefined ? undefined : Number(target.match(/(?:^|\/)(\d+)$/)?.[1]),
         fields: {
           title: flag(args, '--title', '-t'),
+          type: flag(args, '--type'),
           body: flag(args, '--body', '-b'),
+          reason: flag(args, '--reason', '-r'),
+          comment: flag(args, '--comment', '-c'),
           addLabel: args[1] === 'create' ? flag(args, '--label', '-l') : flag(args, '--add-label')
         }
       };
     }
-    if (args[0] === 'search' && args[1] === 'issues') return { operation: 'list', fields: {} };
+    if (args[0] === 'repo' && args[1] === 'view' && flag(args, '--json') === 'nameWithOwner')
+      return { operation: 'repository', fields: {} };
+    if (args[0] === 'search' && args[1] === 'issues') {
+      if (flag(args, '--search') !== undefined)
+        throw new Error('gh search issues takes a positional query, not --search');
+      return { operation: 'list', fields: {} };
+    }
     if (args[0] === 'label' && args[1] === 'list') return { operation: 'labels', fields: {} };
     if (args[0] !== 'api') throw new Error('Unsupported fixture command');
     const endpoint = positionals(args.slice(1))[0]
       ?.replace(/^\//, '')
       .replace('repos/{owner}/{repo}', `repos/${REPOSITORY}`)
       .split('?')[0];
+    if (endpoint === `repos/${REPOSITORY}/issue-types` && classifyGh(args).access === 'read')
+      return { operation: 'types', fields: {} };
     const match = endpoint?.match(/^repos\/evaluation\/fixture\/issues(?:\/(\d+))?$/);
     if (!match) throw new Error('Unsupported fixture API endpoint');
     const fields: Record<string, string> = {};
@@ -211,7 +279,11 @@ export class FakeGitHub {
         if (index > 0) fields[field.slice(0, index)] = field.slice(index + 1);
       }
     }
-    if (Object.keys(fields).some((key) => !['title', 'body', 'state'].includes(key)))
+    if (
+      Object.keys(fields).some(
+        (key) => !['title', 'body', 'type', 'state', 'state_reason'].includes(key)
+      )
+    )
       throw new Error('Unsupported fixture API field');
     const method = flag(args, '--method', '-X') ?? (Object.keys(fields).length ? 'POST' : 'GET');
     const target = match[1] === undefined ? undefined : Number(match[1]);
@@ -227,6 +299,10 @@ export class FakeGitHub {
               ? 'close'
               : 'edit'
             : '';
-    return { operation, target, fields };
+    return {
+      operation,
+      target,
+      fields: { ...fields, reason: fields.state_reason?.replace('_', ' ') }
+    };
   }
 }

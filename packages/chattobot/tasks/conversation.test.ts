@@ -8,6 +8,7 @@ import {
   type AgentExtensionAPI,
   type AgentOptions,
   type AgentResult,
+  type RunlingEvent,
   type RunlingAgent
 } from 'runling';
 import type { Destination } from '@chatto/client';
@@ -49,6 +50,7 @@ function harness({
   answer = (prompt: string) => `Reply ${prompt.length}`,
   thread = [] as ThreadMessage[][],
   maintainers = [] as string[],
+  maintainerLogin,
   web,
   github,
   investigation,
@@ -62,6 +64,7 @@ function harness({
   answer?: (prompt: string) => string | string[] | AgentResult;
   thread?: ThreadMessage[][];
   maintainers?: string[];
+  maintainerLogin?: string;
   turn?: (prompt: string) => Promise<void>;
   createWorker?: typeof createGitHubWorker;
 } = {}) {
@@ -122,6 +125,7 @@ function harness({
     {
       model: 'test/model',
       maintainers: new Set(maintainers),
+      maintainerLogin,
       ...(web ? { web } : {}),
       ...(github ? { github } : {}),
       ...(investigation ? { investigation } : {})
@@ -131,8 +135,11 @@ function harness({
     createWorker
   );
   const messages = createChannel<unknown>();
-  const start = (first: IncomingMessage) => runWorkflow(conversation, { input: first, messages });
+  const events: RunlingEvent[] = [];
+  const start = (first: IncomingMessage) =>
+    runWorkflow(conversation, { input: first, messages, onEvent: (event) => events.push(event) });
   return {
+    events,
     start,
     messages,
     prompts,
@@ -227,6 +234,17 @@ test('marks messages from maintainers', async () => {
   bot.messages.close();
   await run;
   expect(bot.prompts[0]).toContain('from user maintainer, a maintainer:');
+});
+
+test('offers a configured maintainer contact only when a restricted capability is available', async () => {
+  for (const maintainers of [[], ['maintainer']]) {
+    const bot = harness({ maintainers, maintainerLogin: 'reviewer', github });
+    const run = bot.start(message('one'));
+    await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+    bot.messages.close();
+    await run;
+    expect(bot.options().systemPrompt?.includes('@reviewer')).toBe(maintainers.length > 0);
+  }
 });
 
 test('posts a short notice when a turn fails and keeps the conversation', async () => {
@@ -337,6 +355,7 @@ test('the page reader follows only links from people and searches', async () => 
 test('offers investigate with a scope for the thread when investigation is set up', async () => {
   const scopes: string[] = [];
   const bot = harness({
+    maintainers: ['maintainer'],
     investigation: {
       directory: '/repo',
       investigator: (scope) => {
@@ -351,6 +370,64 @@ test('offers investigate with a scope for the thread when investigation is set u
   expect(await run).toMatchObject({ ok: true });
   expect(bot.options().tools).toContain('investigate');
   expect(scopes).toEqual([expect.stringMatching(/^[0-9a-f]{32}$/)]);
+});
+
+test('does not offer investigations without configured maintainers', async () => {
+  const investigator = vi.fn();
+  const bot = harness({ investigation: { directory: '/repo', investigator } });
+  const run = bot.start(message('one'));
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+  bot.messages.close();
+  await run;
+  expect(bot.options().tools).not.toContain('investigate');
+  expect(investigator).not.toHaveBeenCalled();
+});
+
+test('investigation authorization uses only the current turn, including resumes', async () => {
+  const start = vi.fn();
+  const investigator = task(
+    { name: 'Investigate', input: Type.Any(), output: Type.Any() },
+    async () => {
+      start();
+      return { session: 's', answer: 'unexpected', citations: [] };
+    }
+  );
+  const bot: ReturnType<typeof harness> = harness({
+    maintainers: ['maintainer'],
+    investigation: { directory: '/repo', investigator: () => investigator as never },
+    turn: async (prompt) => {
+      if (!prompt.includes('Message ID: two')) return;
+      for (const requestId of ['two', 'one', 'private-model-input@example.test'])
+        for (const resume of [undefined, 'old-session'])
+          await expect(
+            bot.tools.get('investigate')!.execute('1', {
+              requestId,
+              question: 'Investigate',
+              resume,
+              authorId: 'maintainer'
+            })
+          ).rejects.toThrow('requires a message from a maintainer in this turn');
+    }
+  });
+  const run = bot.start(message('one', 'Hello', 'maintainer'));
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+  await bot.messages.send(message('two', 'Investigate please', 'member'));
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(2));
+  await expect(
+    bot.tools.get('investigate')!.execute('2', { requestId: 'one', question: 'Investigate' })
+  ).rejects.toThrow('requires a message from a maintainer in this turn');
+  bot.messages.close();
+  await run;
+  expect(start).not.toHaveBeenCalled();
+  const decisions = bot.events.flatMap((event) =>
+    event.type === 'log' && event.message.startsWith('Investigation authorization')
+      ? [event.message]
+      : []
+  );
+  expect(decisions).toContain(
+    'Investigation authorization denied: request=two; reason=not-maintainer'
+  );
+  expect(decisions.join('\n')).not.toContain('private-model-input');
 });
 
 test('posts each message of a turn in order, such as a note before a long tool call', async () => {
@@ -379,10 +456,13 @@ test('runs investigations in the background and stays available while they run',
     }
   );
   const bot: ReturnType<typeof harness> = harness({
+    maintainers: ['maintainer'],
     investigation: { directory: '/repo', investigator: () => investigator as never },
     turn: async (prompt) => {
       if (prompt.includes('images are gone'))
-        await bot.tools.get('investigate')!.execute('1', { question: 'Why are images gone?' });
+        await bot.tools
+          .get('investigate')!
+          .execute('1', { requestId: 'one', question: 'Why are images gone?' });
     },
     answer: (prompt) =>
       prompt.includes('finished')
@@ -391,7 +471,7 @@ test('runs investigations in the background and stays available while they run',
           ? 'Still looking: it is reading src/a.ts.'
           : 'I started an investigation.'
   });
-  const run = bot.start(message('one', 'images are gone'));
+  const run = bot.start(message('one', 'images are gone', 'maintainer'));
   await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
   expect(bot.posts[0]!.body).toBe('I started an investigation.');
   // Progress is kept in batches about a second apart. It is not posted (#2787).
@@ -459,6 +539,12 @@ test('starts a GitHub worker for a maintainer and delivers its result while the 
   const run = bot.start(message('one', 'Please file it', 'maintainer'));
   await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
   expect(requests).toEqual(['Please file it']);
+  expect(bot.events).toContainEqual(
+    expect.objectContaining({
+      type: 'log',
+      message: 'GitHub authorization allowed: request=one; reason=current-maintainer'
+    })
+  );
   expect(bot.tools.has('createIssue')).toBe(false);
   expect(bot.tools.has('commentOnIssue')).toBe(false);
   await bot.messages.send(message('two', 'How is it going?', 'alice'));
@@ -487,11 +573,12 @@ test('rejects non-maintainers, forged identity, old maintainer messages, and cal
   );
   const bot: ReturnType<typeof harness> = harness({
     maintainers: ['maintainer'],
+    maintainerLogin: 'alice',
     github,
     createWorker: () => worker,
     turn: async (prompt) => {
       if (prompt.includes('Message ID: two')) {
-        for (const requestId of ['two', 'one', 'invented'])
+        for (const requestId of ['two', 'one', 'private-model-input@example.test'])
           await expect(
             bot.tools.get('githubWork')!.execute('1', {
               requestId,
@@ -512,6 +599,14 @@ test('rejects non-maintainers, forged identity, old maintainer messages, and cal
   bot.messages.close();
   expect(await run).toMatchObject({ ok: true });
   expect(startWorker).not.toHaveBeenCalled();
+  const decisions = bot.events.flatMap((event) =>
+    event.type === 'log' && event.message.startsWith('GitHub authorization') ? [event.message] : []
+  );
+  expect(decisions).toEqual([
+    'GitHub authorization denied: request=two; reason=not-maintainer',
+    'GitHub authorization denied: request=not-current; reason=no-current-message',
+    'GitHub authorization denied: request=not-current; reason=no-current-message'
+  ]);
 });
 
 test('does not offer a GitHub worker without configured maintainers', async () => {

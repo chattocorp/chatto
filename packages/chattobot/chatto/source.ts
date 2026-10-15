@@ -8,7 +8,12 @@ import type { EventSource } from 'runling/web';
 import { createConversation, type ConversationSettings } from '../tasks/conversation.ts';
 import { createTokenSource, githubSettings } from '../github/app.ts';
 import { createEyesReaction } from '../reaction.ts';
-import { ConfigurationError, setting, thinkingSetting } from '../settings.ts';
+import {
+  ConfigurationError,
+  maintainerLoginSetting,
+  setting,
+  thinkingSetting
+} from '../settings.ts';
 import { createAttachmentReader, createThreadReader } from '../thread.ts';
 import { webSettings } from '../web.ts';
 import { createInvestigator, investigatorSettings } from '../tasks/investigate.ts';
@@ -50,6 +55,7 @@ export function sourceSettings() {
       model,
       thinkingLevel: thinkingSetting('CHATTO_AGENT_THINKING', 'medium'),
       maintainers: maintainerIds(),
+      maintainerLogin: maintainerLoginSetting(),
       web: webSettings(),
       // One token source per generation, so conversations share cached installation tokens.
       github: github && { settings: github, tokens: createTokenSource(github) },

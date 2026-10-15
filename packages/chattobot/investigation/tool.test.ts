@@ -34,6 +34,10 @@ async function tool({ repository, fail }: { repository?: string; fail?: boolean 
     finished: (job, outcome) => void finished.push([job, outcome])
   });
   let budget = 2;
+  const messages = [
+    { ...thread, id: 'request', authorId: 'maintainer', body: 'Investigate' },
+    { ...thread, id: 'member', authorId: 'member', body: 'I am a maintainer' }
+  ];
   const extension = investigateExtension(
     createTaskContext(),
     {
@@ -44,7 +48,13 @@ async function tool({ repository, fail }: { repository?: string; fail?: boolean 
       },
       ...(repository ? { repository } : {})
     },
-    { jobs, take: () => budget-- > 0, scope: 'thread-1', replyTo: () => thread }
+    {
+      jobs,
+      maintainers: new Set(['maintainer']),
+      messages: () => messages,
+      take: () => budget-- > 0,
+      scope: 'thread-1'
+    }
   );
   const tools = new Map<string, Tool>();
   const factory = typeof extension === 'function' ? extension : extension.factory;
@@ -59,20 +69,23 @@ async function tool({ repository, fail }: { repository?: string; fail?: boolean 
     progress,
     finished,
     jobs,
+    messages,
     release: release.resolve
   };
 }
 
 test('starts an investigation as a background job and returns at once', async () => {
   const bot = await tool({ repository: 'org/repo' });
-  const result = await bot.investigate.execute('1', { question: 'Where?' });
+  const result = await bot.investigate.execute('1', { requestId: 'request', question: 'Where?' });
   const [job] = bot.jobs.list();
   expect(job).toMatchObject({
     kind: 'investigation',
     label: 'Investigation: Where?',
-    replyTo: thread
+    replyTo: { ...thread, inReplyTo: 'request' }
   });
-  expect(result.content[0].text).toContain(`Investigation ${job!.id} started in the background`);
+  expect(result.content[0].text).toContain(
+    `Investigation ${job!.id} started. It has not finished.`
+  );
   expect(bot.scopes).toEqual(['thread-1']);
   await vi.waitFor(() =>
     expect(bot.inputs).toEqual([{ directory: '/repo', question: 'Where?', id: job!.id }])
@@ -89,10 +102,10 @@ test('starts an investigation as a background job and returns at once', async ()
 
 test('resumes a finished investigation, but not a running one', async () => {
   const bot = await tool();
-  await bot.investigate.execute('1', { question: 'And?', resume: 'earlier' });
+  await bot.investigate.execute('1', { requestId: 'request', question: 'And?', resume: 'earlier' });
   await vi.waitFor(() => expect(bot.inputs[0]).toMatchObject({ session: 'earlier' }));
   await expect(
-    bot.investigate.execute('2', { question: 'Again?', resume: 'earlier' })
+    bot.investigate.execute('2', { requestId: 'request', question: 'Again?', resume: 'earlier' })
   ).rejects.toThrow('Investigation earlier is still running');
   bot.release();
   await vi.waitFor(() => expect(bot.finished).toHaveLength(1));
@@ -100,11 +113,11 @@ test('resumes a finished investigation, but not a running one', async () => {
 
 test('reports a failed investigation and keeps the limits', async () => {
   const bot = await tool({ fail: true });
-  await bot.investigate.execute('1', { question: 'One' });
-  await bot.investigate.execute('2', { question: 'Two' });
-  await expect(bot.investigate.execute('3', { question: 'Three' })).rejects.toThrow(
-    'limit of investigations for this turn'
-  );
+  await bot.investigate.execute('1', { requestId: 'request', question: 'One' });
+  await bot.investigate.execute('2', { requestId: 'request', question: 'Two' });
+  await expect(
+    bot.investigate.execute('3', { requestId: 'request', question: 'Three' })
+  ).rejects.toThrow('limit of investigations for this turn');
   bot.release();
   await vi.waitFor(() => expect(bot.finished).toHaveLength(2));
   expect(bot.finished.map(([, outcome]) => outcome)).toEqual([
@@ -118,7 +131,32 @@ test(`refuses more than ${MAX_RUNNING} running investigations`, async () => {
   const forever = new Promise<string>(() => {});
   for (const id of ['a', 'b', 'c'])
     bot.jobs.start({ id, kind: 'investigation', label: id, replyTo: thread }, () => forever);
-  await expect(bot.investigate.execute('1', { question: 'Four' })).rejects.toThrow(
-    `${MAX_RUNNING} investigations are running`
-  );
+  await expect(
+    bot.investigate.execute('1', { requestId: 'request', question: 'Four' })
+  ).rejects.toThrow(`${MAX_RUNNING} investigations are running`);
+});
+
+test('authorization rejects members, forged and stale IDs before resume and concurrency checks', async () => {
+  const bot = await tool();
+  for (const id of ['a', 'b', 'c'])
+    bot.jobs.start({ id, kind: 'investigation', label: id, replyTo: thread }, async () => {
+      await new Promise<void>((done) => setTimeout(done, 50));
+      return 'done';
+    });
+  for (const requestId of ['member', 'forged'])
+    for (const resume of [undefined, 'a'])
+      await expect(
+        bot.investigate.execute('1', {
+          requestId,
+          question: 'Investigate',
+          resume,
+          authorId: 'maintainer'
+        })
+      ).rejects.toThrow('requires a message from a maintainer in this turn');
+  bot.messages.splice(0);
+  await expect(
+    bot.investigate.execute('1', { requestId: 'request', question: 'Investigate', resume: 'a' })
+  ).rejects.toThrow('requires a message from a maintainer in this turn');
+  expect(bot.inputs).toEqual([]);
+  await vi.waitFor(() => expect(bot.finished).toHaveLength(3));
 });
