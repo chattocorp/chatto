@@ -32,6 +32,12 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
 - GitHub issue titles are plain descriptions without prefixes. Classify issues
   with GitHub's native issue type field, not labels or Conventional Commit titles.
   Discover available repository types and verify the saved type after writing.
+- Keep answers within Chatto and directly related work, for all users including
+  maintainers. Read stable or pre-release documentation first, cite supporting
+  pages, and keep version-specific claims separate. Web search and external page
+  reads are a last resort for gaps in the relevant documentation. Decline unrelated
+  work without tools; mentioning Chatto alone does not make a request related.
+  Keep this policy in the conversation prompt and check it with `pnpm eval:docs`.
 
 ## Host text
 

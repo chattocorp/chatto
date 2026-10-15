@@ -26,6 +26,34 @@ the bot also ends all conversations.
 
 ## Tools
 
+### Chatto questions
+
+Any user can ask about Chatto, including its setup, use, integrations, and
+troubleshooting. The conversation agent reads the relevant pages at
+[the stable documentation site](https://docs.chatto.run/) or
+[the pre-release documentation site](https://dev-docs.chatto.run/) first.
+It defaults to stable documentation, uses pre-release documentation for beta
+and development versions, and checks both for comparisons or gaps. Answers
+cite supporting pages and keep version-specific behavior separate.
+
+Deployment answers distinguish documented instructions from proposed adaptations.
+The bot asks about single-instance or high-availability goals when that choice
+changes the advice, and verifies undocumented platform-specific steps against
+official platform documentation before recommending commands or configuration.
+
+Web searches and external page reads are a last resort when the relevant
+documentation is missing, unavailable, or insufficient. The bot prefers official
+sources and reports gaps when it cannot find an answer. Search queries must
+not contain private conversation content, logs, credentials, or personal data.
+
+The bot declines unrelated requests without research, including requests that
+only mention Chatto or say the answer will be posted there. For mixed requests,
+it helps with the Chatto part. Brief greetings and social replies are allowed.
+These rules apply to maintainers too. They are model instructions, checked with
+behavioral evaluations, not a host-enforced topic classifier.
+
+### Available tools
+
 | Tool             | What it does                                                          |
 | ---------------- | --------------------------------------------------------------------- |
 | `fetchPage`      | Reads the Chatto documentation and the Awesome Chatto list.           |
@@ -221,6 +249,29 @@ Keep that directory private.
 
 - `mise check-chattobot` checks the types.
 - `mise test-chattobot` runs the tests.
+
+### Documentation model evaluations
+
+From `packages/chattobot/`, run:
+
+```sh
+pnpm eval:docs
+pnpm eval:docs web-last-resort
+```
+
+These opt-in evaluations use the configured model and reasoning effort. They
+contact the model provider and incur model costs. Chatto messages, documentation,
+and web results are synthetic; no documentation site, Tavily, Cloudflare, or
+Chatto server is contacted. Production tool schemas and descriptions are used
+with fixture executors.
+
+Cases cover stable and pre-release docs, version comparisons, web fallback,
+missing evidence, unrelated and mixed requests, and instructions hidden in
+reference content. Deployment cases check topology clarification and the limits
+of a documented example. They check tool calls, their order, citations, and reply
+content. Each case has a two-minute deadline. Reports are saved under
+`.runling/evaluations/`. A passing run is a behavioral sample, not proof that
+the model will always follow the topic restriction.
 
 ### GitHub model evaluations
 

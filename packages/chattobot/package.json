@@ -14,7 +14,8 @@
     "start": "pnpm run build:dependencies && runling serve",
     "check": "tsc --noEmit",
     "test": "vitest run",
-    "eval:github": "runling run tasks/evaluate-github.ts"
+    "eval:github": "runling run tasks/evaluate-github.ts",
+    "eval:docs": "runling run tasks/evaluate-docs.ts"
   },
   "dependencies": {
     "@chatto/client": "workspace:*",
