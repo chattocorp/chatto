@@ -518,7 +518,18 @@ describe('automatic links', () => {
 
 // Exercise the policy through real Markdown parsing, including explicit links.
 describe('message protocol allow list', () => {
+  it.each(['/', '/chat/chat.chatto.run/R8rLgzhPkYja7Gs', '/chat/example.com/room?q=1#message'])(
+    'keeps explicit links to %s',
+    async (href) => {
+      const source = `[link](${href})`;
+      expect(await renderMarkdown(source)).toContain(`href="${href}"`);
+      expect(renderInlineMarkdown(source)).toContain(`href="${href}"`);
+      expect(await renderMarkdown(href)).not.toContain('<a ');
+    }
+  );
+
   it.each([
+    '//example.com/path',
     'ftp://example.com/file',
     'ftps://example.com/file',
     'ssh://example.com',

@@ -187,6 +187,12 @@ describe('extractURLs', () => {
       ]);
     });
 
+    it('skips root-relative links and continues to the next web URL', () => {
+      expect(
+        extractURLs('[room](/chat/chat.chatto.run/R8rLgzhPkYja7Gs) https://example.com/docs')
+      ).toEqual(['https://example.com/docs']);
+    });
+
     it('preserves order around excluded markdown regions', () => {
       expect(
         extractURLs(

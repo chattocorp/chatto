@@ -696,6 +696,7 @@ describe('TipTapEditor Markdown autolinks', () => {
   it.each([
     'https://example.com/changed',
     'mailto:foo@bar.com',
+    '/chat/chat.chatto.run/R8rLgzhPkYja7Gs',
     'ftp://example.com/file',
     'javascript:alert(1)'
   ])('applies the protocol policy when its destination changes to %s', async (destination) => {
@@ -722,7 +723,7 @@ describe('TipTapEditor Markdown autolinks', () => {
 
     await vi.waitFor(() =>
       expect(updates.at(-1)).toBe(
-        /^(?:https:|mailto:)/.test(destination)
+        /^(?:https:|mailto:|\/)/.test(destination)
           ? `[https://example.com/original](${destination})`
           : 'https://example.com/original'
       )
