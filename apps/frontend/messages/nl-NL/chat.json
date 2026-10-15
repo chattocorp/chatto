@@ -60,7 +60,8 @@
       "version": "Versie {version}",
       "unreachable": "Server onbereikbaar",
       "connection_unavailable": "Verbinding niet beschikbaar",
-      "compatibility_server_too_old": "Deze server moet worden bijgewerkt naar Chatto 0.5 of nieuwer voordat deze app verbinding kan maken.",
+      "compatibility_server_too_old": "Deze server moet worden bijgewerkt naar Chatto {version} of nieuwer voordat deze app verbinding kan maken.",
+      "compatibility_limited": "Sommige functies werken mogelijk niet met deze serverversie. Werk de server bij voor volledige compatibiliteit.",
       "compatibility_unknown": "Deze app kan de compatibiliteit niet bepalen aan de hand van de serverversie.",
       "go_to_notifications_count": {
         "one": "Ga naar {count} melding",

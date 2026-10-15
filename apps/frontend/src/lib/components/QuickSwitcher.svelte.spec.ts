@@ -53,7 +53,7 @@ const mocks = vi.hoisted(() => ({
     serverInfo: {
       name: 'Workspace Server',
       iconUrl: null,
-      isSupportedVersion: true
+      canConnect: true
     },
     permissions: {
       canStartDMs: true
@@ -342,7 +342,7 @@ beforeEach(() => {
   mocks.store.messageSearch.privacyRevision = 0;
   mocks.store.messageSearch.subscribePrivacyInvalidation.mockClear();
   mocks.privacyListeners = [];
-  mocks.store.serverInfo.isSupportedVersion = true;
+  mocks.store.serverInfo.canConnect = true;
   mocks.servers.splice(1);
   mocks.query.mockClear();
 });

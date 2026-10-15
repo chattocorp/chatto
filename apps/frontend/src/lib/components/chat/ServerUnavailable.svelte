@@ -2,17 +2,17 @@
 @component
 
 Replaces the server chrome when this client cannot use the route's server: the
-server is too old, reports an unknown version, or is unreachable. It names the
+server is below the connection floor or is unreachable. It names the
 server, explains the problem, shows the server and required versions, and lets
 the user run discovery again. The server layout renders it only after
-discovery has a result; see `ServerInfoState.compatibilityProblem`.
+discovery has a result; see `ServerInfoState.blockingCompatibilityProblem`.
 -->
 <script lang="ts">
   import ServerStatusView from './ServerStatusView.svelte';
   import { m } from '$lib/i18n/messages';
   import type { ServerRegistration } from '@chatto/client/server/catalog';
   import {
-    MINIMUM_SUPPORTED_SERVER_VERSION,
+    MINIMUM_CONNECTABLE_SERVER_VERSION,
     type ServerCompatibilityProblem
   } from '@chatto/client/server/compatibility';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -88,7 +88,7 @@ discovery has a result; see `ServerInfoState.compatibilityProblem`.
         <dt class="text-end text-muted">{m('chat.server_unavailable.required_version')}</dt>
         <dd class="text-start font-medium" data-testid="server-unavailable-required-version">
           {m('chat.server_unavailable.required_version_value', {
-            version: MINIMUM_SUPPORTED_SERVER_VERSION
+            version: MINIMUM_CONNECTABLE_SERVER_VERSION
           })}
         </dd>
       </dl>

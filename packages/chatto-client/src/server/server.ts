@@ -610,12 +610,12 @@ export class Server extends ServerStateStore {
   }
 
   /**
-   * Whether discovery reported a server release without a supported realtime
-   * projection. The runtime then never opens the realtime stream.
+   * Whether discovery reported a remote release below the connection floor.
+   * Limited and unknown releases may attempt the realtime stream.
    */
   #releaseUnsupported(): boolean {
     const { serverInfo } = this;
-    return !serverInfo.loading && serverInfo.error === null && !serverInfo.isSupportedVersion;
+    return serverInfo.blockingCompatibilityProblem === 'server-too-old';
   }
 
   /**

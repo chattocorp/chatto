@@ -7,6 +7,7 @@
   import { serverRegistry, serverConnectionManager } from '$lib/client';
   import { notificationTarget } from '@chatto/client/server/notifications';
   import { serverDisplayName } from '@chatto/client/server/state';
+  import { MINIMUM_CONNECTABLE_SERVER_VERSION } from '@chatto/client/server/compatibility';
   import { serverHost } from '$lib/serverUrl';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
@@ -83,7 +84,7 @@
   const serverUnavailable = $derived(compatibility.status === 'unreachable');
 
   /**
-   * Why the client cannot use this server, or null. The gutter icon has two
+   * A connection problem or compatibility warning, or null. The gutter icon has two
    * states: normal, or a warning when this is set. Discovery and connection
    * attempts in progress are not problems; only a failed attempt is.
    */
@@ -94,7 +95,11 @@
         case 'unreachable':
           return m('chat.server_gutter.unreachable');
         case 'server-too-old':
-          return m('chat.server_gutter.compatibility_server_too_old');
+          if (compatibility.status === 'limited')
+            return m('chat.server_gutter.compatibility_limited');
+          return m('chat.server_gutter.compatibility_server_too_old', {
+            version: MINIMUM_CONNECTABLE_SERVER_VERSION
+          });
         case 'server-version-unknown':
           return m('chat.server_gutter.compatibility_unknown');
       }
@@ -114,7 +119,7 @@
   const serverActionsAvailable = $derived(
     stores.isAuthenticated &&
       privateDataLoaded &&
-      compatibility.status === 'supported' &&
+      stores.serverInfo.canConnect &&
       !serverConnection.showConnectionLostIcon
   );
   let contextMenu = $state<ContextMenuTriggerDetails | null>(null);

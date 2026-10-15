@@ -60,7 +60,8 @@
       "version": "Version {version}",
       "unreachable": "Serveur inaccessible",
       "connection_unavailable": "Connexion indisponible",
-      "compatibility_server_too_old": "Ce serveur doit être mis à niveau vers Chatto 0.5 ou une version plus récente avant que cette application puisse se connecter.",
+      "compatibility_server_too_old": "Ce serveur doit être mis à niveau vers Chatto {version} ou une version plus récente avant que cette application puisse se connecter.",
+      "compatibility_limited": "Certaines fonctions peuvent ne pas fonctionner avec cette version du serveur. Mettez le serveur à niveau pour une compatibilité complète.",
       "compatibility_unknown": "Cette application ne peut pas déterminer la compatibilité à partir de la version du serveur.",
       "go_to_notifications_count": {
         "one": "Accéder à {count} notification",

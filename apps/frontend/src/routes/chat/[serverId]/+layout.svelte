@@ -17,9 +17,11 @@
   // instance registered), the layout load redirects before this component mounts.
   const serverStore = $derived(serverId ? serverRegistry.tryGetStore(serverId) : undefined);
 
-  // An unsupported, unknown, or unreachable server never produces a server
-  // view. Explain the problem instead of the server chrome and its fog.
-  const compatibilityProblem = $derived(serverStore?.serverInfo.compatibilityProblem ?? null);
+  // Only discovery failures and releases below the connection floor block the
+  // route. Limited and unknown releases attempt the normal UI with a warning.
+  const compatibilityProblem = $derived(
+    serverStore?.serverInfo.blockingCompatibilityProblem ?? null
+  );
 
   // A known remote server without a usable session. Explain this instead of
   // server chrome that would stay empty.

@@ -479,7 +479,7 @@ export class QuickSwitcherModel {
 
     const searches = instances.map(async (instance): Promise<QuickSwitcherItem[]> => {
       const store = serverRegistry.tryGetStore(instance.id);
-      if (!store?.serverInfo.isSupportedVersion) return [];
+      if (!store?.serverInfo.canConnect) return [];
       await serverUi(store).messageSearch.ensureStatus();
       if (!serverUi(store).messageSearch.available) return [];
 

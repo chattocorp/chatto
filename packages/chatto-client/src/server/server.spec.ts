@@ -57,17 +57,21 @@ describe('connections in Node', () => {
     setRealtimeSocketFactoryForTests(null);
   });
 
-  it('runs without browser globals and resolves the viewer', async () => {
-    expect(typeof window).toBe('undefined');
-    expect(typeof localStorage).toBe('undefined');
-    connection = client.connect({ serverUrl: 'https://chat.example/some/path', apiKey: 'key' });
-    await expect(connection.ready()).resolves.toEqual({ viewerId: 'bot' });
-    expect(client.registry.getServer(connection.serverId)).toMatchObject({
-      url: 'https://chat.example',
-      token: 'key'
-    });
-    expect(connection.accountId).toBe('bot');
-  });
+  it.each(['0.5.0', '0.5.0-beta.9', '0.5.0-beta.15-custom', 'dev'])(
+    'connects and resolves the viewer on %s',
+    async (version) => {
+      mocks.discovery.mockResolvedValue({ ...profile, version });
+      expect(typeof window).toBe('undefined');
+      expect(typeof localStorage).toBe('undefined');
+      connection = client.connect({ serverUrl: 'https://chat.example/some/path', apiKey: 'key' });
+      await expect(connection.ready()).resolves.toEqual({ viewerId: 'bot' });
+      expect(client.registry.getServer(connection.serverId)).toMatchObject({
+        url: 'https://chat.example',
+        token: 'key'
+      });
+      expect(connection.accountId).toBe('bot');
+    }
+  );
 
   it('never renews the fixed token and rejects when the server refuses it', async () => {
     mocks.viewer.mockImplementation(async (config) => {
