@@ -154,6 +154,7 @@ Request for a page of followed threads for the current user.
 | `include_direct_message_threads` | `bool` | Include followed direct-message threads. Defaults to false so older clients retain the channel-only result shape. |
 | `unread_only` | `bool` | Return only threads with replies that the viewer has not read. The page total then counts only these threads. Older servers ignore this field and return all followed threads. |
 | `root_author_filter` | [`ThreadRootAuthorFilter`](/reference/connectrpc-api/types/#chatto-api-v1-ThreadRootAuthorFilter) | Filter root authors before pagination and total counts. Threads whose root author is unavailable are omitted when a filter is selected. |
+| `order` | [`ThreadOrder`](/reference/connectrpc-api/types/#chatto-api-v1-ThreadOrder) | Sort before pagination. Older servers ignore this field and use activity order. |
 
 
 <a id="chatto-api-v1-ListFollowedThreadsResponse"></a>
@@ -164,7 +165,7 @@ Response containing one followed-thread page.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `threads` | repeated [`FollowedThread`](/reference/connectrpc-api/types/#chatto-api-v1-FollowedThread) | Followed threads in newest-activity-first order. |
+| `threads` | repeated [`FollowedThread`](/reference/connectrpc-api/types/#chatto-api-v1-FollowedThread) | Followed threads in the requested order; newest activity first by default. |
 | `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Hot-path related entities needed to render this feed page without per-thread hydration. |
 | `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
 

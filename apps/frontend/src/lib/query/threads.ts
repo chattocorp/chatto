@@ -40,12 +40,19 @@ export const threadQueryKeys = {
   followed(
     serverId: string,
     connection: ThreadQueryConnection,
-    filter: { query?: string; unreadOnly?: boolean; rootAuthorFilter?: ThreadRootAuthorFilter } = {}
+    filter: {
+      query?: string;
+      unreadOnly?: boolean;
+      rootAuthorFilter?: ThreadRootAuthorFilter;
+      order?: 'activity' | 'created';
+    } = {}
   ) {
     const root = [...threadRoot(serverId, connection), 'followed'] as const;
-    const base = filter.rootAuthorFilter
+    const authorBase = filter.rootAuthorFilter
       ? ([...root, 'root-author', filter.rootAuthorFilter] as const)
       : root;
+    const base =
+      filter.order === 'created' ? ([...authorBase, 'order', 'created'] as const) : authorBase;
     if (filter.query) return [...base, 'search', filter.query] as const;
     if (filter.unreadOnly) return [...base, 'unread'] as const;
     return base;

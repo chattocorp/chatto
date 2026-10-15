@@ -90,12 +90,14 @@
       "body": "Meld je aan om berichten op deze server te lezen en te versturen."
     },
     "threads": {
+      "sort_label": "Threads sorteren",
+      "sort_activity": "Activiteit",
+      "sort_created": "Leeftijd",
       "tab_started": "Van mij",
       "tab_followed": "Gevolgd",
       "tab_label": "Threadweergave",
       "empty_mine_title": "Geen door jou gestarte threads",
       "empty_mine_body": "Threads die je start en volgt, verschijnen hier.",
-      "empty_followed_body": "Threads van anderen die je volgt, verschijnen hier.",
       "title": "Discussies",
       "subtitle": "Nieuwe activiteit in je discussies",
       "filter_label": "Discussies filteren",

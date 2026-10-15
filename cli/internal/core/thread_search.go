@@ -77,9 +77,9 @@ func searchResultRoot(result MessageSearchResult) string {
 // SearchThreadGroups resolves groups before pagination. The first current hit
 // in provider order represents its thread; resolved roots are excluded on the
 // next request so a large thread does not require reading all matching replies.
-// Totals and activity order require visiting all matching groups. Work has one
+// Totals and thread-date order require visiting all matching groups. Work has one
 // deadline, including stale-hit walks. Cursors do not pin an index snapshot.
-func (s *MessageSearchReadModel) SearchThreadGroups(ctx context.Context, actorID string, limit, offset int, scope *MessageSearchScope, normalized *searchv1.QueryRequest, followedOnly, activityOrder bool, query ThreadSearchQuery) (*ThreadSearchPage, error) {
+func (s *MessageSearchReadModel) SearchThreadGroups(ctx context.Context, actorID string, limit, offset int, scope *MessageSearchScope, normalized *searchv1.QueryRequest, followedOnly bool, threadOrder ThreadOrder, query ThreadSearchQuery) (*ThreadSearchPage, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	request := proto.Clone(normalized).(*searchv1.QueryRequest)
@@ -186,27 +186,27 @@ func (s *MessageSearchReadModel) SearchThreadGroups(ctx context.Context, actorID
 		}
 		metadata := s.rooms.threadMetadata(root)
 		var rootCreatedAt *time.Time
-		if metadata.LastReplyAt == nil {
-			// Activity ordering needs a time, so a thread without replies and
-			// without a visible root is not a result.
+		if threadOrder == ThreadOrderCreated || metadata.LastReplyAt == nil {
+			// Creation order needs the root date even when a later reply exists.
+			// A thread without replies or a visible root is not a result.
 			rootEvent, err := s.timeline.roomEvent(ctx, match.Kind, room, root)
 			if err != nil {
 				return nil, err
 			}
-			if rootEvent == nil {
+			if rootEvent == nil && metadata.LastReplyAt == nil {
 				continue
 			}
-			at := rootEvent.GetCreatedAt().AsTime()
-			rootCreatedAt = &at
+			if rootEvent != nil && rootEvent.GetCreatedAt() != nil {
+				at := rootEvent.GetCreatedAt().AsTime()
+				rootCreatedAt = &at
+			}
 		}
 		row := newFollowedThread(match.Kind, room, root, metadata, rootCreatedAt)
 		threads = append(threads, ThreadSearchResult{Metadata: row, Match: match, Following: following})
 	}
 	slices.SortFunc(threads, func(a, b ThreadSearchResult) int {
-		if activityOrder {
-			if cmp := b.Metadata.ActivityAt.Compare(*a.Metadata.ActivityAt); cmp != 0 {
-				return cmp
-			}
+		if threadOrder != ThreadOrderDefault {
+			return compareThreadDates(a.Metadata, b.Metadata, threadOrder)
 		} else {
 			if normalized.Order == searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE {
 				if a.Match.Score > b.Match.Score {

@@ -90,12 +90,14 @@
       "body": "登入後即可在此伺服器上閱讀和傳送訊息。"
     },
     "threads": {
+      "sort_label": "討論串排序",
+      "sort_activity": "活動",
+      "sort_created": "建立時間",
       "tab_started": "我的",
       "tab_followed": "已追蹤",
       "tab_label": "討論串檢視",
       "empty_mine_title": "你尚未發起討論串",
       "empty_mine_body": "你發起並追蹤的討論串將顯示在這裡。",
-      "empty_followed_body": "你追蹤的其他人發起的討論串將顯示在這裡。",
       "title": "討論串",
       "subtitle": "你的討論串中的新動態",
       "filter_label": "篩選討論串",

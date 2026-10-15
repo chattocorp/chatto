@@ -90,12 +90,14 @@
       "body": "Logige sisse, et selles serveris sõnumeid lugeda ja saata."
     },
     "threads": {
+      "sort_label": "Järjesta lõimed",
+      "sort_activity": "Tegevus",
+      "sort_created": "Vanus",
       "tab_started": "Minu",
       "tab_followed": "Jälgitavad",
       "tab_label": "Lõimede vaade",
       "empty_mine_title": "Te pole lõimesid alustanud",
       "empty_mine_body": "Siin kuvatakse lõimed, mille olete alustanud ja mida jälgite.",
-      "empty_followed_body": "Siin kuvatakse teiste alustatud lõimed, mida jälgite.",
       "title": "Lõimed",
       "subtitle": "Uus tegevus teie lõimedes",
       "filter_label": "Filtreeri niidid",

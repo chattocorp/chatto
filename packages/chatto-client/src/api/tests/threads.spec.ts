@@ -1,6 +1,6 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createThreadAPI, ThreadRootAuthorFilter } from '../threads.js';
+import { createThreadAPI, ThreadOrder, ThreadRootAuthorFilter } from '../threads.js';
 import { Timestamp } from '@bufbuild/protobuf';
 import { Message, ThreadSummary } from '@chatto/api-types/api/v1/message_types_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
@@ -28,6 +28,26 @@ function threadAPI() {
 describe('createThreadAPI', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+  });
+
+  it('passes creation order to list and grouped search requests', async () => {
+    threads.listFollowedThreads.mockReturnValue({ threads: [], page: {} });
+    search.searchMessages.mockReturnValue({ results: [] });
+    const api = threadAPI();
+    await api.listFollowedThreads({ limit: 1, offset: 0, order: ThreadOrder.CREATED });
+    expect(receivedRequest(threads.listFollowedThreads)).toMatchObject({
+      order: ThreadOrder.CREATED
+    });
+    await api.listFollowedThreads({
+      limit: 1,
+      offset: 0,
+      query: 'needle',
+      order: ThreadOrder.CREATED
+    });
+    expect(receivedRequest(search.searchMessages)).toMatchObject({
+      groupBy: MessageSearchGroupBy.THREAD,
+      order: MessageSearchOrder.THREAD_CREATED
+    });
   });
 
   it('searches followed threads with normalized input, paging, and cancellation', async () => {
@@ -87,6 +107,7 @@ describe('createThreadAPI', () => {
     expect(receivedRequest(threads.listFollowedThreads)).toMatchObject({
       includeDirectMessageThreads: true,
       unreadOnly: false,
+      order: ThreadOrder.UNSPECIFIED,
       page: { limit: 20, offset: 40 }
     });
     expect(page).toEqual({

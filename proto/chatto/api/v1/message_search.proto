@@ -20,6 +20,9 @@ enum MessageSearchOrder {
   MESSAGE_SEARCH_ORDER_NEWEST = 2;
   // Return threads with the most recent activity first. Requires thread grouping.
   MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY = 3;
+  // Newest root-message creation first, with unknown dates last. Requires thread
+  // grouping. Older servers can reject this order.
+  MESSAGE_SEARCH_ORDER_THREAD_CREATED = 4;
 }
 
 // Candidate scope, intersected with the caller's current access and query filters.

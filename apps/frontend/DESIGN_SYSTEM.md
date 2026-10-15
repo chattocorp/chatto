@@ -38,7 +38,10 @@ message search results:
   state, and hover-reveal action shell. Put `ActivityAvatar` in its `leading`
   snippet and `ActivityRowText` in its body: `ActivityRowText` shows unread
   activity in bold and keeps read activity in the normal text color.
-- Rows rest transparently on the owning `background` work plane. Hover and
+- Rows rest transparently on the owning `background` work plane. Threads
+  uses an avatar dot for unread rows, so bold text is not
+  the only unread cue. Important notification attention keeps its own colour.
+  Hover and
   keyboard focus rise exactly one level to `surface`; do not introduce ruled
   separators or a stronger surface jump.
 - Each row owns its rounded shape. The collection owns only the standard

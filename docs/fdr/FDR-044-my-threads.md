@@ -11,11 +11,17 @@ find replies that they have not read.
 
 ## Behavior
 
-- Threads lists followed threads in newest-activity-first order and groups
-  them by activity date.
+- Threads defaults to newest activity first. The Activity / Age control can
+  instead sort by root-message creation, newest first.
+  Date groups use the selected sort date. Unknown dates appear last.
+- The sort selection stays with the page when users change tabs, filter,
+  search, or return from a thread. It is not a device-wide preference.
+- Returning to the page or a cached tab refreshes its loaded pages from the
+  server. Cached rows remain visible while the refresh runs.
 - The Mine tab shows followed threads started by the current user. The
-  Followed tab shows followed threads started by other users. The tabs do not
-  overlap. A thread whose root author is unavailable is omitted from both tabs.
+  Followed tab shows all followed threads, including those started by the
+  current user. Mine is a subset of Followed. A thread whose root author is
+  unavailable is omitted from Mine.
 - Followed is the first and default tab. Switching tabs keeps the search text and
   All/Unread selection. Both tabs require follow state: unfollowing removes a
   thread even when the current user started it.
@@ -25,19 +31,21 @@ find replies that they have not read.
   the reply count are on the second line. The participant preview shows the
   author of the latest message as the avatar and one other participant in a
   small badge.
-- A thread with unread replies shows its first line in bold. Read threads use
-  regular weight and the normal text color.
+- A thread with unread replies shows its first line in bold and an avatar dot.
+  The dot is neutral unless notification attention
+  supplies its colour. Read threads use regular weight and the normal text
+  color. Every row reserves the same action width so dates and counts align.
 - A DM row uses participant names and avatars instead of a channel name. It
   does not show a `#` channel prefix.
 - The Unread filter includes only threads with replies after the user's thread
   read cursor. The server applies this filter before pagination, so the first
   page shows unread threads or confirms that none exist.
-- The search input, thread tabs, and All/Unread filter share one toolbar above
-  the list. Both switchers have the same size and stay together to the right
+- The search input, thread tabs, All/Unread filter, and sort control share one toolbar above
+  the list. The switchers have the same size and stay together to the right
   of the input. On narrow screens, the input and switchers use separate rows.
 - When server search is enabled, a search input filters followed threads by
   their root messages and all replies, including replies outside the current
-  list preview. Each matching thread appears once in activity order.
+  list preview. Each matching thread appears once in the selected order.
 - Search uses the message-search syntax, including `from:username`. Plain words
   search message text. All/Unread still applies to
   the matching threads. Clearing the input restores the ordinary list.
@@ -53,19 +61,29 @@ find replies that they have not read.
   cursor and clears notification attention that the displayed content covers.
 - A thread can remain in Threads after all replies and notifications are
   read. It remains until the user stops following it or loses access.
-- Thread activity can change the live sort order. The bundled client restarts
+- Thread activity can change activity order; it does not change creation order. The bundled client restarts
   loaded offset pages after a reply post, edit, or retraction before it
   continues pagination.
 
 ## Design Decisions
 
-### Thread tabs separate ownership from participation
+### Sort threads by activity or creation
 
-**Decision:** Split followed threads by root author before pagination and search.
+**Decision:** Sort the full result set before pagination, including search.
+Keep latest activity as the default and keep each row's activity preview.
+**Why:** Users can find new conversations without an older thread moving ahead
+of them each time it receives a reply.
+**Compatibility:** The API additions require no migration for existing callers.
+Older servers ignore the list order field and can reject creation-order search.
+The minimum server version stays unchanged.
+
+### Mine narrows the followed inbox
+
+**Decision:** Followed includes every followed thread. Mine filters this set
+to the current user's root messages before pagination and search.
 Keep the navigation indicator combined across both tabs, without tab counts.
-**Why:** Users can find conversations they started separately from conversations
-they joined. Follow state remains the one control for keeping either kind in
-the inbox.
+**Why:** Users can find conversations they started without removing them from
+the complete followed inbox. Follow state controls which threads stay in the inbox.
 **Tradeoff:** Threads is not a history of every thread the user started.
 Unfollowed threads remain available through their rooms and general search.
 

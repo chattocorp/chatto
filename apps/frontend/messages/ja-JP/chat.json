@@ -90,12 +90,14 @@
       "body": "このサーバーでメッセージを読んだり送信したりするには、ログインしてください。"
     },
     "threads": {
+      "sort_label": "スレッドの並び順",
+      "sort_activity": "アクティビティ",
+      "sort_created": "作成日時",
       "tab_started": "自分の",
       "tab_followed": "フォロー中",
       "tab_label": "スレッド表示",
       "empty_mine_title": "開始したスレッドはありません",
       "empty_mine_body": "自分で開始し、フォローしているスレッドがここに表示されます。",
-      "empty_followed_body": "他のユーザーが開始し、フォローしているスレッドがここに表示されます。",
       "title": "スレッド",
       "subtitle": "スレッドの新しいアクティビティ",
       "filter_label": "スレッドのフィルタリング",

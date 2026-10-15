@@ -178,7 +178,7 @@ func (s *ThreadFollowModel) GetThreadFollowers(ctx context.Context, kind RoomKin
 // The result includes only rooms where the user is still a member and has
 // applicable message-read authority.
 func (s *ThreadFollowModel) listFollowedThreads(ctx context.Context, userID string, spaceIDs []string) ([]*FollowedThread, error) {
-	page, err := s.ListFollowedThreadsPage(ctx, userID, spaceIDs, false, 0, 0, ThreadRootAuthorAll)
+	page, err := s.ListFollowedThreadsPage(ctx, userID, spaceIDs, false, 0, 0, ThreadRootAuthorAll, ThreadOrderDefault)
 	if err != nil {
 		return nil, err
 	}
@@ -195,14 +195,17 @@ func (s *ThreadFollowModel) listFollowedThreads(ctx context.Context, userID stri
 //
 // The result includes only rooms where the user is still a member and has
 // applicable message-read authority.
-func (s *ThreadFollowModel) ListFollowedThreadsPage(ctx context.Context, userID string, spaceIDs []string, unreadOnly bool, limit, offset int, rootAuthor ThreadRootAuthorFilter) (*FollowedThreadsPage, error) {
+func (s *ThreadFollowModel) ListFollowedThreadsPage(ctx context.Context, userID string, spaceIDs []string, unreadOnly bool, limit, offset int, rootAuthor ThreadRootAuthorFilter, order ThreadOrder) (*FollowedThreadsPage, error) {
+	if err := order.Validate(); err != nil {
+		return nil, err
+	}
 	if err := rootAuthor.Validate(); err != nil {
 		return nil, err
 	}
 	var allThreads []*FollowedThread
 
 	for _, spaceID := range spaceIDs {
-		threads, err := s.listFollowedThreadsInSpace(ctx, userID, RoomKindFromLegacySpaceID(spaceID))
+		threads, err := s.listFollowedThreadsInSpace(ctx, userID, RoomKindFromLegacySpaceID(spaceID), order == ThreadOrderCreated)
 		if err != nil {
 			s.logger.Warn("Failed to list followed threads for space", "space_id", spaceID, "error", err)
 			continue
@@ -224,23 +227,9 @@ func (s *ThreadFollowModel) ListFollowedThreadsPage(ctx context.Context, userID 
 		allThreads = filtered
 	}
 
-	// Sort by displayed activity descending. A root without replies is still
-	// activity and must not fall behind older conversations merely because its
-	// LastReplyAt is empty. The identity tie-break keeps offset pages stable.
+	// Sort the complete authorized set before pagination, with a stable identity tie-break.
 	sort.Slice(allThreads, func(i, j int) bool {
-		if allThreads[i].ActivityAt == nil && allThreads[j].ActivityAt == nil {
-			return followedThreadSortKey(allThreads[i]) < followedThreadSortKey(allThreads[j])
-		}
-		if allThreads[i].ActivityAt == nil {
-			return false
-		}
-		if allThreads[j].ActivityAt == nil {
-			return true
-		}
-		if allThreads[i].ActivityAt.Equal(*allThreads[j].ActivityAt) {
-			return followedThreadSortKey(allThreads[i]) < followedThreadSortKey(allThreads[j])
-		}
-		return allThreads[i].ActivityAt.After(*allThreads[j].ActivityAt)
+		return compareThreadDates(allThreads[i], allThreads[j], order) < 0
 	})
 
 	if unreadOnly {
@@ -288,7 +277,7 @@ func (s *ThreadFollowModel) ListFollowedThreadsPage(ctx context.Context, userID 
 }
 
 // listFollowedThreadsInSpace returns all threads followed by the user in a single space.
-func (s *ThreadFollowModel) listFollowedThreadsInSpace(ctx context.Context, userID string, kind RoomKind) ([]*FollowedThread, error) {
+func (s *ThreadFollowModel) listFollowedThreadsInSpace(ctx context.Context, userID string, kind RoomKind, includeRootDate bool) ([]*FollowedThread, error) {
 	var result []*FollowedThread
 	for _, ref := range s.rooms.followedThreadsForUser(userID) {
 		roomID := ref.roomID
@@ -331,7 +320,7 @@ func (s *ThreadFollowModel) listFollowedThreadsInSpace(ctx context.Context, user
 
 		metadata := s.rooms.threadMetadata(threadRootEventID)
 		var rootCreatedAt *time.Time
-		if metadata.LastReplyAt == nil {
+		if includeRootDate || metadata.LastReplyAt == nil {
 			root, err := s.integration.GetRoomEventByEventID(ctx, kind, roomID, threadRootEventID)
 			if err != nil {
 				s.logger.Warn("Failed to get root activity for followed thread", "error", err, "room_id", roomID, "thread_root_event_id", threadRootEventID)
@@ -367,7 +356,7 @@ func (s *ThreadFollowModel) hydrateFollowedThreadViewerStates(ctx context.Contex
 // replies without materializing the public result.
 func (s *ThreadFollowModel) hasUnreadFollowedThreads(ctx context.Context, userID string, spaceIDs []string) (bool, error) {
 	for _, spaceID := range spaceIDs {
-		threads, err := s.listFollowedThreadsInSpace(ctx, userID, RoomKindFromLegacySpaceID(spaceID))
+		threads, err := s.listFollowedThreadsInSpace(ctx, userID, RoomKindFromLegacySpaceID(spaceID), false)
 		if err != nil {
 			s.logger.Warn("Failed to list followed threads for space", "space_id", spaceID, "error", err)
 			continue

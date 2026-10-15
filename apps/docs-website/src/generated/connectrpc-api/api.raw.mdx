@@ -2978,6 +2978,7 @@ Request for a page of followed threads for the current user.
 | `include_direct_message_threads` | `bool` | Include followed direct-message threads. Defaults to false so older clients retain the channel-only result shape. |
 | `unread_only` | `bool` | Return only threads with replies that the viewer has not read. The page total then counts only these threads. Older servers ignore this field and return all followed threads. |
 | `root_author_filter` | [`ThreadRootAuthorFilter`](#chatto-api-v1-ThreadRootAuthorFilter) | Filter root authors before pagination and total counts. Threads whose root author is unavailable are omitted when a filter is selected. |
+| `order` | [`ThreadOrder`](#chatto-api-v1-ThreadOrder) | Sort before pagination. Older servers ignore this field and use activity order. |
 
 
 <a id="chatto-api-v1-ListFollowedThreadsResponse"></a>
@@ -2988,7 +2989,7 @@ Response containing one followed-thread page.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `threads` | repeated [`FollowedThread`](#chatto-api-v1-FollowedThread) | Followed threads in newest-activity-first order. |
+| `threads` | repeated [`FollowedThread`](#chatto-api-v1-FollowedThread) | Followed threads in the requested order; newest activity first by default. |
 | `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Hot-path related entities needed to render this feed page without per-thread hydration. |
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
@@ -6537,6 +6538,19 @@ Availability of best-effort credential last-use telemetry.
 | `CREDENTIAL_LAST_USED_STATE_UNAVAILABLE` | `3` | Last-use telemetry is temporarily unavailable. |
 
 
+<a id="chatto-api-v1-ThreadOrder"></a>
+
+### ThreadOrder
+
+Ordering for followed threads. Equal dates use a stable thread identity order.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `THREAD_ORDER_UNSPECIFIED` | `0` | Use newest activity first. |
+| `THREAD_ORDER_ACTIVITY` | `1` | Use newest activity first. |
+| `THREAD_ORDER_CREATED` | `2` | Use newest root-message creation first. Unknown creation dates come last. |
+
+
 <a id="chatto-api-v1-ThreadRootAuthorFilter"></a>
 
 ### ThreadRootAuthorFilter
@@ -6574,6 +6588,7 @@ Ordering for message or grouped-thread search results.
 | `MESSAGE_SEARCH_ORDER_RELEVANCE` | `1` | Highest message score first; grouped results use their best matching message. |
 | `MESSAGE_SEARCH_ORDER_NEWEST` | `2` | Newest matching message first, also when results are grouped. |
 | `MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY` | `3` | Return threads with the most recent activity first. Requires thread grouping. |
+| `MESSAGE_SEARCH_ORDER_THREAD_CREATED` | `4` | Newest root-message creation first, with unknown dates last. Requires thread grouping. Older servers can reject this order. |
 
 
 <a id="chatto-api-v1-MessageSearchScope"></a>

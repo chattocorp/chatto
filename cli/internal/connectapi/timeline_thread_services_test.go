@@ -1120,6 +1120,39 @@ func TestThreadServiceListFollowedThreadsRootAuthorFilter(t *testing.T) {
 	require.Empty(t, list(viewer, 0, false).Threads)
 }
 
+func TestThreadServiceListFollowedThreadsOrder(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	room := env.createJoinedRoom("thread-order")
+	oldRoot := env.post(room.Id, env.viewer.Id, "old root", "")
+	newRoot := env.post(room.Id, env.viewer.Id, "new root without replies", "")
+	require.NoError(t, env.core.FollowThread(ctx, core.KindChannel, env.viewer.Id, room.Id, newRoot.Id))
+	env.post(room.Id, env.viewer.Id, "recent reply", oldRoot.Id)
+	for _, test := range []struct {
+		order apiv1.ThreadOrder
+		roots []string
+	}{
+		{apiv1.ThreadOrder_THREAD_ORDER_UNSPECIFIED, []string{oldRoot.Id, newRoot.Id}},
+		{apiv1.ThreadOrder_THREAD_ORDER_ACTIVITY, []string{oldRoot.Id, newRoot.Id}},
+		{apiv1.ThreadOrder_THREAD_ORDER_CREATED, []string{newRoot.Id, oldRoot.Id}},
+	} {
+		for offset, root := range test.roots {
+			response, err := env.threads.ListFollowedThreads(ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
+				Order: test.order, RootAuthorFilter: apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_VIEWER,
+				Page: &apiv1.PageRequest{Limit: 1, Offset: int32(offset)},
+			}))
+			require.NoError(t, err)
+			require.Len(t, response.Msg.Threads, 1)
+			require.Equal(t, root, response.Msg.Threads[0].Thread.ThreadRootEventId)
+			require.EqualValues(t, 2, response.Msg.Page.TotalCount)
+			require.Equal(t, offset == 0, response.Msg.Page.HasMore)
+		}
+	}
+	_, err := env.threads.ListFollowedThreads(ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{Order: 99}))
+	require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
+}
+
 func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 	t.Parallel()
 
