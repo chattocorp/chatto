@@ -189,7 +189,7 @@ export function buildRoomLinkURL(serverId: string, roomId: string): string {
 export async function copyRoomLinkToClipboard(serverId: string, roomId: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(buildRoomLinkURL(serverId, roomId));
-    toast.success(m('room_list.room_link_copied'));
+    toast.success(m('room.message.actions.link_copied'));
   } catch {
     toast.error(m('room.message.actions.copy_link_failed'));
   }

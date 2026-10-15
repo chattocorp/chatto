@@ -135,7 +135,7 @@ describe('copyMessageLinkToClipboard', () => {
   it('copies a room link on the owning server', async () => {
     await copyRoomLinkToClipboard('remote', channelRoomId);
     expect(writeText).toHaveBeenCalledWith(`${remoteServer.url}/chat/-/${channelRoomId}`);
-    expect(getToasts().map((t) => t.message)).toContain('Room link copied');
+    expect(getToasts().map((t) => t.message)).toContain('Link copied');
   });
 
   it('reports room clipboard failures', async () => {

@@ -548,14 +548,14 @@ describe('RoomList', () => {
     const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
     row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     const action = browserPage.getByTestId('copy-room-link');
-    await expect.element(action).toHaveTextContent('Copy Link');
+    await expect.element(action).toHaveTextContent('Copy link');
     await action.click();
     expect(mocks.writeClipboardText).toHaveBeenCalledWith(
       'https://chat.example.test/chat/-/channel-1'
     );
     await vi.waitFor(() =>
       expect(getToasts().map((item) => item.message)).toContain(
-        fails ? 'Failed to copy link' : 'Room link copied'
+        fails ? 'Failed to copy link' : 'Link copied'
       )
     );
     await expect.element(action).not.toBeInTheDocument();
