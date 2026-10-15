@@ -79,13 +79,16 @@ frontends use it. See ADR-111.
 - [README.md](README.md) — general project overview.
 - [packages/runling/README.md](packages/runling/README.md) — Runling APIs,
   development commands, and release setup.
+- [packages/runling/AGENTS.md](packages/runling/AGENTS.md) — Runling instructions
+  and the feature requirements to read before changing behavior.
 - [packages/runling/docs/README.md](packages/runling/docs/README.md) — Runling-owned
   ADRs, FDRs, and API guides. Runling records have their own numbering.
 - [packages/chatto-client/AGENTS.md](packages/chatto-client/AGENTS.md) — the
   framework-neutral Chatto client: what belongs in it, stores, realtime
   projection, sessions, reactivity, and its Svelte adapter.
 - [packages/chattobot/AGENTS.md](packages/chattobot/AGENTS.md) — ChattoBot rules:
-  only the supervisor talks to users, with no hardcoded user-facing text.
+  one agent session per thread, capabilities as tools, background jobs, and
+  changes that a maintainer approves.
 - [authling/AGENTS.md](authling/AGENTS.md) — mandatory Authling product,
   architecture, documentation, security, and testing rules.
 - [authling/docs/README.md](authling/docs/README.md) — Authling-owned ADR, FDR,

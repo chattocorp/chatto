@@ -13,7 +13,8 @@
     "dev": "pnpm run build:dependencies && runling serve --watch",
     "start": "pnpm run build:dependencies && runling serve",
     "check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "eval:github": "runling run tasks/evaluate-github.ts"
   },
   "dependencies": {
     "@chatto/client": "workspace:*",

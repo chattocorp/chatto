@@ -5,14 +5,12 @@ import { flattenActivities } from './timeline-layout.ts';
 export function summarizeRunActivity(run: RunDetail): RunActivity | null {
   if (run.status !== 'running') return null;
   const rows = flattenActivities(buildTimeline(run.events, run.status), new Set());
-  // Conversation turns and input waits share a timeline lane, but remain
-  // separate activities when we decide whether the run is doing work.
-  const activities = rows.flatMap(({ node }) => [node, ...(node.segments ?? [])]);
+  const activities = rows.map(({ node }) => node);
   const current = activities.filter(
-    (node) => node.status === 'running' && (isActivityActive(node) || node.kind === 'input')
+    (node) => node.status === 'running' && (isActivityActive(node) || node.kind === 'wait')
   );
-  // Prefer an input wait, then the activity with the latest update.
-  let selected = current.find((node) => node.kind === 'input');
+  // Prefer a wait, then the activity with the latest update.
+  let selected = current.find((node) => node.kind === 'wait');
   if (!selected) {
     for (let i = run.events.length - 1; i >= 0; i--) {
       const event = run.events[i]!;
@@ -43,14 +41,15 @@ export function summarizeRunActivity(run: RunDetail): RunActivity | null {
         label: selected.label,
         step: parent?.label,
         preview: selected.preview?.slice(-500),
-        waiting: selected.kind === 'input',
-        pendingInputs: current.filter((node) => node.kind === 'input').length,
-        parallel: current.filter((node) => node.kind !== 'input' && node !== selected).length
+        startedAt: selected.startedAt,
+        waiting: selected.kind === 'wait',
+        waits: current.filter((node) => node.kind === 'wait').length,
+        parallel: current.filter((node) => node.kind !== 'wait' && node !== selected).length
       }
     : null;
 }
 
-/** An open input request is idle only when no other leaf activity is running. */
+/** A run waits for a message only when no other leaf activity is running. */
 export function isRunWaiting(activity: RunActivity | null | undefined): boolean {
-  return !!activity?.waiting && activity.pendingInputs > 0 && activity.parallel === 0;
+  return !!activity?.waiting && activity.waits > 0 && activity.parallel === 0;
 }

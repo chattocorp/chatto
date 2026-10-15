@@ -6,16 +6,16 @@ Structured JSON records go to `.runling/logs/server.jsonl`, relative to the
 directory that contains the Runling config file. `NO_COLOR` disables terminal
 colors.
 
-By default, the terminal shows each run's detailed log, the same lines as
-`runling run`: agent reasoning, tool use, agent messages, task updates, and
-the errors of failed tasks.
+By default, the server terminal shows each run's detailed log: agent reasoning,
+tool use, agent messages, and the errors of failed tasks. `runling run` also shows
+run details, but keeps intermediate agent replies and task updates in its journal.
+It prints the root task's final output once at the end, without indentation.
 
 ```text
-10:32:01 [bright-waves-1234] ● Started conversation
+10:32:01 [bright-waves-1234] ● Chat
 10:32:02 [bright-waves-1234 / worker:task-2] ● [ripe-apes-1855] Agent started (model: provider/model)
 10:32:05 [bright-waves-1234 / worker:task-2] ● [ripe-apes-1855] Thinking **Finding the composer**
 10:32:06 [bright-waves-1234 / worker:task-2] ● [ripe-apes-1855] Reading src/composer.ts
-10:32:40 [bright-waves-1234 / worker:task-2] ● Validating change
 ```
 
 This output can contain user messages and model text, including personal data.
@@ -45,7 +45,9 @@ tail -f .runling/logs/server.jsonl
 Logs include server startup and shutdown, HTTP response status and duration,
 request and config reload errors, webhook deliveries handled without a new run, and run starts,
 results, and recovery errors. Live runs also log task starts and finishes,
-agent starts and outcomes, tool and command activity, and input waits and receipts.
+agent starts and outcomes, tool and command activity, and waits for messages.
+A wait appears as `Waiting for a message`, and its end as `Message received` or
+`Input closed`. These records do not contain the message.
 Successful tool calls are counted and summarized at most every 30 seconds per
 agent, with remaining counts shown at completion. Tool failures appear immediately
 with the registered tool name. Individual starts and generic activity messages
@@ -62,13 +64,8 @@ Activity records omit prompts, task labels, command text, tool arguments, messag
 contents, and results. They describe activity, not its content. Full execution
 details remain in the run journal. A failed task appears as `Task failed`; its
 error message is only in the journal, the console's Log view, and the detailed
-terminal output. An observed task can explicitly publish a
-public operational message with `ctx.emit({ type: "state", value, activity })`.
-Agent labels and these messages must be static, host-owned text, never user data
-or model output. State values are not copied into operational logs.
-An activity can set `activityLevel` to `info`, `success`, or `error` for its
-terminal marker and web Log view.
-Loading historical runs does not replay their
+terminal output. Agent labels must be static, host-owned text, never user data
+or model output. Loading historical runs does not replay their
 activity into the terminal. Explicit user cancellation is shown as cancelled,
 even if a workflow handles its abort signal and returns normally. Server shutdown
 is shown as interrupted. Those runs remain history only after restart; new inputs

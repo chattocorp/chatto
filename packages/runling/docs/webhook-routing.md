@@ -2,13 +2,16 @@
 
 `runling.config.ts` maps webhook names to routing functions. A router receives
 an explicit routing context and the JSON request body. It can start any number
-of workflows, send data to an existing conversation, or do nothing.
+of workflows, send messages to a run that it started before, or do nothing.
 
 ```ts
 import { defineWebConfig, startWorkflow } from 'runling/web';
-import { task } from 'runling';
+import { task, Type } from 'runling';
 
-const echo = task((_ctx, message: string) => message);
+const echo = task(
+  { name: 'Echo', input: Type.String(), output: Type.String() },
+  async (_ctx, message) => message
+);
 
 export default defineWebConfig({
   webhooks: {
@@ -22,9 +25,10 @@ separate from `runWorkflow()` in `runling`, which executes and awaits a workflow
 
 ## Custom routes
 
-Call `ctx.start(task, { input })` to register a run. It returns `{ id }` once the
-host has saved its initial record, without waiting for the workflow to finish.
-The host owns execution and run history. Each call creates a separate run:
+Call `ctx.start(task, { input })` to register a run. It resolves with a run
+handle when the host has saved the initial record of the run. It does not wait
+for the workflow to finish. The host owns execution and run history. Each call
+creates a separate run:
 
 ```ts
 import { defineWebConfig } from 'runling/web';
@@ -36,7 +40,7 @@ const echo = task(
     input: Type.String(),
     output: Type.String()
   },
-  (_ctx, value) => value
+  async (_ctx, value) => value
 );
 
 export default defineWebConfig({
@@ -58,8 +62,52 @@ initiated by the router, including calls it did not await. A retained routing
 context cannot start runs after the router returns. Workflow completion is
 independent of the HTTP connection.
 
-Routing state and existing-conversation delivery belong to the adapter. Runling
-does not add a global message registry or deduplicate deliveries automatically.
+Runling does not add a global message registry or deduplicate deliveries
+automatically.
+
+## Keep a run and send it messages
+
+The run handle has these members:
+
+- `id`: the ID of the run.
+- `send(message)`: validate a message with the `receives` schema of the
+  top-level task and put it in the queue of the task. It rejects when the run is
+  not running, does not accept more messages, or has too many unread messages.
+- `closeInput()`: tell the top-level task that no more messages come.
+- `cancel()`: cancel the run. Its tasks get the abort signal and do their
+  cleanup.
+- `finished`: a promise that resolves when the run finishes. It also resolves
+  when the run fails or is cancelled.
+
+A router can keep handles after it returns, for example one run for each chat
+thread. The router owns this state:
+
+```ts
+import type { RunHandle, WebhookRouter } from 'runling/web';
+
+// `conversation` is a task with `receives: ChatMessage`.
+const threads = new Map<string, RunHandle<ChatMessage>>();
+
+const route: WebhookRouter<ChatMessage> = async (ctx, message) => {
+  const run = threads.get(message.threadId);
+  if (run) {
+    try {
+      return await run.send(message);
+    } catch {
+      // The run has finished. Start a new one.
+    }
+  }
+  const started = await ctx.start(conversation, { input: message });
+  threads.set(message.threadId, started);
+  void started.finished.then(() => {
+    if (threads.get(message.threadId) === started) threads.delete(message.threadId);
+  });
+};
+```
+
+A task cannot start a workflow run. If a task must cause a different run, it
+uses an external mechanism, for example an HTTP request to a webhook route. See
+[ADR-009](adr/ADR-009-task-invocations.md).
 
 ## Validation and discovery
 
@@ -79,9 +127,8 @@ route.input = Type.Object({ message: Type.String() });
 route.label = 'Chat messages';
 ```
 
-`startWorkflow(task)` copies the task's input and output schema metadata when
-available. Ordinary tasks without schemas are also supported. Optional `output`
-metadata describes a workflow result, not the HTTP response. Declared schemas
+`startWorkflow(task)` copies the input and output schemas of the task. Optional
+`output` metadata describes a workflow result, not the HTTP response. Declared schemas
 must support JSON Schema export; tasks still parse and validate their own inputs
 and outputs when executed.
 
@@ -102,6 +149,9 @@ routing or registration failure returns `500` with `error` and `runs` containing
 any successfully registered IDs. Already-started runs are not rolled back.
 Retries can duplicate those runs unless the router implements deduplication.
 
+To send more messages to a running run over HTTP, use
+`POST /api/runs/:id/messages`. See [workflow messages](workflow-messages.md).
+
 The web composer opens a single run directly. For multiple runs or partial
 success, it shows links to the registered runs.
 
@@ -110,6 +160,9 @@ success, it shows links to the registered runs.
 Replace `{ task: root }` with `startWorkflow(root)`. Replace `{ task, route }`
 with a routing function that explicitly calls `ctx.start(task, { input })` when
 needed. The old `route(input, start)` signature and fixed one-run limit are gone.
+
+`ctx.start` in a router resolves with a run handle instead of `{ id }`. The
+handle keeps the `id` property.
 
 Clients must read the `runs` array instead of `{ id }`, `{ handled: true }`, or
 a synchronous `{ output }` response.

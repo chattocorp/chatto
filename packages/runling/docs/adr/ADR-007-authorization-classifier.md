@@ -1,6 +1,6 @@
 # ADR-007: Classify authorization in a separate model call
 
-**Status:** Accepted
+**Status:** Withdrawn. [ADR-009](ADR-009-task-invocations.md) removed the authorization classifier and its tool gate from Runling. This record described the policy of one application. Applications can implement such policy with tasks and messages.
 **Date:** 2026-09-30
 
 ## Context

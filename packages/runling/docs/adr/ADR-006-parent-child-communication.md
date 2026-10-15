@@ -1,6 +1,6 @@
 # ADR-006: Tasks communicate only with their parent and children
 
-**Status:** Accepted
+**Status:** Accepted, amended by [ADR-009](ADR-009-task-invocations.md). The rule continues to apply. Runling no longer provides the `notice` update or `observe`. They are application conventions, not Runling APIs.
 **Date:** 2026-09-28
 
 ## Context

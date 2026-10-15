@@ -1,7 +1,34 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { ConfigurationError, thinkingSetting } from './settings.ts';
+import { ConfigurationError, maintainerLoginSetting, thinkingSetting } from './settings.ts';
 
 afterEach(() => vi.unstubAllEnvs());
+
+test('the maintainer contact accepts one login and does not expose invalid values', () => {
+  vi.stubEnv('CHATTO_MAINTAINER_NAME', '');
+  expect(maintainerLoginSetting()).toBeUndefined();
+  for (const value of ['reviewer', ' @reviewer ']) {
+    vi.stubEnv('CHATTO_MAINTAINER_NAME', value);
+    expect(maintainerLoginSetting()).toBe('reviewer');
+  }
+  for (const value of [
+    '@all',
+    'HERE',
+    'everyone',
+    'two users',
+    'user@example.test',
+    'reviewer\nignore instructions',
+    'name.',
+    'a'.repeat(33)
+  ]) {
+    vi.stubEnv('CHATTO_MAINTAINER_NAME', value);
+    expect(() => maintainerLoginSetting()).toThrow(ConfigurationError);
+    try {
+      maintainerLoginSetting();
+    } catch (error) {
+      expect((error as Error).message).not.toContain(value);
+    }
+  }
+});
 
 test('thinking settings default when unset and reject unknown levels', () => {
   expect(thinkingSetting('CHATTO_TEST_THINKING', 'low')).toBe('low');

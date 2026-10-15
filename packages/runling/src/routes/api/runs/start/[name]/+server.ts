@@ -7,9 +7,6 @@ export const POST: RequestHandler = async ({ params, request }) => {
   const store = await getRunStore();
   return handleWebhook(params.name, request, {
     config: await loadWebConfig(),
-    start: async (task, { input }) => {
-      const { id } = await store.start(params.name, task, input, 'web');
-      return { id };
-    }
+    start: (task, { input }) => store.start(params.name, task, input, 'web')
   });
 };

@@ -1,4 +1,4 @@
-import { agent, exec, step, concat, task, Type } from 'runling';
+import { createAgentSession, exec, step, concat, task, Type } from 'runling';
 import * as git from 'runling/git';
 
 const model = 'openai-codex/gpt-5.6-sol';
@@ -42,7 +42,7 @@ export const implement = task(
   async (ctx, { directory, prompt: input }): Promise<string> => {
     const pwd = await git.getPwd(directory);
 
-    await using implementationAgent = await agent({
+    await using implementationAgent = await createAgentSession({
       cwd: directory,
       model,
       thinkingLevel,

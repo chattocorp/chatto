@@ -25,10 +25,10 @@ test('concurrent runs and nested tasks retain distinct stable prefixes without p
     timestamp: 3
   });
   first({
-    type: 'input.requested',
-    id: 'input',
+    type: 'wait.started',
+    id: 'wait',
+    channelId: 'channel',
     activityId: 'outer',
-    message: 'private question',
     timestamp: 4
   });
   first({
@@ -77,7 +77,7 @@ test('throttles agent activity but always reports tool failures and completion',
   write.dispose();
 });
 
-test('summarizes successful calls, reports failures immediately, and associates host milestones', () => {
+test('summarizes successful calls, reports failures immediately, and associates message waits', () => {
   const write = createServerActivityLog('run', 'sunny-poems-5431', { detailed: false });
   write({ type: 'task.linked', taskId: 'step', channelId: 'channel', timestamp: 0 });
   write({
@@ -126,29 +126,41 @@ test('summarizes successful calls, reports failures immediately, and associates 
     timestamp: 30_001
   });
   write({
-    type: 'task.activity',
+    type: 'wait.started',
+    activityId: 'step',
+    id: 'wait',
     channelId: 'channel',
-    message: 'Validation failed',
-    level: 'error',
     timestamp: 30_002
+  });
+  write({
+    type: 'wait.finished',
+    activityId: 'step',
+    id: 'wait',
+    status: 'received',
+    durationMs: 10,
+    timestamp: 30_003
+  });
+  write({
+    type: 'wait.finished',
+    activityId: 'step',
+    id: 'other-wait',
+    status: 'closed',
+    durationMs: 10,
+    timestamp: 30_004
   });
   expect(vi.mocked(serverLog).mock.calls.map((call) => call[2]?.activity)).toEqual([
     'Agent started · test/model',
     'Activity · 100 read, 1 search',
     'Tool preparePullRequest failed',
-    'Validation failed'
+    'Waiting for a message',
+    'Message received',
+    'Input closed'
   ]);
   expect(vi.mocked(serverLog).mock.calls[1]?.[2]).toMatchObject({
     agentLabel: 'implement',
     taskReference: 'task-1'
   });
   expect(vi.mocked(serverLog).mock.calls[3]?.[2]).toMatchObject({ taskReference: 'task-1' });
-  expect(vi.mocked(serverLog).mock.calls[3]).toMatchObject([
-    'error',
-    'run.activity',
-    { activityLevel: 'error' },
-    { terminal: true }
-  ]);
   write.dispose();
 });
 

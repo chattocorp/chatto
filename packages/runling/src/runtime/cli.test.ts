@@ -37,7 +37,6 @@ describe('CLI commands', () => {
     await h.parse(['run', 'workflow.ts', 'make the change']);
     expect(h.run).toHaveBeenCalledWith('workflow.ts', 'make the change', {
       json: false,
-      log: false,
       verbose: false
     });
     expect(h.serve).not.toHaveBeenCalled();
@@ -45,10 +44,9 @@ describe('CLI commands', () => {
 
   test('accepts options around arguments and an omitted prompt', async () => {
     const h = harness();
-    await h.parse(['run', '-v', 'workflow.ts', '--json', '--log']);
+    await h.parse(['run', '-v', 'workflow.ts', '--json']);
     expect(h.run).toHaveBeenCalledWith('workflow.ts', '', {
       json: true,
-      log: true,
       verbose: true
     });
   });
@@ -58,7 +56,6 @@ describe('CLI commands', () => {
     await h.parse(['run', 'workflow.ts', '--', '--json']);
     expect(h.run).toHaveBeenCalledWith('workflow.ts', '--json', {
       json: false,
-      log: false,
       verbose: false
     });
   });
@@ -69,7 +66,6 @@ describe('CLI commands', () => {
     await h.parse(['run', 'workflow.ts', '--input', input]);
     expect(h.run).toHaveBeenCalledWith('workflow.ts', '', {
       json: false,
-      log: false,
       verbose: false,
       input
     });

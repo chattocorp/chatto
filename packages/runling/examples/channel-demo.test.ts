@@ -1,9 +1,9 @@
 import { expect, test } from 'vitest';
-import { createWorkflowContext, runWorkflow } from 'runling';
+import { createTaskContext, runWorkflow } from 'runling';
 import demo from './channel-demo.ts';
 
 test("the parent changes a running child's instructions and receives ordered data", async () => {
-  const result = await demo(createWorkflowContext(), { initial: 4 });
+  const result = await demo(createTaskContext(), { initial: 4 });
 
   expect(result).toEqual({
     label: 'Updated by parent',

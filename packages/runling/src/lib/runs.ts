@@ -11,8 +11,12 @@ export interface RunActivity {
   label: string;
   step?: string;
   preview?: string;
+  /** Run time when the selected activity started, in milliseconds. */
+  startedAt: number;
+  /** The selected activity is a task that waits for a message. */
   waiting: boolean;
-  pendingInputs: number;
+  /** Tasks that wait for a message. */
+  waits: number;
   parallel: number;
 }
 /** A journal summary with the server's live activity preview. */
@@ -23,19 +27,6 @@ export type RunDetail = JournalRunDetail & { activity?: RunActivity | null };
 
 export function applyRecord(run: RunDetail, record: RunRecord): RunDetail {
   if (record.type === 'started') return record.run;
-  if (record.type === 'resumed')
-    return {
-      ...run,
-      status: 'running',
-      attempt: record.attempt,
-      finishedAt: undefined,
-      error: null,
-      output: null,
-      events: [
-        ...run.events,
-        { type: 'workflow.resumed', attempt: record.attempt, timestamp: run.durationMs ?? 0 }
-      ]
-    };
   if (record.type === 'event') {
     return {
       ...run,

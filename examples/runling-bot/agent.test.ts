@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  createWorkflowContext,
+  createTaskContext,
   type AgentExtensionAPI,
   type RunlingAgent,
   type AgentOptions,
-  type agent
+  type createAgentSession
 } from 'runling';
 import { createReplySender } from './sender.ts';
 import { generateReply } from './agent.ts';
@@ -26,8 +26,8 @@ async function fixture(
     posted.push(text);
     return post(text);
   });
-  const r = createWorkflowContext();
-  const createAgent: typeof agent = async (options) => {
+  const r = createTaskContext();
+  const createAgent: typeof createAgentSession = async (options) => {
     assert.equal(options.model, 'openrouter/google/gemini-2.5-flash-lite');
     assert.equal(options.thinkingLevel, 'off');
     assert.deepEqual(options.tools, ['read_thread', 'web_fetch']);

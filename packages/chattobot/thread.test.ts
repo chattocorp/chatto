@@ -7,20 +7,9 @@ import type {
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { PartialMessage } from '@bufbuild/protobuf';
 import { createThreadReader } from './thread.ts';
-import type { Delivery } from './chatto/routing.ts';
 import { fakeChatto } from './chatto/fake-chatto.ts';
 
-const delivery: Delivery = {
-  version: 1,
-  id: 'ping',
-  type: 'message.created',
-  triggers: ['mention'],
-  occurred_at: 'now',
-  bot_id: 'bot',
-  room_id: 'room',
-  thread_root_id: 'root',
-  message: { id: 'ping', author_id: 'alice', body: "What's next?" }
-};
+const thread = { roomId: 'room', threadRootId: 'root' };
 
 /** A thread reader backed by an in-memory server that answers with `pages`. */
 async function reader(
@@ -62,14 +51,14 @@ test('reads the newest replies with roles and names, then only messages after th
           includes: { users: { alice: { login: 'alice', displayName: 'Alice Doe' } } }
         }
   );
-  const first = await read(delivery, new AbortController().signal);
+  const first = await read(thread, new AbortController().signal);
   expect(first).toMatchObject({ cursor: 'c1', olderOmitted: true });
   expect(first.messages.map(({ id, role, authorName }) => [id, role, authorName])).toEqual([
     ['root', 'human', 'Alice Doe'],
     ['two', 'bot', undefined],
     ['ping', 'human', 'Alice Doe']
   ]);
-  const next = await read(delivery, new AbortController().signal, first.cursor);
+  const next = await read(thread, new AbortController().signal, first.cursor);
   expect(next.messages.map((message) => message.id)).toEqual(['three']);
   expect(requests[1]).toMatchObject({
     roomId: 'room',
@@ -81,7 +70,7 @@ test('reads the newest replies with roles and names, then only messages after th
 
 test('fails when pagination repeats instead of returning incomplete history', async () => {
   const { read } = await reader(() => ({ events: [], hasNewer: true, endCursor: 'same' }));
-  await expect(read(delivery, new AbortController().signal, 'same')).rejects.toThrow(
+  await expect(read(thread, new AbortController().signal, 'same')).rejects.toThrow(
     'pagination did not advance'
   );
 });
@@ -90,24 +79,24 @@ test('reports permission failures before composing a reply', async () => {
   const { read } = await reader(() => {
     throw new ConnectError('denied', Code.PermissionDenied);
   });
-  await expect(read(delivery, new AbortController().signal)).rejects.toMatchObject({
+  await expect(read(thread, new AbortController().signal)).rejects.toMatchObject({
     code: Code.PermissionDenied
   });
 });
 
-test.each([null, 'existing-root'])('reads DM thread context for root %s', async (threadRoot) => {
+test('reads the given thread in its room', async () => {
   const { read, requests } = await reader(() => ({
     events: [event('one', 'Hello'), event('two', 'Hi', 'bot')]
   }));
   const { messages } = await read(
-    { ...delivery, triggers: ['direct_message'], thread_root_id: threadRoot },
+    { roomId: 'dm', threadRootId: 'one' },
     new AbortController().signal
   );
   expect(requests[0]).toMatchObject({
-    roomId: 'room',
-    threadRootEventId: threadRoot ?? 'ping',
+    roomId: 'dm',
+    threadRootEventId: 'one',
     limit: 100,
     cursor: { case: undefined }
   });
-  expect(messages.map((message) => message.id)).toEqual(['one', 'two']);
+  expect(messages.map((message) => message.role)).toEqual(['human', 'bot']);
 });

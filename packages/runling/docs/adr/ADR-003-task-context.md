@@ -1,6 +1,6 @@
 # ADR-003: Separate task state, output, and notifications
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-009](ADR-009-task-invocations.md)
 **Date:** 2026-09-22
 
 ## Context

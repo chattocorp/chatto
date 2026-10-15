@@ -14,6 +14,7 @@
   import RunLog from './RunLog.svelte';
   import ActivityInspector from './ActivityInspector.svelte';
   import ActivityDetails from './ActivityDetails.svelte';
+  import RunMessageComposer from './RunMessageComposer.svelte';
 
   let { run, connection }: { run: RunDetail; connection: string } = $props();
   let cancelling = $state(false);
@@ -25,7 +26,7 @@
   let selected = $state('');
   let tab = $state<'log' | 'timeline'>('log');
   let currentActivity = $derived(summarizeRunActivity(run));
-  let pendingInputs = $derived(currentActivity?.pendingInputs ?? 0);
+  let waiting = $derived(isRunWaiting(currentActivity));
   let nodes = $derived(buildTimeline(run.events, run.status));
   let activity = $derived(findActivity(nodes, selected));
   let elapsed = $derived(run.durationMs ?? Math.max(0, now - run.startedAt));
@@ -114,7 +115,7 @@
         </div>
       </div>
       <div class="flex shrink-0 items-center gap-2">
-        <StatusBadge status={run.status} waiting={isRunWaiting(currentActivity)} />
+        <StatusBadge status={run.status} {waiting} />
         {#if run.status === 'running'}
           <button
             class="btn btn-ghost btn-sm gap-1.5 text-xs text-base-content/65 hover:bg-error/10 hover:text-error focus-visible:outline-error"
@@ -135,11 +136,13 @@
         {/if}
       </div>
     </div>
-    {#if pendingInputs}<p class="mt-2 text-sm text-warning">
-        {pendingInputs}
-        {pendingInputs === 1 ? 'input' : 'inputs'} pending
-      </p>{/if}
-    {#if run.status === 'running' && !isRunWaiting(currentActivity) && quietFor >= 120_000}
+    {#if waiting && currentActivity}
+      <p class="mt-2 text-sm text-base-content/70">
+        {currentActivity.step ?? 'The workflow'} waits for a message ({duration(
+          Math.max(0, elapsed - currentActivity.startedAt)
+        )}).
+      </p>
+    {:else if run.status === 'running' && quietFor >= 120_000}
       <p class="mt-2 text-sm text-warning" role="status">
         No recorded activity for {duration(quietFor)}. Last reported status: running.
       </p>
@@ -260,6 +263,9 @@
             </div>
           {/if}
         </div>
+      {/if}
+      {#if run.status === 'running'}
+        {#key run.id}<RunMessageComposer runId={run.id} />{/key}
       {/if}
     </div>
     <aside

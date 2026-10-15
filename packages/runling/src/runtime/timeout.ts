@@ -3,7 +3,7 @@ export class TimeoutError extends Error {
   override readonly name = 'TimeoutError';
 
   constructor(
-    scope: 'Input' | 'Workflow',
+    scope: 'Workflow',
     readonly timeout: number
   ) {
     super(`${scope} timed out after ${timeout} seconds`);
@@ -22,7 +22,7 @@ export function validateTimeout(timeout: number | undefined): void {
 }
 
 /** Internal timer with explicit cleanup; no timer when timeout is omitted. */
-export function createTimeout(timeout: number | undefined, scope: 'Input' | 'Workflow') {
+export function createTimeout(timeout: number | undefined, scope: 'Workflow') {
   validateTimeout(timeout);
   if (timeout === undefined) return { signal: undefined, dispose() {} };
   const ms = Math.ceil(timeout * 1000);

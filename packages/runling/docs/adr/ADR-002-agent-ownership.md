@@ -1,6 +1,6 @@
 # ADR-002: Explicit agent connections and child ownership
 
-**Status:** Accepted
+**Status:** Accepted, amended by [ADR-009](ADR-009-task-invocations.md). ADR-009 removes agent connections, agent supervision, and the adoption of runs. Invocation handles from `ctx.start` replace spawned runs. The rules on ownership, cancellation, and the difference between acceptance and consumption continue to apply.
 **Date:** 2026-09-22
 
 ## Context

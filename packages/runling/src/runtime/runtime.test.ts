@@ -1,52 +1,46 @@
-import { createWorkflowContext } from './context.ts';
 import { describe, expect, test } from 'vitest';
+import { Type } from 'typebox';
+import { createChannel } from './channel.ts';
 import { runWorkflow } from './runner.ts';
-import { task } from './workflow.ts';
-import { input } from './input.ts';
+import { task } from './task.ts';
 import { log } from './log.ts';
 import type { RunlingEvent } from './events.ts';
 
 describe('execution services', () => {
-  test('isolates concurrent input handlers, logs, and verbosity', async () => {
-    const first = Promise.withResolvers<string>();
-    const second = Promise.withResolvers<string>();
+  test('isolates concurrent host messages, logs, and verbosity', async () => {
     const events: RunlingEvent[][] = [[], []];
-    const ask = task(async function ask(ctx, message: string) {
-      const answer = await input(ctx, message);
-      log.debug(`debug:${answer}`);
-      log.info(answer);
-      return answer;
-    });
-    const one = runWorkflow(ask, {
+    const answer = task(
+      { name: 'Answer', input: Type.String(), output: Type.String(), receives: Type.String() },
+      async (ctx) => {
+        for await (const answer of ctx.inbox) {
+          log.debug(`debug:${answer}`);
+          log.info(answer);
+          return answer;
+        }
+        throw new Error('No answer');
+      }
+    );
+    const first = createChannel<string>();
+    const second = createChannel<string>();
+    const one = runWorkflow(answer, {
       input: 'one',
       verbose: true,
-      onInput: () => first.promise,
+      messages: first,
       onEvent: (e) => events[0]!.push(e)
     });
-    const two = runWorkflow(ask, {
+    const two = runWorkflow(answer, {
       input: 'two',
       verbose: false,
-      onInput: () => second.promise,
+      messages: second,
       onEvent: (e) => events[1]!.push(e)
     });
-    second.resolve('second answer');
-    first.resolve('first answer');
+    await second.send('second answer');
+    await first.send('first answer');
     expect((await one).output).toBe('first answer');
     expect((await two).output).toBe('second answer');
-    expect(
-      events[0]!
-        .filter((e) => e.type === 'log')
-        .filter((e) => e.source === undefined)
-        .map((e) => e.message)
-    ).toEqual(['debug:first answer', 'first answer']);
-    expect(
-      events[1]!
-        .filter((e) => e.type === 'log')
-        .filter((e) => e.source === undefined)
-        .map((e) => e.message)
-    ).toEqual(['second answer']);
-    await expect(input(createWorkflowContext(), 'outside a run')).rejects.toThrow(
-      'this host cannot provide it'
-    );
+    const messages = (list: RunlingEvent[]) =>
+      list.flatMap((e) => (e.type === 'log' && e.source === undefined ? [e.message] : []));
+    expect(messages(events[0]!)).toEqual(['debug:first answer', 'first answer']);
+    expect(messages(events[1]!)).toEqual(['second answer']);
   });
 });
