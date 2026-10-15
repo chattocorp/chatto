@@ -45,7 +45,7 @@ describe('followed thread query helpers', () => {
 
   it('isolates author and sort feeds and clears every tab on access loss and reset', () => {
     const connection = { queryScope: 'session-1' };
-    const keys = [ThreadRootAuthorFilter.VIEWER, ThreadRootAuthorFilter.OTHERS].flatMap(
+    const keys = [ThreadRootAuthorFilter.VIEWER, ThreadRootAuthorFilter.UNSPECIFIED].flatMap(
       (rootAuthorFilter) =>
         (['activity', 'created'] as const).flatMap((order) => [
           threadQueryKeys.followed('origin', connection, { rootAuthorFilter, order }),

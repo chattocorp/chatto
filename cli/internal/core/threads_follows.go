@@ -320,7 +320,9 @@ func (s *ThreadFollowModel) listFollowedThreadsInSpace(ctx context.Context, user
 
 		metadata := s.rooms.threadMetadata(threadRootEventID)
 		var rootCreatedAt *time.Time
-		if includeRootDate || metadata.LastReplyAt == nil {
+		if includeRootDate {
+			rootCreatedAt = s.rootCreatedAt(roomID, threadRootEventID)
+		} else if metadata.LastReplyAt == nil {
 			root, err := s.integration.GetRoomEventByEventID(ctx, kind, roomID, threadRootEventID)
 			if err != nil {
 				s.logger.Warn("Failed to get root activity for followed thread", "error", err, "room_id", roomID, "thread_root_event_id", threadRootEventID)

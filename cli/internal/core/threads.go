@@ -66,10 +66,23 @@ func newFollowedThread(kind RoomKind, roomID, rootEventID string, metadata *Thre
 type ThreadOrder int32
 
 const (
+	// ThreadOrderDefault preserves the caller's default ordering.
 	ThreadOrderDefault ThreadOrder = iota
+	// ThreadOrderActivity puts the latest reply or unreplied root first.
 	ThreadOrderActivity
+	// ThreadOrderCreated puts the newest root message first.
 	ThreadOrderCreated
 )
+
+// rootCreatedAt reads the detached timeline metadata without hydrating message
+// bodies. Callers must check thread access before using this sort date.
+func (s *ThreadFollowModel) rootCreatedAt(roomID, rootID string) *time.Time {
+	entry, ok := s.rooms.timelineEntry(rootID)
+	if !ok || entry.RoomID != roomID || !entry.IsMessagePost() || entry.InThreadEventID != "" || s.rooms.isHiddenEcho(rootID) || entry.CreatedAt.IsZero() {
+		return nil
+	}
+	return &entry.CreatedAt
+}
 
 // Validate rejects unsupported order values at the domain boundary.
 func (o ThreadOrder) Validate() error {

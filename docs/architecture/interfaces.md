@@ -394,7 +394,7 @@ hits and the complete grouped operation has a 30-second deadline. Exact totals
 and thread-date sorting require enumeration of all matching groups.
 The model rechecks current follow state and access before group pagination.
 Relevance and newest order use the best valid matching message; activity order
-uses current thread metadata. Creation order uses the root message date,
+uses current thread metadata. Creation order uses the indexed root message date,
 independent of the matching message. `ListFollowedThreads` also supports
 creation order; unspecified order retains latest activity first. Both paths
 sort before pagination, put unknown dates last, and break date ties by thread

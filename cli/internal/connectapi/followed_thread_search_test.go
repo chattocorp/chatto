@@ -409,7 +409,6 @@ func TestSearchFollowedThreadsScopesDeduplicatesAndPagesByActivity(t *testing.T)
 			}
 		}
 	}
-
 }
 
 func TestThreadSearchUsesSharedStructuredFiltersAndValidation(t *testing.T) {

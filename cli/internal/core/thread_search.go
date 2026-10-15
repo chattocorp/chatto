@@ -186,14 +186,18 @@ func (s *MessageSearchReadModel) SearchThreadGroups(ctx context.Context, actorID
 		}
 		metadata := s.rooms.threadMetadata(root)
 		var rootCreatedAt *time.Time
-		if threadOrder == ThreadOrderCreated || metadata.LastReplyAt == nil {
-			// Creation order needs the root date even when a later reply exists.
+		if threadOrder == ThreadOrderCreated {
+			rootCreatedAt = s.follows.rootCreatedAt(room, root)
+			if rootCreatedAt == nil && metadata.LastReplyAt == nil {
+				continue
+			}
+		} else if metadata.LastReplyAt == nil {
 			// A thread without replies or a visible root is not a result.
 			rootEvent, err := s.timeline.roomEvent(ctx, match.Kind, room, root)
 			if err != nil {
 				return nil, err
 			}
-			if rootEvent == nil && metadata.LastReplyAt == nil {
+			if rootEvent == nil {
 				continue
 			}
 			if rootEvent != nil && rootEvent.GetCreatedAt() != nil {
