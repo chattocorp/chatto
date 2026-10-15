@@ -47,3 +47,10 @@
     </HelpTooltip>
   </div>
 </Story>
+
+<Story name="Custom trigger" asChild>
+  <HelpTooltip label="Slow mode interval">
+    {#snippet triggerContent()}<span>0:30</span>{/snippet}
+    One message every 30 seconds.
+  </HelpTooltip>
+</Story>

@@ -33,9 +33,15 @@ handles viewport-clamped positioning.
 
   let {
     children,
+    triggerContent,
+    triggerClass,
     label = m('ui.tooltip.more_information')
   }: {
     children: Snippet;
+    /** Custom trigger content, such as a compact status badge. */
+    triggerContent?: Snippet;
+    /** Complete trigger style when custom content supplies its own surface. */
+    triggerClass?: string;
     /** aria-label for the trigger button. */
     label?: string;
   } = $props();
@@ -111,14 +117,19 @@ handles viewport-clamped positioning.
   type="button"
   aria-label={label}
   aria-describedby={open ? tooltipId : undefined}
-  class="-m-1 inline-flex cursor-help items-center p-1 align-middle text-muted/60 hover:text-muted focus-visible:text-muted focus-visible:outline-none"
+  class={triggerClass ??
+    '-m-1 inline-flex cursor-help items-center p-1 align-middle text-muted/60 hover:text-muted focus-visible:text-muted focus-visible:outline-none'}
   onmouseenter={showHover}
   onmouseleave={hideHover}
   onfocus={showHover}
   onblur={hideHover}
   onclick={toggle}
 >
-  <span class="iconify icon-[uil--info-circle] text-base" aria-hidden="true"></span>
+  {#if triggerContent}
+    {@render triggerContent()}
+  {:else}
+    <span class="iconify icon-[uil--info-circle] text-base" aria-hidden="true"></span>
+  {/if}
 </button>
 
 {#if open && anchorRect}

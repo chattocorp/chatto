@@ -1,7 +1,7 @@
 # FDR-010: Typing Indicators
 
 **Status:** Active
-**Last reviewed:** 2026-10-10
+**Last reviewed:** 2026-10-15
 
 ## Overview
 
@@ -20,6 +20,8 @@ When a user composes a message, others see avatars, names, and animated dots in 
 - A bright dot moves clockwise around a 3×3 grid with a fading trail beside the label. A persistent polite status region announces text changes. Avatars and dots are decorative. Reduced motion disables the fade, scale, and dot animation.
 - The indicator is removed immediately when the user actually posts a message.
 - Room typing and thread typing are tracked separately. The room view only shows indicators for users typing in the room timeline (not in any thread). A thread pane only shows indicators for users typing in that specific thread.
+- While Slow Mode blocks posting, its badge follows the typing badge in the same
+  row. Typing text truncates first so the countdown stays visible.
 
 ## Design Decisions
 
