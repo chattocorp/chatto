@@ -15,7 +15,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 - `onReady` - Called with editor API when editor is initialized
 -->
 <script lang="ts">
-  import { hasAllowedLinkProtocol } from '$lib/markdownLinks';
+  import { isAllowedMarkdownLink } from '$lib/markdownLinks';
   import { tick, untrack } from 'svelte';
   import { Editor } from '@tiptap/core';
   import { Slice } from '@tiptap/pm/model';
@@ -269,7 +269,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   function normalizeHref(href: string) {
     const trimmed = href.trim();
     if (!trimmed) return '';
-    if (hasAllowedLinkProtocol(trimmed)) return trimmed;
+    if (isAllowedMarkdownLink(trimmed)) return trimmed;
     // Never turn an unsupported protocol into a misleading HTTPS destination.
     if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return '';
     return `https://${trimmed}`;

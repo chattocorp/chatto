@@ -17,6 +17,14 @@ export function hasAllowedLinkProtocol(text: string): boolean {
   return suffix !== undefined && text.slice(protocol.length).startsWith(suffix);
 }
 
+/** Allow explicit Markdown links with a supported protocol or a root-relative path. */
+export function isAllowedMarkdownLink(text: string): boolean {
+  // Browsers treat backslashes as slashes and ignore tabs and line breaks.
+  // Reject them so a root-relative path cannot become a protocol-relative URL.
+  const rootRelative = text.startsWith('/') && !text.startsWith('//') && !/[\\\t\r\n]/.test(text);
+  return rootRelative || hasAllowedLinkProtocol(text);
+}
+
 /** Require an allowed explicit protocol or www. before automatic link creation. */
 export function hasAutoLinkPrefix(text: string): boolean {
   return /^www\./i.test(text) || hasAllowedLinkProtocol(text);
@@ -61,7 +69,7 @@ export function configureMarkdownLinks(markdown: MarkdownIt): void {
             child.markup === 'linkify' &&
             previous?.type === 'text' &&
             /[a-z][a-z0-9+.-]*:$/i.test(previous.content);
-          const keep = !nestedProtocol && hasAllowedLinkProtocol(child.attrGet('href') ?? '');
+          const keep = !nestedProtocol && isAllowedMarkdownLink(child.attrGet('href') ?? '');
           hidden.push(!keep);
           child.hidden = !keep;
         } else if (child.type === 'link_close') {

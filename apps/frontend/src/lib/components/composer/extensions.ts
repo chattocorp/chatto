@@ -1,4 +1,8 @@
-import { hasAutoLinkPrefix, hasAllowedLinkProtocol } from '$lib/markdownLinks';
+import {
+  hasAutoLinkPrefix,
+  hasAllowedLinkProtocol,
+  isAllowedMarkdownLink
+} from '$lib/markdownLinks';
 import {
   Extension,
   InputRule,
@@ -87,7 +91,7 @@ export const ComposerLink = Link.extend({
     // Marked also detects bare domains and email addresses when restoring Markdown.
     const raw = token.raw ?? '';
     if (
-      !hasAllowedLinkProtocol(token.href ?? '') ||
+      !isAllowedMarkdownLink(token.href ?? '') ||
       (!raw.startsWith('[') && !raw.startsWith('<') && !hasAutoLinkPrefix(raw))
     ) {
       return helpers.parseInline(token.tokens ?? []);
@@ -523,7 +527,8 @@ export function createComposerExtensions(placeholder: string) {
     ComposerLink.configure({
       autolink: true,
       shouldAutoLink: hasAutoLinkPrefix,
-      isAllowedUri: (url, { defaultValidate }) => hasAutoLinkPrefix(url) && defaultValidate(url),
+      isAllowedUri: (url, { defaultValidate }) =>
+        (hasAutoLinkPrefix(url) || isAllowedMarkdownLink(url)) && defaultValidate(url),
       linkOnPaste: true,
       openOnClick: false,
       enableClickSelection: true

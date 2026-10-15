@@ -4,6 +4,7 @@ import { createComposerExtensions } from './extensions';
 
 describe('composer automatic links', () => {
   it.each([
+    '/chat/chat.chatto.run/R8rLgzhPkYja7Gs',
     'agents.md',
     'readme.md',
     'foo.py',
@@ -67,9 +68,29 @@ describe('composer automatic links', () => {
       editor.destroy();
     }
   });
+
+  it('preserves a root-relative link when restoring and editing Markdown', () => {
+    const href = '/chat/chat.chatto.run/R8rLgzhPkYja7Gs';
+    const editor = new Editor({
+      extensions: createComposerExtensions(''),
+      content: `[link](${href})`,
+      contentType: 'markdown'
+    });
+    try {
+      expect(editor.getHTML()).toContain(`href="${href}"`);
+      expect(editor.getMarkdown()).toBe(`[link](${href})`);
+      editor.commands.setContent(`<p><a href="${href}">link</a></p>`);
+      expect(editor.getHTML()).toContain(`href="${href}"`);
+      expect(editor.commands.setLink({ href })).toBe(true);
+    } finally {
+      editor.destroy();
+    }
+  });
 });
 
 it.each([
+  '//example.com/path',
+  '/\\example.com/path',
   'ftp://example.com/file',
   'ftps://example.com/file',
   'ssh://example.com',
