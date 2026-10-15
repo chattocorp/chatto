@@ -95,9 +95,10 @@ Do not add a separate speaking border or pulse to the card.
 
 ### Sidebar links
 
-Below the `md` breakpoint, the drawer fills the available frame width. The
-server gutter keeps its width and the navigation pane fills the remaining
-space. Both panes inherit one animation state through `sidebar-drawer`.
+Below the `md` breakpoint, the drawer leaves a 3rem strip of the client visible
+at the inline end. The existing dark backdrop covers this strip; tap it to
+close the drawer. The server gutter keeps its width and the navigation pane
+fills the remaining space. Both panes inherit one animation state through `sidebar-drawer`.
 Mouse drawers use the thread overlay's 300 px slide and fade. Touch drawers
 move the full frame width to follow a finger. Select a destination, use the app-header toggle, or swipe towards
 the inline start to close the drawer. Desktop sidebar sizing is unchanged.
