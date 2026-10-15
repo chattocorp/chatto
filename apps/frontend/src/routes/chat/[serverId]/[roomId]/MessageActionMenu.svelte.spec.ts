@@ -205,7 +205,7 @@ describe('MessageActionMenu', () => {
       });
 
       const entry = [...container.querySelectorAll<HTMLButtonElement>('.menu-entry')].find(
-        (button) => button.textContent?.trim() === 'Reactions'
+        (button) => button.textContent?.trim() === 'View reactions'
       );
       expect(entry).toBeDefined();
       entry!.click();

@@ -21,13 +21,15 @@
     "empty_suffix": "kataloogi sirvimiseks ja huvipakkuvate inimestega liitumiseks.",
     "mark_as_read": "Märgi loetuks",
     "remove_server": "Eemalda server",
-    "leave_room": "Jätke ruumi",
+    "leave_room": "Lahkuge ruumist",
     "copy_room_id": "Kopeeri ruumi ID",
     "copy_server_hostname": "Kopeeri serveri hostinimi",
     "room_settings": "Ruumi seaded",
     "add_to_group": "Lisa gruppi {group}",
     "group_settings": "Seaded: {group}",
     "server_actions": "Toimingud: {server}",
-    "room_actions": "Toimingud: #{room}"
+    "room_actions": "Toimingud: #{room}",
+    "open_group_settings": "Avage rühma seaded",
+    "open_room_settings": "Avage ruumi seaded"
   }
 }

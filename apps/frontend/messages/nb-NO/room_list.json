@@ -28,6 +28,8 @@
     "add_to_group": "Legg til i {group}",
     "group_settings": "Innstillinger for {group}",
     "server_actions": "Handlinger for {server}",
-    "room_actions": "Handlinger for #{room}"
+    "room_actions": "Handlinger for #{room}",
+    "open_group_settings": "Åpne gruppeinnstillinger",
+    "open_room_settings": "Åpne rominnstillinger"
   }
 }

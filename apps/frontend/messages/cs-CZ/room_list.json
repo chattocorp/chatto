@@ -21,13 +21,15 @@
     "empty_suffix": "procházet adresář a připojit se k těm, které vás zajímají.",
     "mark_as_read": "Označit jako přečtené",
     "remove_server": "Odebrat server",
-    "leave_room": "Opusťte místnost",
+    "leave_room": "Opustit místnost",
     "copy_room_id": "Zkopírovat ID místnosti",
     "copy_server_hostname": "Zkopírovat název hostitele serveru",
     "room_settings": "Nastavení místnosti",
     "add_to_group": "Přidat do {group}",
     "group_settings": "Nastavení pro {group}",
     "server_actions": "Akce pro {server}",
-    "room_actions": "Akce pro #{room}"
+    "room_actions": "Akce pro #{room}",
+    "open_group_settings": "Otevřít nastavení skupiny",
+    "open_room_settings": "Otevřít nastavení místnosti"
   }
 }

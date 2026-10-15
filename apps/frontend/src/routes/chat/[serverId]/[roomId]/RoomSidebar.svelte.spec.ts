@@ -860,7 +860,7 @@ describe('RoomSidebar', () => {
       expect(q(document.body, '[data-testid="copy-user-id"]')).toBeTruthy();
     });
 
-    expect(buttonByText(document.body, 'Send Message')).toBeUndefined();
+    expect(buttonByText(document.body, 'Open conversation')).toBeUndefined();
   });
 
   it('shows the direct-message action when the scoped server grants it', async () => {
@@ -880,7 +880,7 @@ describe('RoomSidebar', () => {
     memberButton!.click();
 
     await vi.waitFor(() => {
-      expect(buttonByText(document.body, 'Send Message')).toBeTruthy();
+      expect(buttonByText(document.body, 'Open conversation')).toBeTruthy();
     });
   });
 
@@ -897,7 +897,7 @@ describe('RoomSidebar', () => {
     login.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
     await vi.waitFor(() => {
-      expect(buttonByText(document.body, 'Send Message')).toBeTruthy();
+      expect(buttonByText(document.body, 'Open conversation')).toBeTruthy();
     });
   });
 

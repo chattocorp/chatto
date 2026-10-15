@@ -81,7 +81,7 @@ test.describe('Real-time synchronization', () => {
 
         // User 2: Leave the room
         await page2.getByTitle('Leave room').click();
-        await page2.getByRole('dialog').getByRole('button', { name: 'Leave Room' }).click();
+        await page2.getByRole('dialog').getByRole('button', { name: 'Leave room' }).click();
 
         // User 1 should see User 2's leave event in the room
         await expect(page.getByText(`${user2.displayName} left the room`)).toBeVisible({
@@ -109,7 +109,7 @@ test.describe('Real-time synchronization', () => {
 
     // Leave the room so we can test joining it
     await page.getByTitle('Leave room').click();
-    await page.getByRole('dialog').getByRole('button', { name: 'Leave Room' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Leave room' }).click();
 
     // After leaving, room should NOT be in the room list
     await expect(chatPage.roomList.getByText(`# ${testRoomName}`)).not.toBeVisible();

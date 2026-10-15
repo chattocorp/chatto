@@ -33,8 +33,8 @@
       "access_denied": "Teil pole luba selle ruumiga liitumiseks."
     },
     "leave": {
-      "title": "Lahku ruumist",
-      "action": "Lahku ruumist",
+      "title": "Lahkuge ruumist",
+      "action": "Lahkuge ruumist",
       "prompt": "Kas soovite kindlasti #{room} lahkuda? Saate hiljem uuesti liituda.",
       "failed": "Ruumi lahkumine ebaõnnestus"
     },
@@ -93,7 +93,7 @@
         "reply": "Vasta",
         "reply_room": "Vasta ruumis",
         "reply_thread": "Vasta lõimes",
-        "open_thread": "Ava lõng",
+        "open_thread": "Avage lõim",
         "edit": "Redigeeri sõnumit",
         "more": "Rohkem toiminguid",
         "edit_short": "Muuda",
@@ -106,7 +106,8 @@
         "message_link_copied": "Sõnumi link kopeeritud",
         "copy_link_failed": "Lingi kopeerimine nurjus",
         "image_copied": "Pilt kopeeritud",
-        "copy_image_failed": "Pildi kopeerimine nurjus"
+        "copy_image_failed": "Pildi kopeerimine nurjus",
+        "view_reactions": "Vaadake reaktsioone"
       },
       "meta": {
         "echo": "Kaja",

@@ -207,7 +207,7 @@ surface-specific sizing and menu semantics.
 
 {#snippet reactionDetailsAction()}
   {@render actionButton(
-    m('room.message.actions.reactions'),
+    m('room.message.actions.view_reactions'),
     'icon-[uil--smile]',
     handleOpenReactionDetails
   )}

@@ -237,7 +237,7 @@ describe('AdminRoomLayoutEditor', () => {
     layout.groups = [group('g1', [], 'Lobby')];
     const { container } = renderEditor(layout);
 
-    buttonByText(container, 'New Room').click();
+    buttonByText(container, 'Create room').click();
     flushSync();
     fill(q(container, '#room-name') as HTMLInputElement, 'Design systems');
     buttonByText(container, 'Create and configure').click();

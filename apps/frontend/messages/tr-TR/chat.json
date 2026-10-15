@@ -44,19 +44,19 @@
     },
     "user_menu": {
       "profile": "Kullanıcı profili",
-      "send_message": "Mesaj Gönder",
-      "view_profile": "Profili görüntüle",
+      "send_message": "Sohbeti açın",
+      "view_profile": "Profili görüntüleyin",
       "profile_requires_direct_message": "Bu profili görüntülemek için doğrudan mesaj gerekir.",
-      "manage_bot": "Botu yönet",
-      "view_in_admin": "Sunucu yönetiminde görüntüle",
-      "copy_user_id": "Kullanıcı kimliğini kopyala"
+      "manage_bot": "Botu yönetin",
+      "view_in_admin": "Sunucu yönetiminde görüntüleyin",
+      "copy_user_id": "Kullanıcı kimliğini kopyalayın"
     },
     "server_gutter": {
       "move_up": "Yukarı taşıyın",
       "move_down": "Aşağı taşıyın",
       "add_server": "Sunucu Ekle",
-      "log_in": "Bu sunucuda oturum aç",
-      "sign_out": "Bu sunucudaki oturumu kapat",
+      "log_in": "Sunucuda oturum açın",
+      "sign_out": "Sunucudaki oturumu kapatın",
       "version": "Sürüm {version}",
       "unreachable": "Sunucuya ulaşılamıyor",
       "connection_unavailable": "Bağlantı kullanılamıyor",

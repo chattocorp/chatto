@@ -106,7 +106,8 @@
         "message_link_copied": "訊息連結已複製",
         "copy_link_failed": "無法複製連結",
         "image_copied": "圖片已複製",
-        "copy_image_failed": "無法複製圖片"
+        "copy_image_failed": "無法複製圖片",
+        "view_reactions": "查看回應"
       },
       "meta": {
         "echo": "回聲",
