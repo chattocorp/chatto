@@ -7,7 +7,6 @@ import type {
 import type { MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
 import { isMessagePostedEvent } from '@chatto/client/timeline/timelineEvents';
 import type { UserAvatarUserView } from '@chatto/client/timeline/users';
-import { unmask } from '@chatto/client/room/messages/helpers';
 import type { ServerConnection } from '@chatto/client/server/serverConnection';
 import { serverSessionQueryRoot } from './keys';
 
@@ -73,10 +72,9 @@ export async function fetchMessagePreview(
   messageId: string,
   signal?: AbortSignal
 ): Promise<MessagePreview | null> {
-  const page = await connection
+  const event = await connection
     .getAPI(createRoomTimelineAPI)
-    .getRoomEventsAround({ roomId, eventId: messageId, limit: 1, signal });
-  const event = unmask(page.events).find((item) => item.id === messageId);
+    .getMessage({ roomId, eventId: messageId, signal });
   const inner = event?.event;
   if (!event || !isMessagePostedEvent(inner)) return null;
   if (!inner.body && inner.attachments.length === 0) return null;

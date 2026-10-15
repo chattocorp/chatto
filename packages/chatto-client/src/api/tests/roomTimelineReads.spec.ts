@@ -1,4 +1,5 @@
 import { Timestamp } from '@bufbuild/protobuf';
+import { Code } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RoomThreadingMode } from '@chatto/api-types/api/v1/common_pb';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
@@ -50,6 +51,37 @@ const emptyPage = {
 };
 
 describe('room timeline reads', () => {
+  it('does not return a message cancelled during author resolution', async () => {
+    const controller = new AbortController();
+    messages.getMessage.mockReturnValue({
+      message: new Message({ id: 'E1', actorId: 'U1', body: 'Reply' })
+    });
+    users.batchGetUsers.mockImplementation(() => {
+      controller.abort();
+      return { users: [] };
+    });
+    await expect(
+      timelineAPI().getMessage({
+        roomId: 'R1',
+        eventId: 'E1',
+        signal: controller.signal
+      })
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(users.batchGetUsers).toHaveBeenCalledOnce();
+  });
+
+  it('cancels a message read before loading author profiles', async () => {
+    const api = timelineAPI();
+    await expect(
+      api.getMessage({
+        roomId: 'R1',
+        eventId: 'E1',
+        signal: AbortSignal.abort()
+      })
+    ).rejects.toMatchObject({ code: Code.Canceled });
+    expect(users.batchGetUsers).not.toHaveBeenCalled();
+  });
+
   beforeEach(() => {
     vi.resetAllMocks();
     resetUserStoresForTests();
