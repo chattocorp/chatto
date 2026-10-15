@@ -14,7 +14,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
-  import { copyRoomLinkToClipboard } from '$lib/messageLinks';
+  import { copyRoomLinkToClipboard } from '$lib/copyChatLink';
   import { m } from '$lib/i18n/messages';
   import {
     normalizeSidebarLinkURL,

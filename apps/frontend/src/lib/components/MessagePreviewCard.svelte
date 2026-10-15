@@ -8,7 +8,7 @@ unknown instance) the component renders nothing. A reconnect keeps the loaded
 preview on screen.
 
 **Props:**
-- `link` — Parsed MessageLink from `$lib/messageLinks`.
+- `link` — Parsed MessageLink from `$lib/chatLinks`.
 - `onDismiss` — Callback when user dismisses the preview (composer mode).
 - `showDismiss` — Whether to show the dismiss button (default: true).
 -->
@@ -19,10 +19,8 @@ preview on screen.
   import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
   import { skipToken } from '@tanstack/svelte-query';
   import { goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
-  import type { MessageLink } from '$lib/messageLinks';
+  import { buildMessageLinkPath, type MessageLink } from '$lib/chatLinks';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-  import { serverIdToSegment } from '$lib/navigation';
   import { m } from '$lib/i18n/messages';
   import { createQuery } from '$lib/query/client';
   import {
@@ -211,26 +209,7 @@ preview on screen.
 
   function navigateToPreview() {
     if (!preview || !link.serverId) return;
-    const serverId = serverIdToSegment(link.serverId);
-    if (link.threadRootEventId) {
-      goto(
-        resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
-          serverId,
-          roomId: link.roomId,
-          threadId: link.threadRootEventId,
-          messageId: link.messageId
-        })
-      );
-      return;
-    }
-
-    goto(
-      resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-        serverId,
-        roomId: link.roomId,
-        messageId: link.messageId
-      })
-    );
+    goto(buildMessageLinkPath(link.serverId, link.roomId, link.messageId, link.threadRootEventId));
   }
 
   useExpiringAssetUrlRefresh({

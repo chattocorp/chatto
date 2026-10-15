@@ -1,3 +1,4 @@
+import { copyMessageLinkToClipboard, copyRoomLinkToClipboard } from './copyChatLink';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getToasts, toast } from '$lib/ui/toast';
 import { serverRegistry } from '$lib/client';
@@ -6,10 +7,8 @@ import {
   buildMessageLinkURL,
   buildRoomLinkURL,
   classifyMessageBodyChatLink,
-  copyMessageLinkToClipboard,
-  copyRoomLinkToClipboard,
   parseMessageLink
-} from './messageLinks';
+} from './chatLinks';
 
 const origin = 'https://chat.example.test';
 const registeredRemoteOrigin = 'https://chat.chatto.run';
@@ -347,6 +346,28 @@ describe('parseMessageLink', () => {
     expect(classifyMessageBodyChatLink(url)?.serverId).toBe('remote');
   });
 
+  it('does not trust an unknown origin even when its path names a known server', () => {
+    const url = `https://unknown.test/chat/remote.example.test/${channelRoomId}/m/${messageId}`;
+    expect(classifyMessageBodyChatLink(url)).toBeNull();
+    expect(parseMessageLink(url)).toMatchObject({
+      serverId: null,
+      roomId: channelRoomId,
+      messageId
+    });
+  });
+
+  it('decodes valid IDs and keeps query and hash when producing a local route', () => {
+    const url = `${remoteServer.url}/chat/-/%52${channelRoomId.slice(1)}/m/${messageId}/?focus=1#target`;
+    expect(classifyMessageBodyChatLink(url)?.path).toBe(
+      `/chat/remote.example.test/${channelRoomId}/m/${messageId}?focus=1#target`
+    );
+    expect(parseMessageLink(url)).toMatchObject({
+      serverId: 'remote',
+      roomId: channelRoomId,
+      messageId
+    });
+  });
+
   it('preserves the thread root from a nested message link', () => {
     expect(
       parseMessageLink(`/chat/-/${channelRoomId}/${threadRootEventId}/m/${messageId}`)
@@ -355,5 +376,33 @@ describe('parseMessageLink', () => {
       threadRootEventId,
       messageId
     });
+  });
+
+  it.each(['https://remote.example.test:8443', 'http://remote.example.test', 'http://[::1]:8080'])(
+    'maps an owning-origin share URL to a hostname-only local route: %s',
+    (url) => {
+      const server = { ...remoteServer, url };
+      vi.mocked(serverRegistry.getServer).mockReturnValue(server);
+      vi.spyOn(serverRegistry, 'servers', 'get').mockReturnValue([server]);
+      const local = `/chat/${new URL(url).hostname}/${channelRoomId}/m/${messageId}`;
+      const shared = buildMessageLinkURL('remote', channelRoomId, messageId);
+      expect(classifyMessageBodyChatLink(shared)?.path).toBe(local);
+      expect(classifyMessageBodyChatLink(local)?.path).toBe(local);
+      expect(parseMessageLink(local)?.serverId).toBe('remote');
+    }
+  );
+
+  it.each([
+    '/chat/-/room-1/m/Eabc123DEF456gh',
+    '/chat/-/R123456789abcde/m/message-1',
+    '/chat//-/R123456789abcde/m/Eabc123DEF456gh',
+    '/chat/-/R123456789abcde/m/Eabc123DEF456gh/extra',
+    '/chat/-/R123456789abcde/m/%broken',
+    '/chat/-/R123456789abcde/m/Eabc123DEF456gh%2F',
+    'ftp://remote.example.test/chat/-/R123456789abcde/m/Eabc123DEF456gh',
+    'https://user:password@remote.example.test/chat/-/R123456789abcde/m/Eabc123DEF456gh'
+  ])('rejects the same malformed link for navigation and previews: %s', (input) => {
+    expect(parseMessageLink(input)).toBeNull();
+    expect(classifyMessageBodyChatLink(input)).toBeNull();
   });
 });

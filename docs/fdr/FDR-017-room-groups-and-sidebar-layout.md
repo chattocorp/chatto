@@ -43,6 +43,9 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 - Group names are limited to 80 bytes; group descriptions are limited to 500 bytes.
 - Every channel room belongs to exactly one group. There's no "uncategorized" branch — room creation requires a group.
 - Sidebar links belong to exactly one group, carry a label and either an absolute `http`/`https` URL or a server-local path starting with `/`, and are visible to authenticated users who can see the server sidebar. The create and edit forms add `https://` when an operator enters a host name without a scheme.
+- Absolute sidebar links open in the current tab only when their origin matches
+  the active server, including its scheme and port. Server-local paths resolve
+  against that server. Other origins open in a new tab.
 - A freshly bootstrapped server has one group named "Lobby" containing the auto-created `announcements` and `general` rooms. Operators can rename it, reorder it, or replace it like any other group.
 - Deleting a group is rejected while rooms or sidebar links still live in it. Operators move or delete its contents first.
 - Moving a room between groups requires `room.manage` in both the source and the target group (the room's effective ACL changes overnight).

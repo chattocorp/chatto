@@ -75,7 +75,7 @@ export function sidebarLinkTarget(
     return invalidSidebarLinkTarget();
   }
 
-  if (serverURL && parsed.host === serverURL.host) {
+  if (serverURL && parsed.origin === serverURL.origin) {
     return { valid: true, href: parsed.toString() };
   }
 

@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { normalizeSidebarLinkURL, sidebarLinkTarget } from './sidebarLinkTarget';
 
 describe('sidebarLinkTarget', () => {
+  it('opens a different scheme on the same host in a new tab', () => {
+    expect(
+      sidebarLinkTarget('http://remote.example.test/docs', 'https://remote.example.test')
+    ).toMatchObject({ target: '_blank', rel: 'noopener noreferrer' });
+  });
   it('resolves server-local paths against the active server base URL', () => {
     expect(sidebarLinkTarget('/docs', 'https://remote.example.test')).toEqual({
       valid: true,

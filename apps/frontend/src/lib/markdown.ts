@@ -5,7 +5,7 @@ import type StateCore from 'markdown-it/lib/rules_core/state_core.mjs';
 import type StateBlock from 'markdown-it/lib/rules_block/state_block.mjs';
 import type Token from 'markdown-it/lib/token.mjs';
 import { configureMarkdownLinks } from './markdownLinks';
-import { classifyMessageBodyChatLink } from '$lib/messageLinks';
+import { classifyMessageBodyChatLink } from '$lib/chatLinks';
 import { collectMentionHandles, MENTIONS_ENV_KEY, mentionPlugin } from '$lib/markdownMentions';
 import { m } from '$lib/i18n/messages';
 

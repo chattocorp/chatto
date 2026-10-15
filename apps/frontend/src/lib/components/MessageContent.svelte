@@ -7,7 +7,7 @@
   import { goto } from '$app/navigation';
   import { renderMarkdown as renderMd } from '$lib/markdown';
   import { MarkdownHtml, ContextMenu } from '$lib/ui';
-  import { classifyMessageBodyChatLink } from '$lib/messageLinks';
+  import { classifyMessageBodyChatLink } from '$lib/chatLinks';
   import { resolveRenderedMentions, type RoomMember } from '$lib/mentions';
   import { formatRelativeMessageTimestamp, wrapMessageTimestamps } from '$lib/messageTimestamps';
   import { parseTrustedMarkdownHtml } from '$lib/security/trustedHtml';
@@ -185,7 +185,6 @@
 
       const chatLink = classifyMessageBodyChatLink(anchor.href);
       if (chatLink) {
-        // eslint-disable-next-line svelte/no-navigation-without-resolve -- classifyMessageBodyChatLink returns an allow-listed resolved app path.
         goto(chatLink.path);
         return;
       }

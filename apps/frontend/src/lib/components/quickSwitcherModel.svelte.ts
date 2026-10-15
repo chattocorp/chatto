@@ -14,7 +14,7 @@ import {
 import { useDebounce } from '$lib/hooks/useDebounce.svelte';
 import { startDMWith } from '$lib/dm/startDM';
 import { m } from '$lib/i18n/messages';
-import { buildMessageLinkPath } from '$lib/messageLinks';
+import { buildMessageLinkPath } from '$lib/chatLinks';
 import { serverIdToSegment } from '$lib/navigation';
 import {
   buildDirectMessagePresentation,
