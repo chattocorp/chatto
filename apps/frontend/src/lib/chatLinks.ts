@@ -46,14 +46,22 @@ function parseChatLink(
   origin: string
 ): {
   url: URL;
+  /** True when the URL belongs to this frontend's origin. */
+  sameOrigin: boolean;
   serverSegment: string;
   destination: ChatDestination;
 } | null {
   let url: URL;
+  let sameOrigin: boolean;
   let parts: string[];
   try {
     url = new URL(input, origin);
-    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return null;
+    // Compare scheme and host, not `URL.origin`: the desktop app's `chatto:`
+    // scheme can have an opaque origin, and its root-relative links must still match.
+    const base = new URL(origin);
+    sameOrigin = url.protocol === base.protocol && url.host === base.host;
+    if (url.username || url.password) return null;
+    if (!sameOrigin && !['http:', 'https:'].includes(url.protocol)) return null;
     // Decode each segment separately: encoded slashes must never change the route shape.
     parts = url.pathname.replace(/\/$/, '').split('/').slice(1).map(decodeURIComponent);
   } catch {
@@ -78,18 +86,16 @@ function parseChatLink(
   } else {
     return null;
   }
-  return { url, serverSegment, destination };
+  return { url, sameOrigin, serverSegment, destination };
 }
 
 /** Unknown URL origins remain external, even when their path names a known server. */
 function resolveChatLinkServerId(
-  url: URL,
-  serverSegment: string,
-  origin: string,
+  { url, sameOrigin, serverSegment }: { url: URL; sameOrigin: boolean; serverSegment: string },
   options: MessageBodyChatLinkOptions
 ): string | null {
   const resolveSegment = options.resolveServerSegment ?? segmentToServerId;
-  if (url.origin === origin) return resolveSegment(serverSegment);
+  if (sameOrigin) return resolveSegment(serverSegment);
   const originServerId = (options.resolveUrlOrigin ?? serverIdForUrlOrigin)(url.origin);
   if (!originServerId) return null;
   return serverSegment === '-' ? originServerId : resolveSegment(serverSegment);
@@ -185,7 +191,7 @@ export function classifyMessageBodyChatLink(
   if (!origin) return null;
   const parsed = parseChatLink(input, origin);
   if (!parsed) return null;
-  const serverId = resolveChatLinkServerId(parsed.url, parsed.serverSegment, origin, options);
+  const serverId = resolveChatLinkServerId(parsed, options);
   if (!serverId) return null;
   const serverSegment = options.serverSegmentForId?.(serverId) ?? serverIdToSegment(serverId);
   return {
@@ -203,12 +209,12 @@ export function parseMessageLink(input: string): MessageLink | null {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://_';
   const parsed = parseChatLink(input, origin);
   if (!parsed || !('messageId' in parsed.destination)) return null;
-  const serverId = resolveChatLinkServerId(parsed.url, parsed.serverSegment, origin, {});
+  const serverId = resolveChatLinkServerId(parsed, {});
   return {
     serverId,
     serverSegment: serverId
       ? serverIdToSegment(serverId)
-      : parsed.url.origin === origin
+      : parsed.sameOrigin
         ? parsed.serverSegment
         : parsed.url.host,
     roomId: parsed.destination.roomId,

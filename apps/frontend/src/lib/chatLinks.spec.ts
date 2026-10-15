@@ -356,6 +356,14 @@ describe('parseMessageLink', () => {
     });
   });
 
+  it('accepts root-relative links on the desktop app origin', () => {
+    vi.stubGlobal('window', { location: { origin: 'chatto://desktop' } });
+    const path = `/chat/remote.example.test/${channelRoomId}/m/${messageId}`;
+    expect(classifyMessageBodyChatLink(path)?.path).toBe(path);
+    expect(parseMessageLink(path)?.serverId).toBe('remote');
+    expect(parseMessageLink(`chatto://other${path}`)).toBeNull();
+  });
+
   it('decodes valid IDs and keeps query and hash when producing a local route', () => {
     const url = `${remoteServer.url}/chat/-/%52${channelRoomId.slice(1)}/m/${messageId}/?focus=1#target`;
     expect(classifyMessageBodyChatLink(url)?.path).toBe(
