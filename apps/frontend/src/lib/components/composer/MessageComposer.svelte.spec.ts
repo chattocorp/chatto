@@ -2213,6 +2213,95 @@ describe('MessageComposer', () => {
   });
 
   describe('edit mode transitions', () => {
+    describe.each(['visual', 'markdown'] as const)('%s post-edit focus', (kind) => {
+      it.each([
+        ['keyboard', 'thread'],
+        ['button', 'thread'],
+        ['keyboard', 'room'],
+        ['button', 'room']
+      ] as const)(
+        'restores composer focus after saving with the %s in a %s',
+        async (method, destination) => {
+          userPreferences.composerEditor = kind;
+          userPreferences.composerSendMode = 'enter';
+          const pendingEdit = deferred<boolean>();
+          updateMessageConnectMock.mockReturnValueOnce(pendingEdit.promise);
+          const editState = new EditState();
+          roomStateMock.reactiveEditState = editState;
+          editState.startEdit('focus-edit', 'Original message');
+          const { container } = renderMessageComposer({
+            roomId: 'focus-room',
+            inThread: destination === 'thread' ? 'focus-thread' : undefined
+          });
+          const editor = await findEditor(
+            container,
+            destination === 'thread' ? 'thread-reply-input' : 'message-input'
+          );
+          await expect.element(editor).toHaveTextContent('Original message');
+          await userEvent.click(editor);
+          await userEvent.keyboard(' updated');
+          if (method === 'keyboard') {
+            await userEvent.keyboard('{Enter}');
+          } else {
+            await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+          }
+          await expect.element(editor).toHaveAttribute('contenteditable', 'false');
+          pendingEdit.resolve(true);
+
+          await expect.element(editor).toHaveAttribute('contenteditable', 'true');
+          await expect.element(editor).toHaveFocus();
+          expect(editState.eventId).toBeNull();
+          await userEvent.keyboard('Next message');
+          await expect.element(editor).toHaveTextContent('Next message');
+          expect(editor.textContent).not.toContain('Original message');
+        }
+      );
+
+      it.each(['room', 'thread'] as const)(
+        'does not steal focus or clear the next draft after switching %s during an edit save',
+        async (destination) => {
+          userPreferences.composerEditor = kind;
+          const pendingEdit = deferred<boolean>();
+          updateMessageConnectMock.mockReturnValueOnce(pendingEdit.promise);
+          const editState = new EditState();
+          roomStateMock.reactiveEditState = editState;
+          editState.startEdit('delayed-edit', 'Original message');
+          const rendered = renderMessageComposer(
+            { roomId: 'focus-room', inThread: 'focus-thread', autoFocus: false },
+            { exactRoomId: true }
+          );
+          const editor = await findEditor(rendered.container, 'thread-reply-input');
+          await expect.element(editor).toHaveTextContent('Original message');
+          await userEvent.click(q(rendered.container, 'button[aria-label="Send message"]')!);
+          await expect.element(editor).toHaveAttribute('contenteditable', 'false');
+          const outside = document.createElement('button');
+          outside.textContent = 'Outside composer';
+          document.body.append(outside);
+          try {
+            const nextDraftKey =
+              destination === 'room'
+                ? 'chatto:draft:another-room:thread:focus-thread'
+                : 'chatto:draft:focus-room:thread:another-thread';
+            sessionStorage.setItem(nextDraftKey, 'Next draft');
+            await rendered.rerender(
+              destination === 'room' ? { roomId: 'another-room' } : { inThread: 'another-thread' }
+            );
+            await expect.element(editor).toHaveTextContent('Next draft');
+            await settleEditorFocus();
+            await userEvent.click(outside);
+            pendingEdit.resolve(true);
+            await expect.element(editor).toHaveAttribute('contenteditable', 'true');
+            await settleEditorFocus();
+            await expect.element(outside).toHaveFocus();
+            await expect.element(editor).toHaveTextContent('Next draft');
+            expect(sessionStorage.getItem(nextDraftKey)).toBe('Next draft');
+          } finally {
+            outside.remove();
+          }
+        }
+      );
+    });
+
     it('adds an echo to an image-only thread reply without replacing its body', async () => {
       roomStateMock.editState.eventId = 'evt_image_reply';
       roomStateMock.editState.threadRootEventId = 'evt_root';
