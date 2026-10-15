@@ -14,7 +14,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
-  import { copyRoomLinkToClipboard } from '$lib/messageLinks';
+  import { copyRoomLinkToClipboard } from '$lib/copyChatLink';
+  import { handleRenderedLinkClick } from '$lib/navigation/renderedLink';
   import { m } from '$lib/i18n/messages';
   import {
     normalizeSidebarLinkURL,
@@ -1108,6 +1109,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       {@attach owningGroup ? linkMenuTrigger(owningGroup, item) : undefined}
       onclick={(event) => {
         if (!target.valid) event.preventDefault();
+        else handleRenderedLinkClick(event, target.href);
+      }}
+      onauxclick={(event) => {
+        if (!target.valid) event.preventDefault();
+        else handleRenderedLinkClick(event, target.href);
       }}
     >
       <span class="relative flex shrink-0" data-testid="sidebar-link-leading-icon">

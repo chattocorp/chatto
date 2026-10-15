@@ -6,6 +6,7 @@ preview-card styling. Its parent owns shared link-preview actions.
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
+  import { renderedLinkTarget, handleRenderedLinkClick } from '$lib/navigation/renderedLink';
   import type { SocialPostPreviewView } from '@chatto/client/timeline/linkPreviews';
 
   let {
@@ -73,8 +74,12 @@ preview-card styling. Its parent owns shared link-preview actions.
   data-provider={post.provider}
   oncontextmenu={onContextMenu}
 >
-  <!-- eslint-disable svelte/no-navigation-without-resolve -- url is a third-party social-post URL -->
-  <a href={url} target="_blank" rel="noopener noreferrer" class="flex min-w-0 items-center gap-2.5">
+  <a
+    {...renderedLinkTarget(url)}
+    onclick={(event) => handleRenderedLinkClick(event, url)}
+    onauxclick={(event) => handleRenderedLinkClick(event, url)}
+    class="flex min-w-0 items-center gap-2.5"
+  >
     {#if post.author?.avatarUrl}
       <img
         src={post.author.avatarUrl}
@@ -106,7 +111,6 @@ preview-card styling. Its parent owns shared link-preview actions.
       <span class="shrink-0 text-xs text-muted">{providerName}</span>
     {/if}
   </a>
-  <!-- eslint-enable svelte/no-navigation-without-resolve -->
 
   {#if post.contentWarning}
     <div class="flex items-center justify-between gap-2 surface-box px-2 py-1 text-xs">
@@ -151,13 +155,15 @@ preview-card styling. Its parent owns shared link-preview actions.
     {/if}
 
     {#if post.externalLink && (post.externalLink.title || post.externalLink.description || post.externalLink.imageUrl)}
-      <!-- eslint-disable svelte/no-navigation-without-resolve -- destination is a third-party URL embedded in the post -->
+      {@const externalURL = post.externalLink.url}
       <a
-        href={post.externalLink.url}
-        target="_blank"
-        rel="noopener noreferrer"
+        {...renderedLinkTarget(post.externalLink.url)}
         class="flex min-w-0 gap-3 overflow-hidden surface-box p-2 transition-[background-color] feedback-quick hover:bg-surface-emphasized"
-        onclick={(event) => event.stopPropagation()}
+        onclick={(event) => {
+          event.stopPropagation();
+          handleRenderedLinkClick(event, externalURL);
+        }}
+        onauxclick={(event) => handleRenderedLinkClick(event, externalURL)}
       >
         {#if post.externalLink.imageUrl}
           <img
@@ -179,19 +185,18 @@ preview-card styling. Its parent owns shared link-preview actions.
           {/if}
         </div>
       </a>
-      <!-- eslint-enable svelte/no-navigation-without-resolve -->
     {/if}
 
     {#if post.quotedPost && post.quotedPost.url}
+      {@const quotedURL = post.quotedPost.url}
       <div
         class="flex min-w-0 flex-col gap-2 overflow-hidden surface-box p-2.5"
         data-testid="quoted-social-post"
       >
-        <!-- eslint-disable svelte/no-navigation-without-resolve -- destination is a third-party social-post URL -->
         <a
-          href={post.quotedPost.url}
-          target="_blank"
-          rel="noopener noreferrer"
+          {...renderedLinkTarget(post.quotedPost.url)}
+          onclick={(event) => handleRenderedLinkClick(event, quotedURL)}
+          onauxclick={(event) => handleRenderedLinkClick(event, quotedURL)}
           class="flex min-w-0 items-center gap-2"
         >
           {#if post.quotedPost.author?.avatarUrl}
@@ -244,7 +249,11 @@ preview-card styling. Its parent owns shared link-preview actions.
               ]}
             >
               {#each post.quotedPost.images as image (image.url)}
-                <a href={post.quotedPost.url} target="_blank" rel="noopener noreferrer">
+                <a
+                  {...renderedLinkTarget(post.quotedPost.url)}
+                  onclick={(event) => handleRenderedLinkClick(event, quotedURL)}
+                  onauxclick={(event) => handleRenderedLinkClick(event, quotedURL)}
+                >
                   <img
                     src={image.url}
                     alt={image.alt || ''}
@@ -258,10 +267,11 @@ preview-card styling. Its parent owns shared link-preview actions.
             </div>
           {/if}
           {#if post.quotedPost.externalLink && (post.quotedPost.externalLink.title || post.quotedPost.externalLink.description || post.quotedPost.externalLink.imageUrl)}
+            {@const externalURL = post.quotedPost.externalLink.url}
             <a
-              href={post.quotedPost.externalLink.url}
-              target="_blank"
-              rel="noopener noreferrer"
+              {...renderedLinkTarget(post.quotedPost.externalLink.url)}
+              onclick={(event) => handleRenderedLinkClick(event, externalURL)}
+              onauxclick={(event) => handleRenderedLinkClick(event, externalURL)}
               class="flex min-w-0 gap-2 overflow-hidden rounded-sm bg-surface-strong p-2"
             >
               {#if post.quotedPost.externalLink.imageUrl}
@@ -288,7 +298,6 @@ preview-card styling. Its parent owns shared link-preview actions.
             </a>
           {/if}
         {/if}
-        <!-- eslint-enable svelte/no-navigation-without-resolve -->
       </div>
     {/if}
   {/if}

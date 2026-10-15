@@ -5,7 +5,7 @@ import type StateCore from 'markdown-it/lib/rules_core/state_core.mjs';
 import type StateBlock from 'markdown-it/lib/rules_block/state_block.mjs';
 import type Token from 'markdown-it/lib/token.mjs';
 import { configureMarkdownLinks } from './markdownLinks';
-import { classifyMessageBodyChatLink } from '$lib/messageLinks';
+import { renderedLinkTarget } from '$lib/navigation/renderedLink';
 import { collectMentionHandles, MENTIONS_ENV_KEY, mentionPlugin } from '$lib/markdownMentions';
 import { m } from '$lib/i18n/messages';
 
@@ -508,21 +508,15 @@ function initialize(): void {
   md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
     const token = tokens[idx];
     const hrefIndex = token.attrIndex('href');
-    let allowedSameTabChatLink = false;
-    let mailLink = false;
-
     if (hrefIndex >= 0) {
       const href = token.attrs![hrefIndex][1];
-
-      mailLink = /^mailto:/i.test(href);
-      allowedSameTabChatLink = classifyMessageBodyChatLink(href) !== null;
-    }
-
-    // External and non-allow-listed links open out-of-band. Known same-origin
-    // chat routes intentionally keep normal same-tab navigation semantics.
-    if (!allowedSameTabChatLink && !mailLink) {
-      token.attrSet('target', '_blank');
-      token.attrSet('rel', 'noopener noreferrer');
+      if (!/^mailto:/i.test(href)) {
+        const target = renderedLinkTarget(href);
+        token.attrSet('data-content-href', href);
+        token.attrSet('href', target.href);
+        if (target.target) token.attrSet('target', target.target);
+        if (target.rel) token.attrSet('rel', target.rel);
+      }
     }
 
     return defaultLinkRender(tokens, idx, options, env, self);

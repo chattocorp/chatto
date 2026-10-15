@@ -27,7 +27,7 @@ in the active server store so browser Back can restore the current search.
   import { getLocale } from '$lib/i18n/runtime';
   import { useDebouncedMessageSearch } from '$lib/hooks/useDebouncedMessageSearch.svelte';
   import SearchResults from '$lib/components/search/SearchResults.svelte';
-  import { buildMessageLinkPath } from '$lib/messageLinks';
+  import { buildMessageLinkPath } from '$lib/chatLinks';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { TextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
@@ -73,7 +73,6 @@ in the active server store so browser Back can restore the current search.
   }
 
   function navigateToResult(result: MessageSearchResult): void {
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- buildMessageLinkPath() returns a resolved app route
     void goto(buildMessageLinkPath(serverId, result.roomId, result.id, result.threadRootEventId));
   }
 </script>
@@ -152,7 +151,6 @@ in the active server store so browser Back can restore the current search.
                     </a>
                     {#if result.createdAt}
                       <span class="text-xs text-muted" aria-hidden="true">·</span>
-                      <!-- eslint-disable svelte/no-navigation-without-resolve -- buildMessageLinkPath() returns a resolved app route -->
                       <a
                         class="min-w-0 truncate text-xs text-muted hover:text-text hover:underline"
                         href={buildMessageLinkPath(
@@ -164,7 +162,6 @@ in the active server store so browser Back can restore the current search.
                       >
                         <time datetime={result.createdAt}>{formatTimestamp(result.createdAt)}</time>
                       </a>
-                      <!-- eslint-enable svelte/no-navigation-without-resolve -->
                     {/if}
                   {/snippet}
                 </SearchResult>

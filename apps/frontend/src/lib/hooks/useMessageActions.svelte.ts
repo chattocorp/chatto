@@ -4,7 +4,7 @@ import { pushState } from '$app/navigation';
 import { getComposerContext } from '$lib/state/room/composerContext.svelte';
 import type { MessagesStore } from '@chatto/client/room/messages/MessagesStore';
 import { emojiToName } from '$lib/emoji';
-import { copyMessageLinkToClipboard } from '$lib/messageLinks';
+import { copyMessageLinkToClipboard } from '$lib/copyChatLink';
 import { createReactionAPI } from '@chatto/client/api/reactions';
 import { Code, isConnectCode } from '@chatto/client/api/connect';
 import { m } from '$lib/i18n/messages';

@@ -1,3 +1,5 @@
+import { renderedLinkTarget } from './renderedLink';
+
 export type SidebarLinkTarget =
   | {
       valid: true;
@@ -44,6 +46,10 @@ export function normalizeSidebarLinkURL(rawURL: string): string {
   return `https://${value}`;
 }
 
+/**
+ * Resolve server-local paths against the active server, then apply the shared
+ * conversation-link navigation policy.
+ */
 export function sidebarLinkTarget(
   rawURL: string,
   serverBaseURL: string | null | undefined
@@ -58,7 +64,7 @@ export function sidebarLinkTarget(
       return invalidSidebarLinkTarget();
     }
     try {
-      return { valid: true, href: new URL(value, serverURL).toString() };
+      return { valid: true, ...renderedLinkTarget(new URL(value, serverURL).toString()) };
     } catch {
       return invalidSidebarLinkTarget();
     }
@@ -75,16 +81,7 @@ export function sidebarLinkTarget(
     return invalidSidebarLinkTarget();
   }
 
-  if (serverURL && parsed.host === serverURL.host) {
-    return { valid: true, href: parsed.toString() };
-  }
-
-  return {
-    valid: true,
-    href: parsed.toString(),
-    target: '_blank',
-    rel: 'noopener noreferrer'
-  };
+  return { valid: true, ...renderedLinkTarget(parsed.toString()) };
 }
 
 export function sidebarLinkAnchorAttributes(

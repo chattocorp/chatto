@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import MessagePreviewCard from './MessagePreviewCard.svelte';
-import type { MessageLink } from '$lib/messageLinks';
+import type { MessageLink } from '$lib/chatLinks';
 
 import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
 import type { RefreshedAttachmentUrls } from '@chatto/client/attachments/attachmentUrls';
@@ -86,7 +86,6 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 
 function link(): MessageLink {
   return {
-    serverSegment: '-',
     serverId: 'server_1',
     roomId: 'room_1',
     messageId: 'event_1'

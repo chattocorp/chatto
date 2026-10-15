@@ -19,13 +19,15 @@ describe('LinkPreviewState', () => {
     const state = new LinkPreviewState(() => apiWithFetch(fetchLinkPreview));
 
     const cleanup = state.scheduleDetection(
-      'See http://localhost/chat/-/room_456/m/evt_123',
+      'See http://localhost/chat/-/R123456789abcde/m/Eabc123DEF456gh',
       false
     );
     await vi.advanceTimersByTimeAsync(500);
     cleanup();
 
-    expect(state.detectedURLs).toEqual(['http://localhost/chat/-/room_456/m/evt_123']);
+    expect(state.detectedURLs).toEqual([
+      'http://localhost/chat/-/R123456789abcde/m/Eabc123DEF456gh'
+    ]);
     expect(fetchLinkPreview).not.toHaveBeenCalled();
   });
 

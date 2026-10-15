@@ -1,5 +1,5 @@
-import type { MessageLink } from '$lib/messageLinks';
-import { parseMessageLink } from '$lib/messageLinks';
+import type { MessageLink } from '$lib/chatLinks';
+import { parseMessageLink } from '$lib/chatLinks';
 import { extractURLs } from '$lib/linkPreview';
 import {
   isMessagePostedEvent,

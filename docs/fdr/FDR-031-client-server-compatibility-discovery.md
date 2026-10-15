@@ -56,12 +56,18 @@ Chatto's pre-1.0 API remains experimental.
 
 **Decision:** The bundled client records one minimum supported server release.
 Every feature that the client uses exists in that release, so the client does
-not gate individual features by server version. When the client starts to use
-a feature of a newer server, the minimum increases.
+not gate individual features by server version. Increase this minimum only as
+a last resort, including during alpha and beta releases. First consider a
+compatible API design, use of the existing server contract, or deferring the
+new dependency. If an increase is necessary, record the exact incompatibility,
+why reasonable alternatives are insufficient, and the required upgrade action.
+Use the oldest server release that meets the requirement.
 **Why:** Per-feature version gates make each screen keep a second code path for
 servers that are already unsupported. Exposing implementation-level protocol
 flags would also turn internal rollout details into a public contract. One
-minimum keeps version knowledge in one place.
+minimum keeps version knowledge in one place. Increasing it prevents users
+from connecting to older servers, so a new release or simpler implementation
+alone does not justify an increase.
 **Tradeoff:** A client cannot use a newer feature on new servers while it still
 supports older servers. Forks and builds with non-standard version strings
 cannot declare support independently; the client treats them as unknown and
