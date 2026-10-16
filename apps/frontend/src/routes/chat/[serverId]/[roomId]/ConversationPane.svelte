@@ -34,8 +34,10 @@ thread IDs can change while the pane stays mounted.
 
 <script lang="ts">
   import { onDestroy, untrack, type Snippet } from 'svelte';
+  import { SvelteSet } from 'svelte/reactivity';
   import type { ClassValue, HTMLAttributes } from 'svelte/elements';
   import { createReadStateAPI, type MarkThreadAsReadResult } from '@chatto/client/api/readState';
+  import { NotificationSignalKind } from '@chatto/client/api/notifications';
   import { dropZone } from '$lib/dom/dropZone.svelte';
   import DropZoneOverlay from '$lib/dom/DropZoneOverlay.svelte';
   import MessageComposer, {
@@ -163,6 +165,41 @@ thread IDs can change while the pane stays mounted.
   );
   const atLatest = $derived(!highlightPending && (currentReadPosition?.latest ?? true));
 
+  // The root belongs to the room, so a thread read cannot cover its reactions.
+  // Read only those occurrences, without clearing other activity in the room.
+  // The store marks an occurrence read at once, so the unread filter keeps an
+  // in-flight read from starting again. This set stops repeated attempts when
+  // a failed read restores unread state. Entry, refocus, or a return from
+  // history clears it.
+  const attemptedRootReactions = new SvelteSet<string>();
+
+  /** Handle canonical notification arrivals and existing conversation read events. */
+  function readRootReactions() {
+    if (
+      !threadRootEventId ||
+      !stores.isAuthenticated ||
+      !canReadMessages ||
+      !appState.isPresent ||
+      !atLatest
+    )
+      return;
+    for (const occurrence of stores.notifications.occurrences) {
+      if (
+        occurrence.unread &&
+        occurrence.signalKind === NotificationSignalKind.REACTION &&
+        occurrence.room?.id === roomId &&
+        occurrence.eventId === threadRootEventId &&
+        !occurrence.threadRootId &&
+        !attemptedRootReactions.has(occurrence.id)
+      ) {
+        attemptedRootReactions.add(occurrence.id);
+        stores.notifications
+          .markOccurrenceRead(occurrence.id)
+          .catch(() => console.error('Failed to mark viewed root reaction read'));
+      }
+    }
+  }
+
   const readThrough = new ReadThroughTracker((upToEventId) => {
     // A read scheduled for a previous conversation names an event of that
     // conversation. Drop it.
@@ -192,10 +229,14 @@ thread IDs can change while the pane stays mounted.
     currentReadThrough().noteRead(
       upToEventId !== undefined && position?.eventId === upToEventId ? position.createdAtMs : null
     );
+    attemptedRootReactions.clear();
+    readRootReactions();
   }
 
   function handleReadPosition(position: TimelineReadPosition) {
     readPosition = { key: targetKey, position };
+    if (!position.latest) attemptedRootReactions.clear();
+    readRootReactions();
     if (appState.isPresent && !highlightPending) currentReadThrough().observe(position);
   }
 
@@ -305,6 +346,7 @@ thread IDs can change while the pane stays mounted.
   // Only other users' arrivals place an away separator. Newer activity stays
   // unread while the viewer reads older history.
   useProjectionEvent((projectionEvent) => {
+    if (projectionEvent.resource?.case === 'notifications') readRootReactions();
     const semantic = projectionEvent.event?.event;
     if (semantic?.case !== 'messagePosted' || semantic.value.roomId !== roomId) return;
     if ((semantic.value.threadRootEventId || null) !== threadRootEventId) return;
