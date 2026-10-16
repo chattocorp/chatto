@@ -2,8 +2,8 @@
 @component
 
 Actions shown when a room row is right-clicked or long-pressed.
-The parent owns membership, read, configuration, and leave behavior so this component stays
-presentation-only.
+User actions precede room administration in separate groups. The parent owns all
+action behavior so this component stays presentation-only.
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
@@ -18,7 +18,10 @@ presentation-only.
     onJoin = () => {},
     onMarkRead,
     onConfigure,
-    onLeave
+    onLeave,
+    onCopyLink,
+    onCopyId,
+    onArchive
   }: {
     isRoomMember?: boolean;
     canJoin?: boolean;
@@ -29,6 +32,9 @@ presentation-only.
     onMarkRead: () => void;
     onConfigure?: () => void;
     onLeave: () => void;
+    onCopyLink: () => void;
+    onCopyId: () => void;
+    onArchive: () => void;
   } = $props();
 </script>
 
@@ -43,17 +49,28 @@ presentation-only.
     </MenuItem>
   {/if}
 
-  {#if canConfigure && onConfigure}
-    <MenuItem icon="icon-[uil--setting]" onclick={onConfigure}>
-      {m('room_list.open_room_settings')}
+  <MenuItem icon="icon-[uil--link]" onclick={onCopyLink} dataTestid="copy-room-link">
+    {m('room_list.copy_room_link')}
+  </MenuItem>
+  <MenuItem icon="icon-[uil--copy]" onclick={onCopyId} dataTestid="copy-room-id">
+    {m('room_list.copy_room_id')}
+  </MenuItem>
+  {#if isRoomMember && canLeave}
+    <MenuItem icon="icon-[uil--sign-out-alt]" mirrorIconInRtl tone="danger" onclick={onLeave}>
+      {m('room_list.leave_room')}
     </MenuItem>
   {/if}
 </MenuSection>
 
-{#if isRoomMember && canLeave}
+{#if canConfigure}
   <MenuSection>
-    <MenuItem icon="icon-[uil--sign-out-alt]" mirrorIconInRtl tone="danger" onclick={onLeave}>
-      {m('room_list.leave_room')}
+    {#if onConfigure}
+      <MenuItem icon="icon-[uil--setting]" onclick={onConfigure}>
+        {m('room_list.open_room_settings')}
+      </MenuItem>
+    {/if}
+    <MenuItem icon="icon-[uil--archive]" onclick={onArchive}>
+      {m('admin.rooms_admin.archive_room')}
     </MenuItem>
   </MenuSection>
 {/if}

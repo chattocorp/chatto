@@ -1362,30 +1362,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       onMarkRead={() => handleMarkRoomRead(contextRoom)}
       onConfigure={() => handleConfigureRoom(contextRoom)}
       onLeave={() => handleLeaveRoom(contextRoom)}
+      onCopyLink={() => handleCopyRoomLink(contextRoom.id)}
+      onCopyId={() => void handleCopyRoomId(contextRoom.id)}
+      onArchive={() => confirmArchiveRoom(contextRoom)}
     />
-    {#if contextRoom.viewerCanManageRoom && contextRoom.type !== RoomKind.DM}
-      <MenuSection>
-        <MenuItem icon="icon-[uil--archive]" onclick={() => confirmArchiveRoom(contextRoom)}>
-          {m('admin.rooms_admin.archive_room')}
-        </MenuItem>
-      </MenuSection>
-    {/if}
-    <MenuSection>
-      <MenuItem
-        icon="icon-[uil--link]"
-        onclick={() => handleCopyRoomLink(contextRoom.id)}
-        dataTestid="copy-room-link"
-      >
-        {m('room_list.copy_room_link')}
-      </MenuItem>
-      <MenuItem
-        icon="icon-[uil--copy]"
-        onclick={() => void handleCopyRoomId(contextRoom.id)}
-        dataTestid="copy-room-id"
-      >
-        {m('room_list.copy_room_id')}
-      </MenuItem>
-    </MenuSection>
   </ContextMenu>
 {/if}
 
