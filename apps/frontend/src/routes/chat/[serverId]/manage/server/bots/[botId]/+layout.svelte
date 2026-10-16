@@ -27,6 +27,9 @@ Permissions pages through `botDetailContext`.
   const botId = $derived(page.params.botId!);
   const canManageBots = $derived(serverScope.store.permissions.canManageBots);
   const canManageAccounts = $derived(serverScope.store.permissions.canAdminManageAccounts);
+  const isPermissionsSection = $derived(
+    page.route.id === '/chat/[serverId]/manage/server/bots/[botId]/permissions'
+  );
   const viewerId = $derived(serverScope.store.accountId);
   const serverSegment = serverIdToSegment(serverScope.serverId);
   const backHref = resolve('/chat/[serverId]/manage/server/bots', { serverId: serverSegment });
@@ -110,7 +113,7 @@ Permissions pages through `botDetailContext`.
           href: resolve('/chat/[serverId]/manage/server/bots/[botId]/permissions', params),
           label: m('settings.bots.tabs.permissions'),
           icon: 'icon-[uil--shield-check]',
-          current: routeId === '/chat/[serverId]/manage/server/bots/[botId]/permissions'
+          current: isPermissionsSection
         }
       );
     }
@@ -141,13 +144,11 @@ Permissions pages through `botDetailContext`.
     {/snippet}
   </PaneHeader>
 
-  <PaneContent fillHeight={page.route.id?.endsWith('/permissions')}>
+  <PaneContent fillHeight={isPermissionsSection}>
     {#if botQuery.error}
       <Hint tone="danger">{errorMessage(botQuery.error)}</Hint>
     {:else}
-      <div
-        class={['flex flex-col gap-6', page.route.id?.endsWith('/permissions') && 'min-h-0 flex-1']}
-      >
+      <div class={['flex flex-col gap-6', isPermissionsSection && 'min-h-0 flex-1']}>
         {@render children()}
       </div>
     {/if}

@@ -42,6 +42,9 @@ deletion page is outside this route group and has its own frame.
   const serverSegment = serverIdToSegment(activeServerId);
   const store = serverScope.store;
   const userId = $derived(page.params.userId!);
+  const isPermissionsSection = $derived(
+    page.route.id === '/chat/[serverId]/manage/server/members/[userId]/(sections)/permissions'
+  );
   const isSelf = $derived(store.viewerId === userId);
   const canViewMemberEmails = $derived(isSelf || store.permissions.canAdminViewUsers);
   const canAdminManageAccounts = $derived(store.permissions.canAdminManageAccounts);
@@ -178,7 +181,7 @@ deletion page is outside this route group and has its own frame.
         href: resolve(`${base}/permissions`, params),
         label: m('admin.members.tabs.permissions'),
         icon: 'icon-[uil--shield-check]',
-        current: routeId === `${base}/permissions`
+        current: isPermissionsSection
       });
     }
     return items;
@@ -212,10 +215,8 @@ deletion page is outside this route group and has its own frame.
     {/snippet}
   </PaneHeader>
 
-  <PaneContent fillHeight={page.route.id?.endsWith('/permissions')}>
-    <div
-      class={['flex flex-col gap-6', page.route.id?.endsWith('/permissions') && 'min-h-0 flex-1']}
-    >
+  <PaneContent fillHeight={isPermissionsSection}>
+    <div class={['flex flex-col gap-6', isPermissionsSection && 'min-h-0 flex-1']}>
       {#if loading}
         <LoadingFog class="h-40 w-full" label={m('admin.members.loading_member')} />
       {:else if !details || !member}
