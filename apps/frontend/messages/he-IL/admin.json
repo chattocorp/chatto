@@ -309,6 +309,8 @@
         "permissions": "הרשאות"
       },
       "settings": {
+        "discard_changes": "בטל שינויים",
+        "unsaved_changes": "יש לך שינויים שלא נשמרו. האם לצאת מהדף ולבטל אותם?",
         "name_title": "שם ותיאור",
         "name_subtitle": "החברים רואים אותם ברשימת החדרים ובראש החדר.",
         "visibility_title": "נראות",

@@ -309,6 +309,8 @@
         "permissions": "Tillatelser"
       },
       "settings": {
+        "discard_changes": "Forkast endringer",
+        "unsaved_changes": "Du har ulagrede endringer. Vil du forlate siden og forkaste dem?",
         "name_title": "Navn og beskrivelse",
         "name_subtitle": "Medlemmer ser dette i romlisten og øverst i rommet.",
         "visibility_title": "Synlighet",

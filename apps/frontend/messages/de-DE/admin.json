@@ -309,6 +309,8 @@
         "permissions": "Berechtigungen"
       },
       "settings": {
+        "discard_changes": "Änderungen verwerfen",
+        "unsaved_changes": "Du hast ungespeicherte Änderungen. Möchtest du diese Seite verlassen und sie verwerfen?",
         "name_title": "Name & Beschreibung",
         "name_subtitle": "Mitglieder sehen beides in der Raumliste und oben im Raum.",
         "visibility_title": "Sichtbarkeit",

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RealtimeProjectionUpdate } from '@chatto/client/realtime/eventBus';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
@@ -18,6 +18,7 @@ import { createTestServerScope, type TestServerScope } from '$lib/test-utils/ser
 const mocks = vi.hoisted(() => ({
   getRoom: vi.fn(),
   goto: vi.fn(),
+  beforeNavigate: vi.fn(),
   listRoomMembers: vi.fn(),
   projectionHandlers: [] as Array<(event: RealtimeProjectionUpdate) => void>,
   updateRoom: vi.fn(),
@@ -58,7 +59,8 @@ vi.mock('$app/state', () => ({
 
 vi.mock('$app/navigation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$app/navigation')>()),
-  goto: mocks.goto
+  goto: mocks.goto,
+  beforeNavigate: mocks.beforeNavigate
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
@@ -164,6 +166,25 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+/** Finds an action only in the form that owns the given control. */
+function formAction(
+  container: HTMLElement,
+  control: string,
+  label = 'Save changes'
+): HTMLButtonElement {
+  const form = container.querySelector(control)?.closest('form');
+  const button = [...(form?.querySelectorAll('button') ?? [])].find(
+    (element) => element.textContent?.trim() === label
+  );
+  if (!button) throw new Error(`Missing ${label} action for ${control}`);
+  return button;
+}
+
+function submitSection(container: HTMLElement, control: string): void {
+  flushSync();
+  formAction(container, control).click();
+}
+
 function dispatchProjection(event: RealtimeProjectionUpdate): void {
   for (const handler of mocks.projectionHandlers) handler(event);
 }
@@ -254,6 +275,8 @@ function roomRemoved(): RealtimeProjectionUpdate {
 }
 
 describe('room management page identity and realtime authority', () => {
+  afterEach(() => vi.restoreAllMocks());
+
   beforeEach(async () => {
     queryClient.clear();
     vi.clearAllMocks();
@@ -265,6 +288,7 @@ describe('room management page identity and realtime authority', () => {
       store: { adminRoomLayout: { refresh: mocks.refreshLayout } }
     });
     mocks.refreshLayout.mockResolvedValue(undefined);
+    mocks.goto.mockResolvedValue(undefined);
     mocks.listRoomMembers.mockResolvedValue({ members: [], totalCount: 0, hasMore: false });
     mocks.updateRoom.mockResolvedValue({
       id: 'shared-room',
@@ -355,7 +379,7 @@ describe('room management page identity and realtime authority', () => {
     });
   });
 
-  it('saves a numeric slow-mode selection immediately as a sparse patch', async () => {
+  it('saves a numeric slow-mode draft only on submission as a sparse patch', async () => {
     mocks.getRoom.mockResolvedValue(managedRoom('general'));
     const { container } = renderSections('general');
     await settle();
@@ -365,6 +389,11 @@ describe('room management page identity and realtime authority', () => {
     const select = container.querySelector('#room-settings-slow-mode') as HTMLSelectElement;
     select.value = '10';
     select.dispatchEvent(new Event('change', { bubbles: true }));
+
+    await settle();
+    expect(mocks.updateRoom).not.toHaveBeenCalled();
+    expect(select.value).toBe('10');
+    submitSection(container, '#room-settings-slow-mode');
 
     await vi.waitFor(() => {
       expect(mocks.updateRoom).toHaveBeenCalledWith({
@@ -384,6 +413,9 @@ describe('room management page identity and realtime authority', () => {
     expect(thread.value).toBe('60');
     thread.value = '0';
     thread.dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+    expect(mocks.updateRoom).not.toHaveBeenCalled();
+    submitSection(container, '#room-settings-thread-slow-mode');
     await vi.waitFor(() =>
       expect(mocks.updateRoom).toHaveBeenCalledWith({
         roomId: 'shared-room',
@@ -394,7 +426,42 @@ describe('room management page identity and realtime authority', () => {
     expect(root.value).toBe('0');
   });
 
-  it('saves a threading mode immediately when a radio choice is selected', async () => {
+  it('discards both slow-mode drafts together and submits both changed intervals in one request', async () => {
+    serveRoom(managedRoom('general', { threadSlowModeSeconds: 60 }));
+    const { container } = renderSections('general');
+    await settle();
+    const channel = container.querySelector('#room-settings-slow-mode') as HTMLSelectElement;
+    const thread = container.querySelector('#room-settings-thread-slow-mode') as HTMLSelectElement;
+    function editIntervals() {
+      channel.value = '10';
+      channel.dispatchEvent(new Event('change', { bubbles: true }));
+      thread.value = '0';
+      thread.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    editIntervals();
+    await settle();
+    expect(mocks.updateRoom).not.toHaveBeenCalled();
+    formAction(container, '#room-settings-slow-mode', 'Discard changes').click();
+    await settle();
+    expect(channel.value).toBe('0');
+    expect(thread.value).toBe('60');
+    editIntervals();
+    submitSection(container, '#room-settings-slow-mode');
+    await vi.waitFor(() =>
+      expect(mocks.updateRoom).toHaveBeenCalledExactlyOnceWith({
+        roomId: 'shared-room',
+        slowModeSeconds: 10,
+        threadSlowModeSeconds: 0
+      })
+    );
+    await vi.waitFor(() =>
+      expect(formAction(container, '#room-settings-slow-mode').disabled).toBe(true)
+    );
+    expect(channel.value).toBe('10');
+    expect(thread.value).toBe('0');
+  });
+
+  it('saves a threading mode only when its form submits', async () => {
     serveRoom(managedRoom('general'));
     const { container } = renderSections('general');
     await settle();
@@ -403,6 +470,11 @@ describe('room management page identity and realtime authority', () => {
     expect(choices).toHaveLength(4);
     expect(choices[2]).toHaveAttribute('aria-checked', 'true');
     choices[0].click();
+
+    await settle();
+    expect(mocks.updateRoom).not.toHaveBeenCalled();
+    expect(choices[0]).toHaveAttribute('aria-checked', 'true');
+    submitSection(container, '[role="radio"]');
 
     await vi.waitFor(() => {
       expect(mocks.updateRoom).toHaveBeenCalledWith({
@@ -542,6 +614,7 @@ describe('room management page identity and realtime authority', () => {
     await settle();
 
     const refreshedInput = container.querySelector('#room-settings-name') as HTMLInputElement;
+    await vi.waitFor(() => expect(refreshedInput.disabled).toBe(false));
     refreshedInput.value = 'later';
     refreshedInput.dispatchEvent(new Event('input', { bubbles: true }));
     flushSync();
@@ -624,7 +697,7 @@ describe('room management page identity and realtime authority', () => {
       )
     );
   });
-  it('saves Universal immediately without resetting a dirty name draft', async () => {
+  it('submits Universal without resetting a dirty name draft', async () => {
     serveRoom(managedRoom('general'));
     const { container } = renderSections('general');
     await settle();
@@ -634,6 +707,10 @@ describe('room management page identity and realtime authority', () => {
     nameInput.dispatchEvent(new Event('input', { bubbles: true }));
     flushSync();
     (container.querySelector('#room-settings-universal') as HTMLInputElement).click();
+
+    await settle();
+    expect(mocks.updateRoom).not.toHaveBeenCalled();
+    submitSection(container, '#room-settings-universal');
 
     await vi.waitFor(() =>
       expect(mocks.updateRoom).toHaveBeenCalledWith({ roomId: 'shared-room', universal: true })
@@ -647,7 +724,7 @@ describe('room management page identity and realtime authority', () => {
     );
   });
 
-  it('shows the saved Universal value again after a failed save', async () => {
+  it('retains the Universal draft after a failed save and allows retry', async () => {
     mocks.getRoom.mockResolvedValue(managedRoom('general'));
     mocks.updateRoom.mockRejectedValueOnce(new Error('offline'));
     const { container } = renderSections('general');
@@ -655,10 +732,19 @@ describe('room management page identity and realtime authority', () => {
 
     const checkbox = container.querySelector('#room-settings-universal') as HTMLInputElement;
     checkbox.click();
+    submitSection(container, '#room-settings-universal');
 
     await vi.waitFor(() => expect(mocks.error).toHaveBeenCalled());
-    await vi.waitFor(() => expect(checkbox.checked).toBe(false));
+    await vi.waitFor(() => expect(checkbox.disabled).toBe(false));
+    expect(checkbox.checked).toBe(true);
     expect(checkbox.disabled).toBe(false);
+    serveRoom(managedRoom('general'));
+    submitSection(container, '#room-settings-universal');
+    await vi.waitFor(() => expect(mocks.updateRoom).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() =>
+      expect(formAction(container, '#room-settings-universal').disabled).toBe(true)
+    );
+    expect(checkbox.checked).toBe(true);
   });
 
   it('does not let an older concurrent save restore another panel value', async () => {
@@ -668,11 +754,13 @@ describe('room management page identity and realtime authority', () => {
 
     const releaseUniversal = room.hold();
     (container.querySelector('#room-settings-universal') as HTMLInputElement).click();
+    submitSection(container, '#room-settings-universal');
     await vi.waitFor(() => expect(mocks.updateRoom).toHaveBeenCalledOnce());
     // The server applied Universal first, so its response still has Slow Mode off.
     const select = container.querySelector('#room-settings-slow-mode') as HTMLSelectElement;
     select.value = '10';
     select.dispatchEvent(new Event('change', { bubbles: true }));
+    submitSection(container, '#room-settings-slow-mode');
     await vi.waitFor(() => expect(mocks.updateRoom).toHaveBeenCalledTimes(2));
     await vi.waitFor(() => expect(mocks.success).toHaveBeenCalledOnce());
     // Keep the refetch from reconciling, so only the save responses write the cache.
@@ -686,5 +774,226 @@ describe('room management page identity and realtime authority', () => {
     );
     expect(cached?.isUniversal).toBe(true);
     expect(cached?.slowModeSeconds).toBe(10);
+  });
+
+  it('discards only its section and clears navigation protection after all drafts are discarded', async () => {
+    serveRoom(managedRoom('general'));
+    const { container } = renderSections('general');
+    await settle();
+    const name = container.querySelector('#room-settings-name') as HTMLInputElement;
+    const universal = container.querySelector('#room-settings-universal') as HTMLInputElement;
+    const interval = container.querySelector('#room-settings-slow-mode') as HTMLSelectElement;
+    const choices = [...container.querySelectorAll<HTMLButtonElement>('[role="radio"]')];
+    name.value = 'draft-name';
+    name.dispatchEvent(new Event('input', { bubbles: true }));
+    universal.click();
+    interval.value = '10';
+    interval.dispatchEvent(new Event('change', { bubbles: true }));
+    choices[0].click();
+    await settle();
+    expect(mocks.updateRoom).not.toHaveBeenCalled();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const cancel = vi.fn();
+    const guard = mocks.beforeNavigate.mock.calls.at(-1)![0];
+
+    formAction(container, '#room-settings-name', 'Discard changes').click();
+    await settle();
+    expect(name.value).toBe('general');
+    expect(universal.checked).toBe(true);
+    expect(interval.value).toBe('10');
+    expect(choices[0]).toHaveAttribute('aria-checked', 'true');
+    guard({ type: 'link', cancel });
+    expect(cancel).toHaveBeenCalledOnce();
+
+    for (const control of [
+      '#room-settings-universal',
+      '#room-settings-slow-mode',
+      '[role="radio"]'
+    ]) {
+      formAction(container, control, 'Discard changes').click();
+    }
+    await settle();
+    expect(universal.checked).toBe(false);
+    expect(interval.value).toBe('0');
+    expect(choices[2]).toHaveAttribute('aria-checked', 'true');
+    guard({ type: 'link', cancel });
+    expect(confirm).not.toHaveBeenCalled();
+    expect(mocks.updateRoom).not.toHaveBeenCalled();
+    for (const button of container.querySelectorAll<HTMLButtonElement>(
+      'form button[type="submit"]'
+    )) {
+      expect(button.disabled).toBe(true);
+    }
+  });
+
+  it('keeps a pending section disabled and rejects duplicate submissions while other sections stay usable', async () => {
+    const room = serveRoom(managedRoom('general'));
+    const { container } = renderSections('general');
+    await settle();
+    const release = room.hold();
+    const checkbox = container.querySelector('#room-settings-universal') as HTMLInputElement;
+    checkbox.click();
+    submitSection(container, '#room-settings-universal');
+    await vi.waitFor(() => expect(mocks.updateRoom).toHaveBeenCalledOnce());
+    expect(checkbox.disabled).toBe(true);
+    expect(formAction(container, '#room-settings-universal', 'Discard changes').disabled).toBe(
+      true
+    );
+    checkbox
+      .closest('form')!
+      .dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
+    await settle();
+    expect(mocks.updateRoom).toHaveBeenCalledOnce();
+    expect((container.querySelector('#room-settings-name') as HTMLInputElement).disabled).toBe(
+      false
+    );
+    release();
+    await vi.waitFor(() => expect(checkbox.disabled).toBe(false));
+    expect(formAction(container, '#room-settings-universal').disabled).toBe(true);
+  });
+
+  it('preserves edited settings across refreshes and discards to the latest server values', async () => {
+    mocks.getRoom.mockResolvedValueOnce({ ...managedRoom('general'), slowModeSeconds: 7 });
+    const { container } = renderSections('general');
+    await settle();
+    const universal = container.querySelector('#room-settings-universal') as HTMLInputElement;
+    const interval = container.querySelector('#room-settings-slow-mode') as HTMLSelectElement;
+    const choices = [...container.querySelectorAll<HTMLButtonElement>('[role="radio"]')];
+    expect([...interval.options].some((option) => option.value === '7')).toBe(true);
+    universal.click();
+    interval.value = '10';
+    interval.dispatchEvent(new Event('change', { bubbles: true }));
+    choices[0].click();
+    await settle();
+    mocks.getRoom.mockResolvedValue({
+      ...managedRoom('remote-name', { threadingMode: RoomThreadingMode.DISABLED }),
+      slowModeSeconds: 13
+    });
+    dispatchProjection(roomSnapshot());
+    await vi.waitFor(() => expect(mocks.getRoom).toHaveBeenCalledTimes(2));
+    await settle();
+    expect((container.querySelector('#room-settings-name') as HTMLInputElement).value).toBe(
+      'remote-name'
+    );
+    expect(universal.checked).toBe(true);
+    expect(interval.value).toBe('10');
+    expect(choices[0]).toHaveAttribute('aria-checked', 'true');
+    formAction(container, '#room-settings-slow-mode', 'Discard changes').click();
+    formAction(container, '[role="radio"]', 'Discard changes').click();
+    await settle();
+    expect(interval.value).toBe('13');
+    expect(choices[3]).toHaveAttribute('aria-checked', 'true');
+    expect(mocks.updateRoom).not.toHaveBeenCalled();
+  });
+
+  it('keeps invalid drafts on modal cancellation and resumes only the confirmed destination', async () => {
+    serveRoom(managedRoom('general'));
+    const { container } = renderSections('general');
+    await settle();
+    const guard = mocks.beforeNavigate.mock.calls.at(-1)![0];
+    const cancel = vi.fn();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    guard({ type: 'link', cancel });
+    expect(confirm).not.toHaveBeenCalled();
+    const name = container.querySelector('#room-settings-name') as HTMLInputElement;
+    name.value = ' ';
+    name.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    expect(formAction(container, '#room-settings-name').disabled).toBe(true);
+    const destination = new URL(
+      'https://server-a.example.test/chat/-/manage/rooms/shared-room/members'
+    );
+    const navigation = { type: 'link', cancel, to: { url: destination }, willUnload: false };
+    guard(navigation);
+    await settle();
+    const dialog = document.querySelector('dialog[open]')!;
+    expect(dialog.textContent).toContain('You have unsaved changes.');
+    const cancelButton = [...dialog.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Cancel'
+    )!;
+    cancelButton.click();
+    await settle();
+    expect(name.value).toBe(' ');
+    expect(mocks.goto).not.toHaveBeenCalled();
+
+    guard(navigation);
+    await settle();
+    // A second attempt while the modal is open must not replace its destination.
+    guard({ ...navigation, to: { url: new URL('https://server-a.example.test/other') } });
+    const resumedCancel = vi.fn();
+    mocks.goto.mockImplementationOnce(async () =>
+      guard({ ...navigation, type: 'goto', cancel: resumedCancel })
+    );
+    (document.querySelector('dialog[open] button[type="submit"]') as HTMLButtonElement).click();
+    await settle();
+    expect(mocks.goto).toHaveBeenCalledWith(destination.pathname);
+    expect(resumedCancel).not.toHaveBeenCalled();
+    expect(confirm).not.toHaveBeenCalled();
+    expect(mocks.updateRoom).not.toHaveBeenCalled();
+
+    // The one-time approval cannot bypass the guard on a later attempt.
+    guard({ type: 'leave', cancel });
+    expect(cancel).toHaveBeenCalledTimes(4);
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('resumes back navigation with its history delta instead of adding a history entry', async () => {
+    serveRoom(managedRoom('general'));
+    const { container } = renderSections('general');
+    await settle();
+    (container.querySelector('#room-settings-universal') as HTMLInputElement).click();
+    await settle();
+    const guard = mocks.beforeNavigate.mock.calls.at(-1)![0];
+    const cancel = vi.fn();
+    const navigation = {
+      type: 'popstate',
+      delta: -1,
+      cancel,
+      to: { url: new URL('https://server-a.example.test/chat/-/overview') },
+      willUnload: false
+    };
+    const historyGo = vi.spyOn(window.history, 'go').mockImplementation(() => {});
+    guard(navigation);
+    await settle();
+    (document.querySelector('dialog[open] button[type="submit"]') as HTMLButtonElement).click();
+    await settle();
+    expect(historyGo).toHaveBeenCalledWith(-1);
+    expect(mocks.goto).not.toHaveBeenCalled();
+    guard(navigation);
+    expect(cancel).toHaveBeenCalledOnce();
+    guard(navigation);
+    expect(cancel).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses the native unload warning without opening a modal for tab close or reload', async () => {
+    serveRoom(managedRoom('general'));
+    const { container } = renderSections('general');
+    await settle();
+    (container.querySelector('#room-settings-universal') as HTMLInputElement).click();
+    await settle();
+    const cancel = vi.fn();
+    mocks.beforeNavigate.mock.calls.at(-1)![0]({ type: 'leave', cancel });
+    await settle();
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(document.querySelector('dialog[open]')).toBeNull();
+  });
+
+  it('removes dirty drafts on permission loss without blocking the redirect', async () => {
+    mocks.getRoom.mockResolvedValue(managedRoom('general'));
+    const { container } = renderSections('general');
+    await settle();
+    (container.querySelector('#room-settings-universal') as HTMLInputElement).click();
+    await settle();
+    const guard = mocks.beforeNavigate.mock.calls.at(-1)![0];
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const cancel = vi.fn();
+    mocks.getRoom.mockResolvedValue(managedRoom('general', { canManageRoom: false }));
+    dispatchProjection(roomSnapshot());
+    await vi.waitFor(() => expect(container.querySelector('#room-settings-universal')).toBeNull());
+    guard({ type: 'goto', cancel });
+    expect(confirm).not.toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
+    expect(mocks.goto).toHaveBeenCalled();
+    expect(mocks.updateRoom).not.toHaveBeenCalled();
   });
 });

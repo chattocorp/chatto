@@ -40,6 +40,13 @@ export class ServerAdminRoomsPage {
     return this.page.locator('#room-settings-description');
   }
 
+  /** Save action for name and description, independent of the other settings forms. */
+  get roomDetailsSaveButton(): Locator {
+    return this.page
+      .locator('form', { has: this.roomSettingsNameInput })
+      .getByRole('button', { name: 'Save changes' });
+  }
+
   // --- Room Row Helpers ---
 
   /**
@@ -128,7 +135,7 @@ export class ServerAdminRoomsPage {
       await this.roomSettingsDescriptionInput.fill(description);
     }
 
-    await this.page.getByRole('button', { name: 'Save changes' }).click();
+    await this.roomDetailsSaveButton.click();
     await expect(this.page.getByText('Room updated')).toBeVisible();
   }
 

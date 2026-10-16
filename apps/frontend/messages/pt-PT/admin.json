@@ -309,6 +309,8 @@
         "permissions": "Permissões"
       },
       "settings": {
+        "discard_changes": "Descartar alterações",
+        "unsaved_changes": "Tem alterações por guardar. Pretende sair desta página e descartá-las?",
         "name_title": "Nome e descrição",
         "name_subtitle": "Os membros veem estas informações na lista de salas e no topo da sala.",
         "visibility_title": "Visibilidade",

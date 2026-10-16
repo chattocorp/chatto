@@ -309,6 +309,8 @@
         "permissions": "Behörigheter"
       },
       "settings": {
+        "discard_changes": "Kasta ändringar",
+        "unsaved_changes": "Du har osparade ändringar. Vill du lämna sidan och kasta dem?",
         "name_title": "Namn och beskrivning",
         "name_subtitle": "Medlemmar ser dessa i rumslistan och högst upp i rummet.",
         "visibility_title": "Synlighet",

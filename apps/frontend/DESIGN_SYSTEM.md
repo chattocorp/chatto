@@ -718,9 +718,13 @@ in the component explaining why Tailwind or a semantic utility is insufficient.
 - Use `danger-ghost` for a state that becomes a destructive action on hover or
   focus, such as a room directory's Joined state that changes to Leave. It
   rests like `ghost`.
-- Use Save buttons only for multi-field forms submitted together, and disable
-  them until the form is dirty.
-- Binary settings in Server Admin save immediately and confirm through a toast.
+- Administrative settings require explicit submission, including single-field
+  and binary settings. Each independent form has Save changes and Discard changes
+  actions. Disable Save until the form has valid changes; disable Discard when
+  it has no edits. Disable that form during a save, keep drafts after a failed
+  save, and warn before leaving with unsaved changes.
+- Room General settings use this pattern. Migrate other administrative settings
+  as separate changes; existing immediate-save forms are not the target pattern.
 - Treat each settings panel as one action scope. Its recommended committing
   action uses `action`, whether it submits a form or starts an immediate upload.
   A page can contain one recommended action in each independent panel.

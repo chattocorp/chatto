@@ -309,6 +309,8 @@
         "permissions": "Load"
       },
       "settings": {
+        "discard_changes": "Loobu muudatustest",
+        "unsaved_changes": "Teil on salvestamata muudatusi. Kas soovite sellelt lehelt lahkuda ja neist loobuda?",
         "name_title": "Nimi ja kirjeldus",
         "name_subtitle": "Liikmed näevad neid ruumide loendis ja ruumi ülaosas.",
         "visibility_title": "Nähtavus",

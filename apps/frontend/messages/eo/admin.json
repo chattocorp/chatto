@@ -309,6 +309,8 @@
         "permissions": "Permesoj"
       },
       "settings": {
+        "discard_changes": "Forĵeti ŝanĝojn",
+        "unsaved_changes": "Vi havas nekonservitajn ŝanĝojn. Ĉu forlasi ĉi tiun paĝon kaj forĵeti ilin?",
         "name_title": "Nomo kaj priskribo",
         "name_subtitle": "Membroj vidas ilin en la listo de ĉambroj kaj supre en la ĉambro.",
         "visibility_title": "Videbleco",

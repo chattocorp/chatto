@@ -309,6 +309,8 @@
         "permissions": "Atļaujas"
       },
       "settings": {
+        "discard_changes": "Atmest izmaiņas",
+        "unsaved_changes": "Jums ir nesaglabātas izmaiņas. Vai atstāt šo lapu un tās atmest?",
         "name_title": "Nosaukums un apraksts",
         "name_subtitle": "Dalībnieki tos redz istabu sarakstā un istabas augšdaļā.",
         "visibility_title": "Redzamība",

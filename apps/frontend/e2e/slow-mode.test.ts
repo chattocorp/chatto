@@ -25,6 +25,9 @@ test('Slow Mode updates channel and thread timers independently', async ({
     await generalRow.getByTitle('Edit room').click();
     const slowModeSelect = adminPage.locator('#room-settings-slow-mode');
     const threadSlowModeSelect = adminPage.locator('#room-settings-thread-slow-mode');
+    const saveSlowMode = adminPage
+      .locator('form', { has: slowModeSelect })
+      .getByRole('button', { name: 'Save changes' });
     await expect(slowModeSelect).toBeVisible();
     await expect(threadSlowModeSelect).toBeVisible();
 
@@ -32,6 +35,7 @@ test('Slow Mode updates channel and thread timers independently', async ({
     await expect(slowModeSelect).toHaveValue('30');
     await threadSlowModeSelect.selectOption('5');
     await expect(threadSlowModeSelect).toHaveValue('5');
+    await saveSlowMode.click();
     await expect(adminPage.getByText('Room updated').last()).toBeVisible();
 
     const roomStatus = page.getByTestId('slow-mode-status');
@@ -63,6 +67,7 @@ test('Slow Mode updates channel and thread timers independently', async ({
     await expect(threadSend).toBeDisabled();
 
     await threadSlowModeSelect.selectOption('10');
+    await saveSlowMode.click();
     await expect(threadStatus).toHaveText(/0:(?:0[6-9]|10)/, {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
@@ -74,6 +79,7 @@ test('Slow Mode updates channel and thread timers independently', async ({
     await expect(threadStatus).toBeVisible();
 
     await threadSlowModeSelect.selectOption('0');
+    await saveSlowMode.click();
     await expect(threadStatus).toBeHidden({ timeout: TIMEOUTS.REALTIME_EVENT });
     await expect(threadSend).toBeEnabled();
     await expect(slowModeSelect).toHaveValue('30');
