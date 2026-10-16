@@ -161,8 +161,8 @@ export async function languageReport(
           const bot = await createAgentSession(options);
           const run = bot.runOutcome.bind(bot);
           bot.runOutcome = async (context, prompt, options) => {
-            const input = JSON.parse(prompt) as { request: string; supervisorContext: string };
-            record.requests.push({ request: input.request, context: input.supervisorContext });
+            const input = JSON.parse(prompt) as { request: string; evidence: string };
+            record.requests.push({ request: input.request, context: input.evidence });
             return run(context, prompt, options);
           };
           return bot;

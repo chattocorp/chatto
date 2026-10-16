@@ -5,7 +5,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createAgentSession, emptyTokenUsage, log, task, Type, type TaskContext } from 'runling';
 import { createConversation } from './conversation.ts';
-import { createGitHubWorker } from './github.ts';
+import { createGitHubWorker, GitHubWorkInput } from './github.ts';
 import { ConfigurationError, setting, thinkingSetting } from '../settings.ts';
 import { FakeGitHub } from '../evaluations/fake-github.ts';
 import { supervisorCases, workerCases, type SupervisorCase } from '../evaluations/github-cases.ts';
@@ -29,7 +29,7 @@ async function supervisor(
 ) {
   const github = new FakeGitHub();
   const requests: string[] = [];
-  const attempts: { requestId?: unknown; context?: unknown }[] = [];
+  const attempts: { requestId?: unknown; proposedWork?: unknown; evidence?: unknown }[] = [];
   const investigationAttempts: { requestId?: unknown }[] = [];
   const investigations: string[] = [];
   const posts: string[] = [];
@@ -70,7 +70,7 @@ async function supervisor(
       },
       typing: async () => {},
       acknowledge: async () => {},
-      readThread: async () => ({ messages: [], olderOmitted: false }),
+      readThread: async () => ({ messages: scenario.thread ?? [], olderOmitted: false }),
       readAttachment: async () => {
         throw new Error('No evaluation attachments');
       }
@@ -79,10 +79,12 @@ async function supervisor(
       const bot = await createAgentSession({
         ...options,
         // Other production tools cannot contact their real services during this evaluation.
-        tools: ['gh', 'githubWork', 'investigate'],
+        tools: ['gh', 'githubWork', 'investigate', 'readThread'],
         onEvent(event) {
           if (event.type === 'tool_execution_start' && event.toolName === 'githubWork')
-            attempts.push(event.args as { requestId?: unknown; context?: unknown });
+            attempts.push(
+              event.args as { requestId?: unknown; proposedWork?: unknown; evidence?: unknown }
+            );
           if (event.type === 'tool_execution_start' && event.toolName === 'investigate')
             investigationAttempts.push(event.args as { requestId?: unknown });
         }
@@ -102,10 +104,7 @@ async function supervisor(
       task(
         {
           name: 'Fixture GitHub worker',
-          input: Type.Object({
-            request: Type.String({ minLength: 1 }),
-            context: Type.String({ maxLength: 20_000 })
-          }),
+          input: GitHubWorkInput,
           output: Type.String()
         },
         async (_ctx, { request }) => {
@@ -153,7 +152,8 @@ export default task(
   async (ctx, filter) => {
     const model = setting('CHATTO_AGENT_MODEL');
     if (!model) throw new ConfigurationError('Set CHATTO_AGENT_MODEL for evaluations');
-    const selected = (name: string) => !filter || filter === 'all' || name === filter;
+    const selected = (name: string) =>
+      !filter || filter === 'all' || name === filter || name.startsWith(`${filter}-`);
     const cases = [...workerCases, ...supervisorCases, { name: 'language-report-withdrawal' }];
     if (!cases.some((scenario) => selected(scenario.name)))
       throw new Error(
@@ -214,7 +214,9 @@ export default task(
         });
         record.answer = await worker(context, {
           request: scenario.request,
-          context: scenario.context ?? ''
+          proposedWork: scenario.proposedWork ?? scenario.request,
+          evidence: scenario.evidence ?? '',
+          ...(scenario.approvalProposal ? { approvalProposal: scenario.approvalProposal } : {})
         });
         assert(
           github.commands.every((command) => command.supported),

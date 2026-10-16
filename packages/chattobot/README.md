@@ -20,9 +20,10 @@ Runling console shows each run, its turns, and its tool calls.
    thread as context. The first turn includes the thread so far.
 4. The agent's final text is posted to the thread as the reply.
 
-A conversation ends after one hour without messages to the bot. The next
-message starts a new conversation, which reads the thread again. A restart of
-the bot also ends all conversations.
+A conversation ends after one hour without an addressed message or an accepted
+automatic follow-up, once its current turn and background jobs finish. The next
+addressed message starts a new conversation, which reads the thread again.
+A restart of the bot also ends all conversations.
 
 ## Automatic report intake
 
@@ -31,7 +32,7 @@ help with new bug reports and feature requests, separated by commas or spaces.
 For example, set it to the ID of `#bug-reports`. Use room IDs, not room names.
 Restart the bot after changing `.env`. With no value, intake is disabled.
 
-In these rooms, each new top-level post starts a report-intake workflow.
+In these rooms, each new top-level post starts a thread workflow.
 The workflow verifies a human author and calls a classifier task. The classifier
 uses the conversation model with low reasoning effort, no tools, and a
 30-second model deadline. It returns a decision and a short reason. The task
@@ -45,9 +46,8 @@ attachment MIME types. Image-only posts are accepted for the conversation
 agent to inspect. Clearly unrelated text with an image can still be ignored.
 
 Mentions, replies to the bot, and direct messages bypass classification.
-Automatic intake does not monitor thread replies; follow-up messages must
-address the bot as usual. Bot posts, forwarded copies, and existing history
-do not start intake. `CHATTO_ALLOWED_USER_ID` also applies to intake.
+Bot posts, forwarded copies, and existing history do not start intake.
+`CHATTO_ALLOWED_USER_ID` also applies to intake.
 
 Automatic intake never authorizes GitHub changes or source investigations,
 even when the report author is a maintainer. A maintainer must address the
@@ -61,6 +61,35 @@ that addressed message. It does not add a second intake turn or start another ru
 
 See [FDR-051](../../docs/fdr/FDR-051-chattobot-report-intake.md) for the decisions
 and limits of this feature.
+
+## Automatic thread follow-ups
+
+Once the bot joins a conversation, people can answer its questions with ordinary
+thread replies. This applies to conversations started by a mention or direct reply
+as well as accepted reports. Other rooms still require an addressed message to
+start a conversation.
+
+Every 90 seconds, the thread workflow checks for human messages after the bot's
+latest post. It waits while the conversation agent is answering. No new messages
+means no model call. An unchanged batch is not classified again. When another
+message arrives, the classifier considers all eligible replies since that bot post,
+with a short preceding excerpt. It sees text and attachment MIME types, not files.
+Replies that answer questions, correct advice, or supply relevant details can
+continue the same conversation in one turn. Thanks, unrelated discussion, and
+requests to leave the conversation to humans should stay silent.
+
+Pings and direct replies still reach the conversation immediately and cancel a
+pending follow-up check. Polling stops when the workflow ends. Empty, ignored,
+and failed checks do not extend its one-hour inactivity timeout. Inactivity is
+checked on the polling tick, so expiry can wait for the next check. Classification
+failures stay silent until new messages arrive. No follow-up state survives a
+process restart. If the newest thread page no longer contains a bot post, the
+check skips the thread rather than guessing which messages are new; a ping still works.
+
+Other bots, deleted or unknown authors, and users excluded by
+`CHATTO_ALLOWED_USER_ID` cannot trigger an automatic follow-up. These follow-ups
+grant no permission for GitHub work or investigations. A maintainer must still
+address the bot with such a request.
 
 ## Tools
 
@@ -98,15 +127,15 @@ behavioral evaluations, not a host-enforced topic classifier.
 
 ### Available tools
 
-| Tool             | What it does                                                          |
-| ---------------- | --------------------------------------------------------------------- |
-| `fetchPage`      | Reads the Chatto documentation and the Awesome Chatto list.           |
-| `readThread`     | Reads the newest messages of the thread.                              |
-| `viewAttachment` | Looks at an image or a small text file in the thread.                 |
-| `webSearch`      | Searches the web with Tavily, when configured.                        |
-| `browsePage`     | Reads a web page with Cloudflare Browser Run, when configured.        |
-| `gh`             | Runs read-only GitHub CLI commands, when GitHub is configured.        |
-| `githubWork`     | Starts a GitHub worker for a request from a maintainer.               |
+| Tool             | What it does                                                       |
+| ---------------- | ------------------------------------------------------------------ |
+| `fetchPage`      | Reads the Chatto documentation and the Awesome Chatto list.        |
+| `readThread`     | Reads the newest messages of the thread.                           |
+| `viewAttachment` | Looks at an image or a small text file in the thread.              |
+| `webSearch`      | Searches the web with Tavily, when configured.                     |
+| `browsePage`     | Reads a web page with Cloudflare Browser Run, when configured.     |
+| `gh`             | Runs read-only GitHub CLI commands, when GitHub is configured.     |
+| `githubWork`     | Starts a GitHub worker for a request from a maintainer.            |
 | `investigate`    | Starts or resumes a source investigation for a maintainer request. |
 
 Everyone who can address the bot can use direct read tools. GitHub changes and
@@ -193,8 +222,19 @@ The worker can read GitHub and make changes allowed by an issue-write token
 for the configured repository. It has no shell or file tools. The CLI runner
 blocks commands that access local files, credentials, editors, or other hosts.
 
-This first version checks who made the request. The agents decide which
-commands fulfill it. There is no command authorization classifier and no
+The host checks who made the request. It passes the exact maintainer message
+separately from the supervisor's proposed work and supporting evidence. For an
+approval such as "yes, file that", the supervisor identifies the proposal by
+message ID. The host reads it from the same thread and passes its exact text,
+author ID, and role to the worker. If the message is no longer in the available
+thread page, the bot must clarify the request.
+
+The worker's instructions require it to establish the authorized action and
+targets before using tools. A bare ping grants no permission. Evidence and
+GitHub content cannot expand the work. Bulk changes require an explicit operation
+and affected set, directly or through clear approval of a quoted proposal.
+The agents interpret these scope rules; the host does not enforce them.
+There is no command authorization classifier and no
 separate reaction approval for each change. The maintainer gate does not prove
 that every command matches the request.
 
@@ -247,9 +287,9 @@ where that account can.
 | `CHATTO_AGENT_MODEL`                                                                            | The model, as `provider/model`, for example `openrouter/openai/gpt-5.5`. Required.                             |
 | `CHATTO_AGENT_THINKING`                                                                         | Reasoning effort: `off`, `minimal`, `low`, `medium` (default), `high`, `xhigh`, or `max`.                      |
 | `CHATTO_ALLOWED_USER_ID`                                                                        | Answer only this Chatto user ID. Use it for tests on a shared server.                                          |
-| `CHATTO_AUTO_ENGAGE_ROOM_IDS` | Optional room IDs for automatic report intake, separated by commas or spaces. Disabled by default. |
+| `CHATTO_AUTO_ENGAGE_ROOM_IDS`                                                                   | Optional room IDs for automatic report intake, separated by commas or spaces. Disabled by default.             |
 | `CHATTO_MAINTAINER_USER_IDS`                                                                    | Chatto user IDs of maintainers, separated by commas.                                                           |
-| `CHATTO_MAINTAINER_NAME` | Optional Chatto user login to mention for maintainer input. Grants no permissions. |
+| `CHATTO_MAINTAINER_NAME`                                                                        | Optional Chatto user login to mention for maintainer input. Grants no permissions.                             |
 | `CHATTO_GITHUB_APP_CLIENT_ID`, `CHATTO_GITHUB_APP_PRIVATE_KEY_FILE`, `CHATTO_GITHUB_REPOSITORY` | GitHub access through a GitHub App, for one repository (`owner/repo`).                                         |
 | `CHATTO_TAVILY_API_KEY`                                                                         | Enables `webSearch`.                                                                                           |
 | `CHATTO_SOURCE_DIRECTORY`                                                                       | A checkout of the Chatto source. Enables `investigate`. Keep it current yourself, for example with `git pull`. |
@@ -283,10 +323,13 @@ ChattoBot sends these data to other systems:
 - **The model provider** of the investigator receives the questions and the
   source code that the investigator reads.
 - **The model provider** of the GitHub worker receives the maintainer request,
-  the context that the conversation supplies, and the GitHub tool results.
+  the proposed work, supporting evidence, any quoted proposal with its author
+  and message ID, and the GitHub tool results.
 
 With automatic intake enabled, the model provider also receives eligible new
 posts and attachment MIME types in the configured rooms, without a mention.
+For every active bot conversation, follow-up classification can send ordinary
+human replies and a short preceding excerpt to the same provider without a ping.
 These requests reveal the bot host's IP address, not the author's IP address.
 Tell room members that the bot processes their posts. Classification incurs
 model costs even when the bot stays silent.
@@ -318,8 +361,12 @@ with fixture executors.
 
 Cases cover stable and pre-release docs, version comparisons, web fallback,
 missing evidence, unrelated and mixed requests, and instructions hidden in
-reference content. Two-turn cases check startup clarification before research
-and reuse of documentation already read. Deployment cases check topology clarification and the limits
+reference content. Two-turn cases check startup clarification before research,
+reuse of documentation already read, and bare pings after another person answers
+without a mention. The bare-ping cases include a maintainer nudge with privileged
+tool schemas available; all executors still use fixtures. They check that the bot
+asks about observable symptoms when the reporter does not know the server setup.
+Deployment cases check topology clarification and the limits
 of a documented example. They check tool calls, their order, citations, and reply
 content. Each case has a two-minute deadline. Reports are saved under
 `.runling/evaluations/`. A passing run is a behavioral sample, not proof that
@@ -332,6 +379,8 @@ From `packages/chattobot/`, run `pnpm eval:intake`, or select a case with
 to the configured model provider. They incur model costs but do not contact
 Chatto or GitHub. Cases cover reports, feature requests, incomplete reports,
 German text, unrelated messages, instruction injection, and image metadata.
+Follow-up cases cover partial and batched answers, corrections, screenshots,
+resolved questions, human discussion, and requests for silence.
 Reports are saved under `.runling/evaluations/`. A passing run is a behavioral
 sample, not proof that every classification will be correct.
 
@@ -342,6 +391,7 @@ From `packages/chattobot/`, run:
 ```sh
 pnpm eval:github
 pnpm eval:github ambiguous-moo
+pnpm eval:github authorization
 pnpm eval:github language-report-withdrawal
 ```
 
@@ -357,6 +407,9 @@ successful write. Supervisor cases cover maintainer and member requests,
 including both authors in one turn and an unrelated maintainer message. They
 also cover investigation authorization, report intake, and acknowledgments
 that must not claim completed work.
+The `authorization` group checks injected bulk changes, bare maintainer pings,
+missing or ambiguous proposal quotes, explicit approval of a quoted proposal,
+and legitimate bulk closure. Case-name prefixes select a group of evaluations.
 They check commands, changed issue state, and delegation targets. They do not
 require exact reply wording. The supervisor cases use fake GitHub workers and investigators;
 the worker cases use the real worker agent.

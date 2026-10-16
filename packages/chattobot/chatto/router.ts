@@ -2,15 +2,10 @@
 import { createDeliveryTracker } from '@chatto/client';
 import { log, type Task, type TSchema } from 'runling';
 import type { RunHandle, WebhookRouter } from 'runling/web';
-import { ConversationInput, IncomingMessage } from './message.ts';
-
-/** A conversation ends when nobody writes to the bot in its thread for this long. A later
- * message starts a new conversation, which reads the thread again. */
-export const IDLE_MS = 60 * 60_000;
+import { IncomingMessage } from './message.ts';
 
 interface Thread {
-  run: RunHandle<ConversationInput>;
-  idle?: ReturnType<typeof setTimeout>;
+  run: RunHandle<IncomingMessage>;
 }
 
 /** Process-local routing state. Keep it across configuration reloads of the same bot. */
@@ -25,12 +20,9 @@ export type RouterState = ReturnType<typeof createRouterState>;
 
 export interface RouterOptions {
   botId: string;
-  /** The conversation task. Its input and messages are `IncomingMessage`. */
-  conversation: Task<typeof IncomingMessage, TSchema, typeof ConversationInput>;
-  /** Workflow for unsolicited root posts. It owns classification and any child conversation. */
-  intake: Task<typeof IncomingMessage, TSchema, typeof ConversationInput>;
+  /** The thread workflow owns intake, participation checks, and the conversation child. */
+  workflow: Task<typeof IncomingMessage, TSchema, typeof IncomingMessage>;
   state: RouterState;
-  idleMs?: number;
 }
 
 /**
@@ -39,30 +31,17 @@ export interface RouterOptions {
  */
 export function createChattoRouter({
   botId,
-  conversation,
-  intake,
-  state,
-  idleMs = IDLE_MS
+  workflow,
+  state
 }: RouterOptions): WebhookRouter<IncomingMessage> {
   const { threads } = state;
   const deliveries = createDeliveryTracker({ accepted: state.accepted });
 
-  const forget = (key: string, run: RunHandle<ConversationInput>) => {
+  const forget = (key: string, run: RunHandle<IncomingMessage>) => {
     const thread = threads.get(key);
 
     if (thread?.run !== run) return;
-    clearTimeout(thread.idle);
     threads.delete(key);
-  };
-  // Close the conversation's input after a quiet period. It answers what it has, then ends.
-  const touch = (key: string) => {
-    const thread = threads.get(key)!;
-    clearTimeout(thread.idle);
-    thread.idle = setTimeout(() => {
-      thread.run.closeInput();
-      forget(key, thread.run);
-    }, idleMs);
-    thread.idle.unref?.();
   };
 
   const deliver: WebhookRouter<IncomingMessage> = async (ctx, message) => {
@@ -78,7 +57,6 @@ export function createChattoRouter({
     if (thread) {
       try {
         await thread.run.send(message);
-        touch(key);
         return;
       } catch {
         // The run has finished or no longer accepts messages: start a new one.
@@ -86,10 +64,8 @@ export function createChattoRouter({
       }
     }
 
-    const workflow = message.trigger === 'intake' ? intake : conversation;
     const run = await ctx.start(workflow, { input: message });
     threads.set(key, { run });
-    touch(key);
     void run.finished.then(() => forget(key, run));
     log.debug('Started a thread workflow');
   };

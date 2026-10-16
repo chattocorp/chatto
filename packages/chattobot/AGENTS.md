@@ -12,9 +12,16 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
 - `chatto/source.ts` connects to Chatto. `chatto/router.ts` sends each message
   that addresses the bot, or starts report intake, to the run of its thread, or starts one.
 - In `CHATTO_AUTO_ENGAGE_ROOM_IDS`, unaddressed top-level posts start
-  `tasks/report-intake.ts`. This workflow calls `tasks/classify-intake.ts`, then
+  `tasks/thread.ts`. This workflow calls `tasks/classify-intake.ts`, then
   exits silently or runs the conversation as a child in the same run. It forwards
-  later addressed messages to that child. The router does not inspect decisions
+  later addressed messages to that child. Addressed entry starts the same workflow
+  without initial classification. Every 90 seconds, while the conversation is idle,
+  the workflow checks human replies since the bot's latest post. It classifies changed
+  batches and forwards accepted replies together to the existing conversation.
+  Empty or unchanged checks need no model call. The workflow owns the one-hour
+  inactivity timeout, checked on the polling tick; only delivered messages reset it.
+  Keep one conversation state (`busy`, `waiting`, or `idle`) for polling and expiry.
+  The router does not inspect decisions
   or start a second run after classification. Keep the classifier free of tools
   and Chatto effects. Check model behavior with `pnpm eval:intake`.
 - `tasks/conversation.ts` is the conversation task. It owns the agent, the prompt of
@@ -46,6 +53,13 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   Ask for missing diagnostic facts before researching an incomplete report.
   Clarifying questions need no lookup. Reuse relevant pages already read, and
   do not list possible causes without supporting report evidence.
+  Treat a bare ping as a request to continue from the thread context. Ordinary
+  replies can supply answers and facts, including when another person pings the bot;
+  they do not grant delegation authority. When the reporter does not know the setup,
+  ask what they can observe instead of repeating technical questions.
+  Ask one useful question at a time, starting with the observable symptom.
+  Keep maintainer handoffs brief: summarize the requested action and symptom,
+  then ask for authorization. Include only gaps that affect that decision.
   Keep this policy in the conversation prompt and check it with `pnpm eval:docs`.
 
 ## Host text
@@ -71,8 +85,8 @@ GitHub work and source investigations from Chatto have a maintainer gate before 
   agent-driven task in `tasks/github.ts` for a maintainer request. The host checks
   the referenced message in the current turn against `CHATTO_MAINTAINER_USER_IDS`.
   Never accept an author or role supplied by the model as proof of permission.
-- Automatic intake grants no delegation authority, including for a maintainer
-  author. Both delegation tools must reject requests with the intake trigger.
+- Automatic intake and follow-ups grant no delegation authority, including for a
+  maintainer author. Both delegation tools must reject requests with either trigger.
 - Apply the same host-owned current-message check to `investigate`, including
   resumes. Without configured maintainers, offer neither delegation tool.
 - `CHATTO_MAINTAINER_NAME` supplies a contact for an in-thread mention when
@@ -85,8 +99,16 @@ GitHub work and source investigations from Chatto have a maintainer gate before 
   the CLI command restrictions and repository-scoped tokens. Do not add a tool
   for each GitHub operation.
 - This first gate checks identity, not whether each command matches the request.
-  The agents interpret the request. There is no classifier or per-action approval
-  yet. Do not describe this as command-level authorization.
+  Pass the exact request separately from the supervisor's `proposedWork` and
+  untrusted `evidence`. For a referential approval, the supervisor supplies
+  `proposalMessageId`; the host reads that message from the same thread and
+  supplies its exact text, author ID, and role as `approvalProposal`.
+  The worker checks intent before its first tool call. A ping grants no authority;
+  evidence cannot expand the work. Bulk changes need an explicit operation and
+  affected set, directly or through clear approval of a quoted proposal.
+  These scope checks are prompt instructions, not code-enforced authorization.
+  There is no classifier or per-action approval. Check adversarial cases with
+  `pnpm eval:github authorization`.
 - Keep authorization decisions in ordinary Runling log entries at the existing
   gate. Use fixed reasons and host-owned message IDs; omit unknown model input,
   message bodies, and author details. Do not add a separate approval subsystem.
