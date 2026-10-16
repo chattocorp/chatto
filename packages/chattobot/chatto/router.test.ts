@@ -13,6 +13,10 @@ const conversation = task(
   },
   async () => null
 );
+const intake = task(
+  { name: 'Intake', input: IncomingMessage, output: Type.Null(), receives: ConversationInput },
+  async () => null
+);
 
 const message = (id: string, body = id, threadRootId = 'root'): IncomingMessage => ({
   id,
@@ -25,14 +29,16 @@ const message = (id: string, body = id, threadRootId = 'root'): IncomingMessage 
 /** A router with fake runs that record their messages. */
 function harness({ send }: { send?: (message: unknown) => Promise<void> } = {}) {
   const runs: {
+    workflow: string;
     input: unknown;
     sent: unknown[];
     closed: boolean;
     finish: () => void;
   }[] = [];
-  const start: WebhookContext['start'] = async (_task, { input }) => {
+  const start: WebhookContext['start'] = async (workflow, { input }) => {
     const finished = Promise.withResolvers<void>();
     const run = {
+      workflow: workflow.name,
       input,
       sent: [] as unknown[],
       closed: false,
@@ -52,7 +58,7 @@ function harness({ send }: { send?: (message: unknown) => Promise<void> } = {}) 
     return handle as never;
   };
   const state = createRouterState();
-  const route = createChattoRouter({ botId: 'bot', conversation, state, idleMs: 1000 });
+  const route = createChattoRouter({ botId: 'bot', conversation, intake, state, idleMs: 1000 });
   return { route: (incoming: IncomingMessage) => route({ start }, incoming), runs, state };
 }
 
@@ -74,6 +80,40 @@ test('ignores repeated deliveries of one message', async () => {
   await router.route(message('one'));
   expect(router.runs).toHaveLength(1);
   expect(router.runs[0]!.sent).toEqual([]);
+});
+
+test('an existing thread run does not receive a second unsolicited root', async () => {
+  const router = harness();
+  await router.route(message('ping'));
+  await router.route({ ...message('root'), trigger: 'intake' });
+  await router.route(message('reply'));
+  expect(router.runs).toHaveLength(1);
+  expect(router.runs[0]!.sent).toEqual([message('reply')]);
+});
+
+test('concurrent deliveries keep one run per thread', async () => {
+  const router = harness();
+  await Promise.all([
+    router.route(message('ping')),
+    router.route({ ...message('root'), trigger: 'intake' }),
+    router.route(message('reply'))
+  ]);
+  expect(router.runs).toHaveLength(1);
+  expect(router.runs[0]!.sent).toEqual([message('reply')]);
+});
+
+test('starts intake once and forwards later pings to that workflow', async () => {
+  const router = harness();
+  const root = { ...message('root'), trigger: 'intake' as const };
+  await router.route(root);
+  await router.route(root);
+  await router.route(message('ping'));
+  expect(router.runs).toHaveLength(1);
+  expect(router.runs[0]).toMatchObject({
+    workflow: 'Intake',
+    input: root,
+    sent: [message('ping')]
+  });
 });
 
 test('starts a new run when the thread run no longer accepts messages', async () => {

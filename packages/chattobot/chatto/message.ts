@@ -1,6 +1,6 @@
-/** A Chatto message addressed to the bot, as the conversation task receives it. */
+/** An addressed Chatto message or accepted report, as the conversation task receives it. */
 import { Type, type Static } from 'runling';
-import type { AddressedMessage, Destination, ThreadLocation } from '@chatto/client';
+import type { AddressedMessage, Destination, ThreadLocation, RealtimeEvent } from '@chatto/client';
 
 export const IncomingMessage = Type.Object({
   id: Type.String(),
@@ -9,7 +9,9 @@ export const IncomingMessage = Type.Object({
   threadRootId: Type.String(),
   /** The server-authenticated author. Never a display name. */
   authorId: Type.String(),
-  body: Type.String()
+  body: Type.String(),
+  /** Host-owned provenance. Absent means an addressed message for existing callers. */
+  trigger: Type.Optional(Type.Literal('intake'))
 });
 export type IncomingMessage = Static<typeof IncomingMessage>;
 
@@ -36,6 +38,38 @@ export const replyTo = (message: IncomingMessage): Destination => ({
   inReplyTo: message.id
 });
 
-/** What the router sends to a running conversation: authenticated addressed messages. */
+/** What the router sends to a conversation: messages with authenticated authors and host-owned provenance. */
 export const ConversationInput = IncomingMessage;
 export type ConversationInput = Static<typeof ConversationInput>;
+
+/** Opted-in room-level posts only. Replies, echoes, shredded messages, and own posts cannot start intake. */
+export function intakeMessage(
+  event: RealtimeEvent,
+  rooms: ReadonlySet<string>,
+  botId: string
+): IncomingMessage | undefined {
+  if (
+    event.event.case !== 'messagePosted' ||
+    !event.id ||
+    !event.actorId ||
+    event.actorId === botId
+  )
+    return;
+  const post = event.event.value;
+  if (
+    !rooms.has(post.roomId) ||
+    post.threadRootEventId ||
+    post.inReplyTo ||
+    post.echoOfEventId ||
+    post.bodyPlaintext === undefined
+  )
+    return;
+  return {
+    id: event.id,
+    roomId: post.roomId,
+    threadRootId: event.id,
+    authorId: event.actorId,
+    body: post.bodyPlaintext,
+    trigger: 'intake'
+  };
+}

@@ -1,7 +1,8 @@
-/** The realtime Chatto source: connect as the bot and route each message that addresses it. */
+/** The realtime Chatto source: route addressed messages and configured report intake. */
 import { statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createApi, createClient, type Server } from '@chatto/client';
+import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { parseServerUrl } from '@chatto/client/util/serverUrl';
 import { log } from 'runling';
 import type { EventSource } from 'runling/web';
@@ -12,13 +13,16 @@ import {
   ConfigurationError,
   maintainerLoginSetting,
   setting,
-  thinkingSetting
+  thinkingSetting,
+  autoEngageRoomIds
 } from '../settings.ts';
 import { createAttachmentReader, createThreadReader } from '../thread.ts';
 import { webSettings } from '../web.ts';
 import { createInvestigator, investigatorSettings } from '../tasks/investigate.ts';
-import { incomingMessage } from './message.ts';
+import { incomingMessage, intakeMessage } from './message.ts';
 import { createChattoRouter, createRouterState, type RouterState } from './router.ts';
+import { createIntakeClassifier } from '../tasks/classify-intake.ts';
+import { createReportIntake } from '../tasks/report-intake.ts';
 
 /** Parse maintainer Chatto user IDs, separated by commas or spaces. They are matched against
  * server-authenticated message authors, never display names. */
@@ -78,6 +82,7 @@ export function sourceSettings() {
       apiKey,
       // Match the server-authenticated actor ID, never a display name.
       allowedUserId: setting('CHATTO_ALLOWED_USER_ID'),
+      autoEngageRooms: autoEngageRoomIds(),
       conversation
     };
   } catch (error) {
@@ -108,6 +113,7 @@ async function consume(
     serverUrl,
     apiKey,
     allowedUserId,
+    autoEngageRooms,
     conversation: conversationSettings
   }: ReturnType<typeof sourceSettings>
 ) {
@@ -130,11 +136,29 @@ async function consume(
     readThread: createThreadReader(api),
     readAttachment: createAttachmentReader(api)
   });
-  const route = createChattoRouter({
-    botId,
+  const intake = createReportIntake({
+    classifier: createIntakeClassifier(conversationSettings.model),
     conversation,
-    state: session.state
+    async read(message, signal) {
+      const { users } = await api
+        .service(UserService)
+        .batchGetUsers({ userIds: [message.authorId] }, { signal, timeoutMs: 10_000 });
+      const author = users.find((row) => row.user?.id === message.authorId)?.user;
+      if (!author || author.bot || author.deleted) return;
+      // The thread reader includes its root and current attachments; retracted roots are absent.
+      const thread = await api.readThread(
+        { roomId: message.roomId, threadRootId: message.id },
+        { signal, limit: 1 }
+      );
+      const root = thread.messages.find((item) => item.id === message.id);
+      if (!root || root.authorId !== message.authorId) return;
+      return {
+        body: root.body,
+        attachmentTypes: (root.attachments ?? []).map((item) => item.contentType)
+      };
+    }
   });
+  const route = createChattoRouter({ botId, conversation, intake, state: session.state });
 
   await server.consumeEvents({
     signal: ctx.signal,
@@ -153,9 +177,13 @@ async function consume(
         console.warn('ChattoBot could not verify a reply target; ignoring the message.');
         return undefined;
       });
-      if (!message || message.authorId === botId) return;
+      if (message?.authorId === botId) return;
       try {
-        await ctx.dispatch(route, incomingMessage(message));
+        if (message) await ctx.dispatch(route, incomingMessage(message));
+        else {
+          const candidate = intakeMessage(event, autoEngageRooms, botId);
+          if (candidate) await ctx.dispatch(route, candidate);
+        }
       } catch {
         ctx.signal.throwIfAborted();
         // One failed message must not stop the bot. The error can contain message content.

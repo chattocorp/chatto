@@ -11,6 +11,8 @@ import { createRunJournal, newRun, runJournalDirectory } from '../../runtime/run
 import { buildTimeline } from '../timeline.ts';
 import { summarizeRunActivity } from '../run-activity.ts';
 import type { RunRecord } from '../runs.ts';
+import { SourceManager } from '../../runtime/source-manager.ts';
+import type { EventSourceContext, WebhookRouter } from 'runling/web';
 
 const directories: string[] = [];
 afterEach(async () => {
@@ -28,6 +30,77 @@ async function store() {
   await store.init();
   return store;
 }
+
+test('source dispatch from an active run creates an independent journal that outlives it', async () => {
+  const history = await store();
+  const ready = Promise.withResolvers<EventSourceContext>();
+  const release = Promise.withResolvers<void>();
+  const handles = new Map<string, Awaited<ReturnType<RunStore['start']>>>();
+  const sources = new SourceManager((name) => async (workflow, { input }) => {
+    const handle = await history.start(name, workflow, input, 'source');
+    handles.set(workflow.name, handle);
+    return handle;
+  });
+  const conversation = work(async (ctx) => {
+    await release.promise;
+    await step('Reply', async () => {
+      log.info('Conversation reply');
+      ctx.recordUsage({ input: 7, output: 3, cacheRead: 0, cacheWrite: 0, cost: 0 });
+    });
+    return 'reply';
+  }, 'Conversation');
+  try {
+    await sources.replace({
+      webhooks: {},
+      sources: {
+        fixture: async (ctx) => {
+          ready.resolve(ctx);
+          await new Promise<void>((resolve) =>
+            ctx.signal.addEventListener('abort', () => resolve(), { once: true })
+          );
+        }
+      }
+    });
+    const source = await ready.promise;
+    const route: WebhookRouter<null> = async (ctx) => {
+      await ctx.start(conversation, { input: null });
+    };
+    const intake = work(async () => {
+      await source.dispatch(route, null);
+      return 'accepted';
+    }, 'Intake');
+    await source.dispatch(async (ctx) => {
+      await ctx.start(intake, { input: null });
+    }, null);
+    const first = handles.get('Intake')!;
+    expect(await first.completion).toMatchObject({ ok: true, output: 'accepted' });
+    const journalPath = resolve(history.directory, `${first.id}.jsonl`);
+    const completedJournal = await readFile(journalPath, 'utf8');
+    release.resolve();
+    const second = handles.get('Conversation')!;
+    expect(await second.completion).toMatchObject({
+      ok: true,
+      output: 'reply',
+      usage: { input: 7, output: 3 }
+    });
+    expect(await readFile(journalPath, 'utf8')).toBe(completedJournal);
+    const firstRun = (await history.get(first.id))!;
+    const secondRun = (await history.get(second.id))!;
+    expect(
+      firstRun.events.filter((event) => event.type === 'step.started').map((event) => event.label)
+    ).toEqual(['Intake']);
+    expect(firstRun.usage.input).toBe(0);
+    const starts = secondRun.events.filter((event) => event.type === 'step.started');
+    expect(starts.map((event) => event.label)).toEqual(['Conversation', 'Reply']);
+    expect(starts[0]?.activityId).toBeUndefined();
+    expect(starts[1]?.activityId).toBe(starts[0]?.id);
+    expect(secondRun.status).toBe('completed');
+  } finally {
+    release.resolve();
+    await sources.close();
+    await history.close();
+  }
+});
 
 test('live activity logs include run and task prefixes and cancellation matches history', async () => {
   // This test checks the summary lines that `--quiet-log` keeps in the terminal.

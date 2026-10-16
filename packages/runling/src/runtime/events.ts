@@ -126,6 +126,10 @@ export const emitRunlingEvent = (payload: RunlingEventPayload): void => {
 export const observeRunlingEvents = <T>(listener: RunlingEventListener, work: () => T): T =>
   listeners.run([...(listeners.getStore() ?? []), listener], work);
 
+/** A host run owns its observers and activity, even when a callback dispatches it from another run. */
+export const withRunlingEventScope = <T>(listener: RunlingEventListener, work: () => T): T =>
+  listeners.run([listener], () => activity.exit(work));
+
 export const withRunlingActivity = <T>(id: string, work: () => T): T => activity.run(id, work);
 
 /** Return the active task ID for context-bound observations. */
@@ -140,7 +144,7 @@ export const bindRunlingContext = <Args extends unknown[], Result>(
   return (...args) =>
     listeners.run(capturedListeners, () =>
       capturedActivity === undefined
-        ? work(...args)
+        ? activity.exit(() => work(...args))
         : activity.run(capturedActivity, () => work(...args))
     );
 };

@@ -5,7 +5,7 @@ account. It answers questions about Chatto from the documentation, and
 maintainers can ask it to investigate source code and create or update GitHub issues.
 
 ChattoBot is a [Runling](../runling/README.md) application. Each thread in which
-someone addresses the bot gets one conversation run with one agent session. The
+someone addresses the bot, or the bot accepts a report, gets one conversation run with one agent session. The
 Runling console shows each run, its turns, and its tool calls.
 
 ## How it works
@@ -24,6 +24,44 @@ A conversation ends after one hour without messages to the bot. The next
 message starts a new conversation, which reads the thread again. A restart of
 the bot also ends all conversations.
 
+## Automatic report intake
+
+Set `CHATTO_AUTO_ENGAGE_ROOM_IDS` to the stable IDs of rooms where the bot should
+help with new bug reports and feature requests, separated by commas or spaces.
+For example, set it to the ID of `#bug-reports`. Use room IDs, not room names.
+Restart the bot after changing `.env`. With no value, intake is disabled.
+
+In these rooms, each new top-level post starts a report-intake workflow.
+The workflow verifies a human author and calls a classifier task. The classifier
+uses the conversation model with low reasoning effort, no tools, and a
+30-second model deadline. It returns a decision and a short reason. The task
+does not post, react, or show typing. Ignored posts and failed classifications
+stay silent. Users can still mention the bot to get help.
+
+For accepted reports, the workflow runs the normal conversation task as a child
+in the same run. It forwards later addressed messages to that child. The bot asks questions
+to help prepare a useful report. The classifier receives the post text and
+attachment MIME types. Image-only posts are accepted for the conversation
+agent to inspect. Clearly unrelated text with an image can still be ignored.
+
+Mentions, replies to the bot, and direct messages bypass classification.
+Automatic intake does not monitor thread replies; follow-up messages must
+address the bot as usual. Bot posts, forwarded copies, and existing history
+do not start intake. `CHATTO_ALLOWED_USER_ID` also applies to intake.
+
+Automatic intake never authorizes GitHub changes or source investigations,
+even when the report author is a maintainer. A maintainer must address the
+bot with that request. The classifier does not grant permissions.
+
+Duplicate intake deliveries are suppressed for 24 hours in the running
+process, including source reloads. A process restart clears this memory.
+Failed classifications are not retried automatically. A mention received during
+classification cancels the classifier and starts the conversation child with
+that addressed message. It does not add a second intake turn or start another run.
+
+See [FDR-051](../../docs/fdr/FDR-051-chattobot-report-intake.md) for the decisions
+and limits of this feature.
+
 ## Tools
 
 ### Chatto questions
@@ -35,6 +73,12 @@ troubleshooting. The conversation agent reads the relevant pages at
 It defaults to stable documentation, uses pre-release documentation for beta
 and development versions, and checks both for comparisons or gaps. Answers
 cite supporting pages and keep version-specific behavior separate.
+
+For incomplete bug reports, the bot first asks for missing diagnostic facts,
+such as the deployment method and startup error. Clarifying questions do not
+need research. The bot reads documentation before giving factual advice and
+reuses pages already read when they remain relevant. It avoids listing possible
+causes before the report supplies evidence for them.
 
 Deployment answers distinguish documented instructions from proposed adaptations.
 The bot asks about single-instance or high-availability goals when that choice
@@ -203,6 +247,7 @@ where that account can.
 | `CHATTO_AGENT_MODEL`                                                                            | The model, as `provider/model`, for example `openrouter/openai/gpt-5.5`. Required.                             |
 | `CHATTO_AGENT_THINKING`                                                                         | Reasoning effort: `off`, `minimal`, `low`, `medium` (default), `high`, `xhigh`, or `max`.                      |
 | `CHATTO_ALLOWED_USER_ID`                                                                        | Answer only this Chatto user ID. Use it for tests on a shared server.                                          |
+| `CHATTO_AUTO_ENGAGE_ROOM_IDS` | Optional room IDs for automatic report intake, separated by commas or spaces. Disabled by default. |
 | `CHATTO_MAINTAINER_USER_IDS`                                                                    | Chatto user IDs of maintainers, separated by commas.                                                           |
 | `CHATTO_MAINTAINER_NAME` | Optional Chatto user login to mention for maintainer input. Grants no permissions. |
 | `CHATTO_GITHUB_APP_CLIENT_ID`, `CHATTO_GITHUB_APP_PRIVATE_KEY_FILE`, `CHATTO_GITHUB_REPOSITORY` | GitHub access through a GitHub App, for one repository (`owner/repo`).                                         |
@@ -240,6 +285,12 @@ ChattoBot sends these data to other systems:
 - **The model provider** of the GitHub worker receives the maintainer request,
   the context that the conversation supplies, and the GitHub tool results.
 
+With automatic intake enabled, the model provider also receives eligible new
+posts and attachment MIME types in the configured rooms, without a mention.
+These requests reveal the bot host's IP address, not the author's IP address.
+Tell room members that the bot processes their posts. Classification incurs
+model costs even when the bot stays silent.
+
 The Runling run journals in `.runling/runs/` contain the messages and replies.
 The sessions in `.runling/subagents/` contain investigation questions and source
 code, and GitHub worker requests, context, and tool results.
@@ -267,11 +318,22 @@ with fixture executors.
 
 Cases cover stable and pre-release docs, version comparisons, web fallback,
 missing evidence, unrelated and mixed requests, and instructions hidden in
-reference content. Deployment cases check topology clarification and the limits
+reference content. Two-turn cases check startup clarification before research
+and reuse of documentation already read. Deployment cases check topology clarification and the limits
 of a documented example. They check tool calls, their order, citations, and reply
 content. Each case has a two-minute deadline. Reports are saved under
 `.runling/evaluations/`. A passing run is a behavioral sample, not proof that
 the model will always follow the topic restriction.
+
+### Intake model evaluations
+
+From `packages/chattobot/`, run `pnpm eval:intake`, or select a case with
+`pnpm eval:intake screenshot-only`. These evaluations send synthetic posts
+to the configured model provider. They incur model costs but do not contact
+Chatto or GitHub. Cases cover reports, feature requests, incomplete reports,
+German text, unrelated messages, instruction injection, and image metadata.
+Reports are saved under `.runling/evaluations/`. A passing run is a behavioral
+sample, not proof that every classification will be correct.
 
 ### GitHub model evaluations
 

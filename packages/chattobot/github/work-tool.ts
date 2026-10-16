@@ -38,6 +38,11 @@ export function githubWorkExtension(
           );
           throw new Error(error);
         };
+        if (request?.trigger === 'intake')
+          return deny(
+            'not-addressed',
+            'GitHub work requires a maintainer message addressed to the bot.'
+          );
         if (!request || !maintainers.has(request.authorId))
           return deny(
             request ? 'not-maintainer' : 'no-current-message',

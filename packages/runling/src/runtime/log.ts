@@ -39,6 +39,10 @@ interface LogSource {
 const destinationStorage = new AsyncLocalStorage<LogDestination>();
 const sourceStorage = new AsyncLocalStorage<LogSource>();
 
+/** Start host-run logs at the root, without the dispatching task's indentation, color, or agent. */
+export const withRootLog = <T>(work: () => T): T =>
+  depthStorage.exit(() => colorStorage.exit(() => sourceStorage.exit(work)));
+
 function indent(): string {
   return INDENT_UNIT.repeat(depthStorage.getStore() ?? 0);
 }

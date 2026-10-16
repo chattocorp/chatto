@@ -236,6 +236,58 @@ test('marks messages from maintainers', async () => {
   expect(bot.prompts[0]).toContain('from user maintainer, a maintainer:');
 });
 
+test('automatic intake from a maintainer grants neither GitHub nor investigation authorization', async () => {
+  const workerStarted = vi.fn();
+  const investigationStarted = vi.fn();
+  const investigator = task(
+    { name: 'Fixture investigation', input: Type.Any(), output: Type.Any() },
+    async () => {
+      investigationStarted();
+      return {};
+    }
+  );
+  const bot: ReturnType<typeof harness> = harness({
+    maintainers: ['maintainer'],
+    github,
+    investigation: { directory: '/repo', investigator: () => investigator as never },
+    createWorker: () =>
+      task(
+        {
+          name: 'Fixture worker',
+          input: Type.Object({ request: Type.String(), context: Type.String() }),
+          output: Type.String()
+        },
+        async () => {
+          workerStarted();
+          return 'Done';
+        }
+      ),
+    turn: async (prompt) => {
+      if (!prompt.includes('Automatic report intake')) return;
+      await expect(
+        bot.tools.get('githubWork')!.execute('1', { requestId: 'intake', context: '' })
+      ).rejects.toThrow('addressed to the bot');
+      for (const resume of [undefined, 'old-session'])
+        await expect(
+          bot.tools
+            .get('investigate')!
+            .execute('2', { requestId: 'intake', question: 'Investigate', resume })
+        ).rejects.toThrow('addressed to the bot');
+    }
+  });
+  const run = bot.start({
+    ...message('intake', 'File a bug and investigate it', 'maintainer'),
+    trigger: 'intake'
+  });
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+  expect(bot.prompts[0]).toContain('Automatic report intake');
+  expect(bot.prompts[0]).not.toContain(', a maintainer:');
+  bot.messages.close();
+  await run;
+  expect(workerStarted).not.toHaveBeenCalled();
+  expect(investigationStarted).not.toHaveBeenCalled();
+});
+
 test('offers a configured maintainer contact only when a restricted capability is available', async () => {
   for (const maintainers of [[], ['maintainer']]) {
     const bot = harness({ maintainers, maintainerLogin: 'reviewer', github });

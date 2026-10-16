@@ -8,11 +8,12 @@ import { pathToFileURL } from 'node:url';
 import type { RunOptions } from './cli.ts';
 import {
   observeRunlingEvents,
+  withRunlingEventScope,
   emitRunlingEvent,
   bindRunlingContext,
   type RunlingEventListener
 } from './events.ts';
-import { log } from './log.ts';
+import { log, withRootLog } from './log.ts';
 import { renderMarkdown } from './markdown.ts';
 import { terminalColors } from './ansi.ts';
 import { stripVTControlCharacters } from 'node:util';
@@ -94,8 +95,9 @@ export function formatWorkflowOutput(
   return terminalColors(terminal) ? rendered : stripVTControlCharacters(rendered);
 }
 
-/** Run a workflow: one top-level invocation of a task, with the host as its parent. This does not
- * assume a terminal, print, or change process state. */
+/** Run a workflow: one top-level invocation of a task, with the host as its parent. Its event
+ * and log context is independent of the caller. This does not assume a terminal, print, or
+ * change process state. */
 export async function runWorkflow<T extends AnyTask>(
   task: T,
   {
@@ -110,9 +112,11 @@ export async function runWorkflow<T extends AnyTask>(
   }: RunWorkflowOptions<TaskInput<T>>
 ): Promise<WorkflowExecution<TaskOutput<T>>> {
   return withExecutionServices({ verbose }, () =>
-    observeRunlingEvents(onEvent, () =>
-      log.withDestination('silent', () =>
-        captureExecution(task, input, { timeout, signal, messages, onUpdate, identity })
+    withRunlingEventScope(onEvent, () =>
+      withRootLog(() =>
+        log.withDestination('silent', () =>
+          captureExecution(task, input, { timeout, signal, messages, onUpdate, identity })
+        )
       )
     )
   ) as Promise<WorkflowExecution<TaskOutput<T>>>;

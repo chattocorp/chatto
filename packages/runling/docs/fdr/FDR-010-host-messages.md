@@ -37,6 +37,10 @@ workflow in the same way as a parent task talks to a child.
   it returns and later send messages, close the input, cancel the run, or wait
   until the run finishes. For example, a chat router keeps one run for each
   thread.
+- Each host run has its own event and log context. If a callback dispatches a
+  new run while another run is active, the new run does not inherit that run's
+  journal listeners, active task, or log indentation. It can continue after
+  the earlier run finishes. Child task invocations still share their run.
 - When a task waits for a message, the journal records the wait. The timeline
   shows "Waiting for a message". When a run has no other active work, the run
   list shows it as waiting for a message.

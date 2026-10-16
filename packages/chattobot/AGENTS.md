@@ -10,7 +10,13 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   as `<task>.test.ts` or `<task>-<scope>.test.ts`. This includes evaluation tasks.
   Keep supporting tools and fixtures in their domain directories.
 - `chatto/source.ts` connects to Chatto. `chatto/router.ts` sends each message
-  that addresses the bot to the run of its thread, or starts one.
+  that addresses the bot, or starts report intake, to the run of its thread, or starts one.
+- In `CHATTO_AUTO_ENGAGE_ROOM_IDS`, unaddressed top-level posts start
+  `tasks/report-intake.ts`. This workflow calls `tasks/classify-intake.ts`, then
+  exits silently or runs the conversation as a child in the same run. It forwards
+  later addressed messages to that child. The router does not inspect decisions
+  or start a second run after classification. Keep the classifier free of tools
+  and Chatto effects. Check model behavior with `pnpm eval:intake`.
 - `tasks/conversation.ts` is the conversation task. It owns the agent, the prompt of
   each turn, and the only posts to the thread. The agent's final text is the
   reply.
@@ -37,6 +43,9 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   pages, and keep version-specific claims separate. Web search and external page
   reads are a last resort for gaps in the relevant documentation. Decline unrelated
   work without tools; mentioning Chatto alone does not make a request related.
+  Ask for missing diagnostic facts before researching an incomplete report.
+  Clarifying questions need no lookup. Reuse relevant pages already read, and
+  do not list possible causes without supporting report evidence.
   Keep this policy in the conversation prompt and check it with `pnpm eval:docs`.
 
 ## Host text
@@ -62,6 +71,8 @@ GitHub work and source investigations from Chatto have a maintainer gate before 
   agent-driven task in `tasks/github.ts` for a maintainer request. The host checks
   the referenced message in the current turn against `CHATTO_MAINTAINER_USER_IDS`.
   Never accept an author or role supplied by the model as proof of permission.
+- Automatic intake grants no delegation authority, including for a maintainer
+  author. Both delegation tools must reject requests with the intake trigger.
 - Apply the same host-owned current-message check to `investigate`, including
   resumes. Without configured maintainers, offer neither delegation tool.
 - `CHATTO_MAINTAINER_NAME` supplies a contact for an in-thread mention when
