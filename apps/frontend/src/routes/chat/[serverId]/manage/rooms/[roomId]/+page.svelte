@@ -197,18 +197,18 @@ change the settings goes to the Members section instead.
       room={detail.room}
       onSave={saveSettings}
     />
+    {#if detail.room.threadSlowModeSeconds === undefined}
+      <FeatureCompatibilityNotice
+        serverSegment={serverIdToSegment(serverScope.serverId)}
+        features={serverScope.store.serverInfo.limitedFeatures.filter(
+          (feature) => feature === 'independentSlowMode'
+        )}
+      />
+    {/if}
     <RoomThreadingModeSettingsPanel
       bind:this={threadingSection}
       room={detail.room}
       onSave={saveSettings}
     />
   {/key}
-  {#if detail.room.threadSlowModeSeconds === undefined}
-    <FeatureCompatibilityNotice
-      serverSegment={serverIdToSegment(serverScope.serverId)}
-      features={serverScope.store.serverInfo.limitedFeatures.filter(
-        (feature) => feature === 'independentSlowMode'
-      )}
-    />
-  {/if}
 {/if}

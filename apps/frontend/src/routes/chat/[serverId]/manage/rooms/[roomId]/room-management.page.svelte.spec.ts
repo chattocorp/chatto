@@ -426,6 +426,41 @@ describe('room management page identity and realtime authority', () => {
     expect(root.value).toBe('0');
   });
 
+  it('discards both slow-mode drafts together and submits both changed intervals in one request', async () => {
+    serveRoom(managedRoom('general', { threadSlowModeSeconds: 60 }));
+    const { container } = renderSections('general');
+    await settle();
+    const channel = container.querySelector('#room-settings-slow-mode') as HTMLSelectElement;
+    const thread = container.querySelector('#room-settings-thread-slow-mode') as HTMLSelectElement;
+    function editIntervals() {
+      channel.value = '10';
+      channel.dispatchEvent(new Event('change', { bubbles: true }));
+      thread.value = '0';
+      thread.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    editIntervals();
+    await settle();
+    expect(mocks.updateRoom).not.toHaveBeenCalled();
+    formAction(container, '#room-settings-slow-mode', 'Discard changes').click();
+    await settle();
+    expect(channel.value).toBe('0');
+    expect(thread.value).toBe('60');
+    editIntervals();
+    submitSection(container, '#room-settings-slow-mode');
+    await vi.waitFor(() =>
+      expect(mocks.updateRoom).toHaveBeenCalledExactlyOnceWith({
+        roomId: 'shared-room',
+        slowModeSeconds: 10,
+        threadSlowModeSeconds: 0
+      })
+    );
+    await vi.waitFor(() =>
+      expect(formAction(container, '#room-settings-slow-mode').disabled).toBe(true)
+    );
+    expect(channel.value).toBe('10');
+    expect(thread.value).toBe('0');
+  });
+
   it('saves a threading mode only when its form submits', async () => {
     serveRoom(managedRoom('general'));
     const { container } = renderSections('general');
