@@ -31,6 +31,9 @@ make every correctness concern part of this review.
 4. **Avoid `untrack`.** Do not use it to hide dependencies, stop a feedback
    loop, or make an effect run only once. Fix the data flow. An intentional
    snapshot must explain why later changes must not affect its consumer.
+   A hook or component that calls an owner's callback from its own effect can
+   call it inside `untrack`, with a comment. The callback's reads belong to
+   the owner, not to the effect. Prefer an effect that calls no callbacks.
 5. **Avoid mount and unmount hooks for business behavior.** `onMount`,
    `onDestroy`, and effect cleanup are for resources whose lifetime belongs to
    the component. Do not use them to mark data read, save changes, or trigger
@@ -50,9 +53,10 @@ make every correctness concern part of this review.
    code appears to own client responsibilities.
 8. **Check component transitions and cleanup.** Check whether prop changes,
    navigation, focus changes, or disposal cause stale closures, duplicate
-   subscriptions, repeated effects, or missing cleanup. Tests should exercise
-   these frontend integration points. Do not use this rule to redefine the
-   application's retry, pagination, or persistence policy.
+   subscriptions, repeated effects, or missing cleanup. A callback that a hook
+   calls from an effect adds its reads to the dependencies of that effect.
+   Tests should exercise these frontend integration points. Do not use this
+   rule to redefine the application's retry, pagination, or persistence policy.
 9. **Follow the design system.** User-facing changes must fit the existing
    design system. Reuse shared Tailwind utilities and Svelte components where
    possible. If the change needs a new utility, component, or design-system
