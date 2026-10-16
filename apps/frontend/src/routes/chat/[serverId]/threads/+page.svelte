@@ -5,6 +5,7 @@
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import ChatSearchInput from '$lib/components/chat/ChatSearchInput.svelte';
   import FeatureCompatibilityNotice from '$lib/components/chat/FeatureCompatibilityNotice.svelte';
+  import { serverIdToSegment } from '$lib/navigation';
   import SearchAvailability from '$lib/components/search/SearchAvailability.svelte';
   import { MessageSearchState } from '@chatto/client/api/messageSearch';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';

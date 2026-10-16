@@ -8,18 +8,35 @@ import { fileURLToPath } from 'node:url';
 // Use the client's parser without executing either revision's TypeScript source.
 const require = createRequire(new URL('../packages/chatto-client/package.json', import.meta.url));
 const ts = require('typescript');
+const compare = require('semver/functions/compare.js');
 const sourcePath = 'packages/chatto-client/src/server/compatibility.ts';
 const requiredLabels = {
   MINIMUM_SUPPORTED_SERVER_VERSION: 'server-compatibility:full-support',
   MINIMUM_CONNECTABLE_SERVER_VERSION: 'server-compatibility:connection-floor'
 };
 
-/** Read one exported string constant per threshold. Ambiguous or invalid source fails closed. */
+// Recognize only the client's reviewed derivation, never evaluate PR source.
+const supportDerivation = `Object.values(SERVER_FEATURE_REQUIREMENTS).reduce<string>(
+  (minimum, required) => (compare(minimum, required) < 0 ? required : minimum),
+  MINIMUM_CONNECTABLE_SERVER_VERSION
+)`;
+const printer = ts.createPrinter({ removeComments: true });
+function expressionText(expression, file) {
+  return printer.printNode(ts.EmitHint.Expression, expression, file);
+}
+const derivationFile = ts.createSourceFile(
+  'expression.ts',
+  supportDerivation,
+  ts.ScriptTarget.Latest,
+  true
+);
+const expectedDerivation = expressionText(derivationFile.statements[0].expression, derivationFile);
+
+/** Read literal thresholds or the reviewed feature-map maximum. Unknown expressions fail closed. */
 export function readThresholds(source) {
   const file = ts.createSourceFile(sourcePath, source, ts.ScriptTarget.Latest, true);
   if (file.parseDiagnostics.length) throw new Error(`Cannot parse ${sourcePath}`);
-  const values = {};
-  for (const name of Object.keys(requiredLabels)) {
+  function initializer(name) {
     const declarations = [];
     for (const statement of file.statements) {
       if (!ts.isVariableStatement(statement)) continue;
@@ -36,14 +53,50 @@ export function readThresholds(source) {
     if (
       !(statement.declarationList.flags & ts.NodeFlags.Const) ||
       !statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ||
-      !declaration.initializer ||
-      !ts.isStringLiteral(declaration.initializer)
+      !declaration.initializer
     ) {
-      throw new Error(`${name}: expected an exported const with a string literal value`);
+      throw new Error(`${name}: expected an exported const with a value`);
     }
-    values[name] = declaration.initializer.text;
+    return declaration.initializer;
   }
-  return values;
+  const floor = initializer('MINIMUM_CONNECTABLE_SERVER_VERSION');
+  if (!ts.isStringLiteral(floor)) throw new Error('Connection floor must be a string literal');
+  const support = initializer('MINIMUM_SUPPORTED_SERVER_VERSION');
+  let supportVersion;
+  if (ts.isStringLiteral(support)) {
+    supportVersion = support.text;
+  } else {
+    if (expressionText(support, file) !== expectedDerivation) {
+      throw new Error('Unrecognized full-support derivation');
+    }
+    const requirements = initializer('SERVER_FEATURE_REQUIREMENTS');
+    if (
+      !ts.isAsExpression(requirements) ||
+      requirements.type.getText(file) !== 'const' ||
+      !ts.isObjectLiteralExpression(requirements.expression)
+    ) {
+      throw new Error('Feature requirements must be an object literal with as const');
+    }
+    const names = new Set();
+    supportVersion = floor.text;
+    for (const property of requirements.expression.properties) {
+      if (
+        !ts.isPropertyAssignment(property) ||
+        !(ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) ||
+        !ts.isStringLiteral(property.initializer) ||
+        names.has(property.name.text)
+      ) {
+        throw new Error('Feature requirements must have unique literal keys and string values');
+      }
+      names.add(property.name.text);
+      if (compare(supportVersion, property.initializer.text) < 0)
+        supportVersion = property.initializer.text;
+    }
+  }
+  return {
+    MINIMUM_SUPPORTED_SERVER_VERSION: supportVersion,
+    MINIMUM_CONNECTABLE_SERVER_VERSION: floor.text
+  };
 }
 
 /** Return one diagnostic per changed threshold that has no exact matching label. */
