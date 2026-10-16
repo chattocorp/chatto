@@ -10,7 +10,6 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -387,7 +386,7 @@ func apiRoom(room *evtv1.Room) *apiv1.Room {
 		GroupId:               room.GroupId,
 		Universal:             room.Universal,
 		SlowModeSeconds:       room.SlowModeSeconds,
-		ThreadSlowModeSeconds: proto.Uint32(core.EffectiveThreadSlowModeSeconds(room)),
+		ThreadSlowModeSeconds: new(core.EffectiveThreadSlowModeSeconds(room)),
 		ThreadingMode:         apiRoomThreadingMode(room),
 	}
 }
