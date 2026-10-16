@@ -3045,110 +3045,122 @@ describe('ServerStateStore unified realtime resources', () => {
     await expect(completion).rejects.toBe(failure);
   });
 
-  it('retains the cursor after an overlapping reconnect loses a shared read, then repairs the thread on replay', async () => {
-    vi.useFakeTimers();
-    type Socket = ReturnType<NonNullable<Parameters<typeof setRealtimeSocketFactoryForTests>[0]>>;
-    const sockets: Socket[] = [];
-    setRealtimeSocketFactoryForTests(() => {
-      const socket: Socket = {
-        binaryType: 'arraybuffer',
-        readyState: 1,
-        onopen: null,
-        onmessage: null,
-        onerror: null,
-        onclose: null,
-        send: vi.fn(),
-        close: vi.fn((code, reason) => socket.onclose?.({ code, reason }))
+  it.each(['before replacement', 'after replacement'] as const)(
+    'retains the cursor when a shared read fails %s, then repairs the thread on replay',
+    async (failureTiming) => {
+      vi.useFakeTimers();
+      type Socket = ReturnType<NonNullable<Parameters<typeof setRealtimeSocketFactoryForTests>[0]>>;
+      const sockets: Socket[] = [];
+      setRealtimeSocketFactoryForTests(() => {
+        const socket: Socket = {
+          binaryType: 'arraybuffer',
+          readyState: 1,
+          onopen: null,
+          onmessage: null,
+          onerror: null,
+          onclose: null,
+          send: vi.fn(),
+          close: vi.fn((code, reason) => socket.onclose?.({ code, reason }))
+        };
+        sockets.push(socket);
+        return socket;
+      });
+      const receive = async (socket: Socket, frame: RealtimeServerFrame['frame']) => {
+        socket.onmessage?.({ data: new RealtimeServerFrame({ frame }).toBinary() });
+        await flushPromises(30);
       };
-      sockets.push(socket);
-      return socket;
-    });
-    const receive = async (socket: Socket, frame: RealtimeServerFrame['frame']) => {
-      socket.onmessage?.({ data: new RealtimeServerFrame({ frame }).toBinary() });
-      await flushPromises(30);
-    };
-    const fake = new FakeServerConnection([]);
-    const store = makeStore(fake);
-    store.realtimeProjectionHandler(
-      new RealtimeProjectionUpdate({
-        resource: roomResource([
-          new RoomWithViewerState({
-            room: { id: 'R1', name: 'Room' },
-            viewerState: {
-              isMember: true,
-              permissions: [{ permission: 'message.read', granted: true }]
-            }
-          })
-        ])
-      })
-    );
-    const messages = store.rooms.messages('R1');
-    await flushPromises(20);
-    const root = new Message({ id: 'ROOT', roomId: 'R1', body: 'Root message' });
-    const initialRoot = messageToTimelineEvent(root, {});
-    expect(initialRoot).not.toBeNull();
-    messages.ingestEvent(initialRoot!);
-    const pending = deferred<MessageResource[]>();
-    apiMocks.readMessages.mockReturnValueOnce(pending.promise);
-    const sync = store.realtimeSync;
-    sync.markCaughtUp('before-thread');
-    const controller = eventBusManager.ensureBus({
-      serverId: store.serverId,
-      connection: fake as unknown as ServerConnection,
-      projectionSupported: true,
-      sync,
-      projectionHandler: store.realtimeProjectionHandler,
-      waitForProjectionReconciliation: () => store.waitForRealtimeReconciliation(),
-      completeProjectionCatchUp: (cursor) => store.completeRealtimeCatchUp(cursor)
-    });
-    const event = new RealtimeEvent({
-      id: 'REPLY',
-      cursor: 'after-thread',
-      event: {
-        case: 'messagePosted',
-        value: new MessagePostedEvent({ roomId: 'R1', threadRootEventId: 'ROOT' })
+      const fake = new FakeServerConnection([]);
+      const store = makeStore(fake);
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({
+          resource: roomResource([
+            new RoomWithViewerState({
+              room: { id: 'R1', name: 'Room' },
+              viewerState: {
+                isMember: true,
+                permissions: [{ permission: 'message.read', granted: true }]
+              }
+            })
+          ])
+        })
+      );
+      const messages = store.rooms.messages('R1');
+      await flushPromises(20);
+      const root = new Message({ id: 'ROOT', roomId: 'R1', body: 'Root message' });
+      const initialRoot = messageToTimelineEvent(root, {});
+      expect(initialRoot).not.toBeNull();
+      messages.ingestEvent(initialRoot!);
+      const pending = deferred<MessageResource[]>();
+      apiMocks.readMessages.mockReturnValueOnce(pending.promise);
+      const sync = store.realtimeSync;
+      sync.markCaughtUp('before-thread');
+      const controller = eventBusManager.ensureBus({
+        serverId: store.serverId,
+        connection: fake as unknown as ServerConnection,
+        projectionSupported: true,
+        sync,
+        projectionHandler: store.realtimeProjectionHandler,
+        waitForProjectionReconciliation: () => store.waitForRealtimeReconciliation(),
+        completeProjectionCatchUp: (cursor) => store.completeRealtimeCatchUp(cursor)
+      });
+      const event = new RealtimeEvent({
+        id: 'REPLY',
+        cursor: 'after-thread',
+        event: {
+          case: 'messagePosted',
+          value: new MessagePostedEvent({ roomId: 'R1', threadRootEventId: 'ROOT' })
+        }
+      });
+      controller.setMode('live');
+      sockets[0].onopen?.();
+      await receive(sockets[0], { case: 'event', value: event });
+      await vi.advanceTimersByTimeAsync(10);
+      expect(apiMocks.readMessages).toHaveBeenCalledTimes(1);
+
+      fake.registerRealtimeReconnect.mock.calls[0][0]('tab wake');
+      if (failureTiming === 'before replacement') {
+        pending.reject(new Error('message read failed during wake'));
+        await flushPromises(30);
+        expect(sockets).toHaveLength(1);
       }
-    });
-    controller.setMode('live');
-    sockets[0].onopen?.();
-    await receive(sockets[0], { case: 'event', value: event });
-    await vi.advanceTimersByTimeAsync(10);
-    expect(apiMocks.readMessages).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(0);
+      sockets[1].onopen?.();
+      await receive(sockets[1], { case: 'event', value: event });
+      if (failureTiming === 'after replacement') {
+        pending.reject(new Error('message read failed during wake'));
+      } else {
+        await vi.advanceTimersByTimeAsync(10);
+      }
+      await vi.advanceTimersByTimeAsync(0);
 
-    fake.registerRealtimeReconnect.mock.calls[0][0]('tab wake');
-    await vi.advanceTimersByTimeAsync(0);
-    sockets[1].onopen?.();
-    await receive(sockets[1], { case: 'event', value: event });
-    pending.reject(new Error('message read failed during wake'));
-    await vi.advanceTimersByTimeAsync(0);
+      expect(sockets[1].close).toHaveBeenCalledWith(4000, 'resource reconciliation failed');
+      expect(sync.resumeCursor).toBe('before-thread');
+      expect(sync.phase).toBe('stale');
 
-    expect(sockets[1].close).toHaveBeenCalledWith(4000, 'resource reconciliation failed');
-    expect(sync.resumeCursor).toBe('before-thread');
-    expect(sync.phase).toBe('stale');
-
-    root.thread = new ThreadSummary({ threadRootEventId: 'ROOT', replyCount: 1 });
-    apiMocks.readMessages.mockResolvedValue([
-      { message: root, timeline: messageToTimelineEvent(root, {}) }
-    ]);
-    await vi.advanceTimersByTimeAsync(0);
-    sockets[2].onopen?.();
-    expect(
-      RealtimeSubscribe.fromBinary(vi.mocked(sockets[2].send).mock.calls[0][0]).resumeCursor
-    ).toBe('before-thread');
-    await receive(sockets[2], { case: 'event', value: event });
-    await vi.advanceTimersByTimeAsync(10);
-    await receive(sockets[2], {
-      case: 'caughtUp',
-      value: new RealtimeCaughtUp({ cursor: 'after-thread', recovery: RealtimeRecovery.RESUMED })
-    });
-    expect(messages.getEventById('ROOT')?.event).toMatchObject({
-      threadExists: true,
-      replyCount: 1
-    });
-    expect(sync.resumeCursor).toBe('after-thread');
-    expect(sync.phase).toBe('ready');
-    expect(fake.setRealtimeConnectionStatus).toHaveBeenLastCalledWith('connected');
-  });
+      root.thread = new ThreadSummary({ threadRootEventId: 'ROOT', replyCount: 1 });
+      apiMocks.readMessages.mockResolvedValue([
+        { message: root, timeline: messageToTimelineEvent(root, {}) }
+      ]);
+      await vi.advanceTimersByTimeAsync(1);
+      sockets[2].onopen?.();
+      expect(
+        RealtimeSubscribe.fromBinary(vi.mocked(sockets[2].send).mock.calls[0][0]).resumeCursor
+      ).toBe('before-thread');
+      await receive(sockets[2], { case: 'event', value: event });
+      await vi.advanceTimersByTimeAsync(10);
+      await receive(sockets[2], {
+        case: 'caughtUp',
+        value: new RealtimeCaughtUp({ cursor: 'after-thread', recovery: RealtimeRecovery.RESUMED })
+      });
+      expect(messages.getEventById('ROOT')?.event).toMatchObject({
+        threadExists: true,
+        replyCount: 1
+      });
+      expect(sync.resumeCursor).toBe('after-thread');
+      expect(sync.phase).toBe('ready');
+      expect(fake.setRealtimeConnectionStatus).toHaveBeenLastCalledWith('connected');
+    }
+  );
 
   it.each(['full', 'privileged'] as const)(
     'keeps errors for the new transport when an old %s catch-up finishes its auxiliary reads',

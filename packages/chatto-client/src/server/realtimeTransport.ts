@@ -228,6 +228,7 @@ export class EventBusManager {
       caughtUpSocket = null;
       socketSubscribed = false;
       if (!current) return;
+      sync.endTransport();
       current.onopen = null;
       current.onmessage = null;
       current.onerror = null;
@@ -262,7 +263,10 @@ export class EventBusManager {
         ...debugState()
       });
       current.onclose = null;
-      if (socket === current) socket = null;
+      if (socket === current) {
+        socket = null;
+        sync.endTransport();
+      }
       socketSubscribed = false;
       sync.markStale();
       // Renewal is part of reconnecting; only a failed renewal is a failure.
@@ -289,7 +293,10 @@ export class EventBusManager {
 
     const renewBrowserSession = async (current: RealtimeSocket) => {
       current.onclose = null;
-      if (socket === current) socket = null;
+      if (socket === current) {
+        socket = null;
+        sync.endTransport();
+      }
       socketSubscribed = false;
       sync.markStale();
       serverConnection.setRealtimeConnectionStatus('connecting', reconnectAttempts);
@@ -319,7 +326,10 @@ export class EventBusManager {
       projectionSupported = false;
       mode = 'dormant';
       current.onclose = null;
-      if (socket === current) socket = null;
+      if (socket === current) {
+        socket = null;
+        sync.endTransport();
+      }
       batch(() => {
         serverConnection.markRealtimeUnsupported();
         serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
@@ -571,7 +581,10 @@ export class EventBusManager {
                   return;
                 }
                 nextSocket.onclose = null;
-                if (socket === nextSocket) socket = null;
+                if (socket === nextSocket) {
+                  socket = null;
+                  sync.endTransport();
+                }
                 // The close frame bypasses the socket's normal onclose handler.
                 // Release socket-scoped hydration state before reconnecting so a
                 // request whose response was lost can be sent on the replacement.
@@ -612,6 +625,7 @@ export class EventBusManager {
       nextSocket.onclose = (event) => {
         if (stopped || socket !== nextSocket) return;
         socket = null;
+        sync.endTransport();
         socketSubscribed = false;
         console.warn(`[eventBus:${serverId}] realtime socket closed`, {
           code: event.code,

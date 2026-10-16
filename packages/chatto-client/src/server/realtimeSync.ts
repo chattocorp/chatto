@@ -90,6 +90,11 @@ export class RealtimeProjectionSyncState {
     if (this.phase === 'empty') this.phase = 'hydrating';
   }
 
+  /** Preserve shared read failures while no transport owns cursor advancement. */
+  endTransport(): void {
+    this.#transportGeneration++;
+  }
+
   /** Advance only after every resource and event reducer accepted the frame. */
   acceptProjectionEvent(cursor: string | undefined, reset: boolean): void {
     if (reset) {
