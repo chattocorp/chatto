@@ -7,6 +7,8 @@
   import ServerInformation from './ServerInformation.svelte';
   import exampleIcon from '../../../../static/icons/icon-192.png?inline';
 
+  const exampleBanner = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"><rect width="1200" height="630" fill="#28566b"/><circle cx="920" cy="130" r="240" fill="#b8c9bc"/><path d="M0 530 320 160 720 630H0" fill="#163443"/><path d="m400 630 440-350 360 350" fill="#467b85"/></svg>')}`;
+
   const { Story } = defineMeta({
     title: 'Chat/Server information',
     component: ServerInformation,
@@ -30,6 +32,7 @@
   args={{
     ...example('0.5.0-beta.16'),
     iconUrl: exampleIcon,
+    bannerUrl: exampleBanner,
     description: 'A place to share projects and meet other makers.',
     welcomeMessage:
       'Welcome to **Example community**!\n\nIntroduce yourself and share what you are working on.'
