@@ -1,7 +1,7 @@
 # FDR-045: Realtime Event Stream
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-25
+**Last reviewed:** 2026-10-16
 
 ## Overview
 
@@ -154,6 +154,11 @@ projections or later events. The server limits the wait to 10 seconds. This is
 a minimum content boundary, not a historical read or an asynchronous-effect
 guarantee. Clients must give these reads finite deadlines and must not retain the event cursor until required reconciliation
 succeeds.
+
+When a reconnect overlaps unfinished resource reads, the current connection
+owns their failure handling. Work from a replaced connection must not consume
+an error that the current connection needs to stop cursor advancement. A failed
+read keeps the last complete cursor so the next connection can replay the change.
 
 After every catch-up, the bundled frontend reads notifications and other
 latest-value state. After snapshot fallback, it also reloads only mounted room
