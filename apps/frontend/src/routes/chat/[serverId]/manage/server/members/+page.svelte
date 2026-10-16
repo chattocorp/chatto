@@ -1,8 +1,7 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
   import AccountName from '$lib/components/users/AccountName.svelte';
-  import { resolve } from '$app/paths';
-  import { serverIdToSegment } from '$lib/navigation';
+  import { accountManagementHref } from '$lib/navigation/accountManagementHref';
   import { createAdminUserManagementAPI, type AdminRoleSummary } from '$lib/api/adminUsers';
   import { Panel, DataTable, Hint, PaneContent, Pill, PaneHeader, PageTitle } from '$lib/ui';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -150,23 +149,17 @@
             <th class="table-header-cell">{m('admin.common.roles')}</th>
           {/snippet}
           {#snippet row(user)}
+            {@const href = accountManagementHref(serverScope.serverId, user, serverScope.store)}
             <td class="px-4 py-3">
               <div class="flex items-center gap-2">
                 <UserAvatar user={{ ...user, presenceStatus: PresenceStatus.OFFLINE }} size="sm" />
-                <a
-                  class="data-table-row-link min-w-0"
-                  href={user.isBot
-                    ? resolve('/chat/[serverId]/manage/server/bots/[botId]', {
-                        serverId: serverIdToSegment(serverScope.serverId),
-                        botId: user.id
-                      })
-                    : resolve('/chat/[serverId]/manage/server/members/[userId]', {
-                        serverId: serverIdToSegment(serverScope.serverId),
-                        userId: user.id
-                      })}
-                >
+                {#if href}
+                  <a class="data-table-row-link min-w-0" {href}>
+                    <AccountName name={user.displayName || user.login} identity={user} />
+                  </a>
+                {:else}
                   <AccountName name={user.displayName || user.login} identity={user} />
-                </a>
+                {/if}
               </div>
             </td>
             <td class="px-4 py-3 text-muted">@{user.login}</td>

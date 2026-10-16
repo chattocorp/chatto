@@ -13,6 +13,8 @@ export type AdminManagedUser = {
   /** Public self-authored bio; `null` when unset. */
   bio?: string | null;
   isBot?: boolean;
+  /** Public bot owner, used to determine access to bot management. */
+  bot?: { ownerUserId: string };
 };
 
 export type AdminMember = AdminManagedUser & {
@@ -217,7 +219,7 @@ function adminMember(member: APIAdminMember): AdminMember {
     displayName: summary.displayName,
     avatarUrl: summary.avatarUrl ?? null,
     bio: summary.bio,
-    ...(summary.bot ? { isBot: true } : {}),
+    ...(summary.bot ? { isBot: true, bot: { ownerUserId: summary.bot.ownerUserId } } : {}),
     roles: [...member.roles],
     createdAt: member.createdAt?.toDate().toISOString() ?? null,
     deleted: summary.deleted,
