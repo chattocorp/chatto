@@ -93,6 +93,9 @@ variants are additive.
   `MessageService.GetMessage` for attachments, link previews, reactions, pin
   state, and thread details.
 - Edit and retraction events use `message_event_id` for their target message.
+- After a post, refresh the viewer's Slow Mode deadline from the message or
+  thread timeline response. `RoomSlowModeChangedEvent` carries the channel and
+  thread intervals; refresh room state and open thread deadlines when it changes.
 - `mentions` lists each direct user, role, here, or all target once. A direct
   target has `direct.user_id`. `includes_viewer` tells you whether the target
   included you when the message was posted. It keeps this meaning during

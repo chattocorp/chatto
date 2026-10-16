@@ -64,6 +64,8 @@
       "requires": "Vereist {version} of nieuwer",
       "thread_views_title": "Threadweergaven worden beperkt ondersteund",
       "thread_views_description": "Gevolgde threads en threads die je hebt gestart, worden op deze server mogelijk niet afzonderlijk weergegeven.",
+      "independent_slow_mode_title": "Onafhankelijke langzame modus is niet beschikbaar",
+      "independent_slow_mode_description": "Deze server gebruikt één gedeelde wachttijd voor kanaalberichten en antwoorden in threads.",
       "upgrade": "Vraag de serverbeheerder om te upgraden naar {version} of nieuwer voor volledige ondersteuning."
     },
     "server_gutter": {

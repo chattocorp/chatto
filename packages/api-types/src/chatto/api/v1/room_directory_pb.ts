@@ -122,7 +122,7 @@ export class RoomViewerState extends Message<RoomViewerState> {
   permissions: PermissionGrant[] = [];
 
   /**
-   * Earliest time the current user may create another message. Absent when
+   * Earliest time the current user may create another root message. Absent when
    * slow mode is disabled, expired, or bypassed by moderation permissions.
    *
    * @generated from field: google.protobuf.Timestamp slow_mode_next_post_at = 4;

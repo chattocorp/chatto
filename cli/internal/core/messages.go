@@ -308,7 +308,7 @@ func (c *ChattoCore) prepareMessageAppendAttempt(
 	}
 
 	if attempt.roomSeq > 0 {
-		if err := c.roomModel.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(attempt.roomFilter, attempt.roomSeq)); err != nil {
+		if err := c.roomModel.waitForPostingState(ctx, events.SubjectPosition(attempt.roomFilter, attempt.roomSeq)); err != nil {
 			return messageAppendAttempt{}, fmt.Errorf("wait for room mutation projections: %w", err)
 		}
 	}

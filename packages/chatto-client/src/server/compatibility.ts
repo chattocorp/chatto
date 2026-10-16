@@ -8,7 +8,9 @@ import valid from 'semver/functions/valid.js';
  */
 export const SERVER_FEATURE_REQUIREMENTS = {
   /** Root-author filtering for separate followed and own thread lists (#2983). */
-  threadViews: '0.5.0-beta.16'
+  threadViews: '0.5.0-beta.16',
+  /** Separate channel and per-thread cooldowns, with legacy field-presence fallback (#3036). */
+  independentSlowMode: '0.5.0-beta.18'
 } as const;
 
 /** A capability whose server requirement the client knows. */

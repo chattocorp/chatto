@@ -183,6 +183,8 @@ message GetThreadEventsRequest {
 message GetThreadEventsResponse {
   // Loaded timeline page.
   RoomTimelinePage page = 1;
+  // Current viewer state, independent of the loaded message window.
+  ThreadViewerState viewer_state = 2;
 }
 
 // Request for thread events around a specific event.
@@ -208,4 +210,6 @@ message GetThreadEventsAroundResponse {
   RoomTimelinePage page = 1;
   // Zero-based index of the anchor event within page.events.
   int32 target_index = 2;
+  // Current viewer state, independent of the loaded message window.
+  ThreadViewerState viewer_state = 3;
 }

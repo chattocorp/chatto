@@ -28,6 +28,7 @@
     canEchoMessage = false,
     slowModeSeconds = 0,
     slowModeNextPostAt = null,
+    independentSlowMode = false,
     slowModeBypassed = false,
     highlight = null,
     composerInput = null,
@@ -47,6 +48,7 @@
     canEchoMessage?: boolean;
     slowModeSeconds?: number;
     slowModeNextPostAt?: string | null;
+    independentSlowMode?: boolean;
     slowModeBypassed?: boolean;
     highlight?: PendingHighlight | null;
     composerInput?: PendingComposerInput | null;
@@ -146,7 +148,9 @@
       echoToConversation: isDirectMessage,
       placeholder: m('room.thread.reply_placeholder'),
       slowModeSeconds,
-      slowModeNextPostAt,
+      slowModeNextPostAt: independentSlowMode
+        ? (store.threadSlowModeNextPostAt ?? null)
+        : slowModeNextPostAt,
       slowModeBypassed,
       showAlsoSendToChannel: canEchoMessage,
       onEscape: onClose

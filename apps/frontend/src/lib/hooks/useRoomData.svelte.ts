@@ -12,6 +12,7 @@ export type RoomData = {
     description?: string | null;
     isUniversal: boolean;
     slowModeSeconds: number;
+    threadSlowModeSeconds?: number;
     threadingMode: RoomThreadingMode;
     archived?: boolean;
   };
@@ -73,6 +74,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
         type: roomKindOrChannel(room.kind ?? RoomKind.CHANNEL),
         isUniversal: room.isUniversal,
         slowModeSeconds: room.slowModeSeconds,
+        threadSlowModeSeconds: room.threadSlowModeSeconds,
         threadingMode: room.threadingMode,
         archived: room.archived
       },

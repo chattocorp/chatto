@@ -64,6 +64,8 @@
       "requires": "{version} 以降が必要です",
       "thread_views_title": "スレッド表示のサポートは限定的です",
       "thread_views_description": "このサーバーでは、フォロー中のスレッドと自分が開始したスレッドが別々に表示されない場合があります。",
+      "independent_slow_mode_title": "独立した低速モードは利用できません",
+      "independent_slow_mode_description": "このサーバーでは、チャンネルのメッセージとスレッドの返信に共通の待機時間が適用されます。",
       "upgrade": "完全なサポートを得るには、サーバー管理者に {version} 以降へのアップグレードを依頼してください。"
     },
     "server_gutter": {

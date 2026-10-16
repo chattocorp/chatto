@@ -88,6 +88,16 @@ func (m *RoomModel) waitForDirectoryAndTimeline(ctx context.Context, pos events.
 	)
 }
 
+// waitForPostingState covers every room component read by post authorization.
+// Production components share a projector; explicit waits cover isolated wiring.
+func (m *RoomModel) waitForPostingState(ctx context.Context, pos events.StreamPosition) error {
+	return waitForPositionAll(ctx, pos,
+		waitForProjection("room directory", m.directory.Projector()),
+		waitForProjection("room timeline", m.timeline.Projector()),
+		waitForProjection("threads", m.threads.Projector()),
+	)
+}
+
 func (m *RoomModel) waitForTimelineAndThreads(ctx context.Context, pos events.StreamPosition) error {
 	return waitForPositionAll(ctx, pos,
 		waitForProjection("room timeline", m.timeline.Projector()),
@@ -280,8 +290,12 @@ func (m *RoomModel) lastRoomMessageEntry(roomID string) (*TimelineEntry, bool) {
 	return m.timeline.Projection().LastRoomMessageEntry(roomID)
 }
 
-func (m *RoomModel) latestOriginalPostAt(roomID, actorID string) (time.Time, bool) {
-	return m.timeline.Projection().LatestOriginalPostAt(roomID, actorID)
+func (m *RoomModel) latestRootPostAt(roomID, actorID string) (time.Time, bool) {
+	return m.timeline.Projection().LatestRootPostAt(roomID, actorID)
+}
+
+func (m *RoomModel) latestThreadPostAt(roomID, threadID, actorID string) (time.Time, bool) {
+	return m.threads.Projection().latestPostAt(m.timeline.Projection(), roomID, threadID, actorID)
 }
 
 func (m *RoomModel) visibleRoomTimeline(roomID string, limit int, beforeStreamSeq uint64, visible func(*TimelineEntry) bool) []*TimelineEntry {

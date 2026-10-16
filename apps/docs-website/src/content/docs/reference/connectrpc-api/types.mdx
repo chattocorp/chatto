@@ -460,6 +460,7 @@ canonical thread has been established.
 | Field | Type | Description |
 | --- | --- | --- |
 | `can_reply_in_thread` | `optional bool` | Whether the viewer can reply in this message's canonical thread, including starting the first reply to a root. Includes read access, room policy, and broad or interaction-scoped posting authority. Absent when not resolved. |
+| `thread_slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest reply time in this message's canonical thread, including when the root has no replies. Absent when disabled, expired, or bypassed. |
 
 <a id="chatto-api-v1-ThreadSummary"></a>
 
@@ -486,6 +487,7 @@ Viewer-specific follow and reply-read state for one message thread.
 | --- | --- | --- |
 | `is_following` | `optional bool` | Whether the current user follows this message's thread, when known. |
 | `has_unread_replies` | `optional bool` | True when the thread contains replies after the current user's read cursor, when known. |
+| `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the viewer may reply. Absent when disabled, expired, or bypassed. The root message starts its author's thread cooldown. |
 
 <a id="chatto-api-v1-Asset"></a>
 
@@ -708,8 +710,9 @@ Public room metadata returned by room commands.
 | `archived` | `bool` | True when the room is archived and hidden from active room lists. |
 | `group_id` | `string` | Room group ID for channel rooms. Empty for direct-message rooms. |
 | `universal` | `bool` | True when a channel grants effective membership to eligible server members. |
-| `slow_mode_seconds` | `uint32` | Minimum number of seconds a non-exempt member must wait between message posts. Channel rooms only; zero means slow mode is disabled. |
+| `slow_mode_seconds` | `uint32` | Minimum number of seconds a non-exempt member must wait between root message posts. Channel rooms only; zero means slow mode is disabled. |
 | `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Threading policy for this channel room. Direct-message rooms report UNSPECIFIED because they do not support threads. |
+| `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread, including its root. Zero disables the interval. Absent on servers without independent thread slow mode. |
 
 <a id="chatto-api-v1-RoomSummary"></a>
 
@@ -788,7 +791,7 @@ Viewer-specific state and permission decisions for one room.
 | `is_member` | `bool` | True when the current user is an effective room member. |
 | `has_unread` | `bool` | True when the room has neutral Badge attention for the current user. This state is independent of the user's last-read message cursor. |
 | `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective room-scoped permission decisions after room state constraints. |
-| `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the current user may create another message. Absent when slow mode is disabled, expired, or bypassed by moderation permissions. |
+| `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the current user may create another root message. Absent when slow mode is disabled, expired, or bypassed by moderation permissions. |
 
 <a id="chatto-api-v1-RoomWithViewerState"></a>
 

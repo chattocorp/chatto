@@ -62,6 +62,9 @@ message Room {
   // Thread policy for channel rooms. See RoomThreadingMode for legacy and DM
   // normalization rules.
   RoomThreadingMode threading_mode = 11;
+  // Independent per-user thread interval. Absence in legacy records uses
+  // slow_mode_seconds; explicit zero disables thread slow mode.
+  optional uint32 thread_slow_mode_seconds = 12;
 }
 
 // User represents a user account

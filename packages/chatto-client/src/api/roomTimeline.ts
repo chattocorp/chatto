@@ -18,7 +18,8 @@ import { MessageVideoProcessingStatus } from '@chatto/api-types/api/v1/message_t
 import type {
   Message,
   MessageAssetUrl,
-  MessageVideoProcessing
+  MessageVideoProcessing,
+  ThreadViewerState
 } from '@chatto/api-types/api/v1/message_types_pb';
 import type { RoomTimelineEvent } from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { User } from '@chatto/api-types/api/v1/users_pb';
@@ -26,6 +27,8 @@ import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { getUserStore } from '../server/users.js';
 
 export type EventConnectionPage = {
+  /** Present on independent-slow-mode servers, including null when ready. */
+  threadSlowModeNextPostAt?: string | null;
   events: readonly TimelineEventView[];
   startCursor?: string | null;
   endCursor?: string | null;
@@ -89,8 +92,10 @@ export function createRoomTimelineAPI(config: ConnectAPIConfig): RoomTimelineAPI
   const userStore = config.serverId ? getUserStore(config.serverId, config.queryScope) : undefined;
   // Capture the owner and its generation before the request. Late includes must
   // neither recreate a disposed owner nor refill a reset snapshot.
-  const readPage = async (read: () => Promise<{ page?: RoomTimelinePage }>) => {
-    let response!: { page?: RoomTimelinePage };
+  const readPage = async (
+    read: () => Promise<{ page?: RoomTimelinePage; viewerState?: ThreadViewerState }>
+  ) => {
+    let response!: { page?: RoomTimelinePage; viewerState?: ThreadViewerState };
     const readProfiles = async () => {
       response = await read();
       return Object.values(response.page?.includes?.users ?? {}).map(
@@ -167,7 +172,7 @@ export function createRoomTimelineAPI(config: ConnectAPIConfig): RoomTimelineAPI
           options(minimumCursor)
         )
       );
-      return roomTimelinePageToEventConnectionPage(response.page ?? new RoomTimelinePage());
+      return threadResponseToEventConnectionPage(response);
     },
     async getThreadEventsAround({ roomId, threadRootEventId, eventId, limit, minimumCursor }) {
       const response = await readPage(() =>
@@ -176,9 +181,21 @@ export function createRoomTimelineAPI(config: ConnectAPIConfig): RoomTimelineAPI
           options(minimumCursor)
         )
       );
-      if (!response.page) return emptyEventConnectionPage();
-      return roomTimelinePageToEventConnectionPage(response.page);
+      return threadResponseToEventConnectionPage(response);
     }
+  };
+}
+
+/** Preserve absent viewer state for older servers, and null for an eligible viewer. */
+function threadResponseToEventConnectionPage(response: {
+  page?: RoomTimelinePage;
+  viewerState?: ThreadViewerState;
+}): EventConnectionPage {
+  return {
+    ...roomTimelinePageToEventConnectionPage(response.page ?? new RoomTimelinePage()),
+    threadSlowModeNextPostAt: response.viewerState
+      ? (response.viewerState.slowModeNextPostAt?.toDate().toISOString() ?? null)
+      : undefined
   };
 }
 
@@ -384,6 +401,9 @@ export function messagePostedPayload(
     pinned: message.pinned,
     threadExists: thread !== undefined,
     canReplyInThread: message.viewerState?.canReplyInThread,
+    threadSlowModeNextPostAt: message.viewerState
+      ? (message.viewerState.threadSlowModeNextPostAt?.toDate().toISOString() ?? null)
+      : undefined,
     replyCount: thread?.replyCount ?? 0,
     lastReplyAt: timestampToISOOrNull(thread?.lastReplyAt),
     threadParticipantCount: thread?.participantCount ?? 0,

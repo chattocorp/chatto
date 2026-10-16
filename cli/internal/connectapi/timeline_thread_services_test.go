@@ -20,7 +20,65 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
+
+func TestThreadSlowModeViewerStateAndRoomPatch(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("thread-slow-mode-api")
+	manager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "thread-settings-manager", "Manager", "password")
+	require.NoError(t, err)
+	_, err = env.core.JoinRoom(env.ctx, manager.Id, core.KindChannel, manager.Id, room.Id)
+	require.NoError(t, err)
+	env.grantRoomManage(t, room.Id, manager.Id)
+	managerCtx := withCaller(env.ctx, manager)
+	root := env.post(room.Id, env.viewer.Id, "root with no replies", "")
+	updated, err := env.rooms.UpdateRoom(managerCtx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId: room.Id, SlowModeSeconds: new(uint32(30)), ThreadSlowModeSeconds: new(uint32(60)),
+	}))
+	require.NoError(t, err)
+	require.Equal(t, uint32(60), updated.Msg.Room.GetThreadSlowModeSeconds())
+	ctx := withCaller(env.ctx, env.viewer)
+	page, err := env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{RoomId: room.Id, ThreadRootEventId: root.Id}))
+	require.NoError(t, err)
+	deadline := root.CreatedAt.AsTime().Add(time.Minute)
+	require.Equal(t, deadline, page.Msg.ViewerState.SlowModeNextPostAt.AsTime())
+	message := timelinePageEvent(page.Msg.Page, root.Id).GetMessagePosted().GetMessage()
+	require.Equal(t, deadline, message.ViewerState.ThreadSlowModeNextPostAt.AsTime())
+	around, err := env.threads.GetThreadEventsAround(ctx, connect.NewRequest(&apiv1.GetThreadEventsAroundRequest{RoomId: room.Id, ThreadRootEventId: root.Id, EventId: root.Id}))
+	require.NoError(t, err)
+	require.Equal(t, deadline, around.Msg.ViewerState.SlowModeNextPostAt.AsTime())
+	cleared, err := env.rooms.UpdateRoom(managerCtx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId: room.Id, UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"thread_slow_mode_seconds"}},
+	}))
+	require.NoError(t, err)
+	require.NotNil(t, cleared.Msg.Room.ThreadSlowModeSeconds)
+	require.Zero(t, cleared.Msg.Room.GetThreadSlowModeSeconds())
+	require.Equal(t, uint32(30), cleared.Msg.Room.SlowModeSeconds)
+	page, err = env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{RoomId: room.Id, ThreadRootEventId: root.Id}))
+	require.NoError(t, err)
+	require.NotNil(t, page.Msg.ViewerState)
+	require.Nil(t, page.Msg.ViewerState.SlowModeNextPostAt)
+	// A new response must pick up settings changed after an Off response.
+	// Multiple replies exercise concurrent hydration of one cached deadline.
+	posts := []*evtv1.Event{root}
+	for range 16 {
+		posts = append(posts, env.post(room.Id, env.viewer.Id, "follow-up", root.Id))
+	}
+	_, err = env.rooms.UpdateRoom(managerCtx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId: room.Id, ThreadSlowModeSeconds: new(uint32(60)),
+	}))
+	require.NoError(t, err)
+	page, err = env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{RoomId: room.Id, ThreadRootEventId: root.Id}))
+	require.NoError(t, err)
+	deadline = posts[len(posts)-1].CreatedAt.AsTime().Add(time.Minute)
+	require.Equal(t, deadline, page.Msg.ViewerState.SlowModeNextPostAt.AsTime())
+	for _, post := range posts {
+		message := timelinePageEvent(page.Msg.Page, post.Id).GetMessagePosted().GetMessage()
+		require.Equal(t, deadline, message.GetViewerState().GetThreadSlowModeNextPostAt().AsTime())
+	}
+}
 
 func TestTimelineIncludesDistinguishMissingAndDeletedUsers(t *testing.T) {
 	t.Parallel()

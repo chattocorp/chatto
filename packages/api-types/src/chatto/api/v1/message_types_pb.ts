@@ -524,6 +524,14 @@ export class ThreadViewerState extends Message$1<ThreadViewerState> {
    */
   hasUnreadReplies?: boolean;
 
+  /**
+   * Earliest time the viewer may reply. Absent when disabled, expired, or
+   * bypassed. The root message starts its author's thread cooldown.
+   *
+   * @generated from field: google.protobuf.Timestamp slow_mode_next_post_at = 4;
+   */
+  slowModeNextPostAt?: Timestamp;
+
   constructor(data?: PartialMessage<ThreadViewerState>) {
     super();
     proto3.util.initPartial(data, this);
@@ -534,6 +542,7 @@ export class ThreadViewerState extends Message$1<ThreadViewerState> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "is_following", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 2, name: "has_unread_replies", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 4, name: "slow_mode_next_post_at", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ThreadViewerState {
@@ -652,6 +661,14 @@ export class MessageViewerState extends Message$1<MessageViewerState> {
    */
   canReplyInThread?: boolean;
 
+  /**
+   * Earliest reply time in this message's canonical thread, including when
+   * the root has no replies. Absent when disabled, expired, or bypassed.
+   *
+   * @generated from field: google.protobuf.Timestamp thread_slow_mode_next_post_at = 2;
+   */
+  threadSlowModeNextPostAt?: Timestamp;
+
   constructor(data?: PartialMessage<MessageViewerState>) {
     super();
     proto3.util.initPartial(data, this);
@@ -661,6 +678,7 @@ export class MessageViewerState extends Message$1<MessageViewerState> {
   static readonly typeName = "chatto.api.v1.MessageViewerState";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "can_reply_in_thread", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 2, name: "thread_slow_mode_next_post_at", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessageViewerState {

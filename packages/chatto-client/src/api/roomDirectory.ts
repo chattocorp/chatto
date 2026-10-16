@@ -20,6 +20,8 @@ export type DirectoryRoomSummary = {
   archived: boolean;
   isUniversal: boolean;
   slowModeSeconds: number;
+  /** Undefined for the legacy shared cooldown; zero disables thread cooldowns. */
+  threadSlowModeSeconds?: number;
   threadingMode: RoomThreadingMode;
   slowModeNextPostAt: string | null;
   isMember: boolean;
@@ -188,6 +190,7 @@ export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSumma
     archived: entry.room.archived,
     isUniversal: entry.room.universal,
     slowModeSeconds: entry.room.slowModeSeconds ?? 0,
+    threadSlowModeSeconds: entry.room.threadSlowModeSeconds,
     threadingMode: normalizeRoomThreadingMode(entry.room.kind, entry.room.threadingMode),
     slowModeNextPostAt: entry.viewerState?.slowModeNextPostAt?.toDate().toISOString() ?? null,
     isMember: entry.viewerState?.isMember ?? false,

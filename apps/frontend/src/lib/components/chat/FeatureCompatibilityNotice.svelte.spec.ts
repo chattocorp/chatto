@@ -13,16 +13,16 @@ describe('FeatureCompatibilityNotice', () => {
 
   it('links to the affected section without repeating the details', async () => {
     const screen = render(FeatureCompatibilityNotice, {
-      features: limitedServerFeatures('0.5.0-beta.11'),
+      features: limitedServerFeatures('0.5.0-beta.17'),
       serverSegment: 'chat.example.test'
     });
     await expect
       .element(screen.getByRole('link', { name: 'View compatibility' }))
-      .toHaveAttribute('href', '/chat/chat.example.test/info#threadViews');
+      .toHaveAttribute('href', '/chat/chat.example.test/info#independentSlowMode');
     expect(screen.container.textContent).not.toContain('upgrade');
   });
 
-  it.each(['0.5.0-beta.16', 'dev'])('does not invent limitations for %s', (version) => {
+  it.each(['0.5.0-beta.18', 'dev'])('does not invent limitations for %s', (version) => {
     const { container } = render(FeatureCompatibilityNotice, {
       features: limitedServerFeatures(version),
       serverSegment: 'chat.example.test'

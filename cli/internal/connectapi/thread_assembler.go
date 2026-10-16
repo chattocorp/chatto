@@ -114,6 +114,8 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 			h.addUserID(userID)
 		}
 		following := true
+		viewerState := apiThreadViewerState(following, thread.HasUnreadReplies)
+		viewerState.SlowModeNextPostAt = rootMessage.GetViewerState().GetThreadSlowModeNextPostAt()
 		return &apiv1.FollowedThread{
 			RootMessage:                     rootMessage,
 			LatestReply:                     latestReply,
@@ -125,7 +127,7 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 				LastReplyAt:               lastReplyAt,
 				ParticipantPreviewUserIds: participantPreviewUserIDs,
 				ParticipantCount:          int32(thread.ParticipantCount),
-				ViewerState:               apiThreadViewerState(following, thread.HasUnreadReplies),
+				ViewerState:               viewerState,
 			},
 		}, nil
 	})

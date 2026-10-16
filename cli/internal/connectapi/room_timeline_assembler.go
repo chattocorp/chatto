@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/chattocorp/chatto/cli/internal/core"
@@ -23,6 +24,23 @@ type roomTimelineAssembler struct {
 
 func newRoomTimelineAssembler(api *API) *roomTimelineAssembler {
 	return newRoomTimelineAssemblerWithThumbnail(api, defaultTimelineAttachmentThumbnail())
+}
+
+// threadViewerState hydrates deadlines even when the requested window has no
+// messages by the viewer, or the root has no replies yet.
+func (a *roomTimelineAssembler) threadViewerState(ctx context.Context, viewerID, roomID, threadID string, kind core.RoomKind) (*apiv1.ThreadViewerState, error) {
+	state := &apiv1.ThreadViewerState{}
+	if kind != core.KindChannel {
+		return state, nil
+	}
+	next, err := a.api.core.Messages().ThreadSlowModeNextPostAt(ctx, roomID, threadID, viewerID)
+	if err != nil {
+		return nil, err
+	}
+	if !next.IsZero() {
+		state.SlowModeNextPostAt = timestamppb.New(next)
+	}
+	return state, nil
 }
 
 func defaultTimelineAttachmentThumbnail() attachmentThumbnailRequest {
@@ -139,6 +157,39 @@ type timelineHydrator struct {
 	// owns this cache; projections never retain its plaintext.
 	bodyMu    sync.Mutex
 	bodyLoads map[string]func() (*core.DecryptedMessageBody, error)
+	// Slow-mode readers and deadlines are shared only within this response.
+	slowModeMu      sync.Mutex
+	slowModeRooms   map[string]func() (func(string) time.Time, error)
+	slowModeThreads map[string]func() (time.Time, error)
+}
+
+func (h *timelineHydrator) threadSlowModeNextPostAt(ctx context.Context, roomID, threadID string) (time.Time, error) {
+	h.slowModeMu.Lock()
+	if h.slowModeRooms == nil {
+		h.slowModeRooms = make(map[string]func() (func(string) time.Time, error))
+		h.slowModeThreads = make(map[string]func() (time.Time, error))
+	}
+	room := h.slowModeRooms[roomID]
+	if room == nil {
+		room = sync.OnceValues(func() (func(string) time.Time, error) {
+			return h.api.core.Messages().ThreadSlowModeReader(ctx, roomID, h.viewerID)
+		})
+		h.slowModeRooms[roomID] = room
+	}
+	key := timelineThreadKey(roomID, threadID)
+	thread := h.slowModeThreads[key]
+	if thread == nil {
+		thread = sync.OnceValues(func() (time.Time, error) {
+			read, err := room()
+			if err != nil {
+				return time.Time{}, err
+			}
+			return read(threadID), nil
+		})
+		h.slowModeThreads[key] = thread
+	}
+	h.slowModeMu.Unlock()
+	return thread()
 }
 
 func (h *timelineHydrator) messageBody(ctx context.Context, roomID, eventID string) (*core.DecryptedMessageBody, error) {
@@ -256,6 +307,15 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 			return nil, err
 		}
 		message.ViewerState = &apiv1.MessageViewerState{CanReplyInThread: &canReply}
+		if h.kind == core.KindChannel {
+			next, err := h.threadSlowModeNextPostAt(ctx, payload.GetRoomId(), rootID)
+			if err != nil {
+				return nil, err
+			}
+			if !next.IsZero() {
+				message.ViewerState.ThreadSlowModeNextPostAt = timestamppb.New(next)
+			}
+		}
 	}
 
 	var body *core.DecryptedMessageBody
@@ -314,6 +374,7 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 				hasUnreadReplies = lastOpened.IsZero() || metadata.LastReplyAt.After(lastOpened)
 			}
 			thread.ViewerState = apiThreadViewerState(following, hasUnreadReplies)
+			thread.ViewerState.SlowModeNextPostAt = message.GetViewerState().GetThreadSlowModeNextPostAt()
 			message.Thread = thread
 		}
 	}

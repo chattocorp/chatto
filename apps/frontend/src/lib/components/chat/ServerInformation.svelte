@@ -40,6 +40,10 @@
     threadViews: {
       title: m('chat.compatibility.thread_views_title'),
       description: m('chat.compatibility.thread_views_description')
+    },
+    independentSlowMode: {
+      title: m('chat.compatibility.independent_slow_mode_title'),
+      description: m('chat.compatibility.independent_slow_mode_description')
     }
   } satisfies Record<ServerFeature, { title: string; description: string }>);
 </script>

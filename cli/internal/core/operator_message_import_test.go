@@ -198,7 +198,7 @@ func TestHistoricalMessageProjectionRestoreKeepsActivitySuppressed(t *testing.T)
 		if !ok || !imported.HistoricalImport {
 			t.Fatalf("historical entry = %+v", imported)
 		}
-		if _, ok := current.LatestOriginalPostAt("room", SystemActorID); ok {
+		if _, ok := current.LatestRootPostAt("room", SystemActorID); ok {
 			t.Fatal("historical import affected slow mode")
 		}
 	}

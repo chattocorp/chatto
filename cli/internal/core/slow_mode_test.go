@@ -11,6 +11,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
+	eventframework "github.com/chattocorp/chatto/pkg/events"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +19,7 @@ import (
 // path. managerID must hold room.manage on roomID.
 func setRoomSlowModeForTest(t *testing.T, ctx context.Context, c *ChattoCore, managerID, roomID string, seconds uint32) *evtv1.Room {
 	t.Helper()
-	room, err := c.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{ActorID: managerID, RoomID: roomID, SlowModeSeconds: &seconds})
+	room, err := c.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{ActorID: managerID, RoomID: roomID, SlowModeSeconds: &seconds, ThreadSlowModeSeconds: &seconds})
 	require.NoError(t, err)
 	return room
 }
@@ -53,6 +54,21 @@ func TestRoomSlowModeConfiguration(t *testing.T) {
 	events, _, err = chatto.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventRoomSlowModeChanged))
 	require.NoError(t, err)
 	require.Len(t, events, 1, "an unchanged interval must not write another event")
+
+	// Replay a pre-upgrade fact with no thread field, then make a root-only
+	// edit. The old effective thread interval must become an explicit value.
+	legacy := newEvent(manager.Id, roomSlowModeChangedEvent(room.Id, 60))
+	subject := evtstream.RoomAggregate(room.Id).SubjectFor(legacy)
+	sequence, err := chatto.EventPublisher.AppendEventually(ctx, subject, legacy)
+	require.NoError(t, err)
+	require.NoError(t, chatto.roomModel.waitForDirectoryAndTimeline(ctx, eventframework.SubjectPosition(subject, sequence)))
+	updated, err = chatto.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
+		ActorID: manager.Id, RoomID: room.Id, SlowModeSeconds: new(uint32(120)),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, updated.ThreadSlowModeSeconds)
+	require.Equal(t, uint32(60), updated.GetThreadSlowModeSeconds())
+	require.Equal(t, uint32(120), updated.GetSlowModeSeconds())
 
 	tooLong := uint32(MaxRoomSlowModeSeconds + 1)
 	_, err = chatto.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
@@ -95,7 +111,7 @@ func TestMessageSlowModeEnforcementAndImmediateChanges(t *testing.T) {
 	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{
 		ActorID: user.Id, RoomID: room.Id, Body: "thread reply", ThreadRootEventID: first.Event.Id,
 	})
-	require.ErrorIs(t, err, ErrSlowModeActive, "root and thread posts must share one room timer")
+	require.ErrorIs(t, err, ErrSlowModeActive, "the root starts its author's thread timer")
 
 	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{ActorID: other.Id, RoomID: room.Id, Body: "other user"})
 	require.NoError(t, err, "slow mode is per user")
@@ -109,6 +125,71 @@ func TestMessageSlowModeEnforcementAndImmediateChanges(t *testing.T) {
 	room = setRoomSlowModeForTest(t, ctx, chatto, managerID, room.Id, 0)
 	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{ActorID: user.Id, RoomID: room.Id, Body: "disabled"})
 	require.NoError(t, err)
+}
+
+func TestMessageSlowModeIndependentScopes(t *testing.T) {
+	t.Parallel()
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	u, err := c.CreateUser(ctx, SystemActorID, "independent-poster", "Poster", "password123")
+	require.NoError(t, err)
+	other, err := c.CreateUser(ctx, SystemActorID, "independent-peer", "Peer", "password123")
+	require.NoError(t, err)
+	room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "independent-slow-mode", "")
+	require.NoError(t, err)
+	manager := newRoomManagerForTest(t, ctx, c, "independent-manager", room.Id)
+	for _, id := range []string{u.Id, other.Id} {
+		_, err = c.JoinRoom(ctx, id, KindChannel, id, room.Id)
+		require.NoError(t, err)
+	}
+	post := func(actor, thread string) (*MessagePostResult, error) {
+		return c.Messages().PostMessage(ctx, MessagePostInput{ActorID: actor, RoomID: room.Id, Body: "message", ThreadRootEventID: thread})
+	}
+	rootA, err := post(u.Id, "")
+	require.NoError(t, err)
+	rootB, err := post(other.Id, "")
+	require.NoError(t, err)
+	// Off must not resolve permissions, even for an absent principal. The
+	// caller of this read helper owns room access authorization separately.
+	read, err := c.Messages().ThreadSlowModeReader(ctx, room.Id, "absent-principal")
+	require.NoError(t, err)
+	require.True(t, read(rootA.Event.Id).IsZero())
+	room = setRoomSlowModeForTest(t, ctx, c, manager, room.Id, 60)
+	_, err = post(u.Id, "")
+	require.ErrorIs(t, err, ErrSlowModeActive)
+	_, err = post(u.Id, rootA.Event.Id)
+	require.ErrorIs(t, err, ErrSlowModeActive, "root counts as the author's first thread post")
+	_, err = post(other.Id, rootA.Event.Id)
+	require.NoError(t, err, "another user's root does not start this user's thread timer")
+	_, err = post(u.Id, rootB.Event.Id)
+	require.NoError(t, err, "another thread has an independent timer")
+	_, err = post(u.Id, rootB.Event.Id)
+	require.ErrorIs(t, err, ErrSlowModeActive)
+
+	zero := uint32(0)
+	room, err = c.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{ActorID: manager, RoomID: room.Id, SlowModeSeconds: &zero})
+	require.NoError(t, err)
+	require.Equal(t, uint32(60), EffectiveThreadSlowModeSeconds(room))
+	_, err = post(u.Id, "")
+	require.NoError(t, err, "thread cooldown does not block roots")
+	_, err = post(u.Id, rootB.Event.Id)
+	require.ErrorIs(t, err, ErrSlowModeActive)
+
+	sixty := uint32(60)
+	room, err = c.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{ActorID: manager, RoomID: room.Id, SlowModeSeconds: &sixty, ThreadSlowModeSeconds: &zero})
+	require.NoError(t, err)
+	for range 2 {
+		_, err = post(u.Id, rootA.Event.Id)
+		require.NoError(t, err, "thread Off allows immediate follow-up messages")
+	}
+	_, err = post(u.Id, "")
+	require.ErrorIs(t, err, ErrSlowModeActive)
+	latest, ok := c.roomModel.latestThreadPostAt(room.Id, rootA.Event.Id, u.Id)
+	require.True(t, ok)
+	room = setRoomSlowModeForTest(t, ctx, c, manager, room.Id, 60)
+	deadline := latest.Add(time.Minute)
+	require.Equal(t, deadline, c.Messages().threadSlowModeNextPostAt(room, rootA.Event.Id, u.Id, false, deadline.Add(-time.Nanosecond)))
+	require.True(t, c.Messages().threadSlowModeNextPostAt(room, rootA.Event.Id, u.Id, false, deadline).IsZero())
 }
 
 func TestMessageSlowModeBypassAndPermissionLoss(t *testing.T) {
@@ -172,94 +253,123 @@ func TestMessageSlowModeCountsAttachmentOnlyPostsButNotAttachmentStaging(t *test
 
 func TestMessageSlowModeConcurrentPostsUseRoomOCC(t *testing.T) {
 	t.Parallel()
+	for _, scope := range []string{"roots", "same-thread", "different-threads"} {
+		t.Run(scope, func(t *testing.T) {
 
-	ns, _ := testutil.StartNATS(t)
-	chatto := startReplica(t, ns, testCoreConfig())
-	ctx := testContext(t)
-	user, err := chatto.CreateUser(ctx, SystemActorID, "slow-mode-race", "Slow Mode Race", "password123")
-	require.NoError(t, err)
-	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "slow-mode-race", "")
-	require.NoError(t, err)
-	_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
-	require.NoError(t, err)
-	managerID := newRoomManagerForTest(t, ctx, chatto, "slow-mode-room-manager", room.Id)
-	setRoomSlowModeForTest(t, ctx, chatto, managerID, room.Id, 60)
-	replica := startReplica(t, ns, config.CoreConfig{
-		SecretKey: "test-core-secret",
-		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
-	})
-	replicaRoom, err := replica.GetRoom(ctx, KindChannel, room.Id)
-	require.NoError(t, err)
-	require.Equal(t, uint32(60), replicaRoom.GetSlowModeSeconds())
-
-	postingCores := []*ChattoCore{chatto, replica}
-	input := MessagePostInput{ActorID: user.Id, RoomID: room.Id, Body: "racing post"}
-	for _, postingCore := range postingCores {
-		_, err := postingCore.Messages().PreflightPost(ctx, input)
-		require.NoError(t, err)
-	}
-
-	// Hold both replicas inside their first commit-time authorization callback.
-	// prepareMessageAppendAttempt has captured the same room tail before calling
-	// this hook, so releasing both attempts together deterministically forces one
-	// append to conflict and retry against the winner's projected post.
-	ready := make(chan struct{}, len(postingCores))
-	release := make(chan struct{})
-	attemptCounts := make([]int, len(postingCores))
-	errs := make(chan error, 2)
-	var wg sync.WaitGroup
-	for index, postingCore := range postingCores {
-		wg.Add(1)
-		go func(index int, core *ChattoCore) {
-			defer wg.Done()
-			authorize := func(attemptCtx context.Context, _ string) error {
-				attemptCounts[index]++
-				_, authErr := core.Messages().AuthorizePost(attemptCtx, MessagePostAuthorizationInput{
-					ActorID: input.ActorID, RoomID: input.RoomID, Body: input.Body,
-				})
-				if authErr != nil {
-					return authErr
+			ns, _ := testutil.StartNATS(t)
+			chatto := startReplica(t, ns, testCoreConfig())
+			ctx := testContext(t)
+			user, err := chatto.CreateUser(ctx, SystemActorID, "slow-mode-race", "Slow Mode Race", "password123")
+			require.NoError(t, err)
+			room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "slow-mode-race", "")
+			require.NoError(t, err)
+			_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+			require.NoError(t, err)
+			managerID := newRoomManagerForTest(t, ctx, chatto, "slow-mode-room-manager", room.Id)
+			_, err = chatto.JoinRoom(ctx, managerID, KindChannel, managerID, room.Id)
+			require.NoError(t, err)
+			threadIDs := []string{"", ""}
+			if scope != "roots" {
+				root, err := chatto.Messages().PostMessage(ctx, MessagePostInput{ActorID: managerID, RoomID: room.Id, Body: "thread one"})
+				require.NoError(t, err)
+				threadIDs[0], threadIDs[1] = root.Event.Id, root.Event.Id
+				if scope == "different-threads" {
+					root, err = chatto.Messages().PostMessage(ctx, MessagePostInput{ActorID: managerID, RoomID: room.Id, Body: "thread two"})
+					require.NoError(t, err)
+					threadIDs[1] = root.Event.Id
 				}
-				if attemptCounts[index] == 1 {
-					ready <- struct{}{}
-					select {
-					case <-release:
-					case <-attemptCtx.Done():
-						return attemptCtx.Err()
-					}
-				}
-				return nil
 			}
-			_, postErr := core.PostMessage(
-				ctx, KindChannel, room.Id, user.Id, input.Body, nil, "", "", nil, false,
-				withPostMessageCommitAuthorization(authorize),
-			)
-			errs <- postErr
-		}(index, postingCore)
-	}
-	for range postingCores {
-		select {
-		case <-ready:
-		case <-ctx.Done():
-			t.Fatal(ctx.Err())
-		}
-	}
-	close(release)
-	wg.Wait()
-	close(errs)
+			setRoomSlowModeForTest(t, ctx, chatto, managerID, room.Id, 60)
+			replica := startReplica(t, ns, config.CoreConfig{
+				SecretKey: "test-core-secret",
+				Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
+			})
+			replicaRoom, err := replica.GetRoom(ctx, KindChannel, room.Id)
+			require.NoError(t, err)
+			require.Equal(t, uint32(60), replicaRoom.GetSlowModeSeconds())
 
-	var succeeded, throttled int
-	for postErr := range errs {
-		switch {
-		case postErr == nil:
-			succeeded++
-		case errors.Is(postErr, ErrSlowModeActive):
-			throttled++
-		default:
-			t.Fatalf("unexpected concurrent post error: %v", postErr)
-		}
+			postingCores := []*ChattoCore{chatto, replica}
+			input := MessagePostInput{ActorID: user.Id, RoomID: room.Id, Body: "racing post"}
+			for index, postingCore := range postingCores {
+				input.ThreadRootEventID = threadIDs[index]
+				_, err := postingCore.Messages().PreflightPost(ctx, input)
+				require.NoError(t, err)
+			}
+
+			// Hold both replicas inside their first commit-time authorization callback.
+			// prepareMessageAppendAttempt has captured the same room tail before calling
+			// this hook, so releasing both attempts together deterministically forces one
+			// append to conflict and retry against the winner's projected post.
+			ready := make(chan struct{}, len(postingCores))
+			release := make(chan struct{})
+			attemptCounts := make([]int, len(postingCores))
+			errs := make(chan error, 2)
+			var wg sync.WaitGroup
+			for index, postingCore := range postingCores {
+				wg.Add(1)
+				go func(index int, core *ChattoCore) {
+					defer wg.Done()
+					authorize := func(attemptCtx context.Context, _ string) error {
+						attemptCounts[index]++
+						_, authErr := core.Messages().AuthorizePost(attemptCtx, MessagePostAuthorizationInput{
+							ActorID: input.ActorID, RoomID: input.RoomID, Body: input.Body,
+							ThreadRootEventID: threadIDs[index],
+						})
+						if authErr != nil {
+							return authErr
+						}
+						if attemptCounts[index] == 1 {
+							ready <- struct{}{}
+							select {
+							case <-release:
+							case <-attemptCtx.Done():
+								return attemptCtx.Err()
+							}
+						}
+						return nil
+					}
+					_, postErr := core.PostMessage(
+						ctx, KindChannel, room.Id, user.Id, input.Body, nil, threadIDs[index], "", nil, false,
+						withPostMessageCommitAuthorization(authorize),
+					)
+					errs <- postErr
+				}(index, postingCore)
+			}
+			for range postingCores {
+				select {
+				case <-ready:
+				case <-ctx.Done():
+					t.Fatal(ctx.Err())
+				}
+			}
+			close(release)
+			wg.Wait()
+			close(errs)
+
+			var succeeded, throttled int
+			for postErr := range errs {
+				switch {
+				case postErr == nil:
+					succeeded++
+				case errors.Is(postErr, ErrSlowModeActive):
+					throttled++
+				default:
+					t.Fatalf("unexpected concurrent post error: %v", postErr)
+				}
+			}
+			if scope == "different-threads" {
+				require.Equal(t, 2, succeeded)
+				require.Zero(t, throttled)
+			} else {
+				require.Equal(t, 1, succeeded)
+				require.Equal(t, 1, throttled)
+			}
+			// Other room facts can cause further OCC retries. The barrier guarantees
+			// at least one retry, but does not limit the total number of attempts.
+			for _, attempts := range attemptCounts {
+				require.GreaterOrEqual(t, attempts, 1)
+			}
+			require.GreaterOrEqual(t, attemptCounts[0]+attemptCounts[1], 3, "the conflicting replica must rerun authorization")
+		})
 	}
-	require.Equal(t, 1, succeeded)
-	require.Equal(t, 1, throttled)
-	require.ElementsMatch(t, []int{1, 2}, attemptCounts, "the conflicting replica must rerun authorization")
 }

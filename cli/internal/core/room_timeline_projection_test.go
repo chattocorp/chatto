@@ -844,13 +844,13 @@ func TestRoomTimeline_LatestOriginalPostIndexSurvivesMutationAndRestore(t *testi
 		postedEvent(postedOpts{envelopeID: "M3", roomID: "R1", actorID: "U2", at: 6}),
 	})
 
-	if got, ok := p.LatestOriginalPostAt("R1", "U1"); !ok || !got.Equal(fixedTime(1)) {
+	if got, ok := p.LatestRootPostAt("R1", "U1"); !ok || !got.Equal(fixedTime(1)) {
 		t.Fatalf("latest R1/U1 post = (%v, %v), want %v", got, ok, fixedTime(1))
 	}
-	if got, ok := p.LatestOriginalPostAt("R2", "U1"); !ok || !got.Equal(fixedTime(5)) {
+	if got, ok := p.LatestRootPostAt("R2", "U1"); !ok || !got.Equal(fixedTime(5)) {
 		t.Fatalf("latest R2/U1 post = (%v, %v), want %v", got, ok, fixedTime(5))
 	}
-	if got, ok := p.LatestOriginalPostAt("R1", "U2"); !ok || !got.Equal(fixedTime(6)) {
+	if got, ok := p.LatestRootPostAt("R1", "U2"); !ok || !got.Equal(fixedTime(6)) {
 		t.Fatalf("latest R1/U2 post = (%v, %v), want %v", got, ok, fixedTime(6))
 	}
 
@@ -862,9 +862,72 @@ func TestRoomTimeline_LatestOriginalPostIndexSurvivesMutationAndRestore(t *testi
 	if err := restored.Restore(payload); err != nil {
 		t.Fatalf("Restore: %v", err)
 	}
-	if got, ok := restored.LatestOriginalPostAt("R1", "U1"); !ok || !got.Equal(fixedTime(1)) {
+	if got, ok := restored.LatestRootPostAt("R1", "U1"); !ok || !got.Equal(fixedTime(1)) {
 		t.Fatalf("restored latest R1/U1 post = (%v, %v), want %v", got, ok, fixedTime(1))
 	}
+}
+
+func TestRoomTimeline_IndependentSlowModeReadsRestore(t *testing.T) {
+	t.Parallel()
+	p := NewRoomTimelineProjection()
+	imported := postedEvent(postedOpts{envelopeID: "IMPORT", roomID: "R", actorID: "U", inThread: "ROOT", at: 8})
+	imported.GetMessagePosted().HistoricalImport = true
+	threads := NewThreadProjection()
+	facts := []*evtv1.Event{
+		postedEvent(postedOpts{envelopeID: "ROOT", roomID: "R", actorID: "U", at: 1}),
+		postedEvent(postedOpts{envelopeID: "OTHER", roomID: "R", actorID: "U", at: 2}),
+		postedEvent(postedOpts{envelopeID: "REPLY", roomID: "R", actorID: "U", inThread: "ROOT", at: 3}),
+		postedEvent(postedOpts{envelopeID: "ECHO", roomID: "R", actorID: "U", echoOfEventID: "REPLY", echoFromThreadRootEventID: "ROOT", at: 4}),
+		editedEvent("EDIT", "REPLY", "R", "U", "edited", 5),
+		retractedEvent("DELETE", "REPLY", "R", "U", "", 6),
+		imported,
+		postedEvent(postedOpts{envelopeID: "PEER", roomID: "R", actorID: "V", inThread: "ROOT", at: 9}),
+		retractedEvent("DELETE-ROOT", "ROOT", "R", "U", "", 10),
+	}
+	applyAll(t, p, facts)
+	for i, fact := range facts {
+		if err := threads.Apply(fact, uint64(i+1)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check := func(p *RoomTimelineProjection, threads *ThreadProjection) {
+		t.Helper()
+		root, ok := p.LatestRootPostAt("R", "U")
+		if !ok || !root.Equal(fixedTime(2)) {
+			t.Fatalf("root timestamp = %v", root)
+		}
+		thread, ok := threads.latestPostAt(p, "R", "ROOT", "U")
+		if !ok || !thread.Equal(fixedTime(3)) {
+			t.Fatalf("thread timestamp = %v", thread)
+		}
+		other, ok := threads.latestPostAt(p, "R", "OTHER", "U")
+		if !ok || !other.Equal(fixedTime(2)) {
+			t.Fatalf("other thread timestamp = %v", other)
+		}
+		for _, query := range [][3]string{{"WRONG", "ROOT", "U"}, {"R", "ROOT", "ABSENT"}, {"R", "UNKNOWN", "U"}, {"R", "IMPORT", "U"}, {"R", "EDIT", "U"}} {
+			if _, ok := threads.latestPostAt(p, query[0], query[1], query[2]); ok {
+				t.Fatalf("unexpected cooldown for %v", query)
+			}
+		}
+	}
+	check(p, threads)
+	data, err := p.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored := NewRoomTimelineProjection()
+	if err := restored.Restore(data); err != nil {
+		t.Fatal(err)
+	}
+	threadData, err := threads.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	restoredThreads := NewThreadProjection()
+	if err := restoredThreads.Restore(threadData); err != nil {
+		t.Fatal(err)
+	}
+	check(restored, restoredThreads)
 }
 
 func TestRoomTimeline_MessageDeletedAtTracksRetractionsAndEchoes(t *testing.T) {

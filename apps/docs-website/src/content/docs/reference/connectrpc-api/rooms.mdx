@@ -155,9 +155,10 @@ mask stay unchanged.
 | `name` | `optional string` | New visible 1–30-code-point Unicode room name, when changing it. The server trims and stores it in NFC form. Control characters and Unicode line or paragraph separators are rejected. |
 | `description` | `optional string` | New room description, when changing it. Empty clears the description. |
 | `universal` | `optional bool` | New universal membership state, when changing it. Direct-message rooms cannot be universal. |
-| `slow_mode_seconds` | `optional uint32` | New per-user posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |
+| `slow_mode_seconds` | `optional uint32` | New per-user root posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |
 | `threading_mode` | optional [`RoomThreadingMode`](/reference/connectrpc-api/types/#chatto-api-v1-RoomThreadingMode) | New threading policy. Direct-message rooms cannot set this field, and an explicitly supplied UNSPECIFIED or unknown value is rejected. |
-| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread. The root starts its author's timer. Zero disables it. Updating this field does not change the root interval. |
 
 
 <a id="chatto-api-v1-UpdateRoomResponse"></a>

@@ -64,6 +64,8 @@
       "requires": "Requires {version} or newer",
       "thread_views_title": "Thread views have limited support",
       "thread_views_description": "Followed threads and threads you started may not be listed separately on this server.",
+      "independent_slow_mode_title": "Independent slow mode is unavailable",
+      "independent_slow_mode_description": "This server uses one shared cooldown for channel messages and thread replies.",
       "upgrade": "For full support, ask the server administrator to upgrade to {version} or newer."
     },
     "server_gutter": {

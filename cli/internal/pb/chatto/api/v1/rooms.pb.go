@@ -95,14 +95,17 @@ type Room struct {
 	GroupId string `protobuf:"bytes,6,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
 	// True when a channel grants effective membership to eligible server members.
 	Universal bool `protobuf:"varint,7,opt,name=universal,proto3" json:"universal,omitempty"`
-	// Minimum number of seconds a non-exempt member must wait between message
+	// Minimum number of seconds a non-exempt member must wait between root message
 	// posts. Channel rooms only; zero means slow mode is disabled.
 	SlowModeSeconds uint32 `protobuf:"varint,8,opt,name=slow_mode_seconds,json=slowModeSeconds,proto3" json:"slow_mode_seconds,omitempty"`
 	// Threading policy for this channel room. Direct-message rooms report
 	// UNSPECIFIED because they do not support threads.
 	ThreadingMode RoomThreadingMode `protobuf:"varint,9,opt,name=threading_mode,json=threadingMode,proto3,enum=chatto.api.v1.RoomThreadingMode" json:"threading_mode,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Per-user interval within each thread, including its root. Zero disables
+	// the interval. Absent on servers without independent thread slow mode.
+	ThreadSlowModeSeconds *uint32 `protobuf:"varint,10,opt,name=thread_slow_mode_seconds,json=threadSlowModeSeconds,proto3,oneof" json:"thread_slow_mode_seconds,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *Room) Reset() {
@@ -196,6 +199,13 @@ func (x *Room) GetThreadingMode() RoomThreadingMode {
 		return x.ThreadingMode
 	}
 	return RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED
+}
+
+func (x *Room) GetThreadSlowModeSeconds() uint32 {
+	if x != nil && x.ThreadSlowModeSeconds != nil {
+		return *x.ThreadSlowModeSeconds
+	}
+	return 0
 }
 
 // Lightweight room reference for cross-resource rows.
@@ -410,20 +420,23 @@ type UpdateRoomRequest struct {
 	// New universal membership state, when changing it. Direct-message rooms
 	// cannot be universal.
 	Universal *bool `protobuf:"varint,4,opt,name=universal,proto3,oneof" json:"universal,omitempty"`
-	// New per-user posting interval in seconds. Zero disables slow mode. The
+	// New per-user root posting interval in seconds. Zero disables slow mode. The
 	// maximum supported interval is six hours. Direct-message rooms cannot use
 	// slow mode.
 	SlowModeSeconds *uint32 `protobuf:"varint,5,opt,name=slow_mode_seconds,json=slowModeSeconds,proto3,oneof" json:"slow_mode_seconds,omitempty"`
 	// New threading policy. Direct-message rooms cannot set this field, and an
 	// explicitly supplied UNSPECIFIED or unknown value is rejected.
 	ThreadingMode *RoomThreadingMode `protobuf:"varint,6,opt,name=threading_mode,json=threadingMode,proto3,enum=chatto.api.v1.RoomThreadingMode,oneof" json:"threading_mode,omitempty"`
-	// Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode.
+	// Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds.
 	// Omit to infer populated fields; * selects all editable fields. An explicit
 	// empty mask is invalid. Unselected values are ignored. Selected absent values
 	// reset the field to its default, subject to field validation.
-	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,7,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	UpdateMask *fieldmaskpb.FieldMask `protobuf:"bytes,7,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
+	// Per-user interval within each thread. The root starts its author's timer.
+	// Zero disables it. Updating this field does not change the root interval.
+	ThreadSlowModeSeconds *uint32 `protobuf:"varint,8,opt,name=thread_slow_mode_seconds,json=threadSlowModeSeconds,proto3,oneof" json:"thread_slow_mode_seconds,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *UpdateRoomRequest) Reset() {
@@ -503,6 +516,13 @@ func (x *UpdateRoomRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
 		return x.UpdateMask
 	}
 	return nil
+}
+
+func (x *UpdateRoomRequest) GetThreadSlowModeSeconds() uint32 {
+	if x != nil && x.ThreadSlowModeSeconds != nil {
+		return *x.ThreadSlowModeSeconds
+	}
+	return 0
 }
 
 // Result of updating a room.
@@ -2379,7 +2399,7 @@ var File_chatto_api_v1_rooms_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\n" +
-	"\x19chatto/api/v1/rooms.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/attachments.proto\x1a\x1achatto/api/v1/common.proto\x1a$chatto/api/v1/member_directory.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1echatto/api/v1/read_state.proto\x1a!chatto/api/v1/room_timeline.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc3\x02\n" +
+	"\x19chatto/api/v1/rooms.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/attachments.proto\x1a\x1achatto/api/v1/common.proto\x1a$chatto/api/v1/member_directory.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1echatto/api/v1/read_state.proto\x1a!chatto/api/v1/room_timeline.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9e\x03\n" +
 	"\x04Room\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12+\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x17.chatto.api.v1.RoomKindR\x04kind\x12\x12\n" +
@@ -2389,7 +2409,10 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\bgroup_id\x18\x06 \x01(\tR\agroupId\x12\x1c\n" +
 	"\tuniversal\x18\a \x01(\bR\tuniversal\x12*\n" +
 	"\x11slow_mode_seconds\x18\b \x01(\rR\x0fslowModeSeconds\x12G\n" +
-	"\x0ethreading_mode\x18\t \x01(\x0e2 .chatto.api.v1.RoomThreadingModeR\rthreadingMode\"^\n" +
+	"\x0ethreading_mode\x18\t \x01(\x0e2 .chatto.api.v1.RoomThreadingModeR\rthreadingMode\x12<\n" +
+	"\x18thread_slow_mode_seconds\x18\n" +
+	" \x01(\rH\x00R\x15threadSlowModeSeconds\x88\x01\x01B\x1b\n" +
+	"\x19_thread_slow_mode_seconds\"^\n" +
 	"\vRoomSummary\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12+\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x17.chatto.api.v1.RoomKindR\x04kind\x12\x12\n" +
@@ -2401,7 +2424,7 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\tuniversal\x18\x04 \x01(\bR\tuniversal\x12G\n" +
 	"\x0ethreading_mode\x18\x05 \x01(\x0e2 .chatto.api.v1.RoomThreadingModeR\rthreadingMode\"=\n" +
 	"\x12CreateRoomResponse\x12'\n" +
-	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\"\xc4\x03\n" +
+	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\"\xaa\x04\n" +
 	"\x11UpdateRoomRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
 	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18\x1eH\x00R\x04name\x88\x01\x01\x12/\n" +
@@ -2410,13 +2433,15 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\x11slow_mode_seconds\x18\x05 \x01(\rB\t\xbaH\x06*\x04\x18\xe0\xa8\x01H\x03R\x0fslowModeSeconds\x88\x01\x01\x12L\n" +
 	"\x0ethreading_mode\x18\x06 \x01(\x0e2 .chatto.api.v1.RoomThreadingModeH\x04R\rthreadingMode\x88\x01\x01\x12;\n" +
 	"\vupdate_mask\x18\a \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
-	"updateMaskB\a\n" +
+	"updateMask\x12G\n" +
+	"\x18thread_slow_mode_seconds\x18\b \x01(\rB\t\xbaH\x06*\x04\x18\xe0\xa8\x01H\x05R\x15threadSlowModeSeconds\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\f\n" +
 	"\n" +
 	"_universalB\x14\n" +
 	"\x12_slow_mode_secondsB\x11\n" +
-	"\x0f_threading_mode\"=\n" +
+	"\x0f_threading_modeB\x1b\n" +
+	"\x19_thread_slow_mode_seconds\"=\n" +
 	"\x12UpdateRoomResponse\x12'\n" +
 	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\"6\n" +
 	"\x12ArchiveRoomRequest\x12 \n" +
@@ -2740,6 +2765,7 @@ func file_chatto_api_v1_rooms_proto_init() {
 	file_chatto_api_v1_read_state_proto_init()
 	file_chatto_api_v1_room_timeline_proto_init()
 	file_chatto_api_v1_message_types_proto_init()
+	file_chatto_api_v1_rooms_proto_msgTypes[0].OneofWrappers = []any{}
 	file_chatto_api_v1_rooms_proto_msgTypes[4].OneofWrappers = []any{}
 	file_chatto_api_v1_rooms_proto_msgTypes[22].OneofWrappers = []any{
 		(*RemoveUserRequest_SuspensionExpiresAt)(nil),
