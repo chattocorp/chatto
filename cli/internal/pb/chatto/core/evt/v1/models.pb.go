@@ -206,8 +206,11 @@ type Room struct {
 	// Thread policy for channel rooms. See RoomThreadingMode for legacy and DM
 	// normalization rules.
 	ThreadingMode RoomThreadingMode `protobuf:"varint,11,opt,name=threading_mode,json=threadingMode,proto3,enum=chatto.core.evt.v1.RoomThreadingMode" json:"threading_mode,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Independent per-user thread interval. Absence in legacy records uses
+	// slow_mode_seconds; explicit zero disables thread slow mode.
+	ThreadSlowModeSeconds *uint32 `protobuf:"varint,12,opt,name=thread_slow_mode_seconds,json=threadSlowModeSeconds,proto3,oneof" json:"thread_slow_mode_seconds,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *Room) Reset() {
@@ -301,6 +304,13 @@ func (x *Room) GetThreadingMode() RoomThreadingMode {
 		return x.ThreadingMode
 	}
 	return RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED
+}
+
+func (x *Room) GetThreadSlowModeSeconds() uint32 {
+	if x != nil && x.ThreadSlowModeSeconds != nil {
+		return *x.ThreadSlowModeSeconds
+	}
+	return 0
 }
 
 // User represents a user account
@@ -2018,7 +2028,7 @@ var File_chatto_core_evt_v1_models_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_models_proto_rawDesc = "" +
 	"\n" +
-	"\x1fchatto/core/evt/v1/models.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xee\x02\n" +
+	"\x1fchatto/core/evt/v1/models.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc9\x03\n" +
 	"\x04Room\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
@@ -2029,7 +2039,9 @@ const file_chatto_core_evt_v1_models_proto_rawDesc = "" +
 	"\tuniversal\x18\t \x01(\bR\tuniversal\x12*\n" +
 	"\x11slow_mode_seconds\x18\n" +
 	" \x01(\rR\x0fslowModeSeconds\x12L\n" +
-	"\x0ethreading_mode\x18\v \x01(\x0e2%.chatto.core.evt.v1.RoomThreadingModeR\rthreadingModeJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aR\bspace_idR\tauto_join\"\xc3\x02\n" +
+	"\x0ethreading_mode\x18\v \x01(\x0e2%.chatto.core.evt.v1.RoomThreadingModeR\rthreadingMode\x12<\n" +
+	"\x18thread_slow_mode_seconds\x18\f \x01(\rH\x00R\x15threadSlowModeSeconds\x88\x01\x01B\x1b\n" +
+	"\x19_thread_slow_mode_secondsJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aR\bspace_idR\tauto_join\"\xc3\x02\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
@@ -2270,6 +2282,7 @@ func file_chatto_core_evt_v1_models_proto_init() {
 	if File_chatto_core_evt_v1_models_proto != nil {
 		return
 	}
+	file_chatto_core_evt_v1_models_proto_msgTypes[0].OneofWrappers = []any{}
 	file_chatto_core_evt_v1_models_proto_msgTypes[4].OneofWrappers = []any{
 		(*DeprecatedAsset_Nats)(nil),
 		(*DeprecatedAsset_S3)(nil),

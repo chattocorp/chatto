@@ -64,6 +64,8 @@
       "requires": "Wymaga wersji {version} lub nowszej",
       "thread_views_title": "Widoki wątków mają ograniczoną obsługę",
       "thread_views_description": "Obserwowane wątki i wątki rozpoczęte przez Ciebie mogą nie być wyświetlane oddzielnie na tym serwerze.",
+      "independent_slow_mode_title": "Niezależny tryb spowolniony jest niedostępny",
+      "independent_slow_mode_description": "Ten serwer używa wspólnego czasu oczekiwania dla wiadomości kanału i odpowiedzi w wątkach.",
       "upgrade": "Aby uzyskać pełną obsługę, poproś administratora serwera o aktualizację do wersji {version} lub nowszej."
     },
     "server_gutter": {

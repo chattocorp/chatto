@@ -309,6 +309,8 @@
         "permissions": "Permisos"
       },
       "settings": {
+        "discard_changes": "Descartar cambios",
+        "unsaved_changes": "Tienes cambios sin guardar. ¿Quieres salir de esta página y descartarlos?",
         "name_title": "Nombre y descripción",
         "name_subtitle": "Los miembros los ven en la lista de salas y en la parte superior de la sala.",
         "visibility_title": "Visibilidad",
@@ -317,6 +319,9 @@
         "visibility_help": "Usa una sala universal para noticias que deben recibir todos los miembros, como los anuncios. Los miembros no pueden salir de una sala universal, pero sí pueden silenciarla. Si desactivas la opción universal, los miembros que se unieron antes siguen en la sala.",
         "slow_mode_subtitle": "Limita la frecuencia con la que cada miembro puede publicar en esta sala.",
         "slow_mode_interval": "Tiempo mínimo entre publicaciones",
+        "channel_slow_mode_interval": "Modo lento del canal",
+        "thread_slow_mode_interval": "Modo lento de los hilos",
+        "independent_slow_mode_help": "El modo lento del canal limita los mensajes principales nuevos por miembro. El modo lento de los hilos se aplica por separado a cada miembro en cada hilo. El mensaje principal inicia ambos temporizadores para su autor. Los miembros con el permiso room.manage o message.manage están exentos. Las ediciones y reacciones no cambian los temporizadores.",
         "slow_mode_help": "Un solo temporizador cubre los mensajes, las respuestas en hilos y los archivos adjuntos. Los miembros con el permiso room.manage o message.manage están exentos. Mientras esperan, los miembros pueden seguir escribiendo borradores, editando sus mensajes y añadiendo reacciones.",
         "threading_title": "Modo de hilos",
         "threading_subtitle": "Elige cómo usan los hilos las conversaciones de esta sala.",

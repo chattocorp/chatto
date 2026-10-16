@@ -309,6 +309,8 @@
         "permissions": "權限"
       },
       "settings": {
+        "discard_changes": "捨棄變更",
+        "unsaved_changes": "你有尚未儲存的變更。要離開此頁面並捨棄變更嗎？",
         "name_title": "名稱和描述",
         "name_subtitle": "成員會在聊天室清單和聊天室頂端看到這些資訊。",
         "visibility_title": "可見範圍",
@@ -317,6 +319,9 @@
         "visibility_help": "對於所有成員都必須收到的消息（例如公告），請使用全員聊天室。成員無法離開全員聊天室，但可以將其設為靜音。如果關閉全員模式，先前加入的成員仍會留在聊天室中。",
         "slow_mode_subtitle": "限制每位成員在此聊天室中發文的頻率。",
         "slow_mode_interval": "兩次發文之間的最短時間",
+        "channel_slow_mode_interval": "頻道慢速模式",
+        "thread_slow_mode_interval": "討論串慢速模式",
+        "independent_slow_mode_help": "頻道慢速模式限制每位成員發布新的主訊息。討論串慢速模式在每個討論串中對每位成員分別套用。主訊息會啟動作者的兩個計時器。擁有 room.manage 或 message.manage 權限的成員不受限制。編輯和表情回應不會改變計時器。",
         "slow_mode_help": "一個計時器同時適用於訊息、討論串回覆和附件。擁有 room.manage 或 message.manage 權限的成員不受限制。等待期間，成員仍可以撰寫草稿、編輯自己的訊息和新增表情回應。",
         "threading_title": "討論串模式",
         "threading_subtitle": "選擇此聊天室中的對話如何使用討論串。",

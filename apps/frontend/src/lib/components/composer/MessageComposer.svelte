@@ -71,14 +71,18 @@
   }: MessageComposerProps = $props();
 
   const clock = new SvelteDate();
-  let optimisticPost = $state<{ roomId: string; createdAt: number } | null>(null);
+  let optimisticPost = $state<{
+    roomId: string;
+    threadId: string | undefined;
+    createdAt: number;
+  } | null>(null);
   const authoritativeNextPostAt = $derived(
     slowModeNextPostAt ? Date.parse(slowModeNextPostAt) : Number.NaN
   );
   const slowModeDeadline = $derived.by<number | null>(() => {
     if (slowModeSeconds <= 0 || slowModeBypassed) return null;
     const optimisticDeadline =
-      optimisticPost?.roomId === roomId
+      optimisticPost?.roomId === roomId && optimisticPost.threadId === inThread
         ? optimisticPost.createdAt + slowModeSeconds * 1000
         : Number.NaN;
     const deadlines = [authoritativeNextPostAt, optimisticDeadline].filter(Number.isFinite);
@@ -91,6 +95,7 @@
     )
   );
   const slowModeBlocked = $derived(slowModeRemainingSeconds > 0);
+  let slowModeBadge: { highlight: () => void } | undefined = $state();
   const editorModule = $derived(editorLoaders[userPreferences.composerEditor]());
   const composerId = $props.id();
   const formattingToolbarId = `${composerId}-formatting-toolbar`;
@@ -135,6 +140,7 @@
     getCanPost: () => canPost,
     getCanAttach: () => canAttach,
     getSlowModeBlocked: () => slowModeBlocked,
+    onSlowModeBlocked: () => slowModeBadge?.highlight(),
     getCanCreateThread: () => showCreateThread,
     getCreateThreadRequired: () => createThreadRequired,
     getCreateThreadDefault: () => createThreadDefault,
@@ -147,7 +153,8 @@
       onTyping,
       onMessageSent: (event) => {
         clock.setTime(Date.now());
-        if (event) optimisticPost = { roomId, createdAt: Date.parse(event.createdAt) };
+        if (event)
+          optimisticPost = { roomId, threadId: inThread, createdAt: Date.parse(event.createdAt) };
         onMessageSent?.(event);
       },
       onThreadMessageSent,
@@ -267,6 +274,7 @@
     <ComposerStatusRow>
       {@render inputStatus?.()}
       <SlowModeBadge
+        bind:this={slowModeBadge}
         seconds={slowModeSeconds}
         remaining={slowModeRemainingSeconds}
         bypassed={slowModeBypassed}

@@ -539,7 +539,7 @@ describe('RoomList', () => {
     await expect.element(markRead ?? null).toBeInTheDocument();
     await expect.element(markRead ?? null).toBeEnabled();
     await expect.element(leave ?? null).toBeInTheDocument();
-    expect(markRead?.closest('.menu-section')).not.toBe(leave?.closest('.menu-section'));
+    expect(markRead?.closest('.menu-section')).toBe(leave?.closest('.menu-section'));
     expect(q(document.body, '[role="separator"]')).toBeNull();
 
     markRead!.click();
@@ -566,25 +566,40 @@ describe('RoomList', () => {
     await expect.element(action).not.toBeInTheDocument();
   });
 
-  it('shows Copy room ID as the final context-menu row and copies the ID', async () => {
-    const { container } = render(RoomList);
-    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+  it.each([false, true])(
+    'groups user actions before admin actions for universal=%s and copies the room ID',
+    async (isUniversal) => {
+      const rooms = mocks.store.navigation.rooms as Array<{ id: string; isUniversal: boolean }>;
+      const room = rooms.find((room) => room.id === 'channel-1')!;
+      room.isUniversal = isUniversal;
+      const { container } = render(RoomList);
+      const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
 
-    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
-    await vi.waitFor(() =>
-      expect(document.querySelector('[data-testid="copy-room-id"]')).not.toBeNull()
-    );
+      row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+      await vi.waitFor(() =>
+        expect(document.querySelector('[data-testid="copy-room-id"]')).not.toBeNull()
+      );
 
-    const copyRoomId = q(document.body, '[data-testid="copy-room-id"]') as HTMLButtonElement;
-    await expect.element(copyRoomId).toHaveTextContent('Copy room ID');
-    const menuItems = copyRoomId.closest('[role="menu"]')?.querySelectorAll('[role="menuitem"]');
-    expect(menuItems?.item((menuItems?.length ?? 0) - 1)).toBe(copyRoomId);
+      const copyRoomId = q(document.body, '[data-testid="copy-room-id"]') as HTMLButtonElement;
+      await expect.element(copyRoomId).toHaveTextContent('Copy room ID');
+      const sections = copyRoomId.closest('[role="menu"]')!.querySelectorAll('.menu-section');
+      expect(
+        Array.from(sections, (section) =>
+          Array.from(section.querySelectorAll('[role="menuitem"]'), (item) =>
+            item.textContent?.trim()
+          )
+        )
+      ).toEqual([
+        ['Mark as read', 'Copy room link', 'Copy room ID', ...(isUniversal ? [] : ['Leave room'])],
+        ['Open room settings', 'Archive room']
+      ]);
 
-    copyRoomId.click();
+      copyRoomId.click();
 
-    await vi.waitFor(() => expect(mocks.writeClipboardText).toHaveBeenCalledWith('channel-1'));
-    expect(getToasts().map((item) => item.message)).toContain('Copied to clipboard');
-  });
+      await vi.waitFor(() => expect(mocks.writeClipboardText).toHaveBeenCalledWith('channel-1'));
+      expect(getToasts().map((item) => item.message)).toContain('Copied to clipboard');
+    }
+  );
 
   it('offers a join action for a visible non-member room', async () => {
     const { container } = render(RoomList);
@@ -642,6 +657,8 @@ describe('RoomList', () => {
     );
     await expect.element(join ?? null).toBeEnabled();
     await expect.element(settings ?? null).toBeInTheDocument();
+
+    expect(join?.closest('.menu-section')).not.toBe(settings?.closest('.menu-section'));
 
     settings!.click();
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/rooms/joinable-channel');
@@ -978,6 +995,8 @@ describe('RoomList', () => {
       (button) => button.textContent?.trim() === 'Open room settings'
     );
     expect(settings).toBeUndefined();
+    expect(document.querySelectorAll('[role="menu"] .menu-section')).toHaveLength(1);
+    expect(document.body.textContent).not.toContain('Archive room');
   });
 
   it('labels a bot beside its name in the DM list', () => {

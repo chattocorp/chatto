@@ -309,6 +309,8 @@
         "permissions": "Permesoj"
       },
       "settings": {
+        "discard_changes": "Forĵeti ŝanĝojn",
+        "unsaved_changes": "Vi havas nekonservitajn ŝanĝojn. Ĉu forlasi ĉi tiun paĝon kaj forĵeti ilin?",
         "name_title": "Nomo kaj priskribo",
         "name_subtitle": "Membroj vidas ilin en la listo de ĉambroj kaj supre en la ĉambro.",
         "visibility_title": "Videbleco",
@@ -317,6 +319,9 @@
         "visibility_help": "Uzu universalan ĉambron por novaĵoj, kiujn ĉiuj membroj devas ricevi, ekzemple anoncoj. Membroj ne povas forlasi universalan ĉambron, sed ili povas silentigi ĝin. Se vi malŝaltas la universalan reĝimon, la membroj, kiuj aliĝis antaŭe, restas en la ĉambro.",
         "slow_mode_subtitle": "Limigu, kiom ofte ĉiu membro povas afiŝi en ĉi tiu ĉambro.",
         "slow_mode_interval": "Minimuma tempo inter afiŝoj",
+        "channel_slow_mode_interval": "Malrapida reĝimo de kanalo",
+        "thread_slow_mode_interval": "Malrapida reĝimo de fadenoj",
+        "independent_slow_mode_help": "La malrapida reĝimo de kanalo limigas novajn ĉefmesaĝojn por ĉiu membro. La malrapida reĝimo de fadenoj validas aparte por ĉiu membro en ĉiu fadeno. La ĉefmesaĝo startigas ambaŭ tempigilojn por sia aŭtoro. Membroj kun la permeso room.manage aŭ message.manage estas esceptitaj. Redaktoj kaj reagoj ne ŝanĝas la tempigilojn.",
         "slow_mode_help": "Unu tempomezurilo validas por mesaĝoj, fadenaj respondoj kaj kunsendaĵoj. Membroj kun la permeso room.manage aŭ message.manage estas esceptitaj. Dum ili atendas, membroj ankoraŭ povas skribi malnetojn, redakti siajn mesaĝojn kaj aldoni reagojn.",
         "threading_title": "Fadenreĝimo",
         "threading_subtitle": "Elektu, kiel konversacioj en ĉi tiu ĉambro uzas fadenojn.",

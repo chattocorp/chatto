@@ -1007,7 +1007,20 @@ export class ServerStateStore {
       );
       // Snapshot catch-up owns the first full-access timeline read.
       if (!previous && canReadAllMessages && this.#realtimeSnapshotPending) continue;
-      if (previous && messageAccess(previous) === messageAccess(next)) continue;
+      if (previous && messageAccess(previous) === messageAccess(next)) {
+        const bypassesSlowMode = (room: RoomWithViewerState) =>
+          room.viewerState?.permissions.some(
+            (grant) =>
+              grant.granted &&
+              (grant.permission === 'room.manage' || grant.permission === 'message.manage')
+          ) ?? false;
+        if (bypassesSlowMode(previous) !== bypassesSlowMode(next)) {
+          // Losing an exemption activates the last successful post in each
+          // thread. Refresh deadlines without clearing readable messages.
+          this.#timelines.refreshWindows(roomId, null, false, cursor);
+        }
+        continue;
+      }
       // Rebuild only affected plaintext stores. Their owners and surrounding
       // page stay mounted, and their request generations fence old responses.
       this.clearRoomMessageAccess(roomId);
@@ -1361,6 +1374,10 @@ export class ServerStateStore {
         }
         if (payload.case === 'roomThreadingModeChanged') {
           this.#timelines.refreshWindows(roomId, event.id || null);
+        }
+        if (payload.case === 'roomSlowModeChanged') {
+          // A settings event is not an anchor in any thread timeline.
+          this.#timelines.refreshWindows(roomId, null);
         }
         this.refreshRealtimeResource('rooms');
         this.refreshRealtimeResource('roomGroups');

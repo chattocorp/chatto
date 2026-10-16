@@ -3,6 +3,7 @@ package core
 import (
 	"cmp"
 	"slices"
+	"time"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
@@ -19,6 +20,28 @@ type threadEntry struct {
 	event     eventHandle
 	actor     principalHandle
 	retracted bool
+}
+
+// latestPostAt reuses the retained thread rows, including retracted replies.
+// Timeline facts exclude imports and echoes and provide the root before its
+// first reply. Both components must have reached the command's OCC position.
+// The scan is bounded by this thread, not by the room's history.
+func (p *ThreadProjection) latestPostAt(timeline *RoomTimelineProjection, roomID, threadID, actorID string) (time.Time, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	root, knownRoot := p.eventIDs.Lookup(threadID)
+	actor, knownActor := p.principalIDs.Lookup(actorID)
+	if knownRoot && knownActor {
+		for _, entry := range slices.Backward(p.byThread[root]) {
+			if entry.actor != actor {
+				continue
+			}
+			if at, ok := timeline.originalPostAt(roomID, p.eventIDs.Resolve(entry.event), actorID); ok {
+				return at, true
+			}
+		}
+	}
+	return timeline.originalPostAt(roomID, threadID, actorID)
 }
 
 // threadSummary caches display metadata for one thread. It is derived from

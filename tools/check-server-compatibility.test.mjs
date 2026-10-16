@@ -14,13 +14,11 @@ export const MINIMUM_SUPPORTED_SERVER_VERSION = '${support}';
 export const MINIMUM_CONNECTABLE_SERVER_VERSION = '${floor}';
 `;
 
-// Keep parser scenarios independent of the product's current feature requirements.
+// Policy fixtures must stay independent of the client's growing feature list.
 const featureSource = `
 export const SERVER_FEATURE_REQUIREMENTS = { threadViews: '0.5.0-beta.16' } as const;
 export const MINIMUM_CONNECTABLE_SERVER_VERSION = '0.5.0-beta.9';
-export const MINIMUM_SUPPORTED_SERVER_VERSION = Object.values(
-  SERVER_FEATURE_REQUIREMENTS
-).reduce<string>(
+export const MINIMUM_SUPPORTED_SERVER_VERSION = Object.values(SERVER_FEATURE_REQUIREMENTS).reduce<string>(
   (minimum, required) => (compare(minimum, required) < 0 ? required : minimum),
   MINIMUM_CONNECTABLE_SERVER_VERSION
 );

@@ -272,6 +272,15 @@ the same API as the visual editor while keeping the stored Markdown visible.
           editorView.dispatch({ selection: EditorSelection.cursor(cursor), scrollIntoView: true });
         }
         editorView.focus();
+        // Native dialog teardown can leave CodeMirror's cached DOM selection
+        // ahead of the browser selection. Restore the editor's selection now,
+        // before a later selectionchange can replace it with the start position.
+        const selection = editorView.state.selection.main;
+        const anchor = editorView.domAtPos(selection.anchor);
+        const head = editorView.domAtPos(selection.head);
+        editorView.contentDOM.ownerDocument
+          .getSelection()
+          ?.setBaseAndExtent(anchor.node, anchor.offset, head.node, head.offset);
       },
       performEnter: () => {
         if (destroyed) return;

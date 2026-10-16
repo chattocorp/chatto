@@ -87,6 +87,8 @@ message RoomUniversalChangedEvent {
 message RoomSlowModeChangedEvent {
   string room_id = 1;
   uint32 slow_mode_seconds = 2;
+  // New writers store both intervals. Legacy absence uses slow_mode_seconds.
+  optional uint32 thread_slow_mode_seconds = 3;
 }
 
 // RoomThreadingModeChangedEvent is published when a channel room's thread

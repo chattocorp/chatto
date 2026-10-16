@@ -64,6 +64,8 @@
       "requires": "Requer {version} ou posterior",
       "thread_views_title": "As visualizações de tópicos têm suporte limitado",
       "thread_views_description": "Os tópicos seguidos e os que você iniciou podem não ser listados separadamente neste servidor.",
+      "independent_slow_mode_title": "O modo lento independente não está disponível",
+      "independent_slow_mode_description": "Este servidor usa um único intervalo de espera para mensagens do canal e respostas nas conversas.",
       "upgrade": "Para obter suporte completo, peça ao administrador do servidor para atualizar para {version} ou posterior."
     },
     "server_gutter": {

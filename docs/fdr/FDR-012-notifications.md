@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-14
+**Last reviewed:** 2026-10-16
 
 ## Overview
 
@@ -64,6 +64,12 @@ targets, unread counts, read state, or deletion semantics.
   A failed jump does not itself mark the occurrence Read.
 - Reading a room or thread marks covered occurrences Read. A reaction is
   covered according to the reacted-to message and reaction horizon.
+- A thread root belongs to its room, so a thread read does not cover
+  reactions to the root. While the viewer is present at the latest message of
+  an open thread, the bundled client marks each unread reaction occurrence on
+  that thread root Read. Other unread activity in the room stays unread. A
+  failed read stays unread until the viewer opens the thread again, returns to
+  it, or scrolls back to the latest message.
 - The bundled client reads a room or thread only up to the newest message that
   the viewer can see. While the timeline shows the latest message, the read
   covers the full conversation. After a jump to an older message, newer

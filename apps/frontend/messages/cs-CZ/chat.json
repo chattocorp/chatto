@@ -64,6 +64,8 @@
       "requires": "Vyžaduje verzi {version} nebo novější",
       "thread_views_title": "Zobrazení vláken má omezenou podporu",
       "thread_views_description": "Sledovaná vlákna a vlákna, která jste založili, se na tomto serveru nemusí zobrazovat odděleně.",
+      "independent_slow_mode_title": "Nezávislý pomalý režim není dostupný",
+      "independent_slow_mode_description": "Tento server používá společnou čekací dobu pro zprávy kanálu a odpovědi ve vláknech.",
       "upgrade": "Pro plnou podporu požádejte správce serveru o aktualizaci na verzi {version} nebo novější."
     },
     "server_gutter": {

@@ -386,9 +386,10 @@ mask stay unchanged.
 | `name` | `optional string` | New visible 1–30-code-point Unicode room name, when changing it. The server trims and stores it in NFC form. Control characters and Unicode line or paragraph separators are rejected. |
 | `description` | `optional string` | New room description, when changing it. Empty clears the description. |
 | `universal` | `optional bool` | New universal membership state, when changing it. Direct-message rooms cannot be universal. |
-| `slow_mode_seconds` | `optional uint32` | New per-user posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |
+| `slow_mode_seconds` | `optional uint32` | New per-user root posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |
 | `threading_mode` | optional [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | New threading policy. Direct-message rooms cannot set this field, and an explicitly supplied UNSPECIFIED or unknown value is rejected. |
-| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread. The root starts its author's timer. Zero disables it. Updating this field does not change the root interval. |
 
 
 <a id="chatto-api-v1-UpdateRoomResponse"></a>
@@ -3257,6 +3258,7 @@ Response containing one thread timeline page.
 | Field | Type | Description |
 | --- | --- | --- |
 | `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+| `viewer_state` | [`ThreadViewerState`](#chatto-api-v1-ThreadViewerState) | Current viewer state, independent of the loaded message window. |
 
 
 <a id="chatto-api-v1-ThreadService-GetThreadEventsAround"></a>
@@ -3301,6 +3303,7 @@ Response containing a thread timeline window around a specific event.
 | --- | --- | --- |
 | `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
 | `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
+| `viewer_state` | [`ThreadViewerState`](#chatto-api-v1-ThreadViewerState) | Current viewer state, independent of the loaded message window. |
 
 
 <a id="chatto-api-v1-ThreadService-MarkThreadAsRead"></a>
@@ -5458,6 +5461,7 @@ canonical thread has been established.
 | Field | Type | Description |
 | --- | --- | --- |
 | `can_reply_in_thread` | `optional bool` | Whether the viewer can reply in this message's canonical thread, including starting the first reply to a root. Includes read access, room policy, and broad or interaction-scoped posting authority. Absent when not resolved. |
+| `thread_slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest reply time in this message's canonical thread, including when the root has no replies. Absent when disabled, expired, or bypassed. |
 
 
 
@@ -5488,6 +5492,7 @@ Viewer-specific follow and reply-read state for one message thread.
 | --- | --- | --- |
 | `is_following` | `optional bool` | Whether the current user follows this message's thread, when known. |
 | `has_unread_replies` | `optional bool` | True when the thread contains replies after the current user's read cursor, when known. |
+| `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the viewer may reply. Absent when disabled, expired, or bypassed. The root message starts its author's thread cooldown. |
 
 
 
@@ -5742,8 +5747,9 @@ Public room metadata returned by room commands.
 | `archived` | `bool` | True when the room is archived and hidden from active room lists. |
 | `group_id` | `string` | Room group ID for channel rooms. Empty for direct-message rooms. |
 | `universal` | `bool` | True when a channel grants effective membership to eligible server members. |
-| `slow_mode_seconds` | `uint32` | Minimum number of seconds a non-exempt member must wait between message posts. Channel rooms only; zero means slow mode is disabled. |
+| `slow_mode_seconds` | `uint32` | Minimum number of seconds a non-exempt member must wait between root message posts. Channel rooms only; zero means slow mode is disabled. |
 | `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Threading policy for this channel room. Direct-message rooms report UNSPECIFIED because they do not support threads. |
+| `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread, including its root. Zero disables the interval. Absent on servers without independent thread slow mode. |
 
 
 
@@ -5834,7 +5840,7 @@ Viewer-specific state and permission decisions for one room.
 | `is_member` | `bool` | True when the current user is an effective room member. |
 | `has_unread` | `bool` | True when the room has neutral Badge attention for the current user. This state is independent of the user's last-read message cursor. |
 | `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective room-scoped permission decisions after room state constraints. |
-| `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the current user may create another message. Absent when slow mode is disabled, expired, or bypassed by moderation permissions. |
+| `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the current user may create another root message. Absent when slow mode is disabled, expired, or bypassed by moderation permissions. |
 
 
 

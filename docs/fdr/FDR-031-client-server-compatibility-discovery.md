@@ -34,8 +34,11 @@ Chatto's pre-1.0 API remains experimental.
   The page also shows supported, unknown, and unreachable states. Remote-server
   reports remain accessible when chat cannot connect or the user is signed out.
   Thread views require beta.16 to separate followed threads from threads
-  started by the viewer. Older servers can still show thread results, with
-  a notice that the lists may not be separated correctly. Member invite links
+  started by the viewer. Older servers can show thread results, with a notice
+  that the lists may not be separated correctly. Independent channel and
+  thread Slow Mode requires beta.18. Older servers keep a shared cooldown
+  and a single setting; room field presence still controls the runtime fallback.
+  Member invite links
   require beta.18, the planned first release with member creation and management
   of owned links. Earlier servers do not support these operations in the updated
   client. This limitation does not prevent chat connections. Below the

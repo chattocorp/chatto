@@ -27,7 +27,12 @@
   });
 </script>
 
-<div class={['flex flex-col items-center', compact ? 'gap-3' : 'gap-5']}>
+<div
+  class={[
+    'mx-auto flex w-full max-w-md min-w-0 flex-col items-center',
+    compact ? 'gap-3' : 'gap-5'
+  ]}
+>
   <div class={['flex items-center', compact ? 'gap-3' : 'gap-4']}>
     {#if iconUrl}
       <img src={iconUrl} alt="" class={compact ? 'h-10 w-10 rounded-lg' : 'h-12 w-12 rounded-xl'} />

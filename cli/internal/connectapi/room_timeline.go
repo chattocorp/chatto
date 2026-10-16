@@ -170,7 +170,11 @@ func (s *threadService) GetThreadEvents(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.GetThreadEventsResponse{Page: page}), nil
+	viewerState, err := newRoomTimelineAssembler(s.api).threadViewerState(ctx, caller.UserID, req.Msg.RoomId, req.Msg.ThreadRootEventId, result.Kind)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.GetThreadEventsResponse{Page: page, ViewerState: viewerState}), nil
 }
 
 func (s *threadService) GetThreadEventsAround(ctx context.Context, req *connect.Request[apiv1.GetThreadEventsAroundRequest]) (*connect.Response[apiv1.GetThreadEventsAroundResponse], error) {
@@ -187,8 +191,13 @@ func (s *threadService) GetThreadEventsAround(ctx context.Context, req *connect.
 		return nil, err
 	}
 
+	viewerState, err := newRoomTimelineAssembler(s.api).threadViewerState(ctx, caller.UserID, req.Msg.RoomId, req.Msg.ThreadRootEventId, result.Kind)
+	if err != nil {
+		return nil, err
+	}
 	return connect.NewResponse(&apiv1.GetThreadEventsAroundResponse{
 		Page:        page,
+		ViewerState: viewerState,
 		TargetIndex: int32(result.TargetIndex),
 	}), nil
 }

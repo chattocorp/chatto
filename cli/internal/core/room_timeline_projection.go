@@ -41,11 +41,11 @@ type roomTimelineState struct {
 	// byRoom and messagePostsByRoom hold row indexes in stream order.
 	byRoom             map[string][]uint32
 	messagePostsByRoom map[string][]uint32
-	// latestOriginalPostAt retains the newest committed non-echo post
+	// latestRootPostAt retains the newest committed non-echo root post
 	// timestamp per room and actor. Slow mode reads this O(1) index; edits and
 	// retractions intentionally do not change it.
-	latestOriginalPostAt map[roomActorKey]time.Time
-	replayGuard          projectionReplayGuard
+	latestRootPostAt map[roomActorKey]time.Time
+	replayGuard      projectionReplayGuard
 	// bodyStates is a dense array addressed by message rows. Only bodies that
 	// arrive before their post need an event-ID map until that post is indexed.
 	// Complete encrypted bodies remain in EVT.
@@ -468,7 +468,7 @@ func newRoomTimelineState() roomTimelineState {
 		bodyEventIDs:               new(idArena),
 		byRoom:                     make(map[string][]uint32),
 		messagePostsByRoom:         make(map[string][]uint32),
-		latestOriginalPostAt:       make(map[roomActorKey]time.Time),
+		latestRootPostAt:           make(map[roomActorKey]time.Time),
 		replayGuard:                newProjectionReplayGuard(),
 		orphanBodyStates:           make(map[string]timelineBodyState),
 		retractedFlags:             make(map[string]struct{}),
@@ -584,8 +584,8 @@ func (p *RoomTimelineProjection) Apply(event *evtv1.Event, seq uint64) error {
 			entryIdx = p.appendEntryLocked(seq, event)
 		}
 		p.messagePostsByRoom[roomID] = append(p.messagePostsByRoom[roomID], uint32(entryIdx))
-		if event.GetMessagePosted().GetEchoOfEventId() == "" && !event.GetMessagePosted().GetHistoricalImport() && event.GetActorId() != "" {
-			p.latestOriginalPostAt[roomActorKey{roomID: roomID, actorID: event.GetActorId()}] = eventCreatedAt(event)
+		if posted := event.GetMessagePosted(); posted.GetInThread() == "" && posted.GetEchoOfEventId() == "" && !posted.GetHistoricalImport() && event.GetActorId() != "" {
+			p.latestRootPostAt[roomActorKey{roomID: roomID, actorID: event.GetActorId()}] = eventCreatedAt(event)
 		}
 	}
 	if isVisibleRoomTimelineEntry(event) {
@@ -913,14 +913,30 @@ func (p *RoomTimelineProjection) LastRoomMessageEntry(roomID string) (*TimelineE
 	return nil, false
 }
 
-// LatestOriginalPostAt returns the latest committed non-echo message time for
+// LatestRootPostAt returns the latest committed non-echo root message time for
 // one actor in one room. The timestamp remains authoritative after edits or
 // retractions so those actions cannot evade slow mode.
-func (p *RoomTimelineProjection) LatestOriginalPostAt(roomID, actorID string) (time.Time, bool) {
+func (p *RoomTimelineProjection) LatestRootPostAt(roomID, actorID string) (time.Time, bool) {
 	p.RLock()
 	defer p.RUnlock()
-	value, ok := p.latestOriginalPostAt[roomActorKey{roomID: roomID, actorID: actorID}]
+	value, ok := p.latestRootPostAt[roomActorKey{roomID: roomID, actorID: actorID}]
 	return value, ok && !value.IsZero()
+}
+
+// originalPostAt reads retained creation facts without hydrating a message.
+// Deletion and edits do not change these facts; echoes and imports are excluded.
+func (p *RoomTimelineProjection) originalPostAt(roomID, eventID, actorID string) (time.Time, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	idx, ok := p.rowIndexLocked(eventID)
+	if !ok || actorID == "" {
+		return time.Time{}, false
+	}
+	row := p.entries[idx]
+	if row.kind != timelineMessagePosted || row.historicalImport || row.echoOf != 0 || p.rooms.Resolve(row.room) != roomID || p.users.Resolve(row.actor) != actorID {
+		return time.Time{}, false
+	}
+	return projectionTime(row.createdAt), true
 }
 
 // LatestBodyReference returns the current MessageBodyEvent reference for a

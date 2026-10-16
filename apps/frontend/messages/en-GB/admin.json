@@ -309,6 +309,8 @@
         "permissions": "Permissions"
       },
       "settings": {
+        "discard_changes": "Discard changes",
+        "unsaved_changes": "You have unsaved changes. Leave this page and discard them?",
         "name_title": "Name & Description",
         "name_subtitle": "Members see these in the room list and at the top of the room.",
         "visibility_title": "Visibility",
@@ -317,6 +319,9 @@
         "visibility_help": "Use a Universal room for news that all members must get, such as announcements. Members cannot leave a Universal room, but they can mute it. If you turn Universal off, the members who joined before stay in the room.",
         "slow_mode_subtitle": "Limit how often each member can post in this room.",
         "slow_mode_interval": "Minimum time between posts",
+        "channel_slow_mode_interval": "Channel slow mode",
+        "thread_slow_mode_interval": "Thread slow mode",
+        "independent_slow_mode_help": "Channel slow mode limits new root messages per member. Thread slow mode limits each member separately in each thread. The root starts both timers for its author. Members with room.manage or message.manage permission are exempt. Edits and reactions do not change the timers.",
         "slow_mode_help": "One timer covers messages, thread replies, and attachments. Members with the room.manage or message.manage permission are exempt. While members wait, they can still write drafts, edit their messages, and add reactions.",
         "threading_title": "Threading Mode",
         "threading_subtitle": "Choose how conversations in this room use threads.",

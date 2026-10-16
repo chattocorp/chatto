@@ -14,10 +14,10 @@ import {
 
 describe('server compatibility evaluation', () => {
   it.each([
-    ['0.5.0-beta.11', 'limited', ['threadViews', 'inviteLinks']],
-    ['0.5.0-beta.15-custom', 'limited', ['threadViews', 'inviteLinks']],
-    ['0.5.0-beta.16', 'supported', ['inviteLinks']],
-    ['0.5.0-beta.16-custom+build.2', 'supported', ['inviteLinks']],
+    ['0.5.0-beta.11', 'limited', ['threadViews', 'inviteLinks', 'independentSlowMode']],
+    ['0.5.0-beta.15-custom', 'limited', ['threadViews', 'inviteLinks', 'independentSlowMode']],
+    ['0.5.0-beta.16', 'supported', ['inviteLinks', 'independentSlowMode']],
+    ['0.5.0-beta.16-custom+build.2', 'supported', ['inviteLinks', 'independentSlowMode']],
     ['0.5.0', 'supported', []],
     ['dev', 'unknown', []],
     ['', 'unknown', []]
@@ -33,6 +33,16 @@ describe('server compatibility evaluation', () => {
       ).toBeGreaterThanOrEqual(0);
     }
     expect(limitedServerFeatures(MINIMUM_SUPPORTED_SERVER_VERSION)).toEqual([]);
+  });
+
+  it('reports independent slow mode without blocking older compatible servers', () => {
+    expect(serverFeatureSupport('0.5.0-beta.17', 'independentSlowMode')).toBe('limited');
+    expect(serverFeatureSupport('0.5.0-beta.18', 'independentSlowMode')).toBe('supported');
+    expect(serverFeatureSupport('dev', 'independentSlowMode')).toBe('unknown');
+    expect(limitedServerFeatures('0.5.0-beta.18')).toEqual([]);
+    expect(isConnectableServerVersion('0.5.0-beta.17')).toBe(true);
+    expect(MINIMUM_CONNECTABLE_SERVER_VERSION).toBe('0.5.0-beta.9');
+    expect(MINIMUM_SUPPORTED_SERVER_VERSION).toBe('0.5.0-beta.18');
   });
 
   it.each([

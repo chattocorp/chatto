@@ -426,8 +426,10 @@ type RoomSlowModeChangedEvent struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	RoomId          string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	SlowModeSeconds uint32                 `protobuf:"varint,2,opt,name=slow_mode_seconds,json=slowModeSeconds,proto3" json:"slow_mode_seconds,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// New writers store both intervals. Legacy absence uses slow_mode_seconds.
+	ThreadSlowModeSeconds *uint32 `protobuf:"varint,3,opt,name=thread_slow_mode_seconds,json=threadSlowModeSeconds,proto3,oneof" json:"thread_slow_mode_seconds,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *RoomSlowModeChangedEvent) Reset() {
@@ -470,6 +472,13 @@ func (x *RoomSlowModeChangedEvent) GetRoomId() string {
 func (x *RoomSlowModeChangedEvent) GetSlowModeSeconds() uint32 {
 	if x != nil {
 		return x.SlowModeSeconds
+	}
+	return 0
+}
+
+func (x *RoomSlowModeChangedEvent) GetThreadSlowModeSeconds() uint32 {
+	if x != nil && x.ThreadSlowModeSeconds != nil {
+		return *x.ThreadSlowModeSeconds
 	}
 	return 0
 }
@@ -953,10 +962,12 @@ const file_chatto_core_evt_v1_room_events_proto_rawDesc = "" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"R\n" +
 	"\x19RoomUniversalChangedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1c\n" +
-	"\tuniversal\x18\x02 \x01(\bR\tuniversal\"_\n" +
+	"\tuniversal\x18\x02 \x01(\bR\tuniversal\"\xba\x01\n" +
 	"\x18RoomSlowModeChangedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12*\n" +
-	"\x11slow_mode_seconds\x18\x02 \x01(\rR\x0fslowModeSeconds\"\x86\x01\n" +
+	"\x11slow_mode_seconds\x18\x02 \x01(\rR\x0fslowModeSeconds\x12<\n" +
+	"\x18thread_slow_mode_seconds\x18\x03 \x01(\rH\x00R\x15threadSlowModeSeconds\x88\x01\x01B\x1b\n" +
+	"\x19_thread_slow_mode_seconds\"\x86\x01\n" +
 	"\x1dRoomThreadingModeChangedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12L\n" +
 	"\x0ethreading_mode\x18\x02 \x01(\x0e2%.chatto.core.evt.v1.RoomThreadingModeR\rthreadingMode\">\n" +
@@ -1046,6 +1057,7 @@ func file_chatto_core_evt_v1_room_events_proto_init() {
 		return
 	}
 	file_chatto_core_evt_v1_models_proto_init()
+	file_chatto_core_evt_v1_room_events_proto_msgTypes[6].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

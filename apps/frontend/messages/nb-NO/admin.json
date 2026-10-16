@@ -309,6 +309,8 @@
         "permissions": "Tillatelser"
       },
       "settings": {
+        "discard_changes": "Forkast endringer",
+        "unsaved_changes": "Du har ulagrede endringer. Vil du forlate siden og forkaste dem?",
         "name_title": "Navn og beskrivelse",
         "name_subtitle": "Medlemmer ser dette i romlisten og øverst i rommet.",
         "visibility_title": "Synlighet",
@@ -317,6 +319,9 @@
         "visibility_help": "Bruk et universelt rom for nyheter som alle medlemmer må få, for eksempel kunngjøringer. Medlemmer kan ikke forlate et universelt rom, men de kan dempe det. Hvis du slår av universell, blir medlemmene som ble med tidligere, værende i rommet.",
         "slow_mode_subtitle": "Begrens hvor ofte hvert medlem kan poste i dette rommet.",
         "slow_mode_interval": "Minste tid mellom innlegg",
+        "channel_slow_mode_interval": "Langsom modus i kanalen",
+        "thread_slow_mode_interval": "Langsom modus i tråder",
+        "independent_slow_mode_help": "Kanalens langsomme modus begrenser nye hovedmeldinger per medlem. Trådenes langsomme modus gjelder separat for hvert medlem i hver tråd. Hovedmeldingen starter begge tidtakerne for forfatteren. Medlemmer med tillatelsen room.manage eller message.manage er unntatt. Redigeringer og reaksjoner endrer ikke tidtakerne.",
         "slow_mode_help": "Én tidtaker gjelder for meldinger, trådsvar og vedlegg. Medlemmer med tillatelsen room.manage eller message.manage er unntatt. Mens de venter, kan medlemmer fortsatt skrive utkast, redigere meldingene sine og legge til reaksjoner.",
         "threading_title": "Trådmodus",
         "threading_subtitle": "Velg hvordan samtaler i dette rommet bruker tråder.",

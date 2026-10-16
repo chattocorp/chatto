@@ -1,6 +1,6 @@
 import { Code, ConnectError } from '@chatto/client/api/connect';
 import { appState } from '$lib/state/globals.svelte';
-import { onDestroy } from 'svelte';
+import { onDestroy, untrack } from 'svelte';
 
 export type UnreadMarkerWindow = {
   afterTime: string;
@@ -35,7 +35,10 @@ type UseUnreadMarkerOptions<TReadResult> = {
    * Without this option, the read covers the latest event.
    */
   getLifecycleUpToEventId?: () => string | undefined | null;
-  /** Called when an entry or return read starts, with its `upToEventId`. */
+  /**
+   * Called when an entry or return read starts, with its `upToEventId`. The
+   * hook does not track the callback's reads.
+   */
   onLifecycleRead?: (upToEventId: string | undefined) => void;
 };
 
@@ -258,7 +261,9 @@ export function useUnreadMarker<TReadResult>(
     cancelLifecycleAttempt();
     const attempt = createAttempt(targetId, upToEventId, true);
     lifecycleAttempt = attempt;
-    onLifecycleRead?.(upToEventId);
+    // The lifecycle effect calls this function. The owner's callback reacts to
+    // the read and must not add its own reads to that effect's dependencies.
+    untrack(() => onLifecycleRead?.(upToEventId));
     void runAttempt(attempt);
   }
 

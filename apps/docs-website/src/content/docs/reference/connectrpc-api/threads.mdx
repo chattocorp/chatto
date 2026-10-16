@@ -284,6 +284,7 @@ Response containing one thread timeline page.
 | Field | Type | Description |
 | --- | --- | --- |
 | `page` | [`RoomTimelinePage`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+| `viewer_state` | [`ThreadViewerState`](/reference/connectrpc-api/types/#chatto-api-v1-ThreadViewerState) | Current viewer state, independent of the loaded message window. |
 
 
 <a id="chatto-api-v1-ThreadService-GetThreadEventsAround"></a>
@@ -328,6 +329,7 @@ Response containing a thread timeline window around a specific event.
 | --- | --- | --- |
 | `page` | [`RoomTimelinePage`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
 | `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
+| `viewer_state` | [`ThreadViewerState`](/reference/connectrpc-api/types/#chatto-api-v1-ThreadViewerState) | Current viewer state, independent of the loaded message window. |
 
 
 <a id="chatto-api-v1-ThreadService-MarkThreadAsRead"></a>

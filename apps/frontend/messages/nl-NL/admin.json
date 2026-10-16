@@ -309,6 +309,8 @@
         "permissions": "Rechten"
       },
       "settings": {
+        "discard_changes": "Wijzigingen verwerpen",
+        "unsaved_changes": "Je hebt niet-opgeslagen wijzigingen. Wil je deze pagina verlaten en ze verwerpen?",
         "name_title": "Naam en beschrijving",
         "name_subtitle": "Leden zien deze in de lijst met kamers en bovenaan de kamer.",
         "visibility_title": "Zichtbaarheid",
@@ -317,6 +319,9 @@
         "visibility_help": "Gebruik een universele kamer voor nieuws dat alle leden moeten krijgen, zoals aankondigingen. Leden kunnen een universele kamer niet verlaten, maar ze kunnen de kamer dempen. Als je universeel uitzet, blijven de leden die eerder lid werden in de kamer.",
         "slow_mode_subtitle": "Beperk hoe vaak elk lid in deze kamer kan posten.",
         "slow_mode_interval": "Minimale tijd tussen berichten",
+        "channel_slow_mode_interval": "Langzame modus in het kanaal",
+        "thread_slow_mode_interval": "Langzame modus in threads",
+        "independent_slow_mode_help": "De langzame modus in het kanaal beperkt nieuwe hoofdberichten per lid. De langzame modus in threads beperkt elk lid afzonderlijk in elke thread. Het hoofdbericht start beide timers voor de auteur. Leden met de machtiging room.manage of message.manage zijn uitgezonderd. Bewerkingen en reacties veranderen de timers niet.",
         "slow_mode_help": "Eén timer geldt voor berichten, antwoorden in threads en bijlagen. Leden met de machtiging room.manage of message.manage zijn uitgezonderd. Tijdens het wachten kunnen leden nog steeds concepten schrijven, hun berichten bewerken en reacties toevoegen.",
         "threading_title": "Threadmodus",
         "threading_subtitle": "Kies hoe gesprekken in deze kamer threads gebruiken.",

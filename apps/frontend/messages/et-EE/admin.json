@@ -309,6 +309,8 @@
         "permissions": "Load"
       },
       "settings": {
+        "discard_changes": "Loobu muudatustest",
+        "unsaved_changes": "Teil on salvestamata muudatusi. Kas soovite sellelt lehelt lahkuda ja neist loobuda?",
         "name_title": "Nimi ja kirjeldus",
         "name_subtitle": "Liikmed näevad neid ruumide loendis ja ruumi ülaosas.",
         "visibility_title": "Nähtavus",
@@ -317,6 +319,9 @@
         "visibility_help": "Kasutage universaalset tuba uudiste jaoks, mis peavad jõudma kõigi liikmeteni, näiteks teadaanded. Liikmed ei saa universaalsest toast lahkuda, kuid nad saavad selle vaigistada. Kui lülitate universaalsuse välja, jäävad varem liitunud liikmed ruumi.",
         "slow_mode_subtitle": "Piirake, kui sageli iga liige saab selles ruumis postitada.",
         "slow_mode_interval": "Minimaalne aeg postituste vahel",
+        "channel_slow_mode_interval": "Kanali aeglane režiim",
+        "thread_slow_mode_interval": "Lõimede aeglane režiim",
+        "independent_slow_mode_help": "Kanali aeglane režiim piirab iga liikme uusi avasõnumeid. Lõimede aeglane režiim kehtib igale liikmele igas lõimes eraldi. Avasõnum käivitab autorile mõlemad taimerid. Liikmed, kellel on õigus room.manage või message.manage, on piirangust vabastatud. Muudatused ja reaktsioonid taimereid ei muuda.",
         "slow_mode_help": "Üks taimer kehtib sõnumitele, lõimevastustele ja manustele. Õigusega room.manage või message.manage liikmed on erandid. Ootamise ajal saavad liikmed jätkuvalt mustandeid kirjutada, oma sõnumeid muuta ja reaktsioone lisada.",
         "threading_title": "Lõimerežiim",
         "threading_subtitle": "Valige, kuidas selle ruumi vestlused lõimi kasutavad.",

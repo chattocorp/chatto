@@ -225,6 +225,11 @@ shared message queue, whose completion is part of cursor reconciliation.
 Search and other lazy data retain their own reads. Canonical events update
 resources that the client already uses; they do not open lazy collections.
 
+Slow Mode uses these same reads. Room viewer state carries the root-post
+deadline. Message viewer state and thread timeline responses carry the current
+viewer's deadline in the canonical thread, including before its first reply.
+Room Slow Mode changes invalidate open thread deadlines as well as room state.
+
 The bundled frontend gives each cursor-bounded ConnectRPC call a 10-second
 deadline. A timeout fails reconciliation and closes the socket without cursor
 advance. A new resource reset also starts a new local projection generation.

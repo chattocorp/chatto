@@ -309,6 +309,8 @@
         "permissions": "权限"
       },
       "settings": {
+        "discard_changes": "放弃更改",
+        "unsaved_changes": "你有尚未保存的更改。要离开此页面并放弃更改吗？",
         "name_title": "名称和描述",
         "name_subtitle": "成员会在聊天室列表和聊天室顶部看到这些信息。",
         "visibility_title": "可见范围",
@@ -317,6 +319,9 @@
         "visibility_help": "对于所有成员都必须收到的消息（例如公告），请使用全员聊天室。成员无法退出全员聊天室，但可以将其设为免打扰。如果关闭全员模式，之前加入的成员仍会留在聊天室中。",
         "slow_mode_subtitle": "限制每个成员在此聊天室中发帖的频率。",
         "slow_mode_interval": "两次发帖之间的最短时间",
+        "channel_slow_mode_interval": "频道慢速模式",
+        "thread_slow_mode_interval": "话题慢速模式",
+        "independent_slow_mode_help": "频道慢速模式限制每位成员发布新的主消息。话题慢速模式在每个话题中对每位成员分别生效。主消息会启动作者的两个计时器。拥有 room.manage 或 message.manage 权限的成员不受限制。编辑和表情回应不会改变计时器。",
         "slow_mode_help": "一个计时器同时适用于消息、话题回复和附件。拥有 room.manage 或 message.manage 权限的成员不受限制。等待期间，成员仍可以撰写草稿、编辑自己的消息和添加表情回应。",
         "threading_title": "话题模式",
         "threading_subtitle": "选择此聊天室中的对话如何使用话题。",

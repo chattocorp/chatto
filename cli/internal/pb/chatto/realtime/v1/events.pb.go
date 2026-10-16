@@ -803,8 +803,10 @@ type RoomSlowModeChangedEvent struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	RoomId          string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	SlowModeSeconds uint32                 `protobuf:"varint,2,opt,name=slow_mode_seconds,json=slowModeSeconds,proto3" json:"slow_mode_seconds,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Independent interval within each thread. Zero disables it.
+	ThreadSlowModeSeconds *uint32 `protobuf:"varint,3,opt,name=thread_slow_mode_seconds,json=threadSlowModeSeconds,proto3,oneof" json:"thread_slow_mode_seconds,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *RoomSlowModeChangedEvent) Reset() {
@@ -847,6 +849,13 @@ func (x *RoomSlowModeChangedEvent) GetRoomId() string {
 func (x *RoomSlowModeChangedEvent) GetSlowModeSeconds() uint32 {
 	if x != nil {
 		return x.SlowModeSeconds
+	}
+	return 0
+}
+
+func (x *RoomSlowModeChangedEvent) GetThreadSlowModeSeconds() uint32 {
+	if x != nil && x.ThreadSlowModeSeconds != nil {
+		return *x.ThreadSlowModeSeconds
 	}
 	return 0
 }
@@ -2945,10 +2954,12 @@ const file_chatto_realtime_v1_events_proto_rawDesc = "" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"R\n" +
 	"\x19RoomUniversalChangedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1c\n" +
-	"\tuniversal\x18\x02 \x01(\bR\tuniversal\"_\n" +
+	"\tuniversal\x18\x02 \x01(\bR\tuniversal\"\xba\x01\n" +
 	"\x18RoomSlowModeChangedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12*\n" +
-	"\x11slow_mode_seconds\x18\x02 \x01(\rR\x0fslowModeSeconds\"\x81\x01\n" +
+	"\x11slow_mode_seconds\x18\x02 \x01(\rR\x0fslowModeSeconds\x12<\n" +
+	"\x18thread_slow_mode_seconds\x18\x03 \x01(\rH\x00R\x15threadSlowModeSeconds\x88\x01\x01B\x1b\n" +
+	"\x19_thread_slow_mode_seconds\"\x81\x01\n" +
 	"\x1dRoomThreadingModeChangedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12G\n" +
 	"\x0ethreading_mode\x18\x02 \x01(\x0e2 .chatto.api.v1.RoomThreadingModeR\rthreadingMode\".\n" +
@@ -3165,6 +3176,7 @@ func file_chatto_realtime_v1_events_proto_init() {
 	if File_chatto_realtime_v1_events_proto != nil {
 		return
 	}
+	file_chatto_realtime_v1_events_proto_msgTypes[14].OneofWrappers = []any{}
 	file_chatto_realtime_v1_events_proto_msgTypes[22].OneofWrappers = []any{}
 	file_chatto_realtime_v1_events_proto_msgTypes[27].OneofWrappers = []any{
 		(*MessageMention_Direct)(nil),

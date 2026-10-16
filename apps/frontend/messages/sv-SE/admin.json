@@ -309,6 +309,8 @@
         "permissions": "Behörigheter"
       },
       "settings": {
+        "discard_changes": "Kasta ändringar",
+        "unsaved_changes": "Du har osparade ändringar. Vill du lämna sidan och kasta dem?",
         "name_title": "Namn och beskrivning",
         "name_subtitle": "Medlemmar ser dessa i rumslistan och högst upp i rummet.",
         "visibility_title": "Synlighet",
@@ -317,6 +319,9 @@
         "visibility_help": "Använd ett universellt rum för nyheter som alla medlemmar måste få, till exempel tillkännagivanden. Medlemmar kan inte lämna ett universellt rum, men de kan tysta det. Om du stänger av universellt stannar medlemmarna som gick med tidigare kvar i rummet.",
         "slow_mode_subtitle": "Begränsa hur ofta varje medlem kan skriva i det här rummet.",
         "slow_mode_interval": "Minsta tid mellan inlägg",
+        "channel_slow_mode_interval": "Långsamt läge i kanalen",
+        "thread_slow_mode_interval": "Långsamt läge i trådar",
+        "independent_slow_mode_help": "Kanalens långsamma läge begränsar nya huvudmeddelanden per medlem. Trådarnas långsamma läge gäller separat för varje medlem i varje tråd. Huvudmeddelandet startar båda tidtagarna för författaren. Medlemmar med behörigheten room.manage eller message.manage är undantagna. Redigeringar och reaktioner påverkar inte tidtagarna.",
         "slow_mode_help": "En timer gäller för meddelanden, trådsvar och bilagor. Medlemmar med behörigheten room.manage eller message.manage är undantagna. Medan de väntar kan medlemmar fortfarande skriva utkast, redigera sina meddelanden och lägga till reaktioner.",
         "threading_title": "Trådläge",
         "threading_subtitle": "Välj hur konversationer i det här rummet använder trådar.",

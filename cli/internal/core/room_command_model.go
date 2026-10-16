@@ -76,7 +76,9 @@ type RoomUpdateInput struct {
 	Description     *string
 	Universal       *bool
 	SlowModeSeconds *uint32
-	ThreadingMode   *evtv1.RoomThreadingMode
+	// ThreadSlowModeSeconds changes the independent per-thread interval.
+	ThreadSlowModeSeconds *uint32
+	ThreadingMode         *evtv1.RoomThreadingMode
 }
 
 type RoomIDInput struct {
@@ -153,11 +155,14 @@ func (s *RoomCommandModel) updateRoom(ctx context.Context, input RoomUpdateInput
 	if err != nil {
 		return nil, err
 	}
-	if input.Name == nil && input.Description == nil && input.Universal == nil && input.SlowModeSeconds == nil && input.ThreadingMode == nil {
+	if input.Name == nil && input.Description == nil && input.Universal == nil && input.SlowModeSeconds == nil && input.ThreadSlowModeSeconds == nil && input.ThreadingMode == nil {
 		return nil, fmt.Errorf("%w: provide at least one room field to update", ErrInvalidArgument)
 	}
 	if input.SlowModeSeconds != nil && *input.SlowModeSeconds > MaxRoomSlowModeSeconds {
 		return nil, invalidArgument("slow mode cannot exceed 21600 seconds")
+	}
+	if input.ThreadSlowModeSeconds != nil && *input.ThreadSlowModeSeconds > MaxRoomSlowModeSeconds {
+		return nil, invalidArgument("thread slow mode cannot exceed 21600 seconds")
 	}
 	if input.ThreadingMode != nil && !IsValidRoomThreadingMode(*input.ThreadingMode) {
 		return nil, invalidArgument("invalid room threading mode")
@@ -209,8 +214,17 @@ func (s *RoomCommandModel) updateRoom(ctx context.Context, input RoomUpdateInput
 		if input.Universal != nil && *input.Universal != room.GetUniversal() {
 			add(&evtv1.Event{Event: &evtv1.Event_RoomUniversalChanged{RoomUniversalChanged: &evtv1.RoomUniversalChangedEvent{RoomId: input.RoomID, Universal: *input.Universal}}})
 		}
-		if input.SlowModeSeconds != nil && *input.SlowModeSeconds != room.GetSlowModeSeconds() {
-			add(&evtv1.Event{Event: &evtv1.Event_RoomSlowModeChanged{RoomSlowModeChanged: &evtv1.RoomSlowModeChangedEvent{RoomId: input.RoomID, SlowModeSeconds: *input.SlowModeSeconds}}})
+		if input.SlowModeSeconds != nil || input.ThreadSlowModeSeconds != nil {
+			rootSeconds, threadSeconds := room.GetSlowModeSeconds(), EffectiveThreadSlowModeSeconds(room)
+			if input.SlowModeSeconds != nil {
+				rootSeconds = *input.SlowModeSeconds
+			}
+			if input.ThreadSlowModeSeconds != nil {
+				threadSeconds = *input.ThreadSlowModeSeconds
+			}
+			if room.ThreadSlowModeSeconds == nil || rootSeconds != room.GetSlowModeSeconds() || threadSeconds != EffectiveThreadSlowModeSeconds(room) {
+				add(&evtv1.Event{Event: &evtv1.Event_RoomSlowModeChanged{RoomSlowModeChanged: &evtv1.RoomSlowModeChangedEvent{RoomId: input.RoomID, SlowModeSeconds: rootSeconds, ThreadSlowModeSeconds: &threadSeconds}}})
+			}
 		}
 		if input.ThreadingMode != nil && *input.ThreadingMode != EffectiveRoomThreadingMode(room) {
 			add(&evtv1.Event{Event: &evtv1.Event_RoomThreadingModeChanged{RoomThreadingModeChanged: &evtv1.RoomThreadingModeChangedEvent{RoomId: input.RoomID, ThreadingMode: *input.ThreadingMode}}})

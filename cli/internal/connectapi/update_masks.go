@@ -24,7 +24,7 @@ type updateMaskSpec struct {
 var updateMaskSpecs = map[protoreflect.FullName]updateMaskSpec{
 	"chatto.api.v1.UpdateUserProfileRequest":                                 {fields: "display_name login bio"},
 	"chatto.api.v1.UpdateSettingsRequest":                                    {fields: "timezone time_format share_timezone"},
-	"chatto.api.v1.UpdateRoomRequest":                                        {fields: "name description universal slow_mode_seconds threading_mode"},
+	"chatto.api.v1.UpdateRoomRequest":                                        {fields: "name description universal slow_mode_seconds threading_mode thread_slow_mode_seconds"},
 	"chatto.api.v1.UpdateMessageRequest":                                     {fields: "body also_send_to_channel"},
 	"chatto.api.v1.UpdateBotOutboundWebhookRequest":                          {fields: "enabled url authorization"},
 	"chatto.admin.v1.UpdateServerConfigRequest":                              {fields: "server_name description motd welcome_message"},

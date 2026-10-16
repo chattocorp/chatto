@@ -64,6 +64,8 @@
       "requires": "Erfordert {version} oder neuer",
       "thread_views_title": "Thread-Ansichten werden nur eingeschränkt unterstützt",
       "thread_views_description": "Gefolgte Threads und von dir gestartete Threads werden auf diesem Server möglicherweise nicht getrennt angezeigt.",
+      "independent_slow_mode_title": "Unabhängiger langsamer Modus ist nicht verfügbar",
+      "independent_slow_mode_description": "Dieser Server verwendet eine gemeinsame Wartezeit für Kanalnachrichten und Thread-Antworten.",
       "upgrade": "Bitte den Serveradministrator, für volle Unterstützung auf {version} oder neuer zu aktualisieren."
     },
     "server_gutter": {

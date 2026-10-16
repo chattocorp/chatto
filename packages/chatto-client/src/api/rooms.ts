@@ -21,6 +21,8 @@ export type PublicRoom = {
   groupId: string;
   universal: boolean;
   slowModeSeconds: number;
+  /** Undefined on servers with a shared channel cooldown. Zero means Off. */
+  threadSlowModeSeconds?: number;
   threadingMode: RoomThreadingMode;
 };
 
@@ -60,6 +62,7 @@ function publicRoom(room: Room | undefined): PublicRoom | null {
     groupId: room.groupId,
     universal: room.universal,
     slowModeSeconds: room.slowModeSeconds ?? 0,
+    threadSlowModeSeconds: room.threadSlowModeSeconds,
     threadingMode: normalizeRoomThreadingMode(room.kind, room.threadingMode)
   };
 }
@@ -126,6 +129,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       description?: string | null;
       universal?: boolean;
       slowModeSeconds?: number;
+      threadSlowModeSeconds?: number;
       threadingMode?: RoomThreadingMode;
     }): Promise<PublicRoom | null> {
       try {
@@ -135,12 +139,14 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
           description: input.description === undefined ? undefined : (input.description ?? ''),
           universal: input.universal,
           slowModeSeconds: input.slowModeSeconds,
+          threadSlowModeSeconds: input.threadSlowModeSeconds,
           threadingMode: input.threadingMode,
           updateMask: updateMask(input, [
             'name',
             'description',
             'universal',
             'slowModeSeconds',
+            'threadSlowModeSeconds',
             'threadingMode'
           ])
         });

@@ -65,7 +65,11 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 		target.Event = &realtimev1.RealtimeEvent_RoomUniversalChanged{RoomUniversalChanged: &realtimev1.RoomUniversalChangedEvent{RoomId: v.GetRoomId(), Universal: v.GetUniversal()}}
 	case *evtv1.Event_RoomSlowModeChanged:
 		v := e.RoomSlowModeChanged
-		target.Event = &realtimev1.RealtimeEvent_RoomSlowModeChanged{RoomSlowModeChanged: &realtimev1.RoomSlowModeChangedEvent{RoomId: v.GetRoomId(), SlowModeSeconds: v.GetSlowModeSeconds()}}
+		threadSeconds := v.GetSlowModeSeconds()
+		if v.ThreadSlowModeSeconds != nil {
+			threadSeconds = v.GetThreadSlowModeSeconds()
+		}
+		target.Event = &realtimev1.RealtimeEvent_RoomSlowModeChanged{RoomSlowModeChanged: &realtimev1.RoomSlowModeChangedEvent{RoomId: v.GetRoomId(), SlowModeSeconds: v.GetSlowModeSeconds(), ThreadSlowModeSeconds: &threadSeconds}}
 	case *evtv1.Event_RoomThreadingModeChanged:
 		v := e.RoomThreadingModeChanged
 		target.Event = &realtimev1.RealtimeEvent_RoomThreadingModeChanged{RoomThreadingModeChanged: &realtimev1.RoomThreadingModeChangedEvent{RoomId: v.GetRoomId(), ThreadingMode: realtimeRoomThreadingMode(v.GetThreadingMode())}}

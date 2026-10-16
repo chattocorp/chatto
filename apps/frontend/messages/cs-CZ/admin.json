@@ -309,6 +309,8 @@
         "permissions": "Oprávnění"
       },
       "settings": {
+        "discard_changes": "Zahodit změny",
+        "unsaved_changes": "Máte neuložené změny. Chcete opustit tuto stránku a zahodit je?",
         "name_title": "Název a popis",
         "name_subtitle": "Členové je vidí v seznamu místností a v horní části místnosti.",
         "visibility_title": "Viditelnost",
@@ -317,6 +319,9 @@
         "visibility_help": "Univerzální místnost použijte pro zprávy, které musí dostat všichni členové, například oznámení. Členové nemohou univerzální místnost opustit, ale mohou ji ztlumit. Pokud univerzální režim vypnete, členové, kteří se připojili dříve, v místnosti zůstanou.",
         "slow_mode_subtitle": "Omezte, jak často může každý člen v této místnosti psát.",
         "slow_mode_interval": "Minimální doba mezi příspěvky",
+        "channel_slow_mode_interval": "Pomalý režim kanálu",
+        "thread_slow_mode_interval": "Pomalý režim vláken",
+        "independent_slow_mode_help": "Pomalý režim kanálu omezuje nové hlavní zprávy každého člena. Pomalý režim vláken platí zvlášť pro každého člena v každém vlákně. Hlavní zpráva spustí oba časovače pro svého autora. Členové s oprávněním room.manage nebo message.manage mají výjimku. Úpravy a reakce časovače nemění.",
         "slow_mode_help": "Jeden časovač platí pro zprávy, odpovědi ve vláknech i přílohy. Členové s oprávněním room.manage nebo message.manage jsou vyjmuti. Během čekání mohou členové dál psát koncepty, upravovat své zprávy a přidávat reakce.",
         "threading_title": "Režim vláken",
         "threading_subtitle": "Určete, jak konverzace v této místnosti používají vlákna.",

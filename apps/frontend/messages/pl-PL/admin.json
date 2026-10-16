@@ -309,6 +309,8 @@
         "permissions": "Uprawnienia"
       },
       "settings": {
+        "discard_changes": "Odrzuć zmiany",
+        "unsaved_changes": "Masz niezapisane zmiany. Czy chcesz opuścić tę stronę i je odrzucić?",
         "name_title": "Nazwa i opis",
         "name_subtitle": "Członkowie widzą je na liście pokojów i u góry pokoju.",
         "visibility_title": "Widoczność",
@@ -317,6 +319,9 @@
         "visibility_help": "Używaj pokoju uniwersalnego do wiadomości, które muszą dotrzeć do wszystkich członków, na przykład ogłoszeń. Członkowie nie mogą opuścić pokoju uniwersalnego, ale mogą go wyciszyć. Jeśli wyłączysz tryb uniwersalny, członkowie, którzy dołączyli wcześniej, pozostaną w pokoju.",
         "slow_mode_subtitle": "Ogranicz, jak często każdy członek może pisać w tym pokoju.",
         "slow_mode_interval": "Minimalny czas między wpisami",
+        "channel_slow_mode_interval": "Tryb spowolniony kanału",
+        "thread_slow_mode_interval": "Tryb spowolniony wątków",
+        "independent_slow_mode_help": "Tryb spowolniony kanału ogranicza nowe wiadomości główne każdego członka. Tryb spowolniony wątków działa osobno dla każdego członka w każdym wątku. Wiadomość główna uruchamia oba liczniki dla jej autora. Członkowie z uprawnieniem room.manage lub message.manage są zwolnieni z ograniczeń. Edycje i reakcje nie zmieniają liczników.",
         "slow_mode_help": "Jeden licznik obejmuje wiadomości, odpowiedzi w wątkach i załączniki. Członkowie z uprawnieniem room.manage lub message.manage są wyłączeni z ograniczenia. Podczas oczekiwania członkowie nadal mogą pisać wersje robocze, edytować swoje wiadomości i dodawać reakcje.",
         "threading_title": "Tryb wątków",
         "threading_subtitle": "Wybierz, jak rozmowy w tym pokoju korzystają z wątków.",

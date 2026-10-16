@@ -147,7 +147,7 @@ type RoomViewerState struct {
 	HasUnread bool `protobuf:"varint,2,opt,name=has_unread,json=hasUnread,proto3" json:"has_unread,omitempty"`
 	// Effective room-scoped permission decisions after room state constraints.
 	Permissions []*PermissionGrant `protobuf:"bytes,3,rep,name=permissions,proto3" json:"permissions,omitempty"`
-	// Earliest time the current user may create another message. Absent when
+	// Earliest time the current user may create another root message. Absent when
 	// slow mode is disabled, expired, or bypassed by moderation permissions.
 	SlowModeNextPostAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=slow_mode_next_post_at,json=slowModeNextPostAt,proto3" json:"slow_mode_next_post_at,omitempty"`
 	unknownFields      protoimpl.UnknownFields

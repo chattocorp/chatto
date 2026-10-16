@@ -272,6 +272,7 @@ func (s *messageSearchService) searchThreadGroups(ctx context.Context, viewerID 
 			continue
 		}
 		row.Thread.ViewerState = apiThreadViewerState(result.Following, result.Metadata.HasUnreadReplies)
+		row.Thread.ViewerState.SlowModeNextPostAt = row.RootMessage.GetViewerState().GetThreadSlowModeNextPostAt()
 		match.ThreadContext = &apiv1.ThreadSearchContext{
 			RootMessage: row.RootMessage, Room: row.Room, Thread: row.Thread, LatestReply: row.LatestReply,
 			DirectMessageParticipantUserIds: row.DirectMessageParticipantUserIds,

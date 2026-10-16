@@ -309,6 +309,8 @@
         "permissions": "İzinler"
       },
       "settings": {
+        "discard_changes": "Değişiklikleri iptal et",
+        "unsaved_changes": "Kaydedilmemiş değişiklikleriniz var. Bu sayfadan çıkıp değişiklikleri iptal etmek istiyor musunuz?",
         "name_title": "Ad ve açıklama",
         "name_subtitle": "Üyeler bunları oda listesinde ve odanın üst kısmında görür.",
         "visibility_title": "Görünürlük",
@@ -317,6 +319,9 @@
         "visibility_help": "Tüm üyelerin alması gereken haberler, örneğin duyurular için evrensel oda kullanın. Üyeler evrensel bir odadan ayrılamaz, ancak odayı sessize alabilir. Evrensel seçeneğini kapatırsanız, daha önce katılan üyeler odada kalır.",
         "slow_mode_subtitle": "Her üyenin bu odada ne sıklıkla gönderi paylaşabileceğini sınırlayın.",
         "slow_mode_interval": "Gönderiler arasındaki en kısa süre",
+        "channel_slow_mode_interval": "Kanal yavaş modu",
+        "thread_slow_mode_interval": "Konu yavaş modu",
+        "independent_slow_mode_help": "Kanal yavaş modu, üye başına yeni ana mesajları sınırlar. Konu yavaş modu, her konudaki her üyeye ayrı ayrı uygulanır. Ana mesaj, yazarı için her iki zamanlayıcıyı da başlatır. room.manage veya message.manage iznine sahip üyeler muaftır. Düzenlemeler ve tepkiler zamanlayıcıları değiştirmez.",
         "slow_mode_help": "Tek bir zamanlayıcı mesajlar, konu yanıtları ve ekler için geçerlidir. room.manage veya message.manage iznine sahip üyeler muaftır. Beklerken üyeler taslak yazmaya, mesajlarını düzenlemeye ve tepki eklemeye devam edebilir.",
         "threading_title": "Konu modu",
         "threading_subtitle": "Bu odadaki sohbetlerin konuları nasıl kullanacağını seçin.",

@@ -233,7 +233,7 @@ consumed event families, and cutoff meaning. Each ID combines a manual semantic
 token with a fingerprint of the codec's reachable protobuf schema, so a schema
 change automatically starts a new contract namespace. Most contracts use
 semantic token `v1`; Assets uses `v3`, user profile uses `v4`, and Room Timeline
-uses `v9`.
+uses `v10`.
 
 Room Timeline `v9` retains a historical-import bit on each message reference.
 Unread and room-activity reads omit these messages, while timeline reads keep
@@ -254,6 +254,11 @@ Room Timeline `v4` adds the current attachment-bearing-message index. `v5`
 rebuilds a room-and-author latest-original-post index from retained timeline
 entries so Slow Mode remains equivalent after restore. Echo rows are excluded;
 edits and retractions do not erase the original successful-post timestamp.
+`v10` rebuilds the latest-root-post index for each room and author. Thread
+cooldowns read the retained Threads rows in reverse order and use Room Timeline
+creation facts to exclude imports and echoes. The root is the fallback before
+the author's first eligible reply. No separate per-thread cooldown index is
+retained. Both components reach the room OCC position before authorization.
 `v6` retains call-started and call-ended facts as visible room timeline entries.
 `v7` also retains Threading Mode changes as visible room timeline entries;
 older snapshots omitted those rows and therefore cold-replay under the new
@@ -528,7 +533,7 @@ same room. Body selection and attachment indexes use the original body
 reference. Echo bodies from historical EVT records remain indexed only for
 physical record ownership and secure deletion. Snapshot restore rebuilds
 attachment membership from these links. The Room Timeline snapshot semantics
-token is `v9`. Timeline pages batch original metadata reads and reuse metadata
+token is `v10`. Timeline pages batch original metadata reads and reuse metadata
 and canonical bodies within the response. Missing or invalid original metadata
 is omitted for the affected echo; storage errors still fail the read. Historical
 echo metadata is never used as a fallback. Projections do not retain decrypted

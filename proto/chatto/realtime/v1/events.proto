@@ -109,6 +109,8 @@ message RoomUniversalChangedEvent {
 message RoomSlowModeChangedEvent {
   string room_id = 1;
   uint32 slow_mode_seconds = 2;
+  // Independent interval within each thread. Zero disables it.
+  optional uint32 thread_slow_mode_seconds = 3;
 }
 
 // RoomThreadingModeChangedEvent reports the current room threading policy.

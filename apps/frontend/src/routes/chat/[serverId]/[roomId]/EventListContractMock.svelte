@@ -101,3 +101,10 @@
 >
   report history position
 </button>
+<button
+  type="button"
+  data-testid="report-latest-position"
+  onclick={() => onReadPosition?.({ eventId: 'latest-event', createdAtMs: 2000, latest: true })}
+>
+  report latest position
+</button>

@@ -595,8 +595,11 @@ type ThreadViewerState struct {
 	// True when the thread contains replies after the current user's read
 	// cursor, when known.
 	HasUnreadReplies *bool `protobuf:"varint,2,opt,name=has_unread_replies,json=hasUnreadReplies,proto3,oneof" json:"has_unread_replies,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Earliest time the viewer may reply. Absent when disabled, expired, or
+	// bypassed. The root message starts its author's thread cooldown.
+	SlowModeNextPostAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=slow_mode_next_post_at,json=slowModeNextPostAt,proto3" json:"slow_mode_next_post_at,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ThreadViewerState) Reset() {
@@ -641,6 +644,13 @@ func (x *ThreadViewerState) GetHasUnreadReplies() bool {
 		return *x.HasUnreadReplies
 	}
 	return false
+}
+
+func (x *ThreadViewerState) GetSlowModeNextPostAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SlowModeNextPostAt
+	}
+	return nil
 }
 
 // Aggregated state for one message thread.
@@ -744,8 +754,11 @@ type MessageViewerState struct {
 	// starting the first reply to a root. Includes read access, room policy, and
 	// broad or interaction-scoped posting authority. Absent when not resolved.
 	CanReplyInThread *bool `protobuf:"varint,1,opt,name=can_reply_in_thread,json=canReplyInThread,proto3,oneof" json:"can_reply_in_thread,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Earliest reply time in this message's canonical thread, including when
+	// the root has no replies. Absent when disabled, expired, or bypassed.
+	ThreadSlowModeNextPostAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=thread_slow_mode_next_post_at,json=threadSlowModeNextPostAt,proto3" json:"thread_slow_mode_next_post_at,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *MessageViewerState) Reset() {
@@ -783,6 +796,13 @@ func (x *MessageViewerState) GetCanReplyInThread() bool {
 		return *x.CanReplyInThread
 	}
 	return false
+}
+
+func (x *MessageViewerState) GetThreadSlowModeNextPostAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ThreadSlowModeNextPostAt
+	}
+	return nil
 }
 
 // Renderable message data.
@@ -1040,10 +1060,11 @@ const file_chatto_api_v1_message_types_proto_rawDesc = "" +
 	"\x05count\x18\x02 \x01(\x05R\x05count\x12\x1f\n" +
 	"\vhas_reacted\x18\x03 \x01(\bR\n" +
 	"hasReacted\x12(\n" +
-	"\x10preview_user_ids\x18\x04 \x03(\tR\x0epreviewUserIds\"\xad\x01\n" +
+	"\x10preview_user_ids\x18\x04 \x03(\tR\x0epreviewUserIds\"\xfd\x01\n" +
 	"\x11ThreadViewerState\x12&\n" +
 	"\fis_following\x18\x01 \x01(\bH\x00R\visFollowing\x88\x01\x01\x121\n" +
-	"\x12has_unread_replies\x18\x02 \x01(\bH\x01R\x10hasUnreadReplies\x88\x01\x01B\x0f\n" +
+	"\x12has_unread_replies\x18\x02 \x01(\bH\x01R\x10hasUnreadReplies\x88\x01\x01\x12N\n" +
+	"\x16slow_mode_next_post_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x12slowModeNextPostAtB\x0f\n" +
 	"\r_is_followingB\x15\n" +
 	"\x13_has_unread_repliesJ\x04\b\x03\x10\x04R\x0fattention_level\"\xd4\x02\n" +
 	"\rThreadSummary\x12/\n" +
@@ -1053,9 +1074,10 @@ const file_chatto_api_v1_message_types_proto_rawDesc = "" +
 	"\rlast_reply_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12?\n" +
 	"\x1cparticipant_preview_user_ids\x18\x04 \x03(\tR\x19participantPreviewUserIds\x12+\n" +
 	"\x11participant_count\x18\x05 \x01(\x05R\x10participantCount\x12C\n" +
-	"\fviewer_state\x18\x06 \x01(\v2 .chatto.api.v1.ThreadViewerStateR\vviewerState\"`\n" +
+	"\fviewer_state\x18\x06 \x01(\v2 .chatto.api.v1.ThreadViewerStateR\vviewerState\"\xbd\x01\n" +
 	"\x12MessageViewerState\x122\n" +
-	"\x13can_reply_in_thread\x18\x01 \x01(\bH\x00R\x10canReplyInThread\x88\x01\x01B\x16\n" +
+	"\x13can_reply_in_thread\x18\x01 \x01(\bH\x00R\x10canReplyInThread\x88\x01\x01\x12[\n" +
+	"\x1dthread_slow_mode_next_post_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x18threadSlowModeNextPostAtB\x16\n" +
 	"\x14_can_reply_in_thread\"\xe2\a\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
@@ -1128,21 +1150,23 @@ var file_chatto_api_v1_message_types_proto_depIdxs = []int32{
 	1,  // 7: chatto.api.v1.MessageAttachment.asset_url:type_name -> chatto.api.v1.MessageAssetUrl
 	1,  // 8: chatto.api.v1.MessageAttachment.thumbnail_asset_url:type_name -> chatto.api.v1.MessageAssetUrl
 	4,  // 9: chatto.api.v1.MessageAttachment.video_processing:type_name -> chatto.api.v1.MessageVideoProcessing
-	11, // 10: chatto.api.v1.ThreadSummary.last_reply_at:type_name -> google.protobuf.Timestamp
-	7,  // 11: chatto.api.v1.ThreadSummary.viewer_state:type_name -> chatto.api.v1.ThreadViewerState
-	11, // 12: chatto.api.v1.Message.created_at:type_name -> google.protobuf.Timestamp
-	5,  // 13: chatto.api.v1.Message.attachments:type_name -> chatto.api.v1.MessageAttachment
-	12, // 14: chatto.api.v1.Message.link_preview:type_name -> chatto.api.v1.LinkPreview
-	11, // 15: chatto.api.v1.Message.updated_at:type_name -> google.protobuf.Timestamp
-	6,  // 16: chatto.api.v1.Message.reactions:type_name -> chatto.api.v1.MessageReaction
-	8,  // 17: chatto.api.v1.Message.thread:type_name -> chatto.api.v1.ThreadSummary
-	11, // 18: chatto.api.v1.Message.deleted_at:type_name -> google.protobuf.Timestamp
-	9,  // 19: chatto.api.v1.Message.viewer_state:type_name -> chatto.api.v1.MessageViewerState
-	20, // [20:20] is the sub-list for method output_type
-	20, // [20:20] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	11, // 10: chatto.api.v1.ThreadViewerState.slow_mode_next_post_at:type_name -> google.protobuf.Timestamp
+	11, // 11: chatto.api.v1.ThreadSummary.last_reply_at:type_name -> google.protobuf.Timestamp
+	7,  // 12: chatto.api.v1.ThreadSummary.viewer_state:type_name -> chatto.api.v1.ThreadViewerState
+	11, // 13: chatto.api.v1.MessageViewerState.thread_slow_mode_next_post_at:type_name -> google.protobuf.Timestamp
+	11, // 14: chatto.api.v1.Message.created_at:type_name -> google.protobuf.Timestamp
+	5,  // 15: chatto.api.v1.Message.attachments:type_name -> chatto.api.v1.MessageAttachment
+	12, // 16: chatto.api.v1.Message.link_preview:type_name -> chatto.api.v1.LinkPreview
+	11, // 17: chatto.api.v1.Message.updated_at:type_name -> google.protobuf.Timestamp
+	6,  // 18: chatto.api.v1.Message.reactions:type_name -> chatto.api.v1.MessageReaction
+	8,  // 19: chatto.api.v1.Message.thread:type_name -> chatto.api.v1.ThreadSummary
+	11, // 20: chatto.api.v1.Message.deleted_at:type_name -> google.protobuf.Timestamp
+	9,  // 21: chatto.api.v1.Message.viewer_state:type_name -> chatto.api.v1.MessageViewerState
+	22, // [22:22] is the sub-list for method output_type
+	22, // [22:22] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_message_types_proto_init() }

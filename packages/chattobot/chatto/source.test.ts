@@ -1,4 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest';
+import { parseEnv } from 'node:util';
 import { RealtimeEvent } from '@chatto/client';
 import { createTaskContext, task, Type } from 'runling';
 import type { EventSource, WebhookContext } from 'runling/web';
@@ -164,6 +165,30 @@ test('ordinary mentions bypass intake and opted-in roots classify once before co
     body: '',
     attachmentTypes: ['image/png']
   });
+});
+
+test.each([
+  'CHATTO_AUTO_ENGAGE_ROOM_IDS="R-one,R-two"',
+  'CHATTO_AUTO_ENGAGE_ROOM_IDS=R-one,R-two',
+  'CHATTO_AUTO_ENGAGE_ROOM_IDS="R-one, R-two"',
+  'CHATTO_AUTO_ENGAGE_ROOM_IDS="R-one R-two"'
+])('routes new reports from both configured rooms: %s', async (line) => {
+  // Parse the .env syntax before exercising the real settings, source, router, and workflow.
+  // Only Chatto transport and model calls are replaced by fixtures.
+  const rooms = parseEnv(line).CHATTO_AUTO_ENGAGE_ROOM_IDS!;
+  const inputs = await run(
+    [event('first', 'R-one'), event('second', 'R-two'), event('excluded', 'R-three')],
+    { rooms }
+  );
+  expect(inputs).toHaveLength(2);
+  expect(inputs).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ id: 'first', roomId: 'R-one', trigger: 'intake' }),
+      expect.objectContaining({ id: 'second', roomId: 'R-two', trigger: 'intake' })
+    ])
+  );
+  expect(mocks.classify).toHaveBeenCalledTimes(2);
+  expect(mocks.started.mock.calls).toEqual([['Chatto thread'], ['Chatto thread']]);
 });
 
 test.each([{ rooms: '' }, { allowed: 'someone-else' }, { botAuthor: true }, { missing: true }])(

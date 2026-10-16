@@ -13,7 +13,9 @@ describe('FeatureCompatibilityNotice', () => {
 
   it('links to the affected section without repeating the details', async () => {
     const screen = render(FeatureCompatibilityNotice, {
-      features: limitedServerFeatures('0.5.0-beta.17'),
+      features: limitedServerFeatures('0.5.0-beta.17').filter(
+        (feature) => feature === 'inviteLinks'
+      ),
       serverSegment: 'chat.example.test'
     });
     await expect
