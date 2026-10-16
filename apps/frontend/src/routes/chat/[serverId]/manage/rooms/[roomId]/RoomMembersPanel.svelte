@@ -1,5 +1,6 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
+  import { accountManagementHref } from '$lib/navigation/accountManagementHref';
   import {
     BOT_ACCOUNT_LABEL,
     accountNameToken,
@@ -383,7 +384,6 @@
       onLoadMore={loadMore}
       loadMoreRoot={scrollRoot}
       loadingMoreMessage={m('admin.members.loading_more')}
-      hoverable={false}
     >
       {#snippet header()}
         <th class="table-header-cell">{m('admin.common.user')}</th>
@@ -395,14 +395,25 @@
         {/if}
       {/snippet}
       {#snippet row(member)}
+        {@const href = accountManagementHref(serverScope.serverId, member, serverScope.store)}
         <td class="px-4 py-3">
           <div class="flex min-w-0 items-center gap-3">
             <UserAvatar user={member} size="sm" useLiveProfile={false} />
-            <AccountName
-              name={member.displayName}
-              identity={member}
-              class="font-medium text-text-top"
-            />
+            {#if href}
+              <a class="data-table-row-link min-w-0" {href}>
+                <AccountName
+                  name={member.displayName}
+                  identity={member}
+                  class="font-medium text-text-top"
+                />
+              </a>
+            {:else}
+              <AccountName
+                name={member.displayName}
+                identity={member}
+                class="font-medium text-text-top"
+              />
+            {/if}
           </div>
         </td>
         <td class="px-4 py-3 text-muted">@{member.login}</td>

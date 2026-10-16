@@ -17,7 +17,8 @@ type Member = {
 
 const mocks = vi.hoisted(() => ({
   listMembers: vi.fn(),
-  goto: vi.fn()
+  goto: vi.fn(),
+  canManageBots: true
 }));
 
 let originalIntersectionObserver: typeof IntersectionObserver;
@@ -88,7 +89,15 @@ vi.mock('$app/navigation', () => ({
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'origin',
-    store: { currentUser: { user: { settings: null } } },
+    store: {
+      currentUser: { user: { settings: null } },
+      accountId: 'viewer',
+      permissions: {
+        canAdminViewUsers: true,
+        canManageBots: mocks.canManageBots,
+        canAdminManageAccounts: false
+      }
+    },
     connection: {
       queryScope: 'members-test',
       getAPI: (factory: (config: never) => unknown) => factory({} as never)
@@ -165,6 +174,7 @@ describe('server admin members pagination', () => {
       MockIntersectionObserver as unknown as typeof IntersectionObserver;
     mocks.listMembers.mockReset();
     mocks.goto.mockReset();
+    mocks.canManageBots = true;
   });
 
   afterEach(() => {
@@ -317,5 +327,17 @@ describe('server admin members pagination', () => {
 
     expect(container.textContent).toContain('primary@example.test');
     expect(container.textContent).not.toContain('first@example.test');
+  });
+
+  it('does not link bots when the viewer only has member read access', async () => {
+    mocks.canManageBots = false;
+    queueResults(result([member(0), { ...member(0, 'helper_bot'), isBot: true }]));
+    const { container } = render(MembersPage);
+    await settle();
+    expect(
+      container.querySelector('a[href="/chat/-/manage/server/members/member-0"]')
+    ).not.toBeNull();
+    expect(container.querySelector('a[href="/chat/-/manage/server/bots/helper_bot-0"]')).toBeNull();
+    expect(container.textContent).toContain('helper_bot 0');
   });
 });
