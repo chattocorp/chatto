@@ -1,5 +1,7 @@
 {
   "invite_links": {
+    "compatibility_title": "メンバーの招待リンクは利用できません",
+    "compatibility_description": "このサーバーは、このアプリでの招待リンクの作成や管理に対応していません。既存の招待リンクは引き続き有効です。",
     "invite_people": "ユーザーを招待",
     "own": "自分の招待リンク",
     "all": "すべての招待リンク",

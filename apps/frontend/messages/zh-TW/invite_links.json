@@ -1,5 +1,7 @@
 {
   "invite_links": {
+    "compatibility_title": "成員邀請連結無法使用",
+    "compatibility_description": "此伺服器不支援在此應用程式中建立或管理邀請連結。現有邀請連結仍然有效。",
     "invite_people": "邀請使用者",
     "own": "你的邀請連結",
     "all": "所有邀請連結",

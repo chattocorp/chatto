@@ -1,5 +1,7 @@
 {
   "invite_links": {
+    "compatibility_title": "I link di invito dei membri non sono disponibili",
+    "compatibility_description": "Questo server non supporta la creazione o la gestione dei link di invito in questa app. I link esistenti restano validi.",
     "invite_people": "Invita persone",
     "own": "I tuoi link di invito",
     "all": "Tutti i link di invito",

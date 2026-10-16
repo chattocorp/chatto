@@ -1,5 +1,7 @@
 {
   "invite_links": {
+    "compatibility_title": "Dalībnieku uzaicinājuma saites nav pieejamas",
+    "compatibility_description": "Šis serveris neatbalsta uzaicinājuma saišu izveidi vai pārvaldību šajā lietotnē. Esošās uzaicinājuma saites paliek derīgas.",
     "invite_people": "Uzaicināt cilvēkus",
     "own": "Jūsu uzaicinājumu saites",
     "all": "Visas uzaicinājumu saites",

@@ -1,5 +1,7 @@
 {
   "invite_links": {
+    "compatibility_title": "Linki zaproszeń członków są niedostępne",
+    "compatibility_description": "Ten serwer nie obsługuje tworzenia linków zaproszeń ani zarządzania nimi w tej aplikacji. Istniejące linki pozostają ważne.",
     "invite_people": "Zaproś osoby",
     "own": "Twoje linki z zaproszeniem",
     "all": "Wszystkie linki z zaproszeniem",

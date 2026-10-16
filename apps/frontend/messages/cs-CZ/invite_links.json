@@ -1,5 +1,7 @@
 {
   "invite_links": {
+    "compatibility_title": "Pozvánkové odkazy členů nejsou dostupné",
+    "compatibility_description": "Tento server nepodporuje vytváření ani správu pozvánkových odkazů v této aplikaci. Stávající odkazy zůstávají platné.",
     "invite_people": "Pozvat lidi",
     "own": "Vaše odkazy s pozvánkou",
     "all": "Všechny odkazy s pozvánkou",

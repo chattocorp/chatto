@@ -1,5 +1,7 @@
 {
   "invite_links": {
+    "compatibility_title": "Üye davet bağlantıları kullanılamıyor",
+    "compatibility_description": "Bu sunucu, bu uygulamada davet bağlantısı oluşturmayı veya yönetmeyi desteklemiyor. Mevcut davet bağlantıları geçerliliğini korur.",
     "invite_people": "Kişileri davet et",
     "own": "Davet bağlantılarınız",
     "all": "Tüm davet bağlantıları",

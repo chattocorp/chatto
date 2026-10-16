@@ -1,5 +1,7 @@
 {
   "invite_links": {
+    "compatibility_title": "Uitnodigingslinks voor leden zijn niet beschikbaar",
+    "compatibility_description": "Deze server ondersteunt het maken of beheren van uitnodigingslinks in deze app niet. Bestaande uitnodigingslinks blijven geldig.",
     "invite_people": "Mensen uitnodigen",
     "own": "Je uitnodigingslinks",
     "all": "Alle uitnodigingslinks",

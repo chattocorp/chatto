@@ -1,5 +1,7 @@
 {
   "invite_links": {
+    "compatibility_title": "Invitligiloj de membroj ne disponeblas",
+    "compatibility_description": "Ĉi tiu servilo ne subtenas kreadon aŭ administradon de invitligiloj en ĉi tiu aplikaĵo. Ekzistantaj invitligiloj restas validaj.",
     "invite_people": "Inviti homojn",
     "own": "Viaj invitligiloj",
     "all": "Ĉiuj invitligiloj",

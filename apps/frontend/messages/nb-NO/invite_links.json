@@ -1,5 +1,7 @@
 {
   "invite_links": {
+    "compatibility_title": "Invitasjonslenker for medlemmer er ikke tilgjengelige",
+    "compatibility_description": "Denne serveren støtter ikke oppretting eller administrasjon av invitasjonslenker i denne appen. Eksisterende invitasjonslenker er fortsatt gyldige.",
     "invite_people": "Inviter personer",
     "own": "Dine invitasjonslenker",
     "all": "Alle invitasjonslenker",

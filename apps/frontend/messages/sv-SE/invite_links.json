@@ -1,5 +1,7 @@
 {
   "invite_links": {
+    "compatibility_title": "Inbjudningslänkar för medlemmar är inte tillgängliga",
+    "compatibility_description": "Den här servern stöder inte att skapa eller hantera inbjudningslänkar i den här appen. Befintliga inbjudningslänkar är fortfarande giltiga.",
     "invite_people": "Bjud in personer",
     "own": "Dina inbjudningslänkar",
     "all": "Alla inbjudningslänkar",

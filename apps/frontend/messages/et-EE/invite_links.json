@@ -1,5 +1,7 @@
 {
   "invite_links": {
+    "compatibility_title": "Liikmete kutselingid pole saadaval",
+    "compatibility_description": "See server ei toeta selles rakenduses kutselinkide loomist ega haldamist. Olemasolevad kutselingid jäävad kehtima.",
     "invite_people": "Kutsu inimesi",
     "own": "Teie kutselingid",
     "all": "Kõik kutselingid",

@@ -68,8 +68,16 @@ describe('ServerInformation', () => {
     expect(screen.container.textContent?.match(/ask the server administrator/g)).toHaveLength(1);
   });
   it('shows a supported state without upgrade advice', async () => {
-    const screen = show('0.5.0-beta.16');
+    const screen = show('0.5.0-beta.18');
     await expect.element(screen.getByText('No known compatibility issues')).toBeVisible();
+    expect(screen.container.querySelector('#threadViews')).toBeNull();
+    expect(screen.container.querySelector('#inviteLinks')).toBeNull();
+  });
+  it('explains invite-link limitations on servers with supported thread views', async () => {
+    const screen = show('0.5.0-beta.17');
+    await expect.element(screen.getByText('Member invite links are unavailable')).toBeVisible();
+    await expect.element(screen.getByText('Requires 0.5.0-beta.18 or newer')).toBeVisible();
+    expect(screen.container.querySelector('#inviteLinks')).not.toBeNull();
     expect(screen.container.querySelector('#threadViews')).toBeNull();
   });
   it('does not treat an unknown version as supported', async () => {

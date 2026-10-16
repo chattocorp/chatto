@@ -1,5 +1,7 @@
 {
   "invite_links": {
+    "compatibility_title": "成员邀请链接不可用",
+    "compatibility_description": "此服务器不支持在此应用中创建或管理邀请链接。现有邀请链接仍然有效。",
     "invite_people": "邀请用户",
     "own": "你的邀请链接",
     "all": "所有邀请链接",
