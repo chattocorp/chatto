@@ -22,6 +22,26 @@ machine-specific settings, and private prompts out of tracked files; use local
 settings such as `.conductor/settings.local.toml` or your tool's user-level
 configuration for those.
 
+## Server Compatibility Threshold Changes
+
+CI requires PR labels for any value change to the client's server compatibility
+thresholds, including decreases:
+
+| Constant                             | Required label                          |
+| ------------------------------------ | --------------------------------------- |
+| `MINIMUM_SUPPORTED_SERVER_VERSION`   | `server-compatibility:full-support`     |
+| `MINIMUM_CONNECTABLE_SERVER_VERSION` | `server-compatibility:connection-floor` |
+
+Changes to both thresholds require both labels. Explain the reason for each
+change in the PR. Adding or removing a label runs CI again. Comments and
+formatting changes do not require labels.
+
+Labels do not waive compatibility tests. Raise the connection threshold only
+as a last resort. Document the exact incompatibility, why reasonable alternatives
+are insufficient, the oldest server release that meets the requirement, and
+the required upgrade action. See
+[FDR-031](docs/fdr/FDR-031-client-server-compatibility-discovery.md).
+
 ## MCP Tool Proposals
 
 Chatto's MCP catalog serves demonstrated agent workflows. ConnectRPC API
