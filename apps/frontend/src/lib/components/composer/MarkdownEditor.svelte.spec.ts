@@ -51,6 +51,19 @@ function pasteText(target: Element, text: string) {
 }
 
 describe('MarkdownEditor', () => {
+  it('focuses the end of a long draft without moving its caret', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    await renderEditor({ onReady: (api: ComposerEditorApi) => readyApis.push(api) });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+    const draft = Array.from({ length: 400 }, (_, index) => `Line ${index}`).join('\n');
+    api.setContent(draft);
+    api.focus('end');
+    await expect.element(page.getByRole('textbox', { name: 'Write Markdown' })).toHaveFocus();
+    await userEvent.keyboard('X');
+    await expect.poll(() => api.getText()).toBe(`${draft}X`);
+  });
+
   it('uses native caret and selection after refocusing', async () => {
     const { container } = await renderEditor();
     const textbox = page.getByRole('textbox', { name: 'Write Markdown' });
