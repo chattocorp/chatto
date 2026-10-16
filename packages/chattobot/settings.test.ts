@@ -1,7 +1,19 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { ConfigurationError, maintainerLoginSetting, thinkingSetting } from './settings.ts';
+import { autoEngageRoomIds } from './settings.ts';
 
 afterEach(() => vi.unstubAllEnvs());
+
+test('automatic intake is opt-in and validates stable room IDs without exposing values', () => {
+  vi.stubEnv('CHATTO_AUTO_ENGAGE_ROOM_IDS', '');
+  expect([...autoEngageRoomIds()]).toEqual([]);
+  vi.stubEnv('CHATTO_AUTO_ENGAGE_ROOM_IDS', 'R-one, R_two\nR-one');
+  expect([...autoEngageRoomIds()]).toEqual(['R-one', 'R_two']);
+  vi.stubEnv('CHATTO_AUTO_ENGAGE_ROOM_IDS', '#private-room');
+  expect(() => autoEngageRoomIds()).toThrow(
+    'CHATTO_AUTO_ENGAGE_ROOM_IDS must list room IDs separated by commas'
+  );
+});
 
 test('the maintainer contact accepts one login and does not expose invalid values', () => {
   vi.stubEnv('CHATTO_MAINTAINER_NAME', '');

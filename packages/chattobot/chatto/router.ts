@@ -1,4 +1,4 @@
-/** Route addressed messages to one conversation run per thread. */
+/** Deliver messages to one workflow run per thread. The selected workflow owns its behavior. */
 import { createDeliveryTracker } from '@chatto/client';
 import { log, type Task, type TSchema } from 'runling';
 import type { RunHandle, WebhookRouter } from 'runling/web';
@@ -15,7 +15,11 @@ interface Thread {
 
 /** Process-local routing state. Keep it across configuration reloads of the same bot. */
 export function createRouterState() {
-  return { threads: new Map<string, Thread>(), accepted: new Map<string, number>() };
+  return {
+    threads: new Map<string, Thread>(),
+    accepted: new Map<string, number>(),
+    routing: new Map<string, Promise<unknown>>()
+  };
 }
 export type RouterState = ReturnType<typeof createRouterState>;
 
@@ -23,6 +27,8 @@ export interface RouterOptions {
   botId: string;
   /** The conversation task. Its input and messages are `IncomingMessage`. */
   conversation: Task<typeof IncomingMessage, TSchema, typeof ConversationInput>;
+  /** Workflow for unsolicited root posts. It owns classification and any child conversation. */
+  intake: Task<typeof IncomingMessage, TSchema, typeof ConversationInput>;
   state: RouterState;
   idleMs?: number;
 }
@@ -34,6 +40,7 @@ export interface RouterOptions {
 export function createChattoRouter({
   botId,
   conversation,
+  intake,
   state,
   idleMs = IDLE_MS
 }: RouterOptions): WebhookRouter<IncomingMessage> {
@@ -42,6 +49,7 @@ export function createChattoRouter({
 
   const forget = (key: string, run: RunHandle<ConversationInput>) => {
     const thread = threads.get(key);
+
     if (thread?.run !== run) return;
     clearTimeout(thread.idle);
     threads.delete(key);
@@ -57,12 +65,15 @@ export function createChattoRouter({
     thread.idle.unref?.();
   };
 
-  const route: WebhookRouter<IncomingMessage> = async (ctx, message) => {
+  const deliver: WebhookRouter<IncomingMessage> = async (ctx, message) => {
     const delivery = JSON.stringify([botId, message.id]);
     if (deliveries.has(delivery)) return;
     deliveries.accept(delivery);
     const key = JSON.stringify([botId, message.roomId, message.threadRootId]);
     const thread = threads.get(key);
+
+    // An existing workflow already owns the thread, including any pending classification.
+    if (thread && message.trigger === 'intake') return;
 
     if (thread) {
       try {
@@ -75,11 +86,26 @@ export function createChattoRouter({
       }
     }
 
-    const run = await ctx.start(conversation, { input: message });
+    const workflow = message.trigger === 'intake' ? intake : conversation;
+    const run = await ctx.start(workflow, { input: message });
     threads.set(key, { run });
     touch(key);
     void run.finished.then(() => forget(key, run));
-    log.debug('Started a conversation');
+    log.debug('Started a thread workflow');
+  };
+  // Concurrent deliveries must not register two runs for one thread.
+  const routing = (state.routing ??= new Map());
+  const route: WebhookRouter<IncomingMessage> = async (ctx, message) => {
+    const key = JSON.stringify([botId, message.roomId, message.threadRootId]);
+    const pending = (routing.get(key) ?? Promise.resolve())
+      .catch(() => {})
+      .then(() => deliver(ctx, message));
+    routing.set(key, pending);
+    try {
+      await pending;
+    } finally {
+      if (routing.get(key) === pending) routing.delete(key);
+    }
   };
   route.label = 'Chatto conversation';
   return route;
