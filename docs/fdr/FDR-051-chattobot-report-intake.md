@@ -36,6 +36,11 @@ ordinary thread replies can continue the conversation without another mention.
   issue coverage, withdrawn report, or successful authorized filing/update whose
   result has been shared. Waiting for details, approval, or background work does
   not qualify. The mark describes request processing, not a shipped fix.
+  A partial GitHub result does not qualify until the remaining work succeeds or
+  a maintainer explicitly accepts the partial result. For example, a created issue
+  with a failed requested priority update remains unfinished. A maintainer's retry
+  uses the quoted failure to identify the remaining step; it does not repeat
+  completed work.
   The conversation agent can remove its mark if the request reopens. Completion
   includes one short closing reply, with a numbered link for confirmed issue coverage.
   Reaction failures do not stop the conversation.

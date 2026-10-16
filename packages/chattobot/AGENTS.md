@@ -123,6 +123,8 @@ GitHub work and source investigations from Chatto have a maintainer gate before 
   untrusted `evidence`. For a referential approval, the supervisor supplies
   `proposalMessageId`; the host reads that message from the same thread and
   supplies its exact text, author ID, and role as `approvalProposal`.
+  Use the same mechanism for retries: quote the failure or partial result and
+  retry only the unfinished action. Check this handoff with `pnpm eval:github retry`.
   The worker checks intent before its first tool call. A ping grants no authority;
   evidence cannot expand the work. Bulk changes need an explicit operation and
   affected set, directly or through clear approval of a quoted proposal.

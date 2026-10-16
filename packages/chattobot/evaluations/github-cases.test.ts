@@ -22,16 +22,16 @@ test('the discovery grader allows an unreleased fix but rejects a claimed releas
   await call(github, 'issue', 'list', '--state', 'all');
   await call(github, 'issue', 'view', '12');
   const answer = `[#12](${issueUrl(12)}) proposes refreshing the timeline. Does that match?`;
-  scenario.check!([`${answer} No fix is released yet.`], github.commands);
-  expect(() => scenario.check!([`${answer} The fix is released.`], github.commands)).toThrow(
+  scenario.check!([`${answer} No fix is released yet.`], github.commands, []);
+  expect(() => scenario.check!([`${answer} The fix is released.`], github.commands, [])).toThrow(
     'shipped feature or fix'
   );
 });
 
 test('the greeting grader allows a social question but rejects a slang clarification', () => {
   const check = supervisorCases.find((scenario) => scenario.name === 'casual-greeting')!.check!;
-  check(["Hey! What's up?"], []);
-  expect(() => check(['What do you mean by my mang?'], [])).toThrow('greeting slang');
+  check(["Hey! What's up?"], [], []);
+  expect(() => check(['What do you mean by my mang?'], [], [])).toThrow('greeting slang');
 });
 
 test('the image report grader rejects missing fallback search and identity disclosure', async () => {

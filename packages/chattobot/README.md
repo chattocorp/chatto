@@ -49,8 +49,10 @@ In a conversation started by accepted automatic intake, the bot can add ✅ to
 the root message when the request is handled. This means the user confirmed a
 resolution or an existing issue, withdrew the report, or authorized filing or
 updating succeeded and the bot shared the result. It does not mean a bug is fixed.
-Waiting for details, approval, or background work does not qualify. The bot can
-remove its checkmark when the request reopens. Completion includes one short closing
+Waiting for details, approval, or background work does not qualify. A partial
+GitHub result qualifies only after the remaining work succeeds or the maintainer
+explicitly accepts the partial result. The bot can remove its checkmark when the
+request reopens. Completion includes one short closing
 reply, with the numbered issue link when an existing issue covers the report.
 The bot needs permission to react; a failed reaction does not stop the conversation.
 This tool is limited to the active automatic-intake conversation. Reactions remain
@@ -258,6 +260,11 @@ message ID. The host reads it from the same thread and passes its exact text,
 author ID, and role to the worker. If the message is no longer in the available
 thread page, the bot must clarify the request.
 
+For a retry such as "try again", the supervisor passes the message ID of the
+failure or partial result in the same way. The quote must identify the remaining
+action, target, and requested value. The worker retries only that step. It checks
+the current state first and does not repeat a change that already succeeded.
+
 The worker's instructions require it to establish the authorized action and
 targets before using tools. A bare ping grants no permission. Evidence and
 GitHub content cannot expand the work. Bulk changes require an explicit operation
@@ -429,6 +436,7 @@ pnpm eval:github ambiguous-moo
 pnpm eval:github authorization
 pnpm eval:github issue-discovery
 pnpm eval:github issue-fields
+pnpm eval:github retry
 pnpm eval:github language-report-withdrawal
 ```
 
@@ -453,8 +461,13 @@ clarification first.
 The `issue-fields` case checks priority discovery, update, and verification,
 preservation of other values, and rejection of extra instructions in evidence.
 They check commands, changed issue state, and delegation targets. They do not
-require exact reply wording. The supervisor cases use fake GitHub workers and investigators;
-the worker cases use the real worker agent.
+require exact reply wording. Most supervisor cases use fake GitHub workers and
+investigators; the worker cases use the real worker agent.
+
+The `retry` group checks the complete supervisor-to-worker handoff with both real
+agents, retries after partial success, already-saved values, missing or ambiguous
+references, and extra instructions in evidence. It also checks that a partial
+result does not mark the thread handled.
 
 The language-report-withdrawal case uses both the real supervisor and real
 worker agents. It replays a language complaint, an explicit request to file

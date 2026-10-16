@@ -8,6 +8,7 @@ import { createConversation } from './conversation.ts';
 import { createGitHubWorker, GitHubWorkInput } from './github.ts';
 import { ConfigurationError, setting, thinkingSetting } from '../settings.ts';
 import { FakeGitHub } from '../evaluations/fake-github.ts';
+import { classifyGh } from '../github/policy.ts';
 import { supervisorCases, workerCases, type SupervisorCase } from '../evaluations/github-cases.ts';
 import { languageReport } from '../evaluations/language-report.ts';
 
@@ -25,10 +26,13 @@ interface CaseResult {
 async function supervisor(
   ctx: TaskContext<unknown, unknown>,
   model: string,
-  scenario: SupervisorCase
+  scenario: SupervisorCase,
+  directory: string
 ) {
   const github = scenario.fixture?.() ?? new FakeGitHub();
   const requests: string[] = [];
+  const delegated: Parameters<ReturnType<typeof createGitHubWorker>>[1][] = [];
+  let directWrites = 0;
   const attempts: { requestId?: unknown; proposedWork?: unknown; evidence?: unknown }[] = [];
   const investigationAttempts: { requestId?: unknown }[] = [];
   const investigations: string[] = [];
@@ -42,7 +46,13 @@ async function supervisor(
       thinkingLevel: thinkingSetting('CHATTO_AGENT_THINKING', 'medium'),
       maintainers: new Set(['maintainer']),
       maintainerLogin: scenario.maintainerLogin,
-      github: github.settings(),
+      github: {
+        ...github.settings(),
+        run: (args, options) => {
+          if (classifyGh(args).access === 'write') directWrites++;
+          return github.run(args, options);
+        }
+      },
       investigation: {
         directory: '/evaluation/fixture',
         investigator: () =>
@@ -75,7 +85,7 @@ async function supervisor(
         assert.deepEqual(thread, { roomId: 'fixture-room', threadRootId: 'fixture-thread' });
         if (value && scenario.expectedRequest)
           assert(
-            posts.some((body) => body.includes('https://github.com/evaluation/fixture/issues/101')),
+            posts.some((body) => github.issues.some((issue) => body.includes(issue.url))),
             'Share the filing result before marking handled'
           );
         handled.push(value);
@@ -116,15 +126,26 @@ async function supervisor(
       };
       return bot;
     },
-    () =>
-      task(
+    (settings) => {
+      const worker = scenario.realWorker
+        ? createGitHubWorker({
+            ...settings,
+            ...github.settings(),
+            sessions: resolve(directory, 'sessions')
+          })
+        : undefined;
+      return task(
         {
           name: 'Fixture GitHub worker',
           input: GitHubWorkInput,
           output: Type.String()
         },
-        async (_ctx, { request }) => {
+        async (workerContext, input) => {
+          const { request } = input;
           requests.push(request);
+          delegated.push(input);
+          if (worker) return worker(workerContext, input);
+          if (scenario.workerResult !== undefined) return scenario.workerResult;
           github.issues.push({
             number: 101,
             title: 'Fixture issue',
@@ -135,7 +156,8 @@ async function supervisor(
           });
           return 'Created https://github.com/evaluation/fixture/issues/101';
         }
-      )
+      );
+    }
   );
   const location = { roomId: 'fixture-room', threadRootId: 'fixture-thread' };
   await using invocation = ctx.start(conversation, {
@@ -160,6 +182,8 @@ async function supervisor(
   await invocation.result;
   return {
     requests,
+    delegated,
+    directWrites,
     attempts,
     investigations,
     investigationAttempts,
@@ -253,7 +277,7 @@ export default task(
     }
     for (const scenario of supervisorCases.filter((item) => selected(item.name))) {
       await evaluate(scenario.name, async (context, evidence) => {
-        const result = await supervisor(context, model, scenario);
+        const result = await supervisor(context, model, scenario, directory);
         evidence(result);
         const expected = scenario.messages.find(
           (message) => message.id === scenario.expectedRequest
@@ -298,11 +322,12 @@ export default task(
             'Acknowledgment must not claim completed work'
           );
         }
+        assert.equal(result.directWrites, 0, 'Supervisor attempted a direct write');
         assert(
-          result.commands.every((command) => command.access === 'read'),
-          'Supervisor attempted a direct write'
+          result.commands.every((command) => command.supported),
+          'Unsupported fixture command'
         );
-        scenario.check?.(result.posts, result.commands);
+        scenario.check?.(result.posts, result.commands, result.delegated);
       });
     }
     if (selected('language-report-withdrawal')) {
