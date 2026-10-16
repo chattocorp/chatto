@@ -115,7 +115,8 @@ write.
 **Decision:** Both invite-link permissions belong to the default administrator
 role on fresh servers. Neither belongs to `everyone`. Existing roles are not
 rewritten; operators must grant the new permissions explicitly. The retired
-`user.invite` permission grants no authority.
+`user.invite` permission grants no authority and does not prevent role assignment
+or revocation. Its historical decisions remain stored for upgrade detection.
 **Why:** The split changes permission meaning and removes the shield requirement
 from creation. Operators must review this change under ADR-113.
 **Tradeoff:** A non-owner administrator on an upgraded server may need an owner

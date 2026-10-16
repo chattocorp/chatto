@@ -606,8 +606,6 @@
     },
     "invitations": {
       "title": "Uitnodigingslinks",
-      "subtitle": "Maak en beheer links waarmee nieuwe accounts kunnen worden aangemaakt.",
-      "create_title": "Uitnodigingslink maken",
       "max_uses": "Maximaal aantal keer gebruiken",
       "max_uses_error": "Voer een geheel getal van minstens 1 in.",
       "unlimited_uses": "Onbeperkt gebruik toestaan",

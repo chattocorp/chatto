@@ -85,6 +85,12 @@ func (c *ChattoCore) requireRoleAssignmentWithinAuthority(ctx context.Context, a
 		return ErrPermissionDenied
 	}
 	for _, decision := range c.rbacModel.rolePermissionDecisions(roleName) {
+		// Retired invite decisions carry no authority at any scope. Keep them in
+		// history for upgrade detection, but do not let them block delegation.
+		// Do not skip arbitrary unknown permissions from a newer server version.
+		if decision.Permission == permUserInviteLegacy {
+			continue
+		}
 		if decision.Decision != DecisionAllow && (!includeDenials || decision.Decision != DecisionDeny) {
 			continue
 		}

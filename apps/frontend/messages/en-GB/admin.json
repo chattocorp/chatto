@@ -606,8 +606,6 @@
     },
     "invitations": {
       "title": "Invite links",
-      "subtitle": "Create and manage links that admit new accounts.",
-      "create_title": "Create invite link",
       "max_uses": "Maximum uses",
       "max_uses_error": "Enter a whole number of at least 1.",
       "unlimited_uses": "Allow unlimited uses",

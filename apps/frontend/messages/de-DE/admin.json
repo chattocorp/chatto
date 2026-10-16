@@ -606,8 +606,6 @@
     },
     "invitations": {
       "title": "Einladungslinks",
-      "subtitle": "Erstelle und verwalte Links, die neue Konten zulassen.",
-      "create_title": "Einladungslink erstellen",
       "max_uses": "Maximale Nutzungen",
       "max_uses_error": "Gib eine ganze Zahl von mindestens 1 ein.",
       "unlimited_uses": "Unbegrenzte Nutzungen erlauben",

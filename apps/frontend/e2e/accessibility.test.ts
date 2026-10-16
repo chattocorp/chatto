@@ -2,7 +2,12 @@ import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { test, expect } from './setup';
 import { connectPost } from './fixtures/connectHelpers';
-import { createAndLoginTestUser, loginAsAdmin, verifyAdminEmail } from './fixtures/testUser';
+import {
+  createAndLoginTestUser,
+  grantPermission,
+  loginAsAdmin,
+  verifyAdminEmail
+} from './fixtures/testUser';
 import * as routes from './routes';
 
 const wcagTags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
@@ -138,6 +143,19 @@ test.describe('Route accessibility', () => {
     ] as const) {
       await scanRoute(page, state, route);
     }
+  });
+
+  test('invite creation and created-link dialogs meet WCAG A and AA rules', async ({ page }) => {
+    await loginAsAdmin(page);
+    await grantPermission(page, 'everyone', 'invite-link.create');
+    await createAndLoginTestUser(page);
+    await page.goto('/chat/-/invite');
+    await expect(page.getByRole('dialog', { name: 'Invite people', exact: true })).toBeVisible();
+    await expectNoAccessibilityViolations(page, 'create invite link dialog', 'dialog[open]');
+
+    await page.getByRole('button', { name: 'Create invite link', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Copy link', exact: true })).toBeVisible();
+    await expectNoAccessibilityViolations(page, 'created invite link dialog', 'dialog[open]');
   });
 
   test('chat surfaces meet WCAG A and AA rules', async ({ page, chatPage, dmPage }) => {

@@ -606,8 +606,6 @@
     },
     "invitations": {
       "title": "Invitasjonslenker",
-      "subtitle": "Opprett og administrer lenker som slipper inn nye kontoer.",
-      "create_title": "Opprett invitasjonslenke",
       "max_uses": "Maks antall bruk",
       "max_uses_error": "Skriv inn et heltall på minst 1.",
       "unlimited_uses": "Tillat ubegrenset bruk",

@@ -606,8 +606,6 @@
     },
     "invitations": {
       "title": "Liens d’invitation",
-      "subtitle": "Créez et gérez les liens qui permettent d’ouvrir de nouveaux comptes.",
-      "create_title": "Créer un lien d’invitation",
       "max_uses": "Nombre maximal d’utilisations",
       "max_uses_error": "Saisissez un nombre entier supérieur ou égal à 1.",
       "unlimited_uses": "Autoriser un nombre illimité d’utilisations",

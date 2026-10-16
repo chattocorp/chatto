@@ -606,8 +606,6 @@
     },
     "invitations": {
       "title": "Invitligiloj",
-      "subtitle": "Kreu kaj administru ligilojn, per kiuj novaj kontoj povas aliĝi.",
-      "create_title": "Krei invitligilon",
       "max_uses": "Maksimuma nombro de uzoj",
       "max_uses_error": "Enigu entjeron de almenaŭ 1.",
       "unlimited_uses": "Permesi senliman nombron de uzoj",

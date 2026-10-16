@@ -606,8 +606,6 @@
     },
     "invitations": {
       "title": "Davet bağlantıları",
-      "subtitle": "Yeni hesapları kabul eden bağlantılar oluşturun ve yönetin.",
-      "create_title": "Davet bağlantısı oluştur",
       "max_uses": "En fazla kullanım",
       "max_uses_error": "En az 1 olan bir tam sayı girin.",
       "unlimited_uses": "Sınırsız kullanıma izin ver",

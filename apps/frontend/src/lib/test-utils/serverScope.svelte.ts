@@ -190,7 +190,7 @@ function buildStore(
       get permissions() {
         return t.permissions;
       },
-      serverInfo: withMembers(withMembers({}, serverInfo), {
+      serverInfo: withMembers(withMembers({ limitedFeatures: [] }, serverInfo), {
         get canConnect() {
           return t.canConnect;
         },

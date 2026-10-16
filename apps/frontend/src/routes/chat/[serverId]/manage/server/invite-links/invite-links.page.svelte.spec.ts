@@ -7,6 +7,7 @@ import { queryClient } from '$lib/query/client';
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { InviteLinkStatus } from '@chatto/api-types/api/v1/invitations_pb';
+import { limitedServerFeatures } from '@chatto/client/server/compatibility';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { mockService } from '$lib/test-utils';
 import { getToasts, toast } from '$lib/ui/toast';
@@ -71,6 +72,21 @@ describe('Invitation link copying', () => {
     await expect.element(screen.getByRole('heading', { name: 'Your invite links' })).toBeVisible();
     await expect.element(screen.getByRole('button', { name: 'Copy link' })).toBeVisible();
     expect(screen.container.textContent).not.toContain('Create invite link');
+  });
+
+  it('explains older-server support without requesting invite links', async () => {
+    createTestServerScope({
+      serverInfo: { limitedFeatures: limitedServerFeatures('0.5.0-beta.17') },
+      permissions: { canManageInviteLinks: true },
+      routes: (router) => router.service(InviteLinkService, invitations)
+    });
+    invitations.listInviteLinks.mockClear();
+    const screen = render(InviteLinksPage);
+    await expect
+      .element(screen.getByRole('link', { name: 'View compatibility' }))
+      .toHaveAttribute('href', '/chat/-/info#inviteLinks');
+    expect(invitations.listInviteLinks).not.toHaveBeenCalled();
+    expect(screen.container.querySelector('table')).toBeNull();
   });
 
   it('clears a global link and its revoke dialog when shield mode ends, including late reads', async () => {

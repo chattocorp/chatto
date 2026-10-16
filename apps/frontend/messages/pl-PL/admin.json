@@ -628,8 +628,6 @@
     },
     "invitations": {
       "title": "Linki z zaproszeniem",
-      "subtitle": "Twórz linki, przez które mogą dołączać nowe konta, i zarządzaj nimi.",
-      "create_title": "Utwórz link z zaproszeniem",
       "max_uses": "Maksymalna liczba użyć",
       "max_uses_error": "Wpisz liczbę całkowitą równą co najmniej 1.",
       "unlimited_uses": "Zezwalaj na nieograniczoną liczbę użyć",

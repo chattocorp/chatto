@@ -606,8 +606,6 @@
     },
     "invitations": {
       "title": "Kutselingid",
-      "subtitle": "Looge ja hallake linke, mille kaudu saavad liituda uued kontod.",
-      "create_title": "Loo kutselink",
       "max_uses": "Kasutuskordi kõige rohkem",
       "max_uses_error": "Sisestage täisarv, mis on vähemalt 1.",
       "unlimited_uses": "Luba piiramatu kasutus",

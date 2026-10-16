@@ -595,8 +595,6 @@
     },
     "invitations": {
       "title": "邀請連結",
-      "subtitle": "建立和管理用來接納新帳戶的連結。",
-      "create_title": "建立邀請連結",
       "max_uses": "最多使用次數",
       "max_uses_error": "請輸入不小於 1 的整數。",
       "unlimited_uses": "允許無限次使用",

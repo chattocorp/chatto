@@ -595,8 +595,6 @@
     },
     "invitations": {
       "title": "邀请链接",
-      "subtitle": "创建和管理用于接纳新账户的链接。",
-      "create_title": "创建邀请链接",
       "max_uses": "最大使用次数",
       "max_uses_error": "请输入不小于 1 的整数。",
       "unlimited_uses": "允许无限次使用",

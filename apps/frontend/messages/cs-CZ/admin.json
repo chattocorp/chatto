@@ -628,8 +628,6 @@
     },
     "invitations": {
       "title": "Zvací odkazy",
-      "subtitle": "Vytvářejte a spravujte odkazy, přes které se mohou registrovat nové účty.",
-      "create_title": "Vytvořit zvací odkaz",
       "max_uses": "Maximální počet použití",
       "max_uses_error": "Zadejte celé číslo alespoň 1.",
       "unlimited_uses": "Povolit neomezený počet použití",

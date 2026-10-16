@@ -606,8 +606,6 @@
     },
     "invitations": {
       "title": "Inbjudningslänkar",
-      "subtitle": "Skapa och hantera länkar som släpper in nya konton.",
-      "create_title": "Skapa inbjudningslänk",
       "max_uses": "Max antal användningar",
       "max_uses_error": "Ange ett heltal på minst 1.",
       "unlimited_uses": "Tillåt obegränsat antal användningar",

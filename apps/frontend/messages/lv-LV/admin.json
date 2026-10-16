@@ -617,8 +617,6 @@
     },
     "invitations": {
       "title": "Uzaicinājumu saites",
-      "subtitle": "Izveidojiet un pārvaldiet saites, ar kurām var pievienoties jauni konti.",
-      "create_title": "Izveidot uzaicinājuma saiti",
       "max_uses": "Maksimālais lietojumu skaits",
       "max_uses_error": "Ievadiet veselu skaitli, kas nav mazāks par 1.",
       "unlimited_uses": "Atļaut neierobežotu lietojumu skaitu",

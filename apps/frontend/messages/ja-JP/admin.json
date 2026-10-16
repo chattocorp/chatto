@@ -595,8 +595,6 @@
     },
     "invitations": {
       "title": "招待リンク",
-      "subtitle": "新しいアカウントを受け入れるリンクを作成、管理します。",
-      "create_title": "招待リンクを作成",
       "max_uses": "最大使用回数",
       "max_uses_error": "1 以上の整数を入力してください。",
       "unlimited_uses": "使用回数を無制限にする",

@@ -606,8 +606,6 @@
     },
     "invitations": {
       "title": "Links de convite",
-      "subtitle": "Crie e gerencie links que permitem criar novas contas.",
-      "create_title": "Criar link de convite",
       "max_uses": "Número máximo de usos",
       "max_uses_error": "Digite um número inteiro igual ou maior que 1.",
       "unlimited_uses": "Permitir usos ilimitados",
