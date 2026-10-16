@@ -92,6 +92,8 @@ type MessageComposerDependencies = {
   getCanPost: () => boolean;
   getCanAttach: () => boolean;
   getSlowModeBlocked: () => boolean;
+  /** Draw attention to the cooldown after an explicit blocked send attempt. */
+  onSlowModeBlocked?: () => void;
   getCanCreateThread: () => boolean;
   getCreateThreadRequired: () => boolean;
   getCreateThreadDefault: () => boolean;
@@ -254,12 +256,12 @@ export class MessageComposerState {
     return this.#dependencies.getCanAttach() && this.attachments.selectedFiles.length > 0;
   }
 
+  /** Allow send attempts during cooldown so submit can explain the block. */
   get canSubmit(): boolean {
     return (
       !this.submission.loading &&
       !this.submission.roleMentionCheckLoading &&
       !this.inputDisabled &&
-      (this.isEditing || !this.#dependencies.getSlowModeBlocked()) &&
       this.attachments.pendingCount === 0 &&
       (hasVisibleContent(this.message) || this.hasSendableAttachments || this.isEditing)
     );
@@ -321,9 +323,13 @@ export class MessageComposerState {
       this.submission.pendingRoleMentionConfirmation ||
       this.pendingThreadDestinationConfirmation ||
       this.inputDisabled ||
-      (!this.isEditing && this.#dependencies.getSlowModeBlocked()) ||
       this.attachments.pendingCount > 0
     ) {
+      return;
+    }
+    if (!this.isEditing && this.#dependencies.getSlowModeBlocked()) {
+      this.#dependencies.onSlowModeBlocked?.();
+      this.focus();
       return;
     }
     await (this.isEditing ? this.#editMessage() : this.#createMessage());
@@ -668,7 +674,7 @@ export class MessageComposerState {
     const usesModifier = event.metaKey || event.ctrlKey;
     if (this.#dependencies.getComposerSendMode() === 'modifier-enter') {
       if (!usesModifier) return false;
-      if (this.canSubmit) void this.submit();
+      if (!event.repeat && this.canSubmit) void this.submit();
       return true;
     }
 
@@ -677,7 +683,7 @@ export class MessageComposerState {
       return true;
     }
     if (prefersTouchActions()) return false;
-    if (this.canSubmit) void this.submit();
+    if (!event.repeat && this.canSubmit) void this.submit();
     return true;
   }
 

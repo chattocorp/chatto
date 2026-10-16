@@ -47,6 +47,9 @@ configuration changes and the current viewer's next eligible posting time.
 - A rejected post preserves its draft. New clients show the authoritative
   countdown; older clients receive server enforcement and their existing
   generic send failure.
+- An attempted send during an active cooldown briefly highlights and nudges
+  the countdown badge. Reduced motion uses only the highlight. The draft stays
+  intact and focus returns to the editor. Held send keys do not repeat feedback.
 
 ## Design Decisions
 

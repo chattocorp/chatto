@@ -67,7 +67,11 @@ test('Slow Mode updates channel and thread timers independently', async ({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
     await roomPage.threadReplyInput.fill('Draft preserved while Slow Mode is active');
-    await expect(threadSend).toBeDisabled();
+    await expect(threadSend).toBeEnabled();
+    await threadSend.click();
+    await expect(roomPage.threadReplyInput).toHaveText('Draft preserved while Slow Mode is active');
+    await expect(roomPage.threadReplyInput).toBeFocused();
+    await expect(threadStatus).toBeVisible();
 
     await threadSlowModeSelect.selectOption('0');
     await expect(threadStatus).toBeHidden({ timeout: TIMEOUTS.REALTIME_EVENT });

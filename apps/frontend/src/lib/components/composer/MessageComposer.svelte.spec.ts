@@ -5,6 +5,7 @@ import type {} from '@vitest/browser-playwright';
 import { render } from 'vitest-browser-svelte';
 import { createRawSnippet, tick, type ComponentProps } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
+import { prefersReducedMotion } from 'svelte/motion';
 import MessageComposer, { type MessageComposerApi } from './MessageComposer.svelte';
 import ReplyFocusTestHarness from './ReplyFocusTestHarness.svelte';
 import { q } from '$lib/test-utils';
@@ -1408,23 +1409,47 @@ describe('MessageComposer', () => {
         .not.toBeInTheDocument();
     });
 
-    it('keeps a waiting draft editable while blocking the keyboard send shortcut', async () => {
-      const { container } = renderMessageComposer({
-        roomId: 'room-waiting-draft',
-        slowModeSeconds: 30,
-        slowModeNextPostAt: new Date(Date.now() + 30_000).toISOString()
-      });
-      const editor = await findEditor(container);
-      await typeInEditor(editor, 'preserve this draft');
+    it.each([false, true])(
+      'highlights a blocked send and preserves the draft (reduced motion: %s)',
+      async (reducedMotion) => {
+        vi.spyOn(prefersReducedMotion, 'current', 'get').mockReturnValue(reducedMotion);
+        const { container } = renderMessageComposer({
+          roomId: 'room-waiting-draft',
+          slowModeSeconds: 30,
+          slowModeNextPostAt: new Date(Date.now() + 30_000).toISOString()
+        });
+        const editor = await findEditor(container);
+        await typeInEditor(editor, 'preserve this draft');
 
-      await expect.element(q(container, 'button[aria-label="Send message"]')).toBeDisabled();
-      const draftHtml = editor.innerHTML;
-      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+        await expect.element(q(container, 'button[aria-label="Send message"]')).toBeEnabled();
+        const draftHtml = editor.innerHTML;
+        await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
-      expect(createMessageConnectMock).not.toHaveBeenCalled();
-      await expect.element(editor).toHaveTextContent('preserve this draft');
-      expect(editor.innerHTML).toBe(draftHtml);
-    });
+        const badge = q(container, '[data-testid="slow-mode-status"]');
+        if (!badge) throw new Error('Missing cooldown badge');
+        const animation = badge.getAnimations()[0];
+        expect(animation).toBeDefined();
+        const frames = (animation.effect as KeyframeEffect).getKeyframes();
+        expect(frames.some((frame) => frame.transform === 'translateX(-3px)')).toBe(!reducedMotion);
+        (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+        expect(badge.getAnimations()).toEqual([animation]);
+        animation.pause();
+        animation.finish();
+        await animation.finished;
+        editor.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, repeat: true, bubbles: true })
+        );
+        expect(badge.getAnimations()).toHaveLength(0);
+        (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).focus();
+        (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+        expect(badge.getAnimations()).toHaveLength(1);
+        await expect.element(editor).toHaveFocus();
+
+        expect(createMessageConnectMock).not.toHaveBeenCalled();
+        await expect.element(editor).toHaveTextContent('preserve this draft');
+        expect(editor.innerHTML).toBe(draftHtml);
+      }
+    );
 
     it('starts an optimistic countdown from the successful event timestamp', async () => {
       const createdAt = new Date(Date.now()).toISOString();
