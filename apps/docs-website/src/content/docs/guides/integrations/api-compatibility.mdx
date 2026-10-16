@@ -70,6 +70,15 @@ minimum server version. Servers without this extension ignore the list `order`
 field and keep activity order. They can reject the `THREAD_CREATED` search
 order. The version threshold does not guarantee support for this extension.
 
+Independent slow mode is also additive. A present `Room.thread_slow_mode_seconds`
+selects separate per-user channel and per-thread timers; zero means Off.
+The existing `slow_mode_seconds` and room deadline now apply to root messages.
+Read thread deadlines from message viewer state or thread timeline responses.
+The root starts its author's thread timer. Existing channels adopt their previous
+interval for both settings. When the new room field is absent, keep the older
+server's shared-timer behavior and do not offer the thread setting. Older
+clients can connect to new servers but must update for correct thread countdowns.
+
 Custom suffixes are ignored during comparison: `0.6.1-my-customization`
 compares as `0.6.1`. Release stages remain significant:
 `0.6.1-beta.2-my-customization` compares as `0.6.1-beta.2`. Build metadata

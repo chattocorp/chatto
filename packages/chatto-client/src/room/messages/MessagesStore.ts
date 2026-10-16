@@ -171,6 +171,11 @@ function roomTimelineFromServerConnection(serverConnection: ServerConnection): R
  * authoritative projection ingestion behavior stays shared across both scopes.
  */
 export class MessagesStore {
+  readonly #threadSlowModeDeadline = signal<string | null | undefined>(undefined);
+  /** Current viewer deadline from a thread read or an authorized live row. */
+  get threadSlowModeNextPostAt(): string | null | undefined {
+    return this.#threadSlowModeDeadline.get();
+  }
   readonly #eventsSignal = signal<TimelineEventView[]>([]);
   /**
    * The loaded rows in display order. Observers track the array reference:
@@ -672,6 +677,7 @@ export class MessagesStore {
     if (!view) return;
     const projected = this.unmaskEvents([view])[0];
     if (!projected) return;
+    this.applyThreadDeadlineFromMessage(projected);
 
     const existingIndex = this.events.findIndex((candidate) => candidate.id === projected.id);
     if (existingIndex === -1) {
@@ -880,6 +886,7 @@ export class MessagesStore {
     this.#windowId++;
     this.#pendingJumpId = jumpId;
     this.isInitialLoading = true;
+    const deadlineBeforeFetch = this.#threadSlowModeDeadline.get();
     const existingBeforeFetch = snapshotEventFingerprints(this.events);
     try {
       const around = await source.fetchAround(eventId, PAGE_SIZE);
@@ -904,6 +911,7 @@ export class MessagesStore {
       this.#pendingAuthoritativeLoadId = null;
       for (const event of parsed) this.clearOptimisticVersionForEvent(event.id);
       this.events = [...parsed];
+      this.applyThreadDeadlineFromSnapshot(around.threadSlowModeNextPostAt, deadlineBeforeFetch);
       this.seenIds = new Set(parsed.map((e) => e.id));
       this.oldestCursor = startCursor ?? undefined;
       this.newestCursor = endCursor ?? undefined;
@@ -946,6 +954,7 @@ export class MessagesStore {
     const source = this.source;
 
     const thisLoad = this.startLoad();
+    const deadlineBeforeFetch = this.#threadSlowModeDeadline.get();
     const existingBeforeFetch = snapshotEventFingerprints(this.events);
     const anchor = anchorEventId ?? null;
     const forwardCursor = forward && anchor ? (this.newestCursor ?? null) : null;
@@ -975,6 +984,7 @@ export class MessagesStore {
         return skippedRefreshResult();
       }
       const changed = this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
+        deadlineBeforeFetch,
         preserveExistingWindow:
           source.scope === 'room' || anchor === null || anchor !== source.threadRootEventId,
         latestSnapshot: anchor === null,
@@ -1073,6 +1083,7 @@ export class MessagesStore {
       }
 
       if (eventData.threadRootEventId === this.threadRootEventId) {
+        this.applyThreadDeadlineFromMessage(spaceEvent);
         this.addEvent(spaceEvent);
       }
       return;
@@ -1213,8 +1224,32 @@ export class MessagesStore {
     return newOnes.length;
   }
 
+  /** Only hydrated messages in this canonical thread can update its deadline. */
+  private applyThreadDeadlineFromMessage(view: TimelineEventView): void {
+    if (
+      this.scope === 'thread' &&
+      isMessagePostedPayload(view.event) &&
+      (view.event.threadRootEventId === this.threadRootEventId ||
+        view.id === this.threadRootEventId) &&
+      view.event.threadSlowModeNextPostAt !== undefined
+    ) {
+      this.#threadSlowModeDeadline.set(view.event.threadSlowModeNextPostAt);
+    }
+  }
+
+  /** Preserve live state received while the snapshot request was in flight. */
+  private applyThreadDeadlineFromSnapshot(
+    deadline: string | null | undefined,
+    deadlineBeforeFetch: string | null | undefined
+  ): void {
+    if (this.#threadSlowModeDeadline.get() === deadlineBeforeFetch) {
+      this.#threadSlowModeDeadline.set(deadline);
+    }
+  }
+
   private resetState(): void {
     batch(() => {
+      this.#threadSlowModeDeadline.set(undefined);
       this.events = [];
       this.seenIds = new Set();
       this.#needsLatestWindow = false;
@@ -1277,6 +1312,7 @@ export class MessagesStore {
 
   private replaceWithSnapshotAndUpdateCursors(
     connection: {
+      threadSlowModeNextPostAt?: string | null;
       events: readonly TimelineEventView[];
       startCursor?: string | null;
       endCursor?: string | null;
@@ -1284,12 +1320,17 @@ export class MessagesStore {
     },
     existingBeforeFetch: ReadonlyMap<string, string>,
     options: {
+      deadlineBeforeFetch?: string | null;
       preserveExistingWindow?: boolean;
       latestSnapshot?: boolean;
       forwardSnapshot?: boolean;
       reconciledEventId?: string | null;
     } = {}
   ): boolean {
+    this.applyThreadDeadlineFromSnapshot(
+      connection.threadSlowModeNextPostAt,
+      options.deadlineBeforeFetch
+    );
     const fetched = this.unmaskEvents(connection.events);
     const newSeen = new Set<string>();
     const merged: TimelineEventView[] = [];
@@ -1419,6 +1460,7 @@ export class MessagesStore {
     replaceWindow = false
   ): Promise<boolean> {
     const source = this.source;
+    const deadlineBeforeFetch = this.#threadSlowModeDeadline.get();
     const existingBeforeFetch = snapshotEventFingerprints(this.events);
     try {
       // A removed anchor cannot prevent recovery. Only NotFound falls back;
@@ -1436,6 +1478,7 @@ export class MessagesStore {
       if (this.isStale(thisLoad) || !acceptResult()) return false;
       if (source.scope === 'room') {
         this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
+          deadlineBeforeFetch,
           preserveExistingWindow: !replaceWindow
         });
         this.hasReachedStart = !page.hasOlder;
@@ -1444,7 +1487,9 @@ export class MessagesStore {
         // Merge with any subscription events that arrived during the
         // in-flight query (e.g. the user's own reply or a fast cross-user
         // reply). Overwriting would drop them.
-        this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
+        this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
+          deadlineBeforeFetch
+        });
       }
       if (this.isStale(thisLoad) || !acceptResult()) return false;
       this.#pendingAuthoritativeLoadId = null;

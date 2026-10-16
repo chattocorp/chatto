@@ -50,6 +50,40 @@ function timelineAPI() {
 }
 
 describe('createRoomTimelineAPI', () => {
+  it.each(['deadline', 'ready', 'legacy'] as const)(
+    'hydrates independent thread state: %s',
+    async (mode) => {
+      const deadline = '2026-10-15T12:00:30.000Z';
+      const response = {
+        page: { events: [] },
+        viewerState:
+          mode === 'legacy'
+            ? undefined
+            : {
+                slowModeNextPostAt:
+                  mode === 'deadline' ? Timestamp.fromDate(new Date(deadline)) : undefined
+              }
+      };
+      threads.getThreadEvents.mockReturnValue(response);
+      threads.getThreadEventsAround.mockReturnValue(response);
+      const api = timelineAPI();
+      const expected = mode === 'legacy' ? undefined : mode === 'ready' ? null : deadline;
+      expect(
+        (await api.getThreadEvents({ roomId: 'room', threadRootEventId: 'root', limit: 20 }))
+          .threadSlowModeNextPostAt
+      ).toBe(expected);
+      expect(
+        (
+          await api.getThreadEventsAround({
+            roomId: 'room',
+            threadRootEventId: 'root',
+            eventId: 'reply',
+            limit: 20
+          })
+        ).threadSlowModeNextPostAt
+      ).toBe(expected);
+    }
+  );
   beforeEach(() => {
     vi.resetAllMocks();
     users.batchGetUsers.mockReturnValue({ users: [] });

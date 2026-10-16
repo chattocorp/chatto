@@ -15,8 +15,14 @@ configuration changes and the current viewer's next eligible posting time.
 - Slow Mode is configured per channel room. `0` disables it; valid values are
   `0–21,600` seconds. The bundled client offers Off, 5s, 10s, 15s, 30s, 1m,
   2m, 5m, 10m, 15m, 30m, 1h, 2h, and 6h presets.
-- One member-and-room timer covers root messages, thread replies, and
-  attachment-only messages. A thread does not create a separate allowance.
+- Channel Slow Mode limits root messages per member. Thread Slow Mode limits
+  each member separately in each thread. Both intervals are channel settings.
+- A root message starts both timers for its author. A reply checks and resets
+  only that member's timer in that thread. Other threads remain independent.
+  Attachment-only messages follow the same rule as messages with text.
+- Both intervals start at Off in new channels. Existing channels use their
+  previous interval for both independent timers. A later change to one setting
+  preserves the other. Thread settings apply to existing and new threads.
 - A channel echo is a projection of its original thread reply and does not
   start a second timer.
 - Editing, deleting, reacting, typing, and staging attachments neither start
@@ -44,20 +50,21 @@ configuration changes and the current viewer's next eligible posting time.
 
 ### 1. Store configuration as a room fact
 
-**Decision:** `RoomSlowModeChangedEvent` carries the complete interval and the
+**Decision:** `RoomSlowModeChangedEvent` carries both intervals and the
 room catalog projects it into authoritative room state.
 **Why:** Slow Mode is durable room configuration, so replay, audit, and
 realtime delivery should use the same event-sourced path as other room
 settings.
 **Tradeoff:** Mixed-version clusters must finish upgrading every replica before
-operators enable Slow Mode because an older writer cannot enforce the new
-fact.
+operators rely on independent timers. Older servers enforce a shared timer.
+Rollback restores that older behavior; a settings write by an older server can
+also replace the independent thread setting. Stored events are not rewritten.
 
 ### 2. Derive cooldowns from successful posts
 
-**Decision:** Room Timeline keeps an O(1) latest-original-post timestamp for
-each room and author and rebuilds it from retained timeline entries on snapshot
-restore.
+**Decision:** Cooldowns use the last successful root post in the channel and
+the last successful post in each thread, including its root. Restore retains
+both histories, also after message deletion.
 **Why:** The latest successful message is already the durable source of truth.
 Derivation gives configuration changes immediate historical semantics without
 creating per-user timer records or cleanup work.
@@ -90,7 +97,17 @@ next-post time when it changes.
 **Why:** Existing room and message events provide ordered multi-session
 convergence and bounded reconnect resume. No Slow-Mode-specific realtime event
 is needed.
-**Tradeoff:** A room configuration change sends the full projected room row.
+**Tradeoff:** A room configuration change refreshes room settings and open
+thread deadlines. Older clients can display an inaccurate thread countdown.
+
+### 6. Keep the API additive
+
+**Decision:** Keep the existing interval for root posts and add an optional
+thread interval. New servers return both values, including explicit Off.
+**Why:** Clients can detect older servers by the absent thread interval and
+keep the existing shared-timer interface without a higher minimum version.
+**Tradeoff:** Wire compatibility does not preserve the old shared-timer
+behavior. Users of older clients must update to see independent countdowns.
 
 ## Related
 

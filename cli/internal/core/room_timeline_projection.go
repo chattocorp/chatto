@@ -41,11 +41,13 @@ type roomTimelineState struct {
 	// byRoom and messagePostsByRoom hold row indexes in stream order.
 	byRoom             map[string][]uint32
 	messagePostsByRoom map[string][]uint32
-	// latestOriginalPostAt retains the newest committed non-echo post
+	// latestRootPostAt retains the newest committed non-echo root post
 	// timestamp per room and actor. Slow mode reads this O(1) index; edits and
 	// retractions intentionally do not change it.
-	latestOriginalPostAt map[roomActorKey]time.Time
-	replayGuard          projectionReplayGuard
+	latestRootPostAt map[roomActorKey]time.Time
+	// latestThreadPostAt includes the root and excludes echoes and imports.
+	latestThreadPostAt map[roomThreadActorKey]time.Time
+	replayGuard        projectionReplayGuard
 	// bodyStates is a dense array addressed by message rows. Only bodies that
 	// arrive before their post need an event-ID map until that post is indexed.
 	// Complete encrypted bodies remain in EVT.
@@ -93,6 +95,10 @@ type latestRoomPinState struct {
 type roomActorKey struct {
 	roomID  string
 	actorID string
+}
+
+type roomThreadActorKey struct {
+	roomID, threadID, actorID string
 }
 
 // TimelineEntry is a detached read reference for one projected room event.
@@ -468,7 +474,8 @@ func newRoomTimelineState() roomTimelineState {
 		bodyEventIDs:               new(idArena),
 		byRoom:                     make(map[string][]uint32),
 		messagePostsByRoom:         make(map[string][]uint32),
-		latestOriginalPostAt:       make(map[roomActorKey]time.Time),
+		latestRootPostAt:           make(map[roomActorKey]time.Time),
+		latestThreadPostAt:         make(map[roomThreadActorKey]time.Time),
 		replayGuard:                newProjectionReplayGuard(),
 		orphanBodyStates:           make(map[string]timelineBodyState),
 		retractedFlags:             make(map[string]struct{}),
@@ -585,7 +592,7 @@ func (p *RoomTimelineProjection) Apply(event *evtv1.Event, seq uint64) error {
 		}
 		p.messagePostsByRoom[roomID] = append(p.messagePostsByRoom[roomID], uint32(entryIdx))
 		if event.GetMessagePosted().GetEchoOfEventId() == "" && !event.GetMessagePosted().GetHistoricalImport() && event.GetActorId() != "" {
-			p.latestOriginalPostAt[roomActorKey{roomID: roomID, actorID: event.GetActorId()}] = eventCreatedAt(event)
+			p.indexSlowModePostLocked(p.entryAtLocked(entryIdx))
 		}
 	}
 	if isVisibleRoomTimelineEntry(event) {
@@ -913,14 +920,32 @@ func (p *RoomTimelineProjection) LastRoomMessageEntry(roomID string) (*TimelineE
 	return nil, false
 }
 
-// LatestOriginalPostAt returns the latest committed non-echo message time for
+// LatestRootPostAt returns the latest committed non-echo root message time for
 // one actor in one room. The timestamp remains authoritative after edits or
 // retractions so those actions cannot evade slow mode.
-func (p *RoomTimelineProjection) LatestOriginalPostAt(roomID, actorID string) (time.Time, bool) {
+func (p *RoomTimelineProjection) LatestRootPostAt(roomID, actorID string) (time.Time, bool) {
 	p.RLock()
 	defer p.RUnlock()
-	value, ok := p.latestOriginalPostAt[roomActorKey{roomID: roomID, actorID: actorID}]
+	value, ok := p.latestRootPostAt[roomActorKey{roomID: roomID, actorID: actorID}]
 	return value, ok && !value.IsZero()
+}
+
+// indexSlowModePostLocked records roots in both scopes and replies only in
+// their thread. Call only for original, non-imported posts with an actor.
+func (p *RoomTimelineProjection) indexSlowModePostLocked(entry *TimelineEntry) {
+	if entry.InThreadEventID == "" {
+		p.latestRootPostAt[roomActorKey{roomID: entry.RoomID, actorID: entry.ActorID}] = entry.CreatedAt
+	}
+	p.latestThreadPostAt[roomThreadActorKey{roomID: entry.RoomID, threadID: entry.ThreadRootEventID, actorID: entry.ActorID}] = entry.CreatedAt
+}
+
+// LatestThreadPostAt returns the last original post, including the root, by
+// this actor in this thread. Deletion and edits do not clear this timestamp.
+func (p *RoomTimelineProjection) LatestThreadPostAt(roomID, threadID, actorID string) (time.Time, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	value, ok := p.latestThreadPostAt[roomThreadActorKey{roomID: roomID, threadID: threadID, actorID: actorID}]
+	return value, ok
 }
 
 // LatestBodyReference returns the current MessageBodyEvent reference for a

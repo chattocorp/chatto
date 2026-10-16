@@ -127,6 +127,9 @@ message ThreadViewerState {
   // True when the thread contains replies after the current user's read
   // cursor, when known.
   optional bool has_unread_replies = 2;
+  // Earliest time the viewer may reply. Absent when disabled, expired, or
+  // bypassed. The root message starts its author's thread cooldown.
+  google.protobuf.Timestamp slow_mode_next_post_at = 4;
 }
 
 // Aggregated state for one message thread.
@@ -154,6 +157,9 @@ message MessageViewerState {
   // starting the first reply to a root. Includes read access, room policy, and
   // broad or interaction-scoped posting authority. Absent when not resolved.
   optional bool can_reply_in_thread = 1;
+  // Earliest reply time in this message's canonical thread, including when
+  // the root has no replies. Absent when disabled, expired, or bypassed.
+  google.protobuf.Timestamp thread_slow_mode_next_post_at = 2;
 }
 
 // Renderable message data.

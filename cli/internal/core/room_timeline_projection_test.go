@@ -844,13 +844,13 @@ func TestRoomTimeline_LatestOriginalPostIndexSurvivesMutationAndRestore(t *testi
 		postedEvent(postedOpts{envelopeID: "M3", roomID: "R1", actorID: "U2", at: 6}),
 	})
 
-	if got, ok := p.LatestOriginalPostAt("R1", "U1"); !ok || !got.Equal(fixedTime(1)) {
+	if got, ok := p.LatestRootPostAt("R1", "U1"); !ok || !got.Equal(fixedTime(1)) {
 		t.Fatalf("latest R1/U1 post = (%v, %v), want %v", got, ok, fixedTime(1))
 	}
-	if got, ok := p.LatestOriginalPostAt("R2", "U1"); !ok || !got.Equal(fixedTime(5)) {
+	if got, ok := p.LatestRootPostAt("R2", "U1"); !ok || !got.Equal(fixedTime(5)) {
 		t.Fatalf("latest R2/U1 post = (%v, %v), want %v", got, ok, fixedTime(5))
 	}
-	if got, ok := p.LatestOriginalPostAt("R1", "U2"); !ok || !got.Equal(fixedTime(6)) {
+	if got, ok := p.LatestRootPostAt("R1", "U2"); !ok || !got.Equal(fixedTime(6)) {
 		t.Fatalf("latest R1/U2 post = (%v, %v), want %v", got, ok, fixedTime(6))
 	}
 
@@ -862,9 +862,50 @@ func TestRoomTimeline_LatestOriginalPostIndexSurvivesMutationAndRestore(t *testi
 	if err := restored.Restore(payload); err != nil {
 		t.Fatalf("Restore: %v", err)
 	}
-	if got, ok := restored.LatestOriginalPostAt("R1", "U1"); !ok || !got.Equal(fixedTime(1)) {
+	if got, ok := restored.LatestRootPostAt("R1", "U1"); !ok || !got.Equal(fixedTime(1)) {
 		t.Fatalf("restored latest R1/U1 post = (%v, %v), want %v", got, ok, fixedTime(1))
 	}
+}
+
+func TestRoomTimeline_IndependentSlowModeIndexesRestore(t *testing.T) {
+	t.Parallel()
+	p := NewRoomTimelineProjection()
+	imported := postedEvent(postedOpts{envelopeID: "IMPORT", roomID: "R", actorID: "U", inThread: "ROOT", at: 8})
+	imported.GetMessagePosted().HistoricalImport = true
+	applyAll(t, p, []*evtv1.Event{
+		postedEvent(postedOpts{envelopeID: "ROOT", roomID: "R", actorID: "U", at: 1}),
+		postedEvent(postedOpts{envelopeID: "OTHER", roomID: "R", actorID: "U", at: 2}),
+		postedEvent(postedOpts{envelopeID: "REPLY", roomID: "R", actorID: "U", inThread: "ROOT", at: 3}),
+		postedEvent(postedOpts{envelopeID: "ECHO", roomID: "R", actorID: "U", echoOfEventID: "REPLY", echoFromThreadRootEventID: "ROOT", at: 4}),
+		editedEvent("EDIT", "REPLY", "R", "U", "edited", 5),
+		retractedEvent("DELETE", "REPLY", "R", "U", "", 6),
+		imported,
+	})
+	check := func(p *RoomTimelineProjection) {
+		t.Helper()
+		root, ok := p.LatestRootPostAt("R", "U")
+		if !ok || !root.Equal(fixedTime(2)) {
+			t.Fatalf("root timestamp = %v", root)
+		}
+		thread, ok := p.LatestThreadPostAt("R", "ROOT", "U")
+		if !ok || !thread.Equal(fixedTime(3)) {
+			t.Fatalf("thread timestamp = %v", thread)
+		}
+		other, ok := p.LatestThreadPostAt("R", "OTHER", "U")
+		if !ok || !other.Equal(fixedTime(2)) {
+			t.Fatalf("other thread timestamp = %v", other)
+		}
+	}
+	check(p)
+	data, err := p.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored := NewRoomTimelineProjection()
+	if err := restored.Restore(data); err != nil {
+		t.Fatal(err)
+	}
+	check(restored)
 }
 
 func TestRoomTimeline_MessageDeletedAtTracksRetractionsAndEchoes(t *testing.T) {

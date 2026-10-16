@@ -12,7 +12,7 @@ import (
 	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 )
 
-var roomTimelineSnapshotContractID = snapshotContractID("v9", &projectionv1.RoomTimelineProjectionSnapshot{})
+var roomTimelineSnapshotContractID = snapshotContractID("v10", &projectionv1.RoomTimelineProjectionSnapshot{})
 
 func (*RoomTimelineProjection) SnapshotContractID() string {
 	return roomTimelineSnapshotContractID
@@ -152,7 +152,7 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		if entry.IsMessagePost() {
 			restored.messagePostsByRoom[entry.RoomID] = append(restored.messagePostsByRoom[entry.RoomID], uint32(index))
 			if entry.EchoOfEventID == "" && !entry.HistoricalImport && entry.ActorID != "" {
-				restored.latestOriginalPostAt[roomActorKey{roomID: entry.RoomID, actorID: entry.ActorID}] = entry.CreatedAt
+				restored.indexSlowModePostLocked(&entry)
 			}
 			if entry.EchoOfEventID != "" {
 				restored.echoLinks[entry.EchoOfEventID] = append(restored.echoLinks[entry.EchoOfEventID], entry.EventID)

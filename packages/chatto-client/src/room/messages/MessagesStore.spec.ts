@@ -3685,6 +3685,98 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('keeps thread deadlines independent and clears them on access loss', async () => {
+    const fake = new FakeQueryClient();
+    const deadlines: Record<string, string | null> = { a: '2026-10-15T12:00:30.000Z', b: null };
+    const timeline = fakeTimelineAPI({
+      getThreadEvents: vi.fn(async ({ threadRootEventId }) => ({
+        events: [],
+        hasOlder: false,
+        hasNewer: false,
+        threadSlowModeNextPostAt: deadlines[threadRootEventId]
+      }))
+    });
+    const a = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 'a' },
+      timeline
+    );
+    const b = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 'b' },
+      timeline
+    );
+    await settle();
+    expect(a.threadSlowModeNextPostAt).toBe(deadlines.a);
+    expect(b.threadSlowModeNextPostAt).toBeNull();
+    a.ingestEvent(threadMessageEvent('preview', 'a') as never);
+    expect(a.threadSlowModeNextPostAt).toBe(deadlines.a);
+    a.upsertRoomProjectionEvent(
+      'room-1',
+      new RoomTimelineEvent({
+        id: 'other-reply',
+        event: {
+          case: 'messagePosted',
+          value: new RoomMessagePosted({
+            message: new Message({
+              id: 'other-reply',
+              roomId: 'room-1',
+              threadRootEventId: 'b',
+              viewerState: { canReplyInThread: true }
+            })
+          })
+        }
+      }),
+      undefined
+    );
+    expect(a.threadSlowModeNextPostAt).toBe(deadlines.a);
+    deadlines.a = null;
+    await a.refreshCurrentWindow();
+    expect(a.threadSlowModeNextPostAt).toBeNull();
+    a.clearForAccessRevocation();
+    expect(a.threadSlowModeNextPostAt).toBeUndefined();
+    a.dispose();
+    b.dispose();
+  });
+
+  it('keeps a live thread deadline when an older window response arrives', async () => {
+    const timeline = fakeTimelineAPI({
+      getThreadEvents: vi.fn(async () => ({
+        events: [],
+        hasOlder: false,
+        hasNewer: false,
+        threadSlowModeNextPostAt: null
+      }))
+    });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 'root' },
+      timeline
+    );
+    await settle();
+    let resolve!: (page: EventConnectionPage) => void;
+    timeline.getThreadEvents = vi.fn(
+      () =>
+        new Promise<EventConnectionPage>((done) => {
+          resolve = done;
+        })
+    );
+    const refreshing = store.refreshCurrentWindow();
+    const reply = threadMessageEvent('reply', 'root');
+    const deadline = '2026-10-15T12:00:30.000Z';
+    store.ingestEvent({
+      ...reply,
+      event: { ...reply.event, threadSlowModeNextPostAt: deadline }
+    } as never);
+    resolve({ events: [], hasOlder: false, hasNewer: false, threadSlowModeNextPostAt: null });
+    await refreshing;
+    expect(store.threadSlowModeNextPostAt).toBe(deadline);
+    store.dispose();
+  });
+
   it('keeps paging a thread after loading an older reply outside its window', async () => {
     const timeline = fakeTimelineAPI({
       getThreadEvents: vi

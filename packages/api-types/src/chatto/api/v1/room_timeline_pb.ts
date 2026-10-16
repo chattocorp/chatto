@@ -7,7 +7,7 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { User } from "./users_pb.js";
 import { RoomThreadingMode } from "./common_pb.js";
-import { Message as Message$1 } from "./message_types_pb.js";
+import { Message as Message$1, ThreadViewerState } from "./message_types_pb.js";
 
 /**
  * Related entities included beside timeline/feed events.
@@ -819,6 +819,13 @@ export class GetThreadEventsResponse extends Message<GetThreadEventsResponse> {
    */
   page?: RoomTimelinePage;
 
+  /**
+   * Current viewer state, independent of the loaded message window.
+   *
+   * @generated from field: chatto.api.v1.ThreadViewerState viewer_state = 2;
+   */
+  viewerState?: ThreadViewerState;
+
   constructor(data?: PartialMessage<GetThreadEventsResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -828,6 +835,7 @@ export class GetThreadEventsResponse extends Message<GetThreadEventsResponse> {
   static readonly typeName = "chatto.api.v1.GetThreadEventsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "page", kind: "message", T: RoomTimelinePage },
+    { no: 2, name: "viewer_state", kind: "message", T: ThreadViewerState },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetThreadEventsResponse {
@@ -937,6 +945,13 @@ export class GetThreadEventsAroundResponse extends Message<GetThreadEventsAround
    */
   targetIndex = 0;
 
+  /**
+   * Current viewer state, independent of the loaded message window.
+   *
+   * @generated from field: chatto.api.v1.ThreadViewerState viewer_state = 3;
+   */
+  viewerState?: ThreadViewerState;
+
   constructor(data?: PartialMessage<GetThreadEventsAroundResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -947,6 +962,7 @@ export class GetThreadEventsAroundResponse extends Message<GetThreadEventsAround
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "page", kind: "message", T: RoomTimelinePage },
     { no: 2, name: "target_index", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "viewer_state", kind: "message", T: ThreadViewerState },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetThreadEventsAroundResponse {

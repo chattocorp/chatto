@@ -10,6 +10,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -65,13 +66,14 @@ func (s *roomService) UpdateRoom(ctx context.Context, req *connect.Request[apiv1
 		threadingMode = &value
 	}
 	room, err := s.api.core.RoomCommands().UpdateRoom(ctx, core.RoomUpdateInput{
-		ActorID:         caller.UserID,
-		RoomID:          req.Msg.RoomId,
-		Name:            req.Msg.Name,
-		Description:     req.Msg.Description,
-		Universal:       req.Msg.Universal,
-		SlowModeSeconds: req.Msg.SlowModeSeconds,
-		ThreadingMode:   threadingMode,
+		ActorID:               caller.UserID,
+		RoomID:                req.Msg.RoomId,
+		Name:                  req.Msg.Name,
+		Description:           req.Msg.Description,
+		Universal:             req.Msg.Universal,
+		SlowModeSeconds:       req.Msg.SlowModeSeconds,
+		ThreadSlowModeSeconds: req.Msg.ThreadSlowModeSeconds,
+		ThreadingMode:         threadingMode,
 	})
 	if err != nil {
 		return nil, err
@@ -377,15 +379,16 @@ func apiRoom(room *evtv1.Room) *apiv1.Room {
 		return nil
 	}
 	return &apiv1.Room{
-		Id:              room.Id,
-		Kind:            apiRoomKind(room.Kind),
-		Name:            room.Name,
-		Description:     room.Description,
-		Archived:        room.Archived,
-		GroupId:         room.GroupId,
-		Universal:       room.Universal,
-		SlowModeSeconds: room.SlowModeSeconds,
-		ThreadingMode:   apiRoomThreadingMode(room),
+		Id:                    room.Id,
+		Kind:                  apiRoomKind(room.Kind),
+		Name:                  room.Name,
+		Description:           room.Description,
+		Archived:              room.Archived,
+		GroupId:               room.GroupId,
+		Universal:             room.Universal,
+		SlowModeSeconds:       room.SlowModeSeconds,
+		ThreadSlowModeSeconds: proto.Uint32(core.EffectiveThreadSlowModeSeconds(room)),
+		ThreadingMode:         apiRoomThreadingMode(room),
 	}
 }
 

@@ -42,6 +42,8 @@ export type MessagePostedPayload = {
   threadExists?: boolean;
   /** Server-resolved reply authority for this message's canonical thread. */
   canReplyInThread?: boolean;
+  /** Authoritative viewer deadline in the canonical thread; null means ready. */
+  threadSlowModeNextPostAt?: string | null;
   replyCount: number;
   lastReplyAt?: string | null;
   threadParticipantCount?: number;

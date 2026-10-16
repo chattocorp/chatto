@@ -108,9 +108,14 @@ export class TimelineSync {
    * `roomId` is empty. Thread timelines read the window around `anchorEventId`.
    * Room timelines do the same, or with `roomForward` read the events after
    * their newest loaded event.
+   * An explicit cursor also supports authorization refreshes outside event application.
    */
-  refreshWindows(roomId: string, anchorEventId: string | null, roomForward = false): void {
-    const minimumCursor = this.#options.eventCursor();
+  refreshWindows(
+    roomId: string,
+    anchorEventId: string | null,
+    roomForward = false,
+    minimumCursor = this.#options.eventCursor()
+  ): void {
     const refresh = (store: MessagesStore, anchor: string | null, forward: boolean) => {
       const visibleAnchor = anchor
         ? (store.refreshAnchorForMessageMutation(anchor) ?? anchor)

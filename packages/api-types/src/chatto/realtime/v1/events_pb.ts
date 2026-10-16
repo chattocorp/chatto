@@ -689,6 +689,13 @@ export class RoomSlowModeChangedEvent extends Message<RoomSlowModeChangedEvent> 
    */
   slowModeSeconds = 0;
 
+  /**
+   * Independent interval within each thread. Zero disables it.
+   *
+   * @generated from field: optional uint32 thread_slow_mode_seconds = 3;
+   */
+  threadSlowModeSeconds?: number;
+
   constructor(data?: PartialMessage<RoomSlowModeChangedEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -699,6 +706,7 @@ export class RoomSlowModeChangedEvent extends Message<RoomSlowModeChangedEvent> 
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "slow_mode_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "thread_slow_mode_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomSlowModeChangedEvent {

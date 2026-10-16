@@ -17,7 +17,7 @@ message RoomViewerState {
   bool has_unread = 2;
   // Effective room-scoped permission decisions after room state constraints.
   repeated PermissionGrant permissions = 3;
-  // Earliest time the current user may create another message. Absent when
+  // Earliest time the current user may create another root message. Absent when
   // slow mode is disabled, expired, or bypassed by moderation permissions.
   google.protobuf.Timestamp slow_mode_next_post_at = 4;
 }

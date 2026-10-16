@@ -19,6 +19,7 @@ export type AdminRoomInfo = {
   archived: boolean;
   isUniversal: boolean;
   slowModeSeconds: number;
+  threadSlowModeSeconds?: number;
   threadingMode: RoomThreadingMode;
 };
 
@@ -250,6 +251,7 @@ function mapAdminRoom(room: Room): AdminRoomInfo {
     archived: room.archived ?? false,
     isUniversal: room.universal ?? false,
     slowModeSeconds: room.slowModeSeconds ?? 0,
+    threadSlowModeSeconds: room.threadSlowModeSeconds,
     threadingMode: normalizeRoomThreadingMode(RoomKind.CHANNEL, room.threadingMode)
   };
 }

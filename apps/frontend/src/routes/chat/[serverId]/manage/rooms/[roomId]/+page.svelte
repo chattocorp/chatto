@@ -73,6 +73,9 @@ change the settings goes to the Members section instead.
                   ...('description' in patch && { description: updated.description || null }),
                   ...('universal' in patch && { isUniversal: updated.universal }),
                   ...('slowModeSeconds' in patch && { slowModeSeconds: updated.slowModeSeconds }),
+                  ...('threadSlowModeSeconds' in patch && {
+                    threadSlowModeSeconds: updated.threadSlowModeSeconds
+                  }),
                   ...('threadingMode' in patch && { threadingMode: updated.threadingMode })
                 }
               : current

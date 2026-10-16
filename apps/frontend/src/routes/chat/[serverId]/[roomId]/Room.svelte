@@ -747,7 +747,10 @@
             canEchoMessage={!!room.roomData?.canEchoMessage &&
               !!room.roomData?.canPostMessage &&
               threadingMode !== RoomThreadingMode.DISABLED}
-            slowModeSeconds={room.roomData?.room.slowModeSeconds ?? 0}
+            slowModeSeconds={room.roomData?.room.threadSlowModeSeconds ??
+              room.roomData?.room.slowModeSeconds ??
+              0}
+            independentSlowMode={room.roomData?.room.threadSlowModeSeconds !== undefined}
             slowModeNextPostAt={room.roomData?.slowModeNextPostAt ?? null}
             slowModeBypassed={!!room.roomData?.canManageRoom ||
               !!room.roomData?.canManageOthersMessage}

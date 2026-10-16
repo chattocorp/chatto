@@ -1270,6 +1270,39 @@ describe('ServerStateStore privileged mode', () => {
     expect(reloadUnchanged).not.toHaveBeenCalled();
   });
 
+  it('refreshes thread cooldowns after an exemption is lost without clearing readable messages', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const room = (bypass: boolean) =>
+      new RoomWithViewerState({
+        room: { id: 'R1', slowModeSeconds: 30, threadSlowModeSeconds: 60 },
+        viewerState: {
+          isMember: true,
+          permissions: [
+            { permission: 'message.read', granted: true },
+            { permission: 'message.post', granted: true },
+            { permission: 'room.manage', granted: bypass }
+          ]
+        }
+      });
+    store.projection.rooms.set('R1', room(true));
+    const thread = store.rooms.thread('R1', 'ROOT');
+    await flushPromises();
+    const clear = vi.spyOn(thread, 'clearForAccessRevocation');
+    const refresh = vi.spyOn(thread, 'refreshCurrentWindow').mockResolvedValue({
+      hasOlder: false,
+      hasNewer: false,
+      refreshed: true,
+      changed: true
+    });
+    apiMocks.readRealtimeResource.mockImplementation(async (family) =>
+      family === 'rooms' ? [roomResource([room(false)])] : []
+    );
+    const generation = store.realtimeSync.invalidateAuthorization();
+    await store.completeRealtimeCatchUp('privilege-cursor', generation);
+    expect(refresh).toHaveBeenCalledWith(null, false, 'privilege-cursor', expect.any(Function));
+    expect(clear).not.toHaveBeenCalled();
+  });
+
   it('uses full current-value recovery when a snapshot replaces a privilege resume', async () => {
     const store = makeStore(new FakeServerConnection([]));
     store.realtimeProjectionHandler(
@@ -3609,6 +3642,38 @@ describe('ServerStateStore unified realtime resources', () => {
       'E-THREADING-MODE',
       false,
       undefined,
+      expect.any(Function)
+    );
+  });
+
+  it('refreshes independent thread deadlines without using the settings event as a message anchor', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const messages = store.rooms.messages('R1');
+    const thread = store.rooms.thread('R1', 'ROOT');
+    const result = { hasOlder: false, hasNewer: false, refreshed: true, changed: true };
+    const refreshRoom = vi.spyOn(messages, 'refreshCurrentWindow').mockResolvedValue(result);
+    const refreshThread = vi.spyOn(thread, 'refreshCurrentWindow').mockResolvedValue(result);
+    await flushPromises();
+    refreshRoom.mockClear();
+    refreshThread.mockClear();
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        cursor: 'settings-cursor',
+        event: new RealtimeEvent({
+          id: 'SETTINGS',
+          event: {
+            case: 'roomSlowModeChanged',
+            value: { roomId: 'R1', slowModeSeconds: 30, threadSlowModeSeconds: 0 }
+          }
+        })
+      })
+    );
+    await flushPromises();
+    expect(refreshRoom).toHaveBeenCalledWith(null, false, 'settings-cursor', expect.any(Function));
+    expect(refreshThread).toHaveBeenCalledWith(
+      null,
+      false,
+      'settings-cursor',
       expect.any(Function)
     );
   });

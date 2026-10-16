@@ -280,8 +280,12 @@ func (m *RoomModel) lastRoomMessageEntry(roomID string) (*TimelineEntry, bool) {
 	return m.timeline.Projection().LastRoomMessageEntry(roomID)
 }
 
-func (m *RoomModel) latestOriginalPostAt(roomID, actorID string) (time.Time, bool) {
-	return m.timeline.Projection().LatestOriginalPostAt(roomID, actorID)
+func (m *RoomModel) latestRootPostAt(roomID, actorID string) (time.Time, bool) {
+	return m.timeline.Projection().LatestRootPostAt(roomID, actorID)
+}
+
+func (m *RoomModel) latestThreadPostAt(roomID, threadID, actorID string) (time.Time, bool) {
+	return m.timeline.Projection().LatestThreadPostAt(roomID, threadID, actorID)
 }
 
 func (m *RoomModel) visibleRoomTimeline(roomID string, limit int, beforeStreamSeq uint64, visible func(*TimelineEntry) bool) []*TimelineEntry {

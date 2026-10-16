@@ -511,7 +511,7 @@ func (c *compactProjections) digest(t *testing.T, h *compactHistory) string {
 		pins, latest := tl.PinnedMessagesWithLatest(roomID)
 		line("timeline room %s pins: %+v %s", roomID, pins, latest)
 		for _, userID := range h.users {
-			at, ok := tl.LatestOriginalPostAt(roomID, userID)
+			at, ok := tl.LatestRootPostAt(roomID, userID)
 			line("timeline room %s latest post %s: %v %v", roomID, userID, at, ok)
 		}
 		if messages := h.roots[roomID]; len(messages) > 0 {

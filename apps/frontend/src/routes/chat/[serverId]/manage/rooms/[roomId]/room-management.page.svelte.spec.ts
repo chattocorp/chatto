@@ -129,6 +129,7 @@ function managedRoom(
   overrides: Partial<{
     archived: boolean;
     isUniversal: boolean;
+    threadSlowModeSeconds: number;
     threadingMode: RoomThreadingMode;
     canManageRoom: boolean;
     canManagePermissions: boolean;
@@ -141,6 +142,7 @@ function managedRoom(
     archived: overrides.archived ?? false,
     isUniversal: overrides.isUniversal ?? false,
     slowModeSeconds: 0,
+    threadSlowModeSeconds: overrides.threadSlowModeSeconds,
     threadingMode: overrides.threadingMode ?? RoomThreadingMode.ENABLED,
     canManageRoom: overrides.canManageRoom ?? true,
     canManagePermissions: overrides.canManagePermissions ?? true
@@ -171,6 +173,7 @@ type RoomPatch = {
   description?: string | null;
   universal?: boolean;
   slowModeSeconds?: number;
+  threadSlowModeSeconds?: number;
   threadingMode?: RoomThreadingMode;
 };
 
@@ -193,6 +196,9 @@ function serveRoom(initial: ReturnType<typeof managedRoom>) {
       ...(input.description !== undefined && { description: input.description }),
       ...(input.universal !== undefined && { isUniversal: input.universal }),
       ...(input.slowModeSeconds !== undefined && { slowModeSeconds: input.slowModeSeconds }),
+      ...(input.threadSlowModeSeconds !== undefined && {
+        threadSlowModeSeconds: input.threadSlowModeSeconds
+      }),
       ...(input.threadingMode !== undefined && { threadingMode: input.threadingMode })
     };
     const response = {
@@ -201,6 +207,7 @@ function serveRoom(initial: ReturnType<typeof managedRoom>) {
       description: stored.description ?? '',
       universal: stored.isUniversal,
       slowModeSeconds: stored.slowModeSeconds,
+      threadSlowModeSeconds: stored.threadSlowModeSeconds,
       threadingMode: stored.threadingMode,
       archived: stored.archived
     };
@@ -351,6 +358,7 @@ describe('room management page identity and realtime authority', () => {
     mocks.getRoom.mockResolvedValue(managedRoom('general'));
     const { container } = renderSections('general');
     await settle();
+    expect(container.querySelector('#room-settings-thread-slow-mode')).toBeNull();
 
     const select = container.querySelector('#room-settings-slow-mode') as HTMLSelectElement;
     select.value = '10';
@@ -362,6 +370,25 @@ describe('room management page identity and realtime authority', () => {
         slowModeSeconds: 10
       });
     });
+  });
+
+  it('saves independent thread slow mode including explicit Off without changing the channel interval', async () => {
+    serveRoom(managedRoom('general', { threadSlowModeSeconds: 60 }));
+    const { container } = renderSections('general');
+    await settle();
+    const thread = container.querySelector('#room-settings-thread-slow-mode') as HTMLSelectElement;
+    const root = container.querySelector('#room-settings-slow-mode') as HTMLSelectElement;
+    expect(thread.value).toBe('60');
+    thread.value = '0';
+    thread.dispatchEvent(new Event('change', { bubbles: true }));
+    await vi.waitFor(() =>
+      expect(mocks.updateRoom).toHaveBeenCalledWith({
+        roomId: 'shared-room',
+        threadSlowModeSeconds: 0
+      })
+    );
+    await vi.waitFor(() => expect(thread.value).toBe('0'));
+    expect(root.value).toBe('0');
   });
 
   it('saves a threading mode immediately when a radio choice is selected', async () => {

@@ -22,7 +22,7 @@ saved interval visible until the room accepts the change.
     onSave: (patch: RoomSettingsPatch) => Promise<boolean>;
   } = $props();
 
-  const options = $derived.by(() => {
+  function intervalOptions(current: number) {
     const locale = getLocale();
     const presets = SLOW_MODE_PRESETS.map((seconds) => ({
       value: String(seconds),
@@ -31,7 +31,6 @@ saved interval visible until the room accepts the change.
           ? m('admin.rooms_admin.slow_mode_off')
           : formatSlowModeInterval(seconds, locale)
     }));
-    const current = room.slowModeSeconds;
     if (!SLOW_MODE_PRESETS.some((seconds) => seconds === current)) {
       presets.splice(1, 0, {
         value: String(current),
@@ -41,12 +40,21 @@ saved interval visible until the room accepts the change.
       });
     }
     return presets;
-  });
+  }
+
+  const options = $derived(intervalOptions(room.slowModeSeconds));
+  const threadOptions = $derived(intervalOptions(room.threadSlowModeSeconds ?? 0));
 
   async function change(value: string): Promise<void> {
     const slowModeSeconds = Number(value);
     if (slowModeSeconds === room.slowModeSeconds) return;
     await onSave({ slowModeSeconds });
+  }
+
+  async function changeThread(value: string): Promise<void> {
+    const threadSlowModeSeconds = Number(value);
+    if (threadSlowModeSeconds === room.threadSlowModeSeconds) return;
+    await onSave({ threadSlowModeSeconds });
   }
 </script>
 
@@ -59,10 +67,23 @@ saved interval visible until the room accepts the change.
     <Select
       id="room-settings-slow-mode"
       value={String(room.slowModeSeconds)}
-      label={m('admin.rooms_admin.settings.slow_mode_interval')}
+      label={room.threadSlowModeSeconds === undefined
+        ? m('admin.rooms_admin.settings.slow_mode_interval')
+        : m('admin.rooms_admin.settings.channel_slow_mode_interval')}
       {options}
       onValueChange={change}
     />
-    <Hint>{m('admin.rooms_admin.settings.slow_mode_help')}</Hint>
+    {#if room.threadSlowModeSeconds !== undefined}
+      <Select
+        id="room-settings-thread-slow-mode"
+        value={String(room.threadSlowModeSeconds)}
+        label={m('admin.rooms_admin.settings.thread_slow_mode_interval')}
+        options={threadOptions}
+        onValueChange={changeThread}
+      />
+      <Hint>{m('admin.rooms_admin.settings.independent_slow_mode_help')}</Hint>
+    {:else}
+      <Hint>{m('admin.rooms_admin.settings.slow_mode_help')}</Hint>
+    {/if}
   </div>
 </Panel>
