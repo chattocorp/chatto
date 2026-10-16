@@ -1,6 +1,6 @@
 ---
 name: chatto-frontend-review
-description: Review Chatto frontend code for side-effect ownership, Svelte reactivity, lifecycle behavior, and unnecessary complexity. Use for every review that includes apps/frontend, including self-review, branch or PR review, and frontend architecture review.
+description: Review Chatto frontend implementation quality, including Svelte reactivity and lifecycle, component boundaries, design-system reuse, and unnecessary complexity. Use for every review that includes apps/frontend, including self-review, branch or PR review, and frontend architecture review.
 ---
 
 # Chatto Frontend Review
@@ -9,6 +9,12 @@ Review the requested scope, including uncommitted changes when applicable.
 Read [frontend instructions](../../../apps/frontend/AGENTS.md) and trace
 changed behavior through its callers. Apply these rules before declaring the
 review complete. Passing tests or the Svelte analyser do not replace this review.
+
+Focus on frontend implementation quality: Svelte patterns, component boundaries,
+design-system consistency, shared UI reuse, and simplicity. Check behavior where
+these choices affect it. Leave broader application, API, and persistence
+correctness to the general code review. A change being in a Svelte file does not
+make every correctness concern part of this review.
 
 ## Rules
 
@@ -36,14 +42,17 @@ review complete. Passing tests or the Svelte analyser do not replace this review
    because it hides `$effect`, `untrack`, or `onMount`. The actual trigger and
    owner must be correct. Genuine DOM/library setup and cleanup are valid
    lifecycle work; explain why the chosen lifetime is required.
-7. **Keep state in its proper layer.** Apply
-   [chatto-client-placement](../chatto-client-placement/SKILL.md). Avoid copied
-   server state and extra flags or collections when existing state suffices.
-   Keep rendering, derived expressions, and template helpers free of mutations.
-8. **Check failures and transitions.** Verify the relevant entry, navigation,
-   focus, permission, retry, and disposal paths. Look for duplicate requests,
-   stale completions, retry loops, and missing cleanup. Tests must exercise the
-   actual trigger and integration, not only a helper called directly by a test.
+7. **Keep component and state boundaries clear.** Keep reusable UI separate
+   from screen-specific behavior. Avoid copied server state and extra flags or
+   collections when existing state suffices. Keep rendering, derived expressions,
+   and template helpers free of mutations. Use
+   [chatto-client-placement](../chatto-client-placement/SKILL.md) when frontend
+   code appears to own client responsibilities.
+8. **Check component transitions and cleanup.** Check whether prop changes,
+   navigation, focus changes, or disposal cause stale closures, duplicate
+   subscriptions, repeated effects, or missing cleanup. Tests should exercise
+   these frontend integration points. Do not use this rule to redefine the
+   application's retry, pagination, or persistence policy.
 9. **Follow the design system.** User-facing changes must fit the existing
    design system. Reuse shared Tailwind utilities and Svelte components where
    possible. If the change needs a new utility, component, or design-system
@@ -59,6 +68,11 @@ For each finding, give the file and line, the rule, the concrete consequence,
 and the simpler existing integration point when one exists. Review each new or
 changed `$effect`, `untrack`, and lifecycle hook explicitly; report unjustified
 uses as findings. Do not demand changes to unrelated existing uses.
+
+Check findings against the user's requirements and accepted design decisions.
+Separate defects from optional simplifications. If you notice a broader
+correctness issue, report it separately as an incidental finding with evidence
+and any uncertainty; do not expand this review into a general correctness audit.
 
 Report findings in severity order, followed by checks run and remaining gaps.
 If there are no findings, state the reviewed scope. For review-only requests,
