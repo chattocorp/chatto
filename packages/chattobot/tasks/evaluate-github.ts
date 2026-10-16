@@ -27,7 +27,7 @@ async function supervisor(
   model: string,
   scenario: SupervisorCase
 ) {
-  const github = new FakeGitHub();
+  const github = scenario.fixture?.() ?? new FakeGitHub();
   const requests: string[] = [];
   const attempts: { requestId?: unknown; proposedWork?: unknown; evidence?: unknown }[] = [];
   const investigationAttempts: { requestId?: unknown }[] = [];

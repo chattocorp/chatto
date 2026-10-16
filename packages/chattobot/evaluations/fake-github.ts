@@ -113,11 +113,11 @@ export class FakeGitHub {
           ok: true,
           output: JSON.stringify([{ name: 'bug', color: 'd73a4a', description: 'A defect' }])
         };
-      if (operation === 'list') return this.json(this.issues);
+      if (operation === 'list') return this.json(this.issues, flag(args, '--json'));
       const issue = this.issues.find((item) => item.number === target);
       if (operation === 'view') {
         if (!issue) return { ok: false, output: 'Issue not found' };
-        return this.json(issue);
+        return this.json(issue, flag(args, '--json'));
       }
       if (operation === 'create') {
         if (!fields.title || !fields.body) throw new Error('Create needs a title and body');
@@ -184,8 +184,15 @@ export class FakeGitHub {
     };
   }
 
-  private json(value: Issue | Issue[]) {
-    const encode = (issue: Issue) => ({ ...issue, labels: issue.labels.map((name) => ({ name })) });
+  /** Honor CLI field selection so a title-only search cannot reveal unread issue bodies. */
+  private json(value: Issue | Issue[], fields?: string) {
+    const selected = fields?.split(',');
+    const encode = (issue: Issue) => {
+      const full = { ...issue, labels: issue.labels.map((name) => ({ name })) };
+      return selected
+        ? Object.fromEntries(Object.entries(full).filter(([key]) => selected.includes(key)))
+        : full;
+    };
     return {
       ok: true,
       output: JSON.stringify(Array.isArray(value) ? value.map(encode) : encode(value))
