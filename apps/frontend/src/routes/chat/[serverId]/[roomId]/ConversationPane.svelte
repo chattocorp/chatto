@@ -167,7 +167,10 @@ thread IDs can change while the pane stays mounted.
 
   // The root belongs to the room, so a thread read cannot cover its reactions.
   // Read only those occurrences, without clearing other activity in the room.
-  const pendingRootReactions = new SvelteSet<string>();
+  // The store marks an occurrence read at once, so the unread filter keeps an
+  // in-flight read from starting again. This set stops repeated attempts when
+  // a failed read restores unread state. Entry, refocus, or a return from
+  // history clears it.
   const attemptedRootReactions = new SvelteSet<string>();
 
   /** Handle canonical notification arrivals and existing conversation read events. */
@@ -190,22 +193,10 @@ thread IDs can change while the pane stays mounted.
         !attemptedRootReactions.has(occurrence.id)
       ) {
         attemptedRootReactions.add(occurrence.id);
-        void readRootReaction(occurrence.id);
+        stores.notifications
+          .markOccurrenceRead(occurrence.id)
+          .catch(() => console.error('Failed to mark viewed root reaction read'));
       }
-    }
-  }
-
-  /** Keep focus changes from starting a second request for an in-flight read. */
-  async function readRootReaction(id: string): Promise<void> {
-    if (pendingRootReactions.has(id)) return;
-    pendingRootReactions.add(id);
-    try {
-      await stores.notifications.markOccurrenceRead(id);
-    } catch {
-      // The client restores unread state. Entry or refocus permits a new attempt.
-      console.error('Failed to mark viewed root reaction read');
-    } finally {
-      pendingRootReactions.delete(id);
     }
   }
 

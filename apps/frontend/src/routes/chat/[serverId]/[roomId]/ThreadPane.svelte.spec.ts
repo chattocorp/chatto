@@ -603,16 +603,17 @@ describe('ThreadPane', () => {
 
     it('does not duplicate a pending root read across focus changes or notification updates', async () => {
       let resolve!: () => void;
-      mocks.markOccurrenceRead.mockImplementationOnce(
-        () => new Promise<void>((done) => (resolve = done))
-      );
+      // The store marks the occurrence read before the request settles.
+      mocks.markOccurrenceRead.mockImplementationOnce(() => {
+        reactionOccurrences.set([rootReaction('reaction', { unread: false })]);
+        return new Promise<void>((done) => (resolve = done));
+      });
       reactionOccurrences.set([rootReaction('reaction')]);
       render(ThreadPane, { props: threadProps });
       await tick();
       mocks.appState.isPresent = false;
       await tick();
       mocks.appState.isPresent = true;
-      reactionOccurrences.set([rootReaction('reaction')]);
       notifyReactionUpdate();
       await tick();
       expect(mocks.markOccurrenceRead).toHaveBeenCalledExactlyOnceWith('reaction');
