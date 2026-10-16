@@ -76,7 +76,6 @@
       "unreachable": "تعذر الوصول إلى الخادم",
       "connection_unavailable": "الاتصال غير متاح",
       "compatibility_server_too_old": "يجب ترقية هذا الخادم إلى Chatto {version} أو أحدث قبل أن يتمكن هذا التطبيق من الاتصال.",
-      "compatibility_limited": "قد لا تعمل بعض الميزات مع إصدار الخادم هذا. قم بترقية الخادم لتحقيق التوافق الكامل.",
       "compatibility_unknown": "لا يمكن لهذا التطبيق تحديد التوافق من إصدار الخادم.",
       "go_to_notifications_count": {
         "zero": "انتقل إلى {count} إشعارات",

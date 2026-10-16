@@ -9,7 +9,7 @@
   } from '@chatto/client/server/compatibility';
   import { m } from '$lib/i18n/messages';
   import { CompactActionButton, Hint, LoadingDots, PaneContent, PaneHeader, Panel } from '$lib/ui';
-  import { toast } from '$lib/ui/toast';
+  import { copyToClipboard } from '$lib/utils/copyToClipboard';
   import ServerBranding from '$lib/components/ServerBranding.svelte';
 
   let {
@@ -42,15 +42,6 @@
       description: m('chat.compatibility.thread_views_description')
     }
   } satisfies Record<ServerFeature, { title: string; description: string }>);
-
-  async function copyHostname(): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(host);
-      toast.success(m('common.copied_to_clipboard'));
-    } catch {
-      toast.error(m('common.copy_failed'));
-    }
-  }
 </script>
 
 <div class="pane-page">
@@ -72,7 +63,7 @@
           <span class="min-w-0 break-all text-muted">{host}</span>
           <CompactActionButton
             label={m('room_list.copy_server_hostname')}
-            onclick={() => void copyHostname()}
+            onclick={() => void copyToClipboard(host)}
             touchFriendly
           >
             <span class="iconify icon-[uil--copy]" aria-hidden="true"></span>

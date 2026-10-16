@@ -76,7 +76,6 @@
       "unreachable": "Servern kan inte nås",
       "connection_unavailable": "Anslutningen är inte tillgänglig",
       "compatibility_server_too_old": "Den här servern måste uppgraderas till Chatto {version} eller senare innan appen kan ansluta.",
-      "compatibility_limited": "Vissa funktioner kanske inte fungerar med den här serverversionen. Uppgradera servern för full kompatibilitet.",
       "compatibility_unknown": "Den här appen kan inte avgöra kompatibiliteten utifrån serverversionen.",
       "go_to_notifications_count": {
         "one": "Gå till {count} avisering",

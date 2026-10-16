@@ -21,12 +21,10 @@
     headingLevel?: 2 | 3;
   } = $props();
 
-  let markdownModule: Promise<typeof import('$lib/markdown')> | null = null;
-
-  function loadMarkdown() {
-    markdownModule ??= import('$lib/markdown');
-    return markdownModule;
-  }
+  const welcomeHtml = $derived.by(() => {
+    const body = welcomeMessage;
+    return body ? import('$lib/markdown').then(({ renderMarkdown }) => renderMarkdown(body)) : null;
+  });
 </script>
 
 <div class={['flex flex-col items-center', compact ? 'gap-3' : 'gap-5']}>
@@ -53,14 +51,10 @@
 
   {#if welcomeMessage}
     <div class="prose w-full max-w-none rounded-lg border border-border bg-surface p-4 text-muted">
-      {#await loadMarkdown()}
+      {#await welcomeHtml}
         <p>{welcomeMessage}</p>
-      {:then { renderMarkdown }}
-        {#await renderMarkdown(welcomeMessage)}
-          <p>{welcomeMessage}</p>
-        {:then html}
-          <MarkdownHtml {html} />
-        {/await}
+      {:then html}
+        <MarkdownHtml html={html ?? ''} />
       {:catch}
         <p>{welcomeMessage}</p>
       {/await}

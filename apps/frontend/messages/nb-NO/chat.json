@@ -76,7 +76,6 @@
       "unreachable": "Tjeneren er utilgjengelig",
       "connection_unavailable": "Tilkoblingen er utilgjengelig",
       "compatibility_server_too_old": "Denne serveren må oppgraderes til Chatto {version} eller nyere før denne appen kan koble til.",
-      "compatibility_limited": "Enkelte funksjoner fungerer kanskje ikke med denne serverversjonen. Oppgrader serveren for full kompatibilitet.",
       "compatibility_unknown": "Denne appen kan ikke fastslå kompatibilitet ut fra serverversjonen.",
       "go_to_notifications_count": {
         "one": "Gå til {count} varsel",

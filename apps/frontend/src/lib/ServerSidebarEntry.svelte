@@ -26,6 +26,7 @@
   import { hardRedirectAfterSignOut } from '$lib/auth/signOutRedirect';
   import { clientAccount } from '$lib/state/clientAccount';
   import { toast } from '$lib/ui/toast';
+  import { copyToClipboard } from '$lib/utils/copyToClipboard';
   import { notificationPath } from '$lib/notificationPath';
   import { serverGutterOrder } from '$lib/state/serverGutterOrder.svelte';
   import type { Attachment } from 'svelte/attachments';
@@ -182,12 +183,7 @@
     closeContextMenu();
     if (!hostname) return;
 
-    try {
-      await navigator.clipboard.writeText(hostname);
-      toast.success(m('common.copied_to_clipboard'));
-    } catch {
-      toast.error(m('common.error.generic'));
-    }
+    await copyToClipboard(hostname);
   }
 
   function handleRemoveServer(): void {

@@ -76,7 +76,6 @@
       "unreachable": "無法連線至伺服器",
       "connection_unavailable": "連線無法使用",
       "compatibility_server_too_old": "此伺服器必須升級至 Chatto {version} 或更新版本，此應用程式才能連線。",
-      "compatibility_limited": "部分功能可能無法在此伺服器版本上正常使用。請升級伺服器以獲得完整相容性。",
       "compatibility_unknown": "此應用程式無法根據伺服器版本判斷相容性。",
       "go_to_notifications_count": {
         "one": "前往 {count} 則通知",

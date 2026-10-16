@@ -58,7 +58,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     type RoomsListGroupItem
   } from '$lib/state/server/navigation';
   import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms';
-  import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
+  import RoomContextMenu from '$lib/components/menus/RoomContextMenu.svelte';
   import { markNavigationRoomAsRead } from '$lib/navigation/readActions';
   import { toast } from '$lib/ui/toast';
   import { createAdminRoomLayoutAPI } from '$lib/api/adminRoomLayout';
@@ -1350,8 +1350,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     ariaLabel={m('room_list.room_actions', { room: contextRoom.name })}
     onclose={() => (roomContextMenu = null)}
   >
-    <NavigationContextMenu
-      kind="room"
+    <RoomContextMenu
       isRoomMember={contextRoom.viewerIsMember === true}
       canJoin={contextRoom.viewerCanJoinRoom}
       canMarkRead={roomUnreadStore.roomIsUnread(contextRoom.id) ||
