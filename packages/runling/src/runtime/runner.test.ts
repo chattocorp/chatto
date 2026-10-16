@@ -7,6 +7,7 @@ import type { RunOptions } from './cli.ts';
 import { observeRunlingEvents, type RunlingEvent } from './events.ts';
 import { Type } from 'typebox';
 import { task } from './task.ts';
+import { log } from './log.ts';
 import type { RunRecord } from './run-journal.ts';
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -524,6 +525,43 @@ test('isolates workflow contexts and usage events across concurrent executions',
 });
 
 const Nothing = { input: Type.Null(), output: Type.Unknown() };
+
+test('a new host run does not inherit the dispatching run event listeners or activity', async () => {
+  const outer: RunlingEvent[] = [];
+  const inner: RunlingEvent[] = [];
+  const release = Promise.withResolvers<void>();
+  let continuation: ReturnType<typeof runWorkflow> | undefined;
+  const first = task({ name: 'Intake', ...Nothing }, async () => {
+    continuation = runWorkflow(
+      task({ name: 'Conversation', ...Nothing }, async (ctx) => {
+        await release.promise;
+        log.info('Conversation continues');
+        ctx.recordUsage({ input: 7, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 });
+        return 'reply';
+      }),
+      { input: null, onEvent: (event) => inner.push(event) }
+    );
+    return 'accepted';
+  });
+  await runWorkflow(first, { input: null, onEvent: (event) => outer.push(event) });
+  const count = outer.length;
+  release.resolve();
+  expect(await continuation).toMatchObject({ ok: true, output: 'reply' });
+  expect(outer).toHaveLength(count);
+  expect(
+    outer.some((event) => event.type === 'step.started' && event.label === 'Conversation')
+  ).toBe(false);
+  expect(inner.find((event) => event.type === 'step.started')).toMatchObject({
+    activityId: undefined
+  });
+  expect(
+    inner.find((event) => event.type === 'log' && event.message === 'Conversation')
+  ).toMatchObject({ depth: 0 });
+  expect(inner.find((event) => event.type === 'usage.updated')).toMatchObject({
+    activityId: undefined,
+    usage: { input: 7 }
+  });
+});
 
 test('keeps parent accounting independent of a failed nested workflow execution', async () => {
   const parent = task({ name: 'Parent', ...Nothing }, async (ctx) => {
