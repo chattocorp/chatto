@@ -67,15 +67,11 @@ test('uses the latest bot post as the boundary and preserves every eligible auth
   ]);
   const result = await h.read();
   expect(result?.boundary).toBe('latest-bot');
-  expect(result?.messages).toEqual([
+  expect(result?.messages.map(({ message }) => message)).toEqual([
     { ...location, id: 'a', body: '0.4.3', trigger: 'follow-up' },
     { ...location, id: 'b', authorId: 'maintainer', body: 'Docker Compose', trigger: 'follow-up' }
   ]);
   expect(result?.input.context.at(-1)).toEqual({ role: 'bot', body: 'latest-bot' });
-  expect(result?.input.messages).toEqual([
-    { body: '0.4.3', attachmentTypes: [] },
-    { body: 'Docker Compose', attachmentTypes: [] }
-  ]);
 });
 
 test.each([[], [post('root')], [post('root'), post('last', 'bot')]])(
@@ -96,9 +92,12 @@ test('ignores other bots, deleted and unknown authors, and posts outside the all
     post('d', 'human'),
     post('e', 'maintainer')
   ];
-  expect((await harness(messages).read())?.messages.map((item) => item.id)).toEqual(['d', 'e']);
+  expect((await harness(messages).read())?.messages.map(({ message }) => message.id)).toEqual([
+    'd',
+    'e'
+  ]);
   const filtered = harness(messages, 'human');
-  expect((await filtered.read())?.messages.map((item) => item.id)).toEqual(['d']);
+  expect((await filtered.read())?.messages.map(({ message }) => message.id)).toEqual(['d']);
   expect(filtered.batchGetUsers).toHaveBeenCalledWith({ userIds: ['human'] }, expect.anything());
 });
 
@@ -110,5 +109,10 @@ test('attachment-only replies reach classification as MIME types without fetchin
       attachments: [{ id: 'attachment', filename: 'private.png', contentType: 'image/png' }]
     }
   ]);
-  expect((await h.read())?.input.messages).toEqual([{ body: '', attachmentTypes: ['image/png'] }]);
+  expect((await h.read())?.messages).toEqual([
+    {
+      message: { ...location, id: 'image', body: '', trigger: 'follow-up' },
+      attachmentTypes: ['image/png']
+    }
+  ]);
 });

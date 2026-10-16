@@ -173,11 +173,9 @@ function monitorConversation(
         const snapshot = await readFollowUp(first, checkSignal);
         checkSignal.throwIfAborted();
         if (!snapshot) continue;
-        const pending = snapshot.messages.flatMap((item, index) =>
-          delivered.has(item.id) ? [] : [index]
-        );
+        const pending = snapshot.messages.filter(({ message }) => !delivered.has(message.id));
         if (!pending.length) continue;
-        const messages = pending.map((index) => snapshot.messages[index]!);
+        const messages = pending.map(({ message }) => message);
         const key = JSON.stringify([snapshot.boundary, messages.map((item) => item.id)]);
         if (key === checked) continue;
         checked = key;
@@ -187,10 +185,13 @@ function monitorConversation(
             context: [
               ...snapshot.input.context,
               ...snapshot.messages
-                .filter((item) => delivered.has(item.id))
-                .map(({ body }) => ({ role: 'human' as const, body }))
+                .filter(({ message }) => delivered.has(message.id))
+                .map(({ message }) => ({ role: 'human' as const, body: message.body }))
             ],
-            messages: pending.map((index) => snapshot.input.messages[index]!)
+            messages: pending.map(({ message, attachmentTypes }) => ({
+              body: message.body,
+              attachmentTypes
+            }))
           });
           classification = decision;
           const { engage } = await decision.result;

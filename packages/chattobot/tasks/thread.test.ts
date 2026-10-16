@@ -181,15 +181,17 @@ test('cancelling an accepted workflow stops its child conversation', async () =>
 const snapshot = (...ids: string[]): FollowUpSnapshot => ({
   boundary: 'bot-last',
   input: {
-    context: [{ role: 'bot', body: 'What version and deployment method do you use?' }],
-    messages: ids.map((id) => ({ body: id, attachmentTypes: [] }))
+    context: [{ role: 'bot', body: 'What version and deployment method do you use?' }]
   },
   messages: ids.map((id) => ({
-    ...ping,
-    id,
-    authorId: `author-${id}`,
-    body: id,
-    trigger: 'follow-up'
+    message: {
+      ...ping,
+      id,
+      authorId: `author-${id}`,
+      body: id,
+      trigger: 'follow-up'
+    },
+    attachmentTypes: []
   }))
 });
 
@@ -216,7 +218,9 @@ test('unchanged replies are checked once; new replies reconsider the full batch 
   expect(h.classify).toHaveBeenCalledOnce();
   expect(h.received).toEqual([ping]);
   current = snapshot('one', 'two');
-  await vi.waitFor(() => expect(h.batches).toEqual([current.messages]));
+  await vi.waitFor(() =>
+    expect(h.batches).toEqual([current.messages.map(({ message }) => message)])
+  );
   expect(h.classify).toHaveBeenCalledTimes(2);
   await new Promise((resolve) => setTimeout(resolve, 25));
   expect(h.batches).toHaveLength(1);
@@ -246,14 +250,16 @@ test('a directly delivered resolution is not polled again; a new reply can reope
   expect(h.classify).not.toHaveBeenCalled();
   expect(h.batches).toEqual([]);
   current = snapshot('resolved', 'reopened');
-  await vi.waitFor(() => expect(h.batches).toEqual([[current!.messages[1]]]));
+  current.messages[0]!.attachmentTypes = ['image/png'];
+  current.messages[1]!.attachmentTypes = ['application/pdf'];
+  await vi.waitFor(() => expect(h.batches).toEqual([[current!.messages[1]!.message]]));
   expect(h.classify).toHaveBeenLastCalledWith({
     context: [...current.input.context, { role: 'human', body: 'resolved' }],
-    messages: [{ body: 'reopened', attachmentTypes: [] }]
+    messages: [{ body: 'reopened', attachmentTypes: ['application/pdf'] }]
   });
   current = snapshot('resolved', 'reopened', 'more');
   await vi.waitFor(() => expect(h.batches).toHaveLength(2));
-  expect(h.batches[1]).toEqual([current.messages[2]]);
+  expect(h.batches[1]).toEqual([current.messages[2]!.message]);
   run.closeInput();
   await run.result;
 });
@@ -343,7 +349,7 @@ test('waiting for a background job permits follow-ups but prevents inactivity ex
   await using run = h.start(ping);
   await vi.waitFor(() => expect(readFollowUp.mock.calls.length).toBeGreaterThan(3));
   expect(run.status).toBe('running');
-  expect(h.batches).toEqual([snapshot('one').messages]);
+  expect(h.batches).toEqual([snapshot('one').messages.map(({ message }) => message)]);
   const direct = { ...ping, id: 'direct' };
   await run.send(direct);
   await vi.waitFor(() => expect(h.received.at(-1)).toEqual(direct));

@@ -8,9 +8,9 @@ import { threadOf, type IncomingMessage } from './message.ts';
 export interface FollowUpSnapshot {
   /** The bot post that starts this batch. Message IDs are opaque, never sorted. */
   boundary: string;
-  /** Classifier replies correspond by index to the routable messages below. */
-  input: Static<typeof FollowUpInput>;
-  messages: IncomingMessage[];
+  input: Omit<Static<typeof FollowUpInput>, 'messages'>;
+  /** Keep each routable message with its classifier metadata when filtering replies. */
+  messages: { message: IncomingMessage; attachmentTypes: string[] }[];
 }
 
 export type ReadFollowUp = (
@@ -53,18 +53,17 @@ export function createFollowUpReader(
           .map((item) => ({
             role: item.fromViewer ? ('bot' as const) : ('human' as const),
             body: item.body
-          })),
-        messages: replies.map((item) => ({
-          body: item.body,
-          attachmentTypes: (item.attachments ?? []).map((attachment) => attachment.contentType)
-        }))
+          }))
       },
       messages: replies.map((item) => ({
-        ...threadOf(message),
-        id: item.id,
-        authorId: item.authorId!,
-        body: item.body,
-        trigger: 'follow-up' as const
+        message: {
+          ...threadOf(message),
+          id: item.id,
+          authorId: item.authorId!,
+          body: item.body,
+          trigger: 'follow-up' as const
+        },
+        attachmentTypes: (item.attachments ?? []).map((attachment) => attachment.contentType)
       }))
     };
   };

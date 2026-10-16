@@ -74,7 +74,7 @@ const HANDLED_PROMPT = `This conversation started through automatic report intak
 - After authorized filing/updating succeeds, you must call setHandled({handled: true, reply: "your result with the numbered GitHub link"}). The tool posts your reply and then adds the checkmark. Finish without another reply. A text-only result does not set the checkmark.
 - Do not mark while waiting for details, maintainer approval, or background work. Silence, a proposed solution, and starting a job are not completion.
 - When new information reopens the request, call setHandled({handled: false}) before continuing to help.
-- Give one short closing reply when marking a request handled, using the tool's reply field unless you have already sent that closing reply. Do not repeat it after the tool call or announce the checkmark. If the reaction fails, continue helping without claiming it changed.`;
+- Omit reply if you already sent the closing reply. Do not repeat it after the tool call or announce the checkmark. If the reaction fails, continue helping without claiming it changed.`;
 
 const SYSTEM_PROMPT = `You are ChattoBot, the assistant of the Chatto project, in a Chatto chat server. Chatto is self-hosted, open-source team chat.
 
@@ -515,7 +515,7 @@ class Conversation {
         executionMode: 'sequential',
         label: 'Set request handled',
         description:
-          'Set handled=true to add your ✅ to this thread root, or false to remove it when the request reopens. This marks report processing, not a shipped fix. Include reply to post your final result before changing the reaction. Do not repeat that reply as assistant text.',
+          'Set handled=true to add your ✅ to this thread root, or false to remove it when the request reopens. Optional reply is posted before the reaction changes.',
         parameters: Type.Object(
           {
             handled: Type.Boolean(),
