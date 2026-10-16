@@ -12,6 +12,13 @@ The rules below add frontend-specific requirements.
 
 Do not generate playground links for code written into this repository.
 
+## Frontend Review
+
+Use [chatto-frontend-review](../../.agents/skills/chatto-frontend-review/SKILL.md)
+for every review of frontend code, including self-review before completing a
+change. It owns the review rules for side effects, reactivity, and lifecycle
+behavior. Apply those rules when choosing an implementation too.
+
 ## Architecture
 
 - Prefer store classes and small components. Stores own the data lifecycle.

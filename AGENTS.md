@@ -119,6 +119,12 @@ frontends use it. See ADR-111.
   interfaces, and realtime delivery.
 - `docs/GLOSSARY.md` — canonical Chatto terminology.
 
+## Installed Skills
+
+Treat skills listed in `skills-lock.json` as installed dependencies. Do not edit
+their files directly. Make shared changes in the source repository and reinstall.
+Put project-specific rules in repository-owned skills or `AGENTS.md`.
+
 ## Tooling
 
 `mise` manages tools. Prefer its tasks when they are available.
@@ -218,6 +224,9 @@ Never leave a dev stack running in a detached or yielded terminal session.
 
 ## Issues, Commits, And PRs
 
+- Every review that includes `apps/frontend/` must use
+  [chatto-frontend-review](.agents/skills/chatto-frontend-review/SKILL.md).
+  This includes self-review, branch and PR review, and architecture review.
 - Use Conventional Commit format for commits and PR titles, for example `fix(api): ...` or `feat(frontend)!: ...`. Only mark breaking changes when they really are breaking.
 - Always create pull requests as full, ready-for-review PRs. Create a draft PR only when the user explicitly asks for a draft.
 - PR bodies should use clean Markup and summarize changes and link relevant FDRs, ADRs, glossary terms, and issues.
