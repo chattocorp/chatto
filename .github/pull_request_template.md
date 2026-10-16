@@ -30,6 +30,14 @@ Newer client → older server:
 
 Capability discovery or minimum client/server version:
 
+<!-- For any threshold value change, including a decrease, explain the reason and apply:
+- MINIMUM_SUPPORTED_SERVER_VERSION: server-compatibility:full-support
+- MINIMUM_CONNECTABLE_SERVER_VERSION: server-compatibility:connection-floor
+Changes to both require both labels. For a connection-floor increase, include
+the exact incompatibility, why alternatives are insufficient, the oldest release
+that meets the requirement, and the required upgrade action. See FDR-031.
+Labels do not waive compatibility tests or justification requirements. -->
+
 ## Test plan
 
 <!-- List exact checks and results, plus any verification still outstanding. -->
