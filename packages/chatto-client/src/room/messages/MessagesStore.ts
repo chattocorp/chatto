@@ -411,6 +411,7 @@ export class MessagesStore {
       const index = this.events.findIndex((row) => row.id === id);
       if (index >= 0) {
         if (eventFingerprint(this.events[index]) !== before.get(id)) return;
+        this.applyThreadDeadlineFromMessage(hydrated);
         this.clearOptimisticVersionForEvent(id);
         this.events = this.source.sort(this.events.with(index, hydrated));
       } else if (insert) this.ingestEvent(hydrated);
@@ -1046,6 +1047,7 @@ export class MessagesStore {
         else if (hydrated && eventFingerprint(this.events[currentIndex]) === previousFingerprint) {
           // Replace the temporary row. Ordinary ingestion deduplicates event IDs.
           // A newer local change or resource response takes precedence over this read.
+          this.applyThreadDeadlineFromMessage(hydrated);
           this.clearOptimisticVersionForEvent(eventId);
           this.events = this.source.sort(this.events.with(currentIndex, hydrated));
         }

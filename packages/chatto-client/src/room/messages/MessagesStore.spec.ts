@@ -3685,6 +3685,47 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it.each(['reconciliation', 'refresh'] as const)(
+    'updates the thread deadline when %s replaces a live preview',
+    async (path) => {
+      const preview = threadMessageEvent('reply', 'root');
+      const deadline = '2026-10-15T12:00:30.000Z';
+      const hydrated = {
+        ...preview,
+        event: { ...preview.event, threadSlowModeNextPostAt: deadline }
+      };
+      const timeline = fakeTimelineAPI({
+        getThreadEvents: vi.fn(async () => ({
+          events: [],
+          hasOlder: false,
+          hasNewer: false,
+          threadSlowModeNextPostAt: null
+        })),
+        getMessage: vi.fn(async () => hydrated)
+      });
+      const store = new MessagesStore(
+        new FakeQueryClient() as unknown as ServerConnection,
+        () => null,
+        { roomId: 'room-1', threadRootEventId: 'root' },
+        timeline
+      );
+      try {
+        await settle();
+        store.ingestEvent(preview);
+        expect(store.threadSlowModeNextPostAt).toBeNull();
+        if (path === 'reconciliation') {
+          store.captureMessageReconciliation()('reply', hydrated, true);
+        } else {
+          await store.refreshPostedMessage('reply');
+        }
+        expect(store.events.filter((row) => row.id === 'reply')).toHaveLength(1);
+        expect(store.threadSlowModeNextPostAt).toBe(deadline);
+      } finally {
+        store.dispose();
+      }
+    }
+  );
+
   it('keeps thread deadlines independent and clears them on access loss', async () => {
     const fake = new FakeQueryClient();
     const deadlines: Record<string, string | null> = { a: '2026-10-15T12:00:30.000Z', b: null };
