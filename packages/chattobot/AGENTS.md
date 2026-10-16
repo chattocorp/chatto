@@ -65,6 +65,8 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   as specified in [FDR-051](../../docs/fdr/FDR-051-chattobot-report-intake.md).
   Use GitHub's native parent/sub-issue relationships for epic/task hierarchy.
   Check discovery with `pnpm eval:github issue-discovery`.
+- Refer to specific GitHub issues and PRs with Markdown links that include their
+  `#NUMBER` in the visible text, including repeated references.
 
 ## Host text
 

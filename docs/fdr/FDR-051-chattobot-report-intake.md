@@ -20,7 +20,8 @@ ordinary thread replies can continue the conversation without another mention.
   can ask questions and inspect attachments. Incomplete reports can qualify.
 - When GitHub is configured, the conversation searches existing issues as soon
   as a feature or bug symptom is specific enough. It reads and links plausible
-  matches with a short summary. If several issues could apply, it asks which,
+  matches with a short summary. References to specific GitHub issues and pull
+  requests are links with their `#NUMBER` in the visible text. If several issues could apply, it asks which,
   if any, covers the request before continuing the interview or investigating
   causes. Users can discuss missing behavior in the thread. These reads need no
   maintainer approval; an existing issue is not proof of a shipped feature or fix.

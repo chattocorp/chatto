@@ -49,6 +49,15 @@ function clarification(github: FakeGitHub, answer: string) {
   );
 }
 
+/** Issue and PR references must expose their number in the clickable text. */
+export function checkGitHubLink(answer: string, url: string, number: number) {
+  const links = [...answer.matchAll(/\[([^\]]+)\]\((https:\/\/github\.com\/[^\s)]+)\)/g)];
+  assert(
+    links.some(([, label, target]) => target === url && new RegExp(`#${number}\\b`).test(label!)),
+    'Link the GitHub issue or PR with its number in the visible text'
+  );
+}
+
 /** Classification belongs to the native type field, never a title prefix or a label. */
 export function checkIssueType(issue: Issue, expected: string) {
   assert.doesNotMatch(
@@ -172,7 +181,7 @@ export const workerCases: readonly WorkerCase[] = [
         'Expected an issue search'
       );
       assert.equal(writes(github).length, 0, 'A search must not write');
-      assert.match(answer, /12|reconnect/i, 'Expected a summary of the matching issue');
+      checkGitHubLink(answer, issueUrl(12), 12);
     }
   },
   {
@@ -373,7 +382,7 @@ export const supervisorCases: readonly SupervisorCase[] = [
         'Read a plausible match before summarizing it'
       );
       const answer = posts.at(-1)!;
-      assert(answer.includes(issueUrl(12)), 'Link the matching issue');
+      checkGitHubLink(answer, issueUrl(12), 12);
       assert.match(answer, item.summary, 'Summarize the evidence from the issue body');
       assert.match(
         answer,
@@ -387,7 +396,7 @@ export const supervisorCases: readonly SupervisorCase[] = [
       );
       assert.doesNotMatch(
         answer,
-        /(?:is|has been|was|already) (?:shipped|released|implemented|fixed)/i,
+        /\b(?:it|this|the (?:feature|fix|bug)) (?:is|has been|was) (?:already )?(?:shipped|released|implemented|fixed)\b/i,
         'An issue is not evidence of a shipped feature or fix'
       );
       if (item.state === 'CLOSED')
@@ -429,10 +438,8 @@ export const supervisorCases: readonly SupervisorCase[] = [
         'Read both plausible matches'
       );
       const answer = posts.at(-1)!;
-      assert(
-        answer.includes(issueUrl(12)) && answer.includes(issueUrl(13)),
-        'Link both plausible issues'
-      );
+      checkGitHubLink(answer, issueUrl(12), 12);
+      checkGitHubLink(answer, issueUrl(13), 13);
       assert.match(answer, /upload/i);
       assert.match(answer, /permission|manage/i);
       assert.match(

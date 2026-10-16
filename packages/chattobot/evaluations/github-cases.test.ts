@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { FakeGitHub, issueUrl, REPOSITORY } from './fake-github.ts';
-import { checkIssueType, supervisorCases, workerCases } from './github-cases.ts';
+import { checkGitHubLink, checkIssueType, supervisorCases, workerCases } from './github-cases.ts';
 
 const call = (github: FakeGitHub, ...args: string[]) =>
   github.run(args, {
@@ -8,6 +8,25 @@ const call = (github: FakeGitHub, ...args: string[]) =>
     repository: REPOSITORY,
     signal: new AbortController().signal
   });
+
+test.each(['issues', 'pull'])('GitHub %s references need a linked, visible number', (kind) => {
+  const url = `https://github.com/evaluation/fixture/${kind}/12`;
+  checkGitHubLink(`See [#12 — Custom emojis](${url}).`, url, 12);
+  for (const reference of [url, '#12', `#12: [Custom emojis](${url})`, `[#123](${url})`])
+    expect(() => checkGitHubLink(reference, url, 12)).toThrow('number in the visible text');
+});
+
+test('the discovery grader allows an unreleased fix but rejects a claimed release', async () => {
+  const scenario = supervisorCases.find((item) => item.name === 'issue-discovery-bug')!;
+  const github = scenario.fixture!();
+  await call(github, 'issue', 'list', '--state', 'all');
+  await call(github, 'issue', 'view', '12');
+  const answer = `[#12](${issueUrl(12)}) proposes refreshing the timeline. Does that match?`;
+  scenario.check!([`${answer} No fix is released yet.`], github.commands);
+  expect(() => scenario.check!([`${answer} The fix is released.`], github.commands)).toThrow(
+    'shipped feature or fix'
+  );
+});
 
 test('the greeting grader allows a social question but rejects a slang clarification', () => {
   const check = supervisorCases.find((scenario) => scenario.name === 'casual-greeting')!.check!;
