@@ -516,7 +516,7 @@ class Conversation {
         executionMode: 'sequential',
         label: 'Set request handled',
         description:
-          'Set handled=true only when the whole request is processed, or false when it reopens. Do not mark partial success with a requested step still failed or pending. Optional reply is posted before the reaction changes; use a normal reply for unfinished work.',
+          'Set handled=true only when the whole request is processed, or false when it reopens. Do not call this tool to acknowledge a job or keep pending work unmarked: leave the reaction alone and reply normally. Do not mark partial success with a requested step still failed or pending. Optional reply is posted before the reaction changes; use a normal reply for unfinished work.',
         parameters: Type.Object(
           {
             handled: Type.Boolean(),
