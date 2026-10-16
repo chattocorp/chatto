@@ -95,6 +95,7 @@
     )
   );
   const slowModeBlocked = $derived(slowModeRemainingSeconds > 0);
+  let slowModeBadge: { highlight: () => void } | undefined = $state();
   const editorModule = $derived(editorLoaders[userPreferences.composerEditor]());
   const composerId = $props.id();
   const formattingToolbarId = `${composerId}-formatting-toolbar`;
@@ -139,6 +140,7 @@
     getCanPost: () => canPost,
     getCanAttach: () => canAttach,
     getSlowModeBlocked: () => slowModeBlocked,
+    onSlowModeBlocked: () => slowModeBadge?.highlight(),
     getCanCreateThread: () => showCreateThread,
     getCreateThreadRequired: () => createThreadRequired,
     getCreateThreadDefault: () => createThreadDefault,
@@ -272,6 +274,7 @@
     <ComposerStatusRow>
       {@render inputStatus?.()}
       <SlowModeBadge
+        bind:this={slowModeBadge}
         seconds={slowModeSeconds}
         remaining={slowModeRemainingSeconds}
         bypassed={slowModeBypassed}
