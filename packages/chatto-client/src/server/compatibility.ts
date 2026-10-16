@@ -2,10 +2,20 @@ import compare from 'semver/functions/compare.js';
 import valid from 'semver/functions/valid.js';
 
 /**
- * Oldest server release with full client feature support. Older connectable
- * releases show a warning; individual features do not have version gates.
+ * Minimum releases for individual client capabilities. Add an entry when a
+ * server change affects a feature without preventing the client from connecting.
+ * These requirements describe version support, not permissions or configuration.
  */
-export const MINIMUM_SUPPORTED_SERVER_VERSION = '0.5.0-beta.16';
+export const SERVER_FEATURE_REQUIREMENTS = {
+  /** Root-author filtering for separate followed and own thread lists (#2983). */
+  threadViews: '0.5.0-beta.16'
+} as const;
+
+/** A capability whose server requirement the client knows. */
+export type ServerFeature = keyof typeof SERVER_FEATURE_REQUIREMENTS;
+
+/** Unknown versions remain usable; they are not evidence of missing support. */
+export type ServerFeatureSupport = 'supported' | 'limited' | 'unknown';
 
 /**
  * Oldest release allowed to connect. This was the full-support baseline before
@@ -13,6 +23,30 @@ export const MINIMUM_SUPPORTED_SERVER_VERSION = '0.5.0-beta.16';
  * remain compatible. Do not lower it without verifying the older contracts.
  */
 export const MINIMUM_CONNECTABLE_SERVER_VERSION = '0.5.0-beta.9';
+
+/** Full support is derived from the connection floor and feature requirements. */
+export const MINIMUM_SUPPORTED_SERVER_VERSION = Object.values(
+  SERVER_FEATURE_REQUIREMENTS
+).reduce<string>(
+  (minimum, required) => (compare(minimum, required) < 0 ? required : minimum),
+  MINIMUM_CONNECTABLE_SERVER_VERSION
+);
+
+/** Check one feature using the same custom-build rules as connection discovery. */
+export function serverFeatureSupport(
+  serverVersion: string,
+  feature: ServerFeature
+): ServerFeatureSupport {
+  const comparison = compareReleaseVersions(serverVersion, SERVER_FEATURE_REQUIREMENTS[feature]);
+  return comparison === null ? 'unknown' : comparison < 0 ? 'limited' : 'supported';
+}
+
+/** List only confirmed version limitations, in the order of the requirements map. */
+export function limitedServerFeatures(serverVersion: string): ServerFeature[] {
+  return (Object.keys(SERVER_FEATURE_REQUIREMENTS) as ServerFeature[]).filter(
+    (feature) => serverFeatureSupport(serverVersion, feature) === 'limited'
+  );
+}
 
 export type ServerCompatibilityStatus =
   'supported' | 'limited' | 'unsupported' | 'unknown' | 'unreachable';

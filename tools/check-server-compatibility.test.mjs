@@ -1,7 +1,7 @@
 /** Exercise label policy and the immutable Git revision boundary used by CI. */
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
@@ -13,6 +13,44 @@ const source = (support = '0.5.0-beta.16', floor = '0.5.0-beta.9') => `
 export const MINIMUM_SUPPORTED_SERVER_VERSION = '${support}';
 export const MINIMUM_CONNECTABLE_SERVER_VERSION = '${floor}';
 `;
+
+const featureSource = readFileSync(
+  new URL('../packages/chatto-client/src/server/compatibility.ts', import.meta.url),
+  'utf8'
+);
+
+test('derived full support preserves the threshold and requires labels when the maximum changes', () => {
+  assert.deepEqual(checkThresholdChanges(source(), featureSource, []), []);
+  const increased = featureSource.replace("threadViews: '0.5.0-beta.16'", "threadViews: '0.6.0'");
+  assert.equal(checkThresholdChanges(featureSource, increased, []).length, 1);
+  assert.deepEqual(checkThresholdChanges(featureSource, increased, [supportLabel]), []);
+  const decreased = featureSource.replace(
+    "threadViews: '0.5.0-beta.16'",
+    "threadViews: '0.5.0-beta.10'"
+  );
+  assert.equal(checkThresholdChanges(featureSource, decreased, []).length, 1);
+  const belowFloor = featureSource.replace("threadViews: '0.5.0-beta.16'", "threadViews: '0.4.0'");
+  assert.equal(readThresholds(belowFloor).MINIMUM_SUPPORTED_SERVER_VERSION, '0.5.0-beta.9');
+  const additional = featureSource.replace(
+    "threadViews: '0.5.0-beta.16'",
+    "threadViews: '0.5.0-beta.16', other: '0.7.0'"
+  );
+  assert.equal(readThresholds(additional).MINIMUM_SUPPORTED_SERVER_VERSION, '0.7.0');
+});
+
+test('unknown derivations and nonliteral feature requirements fail closed', () => {
+  for (const invalid of [
+    featureSource.replace('compare(minimum, required) < 0', 'compare(minimum, required) > 0'),
+    featureSource.replace("threadViews: '0.5.0-beta.16'", 'threadViews: computeVersion()'),
+    featureSource.replace(
+      "threadViews: '0.5.0-beta.16'",
+      "threadViews: '0.5.0-beta.16', threadViews: '0.6.0'"
+    ),
+    featureSource.replace("threadViews: '0.5.0-beta.16'", '...requirements')
+  ]) {
+    assert.throws(() => readThresholds(invalid));
+  }
+});
 
 test('unchanged values allow no labels and unrelated labels', () => {
   for (const labels of [[], ['unrelated'], [supportLabel, floorLabel]]) {

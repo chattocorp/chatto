@@ -51,6 +51,21 @@
       "view_in_admin": "Vaata serveri halduses",
       "copy_user_id": "Kopeeri kasutaja ID"
     },
+    "server_info": {
+      "title": "Serveri teave",
+      "details": "Serveri üksikasjad"
+    },
+    "compatibility": {
+      "title": "Ühilduvus",
+      "view": "Vaata ühilduvust",
+      "limited": "Piiratud tugi",
+      "supported": "Teadaolevaid ühilduvusprobleeme pole",
+      "affected": "Mõjutatud funktsioonid",
+      "requires": "Nõuab versiooni {version} või uuemat",
+      "thread_views_title": "Lõimevaadete tugi on piiratud",
+      "thread_views_description": "Jälgitavaid lõimi ja Teie alustatud lõimi ei pruugita selles serveris eraldi kuvada.",
+      "upgrade": "Täieliku toe saamiseks paluge serveri administraatoril uuendada versioonile {version} või uuemale."
+    },
     "server_gutter": {
       "move_up": "Liigutage üles",
       "move_down": "Liigutage alla",
@@ -61,7 +76,6 @@
       "unreachable": "Server pole kättesaadav",
       "connection_unavailable": "Ühendus pole saadaval",
       "compatibility_server_too_old": "See server peab olema üle viidud versioonile Chatto {version} või uuemale, enne kui see rakendus saab ühenduse luua.",
-      "compatibility_limited": "Mõned funktsioonid ei pruugi selle serveriversiooniga töötada. Täieliku ühilduvuse tagamiseks uuendage serverit.",
       "compatibility_unknown": "See rakendus ei saa serveri versiooni järgi ühilduvust kindlaks teha.",
       "go_to_notifications_count": {
         "one": "Ava {count} teatis",

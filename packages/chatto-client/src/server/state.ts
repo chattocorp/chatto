@@ -10,6 +10,8 @@ import {
   evaluateServerCompatibility,
   isConnectableServerVersion,
   isSupportedServerVersion,
+  limitedServerFeatures,
+  type ServerFeature,
   type ServerCompatibilityProblem,
   type ServerCompatibilityResult
 } from './compatibility.js';
@@ -170,6 +172,17 @@ export class ServerInfoState {
 
   get #runtime() {
     return this.#getProjectedState()?.runtime;
+  }
+
+  /** Known feature limitations after discovery. The origin serves its own client. */
+  get limitedFeatures(): ServerFeature[] {
+    if (
+      this.originServer ||
+      this.error !== null ||
+      (this.loading && this.lastDiscoveredAt === null)
+    )
+      return [];
+    return limitedServerFeatures(this.version);
   }
 
   get compatibility(): ServerCompatibilityResult {

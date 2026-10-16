@@ -1,7 +1,7 @@
 # FDR-031: Client–Server Compatibility Discovery
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-15
+**Last reviewed:** 2026-10-16
 
 ## Overview
 
@@ -13,16 +13,30 @@ Chatto's pre-1.0 API remains experimental.
 
 ## Behavior
 
-- A registered server's context menu shows the software version reported by
-  that server's latest discovery response.
+- A registered server's Server information page starts with its public profile:
+  logo, name, banner, description, and welcome message. It uses the same branding
+  component and Markdown rendering as the login page and omits empty optional
+  fields. Hostname and software version follow in Server details.
 - A registered server's context menu or touch sheet shows its configured host
-  and provides a final action that copies that exact host, including a
-  non-default port, to the clipboard.
+  and provides an action that copies that exact host, including a non-default
+  port, to the clipboard. The information page also has this copy action.
+- The menu groups Server information, Copy server hostname, and Mark as read
+  together. Ordering controls form a second group, shown only when more than
+  one server is registered. Retry, sign-in/out, and removal form the final group.
+  The menu header shows the name and hostname; the version is on the information page.
 - Remote servers have two version thresholds. Full feature support requires
   `0.5.0-beta.16`. The minimum connectable release is `0.5.0-beta.9`.
   Between these thresholds, the client attempts the normal UI and realtime
-  connection and shows a warning that some features may not work. Below the
-  connection threshold, it blocks the server route and realtime connection.
+  connection. The server menu shows a short summary and a Server information
+  action. The Compatibility section of that page lists known feature limitations,
+  the release required for each feature, and one overall upgrade recommendation.
+  Affected views show a short link to the relevant section of that page.
+  The page also shows supported, unknown, and unreachable states. Remote-server
+  reports remain accessible when chat cannot connect or the user is signed out.
+  Thread views require beta.16 to separate followed threads from threads
+  started by the viewer. Older servers can still show thread results, with
+  a notice that the lists may not be separated correctly. Below the
+  connection threshold, it blocks chat routes and the realtime connection.
 - The origin server serves its own frontend and has no version check.
 - Custom suffixes do not affect comparison. For example,
   `0.6.1-my-customization` compares as `0.6.1`, and
@@ -64,8 +78,14 @@ Chatto's pre-1.0 API remains experimental.
 
 ### 1. Separate full support from the connection threshold
 
-**Decision:** The bundled client records a full-support release and a minimum
-connectable release. It does not gate individual features by server version.
+**Decision:** The client records a minimum connectable release and a map of
+minimum releases for individual features. Full support is derived from the
+highest requirement, including the connection minimum. Known limitations
+appear in Server information, linked from the server menu and affected views.
+This keeps persistent notices short as the requirement map grows. Feature support
+is separate from server configuration and viewer permissions. Unknown versions
+do not produce a list of confirmed limitations. The thread-view notice is
+advisory and does not block requests.
 Increase the connection threshold only as
 a last resort, including during alpha and beta releases. First consider a
 compatible API design, use of the existing server contract, or deferring the

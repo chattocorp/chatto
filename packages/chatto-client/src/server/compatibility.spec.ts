@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   compareReleaseVersions,
+  serverFeatureSupport,
+  limitedServerFeatures,
+  SERVER_FEATURE_REQUIREMENTS,
   evaluateServerCompatibility,
   isSupportedServerVersion,
   isConnectableServerVersion,
@@ -10,6 +13,28 @@ import {
 } from './compatibility.js';
 
 describe('server compatibility evaluation', () => {
+  it.each([
+    ['0.5.0-beta.11', 'limited', ['threadViews']],
+    ['0.5.0-beta.15-custom', 'limited', ['threadViews']],
+    ['0.5.0-beta.16', 'supported', []],
+    ['0.5.0-beta.16-custom+build.2', 'supported', []],
+    ['0.5.0', 'supported', []],
+    ['dev', 'unknown', []],
+    ['', 'unknown', []]
+  ] as const)('reports feature support for %s', (version, support, limited) => {
+    expect(serverFeatureSupport(version, 'threadViews')).toBe(support);
+    expect(limitedServerFeatures(version)).toEqual(limited);
+  });
+
+  it('derives full support from the feature requirements', () => {
+    for (const required of Object.values(SERVER_FEATURE_REQUIREMENTS)) {
+      expect(
+        compareReleaseVersions(MINIMUM_SUPPORTED_SERVER_VERSION, required)
+      ).toBeGreaterThanOrEqual(0);
+    }
+    expect(limitedServerFeatures(MINIMUM_SUPPORTED_SERVER_VERSION)).toEqual([]);
+  });
+
   it.each([
     ['0.6.1-my-customization', '0.6.1'],
     ['0.6.1+my-customization', '0.6.1'],

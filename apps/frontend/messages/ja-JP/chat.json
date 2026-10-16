@@ -51,6 +51,21 @@
       "view_in_admin": "サーバー管理で表示",
       "copy_user_id": "ユーザーIDをコピー"
     },
+    "server_info": {
+      "title": "サーバー情報",
+      "details": "サーバーの詳細"
+    },
+    "compatibility": {
+      "title": "互換性",
+      "view": "互換性を表示",
+      "limited": "限定的なサポート",
+      "supported": "既知の互換性の問題はありません",
+      "affected": "影響を受ける機能",
+      "requires": "{version} 以降が必要です",
+      "thread_views_title": "スレッド表示のサポートは限定的です",
+      "thread_views_description": "このサーバーでは、フォロー中のスレッドと自分が開始したスレッドが別々に表示されない場合があります。",
+      "upgrade": "完全なサポートを得るには、サーバー管理者に {version} 以降へのアップグレードを依頼してください。"
+    },
     "server_gutter": {
       "move_up": "上に移動",
       "move_down": "下に移動",
@@ -61,7 +76,6 @@
       "unreachable": "サーバーに接続できません",
       "connection_unavailable": "接続できません",
       "compatibility_server_too_old": "このアプリが接続するには、サーバーを Chatto {version} 以降にアップグレードする必要があります。",
-      "compatibility_limited": "このサーバーバージョンでは、一部の機能が動作しない場合があります。完全な互換性を確保するには、サーバーをアップグレードしてください。",
       "compatibility_unknown": "このアプリはサーバーのバージョンから互換性を判断できません。",
       "go_to_notifications_count": {
         "one": "{count} 件の通知に移動",

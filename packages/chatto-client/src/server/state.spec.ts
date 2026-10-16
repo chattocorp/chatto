@@ -214,6 +214,19 @@ describe('ServerInfoState.init()', () => {
 });
 
 describe('ServerInfoState.compatibilityProblem', () => {
+  it('refreshes feature limitations after an upgrade', async () => {
+    let version = '0.5.0-beta.11';
+    const state = new ServerInfoState('https://acme.test', async () =>
+      publicServerInfo({ version })
+    );
+    expect(state.limitedFeatures).toEqual([]);
+    await state.init();
+    expect(state.limitedFeatures).toEqual(['threadViews']);
+    version = '0.5.0-beta.16';
+    await state.init();
+    expect(state.limitedFeatures).toEqual([]);
+  });
+
   it.each([
     ['0.5.0-beta.8', false, 'server-too-old'],
     ['0.5.0-beta.9', true, null],
@@ -242,6 +255,7 @@ describe('ServerInfoState.compatibilityProblem', () => {
     expect(state.compatibility.status).toBe('supported');
     expect(state.compatibilityProblem).toBeNull();
     expect(state.blockingCompatibilityProblem).toBeNull();
+    expect(state.limitedFeatures).toEqual([]);
   });
   beforeEach(() => {
     vi.spyOn(console, 'error').mockImplementation(() => {});

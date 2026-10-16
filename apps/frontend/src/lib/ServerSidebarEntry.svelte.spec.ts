@@ -89,6 +89,7 @@ const { mocks } = vi.hoisted(() => {
           iconUrl: null as string | null,
           loading: false,
           version: '0.5.0',
+          limitedFeatures: [] as import('@chatto/client/server/compatibility').ServerFeature[],
           compatibility: {
             status: 'supported',
             reason: 'version-confirmed'
@@ -350,6 +351,7 @@ describe('ServerSidebarEntry', () => {
     mocks.store.serverInfo.iconUrl = null;
     mocks.store.serverInfo.loading = false;
     mocks.store.serverInfo.version = '0.5.0';
+    mocks.store.serverInfo.limitedFeatures = [];
     mocks.store.serverInfo.compatibility = {
       status: 'supported',
       reason: 'version-confirmed'
@@ -468,7 +470,7 @@ describe('ServerSidebarEntry', () => {
       .toHaveAttribute('aria-label', 'Actions for Loaded Remote');
   });
 
-  it('shows Copy server hostname last and copies the displayed host', async () => {
+  it('groups information, hostname, and read actions and copies the displayed host', async () => {
     mocks.server.url = 'https://remote.example.com:8443/chat';
     const { container } = render(ServerSidebarEntry, {
       props: { serverId: 'remote' }
@@ -485,8 +487,13 @@ describe('ServerSidebarEntry', () => {
       '[data-testid="copy-server-hostname"]'
     ) as HTMLButtonElement;
     await expect.element(copyHostname).toHaveTextContent('Copy server hostname');
-    const menuItems = copyHostname.closest('[role="menu"]')?.querySelectorAll('[role="menuitem"]');
-    expect(menuItems?.item((menuItems?.length ?? 0) - 1)).toBe(copyHostname);
+    const actionLabels = Array.from(
+      copyHostname.closest('.menu-section')!.querySelectorAll('[role="menuitem"]'),
+      (item) => item.textContent?.trim()
+    );
+    expect(actionLabels).toEqual(['Server information', 'Copy server hostname', 'Mark as read']);
+    expect(q(document.body, '[data-testid="move-server-up"]')).toBeNull();
+    expect(q(document.body, '[data-testid="move-server-down"]')).toBeNull();
 
     const remove = Array.from(document.querySelectorAll('button')).find(
       (button) => button.textContent?.trim() === 'Remove server'
@@ -660,7 +667,7 @@ describe('ServerSidebarEntry', () => {
         'This server must be upgraded to Chatto 0.5.0-beta.9 or newer before this app can connect.'
       )
     );
-    expect(document.body.textContent).toContain('Version 0.4.12');
+    expect(document.body.textContent).not.toContain('Version 0.4.12');
 
     const compatibilitySection = q(document.body, '[data-testid="server-compatibility-section"]');
     expect(compatibilitySection!.classList).toContain('text-sm');
@@ -701,10 +708,11 @@ describe('ServerSidebarEntry', () => {
         'This app cannot determine compatibility from the server version.'
       )
     );
-    expect(document.body.textContent).toContain('Version custom-build');
+    expect(document.body.textContent).not.toContain('Version custom-build');
   });
 
   it('keeps normal actions and explains limited feature support', async () => {
+    mocks.store.serverInfo.limitedFeatures = ['threadViews'];
     mocks.store.serverInfo.version = '0.5.0-beta.9-custom';
     mocks.store.serverInfo.compatibility = { status: 'limited', reason: 'server-too-old' };
     const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
@@ -713,12 +721,12 @@ describe('ServerSidebarEntry', () => {
     icon.dispatchEvent(
       new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 24, clientY: 36 })
     );
-    await vi.waitFor(() =>
-      expect(document.body.textContent).toContain(
-        'Some features may not work with this server version.'
-      )
-    );
-    expect(document.body.textContent).toContain('Version 0.5.0-beta.9-custom');
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Limited support'));
+    expect(document.body.textContent).not.toContain('Version 0.5.0-beta.9-custom');
+    expect(document.body.textContent).not.toContain('upgrade to 0.5.0-beta.16 or newer');
+    expect(
+      document.body.querySelector('a[href="/chat/remote.example.com/info"]')?.textContent
+    ).toContain('Server information');
     expect(document.body.textContent).not.toContain('before this app can connect');
     const markRead = [...document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')].find(
       (item) => item.textContent?.includes('Mark as read')

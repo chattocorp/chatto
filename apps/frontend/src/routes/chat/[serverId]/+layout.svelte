@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import { serverRegistry, serverConnectionManager } from '$lib/client';
   import ServerScopeProvider from '$lib/state/server/ServerScopeProvider.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -22,6 +23,8 @@
   const compatibilityProblem = $derived(
     serverStore?.serverInfo.blockingCompatibilityProblem ?? null
   );
+  // Discovery is public. Keep its report accessible without a usable chat session.
+  const isInformationPage = $derived(page.route.id === '/chat/[serverId]/info');
 
   // A known remote server without a usable session. Explain this instead of
   // server chrome that would stay empty.
@@ -47,7 +50,9 @@
       connection={serverConnectionManager.getClient(serverId)}
       store={serverStore}
     >
-      {#if compatibilityProblem}
+      {#if isInformationPage && (compatibilityProblem || signedOutRegistration || !serverStore.realtimeSync.hasDisplayableView)}
+        {@render children?.()}
+      {:else if compatibilityProblem}
         <ServerUnavailable
           reason={compatibilityProblem}
           {registration}
