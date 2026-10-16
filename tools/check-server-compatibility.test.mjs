@@ -1,7 +1,7 @@
 /** Exercise label policy and the immutable Git revision boundary used by CI. */
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
@@ -14,10 +14,15 @@ export const MINIMUM_SUPPORTED_SERVER_VERSION = '${support}';
 export const MINIMUM_CONNECTABLE_SERVER_VERSION = '${floor}';
 `;
 
-const featureSource = readFileSync(
-  new URL('../packages/chatto-client/src/server/compatibility.ts', import.meta.url),
-  'utf8'
+// Policy fixtures must stay independent of the client's growing feature list.
+const featureSource = `
+export const SERVER_FEATURE_REQUIREMENTS = { threadViews: '0.5.0-beta.16' } as const;
+export const MINIMUM_CONNECTABLE_SERVER_VERSION = '0.5.0-beta.9';
+export const MINIMUM_SUPPORTED_SERVER_VERSION = Object.values(SERVER_FEATURE_REQUIREMENTS).reduce<string>(
+  (minimum, required) => (compare(minimum, required) < 0 ? required : minimum),
+  MINIMUM_CONNECTABLE_SERVER_VERSION
 );
+`;
 
 test('derived full support preserves the threshold and requires labels when the maximum changes', () => {
   assert.deepEqual(checkThresholdChanges(source(), featureSource, []), []);
