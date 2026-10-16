@@ -227,6 +227,10 @@ test.describe('Message Threading', () => {
       const threadingModes = adminPage.getByRole('radiogroup', { name: 'Threading Mode' });
       const setThreadingMode = async (mode: 'Encouraged' | 'Required' | 'Disabled') => {
         await threadingModes.getByRole('radio', { name: new RegExp(`^${mode}`) }).click();
+        await adminPage
+          .locator('form', { has: threadingModes })
+          .getByRole('button', { name: 'Save changes' })
+          .click();
       };
 
       await setThreadingMode('Encouraged');
