@@ -521,7 +521,10 @@ class Conversation {
           {
             handled: Type.Boolean(),
             reply: Type.Optional(
-              Type.String({ description: 'Your final reply, posted before the reaction.' })
+              Type.String({
+                description:
+                  'Your closing reply, posted before the reaction. For issue coverage, include its numbered Markdown link using a URL already read from GitHub or the thread. If only the number is known, read the issue with gh before calling this tool; never guess its URL.'
+              })
             )
           },
           { additionalProperties: false }
