@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { conversationPath } from '$lib/navigation/conversationPath';
   import { page } from '$app/state';
   import { serverUi } from '$lib/state/server/serverUi';
   import { goto, pushState } from '$app/navigation';
@@ -289,7 +290,7 @@
     }
 
     if (roomId) {
-      await goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
+      await goto(conversationPath(serverId, roomId));
     } else {
       await goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
     }

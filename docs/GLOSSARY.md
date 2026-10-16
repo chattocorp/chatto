@@ -34,6 +34,8 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 **Member List** — Room Sidebar panel that lists and searches the members of the current room.
 
+**User Page** — A user's page at `/chat/<server>/user/<userId>`. It shows their profile and the viewing user's direct conversation with them. See [FDR-007](fdr/FDR-007-direct-messages.md).
+
 **Profile View** — Complete public user profile shown in the current Room Sidebar. Context-menu profiles are temporary subviews of the Member List, with a back arrow to return to Members. One-to-one DMs also provide a profile through their header and desktop default view. See [FDR-022](fdr/FDR-022-user-profile.md).
 
 **Composer** — The message input at the bottom of the Room View. Includes text input, attachment picker, emoji picker, mentions autocomplete.

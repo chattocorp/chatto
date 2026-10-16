@@ -33,6 +33,8 @@ export const loginResetSuccess = '/login?reset=success';
 export const chat = `/chat/${HOME}`;
 
 export const room = (roomId: string) => `/chat/${HOME}/${roomId}`;
+/** A user's profile and the viewing user's direct conversation. */
+export const user = (userId: string) => `/chat/${HOME}/user/${userId}`;
 export const thread = (roomId: string, threadId: string) => `/chat/${HOME}/${roomId}/${threadId}`;
 export const messageLink = (roomId: string, messageId: string) =>
   `/chat/${HOME}/${roomId}/m/${messageId}`;
@@ -98,10 +100,10 @@ export const notifications = '/chat/notifications';
 export const patterns = {
   /** Any chat route after login redirect (home instance routes or instance-agnostic pages) */
   chatRedirect: /\/chat\/(-|notifications|preferences)/,
-  /** Any room page: /chat/-/{roomId} (channels and DMs share this shape post-#330 phase 3). */
-  anyRoom: /\/chat\/-\/(?!manage$)[a-zA-Z0-9]+$/,
+  /** A channel conversation or a user page. */
+  anyRoom: /\/chat\/-\/(?:user\/)?(?!manage$)[a-zA-Z0-9]+$/,
   /** Any thread page: /chat/-/{roomId}/{threadId} */
-  anyThread: /\/chat\/-\/(?!manage\/)[a-zA-Z0-9]+\/[a-zA-Z0-9]+$/,
+  anyThread: /\/chat\/-\/(?:user\/)?(?!manage\/)[a-zA-Z0-9]+\/[a-zA-Z0-9]+$/,
   /** Any admin user page: /chat/-/manage/server/members/{id} */
   anyAdminUser: /\/chat\/-\/manage\/server\/members\/[a-zA-Z0-9]+/,
   /** Any bot overview page: /chat/-/manage/server/bots/{id} */

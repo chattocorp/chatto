@@ -11,7 +11,7 @@ export const IncomingMessage = Type.Object({
   authorId: Type.String(),
   body: Type.String(),
   /** Host-owned provenance. Absent means an addressed message for existing callers. */
-  trigger: Type.Optional(Type.Literal('intake'))
+  trigger: Type.Optional(Type.Union([Type.Literal('intake'), Type.Literal('follow-up')]))
 });
 export type IncomingMessage = Static<typeof IncomingMessage>;
 
@@ -38,8 +38,12 @@ export const replyTo = (message: IncomingMessage): Destination => ({
   inReplyTo: message.id
 });
 
-/** What the router sends to a conversation: messages with authenticated authors and host-owned provenance. */
-export const ConversationInput = IncomingMessage;
+/** What the parent sends to a conversation: one addressed message or a batch of follow-ups.
+ * Each message retains its authenticated author and host-owned provenance. */
+export const ConversationInput = Type.Union([
+  IncomingMessage,
+  Type.Array(IncomingMessage, { minItems: 1 })
+]);
 export type ConversationInput = Static<typeof ConversationInput>;
 
 /** Opted-in room-level posts only. Replies, echoes, shredded messages, and own posts cannot start intake. */

@@ -22,7 +22,8 @@ import { createInvestigator, investigatorSettings } from '../tasks/investigate.t
 import { incomingMessage, intakeMessage } from './message.ts';
 import { createChattoRouter, createRouterState, type RouterState } from './router.ts';
 import { createIntakeClassifier } from '../tasks/classify-intake.ts';
-import { createReportIntake } from '../tasks/report-intake.ts';
+import { createThreadWorkflow } from '../tasks/thread.ts';
+import { createFollowUpReader } from './follow-up.ts';
 
 /** Parse maintainer Chatto user IDs, separated by commas or spaces. They are matched against
  * server-authenticated message authors, never display names. */
@@ -136,9 +137,10 @@ async function consume(
     readThread: createThreadReader(api),
     readAttachment: createAttachmentReader(api)
   });
-  const intake = createReportIntake({
+  const workflow = createThreadWorkflow({
     classifier: createIntakeClassifier(conversationSettings.model),
     conversation,
+    readFollowUp: createFollowUpReader(api, allowedUserId),
     async read(message, signal) {
       const { users } = await api
         .service(UserService)
@@ -158,7 +160,7 @@ async function consume(
       };
     }
   });
-  const route = createChattoRouter({ botId, conversation, intake, state: session.state });
+  const route = createChattoRouter({ botId, workflow, state: session.state });
 
   await server.consumeEvents({
     signal: ctx.signal,

@@ -106,6 +106,7 @@ const {
   },
   customStatusEditorModuleLoaded: vi.fn(),
   projectionState: {
+    rooms: new Map(),
     viewer: null as null | {
       privilegedMode?: {
         available: boolean;

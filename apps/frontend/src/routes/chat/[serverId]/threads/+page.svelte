@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { conversationPath } from '$lib/navigation/conversationPath';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { serverUi } from '$lib/state/server/serverUi';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
@@ -8,9 +9,7 @@
   import { MessageSearchState } from '@chatto/client/api/messageSearch';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { goto, replaceState } from '$app/navigation';
-  import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
   import {
@@ -236,10 +235,9 @@
 
   function navigateToThread(thread: FollowedThread) {
     goto(
-      resolve('/chat/[serverId]/[roomId]/[threadId]', {
-        serverId: serverIdToSegment(serverScope.serverId),
-        roomId: thread.roomId,
-        threadId: thread.threadRootEventId
+      conversationPath(serverScope.serverId, thread.roomId, {
+        threadId: thread.threadRootEventId,
+        store: serverScope.store
       })
     );
   }

@@ -59,7 +59,7 @@ test('the default task accepts CLI text and uses App settings without a Chatto i
   );
   expect(runOutcome).toHaveBeenCalledWith(
     expect.anything(),
-    JSON.stringify({ request: 'moo', supervisorContext: '' }),
+    JSON.stringify({ request: 'moo', proposedWork: '', evidence: '' }),
     expect.objectContaining({ signal: expect.any(AbortSignal), onText: expect.any(Function) })
   );
   expect(disposed).toHaveBeenCalledOnce();

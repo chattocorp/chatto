@@ -141,6 +141,7 @@ to a mix of 0.4 and 0.5 servers. See the
 
 | Area | What changed | What to do |
 | ---- | ------------ | ---------- |
+| Direct messages | `StartDM` rejects new conversations with more than two distinct participants, including the caller, with `INVALID_ARGUMENT`. Existing group DMs remain accessible. | Use a channel room for new group conversations. User pages use `/chat/<server>/user/<userId>`; old one-to-one DM URLs redirect there. |
 | Realtime | 0.5 accepts only protocol 4. The protocol 1 frames, such as `hello`, `subscribe_events`, `ping`, and `error`, are removed. | Send one `RealtimeSubscribe` with protocol version `4`. Handle `snapshot`, `event`, `caught_up`, `heartbeat`, and `close`. See [Realtime](/guides/integrations/realtime-protocol/). |
 | Human sessions | Access tokens are short-lived. A rotating refresh credential renews them. 0.5 rejects bearer tokens from 0.4. | Sign in again once. Store `refresh_token` and renew at `/oauth/token` before `expires_in` ends. `CreateExternalIdentityAccountResponse` also returns these fields. A browser client on a different origin must use OAuth. See [Chatto API](/guides/integrations/chatto-api/). |
 | Privileged mode | Administrative and moderation permissions are inactive until the user activates them. | Call `ViewerService.ActivatePrivilegedMode` before administrative or moderation calls. Activation lasts 15 minutes and does not extend. See [Privileged mode](/guides/operations/permissions/#privileged-mode). |

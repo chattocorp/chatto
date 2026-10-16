@@ -106,6 +106,11 @@ func (s *RoomCommandModel) findOrCreateDM(ctx context.Context, creatorID string,
 // Post-batch side effects (per-participant read markers) happen after the
 // batch acks, since they're outside the durable event log.
 func (s *RoomCommandModel) createDMRoom(ctx context.Context, roomID string, participantIDs []string) (*evtv1.Room, error) {
+	// Keep stored group conversations readable, but never create new ones.
+	if err := validateNewDMParticipants(participantIDs); err != nil {
+		return nil, err
+	}
+
 	room := &evtv1.Room{
 		Id:   roomID,
 		Kind: evtv1.RoomKind_ROOM_KIND_DM,
@@ -180,4 +185,16 @@ func (s *RoomCommandModel) createDMRoom(ctx context.Context, roomID string, part
 	}
 
 	return room, nil
+}
+
+// validateNewDMParticipants applies the product limit only to new conversations.
+func validateNewDMParticipants(ids []string) error {
+	participants := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		participants[id] = struct{}{}
+	}
+	if len(participants) > 2 {
+		return invalidArgument("New DMs are limited to two participants; use a channel room for group conversations")
+	}
+	return nil
 }

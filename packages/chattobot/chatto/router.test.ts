@@ -1,7 +1,7 @@
-import { afterEach, expect, test, vi } from 'vitest';
+import { expect, test } from 'vitest';
 import { task, Type } from 'runling';
 import type { RunHandle, WebhookContext } from 'runling/web';
-import { ConversationInput, IncomingMessage } from './message.ts';
+import { IncomingMessage } from './message.ts';
 import { createChattoRouter, createRouterState } from './router.ts';
 
 const conversation = task(
@@ -9,12 +9,8 @@ const conversation = task(
     name: 'Conversation',
     input: IncomingMessage,
     output: Type.Null(),
-    receives: ConversationInput
+    receives: IncomingMessage
   },
-  async () => null
-);
-const intake = task(
-  { name: 'Intake', input: IncomingMessage, output: Type.Null(), receives: ConversationInput },
   async () => null
 );
 
@@ -58,11 +54,9 @@ function harness({ send }: { send?: (message: unknown) => Promise<void> } = {}) 
     return handle as never;
   };
   const state = createRouterState();
-  const route = createChattoRouter({ botId: 'bot', conversation, intake, state, idleMs: 1000 });
+  const route = createChattoRouter({ botId: 'bot', workflow: conversation, state });
   return { route: (incoming: IncomingMessage) => route({ start }, incoming), runs, state };
 }
-
-afterEach(() => vi.useRealTimers());
 
 test('starts one run per thread and sends it later messages', async () => {
   const router = harness();
@@ -110,7 +104,7 @@ test('starts intake once and forwards later pings to that workflow', async () =>
   await router.route(message('ping'));
   expect(router.runs).toHaveLength(1);
   expect(router.runs[0]).toMatchObject({
-    workflow: 'Intake',
+    workflow: 'Conversation',
     input: root,
     sent: [message('ping')]
   });
@@ -135,19 +129,5 @@ test('forgets a finished run', async () => {
   router.runs[0]!.finish();
   await new Promise((resolve) => setTimeout(resolve));
   await router.route(message('two'));
-  expect(router.runs).toHaveLength(2);
-});
-
-test('closes the input of a thread run after a quiet period', async () => {
-  vi.useFakeTimers();
-  const router = harness();
-  await router.route(message('one'));
-  await vi.advanceTimersByTimeAsync(900);
-  await router.route(message('two'));
-  await vi.advanceTimersByTimeAsync(900);
-  expect(router.runs[0]!.closed).toBe(false);
-  await vi.advanceTimersByTimeAsync(200);
-  expect(router.runs[0]!.closed).toBe(true);
-  await router.route(message('three'));
   expect(router.runs).toHaveLength(2);
 });

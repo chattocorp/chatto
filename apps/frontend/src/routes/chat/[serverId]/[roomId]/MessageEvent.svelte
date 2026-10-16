@@ -1,7 +1,7 @@
 <script lang="ts">
+  import { conversationPath } from '$lib/navigation/conversationPath';
   import { untrack } from 'svelte';
   import { serverUi } from '$lib/state/server/serverUi';
-  import { resolve } from '$app/paths';
   import MessageView from '$lib/components/messages/MessageView.svelte';
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
   import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
@@ -27,7 +27,6 @@
   import { formatMessageTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { copyMessageLinkToClipboard } from '$lib/copyChatLink';
-  import { serverIdToSegment } from '$lib/navigation';
   import LazyMessagePreviewCard from '$lib/components/LazyMessagePreviewCard.svelte';
   import { shouldHighlightCurrentUserMention } from './messageMentionHighlight';
   import { selectedQuoteTextForMessageBody } from './selectedReplyQuote';
@@ -450,11 +449,7 @@
   >
     {#snippet compactLeading()}
       <a
-        href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-          serverId: serverIdToSegment(activeServerId),
-          roomId,
-          messageId: event.id
-        })}
+        href={conversationPath(activeServerId, roomId, { messageId: event.id })}
         onclick={copyMessageLink}
         oncontextmenu={(e) => e.stopPropagation()}
         title={m('room.message.meta.copy_link_title')}
@@ -484,11 +479,7 @@
 
     {#snippet headerMeta()}
       <a
-        href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-          serverId: serverIdToSegment(activeServerId),
-          roomId,
-          messageId: event.id
-        })}
+        href={conversationPath(activeServerId, roomId, { messageId: event.id })}
         onclick={copyMessageLink}
         oncontextmenu={(e) => e.stopPropagation()}
         title={m('room.message.meta.copy_link_title')}
@@ -531,7 +522,7 @@
       {#if hasMessageFooter}
         <MessageMetaBar
           {roomId}
-          serverSegment={serverIdToSegment(activeServerId)}
+          serverId={activeServerId}
           threadRootEventId={target.threadRootEventId}
           reactions={msg?.reactions ?? []}
           edited={isEdited && !isDeleted}

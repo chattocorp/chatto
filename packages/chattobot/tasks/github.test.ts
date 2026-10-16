@@ -93,7 +93,12 @@ async function setup(outcome: 'completed' | 'failed' = 'completed', command?: Gh
 test('the worker uses an isolated gh agent and returns its result to its parent', async () => {
   const h = await setup();
   expect(
-    await h.worker(createTaskContext(), { request, context: 'Steps from the investigation' })
+    await h.worker(createTaskContext(), {
+      request,
+      proposedWork: 'Append reproduction steps to issue 12',
+      evidence: 'Steps from the investigation',
+      approvalProposal: { messageId: 'proposal', role: 'bot', body: 'Append these steps?' }
+    })
   ).toBe('Updated #12.');
   expect(h.options()).toMatchObject({
     tools: ['gh'],
@@ -102,7 +107,9 @@ test('the worker uses an isolated gh agent and returns its result to its parent'
   expect(h.options().sessionFile).toMatch(new RegExp(`${h.sessions}/[0-9a-f-]+\\.jsonl$`));
   expect(JSON.parse(h.prompts[0]!)).toEqual({
     request,
-    supervisorContext: 'Steps from the investigation'
+    proposedWork: 'Append reproduction steps to issue 12',
+    evidence: 'Steps from the investigation',
+    approvalProposal: { messageId: 'proposal', role: 'bot', body: 'Append these steps?' }
   });
   expect(h.run).toHaveBeenCalledWith(
     ['issue', 'edit', '12', '--body=New steps'],
@@ -120,7 +127,8 @@ test('rejects an empty request before creating an agent or obtaining credentials
   await expect(
     h.worker(createTaskContext(), {
       request: '',
-      context: 'Approved'
+      proposedWork: 'Edit issue 12',
+      evidence: 'Approved'
     })
   ).rejects.toThrow();
   expect(h.createAgent).not.toHaveBeenCalled();
@@ -130,9 +138,9 @@ test('rejects an empty request before creating an agent or obtaining credentials
 
 test('reports agent failure without retrying a write and disposes the worker', async () => {
   const h = await setup('failed');
-  await expect(h.worker(createTaskContext(), { request, context: '' })).rejects.toThrow(
-    'Provider failed after the edit'
-  );
+  await expect(
+    h.worker(createTaskContext(), { request, proposedWork: '', evidence: '' })
+  ).rejects.toThrow('Provider failed after the edit');
   expect(h.run).toHaveBeenCalledOnce();
   expect(h.disposed).toHaveBeenCalledOnce();
 });
@@ -148,7 +156,7 @@ test('parent cancellation reaches the CLI command and disposes the worker', asyn
   const controller = new AbortController();
   const result = h.worker(
     { ...createTaskContext(), signal: controller.signal },
-    { request, context: '' }
+    { request, proposedWork: '', evidence: '' }
   );
   const failed = expect(result).rejects.toThrow('Cancelled');
   const signal = await entered.promise;
