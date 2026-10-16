@@ -6,11 +6,12 @@ import { render } from 'vitest-browser-svelte';
 import { createRawSnippet, tick, type ComponentProps } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import MessageComposer, { type MessageComposerApi } from './MessageComposer.svelte';
+import ReplyFocusTestHarness from './ReplyFocusTestHarness.svelte';
 import { q } from '$lib/test-utils';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { getToasts, toast } from '$lib/ui/toast';
-import type { QuoteInsertionContent, RoomMember } from '$lib/state/room';
-import { EditState, ReplyState } from '$lib/state/room/composerContext.svelte';
+import type { RoomMember } from '$lib/state/room';
+import { EditState, ReplyState, QuoteInsertionState } from '$lib/state/room/composerContext.svelte';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
 import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
@@ -69,6 +70,7 @@ const fetchLinkPreviewConnectMock = vi.hoisted(() => vi.fn());
 const listRolesConnectMock = vi.hoisted(() => vi.fn());
 const mentionSearchMock = vi.hoisted(() => vi.fn(async () => [] as RoomMember[]));
 const roomStateMock = vi.hoisted(() => ({
+  focus: undefined as (() => void) | undefined,
   members: [] as RoomMember[],
   editState: {
     eventId: null as string | null,
@@ -84,9 +86,7 @@ const roomStateMock = vi.hoisted(() => ({
   reactiveEditState: null as EditState | null,
   /** Real reply state; the composer reads the reply target from context. */
   replyState: null as ReplyState | null,
-  quoteInsertionState: {
-    request: null as { id: number; text: QuoteInsertionContent } | null
-  },
+  quoteInsertionState: null! as QuoteInsertionState,
   lastEditableMessage: {
     getLastEditableMessage: vi.fn(() => null as { eventId: string; body: string } | null),
     setFinder: vi.fn()
@@ -138,6 +138,7 @@ vi.mock('$lib/state/room', () => ({
   RoomPinsStore: class {},
   RoomMembersStore: class {},
   getRoomMembers: () => roomStateMock.members,
+  useRoomPermissions: () => () => ({ canPostMessage: true, canPostInThread: true }),
   useRoomMembersStore: () => () => ({
     get members() {
       return roomStateMock.members;
@@ -145,6 +146,12 @@ vi.mock('$lib/state/room', () => ({
     searchMembers: mentionSearchMock
   }),
   getComposerContext: () => ({
+    get focus() {
+      return roomStateMock.focus;
+    },
+    set focus(value) {
+      roomStateMock.focus = value;
+    },
     editState: roomStateMock.reactiveEditState ?? roomStateMock.editState,
     replyState: roomStateMock.replyState,
     quoteInsertionState: roomStateMock.quoteInsertionState,
@@ -378,6 +385,11 @@ describe('MessageComposer', () => {
       },
       store: {
         roomUnread,
+        projection: {
+          rooms: new Map(),
+          activeCalls: [],
+          users: { isDeleted: () => false, view: () => null }
+        },
         get mentionRoles() {
           return mentionRolesStore;
         }
@@ -405,7 +417,7 @@ describe('MessageComposer', () => {
     roomStateMock.editState.cancelEdit.mockClear();
     roomStateMock.reactiveEditState = null;
     roomStateMock.replyState = new ReplyState();
-    roomStateMock.quoteInsertionState.request = null;
+    roomStateMock.quoteInsertionState = new QuoteInsertionState();
     roomStateMock.lastEditableMessage.getLastEditableMessage.mockReset();
     roomStateMock.lastEditableMessage.getLastEditableMessage.mockReturnValue(null);
     roomStateMock.lastEditableMessage.setFinder.mockClear();
@@ -446,6 +458,86 @@ describe('MessageComposer', () => {
     mentionRolesStore = new MentionRolesStore({ listRoles: listRolesConnectMock });
     sessionStorage.clear();
     vi.clearAllMocks();
+  });
+
+  describe('explicit Reply focus on touch devices', () => {
+    it.each(['visual', 'markdown'] as const)(
+      'focuses the %s editor after sheet teardown, including repeated replies and thread replies',
+      async (kind) => {
+        mockTouchPrimaryPointer();
+        userPreferences.composerEditor = kind;
+        for (const threadRootEventId of [null, 'thread-root']) {
+          const rendered = render(ReplyFocusTestHarness, {
+            props: { event: postedMessageEvent('reply-target'), threadRootEventId }
+          });
+          const editor = await findEditor(
+            rendered.container,
+            threadRootEventId ? 'thread-reply-input' : 'message-input'
+          );
+          await settleEditorFocus();
+          await expect.element(editor).not.toHaveFocus();
+          await userEvent.click(editor);
+          await userEvent.keyboard('Keep this draft');
+          await userEvent.keyboard('{ArrowLeft}');
+          const opener = page.getByRole('button', { name: 'Open message actions' });
+          for (let attempt = 0; attempt < 2; attempt++) {
+            await opener.click();
+            await page.getByRole('button', { name: 'Reply', exact: true }).click();
+            await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+            await settleEditorFocus();
+            await expect.element(editor).toHaveFocus();
+            await userEvent.keyboard('X');
+            await expect
+              .element(editor)
+              .toHaveTextContent(`Keep this draf${'X'.repeat(attempt + 1)}t`);
+            expect(roomStateMock.replyState!.messageEventId).toBe('reply-target');
+          }
+          await opener.click();
+          await page.getByRole('button', { name: 'Close', exact: true }).click();
+          await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+          await settleEditorFocus();
+          await expect.element(editor).not.toHaveFocus();
+          await rendered.unmount();
+        }
+      }
+    );
+
+    it.each(['visual', 'markdown'] as const)(
+      'keeps a selected quote in the %s editor',
+      async (kind) => {
+        mockTouchPrimaryPointer();
+        userPreferences.composerEditor = kind;
+        const rendered = render(ReplyFocusTestHarness, {
+          props: { event: postedMessageEvent('quoted-target'), quote: 'Selected quote' }
+        });
+        const editor = await findEditor(rendered.container);
+        await page.getByRole('button', { name: 'Open message actions' }).click();
+        await page.getByRole('button', { name: 'Reply', exact: true }).click();
+        await settleEditorFocus();
+        await expect.element(editor).toHaveFocus();
+        await expect.element(editor).toHaveTextContent(/Selected quote/);
+      }
+    );
+
+    it('does not focus a disabled or unmounted composer', async () => {
+      mockTouchPrimaryPointer();
+      const rendered = renderMessageComposer({ roomId: 'discard-reply-focus', canPost: false });
+      const editor = await findEditor(rendered.container);
+      const reply = roomStateMock.replyState!;
+      reply.startReply('target', 'Author', 'excerpt');
+      roomStateMock.focus?.();
+      await settleEditorFocus();
+      await rendered.rerender({ canPost: true });
+      await settleEditorFocus();
+      await expect.element(editor).not.toHaveFocus();
+      roomStateMock.focus?.();
+      await rendered.unmount();
+      expect(roomStateMock.focus).toBeUndefined();
+      const next = renderMessageComposer({ roomId: 'next-pane' });
+      const nextEditor = await findEditor(next.container);
+      await settleEditorFocus();
+      await expect.element(nextEditor).not.toHaveFocus();
+    });
   });
 
   afterEach(async () => {

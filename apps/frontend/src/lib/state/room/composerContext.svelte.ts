@@ -150,6 +150,8 @@ export { JumpToMessageState };
 // ---------------------------------------------------------------------------
 
 export class ComposerContext {
+  /** Focus the mounted composer after the current UI update. Cleared on unmount. */
+  focus?: () => void;
   readonly editState = new EditState();
   readonly replyState = new ReplyState();
   readonly quoteInsertionState = new QuoteInsertionState();
