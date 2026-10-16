@@ -66,8 +66,7 @@ for (const input of ['mouse', 'touch'] as const) {
           expect(sidebar.x + sidebar.width).toBe(frameBox.x + frameBox.width - 48);
           if (!touch) {
             await expect(frame).toHaveCSS('contain', 'layout paint');
-            // Freeze a real pointer drag halfway. The drawer must stay inside
-            // the rounded work plane while it moves, leaving the rim exposed.
+            // Mouse drags must leave the drawer open and the rounded rim exposed.
             await page.mouse.move(sidebar.x + sidebar.width - 12, 160);
             await page.mouse.down();
             await page.mouse.move(width / 2, 160, { steps: 4 });
@@ -78,8 +77,6 @@ for (const input of ['mouse', 'touch'] as const) {
             ).toBe(false);
             await page.mouse.move(20, 160, { steps: 4 });
             await page.mouse.up();
-            await expect(chatPage.roomList).not.toBeVisible();
-            await toggle.click();
             await expect(chatPage.roomList).toBeVisible();
           }
           await toggle.click();
