@@ -40,7 +40,8 @@ vi.mock('../tasks/conversation.ts', () => ({
         name: 'Chatto conversation',
         input: IncomingMessage,
         output: Type.Null(),
-        receives: IncomingMessage
+        receives: IncomingMessage,
+        emits: Type.Union([Type.Literal('busy'), Type.Literal('waiting'), Type.Literal('idle')])
       },
       async (_ctx, input) => {
         mocks.conversation(input);
@@ -158,7 +159,7 @@ test('ordinary mentions bypass intake and opted-in roots classify once before co
   );
   expect(inputs).toHaveLength(2);
   // Intake owns the conversation child: the host registers no second run for the report.
-  expect(mocks.started.mock.calls).toEqual([['Report intake'], ['Chatto conversation']]);
+  expect(mocks.started.mock.calls).toEqual([['Chatto thread'], ['Chatto thread']]);
   expect(mocks.classify).toHaveBeenCalledExactlyOnceWith({
     body: '',
     attachmentTypes: ['image/png']
