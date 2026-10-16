@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { conversationPath, userConversationRoomId } from '$lib/navigation/conversationPath';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import { serverUi } from '$lib/state/server/serverUi';
   import { untrack } from 'svelte';
@@ -116,17 +117,11 @@
 
   function openThread(threadRootEventId: string, options: ThreadOpenOptions = {}) {
     navigation.prepareThreadOpen(roomId, threadRootEventId, options);
-    goto(
-      resolve('/chat/[serverId]/[roomId]/[threadId]', {
-        serverId: serverSegment,
-        roomId,
-        threadId: threadRootEventId
-      })
-    );
+    goto(conversationPath(activeServerId, roomId, { threadId: threadRootEventId, store: stores }));
   }
 
   function closeThread() {
-    goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
+    goto(conversationPath(activeServerId, roomId, { store: stores }));
   }
 
   // Create context-based state (must be synchronous, before children render)
@@ -248,13 +243,10 @@
       return;
     }
 
-    const path = targetThreadId
-      ? resolve('/chat/[serverId]/[roomId]/[threadId]', {
-          serverId: serverSegment,
-          roomId: targetRoomId,
-          threadId: targetThreadId
-        })
-      : resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: targetRoomId });
+    const path = conversationPath(activeServerId, targetRoomId, {
+      threadId: targetThreadId,
+      store: stores
+    });
     try {
       replaceState(path, page.state);
     } catch (error) {
@@ -411,7 +403,8 @@
     if (
       highlight?.roomId === roomId &&
       (to?.params?.serverId !== serverSegment ||
-        to?.params?.roomId !== highlight.roomId ||
+        (to?.params?.roomId ?? userConversationRoomId(stores, to?.params?.userId)) !==
+          highlight.roomId ||
         (highlight.threadRootEventId !== null &&
           (to?.params?.threadId ?? null) !== highlight.threadRootEventId))
     ) {

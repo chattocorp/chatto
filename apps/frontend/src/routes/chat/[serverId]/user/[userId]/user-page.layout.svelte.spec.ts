@@ -16,6 +16,7 @@ vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 
 vi.mock('$app/state', () => ({
   page: {
+    route: { id: '/chat/[serverId]/user/[userId]' },
     get params() {
       return mocks.page.params;
     }
@@ -27,7 +28,10 @@ vi.mock('$app/navigation', () => ({
 }));
 vi.mock('$app/paths', () => ({
   resolve: (path: string, params: Record<string, string>) =>
-    path.replace('[serverId]', params.serverId).replace('[roomId]', params.roomId)
+    path
+      .replace('[serverId]', params.serverId)
+      .replace('[userId]', params.userId)
+      .replace('[roomId]', params.roomId)
 }));
 vi.mock('$lib/navigation', () => ({
   segmentToServerId: vi.fn(),
@@ -41,7 +45,11 @@ vi.mock(
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
 );
 
-import Destination from './+page.svelte';
+vi.mock('../../[roomId]/Room.svelte', async () => ({
+  default: (await import('$lib/test-utils/ConversationStub.svelte')).default
+}));
+
+import Destination from './+layout.svelte';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -71,7 +79,7 @@ afterEach(async () => {
   mounted = undefined;
 });
 
-describe('DM destination', () => {
+describe('user page', () => {
   it('shows loading until both the command and authoritative room refresh finish', async () => {
     const command = deferred<{ id: string }>();
     const refresh = deferred<void>();
@@ -85,10 +93,9 @@ describe('DM destination', () => {
     await vi.waitFor(() => expect(mocks.ensureRoomAvailable).toHaveBeenCalledWith('dm-room'));
     expect(mocks.goto).not.toHaveBeenCalled();
     refresh.resolve();
-    await vi.waitFor(() =>
-      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-room', { replaceState: true })
-    );
-    expect(mocks.record).toHaveBeenCalledWith('/chat/-/dm-room');
+    await expect.element(mounted.getByText('Conversation: dm-room')).toBeVisible();
+    expect(mocks.goto).not.toHaveBeenCalled();
+    expect(mocks.record).toHaveBeenCalledWith('/chat/-/user/recipient');
   });
 
   it.each(['command', 'refresh', 'missing'])('offers retry after %s failure', async (failure) => {
@@ -101,7 +108,7 @@ describe('DM destination', () => {
     await expect.element(retry).toBeVisible();
     expect(mocks.goto).not.toHaveBeenCalled();
     await retry.click();
-    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledOnce());
+    await expect.element(mounted.getByText('Conversation: dm-room')).toBeVisible();
     expect(mocks.startDM).toHaveBeenCalledTimes(2);
   });
 
@@ -127,12 +134,13 @@ describe('DM destination', () => {
     await vi.waitFor(() => expect(mocks.startDM).toHaveBeenCalledOnce());
     mocks.page.params.userId = 'self';
     flushSync();
-    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledOnce());
+    await expect.element(mounted.getByText('Conversation: dm-room')).toBeVisible();
     expect(mocks.startDM).toHaveBeenLastCalledWith([]);
     old.resolve({ id: 'old-room' });
     await new Promise<void>((done) => queueMicrotask(done));
     expect(mocks.ensureRoomAvailable).not.toHaveBeenCalledWith('old-room');
-    expect(mocks.goto).toHaveBeenCalledOnce();
+    expect(mocks.goto).not.toHaveBeenCalled();
+    expect(mocks.record).toHaveBeenCalledWith('/chat/-/user/self');
   });
 
   it('waits for the account before opening a conversation', async () => {

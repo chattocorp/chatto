@@ -2,6 +2,7 @@ import { resolve } from '$app/paths';
 import type { NotificationOccurrenceItem } from '@chatto/client/api/notifications';
 import { notificationTarget } from '@chatto/client/server/notifications';
 import { serverIdToSegment } from '$lib/navigation';
+import { conversationPath } from '$lib/navigation/conversationPath';
 
 /**
  * Build a clean (no `?highlight=`) destination path for a notification.
@@ -18,16 +19,7 @@ export function notificationPath(
   if (!target.roomId) {
     return resolve('/chat/[serverId]', { serverId: serverSegment });
   }
-  // DMs are rooms on the server, so they use the standard room URL.
-  if (target.threadRootId && !target.isDM) {
-    return resolve('/chat/[serverId]/[roomId]/[threadId]', {
-      serverId: serverSegment,
-      roomId: target.roomId,
-      threadId: target.threadRootId
-    });
-  }
-  return resolve('/chat/[serverId]/[roomId]', {
-    serverId: serverSegment,
-    roomId: target.roomId
+  return conversationPath(serverId, target.roomId, {
+    threadId: target.isDM ? null : target.threadRootId
   });
 }

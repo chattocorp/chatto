@@ -5,6 +5,7 @@ Renders the room list in the server sidebar. When a room layout is configured,
 rooms are organized into collapsible sections. Otherwise, rooms display alphabetically.
 -->
 <script lang="ts">
+  import { conversationPath, userConversationRoomId } from '$lib/navigation/conversationPath';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { serverUi } from '$lib/state/server/serverUi';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
@@ -110,7 +111,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const navigation = $derived(serverUi(stores).navigation);
   const roomUnreadStore = $derived(serverUi(stores).roomUnread);
 
-  let activeRoomId = $derived(page.params.roomId);
+  let activeRoomId = $derived(
+    page.params.roomId ?? userConversationRoomId(stores, page.params.userId)
+  );
   let roomContextMenu = $state<(ContextMenuTriggerDetails & { room: RoomsListItem }) | null>(null);
   let groupContextMenu = $state<(ContextMenuTriggerDetails & { group: RoomsListGroup }) | null>(
     null
@@ -762,9 +765,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   function openSelectedDM(): void {
     if (!dmMenuRoom) return;
-    void goto(
-      resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: dmMenuRoom.id })
-    );
+    void goto(conversationPath(activeServerId, dmMenuRoom.id, { store: stores }));
   }
 
   function callParticipantAvatarUser(participant: CallRoomParticipant): UserAvatarUserView {
@@ -802,7 +803,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   async function openRoomCallPanel(roomId: string): Promise<void> {
     appUi.requestRoomSidebarPanel(activeServerId, roomId, 'call', getRoomSidebarPresentation());
-    await goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
+    await goto(conversationPath(activeServerId, roomId, { store: stores }));
   }
 
   function handleRoomLinkClick(event: MouseEvent, room: RoomsListItem): void {
@@ -965,7 +966,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {@const owningGroup = groupByRoomId.get(room.id)}
   {@const showDragHandle = sidebarDragEnabled && owningGroup?.viewerCanManageGroup}
   <a
-    href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
+    href={conversationPath(activeServerId, room.id, { store: stores })}
     class={[
       'group/room group/badges @container sidebar-item',
       showUnread && !isCurrentRoom ? 'sidebar-item-attention' : '',

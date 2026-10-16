@@ -355,21 +355,15 @@ func TestFindOrCreateDM(t *testing.T) {
 		}
 	})
 
-	t.Run("creates group DM with three users", func(t *testing.T) {
+	t.Run("rejects new groups but opens stored groups", func(t *testing.T) {
+		_, _, err := core.FindOrCreateDM(ctx, user1, []string{user2, user3})
+		if !errors.Is(err, ErrInvalidArgument) {
+			t.Fatalf("new group error = %v, want invalid argument", err)
+		}
+		legacy := createLegacyDMForTest(t, core, ctx, []string{user1, user2, user3})
 		room, created, err := core.FindOrCreateDM(ctx, user1, []string{user2, user3})
-		if err != nil {
-			t.Fatalf("FindOrCreateDM error: %v", err)
-		}
-		if !created {
-			t.Error("Expected group DM to be newly created")
-		}
-
-		// Verify all three users are members
-		for _, userID := range []string{user1, user2, user3} {
-			isMember, _ := core.RoomMembershipExists(ctx, KindDM, userID, room.Id)
-			if !isMember {
-				t.Errorf("%s should be a member of the group DM", userID)
-			}
+		if err != nil || created || room.GetId() != legacy.GetId() {
+			t.Fatalf("stored group = %v, created = %v, error = %v", room, created, err)
 		}
 	})
 
@@ -421,19 +415,16 @@ func TestFindOrCreateDM(t *testing.T) {
 		}
 	})
 
-	t.Run("allows exactly MaxDMParticipants", func(t *testing.T) {
+	t.Run("rejects new groups at the legacy lookup limit", func(t *testing.T) {
 		// Create a list of 9 participants (including creator = 10 total, at limit)
 		participants := make([]string, MaxDMParticipants-1)
 		for i := range MaxDMParticipants - 1 {
 			participants[i] = fmt.Sprintf("max-participant%d", i)
 		}
 		// user1 + 9 participants = 10 total
-		room, _, err := core.FindOrCreateDM(ctx, user1, participants)
-		if err != nil {
-			t.Errorf("Expected success for %d participants, got error: %v", MaxDMParticipants, err)
-		}
-		if room == nil {
-			t.Error("Expected room to be non-nil")
+		_, _, err := core.FindOrCreateDM(ctx, user1, participants)
+		if !errors.Is(err, ErrInvalidArgument) {
+			t.Fatalf("new group error = %v, want invalid argument", err)
 		}
 	})
 }
@@ -620,7 +611,7 @@ func TestDMRoomParticipants(t *testing.T) {
 	user3 := "user3"
 
 	t.Run("returns all participants", func(t *testing.T) {
-		room, _, _ := core.FindOrCreateDM(ctx, user1, []string{user2, user3})
+		room := createLegacyDMForTest(t, core, ctx, []string{user1, user2, user3})
 
 		members, err := core.GetRoomMembersList(ctx, KindDM, room.Id)
 		if err != nil {

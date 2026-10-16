@@ -7,6 +7,11 @@ import type { ResolvedPathname } from '$app/types';
 import { serverRegistry } from '$lib/client';
 import { serverIdToSegment, segmentToServerId } from '$lib/navigation';
 import { serverIdForHostname } from '$lib/navigation/serverHostname';
+import {
+  conversationPath,
+  conversationUserId,
+  userConversationRoomId
+} from '$lib/navigation/conversationPath';
 
 export interface MessageLink {
   /** Null for unknown servers; these links cannot load a preview. */
@@ -47,7 +52,18 @@ function parseChatLink(input: string, origin: string) {
   const parsed = parseChatURL(input, origin);
   if (!parsed) return null;
   const { parts } = parsed;
-  const [, , roomId, fourth, fifth, sixth] = parts;
+  let [, , roomId, fourth, fifth, sixth] = parts;
+  if (roomId === 'user') {
+    // Previews may read an existing viewer conversation, but must never
+    // create one or infer another viewer's private room from a user link.
+    const serverId = resolveChatLinkServerId(parsed);
+    const resolvedRoomId =
+      serverId && userConversationRoomId(serverRegistry.tryGetStore(serverId), fourth);
+    if (!resolvedRoomId) return null;
+    roomId = resolvedRoomId;
+    [, , , , fourth, fifth, sixth] = parts;
+    parts.splice(2, 2, roomId);
+  }
   if (!roomIdPattern.test(roomId)) return null;
   let destination: Omit<MessageLink, 'serverId'>;
   if (parts.length === 5 && fourth === 'm' && eventIdPattern.test(fifth)) {
@@ -104,13 +120,7 @@ export function buildMessageLinkPath(
   messageId: string,
   threadRootEventId?: string | null
 ): ResolvedPathname {
-  const params = { serverId: serverIdToSegment(serverId), roomId, messageId };
-  return threadRootEventId
-    ? resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
-        ...params,
-        threadId: threadRootEventId
-      })
-    : resolve('/chat/[serverId]/[roomId]/m/[messageId]', params);
+  return conversationPath(serverId, roomId, { threadId: threadRootEventId, messageId });
 }
 
 /** Share URLs belong to the owning server, independent of this frontend's origin. */
@@ -125,7 +135,8 @@ function buildChatLinkURL(serverId: string, segments: string[]): string {
 
 /** Absolute room URL on the owning server. Throws if the server is unknown. */
 export function buildRoomLinkURL(serverId: string, roomId: string): string {
-  return buildChatLinkURL(serverId, [roomId]);
+  const userId = conversationUserId(serverRegistry.tryGetStore(serverId), roomId);
+  return buildChatLinkURL(serverId, userId ? ['user', userId] : [roomId]);
 }
 
 /** Absolute message URL on the owning server. Throws if the server is unknown. */
@@ -135,9 +146,11 @@ export function buildMessageLinkURL(
   messageId: string,
   threadRootEventId?: string | null
 ): string {
+  const userId = conversationUserId(serverRegistry.tryGetStore(serverId), roomId);
+  const base = userId ? ['user', userId] : [roomId];
   return buildChatLinkURL(
     serverId,
-    threadRootEventId ? [roomId, threadRootEventId, 'm', messageId] : [roomId, 'm', messageId]
+    threadRootEventId ? [...base, threadRootEventId, 'm', messageId] : [...base, 'm', messageId]
   );
 }
 

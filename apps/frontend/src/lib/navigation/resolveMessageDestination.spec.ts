@@ -1,3 +1,4 @@
+import { resolve } from '$app/paths';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RoomTimelineAPI } from '@chatto/client/api/roomTimeline';
 import {
@@ -6,23 +7,25 @@ import {
   type TimelineEventView
 } from '@chatto/client/timeline/timelineEvents';
 import { PendingHighlightStore } from '$lib/state/server/pendingHighlight';
-import { resolveAndRedirect } from './+page.svelte';
+import { resolveAndRedirect } from './resolveMessageDestination';
 
 const { goto } = vi.hoisted(() => ({ goto: vi.fn() }));
-// The store mock also carries the frontend UI state of its server.
-vi.mock(
-  '$lib/state/server/serverUi',
-  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
-);
-
 vi.mock('$app/navigation', () => ({ goto }));
-vi.mock('$app/state', () => ({ page: {} }));
-vi.mock('$lib/state/server/scope.svelte', () => ({ useServerScope: vi.fn() }));
-vi.mock('@chatto/client/api/roomTimeline', () => ({ createRoomTimelineAPI: vi.fn() }));
 vi.mock('$app/paths', () => ({
   resolve: (path: string, params: Record<string, string>) =>
     path.replace(/\[(\w+)\]/g, (_, key: string) => params[key])
 }));
+
+function destination(serverSegment: string) {
+  return (threadId?: string) =>
+    threadId
+      ? resolve('/chat/[serverId]/[roomId]/[threadId]', {
+          serverId: serverSegment,
+          roomId: 'room-1',
+          threadId
+        })
+      : resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: 'room-1' });
+}
 
 function message(overrides: Partial<MessagePostedPayload> = {}): TimelineEventView {
   return {
@@ -72,7 +75,13 @@ describe('message link resolver', () => {
   ])('opens the correct pane for a $name', async ({ payload, threadId }) => {
     getMessage.mockResolvedValue(message(payload));
 
-    await resolveAndRedirect({ getMessage }, highlights, 'remote.example', 'room-1', 'message-1');
+    await resolveAndRedirect(
+      { getMessage },
+      highlights,
+      destination('remote.example'),
+      'room-1',
+      'message-1'
+    );
 
     expect(getMessage).toHaveBeenCalledWith({ roomId: 'room-1', eventId: 'message-1' });
     expect(goto).toHaveBeenCalledWith(
@@ -88,16 +97,34 @@ describe('message link resolver', () => {
     expect(highlights.has('room-1', threadId)).toBe(true);
   });
 
+  it('keeps a user-page destination while using the room identity for highlights', async () => {
+    getMessage.mockResolvedValue(message({ threadRootEventId: 'root-1' }));
+    await resolveAndRedirect(
+      { getMessage },
+      highlights,
+      (threadId) =>
+        resolve('/chat/[serverId]/user/[userId]/[threadId]', {
+          serverId: '-',
+          userId: 'peer',
+          threadId: threadId!
+        }),
+      'room-1',
+      'message-1'
+    );
+    expect(goto).toHaveBeenCalledWith('/chat/-/user/peer/root-1', { replaceState: true });
+    expect(highlights.peek('room-1', 'root-1')?.eventId).toBe('message-1');
+  });
+
   it('keeps the room highlight fallback for a missing target', async () => {
     getMessage.mockResolvedValue(null);
-    await resolveAndRedirect({ getMessage }, highlights, '-', 'room-1', 'message-1');
+    await resolveAndRedirect({ getMessage }, highlights, destination('-'), 'room-1', 'message-1');
     expect(goto).toHaveBeenCalledWith('/chat/-/room-1', { replaceState: true });
     expect(highlights.peek('room-1', null)?.eventId).toBe('message-1');
   });
 
   it('returns to the room without a highlight when the request fails', async () => {
     getMessage.mockRejectedValue(new Error('Request failed'));
-    await resolveAndRedirect({ getMessage }, highlights, '-', 'room-1', 'message-1');
+    await resolveAndRedirect({ getMessage }, highlights, destination('-'), 'room-1', 'message-1');
     expect(goto).toHaveBeenCalledWith('/chat/-/room-1', { replaceState: true });
     expect(highlights.peek('room-1', null)).toBeNull();
   });
@@ -109,7 +136,14 @@ describe('message link resolver', () => {
       if (fails) throw new Error('Request failed');
       return message({ threadExists: true });
     });
-    await resolveAndRedirect({ getMessage }, highlights, '-', 'room-1', 'message-1', () => current);
+    await resolveAndRedirect(
+      { getMessage },
+      highlights,
+      destination('-'),
+      'room-1',
+      'message-1',
+      () => current
+    );
     expect(goto).not.toHaveBeenCalled();
     expect(highlights.peek('room-1', 'message-1')).toBeNull();
     expect(highlights.peek('room-1', null)).toBeNull();

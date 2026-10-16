@@ -402,12 +402,22 @@ func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) 
 	if found {
 		return room, false, nil
 	}
+	if err := validateNewDMParticipants(ensureInList(input.ParticipantIDs, input.ActorID)); err != nil {
+		return nil, false, err
+	}
 	can, err := s.authorization.CanStartDM(ctx, input.ActorID)
 	if err != nil {
 		return nil, false, err
 	}
 	if !can {
 		return nil, false, ErrPermissionDenied
+	}
+	// A user-page link can contain any ID. Do not create a conversation with
+	// a missing account. Stored conversations with deleted accounts were found above.
+	for _, id := range input.ParticipantIDs {
+		if _, err := s.users.GetUser(ctx, id); err != nil {
+			return nil, false, err
+		}
 	}
 	return s.findOrCreateDM(ctx, input.ActorID, input.ParticipantIDs)
 }

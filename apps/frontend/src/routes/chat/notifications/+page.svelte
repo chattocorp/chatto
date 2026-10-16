@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { conversationPath } from '$lib/navigation/conversationPath';
   import { accountNameToken } from '@chatto/client/timeline/accountName';
   import { serverUi } from '$lib/state/server/serverUi';
   import { goto } from '$app/navigation';
@@ -289,17 +290,7 @@
       await goto(resolve('/chat/[serverId]', { serverId: serverIdSegment }));
       return;
     }
-    if (occurrence.threadRootId) {
-      await goto(
-        resolve('/chat/[serverId]/[roomId]/[threadId]', {
-          serverId: serverIdSegment,
-          roomId,
-          threadId: occurrence.threadRootId
-        })
-      );
-      return;
-    }
-    await goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverIdSegment, roomId }));
+    await goto(conversationPath(serverId, roomId, { threadId: occurrence.threadRootId }));
   }
 
   function occurrenceSummary(group: NotificationGroupItem): string {

@@ -52,7 +52,7 @@ export default ts.config(
   {
     // Navigation helpers return ResolvedPathname; the navigation rule needs
     // TypeScript information to check these paths without resolving them twice.
-    files: ['src/lib/navigation/*.ts'],
+    files: ['src/lib/navigation/*.ts', 'src/lib/dm/*.ts'],
     languageOptions: {
       parserOptions: { projectService: true }
     }
