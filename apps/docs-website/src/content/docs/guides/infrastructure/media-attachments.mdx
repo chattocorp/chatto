@@ -190,9 +190,17 @@ provider. See [Backup & Restore](/guides/operations/backup-restore/).
 ## Video Processing
 
 Video uploads are off by default. When you enable them, a worker makes a
-thumbnail and adaptive HLS renditions for each video and animated GIF. The
-worker needs `ffmpeg` and `ffprobe`. The official Docker image includes them.
-For other installations, install the `ffmpeg` package.
+thumbnail and adaptive HLS renditions for each video and animated GIF.
+
+<Aside type="tip" title="Media dependencies are included in the Docker image">
+  The official Chatto Docker image ships with the required media-processing
+  dependencies, including `ffmpeg` and `ffprobe`. You do not need to install
+  additional packages in the container or on the Docker host. Enable video
+  uploads and the processing worker with the settings below.
+</Aside>
+
+If you run the Chatto binary outside Docker, install the `ffmpeg` package,
+which provides both `ffmpeg` and `ffprobe`.
 
 <Tabs>
 <TabItem label="TOML">
