@@ -584,8 +584,8 @@ func (p *RoomTimelineProjection) Apply(event *evtv1.Event, seq uint64) error {
 			entryIdx = p.appendEntryLocked(seq, event)
 		}
 		p.messagePostsByRoom[roomID] = append(p.messagePostsByRoom[roomID], uint32(entryIdx))
-		if event.GetMessagePosted().GetEchoOfEventId() == "" && !event.GetMessagePosted().GetHistoricalImport() && event.GetActorId() != "" {
-			p.indexSlowModePostLocked(p.entryAtLocked(entryIdx))
+		if posted := event.GetMessagePosted(); posted.GetInThread() == "" && posted.GetEchoOfEventId() == "" && !posted.GetHistoricalImport() && event.GetActorId() != "" {
+			p.latestRootPostAt[roomActorKey{roomID: roomID, actorID: event.GetActorId()}] = eventCreatedAt(event)
 		}
 	}
 	if isVisibleRoomTimelineEntry(event) {
@@ -921,14 +921,6 @@ func (p *RoomTimelineProjection) LatestRootPostAt(roomID, actorID string) (time.
 	defer p.RUnlock()
 	value, ok := p.latestRootPostAt[roomActorKey{roomID: roomID, actorID: actorID}]
 	return value, ok && !value.IsZero()
-}
-
-// indexSlowModePostLocked records roots. Thread reads use retained message
-// rows. Call only for original, non-imported posts with an actor.
-func (p *RoomTimelineProjection) indexSlowModePostLocked(entry *TimelineEntry) {
-	if entry.InThreadEventID == "" {
-		p.latestRootPostAt[roomActorKey{roomID: entry.RoomID, actorID: entry.ActorID}] = entry.CreatedAt
-	}
 }
 
 // originalPostAt reads retained creation facts without hydrating a message.

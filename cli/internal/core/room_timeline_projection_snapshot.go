@@ -151,8 +151,8 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		restored.indexEventLocked(index)
 		if entry.IsMessagePost() {
 			restored.messagePostsByRoom[entry.RoomID] = append(restored.messagePostsByRoom[entry.RoomID], uint32(index))
-			if entry.EchoOfEventID == "" && !entry.HistoricalImport && entry.ActorID != "" {
-				restored.indexSlowModePostLocked(&entry)
+			if entry.InThreadEventID == "" && entry.EchoOfEventID == "" && !entry.HistoricalImport && entry.ActorID != "" {
+				restored.latestRootPostAt[roomActorKey{roomID: entry.RoomID, actorID: entry.ActorID}] = entry.CreatedAt
 			}
 			if entry.EchoOfEventID != "" {
 				restored.echoLinks[entry.EchoOfEventID] = append(restored.echoLinks[entry.EchoOfEventID], entry.EventID)
