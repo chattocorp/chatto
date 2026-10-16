@@ -274,11 +274,15 @@ behavior. Apply those rules when choosing an implementation too.
 - Import product messages from `$lib/i18n/messages`; keep the framework-neutral
   JSON runtime in `packages/lingua` free of Chatto-specific catalogs and policy.
 - Catalogs are ordinary nested JSON and require no compilation. The British
-  English source is bundled as the synchronous fallback. SvelteKit layout
-  loads own the coarse non-base catalog boundaries: the root layout loads the
-  public shell and `/chat` loads the complete selected locale. Catalog loading
-  must not block a global navigation hook. Production builds coalesce the
-  section imports into at most a public and chat payload per non-base locale.
+  English source for shared sections is bundled as the synchronous fallback.
+  Management-only sections (`admin`, `rbac`, and `server_settings`) load on
+  entry to `/chat/[serverId]/manage/...`, including their English fallback.
+  Keep messages used by chat in shared sections; permission descriptions used
+  by bot profiles belong in `permissions`, not `rbac`.
+  SvelteKit layout loads own the public, chat, and management catalog groups.
+  Catalog loading must not block a global navigation hook. Production builds
+  keep each locale's management payload separate from public and chat payloads.
+  Keep the groups in `catalogSections.js` aligned with the literal Vite globs.
   Keys ending in
   `_count` or `.count` contain CLDR plural objects and receive `{ count }`. Keys
   ending in `_html` or `.html` are only rendered through the reviewed sanitizing

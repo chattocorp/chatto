@@ -164,6 +164,19 @@
       },
       "owned_by": "Eies av",
       "open_card": "Åpne profilkortet til {name}"
+    },
+    "management_nav": {
+      "general": "Generelt",
+      "neighbors": "Naboer",
+      "members": "Medlemmer",
+      "rooms": "Rom",
+      "moderation": "Moderering",
+      "permissions": "Tillatelser",
+      "security": "Sikkerhet",
+      "event_log": "Hendelseslogg",
+      "system": "System",
+      "back_to_server": "Gå tilbake til server",
+      "invitations": "Invitasjonslenker"
     }
   }
 }

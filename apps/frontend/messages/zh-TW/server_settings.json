@@ -12,7 +12,6 @@
     "no_banner": "尚未設定橫幅",
     "name_label": "名稱",
     "description_label": "說明",
-    "motd_label": "每日訊息",
     "welcome_message_label": "歡迎訊息",
     "name_empty": "名稱不可為空白",
     "name_trim": "名稱開頭或結尾不可有空白",

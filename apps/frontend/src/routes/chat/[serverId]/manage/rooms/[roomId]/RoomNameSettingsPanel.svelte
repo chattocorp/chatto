@@ -35,9 +35,9 @@ one form with Save and Discard actions. A successful save resets only this form.
     const validationError = roomNameValidationError(normalizedName);
     if (validationError === 'empty') return m('admin.rooms_admin.room_name_empty');
     if (validationError === 'too_long') {
-      return m('admin.rooms_admin.room_name_too_long');
+      return m('room.management.room_name_too_long');
     }
-    if (validationError === 'invalid') return m('admin.rooms_admin.room_name_invalid');
+    if (validationError === 'invalid') return m('room.management.room_name_invalid');
     return undefined;
   });
   const changed = $derived(

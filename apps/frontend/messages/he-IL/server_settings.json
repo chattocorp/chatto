@@ -12,7 +12,6 @@
     "no_banner": "לא הוגדר באנר",
     "name_label": "שם",
     "description_label": "תיאור",
-    "motd_label": "הודעת היום",
     "welcome_message_label": "הודעת ברוכים הבאים",
     "name_empty": "השם אינו יכול להיות ריק",
     "name_trim": "שם לא יכול לכלול רווח לבן מוביל או נגרר",

@@ -54,6 +54,11 @@
     "saved": "Uloženo!",
     "rooms": "Pokoje",
     "copy_to_clipboard": "Kopírovat do schránky",
-    "copied_to_clipboard": "Zkopírováno do schránky"
+    "copied_to_clipboard": "Zkopírováno do schránky",
+    "user_search_placeholder": "Hledat podle přihlašovacího jména nebo zobrazovaného jména...",
+    "no_users": "Nebyli nalezeni žádní uživatelé",
+    "user_id": "ID uživatele",
+    "reason": "Důvod",
+    "message_of_the_day": "Zpráva dne"
   }
 }

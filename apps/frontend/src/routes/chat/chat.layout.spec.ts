@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { calls, preloadChatLocaleMessages } = vi.hoisted(() => ({
   calls: [] as string[],
@@ -14,17 +14,28 @@ vi.mock('$lib/i18n/messages', () => ({
 import { load } from './+layout';
 
 describe('chat layout catalog loading', () => {
-  it('loads the complete locale after the root layout has selected it', async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    calls.length = 0;
+  });
+
+  it.each([
+    ['/chat/[serverId]/[roomId]', false],
+    ['/chat/[serverId]/manage/server/general', true],
+    ['/chat/[serverId]/manage/rooms/[roomId]', true],
+    ['/chat/[serverId]/settings/account', false]
+  ])('loads the required sections after parent locale selection: %s', async (id, management) => {
     calls.length = 0;
     const parent = vi.fn(async () => {
       calls.push('parent');
       return {};
     });
 
-    await load({ parent } as never);
+    await load({ parent, route: { id } } as never);
 
     expect(calls).toEqual(['parent', 'catalog']);
     expect(parent).toHaveBeenCalledOnce();
     expect(preloadChatLocaleMessages).toHaveBeenCalledOnce();
+    expect(preloadChatLocaleMessages).toHaveBeenCalledWith(management);
   });
 });

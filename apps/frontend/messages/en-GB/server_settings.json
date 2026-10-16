@@ -12,7 +12,6 @@
     "no_banner": "No banner set",
     "name_label": "Name",
     "description_label": "Description",
-    "motd_label": "Message of the Day",
     "welcome_message_label": "Welcome Message",
     "name_empty": "Name cannot be empty",
     "name_trim": "Name cannot have leading or trailing whitespace",

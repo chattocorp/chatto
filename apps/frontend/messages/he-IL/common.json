@@ -54,6 +54,11 @@
     "saved": "נשמר!",
     "rooms": "חדרים",
     "copy_to_clipboard": "העתק ללוח",
-    "copied_to_clipboard": "הועתק ללוח"
+    "copied_to_clipboard": "הועתק ללוח",
+    "user_search_placeholder": "חפש לפי התחברות או שם תצוגה...",
+    "no_users": "לא נמצאו משתמשים",
+    "user_id": "מזהה משתמש",
+    "reason": "סיבה",
+    "message_of_the_day": "הודעת היום"
   }
 }

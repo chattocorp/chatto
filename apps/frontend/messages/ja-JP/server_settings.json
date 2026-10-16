@@ -12,7 +12,6 @@
     "no_banner": "バナーが設定されていません",
     "name_label": "名前",
     "description_label": "説明",
-    "motd_label": "今日のメッセージ",
     "welcome_message_label": "ウェルカムメッセージ",
     "name_empty": "名前を空にすることはできません",
     "name_trim": "名前の先頭または末尾に空白を含めることはできません",

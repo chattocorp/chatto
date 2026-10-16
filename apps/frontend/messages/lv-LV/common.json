@@ -54,6 +54,11 @@
     "saved": "Saglabāts!",
     "rooms": "Istabas",
     "copy_to_clipboard": "Kopēt starpliktuvē",
-    "copied_to_clipboard": "Kopēts starpliktuvē"
+    "copied_to_clipboard": "Kopēts starpliktuvē",
+    "user_search_placeholder": "Meklēt pēc pieteikšanās vai parādāmā vārda...",
+    "no_users": "Nav atrasts neviens lietotājs",
+    "user_id": "Lietotāja ID",
+    "reason": "Iemesls",
+    "message_of_the_day": "Dienas ziņa"
   }
 }

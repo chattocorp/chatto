@@ -54,6 +54,11 @@
     "saved": "Salvo!",
     "rooms": "Quartos",
     "copy_to_clipboard": "Copiar para a área de transferência",
-    "copied_to_clipboard": "Copiado para a área de transferência"
+    "copied_to_clipboard": "Copiado para a área de transferência",
+    "user_search_placeholder": "Pesquise por login ou nome de utilizador...",
+    "no_users": "Nenhum utilizador encontrado",
+    "user_id": "ID do utilizador",
+    "reason": "Motivo",
+    "message_of_the_day": "Mensagem do Dia"
   }
 }

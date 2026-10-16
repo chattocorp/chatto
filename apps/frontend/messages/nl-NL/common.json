@@ -54,6 +54,11 @@
     "saved": "Opgeslagen!",
     "rooms": "Kamers",
     "copy_to_clipboard": "Kopiëren naar klembord",
-    "copied_to_clipboard": "Gekopieerd naar klembord"
+    "copied_to_clipboard": "Gekopieerd naar klembord",
+    "user_search_placeholder": "Zoeken op login of weergavenaam...",
+    "no_users": "Geen gebruikers gevonden",
+    "user_id": "Gebruikers-ID",
+    "reason": "Reden",
+    "message_of_the_day": "Bericht van de dag"
   }
 }

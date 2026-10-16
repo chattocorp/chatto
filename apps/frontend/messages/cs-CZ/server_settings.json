@@ -12,7 +12,6 @@
     "no_banner": "Není nastaven žádný banner",
     "name_label": "Jméno",
     "description_label": "Popis",
-    "motd_label": "Zpráva dne",
     "welcome_message_label": "Uvítací zpráva",
     "name_empty": "Název nemůže být prázdný",
     "name_trim": "Název nesmí mít na začátku ani na konci mezery",

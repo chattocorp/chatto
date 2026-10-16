@@ -164,6 +164,19 @@
       },
       "owned_by": "Eigenaar",
       "open_card": "Profielkaart van {name} openen"
+    },
+    "management_nav": {
+      "general": "Algemeen",
+      "neighbors": "Buren",
+      "members": "Leden",
+      "rooms": "Kamers",
+      "moderation": "Moderatie",
+      "permissions": "Rechten",
+      "security": "Beveiliging",
+      "event_log": "Gebeurtenislogboek",
+      "system": "Systeem",
+      "back_to_server": "Terug naar de server",
+      "invitations": "Uitnodigingslinks"
     }
   }
 }

@@ -8,6 +8,7 @@ import {
 import {
   catalogLoaders,
   catalogSections,
+  chatCatalogSections,
   initialBaseCatalogs,
   publicCatalogSections
 } from './catalogs';
@@ -79,10 +80,10 @@ export async function preloadPublicLocaleMessages(): Promise<void> {
   });
 }
 
-/** Load the complete selected locale before entering the authenticated chat shell. */
-export async function preloadChatLocaleMessages(): Promise<void> {
+/** Load the route's sections, with management catalogs only on management routes. */
+export async function preloadChatLocaleMessages(management = false): Promise<void> {
   await scheduleCatalogTransition(async () => {
-    await lingua.setActiveSections(catalogSections);
+    await lingua.setActiveSections(management ? catalogSections : chatCatalogSections);
     bumpI18nRevision();
   });
 }

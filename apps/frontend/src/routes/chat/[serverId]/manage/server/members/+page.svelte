@@ -123,7 +123,7 @@
               label={m('admin.members.search')}
               labelHidden
               leadingIcon="iconify icon-[uil--search]"
-              placeholder={m('admin.members.search_placeholder')}
+              placeholder={m('common.user_search_placeholder')}
               bind:value={searchInput}
               oninput={scheduleSearch}
             />

@@ -54,6 +54,11 @@
     "saved": "Lagret!",
     "rooms": "Rom",
     "copy_to_clipboard": "Kopier til utklippstavlen",
-    "copied_to_clipboard": "Kopiert til utklippstavlen"
+    "copied_to_clipboard": "Kopiert til utklippstavlen",
+    "user_search_placeholder": "Søk etter pålogging eller visningsnavn...",
+    "no_users": "Ingen brukere funnet",
+    "user_id": "Bruker-ID",
+    "reason": "Grunn",
+    "message_of_the_day": "Dagens melding"
   }
 }

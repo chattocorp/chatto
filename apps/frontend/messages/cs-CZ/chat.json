@@ -164,6 +164,19 @@
       },
       "owned_by": "Vlastník",
       "open_card": "Otevřít profilovou kartu uživatele {name}"
+    },
+    "management_nav": {
+      "general": "Generál",
+      "neighbors": "Sousedé",
+      "members": "členové",
+      "rooms": "Pokoje",
+      "moderation": "Moderování",
+      "permissions": "Oprávnění",
+      "security": "Bezpečnost",
+      "event_log": "Protokol událostí",
+      "system": "Systém",
+      "back_to_server": "Návrat na server",
+      "invitations": "Zvací odkazy"
     }
   }
 }
