@@ -12,6 +12,26 @@ function deferred<T>() {
 }
 
 describe('catalog publication', () => {
+  it('handles a synchronous loader failure alongside an asynchronous failure', async () => {
+    const slow = deferred<{ common: { title: string } }>();
+    const lingua = createLingua({
+      baseLocale: 'en',
+      loaders: {
+        common: { en: () => slow.promise },
+        admin: {
+          en: () => {
+            throw new Error('offline');
+          }
+        }
+      }
+    });
+    await expect(lingua.setActiveSections(['common', 'admin'])).rejects.toThrow('offline');
+    const retry = lingua.setActiveSections(['common']);
+    slow.reject(new Error('connection closed'));
+    await expect(retry).rejects.toThrow('connection closed');
+    expect(lingua.snapshot.activeSections).toEqual([]);
+  });
+
   it('starts the selected, parent, and English downloads together while validation waits for English', async () => {
     const english = deferred<{ admin: { title: string } }>();
     const loadEnglish = vi.fn(() => english.promise);

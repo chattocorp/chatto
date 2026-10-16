@@ -135,7 +135,8 @@ export class Lingua<Registry extends LoaderRegistry> {
         // Start all downloads together. Each overlay waits for the base catalog
         // inside #load before validation, without delaying its network request.
         Promise.all(
-          this.#fallbackChain(locale).map((fallbackLocale) =>
+          // An async callback also captures loaders that throw before returning.
+          this.#fallbackChain(locale).map(async (fallbackLocale) =>
             fallbackLocale === this.#baseLocale
               ? this.#load(section, fallbackLocale)
               : this.#loadOptional(section, fallbackLocale)
