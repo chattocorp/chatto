@@ -49,6 +49,21 @@ for (const locale of ['en-GB', 'de-DE']) {
     await general.click();
     await expect(page.locator('input#name')).toBeVisible();
     expect(requests.sort()).toEqual(expected.sort());
+
+    // Leaving management must deactivate its sections for later language changes.
+    await page.locator('a[href="/chat/-/settings/language"]').click();
+    await page
+      .getByRole('radio', {
+        name: new Intl.DisplayNames([locale], { type: 'language' }).of('fr-FR'),
+        exact: true
+      })
+      .click();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'fr-FR');
+    expect(requests.sort()).toEqual(expected.sort());
+    await general.click();
+    await expect(page.locator('input#name')).toBeVisible();
+    expect(requests.sort()).toEqual([...expected, 'lingua-fr-FR-management'].sort());
+    await expect(page.locator('body')).not.toContainText('⟦');
     expect(errors).toEqual([]);
   });
 }

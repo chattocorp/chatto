@@ -131,13 +131,17 @@ export class Lingua<Registry extends LoaderRegistry> {
     this.#assertLocale(locale);
     const uniqueSections = this.#normaliseSections(sections);
     await Promise.all(
-      uniqueSections.map(async (section) => {
-        await this.#load(section, this.#baseLocale);
-        for (const fallbackLocale of this.#fallbackChain(locale)) {
-          if (fallbackLocale === this.#baseLocale) continue;
-          await this.#loadOptional(section, fallbackLocale);
-        }
-      })
+      uniqueSections.map((section) =>
+        // Start all downloads together. Each overlay waits for the base catalog
+        // inside #load before validation, without delaying its network request.
+        Promise.all(
+          this.#fallbackChain(locale).map((fallbackLocale) =>
+            fallbackLocale === this.#baseLocale
+              ? this.#load(section, fallbackLocale)
+              : this.#loadOptional(section, fallbackLocale)
+          )
+        )
+      )
     );
   }
 
@@ -154,7 +158,7 @@ export class Lingua<Registry extends LoaderRegistry> {
     await this.#transitionTo(locale, this.#target?.sections ?? this.#activeSections);
   }
 
-  /** Resolves a plain-text translation synchronously from the active sections. */
+  /** Resolves a plain-text translation synchronously from published catalogs. */
   t<const Key extends string>(
     key: Key extends HtmlTranslationKey ? never : Key,
     ...args: TranslationArguments<Key>

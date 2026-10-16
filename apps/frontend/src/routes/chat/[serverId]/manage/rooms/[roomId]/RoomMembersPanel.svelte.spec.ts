@@ -1,3 +1,9 @@
+import { beforeAll } from 'vitest';
+import { loadLocaleMessages } from '$lib/i18n/messages';
+
+// Standalone management components do not run the route catalog loader.
+beforeAll(() => loadLocaleMessages('en-GB'));
+
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { RealtimeProjectionUpdate } from '@chatto/client/realtime/eventBus';
 import {

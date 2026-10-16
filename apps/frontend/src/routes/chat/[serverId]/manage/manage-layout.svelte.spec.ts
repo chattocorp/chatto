@@ -1,3 +1,9 @@
+import { beforeAll } from 'vitest';
+import { loadLocaleMessages } from '$lib/i18n/messages';
+
+// Standalone management components do not run the route catalog loader.
+beforeAll(() => loadLocaleMessages('en-GB'));
+
 import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';

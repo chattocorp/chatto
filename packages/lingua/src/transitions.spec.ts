@@ -12,6 +12,27 @@ function deferred<T>() {
 }
 
 describe('catalog publication', () => {
+  it('starts the selected, parent, and English downloads together while validation waits for English', async () => {
+    const english = deferred<{ admin: { title: string } }>();
+    const loadEnglish = vi.fn(() => english.promise);
+    const loadGerman = vi.fn(async () => ({ admin: { title: 'Verwaltung' } }));
+    const loadAustrian = vi.fn(async () => ({ admin: {} }));
+    const lingua = createLingua({
+      baseLocale: 'en',
+      initialLocale: 'de-AT',
+      fallbackLocales: { 'de-AT': 'de' },
+      loaders: { admin: { en: loadEnglish, de: loadGerman, 'de-AT': loadAustrian } }
+    });
+    const pending = lingua.setActiveSections(['admin']);
+    expect(loadEnglish).toHaveBeenCalledOnce();
+    expect(loadGerman).toHaveBeenCalledOnce();
+    expect(loadAustrian).toHaveBeenCalledOnce();
+    expect(lingua.t('admin.title')).toBe('⟦admin.title⟧');
+    english.resolve({ admin: { title: 'Admin' } });
+    await pending;
+    expect(lingua.t('admin.title')).toBe('Verwaltung');
+  });
+
   it('keeps preloaded and partially loaded sections invisible until a complete commit', async () => {
     const slow = deferred<{ admin: { title: string } }>();
     const lingua = createLingua({
