@@ -49,6 +49,15 @@ function clarification(github: FakeGitHub, answer: string) {
   );
 }
 
+/** Issue and PR references must expose their number in the clickable text. */
+export function checkGitHubLink(answer: string, url: string, number: number) {
+  const links = [...answer.matchAll(/\[([^\]]+)\]\((https:\/\/github\.com\/[^\s)]+)\)/g)];
+  assert(
+    links.some(([, label, target]) => target === url && new RegExp(`#${number}\\b`).test(label!)),
+    'Link the GitHub issue or PR with its number in the visible text'
+  );
+}
+
 /** Classification belongs to the native type field, never a title prefix or a label. */
 export function checkIssueType(issue: Issue, expected: string) {
   assert.doesNotMatch(
@@ -172,7 +181,7 @@ export const workerCases: readonly WorkerCase[] = [
         'Expected an issue search'
       );
       assert.equal(writes(github).length, 0, 'A search must not write');
-      assert.match(answer, /12|reconnect/i, 'Expected a summary of the matching issue');
+      checkGitHubLink(answer, issueUrl(12), 12);
     }
   },
   {
@@ -315,9 +324,11 @@ export const workerCases: readonly WorkerCase[] = [
 
 export interface SupervisorCase {
   name: string;
+  /** Repository contents for direct issue discovery, using only the in-memory CLI fixture. */
+  fixture?: () => FakeGitHub;
   /** Synthetic configured contact; naming it does not add an authorized user ID. */
   maintainerLogin?: string;
-  messages: { id: string; authorId: string; body: string }[];
+  messages: { id: string; authorId: string; body: string; trigger?: 'intake' | 'follow-up' }[];
   /** Host-owned thread context, also returned by readThread for proposal references. */
   thread?: ThreadMessage[];
   expectedRequest?: string;
@@ -328,6 +339,163 @@ export interface SupervisorCase {
 }
 
 export const supervisorCases: readonly SupervisorCase[] = [
+  ...[
+    {
+      name: 'issue-discovery-feature',
+      report: 'Feature request: custom emojis!',
+      title: 'Custom emoji uploads',
+      body: 'Proposal: operators can upload a server-wide emoji set with the manage_emoji permission. Whether ordinary users can upload is still undecided. No implementation or release is promised.',
+      summary: /operator|permission|manage_emoji/i,
+      state: 'OPEN' as const
+    },
+    {
+      name: 'issue-discovery-bug',
+      report: 'After reconnecting, messages I send disappear until I reload Chatto.',
+      title: 'Messages disappear after reconnecting',
+      body: 'Confirmed report: messages sent after reconnecting are missing from the timeline until reload. The proposed fix is to refresh the timeline on reconnect. No fix is released yet.',
+      summary: /timeline|refresh/i,
+      state: 'OPEN' as const
+    },
+    {
+      name: 'issue-discovery-closed-feature',
+      report: 'Feature request: custom emojis!',
+      title: 'Custom emoji uploads',
+      body: 'Closed as not planned: maintainers chose to keep the built-in emoji set. No custom upload feature was implemented. This decision can be discussed again if a new use case warrants it.',
+      summary: /not planned|declin|built.in/i,
+      state: 'CLOSED' as const
+    }
+  ].map((item): SupervisorCase => ({
+    name: item.name,
+    fixture: () =>
+      new FakeGitHub([{ ...issue(), title: item.title, body: item.body, state: item.state }]),
+    messages: [{ id: 'report', authorId: 'member', body: item.report, trigger: 'intake' }],
+    check(posts, commands) {
+      const search = commands.find((command) => command.operation === 'list');
+      assert(search, 'Search existing issues before asking for more intake details');
+      assert(
+        search.args.includes('--state=all') ||
+          search.args[search.args.indexOf('--state') + 1] === 'all',
+        'Search open and closed issues'
+      );
+      assert(
+        commands.some((command) => command.operation === 'view'),
+        'Read a plausible match before summarizing it'
+      );
+      const answer = posts.at(-1)!;
+      checkGitHubLink(answer, issueUrl(12), 12);
+      assert.match(answer, item.summary, 'Summarize the evidence from the issue body');
+      assert.match(
+        answer,
+        /\?/,
+        'Invite discussion of the remaining need or changes to the proposal'
+      );
+      assert.doesNotMatch(
+        answer,
+        /@reviewer|please (?:authorize|approve)/i,
+        'Reading issues requires no maintainer handoff'
+      );
+      assert.doesNotMatch(
+        answer,
+        /\b(?:it|this|the (?:feature|fix|bug)) (?:is|has been|was) (?:already )?(?:shipped|released|implemented|fixed)\b/i,
+        'An issue is not evidence of a shipped feature or fix'
+      );
+      if (item.state === 'CLOSED')
+        assert.match(answer, /closed/i, 'Explain the closed issue status');
+    }
+  })),
+  {
+    name: 'issue-discovery-multiple-matches',
+    fixture: () =>
+      new FakeGitHub([
+        {
+          ...issue(),
+          title: 'Custom emoji uploads',
+          body: 'Proposal: operators can upload a server-wide emoji set. User upload permissions are outside this proposal.'
+        },
+        {
+          ...issue(),
+          number: 13,
+          url: issueUrl(13),
+          title: 'Permissions for emoji management',
+          body: 'Proposal: grant selected users permission to manage emoji. The upload interface is tracked separately.'
+        }
+      ]),
+    messages: [
+      {
+        id: 'report',
+        authorId: 'member',
+        body: 'Let operators and users upload custom emojis, gated by a permission!',
+        trigger: 'intake'
+      }
+    ],
+    check(posts, commands) {
+      assert(
+        commands.some((command) => command.operation === 'list'),
+        'Search the issue tracker'
+      );
+      assert(
+        commands.filter((command) => command.operation === 'view').length >= 2,
+        'Read both plausible matches'
+      );
+      const answer = posts.at(-1)!;
+      checkGitHubLink(answer, issueUrl(12), 12);
+      checkGitHubLink(answer, issueUrl(13), 13);
+      assert.match(answer, /upload/i);
+      assert.match(answer, /permission|manage/i);
+      assert.match(
+        answer,
+        /(?:cover|match|fit|address|capture|which|either|any of)[^?]*\?/i,
+        'Ask whether the existing issues cover the request before another interview'
+      );
+      assert.doesNotMatch(
+        answer,
+        /version|browser|operating system|reproduction/i,
+        'Do not append an intake questionnaire'
+      );
+    }
+  },
+  {
+    name: 'issue-discovery-no-match',
+    fixture: () => new FakeGitHub(),
+    messages: [
+      {
+        id: 'report',
+        authorId: 'member',
+        body: 'Feature request: custom emojis!',
+        trigger: 'intake'
+      }
+    ],
+    check(posts, commands) {
+      assert(
+        commands.some((command) => command.operation === 'list'),
+        'Search before clarification'
+      );
+      const answer = posts.at(-1)!;
+      assert.match(
+        answer,
+        /(?:didn.t|couldn.t|did not|could not|no)\b[^.!\n]*(?:find|match|issue)|(?:search|found)[^.!\n]*(?:no|nothing)/i,
+        'Report the search result without inventing a match'
+      );
+      assert.doesNotMatch(
+        answer,
+        /github\.com\/[^\s)]+\/issues\/\d+/,
+        'Do not invent an issue URL'
+      );
+      assert.match(answer, /\?/, 'Continue developing the request');
+    }
+  },
+  {
+    name: 'issue-discovery-vague-report',
+    messages: [{ id: 'report', authorId: 'member', body: 'Chatto is broken.', trigger: 'intake' }],
+    check(posts, commands) {
+      assert.equal(
+        commands.length,
+        0,
+        'A report without a searchable symptom needs clarification first'
+      );
+      assert.match(posts.at(-1)!, /\?/, 'Ask about the symptom');
+    }
+  },
   {
     name: 'authorization-supervisor-bare-ping',
     messages: [{ id: 'ping', authorId: 'maintainer', body: '@ChattoBot' }],

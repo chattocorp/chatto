@@ -137,6 +137,21 @@ beforeEach(() => {
 });
 
 describe('server route authentication privacy', () => {
+  it.each(['server-too-old', 'unreachable'] as const)(
+    'keeps the compatibility report accessible when %s',
+    async (problem) => {
+      mocks.routeId = '/chat/[serverId]/info';
+      mocks.activeServerId = 'remote';
+      mocks.servers!.set('remote', { reauthRequiredAt: null });
+      mocks.servers!.set('origin', { reauthRequiredAt: null, compatibilityProblem: problem });
+      mocks.store.realtimeSync = new RealtimeProjectionSyncState();
+      const screen = render(Layout, {
+        props: { children: testSnippet('<main>Compatibility report</main>') }
+      });
+      await expect.element(screen.getByText('Compatibility report')).toBeVisible();
+      expect(screen.container.querySelector('[data-testid="server-unavailable"]')).toBeNull();
+    }
+  );
   it.each(['server-too-old', 'server-version-unknown'] as const)(
     'renders normal remote routes with a %s warning',
     async (warning) => {

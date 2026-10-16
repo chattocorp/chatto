@@ -51,6 +51,21 @@
       "view_in_admin": "Ver na administração do servidor",
       "copy_user_id": "Copiar ID do usuário"
     },
+    "server_info": {
+      "title": "Informações do servidor",
+      "details": "Detalhes do servidor"
+    },
+    "compatibility": {
+      "title": "Compatibilidade",
+      "view": "Ver compatibilidade",
+      "limited": "Suporte limitado",
+      "supported": "Nenhum problema de compatibilidade conhecido",
+      "affected": "Recursos afetados",
+      "requires": "Requer {version} ou posterior",
+      "thread_views_title": "As visualizações de tópicos têm suporte limitado",
+      "thread_views_description": "Os tópicos seguidos e os que você iniciou podem não ser listados separadamente neste servidor.",
+      "upgrade": "Para obter suporte completo, peça ao administrador do servidor para atualizar para {version} ou posterior."
+    },
     "server_gutter": {
       "move_up": "Mover para cima",
       "move_down": "Mover para baixo",
@@ -61,7 +76,6 @@
       "unreachable": "Servidor inacessível",
       "connection_unavailable": "Conexão indisponível",
       "compatibility_server_too_old": "Este servidor precisa ser atualizado para o Chatto {version} ou mais recente antes que este aplicativo possa se conectar.",
-      "compatibility_limited": "Alguns recursos podem não funcionar com esta versão do servidor. Atualize o servidor para ter compatibilidade total.",
       "compatibility_unknown": "Este aplicativo não consegue determinar a compatibilidade pela versão do servidor.",
       "go_to_notifications_count": {
         "one": "Ir para {count} notificação",

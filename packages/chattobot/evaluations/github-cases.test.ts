@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { FakeGitHub, issueUrl, REPOSITORY } from './fake-github.ts';
-import { checkIssueType, supervisorCases, workerCases } from './github-cases.ts';
+import { checkGitHubLink, checkIssueType, supervisorCases, workerCases } from './github-cases.ts';
 
 const call = (github: FakeGitHub, ...args: string[]) =>
   github.run(args, {
@@ -8,6 +8,25 @@ const call = (github: FakeGitHub, ...args: string[]) =>
     repository: REPOSITORY,
     signal: new AbortController().signal
   });
+
+test.each(['issues', 'pull'])('GitHub %s references need a linked, visible number', (kind) => {
+  const url = `https://github.com/evaluation/fixture/${kind}/12`;
+  checkGitHubLink(`See [#12 — Custom emojis](${url}).`, url, 12);
+  for (const reference of [url, '#12', `#12: [Custom emojis](${url})`, `[#123](${url})`])
+    expect(() => checkGitHubLink(reference, url, 12)).toThrow('number in the visible text');
+});
+
+test('the discovery grader allows an unreleased fix but rejects a claimed release', async () => {
+  const scenario = supervisorCases.find((item) => item.name === 'issue-discovery-bug')!;
+  const github = scenario.fixture!();
+  await call(github, 'issue', 'list', '--state', 'all');
+  await call(github, 'issue', 'view', '12');
+  const answer = `[#12](${issueUrl(12)}) proposes refreshing the timeline. Does that match?`;
+  scenario.check!([`${answer} No fix is released yet.`], github.commands);
+  expect(() => scenario.check!([`${answer} The fix is released.`], github.commands)).toThrow(
+    'shipped feature or fix'
+  );
+});
 
 test('the greeting grader allows a social question but rejects a slang clarification', () => {
   const check = supervisorCases.find((scenario) => scenario.name === 'casual-greeting')!.check!;
@@ -133,6 +152,25 @@ test('the fixture applies an edit and retains unrelated fields', async () => {
     state: 'OPEN'
   });
   expect(github.commands[0]).toMatchObject({ access: 'write', operation: 'edit', supported: true });
+});
+
+test('search results expose only requested fields until the issue body is read', async () => {
+  const github = new FakeGitHub([
+    {
+      number: 12,
+      title: 'T',
+      body: 'Detailed proposal',
+      labels: [],
+      state: 'OPEN',
+      url: issueUrl(12)
+    }
+  ]);
+  const search = await call(github, 'issue', 'list', '--json', 'number,title,url,state');
+  expect(JSON.parse(search.output)).toEqual([
+    { number: 12, title: 'T', url: issueUrl(12), state: 'OPEN' }
+  ]);
+  const detail = await call(github, 'issue', 'view', '12', '--json=body');
+  expect(JSON.parse(detail.output)).toEqual({ body: 'Detailed proposal' });
 });
 
 test('a lost create response commits the issue, which a later read can find', async () => {

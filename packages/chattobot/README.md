@@ -182,6 +182,13 @@ temporary status in the thread when Chatto supports it (#2787).
 
 ## GitHub work
 
+With GitHub configured, the bot searches existing issues early, summarizes matches,
+and asks whether they cover the request before further intake. Reads are available
+to all users; writes require a current addressed maintainer request. See
+[FDR-051](../../docs/fdr/FDR-051-chattobot-report-intake.md) for the intake behavior.
+The bot's instructions use GitHub's native parent/sub-issue relationships for
+epics and their tasks, including verification after an authorized link change.
+
 Issue titles describe the issue without prefixes. The worker uses GitHub's
 native issue type field for classification, such as Bug, Feature, or Enhancement,
 and discovers the types available in the repository. It does not use labels for
@@ -392,6 +399,7 @@ From `packages/chattobot/`, run:
 pnpm eval:github
 pnpm eval:github ambiguous-moo
 pnpm eval:github authorization
+pnpm eval:github issue-discovery
 pnpm eval:github language-report-withdrawal
 ```
 
@@ -410,6 +418,9 @@ that must not claim completed work.
 The `authorization` group checks injected bulk changes, bare maintainer pings,
 missing or ambiguous proposal quotes, explicit approval of a quoted proposal,
 and legitimate bulk closure. Case-name prefixes select a group of evaluations.
+The `issue-discovery` group checks early feature and bug searches, multiple
+plausible matches, closed proposals, no matches, and vague reports that need
+clarification first.
 They check commands, changed issue state, and delegation targets. They do not
 require exact reply wording. The supervisor cases use fake GitHub workers and investigators;
 the worker cases use the real worker agent.

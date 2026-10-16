@@ -51,6 +51,21 @@
       "view_in_admin": "Skatīt servera administrēšanā",
       "copy_user_id": "Kopēt lietotāja ID"
     },
+    "server_info": {
+      "title": "Servera informācija",
+      "details": "Servera dati"
+    },
+    "compatibility": {
+      "title": "Saderība",
+      "view": "Skatīt saderību",
+      "limited": "Ierobežots atbalsts",
+      "supported": "Nav zināmu saderības problēmu",
+      "affected": "Ietekmētās funkcijas",
+      "requires": "Nepieciešama {version} vai jaunāka versija",
+      "thread_views_title": "Pavedienu skatiem ir ierobežots atbalsts",
+      "thread_views_description": "Pavedieni, kuriem sekojat, un Jūsu sāktie pavedieni šajā serverī var netikt parādīti atsevišķi.",
+      "upgrade": "Lai iegūtu pilnu atbalstu, lūdziet servera administratoram atjaunināt uz {version} vai jaunāku versiju."
+    },
     "server_gutter": {
       "move_up": "Pārvietot uz augšu",
       "move_down": "Pārvietot uz leju",
@@ -61,7 +76,6 @@
       "unreachable": "Serveris nav sasniedzams",
       "connection_unavailable": "Savienojums nav pieejams",
       "compatibility_server_too_old": "Šis serveris ir jājaunina uz Chatto {version} vai jaunāku versiju, lai šī lietotne varētu izveidot savienojumu.",
-      "compatibility_limited": "Dažas funkcijas var nedarboties ar šo servera versiju. Lai nodrošinātu pilnīgu saderību, atjauniniet serveri.",
       "compatibility_unknown": "Šī lietotne nevar noteikt saderību no servera versijas.",
       "go_to_notifications_count": {
         "zero": "Pāriet uz {count} paziņojumiem",

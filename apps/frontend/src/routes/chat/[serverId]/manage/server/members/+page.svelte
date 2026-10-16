@@ -155,10 +155,15 @@
                 <UserAvatar user={{ ...user, presenceStatus: PresenceStatus.OFFLINE }} size="sm" />
                 <a
                   class="data-table-row-link min-w-0"
-                  href={resolve('/chat/[serverId]/manage/server/members/[userId]', {
-                    serverId: serverIdToSegment(serverScope.serverId),
-                    userId: user.id
-                  })}
+                  href={user.isBot
+                    ? resolve('/chat/[serverId]/manage/server/bots/[botId]', {
+                        serverId: serverIdToSegment(serverScope.serverId),
+                        botId: user.id
+                      })
+                    : resolve('/chat/[serverId]/manage/server/members/[userId]', {
+                        serverId: serverIdToSegment(serverScope.serverId),
+                        userId: user.id
+                      })}
                 >
                   <AccountName name={user.displayName || user.login} identity={user} />
                 </a>
