@@ -24,6 +24,8 @@ export type TestServerScopeOptions = {
   permissions?: Partial<ServerPermissions>;
   /** What `serverInfo.isSupportedVersion` reports. Default: true. */
   isSupportedVersion?: boolean;
+  /** What `serverInfo.canConnect` reports. Default: true. */
+  canConnect?: boolean;
   /**
    * What `connection.getAPI` returns for every factory. Without it, `getAPI`
    * runs the real factory with a stub config, so `vi.mock` of an API module works.
@@ -67,6 +69,8 @@ export class TestServerScope {
   permissions = $state<ServerPermissions>(NO_SERVER_PERMISSIONS);
   /** Result of `serverInfo.isSupportedVersion`. */
   isSupportedVersion = $state(true);
+  /** Connection eligibility, independent of full feature support. */
+  canConnect = $state(true);
   /** Projection viewer ID. Default: the accepted account's ID. */
   projectionViewerId = $state<string | null | undefined>(undefined);
   /** Query scope of the connection. */
@@ -80,6 +84,7 @@ export class TestServerScope {
     this.queryScope = options.queryScope ?? `${this.serverId}-session`;
     this.permissions = { ...NO_SERVER_PERMISSIONS, loaded: true, ...options.permissions };
     this.isSupportedVersion = options.isSupportedVersion ?? true;
+    this.canConnect = options.canConnect ?? true;
     this.currentUser.loading = false;
     if (options.viewer !== null) {
       this.currentUser.accept({
@@ -186,6 +191,9 @@ function buildStore(
         return t.permissions;
       },
       serverInfo: withMembers(withMembers({}, serverInfo), {
+        get canConnect() {
+          return t.canConnect;
+        },
         get isSupportedVersion() {
           return t.isSupportedVersion;
         }

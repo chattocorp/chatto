@@ -38,7 +38,7 @@
   provideUserProfiles();
 
   const roomId = 'room-design';
-  const serverSegment = '-';
+  const serverId = 'storybook';
   const threadRootEventId = 'evt-root';
 
   const alice: UserAvatarUserView = {
@@ -134,7 +134,7 @@
   {#if variant === 'reactions'}
     <MessageMetaBar
       {roomId}
-      {serverSegment}
+      {serverId}
       {threadRootEventId}
       {reactions}
       {action}
@@ -143,7 +143,7 @@
   {:else if variant === 'replies-and-reactions'}
     <MessageMetaBar
       {roomId}
-      {serverSegment}
+      {serverId}
       {threadRootEventId}
       {reactions}
       {action}
@@ -157,7 +157,7 @@
   {:else if variant === 'unread-followed-thread'}
     <MessageMetaBar
       {roomId}
-      {serverSegment}
+      {serverId}
       {threadRootEventId}
       reactions={[]}
       {action}
@@ -170,11 +170,11 @@
       onOpenEmojiPicker={noop}
     />
   {:else if variant === 'edited-only'}
-    <MessageMetaBar {roomId} {serverSegment} reactions={[]} edited />
+    <MessageMetaBar {roomId} {serverId} reactions={[]} edited />
   {:else if variant === 'echoed-to-channel' || variant === 'edited-and-echoed-to-channel'}
     <MessageMetaBar
       {roomId}
-      {serverSegment}
+      {serverId}
       reactions={variant === 'echoed-to-channel' ? [] : reactions}
       {action}
       edited={variant === 'edited-and-echoed-to-channel'}
@@ -183,7 +183,7 @@
   {:else if variant === 'thread-echo' || variant === 'edited-thread-echo'}
     <MessageMetaBar
       {roomId}
-      {serverSegment}
+      {serverId}
       {threadRootEventId}
       reactions={reactions.slice(0, 1)}
       {action}
@@ -193,17 +193,11 @@
       onOpenEmojiPicker={noop}
     />
   {:else if variant === 'read-only-reactions'}
-    <MessageMetaBar
-      {roomId}
-      {serverSegment}
-      {threadRootEventId}
-      {reactions}
-      action={readOnlyAction}
-    />
+    <MessageMetaBar {roomId} {serverId} {threadRootEventId} {reactions} action={readOnlyAction} />
   {:else if variant === 'short-reaction-popover'}
     <MessageMetaBar
       {roomId}
-      {serverSegment}
+      {serverId}
       {threadRootEventId}
       reactions={[shortReaction]}
       action={readOnlyAction}
@@ -211,7 +205,7 @@
   {:else}
     <MessageMetaBar
       {roomId}
-      {serverSegment}
+      {serverId}
       {threadRootEventId}
       reactions={[highCountReaction]}
       action={readOnlyAction}

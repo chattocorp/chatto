@@ -48,7 +48,7 @@ function realtimeRegistrations({
           {
             serverId: server.id,
             connection: connections.getClient(server.id),
-            projectionSupported: store.serverInfo.isSupportedVersion,
+            projectionSupported: store.serverInfo.canConnect,
             sync: store.realtimeSync,
             projectionHandler: store.realtimeProjectionHandler,
             completeProjectionCatchUp: (cursor, authorizationRefreshGeneration) =>

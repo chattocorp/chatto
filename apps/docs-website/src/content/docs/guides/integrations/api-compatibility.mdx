@@ -70,9 +70,29 @@ migration. They are not a complete compatibility report.
 
 ## Check the server version
 
-The bundled client requires Chatto `0.5.0-beta.16` or newer. This version adds
-root-author filters for the Mine and Followed tabs. Existing API callers
-that omit the filter still receive the combined followed-thread feed.
+The bundled client connects to remote servers running `0.5.0-beta.9` or newer.
+The client uses `0.5.0-beta.16` as its full-support version threshold. This version
+adds root-author filters for the Mine tab. Between these releases, the client shows a
+warning and attempts normal operation. Select **Server information** in the
+server menu. Its **Compatibility** section shows known feature limitations and
+the required server versions. The page also shows the server hostname and version.
+Affected views link to their section of this page. The page shows one upgrade
+recommendation that resolves all known version limitations. Ask the server
+administrator to upgrade to that version or newer.
+Older
+remote servers show an upgrade screen. The origin server serves its own
+frontend and has no version check.
+
+Thread creation sorting is an additive API extension and does not change the
+minimum server version. Servers without this extension ignore the list `order`
+field and keep activity order. They can reject the `THREAD_CREATED` search
+order. The version threshold does not guarantee support for this extension.
+
+Custom suffixes are ignored during comparison: `0.6.1-my-customization`
+compares as `0.6.1`. Release stages remain significant:
+`0.6.1-beta.2-my-customization` compares as `0.6.1-beta.2`. Build metadata
+does not affect comparison. If the version cannot be parsed, the client
+attempts a connection with a warning. The UI shows the original version.
 
 Call `ServerDiscoveryService.GetServer` before sign-in. `profile.version`
 contains the server software version:
@@ -133,6 +153,7 @@ to a mix of 0.4 and 0.5 servers. See the
 
 | Area | What changed | What to do |
 | ---- | ------------ | ---------- |
+| Direct messages | `StartDM` rejects new conversations with more than two distinct participants, including the caller, with `INVALID_ARGUMENT`. Existing group DMs remain accessible. | Use a channel room for new group conversations. User pages use `/chat/<server>/user/<userId>`; old one-to-one DM URLs redirect there. |
 | Realtime | 0.5 accepts only protocol 4. The protocol 1 frames, such as `hello`, `subscribe_events`, `ping`, and `error`, are removed. | Send one `RealtimeSubscribe` with protocol version `4`. Handle `snapshot`, `event`, `caught_up`, `heartbeat`, and `close`. See [Realtime](/guides/integrations/realtime-protocol/). |
 | Human sessions | Access tokens are short-lived. A rotating refresh credential renews them. 0.5 rejects bearer tokens from 0.4. | Sign in again once. Store `refresh_token` and renew at `/oauth/token` before `expires_in` ends. `CreateExternalIdentityAccountResponse` also returns these fields. A browser client on a different origin must use OAuth. See [Chatto API](/guides/integrations/chatto-api/). |
 | Privileged mode | Administrative and moderation permissions are inactive until the user activates them. | Call `ViewerService.ActivatePrivilegedMode` before administrative or moderation calls. Activation lasts 15 minutes and does not extend. See [Privileged mode](/guides/operations/permissions/#privileged-mode). |

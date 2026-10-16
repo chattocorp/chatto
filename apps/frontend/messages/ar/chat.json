@@ -51,6 +51,21 @@
       "view_in_admin": "عرض في إدارة الخادم",
       "copy_user_id": "نسخ معرّف المستخدم"
     },
+    "server_info": {
+      "title": "معلومات الخادم",
+      "details": "تفاصيل الخادم"
+    },
+    "compatibility": {
+      "title": "التوافق",
+      "view": "عرض التوافق",
+      "limited": "دعم محدود",
+      "supported": "لا توجد مشاكل توافق معروفة",
+      "affected": "الميزات المتأثرة",
+      "requires": "يتطلب الإصدار {version} أو أحدث",
+      "thread_views_title": "دعم عرض سلاسل المحادثات محدود",
+      "thread_views_description": "قد لا تُعرض سلاسل المحادثات التي تتابعها والتي بدأتها بشكل منفصل على هذا الخادم.",
+      "upgrade": "للحصول على الدعم الكامل، اطلب من مسؤول الخادم الترقية إلى الإصدار {version} أو أحدث."
+    },
     "server_gutter": {
       "move_up": "نقل لأعلى",
       "move_down": "نقل لأسفل",
@@ -60,7 +75,7 @@
       "version": "الإصدار {version}",
       "unreachable": "تعذر الوصول إلى الخادم",
       "connection_unavailable": "الاتصال غير متاح",
-      "compatibility_server_too_old": "يجب ترقية هذا الخادم إلى Chatto 0.5 أو أحدث قبل أن يتمكن هذا التطبيق من الاتصال.",
+      "compatibility_server_too_old": "يجب ترقية هذا الخادم إلى Chatto {version} أو أحدث قبل أن يتمكن هذا التطبيق من الاتصال.",
       "compatibility_unknown": "لا يمكن لهذا التطبيق تحديد التوافق من إصدار الخادم.",
       "go_to_notifications_count": {
         "zero": "انتقل إلى {count} إشعارات",
@@ -97,12 +112,14 @@
       "body": "سجّل الدخول لقراءة الرسائل وإرسالها على هذا الخادم."
     },
     "threads": {
+      "sort_label": "ترتيب المحادثات",
+      "sort_activity": "النشاط",
+      "sort_created": "العمر",
       "tab_started": "مواضيعي",
       "tab_followed": "المتابَعة",
       "tab_label": "عرض سلاسل المحادثات",
       "empty_mine_title": "لم تبدأ أي سلسلة محادثات",
       "empty_mine_body": "ستظهر هنا سلاسل المحادثات التي تبدأها وتتابعها.",
-      "empty_followed_body": "ستظهر هنا سلاسل المحادثات التي بدأها الآخرون وتتابعها.",
       "title": "المواضيع",
       "subtitle": "نشاط جديد في مواضيعك",
       "filter_label": "تصفية المواضيع",

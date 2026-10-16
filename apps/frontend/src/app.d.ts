@@ -10,6 +10,7 @@ declare global {
     interface PageState {
       threadFilter?: 'all' | 'unread';
       threadTab?: 'mine' | 'followed';
+      threadOrder?: 'activity' | 'created';
       welcome?: boolean;
       modal?: ChatModal;
     }

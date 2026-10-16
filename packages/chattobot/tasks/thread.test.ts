@@ -1,0 +1,366 @@
+import { expect, test, vi } from 'vitest';
+import { createTaskContext, runWorkflow, task, Type, type RunlingEvent } from 'runling';
+import { IncomingMessage, ConversationInput } from '../chatto/message.ts';
+import { IntakeDecision, IntakeInput } from './classify-intake.ts';
+import { createThreadWorkflow } from './thread.ts';
+import type { FollowUpSnapshot, ReadFollowUp } from '../chatto/follow-up.ts';
+
+const message: IncomingMessage = {
+  id: 'post',
+  roomId: 'room',
+  threadRootId: 'post',
+  authorId: 'human',
+  body: 'Old report',
+  trigger: 'intake'
+};
+const ping: IncomingMessage = { ...message, id: 'ping', body: 'Please help', trigger: undefined };
+
+function harness(
+  decide: () => Promise<boolean>,
+  readable = true,
+  options: {
+    readFollowUp?: ReadFollowUp;
+    intervalMs?: number;
+    idleMs?: number;
+    ready?: Promise<void>;
+    state?: 'waiting' | 'idle';
+  } = {}
+) {
+  const received: IncomingMessage[] = [];
+  const batches: IncomingMessage[][] = [];
+  const runIds: (string | undefined)[] = [];
+  const classify = vi.fn(decide);
+  const read = vi.fn(async () =>
+    readable ? { body: 'Current report', attachmentTypes: ['image/png'] } : undefined
+  );
+  const stopped = vi.fn();
+  const classifier = task(
+    { name: 'Fixture classifier', input: IntakeInput, output: IntakeDecision },
+    async (ctx) => {
+      runIds.push(ctx.run?.id);
+      const aborted = new Promise<never>((_resolve, reject) =>
+        ctx.signal.addEventListener('abort', () => reject(ctx.signal.reason), { once: true })
+      );
+      try {
+        return { engage: await Promise.race([classify(), aborted]), reason: 'fixture' };
+      } finally {
+        stopped();
+      }
+    }
+  );
+  const conversation = task(
+    {
+      name: 'Fixture conversation',
+      input: IncomingMessage,
+      output: Type.Null(),
+      receives: ConversationInput,
+      emits: Type.Union([Type.Literal('busy'), Type.Literal('waiting'), Type.Literal('idle')])
+    },
+    async (ctx, first) => {
+      runIds.push(ctx.run?.id);
+      received.push(first);
+      await options.ready;
+      await ctx.emit(options.state ?? 'idle');
+      for await (const next of ctx.inbox) {
+        if (Array.isArray(next)) batches.push(next);
+        received.push(...(Array.isArray(next) ? next : [next]));
+        await ctx.emit(options.state ?? 'idle');
+      }
+      return null;
+    }
+  );
+  const workflow = createThreadWorkflow({
+    classifier,
+    conversation,
+    read,
+    readFollowUp: async () => undefined,
+    ...options
+  });
+  return {
+    workflow,
+    runIds,
+    received,
+    batches,
+    read,
+    classify,
+    stopped,
+    start: (first = message) => createTaskContext().start(workflow, first)
+  };
+}
+
+test('the host records intake, classifier, and conversation in one run', async () => {
+  const h = harness(async () => true);
+  const events: RunlingEvent[] = [];
+  const result = await runWorkflow(h.workflow, {
+    input: message,
+    run: { id: 'one-run' },
+    onEvent: (event) => events.push(event)
+  });
+  expect(result.ok).toBe(true);
+  expect(h.runIds).toEqual(['one-run', 'one-run']);
+  const steps = events.filter((event) => event.type === 'step.started');
+  expect(steps.map((event) => event.label)).toEqual([
+    'Chatto thread',
+    'Fixture classifier',
+    'Fixture conversation'
+  ]);
+  expect(steps[0]?.activityId).toBeUndefined();
+  expect(steps.slice(1).every((event) => event.activityId === steps[0]?.id)).toBe(true);
+});
+
+test('a ping queued during metadata lookup is answered even if the report is gone', async () => {
+  const h = harness(async () => false);
+  const reading = Promise.withResolvers<undefined>();
+  h.read.mockImplementation(() => reading.promise);
+  await using run = h.start();
+  await run.send(ping);
+  reading.resolve(undefined);
+  run.closeInput();
+  await run.result;
+  expect(h.received).toEqual([ping]);
+  expect(h.classify).not.toHaveBeenCalled();
+});
+
+test('accepted intake owns a child conversation and forwards later addressed messages', async () => {
+  const h = harness(async () => true);
+  await using run = h.start();
+  await vi.waitFor(() => expect(h.received).toHaveLength(1));
+  expect(h.received[0]).toEqual({ ...message, body: 'Current report' });
+  await run.send(ping);
+  run.closeInput();
+  await expect(run.result).resolves.toBeNull();
+  expect(h.received).toEqual([{ ...message, body: 'Current report' }, ping]);
+});
+
+test.each(['ignored', 'failed', 'missing'] as const)(
+  '%s intake exits without a conversation',
+  async (kind) => {
+    const h = harness(async () => {
+      if (kind === 'failed') throw new Error('provider failed');
+      return false;
+    }, kind !== 'missing');
+    await using run = h.start();
+    // The workflow must finish even though its message channel is still open.
+    await expect(run.result).resolves.toBeNull();
+    expect(h.received).toEqual([]);
+    expect(h.classify).toHaveBeenCalledTimes(kind === 'missing' ? 0 : 1);
+  }
+);
+
+test('a ping during classification cancels the classifier and starts the same workflow conversation', async () => {
+  const h = harness(() => new Promise<boolean>(() => {}));
+  await using run = h.start();
+  await vi.waitFor(() => expect(h.classify).toHaveBeenCalledOnce());
+  await run.send(ping);
+  await vi.waitFor(() => expect(h.received).toEqual([ping]));
+  expect(h.stopped).toHaveBeenCalledOnce();
+  const reply = { ...ping, id: 'reply' };
+  await run.send(reply);
+  run.closeInput();
+  await run.result;
+  expect(h.received).toEqual([ping, reply]);
+});
+
+test('cancelling intake stops classification and prevents a conversation', async () => {
+  const h = harness(() => new Promise<boolean>(() => {}));
+  await using run = h.start();
+  await vi.waitFor(() => expect(h.classify).toHaveBeenCalledOnce());
+  run.cancel();
+  await expect(run.result).rejects.toThrow();
+  expect(h.received).toEqual([]);
+});
+
+test('cancelling an accepted workflow stops its child conversation', async () => {
+  const h = harness(async () => true);
+  await using run = h.start();
+  await vi.waitFor(() => expect(h.received).toHaveLength(1));
+  run.cancel();
+  await expect(run.result).rejects.toThrow();
+});
+
+const snapshot = (...ids: string[]): FollowUpSnapshot => ({
+  boundary: 'bot-last',
+  input: {
+    context: [{ role: 'bot', body: 'What version and deployment method do you use?' }],
+    messages: ids.map((id) => ({ body: id, attachmentTypes: [] }))
+  },
+  messages: ids.map((id) => ({
+    ...ping,
+    id,
+    authorId: `author-${id}`,
+    body: id,
+    trigger: 'follow-up'
+  }))
+});
+
+test('addressed entry bypasses intake; empty checks never call the model and stop on input close', async () => {
+  const readFollowUp = vi.fn(async () => undefined);
+  const h = harness(async () => true, true, { readFollowUp, intervalMs: 5 });
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(readFollowUp.mock.calls.length).toBeGreaterThan(1));
+  expect(h.read).not.toHaveBeenCalled();
+  expect(h.classify).not.toHaveBeenCalled();
+  run.closeInput();
+  await run.result;
+  const reads = readFollowUp.mock.calls.length;
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  expect(readFollowUp).toHaveBeenCalledTimes(reads);
+});
+
+test('unchanged replies are checked once; new replies reconsider the full batch since the bot post', async () => {
+  let current = snapshot('one');
+  const readFollowUp = vi.fn(async () => current);
+  const h = harness(async () => current.messages.length > 1, true, { readFollowUp, intervalMs: 5 });
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(readFollowUp.mock.calls.length).toBeGreaterThan(2));
+  expect(h.classify).toHaveBeenCalledOnce();
+  expect(h.received).toEqual([ping]);
+  current = snapshot('one', 'two');
+  await vi.waitFor(() => expect(h.batches).toEqual([current.messages]));
+  expect(h.classify).toHaveBeenCalledTimes(2);
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  expect(h.batches).toHaveLength(1);
+  // A new bot reply resets the boundary even if the human messages happen to be the same.
+  current = { ...current, boundary: 'new-bot-post' };
+  await vi.waitFor(() => expect(h.batches).toHaveLength(2));
+  run.closeInput();
+  await run.result;
+});
+
+test('no polling occurs while the conversation is answering', async () => {
+  const ready = Promise.withResolvers<void>();
+  const readFollowUp = vi.fn(async () => undefined);
+  const h = harness(async () => true, true, { readFollowUp, intervalMs: 5, ready: ready.promise });
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(h.received).toEqual([ping]));
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  expect(readFollowUp).not.toHaveBeenCalled();
+  ready.resolve();
+  await vi.waitFor(() => expect(readFollowUp).toHaveBeenCalled());
+  run.closeInput();
+  await run.result;
+});
+
+test('a ping cancels an in-flight follow-up classification and reaches the same child immediately', async () => {
+  const h = harness(() => new Promise<boolean>(() => {}), true, {
+    readFollowUp: async () => snapshot('one'),
+    intervalMs: 5
+  });
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(h.classify).toHaveBeenCalledOnce());
+  const direct = { ...ping, id: 'direct', authorId: 'maintainer' };
+  await run.send(direct);
+  await vi.waitFor(() => expect(h.received).toEqual([ping, direct]));
+  expect(h.stopped).toHaveBeenCalledOnce();
+  expect(h.batches).toEqual([]);
+  run.closeInput();
+  await run.result;
+});
+
+test('failed follow-up classification stays silent and is not retried for unchanged replies', async () => {
+  const readFollowUp = vi.fn(async () => snapshot('one'));
+  const h = harness(
+    async () => {
+      throw new Error('provider failed');
+    },
+    true,
+    { readFollowUp, intervalMs: 5 }
+  );
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(readFollowUp.mock.calls.length).toBeGreaterThan(2));
+  expect(h.classify).toHaveBeenCalledOnce();
+  expect(h.received).toEqual([ping]);
+  run.closeInput();
+  await run.result;
+});
+
+test('ignored checks do not keep a conversation alive', async () => {
+  const readFollowUp = vi.fn(async () => snapshot('one'));
+  const h = harness(async () => false, true, { readFollowUp, intervalMs: 5, idleMs: 100 });
+  await using run = h.start(ping);
+  await run.result;
+  expect(readFollowUp).toHaveBeenCalled();
+  expect(h.received).toEqual([ping]);
+});
+
+test('the next polling tick expires an inactive conversation before another thread read', async () => {
+  const clock = vi.spyOn(performance, 'now').mockReturnValue(0);
+  try {
+    const readFollowUp = vi.fn(async () => undefined);
+    const h = harness(async () => true, true, { readFollowUp, intervalMs: 10, idleMs: 1000 });
+    await using run = h.start(ping);
+    await vi.waitFor(() => expect(readFollowUp).toHaveBeenCalled());
+    const reads = readFollowUp.mock.calls.length;
+    clock.mockReturnValue(1000);
+    expect(run.status).toBe('running');
+    await run.result;
+    expect(readFollowUp).toHaveBeenCalledTimes(reads);
+    expect(h.classify).not.toHaveBeenCalled();
+  } finally {
+    clock.mockRestore();
+  }
+});
+
+test('waiting for a background job permits follow-ups but prevents inactivity expiry', async () => {
+  const readFollowUp = vi.fn(async () => snapshot('one'));
+  const h = harness(async () => true, true, {
+    readFollowUp,
+    intervalMs: 5,
+    idleMs: 10,
+    state: 'waiting'
+  });
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(readFollowUp.mock.calls.length).toBeGreaterThan(3));
+  expect(run.status).toBe('running');
+  expect(h.batches).toEqual([snapshot('one').messages]);
+  const direct = { ...ping, id: 'direct' };
+  await run.send(direct);
+  await vi.waitFor(() => expect(h.received.at(-1)).toEqual(direct));
+  run.closeInput();
+  await run.result;
+});
+
+test('accepted follow-ups reset inactivity; the parent stops checks when the conversation expires', async () => {
+  let current: FollowUpSnapshot | undefined;
+  const readFollowUp = vi.fn(async () => current);
+  const h = harness(async () => true, true, { readFollowUp, intervalMs: 5, idleMs: 200 });
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(h.received).toEqual([ping]));
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  current = snapshot('one');
+  await vi.waitFor(() => expect(h.batches).toHaveLength(1), { interval: 5 });
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  expect(run.status).toBe('running');
+  await run.result;
+  const reads = readFollowUp.mock.calls.length;
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  expect(readFollowUp).toHaveBeenCalledTimes(reads);
+});
+
+test('cancellation stops a pending follow-up classifier', async () => {
+  const h = harness(() => new Promise<boolean>(() => {}), true, {
+    readFollowUp: async () => snapshot('one'),
+    intervalMs: 5
+  });
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(h.classify).toHaveBeenCalledOnce());
+  run.cancel();
+  await expect(run.result).rejects.toThrow();
+  await vi.waitFor(() => expect(h.stopped).toHaveBeenCalledOnce());
+  expect(h.batches).toEqual([]);
+});
+
+test('an inactivity deadline does not close delivery while the child is still working', async () => {
+  const ready = Promise.withResolvers<void>();
+  const h = harness(async () => true, true, { ready: ready.promise, idleMs: 40, intervalMs: 5 });
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(h.received).toEqual([ping]));
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  expect(run.status).toBe('running');
+  const reply = { ...ping, id: 'while-working' };
+  await run.send(reply);
+  ready.resolve();
+  await vi.waitFor(() => expect(h.received).toEqual([ping, reply]));
+  run.closeInput();
+  await run.result;
+});

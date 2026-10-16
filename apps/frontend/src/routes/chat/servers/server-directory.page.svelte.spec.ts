@@ -312,43 +312,46 @@ describe('Server Directory page', () => {
     expect(container.textContent).toContain('Remote description');
   });
 
-  it('adds a recommended server with its current profile and stays in the directory', async () => {
-    const remoteProfile = profile('Remote');
-    mocks.getPublicServerInfo.mockResolvedValue(remoteProfile);
-    mocks.loadServerDirectory.mockResolvedValue({
-      entries: [entry('https://remote.example', cached('Remote'))],
-      failedSourceCount: 0,
-      sourceCount: 2
-    });
+  it.each(['0.5.0', '0.5.0-beta.9', '0.5.0-beta.15-custom', 'dev'])(
+    'adds a recommended %s server and stays in the directory',
+    async (version) => {
+      const remoteProfile = { ...profile('Remote'), version };
+      mocks.getPublicServerInfo.mockResolvedValue(remoteProfile);
+      mocks.loadServerDirectory.mockResolvedValue({
+        entries: [entry('https://remote.example', cached('Remote', { version }))],
+        failedSourceCount: 0,
+        sourceCount: 2
+      });
 
-    const { container } = render(Page);
-    await vi.waitFor(() => {
-      expect(
-        container.querySelector('[data-testid="server-directory-entry-icon-action"]')
-      ).toBeTruthy();
-    });
-    const iconAction = container.querySelector<HTMLButtonElement>(
-      '[data-testid="server-directory-entry-icon-action"]'
-    )!;
-    expect(iconAction.getAttribute('aria-label')).toBe('Join: Remote');
-    expect(iconAction.querySelector('.shimmer-hover.rounded-xl')).toBeTruthy();
-    iconAction.click();
+      const { container } = render(Page);
+      await vi.waitFor(() => {
+        expect(
+          container.querySelector('[data-testid="server-directory-entry-icon-action"]')
+        ).toBeTruthy();
+      });
+      const iconAction = container.querySelector<HTMLButtonElement>(
+        '[data-testid="server-directory-entry-icon-action"]'
+      )!;
+      expect(iconAction.getAttribute('aria-label')).toBe('Join: Remote');
+      expect(iconAction.querySelector('.shimmer-hover.rounded-xl')).toBeTruthy();
+      iconAction.click();
 
-    // The entry changes to the joined state, so the user cannot join it again.
-    await vi.waitFor(() => expect(button(container, 'Open')).toBeDefined());
-    expect(button(container, 'Join')).toBeUndefined();
-    expect(container.textContent).toContain('Joined');
-    expect(mocks.goto).not.toHaveBeenCalled();
-    expect(mocks.getPublicServerInfo).toHaveBeenCalledWith(
-      'https://remote.example',
-      expect.objectContaining({ signal: expect.any(AbortSignal) })
-    );
-    expect(mocks.addSignedOutServer).toHaveBeenCalledExactlyOnceWith('https://remote.example', {
-      name: 'Remote',
-      iconUrl: remoteProfile.iconUrl
-    });
-    expect(mocks.toastError).not.toHaveBeenCalled();
-  });
+      // The entry changes to the joined state, so the user cannot join it again.
+      await vi.waitFor(() => expect(button(container, 'Open')).toBeDefined());
+      expect(button(container, 'Join')).toBeUndefined();
+      expect(container.textContent).toContain('Joined');
+      expect(mocks.goto).not.toHaveBeenCalled();
+      expect(mocks.getPublicServerInfo).toHaveBeenCalledWith(
+        'https://remote.example',
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      );
+      expect(mocks.addSignedOutServer).toHaveBeenCalledExactlyOnceWith('https://remote.example', {
+        name: 'Remote',
+        iconUrl: remoteProfile.iconUrl
+      });
+      expect(mocks.toastError).not.toHaveBeenCalled();
+    }
+  );
 
   it('stops a join when the current version is no longer compatible', async () => {
     mocks.getPublicServerInfo.mockResolvedValue(profile('Remote', { version: '0.4.19' }));
@@ -582,7 +585,7 @@ describe('Server Directory page', () => {
     });
   });
 
-  it('hands a custom server with an unknown version off to its own client', async () => {
+  it('requires sign-in support even when an unknown version may connect', async () => {
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [],
       failedSourceCount: 0,
@@ -595,11 +598,9 @@ describe('Server Directory page', () => {
     const { container } = render(Page);
     await enterServerAddress(container, 'custom.example');
 
-    await vi.waitFor(() => expect(link(container, 'Open in new tab')).toBeDefined());
-    const externalAction = link(container, 'Open in new tab')!;
-    expect(externalAction.href).toBe('https://custom.example/');
-    expect(externalAction.target).toBe('_blank');
-    expect(externalAction.rel).toBe('noopener noreferrer');
+    await vi.waitFor(() => expect(button(container, 'Sign-in unavailable')).toBeDefined());
+    expect(button(container, 'Sign-in unavailable')!.disabled).toBe(true);
+    expect(link(container, 'Open in new tab')).toBeUndefined();
     expect(mocks.addSignedOutServer).not.toHaveBeenCalled();
   });
 

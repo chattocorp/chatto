@@ -431,6 +431,9 @@ importers:
 
   packages/chattobot:
     dependencies:
+      '@chatto/api-types':
+        specifier: workspace:*
+        version: link:../api-types
       '@chatto/client':
         specifier: workspace:*
         version: link:../chatto-client
@@ -444,9 +447,6 @@ importers:
       '@bufbuild/protobuf':
         specifier: ^1.10.1
         version: 1.10.1
-      '@chatto/api-types':
-        specifier: workspace:*
-        version: link:../api-types
       '@connectrpc/connect':
         specifier: ^1.7.0
         version: 1.7.0(@bufbuild/protobuf@1.10.1)

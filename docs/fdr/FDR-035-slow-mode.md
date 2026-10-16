@@ -1,7 +1,7 @@
 # FDR-035: Slow Mode
 
 **Status:** Active
-**Last reviewed:** 2026-08-30
+**Last reviewed:** 2026-10-15
 
 ## Overview
 
@@ -23,8 +23,13 @@ configuration changes and the current viewer's next eligible posting time.
   nor reset the timer. Drafting and editing remain available while posting is
   blocked.
 - Members with effective `room.manage` or `message.manage` permission bypass
-  enforcement. The composer still identifies Slow Mode and says that the
-  viewer is exempt.
+  enforcement and do not see a Slow Mode badge.
+- An hourglass badge sits on the top edge of the composer at the inline end,
+  after the typing badge. It shows the remaining cooldown only while Slow
+  Mode blocks posting. It disappears when the cooldown ends or Slow Mode is
+  off. Hover, keyboard focus, or a tap shows the full explanation. Both badges
+  share one row without moving messages; typing text truncates first in narrow
+  panes.
 - Enabling, increasing, decreasing, or disabling Slow Mode immediately
   recalculates eligibility from the member's latest successful original post,
   including posts made while Slow Mode was disabled or while the member was

@@ -25,8 +25,22 @@ test('retains public helpers for working with returned usage', () => {
 
 test('exports explicit context creation and direct helpers', () => {
   expect(runling).not.toHaveProperty('createRunling');
-  expect(runling.createWorkflowContext().usage).toEqual(runling.emptyTokenUsage());
-  for (const name of ['exec', 'shell', 'input', 'agent', 'runAgent', 'step'] as const) {
+  expect(runling.createTaskContext().usage).toEqual(runling.emptyTokenUsage());
+  for (const name of ['exec', 'shell', 'agent', 'runAgent', 'step', 'task', 'taskTool'] as const) {
     expect(runling[name]).toBeTypeOf('function');
+  }
+});
+
+test('does not export removed APIs', () => {
+  for (const name of [
+    'createWorkflowContext',
+    'input',
+    'InputUnavailableError',
+    'spawn',
+    'isSchemaTask',
+    'getPwd',
+    'randomId'
+  ]) {
+    expect(runling).not.toHaveProperty(name);
   }
 });

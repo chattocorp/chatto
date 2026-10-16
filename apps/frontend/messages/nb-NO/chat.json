@@ -51,6 +51,21 @@
       "view_in_admin": "Vis i serveradministrasjonen",
       "copy_user_id": "Kopier bruker-ID"
     },
+    "server_info": {
+      "title": "Serverinformasjon",
+      "details": "Serverdetaljer"
+    },
+    "compatibility": {
+      "title": "Kompatibilitet",
+      "view": "Vis kompatibilitet",
+      "limited": "Begrenset støtte",
+      "supported": "Ingen kjente kompatibilitetsproblemer",
+      "affected": "Berørte funksjoner",
+      "requires": "Krever {version} eller nyere",
+      "thread_views_title": "Trådvisninger har begrenset støtte",
+      "thread_views_description": "Tråder du følger og tråder du startet, vises kanskje ikke separat på denne serveren.",
+      "upgrade": "Be serveradministratoren om å oppgradere til {version} eller nyere for full støtte."
+    },
     "server_gutter": {
       "move_up": "Flytt opp",
       "move_down": "Flytt ned",
@@ -60,7 +75,7 @@
       "version": "Versjon {version}",
       "unreachable": "Tjeneren er utilgjengelig",
       "connection_unavailable": "Tilkoblingen er utilgjengelig",
-      "compatibility_server_too_old": "Denne serveren må oppgraderes til Chatto 0.5 eller nyere før denne appen kan koble til.",
+      "compatibility_server_too_old": "Denne serveren må oppgraderes til Chatto {version} eller nyere før denne appen kan koble til.",
       "compatibility_unknown": "Denne appen kan ikke fastslå kompatibilitet ut fra serverversjonen.",
       "go_to_notifications_count": {
         "one": "Gå til {count} varsel",
@@ -89,12 +104,14 @@
       "body": "Logg inn for å lese og sende meldinger på denne serveren."
     },
     "threads": {
+      "sort_label": "Sorter tråder",
+      "sort_activity": "Aktivitet",
+      "sort_created": "Alder",
       "tab_started": "Mine",
       "tab_followed": "Fulgte",
       "tab_label": "Trådvisning",
       "empty_mine_title": "Ingen tråder startet av deg",
       "empty_mine_body": "Tråder du starter og følger, vises her.",
-      "empty_followed_body": "Tråder andre starter og som du følger, vises her.",
       "title": "Tråder",
       "subtitle": "Ny aktivitet i trådene dine",
       "filter_label": "Filtertråder",

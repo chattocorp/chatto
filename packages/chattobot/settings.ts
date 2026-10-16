@@ -1,5 +1,5 @@
 /** Host configuration helpers. Chat messages never select these values. */
-import type { ThinkingLevel } from 'runling/agents';
+import type { ThinkingLevel } from 'runling';
 
 /** A host configuration value is missing or invalid. Its message names settings, never their values. */
 export class ConfigurationError extends Error {
@@ -30,4 +30,31 @@ export function thinkingSetting(name: string, fallback: ThinkingLevel): Thinking
 /** Read an environment setting. Surrounding whitespace is removed; an empty value counts as unset. */
 export function setting(name: string): string | undefined {
   return process.env[name]?.trim() || undefined;
+}
+
+/** Stable room IDs whose new top-level posts can start report intake. Empty by default. */
+export function autoEngageRoomIds(): Set<string> {
+  const ids = (setting('CHATTO_AUTO_ENGAGE_ROOM_IDS') ?? '').split(/[\s,]+/).filter(Boolean);
+  if (ids.some((id) => !/^[A-Za-z0-9_-]{1,64}$/.test(id)))
+    throw new ConfigurationError(
+      'CHATTO_AUTO_ENGAGE_ROOM_IDS must list room IDs separated by commas'
+    );
+  return new Set(ids);
+}
+
+/** Optional Chatto login for maintainer handoffs. This contact never grants authorization.
+ * Accept one user handle, not arbitrary prompt text or a room-wide broadcast. */
+export function maintainerLoginSetting(): string | undefined {
+  const value = setting('CHATTO_MAINTAINER_NAME');
+  if (!value) return undefined;
+  const login = value.replace(/^@/, '');
+  if (
+    !/^[A-Za-z0-9][A-Za-z0-9._-]{1,31}$/.test(login) ||
+    login.endsWith('.') ||
+    ['all', 'here', 'everyone'].includes(login.toLowerCase())
+  )
+    throw new ConfigurationError(
+      'CHATTO_MAINTAINER_NAME must be one Chatto user login, not a display name or broadcast handle'
+    );
+  return login;
 }

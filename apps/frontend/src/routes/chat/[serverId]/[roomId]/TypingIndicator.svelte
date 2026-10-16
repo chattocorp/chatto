@@ -5,10 +5,9 @@ Typing indicator for the message composer of a room or thread pane. Shows
 avatars of typing users together with a compact textual label that names up to
 two people and aggregates larger groups ("A, B and 3 others are typing").
 
-The indicator straddles the top edge of the composer input surface, so it never
-covers messages. It is positioned absolutely, so its appearance never shifts
-layout. The parent must be a positioned element with the same box as the input
-surface; `MessageComposer` supplies one through its `inputStatus` snippet. It
+The parent composer status row positions the indicator on the input edge
+without shifting layout. `MessageComposer` supplies the row through its
+`inputStatus` snippet. It
 announces changes politely to screen readers via a `role="status"` region.
 
 **Props:**
@@ -26,9 +25,7 @@ announces changes politely to screen readers via a `role="status"` region.
 
 <script lang="ts">
   import { accountNameToken } from '@chatto/client/timeline/accountName';
-  import { scale } from 'svelte/transition';
-  import { cubicOut } from 'svelte/easing';
-  import { prefersReducedMotion } from 'svelte/motion';
+  import ComposerStatusBadge from '$lib/components/composer/ComposerStatusBadge.svelte';
   import { type RoomMember } from '$lib/state/room';
   import { m } from '$lib/i18n/messages';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -95,23 +92,9 @@ announces changes politely to screen readers via a `role="status"` region.
 </script>
 
 <!-- Keep the live region mounted before text arrives so updates can be announced. -->
-<div
-  role="status"
-  aria-live="polite"
-  aria-atomic="true"
-  class="pointer-events-none absolute inset-x-3 bottom-full z-10 mb-1 flex min-w-0 translate-y-1/2 justify-end"
->
+<div role="status" aria-live="polite" aria-atomic="true" class="flex min-w-0">
   {#if activeUserIds.length > 0}
-    <div
-      data-testid="typing-indicator"
-      class="flex max-w-full min-w-0 items-center gap-1.5 rounded-full border border-border bg-background py-0.5 ps-0.5 pe-2 text-xs shadow-sm"
-      transition:scale={{
-        duration: prefersReducedMotion.current ? 0 : 150,
-        easing: cubicOut,
-        start: 0.96,
-        opacity: 0
-      }}
-    >
+    <ComposerStatusBadge data-testid="typing-indicator" avatarPadding animate>
       {#each visibleMembers as member (member.id)}
         <span
           class="flex shrink-0 items-center not-first:-ms-1"
@@ -138,6 +121,6 @@ announces changes politely to screen readers via a `role="status"` region.
         <span class="typing-dot [animation-delay:-300ms]"></span>
         <span class="typing-dot [animation-delay:-400ms]"></span>
       </span>
-    </div>
+    </ComposerStatusBadge>
   {/if}
 </div>

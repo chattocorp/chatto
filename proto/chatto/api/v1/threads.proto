@@ -19,6 +19,16 @@ enum ThreadRootAuthorFilter {
   THREAD_ROOT_AUTHOR_FILTER_OTHERS = 2;
 }
 
+// Ordering for followed threads. Equal dates use a stable thread identity order.
+enum ThreadOrder {
+  // Use newest activity first.
+  THREAD_ORDER_UNSPECIFIED = 0;
+  // Use newest activity first.
+  THREAD_ORDER_ACTIVITY = 1;
+  // Use newest root-message creation first. Unknown creation dates come last.
+  THREAD_ORDER_CREATED = 2;
+}
+
 // Current follow state for one thread and viewer.
 message ThreadFollowState {
   // Room containing the thread.
@@ -96,6 +106,8 @@ message ListFollowedThreadsRequest {
   // Filter root authors before pagination and total counts. Threads whose
   // root author is unavailable are omitted when a filter is selected.
   ThreadRootAuthorFilter root_author_filter = 6 [(buf.validate.field).enum.defined_only = true];
+  // Sort before pagination. Older servers ignore this field and use activity order.
+  ThreadOrder order = 7 [(buf.validate.field).enum.defined_only = true];
 }
 
 // Response containing one followed-thread page.
@@ -103,7 +115,7 @@ message ListFollowedThreadsResponse {
   reserved 2, 3;
   reserved "total_count", "has_more";
 
-  // Followed threads in newest-activity-first order.
+  // Followed threads in the requested order; newest activity first by default.
   repeated FollowedThread threads = 1;
   // Hot-path related entities needed to render this feed page without
   // per-thread hydration.

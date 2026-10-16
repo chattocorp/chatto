@@ -51,6 +51,21 @@
       "view_in_admin": "在服务器管理中查看",
       "copy_user_id": "复制用户 ID"
     },
+    "server_info": {
+      "title": "服务器信息",
+      "details": "服务器详细信息"
+    },
+    "compatibility": {
+      "title": "兼容性",
+      "view": "查看兼容性",
+      "limited": "支持有限",
+      "supported": "没有已知的兼容性问题",
+      "affected": "受影响的功能",
+      "requires": "需要 {version} 或更新版本",
+      "thread_views_title": "话题视图的支持有限",
+      "thread_views_description": "此服务器可能无法分别列出你关注的话题和你发起的话题。",
+      "upgrade": "如需完整支持，请要求服务器管理员升级到 {version} 或更新版本。"
+    },
     "server_gutter": {
       "move_up": "向上移动",
       "move_down": "向下移动",
@@ -60,7 +75,7 @@
       "version": "版本 {version}",
       "unreachable": "无法访问服务器",
       "connection_unavailable": "连接不可用",
-      "compatibility_server_too_old": "此应用需要服务器升级到 Chatto 0.5 或更高版本后才能连接。",
+      "compatibility_server_too_old": "此应用需要服务器升级到 Chatto {version} 或更高版本后才能连接。",
       "compatibility_unknown": "此应用无法根据服务器版本确定兼容性。",
       "go_to_notifications_count": {
         "one": "前往查看 {count} 条通知",
@@ -89,12 +104,14 @@
       "body": "登录后即可在此服务器上阅读和发送消息。"
     },
     "threads": {
+      "sort_label": "话题排序",
+      "sort_activity": "活动",
+      "sort_created": "创建时间",
       "tab_started": "我的",
       "tab_followed": "已关注",
       "tab_label": "话题视图",
       "empty_mine_title": "你尚未发起话题",
       "empty_mine_body": "你发起并关注的话题将显示在这里。",
-      "empty_followed_body": "你关注的其他人发起的话题将显示在这里。",
       "title": "话题串",
       "subtitle": "你的话题串中的新动态",
       "filter_label": "筛选话题串",

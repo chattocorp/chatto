@@ -14,7 +14,7 @@
       docs: {
         description: {
           component:
-            'One followed thread: latest reply, room and root message, reply count, and a participant preview. Unread threads are bold; a dot shows notification attention.'
+            'One followed thread: latest reply, room and root message, reply count, and a participant preview. Unread threads have bold text and a dot. Important notification attention keeps its colour. Action space stays equal on read and unread rows.'
         }
       }
     }
@@ -43,6 +43,17 @@
   });
 
   const rows = [
+    {
+      participants: [alice],
+      latest: line(alice, 'An unread reply without a notification.'),
+      root: line(bob, 'Checking the unread thread appearance'),
+      roomName: 'general',
+      time: '2m ago',
+      replyCount: '1 reply',
+      unread: true,
+      attention: NotificationAttentionLevel.UNSPECIFIED,
+      canMarkRead: true
+    },
     {
       participants: [bob, alice],
       latest: line(bob, 'Looks great, nice work! Shipping it after lunch.'),

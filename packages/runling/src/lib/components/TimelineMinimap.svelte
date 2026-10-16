@@ -166,19 +166,17 @@
       {#each rows as { node, top, height } (node.id)}
         <rect
           class={[
-            node.segments
-              ? 'fill-base-200'
-              : node.status === 'failed' || node.status === 'blocked'
-                ? 'fill-error light:fill-rose-300'
-                : node.status === 'interrupted'
-                  ? 'fill-neutral light:fill-slate-300'
-                  : node.kind === 'agent'
-                    ? 'fill-secondary light:fill-violet-300'
-                    : node.kind === 'command'
-                      ? 'fill-accent light:fill-teal-300'
-                      : node.kind === 'input'
-                        ? 'fill-base-content/20'
-                        : 'fill-primary light:fill-blue-300',
+            node.status === 'failed' || node.status === 'blocked'
+              ? 'fill-error light:fill-rose-300'
+              : node.status === 'interrupted'
+                ? 'fill-neutral light:fill-slate-300'
+                : node.kind === 'agent'
+                  ? 'fill-secondary light:fill-violet-300'
+                  : node.kind === 'command'
+                    ? 'fill-accent light:fill-teal-300'
+                    : node.kind === 'wait'
+                      ? 'fill-base-content/20'
+                      : 'fill-primary light:fill-blue-300',
             node.id === selected &&
               'stroke-base-content stroke-1 [vector-effect:non-scaling-stroke]'
           ]}
@@ -191,18 +189,6 @@
           height={height * 0.6}
           data-kind={node.kind}
         />
-        {#each node.segments ?? [] as segment (segment.id)}
-          <rect
-            class={segment.kind === 'input' ? 'fill-base-300' : 'fill-secondary'}
-            x={(segment.startedAt / total) * 1000}
-            y={top + height * 0.2}
-            width={Math.max(
-              1,
-              ((segment.durationMs ?? Math.max(0, elapsed - segment.startedAt)) / total) * 1000
-            )}
-            height={height * 0.6}
-          />
-        {/each}
       {/each}
     </svg>
     <span

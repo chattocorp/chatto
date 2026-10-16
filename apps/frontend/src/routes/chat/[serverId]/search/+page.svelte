@@ -5,10 +5,10 @@ Server-local message search. Query text and hydrated results remain transient
 in the active server store so browser Back can restore the current search.
 -->
 <script lang="ts">
+  import { conversationPath } from '$lib/navigation/conversationPath';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { serverUi } from '$lib/state/server/serverUi';
   import { goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
   import {
     Panel,
     Hint,
@@ -22,7 +22,6 @@ in the active server store so browser Back can restore the current search.
   import SearchAvailability from '$lib/components/search/SearchAvailability.svelte';
   import type { MessageSearchResult } from '@chatto/client/api/messageSearch';
   import { RoomKind } from '@chatto/client/api/roomDirectory';
-  import { serverIdToSegment } from '$lib/navigation';
   import { MessageSearchOrder, MessageSearchState } from '$lib/state/server/messageSearch';
   import { getLocale } from '$lib/i18n/runtime';
   import { useDebouncedMessageSearch } from '$lib/hooks/useDebouncedMessageSearch.svelte';
@@ -138,10 +137,7 @@ in the active server store so browser Back can restore the current search.
                   {#snippet headerMeta()}
                     <a
                       class="min-w-0 truncate text-xs text-muted hover:text-text hover:underline"
-                      href={resolve('/chat/[serverId]/[roomId]', {
-                        serverId: serverIdToSegment(serverId),
-                        roomId: result.roomId
-                      })}
+                      href={conversationPath(serverId, result.roomId, { store: serverScope.store })}
                     >
                       {#if result.roomKind === RoomKind.DM}
                         {m('room.title.direct_message')}

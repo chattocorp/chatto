@@ -30,25 +30,23 @@ test('Slow Mode updates live and shares one room timer with threads', async ({
     await expect(adminPage.getByText('Room updated')).toBeVisible();
 
     const roomStatus = page.getByTestId('slow-mode-status');
-    await expect(roomStatus).toHaveText('Slow Mode: one message every 5 seconds.', {
+    await expect(roomStatus).toBeHidden({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
 
     const rootText = `Slow Mode root ${Date.now()}`;
     const root = await roomPage.sendMessage(rootText);
-    await expect(roomStatus).toContainText('Slow Mode: send again in 0:0');
+    await expect(roomStatus).toHaveAttribute('aria-label', /Slow Mode: send again in 0:0/);
     await expect(roomPage.sendButton).toBeDisabled();
 
     await root.openThread();
     await roomPage.expectThreadPaneVisible();
     const threadStatus = roomPage.threadPane.getByTestId('slow-mode-status');
     const threadSend = roomPage.threadPane.getByRole('button', { name: 'Send message' });
-    await expect(threadStatus).toContainText('Slow Mode: send again in 0:0');
+    await expect(threadStatus).toHaveAttribute('aria-label', /Slow Mode: send again in 0:0/);
     await expect(threadSend).toBeDisabled();
 
-    await expect(threadStatus).toHaveText('Slow Mode: one message every 5 seconds.', {
-      timeout: 8_000
-    });
+    await expect(threadStatus).toBeHidden({ timeout: 8_000 });
     const replyText = `Slow Mode reply ${Date.now()}`;
     await roomPage.threadReplyInput.fill(replyText);
     await expect(threadSend).toBeEnabled();
@@ -57,7 +55,7 @@ test('Slow Mode updates live and shares one room timer with threads', async ({
     await expect(threadSend).toBeDisabled();
 
     await slowModeSelect.selectOption('10');
-    await expect(threadStatus).toHaveText(/Slow Mode: send again in 0:(?:0[6-9]|10)\./, {
+    await expect(threadStatus).toHaveText(/0:(?:0[6-9]|10)/, {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
     await roomPage.threadReplyInput.fill('Draft preserved while Slow Mode is active');

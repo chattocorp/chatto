@@ -3,6 +3,8 @@
 </script>
 
 <script lang="ts">
+  import ComposerStatusRow from './ComposerStatusRow.svelte';
+  import SlowModeBadge from './SlowModeBadge.svelte';
   import { createMessageAPI } from '@chatto/client/api/messages';
   import { serverUi } from '$lib/state/server/serverUi';
   import { createLinkPreviewAPI } from '@chatto/client/api/linkPreviews';
@@ -14,12 +16,7 @@
   import { useRoomMembersStore, getComposerContext } from '$lib/state/room';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
   import { timeFormatSettingsFor } from '$lib/utils/formatTime';
-  import { getLocale } from '$lib/i18n/runtime';
-  import {
-    formatSlowModeCountdown,
-    formatSlowModeInterval,
-    slowModeRemainingSeconds as remainingSlowModeSeconds
-  } from '$lib/slowMode';
+  import { slowModeRemainingSeconds as remainingSlowModeSeconds } from '$lib/slowMode';
   import { Code, ConnectError } from '@chatto/client/api/connect';
   import { SvelteDate } from 'svelte/reactivity';
   import type { Component } from 'svelte';
@@ -75,7 +72,6 @@
 
   const clock = new SvelteDate();
   let optimisticPost = $state<{ roomId: string; createdAt: number } | null>(null);
-  const slowModeInterval = $derived(formatSlowModeInterval(slowModeSeconds, getLocale()));
   const authoritativeNextPostAt = $derived(
     slowModeNextPostAt ? Date.parse(slowModeNextPostAt) : Number.NaN
   );
@@ -240,20 +236,6 @@
     ondescription={openAttachmentDescription}
   />
 
-  {#if slowModeSeconds > 0}
-    <p class="px-0.5 text-xs text-muted" data-testid="slow-mode-status" aria-live="polite">
-      {#if slowModeBypassed}
-        {m('composer.slow_mode_bypassed', { interval: slowModeInterval })}
-      {:else if slowModeBlocked}
-        {m('composer.slow_mode_waiting', {
-          countdown: formatSlowModeCountdown(slowModeRemainingSeconds)
-        })}
-      {:else}
-        {m('composer.slow_mode_ready', { interval: slowModeInterval })}
-      {/if}
-    </p>
-  {/if}
-
   {#if threadsEncouraged && replyState.messageEventId && !inThread}
     <p class="px-0.5 text-xs text-muted" data-testid="threads-encouraged-hint">
       {m('composer.threads_encouraged')}
@@ -280,9 +262,16 @@
     />
   {/if}
 
-  <!-- Status content positions itself on this wrapper, outside the dimmed surface. -->
+  <!-- The shared status row stays outside the dimmed input surface. -->
   <div class="relative min-w-0">
-    {@render inputStatus?.()}
+    <ComposerStatusRow>
+      {@render inputStatus?.()}
+      <SlowModeBadge
+        seconds={slowModeSeconds}
+        remaining={slowModeRemainingSeconds}
+        bypassed={slowModeBypassed}
+      />
+    </ComposerStatusRow>
     <div
       data-testid="composer-input-surface"
       class="relative chat-input-surface min-w-0 px-2.5 py-1.5"

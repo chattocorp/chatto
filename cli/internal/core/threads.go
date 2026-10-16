@@ -30,7 +30,9 @@ type FollowedThread struct {
 	ReplyCount        int
 	LastReplyAt       *time.Time
 	ActivityAt        *time.Time
-	ParticipantIDs    []string
+	// RootCreatedAt is the root message creation time, independent of replies.
+	RootCreatedAt  *time.Time
+	ParticipantIDs []string
 	// ParticipantCount counts all current reply authors, beyond the preview limit.
 	ParticipantCount   int
 	LatestReplyEventID string
@@ -53,10 +55,68 @@ func newFollowedThread(kind RoomKind, roomID, rootEventID string, metadata *Thre
 		ReplyCount:         metadata.ReplyCount,
 		LastReplyAt:        metadata.LastReplyAt,
 		ActivityAt:         activityAt,
+		RootCreatedAt:      rootCreatedAt,
 		LatestReplyEventID: metadata.LatestReplyEventID,
 		ParticipantIDs:     metadata.ParticipantIDs,
 		ParticipantCount:   metadata.ParticipantCount,
 	}
+}
+
+// ThreadOrder selects the date used to order followed threads before pagination.
+type ThreadOrder int32
+
+const (
+	// ThreadOrderDefault preserves the caller's default ordering.
+	ThreadOrderDefault ThreadOrder = iota
+	// ThreadOrderActivity puts the latest reply or unreplied root first.
+	ThreadOrderActivity
+	// ThreadOrderCreated puts the newest root message first.
+	ThreadOrderCreated
+)
+
+// rootCreatedAt reads the detached timeline metadata without hydrating message
+// bodies. Callers must check thread access before using this sort date.
+func (s *ThreadFollowModel) rootCreatedAt(roomID, rootID string) *time.Time {
+	entry, ok := s.rooms.timelineEntry(rootID)
+	if !ok || entry.RoomID != roomID || !entry.IsMessagePost() || entry.InThreadEventID != "" || s.rooms.isHiddenEcho(rootID) || entry.CreatedAt.IsZero() {
+		return nil
+	}
+	return &entry.CreatedAt
+}
+
+// Validate rejects unsupported order values at the domain boundary.
+func (o ThreadOrder) Validate() error {
+	if o < ThreadOrderDefault || o > ThreadOrderCreated {
+		return fmt.Errorf("%w: unsupported thread order", ErrInvalidArgument)
+	}
+	return nil
+}
+
+// compareThreadDates orders newest dates first, unknown dates last, then identity.
+func compareThreadDates(a, b *FollowedThread, order ThreadOrder) int {
+	at, bt := a.ActivityAt, b.ActivityAt
+	if order == ThreadOrderCreated {
+		at, bt = a.RootCreatedAt, b.RootCreatedAt
+	}
+	if at != nil && bt == nil {
+		return -1
+	}
+	if at == nil && bt != nil {
+		return 1
+	}
+	if at != nil && bt != nil {
+		if cmp := bt.Compare(*at); cmp != 0 {
+			return cmp
+		}
+	}
+	ak, bk := followedThreadSortKey(a), followedThreadSortKey(b)
+	if ak < bk {
+		return -1
+	}
+	if ak > bk {
+		return 1
+	}
+	return 0
 }
 
 // FollowedThreadsPage is a paginated set of followed threads with the total

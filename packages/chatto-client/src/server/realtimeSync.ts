@@ -51,6 +51,11 @@ export class RealtimeProjectionSyncState {
   #authorizationRefreshGeneration = 0;
   #completedAuthorizationRefreshGeneration = 0;
   #caughtUpGeneration = 0;
+  #transportGeneration = 0;
+  /** Identifies the current transport attempt, including while it catches up. */
+  get transportGeneration(): number {
+    return this.#transportGeneration;
+  }
   /** Changes when the retained data is discarded, including during event delivery. */
   resetGeneration = 0;
   #catchUpWaiters = new Set<CatchUpWaiter>();
@@ -79,7 +84,15 @@ export class RealtimeProjectionSyncState {
   }
 
   beginCatchUp(): void {
+    // A replacement transport owns failures from shared reads. Waiters of the
+    // previous transport must not consume them, even when the view is retained.
+    this.#transportGeneration++;
     if (this.phase === 'empty') this.phase = 'hydrating';
+  }
+
+  /** Preserve shared read failures while no transport owns cursor advancement. */
+  endTransport(): void {
+    this.#transportGeneration++;
   }
 
   /** Advance only after every resource and event reducer accepted the frame. */

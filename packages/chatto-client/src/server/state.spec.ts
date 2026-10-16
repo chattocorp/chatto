@@ -214,6 +214,49 @@ describe('ServerInfoState.init()', () => {
 });
 
 describe('ServerInfoState.compatibilityProblem', () => {
+  it('refreshes feature limitations after an upgrade', async () => {
+    let version = '0.5.0-beta.11';
+    const state = new ServerInfoState('https://acme.test', async () =>
+      publicServerInfo({ version })
+    );
+    expect(state.limitedFeatures).toEqual([]);
+    await state.init();
+    expect(state.limitedFeatures).toEqual(['threadViews']);
+    version = '0.5.0-beta.16';
+    await state.init();
+    expect(state.limitedFeatures).toEqual([]);
+  });
+
+  it.each([
+    ['0.5.0-beta.8', false, 'server-too-old'],
+    ['0.5.0-beta.9', true, null],
+    ['0.5.0-beta.15-custom', true, null],
+    ['0.5.0-beta.16', true, null],
+    ['dev', true, null]
+  ] as const)('uses the connection floor for %s', async (version, connectable, problem) => {
+    const state = new ServerInfoState('https://acme.test', async () =>
+      publicServerInfo({ version })
+    );
+    expect(state.canConnect).toBe(false);
+    await state.init();
+    expect(state.canConnect).toBe(connectable);
+    expect(state.blockingCompatibilityProblem).toBe(problem);
+  });
+
+  it.each(['0.4.0', 'dev', ''])('bypasses version checks for origin %s', async (version) => {
+    const state = new ServerInfoState(
+      'https://origin.test',
+      async () => publicServerInfo({ version }),
+      undefined,
+      true
+    );
+    expect(state.canConnect).toBe(true);
+    await state.init();
+    expect(state.compatibility.status).toBe('supported');
+    expect(state.compatibilityProblem).toBeNull();
+    expect(state.blockingCompatibilityProblem).toBeNull();
+    expect(state.limitedFeatures).toEqual([]);
+  });
   beforeEach(() => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });

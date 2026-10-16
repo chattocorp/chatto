@@ -1,127 +1,142 @@
-# Task channels
+# Task invocations and messages
 
-Use `ctx.spawn()` when a parent must exchange data with a running child. Tasks remain
-ordinary functions. The context type declares incoming messages and outgoing
-updates:
+A task can start other tasks as children. A parent and a child can exchange
+messages while the child runs. This guide describes the contract.
+
+## Message schemas
+
+A task definition can have two optional message schemas:
+
+- `receives` validates the messages from the parent. The task reads them from
+  `ctx.inbox`.
+- `emits` validates the messages to the parent. The task sends them with
+  `ctx.emit()`.
+
+If a task has no message schema, it accepts and emits any message. The schemas
+also give the types of `ctx.inbox`, `ctx.emit()`, `send()`, and `updates`.
 
 ```ts
-import { task, type WorkflowContext } from 'runling';
+import { log, task, Type } from 'runling';
 
-const sum = task(async (ctx: WorkflowContext<number, { total: number }>) => {
-  let total = 0;
-  for await (const amount of ctx.inbox) {
-    total += amount;
-    await ctx.emit({ total });
+const sum = task(
+  {
+    name: 'Sum',
+    input: Type.Number(),
+    output: Type.Number(),
+    receives: Type.Number(),
+    emits: Type.Object({ total: Type.Number() })
+  },
+  async (ctx, total) => {
+    for await (const amount of ctx.inbox) {
+      total += amount;
+      await ctx.emit({ total });
+    }
+    return total;
   }
-  return total;
+);
+
+const parent = task({ name: 'Parent', input: Type.Null(), output: Type.Number() }, async (ctx) => {
+  await using child = ctx.start(sum, 0);
+  await child.send(2);
+  await child.send(3);
+  child.closeInput();
+
+  for await (const update of child.updates) log.info(`Total: ${update.total}`);
+  return await child.result; // 5
 });
-
-await using run = ctx.spawn((ctx: WorkflowContext<number, { total: number }>) => sum(ctx));
-await run.send(2);
-await run.send(3);
-run.closeInput();
-
-for await (const update of run.output) {
-  console.log(update.total);
-}
-const total = await run.result; // 5
 ```
 
-`ctx.spawn(ctx => work(ctx, input))` calls the function immediately and returns a
-`Run<Incoming, Update, Result>`:
+An invalid message rejects `send()` or `ctx.emit()` with a `TypeError`. The
+receiver gets the parsed value of the schema.
 
-- `id` identifies this child run and its recorded message channel. It is separate
-  from the top-level server run's readable reference and journal ID.
+## Start a task
+
+`ctx.start(task, input)` starts the task at once and returns an invocation
+handle:
+
+- `id` identifies the invocation and its recorded messages. It is not the ID of
+  the workflow run.
 - `status` is `running`, `completed`, `failed`, or `cancelled`.
-- `send(value)` queues input. It does not acknowledge processing.
-- `output` is a single-consumer `AsyncIterable` of emitted values.
-- `result` resolves with the task's return value, or rejects with its error.
-- `settled` resolves after the underlying work and cooperative cleanup finish,
-  even when `result` rejected earlier on cancellation. It never rejects.
-- `closeInput()` stops new input and lets the child drain pending messages.
-- `cancel(reason?)` cancels the child without cancelling its parent or siblings.
-- Async disposal cancels unfinished work and awaits `settled`. Use `await using`,
-  or `await run[Symbol.asyncDispose]()` in `finally`.
+- `send(message)` validates a message and puts it in the child's queue. It does
+  not wait until the child reads the message.
+- `closeInput()` tells the child that no more messages come. The child can
+  still read the messages in the queue. Then its `ctx.inbox` loop ends.
+- `updates` is an async iterable of the messages that the child emits. Only one
+  reader can use it.
+- `result` resolves with the validated output of the child, or rejects with its
+  error.
+- `cancel(reason?)` cancels the child and its children. It does not cancel the
+  parent or the siblings of the child.
+- Async disposal cancels unfinished work and waits for cleanup. Use
+  `await using`, or call `await handle[Symbol.asyncDispose]()` in `finally`.
 
-Capture task arguments in the callback. Its `ctx` belongs to the new run and
-shadows the outer context. Pass that `ctx` into the task so it uses the new run's
-channels and cancellation.
-Annotate the callback context when typed messages are needed; TypeScript cannot
-infer its message types from calls inside the callback body.
+A direct call, `await task(ctx, input)`, starts the task and waits for its
+result. The input of a direct call is closed, so `ctx.inbox` in the child ends
+at once. Runling records the updates of a direct call in the journal and then
+discards them.
 
-Argument forwarding with `ctx.spawn(task, ...args)`, the standalone
-`spawn(ctx, task, ...args)`, `TaskHandle` type, and `updates`
-property remain compatible aliases. `output` and `updates` share one consumer;
-do not iterate both. Custom context implementations must provide `spawn`; prefer
-creating a context with `createWorkflowContext()` and overriding host callbacks.
+The parent must wait for its children or dispose of them. When a parent
+returns, Runling does not wait for its children.
 
-Each channel holds up to 64 queued values. Sending to a full channel rejects
-with `ChannelFullError`; sending to a closed channel rejects with
-`ChannelClosedError`. No send waits for free space or silently drops a value.
-Consume output while work runs if the child can emit more than the buffer holds.
+## Inside a task
 
-Successful completion closes both channels. Buffered updates remain readable.
-Failure or cancellation discards values in open channels and rejects pending
-reads and future sends with the original reason. The first terminal transition
-of each channel wins. Breaking out of the updates loop closes that channel and
-discards its buffer; subsequent child emissions fail. Iterators permit only one
-pending `next()` call.
+The task context gives these members:
 
-Parent cancellation reaches the child through `ctx.signal`. Cancellation settles
-the handle even if the task ignores that signal, but JavaScript cannot stop that
-task's code or undo its side effects. Task code must cooperate. The parent must
-await its child runs and dispose unfinished children in `finally` as needed;
-parent return does not automatically join spawned work. `ctx.abort()` retains
-its existing whole-workflow meaning.
+- `ctx.inbox`: messages from the parent. Only one reader can use it. It ends
+  when the parent closes the input.
+- `ctx.emit(message)`: send a message to the parent.
+- `ctx.start(task, input)`: start a child task.
+- `ctx.signal`: an abort signal for cancellation.
+- `ctx.abort(reason)`: stop the complete workflow run and report it as failed.
+- `ctx.run`: the ID and reference of the run, when the host records runs.
+- `ctx.usage` and `ctx.recordUsage()`: the token usage of the run.
 
-A normal context from `createWorkflowContext` or `runWorkflow` has an empty inbox
-and a no-op `emit`. Direct calls retain their synchronous or asynchronous return
-behavior. Passing a spawned context directly to another task shares its inbox and
-emitter; use `ctx.spawn()` to give that child separate channels. Usage accounting
-and existing context callbacks are shared with the parent.
+The host is the parent of the top-level task. It uses the same channels. See
+[workflow messages](workflow-messages.md).
 
-For standalone use, `createChannel<T>({ capacity, signal })` exposes `send`,
-`close`, `fail`, and async iteration. Channels use no Node-specific imports and
-hold data only in memory.
+Use `createTaskContext()` to call a task in a test or a script without a host.
+That context has an empty inbox, and it discards the messages that it receives
+through `emit`.
+
+## Limits and errors
+
+Each direction holds up to 64 messages in its queue:
+
+- A send to a full queue rejects with `ChannelFullError`. Read `updates` while
+  the child runs if the child can emit more than 64 messages.
+- A send to a closed queue rejects with `ChannelClosedError`.
+- A send never waits for free space, and Runling never drops a message without
+  an error.
+
+When the child completes, Runling closes both directions. The parent can still
+read the updates in the queue. When the child fails or is cancelled, Runling
+discards the messages in the queue. Pending reads and later sends reject with
+the original error. If the parent stops reading `updates`, for example with
+`break`, the updates close and later `ctx.emit()` calls fail.
+
+Cancellation reaches the child through `ctx.signal`. The handle settles also if
+the child ignores the signal. JavaScript cannot stop the code of the child or
+undo its side effects, so task code must use the signal.
+
+## Channels without tasks
+
+`createChannel<T>({ capacity, signal })` gives `send`, `close`, `fail`, and
+async iteration. Channels keep data only in memory and use no Node-specific
+imports.
+
+## Timeline and journal
+
+Runling records each message, each read, and each wait for a message in the run
+journal. The timeline shows input (↓) and update (↑) markers on the row of the
+child task. Messages that are near each other share a numbered marker. Select a
+marker and a message to see its direction, payload, and delivery state.
+
+When a task reads an empty inbox, the timeline shows "Waiting for a message"
+until a message arrives or the input closes.
+
+The journal keeps a preview of each payload of at most 16,000 characters. The
+value in the channel does not change. A value that cannot be represented as JSON
+shows a placeholder. A read by a task does not mean that an agent used the
+message.
 
 See the [task channel example](../examples/channel-demo.md).
-
-## State in the run inspector
-
-A task can publish a JSON object for people who inspect the run in the web app:
-
-```ts
-const scan = task(async (ctx: WorkflowContext, files: string[]) => {
-  ctx.publishState({ phase: 'scanning', checked: 0 });
-  // Scan files and publish a new snapshot when the visible state changes.
-  ctx.publishState({ phase: 'done', checked: files.length });
-});
-```
-
-Select the task in the timeline to see its latest snapshot. Each call replaces
-that task's visible state. Runling copies the object at the time of the call;
-later changes to the original object need another call. The snapshot must be a
-JSON object of at most 16,000 serialized characters. A call outside a task, or
-one with an invalid snapshot, throws an error.
-
-Published state appears in the run journal and web app. Do not publish secrets
-or private working data. It does not send a message to the parent or change the
-task result. Use task channels and results to communicate between tasks.
-
-If you implement `WorkflowContext` yourself, add `publishState`. If you use an
-exhaustive switch over `RunlingEvent`, handle the new `task.state` event.
-
-## Timeline messages
-
-Spawned tasks record queued messages, task reads, and agent consumption receipts.
-The timeline places input (↓) and update (↑) markers on the child task's row.
-Nearby messages share a numbered marker. Click a marker and select a message
-to inspect its direction, payload, and delivery state.
-
-Payload previews are captured when sent and limited to 16,000 characters.
-Values remain unchanged in the channel. Values that cannot be represented as
-JSON show a placeholder. A task read does not imply agent consumption.
-Agent connections record consumption separately when reading a spawned inbox.
-
-These events are stored in the run journal. Existing runs without message
-events have no markers; they cannot be reconstructed from agent text.

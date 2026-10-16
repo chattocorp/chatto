@@ -802,6 +802,9 @@ export class JoinRoomGroupResponse extends Message<JoinRoomGroupResponse> {
  * existing one. A human caller can fetch an existing DM without message.post.
  * A valid request from a bot receives PERMISSION_DENIED, including when the
  * room already exists.
+ * New DMs have at most two distinct participants, including the caller.
+ * Larger new participant sets receive INVALID_ARGUMENT. Use a channel room
+ * for new group conversations. Existing group DMs remain accessible.
  *
  * @generated from message chatto.api.v1.StartDMRequest
  */

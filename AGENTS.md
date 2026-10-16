@@ -62,30 +62,40 @@ frontends use it. See ADR-111.
   compatibility with earlier versions is not a priority for this release.
   Preserve upgrades from pre-0.5 servers. Keep persisted protobufs backward
   compatible where feasible.
-- Increase Chatto's minimum supported server version only as a **last resort**,
+- Increase Chatto's minimum connectable server version only as a **last resort**,
   including during alpha and beta releases. A new release, API change, or
   simpler implementation alone does not justify an increase. First consider
   a compatible API design, use of the existing server contract, or deferring
   the new dependency. Do not add complex compatibility layers merely to avoid
   an increase.
-- Before increasing the minimum, document the exact incompatibility, why
+- Before increasing the connection threshold, document the exact incompatibility, why
   reasonable alternatives are insufficient, and the oldest server release
   that meets the requirement. Include this evidence and the required upgrade
   action in the PR. Set the minimum to that release, not automatically to the
   current release. See [FDR-031](docs/fdr/FDR-031-client-server-compatibility-discovery.md).
+- Any value change to `MINIMUM_SUPPORTED_SERVER_VERSION` requires the PR label
+  `server-compatibility:full-support`. Any value change to
+  `MINIMUM_CONNECTABLE_SERVER_VERSION` requires
+  `server-compatibility:connection-floor`. This includes decreases. Changes to
+  both require both labels. Explain each change in the PR. Labels do not waive
+  compatibility tests or the justification required for a connection-threshold
+  increase.
 
 ## Additional Agent Rules & Context
 
 - [README.md](README.md) — general project overview.
 - [packages/runling/README.md](packages/runling/README.md) — Runling APIs,
   development commands, and release setup.
+- [packages/runling/AGENTS.md](packages/runling/AGENTS.md) — Runling instructions
+  and the feature requirements to read before changing behavior.
 - [packages/runling/docs/README.md](packages/runling/docs/README.md) — Runling-owned
   ADRs, FDRs, and API guides. Runling records have their own numbering.
 - [packages/chatto-client/AGENTS.md](packages/chatto-client/AGENTS.md) — the
   framework-neutral Chatto client: what belongs in it, stores, realtime
   projection, sessions, reactivity, and its Svelte adapter.
 - [packages/chattobot/AGENTS.md](packages/chattobot/AGENTS.md) — ChattoBot rules:
-  only the supervisor talks to users, with no hardcoded user-facing text.
+  one agent session per thread, capabilities as tools, background jobs, and
+  changes that a maintainer approves.
 - [authling/AGENTS.md](authling/AGENTS.md) — mandatory Authling product,
   architecture, documentation, security, and testing rules.
 - [authling/docs/README.md](authling/docs/README.md) — Authling-owned ADR, FDR,

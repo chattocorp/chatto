@@ -5,17 +5,24 @@ import { afterEach, expect, test, vi } from 'vitest';
 import { mkdir, mkdtemp, readFile, writeFile, rm, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { task, Type, step } from 'runling';
-import { RunStore } from './run-store.ts';
+import { task, Type, step, type TaskContext } from 'runling';
+import { RunNotActiveError, RunStore } from './run-store.ts';
 import { createRunJournal, newRun, runJournalDirectory } from '../../runtime/run-journal.ts';
 import { buildTimeline } from '../timeline.ts';
+import { summarizeRunActivity } from '../run-activity.ts';
 import type { RunRecord } from '../runs.ts';
+import { SourceManager } from '../../runtime/source-manager.ts';
+import type { EventSourceContext, WebhookRouter } from 'runling/web';
 
 const directories: string[] = [];
 afterEach(async () => {
   vi.unstubAllEnvs();
   for (const dir of directories.splice(0)) await rm(dir, { recursive: true, force: true });
 });
+/** A task without input or output constraints. */
+const work = (run: (ctx: TaskContext<unknown, unknown>) => unknown, name = 'Test') =>
+  task({ name, input: Type.Unknown(), output: Type.Unknown() }, run);
+
 async function store() {
   const directory = await mkdtemp(resolve(tmpdir(), 'runling-runs-test-'));
   directories.push(directory);
@@ -23,6 +30,77 @@ async function store() {
   await store.init();
   return store;
 }
+
+test('source dispatch from an active run creates an independent journal that outlives it', async () => {
+  const history = await store();
+  const ready = Promise.withResolvers<EventSourceContext>();
+  const release = Promise.withResolvers<void>();
+  const handles = new Map<string, Awaited<ReturnType<RunStore['start']>>>();
+  const sources = new SourceManager((name) => async (workflow, { input }) => {
+    const handle = await history.start(name, workflow, input, 'source');
+    handles.set(workflow.name, handle);
+    return handle;
+  });
+  const conversation = work(async (ctx) => {
+    await release.promise;
+    await step('Reply', async () => {
+      log.info('Conversation reply');
+      ctx.recordUsage({ input: 7, output: 3, cacheRead: 0, cacheWrite: 0, cost: 0 });
+    });
+    return 'reply';
+  }, 'Conversation');
+  try {
+    await sources.replace({
+      webhooks: {},
+      sources: {
+        fixture: async (ctx) => {
+          ready.resolve(ctx);
+          await new Promise<void>((resolve) =>
+            ctx.signal.addEventListener('abort', () => resolve(), { once: true })
+          );
+        }
+      }
+    });
+    const source = await ready.promise;
+    const route: WebhookRouter<null> = async (ctx) => {
+      await ctx.start(conversation, { input: null });
+    };
+    const intake = work(async () => {
+      await source.dispatch(route, null);
+      return 'accepted';
+    }, 'Intake');
+    await source.dispatch(async (ctx) => {
+      await ctx.start(intake, { input: null });
+    }, null);
+    const first = handles.get('Intake')!;
+    expect(await first.completion).toMatchObject({ ok: true, output: 'accepted' });
+    const journalPath = resolve(history.directory, `${first.id}.jsonl`);
+    const completedJournal = await readFile(journalPath, 'utf8');
+    release.resolve();
+    const second = handles.get('Conversation')!;
+    expect(await second.completion).toMatchObject({
+      ok: true,
+      output: 'reply',
+      usage: { input: 7, output: 3 }
+    });
+    expect(await readFile(journalPath, 'utf8')).toBe(completedJournal);
+    const firstRun = (await history.get(first.id))!;
+    const secondRun = (await history.get(second.id))!;
+    expect(
+      firstRun.events.filter((event) => event.type === 'step.started').map((event) => event.label)
+    ).toEqual(['Intake']);
+    expect(firstRun.usage.input).toBe(0);
+    const starts = secondRun.events.filter((event) => event.type === 'step.started');
+    expect(starts.map((event) => event.label)).toEqual(['Conversation', 'Reply']);
+    expect(starts[0]?.activityId).toBeUndefined();
+    expect(starts[1]?.activityId).toBe(starts[0]?.id);
+    expect(secondRun.status).toBe('completed');
+  } finally {
+    release.resolve();
+    await sources.close();
+    await history.close();
+  }
+});
 
 test('live activity logs include run and task prefixes and cancellation matches history', async () => {
   // This test checks the summary lines that `--quiet-log` keeps in the terminal.
@@ -35,7 +113,7 @@ test('live activity logs include run and task prefixes and cancellation matches 
     const entered = Promise.withResolvers<void>();
     const run = await history.start(
       'test',
-      task(async (ctx) => {
+      work(async (ctx) => {
         await step('sensitive dynamic label', async () => {
           entered.resolve();
           await new Promise<void>((resolve) =>
@@ -77,13 +155,13 @@ test('run references survive restart and avoid collisions across concurrent star
   const runs = await Promise.all([
     history.start(
       'test',
-      task(() => 'done'),
+      work(() => 'done'),
       undefined,
       'web'
     ),
     history.start(
       'test',
-      task(() => 'done'),
+      work(() => 'done'),
       undefined,
       'web'
     )
@@ -101,7 +179,7 @@ test('run references survive restart and avoid collisions across concurrent star
     expect((await restored.get(run.id))?.reference).toBe((await history.get(run.id))?.reference);
   const next = await restored.start(
     'test',
-    task(() => 'done'),
+    work(() => 'done'),
     undefined,
     'web'
   );
@@ -114,19 +192,22 @@ test('shutdown keeps Node alive until cooperative cleanup and journal flush fini
   await promisify(execFile)(
     process.execPath,
     [
+      '--conditions=runling-source',
       '--import',
       'tsx',
       '--input-type=module',
       '--eval',
       `
     import { RunStore } from ${JSON.stringify(new URL('./run-store.ts', import.meta.url).href)};
+    import { task, Type } from "runling";
     import { setTimeout as delay } from "node:timers/promises";
     const store = new RunStore(process.argv[1]);
     await store.init();
-    await store.start("cleanup", async ctx => {
+    const cleanup = task({ name: "Cleanup", input: Type.Unknown(), output: Type.Unknown() }, async ctx => {
       await new Promise(resolve => ctx.signal.addEventListener("abort", resolve, { once: true }));
       await delay(50, undefined, { ref: false });
-    }, undefined, "source");
+    });
+    await store.start("cleanup", cleanup, undefined, "source");
     await store.close();
   `,
       original.directory
@@ -143,7 +224,7 @@ test('shutdown keeps Node alive until cooperative cleanup and journal flush fini
 
 test('shutdown interrupts active source runs and flushes source metadata to history', async () => {
   const original = await store();
-  const workflow = task(async (ctx) => {
+  const workflow = work(async (ctx) => {
     await new Promise<void>((resolve) => {
       if (ctx.signal.aborted) resolve();
       else ctx.signal.addEventListener('abort', () => resolve(), { once: true });
@@ -179,9 +260,8 @@ test('streams ordered nested events and restores the completed run', async () =>
   const unsubscribe = original.subscribe((_id, record) => records.push(record));
   const nested = task(
     { name: 'Nested', input: Type.String(), output: Type.String() },
-    async (ctx, input) => {
+    async (_ctx, input) => {
       log.info('Inside nested workflow');
-      ctx.publishState({ phase: 'nested', input });
       return input.toUpperCase();
     }
   );
@@ -202,48 +282,72 @@ test('streams ordered nested events and restores the completed run', async () =>
   expect(timeline[0]?.children[0]?.label).toBe('Nested');
   expect(timeline[0]?.children[0]?.status).toBe('completed');
   expect(timeline[0]?.children[0]?.logs).toContain('Inside nested workflow');
-  expect(timeline[0]?.children[0]?.state).toEqual({ phase: 'nested', input: 'hello' });
-  expect(
-    records.some((record) => record.type === 'event' && record.event.type === 'task.state')
-  ).toBe(true);
   const restored = new RunStore(original.directory);
   await restored.init();
   expect(await restored.get(run.id)).toEqual(JSON.parse(JSON.stringify(result)));
   expect(await restored.get('../../outside')).toBeUndefined();
 });
 
-test('streams task state while a run is active and retains it in history', async () => {
+test('sends host messages to an active run and closes its input', async () => {
   const history = await store();
-  const published = Promise.withResolvers<void>();
-  const release = Promise.withResolvers<void>();
-  const records: RunRecord[] = [];
+  const waiting = Promise.withResolvers<void>();
   const unsubscribe = history.subscribe((_id, record) => {
-    records.push(record);
-    if (record.type === 'event' && record.event.type === 'task.state') published.resolve();
+    if (record.type === 'event' && record.event.type === 'wait.started') waiting.resolve();
   });
-  const work = task(async (ctx) => {
-    ctx.publishState({ phase: 'working' });
-    await release.promise;
-    return 'done';
-  });
-  const run = await history.start('test', work, undefined, 'web');
+  const chat = task(
+    {
+      name: 'Chat',
+      input: Type.Unknown(),
+      output: Type.Array(Type.String()),
+      receives: Type.String()
+    },
+    async (ctx) => {
+      const received: string[] = [];
+      for await (const message of ctx.inbox) received.push(message);
+      return received;
+    }
+  );
+  const run = await history.start('chat', chat, undefined, 'web');
   try {
-    await published.promise;
-    const live = (await history.get(run.id))!;
-    expect(live.status).toBe('running');
-    expect(buildTimeline(live.events, live.status)[0]?.state).toEqual({ phase: 'working' });
-    expect(
-      records.some((record) => record.type === 'event' && record.event.type === 'task.state')
-    ).toBe(true);
+    await waiting.promise;
+    expect(summarizeRunActivity((await history.get(run.id))!)).toMatchObject({
+      waiting: true,
+      waits: 1
+    });
+    await history.send(run.id, 'first');
+    await run.send('second');
+    await expect(history.send(run.id, 42)).rejects.toThrow(TypeError);
+    history.closeInput(run.id);
+    await run.finished;
   } finally {
-    release.resolve();
-    await run.completion;
     unsubscribe();
   }
-  const restored = new RunStore(history.directory);
-  await restored.init();
-  const saved = (await restored.get(run.id))!;
-  expect(buildTimeline(saved.events, saved.status)[0]?.state).toEqual({ phase: 'working' });
+  const result = (await history.get(run.id))!;
+  expect(result).toMatchObject({ status: 'completed', output: ['first', 'second'] });
+  expect(
+    result.events.flatMap((event) => (event.type === 'message.sent' ? [event.payload] : []))
+  ).toEqual(['first', 'second']);
+  const waits = buildTimeline(result.events, result.status)[0]!.children;
+  expect(waits.every((node) => node.kind === 'wait')).toBe(true);
+  expect(waits.map((node) => node.status)).toContain('received');
+  expect(waits.at(-1)?.status).toBe('closed');
+  await expect(history.send(run.id, 'late')).rejects.toBeInstanceOf(RunNotActiveError);
+  await expect(history.send('missing', 'message')).rejects.toBeInstanceOf(RunNotActiveError);
+});
+
+test('rejects messages to a cancelled run', async () => {
+  const history = await store();
+  const run = await history.start(
+    'cancel',
+    work(async (ctx) => {
+      for await (const _ of ctx.inbox);
+    }),
+    undefined,
+    'web'
+  );
+  history.cancel(run.id);
+  await expect(history.send(run.id, 'late')).rejects.toBeInstanceOf(RunNotActiveError);
+  await run.completion;
 });
 
 test('records failures and keeps concurrent token totals separate', async () => {
@@ -275,10 +379,7 @@ test('records failures and keeps concurrent token totals separate', async () => 
 
 test('recovers a truncated journal as interrupted and saves the recovery', async () => {
   const history = await store();
-  const quick = task(
-    { name: 'Quick', input: Type.String(), output: Type.String() },
-    (ctx) => 'done'
-  );
+  const quick = task({ name: 'Quick', input: Type.String(), output: Type.String() }, () => 'done');
   const run = await history.start('quick', quick, '', 'web');
   await run.completion;
   const path = resolve(history.directory, `${run.id}.jsonl`);

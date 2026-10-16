@@ -6,6 +6,7 @@ sidebar. Shows the avatar with presence and the live display name. Right-click
 or touch long-press opens the profile menu; avatar clicks open presence settings.
 -->
 <script lang="ts">
+  import { conversationPath } from '$lib/navigation/conversationPath';
   import {
     UserCard,
     FadeScale,
@@ -20,9 +21,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   import ConnectionQualityHint from './voice/ConnectionQualityHint.svelte';
   import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
-  import { serverIdToSegment } from '$lib/navigation';
   import { m } from '$lib/i18n/messages';
   import { deleteCustomStatus } from '@chatto/client/api/userStatus';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -66,7 +65,6 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   const serverScope = useServerScope();
   const appUi = getAppUiState();
   const activeServerId = serverScope.serverId;
-  const serverSegment = $derived(serverIdToSegment(activeServerId));
   const activeStore = serverScope.store;
   const activeServerUser = $derived(activeStore.viewerUser);
   const presenceScope = $derived(
@@ -248,12 +246,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
     if (!roomId) return;
 
     appUi.requestRoomSidebarPanel(activeServerId, roomId, 'call', getRoomSidebarPresentation());
-    goto(
-      resolve('/chat/[serverId]/[roomId]', {
-        serverId: serverSegment,
-        roomId
-      })
-    );
+    goto(conversationPath(activeServerId, roomId, { store: activeStore }));
   }
 
   async function setPrivilegedMode(active: boolean): Promise<void> {

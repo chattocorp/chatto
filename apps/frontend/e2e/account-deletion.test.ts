@@ -210,6 +210,7 @@ test.describe('Account Deletion', () => {
         await dmA.goto();
         await dmA.expectConversationVisible(userB.displayName);
         const roomA = await dmA.openConversation(userB.displayName);
+        await expect(page).toHaveURL(new RegExp(`/user/${userB.id}$`));
         await roomA.expectMessageVisible(body);
         const notice = page.getByText('The other user has been deleted.', { exact: true });
         await expect(notice).toHaveCount(0);
@@ -228,9 +229,11 @@ test.describe('Account Deletion', () => {
         await expect(tombstone).toContainText('This message has been deleted.');
         await expect(tombstone).not.toContainText(body);
         await expect(notice).toBeVisible();
+        await expect(deletedRow).toHaveAttribute('href', `/chat/-/user/${userB.id}`);
 
         // A fresh snapshot keeps the same presentation.
         await page.reload();
+        await expect(page).toHaveURL(new RegExp(`/user/${userB.id}$`));
         await expect(dmA.getConversation('[deleted user]')).toBeVisible({
           timeout: TIMEOUTS.UI_STANDARD
         });

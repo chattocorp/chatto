@@ -1,4 +1,4 @@
-import { Type, agent, log, defineAgentExtension, type WorkflowContext } from 'runling';
+import { Type, createAgentSession, log, defineAgentExtension, type TaskContext } from 'runling';
 import type { ReplySender } from './sender.ts';
 import webFetchExtension from './web-fetch.ts';
 
@@ -33,9 +33,9 @@ export interface ReplyContext {
  * Tests can inject the agent factory without replacing the workflow context.
  */
 export async function generateReply(
-  r: WorkflowContext,
+  r: TaskContext,
   context: ReplyContext,
-  createAgent: typeof agent = agent
+  createAgent: typeof createAgentSession = createAgentSession
 ): Promise<void> {
   if (!process.env.OPENROUTER_API_KEY) {
     throw new Error('Set OPENROUTER_API_KEY before starting Runling');

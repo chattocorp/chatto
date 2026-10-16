@@ -51,6 +51,21 @@
       "view_in_admin": "Sunucu yönetiminde görüntüleyin",
       "copy_user_id": "Kullanıcı kimliğini kopyalayın"
     },
+    "server_info": {
+      "title": "Sunucu bilgileri",
+      "details": "Sunucu ayrıntıları"
+    },
+    "compatibility": {
+      "title": "Uyumluluk",
+      "view": "Uyumluluğu görüntüle",
+      "limited": "Sınırlı destek",
+      "supported": "Bilinen uyumluluk sorunu yok",
+      "affected": "Etkilenen özellikler",
+      "requires": "{version} veya daha yeni bir sürüm gerektirir",
+      "thread_views_title": "Konu görünümleri sınırlı olarak destekleniyor",
+      "thread_views_description": "Takip ettiğiniz ve başlattığınız konular bu sunucuda ayrı ayrı listelenmeyebilir.",
+      "upgrade": "Tam destek için sunucu yöneticisinden {version} veya daha yeni bir sürüme yükseltmesini isteyin."
+    },
     "server_gutter": {
       "move_up": "Yukarı taşıyın",
       "move_down": "Aşağı taşıyın",
@@ -60,7 +75,7 @@
       "version": "Sürüm {version}",
       "unreachable": "Sunucuya ulaşılamıyor",
       "connection_unavailable": "Bağlantı kullanılamıyor",
-      "compatibility_server_too_old": "Bu uygulamanın bağlanabilmesi için bu sunucunun Chatto 0,5 veya daha yeni bir sürüme yükseltilmesi gerekir.",
+      "compatibility_server_too_old": "Bu uygulamanın bağlanabilmesi için bu sunucunun Chatto {version} veya daha yeni bir sürüme yükseltilmesi gerekir.",
       "compatibility_unknown": "Bu uygulama, sunucu sürümünden uyumluluğu belirleyemez.",
       "go_to_notifications_count": {
         "one": "{count} bildirime git",
@@ -89,12 +104,14 @@
       "body": "Bu sunucuda mesaj okumak ve göndermek için oturum açın."
     },
     "threads": {
+      "sort_label": "Konuları sırala",
+      "sort_activity": "Etkinlik",
+      "sort_created": "Yaş",
       "tab_started": "Benim",
       "tab_followed": "Takip edilenler",
       "tab_label": "Konu görünümü",
       "empty_mine_title": "Başlattığınız konu yok",
       "empty_mine_body": "Başlattığınız ve takip ettiğiniz konular burada görünür.",
-      "empty_followed_body": "Başkalarının başlattığı ve takip ettiğiniz konular burada görünür.",
       "title": "Konular",
       "subtitle": "Konularınızdaki yeni etkinlikler",
       "filter_label": "Konuları filtrele",

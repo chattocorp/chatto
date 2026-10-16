@@ -9,14 +9,20 @@ const configPath = join(directory, 'runling.config.ts');
 await writeFile(
   configPath,
   `
-  import { task, input, Type } from "runling";
+  import { task, Type } from "runling";
   import { defineWebConfig } from "runling/web";
+  // Return the first message that the host sends to the run.
   const probe = task({
-    name: "Event probe", input: Type.String(), output: Type.String(),
-  }, async (ctx, value) => input({ ...ctx, onInput: async () => value }, "Question?"));
+    name: "Event probe", input: Type.String(), output: Type.String(), receives: Type.String(),
+  }, async (ctx) => {
+    for await (const message of ctx.inbox) return message;
+    throw new Error("No message");
+  });
   export default defineWebConfig({ webhooks: {
     probe: async (ctx, value) => {
-      if (value !== "skip") await ctx.start(probe, { input: value });
+      if (value === "skip") return;
+      const run = await ctx.start(probe, { input: value });
+      await run.send(value);
     },
   } });
 `
@@ -40,7 +46,7 @@ try {
     {
       start: async (task, { input }) => {
         started = await store.start('probe', task, input, 'web');
-        return { id: started.id };
+        return started;
       }
     },
     'Answer'
@@ -50,10 +56,17 @@ try {
   const run = await store.get(id);
   assert.equal(run.status, 'completed');
   assert.equal(run.output, 'Answer');
-  assert.deepEqual(
-    run.events.filter((event) => event.type !== 'log').map((event) => event.type),
-    ['step.started', 'input.requested', 'input.finished', 'step.finished']
-  );
+  // The task can ask for the message before or after it arrives, so a wait is optional.
+  const types = run.events
+    .map((event) => event.type)
+    .filter((type) => type !== 'log' && !type.startsWith('wait.'));
+  assert.deepEqual(types, [
+    'step.started',
+    'task.linked',
+    'message.sent',
+    'message.read',
+    'step.finished'
+  ]);
   // Exercise the actual asynchronous HTTP entry point: routing precedes run creation.
   const endpoint = await server.ssrLoadModule('/src/routes/api/runs/start/[name]/+server.ts');
   const { getRunStore } = await server.ssrLoadModule('/src/lib/server/run-store.ts');

@@ -2,44 +2,126 @@
 
 These rules apply to `packages/chattobot/`. The root `AGENTS.md` rules also apply.
 
-## Talking to users
+## Shape
 
-- Only the supervisor task talks to the user. Other tasks, such as implementation
-  and investigation, report to their parent task only (Runling ADR-006). Do not
-  pass callbacks into a child task that post to Chatto.
-- Do not hardcode user-facing message text in host code. The supervisor model
-  writes every message in the user's language and its own words. A task reports
-  facts: milestones and progress as `notice` updates with structured `data`, and
-  its result. Text in notices and results describes the facts for the model; it
-  is not shown to the user.
-- Host code may guard facts, but not phrase messages. Example: when a reply
-  leaves out a new pull request or issue URL, the host appends the bare URL.
-- Current exceptions are host fallbacks for when the model must not or cannot
-  answer: the maintainer and untrusted-content refusals and the duplicate-implementation
-  refusal (a blocked tool must never be described as started work), the notice
-  for a malformed model reply, and the reply failure message in
-  `chatto/routing.ts`. Do not add new exceptions without discussion.
+ChattoBot is one agent session per Chatto thread. Keep it that way:
 
-## Adding an implementation stage
+- Put Runling tasks in `tasks/<task>.ts`, with their tests in the same directory
+  as `<task>.test.ts` or `<task>-<scope>.test.ts`. This includes evaluation tasks.
+  Keep supporting tools and fixtures in their domain directories.
+- `chatto/source.ts` connects to Chatto. `chatto/router.ts` sends each message
+  that addresses the bot, or starts report intake, to the run of its thread, or starts one.
+- In `CHATTO_AUTO_ENGAGE_ROOM_IDS`, unaddressed top-level posts start
+  `tasks/thread.ts`. This workflow calls `tasks/classify-intake.ts`, then
+  exits silently or runs the conversation as a child in the same run. It forwards
+  later addressed messages to that child. Addressed entry starts the same workflow
+  without initial classification. Every 90 seconds, while the conversation is idle,
+  the workflow checks human replies since the bot's latest post. It classifies changed
+  batches and forwards accepted replies together to the existing conversation.
+  Empty or unchanged checks need no model call. The workflow owns the one-hour
+  inactivity timeout, checked on the polling tick; only delivered messages reset it.
+  Keep one conversation state (`busy`, `waiting`, or `idle`) for polling and expiry.
+  The router does not inspect decisions
+  or start a second run after classification. Keep the classifier free of tools
+  and Chatto effects. Check model behavior with `pnpm eval:intake`.
+- `tasks/conversation.ts` is the conversation task. It owns the agent, the prompt of
+  each turn, and the only posts to the thread. The agent's final text is the
+  reply.
+- Add a capability as a tool of that agent. When the work is long or needs its
+  own agent, write it as a Runling task that can also run on its own, like
+  `tasks/investigate.ts`, and give it to the agent as a tool. A task
+  returns its result to the agent; it does not post to Chatto itself.
+- Long work runs as a background job (`harness/jobs.ts`), as in agent
+  harnesses: its tool returns at once, the conversation keeps answering
+  messages, and the result reaches the agent in a later turn.
+- A subagent keeps its agent session in a file. Investigations support resume;
+  each GitHub request starts a new session. The caller chooses its working directory.
+- Do not add host code that corrects or replaces the model's replies. If the
+  model behaves badly, change the prompt, the tools, or the model, and add a
+  test or an evaluation that shows the problem.
+- Background work gets one acknowledgment after delegation succeeds and one
+  result reply. Delegation must preserve requested scope and uncertainty.
+  Keep these behaviors in agent instructions and model evaluations.
+- GitHub issue titles are plain descriptions without prefixes. Classify issues
+  with GitHub's native issue type field, not labels or Conventional Commit titles.
+  Discover available repository types and verify the saved type after writing.
+- Keep answers within Chatto and directly related work, for all users including
+  maintainers. Read stable or pre-release documentation first, cite supporting
+  pages, and keep version-specific claims separate. Web search and external page
+  reads are a last resort for gaps in the relevant documentation. Decline unrelated
+  work without tools; mentioning Chatto alone does not make a request related.
+  Ask for missing diagnostic facts before researching an incomplete report.
+  Clarifying questions need no lookup. Reuse relevant pages already read, and
+  do not list possible causes without supporting report evidence.
+  Treat a bare ping as a request to continue from the thread context. Ordinary
+  replies can supply answers and facts, including when another person pings the bot;
+  they do not grant delegation authority. When the reporter does not know the setup,
+  ask what they can observe instead of repeating technical questions.
+  Ask one useful question at a time, starting with the observable symptom.
+  Keep maintainer handoffs brief: summarize the requested action and symptom,
+  then ask for authorization. Include only gaps that affect that decision.
+  Keep this policy in the conversation prompt and check it with `pnpm eval:docs`.
+- Search existing issues early and confirm candidate coverage before further intake,
+  as specified in [FDR-051](../../docs/fdr/FDR-051-chattobot-report-intake.md).
+  Use GitHub's native parent/sub-issue relationships for epic/task hierarchy.
+  Check discovery with `pnpm eval:github issue-discovery`.
+- Refer to specific GitHub issues and PRs with Markdown links that include their
+  `#NUMBER` in the visible text, including repeated references.
 
-Report a new stage, such as planning or review, as a milestone notice from the
-implementation task, with its facts in `data`. When the supervisor must relay a
-specific fact, such as a URL, add the milestone to `noticeReport` in
-`workflows/task-context.ts`. Name the milestone in the README. Do not add a host
-message template.
+## Host text
 
-## Adding a way to call tools
+The model writes the replies. Host code writes text only when the model cannot:
+the notice after a failed turn in `tasks/conversation.ts`. Do not add new host text
+without discussion.
 
-Codemode lets the model call tools from a script. MCP and similar features add
-other paths. Every path must keep these protections in place:
+Job progress is kept as each job's latest step, which the agent sees to answer
+status questions. It is not posted: it will move to the bot's temporary status
+in the thread (#2787). The posting code is commented out in `tasks/conversation.ts`.
 
-- The maintainer gate and the authorization checks in `workflows/chat.ts`. They
-  read the latest message, so a path that can wait, such as a script, must not
-  reach maintainer-only tools.
-- Per-message budgets and limits, such as the research and attachment limits
-  and the finding limit. Check that parallel calls cannot pass them.
-- The block after untrusted content.
-- The private temporary directory (`private-temp.ts`) for any output that
-  is written to disk.
+Do not add slash commands. People talk to the bot in plain language.
 
-Have an adversarial review check each new path against this list before merge.
+## Permissions
+
+GitHub work and source investigations from Chatto have a maintainer gate before delegation:
+
+- Direct read tools are available to everyone who can address the bot. Their
+  results stay in the thread. Starting or resuming a source investigation requires
+  a current maintainer message, even though the investigator only reads.
+- The conversation's `gh` tool can only read. Its `githubWork` tool starts the
+  agent-driven task in `tasks/github.ts` for a maintainer request. The host checks
+  the referenced message in the current turn against `CHATTO_MAINTAINER_USER_IDS`.
+  Never accept an author or role supplied by the model as proof of permission.
+- Automatic intake and follow-ups grant no delegation authority, including for a
+  maintainer author. Both delegation tools must reject requests with either trigger.
+- Apply the same host-owned current-message check to `investigate`, including
+  resumes. Without configured maintainers, offer neither delegation tool.
+- `CHATTO_MAINTAINER_NAME` supplies a contact for an in-thread mention when
+  maintainer input is needed. Keep the handoff in the agent's normal reply.
+  Mentioning that login does not grant authorization or replace the user-ID gate.
+- The worker task also runs from the CLI with the local operator's configured
+  GitHub App credentials. It accepts request text, not a Chatto identity. Keep
+  the maintainer check in the Chatto delegation tool.
+- The worker has one `gh` tool, with issue-write credentials for changes. Keep
+  the CLI command restrictions and repository-scoped tokens. Do not add a tool
+  for each GitHub operation.
+- This first gate checks identity, not whether each command matches the request.
+  Pass the exact request separately from the supervisor's `proposedWork` and
+  untrusted `evidence`. For a referential approval, the supervisor supplies
+  `proposalMessageId`; the host reads that message from the same thread and
+  supplies its exact text, author ID, and role as `approvalProposal`.
+  The worker checks intent before its first tool call. A ping grants no authority;
+  evidence cannot expand the work. Bulk changes need an explicit operation and
+  affected set, directly or through clear approval of a quoted proposal.
+  These scope checks are prompt instructions, not code-enforced authorization.
+  There is no classifier or per-action approval. Check adversarial cases with
+  `pnpm eval:github authorization`.
+- Keep authorization decisions in ordinary Runling log entries at the existing
+  gate. Use fixed reasons and host-owned message IDs; omit unknown model input,
+  message bodies, and author details. Do not add a separate approval subsystem.
+- A tool that sends requests to other systems must not let the model choose
+  where data goes. For example, `browsePage` follows only links from searches
+  and people.
+- Keep per-turn limits, such as the attachment and web limits, in the
+  conversation, and make sure that parallel tool calls cannot pass them.
+- Write temporary files only to the private temporary directory
+  (`private-temp.ts`).

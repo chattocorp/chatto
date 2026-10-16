@@ -1,7 +1,9 @@
 # FDR-007: Authorization classifier
 
-**Status:** Experimental
-**Last reviewed:** 2026-09-30
+**Status:** Retired
+**Last reviewed:** 2026-10-14
+
+> **Retired.** [ADR-009](../adr/ADR-009-task-invocations.md) removed this feature. Runling no longer has the authorization classifier or its tool gate. This record keeps the prior design for reference. Applications can implement this policy with tasks and messages.
 
 ## Overview
 

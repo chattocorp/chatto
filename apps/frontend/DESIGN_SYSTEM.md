@@ -38,8 +38,10 @@ message search results:
   state, and hover-reveal action shell. Put `ActivityAvatar` in its `leading`
   snippet and `ActivityRowText` in its body: `ActivityRowText` shows unread
   activity in bold and keeps read activity in the normal text color.
-- Rows rest transparently on the owning `background` work plane. Hover and
-  keyboard focus rise exactly one level to `surface`; do not introduce ruled
+- Rows rest transparently on the owning `background` work plane. Threads
+  uses an avatar dot for unread rows, so bold text is not the only unread cue.
+  Important notification attention keeps its own colour. Hover and keyboard
+  focus rise exactly one level to `surface`; do not introduce ruled
   separators or a stronger surface jump.
 - Each row owns its rounded shape. The collection owns only the standard
   `p-1` inset and `gap-1`, so selections never merge into a single slab.
@@ -93,9 +95,10 @@ Do not add a separate speaking border or pulse to the card.
 
 ### Sidebar links
 
-Below the `md` breakpoint, the drawer fills the available frame width. The
-server gutter keeps its width and the navigation pane fills the remaining
-space. Both panes inherit one animation state through `sidebar-drawer`.
+Below the `md` breakpoint, the drawer leaves a 3rem strip of the client visible
+at the inline end. The existing dark backdrop covers this strip; tap it to
+close the drawer. The server gutter keeps its width and the navigation pane
+fills the remaining space. Both panes inherit one animation state through `sidebar-drawer`.
 Mouse drawers use the thread overlay's 300 px slide and fade. Touch drawers
 move the full frame width to follow a finger. Select a destination, use the app-header toggle, or swipe towards
 the inline start to close the drawer. Desktop sidebar sizing is unchanged.

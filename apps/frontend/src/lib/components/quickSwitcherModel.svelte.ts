@@ -13,6 +13,7 @@ import {
 } from '@chatto/client/api/messageSearch';
 import { useDebounce } from '$lib/hooks/useDebounce.svelte';
 import { startDMWith } from '$lib/dm/startDM';
+import { conversationPath } from '$lib/navigation/conversationPath';
 import { m } from '$lib/i18n/messages';
 import { buildMessageLinkPath } from '$lib/chatLinks';
 import { serverIdToSegment } from '$lib/navigation';
@@ -479,7 +480,7 @@ export class QuickSwitcherModel {
 
     const searches = instances.map(async (instance): Promise<QuickSwitcherItem[]> => {
       const store = serverRegistry.tryGetStore(instance.id);
-      if (!store?.serverInfo.isSupportedVersion) return [];
+      if (!store?.serverInfo.canConnect) return [];
       await serverUi(store).messageSearch.ensureStatus();
       if (!serverUi(store).messageSearch.available) return [];
 
@@ -530,10 +531,7 @@ export class QuickSwitcherModel {
   #itemUrl(item: QuickSwitcherItem): string | undefined {
     if ((item.kind === 'destination' || item.kind === 'server') && item.href) return item.href;
     if (item.kind === 'dm' || item.kind === 'room') {
-      return resolve('/chat/[serverId]/[roomId]', {
-        serverId: serverIdToSegment(item.serverId),
-        roomId: item.id
-      });
+      return conversationPath(item.serverId, item.id);
     }
     if (item.kind === 'message' && item.message) {
       return buildMessageLinkPath(

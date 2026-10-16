@@ -1,6 +1,6 @@
 # ADR-004: Transport-neutral event sources
 
-**Status:** Accepted
+**Status:** Accepted, amended by [ADR-009](ADR-009-task-invocations.md). A router gets a handle for each run that it starts and can use it later to send messages to the run.
 **Date:** 2026-09-22
 
 ## Context

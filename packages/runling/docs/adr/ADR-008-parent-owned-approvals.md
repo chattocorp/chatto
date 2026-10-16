@@ -1,6 +1,6 @@
 # ADR-008: Parents own approval of delegated actions
 
-**Status:** Accepted
+**Status:** Withdrawn. [ADR-009](ADR-009-task-invocations.md) removed the approval queue and its tool gate from Runling. This record described the policy of one application. Applications can implement such policy with tasks and messages.
 **Date:** 2026-10-03
 
 ## Context

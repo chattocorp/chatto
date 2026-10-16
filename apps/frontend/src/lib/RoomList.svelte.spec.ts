@@ -138,6 +138,7 @@ vi.mock(
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
+    tryGetStore: () => mocks.store,
     isOriginServer: vi.fn(() => true),
     getServer: vi.fn(() => ({ id: 'origin', url: 'https://chat.example.test' })),
     originServer: { id: 'origin' },

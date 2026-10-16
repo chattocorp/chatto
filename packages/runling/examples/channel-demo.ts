@@ -1,31 +1,28 @@
-import { log, task, Type, type WorkflowContext } from 'runling';
+import { log, task, Type, type Static } from 'runling';
 
-type Command = { type: 'add'; amount: number } | { type: 'label'; label: string };
+const Command = Type.Union([
+  Type.Object({ type: Type.Literal('add'), amount: Type.Number() }),
+  Type.Object({ type: Type.Literal('label'), label: Type.String() })
+]);
+const Total = Type.Object({ label: Type.String(), total: Type.Number() });
 
-type Update = { label: string; total: number };
+/** A child that changes its total for each command from its parent and reports every change. */
+const accumulate = task(
+  { name: 'Accumulate', input: Type.Number(), output: Total, receives: Command, emits: Total },
+  async (ctx, initial) => {
+    let total = initial;
+    let label = 'Counting';
 
-const accumulate = task(async function accumulate(
-  ctx: WorkflowContext<Command, Update>,
-  initial: number
-) {
-  let total = initial;
-  let label = 'Counting';
-  ctx.publishState({ label, total });
-
-  // Closing the inbox ends the loop after all queued commands are processed.
-  for await (const command of ctx.inbox) {
-    if (command.type === 'label') {
-      label = command.label;
-    } else {
-      total += command.amount;
+    // Closing the input ends the loop after all queued commands are processed.
+    for await (const command of ctx.inbox) {
+      if (command.type === 'label') label = command.label;
+      else total += command.amount;
+      await ctx.emit({ label, total });
     }
 
-    ctx.publishState({ label, total });
-    await ctx.emit({ label, total });
+    return { label, total };
   }
-
-  return { label, total };
-});
+);
 
 /** A parent reacts to child updates and sends new instructions while it runs. */
 export default task(
@@ -35,34 +32,28 @@ export default task(
     output: Type.Object({
       label: Type.String(),
       total: Type.Number(),
-      updates: Type.Array(Type.Object({ label: Type.String(), total: Type.Number() }))
+      updates: Type.Array(Total)
     })
   },
   async (ctx, { initial = 0 }) => {
-    const run = ctx.spawn((ctx: WorkflowContext<Command, Update>) => accumulate(ctx, initial));
-    const updates: Update[] = [];
+    await using child = ctx.start(accumulate, initial);
+    const updates: Static<typeof Total>[] = [];
 
-    try {
-      await run.send({ type: 'add', amount: 1 });
+    await child.send({ type: 'add', amount: 1 });
+    for await (const update of child.updates) {
+      updates.push(update);
+      log.info(`${update.label}: ${update.total}`);
 
-      for await (const update of run.output) {
-        updates.push(update);
-        log.info(`${update.label}: ${update.total}`);
+      if (updates.length === 1) {
+        // The child is still running. Change its instructions from the parent.
+        await child.send({ type: 'label', label: 'Updated by parent' });
+        await child.send({ type: 'add', amount: 10 });
 
-        if (updates.length === 1) {
-          // The child is still running. Change its instructions from the parent.
-          await run.send({ type: 'label', label: 'Updated by parent' });
-          await run.send({ type: 'add', amount: 10 });
-
-          // No more commands are needed; the child can now finish.
-          run.closeInput();
-        }
+        // No more commands are needed; the child can now finish.
+        child.closeInput();
       }
-
-      return { ...(await run.result), updates };
-    } finally {
-      // Also clean up if sending or consuming an update fails.
-      await run[Symbol.asyncDispose]();
     }
+
+    return { ...(await child.result), updates };
   }
 );

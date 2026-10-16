@@ -18,6 +18,7 @@
   import { sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
   import { useVisualViewport } from '$lib/hooks/useVisualViewport.svelte';
   import { chatRoomIdFromRoute } from '$lib/navigation/chatRoomRoute';
+  import { serverRegistry } from '$lib/client';
   import { isSafeInternalPath } from '$lib/navigation/safeInternalPath';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
@@ -48,7 +49,14 @@
   usePinchZoomPrevention();
 
   const activeServerId = $derived(getActiveServer());
-  const activeRoomId = $derived(chatRoomIdFromRoute(page.route.id, page.params.roomId));
+  const activeRoomId = $derived(
+    chatRoomIdFromRoute(
+      page.route.id,
+      page.params.roomId,
+      page.params.userId,
+      serverRegistry.tryGetStore(activeServerId)
+    )
+  );
 
   // OAuth windows keep their page content and branding without app navigation.
   const standaloneOAuth = $derived.by(() => {

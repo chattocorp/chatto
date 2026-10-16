@@ -51,6 +51,21 @@
       "view_in_admin": "In der Serveradministration anzeigen",
       "copy_user_id": "Benutzer-ID kopieren"
     },
+    "server_info": {
+      "title": "Serverinformationen",
+      "details": "Serverdetails"
+    },
+    "compatibility": {
+      "title": "Kompatibilität",
+      "view": "Kompatibilität anzeigen",
+      "limited": "Eingeschränkte Unterstützung",
+      "supported": "Keine bekannten Kompatibilitätsprobleme",
+      "affected": "Betroffene Funktionen",
+      "requires": "Erfordert {version} oder neuer",
+      "thread_views_title": "Thread-Ansichten werden nur eingeschränkt unterstützt",
+      "thread_views_description": "Gefolgte Threads und von dir gestartete Threads werden auf diesem Server möglicherweise nicht getrennt angezeigt.",
+      "upgrade": "Bitte den Serveradministrator, für volle Unterstützung auf {version} oder neuer zu aktualisieren."
+    },
     "server_gutter": {
       "move_up": "Nach oben verschieben",
       "move_down": "Nach unten verschieben",
@@ -60,7 +75,7 @@
       "version": "Version {version}",
       "unreachable": "Server nicht erreichbar",
       "connection_unavailable": "Verbindung nicht verfügbar",
-      "compatibility_server_too_old": "Dieser Server muss auf Chatto 0.5 oder neuer aktualisiert werden, bevor sich diese App verbinden kann.",
+      "compatibility_server_too_old": "Dieser Server muss auf Chatto {version} oder neuer aktualisiert werden, bevor sich diese App verbinden kann.",
       "compatibility_unknown": "Diese App kann die Kompatibilität anhand der Serverversion nicht bestimmen.",
       "go_to_notifications_count": {
         "one": "Zu {count} Benachrichtigung",
@@ -89,12 +104,14 @@
       "body": "Melde dich an, um auf diesem Server Nachrichten zu lesen und zu senden."
     },
     "threads": {
+      "sort_label": "Threads sortieren",
+      "sort_activity": "Aktivität",
+      "sort_created": "Alter",
       "tab_started": "Meine",
       "tab_followed": "Gefolgt",
       "tab_label": "Thread-Ansicht",
       "empty_mine_title": "Keine von dir gestarteten Threads",
       "empty_mine_body": "Threads, die du startest und denen du folgst, erscheinen hier.",
-      "empty_followed_body": "Threads von anderen, denen du folgst, erscheinen hier.",
       "title": "Threads",
       "subtitle": "Neue Aktivitäten in deinen Threads",
       "filter_label": "Threads filtern",

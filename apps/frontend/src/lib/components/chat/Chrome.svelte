@@ -95,18 +95,17 @@
 
   const searchHref = $derived(resolve('/chat/[serverId]/search', { serverId: serverSegment }));
   const isSearchActive = $derived(page.url.pathname === searchHref);
-  // Chrome renders before discovery confirms the server version. Do not query
-  // search status on a server this client does not support.
-  const serverSupported = $derived(activeStore.serverInfo.isSupportedVersion);
+  // Wait for remote discovery, but allow best-effort feature requests.
+  const serverCanConnect = $derived(activeStore.serverInfo.canConnect);
   const messageSearchAvailable = $derived(
-    serverSupported &&
+    serverCanConnect &&
       (serverUi(activeStore).messageSearch.statusError ||
         (serverUi(activeStore).messageSearch.statusLoaded &&
           serverUi(activeStore).messageSearch.status.state !== MessageSearchState.DISABLED))
   );
 
   $effect(() => {
-    if (serverSupported && activeStore.isAuthenticated)
+    if (serverCanConnect && activeStore.isAuthenticated)
       void serverUi(activeStore).messageSearch.ensureStatus();
   });
 

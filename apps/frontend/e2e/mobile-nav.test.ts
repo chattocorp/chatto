@@ -165,7 +165,7 @@ test.describe('Mobile Navigation', () => {
     await expect(roomList).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   });
 
-  test('sidebar closes on a leftward mouse drag on mobile', async ({ page, chatPage }) => {
+  test('sidebar ignores mouse drags in the narrow layout', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const roomPage = await chatPage.enterRoom('general');
@@ -182,6 +182,15 @@ test.describe('Mobile Navigation', () => {
     await page.mouse.move(320, 160);
     await page.mouse.down();
     await page.mouse.move(20, 160, { steps: 6 });
+    await page.mouse.up();
+
+    await expect(roomList).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await hamburger.click();
+    await expect(roomList).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+
+    await page.mouse.move(100, 160);
+    await page.mouse.down();
+    await page.mouse.move(320, 160, { steps: 6 });
     await page.mouse.up();
 
     await expect(roomList).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });

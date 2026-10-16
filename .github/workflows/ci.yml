@@ -339,9 +339,24 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          # The threshold check compares the PR head with its merge base.
+          fetch-depth: 0
 
       - name: Setup environment
         uses: ./.github/actions/setup
+
+      - name: Test server compatibility label check
+        run: mise x -- node --test tools/check-server-compatibility.test.mjs
+
+      - name: Check server compatibility threshold labels
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch --no-tags origin "$BASE_SHA" "$HEAD_SHA"
+          mise x -- node tools/check-server-compatibility.mjs
 
       # Breaking checks compare a pull request with its target branch. A push
       # has already passed them as a pull request, and labels that acknowledge

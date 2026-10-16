@@ -51,6 +51,21 @@
       "view_in_admin": "Bekijken in serverbeheer",
       "copy_user_id": "Gebruikers-ID kopiëren"
     },
+    "server_info": {
+      "title": "Serverinformatie",
+      "details": "Servergegevens"
+    },
+    "compatibility": {
+      "title": "Compatibiliteit",
+      "view": "Compatibiliteit bekijken",
+      "limited": "Beperkte ondersteuning",
+      "supported": "Geen bekende compatibiliteitsproblemen",
+      "affected": "Betrokken functies",
+      "requires": "Vereist {version} of nieuwer",
+      "thread_views_title": "Threadweergaven worden beperkt ondersteund",
+      "thread_views_description": "Gevolgde threads en threads die je hebt gestart, worden op deze server mogelijk niet afzonderlijk weergegeven.",
+      "upgrade": "Vraag de serverbeheerder om te upgraden naar {version} of nieuwer voor volledige ondersteuning."
+    },
     "server_gutter": {
       "move_up": "Omhoog verplaatsen",
       "move_down": "Omlaag verplaatsen",
@@ -60,7 +75,7 @@
       "version": "Versie {version}",
       "unreachable": "Server onbereikbaar",
       "connection_unavailable": "Verbinding niet beschikbaar",
-      "compatibility_server_too_old": "Deze server moet worden bijgewerkt naar Chatto 0.5 of nieuwer voordat deze app verbinding kan maken.",
+      "compatibility_server_too_old": "Deze server moet worden bijgewerkt naar Chatto {version} of nieuwer voordat deze app verbinding kan maken.",
       "compatibility_unknown": "Deze app kan de compatibiliteit niet bepalen aan de hand van de serverversie.",
       "go_to_notifications_count": {
         "one": "Ga naar {count} melding",
@@ -89,12 +104,14 @@
       "body": "Meld je aan om berichten op deze server te lezen en te versturen."
     },
     "threads": {
+      "sort_label": "Threads sorteren",
+      "sort_activity": "Activiteit",
+      "sort_created": "Leeftijd",
       "tab_started": "Van mij",
       "tab_followed": "Gevolgd",
       "tab_label": "Threadweergave",
       "empty_mine_title": "Geen door jou gestarte threads",
       "empty_mine_body": "Threads die je start en volgt, verschijnen hier.",
-      "empty_followed_body": "Threads van anderen die je volgt, verschijnen hier.",
       "title": "Discussies",
       "subtitle": "Nieuwe activiteit in je discussies",
       "filter_label": "Discussies filteren",

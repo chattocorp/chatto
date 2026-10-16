@@ -340,7 +340,8 @@ export class ServerStateStore {
     this.serverInfo = new ServerInfoState(
       registration.url,
       publicServerInfoLoader,
-      () => this.projection.serverState
+      () => this.projection.serverState,
+      originServer
     );
     this.notifications = new NotificationStore(notificationAPI);
     this.roomList = new RoomListView(this.projection, this.realtimeSync);
@@ -473,6 +474,7 @@ export class ServerStateStore {
       return;
     }
     const generation = this.#realtimeProjectionGeneration;
+    const transportGeneration = this.realtimeSync.transportGeneration;
     this.#catchUpResourceReads++;
     const batches = await Promise.all(
       (
@@ -562,7 +564,7 @@ export class ServerStateStore {
       this.requireCurrentRealtimeProjection(generation);
       this.#realtimeSnapshotPending = false;
     }
-    await this.waitForRealtimeReconciliation();
+    await this.waitForRealtimeReconciliation(transportGeneration);
     this.requireCurrentRealtimeProjection(generation);
   }
 
@@ -573,6 +575,7 @@ export class ServerStateStore {
     authorizationRefreshGeneration: number
   ): Promise<void> {
     const generation = this.#realtimeProjectionGeneration;
+    const transportGeneration = this.realtimeSync.transportGeneration;
     const requireCurrent = () => {
       this.requireCurrentRealtimeProjection(generation);
       if (
@@ -597,18 +600,27 @@ export class ServerStateStore {
       }
     });
     await this.hydrateProjectedDMUsers(cursor, generation, requireCurrent);
-    await this.waitForRealtimeReconciliation();
+    await this.waitForRealtimeReconciliation(transportGeneration);
     requireCurrent();
   }
 
-  /** Wait for queued event reads without starting catch-up resource reads. */
-  async waitForRealtimeReconciliation(): Promise<void> {
+  /**
+   * Wait for queued event reads without starting catch-up resource reads.
+   * Only the current transport may consume a failure. Catch-up callers keep
+   * the generation from before their auxiliary reads, since a reconnect can
+   * replace their transport during those reads. An obsolete waiter returns
+   * without granting its transport permission to advance the cursor.
+   */
+  async waitForRealtimeReconciliation(
+    transportGeneration = this.realtimeSync.transportGeneration
+  ): Promise<void> {
     const generation = this.#realtimeProjectionGeneration;
     while (
       this.#resourceRefreshes.size > 0 ||
       this.#userRefresh ||
       this.#projectionReconciliations.size > 0
     ) {
+      if (transportGeneration !== this.realtimeSync.transportGeneration) return;
       await Promise.all([
         ...this.#resourceRefreshes.values(),
         ...(this.#userRefresh ? [this.#userRefresh] : []),
@@ -617,6 +629,7 @@ export class ServerStateStore {
       ]);
       this.requireCurrentRealtimeProjection(generation);
     }
+    if (transportGeneration !== this.realtimeSync.transportGeneration) return;
     if (this.#reconciliationError) {
       const error = this.#reconciliationError;
       this.#reconciliationError = null;

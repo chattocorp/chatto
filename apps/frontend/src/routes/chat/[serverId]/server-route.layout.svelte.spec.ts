@@ -40,6 +40,7 @@ type RegisteredState = {
   userId?: string;
   connectionStatus?: 'connected' | 'disconnected';
   compatibilityProblem?: ServerCompatibilityProblem;
+  compatibilityWarning?: ServerCompatibilityProblem;
 };
 
 const { mocks } = vi.hoisted(() => ({
@@ -59,6 +60,9 @@ const { mocks } = vi.hoisted(() => ({
         version: '0.5.0-beta.7',
         iconUrl: null,
         get compatibilityProblem(): ServerCompatibilityProblem | null {
+          return mocks.servers?.get('origin')?.compatibilityWarning ?? null;
+        },
+        get blockingCompatibilityProblem(): ServerCompatibilityProblem | null {
           return mocks.servers?.get('origin')?.compatibilityProblem ?? null;
         }
       },
@@ -133,6 +137,35 @@ beforeEach(() => {
 });
 
 describe('server route authentication privacy', () => {
+  it.each(['server-too-old', 'unreachable'] as const)(
+    'keeps the compatibility report accessible when %s',
+    async (problem) => {
+      mocks.routeId = '/chat/[serverId]/info';
+      mocks.activeServerId = 'remote';
+      mocks.servers!.set('remote', { reauthRequiredAt: null });
+      mocks.servers!.set('origin', { reauthRequiredAt: null, compatibilityProblem: problem });
+      mocks.store.realtimeSync = new RealtimeProjectionSyncState();
+      const screen = render(Layout, {
+        props: { children: testSnippet('<main>Compatibility report</main>') }
+      });
+      await expect.element(screen.getByText('Compatibility report')).toBeVisible();
+      expect(screen.container.querySelector('[data-testid="server-unavailable"]')).toBeNull();
+    }
+  );
+  it.each(['server-too-old', 'server-version-unknown'] as const)(
+    'renders normal remote routes with a %s warning',
+    async (warning) => {
+      mocks.activeServerId = 'remote';
+      mocks.servers!.set('remote', { reauthRequiredAt: null, token: 'remote-token' });
+      mocks.servers!.set('origin', { reauthRequiredAt: null, compatibilityWarning: warning });
+      const { container } = render(Layout, {
+        props: { children: testSnippet('<main data-testid="private-route">Rooms</main>') }
+      });
+      await expect.element(page.getByTestId('server-chrome')).toBeInTheDocument();
+      expect(container.querySelector('[data-testid="private-route"]')).not.toBeNull();
+      expect(container.querySelector('[data-testid="server-unavailable"]')).toBeNull();
+    }
+  );
   it('keeps the normal chat view and its draft visible during snapshot replacement', async () => {
     const { container } = render(Layout, {
       props: {
@@ -250,7 +283,7 @@ describe('server route authentication privacy', () => {
     mocks.servers!.set('origin', {
       reauthRequiredAt: null,
       userId: 'viewer-1',
-      compatibilityProblem: 'server-too-old'
+      compatibilityProblem: 'unreachable'
     });
     mocks.store.realtimeSync = new RealtimeProjectionSyncState();
     const { container } = render(Layout, {

@@ -10,8 +10,8 @@ import (
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
-// MaxDMParticipants is the maximum number of participants allowed in a DM.
-// Beyond this, users should create a proper space/room with moderation.
+// MaxDMParticipants bounds lookup of stored DMs from older servers.
+// New DMs allow at most two distinct participants; use channels for groups.
 const MaxDMParticipants = 10
 
 // RoomKind is the closed enum of room kinds carried in subjects and KV

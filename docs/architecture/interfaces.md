@@ -392,10 +392,14 @@ For groups it validates matching body revisions, excludes resolved roots on
 subsequent queries, and restarts the provider cursor when exclusions change.
 This avoids scanning every matching reply. Provider pages contain at most 100
 hits and the complete grouped operation has a 30-second deadline. Exact totals
-and activity sorting require enumeration of all matching groups.
+and thread-date sorting require enumeration of all matching groups.
 The model rechecks current follow state and access before group pagination.
 Relevance and newest order use the best valid matching message; activity order
-uses current thread metadata. Both modes return `MessageSearchResult`: a
+uses current thread metadata. Creation order uses the indexed root message date,
+independent of the matching message. `ListFollowedThreads` also supports
+creation order; unspecified order retains latest activity first. Both paths
+sort before pagination, put unknown dates last, and break date ties by thread
+identity. All search modes return `MessageSearchResult`: a
 matching message and score, plus `ThreadSearchContext` for grouped results.
 The context reports actual viewer follow state. A root without replies is a group.
 The sealed group cursor carries a distinct-thread offset; message cursors carry

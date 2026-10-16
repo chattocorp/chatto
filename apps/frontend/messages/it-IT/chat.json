@@ -51,6 +51,21 @@
       "view_in_admin": "Visualizza nell'amministrazione del server",
       "copy_user_id": "Copia ID utente"
     },
+    "server_info": {
+      "title": "Informazioni sul server",
+      "details": "Dettagli del server"
+    },
+    "compatibility": {
+      "title": "Compatibilità",
+      "view": "Visualizza compatibilità",
+      "limited": "Supporto limitato",
+      "supported": "Nessun problema di compatibilità noto",
+      "affected": "Funzionalità interessate",
+      "requires": "Richiede {version} o successiva",
+      "thread_views_title": "Le viste delle discussioni hanno supporto limitato",
+      "thread_views_description": "Le discussioni che segui e quelle che hai avviato potrebbero non essere elencate separatamente su questo server.",
+      "upgrade": "Per il supporto completo, chiedi all’amministratore del server di aggiornare alla versione {version} o successiva."
+    },
     "server_gutter": {
       "move_up": "Sposta in alto",
       "move_down": "Sposta in basso",
@@ -60,7 +75,7 @@
       "version": "Versione {version}",
       "unreachable": "Server non raggiungibile",
       "connection_unavailable": "Connessione non disponibile",
-      "compatibility_server_too_old": "Questo server deve essere aggiornato a Chatto 0.5 o versione successiva prima che l'app possa connettersi.",
+      "compatibility_server_too_old": "Questo server deve essere aggiornato a Chatto {version} o versione successiva prima che l'app possa connettersi.",
       "compatibility_unknown": "Questa app non può determinare la compatibilità dalla versione del server.",
       "go_to_notifications_count": {
         "one": "Vai a {count} notifica",
@@ -89,12 +104,14 @@
       "body": "Accedi per leggere e inviare messaggi su questo server."
     },
     "threads": {
+      "sort_label": "Ordina discussioni",
+      "sort_activity": "Attività",
+      "sort_created": "Età",
       "tab_started": "Le mie",
       "tab_followed": "Seguite",
       "tab_label": "Vista delle discussioni",
       "empty_mine_title": "Non hai avviato discussioni",
       "empty_mine_body": "Le discussioni che avvii e segui appariranno qui.",
-      "empty_followed_body": "Le discussioni di altre persone che segui appariranno qui.",
       "title": "Discussioni",
       "subtitle": "Nuove attività nelle tue discussioni",
       "filter_label": "Filtra discussioni",

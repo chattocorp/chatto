@@ -15,14 +15,13 @@ test.describe('Direct-message thread echoes', () => {
   }) => {
     const userA = await createAndLoginTestUser(page);
 
-    await withServerUser(browser, serverURL, async ({ page: pageB }) => {
+    await withServerUser(browser, serverURL, async ({ page: pageB, user: userB }) => {
       const roomB = await new DMPage(pageB).startConversation(userA.login);
-      const roomID = pageB.url().split('/').pop()!;
       const rootText = `DM echo root ${Date.now()}`;
       const replyText = `DM echo reply ${Date.now()}`;
       const root = await roomB.sendMessage(rootText);
 
-      await page.goto(routes.room(roomID));
+      await page.goto(routes.user(userB.id!));
       await page.waitForURL(routes.patterns.anyRoom);
       const roomA = new RoomPage(page);
       await roomA.expectMessageVisible(rootText);

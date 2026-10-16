@@ -2102,6 +2102,18 @@ Current lifecycle state of an invite link.
 | `INVITE_LINK_STATUS_EXHAUSTED` | `3` | No value description provided. |
 | `INVITE_LINK_STATUS_REVOKED` | `4` | No value description provided. |
 
+<a id="chatto-api-v1-ThreadOrder"></a>
+
+### ThreadOrder
+
+Ordering for followed threads. Equal dates use a stable thread identity order.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `THREAD_ORDER_UNSPECIFIED` | `0` | Use newest activity first. |
+| `THREAD_ORDER_ACTIVITY` | `1` | Use newest activity first. |
+| `THREAD_ORDER_CREATED` | `2` | Use newest root-message creation first. Unknown creation dates come last. |
+
 <a id="chatto-api-v1-ThreadRootAuthorFilter"></a>
 
 ### ThreadRootAuthorFilter
@@ -2137,6 +2149,7 @@ Ordering for message or grouped-thread search results.
 | `MESSAGE_SEARCH_ORDER_RELEVANCE` | `1` | Highest message score first; grouped results use their best matching message. |
 | `MESSAGE_SEARCH_ORDER_NEWEST` | `2` | Newest matching message first, also when results are grouped. |
 | `MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY` | `3` | Return threads with the most recent activity first. Requires thread grouping. |
+| `MESSAGE_SEARCH_ORDER_THREAD_CREATED` | `4` | Newest root-message creation first, with unknown dates last. Requires thread grouping. Older servers can reject this order. |
 
 <a id="chatto-api-v1-MessageSearchScope"></a>
 

@@ -43,6 +43,14 @@ export enum MessageSearchOrder {
    * @generated from enum value: MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY = 3;
    */
   THREAD_ACTIVITY = 3,
+
+  /**
+   * Newest root-message creation first, with unknown dates last. Requires thread
+   * grouping. Older servers can reject this order.
+   *
+   * @generated from enum value: MESSAGE_SEARCH_ORDER_THREAD_CREATED = 4;
+   */
+  THREAD_CREATED = 4,
 }
 // Retrieve enum metadata with: proto3.getEnumType(MessageSearchOrder)
 proto3.util.setEnumType(MessageSearchOrder, "chatto.api.v1.MessageSearchOrder", [
@@ -50,6 +58,7 @@ proto3.util.setEnumType(MessageSearchOrder, "chatto.api.v1.MessageSearchOrder", 
   { no: 1, name: "MESSAGE_SEARCH_ORDER_RELEVANCE" },
   { no: 2, name: "MESSAGE_SEARCH_ORDER_NEWEST" },
   { no: 3, name: "MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY" },
+  { no: 4, name: "MESSAGE_SEARCH_ORDER_THREAD_CREATED" },
 ]);
 
 /**

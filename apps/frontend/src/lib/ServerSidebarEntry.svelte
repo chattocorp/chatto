@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { conversationPath } from '$lib/navigation/conversationPath';
   import { page } from '$app/state';
   import { serverUi } from '$lib/state/server/serverUi';
   import { goto, pushState } from '$app/navigation';
@@ -7,6 +8,7 @@
   import { serverRegistry, serverConnectionManager } from '$lib/client';
   import { notificationTarget } from '@chatto/client/server/notifications';
   import { serverDisplayName } from '@chatto/client/server/state';
+  import { MINIMUM_CONNECTABLE_SERVER_VERSION } from '@chatto/client/server/compatibility';
   import { serverHost } from '$lib/serverUrl';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
@@ -19,13 +21,13 @@
     contextMenuTrigger,
     type ContextMenuTriggerDetails
   } from '$lib/ui';
-  import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
   import { markNavigationServerAsRead } from '$lib/navigation/readActions';
   import { beginOriginReauthentication } from '$lib/auth/reauth';
   import { isRemoteSignInPending, startRemoteSignIn } from '$lib/auth/remoteSignIn.svelte';
   import { hardRedirectAfterSignOut } from '$lib/auth/signOutRedirect';
   import { clientAccount } from '$lib/state/clientAccount';
   import { toast } from '$lib/ui/toast';
+  import { copyToClipboard } from '$lib/utils/copyToClipboard';
   import { notificationPath } from '$lib/notificationPath';
   import { serverGutterOrder } from '$lib/state/serverGutterOrder.svelte';
   import type { Attachment } from 'svelte/attachments';
@@ -83,7 +85,7 @@
   const serverUnavailable = $derived(compatibility.status === 'unreachable');
 
   /**
-   * Why the client cannot use this server, or null. The gutter icon has two
+   * A connection problem or compatibility warning, or null. The gutter icon has two
    * states: normal, or a warning when this is set. Discovery and connection
    * attempts in progress are not problems; only a failed attempt is.
    */
@@ -94,7 +96,10 @@
         case 'unreachable':
           return m('chat.server_gutter.unreachable');
         case 'server-too-old':
-          return m('chat.server_gutter.compatibility_server_too_old');
+          if (compatibility.status === 'limited') return m('chat.compatibility.limited');
+          return m('chat.server_gutter.compatibility_server_too_old', {
+            version: MINIMUM_CONNECTABLE_SERVER_VERSION
+          });
         case 'server-version-unknown':
           return m('chat.server_gutter.compatibility_unknown');
       }
@@ -114,7 +119,7 @@
   const serverActionsAvailable = $derived(
     stores.isAuthenticated &&
       privateDataLoaded &&
-      compatibility.status === 'supported' &&
+      stores.serverInfo.canConnect &&
       !serverConnection.showConnectionLostIcon
   );
   let contextMenu = $state<ContextMenuTriggerDetails | null>(null);
@@ -127,7 +132,7 @@
     const frame = requestAnimationFrame(() =>
       node
         .closest('[role="menu"]')
-        ?.querySelector<HTMLButtonElement>('button:not(:disabled)')
+        ?.querySelector<HTMLElement>('a[href], button:not(:disabled)')
         ?.focus()
     );
     return () => cancelAnimationFrame(frame);
@@ -179,12 +184,7 @@
     closeContextMenu();
     if (!hostname) return;
 
-    try {
-      await navigator.clipboard.writeText(hostname);
-      toast.success(m('common.copied_to_clipboard'));
-    } catch {
-      toast.error(m('common.error.generic'));
-    }
+    await copyToClipboard(hostname);
   }
 
   function handleRemoveServer(): void {
@@ -290,7 +290,7 @@
     }
 
     if (roomId) {
-      await goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
+      await goto(conversationPath(serverId, roomId));
     } else {
       await goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
     }
@@ -340,11 +340,6 @@
           {host}
         </div>
       {/if}
-      {#if stores.serverInfo.version}
-        <div class="mt-1 text-muted">
-          {m('chat.server_gutter.version', { version: stores.serverInfo.version })}
-        </div>
-      {/if}
       {#if problem}
         <div
           class="mt-1 flex items-start gap-1.5 whitespace-normal text-warning"
@@ -357,24 +352,6 @@
       {/if}
     </div>
 
-    {#if recoveryNeeded}
-      <MenuItem
-        onclick={() => {
-          closeContextMenu();
-          void serverRegistry.recoverServer(serverId);
-        }}
-      >
-        {m('common.retry')}
-      </MenuItem>
-    {/if}
-    <NavigationContextMenu
-      kind="server"
-      showMarkRead={serverActionsAvailable}
-      canMarkRead={roomUnreadStore.hasAnyUnread || notificationStore.unreadNotificationCount > 0}
-      canLeave={false}
-      onMarkRead={handleMarkServerRead}
-      onLeave={handleRemoveServer}
-    />
     {#if serverActionsAvailable && stores.permissions.canCreateInviteLinks}
       <MenuSection>
         <MenuItem
@@ -388,54 +365,13 @@
     {/if}
     <MenuSection>
       <MenuItem
-        icon="icon-[uil--arrow-up]"
-        onclick={() => moveServer(-1)}
-        disabled={orderIndex <= 0}
-        dataTestid="move-server-up"
+        icon="icon-[uil--info-circle]"
+        href={resolve('/chat/[serverId]/info', { serverId: serverSegment })}
+        onclick={closeContextMenu}
       >
-        {m('chat.server_gutter.move_up')}
+        {m('chat.server_info.title')}
       </MenuItem>
-      <MenuItem
-        icon="icon-[uil--arrow-down]"
-        onclick={() => moveServer(1)}
-        disabled={orderIndex < 0 || orderIndex >= orderedServerIds.length - 1}
-        dataTestid="move-server-down"
-      >
-        {m('chat.server_gutter.move_down')}
-      </MenuItem>
-    </MenuSection>
-    <MenuSection>
-      {#if signInRequired || stores.isAuthenticated}
-        {#if signInRequired}
-          <MenuItem
-            icon="icon-[uil--sign-in-alt]"
-            mirrorIconInRtl
-            onclick={handleSignIn}
-            disabled={isRemoteSignInPending(serverId)}
-            dataTestid="server-log-in"
-          >
-            {m('chat.server_gutter.log_in')}
-          </MenuItem>
-        {:else}
-          <MenuItem
-            icon="icon-[uil--sign-out-alt]"
-            mirrorIconInRtl
-            onclick={() => void handleSignOut()}
-            disabled={signingOut}
-            dataTestid="server-sign-out"
-          >
-            {m('chat.server_gutter.sign_out')}
-          </MenuItem>
-        {/if}
-      {/if}
-      {#if !serverRegistry.isOriginServer(serverId)}
-        <MenuItem icon="icon-[uil--minus-circle]" tone="danger" onclick={handleRemoveServer}>
-          {m('room_list.remove_server')}
-        </MenuItem>
-      {/if}
-    </MenuSection>
-    {#if host}
-      <MenuSection>
+      {#if host}
         <MenuItem
           icon="icon-[uil--copy]"
           onclick={() => void handleCopyServerHostname()}
@@ -443,6 +379,78 @@
         >
           {m('room_list.copy_server_hostname')}
         </MenuItem>
+      {/if}
+      {#if serverActionsAvailable}
+        <MenuItem
+          icon="icon-[uil--check-circle]"
+          onclick={handleMarkServerRead}
+          disabled={!roomUnreadStore.hasAnyUnread &&
+            notificationStore.unreadNotificationCount === 0}
+        >
+          {m('room_list.mark_as_read')}
+        </MenuItem>
+      {/if}
+    </MenuSection>
+    {#if serverIds.length > 1}
+      <MenuSection>
+        <MenuItem
+          icon="icon-[uil--arrow-up]"
+          onclick={() => moveServer(-1)}
+          disabled={orderIndex <= 0}
+          dataTestid="move-server-up"
+        >
+          {m('chat.server_gutter.move_up')}
+        </MenuItem>
+        <MenuItem
+          icon="icon-[uil--arrow-down]"
+          onclick={() => moveServer(1)}
+          disabled={orderIndex < 0 || orderIndex >= orderedServerIds.length - 1}
+          dataTestid="move-server-down"
+        >
+          {m('chat.server_gutter.move_down')}
+        </MenuItem>
+      </MenuSection>
+    {/if}
+    {#if recoveryNeeded || signInRequired || stores.isAuthenticated || !serverRegistry.isOriginServer(serverId)}
+      <MenuSection>
+        {#if recoveryNeeded}
+          <MenuItem
+            icon="icon-[uil--redo]"
+            mirrorIconInRtl
+            onclick={() => {
+              closeContextMenu();
+              void serverRegistry.recoverServer(serverId);
+            }}>{m('common.retry')}</MenuItem
+          >
+        {/if}
+        {#if signInRequired || stores.isAuthenticated}
+          {#if signInRequired}
+            <MenuItem
+              icon="icon-[uil--sign-in-alt]"
+              mirrorIconInRtl
+              onclick={handleSignIn}
+              disabled={isRemoteSignInPending(serverId)}
+              dataTestid="server-log-in"
+            >
+              {m('chat.server_gutter.log_in')}
+            </MenuItem>
+          {:else}
+            <MenuItem
+              icon="icon-[uil--sign-out-alt]"
+              mirrorIconInRtl
+              onclick={() => void handleSignOut()}
+              disabled={signingOut}
+              dataTestid="server-sign-out"
+            >
+              {m('chat.server_gutter.sign_out')}
+            </MenuItem>
+          {/if}
+        {/if}
+        {#if !serverRegistry.isOriginServer(serverId)}
+          <MenuItem icon="icon-[uil--minus-circle]" tone="danger" onclick={handleRemoveServer}>
+            {m('room_list.remove_server')}
+          </MenuItem>
+        {/if}
       </MenuSection>
     {/if}
   </ContextMenu>
