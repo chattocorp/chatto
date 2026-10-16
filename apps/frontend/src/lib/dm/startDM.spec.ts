@@ -32,7 +32,7 @@ describe('startDMWith', () => {
   it('navigates to the recipient without creating a room first', async () => {
     await startDMWith('server-1', 'user-1');
 
-    expect(mocks.goto).toHaveBeenCalledWith('/chat/server-1/dm/user-1');
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/server-1/user/user-1');
     expect(mocks.getClient).not.toHaveBeenCalled();
     expect(mocks.startDM).not.toHaveBeenCalled();
   });

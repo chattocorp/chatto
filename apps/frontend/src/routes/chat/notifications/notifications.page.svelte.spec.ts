@@ -31,6 +31,8 @@ const { mocks } = vi.hoisted(() => ({
       unread: true
     },
     store: {
+      accountId: 'viewer',
+      projection: { rooms: new Map() },
       isAuthenticated: true,
       serverInfo: { name: 'Example Chat', iconUrl: null as string | null },
       currentUser: {
@@ -71,6 +73,7 @@ vi.mock(
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
+    tryGetStore: vi.fn((serverId: string) => mocks.stores.get(serverId)),
     servers: mocks.servers,
     getStore: vi.fn((serverId: string) => mocks.stores.get(serverId)),
     isOriginServer: vi.fn((serverId: string) => serverId === 'origin'),

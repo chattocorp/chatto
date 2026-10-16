@@ -1,7 +1,10 @@
 import { copyMessageLinkToClipboard, copyRoomLinkToClipboard } from './copyChatLink';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { getToasts, toast } from '$lib/ui/toast';
 import { serverRegistry } from '$lib/client';
+import { createClient } from '@chatto/client';
+import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { RoomKind } from '@chatto/client/api/roomDirectory';
 import { type RegisteredServer } from '@chatto/client/server/registry';
 import {
   buildMessageLinkURL,
@@ -39,6 +42,38 @@ describe('copied chat URLs', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it('copies and previews user-page message links through the viewer conversation', () => {
+    vi.stubGlobal('window', {
+      location: { origin },
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn()
+    });
+    const client = createClient();
+    onTestFinished(() => client.close());
+    client.registry.addServer(remoteServer);
+    const store = client.registry.getStore('remote');
+    vi.spyOn(store, 'accountId', 'get').mockReturnValue('viewer');
+    store.projection.rooms.set(
+      dmRoomId,
+      new RoomWithViewerState({
+        room: { id: dmRoomId, kind: RoomKind.DM },
+        memberUserIds: ['viewer', 'peer']
+      })
+    );
+    vi.spyOn(serverRegistry, 'tryGetStore').mockReturnValue(store);
+    vi.spyOn(serverRegistry, 'servers', 'get').mockReturnValue([remoteServer]);
+    const url = buildMessageLinkURL('remote', dmRoomId, messageId, threadRootEventId);
+    expect(url).toBe(`${remoteServer.url}/chat/-/user/peer/${threadRootEventId}/m/${messageId}`);
+    expect(parseMessageLink(url)).toEqual({
+      serverId: 'remote',
+      roomId: dmRoomId,
+      threadRootEventId,
+      messageId
+    });
+    expect(parseMessageLink(`${remoteServer.url}/chat/-/user/unknown/m/${messageId}`)).toBeNull();
+    expect(buildRoomLinkURL('remote', dmRoomId)).toBe(`${remoteServer.url}/chat/-/user/peer`);
   });
 
   it('uses the owning origin and home segment for an origin-server message', () => {

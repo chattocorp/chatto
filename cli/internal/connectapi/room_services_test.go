@@ -584,6 +584,16 @@ func TestRoomServiceStartDM(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser participantTwo: %v", err)
 	}
+	if _, err := env.rooms.StartDM(ctx, connect.NewRequest(&apiv1.StartDMRequest{ParticipantIds: []string{"missing-user"}})); errorCode(err) != connect.CodeNotFound {
+		t.Fatalf("missing recipient code = %v, want not found", errorCode(err))
+	}
+	if _, err := env.rooms.StartDM(ctx, connect.NewRequest(&apiv1.StartDMRequest{ParticipantIds: []string{"missing-one", "missing-two"}})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("new group with missing users code = %v, want invalid argument", errorCode(err))
+	}
+	self, err := env.rooms.StartDM(ctx, connect.NewRequest(&apiv1.StartDMRequest{}))
+	if err != nil || self.Msg.GetRoom().GetId() != core.DMRoomID([]string{env.viewer.Id}) {
+		t.Fatalf("self DM = %v, error = %v", self, err)
+	}
 
 	if _, err := env.rooms.StartDM(env.ctx, connect.NewRequest(&apiv1.StartDMRequest{
 		ParticipantIds: []string{participant.Id},
@@ -622,14 +632,11 @@ func TestRoomServiceStartDM(t *testing.T) {
 		t.Fatalf("StartDM returned different room IDs: %q and %q", room.GetId(), again.Msg.GetRoom().GetId())
 	}
 
-	groupResp, err := env.rooms.StartDM(ctx, connect.NewRequest(&apiv1.StartDMRequest{
+	_, err = env.rooms.StartDM(ctx, connect.NewRequest(&apiv1.StartDMRequest{
 		ParticipantIds: []string{participant.Id, participantTwo.Id},
 	}))
-	if err != nil {
-		t.Fatalf("StartDM group: %v", err)
-	}
-	if groupResp.Msg.GetRoom().GetId() == room.GetId() {
-		t.Fatalf("group StartDM reused two-person room ID %q", room.GetId())
+	if errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("StartDM new group code = %v, want invalid argument", errorCode(err))
 	}
 
 	blocked, err := env.core.CreateUser(env.ctx, core.SystemActorID, "connect-dm-blocked", "Connect DM Blocked", "password")

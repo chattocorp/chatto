@@ -14,11 +14,8 @@ interface StartDMResponse {
 /**
  * Page object for Direct Messages interactions.
  *
- * Per #330 phase 3, DMs are rooms on the Server: they appear in the
- * primary-server sidebar alongside channels and use the channel URL shape
- * (/chat/{instanceSegment}/{roomId}). This helper still reaches the DM
- * room directly via the API for setup convenience, and offers
- * sidebar-scoped assertions for tests that care about list rendering.
+ * DMs appear in the server sidebar and open the other user's page.
+ * This helper creates the conversation through the API for fixture setup.
  */
 export class DMPage {
   constructor(readonly page: Page) {}
@@ -38,7 +35,7 @@ export class DMPage {
 
   /**
    * Start a DM conversation with a user via the ConnectRPC API and navigate
-   * to the resulting room (using the channel URL shape).
+   * to that user's page.
    */
   async startConversation(username: string): Promise<RoomPage> {
     // Look up user by login
@@ -63,9 +60,9 @@ export class DMPage {
       throw new Error(`Failed to start DM with ${username}`);
     }
 
-    // Navigate to the conversation (channel URL shape)
-    await this.page.goto(routes.room(conversationId));
-    await this.page.waitForURL(routes.patterns.anyRoom);
+    // Navigate to the user page; room IDs remain API identities.
+    await this.page.goto(routes.user(userId));
+    await this.page.waitForURL(routes.user(userId));
 
     const roomPage = new RoomPage(this.page);
     await expect(roomPage.messageInput).toBeVisible({ timeout: 5000 });

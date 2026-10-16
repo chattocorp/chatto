@@ -15,8 +15,9 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
 ## Behavior
 
 - A DM is started from user context menus inside the chat UI (member list clicks, @mention clicks, message author clicks, and clicks on user names in system events such as joins, leaves, and call starts, and on the avatar of a single-user system event).
-- Starting a DM with another user navigates to the resulting two-person DM room. If that conversation already exists, the user lands in it rather than creating a duplicate.
-- Human users can start a DM with themselves. The product does not let users create group DMs, even though the underlying room model and public API can represent a larger fixed participant set.
+- A user's page at `/chat/<server>/user/<userId>` shows their profile and the viewing user's direct conversation with them. Opening the page finds or creates that conversation. The URL keeps the target user's ID, including after account deletion.
+- Thread and message links use the same user-page prefix. Old DM entry links and one-to-one room links redirect to the user page and preserve their destinations.
+- Human users can start a DM with themselves. New DMs have at most two distinct participants, including the caller. The API rejects new group DMs. Existing group conversations remain accessible through room URLs.
 - A bot cannot call `RoomService.StartDM`. This rule applies to self-DMs, new
   DMs, group DMs, and DMs that already exist. A human must start a DM that
   includes a bot. The bot then needs explicit DM-scoped message grants.
@@ -103,7 +104,7 @@ of a channel name.
 ### 4. Deterministic room IDs
 
 **Decision:** A DM room ID is a hash of the sorted participant user IDs.
-**Why:** Find-or-create needs to be cheap and race-free. Hashing the participant set gives a content-addressable ID, so the same two users always land in the same DM without a database lookup. The more general participant-set model remains an implementation capability rather than a product promise.
+**Why:** Find-or-create needs to be cheap and race-free. Hashing the participant set gives a content-addressable ID, so the same two users always land in the same DM without a database lookup. Stored group conversations keep their IDs, but new conversations are limited to two participants.
 **Tradeoff:** DM membership is fixed at creation. The product has no way to add participants to a conversation or turn a one-to-one DM into a group conversation; users who need a shared conversation with more people use a channel room.
 
 ### 5. Per-server conversation scope with combined notifications

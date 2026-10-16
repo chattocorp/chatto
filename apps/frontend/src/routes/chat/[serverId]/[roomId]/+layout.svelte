@@ -1,5 +1,8 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { goto } from '$app/navigation';
+  import type { ResolvedPathname } from '$app/types';
+  import { conversationUserId, userPath } from '$lib/navigation/conversationPath';
   import { serverUi } from '$lib/state/server/serverUi';
   import { roomRouteAccess } from '$lib/navigation/roomLinkAccess';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -24,6 +27,13 @@
   );
 
   let threadId = $derived(page.params.threadId);
+  const userId = $derived(ready && roomId ? conversationUserId(serverStore, roomId) : null);
+  $effect(() => {
+    if (!userId) return;
+    const destination =
+      `${userPath(activeServerId, userId, { threadId: page.params.threadId, messageId: page.params.messageId })}${page.url.search}${page.url.hash}` as ResolvedPathname;
+    void goto(destination, { replaceState: true });
+  });
 
   const isMessageLinkMode = $derived(page.route.id === '/chat/[serverId]/[roomId]/m/[messageId]');
   const roomAccess = $derived.by(() => {
@@ -40,7 +50,9 @@
   );
 </script>
 
-{#if ready && roomId && roomAccess.kind === 'nonmember'}
+{#if userId}
+  <PageTitle />
+{:else if ready && roomId && roomAccess.kind === 'nonmember'}
   {#key roomAccess.room.id}
     <RoomJoinScreen room={roomAccess.room} serverSegment={data.serverSegment} />
   {/key}

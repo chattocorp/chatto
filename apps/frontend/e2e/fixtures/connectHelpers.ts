@@ -338,6 +338,15 @@ export async function joinRoomViaConnect(client: ConnectClient, roomId: string):
 export async function getIdsFromUrlViaConnect(
   page: Page
 ): Promise<{ spaceId: string; roomId: string }> {
+  const userId = new URL(page.url()).pathname.match(/^\/chat\/-\/user\/([^/]+)/)?.[1];
+  if (userId) {
+    const result = await connectPost<{ room: { id: string } }>(
+      page,
+      'chatto.api.v1.RoomService/StartDM',
+      { participantIds: [userId] }
+    );
+    return { spaceId: 'DM', roomId: result.room.id };
+  }
   const match = page.url().match(/\/chat\/-\/([^/]+)/);
   if (!match) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
   return { spaceId: 'server', roomId: match[1] };
