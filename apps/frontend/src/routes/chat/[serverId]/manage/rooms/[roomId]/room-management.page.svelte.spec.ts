@@ -261,6 +261,7 @@ describe('room management page identity and realtime authority', () => {
     server = createTestServerScope({
       serverId: 'server-a',
       permissions: { canManageRooms: true, canAdminManageRoles: true },
+      serverInfo: { limitedFeatures: ['independentSlowMode'] },
       store: { adminRoomLayout: { refresh: mocks.refreshLayout } }
     });
     mocks.refreshLayout.mockResolvedValue(undefined);
@@ -359,6 +360,7 @@ describe('room management page identity and realtime authority', () => {
     const { container } = renderSections('general');
     await settle();
     expect(container.querySelector('#room-settings-thread-slow-mode')).toBeNull();
+    expect(container.querySelector('a[href$="/info#independentSlowMode"]')).not.toBeNull();
 
     const select = container.querySelector('#room-settings-slow-mode') as HTMLSelectElement;
     select.value = '10';
@@ -378,6 +380,7 @@ describe('room management page identity and realtime authority', () => {
     await settle();
     const thread = container.querySelector('#room-settings-thread-slow-mode') as HTMLSelectElement;
     const root = container.querySelector('#room-settings-slow-mode') as HTMLSelectElement;
+    expect(container.querySelector('[data-testid="feature-compatibility-notice"]')).toBeNull();
     expect(thread.value).toBe('60');
     thread.value = '0';
     thread.dispatchEvent(new Event('change', { bubbles: true }));

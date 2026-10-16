@@ -64,6 +64,8 @@
       "requires": "נדרשת גרסה {version} או חדשה יותר",
       "thread_views_title": "התמיכה בתצוגות שרשורים מוגבלת",
       "thread_views_description": "ייתכן ששרשורים שאתה עוקב אחריהם ושרשורים שפתחת לא יוצגו בנפרד בשרת זה.",
+      "independent_slow_mode_title": "מצב איטי עצמאי אינו זמין",
+      "independent_slow_mode_description": "שרת זה משתמש בזמן המתנה משותף להודעות בערוץ ולתשובות בשרשורים.",
       "upgrade": "לתמיכה מלאה, בקש ממנהל השרת לשדרג לגרסה {version} או חדשה יותר."
     },
     "server_gutter": {

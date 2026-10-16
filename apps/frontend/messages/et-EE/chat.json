@@ -64,6 +64,8 @@
       "requires": "Nõuab versiooni {version} või uuemat",
       "thread_views_title": "Lõimevaadete tugi on piiratud",
       "thread_views_description": "Jälgitavaid lõimi ja Teie alustatud lõimi ei pruugita selles serveris eraldi kuvada.",
+      "independent_slow_mode_title": "Sõltumatu aeglane režiim pole saadaval",
+      "independent_slow_mode_description": "See server kasutab kanalisõnumite ja lõimevastuste jaoks ühist ooteaega.",
       "upgrade": "Täieliku toe saamiseks paluge serveri administraatoril uuendada versioonile {version} või uuemale."
     },
     "server_gutter": {

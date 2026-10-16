@@ -64,6 +64,8 @@
       "requires": "Requiere {version} o posterior",
       "thread_views_title": "Las vistas de hilos tienen compatibilidad limitada",
       "thread_views_description": "Es posible que los hilos que sigues y los que has iniciado no se muestren por separado en este servidor.",
+      "independent_slow_mode_title": "El modo lento independiente no está disponible",
+      "independent_slow_mode_description": "Este servidor utiliza un tiempo de espera compartido para los mensajes del canal y las respuestas en los hilos.",
       "upgrade": "Para obtener compatibilidad completa, pide al administrador del servidor que actualice a {version} o posterior."
     },
     "server_gutter": {

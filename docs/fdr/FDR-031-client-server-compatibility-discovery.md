@@ -25,7 +25,7 @@ Chatto's pre-1.0 API remains experimental.
   one server is registered. Retry, sign-in/out, and removal form the final group.
   The menu header shows the name and hostname; the version is on the information page.
 - Remote servers have two version thresholds. Full feature support requires
-  `0.5.0-beta.16`. The minimum connectable release is `0.5.0-beta.9`.
+  `0.5.0-beta.18`. The minimum connectable release is `0.5.0-beta.9`.
   Between these thresholds, the client attempts the normal UI and realtime
   connection. The server menu shows a short summary and a Server information
   action. The Compatibility section of that page lists known feature limitations,
@@ -34,8 +34,10 @@ Chatto's pre-1.0 API remains experimental.
   The page also shows supported, unknown, and unreachable states. Remote-server
   reports remain accessible when chat cannot connect or the user is signed out.
   Thread views require beta.16 to separate followed threads from threads
-  started by the viewer. Older servers can still show thread results, with
-  a notice that the lists may not be separated correctly. Below the
+  started by the viewer. Older servers can show thread results, with a notice
+  that the lists may not be separated correctly. Independent channel and
+  thread Slow Mode requires beta.18. Older servers keep a shared cooldown
+  and a single setting; room field presence still controls the runtime fallback. Below the
   connection threshold, it blocks chat routes and the realtime connection.
 - The origin server serves its own frontend and has no version check.
 - Custom suffixes do not affect comparison. For example,

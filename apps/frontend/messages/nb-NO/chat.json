@@ -64,6 +64,8 @@
       "requires": "Krever {version} eller nyere",
       "thread_views_title": "Trådvisninger har begrenset støtte",
       "thread_views_description": "Tråder du følger og tråder du startet, vises kanskje ikke separat på denne serveren.",
+      "independent_slow_mode_title": "Uavhengig langsom modus er ikke tilgjengelig",
+      "independent_slow_mode_description": "Denne serveren bruker én felles ventetid for kanalmeldinger og trådsvar.",
       "upgrade": "Be serveradministratoren om å oppgradere til {version} eller nyere for full støtte."
     },
     "server_gutter": {

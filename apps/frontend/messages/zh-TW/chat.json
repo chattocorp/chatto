@@ -64,6 +64,8 @@
       "requires": "需要 {version} 或更新版本",
       "thread_views_title": "討論串檢視的支援有限",
       "thread_views_description": "此伺服器可能無法分別列出你追蹤的討論串和你發起的討論串。",
+      "independent_slow_mode_title": "無法使用獨立慢速模式",
+      "independent_slow_mode_description": "此伺服器對頻道訊息和討論串回覆使用共用的冷卻時間。",
       "upgrade": "如需完整支援，請要求伺服器管理員升級至 {version} 或更新版本。"
     },
     "server_gutter": {

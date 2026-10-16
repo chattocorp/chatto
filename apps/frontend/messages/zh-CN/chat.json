@@ -64,6 +64,8 @@
       "requires": "需要 {version} 或更新版本",
       "thread_views_title": "话题视图的支持有限",
       "thread_views_description": "此服务器可能无法分别列出你关注的话题和你发起的话题。",
+      "independent_slow_mode_title": "独立慢速模式不可用",
+      "independent_slow_mode_description": "此服务器对频道消息和话题回复使用共用的冷却时间。",
       "upgrade": "如需完整支持，请要求服务器管理员升级到 {version} 或更新版本。"
     },
     "server_gutter": {

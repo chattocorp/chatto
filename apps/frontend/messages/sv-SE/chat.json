@@ -64,6 +64,8 @@
       "requires": "Kräver {version} eller senare",
       "thread_views_title": "Trådvyer har begränsat stöd",
       "thread_views_description": "Följda trådar och trådar som du har startat kanske inte visas separat på den här servern.",
+      "independent_slow_mode_title": "Oberoende långsamt läge är inte tillgängligt",
+      "independent_slow_mode_description": "Den här servern använder en gemensam väntetid för kanalmeddelanden och trådsvar.",
       "upgrade": "Be serveradministratören att uppgradera till {version} eller senare för fullt stöd."
     },
     "server_gutter": {

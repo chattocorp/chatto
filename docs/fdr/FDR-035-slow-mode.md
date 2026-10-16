@@ -105,7 +105,10 @@ thread deadlines. Older clients can display an inaccurate thread countdown.
 **Decision:** Keep the existing interval for root posts and add an optional
 thread interval. New servers return both values, including explicit Off.
 **Why:** Clients can detect older servers by the absent thread interval and
-keep the existing shared-timer interface without a higher minimum version.
+keep the existing shared-timer interface without a higher connection floor.
+The feature compatibility list requires beta.18 for full support and reports
+the shared-timer limitation on older servers. The connection floor stays at
+beta.9; field presence continues to select the runtime behavior.
 **Tradeoff:** Wire compatibility does not preserve the old shared-timer
 behavior. Users of older clients must update to see independent countdowns.
 

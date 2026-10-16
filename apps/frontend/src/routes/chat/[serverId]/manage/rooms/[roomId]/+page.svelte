@@ -8,6 +8,7 @@ change the settings goes to the Members section instead.
 -->
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
+  import FeatureCompatibilityNotice from '$lib/components/chat/FeatureCompatibilityNotice.svelte';
   import { serverUi } from '$lib/state/server/serverUi';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -122,5 +123,13 @@ change the settings goes to the Members section instead.
   {/key}
   <RoomVisibilitySettingsPanel room={detail.room} onSave={saveSettings} />
   <RoomSlowModeSettingsPanel room={detail.room} onSave={saveSettings} />
+  {#if detail.room.threadSlowModeSeconds === undefined}
+    <FeatureCompatibilityNotice
+      serverSegment={serverIdToSegment(serverScope.serverId)}
+      features={serverScope.store.serverInfo.limitedFeatures.filter(
+        (feature) => feature === 'independentSlowMode'
+      )}
+    />
+  {/if}
   <RoomThreadingModeSettingsPanel room={detail.room} onSave={saveSettings} />
 {/if}

@@ -64,6 +64,8 @@
       "requires": "Richiede {version} o successiva",
       "thread_views_title": "Le viste delle discussioni hanno supporto limitato",
       "thread_views_description": "Le discussioni che segui e quelle che hai avviato potrebbero non essere elencate separatamente su questo server.",
+      "independent_slow_mode_title": "La modalità lenta indipendente non è disponibile",
+      "independent_slow_mode_description": "Questo server usa un unico intervallo di attesa per i messaggi del canale e le risposte nei thread.",
       "upgrade": "Per il supporto completo, chiedi all’amministratore del server di aggiornare alla versione {version} o successiva."
     },
     "server_gutter": {

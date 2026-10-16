@@ -64,6 +64,8 @@
       "requires": "Nécessite la version {version} ou ultérieure",
       "thread_views_title": "Les vues des fils sont partiellement prises en charge",
       "thread_views_description": "Les fils suivis et ceux que vous avez démarrés peuvent ne pas être affichés séparément sur ce serveur.",
+      "independent_slow_mode_title": "Le mode lent indépendant est indisponible",
+      "independent_slow_mode_description": "Ce serveur utilise un délai commun pour les messages du canal et les réponses dans les fils.",
       "upgrade": "Pour une prise en charge complète, demandez à l’administrateur du serveur de passer à la version {version} ou ultérieure."
     },
     "server_gutter": {
