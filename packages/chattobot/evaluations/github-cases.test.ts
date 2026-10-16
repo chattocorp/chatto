@@ -135,6 +135,25 @@ test('the fixture applies an edit and retains unrelated fields', async () => {
   expect(github.commands[0]).toMatchObject({ access: 'write', operation: 'edit', supported: true });
 });
 
+test('search results expose only requested fields until the issue body is read', async () => {
+  const github = new FakeGitHub([
+    {
+      number: 12,
+      title: 'T',
+      body: 'Detailed proposal',
+      labels: [],
+      state: 'OPEN',
+      url: issueUrl(12)
+    }
+  ]);
+  const search = await call(github, 'issue', 'list', '--json', 'number,title,url,state');
+  expect(JSON.parse(search.output)).toEqual([
+    { number: 12, title: 'T', url: issueUrl(12), state: 'OPEN' }
+  ]);
+  const detail = await call(github, 'issue', 'view', '12', '--json=body');
+  expect(JSON.parse(detail.output)).toEqual({ body: 'Detailed proposal' });
+});
+
 test('a lost create response commits the issue, which a later read can find', async () => {
   const github = new FakeGitHub([], true);
   expect(await call(github, 'issue', 'create', '--title=T', '--body=B')).toMatchObject({
