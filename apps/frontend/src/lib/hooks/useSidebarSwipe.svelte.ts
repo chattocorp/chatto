@@ -4,9 +4,10 @@ import { panGesture } from './panGesture.svelte';
 
 /**
  * Svelte action: drives the mobile sidebar's open/close state from a
- * horizontal pointer drag anywhere inside the app-shell host.
+ * horizontal touch drag anywhere inside the app-shell host.
  *
- * Ignored on desktop (gated by `sidebarNav.isMobile`). When closed, only
+ * Mouse and pen input are ignored, including on touch-capable devices.
+ * Touch gestures require the narrow drawer layout (`sidebarNav.isMobile`). When closed, only
  * drags towards the inline end claim; when open, only drags towards the inline
  * start claim. Gestures that
  * begin inside horizontally scrollable content are ignored so galleries and
@@ -48,7 +49,10 @@ function startsInsideExcludedSurface(event: PointerEvent | TouchEvent, host: HTM
 export function sidebarSwipe(node: HTMLElement) {
   return panGesture(node, {
     axis: 'x',
-    enabled: (event) => sidebarNav.isMobile && !startsInsideExcludedSurface(event, node),
+    enabled: (event) =>
+      event.type === 'touchstart' &&
+      sidebarNav.isMobile &&
+      !startsInsideExcludedSurface(event, node),
     shouldClaim: (dx) => (sidebarNav.isOpen ? toInlineEndDelta(dx) < 0 : toInlineEndDelta(dx) > 0),
     onStart: () => sidebarNav.startDrag(),
     onUpdate: (dx) => sidebarNav.updateDrag(toInlineEndDelta(dx)),

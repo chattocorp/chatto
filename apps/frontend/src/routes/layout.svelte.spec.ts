@@ -183,13 +183,13 @@ function renderLayout(content = '<main data-testid="layout-child"></main>') {
   });
 }
 
-function pointer(type: string, x: number, y = 120) {
-  return new PointerEvent(type, {
+function touch(type: string, x: number, y = 120) {
+  const contact = new Touch({ identifier: 1, target: document.body, clientX: x, clientY: y });
+  return new TouchEvent(type, {
     bubbles: true,
     cancelable: true,
-    pointerId: 1,
-    clientX: x,
-    clientY: y
+    touches: type === 'touchend' ? [] : [contact],
+    changedTouches: [contact]
   });
 }
 
@@ -246,9 +246,9 @@ describe('OAuth page layout', () => {
       .not.toBeInTheDocument();
 
     const child = q(view.container, '[data-testid="layout-child"]')!;
-    child.dispatchEvent(pointer('pointerdown', 100));
-    window.dispatchEvent(pointer('pointermove', 310));
-    window.dispatchEvent(pointer('pointerup', 310));
+    child.dispatchEvent(touch('touchstart', 100));
+    window.dispatchEvent(touch('touchmove', 310));
+    window.dispatchEvent(touch('touchend', 310));
     await tick();
     expect(sidebarNav.isOpen).toBe(false);
   });
@@ -305,8 +305,8 @@ describe('root layout mobile sidebar animation', () => {
     const onClick = vi.fn();
     child.addEventListener('click', onClick);
 
-    child.dispatchEvent(pointer('pointerdown', 2));
-    window.dispatchEvent(pointer('pointerup', 2));
+    child.dispatchEvent(touch('touchstart', 2));
+    window.dispatchEvent(touch('touchend', 2));
     child.click();
 
     expect(q(container, '[data-testid="mobile-sidebar-edge"]')).toBeNull();
@@ -322,9 +322,9 @@ describe('root layout mobile sidebar animation', () => {
     expect(child).not.toBeNull();
     if (!child) return;
 
-    child.dispatchEvent(pointer('pointerdown', 100));
-    window.dispatchEvent(pointer('pointermove', 310));
-    window.dispatchEvent(pointer('pointerup', 310));
+    child.dispatchEvent(touch('touchstart', 100));
+    window.dispatchEvent(touch('touchmove', 310));
+    window.dispatchEvent(touch('touchend', 310));
     await tick();
 
     expect(sidebarNav.isOpen).toBe(true);
@@ -372,9 +372,9 @@ describe('root layout mobile sidebar animation', () => {
     expect(panel).not.toBeNull();
     if (!panel) return;
 
-    panel.dispatchEvent(pointer('pointerdown', 320));
-    window.dispatchEvent(pointer('pointermove', 0));
-    window.dispatchEvent(pointer('pointerup', 0));
+    panel.dispatchEvent(touch('touchstart', 320));
+    window.dispatchEvent(touch('touchmove', 0));
+    window.dispatchEvent(touch('touchend', 0));
     await tick();
 
     expect(sidebarNav.isOpen).toBe(false);
@@ -390,9 +390,9 @@ describe('root layout mobile sidebar animation', () => {
     expect(child).not.toBeNull();
     if (!child) return;
 
-    child.dispatchEvent(pointer('pointerdown', 310));
-    window.dispatchEvent(pointer('pointermove', 100));
-    window.dispatchEvent(pointer('pointerup', 100));
+    child.dispatchEvent(touch('touchstart', 310));
+    window.dispatchEvent(touch('touchmove', 100));
+    window.dispatchEvent(touch('touchend', 100));
     await tick();
 
     expect(sidebarNav.isOpen).toBe(true);
