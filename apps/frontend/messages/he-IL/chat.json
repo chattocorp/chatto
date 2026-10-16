@@ -51,6 +51,21 @@
       "view_in_admin": "הצגה בניהול השרת",
       "copy_user_id": "העתק מזהה משתמש"
     },
+    "server_info": {
+      "title": "מידע על השרת",
+      "details": "פרטי השרת"
+    },
+    "compatibility": {
+      "title": "תאימות",
+      "view": "הצג תאימות",
+      "limited": "תמיכה מוגבלת",
+      "supported": "אין בעיות תאימות ידועות",
+      "affected": "תכונות מושפעות",
+      "requires": "נדרשת גרסה {version} או חדשה יותר",
+      "thread_views_title": "התמיכה בתצוגות שרשורים מוגבלת",
+      "thread_views_description": "ייתכן ששרשורים שאתה עוקב אחריהם ושרשורים שפתחת לא יוצגו בנפרד בשרת זה.",
+      "upgrade": "לתמיכה מלאה, בקש ממנהל השרת לשדרג לגרסה {version} או חדשה יותר."
+    },
     "server_gutter": {
       "move_up": "העבר למעלה",
       "move_down": "העבר למטה",

@@ -51,6 +51,21 @@
       "view_in_admin": "Skatīt servera administrēšanā",
       "copy_user_id": "Kopēt lietotāja ID"
     },
+    "server_info": {
+      "title": "Servera informācija",
+      "details": "Servera dati"
+    },
+    "compatibility": {
+      "title": "Saderība",
+      "view": "Skatīt saderību",
+      "limited": "Ierobežots atbalsts",
+      "supported": "Nav zināmu saderības problēmu",
+      "affected": "Ietekmētās funkcijas",
+      "requires": "Nepieciešama {version} vai jaunāka versija",
+      "thread_views_title": "Pavedienu skatiem ir ierobežots atbalsts",
+      "thread_views_description": "Pavedieni, kuriem sekojat, un Jūsu sāktie pavedieni šajā serverī var netikt parādīti atsevišķi.",
+      "upgrade": "Lai iegūtu pilnu atbalstu, lūdziet servera administratoram atjaunināt uz {version} vai jaunāku versiju."
+    },
     "server_gutter": {
       "move_up": "Pārvietot uz augšu",
       "move_down": "Pārvietot uz leju",

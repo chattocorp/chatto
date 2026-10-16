@@ -51,6 +51,21 @@
       "view_in_admin": "Bekijken in serverbeheer",
       "copy_user_id": "Gebruikers-ID kopiëren"
     },
+    "server_info": {
+      "title": "Serverinformatie",
+      "details": "Servergegevens"
+    },
+    "compatibility": {
+      "title": "Compatibiliteit",
+      "view": "Compatibiliteit bekijken",
+      "limited": "Beperkte ondersteuning",
+      "supported": "Geen bekende compatibiliteitsproblemen",
+      "affected": "Betrokken functies",
+      "requires": "Vereist {version} of nieuwer",
+      "thread_views_title": "Threadweergaven worden beperkt ondersteund",
+      "thread_views_description": "Gevolgde threads en threads die je hebt gestart, worden op deze server mogelijk niet afzonderlijk weergegeven.",
+      "upgrade": "Vraag de serverbeheerder om te upgraden naar {version} of nieuwer voor volledige ondersteuning."
+    },
     "server_gutter": {
       "move_up": "Omhoog verplaatsen",
       "move_down": "Omlaag verplaatsen",

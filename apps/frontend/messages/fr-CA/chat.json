@@ -51,6 +51,21 @@
       "view_in_admin": "Voir dans l’administration du serveur",
       "copy_user_id": "Copier l’identifiant de l’utilisateur"
     },
+    "server_info": {
+      "title": "Informations du serveur",
+      "details": "Détails du serveur"
+    },
+    "compatibility": {
+      "title": "Compatibilité",
+      "view": "Voir la compatibilité",
+      "limited": "Prise en charge limitée",
+      "supported": "Aucun problème de compatibilité connu",
+      "affected": "Fonctionnalités concernées",
+      "requires": "Nécessite la version {version} ou ultérieure",
+      "thread_views_title": "Les vues des fils sont partiellement prises en charge",
+      "thread_views_description": "Les fils suivis et ceux que vous avez démarrés peuvent ne pas être affichés séparément sur ce serveur.",
+      "upgrade": "Pour une prise en charge complète, demandez à l’administrateur du serveur de passer à la version {version} ou ultérieure."
+    },
     "server_gutter": {
       "move_up": "Déplacer vers le haut",
       "move_down": "Déplacer vers le bas",

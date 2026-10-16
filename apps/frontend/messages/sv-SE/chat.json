@@ -51,6 +51,21 @@
       "view_in_admin": "Visa i serveradministrationen",
       "copy_user_id": "Kopiera användar-ID"
     },
+    "server_info": {
+      "title": "Serverinformation",
+      "details": "Serveruppgifter"
+    },
+    "compatibility": {
+      "title": "Kompatibilitet",
+      "view": "Visa kompatibilitet",
+      "limited": "Begränsat stöd",
+      "supported": "Inga kända kompatibilitetsproblem",
+      "affected": "Berörda funktioner",
+      "requires": "Kräver {version} eller senare",
+      "thread_views_title": "Trådvyer har begränsat stöd",
+      "thread_views_description": "Följda trådar och trådar som du har startat kanske inte visas separat på den här servern.",
+      "upgrade": "Be serveradministratören att uppgradera till {version} eller senare för fullt stöd."
+    },
     "server_gutter": {
       "move_up": "Flytta upp",
       "move_down": "Flytta ned",

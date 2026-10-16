@@ -51,6 +51,21 @@
       "view_in_admin": "Ver na administração do servidor",
       "copy_user_id": "Copiar ID do utilizador"
     },
+    "server_info": {
+      "title": "Informações do servidor",
+      "details": "Detalhes do servidor"
+    },
+    "compatibility": {
+      "title": "Compatibilidade",
+      "view": "Ver compatibilidade",
+      "limited": "Suporte limitado",
+      "supported": "Nenhum problema de compatibilidade conhecido",
+      "affected": "Funcionalidades afetadas",
+      "requires": "Requer {version} ou posterior",
+      "thread_views_title": "As vistas de tópicos têm suporte limitado",
+      "thread_views_description": "Os tópicos seguidos e os que iniciou podem não ser listados separadamente neste servidor.",
+      "upgrade": "Para obter suporte completo, peça ao administrador do servidor para atualizar para {version} ou posterior."
+    },
     "server_gutter": {
       "move_up": "Mover para cima",
       "move_down": "Mover para baixo",

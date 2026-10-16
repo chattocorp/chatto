@@ -51,6 +51,21 @@
       "view_in_admin": "In der Serveradministration anzeigen",
       "copy_user_id": "Benutzer-ID kopieren"
     },
+    "server_info": {
+      "title": "Serverinformationen",
+      "details": "Serverdetails"
+    },
+    "compatibility": {
+      "title": "Kompatibilität",
+      "view": "Kompatibilität anzeigen",
+      "limited": "Eingeschränkte Unterstützung",
+      "supported": "Keine bekannten Kompatibilitätsprobleme",
+      "affected": "Betroffene Funktionen",
+      "requires": "Erfordert {version} oder neuer",
+      "thread_views_title": "Thread-Ansichten werden nur eingeschränkt unterstützt",
+      "thread_views_description": "Gefolgte Threads und von dir gestartete Threads werden auf diesem Server möglicherweise nicht getrennt angezeigt.",
+      "upgrade": "Bitte den Serveradministrator, für volle Unterstützung auf {version} oder neuer zu aktualisieren."
+    },
     "server_gutter": {
       "move_up": "Nach oben verschieben",
       "move_down": "Nach unten verschieben",

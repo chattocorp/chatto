@@ -51,6 +51,21 @@
       "view_in_admin": "View in Server Admin",
       "copy_user_id": "Copy user ID"
     },
+    "server_info": {
+      "title": "Server information",
+      "details": "Server details"
+    },
+    "compatibility": {
+      "title": "Compatibility",
+      "view": "View compatibility",
+      "limited": "Limited support",
+      "supported": "No known compatibility issues",
+      "affected": "Affected features",
+      "requires": "Requires {version} or newer",
+      "thread_views_title": "Thread views have limited support",
+      "thread_views_description": "Followed threads and threads you started may not be listed separately on this server.",
+      "upgrade": "For full support, ask the server administrator to upgrade to {version} or newer."
+    },
     "server_gutter": {
       "move_up": "Move up",
       "move_down": "Move down",

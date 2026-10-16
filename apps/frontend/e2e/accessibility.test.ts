@@ -156,6 +156,7 @@ test.describe('Route accessibility', () => {
       ['threads list', routes.threads],
       ['notifications', routes.notifications],
       ['server overview', routes.serverOverview],
+      ['server information', '/chat/-/info'],
       ['server directory', '/chat/servers'],
       ['search', '/chat/-/search?q=scan'],
       ['OAuth consent', '/oauth/consent']

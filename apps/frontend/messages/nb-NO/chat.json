@@ -51,6 +51,21 @@
       "view_in_admin": "Vis i serveradministrasjonen",
       "copy_user_id": "Kopier bruker-ID"
     },
+    "server_info": {
+      "title": "Serverinformasjon",
+      "details": "Serverdetaljer"
+    },
+    "compatibility": {
+      "title": "Kompatibilitet",
+      "view": "Vis kompatibilitet",
+      "limited": "Begrenset støtte",
+      "supported": "Ingen kjente kompatibilitetsproblemer",
+      "affected": "Berørte funksjoner",
+      "requires": "Krever {version} eller nyere",
+      "thread_views_title": "Trådvisninger har begrenset støtte",
+      "thread_views_description": "Tråder du følger og tråder du startet, vises kanskje ikke separat på denne serveren.",
+      "upgrade": "Be serveradministratoren om å oppgradere til {version} eller nyere for full støtte."
+    },
     "server_gutter": {
       "move_up": "Flytt opp",
       "move_down": "Flytt ned",

@@ -51,6 +51,21 @@
       "view_in_admin": "Wyświetl w administracji serwera",
       "copy_user_id": "Kopiuj identyfikator użytkownika"
     },
+    "server_info": {
+      "title": "Informacje o serwerze",
+      "details": "Szczegóły serwera"
+    },
+    "compatibility": {
+      "title": "Zgodność",
+      "view": "Sprawdź zgodność",
+      "limited": "Ograniczona obsługa",
+      "supported": "Brak znanych problemów ze zgodnością",
+      "affected": "Funkcje objęte ograniczeniami",
+      "requires": "Wymaga wersji {version} lub nowszej",
+      "thread_views_title": "Widoki wątków mają ograniczoną obsługę",
+      "thread_views_description": "Obserwowane wątki i wątki rozpoczęte przez Ciebie mogą nie być wyświetlane oddzielnie na tym serwerze.",
+      "upgrade": "Aby uzyskać pełną obsługę, poproś administratora serwera o aktualizację do wersji {version} lub nowszej."
+    },
     "server_gutter": {
       "move_up": "Przesuń w górę",
       "move_down": "Przesuń w dół",

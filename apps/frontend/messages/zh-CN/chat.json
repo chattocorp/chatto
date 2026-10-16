@@ -51,6 +51,21 @@
       "view_in_admin": "在服务器管理中查看",
       "copy_user_id": "复制用户 ID"
     },
+    "server_info": {
+      "title": "服务器信息",
+      "details": "服务器详细信息"
+    },
+    "compatibility": {
+      "title": "兼容性",
+      "view": "查看兼容性",
+      "limited": "支持有限",
+      "supported": "没有已知的兼容性问题",
+      "affected": "受影响的功能",
+      "requires": "需要 {version} 或更新版本",
+      "thread_views_title": "话题视图的支持有限",
+      "thread_views_description": "此服务器可能无法分别列出你关注的话题和你发起的话题。",
+      "upgrade": "如需完整支持，请要求服务器管理员升级到 {version} 或更新版本。"
+    },
     "server_gutter": {
       "move_up": "向上移动",
       "move_down": "向下移动",

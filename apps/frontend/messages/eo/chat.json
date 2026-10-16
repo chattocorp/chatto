@@ -51,6 +51,21 @@
       "view_in_admin": "Vidi en servila administrado",
       "copy_user_id": "Kopii identigilon de uzanto"
     },
+    "server_info": {
+      "title": "Servilaj informoj",
+      "details": "Servilaj detaloj"
+    },
+    "compatibility": {
+      "title": "Kongrueco",
+      "view": "Vidi kongruecon",
+      "limited": "Limigita subteno",
+      "supported": "Neniuj konataj kongruecaj problemoj",
+      "affected": "Trafitaj funkcioj",
+      "requires": "Postulas {version} aŭ pli novan version",
+      "thread_views_title": "Fadenaj vidoj havas limigitan subtenon",
+      "thread_views_description": "Sekvataj fadenoj kaj fadenoj, kiujn vi komencis, eble ne estas listigitaj aparte en ĉi tiu servilo.",
+      "upgrade": "Por plena subteno, petu la servilan administranton ĝisdatigi al {version} aŭ pli nova versio."
+    },
     "server_gutter": {
       "move_up": "Movi supren",
       "move_down": "Movi malsupren",

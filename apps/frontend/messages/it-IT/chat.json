@@ -51,6 +51,21 @@
       "view_in_admin": "Visualizza nell'amministrazione del server",
       "copy_user_id": "Copia ID utente"
     },
+    "server_info": {
+      "title": "Informazioni sul server",
+      "details": "Dettagli del server"
+    },
+    "compatibility": {
+      "title": "Compatibilità",
+      "view": "Visualizza compatibilità",
+      "limited": "Supporto limitato",
+      "supported": "Nessun problema di compatibilità noto",
+      "affected": "Funzionalità interessate",
+      "requires": "Richiede {version} o successiva",
+      "thread_views_title": "Le viste delle discussioni hanno supporto limitato",
+      "thread_views_description": "Le discussioni che segui e quelle che hai avviato potrebbero non essere elencate separatamente su questo server.",
+      "upgrade": "Per il supporto completo, chiedi all’amministratore del server di aggiornare alla versione {version} o successiva."
+    },
     "server_gutter": {
       "move_up": "Sposta in alto",
       "move_down": "Sposta in basso",

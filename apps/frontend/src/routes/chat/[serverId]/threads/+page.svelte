@@ -3,6 +3,7 @@
   import { serverUi } from '$lib/state/server/serverUi';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import ChatSearchInput from '$lib/components/chat/ChatSearchInput.svelte';
+  import FeatureCompatibilityNotice from '$lib/components/chat/FeatureCompatibilityNotice.svelte';
   import SearchAvailability from '$lib/components/search/SearchAvailability.svelte';
   import { MessageSearchState } from '@chatto/client/api/messageSearch';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
@@ -366,6 +367,12 @@
 
   <PaneContent fillHeight>
     <div class="flex flex-col gap-3 pb-3">
+      <FeatureCompatibilityNotice
+        serverSegment={serverIdToSegment(serverScope.serverId)}
+        features={serverStore.serverInfo.limitedFeatures.filter(
+          (feature) => feature === 'threadViews'
+        )}
+      />
       <div class="flex flex-wrap items-center gap-3">
         {#if searchEnabled}
           <div class="min-w-0 flex-1 basis-56">
