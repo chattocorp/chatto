@@ -100,6 +100,8 @@ function serverStore(
     loadMore: mocks.loadMore
   });
   return {
+    accountId: 'viewer',
+    projection: { rooms: new Map() },
     currentUser: { user: { settings: null } },
     messageSearch
   };

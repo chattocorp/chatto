@@ -306,12 +306,7 @@ test.describe('Cross-instance dots', () => {
     const senderLogin = `qs${suffix}`;
     const sender = await createUserOnRemote(baseURL, senderLogin, 'password123');
     const remoteDmBody = `Remote DM before room navigation ${suffix}`;
-    const remoteDmRoomId = await startDMOnRemote(
-      baseURL,
-      sender.token,
-      viewer.userId,
-      remoteDmBody
-    );
+    await startDMOnRemote(baseURL, sender.token, viewer.userId, remoteDmBody);
     const remoteGeneralRoomId = await getRoomOnRemote(baseURL, viewer.token, 'general');
     const remoteRoomBody = `Remote general after DM switch ${suffix}`;
     await postMessageOnRemote(baseURL, sender.token, remoteGeneralRoomId, remoteRoomBody);
@@ -331,7 +326,9 @@ test.describe('Cross-instance dots', () => {
     await expect(dmResult).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     await dmResult.click();
 
-    await page.waitForURL((url) => url.pathname === `/chat/${remoteHostSegment}/${remoteDmRoomId}`);
+    await page.waitForURL(
+      (url) => url.pathname === `/chat/${remoteHostSegment}/user/${sender.userId}`
+    );
     await expect(page.getByText(remoteDmBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     const remoteGeneralLink = chatPage.roomList.getByRole('link', { name: '# general' });
