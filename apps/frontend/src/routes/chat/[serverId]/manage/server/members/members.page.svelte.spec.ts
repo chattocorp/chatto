@@ -280,13 +280,25 @@ describe('server admin members pagination', () => {
     expect(container.querySelector('.min-h-0.flex-1.overflow-y-auto')).toBeTruthy();
   });
 
-  it('marks bot accounts in the member list', async () => {
-    queueResults(result([{ ...member(0, 'helper_bot'), isBot: true }]));
+  it('marks bots and links each account to its own editor', async () => {
+    queueResults(result([member(0), { ...member(0, 'helper_bot'), isBot: true }]));
 
     const { container } = render(MembersPage);
     await settle();
 
-    expect(container.querySelector('[data-testid="bot-badge"]')).toBeTruthy();
+    const humanLink = container.querySelector<HTMLAnchorElement>(
+      'a[href="/chat/-/manage/server/members/member-0"]'
+    );
+    const botLink = container.querySelector<HTMLAnchorElement>(
+      'a[href="/chat/-/manage/server/bots/helper_bot-0"]'
+    );
+    await expect.element(humanLink).toHaveTextContent('member 0');
+    await expect.element(botLink).toHaveTextContent('helper_bot 0');
+    await expect
+      .element(botLink?.querySelector<HTMLElement>('[data-testid="bot-badge"]') ?? null)
+      .toBeVisible();
+    expect(humanLink?.querySelector('[data-testid="bot-badge"]')).toBeNull();
+    expect(container.textContent).toContain('Showing 2 of 2 member(s)');
   });
 
   it('shows only the explicitly selected primary email', async () => {
