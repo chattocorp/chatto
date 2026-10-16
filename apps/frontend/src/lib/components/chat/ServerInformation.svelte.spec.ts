@@ -32,6 +32,27 @@ describe('ServerInformation', () => {
     expect(writeText).toHaveBeenCalledWith('chat.example.test:8443');
     expect(success).toHaveBeenCalled();
   });
+  it('shows the server profile and renders welcome text as Markdown', async () => {
+    const screen = render(ServerInformation, {
+      name: 'Makers community',
+      host: 'chat.example.test',
+      version: '0.5.0-beta.16',
+      compatibility: { status: 'supported', reason: 'version-confirmed' },
+      features: [],
+      iconUrl: '/icons/icon-192.png',
+      bannerUrl: '/icons/icon-512.png',
+      description: 'Share your projects.',
+      welcomeMessage: 'Welcome, **makers**!'
+    });
+    await expect
+      .element(screen.getByRole('heading', { name: 'Makers community', level: 2 }))
+      .toBeVisible();
+    await expect.element(screen.getByText('Share your projects.')).toBeVisible();
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('strong')?.textContent).toBe('makers');
+    });
+    expect(screen.container.querySelectorAll('img')).toHaveLength(2);
+  });
   it('explains clipboard failures', async () => {
     vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('denied'));
     const error = vi.spyOn(toast, 'error').mockReturnValue('toast-id');

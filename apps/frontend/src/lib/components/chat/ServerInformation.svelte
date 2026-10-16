@@ -10,9 +10,14 @@
   import { m } from '$lib/i18n/messages';
   import { CompactActionButton, Hint, LoadingDots, PaneContent, PaneHeader, Panel } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
+  import ServerBranding from '$lib/components/ServerBranding.svelte';
 
   let {
     name,
+    iconUrl = null,
+    bannerUrl = null,
+    description = null,
+    welcomeMessage = null,
     host,
     version,
     compatibility,
@@ -20,6 +25,10 @@
     loading = false
   }: {
     name: string;
+    iconUrl?: string | null;
+    bannerUrl?: string | null;
+    description?: string | null;
+    welcomeMessage?: string | null;
     /** Configured hostname, including a non-default port. Never a full request URL. */
     host: string;
     version: string;
@@ -48,9 +57,18 @@
   <PaneHeader title={m('chat.server_info.title')} />
   <PaneContent>
     <div class="flex flex-col gap-6">
+      <Panel>
+        <ServerBranding
+          {name}
+          {iconUrl}
+          {bannerUrl}
+          {description}
+          {welcomeMessage}
+          headingLevel={2}
+        />
+      </Panel>
       <Panel title={m('chat.server_info.details')}>
-        <p class="font-medium text-text">{name}</p>
-        <div class="mt-2 flex items-center gap-2">
+        <div class="flex items-center gap-2">
           <span class="min-w-0 break-all text-muted">{host}</span>
           <CompactActionButton
             label={m('room_list.copy_server_hostname')}

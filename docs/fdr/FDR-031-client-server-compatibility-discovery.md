@@ -13,8 +13,10 @@ Chatto's pre-1.0 API remains experimental.
 
 ## Behavior
 
-- A registered server's Server information page shows its name, hostname,
-  and the software version reported by its latest discovery response.
+- A registered server's Server information page starts with its public profile:
+  logo, name, banner, description, and welcome message. It uses the same branding
+  component and Markdown rendering as the login page and omits empty optional
+  fields. Hostname and software version follow in Server details.
 - A registered server's context menu or touch sheet shows its configured host
   and provides an action that copies that exact host, including a non-default
   port, to the clipboard. The information page also has this copy action.

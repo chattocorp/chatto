@@ -11,6 +11,10 @@
 <PageTitle title={m('chat.server_info.title')} />
 <ServerInformation
   name={info.name}
+  iconUrl={info.iconUrl}
+  bannerUrl={info.bannerUrl}
+  description={info.description}
+  welcomeMessage={info.welcomeMessage}
   host={serverHost(connection.connectBaseUrl)}
   version={info.version}
   compatibility={info.compatibility}

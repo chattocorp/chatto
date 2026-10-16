@@ -1,3 +1,4 @@
+<!-- @component Shared public server identity for authentication and server information pages. -->
 <script lang="ts">
   import { MarkdownHtml } from '$lib/ui';
 
@@ -7,7 +8,8 @@
     bannerUrl = null,
     description = null,
     welcomeMessage = null,
-    compact = false
+    compact = false,
+    headingLevel = 3
   }: {
     name: string;
     iconUrl?: string | null;
@@ -15,6 +17,8 @@
     description?: string | null;
     welcomeMessage?: string | null;
     compact?: boolean;
+    /** Match the containing page's heading hierarchy without changing the visual style. */
+    headingLevel?: 2 | 3;
   } = $props();
 
   let markdownModule: Promise<typeof import('$lib/markdown')> | null = null;
@@ -31,7 +35,12 @@
       <img src={iconUrl} alt="" class={compact ? 'h-10 w-10 rounded-lg' : 'h-12 w-12 rounded-xl'} />
     {/if}
 
-    <h3 class={compact ? 'text-lg font-bold' : 'text-2xl font-bold'}>{name}</h3>
+    <svelte:element
+      this={`h${headingLevel}`}
+      class={compact ? 'text-lg font-bold' : 'text-2xl font-bold'}
+    >
+      <bdi>{name}</bdi>
+    </svelte:element>
   </div>
 
   {#if bannerUrl}
