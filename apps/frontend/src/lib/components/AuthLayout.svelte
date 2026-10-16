@@ -32,7 +32,7 @@
   <!-- Left pane: server branding (hidden on mobile, hidden entirely if no branding content) -->
   {#if showBranding && hasBranding && !compact}
     <div class="hidden flex-1 overflow-y-auto border-e border-border bg-surface/30 p-8 md:block">
-      <div data-page-reveal class="mx-auto max-w-md">
+      <div data-page-reveal>
         <ServerBranding name={serverName} {iconUrl} {bannerUrl} {description} {welcomeMessage} />
       </div>
     </div>
