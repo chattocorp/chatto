@@ -285,6 +285,7 @@ export class MessageActionTarget {
       this.actor ?? undefined
     );
     if (quote) this.#composer.quoteInsertionState.requestInsertQuote(quote);
+    this.#composer.focus?.();
   }
 
   #openThreadComposer(quote: QuoteInsertionContent | null): void {

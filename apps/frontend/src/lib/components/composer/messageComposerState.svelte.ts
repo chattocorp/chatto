@@ -1,4 +1,4 @@
-import { tick, untrack, type Snippet } from 'svelte';
+import { onDestroy, tick, untrack, type Snippet } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
 import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
 import type {
@@ -165,6 +165,10 @@ export class MessageComposerState {
 
   constructor(dependencies: MessageComposerDependencies) {
     this.#dependencies = dependencies;
+    dependencies.context.focus = () => this.focus();
+    onDestroy(() => {
+      dependencies.context.focus = undefined;
+    });
     this.attachments = new AttachmentsState(() => dependencies.serverInfo);
     this.linkPreviews = new LinkPreviewState(dependencies.getLinkPreviewAPI);
     this.autocomplete = new AutocompleteState(
@@ -277,6 +281,7 @@ export class MessageComposerState {
   }
 
   focus(): void {
+    if (this.inputDisabled) return;
     const api = this.editorApi;
     if (!api) {
       this.#focusRequested = true;
@@ -284,8 +289,9 @@ export class MessageComposerState {
     }
 
     this.#focusRequested = false;
+    // Let the action sheet unmount and restore its old focus before focusing the editor.
     tick().then(() => {
-      if (this.editorApi === api) api.focus();
+      if (this.editorApi === api && !this.inputDisabled) api.focus();
     });
   }
 
