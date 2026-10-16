@@ -359,7 +359,12 @@ func TestMessageSlowModeConcurrentPostsUseRoomOCC(t *testing.T) {
 				require.Equal(t, 1, succeeded)
 				require.Equal(t, 1, throttled)
 			}
-			require.ElementsMatch(t, []int{1, 2}, attemptCounts, "the conflicting replica must rerun authorization")
+			// Other room facts can cause further OCC retries. The barrier guarantees
+			// at least one retry, but does not limit the total number of attempts.
+			for _, attempts := range attemptCounts {
+				require.GreaterOrEqual(t, attempts, 1)
+			}
+			require.GreaterOrEqual(t, attemptCounts[0]+attemptCounts[1], 3, "the conflicting replica must rerun authorization")
 		})
 	}
 }
