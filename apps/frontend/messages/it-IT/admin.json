@@ -309,6 +309,8 @@
         "permissions": "Autorizzazioni"
       },
       "settings": {
+        "discard_changes": "Annulla modifiche",
+        "unsaved_changes": "Hai modifiche non salvate. Vuoi lasciare questa pagina e annullarle?",
         "name_title": "Nome e descrizione",
         "name_subtitle": "I membri li vedono nell’elenco delle stanze e in cima alla stanza.",
         "visibility_title": "Visibilità",

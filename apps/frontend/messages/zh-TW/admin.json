@@ -309,6 +309,8 @@
         "permissions": "權限"
       },
       "settings": {
+        "discard_changes": "捨棄變更",
+        "unsaved_changes": "你有尚未儲存的變更。要離開此頁面並捨棄變更嗎？",
         "name_title": "名稱和描述",
         "name_subtitle": "成員會在聊天室清單和聊天室頂端看到這些資訊。",
         "visibility_title": "可見範圍",

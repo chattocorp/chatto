@@ -309,6 +309,8 @@
         "permissions": "Rechten"
       },
       "settings": {
+        "discard_changes": "Wijzigingen verwerpen",
+        "unsaved_changes": "Je hebt niet-opgeslagen wijzigingen. Wil je deze pagina verlaten en ze verwerpen?",
         "name_title": "Naam en beschrijving",
         "name_subtitle": "Leden zien deze in de lijst met kamers en bovenaan de kamer.",
         "visibility_title": "Zichtbaarheid",

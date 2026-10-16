@@ -309,6 +309,8 @@
         "permissions": "Uprawnienia"
       },
       "settings": {
+        "discard_changes": "Odrzuć zmiany",
+        "unsaved_changes": "Masz niezapisane zmiany. Czy chcesz opuścić tę stronę i je odrzucić?",
         "name_title": "Nazwa i opis",
         "name_subtitle": "Członkowie widzą je na liście pokojów i u góry pokoju.",
         "visibility_title": "Widoczność",

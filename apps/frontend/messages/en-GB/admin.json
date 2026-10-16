@@ -309,6 +309,8 @@
         "permissions": "Permissions"
       },
       "settings": {
+        "discard_changes": "Discard changes",
+        "unsaved_changes": "You have unsaved changes. Leave this page and discard them?",
         "name_title": "Name & Description",
         "name_subtitle": "Members see these in the room list and at the top of the room.",
         "visibility_title": "Visibility",

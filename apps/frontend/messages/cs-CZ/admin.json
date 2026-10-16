@@ -309,6 +309,8 @@
         "permissions": "Oprávnění"
       },
       "settings": {
+        "discard_changes": "Zahodit změny",
+        "unsaved_changes": "Máte neuložené změny. Chcete opustit tuto stránku a zahodit je?",
         "name_title": "Název a popis",
         "name_subtitle": "Členové je vidí v seznamu místností a v horní části místnosti.",
         "visibility_title": "Viditelnost",

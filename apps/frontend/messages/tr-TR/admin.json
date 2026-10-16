@@ -309,6 +309,8 @@
         "permissions": "İzinler"
       },
       "settings": {
+        "discard_changes": "Değişiklikleri iptal et",
+        "unsaved_changes": "Kaydedilmemiş değişiklikleriniz var. Bu sayfadan çıkıp değişiklikleri iptal etmek istiyor musunuz?",
         "name_title": "Ad ve açıklama",
         "name_subtitle": "Üyeler bunları oda listesinde ve odanın üst kısmında görür.",
         "visibility_title": "Görünürlük",

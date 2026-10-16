@@ -309,6 +309,8 @@
         "permissions": "権限"
       },
       "settings": {
+        "discard_changes": "変更を破棄",
+        "unsaved_changes": "保存されていない変更があります。このページを離れて変更を破棄しますか？",
         "name_title": "名前と説明",
         "name_subtitle": "メンバーはルーム一覧とルーム上部でこれらを確認できます。",
         "visibility_title": "表示範囲",

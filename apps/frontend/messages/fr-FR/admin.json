@@ -309,6 +309,8 @@
         "permissions": "Autorisations"
       },
       "settings": {
+        "discard_changes": "Abandonner les modifications",
+        "unsaved_changes": "Vous avez des modifications non enregistrées. Quitter cette page et les abandonner ?",
         "name_title": "Nom et description",
         "name_subtitle": "Les membres les voient dans la liste des salles et en haut de la salle.",
         "visibility_title": "Visibilité",
