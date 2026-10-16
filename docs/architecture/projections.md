@@ -254,8 +254,11 @@ Room Timeline `v4` adds the current attachment-bearing-message index. `v5`
 rebuilds a room-and-author latest-original-post index from retained timeline
 entries so Slow Mode remains equivalent after restore. Echo rows are excluded;
 edits and retractions do not erase the original successful-post timestamp.
-`v10` rebuilds separate root-post and per-thread post indexes for each author.
-The root starts both scopes. Historical imports and echoes enter neither index.
+`v10` rebuilds the latest-root-post index for each room and author. Thread
+cooldowns read the retained Threads rows in reverse order and use Room Timeline
+creation facts to exclude imports and echoes. The root is the fallback before
+the author's first eligible reply. No separate per-thread cooldown index is
+retained. Both components reach the room OCC position before authorization.
 `v6` retains call-started and call-ended facts as visible room timeline entries.
 `v7` also retains Threading Mode changes as visible room timeline entries;
 older snapshots omitted those rows and therefore cold-replay under the new

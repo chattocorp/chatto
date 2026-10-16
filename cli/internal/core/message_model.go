@@ -542,15 +542,32 @@ func slowModeDeadline(latest time.Time, seconds uint32, now time.Time) time.Time
 // ThreadSlowModeNextPostAt resolves the caller's deadline after the read path
 // has authorized access to the room and canonical thread.
 func (s *MessageModel) ThreadSlowModeNextPostAt(ctx context.Context, roomID, threadID, actorID string) (time.Time, error) {
-	room, err := s.core.roomModel.GetRoom(ctx, KindChannel, roomID)
+	read, err := s.ThreadSlowModeReader(ctx, roomID, actorID)
 	if err != nil {
 		return time.Time{}, err
+	}
+	return read(threadID), nil
+}
+
+// ThreadSlowModeReader resolves configuration and exemptions once for one
+// response. The caller must authorize room and thread access separately. Do
+// not cache this reader across requests: settings and permissions can change.
+func (s *MessageModel) ThreadSlowModeReader(ctx context.Context, roomID, actorID string) (func(string) time.Time, error) {
+	room, err := s.core.roomModel.GetRoom(ctx, KindChannel, roomID)
+	if err != nil {
+		return nil, err
+	}
+	if EffectiveThreadSlowModeSeconds(room) == 0 {
+		return func(string) time.Time { return time.Time{} }, nil
 	}
 	bypasses, err := s.bypassesSlowMode(ctx, actorID, KindOfRoom(room), roomID)
 	if err != nil {
-		return time.Time{}, err
+		return nil, err
 	}
-	return s.threadSlowModeNextPostAt(room, threadID, actorID, bypasses, time.Now()), nil
+	now := time.Now()
+	return func(threadID string) time.Time {
+		return s.threadSlowModeNextPostAt(room, threadID, actorID, bypasses, now)
+	}, nil
 }
 
 // UpdateMessage edits an existing message. Authorization: actor must be a room

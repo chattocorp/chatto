@@ -24,7 +24,9 @@ configuration changes and the current viewer's next eligible posting time.
   previous interval for both independent timers. A later change to one setting
   preserves the other. Thread settings apply to existing and new threads.
 - A channel echo is a projection of its original thread reply and does not
-  start a second timer.
+  check or start the channel timer. Thus, channel Slow Mode limits new roots,
+  not all messages visible in the channel. Operators can deny `message.echo`
+  in restricted rooms to prevent replies from bypassing that visibility limit.
 - Editing, deleting, reacting, typing, and staging attachments neither start
   nor reset the timer. Drafting and editing remain available while posting is
   blocked.
@@ -65,11 +67,17 @@ also replace the independent thread setting. Stored events are not rewritten.
 **Decision:** Cooldowns use the last successful root post in the channel and
 the last successful post in each thread, including its root. Restore retains
 both histories, also after message deletion.
+The room projection indexes the latest root per author. Thread cooldown reads
+scan existing thread rows backward and use retained message creation facts;
+they do not keep a second per-thread index. Response hydration shares room
+configuration, exemption checks, and thread deadlines within each response.
 **Why:** The latest successful message is already the durable source of truth.
 Derivation gives configuration changes immediate historical semantics without
 creating per-user timer records or cleanup work.
 **Tradeoff:** The timeline snapshot contract changes when index restore
 semantics change, even though the serialized payload does not add an index.
+Thread reads can scan the thread's reply history when the author has no recent
+eligible reply. They do not scan other threads or allocate detached message rows.
 
 ### 3. Enforce during preflight and commit authorization
 

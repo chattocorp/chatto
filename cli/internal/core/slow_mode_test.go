@@ -149,6 +149,11 @@ func TestMessageSlowModeIndependentScopes(t *testing.T) {
 	require.NoError(t, err)
 	rootB, err := post(other.Id, "")
 	require.NoError(t, err)
+	// Off must not resolve permissions, even for an absent principal. The
+	// caller of this read helper owns room access authorization separately.
+	read, err := c.Messages().ThreadSlowModeReader(ctx, room.Id, "absent-principal")
+	require.NoError(t, err)
+	require.True(t, read(rootA.Event.Id).IsZero())
 	room = setRoomSlowModeForTest(t, ctx, c, manager, room.Id, 60)
 	_, err = post(u.Id, "")
 	require.ErrorIs(t, err, ErrSlowModeActive)
@@ -179,7 +184,7 @@ func TestMessageSlowModeIndependentScopes(t *testing.T) {
 	}
 	_, err = post(u.Id, "")
 	require.ErrorIs(t, err, ErrSlowModeActive)
-	latest, ok := c.roomModel.timeline.Projection().LatestThreadPostAt(room.Id, rootA.Event.Id, u.Id)
+	latest, ok := c.roomModel.latestThreadPostAt(room.Id, rootA.Event.Id, u.Id)
 	require.True(t, ok)
 	room = setRoomSlowModeForTest(t, ctx, c, manager, room.Id, 60)
 	deadline := latest.Add(time.Minute)

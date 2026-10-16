@@ -60,6 +60,24 @@ func TestThreadSlowModeViewerStateAndRoomPatch(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, page.Msg.ViewerState)
 	require.Nil(t, page.Msg.ViewerState.SlowModeNextPostAt)
+	// A new response must pick up settings changed after an Off response.
+	// Multiple replies exercise concurrent hydration of one cached deadline.
+	posts := []*evtv1.Event{root}
+	for range 16 {
+		posts = append(posts, env.post(room.Id, env.viewer.Id, "follow-up", root.Id))
+	}
+	_, err = env.rooms.UpdateRoom(managerCtx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId: room.Id, ThreadSlowModeSeconds: new(uint32(60)),
+	}))
+	require.NoError(t, err)
+	page, err = env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{RoomId: room.Id, ThreadRootEventId: root.Id}))
+	require.NoError(t, err)
+	deadline = posts[len(posts)-1].CreatedAt.AsTime().Add(time.Minute)
+	require.Equal(t, deadline, page.Msg.ViewerState.SlowModeNextPostAt.AsTime())
+	for _, post := range posts {
+		message := timelinePageEvent(page.Msg.Page, post.Id).GetMessagePosted().GetMessage()
+		require.Equal(t, deadline, message.GetViewerState().GetThreadSlowModeNextPostAt().AsTime())
+	}
 }
 
 func TestTimelineIncludesDistinguishMissingAndDeletedUsers(t *testing.T) {

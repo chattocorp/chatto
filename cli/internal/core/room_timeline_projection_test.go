@@ -867,12 +867,13 @@ func TestRoomTimeline_LatestOriginalPostIndexSurvivesMutationAndRestore(t *testi
 	}
 }
 
-func TestRoomTimeline_IndependentSlowModeIndexesRestore(t *testing.T) {
+func TestRoomTimeline_IndependentSlowModeReadsRestore(t *testing.T) {
 	t.Parallel()
 	p := NewRoomTimelineProjection()
 	imported := postedEvent(postedOpts{envelopeID: "IMPORT", roomID: "R", actorID: "U", inThread: "ROOT", at: 8})
 	imported.GetMessagePosted().HistoricalImport = true
-	applyAll(t, p, []*evtv1.Event{
+	threads := NewThreadProjection()
+	facts := []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ROOT", roomID: "R", actorID: "U", at: 1}),
 		postedEvent(postedOpts{envelopeID: "OTHER", roomID: "R", actorID: "U", at: 2}),
 		postedEvent(postedOpts{envelopeID: "REPLY", roomID: "R", actorID: "U", inThread: "ROOT", at: 3}),
@@ -880,23 +881,36 @@ func TestRoomTimeline_IndependentSlowModeIndexesRestore(t *testing.T) {
 		editedEvent("EDIT", "REPLY", "R", "U", "edited", 5),
 		retractedEvent("DELETE", "REPLY", "R", "U", "", 6),
 		imported,
-	})
-	check := func(p *RoomTimelineProjection) {
+		postedEvent(postedOpts{envelopeID: "PEER", roomID: "R", actorID: "V", inThread: "ROOT", at: 9}),
+		retractedEvent("DELETE-ROOT", "ROOT", "R", "U", "", 10),
+	}
+	applyAll(t, p, facts)
+	for i, fact := range facts {
+		if err := threads.Apply(fact, uint64(i+1)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check := func(p *RoomTimelineProjection, threads *ThreadProjection) {
 		t.Helper()
 		root, ok := p.LatestRootPostAt("R", "U")
 		if !ok || !root.Equal(fixedTime(2)) {
 			t.Fatalf("root timestamp = %v", root)
 		}
-		thread, ok := p.LatestThreadPostAt("R", "ROOT", "U")
+		thread, ok := threads.latestPostAt(p, "R", "ROOT", "U")
 		if !ok || !thread.Equal(fixedTime(3)) {
 			t.Fatalf("thread timestamp = %v", thread)
 		}
-		other, ok := p.LatestThreadPostAt("R", "OTHER", "U")
+		other, ok := threads.latestPostAt(p, "R", "OTHER", "U")
 		if !ok || !other.Equal(fixedTime(2)) {
 			t.Fatalf("other thread timestamp = %v", other)
 		}
+		for _, query := range [][3]string{{"WRONG", "ROOT", "U"}, {"R", "ROOT", "ABSENT"}, {"R", "UNKNOWN", "U"}, {"R", "IMPORT", "U"}, {"R", "EDIT", "U"}} {
+			if _, ok := threads.latestPostAt(p, query[0], query[1], query[2]); ok {
+				t.Fatalf("unexpected cooldown for %v", query)
+			}
+		}
 	}
-	check(p)
+	check(p, threads)
 	data, err := p.Snapshot()
 	if err != nil {
 		t.Fatal(err)
@@ -905,7 +919,15 @@ func TestRoomTimeline_IndependentSlowModeIndexesRestore(t *testing.T) {
 	if err := restored.Restore(data); err != nil {
 		t.Fatal(err)
 	}
-	check(restored)
+	threadData, err := threads.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	restoredThreads := NewThreadProjection()
+	if err := restoredThreads.Restore(threadData); err != nil {
+		t.Fatal(err)
+	}
+	check(restored, restoredThreads)
 }
 
 func TestRoomTimeline_MessageDeletedAtTracksRetractionsAndEchoes(t *testing.T) {

@@ -45,9 +45,7 @@ type roomTimelineState struct {
 	// timestamp per room and actor. Slow mode reads this O(1) index; edits and
 	// retractions intentionally do not change it.
 	latestRootPostAt map[roomActorKey]time.Time
-	// latestThreadPostAt includes the root and excludes echoes and imports.
-	latestThreadPostAt map[roomThreadActorKey]time.Time
-	replayGuard        projectionReplayGuard
+	replayGuard      projectionReplayGuard
 	// bodyStates is a dense array addressed by message rows. Only bodies that
 	// arrive before their post need an event-ID map until that post is indexed.
 	// Complete encrypted bodies remain in EVT.
@@ -95,10 +93,6 @@ type latestRoomPinState struct {
 type roomActorKey struct {
 	roomID  string
 	actorID string
-}
-
-type roomThreadActorKey struct {
-	roomID, threadID, actorID string
 }
 
 // TimelineEntry is a detached read reference for one projected room event.
@@ -475,7 +469,6 @@ func newRoomTimelineState() roomTimelineState {
 		byRoom:                     make(map[string][]uint32),
 		messagePostsByRoom:         make(map[string][]uint32),
 		latestRootPostAt:           make(map[roomActorKey]time.Time),
-		latestThreadPostAt:         make(map[roomThreadActorKey]time.Time),
 		replayGuard:                newProjectionReplayGuard(),
 		orphanBodyStates:           make(map[string]timelineBodyState),
 		retractedFlags:             make(map[string]struct{}),
@@ -930,22 +923,28 @@ func (p *RoomTimelineProjection) LatestRootPostAt(roomID, actorID string) (time.
 	return value, ok && !value.IsZero()
 }
 
-// indexSlowModePostLocked records roots in both scopes and replies only in
-// their thread. Call only for original, non-imported posts with an actor.
+// indexSlowModePostLocked records roots. Thread reads use retained message
+// rows. Call only for original, non-imported posts with an actor.
 func (p *RoomTimelineProjection) indexSlowModePostLocked(entry *TimelineEntry) {
 	if entry.InThreadEventID == "" {
 		p.latestRootPostAt[roomActorKey{roomID: entry.RoomID, actorID: entry.ActorID}] = entry.CreatedAt
 	}
-	p.latestThreadPostAt[roomThreadActorKey{roomID: entry.RoomID, threadID: entry.ThreadRootEventID, actorID: entry.ActorID}] = entry.CreatedAt
 }
 
-// LatestThreadPostAt returns the last original post, including the root, by
-// this actor in this thread. Deletion and edits do not clear this timestamp.
-func (p *RoomTimelineProjection) LatestThreadPostAt(roomID, threadID, actorID string) (time.Time, bool) {
+// originalPostAt reads retained creation facts without hydrating a message.
+// Deletion and edits do not change these facts; echoes and imports are excluded.
+func (p *RoomTimelineProjection) originalPostAt(roomID, eventID, actorID string) (time.Time, bool) {
 	p.RLock()
 	defer p.RUnlock()
-	value, ok := p.latestThreadPostAt[roomThreadActorKey{roomID: roomID, threadID: threadID, actorID: actorID}]
-	return value, ok
+	idx, ok := p.rowIndexLocked(eventID)
+	if !ok || actorID == "" {
+		return time.Time{}, false
+	}
+	row := p.entries[idx]
+	if row.kind != timelineMessagePosted || row.historicalImport || row.echoOf != 0 || p.rooms.Resolve(row.room) != roomID || p.users.Resolve(row.actor) != actorID {
+		return time.Time{}, false
+	}
+	return projectionTime(row.createdAt), true
 }
 
 // LatestBodyReference returns the current MessageBodyEvent reference for a
