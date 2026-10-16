@@ -30,11 +30,21 @@ function harness(messages: ThreadMessage[], allowed?: string) {
     typeof createFollowUpReader
   >[0];
   return {
-    read: () => createFollowUpReader(api, allowed)(location, new AbortController().signal),
+    read: (automatic = false) =>
+      createFollowUpReader(api, allowed)(
+        { ...location, ...(automatic ? { trigger: 'intake' as const } : {}) },
+        new AbortController().signal
+      ),
     batchGetUsers,
     readThread
   };
 }
+
+test('only automatic-intake threads forward completion tracking to the classifier', async () => {
+  const h = harness([post('root'), post('last', 'bot'), post('thanks', 'human', 'That fixed it!')]);
+  expect((await h.read(true))?.input.trackHandled).toBe(true);
+  expect((await h.read())?.input.trackHandled).toBeUndefined();
+});
 
 test('an old bot root cannot stand in for a boundary missing from the newest page', async () => {
   const h = harness([post('root', 'bot'), post('recent')]);

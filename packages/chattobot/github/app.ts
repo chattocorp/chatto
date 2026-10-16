@@ -6,13 +6,13 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ConfigurationError, setting } from '../settings.ts';
 
-/** Repository permissions that ChattoBot requests. The App installation must grant each of them. */
+/** Permissions that ChattoBot requests. The App installation must grant each of them. */
 export type GitHubPermissions = Partial<
   Record<
     'issues' | 'actions' | 'pull_requests' | 'checks' | 'statuses' | 'metadata',
     'read' | 'write'
   >
->;
+> & { issue_fields?: 'read' };
 
 /** Read access for every command classified as a read. A command that the host
  * classifies wrongly as a read then fails at GitHub instead of changing anything. */

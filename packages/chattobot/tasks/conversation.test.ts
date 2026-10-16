@@ -41,6 +41,7 @@ const threadMessage = (
 
 type Tool = {
   name: string;
+  executionMode?: 'sequential' | 'parallel';
   execute(id: string, input: unknown, signal?: AbortSignal): Promise<any>;
 };
 
@@ -55,6 +56,8 @@ function harness({
   github,
   investigation,
   turn,
+  beforePost,
+  afterText,
   createWorker
 }: {
   web?: WebSettings;
@@ -66,22 +69,27 @@ function harness({
   maintainers?: string[];
   maintainerLogin?: string;
   turn?: (prompt: string) => Promise<void>;
+  beforePost?: () => Promise<void>;
+  afterText?: () => Promise<void>;
   createWorker?: typeof createGitHubWorker;
 } = {}) {
   const prompts: string[] = [];
   const posts: { destination: Destination; body: string }[] = [];
   const reactions: string[] = [];
+  const setHandled = vi.fn<ChattoAccess['setHandled']>().mockResolvedValue(undefined);
   const reads: (string | undefined)[] = [];
   const tools = new Map<string, Tool>();
   let options!: AgentOptions;
   let disposed = false;
   const chatto: ChattoAccess = {
     post: async (destination, body) => {
+      await beforePost?.();
       posts.push({ destination, body });
       return `post-${posts.length}`;
     },
     typing: async () => {},
     acknowledge: async (incoming) => void reactions.push(incoming.id),
+    setHandled,
     readThread: async (_thread, _signal, after) => {
       reads.push(after);
       return { messages: thread.shift() ?? [], cursor: `c${reads.length}`, olderOmitted: false };
@@ -110,7 +118,8 @@ function harness({
         if (typeof result === 'object' && !Array.isArray(result)) return result;
         const texts = typeof result === 'string' ? [result] : result;
         for (const text of texts) runOptions?.onText?.(text);
-        return { outcome: 'completed', summary: texts.at(-1)!, usage: emptyTokenUsage() };
+        await afterText?.();
+        return { outcome: 'completed', summary: texts.at(-1) ?? '', usage: emptyTokenUsage() };
       },
       run: () => Promise.reject(new Error('unused')),
       steer: async () => false,
@@ -145,6 +154,7 @@ function harness({
     prompts,
     posts,
     reactions,
+    setHandled,
     reads,
     tools,
     options: () => options,
@@ -152,6 +162,155 @@ function harness({
     createAgent
   };
 }
+
+test('automatic intake can mark and reopen only its host-selected root across later turns', async () => {
+  const bot = harness();
+  const run = bot.start({ ...message('root'), trigger: 'intake' });
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+  const tool = bot.tools.get('setHandled')!;
+  expect(bot.options().tools).toContain('setHandled');
+  await tool.execute('mark', { handled: true, roomId: 'other', messageId: 'other' });
+  await bot.messages.send(message('later', 'Actually, this is still broken'));
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(2));
+  await tool.execute('reopen', { handled: false });
+  expect(bot.setHandled.mock.calls.map(([thread, handled]) => [thread, handled])).toEqual([
+    [{ roomId: 'room', threadRootId: 'root' }, true],
+    [{ roomId: 'room', threadRootId: 'root' }, false]
+  ]);
+  bot.messages.close();
+  await run;
+});
+
+test.each([undefined, 'follow-up'] as const)(
+  'does not expose completion for a conversation started by %s',
+  async (trigger) => {
+    const bot = harness();
+    const run = bot.start({ ...message('first'), trigger });
+    await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+    await bot.messages.send({ ...message('later'), trigger: 'intake' });
+    await vi.waitFor(() => expect(bot.posts).toHaveLength(2));
+    expect(bot.options().tools).not.toContain('setHandled');
+    expect(bot.tools.has('setHandled')).toBe(false);
+    bot.messages.close();
+    await run;
+  }
+);
+
+test('reaction failures do not end the conversation and a later retry can succeed', async () => {
+  const bot = harness();
+  bot.setHandled.mockRejectedValueOnce(new Error('private error detail'));
+  const run = bot.start({ ...message('root'), trigger: 'intake' });
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+  const tool = bot.tools.get('setHandled')!;
+  const failed = await tool.execute('mark', { handled: true });
+  expect(failed.isError).toBe(true);
+  expect(JSON.stringify(failed)).not.toContain('private error detail');
+  expect((await tool.execute('retry', { handled: true })).isError).not.toBe(true);
+  await bot.messages.send(message('next'));
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(2));
+  bot.messages.close();
+  await run;
+});
+
+test.each([false, true])(
+  'completion posts its result before reacting (post fails: %s)',
+  async (fails) => {
+    const bot = harness({
+      answer: () => [],
+      beforePost: async () => {
+        if (fails) throw new Error('Post failed');
+      }
+    });
+    bot.setHandled.mockImplementation(async () => {
+      expect(bot.posts).toEqual([
+        {
+          destination: { roomId: 'room', threadRootId: 'root', inReplyTo: 'root' },
+          body: 'Filed #101.'
+        }
+      ]);
+    });
+    const run = bot.start({ ...message('root'), trigger: 'intake' });
+    await vi.waitFor(() => expect(bot.prompts).toHaveLength(1));
+    const result = await bot.tools.get('setHandled')!.execute('mark', {
+      handled: true,
+      reply: 'Filed #101.'
+    });
+    expect(Boolean(result.isError)).toBe(fails);
+    expect(bot.setHandled).toHaveBeenCalledTimes(fails ? 0 : 1);
+    bot.messages.close();
+    await run;
+  }
+);
+
+test('completion uses runtime sequencing and a silent turn posts no empty message', async () => {
+  const bot = harness({ answer: () => [] });
+  const run = bot.start({ ...message('root'), trigger: 'intake' });
+  await vi.waitFor(() => expect(bot.prompts).toHaveLength(1));
+  const tool = bot.tools.get('setHandled')!;
+  expect(tool.executionMode).toBe('sequential');
+  await tool.execute('add', { handled: true });
+  await tool.execute('remove', { handled: false });
+  expect(bot.setHandled.mock.calls.map((call) => call[1])).toEqual([true, false]);
+  expect(bot.posts).toEqual([]);
+  bot.messages.close();
+  await run;
+});
+
+test('the handled mark waits for the result post and is not added when posting fails', async () => {
+  const gate = Promise.withResolvers<void>();
+  let toolResult: unknown;
+  const bot: ReturnType<typeof harness> = harness({
+    beforePost: () => gate.promise,
+    afterText: async () => {
+      toolResult = await bot.tools.get('setHandled')!.execute('mark', { handled: true });
+    }
+  });
+  const run = bot.start({ ...message('root'), trigger: 'intake' });
+  await vi.waitFor(() => expect(bot.prompts).toHaveLength(1));
+  expect(bot.setHandled).not.toHaveBeenCalled();
+  gate.reject(new Error('Post permission denied'));
+  bot.messages.close();
+  expect(await run).toMatchObject({ ok: true });
+  expect(toolResult).toMatchObject({ isError: true });
+  expect(bot.setHandled).not.toHaveBeenCalled();
+});
+
+test('cannot mark handled while an authorized background job is running', async () => {
+  const release = Promise.withResolvers<void>();
+  const bot: ReturnType<typeof harness> = harness({
+    maintainers: ['maintainer'],
+    github,
+    createWorker: () =>
+      task({ name: 'Pending filing', input: GitHubWorkInput, output: Type.String() }, async () => {
+        await release.promise;
+        return 'Filed.';
+      }),
+    turn: async (prompt) => {
+      if (prompt.includes('Message ID: approval'))
+        await bot.tools.get('githubWork')!.execute('file', {
+          requestId: 'approval',
+          proposedWork: 'File the report',
+          evidence: ''
+        });
+    }
+  });
+  const run = bot.start({ ...message('root'), trigger: 'intake' });
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+  await bot.messages.send(message('approval', 'File it', 'maintainer'));
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(2));
+  expect(await bot.tools.get('setHandled')!.execute('mark', { handled: true })).toMatchObject({
+    isError: true
+  });
+  expect(bot.setHandled).not.toHaveBeenCalled();
+  release.resolve();
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(3));
+  expect((await bot.tools.get('setHandled')!.execute('mark', { handled: true })).isError).not.toBe(
+    true
+  );
+  expect(bot.setHandled).toHaveBeenCalledOnce();
+  bot.messages.close();
+  await run;
+});
 
 test('answers each message in its thread with the final text and ends when the input closes', async () => {
   const bot = harness({ answer: (prompt) => `Answer to: ${prompt.split('\n').at(-1)}` });
@@ -421,6 +580,7 @@ test('cancellation stops the conversation without a notice', async () => {
       },
       typing: async () => {},
       acknowledge: async () => {},
+      setHandled: async () => {},
       readThread: async () => ({ messages: [], olderOmitted: false }),
       readAttachment: async () => {
         throw new Error('unused');

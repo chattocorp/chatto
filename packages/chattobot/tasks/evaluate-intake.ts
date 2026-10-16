@@ -45,6 +45,43 @@ const cases = [
 /** These fixtures exercise participation in an existing thread, without an explicit ping. */
 const followUps = [
   {
+    name: 'handled-already-delivered',
+    bot: 'Does the linked issue cover your report?',
+    delivered: 'Yes, that issue covers it. Thanks!',
+    replies: ['Anyone watching the game tonight?'],
+    trackHandled: true,
+    engage: false
+  },
+  {
+    name: 'handled-reopened',
+    bot: 'Does the linked issue cover your report?',
+    delivered: 'Yes, that issue covers it. Thanks!',
+    replies: ['Actually, the linked issue is about uploads. My problem is downloading images.'],
+    trackHandled: true,
+    engage: true
+  },
+  {
+    name: 'handled-resolved',
+    bot: 'Does reloading fix it?',
+    replies: ['That fixed it, thanks!'],
+    trackHandled: true,
+    engage: true
+  },
+  {
+    name: 'handled-withdrawn',
+    bot: 'What happens on screen?',
+    replies: ['I withdraw the report. It was my mistake.'],
+    trackHandled: true,
+    engage: true
+  },
+  {
+    name: 'handled-thanks',
+    bot: 'What version are you using?',
+    replies: ['Thanks for helping!'],
+    trackHandled: true,
+    engage: false
+  },
+  {
     name: 'partial-answer',
     bot: 'What Chatto version and deployment method are you using?',
     replies: ['0.4.3'],
@@ -114,12 +151,19 @@ export default task(
         name: item.name,
         engage: item.engage,
         input: {
-          context: [{ role: 'bot' as const, body: item.bot }],
+          ...(item.trackHandled ? { trackHandled: true } : {}),
+          context: [
+            { role: 'bot' as const, body: item.bot },
+            ...(item.delivered ? [{ role: 'human' as const, body: item.delivered }] : [])
+          ],
           messages: item.replies.map((body) => ({ body, attachmentTypes: item.attachments ?? [] }))
         }
       }))
     ];
-    const selected = all.filter((item) => !filter || filter === 'all' || filter === item.name);
+    const selected = all.filter(
+      (item) =>
+        !filter || filter === 'all' || filter === item.name || item.name.startsWith(`${filter}-`)
+    );
     assert(selected.length, `Unknown case. Choose: ${all.map((item) => item.name).join(', ')}`);
     const classifier = createIntakeClassifier(model);
     const directory = resolve('.runling/evaluations', `intake-${crypto.randomUUID()}`);

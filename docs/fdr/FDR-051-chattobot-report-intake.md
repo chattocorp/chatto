@@ -31,18 +31,34 @@ ordinary thread replies can continue the conversation without another mention.
   not authorize a link change or a move to another parent.
 - Image-only posts qualify for inspection. The classifier sees attachment types,
   not image contents, so some accepted posts might not be reports.
+- In active conversations started by accepted intake, the bot can mark the root
+  with ✅ when the request is handled: a confirmed resolution, confirmed existing
+  issue coverage, withdrawn report, or successful authorized filing/update whose
+  result has been shared. Waiting for details, approval, or background work does
+  not qualify. The mark describes request processing, not a shipped fix.
+  The conversation agent can remove its mark if the request reopens. Completion
+  includes one short closing reply, with a numbered link for confirmed issue coverage.
+  Reaction failures do not stop the conversation.
+  The completion tool can post the agent's result before changing the reaction.
+  If that post fails, the tool does not add the mark.
+  The mark remains after expiry or restart; a new conversation does not recover
+  whether the original conversation started through automatic intake.
 - Ignored posts and failed classifications produce no reply, reaction, or typing.
   Users can mention the bot to request help after a missed report.
 - Addressed messages bypass classification. An addressed message during
   classification cancels the classifier and starts the conversation in the same run.
 - Active conversations check ordinary human replies every 90 seconds while the
   bot is not answering. This also applies to conversations started by a ping.
-  The classifier considers all eligible messages since the bot's latest post,
-  with a short preceding excerpt. Relevant replies continue the same conversation
+  The classifier considers eligible messages since the bot's latest post that have
+  not reached the conversation. Already-delivered replies are context only and
+  cannot trigger another check or delivery, even if a turn produced no bot post.
+  Relevant replies continue the same conversation
   together. Thanks, unrelated discussion, and requests to leave the conversation
   to humans should stay silent.
+  In automatic-intake conversations, clear resolutions and report withdrawals
+  are forwarded so the conversation agent can update its completion reaction.
 - Empty or unchanged batches require no model call. Another reply causes the
-  full batch since the bot's latest post to be considered again. Checks stop when
+  undelivered batch since the bot's latest post to be considered again. Checks stop when
   the conversation ends. Only addressed messages and accepted follow-ups reset
   the one-hour inactivity timeout. Pings remain immediate and cancel pending checks.
   Current turns and background jobs can finish before the conversation expires.
@@ -94,7 +110,9 @@ that the bot processes new posts and active thread replies without a mention.
 
 **Decision:** Collect ordinary replies before deciding whether the bot should
 participate again. Use the last bot post as the boundary, with one remembered
-batch to skip unchanged checks. Keep each message's authenticated author.
+batch to skip unchanged checks. Remember delivered message IDs for the life of
+the conversation because a turn can finish without a new bot post. Keep each
+message's authenticated author.
 **Why:** Users often answer in several short messages. A check can assess these
 together without a conversation-agent turn for each post or a per-message ledger.
 **Tradeoff:** Automatic replies can take about 90 seconds plus model time. A
@@ -106,6 +124,7 @@ silent rather than guessing the boundary. Process restarts end these checks.
 
 - `CHATTO_AUTO_ENGAGE_ROOM_IDS` selects intake rooms; an empty value disables it.
 - The bot account must have access to the room and the report.
+- Completion reactions require the bot's normal reaction permission in that room.
 - `CHATTO_ALLOWED_USER_ID`, when configured, also restricts intake and follow-ups.
 - `CHATTO_MAINTAINER_USER_IDS` still gates investigations and GitHub changes,
   with a current addressed request required.

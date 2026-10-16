@@ -5,7 +5,11 @@
  * gets an issue-write token for changes; the conversation cannot run changes. */
 
 /** A read runs with the read-only token; anything else is a change. */
-export type GhCommand = { access: 'read' | 'write' };
+export type GhCommand = {
+  access: 'read' | 'write';
+  /** Field discovery needs an additional organization permission, only for this endpoint. */
+  issueFields?: true;
+};
 
 /** A command that the policy does not permit. The message is for the agent. */
 export class GhPolicyError extends Error {
@@ -237,6 +241,8 @@ function classifyApi(args: readonly string[]): GhCommand {
   if (endpoint === 'graphql')
     return { access: fields.some((field) => /\bmutation\b/i.test(field)) ? 'write' : 'read' };
   const effectiveMethod = method ?? (fields.length ? 'POST' : 'GET');
+  if (effectiveMethod === 'GET' && /^orgs\/[^/?]+\/issue-fields(?:\?.*)?$/.test(endpoint))
+    return { access: 'read', issueFields: true };
   return { access: effectiveMethod === 'GET' || effectiveMethod === 'HEAD' ? 'read' : 'write' };
 }
 

@@ -40,14 +40,16 @@ export function githubTool(
       args: Type.Array(Type.String({ maxLength: 65_536 }), { minItems: 1, maxItems: 100 })
     }),
     async execute(_id, { args }, signal) {
-      const { access } = classifyGh(args);
+      const { access, issueFields } = classifyGh(args);
       if (access === 'write' && !issueWrites)
         throw new GhPolicyError('This command changes GitHub. Only read commands are available.');
       signal ??= AbortSignal.timeout(60_000);
       // Even the worker never receives all permissions of the App installation.
       const result = await step(`Executing: ${githubCommandLabel(args)}`, async () => {
         const token = await tokens(
-          access === 'read' ? READ_PERMISSIONS : { issues: 'write', metadata: 'read' },
+          access === 'read'
+            ? { ...READ_PERMISSIONS, ...(issueFields ? { issue_fields: 'read' as const } : {}) }
+            : { issues: 'write', metadata: 'read' },
           signal
         );
         const result = await run(args, { token, repository: settings.repository, signal });

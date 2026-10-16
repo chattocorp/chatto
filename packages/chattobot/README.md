@@ -45,6 +45,18 @@ to help prepare a useful report. The classifier receives the post text and
 attachment MIME types. Image-only posts are accepted for the conversation
 agent to inspect. Clearly unrelated text with an image can still be ignored.
 
+In a conversation started by accepted automatic intake, the bot can add ✅ to
+the root message when the request is handled. This means the user confirmed a
+resolution or an existing issue, withdrew the report, or authorized filing or
+updating succeeded and the bot shared the result. It does not mean a bug is fixed.
+Waiting for details, approval, or background work does not qualify. The bot can
+remove its checkmark when the request reopens. Completion includes one short closing
+reply, with the numbered issue link when an existing issue covers the report.
+The bot needs permission to react; a failed reaction does not stop the conversation.
+This tool is limited to the active automatic-intake conversation. Reactions remain
+after expiry or restart, but a new conversation does not recover the original
+intake status.
+
 Mentions, replies to the bot, and direct messages bypass classification.
 Bot posts, forwarded copies, and existing history do not start intake.
 `CHATTO_ALLOWED_USER_ID` also applies to intake.
@@ -72,11 +84,15 @@ start a conversation.
 Every 90 seconds, the thread workflow checks for human messages after the bot's
 latest post. It waits while the conversation agent is answering. No new messages
 means no model call. An unchanged batch is not classified again. When another
-message arrives, the classifier considers all eligible replies since that bot post,
-with a short preceding excerpt. It sees text and attachment MIME types, not files.
+message arrives, the classifier considers replies since that bot post that have not
+reached the conversation. Already-delivered replies are context only. They cannot
+trigger another check or delivery, even when a turn produces no bot post.
+The classifier sees text and attachment MIME types, not files.
 Replies that answer questions, correct advice, or supply relevant details can
 continue the same conversation in one turn. Thanks, unrelated discussion, and
 requests to leave the conversation to humans should stay silent.
+For automatic-intake conversations, clear resolutions and report withdrawals also
+reach the conversation agent so it can update the checkmark; plain thanks stay silent.
 
 Pings and direct replies still reach the conversation immediately and cancel a
 pending follow-up check. Polling stops when the workflow ends. Empty, ignored,
@@ -194,6 +210,12 @@ native issue type field for classification, such as Bug, Feature, or Enhancement
 and discovers the types available in the repository. It does not use labels for
 this classification. It verifies the saved type. If no suitable type is available,
 it stops before creating or reclassifying the issue and reports the limitation.
+
+The worker also uses native issue fields for requested metadata such as Priority,
+Effort, Start date, and Target date. It discovers field definitions and options,
+preserves unrelated values, and reads back changes to verify them. A maintainer
+can supply values or ask it to assess priority. It does not invent dates or effort
+estimates. These fields are separate from issue types, labels, and Projects fields.
 
 A maintainer can ask the bot to create an issue, update its text or labels, or
 add a comment. The conversation starts `tasks/github.ts` as a Runling child task
@@ -314,6 +336,12 @@ Checks, and Commit statuses (read). ChattoBot creates a token for each command,
 limited to the repository and to the permissions that the command needs. Read
 commands get read-only tokens. The private key stays on the bot host.
 
+To use native issue fields, also grant the App the organization permission
+**Issue Fields: read**, and approve the updated installation permissions.
+ChattoBot requests this permission only for field discovery; other GitHub work
+does not require it. Updating values uses the existing **Issues: write** permission.
+See GitHub's [issue field API](https://docs.github.com/en/rest/issues/issue-field-values).
+
 ## Privacy
 
 ChattoBot sends these data to other systems:
@@ -400,6 +428,7 @@ pnpm eval:github
 pnpm eval:github ambiguous-moo
 pnpm eval:github authorization
 pnpm eval:github issue-discovery
+pnpm eval:github issue-fields
 pnpm eval:github language-report-withdrawal
 ```
 
@@ -421,6 +450,8 @@ and legitimate bulk closure. Case-name prefixes select a group of evaluations.
 The `issue-discovery` group checks early feature and bug searches, multiple
 plausible matches, closed proposals, no matches, and vague reports that need
 clarification first.
+The `issue-fields` case checks priority discovery, update, and verification,
+preservation of other values, and rejection of extra instructions in evidence.
 They check commands, changed issue state, and delegation targets. They do not
 require exact reply wording. The supervisor cases use fake GitHub workers and investigators;
 the worker cases use the real worker agent.

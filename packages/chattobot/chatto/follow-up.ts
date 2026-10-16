@@ -8,6 +8,7 @@ import { threadOf, type IncomingMessage } from './message.ts';
 export interface FollowUpSnapshot {
   /** The bot post that starts this batch. Message IDs are opaque, never sorted. */
   boundary: string;
+  /** Classifier replies correspond by index to the routable messages below. */
   input: Static<typeof FollowUpInput>;
   messages: IncomingMessage[];
 }
@@ -46,6 +47,7 @@ export function createFollowUpReader(
     return {
       boundary: boundary.id,
       input: {
+        ...(message.trigger === 'intake' ? { trackHandled: true } : {}),
         context: thread.messages
           .slice(Math.max(0, boundaryIndex - 3), boundaryIndex + 1)
           .map((item) => ({

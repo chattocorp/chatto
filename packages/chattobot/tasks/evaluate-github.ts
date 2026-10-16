@@ -33,6 +33,7 @@ async function supervisor(
   const investigationAttempts: { requestId?: unknown }[] = [];
   const investigations: string[] = [];
   const posts: string[] = [];
+  const handled: boolean[] = [];
   const warmed = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
   const conversation = createConversation(
@@ -70,6 +71,15 @@ async function supervisor(
       },
       typing: async () => {},
       acknowledge: async () => {},
+      setHandled: async (thread, value) => {
+        assert.deepEqual(thread, { roomId: 'fixture-room', threadRootId: 'fixture-thread' });
+        if (value && scenario.expectedRequest)
+          assert(
+            posts.some((body) => body.includes('https://github.com/evaluation/fixture/issues/101')),
+            'Share the filing result before marking handled'
+          );
+        handled.push(value);
+      },
       readThread: async () => ({ messages: scenario.thread ?? [], olderOmitted: false }),
       readAttachment: async () => {
         throw new Error('No evaluation attachments');
@@ -79,7 +89,13 @@ async function supervisor(
       const bot = await createAgentSession({
         ...options,
         // Other production tools cannot contact their real services during this evaluation.
-        tools: ['gh', 'githubWork', 'investigate', 'readThread'],
+        tools: [
+          'gh',
+          'githubWork',
+          'investigate',
+          'readThread',
+          ...(scenario.automaticIntake ? ['setHandled'] : [])
+        ],
         onEvent(event) {
           if (event.type === 'tool_execution_start' && event.toolName === 'githubWork')
             attempts.push(
@@ -109,6 +125,14 @@ async function supervisor(
         },
         async (_ctx, { request }) => {
           requests.push(request);
+          github.issues.push({
+            number: 101,
+            title: 'Fixture issue',
+            body: request,
+            labels: [],
+            state: 'OPEN',
+            url: 'https://github.com/evaluation/fixture/issues/101'
+          });
           return 'Created https://github.com/evaluation/fixture/issues/101';
         }
       )
@@ -118,7 +142,8 @@ async function supervisor(
     ...location,
     id: 'warmup',
     authorId: 'member',
-    body: 'Hello'
+    body: 'Hello',
+    ...(scenario.automaticIntake ? { trigger: 'intake' as const } : {})
   });
   // If agent initialization fails, do not leave the evaluation waiting for a warmup forever.
   await Promise.race([
@@ -139,6 +164,7 @@ async function supervisor(
     investigations,
     investigationAttempts,
     posts: posts.slice(1),
+    handled,
     commands: github.commands
   };
 }
@@ -242,7 +268,22 @@ export default task(
           expected ? [expected.id] : [],
           'Supervisor attempted to delegate the wrong message'
         );
-        assert(result.posts.length > 0, 'Supervisor did not answer');
+        assert(
+          result.posts.length > 0 || result.handled.length > 0,
+          'Supervisor did not answer or react'
+        );
+        assert(
+          !result.posts.includes('Sorry, I could not answer that. Please try again.'),
+          'Supervisor turn failed'
+        );
+        if (scenario.automaticIntake && scenario.expectedHandled?.length === 0)
+          assert(!result.handled.includes(true), 'Do not mark an unresolved request handled');
+        else
+          assert.deepEqual(
+            result.handled,
+            scenario.expectedHandled ?? [],
+            'Unexpected handled reaction changes'
+          );
         assert.deepEqual(
           result.investigationAttempts.map((attempt) => attempt.requestId),
           scenario.expectedInvestigation ? [scenario.expectedInvestigation] : [],
