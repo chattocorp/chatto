@@ -164,6 +164,19 @@
       },
       "owned_by": "所有者",
       "open_card": "{name} のプロフィールカードを開く"
+    },
+    "management_nav": {
+      "general": "一般",
+      "neighbors": "ネイバー",
+      "members": "メンバー",
+      "rooms": "部屋",
+      "moderation": "モデレーション",
+      "permissions": "権限",
+      "security": "セキュリティ",
+      "event_log": "イベントログ",
+      "system": "システム",
+      "back_to_server": "サーバーに戻る",
+      "invitations": "招待リンク"
     }
   }
 }

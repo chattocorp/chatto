@@ -9,6 +9,18 @@
     "create_permission": "Izveidot uzaicinājumu saites",
     "manage_permission": "Pārvaldīt visas uzaicinājumu saites",
     "create_help": "Izveidojiet saites jauniem kontiem. Šīs atļaujas noņemšana neatsauc esošās saites.",
-    "manage_help": "Skatiet, kopējiet un atsauciet visu lietotāju saites. Nepieciešams vairoga režīms; izveide nav atļauta."
+    "manage_help": "Skatiet, kopējiet un atsauciet visu lietotāju saites. Nepieciešams vairoga režīms; izveide nav atļauta.",
+    "max_uses": "Maksimālais lietojumu skaits",
+    "max_uses_error": "Ievadiet veselu skaitli, kas nav mazāks par 1.",
+    "unlimited_uses": "Atļaut neierobežotu lietojumu skaitu",
+    "expiry": "Derīguma termiņš",
+    "expiry_1d": "1 diena",
+    "expiry_7d": "7 dienas",
+    "expiry_30d": "30 dienas",
+    "expiry_never": "Nekad",
+    "create": "Izveidot uzaicinājuma saiti",
+    "created": "Uzaicinājuma saite izveidota",
+    "copy": "Kopēt saiti",
+    "copied": "Uzaicinājuma saite nokopēta"
   }
 }

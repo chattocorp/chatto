@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "descriptions": {
+      "server_manage": "Uppdatera serverinställningar (namn, beskrivning, logotyp)",
+      "server_manage_neighbors": "Hantera den offentliga grannkatalogen",
+      "room_create": "Skapa nya rum",
+      "room_join": "Gå med i befintliga rum",
+      "room_list": "Se rum i katalogen. En användare kan tillåtas se ett rum (t.ex. för att begära åtkomst) utan att få gå med i det.",
+      "room_manage": "Redigera ett rums inställningar och behörigheter och ta bort rum",
+      "room_remove_member": "Ta bort medlemmar från rum och stäng av återinträde vid behov",
+      "message_read": "Läs alla meddelanden i rum. Om denna behörighet tas bort är begränsad åtkomst fortfarande möjlig om message.read-interactions har beviljats separat.",
+      "message_read_interactions": "Läs hela trådar som du har skapat eller där en annan användare nämnde dig direkt",
+      "message_post": "Publicera meddelanden och trådsvar och starta direktmeddelanden",
+      "message_post_interactions": "Svara i trådar som du startat, där du nämnts direkt eller där du fått ett direktmeddelande",
+      "message_post_in_thread": "Lägg upp svar i en tråd",
+      "message_attach": "Bifoga filer till meddelanden",
+      "message_echo": "När du gör ett inlägg i en tråd ska du också visa meddelandet i huvudkanalen",
+      "message_pin": "Fäst och lossa meddelanden",
+      "message_manage": "Redigera och ta bort andra användares meddelanden",
+      "message_react": "Lägg till och ta bort reaktioner på meddelanden",
+      "role_manage": "Skapa, redigera, ta bort och ändra ordning på roller och deras tillstånd",
+      "role_assign": "Tilldela och återkalla roller för användare",
+      "admin_view_users": "Visa användarsidan i admin",
+      "admin_view_system": "Visa projektionsdiagnostik i admin",
+      "admin_view_audit": "Visa granskningsloggningen i admin",
+      "user_delete_any": "Ta bort en annan användares konto",
+      "user_delete_self": "Radera ditt eget konto",
+      "user_manage_accounts": "Skapa användare, redigera kontoidentitet, återställ lösenord, bifoga verifierade e-postmeddelanden och rensa nedkylningar för inloggning",
+      "user_manage_permissions": "Redigera direkta åsidosättningar av behörigheter per användare",
+      "bot_create": "Skapa botkonton som du äger",
+      "bot_manage": "Visa och hantera alla botkonton",
+      "call_start": "Starta ett samtal (kräver även call.join)",
+      "call_join": "Ansluta till ett pågående samtal",
+      "call_voice": "Använda mikrofonen i samtal",
+      "call_camera": "Använda kameran i samtal",
+      "call_screenshare": "Dela en skärm eller ett program, inklusive inspelat ljud"
+    }
+  }
+}

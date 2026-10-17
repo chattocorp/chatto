@@ -9,6 +9,18 @@
     "create_permission": "Crea link di invito",
     "manage_permission": "Gestisci tutti i link di invito",
     "create_help": "Crea link per nuovi account. Rimuovere questo permesso non revoca i link esistenti.",
-    "manage_help": "Visualizza, copia e revoca i link di chiunque. Richiede la modalità scudo; non consente la creazione."
+    "manage_help": "Visualizza, copia e revoca i link di chiunque. Richiede la modalità scudo; non consente la creazione.",
+    "max_uses": "Utilizzi massimi",
+    "max_uses_error": "Inserisci un numero intero pari ad almeno 1.",
+    "unlimited_uses": "Consenti utilizzi illimitati",
+    "expiry": "Scadenza",
+    "expiry_1d": "1 giorno",
+    "expiry_7d": "7 giorni",
+    "expiry_30d": "30 giorni",
+    "expiry_never": "Mai",
+    "create": "Crea link di invito",
+    "created": "Link di invito creato",
+    "copy": "Copia link",
+    "copied": "Link di invito copiato"
   }
 }

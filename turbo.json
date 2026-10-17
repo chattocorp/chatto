@@ -24,7 +24,7 @@
         "!src/**/*.stories.*",
         "!src/**/*TestHarness.svelte"
       ],
-      "outputs": ["build/**"],
+      "outputs": ["build/**", ".svelte-kit/output/client/.vite/manifest.json"],
       "env": ["CHATTO_BUILD_VERSION", "CHATTO_FRONTEND_PRECOMPRESS"]
     },
     "runling#build": {

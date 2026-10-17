@@ -169,7 +169,7 @@
   {#await loadBanRoomMemberModal(banRoomMemberModalLoadAttempt)}
     <Dialog
       visible
-      title={m('admin.moderation.remove_action')}
+      title={m('room.moderation.remove_action')}
       onclose={() => (banDialogUser = null)}
     >
       <LoadingFog class="h-24 w-full" />

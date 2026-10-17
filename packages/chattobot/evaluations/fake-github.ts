@@ -12,6 +12,12 @@ export interface Issue {
   labels: string[];
   /** GitHub's native issue type, independent of labels. */
   issueType?: { id: number; name: string };
+  /** Native field values for the priority evaluation, independent of labels and type. */
+  fieldValues?: {
+    issue_field_id: number;
+    value: number;
+    single_select_option?: { id: number; name: string };
+  }[];
   state: 'OPEN' | 'CLOSED';
   stateReason?: 'completed' | 'not planned';
   comments?: string[];
@@ -89,6 +95,9 @@ export class FakeGitHub {
           'list',
           'labels',
           'types',
+          'field-definitions',
+          'field-values',
+          'set-field',
           'repository',
           'view',
           'create',
@@ -102,6 +111,22 @@ export class FakeGitHub {
       if (operation === 'repository')
         return { ok: true, output: JSON.stringify({ nameWithOwner: REPOSITORY }) };
       if (operation === 'types') return { ok: true, output: JSON.stringify(this.issueTypes) };
+      if (operation === 'field-definitions')
+        return {
+          ok: true,
+          output: JSON.stringify([
+            {
+              id: 7,
+              name: 'Priority',
+              data_type: 'single_select',
+              options: [
+                { id: 71, name: 'High' },
+                { id: 72, name: 'Low' }
+              ]
+            },
+            { id: 8, name: 'Effort', data_type: 'number' }
+          ])
+        };
       const issueType =
         fields.type === undefined
           ? undefined
@@ -143,6 +168,17 @@ export class FakeGitHub {
         return { ok: true, output: created.url };
       }
       if (!issue) return { ok: false, output: 'Issue not found' };
+      if (operation === 'field-values')
+        return { ok: true, output: JSON.stringify(issue.fieldValues ?? []) };
+      if (operation === 'set-field') {
+        if (fields.fieldId !== '7' || fields.fieldValue !== 'High')
+          throw new Error('Fixture expects Priority by field ID and option name');
+        issue.fieldValues = [
+          ...(issue.fieldValues ?? []).filter((value) => value.issue_field_id !== 7),
+          { issue_field_id: 7, value: 71, single_select_option: { id: 71, name: 'High' } }
+        ];
+        return { ok: true, output: JSON.stringify(issue.fieldValues) };
+      }
       if (operation === 'comment') {
         if (!fields.body) throw new Error('Comment needs a body');
         (issue.comments ??= []).push(fields.body);
@@ -209,6 +245,8 @@ export class FakeGitHub {
       addLabel?: string;
       reason?: string;
       comment?: string;
+      fieldId?: string;
+      fieldValue?: string;
     };
   } {
     if (args[0] === 'issue') {
@@ -269,10 +307,15 @@ export class FakeGitHub {
     const endpoint = positionals(args.slice(1))[0]
       ?.replace(/^\//, '')
       .replace('repos/{owner}/{repo}', `repos/${REPOSITORY}`)
+      .replace('orgs/{owner}', 'orgs/evaluation')
       .split('?')[0];
     if (endpoint === `repos/${REPOSITORY}/issue-types` && classifyGh(args).access === 'read')
       return { operation: 'types', fields: {} };
-    const match = endpoint?.match(/^repos\/evaluation\/fixture\/issues(?:\/(\d+))?$/);
+    if (endpoint === 'orgs/evaluation/issue-fields' && classifyGh(args).access === 'read')
+      return { operation: 'field-definitions', fields: {} };
+    const match = endpoint?.match(
+      /^repos\/evaluation\/fixture\/issues(?:\/(\d+))?(\/issue-field-values)?$/
+    );
     if (!match) throw new Error('Unsupported fixture API endpoint');
     const fields: Record<string, string> = {};
     for (let i = 1; i < args.length; i++) {
@@ -288,12 +331,30 @@ export class FakeGitHub {
     }
     if (
       Object.keys(fields).some(
-        (key) => !['title', 'body', 'type', 'state', 'state_reason'].includes(key)
+        (key) =>
+          ![
+            'title',
+            'body',
+            'type',
+            'state',
+            'state_reason',
+            'issue_field_values[][field_id]',
+            'issue_field_values[][value]'
+          ].includes(key)
       )
     )
       throw new Error('Unsupported fixture API field');
     const method = flag(args, '--method', '-X') ?? (Object.keys(fields).length ? 'POST' : 'GET');
     const target = match[1] === undefined ? undefined : Number(match[1]);
+    if (match[2])
+      return {
+        operation: method === 'GET' ? 'field-values' : method === 'POST' ? 'set-field' : '',
+        target,
+        fields: {
+          fieldId: fields['issue_field_values[][field_id]'],
+          fieldValue: fields['issue_field_values[][value]']
+        }
+      };
     const operation =
       method === 'GET'
         ? target

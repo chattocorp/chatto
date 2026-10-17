@@ -6,9 +6,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "svelte-kit sync && vite build && pnpm check:bootstrap && pnpm check:csp",
+    "build": "svelte-kit sync && vite build && pnpm check:bootstrap && pnpm check:csp && pnpm check:i18n",
     "check:bootstrap": "node --test scripts/check-bootstrap.test.mjs && node scripts/check-bootstrap.mjs",
     "check:csp": "node scripts/check-csp.mjs",
+    "check:i18n": "node scripts/check-i18n-chunks.mjs",
     "preview": "vite preview",
     "prepare": "svelte-kit sync || echo ''",
     "check": "pnpm run check:design-system && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

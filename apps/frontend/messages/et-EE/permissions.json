@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "descriptions": {
+      "server_manage": "Värskenda serveri seadeid (nimi, kirjeldus, logo)",
+      "server_manage_neighbors": "Avaliku naabrite kataloogi haldamine",
+      "room_create": "Looge uusi ruume",
+      "room_join": "Liituge olemasolevate ruumidega",
+      "room_list": "Vaadake ruume kataloogis. Kasutajal võib lubada ruumi näha (nt taotleda juurdepääsu), ilma et tal lubataks sellega liituda.",
+      "room_manage": "Muutke ruumi seadeid ja lubasid ning kustutage ruume",
+      "room_remove_member": "Eemalda liikmeid tubadest ja vajaduse korral peata uuesti liitumine",
+      "message_read": "Kõigi sõnumite lugemine tubades. Selle õiguse eemaldamisel säilib piiratud juurdepääs, kui message.read-interactions on eraldi antud.",
+      "message_read_interactions": "Lugeda terveid lõimi, mille olete loonud või kus teine kasutaja teid otse mainis",
+      "message_post": "Postitada sõnumeid ja lõimevastuseid ning alustada privaatsõnumeid",
+      "message_post_interactions": "Vastata lõimedes, mille alustasid, kus sind otse mainiti või kus said privaatsõnumi",
+      "message_post_in_thread": "Postitage vastused lõime sees",
+      "message_attach": "Failide manustamine sõnumitele",
+      "message_echo": "Lõime postitades tõsta sõnum ka põhikanalisse",
+      "message_pin": "Sõnumite kinnitamine ja vabastamine",
+      "message_manage": "Muutke ja kustutage teiste kasutajate sõnumeid",
+      "message_react": "Lisage ja eemaldage sõnumitele reaktsioone",
+      "role_manage": "Looge, muutke, kustutage ja järjestage ümber rolle ja nende lubasid",
+      "role_assign": "Määrake ja tühistage kasutajatele rolle",
+      "admin_view_users": "Vaadake kasutajate lehte administraatoris",
+      "admin_view_system": "Vaadake projektsiooni diagnostikat administraatoris",
+      "admin_view_audit": "Vaadake auditi logi administraatoris",
+      "user_delete_any": "Kustutage teise kasutaja konto",
+      "user_delete_self": "Kustutage oma konto",
+      "user_manage_accounts": "Looge kasutajaid, muutke konto identiteeti, lähtestage paroolid, lisage kinnitatud e-kirjad ja tühjendage sisselogimisperioodid",
+      "user_manage_permissions": "Muutke otse kasutajapõhiseid lubade alistamisi",
+      "bot_create": "Loo endale kuuluvaid botikontosid",
+      "bot_manage": "Vaata ja halda kõiki botikontosid",
+      "call_start": "Kõne alustamine (nõuab ka õigust call.join)",
+      "call_join": "Käimasoleva kõnega liitumine",
+      "call_voice": "Mikrofoni kasutamine kõnedes",
+      "call_camera": "Kaamera kasutamine kõnedes",
+      "call_screenshare": "Ekraani või rakenduse jagamine koos salvestatud heliga"
+    }
+  }
+}

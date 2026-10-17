@@ -37,22 +37,22 @@ Threading Mode of a room. Selecting a mode edits a draft until the form submits.
   const options = $derived([
     {
       value: RoomThreadingMode.REQUIRED,
-      label: m('admin.rooms_admin.threading_mode_required'),
+      label: m('room.management.threading_mode_required'),
       description: m('admin.rooms_admin.threading_mode_required_description')
     },
     {
       value: RoomThreadingMode.ENCOURAGED,
-      label: m('admin.rooms_admin.threading_mode_encouraged'),
+      label: m('room.management.threading_mode_encouraged'),
       description: m('admin.rooms_admin.threading_mode_encouraged_description')
     },
     {
       value: RoomThreadingMode.ENABLED,
-      label: m('admin.rooms_admin.threading_mode_enabled'),
+      label: m('room.management.threading_mode_enabled'),
       description: m('admin.rooms_admin.threading_mode_enabled_description')
     },
     {
       value: RoomThreadingMode.DISABLED,
-      label: m('admin.rooms_admin.threading_mode_disabled'),
+      label: m('room.management.threading_mode_disabled'),
       description: m('admin.rooms_admin.threading_mode_disabled_description')
     }
   ]);

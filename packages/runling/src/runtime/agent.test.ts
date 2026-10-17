@@ -2141,6 +2141,32 @@ test.each(['error', 'aborted', 'empty'])(
   }
 );
 
+test.each(['stop', 'error', 'aborted'])(
+  'allowEmptyText accepts silence but preserves provider failures: %s',
+  async (stopReason) => {
+    promptImplementation = async () => {
+      eventHandler?.({
+        type: 'message_end',
+        message: {
+          role: 'assistant',
+          content: [],
+          stopReason,
+          errorMessage: stopReason === 'stop' ? undefined : 'Provider failed'
+        }
+      });
+    };
+    const result = await runAgent(createTaskContext(), 'Update the reaction silently', {
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5',
+      output: 'text',
+      allowEmptyText: true
+    });
+    expect(result.outcome).toBe(stopReason === 'stop' ? 'completed' : 'failed');
+    if (stopReason === 'stop') expect(result.summary).toBe('');
+    expect(promptCalls).toBe(1);
+  }
+);
+
 test('text mode retains usage accounting and resets response state between turns', async () => {
   const ctx = createTaskContext();
   const bot = await createAgentSession({

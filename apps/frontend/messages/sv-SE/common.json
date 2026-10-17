@@ -54,6 +54,11 @@
     "saved": "Sparad!",
     "rooms": "Rum",
     "copy_to_clipboard": "Kopiera till urklipp",
-    "copied_to_clipboard": "Kopierat till urklipp"
+    "copied_to_clipboard": "Kopierat till urklipp",
+    "user_search_placeholder": "Sök efter inloggning eller visningsnamn...",
+    "no_users": "Inga användare hittades",
+    "user_id": "Användar-ID",
+    "reason": "Anledning",
+    "message_of_the_day": "Dagens meddelande"
   }
 }

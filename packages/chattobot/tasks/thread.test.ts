@@ -29,20 +29,20 @@ function harness(
   const received: IncomingMessage[] = [];
   const batches: IncomingMessage[][] = [];
   const runIds: (string | undefined)[] = [];
-  const classify = vi.fn(decide);
+  const classify = vi.fn((_input: unknown) => decide());
   const read = vi.fn(async () =>
     readable ? { body: 'Current report', attachmentTypes: ['image/png'] } : undefined
   );
   const stopped = vi.fn();
   const classifier = task(
     { name: 'Fixture classifier', input: IntakeInput, output: IntakeDecision },
-    async (ctx) => {
+    async (ctx, input) => {
       runIds.push(ctx.run?.id);
       const aborted = new Promise<never>((_resolve, reject) =>
         ctx.signal.addEventListener('abort', () => reject(ctx.signal.reason), { once: true })
       );
       try {
-        return { engage: await Promise.race([classify(), aborted]), reason: 'fixture' };
+        return { engage: await Promise.race([classify(input), aborted]), reason: 'fixture' };
       } finally {
         stopped();
       }
@@ -181,15 +181,17 @@ test('cancelling an accepted workflow stops its child conversation', async () =>
 const snapshot = (...ids: string[]): FollowUpSnapshot => ({
   boundary: 'bot-last',
   input: {
-    context: [{ role: 'bot', body: 'What version and deployment method do you use?' }],
-    messages: ids.map((id) => ({ body: id, attachmentTypes: [] }))
+    context: [{ role: 'bot', body: 'What version and deployment method do you use?' }]
   },
   messages: ids.map((id) => ({
-    ...ping,
-    id,
-    authorId: `author-${id}`,
-    body: id,
-    trigger: 'follow-up'
+    message: {
+      ...ping,
+      id,
+      authorId: `author-${id}`,
+      body: id,
+      trigger: 'follow-up'
+    },
+    attachmentTypes: []
   }))
 });
 
@@ -216,13 +218,48 @@ test('unchanged replies are checked once; new replies reconsider the full batch 
   expect(h.classify).toHaveBeenCalledOnce();
   expect(h.received).toEqual([ping]);
   current = snapshot('one', 'two');
-  await vi.waitFor(() => expect(h.batches).toEqual([current.messages]));
+  await vi.waitFor(() =>
+    expect(h.batches).toEqual([current.messages.map(({ message }) => message)])
+  );
   expect(h.classify).toHaveBeenCalledTimes(2);
   await new Promise((resolve) => setTimeout(resolve, 25));
   expect(h.batches).toHaveLength(1);
-  // A new bot reply resets the boundary even if the human messages happen to be the same.
+  // A new post boundary must not redeliver messages the conversation already received.
   current = { ...current, boundary: 'new-bot-post' };
+  const reads = readFollowUp.mock.calls.length;
+  await vi.waitFor(() => expect(readFollowUp.mock.calls.length).toBeGreaterThan(reads + 1));
+  expect(h.batches).toHaveLength(1);
+  expect(h.classify).toHaveBeenCalledTimes(2);
+  run.closeInput();
+  await run.result;
+});
+
+test('a directly delivered resolution is not polled again; a new reply can reopen the thread', async () => {
+  let current: FollowUpSnapshot | undefined;
+  const readFollowUp = vi.fn(async () => current);
+  const h = harness(async () => true, true, { readFollowUp, intervalMs: 5 });
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(h.received).toEqual([ping]));
+  const resolution = { ...ping, id: 'resolved', body: 'That issue covers it, thanks' };
+  await run.send(resolution);
+  await vi.waitFor(() => expect(h.received).toEqual([ping, resolution]));
+  // No new bot post: this is the reaction-only completion from seven-bats-3145.
+  current = snapshot('resolved');
+  const reads = readFollowUp.mock.calls.length;
+  await vi.waitFor(() => expect(readFollowUp.mock.calls.length).toBeGreaterThan(reads + 2));
+  expect(h.classify).not.toHaveBeenCalled();
+  expect(h.batches).toEqual([]);
+  current = snapshot('resolved', 'reopened');
+  current.messages[0]!.attachmentTypes = ['image/png'];
+  current.messages[1]!.attachmentTypes = ['application/pdf'];
+  await vi.waitFor(() => expect(h.batches).toEqual([[current!.messages[1]!.message]]));
+  expect(h.classify).toHaveBeenLastCalledWith({
+    context: [...current.input.context, { role: 'human', body: 'resolved' }],
+    messages: [{ body: 'reopened', attachmentTypes: ['application/pdf'] }]
+  });
+  current = snapshot('resolved', 'reopened', 'more');
   await vi.waitFor(() => expect(h.batches).toHaveLength(2));
+  expect(h.batches[1]).toEqual([current.messages[2]!.message]);
   run.closeInput();
   await run.result;
 });
@@ -312,7 +349,7 @@ test('waiting for a background job permits follow-ups but prevents inactivity ex
   await using run = h.start(ping);
   await vi.waitFor(() => expect(readFollowUp.mock.calls.length).toBeGreaterThan(3));
   expect(run.status).toBe('running');
-  expect(h.batches).toEqual([snapshot('one').messages]);
+  expect(h.batches).toEqual([snapshot('one').messages.map(({ message }) => message)]);
   const direct = { ...ping, id: 'direct' };
   await run.send(direct);
   await vi.waitFor(() => expect(h.received.at(-1)).toEqual(direct));

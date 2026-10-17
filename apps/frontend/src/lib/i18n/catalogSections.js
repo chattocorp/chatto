@@ -10,6 +10,7 @@ export const catalogSections = /** @type {const} */ ([
   'invite_links',
   'media',
   'message_preview',
+  'permissions',
   'preview',
   'quick_switcher',
   'rbac',
@@ -40,4 +41,30 @@ export const publicCatalogSections = /** @type {const} */ ([
 /** @param {(typeof catalogSections)[number]} section */
 export function isPublicCatalogSection(section) {
   return /** @type {readonly string[]} */ (publicCatalogSections).includes(section);
+}
+
+/** Catalogs used only by management routes, including their English fallback. */
+export const managementCatalogSections = /** @type {const} */ ([
+  'admin',
+  'rbac',
+  'server_settings'
+]);
+
+/** @param {(typeof catalogSections)[number]} section */
+export function isManagementCatalogSection(section) {
+  return /** @type {readonly string[]} */ (managementCatalogSections).includes(section);
+}
+
+/** Public and chat catalogs needed outside management. */
+export const chatCatalogSections = catalogSections.filter(
+  (section) => !isManagementCatalogSection(section)
+);
+
+/** @param {(typeof catalogSections)[number]} section */
+export function catalogBoundary(section) {
+  return isManagementCatalogSection(section)
+    ? 'management'
+    : isPublicCatalogSection(section)
+      ? 'public'
+      : 'chat';
 }

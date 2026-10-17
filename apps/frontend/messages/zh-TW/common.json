@@ -54,6 +54,11 @@
     "saved": "已儲存！",
     "rooms": "聊天室",
     "copy_to_clipboard": "複製到剪貼簿",
-    "copied_to_clipboard": "已複製到剪貼簿"
+    "copied_to_clipboard": "已複製到剪貼簿",
+    "user_search_placeholder": "依登入名稱或顯示名稱搜尋...",
+    "no_users": "找不到使用者",
+    "user_id": "使用者 ID",
+    "reason": "原因",
+    "message_of_the_day": "每日訊息"
   }
 }

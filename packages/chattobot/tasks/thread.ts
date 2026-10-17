@@ -113,7 +113,8 @@ export function createThreadWorkflow(options: ThreadOptions) {
 }
 
 /** A poll has no visible effects until classification accepts a batch. One snapshot key skips
- * unchanged replies; the next check still includes ALL human replies since the last bot post.
+ * unchanged replies. Already-delivered messages are context only; the next check reconsiders
+ * the remaining human replies since the last bot post when another reply arrives.
  * Direct input or a new turn cancels an obsolete check before it can send a duplicate batch.
  * The same polling loop expires idle conversations after an hour without delivered messages;
  * active turns and background jobs can finish first. */
@@ -128,6 +129,8 @@ function monitorConversation(
   let state: 'busy' | 'waiting' | 'idle' = 'busy';
   let lastActivity = performance.now();
   let checked: string | undefined;
+  // A turn can finish without a bot post. The post boundary alone cannot deduplicate delivery.
+  const delivered = new Set([first.id]);
   let check: AbortController | undefined;
   let classification: TaskInvocation<ReturnType<typeof createIntakeClassifier>> | undefined;
   const interrupt = () => {
@@ -142,6 +145,7 @@ function monitorConversation(
   const send = async (message: ConversationInput) => {
     interrupt();
     await child.send(message);
+    for (const item of Array.isArray(message) ? message : [message]) delivered.add(item.id);
     lastActivity = performance.now();
   };
   const updates = (async () => {
@@ -169,16 +173,31 @@ function monitorConversation(
         const snapshot = await readFollowUp(first, checkSignal);
         checkSignal.throwIfAborted();
         if (!snapshot) continue;
-        const key = JSON.stringify([snapshot.boundary, snapshot.messages.map((item) => item.id)]);
+        const pending = snapshot.messages.filter(({ message }) => !delivered.has(message.id));
+        if (!pending.length) continue;
+        const messages = pending.map(({ message }) => message);
+        const key = JSON.stringify([snapshot.boundary, messages.map((item) => item.id)]);
         if (key === checked) continue;
         checked = key;
         {
-          await using decision = ctx.start(classifier, snapshot.input);
+          await using decision = ctx.start(classifier, {
+            ...snapshot.input,
+            context: [
+              ...snapshot.input.context,
+              ...snapshot.messages
+                .filter(({ message }) => delivered.has(message.id))
+                .map(({ message }) => ({ role: 'human' as const, body: message.body }))
+            ],
+            messages: pending.map(({ message, attachmentTypes }) => ({
+              body: message.body,
+              attachmentTypes
+            }))
+          });
           classification = decision;
           const { engage } = await decision.result;
           checkSignal.throwIfAborted();
           if (engage) {
-            await send(snapshot.messages);
+            await send(messages);
             log.info('Thread follow-up accepted');
           } else log.info('Thread follow-up ignored');
         }

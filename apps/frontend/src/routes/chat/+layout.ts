@@ -1,7 +1,7 @@
 import { preloadChatLocaleMessages } from '$lib/i18n/messages';
 import type { LayoutLoad } from './$types';
 
-/** Load the complete selected locale at the authenticated application boundary. */
+/** Load shared chat sections without depending on child route changes. */
 export const load: LayoutLoad = async ({ parent }) => {
   // The root layout selects the locale and loads the public catalog first.
   await parent();

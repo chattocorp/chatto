@@ -21,10 +21,10 @@
     label,
     value = $bindable(''),
     text = $bindable(''),
-    placeholder = m('admin.members.search_placeholder'),
+    placeholder = m('common.user_search_placeholder'),
     humanOnly = false,
     allowFreeform = true,
-    emptyMessage = m('admin.users.empty'),
+    emptyMessage = m('common.no_users'),
     clearLabel = m('common.clear')
   }: {
     id: string;

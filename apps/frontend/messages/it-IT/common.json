@@ -54,6 +54,11 @@
     "saved": "Salvato!",
     "rooms": "Camere",
     "copy_to_clipboard": "Copia negli appunti",
-    "copied_to_clipboard": "Copiato negli appunti"
+    "copied_to_clipboard": "Copiato negli appunti",
+    "user_search_placeholder": "Cerca per login o nome visualizzato...",
+    "no_users": "Nessun utente trovato",
+    "user_id": "ID utente",
+    "reason": "Motivo",
+    "message_of_the_day": "Messaggio del giorno"
   }
 }

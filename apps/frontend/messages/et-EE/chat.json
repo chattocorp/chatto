@@ -164,6 +164,19 @@
       },
       "owned_by": "Omanik",
       "open_card": "Ava kasutaja {name} profiilikaart"
+    },
+    "management_nav": {
+      "general": "Kindral",
+      "neighbors": "Naabrid",
+      "members": "liikmed",
+      "rooms": "Toad",
+      "moderation": "Mõõdukus",
+      "permissions": "load",
+      "security": "Turvalisus",
+      "event_log": "Sündmuste logi",
+      "system": "Süsteem",
+      "back_to_server": "Tagasi serverisse",
+      "invitations": "Kutselingid"
     }
   }
 }

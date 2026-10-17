@@ -21,16 +21,16 @@ export interface LanguageReportEvidence {
   github: FakeGitHub;
   /** The replies from each completed supervisor turn, including job result turns. */
   turns: string[][];
-  requests: { request: string; context: string }[];
+  requests: { task: string; evidence: string }[];
 }
 
 /** Assert observable effects and reply counts without requiring exact model phrasing. */
 export function checkLanguageReport({ github, turns, requests }: LanguageReportEvidence) {
-  assert.deepEqual(
-    requests.map((item) => item.request),
-    messages.slice(3),
-    'Delegate only the two explicit requests'
-  );
+  assert.equal(requests.length, 2, 'Delegate only the two explicit requests');
+  assert.match(requests[0]!.task, /file|create/i, 'Delegate filing first');
+  assert.match(requests[0]!.task, /spanish/i, 'Resolve the report in the task');
+  assert.match(requests[1]!.task, /close/i, 'Delegate closure second');
+  assert.match(requests[1]!.task, /101/, 'Resolve the created issue in the task');
   assert.deepEqual(
     turns.map((replies) => replies.length),
     [1, 1, 1, 1, 1, 1, 1],
@@ -137,6 +137,7 @@ export async function languageReport(
       },
       typing: async () => {},
       acknowledge: async () => {},
+      setHandled: async () => {},
       readThread: async () => ({ messages: [], olderOmitted: false }),
       readAttachment: async () => {
         throw new Error('No evaluation attachments');
@@ -159,10 +160,11 @@ export async function languageReport(
         { ...settings, sessions: resolve(directory, 'sessions') },
         async (options) => {
           const bot = await createAgentSession(options);
+          if (options.label !== 'github') return bot;
           const run = bot.runOutcome.bind(bot);
           bot.runOutcome = async (context, prompt, options) => {
-            const input = JSON.parse(prompt) as { request: string; evidence: string };
-            record.requests.push({ request: input.request, context: input.evidence });
+            const input = JSON.parse(prompt) as { task: string; evidence: string };
+            record.requests.push(input);
             return run(context, prompt, options);
           };
           return bot;

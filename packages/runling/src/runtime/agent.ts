@@ -178,6 +178,9 @@ export interface RunAgentOptions {
   /** Text agents finish naturally and return their final text; report agents must call
    * report_outcome (default). */
   output?: 'text' | 'report';
+  /** In text mode, permit a successful turn without a text reply, such as a
+   * tool-only action. Defaults to false. Provider errors still fail the turn. */
+  allowEmptyText?: boolean;
   /** Built-in and extension tools to expose. `report_outcome` is added in report mode. */
   tools?: readonly string[];
   resources?: AgentResourceOptions;
@@ -775,13 +778,13 @@ async function createRunlingAgent(
           }
           if (textOutput) {
             // The final text is the result. onText already delivered it during the turn.
-            if (!finalText?.trim())
+            if (!finalText?.trim() && !options.allowEmptyText)
               return {
                 outcome: 'failed',
                 summary: 'Agent finished without a text response',
                 usage
               };
-            return { outcome: 'completed', summary: finalText, usage };
+            return { outcome: 'completed', summary: finalText ?? '', usage };
           }
 
           if (activeReport === undefined) {

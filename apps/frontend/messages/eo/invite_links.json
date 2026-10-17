@@ -9,6 +9,18 @@
     "create_permission": "Krei invitligilojn",
     "manage_permission": "Administri ĉiujn invitligilojn",
     "create_help": "Kreu ligilojn por novaj kontoj. Forigo de ĉi tiu permeso ne nuligas ekzistantajn ligilojn.",
-    "manage_help": "Vidu, kopiu kaj nuligu la ligilojn de iu ajn. Postulas ŝildan reĝimon; ne permesas kreadon."
+    "manage_help": "Vidu, kopiu kaj nuligu la ligilojn de iu ajn. Postulas ŝildan reĝimon; ne permesas kreadon.",
+    "max_uses": "Maksimuma nombro de uzoj",
+    "max_uses_error": "Enigu entjeron de almenaŭ 1.",
+    "unlimited_uses": "Permesi senliman nombron de uzoj",
+    "expiry": "Eksvalidiĝo",
+    "expiry_1d": "1 tago",
+    "expiry_7d": "7 tagoj",
+    "expiry_30d": "30 tagoj",
+    "expiry_never": "Neniam",
+    "create": "Krei invitligilon",
+    "created": "Invitligilo kreita",
+    "copy": "Kopii ligilon",
+    "copied": "Invitligilo kopiita"
   }
 }

@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "descriptions": {
+      "server_manage": "サーバー設定の更新 (名前、説明、ロゴ)",
+      "server_manage_neighbors": "公開ネイバーディレクトリを管理する",
+      "room_create": "新しいルームを作成する",
+      "room_join": "既存のルームに参加する",
+      "room_list": "ディレクトリ内のルームを参照してください。ユーザーは、ルームへの参加を許可されずに、ルームの閲覧を許可される (アクセスを要求するなど) ことができます。",
+      "room_manage": "ルームの設定と権限を編集し、ルームを削除します",
+      "room_remove_member": "メンバーをルームから退出させ、必要に応じて再参加を停止",
+      "message_read": "ルーム内のすべてのメッセージを読む。この権限を削除しても、message.read-interactions が個別に付与されている場合は制限付きアクセスが可能です。",
+      "message_read_interactions": "自分が作成したスレッド、または他のユーザーから直接メンションされたスレッド全体を読む",
+      "message_post": "メッセージやスレッドの返信を投稿し、DMを開始する",
+      "message_post_interactions": "自分が開始したスレッド、直接メンションされたスレッド、またはDMを受信したスレッドに返信する",
+      "message_post_in_thread": "スレッド内に返信を投稿する",
+      "message_attach": "メッセージにファイルを添付する",
+      "message_echo": "スレッドに投稿するときは、メイン チャネルにもメッセージを表示します",
+      "message_pin": "メッセージのピン留めと解除",
+      "message_manage": "他のユーザーのメッセージを編集および削除する",
+      "message_react": "メッセージに対するリアクションの追加と削除",
+      "role_manage": "ロールとその権限付与の作成、編集、削除、並べ替え",
+      "role_assign": "ユーザーのロールの割り当てと取り消し",
+      "admin_view_users": "管理者でユーザー ページを表示する",
+      "admin_view_system": "管理者で投影診断を表示する",
+      "admin_view_audit": "管理者で監査ログを表示する",
+      "user_delete_any": "別のユーザーのアカウントを削除する",
+      "user_delete_self": "自分のアカウントを削除してください",
+      "user_manage_accounts": "ユーザーの作成、アカウント ID の編集、パスワードのリセット、確認済みメールの添付、ログインのクールダウンのクリア",
+      "user_manage_permissions": "ユーザーごとの権限オーバーライドを直接編集する",
+      "bot_create": "自分が所有するボットアカウントを作成",
+      "bot_manage": "すべてのボットアカウントを表示して管理",
+      "call_start": "通話を開始する（call.join も必要）",
+      "call_join": "進行中の通話に参加する",
+      "call_voice": "通話でマイクを使用する",
+      "call_camera": "通話でカメラを使用する",
+      "call_screenshare": "画面やアプリケーションを収録音声とともに共有する"
+    }
+  }
+}

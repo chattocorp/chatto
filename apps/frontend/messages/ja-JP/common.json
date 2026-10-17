@@ -54,6 +54,11 @@
     "saved": "保存しました!",
     "rooms": "部屋",
     "copy_to_clipboard": "クリップボードにコピー",
-    "copied_to_clipboard": "クリップボードにコピーされました"
+    "copied_to_clipboard": "クリップボードにコピーされました",
+    "user_search_placeholder": "ログイン名または表示名で検索します...",
+    "no_users": "ユーザーが見つかりませんでした",
+    "user_id": "ユーザーID",
+    "reason": "理由",
+    "message_of_the_day": "今日のメッセージ"
   }
 }

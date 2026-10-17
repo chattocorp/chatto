@@ -125,7 +125,7 @@
   async function copyInvitation(invitation: InviteLink) {
     try {
       await navigator.clipboard.writeText(invitation.link);
-      toast.success(m('admin.invitations.copied'));
+      toast.success(m('invite_links.copied'));
     } catch {
       toastError(undefined, m('room.message.actions.copy_link_failed'));
     }
@@ -207,7 +207,7 @@
                 <div class="flex justify-end gap-2">
                   <Button size="sm" variant="secondary" onclick={() => copyInvitation(invitation)}>
                     <span aria-hidden="true" class="iconify icon-[uil--copy]"></span>{m(
-                      'admin.invitations.copy'
+                      'invite_links.copy'
                     )}
                   </Button>
                   {#if invitation.status === 'active'}

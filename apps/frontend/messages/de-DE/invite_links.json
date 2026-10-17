@@ -9,6 +9,18 @@
     "create_permission": "Einladungslinks erstellen",
     "manage_permission": "Alle Einladungslinks verwalten",
     "create_help": "Erstelle Links für neue Konten. Der Entzug dieser Berechtigung widerruft bestehende Links nicht.",
-    "manage_help": "Zeige, kopiere und widerrufe die Einladungslinks aller Personen. Erfordert den Schutzmodus; erlaubt keine Erstellung."
+    "manage_help": "Zeige, kopiere und widerrufe die Einladungslinks aller Personen. Erfordert den Schutzmodus; erlaubt keine Erstellung.",
+    "max_uses": "Maximale Nutzungen",
+    "max_uses_error": "Gib eine ganze Zahl von mindestens 1 ein.",
+    "unlimited_uses": "Unbegrenzte Nutzungen erlauben",
+    "expiry": "Ablauf",
+    "expiry_1d": "1 Tag",
+    "expiry_7d": "7 Tage",
+    "expiry_30d": "30 Tage",
+    "expiry_never": "Nie",
+    "create": "Einladungslink erstellen",
+    "created": "Einladungslink erstellt",
+    "copy": "Link kopieren",
+    "copied": "Einladungslink kopiert"
   }
 }

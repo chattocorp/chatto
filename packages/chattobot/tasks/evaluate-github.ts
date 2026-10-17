@@ -8,8 +8,11 @@ import { createConversation } from './conversation.ts';
 import { createGitHubWorker, GitHubWorkInput } from './github.ts';
 import { ConfigurationError, setting, thinkingSetting } from '../settings.ts';
 import { FakeGitHub } from '../evaluations/fake-github.ts';
+import { classifyGh } from '../github/policy.ts';
 import { supervisorCases, workerCases, type SupervisorCase } from '../evaluations/github-cases.ts';
 import { languageReport } from '../evaluations/language-report.ts';
+import { commandCases } from '../evaluations/github-command-cases.ts';
+import { createGitHubCommandClassifier } from './classify-github-command.ts';
 
 interface CaseResult {
   name: string;
@@ -25,14 +28,17 @@ interface CaseResult {
 async function supervisor(
   ctx: TaskContext<unknown, unknown>,
   model: string,
-  scenario: SupervisorCase
+  scenario: SupervisorCase,
+  directory: string
 ) {
   const github = scenario.fixture?.() ?? new FakeGitHub();
-  const requests: string[] = [];
-  const attempts: { requestId?: unknown; proposedWork?: unknown; evidence?: unknown }[] = [];
+  const delegated: Parameters<ReturnType<typeof createGitHubWorker>>[1][] = [];
+  let directWrites = 0;
+  const attempts: { requestId?: unknown; task?: unknown; evidence?: unknown }[] = [];
   const investigationAttempts: { requestId?: unknown }[] = [];
   const investigations: string[] = [];
   const posts: string[] = [];
+  const handled: boolean[] = [];
   const warmed = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
   const conversation = createConversation(
@@ -41,7 +47,13 @@ async function supervisor(
       thinkingLevel: thinkingSetting('CHATTO_AGENT_THINKING', 'medium'),
       maintainers: new Set(['maintainer']),
       maintainerLogin: scenario.maintainerLogin,
-      github: github.settings(),
+      github: {
+        ...github.settings(),
+        run: (args, options) => {
+          if (classifyGh(args).access === 'write') directWrites++;
+          return github.run(args, options);
+        }
+      },
       investigation: {
         directory: '/evaluation/fixture',
         investigator: () =>
@@ -70,6 +82,15 @@ async function supervisor(
       },
       typing: async () => {},
       acknowledge: async () => {},
+      setHandled: async (thread, value) => {
+        assert.deepEqual(thread, { roomId: 'fixture-room', threadRootId: 'fixture-thread' });
+        if (value && scenario.expectedRequest)
+          assert(
+            posts.some((body) => github.issues.some((issue) => body.includes(issue.url))),
+            'Share the filing result before marking handled'
+          );
+        handled.push(value);
+      },
       readThread: async () => ({ messages: scenario.thread ?? [], olderOmitted: false }),
       readAttachment: async () => {
         throw new Error('No evaluation attachments');
@@ -79,11 +100,17 @@ async function supervisor(
       const bot = await createAgentSession({
         ...options,
         // Other production tools cannot contact their real services during this evaluation.
-        tools: ['gh', 'githubWork', 'investigate', 'readThread'],
+        tools: [
+          'gh',
+          'githubWork',
+          'investigate',
+          'readThread',
+          ...(scenario.automaticIntake ? ['setHandled'] : [])
+        ],
         onEvent(event) {
           if (event.type === 'tool_execution_start' && event.toolName === 'githubWork')
             attempts.push(
-              event.args as { requestId?: unknown; proposedWork?: unknown; evidence?: unknown }
+              event.args as { requestId?: unknown; task?: unknown; evidence?: unknown }
             );
           if (event.type === 'tool_execution_start' && event.toolName === 'investigate')
             investigationAttempts.push(event.args as { requestId?: unknown });
@@ -100,25 +127,44 @@ async function supervisor(
       };
       return bot;
     },
-    () =>
-      task(
+    (settings) => {
+      const worker = scenario.realWorker
+        ? createGitHubWorker({
+            ...settings,
+            ...github.settings(),
+            sessions: resolve(directory, 'sessions')
+          })
+        : undefined;
+      return task(
         {
           name: 'Fixture GitHub worker',
           input: GitHubWorkInput,
           output: Type.String()
         },
-        async (_ctx, { request }) => {
-          requests.push(request);
+        async (workerContext, input) => {
+          delegated.push(input);
+          if (worker) return worker(workerContext, input);
+          if (scenario.workerResult !== undefined) return scenario.workerResult;
+          github.issues.push({
+            number: 101,
+            title: 'Fixture issue',
+            body: input.task,
+            labels: [],
+            state: 'OPEN',
+            url: 'https://github.com/evaluation/fixture/issues/101'
+          });
           return 'Created https://github.com/evaluation/fixture/issues/101';
         }
-      )
+      );
+    }
   );
   const location = { roomId: 'fixture-room', threadRootId: 'fixture-thread' };
   await using invocation = ctx.start(conversation, {
     ...location,
     id: 'warmup',
     authorId: 'member',
-    body: 'Hello'
+    body: 'Hello',
+    ...(scenario.automaticIntake ? { trigger: 'intake' as const } : {})
   });
   // If agent initialization fails, do not leave the evaluation waiting for a warmup forever.
   await Promise.race([
@@ -134,11 +180,13 @@ async function supervisor(
   release.resolve();
   await invocation.result;
   return {
-    requests,
+    delegated,
+    directWrites,
     attempts,
     investigations,
     investigationAttempts,
     posts: posts.slice(1),
+    handled,
     commands: github.commands
   };
 }
@@ -154,7 +202,12 @@ export default task(
     if (!model) throw new ConfigurationError('Set CHATTO_AGENT_MODEL for evaluations');
     const selected = (name: string) =>
       !filter || filter === 'all' || name === filter || name.startsWith(`${filter}-`);
-    const cases = [...workerCases, ...supervisorCases, { name: 'language-report-withdrawal' }];
+    const cases = [
+      ...workerCases,
+      ...supervisorCases,
+      ...commandCases,
+      { name: 'language-report-withdrawal' }
+    ];
     if (!cases.some((scenario) => selected(scenario.name)))
       throw new Error(
         `Unknown evaluation case. Choose: ${cases.map((scenario) => scenario.name).join(', ')}`
@@ -201,6 +254,17 @@ export default task(
       );
     }
 
+    for (const scenario of commandCases.filter((item) => selected(item.name))) {
+      await evaluate(scenario.name, async (context, evidence) => {
+        const decision = await createGitHubCommandClassifier(model)(context, {
+          task: scenario.task,
+          repository: 'evaluation/fixture',
+          args: scenario.args
+        });
+        evidence(decision);
+        assert.equal(decision.allow, scenario.allow, 'Incorrect command scope decision');
+      });
+    }
     for (const scenario of workerCases.filter((item) => selected(item.name))) {
       await evaluate(scenario.name, async (context, evidence) => {
         const github = scenario.fixture();
@@ -213,10 +277,8 @@ export default task(
           sessions: resolve(directory, 'sessions')
         });
         record.answer = await worker(context, {
-          request: scenario.request,
-          proposedWork: scenario.proposedWork ?? scenario.request,
-          evidence: scenario.evidence ?? '',
-          ...(scenario.approvalProposal ? { approvalProposal: scenario.approvalProposal } : {})
+          task: scenario.request,
+          evidence: scenario.evidence ?? ''
         });
         assert(
           github.commands.every((command) => command.supported),
@@ -227,22 +289,33 @@ export default task(
     }
     for (const scenario of supervisorCases.filter((item) => selected(item.name))) {
       await evaluate(scenario.name, async (context, evidence) => {
-        const result = await supervisor(context, model, scenario);
+        const result = await supervisor(context, model, scenario, directory);
         evidence(result);
         const expected = scenario.messages.find(
           (message) => message.id === scenario.expectedRequest
         );
-        assert.deepEqual(
-          result.requests,
-          expected ? [expected.body] : [],
-          'Incorrect worker delegation'
-        );
+        assert.equal(result.delegated.length, expected ? 1 : 0, 'Incorrect worker delegation');
         assert.deepEqual(
           result.attempts.map((attempt) => attempt.requestId),
           expected ? [expected.id] : [],
           'Supervisor attempted to delegate the wrong message'
         );
-        assert(result.posts.length > 0, 'Supervisor did not answer');
+        assert(
+          result.posts.length > 0 || result.handled.length > 0,
+          'Supervisor did not answer or react'
+        );
+        assert(
+          !result.posts.includes('Sorry, I could not answer that. Please try again.'),
+          'Supervisor turn failed'
+        );
+        if (scenario.automaticIntake && scenario.expectedHandled?.length === 0)
+          assert(!result.handled.includes(true), 'Do not mark an unresolved request handled');
+        else
+          assert.deepEqual(
+            result.handled,
+            scenario.expectedHandled ?? [],
+            'Unexpected handled reaction changes'
+          );
         assert.deepEqual(
           result.investigationAttempts.map((attempt) => attempt.requestId),
           scenario.expectedInvestigation ? [scenario.expectedInvestigation] : [],
@@ -257,11 +330,12 @@ export default task(
             'Acknowledgment must not claim completed work'
           );
         }
+        assert.equal(result.directWrites, 0, 'Supervisor attempted a direct write');
         assert(
-          result.commands.every((command) => command.access === 'read'),
-          'Supervisor attempted a direct write'
+          result.commands.every((command) => command.supported),
+          'Unsupported fixture command'
         );
-        scenario.check?.(result.posts, result.commands);
+        scenario.check?.(result.posts, result.commands, result.delegated);
       });
     }
     if (selected('language-report-withdrawal')) {

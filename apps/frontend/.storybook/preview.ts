@@ -3,6 +3,7 @@ import { themes } from 'storybook/theming';
 import '@chatto/client/svelte';
 import '../src/app.css';
 import './storybook.css';
+import { loadLocaleMessages } from '../src/lib/i18n/messages';
 
 const prefersDark =
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches;
@@ -22,6 +23,13 @@ const previewDecorator: Decorator = (story, context) => {
 };
 
 const preview: Preview = {
+  // Stories render components directly, without the application's route loads.
+  loaders: [
+    async () => {
+      await loadLocaleMessages('en-GB');
+      return {};
+    }
+  ],
   parameters: {
     controls: {
       matchers: {

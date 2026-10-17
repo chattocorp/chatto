@@ -73,7 +73,7 @@
     if (!invitation) return;
     try {
       await navigator.clipboard.writeText(invitation.link);
-      toast.success(m('admin.invitations.copied'));
+      toast.success(m('invite_links.copied'));
     } catch {
       toastError(undefined, m('room.message.actions.copy_link_failed'));
     }
@@ -83,14 +83,14 @@
 <PageTitle title={m('invite_links.invite_people')} />
 
 {#if invitation}
-  <Dialog visible title={m('admin.invitations.created')} onclose={close}>
+  <Dialog visible title={m('invite_links.created')} onclose={close}>
     <div class="flex flex-col gap-4">
       <code class="overflow-x-auto surface-box p-3 text-sm whitespace-nowrap select-all" dir="ltr"
         >{invitation.link}</code
       >
       <Button onclick={copy}
         ><span class="iconify icon-[uil--copy]" aria-hidden="true"></span>{m(
-          'admin.invitations.copy'
+          'invite_links.copy'
         )}</Button
       >
       <a
@@ -104,7 +104,7 @@
   <FormDialog
     visible
     title={m('invite_links.invite_people')}
-    submitLabel={m('admin.invitations.create')}
+    submitLabel={m('invite_links.create')}
     submitIcon="iconify icon-[uil--plus]"
     {loading}
     disabled={invalid}
@@ -115,27 +115,27 @@
     <div class="flex flex-col gap-4">
       <TextInput
         id="invitation-max-uses"
-        label={m('admin.invitations.max_uses')}
+        label={m('invite_links.max_uses')}
         bind:value={maxUses}
         disabled={unlimitedUses || loading}
-        error={invalid ? m('admin.invitations.max_uses_error') : undefined}
+        error={invalid ? m('invite_links.max_uses_error') : undefined}
       />
       <Checkbox
         id="invitation-unlimited-uses"
         bind:checked={unlimitedUses}
-        label={m('admin.invitations.unlimited_uses')}
+        label={m('invite_links.unlimited_uses')}
         disabled={loading}
       />
       <Select
         id="invitation-expiry"
-        label={m('admin.invitations.expiry')}
+        label={m('invite_links.expiry')}
         bind:value={expiry}
         disabled={loading}
         options={[
-          { value: '1d', label: m('admin.invitations.expiry_1d') },
-          { value: '7d', label: m('admin.invitations.expiry_7d') },
-          { value: '30d', label: m('admin.invitations.expiry_30d') },
-          { value: 'never', label: m('admin.invitations.expiry_never') }
+          { value: '1d', label: m('invite_links.expiry_1d') },
+          { value: '7d', label: m('invite_links.expiry_7d') },
+          { value: '30d', label: m('invite_links.expiry_30d') },
+          { value: 'never', label: m('invite_links.expiry_never') }
         ]}
       />
       <a
@@ -149,6 +149,6 @@
   <AccessDenied
     message={m('ui.access_denied.message')}
     backHref={resolve('/chat/[serverId]/overview', { serverId: serverSegment })}
-    backLabel={m('admin.nav.back_to_server')}
+    backLabel={m('chat.management_nav.back_to_server')}
   />
 {/if}

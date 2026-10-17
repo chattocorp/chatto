@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "descriptions": {
+      "server_manage": "Aktualizuj ustawienia serwera (nazwa, opis, logo)",
+      "server_manage_neighbors": "Zarządzanie publicznym katalogiem sąsiadów",
+      "room_create": "Utwórz nowe pokoje",
+      "room_join": "Dołącz do istniejących pokoi",
+      "room_list": "Zobacz pokoje w katalogu. Użytkownik może uzyskać dostęp do pokoju (np. poprosić o dostęp) bez możliwości dołączenia do niego.",
+      "room_manage": "Edytuj ustawienia i uprawnienia pokoju oraz usuwaj pokoje",
+      "room_remove_member": "Usuwaj członków z pokoi i w razie potrzeby zawieszaj ponowne dołączenie",
+      "message_read": "Czytanie wszystkich wiadomości w pokojach. Usunięcie tego uprawnienia nadal pozwala na ograniczony dostęp, jeśli message.read-interactions przyznano osobno.",
+      "message_read_interactions": "Czytać całe wątki utworzone przez Ciebie lub takie, w których inny użytkownik wspomniał Cię bezpośrednio",
+      "message_post": "Publikować wiadomości i odpowiedzi w wątkach oraz rozpoczynać rozmowy prywatne",
+      "message_post_interactions": "Odpowiadać w wątkach, które rozpoczęto, w których wspomniano Cię bezpośrednio lub otrzymano wiadomość prywatną",
+      "message_post_in_thread": "Publikuj odpowiedzi w wątku",
+      "message_attach": "Dołącz pliki do wiadomości",
+      "message_echo": "Publikując post w wątku, umieść wiadomość również w głównym kanale",
+      "message_pin": "Przypinanie i odpinanie wiadomości",
+      "message_manage": "Edytuj i usuwaj wiadomości innych użytkowników",
+      "message_react": "Dodawaj i usuwaj reakcje na wiadomości",
+      "role_manage": "Twórz, edytuj, usuwaj i zmieniaj kolejność ról oraz przydzielonych im uprawnień",
+      "role_assign": "Przydzielaj i odbieraj role użytkownikom",
+      "admin_view_users": "Wyświetl stronę użytkowników w panelu administracyjnym",
+      "admin_view_system": "Wyświetl diagnostykę projekcji w panelu administracyjnym",
+      "admin_view_audit": "Wyświetl dziennik audytu w panelu administratora",
+      "user_delete_any": "Usuń konto innego użytkownika",
+      "user_delete_self": "Usuń własne konto",
+      "user_manage_accounts": "Twórz użytkowników, edytuj tożsamość konta, resetuj hasła, dołączaj zweryfikowane e-maile i usuwaj czasy odnowienia logowania",
+      "user_manage_permissions": "Edytuj bezpośrednie zastąpienia uprawnień poszczególnych użytkowników",
+      "bot_create": "Tworzyć własne konta botów",
+      "bot_manage": "Wyświetlać wszystkie konta botów i zarządzać nimi",
+      "call_start": "Rozpoczynanie rozmowy (wymaga też call.join)",
+      "call_join": "Dołączanie do trwającej rozmowy",
+      "call_voice": "Używanie mikrofonu podczas rozmów",
+      "call_camera": "Używanie kamery podczas rozmów",
+      "call_screenshare": "Udostępnianie ekranu lub aplikacji wraz z przechwyconym dźwiękiem"
+    }
+  }
+}

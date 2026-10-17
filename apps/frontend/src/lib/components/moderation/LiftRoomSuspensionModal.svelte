@@ -58,19 +58,19 @@
 </script>
 
 {#snippet liftTitle()}<AccountNameTokens
-    text={m('admin.moderation.lift_title', { user: accountNameToken(0) })}
+    text={m('room.moderation.lift_title', { user: accountNameToken(0) })}
     accounts={[{ name: displayName, identity: user }]}
   />{/snippet}
 
 <FormDialog
   bind:visible
-  title={m('admin.moderation.lift_title', { user: displayName })}
+  title={m('room.moderation.lift_title', { user: displayName })}
   titleContent={liftTitle}
   size="sm"
-  submitLabel={m('admin.moderation.lift')}
+  submitLabel={m('room.moderation.lift')}
   submitTone="warning"
   submitIcon="iconify icon-[uil--unlock]"
-  submitLoadingText={m('admin.moderation.lifting')}
+  submitLoadingText={m('room.moderation.lifting')}
   loading={submitting}
   {disabled}
   {error}
@@ -95,7 +95,7 @@
 
   <TextArea
     id="lift-room-suspension-reason"
-    label={m('admin.common.reason')}
+    label={m('common.reason')}
     bind:value={reason}
     rows={4}
     maxlength={1000}

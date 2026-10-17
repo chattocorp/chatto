@@ -54,6 +54,11 @@
     "saved": "Konservite!",
     "rooms": "Ĉambroj",
     "copy_to_clipboard": "Kopiu al tondujo",
-    "copied_to_clipboard": "Kopiita al tondujo"
+    "copied_to_clipboard": "Kopiita al tondujo",
+    "user_search_placeholder": "Serĉu per ensaluto aŭ montra nomo...",
+    "no_users": "Neniuj uzantoj trovitaj",
+    "user_id": "Uzanto-identigilo",
+    "reason": "Kialo",
+    "message_of_the_day": "Mesaĝo de la Tago"
   }
 }

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { initialPageReveal } from '$lib/dom/initialPageReveal';
+  import { deactivateManagementLocaleMessages } from '$lib/i18n/messages';
   import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
   import { navigationVisits } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';
@@ -96,8 +97,14 @@
   );
 
   $effect(() => sidebarNav.initViewportTracking());
-  afterNavigate(() => {
+  afterNavigate(async ({ from, to }) => {
     if (sidebarNav.isMobile) sidebarNav.close();
+    // Only a completed exit changes the active catalogs; canceled navigation
+    // must leave management ready for subsequent language changes.
+    const management = '/chat/[serverId]/manage';
+    if (from?.route.id?.startsWith(management) && !to?.route.id?.startsWith(management)) {
+      await deactivateManagementLocaleMessages();
+    }
   });
 </script>
 

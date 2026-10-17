@@ -9,6 +9,18 @@
     "create_permission": "Loo kutselinke",
     "manage_permission": "Halda kõiki kutselinke",
     "create_help": "Looge linke uute kontode jaoks. Selle õiguse eemaldamine ei tühista olemasolevaid linke.",
-    "manage_help": "Vaadake, kopeerige ja tühistage kõigi kasutajate linke. Nõuab kilbirežiimi; ei luba linke luua."
+    "manage_help": "Vaadake, kopeerige ja tühistage kõigi kasutajate linke. Nõuab kilbirežiimi; ei luba linke luua.",
+    "max_uses": "Kasutuskordi kõige rohkem",
+    "max_uses_error": "Sisestage täisarv, mis on vähemalt 1.",
+    "unlimited_uses": "Luba piiramatu kasutus",
+    "expiry": "Aegumine",
+    "expiry_1d": "1 päev",
+    "expiry_7d": "7 päeva",
+    "expiry_30d": "30 päeva",
+    "expiry_never": "Mitte kunagi",
+    "create": "Loo kutselink",
+    "created": "Kutselink loodud",
+    "copy": "Kopeeri link",
+    "copied": "Kutselink kopeeritud"
   }
 }
