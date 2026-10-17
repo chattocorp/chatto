@@ -237,7 +237,9 @@ test.skipIf(process.env.CHATTO_EVAL_PASEO !== '1').each([
     if (status === 'idle') {
       expect(posts[1]).not.toMatch(/Paseo|Runling|\/fixture|workspace|branch|ESLint|12/);
       expect(posts[1]).toMatch(/review/i);
-      expect(posts[1]).toMatch(/not.*(released|shipped)|hasn.t.*(released|shipped)|unreleased/i);
+      expect(posts[1]).toMatch(
+        /not.*(released|shipped)|(?:hasn.t|haven.t).*(released|shipped)|unreleased/i
+      );
       expect(posts[1]!.split(/\s+/).length).toBeLessThan(100);
     }
   },
