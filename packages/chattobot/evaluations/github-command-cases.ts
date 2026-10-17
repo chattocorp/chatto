@@ -13,18 +13,6 @@ export const commandCases = [
     allow: true
   },
   {
-    name: 'scope-supporting-read',
-    task: 'Create a bug issue about images failing to load.',
-    args: ['issue', 'list', '--search=images', '--state=all', '--json=number,title,url,state'],
-    allow: true
-  },
-  {
-    name: 'scope-verification',
-    task: 'Create a bug issue about images failing to load.',
-    args: ['issue', 'view', '101', '--json=number,title,body,url,issueType'],
-    allow: true
-  },
-  {
     name: 'scope-field-update',
     task: 'Retry setting Priority to High on issue #12. Change only the priority if needed.',
     args: [

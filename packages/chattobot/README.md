@@ -265,16 +265,16 @@ For "try again", the conversation agent identifies the unfinished action,
 target, and requested value. The worker checks current state first and completes
 only that step. It does not repeat a change that already succeeded.
 
-Each worker command passes the static CLI policy, then a separate model checks
-whether it fits the authorized task. This includes supporting reads and result
-verification. The tool binds the task in host code; the worker supplies only
+Each worker command passes the static CLI policy. Writes also pass a separate
+model check against the authorized task. Supporting reads and result verification
+need no model decision. The tool binds the task in host code; the worker supplies only
 command arguments. A denial returns to the worker to correct its command within
 the existing task. It does not automatically request another user approval.
 Invalid decisions, model errors, and cancellation prevent command execution and
 credential acquisition. The conversation's direct read tool is unchanged.
 
 Intake and command scope share `createClassifier`: one isolated, tool-free model
-turn with a validated JSON result and a 30-second deadline. Each worker command
+turn with a validated JSON result and a 30-second deadline. Each worker write
 adds a call to the configured model provider, using low reasoning effort. The
 provider receives the resolved task, repository, and command arguments, which
 can include draft issue content; it also sees the bot host's IP address. No
@@ -374,7 +374,7 @@ ChattoBot sends these data to other systems:
 - **The model provider** of the investigator receives the questions and the
   source code that the investigator reads.
 - **The model provider** of the GitHub worker receives the resolved task,
-  supporting evidence, and GitHub tool results. Each command-scope check sends
+  supporting evidence, and GitHub tool results. Each write-scope check sends
   the resolved task, repository, and proposed command arguments to that provider.
 
 With automatic intake enabled, the model provider also receives eligible new

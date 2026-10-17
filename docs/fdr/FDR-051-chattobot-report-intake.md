@@ -73,7 +73,7 @@ ordinary thread replies can continue the conversation without another mention.
   A maintainer must send an addressed request, even if they wrote the original report.
 - Clear maintainer approval such as "go ahead" is resolved from the conversation
   and does not require another approval during filing. Ambiguous approval is
-  clarified before work starts. GitHub commands receive a separate scope check;
+  clarified before work starts. GitHub writes receive a separate scope check;
   a rejected command does not automatically require the maintainer to approve again.
 - Duplicate deliveries are suppressed for 24 hours in the running bot process,
   including source reloads. Failed classifications are not retried automatically.

@@ -124,8 +124,9 @@ GitHub work and source investigations from Chatto have a maintainer gate before 
   again when the reference is clear. A ping grants no authority. Retries specify
   only unfinished work. Bulk changes need an explicit operation and affected set.
   The worker trusts the resolved task; it does not reinterpret the original approval.
-- Every worker `gh` call passes static command policy, then a tool-free scope
-  classifier before credentials or execution. Bind its task in host code; tool
+- Every worker `gh` call passes static command policy. Writes also pass a tool-free
+  scope classifier before credentials or execution; reads need no model decision.
+  Bind its task in host code; tool
   arguments cannot replace it. Denials return to the worker for correction within
   that scope. Invalid output, model errors, and cancellation prevent execution.
   Do not turn a rejected command into another user approval step.

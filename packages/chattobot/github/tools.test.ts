@@ -148,7 +148,7 @@ test('ordinary reads do not require the optional field discovery permission', as
   );
 });
 
-test('static policy rejects commands before model classification, and every accepted command is checked', async () => {
+test('static policy handles reads and rejects forbidden commands; writes are classified before credentials', async () => {
   const tokens = vi.fn(async () => 'token');
   const run = vi.fn(async () => ({ ok: true, output: '' }));
   const check = vi.fn(async () => {});
@@ -158,10 +158,10 @@ test('static policy rejects commands before model classification, and every acce
   expect(check).not.toHaveBeenCalled();
   expect(tokens).not.toHaveBeenCalled();
   await call(['issue', 'list']);
+  expect(check).not.toHaveBeenCalled();
   await call(['issue', 'edit', '12', '--title=Changed']);
-  expect(check).toHaveBeenCalledTimes(2);
-  expect(check.mock.invocationCallOrder[0]).toBeLessThan(tokens.mock.invocationCallOrder[0]!);
-  expect(check.mock.invocationCallOrder[1]).toBeLessThan(tokens.mock.invocationCallOrder[1]!);
+  expect(check).toHaveBeenCalledOnce();
+  expect(check.mock.invocationCallOrder[0]).toBeLessThan(tokens.mock.invocationCallOrder[1]!);
 });
 
 test.each([
