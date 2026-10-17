@@ -25,6 +25,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
   import { tags } from '@lezer/highlight';
   import { Table } from '@lezer/markdown';
   import { sourceAutolinks } from './sourceAutolinks';
+  import { sourceLinkHighlighting, sourceLinkSyntax } from './sourceLinkHighlighting';
   import { m } from '$lib/i18n/messages';
   import { codeFenceHighlighting } from './codeFenceHighlighting';
   import type {
@@ -111,6 +112,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
       caretColor: 'var(--color-text)'
     },
     '.cm-line': { padding: '0' },
+    '.cm-link-label': { color: 'var(--color-link)', textDecoration: 'underline' },
     '.cm-placeholder': { color: 'var(--color-muted)', fontStyle: 'normal' },
     // Firefox positions the native caret against the buffer before the placeholder.
     // Keep that buffer on the text baseline when the editor is empty.
@@ -212,11 +214,12 @@ the same API as the visual editor while keeping the stored Markdown visible.
           ]),
           markdown({
             base: commonmarkLanguage,
-            extensions: [Table, sourceAutolinks],
+            extensions: [Table, sourceAutolinks, sourceLinkSyntax],
             completeHTMLTags: false,
             pasteURLAsLink: true
           }),
           syntaxHighlighting(markdownHighlightStyle),
+          sourceLinkHighlighting,
           codeFenceHighlighting,
           markdownTheme,
           EditorView.lineWrapping,
