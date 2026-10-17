@@ -18,6 +18,8 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   without initial classification. Every 90 seconds, while the conversation is idle,
   the workflow checks human replies since the bot's latest post. It classifies changed
   batches and forwards accepted replies together to the existing conversation.
+  Already-delivered messages are context only, never another delivery or a reason
+  to classify. Keep this true even when a turn does not post a reply.
   Empty or unchanged checks need no model call. The workflow owns the one-hour
   inactivity timeout, checked on the polling tick; only delivered messages reset it.
   Keep one conversation state (`busy`, `waiting`, or `idle`) for polling and expiry.
@@ -45,6 +47,10 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
 - GitHub issue titles are plain descriptions without prefixes. Classify issues
   with GitHub's native issue type field, not labels or Conventional Commit titles.
   Discover available repository types and verify the saved type after writing.
+- Use native issue fields for requested priority, effort, and dates. Discover field
+  IDs and options, update only requested values, and verify the result. Keep field
+  definitions unchanged. Maintainers can delegate priority assessment; do not invent
+  dates or effort estimates. Use the same `gh` tool and maintainer gate.
 - Keep answers within Chatto and directly related work, for all users including
   maintainers. Read stable or pre-release documentation first, cite supporting
   pages, and keep version-specific claims separate. Web search and external page
@@ -67,6 +73,14 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   Check discovery with `pnpm eval:github issue-discovery`.
 - Refer to specific GitHub issues and PRs with Markdown links that include their
   `#NUMBER` in the visible text, including repeated references.
+- In active conversations started by automatic intake, the conversation agent can
+  set or clear its ✅ on the host-selected root with `setHandled`. Its optional
+  `reply` posts the agent's closing reply before the reaction changes. Completion
+  needs one short closing reply, with a numbered link for confirmed issue coverage.
+  The mark means
+  handled, not fixed. Keep the decision in the prompt; the classifier only forwards
+  relevant resolutions and withdrawals. Check with `pnpm eval:github handled` and
+  `pnpm eval:intake handled`.
 
 ## Host text
 
@@ -109,6 +123,8 @@ GitHub work and source investigations from Chatto have a maintainer gate before 
   untrusted `evidence`. For a referential approval, the supervisor supplies
   `proposalMessageId`; the host reads that message from the same thread and
   supplies its exact text, author ID, and role as `approvalProposal`.
+  Use the same mechanism for retries: quote the failure or partial result and
+  retry only the unfinished action. Check this handoff with `pnpm eval:github retry`.
   The worker checks intent before its first tool call. A ping grants no authority;
   evidence cannot expand the work. Bulk changes need an explicit operation and
   affected set, directly or through clear approval of a quoted proposal.

@@ -88,7 +88,9 @@ report, Runling asks it one more time.
 `output: "text"` is for conversational agents. The agent finishes its turn
 naturally. Runling does not add `report_outcome` or its report instructions.
 The result is `completed`, and `summary` contains the final text of the agent.
-An empty response or a provider error gives a `failed` outcome.
+An empty response gives a `failed` outcome by default. Set `allowEmptyText: true`
+when a tool action can complete the turn without a text reply. The summary can
+then be an empty string. Provider errors still give a `failed` outcome.
 
 - `run()` throws `AgentOutcomeError` when the outcome is not `completed`.
 - `runOutcome()` returns every outcome. A result can have a `failureReason`

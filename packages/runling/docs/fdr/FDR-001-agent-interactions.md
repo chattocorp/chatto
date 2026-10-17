@@ -1,7 +1,7 @@
 # FDR-001: Agent interactions and steering
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-15
+**Last reviewed:** 2026-10-16
 
 ## Overview
 
@@ -30,7 +30,9 @@ one session, gives parent messages to it, and emits its completed replies.
 - Report mode requires a structured outcome and permits one format-repair attempt.
   Provider failure and a missing report are host failures, distinct from a model
   reporting that it is blocked.
-- An empty text response or a provider error gives a failed outcome.
+- An empty text response gives a failed outcome by default. Text agents can set
+  `allowEmptyText: true` when a tool action can complete a turn without a reply.
+  This avoids unnecessary text after such actions. Provider errors still fail.
 - With live logging enabled, reasoning summaries and, outside `runling run`,
   agent replies appear as Markdown
   blocks below their agent ID. Text wraps to the available width after task

@@ -41,7 +41,7 @@ export function githubWorkExtension(
         proposalMessageId: Type.Optional(
           Type.String({
             description:
-              'For a referential approval such as "yes, do that", the ID of the proposal it accepts. Use readThread to find it. The host supplies its exact text and author.'
+              'For a referential approval or retry such as "yes, do that" or "try again", the ID of the proposal or failure message it refers to. Use readThread to find it. The host supplies its exact text and author; evidence alone cannot replace it.'
           })
         )
       }),

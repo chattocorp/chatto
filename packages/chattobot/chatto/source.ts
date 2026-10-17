@@ -8,7 +8,7 @@ import { log } from 'runling';
 import type { EventSource } from 'runling/web';
 import { createConversation, type ConversationSettings } from '../tasks/conversation.ts';
 import { createTokenSource, githubSettings } from '../github/app.ts';
-import { createEyesReaction } from '../reaction.ts';
+import { createEyesReaction, createHandledReaction } from '../reaction.ts';
 import {
   ConfigurationError,
   maintainerLoginSetting,
@@ -134,6 +134,7 @@ async function consume(
       (await api.postMessage(destination, body, { signal })).ids[0],
     typing: (destination, signal) => api.refreshTyping(destination, { signal }),
     acknowledge: createEyesReaction(api),
+    setHandled: createHandledReaction(api),
     readThread: createThreadReader(api),
     readAttachment: createAttachmentReader(api)
   });
