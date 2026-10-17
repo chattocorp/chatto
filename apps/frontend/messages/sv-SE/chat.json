@@ -58,7 +58,7 @@
     "compatibility": {
       "title": "Kompatibilitet",
       "view": "Visa kompatibilitet",
-      "limited": "Begränsat stöd",
+      "limited": "Äldre serverversion",
       "supported": "Inga kända kompatibilitetsproblem",
       "affected": "Berörda funktioner",
       "requires": "Kräver {version} eller senare",

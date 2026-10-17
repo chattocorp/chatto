@@ -58,7 +58,7 @@
     "compatibility": {
       "title": "Kompatibilita",
       "view": "Zobrazit kompatibilitu",
-      "limited": "Omezená podpora",
+      "limited": "Starší verze serveru",
       "supported": "Žádné známé problémy s kompatibilitou",
       "affected": "Dotčené funkce",
       "requires": "Vyžaduje verzi {version} nebo novější",

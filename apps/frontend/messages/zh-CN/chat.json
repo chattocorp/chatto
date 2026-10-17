@@ -58,7 +58,7 @@
     "compatibility": {
       "title": "兼容性",
       "view": "查看兼容性",
-      "limited": "支持有限",
+      "limited": "较旧的服务器版本",
       "supported": "没有已知的兼容性问题",
       "affected": "受影响的功能",
       "requires": "需要 {version} 或更新版本",
