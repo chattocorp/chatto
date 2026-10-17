@@ -35,6 +35,7 @@ describe('selectable locales', () => {
       'tr-TR',
       'cs-CZ',
       'ru-RU',
+      'el',
       'ar',
       'he-IL',
       'ja-JP',
@@ -47,6 +48,8 @@ describe('selectable locales', () => {
   it('localises regional language names with Intl', () => {
     expect(localeDisplayName('fr-CA', 'en-GB')).toBe('Canadian French');
     expect(localeDisplayName('de-AT', 'de-DE')).toBe('Österreichisches Deutsch');
+    expect(localeDisplayName('el', 'en-GB')).toBe('Greek');
+    expect(localeDisplayName('el', 'el')).toBe('Ελληνικά');
   });
 
   it('negotiates exact regions, language defaults, and Chinese scripts', () => {
@@ -57,6 +60,9 @@ describe('selectable locales', () => {
     expect(negotiateLocale(['ar-EG'])).toBe('ar');
     expect(negotiateLocale(['he'])).toBe('he-IL');
     expect(negotiateLocale(['he-IL'])).toBe('he-IL');
+    expect(negotiateLocale(['el'])).toBe('el');
+    expect(negotiateLocale(['el-GR', 'en-US'])).toBe('el');
+    expect(negotiateLocale(['el-CY'])).toBe('el');
     expect(negotiateLocale(['xx', 'en-US'])).toBe('en-US');
     expect(negotiateLocale(['xx'])).toBe('en-GB');
   });

@@ -1,0 +1,14 @@
+{
+  "message_preview": {
+    "attachments_count": {
+      "one": "{count} συνημμένο",
+      "other": "{count} συνημμένα"
+    },
+    "attachment_image": "Εικόνα",
+    "attachment_video": "Βίντεο",
+    "attachment_audio": "Ήχος",
+    "attachment_file": "Αρχείο",
+    "open_linked_message": "Άνοιγμα συνδεδεμένου μηνύματος",
+    "open_linked_message_from": "Άνοιγμα συνδεδεμένου μηνύματος από {name}"
+  }
+}
