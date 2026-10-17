@@ -54,6 +54,11 @@
     "saved": "Salvestatud!",
     "rooms": "Toad",
     "copy_to_clipboard": "Kopeeri lõikelauale",
-    "copied_to_clipboard": "Kopeeriti lõikelauale"
+    "copied_to_clipboard": "Kopeeriti lõikelauale",
+    "user_search_placeholder": "Otsi sisselogimise või kuvatava nime järgi...",
+    "no_users": "Ühtegi kasutajat ei leitud",
+    "user_id": "Kasutaja ID",
+    "reason": "Põhjus",
+    "message_of_the_day": "Päeva sõnum"
   }
 }

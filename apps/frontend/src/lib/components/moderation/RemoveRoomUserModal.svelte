@@ -48,11 +48,11 @@
   );
 
   const suspensionOptions = $derived([
-    ...(!isUniversal ? [{ value: 'none', label: m('admin.moderation.no_suspension') }] : []),
+    ...(!isUniversal ? [{ value: 'none', label: m('room.moderation.no_suspension') }] : []),
     { value: '24h', label: m('ui.expiry.24h') },
     { value: '7d', label: m('ui.expiry.7d') },
     { value: '30d', label: m('ui.expiry.30d') },
-    { value: 'indefinite', label: m('admin.moderation.indefinite') },
+    { value: 'indefinite', label: m('room.moderation.indefinite') },
     { value: 'custom', label: m('ui.expiry.custom') }
   ]);
 
@@ -97,19 +97,19 @@
 </script>
 
 {#snippet removeTitle()}<AccountNameTokens
-    text={m('admin.moderation.remove_title', { user: accountNameToken(0) })}
+    text={m('room.moderation.remove_title', { user: accountNameToken(0) })}
     accounts={[{ name: displayName, identity: user }]}
   />{/snippet}
 
 <FormDialog
   bind:visible
-  title={m('admin.moderation.remove_title', { user: displayName })}
+  title={m('room.moderation.remove_title', { user: displayName })}
   titleContent={removeTitle}
   size="sm"
-  submitLabel={m('admin.moderation.remove_action')}
+  submitLabel={m('room.moderation.remove_action')}
   submitTone="danger"
   submitIcon="iconify icon-[uil--user-minus]"
-  submitLoadingText={m('admin.moderation.removing')}
+  submitLoadingText={m('room.moderation.removing')}
   loading={submitting}
   {disabled}
   {error}
@@ -128,7 +128,7 @@
 
   <TextArea
     id="remove-room-user-reason"
-    label={m('admin.common.reason')}
+    label={m('common.reason')}
     bind:value={reason}
     rows={4}
     maxlength={1000}
@@ -138,7 +138,7 @@
 
   <Select
     id="remove-room-user-suspension"
-    label={m('admin.moderation.suspension_period')}
+    label={m('room.moderation.suspension_period')}
     options={suspensionOptions}
     value={selectedPreset}
     onValueChange={(value) => {

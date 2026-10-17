@@ -127,7 +127,7 @@
 
     <div class="grid gap-4 md:grid-cols-2">
       <div class="min-w-0">
-        <div class="text-sm text-muted">{m('admin.members.user_id')}</div>
+        <div class="text-sm text-muted">{m('common.user_id')}</div>
         <div class="mt-1 min-w-0">
           <CopyId value={member.id} />
         </div>

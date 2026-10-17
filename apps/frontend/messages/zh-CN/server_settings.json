@@ -12,7 +12,6 @@
     "no_banner": "尚未设置横幅",
     "name_label": "名称",
     "description_label": "描述",
-    "motd_label": "每日消息",
     "welcome_message_label": "欢迎消息",
     "name_empty": "名称不能为空",
     "name_trim": "名称开头或结尾不能有空格",

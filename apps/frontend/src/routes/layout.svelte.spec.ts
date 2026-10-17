@@ -14,6 +14,7 @@ const { mocks } = vi.hoisted(() => ({
     afterNavigate: vi.fn(),
     beforeNavigate: vi.fn(),
     onNavigate: vi.fn(),
+    deactivateManagementLocaleMessages: vi.fn(async () => {}),
     appUi: {
       setActiveRoomScope: vi.fn(),
       setActiveServer: vi.fn()
@@ -25,6 +26,11 @@ const { mocks } = vi.hoisted(() => ({
     },
     updateAppBadge: vi.fn(async () => {})
   }
+}));
+
+vi.mock('$lib/i18n/messages', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$lib/i18n/messages')>()),
+  deactivateManagementLocaleMessages: mocks.deactivateManagementLocaleMessages
 }));
 
 vi.mock('$lib/client', async () => ({
@@ -272,6 +278,26 @@ describe('OAuth page layout', () => {
     const view = renderLayout();
     await expect.element(view.getByTestId('app-frame')).toBeInTheDocument();
     await expect.element(view.getByRole('button', { name: 'Toggle sidebar' })).toBeVisible();
+  });
+});
+
+describe('management catalog navigation boundary', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it.each([
+    ['/chat/[serverId]/manage/server/general', '/chat/[serverId]/settings/language', true],
+    ['/chat/[serverId]/manage/rooms', '/login', true],
+    ['/chat/[serverId]/manage/server/general', '/chat/[serverId]/manage/rooms', false],
+    ['/chat/[serverId]/settings/appearance', '/chat/[serverId]/settings/language', false],
+    ['/chat/[serverId]/[roomId]', '/chat/[serverId]/[roomId]/thread/[threadId]', false],
+    ['/chat/[serverId]/settings/appearance', '/chat/[serverId]/manage/server/general', false]
+  ])('updates catalogs only after exiting management: %s -> %s', async (from, to, exits) => {
+    renderLayout();
+    const callback = mocks.afterNavigate.mock.calls.at(-1)![0];
+    // Registration must not change sections before navigation completes.
+    expect(mocks.deactivateManagementLocaleMessages).not.toHaveBeenCalled();
+    await callback({ from: { route: { id: from } }, to: { route: { id: to } } });
+    expect(mocks.deactivateManagementLocaleMessages).toHaveBeenCalledTimes(exits ? 1 : 0);
   });
 });
 

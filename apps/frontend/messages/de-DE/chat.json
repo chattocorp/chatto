@@ -164,6 +164,19 @@
       },
       "owned_by": "Gehört",
       "open_card": "Profilkarte von {name} öffnen"
+    },
+    "management_nav": {
+      "general": "Allgemein",
+      "neighbors": "Nachbarn",
+      "members": "Mitglieder",
+      "rooms": "Räume",
+      "moderation": "Moderation",
+      "permissions": "Berechtigungen",
+      "security": "Sicherheit",
+      "event_log": "Ereignisprotokoll",
+      "system": "System",
+      "back_to_server": "Zurück zum Server",
+      "invitations": "Einladungslinks"
     }
   }
 }

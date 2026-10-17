@@ -54,6 +54,11 @@
     "saved": "Kaydedildi!",
     "rooms": "Odalar",
     "copy_to_clipboard": "Panoya kopyala",
-    "copied_to_clipboard": "Panoya kopyalandı"
+    "copied_to_clipboard": "Panoya kopyalandı",
+    "user_search_placeholder": "Oturum açma bilgilerine veya görünen ada göre arayın...",
+    "no_users": "Kullanıcı bulunamadı",
+    "user_id": "Kullanıcı Kimliği",
+    "reason": "Sebep",
+    "message_of_the_day": "Günün Mesajı"
   }
 }

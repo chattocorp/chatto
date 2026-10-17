@@ -12,7 +12,6 @@
     "no_banner": "No se ha establecido ningún banner",
     "name_label": "Nombre",
     "description_label": "Descripción",
-    "motd_label": "Mensaje del día",
     "welcome_message_label": "Mensaje de bienvenida",
     "name_empty": "El nombre no puede estar vacío",
     "name_trim": "El nombre no puede tener espacios en blanco al principio o al final",

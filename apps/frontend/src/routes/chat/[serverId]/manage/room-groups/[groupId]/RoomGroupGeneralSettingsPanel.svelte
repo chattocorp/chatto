@@ -37,11 +37,11 @@
   }
 </script>
 
-<Panel title={m('admin.nav.general')} icon="iconify icon-[uil--setting]">
+<Panel title={m('chat.management_nav.general')} icon="iconify icon-[uil--setting]">
   <form class="flex max-w-2xl flex-col gap-4" onsubmit={save}>
     <TextInput
       id="room-group-settings-name"
-      label={m('admin.rooms_admin.group_name')}
+      label={m('room.management.group_name')}
       bind:value={name.value}
       required
       maxlength={80}

@@ -38,12 +38,12 @@ The compact form expands in place and submits with Enter.
     try {
       await roomLayoutAPI.createRoomGroup({ name: trimmedName });
       if (!serverScope.isCurrent()) return;
-      toast.success(m('admin.rooms_admin.group_created'));
+      toast.success(m('room.management.group_created'));
       expanded = false;
       name = '';
     } catch (error) {
       toast.error(
-        m('admin.rooms_admin.create_group_failed', {
+        m('room.management.create_group_failed', {
           error: errorMessage(error)
         })
       );
@@ -65,9 +65,9 @@ The compact form expands in place and submits with Enter.
       <div class="min-w-0 flex-1">
         <TextInput
           id="sidebar-new-room-group"
-          label={m('admin.rooms_admin.group_name')}
+          label={m('room.management.group_name')}
           labelHidden
-          placeholder={m('admin.rooms_admin.group_name_placeholder')}
+          placeholder={m('room.management.group_name_placeholder')}
           bind:value={name}
           disabled={saving}
           autofocus
@@ -77,7 +77,7 @@ The compact form expands in place and submits with Enter.
       <button
         type="submit"
         class="icon-action h-9 w-9"
-        aria-label={m('admin.rooms_admin.create_group')}
+        aria-label={m('room.management.create_group')}
         disabled={!name.trim() || saving}
       >
         <span class="iconify icon-[uil--check]" aria-hidden="true"></span>
@@ -95,7 +95,7 @@ The compact form expands in place and submits with Enter.
   {:else}
     <button type="button" class="sidebar-item text-muted" onclick={open}>
       <span class="iconify sidebar-icon icon-[uil--plus]" aria-hidden="true"></span>
-      {m('admin.rooms_admin.new_group')}
+      {m('room.management.new_group')}
     </button>
   {/if}
 </div>

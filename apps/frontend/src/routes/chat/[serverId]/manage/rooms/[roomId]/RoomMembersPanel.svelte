@@ -300,7 +300,7 @@
 </script>
 
 <Panel
-  title={m('admin.nav.members')}
+  title={m('chat.management_nav.members')}
   icon="iconify icon-[uil--users-alt]"
   count={totalCount}
   noPadding
@@ -322,7 +322,7 @@
         <Combobox
           id="room-member-picker"
           label={m('admin.rooms_admin.add_member')}
-          placeholder={m('admin.members.search_placeholder')}
+          placeholder={m('common.user_search_placeholder')}
           bind:value={selectedUserId}
           bind:text={selectedUserText}
           items={directoryResults}
@@ -331,7 +331,7 @@
           loading={directoryLoading}
           error={directoryError ?? undefined}
           allowFreeform={false}
-          emptyMessage={m('admin.users.empty')}
+          emptyMessage={m('common.no_users')}
           clearLabel={m('common.clear')}
           ontextchange={scheduleDirectorySearch}
           onselect={(user) => (selectedUser = user)}

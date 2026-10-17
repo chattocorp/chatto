@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "descriptions": {
+      "server_manage": "Aktualizace nastavení serveru (název, popis, logo)",
+      "server_manage_neighbors": "Spravovat veřejný adresář sousedů",
+      "room_create": "Vytvořte nové místnosti",
+      "room_join": "Připojte se ke stávajícím místnostem",
+      "room_list": "Podívejte se na místnosti v adresáři. Uživateli může být povoleno vidět místnost (např. požádat o přístup), aniž by mu bylo povoleno se k ní připojit.",
+      "room_manage": "Upravte nastavení a oprávnění místnosti a smažte místnosti",
+      "room_remove_member": "Odebírat členy z místností a podle potřeby pozastavit návrat",
+      "message_read": "Číst všechny zprávy v místnostech. Odebrání tohoto oprávnění stále umožňuje omezený přístup, pokud je message.read-interactions uděleno samostatně.",
+      "message_read_interactions": "Číst celá vlákna, která jste vytvořili nebo ve kterých vás přímo zmínil jiný uživatel",
+      "message_post": "Zveřejňovat zprávy a odpovědi ve vláknech a zahajovat soukromé zprávy",
+      "message_post_interactions": "Odpovídat ve vláknech, která jste založili nebo ve kterých vás někdo přímo zmínil či vám poslal soukromou zprávu",
+      "message_post_in_thread": "Zveřejňujte odpovědi uvnitř vlákna",
+      "message_attach": "Připojování souborů ke zprávám",
+      "message_echo": "Při přidávání příspěvků do vlákna také zveřejněte zprávu v hlavním kanálu",
+      "message_pin": "Připínat a odepínat zprávy",
+      "message_manage": "Upravujte a mažte zprávy ostatních uživatelů",
+      "message_react": "Přidávat a odebírat reakce na zprávy",
+      "role_manage": "Vytvářet, upravovat, mazat a měnit pořadí rolí a jejich udělení oprávnění",
+      "role_assign": "Přiřaďte a odeberte role uživatelům",
+      "admin_view_users": "Zobrazit stránku uživatelů v admin",
+      "admin_view_system": "Zobrazit diagnostiku projekce v admin",
+      "admin_view_audit": "Prohlédněte si protokol auditu v admin",
+      "user_delete_any": "Smazat účet jiného uživatele",
+      "user_delete_self": "Smažte svůj vlastní účet",
+      "user_invite": "Vytvářejte a spravujte zvací odkazy",
+      "user_manage_accounts": "Vytvářejte uživatele, upravujte identitu účtu, resetujte hesla, připojujte ověřené e-maily a vymažte cooldowny pro přihlášení",
+      "user_manage_permissions": "Upravit přímé přepsání oprávnění pro uživatele",
+      "bot_create": "Vytvářet účty botů, které vlastníte",
+      "bot_manage": "Zobrazit a spravovat všechny účty botů",
+      "call_start": "Zahájit hovor (vyžaduje také call.join)",
+      "call_join": "Připojit se k probíhajícímu hovoru",
+      "call_voice": "Používat mikrofon v hovorech",
+      "call_camera": "Používat kameru v hovorech",
+      "call_screenshare": "Sdílet obrazovku nebo aplikaci včetně zachyceného zvuku"
+    }
+  }
+}

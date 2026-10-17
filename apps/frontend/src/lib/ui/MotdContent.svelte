@@ -16,7 +16,7 @@
     <button
       type="button"
       class="absolute inset-0 cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-action"
-      aria-label={m('server_settings.motd_label')}
+      aria-label={m('common.message_of_the_day')}
       aria-haspopup="dialog"
       {onclick}
     ></button>

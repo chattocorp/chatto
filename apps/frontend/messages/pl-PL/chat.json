@@ -170,6 +170,19 @@
       },
       "owned_by": "Właściciel",
       "open_card": "Otwórz kartę profilu użytkownika {name}"
+    },
+    "management_nav": {
+      "general": "Ogólne",
+      "neighbors": "Sąsiedzi",
+      "members": "Członkowie",
+      "rooms": "Pokoje",
+      "moderation": "Moderacja",
+      "permissions": "Uprawnienia",
+      "security": "Bezpieczeństwo",
+      "event_log": "Dziennik zdarzeń",
+      "system": "System",
+      "back_to_server": "Wróć do serwera",
+      "invitations": "Linki z zaproszeniem"
     }
   }
 }

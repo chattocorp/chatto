@@ -54,6 +54,11 @@
     "saved": "¡Guardado!",
     "rooms": "Habitaciones",
     "copy_to_clipboard": "Copiar al portapapeles",
-    "copied_to_clipboard": "Copiado al portapapeles"
+    "copied_to_clipboard": "Copiado al portapapeles",
+    "user_search_placeholder": "Buscar por inicio de sesión o nombre para mostrar...",
+    "no_users": "No se encontraron usuarios",
+    "user_id": "ID de usuario",
+    "reason": "Motivo",
+    "message_of_the_day": "Mensaje del día"
   }
 }

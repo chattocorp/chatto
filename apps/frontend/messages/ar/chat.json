@@ -176,6 +176,19 @@
       },
       "owned_by": "يملكه",
       "open_card": "فتح بطاقة الملف الشخصي لـ {name}"
+    },
+    "management_nav": {
+      "general": "عام",
+      "neighbors": "الجيران",
+      "members": "الأعضاء",
+      "rooms": "الغرف",
+      "moderation": "الإشراف",
+      "permissions": "الأذونات",
+      "security": "الأمان",
+      "event_log": "سجل الأحداث",
+      "system": "النظام",
+      "back_to_server": "العودة إلى الخادم",
+      "invitations": "روابط الدعوة"
     }
   }
 }

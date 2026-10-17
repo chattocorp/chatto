@@ -164,6 +164,19 @@
       },
       "owned_by": "擁有者",
       "open_card": "開啟 {name} 的個人資料卡"
+    },
+    "management_nav": {
+      "general": "一般",
+      "neighbors": "鄰居",
+      "members": "成員",
+      "rooms": "聊天室",
+      "moderation": "內容管理",
+      "permissions": "權限",
+      "security": "安全性",
+      "event_log": "事件記錄",
+      "system": "系統",
+      "back_to_server": "返回伺服器",
+      "invitations": "邀請連結"
     }
   }
 }

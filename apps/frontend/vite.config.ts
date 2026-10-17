@@ -11,7 +11,7 @@ import {
   type UserConfig
 } from 'vite';
 
-import { catalogSections, isPublicCatalogSection } from './src/lib/i18n/catalogSections.js';
+import { catalogSections, catalogBoundary } from './src/lib/i18n/catalogSections.js';
 
 // Backend target for dev proxy. Set CHATTO_BACKEND_URL to proxy to a remote
 // backend (e.g. "https://dev.chatto.run") instead of a local one.
@@ -27,12 +27,10 @@ function localeCatalogChunkName(moduleId: string): string | null {
   if (!match) return null;
 
   const [, locale, section] = match;
-  if (locale === 'en-GB') return null;
   if (!catalogSections.includes(section as (typeof catalogSections)[number])) return null;
 
-  const boundary = isPublicCatalogSection(section as (typeof catalogSections)[number])
-    ? 'public'
-    : 'chat';
+  const boundary = catalogBoundary(section as (typeof catalogSections)[number]);
+  if (locale === 'en-GB' && boundary !== 'management') return null;
   return `lingua-${locale}-${boundary}`;
 }
 

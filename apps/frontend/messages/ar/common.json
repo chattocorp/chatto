@@ -54,6 +54,11 @@
     "saved": "تم الحفظ!",
     "rooms": "الغرف",
     "copy_to_clipboard": "نسخ إلى الحافظة",
-    "copied_to_clipboard": "تم النسخ إلى الحافظة"
+    "copied_to_clipboard": "تم النسخ إلى الحافظة",
+    "user_search_placeholder": "البحث حسب تسجيل الدخول أو اسم العرض...",
+    "no_users": "لم يتم العثور على مستخدمين",
+    "user_id": "معرّف المستخدم",
+    "reason": "السبب",
+    "message_of_the_day": "رسالة اليوم"
   }
 }

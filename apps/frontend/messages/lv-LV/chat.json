@@ -167,6 +167,19 @@
       },
       "owned_by": "Īpašnieks",
       "open_card": "Atvērt lietotāja {name} profila karti"
+    },
+    "management_nav": {
+      "general": "Ģenerālis",
+      "neighbors": "Kaimiņi",
+      "members": "Biedri",
+      "rooms": "Istabas",
+      "moderation": "Mērenība",
+      "permissions": "Atļaujas",
+      "security": "Drošība",
+      "event_log": "Notikumu žurnāls",
+      "system": "Sistēma",
+      "back_to_server": "Atgriezties uz serveri",
+      "invitations": "Uzaicinājumu saites"
     }
   }
 }

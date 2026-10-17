@@ -54,6 +54,11 @@
     "saved": "已保存！",
     "rooms": "聊天室",
     "copy_to_clipboard": "复制到剪贴板",
-    "copied_to_clipboard": "已复制到剪贴板"
+    "copied_to_clipboard": "已复制到剪贴板",
+    "user_search_placeholder": "按登录名或显示名称搜索...",
+    "no_users": "未找到用户",
+    "user_id": "用户 ID",
+    "reason": "原因",
+    "message_of_the_day": "每日消息"
   }
 }

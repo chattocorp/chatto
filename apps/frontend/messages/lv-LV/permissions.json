@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "descriptions": {
+      "server_manage": "Atjaunināt servera iestatījumus (nosaukums, apraksts, logotips)",
+      "server_manage_neighbors": "Pārvaldīt publisko kaimiņu katalogu",
+      "room_create": "Izveidojiet jaunas telpas",
+      "room_join": "Pievienojieties esošajām telpām",
+      "room_list": "Skatīt telpas direktorijā. Lietotājam var atļaut redzēt telpu (piemēram, pieprasīt piekļuvi), neļaujot tai pievienoties.",
+      "room_manage": "Rediģējiet telpas iestatījumus un atļaujas un dzēsiet telpas",
+      "room_remove_member": "Noņemt dalībniekus no telpām un vajadzības gadījumā apturēt atkārtotu pievienošanos",
+      "message_read": "Lasīt visas ziņas istabās. Noņemot šo atļauju, ierobežota piekļuve joprojām ir iespējama, ja message.read-interactions ir piešķirta atsevišķi.",
+      "message_read_interactions": "Lasīt pilnus pavedienus, kurus izveidojāt vai kuros cits lietotājs jūs tieši pieminēja",
+      "message_post": "Publicēt ziņojumus un atbildes pavedienos un sākt privātas sarunas",
+      "message_post_interactions": "Atbildēt pavedienos, kurus sākāt, kuros jūs tieši pieminēja vai kuros saņēmāt privātu ziņojumu",
+      "message_post_in_thread": "Publicējiet atbildes pavedienā",
+      "message_attach": "Pievienojiet ziņojumiem failus",
+      "message_echo": "Izliekot ziņojumu pavedienā, ievietojiet ziņojumu arī galvenajā kanālā",
+      "message_pin": "Piespraust un atspraust ziņojumus",
+      "message_manage": "Rediģēt un dzēst citu lietotāju ziņojumus",
+      "message_react": "Pievienojiet un noņemiet reakcijas uz ziņojumiem",
+      "role_manage": "Izveidojiet, rediģējiet, dzēsiet un pārkārtojiet lomas un to atļaujas",
+      "role_assign": "Piešķiriet un atsauciet lietotājiem lomas",
+      "admin_view_users": "Skatiet lietotāju lapu admin",
+      "admin_view_system": "Skatiet projekcijas diagnostiku admin",
+      "admin_view_audit": "Skatiet audita žurnālu admin",
+      "user_delete_any": "Dzēst cita lietotāja kontu",
+      "user_delete_self": "Izdzēsiet savu kontu",
+      "user_invite": "Izveidojiet un pārvaldiet uzaicinājumu saites",
+      "user_manage_accounts": "Izveidojiet lietotājus, rediģējiet konta identitāti, atiestatiet paroles, pievienojiet pārbaudītus e-pastus un notīriet pieteikšanās atdzišanu",
+      "user_manage_permissions": "Rediģēt tiešos katra lietotāja atļauju ignorēšanu",
+      "bot_create": "Izveidot sev piederošus botu kontus",
+      "bot_manage": "Skatīt un pārvaldīt visus botu kontus",
+      "call_start": "Sākt zvanu (nepieciešama arī call.join atļauja)",
+      "call_join": "Pievienoties notiekošam zvanam",
+      "call_voice": "Izmantot mikrofonu zvanos",
+      "call_camera": "Izmantot kameru zvanos",
+      "call_screenshare": "Kopīgot ekrānu vai lietotni, tostarp uztverto audio"
+    }
+  }
+}

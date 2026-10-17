@@ -167,6 +167,19 @@
       },
       "owned_by": "בבעלות",
       "open_card": "פתיחת כרטיס הפרופיל של {name}"
+    },
+    "management_nav": {
+      "general": "כללי",
+      "neighbors": "שכנים",
+      "members": "חברים",
+      "rooms": "חדרים",
+      "moderation": "ניהול תוכן",
+      "permissions": "הרשאות",
+      "security": "אבטחה",
+      "event_log": "יומן אירועים",
+      "system": "מערכת",
+      "back_to_server": "חזור לשרת",
+      "invitations": "קישורי הזמנה"
     }
   }
 }
