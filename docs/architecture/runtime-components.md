@@ -324,7 +324,7 @@ stable machine-readable keys such as `config_model`, `message_model`, and
 - **`InvitationModel`**
   ([`invitations.go`](../../cli/internal/core/invitations.go),
   [`invitation_projection.go`](../../cli/internal/core/invitation_projection.go)):
-  Sole core owner of invite-link creation, listing, revocation, validation,
+  Sole core owner of invite-link creation, ownership-scoped reads and revocation, validation,
   compact purpose-separated token derivation, and projection readiness;
   redemption commits atomically with the admitted account against a whole-EVT
   OCC guard.

@@ -14,10 +14,10 @@ import {
 
 describe('server compatibility evaluation', () => {
   it.each([
-    ['0.5.0-beta.11', 'limited', ['threadViews', 'independentSlowMode']],
-    ['0.5.0-beta.15-custom', 'limited', ['threadViews', 'independentSlowMode']],
-    ['0.5.0-beta.16', 'supported', ['independentSlowMode']],
-    ['0.5.0-beta.16-custom+build.2', 'supported', ['independentSlowMode']],
+    ['0.5.0-beta.11', 'limited', ['threadViews', 'inviteLinks', 'independentSlowMode']],
+    ['0.5.0-beta.15-custom', 'limited', ['threadViews', 'inviteLinks', 'independentSlowMode']],
+    ['0.5.0-beta.16', 'supported', ['inviteLinks', 'independentSlowMode']],
+    ['0.5.0-beta.16-custom+build.2', 'supported', ['inviteLinks', 'independentSlowMode']],
     ['0.5.0', 'supported', []],
     ['dev', 'unknown', []],
     ['', 'unknown', []]
@@ -44,6 +44,20 @@ describe('server compatibility evaluation', () => {
     expect(MINIMUM_CONNECTABLE_SERVER_VERSION).toBe('0.5.0-beta.9');
     expect(MINIMUM_SUPPORTED_SERVER_VERSION).toBe('0.5.0-beta.18');
   });
+
+  it.each([
+    ['0.5.0-beta.17', 'limited'],
+    ['0.5.0-beta.17-custom+build.2', 'limited'],
+    ['0.5.0-beta.18', 'supported'],
+    ['0.5.0-beta.18-custom+build.2', 'supported'],
+    ['dev', 'unknown']
+  ] as const)(
+    'reports invite-link support without blocking connections for %s',
+    (version, support) => {
+      expect(serverFeatureSupport(version, 'inviteLinks')).toBe(support);
+      expect(isConnectableServerVersion(version)).toBe(true);
+    }
+  );
 
   it.each([
     ['0.6.1-my-customization', '0.6.1'],
@@ -152,6 +166,7 @@ describe('server compatibility evaluation', () => {
   it('reports supported versions only for parseable releases at or above the minimum', () => {
     expect(isSupportedServerVersion('0.5.0-beta.18')).toBe(true);
     expect(isSupportedServerVersion('0.5.0-beta.17')).toBe(false);
+    expect(isSupportedServerVersion('0.5.0-beta.16')).toBe(false);
     expect(isSupportedServerVersion('0.5.0-beta.15')).toBe(false);
     expect(isSupportedServerVersion('0.5.0-dev')).toBe(true);
     expect(isSupportedServerVersion('0.5.0')).toBe(true);

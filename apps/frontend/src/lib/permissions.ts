@@ -7,6 +7,7 @@
  */
 
 import {
+  getPermissionCategory,
   PERMISSION_DEFINITIONS,
   type PermissionCategory,
   type PermissionDefinition
@@ -157,9 +158,13 @@ const PERMISSION_TEXT: Record<string, PermissionText> = {
     description: () => m('permissions.descriptions.user_delete_self'),
     help: () => m('rbac.permission_help.user_delete_self')
   },
-  'user.invite': {
-    description: () => m('permissions.descriptions.user_invite'),
-    help: () => m('rbac.permission_help.user_invite')
+  'invite-link.create': {
+    description: () => m('invite_links.create_permission'),
+    help: () => m('invite_links.create_help')
+  },
+  'invite-link.manage': {
+    description: () => m('invite_links.manage_permission'),
+    help: () => m('invite_links.manage_help')
   },
   'user.manage-accounts': {
     description: () => m('permissions.descriptions.user_manage_accounts'),
@@ -190,6 +195,11 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = Object.fr
 /** Return the localized heading for a permission presentation category. */
 export function getPermissionCategoryLabel(category: PermissionCategory): string {
   return PERMISSION_CATEGORY_LABELS[category]();
+}
+
+/** Keep each category together, then order its rows by stable permission ID. */
+export function comparePermissionRows(a: string, b: string): number {
+  return getPermissionCategory(a).localeCompare(getPermissionCategory(b)) || a.localeCompare(b);
 }
 
 /**

@@ -221,10 +221,10 @@ describe('ServerInfoState.compatibilityProblem', () => {
     );
     expect(state.limitedFeatures).toEqual([]);
     await state.init();
-    expect(state.limitedFeatures).toEqual(['threadViews', 'independentSlowMode']);
+    expect(state.limitedFeatures).toEqual(['threadViews', 'inviteLinks', 'independentSlowMode']);
     version = '0.5.0-beta.16';
     await state.init();
-    expect(state.limitedFeatures).toEqual(['independentSlowMode']);
+    expect(state.limitedFeatures).toEqual(['inviteLinks', 'independentSlowMode']);
     version = '0.5.0-beta.18';
     await state.init();
     expect(state.limitedFeatures).toEqual([]);

@@ -1,0 +1,26 @@
+{
+  "invite_links": {
+    "compatibility_title": "Os links de convite de membros não estão disponíveis",
+    "compatibility_description": "Este servidor não permite criar ou gerenciar links de convite neste aplicativo. Os links existentes continuam válidos.",
+    "invite_people": "Convidar pessoas",
+    "own": "Seus links de convite",
+    "all": "Todos os links de convite",
+    "creator": "Criado por",
+    "create_permission": "Criar links de convite",
+    "manage_permission": "Gerenciar todos os links de convite",
+    "create_help": "Crie links para novas contas. Remover esta permissão não revoga os links existentes.",
+    "manage_help": "Veja, copie e revogue os links de qualquer pessoa. Requer o modo escudo; não permite criar links.",
+    "max_uses": "Número máximo de usos",
+    "max_uses_error": "Digite um número inteiro igual ou maior que 1.",
+    "unlimited_uses": "Permitir usos ilimitados",
+    "expiry": "Validade",
+    "expiry_1d": "1 dia",
+    "expiry_7d": "7 dias",
+    "expiry_30d": "30 dias",
+    "expiry_never": "Nunca",
+    "create": "Criar link de convite",
+    "created": "Link de convite criado",
+    "copy": "Copiar link",
+    "copied": "Link de convite copiado"
+  }
+}

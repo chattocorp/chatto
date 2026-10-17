@@ -1,0 +1,26 @@
+{
+  "invite_links": {
+    "compatibility_title": "Linki zaproszeń członków są niedostępne",
+    "compatibility_description": "Ten serwer nie obsługuje tworzenia linków zaproszeń ani zarządzania nimi w tej aplikacji. Istniejące linki pozostają ważne.",
+    "invite_people": "Zaproś osoby",
+    "own": "Twoje linki z zaproszeniem",
+    "all": "Wszystkie linki z zaproszeniem",
+    "creator": "Utworzony przez",
+    "create_permission": "Twórz linki z zaproszeniem",
+    "manage_permission": "Zarządzaj wszystkimi linkami z zaproszeniem",
+    "create_help": "Twórz linki dla nowych kont. Odebranie tego uprawnienia nie unieważnia istniejących linków.",
+    "manage_help": "Przeglądaj, kopiuj i unieważniaj linki wszystkich osób. Wymaga trybu tarczy; nie pozwala tworzyć linków.",
+    "max_uses": "Maksymalna liczba użyć",
+    "max_uses_error": "Wpisz liczbę całkowitą równą co najmniej 1.",
+    "unlimited_uses": "Zezwalaj na nieograniczoną liczbę użyć",
+    "expiry": "Wygaśnięcie",
+    "expiry_1d": "1 dzień",
+    "expiry_7d": "7 dni",
+    "expiry_30d": "30 dni",
+    "expiry_never": "Nigdy",
+    "create": "Utwórz link z zaproszeniem",
+    "created": "Utworzono link z zaproszeniem",
+    "copy": "Kopiuj link",
+    "copied": "Skopiowano link z zaproszeniem"
+  }
+}

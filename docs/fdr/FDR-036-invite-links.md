@@ -1,13 +1,13 @@
 # FDR-036: Invite Links
 
 **Status:** Active
-**Last reviewed:** 2026-08-11
+**Last reviewed:** 2026-10-15
 
 ## Overview
 
 Invite links let operators restrict new account creation without tying
-admission to email. Administrators can create reusable links with optional
-expiry and use limits, copy them again later, and revoke them. The
+admission to email. Members with creation permission can create reusable links
+with optional expiry and use limits, copy their links again, and revoke them. The
 feature applies consistently to direct email/password registration and
 external-provider auto-provisioning while leaving sign-in to existing accounts
 unchanged.
@@ -25,10 +25,16 @@ unchanged.
   invite-link admission.
 - An invite link can have a maximum number of uses, an expiry time, both, or
   neither. A link with neither remains valid until revoked.
-- The administration interface defaults new invite links to one use and seven
-  days. Administrators can deliberately select unlimited uses or no expiry.
-- Administrators can list invite links, see their current status and use count,
-  copy the same link again, and revoke an active link.
+- Members with `invite-link.create` use **Invite people** in the normal server
+  UI. The dialog defaults to one use and seven days. Creators can select other
+  limits, unlimited uses, or no expiry. Creation does not require shield mode.
+- The management section lists existing links. Without shield mode, members
+  see only their own links. They can see status and use count, copy a link
+  again, and revoke an active link without a permission.
+- With effective `invite-link.manage` and shield mode, members can manage all
+  links and see their creators. This permission does not permit creation.
+- Removing creation permission stops new links but does not invalidate existing
+  links or remove the creator's right to manage them.
 - Revoked, expired, exhausted, malformed, and unknown invite links all fail
   with the same public-facing unavailable-link result.
 - Opening an invite link while the server is open does not consume it.
@@ -36,7 +42,7 @@ unchanged.
   creation does not consume a use, and concurrent signups cannot exceed a use
   limit.
 - Changing the server secret invalidates previously shared invite links.
-  Active link records remain visible, and administrators can copy newly
+  Active link records remain visible, and authorized viewers can copy newly
   derived links for them.
 
 ## Design Decisions
@@ -63,13 +69,12 @@ hidden requirement for SSO.
 
 ### 3. Invite links remain recoverable
 
-**Decision:** Administrators with `user.invite` can copy an invite link
-again after creation.
+**Decision:** Creators and callers with effective `invite-link.manage` can
+copy an invite link again after creation.
 **Why:** Invite links are routinely shared through several channels, and a
 show-once secret creates unnecessary recovery and support friction.
-**Tradeoff:** Anyone who gains invite-link management access can obtain every
-active link, so the permission is intentionally broad and
-security-sensitive.
+**Tradeoff:** Global managers can obtain every active link. This permission
+requires shield mode. Ownership alone exposes only the creator's links.
 
 ### 4. Constraints and redemption are durable facts
 
@@ -107,19 +112,23 @@ write.
 
 ### 7. Existing installations do not receive a permission backfill
 
-**Decision:** `user.invite` belongs to the default administrator role on new
-servers. Existing custom/default roles are not rewritten automatically;
-effective owners retain their normal override and may grant it.
-**Why:** Chatto does not mutate operator-managed RBAC policy when new
-permissions are introduced. This matches FDR-001.
+**Decision:** Both invite-link permissions belong to the default administrator
+role on fresh servers. Neither belongs to `everyone`. Existing roles are not
+rewritten; operators must grant the new permissions explicitly. The retired
+`user.invite` permission grants no authority and does not prevent role assignment
+or revocation. Its historical decisions remain stored for upgrade detection.
+**Why:** The split changes permission meaning and removes the shield requirement
+from creation. Operators must review this change under ADR-113.
 **Tradeoff:** A non-owner administrator on an upgraded server may need an owner
-to grant the new permission.
+to grant the new permissions. Existing links and creator ownership survive.
 
 ## Permissions
 
-- `user.invite` — list, create, copy, and revoke invite links.
+- `invite-link.create` — create links without shield mode.
+- `invite-link.manage` — read, copy, and revoke anyone's links with shield mode.
+- Ownership — read, copy, and revoke your own links without either permission.
 
 ## Related
 
-- **ADRs:** ADR-033, ADR-036, ADR-040, ADR-045, ADR-068, ADR-070
+- **ADRs:** ADR-033, ADR-036, ADR-040, ADR-045, ADR-068, ADR-070, ADR-113
 - **FDRs:** FDR-001, FDR-018, FDR-020, FDR-023, FDR-028, FDR-031

@@ -131,7 +131,7 @@ describe('getCurrentUserViaConnect', () => {
           { capability: 'admin.view-system', granted: true },
           { capability: 'admin.view-audit', granted: true },
           { capability: 'user.manage-permissions', granted: true },
-          { capability: 'user.invite', granted: true }
+          { capability: 'invite-link.manage', granted: true }
         ]
       }
     });

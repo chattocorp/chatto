@@ -99,7 +99,7 @@ func TestPermissionMetadata_PrivilegedModeClassification(t *testing.T) {
 		PermRoleAssign:            true,
 		PermAdminUsersView:        true,
 		PermAdminAuditView:        true,
-		PermUserInvite:            true,
+		PermInviteLinkManage:      true,
 		PermUserDeleteAny:         true,
 		PermUserManageAccounts:    true,
 		PermUserManagePermissions: true,
@@ -517,7 +517,8 @@ func TestPermissionConsistency(t *testing.T) {
 	t.Run("admin defaults grant room administration and message management", func(t *testing.T) {
 		want := []Permission{
 			PermServerManage,
-			PermUserInvite,
+			PermInviteLinkCreate,
+			PermInviteLinkManage,
 			PermRoomCreate,
 			PermRoomJoin,
 			PermRoomList,

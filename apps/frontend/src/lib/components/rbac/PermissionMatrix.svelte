@@ -34,6 +34,7 @@ focusing a cell highlights its permission row and role column.
   import { createPermissionAPI } from '@chatto/client/api/permissions';
   import { toast } from '$lib/ui/toast';
   import {
+    comparePermissionRows,
     getIncludingPermissions,
     getPermissionCategory,
     getPermissionCategoryLabel,
@@ -192,7 +193,7 @@ focusing a cell highlights its permission row and role column.
   // ----- Layout -----------------------------------------------------------
 
   const permissions = $derived.by<string[]>(() =>
-    data ? [...data.applicablePermissions].sort() : []
+    data ? [...data.applicablePermissions].sort(comparePermissionRows) : []
   );
   const inclusionChains = $derived.by(() => {
     // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Map is ephemeral within derived computation

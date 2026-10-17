@@ -1,0 +1,26 @@
+{
+  "invite_links": {
+    "compatibility_title": "Uitnodigingslinks voor leden zijn niet beschikbaar",
+    "compatibility_description": "Deze server ondersteunt het maken of beheren van uitnodigingslinks in deze app niet. Bestaande uitnodigingslinks blijven geldig.",
+    "invite_people": "Mensen uitnodigen",
+    "own": "Je uitnodigingslinks",
+    "all": "Alle uitnodigingslinks",
+    "creator": "Gemaakt door",
+    "create_permission": "Uitnodigingslinks maken",
+    "manage_permission": "Alle uitnodigingslinks beheren",
+    "create_help": "Maak links voor nieuwe accounts. Het intrekken van deze toestemming trekt bestaande links niet in.",
+    "manage_help": "Bekijk, kopieer en trek links van iedereen in. Vereist schildmodus; staat het maken van links niet toe.",
+    "max_uses": "Maximaal aantal keer gebruiken",
+    "max_uses_error": "Voer een geheel getal van minstens 1 in.",
+    "unlimited_uses": "Onbeperkt gebruik toestaan",
+    "expiry": "Verloopt",
+    "expiry_1d": "1 dag",
+    "expiry_7d": "7 dagen",
+    "expiry_30d": "30 dagen",
+    "expiry_never": "Nooit",
+    "create": "Uitnodigingslink maken",
+    "created": "Uitnodigingslink gemaakt",
+    "copy": "Link kopiëren",
+    "copied": "Uitnodigingslink gekopieerd"
+  }
+}

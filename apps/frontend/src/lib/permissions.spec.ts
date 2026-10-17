@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { PERMISSION_DEFINITIONS } from '@chatto/client/util/permissionCatalog';
 import { loadLocaleMessages } from './i18n/messages';
 import {
+  comparePermissionRows,
   getPermissionCategoryLabel,
   getPermissionDescription,
   PERMISSION_METADATA
@@ -11,6 +12,14 @@ import {
 beforeAll(() => loadLocaleMessages('en-GB'));
 
 describe('PERMISSION_METADATA', () => {
+  it('keeps invite links and other server permissions in one category', () => {
+    expect(
+      ['server.manage', 'invite-link.manage', 'room.manage', 'invite-link.create'].sort(
+        comparePermissionRows
+      )
+    ).toEqual(['room.manage', 'invite-link.create', 'invite-link.manage', 'server.manage']);
+  });
+
   it('gives every catalogue permission localized text', () => {
     expect(Object.keys(PERMISSION_METADATA).sort()).toEqual(
       Object.keys(PERMISSION_DEFINITIONS).sort()

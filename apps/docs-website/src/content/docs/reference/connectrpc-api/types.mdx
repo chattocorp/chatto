@@ -149,7 +149,8 @@ Built-in keys currently include:
 - dm.start
 - admin.view-users
 - user.manage-accounts
-- user.invite
+- invite-link.create
+- invite-link.manage
 - role.assign
 - role.view
 - role.manage
@@ -1053,6 +1054,26 @@ Safe summary of one recorded outbound webhook failure.
 | `completed_at` | `google.protobuf.Timestamp` | Time the retained failure was recorded. |
 | `source_event_id` | `string` | Source message ID associated with this delivery. |
 
+<a id="chatto-api-v1-InviteLink"></a>
+
+### InviteLink
+
+An invite link visible to its creator or a caller with effective
+invite-link.manage. The link is a bearer capability: anyone who has it can
+create an account while the link is active and admission requires an invite.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Identifier used to read or revoke the link. |
+| `link` | `string` | Fully qualified bearer URL. Anyone who has it can use the link while active. |
+| `created_by` | `string` | No field description provided. |
+| `created_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `max_uses` | `optional uint32` | No field description provided. |
+| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `use_count` | `uint32` | No field description provided. |
+| `status` | [`InviteLinkStatus`](#chatto-api-v1-InviteLinkStatus) | No field description provided. |
+| `revoked_at` | `google.protobuf.Timestamp` | No field description provided. |
+
 <a id="chatto-api-v1-FollowedThread"></a>
 
 ### FollowedThread
@@ -1625,25 +1646,6 @@ Filter for owner/auditor event-log inspection.
 | `created_at_from` | `google.protobuf.Timestamp` | Inclusive lower creation timestamp bound. |
 | `created_at_to` | `google.protobuf.Timestamp` | Inclusive upper creation timestamp bound. |
 
-<a id="chatto-admin-v1-InviteLink"></a>
-
-### InviteLink
-
-An administrator-visible invite link. The link is a bearer capability and
-is returned only to callers with user.invite.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Durable identifier used for administrative operations. |
-| `link` | `string` | Fully qualified bearer URL. Anyone who has it can use the link while active. |
-| `created_by` | `string` | No field description provided. |
-| `created_at` | `google.protobuf.Timestamp` | No field description provided. |
-| `max_uses` | `optional uint32` | No field description provided. |
-| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
-| `use_count` | `uint32` | No field description provided. |
-| `status` | [`InviteLinkStatus`](#chatto-admin-v1-InviteLinkStatus) | No field description provided. |
-| `revoked_at` | `google.protobuf.Timestamp` | No field description provided. |
-
 <a id="chatto-admin-v1-AdminRole"></a>
 
 ### AdminRole
@@ -2089,6 +2091,20 @@ Availability of best-effort credential last-use telemetry.
 | `CREDENTIAL_LAST_USED_STATE_RECORDED` | `2` | last_used_at contains the most recent recorded authentication time. |
 | `CREDENTIAL_LAST_USED_STATE_UNAVAILABLE` | `3` | Last-use telemetry is temporarily unavailable. |
 
+<a id="chatto-api-v1-InviteLinkStatus"></a>
+
+### InviteLinkStatus
+
+Current lifecycle state of an invite link.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `INVITE_LINK_STATUS_UNSPECIFIED` | `0` | No value description provided. |
+| `INVITE_LINK_STATUS_ACTIVE` | `1` | No value description provided. |
+| `INVITE_LINK_STATUS_EXPIRED` | `2` | No value description provided. |
+| `INVITE_LINK_STATUS_EXHAUSTED` | `3` | No value description provided. |
+| `INVITE_LINK_STATUS_REVOKED` | `4` | No value description provided. |
+
 <a id="chatto-api-v1-ThreadOrder"></a>
 
 ### ThreadOrder
@@ -2251,20 +2267,6 @@ Result of the LiveKit server API check.
 | `ADMIN_LIVE_KIT_CONNECTION_STATE_UNREACHABLE` | `3` | Chatto could not connect to the LiveKit server URL. |
 | `ADMIN_LIVE_KIT_CONNECTION_STATE_UNAUTHORIZED` | `4` | LiveKit rejected the configured API key or secret. |
 | `ADMIN_LIVE_KIT_CONNECTION_STATE_ERROR` | `5` | The server at the URL replied with an unexpected error. |
-
-<a id="chatto-admin-v1-InviteLinkStatus"></a>
-
-### InviteLinkStatus
-
-Current lifecycle state of an invite link.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `INVITE_LINK_STATUS_UNSPECIFIED` | `0` | No value description provided. |
-| `INVITE_LINK_STATUS_ACTIVE` | `1` | No value description provided. |
-| `INVITE_LINK_STATUS_EXPIRED` | `2` | No value description provided. |
-| `INVITE_LINK_STATUS_EXHAUSTED` | `3` | No value description provided. |
-| `INVITE_LINK_STATUS_REVOKED` | `4` | No value description provided. |
 
 <a id="chatto-admin-v1-OauthClientPolicy"></a>
 

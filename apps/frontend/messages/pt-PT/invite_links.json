@@ -1,0 +1,26 @@
+{
+  "invite_links": {
+    "compatibility_title": "As ligações de convite de membros não estão disponíveis",
+    "compatibility_description": "Este servidor não permite criar ou gerir ligações de convite nesta aplicação. As ligações existentes continuam válidas.",
+    "invite_people": "Convidar pessoas",
+    "own": "As suas ligações de convite",
+    "all": "Todas as ligações de convite",
+    "creator": "Criado por",
+    "create_permission": "Criar ligações de convite",
+    "manage_permission": "Gerir todas as ligações de convite",
+    "create_help": "Crie ligações para novas contas. Remover esta permissão não revoga as ligações existentes.",
+    "manage_help": "Consulte, copie e revogue as ligações de qualquer pessoa. Requer o modo escudo; não permite criar ligações.",
+    "max_uses": "Número máximo de usos",
+    "max_uses_error": "Introduza um número inteiro igual ou superior a 1.",
+    "unlimited_uses": "Permitir usos ilimitados",
+    "expiry": "Validade",
+    "expiry_1d": "1 dia",
+    "expiry_7d": "7 dias",
+    "expiry_30d": "30 dias",
+    "expiry_never": "Nunca",
+    "create": "Criar ligação de convite",
+    "created": "Ligação de convite criada",
+    "copy": "Copiar ligação",
+    "copied": "Ligação de convite copiada"
+  }
+}

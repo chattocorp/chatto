@@ -352,6 +352,17 @@
       {/if}
     </div>
 
+    {#if serverActionsAvailable && stores.permissions.canCreateInviteLinks}
+      <MenuSection>
+        <MenuItem
+          icon="icon-[uil--envelope-share]"
+          onclick={() => {
+            closeContextMenu();
+            void goto(resolve('/chat/[serverId]/invite', { serverId: serverSegment }));
+          }}>{m('invite_links.invite_people')}</MenuItem
+        >
+      </MenuSection>
+    {/if}
     <MenuSection>
       <MenuItem
         icon="icon-[uil--info-circle]"

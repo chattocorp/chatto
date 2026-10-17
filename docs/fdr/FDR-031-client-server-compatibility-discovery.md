@@ -37,7 +37,11 @@ Chatto's pre-1.0 API remains experimental.
   started by the viewer. Older servers can show thread results, with a notice
   that the lists may not be separated correctly. Independent channel and
   thread Slow Mode requires beta.18. Older servers keep a shared cooldown
-  and a single setting; room field presence still controls the runtime fallback. Below the
+  and a single setting; room field presence still controls the runtime fallback.
+  Member invite links
+  require beta.18, the planned first release with member creation and management
+  of owned links. Earlier servers do not support these operations in the updated
+  client. This limitation does not prevent chat connections. Below the
   connection threshold, it blocks chat routes and the realtime connection.
 - The origin server serves its own frontend and has no version check.
 - Custom suffixes do not affect comparison. For example,

@@ -69,6 +69,10 @@ describe('route translation boundaries', () => {
       expect(app.m('room.management.create_room')).not.toMatch(/^⟦/);
       expect(app.m('permissions.descriptions.room_create')).not.toMatch(/^⟦/);
       expect(app.m('common.message_of_the_day')).not.toMatch(/^⟦/);
+      expect(app.m('invite_links.create')).not.toMatch(/^⟦/);
+      expect(app.m('invite_links.max_uses')).not.toMatch(/^⟦/);
+      expect(app.m('invite_links.created')).not.toMatch(/^⟦/);
+      expect(app.m('invite_links.copy')).not.toMatch(/^⟦/);
 
       await app.preloadChatLocaleMessages(true);
       expect(app.m('admin.system.started')).not.toMatch(/^⟦/);

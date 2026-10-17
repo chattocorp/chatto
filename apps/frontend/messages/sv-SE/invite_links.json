@@ -1,0 +1,26 @@
+{
+  "invite_links": {
+    "compatibility_title": "Inbjudningslänkar för medlemmar är inte tillgängliga",
+    "compatibility_description": "Den här servern stöder inte att skapa eller hantera inbjudningslänkar i den här appen. Befintliga inbjudningslänkar är fortfarande giltiga.",
+    "invite_people": "Bjud in personer",
+    "own": "Dina inbjudningslänkar",
+    "all": "Alla inbjudningslänkar",
+    "creator": "Skapad av",
+    "create_permission": "Skapa inbjudningslänkar",
+    "manage_permission": "Hantera alla inbjudningslänkar",
+    "create_help": "Skapa länkar för nya konton. Om behörigheten tas bort återkallas inte befintliga länkar.",
+    "manage_help": "Visa, kopiera och återkalla allas länkar. Kräver sköldläge; tillåter inte att skapa länkar.",
+    "max_uses": "Max antal användningar",
+    "max_uses_error": "Ange ett heltal på minst 1.",
+    "unlimited_uses": "Tillåt obegränsat antal användningar",
+    "expiry": "Giltighetstid",
+    "expiry_1d": "1 dag",
+    "expiry_7d": "7 dagar",
+    "expiry_30d": "30 dagar",
+    "expiry_never": "Aldrig",
+    "create": "Skapa inbjudningslänk",
+    "created": "Inbjudningslänk skapad",
+    "copy": "Kopiera länk",
+    "copied": "Inbjudningslänk kopierad"
+  }
+}

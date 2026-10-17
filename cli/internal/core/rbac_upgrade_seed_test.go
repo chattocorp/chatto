@@ -102,7 +102,8 @@ func TestUpgradePermissionsRestoreV04Behavior(t *testing.T) {
 		{ScopeServer, "", RoleEveryone, PermBotCreate, DecisionNone},
 		{ScopeServer, "", RoleAdmin, PermBotCreate, DecisionNone},
 		{ScopeServer, "", RoleAdmin, PermBotManage, DecisionNone},
-		{ScopeServer, "", RoleAdmin, PermUserInvite, DecisionNone},
+		{ScopeServer, "", RoleAdmin, PermInviteLinkCreate, DecisionNone},
+		{ScopeServer, "", RoleAdmin, PermInviteLinkManage, DecisionNone},
 		{ScopeServer, "", RoleAdmin, PermServerManageNeighbors, DecisionNone},
 	} {
 		require.Equal(t, want.kind, rbac.GetDecision(want.scope, want.scopeID, want.subject, want.perm), "%s %s %s %s", want.scope, want.scopeID, want.subject, want.perm)
@@ -120,6 +121,7 @@ func TestUpgradePermissionsSkipReviewedV05State(t *testing.T) {
 	t.Parallel()
 
 	for _, event := range []*evtv1.Event{
+		newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacPermissionGrantedEvent(ScopeServer, "", evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, RoleAdmin, permUserInviteLegacy)}}),
 		newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionCleared{RbacPermissionCleared: rbacPermissionClearedEvent(ScopeServer, "", evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, RoleEveryone, PermMessageRead)}}),
 		newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{RbacPermissionDenied: rbacPermissionDeniedEvent(ScopeRoom, "Rone", evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER, "Ubob", PermMessagePostInInteractions)}}),
 	} {

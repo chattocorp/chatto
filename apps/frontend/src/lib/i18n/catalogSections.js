@@ -7,6 +7,7 @@ export const catalogSections = /** @type {const} */ ([
   'composer',
   'emoji',
   'error_page',
+  'invite_links',
   'media',
   'message_preview',
   'permissions',

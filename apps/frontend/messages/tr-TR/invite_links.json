@@ -1,0 +1,26 @@
+{
+  "invite_links": {
+    "compatibility_title": "Üye davet bağlantıları kullanılamıyor",
+    "compatibility_description": "Bu sunucu, bu uygulamada davet bağlantısı oluşturmayı veya yönetmeyi desteklemiyor. Mevcut davet bağlantıları geçerliliğini korur.",
+    "invite_people": "Kişileri davet et",
+    "own": "Davet bağlantılarınız",
+    "all": "Tüm davet bağlantıları",
+    "creator": "Oluşturan",
+    "create_permission": "Davet bağlantıları oluştur",
+    "manage_permission": "Tüm davet bağlantılarını yönet",
+    "create_help": "Yeni hesaplar için bağlantılar oluşturun. Bu iznin kaldırılması mevcut bağlantıları iptal etmez.",
+    "manage_help": "Herkesin bağlantılarını görüntüleyin, kopyalayın ve iptal edin. Kalkan modu gerektirir; oluşturmaya izin vermez.",
+    "max_uses": "En fazla kullanım",
+    "max_uses_error": "En az 1 olan bir tam sayı girin.",
+    "unlimited_uses": "Sınırsız kullanıma izin ver",
+    "expiry": "Geçerlilik süresi",
+    "expiry_1d": "1 gün",
+    "expiry_7d": "7 gün",
+    "expiry_30d": "30 gün",
+    "expiry_never": "Asla",
+    "create": "Davet bağlantısı oluştur",
+    "created": "Davet bağlantısı oluşturuldu",
+    "copy": "Bağlantıyı kopyala",
+    "copied": "Davet bağlantısı kopyalandı"
+  }
+}

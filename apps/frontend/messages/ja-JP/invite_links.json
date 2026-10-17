@@ -1,0 +1,26 @@
+{
+  "invite_links": {
+    "compatibility_title": "メンバーの招待リンクは利用できません",
+    "compatibility_description": "このサーバーは、このアプリでの招待リンクの作成や管理に対応していません。既存の招待リンクは引き続き有効です。",
+    "invite_people": "ユーザーを招待",
+    "own": "自分の招待リンク",
+    "all": "すべての招待リンク",
+    "creator": "作成者",
+    "create_permission": "招待リンクを作成",
+    "manage_permission": "すべての招待リンクを管理",
+    "create_help": "新しいアカウント用のリンクを作成できます。この権限を取り消しても、既存のリンクは無効になりません。",
+    "manage_help": "全員のリンクを表示、コピー、取り消しできます。シールドモードが必要です。作成は許可されません。",
+    "max_uses": "最大使用回数",
+    "max_uses_error": "1 以上の整数を入力してください。",
+    "unlimited_uses": "使用回数を無制限にする",
+    "expiry": "有効期限",
+    "expiry_1d": "1 日",
+    "expiry_7d": "7 日",
+    "expiry_30d": "30 日",
+    "expiry_never": "なし",
+    "create": "招待リンクを作成",
+    "created": "招待リンクを作成しました",
+    "copy": "リンクをコピー",
+    "copied": "招待リンクをコピーしました"
+  }
+}

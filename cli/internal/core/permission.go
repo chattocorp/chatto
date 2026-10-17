@@ -163,8 +163,12 @@ const (
 	// PermUserDeleteSelf allows users to delete their own account.
 	PermUserDeleteSelf Permission = "user.delete-self"
 
-	// PermUserInvite allows listing, creating, copying, and revoking invite links.
-	PermUserInvite Permission = "user.invite"
+	// PermInviteLinkCreate allows creating invite links. Existing links remain
+	// valid after this permission is removed; creators retain their management.
+	PermInviteLinkCreate Permission = "invite-link.create"
+	// PermInviteLinkManage allows reading and revoking links created by anyone.
+	// It does not permit creation and requires privileged mode for humans.
+	PermInviteLinkManage Permission = "invite-link.manage"
 
 	// PermUserManageAccounts allows account lifecycle and recovery operations
 	// for other users, such as creating accounts, admin profile edits, password
@@ -242,7 +246,8 @@ var allPermissions = []PermissionMetadata{
 	// User management
 	{Permission: PermUserDeleteAny, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 	{Permission: PermUserDeleteSelf, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}},
-	{Permission: PermUserInvite, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
+	{Permission: PermInviteLinkCreate, Category: CategoryServer, Scopes: []PermissionScope{ScopeServer}},
+	{Permission: PermInviteLinkManage, Category: CategoryServer, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 	{Permission: PermUserManageAccounts, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 	{Permission: PermUserManagePermissions, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 
@@ -436,7 +441,8 @@ func DefaultModeratorPermissions() []Permission {
 func DefaultAdminPermissions() []Permission {
 	return []Permission{
 		PermServerManage,
-		PermUserInvite,
+		PermInviteLinkCreate,
+		PermInviteLinkManage,
 		PermRoomCreate,
 		PermRoomJoin,
 		PermRoomList,
