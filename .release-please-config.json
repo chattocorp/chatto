@@ -21,6 +21,7 @@
         "authling",
         "packages/runling",
         "packages/chattobot",
+        "pnpm-lock.yaml",
         "pkg/appconfig",
         "pkg/datacrypto",
         "pkg/events",
