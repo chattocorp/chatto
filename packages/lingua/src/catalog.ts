@@ -28,6 +28,11 @@ function isPluralObject(value: Record<string, unknown>): value is PluralTranslat
   );
 }
 
+/** A nested `count.html` message has one container before its plural leaf. */
+function isHtmlPluralContainer(value: Record<string, unknown>, key: string): boolean {
+  return key.endsWith('.count') && Object.keys(value).length === 1 && isObject(value.html);
+}
+
 function validatePlural(
   value: Record<string, unknown>,
   key: string
@@ -60,7 +65,7 @@ function validateNode(value: unknown, key: string): void {
   if (!isObject(value)) {
     throw new CatalogValidationError(`Translation "${key}" must be a string or object`);
   }
-  if (isCountTranslationKey(key)) {
+  if (isCountTranslationKey(key) && !isHtmlPluralContainer(value, key)) {
     validatePlural(value, key);
     return;
   }
@@ -117,7 +122,7 @@ function validateOverlayNode(base: unknown, translated: unknown, key: string): v
       `Translation "${key}" must have the same value kind as the base locale`
     );
   }
-  if (isCountTranslationKey(key)) {
+  if (isCountTranslationKey(key) && !isHtmlPluralContainer(base, key)) {
     if (!isPluralObject(base) || !isPluralObject(translated)) {
       throw new CatalogValidationError(
         `Translation "${key}" must have the same value kind as the base locale`

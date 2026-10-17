@@ -27,6 +27,7 @@ Each JSON file contains one top-level section:
 Keys ending in `_count` or `.count` are plural messages. Their values use CLDR
 plural categories and must define `other`. Keys ending in `_html` or `.html`
 contain markup and can only be read through `html()`.
+Plural HTML messages can use `_count_html`, `.count_html`, or `.count.html`.
 
 Plural branches may use `{count}`, but do not have to display it. This supports
 grammar-only choices such as “joined the room” versus “joined the room” while
@@ -71,6 +72,8 @@ convention.
 
 `initialBaseCatalogs` is optional. Applications can use it to make their base
 fallback synchronously available before the first asynchronous section load.
+Include only sections needed at startup. Other base sections can use lazy
+loaders, just like translated sections.
 
 `setLocale()` loads every active section before publishing the new locale, so
 subscribers never observe a partially loaded language. Loaded sections and
@@ -79,6 +82,18 @@ regional overlays, such as `de-AT` falling back to `de-DE`; the base locale is
 always the final fallback. When a translated section loads, Lingua also rejects
 unknown keys, changed value kinds, and placeholders that differ from the base
 catalog.
+
+`preload()` only fills the cache; it does not change lookup results or notify
+subscribers. A successful `setActiveSections()` or `setLocale()` makes all
+required catalogs available together. A failed load or validation leaves the
+published translations unchanged. A later request retries the failed catalog.
+
+Active sections determine what a locale change must load. Previously published
+sections remain readable after deactivation, and their downloads remain cached.
+Concurrent locale and section setters combine their requested values. The latest
+request publishes the combined state; a superseded request can finish without
+publishing. Failed requests reject their promises. If the latest request fails,
+the next setter starts from the last committed locale and active sections.
 
 ## Localized HTML
 

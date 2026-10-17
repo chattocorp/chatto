@@ -12,7 +12,6 @@
     "no_banner": "Ingen banner inställd",
     "name_label": "Namn",
     "description_label": "Beskrivning",
-    "motd_label": "Dagens meddelande",
     "welcome_message_label": "Välkomstmeddelande",
     "name_empty": "Namnet får inte vara tomt",
     "name_trim": "Namnet kan inte ha inledande eller efterföljande blanksteg",

@@ -170,6 +170,19 @@
       },
       "owned_by": "Владелец",
       "open_card": "Открыть карточку профиля {name}"
+    },
+    "management_nav": {
+      "general": "Общий",
+      "neighbors": "Соседи",
+      "members": "Члены",
+      "rooms": "Номера",
+      "moderation": "Модерация",
+      "permissions": "Разрешения",
+      "security": "Безопасность",
+      "event_log": "Журнал событий",
+      "system": "Система",
+      "back_to_server": "Вернуться на сервер",
+      "invitations": "Ссылки-приглашения"
     }
   }
 }

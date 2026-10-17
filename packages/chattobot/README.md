@@ -73,9 +73,6 @@ Failed classifications are not retried automatically. A mention received during
 classification cancels the classifier and starts the conversation child with
 that addressed message. It does not add a second intake turn or start another run.
 
-See [FDR-051](../../docs/fdr/FDR-051-chattobot-report-intake.md) for the decisions
-and limits of this feature.
-
 ## Automatic thread follow-ups
 
 Once the bot joins a conversation, people can answer its questions with ordinary
@@ -202,8 +199,7 @@ temporary status in the thread when Chatto supports it (#2787).
 
 With GitHub configured, the bot searches existing issues early, summarizes matches,
 and asks whether they cover the request before further intake. Reads are available
-to all users; writes require a current addressed maintainer request. See
-[FDR-051](../../docs/fdr/FDR-051-chattobot-report-intake.md) for the intake behavior.
+to all users; writes require a current addressed maintainer request.
 The bot's instructions use GitHub's native parent/sub-issue relationships for
 epics and their tasks, including verification after an authorized link change.
 

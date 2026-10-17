@@ -12,7 +12,6 @@
     "no_banner": "Neniu standardo starigita",
     "name_label": "Nomo",
     "description_label": "Priskribo",
-    "motd_label": "Mesaĝo de la Tago",
     "welcome_message_label": "Bonvena Mesaĝo",
     "name_empty": "Nomo ne povas esti malplena",
     "name_trim": "Nomo ne povas havi antaŭan aŭ postan blankspacon",

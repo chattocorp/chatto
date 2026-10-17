@@ -70,7 +70,7 @@ action behavior so this component stays presentation-only.
       </MenuItem>
     {/if}
     <MenuItem icon="icon-[uil--archive]" onclick={onArchive}>
-      {m('admin.rooms_admin.archive_room')}
+      {m('room.management.archive_room')}
     </MenuItem>
   </MenuSection>
 {/if}

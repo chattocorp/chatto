@@ -54,6 +54,11 @@
     "saved": "Saved!",
     "rooms": "Rooms",
     "copy_to_clipboard": "Copy to clipboard",
-    "copied_to_clipboard": "Copied to clipboard"
+    "copied_to_clipboard": "Copied to clipboard",
+    "user_search_placeholder": "Search by login or display name...",
+    "no_users": "No users found",
+    "user_id": "User ID",
+    "reason": "Reason",
+    "message_of_the_day": "Message of the Day"
   }
 }

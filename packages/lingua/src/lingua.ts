@@ -39,16 +39,19 @@ export class Lingua<Registry extends LoaderRegistry> {
   readonly #knownLocales: ReadonlySet<string>;
   readonly #fallbackChains = new Map<string, readonly string[]>();
   readonly #loaded = new Map<string, TranslationObject>();
+  /** Catalogs from successful transitions, plus explicitly eager base catalogs. */
+  readonly #published = new Map<string, TranslationObject>();
   readonly #loading = new Map<string, Promise<TranslationObject>>();
-  readonly #validatedOverlays = new Set<string>();
   readonly #pluralRules = new Map<string, Intl.PluralRules>();
   readonly #numberFormats = new Map<string, Intl.NumberFormat>();
   readonly #listeners = new Set<Listener<LocaleName<Registry>, SectionName<Registry>>>();
 
   #locale: LocaleName<Registry>;
-  #activeSections: readonly SectionName<Registry>[] = [];
+  #activeSections: readonly SectionName<Registry>[] = Object.freeze([]);
   #revision = 0;
   #transition = 0;
+  /** Pending setters compose against this target until it succeeds or fails. */
+  #target?: { locale: LocaleName<Registry>; sections: readonly SectionName<Registry>[] };
 
   constructor(options: LinguaOptions<Registry>) {
     this.#baseLocale = options.baseLocale;
@@ -97,7 +100,10 @@ export class Lingua<Registry extends LoaderRegistry> {
       if (!(section in options.loaders) || !catalog) {
         throw new LinguaError(`Unknown initial catalog section "${section}"`);
       }
-      this.#loaded.set(this.#cacheKey(section, this.#baseLocale), extractSection(catalog, section));
+      const key = this.#cacheKey(section, this.#baseLocale);
+      const value = extractSection(catalog, section);
+      this.#loaded.set(key, value);
+      this.#published.set(key, value);
     }
   }
 
@@ -125,34 +131,35 @@ export class Lingua<Registry extends LoaderRegistry> {
     this.#assertLocale(locale);
     const uniqueSections = this.#normaliseSections(sections);
     await Promise.all(
-      uniqueSections.map(async (section) => {
-        const base = await this.#load(section, this.#baseLocale);
-        for (const fallbackLocale of this.#fallbackChain(locale)) {
-          if (fallbackLocale === this.#baseLocale) continue;
-          const translated = await this.#loadOptional(section, fallbackLocale);
-          if (!translated) continue;
-
-          const overlayKey = this.#cacheKey(section, fallbackLocale);
-          if (!this.#validatedOverlays.has(overlayKey)) {
-            validateTranslationOverlay(base, translated, section);
-            this.#validatedOverlays.add(overlayKey);
-          }
-        }
-      })
+      uniqueSections.map((section) =>
+        // Start all downloads together. Each overlay waits for the base catalog
+        // inside #load before validation, without delaying its network request.
+        Promise.all(
+          // An async callback also captures loaders that throw before returning.
+          this.#fallbackChain(locale).map(async (fallbackLocale) =>
+            fallbackLocale === this.#baseLocale
+              ? this.#load(section, fallbackLocale)
+              : this.#loadOptional(section, fallbackLocale)
+          )
+        )
+      )
     );
   }
 
-  /** Loads and atomically replaces the sections available to synchronous lookups. */
+  /**
+   * Loads and publishes sections together. Previously published catalogs remain
+   * readable, but only active sections are loaded by subsequent locale changes.
+   */
   async setActiveSections(sections: readonly SectionName<Registry>[]): Promise<void> {
-    await this.#transitionTo(this.#locale, sections);
+    await this.#transitionTo(this.#target?.locale ?? this.#locale, sections);
   }
 
   /** Loads every active section before atomically publishing a new locale. */
   async setLocale(locale: LocaleName<Registry>): Promise<void> {
-    await this.#transitionTo(locale, this.#activeSections);
+    await this.#transitionTo(locale, this.#target?.sections ?? this.#activeSections);
   }
 
-  /** Resolves a plain-text translation synchronously from the active sections. */
+  /** Resolves a plain-text translation synchronously from published catalogs. */
   t<const Key extends string>(
     key: Key extends HtmlTranslationKey ? never : Key,
     ...args: TranslationArguments<Key>
@@ -179,11 +186,25 @@ export class Lingua<Registry extends LoaderRegistry> {
     sections: readonly SectionName<Registry>[]
   ): Promise<void> {
     this.#assertLocale(locale);
-    const transition = ++this.#transition;
     const nextSections = this.#normaliseSections(sections);
-    await this.preload(locale, nextSections);
+    const transition = ++this.#transition;
+    this.#target = { locale, sections: nextSections };
+    try {
+      await this.preload(locale, nextSections);
+    } catch (error) {
+      if (transition === this.#transition) this.#target = undefined;
+      throw error;
+    }
     if (transition !== this.#transition) return;
 
+    for (const section of nextSections) {
+      for (const fallback of this.#fallbackChain(locale)) {
+        const key = this.#cacheKey(section, fallback);
+        const catalog = this.#loaded.get(key);
+        if (catalog) this.#published.set(key, catalog);
+      }
+    }
+    this.#target = undefined;
     this.#locale = locale;
     this.#activeSections = nextSections;
     this.#revision += 1;
@@ -228,7 +249,7 @@ export class Lingua<Registry extends LoaderRegistry> {
 
   #resolve(section: string, path: readonly string[]): ResolvedTranslation | undefined {
     for (const locale of this.#fallbackChain(this.#locale)) {
-      const catalog = this.#loaded.get(this.#cacheKey(section, locale));
+      const catalog = this.#published.get(this.#cacheKey(section, locale));
       const value = findTranslation(catalog, path);
       if (value !== undefined) return { locale, value };
     }
@@ -311,7 +332,14 @@ export class Lingua<Registry extends LoaderRegistry> {
     }
 
     const promise = loader()
-      .then((module) => extractSection(module, section))
+      .then(async (module) => {
+        const catalog = extractSection(module, section);
+        if (locale !== this.#baseLocale) {
+          const base = await this.#load(section, this.#baseLocale);
+          validateTranslationOverlay(base, catalog, section);
+        }
+        return catalog;
+      })
       .then((catalog) => {
         this.#loaded.set(cacheKey, catalog);
         this.#loading.delete(cacheKey);

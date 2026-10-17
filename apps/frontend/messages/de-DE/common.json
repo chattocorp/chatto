@@ -54,6 +54,11 @@
     "saved": "Gespeichert!",
     "rooms": "Räume",
     "copy_to_clipboard": "In Zwischenablage kopieren",
-    "copied_to_clipboard": "In Zwischenablage kopiert"
+    "copied_to_clipboard": "In Zwischenablage kopiert",
+    "user_search_placeholder": "Nach Login oder Anzeigename suchen...",
+    "no_users": "Keine Benutzer gefunden",
+    "user_id": "Benutzer-ID",
+    "reason": "Grund",
+    "message_of_the_day": "Nachricht des Tages"
   }
 }

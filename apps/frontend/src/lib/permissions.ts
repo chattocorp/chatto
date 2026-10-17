@@ -2,6 +2,8 @@
  * Permission text for the frontend: localized descriptions, help text, and
  * category headings. The permission structure (scopes, privileged mode, and
  * inclusion) comes from the client's permission catalogue.
+ * Descriptions are available in chat for bot profiles. Help text and category
+ * headings require the management route's `rbac` catalog.
  */
 
 import {
@@ -44,135 +46,135 @@ const PERMISSION_CATEGORY_LABELS: Record<PermissionCategory, () => string> = {
 /** Localized text for each permission in the client's catalogue. */
 const PERMISSION_TEXT: Record<string, PermissionText> = {
   'server.manage': {
-    description: () => m('rbac.permission_descriptions.server_manage'),
+    description: () => m('permissions.descriptions.server_manage'),
     help: () => m('rbac.permission_help.server_manage')
   },
   'server.manage-neighbors': {
-    description: () => m('rbac.permission_descriptions.server_manage_neighbors'),
+    description: () => m('permissions.descriptions.server_manage_neighbors'),
     help: () => m('rbac.permission_help.server_manage_neighbors')
   },
   'room.create': {
-    description: () => m('rbac.permission_descriptions.room_create'),
+    description: () => m('permissions.descriptions.room_create'),
     help: () => m('rbac.permission_help.room_create')
   },
   'room.join': {
-    description: () => m('rbac.permission_descriptions.room_join'),
+    description: () => m('permissions.descriptions.room_join'),
     help: () => m('rbac.permission_help.room_join')
   },
   'room.list': {
-    description: () => m('rbac.permission_descriptions.room_list'),
+    description: () => m('permissions.descriptions.room_list'),
     help: () => m('rbac.permission_help.room_list')
   },
   'room.manage': {
-    description: () => m('rbac.permission_descriptions.room_manage'),
+    description: () => m('permissions.descriptions.room_manage'),
     help: () => m('rbac.permission_help.room_manage')
   },
   'room.remove-member': {
-    description: () => m('rbac.permission_descriptions.room_remove_member'),
+    description: () => m('permissions.descriptions.room_remove_member'),
     help: () => m('rbac.permission_help.room_remove_member')
   },
   'call.start': {
-    description: () => m('rbac.permission_descriptions.call_start'),
+    description: () => m('permissions.descriptions.call_start'),
     help: () => m('rbac.permission_help.call_start')
   },
   'call.join': {
-    description: () => m('rbac.permission_descriptions.call_join'),
+    description: () => m('permissions.descriptions.call_join'),
     help: () => m('rbac.permission_help.call_join')
   },
   'call.voice': {
-    description: () => m('rbac.permission_descriptions.call_voice'),
+    description: () => m('permissions.descriptions.call_voice'),
     help: () => m('rbac.permission_help.call_voice')
   },
   'call.camera': {
-    description: () => m('rbac.permission_descriptions.call_camera'),
+    description: () => m('permissions.descriptions.call_camera'),
     help: () => m('rbac.permission_help.call_camera')
   },
   'call.screenshare': {
-    description: () => m('rbac.permission_descriptions.call_screenshare'),
+    description: () => m('permissions.descriptions.call_screenshare'),
     help: () => m('rbac.permission_help.call_screenshare')
   },
   'message.read': {
-    description: () => m('rbac.permission_descriptions.message_read'),
+    description: () => m('permissions.descriptions.message_read'),
     help: () => m('rbac.permission_help.message_read')
   },
   'message.read-interactions': {
-    description: () => m('rbac.permission_descriptions.message_read_interactions'),
+    description: () => m('permissions.descriptions.message_read_interactions'),
     help: () => m('rbac.permission_help.message_read_interactions')
   },
   'message.post': {
-    description: () => m('rbac.permission_descriptions.message_post'),
+    description: () => m('permissions.descriptions.message_post'),
     help: () => m('rbac.permission_help.message_post')
   },
   'message.post-in-thread': {
-    description: () => m('rbac.permission_descriptions.message_post_in_thread'),
+    description: () => m('permissions.descriptions.message_post_in_thread'),
     help: () => m('rbac.permission_help.message_post_in_thread')
   },
   'message.post-in-interactions': {
-    description: () => m('rbac.permission_descriptions.message_post_interactions'),
+    description: () => m('permissions.descriptions.message_post_interactions'),
     help: () => m('rbac.permission_help.message_post_interactions')
   },
   'message.attach': {
-    description: () => m('rbac.permission_descriptions.message_attach'),
+    description: () => m('permissions.descriptions.message_attach'),
     help: () => m('rbac.permission_help.message_attach')
   },
   'message.echo': {
-    description: () => m('rbac.permission_descriptions.message_echo'),
+    description: () => m('permissions.descriptions.message_echo'),
     help: () => m('rbac.permission_help.message_echo')
   },
   'message.pin': {
-    description: () => m('rbac.permission_descriptions.message_pin'),
+    description: () => m('permissions.descriptions.message_pin'),
     help: () => m('rbac.permission_help.message_pin')
   },
   'message.manage': {
-    description: () => m('rbac.permission_descriptions.message_manage'),
+    description: () => m('permissions.descriptions.message_manage'),
     help: () => m('rbac.permission_help.message_manage')
   },
   'message.react': {
-    description: () => m('rbac.permission_descriptions.message_react'),
+    description: () => m('permissions.descriptions.message_react'),
     help: () => m('rbac.permission_help.message_react')
   },
   'role.manage': {
-    description: () => m('rbac.permission_descriptions.role_manage'),
+    description: () => m('permissions.descriptions.role_manage'),
     help: () => m('rbac.permission_help.role_manage')
   },
   'role.assign': {
-    description: () => m('rbac.permission_descriptions.role_assign'),
+    description: () => m('permissions.descriptions.role_assign'),
     help: () => m('rbac.permission_help.role_assign')
   },
   'admin.view-users': {
-    description: () => m('rbac.permission_descriptions.admin_view_users'),
+    description: () => m('permissions.descriptions.admin_view_users'),
     help: () => m('rbac.permission_help.admin_view_users')
   },
   'admin.view-audit': {
-    description: () => m('rbac.permission_descriptions.admin_view_audit'),
+    description: () => m('permissions.descriptions.admin_view_audit'),
     help: () => m('rbac.permission_help.admin_view_audit')
   },
   'user.delete-any': {
-    description: () => m('rbac.permission_descriptions.user_delete_any'),
+    description: () => m('permissions.descriptions.user_delete_any'),
     help: () => m('rbac.permission_help.user_delete_any')
   },
   'user.delete-self': {
-    description: () => m('rbac.permission_descriptions.user_delete_self'),
+    description: () => m('permissions.descriptions.user_delete_self'),
     help: () => m('rbac.permission_help.user_delete_self')
   },
   'user.invite': {
-    description: () => m('rbac.permission_descriptions.user_invite'),
+    description: () => m('permissions.descriptions.user_invite'),
     help: () => m('rbac.permission_help.user_invite')
   },
   'user.manage-accounts': {
-    description: () => m('rbac.permission_descriptions.user_manage_accounts'),
+    description: () => m('permissions.descriptions.user_manage_accounts'),
     help: () => m('rbac.permission_help.user_manage_accounts')
   },
   'user.manage-permissions': {
-    description: () => m('rbac.permission_descriptions.user_manage_permissions'),
+    description: () => m('permissions.descriptions.user_manage_permissions'),
     help: () => m('rbac.permission_help.user_manage_permissions')
   },
   'bot.create': {
-    description: () => m('rbac.permission_descriptions.bot_create'),
+    description: () => m('permissions.descriptions.bot_create'),
     help: () => m('rbac.permission_help.bot_create')
   },
   'bot.manage': {
-    description: () => m('rbac.permission_descriptions.bot_manage'),
+    description: () => m('permissions.descriptions.bot_manage'),
     help: () => m('rbac.permission_help.bot_manage')
   }
 };

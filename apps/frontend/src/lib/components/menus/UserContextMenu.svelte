@@ -267,7 +267,7 @@ keep the compact menu without a navigation action.
           onclick={handleBanFromRoom}
           disabled={banningFromRoom}
         >
-          {banningFromRoom ? m('admin.moderation.removing') : m('admin.moderation.remove_action')}
+          {banningFromRoom ? m('room.moderation.removing') : m('room.moderation.remove_action')}
         </MenuItem>
       {/if}
     </MenuSection>

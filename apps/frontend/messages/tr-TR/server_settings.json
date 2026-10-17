@@ -12,7 +12,6 @@
     "no_banner": "Banner seti yok",
     "name_label": "İsim",
     "description_label": "Açıklama",
-    "motd_label": "Günün Mesajı",
     "welcome_message_label": "Hoş Geldiniz Mesajı",
     "name_empty": "Ad boş olamaz",
     "name_trim": "Adın başında veya sonunda boşluk olamaz",

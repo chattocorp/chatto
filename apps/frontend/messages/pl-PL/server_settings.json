@@ -12,7 +12,6 @@
     "no_banner": "Nie ustawiono banera",
     "name_label": "Nazwa",
     "description_label": "Opis",
-    "motd_label": "Wiadomość dnia",
     "welcome_message_label": "Wiadomość powitalna",
     "name_empty": "Nazwa nie może być pusta",
     "name_trim": "Nazwa nie może zawierać początkowych ani końcowych spacji",

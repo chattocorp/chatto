@@ -164,6 +164,19 @@
       },
       "owned_by": "所有者",
       "open_card": "打开 {name} 的个人资料卡"
+    },
+    "management_nav": {
+      "general": "常规",
+      "neighbors": "邻居",
+      "members": "成员",
+      "rooms": "聊天室",
+      "moderation": "内容管理",
+      "permissions": "权限",
+      "security": "安全",
+      "event_log": "事件日志",
+      "system": "系统",
+      "back_to_server": "返回服务器",
+      "invitations": "邀请链接"
     }
   }
 }

@@ -164,6 +164,19 @@
       },
       "owned_by": "Propriétaire",
       "open_card": "Ouvrir la carte de profil de {name}"
+    },
+    "management_nav": {
+      "general": "Général",
+      "neighbors": "Voisins",
+      "members": "Membres",
+      "rooms": "Chambres",
+      "moderation": "Modération",
+      "permissions": "Autorisations",
+      "security": "Sécurité",
+      "event_log": "Journal des événements",
+      "system": "Système",
+      "back_to_server": "Retourner au serveur",
+      "invitations": "Liens d’invitation"
     }
   }
 }

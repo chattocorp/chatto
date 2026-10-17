@@ -281,7 +281,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     } catch (error) {
       optimisticGroupSections = null;
       toast.error(
-        m('admin.rooms_admin.reorder_groups_failed', {
+        m('room.management.reorder_groups_failed', {
           error: errorMessage(error)
         })
       );
@@ -390,7 +390,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   function handleRoomCreated(roomId: string): void {
     createRoomDialogVisible = false;
     createRoomGroupId = null;
-    toast.success(m('admin.rooms_admin.room_created'));
+    toast.success(m('room.management.room_created'));
     void goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
   }
 
@@ -422,15 +422,15 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     try {
       if (editingLinkId) {
         await roomLayoutAPI.updateSidebarLink({ linkId: editingLinkId, label, url });
-        toast.success(m('admin.rooms_admin.link_updated'));
+        toast.success(m('room.management.link_updated'));
       } else if (linkGroupId) {
         await roomLayoutAPI.createSidebarLink({ groupId: linkGroupId, label, url });
-        toast.success(m('admin.rooms_admin.link_created'));
+        toast.success(m('room.management.link_created'));
       }
       linkDialogVisible = false;
     } catch (error) {
       toast.error(
-        m('admin.rooms_admin.save_link_failed', {
+        m('room.management.save_link_failed', {
           error: errorMessage(error)
         })
       );
@@ -452,12 +452,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     if (!deleteGroupTarget) return;
     try {
       await roomLayoutAPI.deleteRoomGroup(deleteGroupTarget.id);
-      toast.success(m('admin.rooms_admin.group_deleted'));
+      toast.success(m('room.management.group_deleted'));
       deleteGroupDialogVisible = false;
       deleteGroupTarget = null;
     } catch (error) {
       toast.error(
-        m('admin.rooms_admin.delete_group_failed', {
+        m('room.management.delete_group_failed', {
           error: errorMessage(error)
         })
       );
@@ -475,12 +475,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     if (!deleteLinkTarget || deleteLinkTarget.type !== 'link') return;
     try {
       await roomLayoutAPI.deleteSidebarLink(deleteLinkTarget.link.id);
-      toast.success(m('admin.rooms_admin.link_deleted'));
+      toast.success(m('room.management.link_deleted'));
       deleteLinkDialogVisible = false;
       deleteLinkTarget = null;
     } catch (error) {
       toast.error(
-        m('admin.rooms_admin.delete_link_failed', {
+        m('room.management.delete_link_failed', {
           error: errorMessage(error)
         })
       );
@@ -497,12 +497,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     if (!archiveRoomTarget) return;
     try {
       await roomCommandAPI.archiveRoom(archiveRoomTarget.id);
-      toast.success(m('admin.rooms_admin.room_archived'));
+      toast.success(m('room.management.room_archived'));
       archiveRoomDialogVisible = false;
       archiveRoomTarget = null;
     } catch (error) {
       toast.error(
-        m('admin.rooms_admin.archive_room_failed', {
+        m('room.management.archive_room_failed', {
           error: errorMessage(error)
         })
       );
@@ -1036,7 +1036,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           <button
             type="button"
             class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/room:pointer-events-auto group-focus-within/room:opacity-100 group-hover/room:pointer-events-auto group-hover/room:opacity-100 active:cursor-grabbing"
-            aria-label={m('admin.rooms_admin.drag_room')}
+            aria-label={m('room.management.drag_room')}
             onclick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -1129,7 +1129,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           <button
             type="button"
             class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/link:pointer-events-auto group-focus-within/link:opacity-100 group-hover/link:pointer-events-auto group-hover/link:opacity-100 active:cursor-grabbing"
-            aria-label={m('admin.rooms_admin.drag_link')}
+            aria-label={m('room.management.drag_link')}
             onclick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -1183,7 +1183,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   <button
     type="button"
     class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/section-header:pointer-events-auto group-focus-within/section-header:opacity-100 group-hover/section-header:pointer-events-auto group-hover/section-header:opacity-100 active:cursor-grabbing"
-    aria-label={m('admin.rooms_admin.drag_group')}
+    aria-label={m('room.management.drag_group')}
     onclick={(event) => event.stopPropagation()}
     onpointerdown={(event) => event.stopPropagation()}
     data-sidebar-swipe-ignore
@@ -1217,12 +1217,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   <MenuSection>
     {#if group.viewerCanCreateRoom}
       <MenuItem icon="icon-[uil--plus]" onclick={() => openCreateRoom(group)}>
-        {m('admin.rooms_admin.new_room')}
+        {m('room.management.new_room')}
       </MenuItem>
     {/if}
     {#if group.viewerCanManageGroup}
       <MenuItem icon="icon-[uil--external-link-alt]" onclick={() => openCreateLink(group)}>
-        {m('admin.rooms_admin.new_link')}
+        {m('room.management.new_link')}
       </MenuItem>
     {/if}
   </MenuSection>
@@ -1336,7 +1336,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           disabled={!groupIsEmpty(contextGroup)}
           onclick={() => confirmDeleteGroup(contextGroup)}
         >
-          {m('admin.rooms_admin.delete_group')}
+          {m('room.management.delete_group')}
         </MenuItem>
       </MenuSection>
     {/if}
@@ -1374,12 +1374,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   <ContextMenu
     position={linkContextMenu.position}
     presentation={linkContextMenu.presentation}
-    ariaLabel={m('admin.rooms_admin.edit_link')}
+    ariaLabel={m('room.management.edit_link')}
     onclose={() => (linkContextMenu = null)}
   >
     <MenuSection>
       <MenuItem icon="icon-[uil--pen]" onclick={() => openEditLink(contextLink)}>
-        {m('admin.rooms_admin.edit_link')}
+        {m('room.management.edit_link')}
       </MenuItem>
     </MenuSection>
     <MenuSection>
@@ -1388,7 +1388,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         tone="danger"
         onclick={() => confirmDeleteLink(contextLink)}
       >
-        {m('admin.rooms_admin.delete_link')}
+        {m('room.management.delete_link')}
       </MenuItem>
     </MenuSection>
   </ContextMenu>
@@ -1409,9 +1409,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {#await Promise.all( [import('$lib/ui').then( ({ FormDialog }) => ({ default: FormDialog }) ), import('$lib/ui/form').then( ({ TextInput }) => ({ default: TextInput }) )] ) then [FormDialogModule, TextInputModule]}
     <FormDialogModule.default
       bind:visible={linkDialogVisible}
-      title={editingLinkId ? m('admin.rooms_admin.edit_link') : m('admin.rooms_admin.create_link')}
+      title={editingLinkId ? m('room.management.edit_link') : m('room.management.create_link')}
       size="sm"
-      submitLabel={editingLinkId ? m('rbac.role_form.save') : m('admin.rooms_admin.create_link')}
+      submitLabel={editingLinkId ? m('common.save') : m('room.management.create_link')}
       submitIcon={editingLinkId ? undefined : 'iconify icon-[uil--plus]'}
       disabled={!linkLabel.trim() || !linkUrlIsValid}
       onsubmit={saveLink}
@@ -1419,14 +1419,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     >
       <TextInputModule.default
         id="sidebar-link-label"
-        label={m('admin.rooms_admin.label')}
+        label={m('room.management.label')}
         bind:value={linkLabel}
       />
       <TextInputModule.default
         id="sidebar-link-url"
-        label={m('admin.rooms_admin.url')}
+        label={m('room.management.url')}
         bind:value={linkUrl}
-        placeholder={m('admin.rooms_admin.link_url_placeholder')}
+        placeholder={m('room.management.link_url_placeholder')}
       />
     </FormDialogModule.default>
   {/await}
@@ -1435,8 +1435,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {#if deleteGroupDialogVisible && deleteGroupTarget}
   {#await import('$lib/ui').then( ({ ConfirmDialog }) => ({ default: ConfirmDialog }) ) then ConfirmDialogModule}
     <ConfirmDialogModule.default
-      title={m('admin.rooms_admin.delete_group')}
-      actionLabel={m('admin.rooms_admin.delete_group')}
+      title={m('room.management.delete_group')}
+      actionLabel={m('room.management.delete_group')}
       actionIcon="iconify icon-[uil--trash-alt]"
       tone="danger"
       onconfirm={deleteGroup}
@@ -1445,7 +1445,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         deleteGroupTarget = null;
       }}
     >
-      {m('admin.rooms_admin.delete_group_prompt', { name: deleteGroupTarget.name })}
+      {m('room.management.delete_group_prompt', { name: deleteGroupTarget.name })}
     </ConfirmDialogModule.default>
   {/await}
 {/if}
@@ -1453,8 +1453,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {#if deleteLinkDialogVisible && deleteLinkTarget?.type === 'link'}
   {#await import('$lib/ui').then( ({ ConfirmDialog }) => ({ default: ConfirmDialog }) ) then ConfirmDialogModule}
     <ConfirmDialogModule.default
-      title={m('admin.rooms_admin.delete_link')}
-      actionLabel={m('admin.rooms_admin.delete_link')}
+      title={m('room.management.delete_link')}
+      actionLabel={m('room.management.delete_link')}
       actionIcon="iconify icon-[uil--trash-alt]"
       tone="danger"
       onconfirm={deleteLink}
@@ -1463,7 +1463,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         deleteLinkTarget = null;
       }}
     >
-      {m('admin.rooms_admin.delete_link_prompt', { label: deleteLinkTarget.link.label })}
+      {m('room.management.delete_link_prompt', { label: deleteLinkTarget.link.label })}
     </ConfirmDialogModule.default>
   {/await}
 {/if}
@@ -1471,8 +1471,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {#if archiveRoomDialogVisible && archiveRoomTarget}
   {#await import('$lib/ui').then( ({ ConfirmDialog }) => ({ default: ConfirmDialog }) ) then ConfirmDialogModule}
     <ConfirmDialogModule.default
-      title={m('admin.rooms_admin.archive_room')}
-      actionLabel={m('admin.rooms_admin.archive_room')}
+      title={m('room.management.archive_room')}
+      actionLabel={m('room.management.archive_room')}
       actionIcon="iconify icon-[uil--archive]"
       tone="warning"
       onconfirm={archiveRoom}
@@ -1481,7 +1481,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         archiveRoomTarget = null;
       }}
     >
-      {m('admin.rooms_admin.archive_room_prompt', { room: archiveRoomTarget.name })}
+      {m('room.management.archive_room_prompt', { room: archiveRoomTarget.name })}
     </ConfirmDialogModule.default>
   {/await}
 {/if}

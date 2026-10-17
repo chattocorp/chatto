@@ -91,7 +91,7 @@
   }
 
   function formatDate(value: string | null | undefined): string {
-    if (!value) return m('admin.moderation.indefinite');
+    if (!value) return m('room.moderation.indefinite');
     return formatDateUtil(value, userSettings, activeLocale);
   }
 
@@ -167,7 +167,7 @@
           {#snippet header()}
             <th class="table-header-cell">{m('admin.common.user')}</th>
             <th class="table-header-cell">{m('admin.common.room')}</th>
-            <th class="table-header-cell">{m('admin.common.reason')}</th>
+            <th class="table-header-cell">{m('common.reason')}</th>
             <th class="table-header-cell">{m('admin.common.expires')}</th>
             <th class="table-header-cell"></th>
           {/snippet}
@@ -210,11 +210,11 @@
                 variant="secondary"
                 size="sm"
                 loading={unbanningBanId === ban.id}
-                loadingText={m('admin.moderation.lifting')}
+                loadingText={m('room.moderation.lifting')}
                 onclick={() => openUnbanDialog(ban)}
               >
                 <span class="iconify icon-[uil--unlock]" aria-hidden="true"></span>
-                <span>{m('admin.moderation.lift')}</span>
+                <span>{m('room.moderation.lift')}</span>
               </Button>
             </td>
           {/snippet}

@@ -67,8 +67,7 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   Keep maintainer handoffs brief: summarize the requested action and symptom,
   then ask for authorization. Include only gaps that affect that decision.
   Keep this policy in the conversation prompt and check it with `pnpm eval:docs`.
-- Search existing issues early and confirm candidate coverage before further intake,
-  as specified in [FDR-051](../../docs/fdr/FDR-051-chattobot-report-intake.md).
+- Search existing issues early and confirm candidate coverage before further intake.
   Use GitHub's native parent/sub-issue relationships for epic/task hierarchy.
   Check discovery with `pnpm eval:github issue-discovery`.
 - Refer to specific GitHub issues and PRs with Markdown links that include their

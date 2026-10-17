@@ -164,6 +164,19 @@
       },
       "owned_by": "Owned by",
       "open_card": "Open profile card of {name}"
+    },
+    "management_nav": {
+      "general": "General",
+      "neighbors": "Neighbors",
+      "members": "Members",
+      "rooms": "Rooms",
+      "moderation": "Moderation",
+      "permissions": "Permissions",
+      "security": "Security",
+      "event_log": "Event Log",
+      "system": "System",
+      "back_to_server": "Return to Server",
+      "invitations": "Invite links"
     }
   }
 }

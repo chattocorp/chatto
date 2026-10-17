@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "descriptions": {
+      "call_screenshare": "Bildschirm oder Anwendung einschliesslich aufgenommenem Audio teilen"
+    }
+  }
+}

@@ -28,11 +28,11 @@
     .refine((name) => roomNameValidationError(name) !== 'empty', m('room.create.name_required'))
     .refine(
       (name) => roomNameValidationError(name) !== 'too_long',
-      m('admin.rooms_admin.room_name_too_long')
+      m('room.management.room_name_too_long')
     )
     .refine(
       (name) => roomNameValidationError(name) !== 'invalid',
-      m('admin.rooms_admin.room_name_invalid')
+      m('room.management.room_name_invalid')
     );
 
   const schema = z.object({
@@ -97,7 +97,7 @@
 
 <FormDialog
   bind:visible
-  title={m('admin.rooms_admin.create_room')}
+  title={m('room.management.create_room')}
   size="sm"
   submitLabel={m('room.create.submit_and_configure')}
   submitIcon="iconify icon-[uil--plus]"

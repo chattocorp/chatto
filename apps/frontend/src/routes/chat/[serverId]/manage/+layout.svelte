@@ -115,6 +115,6 @@
     backHref={resolve('/chat/[serverId]', {
       serverId: serverSegment
     })}
-    backLabel={m('admin.nav.back_to_server')}
+    backLabel={m('chat.management_nav.back_to_server')}
   />
 {/if}

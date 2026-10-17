@@ -54,6 +54,11 @@
     "saved": "Sauvé !",
     "rooms": "Chambres",
     "copy_to_clipboard": "Copier dans le presse-papiers",
-    "copied_to_clipboard": "Copié dans le presse-papiers"
+    "copied_to_clipboard": "Copié dans le presse-papiers",
+    "user_search_placeholder": "Recherche par identifiant ou nom d'affichage...",
+    "no_users": "Aucun utilisateur trouvé",
+    "user_id": "ID utilisateur",
+    "reason": "Raison",
+    "message_of_the_day": "Message du jour"
   }
 }

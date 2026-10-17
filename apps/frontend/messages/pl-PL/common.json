@@ -54,6 +54,11 @@
     "saved": "Zapisano!",
     "rooms": "Pokoje",
     "copy_to_clipboard": "Skopiuj do schowka",
-    "copied_to_clipboard": "Skopiowano do schowka"
+    "copied_to_clipboard": "Skopiowano do schowka",
+    "user_search_placeholder": "Szukaj według loginu lub nazwy wyświetlanej...",
+    "no_users": "Nie znaleziono użytkowników",
+    "user_id": "Identyfikator użytkownika",
+    "reason": "Powód",
+    "message_of_the_day": "Wiadomość dnia"
   }
 }

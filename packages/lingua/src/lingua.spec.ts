@@ -320,7 +320,7 @@ describe('Lingua', () => {
   it('validates base locales and section documents', async () => {
     expect(() =>
       createLingua({
-        baseLocale: 'de-DE',
+        baseLocale: 'de-DE' as never,
         loaders: {
           common: { 'en-GB': async () => common({ close: 'Close' }) }
         }
