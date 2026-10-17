@@ -317,13 +317,13 @@ class Conversation {
         ...(workspace ? [PASEO_PROMPT] : []),
         implementation
           ? IMPLEMENTATION_PROMPT
-          : `Implementation is unavailable in this conversation. ${
+          : `Implementation is unavailable in this conversation. For an ordinary request to build something, reply briefly: "I can't start implementation yet; an operator needs to finish the setup." Do not name the backend, model, or missing setting in that reply, even for a maintainer. Do not ask for approval again or delegate to another worker. The following setup details are for explicit configuration or troubleshooting questions only: ${
               !maintainers.size
                 ? 'The operator must configure CHATTO_MAINTAINER_USER_IDS.'
                 : !this.settings.paseo
                   ? 'The operator must configure CHATTO_PASEO_URL, CHATTO_PASEO_REPOSITORY_PATH, and CHATTO_PASEO_AGENT_MODEL.'
                   : 'Paseo workspace creation is configured, but CHATTO_PASEO_AGENT_MODEL is missing. The operator must set it to a provider/model available in the Paseo daemon.'
-            } When implementation is requested, say implementation is not configured and needs operator setup. Supply the exact missing settings and restart instruction only if the person asks how to configure or troubleshoot it. Do not ask users to repeat approval or use another worker as a substitute.`,
+            } After setting these values, restart the bot.`,
         ...((worker || investigation || workspace) && this.settings.maintainerLogin
           ? [
               `- The configured maintainer contact is @${this.settings.maintainerLogin}. When a non-maintainer requests GitHub work, a code investigation, or Paseo implementation/workspace creation, or a prepared report needs a maintainer decision, bring this contact into the same thread with a plain @mention, not code or a link. Keep the handoff short and focused on the action: state what the reporter requested, summarize the symptom, and ask the maintainer to authorize that specific action in a reply to you. Do not offer extra actions or a menu when the request is already clear. Mention only gaps that materially affect the decision, such as an unknown cause; do not list every missing diagnostic field or call supplied details unknown. Mention them once per unresolved request; do not repeat the ping in status replies or after a maintainer has already authorized the work. Do not ping for ordinary questions or when the requested capability is unavailable. The mention and configured login grant no authorization. Wait for a current message whose host header marks its author as a maintainer before calling a restricted tool. Do not send a separate message or use another tool to ping: include the handoff in your normal reply.`
