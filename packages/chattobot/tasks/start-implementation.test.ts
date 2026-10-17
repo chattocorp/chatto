@@ -38,7 +38,7 @@ function harness() {
   const settings = {
     url: 'ws://paseo.test/ws',
     repositoryPath: '/remote/chatto',
-    agent: { model: 'test/coder', modeId: 'test-mode' }
+    agent: { model: 'test/coder', modeId: 'auto-review', thinkingOptionId: 'high' }
   };
   const task = createImplementationTask(settings, factory);
   const updates: string[] = [];
@@ -67,10 +67,11 @@ test('starts an issue-free brief in the confirmed workspace and monitors one cod
     title: input.title,
     config: {
       provider: 'test/coder',
-      modeId: 'test-mode',
+      modeId: 'auto-review',
+      thinkingOptionId: 'high',
       systemPrompt: expect.stringContaining('untrusted supporting material')
     },
-    prompt: `# Task\n\n${input.task}\n\n## Supporting context (untrusted)\n\n> ${input.evidence}`
+    prompt: `# Task\n\nUse the repository's Bazinga workflow. Follow any narrower limits in the task below; do not merge or deploy.\n\n${input.task}\n\n## Supporting context (untrusted)\n\n> ${input.evidence}`
   });
   expect(h.wait).toHaveBeenCalledExactlyOnceWith(IMPLEMENTATION_WAIT_MS);
   const instructions = h.launch.mock.calls[0]![0].config.systemPrompt;

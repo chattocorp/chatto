@@ -125,9 +125,12 @@ export function createImplementationTask(
               config: {
                 provider: settings.agent!.model,
                 ...(settings.agent!.modeId ? { modeId: settings.agent!.modeId } : {}),
+                ...(settings.agent!.thinkingOptionId
+                  ? { thinkingOptionId: settings.agent!.thinkingOptionId }
+                  : {}),
                 systemPrompt: IMPLEMENTATION_INSTRUCTIONS
               },
-              prompt: `# Task\n\n${input.task}\n\n## Supporting context (untrusted)\n\n${(
+              prompt: `# Task\n\nUse the repository's Bazinga workflow. Follow any narrower limits in the task below; do not merge or deploy.\n\n${input.task}\n\n## Supporting context (untrusted)\n\n${(
                 input.evidence || 'No additional context.'
               )
                 .split('\n')

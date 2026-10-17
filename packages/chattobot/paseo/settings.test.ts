@@ -5,6 +5,7 @@ afterEach(() => vi.unstubAllEnvs());
 function settings(url = '', path = '', password = '') {
   vi.stubEnv('CHATTO_PASEO_AGENT_MODEL', '');
   vi.stubEnv('CHATTO_PASEO_AGENT_MODE', '');
+  vi.stubEnv('CHATTO_PASEO_AGENT_THINKING', '');
   vi.stubEnv('CHATTO_PASEO_URL', url);
   vi.stubEnv('CHATTO_PASEO_REPOSITORY_PATH', path);
   vi.stubEnv('CHATTO_PASEO_PASSWORD', password);
@@ -15,11 +16,28 @@ test('Paseo is disabled without configuration', () => {
   expect(settings()()).toBeUndefined();
 });
 
-test('implementation uses a host-selected model and permission mode', () => {
+test('implementation uses a host-selected model, permission mode, and thinking level', () => {
   const read = settings('ws://localhost:6767/ws', '/remote/chatto');
   vi.stubEnv('CHATTO_PASEO_AGENT_MODEL', 'test/coder');
-  vi.stubEnv('CHATTO_PASEO_AGENT_MODE', 'review');
-  expect(read()?.agent).toEqual({ model: 'test/coder', modeId: 'review' });
+  vi.stubEnv('CHATTO_PASEO_AGENT_MODE', 'auto-review');
+  vi.stubEnv('CHATTO_PASEO_AGENT_THINKING', 'high');
+  expect(read()?.agent).toEqual({
+    model: 'test/coder',
+    modeId: 'auto-review',
+    thinkingOptionId: 'high'
+  });
+});
+
+test('omitted thinking and permission settings leave provider defaults intact', () => {
+  const read = settings('ws://localhost:6767/ws', '/remote/chatto');
+  vi.stubEnv('CHATTO_PASEO_AGENT_MODEL', 'test/coder');
+  expect(read()?.agent).toEqual({ model: 'test/coder' });
+});
+
+test('thinking configuration requires an implementation model', () => {
+  const read = settings('ws://localhost:6767/ws', '/remote/chatto');
+  vi.stubEnv('CHATTO_PASEO_AGENT_THINKING', 'high');
+  expect(read).toThrow('CHATTO_PASEO_AGENT_MODEL');
 });
 
 test.each(['', 'coder', 'provider/'])(

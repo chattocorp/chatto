@@ -7,8 +7,8 @@ export interface PaseoSettings {
   password?: string;
   /** Absolute repository path on the Paseo host, not necessarily the bot host. */
   repositoryPath: string;
-  /** Host-selected coding model and optional provider permission mode. */
-  agent?: { model: string; modeId?: string };
+  /** Host-selected coding model, permission mode, and thinking level. Omitted options use provider defaults. */
+  agent?: { model: string; modeId?: string; thinkingOptionId?: string };
 }
 
 /** Validate configuration without contacting Paseo or inspecting the remote filesystem. */
@@ -18,7 +18,9 @@ export function paseoSettings(): PaseoSettings | undefined {
   const password = setting('CHATTO_PASEO_PASSWORD');
   const model = setting('CHATTO_PASEO_AGENT_MODEL');
   const modeId = setting('CHATTO_PASEO_AGENT_MODE');
-  if (!url && !repositoryPath && !password && !model && !modeId) return undefined;
+  const thinkingOptionId = setting('CHATTO_PASEO_AGENT_THINKING');
+  if (!url && !repositoryPath && !password && !model && !modeId && !thinkingOptionId)
+    return undefined;
   if (!url || !repositoryPath)
     throw new ConfigurationError('Set CHATTO_PASEO_URL and CHATTO_PASEO_REPOSITORY_PATH');
   try {
@@ -39,14 +41,22 @@ export function paseoSettings(): PaseoSettings | undefined {
   }
   if (!posix.isAbsolute(repositoryPath) && !win32.isAbsolute(repositoryPath))
     throw new ConfigurationError('CHATTO_PASEO_REPOSITORY_PATH must be absolute on the Paseo host');
-  if ((model && !/^[^\s/]+\/\S+$/.test(model)) || (modeId && !model))
+  if ((model && !/^[^\s/]+\/\S+$/.test(model)) || ((modeId || thinkingOptionId) && !model))
     throw new ConfigurationError(
-      'Set CHATTO_PASEO_AGENT_MODEL to provider/model before setting CHATTO_PASEO_AGENT_MODE'
+      'Set CHATTO_PASEO_AGENT_MODEL to provider/model before setting CHATTO_PASEO_AGENT_MODE or CHATTO_PASEO_AGENT_THINKING'
     );
   return {
     url,
     repositoryPath,
     ...(password ? { password } : {}),
-    ...(model ? { agent: { model, ...(modeId ? { modeId } : {}) } } : {})
+    ...(model
+      ? {
+          agent: {
+            model,
+            ...(modeId ? { modeId } : {}),
+            ...(thinkingOptionId ? { thinkingOptionId } : {})
+          }
+        }
+      : {})
   };
 }

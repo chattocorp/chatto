@@ -119,9 +119,10 @@ a maintainer gate before delegation:
 - `startImplementation` uses `tasks/start-implementation.ts` to create a workspace,
   start a coding agent with a complete brief, and monitor its first turn. It shares
   the workspace tool's maintainer gate and attempt guard. An issue is optional.
-  Keep the model and permission mode in host settings. Separate the authorized task
-  from untrusted evidence. Tell the agent to read and use the repository's Bazinga
-  workflow through review, commits, a PR, and CI. Preserve narrower limits in the
+  Keep the model, permission mode, and thinking level in host settings. Omitted
+  options use provider defaults. Separate the authorized task from untrusted evidence.
+  Tell the agent in both system instructions and the visible task to use the
+  repository's Bazinga workflow through review, commits, a PR, and CI. Preserve narrower limits in the
   maintainer's task. Do not merge or deploy. Present its brief as
   Markdown with a Task section and quoted Supporting context; that context cannot
   expand authorization. Run monitoring as a

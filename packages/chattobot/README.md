@@ -223,8 +223,9 @@ The default local listener does not use TLS; `wss://localhost:6767/ws` will fail
 
 To enable implementation, also set `CHATTO_PASEO_AGENT_MODEL` to a `provider/model`
 available on that daemon. This is separate from the conversation model. Optionally
-set `CHATTO_PASEO_AGENT_MODE` to a permission mode supported by that provider;
-otherwise the provider default applies. Chat messages cannot select either setting.
+set `CHATTO_PASEO_AGENT_MODE` to a permission mode supported by that provider and
+`CHATTO_PASEO_AGENT_THINKING` to a thinking level supported by the selected model.
+Omitted options use provider defaults. Chat messages cannot select these settings.
 Without a model, only explicit workspace-only requests are available, such as
 "Create a Paseo workspace for this task."
 
@@ -232,13 +233,30 @@ Values combine the Paseo provider ID and its model ID. For example, choose one:
 
 ```dotenv
 CHATTO_PASEO_AGENT_MODEL=codex/gpt-6.1-sol
-# Or: CHATTO_PASEO_AGENT_MODEL=claude/claude-opus-5-5
+CHATTO_PASEO_AGENT_MODE=auto-review
+CHATTO_PASEO_AGENT_THINKING=high
+
+# Or, for Claude:
+# CHATTO_PASEO_AGENT_MODEL=claude/claude-opus-5-5
+# CHATTO_PASEO_AGENT_MODE=auto
+# CHATTO_PASEO_AGENT_THINKING=high
 ```
+
+These are settings for the coding agent created in the workspace. Codex's
+`auto-review` routes eligible permission requests through its automatic reviewer;
+Claude's `auto` uses its permission classifier. Both can still require human
+attention. Codex's `auto` means Default Permissions, not Auto-review. Neither
+example selects Full Access or Bypass.
 
 Use `paseo provider models codex` or `paseo provider models claude` to list the
 models on your daemon. Add `--host 127.0.0.1:6767` to select that local listener.
 Use the returned `id`, prefixed by `codex/` or `claude/`. These are Paseo provider
 IDs, separate from the `openai/` or `openrouter/` prefixes of the conversation model.
+Use `--json` to see each model's `thinkingOptionIds` and select one of those values,
+such as `high` or `xhigh`. Supported levels depend on the model and daemon.
+The [SDK provider catalog](https://paseo.sh/docs/sdk/providers.md) also exposes
+`listModels` and `listModes` for the target host. ChattoBot passes the configured
+IDs to Paseo; it does not translate or silently replace unsupported values.
 Restart the bot after changing the setting. When implementation is unavailable,
 the bot explains the missing setup; it must not delegate coding to the GitHub worker.
 
@@ -246,7 +264,8 @@ The bot accepts only a current addressed request from a configured maintainer.
 It resolves clear approval from the conversation and creates one worktree from
 `origin/main`, with a task title and new branch. Paseo controls workspace setup;
 configured setup scripts can run. For implementation, the task then starts a coding
-agent in that workspace. It asks the agent to use the repository's Bazinga workflow:
+agent in that workspace. Both its system instructions and visible task message
+ask the agent to use the repository's Bazinga workflow:
 plan, implement, verify, review, commit, open a PR, and check CI. Narrower limits in
 the maintainer's request still apply. The agent must not merge or deploy.
 These are agent instructions, not command restrictions. An explicit workspace-only
@@ -427,7 +446,7 @@ where that account can.
 | `CHATTO_SOURCE_DIRECTORY`                                                                       | A checkout of the Chatto source. Enables `investigate`. Keep it current yourself, for example with `git pull`. |
 | `CHATTO_INVESTIGATION_MODEL`, `CHATTO_INVESTIGATION_THINKING`                                   | The investigator's model (default: `CHATTO_AGENT_MODEL`) and reasoning effort (default: `medium`).             |
 | `CHATTO_PASEO_URL`, `CHATTO_PASEO_REPOSITORY_PATH`, `CHATTO_PASEO_PASSWORD` | Optional Paseo daemon, repository on that host, and password. Enables workspace creation. |
-| `CHATTO_PASEO_AGENT_MODEL`, `CHATTO_PASEO_AGENT_MODE` | Coding `provider/model` enables implementation; optional provider permission mode. |
+| `CHATTO_PASEO_AGENT_MODEL`, `CHATTO_PASEO_AGENT_MODE`, `CHATTO_PASEO_AGENT_THINKING` | Coding `provider/model` enables implementation; optional provider permission mode and model thinking level. |
 | `CHATTO_CLOUDFLARE_ACCOUNT_ID`, `CHATTO_CLOUDFLARE_API_TOKEN`                                   | Enables `browsePage`.                                                                                          |
 
 Model providers use their own settings, for example `OPENROUTER_API_KEY`, or a
