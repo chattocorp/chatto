@@ -721,7 +721,7 @@ describe('ServerSidebarEntry', () => {
     icon.dispatchEvent(
       new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 24, clientY: 36 })
     );
-    await vi.waitFor(() => expect(document.body.textContent).toContain('Limited support'));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Older server version'));
     expect(document.body.textContent).not.toContain('Version 0.5.0-beta.9-custom');
     expect(document.body.textContent).not.toContain('upgrade to 0.5.0-beta.16 or newer');
     expect(

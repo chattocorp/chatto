@@ -58,7 +58,7 @@
     "compatibility": {
       "title": "תאימות",
       "view": "הצג תאימות",
-      "limited": "תמיכה מוגבלת",
+      "limited": "גרסת שרת ישנה יותר",
       "supported": "אין בעיות תאימות ידועות",
       "affected": "תכונות מושפעות",
       "requires": "נדרשת גרסה {version} או חדשה יותר",

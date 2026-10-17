@@ -58,7 +58,7 @@
     "compatibility": {
       "title": "互換性",
       "view": "互換性を表示",
-      "limited": "限定的なサポート",
+      "limited": "古いサーバーバージョン",
       "supported": "既知の互換性の問題はありません",
       "affected": "影響を受ける機能",
       "requires": "{version} 以降が必要です",

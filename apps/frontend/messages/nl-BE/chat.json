@@ -58,7 +58,7 @@
     "compatibility": {
       "title": "Compatibiliteit",
       "view": "Compatibiliteit bekijken",
-      "limited": "Beperkte ondersteuning",
+      "limited": "Oudere serverversie",
       "supported": "Geen bekende compatibiliteitsproblemen",
       "affected": "Betrokken functies",
       "requires": "Vereist {version} of nieuwer",

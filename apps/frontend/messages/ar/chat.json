@@ -58,7 +58,7 @@
     "compatibility": {
       "title": "التوافق",
       "view": "عرض التوافق",
-      "limited": "دعم محدود",
+      "limited": "إصدار خادم أقدم",
       "supported": "لا توجد مشاكل توافق معروفة",
       "affected": "الميزات المتأثرة",
       "requires": "يتطلب الإصدار {version} أو أحدث",

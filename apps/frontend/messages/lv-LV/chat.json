@@ -58,7 +58,7 @@
     "compatibility": {
       "title": "Saderība",
       "view": "Skatīt saderību",
-      "limited": "Ierobežots atbalsts",
+      "limited": "Vecāka servera versija",
       "supported": "Nav zināmu saderības problēmu",
       "affected": "Ietekmētās funkcijas",
       "requires": "Nepieciešama {version} vai jaunāka versija",

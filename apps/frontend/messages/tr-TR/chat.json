@@ -58,7 +58,7 @@
     "compatibility": {
       "title": "Uyumluluk",
       "view": "Uyumluluğu görüntüle",
-      "limited": "Sınırlı destek",
+      "limited": "Eski sunucu sürümü",
       "supported": "Bilinen uyumluluk sorunu yok",
       "affected": "Etkilenen özellikler",
       "requires": "{version} veya daha yeni bir sürüm gerektirir",
