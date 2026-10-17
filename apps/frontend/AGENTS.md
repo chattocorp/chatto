@@ -280,6 +280,8 @@ behavior. Apply those rules when choosing an implementation too.
   Keep messages used by chat in shared sections; permission descriptions used
   by bot profiles belong in `permissions`, not `rbac`.
   SvelteKit layout loads own the public, chat, and management catalog groups.
+  Each layout loads its own group; do not track child routes in the chat load.
+  The completed-navigation handler deactivates management catalogs on exit.
   Catalog loading must not block a global navigation hook. Production builds
   keep each locale's management payload separate from public and chat payloads.
   Keep the groups in `catalogSections.js` aligned with the literal Vite globs.

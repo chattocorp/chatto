@@ -12,6 +12,7 @@ vi.mock('$lib/i18n/messages', () => ({
 }));
 
 import { load } from './+layout';
+import { load as loadManagement } from './[serverId]/manage/+layout';
 
 describe('chat layout catalog loading', () => {
   beforeEach(() => {
@@ -20,22 +21,29 @@ describe('chat layout catalog loading', () => {
   });
 
   it.each([
-    ['/chat/[serverId]/[roomId]', false],
-    ['/chat/[serverId]/manage/server/general', true],
-    ['/chat/[serverId]/manage/rooms/[roomId]', true],
-    ['/chat/[serverId]/settings/account', false]
-  ])('loads the required sections after parent locale selection: %s', async (id, management) => {
-    calls.length = 0;
-    const parent = vi.fn(async () => {
-      calls.push('parent');
-      return {};
-    });
+    ['chat', load, undefined],
+    ['management', loadManagement, true]
+  ] as const)(
+    'loads %s sections after the parent without tracking child routes',
+    async (_, loader, management) => {
+      const parent = vi.fn(async () => {
+        calls.push('parent');
+        return {};
+      });
 
-    await load({ parent, route: { id } } as never);
+      await loader({
+        parent,
+        route: {
+          get id() {
+            throw new Error('A catalog layout must not track child route IDs');
+          }
+        }
+      } as never);
 
-    expect(calls).toEqual(['parent', 'catalog']);
-    expect(parent).toHaveBeenCalledOnce();
-    expect(preloadChatLocaleMessages).toHaveBeenCalledOnce();
-    expect(preloadChatLocaleMessages).toHaveBeenCalledWith(management);
-  });
+      expect(calls).toEqual(['parent', 'catalog']);
+      expect(parent).toHaveBeenCalledOnce();
+      expect(preloadChatLocaleMessages).toHaveBeenCalledOnce();
+      expect(preloadChatLocaleMessages.mock.calls[0]).toEqual(management ? [true] : []);
+    }
+  );
 });

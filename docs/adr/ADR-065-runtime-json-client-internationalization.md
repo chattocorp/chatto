@@ -33,10 +33,14 @@ in `room`, management navigation in `chat`, and permission descriptions in
 `permissions`.
 
 SvelteKit layout loads own three catalog groups: public, chat, and management.
-The root layout loads the public shell. The `/chat` layout uses the target route
-to load chat sections and, only under `/chat/[serverId]/manage/...`, management
-sections. Rolldown keeps these groups in separate payloads per locale. Catalog
-availability never participates in a global navigation hook. Switching locales
+The root layout loads the public shell. The `/chat` layout loads shared chat
+sections without reading the child route. The management layout loads its
+sections on entry. This keeps child navigation from rerunning ancestor access
+checks or refreshing all translated text. Repeated requests for the same sections
+do not change the translation revision. Rolldown keeps these groups in separate
+payloads per locale. Catalog downloads never block a global navigation hook.
+The existing completed-navigation handler deactivates management sections on
+exit, without downloads or a translation refresh. Switching locales
 loads the currently active group before publishing the new locale. Leaving
 management removes its sections from subsequent locale loads but keeps previous
 downloads cached. Sparse locale catalogs, including `en-US`, fall back

@@ -10,8 +10,10 @@ import {
   catalogSections,
   chatCatalogSections,
   initialBaseCatalogs,
-  publicCatalogSections
+  publicCatalogSections,
+  type CatalogSection
 } from './catalogs';
+import { isManagementCatalogSection } from './catalogSections.js';
 import { baseLocale, fallbackLocales, type Locale } from './locales';
 import {
   bumpI18nRevision,
@@ -83,7 +85,30 @@ export async function preloadPublicLocaleMessages(): Promise<void> {
 /** Load the route's sections, with management catalogs only on management routes. */
 export async function preloadChatLocaleMessages(management = false): Promise<void> {
   await scheduleCatalogTransition(async () => {
-    await lingua.setActiveSections(management ? catalogSections : chatCatalogSections);
+    const sections = management ? catalogSections : chatCatalogSections;
+    const active = lingua.snapshot.activeSections;
+    if (
+      active.length === sections.length &&
+      sections.every((section) => active.includes(section))
+    ) {
+      return;
+    }
+    await lingua.setActiveSections(sections);
     bumpI18nRevision();
+  });
+}
+
+/**
+ * Stop loading management sections on later language changes. Called only after
+ * navigation leaves management. This removes active sections without downloads
+ * or a revision bump: previously published messages remain readable.
+ */
+export async function deactivateManagementLocaleMessages(): Promise<void> {
+  await scheduleCatalogTransition(async () => {
+    const active = lingua.snapshot.activeSections;
+    const sections = active.filter(
+      (section) => !isManagementCatalogSection(section as CatalogSection)
+    );
+    if (sections.length !== active.length) await lingua.setActiveSections(sections);
   });
 }

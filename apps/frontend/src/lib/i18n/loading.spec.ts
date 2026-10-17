@@ -25,6 +25,34 @@ async function setup() {
 }
 
 describe('route translation boundaries', () => {
+  it('does not invalidate translations when the requested sections are already active', async () => {
+    const app = await setup();
+    const { getI18nRevision } = await import('./state.svelte');
+    await app.preloadChatLocaleMessages();
+    const chatRevision = getI18nRevision();
+    await Promise.all([app.preloadChatLocaleMessages(), app.preloadChatLocaleMessages()]);
+    expect(getI18nRevision()).toBe(chatRevision);
+    await app.preloadChatLocaleMessages(true);
+    const managementRevision = getI18nRevision();
+    await app.preloadChatLocaleMessages(true);
+    expect(getI18nRevision()).toBe(managementRevision);
+  });
+
+  it('deactivates management without changing visible text or invalidating translations', async () => {
+    const app = await setup();
+    const { getI18nRevision } = await import('./state.svelte');
+    await app.preloadChatLocaleMessages(true);
+    const revision = getI18nRevision();
+    await app.deactivateManagementLocaleMessages();
+    await app.deactivateManagementLocaleMessages();
+    expect(getI18nRevision()).toBe(revision);
+    expect(app.m('admin.system.started')).toBe('Started');
+    await app.setLocale('de-DE');
+    expect(app.loaders.admin['de-DE']).not.toHaveBeenCalled();
+    await app.preloadChatLocaleMessages(true);
+    expect(app.m('admin.system.started')).toBe('Gestartet');
+  });
+
   it.each(['en-GB', 'de-DE', 'de-AT'] as const)(
     'defers management, including English fallback, for %s',
     async (locale) => {
