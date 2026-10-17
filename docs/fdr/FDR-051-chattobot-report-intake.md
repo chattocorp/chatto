@@ -1,7 +1,7 @@
 # FDR-051: ChattoBot Report Intake
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-16
+**Last reviewed:** 2026-10-17
 
 ## Overview
 
@@ -39,7 +39,7 @@ ordinary thread replies can continue the conversation without another mention.
   A partial GitHub result does not qualify until the remaining work succeeds or
   a maintainer explicitly accepts the partial result. For example, a created issue
   with a failed requested priority update remains unfinished. A maintainer's retry
-  uses the quoted failure to identify the remaining step; it does not repeat
+  uses the conversation context to identify the remaining step; it does not repeat
   completed work.
   The conversation agent can remove its mark if the request reopens. Completion
   includes one short closing reply, with a numbered link for confirmed issue coverage.
@@ -71,6 +71,10 @@ ordinary thread replies can continue the conversation without another mention.
   until the next polling tick.
 - Intake and automatic follow-ups do not authorize GitHub changes or investigations.
   A maintainer must send an addressed request, even if they wrote the original report.
+- Clear maintainer approval such as "go ahead" is resolved from the conversation
+  and does not require another approval during filing. Ambiguous approval is
+  clarified before work starts. GitHub commands receive a separate scope check;
+  a rejected command does not automatically require the maintainer to approve again.
 - Duplicate deliveries are suppressed for 24 hours in the running bot process,
   including source reloads. Failed classifications are not retried automatically.
 
