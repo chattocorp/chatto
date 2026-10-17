@@ -37,8 +37,8 @@ async function passing(): Promise<LanguageReportEvidence> {
       [`Closed ${issueUrl(101)}`]
     ],
     requests: [
-      { request: 'Please file a GH bug for this', context: 'Reported, not reproduced.' },
-      { request: 'This was a joke, please close the issue again', context: 'Issue #101.' }
+      { task: 'File a bug about Spanish replies', evidence: 'Reported, not reproduced.' },
+      { task: 'Close issue #101 as not planned', evidence: 'Withdrawn as a joke.' }
     ]
   };
 }

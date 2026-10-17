@@ -30,7 +30,10 @@ export function githubCommandLabel(args: readonly string[]): string {
  * This flag is host-owned and is never part of the tool's model-supplied input. */
 export function githubTool(
   { settings, tokens, run = runGh }: GitHubToolOptions,
-  issueWrites = false
+  issueWrites = false,
+  /** Host-bound write check, invoked after static policy and before credentials or execution.
+   * Read-only commands use the static policy without a model call. */
+  checkWrite?: (args: readonly string[], signal: AbortSignal) => Promise<void>
 ) {
   return defineAgentTool({
     name: 'gh',
@@ -44,6 +47,9 @@ export function githubTool(
       if (access === 'write' && !issueWrites)
         throw new GhPolicyError('This command changes GitHub. Only read commands are available.');
       signal ??= AbortSignal.timeout(60_000);
+      signal.throwIfAborted();
+      if (access === 'write') await checkWrite?.(args, signal);
+      signal.throwIfAborted();
       // Even the worker never receives all permissions of the App installation.
       const result = await step(`Executing: ${githubCommandLabel(args)}`, async () => {
         const token = await tokens(
@@ -52,6 +58,7 @@ export function githubTool(
             : { issues: 'write', metadata: 'read' },
           signal
         );
+        signal.throwIfAborted();
         const result = await run(args, { token, repository: settings.repository, signal });
         if (!result.ok) throw new Error(result.output.slice(0, 2000));
         return result;

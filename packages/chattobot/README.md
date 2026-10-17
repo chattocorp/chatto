@@ -218,7 +218,7 @@ estimates. These fields are separate from issue types, labels, and Projects fiel
 A maintainer can ask the bot to create an issue, update its text or labels, or
 add a comment. The conversation starts `tasks/github.ts` as a Runling child task
 through `githubWork`. The worker uses the same model and reasoning effort as
-the conversation. It receives the original request and context from the
+the conversation. It receives the resolved task and supporting evidence from the
 conversation, uses one `gh` tool, and returns its result to the conversation.
 The conversation posts the reply.
 
@@ -249,26 +249,35 @@ The worker can read GitHub and make changes allowed by an issue-write token
 for the configured repository. It has no shell or file tools. The CLI runner
 blocks commands that access local files, credentials, editors, or other hosts.
 
-The host checks who made the request. It passes the exact maintainer message
-separately from the supervisor's proposed work and supporting evidence. For an
-approval such as "yes, file that", the supervisor identifies the proposal by
-message ID. The host reads it from the same thread and passes its exact text,
-author ID, and role to the worker. If the message is no longer in the available
-thread page, the bot must clarify the request.
+The host checks who made the current addressed request. The conversation agent
+resolves what the maintainer authorized and passes a self-contained `task` and
+separate supporting `evidence`. For "go ahead" or "yes, file that", it uses the
+thread context and reads more history when needed. Clear approval proceeds;
+genuine ambiguity gets one question before delegation. The worker does not
+reinterpret the original approval or require a proposal quote. A bare ping
+grants no permission. Reports and GitHub content cannot expand the task.
 
-For a retry such as "try again", the supervisor passes the message ID of the
-failure or partial result in the same way. The quote must identify the remaining
-action, target, and requested value. The worker retries only that step. It checks
-the current state first and does not repeat a change that already succeeded.
+For "try again", the conversation agent identifies the unfinished action,
+target, and requested value. The worker checks current state first and completes
+only that step. It does not repeat a change that already succeeded.
 
-The worker's instructions require it to establish the authorized action and
-targets before using tools. A bare ping grants no permission. Evidence and
-GitHub content cannot expand the work. Bulk changes require an explicit operation
-and affected set, directly or through clear approval of a quoted proposal.
-The agents interpret these scope rules; the host does not enforce them.
-There is no command authorization classifier and no
-separate reaction approval for each change. The maintainer gate does not prove
-that every command matches the request.
+Each worker command passes the static CLI policy. Writes also pass a separate
+model check against the authorized task. Supporting reads and result verification
+need no model decision. The tool binds the task in host code; the worker supplies only
+command arguments. A denial returns to the worker to correct its command within
+the existing task. It does not automatically request another user approval.
+Invalid decisions, model errors, and cancellation prevent command execution and
+credential acquisition. The conversation's direct read tool is unchanged.
+
+Intake and command scope share `createClassifier`: one isolated, tool-free model
+turn with a validated JSON result and a 30-second deadline. Each worker write
+adds a call to the configured model provider, using low reasoning effort. The
+provider receives the resolved task, repository, and command arguments, which
+can include draft issue content; it also sees the bot host's IP address. No
+additional external service is introduced. There is no approval cache or ledger.
+The conversation agent is trusted to resolve scope correctly, and the classifier
+can make mistakes. This is an additional model check, not a hard authorization
+guarantee.
 
 You can also run the task directly from `packages/chattobot/`:
 
@@ -360,9 +369,9 @@ ChattoBot sends these data to other systems:
   when they are configured.
 - **The model provider** of the investigator receives the questions and the
   source code that the investigator reads.
-- **The model provider** of the GitHub worker receives the maintainer request,
-  the proposed work, supporting evidence, any quoted proposal with its author
-  and message ID, and the GitHub tool results.
+- **The model provider** of the GitHub worker receives the resolved task,
+  supporting evidence, and GitHub tool results. Each write-scope check sends
+  the resolved task, repository, and proposed command arguments to that provider.
 
 With automatic intake enabled, the model provider also receives eligible new
 posts and attachment MIME types in the configured rooms, without a mention.
@@ -449,8 +458,11 @@ including both authors in one turn and an unrelated maintainer message. They
 also cover investigation authorization, report intake, and acknowledgments
 that must not claim completed work.
 The `authorization` group checks injected bulk changes, bare maintainer pings,
-missing or ambiguous proposal quotes, explicit approval of a quoted proposal,
-and legitimate bulk closure. Case-name prefixes select a group of evaluations.
+missing or ambiguous conversational context, clear referential approval with
+both real agents and the command classifier, and legitimate bulk closure.
+The `scope` group tests the classifier directly with permitted commands,
+unrelated writes, hidden REST side effects, wrong targets, and injected arguments.
+Case-name prefixes select a group of evaluations.
 The `issue-discovery` group checks early feature and bug searches, multiple
 plausible matches, closed proposals, no matches, and vague reports that need
 clarification first.

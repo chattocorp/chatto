@@ -11,6 +11,8 @@ import { FakeGitHub } from '../evaluations/fake-github.ts';
 import { classifyGh } from '../github/policy.ts';
 import { supervisorCases, workerCases, type SupervisorCase } from '../evaluations/github-cases.ts';
 import { languageReport } from '../evaluations/language-report.ts';
+import { commandCases } from '../evaluations/github-command-cases.ts';
+import { createGitHubCommandClassifier } from './classify-github-command.ts';
 
 interface CaseResult {
   name: string;
@@ -30,10 +32,9 @@ async function supervisor(
   directory: string
 ) {
   const github = scenario.fixture?.() ?? new FakeGitHub();
-  const requests: string[] = [];
   const delegated: Parameters<ReturnType<typeof createGitHubWorker>>[1][] = [];
   let directWrites = 0;
-  const attempts: { requestId?: unknown; proposedWork?: unknown; evidence?: unknown }[] = [];
+  const attempts: { requestId?: unknown; task?: unknown; evidence?: unknown }[] = [];
   const investigationAttempts: { requestId?: unknown }[] = [];
   const investigations: string[] = [];
   const posts: string[] = [];
@@ -109,7 +110,7 @@ async function supervisor(
         onEvent(event) {
           if (event.type === 'tool_execution_start' && event.toolName === 'githubWork')
             attempts.push(
-              event.args as { requestId?: unknown; proposedWork?: unknown; evidence?: unknown }
+              event.args as { requestId?: unknown; task?: unknown; evidence?: unknown }
             );
           if (event.type === 'tool_execution_start' && event.toolName === 'investigate')
             investigationAttempts.push(event.args as { requestId?: unknown });
@@ -141,15 +142,13 @@ async function supervisor(
           output: Type.String()
         },
         async (workerContext, input) => {
-          const { request } = input;
-          requests.push(request);
           delegated.push(input);
           if (worker) return worker(workerContext, input);
           if (scenario.workerResult !== undefined) return scenario.workerResult;
           github.issues.push({
             number: 101,
             title: 'Fixture issue',
-            body: request,
+            body: input.task,
             labels: [],
             state: 'OPEN',
             url: 'https://github.com/evaluation/fixture/issues/101'
@@ -181,7 +180,6 @@ async function supervisor(
   release.resolve();
   await invocation.result;
   return {
-    requests,
     delegated,
     directWrites,
     attempts,
@@ -204,7 +202,12 @@ export default task(
     if (!model) throw new ConfigurationError('Set CHATTO_AGENT_MODEL for evaluations');
     const selected = (name: string) =>
       !filter || filter === 'all' || name === filter || name.startsWith(`${filter}-`);
-    const cases = [...workerCases, ...supervisorCases, { name: 'language-report-withdrawal' }];
+    const cases = [
+      ...workerCases,
+      ...supervisorCases,
+      ...commandCases,
+      { name: 'language-report-withdrawal' }
+    ];
     if (!cases.some((scenario) => selected(scenario.name)))
       throw new Error(
         `Unknown evaluation case. Choose: ${cases.map((scenario) => scenario.name).join(', ')}`
@@ -251,6 +254,17 @@ export default task(
       );
     }
 
+    for (const scenario of commandCases.filter((item) => selected(item.name))) {
+      await evaluate(scenario.name, async (context, evidence) => {
+        const decision = await createGitHubCommandClassifier(model)(context, {
+          task: scenario.task,
+          repository: 'evaluation/fixture',
+          args: scenario.args
+        });
+        evidence(decision);
+        assert.equal(decision.allow, scenario.allow, 'Incorrect command scope decision');
+      });
+    }
     for (const scenario of workerCases.filter((item) => selected(item.name))) {
       await evaluate(scenario.name, async (context, evidence) => {
         const github = scenario.fixture();
@@ -263,10 +277,8 @@ export default task(
           sessions: resolve(directory, 'sessions')
         });
         record.answer = await worker(context, {
-          request: scenario.request,
-          proposedWork: scenario.proposedWork ?? scenario.request,
-          evidence: scenario.evidence ?? '',
-          ...(scenario.approvalProposal ? { approvalProposal: scenario.approvalProposal } : {})
+          task: scenario.request,
+          evidence: scenario.evidence ?? ''
         });
         assert(
           github.commands.every((command) => command.supported),
@@ -282,11 +294,7 @@ export default task(
         const expected = scenario.messages.find(
           (message) => message.id === scenario.expectedRequest
         );
-        assert.deepEqual(
-          result.requests,
-          expected ? [expected.body] : [],
-          'Incorrect worker delegation'
-        );
+        assert.equal(result.delegated.length, expected ? 1 : 0, 'Incorrect worker delegation');
         assert.deepEqual(
           result.attempts.map((attempt) => attempt.requestId),
           expected ? [expected.id] : [],

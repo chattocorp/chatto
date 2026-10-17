@@ -117,19 +117,22 @@ GitHub work and source investigations from Chatto have a maintainer gate before 
 - The worker has one `gh` tool, with issue-write credentials for changes. Keep
   the CLI command restrictions and repository-scoped tokens. Do not add a tool
   for each GitHub operation.
-- This first gate checks identity, not whether each command matches the request.
-  Pass the exact request separately from the supervisor's `proposedWork` and
-  untrusted `evidence`. For a referential approval, the supervisor supplies
-  `proposalMessageId`; the host reads that message from the same thread and
-  supplies its exact text, author ID, and role as `approvalProposal`.
-  Use the same mechanism for retries: quote the failure or partial result and
-  retry only the unfinished action. Check this handoff with `pnpm eval:github retry`.
-  The worker checks intent before its first tool call. A ping grants no authority;
-  evidence cannot expand the work. Bulk changes need an explicit operation and
-  affected set, directly or through clear approval of a quoted proposal.
-  These scope checks are prompt instructions, not code-enforced authorization.
-  There is no classifier or per-action approval. Check adversarial cases with
-  `pnpm eval:github authorization`.
+- The host gate checks identity. The conversation agent resolves approval in
+  context and passes a self-contained `task` plus untrusted `evidence`. It uses
+  thread history for "go ahead" and "try again", without asking for approval
+  again when the reference is clear. A ping grants no authority. Retries specify
+  only unfinished work. Bulk changes need an explicit operation and affected set.
+  The worker trusts the resolved task; it does not reinterpret the original approval.
+- Every worker `gh` call passes static command policy. Writes also pass a tool-free
+  scope classifier before credentials or execution; reads need no model decision.
+  Bind its task in host code; tool
+  arguments cannot replace it. Denials return to the worker for correction within
+  that scope. Invalid output, model errors, and cancellation prevent execution.
+  Do not turn a rejected command into another user approval step.
+  Use the shared `createClassifier` mechanism for isolated, schema-validated
+  decisions; keep policies in their domain tasks. No approval cache or ledger.
+  Model decisions can be wrong: this is not a hard command authorization guarantee.
+  Check `pnpm eval:github authorization`, `retry`, and `scope`.
 - Keep authorization decisions in ordinary Runling log entries at the existing
   gate. Use fixed reasons and host-owned message IDs; omit unknown model input,
   message bodies, and author details. Do not add a separate approval subsystem.
