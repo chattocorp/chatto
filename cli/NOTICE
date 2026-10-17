@@ -11,6 +11,7 @@ each artifact.
 
 ChattoBot:
 
+- Paseo client SDK (https://github.com/getpaseo/paseo) - Apache License 2.0
 - LinkeDOM (https://github.com/WebReflection/linkedom) - ISC License
 
 Server and CLI Go Components:

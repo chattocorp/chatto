@@ -24,6 +24,7 @@ import { createChattoRouter, createRouterState, type RouterState } from './route
 import { createIntakeClassifier } from '../tasks/classify-intake.ts';
 import { createThreadWorkflow } from '../tasks/thread.ts';
 import { createFollowUpReader } from './follow-up.ts';
+import { paseoSettings } from '../paseo/settings.ts';
 
 /** Parse maintainer Chatto user IDs, separated by commas or spaces. They are matched against
  * server-authenticated message authors, never display names. */
@@ -62,6 +63,7 @@ export function sourceSettings() {
       maintainers: maintainerIds(),
       maintainerLogin: maintainerLoginSetting(),
       web: webSettings(),
+      paseo: paseoSettings(),
       // One token source per generation, so conversations share cached installation tokens.
       github: github && { settings: github, tokens: createTokenSource(github) },
       ...(source

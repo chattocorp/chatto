@@ -437,6 +437,9 @@ importers:
       '@chatto/client':
         specifier: workspace:*
         version: link:../chatto-client
+      '@getpaseo/client':
+        specifier: ^0.11.4
+        version: 0.11.4
       linkedom:
         specifier: ^0.18.13
         version: 0.18.13
@@ -1414,6 +1417,15 @@ packages:
 
   '@fontsource/ibm-plex-mono@5.3.0':
     resolution: {integrity: sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q==}
+
+  '@getpaseo/client@0.11.4':
+    resolution: {integrity: sha512-OaStIZXGO6zCsXzqgcf772c1z/gP22v3UyT9nRt+WbshmRDlJTERUxnJYnzYsJ/0vfKivCfUOTcP9YHBnqIUEw==}
+
+  '@getpaseo/protocol@0.11.4':
+    resolution: {integrity: sha512-P0Gl+CoIBCbK6aULG2FjgNPRPvPhnWnmsX3UsFwqSxEB+NWZsRDJaKqG3PjDbZ3RZtdRBGeXPYDVnL8wBLKX7w==}
+
+  '@getpaseo/relay@0.11.4':
+    resolution: {integrity: sha512-KeEUCZvQdb4yjNJanm4C28R20n7fV/gijk+Q5NZlv7V4zKQAQrG9knAkTmhk9T9VjhUMooFj7MwS5cADhZhUOw==}
 
   '@google/genai@2.21.0':
     resolution: {integrity: sha512-+PDtco2/Z0ONdzCGekCoCT+O1VJS9xJQNN4XzQpXG/t3El/SWWMkCWlFRO1KmivOHPa4Q0VjUYu1HBKCZ/v33Q==}
@@ -6471,6 +6483,9 @@ packages:
     resolution: {integrity: sha512-s0GhnWXlAAN+wb2GRMQxnZgFweRWTAceRWW/4Lk9iHj7QuLZMjDxQQqu+Xoh7Nckuy8UiSim520w6yqP2+ertw==}
     hasBin: true
 
+  tweetnacl@1.0.3:
+    resolution: {integrity: sha512-6rt+RN7aOi1nGMyC4Xa5DdYiukl2UWCbcJft7YhxReBGQD7OAM8Pbxw6YMo4r2diNEA8FEmu32YOn9rhaiE5yw==}
+
   type-check@0.4.0:
     resolution: {integrity: sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew==}
     engines: {node: '>= 0.8.0'}
@@ -8308,6 +8323,29 @@ snapshots:
   '@fontsource-variable/plus-jakarta-sans@5.3.0': {}
 
   '@fontsource/ibm-plex-mono@5.3.0': {}
+
+  '@getpaseo/client@0.11.4':
+    dependencies:
+      '@getpaseo/protocol': 0.11.4
+      '@getpaseo/relay': 0.11.4
+      zod: 4.6.5
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
+  '@getpaseo/protocol@0.11.4':
+    dependencies:
+      semver: 7.8.5
+      zod: 4.6.5
+
+  '@getpaseo/relay@0.11.4':
+    dependencies:
+      base64-js: 1.5.1
+      tweetnacl: 1.0.3
+      ws: 8.21.3
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
 
   '@google/genai@2.21.0(supports-color@7.2.0)':
     dependencies:
@@ -13887,6 +13925,8 @@ snapshots:
       '@turbo/linux-arm64': 2.11.2
       '@turbo/windows-64': 2.11.2
       '@turbo/windows-arm64': 2.11.2
+
+  tweetnacl@1.0.3: {}
 
   type-check@0.4.0:
     dependencies:
