@@ -2,7 +2,8 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   connectPost,
   getRoomIdByNameViaConnect,
@@ -23,12 +24,13 @@ test.describe('@chatto/client bot', () => {
     const cwd = testInfo.outputPath('client-bot');
     await mkdir(cwd, { recursive: true });
     const script = path.join(cwd, 'bot.mjs');
-    // The bot uses the built package, as a Node host outside the workspace would.
+    // The bot runs the client in a Node host. The workspace package exports
+    // TypeScript source, so Node loads it through tsx.
     await writeFile(
       script,
       `
       import { readFile } from 'node:fs/promises';
-      import { createClient } from ${JSON.stringify(path.join(root, 'packages/chatto-client/dist/index.js'))};
+      import { createClient } from ${JSON.stringify(pathToFileURL(path.join(root, 'packages/chatto-client/src/index.ts')).href)};
       const apiKey = (await readFile(process.env.KEY_FILE, 'utf8')).trim();
       const client = createClient();
       const connection = client.connect({ serverUrl: process.env.SERVER_URL, apiKey });
@@ -43,7 +45,8 @@ test.describe('@chatto/client bot', () => {
       );
       `
     );
-    const bot = spawn(process.execPath, [script], {
+    const tsx = pathToFileURL(createRequire(import.meta.url).resolve('tsx')).href;
+    const bot = spawn(process.execPath, ['--import', tsx, script], {
       cwd,
       env: { ...process.env, SERVER_URL: serverURL, KEY_FILE: keyFile },
       stdio: ['ignore', 'pipe', 'inherit']

@@ -2,7 +2,8 @@ import type { ExpiringAssetUrl } from '../attachments/attachmentUrls.js';
 
 /** HTML documents use an opt-in sandboxed viewer instead of opening a window. */
 export function isHtmlAttachment(contentType: string): boolean {
-  const mediaType = contentType.split(';', 1)[0].trim().toLowerCase();
+  const [parameterless = ''] = contentType.split(';', 1);
+  const mediaType = parameterless.trim().toLowerCase();
   return mediaType === 'text/html' || mediaType === 'application/xhtml+xml';
 }
 

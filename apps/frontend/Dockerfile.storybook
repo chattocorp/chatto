@@ -16,8 +16,7 @@ COPY apps/frontend apps/frontend
 COPY packages/api-types packages/api-types
 COPY packages/lingua packages/lingua
 COPY packages/chatto-client packages/chatto-client
-# This filtered image does not install root tooling; pnpm orders its dependencies.
-RUN pnpm --filter 'chatto-frontend^...' build && pnpm --filter chatto-frontend build-storybook
+RUN pnpm --filter chatto-frontend build-storybook
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine
 

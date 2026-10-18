@@ -103,11 +103,14 @@ function eventFingerprint(event: TimelineEventView): string {
 
 function sameEventList(a: readonly TimelineEventView[], b: readonly TimelineEventView[]): boolean {
   if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i].id !== b[i].id) return false;
-    if (eventFingerprint(a[i]) !== eventFingerprint(b[i])) return false;
-  }
-  return true;
+  return a.every((event, i) => {
+    const other = b[i];
+    return (
+      other !== undefined &&
+      event.id === other.id &&
+      eventFingerprint(event) === eventFingerprint(other)
+    );
+  });
 }
 
 function snapshotEventFingerprints(events: readonly TimelineEventView[]): Map<string, string> {
@@ -409,8 +412,9 @@ export class MessagesStore {
       const hydrated = this.unmaskEvents([event])[0];
       if (!hydrated) return;
       const index = this.events.findIndex((row) => row.id === id);
-      if (index >= 0) {
-        if (eventFingerprint(this.events[index]) !== before.get(id)) return;
+      const current = this.events[index];
+      if (current) {
+        if (eventFingerprint(current) !== before.get(id)) return;
         this.applyThreadDeadlineFromMessage(hydrated);
         this.clearOptimisticVersionForEvent(id);
         this.events = this.source.sort(this.events.with(index, hydrated));
@@ -472,10 +476,8 @@ export class MessagesStore {
   setThreadRootFollowState(threadRootEventId: string, isFollowing: boolean): void {
     clearOptimisticThreadFollowForEvent(this.optimisticThreadFollows, threadRootEventId);
     const idx = this.events.findIndex((e) => e.id === threadRootEventId);
-    if (idx === -1) return;
-
     const rootEvent = this.events[idx];
-    if (!isMessagePostedPayload(rootEvent.event)) return;
+    if (!rootEvent || !isMessagePostedPayload(rootEvent.event)) return;
     if (rootEvent.event.viewerIsFollowingThread === isFollowing) return;
 
     this.events = this.events.with(idx, {
@@ -694,8 +696,9 @@ export class MessagesStore {
     this.invalidatePendingPreviewFetches();
     this.messageTombstones.set(messageEventId, deletedAt);
     const index = this.events.findIndex((event) => event.id === messageEventId);
-    if (index !== -1) {
-      const event = this.applyPrivacyBoundaries(this.events[index]);
+    const current = this.events[index];
+    if (current) {
+      const event = this.applyPrivacyBoundaries(current);
       if (event) this.events = this.events.with(index, event);
     }
     this.applyPrivacyBoundariesToPreviews();
@@ -1042,9 +1045,10 @@ export class MessagesStore {
       if (!acceptResult()) return false;
       if (event) {
         const currentIndex = this.events.findIndex((candidate) => candidate.id === eventId);
+        const current = this.events[currentIndex];
         const hydrated = this.applyPrivacyBoundaries(event);
-        if (hydrated && currentIndex === -1) this.ingestEvent(hydrated);
-        else if (hydrated && eventFingerprint(this.events[currentIndex]) === previousFingerprint) {
+        if (hydrated && !current) this.ingestEvent(hydrated);
+        else if (hydrated && current && eventFingerprint(current) === previousFingerprint) {
           // Replace the temporary row. Ordinary ingestion deduplicates event IDs.
           // A newer local change or resource response takes precedence over this read.
           this.applyThreadDeadlineFromMessage(hydrated);
@@ -1538,10 +1542,8 @@ export class MessagesStore {
     eventData: MessagePostedPayload
   ): void {
     const rootIdx = this.events.findIndex((e) => e.id === eventData.threadRootEventId);
-    if (rootIdx === -1) return;
-
     const rootEvent = this.events[rootIdx];
-    if (!isMessagePostedPayload(rootEvent.event)) return;
+    if (!rootEvent || !isMessagePostedPayload(rootEvent.event)) return;
 
     const actorId = getActorId(spaceEvent.actor);
     const existingParticipants = rootEvent.event.threadParticipants;

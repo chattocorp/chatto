@@ -7,20 +7,15 @@
   "type": "module",
   "sideEffects": false,
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
+    ".": "./src/index.ts",
     "./package.json": "./package.json"
   },
   "files": [
-    "dist",
+    "src",
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "check": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.type-tests.json",
-    "clean": "rm -rf dist",
+    "check": "tsc -p tsconfig.json",
     "test": "vitest run --coverage"
   },
   "devDependencies": {

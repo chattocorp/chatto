@@ -172,10 +172,10 @@ the Vitest browser setup, and in Storybook.
 ### Workspace consumption
 
 The package exports each module as `@chatto/client/<path>`. It also exports
-`.`, `./svelte`, and `./reactivity`. The `@chatto/source` export condition
-points to the TypeScript source. The frontend's Vite and TypeScript settings
-use this condition, so the frontend builds the client from source. Node hosts
-use the compiled `dist/` output.
+`.`, `./svelte`, and `./reactivity`. All exports point to the TypeScript
+source. Workspace consumers compile it with their own tools, and Node hosts
+load it through tsx
+([ADR-116](ADR-116-consume-internal-packages-from-source.md)).
 
 The package keeps the MIT license of the previous `@chatto/client` package.
 Most of its code comes from `apps/frontend`, where it was Apache-2.0. This
