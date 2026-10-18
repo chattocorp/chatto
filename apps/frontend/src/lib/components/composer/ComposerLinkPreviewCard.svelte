@@ -6,7 +6,7 @@ must stay short so the text field stays visible above a software keyboard,
 so this card shows only a thumbnail, the site, and the title. Posted
 messages use the full `LinkPreviewCard`. YouTube and social-post previews also
 use this row, so the composer does not load a third-party player while the
-user types.
+user types. A social post with a content warning shows no image or post text.
 
 **Props:**
 - `preview` - The LinkPreview data to display
@@ -19,16 +19,25 @@ user types.
 
   let { preview, onDismiss }: { preview: LinkPreviewView; onDismiss: () => void } = $props();
 
-  const hostname = $derived.by(() => {
+  /** Host and path without the scheme, for previews that have no site name or title. */
+  const urlParts = $derived.by(() => {
     try {
-      return new URL(preview.url).hostname;
+      const url = new URL(preview.url);
+      return { host: url.hostname, label: `${url.hostname}${url.pathname}`.replace(/\/$/, '') };
     } catch {
-      return preview.url;
+      return { host: preview.url, label: preview.url };
     }
   });
-  const thumbnailUrl = $derived(preview.imageUrl || preview.socialPost?.images[0]?.url || null);
+  /** A content warning on the post or its quoted post hides its media and text here too. */
+  const concealed = $derived(
+    Boolean(preview.socialPost?.contentWarning || preview.socialPost?.quotedPost?.contentWarning)
+  );
+  const thumbnailUrl = $derived(concealed ? null : preview.imageUrl || null);
   const title = $derived(
-    preview.title || preview.socialPost?.author?.displayName || preview.socialPost?.text || hostname
+    preview.title ||
+      preview.socialPost?.author?.displayName ||
+      (concealed ? null : preview.socialPost?.text) ||
+      urlParts.label
   );
   let failedThumbnailUrl = $state<string | null>(null);
 </script>
@@ -57,21 +66,26 @@ user types.
         <span
           class={[
             'iconify text-lg text-muted',
-            preview.embedType === 'youtube' ? 'icon-[uil--play]' : 'icon-[uil--link]'
+            concealed
+              ? 'icon-[uil--eye-slash]'
+              : preview.embedType === 'youtube'
+                ? 'icon-[uil--play]'
+                : 'icon-[uil--link]'
           ]}
           aria-hidden="true"
         ></span>
       {/if}
     </div>
     <div class="flex min-w-0 flex-1 flex-col">
-      <span class="truncate text-xs text-muted">{preview.siteName || hostname}</span>
-      <span class="truncate text-sm font-medium text-text">{title}</span>
+      <span class="truncate text-sm text-muted" dir="auto">{preview.siteName || urlParts.host}</span
+      >
+      <span class="truncate text-sm font-medium text-text" dir="auto">{title}</span>
     </div>
   </a>
   <button
     type="button"
     onclick={onDismiss}
-    class="mini-icon-action h-8 w-8 items-center justify-center hover:text-danger"
+    class="mini-icon-action h-8 w-8 items-center justify-center hover:text-danger touch-input:h-11 touch-input:w-11"
     aria-label={m('preview.dismiss')}
     title={m('preview.dismiss')}
   >

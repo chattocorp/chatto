@@ -11,8 +11,9 @@ preview on screen.
 - `link` — Parsed MessageLink from `$lib/chatLinks`.
 - `onDismiss` — Callback when user dismisses the preview (composer mode).
 - `showDismiss` — Whether to show the dismiss button (default: true).
-- `compact` — Limits the message body to about two lines, for the composer
-  (default: false). The composer must stay short above a software keyboard.
+- `compact` — Limits the message body to about one line and shows attachments
+  as one text line, for the composer (default: false). The composer must stay
+  short above a software keyboard.
 -->
 <script lang="ts">
   import { formatAccountName } from '@chatto/client/timeline/accountName';
@@ -278,7 +279,16 @@ preview on screen.
           </div>
         </ScrollFader>
       {/if}
-      {#if preview.attachments.length > 0}
+      {#if preview.attachments.length > 0 && compact}
+        <div
+          class="truncate border-t border-border/70 px-3 py-1.5 text-xs text-muted"
+          data-testid="message-preview-attachment-summary"
+        >
+          {preview.attachments.length === 1
+            ? attachmentLabel(preview.attachments[0].contentType)
+            : m('message_preview.attachments_count', { count: preview.attachments.length })}
+        </div>
+      {:else if preview.attachments.length > 0}
         <div
           class={[
             'flex items-center gap-2 border-t border-border/70 px-3 py-2',

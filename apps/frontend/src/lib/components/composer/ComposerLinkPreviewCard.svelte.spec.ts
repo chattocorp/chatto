@@ -24,7 +24,7 @@ describe('ComposerLinkPreviewCard', () => {
   it('shows the site, title, and thumbnail in one short row without the description', async () => {
     const { container, getByText } = render(ComposerLinkPreviewCard, {
       preview: preview({
-        title: 'Story title',
+        title: `Story title ${'with many words '.repeat(20)}`,
         description: 'A long description',
         siteName: 'Example',
         imageUrl: 'https://example.com/image.png'
@@ -33,7 +33,7 @@ describe('ComposerLinkPreviewCard', () => {
     });
 
     await expect.element(getByText('Example')).toBeInTheDocument();
-    await expect.element(getByText('Story title')).toBeInTheDocument();
+    await expect.element(getByText(/^Story title/)).toBeInTheDocument();
     expect(container.textContent).not.toContain('A long description');
     expect(container.querySelector('img')?.getAttribute('src')).toBe(
       'https://example.com/image.png'
@@ -42,13 +42,54 @@ describe('ComposerLinkPreviewCard', () => {
     expect(card.getBoundingClientRect().height).toBeLessThanOrEqual(72);
   });
 
-  it('falls back to the host name when the preview has no site name or title', async () => {
+  it('shows the host and the path when the preview has no site name or title', async () => {
     const { getByText } = render(ComposerLinkPreviewCard, {
       preview: preview(),
       onDismiss: vi.fn()
     });
 
-    await expect.element(getByText('example.com').first()).toBeInTheDocument();
+    await expect.element(getByText('example.com', { exact: true })).toBeInTheDocument();
+    await expect.element(getByText('example.com/story', { exact: true })).toBeInTheDocument();
+  });
+
+  it('shows the fallback icon when the thumbnail fails to load', async () => {
+    const { container } = render(ComposerLinkPreviewCard, {
+      preview: preview({ title: 'Story title', imageUrl: 'https://example.com/broken.png' }),
+      onDismiss: vi.fn()
+    });
+
+    container.querySelector('img')!.dispatchEvent(new Event('error'));
+
+    await expect.poll(() => container.querySelector('img')).toBeNull();
+    expect(container.querySelector('.icon-\\[uil--link\\]')).not.toBeNull();
+  });
+
+  it.each([
+    ['the post', { contentWarning: 'Spoilers' }],
+    [
+      'the quoted post',
+      {
+        quotedPost: {
+          provider: 'mastodon',
+          text: 'Quoted secret',
+          contentWarning: 'Spoilers',
+          images: []
+        }
+      }
+    ]
+  ])('hides the image and text when %s has a content warning', async (_, warning) => {
+    const { container, getByText } = render(ComposerLinkPreviewCard, {
+      preview: preview({
+        url: 'https://mastodon.example/@alice/1',
+        imageUrl: 'https://example.com/sensitive.png',
+        socialPost: { provider: 'mastodon', text: 'Secret post text', images: [], ...warning }
+      }),
+      onDismiss: vi.fn()
+    });
+
+    await expect.element(getByText('mastodon.example/@alice/1')).toBeInTheDocument();
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.textContent).not.toContain('Secret post text');
   });
 
   it('shows a YouTube preview as a row without loading the player', async () => {
