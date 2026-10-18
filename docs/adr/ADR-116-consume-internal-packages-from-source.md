@@ -36,9 +36,11 @@ Consumers type-check the package source with their own compiler and settings.
 Package source must therefore pass the strictest consumer settings. Today,
 ChattoBot adds `noUncheckedIndexedAccess`, `noImplicitOverride`, and
 `noFallthroughCasesInSwitch`. The client check applies these settings to its
-production source with `tsconfig.strict.json`, so a client change cannot fail
-a consumer check later. Specs and test helpers keep the base settings. Source
-consumers use the same TypeScript major version as the packages.
+production source with `tsconfig.strict.json`, so these flags cannot fail
+ChattoBot's check later. Specs and test helpers keep the base settings. Other
+differences in consumer settings, such as Node types, can still fail a
+consumer check; `mise check-workspace` finds them. Source consumers use the
+same TypeScript major version as the packages.
 
 Runling is not in scope. It is published to npm and keeps its build.
 
