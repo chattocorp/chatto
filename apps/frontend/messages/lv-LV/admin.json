@@ -586,6 +586,14 @@
         "exhausted": "Izlietota",
         "revoked": "Atsaukta"
       }
+    },
+    "configuration_warnings": {
+      "intro": "Ieteikumi aktīvām istabām. Šie iestatījumi var būt apzināti, piemēram, atsauksmju vākšanai. Citas lomas un lietotāja atļaujas var mainīt dalībnieka piekļuvi.",
+      "rule": "Sūtīšana bez pilnas lasīšanas piekļuves",
+      "consequence": "Šī loma ļauj sūtīt ziņojumus, bet ne lasīt visu istabas sarunu. Tikai mijiedarbību lasīšanas piekļuve joprojām var dot piekļuvi dažiem pavedieniem.",
+      "load_failed": "Neizdevās pārbaudīt konfigurācijas brīdinājumus.",
+      "empty": "Pārbaudītajās istabās brīdinājumi nav atrasti.",
+      "review": "Pārskatiet lomas atļaujas"
     }
   }
 }

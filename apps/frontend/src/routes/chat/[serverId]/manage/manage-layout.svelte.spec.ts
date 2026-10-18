@@ -5,6 +5,7 @@ import { loadLocaleMessages } from '$lib/i18n/messages';
 beforeAll(() => loadLocaleMessages('en-GB'));
 
 import { tick } from 'svelte';
+import { page } from '$app/state';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { testSnippet } from '$lib/test-utils';
@@ -44,31 +45,36 @@ beforeEach(() => {
 });
 
 describe('management route admission', () => {
-  it('retains an admitted page through refresh and removes it on confirmed access loss', async () => {
-    const { container } = render(Layout, {
-      props: { children: testSnippet('<input data-testid="filter" />') }
-    });
-    await tick();
-    const filter = container.querySelector<HTMLInputElement>('[data-testid="filter"]')!;
-    filter.value = 'message';
-    sync.markStale();
-    await tick();
-    expect(container.querySelector('[data-testid="filter"]')).toBe(filter);
-    server.permissions.loaded = true;
-    sync.markCaughtUp('refreshed');
-    await tick();
-    expect(container.querySelector('[data-testid="filter"]')).toBe(filter);
-    expect(filter.value).toBe('message');
+  it.each(['permissions', 'configuration-warnings'])(
+    'gates %s by role management and removes it on confirmed access loss',
+    async (route) => {
+      page.url.pathname = `/chat/origin/manage/server/${route}`;
+      const { container } = render(Layout, {
+        props: { children: testSnippet('<input data-testid="filter" />') }
+      });
+      await tick();
+      const filter = container.querySelector<HTMLInputElement>('[data-testid="filter"]')!;
+      filter.value = 'message';
+      sync.markStale();
+      await tick();
+      expect(container.querySelector('[data-testid="filter"]')).toBe(filter);
+      server.permissions.loaded = true;
+      sync.markCaughtUp('refreshed');
+      await tick();
+      expect(container.querySelector('[data-testid="filter"]')).toBe(filter);
+      expect(filter.value).toBe('message');
 
-    sync.markStale();
-    await tick();
-    server.permissions.canAdminManageRoles = false;
-    server.permissions.loaded = true;
-    sync.markCaughtUp('revoked');
-    await tick();
-    expect(container.querySelector('[data-testid="filter"]')).toBeNull();
-    await expect.element(container).toHaveTextContent('Access Denied');
-  });
+      sync.markStale();
+      await tick();
+      server.permissions.canAdminManageRoles = false;
+      server.permissions.canManageServer = true;
+      server.permissions.loaded = true;
+      sync.markCaughtUp('revoked');
+      await tick();
+      expect(container.querySelector('[data-testid="filter"]')).toBeNull();
+      await expect.element(container).toHaveTextContent('Access Denied');
+    }
+  );
 
   it('does not admit private content while initial permissions are unknown', async () => {
     server.permissions.loaded = false;

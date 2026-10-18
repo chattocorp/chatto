@@ -575,6 +575,14 @@
         "exhausted": "Esgotado",
         "revoked": "Revogado"
       }
+    },
+    "configuration_warnings": {
+      "intro": "Orientações para salas ativas. Estas configurações podem ser intencionais, por exemplo para receber sugestões. Outros papéis e permissões específicas do usuário podem alterar o acesso de um membro.",
+      "rule": "Envio sem acesso completo de leitura",
+      "consequence": "Este papel permite enviar mensagens, mas não ler toda a conversa da sala. A leitura limitada a interações ainda pode dar acesso a algumas conversas em sequência.",
+      "load_failed": "Não foi possível verificar os avisos de configuração.",
+      "empty": "Nenhum aviso encontrado nas salas verificadas.",
+      "review": "Revisar permissões do papel"
     }
   }
 }

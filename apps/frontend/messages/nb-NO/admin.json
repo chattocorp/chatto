@@ -575,6 +575,14 @@
         "exhausted": "Oppbrukt",
         "revoked": "Trukket tilbake"
       }
+    },
+    "configuration_warnings": {
+      "intro": "Råd for aktive rom. Innstillingene kan være tilsiktet, for eksempel for tilbakemeldinger. Andre roller og brukerspesifikke tillatelser kan endre et medlems tilgang.",
+      "rule": "Skrive uten full lesetilgang",
+      "consequence": "Denne rollen tillater å sende meldinger, men ikke å lese hele romsamtalen. Lesetilgang for interaksjoner kan fortsatt gi tilgang til enkelte tråder.",
+      "load_failed": "Kunne ikke kontrollere konfigurasjonsadvarsler.",
+      "empty": "Ingen advarsler funnet i de kontrollerte rommene.",
+      "review": "Se gjennom rolletillatelser"
     }
   }
 }

@@ -575,6 +575,14 @@
         "exhausted": "Agotado",
         "revoked": "Revocado"
       }
+    },
+    "configuration_warnings": {
+      "intro": "Consejos para salas activas. Estos ajustes pueden ser intencionales, por ejemplo para recibir comentarios. Otros roles y permisos específicos de usuario pueden cambiar el acceso de un miembro.",
+      "rule": "Envío sin acceso completo de lectura",
+      "consequence": "Este rol permite enviar mensajes, pero no leer toda la conversación de la sala. La lectura limitada a interacciones aún puede dar acceso a algunos hilos.",
+      "load_failed": "No se pudieron comprobar los avisos de configuración.",
+      "empty": "No se encontraron avisos en las salas comprobadas.",
+      "review": "Revisar permisos del rol"
     }
   }
 }

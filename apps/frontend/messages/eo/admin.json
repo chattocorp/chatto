@@ -575,6 +575,14 @@
         "exhausted": "Elĉerpita",
         "revoked": "Revokita"
       }
+    },
+    "configuration_warnings": {
+      "intro": "Konsiloj por aktivaj ĉambroj. Ĉi tiuj agordoj povas esti intencaj, ekzemple por kolekti komentojn. Aliaj roloj kaj uzantospecifaj permesoj povas ŝanĝi la aliron de membro.",
+      "rule": "Sendado sen plena lega aliro",
+      "consequence": "Ĉi tiu rolo permesas sendi mesaĝojn sed ne legi la tutan ĉambran konversacion. Lega aliro nur por interagoj povas ankoraŭ permesi legi kelkajn fadenojn.",
+      "load_failed": "Ne eblis kontroli agordajn avertojn.",
+      "empty": "Neniuj avertoj trovitaj en la kontrolitaj ĉambroj.",
+      "review": "Kontrolu rolpermesojn"
     }
   }
 }

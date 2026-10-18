@@ -575,6 +575,14 @@
         "exhausted": "Aufgebraucht",
         "revoked": "Widerrufen"
       }
+    },
+    "configuration_warnings": {
+      "intro": "Hinweise für aktive Räume. Diese Einstellungen können beabsichtigt sein, etwa für Feedback-Boxen. Andere Rollen und benutzerspezifische Berechtigungen können den Zugriff eines Mitglieds ändern.",
+      "rule": "Schreiben ohne umfassenden Lesezugriff",
+      "consequence": "Diese Rolle erlaubt das Senden von Nachrichten, aber nicht das Lesen der gesamten Raumunterhaltung. Ein auf Interaktionen beschränkter Lesezugriff kann weiterhin einzelne Threads zugänglich machen.",
+      "load_failed": "Konfigurationswarnungen konnten nicht geprüft werden.",
+      "empty": "Keine Warnungen in den geprüften Räumen gefunden.",
+      "review": "Rollenberechtigungen prüfen"
     }
   }
 }

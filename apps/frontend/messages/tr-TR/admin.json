@@ -575,6 +575,14 @@
         "exhausted": "Tükendi",
         "revoked": "İptal edildi"
       }
+    },
+    "configuration_warnings": {
+      "intro": "Etkin odalar için öneriler. Bu ayarlar, örneğin geri bildirim toplamak için kasıtlı olabilir. Diğer roller ve kullanıcıya özel izinler bir üyenin erişimini değiştirebilir.",
+      "rule": "Tam okuma erişimi olmadan gönderme",
+      "consequence": "Bu rol mesaj göndermeye izin verir ancak odadaki tüm konuşmayı okumaya izin vermez. Yalnızca etkileşimleri okuma erişimi bazı ileti dizilerine erişim sağlayabilir.",
+      "load_failed": "Yapılandırma uyarıları kontrol edilemedi.",
+      "empty": "Kontrol edilen odalarda uyarı bulunamadı.",
+      "review": "Rol izinlerini inceleyin"
     }
   }
 }

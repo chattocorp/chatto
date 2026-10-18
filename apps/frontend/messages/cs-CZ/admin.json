@@ -597,6 +597,14 @@
         "exhausted": "Vyčerpán",
         "revoked": "Odvolán"
       }
+    },
+    "configuration_warnings": {
+      "intro": "Doporučení pro aktivní místnosti. Tato nastavení mohou být záměrná, například pro sběr zpětné vazby. Jiné role a oprávnění uživatele mohou změnit přístup člena.",
+      "rule": "Odesílání bez plného přístupu ke čtení",
+      "consequence": "Tato role umožňuje posílat zprávy, ale ne číst celou konverzaci místnosti. Čtení omezené na interakce může stále umožnit přístup k některým vláknům.",
+      "load_failed": "Upozornění na konfiguraci se nepodařilo zkontrolovat.",
+      "empty": "V kontrolovaných místnostech nebyla nalezena žádná upozornění.",
+      "review": "Zkontrolujte oprávnění role"
     }
   }
 }
