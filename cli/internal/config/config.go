@@ -47,11 +47,11 @@ func (c *ChattoConfig) ApplyDefaults() {
 	// Older operators set two limits. Use their maximum for every attachment
 	// until the operator removes the deprecated video setting.
 	if c.Video.MaxUploadSize > 0 {
-		generalLimit := c.Core.Assets.MaxUploadSize
+		generalLimit := datasize.ByteSize(c.Core.Assets.MaxUploadSize)
 		if generalLimit == 0 {
 			generalLimit = datasize.ByteSize(assets.DefaultMaxUploadSize)
 		}
-		c.Core.Assets.MaxUploadSize = max(generalLimit, c.Video.MaxUploadSize)
+		c.Core.Assets.MaxUploadSize = ByteSize(max(generalLimit, c.Video.MaxUploadSize))
 	}
 	if c.NATS.Embedded.Enabled && c.NATS.Embedded.Port > 0 {
 		if c.NATS.Client.URL == "" {
